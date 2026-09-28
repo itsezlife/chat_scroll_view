@@ -7,6 +7,7 @@ import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -72,6 +73,7 @@ class ChatDemoApp extends StatelessWidget {
         seedColor: Colors.blue,
         brightness: Brightness.dark,
       ),
+      extensions: const <ThemeExtension<dynamic>>[UnreadSeparatorColors.dark],
     ),
     builder: (context, child) => ChatChromeTheme(
       colors: const ChatChromeColors.dark(),

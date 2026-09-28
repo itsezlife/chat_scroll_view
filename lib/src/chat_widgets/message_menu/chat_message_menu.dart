@@ -31,9 +31,19 @@ export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu
 /// **Message menu presentation** defaults from [selectionPolicy] (or
 /// [ChatSelectionPolicy.forPlatform] when that is also omitted). Pass
 /// [presentation] to override for a single present. [sheet] dims the
-/// viewport with an undimmed slot hole; [popup] is a light pointer menu
+/// screen and leaves one hole undimmed; [popup] is a light pointer menu
 /// with no dim and no slot outline / lift. Presence, Escape / back,
 /// outside dismiss, and action / reaction results stay one session API.
+///
+/// The sheet hole frames [surfaceRect] in [surfaceShape] when a surface is
+/// given — pass [ChatMessageMenuRequest.surfaceGlobal] /
+/// [ChatMessageMenuRequest.surfaceShape] so only the bubble stays bright.
+/// Without [surfaceRect] it is [messageRect] rounded by
+/// [ChatMessageMenuThemeData.holeRadius], and a surface without a shape uses
+/// that radius too. [visibleRect] clips the hole, so a message partly under
+/// host chrome does not uncover the chrome; pass
+/// [ChatMessageMenuRequest.bandGlobal]. All rects are global and read once
+/// at present. They do not affect placement, and [popup] ignores them.
 ///
 /// When [keepKeyboardVisible] is true, restores the previous [FocusNode]
 /// after the overlay so IME height does not change. Does not request
@@ -52,6 +62,9 @@ Future<ChatMessageMenuResult?> showChatMessageMenu({
   required Rect messageRect,
   required List<ChatMessageMenuItem> items,
   Offset? tapGlobal,
+  Rect? surfaceRect,
+  ShapeBorder? surfaceShape,
+  Rect? visibleRect,
   List<String> reactions = const <String>[],
   bool keepKeyboardVisible = true,
   Listenable? presence,
@@ -71,6 +84,9 @@ Future<ChatMessageMenuResult?> showChatMessageMenu({
   final config = ChatMessageMenuPresentConfig(
     messageRect: messageRect,
     tapGlobal: tapGlobal,
+    surfaceRect: surfaceRect,
+    surfaceShape: surfaceShape,
+    visibleRect: visibleRect,
     items: items,
     reactions: reactions,
     keyboardHeight: media.viewInsets.bottom,

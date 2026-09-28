@@ -11,12 +11,17 @@ import 'package:flutter/widgets.dart';
 /// Registers the surface [RenderBox]; hit-tests resolve
 /// [RenderBox.localToGlobal] at query time so scrolling without a rebuild
 /// does not leave a stale global [Rect].
+///
+/// The registered surface also feeds the **message menu request**: its live
+/// global rect and [shape] become the undimmed hole of the sheet scrim, so
+/// the dim frames the bubble rather than the full row.
 class ChatMessageSurfaceBounds extends StatefulWidget {
   /// Creates a surface-bounds reporter for [messageId].
   const ChatMessageSurfaceBounds({
     required this.controller,
     required this.messageId,
     required this.child,
+    this.shape,
     super.key,
   });
 
@@ -25,6 +30,15 @@ class ChatMessageSurfaceBounds extends StatefulWidget {
 
   /// Message id whose surface is being reported.
   final int messageId;
+
+  /// Outline of the painted surface inside the [child] box, such as the
+  /// bubble's [RoundedRectangleBorder] with per-corner radii.
+  ///
+  /// Only the message menu scrim hole reads it; Inside / Outside hit-testing
+  /// uses the box rect. Directional radii resolve against the menu overlay's
+  /// [Directionality]. Null leaves the hole at the menu theme's hole radius
+  /// around the box. Changing it re-registers on the next frame.
+  final ShapeBorder? shape;
 
   /// Bubble (or other message surface) whose paint box is reported.
   final Widget child;
@@ -70,7 +84,11 @@ class _ChatMessageSurfaceBoundsState extends State<ChatMessageSurfaceBounds> {
   void _report() {
     switch (context.findRenderObject()) {
       case final RenderBox box when box.hasSize:
-        widget.controller.reportMessageSurfaceBounds(widget.messageId, box);
+        widget.controller.reportMessageSurfaceBounds(
+          widget.messageId,
+          box,
+          shape: widget.shape,
+        );
       case _:
         widget.controller.reportMessageSurfaceBounds(widget.messageId, null);
     }

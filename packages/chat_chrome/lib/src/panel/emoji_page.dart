@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_chrome/src/panel/emoji_catalog_data_source.dart';
+import 'package:chat_chrome/src/util/constants.dart';
+import 'package:chat_chrome/src/util/logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -193,10 +195,6 @@ class EmojiPage extends StatefulWidget {
 class EmojiPageState extends State<EmojiPage>
     with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   // --- Diagnostics ----------------------------------------------------------
-
-  static final PanelCatalogDevLog _shellLog = PanelCatalogDevLog(
-    'KeyboardPanel',
-  );
 
   double? _searchLogLastOffset;
   double? _searchLogLastTy;
@@ -764,7 +762,7 @@ class EmojiPageState extends State<EmojiPage>
     double? spacerBottom,
     double? probeBottom,
   }) {
-    if (!_shellLog.enabled) return;
+    if (!LogCategory.emoji.enabled) return;
     final effective = offset ?? _effectiveCatalogOffset;
     final raw = _catalogController.offset;
     final strip = stripY ?? _stripOffset.value;
@@ -780,18 +778,18 @@ class EmojiPageState extends State<EmojiPage>
     _searchLogLastStripY = strip;
     _searchLogLastStripShadow = showShadow;
     _searchLogLastSpacerGone = spacerGone;
-    _shellLog.event('search.geometry', {
-      'offset': DevLogFormat.f(effective),
-      if ((raw - effective).abs() > 0.1) 'rawOff': DevLogFormat.f(raw),
-      'ty': DevLogFormat.f(ty),
-      'stripY': DevLogFormat.f(strip),
+    fine(.emoji, 'search.geometry', {
+      'offset': LogFormat.f(effective),
+      if ((raw - effective).abs() > 0.1) 'rawOff': LogFormat.f(raw),
+      'ty': LogFormat.f(ty),
+      'stripY': LogFormat.f(strip),
       'spacerGone': spacerGone,
       'shadow': showShadow,
       'searchOpen': searchOpen,
-      if (padTop != null) 'padTop': DevLogFormat.f(padTop),
-      if (spacerBottom != null) 'spacerBot': DevLogFormat.f(spacerBottom),
-      if (probeBottom != null) 'probeBot': DevLogFormat.f(probeBottom),
-      'maxOff': DevLogFormat.f(_contentMaxOffset),
+      if (padTop != null) 'padTop': LogFormat.f(padTop),
+      if (spacerBottom != null) 'spacerBot': LogFormat.f(spacerBottom),
+      if (probeBottom != null) 'probeBot': LogFormat.f(probeBottom),
+      'maxOff': LogFormat.f(_contentMaxOffset),
     });
   }
 
@@ -907,8 +905,8 @@ class EmojiPageState extends State<EmojiPage>
 
   void _onLeafTap(CatalogLeaf leaf) {
     final meta = _catalogDataSource.metaFor(leaf);
-    if (_shellLog.enabled) {
-      _shellLog.event('leaf.tap', {
+    if (LogCategory.emoji.enabled) {
+      fine(.emoji, 'leaf.tap', {
         'key': leaf.assetKey.toString(),
         'meta': meta != null,
         'recent': meta?.isRecent,
@@ -1277,20 +1275,20 @@ class EmojiPageState extends State<EmojiPage>
               }
               if (spanChanged || heightChanged) {
                 _updateContentMaxOffset();
-                if (_shellLog.enabled) {
+                if (LogCategory.emoji.enabled) {
                   final inner =
                       constraints.maxWidth - _catalogPadding.horizontal;
-                  _shellLog.event('shell.layout', {
-                    'width': DevLogFormat.f(constraints.maxWidth),
-                    'height': DevLogFormat.f(constraints.maxHeight),
-                    'inner': DevLogFormat.f(inner),
+                  fine(.emoji, 'shell.layout', {
+                    'width': LogFormat.f(constraints.maxWidth),
+                    'height': LogFormat.f(constraints.maxHeight),
+                    'inner': LogFormat.f(inner),
                     'columns': columns,
                     'span': _spanCount,
-                    'cell': DevLogFormat.f(_rowCellExtent),
+                    'cell': LogFormat.f(_rowCellExtent),
                     'pitch': EmojiPage.cellPitch,
-                    'padT': DevLogFormat.f(_catalogPadding.top),
-                    'padB': DevLogFormat.f(_catalogPadding.bottom),
-                    'extent': DevLogFormat.f(_contentMaxOffset),
+                    'padT': LogFormat.f(_catalogPadding.top),
+                    'padB': LogFormat.f(_catalogPadding.bottom),
+                    'extent': LogFormat.f(_contentMaxOffset),
                     'sections': _catalogDataSource.sections.length,
                   });
                 }

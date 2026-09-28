@@ -44,6 +44,10 @@ final class ChatTextSelection {
   /// Mounted message-surface (bubble) boxes — same live-resolve contract.
   final Map<int, RenderBox> _messageSurfaceBoxes = <int, RenderBox>{};
 
+  /// Outline reported with a [_messageSurfaceBoxes] entry; absent when the
+  /// host reported none.
+  final Map<int, ShapeBorder> _messageSurfaceShapes = <int, ShapeBorder>{};
+
   int? _subjectId;
   var _active = false;
   var _disposed = false;
@@ -126,6 +130,25 @@ final class ChatTextSelection {
     return containsGlobal(messageId, globalOffset);
   }
 
+  /// Live global rect and reported outline of the **message surface** of
+  /// [messageId], or null when no mounted, sized surface box is registered.
+  ///
+  /// Resolves [RenderBox.localToGlobal] at call time (scroll-safe). `shape`
+  /// is null when the host reported the surface without one. Unlike
+  /// [containsMessageSurface], never falls back to the text body.
+  ({Rect rect, ShapeBorder? shape})? messageSurfaceGlobal(int messageId) {
+    if (_disposed) return null;
+    final rect = _liveGlobalBounds(
+      _messageSurfaceBoxes[messageId],
+      _messageSurfaceBoxes,
+    );
+    if (rect == null) {
+      _messageSurfaceShapes.remove(messageId);
+      return null;
+    }
+    return (rect: rect, shape: _messageSurfaceShapes[messageId]);
+  }
+
   /// Current global paint rect for a registered [box], or null when the box
   /// is missing, detached, or unsized (and drops the stale [owner] entry).
   Rect? _liveGlobalBounds(RenderBox? box, Map<int, RenderBox> owner) {
@@ -151,18 +174,30 @@ final class ChatTextSelection {
     _bodyPaintBoxes[messageId] = box;
   }
 
-  /// Records the message surface (bubble) [RenderBox] for menu Inside/Outside.
+  /// Records the message surface (bubble) [RenderBox] for menu Inside/Outside,
+  /// with the optional [shape] that outlines it inside the box.
   ///
-  /// Pass `null` on dispose / unmount. Hit-tests resolve live global geometry
-  /// at query time so scroll without rebuild stays correct. Silent after
-  /// [dispose].
-  void reportMessageSurfaceBounds(int messageId, RenderBox? box) {
+  /// Pass `null` on dispose / unmount; that also drops the shape. Hit-tests
+  /// resolve live global geometry at query time so scroll without rebuild
+  /// stays correct. Silent after [dispose].
+  void reportMessageSurfaceBounds(
+    int messageId,
+    RenderBox? box, {
+    ShapeBorder? shape,
+  }) {
     if (_disposed) return;
     if (box == null || !box.hasSize) {
       _messageSurfaceBoxes.remove(messageId);
+      _messageSurfaceShapes.remove(messageId);
       return;
     }
     _messageSurfaceBoxes[messageId] = box;
+    switch (shape) {
+      case final shape?:
+        _messageSurfaceShapes[messageId] = shape;
+      case null:
+        _messageSurfaceShapes.remove(messageId);
+    }
   }
 
   /// Whether the live text-selection highlight contains [globalOffset] on
@@ -527,6 +562,7 @@ final class ChatTextSelection {
     _bodies.remove(messageId);
     _bodyPaintBoxes.remove(messageId);
     _messageSurfaceBoxes.remove(messageId);
+    _messageSurfaceShapes.remove(messageId);
     return cleared;
   }
 
@@ -653,6 +689,7 @@ final class ChatTextSelection {
     _bodies.clear();
     _bodyPaintBoxes.clear();
     _messageSurfaceBoxes.clear();
+    _messageSurfaceShapes.clear();
     markdownSelection
       ..clear()
       ..setDocuments(const <MarkdownDocumentRef>[]);

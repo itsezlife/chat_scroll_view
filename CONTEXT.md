@@ -72,7 +72,7 @@ _Avoid_: Cache extent, build zone
 
 **Tier-1**:
 The ticker path that mutates the origin offset and repositions built rows, painting unless coverage fails.
-_Avoid_: Scroll activity, pointer route (as the name for this path)
+_Avoid_: Scroll path, pointer route (as the name for this path)
 
 **Tier-2**:
 The layout path that inflates, measures, and fans out children from the origin.
@@ -113,6 +113,10 @@ _Avoid_: Stick to bottom, jump to end, keyboard follow
 When the full known conversation fits in the scroll band, the viewport is not scrollable.
 _Avoid_: Underscroll, empty list, disabled physics
 
+**Tail-or-target open**:
+A jump that decides once, in the first layout that lays out its target as a loaded row, between the target and the tail: when the newest message is known and loaded and the span from the target's body top (its **row chrome** excluded) to the newest message's bottom fits within a host-given fraction of the viewport height, the chat opens pinned at the tail; otherwise the target is placed as a plain jump. The host hears the outcome inside that layout.
+_Avoid_: Smart jump, auto-scroll to bottom, half-screen check (as the engine name)
+
 **Band-stable delete recovery**:
 After the origin ID becomes absent, keep the visible band’s bottom (the reading position) still, not the raw origin Y.
 _Avoid_: Compensate, keep anchor Y, correctBy
@@ -125,6 +129,26 @@ _Avoid_: Date, section, sticky header (as the key)
 
 **Starts day**:
 A row that opens a new day bucket and may show an inline date separator.
+
+**Row chrome**:
+Viewport-owned decoration stacked above the message body inside one message slot, such as the inline date separator of a row that starts a day. Each item has a **row chrome delegate** that resolves its opacity and input every frame from its paint position, the floating header zone, and **scroll activity**; the summed chrome height is the line above which presses are chrome, not message. Outside selection chrome; never message surface.
+_Avoid_: Header row, fake message, list item, part of the message builder, chrome role enum
+
+**Unread boundary**:
+The host-chosen message id where unread content begins — typically the first unread message from someone else, fixed when the chat opens and kept while the reader catches up. The host decides what counts as unread and when the boundary appears, moves, or goes away; the viewport only compares ids. Distinct from a read baseline that advances as the reader scrolls, and from **Starts day**.
+_Avoid_: Read baseline, last-read, unread row, first-unread index
+
+**Unread separator**:
+Host-built **row chrome** stacked inside the **unread boundary** row: below the inline date separator when that row **starts a day**, above the message body. Painted only on a loaded message row, always opaque (the day header policy never fades it), outside selection chrome, never message surface.
+_Avoid_: Unread row, fake message, divider item, part of the message builder
+
+**Day header policy**:
+The delegate that decides how the floating header and the inline date separators share the top of the viewport: the header's push offset and opacity, and the row chrome delegate every inline separator uses. Built-ins fade separators under a resting header, or push the header up with the next day's separator. The header is *held* while it stands in for a separator hidden or faded under it: it stays shown and pins scroll activity at `1`, so leaving that position never finds it hidden.
+_Avoid_: Sticky header mode, header style enum
+
+**Scroll activity**:
+A viewport-owned factor in `[0, 1]`: rises when the list moves, holds while it moves, falls after an idle delay (longer after navigation). Delegates read it to hide chrome while the list rests; without a clock it stays `1`.
+_Avoid_: AFK timer per widget, scroll idle flag, is-scrolling bool
 
 **Slot**:
 One of four disjoint identity spaces: messages, chunk errors, floating header, overlay.
@@ -280,11 +304,11 @@ _Avoid_: overflow, limit error
 ### Message menu
 
 **Message menu**:
-A host-presented exclusive surface of actions (and optional reactions) for one present message, opened from a press or tap on that message. One concept across platforms; how it looks (scrim and undimmed slot vs a light popup at the pointer) is presentation, not a second term. Cannot run concurrently with an active **span gesture** or other selection-entry gesture; may open while the selected set is already non-empty (**over-selection**). Not overlay chrome and not **text selection chrome**.
+A host-presented exclusive surface of actions (and optional reactions) for one present message, opened from a press or tap on that message. One concept across platforms; how it looks (scrim with the message left undimmed vs a light popup at the pointer) is presentation, not a second term. Cannot run concurrently with an active **span gesture** or other selection-entry gesture; may open while the selected set is already non-empty (**over-selection**). Not overlay chrome and not **text selection chrome**.
 _Avoid_: Context menu, overlay chrome, popup, action sheet, **text selection chrome**
 
 **Message menu request**:
-The structured packet the viewport emits when a message-menu entry gesture wins on a present message **slot** (full row — not bubble-only, not list background or day headers): message id, slot rect, tap position, and viewport-known **hit context** the host needs to choose rows — **message menu point state** (message-surface Inside vs slot Outside), **message menu membership** (idle / upon-selected / elsewhere), whether this message is the live **text selection** subject (`hasTextSelection`), whether the tap is upon that highlight (`overlapsTextSelection`, with a snapshot for Copy-selected), optional **select-up-to** chain ids when membership is elsewhere and the span fits under the selection cap, and an optional **inline hit** (link / code) when the tap is Inside. Not a catalog of actions — that stays host data. Opening the menu does not by itself clear text selection. Not a **selection interaction** (Copy / link / code on the selection facade).
+The structured packet the viewport emits when a message-menu entry gesture wins on a present message **slot** (full row — not bubble-only, not list background or day headers): message id, slot rect, tap position, the reported **message surface** rect and outline when the host registered one, the **scroll band** rect, and viewport-known **hit context** the host needs to choose rows — **message menu point state** (message-surface Inside vs slot Outside), **message menu membership** (idle / upon-selected / elsewhere), whether this message is the live **text selection** subject (`hasTextSelection`), whether the tap is upon that highlight (`overlapsTextSelection`, with a snapshot for Copy-selected), optional **select-up-to** chain ids when membership is elsewhere and the span fits under the selection cap, and an optional **inline hit** (link / code) when the tap is Inside. Not a catalog of actions — that stays host data. Opening the menu does not by itself clear text selection. Not a **selection interaction** (Copy / link / code on the selection facade).
 _Avoid_: ContextMenuRequest (as our type name), MenuEvent, TapDetails alone, host-rebuilt hit guess, nearest-neighbor gap hit, ChatSelectionInteraction
 
 **Message menu point state**:
@@ -312,7 +336,7 @@ The exclusive lifetime of a **message menu** for one **message menu request** (i
 _Avoid_: Overlay entry, popup lifetime, live tracking, context-menu route
 
 **Message menu presentation**:
-How a **message menu session** is drawn: mobile uses a dimmed scrim with the target slot left undimmed and the action column anchored to that slot; desktop/web uses a light popup at the pointer with no viewport dim and no message outline lift. Defaults from **selection policy** (`$Mobile` → scrim sheet, `$Desktop` → pointer popup); the host may override for a given present. Same session contract; not a second product concept.
+How a **message menu session** is drawn: mobile uses a dimmed scrim that leaves only the target's **message surface** undimmed, in the outline the host reported and clipped to the **scroll band** (the whole slot when no surface is reported), with the action column anchored to that slot; desktop/web uses a light popup at the pointer with no viewport dim and no message outline lift. Defaults from **selection policy** (`$Mobile` → scrim sheet, `$Desktop` → pointer popup); the host may override for a given present. Same session contract; not a second product concept.
 _Avoid_: Two menu products, ContextMenu vs ActionSheet split, host-only desktop shell
 
 **Message menu dismiss**:
@@ -340,6 +364,10 @@ _Avoid_: Per-message private decode stores, panel-only drawable maps as the long
 **Navigation alignment**:
 Where a jump or animate should land the target inside the scroll band (band top … band bottom).
 _Avoid_: Scroll offset, alignment in pixels
+
+**Alignment hold**:
+After a navigation's **navigation alignment** (or Center Band placement) lands on a loaded target row, the viewport keeps it on that row until the first user scroll, a programmatic scroll-by, or the next navigation. While held, a change of the top **reserved inset** or of the target row's **row chrome** re-applies it. Other geometry keeps its usual owner: bottom-inset compensation, the boundary clamp, the **row chrome** hold on other rows, and the tail pin. The hold ends without moving anything when the target stops being the **anchor origin**. The engine calls the armed alignment or Center Band placement the *navigation placement*; an **alignment hold** is that placement in its *held* phase (after *pending*, before *released*).
+_Avoid_: Sticky jump, re-jump on inset change, pinning the target
 
 **Close-path animation**:
 Continuous origin-offset interpolation when the target is already built (Telegram `found` → `smoothScrollBy`).

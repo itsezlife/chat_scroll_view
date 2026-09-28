@@ -24,17 +24,19 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 
 | Member                                     | Purpose                                   | Mutates                                               | Must not                                                  |
 | ------------------------------------------ | ----------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------- |
-| `jumpTo`                                   | Teleport anchor to id                     | id, offset=`0`, alignment; optional highlight request | Assume visible row if absent                              |
+| `jumpTo`                                   | Teleport anchor to id; optional tail-or-target decision (`tailFitFraction`) | id, offset=`0`, alignment; optional highlight request | Assume visible row if absent                              |
+| `addTailOrTargetListener` / `removeTailOrTargetListener` | Outcome of a tail-or-target `jumpTo` | listener list (dedup)                          | `setState` / navigate from the callback (runs in layout)  |
+| `notifyTailOrTarget` (`@internal`)         | Dispatch the decided outcome              | — (snapshot; silent after dispose)                    | Call from app code                                        |
+| `markTailFitDecided` (`@internal`)         | Drop the fraction after a target outcome  | `navigationPlacement` fraction (target/phase kept)    | Call from app code                                        |
 | `jumpToCenterBand`                         | Place center-band ray at msg top + offset | id, pending Center Band apply; clears highlight       | Compose via `jumpTo`+`scrollBy`; assume visible if absent |
 | `highlight`                                | Request Message highlight                 | pending highlight id; absent/error drops the slot     | Treat as navigation / origin write                        |
 | `scrollBy`                                 | Programmatic pixel shift                  | offset; fade armed highlight / hard-clear pending     | Call with non-finite; expect Tier-1                       |
 | `animateTo`                                | Smooth nav                                | alignment; animator drives offset                     | Call after dispose                                        |
 | `applyScrollDelta`                         | Silent tick/clamp delta                   | offset                                                | Call from app code                                        |
 | `reassignAnchor`                           | Silent id+offset                          | both                                                  | Notify listeners (it does not)                            |
-| `clearNavigationAlignment`                 | Drop pending align                        | alignment fields                                      | —                                                         |
-| `clearNavigationCenterBand`                | Drop pending Center Band apply            | Center Band nav fields                                | —                                                         |
-| `syncNavigationAlignmentTarget`            | Keep align on clamped id                  | alignment message id                                  | —                                                         |
-| `syncNavigationCenterBandTarget`           | Keep Center Band apply on clamped id      | Center Band message id                                | —                                                         |
+| `holdNavigationPlacement`                  | Pending → held after landing on loaded row | `navigationPlacement` phase (no-op when `null`)       | Call before the placement landed                          |
+| `releaseNavigationPlacement`               | Drop the armed placement, any kind/phase  | `navigationPlacement` → `null`                        | —                                                         |
+| `syncNavigationPlacementTarget`            | Keep placement on clamped id              | `navigationPlacement` target (phase kept)             | —                                                         |
 | `visibleRange` / `centerBand` / `isAtTail` | Listenables                               | deferred notify                                       | setState without deferral (already deferred)              |
 | `notifyScrollEvent`                        | Emit typed event                          | —                                                     | Call from physics                                         |
 | `dispose`                                  | Drop listeners / animator                 | all                                                   | —                                                         |
@@ -70,7 +72,7 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `buildChunkError`     | Inflate error tile               | —                                 |
 | `removeChunkErrors`   | Deactivate error tiles           | —                                 |
 | `buildOverlay`        | Loading/empty/none               | —                                 |
-| `_buildWidget`        | Compose DatedMessage / selection | Put separator inside selection    |
+| `_buildWidget`        | Compose ChatRowChrome / selection | Put separator inside selection    |
 | Skip-cache hit        | Reuse without `updateChild`      | Rely on deep equality of messages |
 
 ---
@@ -82,8 +84,7 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `scanTopDay`                                                 | Topmost visible bucket         | None (pure)                                 |
 | `evaluateLayoutRebuild`                                      | Whether header widget rebuilds | `headerBucket`, `headerDate`, `headerDirty` |
 | `tickForDayChange`                                           | Tier-1 day-change detect       | None                                        |
-| `dividerOpacityFor`                                          | Fade math                      | None                                        |
-| `placeHeaderOffset`                                          | Header Y (`topPad`)            | None                                        |
+| `placeHeaderOffset`                                          | Header rest Y (`topPad`)       | None                                        |
 | `invalidate` / `resetOnDataSourceChange` / `clearForOverlay` | Force/clear state              | header fields                               |
 
 ---
@@ -139,12 +140,19 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `_layoutOverlayMode`                                                            | Empty/loading                     | Clears scroll state                                                    |
 | `_layoutFromAnchor`                                                             | Fan-out wrapper                   | Inside layout callback                                                 |
 | `_fanOutFromAnchor`                                                             | Build/place children              | Before renorm/clamp                                                    |
-| `_buildMessage` / `_buildChunkError`                                            | One child                         | Writes parent data                                                     |
+| `_buildMessage` / `_buildChunkError`                                            | One child                         | Writes parent data; hands a `RenderChatRowChrome` its transition frame before layout |
 | `_bucketOf` / `_startsDay`                                                      | Day grouping                      | Predecessor = `id-1` only today                                        |
 | `_nextNonAbsentIdDown` / `Up`                                                   | Absent skip                       | Return `bound±1`                                                       |
 | `_renormalizeAnchor`                                                            | Visible-origin rebase             | Skip on close path; skip on delete recovery                            |
-| `_applyNavigationAlignment`                                                     | Snap to alignment                 | Skip on close path; skip newest                                        |
-| `_applyNavigationCenterBand`                                                    | Place ray at msg top + offset     | Skip on close path; no newest skip                                     |
+| `_resolveTailOrTarget`                                                          | Decide an armed tail-or-target jump | Before `_applyNavigationPlacement`; first pass with the target loaded and built; re-fans when the listener moved the unread boundary |
+| `_layOutNewestBelow`                                                            | Newest id + row for the fit span  | `null` when newest not reached / not loaded / too far; re-fans from the target body when newest is unbuilt |
+| `_dispatchTailOrTarget`                                                         | Notify outcome in layout callback | Re-fans, consumes `_rowChromeChanged`, and cancels both rows' separator transitions when a listener moved the unread boundary |
+| `_applyNavigationPlacement`                                                     | Seat target by kind; pending → held | Skip on close path; release alignment on newest; held snaps only on `reapplyHold` |
+| `_isNavigationTargetChromeChange`                                               | Row chrome change on placement target | Before 6d; target among the changed rows (boundary move or moved transition frame); skips the row chrome hold when true |
+| `_isNavigationTargetAnchored`                                                   | Placement target is the anchor    | Before 6d; with a held placement + moved top pad, skips the row chrome hold |
+| `_startUnreadSeparatorTransitions`                                              | Boundary move → exit / enter legs | Before 6d, on the pass that sees the move; rows not laid out last frame change without a transition |
+| `_recordRowChromeReference` / `_holdRowChromeReference`                         | Row chrome hold (6d)              | Record before fan-out; hold after pass-1 fan-out, exact comparison, then re-fan |
+| `isUnreadSeparatorExiting`                                                      | Element query                     | Keeps the old boundary row's separator built until its exit ends       |
 | `_closePathEndOffsetFor`                                                        | Close-path animate end            | Tail newest → pin top; else band align                                 |
 | `_alignedTopForMessage`                                                         | Band alignment math               | Not true tail pin                                                      |
 | `_clampBoundaries`                                                              | pinNewest/pinOldest               | Skip drag/bounce; single pin when content fits; delete-recovery guards |

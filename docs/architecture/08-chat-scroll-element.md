@@ -86,9 +86,17 @@ for chrome-only updates.
   shimmer slots and `none` are not wrapped; `gutterOnly` wraps without a
   check. Wrapping zero-size shrink output for absent ids still produces
   selectable ghost rows.
-- If `startsNewDay && separator != null && message != null && groupBucket != null`
-  → `DatedMessage(separator, body)`; else `RepaintBoundary` + body.
-- Separator is **outside** selection so date chrome is never tinted.
+- Row chrome items, top to bottom, only when `message != null`:
+  - date separator if `startsNewDay && separator != null && groupBucket != null`
+    (delegate `dayHeaderDelegate.inlineSeparator`);
+  - unread separator if `hasUnreadSeparator` — resolved by `buildChild` as
+    `unreadSeparatorBuilder != null && message != null &&
+    (unreadBoundary?.value == id || renderObject.isUnreadSeparatorExiting(id))`,
+    built as `ChatRowChromeItem.transitioning` with the `opaque()` delegate,
+    so the viewport's transition frame drives it.
+  Any item → `ChatRowChrome` above the body; none → `RepaintBoundary` + body.
+- Row chrome is **outside** selection and the secondary-tap scope, so it is
+  never tinted and never message surface.
 
 The element does **not** compute day boundaries — it only consumes
 `startsNewDay` / `groupBucket` from the render object. See
@@ -101,18 +109,26 @@ The element does **not** compute day boundaries — it only consumes
 | `_builtMessage[id]` | `IChatMessage?` — **identity** via `identical` |
 | `_builtStatus[id]` | `ChatMessageStatus` |
 | `_builtStartsDay[id]` | `bool` |
+| `_builtUnreadSeparator[id]` | `bool` — row was built with the unread separator |
 | `_builtRunLayout[id]` | `MessageRunLayout` value equality (first/last + optional host `extras`) |
 | `_builtSelectionAllowed[id]` | `ChatSelectionAllowed` — last resolved flags |
 
 **Hit:** existing element **and** status equal **and** `startsNewDay` equal
-**and** `runLayout` equal **and** selection-allowed equal **and**
-`identical(message)`.
+**and** unread-separator flag equal **and** `runLayout` equal **and**
+selection-allowed equal **and** `identical(message)`.
 
 **Miss → full `updateChild`.**
 
-**Cleared entirely** on widget `update` when builders / selection /
-`textDirection` change. Use `==` on builder tear-offs, not `identical`
-(otherwise every parent rebuild drops the cache).
+**Cleared entirely** on widget `update` when builders (including
+`unreadSeparatorBuilder`) / selection / `textDirection` change. Use `==` on
+builder tear-offs, not `identical` (otherwise every parent rebuild drops the
+cache). The `unreadBoundary` listenable instance is **not** a clear trigger:
+the boundary value is a per-id cache input, so a value change — or a swap to
+an instance holding another id — misses only the old and the new boundary
+row. The new row misses at once. The old row keeps hitting while its
+separator exits, and misses once when the exit ends.
+`RenderChatScrollView` listens to the boundary and to its transition clock,
+and calls `markNeedsLayout` so those rows are revisited.
 
 **Selection-allowed map only** cleared on
 `ChatSelectionController` notify (`selectionAllowed` assign /

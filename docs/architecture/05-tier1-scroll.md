@@ -54,7 +54,10 @@ Unconsumed remainder is measured from oldest/newest **box geometry**, never from
 
 ## Fling
 
-- `_startFling` / `_cancelFling` via `ChatScrollPhysics` (`ClampingScrollSimulation`).
+- `_startFling` / `_cancelFling` via `ChatScrollPhysics`
+  (`ChatSplineFlingSimulation`: Android's `OverScroller` spline, same
+  distance as `ClampingScrollSimulation` with the full native duration and
+  tail, so idle-driven chrome waits as long as on a native list).
 - **No-op** when [_contentFitsInViewport](./06-boundaries.md#short-content--_contentfitsinviewport).
 - Per-tick clamp during fling (not suspended).
 - Overscroll resistance is **not** used; unconsumed dy at a reached edge
@@ -86,8 +89,9 @@ anchor without rebuild or `child.layout`.
 - General path interleaves chunk-error tiles at chunk boundaries.
 - Null slots: **skip** (`continue`), never `break`.
 
-Also updates `dividerOpacity` for `startsDay` rows via `_setOffset` (Tier-1
-safe parent-data write).
+Row chrome inputs (`paintTop`, `headerZone`, `scrollActivity`) are published
+afterwards by `_resolveRowChromeFrame` on the same tick (Tier-1-safe
+parent-data writes).
 
 ## `_rangeNoLongerCovers`
 

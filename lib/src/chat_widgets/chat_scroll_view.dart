@@ -1,4 +1,6 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
@@ -121,6 +123,10 @@ DateTime _defaultGroupBy(IChatMessage message) {
 /// Pass [dateSeparatorBuilder] to group messages by day — an inline separator
 /// above the first message of each day plus a floating header pinned to the
 /// top showing the topmost day.
+///
+/// Pass [unreadBoundary] and [unreadSeparatorBuilder] to mark where unread
+/// content begins — an unread separator stacked as row chrome above the
+/// boundary message.
 class ChatScrollView extends RenderObjectWidget {
   /// Creates an anchor-based chat viewport backed by [dataSource] and
   /// [controller], building each visible row with [messageBuilder].
@@ -139,6 +145,10 @@ class ChatScrollView extends RenderObjectWidget {
     this.topPadding,
     this.dateSeparatorBuilder,
     this.groupBy,
+    this.dayHeaderDelegate = const ChatFadingDayHeader(),
+    this.unreadBoundary,
+    this.unreadSeparatorBuilder,
+    this.scrollActivityTiming,
     this.senderRunLayout = DefaultChatSenderRunLayout.instance,
     this.highlightColor,
     this.highlightDuration,
@@ -269,6 +279,13 @@ class ChatScrollView extends RenderObjectWidget {
   /// Empty space reserved at the top of the viewport — for chrome stacked over
   /// the viewport top (an app bar). The floating day header rests just below
   /// this inset.
+  ///
+  /// A change moves the scroll band's top edge without shifting on-screen
+  /// messages (unlike [bottomPadding], it is not compensated) — except
+  /// while a [ChatScrollController.jumpTo] alignment or
+  /// [ChatScrollController.jumpToCenterBand] placement is held: the target
+  /// row is then re-placed against the new edge, so top chrome that appears
+  /// before the reader first scrolls does not cover it.
   final ValueListenable<double>? topPadding;
 
   /// When non-null, enables message grouping: an inline separator above the
@@ -280,11 +297,105 @@ class ChatScrollView extends RenderObjectWidget {
   /// `bucket` when it is not a `DateTime`, or from `firstMessageDate` for day
   /// grouping.
   ///
-  /// The inline separator fades out as it scrolls up toward the floating
-  /// header, so the two are never both visible.
+  /// How the inline separator and the floating header share the top of the
+  /// viewport is the [dayHeaderDelegate]'s call.
   ///
   /// Pass a stable reference, like [messageBuilder].
   final ChatGroupSeparatorBuilder? dateSeparatorBuilder;
+
+  /// Day header policy: where the floating header paints, at what opacity,
+  /// and how inline separators behave near it. Consulted only when
+  /// [dateSeparatorBuilder] is set.
+  ///
+  /// Default: [ChatFadingDayHeader] — the header stays at its rest line and
+  /// inline separators fade out as they rise into it.
+  /// [ChatPushingDayHeader] pushes the header up with the next day's
+  /// separator instead. Implement [ChatDayHeaderDelegate] for any other
+  /// policy. Prefer a const or value-equal instance across rebuilds.
+  final ChatDayHeaderDelegate dayHeaderDelegate;
+
+  /// Message id of the **unread boundary**: the row that carries the unread
+  /// separator. `null` (or a `null` value) paints no separator.
+  ///
+  /// The host owns what the id means — which messages count as unread, when
+  /// the boundary appears, and when it goes away. The viewport only paints
+  /// [unreadSeparatorBuilder] above that id; it knows nothing about read
+  /// state, message authors, or unread counts.
+  ///
+  /// The separator appears only on a **loaded** message row. A boundary whose
+  /// row is still a placeholder (shimmer), sits in an errored chunk, or is
+  /// absent paints nothing. The row gains the separator the next time it is
+  /// built as a loaded message.
+  ///
+  /// The viewport listens while mounted. A value change — set, move, or
+  /// clear — rebuilds only the old and the new boundary row; no other row
+  /// rebuilds. The new row rebuilds at once, and the old row rebuilds when
+  /// its separator has finished leaving. Replacing the listenable with a
+  /// different instance acts as a change from the old value to the new one:
+  /// the old instance is no longer heard, and nothing rebuilds when both
+  /// hold the same id.
+  ///
+  /// The separator animates in and out with the list-item timings of the
+  /// message change transition. Leaving, it fades out over 120 ms while
+  /// its slot collapses over 250 ms. Arriving, its slot grows over 250 ms
+  /// while it fades in and scales up from 0.9. A move runs both at once. A
+  /// change during a transition reverses it from where it is, without a
+  /// jump. A separator that is transitioning takes no input. Only a row
+  /// laid out on the previous frame animates; any other row gains or loses
+  /// the separator in one frame, as does every row while `TickerMode` is
+  /// off.
+  ///
+  /// Adding or removing the separator changes the boundary row's height
+  /// without moving what the reader sees, on every frame of the transition.
+  /// The message row at the bottom of the scroll band keeps its screen
+  /// position: a boundary row on screen or above it grows or shrinks
+  /// upward, and one below the band grows off screen. At the tail the newest
+  /// row stays pinned above the bottom inset. An in-flight navigation, a
+  /// stitch, or a delete recovery keeps ownership of the scroll origin on
+  /// its frames. When the changed row is the target of a held
+  /// [ChatScrollController.jumpTo] alignment (or
+  /// [ChatScrollController.jumpToCenterBand] placement), the placement is
+  /// re-applied instead, on every frame: after `jumpTo(boundary,
+  /// alignment: 0)` the added separator grows from the band top with the
+  /// body below it.
+  ///
+  /// A change made by a tail-or-target listener
+  /// ([ChatScrollController.addTailOrTargetListener]) lands without a
+  /// transition, in the same layout.
+  final ValueListenable<int?>? unreadBoundary;
+
+  /// Builds the **unread separator** shown above the [unreadBoundary] row.
+  /// Ignored when [unreadBoundary] is `null`.
+  ///
+  /// The separator is row chrome: it gets the full row width, picks its own
+  /// height, and stacks below the inline date separator (when the boundary
+  /// row starts a day) and above the message body. It works with or without
+  /// [dateSeparatorBuilder].
+  ///
+  /// Unlike the inline date separator, the [dayHeaderDelegate] never fades
+  /// or hides it: at rest it is painted opaque, and only its enter and exit
+  /// transition (see [unreadBoundary]) changes its opacity, scale, and
+  /// slot height. It is composed outside selection chrome and outside the
+  /// secondary-tap scope, and a press on it is row chrome: it never starts
+  /// message selection and never produces a message menu request. Gestures inside the built widget still work.
+  ///
+  /// The builder receives only a build context — text, localization, and
+  /// styling are host chrome. Pass a stable reference, like
+  /// [messageBuilder]: a new instance rebuilds every built row.
+  final WidgetBuilder? unreadSeparatorBuilder;
+
+  /// Timing of the viewport's scroll-activity clock, or `null` (the default)
+  /// to run none — activity then stays at `1`.
+  ///
+  /// Scroll activity rises when the list moves and falls once scrolling has
+  /// been idle; see [ChatScrollActivityTiming]. The viewport publishes it to
+  /// [dayHeaderDelegate] and to every row chrome delegate, so chrome such as
+  /// the floating header can hide while the list rests.
+  ///
+  /// Hiding takes both knobs: this clock supplies activity, and each delegate
+  /// decides whether to follow it (the built-in day header policies do by
+  /// default — see their `hidesWhenIdle`).
+  final ChatScrollActivityTiming? scrollActivityTiming;
 
   /// Groups messages into sections — messages whose returned keys are equal
   /// (`==`) share a section. Consulted only when [dateSeparatorBuilder] is
@@ -400,7 +511,10 @@ class ChatScrollView extends RenderObjectWidget {
       bottomPadding: bottomPadding,
       topPadding: topPadding,
       groupBy: _effectiveGroupBy,
+      dayHeaderDelegate: dayHeaderDelegate,
+      scrollActivityTiming: scrollActivityTiming,
       senderRunLayout: senderRunLayout,
+      unreadBoundary: unreadBoundary,
       hasErrorBuilder: chunkErrorBuilder != null,
       hasEmptyBuilder: emptyBuilder != null,
       hasLoadingBuilder: loadingBuilder != null,
@@ -431,7 +545,10 @@ class ChatScrollView extends RenderObjectWidget {
       ..bottomPadding = bottomPadding
       ..topPadding = topPadding
       ..groupBy = _effectiveGroupBy
+      ..dayHeaderDelegate = dayHeaderDelegate
+      ..scrollActivityTiming = scrollActivityTiming
       ..senderRunLayout = senderRunLayout
+      ..unreadBoundary = unreadBoundary
       ..hasErrorBuilder = chunkErrorBuilder != null
       ..hasEmptyBuilder = emptyBuilder != null
       ..hasLoadingBuilder = loadingBuilder != null

@@ -30,8 +30,10 @@ flowchart TB
   DelRec[Delete recovery 6b–6c]
   Fan1[Pass-1 fan-out]
   Preserve[_preserveViewportAfterDelete]
+  Hold[_holdRowChromeReference 6d]
   Renorm[_renormalizeAnchor]
-  Align[_applyNavigationAlignment]
+  TailFit[_resolveTailOrTarget]
+  Align[_applyNavigationPlacement]
   Tail[Tail-pin flags]
   GapMatch[_matchExpectedBandGap]
   Clamp[_clampBoundaries]
@@ -44,7 +46,7 @@ flowchart TB
 
   Mode --> Comp --> Overlay
   Overlay -->|yes| OverlayPath
-  Overlay -->|no| DropOverlay --> JumpGC --> NormTail --> DelRec --> Fan1 --> Preserve --> Renorm --> Align --> Tail --> GapMatch --> Clamp --> Fan2
+  Overlay -->|no| DropOverlay --> JumpGC --> NormTail --> DelRec --> Fan1 --> Preserve --> Hold --> Renorm --> TailFit --> Align --> Tail --> GapMatch --> Clamp --> Fan2
   Fan2 -->|yes| Fan2Yes --> GapMatch2 --> GC
   Fan2 -->|no| GapMatch2 --> GC
   GC --> Fetch --> Pub
@@ -126,6 +128,62 @@ When a before-delete snapshot was recorded:
 
 Recovery flags clear at end of `performLayout`.
 
+### 6d. Row chrome hold (after pass-1 fan-out and delete recovery)
+
+Runs only on a pass flagged by `_rowChromeChanged`. Two inputs set it: an
+`unreadBoundary` value change or listenable swap, and a moved frame of the
+unread separator's transition clock (`ChatRowChromeTransitionClock`).
+
+**Starting transitions.** On the pass that sees the boundary move from the
+previous value (`_laidOutUnreadBoundary`) to the current one,
+`_startUnreadSeparatorTransitions` runs before the fan-out. The old row
+exits if it was laid out last frame with the separator. The new row enters
+if it was laid out last frame as a loaded message. Any other row is
+cancelled, so it changes without a transition. Timing and curves come from
+Telegram's chat item animator (TRACE in the unread-bar worked guide):
+
+- The slot extent follows the 250 ms list-item move curve.
+- The exit fades out over 120 ms.
+- The enter fades in and scales up from 0.9 over 250 ms.
+
+All tracks start together. A reversed leg restarts from the current frame.
+`_buildMessage` hands each `RenderChatRowChrome` its frame before layout.
+The legs of rows that are no longer built are dropped after GC. While
+`TickerMode` is off the clock is muted: every leg ends at once, and later
+changes land in one frame.
+
+**Which rows changed.** On the boundary pass, the changed rows are the old
+and the new boundary row. On later passes, they are the rows whose
+transition frame moved since the previous pass. When a changed row is the
+armed navigation placement's target and that target is the anchor
+(`_isNavigationTargetChromeChange`), the hold is skipped and step 9
+re-applies the placement instead, on every frame of the transition. The
+hold is also skipped when the top inset moved on the same pass while a held
+placement's target is the anchor (`_isNavigationTargetAnchored`). Step 9
+re-places the target either way, so the row chrome hold would only be a
+second origin writer.
+
+1. **`_recordRowChromeReference`** — right after step 6, before the fan-out
+   re-lays out the changed rows: from the previous frame's offsets, pick the
+   **reference row** (the highest built message id whose top is above
+   `height - bottomPad`) and record its bottom edge relative to the anchor
+   top. Skipped while an animation or a stitch freeze owns the anchor.
+2. **`_holdRowChromeReference`** — after pass-1 fan-out (and after delete
+   recovery's shift and refan): shift scroll so the reference row's bottom
+   returns to its recorded position relative to the anchor, then re-fan
+   pass 1 once when it shifted. The comparison is exact
+   (`precisionErrorTolerance`), because a transition moves the chrome by a
+   fraction of a pixel per frame. Silent while delete recovery is active or
+   when the anchor id changed since the record.
+
+Effect, on every frame of a transition: the bodies at and below a changed
+row that is on screen or above it keep their screen Y, and the rows above
+absorb the height change. A change below the band grows off screen. At the
+tail the newest row stays at the band bottom. Renormalize, navigation
+alignment and the clamp still run after the hold. A frame that runs while
+an animation, a stitch freeze or delete recovery owns the origin records no
+reference, so the owner keeps the origin.
+
 ### 7. Pass-1 fan-out — `_layoutFromAnchor` → `_fanOutFromAnchor`
 
 Inside `_invokeChildManagerLayout`. Builds and lays out children around the
@@ -138,13 +196,40 @@ the topmost visible child. **Skipped** when
 `_animator.isAnimating && !_animator.farAnimateActive` so close-path animate
 keeps the target as anchor even when off-screen.
 
-### 9. `_applyNavigationAlignment`
+### 8b. `_resolveTailOrTarget`
 
-If `navigationAlignmentMessageId` matches the anchor and the row is built,
-snap `anchorPixelOffset` to `_alignedTopForMessage`. **Skipped** during
-close-path animate (dual-writer guard). **Cleared without snap** when the
-target is the known newest (tail pin owns geometry). May call
-`_repositionFromAnchor`.
+Runs only while the armed placement is an alignment placement with a
+`tailFitFraction` (a tail-or-target `jumpTo`), on the first pass whose
+target is a loaded, laid-out row. Measures the span from the target's body
+top (its row chrome excluded) to the newest message's bottom; a loaded
+newest that fan-out left unbuilt is reached by re-fanning with the target's
+body top on the viewport top. When the newest is reached and loaded and the
+span is at most the fraction of the viewport height, the placement is
+released and the anchor moves to the newest with the tail pin marked
+(**tail**); otherwise the fraction is dropped and step 9 seats the target
+(**target**). The outcome is dispatched to the controller's tail-or-target
+listeners inside a layout callback. When a listener changed the
+`unreadBoundary` value, this pass consumes `_rowChromeChanged`, records the
+new laid-out boundary, cancels the transitions of the old and the new
+boundary row, and re-fans. Steps 9–11 then lay out the new row chrome
+settled, and no frame paints the old one.
+
+### 9. `_applyNavigationPlacement`
+
+If the armed `navigationPlacement` targets the anchor and the row is built,
+snap `anchorPixelOffset` by kind: an alignment placement to
+`_alignedTopForMessage`, a Center Band placement so the band ray hits its
+offset. **Skipped** during close-path animate (dual-writer guard). An
+alignment placement on the known newest is **released without snap** (tail
+pin owns geometry), unless it is an undecided tail-or-target jump, which
+stays armed until its row loads. May call `_repositionFromAnchor`.
+
+A pending placement snaps every pass and becomes **held** once it lands on a
+loaded row. A held placement snaps only when `reapplyHold` is set: the top pad
+moved since the last normal-mode pass, or the target's row chrome changed
+(6d). It is released when the anchor is no longer its target, and in step 10
+when `repinBottom` hands the geometry to the tail pin. See
+[alignment lifecycle](./10-navigation-and-tail.md#alignment-lifecycle).
 
 ### 10. Tail-pin flags → gap match → `_clampBoundaries`
 
@@ -161,7 +246,7 @@ If clamp applied → `_cancelFling()`. When delete recovery is active,
 
 ### 11. Pass-2 re-fan
 
-Re-run fan-out if `clamped || anchorId changed || alignmentMoved`. Pass-1 may
+Re-run fan-out if `clamped || anchorId changed || navigationMoved`. Pass-1 may
 have built a long chain from an off-screen anchor; pass-2 from the corrected
 anchor yields the tight set so extras fall outside `built` and are GC’d.
 
@@ -169,7 +254,8 @@ anchor yields the tight set so extras fall outside `built` and are GC’d.
 
 Remove message ids not in `built` and chunk-error indices not in `builtChunks`,
 except ids in `_gcPinnedDuringClosePath()` (`animateTargetId` and
-`navigationAlignmentMessageId`) so close-path targets survive while off-screen.
+the target of an armed alignment placement) so close-path targets survive
+while off-screen.
 
 ### 13. Fetch scheduler
 

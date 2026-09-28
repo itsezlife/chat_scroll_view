@@ -53,7 +53,9 @@ for height / non-inset geometry only — after an inset shift it should no-op.
 
 ## Diagnostics
 
-Filter tags: `ChatScrollAnimate`, `ChatScrollFetchAnchor`.
+Enable with `--dart-define=chat_scroll_view.debug.animate=true` and
+`--dart-define=chat_scroll_view.debug.anchor=true`; filter the console by
+`chat_scroll_view.animate` and `chat_scroll_view.anchor`.
 
 Key events: `stitch.begin`, `stitch.measure`, `stitch.commit`, `close.rebase`,
 `layout.bottomPadCompensate`, `layout.pinNewest`.

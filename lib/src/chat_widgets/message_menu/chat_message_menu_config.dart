@@ -15,6 +15,9 @@ final class ChatMessageMenuPresentConfig {
     required this.screenSize,
     required this.presentation,
     this.tapGlobal,
+    this.surfaceRect,
+    this.surfaceShape,
+    this.visibleRect,
     this.safePadding = EdgeInsets.zero,
     this.presence,
     this.isPresent,
@@ -40,6 +43,17 @@ final class ChatMessageMenuPresentConfig {
 
   /// Optional tap anchor.
   final Offset? tapGlobal;
+
+  /// Message surface rect in overlay coordinates. When set, the sheet scrim
+  /// hole frames it instead of [messageRect].
+  final Rect? surfaceRect;
+
+  /// Outline of [surfaceRect]. Ignored without [surfaceRect].
+  final ShapeBorder? surfaceShape;
+
+  /// Region where the message is visible, in overlay coordinates. The sheet
+  /// scrim hole is clipped to it.
+  final Rect? visibleRect;
 
   /// System safe insets (status / nav). Do not include the IME.
   final EdgeInsets safePadding;

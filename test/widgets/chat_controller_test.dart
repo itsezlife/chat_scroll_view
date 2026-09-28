@@ -88,6 +88,20 @@ void main() {
       expect(evCalls, 1, reason: 'scroll-event listener must dedup');
     });
 
+    test('tail-or-target listeners go silent after dispose', () {
+      final controller = ChatScrollController();
+      final outcomes = <TailOrTargetOutcome>[];
+      controller
+        ..addTailOrTargetListener(outcomes.add)
+        ..notifyTailOrTarget(TailOrTargetOutcome.target)
+        ..dispose()
+        ..notifyTailOrTarget(TailOrTargetOutcome.tail)
+        ..addTailOrTargetListener(outcomes.add)
+        ..notifyTailOrTarget(TailOrTargetOutcome.tail);
+
+      expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.target]);
+    });
+
     test('addBoundaryListener / addDataListener dedup', () {
       final ds = _PreloadedDataSource(8);
       addTearDown(ds.dispose);

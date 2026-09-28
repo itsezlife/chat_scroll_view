@@ -7,7 +7,9 @@ import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_state.dart';
+import 'package:chat_scroll_view_example/src/features/chat/controller/unread_boundary_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/chat_center_band_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
@@ -15,6 +17,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_sourc
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets_binding.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/ios_keyboard_safe_peel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_search_bar.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
@@ -23,6 +26,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.
 import 'package:chat_scroll_view_example/src/features/chat/widgets/scroll_to_bottom_button.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/selection_app_bar.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls/chat_side_controls.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:control/control.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -80,6 +84,17 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   /// Highest message id counted as read for [ChatScrollToBottomButton]. Seeded
   /// to stored last-read on off-tail open; advanced by the FAB while scrolling.
   final ValueNotifier<int?> _pillLastSeenBaseline = ValueNotifier<int?>(null);
+
+  /// Unread boundary of the current open; `null` until the open resolves.
+  /// Independent of [_pillLastSeenBaseline] — reading advances the baseline,
+  /// never the boundary.
+  UnreadBoundaryController? _unreadBoundary;
+
+  /// Saved reading positions; `null` until the open resolves.
+  ChatCenterBandStore? _centerBandStore;
+
+  /// Saves or drops this chat's reading position when the app hides.
+  late final AppLifecycleListener _lifecycle;
 
   /// Page-down chrome show-intent — drives [ChatSideControlsBar] stack slot.
   var _pageDownChromeVisible = false;
@@ -139,6 +154,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     _keyboardPanelOpen.addListener(_onKeyboardPanelOpenChanged);
     _syncEmojiIcon();
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
+    _lifecycle = AppLifecycleListener(onHide: _saveReadingPosition);
     _init();
   }
 
@@ -307,9 +323,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       ..removeListener(_onKeyboardPanelOpenChanged)
       ..dispose();
     _pillLastSeenBaseline.removeListener(_onPillBaselineChanged);
+    _lifecycle.dispose();
+    _saveReadingPosition();
     _flushPendingLastRead();
     _persistLastReadTimer?.cancel();
     _pillLastSeenBaseline.dispose();
+    _unreadBoundary?.dispose();
     _search?.dispose();
     _controller.dispose();
     _selection.dispose();
@@ -319,10 +338,21 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     if (_ownsEmojiDataSource) {
       _emojiDataSource.dispose();
     }
+    if (_dataSource case final BackendChatDataSource source) {
+      source.removeReconnectGapListener(_onReconnectGap);
+    }
     _dataSource?.dispose();
     _messageMenu = null;
     super.dispose();
   }
+
+  /// Makes the unread boundary pending where a realtime reconnect may have
+  /// missed messages.
+  void _onReconnectGap(RealtimeReconnectGap gap) =>
+      _unreadBoundary?.markReconnectGap(
+        newestBeforeDrop: gap.newestBeforeDrop,
+        readMark: gap.lastReadMessageId,
+      );
 
   Future<void> _init() async {
     setState(() {
@@ -345,7 +375,29 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
         backend.dispose();
         return;
       }
+      // Owned from here on: `dispose()` and the catch below free it.
       _dataSource = backend;
+
+      // Only the server-backed source persists read state; the bundled
+      // sources open without a stored last-read.
+      final lastRead = switch (backend) {
+        final BackendChatDataSource source =>
+          await source.getLastReadMessageId(),
+        CommentsDataSource() => 9990,
+        // GeneratedChatDataSource() => 5,
+      };
+      final store = await ChatCenterBandStore.open();
+      final openPosition = await backend.resolveOpenPosition(
+        storedLastRead: lastRead,
+        isSelfMessage: _isSelfMessage,
+        savedCenterBand: switch (_readingPositionKey(backend)) {
+          final key? => store.read(key),
+          null => null,
+        },
+      );
+      if (!mounted) return;
+      _centerBandStore = store;
+
       _messageMenu = MessageMenu(
         dataSource: backend,
         selection: _selection,
@@ -362,21 +414,50 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       _search?.dispose();
       _search = ChatSearchController(dataSource: backend);
       final newest = backend.newestKnownId;
-      // final lastRead = await backend.getLastReadMessageId();
-      // ignore: prefer_const_declarations
-      final int? lastRead = null;
-
-      final anchor = backend.resolveOpenAnchor(
-        storedLastRead: lastRead,
-        newestKnownId: newest,
-        oldestKnownId: backend.oldestKnownId,
-      );
       _pillLastSeenBaseline.value =
           lastRead != null && newest != null && lastRead < newest
           ? lastRead
           : null;
-      final atTail = newest != null && anchor == newest;
-      _controller.jumpTo(anchor, alignment: atTail ? 0.0 : .8);
+      _unreadBoundary?.dispose();
+      final boundary = _unreadBoundary = UnreadBoundaryController(
+        dataSource: backend,
+        controller: _controller,
+        isSelfMessage: _isSelfMessage,
+        boundary: switch (openPosition) {
+          MessageOpenPosition(:final unreadBoundary) => unreadBoundary,
+          CenterBandOpenPosition() => null,
+        },
+        readElsewhere: switch (backend) {
+          final BackendChatDataSource source => source.readElsewhere,
+          _ => null,
+        },
+      );
+      if (backend case final BackendChatDataSource source) {
+        source.addReconnectGapListener(_onReconnectGap);
+      }
+      switch (openPosition) {
+        case MessageOpenPosition(
+          :final anchor,
+          :final alignment,
+          :final tailFitFraction,
+        ):
+          _controller.jumpTo(
+            anchor,
+            alignment: alignment,
+            tailFitFraction: tailFitFraction,
+          );
+        case CenterBandOpenPosition(
+          :final centerBand,
+          :final pendingBoundaryFrom,
+        ):
+          if (pendingBoundaryFrom case final fromId?) {
+            boundary.setPendingBoundary(fromId);
+          }
+          _controller.jumpToCenterBand(
+            centerBand.messageId,
+            centerBand.offsetFromMessageTop,
+          );
+      }
     } on Object catch (error, stackTrace) {
       dev.log(
         'Error initializing chat screen',
@@ -384,6 +465,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
         stackTrace: stackTrace,
       );
       if (!mounted) return;
+      _unreadBoundary?.dispose();
+      _unreadBoundary = null;
+      _centerBandStore = null;
       _dataSource?.dispose();
       _dataSource = null;
       _messageMenu = null;
@@ -426,38 +510,97 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     unawaited(backend.updateLastReadMessageId(baseline));
   }
 
+  /// Key of [source]'s chat in [ChatCenterBandStore], or `null` for a chat
+  /// whose history does not survive a relaunch.
+  static String? _readingPositionKey(ChatDataSource source) => switch (source) {
+    BackendChatDataSource(:final chatId) => 'backend/$chatId',
+    CommentsDataSource() => 'comments',
+    _ => null,
+  };
+
+  /// Saves the reading position for the next open, or drops it when the
+  /// chat is left at the tail or at the start of unread content — see
+  /// [ChatDataSourceX.resolveLeavePosition]. Leaves the store untouched
+  /// before the open's first layout.
+  void _saveReadingPosition() {
+    final (store, source) = (_centerBandStore, _dataSource);
+    if (store == null || source == null) return;
+    final key = _readingPositionKey(source);
+    final range = _controller.visibleRange.value;
+    if (key == null || range == null) return;
+    final centerBand = source.resolveLeavePosition(
+      centerBand: _controller.centerBand.value,
+      isAtTail: _controller.isAtTail.value,
+      newestVisibleId: range.lastId,
+      readMark: _pillLastSeenBaseline.value,
+      isSelfMessage: _isSelfMessage,
+    );
+    unawaited(
+      store.write(key, centerBand).catchError((
+        Object error,
+        StackTrace stackTrace,
+      ) {
+        dev.log(
+          'Saving the reading position failed',
+          name: 'chat_open',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }),
+    );
+  }
+
+  /// Page-down goes to the unread boundary until its separator has been
+  /// seen, pending boundaries included; afterwards it goes to the newest
+  /// message.
+  bool _pageDownToUnseenBoundary() {
+    final fromId = _unreadBoundary?.unseenFromId;
+    if (fromId == null) return false;
+    unawaited(
+      _controller.animateTo(
+        fromId,
+        alignment: ChatDataSourceX.unreadBoundaryAlignment,
+        highlight: false,
+      ),
+    );
+    return true;
+  }
+
   static const String _demoSender = 'Hixie';
 
   /// Demo "signed-in user" — same predicate for viewport follow-tail and FAB.
   static bool _isSelfMessage(IChatMessage message) =>
       message.sender == _demoSender;
 
+  /// Sends [text] as the signed-in user. A send that succeeds clears the
+  /// unread boundary of the open it was sent from, whether or not the tail
+  /// holding the sent message is loaded.
   Future<void> _handleSendMessage(String text) async {
-    final ds = _dataSource;
-    if (ds is CommentsDataSource) {
-      ds.sendMessage(sender: _demoSender, content: text);
-      return;
+    final boundary = _unreadBoundary;
+    switch (_dataSource) {
+      case final CommentsDataSource ds:
+        ds.sendMessage(sender: _demoSender, content: text);
+      case final GeneratedChatDataSource ds:
+        ds.sendMessage(sender: _demoSender, content: text);
+      case final BackendChatDataSource ds:
+        try {
+          await ds.sendMessage(text);
+        } on BackendConnectionException catch (error) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: Text(error.message),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          rethrow;
+        }
+      case _:
+        return;
     }
-    if (ds is GeneratedChatDataSource) {
-      ds.sendMessage(sender: _demoSender, content: text);
-      return;
-    }
-    if (ds is BackendChatDataSource) {
-      try {
-        await ds.sendMessage(text);
-      } on BackendConnectionException catch (error) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text(error.message),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        rethrow;
-      }
-    }
+    boundary?.clear();
   }
 
   void _handleDeleteSelected(Iterable<int> ids) {
@@ -584,6 +727,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   );
 
   Widget _buildEmpty(BuildContext context) => const DemoEmptyState();
+
+  Widget _buildUnreadSeparator(BuildContext context) => const UnreadSeparator();
 
   Widget _buildInitialSkeleton(BuildContext context) =>
       const DemoInitialSkeleton();
@@ -831,8 +976,19 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                           chunkErrorBuilder: _buildChunkError,
                           emptyBuilder: _buildEmpty,
                           loadingBuilder: _buildInitialSkeleton,
+                          scrollActivityTiming:
+                              const ChatScrollActivityTiming(),
+                          dayHeaderDelegate: const ChatPushingDayHeader(),
                           dateSeparatorBuilder: (context, bucket, date) =>
                               DateSeparator(date: date),
+                          unreadBoundary: _unreadBoundary,
+                          unreadSeparatorBuilder: _buildUnreadSeparator,
+                          senderRunLayout: switch (_unreadBoundary) {
+                            final boundary? => UnreadBoundarySenderRunLayout(
+                              boundary: boundary,
+                            ),
+                            null => DefaultChatSenderRunLayout.instance,
+                          },
                         ),
                       ),
                     ),
@@ -848,6 +1004,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                         dataSource: _dataSource!,
                         isSelfMessage: _isSelfMessage,
                         lastSeenNewestId: _pillLastSeenBaseline,
+                        interceptTap: _pageDownToUnseenBoundary,
                         onChromeVisibleChanged: (visible) {
                           if (_pageDownChromeVisible == visible) return;
                           setState(() => _pageDownChromeVisible = visible);

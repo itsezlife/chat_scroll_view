@@ -11,6 +11,7 @@ dependencies:
     path: ../catalog_assets
   flutter:
     sdk: flutter
+  meta: ^1.17.0
 
 dev_dependencies:
   flutter_lints: ^6.0.0

@@ -1,10 +1,12 @@
 import 'dart:collection';
 
+import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_row_chrome_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
-import 'package:chat_scroll_view/src/chat_widgets/chat_dated_message.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_row_chrome.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_secondary_message_tap_scope.dart';
@@ -67,13 +69,19 @@ class ChatScrollElement extends RenderObjectElement
   final SplayTreeMap<int, Element> _children = SplayTreeMap<int, Element>();
 
   /// Skip-rebuild cache: the message instance, status, first-of-day flag,
-  /// sender-run layout, and selection-allowed bit each child was last built
-  /// with. When [buildChild] is asked for an id whose inputs are all unchanged,
-  /// the existing child is reused without running `updateChild` / the message
-  /// widget's `build()` again.
+  /// unread-separator flag, sender-run layout, and selection-allowed bit each
+  /// child was last built with. When [buildChild] is asked for an id whose
+  /// inputs are all unchanged, the existing child is reused without running
+  /// `updateChild` / the message widget's `build()` again.
+  ///
+  /// The unread-separator flag is what keeps a live unread boundary cheap: a
+  /// new boundary value flips it on exactly two ids (the old and the new
+  /// boundary row), so the next layout re-inflates those two and serves every
+  /// other row from the cache.
   final Map<int, IChatMessage?> _builtMessage = <int, IChatMessage?>{};
   final Map<int, ChatMessageStatus> _builtStatus = <int, ChatMessageStatus>{};
   final Map<int, bool> _builtStartsDay = <int, bool>{};
+  final Map<int, bool> _builtUnreadSeparator = <int, bool>{};
   final Map<int, MessageRunLayout> _builtRunLayout = <int, MessageRunLayout>{};
   final Map<int, ChatSelectionAllowed> _builtSelectionAllowed =
       <int, ChatSelectionAllowed>{};
@@ -168,6 +176,7 @@ class ChatScrollElement extends RenderObjectElement
     _builtMessage.clear();
     _builtStatus.clear();
     _builtStartsDay.clear();
+    _builtUnreadSeparator.clear();
     _builtRunLayout.clear();
     _builtSelectionAllowed.clear();
   }
@@ -176,6 +185,7 @@ class ChatScrollElement extends RenderObjectElement
     _builtMessage.remove(id);
     _builtStatus.remove(id);
     _builtStartsDay.remove(id);
+    _builtUnreadSeparator.remove(id);
     _builtRunLayout.remove(id);
     _builtSelectionAllowed.remove(id);
   }
@@ -225,10 +235,16 @@ class ChatScrollElement extends RenderObjectElement
     // ambient Directionality that wraps every message subtree (see
     // [_buildWidget]). Without dropping the cache, already-built messages
     // would keep the old direction until their data changes.
+    //
+    // The `unreadBoundary` listenable is not: the render object treats a
+    // swap with a different value as a value change, and the per-id
+    // unread-separator flag re-inflates only the rows it moves between.
     if (old.messageBuilder != newWidget.messageBuilder ||
         old.selectionController != newWidget.selectionController ||
         old.selectionChromeBuilder != newWidget.selectionChromeBuilder ||
         old.dateSeparatorBuilder != newWidget.dateSeparatorBuilder ||
+        old.dayHeaderDelegate != newWidget.dayHeaderDelegate ||
+        old.unreadSeparatorBuilder != newWidget.unreadSeparatorBuilder ||
         old.textDirection != newWidget.textDirection ||
         (old.onSecondaryMessageTap == null) !=
             (newWidget.onSecondaryMessageTap == null)) {
@@ -255,12 +271,19 @@ class ChatScrollElement extends RenderObjectElement
   /// null`) whose [ChatSelectionAllowed.showsChrome] is true are
   /// wrapped in [SelectableMessage]. [ChatSelectionAllowed.none] and
   /// shimmer / placeholder slots are not wrapped. Membership still follows
-  /// [ChatSelectionAllowed.isSelectable]. When [startsNewDay] is set,
-  /// the message is built as a [DatedMessage] — an inline date separator
-  /// stacked above the body, *outside* [SelectableMessage] so selection
-  /// chrome never tints the date. Plain messages are wrapped in a
-  /// [RepaintBoundary] for picture / layer caching; [DatedMessage] does its
-  /// own wrapping.
+  /// [ChatSelectionAllowed.isSelectable].
+  ///
+  /// A loaded message that carries row chrome is built as a [ChatRowChrome]
+  /// with up to two items, top to bottom: the inline date separator when
+  /// [startsNewDay] is set (presented by the day header policy's
+  /// [ChatDayHeaderDelegate.inlineSeparator]), then the unread separator
+  /// when [hasUnreadSeparator] is set (opaque at rest, driven by the
+  /// viewport's enter / exit transition; see [_hasUnreadSeparator]). Both
+  /// sit *outside* [SelectableMessage] and the secondary-tap scope, so
+  /// selection chrome never tints them and they never count as message
+  /// surface. Plain messages are wrapped in a
+  /// [RepaintBoundary] for picture / layer caching; [ChatRowChrome] does its
+  /// own per-child wrapping.
   ///
   /// When an explicit `textDirection` override is supplied on
   /// `ChatScrollView`, [messageBuilder] and the date-separator builder are
@@ -275,6 +298,7 @@ class ChatScrollElement extends RenderObjectElement
     ChatMessageStatus status,
     bool startsNewDay,
     Object? groupBucket,
+    bool hasUnreadSeparator,
     MessageRunLayout runLayout,
     ChatSelectionAllowed allowed,
   ) {
@@ -286,6 +310,7 @@ class ChatScrollElement extends RenderObjectElement
         separator != null &&
         message != null &&
         groupBucket != null;
+    final unreadSeparator = _widget.unreadSeparatorBuilder;
 
     Widget compose(BuildContext context) {
       assert(
@@ -316,13 +341,25 @@ class ChatScrollElement extends RenderObjectElement
         hostOwnsSecondary: _widget.onSecondaryMessageTap != null,
         child: content,
       );
-      return hasDateHeader
-          ? DatedMessage(
-              key: ValueKey<int>(id),
-              separator: separator(context, groupBucket, message.createdAt),
-              body: content,
-            )
-          : RepaintBoundary(key: ValueKey<int>(id), child: content);
+      if (!hasDateHeader && !hasUnreadSeparator) {
+        return RepaintBoundary(key: ValueKey<int>(id), child: content);
+      }
+      return ChatRowChrome(
+        key: ValueKey<int>(id),
+        chrome: <ChatRowChromeItem>[
+          if (hasDateHeader)
+            ChatRowChromeItem(
+              delegate: _widget.dayHeaderDelegate.inlineSeparator,
+              child: separator(context, groupBucket, message.createdAt),
+            ),
+          if (unreadSeparator case final build? when hasUnreadSeparator)
+            ChatRowChromeItem.transitioning(
+              delegate: const ChatRowChromeDelegate.opaque(),
+              child: build(context),
+            ),
+        ],
+        body: content,
+      );
     }
 
     if (override != null) {
@@ -336,6 +373,19 @@ class ChatScrollElement extends RenderObjectElement
     }
     return compose(this);
   }
+
+  /// Whether row [id] carries the unread separator: a separator builder is
+  /// wired, the row is a loaded [message], and [id] equals the current
+  /// `unreadBoundary` value or its separator is still exiting
+  /// ([RenderChatScrollView.isUnreadSeparatorExiting]). Read at build time
+  /// and recorded per id in the skip cache, so a boundary change re-inflates
+  /// exactly the rows whose answer flips: the new boundary row at once, the
+  /// old one when its exit ends.
+  bool _hasUnreadSeparator(int id, IChatMessage? message) =>
+      _widget.unreadSeparatorBuilder != null &&
+      message != null &&
+      (_widget.unreadBoundary?.value == id ||
+          renderObject.isUnreadSeparatorExiting(id));
 
   // --- ChatChildManager (driven by RenderChatScrollView.performLayout) ------
 
@@ -379,6 +429,8 @@ class ChatScrollElement extends RenderObjectElement
       return null;
     }
 
+    final hasUnreadSeparator = _hasUnreadSeparator(id, message);
+
     // Fast path: every input is unchanged since this child was last built —
     // reuse it without rebuilding. Inherited-widget changes (Theme, ...) still
     // rebuild through the normal dependency mechanism, and width changes are
@@ -386,6 +438,7 @@ class ChatScrollElement extends RenderObjectElement
     if (existing != null &&
         _builtStatus[id] == status &&
         _builtStartsDay[id] == startsNewDay &&
+        _builtUnreadSeparator[id] == hasUnreadSeparator &&
         _builtRunLayout[id] == runLayout &&
         _builtSelectionAllowed[id] == allowed &&
         identical(_builtMessage[id], message)) {
@@ -402,6 +455,7 @@ class ChatScrollElement extends RenderObjectElement
           status,
           startsNewDay,
           groupBucket,
+          hasUnreadSeparator,
           runLayout,
           allowed,
         ),
@@ -412,6 +466,7 @@ class ChatScrollElement extends RenderObjectElement
         _builtMessage[id] = message;
         _builtStatus[id] = status;
         _builtStartsDay[id] = startsNewDay;
+        _builtUnreadSeparator[id] = hasUnreadSeparator;
         _builtRunLayout[id] = runLayout;
         _builtSelectionAllowed[id] = allowed;
         result = updated.renderObject as RenderBox?;

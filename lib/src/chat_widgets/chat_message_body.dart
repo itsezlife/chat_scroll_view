@@ -68,7 +68,8 @@ enum ChatMessageBodySlot {
 ///
 /// See also:
 ///
-///  * [DatedMessage], day separator stacked above a message body.
+///  * [ChatRowChrome], row chrome (inline date separator) stacked above a
+///    message body.
 ///  * [ChatMessageThemeData], column / bubble width caps for the host.
 class ChatMessageBody
     extends

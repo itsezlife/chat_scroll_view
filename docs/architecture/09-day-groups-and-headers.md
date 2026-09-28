@@ -1,9 +1,9 @@
 ---
 type: Architecture Reference
 title: Day Groups and Headers
-description: startsDay, groupBy, dayBucket, floating header, and divider fade band.
-tags: [headers, startsDay, divider, groupBy]
-timestamp: 2026-07-04T00:00:00Z
+description: startsDay, groupBy, dayBucket, row chrome delegates, day header policy, and scroll activity.
+tags: [headers, startsDay, row-chrome, groupBy, scroll-activity]
+timestamp: 2026-09-27T00:00:00Z
 resource: lib/src/chat_scroll/chat_floating_header_controller.dart
 ---
 
@@ -21,16 +21,19 @@ Effective grouper: `groupBy ?? defaultGroupBy` (local calendar day
 |-------|---------|
 | `startsDay` | Row has an inline date separator |
 | `dayBucket` | `groupBy` key; null if unloaded / grouping off |
-| `dividerOpacity` | 0..1 fade for the inline separator |
+| `paintTop` | Viewport-local paint top: `offset` + stitch dual-translate dy |
+| `headerZone` | `ChatFloatingHeaderZone` of the latest frame (rest top, extent, push offset, opacity) |
+| `scrollActivity` | Scroll activity of the latest frame; `1` without a clock |
+| `messageBodyTop` | Σ row-chrome heights; press above it is chrome |
 | `offset` | Viewport-local top Y |
 
 Chunk-error tiles force `startsDay = false`, `dayBucket = null`. Floating
 header reuses this parent-data type; only `offset` is meaningful (`id = 0`).
 
-**Invariant:** per-frame header scan and fade are **Tier-1-safe** — no
-`getMessage` on the hot path. Scan/fade read parent-data (`dayBucket`,
-`startsDay`, layout `offset`) and, while stitch is jumped, the paint
-translation from the animator.
+**Invariant:** the per-frame header scan and chrome resolve are
+**Tier-1-safe** — no `getMessage` on the hot path. They read parent-data
+(`dayBucket`, `startsDay`, layout `offset`) and, while stitch is jumped, the
+paint translation from the animator.
 
 ## How `startsDay` is computed
 
@@ -49,27 +52,141 @@ the previous present predecessor are loaded (except conversation-oldest case).
 **Fixed (2026-07-05):** absent predecessors no longer block `startsDay` — walk
 uses `getPreviousPresentMessage`, not `getMessage(id - 1)`.
 
-Element receives `startsNewDay` / `groupBucket` and chooses `DatedMessage` vs
-plain row — it does not recompute boundaries.
+Element receives `startsNewDay` / `groupBucket` and chooses a `ChatRowChrome`
+row (date chrome) vs plain row — it does not recompute boundaries.
 
-## `DatedMessage`
+## Row chrome (`ChatRowChrome`)
 
-- Widget: separator + body, each in `RepaintBoundary`.
-- Outer widget is **not** a `RepaintBoundary` — must repaint every scroll frame
-  for opacity.
-- `RenderDatedMessage` stacks separator above body; size = sum of heights.
-- Reads `dividerOpacity` from viewport parent data.
-- Hit-test: body first; separator ignored when opacity ≤ 0.
-- Paint: body always; separator via `OpacityLayer` only in (0.001, 0.999).
+A row that carries viewport-owned chrome is a `ChatRowChrome`: an ordered
+stack of chrome items above the message body. Each item pairs a widget with a
+`ChatRowChromeDelegate`. `DatedMessage` is a deprecated forward to a
+one-item `ChatRowChrome` with `fadeUnderHeader`.
 
-Inline separator **keeps laid-out height** while fading — no layout jump.
+The viewport composes up to two items, only on a **loaded** message row
+(never shimmer, errored, or absent):
+
+| Item | When | Delegate |
+|------|------|----------|
+| Inline date separator (`dateSeparatorBuilder`) | Row starts a day | Day header policy's `inlineSeparator` |
+| Unread separator (`unreadSeparatorBuilder`) | Row id `== unreadBoundary.value`, or its exit is still running | `opaque()`, built as `ChatRowChromeItem.transitioning` — the day header policy never fades or hides it |
+
+A row with neither is a plain `RepaintBoundary`. The unread separator does
+not touch the day machinery: `startsDay`, `dayBucket`, the header scan and
+`leadingSeparatorTop` ignore it, and the divider fade applies only to the
+date item. The render object listens to `unreadBoundary`.
+
+A value change starts the separator's enter and exit transitions and holds
+the row at the band bottom in place on every frame — see
+[Layout Pipeline](./04-layout-pipeline.md) step 6d. The new boundary row
+rebuilds at once. The old row keeps its separator until the exit ends
+(`isUnreadSeparatorExiting`), then rebuilds once. No other row rebuilds,
+because the separator flag is a skip-rebuild input. Swapping the builder
+clears the skip-rebuild cache.
+
+The transition frame (`RenderChatRowChrome.transition`, set by the viewport
+before each layout of the row) drives only the item built with
+`ChatRowChromeItem.transitioning`:
+
+| Track | Effect |
+|-------|--------|
+| `extent` | Slot height = item height × extent. The slot keeps the item's bottom part and clips the rest, and `messageBodyTop` sums slot heights |
+| `opacity` | Multiplies the delegate's opacity |
+| `scale` | Paint scale about the item's center, also applied in `applyPaintTransform` |
+
+An item mid-transition is not hit-testable.
+
+| Concern | Rule |
+|---------|------|
+| Order | Chrome items top to bottom in list order, body last (bottom) |
+| Width / height | Every child at full row width, own height; row height = Σ chrome + body |
+| Repaint | Each chrome child and the body in its own `RepaintBoundary`; the row itself is **not** one — it re-composites every viewport paint to apply resolved opacity |
+| Delegate | Per item, on every paint and hit test: `resolve(ChatRowChromeMetrics)` → `ChatRowChromeEffect { opacity, hitTestable }`. Metrics: item paint top (`paintTop` + item offset), extent, `headerZone`, `scrollActivity`. Delegate swap to a non-`==` one repaints without re-inflating |
+| Paint | Body first, then chrome in list order; an item uses an `OpacityLayer` only in (0.001, 0.999), is skipped ≤ 0.001, paints directly ≥ 0.999 |
+| Hit-test | Body first, then chrome from the last item up, skipping items whose effect is not `hitTestable` (default: `opacity > 0`) |
+| Hit height | Writes Σ chrome heights into `ChatMessageParentData.messageBodyTop` every layout |
+
+Built-in row chrome delegates:
+
+| Delegate | Effect |
+|----------|--------|
+| `opaque()` (item default) | Always visible and hit-testable |
+| `fadeUnderHeader(band: 20)` | `((top - header.bottom) / band + 1).clamp(0, 1)`; visible with no header |
+| `hideUnderHeader()` | Hidden once `top <= header.restTop`; visible with no header |
+
+`messageBodyTop` is the single row-chrome line for pointer resolution: a
+press above it is chrome, so long-press selection and the message menu never
+start there. Full-row resolution (span-gesture sweeps) and presses under a
+hit-testable floating header ignore the line. Every chrome child is covered by
+that one rule — none needs its own exclusion.
+
+Chrome **keeps laid-out height** whatever its delegate resolves, so there is
+no layout jump. Only a transition frame changes a slot's height.
+
+## Day header policy (`ChatDayHeaderDelegate`)
+
+`ChatScrollView.dayHeaderDelegate` decides how the floating header and the
+inline separators share the viewport top. One policy owns both halves:
+`resolveFloatingHeader(ChatDayHeaderMetrics)` → `ChatFloatingHeaderEffect
+{ offset, opacity, holdsActivity, hitTestable }`, and `inlineSeparator` for
+the rows.
+
+Metrics: `restTop` (= `topPad`), `extent` (laid-out header height, fallback
+`kHeaderFallbackHeight = 32` before first layout), `leadingSeparatorTop`, and
+`activity`. `leadingSeparatorTop` is the smallest paint top among built
+`startsDay` rows with `top > restTop - extent` — the separator that is not yet
+fully above the rest line (separators are assumed header-tall).
+
+| Policy | Header | Inline separator | Held |
+|--------|--------|------------------|------|
+| `ChatFadingDayHeader` (default) | Offset 0 | `fadeUnderHeader(fadeBand)` | `lead < restTop + extent` |
+| `ChatPushingDayHeader` | `lead - restTop - extent` while `restTop < lead < restTop + extent`, else 0 | `hideUnderHeader()` | `lead <= restTop` |
+
+Opacity = `hidesWhenIdle && !held ? activity : 1`; `holdsActivity =
+hidesWhenIdle && held`. Held means the header is standing in for an inline
+separator that is hidden or faded under it — hiding the header would leave an
+empty band.
+
+`holdsActivity` pins the clock (`pinned = true`: activity snaps to `1`, no
+pending hide). When the header stops being held, the pin clears and activity
+idles out from `1`, so a scroll that starts from a held header never shows a
+hidden header for the frames before the drag's hold takes effect.
+
+The pushing separator always opens a later day than the header shows: the
+oldest row rests at the rest line (boundary pin), so the oldest separator is
+held, never pushing.
+
+The day switch needs no policy code: when the leading separator reaches the
+rest line, the previous day's rows fall above `topPad`, the top-day scan picks
+the new day, and the header rebuilds in the same frame — at offset 0 and held.
+
+## Scroll activity
+
+`ChatScrollView.scrollActivityTiming` (`ChatScrollActivityTiming`, `null` = no
+clock, activity constant `1`) runs a viewport-owned clock (`ChatScrollActivityClock`):
+a `Timer` for the idle hold, a dedicated `Ticker` for the fades.
+
+| Edge | Clock call |
+|------|------------|
+| A tick consumes scroll delta | `hold(navigation: animate-only delta)` |
+| Nothing moves the list (no drag, fling, animate, pending delta, span auto-scroll) | `release()` → hide after `idleDelay` (500 ms) or `navigationIdleDelay` (1000 ms) after navigation |
+| Attach | none: the clock starts idle at `0`, so the list opens with idle-hidden chrome hidden |
+| Jump (`_onJump`) | `pulse()` — show, hide after `navigationIdleDelay` unless holding |
+| `scrollBy` | `pulse(navigation: false)` — hide after `idleDelay` unless holding |
+| Day header effect, every resolve | `pinned = effect.holdsActivity` (false with no header) |
+
+Fades: 150 ms in / out along an exact sine ease-in-out. A finger held still
+mid-drag keeps activity up. Hiding takes two knobs: the timing supplies
+activity, and each delegate chooses to follow it (`hidesWhenIdle` on the
+built-in day header policies). `onChanged` fires only in ticker frames; the
+viewport then re-resolves the chrome frame and repaints (no layout).
 
 ## Floating header ownership
 
 | Concern | Owner |
 |---------|--------|
-| Header `RenderBox`, inflate/layout | `RenderChatScrollView` + element |
-| Bucket/date state, scan, fade math | `ChatFloatingHeaderController` |
+| Header `RenderBox`, inflate/layout, paint opacity | `RenderChatScrollView` + element |
+| Bucket/date state, scan | `ChatFloatingHeaderController` |
+| Header offset / opacity, inline separator presentation | `ChatDayHeaderDelegate` |
 | Parent-data reads | Callbacks from render |
 
 Controller never inflates widgets.
@@ -83,19 +200,22 @@ Controller never inflates widgets.
 2. `evaluateLayoutRebuild` — rebuild if `scan.bucket != headerBucket` **or**
    `headerDirty`.
 3. On rebuild: `buildFloatingHeader(bucket, firstMessageDate)`.
-4. Always layout header to full width; pin Y to `topPad`
-   (`placeHeaderOffset`).
+4. Always layout header to full width.
+
+End of `performLayout`: `_resolveRowChromeFrame()` places the header at
+`restTop + effect.offset`, applies the activity pin, and publishes
+`paintTop` / `headerZone` / `scrollActivity` into every child.
 
 ### Tier-1 path (`_tickFloatingHeader`)
 
-1. Re-pin header offset (does not scroll with content).
-2. `tickForDayChange` compares scan bucket to `headerBucket` **without**
+1. `tickForDayChange` compares scan bucket to `headerBucket` **without**
    mutating state (same paint-aware scan as layout — stitch ticks can change
    the floating date from paint-visible content before settle).
-3. If day changed → caller `markNeedsLayout` (header **text** needs rebuild).
+2. If day changed → caller `markNeedsLayout` (header **text** needs rebuild).
+3. `_resolveRowChromeFrame()` re-resolves placement and row inputs from paint
+   Y.
 
-**Must not:** call `buildFloatingHeader` from Tier-1. Fade opacity updates stay
-on Tier-1 via `_setOffset` / stitch paint-Y refresh. Mid-gap days are never
+**Must not:** call `buildFloatingHeader` from Tier-1. Mid-gap days are never
 invented — the scan only reads buckets of currently built rows.
 
 ### Forced rebuild
@@ -106,27 +226,15 @@ Triggered when `dateSeparatorBuilder` or `textDirection` changes.
 Data-source swap: `resetOnDataSourceChange()`. Overlay: `clearForOverlay()` +
 remove header.
 
-## Divider fade band
+## Header paint
 
-Constants:
-
-- `kHeaderFallbackHeight = 32` (before first header layout)
-- `kDividerFadeBand = 20`
-
-```
-fadeEnd = topPad + floatingHeaderHeight
-opacity = ((topY - fadeEnd) / kDividerFadeBand + 1.0).clamp(0.0, 1.0)
-```
-
-- Opacity 1 when separator top is fully below the header zone.
-- Opacity 0 when separator top is under the header zone.
-- Written in `_setOffset` only when `pd.startsDay`.
-
-Inline separator and floating header never both fully visible: as the
-separator rises into the header zone it fades out; the sticky header holds
-the date.
+The header paints after messages, outside the stretch transform, at its
+resolved opacity: directly ≥ 0.999, skipped ≤ 0.001, through a retained
+`OpacityLayer` in between. A skipped header stays built.
 
 ## Hit-test order
 
-Floating header hit-tests **before** messages (paints on top). Chunk-error
-tiles hit-test before messages during error → valid transition frames.
+Floating header hit-tests **before** messages (paints on top) when its effect
+is `hitTestable`; a hidden header neither takes taps nor counts as covering
+row chrome for selection. Chunk-error tiles hit-test before messages during
+error → valid transition frames.

@@ -8,23 +8,32 @@ import 'dart:math' as math;
 import 'package:chat_scroll_view/src/chat_scroll/chat_animator.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_chunk_fetch_scheduler.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_floating_header_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_mutations.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_row_chrome_delegate.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_row_chrome_transition.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_dev_log.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_stretch_overscroll.dart';
+import 'package:chat_scroll_view/src/chat_scroll/navigation_placement.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_opacity_paint.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_row_chrome.dart'
+    show RenderChatRowChrome;
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_pointer.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
+import 'package:chat_scroll_view/src/util/constants.dart';
+import 'package:chat_scroll_view/src/util/logger.dart';
 import 'package:flutter/foundation.dart'
     show Listenable, ValueListenable, precisionErrorTolerance;
 import 'package:flutter/gestures.dart';
@@ -37,8 +46,9 @@ import 'package:meta/meta.dart' show internal, visibleForTesting;
 /// For a message: its [id], the [offset] of its top edge within the viewport
 /// (viewport-local Y, may be negative), whether it [startsDay] (carries an
 /// inline date divider), its [dayBucket] (day-grouping key, `null` until the
-/// message loads), and the [dividerOpacity] of its inline date separator. The
-/// floating day header reuses this type — only [offset] is meaningful for it.
+/// message loads), and the row chrome inputs ([paintTop], [headerZone],
+/// [scrollActivity]). The floating day header reuses this type — only
+/// [offset] is meaningful for it.
 class ChatMessageParentData extends ParentData {
   /// Message id this render box represents; `0` for the floating day header.
   int id = 0;
@@ -55,15 +65,23 @@ class ChatMessageParentData extends ParentData {
   /// or grouping is disabled.
   Object? dayBucket;
 
-  /// Fade opacity (0..1) for this message's inline date separator — set by
-  /// `RenderChatScrollView` from [offset] so the separator fades out as it
-  /// rises into the floating day header's zone. Only meaningful when
-  /// [startsDay] is `true`; read by `RenderDatedMessage`.
-  double dividerOpacity = 1;
+  /// Viewport-local paint Y of this child's top edge: [offset] plus any
+  /// paint-only translation (far-path stitch). Row chrome resolves its
+  /// delegates against it.
+  double paintTop = 0;
 
-  /// Local Y of the message body within this child. `0` when the child is
-  /// the body. A dated row writes the inline separator height here during
-  /// layout so a long-press on the date chrome does not select.
+  /// Floating day header zone as of the viewport's latest frame.
+  ChatFloatingHeaderZone headerZone = ChatFloatingHeaderZone.none;
+
+  /// Scroll activity in `[0, 1]` as of the viewport's latest frame; `1` when
+  /// the viewport runs no activity clock.
+  double scrollActivity = 1;
+
+  /// Local Y of the message body within this child — the summed height of
+  /// its row chrome. `0` when the child is the body alone. A
+  /// `RenderChatRowChrome` writes it on every layout; pointer resolution
+  /// treats a press above it as row chrome, so long-press selection and the
+  /// message menu never start on chrome.
   double messageBodyTop = 0;
 }
 
@@ -163,7 +181,10 @@ class RenderChatScrollView extends RenderBox {
     ValueListenable<double>? bottomPadding,
     ValueListenable<double>? topPadding,
     Object Function(IChatMessage)? groupBy,
+    ChatDayHeaderDelegate dayHeaderDelegate = const ChatFadingDayHeader(),
+    ChatScrollActivityTiming? scrollActivityTiming,
     ChatSenderRunLayout senderRunLayout = DefaultChatSenderRunLayout.instance,
+    ValueListenable<int?>? unreadBoundary,
     bool hasErrorBuilder = false,
     bool hasEmptyBuilder = false,
     bool hasLoadingBuilder = false,
@@ -190,7 +211,10 @@ class RenderChatScrollView extends RenderBox {
        _bottomPadding = bottomPadding,
        _topPadding = topPadding,
        _groupBy = groupBy,
+       _dayHeaderDelegate = dayHeaderDelegate,
+       _scrollActivityTiming = scrollActivityTiming,
        _senderRunLayout = senderRunLayout,
+       _unreadBoundary = unreadBoundary,
        _hasErrorBuilder = hasErrorBuilder,
        _hasEmptyBuilder = hasEmptyBuilder,
        _hasLoadingBuilder = hasLoadingBuilder,
@@ -243,24 +267,8 @@ class RenderChatScrollView extends RenderBox {
     );
   }
 
-  /// Chunk-load / anchor-persistence diagnostics — filter `ChatScrollFetchAnchor`.
-  final ChatScrollDevLog _fetchAnchorLog = ChatScrollDevLog(
-    'ChatScrollFetchAnchor',
-    enabled: false,
-  );
-
-  /// Scrollbar thumb / id-linear progress diagnostics — filter
-  /// `ChatScrollScrollbar`. Set [ChatScrollDevLog.enabled] to `true` while
-  /// investigating thumb jumps, stale position, or height-change drift.
-  final ChatScrollDevLog _scrollbarLog = ChatScrollDevLog(
-    'ChatScrollScrollbar',
-    enabled: false,
-  );
-
-  /// Paint-time edge stretch — filter `ChatScrollOverscroll`.
-  final ChatScrollDevLog _overscrollLog = ChatScrollDevLog(
-    'ChatScrollOverscroll',
-  );
+  /// Layout-pass counter for `anchor.*` diagnostics.
+  int _fetchAnchorLayoutFrame = 0;
 
   int? _scrollbarLogLastAnchorId;
   double? _scrollbarLogLastAnchorH;
@@ -460,6 +468,8 @@ class RenderChatScrollView extends RenderBox {
     if (_ticking == value) return;
     _ticking = value;
     _ticker?.muted = !value;
+    _activity?.muted = !value;
+    _rowChromeTransitions?.muted = !value;
     if (!value) _cancelFling();
   }
 
@@ -551,6 +561,11 @@ class RenderChatScrollView extends RenderBox {
 
   /// Empty space reserved at the *top* of the viewport — compensation for top
   /// chrome (an app bar). The floating day header rests just below it.
+  ///
+  /// Not compensated like the bottom inset: a change moves the scroll band's
+  /// top edge and leaves on-screen rows in place, except that a held
+  /// navigation placement is re-applied against the new edge on the next
+  /// layout ([_lastLaidOutTopPad]).
   ValueListenable<double>? _topPadding;
   set topPadding(ValueListenable<double>? value) {
     if (identical(_topPadding, value)) return;
@@ -573,6 +588,63 @@ class RenderChatScrollView extends RenderBox {
     if (_groupBy == value) return;
     _groupBy = value;
     markNeedsLayout();
+  }
+
+  /// Day header policy. See [ChatScrollView.dayHeaderDelegate].
+  ChatDayHeaderDelegate _dayHeaderDelegate;
+  set dayHeaderDelegate(ChatDayHeaderDelegate value) {
+    if (_dayHeaderDelegate == value) return;
+    _dayHeaderDelegate = value;
+    markNeedsLayout();
+  }
+
+  /// Scroll-activity clock timing; `null` keeps activity at `1`. See
+  /// [ChatScrollView.scrollActivityTiming].
+  ChatScrollActivityTiming? _scrollActivityTiming;
+  set scrollActivityTiming(ChatScrollActivityTiming? value) {
+    if (_scrollActivityTiming == value) return;
+    _scrollActivityTiming = value;
+    if (!attached) return;
+    if (value == null) {
+      _activity?.dispose();
+      _activity = null;
+    } else if (_activity case final activity?) {
+      activity.timing = value;
+    } else {
+      _activity = _createActivityClock(value);
+    }
+    markNeedsLayout();
+  }
+
+  /// Live while attached with a non-null [_scrollActivityTiming].
+  ChatScrollActivityClock? _activity;
+
+  /// A clock that starts idle: the list opens with idle-hidden chrome hidden.
+  ChatScrollActivityClock _createActivityClock(
+    ChatScrollActivityTiming timing,
+  ) =>
+      ChatScrollActivityClock(timing: timing, onChanged: _onActivityChanged)
+        ..muted = !_ticking;
+
+  void _onActivityChanged() {
+    if (!hasSize) return;
+    _resolveRowChromeFrame();
+    markNeedsPaint();
+  }
+
+  /// Releases the activity hold once nothing moves the list — a finger held
+  /// still mid-drag keeps it.
+  void _releaseActivityIfSettled() {
+    final activity = _activity;
+    if (activity == null || !activity.isHolding) return;
+    if (_dragInProgress ||
+        _physics.isFlinging ||
+        _animator.isAnimating ||
+        _pendingScrollDelta != 0.0 ||
+        _spanAutoScrollOccupying) {
+      return;
+    }
+    activity.release();
   }
 
   /// Host policy for [MessageRunLayout]. See [ChatScrollView.senderRunLayout].
@@ -605,6 +677,53 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _onSenderRunLayoutChanged() => markNeedsLayout();
+
+  /// Unread boundary id. See [ChatScrollView.unreadBoundary].
+  ///
+  /// Listened to while attached. The element reads the value when it builds
+  /// a row and keeps a per-id "built with unread separator" bit in its skip
+  /// cache, so a changed value re-inflates only the rows whose bit flips —
+  /// the old and the new boundary row. This side owns the geometry: a value
+  /// change is a row chrome change that the next layout turns into
+  /// transitions ([_startUnreadSeparatorTransitions]), and every layout that
+  /// moves a transition frame holds the reading position across it
+  /// ([_holdRowChromeReference]) — unless a changed row is the target of the
+  /// armed navigation placement, which is then re-applied instead
+  /// ([_isNavigationTargetChromeChange]).
+  ///
+  /// Swapping in a listenable with a different current value is a value
+  /// change; swapping in one with the same value only moves the subscription.
+  ValueListenable<int?>? _unreadBoundary;
+  set unreadBoundary(ValueListenable<int?>? value) {
+    if (identical(_unreadBoundary, value)) return;
+    final changed = _unreadBoundary?.value != value?.value;
+    if (attached) _unreadBoundary?.removeListener(_onUnreadBoundaryChanged);
+    _unreadBoundary = value;
+    if (attached) _unreadBoundary?.addListener(_onUnreadBoundaryChanged);
+    if (changed) _onUnreadBoundaryChanged();
+  }
+
+  void _onUnreadBoundaryChanged() {
+    _rowChromeChanged = true;
+    markNeedsLayout();
+  }
+
+  /// Enter / exit legs of the unread separator, one per boundary row. Live
+  /// while attached; muted with [_ticking].
+  ChatRowChromeTransitionClock? _rowChromeTransitions;
+
+  /// A moved transition frame is a row chrome change: the next layout hands
+  /// the frame to its row and holds the reading position across it.
+  void _onRowChromeTransitionChanged() {
+    _rowChromeChanged = true;
+    markNeedsLayout();
+  }
+
+  /// Whether row [id]'s unread separator is still exiting after the boundary
+  /// left it. The element keeps building the separator on that row until
+  /// the exit ends, so the row rebuilds once, after the separator is gone.
+  bool isUnreadSeparatorExiting(int id) =>
+      _rowChromeTransitions?.isExiting(id) ?? false;
 
   /// Reading direction for paint mirroring (scrollbar position, future RTL
   /// chrome). Hit-tests against the scrollbar's trailing-edge strip read
@@ -659,6 +778,22 @@ class RenderChatScrollView extends RenderBox {
   double _scrollVelocity = 0;
   static const double _leadFrames = 4;
 
+  /// Set when a row chrome input outside the data source changed (the
+  /// unread boundary, or a separator transition frame); consumed by the next
+  /// [performLayout], which holds the reading position across the resulting
+  /// row height change.
+  bool _rowChromeChanged = false;
+
+  /// Unread boundary value as of the latest [performLayout]. With the
+  /// current value it names the rows whose unread separator flips on a
+  /// [_rowChromeChanged] pass — the old and the new boundary row.
+  int? _laidOutUnreadBoundary;
+
+  /// Top inset the latest normal-mode [performLayout] used; `null` before
+  /// the first. A difference on the next pass re-applies a held navigation
+  /// placement — the top inset itself is not compensated.
+  double? _lastLaidOutTopPad;
+
   // --- Ticker / scroll physics ----------------------------------------------
 
   Ticker? _ticker;
@@ -687,9 +822,7 @@ class RenderChatScrollView extends RenderBox {
 
   late final ChatScrollPhysics _physics = ChatScrollPhysics();
 
-  late final ChatStretchOverscroll _stretch = ChatStretchOverscroll(
-    log: _overscrollLog,
-  );
+  final ChatStretchOverscroll _stretch = ChatStretchOverscroll();
 
   VerticalDragGestureRecognizer? _drag;
 
@@ -748,7 +881,7 @@ class RenderChatScrollView extends RenderBox {
     // Direction is known at capture — used for paint even before measure.
     _stitchTowardNewer = targetId > (_stitchAnchorIdBeforeJump ?? targetId);
     if (!hasSize) {
-      _animator.log.event('stitch.capture', {
+      fine(.animate, 'stitch.capture', {
         'target': targetId,
         'hasSize': false,
         'anchorBefore': _stitchAnchorIdBeforeJump,
@@ -768,14 +901,14 @@ class RenderChatScrollView extends RenderBox {
         _stitchFrozenHeights[entry.key] = height;
       }
     }
-    _animator.log.event('stitch.capture', {
+    fine(.animate, 'stitch.capture', {
       'target': targetId,
       'anchorBefore': _stitchAnchorIdBeforeJump,
       'towardNewer': _stitchTowardNewer,
-      'vh': DevLogFormat.f(viewportHeight),
+      'vh': LogFormat.f(viewportHeight),
       'outgoingN': _stitchOutgoingIds.length,
-      'outgoingIds': DevLogFormat.ids(_stitchOutgoingIds),
-      'stripH': DevLogFormat.f(_stitchOutgoingStripBottom()),
+      'outgoingIds': LogFormat.ids(_stitchOutgoingIds),
+      'stripH': LogFormat.f(_stitchOutgoingStripBottom()),
     });
   }
 
@@ -869,12 +1002,12 @@ class RenderChatScrollView extends RenderBox {
     _fetchAnchorEvent('stitch.commit', {
       ..._fetchAnchorSnapshot(),
       'target': snapshot.targetId,
-      'progress': DevLogFormat.ratio(snapshot.progress),
-      'scrollLen': DevLogFormat.f(travel),
+      'progress': LogFormat.ratio(snapshot.progress),
+      'scrollLen': LogFormat.f(travel),
       'fromId': fromId,
-      'fromY': DevLogFormat.f(fromY),
+      'fromY': LogFormat.f(fromY),
       'toId': _controller.anchorMessageId,
-      'toY': DevLogFormat.f(_controller.anchorPixelOffset),
+      'toY': LogFormat.f(_controller.anchorPixelOffset),
     });
   }
 
@@ -985,17 +1118,17 @@ class RenderChatScrollView extends RenderBox {
               (towardNewer ? -incomingTop : incomingBottom - viewportHeight)
         : math.max(finalHeight, viewportHeight);
     final travel = math.max<double>(scrollLength.abs(), 1);
-    _animator.log.event('stitch.measureGeom', {
+    fine(.animate, 'stitch.measureGeom', {
       'target': _animator.animateTargetId,
       'towardNewer': towardNewer,
-      'vh': DevLogFormat.f(viewportHeight),
-      'oldT': DevLogFormat.f(oldT),
-      'oldH': DevLogFormat.f(oldH),
-      'finalH': DevLogFormat.f(finalHeight),
+      'vh': LogFormat.f(viewportHeight),
+      'oldT': LogFormat.f(oldT),
+      'oldH': LogFormat.f(oldH),
+      'finalH': LogFormat.f(finalHeight),
       'hasIncoming': hasIncoming,
-      'inTop': hasIncoming ? DevLogFormat.f(incomingTop) : null,
-      'inBot': hasIncoming ? DevLogFormat.f(incomingBottom) : null,
-      'scrollLen': DevLogFormat.f(travel),
+      'inTop': hasIncoming ? LogFormat.f(incomingTop) : null,
+      'inBot': hasIncoming ? LogFormat.f(incomingBottom) : null,
+      'scrollLen': LogFormat.f(travel),
       'outgoingN': _stitchOutgoingIds.length,
       'outgoingLive': liveOutgoing,
       'childN': _children.length,
@@ -1041,12 +1174,14 @@ class RenderChatScrollView extends RenderBox {
 
     // Close-path animation finished — the animator owned offset each tick.
     // Try one alignment snap; if the target row is still a skeleton, leave
-    // [navigationAlignment] pending so [performLayout] applies it once the real
-    // message is built (same contract as [jumpTo]). [_applyNavigationAlignment]
-    // clears when aligned; do not clear here unconditionally — that dropped
+    // the placement pending so [performLayout] applies it once the real
+    // message is built (same contract as [jumpTo]). [_applyNavigationPlacement]
+    // holds once landed; do not clear here unconditionally — that dropped
     // deferred alignment and regressed post-load landing for non-zero alignment.
-    if (_controller.navigationAlignment != 0.0) {
-      _applyNavigationAlignment();
+    if (_controller.navigationPlacement case AlignmentPlacement(
+      :final alignment,
+    ) when alignment != 0.0) {
+      _applyNavigationPlacement();
     }
 
     if (_pinTailOnJump) markNeedsLayout();
@@ -1229,12 +1364,23 @@ class RenderChatScrollView extends RenderBox {
   /// Currently built message ids (fan-out + stitch-pinned outgoing).
   Set<int> get debugBuiltMessageIds => _children.keys.toSet();
 
-  /// Inline-divider fade opacity (0..1) of the built child [id], or `null`
+  /// Resolved opacity (0..1) of the built child [id]'s first row chrome item
+  /// — its inline day separator — or `1` when the row has no chrome. `null`
   /// when [id] is not currently built.
-  double? debugDividerOpacity(int id) {
-    final child = _children[id];
-    return child == null ? null : _parentData(child).dividerOpacity;
-  }
+  double? debugDividerOpacity(int id) => switch (_children[id]) {
+    null => null,
+    final RenderChatRowChrome row when row.chromeCount > 0 =>
+      row.debugChromeEffect(0).opacity,
+    _ => 1.0,
+  };
+
+  /// Opacity the floating header resolved to this frame.
+  @visibleForTesting
+  double get debugFloatingHeaderOpacity => _headerEffect.opacity;
+
+  /// Current scroll activity; `1` without an activity clock.
+  @visibleForTesting
+  double get debugScrollActivity => _activity?.value ?? 1.0;
 
   /// Whether the built child [id] carries an inline day separator, or `false`
   /// when [id] is not currently built.
@@ -1244,11 +1390,11 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _fetchAnchorEvent(String tag, Map<String, Object?> fields) {
-    _fetchAnchorLog.event(tag, fields);
+    fine(.anchor, tag, fields);
   }
 
   void _scrollbarEvent(String tag, Map<String, Object?> fields) {
-    _scrollbarLog.event(tag, fields);
+    fine(.scrollbar, tag, fields);
   }
 
   /// Message built closest to the bottom inset — proxy for "what the user was
@@ -1298,23 +1444,21 @@ class RenderChatScrollView extends RenderBox {
     final band = _bottomBandMessage();
     final anchorStatus = _dataSource.statusOf(anchorId);
     return {
-      'layout': _fetchAnchorLog.layoutFrame,
+      'layout': _fetchAnchorLayoutFrame,
       'anchorId': anchorId,
-      'anchorY': DevLogFormat.f(anchorY),
+      'anchorY': LogFormat.f(anchorY),
       'anchorFetching': anchorStatus.isFetching,
       'anchorAbsent': anchorStatus.isAbsent,
       'anchorDirty': anchorStatus.isDirty,
       'anchorLoaded': _dataSource.getMessage(anchorId) != null,
-      'anchorTop': anchorTop == null ? null : DevLogFormat.f(anchorTop),
-      'anchorBottom': anchorBottom == null
-          ? null
-          : DevLogFormat.f(anchorBottom),
-      'anchorH': anchorH == null ? null : DevLogFormat.f(anchorH),
-      'bottomEdge': bottomEdge == null ? null : DevLogFormat.f(bottomEdge),
+      'anchorTop': anchorTop == null ? null : LogFormat.f(anchorTop),
+      'anchorBottom': anchorBottom == null ? null : LogFormat.f(anchorBottom),
+      'anchorH': anchorH == null ? null : LogFormat.f(anchorH),
+      'bottomEdge': bottomEdge == null ? null : LogFormat.f(bottomEdge),
       'bandId': band?.id,
-      'bandTop': band == null ? null : DevLogFormat.f(band.top),
-      'bandBottom': band == null ? null : DevLogFormat.f(band.bottom),
-      'bandGap': band == null ? null : DevLogFormat.f(band.gapToBottomEdge),
+      'bandTop': band == null ? null : LogFormat.f(band.top),
+      'bandBottom': band == null ? null : LogFormat.f(band.bottom),
+      'bandGap': band == null ? null : LogFormat.f(band.gapToBottomEdge),
       'bandFullyAboveInset':
           band != null && bottomEdge != null && band.bottom <= bottomEdge + 0.5,
       'isAtTail': hasSize ? _computeIsAtTail() : null,
@@ -1429,6 +1573,12 @@ class RenderChatScrollView extends RenderBox {
     _floatingHeader?.attach(owner);
     _overlay?.attach(owner);
     _ticker = Ticker(_onTick)..muted = !_ticking;
+    if (_scrollActivityTiming case final timing?) {
+      _activity = _createActivityClock(timing);
+    }
+    _rowChromeTransitions = ChatRowChromeTransitionClock(
+      onChanged: _onRowChromeTransitionChanged,
+    )..muted = !_ticking;
     _dataSource
       ..addDataListener(_onDataChanged)
       ..addBoundaryListener(_onBoundaryChanged)
@@ -1441,6 +1591,7 @@ class RenderChatScrollView extends RenderBox {
     _bottomPadding?.addListener(_onBottomPaddingChanged);
     _topPadding?.addListener(_onTopPaddingChanged);
     _attachSenderRunLayoutListener();
+    _unreadBoundary?.addListener(_onUnreadBoundaryChanged);
     _drag = _buildDragRecognizer();
     _selectionPointer = ChatSelectionPointer(debugOwner: this)
       ..messageIdAt = _presentMessageIdAt
@@ -1510,6 +1661,10 @@ class RenderChatScrollView extends RenderBox {
       _flingCancelPointer = null;
       _ticker?.dispose();
       _ticker = null;
+      _activity?.dispose();
+      _activity = null;
+      _rowChromeTransitions?.dispose();
+      _rowChromeTransitions = null;
       _chunkFetchScheduler.onDetach();
       _pinTailOnJump = false;
       _pendingTailPinUntilSettled = false;
@@ -1542,6 +1697,8 @@ class RenderChatScrollView extends RenderBox {
       _bottomPadding?.removeListener(_onBottomPaddingChanged);
       _topPadding?.removeListener(_onTopPaddingChanged);
       _detachSenderRunLayoutListener();
+      _unreadBoundary?.removeListener(_onUnreadBoundaryChanged);
+      _rowChromeChanged = false;
       _drag?.dispose();
       _drag = null;
       _selectionPointer?.dispose();
@@ -1594,7 +1751,7 @@ class RenderChatScrollView extends RenderBox {
     _abortSpanIfOriginAbsent();
     _fetchAnchorEvent('fetch.data', {
       ..._fetchAnchorSnapshot(),
-      'fetchingChunks': DevLogFormat.ids(_fetchingChunkIndices(), max: 8),
+      'fetchingChunks': LogFormat.ids(_fetchingChunkIndices(), max: 8),
     });
     markNeedsLayout();
   }
@@ -1741,9 +1898,9 @@ class RenderChatScrollView extends RenderBox {
     if (delta == 0.0) return;
     _fetchAnchorEvent('layout.bottomPadCompensate', {
       ..._fetchAnchorSnapshot(),
-      'prev': DevLogFormat.f(previous),
-      'current': DevLogFormat.f(current),
-      'delta': DevLogFormat.f(delta),
+      'prev': LogFormat.f(previous),
+      'current': LogFormat.f(current),
+      'delta': LogFormat.f(delta),
     });
     _controller.applyScrollDelta(delta);
     // Keep close-path travel clock running: inset moves the whole segment by
@@ -1851,8 +2008,8 @@ class RenderChatScrollView extends RenderBox {
             'action': 'clear',
             'reason': 'user-scrolled-off-tail',
             'newestId': newest,
-            'newestTop': DevLogFormat.f(pd.offset),
-            'bottomEdge': DevLogFormat.f(bottomEdge),
+            'newestTop': LogFormat.f(pd.offset),
+            'bottomEdge': LogFormat.f(bottomEdge),
           });
           _pendingTailPinUntilSettled = false;
           return;
@@ -1906,127 +2063,275 @@ class RenderChatScrollView extends RenderBox {
     return _alignedTopForMessage(messageHeight, alignment);
   }
 
-  /// Apply a pending [ChatScrollController.navigationAlignment] after the
-  /// anchor message is laid out. Returns whether the anchor offset moved.
+  /// Applies the armed [ChatScrollController.navigationPlacement] after the
+  /// anchor message is laid out, and advances its lifecycle. Returns whether
+  /// the anchor offset moved.
   ///
-  /// **Dual-writer guard:** close-path `animateTo` sets [navigationAlignment]
-  /// and [ChatAnimator.tickAnimate] interpolates [anchorPixelOffset] each tick.
-  /// Snapping here on every [performLayout] while that animation runs fights
-  /// the interpolator and produces the non-zero-alignment micro-jump (alignment
-  /// `0` never reaches this snap — it returns above). Deferred [jumpTo] and
-  /// post-[animateTo] settle call this when no close-path animation is in flight;
-  /// [navigationAlignment] stays set until the target row is built and aligned.
-  bool _applyNavigationAlignment() {
-    // Measured stitch owns paint translation — nav snap would fight dual-translate.
+  /// Seats the target by kind:
+  /// - [AlignmentPlacement] — top at [_alignedTopForMessage].
+  /// - [CenterBandPlacement] — the fixed 50% paint-band ray hits
+  ///   `target top + offsetFromMessageTop`, the offset clamped into
+  ///   `[0, height)` so the ray stays inside the rect [_publishCenterBand]
+  ///   reads.
+  ///
+  /// Runs after [_resolveTailOrTarget] in the same pass: an alignment that
+  /// decided for the tail is already released and never reaches this seat,
+  /// and one that decided for the target is seated here like a plain jump.
+  ///
+  /// **Pending** (not yet landed on a loaded row): snaps the target on every
+  /// layout, so a skeleton target that loads with a new height is re-seated.
+  /// Once the snap lands on a loaded row the placement becomes **held**.
+  ///
+  /// **Held**: snaps again only when [reapplyHold] is set — the scroll band's
+  /// top edge moved, or the target row's row chrome changed this pass.
+  /// Otherwise it stays silent so bottom inset compensation, the boundary
+  /// clamp, and height changes elsewhere keep their effect instead of being
+  /// snapped back on every layout.
+  ///
+  /// **Release without a snap:**
+  /// - A held target that is no longer the anchor (absent-anchor
+  ///   reassignment, renormalize). A pending one is kept, because a far-path
+  ///   animate arms the placement while the anchor still sits on the
+  ///   outgoing strip.
+  /// - A known-newest alignment target: the tail pin owns that geometry. A
+  ///   Center Band target on the newest is still placed and held, so a
+  ///   mid-bubble restore on the conversation newest keeps its offset. An
+  ///   undecided tail-or-target jump is kept, unseated, until
+  ///   [_resolveTailOrTarget] decides it on the layout that loads the row.
+  /// - A Center Band placement on an empty scroll band.
+  ///
+  /// **Dual-writer guard:** close-path `animateTo` arms an alignment
+  /// placement and [ChatAnimator.tickAnimate] interpolates
+  /// [anchorPixelOffset] each tick. Snapping here on every [performLayout]
+  /// while that animation runs fights the interpolator and produces the
+  /// non-zero-alignment micro-jump. A measured stitch owns paint translation
+  /// the same way. Deferred [jumpTo] and post-[animateTo] settle call this
+  /// when neither is in flight.
+  bool _applyNavigationPlacement({bool reapplyHold = false}) {
     if (_animator.farAnimateActive &&
         _animator.farAnimateJumped &&
         _animator.stitchMeasured) {
       return false;
     }
-    final alignment = _controller.navigationAlignment;
-    final targetId = _controller.navigationAlignmentMessageId;
-    if (targetId == null) return false;
+    final placement = _controller.navigationPlacement;
+    if (placement == null) return false;
     if (_animator.isAnimating && !_animator.farAnimateActive) {
       return false;
     }
+    final targetId = placement.messageId;
     if (_controller.anchorMessageId != targetId) {
+      if (placement.isHeld) _controller.releaseNavigationPlacement();
       return false;
     }
-
-    final newest = _dataSource.newestKnownId;
-    if (_dataSource.reachedNewest && newest != null && targetId == newest) {
-      _controller.clearNavigationAlignment();
+    if (placement is AlignmentPlacement && _isTailClosePathTarget(targetId)) {
+      if (placement.tailFitFraction == null) {
+        _controller.releaseNavigationPlacement();
+      }
       return false;
     }
+    if (placement.isHeld && !reapplyHold) return false;
 
     final child = _boundaryBox(targetId);
     if (child == null || !child.hasSize) {
       return false;
     }
+    final rowHeight = child.size.height;
 
-    final desiredTop = _alignedTopForMessage(child.size.height, alignment);
-    final currentTop = _controller.anchorPixelOffset;
-    if ((desiredTop - currentTop).abs() < 0.5) {
-      if (_dataSource.getMessage(targetId) != null) {
-        _controller.clearNavigationAlignment();
-      }
-      return false;
+    final double desiredTop;
+    final String event;
+    final Map<String, Object?> kindFields;
+    switch (placement) {
+      case AlignmentPlacement(:final alignment):
+        desiredTop = _alignedTopForMessage(rowHeight, alignment);
+        event = 'layout.align';
+        kindFields = {'alignment': LogFormat.f(alignment)};
+      case CenterBandPlacement(:final offsetFromMessageTop):
+        final topEdge = _topPad;
+        final bandHeight = size.height - _bottomPad - topEdge;
+        if (bandHeight <= 0 || !bandHeight.isFinite) {
+          _controller.releaseNavigationPlacement();
+          return false;
+        }
+        final maxOffset = math.max<double>(0, rowHeight - 1e-6);
+        final offset = offsetFromMessageTop.clamp(0.0, maxOffset);
+        desiredTop = topEdge + bandHeight * 0.5 - offset;
+        event = 'layout.centerBand';
+        kindFields = {'offset': LogFormat.f(offset)};
     }
 
-    _fetchAnchorEvent('layout.align', {
-      ..._fetchAnchorSnapshot(),
-      'targetId': targetId,
-      'alignment': DevLogFormat.f(alignment),
-      'from': DevLogFormat.f(currentTop),
-      'to': DevLogFormat.f(desiredTop),
-      'childH': DevLogFormat.f(child.size.height),
-    });
-    _controller.reassignAnchor(targetId, desiredTop);
-    _repositionFromAnchor();
-    return true;
+    final currentTop = _controller.anchorPixelOffset;
+    final moved = (desiredTop - currentTop).abs() >= 0.5;
+    if (moved) {
+      _fetchAnchorEvent(event, {
+        ..._fetchAnchorSnapshot(),
+        'targetId': targetId,
+        'from': LogFormat.f(currentTop),
+        'to': LogFormat.f(desiredTop),
+        ...kindFields,
+        'childH': LogFormat.f(rowHeight),
+        'held': placement.isHeld,
+      });
+      _controller.reassignAnchor(targetId, desiredTop);
+      _repositionFromAnchor();
+    }
+    if (_dataSource.getMessage(targetId) != null) {
+      _controller.holdNavigationPlacement();
+    }
+    return moved;
   }
 
-  /// Apply a pending [ChatScrollController.jumpToCenterBand] after the target
-  /// Message is laid out. Returns whether the anchor offset moved.
+  /// Decides an undecided tail-or-target jump (an [AlignmentPlacement] with
+  /// a [AlignmentPlacement.tailFitFraction]) once its target is laid out as
+  /// a loaded message row, and tells the host.
   ///
-  /// Places the Message so the fixed 50% paint-band ray hits
-  /// `message top + offsetFromMessageTop`. Unlike [_applyNavigationAlignment],
-  /// this runs for known-newest targets too — leave/reopen mid-bubble on the
-  /// conversation newest must not clear without snap. Dual-writer / stitch
-  /// guards match alignment. Offset is clamped into `[0, height)` so the ray
-  /// stays inside the Message rect used by [_publishCenterBand].
-  bool _applyNavigationCenterBand() {
-    if (_animator.farAnimateActive &&
-        _animator.farAnimateJumped &&
-        _animator.stitchMeasured) {
-      return false;
-    }
-    final targetId = _controller.navigationCenterBandMessageId;
-    final offset = _controller.navigationCenterBandOffset;
-    if (targetId == null || offset == null) return false;
-    if (_animator.isAnimating && !_animator.farAnimateActive) {
-      return false;
-    }
-    if (_controller.anchorMessageId != targetId) {
-      return false;
-    }
-
-    final child = _boundaryBox(targetId);
-    if (child == null || !child.hasSize) {
-      return false;
-    }
-
-    final topEdge = _topPad;
-    final bottomEdge = size.height - _bottomPad;
-    final bandHeight = bottomEdge - topEdge;
-    if (bandHeight <= 0 || !bandHeight.isFinite) {
-      _controller.clearNavigationCenterBand();
-      return false;
-    }
-
-    final rayY = topEdge + bandHeight * 0.5;
-    final maxOffset = math.max<double>(0, child.size.height - 1e-6);
-    final clampedOffset = offset.clamp(0.0, maxOffset);
-    final desiredTop = rayY - clampedOffset;
-    final currentTop = _controller.anchorPixelOffset;
-    if ((desiredTop - currentTop).abs() < 0.5) {
-      if (_dataSource.getMessage(targetId) != null) {
-        _controller.clearNavigationCenterBand();
+  /// Runs after renormalize and before [_applyNavigationPlacement], so the
+  /// outcome and any unread boundary change the host makes for it reach the
+  /// placement and the tail pin of this same pass:
+  ///
+  /// - **Tail** — [_layOutNewestBelow] yields the newest row, and the span
+  ///   from the target's body top (below its row chrome) to that row's
+  ///   bottom is at most the fraction of the viewport height — the whole
+  ///   viewport, not the scroll band. The placement is released, the anchor
+  ///   moves onto the newest row at its current offset, and the jump-to-tail
+  ///   pin is armed, so the boundary clamp puts the newest row's bottom on
+  ///   the bottom inset.
+  /// - **Target** — no newest row, or a longer span. The placement stays
+  ///   armed without the fraction and [_applyNavigationPlacement] seats and
+  ///   holds it.
+  ///
+  /// Listeners run inside [invokeLayoutCallback], where the viewport's
+  /// boundary listener may mark it dirty. When the unread boundary changed,
+  /// this pass consumes the row chrome change — the next layout must not
+  /// replay it as a hold — and re-fans, so every row is rebuilt against the
+  /// new boundary before the target is seated or the tail pinned, and no
+  /// painted frame shows the separator the host just removed or lacks the
+  /// one it just added. The re-fan leaves this pass's hold inputs
+  /// (`reapplyHold`, the row chrome reference) as computed before it; they
+  /// do not apply, because the placement is still pending on the target
+  /// outcome and gone on the tail outcome.
+  ///
+  /// Silent until this pass lays out the target row as a loaded message: a
+  /// skeleton target defers the decision to the layout that loads it. The
+  /// span reads only rows in [built]; a child this pass did not lay out
+  /// keeps the geometry of an earlier pass, such as skeleton heights from
+  /// before the chunk loaded.
+  void _resolveTailOrTarget(
+    BoxConstraints cc,
+    Set<int> built,
+    Set<int> builtChunks,
+  ) {
+    if (_controller.navigationPlacement case AlignmentPlacement(
+      messageId: final targetId,
+      tailFitFraction: final fraction?,
+    ) when _dataSource.getMessage(targetId) != null &&
+        built.contains(targetId)) {
+      final newest = _layOutNewestBelow(targetId, cc, built, builtChunks);
+      final span = switch ((_children[targetId], newest)) {
+        (final target?, (_, final last)) =>
+          _parentData(last).offset +
+              last.size.height -
+              _parentData(target).offset -
+              _parentData(target).messageBodyTop,
+        _ => null,
+      };
+      final limit = fraction * size.height;
+      final tail = switch ((newest, span)) {
+        ((final id, final last), final span?) when span <= limit => (id, last),
+        _ => null,
+      };
+      final outcome = switch (tail) {
+        null => TailOrTargetOutcome.target,
+        _ => TailOrTargetOutcome.tail,
+      };
+      _fetchAnchorEvent('layout.tailOrTarget', {
+        ..._fetchAnchorSnapshot(),
+        'targetId': targetId,
+        'span': switch (span) {
+          final span? => LogFormat.f(span),
+          null => null,
+        },
+        'limit': LogFormat.f(limit),
+        'outcome': outcome.name,
+      });
+      switch (tail) {
+        case (final newestId, final last):
+          _controller
+            ..releaseNavigationPlacement()
+            ..reassignAnchor(newestId, _parentData(last).offset);
+          _markPinTailOnJumpIfNeeded(newestId);
+        case null:
+          _controller.markTailFitDecided();
       }
-      return false;
+      _dispatchTailOrTarget(outcome, cc, built, builtChunks);
     }
+  }
 
-    _fetchAnchorEvent('layout.centerBand', {
-      ..._fetchAnchorSnapshot(),
-      'targetId': targetId,
-      'offset': DevLogFormat.f(clampedOffset),
-      'from': DevLogFormat.f(currentTop),
-      'to': DevLogFormat.f(desiredTop),
-      'childH': DevLogFormat.f(child.size.height),
-    });
-    _controller.reassignAnchor(targetId, desiredTop);
-    _repositionFromAnchor();
-    return true;
+  /// Hands [outcome] to the controller's tail-or-target listeners inside a
+  /// layout callback, then re-fans when a listener changed the unread
+  /// boundary — see [_resolveTailOrTarget].
+  void _dispatchTailOrTarget(
+    TailOrTargetOutcome outcome,
+    BoxConstraints cc,
+    Set<int> built,
+    Set<int> builtChunks,
+  ) {
+    final boundaryBefore = _unreadBoundary?.value;
+    invokeLayoutCallback<BoxConstraints>(
+      (_) => _controller.notifyTailOrTarget(outcome),
+    );
+    final boundaryAfter = _unreadBoundary?.value;
+    if (boundaryAfter == boundaryBefore) return;
+    _laidOutUnreadBoundary = boundaryAfter;
+    _rowChromeChanged = false;
+    // The outcome frame paints the decided geometry: no leg on either row.
+    if (_rowChromeTransitions case final transitions?) {
+      if (boundaryBefore != null) transitions.cancel(boundaryBefore);
+      if (boundaryAfter != null) transitions.cancel(boundaryAfter);
+      transitions.takeChanged();
+    }
+    built.clear();
+    builtChunks.clear();
+    _layoutFromAnchor(cc, built, builtChunks);
+  }
+
+  /// The newest message's id and laid-out row, when it lies close enough
+  /// below the laid-out target [targetId] for a tail-or-target span to be
+  /// measured; `null` when the newest message is not known
+  /// ([ChatDataSource.reachedNewest]) or not loaded, or when it lies too far
+  /// below the target to fit any fraction.
+  ///
+  /// Mutates the layout when this pass's fan-out left a loaded newest row
+  /// out of [built] — a child kept from an earlier pass does not count: the
+  /// rows are re-fanned with the target's body top on the viewport's top
+  /// edge. Fan-out builds at least a viewport height below the anchor
+  /// ([_fanOutFromAnchor] fills to `size.height` plus the cache extent), so
+  /// a newest row still unbuilt is farther than a fraction of `1` allows.
+  /// The re-fan moves the anchor onto the target; the pending placement or
+  /// the tail pin re-seats it later in the pass.
+  (int, RenderBox)? _layOutNewestBelow(
+    int targetId,
+    BoxConstraints cc,
+    Set<int> built,
+    Set<int> builtChunks,
+  ) {
+    final newest = _dataSource.newestKnownId;
+    if (!_dataSource.reachedNewest || newest == null) return null;
+    if (_dataSource.getMessage(newest) == null) return null;
+    if (!built.contains(newest)) {
+      if (_children[targetId] case final target?) {
+        _controller.reassignAnchor(
+          targetId,
+          -_parentData(target).messageBodyTop,
+        );
+        built.clear();
+        builtChunks.clear();
+        _layoutFromAnchor(cc, built, builtChunks);
+      }
+    }
+    return switch (_children[newest]) {
+      final last? when built.contains(newest) => (newest, last),
+      _ => null,
+    };
   }
 
   /// Clamp a pre-mount [jumpTo] anchor that landed past [newestKnownId].
@@ -2037,8 +2342,7 @@ class RenderChatScrollView extends RenderBox {
     if (targetId == anchorId) return;
     _controller
       ..reassignAnchor(targetId, 0)
-      ..syncNavigationAlignmentTarget(targetId)
-      ..syncNavigationCenterBandTarget(targetId);
+      ..syncNavigationPlacementTarget(targetId);
     if (!_controller.hasPendingNavigationCenterBand) {
       _markPinTailOnJumpIfNeeded(targetId);
     }
@@ -2049,11 +2353,9 @@ class RenderChatScrollView extends RenderBox {
     if (targetId != messageId) {
       _controller.reassignAnchor(targetId, 0);
     }
-    _controller
-      ..syncNavigationAlignmentTarget(targetId)
-      ..syncNavigationCenterBandTarget(targetId);
+    _controller.syncNavigationPlacementTarget(targetId);
     // Center Band mid-bubble restore on newest must not arm jump-to-tail pin —
-    // that would fight [_applyNavigationCenterBand] on the next layout.
+    // that would fight [_applyNavigationPlacement] on the next layout.
     if (!_controller.hasPendingNavigationCenterBand) {
       _markPinTailOnJumpIfNeeded(targetId);
     }
@@ -2082,6 +2384,7 @@ class RenderChatScrollView extends RenderBox {
     }
     // Poll debounce + jump-fetch safety net — see [ChatChunkFetchScheduler.onJump].
     _chunkFetchScheduler.onJump();
+    _activity?.pulse();
     markNeedsLayout();
   }
 
@@ -2090,6 +2393,7 @@ class RenderChatScrollView extends RenderBox {
     _cancelAnimate(fadeHighlight: false);
     _cancelHighlightForPan();
     _cancelOverscroll();
+    _activity?.pulse(navigation: false);
     // Drop any drag delta accumulated since the last tick: the controller
     // has already shifted the anchor by `delta`; applying the pending drag
     // on top would make the drag appear to accelerate by `delta` for one
@@ -2144,8 +2448,14 @@ class RenderChatScrollView extends RenderBox {
 
     _compensateBottomPaddingChange();
 
+    final rowChromeChanged = _rowChromeChanged;
+    _rowChromeChanged = false;
+    final unreadBoundaryBefore = _laidOutUnreadBoundary;
+    _laidOutUnreadBoundary = _unreadBoundary?.value;
+
     if (_dataSource.isEmpty || overlayKind != ChatOverlayKind.none) {
       _layoutOverlayMode(overlayKind);
+      _rowChromeTransitions?.retainWhere(_children.containsKey);
       assert(() {
         debugLastLayoutDuration = _debugSw.elapsed;
         _debugSw.stop();
@@ -2163,7 +2473,7 @@ class RenderChatScrollView extends RenderBox {
       _overlayKind = ChatOverlayKind.none;
     }
 
-    _fetchAnchorLog.bumpLayoutFrame();
+    _fetchAnchorLayoutFrame++;
     _fetchLogAnchorIdAtLayoutStart = _controller.anchorMessageId;
     _fetchLogAnchorYAtLayoutStart = _controller.anchorPixelOffset;
     final bandAtStart = _bottomBandMessage();
@@ -2171,7 +2481,7 @@ class RenderChatScrollView extends RenderBox {
     _fetchLogBandBottomAtLayoutStart = bandAtStart?.bottom;
     _fetchAnchorEvent('layout.begin', {
       ..._fetchAnchorSnapshot(),
-      'fetchingChunks': DevLogFormat.ids(_fetchingChunkIndices(), max: 8),
+      'fetchingChunks': LogFormat.ids(_fetchingChunkIndices(), max: 8),
     });
     // Drop pre-jump children so renormalize/clamp do not fan across the wrong
     // id span — but keep stitch presence pins (outgoing strip + animate target).
@@ -2201,6 +2511,41 @@ class RenderChatScrollView extends RenderBox {
 
     _normalizeAnchorToKnownTail();
 
+    // Held navigation placement triggers. When the placement is re-placed
+    // this pass (its target's own row chrome changed, or a held target meets
+    // a moved band top), the row chrome hold stands down — one origin writer
+    // per pass.
+    final topPad = _topPad;
+    final topPadMoved = switch (_lastLaidOutTopPad) {
+      final last? => last != topPad,
+      null => false,
+    };
+    _lastLaidOutTopPad = topPad;
+    final unreadBoundaryAfter = _laidOutUnreadBoundary;
+    final boundaryMoved = unreadBoundaryBefore != unreadBoundaryAfter;
+    if (boundaryMoved) {
+      _startUnreadSeparatorTransitions(
+        unreadBoundaryBefore,
+        unreadBoundaryAfter,
+      );
+    }
+    final chromeChangedRows = <int>{
+      if (boundaryMoved) ...{?unreadBoundaryBefore, ?unreadBoundaryAfter},
+      ...?_rowChromeTransitions?.takeChanged(),
+    };
+    final targetChromeChanged =
+        rowChromeChanged && _isNavigationTargetChromeChange(chromeChangedRows);
+    final reapplyHold = topPadMoved || targetChromeChanged;
+    final placementOwnsPass =
+        targetChromeChanged ||
+        (topPadMoved &&
+            (_controller.navigationPlacement?.isHeld ?? false) &&
+            _isNavigationTargetAnchored());
+
+    final rowChromeReference = rowChromeChanged && !placementOwnsPass
+        ? _recordRowChromeReference()
+        : null;
+
     // Delete recovery (absent anchor delete):
     //   record geometry → reassign neighbor → purge tombstones → fan-out →
     //   preserve viewport → [optional refan if band null] → skip renormalize →
@@ -2221,6 +2566,11 @@ class RenderChatScrollView extends RenderBox {
       builtChunks.clear();
       _layoutFromAnchor(childConstraints, built, builtChunks);
     }
+    if (_holdRowChromeReference(rowChromeReference)) {
+      built.clear();
+      builtChunks.clear();
+      _layoutFromAnchor(childConstraints, built, builtChunks);
+    }
 
     final anchorBefore = _controller.anchorMessageId;
     final anchorYBefore = _controller.anchorPixelOffset;
@@ -2236,13 +2586,12 @@ class RenderChatScrollView extends RenderBox {
         ..._fetchAnchorSnapshot(),
         'anchorBefore': anchorBefore,
         'anchorAfter': anchorAfterRenorm,
-        'yBefore': DevLogFormat.f(anchorYBefore),
-        'yAfter': DevLogFormat.f(anchorYAfterRenorm),
+        'yBefore': LogFormat.f(anchorYBefore),
+        'yAfter': LogFormat.f(anchorYAfterRenorm),
       });
     }
-    final alignmentMoved = _applyNavigationAlignment();
-    final centerBandMoved = _applyNavigationCenterBand();
-    final navigationMoved = alignmentMoved || centerBandMoved;
+    _resolveTailOrTarget(childConstraints, built, builtChunks);
+    final navigationMoved = _applyNavigationPlacement(reapplyHold: reapplyHold);
     // Forcibly re-pin newest to the bottom edge when:
     // * follow-tail insert: viewport was at the tail and newest **id** advanced
     //   (new row lives below the previous bottomEdge), or
@@ -2279,8 +2628,12 @@ class RenderChatScrollView extends RenderBox {
     }
     // Self-insert animate owns follow-tail motion: skip instant pin on id
     // advance (teleport). Same-id height growth still repins (edit expand).
+    // A placement that seated its target this pass owns the origin: the
+    // previous layout's tail state may come from skeleton rows that the
+    // clamp pinned before the target's chunk loaded.
     final followTailRepin =
-        (!_deferTailAdvancedRepin && tailAdvanced) || newestHeightGrew;
+        !navigationMoved &&
+        ((!_deferTailAdvancedRepin && tailAdvanced) || newestHeightGrew);
     final repinBottom =
         !stitchLayoutFrozen &&
         ((!occupyingSpanAutoScroll && _pinTailOnJump) ||
@@ -2299,6 +2652,11 @@ class RenderChatScrollView extends RenderBox {
       });
     }
     _pinTailOnJump = false;
+    // The tail pin takes the geometry: a held placement re-applied later
+    // would drag the followed newest back under the bottom inset.
+    if (repinBottom && (_controller.navigationPlacement?.isHeld ?? false)) {
+      _controller.releaseNavigationPlacement();
+    }
     // Fine-tune band gap before clamp — up to 3 passes; clamp may shift geometry.
     if (_deleteCollapseRecoveryActive &&
         _deleteCollapseExpectedBandGap != null) {
@@ -2318,8 +2676,7 @@ class RenderChatScrollView extends RenderBox {
       _fetchAnchorEvent('layout.refan', {
         ..._fetchAnchorSnapshot(),
         'clamped': clamped,
-        'alignmentMoved': alignmentMoved,
-        'centerBandMoved': centerBandMoved,
+        'navigationMoved': navigationMoved,
         'anchorIdChanged': _controller.anchorMessageId != anchorBefore,
       });
       built.clear();
@@ -2349,7 +2706,7 @@ class RenderChatScrollView extends RenderBox {
       final sig = '$live/${gcPinned.length}/$wouldDrop';
       if (_stitchGcLogSig != sig) {
         _stitchGcLogSig = sig;
-        _animator.log.event('stitch.gc', {
+        fine(.animate, 'stitch.gc', {
           'pinned': gcPinned.length,
           'outgoingLive': live,
           'wouldDropOutgoing': wouldDrop,
@@ -2367,9 +2724,9 @@ class RenderChatScrollView extends RenderBox {
     if (staleMessages.isNotEmpty || staleErrorChunks.isNotEmpty) {
       _fetchAnchorEvent('layout.gc', {
         ..._fetchAnchorSnapshot(),
-        'removed': DevLogFormat.ids(staleMessages, max: 12),
+        'removed': LogFormat.ids(staleMessages, max: 12),
         'removedCount': staleMessages.length,
-        'removedChunks': DevLogFormat.ids(staleErrorChunks, max: 4),
+        'removedChunks': LogFormat.ids(staleErrorChunks, max: 4),
       });
       _invokeChildManagerLayout(() {
         if (staleMessages.isNotEmpty) {
@@ -2380,6 +2737,7 @@ class RenderChatScrollView extends RenderBox {
         }
       });
     }
+    _rowChromeTransitions?.retainWhere(_children.containsKey);
 
     // Stitch outgoing stay outside fan-out `built` — layout + re-freeze so
     // they remain paint-valid for dual-translate.
@@ -2425,6 +2783,7 @@ class RenderChatScrollView extends RenderBox {
     if (_animator.isAnimating && !_animator.farAnimateActive) {
       _animator.rebaseClosePathEnd(elapsed: _lastTickElapsed);
     }
+    _resolveRowChromeFrame();
 
     final anchorYEnd = _controller.anchorPixelOffset;
     final anchorDy = _fetchLogAnchorYAtLayoutStart == null
@@ -2444,13 +2803,11 @@ class RenderChatScrollView extends RenderBox {
         bandIdChanged) {
       _fetchAnchorEvent('layout.jump', {
         ..._fetchAnchorSnapshot(),
-        'anchorDy': anchorDy == null ? null : DevLogFormat.f(anchorDy),
+        'anchorDy': anchorDy == null ? null : LogFormat.f(anchorDy),
         'anchorIdChanged': idChanged,
         'bandIdWas': _fetchLogBandIdAtLayoutStart,
         'bandIdNow': bandAtEnd?.id,
-        'bandBottomDy': bandBottomDy == null
-            ? null
-            : DevLogFormat.f(bandBottomDy),
+        'bandBottomDy': bandBottomDy == null ? null : LogFormat.f(bandBottomDy),
         'clamped': clamped,
         'refan':
             clamped ||
@@ -2467,7 +2824,7 @@ class RenderChatScrollView extends RenderBox {
 
     if (_spanAutoScrollOccupying) _applyLiveSpanHit();
     _fetchAnchorEvent('layout.end', _fetchAnchorSnapshot());
-    if (_scrollbarLog.enabled) {
+    if (LogCategory.scrollbar.enabled) {
       final computed = _computeScrollbarProgress();
       if (computed != null) {
         _scrollbarEvent(
@@ -2651,21 +3008,21 @@ class RenderChatScrollView extends RenderBox {
       'deletedId': before.deletedId,
       'deletedHeight': before.deletedHeight == null
           ? null
-          : DevLogFormat.f(before.deletedHeight!),
-      'anchorYBefore': DevLogFormat.f(before.anchorYBefore),
-      'scrollDelta': DevLogFormat.f(scrollDelta),
-      'anchorHeightAfter': DevLogFormat.f(anchorHeightAfter),
+          : LogFormat.f(before.deletedHeight!),
+      'anchorYBefore': LogFormat.f(before.anchorYBefore),
+      'scrollDelta': LogFormat.f(scrollDelta),
+      'anchorHeightAfter': LogFormat.f(anchorHeightAfter),
       'bandIdBefore': before.bandIdBefore,
       'bandBottomBefore': before.bandBottomBefore == null
           ? null
-          : DevLogFormat.f(before.bandBottomBefore!),
+          : LogFormat.f(before.bandBottomBefore!),
       'bandBottomAfterPre': bandAfterLayout == null
           ? null
-          : DevLogFormat.f(bandAfterLayout.bottom),
+          : LogFormat.f(bandAfterLayout.bottom),
       'bandBottomAfter': bandAfter == null
           ? null
-          : DevLogFormat.f(bandAfter.bottom),
-      'bottomEdge': DevLogFormat.f(bottomEdge),
+          : LogFormat.f(bandAfter.bottom),
+      'bottomEdge': LogFormat.f(bottomEdge),
       'userPreemptedTailBefore': before.userPreemptedTailBefore,
       'pinNewestSuppressed':
           before.userPreemptedTailBefore && _deleteCollapseRecoveryActive,
@@ -2868,6 +3225,139 @@ class RenderChatScrollView extends RenderBox {
       _controller.applyScrollDelta(-gapCorrection);
       _repositionFromAnchor();
     }
+  }
+
+  /// Whether a row chrome change on this pass touches the armed navigation
+  /// placement's target while that target is the anchor: the target is among
+  /// [changedRows] — the old and the new unread boundary row on the pass
+  /// that moves the boundary, and every row whose separator transition
+  /// frame moved since the previous pass.
+  ///
+  /// When true the placement is re-applied instead of running the row chrome
+  /// hold, on every frame of the transition, so a separator added to the
+  /// target grows at the placement (for alignment `0`, from the band top)
+  /// with the body below it, rather than growing upward past the band top
+  /// to keep the band bottom row still.
+  ///
+  /// Only the unread boundary drives row chrome today; a new row chrome
+  /// source must report its rows here too.
+  bool _isNavigationTargetChromeChange(Set<int> changedRows) =>
+      _isNavigationTargetAnchored() &&
+      changedRows.contains(_controller.anchorMessageId);
+
+  /// Turns an unread boundary move from [from] to [to] into separator
+  /// transitions, before this pass fans out.
+  ///
+  /// The old row exits when it was laid out last frame carrying the
+  /// separator; the new row enters when it was laid out last frame as a
+  /// loaded message. Any other row changes without a transition: its leg is
+  /// cancelled, so it is built settled (or without the separator) on this
+  /// pass.
+  void _startUnreadSeparatorTransitions(int? from, int? to) {
+    final transitions = _rowChromeTransitions;
+    if (transitions == null) return;
+    if (from != null) {
+      if (_children[from] case final RenderChatRowChrome row
+          when row.hasSize && row.hasTransitioningItem) {
+        transitions.exit(from);
+      } else {
+        transitions.cancel(from);
+      }
+    }
+    if (to != null) {
+      if ((_children[to]?.hasSize ?? false) &&
+          _dataSource.getMessage(to) != null) {
+        transitions.enter(to);
+      } else {
+        transitions.cancel(to);
+      }
+    }
+  }
+
+  /// Whether the armed navigation placement's target is the current anchor —
+  /// the only state in which [_applyNavigationPlacement] places it instead
+  /// of releasing it.
+  bool _isNavigationTargetAnchored() =>
+      _controller.navigationPlacement?.messageId == _controller.anchorMessageId;
+
+  /// Captures the reading position before a row chrome change re-lays out
+  /// the rows: the **reference row** and its bottom edge measured from the
+  /// anchor row's top.
+  ///
+  /// The reference row is the highest-id built message whose top sits above
+  /// the scroll band bottom (`height - bottomPad`) — the row at the band
+  /// bottom, or the newest row when content ends above it. Holding its
+  /// bottom edge keeps the bodies at and below a changed row in place while
+  /// that row is on screen or above it (the rows above absorb the change),
+  /// keeps the newest row pinned at the tail, and lets chrome that changes
+  /// below the band grow off screen without moving what is visible.
+  ///
+  /// Not [_bottomBandMessage]: that probe picks the row whose bottom is
+  /// nearest the band bottom, which can be a row above the one straddling
+  /// the edge. A changed row between the two would then grow downward into
+  /// the band instead of upward.
+  ///
+  /// Measured relative to the anchor, both edges from the same frame's
+  /// offsets, so a scroll delta or a jump queued since that frame does not
+  /// skew the result. `null` — nothing to hold — before the first layout,
+  /// while an animation or a stitch freeze owns the anchor, or when the
+  /// anchor row is not built.
+  _RowChromeReference? _recordRowChromeReference() {
+    if (_animator.isAnimating || _shouldFreezeStitchLayout()) return null;
+    final anchor = _resolveAnchorBox();
+    if (anchor == null || !anchor.box.hasSize) return null;
+    final bottomEdge = size.height - _bottomPad;
+    (int id, double bottom)? reference;
+    for (final MapEntry(key: id, value: child) in _children.entries) {
+      if (!child.hasSize) continue;
+      final top = _parentData(child).offset;
+      if (top >= bottomEdge) continue;
+      reference = (id, top + child.size.height);
+    }
+    return switch (reference) {
+      (final id, final bottom) => (
+        anchorId: _controller.anchorMessageId,
+        referenceId: id,
+        bottomFromAnchor: bottom - _parentData(anchor.box).offset,
+      ),
+      null => null,
+    };
+  }
+
+  /// Shifts the scroll origin so the row captured by
+  /// [_recordRowChromeReference] keeps its screen Y after the pass-1
+  /// fan-out re-laid out rows with changed row chrome.
+  ///
+  /// Silent when [reference] is `null`, when delete recovery owns this pass,
+  /// when the anchor id changed since the capture (reassignment or a jump to
+  /// another row — the relative measure no longer applies), or when either
+  /// row is no longer built. Runs before renormalize, navigation alignment,
+  /// and the boundary clamp, so an explicit jump alignment and the tail pin
+  /// still have the last word.
+  ///
+  /// Returns whether the origin moved. The shift only repositions built
+  /// rows, so the caller re-fans to fill the band edge the shift uncovered.
+  bool _holdRowChromeReference(_RowChromeReference? reference) {
+    if (reference == null || _deleteCollapseRecoveryActive) return false;
+    if (_controller.anchorMessageId != reference.anchorId) return false;
+    final anchor = _resolveAnchorBox();
+    final row = _children[reference.referenceId];
+    if (anchor == null || row == null) return false;
+    final bottomFromAnchor =
+        _parentData(row).offset +
+        row.size.height -
+        _parentData(anchor.box).offset;
+    final delta = reference.bottomFromAnchor - bottomFromAnchor;
+    // Exact: a transition moves the chrome a fraction of a pixel per frame,
+    // and every skipped shift would add to the drift.
+    if (delta.abs() <= precisionErrorTolerance) return false;
+    _shiftLayoutByScrollDelta(delta);
+    _fetchAnchorEvent('layout.rowChromeHold', {
+      ..._fetchAnchorSnapshot(),
+      'referenceId': reference.referenceId,
+      'delta': LogFormat.f(delta),
+    });
+    return true;
   }
 
   void _reassignAnchorIfAbsent() {
@@ -3228,14 +3718,17 @@ class RenderChatScrollView extends RenderBox {
       runLayout: runLayout,
     );
     if (child == null) return null;
+    if (child case final RenderChatRowChrome row) {
+      row.transition = _rowChromeTransitions?.frameOf(id);
+    }
     child.layout(cc, parentUsesSize: true);
     _touchChunk(id);
     final loaded = _dataSource.getMessage(id) != null;
-    if (_fetchAnchorLog.enabled) {
+    if (LogCategory.anchor.enabled) {
       _fetchAnchorEvent('build.tile', {
         'id': id,
         'loaded': loaded,
-        'h': DevLogFormat.f(child.size.height),
+        'h': LogFormat.f(child.size.height),
         'isAnchor': id == _controller.anchorMessageId,
         'chunk': ChatScrollChunk.chunkOf(id),
       });
@@ -3347,8 +3840,11 @@ class RenderChatScrollView extends RenderBox {
     if (_animator.farAnimateActive) {
       pinned.addAll(_stitchOutgoingIds);
     }
-    final navTarget = _controller.navigationAlignmentMessageId;
-    if (navTarget != null) pinned.add(navTarget);
+    if (_controller.navigationPlacement case AlignmentPlacement(
+      :final messageId,
+    )) {
+      pinned.add(messageId);
+    }
     return pinned;
   }
 
@@ -3397,10 +3893,10 @@ class RenderChatScrollView extends RenderBox {
         ..._fetchAnchorSnapshot(),
         'fromId': fromId,
         'toId': bestId,
-        'fromY': DevLogFormat.f(fromY),
-        'toY': DevLogFormat.f(bestOffset),
+        'fromY': LogFormat.f(fromY),
+        'toY': LogFormat.f(bestOffset),
       });
-      if (_scrollbarLog.enabled) {
+      if (LogCategory.scrollbar.enabled) {
         final before = _computeScrollbarProgress(
           anchorIdOverride: fromId,
           anchorYOverride: fromY,
@@ -3409,8 +3905,8 @@ class RenderChatScrollView extends RenderBox {
         _scrollbarEvent('renormalize', {
           'fromId': fromId,
           'toId': bestId,
-          'fromY': DevLogFormat.f(fromY),
-          'toY': DevLogFormat.f(bestOffset),
+          'fromY': LogFormat.f(fromY),
+          'toY': LogFormat.f(bestOffset),
         });
         if (before != null) {
           _scrollbarEvent(
@@ -3530,12 +4026,12 @@ class RenderChatScrollView extends RenderBox {
         final delta = bottomEdge - bottom;
         _fetchAnchorEvent('layout.pinNewest', {
           ..._fetchAnchorSnapshot(),
-          'delta': DevLogFormat.f(delta),
+          'delta': LogFormat.f(delta),
           'repinBottom': repinBottom,
           'newestId': newest,
-          'newestBottom': DevLogFormat.f(bottom),
-          'newestTop': DevLogFormat.f(_parentData(last).offset),
-          'newestH': DevLogFormat.f(last.size.height),
+          'newestBottom': LogFormat.f(bottom),
+          'newestTop': LogFormat.f(_parentData(last).offset),
+          'newestH': LogFormat.f(last.size.height),
           'newestLoaded': _dataSource.getMessage(newest) != null,
         });
         _controller.applyScrollDelta(delta);
@@ -3561,9 +4057,9 @@ class RenderChatScrollView extends RenderBox {
         final delta = -topY;
         _fetchAnchorEvent('layout.pinOldest', {
           ..._fetchAnchorSnapshot(),
-          'delta': DevLogFormat.f(delta),
+          'delta': LogFormat.f(delta),
           'oldestId': oldest,
-          'oldestTop': DevLogFormat.f(topY),
+          'oldestTop': LogFormat.f(topY),
         });
         _controller.applyScrollDelta(delta);
         _repositionFromAnchor();
@@ -3747,9 +4243,7 @@ class RenderChatScrollView extends RenderBox {
 
   // --- Day separators --------------------------------------------------------
 
-  /// Set a child's viewport [offset]. For a day-starting message it also
-  /// refreshes the inline separator's fade opacity from the paint position —
-  /// Tier-1-safe (parent-data + optional stitch dy), no `getMessage`.
+  /// Set a child's viewport [offset].
   ///
   /// Marks [_childOffsetsMoved] when the Y actually changes so
   /// [_publishControllerState] can notify scroll-observer chrome.
@@ -3759,13 +4253,6 @@ class RenderChatScrollView extends RenderBox {
       _childOffsetsMoved = true;
     }
     pd.offset = offset;
-    if (pd.startsDay) {
-      pd.dividerOpacity = _floatingHeaderController.dividerOpacityFor(
-        topY: offset + _stitchPaintDyIfActive(pd.id),
-        topPad: _topPad,
-        floatingHeaderHeight: _effectiveFloatingHeaderHeight(),
-      );
-    }
   }
 
   /// Paint translation while stitch is jumped; `0` otherwise.
@@ -3774,23 +4261,71 @@ class RenderChatScrollView extends RenderBox {
       ? _stitchPaintDy(id)
       : 0.0;
 
-  /// Refresh inline-separator fades from paint Y during stitch ticks (progress
-  /// changes without `_setOffset`).
-  void _refreshStitchDividerOpacities() {
-    if (!_animator.farAnimateActive || !_animator.farAnimateJumped) return;
-    final headerH = _effectiveFloatingHeaderHeight();
-    for (final entry in _children.entries) {
-      final pd = _parentData(entry.value);
-      if (!pd.startsDay) continue;
-      pd.dividerOpacity = _floatingHeaderController.dividerOpacityFor(
-        topY: pd.offset + _stitchPaintDy(pd.id),
-        topPad: _topPad,
-        floatingHeaderHeight: headerH,
+  /// Floating header effect resolved by [_resolveRowChromeFrame].
+  ChatFloatingHeaderEffect _headerEffect = const ChatFloatingHeaderEffect(
+    opacity: 0,
+  );
+
+  final LayerHandle<OpacityLayer> _headerOpacityLayer =
+      LayerHandle<OpacityLayer>();
+
+  /// Resolves the floating header through [_dayHeaderDelegate], places it,
+  /// and publishes the row chrome inputs (paint top, header zone, activity)
+  /// into every child's parent data. Runs at the end of every layout, every
+  /// scroll tick, and every activity change. Tier-1-safe: parent-data reads
+  /// and writes only, plus the stitch paint translation.
+  void _resolveRowChromeFrame() {
+    final extent = _effectiveFloatingHeaderHeight();
+    final restTop = _floatingHeaderController.placeHeaderOffset(
+      topPad: _topPad,
+    );
+    final stitching = _animator.farAnimateActive && _animator.farAnimateJumped;
+    for (final child in _children.values) {
+      final pd = _parentData(child);
+      pd.paintTop = pd.offset + (stitching ? _stitchPaintDy(pd.id) : 0.0);
+    }
+
+    final ChatFloatingHeaderZone zone;
+    if (extent > 0) {
+      double? leading;
+      final above = restTop - extent;
+      for (final child in _children.values) {
+        final pd = _parentData(child);
+        if (!pd.startsDay) continue;
+        final top = pd.paintTop;
+        if (top > above && (leading == null || top < leading)) leading = top;
+      }
+      _headerEffect = _dayHeaderDelegate.resolveFloatingHeader(
+        ChatDayHeaderMetrics(
+          restTop: restTop,
+          extent: extent,
+          leadingSeparatorTop: leading,
+          activity: _activity?.value ?? 1.0,
+        ),
       );
+      zone = ChatFloatingHeaderZone(
+        restTop: restTop,
+        extent: extent,
+        offset: _headerEffect.offset,
+        opacity: _headerEffect.opacity,
+      );
+    } else {
+      _headerEffect = const ChatFloatingHeaderEffect(opacity: 0);
+      zone = ChatFloatingHeaderZone.none;
+    }
+    _activity?.pinned = _headerEffect.holdsActivity;
+    final activity = _activity?.value ?? 1.0;
+    if (_floatingHeader case final header?) {
+      _parentData(header).offset = restTop + _headerEffect.offset;
+    }
+    for (final child in _children.values) {
+      _parentData(child)
+        ..headerZone = zone
+        ..scrollActivity = activity;
     }
   }
 
-  /// Header height used for inline-divider fade — zero when the floating
+  /// Floating header height for the header zone — zero when the floating
   /// header is suppressed (short content / top overscroll above oldest).
   double _effectiveFloatingHeaderHeight() {
     if (!_shouldShowFloatingHeader()) return 0;
@@ -3849,9 +4384,10 @@ class RenderChatScrollView extends RenderBox {
     heightOf: (child) => child.size.height,
   );
 
-  /// Rebuild (only on a group change), lay out, and pin the floating header.
-  /// Called from [performLayout]. Widget inflation stays in the render object
-  /// via [invokeLayoutCallback]; bucket/date logic is on the controller.
+  /// Rebuild (only on a group change) and lay out the floating header.
+  /// Called from [performLayout]; [_resolveRowChromeFrame] places it. Widget
+  /// inflation stays in the render object via [invokeLayoutCallback];
+  /// bucket/date logic is on the controller.
   void _updateFloatingHeader() {
     if (!_shouldShowFloatingHeader()) {
       _clearFloatingHeaderWhenHidden();
@@ -3879,35 +4415,21 @@ class RenderChatScrollView extends RenderBox {
       BoxConstraints.tightFor(width: size.width),
       parentUsesSize: true,
     );
-    _placeFloatingHeader();
   }
 
-  /// During a Tier-1 scroll: re-pin the header and report whether the topmost
-  /// day changed — the caller then relayouts to rebuild the header text.
+  /// During a Tier-1 scroll: report whether the topmost day changed — the
+  /// caller then relayouts to rebuild the header text.
   bool _tickFloatingHeader() {
     if (_groupBy == null) return false;
     if (!_shouldShowFloatingHeader()) {
       return _floatingHeader != null;
     }
     if (_floatingHeader == null) return true;
-    final scan = _scanTopDay();
-    _placeFloatingHeader();
     return _floatingHeaderController.tickForDayChange(
-      scan: scan,
+      scan: _scanTopDay(),
       groupBy: _groupBy,
       hasFloatingHeader: _floatingHeader != null,
     );
-  }
-
-  /// Pin the floating header just below the top inset — see
-  /// [ChatFloatingHeaderController.placeHeaderOffset].
-  void _placeFloatingHeader() {
-    final header = _floatingHeader;
-    if (header != null) {
-      _parentData(header).offset = _floatingHeaderController.placeHeaderOffset(
-        topPad: _topPad,
-      );
-    }
   }
 
   // --- Scroll ----------------------------------------------------------------
@@ -3921,6 +4443,7 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _stopTickerIfIdle() {
+    _releaseActivityIfSettled();
     if (!_physics.isFlinging &&
         _pendingScrollDelta == 0.0 &&
         _animator.highlightTargetId == null &&
@@ -4023,6 +4546,7 @@ class RenderChatScrollView extends RenderBox {
     if (!hasScrollWork) {
       // Highlight-only frame: advance the fade and bail.
       if (_animator.tickHighlight(elapsed)) markNeedsPaint();
+      _releaseActivityIfSettled();
       if (_animator.highlightTargetId == null) _stopTickerIfIdle();
       return;
     }
@@ -4046,10 +4570,12 @@ class RenderChatScrollView extends RenderBox {
       _controller.notifyScrollEvent(const ChatFlingEnd());
     }
     var delta = userDelta;
+    var animateDelta = 0.0;
     if (occupyingSpanAutoScroll) {
       _cancelAnimate();
     } else {
-      delta += _animator.tickAnimate(elapsed);
+      animateDelta = _animator.tickAnimate(elapsed);
+      delta += animateDelta;
     }
     delta += _spanAutoScrollDelta(elapsed, lastElapsed);
 
@@ -4058,7 +4584,10 @@ class RenderChatScrollView extends RenderBox {
     }
     final unconsumed = _unconsumedOverscrollDelta(delta);
     final consumed = delta - unconsumed;
-    if (consumed != 0.0) _controller.applyScrollDelta(consumed);
+    if (consumed != 0.0) {
+      _controller.applyScrollDelta(consumed);
+      _activity?.hold(navigation: userDelta == 0.0 && animateDelta != 0.0);
+    }
     _scrollVelocity = _scrollVelocity * 0.7 + consumed * 0.3;
     _repositionFromAnchor();
     if (occupyingSpanAutoScroll) _applyLiveSpanHit();
@@ -4099,11 +4628,11 @@ class RenderChatScrollView extends RenderBox {
     }
     _updateScrollSemantics();
     _publishControllerState();
-    // Reposition the header (Tier-1); a day crossing needs a relayout to
-    // rebuild its text. Stitch also refreshes inline-separator fades from
-    // paint Y as dual-translate progress moves rows.
-    _refreshStitchDividerOpacities();
+    // A day crossing needs a relayout to rebuild the header text. Header
+    // placement and row chrome inputs follow paint Y (Tier-1), including
+    // stitch dual-translate progress.
     final headerDayChanged = _tickFloatingHeader();
+    _resolveRowChromeFrame();
 
     // The highlight runs alongside scroll/animate frames — advance it on
     // every tick where the scroll path also ran.
@@ -4139,6 +4668,7 @@ class RenderChatScrollView extends RenderBox {
       markNeedsPaint();
     }
 
+    _releaseActivityIfSettled();
     if (!_physics.isFlinging &&
         !_animator.isAnimating &&
         _animator.highlightTargetId == null &&
@@ -4214,11 +4744,10 @@ class RenderChatScrollView extends RenderBox {
   // --- Gestures --------------------------------------------------------------
 
   void _onDragStart(DragStartDetails details) {
-    // User takes control — attach/jump pending settle must not compete.
+    // User takes control — attach/jump pending settle and a held placement
+    // must not compete.
     _cancelPendingTailPin();
-    _controller
-      ..clearNavigationAlignment()
-      ..clearNavigationCenterBand();
+    _controller.releaseNavigationPlacement();
     _cancelFling();
     // Drag takes over: cancel flight without a second highlight policy,
     // then pan-clear (armed fades; pending hard-clears with the slot).
@@ -4506,8 +5035,12 @@ class RenderChatScrollView extends RenderBox {
     callback(request);
   }
 
-  /// Slot geometry + viewport-known menu context for [id] at [local].
+  /// Slot, surface, and band geometry + viewport-known menu context for [id]
+  /// at [local].
   ///
+  /// The surface rect and outline come from the host-registered message
+  /// surface (null without one); the band is the viewport rect inset by the
+  /// top / bottom padding, clamped to zero height when the pads overlap.
   /// Does not clear membership or text selection. Returns null when the
   /// present child is missing or unsized.
   ChatMessageMenuRequest? _messageMenuRequestAt(int id, Offset local) {
@@ -4517,7 +5050,14 @@ class RenderChatScrollView extends RenderBox {
     final origin = localToGlobal(Offset(0, pd.offset));
     final slotGlobal = origin & Size(size.width, child.size.height);
     final tapGlobal = localToGlobal(local);
+    final bandTop = math.min(_topPad, size.height);
+    final bandBottom = math.max(bandTop, size.height - _bottomPad);
+    final bandGlobal = Rect.fromPoints(
+      localToGlobal(Offset(0, bandTop)),
+      localToGlobal(Offset(size.width, bandBottom)),
+    );
     final selection = _selectionController;
+    final surface = selection?.messageSurfaceGlobal(id);
     final inside = selection?.containsMessageSurface(id, tapGlobal) ?? false;
     final pointState = inside
         ? ChatMessageMenuPointState.inside
@@ -4551,6 +5091,9 @@ class RenderChatScrollView extends RenderBox {
       messageId: id,
       slotGlobal: slotGlobal,
       tapGlobal: tapGlobal,
+      surfaceGlobal: surface?.rect,
+      surfaceShape: surface?.shape,
+      bandGlobal: bandGlobal,
       pointState: pointState,
       membership: membership,
       hasTextSelection: hasTextSelection,
@@ -4592,7 +5135,7 @@ class RenderChatScrollView extends RenderBox {
   }
 
   /// Loaded message whose selectable body contains [local], or `null` when
-  /// the point is over overlay, chunk-error, shimmer, date chrome, or empty
+  /// the point is over overlay, chunk-error, shimmer, row chrome, or empty
   /// space. The pinned floating header is ignored by default so tap,
   /// long-press, and a span held in the top edge band hit the message
   /// underneath. Pass [hitThroughPinnedHeader] false only if a caller
@@ -4615,7 +5158,9 @@ class RenderChatScrollView extends RenderBox {
 
     final header = _floatingHeader;
     var pinnedHeaderCovers = false;
-    if (header != null && _shouldShowFloatingHeader()) {
+    if (header != null &&
+        _headerEffect.hitTestable &&
+        _shouldShowFloatingHeader()) {
       final top = _parentData(header).offset;
       pinnedHeaderCovers =
           local.dy >= top && local.dy < top + header.size.height;
@@ -4643,8 +5188,8 @@ class RenderChatScrollView extends RenderBox {
       if (requireSelectionAllowed && !_isSelectable(entry.key)) {
         return null;
       }
-      final inDateChrome = local.dy < pd.offset + pd.messageBodyTop;
-      if (inDateChrome && !hitFullRow && !pinnedHeaderCovers) return null;
+      final inRowChrome = local.dy < pd.offset + pd.messageBodyTop;
+      if (inRowChrome && !hitFullRow && !pinnedHeaderCovers) return null;
       return entry.key;
     }
     return null;
@@ -4677,6 +5222,8 @@ class RenderChatScrollView extends RenderBox {
       if ((event is PointerUpEvent || event is PointerCancelEvent) &&
           _scrollbar.ownsPointer(event)) {
         _scrollbar.endDrag();
+        // The thumb's own jumps armed placements; a user scroll leaves none.
+        _controller.releaseNavigationPlacement();
         markNeedsPaint();
         return;
       }
@@ -4693,6 +5240,7 @@ class RenderChatScrollView extends RenderBox {
             bottomInset: _bottomPad,
           )) {
         _cancelFling();
+        _controller.releaseNavigationPlacement();
         markNeedsPaint();
         final thumbFraction = _currentScrollbarThumbFraction();
         _jumpToScrollbar(
@@ -4738,12 +5286,10 @@ class RenderChatScrollView extends RenderBox {
       _cancelFling();
       _drag?.addPointerPanZoom(event);
     } else if (event is PointerScrollEvent) {
-      // Same user-preemption as drag: pending tail pin and pending
-      // jumpTo / jumpToCenterBand settle must not yank wheel deltas back.
+      // Same user-preemption as drag: pending tail pin and a pending or held
+      // jumpTo / jumpToCenterBand placement must not yank wheel deltas back.
       _cancelPendingTailPin();
-      _controller
-        ..clearNavigationAlignment()
-        ..clearNavigationCenterBand();
+      _controller.releaseNavigationPlacement();
       _cancelFling();
       _cancelAnimate();
       _markScrollActive();
@@ -4776,7 +5322,9 @@ class RenderChatScrollView extends RenderBox {
     // affordance, etc. — actually fires instead of falling through to the
     // message under it.
     final header = _floatingHeader;
-    if (header != null && _shouldShowFloatingHeader()) {
+    if (header != null &&
+        _headerEffect.hitTestable &&
+        _shouldShowFloatingHeader()) {
       final headerOffset = _parentData(header).offset;
       final headerBottom = headerOffset + header.size.height;
       if (headerOffset < viewportHeight && headerBottom > 0) {
@@ -5264,14 +5812,14 @@ class RenderChatScrollView extends RenderBox {
     final oldest = _dataSource.oldestKnownId;
     if (newest == null || oldest == null || newest <= oldest) return;
     final targetId = (oldest + progress * (newest - oldest)).round();
-    if (_scrollbarLog.enabled) {
+    if (LogCategory.scrollbar.enabled) {
       final current = _computeScrollbarProgress();
       _scrollbarEvent('jump', {
-        'dragProgress': DevLogFormat.f(progress),
+        'dragProgress': LogFormat.f(progress),
         'targetId': targetId,
         'oldest': oldest,
         'newest': newest,
-        if (current != null) 'thumbProgress': DevLogFormat.f(current.progress),
+        if (current != null) 'thumbProgress': LogFormat.f(current.progress),
         'anchorId': _controller.anchorMessageId,
       });
     }
@@ -5666,16 +6214,12 @@ class RenderChatScrollView extends RenderBox {
     return {
       'isAtTail': isAtTail,
       'isAtOldestHead': isAtOldestHead,
-      'topEdge': DevLogFormat.f(_topPad),
-      'bottomEdge': DevLogFormat.f(bottomEdge),
-      'newestTop': newestTop == null ? null : DevLogFormat.f(newestTop),
-      'newestBottom': newestBottom == null
-          ? null
-          : DevLogFormat.f(newestBottom),
-      'oldestTop': oldestTop == null ? null : DevLogFormat.f(oldestTop),
-      'anchorBottom': anchorBottom == null
-          ? null
-          : DevLogFormat.f(anchorBottom),
+      'topEdge': LogFormat.f(_topPad),
+      'bottomEdge': LogFormat.f(bottomEdge),
+      'newestTop': newestTop == null ? null : LogFormat.f(newestTop),
+      'newestBottom': newestBottom == null ? null : LogFormat.f(newestBottom),
+      'oldestTop': oldestTop == null ? null : LogFormat.f(oldestTop),
+      'anchorBottom': anchorBottom == null ? null : LogFormat.f(anchorBottom),
       'anchorIsNewest': newest != null && anchorId == newest,
       'anchorIsOldest': oldest != null && anchorId == oldest,
     };
@@ -5729,17 +6273,17 @@ class RenderChatScrollView extends RenderBox {
       'minBuilt': minBuilt,
       'maxBuilt': maxBuilt,
       'builtIdSpan': builtSpan,
-      'sumHAbove': DevLogFormat.f(sumAbove),
-      'sumHBelow': DevLogFormat.f(sumBelow),
-      'totalBuiltH': DevLogFormat.f(totalH),
+      'sumHAbove': LogFormat.f(sumAbove),
+      'sumHBelow': LogFormat.f(sumBelow),
+      'totalBuiltH': LogFormat.f(totalH),
       'progressByBuiltIds': progressByBuiltIds == null
           ? null
-          : DevLogFormat.f(progressByBuiltIds),
+          : LogFormat.f(progressByBuiltIds),
       'prevId': prevId,
-      'prevH': prevH == null ? null : DevLogFormat.f(prevH),
+      'prevH': prevH == null ? null : LogFormat.f(prevH),
       'nextId': nextId,
-      'nextH': nextH == null ? null : DevLogFormat.f(nextH),
-      'anchorTop': anchorTop == null ? null : DevLogFormat.f(anchorTop),
+      'nextH': nextH == null ? null : LogFormat.f(nextH),
+      'anchorTop': anchorTop == null ? null : LogFormat.f(anchorTop),
     };
   }
 
@@ -5811,52 +6355,52 @@ class RenderChatScrollView extends RenderBox {
     final extrapModel = hasSize ? _scrollbarHeightAtRef(_topPad) : null;
     return {
       'reason': reason,
-      'progress': DevLogFormat.ratio(computed.progress),
-      'thumbFraction': DevLogFormat.ratio(computed.thumbFraction),
-      if (thumbHeightPx != null) 'thumbHeightPx': DevLogFormat.f(thumbHeightPx),
-      'fractionalId': DevLogFormat.ratio(computed.fractionalId, decimals: 2),
-      'bandRefY': DevLogFormat.f(computed.bandRefY),
-      'heightAtBandTop': DevLogFormat.f(computed.heightAtBandTop),
+      'progress': LogFormat.ratio(computed.progress),
+      'thumbFraction': LogFormat.ratio(computed.thumbFraction),
+      if (thumbHeightPx != null) 'thumbHeightPx': LogFormat.f(thumbHeightPx),
+      'fractionalId': LogFormat.ratio(computed.fractionalId, decimals: 2),
+      'bandRefY': LogFormat.f(computed.bandRefY),
+      'heightAtBandTop': LogFormat.f(computed.heightAtBandTop),
       if (extrapModel != null)
-        'heightAtBandTopExtrap': DevLogFormat.f(extrapModel.heightAtRef),
-      'estimatedExtent': DevLogFormat.f(computed.estimatedExtent),
+        'heightAtBandTopExtrap': LogFormat.f(extrapModel.heightAtRef),
+      'estimatedExtent': LogFormat.f(computed.estimatedExtent),
       if (extrapModel != null)
-        'estimatedExtentExtrap': DevLogFormat.f(extrapModel.estimatedExtent),
-      'avgRowH': DevLogFormat.f(computed.avgRowH),
-      if (bandHeight != null) 'bandHeight': DevLogFormat.f(bandHeight),
-      if (maxScroll != null) 'maxScroll': DevLogFormat.f(maxScroll),
-      'progressIdLinear': DevLogFormat.ratio(computed.idLinearProgress),
+        'estimatedExtentExtrap': LogFormat.f(extrapModel.estimatedExtent),
+      'avgRowH': LogFormat.f(computed.avgRowH),
+      if (bandHeight != null) 'bandHeight': LogFormat.f(bandHeight),
+      if (maxScroll != null) 'maxScroll': LogFormat.f(maxScroll),
+      'progressIdLinear': LogFormat.ratio(computed.idLinearProgress),
       if (bandTopFrac != null)
-        'fractionalIdTop': DevLogFormat.ratio(bandTopFrac, decimals: 2),
+        'fractionalIdTop': LogFormat.ratio(bandTopFrac, decimals: 2),
       if (bandBottomFrac != null)
-        'fractionalIdBottom': DevLogFormat.ratio(bandBottomFrac, decimals: 2),
+        'fractionalIdBottom': LogFormat.ratio(bandBottomFrac, decimals: 2),
       if (bandTopFrac != null && bandBottomFrac != null)
-        'visibleIdSpan': DevLogFormat.ratio(
+        'visibleIdSpan': LogFormat.ratio(
           bandBottomFrac - bandTopFrac,
           decimals: 2,
         ),
-      if (hasSize) 'bandBottomRefY': DevLogFormat.f(size.height - _bottomPad),
-      'progressLegacy': DevLogFormat.ratio(computed.legacyProgress),
-      'fractionalIdLegacy': DevLogFormat.ratio(
+      if (hasSize) 'bandBottomRefY': LogFormat.f(size.height - _bottomPad),
+      'progressLegacy': LogFormat.ratio(computed.legacyProgress),
+      'fractionalIdLegacy': LogFormat.ratio(
         computed.legacyFractionalId,
         decimals: 2,
       ),
       'anchorId': computed.anchorId,
-      'anchorY': DevLogFormat.f(computed.anchorY),
-      'anchorH': DevLogFormat.f(computed.anchorH),
-      'slotHeight': DevLogFormat.f(computed.slotHeight),
+      'anchorY': LogFormat.f(computed.anchorY),
+      'anchorH': LogFormat.f(computed.anchorH),
+      'slotHeight': LogFormat.f(computed.slotHeight),
       'slotHeightIsFallback': computed.slotHeightIsFallback,
       'anchorBuilt': computed.anchorBuilt,
       'anchorLoaded': computed.anchorLoaded,
-      'offsetAsIdAtSlot': DevLogFormat.f(offsetAsIdAtSlot),
+      'offsetAsIdAtSlot': LogFormat.f(offsetAsIdAtSlot),
       if (offsetAsIdAtAnchorH != null)
-        'offsetAsIdAtAnchorH': DevLogFormat.f(offsetAsIdAtAnchorH),
+        'offsetAsIdAtAnchorH': LogFormat.f(offsetAsIdAtAnchorH),
       if (progressAtAnchorH != null)
-        'progressIfAnchorH': DevLogFormat.f(progressAtAnchorH),
-      'progressAtSlotH': DevLogFormat.f(progressAtSlotH),
+        'progressIfAnchorH': LogFormat.f(progressAtAnchorH),
+      'progressAtSlotH': LogFormat.f(progressAtSlotH),
       'progressDeltaVsAnchorH': progressAtAnchorH == null
           ? null
-          : DevLogFormat.f((computed.progress - progressAtAnchorH).abs()),
+          : LogFormat.f((computed.progress - progressAtAnchorH).abs()),
       'oldest': computed.oldest,
       'newest': computed.newest,
       'idRange': computed.idRange,
@@ -5864,11 +6408,11 @@ class RenderChatScrollView extends RenderBox {
       'fling': _physics.isFlinging,
       ...boundary,
       if (tailDeficit != null && tailDeficit > 0.01)
-        'tailDeficit': DevLogFormat.f(tailDeficit),
+        'tailDeficit': LogFormat.f(tailDeficit),
       if (legacyTailDeficit != null && legacyTailDeficit > 0.01)
-        'tailDeficitLegacy': DevLogFormat.f(legacyTailDeficit),
+        'tailDeficitLegacy': LogFormat.f(legacyTailDeficit),
       if (headSurplus != null && headSurplus > 0.01)
-        'headSurplus': DevLogFormat.f(headSurplus),
+        'headSurplus': LogFormat.f(headSurplus),
       if (isAtTail && computed.legacyProgress < 0.99)
         'hint': 'legacy_anchorY_formula_under_reports_at_tail',
       ..._scrollbarBuiltSpanMetrics(computed.anchorId),
@@ -5901,7 +6445,7 @@ class RenderChatScrollView extends RenderBox {
     computed, {
     required String reason,
   }) {
-    if (!_scrollbarLog.enabled) return;
+    if (!LogCategory.scrollbar.enabled) return;
 
     final progressDelta = _scrollbarLogLastProgress == null
         ? double.infinity
@@ -6029,8 +6573,17 @@ class RenderChatScrollView extends RenderBox {
 
   void _paintFloatingHeader(PaintingContext context, Offset offset) {
     final header = _floatingHeader;
-    if (header == null || !_shouldShowFloatingHeader()) return;
-    context.paintChild(header, offset + Offset(0, _parentData(header).offset));
+    if (header == null || !_shouldShowFloatingHeader()) {
+      _headerOpacityLayer.layer = null;
+      return;
+    }
+    paintChildWithOpacity(
+      context,
+      header,
+      offset + Offset(0, _parentData(header).offset),
+      _headerEffect.opacity,
+      _headerOpacityLayer,
+    );
   }
 
   void _paintScrollbar(PaintingContext context, Offset offset) {
@@ -6065,9 +6618,22 @@ class RenderChatScrollView extends RenderBox {
     _selectionPointer = null;
     _clipLayer.layer = null;
     _stretchLayer.layer = null;
+    _headerOpacityLayer.layer = null;
     super.dispose();
   }
 }
+
+/// Reading position captured before a row chrome change, held for one
+/// layout pass: the anchor it was measured against, the reference row, and
+/// that row's bottom edge relative to the anchor top.
+///
+/// Recorded by [RenderChatScrollView._recordRowChromeReference], consumed by
+/// [RenderChatScrollView._holdRowChromeReference].
+typedef _RowChromeReference = ({
+  int anchorId,
+  int referenceId,
+  double bottomFromAnchor,
+});
 
 /// Layout snapshot taken immediately before absent-anchor reassignment.
 ///

@@ -1,14 +1,9 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:flutter/rendering.dart';
 
-/// Floating-header height assumed for the inline-divider fade before the real
-/// header has been laid out (first frame only).
+/// Floating-header height assumed for the header zone before the real header
+/// has been laid out (first frame only).
 const double kHeaderFallbackHeight = 32;
-
-/// Travel distance over which an inline date separator fades in / out near the
-/// floating header — short, so it reaches full opacity almost as soon as it
-/// clears the header.
-const double kDividerFadeBand = 20;
 
 /// Topmost visible day group visible in the viewport.
 typedef TopDayScan = ({Object? bucket, int? id});
@@ -62,19 +57,6 @@ class ChatFloatingHeaderController {
       (header != null && header.hasSize)
       ? header.size.height
       : kHeaderFallbackHeight;
-
-  /// Fade opacity for an inline date separator whose top edge sits at
-  /// viewport-Y [topY]. Reaches full as soon as the separator clears the
-  /// floating header's bottom edge, fading over a short [kDividerFadeBand] as
-  /// it rises into the header's zone — so the two never both show.
-  double dividerOpacityFor({
-    required double topY,
-    required double topPad,
-    required double floatingHeaderHeight,
-  }) {
-    final fadeEnd = topPad + floatingHeaderHeight;
-    return ((topY - fadeEnd) / kDividerFadeBand + 1.0).clamp(0.0, 1.0);
-  }
 
   /// The topmost visible group — the bucket + message id of the child whose
   /// top edge is closest to (and intersects) the viewport top. O(visible
@@ -156,8 +138,8 @@ class ChatFloatingHeaderController {
     return targetBucket != headerBucket;
   }
 
-  /// Viewport-local Y for the floating header's top edge — pinned below the
-  /// top inset; never moves with scroll.
+  /// Viewport-local Y where the floating header rests — just below the top
+  /// inset. The day header delegate may displace it from there.
   double placeHeaderOffset({required double topPad}) => topPad;
 
   /// Whether the floating day header should be built and painted.

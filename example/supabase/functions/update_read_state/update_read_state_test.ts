@@ -9,6 +9,7 @@ function mockSupabase(handlers: {
   newestId?: number;
   messageExists?: boolean;
   upserted?: Record<string, unknown>;
+  onUpsert?: (payload: UpsertPayload) => void;
 }): SupabaseClient {
   const from = (table: string) => {
     const state = {
@@ -45,6 +46,7 @@ function mockSupabase(handlers: {
         return Promise.resolve({ data: null, error: null });
       },
       upsert(payload: UpsertPayload, _opts?: { onConflict: string }) {
+        handlers.onUpsert?.(payload);
         return {
           select(_cols: string) {
             return {
@@ -102,6 +104,73 @@ Deno.test("update_read_state upserts at tail id", async () => {
   assertEquals(body.last_read_message_id, 10004);
   assertEquals(typeof body.updated_at, "number");
 });
+
+Deno.test("update_read_state stores and returns the client write tag", async () => {
+  let stored: UpsertPayload | undefined;
+  const supabase = mockSupabase({
+    chatCount: 1,
+    newestId: 10004,
+    messageExists: true,
+    onUpsert: (payload) => stored = payload,
+  });
+
+  const response = await handleUpdateReadState(supabase, {
+    chat_id: 1,
+    user_id: 1,
+    last_read_message_id: 10004,
+    write_tag: "client-a",
+  });
+  assertEquals(response.status, 200);
+  assertEquals(stored?.write_tag, "client-a");
+  const body = await response.json();
+  assertEquals(body.write_tag, "client-a");
+});
+
+Deno.test("update_read_state without a write tag stores null", async () => {
+  let stored: UpsertPayload | undefined;
+  const supabase = mockSupabase({
+    chatCount: 1,
+    newestId: 10004,
+    messageExists: true,
+    onUpsert: (payload) => stored = payload,
+  });
+
+  const response = await handleUpdateReadState(supabase, {
+    chat_id: 1,
+    user_id: 1,
+    last_read_message_id: 10004,
+  });
+  assertEquals(response.status, 200);
+  assertEquals(stored?.write_tag, null);
+  const body = await response.json();
+  assertEquals(body.write_tag, null);
+});
+
+for (const writeTag of ["", 42, "x".repeat(65)]) {
+  Deno.test(
+    `update_read_state rejects write tag ${JSON.stringify(writeTag)}`,
+    async () => {
+      let upserted = false;
+      const supabase = mockSupabase({
+        chatCount: 1,
+        newestId: 10004,
+        messageExists: true,
+        onUpsert: () => upserted = true,
+      });
+
+      const response = await handleUpdateReadState(supabase, {
+        chat_id: 1,
+        user_id: 1,
+        last_read_message_id: 10004,
+        write_tag: writeTag as string,
+      });
+      assertEquals(response.status, 400);
+      const body = await response.json();
+      assertEquals(body.error.slug, "malformed_frame");
+      assertEquals(upserted, false);
+    },
+  );
+}
 
 Deno.test("update_read_state rejects id ahead of newest", async () => {
   const supabase = mockSupabase({

@@ -16,7 +16,7 @@ import 'package:flutter/foundation.dart'
         ValueNotifier,
         VoidCallback,
         setEquals;
-import 'package:flutter/rendering.dart' show RenderBox;
+import 'package:flutter/rendering.dart' show RenderBox, ShapeBorder;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_md/flutter_md.dart';
@@ -721,15 +721,34 @@ class ChatSelectionController implements Listenable {
   /// directly). Pass `null` on unmount. Hit-tests resolve
   /// [RenderBox.localToGlobal] at query time so scroll without rebuild stays
   /// correct — do not cache a global [Rect] across frames.
-  void reportMessageSurfaceBounds(int messageId, RenderBox? box) {
+  ///
+  /// [shape] outlines the painted surface inside [box] (for example the
+  /// bubble's rounded rectangle). The viewport forwards it on the **message
+  /// menu request** so the sheet scrim leaves exactly that outline undimmed.
+  /// Hit-testing stays on the box rect. Null means the surface has no
+  /// reported outline.
+  void reportMessageSurfaceBounds(
+    int messageId,
+    RenderBox? box, {
+    ShapeBorder? shape,
+  }) {
     if (_disposed) return;
-    _text.reportMessageSurfaceBounds(messageId, box);
+    _text.reportMessageSurfaceBounds(messageId, box, shape: shape);
   }
 
   /// Whether [globalOffset] hits the reported message surface for
   /// [messageId], falling back to the text body when no surface was reported.
   bool containsMessageSurface(int messageId, Offset globalOffset) =>
       _text.containsMessageSurface(messageId, globalOffset);
+
+  /// Live global rect and reported outline of the message surface of
+  /// [messageId], or null when no mounted surface is registered.
+  ///
+  /// Geometry is resolved at call time, so it is current after a scroll
+  /// without rebuild. Never falls back to the text body. Null after
+  /// [dispose].
+  ({Rect rect, ShapeBorder? shape})? messageSurfaceGlobal(int messageId) =>
+      _disposed ? null : _text.messageSurfaceGlobal(messageId);
 
   /// Registered markdown model for [messageId], or null when none.
   Markdown? bodyOf(int messageId) => _text.bodyOf(messageId);

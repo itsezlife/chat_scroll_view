@@ -264,15 +264,19 @@ void main() {
       source.dispose();
     });
 
-    test('updateLastReadMessageId invokes update_read_state', () async {
+    test('updateLastReadMessageId invokes update_read_state with this '
+        "client's write tag", () async {
       final source = BackendChatDataSource.forTest(
+        writeTag: 'client-a',
         invoke: (name, body) async {
           expect(name, 'update_read_state');
           expect(body['last_read_message_id'], 10004);
+          expect(body['write_tag'], 'client-a');
           return {
             'chat_id': 1,
             'user_id': 1,
             'last_read_message_id': 10004,
+            'write_tag': 'client-a',
             'updated_at': 1710000001,
           };
         },
@@ -281,6 +285,101 @@ void main() {
       await source.updateLastReadMessageId(10004);
 
       source.dispose();
+    });
+
+    test('each client gets its own write tag', () {
+      Future<Map<String, dynamic>> invoke(
+        String name,
+        Map<String, dynamic> body,
+      ) async => fail('unexpected $name');
+      final a = BackendChatDataSource.forTest(invoke: invoke);
+      final b = BackendChatDataSource.forTest(invoke: invoke);
+
+      expect(a.writeTag, isNotEmpty);
+      expect(a.writeTag, isNot(b.writeTag));
+
+      a.dispose();
+      b.dispose();
+    });
+
+    group('realtime read state', () {
+      Map<String, Object?> row({
+        int chatId = 1,
+        int userId = 1,
+        int? lastRead = 10004,
+        String? writeTag,
+      }) => {
+        'chat_id': chatId,
+        'user_id': userId,
+        'last_read_message_id': lastRead,
+        'write_tag': writeTag,
+        'updated_at': '2026-09-28T00:00:00+00:00',
+      };
+
+      ({BackendChatDataSource source, List<void> heard}) open() {
+        final source = BackendChatDataSource.forTest(
+          writeTag: 'client-a',
+          invoke: (name, _) async => fail('unexpected $name'),
+        );
+        final heard = <void>[];
+        source.readElsewhere.addListener(() => heard.add(null));
+        return (source: source, heard: heard);
+      }
+
+      test('a change written by another client is a read elsewhere, '
+          'whatever its read id', () {
+        final (:source, :heard) = open();
+
+        source
+          ..applyRealtimeReadStateForTest(row(writeTag: 'client-b'))
+          ..applyRealtimeReadStateForTest(
+            row(writeTag: 'client-b', lastRead: 5),
+          );
+
+        expect(heard, hasLength(2));
+        source.dispose();
+      });
+
+      test("an echo of this client's own write is ignored", () {
+        final (:source, :heard) = open();
+
+        source.applyRealtimeReadStateForTest(row(writeTag: 'client-a'));
+
+        expect(heard, isEmpty);
+        source.dispose();
+      });
+
+      test('an untagged change, such as a server cursor retreat, is a read '
+          'elsewhere', () {
+        final (:source, :heard) = open();
+
+        source.applyRealtimeReadStateForTest(row(lastRead: null));
+
+        expect(heard, hasLength(1));
+        source.dispose();
+      });
+
+      test('changes for another chat or user are ignored', () {
+        final (:source, :heard) = open();
+
+        source
+          ..applyRealtimeReadStateForTest(row(chatId: 2, writeTag: 'b'))
+          ..applyRealtimeReadStateForTest(row(userId: 2, writeTag: 'b'))
+          ..applyRealtimeReadStateForTest(const {});
+
+        expect(heard, isEmpty);
+        source.dispose();
+      });
+
+      test('readElsewhere is silent after dispose', () {
+        final (:source, :heard) = open();
+
+        source
+          ..dispose()
+          ..applyRealtimeReadStateForTest(row(writeTag: 'client-b'));
+
+        expect(heard, isEmpty);
+      });
     });
 
     test('read-state error throws BackendConnectionException', () async {

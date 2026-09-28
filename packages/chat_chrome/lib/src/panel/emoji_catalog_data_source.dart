@@ -1,5 +1,7 @@
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_chrome/src/panel/emoji_tab_assets.dart';
+import 'package:chat_chrome/src/util/constants.dart';
+import 'package:chat_chrome/src/util/logger.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:panel_catalog/panel_catalog.dart';
@@ -59,10 +61,6 @@ final class EmojiCatalogStripTab {
 /// Unicode leaves are marked ready on [CatalogAssetCache] during [rebuild] so
 /// paint skips circle placeholders for standard emoji cells.
 final class EmojiCatalogDataSource extends CatalogDataSource {
-  static final PanelCatalogDevLog _log = PanelCatalogDevLog(
-    'KeyboardPanel',
-  );
-
   /// Creates an adapter over [emojiSource] and [assetCache].
   EmojiCatalogDataSource({
     required EmojiDataSource emojiSource,
@@ -215,9 +213,9 @@ final class EmojiCatalogDataSource extends CatalogDataSource {
     _stripTabs = List<EmojiCatalogStripTab>.unmodifiable(tabs);
     _leafMeta = Map<CatalogLeaf, EmojiLeafMeta>.unmodifiable(meta);
     _searchEmpty = searchEmpty;
-    if (_log.enabled) {
+    if (LogCategory.emoji.enabled) {
       final leafCount = sections.fold<int>(0, (n, s) => n + s.leaves.length);
-      _log.event('catalog.rebuild', {
+      fine(.emoji, 'catalog.rebuild', {
         'sections': sections.length,
         'leaves': leafCount,
         'searchEmpty': searchEmpty,

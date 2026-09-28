@@ -17,8 +17,9 @@ import 'package:flutter/services.dart';
 
 /// Full-screen message menu host (presentation chrome + reactions + actions).
 ///
-/// [ChatMessageMenuPresentation.sheet] paints the dimmed scrim with an
-/// undimmed slot hole. [ChatMessageMenuPresentation.popup] uses a
+/// [ChatMessageMenuPresentation.sheet] paints the dimmed scrim with one
+/// undimmed hole: the message surface in its outline when the config has a
+/// surface, otherwise the slot. [ChatMessageMenuPresentation.popup] uses a
 /// transparent outside-dismiss layer only — no viewport dim and no slot
 /// outline / lift. Session dismiss and result paths are shared.
 class ChatMessageMenuHost extends StatefulWidget {
@@ -146,9 +147,12 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
               animation: scrim,
               builder: (context, _) => ChatMessageMenuScrim(
                 progress: scrim.value,
-                hole: widget.config.messageRect.intersect(
-                  Offset.zero & screenSize,
-                ),
+                hole: widget.config.surfaceRect ?? widget.config.messageRect,
+                holeShape: switch (widget.config.surfaceRect) {
+                  null => null,
+                  _ => widget.config.surfaceShape,
+                },
+                holeClip: widget.config.visibleRect,
                 onDismiss: () => _close(null),
               ),
             ),

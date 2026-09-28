@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:chat_scroll_view/src/chat_scroll/animate_to_busy_policy.dart';
 import 'package:chat_scroll_view/src/chat_scroll/animate_to_disposition.dart';
 import 'package:chat_scroll_view/src/chat_scroll/animate_to_load_policy.dart';
+import 'package:chat_scroll_view/src/chat_scroll/animate_to_path.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
+import 'package:chat_scroll_view/src/chat_scroll/navigation_placement.dart';
+import 'package:chat_scroll_view/src/chat_scroll/tail_or_target_outcome.dart';
 import 'package:flutter/animation.dart' show Curve, Curves;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
@@ -11,6 +14,8 @@ import 'package:flutter/scheduler.dart';
 export 'package:chat_scroll_view/src/chat_scroll/animate_to_busy_policy.dart';
 export 'package:chat_scroll_view/src/chat_scroll/animate_to_disposition.dart';
 export 'package:chat_scroll_view/src/chat_scroll/animate_to_load_policy.dart';
+export 'package:chat_scroll_view/src/chat_scroll/animate_to_path.dart';
+export 'package:chat_scroll_view/src/chat_scroll/tail_or_target_outcome.dart';
 
 /// Visibility metrics for one built message row intersecting the paint band.
 ///
@@ -125,7 +130,11 @@ abstract class ChatScrollAnimator {
   /// Same-target spam while animating coalesces onto the in-flight future.
   /// Different-target spam is ignored by default, or cancelled and replaced
   /// when [busyPolicy] is [AnimateToBusyPolicy.replace].
-  Future<void> animate(
+  ///
+  /// Completes with the [AnimateToPath] the flight took — on settle and on
+  /// cancel. A coalesced call completes with the in-flight flight's path; an
+  /// ignored call completes at once with [AnimateToPath.none].
+  Future<AnimateToPath> animate(
     int targetId, {
     required Duration duration,
     required Curve curve,
@@ -199,10 +208,49 @@ class ChatScrollController {
   /// `1.0` aligns the message bottom to the bottom inset. Boundary clamping may reduce the effective
   /// alignment when insufficient content exists above or below.
   ///
+  /// **Alignment hold**: once the target has landed as a loaded row, the
+  /// alignment stays held on it until the first user scroll (drag, fling,
+  /// wheel, scrollbar drag), [scrollBy], or the next [jumpTo] /
+  /// [animateTo] / [jumpToCenterBand]. While held, a
+  /// [ChatScrollView.topPadding] change or a row chrome change on the target
+  /// row (such as the unread separator appearing on it) re-applies the
+  /// alignment, so the row — row chrome included — keeps its place in the
+  /// scroll band instead of sliding under top chrome. Everything else keeps
+  /// its usual effect: bottom inset changes are compensated, the boundary
+  /// clamp may still reduce the alignment, and row chrome changes on other
+  /// rows keep the reading position. The hold ends without moving anything
+  /// when the target stops being the layout origin (it becomes absent, or
+  /// the list follows the tail). A target that is the known newest is not
+  /// held — the tail pin owns its geometry.
+  ///
   /// **Highlight**: default [highlight] is `false` — geometry only. Hosts
   /// MUST treat that as a hard-clear of any leftover Message highlight
   /// request (same as [jumpToCenterBand]). Pass `true` to write origin then
   /// request [highlight] so the jump hard-clear cannot drop the wash.
+  ///
+  /// **Tail or target**: a non-null [tailFitFraction] makes the jump choose
+  /// between [messageId] and the tail in one layout — the first that lays
+  /// out [messageId] as a loaded message row, which for a jump issued before
+  /// the view mounts, or onto a row that is still loading, is a later
+  /// layout. It measures the span from the target row's body top, its row
+  /// chrome excluded, to the newest message's bottom. When the newest
+  /// message is known (`ChatDataSource.reachedNewest`) and loaded and the
+  /// span is at most [tailFitFraction] of the viewport height, the chat
+  /// opens pinned at the tail ([TailOrTargetOutcome.tail]); otherwise the
+  /// target is placed at [alignment] as usual
+  /// ([TailOrTargetOutcome.target]). The fraction MUST be within `0..1`;
+  /// release builds clamp it. Frames before that layout paint the target
+  /// region as it loads, and never the tail.
+  ///
+  /// The outcome goes to [addTailOrTargetListener] listeners synchronously
+  /// inside that layout, before any of it is painted. A change a listener
+  /// makes to the viewport's unread boundary is laid out in the same pass:
+  /// clearing it on [TailOrTargetOutcome.tail] means no frame paints the
+  /// unread separator at the tail, and setting it on
+  /// [TailOrTargetOutcome.target] lands the separator at [alignment] with
+  /// the body below it. The jump reports at most once, and not at all when
+  /// it is released before deciding — by a user scroll, [scrollBy], or the
+  /// next navigation, including when its target never loads.
   ///
   /// **Absent-target behavior**: if [messageId] is confirmed absent after its
   /// owning chunk's fetch resolves (see `ChatMessageStatus.absent`), the
@@ -213,8 +261,19 @@ class ChatScrollController {
   /// NOT assume the viewport moved to [messageId] — verify via
   /// `ChatDataSource.statusOf` before navigating, or navigate to the nearest
   /// known-present ID instead.
-  void jumpTo(int messageId, {double alignment = 0.0, bool highlight = false}) {
+  void jumpTo(
+    int messageId, {
+    double alignment = 0.0,
+    bool highlight = false,
+    double? tailFitFraction,
+  }) {
     if (_disposed) return;
+    _debugCheckNotDispatchingTailOrTarget('jumpTo');
+    assert(
+      tailFitFraction == null ||
+          (tailFitFraction >= 0 && tailFitFraction <= 1),
+      'tailFitFraction must be within 0..1, got $tailFitFraction',
+    );
     // Absent targets: the anchor id is updated below, but absent slots render
     // at zero height — the viewport does not scroll to a visible row at
     // [messageId]. Fan-out and clamping behave as if the nearest non-absent
@@ -222,7 +281,11 @@ class ChatScrollController {
     // before navigating if the user must see a specific message. ADR 002.
     _anchorMessageId = messageId;
     _anchorPixelOffset = 0.0;
-    _setNavigationAlignment(messageId, alignment);
+    _navigationPlacement = NavigationPlacement.alignment(
+      messageId,
+      alignment,
+      tailFitFraction: tailFitFraction,
+    );
     if (!highlight) {
       // Geometry jump drops leftover attention. Stitch-owned jumps still skip
       // animator hard-clear in the viewport `_onJump`; the animator re-asserts
@@ -275,9 +338,14 @@ class ChatScrollController {
   /// inside the Message rect.
   ///
   /// Emits the same jump listeners and [ChatProgrammaticJump] as [jumpTo].
-  /// Pending band alignment from a prior [jumpTo] / [animateTo] is cleared —
-  /// Center Band placement and fractional alignment are mutually exclusive
-  /// pending writers. Leftover Message highlight is hard-cleared — restore
+  /// A pending or held band alignment from a prior [jumpTo] / [animateTo] is
+  /// cleared — Center Band placement and fractional alignment are mutually
+  /// exclusive placements. Once placed on a loaded row, the Center Band is
+  /// held with the same lifecycle as the [jumpTo] alignment hold: a
+  /// [ChatScrollView.topPadding] change or a row chrome change on the target
+  /// re-places the ray at [offsetFromMessageTop], until the first user
+  /// scroll, [scrollBy], or the next navigation. Unlike [jumpTo], a
+  /// known-newest target is placed and held too. Leftover Message highlight is hard-cleared — restore
   /// is not attention (ADR 009). There is no highlight flag on this method.
   ///
   /// **Absent-target behavior**: same ADR 002 caution as [jumpTo] — navigation
@@ -285,6 +353,7 @@ class ChatScrollController {
   /// a visible row at [messageId]. Post-[dispose] calls are silent no-ops.
   void jumpToCenterBand(int messageId, double offsetFromMessageTop) {
     if (_disposed) return;
+    _debugCheckNotDispatchingTailOrTarget('jumpToCenterBand');
     if (!offsetFromMessageTop.isFinite) return;
     // Absent targets: same contract as [jumpTo] — see ADR 002.
     _anchorMessageId = messageId;
@@ -306,6 +375,67 @@ class ChatScrollController {
       cb(messageId);
     }
     _emitScroll(ChatProgrammaticJump(messageId));
+  }
+
+  // --- Tail or target: typed listener with payload ---
+
+  /// Plain `List` — same dedup-on-add rationale as [_jumpListeners].
+  final _tailOrTargetListeners = <ValueChanged<TailOrTargetOutcome>>[];
+
+  /// Subscribe to the outcome of tail-or-target [jumpTo]s (those with a
+  /// `tailFitFraction`). Adding the same callback twice is a no-op.
+  ///
+  /// The callback runs synchronously inside the viewport's layout, once per
+  /// decided jump. It MAY change the unread boundary listenable handed to
+  /// [ChatScrollView.unreadBoundary]; the viewport lays that change out in
+  /// the same pass. No other input changed from here reaches this layout.
+  /// It MUST NOT call `setState`, mark widgets for rebuild, or navigate this
+  /// controller ([jumpTo], [animateTo], [jumpToCenterBand], [scrollBy]): the
+  /// viewport is mid-layout, and the rows it builds next share the widget
+  /// tree's build scope. That covers listeners of the unread boundary
+  /// listenable itself, which the change notifies synchronously. A
+  /// navigation from a callback fails an assert in debug builds.
+  void addTailOrTargetListener(ValueChanged<TailOrTargetOutcome> callback) {
+    if (_tailOrTargetListeners.contains(callback)) return;
+    _tailOrTargetListeners.add(callback);
+  }
+
+  /// Unsubscribe from tail-or-target outcomes. No-op when not present.
+  void removeTailOrTargetListener(ValueChanged<TailOrTargetOutcome> callback) =>
+      _tailOrTargetListeners.remove(callback);
+
+  /// Viewport-only: delivers the decision of the armed tail-or-target jump.
+  ///
+  /// Called by `RenderChatScrollView` inside a layout callback, once per
+  /// decided jump. Iterates a snapshot, so a listener may add or remove
+  /// listeners (itself included) while reacting. Silent after [dispose].
+  @internal
+  void notifyTailOrTarget(TailOrTargetOutcome outcome) {
+    if (_disposed) return;
+    _dispatchingTailOrTarget = true;
+    try {
+      for (final cb in List<ValueChanged<TailOrTargetOutcome>>.of(
+        _tailOrTargetListeners,
+        growable: false,
+      )) {
+        cb(outcome);
+      }
+    } finally {
+      _dispatchingTailOrTarget = false;
+    }
+  }
+
+  /// Set while [notifyTailOrTarget] runs its listeners, so a navigation
+  /// from inside the viewport's layout fails an assert instead of
+  /// corrupting the pass.
+  bool _dispatchingTailOrTarget = false;
+
+  void _debugCheckNotDispatchingTailOrTarget(String method) {
+    assert(
+      !_dispatchingTailOrTarget,
+      '$method called from a tail-or-target listener; listeners run inside '
+      'the viewport layout and must not navigate',
+    );
   }
 
   // --- Scroll-by: typed listener -------------------------------------------
@@ -349,9 +479,16 @@ class ChatScrollController {
   ///
   /// **Highlight**: matches user drag. An armed wash fades; a pending
   /// request is hard-cleared so a later-built row cannot late-arm.
+  ///
+  /// **Placement**: matches user drag. A pending or held [jumpTo] /
+  /// [animateTo] alignment or [jumpToCenterBand] placement is released, so
+  /// the shift sticks and a later top inset change does not re-seat the
+  /// former target.
   void scrollBy(double pixels) {
     if (_disposed) return;
+    _debugCheckNotDispatchingTailOrTarget('scrollBy');
     if (pixels == 0.0 || !pixels.isFinite) return;
+    releaseNavigationPlacement();
     _anchorPixelOffset += pixels;
     for (final cb in List<ValueChanged<double>>.of(
       _scrollByListeners,
@@ -373,6 +510,14 @@ class ChatScrollController {
   ///   into the destination band (continuity illusion — not a viewport fade).
   ///   Stitch waits on the load-gate until the destination is a real row.
   ///
+  /// The resolved path is reported on the flight's [ChatAnimateEnd.path],
+  /// emitted before the returned future completes: [AnimateToPath.close] or
+  /// [AnimateToPath.stitch] as chosen above, [AnimateToPath.instant] for
+  /// `duration ≤ 0`, and [AnimateToPath.none] when the flight is cancelled
+  /// on the load-gate before choosing. With no viewport bound the call is a
+  /// [jumpTo] and emits [ChatProgrammaticJump] only — no animate events, so
+  /// no path.
+  ///
   /// ## Duration / curve
   ///
   /// Both paths use travel-scaled timing
@@ -391,6 +536,9 @@ class ChatScrollController {
   /// ends at **tail-pin** (message bottom on the bottom inset), matching
   /// [jumpTo] / follow-tail, so “go to end” does not animate to the message
   /// top and snap. Use [alignment] for mid-history (search, deep link).
+  ///
+  /// After the motion settles on a loaded row, the alignment is held with
+  /// the same lifecycle as the [jumpTo] alignment hold.
   ///
   /// ## Highlight
   ///
@@ -439,6 +587,7 @@ class ChatScrollController {
     AnimateToBusyPolicy busyPolicy = AnimateToBusyPolicy.ignore,
   }) async {
     if (_disposed) return AnimateToDisposition.ignored;
+    _debugCheckNotDispatchingTailOrTarget('animateTo');
     // Same absent-target contract as [jumpTo]: no visible row at [messageId]
     // when statusOf reports absent — animation may run but content does not
     // land on a deleted id. ADR 002 "Navigation to absent IDs".
@@ -473,8 +622,9 @@ class ChatScrollController {
     if (!coalesce) {
       _emitScroll(ChatAnimateStart(messageId, duration));
     }
+    var path = AnimateToPath.none;
     try {
-      await animator.animate(
+      path = await animator.animate(
         messageId,
         duration: duration,
         curve: curve,
@@ -485,7 +635,7 @@ class ChatScrollController {
       );
     } finally {
       if (!coalesce) {
-        _emitScroll(ChatAnimateEnd(messageId));
+        _emitScroll(ChatAnimateEnd(messageId, path: path));
       }
     }
     return coalesce
@@ -685,83 +835,79 @@ class ChatScrollController {
   double get anchorPixelOffset => _anchorPixelOffset;
   double _anchorPixelOffset = 0;
 
-  /// Alignment requested by the latest [jumpTo] / [animateTo], in `0..1`.
-  @internal
-  double get navigationAlignment => _navigationAlignment;
-  double _navigationAlignment = 0;
-
-  /// Message id [navigationAlignment] applies to; cleared after settle.
-  @internal
-  int? get navigationAlignmentMessageId => _navigationAlignmentMessageId;
-  int? _navigationAlignmentMessageId;
-
-  /// Within-message offset pending from the latest [jumpToCenterBand].
+  /// The armed navigation placement from the latest [jumpTo] / [animateTo]
+  /// (alignment) or [jumpToCenterBand] (Center Band), pending or held;
+  /// `null` once released.
   ///
-  /// Cleared after the viewport places the center-band ray. Mutually exclusive
-  /// with [navigationAlignmentMessageId] — only one pending writer is armed.
+  /// One slot for both kinds: arming either replaces whatever was armed, and
+  /// a release drops it whatever its kind or phase. See [NavigationPlacement]
+  /// for the pending → held → released lifecycle.
   @internal
-  double? get navigationCenterBandOffset => _navigationCenterBandOffset;
-  double? _navigationCenterBandOffset;
+  NavigationPlacement? get navigationPlacement => _navigationPlacement;
+  NavigationPlacement? _navigationPlacement;
 
-  /// Message id [navigationCenterBandOffset] applies to; cleared after settle.
-  @internal
-  int? get navigationCenterBandMessageId => _navigationCenterBandMessageId;
-  int? _navigationCenterBandMessageId;
-
-  /// Whether a [jumpToCenterBand] placement is still waiting on layout.
+  /// Whether a [jumpToCenterBand] placement is armed and has not landed yet.
   ///
   /// When true, the viewport MUST NOT arm jump-to-newest tail pin — that
-  /// would fight mid-bubble restore on the conversation newest.
+  /// would fight mid-bubble restore on the conversation newest. `false` once
+  /// the placement is held.
   @internal
-  bool get hasPendingNavigationCenterBand =>
-      _navigationCenterBandMessageId != null;
+  bool get hasPendingNavigationCenterBand => switch (_navigationPlacement) {
+    CenterBandPlacement(isHeld: false) => true,
+    _ => false,
+  };
 
-  /// Drops the transient alignment target after a jump / animate settles.
+  /// Moves the armed placement from pending to held.
   ///
-  /// Called by the render object once the anchor has been applied — consumers
-  /// should not call this directly.
+  /// Called by the render object once the placement has been applied to a
+  /// loaded target row. Silent no-op when nothing is armed.
   @internal
-  void clearNavigationAlignment() {
-    _navigationAlignment = 0.0;
-    _navigationAlignmentMessageId = null;
+  void holdNavigationPlacement() {
+    _navigationPlacement = _navigationPlacement?.hold();
   }
 
-  /// Drops the transient Center Band apply target after settle.
+  /// Drops the armed placement, pending or held, of either kind.
   ///
-  /// Called by the render object once the ray has been placed — consumers
-  /// should not call this directly.
+  /// Called on user scroll (drag, wheel, scrollbar), by [scrollBy], and by
+  /// the render object when the placement no longer applies: the held target
+  /// stops being the anchor, the tail pin takes over the geometry (a
+  /// known-newest alignment target, a tail follow), or the scroll band is
+  /// empty. The anchor stays where it is.
   @internal
-  void clearNavigationCenterBand() {
-    _navigationCenterBandOffset = null;
-    _navigationCenterBandMessageId = null;
+  void releaseNavigationPlacement() {
+    _navigationPlacement = null;
   }
 
-  /// After the viewport clamps a jump target, keep alignment on the resolved id.
+  /// Marks the armed tail-or-target decision made with a
+  /// [TailOrTargetOutcome.target] outcome: the alignment placement stays
+  /// armed, phase unchanged, without its `tailFitFraction`.
+  ///
+  /// Called by the render object in the layout that decides; a
+  /// [TailOrTargetOutcome.tail] outcome calls [releaseNavigationPlacement]
+  /// instead. No-op when no undecided alignment placement is armed.
   @internal
-  void syncNavigationAlignmentTarget(int resolvedId) {
-    if (_navigationAlignmentMessageId != null) {
-      _navigationAlignmentMessageId = resolvedId;
+  void markTailFitDecided() {
+    if (_navigationPlacement case final AlignmentPlacement placement) {
+      _navigationPlacement = placement.withoutTailFit();
     }
   }
 
-  /// After the viewport clamps a Center Band jump, keep apply on the resolved id.
+  /// After the viewport clamps a jump target, keeps the armed placement on
+  /// [resolvedId], phase unchanged. No-op when nothing is armed.
   @internal
-  void syncNavigationCenterBandTarget(int resolvedId) {
-    if (_navigationCenterBandMessageId != null) {
-      _navigationCenterBandMessageId = resolvedId;
-    }
+  void syncNavigationPlacementTarget(int resolvedId) {
+    _navigationPlacement = _navigationPlacement?.retarget(resolvedId);
   }
 
   void _setNavigationAlignment(int messageId, double alignment) {
-    clearNavigationCenterBand();
-    _navigationAlignment = alignment.clamp(0.0, 1.0);
-    _navigationAlignmentMessageId = messageId;
+    _navigationPlacement = NavigationPlacement.alignment(messageId, alignment);
   }
 
   void _setNavigationCenterBand(int messageId, double offsetFromMessageTop) {
-    clearNavigationAlignment();
-    _navigationCenterBandOffset = offsetFromMessageTop;
-    _navigationCenterBandMessageId = messageId;
+    _navigationPlacement = NavigationPlacement.centerBand(
+      messageId,
+      offsetFromMessageTop,
+    );
   }
 
   // --- Viewport-only: silent mutation without notifications ---
@@ -807,6 +953,7 @@ class ChatScrollController {
     if (_disposed) return;
     _disposed = true;
     _jumpListeners.clear();
+    _tailOrTargetListeners.clear();
     _scrollListeners.clear();
     _scrollByListeners.clear();
     // Drop the animator binding and Message highlight slot — a pending

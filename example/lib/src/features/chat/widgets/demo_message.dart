@@ -360,6 +360,7 @@ class _Bubble extends StatelessWidget {
         final controller? => ChatMessageSurfaceBounds(
           controller: controller,
           messageId: messageId,
+          shape: RoundedRectangleBorder(borderRadius: radius),
           child: _bubbleChrome(
             bg: bg,
             metaColor: metaColor,

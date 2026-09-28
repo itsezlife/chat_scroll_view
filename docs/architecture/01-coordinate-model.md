@@ -81,8 +81,11 @@ y = height                    viewport bottom
   **compensated** by shifting the anchor so on-screen content stays put
   (`_compensateBottomPaddingChange`).
 - **`topPadding`**: reserved for top chrome. Changes only trigger
-  `markNeedsLayout` — **no** anchor compensation. Floating header pins to
-  `topPad`. `pinOldest` pins the oldest row’s top to **`y = 0`**, not `topPad`.
+  `markNeedsLayout` — **no** anchor compensation. The one exception is a
+  **held navigation placement**, which layout re-applies against the new band
+  top ([alignment lifecycle](10-navigation-and-tail.md#alignment-lifecycle)).
+  Floating header pins to `topPad`. `pinOldest` pins the oldest row’s top to
+  **`y = 0`**, not `topPad`.
 
 **Host ownership.** The viewport only consumes these listenables. The host
 aggregates occluding chrome (safe area, header reserve, composer, keyboard)

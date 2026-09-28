@@ -73,7 +73,9 @@ class ChatMessageMenuThemeData
   /// Dim colour at full progress. Alpha is scaled by enter/leave progress.
   final Color? scrimColor;
 
-  /// Corner radius of the undimmed hole over the captured slot.
+  /// Corner radius of the undimmed scrim hole when the present has no
+  /// surface shape: around the slot, or around a surface reported without
+  /// an outline.
   final double? holeRadius;
 
   /// Action-card fill. Null → blended [ColorScheme.surface].

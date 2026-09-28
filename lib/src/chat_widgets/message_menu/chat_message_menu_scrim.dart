@@ -10,7 +10,12 @@ const double kChatMessageMenuScrimOpacity = 0.2;
 /// Fade duration for the dim layer.
 const Duration kChatMessageMenuScrimDuration = Duration(milliseconds: 320);
 
-/// Full-screen dim with an undimmed hole over the captured slot rect.
+/// Full-screen dim with one undimmed hole over the captured message.
+///
+/// The hole is [hole] outlined by [holeShape], or rounded by
+/// [ChatMessageMenuThemeData.holeRadius] when [holeShape] is null, then
+/// clipped to [holeClip] and the layer bounds. Everything outside the hole —
+/// including row padding, neighbouring rows, and host chrome — is dimmed.
 ///
 /// The hole is visual only. Any pointer down on this layer (scrim or hole)
 /// dismisses; the host stacks menu chrome above so actions still receive
@@ -22,6 +27,8 @@ class ChatMessageMenuScrim extends StatelessWidget {
     required this.progress,
     required this.onDismiss,
     this.hole,
+    this.holeShape,
+    this.holeClip,
     super.key,
   });
 
@@ -31,8 +38,17 @@ class ChatMessageMenuScrim extends StatelessWidget {
   /// Any pointer down on this layer dismisses.
   final VoidCallback onDismiss;
 
-  /// Overlay rect of the message left undimmed.
+  /// Overlay rect of the message left undimmed. Null or empty dims
+  /// everything.
   final Rect? hole;
+
+  /// Outline of the hole inside [hole]. Directional shapes resolve against
+  /// the ambient [Directionality].
+  final ShapeBorder? holeShape;
+
+  /// Overlay rect the hole is clipped to, such as the part of the viewport
+  /// not covered by host chrome. Null clips to the layer bounds only.
+  final Rect? holeClip;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +62,10 @@ class ChatMessageMenuScrim extends StatelessWidget {
         painter: _ScrimHolePainter(
           color: color,
           hole: hole,
+          holeShape: holeShape,
           holeRadius: menuTheme.holeRadius ?? 16,
+          holeClip: holeClip,
+          textDirection: Directionality.maybeOf(context),
         ),
         child: const SizedBox.expand(),
       ),
@@ -58,31 +77,59 @@ class _ScrimHolePainter extends CustomPainter {
   _ScrimHolePainter({
     required this.color,
     required this.hole,
+    required this.holeShape,
     required this.holeRadius,
+    required this.holeClip,
+    required this.textDirection,
   });
 
   final Color color;
   final Rect? hole;
+  final ShapeBorder? holeShape;
   final double holeRadius;
+  final Rect? holeClip;
+  final TextDirection? textDirection;
 
   @override
   void paint(Canvas canvas, Size size) {
     final bounds = Offset.zero & size;
-    if (hole == null || hole!.isEmpty) {
-      canvas.drawRect(bounds, Paint()..color = color);
+    final paint = Paint()..color = color;
+    final clip = switch (holeClip) {
+      final holeClip? => bounds.intersect(holeClip),
+      null => bounds,
+    };
+    final hole = this.hole;
+    if (hole == null || hole.isEmpty || clip.isEmpty) {
+      canvas.drawRect(bounds, paint);
       return;
     }
 
-    final path = Path()
-      ..fillType = PathFillType.evenOdd
-      ..addRect(bounds)
-      ..addRRect(RRect.fromRectAndRadius(hole!, Radius.circular(holeRadius)));
-    canvas.drawPath(path, Paint()..color = color);
+    final outline = switch (holeShape) {
+      final shape? => shape.getOuterPath(hole, textDirection: textDirection),
+      null => Path()
+        ..addRRect(RRect.fromRectAndRadius(hole, Radius.circular(holeRadius))),
+    };
+    final visibleHole = Path.combine(
+      PathOperation.intersect,
+      outline,
+      Path()..addRect(clip),
+    );
+    canvas.drawPath(
+      Path.combine(
+        PathOperation.difference,
+        Path()..addRect(bounds),
+        visibleHole,
+      ),
+      paint,
+    );
   }
 
   @override
   bool shouldRepaint(covariant _ScrimHolePainter oldDelegate) =>
       oldDelegate.color != color ||
       oldDelegate.hole != hole ||
-      oldDelegate.holeRadius != holeRadius;
+      oldDelegate.holeShape != holeShape ||
+      oldDelegate.holeRadius != holeRadius ||
+      oldDelegate.holeClip != holeClip ||
+      oldDelegate.textDirection != textDirection;
 }

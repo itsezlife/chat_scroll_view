@@ -23,7 +23,22 @@ flutter run --dart-define-from-file=config/development.supabase.json
 3. Apply seed SQL on the target database (or run generator + push seeds)
 4. `supabase functions deploy load_chats load_chat load_messages send_message get_read_state update_read_state`
 5. Seed order: `seed.sql` (disables last-message trigger) → `demo_messages.sql` → `chat_last_message_backfill.sql` (backfill + re-enable trigger)
-6. Enable Realtime for `public.messages` if not already published
+6. Enable Realtime for `public.messages` and `public.chat_read_state` if not already published
+
+## Tests
+
+```bash
+deno test functions/       # Edge Function handlers
+supabase test db           # pgTAP: tests/database/ (needs `supabase start`)
+```
+
+## Read-state sync
+
+`update_read_state` stores an optional `write_tag` (1–64 characters) with the
+cursor, and every write replaces it. The server clears it when it moves the
+cursor itself (a deleted read message). `chat_read_state` is in the Realtime
+publication: a client that tags its writes drops changes carrying its own
+tag and treats every other change as a read on another client.
 
 ## Keys
 

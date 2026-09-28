@@ -28,10 +28,11 @@ glossary → this document → older animateTo prose or changelog notes.
 
 `ChatScrollController.animateTo`:
 
-1. Sets `navigationAlignment` + `navigationAlignmentMessageId`.
+1. Arms an alignment `navigationPlacement` for the target.
 2. Emits `ChatAnimateStart`, awaits `ChatAnimator.animate(...)`, emits
-   `ChatAnimateEnd` in `finally` (skipped when coalesced onto an in-flight
-   same-target animate, or when the call is ignored while busy).
+   `ChatAnimateEnd` with the resolved path ([Path outcome](#path-outcome))
+   in `finally` (skipped when coalesced onto an in-flight same-target
+   animate, or when the call is ignored while busy).
 3. If no animator bound → `jumpTo` with the same alignment **and**
    `highlight` flag.
 4. Optional `loadPolicy` (default `immediate`) — see below.
@@ -102,6 +103,27 @@ path selection uses built presence only (not a pixel-distance cutoff). Tall
 anchors that alone fill past the build zone must still keep one present edge
 neighbor built so a reverse hop can remain `found`.
 
+## Path outcome
+
+`ChatAnimator.animate` completes with the `AnimateToPath` the flight entered;
+the controller forwards it as `ChatAnimateEnd.path`. The value is written
+when `_beginClose` / `_beginStitch` runs; path selection, the load policy,
+and the load-gate never read it.
+
+| Flight                                               | `ChatAnimateEnd.path` |
+| ---------------------------------------------------- | --------------------- |
+| Built target (incl. already-there, zero-travel close) | `close`               |
+| Not built after readiness (incl. load-gate → stitch) | `stitch`              |
+| `duration ≤ 0` (bound)                               | `instant`             |
+| Cancelled while the load-gate waits                  | `none`                |
+| Cancelled after close / stitch began                 | the entered path      |
+| Coalesced / ignored / unbound                        | no `ChatAnimateEnd`   |
+
+A cancelled stitch still reports `stitch`: the teleport already relocated the
+origin and the destination band was laid out fresh. Host policy that depends
+on whether the rows in between were scrolled through keys on this value, not
+on target distance.
+
 ## Close path
 
 1. `reassignAnchor(targetId, offsetToTarget)` — anchor **id** becomes the
@@ -129,7 +151,7 @@ Does **not** write alignment on the controller each tick — only interpolates
 | Step                        | Suspended?                                     |
 | --------------------------- | ---------------------------------------------- |
 | `_renormalizeAnchor`        | Yes (`_skipRenormalizeDuringClosePath`)        |
-| `_applyNavigationAlignment` | Yes (dual-writer guard)                        |
+| `_applyNavigationPlacement` | Yes (dual-writer guard)                        |
 | GC of animate/nav targets   | Pinned (`_gcPinnedDuringClosePath`)            |
 | `_clampBoundaries`          | **No** (current code — pin can cancel animate) |
 

@@ -1,7 +1,8 @@
 import 'package:catalog_assets/catalog_assets.dart';
-import 'package:panel_catalog/src/debug/panel_catalog_dev_log.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
+import 'package:panel_catalog/src/util/constants.dart';
+import 'package:panel_catalog/src/util/logger.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 
 /// Attaches visible leaves to [CatalogAssetCache] and detaches the rest.
@@ -53,11 +54,6 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// [onReadinessChanged] is registered on every new binding (typically
 /// `markNeedsPaint`) so placeholders flip without a full catalog reproject.
 final class CatalogLeafBindingPool {
-  static final PanelCatalogDevLog _log = PanelCatalogDevLog(
-    'PanelCatalogBinding',
-    enabled: true,
-  );
-
   /// Creates an empty binding pool.
   ///
   /// [onReadinessChanged] fires when any attached binding's readiness
@@ -128,7 +124,8 @@ final class CatalogLeafBindingPool {
     for (final key in stale) {
       _bindings.remove(key)?.detach();
     }
-    if (_log.enabled && (visibleKeys.isNotEmpty || stale.isNotEmpty)) {
+    if (LogCategory.binding.enabled &&
+        (visibleKeys.isNotEmpty || stale.isNotEmpty)) {
       var ready = 0;
       var loading = 0;
       var failed = 0;
@@ -142,9 +139,9 @@ final class CatalogLeafBindingPool {
             failed++;
         }
       }
-      _log.event('sync', {
-        'winTop': DevLogFormat.f(top),
-        'winBot': DevLogFormat.f(bottom),
+      fine(.binding, 'sync', {
+        'winTop': LogFormat.f(top),
+        'winBot': LogFormat.f(bottom),
         'visible': visibleKeys.length,
         'attached': _bindings.length,
         'detached': stale.length,

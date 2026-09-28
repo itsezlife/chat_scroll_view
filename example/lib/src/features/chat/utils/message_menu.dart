@@ -434,6 +434,9 @@ final class MessageMenu {
         context: context,
         messageRect: request.slotGlobal,
         tapGlobal: request.tapGlobal,
+        surfaceRect: request.surfaceGlobal,
+        surfaceShape: request.surfaceShape,
+        visibleRect: request.bandGlobal,
         items: MessageMenuCatalog.excluding(
           itemsFor(request, policy),
           excludeActionIds,

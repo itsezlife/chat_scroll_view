@@ -1,3 +1,5 @@
+import 'package:chat_scroll_view/src/chat_scroll/animate_to_path.dart';
+
 /// Sealed hierarchy of scroll-side events emitted by the chat viewport.
 ///
 /// Subscribe via [ChatScrollController.addScrollListener] to react to user
@@ -65,12 +67,24 @@ class ChatAnimateStart extends ChatScrollEvent {
 }
 
 /// `controller.animateTo`'s animation finished.
+///
+/// Emitted once per flight that emitted [ChatAnimateStart] — when it
+/// settles and when it is cancelled — before the `animateTo` future
+/// completes. A call coalesced onto an in-flight animate, an ignored call,
+/// and an `animateTo` with no viewport bound (placed through
+/// [ChatScrollController.jumpTo], reported as [ChatProgrammaticJump]) emit
+/// none.
 class ChatAnimateEnd extends ChatScrollEvent {
-  /// Emitted when an [ChatScrollController.animateTo] animation completes.
-  const ChatAnimateEnd(this.targetId);
+  /// Emitted when an [ChatScrollController.animateTo] flight settles or is
+  /// cancelled.
+  const ChatAnimateEnd(this.targetId, {this.path = AnimateToPath.none});
 
   /// Message id that was scrolled to.
   final int targetId;
+
+  /// Path the flight took to [targetId] — see [AnimateToPath] for when each
+  /// value is reported, including cancelled flights.
+  final AnimateToPath path;
 }
 
 /// `controller.scrollBy` was called programmatically. [delta] is the pixel

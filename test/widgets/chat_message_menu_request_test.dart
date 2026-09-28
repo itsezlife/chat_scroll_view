@@ -103,6 +103,86 @@ void main() {
         expect(request.selectedTextSnapshot, isNull);
         expect(selection.selectedIds, isEmpty);
         expect(selection.isTextSelectionActive, isFalse);
+        expect(request.surfaceGlobal, isNull);
+        expect(request.surfaceShape, isNull);
+        expect(request.bandGlobal, tester.getRect(find.byType(ChatScrollView)));
+      },
+    );
+
+    testWidgets(
+      'request carries the reported surface rect, its shape, and the band',
+      (tester) async {
+        final dataSource = _LoadedSource([_msg(1)]);
+        final controller = ChatScrollController();
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        final topPadding = ValueNotifier<double>(40);
+        final bottomPadding = ValueNotifier<double>(100);
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+        addTearDown(dataSource.dispose);
+        addTearDown(topPadding.dispose);
+        addTearDown(bottomPadding.dispose);
+        const shape = RoundedRectangleBorder(
+          borderRadius: BorderRadiusDirectional.only(
+            topStart: Radius.circular(18),
+            bottomEnd: Radius.circular(6),
+          ),
+        );
+
+        final requests = <ChatMessageMenuRequest>[];
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: dataSource,
+                  controller: controller,
+                  selectionController: selection,
+                  topPadding: topPadding,
+                  bottomPadding: bottomPadding,
+                  onIdleMessageTap: requests.add,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      SizedBox(
+                        height: 80,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: ChatMessageSurfaceBounds(
+                            controller: selection,
+                            messageId: id,
+                            shape: shape,
+                            child: SizedBox(
+                              key: ValueKey('surface-$id'),
+                              width: 220,
+                              height: 56,
+                            ),
+                          ),
+                        ),
+                      ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(const ValueKey('surface-1')));
+        await tester.pump();
+
+        final request = requests.single;
+        expect(
+          request.surfaceGlobal,
+          tester.getRect(find.byKey(const ValueKey('surface-1'))),
+        );
+        expect(request.surfaceShape, shape);
+        final view = tester.getRect(find.byType(ChatScrollView));
+        expect(
+          request.bandGlobal,
+          Rect.fromLTRB(view.left, view.top + 40, view.right, view.bottom - 100),
+        );
       },
     );
 
