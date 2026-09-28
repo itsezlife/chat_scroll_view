@@ -204,7 +204,13 @@ In `performLayout` (see [Layout Pipeline](./04-layout-pipeline.md)):
 tailAdvanced = _wasAtTailLastLayout && newest advanced
 newestHeightGrew = wasAtTail && same newest id taller than last layout
 _applyPendingTailPin()
-repinBottom = _pinTailOnJump || (reachedNewest && wasAtTail && (tailAdvanced || newestHeightGrew))
+followTailRepin = !navigationMoved && (tailAdvanced || newestHeightGrew)
+repinBottom = _pinTailOnJump || (reachedNewest && wasAtTail && followTailRepin)
 _pinTailOnJump = false
 _clampBoundaries(repinBottom: repinBottom)
 ```
+
+`navigationMoved` is whether `_applyNavigationPlacement` seated its target
+this pass. That navigation owns the origin, so follow-tail does not pull it
+back. The previous layout's tail state may come from skeleton rows the clamp
+pinned before the target's chunk loaded.

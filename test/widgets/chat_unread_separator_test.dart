@@ -1367,6 +1367,81 @@ void main() {
       expect(tester.getBottomLeft(find.text('msg-9')).dy, bandBottom(tester));
     });
 
+    testWidgets('a target that loads taller than its skeleton measures the '
+        'rows below it as loaded, not as left by the skeleton layout', (
+      tester,
+    ) async {
+      final source = _LateSource();
+      addTearDown(source.dispose);
+      final controller = tailOrTargetAt(7);
+      final outcomes = outcomesOf(controller);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: source,
+          controller: controller,
+          separators: false,
+          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
+            height: message != null && id == 7 ? 1000 : 60,
+            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(outcomes, isEmpty);
+
+      source.upsertMessages(<IChatMessage>[for (var i = 0; i < 10; i++) _msg(i)]);
+      await tester.pump();
+
+      expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.target]);
+      expect(_top(tester, 'msg-7'), bandTop(tester));
+    });
+
+    testWidgets('a target outcome keeps the target seated when skeletons '
+        'clamped to the tail and the newest row loads taller', (tester) async {
+      final source = _LateSource();
+      addTearDown(source.dispose);
+      final controller = tailOrTargetAt(7);
+      final outcomes = outcomesOf(controller);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: source,
+          controller: controller,
+          separators: false,
+          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
+            height: message != null && id == 9 ? 700 : 60,
+            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(controller.isAtTail.value, isTrue);
+
+      source.upsertMessages(<IChatMessage>[for (var i = 0; i < 10; i++) _msg(i)]);
+      await tester.pump();
+
+      expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.target]);
+      expect(_top(tester, 'msg-7'), bandTop(tester));
+    });
+
+    testWidgets('a jump onto the newest message decides once that row '
+        'loads', (tester) async {
+      final source = _LateSource();
+      addTearDown(source.dispose);
+      final controller = tailOrTargetAt(9);
+      final outcomes = outcomesOf(controller);
+      await tester.pumpWidget(
+        _harness(dataSource: source, controller: controller),
+      );
+      await tester.pump();
+      expect(outcomes, isEmpty);
+
+      source.upsertMessages(<IChatMessage>[for (var i = 0; i < 10; i++) _msg(i)]);
+      await tester.pump();
+
+      expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.tail]);
+      expect(tester.getBottomLeft(find.text('msg-9')).dy, bandBottom(tester));
+    });
+
     testWidgets('a jump released before its target loads reports nothing', (
       tester,
     ) async {

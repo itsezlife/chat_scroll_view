@@ -239,7 +239,12 @@
   (its row chrome, such as the unread separator, excluded) to the newest message's
   bottom is at most that fraction of the viewport height, the chat opens
   pinned at the tail. Otherwise the target is placed at `alignment` as a
-  plain `jumpTo` would place it. `addTailOrTargetListener` /
+  plain `jumpTo` would place it. The span counts only rows laid out in that
+  layout, so rows still sized as skeletons from before their chunk loaded
+  never shrink it. Skeleton layouts before the decision never pre-empt it:
+  a jump onto the newest message still decides once that row loads, and a
+  target outcome stays seated even when short skeletons had pinned the list
+  to the tail. `addTailOrTargetListener` /
   `removeTailOrTargetListener` report the `TailOrTargetOutcome` (`tail` or
   `target`) synchronously inside that layout, with the usual listener
   contract (dedup, snapshot dispatch, silent after `dispose`); a callback

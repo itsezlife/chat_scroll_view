@@ -2095,7 +2095,9 @@ class RenderChatScrollView extends RenderBox {
   ///   outgoing strip.
   /// - A known-newest alignment target: the tail pin owns that geometry. A
   ///   Center Band target on the newest is still placed and held, so a
-  ///   mid-bubble restore on the conversation newest keeps its offset.
+  ///   mid-bubble restore on the conversation newest keeps its offset. An
+  ///   undecided tail-or-target jump is kept, unseated, until
+  ///   [_resolveTailOrTarget] decides it on the layout that loads the row.
   /// - A Center Band placement on an empty scroll band.
   ///
   /// **Dual-writer guard:** close-path `animateTo` arms an alignment
@@ -2122,7 +2124,9 @@ class RenderChatScrollView extends RenderBox {
       return false;
     }
     if (placement is AlignmentPlacement && _isTailClosePathTarget(targetId)) {
-      _controller.releaseNavigationPlacement();
+      if (placement.tailFitFraction == null) {
+        _controller.releaseNavigationPlacement();
+      }
       return false;
     }
     if (placement.isHeld && !reapplyHold) return false;
@@ -2206,8 +2210,11 @@ class RenderChatScrollView extends RenderBox {
   /// do not apply, because the placement is still pending on the target
   /// outcome and gone on the tail outcome.
   ///
-  /// Silent until the target row is built as a loaded message: a skeleton
-  /// target defers the decision to the layout that loads it.
+  /// Silent until this pass lays out the target row as a loaded message: a
+  /// skeleton target defers the decision to the layout that loads it. The
+  /// span reads only rows in [built]; a child this pass did not lay out
+  /// keeps the geometry of an earlier pass, such as skeleton heights from
+  /// before the chunk loaded.
   void _resolveTailOrTarget(
     BoxConstraints cc,
     Set<int> built,
@@ -2217,7 +2224,7 @@ class RenderChatScrollView extends RenderBox {
       messageId: final targetId,
       tailFitFraction: final fraction?,
     ) when _dataSource.getMessage(targetId) != null &&
-        (_children[targetId]?.hasSize ?? false)) {
+        built.contains(targetId)) {
       final newest = _layOutNewestBelow(targetId, cc, built, builtChunks);
       final span = switch ((_children[targetId], newest)) {
         (final target?, (_, final last)) =>
@@ -2293,7 +2300,8 @@ class RenderChatScrollView extends RenderBox {
   /// ([ChatDataSource.reachedNewest]) or not loaded, or when it lies too far
   /// below the target to fit any fraction.
   ///
-  /// Mutates the layout when fan-out left a loaded newest row unbuilt: the
+  /// Mutates the layout when this pass's fan-out left a loaded newest row
+  /// out of [built] — a child kept from an earlier pass does not count: the
   /// rows are re-fanned with the target's body top on the viewport's top
   /// edge. Fan-out builds at least a viewport height below the anchor
   /// ([_fanOutFromAnchor] fills to `size.height` plus the cache extent), so
@@ -2309,7 +2317,7 @@ class RenderChatScrollView extends RenderBox {
     final newest = _dataSource.newestKnownId;
     if (!_dataSource.reachedNewest || newest == null) return null;
     if (_dataSource.getMessage(newest) == null) return null;
-    if (_children[newest] == null) {
+    if (!built.contains(newest)) {
       if (_children[targetId] case final target?) {
         _controller.reassignAnchor(
           targetId,
@@ -2321,8 +2329,8 @@ class RenderChatScrollView extends RenderBox {
       }
     }
     return switch (_children[newest]) {
-      final last? => (newest, last),
-      null => null,
+      final last? when built.contains(newest) => (newest, last),
+      _ => null,
     };
   }
 
@@ -2620,8 +2628,12 @@ class RenderChatScrollView extends RenderBox {
     }
     // Self-insert animate owns follow-tail motion: skip instant pin on id
     // advance (teleport). Same-id height growth still repins (edit expand).
+    // A placement that seated its target this pass owns the origin: the
+    // previous layout's tail state may come from skeleton rows that the
+    // clamp pinned before the target's chunk loaded.
     final followTailRepin =
-        (!_deferTailAdvancedRepin && tailAdvanced) || newestHeightGrew;
+        !navigationMoved &&
+        ((!_deferTailAdvancedRepin && tailAdvanced) || newestHeightGrew);
     final repinBottom =
         !stitchLayoutFrozen &&
         ((!occupyingSpanAutoScroll && _pinTailOnJump) ||

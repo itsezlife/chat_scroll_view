@@ -221,7 +221,8 @@ snap `anchorPixelOffset` by kind: an alignment placement to
 `_alignedTopForMessage`, a Center Band placement so the band ray hits its
 offset. **Skipped** during close-path animate (dual-writer guard). An
 alignment placement on the known newest is **released without snap** (tail
-pin owns geometry). May call `_repositionFromAnchor`.
+pin owns geometry), unless it is an undecided tail-or-target jump, which
+stays armed until its row loads. May call `_repositionFromAnchor`.
 
 A pending placement snaps every pass and becomes **held** once it lands on a
 loaded row. A held placement snaps only when `reapplyHold` is set: the top pad

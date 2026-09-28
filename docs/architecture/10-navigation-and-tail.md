@@ -139,7 +139,9 @@ placement; a target outcome is seated here as a plain jump.
 1. Stitch-measured freeze and close-path animate → return (dual-writer guard).
 2. Anchor ≠ target → release when held; keep when pending.
 3. Alignment target is known newest → **release without snap** (tail pin owns
-   geometry). A known-newest Center Band target goes on and is held.
+   geometry). A known-newest Center Band target goes on and is held. An
+   undecided tail-or-target jump stays armed, unseated, until
+   `_resolveTailOrTarget` decides it on the layout that loads the row.
 4. Held and no trigger → return.
 5. Needs built child with size. Seat by kind: alignment →
    `_alignedTopForMessage`; Center Band → band ray minus the clamped offset
