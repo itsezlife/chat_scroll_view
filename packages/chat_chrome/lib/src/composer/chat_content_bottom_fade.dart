@@ -53,7 +53,35 @@ class ChatContentBottomFade extends StatefulWidget {
   /// glass; without this, cutout sync never runs and the hole stays.
   final Listenable? cutoutSync;
 
-  /// Alpha stops for the opacity gradient (`createGradient(…, opacity=true)`).
+  /// Vertical gradient that paints the fade across a [zoneHeight]-tall box.
+  ///
+  /// The [opacityStops] of [color] ramp over the top [fadeHeight] of the
+  /// zone, then the last stop holds down to the bottom edge. A [fadeHeight]
+  /// taller than the zone squeezes the whole ramp into it. The gradient's
+  /// positions are fractions of the zone, so shade exactly the zone's rect;
+  /// outside it the default clamp tiling continues the end stops.
+  ///
+  /// Only the alpha of [color] shapes the ramp, so an opaque colour also
+  /// works as a mask for [BlendMode.dstIn] compositing of other content.
+  static LinearGradient gradient({
+    required double zoneHeight,
+    required Color color,
+    double fadeHeight = defaultFadeHeight,
+  }) {
+    final stops = opacityStops(color);
+    final end = zoneHeight <= 0
+        ? 1.0
+        : (fadeHeight.clamp(0.0, zoneHeight) / zoneHeight).clamp(0.0, 1.0);
+    return LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: <Color>[...stops, if (end < 1) stops.last],
+      stops: <double>[0, end / 3, end * 2 / 3, end, if (end < 1) 1],
+    );
+  }
+
+  /// Four [color] stops with rising alpha — transparent, then roughly 34%,
+  /// 62% and 81% of [color]'s own alpha — that shape the fade ramp.
   static List<Color> opacityStops(Color color) {
     final a = color.a;
     Color stop(int numer) =>
@@ -174,28 +202,17 @@ class ChatContentBottomFadeState extends State<ChatContentBottomFade> {
     // Re-measure after this build (resize / first layout).
     _scheduleSync();
 
-    final ramp = widget.fadeHeight.clamp(0.0, widget.zoneHeight);
-    final stops = ChatContentBottomFade.opacityStops(widget.color);
-    final end = widget.zoneHeight <= 0
-        ? 1.0
-        : (ramp / widget.zoneHeight).clamp(0.0, 1.0);
-    final colors = <Color>[
-      stops[0],
-      stops[1],
-      stops[2],
-      stops[3],
-      if (end < 1) stops[3],
-    ];
-    final positions = <double>[0, end / 3, end * 2 / 3, end, if (end < 1) 1];
-
     return AbsorbPointer(
       child: SizedBox(
         height: widget.zoneHeight,
         width: double.infinity,
         child: CustomPaint(
           painter: _FadeWithCutoutPainter(
-            colors: colors,
-            positions: positions,
+            gradient: ChatContentBottomFade.gradient(
+              zoneHeight: widget.zoneHeight,
+              color: widget.color,
+              fadeHeight: widget.fadeHeight,
+            ),
             cutout: _cutout,
             cornerRadius: widget.glassCornerRadius,
           ),
@@ -207,14 +224,12 @@ class ChatContentBottomFadeState extends State<ChatContentBottomFade> {
 
 class _FadeWithCutoutPainter extends CustomPainter {
   _FadeWithCutoutPainter({
-    required this.colors,
-    required this.positions,
+    required this.gradient,
     required this.cutout,
     required this.cornerRadius,
   });
 
-  final List<Color> colors;
-  final List<double> positions;
+  final LinearGradient gradient;
   final Rect? cutout;
   final double cornerRadius;
 
@@ -222,12 +237,7 @@ class _FadeWithCutoutPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
     final rect = Offset.zero & size;
-    final shader = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: colors,
-      stops: positions,
-    ).createShader(rect);
+    final shader = gradient.createShader(rect);
 
     final hole = cutout;
     if (hole == null || hole.isEmpty) {
@@ -250,6 +260,5 @@ class _FadeWithCutoutPainter extends CustomPainter {
   bool shouldRepaint(covariant _FadeWithCutoutPainter oldDelegate) =>
       oldDelegate.cutout != cutout ||
       oldDelegate.cornerRadius != cornerRadius ||
-      oldDelegate.colors != colors ||
-      oldDelegate.positions != positions;
+      oldDelegate.gradient != gradient;
 }
