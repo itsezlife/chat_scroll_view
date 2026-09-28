@@ -67,7 +67,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   final GlobalKey _composerGlassKey = GlobalKey(debugLabel: 'ComposerGlass');
   late final KeyboardPanelController _panelController;
 
-  /// Demo: all type tabs so the floating glass pill matches Telegram.
+  /// Demo: every type tab, so the floating glass pill shows all of them.
   static const KeyboardPanelAllow _emojiAllow = KeyboardPanelAllow.all;
 
   final ValueNotifier<bool> _keyboardPanelOpen = ValueNotifier(false);
@@ -440,11 +440,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
           :final anchor,
           :final alignment,
           :final tailFitFraction,
+          :final pixelOffset,
         ):
           _controller.jumpTo(
             anchor,
             alignment: alignment,
             tailFitFraction: tailFitFraction,
+            pixelOffset: pixelOffset,
           );
         case CenterBandOpenPosition(
           :final centerBand,
@@ -560,6 +562,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       _controller.animateTo(
         fromId,
         alignment: ChatDataSourceX.unreadBoundaryAlignment,
+        pixelOffset: ChatDataSourceX.unreadBoundaryPixelOffset,
         highlight: false,
       ),
     );
@@ -1040,8 +1043,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                     //   bottomPadding = composerHeight + keyboard
                     // Composer measure includes island + gap + safe-bottom.
                     // [keyboard] is IME height or keyboard-panel target from the
-                    // panel store (Telegram kbd_height) — never live IME=0
-                    // while the panel is open.
+                    // stored panel height. It never reads the live IME height
+                    // (0) while the panel is open.
                     Positioned(
                       left: 0,
                       right: 0,

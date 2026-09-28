@@ -200,8 +200,20 @@
   messages fit in half the viewport, the chat opens at the tail and
   `UnreadBoundaryController` clears the boundary on the `tail` outcome, so
   the bar never shows. Longer unread content opens at the bar as before.
+- **EXAMPLE**: Opening at the unread bar, resuming onto it, and paging down to
+  it all pass `pixelOffset: ChatDataSourceX.unreadBoundaryPixelOffset`
+  (`−11 + 50 = 39`). The separator sits 39 logical pixels below the
+  scroll-band top instead of flush at alignment `0`.
 
 ### Navigation
+- **ADDED**: Additive `pixelOffset` on `jumpTo` / `animateTo` and
+  `AlignmentPlacement`. After the alignment seat
+  (`topPad + alignment * free travel`), the viewport adds `pixelOffset`
+  (positive moves the target down the band). The default `0` leaves existing
+  calls unchanged. The alignment hold re-applies the same offset when the
+  band top moves or the target's row chrome changes. Free travel depends on
+  row and viewport height, so alignment alone cannot hold a fixed inset below
+  the band top. Hosts that need one pass it here.
 - **CHANGED**: Alignment hold. A `jumpTo` / `animateTo` alignment or a
   `jumpToCenterBand` placement stays held on its target once it lands on a
   loaded row. It lasts until the first user scroll (drag, fling, wheel,

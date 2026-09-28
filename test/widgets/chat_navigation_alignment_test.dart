@@ -978,5 +978,26 @@ void main() {
       expect(rowBottom(tester, count), _viewportHeight);
       expect(controller.isAtTail.value, isTrue);
     });
+
+    testWidgets('pixelOffset seats the target below the band top and the '
+        'hold re-applies it after a top inset change', (tester) async {
+      const offset = 39.0;
+      controller.jumpTo(50, pixelOffset: offset);
+      await mount(tester);
+      expect(rowTop(tester, 50), offset);
+      expect(
+        controller.navigationPlacement,
+        const AlignmentPlacement(
+          messageId: 50,
+          alignment: 0,
+          pixelOffset: offset,
+          isHeld: true,
+        ),
+      );
+
+      await growTopInset(tester);
+
+      expect(rowTop(tester, 50), grownTopInset + offset);
+    });
   });
 }

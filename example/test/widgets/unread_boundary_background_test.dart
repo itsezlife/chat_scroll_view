@@ -1,6 +1,7 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/unread_boundary_controller.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -222,7 +223,7 @@ void main() {
 
   group('resume', () {
     testWidgets('after a pause that moved the boundary, a reader who was at '
-        'the tail lands on it with the separator at the band top', (
+        'the tail lands on it with the separator at the open-at-bar offset', (
       tester,
     ) async {
       final (:ds, :controller, :boundary) = await open(tester);
@@ -235,11 +236,13 @@ void main() {
       _foreground();
       await _settle(tester);
 
-      final bandTop = tester.getTopLeft(find.byType(ChatScrollView)).dy;
-      expect(tester.getTopLeft(find.text('unread')).dy, bandTop);
+      final separatorTop =
+          tester.getTopLeft(find.byType(ChatScrollView)).dy +
+          ChatDataSourceX.unreadBoundaryPixelOffset;
+      expect(tester.getTopLeft(find.text('unread')).dy, separatorTop);
       expect(
         tester.getTopLeft(find.text('msg-$count')).dy,
-        bandTop + _separatorHeight,
+        separatorTop + _separatorHeight,
       );
       expect(controller.isAtTail.value, isFalse);
     });

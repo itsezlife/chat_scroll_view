@@ -117,6 +117,10 @@ abstract class ChatScrollAnimator {
   /// Alignment of the in-flight [animate], if any (undefined when idle).
   double get animateAlignment;
 
+  /// Additive pixel offset of the in-flight [animate], if any (undefined
+  /// when idle).
+  double get animatePixelOffset;
+
   /// Scrolls so [targetId] lands at [alignment] within the viewport scroll
   /// band between top and bottom insets (`0` = band top, `1` = band bottom)
   /// over [duration] with [curve].
@@ -142,6 +146,7 @@ abstract class ChatScrollAnimator {
     bool highlight = true,
     AnimateToLoadPolicy loadPolicy = AnimateToLoadPolicy.immediate,
     AnimateToBusyPolicy busyPolicy = AnimateToBusyPolicy.ignore,
+    double pixelOffset = 0.0,
   });
 
   /// Cancels the in-flight [animate] without arming a highlight.
@@ -247,10 +252,19 @@ class ChatScrollController {
   /// makes to the viewport's unread boundary is laid out in the same pass:
   /// clearing it on [TailOrTargetOutcome.tail] means no frame paints the
   /// unread separator at the tail, and setting it on
-  /// [TailOrTargetOutcome.target] lands the separator at [alignment] with
-  /// the body below it. The jump reports at most once, and not at all when
-  /// it is released before deciding — by a user scroll, [scrollBy], or the
-  /// next navigation, including when its target never loads.
+  /// [TailOrTargetOutcome.target] lands the separator at [alignment] plus
+  /// [pixelOffset] with the body below it. The jump reports at most once,
+  /// and not at all when it is released before deciding — by a user scroll,
+  /// [scrollBy], or the next navigation, including when its target never
+  /// loads.
+  ///
+  /// **Pixel offset**: [pixelOffset] is added after the alignment seat
+  /// (`topPad + alignment * free travel + pixelOffset`). Positive values
+  /// move the target down the scroll band. Free travel depends on row and
+  /// viewport height, so alignment alone cannot hold a fixed inset below the
+  /// band top. Hosts that need one pass it here. The alignment hold
+  /// re-applies the same offset when the band top moves or the target's row
+  /// chrome changes.
   ///
   /// **Absent-target behavior**: if [messageId] is confirmed absent after its
   /// owning chunk's fetch resolves (see `ChatMessageStatus.absent`), the
@@ -266,6 +280,7 @@ class ChatScrollController {
     double alignment = 0.0,
     bool highlight = false,
     double? tailFitFraction,
+    double pixelOffset = 0.0,
   }) {
     if (_disposed) return;
     _debugCheckNotDispatchingTailOrTarget('jumpTo');
@@ -285,6 +300,7 @@ class ChatScrollController {
       messageId,
       alignment,
       tailFitFraction: tailFitFraction,
+      pixelOffset: pixelOffset,
     );
     if (!highlight) {
       // Geometry jump drops leftover attention. Stitch-owned jumps still skip
@@ -563,7 +579,8 @@ class ChatScrollController {
   ///
   /// ## Busy / re-entry
   ///
-  /// - Same id+alignment while busy → [AnimateToDisposition.coalesced].
+  /// - Same id, alignment, and [pixelOffset] while busy →
+  ///   [AnimateToDisposition.coalesced].
   /// - Different target while busy → [AnimateToDisposition.ignored] by default.
   ///   Pass [AnimateToBusyPolicy.replace] to cancel and start immediately
   ///   ([AnimateToDisposition.accepted]).
@@ -585,6 +602,7 @@ class ChatScrollController {
     bool highlight = true,
     AnimateToLoadPolicy loadPolicy = AnimateToLoadPolicy.immediate,
     AnimateToBusyPolicy busyPolicy = AnimateToBusyPolicy.ignore,
+    double pixelOffset = 0.0,
   }) async {
     if (_disposed) return AnimateToDisposition.ignored;
     _debugCheckNotDispatchingTailOrTarget('animateTo');
@@ -593,8 +611,13 @@ class ChatScrollController {
     // land on a deleted id. ADR 002 "Navigation to absent IDs".
     final animator = _animator;
     if (animator == null) {
-      _setNavigationAlignment(messageId, alignment);
-      jumpTo(messageId, alignment: alignment, highlight: highlight);
+      _setNavigationAlignment(messageId, alignment, pixelOffset: pixelOffset);
+      jumpTo(
+        messageId,
+        alignment: alignment,
+        highlight: highlight,
+        pixelOffset: pixelOffset,
+      );
       return AnimateToDisposition.accepted;
     }
     final align = alignment.clamp(0.0, 1.0);
@@ -602,7 +625,8 @@ class ChatScrollController {
     final sameTarget =
         busy &&
         animator.animateTargetId == messageId &&
-        (animator.animateAlignment - align).abs() < 0.001;
+        (animator.animateAlignment - align).abs() < 0.001 &&
+        (animator.animatePixelOffset - pixelOffset).abs() < 0.001;
     if (busy && !sameTarget) {
       if (busyPolicy != AnimateToBusyPolicy.replace) {
         // Do not update navigation alignment for ignored spam — that desyncs
@@ -612,7 +636,7 @@ class ChatScrollController {
       }
       animator.cancel();
     }
-    _setNavigationAlignment(messageId, alignment);
+    _setNavigationAlignment(messageId, alignment, pixelOffset: pixelOffset);
     if (highlight) {
       _requestedHighlightMessageId = messageId;
     } else {
@@ -632,6 +656,7 @@ class ChatScrollController {
         highlight: highlight,
         loadPolicy: loadPolicy,
         busyPolicy: busyPolicy,
+        pixelOffset: pixelOffset,
       );
     } finally {
       if (!coalesce) {
@@ -899,8 +924,16 @@ class ChatScrollController {
     _navigationPlacement = _navigationPlacement?.retarget(resolvedId);
   }
 
-  void _setNavigationAlignment(int messageId, double alignment) {
-    _navigationPlacement = NavigationPlacement.alignment(messageId, alignment);
+  void _setNavigationAlignment(
+    int messageId,
+    double alignment, {
+    double pixelOffset = 0,
+  }) {
+    _navigationPlacement = NavigationPlacement.alignment(
+      messageId,
+      alignment,
+      pixelOffset: pixelOffset,
+    );
   }
 
   void _setNavigationCenterBand(int messageId, double offsetFromMessageTop) {

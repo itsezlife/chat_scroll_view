@@ -40,8 +40,9 @@ import 'package:flutter/widgets.dart' show AppLifecycleListener, WidgetsBinding;
 ///
 /// On show, if the span placed the boundary, the boundary still stands
 /// there, and [ChatScrollController.isAtTail] was `true` on hide, the
-/// controller jumps to it at [ChatDataSourceX.unreadBoundaryAlignment] — the
-/// alignment of an open at the first unread message. A reader who was
+/// controller jumps to it at [ChatDataSourceX.unreadBoundaryAlignment] with
+/// [ChatDataSourceX.unreadBoundaryPixelOffset], the same placement as
+/// opening at the first unread message. A reader who was
 /// scrolled up keeps the position, with the boundary moved below.
 ///
 /// ## Reconnect gap
@@ -391,6 +392,7 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
       _controller.jumpTo(
         placed,
         alignment: ChatDataSourceX.unreadBoundaryAlignment,
+        pixelOffset: ChatDataSourceX.unreadBoundaryPixelOffset,
       );
     }
   }

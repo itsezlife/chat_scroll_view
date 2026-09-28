@@ -13,7 +13,7 @@ resource: lib/src/chat_scroll/chat_scroll_controller.dart
 
 | API                              | Anchor effect                                      | Notifications                                                                   |
 | -------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `jumpTo(id, {alignment, highlight, tailFitFraction})` | id = target, offset = `0`; with `tailFitFraction`, layout may move it to the newest (see [Tail or target](#tail-or-target)) | Jump listeners + `ChatProgrammaticJump`; `highlight: true` then requests wash; tail-or-target listeners get the outcome in layout |
+| `jumpTo(id, {alignment, highlight, tailFitFraction, pixelOffset})` | id = target, offset = `0`; with `tailFitFraction`, layout may move it to the newest (see [Tail or target](#tail-or-target)); `pixelOffset` is additive after the alignment seat | Jump listeners + `ChatProgrammaticJump`; `highlight: true` then requests wash; tail-or-target listeners get the outcome in layout |
 | `jumpToCenterBand(id, offset)`   | id = target; layout places ray at msg top + offset | Jump listeners + `ChatProgrammaticJump`; hard-clears highlight |
 | `scrollBy(px)`                   | offset += px                                       | ScrollBy listeners + `ChatProgrammaticScroll`; no-op if `px == 0` or non-finite |
 | `animateTo`                      | Animator drives; falls back to `jumpTo` (same `highlight` flag) if unbound | `ChatAnimateStart` / `ChatAnimateEnd` (with `path`); unbound: only `ChatProgrammaticJump` |
@@ -37,10 +37,12 @@ The controller keeps one `navigationPlacement` slot, typed as the sealed
 `NavigationPlacement` (`lib/src/chat_scroll/navigation_placement.dart`,
 engine-internal):
 
-- `AlignmentPlacement(messageId, alignment, {tailFitFraction})`: armed by
-  `jumpTo` / `animateTo`. `alignment` runs from 0 (band top) to 1 (band
-  bottom). A non-null `tailFitFraction` (tail-or-target `jumpTo` only)
-  marks a decision still to be made.
+- `AlignmentPlacement(messageId, alignment, {tailFitFraction, pixelOffset})`:
+  armed by `jumpTo` / `animateTo`. `alignment` runs from 0 (band top) to 1
+  (band bottom). A non-null `tailFitFraction` (tail-or-target `jumpTo` only)
+  marks a decision still to be made. `pixelOffset` is additive after the
+  alignment seat (default `0`); hosts that need a fixed inset below the band
+  top pass it because alignment alone cannot express a constant.
 - `CenterBandPlacement(messageId, offsetFromMessageTop)`: armed by
   `jumpToCenterBand` (see [Center Band](#center-band)).
 
@@ -144,13 +146,14 @@ placement; a target outcome is seated here as a plain jump.
    `_resolveTailOrTarget` decides it on the layout that loads the row.
 4. Held and no trigger → return.
 5. Needs built child with size. Seat by kind: alignment →
-   `_alignedTopForMessage`; Center Band → band ray minus the clamped offset
-   (an empty band releases). `reassignAnchor(targetId, desiredTop)` +
-   `_repositionFromAnchor` unless within `0.5px`.
+   `_alignedTopForMessage` + `pixelOffset`; Center Band → band ray minus the
+   clamped offset (an empty band releases). `reassignAnchor(targetId,
+   desiredTop)` + `_repositionFromAnchor` unless within `0.5px`.
 6. Target loaded → mark held.
 
 `_alignedTopForMessage` uses the scroll band (`topPad` .. `height - bottomPad`).
-Tall **non-newest** messages (`height ≥ band`) always land at band top.
+`pixelOffset` is added after that seat. Tall **non-newest** messages
+(`height ≥ band`) always land at band top before the offset is applied.
 **Known-newest** close-path `animateTo` ends at tail-pin top (`bottomEdge −
 height`) so scroll-to-end does not animate to band top and snap afterward. True
 chat pin (`newest.bottom == bottomEdge`) is still enforced by layout `pinNewest`.

@@ -10,12 +10,14 @@ sealed class ChatOpenPosition {
 
   /// Opens with [ChatScrollController.jumpTo] on [anchor] at [alignment];
   /// [unreadBoundary] is the row that carries the unread separator, if any,
-  /// and [tailFitFraction] the jump's tail-or-target fraction, if any.
+  /// [tailFitFraction] the jump's tail-or-target fraction, if any, and
+  /// [pixelOffset] the additive inset after the alignment seat.
   const factory ChatOpenPosition.message({
     required int anchor,
     required double alignment,
     required int? unreadBoundary,
     double? tailFitFraction,
+    double pixelOffset,
   }) = MessageOpenPosition;
 
   /// Opens with [ChatScrollController.jumpToCenterBand] on [centerBand];
@@ -36,6 +38,7 @@ final class MessageOpenPosition extends ChatOpenPosition {
     required this.alignment,
     required this.unreadBoundary,
     this.tailFitFraction,
+    this.pixelOffset = 0,
   });
 
   /// Message id handed to [ChatScrollController.jumpTo].
@@ -52,6 +55,11 @@ final class MessageOpenPosition extends ChatOpenPosition {
   /// body to the newest message fits in this fraction of the viewport.
   /// `null` for a plain jump.
   final double? tailFitFraction;
+
+  /// Additive `pixelOffset` handed to [ChatScrollController.jumpTo] after
+  /// the alignment seat. Open-at-bar uses
+  /// [ChatDataSourceX.unreadBoundaryPixelOffset]; other opens leave `0`.
+  final double pixelOffset;
 }
 
 /// An open that restores the reading position the reader left.
@@ -80,8 +88,23 @@ extension ChatDataSourceX on ChatDataSource {
 
   /// Band alignment of the unread boundary row when the chat opens at it,
   /// page-down navigates to it, or the app resumes onto a boundary moved in
-  /// the background: the separator starts at the band top.
+  /// the background: alignment `0` plus [unreadBoundaryPixelOffset].
   static const double unreadBoundaryAlignment = 0;
+
+  /// Inset of the boundary row from the scroll-band top. Negative, so the
+  /// row starts slightly above the band.
+  static const double unreadBoundaryInsetFromListTop = -11;
+
+  /// Room left above the boundary row for a pinned panel over the list top.
+  /// Always added, whether or not a panel is showing.
+  static const double unreadBoundaryPinnedPanelAllowance = 50;
+
+  /// Additive [ChatScrollController.jumpTo] / [ChatScrollController.animateTo]
+  /// `pixelOffset` for every open-at-bar placement: inset plus pinned-panel
+  /// allowance (`−11 + 50 = 39`). Shared by open, resume-to-boundary, and
+  /// page-down to the bar.
+  static const double unreadBoundaryPixelOffset =
+      unreadBoundaryInsetFromListTop + unreadBoundaryPinnedPanelAllowance;
 
   /// Tail-or-target fraction of an open at the unread boundary: unread
   /// content that fits in half the viewport opens at the tail instead.
@@ -104,9 +127,10 @@ extension ChatDataSourceX on ChatDataSource {
   ///
   /// Without one the result is a [MessageOpenPosition]. With an unread
   /// boundary (see [resolveUnreadBoundary]) the chat opens at it with
-  /// [unreadBoundaryAlignment] and [unreadBoundaryTailFitFraction], so short
-  /// unread content opens at the tail. Otherwise it opens at
-  /// [resolveOpenAnchor], with no tail-or-target fraction:
+  /// [unreadBoundaryAlignment], [unreadBoundaryPixelOffset], and
+  /// [unreadBoundaryTailFitFraction], so short unread content opens at the
+  /// tail. Otherwise it opens at [resolveOpenAnchor], with no
+  /// tail-or-target fraction:
   /// at the tail with alignment `0`, or at the last-read message low in the
   /// band. A failed boundary fetch is logged and the chat opens without a
   /// boundary.
@@ -149,6 +173,7 @@ extension ChatDataSourceX on ChatDataSource {
         alignment: unreadBoundaryAlignment,
         unreadBoundary: boundary,
         tailFitFraction: unreadBoundaryTailFitFraction,
+        pixelOffset: unreadBoundaryPixelOffset,
       );
     }
     final newest = newestKnownId;

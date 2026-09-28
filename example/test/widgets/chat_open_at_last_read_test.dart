@@ -628,6 +628,7 @@ void main() {
           position.anchor,
           alignment: position.alignment,
           tailFitFraction: position.tailFitFraction,
+          pixelOffset: position.pixelOffset,
         );
         addTearDown(controller.dispose);
         addTearDown(ds.dispose);
@@ -705,23 +706,27 @@ void main() {
         );
       });
 
-      testWidgets('a long unread backlog opens at the separator at the band '
-          'top', (tester) async {
+      testWidgets('a long unread backlog opens at the separator at the '
+          'open-at-bar offset', (tester) async {
         const lastRead = newest - 40;
         final boundary = await open(tester, storedLastRead: lastRead);
         await _pumpOpenSettled(tester);
 
         expect(boundary.value, lastRead + 1);
-        expect(tester.getTopLeft(find.text('unread')).dy, bandTop(tester));
+        final separatorTop = tester.getTopLeft(find.text('unread')).dy;
+        expect(
+          separatorTop,
+          bandTop(tester) + ChatDataSourceX.unreadBoundaryPixelOffset,
+        );
         expect(
           tester.getTopLeft(find.text('msg-${lastRead + 1}')).dy,
-          bandTop(tester) + 32,
+          separatorTop + 32,
         );
       });
     });
 
-    testWidgets('open puts the boundary row at the band top under the '
-        'separator; pill count unchanged', (tester) async {
+    testWidgets('open puts the separator at the open-at-bar offset above the '
+        'boundary row; pill count unchanged', (tester) async {
       const count = 151;
       const lastRead = 50;
       final ds = _PreloadedDataSource(count);
@@ -733,6 +738,7 @@ void main() {
           position.anchor,
           alignment: position.alignment,
           tailFitFraction: position.tailFitFraction,
+          pixelOffset: position.pixelOffset,
         );
       final boundaryId = ValueNotifier<int?>(position.unreadBoundary);
       final lastSeen = ValueNotifier<int?>(lastRead);
@@ -753,15 +759,18 @@ void main() {
 
       final bandTop = tester.getTopLeft(find.byType(ChatScrollView)).dy;
       final separatorTop = tester.getTopLeft(find.text('unread')).dy;
-      expect(separatorTop, bandTop);
+      expect(
+        separatorTop,
+        bandTop + ChatDataSourceX.unreadBoundaryPixelOffset,
+      );
       expect(
         tester.getTopLeft(find.text('msg-${lastRead + 1}')).dy,
         separatorTop + 32,
       );
       expect(
         tester.getBottomLeft(find.text('msg-$lastRead')).dy,
-        lessThanOrEqualTo(bandTop),
-        reason: 'the last read message sits above the band',
+        lessThanOrEqualTo(separatorTop),
+        reason: 'the last read message sits above the separator',
       );
       expect(lastSeen.value, lastRead);
       expect(_pillText(tester), _expectedPillLabel(count - 1 - lastRead));
@@ -789,6 +798,7 @@ void main() {
             position.anchor,
             alignment: position.alignment,
             tailFitFraction: position.tailFitFraction,
+            pixelOffset: position.pixelOffset,
           );
         readElsewhere = _FakeReadElsewhere();
         final boundary = UnreadBoundaryController(
@@ -1575,6 +1585,7 @@ void main() {
               controller.animateTo(
                 fromId,
                 alignment: ChatDataSourceX.unreadBoundaryAlignment,
+                pixelOffset: ChatDataSourceX.unreadBoundaryPixelOffset,
                 highlight: false,
               );
               return true;
@@ -1707,6 +1718,7 @@ void main() {
         expect(fresh.unreadBoundary, firstUnread);
         expect(fresh.anchor, firstUnread);
         expect(fresh.alignment, ChatDataSourceX.unreadBoundaryAlignment);
+        expect(fresh.pixelOffset, ChatDataSourceX.unreadBoundaryPixelOffset);
       });
 
       testWidgets('reopening restores the Center Band; the separator paints '
@@ -1757,10 +1769,12 @@ void main() {
         await pumpNavigation(tester);
 
         final bandTop = tester.getTopLeft(find.byType(ChatScrollView)).dy;
-        expect(tester.getTopLeft(find.text('unread')).dy, bandTop);
+        final separatorTop =
+            bandTop + ChatDataSourceX.unreadBoundaryPixelOffset;
+        expect(tester.getTopLeft(find.text('unread')).dy, separatorTop);
         expect(
           tester.getTopLeft(find.text('msg-$firstUnread')).dy,
-          bandTop + 32,
+          separatorTop + 32,
         );
         expect(boundary.separatorSeen, isTrue);
         expect(controller.isAtTail.value, isFalse);
@@ -1773,8 +1787,8 @@ void main() {
       });
 
       testWidgets('page-down while the boundary is pending goes to where '
-          'unread starts; the separator lands at the band top once its row '
-          'loads', (tester) async {
+          'unread starts; the separator lands at the open-at-bar '
+          'offset once its row loads', (tester) async {
         final ds = _MetadataOnlyDataSource(count);
         addTearDown(ds.dispose);
         final (:controller, :boundary) = await reopen(tester, ds);
@@ -1789,7 +1803,10 @@ void main() {
 
         final bandTop = tester.getTopLeft(find.byType(ChatScrollView)).dy;
         expect(boundary.value, firstUnread);
-        expect(tester.getTopLeft(find.text('unread')).dy, bandTop);
+        expect(
+          tester.getTopLeft(find.text('unread')).dy,
+          bandTop + ChatDataSourceX.unreadBoundaryPixelOffset,
+        );
         expect(boundary.separatorSeen, isTrue);
         expect(controller.isAtTail.value, isFalse);
       });

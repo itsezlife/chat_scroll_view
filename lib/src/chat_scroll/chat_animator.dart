@@ -256,6 +256,10 @@ class ChatAnimator implements ChatScrollAnimator {
   @override
   double animateAlignment = 0;
 
+  /// Additive pixel offset for the in-flight target (after alignment).
+  @override
+  double animatePixelOffset = 0;
+
   /// Anchor pixel offset at animation start (close path).
   double animateStartOffset = 0;
 
@@ -398,6 +402,7 @@ class ChatAnimator implements ChatScrollAnimator {
     bool highlight = true,
     AnimateToLoadPolicy loadPolicy = AnimateToLoadPolicy.immediate,
     AnimateToBusyPolicy busyPolicy = AnimateToBusyPolicy.ignore,
+    double pixelOffset = 0.0,
   }) {
     final align = alignment.clamp(0.0, 1.0);
 
@@ -407,7 +412,8 @@ class ChatAnimator implements ChatScrollAnimator {
     if (inFlight != null && !inFlight.isCompleted) {
       final sameTarget =
           animateTargetId == targetId &&
-          (animateAlignment - align).abs() < 0.001;
+          (animateAlignment - align).abs() < 0.001 &&
+          (animatePixelOffset - pixelOffset).abs() < 0.001;
       if (sameTarget && duration > Duration.zero) {
         fine(.animate, 'animate.coalesce', {
           'target': targetId,
@@ -444,7 +450,7 @@ class ChatAnimator implements ChatScrollAnimator {
 
     // Already painted at the aligned seat — no teleport / scroll.
     if (duration > Duration.zero &&
-        _isAlreadyAtAlignedTarget(targetId, align)) {
+        _isAlreadyAtAlignedTarget(targetId, align, pixelOffset)) {
       fine(.animate, 'animate.alreadyThere', {
         'target': targetId,
         'align': LogFormat.ratio(align),
@@ -471,7 +477,11 @@ class ChatAnimator implements ChatScrollAnimator {
         'target': targetId,
         'align': LogFormat.ratio(align),
       });
-      _controller.jumpTo(targetId, alignment: align);
+      _controller.jumpTo(
+        targetId,
+        alignment: align,
+        pixelOffset: pixelOffset,
+      );
       return Future<AnimateToPath>.value(AnimateToPath.instant);
     }
 
@@ -482,6 +492,7 @@ class ChatAnimator implements ChatScrollAnimator {
     _flightPath = AnimateToPath.none;
     animateTargetId = targetId;
     animateAlignment = align;
+    animatePixelOffset = pixelOffset;
     animateDuration = duration;
     animateCurve = curve;
     animateStartTime = null;
@@ -516,18 +527,35 @@ class ChatAnimator implements ChatScrollAnimator {
   }
 
   /// `true` when [targetId] is built and already at its close-path end Y.
-  bool _isAlreadyAtAlignedTarget(int targetId, double alignment) {
+  bool _isAlreadyAtAlignedTarget(
+    int targetId,
+    double alignment,
+    double pixelOffset,
+  ) {
     final child = _childForId(targetId);
     if (child == null) return false;
     if (!_isDestinationReady(targetId)) return false;
     final top = _offsetToBuiltMessage(targetId);
     if (top == null) return false;
-    final end = _closePathEndOffsetFor(
+    final end = _closePathEnd(
       targetId,
       _heightOfChild(child),
       alignment,
+      pixelOffset,
     );
     return (top - end).abs() < _settleEpsilon;
+  }
+
+  /// Close-path end Y: the viewport's aligned seat plus [pixelOffset]. A
+  /// tail-pin target ignores the offset, because the pin owns its geometry.
+  double _closePathEnd(
+    int targetId,
+    double messageHeight,
+    double alignment,
+    double pixelOffset,
+  ) {
+    final seat = _closePathEndOffsetFor(targetId, messageHeight, alignment);
+    return _isTailClosePathTarget(targetId) ? seat : seat + pixelOffset;
   }
 
   /// Re-evaluate path after layout during load-gate / preferBuilt wait.
@@ -696,10 +724,11 @@ class ChatAnimator implements ChatScrollAnimator {
     _leaveLoadGateWait();
     final child = _childForId(animateTargetId);
     final endOffset = child != null
-        ? _closePathEndOffsetFor(
+        ? _closePathEnd(
             animateTargetId,
             _heightOfChild(child),
             animateAlignment,
+            animatePixelOffset,
           )
         : 0.0;
     _controller.reassignAnchor(animateTargetId, offsetToTarget);
@@ -759,6 +788,7 @@ class ChatAnimator implements ChatScrollAnimator {
     _controller.jumpTo(
       animateTargetId,
       alignment: animateAlignment,
+      pixelOffset: animatePixelOffset,
       highlight: animateHighlight && highlightDuration > Duration.zero,
     );
     // Re-assert select highlight after teleport. Host jumpTo clears tint;
@@ -988,10 +1018,11 @@ class ChatAnimator implements ChatScrollAnimator {
     }
     final child = _childForId(animateTargetId);
     if (child == null) return;
-    final newEnd = _closePathEndOffsetFor(
+    final newEnd = _closePathEnd(
       animateTargetId,
       _heightOfChild(child),
       animateAlignment,
+      animatePixelOffset,
     );
     if ((newEnd - animateEndOffset).abs() < 0.5) return;
     fine(.animate, 'close.rebase', {
@@ -1065,10 +1096,11 @@ class ChatAnimator implements ChatScrollAnimator {
       var end = animateEndOffset;
       final child = _childForId(targetId);
       if (child != null) {
-        end = _closePathEndOffsetFor(
+        end = _closePathEnd(
           targetId,
           _heightOfChild(child),
           animateAlignment,
+          animatePixelOffset,
         );
       }
       _controller.reassignAnchor(targetId, end);

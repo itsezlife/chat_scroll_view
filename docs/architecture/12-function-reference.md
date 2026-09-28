@@ -24,7 +24,7 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 
 | Member                                     | Purpose                                   | Mutates                                               | Must not                                                  |
 | ------------------------------------------ | ----------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------- |
-| `jumpTo`                                   | Teleport anchor to id; optional tail-or-target decision (`tailFitFraction`) | id, offset=`0`, alignment; optional highlight request | Assume visible row if absent                              |
+| `jumpTo`                                   | Teleport anchor to id; optional tail-or-target decision (`tailFitFraction`); optional additive `pixelOffset` after the alignment seat | id, offset=`0`, alignment; optional highlight request; optional pixel offset | Assume visible row if absent                              |
 | `addTailOrTargetListener` / `removeTailOrTargetListener` | Outcome of a tail-or-target `jumpTo` | listener list (dedup)                          | `setState` / navigate from the callback (runs in layout)  |
 | `notifyTailOrTarget` (`@internal`)         | Dispatch the decided outcome              | — (snapshot; silent after dispose)                    | Call from app code                                        |
 | `markTailFitDecided` (`@internal`)         | Drop the fraction after a target outcome  | `navigationPlacement` fraction (target/phase kept)    | Call from app code                                        |

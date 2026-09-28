@@ -34,15 +34,18 @@ sealed class NavigationPlacement {
   const NavigationPlacement({required this.messageId, required this.isHeld});
 
   /// Alignment placement for [messageId]; [alignment] and [tailFitFraction]
-  /// are clamped to `0..1`.
+  /// are clamped to `0..1`. [pixelOffset] is additive after the alignment
+  /// seat (positive moves the target down the band).
   factory NavigationPlacement.alignment(
     int messageId,
     double alignment, {
     double? tailFitFraction,
+    double pixelOffset = 0,
   }) => AlignmentPlacement(
     messageId: messageId,
     alignment: alignment.clamp(0.0, 1.0),
     tailFitFraction: tailFitFraction?.clamp(0.0, 1.0),
+    pixelOffset: pixelOffset,
   );
 
   /// Center Band placement for [messageId]; [offsetFromMessageTop] is
@@ -70,7 +73,7 @@ sealed class NavigationPlacement {
 }
 
 /// Band alignment placement: the target's top sits at
-/// `topPad + alignment * (band height - row height)`.
+/// `topPad + alignment * (band height - row height) + pixelOffset`.
 ///
 /// ## Tail-or-target decision
 ///
@@ -81,6 +84,11 @@ sealed class NavigationPlacement {
 /// [withoutTailFit] and the usual pending → held lifecycle. The decision
 /// rides the placement so every release — user scroll, `scrollBy`, the next
 /// navigation — also cancels it, and a cancelled decision reports nothing.
+///
+/// ## Pixel offset
+///
+/// [pixelOffset] is added after the alignment seat and re-applied with it by
+/// the hold. Contract: `ChatScrollController.jumpTo`.
 @immutable
 final class AlignmentPlacement extends NavigationPlacement {
   /// Creates an alignment placement; [alignment] and [tailFitFraction] MUST
@@ -89,6 +97,7 @@ final class AlignmentPlacement extends NavigationPlacement {
     required super.messageId,
     required this.alignment,
     this.tailFitFraction,
+    this.pixelOffset = 0,
     super.isHeld = false,
   }) : assert(alignment >= 0 && alignment <= 1, 'alignment outside 0..1'),
        assert(
@@ -105,13 +114,18 @@ final class AlignmentPlacement extends NavigationPlacement {
   /// decided, or for a plain alignment jump.
   final double? tailFitFraction;
 
+  /// Logical pixels added after the alignment seat. Positive moves the
+  /// target down the scroll band (away from the band top).
+  final double pixelOffset;
+
   /// This placement with the tail-or-target decision made for the target:
-  /// same target, alignment, and phase, no [tailFitFraction].
+  /// same target, alignment, [pixelOffset], and phase, no [tailFitFraction].
   AlignmentPlacement withoutTailFit() => switch (tailFitFraction) {
     null => this,
     _ => AlignmentPlacement(
       messageId: messageId,
       alignment: alignment,
+      pixelOffset: pixelOffset,
       isHeld: isHeld,
     ),
   };
@@ -129,6 +143,7 @@ final class AlignmentPlacement extends NavigationPlacement {
         : AlignmentPlacement(
             messageId: messageId,
             alignment: alignment,
+            pixelOffset: pixelOffset,
             isHeld: true,
           );
   }
@@ -138,6 +153,7 @@ final class AlignmentPlacement extends NavigationPlacement {
     messageId: messageId,
     alignment: alignment,
     tailFitFraction: tailFitFraction,
+    pixelOffset: pixelOffset,
     isHeld: isHeld,
   );
 
@@ -148,17 +164,24 @@ final class AlignmentPlacement extends NavigationPlacement {
         other.messageId == messageId &&
         other.alignment == alignment &&
         other.tailFitFraction == tailFitFraction &&
+        other.pixelOffset == pixelOffset &&
         other.isHeld == isHeld;
   }
 
   @override
-  int get hashCode =>
-      Object.hash(messageId, alignment, tailFitFraction, isHeld);
+  int get hashCode => Object.hash(
+    messageId,
+    alignment,
+    tailFitFraction,
+    pixelOffset,
+    isHeld,
+  );
 
   @override
   String toString() =>
       'AlignmentPlacement(messageId: $messageId, alignment: $alignment, '
-      'tailFitFraction: $tailFitFraction, isHeld: $isHeld)';
+      'tailFitFraction: $tailFitFraction, pixelOffset: $pixelOffset, '
+      'isHeld: $isHeld)';
 }
 
 /// Center Band placement: the fixed 50% paint-band ray hits

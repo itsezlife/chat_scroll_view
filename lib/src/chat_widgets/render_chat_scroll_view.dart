@@ -2051,7 +2051,8 @@ class RenderChatScrollView extends RenderBox {
   }
 
   /// Close-path animate endpoint: tail pin for known-newest target, else
-  /// [_alignedTopForMessage].
+  /// [_alignedTopForMessage]. The animator adds its own pixel offset to the
+  /// aligned seat.
   double _closePathEndOffsetFor(
     int targetId,
     double messageHeight,
@@ -2068,7 +2069,8 @@ class RenderChatScrollView extends RenderBox {
   /// the anchor offset moved.
   ///
   /// Seats the target by kind:
-  /// - [AlignmentPlacement] — top at [_alignedTopForMessage].
+  /// - [AlignmentPlacement] — top at [_alignedTopForMessage] plus
+  ///   [AlignmentPlacement.pixelOffset].
   /// - [CenterBandPlacement] — the fixed 50% paint-band ray hits
   ///   `target top + offsetFromMessageTop`, the offset clamped into
   ///   `[0, height)` so the ray stays inside the rect [_publishCenterBand]
@@ -2141,10 +2143,13 @@ class RenderChatScrollView extends RenderBox {
     final String event;
     final Map<String, Object?> kindFields;
     switch (placement) {
-      case AlignmentPlacement(:final alignment):
-        desiredTop = _alignedTopForMessage(rowHeight, alignment);
+      case AlignmentPlacement(:final alignment, :final pixelOffset):
+        desiredTop = _alignedTopForMessage(rowHeight, alignment) + pixelOffset;
         event = 'layout.align';
-        kindFields = {'alignment': LogFormat.f(alignment)};
+        kindFields = {
+          'alignment': LogFormat.f(alignment),
+          'pixelOffset': LogFormat.f(pixelOffset),
+        };
       case CenterBandPlacement(:final offsetFromMessageTop):
         final topEdge = _topPad;
         final bandHeight = size.height - _bottomPad - topEdge;
