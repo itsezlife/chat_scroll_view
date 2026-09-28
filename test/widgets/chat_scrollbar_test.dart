@@ -1,10 +1,12 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -123,7 +125,10 @@ Widget _harness({
   TextDirection textDirection = TextDirection.ltr,
   ValueNotifier<double>? topPadding,
   ValueNotifier<double>? bottomPadding,
+  ChatSelectionController? selectionController,
   ChatMessageMenuRequestCallback? onIdleMessageTap,
+  ChatMessageMenuRequestCallback? onSecondaryMessageTap,
+  double Function(int id)? heightOf,
 }) => MaterialApp(
   theme: ThemeData(extensions: const [_theme]),
   home: Scaffold(
@@ -138,10 +143,12 @@ Widget _harness({
           textDirection: textDirection,
           topPadding: topPadding,
           bottomPadding: bottomPadding,
+          selectionController: selectionController,
           onIdleMessageTap: onIdleMessageTap,
+          onSecondaryMessageTap: onSecondaryMessageTap,
           messageBuilder: (context, id, message, status, runLayout) =>
               SizedBox(
-                height: 60,
+                height: heightOf?.call(id) ?? 60,
                 child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
               ),
         ),
@@ -447,7 +454,7 @@ void main() {
       expect(controller.anchorMessageId, isNot(before));
     });
 
-    testWidgets('a press maps through the painted thumb length', (
+    testWidgets('a track press centres the thumb on the pointer', (
       tester,
     ) async {
       setUpSource(256, 128);
@@ -458,13 +465,18 @@ void main() {
       );
       final track = frames.last.trackRect;
       final thumbLength = frames.last.thumbRect.height;
-      // The thumb centre lands on the pointer: a quarter of the travel.
+      // A quarter of the travel, well above the thumb resting mid-track.
       final y =
           track.top + thumbLength / 2 + 0.25 * (track.height - thumbLength);
 
-      await tester.tapAt(at(tester, 395, y));
-      await tester.pumpAndSettle();
-      expect(controller.anchorMessageId, closeTo(64, 1));
+      final gesture = await tester.startGesture(at(tester, 395, y));
+      await tester.pump();
+      expect(frames.last.thumbRect.center.dy, moreOrLessEquals(y));
+      // Ten rows fill the band, so the band top travels 256 - 10 ids:
+      // a quarter of that is row 61, half-way in.
+      expect(controller.anchorMessageId, 61);
+      expect(controller.anchorPixelOffset, moreOrLessEquals(-30));
+      await gesture.up();
     });
 
     testWidgets('grab factor is 1 while the grabbing pointer is down', (
@@ -608,5 +620,236 @@ void main() {
       );
       expect(frames, isEmpty);
     });
+  });
+
+  group('Scrollbar grab', () {
+    late ChatScrollController controller;
+    late _PreloadedDataSource dataSource;
+    late List<ChatScrollbarFrame> frames;
+
+    /// Row 5 is one tall message; every other row is 60 px.
+    double tallFifth(int id) => id == 5 ? 3000 : 60;
+
+    Future<void> pumpViewport(
+      WidgetTester tester, {
+      required int count,
+      required int anchor,
+      double Function(int id)? heightOf,
+    }) async {
+      controller = ChatScrollController()..jumpTo(anchor);
+      dataSource = _PreloadedDataSource(count);
+      frames = <ChatScrollbarFrame>[];
+      addTearDown(controller.dispose);
+      addTearDown(dataSource.dispose);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: dataSource,
+          controller: controller,
+          scrollbar: ChatScrollbar(painter: _RecordingPainter(frames)),
+          heightOf: heightOf,
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Offset at(WidgetTester tester, double y) =>
+        tester.getTopLeft(find.byType(ChatScrollView)) + Offset(395, y);
+
+    (int, double) position() =>
+        (controller.anchorMessageId, controller.anchorPixelOffset);
+
+    testWidgets('a press on the thumb at the newest end moves nothing', (
+      tester,
+    ) async {
+      await pumpViewport(tester, count: 256, anchor: 255);
+      final resting = frames.last.thumbRect;
+      final before = position();
+
+      final gesture = await tester.startGesture(at(tester, resting.top + 2));
+      await tester.pump();
+      expect(frames.last.thumbRect, resting);
+      expect(frames.last.grabFactor, 1);
+      expect(position(), before);
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(frames.last.thumbRect, resting);
+      expect(position(), before);
+    });
+
+    testWidgets('a press on the thumb at the oldest end moves nothing', (
+      tester,
+    ) async {
+      await pumpViewport(tester, count: 256, anchor: 0);
+      final resting = frames.last.thumbRect;
+      final before = position();
+
+      final gesture = await tester.startGesture(at(tester, resting.bottom - 2));
+      await tester.pump();
+      expect(frames.last.thumbRect, resting);
+      expect(position(), before);
+      await gesture.up();
+    });
+
+    testWidgets('the thumb stays under the pointer on every move', (
+      tester,
+    ) async {
+      await pumpViewport(tester, count: 256, anchor: 128);
+      final track = frames.last.trackRect;
+      final grabbed = frames.last.thumbRect;
+      final grabOffset = grabbed.height / 2;
+      var y = grabbed.center.dy;
+      final gesture = await tester.startGesture(at(tester, y));
+      await tester.pump();
+
+      for (final dy in <double>[-150, -40, 7, 300, 500, -2000]) {
+        y += dy;
+        await gesture.moveTo(at(tester, y));
+        await tester.pump();
+        final top = (y - grabOffset).clamp(
+          track.top,
+          track.bottom - grabbed.height,
+        );
+        expect(
+          frames.last.thumbRect.top,
+          moreOrLessEquals(top),
+          reason: 'y=$y',
+        );
+        expect(frames.last.thumbRect.height, grabbed.height);
+      }
+      await gesture.up();
+    });
+
+    testWidgets('pointer progress seats the band top at a fractional id', (
+      tester,
+    ) async {
+      await pumpViewport(tester, count: 256, anchor: 128);
+      final track = frames.last.trackRect;
+      final grabbed = frames.last.thumbRect;
+      final travel = track.height - grabbed.height;
+      const grabOffset = 5.0;
+      final gesture = await tester.startGesture(
+        at(tester, grabbed.top + grabOffset),
+      );
+      await tester.pump();
+
+      // Thumb top at 0.4 of the travel. Ten rows fill the band, so the band
+      // top travels 256 - 10 ids: 0.4 of that is 98.4 — row 98, 0.4 in.
+      await gesture.moveTo(at(tester, track.top + 0.4 * travel + grabOffset));
+      await tester.pump();
+      expect(controller.anchorMessageId, 98);
+      expect(controller.anchorPixelOffset, moreOrLessEquals(-24, epsilon: 0.5));
+      await gesture.up();
+    });
+
+    testWidgets('dragging across one tall message moves the band smoothly', (
+      tester,
+    ) async {
+      await pumpViewport(tester, count: 20, anchor: 0, heightOf: tallFifth);
+      final track = frames.last.trackRect;
+      var y = frames.last.thumbRect.center.dy;
+      final gesture = await tester.startGesture(at(tester, y));
+      await tester.pump();
+
+      final offsetsInTall = <double>[];
+      while (y < track.bottom) {
+        y += 1;
+        await gesture.moveTo(at(tester, y));
+        await tester.pump();
+        if (controller.anchorMessageId == 5) {
+          offsetsInTall.add(controller.anchorPixelOffset);
+        }
+      }
+      await gesture.up();
+
+      expect(offsetsInTall.toSet().length, greaterThan(10));
+      for (var i = 1; i < offsetsInTall.length; i++) {
+        expect(offsetsInTall[i], lessThanOrEqualTo(offsetsInTall[i - 1]));
+      }
+    });
+
+    testWidgets('on release the thumb eases back to the band position', (
+      tester,
+    ) async {
+      await pumpViewport(tester, count: 20, anchor: 0, heightOf: tallFifth);
+      final track = frames.last.trackRect;
+      final start = frames.last.thumbRect;
+      final gesture = await tester.startGesture(at(tester, start.center.dy));
+      await tester.pump();
+      // Into the tall row: the band shows a fifth of an id there, far less
+      // than the five the thumb was frozen with, so the band's own
+      // position differs from the pointer's.
+      final travel = track.height - start.height;
+      await gesture.moveTo(
+        at(tester, track.top + 0.38 * travel + start.height / 2),
+      );
+      await tester.pump();
+      expect(controller.anchorMessageId, 5);
+      final grabbed = frames.last.thumbRect;
+
+      await gesture.up();
+      await tester.pump();
+      expect(frames.last.thumbRect, grabbed);
+      expect(frames.last.grabFactor, 0);
+
+      await tester.pump(const Duration(milliseconds: 125));
+      final mid = frames.last.thumbRect;
+      await tester.pump(const Duration(milliseconds: 200));
+      final rest = frames.last.thumbRect;
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(frames.last.thumbRect, rest);
+
+      expect(rest.top, isNot(moreOrLessEquals(grabbed.top)));
+      final (low, high) = grabbed.top < rest.top
+          ? (grabbed.top, rest.top)
+          : (rest.top, grabbed.top);
+      expect(mid.top, greaterThan(low));
+      expect(mid.top, lessThan(high));
+      expect(rest.height, lessThan(grabbed.height));
+    });
+
+    for (final (name, scrollbar, claims) in <(String, ChatScrollbar, bool)>[
+      ('the default preset', const ChatScrollbar(), true),
+      ('the none preset', const ChatScrollbar.none(), false),
+    ]) {
+      testWidgets('under $name a strip press fires no message gesture: '
+          '${claims ? 'grabbed' : 'reaches messages'}', (tester) async {
+        final controller = ChatScrollController()..jumpTo(128);
+        final dataSource = _PreloadedDataSource(256);
+        final selection = ChatSelectionController();
+        addTearDown(controller.dispose);
+        addTearDown(dataSource.dispose);
+        addTearDown(selection.dispose);
+        final taps = <ChatMessageMenuRequest>[];
+        final secondaryTaps = <ChatMessageMenuRequest>[];
+        await tester.pumpWidget(
+          _harness(
+            dataSource: dataSource,
+            controller: controller,
+            scrollbar: scrollbar,
+            selectionController: selection,
+            onIdleMessageTap: taps.add,
+            onSecondaryMessageTap: secondaryTaps.add,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final point = at(tester, 300);
+
+        await tester.tapAt(point);
+        await tester.pumpAndSettle();
+        await tester.tapAt(
+          point,
+          buttons: kSecondaryMouseButton,
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pumpAndSettle();
+        await tester.longPressAt(point);
+        await tester.pumpAndSettle();
+
+        expect(taps, claims ? isEmpty : isNotEmpty);
+        expect(secondaryTaps, claims ? isEmpty : isNotEmpty);
+        expect(selection.isSelectionMode, !claims);
+      });
+    }
   });
 }

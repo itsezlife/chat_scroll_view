@@ -7,9 +7,16 @@ import 'package:meta/meta.dart';
 ///
 /// - [AlignmentPlacement] — band alignment from `jumpTo` / `animateTo`.
 /// - [CenterBandPlacement] — paint-band ray offset from `jumpToCenterBand`.
+/// - [FractionalPlacement] — band top a fraction into the target row, from
+///   `jumpToFraction` (the scrollbar grab).
 ///
 /// A controller holds at most one placement; arming a new one replaces the
-/// previous one of either kind.
+/// previous one of any kind.
+///
+/// Center Band and fractional placements are **in-row**: they seat a point
+/// inside the target row, so they are seated on a known-newest target too,
+/// and the jump-to-tail pin stays off while one is pending. An alignment
+/// target that is the known newest yields to the tail pin instead.
 ///
 /// ## Lifecycle
 ///
@@ -58,11 +65,25 @@ sealed class NavigationPlacement {
     offsetFromMessageTop: offsetFromMessageTop,
   );
 
+  /// Fractional placement for [messageId]; [fraction] is clamped to `0..1`.
+  factory NavigationPlacement.fractional(int messageId, double fraction) =>
+      FractionalPlacement(
+        messageId: messageId,
+        fraction: fraction.clamp(0.0, 1.0),
+      );
+
   /// Target message id — the row the placement seats.
   final int messageId;
 
   /// Whether the placement has landed on its loaded target and is held.
   final bool isHeld;
+
+  /// Whether the placement seats a point inside the target row — see the
+  /// in-row rule above.
+  bool get isInRow => switch (this) {
+    AlignmentPlacement() => false,
+    CenterBandPlacement() || FractionalPlacement() => true,
+  };
 
   /// This placement in the held phase. Idempotent.
   NavigationPlacement hold();
@@ -230,4 +251,58 @@ final class CenterBandPlacement extends NavigationPlacement {
   String toString() =>
       'CenterBandPlacement(messageId: $messageId, '
       'offsetFromMessageTop: $offsetFromMessageTop, isHeld: $isHeld)';
+}
+
+/// Fractional placement: the scroll band's top edge sits [fraction] of the
+/// way into the target row, so the row's top is at
+/// `topPad - fraction * row height`.
+///
+/// The fraction, not a pixel offset, is what rides the lifecycle: while
+/// pending, every layout re-seats it against the row's current height, so a
+/// skeleton that loads with its real height lands at the same fraction.
+@immutable
+final class FractionalPlacement extends NavigationPlacement {
+  /// Creates a fractional placement; [fraction] MUST be in `0..1`.
+  const FractionalPlacement({
+    required super.messageId,
+    required this.fraction,
+    super.isHeld = false,
+  }) : assert(fraction >= 0 && fraction <= 1, 'fraction outside 0..1');
+
+  /// How far into the target row the band top sits: `0` at its top edge,
+  /// `1` at its bottom edge.
+  final double fraction;
+
+  @override
+  FractionalPlacement hold() => isHeld
+      ? this
+      : FractionalPlacement(
+          messageId: messageId,
+          fraction: fraction,
+          isHeld: true,
+        );
+
+  @override
+  FractionalPlacement retarget(int messageId) => FractionalPlacement(
+    messageId: messageId,
+    fraction: fraction,
+    isHeld: isHeld,
+  );
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is FractionalPlacement &&
+        other.messageId == messageId &&
+        other.fraction == fraction &&
+        other.isHeld == isHeld;
+  }
+
+  @override
+  int get hashCode => Object.hash(messageId, fraction, isHeld);
+
+  @override
+  String toString() =>
+      'FractionalPlacement(messageId: $messageId, fraction: $fraction, '
+      'isHeld: $isHeld)';
 }

@@ -15,6 +15,7 @@ resource: lib/src/chat_scroll/chat_scroll_controller.dart
 | -------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `jumpTo(id, {alignment, highlight, tailFitFraction, pixelOffset})` | id = target, offset = `0`; with `tailFitFraction`, layout may move it to the newest (see [Tail or target](#tail-or-target)); `pixelOffset` is additive after the alignment seat | Jump listeners + `ChatProgrammaticJump`; `highlight: true` then requests wash; tail-or-target listeners get the outcome in layout |
 | `jumpToCenterBand(id, offset)`   | id = target; layout places ray at msg top + offset | Jump listeners + `ChatProgrammaticJump`; hard-clears highlight |
+| `jumpToFraction(id, fraction)` (`@internal`) | id = target; layout places the band top `fraction` into the row | Same as `jumpToCenterBand`; the scrollbar grab calls it once per pointer move |
 | `scrollBy(px)`                   | offset += px                                       | ScrollBy listeners + `ChatProgrammaticScroll`; no-op if `px == 0` or non-finite |
 | `animateTo`                      | Animator drives; falls back to `jumpTo` (same `highlight` flag) if unbound | `ChatAnimateStart` / `ChatAnimateEnd` (with `path`); unbound: only `ChatProgrammaticJump` |
 | `highlight(id)`                  | none (attention slot only)                         | None — animator paints/holds/fades when bound                                   |
@@ -45,8 +46,18 @@ engine-internal):
   top pass it because alignment alone cannot express a constant.
 - `CenterBandPlacement(messageId, offsetFromMessageTop)`: armed by
   `jumpToCenterBand` (see [Center Band](#center-band)).
+- `FractionalPlacement(messageId, fraction)`: armed by `jumpToFraction`
+  (see [Scrollbar grab](#scrollbar-grab)). The band top sits `fraction`
+  (`0..1`) into the target row; the fraction, not a pixel offset, rides the
+  lifecycle, so a pending seat on a loading row lands on its real height.
 
-Each value carries `isHeld`, its phase. Arming either kind replaces the slot,
+Center Band and fractional placements are **in-row**
+(`NavigationPlacement.isInRow`, one exhaustive switch): a known-newest target
+is seated and held rather than yielding to the tail pin, and
+`hasPendingInRowPlacement` keeps `_onJump` / `_normalizeAnchorToKnownTail`
+from arming the jump-to-tail pin while one is pending.
+
+Each value carries `isHeld`, its phase. Arming any kind replaces the slot,
 so at most one placement exists. Values are immutable: `hold()` and
 `retarget(id)` (used after a jump-target clamp, via
 `syncNavigationPlacementTarget`) return new values.
@@ -55,7 +66,7 @@ so at most one placement exists. Values are immutable: `hold()` and
 
 | State | Entered by | Layout behavior |
 |-------|-----------|-----------------|
-| **Pending** | `jumpTo` / `animateTo` / `jumpToCenterBand` | Snap the target on every layout until it lands on a **loaded** row |
+| **Pending** | `jumpTo` / `animateTo` / `jumpToCenterBand` / `jumpToFraction` | Snap the target on every layout until it lands on a **loaded** row |
 | **Held** | The snap lands on a loaded row (`holdNavigationPlacement`) | Snap again only on a trigger; otherwise silent |
 | **Released** | See release table | Slot is `null`; the anchor stays where it is |
 
@@ -84,9 +95,9 @@ changes elsewhere.
 | Event | Where |
 |-------|-------|
 | Drag start (fling follows a drag), wheel | `_onDragStart`, `handleEvent` → `releaseNavigationPlacement` |
-| Scrollbar drag start **and** end | `handleEvent`. The thumb's own `jumpTo` calls arm placements, and the end releases them |
+| Scrollbar grab start **and** end | `handleEvent`. The grab's own `jumpToFraction` calls arm placements, and the end releases them |
 | `scrollBy` | `ChatScrollController.scrollBy` |
-| Next `jumpTo` / `animateTo` / `jumpToCenterBand` | New placement replaces the old one |
+| Next `jumpTo` / `animateTo` / `jumpToCenterBand` / `jumpToFraction` | New placement replaces the old one |
 | Held target no longer the anchor (absent-anchor reassignment, renormalize) | `_applyNavigationPlacement` |
 | Tail pin takes the geometry (`repinBottom`, e.g. follow-tail) | `performLayout` after tail-pin flags |
 | Tail-or-target decides **tail** | `_resolveTailOrTarget` |
@@ -141,13 +152,14 @@ placement; a target outcome is seated here as a plain jump.
 1. Stitch-measured freeze and close-path animate → return (dual-writer guard).
 2. Anchor ≠ target → release when held; keep when pending.
 3. Alignment target is known newest → **release without snap** (tail pin owns
-   geometry). A known-newest Center Band target goes on and is held. An
-   undecided tail-or-target jump stays armed, unseated, until
+   geometry). A known-newest in-row target (Center Band, fractional) goes on
+   and is held. An undecided tail-or-target jump stays armed, unseated, until
    `_resolveTailOrTarget` decides it on the layout that loads the row.
 4. Held and no trigger → return.
 5. Needs built child with size. Seat by kind: alignment →
    `_alignedTopForMessage` + `pixelOffset`; Center Band → band ray minus the
-   clamped offset (an empty band releases). `reassignAnchor(targetId,
+   clamped offset (an empty band releases); fractional → `topPad −
+   fraction × row height`. `reassignAnchor(targetId,
    desiredTop)` + `_repositionFromAnchor` unless within `0.5px`.
 6. Target loaded → mark held.
 
@@ -234,6 +246,33 @@ alignment (see [Alignment lifecycle](#alignment-lifecycle)). Jump-to-newest
 tail pin is suppressed while Center Band apply is **pending** (not held) so
 mid-bubble restore on the conversation newest is not fought. See
 [ADR 009](../adr/009-center-band.md).
+
+## Scrollbar grab
+
+The grab navigates through `jumpToFraction`, one call per pointer move, so
+each move runs `_onJump` like any jump: fetch wake and jump-fetch, load-gate
+destination release, fling / edge-effect / highlight cancel.
+
+`_dragScrollbarTo` turns the grab's thumb progress `p` into a band-top
+fractional id by inverting the painted progress of `_scrollbarBandMetrics`
+(`progress = (topFrac − oldest) / (idCount − visible ids)`):
+
+```
+bandTop = oldest + p × max(0, idCount − spanShare × idCount)
+id      = min(floor(bandTop), newest)
+fraction = bandTop − id
+```
+
+`spanShare` (the band's share of the known span) is frozen at the press,
+like the thumb length, so the mapping stays linear and monotonic for the
+whole grab while the band crosses regions of different density. The known
+span stays id-linear ([ADR 002](../adr/002-position-model.md)); the
+fraction is applied to the target row's real height when it is laid out, so
+dragging through one tall message moves the band continuously. An identical
+armed placement is not re-armed. At either end of the track the clamp pins
+the oldest or newest row as usual; the jump-to-tail pin is not armed during
+the grab (in-row placement), and follow-tail resumes from the at-tail
+snapshot after release.
 
 ## Scroll events
 

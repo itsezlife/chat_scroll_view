@@ -39,11 +39,26 @@ sealed class ChatScrollbar {
 ///
 /// Always shown while there is something to scroll. A pointer that goes down
 /// within 20 px of the viewport's trailing edge, over the track's vertical
-/// span, grabs the scrollbar: the thumb centre jumps to the pointer and the
-/// list follows it until the pointer lifts, landing on whole messages. A
-/// grab starts only on a fresh press, cancels a fling in flight, releases a
-/// held navigation placement, and never reaches message selection, taps,
-/// or the list drag.
+/// span, grabs the scrollbar until it lifts:
+///
+/// - A press on the thumb keeps the point it grabbed: nothing moves until
+///   the pointer does. A press on the track beside the thumb centres the
+///   thumb on the pointer at once and continues the same way.
+/// - While grabbed, the thumb is painted exactly under the pointer, with
+///   the length it had at the press. The list follows: the thumb's place on
+///   the track maps linearly onto message ids across the known span, and
+///   the scroll band's top edge lands at that position — inside a message
+///   when the position falls inside one, so dragging through a tall message
+///   moves through it continuously.
+/// - On release the thumb eases back over 250 ms to where the list's own
+///   position puts it. The two can differ, because the list's position
+///   weighs how many messages fit in the band where it landed.
+///
+/// A grab starts only on a fresh press, cancels a fling in flight, releases
+/// a held navigation placement, and never reaches message selection, taps,
+/// secondary taps, or the list drag. Each move the list follows reports a
+/// jump to the controller's jump listeners, and fetches unloaded history
+/// the same way a jump does.
 final class ChatScrollbar$Painted extends ChatScrollbar {
   /// A scrollbar drawn by [painter]; defaults to [ChatPillScrollbarPainter].
   const ChatScrollbar$Painted({
@@ -107,10 +122,12 @@ final class ChatScrollbarFrame {
   /// bottom.
   final Rect trackRect;
 
-  /// The thumb: as wide as [trackRect] and always inside it. Its length is
-  /// the visible band's share of the known span, floored at
-  /// [ChatScrollbarPainter.minThumbLength]; its offset along the track is the
-  /// band's place in that span.
+  /// The thumb: as wide as [trackRect] and always inside it. At rest its
+  /// length is the visible band's share of the known span, floored at
+  /// [ChatScrollbarPainter.minThumbLength], and its offset along the track
+  /// is the band's place in that span. While grabbed it sits under the
+  /// pointer with the length it had at the press; after the grab it eases
+  /// back to the resting rect.
   final Rect thumbRect;
 
   /// Reading direction; the trailing edge is on the right in

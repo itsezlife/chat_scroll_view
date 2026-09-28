@@ -381,6 +381,40 @@ class ChatScrollController {
     _notifyJump(messageId);
   }
 
+  /// Places the scroll band's top edge [fraction] of the way into
+  /// [messageId]'s row: `0` at the row's top edge, `1` at its bottom edge.
+  /// The scrollbar grab's navigation, one call per pointer move.
+  ///
+  /// Writes Anchor origin, notifies jump listeners, emits
+  /// [ChatProgrammaticJump], and hard-clears leftover Message highlight,
+  /// like a [jumpTo] without highlight — so the viewport's jump reaction
+  /// (fetch wake, load-gate release, fling and edge-effect cancel) runs on
+  /// every call. [fraction] is clamped to `0..1`; a non-finite value is a
+  /// silent no-op.
+  ///
+  /// The viewport seats the row once it is built, its top at
+  /// `fraction × row height` above the band top, with the same pending →
+  /// held → released lifecycle as [jumpTo] alignment. While pending, every
+  /// layout re-seats the row, so a row still loading lands at [fraction] of
+  /// its real height once loaded. Unlike an alignment jump, a known-newest
+  /// target is seated too: the jump-to-tail pin is not armed while this
+  /// placement is pending, and the boundary clamp alone keeps the newest
+  /// row's bottom from rising above the bottom inset.
+  ///
+  /// Absent targets behave as for [jumpTo] (ADR 002). Post-[dispose] calls
+  /// are silent no-ops.
+  @internal
+  void jumpToFraction(int messageId, double fraction) {
+    if (_disposed) return;
+    _debugCheckNotDispatchingTailOrTarget('jumpToFraction');
+    if (!fraction.isFinite) return;
+    _anchorMessageId = messageId;
+    _anchorPixelOffset = 0.0;
+    _navigationPlacement = NavigationPlacement.fractional(messageId, fraction);
+    _requestedHighlightMessageId = null;
+    _notifyJump(messageId);
+  }
+
   void _notifyJump(int messageId) {
     // Iterate a snapshot — a listener may add or remove listeners (including
     // itself) while reacting to the jump.
@@ -871,15 +905,17 @@ class ChatScrollController {
   NavigationPlacement? get navigationPlacement => _navigationPlacement;
   NavigationPlacement? _navigationPlacement;
 
-  /// Whether a [jumpToCenterBand] placement is armed and has not landed yet.
+  /// Whether an in-row placement — [jumpToCenterBand] or [jumpToFraction] —
+  /// is armed and has not landed yet.
   ///
   /// When true, the viewport MUST NOT arm jump-to-newest tail pin — that
-  /// would fight mid-bubble restore on the conversation newest. `false` once
-  /// the placement is held.
+  /// would pull a point inside the conversation newest (a mid-bubble
+  /// restore, a scrollbar grab inside a tall newest row) to the tail.
+  /// `false` once the placement is held.
   @internal
-  bool get hasPendingNavigationCenterBand => switch (_navigationPlacement) {
-    CenterBandPlacement(isHeld: false) => true,
-    _ => false,
+  bool get hasPendingInRowPlacement => switch (_navigationPlacement) {
+    final placement? => placement.isInRow && !placement.isHeld,
+    null => false,
   };
 
   /// Moves the armed placement from pending to held.

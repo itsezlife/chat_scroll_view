@@ -231,9 +231,11 @@ render object replaces it only on an unequal physics swap.
 | `_onAnimateSettled` / `_cancelAnimate` / `_clearHighlight`                                                          | Animate settle/cancel                                               |
 | `_publishControllerState` / `_publishVisibleRange` / `_publishCenterBand` / `_publishIsAtTail` / `_computeIsAtTail` | Listenables                                                         |
 | `_updateScrollSemantics` / `_computeCanRevealOlder` / `Newer`                                                       | A11y scroll actions                                                 |
-| `_jumpToScrollbar` / `_computeScrollbarProgress` / band helpers                                                     | Thumb progress + length share from anchor math; progress → id jump |
-| `scrollbar` setter / `_endScrollbarGrab`                                                                            | Equal preset no-op; unequal ends the grab (releases navigation placement), repaints per `shouldRepaint` |
-| `_paintScrollbar` / `ChatScrollbarRuntime.resolve`                                                                  | One frame per paint: rects from preset painter geometry; cleared for `none` and fits here, for overlay mode in `_paintContents` |
+| `_computeScrollbarProgress` / band helpers                                                                          | Thumb progress + length share from band-edge fractional ids |
+| `_dragScrollbarTo`                                                                                                  | Grab position → band-top fractional id (`oldest + progress × (idCount − visible ids)`, frozen span share) → `jumpToFraction(id, fraction)` | Inverse of the band-metrics progress, so drag and paint share one mapping; skips an identical armed placement |
+| `scrollbar` setter / `_endScrollbarGrab`                                                                            | Equal preset no-op; unequal ends the grab. Ending releases the navigation placement, starts the thumb settle, ensures the ticker, repaints (setter: per `shouldRepaint`) |
+| `_paintScrollbar` / `ChatScrollbarRuntime.resolve`                                                                  | One frame per paint: rects from preset painter geometry and thumb motion (rest / grab / settle); cleared for `none` and fits here, for overlay mode in `_paintContents` |
+| `ChatScrollbarRuntime.tryStartGrab` / `moveGrab` / `endGrab` / `tickSettle`                                         | Press on thumb keeps the grab offset; press on track centres the thumb; moves repaint the thumb under the pointer at the frozen length; release eases the rect back over `settleDuration` on the viewport ticker | `_stopTickerIfIdle` keeps the ticker while `isSettling`; `detach` resets all motion |
 
 ## Paint / debug
 

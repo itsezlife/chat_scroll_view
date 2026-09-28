@@ -1213,10 +1213,11 @@ class RenderChatScrollView extends RenderBox {
 
   // --- Scrollbar -------------------------------------------------------------
   //
-  // Thumb progress maps the anchor over the full known id extent (oldest…newest).
+  // Thumb progress maps the band over the full known id extent (oldest…newest).
   // [_scrollbarRuntime] resolves track and thumb rects once per paint from that
   // progress and the preset painter's geometry; grab hit-testing reads the same
-  // frame. Paint does not read [ChatDataSource.chunks].
+  // frame. A grab runs the mapping backwards ([_dragScrollbarTo]) and seats a
+  // fractional band position. Paint does not read [ChatDataSource.chunks].
 
   final ChatScrollbarRuntime _scrollbarRuntime = ChatScrollbarRuntime();
 
@@ -1710,6 +1711,8 @@ class RenderChatScrollView extends RenderBox {
       _cancelFling();
       _controller.flingCancelSuppressesLongPress = false;
       _flingCancelPointer = null;
+      // A grab's pointer events stop arriving and the settle's ticker goes.
+      _scrollbarRuntime.reset();
       _ticker?.dispose();
       _ticker = null;
       _activity?.dispose();
@@ -2132,6 +2135,8 @@ class RenderChatScrollView extends RenderBox {
   ///   `target top + offsetFromMessageTop`, the offset clamped into
   ///   `[0, height)` so the ray stays inside the rect [_publishCenterBand]
   ///   reads.
+  /// - [FractionalPlacement] — top at the band top minus
+  ///   [FractionalPlacement.fraction] of the row's current height.
   ///
   /// Runs after [_resolveTailOrTarget] in the same pass: an alignment that
   /// decided for the tail is already released and never reaches this seat,
@@ -2152,9 +2157,10 @@ class RenderChatScrollView extends RenderBox {
   ///   reassignment, renormalize). A pending one is kept, because a far-path
   ///   animate arms the placement while the anchor still sits on the
   ///   outgoing strip.
-  /// - A known-newest alignment target: the tail pin owns that geometry. A
-  ///   Center Band target on the newest is still placed and held, so a
-  ///   mid-bubble restore on the conversation newest keeps its offset. An
+  /// - A known-newest alignment target: the tail pin owns that geometry. An
+  ///   in-row target (Center Band, fractional) on the newest is still placed
+  ///   and held, so a mid-bubble restore or a scrollbar grab inside the
+  ///   conversation newest keeps its point in the row. An
   ///   undecided tail-or-target jump is kept, unseated, until
   ///   [_resolveTailOrTarget] decides it on the layout that loads the row.
   /// - A Center Band placement on an empty scroll band.
@@ -2182,8 +2188,8 @@ class RenderChatScrollView extends RenderBox {
       if (placement.isHeld) _controller.releaseNavigationPlacement();
       return false;
     }
-    if (placement is AlignmentPlacement && _isTailClosePathTarget(targetId)) {
-      if (placement.tailFitFraction == null) {
+    if (!placement.isInRow && _isTailClosePathTarget(targetId)) {
+      if (placement case AlignmentPlacement(tailFitFraction: null)) {
         _controller.releaseNavigationPlacement();
       }
       return false;
@@ -2219,6 +2225,10 @@ class RenderChatScrollView extends RenderBox {
         desiredTop = topEdge + bandHeight * 0.5 - offset;
         event = 'layout.centerBand';
         kindFields = {'offset': LogFormat.f(offset)};
+      case FractionalPlacement(:final fraction):
+        desiredTop = _topPad - fraction * rowHeight;
+        event = 'layout.fraction';
+        kindFields = {'fraction': LogFormat.f(fraction)};
     }
 
     final currentTop = _controller.anchorPixelOffset;
@@ -2407,7 +2417,7 @@ class RenderChatScrollView extends RenderBox {
     _controller
       ..reassignAnchor(targetId, 0)
       ..syncNavigationPlacementTarget(targetId);
-    if (!_controller.hasPendingNavigationCenterBand) {
+    if (!_controller.hasPendingInRowPlacement) {
       _markPinTailOnJumpIfNeeded(targetId);
     }
   }
@@ -2418,9 +2428,10 @@ class RenderChatScrollView extends RenderBox {
       _controller.reassignAnchor(targetId, 0);
     }
     _controller.syncNavigationPlacementTarget(targetId);
-    // Center Band mid-bubble restore on newest must not arm jump-to-tail pin —
-    // that would fight [_applyNavigationPlacement] on the next layout.
-    if (!_controller.hasPendingNavigationCenterBand) {
+    // An in-row placement on the newest (mid-bubble restore, scrollbar grab
+    // inside a tall newest row) must not arm jump-to-tail pin — that would
+    // fight [_applyNavigationPlacement] on the next layout.
+    if (!_controller.hasPendingInRowPlacement) {
       _markPinTailOnJumpIfNeeded(targetId);
     }
     _cancelFling();
@@ -4532,7 +4543,8 @@ class RenderChatScrollView extends RenderBox {
         !_animator.isAnimating &&
         !_motion.edge.isActive &&
         !_dragInProgress &&
-        !_spanAutoScrollOccupying) {
+        !_spanAutoScrollOccupying &&
+        !_scrollbarRuntime.isSettling) {
       _ticker?.stop();
       // Scroll ended — drop the directional lead so the next layout re-fans
       // a symmetric range and collects the now-unneeded lead children.
@@ -4628,8 +4640,9 @@ class RenderChatScrollView extends RenderBox {
         edge.isActive ||
         occupyingSpanAutoScroll;
     if (!hasScrollWork) {
-      // Highlight-only frame: advance the fade and bail.
+      // Highlight- or settle-only frame: advance the fades and bail.
       if (_animator.tickHighlight(elapsed)) markNeedsPaint();
+      if (_scrollbarRuntime.tickSettle(elapsed)) markNeedsPaint();
       _releaseActivityIfSettled();
       if (_animator.highlightTargetId == null) _stopTickerIfIdle();
       return;
@@ -4733,9 +4746,11 @@ class RenderChatScrollView extends RenderBox {
     final headerDayChanged = _tickFloatingHeader();
     _resolveRowChromeFrame();
 
-    // The highlight runs alongside scroll/animate frames — advance it on
-    // every tick where the scroll path also ran.
+    // The highlight and the scrollbar settle run alongside scroll/animate
+    // frames — advance them on every tick where the scroll path also ran;
+    // this tick repaints below either way.
     _animator.tickHighlight(elapsed);
+    _scrollbarRuntime.tickSettle(elapsed);
 
     // Arm a deferred highlight as soon as the target row is built — do not
     // wait for another layout pass when data was already ready at settle.
@@ -5320,11 +5335,12 @@ class RenderChatScrollView extends RenderBox {
 
     // Scrollbar grab in progress — consume move/up/cancel.
     final scrollbar = _scrollbarRuntime;
-    if (scrollbar.isGrabbing && scrollbar.ownsPointer(event)) {
+    if (scrollbar.ownsPointer(event)) {
       if (event is PointerMoveEvent) {
-        if (scrollbar.progressAt(event.localPosition.dy) case final progress?) {
-          _jumpToScrollbar(progress);
+        if (scrollbar.moveGrab(event.localPosition.dy) case final position?) {
+          _dragScrollbarTo(position);
         }
+        markNeedsPaint();
         return;
       }
       if (event is PointerUpEvent || event is PointerCancelEvent) {
@@ -5334,16 +5350,18 @@ class RenderChatScrollView extends RenderBox {
     }
 
     if (event is PointerDownEvent) {
-      if (_dataSource.newestKnownId != null &&
-          !_contentFitsInViewport() &&
-          scrollbar.tryStartGrab(event)) {
-        _cancelFling();
-        _controller.releaseNavigationPlacement();
-        markNeedsPaint();
-        if (scrollbar.progressAt(event.localPosition.dy) case final progress?) {
-          _jumpToScrollbar(progress);
+      if (_dataSource.newestKnownId != null && !_contentFitsInViewport()) {
+        if (scrollbar.tryStartGrab(event) case final press?) {
+          _cancelFling();
+          _controller.releaseNavigationPlacement();
+          markNeedsPaint();
+          if (press == ChatScrollbarPress.track) {
+            if (scrollbar.grabPosition case final position?) {
+              _dragScrollbarTo(position);
+            }
+          }
+          return;
         }
-        return;
       }
       final catchesFling = _motion.fling.isFlinging;
       final catchesSpring = !_dragInProgress && _motion.edge.isSpringing;
@@ -5926,35 +5944,58 @@ class RenderChatScrollView extends RenderBox {
   // --- Scrollbar -------------------------------------------------------------
 
   /// Ends an active scrollbar grab: the grabbing pointer's remaining events
-  /// scroll nothing. The thumb's own jumps armed navigation placements; a
-  /// user scroll leaves none, so they are released here. No-op when idle.
+  /// scroll nothing, and the thumb starts easing from the pointer back to
+  /// the band on the ticker. The thumb's own jumps armed navigation
+  /// placements; a user scroll leaves none, so they are released here.
+  /// No-op when idle.
   void _endScrollbarGrab() {
     if (!_scrollbarRuntime.isGrabbing) return;
     _scrollbarRuntime.endGrab();
     _controller.releaseNavigationPlacement();
+    _ensureTicker();
     markNeedsPaint();
   }
 
-  /// Map a 0..1 scrollbar [progress] to a message id and teleport there.
-  void _jumpToScrollbar(double progress) {
+  /// Seats the band under a grab's thumb [position].
+  ///
+  /// Inverts the thumb-progress mapping of [_scrollbarBandMetrics] at the
+  /// grab's frozen span share, so the pointer and the painted thumb agree:
+  /// the band top's fractional id is
+  /// `oldest + progress × (idCount − visible ids)`, linear in ids across the
+  /// known span (ADR 002). Its whole part picks the row and its fraction
+  /// goes to [ChatScrollController.jumpToFraction], which applies it to the
+  /// row's real height once laid out, so the band moves continuously within
+  /// one tall message. Silent when the same placement is already armed.
+  void _dragScrollbarTo(ChatScrollbarGrabPosition position) {
     final newest = _dataSource.newestKnownId;
     final oldest = _dataSource.oldestKnownId;
     if (newest == null || oldest == null || newest <= oldest) return;
-    final targetId = (oldest + progress * (newest - oldest)).round();
+    final idCount = newest - oldest + 1;
+    final visibleIds = position.spanShare * idCount;
+    final bandTop =
+        oldest + position.progress * math.max(0.0, idCount - visibleIds);
+    final messageId = math.min(bandTop.floor(), newest);
+    final fraction = (bandTop - messageId).clamp(0.0, 1.0);
     if (LogCategory.scrollbar.enabled) {
       final current = _computeScrollbarProgress();
-      _scrollbarEvent('jump', {
-        'dragProgress': LogFormat.f(progress),
-        'targetId': targetId,
+      _scrollbarEvent('drag', {
+        'dragProgress': LogFormat.f(position.progress),
+        'spanShare': LogFormat.f(position.spanShare),
+        'targetId': messageId,
+        'fraction': LogFormat.f(fraction),
         'oldest': oldest,
         'newest': newest,
         if (current != null) 'thumbProgress': LogFormat.f(current.progress),
         'anchorId': _controller.anchorMessageId,
       });
     }
-    if (targetId != _controller.anchorMessageId) {
-      _controller.jumpTo(targetId);
+    if (_controller.navigationPlacement case FractionalPlacement(
+      messageId: final armedId,
+      fraction: final armedFraction,
+    ) when armedId == messageId && armedFraction == fraction) {
+      return;
     }
+    _controller.jumpToFraction(messageId, fraction);
   }
 
   /// Maps a scroll-band Y coordinate through built rows into a fractional id.

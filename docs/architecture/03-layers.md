@@ -33,7 +33,7 @@ idea as `SliverMultiBoxAdaptorElement`, without the sliver protocol.
 | `ChatChunkFetchScheduler` | Headless (render-owned) | Fetch poll, jump-fetch, LRU eviction coordination |
 | `ChatScrollbar` | Immutable value (public, sealed) | Scrollbar preset: `ChatScrollbar(painter:)` or `.none()` |
 | `ChatScrollbarPainter` | Open contract (public) | Scrollbar look: geometry getters + `paint(frame, theme)`; `ChatPillScrollbarPainter` is the default |
-| `ChatScrollbarRuntime` | Headless (render-owned, `@internal`) | Frame resolved once per paint (track + thumb rects, factors), grab pointer, strip hit-test, press → progress |
+| `ChatScrollbarRuntime` | Headless (render-owned, `@internal`) | Frame resolved once per paint (track + thumb rects, factors), strip hit-test, thumb motion (grab offset, frozen length and span share, release settle), pointer → grab position |
 
 ## Ownership boundaries
 
@@ -85,7 +85,10 @@ flowchart LR
   progress and length share from anchor math; the runtime turns them into
   track and thumb rects with the preset painter's geometry, once per paint;
   the painter only draws that frame. Grab hit-testing reads the runtime's
-  frame, never the painter. An unequal preset ends an active grab.
+  frame, never the painter. The runtime also owns the thumb's motion (rest,
+  grab, settle) in pixels only; the render object maps a grab position back
+  to a band position and seats it through the controller. An unequal preset
+  ends an active grab.
 - **Animator** is bound on attach (`controller.animator = …`) and cleared on
   detach / dispose.
 
@@ -95,6 +98,7 @@ flowchart LR
 |-----|--------------|--------|
 | `jumpTo`, `jumpToCenterBand`, `scrollBy`, `animateTo` | App / demo | Notifying navigation |
 | `highlight` | App / demo | Attention slot only — does not notify jump or scroll |
+| `jumpToFraction` | Render only (`@internal`, scrollbar grab) | Notifying navigation: band top a fraction into a row |
 | `applyScrollDelta`, `reassignAnchor` | Render / animator only (`@internal`) | Silent anchor mutation |
 | `visibleRange=`, `centerBand=`, `isAtTail=` | Render only | Deferred listenable push |
 | `notifyScrollEvent` | Render only | Typed scroll event stream |

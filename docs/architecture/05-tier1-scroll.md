@@ -242,11 +242,18 @@ and follow-tail converge on the next layout.
   the origin still runs). A refused grow bumps `capHits` once per wall.
   Newly laid-out present messages can become
   the span hit. Lift or span abort releases the writer.
-- Scrollbar grab: a press in the strip maps Y through the last painted
-  thumb (`ChatScrollbarRuntime.progressAt`, thumb centred on the pointer)
-  → progress → `_jumpToScrollbar` → `jumpTo(id)` (layout path). The frame
-  it reads is resolved in `_paintScrollbar`, so a press lands on what was
-  painted.
+- Scrollbar grab: a press in the strip is tested against the last painted
+  frame (resolved in `_paintScrollbar`), so a press lands on what was
+  painted. A press on the thumb records its offset into the thumb and moves
+  nothing; a press on the track centres the thumb on the pointer. The thumb
+  length and the band's span share are frozen at the press. Each move
+  repaints the thumb under the pointer and maps its progress through
+  `_dragScrollbarTo` — the inverse of the painted progress,
+  `oldest + progress × (idCount − visible ids)` — to a band-top fractional
+  id, then `jumpToFraction(id, fraction)` (layout path, `FractionalPlacement`
+  seated on the row's real height). Release releases the placement and
+  eases the thumb rect back to the band's thumb on the ticker
+  (`tickSettle`, `ChatScrollbarRuntime.settleDuration`).
 
 ## Semantics
 

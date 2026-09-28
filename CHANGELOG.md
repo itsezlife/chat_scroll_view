@@ -33,6 +33,22 @@
   row was laid out (a fixed 48 px), and a thumb as long as the track still
   painted an empty track and took presses that jumped to the oldest
   message. Now such a thumb paints no scrollbar and takes no presses.
+- **CHANGED**: A scrollbar grab keeps the thumb under the pointer. Before,
+  a press snapped the thumb's centre to the pointer (a jump near either
+  end), the painted thumb and the drag used different mappings so the
+  thumb drifted from the finger, and the list stepped one whole message at
+  a time. Now a press on the thumb keeps the grab point and moves nothing
+  until the pointer does; a press on the track beside it still centres the
+  thumb there. While grabbed the thumb is painted exactly under the
+  pointer at the length it had at the press, and the scroll band's top
+  lands on the matching fractional position in the known span — inside a
+  message when it falls inside one, so tall messages scroll smoothly. On
+  release the thumb eases back to the list's own position over 250 ms.
+  Hosts see more `ChatProgrammaticJump` events and jump-listener calls
+  during a grab (one per pointer move, including moves within one
+  message), and the anchor lands mid-message with a negative
+  `anchorPixelOffset` instead of on a message top. Code that expected a
+  grab to land on whole messages will see fractional positions.
 - **CHANGED**: `ChatScrollbarThemeData` moved to its own library file; it is
   still exported from `package:chat_scroll_view/chat_scroll_view.dart`.
   Imports of `src/chat_widgets/chat_scrollbar.dart` for the theme must
