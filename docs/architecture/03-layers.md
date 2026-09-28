@@ -17,14 +17,17 @@ idea as `SliverMultiBoxAdaptorElement`, without the sliver protocol.
 
 | Layer | Type | Responsibility |
 |-------|------|----------------|
-| `ChatScrollView` | `RenderObjectWidget` | Public API: `dataSource`, `controller`, builders, pads, cache extents |
+| `ChatScrollView` | `RenderObjectWidget` | Public API: `dataSource`, `controller`, builders, pads, cache extents, `physics` |
 | `ChatScrollElement` | `RenderObjectElement` + `ChatChildManager` | Lazy inflate / deactivate children; skip-rebuild cache; slot routing |
 | `RenderChatScrollView` | `RenderBox` | Layout, Tier-1 scroll, gestures, fetch schedule, paint, semantics |
 | `ChatScrollController` | Headless | Anchor ownership, `jumpTo` / `jumpToCenterBand` / `scrollBy` / `animateTo` / `highlight`, events, `visibleRange`, `centerBand`, `isAtTail` |
 | `ChatDataSource` | Headless | Chunks, fetch, boundaries, absent slots, typed data listeners |
 | `ChatFloatingHeaderController` | Headless geometry | Day scan, fade math, header bucket state (no widgets) |
 | `ChatAnimator` | Headless | Close/far `animateTo`, Message highlight wash |
-| `ChatScrollPhysics` | Headless | Fling simulation, overscroll resistance, bounceback |
+| `ChatScrollPhysics` | Immutable value (public) | Host choice of fling + edge effect (closed sets with tunable params); `.android()` preset |
+| `ChatScrollMotion` | Headless (render-owned, `@internal`) | Per-viewport runtime for one physics value: `ChatFlingMotion` + `ChatEdgeEffectState` |
+| `ChatFlingMotion` | Headless (`@internal`) | Fling simulation lifecycle; offset deltas per tick |
+| `ChatStretchOverscroll` | Headless (`@internal`) | Stretch edge effect: pull, release rules, return spring, paint matrix |
 | `ChatChunkFetchScheduler` | Headless (render-owned) | Fetch poll, jump-fetch, LRU eviction coordination |
 
 ## Ownership boundaries
@@ -38,14 +41,17 @@ flowchart LR
   DS[ChatDataSource]
   Anim[ChatAnimator]
   Phys[ChatScrollPhysics]
+  Motion[ChatScrollMotion]
   FH[ChatFloatingHeaderController]
 
   Widget --> Element
+  Widget -->|physics value| Render
   Element --> Render
   Render --> Ctrl
   Render --> DS
   Render --> Anim
-  Render --> Phys
+  Render --> Motion
+  Motion -->|built from| Phys
   Render --> FH
   Ctrl -.->|animator binding| Anim
 ```
@@ -62,8 +68,11 @@ flowchart LR
   widgets from parameters the render object supplies.
 - **Floating header controller** is pure geometry/state; the render object
   still owns the header `RenderBox` and calls `buildFloatingHeader`.
-- **Physics** never touches the controller’s event APIs; the render object
-  emits `ChatFlingStart` / `ChatFlingEnd` when simulations start/stop.
+- **Physics** is a host-owned value; **motion** is its per-viewport runtime,
+  rebuilt only when an unequal value arrives. Neither touches the
+  controller’s event APIs; the render object emits `ChatFlingStart` /
+  `ChatFlingEnd` when simulations start/stop. Edge-effect release rules live
+  in the edge-effect strategy, not in the render tick.
 - **Animator** is bound on attach (`controller.animator = …`) and cleared on
   detach / dispose.
 
@@ -82,7 +91,7 @@ flowchart LR
 
 | Tier | Entry | Rebuild widgets? | Relayout children? | Typical trigger |
 |------|-------|------------------|--------------------|-----------------|
-| **1** | `_onTick` | No | No (offsets only) | Drag, fling, bounceback, close-path animate |
+| **1** | `_onTick` | No | No (offsets only) | Drag, fling, edge-effect spring, close-path animate |
 | **2** | `performLayout` | Yes (lazy inflate) | Yes | Jump, data change, range uncovered, day-header text change |
 
 Tier-1 relies on each message being a `RepaintBoundary` (or `ChatRowChrome`’s
@@ -98,7 +107,9 @@ lib/src/
     chat_data_source.dart
     chat_scroll_chunk.dart
     chat_scroll_common.dart
-    chat_scroll_physics.dart
+    chat_scroll_physics.dart      # public physics value + ChatFlingMotion
+    chat_scroll_motion.dart       # per-viewport runtime + edge-effect seam
+    chat_stretch_overscroll.dart  # stretch edge effect
     chat_animator.dart
     chat_floating_header_controller.dart
     chat_chunk_fetch_scheduler.dart

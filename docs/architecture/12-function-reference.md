@@ -89,21 +89,47 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 
 ---
 
-## `ChatScrollPhysics`
+## `ChatScrollPhysics` (public value)
 
-| Member                        | Purpose               | Must not               |
-| ----------------------------- | --------------------- | ---------------------- |
-| `startFling` / `cancelFling`  | Inertial scroll       | Emit controller events |
-| `tickFling` / `flingVelocity` | Per-frame fling delta | Touch layout           |
+| Member                                         | Purpose                                                 | Must not                                   |
+| ---------------------------------------------- | ------------------------------------------------------- | ------------------------------------------ |
+| `ChatScrollPhysics(fling:, edgeEffect:)`       | Host choice of one fling + one edge effect              | Hold runtime state                         |
+| `.android()`                                   | Spline fling + stretch; the `null` default everywhere   | Branch on platform                         |
+| `ChatFling.spline(friction:)`                  | Android `OverScroller` spline; friction scales travel   | Grow variants outside the closed set       |
+| `ChatEdgeEffect.stretch(intensity:, …spring)`  | Android 12 stretch; pull response + return spring       | Grow variants outside the closed set       |
+| `==` / `hashCode`                              | Value equality; drives the equal-is-no-op swap          | Compare by identity                        |
 
-## `ChatStretchOverscroll`
+## `ChatFlingMotion` (`@internal`)
 
-| Member                 | Purpose                                                        | Must not                                   |
-| ---------------------- | -------------------------------------------------------------- | ------------------------------------------ |
-| `pull`                 | Unconsumed dy → paint stretch                                  | Feed mid-content travel                    |
-| `onDragEnd`            | Reverse → content fling; same-dir → absorb; idle → soft spring | Slam back with inverted max fling velocity |
-| `absorbImpact`         | Fling hits a reached edge (incl. last travel frame)            | Arm from rest on mid-content fling         |
-| `tick` / `paintMatrix` | Return spring + scale                                          | Mutate anchor                              |
+| Member                        | Purpose                          | Must not               |
+| ----------------------------- | -------------------------------- | ---------------------- |
+| `startFling` / `cancelFling`  | Inertial scroll for its `fling`  | Emit controller events |
+| `tickFling` / `flingVelocity` | Per-frame fling delta            | Touch layout           |
+
+## `ChatScrollMotion` / `ChatEdgeEffectState` (`@internal`)
+
+`ChatScrollMotion(physics)` builds one `fling` + one `edge` runtime; the
+render object replaces it only on an unequal physics swap.
+
+| `ChatEdgeEffectState` member | Purpose                                                              | Must not                                  |
+| ---------------------------- | -------------------------------------------------------------------- | ----------------------------------------- |
+| `claim(delta, travel:)`      | First claim on each drag delta; may start a release                  | Run on wheel / fling / animate deltas     |
+| `pull`                       | Unconsumed drag dy past a reached pin                                | Feed mid-content travel                   |
+| `onDragStart`                | Freeze (drag start or press catching a spring); idempotent           | Clear the painted effect                  |
+| `onDragEnd(v)` → `bool`      | Release; answers whether a content fling may start                   | Start the fling itself                    |
+| `absorbImpact`               | Fling hits a reached edge (incl. last travel frame)                  | Arm from rest on mid-content fling        |
+| `tick` / `paintTransform`    | Advance spring; message-layer matrix or `null` at rest               | Mutate anchor                             |
+| `isActive` / `isSpringing`   | Anything painted or animating / an autonomous spring runs            | —                                         |
+| `reset`                      | Drop to rest (jump, animate, overlay, inset, swap)                   | Emit events                               |
+
+## `ChatStretchOverscroll` (stretch strategy)
+
+| Member                 | Purpose                                                              | Must not                                   |
+| ---------------------- | -------------------------------------------------------------------- | ------------------------------------------ |
+| `claim`                | Passes all through; >1 px reverse travel into content → release      | Release on sub-pixel travel or pin spill   |
+| `onDragEnd`            | Reverse → release + fling allowed; same-dir → absorb; idle → soft spring | Slam back with inverted max fling velocity |
+| `releaseIntoContent`   | Drop the pull; keep a short visual unwind                            | Move content                               |
+| `paintTransform`       | Scale about the pressed edge (top for `s ≥ 0`, bottom otherwise)     | Paint under the precision tolerance        |
 
 ---
 
@@ -178,11 +204,12 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `_repositionFromAnchor` / `_repositionMessagesOnly`                                                                 | Offset-only place                                                   |
 | `_setOffset`                                                                                                        | Offset + divider opacity                                            |
 | `_rangeNoLongerCovers`                                                                                              | Need layout?                                                        |
-| `_onDragStart` / `Update` / `End`                                                                                   | Gesture → pending delta                                             | Stretch only from unconsumed edge remainder                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `_onDragStart` / `Update` / `End`                                                                                   | Gesture → pending delta; edge freeze / release (fling gated by `onDragEnd`) | Edge effect only from unconsumed edge remainder                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `_startFling` / `_cancelFling`                                                                                      | Fling lifecycle                                                     | Start no-op when content fits                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `_unconsumedOverscrollDelta` / `_cancelOverscroll`                                                                  | Overflow past pin travel → EdgeEffect; missing box is not that edge |
+| `_unconsumedOverscrollDelta` / `_cancelOverscroll`                                                                  | Overflow past pin travel → edge effect; missing box is not that edge |
+| `physics` setter / `_edgeTransform` / `applyPaintTransform`                                                        | Unequal swap cancels fling + resets edge; one edge matrix for paint, hit, reported transform, `paintTop` |
 | `_boundaryBox` / `_resolveAnchorBox`                                                                                | Boundary/anchor render boxes                                        |
-| `handleEvent` / `hitTestChildren`                                                                                   | Pointer / scrollbar / header / selection                            |
+| `handleEvent` / `hitTestChildren`                                                                                   | Pointer / scrollbar / header / selection; press catches fling or edge spring; messages hit through `_edgeTransform` |
 | `ChatSelectionPointer` / `_selectionMessageIdAt` / `_spanHitAt` / `_selectSpanChain`                                | Viewport-owned long-press, tap, select/unselect span                | Yield + fling-cancel suppress; span polarity vs selection snapshot; empty set ends the span; the pinned floating date header is not a hit (tap/long-press/span go through to the message); other non-message slots and non-selectable rows freeze the far end; non-selectable ids are omitted from the chain; chrome wrap follows `showsChrome` (`gutterOnly` without check); select-span growth and grow-direction auto-scroll stop at `selectionCap` (unselect ignores the cap); a refused grow bumps `capHits` once per wall; origin-absent aborts the span (set kept); `selectionAllowed` assign / `reapplySelectionAllowed` refilters the set and invalidates chrome wrap via `addSelectionAllowedListener` |
 | `_onJump` / `_onScrollBy` / `_onDataChanged` / `_onBoundaryChanged`                                                 | Controller/DS reactions                                             |
 | `_onAnimateSettled` / `_cancelAnimate` / `_clearHighlight`                                                          | Animate settle/cancel                                               |
@@ -192,8 +219,9 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 
 ## Paint / debug
 
-Paint walks children at `Offset(0, parentData.offset)`, header and scrollbar
-on top; far-path stitch applies per-child translation (not a viewport fade);
+Paint walks children at `Offset(0, parentData.offset)` inside the edge
+transform layer when the edge effect is active, header and scrollbar
+on top outside it; far-path stitch applies per-child translation (not a viewport fade);
 highlight paints over target row.
 `_paintScrollbar` returns immediately when content fits (no thumb travel).
 
@@ -208,6 +236,7 @@ Debug getters (`debugChildCount`, `debugDividerOpacity`, etc.) and
 renorm → align → tail flags → match band gap → clamp → re-fan → match gap → GC →
 fetch → publish → header → highlight arm → rebase close path.
 
-**Tick:** pending → resistance → fling → animate → bounceback → apply delta →
-reposition → renorm → clamp → publish → header tick → highlight/settle →
+**Tick:** pending → fling → animate → span auto-scroll → edge claim (drag) →
+split unconsumed → apply consumed → reposition → renorm → clamp → edge
+pull / absorb → edge tick → publish → header tick → highlight/settle →
 paint or layout.

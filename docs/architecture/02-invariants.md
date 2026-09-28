@@ -58,8 +58,9 @@ Parent-data writes (`offset`, and the row chrome inputs `paintTop`,
 
 - `_shouldFreezeStitchLayout()` — stitch owns the anchor
 
-Fling **always** clamps each tick. Unconsumed dy at a reached edge is paint
-stretch, not a skipped pin.
+Fling **always** clamps each tick. Unconsumed dy at a reached edge feeds the
+paint-only edge effect ([§21](#21-edge-effect-is-paint-only-and-owns-its-release-rules)),
+not a skipped pin.
 
 **Current code:** close-path `animateTo` does **not** suspend clamp; a pin can
 cancel the animation. The intended design is to suspend clamp during close
@@ -76,7 +77,7 @@ At most **one active writer** of `anchorPixelOffset` for a given phase:
 | Layout settle / jump | `_applyNavigationPlacement`, pins | — |
 | Held placement re-applied (top inset moved, or target row chrome changed, including each frame of its separator transition) | `_applyNavigationPlacement` | Row chrome hold (step 6d) for that pass |
 | Row chrome hold (boundary move or separator transition frame) | `_holdRowChromeReference` | Stands down while an animation, stitch freeze, or delete recovery owns the origin |
-| Drag / fling / bounce | Tick deltas + clamp (when not suspended) | Clamp during drag/bounce |
+| Drag / fling | Tick deltas + clamp (when not suspended); the edge effect never writes | — |
 | Span auto-scroll | Tick auto-scroll delta | Follow-tail; close-path animate |
 
 **Must not:** snap alignment in layout while close-path animate interpolates
@@ -219,7 +220,8 @@ delta MUST be zero — neighbor top stays at former deleted top.
 When [_contentFitsInViewport](./06-boundaries.md#short-content--_contentfitsinviewport)
 is true:
 
-1. Tier-1 MUST NOT apply drag, fling, or bounceback deltas.
+1. Tier-1 MUST NOT apply drag or fling deltas (unconsumed drag dy still
+   feeds the edge effect).
 2. Overscroll measurement MUST return zero on both sides.
 3. `_clampBoundaries` MUST apply at most **one** boundary pin per pass — never
    dual pin with equal-and-opposite deltas.
@@ -229,6 +231,31 @@ is true:
 
 Exception: `keepTopHandoff` (anchor at top band, no `repinBottom`) preserves
 neighbor handoff after top-of-tall delete without tail/list re-stack.
+
+## 21. Edge effect is paint-only and owns its release rules
+
+The host's `ChatScrollPhysics` selects one fling and one edge effect. The
+render object holds their runtime (`ChatScrollMotion`) and talks to the edge
+effect only through `ChatEdgeEffectState`:
+
+1. The edge effect MUST NOT move the anchor or skip a pin. Layout stays
+   clamped, and it only contributes a message-layer paint transform.
+2. The **same** edge transform (`_edgeTransform`) MUST drive the message-layer
+   paint, `hitTestChildren`, the viewport's own selection hit
+   (`_selectionMessageIdAt`), `applyPaintTransform`, and the row chrome
+   `paintTop`. The floating header, scrollbar, and overlay stay outside it.
+3. On the drag path, the edge effect claims each non-zero delta **before**
+   the edge-unconsumed split (`claim`). Release decisions (reverse flick,
+   reverse travel into content) belong to the strategy. The render object
+   only forwards `pull`, `onDragEnd`, `absorbImpact`, `tick`, and `reset`.
+4. A content fling MAY start at drag end only when `onDragEnd` returns true.
+5. Wheel, keyboard, scrollbar, jump, `scrollBy`, and animate MUST NOT feed
+   the edge effect. Jumps, animate, overlay, and inset changes call `reset`.
+6. A pointer down during an edge spring freezes the effect and suppresses
+   that press's tap and long-press (`flingCancelSuppressesLongPress`). A
+   press that ends without becoming a drag releases the effect.
+7. Swapping physics to an unequal value cancels the fling (`ChatFlingEnd`)
+   and drops the edge effect to rest. An equal value is a no-op.
 
 ## Quick checklist for new code
 

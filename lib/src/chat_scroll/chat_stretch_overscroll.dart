@@ -1,35 +1,55 @@
 import 'dart:math' as math;
 
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_motion.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
 import 'package:chat_scroll_view/src/util/logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 
-/// Paint-time edge stretch for a clamped chat viewport.
+/// **Stretch** edge-effect state: the Android edge stretch over a clamped
+/// chat viewport.
 ///
-/// Owns the stretch ratio ([overscroll] in `[-1, 1]`), the return spring, and
-/// the scale-from-edge [paintMatrix]. Does **not** mutate scroll layout —
+/// Owns the stretch ratio ([overscroll] in `[-1, 1]`), the return spring,
+/// and the scale-from-edge [paintTransform]. Never mutates scroll layout —
 /// callers feed only the unconsumed remainder at a reached pin.
 ///
 /// **Pull**: [pull] accumulates unconsumed pointer dy into [overscroll].
 /// Positive stretch scales from the top edge; negative from the bottom.
 ///
+/// **Reverse motion**: [claim] passes every pixel through to content and
+/// starts the release once content actually travels away from the stretched
+/// edge ([releaseIntoContent]).
+///
 /// **Release**: [onDragEnd] springs back when stretch is painted. A strong
-/// reverse velocity (opposite [overscroll]) clears stretch so the host can
-/// fling into content. [releaseIntoContent] starts a return spring once when
-/// travel moves away from the stretched edge. [absorbImpact] arms a spring
-/// when an inertial fling hits a wall.
+/// reverse velocity (opposite [overscroll]) clears stretch so content can
+/// fling. [absorbImpact] arms a spring when an inertial fling hits a wall.
 ///
-/// **Paint**: hosts MUST apply [paintMatrix] only to message children.
-/// Viewport-fixed chrome (floating date header, scrollbar) MUST stay outside
-/// the transform.
-///
-/// Constants match the platform stretch intensity / spring used by Flutter's
-/// stretching overscroll indicator (natural frequency 24.657, damping 0.98,
-/// time factor 0.8).
-class ChatStretchOverscroll {
+/// Spring and intensity come from [ChatEdgeEffect$Stretch]; the curve
+/// shape, release velocity floor, and impact scaling match Flutter's
+/// stretching overscroll indicator (time factor 0.8).
+@internal
+final class ChatStretchOverscroll implements ChatEdgeEffectState {
+  /// Idle stretch tuned by [effect].
+  ChatStretchOverscroll([this.effect = const ChatEdgeEffect$Stretch()])
+    : _spring = SpringDescription.withDampingRatio(
+        mass: 1,
+        stiffness:
+            effect.naturalFrequency *
+            effect.naturalFrequency *
+            _timeCorrectionFactor *
+            _timeCorrectionFactor,
+        ratio: effect.dampingRatio,
+      );
+
+  /// Parameters this stretch runs with.
+  final ChatEdgeEffect$Stretch effect;
+
+  final SpringDescription _spring;
+
   /// Paint stretch in `[-1, 1]`. Positive = scale from the top edge.
-  double overscroll = 0;
+  double get overscroll => _overscroll;
+  double _overscroll = 0;
 
   /// Running pull sum for the current gesture, in pixels.
   double _totalPullPx = 0;
@@ -40,48 +60,60 @@ class ChatStretchOverscroll {
   int _tickFrame = 0;
 
   static const double _exponentialScalar = math.e / 0.33;
-  static const double _stretchIntensity = 0.016;
   static const double _absorbImpactVelocityFriction = 1 / 3000;
   static const double _maxAbsorbImpactVelocity = 1.25;
 
+  /// Release velocity below this (px/s) is a soft release, not a flick.
+  static const double _minReleaseVelocity = 50;
+
+  /// Travel back into content below this (px) is sub-pixel noise — the last
+  /// pixels of travel toward the stretched edge, not a return from it.
+  static const double _minReleaseTravelPx = 1;
+
   /// Below this, leftover stretch is treated as rest.
   static const double _minPaintStretch = 0.004;
-  static const double _naturalFrequency = 24.657;
-  static const double _dampingRatio = 0.98;
   static const double _timeCorrectionFactor = 0.8;
-  static const double _stiffness = _naturalFrequency * _naturalFrequency;
 
-  static final SpringDescription _spring = SpringDescription.withDampingRatio(
-    mass: 1,
-    stiffness: _stiffness * _timeCorrectionFactor * _timeCorrectionFactor,
-    ratio: _dampingRatio,
-  );
-
-  /// `true` while a stretch is painted or a return spring is running.
+  @override
   bool get isActive =>
-      _simulation != null || overscroll.abs() > _minPaintStretch;
+      _simulation != null || _overscroll.abs() > _minPaintStretch;
 
-  /// Finger down: keep a *visible* stretch, stop the return spring.
+  @override
+  bool get isSpringing => _simulation != null;
+
+  @override
   void onDragStart() {
     _simulation = null;
     _simStart = null;
-    if (overscroll.abs() < _minPaintStretch) {
-      overscroll = 0;
+    if (_overscroll.abs() < _minPaintStretch) {
+      _overscroll = 0;
       _interruptedOverscroll = 0;
     } else {
-      _interruptedOverscroll = overscroll;
+      _interruptedOverscroll = _overscroll;
     }
     _totalPullPx = 0;
     fine(.overscroll, 'drag.start', {
-      'stretch': LogFormat.ratio(overscroll),
+      'stretch': LogFormat.ratio(_overscroll),
       'interrupted': LogFormat.ratio(_interruptedOverscroll),
     });
   }
 
-  /// Unconsumed pointer dy (same sign as chat delta: + = content down).
-  ///
-  /// [travel] is remaining pin distance *before* this delta (0 = already
-  /// at that edge). [fits] is short-content (zero travel on both pins).
+  /// Passes [delta] through untouched. Starts the release when [delta]
+  /// runs opposite the stretch and content consumes more than a pixel of it
+  /// without spilling past the opposite pin — a spill lands in [pull]
+  /// instead, which unwinds the gesture's pull continuously.
+  @override
+  double claim(double delta, {required double travel}) {
+    if (_overscroll == 0 || delta.sign == _overscroll.sign) return delta;
+    final consumed = math.min(delta.abs(), travel);
+    final spill = delta.abs() - consumed;
+    if (consumed > _minReleaseTravelPx && spill <= _minReleaseTravelPx) {
+      releaseIntoContent();
+    }
+    return delta;
+  }
+
+  @override
   void pull(
     double unconsumedPx,
     double viewportHeight, {
@@ -94,10 +126,10 @@ class ChatStretchOverscroll {
     _totalPullPx += unconsumedPx;
     final normalized = clampDouble(_totalPullPx / viewportHeight, -1, 1);
     final absDistance = normalized.abs();
-    final linear = _stretchIntensity * absDistance;
+    final linear = effect.intensity * absDistance;
     final exponential =
-        _stretchIntensity * (1 - math.exp(-absDistance * _exponentialScalar));
-    overscroll = clampDouble(
+        effect.intensity * (1 - math.exp(-absDistance * _exponentialScalar));
+    _overscroll = clampDouble(
       normalized.sign * (linear + exponential) + _interruptedOverscroll,
       -1,
       1,
@@ -109,67 +141,65 @@ class ChatStretchOverscroll {
       'totalPx': LogFormat.f(_totalPullPx),
       'vh': LogFormat.f(viewportHeight),
       'norm': LogFormat.ratio(normalized),
-      'stretch': LogFormat.ratio(overscroll),
+      'stretch': LogFormat.ratio(_overscroll),
     });
   }
 
-  /// Finger up. [velocity] is drag primary velocity (px/s, + = down).
+  /// Returns `true` only when no stretch remains afterwards.
   ///
-  /// No-op when there is no painted stretch — mid-content flicks MUST NOT
-  /// start a return spring.
+  /// No-op (fling allowed) when there is no painted stretch — mid-content
+  /// flicks MUST NOT start a return spring.
   ///
-  /// - Reverse velocity (opposite [overscroll]): clear stretch so the host
-  ///   can fling into content.
+  /// - Reverse velocity (opposite [overscroll]): clear stretch so content
+  ///   can fling.
   /// - Same-direction velocity: [absorbImpact] — briefly deepen the stretch
   ///   then spring back (edge fling), instead of slamming with inverted
   ///   fling velocity.
-  /// - Near-zero velocity: soft spring from the current stretch (`velocity` 0).
-  void onDragEnd(double velocity) {
+  /// - Near-zero velocity: soft spring from the current stretch.
+  @override
+  bool onDragEnd(double velocity) {
     _totalPullPx = 0;
-    if (overscroll.abs() < _minPaintStretch) {
+    if (_overscroll.abs() < _minPaintStretch) {
       _interruptedOverscroll = 0;
-      overscroll = 0;
+      _overscroll = 0;
       _simulation = null;
       _simStart = null;
       fine(.overscroll, 'drag.end.idle', {'v': LogFormat.f(velocity)});
-      return;
+      return true;
     }
-    if (velocity.abs() >= 50 &&
-        velocity.sign != 0 &&
-        overscroll.sign != 0 &&
-        velocity.sign != overscroll.sign) {
+    final flick = velocity.abs() >= _minReleaseVelocity && velocity.sign != 0;
+    if (flick && velocity.sign != _overscroll.sign) {
       fine(.overscroll, 'drag.end.releaseFling', {
         'v': LogFormat.f(velocity),
-        'from': LogFormat.ratio(overscroll),
+        'from': LogFormat.ratio(_overscroll),
       });
-      overscroll = 0;
+      _overscroll = 0;
       _interruptedOverscroll = 0;
       _simulation = null;
       _simStart = null;
-      return;
+      return true;
     }
-    if (velocity.abs() >= 50 &&
-        velocity.sign != 0 &&
-        overscroll.sign != 0 &&
-        velocity.sign == overscroll.sign) {
+    if (flick) {
       fine(.overscroll, 'drag.end.absorb', {
         'v': LogFormat.f(velocity),
-        'from': LogFormat.ratio(overscroll),
+        'from': LogFormat.ratio(_overscroll),
       });
       absorbImpact(velocity);
-      return;
+      return false;
     }
     _startSpring(0);
     fine(.overscroll, 'drag.end.spring', {
       'v': LogFormat.f(velocity),
       'scaledV': LogFormat.ratio(0),
-      'from': LogFormat.ratio(overscroll),
+      'from': LogFormat.ratio(_overscroll),
     });
+    return false;
   }
 
-  /// Fling hit a clamped edge. [velocity] is remaining fling velocity (px/s).
+  /// Ignores leftover velocity below the release floor.
+  @override
   void absorbImpact(double velocity) {
-    if (velocity.abs() < 50) return;
+    if (velocity.abs() < _minReleaseVelocity) return;
     final scaled = clampDouble(
       velocity * _absorbImpactVelocityFriction,
       -_maxAbsorbImpactVelocity,
@@ -179,86 +209,84 @@ class ChatStretchOverscroll {
     fine(.overscroll, 'absorb', {
       'v': LogFormat.f(velocity),
       'scaledV': LogFormat.ratio(scaled),
-      'from': LogFormat.ratio(overscroll),
+      'from': LogFormat.ratio(_overscroll),
     });
   }
 
-  /// Scrolled back into content — release any live stretch once.
+  /// Content travelled back from the stretched edge — release any live
+  /// stretch once.
   ///
   /// A running return spring is left alone; restarting it every drag tick
   /// pins spring time at zero and keeps leftover stretch alive across frames.
   void releaseIntoContent() {
     if (_simulation != null) return;
-    if (overscroll.abs() < _minPaintStretch) {
-      overscroll = 0;
+    if (_overscroll.abs() < _minPaintStretch) {
+      _overscroll = 0;
       _interruptedOverscroll = 0;
       _totalPullPx = 0;
       return;
     }
     fine(.overscroll, 'release.intoContent', {
-      'from': LogFormat.ratio(overscroll),
+      'from': LogFormat.ratio(_overscroll),
     });
     _totalPullPx = 0;
     _startSpring(0);
   }
 
-  /// Hard reset (overlay, controller swap, programmatic jump).
+  @override
   void reset() {
     if (!isActive && _totalPullPx == 0) return;
-    fine(.overscroll, 'reset', {'from': LogFormat.ratio(overscroll)});
-    overscroll = 0;
+    fine(.overscroll, 'reset', {'from': LogFormat.ratio(_overscroll)});
+    _overscroll = 0;
     _totalPullPx = 0;
     _interruptedOverscroll = 0;
     _simulation = null;
     _simStart = null;
   }
 
-  /// Advance the return spring. Returns `true` if paint is still needed.
+  @override
   bool tick(Duration elapsed) {
     final simulation = _simulation;
     if (simulation == null) return false;
     final start = _simStart ??= elapsed;
     final seconds =
-        ((elapsed - start).inMicroseconds / Duration.microsecondsPerSecond) *
-        1.0;
+        (elapsed - start).inMicroseconds / Duration.microsecondsPerSecond;
     if (simulation.isDone(seconds)) {
       fine(.overscroll, 'spring.done', {'t': LogFormat.ratio(seconds)});
-      overscroll = 0;
+      _overscroll = 0;
       _interruptedOverscroll = 0;
       _simulation = null;
       _simStart = null;
       return false;
     }
-    overscroll = clampDouble(simulation.x(seconds), -1, 1);
+    _overscroll = clampDouble(simulation.x(seconds), -1, 1);
     if (++_tickFrame % 8 == 1) {
       fine(.overscroll, 'spring.tick', {
         't': LogFormat.ratio(seconds),
-        'stretch': LogFormat.ratio(overscroll),
+        'stretch': LogFormat.ratio(_overscroll),
       });
     }
     return true;
   }
 
-  /// Scale-from-edge matrix for [PaintingContext.pushTransform].
-  ///
-  /// Apply only to message content. Viewport-fixed chrome MUST NOT use this
-  /// matrix.
-  Matrix4 paintMatrix(Size size) {
-    final s = overscroll;
+  /// Scales `1 + |overscroll|` vertically about the pressed edge: the top
+  /// edge for positive stretch, the bottom edge for negative.
+  @override
+  Matrix4? paintTransform(Size size) {
+    final s = _overscroll;
+    if (s.abs() <= precisionErrorTolerance) return null;
     final originY = s >= 0 ? 0.0 : size.height;
-    final matrix = Matrix4.identity();
-    matrix
+    return Matrix4.identity()
       ..translateByDouble(0, originY, 0, 1)
       ..scaleByDouble(1, 1.0 + s.abs(), 1, 1)
       ..translateByDouble(0, -originY, 0, 1);
-    return matrix;
   }
 
   void _startSpring(double scaledVelocity) {
     _interruptedOverscroll = 0;
     _simulation = SpringSimulation(
       _spring,
-      overscroll,
+      _overscroll,
       0,
       scaledVelocity * _timeCorrectionFactor,
     );

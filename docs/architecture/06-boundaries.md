@@ -32,13 +32,13 @@ Returns `true` if any pin applied (caller cancels fling; on tick, also animate).
 
 ### Suspension
 
-Returns immediately when stitch layout is frozen. Drag no longer skips clamp —
-overshoot is paint stretch, not a skipped pin.
+Returns immediately when stitch layout is frozen. Drag never skips clamp.
+Overshoot feeds the paint-only edge effect, not a skipped pin.
 
 | Phase | Clamp? |
 |-------|--------|
 | Drag | Runs |
-| Stretch spring | Runs (layout already pinned) |
+| Edge-effect spring | Runs (layout already pinned) |
 | Fling | Runs every tick |
 | Close-path `animateTo` | Runs every tick (current code) |
 | Idle layout | Runs |
@@ -78,8 +78,8 @@ When `fits`:
 
 | Subsystem | Behavior |
 |-----------|----------|
-| `_signedOverscroll` / `_overscrollOnSide` | **Not used** — stretch uses `_unconsumedOverscrollDelta` |
-| Drag / fling | Travel suppressed; unconsumed dy still paints EdgeEffect stretch |
+| `_signedOverscroll` / `_overscrollOnSide` | **Not used**. The edge effect uses `_unconsumedOverscrollDelta` |
+| Drag / fling | Travel and fling suppressed; unconsumed drag dy still feeds the edge effect |
 | `_clampBoundaries` | **Single pin** only (not dual pin); skipped during delete recovery |
 | Scrollbar paint | **Skipped** — nothing to scroll |
 | Scrollbar drag | **Blocked** at pointer down |
@@ -115,8 +115,9 @@ When content **does not** fit, both pins may run in one clamp; **last wins**:
 
 ## Overscroll
 
-Paint-time Android 12 EdgeEffect stretch (`ChatStretchOverscroll`). Layout
-never rubber-bands.
+A paint-time edge effect, chosen by `ChatScrollPhysics.edgeEffect`
+(`ChatEdgeEffect.stretch`, the Android 12 EdgeEffect stretch run by
+`ChatStretchOverscroll`). Layout never rubber-bands.
 
 `_unconsumedOverscrollDelta` is the portion of a tick delta that exceeds
 remaining travel to a reached pin (`max(0, distance-to-pin)`). Measured from
@@ -126,11 +127,13 @@ renormalize. A missing boundary box means that edge is not in play
 overscroll. Short content has zero travel on both pins, so the full delta
 is unconsumed.
 
-`releaseIntoContent` runs only when the frame actually travelled back into
-content while stretch is painted — not on every mid-list drag tick because
-a return spring is still `isActive`.
+The render object passes `claim` the travel available to each drag delta
+(`|delta| − |unconsumed|`). The strategy starts a release only when the frame
+actually travels back into content while the effect is painted. A return
+spring that is still active on a mid-list drag tick does not count, and
+neither does short content, which has no travel.
 
-Wheel / keyboard / `scrollBy` stay hard-clamped (no stretch).
+Wheel / keyboard / `scrollBy` stay hard-clamped (no edge effect).
 
 ## Padding
 
@@ -145,9 +148,9 @@ Wheel / keyboard / `scrollBy` stay hard-clamped (no stretch).
   clears the last laid-out pad.
 - Runs for **all** scroll positions — not only at the tail.
 - While `_bottomPaddingDirty`, tick-path `pinNewest` is skipped so a live
-  stretch ticker cannot pin to the new pad before compensate runs (that
-  double-shift pushed the newest under the composer). Stretch is cleared on
-  pad change.
+  edge-effect ticker cannot pin to the new pad before compensate runs (that
+  double-shift pushed the newest under the composer). The edge effect is
+  reset on pad change.
 
 **Must not** implement keyboard follow via follow-tail `pinNewest` — that yanks
 users reading history back to the newest message.

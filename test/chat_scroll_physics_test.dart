@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('fling', () {
     test('starts flinging and settles to idle', () {
-      final physics = ChatScrollPhysics()..startFling(1200);
+      final physics = ChatFlingMotion()..startFling(1200);
       expect(physics.isFlinging, isTrue);
 
       var elapsed = Duration.zero;
@@ -21,7 +21,7 @@ void main() {
     });
 
     test('cancelFling stops immediately', () {
-      final physics = ChatScrollPhysics()
+      final physics = ChatFlingMotion()
         ..startFling(800)
         ..cancelFling();
       expect(physics.isFlinging, isFalse);

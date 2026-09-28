@@ -968,7 +968,8 @@ class ChatScrollController {
   bool _disposed = false;
 
   /// When true, [SelectableMessage] must not fire tap or long-press selection
-  /// actions — the current pointer down cancelled an in-flight fling.
+  /// actions — the current pointer down caught an in-flight fling or edge
+  /// spring.
   @internal
   bool get flingCancelSuppressesLongPress => _flingCancelSuppressesLongPress;
   @internal
