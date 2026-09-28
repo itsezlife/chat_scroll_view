@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/gestures.dart';
@@ -25,19 +26,19 @@ enum ChatScrollbarPress {
 /// both to find the band position under the pointer.
 typedef ChatScrollbarGrabPosition = ({double progress, double spanShare});
 
-/// Per-viewport scrollbar state: the frame resolved at the last paint and
-/// the thumb's motion — at rest, grabbed by a pointer, or settling after a
-/// grab.
+/// Per-viewport scrollbar state: the frame resolved at the last paint, the
+/// thumb's motion — at rest, grabbed by a pointer, or settling after a
+/// grab — and the scrollbar's visibility.
 ///
 /// Knows nothing of the data source, the controller, or anchor math — the
 /// render object computes the band's thumb progress and span share and
-/// hands them to [resolve], and maps a [ChatScrollbarGrabPosition] back to
-/// a band position. Paint and grab hit-testing both read [frame], so a
-/// press lands on exactly what was last painted; between a layout and its
-/// paint no pointer event is dispatched, so [frame] is never staler than
-/// the pixels on screen.
+/// hands them to [resolve], maps a [ChatScrollbarGrabPosition] back to a
+/// band position, and reports list motion to the visibility calls. Paint
+/// and grab hit-testing both read [frame], so a press lands on exactly what
+/// was last painted; between a layout and its paint no pointer event is
+/// dispatched, so [frame] is never staler than the pixels on screen.
 ///
-/// ## Motion
+/// ## Frame and thumb motion
 ///
 /// - **Rest** — the thumb shows the band: position and length from
 ///   [resolve]'s progress and span share.
@@ -46,23 +47,45 @@ typedef ChatScrollbarGrabPosition = ({double progress, double spanShare});
 ///   press, so the travel the pointer moves through, and so the
 ///   pointer-to-band mapping, stay fixed for the whole grab.
 /// - **Settle** — after [endGrab], the thumb eases from where the pointer
-///   left it to the band's thumb over [settleDuration], advanced by
-///   [tickSettle]. The band keeps moving the target while it settles.
+///   left it to the band's thumb over [settleDuration] along [settleCurve],
+///   advanced by [tickSettle]. The band keeps moving the target while it
+///   settles.
 ///
 /// The settle is not an `AnimationController`: the owner is a render object
 /// with no `TickerProvider`; the render object's own ticker drives it.
+///
+/// ## Visibility
+///
+/// [visibility] follows the [ChatScrollbarVisibility] handed to
+/// [configureVisibility]: constant `1` for always, a
+/// [ChatScrollActivityClock] of its own for auto-hide — never the viewport's
+/// scroll-activity clock, so nothing that pins scroll activity reaches it.
+/// Two holders keep an auto-hide clock held, and neither releases the
+/// other's hold:
+///
+/// - **List motion** — [holdVisibility] while a tick moves the list,
+///   [releaseVisibility] once nothing does.
+/// - **The grab** — from [tryStartGrab] until [endGrab] or [reset].
+///
+/// [pulseVisibility] reports a discrete move and is ignored while a grab
+/// holds: the grab's own jumps are part of the grab, and its release starts
+/// the idle delay, not the navigation delay.
 @internal
 final class ChatScrollbarRuntime {
+  /// A runtime that calls [onVisibilityChanged] inside ticker frames
+  /// whenever an auto-hide fade moves [visibility]; the owner repaints.
+  ChatScrollbarRuntime({required VoidCallback onVisibilityChanged})
+    : _onVisibilityChanged = onVisibilityChanged;
+
   /// Width of the grab strip along the viewport's trailing edge.
   static const double stripWidth = 20;
 
-  /// How long the thumb takes to ease from the pointer back to the band's
-  /// position after a grab ends.
-  static const Duration settleDuration = Duration(milliseconds: 250);
+  /// Settle length and curve under [ChatScrollbarVisibility.always], which
+  /// has no fade to take them from.
+  static const Duration _alwaysSettleDuration = Duration(milliseconds: 250);
+  static const Curve _alwaysSettleCurve = Curves.easeOut;
 
-  /// Curve applied to the settle's linear time fraction; the thumb's top
-  /// and length are lerped by its output.
-  static const Curve settleCurve = Curves.easeOut;
+  // --- Frame and thumb motion ------------------------------------------------
 
   ChatScrollbarFrame? _frame;
   double _viewportWidth = 0;
@@ -92,9 +115,11 @@ final class ChatScrollbarRuntime {
   /// [thumbFraction] is the visible band's share of the known span. At rest
   /// the thumb shows exactly that. While grabbed it shows the pointer's
   /// position with the frozen length; while settling, a blend of the two.
-  /// Returns `null` (and clears [frame]) when the track has no length or
-  /// the thumb, floored at the painter's minimum, would leave nothing to
-  /// travel.
+  /// The frame carries the current [visibility]; it is resolved, and grab
+  /// hit-testing reads it, even at visibility `0`, when the owner skips the
+  /// painter. Returns `null` (and clears [frame]) when the track has no
+  /// length or the thumb, floored at the painter's minimum, would leave
+  /// nothing to travel.
   ChatScrollbarFrame? resolve({
     required ChatScrollbarPainter painter,
     required Size size,
@@ -148,6 +173,7 @@ final class ChatScrollbarRuntime {
       trackRect: Rect.fromLTRB(left, trackTop, right, trackBottom),
       thumbRect: Rect.fromLTRB(left, thumbTop, right, thumbTop + thumbLength),
       textDirection: textDirection,
+      visibility: visibility,
       grabFactor: isGrabbing ? 1.0 : 0.0,
     );
   }
@@ -160,17 +186,23 @@ final class ChatScrollbarRuntime {
     if (isSettling) _motion = null;
   }
 
-  /// Drops [frame] and all motion, a grab included. For a render object
-  /// leaving the tree, where the grabbing pointer's remaining events never
-  /// arrive.
+  /// Drops [frame], all motion (a grab included), and the visibility state:
+  /// both holds are forgotten and an auto-hide clock is disposed, its
+  /// pending hide cancelled. For a render object leaving the tree, where the
+  /// grabbing pointer's remaining events never arrive; the owner calls
+  /// [configureVisibility] again on re-attach, which starts auto-hide
+  /// hidden.
   void reset() {
     _frame = null;
     _motion = null;
+    _motionHeld = false;
+    configureVisibility(null);
   }
 
   /// Starts a grab when [event] lands in the strip: [stripWidth] wide on the
   /// trailing edge of [frame]'s direction, over the track's vertical span,
-  /// both bounds inclusive. Replaces a settle in flight.
+  /// both bounds inclusive. Replaces a settle in flight, and holds
+  /// visibility until [endGrab].
   ///
   /// Returns where the press landed, or `null` when it missed the strip and
   /// no grab started. On [ChatScrollbarPress.track] the thumb is centred on
@@ -195,6 +227,7 @@ final class ChatScrollbarRuntime {
       thumbLength: thumb.height,
       spanShare: _spanShare,
     );
+    _visibilityClock?.hold();
     return onThumb ? ChatScrollbarPress.thumb : ChatScrollbarPress.track;
   }
 
@@ -223,7 +256,8 @@ final class ChatScrollbarRuntime {
 
   /// Ends the grab, if any, and starts the settle from the thumb the grab
   /// last asked for. Without a resolved frame the thumb goes straight to
-  /// rest.
+  /// rest. Releases the grab's visibility hold: the idle delay starts
+  /// unless list motion still holds.
   void endGrab() {
     if (_motion case final _Grab grab) {
       _motion = switch (_frame) {
@@ -233,18 +267,38 @@ final class ChatScrollbarRuntime {
         ),
         null => null,
       };
+      if (!_motionHeld) _visibilityClock?.release();
     }
   }
+
+  /// How long the release settle runs: the auto-hide fade-out, or 250 ms
+  /// under always visibility and with no preset.
+  Duration get settleDuration => switch (_visibilityMode) {
+    ChatScrollbarVisibility$AutoHide(:final fadeOut) => fadeOut,
+    ChatScrollbarVisibility$Always() || null => _alwaysSettleDuration,
+  };
+
+  /// Curve applied to the settle's linear time fraction; the thumb's top
+  /// and length are lerped by its output. The auto-hide curve, or
+  /// [Curves.easeOut] under always visibility and with no preset.
+  Curve get settleCurve => switch (_visibilityMode) {
+    ChatScrollbarVisibility$AutoHide(:final curve) => curve,
+    ChatScrollbarVisibility$Always() || null => _alwaysSettleCurve,
+  };
 
   /// Advances the settle to the ticker time [elapsed] and returns whether
   /// the thumb moved and needs a repaint. The first tick after [endGrab]
   /// starts the clock, so the first settle frame still shows the pointer's
-  /// position; the tick past [settleDuration] returns the thumb to rest.
+  /// position; the tick past [settleDuration] returns the thumb to rest. A
+  /// zero [settleDuration] rests on that first tick. A visibility change
+  /// mid-settle retimes the rest of it.
   bool tickSettle(Duration elapsed) {
     if (_motion case final _Settle settle) {
       final start = settle.start ??= elapsed;
-      final t =
-          (elapsed - start).inMicroseconds / settleDuration.inMicroseconds;
+      final duration = settleDuration;
+      final t = duration <= Duration.zero
+          ? 1.0
+          : (elapsed - start).inMicroseconds / duration.inMicroseconds;
       if (t >= 1) {
         _motion = null;
       } else {
@@ -253,6 +307,103 @@ final class ChatScrollbarRuntime {
       return true;
     }
     return false;
+  }
+
+  // --- Visibility ------------------------------------------------------------
+
+  final VoidCallback _onVisibilityChanged;
+
+  /// The preset's visibility; `null` with no painted preset or while
+  /// detached.
+  ChatScrollbarVisibility? _visibilityMode;
+
+  /// Live exactly while [_visibilityMode] is auto-hide.
+  ChatScrollActivityClock? _visibilityClock;
+
+  /// Whether list motion holds visibility, separately from the grab's hold,
+  /// so ending one never drops the other.
+  bool _motionHeld = false;
+
+  bool _visibilityMuted = false;
+
+  /// **Scrollbar visibility** in `[0, 1]`: `1` under always, the auto-hide
+  /// clock's value under auto-hide, `0` when unconfigured.
+  double get visibility => switch (_visibilityMode) {
+    ChatScrollbarVisibility$AutoHide() => _visibilityClock?.value ?? 0,
+    ChatScrollbarVisibility$Always() => 1,
+    null => 0,
+  };
+
+  /// Pauses auto-hide fades while the viewport's `TickerMode` is off. The
+  /// idle delay still runs; a fade it starts waits for the ticker.
+  set visibilityMuted(bool value) {
+    _visibilityMuted = value;
+    _visibilityClock?.muted = value;
+  }
+
+  /// Applies the preset's [value] — `null` for no painted preset, or on
+  /// detach. An equal value changes nothing.
+  ///
+  /// Switching to auto-hide keeps the visibility currently shown: from
+  /// always the scrollbar stays at `1` and the idle delay starts, unless a
+  /// hold is live; from `null` it starts hidden. Auto-hide to auto-hide
+  /// retimes the running clock, effective from its next fade, hold, or
+  /// hide. Leaving auto-hide disposes the clock and cancels a pending hide.
+  void configureVisibility(ChatScrollbarVisibility? value) {
+    if (value == _visibilityMode) return;
+    final shown = visibility;
+    _visibilityMode = value;
+    switch (value) {
+      case final ChatScrollbarVisibility$AutoHide autoHide:
+        final timing = ChatScrollActivityTiming(
+          idleDelay: autoHide.idleDelay,
+          navigationIdleDelay: autoHide.navigationIdleDelay,
+          fadeIn: autoHide.fadeIn,
+          fadeOut: autoHide.fadeOut,
+          curve: autoHide.curve,
+        );
+        if (_visibilityClock case final clock?) {
+          clock.timing = timing;
+          return;
+        }
+        final clock = _visibilityClock = ChatScrollActivityClock(
+          timing: timing,
+          onChanged: _onVisibilityChanged,
+          initialValue: shown,
+        )..muted = _visibilityMuted;
+        if (_motionHeld || isGrabbing) {
+          clock.hold();
+        } else if (shown > 0) {
+          clock.pulse(navigation: false);
+        }
+      case ChatScrollbarVisibility$Always() || null:
+        _visibilityClock?.dispose();
+        _visibilityClock = null;
+    }
+  }
+
+  /// List motion is moving the reader's position; [navigation] marks
+  /// programmatic motion (an animated scroll), so the later release waits
+  /// for the navigation delay. Called on every moving tick.
+  void holdVisibility({bool navigation = false}) {
+    _motionHeld = true;
+    _visibilityClock?.hold(navigation: navigation);
+  }
+
+  /// Nothing moves the list any more. Starts the hide delay unless a grab
+  /// still holds; a no-op without a motion hold.
+  void releaseVisibility() {
+    if (!_motionHeld) return;
+    _motionHeld = false;
+    if (!isGrabbing) _visibilityClock?.release();
+  }
+
+  /// A discrete move of the reader's position: show, then hide after the
+  /// navigation delay ([navigation]) or the idle delay, unless held.
+  /// Ignored while a grab holds.
+  void pulseVisibility({bool navigation = true}) {
+    if (isGrabbing) return;
+    _visibilityClock?.pulse(navigation: navigation);
   }
 }
 

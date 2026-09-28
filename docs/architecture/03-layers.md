@@ -31,9 +31,10 @@ idea as `SliverMultiBoxAdaptorElement`, without the sliver protocol.
 | `ChatRubberBandOverscroll` | Headless (`@internal`) | Rubber-band edge effect: resistance curve, reverse claim, impact overshoot, spring, translate matrix |
 | `ChatNoOverscroll` | Headless (`@internal`, const) | None edge effect: drops motion past a pin, never paints |
 | `ChatChunkFetchScheduler` | Headless (render-owned) | Fetch poll, jump-fetch, LRU eviction coordination |
-| `ChatScrollbar` | Immutable value (public, sealed) | Scrollbar preset: `ChatScrollbar(painter:)` or `.none()` |
+| `ChatScrollbar` | Immutable value (public, sealed) | Scrollbar preset: `ChatScrollbar(painter:, visibility:)` or `.none()` |
+| `ChatScrollbarVisibility` | Immutable value (public, sealed) | When the scrollbar shows: `.always()` or `.autoHide(...)` (idle / navigation delays, fades, curve) |
 | `ChatScrollbarPainter` | Open contract (public) | Scrollbar look: geometry getters + `paint(frame, theme)`; `ChatPillScrollbarPainter` is the default |
-| `ChatScrollbarRuntime` | Headless (render-owned, `@internal`) | Frame resolved once per paint (track + thumb rects, factors), strip hit-test, thumb motion (grab offset, frozen length and span share, release settle), pointer → grab position |
+| `ChatScrollbarRuntime` | Headless (render-owned, `@internal`) | Frame resolved once per paint (track + thumb rects, factors), strip hit-test, thumb motion (grab offset, frozen length and span share, release settle), pointer → grab position, visibility (auto-hide clock, motion and grab holds) |
 
 ## Ownership boundaries
 
@@ -87,8 +88,11 @@ flowchart LR
   the painter only draws that frame. Grab hit-testing reads the runtime's
   frame, never the painter. The runtime also owns the thumb's motion (rest,
   grab, settle) in pixels only; the render object maps a grab position back
-  to a band position and seats it through the controller. An unequal preset
-  ends an active grab.
+  to a band position and seats it through the controller. Visibility is the
+  runtime's too: the render object reports motion, jumps, and steps; the
+  runtime's auto-hide clock turns them into the frame's visibility, apart
+  from scroll activity. An unequal preset ends an active grab and
+  re-resolves visibility.
 - **Animator** is bound on attach (`controller.animator = …`) and cleared on
   detach / dispose.
 

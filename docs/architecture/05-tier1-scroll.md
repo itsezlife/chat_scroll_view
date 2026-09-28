@@ -253,7 +253,9 @@ and follow-tail converge on the next layout.
   id, then `jumpToFraction(id, fraction)` (layout path, `FractionalPlacement`
   seated on the row's real height). Release releases the placement and
   eases the thumb rect back to the band's thumb on the ticker
-  (`tickSettle`, `ChatScrollbarRuntime.settleDuration`).
+  (`tickSettle`, over the visibility preset's fade-out and curve — 250 ms
+  `easeOut` under always). A grab holds scrollbar visibility; see
+  [Scrollbar visibility](09-day-groups-and-headers.md#scrollbar-visibility).
 
 ## Semantics
 

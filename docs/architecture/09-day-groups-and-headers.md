@@ -184,6 +184,42 @@ activity, and each delegate chooses to follow it (`hidesWhenIdle` on the
 built-in day header policies). `onChanged` fires only in ticker frames; the
 viewport then re-resolves the chrome frame and repaints (no layout).
 
+## Scrollbar visibility
+
+Scrollbar visibility is a second `[0, 1]` factor beside scroll activity,
+never derived from it: the day header reads activity only, the scrollbar
+painter reads visibility only (`ChatScrollbarFrame.visibility`). The preset
+chooses the mode (`ChatScrollbar(visibility:)`): `always` is a constant `1`
+with no clock; `autoHide` runs a second `ChatScrollActivityClock`, owned by
+`ChatScrollbarRuntime` and created on attach (disposed on detach and when
+leaving auto-hide), with the preset's idle delay, navigation delay, fades,
+and curve. A `none` preset resolves `0`.
+
+The runtime tracks two holders — list motion and the thumb grab — because
+the clock's hold is a single flag: the clock is released only once both
+end.
+
+| Edge | Runtime call → clock |
+|------|----------------------|
+| A tick consumes scroll delta (drag, fling, wheel, animate — including a self-send's animated pull to the tail — span auto-scroll) | `holdVisibility(navigation: animate-only delta)` → `hold` |
+| Nothing moves the list (same rule as activity: `_releaseMotionIfSettled`) | `releaseVisibility()` → `release` unless a grab holds |
+| Thumb grab starts / ends | `tryStartGrab` → `hold`; `endGrab` → `release` unless list motion holds |
+| Jump (`_onJump`: `jumpTo`, `jumpToCenterBand`, the jump that starts a far animate or a far self-send pull) | `pulseVisibility()` → `pulse()`; ignored while grabbing (grab moves seat through `jumpToFraction`) |
+| `scrollBy` (keyboard step) | `pulseVisibility(navigation: false)` → `pulse(navigation: false)` |
+| Attach | clock starts at `0`: an auto-hide scrollbar opens hidden |
+| Unequal preset | `configureVisibility`: always → auto-hide starts from `1` and pulses (no flicker); auto-hide → auto-hide retimes the running clock; → always / none disposes it |
+| `TickerMode` off (`ticking`) | `visibilityMuted` mutes the fades; the idle timer still runs |
+
+Silent — no call, visibility unchanged: follow-tail on arrival (a layout
+path that consumes no tick delta), history loads, renormalize, band-stable
+delete recovery, inset and keyboard changes, row chrome transitions, and the
+day header's `holdsActivity` (the scrollbar clock is never pinned).
+
+At visibility `0` the frame is still resolved — strip hit-testing reads it —
+but the painter is not called. The release settle runs over the auto-hide
+`fadeOut` along its `curve` (250 ms `easeOut` under always), so the thumb
+comes to rest in step with the fade.
+
 ## Floating header ownership
 
 | Concern | Owner |

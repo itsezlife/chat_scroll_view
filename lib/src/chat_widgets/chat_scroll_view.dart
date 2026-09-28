@@ -510,16 +510,18 @@ class ChatScrollView extends RenderObjectWidget {
   final ChatScrollPhysics? physics;
 
   /// The **scrollbar preset**: a scrollbar drawn by a
-  /// [ChatScrollbarPainter], or [ChatScrollbar.none] for no scrollbar.
+  /// [ChatScrollbarPainter] and shown per a [ChatScrollbarVisibility], or
+  /// [ChatScrollbar.none] for no scrollbar.
   ///
   /// `null` resolves to `const ChatScrollbar()` on every build: the
-  /// [ChatPillScrollbarPainter] at its defaults. Colours come from
-  /// [ChatScrollbarThemeData]; the painter picks sizes; where the scrollbar
-  /// sits follows [textDirection].
+  /// [ChatPillScrollbarPainter] at its defaults, always shown. Colours come
+  /// from [ChatScrollbarThemeData]; the painter picks sizes; where the
+  /// scrollbar sits follows [textDirection].
   ///
   /// Compared by value on rebuild: an equal value is a no-op, so a grab in
-  /// progress survives. An unequal value ends the grab; the grabbing
-  /// pointer then scrolls nothing until it lifts.
+  /// progress and a pending auto-hide survive. An unequal value ends the
+  /// grab — the grabbing pointer then scrolls nothing until it lifts — and
+  /// the new visibility takes over from the value currently shown.
   final ChatScrollbar? scrollbar;
 
   /// The effective physics: [physics], or the platform default when unset.

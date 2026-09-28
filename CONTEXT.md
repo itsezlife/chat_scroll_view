@@ -172,7 +172,7 @@ A host-chosen combination of scrollbar visibility, **scrollbar grab**, and **scr
 _Avoid_: Scrollbar mode, adaptive scrollbar (as a live switch), ScrollBehavior
 
 **Scrollbar visibility**:
-The scrollbar's own shown factor in `[0, 1]`, separate from **scroll activity**. List motion feeds it the same way it feeds scroll activity; a grab, hovering the scrollbar, a moving edge effect, and the pointer entering or leaving the viewport also move it. It rises when the reader's position in the conversation changes, never when only the thumb's geometry changes (history loads, follow tail on arrival, pixel-preserving writers). Either always shown or auto-hiding after an idle delay.
+The scrollbar's own shown factor in `[0, 1]`, separate from **scroll activity**. List motion feeds it the same way it feeds scroll activity; a grab, hovering the scrollbar, a moving edge effect, and the pointer entering or leaving the viewport also move it. It rises when the reader's position in the conversation changes, never when only the thumb's geometry changes (history loads, follow tail on arrival, pixel-preserving writers). Either always shown or auto-hiding after an idle delay (longer after navigation).
 _Avoid_: Scroll activity (as the scrollbar's driver), scrollbar opacity, fade mode
 
 **Scrollbar hold** / **Scrollbar suppression**:

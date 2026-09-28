@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_theme.dart';
+import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
@@ -25,9 +26,12 @@ import 'package:flutter/painting.dart';
 /// held it scrolls nothing until it lifts.
 @immutable
 sealed class ChatScrollbar {
-  /// A scrollbar drawn by [painter] — see [ChatScrollbar$Painted].
-  const factory ChatScrollbar({ChatScrollbarPainter painter}) =
-      ChatScrollbar$Painted;
+  /// A scrollbar drawn by [painter], shown per [visibility] — see
+  /// [ChatScrollbar$Painted].
+  const factory ChatScrollbar({
+    ChatScrollbarPainter painter,
+    ChatScrollbarVisibility visibility,
+  }) = ChatScrollbar$Painted;
 
   const ChatScrollbar._();
 
@@ -35,11 +39,11 @@ sealed class ChatScrollbar {
   const factory ChatScrollbar.none() = ChatScrollbar$None;
 }
 
-/// A scrollbar drawn by [painter].
+/// A scrollbar drawn by [painter], shown per [visibility].
 ///
-/// Always shown while there is something to scroll. A pointer that goes down
-/// within 20 px of the viewport's trailing edge, over the track's vertical
-/// span, grabs the scrollbar until it lifts:
+/// A pointer that goes down within 20 px of the viewport's trailing edge,
+/// over the track's vertical span, grabs the scrollbar until it lifts —
+/// whether or not it is currently shown:
 ///
 /// - A press on the thumb keeps the point it grabbed: nothing moves until
 ///   the pointer does. A press on the track beside the thumb centres the
@@ -50,19 +54,24 @@ sealed class ChatScrollbar {
 ///   the scroll band's top edge lands at that position — inside a message
 ///   when the position falls inside one, so dragging through a tall message
 ///   moves through it continuously.
-/// - On release the thumb eases back over 250 ms to where the list's own
-///   position puts it. The two can differ, because the list's position
-///   weighs how many messages fit in the band where it landed.
+/// - On release the thumb eases back to where the list's own position puts
+///   it, over [visibility]'s fade-out and curve (250 ms, [Curves.easeOut]
+///   under [ChatScrollbarVisibility.always]). The two can differ, because
+///   the list's position weighs how many messages fit in the band where it
+///   landed.
 ///
 /// A grab starts only on a fresh press, cancels a fling in flight, releases
 /// a held navigation placement, and never reaches message selection, taps,
-/// secondary taps, or the list drag. Each move the list follows reports a
-/// jump to the controller's jump listeners, and fetches unloaded history
-/// the same way a jump does.
+/// secondary taps, or the list drag. It holds the scrollbar shown until the
+/// pointer lifts. Each move the list follows reports a jump to the
+/// controller's jump listeners, and fetches unloaded history the same way a
+/// jump does.
 final class ChatScrollbar$Painted extends ChatScrollbar {
-  /// A scrollbar drawn by [painter]; defaults to [ChatPillScrollbarPainter].
+  /// A scrollbar drawn by [painter]; defaults to [ChatPillScrollbarPainter],
+  /// always shown.
   const ChatScrollbar$Painted({
     this.painter = const ChatPillScrollbarPainter(),
+    this.visibility = const ChatScrollbarVisibility.always(),
   }) : super._();
 
   /// The look. Part of this preset's equality: give custom painters value
@@ -70,15 +79,22 @@ final class ChatScrollbar$Painted extends ChatScrollbar {
   /// preset unequal and ends an active grab on every rebuild.
   final ChatScrollbarPainter painter;
 
+  /// When the scrollbar is shown. The painter receives the resulting
+  /// **scrollbar visibility** as [ChatScrollbarFrame.visibility].
+  final ChatScrollbarVisibility visibility;
+
   @override
   bool operator ==(Object other) =>
-      other is ChatScrollbar$Painted && other.painter == painter;
+      other is ChatScrollbar$Painted &&
+      other.painter == painter &&
+      other.visibility == visibility;
 
   @override
-  int get hashCode => Object.hash(ChatScrollbar$Painted, painter);
+  int get hashCode => Object.hash(ChatScrollbar$Painted, painter, visibility);
 
   @override
-  String toString() => 'ChatScrollbar(painter: $painter)';
+  String toString() =>
+      'ChatScrollbar(painter: $painter, visibility: $visibility)';
 }
 
 /// No scrollbar: nothing is painted and no press is grabbed, so presses
@@ -97,12 +113,149 @@ final class ChatScrollbar$None extends ChatScrollbar {
   String toString() => 'ChatScrollbar.none()';
 }
 
+/// When a painted [ChatScrollbar] is shown: the source of its **scrollbar
+/// visibility**, a factor in `[0, 1]` the painter receives as
+/// [ChatScrollbarFrame.visibility]. At `0` the viewport does not call the
+/// painter.
+///
+/// Scrollbar visibility is the scrollbar's own factor, separate from scroll
+/// activity: the day header never reads it, and a day header that holds
+/// scroll activity does not hold the scrollbar.
+///
+/// Immutable and value-equal, as part of the preset's equality. An unequal
+/// visibility on a live viewport takes over from the value currently shown:
+/// switching from [ChatScrollbarVisibility.always] to
+/// [ChatScrollbarVisibility.autoHide] keeps the scrollbar shown and starts
+/// the idle delay, the reverse shows it at once, and new auto-hide timings
+/// apply from the next fade or hold.
+@immutable
+sealed class ChatScrollbarVisibility {
+  const ChatScrollbarVisibility._();
+
+  /// Shown whenever there is something to scroll — see
+  /// [ChatScrollbarVisibility$Always].
+  const factory ChatScrollbarVisibility.always() =
+      ChatScrollbarVisibility$Always;
+
+  /// Shown while the reader's position moves, hidden once it rests — see
+  /// [ChatScrollbarVisibility$AutoHide].
+  const factory ChatScrollbarVisibility.autoHide({
+    Duration idleDelay,
+    Duration navigationIdleDelay,
+    Duration fadeIn,
+    Duration fadeOut,
+    Curve curve,
+  }) = ChatScrollbarVisibility$AutoHide;
+}
+
+/// Visibility `1` whenever there is something to scroll.
+///
+/// A grab's release settle runs over 250 ms along [Curves.easeOut].
+final class ChatScrollbarVisibility$Always extends ChatScrollbarVisibility {
+  /// The always-shown scrollbar.
+  const ChatScrollbarVisibility$Always() : super._();
+
+  @override
+  bool operator ==(Object other) => other is ChatScrollbarVisibility$Always;
+
+  @override
+  int get hashCode => (ChatScrollbarVisibility$Always).hashCode;
+
+  @override
+  String toString() => 'ChatScrollbarVisibility.always()';
+}
+
+/// Visibility that rises when the reader's position in the conversation
+/// changes and falls after an idle delay.
+///
+/// The viewport opens with the scrollbar hidden. Then:
+///
+/// - **Held** (eased to `1` over [fadeIn], no hide pending) while the list
+///   moves under a drag, a fling, the mouse wheel, or span auto-scroll, and
+///   while a scrollbar grab holds the pointer. A finger resting mid-drag
+///   keeps the hold. Once nothing moves the list and no grab is held, the
+///   scrollbar stays shown for [idleDelay], then eases to `0` over
+///   [fadeOut].
+/// - **Pulsed** (shown, then hidden after a delay unless held) by a
+///   `scrollBy` step, the keyboard's included, after [idleDelay]; and by
+///   host navigation — a jump, a center-band jump, an animated scroll to a
+///   message, or a self-sent message pulling the reader to the tail — after
+///   [navigationIdleDelay]. An animated scroll holds while it runs, then
+///   waits [navigationIdleDelay]. The jumps a grab makes while it moves the
+///   list are part of the grab and do not pulse.
+/// - **Silent** for changes that only reshape the thumb: following the
+///   tail as messages arrive there, history loading around the band, anchor
+///   renormalization, delete recovery that keeps the band in place, inset
+///   and keyboard changes, and row chrome holds.
+///
+/// Fades advance on a viewport ticker and pause while the viewport's
+/// `TickerMode` is off. A grab's release settle runs over [fadeOut] along
+/// [curve].
+final class ChatScrollbarVisibility$AutoHide extends ChatScrollbarVisibility {
+  /// Auto-hide; the defaults show for 1000 ms after the list rests and
+  /// 1500 ms after host navigation, fading in and out over 250 ms along
+  /// [Curves.easeOut].
+  const ChatScrollbarVisibility$AutoHide({
+    this.idleDelay = const Duration(milliseconds: 1000),
+    this.navigationIdleDelay = const Duration(milliseconds: 1500),
+    this.fadeIn = const Duration(milliseconds: 250),
+    this.fadeOut = const Duration(milliseconds: 250),
+    this.curve = Curves.easeOut,
+  }) : super._();
+
+  /// How long the scrollbar stays shown once the list rests after user
+  /// motion, a `scrollBy` step, or a grab's release.
+  final Duration idleDelay;
+
+  /// How long the scrollbar stays shown after host navigation lands.
+  final Duration navigationIdleDelay;
+
+  /// Ease from the current visibility to `1`.
+  final Duration fadeIn;
+
+  /// Ease from the current visibility to `0`; also the length of a grab's
+  /// release settle.
+  final Duration fadeOut;
+
+  /// Easing of both fades and of a grab's release settle. Part of this
+  /// preset's equality: most curves compare by identity, so pass a `const`
+  /// curve (or reuse one instance) — a fresh curve on every rebuild makes
+  /// the preset unequal and ends an active grab.
+  final Curve curve;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatScrollbarVisibility$AutoHide &&
+      other.idleDelay == idleDelay &&
+      other.navigationIdleDelay == navigationIdleDelay &&
+      other.fadeIn == fadeIn &&
+      other.fadeOut == fadeOut &&
+      other.curve == curve;
+
+  @override
+  int get hashCode => Object.hash(
+    ChatScrollbarVisibility$AutoHide,
+    idleDelay,
+    navigationIdleDelay,
+    fadeIn,
+    fadeOut,
+    curve,
+  );
+
+  @override
+  String toString() =>
+      'ChatScrollbarVisibility.autoHide(idleDelay: $idleDelay, '
+      'navigationIdleDelay: $navigationIdleDelay, fadeIn: $fadeIn, '
+      'fadeOut: $fadeOut, curve: $curve)';
+}
+
 /// What a [ChatScrollbarPainter] draws in one frame, in viewport-local
 /// pixels.
 ///
-/// Resolved by the viewport once per paint. Grab hit-testing reads the same
-/// [trackRect] and [thumbRect], so presses land on what the viewport handed
-/// the painter no matter what the painter drew.
+/// Resolved by the viewport once per paint, including paints where the
+/// scrollbar is hidden and the painter is not called. Grab hit-testing reads
+/// the same [trackRect] and [thumbRect], so presses land on what the
+/// viewport handed the painter no matter what the painter drew.
 @immutable
 final class ChatScrollbarFrame {
   /// A frame with [trackRect] and [thumbRect], resting unless the factors
@@ -134,7 +287,9 @@ final class ChatScrollbarFrame {
   /// [TextDirection.ltr] and on the left in [TextDirection.rtl].
   final TextDirection textDirection;
 
-  /// **Scrollbar visibility** in `[0, 1]`: how shown the scrollbar is.
+  /// **Scrollbar visibility** in `[0, 1]`: how shown the scrollbar is, per
+  /// the preset's [ChatScrollbarVisibility]. A painter receives no frame
+  /// while it is `0`.
   final double visibility;
 
   /// How far a hovering pointer has engaged the scrollbar, in `[0, 1]`.
@@ -174,9 +329,9 @@ final class ChatScrollbarFrame {
 /// **Scrollbar painter**: the host-replaceable look of the scrollbar.
 ///
 /// The viewport reads the geometry getters to resolve a [ChatScrollbarFrame],
-/// then calls [paint] with it on every viewport paint while a scrollbar is
-/// shown. Hit-testing reads that frame's rects, never what [paint] drew, so a
-/// custom look cannot move where presses land.
+/// then calls [paint] with it on every viewport paint while the scrollbar's
+/// visibility is above `0`. Hit-testing reads that frame's rects, never what
+/// [paint] drew, so a custom look cannot move where presses land.
 ///
 /// The geometry getters are read once per paint and must stay constant for a
 /// given painter value. [paint] must be pure and cheap: it runs inside the

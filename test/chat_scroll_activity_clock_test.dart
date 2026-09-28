@@ -238,6 +238,30 @@ void main() {
       ),
     );
 
+    testWidgets('a clock started shown pulses without a fade-in', (
+      tester,
+    ) async {
+      var changes = 0;
+      final clock = ChatScrollActivityClock(
+        timing: _timing,
+        onChanged: () => changes++,
+        initialValue: 1,
+      );
+      try {
+        expect(clock.value, 1);
+        clock.pulse(navigation: false);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 499));
+        expect(clock.value, 1);
+        expect(changes, 0, reason: 'already at 1: nothing to fade');
+        await tester.pump(const Duration(milliseconds: 1));
+        await tester.pump(const Duration(milliseconds: 150));
+        expect(clock.value, 0);
+      } finally {
+        clock.dispose();
+      }
+    });
+
     _clockTest('dispose cancels a pending hide', (
       tester,
       clock,

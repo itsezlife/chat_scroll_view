@@ -28,6 +28,22 @@
   pixels and colours; its sizes are constructor parameters (`paintsTrack`,
   `thickness`, `grabbedThickness`, `minThumbLength`, `crossAxisMargin`,
   `mainAxisMargin`).
+- **ADDED**: `ChatScrollbar(visibility:)` takes a `ChatScrollbarVisibility`,
+  its own **scrollbar visibility** apart from the day header's scroll
+  activity. `ChatScrollbarVisibility.always()` is the default and keeps
+  today's always-shown scrollbar. `ChatScrollbarVisibility.autoHide()`
+  opens hidden, fades in (250 ms) when the reader's position changes and
+  fades out (250 ms, `easeOut`) after `idleDelay` (1000 ms) — or
+  `navigationIdleDelay` (1500 ms) after a jump, an animated scroll, or a
+  self-send pulling to the tail. A drag, fling, wheel, keyboard step,
+  grab, or span auto-scroll keeps it shown until the list stops. Changes
+  that only reshape the thumb stay silent: follow-tail on arrival, history
+  loads, deletes, inset and keyboard changes, row chrome. A held day
+  header does not keep it shown. While hidden the painter is not called
+  (`ChatScrollbarFrame.visibility` is `0`); the strip still takes presses.
+  `TickerMode` off pauses the fades. Both variants are value-equal: an
+  equal preset on rebuild changes nothing, an unequal one takes over from
+  the visibility currently shown.
 - **CHANGED**: The thumb length a press maps through is the painted one.
   Before, the drag could use a different length from the paint when no
   row was laid out (a fixed 48 px), and a thumb as long as the track still
@@ -43,7 +59,8 @@
   pointer at the length it had at the press, and the scroll band's top
   lands on the matching fractional position in the known span — inside a
   message when it falls inside one, so tall messages scroll smoothly. On
-  release the thumb eases back to the list's own position over 250 ms.
+  release the thumb eases back to the list's own position over the
+  visibility's fade-out and curve (250 ms `easeOut` by default).
   Hosts see more `ChatProgrammaticJump` events and jump-listener calls
   during a grab (one per pointer move, including moves within one
   message), and the anchor lands mid-message with a negative

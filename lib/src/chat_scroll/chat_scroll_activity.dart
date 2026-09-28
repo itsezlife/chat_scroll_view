@@ -74,13 +74,22 @@ final class ChatScrollActivityTiming {
 /// `TickerProvider`, and a zero-duration `animateTo` notifies synchronously.
 @internal
 final class ChatScrollActivityClock {
-  /// Starts idle at `0`.
+  /// Starts at rest at [initialValue] — idle at `0` by default — with no
+  /// fade running and no hide pending.
   ChatScrollActivityClock({
     required ChatScrollActivityTiming timing,
     required VoidCallback onChanged,
-  }) : _timing = timing,
+    double initialValue = 0,
+  }) : assert(
+         initialValue >= 0 && initialValue <= 1,
+         'initialValue must be in [0, 1]',
+       ),
+       _timing = timing,
        _onChanged = onChanged,
-       _nextDelay = timing.idleDelay {
+       _nextDelay = timing.idleDelay,
+       _value = initialValue,
+       _from = initialValue,
+       _target = initialValue {
     _ticker = Ticker(_tick, debugLabel: 'ChatScrollActivityClock');
   }
 
@@ -96,9 +105,9 @@ final class ChatScrollActivityClock {
   /// Mutes fades while the host's `TickerMode` is off.
   set muted(bool value) => _ticker.muted = value;
 
-  double _value = 0;
-  double _from = 0;
-  double _target = 0;
+  double _value;
+  double _from;
+  double _target;
   Duration _duration = Duration.zero;
   bool _holding = false;
   bool _pinned = false;
