@@ -52,9 +52,11 @@ FieldsLogger _logFields(int level) => (category, message, [fields = const {}]) {
       .map((e) => '${e.key}=${e.value}')
       .join(' ');
   developer.log(
-    body.isEmpty ? '$message' : '$message | $body',
+    body.isEmpty
+        ? '[${category.name}] $message'
+        : '[${category.name}] $message | $body',
     level: level,
-    name: 'chat_scroll_view.${category.name}',
+    name: 'chat_scroll_view',
   );
   // coverage:ignore-end
 };
@@ -69,9 +71,9 @@ _logAll(int level) => (category, message, [stackTrace, reason]) {
   // coverage:ignore-start
   if (!category.enabled) return;
   developer.log(
-    '${reason ?? message}',
+    '[${category.name}] ${reason ?? message}',
     level: level,
-    name: 'chat_scroll_view.${category.name}',
+    name: 'chat_scroll_view',
     error: message is Exception || message is Error ? message : null,
     stackTrace: stackTrace,
   );

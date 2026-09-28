@@ -364,7 +364,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       // final backend = await BackendChatDataSource.connect(
       //   client: Supabase.instance.client,
       // );
-      final ChatDataSource backend = await CommentsDataSource.load();
+      final backend = await CommentsDataSource.load();
       // final backend = GeneratedChatDataSource(messageCount: 15);
 
       // The screen may have been popped while `load()` was in flight. The
@@ -384,7 +384,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
         final BackendChatDataSource source =>
           await source.getLastReadMessageId(),
         CommentsDataSource() => 9990,
-        _ => null,
+        // GeneratedChatDataSource() => 5,
       };
       final store = await ChatCenterBandStore.open();
       final openPosition = await backend.resolveOpenPosition(
