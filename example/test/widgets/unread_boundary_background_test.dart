@@ -76,6 +76,9 @@ Widget _harness({
   ),
 );
 
+/// How long the viewport animates the separator in or out.
+const _separatorTransition = Duration(milliseconds: 250);
+
 Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 16));
@@ -251,6 +254,7 @@ void main() {
       ds.insertMessage(_msg(count));
       _foreground();
       await _settle(tester);
+      await tester.pump(_separatorTransition);
 
       expect(boundary.value, count);
       expect(jumps, isEmpty);

@@ -171,6 +171,9 @@ String _expectedPillLabel(int count) =>
 
 /// Flush layout + post-frame initial viewport read sync (pill defers until
 /// [ChatVisibleRange] stabilizes).
+/// How long the viewport animates the separator in or out.
+const _separatorTransition = Duration(milliseconds: 250);
+
 Future<void> _pumpOpenSettled(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 16));
@@ -843,6 +846,7 @@ void main() {
 
         ds.insertMessage(_msg(count, self: true));
         await tester.pump();
+        await tester.pump(_separatorTransition);
 
         expect(boundary.value, isNull);
         expect(find.text('unread'), findsNothing);
@@ -912,6 +916,7 @@ void main() {
         ds.removeMessages([boundaryId + 2]);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 16));
+        await tester.pump(_separatorTransition);
 
         expect(boundary.value, isNull);
         expect(find.text('unread'), findsNothing);
@@ -936,6 +941,7 @@ void main() {
 
         readElsewhere.fire();
         await tester.pump();
+        await tester.pump(_separatorTransition);
 
         expect(boundary.value, isNull);
         expect(find.text('unread'), findsNothing);
@@ -950,6 +956,7 @@ void main() {
         boundary.setBoundary(movedId);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 16));
+        await tester.pump(_separatorTransition);
         expect(find.text('unread'), findsNothing);
         expect(boundary.separatorSeen, isFalse);
 
@@ -968,10 +975,12 @@ void main() {
 
         boundary.clear();
         await tester.pump();
+        await tester.pump(_separatorTransition);
         expect(find.text('unread'), findsNothing);
 
         boundary.setBoundary(boundaryId);
         await tester.pump();
+        await tester.pump(_separatorTransition);
         expect(boundary.value, boundaryId);
         expect(find.text('unread'), findsOneWidget);
         expect(

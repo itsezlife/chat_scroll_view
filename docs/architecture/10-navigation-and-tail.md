@@ -61,14 +61,17 @@ so at most one placement exists. Values are immutable: `hold()` and
 
 - The top inset differs from the previous normal-mode layout
   (`_lastLaidOutTopPad`).
-- A row chrome change touches the target while it is the anchor: the target
-  is the old or the new unread boundary row
-  (`_isNavigationTargetChromeChange`).
+- A row chrome change touches the target while it is the anchor
+  (`_isNavigationTargetChromeChange`). The target is the old or the new
+  unread boundary row on the pass that moves the boundary, or its separator
+  transition frame moved since the previous pass. The placement is
+  therefore re-applied on every frame of the target's own transition.
 
 On a pass where either trigger re-places an anchored held target, the row
 chrome hold (step 6d) stands down, including for a boundary change on
 another row in the same pass. Re-applying the placement is the only origin
-writer on that pass.
+writer on that pass. Later frames of a transition on another row run the
+row chrome hold again, as for any row chrome change away from the target.
 
 A held placement re-snaps only on these triggers, not every layout. If it
 did, it would undo bottom-inset compensation, the boundary clamp, and height
@@ -120,8 +123,9 @@ tail.
 The outcome goes to `addTailOrTargetListener` callbacks inside
 `invokeLayoutCallback`, before the pass paints. A listener may change the
 `unreadBoundary` value; the pass detects the change, consumes
-`_rowChromeChanged`, records `_laidOutUnreadBoundary`, and re-fans before
-placement and the pin, so the new row chrome is in this frame's geometry.
+`_rowChromeChanged`, records `_laidOutUnreadBoundary`, cancels both rows'
+separator transitions, and re-fans before placement and the pin, so the new
+row chrome is settled in this frame's geometry.
 Listeners must not `setState` or navigate (the element has no own build
 scope). Because the decision rides the placement, every release before the
 decision (drag, `scrollBy`, next navigation) cancels it and nothing is

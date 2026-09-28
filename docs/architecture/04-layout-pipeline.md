@@ -130,16 +130,38 @@ Recovery flags clear at end of `performLayout`.
 
 ### 6d. Row chrome hold (after pass-1 fan-out and delete recovery)
 
-Runs only on a pass flagged by `_rowChromeChanged`, which an
-`unreadBoundary` value change or listenable swap sets — the unread separator
-appears on or leaves one or two rows. The changed rows are the previous
-(`_laidOutUnreadBoundary`) and the current boundary. When one of them is the
+Runs only on a pass flagged by `_rowChromeChanged`. Two inputs set it: an
+`unreadBoundary` value change or listenable swap, and a moved frame of the
+unread separator's transition clock (`ChatRowChromeTransitionClock`).
+
+**Starting transitions.** On the pass that sees the boundary move from the
+previous value (`_laidOutUnreadBoundary`) to the current one,
+`_startUnreadSeparatorTransitions` runs before the fan-out. The old row
+exits if it was laid out last frame with the separator. The new row enters
+if it was laid out last frame as a loaded message. Any other row is
+cancelled, so it changes without a transition. Timing and curves come from
+Telegram's chat item animator (TRACE in the unread-bar worked guide):
+
+- The slot extent follows the 250 ms list-item move curve.
+- The exit fades out over 120 ms.
+- The enter fades in and scales up from 0.9 over 250 ms.
+
+All tracks start together. A reversed leg restarts from the current frame.
+`_buildMessage` hands each `RenderChatRowChrome` its frame before layout.
+The legs of rows that are no longer built are dropped after GC. While
+`TickerMode` is off the clock is muted: every leg ends at once, and later
+changes land in one frame.
+
+**Which rows changed.** On the boundary pass, the changed rows are the old
+and the new boundary row. On later passes, they are the rows whose
+transition frame moved since the previous pass. When a changed row is the
 armed navigation placement's target and that target is the anchor
 (`_isNavigationTargetChromeChange`), the hold is skipped and step 9
-re-applies the placement instead. The hold is also skipped when the top
-inset moved on the same pass while a held placement's target is the anchor
-(`_isNavigationTargetAnchored`): step 9 re-places the target either way, so
-the row chrome hold would only be a second origin writer.
+re-applies the placement instead, on every frame of the transition. The
+hold is also skipped when the top inset moved on the same pass while a held
+placement's target is the anchor (`_isNavigationTargetAnchored`). Step 9
+re-places the target either way, so the row chrome hold would only be a
+second origin writer.
 
 1. **`_recordRowChromeReference`** — right after step 6, before the fan-out
    re-lays out the changed rows: from the previous frame's offsets, pick the
@@ -149,14 +171,18 @@ the row chrome hold would only be a second origin writer.
 2. **`_holdRowChromeReference`** — after pass-1 fan-out (and after delete
    recovery's shift and refan): shift scroll so the reference row's bottom
    returns to its recorded position relative to the anchor, then re-fan
-   pass 1 once when it shifted. Silent while delete recovery is active or
+   pass 1 once when it shifted. The comparison is exact
+   (`precisionErrorTolerance`), because a transition moves the chrome by a
+   fraction of a pixel per frame. Silent while delete recovery is active or
    when the anchor id changed since the record.
 
-Effect: the bodies at and below a changed row on screen or above it keep
-their screen Y (the rows above absorb the height change); a change below
-the band grows off screen; at the tail the newest row stays at the band
-bottom. Renormalize, navigation alignment, and the clamp still run after
-the hold.
+Effect, on every frame of a transition: the bodies at and below a changed
+row that is on screen or above it keep their screen Y, and the rows above
+absorb the height change. A change below the band grows off screen. At the
+tail the newest row stays at the band bottom. Renormalize, navigation
+alignment and the clamp still run after the hold. A frame that runs while
+an animation, a stitch freeze or delete recovery owns the origin records no
+reference, so the owner keeps the origin.
 
 ### 7. Pass-1 fan-out — `_layoutFromAnchor` → `_fanOutFromAnchor`
 
@@ -184,8 +210,9 @@ released and the anchor moves to the newest with the tail pin marked
 (**target**). The outcome is dispatched to the controller's tail-or-target
 listeners inside a layout callback. When a listener changed the
 `unreadBoundary` value, this pass consumes `_rowChromeChanged`, records the
-new laid-out boundary, and re-fans, so steps 9–11 lay out the new row
-chrome and no frame paints the old one.
+new laid-out boundary, cancels the transitions of the old and the new
+boundary row, and re-fans. Steps 9–11 then lay out the new row chrome
+settled, and no frame paints the old one.
 
 ### 9. `_applyNavigationPlacement`
 

@@ -277,10 +277,11 @@ class ChatScrollElement extends RenderObjectElement
   /// with up to two items, top to bottom: the inline date separator when
   /// [startsNewDay] is set (presented by the day header policy's
   /// [ChatDayHeaderDelegate.inlineSeparator]), then the unread separator
-  /// when [hasUnreadSeparator] is set (always opaque; see
-  /// [_hasUnreadSeparator]). Both sit *outside* [SelectableMessage] and the
-  /// secondary-tap scope, so selection chrome never tints them and they
-  /// never count as message surface. Plain messages are wrapped in a
+  /// when [hasUnreadSeparator] is set (opaque at rest, driven by the
+  /// viewport's enter / exit transition; see [_hasUnreadSeparator]). Both
+  /// sit *outside* [SelectableMessage] and the secondary-tap scope, so
+  /// selection chrome never tints them and they never count as message
+  /// surface. Plain messages are wrapped in a
   /// [RepaintBoundary] for picture / layer caching; [ChatRowChrome] does its
   /// own per-child wrapping.
   ///
@@ -352,7 +353,7 @@ class ChatScrollElement extends RenderObjectElement
               child: separator(context, groupBucket, message.createdAt),
             ),
           if (unreadSeparator case final build? when hasUnreadSeparator)
-            ChatRowChromeItem(
+            ChatRowChromeItem.transitioning(
               delegate: const ChatRowChromeDelegate.opaque(),
               child: build(context),
             ),
@@ -375,13 +376,16 @@ class ChatScrollElement extends RenderObjectElement
 
   /// Whether row [id] carries the unread separator: a separator builder is
   /// wired, the row is a loaded [message], and [id] equals the current
-  /// `unreadBoundary` value. Read at build time and recorded per id in the
-  /// skip cache, so a boundary change re-inflates exactly the rows whose
-  /// answer flips.
+  /// `unreadBoundary` value or its separator is still exiting
+  /// ([RenderChatScrollView.isUnreadSeparatorExiting]). Read at build time
+  /// and recorded per id in the skip cache, so a boundary change re-inflates
+  /// exactly the rows whose answer flips: the new boundary row at once, the
+  /// old one when its exit ends.
   bool _hasUnreadSeparator(int id, IChatMessage? message) =>
       _widget.unreadSeparatorBuilder != null &&
       message != null &&
-      _widget.unreadBoundary?.value == id;
+      (_widget.unreadBoundary?.value == id ||
+          renderObject.isUnreadSeparatorExiting(id));
 
   // --- ChatChildManager (driven by RenderChatScrollView.performLayout) ------
 

@@ -329,21 +329,39 @@ class ChatScrollView extends RenderObjectWidget {
   ///
   /// The viewport listens while mounted. A value change — set, move, or
   /// clear — rebuilds only the old and the new boundary row; no other row
-  /// rebuilds. Replacing the listenable with a different instance acts as
-  /// a change from the old value to the new one: the old instance is no
-  /// longer heard, and nothing rebuilds when both hold the same id.
+  /// rebuilds. The new row rebuilds at once, and the old row rebuilds when
+  /// its separator has finished leaving. Replacing the listenable with a
+  /// different instance acts as a change from the old value to the new one:
+  /// the old instance is no longer heard, and nothing rebuilds when both
+  /// hold the same id.
+  ///
+  /// The separator animates in and out with the list-item timings of the
+  /// message change transition. Leaving, it fades out over 120 ms while
+  /// its slot collapses over 250 ms. Arriving, its slot grows over 250 ms
+  /// while it fades in and scales up from 0.9. A move runs both at once. A
+  /// change during a transition reverses it from where it is, without a
+  /// jump. A separator that is transitioning takes no input. Only a row
+  /// laid out on the previous frame animates; any other row gains or loses
+  /// the separator in one frame, as does every row while `TickerMode` is
+  /// off.
   ///
   /// Adding or removing the separator changes the boundary row's height
-  /// without moving what the reader sees. The message row at the bottom of
-  /// the scroll band keeps its screen position: a boundary row on screen or
-  /// above it grows or shrinks upward, and one below the band grows off
-  /// screen. At the tail the newest row stays pinned above the bottom
-  /// inset. An in-flight navigation, a stitch, or a delete recovery keeps
-  /// ownership of the scroll origin for that frame. When the changed row is
-  /// the target of a held [ChatScrollController.jumpTo] alignment (or
+  /// without moving what the reader sees, on every frame of the transition.
+  /// The message row at the bottom of the scroll band keeps its screen
+  /// position: a boundary row on screen or above it grows or shrinks
+  /// upward, and one below the band grows off screen. At the tail the newest
+  /// row stays pinned above the bottom inset. An in-flight navigation, a
+  /// stitch, or a delete recovery keeps ownership of the scroll origin on
+  /// its frames. When the changed row is the target of a held
+  /// [ChatScrollController.jumpTo] alignment (or
   /// [ChatScrollController.jumpToCenterBand] placement), the placement is
-  /// re-applied instead: after `jumpTo(boundary, alignment: 0)` the added
-  /// separator lands at the band top with the body below it.
+  /// re-applied instead, on every frame: after `jumpTo(boundary,
+  /// alignment: 0)` the added separator grows from the band top with the
+  /// body below it.
+  ///
+  /// A change made by a tail-or-target listener
+  /// ([ChatScrollController.addTailOrTargetListener]) lands without a
+  /// transition, in the same layout.
   final ValueListenable<int?>? unreadBoundary;
 
   /// Builds the **unread separator** shown above the [unreadBoundary] row.
@@ -354,11 +372,12 @@ class ChatScrollView extends RenderObjectWidget {
   /// row starts a day) and above the message body. It works with or without
   /// [dateSeparatorBuilder].
   ///
-  /// Unlike the inline date separator, it is always painted opaque — the
-  /// [dayHeaderDelegate] never fades or hides it. It is composed outside
-  /// selection chrome and outside the secondary-tap scope, and a press on it
-  /// is row chrome: it never starts message selection and never produces a
-  /// message menu request. Gestures inside the built widget still work.
+  /// Unlike the inline date separator, the [dayHeaderDelegate] never fades
+  /// or hides it: at rest it is painted opaque, and only its enter and exit
+  /// transition (see [unreadBoundary]) changes its opacity, scale, and
+  /// slot height. It is composed outside selection chrome and outside the
+  /// secondary-tap scope, and a press on it is row chrome: it never starts
+  /// message selection and never produces a message menu request. Gestures inside the built widget still work.
   ///
   /// The builder receives only a build context — text, localization, and
   /// styling are host chrome. Pass a stable reference, like

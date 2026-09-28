@@ -91,7 +91,9 @@ for chrome-only updates.
     (delegate `dayHeaderDelegate.inlineSeparator`);
   - unread separator if `hasUnreadSeparator` — resolved by `buildChild` as
     `unreadSeparatorBuilder != null && message != null &&
-    unreadBoundary?.value == id` (default `opaque()` delegate).
+    (unreadBoundary?.value == id || renderObject.isUnreadSeparatorExiting(id))`,
+    built as `ChatRowChromeItem.transitioning` with the `opaque()` delegate,
+    so the viewport's transition frame drives it.
   Any item → `ChatRowChrome` above the body; none → `RepaintBoundary` + body.
 - Row chrome is **outside** selection and the secondary-tap scope, so it is
   never tinted and never message surface.
@@ -123,8 +125,10 @@ builder tear-offs, not `identical` (otherwise every parent rebuild drops the
 cache). The `unreadBoundary` listenable instance is **not** a clear trigger:
 the boundary value is a per-id cache input, so a value change — or a swap to
 an instance holding another id — misses only the old and the new boundary
-row. `RenderChatScrollView` listens to the boundary and `markNeedsLayout`s so
-those rows are revisited.
+row. The new row misses at once. The old row keeps hitting while its
+separator exits, and misses once when the exit ends.
+`RenderChatScrollView` listens to the boundary and to its transition clock,
+and calls `markNeedsLayout` so those rows are revisited.
 
 **Selection-allowed map only** cleared on
 `ChatSelectionController` notify (`selectionAllowed` assign /

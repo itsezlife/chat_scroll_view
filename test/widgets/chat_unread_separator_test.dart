@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
@@ -257,6 +258,30 @@ ChatScrollController _controllerAt(int id) {
   addTearDown(controller.dispose);
   return controller;
 }
+
+// Transition TRACE (see the unread-bar worked guide): the extent follows the
+// 250 ms list-item move curve; the exit fade runs 120 ms and the enter fade
+// and scale 250 ms, both along the exact sine ease-in-out.
+const _frame = Duration(milliseconds: 10);
+
+double _sine(double t) => (1 - math.cos(math.pi * t.clamp(0.0, 1.0))) / 2;
+
+double _move(int ms) => kChatMessageChangeCurve.transform((ms / 250).clamp(0, 1));
+
+double _exitOpacity(int ms) => 1 - _sine(ms / 120);
+
+double _enterFade(int ms) => _sine(ms / 250);
+
+Matcher _near(double value) => moreOrLessEquals(value, epsilon: 1e-6);
+
+/// Width of the separator's box on screen, row chrome scale included.
+double _separatorWidth(WidgetTester tester) => tester
+    .getRect(
+      find
+          .ancestor(of: find.text('unread'), matching: find.byType(SizedBox))
+          .first,
+    )
+    .width;
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -554,7 +579,7 @@ void main() {
           unreadBoundary: second,
         ),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.text('unread'), findsOneWidget);
       expect(_top(tester, 'msg-19'), _top(tester, 'unread') + _separatorHeight);
@@ -564,11 +589,11 @@ void main() {
       );
 
       first.value = 17;
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(_top(tester, 'msg-19'), _top(tester, 'unread') + _separatorHeight);
 
       second.value = 21;
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(find.text('unread'), findsOneWidget);
       expect(_top(tester, 'msg-21'), _top(tester, 'unread') + _separatorHeight);
     });
@@ -593,6 +618,10 @@ void main() {
 
       boundary.value = 20;
       await tester.pump();
+      expect(counter.builds, <int, int>{20: 1});
+      expect(find.text('unread'), findsNWidgets(2));
+
+      await tester.pumpAndSettle();
 
       expect(counter.builds, <int, int>{18: 1, 20: 1});
       expect(find.text('unread'), findsOneWidget);
@@ -601,7 +630,7 @@ void main() {
         _top(tester, 'msg-18'),
         tester.getBottomLeft(find.text('msg-17')).dy,
       );
-      expect(_top(tester, 'msg-22'), belowTop);
+      expect(_top(tester, 'msg-22'), _near(belowTop));
     });
 
     for (final (from, to, verb) in <(int?, int?, String)>[
@@ -625,14 +654,14 @@ void main() {
         final aboveTop = _top(tester, 'msg-15');
 
         boundary.value = to;
-        await tester.pump();
+        await tester.pumpAndSettle();
 
         for (final MapEntry(key: id, value: top) in bodies.entries) {
-          expect(_top(tester, 'msg-$id'), top, reason: 'msg-$id');
+          expect(_top(tester, 'msg-$id'), _near(top), reason: 'msg-$id');
         }
         expect(
           _top(tester, 'msg-15'),
-          aboveTop + (to == null ? _separatorHeight : -_separatorHeight),
+          _near(aboveTop + (to == null ? _separatorHeight : -_separatorHeight)),
           reason: 'the rows above the boundary row absorb the change',
         );
         expect(find.text('unread'), to == null ? findsNothing : findsOneWidget);
@@ -661,10 +690,10 @@ void main() {
         final bodyTop = _top(tester, 'msg-61');
 
         boundary.value = to == null ? null : 60;
-        await tester.pump();
+        await tester.pumpAndSettle();
 
-        expect(tester.getBottomLeft(find.text('msg-63')).dy, bandBottom);
-        expect(_top(tester, 'msg-61'), bodyTop);
+        expect(tester.getBottomLeft(find.text('msg-63')).dy, _near(bandBottom));
+        expect(_top(tester, 'msg-61'), _near(bodyTop));
         expect(controller.isAtTail.value, isTrue);
         expect(find.text('unread'), to == null ? findsNothing : findsOneWidget);
       });
@@ -710,9 +739,298 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       boundary.value = 20;
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.text('msg-20'), findsNothing);
+      expect(find.text('unread'), findsNothing);
+    });
+  });
+
+  // jumpTo(14) leaves row 18 on screen, inside day 3 (16 starts it), so the
+  // separator is chrome item 0 of row 18.
+  group('Unread separator transition', () {
+    testWidgets('clearing fades the separator over 120 ms while its slot '
+        'collapses over 250 ms and the rows below hold still', (tester) async {
+      final boundary = _boundary(18);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: _controllerAt(14),
+          unreadBoundary: boundary,
+        ),
+      );
+      await tester.pump();
+      final bodies = <int, double>{
+        for (final id in <int>[18, 19, 22]) id: _top(tester, 'msg-$id'),
+      };
+      final aboveTop = _top(tester, 'msg-15');
+      final row = _rowOf(tester, 'unread');
+
+      boundary.value = null;
+      await tester.pump();
+      for (var ms = 0; ms < 250; ms += 10) {
+        if (ms > 0) await tester.pump(_frame);
+        expect(find.text('unread'), findsOneWidget, reason: '$ms ms');
+        expect(
+          row.debugChromeEffect(0).opacity,
+          _near(_exitOpacity(ms)),
+          reason: 'opacity at $ms ms',
+        );
+        expect(row.debugChromeEffect(0).hitTestable, isFalse);
+        for (final MapEntry(key: id, value: top) in bodies.entries) {
+          expect(_top(tester, 'msg-$id'), _near(top), reason: 'msg-$id $ms ms');
+        }
+        expect(
+          _top(tester, 'msg-15'),
+          _near(aboveTop + _separatorHeight * _move(ms)),
+          reason: 'slot at $ms ms',
+        );
+      }
+      await tester.pump(_frame);
+
+      expect(find.text('unread'), findsNothing);
+      for (final MapEntry(key: id, value: top) in bodies.entries) {
+        expect(_top(tester, 'msg-$id'), _near(top), reason: 'msg-$id');
+      }
+      expect(_top(tester, 'msg-15'), _near(aboveTop + _separatorHeight));
+    });
+
+    testWidgets('setting grows the slot while the separator fades in and '
+        'scales from 0.9 over 250 ms', (tester) async {
+      final boundary = _boundary(null);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: _controllerAt(14),
+          unreadBoundary: boundary,
+        ),
+      );
+      await tester.pump();
+      final bodies = <int, double>{
+        for (final id in <int>[18, 19, 22]) id: _top(tester, 'msg-$id'),
+      };
+      final aboveTop = _top(tester, 'msg-15');
+
+      boundary.value = 18;
+      await tester.pump();
+      final row = _rowOf(tester, 'unread');
+      for (var ms = 0; ms < 250; ms += 10) {
+        if (ms > 0) await tester.pump(_frame);
+        expect(
+          row.debugChromeEffect(0).opacity,
+          _near(_enterFade(ms)),
+          reason: 'opacity at $ms ms',
+        );
+        expect(
+          _separatorWidth(tester),
+          _near(400 * (0.9 + 0.1 * _enterFade(ms))),
+          reason: 'scale at $ms ms',
+        );
+        for (final MapEntry(key: id, value: top) in bodies.entries) {
+          expect(_top(tester, 'msg-$id'), _near(top), reason: 'msg-$id $ms ms');
+        }
+        expect(
+          _top(tester, 'msg-15'),
+          _near(aboveTop - _separatorHeight * _move(ms)),
+          reason: 'slot at $ms ms',
+        );
+      }
+      await tester.pump(_frame);
+
+      expect(row.debugChromeEffect(0), ChatRowChromeEffect.visible);
+      expect(_separatorWidth(tester), 400);
+      expect(_top(tester, 'msg-18'), _near(_top(tester, 'unread') + 32));
+      expect(_top(tester, 'msg-15'), _near(aboveTop - _separatorHeight));
+    });
+
+    for (final (from, to, verb) in <(int?, int?, String)>[
+      (null, 60, 'setting'),
+      (60, null, 'clearing'),
+    ]) {
+      testWidgets('$verb the boundary at the tail keeps the newest row pinned '
+          'on every frame', (tester) async {
+        final inset = ValueNotifier<double>(40);
+        addTearDown(inset.dispose);
+        final boundary = _boundary(from);
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _loaded(64),
+            controller: _controllerAt(56),
+            unreadBoundary: boundary,
+            bottomPadding: inset,
+          ),
+        );
+        await tester.pump();
+        final bandBottom =
+            tester.getTopLeft(find.byType(ChatScrollView)).dy + 600 - 40;
+        final bodyTop = _top(tester, 'msg-60');
+
+        boundary.value = to;
+        await tester.pump();
+        for (var ms = 0; ms <= 250; ms += 10) {
+          if (ms > 0) await tester.pump(_frame);
+          expect(
+            tester.getBottomLeft(find.text('msg-63')).dy,
+            _near(bandBottom),
+            reason: 'newest at $ms ms',
+          );
+          expect(_top(tester, 'msg-60'), _near(bodyTop), reason: '$ms ms');
+        }
+        expect(find.text('unread'), to == null ? findsNothing : findsOneWidget);
+      });
+    }
+
+    testWidgets('a boundary change mid-exit retargets from the current '
+        'frame without a jump or a rebuild', (tester) async {
+      final counter = _BuildCounter();
+      final boundary = _boundary(18);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: _controllerAt(14),
+          unreadBoundary: boundary,
+          messageBuilder: counter.call,
+        ),
+      );
+      await tester.pump();
+      final aboveTop = _top(tester, 'msg-15');
+      final row = _rowOf(tester, 'unread');
+
+      boundary.value = null;
+      await tester.pump();
+      for (var ms = 10; ms <= 60; ms += 10) {
+        await tester.pump(_frame);
+      }
+      final opacity = row.debugChromeEffect(0).opacity;
+      final top = _top(tester, 'msg-15');
+      expect(opacity, _near(0.5));
+      counter.builds.clear();
+
+      boundary.value = 18;
+      await tester.pump();
+      expect(row.debugChromeEffect(0).opacity, _near(opacity));
+      expect(_top(tester, 'msg-15'), _near(top));
+      for (var ms = 10; ms <= 250; ms += 10) {
+        await tester.pump(_frame);
+        expect(
+          row.debugChromeEffect(0).opacity,
+          _near(opacity + (1 - opacity) * _enterFade(ms)),
+          reason: 'opacity at $ms ms',
+        );
+        expect(
+          _top(tester, 'msg-15'),
+          _near(aboveTop + (top - aboveTop) * (1 - _move(ms))),
+          reason: 'slot at $ms ms',
+        );
+      }
+
+      expect(row.debugChromeEffect(0), ChatRowChromeEffect.visible);
+      expect(_top(tester, 'msg-15'), _near(aboveTop));
+      expect(counter.builds, isEmpty);
+    });
+
+    testWidgets('moving the boundary runs both legs at once and keeps the '
+        'rows below both still', (tester) async {
+      final boundary = _boundary(18);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: _controllerAt(14),
+          unreadBoundary: boundary,
+        ),
+      );
+      await tester.pump();
+      final belowTop = _top(tester, 'msg-22');
+
+      boundary.value = 20;
+      await tester.pump();
+      for (var ms = 0; ms < 250; ms += 10) {
+        if (ms > 0) await tester.pump(_frame);
+        expect(find.text('unread'), findsNWidgets(2), reason: '$ms ms');
+        expect(_top(tester, 'msg-22'), _near(belowTop), reason: '$ms ms');
+      }
+      await tester.pump(_frame);
+
+      expect(find.text('unread'), findsOneWidget);
+      expect(_top(tester, 'msg-20'), _top(tester, 'unread') + 32);
+      expect(_top(tester, 'msg-22'), _near(belowTop));
+    });
+
+    testWidgets('with tickers muted a change lands in one frame, and muting '
+        'settles a running transition', (tester) async {
+      final source = _loaded(64);
+      final controller = _controllerAt(14);
+      final boundary = _boundary(18);
+      Widget app({required bool ticking}) => TickerMode(
+        enabled: ticking,
+        child: _harness(
+          dataSource: source,
+          controller: controller,
+          unreadBoundary: boundary,
+        ),
+      );
+      await tester.pumpWidget(app(ticking: true));
+      await tester.pump();
+
+      boundary.value = 20;
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(find.text('unread'), findsNWidgets(2));
+
+      await tester.pumpWidget(app(ticking: false));
+      expect(find.text('unread'), findsOneWidget);
+      expect(_top(tester, 'msg-20'), _top(tester, 'unread') + 32);
+
+      boundary.value = null;
+      await tester.pump();
+      expect(find.text('unread'), findsNothing);
+    });
+
+    testWidgets('deleting the boundary row mid-exit drops it with its '
+        'separator', (tester) async {
+      final source = _loaded(24);
+      final boundary = _boundary(20);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: source,
+          controller: _controllerAt(23),
+          unreadBoundary: boundary,
+        ),
+      );
+      await tester.pump();
+
+      boundary.value = null;
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      source.removeMessages(<int>[20]);
+      await tester.pumpAndSettle();
+
+      expect(find.text('msg-20'), findsNothing);
+      expect(find.text('unread'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an animated scroll keeps the origin while a separator '
+        'transitions', (tester) async {
+      final controller = _controllerAt(14);
+      final boundary = _boundary(18);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: controller,
+          unreadBoundary: boundary,
+        ),
+      );
+      await tester.pump();
+
+      unawaited(controller.animateTo(42, highlight: false));
+      boundary.value = null;
+      await tester.pumpAndSettle();
+
+      expect(
+        _top(tester, 'msg-42'),
+        _near(tester.getTopLeft(find.byType(ChatScrollView)).dy),
+      );
       expect(find.text('unread'), findsNothing);
     });
   });
@@ -736,9 +1054,18 @@ void main() {
 
       boundary.value = 20;
       await tester.pump();
+      for (var ms = 0; ms < 250; ms += 10) {
+        if (ms > 0) await tester.pump(_frame);
+        expect(
+          _top(tester, 'msg-20'),
+          _near(bandTop(tester) + _separatorHeight * _move(ms)),
+          reason: 'the row top holds the band top at $ms ms',
+        );
+      }
+      await tester.pump(_frame);
 
-      expect(_top(tester, 'unread'), bandTop(tester));
-      expect(_top(tester, 'msg-20'), bandTop(tester) + _separatorHeight);
+      expect(_top(tester, 'unread'), _near(bandTop(tester)));
+      expect(_top(tester, 'msg-20'), _near(bandTop(tester) + _separatorHeight));
     });
 
     testWidgets('clearing the separator from the held target keeps the body '
@@ -755,10 +1082,10 @@ void main() {
       expect(_top(tester, 'unread'), bandTop(tester));
 
       boundary.value = null;
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.text('unread'), findsNothing);
-      expect(_top(tester, 'msg-20'), bandTop(tester));
+      expect(_top(tester, 'msg-20'), _near(bandTop(tester)));
     });
 
     testWidgets('a top inset change keeps the held target, row chrome '
@@ -796,14 +1123,15 @@ void main() {
       await tester.pump();
 
       boundary.value = 22;
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(_top(tester, 'msg-20'), bandTop(tester));
+      expect(_top(tester, 'msg-20'), _near(bandTop(tester)));
       expect(_top(tester, 'unread'), _top(tester, 'msg-22') - _separatorHeight);
     });
 
     testWidgets('a top inset change in the same pass as a separator on '
-        'another row keeps the held target at the band top', (tester) async {
+        'another row keeps the held target at the band top on that pass; '
+        'the transition then holds the rows below', (tester) async {
       final boundary = _boundary(null);
       final inset = ValueNotifier<double>(0);
       addTearDown(inset.dispose);
@@ -820,8 +1148,15 @@ void main() {
       boundary.value = 22;
       inset.value = 56;
       await tester.pump();
-
       expect(_top(tester, 'msg-20'), bandTop(tester) + 56);
+      final belowTop = _top(tester, 'msg-23');
+      await tester.pumpAndSettle();
+
+      expect(_top(tester, 'msg-23'), _near(belowTop));
+      expect(
+        _top(tester, 'msg-20'),
+        _near(bandTop(tester) + 56 - _separatorHeight),
+      );
       expect(_top(tester, 'unread'), _top(tester, 'msg-22') - _separatorHeight);
     });
 
@@ -841,10 +1176,10 @@ void main() {
       final bodyTop = _top(tester, 'msg-20');
 
       boundary.value = 20;
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(_top(tester, 'msg-20'), bodyTop);
-      expect(_top(tester, 'unread'), bodyTop - _separatorHeight);
+      expect(_top(tester, 'msg-20'), _near(bodyTop));
+      expect(_top(tester, 'unread'), _near(bodyTop - _separatorHeight));
     });
   });
 

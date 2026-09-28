@@ -12,6 +12,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_floating_header_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_mutations.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_row_chrome_delegate.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_row_chrome_transition.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
@@ -468,6 +469,7 @@ class RenderChatScrollView extends RenderBox {
     _ticking = value;
     _ticker?.muted = !value;
     _activity?.muted = !value;
+    _rowChromeTransitions?.muted = !value;
     if (!value) _cancelFling();
   }
 
@@ -682,10 +684,12 @@ class RenderChatScrollView extends RenderBox {
   /// a row and keeps a per-id "built with unread separator" bit in its skip
   /// cache, so a changed value re-inflates only the rows whose bit flips —
   /// the old and the new boundary row. This side owns the geometry: a value
-  /// change is a row chrome change, and the next layout holds the reading
-  /// position across it ([_holdRowChromeReference]) — unless one of those
-  /// rows is the target of the armed navigation placement, which is then
-  /// re-applied instead ([_isNavigationTargetChromeChange]).
+  /// change is a row chrome change that the next layout turns into
+  /// transitions ([_startUnreadSeparatorTransitions]), and every layout that
+  /// moves a transition frame holds the reading position across it
+  /// ([_holdRowChromeReference]) — unless a changed row is the target of the
+  /// armed navigation placement, which is then re-applied instead
+  /// ([_isNavigationTargetChromeChange]).
   ///
   /// Swapping in a listenable with a different current value is a value
   /// change; swapping in one with the same value only moves the subscription.
@@ -703,6 +707,23 @@ class RenderChatScrollView extends RenderBox {
     _rowChromeChanged = true;
     markNeedsLayout();
   }
+
+  /// Enter / exit legs of the unread separator, one per boundary row. Live
+  /// while attached; muted with [_ticking].
+  ChatRowChromeTransitionClock? _rowChromeTransitions;
+
+  /// A moved transition frame is a row chrome change: the next layout hands
+  /// the frame to its row and holds the reading position across it.
+  void _onRowChromeTransitionChanged() {
+    _rowChromeChanged = true;
+    markNeedsLayout();
+  }
+
+  /// Whether row [id]'s unread separator is still exiting after the boundary
+  /// left it. The element keeps building the separator on that row until
+  /// the exit ends, so the row rebuilds once, after the separator is gone.
+  bool isUnreadSeparatorExiting(int id) =>
+      _rowChromeTransitions?.isExiting(id) ?? false;
 
   /// Reading direction for paint mirroring (scrollbar position, future RTL
   /// chrome). Hit-tests against the scrollbar's trailing-edge strip read
@@ -758,8 +779,9 @@ class RenderChatScrollView extends RenderBox {
   static const double _leadFrames = 4;
 
   /// Set when a row chrome input outside the data source changed (the
-  /// unread boundary); consumed by the next [performLayout], which holds the
-  /// reading position across the resulting row height change.
+  /// unread boundary, or a separator transition frame); consumed by the next
+  /// [performLayout], which holds the reading position across the resulting
+  /// row height change.
   bool _rowChromeChanged = false;
 
   /// Unread boundary value as of the latest [performLayout]. With the
@@ -1554,6 +1576,9 @@ class RenderChatScrollView extends RenderBox {
     if (_scrollActivityTiming case final timing?) {
       _activity = _createActivityClock(timing);
     }
+    _rowChromeTransitions = ChatRowChromeTransitionClock(
+      onChanged: _onRowChromeTransitionChanged,
+    )..muted = !_ticking;
     _dataSource
       ..addDataListener(_onDataChanged)
       ..addBoundaryListener(_onBoundaryChanged)
@@ -1638,6 +1663,8 @@ class RenderChatScrollView extends RenderBox {
       _ticker = null;
       _activity?.dispose();
       _activity = null;
+      _rowChromeTransitions?.dispose();
+      _rowChromeTransitions = null;
       _chunkFetchScheduler.onDetach();
       _pinTailOnJump = false;
       _pendingTailPinUntilSettled = false;
@@ -2249,6 +2276,12 @@ class RenderChatScrollView extends RenderBox {
     if (boundaryAfter == boundaryBefore) return;
     _laidOutUnreadBoundary = boundaryAfter;
     _rowChromeChanged = false;
+    // The outcome frame paints the decided geometry: no leg on either row.
+    if (_rowChromeTransitions case final transitions?) {
+      if (boundaryBefore != null) transitions.cancel(boundaryBefore);
+      if (boundaryAfter != null) transitions.cancel(boundaryAfter);
+      transitions.takeChanged();
+    }
     built.clear();
     builtChunks.clear();
     _layoutFromAnchor(cc, built, builtChunks);
@@ -2414,6 +2447,7 @@ class RenderChatScrollView extends RenderBox {
 
     if (_dataSource.isEmpty || overlayKind != ChatOverlayKind.none) {
       _layoutOverlayMode(overlayKind);
+      _rowChromeTransitions?.retainWhere(_children.containsKey);
       assert(() {
         debugLastLayoutDuration = _debugSw.elapsed;
         _debugSw.stop();
@@ -2479,9 +2513,20 @@ class RenderChatScrollView extends RenderBox {
       null => false,
     };
     _lastLaidOutTopPad = topPad;
+    final unreadBoundaryAfter = _laidOutUnreadBoundary;
+    final boundaryMoved = unreadBoundaryBefore != unreadBoundaryAfter;
+    if (boundaryMoved) {
+      _startUnreadSeparatorTransitions(
+        unreadBoundaryBefore,
+        unreadBoundaryAfter,
+      );
+    }
+    final chromeChangedRows = <int>{
+      if (boundaryMoved) ...{?unreadBoundaryBefore, ?unreadBoundaryAfter},
+      ...?_rowChromeTransitions?.takeChanged(),
+    };
     final targetChromeChanged =
-        rowChromeChanged &&
-        _isNavigationTargetChromeChange(unreadBoundaryBefore);
+        rowChromeChanged && _isNavigationTargetChromeChange(chromeChangedRows);
     final reapplyHold = topPadMoved || targetChromeChanged;
     final placementOwnsPass =
         targetChromeChanged ||
@@ -2680,6 +2725,7 @@ class RenderChatScrollView extends RenderBox {
         }
       });
     }
+    _rowChromeTransitions?.retainWhere(_children.containsKey);
 
     // Stitch outgoing stay outside fan-out `built` — layout + re-freeze so
     // they remain paint-valid for dual-translate.
@@ -3170,21 +3216,50 @@ class RenderChatScrollView extends RenderBox {
   }
 
   /// Whether a row chrome change on this pass touches the armed navigation
-  /// placement's target while that target is the anchor: the target is the
-  /// old ([unreadBoundaryBefore]) or the new unread boundary row.
+  /// placement's target while that target is the anchor: the target is among
+  /// [changedRows] — the old and the new unread boundary row on the pass
+  /// that moves the boundary, and every row whose separator transition
+  /// frame moved since the previous pass.
   ///
   /// When true the placement is re-applied instead of running the row chrome
-  /// hold, so a separator added to the target lands at the placement (for
-  /// alignment `0`, the band top) with the body below it, rather than
-  /// growing upward past the band top to keep the band bottom row still.
+  /// hold, on every frame of the transition, so a separator added to the
+  /// target grows at the placement (for alignment `0`, from the band top)
+  /// with the body below it, rather than growing upward past the band top
+  /// to keep the band bottom row still.
   ///
   /// Only the unread boundary drives row chrome today; a new row chrome
-  /// source must be compared here too.
-  bool _isNavigationTargetChromeChange(int? unreadBoundaryBefore) {
-    if (!_isNavigationTargetAnchored()) return false;
-    final targetId = _controller.anchorMessageId;
-    return targetId == unreadBoundaryBefore ||
-        targetId == _laidOutUnreadBoundary;
+  /// source must report its rows here too.
+  bool _isNavigationTargetChromeChange(Set<int> changedRows) =>
+      _isNavigationTargetAnchored() &&
+      changedRows.contains(_controller.anchorMessageId);
+
+  /// Turns an unread boundary move from [from] to [to] into separator
+  /// transitions, before this pass fans out.
+  ///
+  /// The old row exits when it was laid out last frame carrying the
+  /// separator; the new row enters when it was laid out last frame as a
+  /// loaded message. Any other row changes without a transition: its leg is
+  /// cancelled, so it is built settled (or without the separator) on this
+  /// pass.
+  void _startUnreadSeparatorTransitions(int? from, int? to) {
+    final transitions = _rowChromeTransitions;
+    if (transitions == null) return;
+    if (from != null) {
+      if (_children[from] case final RenderChatRowChrome row
+          when row.hasSize && row.hasTransitioningItem) {
+        transitions.exit(from);
+      } else {
+        transitions.cancel(from);
+      }
+    }
+    if (to != null) {
+      if ((_children[to]?.hasSize ?? false) &&
+          _dataSource.getMessage(to) != null) {
+        transitions.enter(to);
+      } else {
+        transitions.cancel(to);
+      }
+    }
   }
 
   /// Whether the armed navigation placement's target is the current anchor —
@@ -3261,7 +3336,9 @@ class RenderChatScrollView extends RenderBox {
         row.size.height -
         _parentData(anchor.box).offset;
     final delta = reference.bottomFromAnchor - bottomFromAnchor;
-    if (delta.abs() <= _deleteCollapseEpsilon) return false;
+    // Exact: a transition moves the chrome a fraction of a pixel per frame,
+    // and every skipped shift would add to the drift.
+    if (delta.abs() <= precisionErrorTolerance) return false;
     _shiftLayoutByScrollDelta(delta);
     _fetchAnchorEvent('layout.rowChromeHold', {
       ..._fetchAnchorSnapshot(),
@@ -3629,6 +3706,9 @@ class RenderChatScrollView extends RenderBox {
       runLayout: runLayout,
     );
     if (child == null) return null;
+    if (child case final RenderChatRowChrome row) {
+      row.transition = _rowChromeTransitions?.frameOf(id);
+    }
     child.layout(cc, parentUsesSize: true);
     _touchChunk(id);
     final loaded = _dataSource.getMessage(id) != null;

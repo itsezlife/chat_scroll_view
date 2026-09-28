@@ -76,6 +76,26 @@
   the newest row stays pinned above the bottom inset. A boundary row that
   loads later gets the separator when it is built. Swapping the builder
   rebuilds every built row. A `null` boundary paints nothing.
+- **CHANGED**: The separator animates in and out instead of appearing and
+  disappearing in one frame, with the timings of Telegram Android's chat
+  item animator. Leaving, it fades out over 120 ms while its slot collapses
+  over 250 ms, so the neighbouring rows slide closed. Arriving, its slot
+  grows over 250 ms while it fades in and scales up from 0.9. A moved
+  boundary runs both at once. A change mid-transition reverses from the
+  current frame without a jump. The reading-position rule now holds on every
+  frame, not only on the frame of the change: the row at the bottom of the
+  scroll band keeps its screen Y, and at the tail the newest row stays
+  pinned. A held `jumpTo` target that gains or loses the separator is
+  re-placed on every frame. Only the old and the new boundary row rebuild:
+  the new row at once, the old row when its exit ends. A separator
+  mid-transition takes no input. Rows that were not laid out on the previous
+  frame, a change made by a tail-or-target listener, and any change while
+  `TickerMode` is off still land in one frame.
+- **CHANGED**: A held `jumpTo` target no longer keeps its screen Y when a
+  top inset change and a separator on another row arrive in the same frame.
+  The placement owns that first frame only. The later transition frames
+  hold the rows below the separator, as for any separator change on
+  another row.
 - **EXAMPLE**: The demo reads the stored last-read id on open again, for the
   server-backed source. When a message from someone else follows it, that
   message becomes the unread boundary: the chat opens with

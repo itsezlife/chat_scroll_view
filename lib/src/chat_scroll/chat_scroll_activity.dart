@@ -1,19 +1,10 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
+import 'package:chat_scroll_view/src/util/sine_in_out_curve.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
-
-/// Exact sine ease-in-out, `(1 - cos(πt)) / 2`. [Curves.easeInOutSine] is a
-/// cubic approximation of it.
-final class _SineInOutCurve extends Curve {
-  const _SineInOutCurve();
-
-  @override
-  double transformInternal(double t) => (1 - math.cos(math.pi * t)) / 2;
-}
 
 /// Timing of the viewport's scroll-activity clock.
 ///
@@ -25,13 +16,15 @@ final class _SineInOutCurve extends Curve {
 @immutable
 final class ChatScrollActivityTiming {
   /// Clock timing; defaults hold 500 ms after a user scroll, 1000 ms after
-  /// navigation, and fade over 150 ms along a sine ease-in-out.
+  /// navigation, and fade over 150 ms along the exact sine ease-in-out
+  /// `(1 - cos(πt)) / 2` ([Curves.easeInOutSine] is a cubic approximation
+  /// of it).
   const ChatScrollActivityTiming({
     this.idleDelay = const Duration(milliseconds: 500),
     this.navigationIdleDelay = const Duration(milliseconds: 1000),
     this.fadeIn = const Duration(milliseconds: 150),
     this.fadeOut = const Duration(milliseconds: 150),
-    this.curve = const _SineInOutCurve(),
+    this.curve = const SineInOutCurve(),
   });
 
   /// Hold after a user scroll settles, before fading out.

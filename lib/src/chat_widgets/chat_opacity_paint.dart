@@ -1,10 +1,14 @@
 import 'package:flutter/rendering.dart';
 import 'package:meta/meta.dart';
 
+/// Opacity at or below which [paintChildWithOpacity] paints nothing.
+@internal
+const kChatOpacityPaintSkip = 0.001;
+
 /// Paints [child] at [offset] and [opacity]: directly at `>= 0.999`, not at
-/// all at `<= 0.001`, and through [layer]'s retained [OpacityLayer] in
-/// between. The snaps keep a fade from creating and disposing a layer every
-/// frame at its ends.
+/// all at `<=` [kChatOpacityPaintSkip], and through [layer]'s retained
+/// [OpacityLayer] in between. The snaps keep a fade from creating and
+/// disposing a layer every frame at its ends.
 @internal
 void paintChildWithOpacity(
   PaintingContext context,
@@ -16,7 +20,7 @@ void paintChildWithOpacity(
   if (opacity >= 0.999) {
     layer.layer = null;
     context.paintChild(child, offset);
-  } else if (opacity <= 0.001) {
+  } else if (opacity <= kChatOpacityPaintSkip) {
     layer.layer = null;
   } else {
     layer.layer = context.pushOpacity(

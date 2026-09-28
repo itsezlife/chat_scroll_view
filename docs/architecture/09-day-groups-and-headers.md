@@ -68,16 +68,32 @@ The viewport composes up to two items, only on a **loaded** message row
 | Item | When | Delegate |
 |------|------|----------|
 | Inline date separator (`dateSeparatorBuilder`) | Row starts a day | Day header policy's `inlineSeparator` |
-| Unread separator (`unreadSeparatorBuilder`) | Row id `== unreadBoundary.value` | `opaque()` — never fades or hides |
+| Unread separator (`unreadSeparatorBuilder`) | Row id `== unreadBoundary.value`, or its exit is still running | `opaque()`, built as `ChatRowChromeItem.transitioning` — the day header policy never fades or hides it |
 
 A row with neither is a plain `RepaintBoundary`. The unread separator does
-not touch the day machinery: `startsDay`, `dayBucket`, the header scan, and
-`leadingSeparatorTop` ignore it, and the divider fade applies to the date item
-only. The render object listens to `unreadBoundary`; a value change rebuilds
-only the old and the new boundary row (the separator flag is a skip-rebuild
-input) and holds the row at the band bottom in place — see
-[Layout Pipeline](./04-layout-pipeline.md). Swapping the builder clears the
-skip-rebuild cache.
+not touch the day machinery: `startsDay`, `dayBucket`, the header scan and
+`leadingSeparatorTop` ignore it, and the divider fade applies only to the
+date item. The render object listens to `unreadBoundary`.
+
+A value change starts the separator's enter and exit transitions and holds
+the row at the band bottom in place on every frame — see
+[Layout Pipeline](./04-layout-pipeline.md) step 6d. The new boundary row
+rebuilds at once. The old row keeps its separator until the exit ends
+(`isUnreadSeparatorExiting`), then rebuilds once. No other row rebuilds,
+because the separator flag is a skip-rebuild input. Swapping the builder
+clears the skip-rebuild cache.
+
+The transition frame (`RenderChatRowChrome.transition`, set by the viewport
+before each layout of the row) drives only the item built with
+`ChatRowChromeItem.transitioning`:
+
+| Track | Effect |
+|-------|--------|
+| `extent` | Slot height = item height × extent. The slot keeps the item's bottom part and clips the rest, and `messageBodyTop` sums slot heights |
+| `opacity` | Multiplies the delegate's opacity |
+| `scale` | Paint scale about the item's center, also applied in `applyPaintTransform` |
+
+An item mid-transition is not hit-testable.
 
 | Concern | Rule |
 |---------|------|
@@ -103,7 +119,8 @@ start there. Full-row resolution (span-gesture sweeps) and presses under a
 hit-testable floating header ignore the line. Every chrome child is covered by
 that one rule — none needs its own exclusion.
 
-Chrome **keeps laid-out height** whatever it resolves to — no layout jump.
+Chrome **keeps laid-out height** whatever its delegate resolves, so there is
+no layout jump. Only a transition frame changes a slot's height.
 
 ## Day header policy (`ChatDayHeaderDelegate`)
 
