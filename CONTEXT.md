@@ -105,6 +105,26 @@ _Avoid_: Cursor fetch, partial range, page query
 A local geometric constraint on the oldest or newest built row when that conversation edge is known.
 _Avoid_: Clamp to extents, correctBy, min/max pixels
 
+**Scroll physics**:
+The host-chosen pairing of a **fling** and an **edge effect** that governs user-driven motion. Presets are named after their edge effect, and the platform default picks one per OS family; a custom pairing is just a different pair.
+_Avoid_: ScrollBehavior, overscroll mode, parent physics chain
+
+**Fling**:
+Inertial travel after a release with velocity, following one deceleration curve. Stops at a boundary pin; leftover velocity goes to the edge effect.
+_Avoid_: Ballistic, momentum scroll
+
+**Edge effect**:
+The paint-only response of the message layer when user motion presses past a reached conversation edge. Layout stays pinned; the origin never passes a boundary pin.
+_Avoid_: Overscroll, bounceback, overscroll indicator, glow
+
+**Stretch**:
+An edge effect that scales the message layer from the pressed edge.
+_Avoid_: Android overscroll (as the name)
+
+**Rubber-band**:
+An edge effect that translates the message layer past the pressed edge with growing resistance, then springs back.
+_Avoid_: Bounce, iOS overscroll (as the name), layout rubber-banding
+
 **Follow tail**:
 Keeping the newest message pinned to the band bottom as new content arrives, only while the user is at the tail.
 _Avoid_: Stick to bottom, jump to end, keyboard follow

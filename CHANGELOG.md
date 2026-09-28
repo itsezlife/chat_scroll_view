@@ -10,6 +10,52 @@
   `chat_scroll_view.debug`. Console name is `chat_scroll_view`; each line
   starts with `[<category>]`.
 
+### Scroll physics
+- **ADDED**: `ChatScrollView.physics` takes a `ChatScrollPhysics`, an
+  immutable, value-equal pair of one **fling** and one **edge effect**.
+  Flings: `ChatFling.spline(friction:)` (the previous curve, with a long
+  tail) and `ChatFling.decay(decelerationRate:)` (exponential decay via
+  Flutter's `FrictionSimulation`). Edge effects:
+  `ChatEdgeEffect.stretch(…)` (the previous stretch),
+  `ChatEdgeEffect.rubberBand(resistance:, naturalFrequency:, dampingRatio:)`,
+  and `ChatEdgeEffect.none()`. Presets are named after their edge effect:
+  `ChatScrollPhysics.stretch()` (spline + stretch), `.rubberBand()` (decay
+  + rubber-band) and `.clamped()` (spline + none); any other pairing is
+  `ChatScrollPhysics(fling:, edgeEffect:)`.
+- **ADDED**: **Rubber-band** translates the message layer past a reached
+  edge along a resistance curve that stiffens with displacement. Dragging
+  back first unwinds that translate, and content scrolls only once the
+  layer is back at the edge. A flick back toward content while displaced
+  carries into a content fling, which unwinds the translate the same way
+  before content moves. Any other release while displaced springs back
+  from the layer's own speed, not the finger's, so letting go mid-pull
+  does not throw the layer further out; it starts no fling.
+  A fling that reaches the edge overshoots by an amount set by its leftover
+  velocity (uncapped, so a faster fling always bounces further), then
+  settles on a critically damped spring (`dampingRatio: 1`). Like stretch, it is paint-only: layout stays
+  pinned, and hit-testing, `applyPaintTransform`, and row chrome
+  `paintTop` follow the translate. The floating day header and the
+  scrollbar do not move.
+- **CHANGED**: `physics: null` now resolves to
+  `ChatScrollPhysics.forPlatform()` from `defaultTargetPlatform` (not the
+  theme): Android / Fuchsia → `.stretch()`, iOS / macOS → `.rubberBand()`,
+  Windows / Linux → `.clamped()`; a browser follows its OS. Before, every
+  platform ran spline + stretch. An iOS or macOS app that passes nothing
+  now flings with the decay and rubber-bands instead of stretching. A
+  Windows or Linux app now stops hard at edges. Pass
+  `physics: const ChatScrollPhysics.stretch()` to keep the old feel
+  everywhere. Tests that assert stretch under a pinned non-Android
+  `debugDefaultTargetPlatformOverride` must pin the physics too.
+- **CHANGED**: Only the drag path (touch, stylus, trackpad pan) drives the
+  fling and the edge effect. Wheel, keyboard, scrollbar, and programmatic
+  scrolling stay hard-clamped on every pairing. A press that lands while
+  an edge effect springs back catches it and fires no tap or long-press,
+  the same as catching a fling.
+- **CHANGED**: Passing an unequal physics value to a live viewport cancels
+  the fling in flight (emitting `ChatFlingEnd`) and drops the edge effect
+  to rest. An equal value changes nothing, so rebuilding with the same
+  preset does not interrupt motion.
+
 ### Row chrome and day header policy
 - **ADDED**: `ChatRowChrome` stacks viewport-owned chrome items above a
   message body in one slot. `messageBodyTop` holds the summed chrome height,

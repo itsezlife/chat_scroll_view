@@ -21,7 +21,7 @@ Effective grouper: `groupBy ?? defaultGroupBy` (local calendar day
 |-------|---------|
 | `startsDay` | Row has an inline date separator |
 | `dayBucket` | `groupBy` key; null if unloaded / grouping off |
-| `paintTop` | Viewport-local paint top: `offset` + stitch dual-translate dy |
+| `paintTop` | Viewport-local paint top: `offset` + stitch dual-translate dy, mapped through the live edge-effect transform |
 | `headerZone` | `ChatFloatingHeaderZone` of the latest frame (rest top, extent, push offset, opacity) |
 | `scrollActivity` | Scroll activity of the latest frame; `1` without a clock |
 | `messageBodyTop` | Σ row-chrome heights; press above it is chrome |
@@ -228,7 +228,7 @@ remove header.
 
 ## Header paint
 
-The header paints after messages, outside the stretch transform, at its
+The header paints after messages, outside the edge-effect transform, at its
 resolved opacity: directly ≥ 0.999, skipped ≤ 0.001, through a retained
 `OpacityLayer` in between. A skipped header stays built.
 

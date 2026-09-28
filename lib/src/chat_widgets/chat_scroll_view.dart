@@ -3,6 +3,8 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
@@ -10,7 +12,8 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_chrome.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
-import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, defaultTargetPlatform;
 import 'package:flutter/widgets.dart';
 
 /// Builds the widget for message [id].
@@ -157,6 +160,7 @@ class ChatScrollView extends RenderObjectWidget {
     this.extraBuildExtent = 0.0,
     this.reverse = false,
     this.isSelfMessage,
+    this.physics,
     super.key,
   });
 
@@ -485,6 +489,27 @@ class ChatScrollView extends RenderObjectWidget {
   /// the page-down badge.
   final bool Function(IChatMessage message)? isSelfMessage;
 
+  /// Scroll physics: the fling that carries a released drag and the edge
+  /// effect shown at a reached conversation boundary.
+  ///
+  /// `null` resolves to [ChatScrollPhysics.forPlatform] on every build: the
+  /// preset matching the OS family of [defaultTargetPlatform] (not the
+  /// theme's platform); a browser follows its OS.
+  ///
+  /// Physics governs the user drag path only (touch, stylus, trackpad pan,
+  /// and the flings they release). Wheel, keyboard, scrollbar, jump, and
+  /// animate motion never read it.
+  ///
+  /// Compared by value on rebuild: an equal value is a no-op, so an
+  /// in-flight fling or edge effect survives. An unequal value cancels the
+  /// in-flight fling (emitting [ChatFlingEnd]) and drops the edge effect to
+  /// rest before the new physics takes over.
+  final ChatScrollPhysics? physics;
+
+  /// The effective physics: [physics], or the platform default when unset.
+  ChatScrollPhysics get _effectivePhysics =>
+      physics ?? ChatScrollPhysics.forPlatform();
+
   /// The effective grouping function, or `null` when day separators are off.
   Object Function(IChatMessage)? get _effectiveGroupBy =>
       dateSeparatorBuilder == null ? null : (groupBy ?? _defaultGroupBy);
@@ -526,6 +551,7 @@ class ChatScrollView extends RenderObjectWidget {
       onIdleMessageTap: onIdleMessageTap,
       onSecondaryMessageTap: onSecondaryMessageTap,
       isSelfMessage: isSelfMessage,
+      physics: _effectivePhysics,
     );
   }
 
@@ -559,6 +585,7 @@ class ChatScrollView extends RenderObjectWidget {
       ..selectionController = selectionController
       ..onIdleMessageTap = onIdleMessageTap
       ..onSecondaryMessageTap = onSecondaryMessageTap
-      ..isSelfMessage = isSelfMessage;
+      ..isSelfMessage = isSelfMessage
+      ..physics = _effectivePhysics;
   }
 }

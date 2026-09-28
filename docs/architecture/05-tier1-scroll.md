@@ -10,7 +10,7 @@ resource: lib/src/chat_widgets/render_chat_scroll_view.dart
 # Tier-1 Scroll
 
 Tier-1 is the hot path: scroll **without** layout or widget rebuild. The render
-object owns a `Ticker`; drag, fling, bounceback, and close-path animate feed
+object owns a `Ticker`; drag, fling, edge-effect spring, and close-path animate feed
 deltas into `_onTick`, which mutates `anchorPixelOffset`, repositions children,
 and calls `markNeedsPaint` (or `markNeedsLayout` only when the built range no
 longer covers the viewport / the floating header’s day changes).
@@ -22,18 +22,20 @@ _onTick:
   1. Overlay guard → abort scroll state, stop ticker
   2. Highlight-only early exit (no _markScrollActive)
   3. Drain _pendingScrollDelta
-  3b. If content fits → cancel fling (stretch still allowed)
-  4. delta += tickFling
+  3b. If content fits → cancel fling (edge effect still allowed)
+  4. delta += fling.tickFling
   5. delta += tickAnimate          // close: offset delta; far: fade only
      // skipped while span auto-scroll occupies the origin writer
   6. delta += span auto-scroll
-  7. Split delta: unconsumed at a reached edge vs consumed travel
+  7. Drag only: delta = edge.claim(delta, travel)   // first claim on reverse
+     then split: unconsumed at a reached edge vs consumed travel
   8. applyScrollDelta(consumed only)
   9. Update _scrollVelocity EMA
  10. _repositionFromAnchor
  11. _renormalizeAnchor            // unless close-path
  12. _clampBoundaries
- 13. Stretch: pull unconsumed (drag) / absorb (fling) / release into content
+ 13. Edge effect: pull unconsumed (drag) / absorbImpact (fling), then
+     edge.tick (spring) → markNeedsPaint while active
  14. Semantics + _publishControllerState
  15. _tickFloatingHeader
  16. tickHighlight / tryArmPendingHighlight / settle → _onAnimateSettled
@@ -42,43 +44,105 @@ _onTick:
 ```
 
 Unconsumed remainder is measured from oldest/newest **box geometry**, never from
-`anchorPixelOffset` after renormalize. Mid-conversation travel must not stretch.
+`anchorPixelOffset` after renormalize. Mid-conversation travel must not feed
+the edge effect.
 
 ## Drag
 
 | Event | Behavior |
 |-------|----------|
-| `_onDragStart` | `_cancelPendingTailPin()`, clear nav alignment, cancel fling/animate, `_stretch.onDragStart()`, `_dragInProgress = true` |
+| `_onDragStart` | `_cancelPendingTailPin()`, clear nav alignment, cancel fling/animate, `edge.onDragStart()` (freeze), `_dragInProgress = true` |
 | `_onDragUpdate` | `_pendingScrollDelta += details.delta.dy` (including short content) |
-| `_onDragEnd` | `_stretch.onDragEnd` (spring only if stretch ≠ 0); fling if `\|v\| ≥ 50` and not stretching and content does not fit |
+| `_onDragEnd` | `flingAllowed = edge.onDragEnd(v)`; fling if `flingAllowed`, `\|v\| ≥ 50`, and content does not fit |
+
+## Scroll physics
+
+The host passes an immutable `ChatScrollPhysics` (`ChatScrollView.physics`,
+`null` → `.forPlatform()`): one `ChatFling` plus one `ChatEdgeEffect`, each a
+closed set with tunable params. The default reads `defaultTargetPlatform`
+(never the theme): Android / Fuchsia → spline + stretch, iOS / macOS →
+decay + rubber-band, Windows / Linux → spline + none; web follows the
+browser OS through the same table. The render object
+owns the runtime `ChatScrollMotion` built from it (`_motion.fling`,
+`_motion.edge`). Physics governs the **drag path only**. Wheel, keyboard,
+scrollbar, jump, `scrollBy`, and animate never read it.
+
+Swap (`physics =`): an equal value is a no-op, so an in-flight fling or
+spring survives. An unequal value cancels the fling (emits `ChatFlingEnd`),
+resets the edge effect, rebuilds the motion, and republishes row chrome
+paint tops.
 
 ## Fling
 
-- `_startFling` / `_cancelFling` via `ChatScrollPhysics`
-  (`ChatSplineFlingSimulation`: Android's `OverScroller` spline, same
+- `_startFling` / `_cancelFling` via `ChatFlingMotion`. `ChatFling.spline`
+  runs `ChatSplineFlingSimulation`: Android's `OverScroller` spline, the same
   distance as `ClampingScrollSimulation` with the full native duration and
-  tail, so idle-driven chrome waits as long as on a native list).
+  tail, so idle-driven chrome waits as long as on a native list. `friction`
+  scales travel (∝ friction^-0.74). `ChatFling.decay` runs Flutter's
+  `FrictionSimulation` with drag `decelerationRate^1000` (iOS normal
+  `0.998` → `0.135`), stopping below 10 px/s.
 - **No-op** when [_contentFitsInViewport](./06-boundaries.md#short-content--_contentfitsinviewport).
 - Per-tick clamp during fling (not suspended).
-- Overscroll resistance is **not** used; unconsumed dy at a reached edge
-  feeds paint-time [ChatStretchOverscroll] (Android EdgeEffect).
+- Layout has no overscroll resistance. Unconsumed dy at a reached edge feeds
+  the paint-only edge effect, which owns any resistance (rubber-band).
 - Render emits `ChatFlingStart` / `ChatFlingEnd`; physics does not touch events.
 
-## Stretch overscroll
+## Edge effect
 
-- Paint-only scale-from-edge. Layout pins stay clamped.
-- Pull only the overflow past remaining pin travel
-  (`_unconsumedOverscrollDelta`). Missing boundary box → not that edge.
-  Short content: zero travel on both pins, so the full delta.
-- `onDragEnd`: reverse velocity drops the glow for content fling; same-
-  direction velocity absorbs then springs back; idle release springs from
-  the current stretch with zero initial velocity (no slam).
-- Fling that reaches a pin (including the frame that consumes the last travel
-  pixels): `absorbImpact` with leftover velocity, then cancel fling.
-- Cancelled by: jump, `scrollBy`, `animateTo`, overlay, controller swap,
-  bottom-pad change.
-- Paint stretch wraps **messages only** — floating date header and scrollbar
-  stay viewport-fixed.
+The render object drives the edge effect only through `ChatEdgeEffectState`.
+The release rules live in the strategy: `ChatStretchOverscroll` for
+`ChatEdgeEffect.stretch`, `ChatRubberBandOverscroll` for
+`ChatEdgeEffect.rubberBand`, `ChatNoOverscroll` for `ChatEdgeEffect.none`.
+
+- Paint-only message-layer transform (`_edgeTransform`). Layout pins stay
+  clamped.
+- **Claim first** (drag ticks): before the edge-unconsumed split, `claim`
+  sees the whole delta, the viewport height, and the travel content can
+  absorb. Stretch passes all of it through. Reverse travel of more than 1 px
+  into content (with no more than 1 px spilling past a pin) starts its
+  release, so content moves at once instead of unwinding the pull first.
+  Short content has zero travel, so reverse motion unwinds the pull.
+  Rubber-band consumes reverse motion along its resistance curve and returns
+  only what is left once the layer is back at the pin. None passes
+  everything through.
+- **Pull** only the overflow past the remaining pin travel
+  (`_unconsumedOverscrollDelta`, > 1 px). A missing boundary box means that
+  edge is not in play.
+- **Drag end**: `onDragEnd(v)` answers whether a content fling may start.
+  Stretch: a reverse flick releases and allows it; same-direction velocity
+  absorbs, then springs back; an idle release springs from the current
+  stretch with zero initial velocity (no slam). Rubber-band: a flick
+  toward content (≥ 50 px/s) keeps the displacement and allows the fling;
+  the tick feeds fling deltas through `claim`, so the fling unwinds the
+  band before content moves. Any other visible displacement springs back
+  at the layer's speed — the release velocity times the band's slope
+  `c·((d − b)/d)²` — and blocks the fling; the spring stops at the pin.
+  None: always allows the fling.
+- **Stranded edge**: an edge effect still active with no drag, no fling,
+  no catching press, and no spring (a carried fling that never started,
+  was cancelled, or died mid-unwind) is released with `onDragEnd(0)` on
+  the next tick.
+- **Fling impact**: a fling that reaches a pin (including the frame that
+  consumes the last travel pixels) calls `absorbImpact` with its velocity,
+  then the fling is cancelled. Rubber-band launches its spring from the pin
+  with that velocity, uncapped: its critically damped spring peaks at
+  `v / (ω·e)`, so the overshoot keeps scaling with the impact. Every edge
+  spring's clock (`ChatSpringClock`) starts at the previous tick (≤ 34 ms
+  back), so neither the release nor the impact frame repeats the launch
+  position.
+  None discards it.
+- **Press catch**: a pointer down while the edge springs (not dragging)
+  freezes it (`onDragStart`) and sets `flingCancelSuppressesLongPress` for
+  that pointer, exactly like catching a fling. If the press becomes a drag,
+  `_onDragEnd` releases the effect. Otherwise the matching pointer up does
+  (`onDragEnd(0)`); the render object sees that up before the drag
+  recognizer does.
+- **Reset** by jump, `scrollBy`, `animateTo`, overlay, controller or physics
+  swap, and bottom-pad change.
+- **One transform everywhere**: message-layer paint, `hitTestChildren`,
+  `_selectionMessageIdAt`, `applyPaintTransform`, and row chrome `paintTop`
+  all read `_edgeTransform`. The floating date header, scrollbar, and overlay
+  stay viewport-fixed and outside it.
 
 ## `_repositionFromAnchor`
 
@@ -131,14 +195,14 @@ symmetric and lead children are collected.
 
 - `_ensureTicker` starts the ticker if inactive.
 - `_stopTickerIfIdle` stops when no fling, pending delta, highlight, animate,
-  bounceback, drag, or span auto-scroll occupying the origin writer.
+  active edge effect, drag, or span auto-scroll occupying the origin writer.
 - `_ticking` follows `TickerMode` — inactive routes do not animate fling
   off-screen.
 - Overlay mode aborts all scroll work and stops the ticker.
 
 ## Programmatic `scrollBy`
 
-`_onScrollBy` cancels fling/animate/bounceback, clears pending drag delta, and
+`_onScrollBy` cancels fling/animate, resets the edge effect, clears pending drag delta, and
 calls **`markNeedsLayout`** (not Tier-1). Intentional full settle so physics
 and follow-tail converge on the next layout.
 
@@ -149,9 +213,9 @@ and follow-tail converge on the next layout.
   clears pending `jumpTo` / `jumpToCenterBand` navigation (same user-preemption
   as drag start) so open-at-newest / leave-reopen settle cannot yank the
   viewport back under the wheel. Fling / animate cancel with the same path.
-- Pointer down during fling: cancel fling and set
-  `flingCancelSuppressesLongPress` so the viewport-owned selection
-  long-press does not fire on the cancel tap.
+- Pointer down during a fling or edge spring: cancel the fling or freeze the
+  spring, and set `flingCancelSuppressesLongPress` so the viewport-owned
+  selection tap and long-press do not fire on the catching press.
 - When a selection controller is wired, the same pointer down is also
   offered to `ChatSelectionPointer` (long-press enters selection or starts
   an unselect span if the origin was already selected; tap toggles while

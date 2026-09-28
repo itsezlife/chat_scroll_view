@@ -98,4 +98,5 @@ current gaps that must not be papered over with unrelated hacks.
 | Data / chunks | `lib/src/chat_scroll/chat_data_source.dart`, `chat_scroll_chunk.dart` |
 | Floating header math | `lib/src/chat_scroll/chat_floating_header_controller.dart` |
 | Animate | `lib/src/chat_scroll/chat_animator.dart` |
-| Physics | `lib/src/chat_scroll/chat_scroll_physics.dart` |
+| Physics (value + fling) | `lib/src/chat_scroll/chat_scroll_physics.dart` |
+| Motion runtime / edge-effect seam | `lib/src/chat_scroll/chat_scroll_motion.dart`, `chat_stretch_overscroll.dart` |

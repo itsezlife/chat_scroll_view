@@ -28,6 +28,16 @@ export 'src/chat_scroll/chat_scroll_activity.dart'
 export 'src/chat_scroll/chat_scroll_common.dart';
 export 'src/chat_scroll/chat_scroll_controller.dart';
 export 'src/chat_scroll/chat_scroll_events.dart';
+export 'src/chat_scroll/chat_scroll_physics.dart'
+    show
+        ChatEdgeEffect,
+        ChatEdgeEffect$None,
+        ChatEdgeEffect$RubberBand,
+        ChatEdgeEffect$Stretch,
+        ChatFling,
+        ChatFling$Decay,
+        ChatFling$Spline,
+        ChatScrollPhysics;
 export 'src/chat_scroll/chat_selection_allowed.dart';
 export 'src/chat_scroll/chat_selection_controller.dart';
 export 'src/chat_scroll/chat_selection_interaction.dart';
