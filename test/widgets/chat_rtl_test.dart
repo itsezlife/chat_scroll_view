@@ -2,7 +2,6 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
-import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -83,19 +82,6 @@ Widget _scaffold({
 );
 
 void main() {
-  group('ChatScrollbar direction-awareness (unit)', () {
-    test('paint places the track on the trailing edge', () {
-      // We can't intercept Canvas in a unit test, but `inHitArea` mirrors
-      // the same convention — so paint and hit-test stay in sync.
-      const sz = Size(400, 600);
-      final sb = ChatScrollbar();
-      // LTR: a touch on the far-right is in the strip.
-      expect(sb.inHitArea(399, sz.height / 2, sz, TextDirection.ltr), isTrue);
-      // RTL: a touch on the far-left is in the strip.
-      expect(sb.inHitArea(0, sz.height / 2, sz, TextDirection.rtl), isTrue);
-    });
-  });
-
   group('ChatScrollView RTL widget integration', () {
     testWidgets('scrollbar drag area is on the right in LTR', (tester) async {
       const count = 256;

@@ -225,13 +225,15 @@ render object replaces it only on an unequal physics swap.
 | `_unconsumedOverscrollDelta` / `_cancelOverscroll`                                                                  | Overflow past pin travel → edge effect; missing box is not that edge |
 | `physics` setter / `_edgeTransform` / `applyPaintTransform`                                                        | Unequal swap cancels fling + resets edge; one edge matrix for paint, hit, reported transform, `paintTop` |
 | `_boundaryBox` / `_resolveAnchorBox`                                                                                | Boundary/anchor render boxes                                        |
-| `handleEvent` / `hitTestChildren`                                                                                   | Pointer / scrollbar / header / selection; press catches fling or edge spring; messages hit through `_edgeTransform` |
+| `handleEvent` / `hitTestChildren`                                                                                   | Pointer / scrollbar grab (strip hit-test on the last painted frame) / header / selection; press catches fling or edge spring; messages hit through `_edgeTransform` |
 | `ChatSelectionPointer` / `_selectionMessageIdAt` / `_spanHitAt` / `_selectSpanChain`                                | Viewport-owned long-press, tap, select/unselect span                | Yield + fling-cancel suppress; span polarity vs selection snapshot; empty set ends the span; the pinned floating date header is not a hit (tap/long-press/span go through to the message); other non-message slots and non-selectable rows freeze the far end; non-selectable ids are omitted from the chain; chrome wrap follows `showsChrome` (`gutterOnly` without check); select-span growth and grow-direction auto-scroll stop at `selectionCap` (unselect ignores the cap); a refused grow bumps `capHits` once per wall; origin-absent aborts the span (set kept); `selectionAllowed` assign / `reapplySelectionAllowed` refilters the set and invalidates chrome wrap via `addSelectionAllowedListener` |
 | `_onJump` / `_onScrollBy` / `_onDataChanged` / `_onBoundaryChanged`                                                 | Controller/DS reactions                                             |
 | `_onAnimateSettled` / `_cancelAnimate` / `_clearHighlight`                                                          | Animate settle/cancel                                               |
 | `_publishControllerState` / `_publishVisibleRange` / `_publishCenterBand` / `_publishIsAtTail` / `_computeIsAtTail` | Listenables                                                         |
 | `_updateScrollSemantics` / `_computeCanRevealOlder` / `Newer`                                                       | A11y scroll actions                                                 |
-| `_jumpToScrollbar` / `_computeScrollbarProgress` / band helpers                                                     | Scrollbar geometry                                                  |
+| `_jumpToScrollbar` / `_computeScrollbarProgress` / band helpers                                                     | Thumb progress + length share from anchor math; progress → id jump |
+| `scrollbar` setter / `_endScrollbarGrab`                                                                            | Equal preset no-op; unequal ends the grab (releases navigation placement), repaints per `shouldRepaint` |
+| `_paintScrollbar` / `ChatScrollbarRuntime.resolve`                                                                  | One frame per paint: rects from preset painter geometry; cleared for `none` and fits here, for overlay mode in `_paintContents` |
 
 ## Paint / debug
 
@@ -239,7 +241,9 @@ Paint walks children at `Offset(0, parentData.offset)` inside the edge
 transform layer when the edge effect is active, header and scrollbar
 on top outside it; far-path stitch applies per-child translation (not a viewport fade);
 highlight paints over target row.
-`_paintScrollbar` returns immediately when content fits (no thumb travel).
+`_paintScrollbar` clears the scrollbar frame and paints nothing when the preset
+is `none`, content fits, or the thumb would leave no travel; the painter draws
+in viewport-local coordinates.
 
 Debug getters (`debugChildCount`, `debugDividerOpacity`, etc.) and
 `_fetchAnchorEvent` / `_scrollbarEvent` are diagnostics only.

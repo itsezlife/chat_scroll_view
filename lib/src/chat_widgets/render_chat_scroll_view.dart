@@ -30,6 +30,8 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_row_chrome.dart'
     show RenderChatRowChrome;
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_runtime.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_pointer.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
@@ -195,6 +197,7 @@ class RenderChatScrollView extends RenderBox {
     ),
     TextDirection textDirection = TextDirection.ltr,
     ChatScrollbarThemeData scrollbarTheme = ChatScrollbarThemeData.light,
+    ChatScrollbar scrollbar = const ChatScrollbar(),
     ChatSelectionController? selectionController,
     ChatMessageMenuRequestCallback? onIdleMessageTap,
     ChatMessageMenuRequestCallback? onSecondaryMessageTap,
@@ -222,7 +225,8 @@ class RenderChatScrollView extends RenderBox {
        _hasEmptyBuilder = hasEmptyBuilder,
        _hasLoadingBuilder = hasLoadingBuilder,
        _textDirection = textDirection,
-       _scrollbarTheme = scrollbarTheme {
+       _scrollbarTheme = scrollbarTheme,
+       _scrollbar = scrollbar {
     _animator = ChatAnimator(
       controller: _controller,
       offsetToBuiltMessage: _offsetToBuiltMessage,
@@ -1210,11 +1214,36 @@ class RenderChatScrollView extends RenderBox {
   // --- Scrollbar -------------------------------------------------------------
   //
   // Thumb progress maps the anchor over the full known id extent (oldest…newest).
-  // Track paint uses a uniform colour from [scrollbarTheme]; loaded/unloaded
-  // honesty is in the viewport, not per-range track segments. Paint does not
-  // read [ChatDataSource.chunks].
+  // [_scrollbarRuntime] resolves track and thumb rects once per paint from that
+  // progress and the preset painter's geometry; grab hit-testing reads the same
+  // frame. Paint does not read [ChatDataSource.chunks].
 
-  final ChatScrollbar _scrollbar = ChatScrollbar();
+  final ChatScrollbarRuntime _scrollbarRuntime = ChatScrollbarRuntime();
+
+  ChatScrollbar _scrollbar;
+
+  /// The scrollbar preset. See [ChatScrollView.scrollbar].
+  ///
+  /// An equal value is a no-op. An unequal value ends an active grab (as a
+  /// pointer up would), then repaints unless both presets use painters of
+  /// the same type and the new one declines via
+  /// [ChatScrollbarPainter.shouldRepaint].
+  ChatScrollbar get scrollbar => _scrollbar;
+  set scrollbar(ChatScrollbar value) {
+    if (_scrollbar == value) return;
+    final old = _scrollbar;
+    _scrollbar = value;
+    _endScrollbarGrab();
+    final repaint = switch ((old, value)) {
+      (
+        ChatScrollbar$Painted(painter: final before),
+        ChatScrollbar$Painted(painter: final after),
+      ) =>
+        before.runtimeType != after.runtimeType || after.shouldRepaint(before),
+      _ => true,
+    };
+    if (repaint) markNeedsPaint();
+  }
 
   ChatScrollbarThemeData _scrollbarTheme;
 
@@ -5289,27 +5318,17 @@ class RenderChatScrollView extends RenderBox {
     // contributes nothing.
     if (_overlayKind != ChatOverlayKind.none) return;
 
-    // Scrollbar drag in progress — consume move/up/cancel.
-    if (_scrollbar.isDragging) {
-      if (event is PointerMoveEvent && _scrollbar.ownsPointer(event)) {
-        final thumbFraction = _currentScrollbarThumbFraction();
-        _jumpToScrollbar(
-          _scrollbar.progressFromY(
-            event.localPosition.dy,
-            size,
-            topInset: _topPad,
-            bottomInset: _bottomPad,
-            thumbFraction: thumbFraction,
-          ),
-        );
+    // Scrollbar grab in progress — consume move/up/cancel.
+    final scrollbar = _scrollbarRuntime;
+    if (scrollbar.isGrabbing && scrollbar.ownsPointer(event)) {
+      if (event is PointerMoveEvent) {
+        if (scrollbar.progressAt(event.localPosition.dy) case final progress?) {
+          _jumpToScrollbar(progress);
+        }
         return;
       }
-      if ((event is PointerUpEvent || event is PointerCancelEvent) &&
-          _scrollbar.ownsPointer(event)) {
-        _scrollbar.endDrag();
-        // The thumb's own jumps armed placements; a user scroll leaves none.
-        _controller.releaseNavigationPlacement();
-        markNeedsPaint();
+      if (event is PointerUpEvent || event is PointerCancelEvent) {
+        _endScrollbarGrab();
         return;
       }
     }
@@ -5317,26 +5336,13 @@ class RenderChatScrollView extends RenderBox {
     if (event is PointerDownEvent) {
       if (_dataSource.newestKnownId != null &&
           !_contentFitsInViewport() &&
-          _scrollbar.tryStartDrag(
-            event,
-            size,
-            _textDirection,
-            topInset: _topPad,
-            bottomInset: _bottomPad,
-          )) {
+          scrollbar.tryStartGrab(event)) {
         _cancelFling();
         _controller.releaseNavigationPlacement();
         markNeedsPaint();
-        final thumbFraction = _currentScrollbarThumbFraction();
-        _jumpToScrollbar(
-          _scrollbar.progressFromY(
-            event.localPosition.dy,
-            size,
-            topInset: _topPad,
-            bottomInset: _bottomPad,
-            thumbFraction: thumbFraction,
-          ),
-        );
+        if (scrollbar.progressAt(event.localPosition.dy) case final progress?) {
+          _jumpToScrollbar(progress);
+        }
         return;
       }
       final catchesFling = _motion.fling.isFlinging;
@@ -5919,6 +5925,16 @@ class RenderChatScrollView extends RenderBox {
 
   // --- Scrollbar -------------------------------------------------------------
 
+  /// Ends an active scrollbar grab: the grabbing pointer's remaining events
+  /// scroll nothing. The thumb's own jumps armed navigation placements; a
+  /// user scroll leaves none, so they are released here. No-op when idle.
+  void _endScrollbarGrab() {
+    if (!_scrollbarRuntime.isGrabbing) return;
+    _scrollbarRuntime.endGrab();
+    _controller.releaseNavigationPlacement();
+    markNeedsPaint();
+  }
+
   /// Map a 0..1 scrollbar [progress] to a message id and teleport there.
   void _jumpToScrollbar(double progress) {
     final newest = _dataSource.newestKnownId;
@@ -6107,29 +6123,6 @@ class RenderChatScrollView extends RenderBox {
       estimatedExtent: estimatedExtent,
       progress: progress,
     );
-  }
-
-  double? _currentScrollbarThumbFraction() {
-    if (!hasSize) return null;
-    final bandHeight = size.height - _topPad - _bottomPad;
-    if (bandHeight <= 0) return null;
-    final oldest = _dataSource.oldestKnownId;
-    final newest = _dataSource.newestKnownId;
-    if (oldest == null || newest == null) return null;
-
-    final fromBand = _scrollbarBandMetrics(
-      bandHeight: bandHeight,
-      oldest: oldest,
-      newest: newest,
-      topFrac: _fractionalIdAtScrollBandRef(_topPad),
-      bottomFrac: _fractionalIdAtScrollBandRef(size.height - _bottomPad),
-    )?.thumbFraction;
-    if (fromBand != null) return fromBand;
-
-    final model = _scrollbarHeightAtRef(_topPad);
-    if (model == null || model.estimatedExtent <= 0) return null;
-    if (model.estimatedExtent <= bandHeight) return 1;
-    return (bandHeight / model.estimatedExtent).clamp(0.0, 1.0);
   }
 
   /// Intermediate values for scrollbar paint/diagnostics.
@@ -6452,15 +6445,7 @@ class RenderChatScrollView extends RenderBox {
         ? _fractionalIdAtScrollBandRef(size.height - _bottomPad)
         : null;
     final bandHeight = hasSize ? size.height - _topPad - _bottomPad : null;
-    final trackHeight = bandHeight != null && bandHeight > 8
-        ? bandHeight - 8
-        : null;
-    final thumbHeightPx = trackHeight != null
-        ? _scrollbar.resolveThumbHeight(
-            trackHeight,
-            thumbFraction: computed.thumbFraction,
-          )
-        : null;
+    final thumbHeightPx = _scrollbarRuntime.frame?.thumbRect.height;
     final maxScroll =
         bandHeight != null && computed.estimatedExtent > bandHeight
         ? computed.estimatedExtent - bandHeight
@@ -6517,7 +6502,7 @@ class RenderChatScrollView extends RenderBox {
       'oldest': computed.oldest,
       'newest': computed.newest,
       'idRange': computed.idRange,
-      'drag': _scrollbar.isDragging,
+      'drag': _scrollbarRuntime.isGrabbing,
       'fling': _motion.fling.isFlinging,
       ...boundary,
       if (tailDeficit != null && tailDeficit > 0.01)
@@ -6571,11 +6556,11 @@ class RenderChatScrollView extends RenderBox {
     final periodicWhileScrolling =
         (_motion.fling.isFlinging ||
             _dragInProgress ||
-            _scrollbar.isDragging) &&
+            _scrollbarRuntime.isGrabbing) &&
         _scrollbarLogPaintCounter % 30 == 0;
 
     final shouldLog =
-        _scrollbar.isDragging ||
+        _scrollbarRuntime.isGrabbing ||
         anchorIdChanged ||
         anchorHDelta >= 1.0 ||
         progressDelta >= 0.002 ||
@@ -6630,6 +6615,7 @@ class RenderChatScrollView extends RenderBox {
     // message — no scrollbar, no floating header, no per-message cull.
     final overlay = _overlay;
     if (_overlayKind != ChatOverlayKind.none && overlay != null) {
+      _scrollbarRuntime.clear();
       context.paintChild(
         overlay,
         offset + Offset(0, _parentData(overlay).offset),
@@ -6708,22 +6694,36 @@ class RenderChatScrollView extends RenderBox {
     );
   }
 
+  /// Resolves this paint's scrollbar frame — the one grab hit-testing reads
+  /// until the next paint — and hands it to the preset painter in
+  /// viewport-local coordinates. Clears the frame when there is no painter
+  /// or nothing to scroll, so no press is grabbed either.
   void _paintScrollbar(PaintingContext context, Offset offset) {
-    if (_contentFitsInViewport()) return;
-    final computed = _computeScrollbarProgress();
-    if (computed == null) return;
-    _maybeLogScrollbarProgress(computed, reason: 'paint');
-    _scrollbar.paint(
-      context.canvas,
-      offset,
-      size,
-      computed.progress,
-      _textDirection,
-      theme: _scrollbarTheme,
-      topInset: _topPad,
-      bottomInset: _bottomPad,
-      thumbFraction: computed.thumbFraction,
-    );
+    if (_scrollbar case ChatScrollbar$Painted(
+      :final painter,
+    ) when !_contentFitsInViewport()) {
+      if (_computeScrollbarProgress() case final computed?) {
+        final frame = _scrollbarRuntime.resolve(
+          painter: painter,
+          size: size,
+          topInset: _topPad,
+          bottomInset: _bottomPad,
+          textDirection: _textDirection,
+          progress: computed.progress,
+          thumbFraction: computed.thumbFraction,
+        );
+        _maybeLogScrollbarProgress(computed, reason: 'paint');
+        if (frame case final frame?) {
+          context.canvas
+            ..save()
+            ..translate(offset.dx, offset.dy);
+          painter.paint(context.canvas, frame, _scrollbarTheme);
+          context.canvas.restore();
+        }
+        return;
+      }
+    }
+    _scrollbarRuntime.clear();
   }
 
   @override

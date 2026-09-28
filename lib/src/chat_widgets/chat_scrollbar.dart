@@ -1,293 +1,328 @@
-import 'package:flutter/material.dart';
+import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
 
-/// Scrollbar colours registered as a [ThemeExtension].
+import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_theme.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
+
+/// **Scrollbar preset**: the host's choice of scrollbar for the chat
+/// viewport — either a scrollbar drawn by a [ChatScrollbarPainter], or none.
 ///
-/// Resolution order: [of], then [mergeTheme] fallback from ambient [ThemeData]
-/// brightness. Per-screen overrides use a nested `Theme` with
-/// `copyWith(extensions: […])`.
+/// The scrollbar sits on the trailing edge of the scroll band (right in
+/// left-to-right, left in right-to-left) and paints outside the edge-effect
+/// transform. Its **track** stands for the known conversation span, its
+/// **thumb** for the visible band. The viewport owns thumb position and
+/// length, when the scrollbar is shown, and which presses it grabs; the
+/// painter owns only the look.
+///
+/// No scrollbar is painted, and no press is grabbed, while the whole
+/// conversation fits in the scroll band or the viewport shows its loading or
+/// empty overlay.
+///
+/// Immutable and value-equal. Passing an equal preset to a live viewport
+/// changes nothing, so a rebuild never interrupts a grab. An unequal preset
+/// ends an active grab before the new preset takes over; the pointer that
+/// held it scrolls nothing until it lifts.
 @immutable
-class ChatScrollbarThemeData extends ThemeExtension<ChatScrollbarThemeData> {
-  /// Creates scrollbar theme colours for thumb and uniform track.
-  const ChatScrollbarThemeData({
-    this.thumbColor = const Color(0x66000000),
-    this.thumbDraggingColor = const Color(0x99000000),
-    this.trackColor = const Color(0x1A000000),
-  });
+sealed class ChatScrollbar {
+  /// A scrollbar drawn by [painter] — see [ChatScrollbar$Painted].
+  const factory ChatScrollbar({ChatScrollbarPainter painter}) =
+      ChatScrollbar$Painted;
 
-  /// Resolves scrollbar theme from [context].
-  ///
-  /// Uses `Theme.of(context).extension<ChatScrollbarThemeData>()` when
-  /// registered; otherwise [mergeTheme] from ambient [ThemeData] brightness.
-  factory ChatScrollbarThemeData.resolve(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.extension<ChatScrollbarThemeData>() ??
-        ChatScrollbarThemeData.mergeTheme(theme);
-  }
+  const ChatScrollbar._();
 
-  /// Derives scrollbar colours from [theme] when no extension is registered.
-  factory ChatScrollbarThemeData.mergeTheme(
-    ThemeData theme, {
-    Color? thumbColor,
-    Color? thumbDraggingColor,
-    Color? trackColor,
-  }) {
-    final base = theme.brightness == Brightness.dark ? dark : light;
-    return ChatScrollbarThemeData(
-      thumbColor: thumbColor ?? base.thumbColor,
-      thumbDraggingColor: thumbDraggingColor ?? base.thumbDraggingColor,
-      trackColor: trackColor ?? base.trackColor,
-    );
-  }
-
-  /// Default colours for light surfaces (matches pre-enhancement visibility).
-  static const light = ChatScrollbarThemeData();
-
-  /// Default colours for dark surfaces.
-  static const dark = ChatScrollbarThemeData(
-    thumbColor: Color(0x66FFFFFF),
-    thumbDraggingColor: Color(0x99FFFFFF),
-    trackColor: Color(0x1AFFFFFF),
-  );
-
-  /// Idle thumb fill on the track.
-  final Color thumbColor;
-
-  /// Thumb fill while the user is dragging.
-  final Color thumbDraggingColor;
-
-  /// Uniform track fill for the full track height.
-  final Color trackColor;
-
-  @override
-  ChatScrollbarThemeData copyWith({
-    Color? thumbColor,
-    Color? thumbDraggingColor,
-    Color? trackColor,
-  }) => ChatScrollbarThemeData(
-    thumbColor: thumbColor ?? this.thumbColor,
-    thumbDraggingColor: thumbDraggingColor ?? this.thumbDraggingColor,
-    trackColor: trackColor ?? this.trackColor,
-  );
-
-  @override
-  ChatScrollbarThemeData lerp(
-    covariant ChatScrollbarThemeData? other,
-    double t,
-  ) {
-    if (other == null) return this;
-    return ChatScrollbarThemeData(
-      thumbColor: Color.lerp(thumbColor, other.thumbColor, t)!,
-      thumbDraggingColor: Color.lerp(
-        thumbDraggingColor,
-        other.thumbDraggingColor,
-        t,
-      )!,
-      trackColor: Color.lerp(trackColor, other.trackColor, t)!,
-    );
-  }
+  /// No scrollbar — see [ChatScrollbar$None].
+  const factory ChatScrollbar.none() = ChatScrollbar$None;
 }
 
-/// Overlay scrollbar for the chat viewport.
+/// A scrollbar drawn by [painter].
 ///
-/// Pure geometry, paint, and drag-pointer state — no dependency on the render
-/// object, the data source, or the controller. [RenderChatScrollView] owns the
-/// id ⇄ progress mapping; it routes pointer events here and feeds [paint] a
-/// 0..1 thumb progress derived from the anchor.
+/// Always shown while there is something to scroll. A pointer that goes down
+/// within 20 px of the viewport's trailing edge, over the track's vertical
+/// span, grabs the scrollbar: the thumb centre jumps to the pointer and the
+/// list follows it until the pointer lifts, landing on whole messages. A
+/// grab starts only on a fresh press, cancels a fling in flight, releases a
+/// held navigation placement, and never reaches message selection, taps,
+/// or the list drag.
+final class ChatScrollbar$Painted extends ChatScrollbar {
+  /// A scrollbar drawn by [painter]; defaults to [ChatPillScrollbarPainter].
+  const ChatScrollbar$Painted({
+    this.painter = const ChatPillScrollbarPainter(),
+  }) : super._();
+
+  /// The look. Part of this preset's equality: give custom painters value
+  /// equality (or reuse one instance), since an unequal painter makes the
+  /// preset unequal and ends an active grab on every rebuild.
+  final ChatScrollbarPainter painter;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatScrollbar$Painted && other.painter == painter;
+
+  @override
+  int get hashCode => Object.hash(ChatScrollbar$Painted, painter);
+
+  @override
+  String toString() => 'ChatScrollbar(painter: $painter)';
+}
+
+/// No scrollbar: nothing is painted and no press is grabbed, so presses
+/// along the trailing edge reach messages like any other.
+final class ChatScrollbar$None extends ChatScrollbar {
+  /// The absent scrollbar.
+  const ChatScrollbar$None() : super._();
+
+  @override
+  bool operator ==(Object other) => other is ChatScrollbar$None;
+
+  @override
+  int get hashCode => (ChatScrollbar$None).hashCode;
+
+  @override
+  String toString() => 'ChatScrollbar.none()';
+}
+
+/// What a [ChatScrollbarPainter] draws in one frame, in viewport-local
+/// pixels.
 ///
-/// The track uses a uniform colour; loaded/unloaded honesty is communicated in
-/// the viewport, not via per-range track segments. Thumb position and size are
-/// driven by [RenderChatScrollView] from height-weighted scroll metrics
-/// (viewport ÷ estimated content extent).
-class ChatScrollbar {
-  /// Width of the invisible touch strip along the right edge.
-  static const double hitWidth = 20;
+/// Resolved by the viewport once per paint. Grab hit-testing reads the same
+/// [trackRect] and [thumbRect], so presses land on what the viewport handed
+/// the painter no matter what the painter drew.
+@immutable
+final class ChatScrollbarFrame {
+  /// A frame with [trackRect] and [thumbRect], resting unless the factors
+  /// say otherwise.
+  const ChatScrollbarFrame({
+    required this.trackRect,
+    required this.thumbRect,
+    required this.textDirection,
+    this.visibility = 1.0,
+    this.hoverFactor = 0.0,
+    this.grabFactor = 0.0,
+  });
 
-  /// Default thumb height when no [thumbFraction] is supplied (legacy tests).
-  static const double defaultThumbHeight = 48;
+  /// The track's full travel: [ChatScrollbarPainter.trackThickness] wide,
+  /// [ChatScrollbarPainter.crossAxisMargin] in from the trailing edge, and
+  /// [ChatScrollbarPainter.mainAxisMargin] in from the scroll band's top and
+  /// bottom.
+  final Rect trackRect;
 
-  /// Smallest painted thumb height on the track.
-  static const double minThumbHeight = 16;
+  /// The thumb: as wide as [trackRect] and always inside it. Its length is
+  /// the visible band's share of the known span, floored at
+  /// [ChatScrollbarPainter.minThumbLength]; its offset along the track is the
+  /// band's place in that span.
+  final Rect thumbRect;
 
-  static const double _trackWidth = 4;
-  static const double _activeTrackWidth = 6;
-  static const double _pad = 4;
-  static const double _right = 4;
+  /// Reading direction; the trailing edge is on the right in
+  /// [TextDirection.ltr] and on the left in [TextDirection.rtl].
+  final TextDirection textDirection;
 
-  /// Pointer id of the in-progress scrollbar drag, or `null` when idle.
-  int? _pointer;
+  /// **Scrollbar visibility** in `[0, 1]`: how shown the scrollbar is.
+  final double visibility;
 
-  /// Whether a scrollbar drag is currently in progress.
-  bool get isDragging => _pointer != null;
+  /// How far a hovering pointer has engaged the scrollbar, in `[0, 1]`.
+  final double hoverFactor;
 
-  /// Whether [localX] and [localY] fall inside the trailing-edge touch strip
-  /// over the inset-confined scroll band. The strip sits on the right in LTR
-  /// and on the left in RTL — matching where the user expects the scrollbar
-  /// to be in their reading order.
-  bool inHitArea(
-    double localX,
-    double localY,
-    Size size,
-    TextDirection direction, {
-    double topInset = 0,
-    double bottomInset = 0,
-  }) {
-    final horizontal = direction == TextDirection.rtl
-        ? localX <= hitWidth
-        : localX >= size.width - hitWidth;
-    if (!horizontal) return false;
-    final geometry = _trackGeometry(
-      size,
-      topInset: topInset,
-      bottomInset: bottomInset,
-    );
-    if (geometry.trackHeight <= 0) return false;
-    final trackBottom = geometry.trackY + geometry.trackHeight;
-    return localY >= geometry.trackY && localY <= trackBottom;
-  }
+  /// How far a grab has engaged the scrollbar, in `[0, 1]`: `1` while a
+  /// pointer holds it.
+  final double grabFactor;
 
-  /// Begin a drag if [event] landed in the touch strip. Returns `true` when
-  /// the drag was claimed (the caller should then consume the event).
-  bool tryStartDrag(
-    PointerDownEvent event,
-    Size size,
-    TextDirection direction, {
-    double topInset = 0,
-    double bottomInset = 0,
-  }) {
-    if (!inHitArea(
-      event.localPosition.dx,
-      event.localPosition.dy,
-      size,
-      direction,
-      topInset: topInset,
-      bottomInset: bottomInset,
-    )) {
-      return false;
-    }
-    _pointer = event.pointer;
-    return true;
-  }
+  @override
+  bool operator ==(Object other) =>
+      other is ChatScrollbarFrame &&
+      other.trackRect == trackRect &&
+      other.thumbRect == thumbRect &&
+      other.textDirection == textDirection &&
+      other.visibility == visibility &&
+      other.hoverFactor == hoverFactor &&
+      other.grabFactor == grabFactor;
 
-  /// Whether [event] belongs to the active scrollbar drag.
-  bool ownsPointer(PointerEvent event) => event.pointer == _pointer;
+  @override
+  int get hashCode => Object.hash(
+    trackRect,
+    thumbRect,
+    textDirection,
+    visibility,
+    hoverFactor,
+    grabFactor,
+  );
 
-  /// End the active drag.
-  void endDrag() => _pointer = null;
+  @override
+  String toString() =>
+      'ChatScrollbarFrame(trackRect: $trackRect, thumbRect: $thumbRect, '
+      'textDirection: $textDirection, visibility: $visibility, '
+      'hoverFactor: $hoverFactor, grabFactor: $grabFactor)';
+}
 
-  /// Resolves thumb height from [thumbFraction] of the track, or
-  /// [defaultThumbHeight] when [thumbFraction] is null.
-  ///
-  /// Proportional thumbs are floored at [minThumbHeight] by default so the thumb
-  /// stays visible; pass [enforceMinHeight: false] only for diagnostics.
-  double resolveThumbHeight(
-    double trackHeight, {
-    double? thumbFraction,
-    bool enforceMinHeight = true,
-  }) {
-    if (trackHeight <= 0) return 0;
-    if (thumbFraction == null) {
-      return defaultThumbHeight.clamp(minThumbHeight, trackHeight);
-    }
-    final height = trackHeight * thumbFraction;
-    final minH = enforceMinHeight ? minThumbHeight : 0.0;
-    return height.clamp(minH, trackHeight).toDouble();
-  }
+/// **Scrollbar painter**: the host-replaceable look of the scrollbar.
+///
+/// The viewport reads the geometry getters to resolve a [ChatScrollbarFrame],
+/// then calls [paint] with it on every viewport paint while a scrollbar is
+/// shown. Hit-testing reads that frame's rects, never what [paint] drew, so a
+/// custom look cannot move where presses land.
+///
+/// The geometry getters are read once per paint and must stay constant for a
+/// given painter value. [paint] must be pure and cheap: it runs inside the
+/// viewport's own paint, on every scroll frame.
+abstract class ChatScrollbarPainter {
+  /// Const constructor for subclasses.
+  const ChatScrollbarPainter();
 
-  /// Map a pointer Y inside the track to a 0..1 thumb progress (clamped).
-  double progressFromY(
-    double localY,
-    Size size, {
-    double topInset = 0,
-    double bottomInset = 0,
-    double? thumbFraction,
-  }) {
-    final geometry = _trackGeometry(
-      size,
-      topInset: topInset,
-      bottomInset: bottomInset,
-    );
-    final thumbHeight = resolveThumbHeight(
-      geometry.trackHeight,
-      thumbFraction: thumbFraction,
-      enforceMinHeight: true,
-    );
-    final travel = geometry.trackHeight - thumbHeight;
-    if (travel <= 0) return 0;
-    return ((localY - geometry.trackY - thumbHeight / 2) / travel).clamp(
-      0.0,
-      1.0,
-    );
-  }
+  /// Width of [ChatScrollbarFrame.trackRect] and
+  /// [ChatScrollbarFrame.thumbRect]: the widest this painter ever draws.
+  double get trackThickness;
 
-  ({double trackY, double trackHeight}) _trackGeometry(
-    Size size, {
-    double topInset = 0,
-    double bottomInset = 0,
-  }) {
-    final trackY = topInset + _pad;
-    final trackHeight = size.height - topInset - bottomInset - _pad * 2;
-    return (trackY: trackY, trackHeight: trackHeight > 0 ? trackHeight : 0);
-  }
+  /// Gap between the viewport's trailing edge and the track.
+  double get crossAxisMargin;
 
-  /// Cached paints — every Tier-1 paint tick hits this method, so allocating
-  /// fresh [Paint] objects each time is wasted GC pressure.
-  final Paint _trackPaint = Paint();
-  final Paint _thumbPaint = Paint();
+  /// Gap between each end of the scroll band and the track. Shortens the
+  /// track, and so the thumb's travel, by twice this value.
+  double get mainAxisMargin;
 
-  /// Paint the uniform track and thumb.
-  ///
-  /// Paint order: full-track [ChatScrollbarThemeData.trackColor] RRect → thumb
-  /// on top. [progress] is 0..1 scroll position; [thumbFraction] is viewport
-  /// height ÷ estimated content extent (defaults to fixed [defaultThumbHeight]).
+  /// Shortest thumb the viewport resolves. A thumb that would be at least as
+  /// long as the track leaves nothing to travel, and no scrollbar is shown.
+  double get minThumbLength;
+
+  /// Draws [frame] onto [canvas] in viewport-local coordinates, coloured
+  /// from [theme].
   void paint(
     Canvas canvas,
-    Offset offset,
-    Size size,
-    double progress,
-    TextDirection direction, {
-    required ChatScrollbarThemeData theme,
-    double topInset = 0,
-    double bottomInset = 0,
-    double? thumbFraction,
-  }) {
-    final trackWidth = isDragging ? _activeTrackWidth : _trackWidth;
-    final trackX = direction == TextDirection.rtl
-        ? offset.dx + _right
-        : offset.dx + size.width - _right - trackWidth;
-    final geometry = _trackGeometry(
-      size,
-      topInset: topInset,
-      bottomInset: bottomInset,
-    );
-    final trackY = offset.dy + geometry.trackY;
-    final trackHeight = geometry.trackHeight;
-    if (trackHeight <= 0) return;
+    ChatScrollbarFrame frame,
+    ChatScrollbarThemeData theme,
+  );
 
-    _trackPaint.color = theme.trackColor;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(trackX, trackY, trackWidth, trackHeight),
-        Radius.circular(trackWidth / 2),
-      ),
-      _trackPaint,
-    );
+  /// Whether replacing [oldPainter] with this painter changes what [paint]
+  /// draws or what the geometry getters return. Defaults to `true`.
+  ///
+  /// Consulted only when the viewport's preset changes to an unequal value
+  /// that still uses a painter of the same type; a different painter type
+  /// always repaints. Returning `false` keeps the previous frame — pixels
+  /// and grab rects alike — until the viewport next paints.
+  bool shouldRepaint(covariant ChatScrollbarPainter oldPainter) => true;
+}
 
-    final thumbHeight = resolveThumbHeight(
-      trackHeight,
-      thumbFraction: thumbFraction,
+/// The default [ChatScrollbarPainter]: a fully rounded pill track with a
+/// pill thumb on top.
+///
+/// Both pills hug the trailing side of their rects and share one thickness,
+/// lerped from [thickness] to [grabbedThickness] by the grab factor. The
+/// thumb colour lerps from [ChatScrollbarThemeData.thumbColor] to
+/// [ChatScrollbarThemeData.thumbDraggingColor] by the same factor; the track
+/// uses [ChatScrollbarThemeData.trackColor]. Visibility scales both fills'
+/// alpha.
+@immutable
+final class ChatPillScrollbarPainter extends ChatScrollbarPainter {
+  /// Pill painter; the defaults draw a 4 px bar, 6 px while grabbed, 4 px in
+  /// from the trailing edge and the scroll band ends.
+  const ChatPillScrollbarPainter({
+    this.paintsTrack = true,
+    this.thickness = 4,
+    this.grabbedThickness = 6,
+    this.minThumbLength = 16,
+    this.crossAxisMargin = 4,
+    this.mainAxisMargin = 4,
+  }) : assert(thickness > 0, 'thickness must be positive'),
+       assert(grabbedThickness > 0, 'grabbedThickness must be positive'),
+       assert(minThumbLength > 0, 'minThumbLength must be positive'),
+       assert(crossAxisMargin >= 0, 'crossAxisMargin must not be negative'),
+       assert(mainAxisMargin >= 0, 'mainAxisMargin must not be negative');
+
+  /// Whether the track pill is drawn under the thumb.
+  final bool paintsTrack;
+
+  /// Pill thickness at rest.
+  final double thickness;
+
+  /// Pill thickness while grabbed.
+  final double grabbedThickness;
+
+  @override
+  final double minThumbLength;
+
+  @override
+  final double crossAxisMargin;
+
+  @override
+  final double mainAxisMargin;
+
+  @override
+  double get trackThickness => math.max(thickness, grabbedThickness);
+
+  @override
+  void paint(
+    Canvas canvas,
+    ChatScrollbarFrame frame,
+    ChatScrollbarThemeData theme,
+  ) {
+    final width = lerpDouble(thickness, grabbedThickness, frame.grabFactor)!;
+    final radius = Radius.circular(width / 2);
+    RRect pill(Rect rect) => RRect.fromRectAndRadius(
+      switch (frame.textDirection) {
+        TextDirection.ltr => Rect.fromLTRB(
+          rect.right - width,
+          rect.top,
+          rect.right,
+          rect.bottom,
+        ),
+        TextDirection.rtl => Rect.fromLTRB(
+          rect.left,
+          rect.top,
+          rect.left + width,
+          rect.bottom,
+        ),
+      },
+      radius,
     );
-    final travel = trackHeight - thumbHeight;
-    if (travel <= 0) return;
-    final thumbY = trackY + travel * progress;
-    _thumbPaint.color = isDragging
-        ? theme.thumbDraggingColor
-        : theme.thumbColor;
+    Paint fill(Color color) =>
+        _fill..color = color.withValues(alpha: color.a * frame.visibility);
+
+    if (paintsTrack) {
+      canvas.drawRRect(pill(frame.trackRect), fill(theme.trackColor));
+    }
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(trackX, thumbY, trackWidth, thumbHeight),
-        Radius.circular(trackWidth / 2),
+      pill(frame.thumbRect),
+      fill(
+        Color.lerp(
+          theme.thumbColor,
+          theme.thumbDraggingColor,
+          frame.grabFactor,
+        )!,
       ),
-      _thumbPaint,
     );
   }
+
+  /// One fill reused across paints: a const painter holds no state, and
+  /// this runs on every scroll frame.
+  static final Paint _fill = Paint();
+
+  @override
+  bool shouldRepaint(ChatPillScrollbarPainter oldPainter) =>
+      oldPainter != this;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatPillScrollbarPainter &&
+      other.paintsTrack == paintsTrack &&
+      other.thickness == thickness &&
+      other.grabbedThickness == grabbedThickness &&
+      other.minThumbLength == minThumbLength &&
+      other.crossAxisMargin == crossAxisMargin &&
+      other.mainAxisMargin == mainAxisMargin;
+
+  @override
+  int get hashCode => Object.hash(
+    paintsTrack,
+    thickness,
+    grabbedThickness,
+    minThumbLength,
+    crossAxisMargin,
+    mainAxisMargin,
+  );
+
+  @override
+  String toString() =>
+      'ChatPillScrollbarPainter(paintsTrack: $paintsTrack, '
+      'thickness: $thickness, grabbedThickness: $grabbedThickness, '
+      'minThumbLength: $minThumbLength, crossAxisMargin: $crossAxisMargin, '
+      'mainAxisMargin: $mainAxisMargin)';
 }

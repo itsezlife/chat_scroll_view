@@ -242,8 +242,11 @@ and follow-tail converge on the next layout.
   the origin still runs). A refused grow bumps `capHits` once per wall.
   Newly laid-out present messages can become
   the span hit. Lift or span abort releases the writer.
-- Scrollbar drag: maps Y → progress → `_jumpToScrollbar` → `jumpTo(id)`
-  (layout path).
+- Scrollbar grab: a press in the strip maps Y through the last painted
+  thumb (`ChatScrollbarRuntime.progressAt`, thumb centred on the pointer)
+  → progress → `_jumpToScrollbar` → `jumpTo(id)` (layout path). The frame
+  it reads is resolved in `_paintScrollbar`, so a press lands on what was
+  painted.
 
 ## Semantics
 

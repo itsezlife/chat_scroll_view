@@ -1,7 +1,7 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_animator.dart'
     show kHighlightFadeDuration, kHighlightHoldDurationMs;
 import 'package:chat_scroll_view/src/chat_widgets/chat_message_theme.dart';
-import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_theme.dart';
 import 'package:flutter/material.dart';

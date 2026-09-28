@@ -1,5 +1,43 @@
 ## Unreleased
 
+### Scrollbar
+- **BREAKING**: `ChatScrollbar` no longer names the scrollbar's internal
+  geometry and drag helper; that helper is private and gone from the
+  barrel, along with `ChatScrollbar.hitWidth`, `minThumbHeight`,
+  `defaultThumbHeight`, `inHitArea`, `tryStartDrag`, `progressFromY`,
+  `resolveThumbHeight`, and `paint`. Code that instantiated it or read its
+  constants no longer compiles. `ChatScrollbar` is now the scrollbar
+  preset (below).
+- **ADDED**: `ChatScrollView.scrollbar` takes a `ChatScrollbar`, an
+  immutable, value-equal **scrollbar preset**: `ChatScrollbar(painter:)`
+  or `ChatScrollbar.none()`. Leaving it unset gives the same scrollbar as
+  before. Nothing changes for apps that pass nothing: it is always shown,
+  and a press within 20 px of the trailing edge still grabs it and jumps.
+  `ChatScrollbar.none()` paints nothing and grabs nothing, so presses along
+  the trailing edge tap messages and drag the list instead. An equal
+  preset on rebuild changes nothing; an unequal one ends an active grab,
+  and the grabbing pointer then scrolls nothing until it lifts.
+- **ADDED**: `ChatScrollbarPainter`, the open **scrollbar painter**
+  contract. The viewport resolves a `ChatScrollbarFrame` once per paint
+  (track rect, thumb rect, visibility, hover and grab factors, text
+  direction) from the painter's `trackThickness`, `crossAxisMargin`,
+  `mainAxisMargin`, and `minThumbLength`, then calls `paint` with it and
+  the resolved `ChatScrollbarThemeData`. Grab hit-testing reads that same
+  frame, never the painter's output, so a custom look cannot move where
+  presses land. The default `ChatPillScrollbarPainter` draws the previous
+  pixels and colours; its sizes are constructor parameters (`paintsTrack`,
+  `thickness`, `grabbedThickness`, `minThumbLength`, `crossAxisMargin`,
+  `mainAxisMargin`).
+- **CHANGED**: The thumb length a press maps through is the painted one.
+  Before, the drag could use a different length from the paint when no
+  row was laid out (a fixed 48 px), and a thumb as long as the track still
+  painted an empty track and took presses that jumped to the oldest
+  message. Now such a thumb paints no scrollbar and takes no presses.
+- **CHANGED**: `ChatScrollbarThemeData` moved to its own library file; it is
+  still exported from `package:chat_scroll_view/chat_scroll_view.dart`.
+  Imports of `src/chat_widgets/chat_scrollbar.dart` for the theme must
+  switch to `src/chat_widgets/chat_scrollbar_theme.dart`.
+
 ### Diagnostics
 - **CHANGED**: The per-concern `ChatScrollDevLog` instances are replaced by
   one internal logger (`fine` / `config` / `info` / `warning` / `severe`)

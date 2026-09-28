@@ -9,6 +9,8 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart'
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_chrome.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
@@ -161,6 +163,7 @@ class ChatScrollView extends RenderObjectWidget {
     this.reverse = false,
     this.isSelfMessage,
     this.physics,
+    this.scrollbar,
     super.key,
   });
 
@@ -506,9 +509,25 @@ class ChatScrollView extends RenderObjectWidget {
   /// rest before the new physics takes over.
   final ChatScrollPhysics? physics;
 
+  /// The **scrollbar preset**: a scrollbar drawn by a
+  /// [ChatScrollbarPainter], or [ChatScrollbar.none] for no scrollbar.
+  ///
+  /// `null` resolves to `const ChatScrollbar()` on every build: the
+  /// [ChatPillScrollbarPainter] at its defaults. Colours come from
+  /// [ChatScrollbarThemeData]; the painter picks sizes; where the scrollbar
+  /// sits follows [textDirection].
+  ///
+  /// Compared by value on rebuild: an equal value is a no-op, so a grab in
+  /// progress survives. An unequal value ends the grab; the grabbing
+  /// pointer then scrolls nothing until it lifts.
+  final ChatScrollbar? scrollbar;
+
   /// The effective physics: [physics], or the platform default when unset.
   ChatScrollPhysics get _effectivePhysics =>
       physics ?? ChatScrollPhysics.forPlatform();
+
+  /// The effective scrollbar: [scrollbar], or the default preset when unset.
+  ChatScrollbar get _effectiveScrollbar => scrollbar ?? const ChatScrollbar();
 
   /// The effective grouping function, or `null` when day separators are off.
   Object Function(IChatMessage)? get _effectiveGroupBy =>
@@ -547,6 +566,7 @@ class ChatScrollView extends RenderObjectWidget {
       highlightDuration: highlightDuration ?? theme.highlightDuration!,
       textDirection: _resolveDirection(context),
       scrollbarTheme: theme.scrollbar!,
+      scrollbar: _effectiveScrollbar,
       selectionController: selectionController,
       onIdleMessageTap: onIdleMessageTap,
       onSecondaryMessageTap: onSecondaryMessageTap,
@@ -581,6 +601,7 @@ class ChatScrollView extends RenderObjectWidget {
       ..highlightColor = highlightColor ?? theme.highlightColor!
       ..highlightDuration = highlightDuration ?? theme.highlightDuration!
       ..scrollbarTheme = theme.scrollbar!
+      ..scrollbar = _effectiveScrollbar
       ..textDirection = _resolveDirection(context)
       ..selectionController = selectionController
       ..onIdleMessageTap = onIdleMessageTap

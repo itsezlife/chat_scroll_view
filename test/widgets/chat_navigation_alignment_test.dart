@@ -5,7 +5,6 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/navigation_placement.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
-import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -801,10 +800,7 @@ void main() {
         'makes', (tester) async {
       controller.jumpTo(50);
       await mount(tester);
-      const scrollbarStrip = Offset(
-        _viewportWidth - ChatScrollbar.hitWidth / 2,
-        80,
-      );
+      const scrollbarStrip = Offset(_viewportWidth - 10, 80);
       final origin = tester.getTopLeft(find.byType(ChatScrollView));
       final gesture = await tester.startGesture(origin + scrollbarStrip);
       await tester.pump();
