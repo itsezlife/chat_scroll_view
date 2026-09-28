@@ -141,6 +141,44 @@ _Avoid_: Smart jump, auto-scroll to bottom, half-screen check (as the engine nam
 After the origin ID becomes absent, keep the visible band’s bottom (the reading position) still, not the raw origin Y.
 _Avoid_: Compensate, keep anchor Y, correctBy
 
+### Scrollbar
+
+**Scrollbar**:
+Viewport chrome on the trailing edge that shows where the visible band sits within the known conversation span. It paints outside the edge transform.
+_Avoid_: Scroll indicator (as the umbrella term), fast scroller, overlay scrollbar widget
+
+**Track**:
+The scrollbar's full travel, standing for the span from the oldest to the newest known message.
+_Avoid_: Rail, gutter, background bar
+
+**Thumb**:
+The part of the scrollbar standing for the visible band: its position is the band's place in the known span, its length the band's share of it. During a grab it follows the pointer, keeping the grab point, and the band follows the thumb; on release it eases back to the band's position.
+_Avoid_: Handle, knob, bar (alone)
+
+**Thumb squash**:
+The thumb's response to a **rubber-band** edge effect: pinned to the pressed end of the track, it shortens 1:1 with the rubber-band overshoot, down to a round dot, and never leaves the track. **Stretch** and no edge effect leave the thumb untouched.
+_Avoid_: Thumb bounce, scrollbar overscroll, scaled squash
+
+**Scrollbar painter**:
+The host-replaceable look of the scrollbar: it draws from track and thumb rects the viewport has already resolved, plus shown, hover, and drag factors. Where presses land never depends on what it draws.
+_Avoid_: Scrollbar builder, scrollbar widget, custom scrollbar (as the extension point)
+
+**Scrollbar grab**:
+How the scrollbar takes pointers away from message scrolling: which presses and hovers it claims, and what a drag or track press does. A grab starts only on a fresh press nothing else in the viewport owns, then owns that pointer until release. Touch grabs only an enlarged target around a visible thumb; a hovering pointer may claim the whole strip even while it is hidden, since hover reveals it first. Chosen from a closed set; hosts tune it, never replace it.
+_Avoid_: Scrollbar interaction (collides with **selection interaction**), scrollbar gesture, fast scroll
+
+**Scrollbar preset**:
+A host-chosen combination of scrollbar visibility, **scrollbar grab**, and **scrollbar painter**. The platform default picks the mobile or desktop preset per OS family; a preset with no scrollbar turns it off. The input device in use adjusts behavior inside a preset, never switches presets.
+_Avoid_: Scrollbar mode, adaptive scrollbar (as a live switch), ScrollBehavior
+
+**Scrollbar visibility**:
+The scrollbar's own shown factor in `[0, 1]`, separate from **scroll activity**. List motion feeds it the same way it feeds scroll activity; a grab, hovering the scrollbar, a moving edge effect, and the pointer entering or leaving the viewport also move it. It rises when the reader's position in the conversation changes, never when only the thumb's geometry changes (history loads, follow tail on arrival, pixel-preserving writers). Either always shown or auto-hiding after an idle delay.
+_Avoid_: Scroll activity (as the scrollbar's driver), scrollbar opacity, fade mode
+
+**Scrollbar hold** / **Scrollbar suppression**:
+Host-owned handles on scrollbar visibility for conditions the viewport cannot see. While any hold is alive the scrollbar stays shown; while any suppression is alive it hides, ignores show triggers, and claims no presses. Suppression beats hold; handles release independently. A **scrollbar flash** is the handle-less one-shot: show, then hide after the idle delay.
+_Avoid_: Scrollbar enabled flag, force-show bool, disableScroll
+
 ### Grouping and slots
 
 **Day bucket**:
