@@ -12,7 +12,8 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_chrome.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
-import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, defaultTargetPlatform;
 import 'package:flutter/widgets.dart';
 
 /// Builds the widget for message [id].
@@ -491,10 +492,12 @@ class ChatScrollView extends RenderObjectWidget {
   /// Scroll physics: the fling that carries a released drag and the edge
   /// effect shown at a reached conversation boundary.
   ///
-  /// `null` resolves to [ChatScrollPhysics.android] on every platform.
+  /// `null` resolves to [ChatScrollPhysics.forPlatform] on every build: the
+  /// preset matching the OS family of [defaultTargetPlatform] (not the
+  /// theme's platform); a browser follows its OS.
   ///
-  /// Physics governs the user drag path only (touch, trackpad pan, and
-  /// the flings they release). Wheel, keyboard, scrollbar, jump, and
+  /// Physics governs the user drag path only (touch, stylus, trackpad pan,
+  /// and the flings they release). Wheel, keyboard, scrollbar, jump, and
   /// animate motion never read it.
   ///
   /// Compared by value on rebuild: an equal value is a no-op, so an
@@ -503,9 +506,9 @@ class ChatScrollView extends RenderObjectWidget {
   /// rest before the new physics takes over.
   final ChatScrollPhysics? physics;
 
-  /// The effective physics: [physics], or the Android pairing when unset.
+  /// The effective physics: [physics], or the platform default when unset.
   ChatScrollPhysics get _effectivePhysics =>
-      physics ?? const ChatScrollPhysics.android();
+      physics ?? ChatScrollPhysics.forPlatform();
 
   /// The effective grouping function, or `null` when day separators are off.
   Object Function(IChatMessage)? get _effectiveGroupBy =>

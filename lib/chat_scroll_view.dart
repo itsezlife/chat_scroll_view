@@ -31,8 +31,11 @@ export 'src/chat_scroll/chat_scroll_events.dart';
 export 'src/chat_scroll/chat_scroll_physics.dart'
     show
         ChatEdgeEffect,
+        ChatEdgeEffect$None,
+        ChatEdgeEffect$RubberBand,
         ChatEdgeEffect$Stretch,
         ChatFling,
+        ChatFling$Decay,
         ChatFling$Spline,
         ChatScrollPhysics;
 export 'src/chat_scroll/chat_selection_allowed.dart';

@@ -7,8 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 
-/// **Stretch** edge-effect state: the Android edge stretch over a clamped
-/// chat viewport.
+/// **Stretch** edge-effect state: the edge stretch over a clamped chat
+/// viewport.
 ///
 /// Owns the stretch ratio ([overscroll] in `[-1, 1]`), the return spring,
 /// and the scale-from-edge [paintTransform]. Never mutates scroll layout —
@@ -56,7 +56,7 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
 
   double _interruptedOverscroll = 0;
   SpringSimulation? _simulation;
-  Duration? _simStart;
+  final ChatSpringClock _clock = ChatSpringClock();
   int _tickFrame = 0;
 
   static const double _exponentialScalar = math.e / 0.33;
@@ -84,7 +84,7 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
   @override
   void onDragStart() {
     _simulation = null;
-    _simStart = null;
+    _clock.restart();
     if (_overscroll.abs() < _minPaintStretch) {
       _overscroll = 0;
       _interruptedOverscroll = 0;
@@ -103,7 +103,7 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
   /// without spilling past the opposite pin — a spill lands in [pull]
   /// instead, which unwinds the gesture's pull continuously.
   @override
-  double claim(double delta, {required double travel}) {
+  double claim(double delta, double viewportHeight, {required double travel}) {
     if (_overscroll == 0 || delta.sign == _overscroll.sign) return delta;
     final consumed = math.min(delta.abs(), travel);
     final spill = delta.abs() - consumed;
@@ -122,7 +122,7 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
   }) {
     if (unconsumedPx == 0 || viewportHeight <= 0) return;
     _simulation = null;
-    _simStart = null;
+    _clock.restart();
     _totalPullPx += unconsumedPx;
     final normalized = clampDouble(_totalPullPx / viewportHeight, -1, 1);
     final absDistance = normalized.abs();
@@ -163,7 +163,7 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
       _interruptedOverscroll = 0;
       _overscroll = 0;
       _simulation = null;
-      _simStart = null;
+      _clock.restart();
       fine(.overscroll, 'drag.end.idle', {'v': LogFormat.f(velocity)});
       return true;
     }
@@ -176,7 +176,7 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
       _overscroll = 0;
       _interruptedOverscroll = 0;
       _simulation = null;
-      _simStart = null;
+      _clock.restart();
       return true;
     }
     if (flick) {
@@ -241,22 +241,23 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
     _totalPullPx = 0;
     _interruptedOverscroll = 0;
     _simulation = null;
-    _simStart = null;
+    _clock.restart();
   }
 
   @override
   bool tick(Duration elapsed) {
     final simulation = _simulation;
-    if (simulation == null) return false;
-    final start = _simStart ??= elapsed;
-    final seconds =
-        (elapsed - start).inMicroseconds / Duration.microsecondsPerSecond;
+    if (simulation == null) {
+      _clock.idleTick = elapsed;
+      return false;
+    }
+    final seconds = _clock.secondsAt(elapsed);
     if (simulation.isDone(seconds)) {
       fine(.overscroll, 'spring.done', {'t': LogFormat.ratio(seconds)});
       _overscroll = 0;
       _interruptedOverscroll = 0;
       _simulation = null;
-      _simStart = null;
+      _clock.restart();
       return false;
     }
     _overscroll = clampDouble(simulation.x(seconds), -1, 1);
@@ -290,6 +291,6 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
       0,
       scaledVelocity * _timeCorrectionFactor,
     );
-    _simStart = null;
+    _clock.restart();
   }
 }

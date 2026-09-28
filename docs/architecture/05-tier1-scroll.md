@@ -58,8 +58,11 @@ the edge effect.
 ## Scroll physics
 
 The host passes an immutable `ChatScrollPhysics` (`ChatScrollView.physics`,
-`null` → `.android()` on every platform): one `ChatFling` plus one
-`ChatEdgeEffect`, each a closed set with tunable params. The render object
+`null` → `.forPlatform()`): one `ChatFling` plus one `ChatEdgeEffect`, each a
+closed set with tunable params. The default reads `defaultTargetPlatform`
+(never the theme): Android / Fuchsia → spline + stretch, iOS / macOS →
+decay + rubber-band, Windows / Linux → spline + none; web follows the
+browser OS through the same table. The render object
 owns the runtime `ChatScrollMotion` built from it (`_motion.fling`,
 `_motion.edge`). Physics governs the **drag path only**. Wheel, keyboard,
 scrollbar, jump, `scrollBy`, and animate never read it.
@@ -75,37 +78,59 @@ paint tops.
   runs `ChatSplineFlingSimulation`: Android's `OverScroller` spline, the same
   distance as `ClampingScrollSimulation` with the full native duration and
   tail, so idle-driven chrome waits as long as on a native list. `friction`
-  scales travel (∝ friction^-0.74).
+  scales travel (∝ friction^-0.74). `ChatFling.decay` runs Flutter's
+  `FrictionSimulation` with drag `decelerationRate^1000` (iOS normal
+  `0.998` → `0.135`), stopping below 10 px/s.
 - **No-op** when [_contentFitsInViewport](./06-boundaries.md#short-content--_contentfitsinviewport).
 - Per-tick clamp during fling (not suspended).
-- There is no overscroll resistance. Unconsumed dy at a reached edge feeds
-  the paint-only edge effect.
+- Layout has no overscroll resistance. Unconsumed dy at a reached edge feeds
+  the paint-only edge effect, which owns any resistance (rubber-band).
 - Render emits `ChatFlingStart` / `ChatFlingEnd`; physics does not touch events.
 
 ## Edge effect
 
 The render object drives the edge effect only through `ChatEdgeEffectState`.
-The release rules live in the strategy (`ChatStretchOverscroll` for
-`ChatEdgeEffect.stretch`).
+The release rules live in the strategy: `ChatStretchOverscroll` for
+`ChatEdgeEffect.stretch`, `ChatRubberBandOverscroll` for
+`ChatEdgeEffect.rubberBand`, `ChatNoOverscroll` for `ChatEdgeEffect.none`.
 
 - Paint-only message-layer transform (`_edgeTransform`). Layout pins stay
   clamped.
 - **Claim first** (drag ticks): before the edge-unconsumed split, `claim`
-  sees the whole delta together with the travel content can absorb. Stretch
-  passes all of it through. Reverse travel of more than 1 px into content
-  (with no more than 1 px spilling past a pin) starts its release, so content
-  moves at once instead of unwinding the pull first. Short content has zero
-  travel, so reverse motion unwinds the pull.
+  sees the whole delta, the viewport height, and the travel content can
+  absorb. Stretch passes all of it through. Reverse travel of more than 1 px
+  into content (with no more than 1 px spilling past a pin) starts its
+  release, so content moves at once instead of unwinding the pull first.
+  Short content has zero travel, so reverse motion unwinds the pull.
+  Rubber-band consumes reverse motion along its resistance curve and returns
+  only what is left once the layer is back at the pin. None passes
+  everything through.
 - **Pull** only the overflow past the remaining pin travel
   (`_unconsumedOverscrollDelta`, > 1 px). A missing boundary box means that
   edge is not in play.
 - **Drag end**: `onDragEnd(v)` answers whether a content fling may start.
   Stretch: a reverse flick releases and allows it; same-direction velocity
   absorbs, then springs back; an idle release springs from the current
-  stretch with zero initial velocity (no slam).
+  stretch with zero initial velocity (no slam). Rubber-band: a flick
+  toward content (≥ 50 px/s) keeps the displacement and allows the fling;
+  the tick feeds fling deltas through `claim`, so the fling unwinds the
+  band before content moves. Any other visible displacement springs back
+  at the layer's speed — the release velocity times the band's slope
+  `c·((d − b)/d)²` — and blocks the fling; the spring stops at the pin.
+  None: always allows the fling.
+- **Stranded edge**: an edge effect still active with no drag, no fling,
+  no catching press, and no spring (a carried fling that never started,
+  was cancelled, or died mid-unwind) is released with `onDragEnd(0)` on
+  the next tick.
 - **Fling impact**: a fling that reaches a pin (including the frame that
   consumes the last travel pixels) calls `absorbImpact` with its velocity,
-  then the fling is cancelled.
+  then the fling is cancelled. Rubber-band launches its spring from the pin
+  with that velocity, uncapped: its critically damped spring peaks at
+  `v / (ω·e)`, so the overshoot keeps scaling with the impact. Every edge
+  spring's clock (`ChatSpringClock`) starts at the previous tick (≤ 34 ms
+  back), so neither the release nor the impact frame repeats the launch
+  position.
+  None discards it.
 - **Press catch**: a pointer down while the edge springs (not dragging)
   freezes it (`onDragStart`) and sets `flingCancelSuppressesLongPress` for
   that pointer, exactly like catching a fling. If the press becomes a drag,

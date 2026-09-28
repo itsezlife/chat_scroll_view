@@ -199,7 +199,7 @@ class RenderChatScrollView extends RenderBox {
     ChatMessageMenuRequestCallback? onIdleMessageTap,
     ChatMessageMenuRequestCallback? onSecondaryMessageTap,
     bool Function(IChatMessage message)? isSelfMessage,
-    ChatScrollPhysics physics = const ChatScrollPhysics.android(),
+    ChatScrollPhysics physics = const ChatScrollPhysics.stretch(),
   }) : _motion = ChatScrollMotion(physics),
        _dataSource = dataSource,
        _controller = controller,
@@ -2253,11 +2253,13 @@ class RenderChatScrollView extends RenderBox {
     Set<int> built,
     Set<int> builtChunks,
   ) {
-    if (_controller.navigationPlacement case AlignmentPlacement(
-      messageId: final targetId,
-      tailFitFraction: final fraction?,
-    ) when _dataSource.getMessage(targetId) != null &&
-        built.contains(targetId)) {
+    if (_controller.navigationPlacement
+        case AlignmentPlacement(
+          messageId: final targetId,
+          tailFitFraction: final fraction?,
+        )
+        when _dataSource.getMessage(targetId) != null &&
+            built.contains(targetId)) {
       final newest = _layOutNewestBelow(targetId, cc, built, builtChunks);
       final span = switch ((_children[targetId], newest)) {
         (final target?, (_, final last)) =>
@@ -4623,9 +4625,12 @@ class RenderChatScrollView extends RenderBox {
     if (userDelta != 0.0) {
       _controller.notifyScrollEvent(ChatViewportScrolled(userDelta));
     }
-    if (_dragInProgress && delta != 0.0) {
+    // A fling released toward content unwinds the edge effect before it
+    // moves content, the same as a reverse drag.
+    if ((_dragInProgress || wasFlinging) && delta != 0.0 && hasSize) {
       delta = edge.claim(
         delta,
+        size.height,
         travel: delta.abs() - _unconsumedOverscrollDelta(delta).abs(),
       );
     }
@@ -4665,6 +4670,16 @@ class RenderChatScrollView extends RenderBox {
       if (!_animator.farAnimateActive) {
         _cancelAnimate();
       }
+    }
+    // An edge effect left displaced with no drag, no fling carrying it, and
+    // no catching press holding it — a released fling that never started,
+    // was cancelled, or died mid-unwind — releases where it is.
+    if (!_dragInProgress &&
+        !fling.isFlinging &&
+        _flingCancelPointer == null &&
+        edge.isActive &&
+        !edge.isSpringing) {
+      edge.onDragEnd(0);
     }
     if (edge.tick(elapsed) || edge.isActive) {
       markNeedsPaint();

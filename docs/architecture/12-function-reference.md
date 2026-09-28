@@ -94,9 +94,15 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | Member                                         | Purpose                                                 | Must not                                   |
 | ---------------------------------------------- | ------------------------------------------------------- | ------------------------------------------ |
 | `ChatScrollPhysics(fling:, edgeEffect:)`       | Host choice of one fling + one edge effect              | Hold runtime state                         |
-| `.android()`                                   | Spline fling + stretch; the `null` default everywhere   | Branch on platform                         |
+| `.stretch()`                                   | Spline fling + stretch                                  | Branch on platform                         |
+| `.rubberBand()`                                | Decay fling + rubber-band                               | Branch on platform                         |
+| `.clamped()`                                   | Spline fling + no edge effect                           | Branch on platform                         |
+| `.forPlatform(platform:)`                      | The `null` default: OS-family table from `defaultTargetPlatform` | Read the theme or `ScrollConfiguration` |
 | `ChatFling.spline(friction:)`                  | Android `OverScroller` spline; friction scales travel   | Grow variants outside the closed set       |
+| `ChatFling.decay(decelerationRate:)`           | iOS decay via `FrictionSimulation(rate^1000)`           | Grow variants outside the closed set       |
 | `ChatEdgeEffect.stretch(intensity:, …spring)`  | Android 12 stretch; pull response + return spring       | Grow variants outside the closed set       |
+| `ChatEdgeEffect.rubberBand(resistance:, …spring)` | iOS translate; `d·c·x/(d+c·x)` pull + return spring  | Grow variants outside the closed set       |
+| `ChatEdgeEffect.none()`                        | Hard clamp; fling ends at the pin                       | Paint anything                             |
 | `==` / `hashCode`                              | Value equality; drives the equal-is-no-op swap          | Compare by identity                        |
 
 ## `ChatFlingMotion` (`@internal`)
@@ -113,7 +119,7 @@ render object replaces it only on an unequal physics swap.
 
 | `ChatEdgeEffectState` member | Purpose                                                              | Must not                                  |
 | ---------------------------- | -------------------------------------------------------------------- | ----------------------------------------- |
-| `claim(delta, travel:)`      | First claim on each drag delta; may start a release                  | Run on wheel / fling / animate deltas     |
+| `claim(delta, viewportHeight, travel:)` | First claim on each drag or fling delta; may consume it or start a release | Run on wheel / animate deltas       |
 | `pull`                       | Unconsumed drag dy past a reached pin                                | Feed mid-content travel                   |
 | `onDragStart`                | Freeze (drag start or press catching a spring); idempotent           | Clear the painted effect                  |
 | `onDragEnd(v)` → `bool`      | Release; answers whether a content fling may start                   | Start the fling itself                    |
@@ -130,6 +136,16 @@ render object replaces it only on an unequal physics swap.
 | `onDragEnd`            | Reverse → release + fling allowed; same-dir → absorb; idle → soft spring | Slam back with inverted max fling velocity |
 | `releaseIntoContent`   | Drop the pull; keep a short visual unwind                            | Move content                               |
 | `paintTransform`       | Scale about the pressed edge (top for `s ≥ 0`, bottom otherwise)     | Paint under the precision tolerance        |
+
+## `ChatRubberBandOverscroll` (rubber-band strategy)
+
+| Member           | Purpose                                                                  | Must not                                   |
+| ---------------- | ------------------------------------------------------------------------ | ------------------------------------------ |
+| `pull` / `claim` | Map displacement → pull, add motion, map back; claim returns the rest past the pin | Depend on the path to a displacement |
+| `onDragEnd`      | Flick toward content → keep displacement, fling allowed (unwound via `claim`); other displaced → spring at the layer's speed (velocity × band slope), fling blocked; at rest → allowed | Spring away a flick's momentum toward content |
+| `absorbImpact`   | Spring from the pin with leftover velocity (≥ 50 px/s, uncapped)         | Arm on a fling that ran out at the pin     |
+| `tick`           | Advance spring; stop at the pin                                          | Cross rest into the opposite edge          |
+| `paintTransform` | Translate by `displacement`                                              | Scale                                      |
 
 ---
 
@@ -236,7 +252,7 @@ Debug getters (`debugChildCount`, `debugDividerOpacity`, etc.) and
 renorm → align → tail flags → match band gap → clamp → re-fan → match gap → GC →
 fetch → publish → header → highlight arm → rebase close path.
 
-**Tick:** pending → fling → animate → span auto-scroll → edge claim (drag) →
-split unconsumed → apply consumed → reposition → renorm → clamp → edge
-pull / absorb → edge tick → publish → header tick → highlight/settle →
-paint or layout.
+**Tick:** pending → fling → animate → span auto-scroll → edge claim (drag or
+fling) → split unconsumed → apply consumed → reposition → renorm → clamp →
+edge pull / absorb → stranded-edge release → edge tick → publish → header
+tick → highlight/settle → paint or layout.

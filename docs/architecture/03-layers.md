@@ -24,10 +24,12 @@ idea as `SliverMultiBoxAdaptorElement`, without the sliver protocol.
 | `ChatDataSource` | Headless | Chunks, fetch, boundaries, absent slots, typed data listeners |
 | `ChatFloatingHeaderController` | Headless geometry | Day scan, fade math, header bucket state (no widgets) |
 | `ChatAnimator` | Headless | Close/far `animateTo`, Message highlight wash |
-| `ChatScrollPhysics` | Immutable value (public) | Host choice of fling + edge effect (closed sets with tunable params); `.android()` preset |
+| `ChatScrollPhysics` | Immutable value (public) | Host choice of fling + edge effect (closed sets with tunable params); `.stretch()` / `.rubberBand()` / `.clamped()` presets, `.forPlatform()` default |
 | `ChatScrollMotion` | Headless (render-owned, `@internal`) | Per-viewport runtime for one physics value: `ChatFlingMotion` + `ChatEdgeEffectState` |
-| `ChatFlingMotion` | Headless (`@internal`) | Fling simulation lifecycle; offset deltas per tick |
+| `ChatFlingMotion` | Headless (`@internal`) | Fling simulation lifecycle (spline or decay); offset deltas per tick |
 | `ChatStretchOverscroll` | Headless (`@internal`) | Stretch edge effect: pull, release rules, return spring, paint matrix |
+| `ChatRubberBandOverscroll` | Headless (`@internal`) | Rubber-band edge effect: resistance curve, reverse claim, impact overshoot, spring, translate matrix |
+| `ChatNoOverscroll` | Headless (`@internal`, const) | None edge effect: drops motion past a pin, never paints |
 | `ChatChunkFetchScheduler` | Headless (render-owned) | Fetch poll, jump-fetch, LRU eviction coordination |
 
 ## Ownership boundaries
@@ -108,8 +110,9 @@ lib/src/
     chat_scroll_chunk.dart
     chat_scroll_common.dart
     chat_scroll_physics.dart      # public physics value + ChatFlingMotion
-    chat_scroll_motion.dart       # per-viewport runtime + edge-effect seam
+    chat_scroll_motion.dart       # per-viewport runtime + edge-effect seam + none
     chat_stretch_overscroll.dart  # stretch edge effect
+    chat_rubber_band_overscroll.dart  # rubber-band edge effect
     chat_animator.dart
     chat_floating_header_controller.dart
     chat_chunk_fetch_scheduler.dart

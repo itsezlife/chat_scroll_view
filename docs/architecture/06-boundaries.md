@@ -115,9 +115,11 @@ When content **does not** fit, both pins may run in one clamp; **last wins**:
 
 ## Overscroll
 
-A paint-time edge effect, chosen by `ChatScrollPhysics.edgeEffect`
-(`ChatEdgeEffect.stretch`, the Android 12 EdgeEffect stretch run by
-`ChatStretchOverscroll`). Layout never rubber-bands.
+A paint-time edge effect, chosen by `ChatScrollPhysics.edgeEffect`:
+`ChatEdgeEffect.stretch` (the Android 12 EdgeEffect stretch, run by
+`ChatStretchOverscroll`), `ChatEdgeEffect.rubberBand` (the `UIScrollView`
+translate, run by `ChatRubberBandOverscroll`), or `ChatEdgeEffect.none`.
+Layout never rubber-bands — the rubber-band translate is paint-only too.
 
 `_unconsumedOverscrollDelta` is the portion of a tick delta that exceeds
 remaining travel to a reached pin (`max(0, distance-to-pin)`). Measured from
