@@ -139,17 +139,24 @@ class ChatFloatingHeaderController {
   }
 
   /// Viewport-local Y where the floating header rests — just below the top
-  /// inset. The day header delegate may displace it from there.
-  double placeHeaderOffset({required double topPad}) => topPad;
+  /// inset, or at [oldestPaintTop] when the oldest row paints below that
+  /// (a top edge effect translating the list past the oldest message). The
+  /// header never rests above the oldest row, where there is no content.
+  /// The day header delegate may displace it from there.
+  double placeHeaderOffset({required double topPad, double? oldestPaintTop}) =>
+      switch (oldestPaintTop) {
+        final top? when top > topPad => top,
+        _ => topPad,
+      };
 
   /// Whether the floating day header should be built and painted.
   ///
   /// While older history may still be loading ([reachedOldest] is false), the
   /// header tracks the topmost visible group as usual. Once the oldest known
   /// message is reached, hide the header when that message sits entirely below
-  /// the header stack — typically short content pinned at the bottom. Paint-
-  /// time edge stretch does not move [oldestTop]; hosts keep the header
-  /// outside the stretch transform instead.
+  /// the header stack — typically short content pinned at the bottom.
+  /// [oldestTop] is the layout top: paint-time edge effects do not move it.
+  /// [placeHeaderOffset] keeps a shown header on the oldest row instead.
   bool shouldShowFloatingHeader({
     required bool reachedOldest,
     required double? oldestTop,

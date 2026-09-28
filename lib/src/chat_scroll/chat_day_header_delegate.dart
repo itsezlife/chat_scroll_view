@@ -13,7 +13,9 @@ final class ChatDayHeaderMetrics {
     this.activity = 1.0,
   });
 
-  /// Y where the header rests — just below the viewport's top inset.
+  /// Y where the header rests — just below the viewport's top inset, or
+  /// lower when a top edge effect paints the oldest row below that inset:
+  /// the header never rests above the oldest row.
   final double restTop;
 
   /// Laid-out header height.

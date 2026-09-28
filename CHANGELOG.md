@@ -34,8 +34,10 @@
   velocity (uncapped, so a faster fling always bounces further), then
   settles on a critically damped spring (`dampingRatio: 1`). Like stretch, it is paint-only: layout stays
   pinned, and hit-testing, `applyPaintTransform`, and row chrome
-  `paintTop` follow the translate. The floating day header and the
-  scrollbar do not move.
+  `paintTop` follow the translate. The scrollbar does not move. The
+  floating day header never rests above the oldest row: past the oldest
+  edge it travels down with that row and stands in for its inline
+  separator, instead of staying at the top as a second chip.
 - **CHANGED**: `physics: null` now resolves to
   `ChatScrollPhysics.forPlatform()` from `defaultTargetPlatform` (not the
   theme): Android / Fuchsia → `.stretch()`, iOS / macOS → `.rubberBand()`,

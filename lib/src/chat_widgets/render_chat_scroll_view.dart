@@ -4312,9 +4312,6 @@ class RenderChatScrollView extends RenderBox {
   /// transform, both folded into the paint top.
   void _resolveRowChromeFrame() {
     final extent = _effectiveFloatingHeaderHeight();
-    final restTop = _floatingHeaderController.placeHeaderOffset(
-      topPad: _topPad,
-    );
     final stitching = _animator.farAnimateActive && _animator.farAnimateJumped;
     final edge = _edgeTransform;
     for (final child in _children.values) {
@@ -4325,6 +4322,10 @@ class RenderChatScrollView extends RenderBox {
         final edge => MatrixUtils.transformPoint(edge, Offset(0, top)).dy,
       };
     }
+    final restTop = _floatingHeaderController.placeHeaderOffset(
+      topPad: _topPad,
+      oldestPaintTop: _oldestBoundaryPaintTop(),
+    );
 
     final ChatFloatingHeaderZone zone;
     if (extent > 0) {
@@ -4380,6 +4381,17 @@ class RenderChatScrollView extends RenderBox {
     final first = _boundaryBox(oldest);
     if (first == null) return null;
     return _parentData(first).offset;
+  }
+
+  /// Painted top of the oldest message row once the oldest message is
+  /// reached, or `null` when it is not reached or the row is not built.
+  double? _oldestBoundaryPaintTop() {
+    if (!_dataSource.reachedOldest) return null;
+    final oldest = _dataSource.oldestKnownId;
+    if (oldest == null) return null;
+    final row = _children[oldest];
+    if (row == null) return null;
+    return _parentData(row).paintTop;
   }
 
   bool _shouldShowFloatingHeader() {
@@ -6626,7 +6638,8 @@ class RenderChatScrollView extends RenderBox {
     }
 
     // The edge effect transforms the message list only. Floating date header
-    // and scrollbar stay viewport-fixed (the sticky day chip is not content).
+    // and scrollbar paint outside it; the header's rest line already follows
+    // the oldest row's paint top (see [_resolveRowChromeFrame]).
     if (_edgeTransform case final edge?) {
       _edgeLayer.layer = context.pushTransform(
         needsCompositing,

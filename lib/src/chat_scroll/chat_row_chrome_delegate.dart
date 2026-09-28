@@ -26,7 +26,8 @@ final class ChatFloatingHeaderZone {
   );
 
   /// Y where the header rests when nothing displaces it — just below the
-  /// viewport's top inset.
+  /// viewport's top inset, or at the oldest row's paint top when a top edge
+  /// effect paints that row lower.
   final double restTop;
 
   /// Laid-out header height; `0` when there is no header.

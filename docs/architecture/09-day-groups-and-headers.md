@@ -130,7 +130,8 @@ inline separators share the viewport top. One policy owns both halves:
 { offset, opacity, holdsActivity, hitTestable }`, and `inlineSeparator` for
 the rows.
 
-Metrics: `restTop` (= `topPad`), `extent` (laid-out header height, fallback
+Metrics: `restTop` (= `max(topPad, oldest row paintTop)` once the oldest
+message is reached, else `topPad`), `extent` (laid-out header height, fallback
 `kHeaderFallbackHeight = 32` before first layout), `leadingSeparatorTop`, and
 `activity`. `leadingSeparatorTop` is the smallest paint top among built
 `startsDay` rows with `top > restTop - extent` — the separator that is not yet
@@ -153,7 +154,10 @@ hidden header for the frames before the drag's hold takes effect.
 
 The pushing separator always opens a later day than the header shows: the
 oldest row rests at the rest line (boundary pin), so the oldest separator is
-held, never pushing.
+held, never pushing. A top edge effect (rubber-band translate, stretch with a
+top inset) paints the oldest row below `topPad`; the rest line follows that
+paint top, so the header travels with the oldest row and stays held over its
+separator instead of staying at `topPad` as a second chip.
 
 The day switch needs no policy code: when the leading separator reaches the
 rest line, the previous day's rows fall above `topPad`, the top-day scan picks
@@ -228,8 +232,9 @@ remove header.
 
 ## Header paint
 
-The header paints after messages, outside the edge-effect transform, at its
-resolved opacity: directly ≥ 0.999, skipped ≤ 0.001, through a retained
+The header paints after messages, outside the edge-effect transform (its
+rest line already follows the oldest row's paint top), at its resolved
+opacity: directly ≥ 0.999, skipped ≤ 0.001, through a retained
 `OpacityLayer` in between. A skipped header stays built.
 
 ## Hit-test order

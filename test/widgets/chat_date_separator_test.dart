@@ -3,6 +3,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/material.dart';
@@ -56,6 +57,7 @@ Widget _harness({
   bool reverse = false,
   ChatDayHeaderDelegate dayHeaderDelegate = const ChatFadingDayHeader(),
   ChatScrollActivityTiming? scrollActivityTiming,
+  ChatScrollPhysics? physics,
   void Function(DateTime date)? onSeparatorTap,
 }) => MaterialApp(
   home: Scaffold(
@@ -67,6 +69,7 @@ Widget _harness({
           dataSource: dataSource,
           controller: controller,
           reverse: reverse,
+          physics: physics,
           dayHeaderDelegate: dayHeaderDelegate,
           scrollActivityTiming: scrollActivityTiming,
           messageBuilder: (context, id, message, status, runLayout) =>
@@ -220,6 +223,71 @@ void main() {
       expect(ro.debugFloatingHeaderOffset, closeTo(headerY!, 0.5));
       await gesture.up();
     });
+
+    for (final delegate in const <ChatDayHeaderDelegate>[
+      ChatFadingDayHeader(),
+      ChatPushingDayHeader(),
+    ]) {
+      testWidgets('top rubber-band overscroll paints one oldest day chip '
+          '(${delegate.runtimeType})', (tester) async {
+        final controller = ChatScrollController()..jumpTo(0);
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _PreloadedDataSource(_generate(256)),
+            controller: controller,
+            dayHeaderDelegate: delegate,
+            physics: const ChatScrollPhysics.rubberBand(),
+          ),
+        );
+        await tester.pump();
+        final ro = _render(tester);
+        final viewportTop = tester
+            .getTopLeft(find.byType(ChatScrollView))
+            .dy;
+        // Row 0 opens day 1 with a 24 px inline separator above its body.
+        double oldestSeparatorTop() =>
+            tester.getTopLeft(find.text('msg-0')).dy - viewportTop - 24;
+        bool headerPainted() =>
+            ro.debugFloatingHeaderVisible &&
+            ro.debugFloatingHeaderOpacity > 0;
+        void expectOneChip(String frame) {
+          final separatorTop = oldestSeparatorTop();
+          final inlinePainted = ro.debugDividerOpacity(0)! > 0;
+          expect(
+            headerPainted() && inlinePainted,
+            isFalse,
+            reason:
+                '$frame (separator at $separatorTop): header and inline '
+                'separator both paint day 1',
+          );
+          if (headerPainted()) {
+            expect(
+              ro.debugFloatingHeaderOffset,
+              closeTo(separatorTop, 0.5),
+              reason: '$frame: header rests above the oldest row',
+            );
+          }
+        }
+
+        final gesture = await tester.startGesture(
+          tester.getCenter(find.byType(ChatScrollView)),
+        );
+        for (var i = 0; i < 20; i++) {
+          await gesture.moveBy(const Offset(0, 20));
+          await tester.pump(const Duration(milliseconds: 32));
+          expectOneChip('pull step $i');
+        }
+        expect(oldestSeparatorTop(), greaterThan(100), reason: 'pulled');
+
+        await gesture.up();
+        for (var i = 0; i < 300 && tester.binding.hasScheduledFrame; i++) {
+          await tester.pump(const Duration(microseconds: 16667));
+          expectOneChip('spring frame $i');
+        }
+        expect(oldestSeparatorTop(), closeTo(0, 0.01));
+        expect(ro.debugFloatingHeaderOffset, 0);
+      });
+    }
 
     testWidgets('the inline date separator fades out as it nears the top', (
       tester,
