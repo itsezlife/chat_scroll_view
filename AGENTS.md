@@ -27,6 +27,7 @@ for integration claims, not every edit.
 | `packages/catalog_assets` / `emoji_data` | Shared catalog assets / emoji data                                        | leaf assets, not chat scroll origin                                              |
 | `example/`                               | Demo host only — not the portable contract                                | wiring demos                                                                     |
 | `tdesktop/`                              | Read-only Telegram Desktop reference checkout                             | desktop selection parity analysis                                                |
+| `telegram-ios/`                          | Read-only Telegram-iOS sparse checkout                                    | iOS chat / selection parity analysis                                             |
 
 ## Selection (load-bearing)
 
@@ -46,6 +47,7 @@ Copy — not a universal “message-then-text” law. The viewport owns markdown
 | Span gesture (viewport-owned long-press)                                                                                   | [ADR 003](docs/adr/003-viewport-owned-span-gesture.md)              |
 | Feature scratch (spec + issues)                                                                                            | [`.scratch/chat-md-selection/`](.scratch/chat-md-selection/spec.md) |
 | Desktop reference behavior                                                                                                 | [tdesktop/REFERENCE.md](tdesktop/REFERENCE.md)                      |
+| iOS reference behavior                                                                                                     | [telegram-ios/REFERENCE.md](telegram-ios/REFERENCE.md)              |
 
 **Invariants agents must not silently reverse**
 

@@ -50,6 +50,7 @@ app.*.map.json
 # Local Telegram exports — never commit
 /Telegram/
 /tdesktop/
+/telegram-ios/
 
 .scratch/
 
