@@ -45,18 +45,21 @@ typedef ChatScrollbarGrabPosition = ({double progress, double spanShare});
 ///
 /// ## Grab targets
 ///
-/// Measured on [frame] with the preset's [grab] parameters; both reach at
+/// Measured on [frame] with the preset's [grab] targets; both reach at
 /// least to the track's far edge from the trailing side, so a wide painter
 /// stays grabbable and a thin one never shrinks them:
 ///
-/// - **Strip** (mouse and trackpad) — [ChatScrollbarGrab.stripWidth] in
-///   from the trailing edge over the track's vertical span, live at any
+/// - **Strip** (mouse and trackpad) — [ChatScrollbarGrab$Targets.stripWidth]
+///   in from the trailing edge over the track's vertical span, live at any
 ///   visibility. [stripContains] tests it; [stripTarget] carries its hover
 ///   and cursor.
 /// - **Touch target** (touch, stylus, unknown kinds) —
-///   [ChatScrollbarGrab.touchTargetWidth] in from the trailing edge, over
-///   the thumb grown to [ChatScrollbarGrab.touchTargetMinHeight], live only
-///   while [visibility] is above `0`.
+///   [ChatScrollbarGrab$Targets.touchTargetWidth] in from the trailing edge,
+///   over the thumb grown to [ChatScrollbarGrab$Targets.touchTargetMinHeight],
+///   live only while [visibility] is above `0`.
+///
+/// Under [ChatScrollbarGrab$None] there is neither: [stripContains] is
+/// always `false` and [tryStartGrab] declines every press.
 ///
 /// ## Frame and thumb motion
 ///
@@ -269,43 +272,59 @@ final class ChatScrollbarRuntime {
 
   /// Whether a mouse or trackpad pointer at viewport-local [local] is over
   /// the strip of the last resolved [frame] — at any visibility, `false`
-  /// with no frame. Bounds are inclusive; vertically the strip spans the
-  /// track.
-  bool stripContains(Offset local) {
-    final frame = _frame;
-    if (frame == null) return false;
+  /// with no frame or under [ChatScrollbarGrab$None]. Bounds are inclusive;
+  /// vertically the strip spans the track.
+  bool stripContains(Offset local) => switch ((_frame, grab)) {
+    (final frame?, final ChatScrollbarGrab$Targets targets) => _stripContains(
+      frame,
+      targets,
+      local,
+    ),
+    _ => false,
+  };
+
+  bool _stripContains(
+    ChatScrollbarFrame frame,
+    ChatScrollbarGrab$Targets targets,
+    Offset local,
+  ) {
     final track = frame.trackRect;
-    return _nearTrailingEdge(frame, local.dx, grab.stripWidth) &&
+    return _nearTrailingEdge(frame, local.dx, targets.stripWidth) &&
         local.dy >= track.top &&
         local.dy <= track.bottom;
   }
 
   /// Whether a touch at [local] lands on [frame]'s touch target: the thumb
-  /// grown symmetrically to [ChatScrollbarGrab.touchTargetMinHeight], which
-  /// may reach past the track's ends. Bounds are inclusive.
-  bool _touchTargetContains(ChatScrollbarFrame frame, Offset local) {
+  /// grown symmetrically to [ChatScrollbarGrab$Targets.touchTargetMinHeight],
+  /// which may reach past the track's ends. Bounds are inclusive.
+  bool _touchTargetContains(
+    ChatScrollbarFrame frame,
+    ChatScrollbarGrab$Targets targets,
+    Offset local,
+  ) {
     final thumb = frame.thumbRect;
-    final grow = math.max(0, grab.touchTargetMinHeight - thumb.height) / 2;
-    return _nearTrailingEdge(frame, local.dx, grab.touchTargetWidth) &&
+    final grow = math.max(0, targets.touchTargetMinHeight - thumb.height) / 2;
+    return _nearTrailingEdge(frame, local.dx, targets.touchTargetWidth) &&
         local.dy >= thumb.top - grow &&
         local.dy <= thumb.bottom + grow;
   }
 
-  /// Where a mouse or trackpad press lands under [grab]: the thumb, the
+  /// Where a mouse or trackpad press lands under [targets]: the thumb, the
   /// track under [ChatScrollbarTrackPress.centerThumb], or `null` — off the
   /// strip, a track press under [ChatScrollbarTrackPress.fallThrough], or
   /// any button but the primary one.
   ChatScrollbarPress? _stripPress(
     ChatScrollbarFrame frame,
+    ChatScrollbarGrab$Targets targets,
     PointerDownEvent event,
   ) {
     if (event.buttons & kPrimaryButton == 0) return null;
-    if (!stripContains(event.localPosition)) return null;
+    if (!_stripContains(frame, targets, event.localPosition)) return null;
     final dy = event.localPosition.dy;
     if (dy >= frame.thumbRect.top && dy <= frame.thumbRect.bottom) {
       return ChatScrollbarPress.thumb;
     }
-    return switch (grab.trackPress) {
+    return switch (targets.trackPress) {
       ChatScrollbarTrackPress.centerThumb => ChatScrollbarPress.track,
       ChatScrollbarTrackPress.fallThrough => null,
     };
@@ -313,9 +332,10 @@ final class ChatScrollbarRuntime {
 
   /// Starts a grab when [event] lands on a live target of the last resolved
   /// [frame] for its pointer kind — the strip for a mouse or trackpad, the
-  /// touch target for anything else (see the type docs). Replaces a settle
-  /// in flight, holds visibility until [endGrab], and starts the grab
-  /// factor easing to `1`; the owner starts its ticker.
+  /// touch target for anything else (see the type docs); never under
+  /// [ChatScrollbarGrab$None]. Replaces a settle in flight, holds
+  /// visibility until [endGrab], and starts the grab factor easing to `1`;
+  /// the owner starts its ticker.
   ///
   /// The caller decides whether the press is fresh; this reads only the
   /// press itself, [frame], [grab], and [visibility]. Returns where the
@@ -324,15 +344,17 @@ final class ChatScrollbarRuntime {
   /// [grabPosition] for the band position that asks for.
   ChatScrollbarPress? tryStartGrab(PointerDownEvent event) {
     final frame = _frame;
-    if (frame == null) return null;
+    final targets = grab;
+    if (frame == null || targets is! ChatScrollbarGrab$Targets) return null;
     final press = switch (event.kind) {
       PointerDeviceKind.mouse ||
-      PointerDeviceKind.trackpad => _stripPress(frame, event),
+      PointerDeviceKind.trackpad => _stripPress(frame, targets, event),
       PointerDeviceKind.touch ||
       PointerDeviceKind.stylus ||
       PointerDeviceKind.invertedStylus ||
       PointerDeviceKind.unknown =>
-        visibility > 0 && _touchTargetContains(frame, event.localPosition)
+        visibility > 0 &&
+                _touchTargetContains(frame, targets, event.localPosition)
             ? ChatScrollbarPress.thumb
             : null,
     };

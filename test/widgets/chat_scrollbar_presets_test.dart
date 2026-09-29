@@ -261,6 +261,47 @@ void main() {
       addTearDown(() => debugDefaultTargetPlatformOverride = null);
       expect(ChatScrollbar.forPlatform(), const ChatScrollbar.desktop());
     });
+
+    test('a grab override replaces only the preset grab', () {
+      const none = ChatScrollbarGrab.none();
+      expect(
+        const ChatScrollbar.mobile(grab: none),
+        const ChatScrollbar(
+          painter: ChatPillScrollbarPainter.mobile(),
+          visibility: ChatScrollbarVisibility.autoHide(),
+          grab: none,
+        ),
+      );
+      expect(
+        const ChatScrollbar.desktop(grab: ChatScrollbarGrab(stripWidth: 20)),
+        const ChatScrollbar(
+          painter: ChatPillScrollbarPainter.desktop(),
+          visibility: _desktopVisibility,
+          grab: ChatScrollbarGrab(stripWidth: 20),
+        ),
+      );
+      expect(
+        const ChatScrollbar.mobile(grab: none),
+        isNot(const ChatScrollbar.mobile()),
+      );
+      expect(
+        const ChatScrollbar.mobile(grab: null),
+        const ChatScrollbar.mobile(),
+        reason: 'null keeps the preset grab',
+      );
+    });
+
+    test('forPlatform passes a grab override to the picked preset', () {
+      const none = ChatScrollbarGrab.none();
+      expect(
+        ChatScrollbar.forPlatform(platform: TargetPlatform.iOS, grab: none),
+        const ChatScrollbar.mobile(grab: none),
+      );
+      expect(
+        ChatScrollbar.forPlatform(platform: TargetPlatform.linux, grab: none),
+        const ChatScrollbar.desktop(grab: none),
+      );
+    });
   });
 
   group('ChatPillScrollbarPainter factors', () {

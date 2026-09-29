@@ -265,7 +265,9 @@ and follow-tail converge on the next layout.
      visibility is above `0`, only inside the touch target (the thumb
      grown to `touchTargetWidth` from the edge and `touchTargetMinHeight`
      tall); everything else falls through. Both reach at least across the
-     painter's track; RTL mirrors them to the left edge.
+     painter's track; RTL mirrors them to the left edge. Under
+     `ChatScrollbarGrab.none()` there is no strip and no touch target:
+     step 1 adds no strip target and every press is declined.
   4. A claimed press returns before fling catch, selection pointer, and
      drag, so no tap, long-press, span, or list drag starts from it. A
      declined press continues down the usual path.

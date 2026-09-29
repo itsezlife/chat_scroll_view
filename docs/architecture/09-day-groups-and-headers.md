@@ -197,7 +197,8 @@ and curve. A `none` preset resolves `0`.
 
 The runtime tracks three holders — list motion, the thumb grab, and mouse
 hover on the strip — because the clock's hold is a single flag: the clock
-is released only once all of them end.
+is released only once all of them end. Under `ChatScrollbarGrab.none()`
+only list motion holds: there is no grab and no strip to hover.
 
 | Edge | Runtime call → clock |
 |------|----------------------|

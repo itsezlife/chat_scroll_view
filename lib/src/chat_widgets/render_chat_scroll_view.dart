@@ -1252,11 +1252,10 @@ class RenderChatScrollView extends RenderBox {
     ChatScrollbar$None() => null,
   };
 
-  /// The grab rules of a painted preset; the defaults for
-  /// [ChatScrollbar$None], which resolves no frame to grab.
+  /// The grab of a painted preset; none for [ChatScrollbar$None].
   ChatScrollbarGrab get _scrollbarGrab => switch (_scrollbar) {
     ChatScrollbar$Painted(:final grab) => grab,
-    ChatScrollbar$None() => const ChatScrollbarGrab(),
+    ChatScrollbar$None() => const ChatScrollbarGrab.none(),
   };
 
   /// Pointers down on the viewport, from their down to their up or cancel,

@@ -127,6 +127,24 @@ void main() {
     );
   });
 
+  test('ChatScrollbarGrab.none is value-equal and distinct from any '
+      'targets', () {
+    expect(const ChatScrollbarGrab.none(), const ChatScrollbarGrab.none());
+    expect(
+      const ChatScrollbarGrab.none().hashCode,
+      const ChatScrollbarGrab.none().hashCode,
+    );
+    expect(const ChatScrollbarGrab.none(), isNot(const ChatScrollbarGrab()));
+    expect(
+      const ChatScrollbar(grab: ChatScrollbarGrab.none()),
+      isNot(const ChatScrollbar()),
+    );
+    expect(
+      const ChatScrollbarGrab.none().toString(),
+      'ChatScrollbarGrab.none()',
+    );
+  });
+
   group('Scrollbar grab by pointer kind', () {
     late ChatScrollController controller;
     late _Source dataSource;
@@ -411,7 +429,7 @@ void main() {
           expect(
             position() != before,
             grabs,
-            reason: 'stripWidth=${grab.stripWidth} x=$x',
+            reason: '$grab x=$x',
           );
           expect(taps, grabs ? isEmpty : hasLength(1));
         }
@@ -710,6 +728,102 @@ void main() {
         final before = position();
         await click(tester, mouse, at(tester, 11.5, 100));
         expect(position(), isNot(before));
+      });
+    });
+
+    group('non-interactive grab', () {
+      const none = ChatScrollbarGrab.none();
+
+      for (final kind in const [
+        PointerDeviceKind.touch,
+        PointerDeviceKind.stylus,
+      ]) {
+        testWidgets('${kind.name}: a press on the shown thumb reaches the '
+            'message', (tester) async {
+          await pump(tester, scrollbar: preset(grab: none));
+          final thumbY = frames.last.thumbRect.center.dy;
+          final before = position();
+
+          final press = await tester.startGesture(
+            at(tester, 395, thumbY),
+            kind: kind,
+          );
+          expect(await grabbing(tester), isFalse);
+          await press.up();
+          await tester.pumpAndSettle();
+          expect(taps, hasLength(1));
+          expect(position(), before);
+        });
+      }
+
+      testWidgets('a swipe starting on the thumb scrolls a few rows', (
+        tester,
+      ) async {
+        await pump(tester, scrollbar: preset(grab: none));
+        final thumbY = frames.last.thumbRect.center.dy;
+        final before = position();
+        await tester.dragFrom(at(tester, 395, thumbY), const Offset(0, 200));
+        await tester.pumpAndSettle();
+        expect(position(), isNot(before));
+        expect(controller.anchorMessageId, closeTo(128, 10));
+      });
+
+      testWidgets('mouse clicks on the thumb and the track reach messages', (
+        tester,
+      ) async {
+        await pump(tester, scrollbar: preset(grab: none));
+        final thumbY = frames.last.thumbRect.center.dy;
+        final before = position();
+        final mouse = await hoveringMouse(tester, at(tester, 200, 300));
+
+        await click(tester, mouse, at(tester, 395, thumbY));
+        await click(tester, mouse, at(tester, 395, 20));
+        expect(taps, hasLength(2));
+        expect(position(), before);
+        expect(frames.last.grabFactor, 0);
+      });
+
+      testWidgets('hovering the strip neither reveals, holds, highlights, '
+          'nor changes the cursor', (tester) async {
+        await pump(
+          tester,
+          scrollbar: preset(visibility: _autoHide, grab: none),
+        );
+        await thumbThenHide(tester);
+        final mouse = await hoveringMouse(tester, at(tester, 200, 300));
+
+        await mouse.moveTo(at(tester, 395, 300));
+        await tester.pump();
+        expect(activeCursor(), SystemMouseCursors.text);
+        await _elapse(tester, _ms(300));
+        expect(await painted(tester), 0, reason: 'hover reveals nothing');
+
+        controller.scrollBy(1);
+        await tester.pump();
+        await _elapse(tester, _ms(300));
+        expect(frames.last.visibility, 1, reason: 'list motion still shows');
+        expect(frames.last.hoverFactor, 0);
+        await _elapse(tester, _ms(1300));
+        expect(await painted(tester), 0, reason: 'hover holds nothing');
+      });
+
+      testWidgets('switching a live viewport to it drops strip hover', (
+        tester,
+      ) async {
+        await pump(tester);
+        final mouse = await hoveringMouse(tester, at(tester, 200, 300));
+        await mouse.moveTo(at(tester, 395, 300));
+        await _elapse(tester, _ms(300));
+        expect(activeCursor(), SystemMouseCursors.basic);
+        expect(frames.last.hoverFactor, 1);
+
+        render(tester).scrollbar = preset(grab: none);
+        // The frame a host rebuild would run; the painter declines to repaint.
+        tester.binding.scheduleFrame();
+        await tester.pump();
+        expect(activeCursor(), SystemMouseCursors.text);
+        await _elapse(tester, _ms(300));
+        expect(frames.last.hoverFactor, 0);
       });
     });
   });

@@ -120,6 +120,21 @@
   custom painter stays grabbable and a thin one never shrinks them. Code or
   widget tests that jumped by tapping the track with a touch now tap the
   message instead; press the thumb, or use a mouse pointer.
+- **ADDED**: `ChatScrollbarGrab.none()`, a scrollbar that shows position
+  and takes nothing: every press along the trailing edge reaches messages
+  as with no scrollbar, and a mouse over the edge keeps the cursor
+  beneath, holds no visibility, and leaves the hover and grab factors at
+  `0`. List motion and `followsPointer` still show an auto-hide scrollbar.
+  `ChatScrollbarGrab` is a sealed set of two: the unnamed constructor
+  builds `ChatScrollbarGrab$Targets`, which carries `stripWidth`,
+  `touchTargetWidth`, `touchTargetMinHeight`, and `trackPress`; `.none()`
+  builds `ChatScrollbarGrab$None`. Code that read those fields off a
+  `ChatScrollbarGrab` switches on the variant.
+- **ADDED**: `ChatScrollbar.mobile()`, `.desktop()`, and `.forPlatform()`
+  take an optional `grab:` that replaces the preset's grab and keeps its
+  painter and visibility; `null` keeps the preset's own. The platform
+  defaults with no scrollbar interaction are
+  `ChatScrollbar.forPlatform(grab: const ChatScrollbarGrab.none())`.
 - **CHANGED**: The thumb length a press maps through is the painted one.
   Before, the drag could use a different length from the paint when no
   row was laid out (a fixed 48 px), and a thumb as long as the track still

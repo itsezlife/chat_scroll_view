@@ -59,7 +59,12 @@ sealed class ChatScrollbar {
   ///   at; a touch anywhere else along the edge still scrolls or reaches
   ///   the message. A mouse press on the track beside the thumb
   ///   falls through to the message ([ChatScrollbarTrackPress.fallThrough]).
-  const factory ChatScrollbar.mobile() = ChatScrollbar$Painted.mobile;
+  ///
+  /// A non-null [grab] replaces the preset's grab and keeps its painter and
+  /// visibility — [ChatScrollbarGrab.none] for a scrollbar that shows
+  /// position but takes no press.
+  const factory ChatScrollbar.mobile({ChatScrollbarGrab? grab}) =
+      ChatScrollbar$Painted.mobile;
 
   /// The desktop preset: track and thumb that auto-hide, answer hover with
   /// colour, and follow the mouse in and out of the viewport.
@@ -75,7 +80,10 @@ sealed class ChatScrollbar {
   /// - Grab: the default [ChatScrollbarGrab] — a 12 px mouse strip, live
   ///   while hidden; a press on the track centres the thumb there and keeps
   ///   dragging.
-  const factory ChatScrollbar.desktop() = ChatScrollbar$Painted.desktop;
+  ///
+  /// A non-null [grab] replaces the preset's grab, as for [mobile].
+  const factory ChatScrollbar.desktop({ChatScrollbarGrab? grab}) =
+      ChatScrollbar$Painted.desktop;
 
   /// The preset matching the OS family of [platform], or of
   /// [defaultTargetPlatform] when [platform] is `null`:
@@ -91,17 +99,32 @@ sealed class ChatScrollbar {
   /// The platform comes from [defaultTargetPlatform] only — never from
   /// `ThemeData.platform` or the ambient `ScrollConfiguration`. Pass
   /// [platform] (or set `debugDefaultTargetPlatformOverride`) to pin the
-  /// row. Each row returns a constant, so repeated calls on one platform
-  /// are equal and a rebuild that re-resolves the default changes nothing.
-  factory ChatScrollbar.forPlatform({TargetPlatform? platform}) =>
-      switch (platform ?? defaultTargetPlatform) {
-        TargetPlatform.android ||
-        TargetPlatform.iOS ||
-        TargetPlatform.fuchsia => const ChatScrollbar.mobile(),
-        TargetPlatform.macOS ||
-        TargetPlatform.windows ||
-        TargetPlatform.linux => const ChatScrollbar.desktop(),
-      };
+  /// row. A non-null [grab] replaces the picked preset's grab, as for
+  /// [mobile] and [desktop] — keep the platform look and visibility, change
+  /// only what the scrollbar takes:
+  ///
+  /// ```dart
+  /// ChatScrollView(
+  ///   scrollbar: ChatScrollbar.forPlatform(
+  ///     grab: const ChatScrollbarGrab.none(),
+  ///   ),
+  ///   // ...
+  /// )
+  /// ```
+  ///
+  /// Repeated calls with equal arguments are equal, so a rebuild that
+  /// re-resolves the default changes nothing.
+  factory ChatScrollbar.forPlatform({
+    TargetPlatform? platform,
+    ChatScrollbarGrab? grab,
+  }) => switch (platform ?? defaultTargetPlatform) {
+    TargetPlatform.android ||
+    TargetPlatform.iOS ||
+    TargetPlatform.fuchsia => ChatScrollbar.mobile(grab: grab),
+    TargetPlatform.macOS ||
+    TargetPlatform.windows ||
+    TargetPlatform.linux => ChatScrollbar.desktop(grab: grab),
+  };
 
   /// No scrollbar — see [ChatScrollbar$None].
   const factory ChatScrollbar.none() = ChatScrollbar$None;
@@ -113,7 +136,7 @@ sealed class ChatScrollbar {
 /// The three parts are independent: [grab] reads the track and thumb rects
 /// the viewport resolved from [painter]'s geometry, never what [painter]
 /// drew, and [visibility] gates only touch grabs (a hidden scrollbar is
-/// still live under a mouse — see [ChatScrollbarGrab]).
+/// still live under a mouse — see [ChatScrollbarGrab$Targets]).
 final class ChatScrollbar$Painted extends ChatScrollbar {
   /// A scrollbar drawn by [painter]; defaults to [ChatPillScrollbarPainter],
   /// always shown, with the default [ChatScrollbarGrab].
@@ -124,17 +147,19 @@ final class ChatScrollbar$Painted extends ChatScrollbar {
   }) : super._();
 
   /// The mobile preset — see [ChatScrollbar.mobile].
-  const ChatScrollbar$Painted.mobile()
+  const ChatScrollbar$Painted.mobile({ChatScrollbarGrab? grab})
     : painter = const ChatPillScrollbarPainter.mobile(),
       visibility = const ChatScrollbarVisibility.autoHide(),
-      grab = const ChatScrollbarGrab(
-        touchTargetMinHeight: 96,
-        trackPress: ChatScrollbarTrackPress.fallThrough,
-      ),
+      grab =
+          grab ??
+          const ChatScrollbarGrab(
+            touchTargetMinHeight: 96,
+            trackPress: ChatScrollbarTrackPress.fallThrough,
+          ),
       super._();
 
   /// The desktop preset — see [ChatScrollbar.desktop].
-  const ChatScrollbar$Painted.desktop()
+  const ChatScrollbar$Painted.desktop({ChatScrollbarGrab? grab})
     : painter = const ChatPillScrollbarPainter.desktop(),
       visibility = const ChatScrollbarVisibility.autoHide(
         fadeIn: Duration(milliseconds: 150),
@@ -142,7 +167,7 @@ final class ChatScrollbar$Painted extends ChatScrollbar {
         curve: Curves.linear,
         followsPointer: true,
       ),
-      grab = const ChatScrollbarGrab(),
+      grab = grab ?? const ChatScrollbarGrab(),
       super._();
 
   /// The look. Part of this preset's equality: give custom painters value
@@ -268,7 +293,8 @@ final class ChatScrollbarVisibility$Always extends ChatScrollbarVisibility {
 ///   renormalization, delete recovery that keeps the band in place, inset
 ///   and keyboard changes, and row chrome holds.
 /// - **Held by hover** while a mouse or trackpad pointer rests on the
-///   scrollbar's strip (see [ChatScrollbarGrab]), at any setting.
+///   scrollbar's strip (see [ChatScrollbarGrab$Targets]), at any setting;
+///   under [ChatScrollbarGrab.none] there is no strip to hold it.
 /// - **Following the pointer**, only with [followsPointer]: see there.
 ///
 /// Fades advance on a viewport ticker and pause while the viewport's
@@ -360,14 +386,44 @@ final class ChatScrollbarVisibility$AutoHide extends ChatScrollbarVisibility {
 /// **Scrollbar grab**: which presses and hovers a painted [ChatScrollbar]
 /// takes away from message scrolling, and what a grab does.
 ///
-/// A closed behavior with tunable parameters. The rules follow the pointer
-/// kind of each event — a touchscreen laptop gets touch rules for touch and
-/// mouse rules for the mouse under one preset. Every target is measured
-/// from the track and thumb rects the viewport resolved for the painter
-/// ([ChatScrollbarFrame]), never from what the painter drew. No press is
-/// claimed and nothing is hovered while no scrollbar is resolved: the
-/// conversation fits in the scroll band, or the viewport shows its loading
-/// or empty overlay.
+/// A closed behavior with tunable parameters:
+///
+/// - [ChatScrollbarGrab.new] — grab targets by pointer kind: a touch target
+///   around the shown thumb, a mouse strip along the edge
+///   ([ChatScrollbarGrab$Targets]).
+/// - [ChatScrollbarGrab.none] — nothing: the scrollbar only shows position
+///   ([ChatScrollbarGrab$None]).
+///
+/// No press is claimed and nothing is hovered while no scrollbar is
+/// resolved: the conversation fits in the scroll band, or the viewport shows
+/// its loading or empty overlay.
+///
+/// Immutable and value-equal, as part of the preset's equality. An unequal
+/// grab on a live viewport ends an active grab; a mouse resting on a strip
+/// the new grab no longer has leaves it at the mouse tracker's next update.
+@immutable
+sealed class ChatScrollbarGrab {
+  /// Grab targets by pointer kind — see [ChatScrollbarGrab$Targets]. The
+  /// defaults give a 12 px mouse strip, a 32 × 48 px touch target, and a
+  /// track press that centres the thumb.
+  const factory ChatScrollbarGrab({
+    double stripWidth,
+    double touchTargetWidth,
+    double touchTargetMinHeight,
+    ChatScrollbarTrackPress trackPress,
+  }) = ChatScrollbarGrab$Targets;
+
+  const ChatScrollbarGrab._();
+
+  /// No grab — see [ChatScrollbarGrab$None].
+  const factory ChatScrollbarGrab.none() = ChatScrollbarGrab$None;
+}
+
+/// Grab targets that follow the pointer kind of each event — a touchscreen
+/// laptop gets touch rules for touch and mouse rules for the mouse under
+/// one preset. Every target is measured from the track and thumb rects the
+/// viewport resolved for the painter ([ChatScrollbarFrame]), never from what
+/// the painter drew.
 ///
 /// ## Touch and stylus
 ///
@@ -430,13 +486,10 @@ final class ChatScrollbarVisibility$AutoHide extends ChatScrollbarVisibility {
 ///   [Curves.easeOut] under [ChatScrollbarVisibility.always]). The two can
 ///   differ, because the list's position weighs how many messages fit in
 ///   the band where it landed.
-///
-/// Immutable and value-equal, as part of the preset's equality.
-@immutable
-final class ChatScrollbarGrab {
-  /// Grab rules; the defaults give a 12 px mouse strip, a 32 × 48 px touch
-  /// target, and a track press that centres the thumb.
-  const ChatScrollbarGrab({
+final class ChatScrollbarGrab$Targets extends ChatScrollbarGrab {
+  /// Grab targets; the defaults give a 12 px mouse strip, a 32 × 48 px
+  /// touch target, and a track press that centres the thumb.
+  const ChatScrollbarGrab$Targets({
     this.stripWidth = 12,
     this.touchTargetWidth = 32,
     this.touchTargetMinHeight = 48,
@@ -446,7 +499,8 @@ final class ChatScrollbarGrab {
        assert(
          touchTargetMinHeight >= 0,
          'touchTargetMinHeight must not be negative',
-       );
+       ),
+       super._();
 
   /// Width of the mouse and trackpad strip, in from the viewport's trailing
   /// edge.
@@ -465,7 +519,7 @@ final class ChatScrollbarGrab {
 
   @override
   bool operator ==(Object other) =>
-      other is ChatScrollbarGrab &&
+      other is ChatScrollbarGrab$Targets &&
       other.stripWidth == stripWidth &&
       other.touchTargetWidth == touchTargetWidth &&
       other.touchTargetMinHeight == touchTargetMinHeight &&
@@ -473,6 +527,7 @@ final class ChatScrollbarGrab {
 
   @override
   int get hashCode => Object.hash(
+    ChatScrollbarGrab$Targets,
     stripWidth,
     touchTargetWidth,
     touchTargetMinHeight,
@@ -487,8 +542,33 @@ final class ChatScrollbarGrab {
       'trackPress: $trackPress)';
 }
 
+/// No grab: the scrollbar shows position and takes nothing. Every press
+/// along the trailing edge reaches messages exactly as with no scrollbar —
+/// a touch on the shown thumb taps or scrolls the list, a mouse click there
+/// reaches the message under it — and a mouse over the edge keeps the
+/// cursor beneath, holds no visibility, and leaves
+/// [ChatScrollbarFrame.hoverFactor] and [ChatScrollbarFrame.grabFactor] at
+/// `0`.
+///
+/// Visibility is unaffected: list motion still shows an auto-hide
+/// scrollbar, and [ChatScrollbarVisibility$AutoHide.followsPointer] still
+/// follows the mouse in and out of the viewport.
+final class ChatScrollbarGrab$None extends ChatScrollbarGrab {
+  /// The absent grab.
+  const ChatScrollbarGrab$None() : super._();
+
+  @override
+  bool operator ==(Object other) => other is ChatScrollbarGrab$None;
+
+  @override
+  int get hashCode => (ChatScrollbarGrab$None).hashCode;
+
+  @override
+  String toString() => 'ChatScrollbarGrab.none()';
+}
+
 /// What a mouse or trackpad press on the track beside the thumb does; see
-/// [ChatScrollbarGrab.trackPress].
+/// [ChatScrollbarGrab$Targets.trackPress].
 enum ChatScrollbarTrackPress {
   /// Grabs: the thumb centres on the pointer at once, the list jumps to
   /// match, and the grab continues from there as if the press had landed on
@@ -546,7 +626,7 @@ final class ChatScrollbarFrame {
   /// How far a hovering pointer has engaged the scrollbar, in `[0, 1]`.
   ///
   /// Eases toward `1` while a mouse or trackpad pointer rests on the strip
-  /// (see [ChatScrollbarGrab]) and toward `0` once it leaves, over the
+  /// (see [ChatScrollbarGrab$Targets]) and toward `0` once it leaves, over the
   /// preset visibility's fade-in and fade-out along its curve (250 ms,
   /// [Curves.easeOut] under [ChatScrollbarVisibility.always]). A reversal
   /// mid-ease runs from the current value. Independent of [grabFactor]: a

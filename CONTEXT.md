@@ -164,7 +164,7 @@ The host-replaceable look of the scrollbar: it draws from track and thumb rects 
 _Avoid_: Scrollbar builder, scrollbar widget, custom scrollbar (as the extension point)
 
 **Scrollbar grab**:
-How the scrollbar takes pointers away from message scrolling: which presses and hovers it claims, and what a drag or track press does. A grab starts only on a fresh press nothing else in the viewport owns, then owns that pointer until release. Touch grabs only an enlarged target around a visible thumb; a hovering pointer may claim the whole strip even while it is hidden, since hover reveals it first. Chosen from a closed set; hosts tune it, never replace it.
+How the scrollbar takes pointers away from message scrolling: which presses and hovers it claims, and what a drag or track press does. A grab starts only on a fresh press nothing else in the viewport owns, then owns that pointer until release. Touch grabs only an enlarged target around a visible thumb; a hovering pointer may claim the whole strip even while it is hidden, since hover reveals it first. Chosen from a closed set — grab targets by pointer kind, or none (the scrollbar only shows position); hosts tune it, never replace it.
 _Avoid_: Scrollbar interaction (collides with **selection interaction**), scrollbar gesture, fast scroll
 
 **Scrollbar preset**:
