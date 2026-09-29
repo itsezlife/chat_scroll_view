@@ -59,8 +59,7 @@ row (date chrome) vs plain row — it does not recompute boundaries.
 
 A row that carries viewport-owned chrome is a `ChatRowChrome`: an ordered
 stack of chrome items above the message body. Each item pairs a widget with a
-`ChatRowChromeDelegate`. `DatedMessage` is a deprecated forward to a
-one-item `ChatRowChrome` with `fadeUnderHeader`.
+`ChatRowChromeDelegate`.
 
 The viewport composes up to two items, only on a **loaded** message row
 (never shimmer, errored, or absent):

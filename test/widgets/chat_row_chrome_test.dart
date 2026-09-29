@@ -406,22 +406,4 @@ void main() {
       expect(selection.isSelected(28), isTrue);
     });
   });
-
-  group('DatedMessage (deprecated forward)', () {
-    testWidgets('lays out as date chrome that fades under the header', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _host(
-          // ignore: deprecated_member_use_from_same_package
-          DatedMessage(separator: _box('date', 24), body: _box('body', 60)),
-          frame: _headerBottomAt(10),
-        ),
-      );
-
-      expect(tester.getTopLeft(find.text('body')).dy, 24);
-      expect(_bodyTop(tester), 24);
-      expect(_opacityLayers(tester).single.alpha, 128);
-    });
-  });
 }

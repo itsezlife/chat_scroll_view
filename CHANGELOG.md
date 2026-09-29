@@ -279,9 +279,11 @@
   `ClampingScrollSimulation`. Distance and initial velocity are unchanged,
   but a fling now lasts the full native duration (about 20% longer) with a
   slow tail, so the idle delay starts as late as on a native Android list.
-- **DEPRECATED**: `DatedMessage` forwards to `ChatRowChrome` with one
-  `fadeUnderHeader` item, and `RenderDatedMessage` is a typedef of
-  `RenderChatRowChrome`. The inline separator fade now lives in
+- **BREAKING**: `DatedMessage` and `RenderDatedMessage` are removed. Code
+  that built `DatedMessage(separator:, body:)` no longer compiles; build a
+  `ChatRowChrome` with one `ChatRowChromeItem` whose delegate is
+  `ChatRowChromeDelegate.fadeUnderHeader()`, and use `RenderChatRowChrome`
+  for the render object. The inline separator fade now lives in
   `ChatRowChromeDelegate.fadeUnderHeader` instead of internal header-controller
   math.
 

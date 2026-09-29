@@ -144,7 +144,6 @@ lib/src/
     chat_scroll_element.dart
     render_chat_scroll_view.dart
     chat_row_chrome.dart
-    chat_dated_message.dart       # deprecated forward to ChatRowChrome
     chat_scrollbar.dart           # public preset + painter contract + pill painter
     chat_scrollbar_runtime.dart   # per-viewport frame + grab (@internal)
     chat_scrollbar_theme.dart     # scrollbar colours (ThemeExtension)
