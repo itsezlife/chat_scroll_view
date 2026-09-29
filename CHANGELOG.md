@@ -27,7 +27,7 @@
   moves.
   - Mobile: a 4 px thumb, 8 px while grabbed, with no track, at least
     36 px long, 3 px in from every edge; the default auto-hide timing; a
-    touch grabs the shown thumb through a target 32 px in from the edge
+    touch grabs the shown thumb through a target 20 px in from the edge
     and at least 96 px tall; a mouse press on the track beside the thumb
     reaches the message.
   - Desktop: a 6 px track and thumb whose colours, not width, answer hover

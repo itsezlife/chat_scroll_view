@@ -159,7 +159,7 @@ void main() {
           painter: ChatPillScrollbarPainter.mobile(),
           visibility: ChatScrollbarVisibility.autoHide(),
           grab: ChatScrollbarGrab(
-            touchTargetWidth: 32,
+            touchTargetWidth: 20,
             touchTargetMinHeight: 96,
             trackPress: ChatScrollbarTrackPress.fallThrough,
           ),
@@ -684,7 +684,7 @@ void main() {
       );
     });
 
-    testWidgets('the mobile touch target reaches 32 px in from the edge and '
+    testWidgets('the mobile touch target reaches 20 px in from the edge and '
         '48 px either side of a short thumb', (tester) async {
       await pump(
         tester,
@@ -696,8 +696,8 @@ void main() {
       );
 
       for (final (x, dy, grabs) in <(double, double, bool)>[
-        (_viewportWidth - 31.5, 0, true),
-        (_viewportWidth - 32.5, 0, false),
+        (_viewportWidth - 19.5, 0, true),
+        (_viewportWidth - 20.5, 0, false),
         (395, 47.5, true),
         (395, -47.5, true),
         (395, 48.5, false),

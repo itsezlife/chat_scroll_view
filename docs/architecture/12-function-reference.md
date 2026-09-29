@@ -110,7 +110,7 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | Member | Purpose | Must not |
 | ------ | ------- | -------- |
 | `ChatScrollbar(painter:, visibility:, grab:)` | Custom preset; defaults paint the unnamed pill, always shown, default grab | Hold runtime state |
-| `.mobile()` | Pill `.mobile()` (thumb only, 4 → 8 px grabbed, min 36, insets 3), default auto-hide, 32 × 96 px touch target, track press falls through | Branch on platform |
+| `.mobile()` | Pill `.mobile()` (thumb only, 4 → 8 px grabbed, min 36, insets 3), default auto-hide, 20 × 96 px touch target, track press falls through | Branch on platform |
 | `.desktop()` | Pill `.desktop()` (6 px track + thumb, hover and grab recolour, min 40, insets 3), auto-hide with 150 ms linear fades and `followsPointer`, default grab | Branch on platform |
 | `.forPlatform(platform:)` | The `null` default: Android / iOS / Fuchsia → mobile, macOS / Windows / Linux → desktop, from `defaultTargetPlatform` | Read the theme or `ScrollConfiguration` |
 | `grab:` on `.mobile()` / `.desktop()` / `.forPlatform()` | Replaces the preset's grab, keeps painter and visibility; `null` keeps the preset's own | Override painter or visibility |

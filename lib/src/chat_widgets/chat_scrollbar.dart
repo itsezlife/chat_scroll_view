@@ -53,12 +53,14 @@ sealed class ChatScrollbar {
   ///   hidden 1000 ms after the list rests (1500 ms after navigation), 250 ms
   ///   fades along [Curves.easeOut]; a mouse entering the viewport reveals
   ///   nothing.
-  /// - Grab: a touch grabs only the shown thumb, through a target 32 px in
-  ///   from the edge and at least 96 px tall — twice the [ChatScrollbarGrab]
-  ///   default height, since the thumb is short and has no track to aim
-  ///   at; a touch anywhere else along the edge still scrolls or reaches
-  ///   the message. A mouse press on the track beside the thumb
-  ///   falls through to the message ([ChatScrollbarTrackPress.fallThrough]).
+  /// - Grab: a touch grabs only the shown thumb, through a target 20 px in
+  ///   from the edge and at least 96 px tall — narrower than the
+  ///   [ChatScrollbarGrab] default, so a touch near the edge mostly reaches
+  ///   the message, and twice its height, since the thumb is short and has
+  ///   no track to aim at; a touch anywhere else along the edge still
+  ///   scrolls or reaches the message. A mouse press on the track beside
+  ///   the thumb falls through to the message
+  ///   ([ChatScrollbarTrackPress.fallThrough]).
   ///
   /// A non-null [grab] replaces the preset's grab and keeps its painter and
   /// visibility — [ChatScrollbarGrab.none] for a scrollbar that shows
@@ -153,6 +155,7 @@ final class ChatScrollbar$Painted extends ChatScrollbar {
       grab =
           grab ??
           const ChatScrollbarGrab(
+            touchTargetWidth: 20,
             touchTargetMinHeight: 96,
             trackPress: ChatScrollbarTrackPress.fallThrough,
           ),
