@@ -152,12 +152,8 @@ The scrollbar's full travel, standing for the span from the oldest to the newest
 _Avoid_: Rail, gutter, background bar
 
 **Thumb**:
-The part of the scrollbar standing for the visible band: its position is the band's place in the known span, its length the band's share of it. During a grab it follows the pointer, keeping the grab point, and the band follows the thumb; on release it eases back to the band's position.
+The part of the scrollbar standing for the visible band: its position is the band's place in the known span, its length the band's share of it. During a grab it follows the pointer, keeping the grab point, and the band follows the thumb; on release it eases back to the band's position. Edge effects leave it untouched.
 _Avoid_: Handle, knob, bar (alone)
-
-**Thumb squash**:
-The thumb's response to a **rubber-band** edge effect: pinned to the pressed end of the track, it shortens 1:1 with the rubber-band overshoot, down to a round dot, and never leaves the track. **Stretch** and no edge effect leave the thumb untouched.
-_Avoid_: Thumb bounce, scrollbar overscroll, scaled squash
 
 **Scrollbar painter**:
 The host-replaceable look of the scrollbar: it draws from track and thumb rects the viewport has already resolved, plus shown, hover, and drag factors. Where presses land never depends on what it draws.
