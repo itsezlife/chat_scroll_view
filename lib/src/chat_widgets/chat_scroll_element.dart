@@ -6,6 +6,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_floating_header_marker.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_row_chrome.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
@@ -19,7 +20,8 @@ import 'package:flutter/widgets.dart';
 /// Singleton slots — kept distinct from the int-keyed message children and
 /// the chunk-error slots so [ChatScrollElement] can route them separately.
 ///
-/// * `floatingHeader` — pinned day pill at the top of the viewport.
+/// * `floatingHeader` — pinned day pill at the top of the viewport, built
+///   under a [ChatFloatingHeaderMarker].
 /// * `overlay` — the single full-viewport child for the loading skeleton or
 ///   the empty state.
 enum _ChatSlot { floatingHeader, overlay }
@@ -499,7 +501,11 @@ class ChatScrollElement extends RenderObjectElement
     final headerWidget =
         (build == null || bucket == null || firstMessageDate == null)
         ? null
-        : RepaintBoundary(child: build(this, bucket, firstMessageDate));
+        : RepaintBoundary(
+            child: ChatFloatingHeaderMarker(
+              child: build(this, bucket, firstMessageDate),
+            ),
+          );
     owner!.buildScope(this, () {
       _floatingHeader = updateChild(
         _floatingHeader,

@@ -1,5 +1,13 @@
 ## Unreleased
 
+### Day separators
+- **ADDED**: `ChatFloatingHeaderMarker`. The viewport now builds the
+  floating header under this marker, and `ChatFloatingHeaderMarker.isInside`
+  tells a widget returned by `dateSeparatorBuilder` whether it is the
+  floating header or an inline date separator, so one builder can style the
+  two differently. Read it from a widget the builder returns; the builder's
+  own `context` always answers `false`. Existing builders see no change.
+
 ### Scrollbar
 - **BREAKING**: `ChatScrollbar` no longer names the scrollbar's internal
   geometry and drag helper; that helper is private and gone from the
