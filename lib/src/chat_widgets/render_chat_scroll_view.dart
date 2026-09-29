@@ -1225,18 +1225,23 @@ class RenderChatScrollView extends RenderBox {
   // the runtime: the day header's pin never reaches it.
   //
   // Pointer routing: [hitTest] puts the runtime's strip target ahead of the
-  // children (arrow cursor, hover hold); [handleEvent] offers only fresh
-  // presses ([_pressedPointers] empty) to the grab, before fling catch,
-  // selection, and the list drag.
+  // children (arrow cursor, hover hold) and, under a pointer-following
+  // preset, its viewport target (enter pulse, leave fade); [handleEvent]
+  // offers only fresh presses ([_pressedPointers] empty) to the grab, before
+  // fling catch, selection, and the list drag. The runtime's settle and
+  // hover/grab factor eases ride this viewport's ticker.
 
   late final ChatScrollbarRuntime _scrollbarRuntime = ChatScrollbarRuntime(
     onChanged: _onScrollbarChanged,
   );
 
-  /// A fade tick or strip hover changed what the scrollbar shows. Hover
-  /// exits can arrive after [detach], from the mouse tracker's update.
+  /// A fade tick or a pointer entering or leaving changed what the
+  /// scrollbar shows. Hover exits can arrive after [detach], from the mouse
+  /// tracker's update.
   void _onScrollbarChanged() {
-    if (attached && hasSize) markNeedsPaint();
+    if (!attached || !hasSize) return;
+    markNeedsPaint();
+    if (_scrollbarRuntime.isAnimating) _ensureTicker();
   }
 
   ChatScrollbar _scrollbar;
@@ -4594,7 +4599,7 @@ class RenderChatScrollView extends RenderBox {
         !_motion.edge.isActive &&
         !_dragInProgress &&
         !_spanAutoScrollOccupying &&
-        !_scrollbarRuntime.isSettling) {
+        !_scrollbarRuntime.isAnimating) {
       _ticker?.stop();
       // Scroll ended — drop the directional lead so the next layout re-fans
       // a symmetric range and collects the now-unneeded lead children.
@@ -4690,9 +4695,9 @@ class RenderChatScrollView extends RenderBox {
         edge.isActive ||
         occupyingSpanAutoScroll;
     if (!hasScrollWork) {
-      // Highlight- or settle-only frame: advance the fades and bail.
+      // Highlight- or scrollbar-only frame: advance the fades and bail.
       if (_animator.tickHighlight(elapsed)) markNeedsPaint();
-      if (_scrollbarRuntime.tickSettle(elapsed)) markNeedsPaint();
+      if (_scrollbarRuntime.tick(elapsed)) markNeedsPaint();
       _releaseMotionIfSettled();
       if (_animator.highlightTargetId == null) _stopTickerIfIdle();
       return;
@@ -4798,11 +4803,11 @@ class RenderChatScrollView extends RenderBox {
     final headerDayChanged = _tickFloatingHeader();
     _resolveRowChromeFrame();
 
-    // The highlight and the scrollbar settle run alongside scroll/animate
-    // frames — advance them on every tick where the scroll path also ran;
-    // this tick repaints below either way.
+    // The highlight and the scrollbar settle and factors run alongside
+    // scroll/animate frames — advance them on every tick where the scroll
+    // path also ran; this tick repaints below either way.
     _animator.tickHighlight(elapsed);
-    _scrollbarRuntime.tickSettle(elapsed);
+    _scrollbarRuntime.tick(elapsed);
 
     // Arm a deferred highlight as soon as the target row is built — do not
     // wait for another layout pass when data was already ready at settle.
@@ -5420,6 +5425,7 @@ class RenderChatScrollView extends RenderBox {
         if (scrollbar.tryStartGrab(event) case final press?) {
           _cancelFling();
           _controller.releaseNavigationPlacement();
+          _ensureTicker();
           markNeedsPaint();
           if (press == ChatScrollbarPress.track) {
             if (scrollbar.grabPosition case final position?) {
@@ -5490,17 +5496,25 @@ class RenderChatScrollView extends RenderBox {
   /// Puts [ChatScrollbarRuntime.stripTarget] first in the path wherever the
   /// last painted frame has its strip — ahead of messages, the floating
   /// header, and this viewport — so the mouse tracker resolves the strip's
-  /// arrow cursor over message cursors and reports its hover. The target
-  /// ignores pointer events: children and [handleEvent] still receive every
-  /// press, and [handleEvent] alone decides whether it grabs. No strip in
-  /// overlay mode or while nothing is resolved (no painted preset, content
-  /// fits).
+  /// arrow cursor over message cursors and reports its hover. Then, while
+  /// [ChatScrollbarRuntime.tracksViewport], its viewport target everywhere
+  /// inside the viewport, so the tracker reports the pointer entering and
+  /// leaving the viewport as a whole; it defers the cursor. Both targets
+  /// ignore pointer events: children and [handleEvent] still receive every
+  /// press, and [handleEvent] alone decides whether it grabs. Neither is
+  /// added in overlay mode or while nothing is resolved (no painted preset,
+  /// content fits).
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) {
     if (!size.contains(position)) return false;
-    if (_overlayKind == ChatOverlayKind.none &&
-        _scrollbarRuntime.stripContains(position)) {
-      result.add(HitTestEntry(_scrollbarRuntime.stripTarget));
+    if (_overlayKind == ChatOverlayKind.none) {
+      final scrollbar = _scrollbarRuntime;
+      if (scrollbar.stripContains(position)) {
+        result.add(HitTestEntry(scrollbar.stripTarget));
+      }
+      if (scrollbar.tracksViewport) {
+        result.add(HitTestEntry(scrollbar.viewportTarget));
+      }
     }
     return super.hitTest(result, position: position);
   }

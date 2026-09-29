@@ -5,6 +5,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/navigation_placement.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -90,6 +91,7 @@ Widget _harness({
   required ChatScrollController controller,
   ValueListenable<double> bottomPadding = const AlwaysStoppedAnimation(0),
   ValueListenable<double> topPadding = const AlwaysStoppedAnimation(0),
+  ChatScrollbar? scrollbar,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -102,6 +104,7 @@ Widget _harness({
           controller: controller,
           bottomPadding: bottomPadding,
           topPadding: topPadding,
+          scrollbar: scrollbar,
           messageBuilder: (context, id, message, status, runLayout) => SizedBox(
             height: _messageHeight,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
@@ -668,13 +671,14 @@ void main() {
       bottomInset.dispose();
     });
 
-    Future<void> mount(WidgetTester tester) async {
+    Future<void> mount(WidgetTester tester, {ChatScrollbar? scrollbar}) async {
       await tester.pumpWidget(
         _harness(
           dataSource: ds,
           controller: controller,
           topPadding: topInset,
           bottomPadding: bottomInset,
+          scrollbar: scrollbar,
         ),
       );
       await tester.pump();
@@ -799,7 +803,7 @@ void main() {
     testWidgets('a scrollbar drag releases the hold, including the jumps it '
         'makes', (tester) async {
       controller.jumpTo(50);
-      await mount(tester);
+      await mount(tester, scrollbar: const ChatScrollbar.desktop());
       const scrollbarStrip = Offset(_viewportWidth - 10, 80);
       final origin = tester.getTopLeft(find.byType(ChatScrollView));
       final gesture = await tester.startGesture(

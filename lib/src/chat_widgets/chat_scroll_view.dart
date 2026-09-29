@@ -515,10 +515,13 @@ class ChatScrollView extends RenderObjectWidget {
   /// grabbed per a [ChatScrollbarGrab], or [ChatScrollbar.none] for no
   /// scrollbar.
   ///
-  /// `null` resolves to `const ChatScrollbar()` on every build: the
-  /// [ChatPillScrollbarPainter] at its defaults, always shown, with the
-  /// default grab rules. Colours come from [ChatScrollbarThemeData]; the
-  /// painter picks sizes; where the scrollbar sits follows [textDirection].
+  /// `null` resolves to [ChatScrollbar.forPlatform] on every build: the
+  /// [ChatScrollbar.mobile] preset on Android, iOS, and Fuchsia, the
+  /// [ChatScrollbar.desktop] preset on macOS, Windows, and Linux, read from
+  /// [defaultTargetPlatform] (not the theme's platform); a browser follows
+  /// its OS. Both presets auto-hide, so an unset scrollbar opens hidden.
+  /// Colours come from [ChatScrollbarThemeData]; the painter picks sizes;
+  /// where the scrollbar sits follows [textDirection].
   ///
   /// Compared by value on rebuild: an equal value is a no-op, so a grab in
   /// progress and a pending auto-hide survive. An unequal value ends the
@@ -530,8 +533,10 @@ class ChatScrollView extends RenderObjectWidget {
   ChatScrollPhysics get _effectivePhysics =>
       physics ?? ChatScrollPhysics.forPlatform();
 
-  /// The effective scrollbar: [scrollbar], or the default preset when unset.
-  ChatScrollbar get _effectiveScrollbar => scrollbar ?? const ChatScrollbar();
+  /// The effective scrollbar: [scrollbar], or the platform default when
+  /// unset.
+  ChatScrollbar get _effectiveScrollbar =>
+      scrollbar ?? ChatScrollbar.forPlatform();
 
   /// The effective grouping function, or `null` when day separators are off.
   Object Function(IChatMessage)? get _effectiveGroupBy =>

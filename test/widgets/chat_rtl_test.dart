@@ -2,6 +2,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -61,6 +62,7 @@ Widget _scaffold({
             dataSource: dataSource,
             controller: controller,
             textDirection: override,
+            scrollbar: const ChatScrollbar.desktop(),
             messageBuilder: (context, id, message, status, runLayout) {
               final dir = Directionality.of(context);
               return Align(

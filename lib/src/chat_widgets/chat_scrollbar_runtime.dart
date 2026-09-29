@@ -68,11 +68,23 @@ typedef ChatScrollbarGrabPosition = ({double progress, double spanShare});
 ///   pointer-to-band mapping, stay fixed for the whole grab.
 /// - **Settle** — after [endGrab], the thumb eases from where the pointer
 ///   left it to the band's thumb over [settleDuration] along [settleCurve],
-///   advanced by [tickSettle]. The band keeps moving the target while it
+///   advanced by [tick]. The band keeps moving the target while it
 ///   settles.
 ///
-/// The settle is not an `AnimationController`: the owner is a render object
-/// with no `TickerProvider`; the render object's own ticker drives it.
+/// ## Hover and grab factors
+///
+/// The frame's [ChatScrollbarFrame.hoverFactor] and
+/// [ChatScrollbarFrame.grabFactor] ease toward `1` while the strip is
+/// hovered or a grab is held, and toward `0` after: over the visibility's
+/// fade-in when rising and its fade-out when falling, along its curve (the
+/// settle's 250 ms [Curves.easeOut] under always). Each ease starts on the
+/// first [tick] after the change, so the first frame still shows the old
+/// value; a zero fade jumps straight to the target. A reversal mid-ease
+/// runs from the current value.
+///
+/// The settle and the factors are not `AnimationController`s: the owner is
+/// a render object with no `TickerProvider`; the render object's own ticker
+/// drives them through [tick] while [isAnimating].
 ///
 /// ## Visibility
 ///
@@ -92,13 +104,19 @@ typedef ChatScrollbarGrabPosition = ({double progress, double spanShare});
 /// [pulseVisibility] reports a discrete move and is ignored while a grab
 /// holds: the grab's own jumps are part of the grab, and its release starts
 /// the idle delay, not the navigation delay.
+///
+/// Under [ChatScrollbarVisibility$AutoHide.followsPointer], the owner also
+/// adds [viewportTarget] to its hit tests: a mouse entering the viewport
+/// pulses with the idle delay unless something already holds, and leaving
+/// it drops the strip hover and starts the fade-out at once unless another
+/// holder still holds.
 @internal
 final class ChatScrollbarRuntime {
   /// A runtime that calls [onChanged] whenever what the next frame shows
   /// changes outside a paint: an auto-hide fade moves [visibility] (inside
   /// ticker frames), or a mouse enters or leaves the strip (inside pointer
   /// dispatch or the mouse tracker's post-frame update). The owner
-  /// repaints.
+  /// repaints, and keeps its ticker running while [isAnimating].
   ChatScrollbarRuntime({required VoidCallback onChanged})
     : _onChanged = onChanged;
 
@@ -106,10 +124,10 @@ final class ChatScrollbarRuntime {
   /// A change reaches a resting mouse at the mouse tracker's next update.
   ChatScrollbarGrab grab = const ChatScrollbarGrab();
 
-  /// Settle length and curve under [ChatScrollbarVisibility.always], which
-  /// has no fade to take them from.
-  static const Duration _alwaysSettleDuration = Duration(milliseconds: 250);
-  static const Curve _alwaysSettleCurve = Curves.easeOut;
+  /// Settle and factor timing under [ChatScrollbarVisibility.always], which
+  /// has no fade to take it from.
+  static const Duration _alwaysFadeDuration = Duration(milliseconds: 250);
+  static const Curve _alwaysCurve = Curves.easeOut;
 
   // --- Frame and thumb motion ------------------------------------------------
 
@@ -128,12 +146,16 @@ final class ChatScrollbarRuntime {
     _ => false,
   };
 
-  /// Whether the thumb is easing back to the band after a grab; the render
-  /// object keeps its ticker alive and calls [tickSettle] until it is not.
+  /// Whether the thumb is easing back to the band after a grab.
   bool get isSettling => switch (_motion) {
     _Settle() => true,
     _ => false,
   };
+
+  /// Whether the settle or a hover or grab factor is still easing; the
+  /// render object keeps its ticker alive and calls [tick] until it is not.
+  bool get isAnimating =>
+      isSettling || _hoverFactor.isEasing || _grabFactor.isEasing;
 
   /// Resolves this paint's frame for [painter] and stores it as [frame].
   ///
@@ -200,8 +222,8 @@ final class ChatScrollbarRuntime {
       thumbRect: Rect.fromLTRB(left, thumbTop, right, thumbTop + thumbLength),
       textDirection: textDirection,
       visibility: visibility,
-      hoverFactor: _hovered ? 1.0 : 0.0,
-      grabFactor: isGrabbing ? 1.0 : 0.0,
+      hoverFactor: _hoverFactor.value,
+      grabFactor: _grabFactor.value,
     );
   }
 
@@ -216,15 +238,19 @@ final class ChatScrollbarRuntime {
   /// Drops [frame], all motion (a grab included), and the visibility state:
   /// the motion and grab holds are forgotten and an auto-hide clock is
   /// disposed, its pending hide cancelled. For a render object leaving the
-  /// tree, where the grabbing pointer's remaining events never arrive. Strip
-  /// hover survives: the mouse tracker still reports its exit, so a pointer
-  /// resting on the strip across a same-frame re-parent keeps holding. The
-  /// owner calls [configureVisibility] again on re-attach, which starts
-  /// auto-hide hidden unless the hover holds.
+  /// tree, where the grabbing pointer's remaining events never arrive, and
+  /// whose ticker goes with it: the grab factor drops to `0` and the hover
+  /// factor jumps to where the hover is. Strip hover survives: the mouse
+  /// tracker still reports its exit, so a pointer resting on the strip
+  /// across a same-frame re-parent keeps holding. The owner calls
+  /// [configureVisibility] again on re-attach, which starts auto-hide
+  /// hidden unless the hover holds.
   void reset() {
     _frame = null;
     _motion = null;
     _motionHeld = false;
+    _grabFactor.snap(0);
+    _hoverFactor.snap(_hovered ? 1 : 0);
     configureVisibility(null);
   }
 
@@ -288,7 +314,8 @@ final class ChatScrollbarRuntime {
   /// Starts a grab when [event] lands on a live target of the last resolved
   /// [frame] for its pointer kind — the strip for a mouse or trackpad, the
   /// touch target for anything else (see the type docs). Replaces a settle
-  /// in flight, and holds visibility until [endGrab].
+  /// in flight, holds visibility until [endGrab], and starts the grab
+  /// factor easing to `1`; the owner starts its ticker.
   ///
   /// The caller decides whether the press is fresh; this reads only the
   /// press itself, [frame], [grab], and [visibility]. Returns where the
@@ -323,6 +350,7 @@ final class ChatScrollbarRuntime {
       spanShare: _spanShare,
     );
     _visibilityClock?.hold();
+    _easeFactor(_grabFactor, 1);
     return press;
   }
 
@@ -354,7 +382,8 @@ final class ChatScrollbarRuntime {
   /// Ends the grab, if any, and starts the settle from the thumb the grab
   /// last asked for. Without a resolved frame the thumb goes straight to
   /// rest. Releases the grab's visibility hold: the idle delay starts
-  /// unless list motion or strip hover still holds.
+  /// unless list motion or strip hover still holds. The grab factor starts
+  /// easing to `0` alongside the settle.
   void endGrab() {
     if (_motion case final _Grab grab) {
       _motion = switch (_frame) {
@@ -365,31 +394,49 @@ final class ChatScrollbarRuntime {
         null => null,
       };
       if (!_held) _visibilityClock?.release();
+      _easeFactor(_grabFactor, 0);
     }
   }
 
   /// How long the release settle runs: the auto-hide fade-out, or 250 ms
-  /// under always visibility and with no preset.
+  /// under always visibility and with no preset. A falling factor eases
+  /// over the same span.
   Duration get settleDuration => switch (_visibilityMode) {
     ChatScrollbarVisibility$AutoHide(:final fadeOut) => fadeOut,
-    ChatScrollbarVisibility$Always() || null => _alwaysSettleDuration,
+    ChatScrollbarVisibility$Always() || null => _alwaysFadeDuration,
   };
 
-  /// Curve applied to the settle's linear time fraction; the thumb's top
-  /// and length are lerped by its output. The auto-hide curve, or
-  /// [Curves.easeOut] under always visibility and with no preset.
+  /// How long a rising factor eases: the auto-hide fade-in, or 250 ms under
+  /// always visibility and with no preset.
+  Duration get _riseDuration => switch (_visibilityMode) {
+    ChatScrollbarVisibility$AutoHide(:final fadeIn) => fadeIn,
+    ChatScrollbarVisibility$Always() || null => _alwaysFadeDuration,
+  };
+
+  /// Curve applied to the settle's and the factors' linear time fractions;
+  /// the thumb's top and length, and each factor, are lerped by its output.
+  /// The auto-hide curve, or [Curves.easeOut] under always visibility and
+  /// with no preset.
   Curve get settleCurve => switch (_visibilityMode) {
     ChatScrollbarVisibility$AutoHide(:final curve) => curve,
-    ChatScrollbarVisibility$Always() || null => _alwaysSettleCurve,
+    ChatScrollbarVisibility$Always() || null => _alwaysCurve,
   };
 
-  /// Advances the settle to the ticker time [elapsed] and returns whether
-  /// the thumb moved and needs a repaint. The first tick after [endGrab]
-  /// starts the clock, so the first settle frame still shows the pointer's
-  /// position; the tick past [settleDuration] returns the thumb to rest. A
-  /// zero [settleDuration] rests on that first tick. A visibility change
-  /// mid-settle retimes the rest of it.
-  bool tickSettle(Duration elapsed) {
+  /// Advances the settle and both factors to the ticker time [elapsed] and
+  /// returns whether any of them moved, so the owner repaints.
+  bool tick(Duration elapsed) {
+    final settled = _tickSettle(elapsed);
+    final hovered = _tickFactor(_hoverFactor, elapsed);
+    final grabbed = _tickFactor(_grabFactor, elapsed);
+    return settled || hovered || grabbed;
+  }
+
+  /// Advances the settle to [elapsed]; `true` when the thumb moved. The
+  /// first tick after [endGrab] starts the clock, so the first settle frame
+  /// still shows the pointer's position; the tick past [settleDuration]
+  /// returns the thumb to rest. A zero [settleDuration] rests on that first
+  /// tick. A visibility change mid-settle retimes the rest of it.
+  bool _tickSettle(Duration elapsed) {
     if (_motion case final _Settle settle) {
       final start = settle.start ??= elapsed;
       final duration = settleDuration;
@@ -406,6 +453,25 @@ final class ChatScrollbarRuntime {
     return false;
   }
 
+  // --- Hover and grab factors ------------------------------------------------
+
+  final _Ease _hoverFactor = _Ease();
+  final _Ease _grabFactor = _Ease();
+
+  /// Points [factor] at [target], rising over [_riseDuration] or falling
+  /// over [settleDuration]. A zero duration jumps there now: waiting a tick
+  /// for a step would show one stale frame.
+  void _easeFactor(_Ease factor, double target) {
+    final duration = target > factor.value ? _riseDuration : settleDuration;
+    factor.aim(target, instant: duration <= Duration.zero);
+  }
+
+  bool _tickFactor(_Ease factor, Duration elapsed) => factor.tick(
+    elapsed,
+    factor.rising ? _riseDuration : settleDuration,
+    settleCurve,
+  );
+
   // --- Strip hover -----------------------------------------------------------
 
   /// Hit-test target the owner adds ahead of its children wherever
@@ -421,7 +487,7 @@ final class ChatScrollbarRuntime {
   /// Enter and exit of [stripTarget]. Entering holds visibility (revealing
   /// a hidden scrollbar) unless another holder already does; leaving
   /// releases it unless another holder still holds. Either way the hover
-  /// factor flips, so the owner repaints.
+  /// factor starts easing, so the owner repaints and runs its ticker.
   void _hoverStrip(bool hovered) {
     if (_hovered == hovered) return;
     _hovered = hovered;
@@ -434,7 +500,53 @@ final class ChatScrollbarRuntime {
     } else if (!_held) {
       _visibilityClock?.release();
     }
+    _easeFactor(_hoverFactor, hovered ? 1 : 0);
     _onChanged();
+  }
+
+  // --- Pointer presence ------------------------------------------------------
+
+  /// Whether the preset's visibility follows a mouse in and out of the
+  /// viewport ([ChatScrollbarVisibility$AutoHide.followsPointer]).
+  bool get followsPointer => switch (_visibilityMode) {
+    ChatScrollbarVisibility$AutoHide(:final followsPointer) => followsPointer,
+    ChatScrollbarVisibility$Always() || null => false,
+  };
+
+  /// Whether the owner adds [viewportTarget] to its hit tests: while
+  /// [followsPointer] and a [frame] is resolved, so a viewport with nothing
+  /// to scroll raises no visibility for a scrollbar it does not paint. A
+  /// pointer resting inside is reported entering once a frame appears —
+  /// the mouse tracker re-tests after each frame — and leaving once it
+  /// goes.
+  bool get tracksViewport => followsPointer && _frame != null;
+
+  /// Hit-test target the owner adds for every position inside the viewport
+  /// while [tracksViewport], so the mouse tracker reports a mouse or
+  /// trackpad pointer entering and leaving the viewport as a whole —
+  /// moving between messages inside it reports nothing. Defers the cursor
+  /// to whatever lies beneath and ignores the pointer events it is
+  /// dispatched.
+  late final HitTestTarget viewportTarget = _ViewportTarget(this);
+
+  /// A mouse entered the viewport: pulse with the idle delay — or with the
+  /// navigation delay while a navigation's hide is pending, so entering
+  /// never brings that hide forward. Skipped while a holder holds: the
+  /// release that ends the hold schedules the hide.
+  void _enterViewport() {
+    if (!followsPointer) return;
+    if (_visibilityClock case final clock? when !clock.isHolding) {
+      clock.pulse(navigation: clock.isNavigationHidePending);
+    }
+  }
+
+  /// A mouse left the viewport: the strip, inside it, is left too, whatever
+  /// order the tracker reports the two exits in; then the fade starts at
+  /// once unless list motion or a grab still holds.
+  void _leaveViewport() {
+    if (!followsPointer) return;
+    _hoverStrip(false);
+    if (!_held) _visibilityClock?.hide();
   }
 
   // --- Visibility ------------------------------------------------------------
@@ -538,12 +650,21 @@ final class ChatScrollbarRuntime {
   }
 }
 
+/// Whether [event]'s hover counts for the scrollbar: only a mouse or
+/// trackpad. The mouse tracker also follows a hovering stylus, which grabs
+/// by the touch rules and must not reveal a hidden scrollbar.
+bool _hovers(PointerEvent event) => switch (event.kind) {
+  PointerDeviceKind.mouse || PointerDeviceKind.trackpad => true,
+  PointerDeviceKind.touch ||
+  PointerDeviceKind.stylus ||
+  PointerDeviceKind.invertedStylus ||
+  PointerDeviceKind.unknown => false,
+};
+
 /// [ChatScrollbarRuntime.stripTarget]: a mouse-tracker region with the basic
-/// cursor whose enter and exit report strip hover. Only mouse and trackpad
-/// hover counts: the tracker also follows a hovering stylus, which grabs by
-/// the touch rules and must not reveal a hidden scrollbar. Always valid —
-/// after the owner detaches, a late exit lands on a runtime with no clock,
-/// and the owner's repaint callback checks attachment.
+/// cursor whose enter and exit report strip hover. Always valid — after the
+/// owner detaches, a late exit lands on a runtime with no clock, and the
+/// owner's repaint callback checks attachment.
 final class _StripTarget extends MouseTrackerAnnotation
     implements HitTestTarget {
   _StripTarget(ChatScrollbarRuntime runtime)
@@ -557,13 +678,25 @@ final class _StripTarget extends MouseTrackerAnnotation
         },
       );
 
-  static bool _hovers(PointerEvent event) => switch (event.kind) {
-    PointerDeviceKind.mouse || PointerDeviceKind.trackpad => true,
-    PointerDeviceKind.touch ||
-    PointerDeviceKind.stylus ||
-    PointerDeviceKind.invertedStylus ||
-    PointerDeviceKind.unknown => false,
-  };
+  @override
+  void handleEvent(PointerEvent event, HitTestEntry entry) {}
+}
+
+/// [ChatScrollbarRuntime.viewportTarget]: a mouse-tracker region over the
+/// whole viewport that defers the cursor and reports enter and exit. Always
+/// valid, like [_StripTarget]; the runtime ignores both while it does not
+/// follow the pointer, so a late exit after a preset change moves nothing.
+final class _ViewportTarget extends MouseTrackerAnnotation
+    implements HitTestTarget {
+  _ViewportTarget(ChatScrollbarRuntime runtime)
+    : super(
+        onEnter: (event) {
+          if (_hovers(event)) runtime._enterViewport();
+        },
+        onExit: (event) {
+          if (_hovers(event)) runtime._leaveViewport();
+        },
+      );
 
   @override
   void handleEvent(PointerEvent event, HitTestEntry entry) {}
@@ -632,4 +765,53 @@ final class _Settle extends _ThumbMotion {
   /// [ChatScrollbarRuntime.settleCurve] at the settle's current time, from
   /// `0` (the grab's thumb) to `1` (the band's).
   double eased = 0;
+}
+
+/// A hover or grab factor easing from its value when last aimed toward
+/// `0` or `1`, timed by the owner's ticker. The runtime supplies duration
+/// and curve on every tick, so a visibility change mid-ease retimes the
+/// rest of it, as it does the settle.
+final class _Ease {
+  double value = 0;
+  double _from = 0;
+  double _target = 0;
+
+  /// Ticker time of the first tick after the last [aim].
+  Duration? _start;
+
+  bool get isEasing => value != _target;
+
+  /// Whether the current ease runs toward a larger value.
+  bool get rising => _target > _from;
+
+  /// Starts easing from [value] toward [target], or jumps there when
+  /// [instant]. Re-aiming at the current target changes nothing.
+  void aim(double target, {required bool instant}) {
+    if (target == _target) return;
+    _target = target;
+    _from = value;
+    _start = null;
+    if (instant) value = target;
+  }
+
+  /// Jumps to [target] with no ease pending.
+  void snap(double target) {
+    value = _from = _target = target;
+    _start = null;
+  }
+
+  /// Advances to the ticker time [elapsed]; `true` while easing. The first
+  /// tick after [aim] starts the clock and still shows the aimed-from value.
+  /// A ticker that restarted mid-ease reports an earlier [elapsed]; the ease
+  /// restarts its clock there rather than running backwards.
+  bool tick(Duration elapsed, Duration duration, Curve curve) {
+    if (!isEasing) return false;
+    var start = _start ??= elapsed;
+    if (elapsed < start) start = _start = elapsed;
+    final t = duration <= Duration.zero
+        ? 1.0
+        : (elapsed - start).inMicroseconds / duration.inMicroseconds;
+    value = t >= 1 ? _target : lerpDouble(_from, _target, curve.transform(t))!;
+    return true;
+  }
 }

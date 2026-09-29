@@ -212,6 +212,14 @@ void main() {
     (int, double) position() =>
         (controller.anchorMessageId, controller.anchorPixelOffset);
 
+    /// Whether the last press was grabbed: one frame on, its grab factor
+    /// has started easing up.
+    Future<bool> grabbing(WidgetTester tester) async {
+      await tester.pump();
+      await tester.pump(_ms(16));
+      return frames.last.grabFactor > 0;
+    }
+
     /// Shows an auto-hide scrollbar once, reads its resting thumb, then
     /// waits until it is hidden again.
     Future<Rect> thumbThenHide(WidgetTester tester) async {
@@ -288,12 +296,7 @@ void main() {
               at(tester, x, y + dy),
               kind: kind,
             );
-            await tester.pump();
-            expect(
-              frames.last.grabFactor,
-              grabs ? 1 : 0,
-              reason: 'x=$x dy=$dy',
-            );
+            expect(await grabbing(tester), grabs, reason: 'x=$x dy=$dy');
             await gesture.up();
             await tester.pumpAndSettle();
           }
@@ -344,8 +347,7 @@ void main() {
         );
         final y = frames.last.thumbRect.center.dy;
         final gesture = await tester.startGesture(at(tester, 345, y + 45));
-        await tester.pump();
-        expect(frames.last.grabFactor, 1);
+        expect(await grabbing(tester), isTrue);
         await gesture.up();
       });
 
@@ -357,8 +359,7 @@ void main() {
         final gesture = await tester.startGesture(
           at(tester, 357, thumb.center.dy),
         );
-        await tester.pump();
-        expect(frames.last.grabFactor, 1);
+        expect(await grabbing(tester), isTrue);
         await gesture.up();
       });
     });
@@ -438,9 +439,8 @@ void main() {
           at(tester, 395, y),
           kind: PointerDeviceKind.mouse,
         );
-        await tester.pump();
+        expect(await grabbing(tester), isTrue);
         expect(frames.last.thumbRect.center.dy, moreOrLessEquals(y));
-        expect(frames.last.grabFactor, 1);
 
         await gesture.moveBy(const Offset(0, 40));
         await tester.pump();
@@ -468,8 +468,7 @@ void main() {
           at(tester, 395, frames.last.thumbRect.center.dy),
           kind: PointerDeviceKind.mouse,
         );
-        await tester.pump();
-        expect(frames.last.grabFactor, 1);
+        expect(await grabbing(tester), isTrue);
         await gesture.up();
       });
 
@@ -501,9 +500,9 @@ void main() {
         expect(await painted(tester), 1, reason: 'hover holds');
 
         await mouse.moveTo(at(tester, 200, 300));
-        await tester.pump();
+        await _elapse(tester, _ms(300));
         expect(frames.last.hoverFactor, 0);
-        await _elapse(tester, _ms(900));
+        await _elapse(tester, _ms(600));
         expect(await painted(tester), 1);
         await _elapse(tester, _ms(400));
         expect(await painted(tester), 0);
@@ -632,8 +631,7 @@ void main() {
         final thumbY = frames.last.thumbRect.center.dy;
 
         final press = await tester.startGesture(at(tester, 395, thumbY));
-        await tester.pump();
-        expect(frames.last.grabFactor, 1);
+        expect(await grabbing(tester), isTrue);
         final held = position();
         await tester.pump(_ms(200));
         expect(position(), held);
@@ -692,8 +690,7 @@ void main() {
           (395, false),
         ]) {
           final gesture = await tester.startGesture(at(tester, x, y));
-          await tester.pump();
-          expect(frames.last.grabFactor, grabs ? 1 : 0, reason: 'x=$x');
+          expect(await grabbing(tester), grabs, reason: 'x=$x');
           await gesture.up();
           await tester.pumpAndSettle();
         }

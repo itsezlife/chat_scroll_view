@@ -13,13 +13,21 @@ import 'package:flutter_test/flutter_test.dart';
 import '../chat_message.dart';
 
 const _trackColor = Color(0xFF030303);
+const _trackHoverColor = Color(0xFF040404);
 const _thumbColor = Color(0xFF010101);
+const _thumbHoverColor = Color(0xFF050505);
 const _thumbDraggingColor = Color(0xFF020202);
 const _theme = ChatScrollbarThemeData(
   thumbColor: _thumbColor,
+  thumbHoverColor: _thumbHoverColor,
   thumbDraggingColor: _thumbDraggingColor,
   trackColor: _trackColor,
+  trackHoverColor: _trackHoverColor,
 );
+
+/// Longer than any fade the presets here use, so an eased hover or grab
+/// factor has reached its target.
+const _factorSettled = Duration(milliseconds: 300);
 
 const _viewportWidth = 400.0;
 const _viewportHeight = 600.0;
@@ -218,7 +226,7 @@ void main() {
       );
     });
 
-    testWidgets('widens to the grabbed thickness with the dragging colour', (
+    testWidgets('widens to the grabbed thickness with the engaged colours', (
       tester,
     ) async {
       final box = await _pumpPainter(
@@ -236,7 +244,7 @@ void main() {
         paints
           ..rrect(
             rrect: RRect.fromLTRBR(390, 4, 396, 596, const Radius.circular(3)),
-            color: _trackColor,
+            color: _trackHoverColor,
           )
           ..rrect(
             rrect: RRect.fromLTRBR(
@@ -339,11 +347,11 @@ void main() {
       addTearDown(dataSource.dispose);
     }
 
-    testWidgets('unset preset paints the pill with theme colours', (
+    testWidgets('the unnamed preset paints the pill with theme colours', (
       tester,
     ) async {
       setUpSource(256, 128);
-      await pumpViewport(tester);
+      await pumpViewport(tester, scrollbar: const ChatScrollbar());
       expect(
         tester.renderObject(find.byType(ChatScrollView)),
         paints
@@ -453,7 +461,7 @@ void main() {
       await gesture.up();
     });
 
-    testWidgets('grab factor is 1 while the grabbing pointer is down', (
+    testWidgets('grab factor rises to 1 while the grabbing pointer is down', (
       tester,
     ) async {
       setUpSource(256, 128);
@@ -465,6 +473,7 @@ void main() {
 
       final gesture = await tester.startGesture(at(tester, 395, 300));
       await tester.pump();
+      await tester.pump(_factorSettled);
       expect(frames.last.grabFactor, 1);
 
       final before = controller.anchorMessageId;
@@ -475,6 +484,7 @@ void main() {
 
       await gesture.up();
       await tester.pump();
+      await tester.pump(_factorSettled);
       expect(frames.last.grabFactor, 0);
     });
 
@@ -516,12 +526,16 @@ void main() {
       expect(controller.anchorMessageId, closeTo(128, 10));
     });
 
-    testWidgets('the default preset claims the same press from a mouse', (
+    testWidgets('the unnamed preset claims the same press from a mouse', (
       tester,
     ) async {
       setUpSource(256, 128);
       final requests = <ChatMessageMenuRequest>[];
-      await pumpViewport(tester, onIdleMessageTap: requests.add);
+      await pumpViewport(
+        tester,
+        scrollbar: const ChatScrollbar(),
+        onIdleMessageTap: requests.add,
+      );
 
       await tester.tapAt(at(tester, 395, 100), kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
@@ -551,6 +565,7 @@ void main() {
       final before = controller.anchorMessageId;
       await gesture.moveTo(at(tester, 395, 100));
       await tester.pump();
+      await tester.pump(_factorSettled);
       expect(controller.anchorMessageId, isNot(before));
       expect(frames.last.grabFactor, 1);
       await gesture.up();
@@ -640,6 +655,7 @@ void main() {
 
       final gesture = await tester.startGesture(at(tester, resting.top + 2));
       await tester.pump();
+      await tester.pump(_factorSettled);
       expect(frames.last.thumbRect, resting);
       expect(frames.last.grabFactor, 1);
       expect(position(), before);

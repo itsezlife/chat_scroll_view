@@ -9,14 +9,67 @@
   constants no longer compiles. `ChatScrollbar` is now the scrollbar
   preset (below).
 - **ADDED**: `ChatScrollView.scrollbar` takes a `ChatScrollbar`, an
-  immutable, value-equal **scrollbar preset**: `ChatScrollbar(painter:)`
-  or `ChatScrollbar.none()`. Leaving it unset gives the same look as
-  before, always shown; which presses grab it changed (see the grab entry
-  below). `ChatScrollbar.none()` paints nothing and grabs nothing, so
-  presses along the trailing edge tap messages and drag the list instead.
-  An equal
+  immutable, value-equal **scrollbar preset**: `ChatScrollbar.mobile()`,
+  `ChatScrollbar.desktop()`, a custom `ChatScrollbar(painter:,
+  visibility:, grab:)`, or `ChatScrollbar.none()`. The unnamed
+  `ChatScrollbar()` keeps the previous look at rest, always shown.
+  `ChatScrollbar.none()` paints nothing and grabs nothing, so presses along
+  the trailing edge tap messages and drag the list instead. An equal
   preset on rebuild changes nothing; an unequal one ends an active grab,
   and the grabbing pointer then scrolls nothing until it lifts.
+- **CHANGED**: Leaving `ChatScrollView.scrollbar` unset now resolves to
+  `ChatScrollbar.forPlatform()` on every build: `ChatScrollbar.mobile()` on
+  Android, iOS, and Fuchsia, `ChatScrollbar.desktop()` on macOS, Windows,
+  and Linux. The platform is read from `defaultTargetPlatform`, not the
+  theme, so a browser follows its OS; `forPlatform(platform:)` pins a row.
+  Before, an unset scrollbar was an always-shown 4 px track and thumb. Now
+  both presets auto-hide, so it opens hidden and shows while the list
+  moves.
+  - Mobile: a 4 px thumb, 8 px while grabbed, with no track, at least
+    36 px long, 3 px in from every edge; the default auto-hide timing; a
+    touch grabs the shown thumb through a target 32 px in from the edge
+    and at least 96 px tall; a mouse press on the track beside the thumb
+    reaches the message.
+  - Desktop: a 6 px track and thumb whose colours, not width, answer hover
+    and grab; the thumb at least 40 px long, 3 px in from every edge;
+    150 ms linear fades; a mouse entering the viewport shows the scrollbar
+    and leaving starts its fade at once; a track press centres the thumb
+    and keeps dragging.
+  `flutter_test` reports Android, so an unset scrollbar in a widget test is
+  the mobile preset: hidden at rest, and a mouse tap on its track reaches
+  the message. Tests that jumped by tapping the track pass
+  `ChatScrollbar.desktop()`, or `ChatScrollbar()` for the previous look.
+- **ADDED**: `ChatScrollbarVisibility.autoHide(followsPointer:)`, `false`
+  by default and `true` in the desktop preset. A mouse or trackpad pointer
+  entering the viewport pulses visibility with the idle delay; moving
+  inside does not pulse again; leaving starts the fade-out at once,
+  skipping any pending delay, unless list motion or a grab holds the
+  scrollbar. A stylus or touch never counts. Entering never brings a
+  pending hide forward: after a jump or an animated scroll it waits the
+  navigation delay again. A viewport with nothing to scroll ignores the
+  pointer.
+- **ADDED**: `ChatScrollbarThemeData.thumbHoverColor` and `trackHoverColor`
+  beside the idle and dragging colours: black at 50 % and 17 % in `light`,
+  the same alphas in white in `dark`. `copyWith`, `lerp`, and `mergeTheme`
+  take them. A theme built with only the three earlier colours gets the
+  light hover defaults, so a dark theme that sets its own colours should
+  set both new ones too.
+- **ADDED**: `ChatPillScrollbarPainter.mobile()` and `.desktop()` hold the
+  presets' sizes, and a `hoveredThickness` parameter joins `thickness` and
+  `grabbedThickness` (defaults to `thickness`, so hover alone keeps the
+  width). The pill's width runs `thickness` → `hoveredThickness` by the
+  hover factor → `grabbedThickness` by the grab factor. Its thumb runs
+  `thumbColor` → `thumbHoverColor` → `thumbDraggingColor` the same way,
+  and its track turns `trackHoverColor` by the larger of the two factors.
+  The unnamed painter now shows those colours where it painted the idle
+  ones before.
+- **CHANGED**: `ChatScrollbarFrame.hoverFactor` and `grabFactor` ease
+  instead of switching between `0` and `1`. Each rises over the auto-hide
+  `fadeIn` and falls over its `fadeOut`, along its `curve` (250 ms
+  `easeOut` under always); a reversal mid-ease runs from the current value.
+  A grab ended by the viewport leaving the tree drops the grab factor to
+  `0` at once. Custom painters now see values between `0` and `1`, and a
+  test that read `1` right after a press must pump past the fade-in.
 - **ADDED**: `ChatScrollbarPainter`, the open **scrollbar painter**
   contract. The viewport resolves a `ChatScrollbarFrame` once per paint
   (track rect, thumb rect, visibility, hover and grab factors, text
@@ -25,9 +78,9 @@
   the resolved `ChatScrollbarThemeData`. Grab hit-testing reads that same
   frame, never the painter's output, so a custom look cannot move where
   presses land. The default `ChatPillScrollbarPainter` draws the previous
-  pixels and colours; its sizes are constructor parameters (`paintsTrack`,
-  `thickness`, `grabbedThickness`, `minThumbLength`, `crossAxisMargin`,
-  `mainAxisMargin`).
+  pixels and colours at rest; its sizes are constructor parameters
+  (`paintsTrack`, `thickness`, `hoveredThickness`, `grabbedThickness`,
+  `minThumbLength`, `crossAxisMargin`, `mainAxisMargin`).
 - **ADDED**: `ChatScrollbar(visibility:)` takes a `ChatScrollbarVisibility`,
   its own **scrollbar visibility** apart from the day header's scroll
   activity. `ChatScrollbarVisibility.always()` is the default and keeps
@@ -55,7 +108,7 @@
   (`touchTargetWidth`, `touchTargetMinHeight`); every other touch near the
   edge scrolls, taps, or long-presses messages. A mouse or trackpad uses a
   12 px strip (`stripWidth`) that stays live while hidden: hovering it
-  reveals and holds an auto-hide scrollbar, sets
+  reveals and holds an auto-hide scrollbar, eases
   `ChatScrollbarFrame.hoverFactor` to `1`, and shows the arrow cursor over
   message cursors; the wheel over it scrolls messages. Only the primary
   button grabs; a right-click there reaches the message. A mouse press on

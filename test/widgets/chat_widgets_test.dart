@@ -5,6 +5,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
@@ -122,6 +123,7 @@ Widget _harness({
   double cacheExtent = 250,
   double extraBuildExtent = 0,
   ValueListenable<double>? bottomPadding,
+  ChatScrollbar? scrollbar,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -134,6 +136,7 @@ Widget _harness({
           cacheExtent: cacheExtent,
           extraBuildExtent: extraBuildExtent,
           bottomPadding: bottomPadding,
+          scrollbar: scrollbar,
           messageBuilder: (context, id, message, status, runLayout) => SizedBox(
             height: 60,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
@@ -339,6 +342,7 @@ void main() {
         _harness(
           dataSource: _PreloadedDataSource(_generate(count)),
           controller: controller,
+          scrollbar: const ChatScrollbar.desktop(),
         ),
       );
       await tester.pump();

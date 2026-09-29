@@ -246,7 +246,10 @@ and follow-tail converge on the next layout.
   1. `hitTest` adds the runtime's strip target ahead of every child when
      the position lies in the mouse strip (no overlay mode), so its basic
      cursor beats message cursors and `MouseTracker` enter / exit drive
-     strip hover. Wheel events still reach the viewport and scroll.
+     strip hover. Under `autoHide(followsPointer: true)`, while a frame is
+     resolved, it then adds the runtime's viewport target everywhere inside
+     the viewport (cursor deferred), so enter / exit of the viewport as a
+     whole pulse and fade visibility. Wheel events still reach the viewport and scroll.
   2. `handleEvent` records every pointer down / up / cancel. Only a
      **fresh press** — a down while no other pointer is down on the
      viewport — is offered to `ChatScrollbarRuntime.tryStartGrab`, and only
@@ -278,8 +281,11 @@ and follow-tail converge on the next layout.
   id, then `jumpToFraction(id, fraction)` (layout path, `FractionalPlacement`
   seated on the row's real height). Release releases the placement and
   eases the thumb rect back to the band's thumb on the ticker
-  (`tickSettle`, over the visibility preset's fade-out and curve — 250 ms
-  `easeOut` under always). A grab holds scrollbar visibility; see
+  (`ChatScrollbarRuntime.tick`, over the visibility preset's fade-out and
+  curve — 250 ms `easeOut` under always). The same tick eases the hover and
+  grab factors: up over the fade-in, down over the fade-out, along the
+  curve. `_stopTickerIfIdle` keeps the ticker while `isAnimating` (settle
+  or either factor easing). A grab holds scrollbar visibility; see
   [Scrollbar visibility](09-day-groups-and-headers.md#scrollbar-visibility).
 
 ## Semantics

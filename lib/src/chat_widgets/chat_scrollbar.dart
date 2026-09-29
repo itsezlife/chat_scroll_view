@@ -17,6 +17,13 @@ import 'package:flutter/painting.dart';
 /// which presses it grabs ([ChatScrollbarGrab]); the painter owns only the
 /// look.
 ///
+/// Two presets cover the platform families: [ChatScrollbar.mobile] and
+/// [ChatScrollbar.desktop]; [ChatScrollbar.forPlatform] picks one by OS,
+/// and is what a viewport with no preset uses. Either preset runs on any
+/// platform. Inside a preset the pointer kind of each event picks touch or
+/// mouse rules ([ChatScrollbarGrab]); the input device never switches
+/// presets.
+///
 /// No scrollbar is painted, and no press is grabbed, while the whole
 /// conversation fits in the scroll band or the viewport shows its loading or
 /// empty overlay.
@@ -37,6 +44,65 @@ sealed class ChatScrollbar {
 
   const ChatScrollbar._();
 
+  /// The mobile preset: a thin thumb with no track that auto-hides and
+  /// widens while grabbed.
+  ///
+  /// - Painter: [ChatPillScrollbarPainter.mobile] — 4 px thumb, 8 px while
+  ///   grabbed, no track, at least 36 px long, 3 px insets.
+  /// - Visibility: [ChatScrollbarVisibility.autoHide] at its defaults —
+  ///   hidden 1000 ms after the list rests (1500 ms after navigation), 250 ms
+  ///   fades along [Curves.easeOut]; a mouse entering the viewport reveals
+  ///   nothing.
+  /// - Grab: a touch grabs only the shown thumb, through a target 32 px in
+  ///   from the edge and at least 96 px tall — twice the [ChatScrollbarGrab]
+  ///   default height, since the thumb is short and has no track to aim
+  ///   at; a touch anywhere else along the edge still scrolls or reaches
+  ///   the message. A mouse press on the track beside the thumb
+  ///   falls through to the message ([ChatScrollbarTrackPress.fallThrough]).
+  const factory ChatScrollbar.mobile() = ChatScrollbar$Painted.mobile;
+
+  /// The desktop preset: track and thumb that auto-hide, answer hover with
+  /// colour, and follow the mouse in and out of the viewport.
+  ///
+  /// - Painter: [ChatPillScrollbarPainter.desktop] — 6 px track and thumb
+  ///   at every factor (hover and grab change colour only), thumb at least
+  ///   40 px long, 3 px insets.
+  /// - Visibility: [ChatScrollbarVisibility.autoHide] with 150 ms linear
+  ///   fades and [ChatScrollbarVisibility$AutoHide.followsPointer] — a
+  ///   mouse entering the viewport shows the scrollbar, leaving starts its
+  ///   fade at once; otherwise hidden 1000 ms after the list rests (1500 ms
+  ///   after navigation).
+  /// - Grab: the default [ChatScrollbarGrab] — a 12 px mouse strip, live
+  ///   while hidden; a press on the track centres the thumb there and keeps
+  ///   dragging.
+  const factory ChatScrollbar.desktop() = ChatScrollbar$Painted.desktop;
+
+  /// The preset matching the OS family of [platform], or of
+  /// [defaultTargetPlatform] when [platform] is `null`:
+  ///
+  /// | Platform               | Preset      |
+  /// |------------------------|-------------|
+  /// | Android, iOS, Fuchsia  | [mobile]    |
+  /// | macOS, Windows, Linux  | [desktop]   |
+  ///
+  /// On the web, [defaultTargetPlatform] reports the browser's OS, so a
+  /// browser follows the same table as the native app on that OS.
+  ///
+  /// The platform comes from [defaultTargetPlatform] only — never from
+  /// `ThemeData.platform` or the ambient `ScrollConfiguration`. Pass
+  /// [platform] (or set `debugDefaultTargetPlatformOverride`) to pin the
+  /// row. Each row returns a constant, so repeated calls on one platform
+  /// are equal and a rebuild that re-resolves the default changes nothing.
+  factory ChatScrollbar.forPlatform({TargetPlatform? platform}) =>
+      switch (platform ?? defaultTargetPlatform) {
+        TargetPlatform.android ||
+        TargetPlatform.iOS ||
+        TargetPlatform.fuchsia => const ChatScrollbar.mobile(),
+        TargetPlatform.macOS ||
+        TargetPlatform.windows ||
+        TargetPlatform.linux => const ChatScrollbar.desktop(),
+      };
+
   /// No scrollbar — see [ChatScrollbar$None].
   const factory ChatScrollbar.none() = ChatScrollbar$None;
 }
@@ -56,6 +122,28 @@ final class ChatScrollbar$Painted extends ChatScrollbar {
     this.visibility = const ChatScrollbarVisibility.always(),
     this.grab = const ChatScrollbarGrab(),
   }) : super._();
+
+  /// The mobile preset — see [ChatScrollbar.mobile].
+  const ChatScrollbar$Painted.mobile()
+    : painter = const ChatPillScrollbarPainter.mobile(),
+      visibility = const ChatScrollbarVisibility.autoHide(),
+      grab = const ChatScrollbarGrab(
+        touchTargetMinHeight: 96,
+        trackPress: ChatScrollbarTrackPress.fallThrough,
+      ),
+      super._();
+
+  /// The desktop preset — see [ChatScrollbar.desktop].
+  const ChatScrollbar$Painted.desktop()
+    : painter = const ChatPillScrollbarPainter.desktop(),
+      visibility = const ChatScrollbarVisibility.autoHide(
+        fadeIn: Duration(milliseconds: 150),
+        fadeOut: Duration(milliseconds: 150),
+        curve: Curves.linear,
+        followsPointer: true,
+      ),
+      grab = const ChatScrollbarGrab(),
+      super._();
 
   /// The look. Part of this preset's equality: give custom painters value
   /// equality (or reuse one instance), since an unequal painter makes the
@@ -135,12 +223,14 @@ sealed class ChatScrollbarVisibility {
     Duration fadeIn,
     Duration fadeOut,
     Curve curve,
+    bool followsPointer,
   }) = ChatScrollbarVisibility$AutoHide;
 }
 
 /// Visibility `1` whenever there is something to scroll.
 ///
-/// A grab's release settle runs over 250 ms along [Curves.easeOut].
+/// A grab's release settle, and every change of the frame's hover and grab
+/// factors ([ChatScrollbarFrame]), run over 250 ms along [Curves.easeOut].
 final class ChatScrollbarVisibility$Always extends ChatScrollbarVisibility {
   /// The always-shown scrollbar.
   const ChatScrollbarVisibility$Always() : super._();
@@ -177,20 +267,26 @@ final class ChatScrollbarVisibility$Always extends ChatScrollbarVisibility {
 ///   tail as messages arrive there, history loading around the band, anchor
 ///   renormalization, delete recovery that keeps the band in place, inset
 ///   and keyboard changes, and row chrome holds.
+/// - **Held by hover** while a mouse or trackpad pointer rests on the
+///   scrollbar's strip (see [ChatScrollbarGrab]), at any setting.
+/// - **Following the pointer**, only with [followsPointer]: see there.
 ///
 /// Fades advance on a viewport ticker and pause while the viewport's
-/// `TickerMode` is off. A grab's release settle runs over [fadeOut] along
+/// `TickerMode` is off. A grab's release settle, and the frame's hover and
+/// grab factors ([ChatScrollbarFrame]), ease over these fades along
 /// [curve].
 final class ChatScrollbarVisibility$AutoHide extends ChatScrollbarVisibility {
   /// Auto-hide; the defaults show for 1000 ms after the list rests and
   /// 1500 ms after host navigation, fading in and out over 250 ms along
-  /// [Curves.easeOut].
+  /// [Curves.easeOut], and ignore a pointer entering or leaving the
+  /// viewport.
   const ChatScrollbarVisibility$AutoHide({
     this.idleDelay = const Duration(milliseconds: 1000),
     this.navigationIdleDelay = const Duration(milliseconds: 1500),
     this.fadeIn = const Duration(milliseconds: 250),
     this.fadeOut = const Duration(milliseconds: 250),
     this.curve = Curves.easeOut,
+    this.followsPointer = false,
   }) : super._();
 
   /// How long the scrollbar stays shown once the list rests after user
@@ -213,6 +309,26 @@ final class ChatScrollbarVisibility$AutoHide extends ChatScrollbarVisibility {
   /// the preset unequal and ends an active grab.
   final Curve curve;
 
+  /// Whether a mouse or trackpad pointer moving in and out of the viewport
+  /// moves visibility.
+  ///
+  /// When `true`, the pointer entering the viewport **pulses** it (shown,
+  /// then hidden after [idleDelay] unless held); moving within the viewport
+  /// does not pulse again. Entering never brings a pending hide forward:
+  /// while a navigation's hide is pending, the pulse waits
+  /// [navigationIdleDelay] instead. The pointer leaving the viewport starts
+  /// the fade-out at once, skipping any pending delay — a navigation delay
+  /// included — unless list motion or a grab still holds; the fade then
+  /// waits for that holder's release and [idleDelay] as usual. Leaving
+  /// counts from anywhere the viewport stops receiving the pointer,
+  /// including content drawn above it.
+  ///
+  /// A hovering stylus never counts, and neither does touch. Entering
+  /// while another holder already holds changes nothing. While there is
+  /// nothing to scroll the viewport ignores the pointer; one resting inside
+  /// counts as entering once there is.
+  final bool followsPointer;
+
   @override
   bool operator ==(Object other) =>
       other is ChatScrollbarVisibility$AutoHide &&
@@ -220,7 +336,8 @@ final class ChatScrollbarVisibility$AutoHide extends ChatScrollbarVisibility {
       other.navigationIdleDelay == navigationIdleDelay &&
       other.fadeIn == fadeIn &&
       other.fadeOut == fadeOut &&
-      other.curve == curve;
+      other.curve == curve &&
+      other.followsPointer == followsPointer;
 
   @override
   int get hashCode => Object.hash(
@@ -230,13 +347,14 @@ final class ChatScrollbarVisibility$AutoHide extends ChatScrollbarVisibility {
     fadeIn,
     fadeOut,
     curve,
+    followsPointer,
   );
 
   @override
   String toString() =>
       'ChatScrollbarVisibility.autoHide(idleDelay: $idleDelay, '
       'navigationIdleDelay: $navigationIdleDelay, fadeIn: $fadeIn, '
-      'fadeOut: $fadeOut, curve: $curve)';
+      'fadeOut: $fadeOut, curve: $curve, followsPointer: $followsPointer)';
 }
 
 /// **Scrollbar grab**: which presses and hovers a painted [ChatScrollbar]
@@ -266,10 +384,10 @@ final class ChatScrollbarVisibility$AutoHide extends ChatScrollbarVisibility {
 ///
 /// The **strip**, [stripWidth] in from the trailing edge over the track's
 /// vertical span, is live even while the scrollbar is hidden. Hovering it
-/// holds the scrollbar shown (revealing a hidden one), sets
+/// holds the scrollbar shown (revealing a hidden one), eases
 /// [ChatScrollbarFrame.hoverFactor] to `1`, and shows the basic arrow
-/// cursor over whatever lies beneath; leaving it drops
-/// the hover factor to `0` and starts the idle delay. The wheel over the
+/// cursor over whatever lies beneath; leaving it eases the hover factor
+/// back to `0` and starts the idle delay. The wheel over the
 /// strip scrolls messages as it does anywhere else. A primary-button press
 /// on the thumb grabs; a primary-button press on the track beside the thumb
 /// does what [trackPress] says. Other buttons are declined.
@@ -425,13 +543,22 @@ final class ChatScrollbarFrame {
   /// while it is `0`.
   final double visibility;
 
-  /// How far a hovering pointer has engaged the scrollbar, in `[0, 1]`: `1`
-  /// while a mouse or trackpad pointer rests on the strip (see
-  /// [ChatScrollbarGrab]).
+  /// How far a hovering pointer has engaged the scrollbar, in `[0, 1]`.
+  ///
+  /// Eases toward `1` while a mouse or trackpad pointer rests on the strip
+  /// (see [ChatScrollbarGrab]) and toward `0` once it leaves, over the
+  /// preset visibility's fade-in and fade-out along its curve (250 ms,
+  /// [Curves.easeOut] under [ChatScrollbarVisibility.always]). A reversal
+  /// mid-ease runs from the current value. Independent of [grabFactor]: a
+  /// mouse grab usually has both near `1`, a touch grab only [grabFactor].
   final double hoverFactor;
 
-  /// How far a grab has engaged the scrollbar, in `[0, 1]`: `1` while a
-  /// pointer holds it.
+  /// How far a grab has engaged the scrollbar, in `[0, 1]`.
+  ///
+  /// Eases toward `1` from the press that starts a grab and toward `0` from
+  /// its release — alongside the thumb's release settle — with the same
+  /// timing as [hoverFactor]. A grab ended by the viewport leaving the tree
+  /// drops it to `0` at once.
   final double grabFactor;
 
   @override
@@ -511,36 +638,94 @@ abstract class ChatScrollbarPainter {
 /// The default [ChatScrollbarPainter]: a fully rounded pill track with a
 /// pill thumb on top.
 ///
-/// Both pills hug the trailing side of their rects and share one thickness,
-/// lerped from [thickness] to [grabbedThickness] by the grab factor. The
-/// thumb colour lerps from [ChatScrollbarThemeData.thumbColor] to
-/// [ChatScrollbarThemeData.thumbDraggingColor] by the same factor; the track
-/// uses [ChatScrollbarThemeData.trackColor]. Visibility scales both fills'
-/// alpha.
+/// [ChatPillScrollbarPainter.mobile] and [ChatPillScrollbarPainter.desktop]
+/// are the looks of the matching presets; the unnamed constructor tunes
+/// every size.
+///
+/// ## Width
+///
+/// Both pills hug the trailing side of their rects and share one width:
+/// [thickness] lerped to [hoveredThickness] by the frame's hover factor, and
+/// that lerped to [grabbedThickness] by its grab factor. The rects are
+/// [trackThickness] wide — the widest of the three — so a pill that widens
+/// grows toward the leading side and never past the rects that grab
+/// hit-testing reads.
+///
+/// ## Colour
+///
+/// From the [ChatScrollbarThemeData] handed to [paint]:
+///
+/// - Thumb: [ChatScrollbarThemeData.thumbColor] lerped to
+///   [ChatScrollbarThemeData.thumbHoverColor] by the hover factor, and that
+///   lerped to [ChatScrollbarThemeData.thumbDraggingColor] by the grab
+///   factor, so a grab wins over a hover.
+/// - Track (when [paintsTrack]): [ChatScrollbarThemeData.trackColor] lerped
+///   to [ChatScrollbarThemeData.trackHoverColor] by the larger of the two
+///   factors — a touch grab engages the track as a hover would.
+///
+/// Visibility scales both fills' alpha. The factors ease rather than switch
+/// ([ChatScrollbarFrame.hoverFactor]), so widths and colours pass through
+/// every intermediate value.
 @immutable
 final class ChatPillScrollbarPainter extends ChatScrollbarPainter {
-  /// Pill painter; the defaults draw a 4 px bar, 6 px while grabbed, 4 px in
-  /// from the trailing edge and the scroll band ends.
+  /// Pill painter; the defaults draw a 4 px bar at rest and under hover,
+  /// 6 px while grabbed, 4 px in from the trailing edge and the scroll band
+  /// ends. [hoveredThickness] defaults to [thickness], so hover alone
+  /// changes colour only.
   const ChatPillScrollbarPainter({
     this.paintsTrack = true,
     this.thickness = 4,
+    double? hoveredThickness,
     this.grabbedThickness = 6,
     this.minThumbLength = 16,
     this.crossAxisMargin = 4,
     this.mainAxisMargin = 4,
-  }) : assert(thickness > 0, 'thickness must be positive'),
+  }) : hoveredThickness = hoveredThickness ?? thickness,
+       assert(thickness > 0, 'thickness must be positive'),
+       assert(
+         hoveredThickness == null || hoveredThickness > 0,
+         'hoveredThickness must be positive',
+       ),
        assert(grabbedThickness > 0, 'grabbedThickness must be positive'),
        assert(minThumbLength > 0, 'minThumbLength must be positive'),
        assert(crossAxisMargin >= 0, 'crossAxisMargin must not be negative'),
        assert(mainAxisMargin >= 0, 'mainAxisMargin must not be negative');
 
+  /// The [ChatScrollbar.mobile] look: no track; a 4 px thumb, still 4 px
+  /// under hover and 8 px while grabbed; at least 36 px long; 3 px in from
+  /// the trailing edge and the scroll band ends.
+  const ChatPillScrollbarPainter.mobile()
+    : paintsTrack = false,
+      thickness = 4,
+      hoveredThickness = 4,
+      grabbedThickness = 8,
+      minThumbLength = 36,
+      crossAxisMargin = 3,
+      mainAxisMargin = 3;
+
+  /// The [ChatScrollbar.desktop] look: a 6 px track and thumb at every
+  /// factor, so hover and grab change colour only; thumb at least 40 px
+  /// long; 3 px in from the trailing edge and the scroll band ends.
+  const ChatPillScrollbarPainter.desktop()
+    : paintsTrack = true,
+      thickness = 6,
+      hoveredThickness = 6,
+      grabbedThickness = 6,
+      minThumbLength = 40,
+      crossAxisMargin = 3,
+      mainAxisMargin = 3;
+
   /// Whether the track pill is drawn under the thumb.
   final bool paintsTrack;
 
-  /// Pill thickness at rest.
+  /// Pill width at rest.
   final double thickness;
 
-  /// Pill thickness while grabbed.
+  /// Pill width while a mouse or trackpad pointer hovers the strip;
+  /// [thickness] unless given.
+  final double hoveredThickness;
+
+  /// Pill width while grabbed.
   final double grabbedThickness;
 
   @override
@@ -553,7 +738,8 @@ final class ChatPillScrollbarPainter extends ChatScrollbarPainter {
   final double mainAxisMargin;
 
   @override
-  double get trackThickness => math.max(thickness, grabbedThickness);
+  double get trackThickness =>
+      math.max(thickness, math.max(hoveredThickness, grabbedThickness));
 
   @override
   void paint(
@@ -561,7 +747,13 @@ final class ChatPillScrollbarPainter extends ChatScrollbarPainter {
     ChatScrollbarFrame frame,
     ChatScrollbarThemeData theme,
   ) {
-    final width = lerpDouble(thickness, grabbedThickness, frame.grabFactor)!;
+    final hover = frame.hoverFactor;
+    final grab = frame.grabFactor;
+    final width = lerpDouble(
+      lerpDouble(thickness, hoveredThickness, hover),
+      grabbedThickness,
+      grab,
+    )!;
     final radius = Radius.circular(width / 2);
     RRect pill(Rect rect) =>
         RRect.fromRectAndRadius(switch (frame.textDirection) {
@@ -582,15 +774,24 @@ final class ChatPillScrollbarPainter extends ChatScrollbarPainter {
         _fill..color = color.withValues(alpha: color.a * frame.visibility);
 
     if (paintsTrack) {
-      canvas.drawRRect(pill(frame.trackRect), fill(theme.trackColor));
+      canvas.drawRRect(
+        pill(frame.trackRect),
+        fill(
+          Color.lerp(
+            theme.trackColor,
+            theme.trackHoverColor,
+            math.max(hover, grab),
+          )!,
+        ),
+      );
     }
     canvas.drawRRect(
       pill(frame.thumbRect),
       fill(
         Color.lerp(
-          theme.thumbColor,
+          Color.lerp(theme.thumbColor, theme.thumbHoverColor, hover),
           theme.thumbDraggingColor,
-          frame.grabFactor,
+          grab,
         )!,
       ),
     );
@@ -608,6 +809,7 @@ final class ChatPillScrollbarPainter extends ChatScrollbarPainter {
       other is ChatPillScrollbarPainter &&
       other.paintsTrack == paintsTrack &&
       other.thickness == thickness &&
+      other.hoveredThickness == hoveredThickness &&
       other.grabbedThickness == grabbedThickness &&
       other.minThumbLength == minThumbLength &&
       other.crossAxisMargin == crossAxisMargin &&
@@ -617,6 +819,7 @@ final class ChatPillScrollbarPainter extends ChatScrollbarPainter {
   int get hashCode => Object.hash(
     paintsTrack,
     thickness,
+    hoveredThickness,
     grabbedThickness,
     minThumbLength,
     crossAxisMargin,
@@ -626,7 +829,8 @@ final class ChatPillScrollbarPainter extends ChatScrollbarPainter {
   @override
   String toString() =>
       'ChatPillScrollbarPainter(paintsTrack: $paintsTrack, '
-      'thickness: $thickness, grabbedThickness: $grabbedThickness, '
+      'thickness: $thickness, hoveredThickness: $hoveredThickness, '
+      'grabbedThickness: $grabbedThickness, '
       'minThumbLength: $minThumbLength, crossAxisMargin: $crossAxisMargin, '
       'mainAxisMargin: $mainAxisMargin)';
 }
