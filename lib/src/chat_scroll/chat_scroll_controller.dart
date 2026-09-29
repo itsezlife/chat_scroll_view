@@ -170,8 +170,10 @@ abstract class ChatScrollAnimator {
 /// Owns anchor state and navigation: which message is the layout origin, its
 /// pixel offset, the jump / animate / Center Band apply entry points, the
 /// Message highlight request slot, deferred paint-band listenables
-/// ([visibleRange], [centerBand], [isAtTail]), and the typed event stream
-/// (drag, fling, jump). Conversation boundaries (`oldestKnownId`,
+/// ([visibleRange], [centerBand], [isAtTail]), the typed event stream
+/// (drag, fling, jump), and the host's claims on the scrollbar
+/// ([holdScrollbar], [suppressScrollbar], [flashScrollbar]) for conditions
+/// the viewport cannot see. Conversation boundaries (`oldestKnownId`,
 /// `reachedOldest`, …) live on [ChatDataSource] — they describe the *data*,
 /// not the navigation.
 ///
@@ -742,6 +744,160 @@ class ChatScrollController {
     }
   }
 
+  // --- Scrollbar hold, suppression, and flash ------------------------------
+
+  final Set<ChatScrollbarHold> _scrollbarHolds = <ChatScrollbarHold>{};
+  final Set<ChatScrollbarSuppression> _scrollbarSuppressions =
+      <ChatScrollbarSuppression>{};
+
+  /// The bound viewport's reactions, or `null` while no viewport is bound.
+  ({VoidCallback onChanged, VoidCallback onFlash})? _scrollbarBinding;
+
+  /// Takes a **scrollbar hold**: while it is alive, the bound viewport's
+  /// scrollbar stays shown — for a condition the viewport cannot see, such
+  /// as host UI that reads the reader's position off the scrollbar.
+  ///
+  /// Under auto-hide visibility the first live hold reveals a hidden
+  /// scrollbar (fading in) and cancels a pending hide; list motion, a grab,
+  /// or strip hover ending while the hold lives hides nothing. Releasing
+  /// the last hold starts the idle delay unless another holder (list
+  /// motion, a grab, strip hover) still holds. Under always-shown
+  /// visibility a hold changes nothing, and it carries over when the
+  /// viewport's preset switches visibility mode. A live suppression beats
+  /// every hold ([suppressScrollbar]).
+  ///
+  /// Holds count independently: each returned handle releases only itself,
+  /// so independent host features never undo each other.
+  ///
+  /// Taken while no viewport is bound, the hold applies once one binds.
+  /// Every live hold is released when the bound viewport leaves the tree
+  /// or switches to another controller, and on [dispose]; the handle then
+  /// reports [ChatScrollbarHandle.isReleased]. After [dispose] the returned
+  /// handle is already released.
+  ChatScrollbarHold holdScrollbar() =>
+      _takeScrollbarHandle(ChatScrollbarHold._(this), _scrollbarHolds);
+
+  /// Takes a **scrollbar suppression**: while it is alive, the bound
+  /// viewport's scrollbar is hidden and inert — for host gestures or
+  /// content over the trailing edge that the scrollbar must neither show
+  /// over nor take presses from.
+  ///
+  /// While any suppression lives:
+  ///
+  /// - The scrollbar fades out from wherever it is, over the preset
+  ///   visibility's fade-out (250 ms under always-shown visibility).
+  /// - Every show trigger is ignored, not deferred: list motion, host
+  ///   navigation, a mouse entering the viewport or hovering the strip,
+  ///   holds, and [flashScrollbar]. A trigger that fired while suppressed
+  ///   shows nothing once the suppression ends.
+  /// - No press or hover is claimed: touch and mouse presses along the
+  ///   trailing edge reach messages, and a mouse over the strip keeps the
+  ///   cursor beneath. A grab in progress when the first suppression is
+  ///   taken ends at once; its pointer then scrolls nothing until it lifts.
+  ///
+  /// Releasing the last suppression fades an always-shown scrollbar back
+  /// in. An auto-hide scrollbar comes back only while something holds it —
+  /// a live [holdScrollbar], list motion still running, or a mouse resting
+  /// on the strip — and otherwise stays hidden until the next show trigger.
+  ///
+  /// Suppressions count independently, like holds, with the same
+  /// attach, detach, controller-swap, and [dispose] rules.
+  ChatScrollbarSuppression suppressScrollbar() => _takeScrollbarHandle(
+    ChatScrollbarSuppression._(this),
+    _scrollbarSuppressions,
+  );
+
+  /// A **scrollbar flash**: shows the bound viewport's auto-hide scrollbar,
+  /// then hides it after the preset's idle delay — a one-shot hint at the
+  /// reader's position with no handle to release.
+  ///
+  /// Hides nothing early: a scrollbar that something holds stays shown
+  /// until that holder releases, and while a hide after host navigation is
+  /// pending the flash waits the navigation delay, counted from the flash,
+  /// instead of the idle delay. Ignored while any suppression lives, under
+  /// always-shown visibility, and with no painted scrollbar. Dropped when
+  /// no viewport is bound — unlike holds and suppressions, a flash is not
+  /// replayed on a later attach. Silent after [dispose].
+  void flashScrollbar() {
+    if (_disposed) return;
+    _scrollbarBinding?.onFlash();
+  }
+
+  // --- Scrollbar binding (viewport-only) -----------------------------------
+
+  /// Whether any scrollbar hold is alive.
+  @internal
+  bool get isScrollbarHeld => _scrollbarHolds.isNotEmpty;
+
+  /// Whether any scrollbar suppression is alive.
+  @internal
+  bool get isScrollbarSuppressed => _scrollbarSuppressions.isNotEmpty;
+
+  /// Binds the attached viewport's scrollbar: [onChanged] runs whenever
+  /// [isScrollbarHeld] or [isScrollbarSuppressed] flips, synchronously
+  /// inside the host's [holdScrollbar], [suppressScrollbar], or
+  /// [ChatScrollbarHandle.release] call; [onFlash] runs on
+  /// [flashScrollbar].
+  ///
+  /// Called by `RenderChatScrollView` on attach and when it switches to
+  /// this controller; the viewport reads both getters right after binding,
+  /// so handles taken before it apply. At most one viewport is bound.
+  @internal
+  void bindScrollbar({
+    required VoidCallback onChanged,
+    required VoidCallback onFlash,
+  }) {
+    assert(
+      _scrollbarBinding == null,
+      'bindScrollbar: a viewport is already bound to this controller',
+    );
+    if (_disposed) return;
+    _scrollbarBinding = (onChanged: onChanged, onFlash: onFlash);
+  }
+
+  /// Unbinds the viewport bound by [bindScrollbar] and releases every live
+  /// hold and suppression without calling back: the viewport is leaving
+  /// the tree or switching controllers, and a forgotten handle must not pin
+  /// the next viewport's scrollbar. No-op while nothing is bound.
+  @internal
+  void unbindScrollbar() {
+    if (_scrollbarBinding == null) return;
+    _scrollbarBinding = null;
+    _releaseScrollbarHandles();
+  }
+
+  T _takeScrollbarHandle<T extends ChatScrollbarHandle>(
+    T handle,
+    Set<T> live,
+  ) {
+    if (_disposed) {
+      handle._controller = null;
+      return handle;
+    }
+    live.add(handle);
+    if (live.length == 1) _scrollbarBinding?.onChanged();
+    return handle;
+  }
+
+  void _releaseScrollbarHandle(ChatScrollbarHandle handle) {
+    final live = switch (handle) {
+      ChatScrollbarHold() => _scrollbarHolds,
+      ChatScrollbarSuppression() => _scrollbarSuppressions,
+    };
+    if (live.remove(handle) && live.isEmpty) _scrollbarBinding?.onChanged();
+  }
+
+  void _releaseScrollbarHandles() {
+    for (final handle in <ChatScrollbarHandle>[
+      ..._scrollbarHolds,
+      ..._scrollbarSuppressions,
+    ]) {
+      handle._controller = null;
+    }
+    _scrollbarHolds.clear();
+    _scrollbarSuppressions.clear();
+  }
+
   // --- Visible range -------------------------------------------------------
 
   final _DeferredValueNotifier<ChatVisibleRange?> _visibleRange =
@@ -1033,10 +1189,63 @@ class ChatScrollController {
     _requestedHighlightMessageId = null;
     _animator?.clearHighlight();
     _animator = null;
+    // A viewport still bound learns its handles are gone, so a disposed
+    // controller cannot leave its scrollbar held or suppressed.
+    final hadScrollbarHandles = isScrollbarHeld || isScrollbarSuppressed;
+    final scrollbarBinding = _scrollbarBinding;
+    _scrollbarBinding = null;
+    _releaseScrollbarHandles();
+    if (hadScrollbarHandles) scrollbarBinding?.onChanged();
     _visibleRange.dispose();
     _centerBand.dispose();
     _isAtTail.dispose();
   }
+}
+
+/// A live claim a host holds on the scrollbar of the viewport bound to a
+/// [ChatScrollController]: a [ChatScrollbarHold] or a
+/// [ChatScrollbarSuppression].
+///
+/// Each handle is one independent claim. Releasing it drops only that
+/// claim; the scrollbar follows whatever claims are still alive, so
+/// independent host features never undo each other. The controller keeps
+/// no other record of who took a handle — a host that loses its handle
+/// cannot release that claim until the controller releases it (viewport
+/// detach, controller swap, or [ChatScrollController.dispose]).
+sealed class ChatScrollbarHandle {
+  ChatScrollbarHandle._(ChatScrollController controller)
+    : _controller = controller;
+
+  /// The controller holding this claim; `null` once released.
+  ChatScrollController? _controller;
+
+  /// Whether this claim no longer applies: [release] was called, or the
+  /// controller released it — its viewport left the tree or switched to
+  /// another controller, or the controller was disposed.
+  bool get isReleased => _controller == null;
+
+  /// Drops this claim. The first call takes effect synchronously; every
+  /// later call, and a call after the controller released the claim, is a
+  /// no-op.
+  void release() {
+    final controller = _controller;
+    if (controller == null) return;
+    _controller = null;
+    controller._releaseScrollbarHandle(this);
+  }
+}
+
+/// A **scrollbar hold** taken by [ChatScrollController.holdScrollbar]:
+/// keeps the scrollbar shown while alive, unless a suppression lives.
+final class ChatScrollbarHold extends ChatScrollbarHandle {
+  ChatScrollbarHold._(super.controller) : super._();
+}
+
+/// A **scrollbar suppression** taken by
+/// [ChatScrollController.suppressScrollbar]: hides the scrollbar, ignores
+/// its show triggers, and claims no presses while alive.
+final class ChatScrollbarSuppression extends ChatScrollbarHandle {
+  ChatScrollbarSuppression._(super.controller) : super._();
 }
 
 /// `ValueNotifier` subclass that defers `notifyListeners()` to the end of the

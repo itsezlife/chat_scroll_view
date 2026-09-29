@@ -404,6 +404,7 @@ class RenderChatScrollView extends RenderBox {
       _controller
         ..removeJumpListener(_onJump)
         ..removeScrollByListener(_onScrollBy)
+        ..unbindScrollbar()
         ..animator = null
         ..visibleRange = null
         ..centerBand = null
@@ -415,6 +416,7 @@ class RenderChatScrollView extends RenderBox {
         ..addJumpListener(_onJump)
         ..addScrollByListener(_onScrollBy)
         ..animator = _animator;
+      _bindScrollbarHost();
     }
     markNeedsLayout();
   }
@@ -1222,7 +1224,10 @@ class RenderChatScrollView extends RenderBox {
   //
   // Scrollbar visibility sits beside scroll activity, fed from the same motion
   // edges (tick hold, settle release, jump and scrollBy pulses) but owned by
-  // the runtime: the day header's pin never reaches it.
+  // the runtime: the day header's pin never reaches it. The controller's host
+  // handles reach the runtime through [_syncScrollbarHost] (hold,
+  // suppression) and its flash callback; the controller binds on attach and
+  // on a controller swap, and unbinding releases every live handle.
   //
   // Pointer routing: [hitTest] puts the runtime's strip target ahead of the
   // children (arrow cursor, hover hold) and, under a pointer-following
@@ -1674,6 +1679,9 @@ class RenderChatScrollView extends RenderBox {
     if (_scrollActivityTiming case final timing?) {
       _activity = _createActivityClock(timing);
     }
+    // Host handles taken before attach are read before the clock exists,
+    // so a suppressed or held scrollbar opens that way.
+    _bindScrollbarHost();
     _scrollbarRuntime
       ..grab = _scrollbarGrab
       ..visibilityMuted = !_ticking
@@ -1793,6 +1801,7 @@ class RenderChatScrollView extends RenderBox {
       _controller
         ..removeJumpListener(_onJump)
         ..removeScrollByListener(_onScrollBy)
+        ..unbindScrollbar()
         ..animator = null
         // Mirror the controller-swap path: once no viewport is bound, the
         // last-published state no longer reflects anything observable.
@@ -6051,6 +6060,32 @@ class RenderChatScrollView extends RenderBox {
     _controller.releaseNavigationPlacement();
     _ensureTicker();
     markNeedsPaint();
+  }
+
+  /// Binds [_controller]'s scrollbar handles to the runtime and mirrors the
+  /// handles already live. On attach and when switching to a controller;
+  /// the matching `unbindScrollbar` on detach and on the switch away
+  /// releases every live handle.
+  void _bindScrollbarHost() {
+    _controller.bindScrollbar(
+      onChanged: _syncScrollbarHost,
+      onFlash: _scrollbarRuntime.flash,
+    );
+    _syncScrollbarHost();
+  }
+
+  /// Mirrors the controller's live scrollbar holds and suppressions into
+  /// the runtime. Runs on bind and synchronously inside the host's handle
+  /// calls, which may come from build, gesture, or layout callbacks — never
+  /// from paint. The first suppression ends an active grab first, as an
+  /// unequal preset does.
+  void _syncScrollbarHost() {
+    if (!attached) return;
+    final suppressed = _controller.isScrollbarSuppressed;
+    if (suppressed) _endScrollbarGrab();
+    _scrollbarRuntime
+      ..hostHeld = _controller.isScrollbarHeld
+      ..suppressed = suppressed;
   }
 
   /// Seats the band under a grab's thumb [position].

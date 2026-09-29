@@ -92,27 +92,40 @@ typedef ChatScrollbarGrabPosition = ({double progress, double spanShare});
 /// ## Visibility
 ///
 /// [visibility] follows the [ChatScrollbarVisibility] handed to
-/// [configureVisibility]: constant `1` for always, a
-/// [ChatScrollActivityClock] of its own for auto-hide — never the viewport's
-/// scroll-activity clock, so nothing that pins scroll activity reaches it.
-/// Three holders keep an auto-hide clock held, and none releases another's
-/// hold:
+/// [configureVisibility]: `1` for always (eased to `0` while [suppressed]),
+/// a [ChatScrollActivityClock] of its own for auto-hide — never the
+/// viewport's scroll-activity clock, so nothing that pins scroll activity
+/// reaches it. Four holders keep an auto-hide clock held, and none releases
+/// another's hold:
 ///
 /// - **List motion** — [holdVisibility] while a tick moves the list,
 ///   [releaseVisibility] once nothing does.
 /// - **The grab** — from [tryStartGrab] until [endGrab] or [reset].
 /// - **Strip hover** — while a mouse rests on the strip, from
 ///   [stripTarget]'s enter to its exit or [reset].
+/// - **The host hold** — while [hostHeld], mirrored by the owner from the
+///   controller's live scrollbar holds, until cleared or [reset].
 ///
 /// [pulseVisibility] reports a discrete move and is ignored while a grab
 /// holds: the grab's own jumps are part of the grab, and its release starts
-/// the idle delay, not the navigation delay.
+/// the idle delay, not the navigation delay. [flash] is the host's one-shot
+/// pulse.
 ///
 /// Under [ChatScrollbarVisibility$AutoHide.followsPointer], the owner also
 /// adds [viewportTarget] to its hit tests: a mouse entering the viewport
 /// pulses with the idle delay unless something already holds, and leaving
 /// it drops the strip hover and starts the fade-out at once unless another
 /// holder still holds.
+///
+/// ## Suppression
+///
+/// While [suppressed] — mirrored by the owner from the controller's live
+/// scrollbar suppressions — visibility falls to `0` over the fade-out and
+/// every show trigger stops at the runtime: holds are still tracked, so
+/// their releases stay balanced, but none reaches the clock; pulses,
+/// [flash], and entering the viewport are dropped. The strip and the touch
+/// target claim nothing. Lifting it fades an always scrollbar back in, and
+/// re-holds an auto-hide clock only while a holder still holds.
 @internal
 final class ChatScrollbarRuntime {
   /// A runtime that calls [onChanged] whenever what the next frame shows
@@ -155,10 +168,14 @@ final class ChatScrollbarRuntime {
     _ => false,
   };
 
-  /// Whether the settle or a hover or grab factor is still easing; the
-  /// render object keeps its ticker alive and calls [tick] until it is not.
+  /// Whether the settle, a hover or grab factor, or an always scrollbar's
+  /// suppression fade is still easing; the render object keeps its ticker
+  /// alive and calls [tick] until it is not.
   bool get isAnimating =>
-      isSettling || _hoverFactor.isEasing || _grabFactor.isEasing;
+      isSettling ||
+      _hoverFactor.isEasing ||
+      _grabFactor.isEasing ||
+      _alwaysVisibility.isEasing;
 
   /// Resolves this paint's frame for [painter] and stores it as [frame].
   ///
@@ -239,21 +256,25 @@ final class ChatScrollbarRuntime {
   }
 
   /// Drops [frame], all motion (a grab included), and the visibility state:
-  /// the motion and grab holds are forgotten and an auto-hide clock is
-  /// disposed, its pending hide cancelled. For a render object leaving the
-  /// tree, where the grabbing pointer's remaining events never arrive, and
-  /// whose ticker goes with it: the grab factor drops to `0` and the hover
-  /// factor jumps to where the hover is. Strip hover survives: the mouse
-  /// tracker still reports its exit, so a pointer resting on the strip
-  /// across a same-frame re-parent keeps holding. The owner calls
-  /// [configureVisibility] again on re-attach, which starts auto-hide
-  /// hidden unless the hover holds.
+  /// the motion, grab, and host holds and the suppression are forgotten
+  /// and an auto-hide clock is disposed, its pending hide cancelled. For a
+  /// render object leaving the tree, where the grabbing pointer's remaining
+  /// events never arrive, whose ticker goes with it, and whose controller
+  /// releases the host's handles: the grab factor drops to `0` and the
+  /// hover factor jumps to where the hover is. Strip hover survives: the
+  /// mouse tracker still reports its exit, so a pointer resting on the
+  /// strip across a same-frame re-parent keeps holding. The owner sets
+  /// [hostHeld] and [suppressed] and calls [configureVisibility] again on
+  /// re-attach, which starts auto-hide hidden unless a holder holds.
   void reset() {
     _frame = null;
     _motion = null;
     _motionHeld = false;
+    _hostHeld = false;
+    _suppressed = false;
     _grabFactor.snap(0);
     _hoverFactor.snap(_hovered ? 1 : 0);
+    _alwaysVisibility.snap(1);
     configureVisibility(null);
   }
 
@@ -272,14 +293,12 @@ final class ChatScrollbarRuntime {
 
   /// Whether a mouse or trackpad pointer at viewport-local [local] is over
   /// the strip of the last resolved [frame] — at any visibility, `false`
-  /// with no frame or under [ChatScrollbarGrab$None]. Bounds are inclusive;
-  /// vertically the strip spans the track.
+  /// with no frame, under [ChatScrollbarGrab$None], or while [suppressed].
+  /// Bounds are inclusive; vertically the strip spans the track.
   bool stripContains(Offset local) => switch ((_frame, grab)) {
-    (final frame?, final ChatScrollbarGrab$Targets targets) => _stripContains(
-      frame,
-      targets,
-      local,
-    ),
+    (final frame?, final ChatScrollbarGrab$Targets targets)
+        when !_suppressed =>
+      _stripContains(frame, targets, local),
     _ => false,
   };
 
@@ -333,19 +352,20 @@ final class ChatScrollbarRuntime {
   /// Starts a grab when [event] lands on a live target of the last resolved
   /// [frame] for its pointer kind — the strip for a mouse or trackpad, the
   /// touch target for anything else (see the type docs); never under
-  /// [ChatScrollbarGrab$None]. Replaces a settle in flight, holds
-  /// visibility until [endGrab], and starts the grab factor easing to `1`;
-  /// the owner starts its ticker.
+  /// [ChatScrollbarGrab$None] or while [suppressed]. Replaces a settle in
+  /// flight, holds visibility until [endGrab], and starts the grab factor
+  /// easing to `1`; the owner starts its ticker.
   ///
   /// The caller decides whether the press is fresh; this reads only the
-  /// press itself, [frame], [grab], and [visibility]. Returns where the
-  /// press landed, or `null` when it was declined and no grab started. On
-  /// [ChatScrollbarPress.track] the thumb is centred on the pointer; read
-  /// [grabPosition] for the band position that asks for.
+  /// press itself, [frame], [grab], [suppressed], and [visibility]. Returns
+  /// where the press landed, or `null` when it was declined and no grab
+  /// started. On [ChatScrollbarPress.track] the thumb is centred on the
+  /// pointer; read [grabPosition] for the band position that asks for.
   ChatScrollbarPress? tryStartGrab(PointerDownEvent event) {
     final frame = _frame;
     final targets = grab;
     if (frame == null || targets is! ChatScrollbarGrab$Targets) return null;
+    if (_suppressed) return null;
     final press = switch (event.kind) {
       PointerDeviceKind.mouse ||
       PointerDeviceKind.trackpad => _stripPress(frame, targets, event),
@@ -415,7 +435,7 @@ final class ChatScrollbarRuntime {
         ),
         null => null,
       };
-      if (!_held) _visibilityClock?.release();
+      _releaseClock();
       _easeFactor(_grabFactor, 0);
     }
   }
@@ -444,13 +464,15 @@ final class ChatScrollbarRuntime {
     ChatScrollbarVisibility$Always() || null => _alwaysCurve,
   };
 
-  /// Advances the settle and both factors to the ticker time [elapsed] and
-  /// returns whether any of them moved, so the owner repaints.
+  /// Advances the settle, both factors, and an always scrollbar's
+  /// suppression fade to the ticker time [elapsed] and returns whether any
+  /// of them moved, so the owner repaints.
   bool tick(Duration elapsed) {
     final settled = _tickSettle(elapsed);
     final hovered = _tickFactor(_hoverFactor, elapsed);
     final grabbed = _tickFactor(_grabFactor, elapsed);
-    return settled || hovered || grabbed;
+    final faded = _tickFactor(_alwaysVisibility, elapsed);
+    return settled || hovered || grabbed || faded;
   }
 
   /// Advances the settle to [elapsed]; `true` when the thumb moved. The
@@ -514,13 +536,9 @@ final class ChatScrollbarRuntime {
     if (_hovered == hovered) return;
     _hovered = hovered;
     if (hovered) {
-      // A second hold would replace a live navigation hold's delay with the
-      // idle delay.
-      if (_visibilityClock case final clock? when !clock.isHolding) {
-        clock.hold();
-      }
-    } else if (!_held) {
-      _visibilityClock?.release();
+      _holdClock();
+    } else {
+      _releaseClock();
     }
     _easeFactor(_hoverFactor, hovered ? 1 : 0);
     _onChanged();
@@ -551,15 +569,9 @@ final class ChatScrollbarRuntime {
   /// dispatched.
   late final HitTestTarget viewportTarget = _ViewportTarget(this);
 
-  /// A mouse entered the viewport: pulse with the idle delay — or with the
-  /// navigation delay while a navigation's hide is pending, so entering
-  /// never brings that hide forward. Skipped while a holder holds: the
-  /// release that ends the hold schedules the hide.
+  /// A mouse entered the viewport: pulses exactly as a [flash] does.
   void _enterViewport() {
-    if (!followsPointer) return;
-    if (_visibilityClock case final clock? when !clock.isHolding) {
-      clock.pulse(navigation: clock.isNavigationHidePending);
-    }
+    if (followsPointer) flash();
   }
 
   /// A mouse left the viewport: the strip, inside it, is left too, whatever
@@ -582,20 +594,29 @@ final class ChatScrollbarRuntime {
   /// Live exactly while [_visibilityMode] is auto-hide.
   ChatScrollActivityClock? _visibilityClock;
 
-  /// Whether list motion holds visibility, separately from the grab's and
-  /// the hover's holds, so ending one never drops another.
+  /// Whether list motion holds visibility, separately from the grab's, the
+  /// hover's, and the host's holds, so ending one never drops another.
   bool _motionHeld = false;
 
+  bool _hostHeld = false;
+  bool _suppressed = false;
+
   /// Whether any holder still wants the scrollbar shown.
-  bool get _held => _motionHeld || isGrabbing || _hovered;
+  bool get _held => _motionHeld || isGrabbing || _hovered || _hostHeld;
+
+  /// Visibility under always: `1`, easing to `0` while [suppressed] and
+  /// back once lifted. Snapped, not eased, while another mode is active,
+  /// so switching to always starts from the right end.
+  final _Ease _alwaysVisibility = _Ease(1);
 
   bool _visibilityMuted = false;
 
-  /// **Scrollbar visibility** in `[0, 1]`: `1` under always, the auto-hide
-  /// clock's value under auto-hide, `0` when unconfigured.
+  /// **Scrollbar visibility** in `[0, 1]`: `1` under always (eased toward
+  /// `0` while [suppressed]), the auto-hide clock's value under auto-hide,
+  /// `0` when unconfigured.
   double get visibility => switch (_visibilityMode) {
     ChatScrollbarVisibility$AutoHide() => _visibilityClock?.value ?? 0,
-    ChatScrollbarVisibility$Always() => 1,
+    ChatScrollbarVisibility$Always() => _alwaysVisibility.value,
     null => 0,
   };
 
@@ -611,9 +632,11 @@ final class ChatScrollbarRuntime {
   ///
   /// Switching to auto-hide keeps the visibility currently shown: from
   /// always the scrollbar stays at `1` and the idle delay starts, unless a
-  /// hold is live; from `null` it starts hidden. Auto-hide to auto-hide
-  /// retimes the running clock, effective from its next fade, hold, or
-  /// hide. Leaving auto-hide disposes the clock and cancels a pending hide.
+  /// hold is live; from `null` it starts hidden; while [suppressed] it
+  /// fades out from wherever it is. Auto-hide to auto-hide retimes the
+  /// running clock, effective from its next fade, hold, or hide. Leaving
+  /// auto-hide disposes the clock and cancels a pending hide; switching to
+  /// always shows `1` at once, or `0` while [suppressed].
   void configureVisibility(ChatScrollbarVisibility? value) {
     if (value == _visibilityMode) return;
     final shown = visibility;
@@ -636,7 +659,9 @@ final class ChatScrollbarRuntime {
           onChanged: _onChanged,
           initialValue: shown,
         )..muted = _visibilityMuted;
-        if (_held) {
+        if (_suppressed) {
+          clock.hide();
+        } else if (_held) {
           clock.hold();
         } else if (shown > 0) {
           clock.pulse(navigation: false);
@@ -644,15 +669,34 @@ final class ChatScrollbarRuntime {
       case ChatScrollbarVisibility$Always() || null:
         _visibilityClock?.dispose();
         _visibilityClock = null;
+        _alwaysVisibility.snap(_suppressed ? 0 : 1);
     }
+  }
+
+  /// Holds the auto-hide clock for a holder that just started, unless
+  /// [suppressed] or the clock already holds — a second hold would replace
+  /// a live navigation hold's delay with the idle delay.
+  void _holdClock() {
+    if (_suppressed) return;
+    if (_visibilityClock case final clock? when !clock.isHolding) {
+      clock.hold();
+    }
+  }
+
+  /// Releases the auto-hide clock for a holder that just ended, unless
+  /// another holder still holds; the idle delay then starts. While
+  /// [suppressed] the clock is not held, so this is a no-op.
+  void _releaseClock() {
+    if (!_held) _visibilityClock?.release();
   }
 
   /// List motion is moving the reader's position; [navigation] marks
   /// programmatic motion (an animated scroll), so the later release waits
-  /// for the navigation delay. Called on every moving tick.
+  /// for the navigation delay. Called on every moving tick. While
+  /// [suppressed] the motion is tracked but shows nothing.
   void holdVisibility({bool navigation = false}) {
     _motionHeld = true;
-    _visibilityClock?.hold(navigation: navigation);
+    if (!_suppressed) _visibilityClock?.hold(navigation: navigation);
   }
 
   /// Nothing moves the list any more. Starts the hide delay unless a grab or
@@ -660,15 +704,83 @@ final class ChatScrollbarRuntime {
   void releaseVisibility() {
     if (!_motionHeld) return;
     _motionHeld = false;
-    if (!_held) _visibilityClock?.release();
+    _releaseClock();
   }
 
   /// A discrete move of the reader's position: show, then hide after the
   /// navigation delay ([navigation]) or the idle delay, unless held.
-  /// Ignored while a grab holds.
+  /// Ignored while a grab holds or while [suppressed].
   void pulseVisibility({bool navigation = true}) {
-    if (isGrabbing) return;
+    if (isGrabbing || _suppressed) return;
     _visibilityClock?.pulse(navigation: navigation);
+  }
+
+  /// Whether the host holds the scrollbar shown: at least one scrollbar
+  /// hold is alive on the controller. Setting it `true` holds an auto-hide
+  /// clock (revealing a hidden scrollbar) unless another holder already
+  /// does or [suppressed]; setting it `false` releases the clock unless
+  /// another holder still holds. No effect under always beyond being
+  /// remembered for a later switch to auto-hide.
+  bool get hostHeld => _hostHeld;
+  set hostHeld(bool value) {
+    if (_hostHeld == value) return;
+    _hostHeld = value;
+    if (value) {
+      _holdClock();
+    } else {
+      _releaseClock();
+    }
+  }
+
+  /// Whether the host suppresses the scrollbar: at least one scrollbar
+  /// suppression is alive on the controller. See the type docs'
+  /// suppression section.
+  ///
+  /// Setting it `true` releases the auto-hide clock and starts its
+  /// fade-out now, or eases an always scrollbar to `0` over the always
+  /// fade; holders keep being tracked. Setting it `false` re-holds the
+  /// clock while any holder holds (auto-hide) or eases back to `1`
+  /// (always). Either way the owner is told to repaint.
+  ///
+  /// The owner ends an active grab before suppressing: the grab's hold
+  /// would otherwise outlive the suppression's hide.
+  bool get suppressed => _suppressed;
+  set suppressed(bool value) {
+    if (_suppressed == value) return;
+    assert(
+      !value || !isGrabbing,
+      'end the scrollbar grab before suppressing the scrollbar',
+    );
+    _suppressed = value;
+    switch (_visibilityMode) {
+      case ChatScrollbarVisibility$AutoHide():
+        final clock = _visibilityClock;
+        if (clock == null) break;
+        if (value) {
+          clock
+            ..release()
+            ..hide();
+        } else if (_held) {
+          clock.hold();
+        }
+      case ChatScrollbarVisibility$Always():
+        _easeFactor(_alwaysVisibility, value ? 0 : 1);
+      case null:
+        _alwaysVisibility.snap(value ? 0 : 1);
+    }
+    _onChanged();
+  }
+
+  /// A one-shot show: pulse with the idle delay — or with the navigation
+  /// delay while a navigation's hide is pending, so a flash never brings
+  /// that hide forward. Skipped while a holder holds (the release that
+  /// ends the hold schedules the hide), while [suppressed], and outside
+  /// auto-hide.
+  void flash() {
+    if (_suppressed) return;
+    if (_visibilityClock case final clock? when !clock.isHolding) {
+      clock.pulse(navigation: clock.isNavigationHidePending);
+    }
   }
 }
 
@@ -794,9 +906,12 @@ final class _Settle extends _ThumbMotion {
 /// and curve on every tick, so a visibility change mid-ease retimes the
 /// rest of it, as it does the settle.
 final class _Ease {
-  double value = 0;
-  double _from = 0;
-  double _target = 0;
+  /// At rest at [value].
+  _Ease([this.value = 0]) : _from = value, _target = value;
+
+  double value;
+  double _from;
+  double _target;
 
   /// Ticker time of the first tick after the last [aim].
   Duration? _start;

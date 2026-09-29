@@ -28,6 +28,11 @@ import 'package:flutter/painting.dart';
 /// conversation fits in the scroll band or the viewport shows its loading or
 /// empty overlay.
 ///
+/// The host adjusts a live preset through the viewport's scroll controller:
+/// `ChatScrollController.holdScrollbar` keeps it shown,
+/// `suppressScrollbar` hides it and turns grabbing off, and
+/// `flashScrollbar` shows it once.
+///
 /// Immutable and value-equal. Passing an equal preset to a live viewport
 /// changes nothing, so a rebuild never interrupts a grab. An unequal preset
 /// ends an active grab before the new preset takes over; the pointer that
@@ -255,10 +260,14 @@ sealed class ChatScrollbarVisibility {
   }) = ChatScrollbarVisibility$AutoHide;
 }
 
-/// Visibility `1` whenever there is something to scroll.
+/// Visibility `1` whenever there is something to scroll, except while the
+/// host suppresses the scrollbar (`ChatScrollController.suppressScrollbar`):
+/// then it eases to `0`, and back to `1` once the last suppression is
+/// released. Host holds and flashes change nothing.
 ///
-/// A grab's release settle, and every change of the frame's hover and grab
-/// factors ([ChatScrollbarFrame]), run over 250 ms along [Curves.easeOut].
+/// A grab's release settle, every change of the frame's hover and grab
+/// factors ([ChatScrollbarFrame]), and the suppression fades run over
+/// 250 ms along [Curves.easeOut].
 final class ChatScrollbarVisibility$Always extends ChatScrollbarVisibility {
   /// The always-shown scrollbar.
   const ChatScrollbarVisibility$Always() : super._();
@@ -299,6 +308,15 @@ final class ChatScrollbarVisibility$Always extends ChatScrollbarVisibility {
 ///   scrollbar's strip (see [ChatScrollbarGrab$Targets]), at any setting;
 ///   under [ChatScrollbarGrab.none] there is no strip to hold it.
 /// - **Following the pointer**, only with [followsPointer]: see there.
+/// - **Held by the host** while any `ChatScrollController.holdScrollbar`
+///   handle is alive, and **pulsed** by `flashScrollbar` with
+///   [idleDelay] (with [navigationIdleDelay] while a navigation's hide is
+///   pending).
+/// - **Suppressed by the host** while any
+///   `ChatScrollController.suppressScrollbar` handle is alive: eased to `0`
+///   over [fadeOut], with every hold and pulse above ignored — not deferred
+///   — until the last suppression is released. It then shows again only
+///   while something above still holds.
 ///
 /// Fades advance on a viewport ticker and pause while the viewport's
 /// `TickerMode` is off. A grab's release settle, and the frame's hover and
@@ -398,8 +416,10 @@ final class ChatScrollbarVisibility$AutoHide extends ChatScrollbarVisibility {
 ///   ([ChatScrollbarGrab$None]).
 ///
 /// No press is claimed and nothing is hovered while no scrollbar is
-/// resolved: the conversation fits in the scroll band, or the viewport shows
-/// its loading or empty overlay.
+/// resolved — the conversation fits in the scroll band, or the viewport
+/// shows its loading or empty overlay — nor while the host suppresses the
+/// scrollbar (`ChatScrollController.suppressScrollbar`), which also ends a
+/// grab in progress.
 ///
 /// Immutable and value-equal, as part of the preset's equality. An unequal
 /// grab on a live viewport ends an active grab; a mouse resting on a strip

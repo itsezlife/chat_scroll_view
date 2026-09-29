@@ -161,6 +161,29 @@
   still exported from `package:chat_scroll_view/chat_scroll_view.dart`.
   Imports of `src/chat_widgets/chat_scrollbar.dart` for the theme must
   switch to `src/chat_widgets/chat_scrollbar_theme.dart`.
+- **ADDED**: Hosts can steer scrollbar visibility for conditions the
+  viewport cannot see, through `ChatScrollController`:
+  - `holdScrollbar()` returns a `ChatScrollbarHold`. While any hold is
+    alive, an auto-hide scrollbar stays shown (a hidden one fades in).
+  - `suppressScrollbar()` returns a `ChatScrollbarSuppression`. While any
+    suppression is alive, the scrollbar fades out, always-shown included,
+    and ignores every show trigger (list motion, navigation, hover,
+    holds, flashes). Triggers are dropped, not queued, so none of them
+    shows the scrollbar once the suppression ends. It also claims no
+    presses: touch and mouse presses along the trailing edge reach
+    messages, a mouse over the strip keeps the message cursor, and a grab
+    in progress ends.
+  - `flashScrollbar()` shows an auto-hide scrollbar once and hides it
+    after the idle delay, unless something holds it.
+
+  Suppression beats hold. Releasing the last suppression while a hold
+  lives shows the scrollbar again. Each handle (a `ChatScrollbarHandle`)
+  releases only itself, so independent features never undo each other,
+  and `release()` is idempotent. Handles taken before the viewport
+  attaches apply once it does; a flash with no viewport attached is
+  dropped. Every live handle is released, and reports `isReleased`, when
+  the viewport leaves the tree, switches to another controller, or the
+  controller is disposed.
 
 ### Diagnostics
 - **CHANGED**: The per-concern `ChatScrollDevLog` instances are replaced by

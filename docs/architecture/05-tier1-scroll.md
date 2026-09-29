@@ -267,7 +267,11 @@ and follow-tail converge on the next layout.
      tall); everything else falls through. Both reach at least across the
      painter's track; RTL mirrors them to the left edge. Under
      `ChatScrollbarGrab.none()` there is no strip and no touch target:
-     step 1 adds no strip target and every press is declined.
+     step 1 adds no strip target and every press is declined. The same
+     holds while the host suppresses the scrollbar
+     (`ChatScrollController.suppressScrollbar`); the first suppression
+     also ends a grab in progress through `_endScrollbarGrab`, as an
+     unequal preset does.
   4. A claimed press returns before fling catch, selection pointer, and
      drag, so no tap, long-press, span, or list drag starts from it. A
      declined press continues down the usual path.
