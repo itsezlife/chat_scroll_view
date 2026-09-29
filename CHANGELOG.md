@@ -1,5 +1,190 @@
 ## Unreleased
 
+### Scrollbar
+- **BREAKING**: `ChatScrollbar` no longer names the scrollbar's internal
+  geometry and drag helper; that helper is private and gone from the
+  barrel, along with `ChatScrollbar.hitWidth`, `minThumbHeight`,
+  `defaultThumbHeight`, `inHitArea`, `tryStartDrag`, `progressFromY`,
+  `resolveThumbHeight`, and `paint`. Code that instantiated it or read its
+  constants no longer compiles. `ChatScrollbar` is now the scrollbar
+  preset (below).
+- **ADDED**: `ChatScrollView.scrollbar` takes a `ChatScrollbar`, an
+  immutable, value-equal **scrollbar preset**: `ChatScrollbar.mobile()`,
+  `ChatScrollbar.desktop()`, a custom `ChatScrollbar(painter:,
+  visibility:, grab:)`, or `ChatScrollbar.none()`. The unnamed
+  `ChatScrollbar()` keeps the previous look at rest, always shown.
+  `ChatScrollbar.none()` paints nothing and grabs nothing, so presses along
+  the trailing edge tap messages and drag the list instead. An equal
+  preset on rebuild changes nothing; an unequal one ends an active grab,
+  and the grabbing pointer then scrolls nothing until it lifts.
+- **CHANGED**: Leaving `ChatScrollView.scrollbar` unset now resolves to
+  `ChatScrollbar.forPlatform()` on every build: `ChatScrollbar.mobile()` on
+  Android, iOS, and Fuchsia, `ChatScrollbar.desktop()` on macOS, Windows,
+  and Linux. The platform is read from `defaultTargetPlatform`, not the
+  theme, so a browser follows its OS; `forPlatform(platform:)` pins a row.
+  Before, an unset scrollbar was an always-shown 4 px track and thumb. Now
+  both presets auto-hide, so it opens hidden and shows while the list
+  moves.
+  - Mobile: a 4 px thumb, 8 px while grabbed, with no track, at least
+    36 px long, 3 px in from every edge; the default auto-hide timing; a
+    touch grabs the shown thumb through a target 20 px in from the edge
+    and at least 96 px tall; a mouse press on the track beside the thumb
+    reaches the message.
+  - Desktop: a 6 px track and thumb whose colours, not width, answer hover
+    and grab; the thumb at least 40 px long, 3 px in from every edge;
+    150 ms linear fades; a mouse entering the viewport shows the scrollbar
+    and leaving starts its fade at once; a track press centres the thumb
+    and keeps dragging.
+  `flutter_test` reports Android, so an unset scrollbar in a widget test is
+  the mobile preset: hidden at rest, and a mouse tap on its track reaches
+  the message. Tests that jumped by tapping the track pass
+  `ChatScrollbar.desktop()`, or `ChatScrollbar()` for the previous look.
+- **ADDED**: `ChatScrollbarVisibility.autoHide(followsPointer:)`, `false`
+  by default and `true` in the desktop preset. A mouse or trackpad pointer
+  entering the viewport pulses visibility with the idle delay; moving
+  inside does not pulse again; leaving starts the fade-out at once,
+  skipping any pending delay, unless list motion or a grab holds the
+  scrollbar. A stylus or touch never counts. Entering never brings a
+  pending hide forward: after a jump or an animated scroll it waits the
+  navigation delay again. A viewport with nothing to scroll ignores the
+  pointer.
+- **ADDED**: `ChatScrollbarThemeData.thumbHoverColor` and `trackHoverColor`
+  beside the idle and dragging colours: black at 50 % and 17 % in `light`,
+  the same alphas in white in `dark`. `copyWith`, `lerp`, and `mergeTheme`
+  take them. A theme built with only the three earlier colours gets the
+  light hover defaults, so a dark theme that sets its own colours should
+  set both new ones too.
+- **ADDED**: `ChatPillScrollbarPainter.mobile()` and `.desktop()` hold the
+  presets' sizes, and a `hoveredThickness` parameter joins `thickness` and
+  `grabbedThickness` (defaults to `thickness`, so hover alone keeps the
+  width). The pill's width runs `thickness` → `hoveredThickness` by the
+  hover factor → `grabbedThickness` by the grab factor. Its thumb runs
+  `thumbColor` → `thumbHoverColor` → `thumbDraggingColor` the same way,
+  and its track turns `trackHoverColor` by the larger of the two factors.
+  The unnamed painter now shows those colours where it painted the idle
+  ones before.
+- **CHANGED**: `ChatScrollbarFrame.hoverFactor` and `grabFactor` ease
+  instead of switching between `0` and `1`. Each rises over the auto-hide
+  `fadeIn` and falls over its `fadeOut`, along its `curve` (250 ms
+  `easeOut` under always); a reversal mid-ease runs from the current value.
+  A grab ended by the viewport leaving the tree drops the grab factor to
+  `0` at once. Custom painters now see values between `0` and `1`, and a
+  test that read `1` right after a press must pump past the fade-in.
+- **ADDED**: `ChatScrollbarPainter`, the open **scrollbar painter**
+  contract. The viewport resolves a `ChatScrollbarFrame` once per paint
+  (track rect, thumb rect, visibility, hover and grab factors, text
+  direction) from the painter's `trackThickness`, `crossAxisMargin`,
+  `mainAxisMargin`, and `minThumbLength`, then calls `paint` with it and
+  the resolved `ChatScrollbarThemeData`. Grab hit-testing reads that same
+  frame, never the painter's output, so a custom look cannot move where
+  presses land. The default `ChatPillScrollbarPainter` draws the previous
+  pixels and colours at rest; its sizes are constructor parameters
+  (`paintsTrack`, `thickness`, `hoveredThickness`, `grabbedThickness`,
+  `minThumbLength`, `crossAxisMargin`, `mainAxisMargin`).
+- **ADDED**: `ChatScrollbar(visibility:)` takes a `ChatScrollbarVisibility`,
+  its own **scrollbar visibility** apart from the day header's scroll
+  activity. `ChatScrollbarVisibility.always()` is the default and keeps
+  today's always-shown scrollbar. `ChatScrollbarVisibility.autoHide()`
+  opens hidden, fades in (250 ms) when the reader's position changes and
+  fades out (250 ms, `easeOut`) after `idleDelay` (1000 ms) — or
+  `navigationIdleDelay` (1500 ms) after a jump, an animated scroll, or a
+  self-send pulling to the tail. A drag, fling, wheel, keyboard step,
+  grab, or span auto-scroll keeps it shown until the list stops. Changes
+  that only reshape the thumb stay silent: follow-tail on arrival, history
+  loads, deletes, inset and keyboard changes, row chrome. A held day
+  header does not keep it shown. While hidden the painter is not called
+  (`ChatScrollbarFrame.visibility` is `0`); the mouse strip still takes
+  presses, touch does not.
+  `TickerMode` off pauses the fades. Both variants are value-equal: an
+  equal preset on rebuild changes nothing, an unequal one takes over from
+  the visibility currently shown.
+- **CHANGED**: Which presses grab the scrollbar now follows the pointer
+  kind, tuned by `ChatScrollbar(grab:)`, a value-equal `ChatScrollbarGrab`.
+  Before, any press within 20 px of the trailing edge grabbed it — touch
+  included, hidden or not — so a swipe starting near the edge jumped
+  through history and taps and long-presses there never reached the
+  message. Now touch and stylus grab only a shown thumb, through a target
+  32 px in from the edge and at least 48 px tall around the thumb
+  (`touchTargetWidth`, `touchTargetMinHeight`); every other touch near the
+  edge scrolls, taps, or long-presses messages. A mouse or trackpad uses a
+  12 px strip (`stripWidth`) that stays live while hidden: hovering it
+  reveals and holds an auto-hide scrollbar, eases
+  `ChatScrollbarFrame.hoverFactor` to `1`, and shows the arrow cursor over
+  message cursors; the wheel over it scrolls messages. Only the primary
+  button grabs; a right-click there reaches the message. A mouse press on
+  the track beside the thumb centres the thumb and keeps dragging
+  (`ChatScrollbarTrackPress.centerThumb`, the default) or reaches the
+  message (`fallThrough`). A press that goes down while another pointer is
+  down on the viewport — a list drag, a span gesture, a fling catch — never
+  grabs. Both targets reach at least across the painter's track, so a wide
+  custom painter stays grabbable and a thin one never shrinks them. Code or
+  widget tests that jumped by tapping the track with a touch now tap the
+  message instead; press the thumb, or use a mouse pointer.
+- **ADDED**: `ChatScrollbarGrab.none()`, a scrollbar that shows position
+  and takes nothing: every press along the trailing edge reaches messages
+  as with no scrollbar, and a mouse over the edge keeps the cursor
+  beneath, holds no visibility, and leaves the hover and grab factors at
+  `0`. List motion and `followsPointer` still show an auto-hide scrollbar.
+  `ChatScrollbarGrab` is a sealed set of two: the unnamed constructor
+  builds `ChatScrollbarGrab$Targets`, which carries `stripWidth`,
+  `touchTargetWidth`, `touchTargetMinHeight`, and `trackPress`; `.none()`
+  builds `ChatScrollbarGrab$None`. Code that read those fields off a
+  `ChatScrollbarGrab` switches on the variant.
+- **ADDED**: `ChatScrollbar.mobile()`, `.desktop()`, and `.forPlatform()`
+  take an optional `grab:` that replaces the preset's grab and keeps its
+  painter and visibility; `null` keeps the preset's own. The platform
+  defaults with no scrollbar interaction are
+  `ChatScrollbar.forPlatform(grab: const ChatScrollbarGrab.none())`.
+- **CHANGED**: The thumb length a press maps through is the painted one.
+  Before, the drag could use a different length from the paint when no
+  row was laid out (a fixed 48 px), and a thumb as long as the track still
+  painted an empty track and took presses that jumped to the oldest
+  message. Now such a thumb paints no scrollbar and takes no presses.
+- **CHANGED**: A scrollbar grab keeps the thumb under the pointer. Before,
+  a press snapped the thumb's centre to the pointer (a jump near either
+  end), the painted thumb and the drag used different mappings so the
+  thumb drifted from the finger, and the list stepped one whole message at
+  a time. Now a press on the thumb keeps the grab point and moves nothing
+  until the pointer does; a press on the track beside it still centres the
+  thumb there. While grabbed the thumb is painted exactly under the
+  pointer at the length it had at the press, and the scroll band's top
+  lands on the matching fractional position in the known span — inside a
+  message when it falls inside one, so tall messages scroll smoothly. On
+  release the thumb eases back to the list's own position over the
+  visibility's fade-out and curve (250 ms `easeOut` by default).
+  Hosts see more `ChatProgrammaticJump` events and jump-listener calls
+  during a grab (one per pointer move, including moves within one
+  message), and the anchor lands mid-message with a negative
+  `anchorPixelOffset` instead of on a message top. Code that expected a
+  grab to land on whole messages will see fractional positions.
+- **CHANGED**: `ChatScrollbarThemeData` moved to its own library file; it is
+  still exported from `package:chat_scroll_view/chat_scroll_view.dart`.
+  Imports of `src/chat_widgets/chat_scrollbar.dart` for the theme must
+  switch to `src/chat_widgets/chat_scrollbar_theme.dart`.
+- **ADDED**: Hosts can steer scrollbar visibility for conditions the
+  viewport cannot see, through `ChatScrollController`:
+  - `holdScrollbar()` returns a `ChatScrollbarHold`. While any hold is
+    alive, an auto-hide scrollbar stays shown (a hidden one fades in).
+  - `suppressScrollbar()` returns a `ChatScrollbarSuppression`. While any
+    suppression is alive, the scrollbar fades out, always-shown included,
+    and ignores every show trigger (list motion, navigation, hover,
+    holds, flashes). Triggers are dropped, not queued, so none of them
+    shows the scrollbar once the suppression ends. It also claims no
+    presses: touch and mouse presses along the trailing edge reach
+    messages, a mouse over the strip keeps the message cursor, and a grab
+    in progress ends.
+  - `flashScrollbar()` shows an auto-hide scrollbar once and hides it
+    after the idle delay, unless something holds it.
+
+  Suppression beats hold. Releasing the last suppression while a hold
+  lives shows the scrollbar again. Each handle (a `ChatScrollbarHandle`)
+  releases only itself, so independent features never undo each other,
+  and `release()` is idempotent. Handles taken before the viewport
+  attaches apply once it does; a flash with no viewport attached is
+  dropped. Every live handle is released, and reports `isReleased`, when
+  the viewport leaves the tree, switches to another controller, or the
+  controller is disposed.
+
 ### Diagnostics
 - **CHANGED**: The per-concern `ChatScrollDevLog` instances are replaced by
   one internal logger (`fine` / `config` / `info` / `warning` / `severe`)

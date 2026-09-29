@@ -492,7 +492,7 @@ void main() {
         await tester.pumpAndSettle();
 
         controller.jumpToCenterBand(tallId, 300);
-        expect(controller.hasPendingNavigationCenterBand, isTrue);
+        expect(controller.hasPendingInRowPlacement, isTrue);
 
         // Wheel before the pending Center Band layout apply — must not stick.
         final center = tester.getCenter(find.byType(ChatScrollView));
@@ -503,7 +503,7 @@ void main() {
         await tester.pump();
 
         expect(
-          controller.hasPendingNavigationCenterBand,
+          controller.hasPendingInRowPlacement,
           isFalse,
           reason: 'wheel must clear pending Center Band like drag',
         );

@@ -17,7 +17,7 @@ idea as `SliverMultiBoxAdaptorElement`, without the sliver protocol.
 
 | Layer | Type | Responsibility |
 |-------|------|----------------|
-| `ChatScrollView` | `RenderObjectWidget` | Public API: `dataSource`, `controller`, builders, pads, cache extents, `physics` |
+| `ChatScrollView` | `RenderObjectWidget` | Public API: `dataSource`, `controller`, builders, pads, cache extents, `physics`, `scrollbar` |
 | `ChatScrollElement` | `RenderObjectElement` + `ChatChildManager` | Lazy inflate / deactivate children; skip-rebuild cache; slot routing |
 | `RenderChatScrollView` | `RenderBox` | Layout, Tier-1 scroll, gestures, fetch schedule, paint, semantics |
 | `ChatScrollController` | Headless | Anchor ownership, `jumpTo` / `jumpToCenterBand` / `scrollBy` / `animateTo` / `highlight`, events, `visibleRange`, `centerBand`, `isAtTail` |
@@ -31,6 +31,11 @@ idea as `SliverMultiBoxAdaptorElement`, without the sliver protocol.
 | `ChatRubberBandOverscroll` | Headless (`@internal`) | Rubber-band edge effect: resistance curve, reverse claim, impact overshoot, spring, translate matrix |
 | `ChatNoOverscroll` | Headless (`@internal`, const) | None edge effect: drops motion past a pin, never paints |
 | `ChatChunkFetchScheduler` | Headless (render-owned) | Fetch poll, jump-fetch, LRU eviction coordination |
+| `ChatScrollbar` | Immutable value (public, sealed) | Scrollbar preset: `.mobile()` / `.desktop()` presets, `.forPlatform()` default, custom `ChatScrollbar(painter:, visibility:, grab:)`, or `.none()` |
+| `ChatScrollbarVisibility` | Immutable value (public, sealed) | When the scrollbar shows: `.always()` or `.autoHide(...)` (idle / navigation delays, fades, curve, `followsPointer`) |
+| `ChatScrollbarGrab` | Immutable value (public, sealed) | Which presses grab: targets by pointer kind (`ChatScrollbarGrab()` — mouse strip width, touch target width and minimum height, `ChatScrollbarTrackPress`) or `.none()` |
+| `ChatScrollbarPainter` | Open contract (public) | Scrollbar look: geometry getters + `paint(frame, theme)`; `ChatPillScrollbarPainter` is the default (`.mobile()` / `.desktop()` sizes) |
+| `ChatScrollbarRuntime` | Headless (render-owned, `@internal`) | Frame resolved once per paint (track + thumb rects, factors), grab targets by pointer kind (mouse strip, touch target), strip hover target (cursor, hover factor), viewport target (pointer enter pulse, leave fade), eased hover and grab factors, thumb motion (grab offset, frozen length and span share, release settle), pointer → grab position, visibility (auto-hide clock, motion, grab, and hover holds) |
 
 ## Ownership boundaries
 
@@ -45,9 +50,12 @@ flowchart LR
   Phys[ChatScrollPhysics]
   Motion[ChatScrollMotion]
   FH[ChatFloatingHeaderController]
+  Bar[ChatScrollbarRuntime]
 
   Widget --> Element
   Widget -->|physics value| Render
+  Widget -->|scrollbar preset| Render
+  Render --> Bar
   Element --> Render
   Render --> Ctrl
   Render --> DS
@@ -75,6 +83,17 @@ flowchart LR
   controller’s event APIs; the render object emits `ChatFlingStart` /
   `ChatFlingEnd` when simulations start/stop. Edge-effect release rules live
   in the edge-effect strategy, not in the render tick.
+- **Scrollbar** splits three ways: the render object computes thumb
+  progress and length share from anchor math; the runtime turns them into
+  track and thumb rects with the preset painter's geometry, once per paint;
+  the painter only draws that frame. Grab hit-testing reads the runtime's
+  frame, never the painter. The runtime also owns the thumb's motion (rest,
+  grab, settle) in pixels only; the render object maps a grab position back
+  to a band position and seats it through the controller. Visibility is the
+  runtime's too: the render object reports motion, jumps, and steps; the
+  runtime's auto-hide clock turns them into the frame's visibility, apart
+  from scroll activity. An unequal preset ends an active grab and
+  re-resolves visibility.
 - **Animator** is bound on attach (`controller.animator = …`) and cleared on
   detach / dispose.
 
@@ -84,6 +103,7 @@ flowchart LR
 |-----|--------------|--------|
 | `jumpTo`, `jumpToCenterBand`, `scrollBy`, `animateTo` | App / demo | Notifying navigation |
 | `highlight` | App / demo | Attention slot only — does not notify jump or scroll |
+| `jumpToFraction` | Render only (`@internal`, scrollbar grab) | Notifying navigation: band top a fraction into a row |
 | `applyScrollDelta`, `reassignAnchor` | Render / animator only (`@internal`) | Silent anchor mutation |
 | `visibleRange=`, `centerBand=`, `isAtTail=` | Render only | Deferred listenable push |
 | `notifyScrollEvent` | Render only | Typed scroll event stream |
@@ -125,7 +145,9 @@ lib/src/
     render_chat_scroll_view.dart
     chat_row_chrome.dart
     chat_dated_message.dart       # deprecated forward to ChatRowChrome
-    chat_scrollbar.dart
+    chat_scrollbar.dart           # public preset + painter contract + pill painter
+    chat_scrollbar_runtime.dart   # per-viewport frame + grab (@internal)
+    chat_scrollbar_theme.dart     # scrollbar colours (ThemeExtension)
     chat_selectable_message.dart
     chat_selection_pointer.dart
     chat_data_source_ext.dart

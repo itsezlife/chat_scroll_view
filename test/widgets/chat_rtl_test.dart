@@ -62,6 +62,7 @@ Widget _scaffold({
             dataSource: dataSource,
             controller: controller,
             textDirection: override,
+            scrollbar: const ChatScrollbar.desktop(),
             messageBuilder: (context, id, message, status, runLayout) {
               final dir = Directionality.of(context);
               return Align(
@@ -83,19 +84,6 @@ Widget _scaffold({
 );
 
 void main() {
-  group('ChatScrollbar direction-awareness (unit)', () {
-    test('paint places the track on the trailing edge', () {
-      // We can't intercept Canvas in a unit test, but `inHitArea` mirrors
-      // the same convention — so paint and hit-test stay in sync.
-      const sz = Size(400, 600);
-      final sb = ChatScrollbar();
-      // LTR: a touch on the far-right is in the strip.
-      expect(sb.inHitArea(399, sz.height / 2, sz, TextDirection.ltr), isTrue);
-      // RTL: a touch on the far-left is in the strip.
-      expect(sb.inHitArea(0, sz.height / 2, sz, TextDirection.rtl), isTrue);
-    });
-  });
-
   group('ChatScrollView RTL widget integration', () {
     testWidgets('scrollbar drag area is on the right in LTR', (tester) async {
       const count = 256;
@@ -117,12 +105,12 @@ void main() {
       final anchorBefore = controller.anchorMessageId;
 
       // Tap left edge → no jump.
-      await tester.tapAt(leftEdge);
+      await tester.tapAt(leftEdge, kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
       expect(controller.anchorMessageId, anchorBefore);
 
       // Tap right edge → scrollbar drag start → jumpTo somewhere.
-      await tester.tapAt(rightStripHit);
+      await tester.tapAt(rightStripHit, kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
       expect(controller.anchorMessageId, isNot(anchorBefore));
     });
@@ -151,12 +139,12 @@ void main() {
       final anchorBefore = controller.anchorMessageId;
 
       // Right edge no longer triggers scrollbar in RTL.
-      await tester.tapAt(rightEdge);
+      await tester.tapAt(rightEdge, kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
       expect(controller.anchorMessageId, anchorBefore);
 
       // Left edge now owns the scrollbar.
-      await tester.tapAt(leftStripHit);
+      await tester.tapAt(leftStripHit, kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
       expect(controller.anchorMessageId, isNot(anchorBefore));
     });
@@ -183,7 +171,7 @@ void main() {
       final viewportTopLeft = tester.getTopLeft(find.byType(ChatScrollView));
       final leftStripHit = viewportTopLeft + const Offset(5, 100);
       final anchorBefore = controller.anchorMessageId;
-      await tester.tapAt(leftStripHit);
+      await tester.tapAt(leftStripHit, kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
       expect(controller.anchorMessageId, isNot(anchorBefore));
     });

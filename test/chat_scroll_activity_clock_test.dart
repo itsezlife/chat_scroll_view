@@ -167,6 +167,105 @@ void main() {
       expect(clock.value, 0);
     });
 
+    _clockTest('hide skips a pending delay and fades out now', (
+      tester,
+      clock,
+      changes,
+    ) async {
+      clock.pulse();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(clock.value, 1);
+
+      clock.hide();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 75));
+      expect(clock.value, closeTo(0.5, 1e-9));
+      await tester.pump(const Duration(milliseconds: 75));
+      expect(clock.value, 0);
+    });
+
+    _clockTest('hide mid-fade-in reverses from the current value', (
+      tester,
+      clock,
+      changes,
+    ) async {
+      clock.pulse();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 75));
+      final mid = clock.value;
+      clock.hide();
+      await tester.pump();
+      expect(clock.value, closeTo(mid, 1e-9));
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(clock.value, 0);
+    });
+
+    _clockTest('hide is a no-op while a hold is active', (
+      tester,
+      clock,
+      changes,
+    ) async {
+      await _shown(tester, clock);
+      clock.hide();
+      await tester.pump(const Duration(seconds: 3));
+      expect(clock.value, 1);
+    });
+
+    _clockTest('hide is a no-op while pinned', (tester, clock, changes) async {
+      clock.pinned = true;
+      clock.hide();
+      await tester.pump(const Duration(seconds: 3));
+      expect(clock.value, 1);
+    });
+
+    _clockTest('a release after hide waits the idle delay again', (
+      tester,
+      clock,
+      changes,
+    ) async {
+      clock.pulse();
+      await tester.pump();
+      clock.hide();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(clock.value, 0);
+
+      clock.hold();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      clock.release();
+      await tester.pump(const Duration(milliseconds: 499));
+      expect(clock.value, 1);
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(clock.value, 0);
+    });
+
+    _clockTest('reports a pending hide that waits out a navigation delay', (
+      tester,
+      clock,
+      changes,
+    ) async {
+      expect(clock.isNavigationHidePending, isFalse);
+      clock.pulse();
+      expect(clock.isNavigationHidePending, isTrue);
+      clock.pulse(navigation: false);
+      expect(clock.isNavigationHidePending, isFalse);
+
+      clock.hold(navigation: true);
+      expect(clock.isNavigationHidePending, isFalse, reason: 'held, none');
+      clock.release();
+      expect(clock.isNavigationHidePending, isTrue);
+      await tester.pump(_timing.navigationIdleDelay);
+      expect(clock.isNavigationHidePending, isFalse, reason: 'fired');
+      await tester.pump(_timing.fadeOut);
+
+      clock.pulse();
+      clock.hide();
+      expect(clock.isNavigationHidePending, isFalse, reason: 'cancelled');
+      await tester.pump(_timing.fadeOut);
+    });
+
     _clockTest('pinned snaps to 1 without notifying and never hides', (
       tester,
       clock,
@@ -237,6 +336,30 @@ void main() {
         idleDelay: Duration.zero,
       ),
     );
+
+    testWidgets('a clock started shown pulses without a fade-in', (
+      tester,
+    ) async {
+      var changes = 0;
+      final clock = ChatScrollActivityClock(
+        timing: _timing,
+        onChanged: () => changes++,
+        initialValue: 1,
+      );
+      try {
+        expect(clock.value, 1);
+        clock.pulse(navigation: false);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 499));
+        expect(clock.value, 1);
+        expect(changes, 0, reason: 'already at 1: nothing to fade');
+        await tester.pump(const Duration(milliseconds: 1));
+        await tester.pump(const Duration(milliseconds: 150));
+        expect(clock.value, 0);
+      } finally {
+        clock.dispose();
+      }
+    });
 
     _clockTest('dispose cancels a pending hide', (
       tester,

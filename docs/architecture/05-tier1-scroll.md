@@ -242,8 +242,57 @@ and follow-tail converge on the next layout.
   the origin still runs). A refused grow bumps `capHits` once per wall.
   Newly laid-out present messages can become
   the span hit. Lift or span abort releases the writer.
-- Scrollbar drag: maps Y → progress → `_jumpToScrollbar` → `jumpTo(id)`
-  (layout path).
+- Scrollbar grab: pointer routing runs in this order.
+  1. `hitTest` adds the runtime's strip target ahead of every child when
+     the position lies in the mouse strip (no overlay mode), so its basic
+     cursor beats message cursors and `MouseTracker` enter / exit drive
+     strip hover. Under `autoHide(followsPointer: true)`, while a frame is
+     resolved, it then adds the runtime's viewport target everywhere inside
+     the viewport (cursor deferred), so enter / exit of the viewport as a
+     whole pulse and fade visibility. Wheel events still reach the viewport and scroll.
+  2. `handleEvent` records every pointer down / up / cancel. Only a
+     **fresh press** — a down while no other pointer is down on the
+     viewport — is offered to `ChatScrollbarRuntime.tryStartGrab`, and only
+     when the list can scroll. A press while another pointer holds a list
+     drag, span gesture, or fling catch never grabs; a lone press on the
+     scrollbar during a fling grabs and cancels the fling.
+  3. `tryStartGrab` tests the last painted frame (resolved in
+     `_paintScrollbar`), so a press lands on what was painted, and routes
+     by pointer kind with the preset's `ChatScrollbarGrab`. Mouse and
+     trackpad: the strip (`stripWidth`, live while hidden), primary button
+     only; thumb press grabs, track press centres the thumb or falls
+     through per `trackPress`. Touch, stylus, and unknown: only while
+     visibility is above `0`, only inside the touch target (the thumb
+     grown to `touchTargetWidth` from the edge and `touchTargetMinHeight`
+     tall); everything else falls through. Both reach at least across the
+     painter's track; RTL mirrors them to the left edge. Under
+     `ChatScrollbarGrab.none()` there is no strip and no touch target:
+     step 1 adds no strip target and every press is declined. The same
+     holds while the host suppresses the scrollbar
+     (`ChatScrollController.suppressScrollbar`); the first suppression
+     also ends a grab in progress through `_endScrollbarGrab`, as an
+     unequal preset does.
+  4. A claimed press returns before fling catch, selection pointer, and
+     drag, so no tap, long-press, span, or list drag starts from it. A
+     declined press continues down the usual path.
+
+  A message menu session covers the viewport with its own dismiss layer,
+  so a strip press there closes the menu and never reaches `handleEvent`.
+  A press on the thumb records its offset into the thumb and moves
+  nothing; a press on the track centres the thumb on the pointer. The thumb
+  length and the band's span share are frozen at the press. Each move
+  repaints the thumb under the pointer and maps its progress through
+  `_dragScrollbarTo` — the inverse of the painted progress,
+  `oldest + progress × (idCount − visible ids)` — to a band-top fractional
+  id, then `jumpToFraction(id, fraction)` (layout path, `FractionalPlacement`
+  seated on the row's real height). Release releases the placement and
+  eases the thumb rect back to the band's thumb on the ticker
+  (`ChatScrollbarRuntime.tick`, over the visibility preset's fade-out and
+  curve — 250 ms `easeOut` under always). The same tick eases the hover and
+  grab factors: up over the fade-in, down over the fade-out, along the
+  curve. `_stopTickerIfIdle` keeps the ticker while `isAnimating` (settle
+  or either factor easing). A grab holds scrollbar visibility; see
+  [Scrollbar visibility](09-day-groups-and-headers.md#scrollbar-visibility).
 
 ## Semantics
 

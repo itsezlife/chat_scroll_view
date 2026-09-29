@@ -184,6 +184,68 @@ activity, and each delegate chooses to follow it (`hidesWhenIdle` on the
 built-in day header policies). `onChanged` fires only in ticker frames; the
 viewport then re-resolves the chrome frame and repaints (no layout).
 
+## Scrollbar visibility
+
+Scrollbar visibility is a second `[0, 1]` factor beside scroll activity,
+never derived from it: the day header reads activity only, the scrollbar
+painter reads visibility only (`ChatScrollbarFrame.visibility`). The preset
+chooses the mode (`ChatScrollbar(visibility:)`): `always` is a constant `1`
+with no clock; `autoHide` runs a second `ChatScrollActivityClock`, owned by
+`ChatScrollbarRuntime` and created on attach (disposed on detach and when
+leaving auto-hide), with the preset's idle delay, navigation delay, fades,
+and curve. A `none` preset resolves `0`.
+
+The runtime tracks four holders — list motion, the thumb grab, mouse hover
+on the strip, and the host hold — because the clock's hold is a single
+flag: the clock is released only once all of them end. Under
+`ChatScrollbarGrab.none()` there is no grab and no strip to hover.
+
+Host claims live on the controller, not the runtime: `holdScrollbar()` and
+`suppressScrollbar()` add a handle to a per-kind set, and the viewport
+mirrors "any live hold" / "any live suppression" into the runtime's
+`hostHeld` / `suppressed` through `_syncScrollbarHost`. The controller binds
+the viewport (`bindScrollbar`) on attach and on a controller swap, and the
+viewport reads both flags right after binding, so handles taken before
+attach apply. `unbindScrollbar` on detach and on swap releases every live
+handle, so none outlives its viewport.
+
+While `suppressed`, show triggers stop at the runtime: holders are still
+recorded (their releases stay balanced) but never reach the clock, and
+pulses, flashes, and viewport enters are dropped. The clock is released
+and `hide()`s at once; under always a separate eased factor takes
+visibility to `0`. `stripContains` and `tryStartGrab` refuse everything.
+Lifting the suppression re-holds the clock only if a holder still holds
+(always eases back to `1`).
+
+| Edge | Runtime call → clock |
+|------|----------------------|
+| A tick consumes scroll delta (drag, fling, wheel, animate — including a self-send's animated pull to the tail — span auto-scroll) | `holdVisibility(navigation: animate-only delta)` → `hold` |
+| Nothing moves the list (same rule as activity: `_releaseMotionIfSettled`) | `releaseVisibility()` → `release` unless a grab or strip hover holds |
+| Thumb grab starts / ends | `tryStartGrab` → `hold`; `endGrab` → `release` unless list motion or strip hover holds |
+| Mouse enters / leaves the strip (`MouseTracker` on the strip target; leaving the viewport counts) | `hold`, hover factor eases to `1`; leaving → `release` unless list motion or a grab holds, hover factor eases to `0` |
+| Mouse enters the viewport, `followsPointer` only (`MouseTracker` on the viewport target, hit-tested while a frame is resolved) | `pulse(navigation: isNavigationHidePending)`, so entering never brings a pending hide forward; skipped while any holder holds; moves inside do not re-enter |
+| Mouse leaves the viewport, `followsPointer` only | Drops strip hover first, then `hide()` unless list motion or a grab holds: the fade-out starts now, skipping any pending delay; the next release waits the idle delay again |
+| Jump (`_onJump`: `jumpTo`, `jumpToCenterBand`, the jump that starts a far animate or a far self-send pull) | `pulseVisibility()` → `pulse()`; ignored while grabbing (grab moves seat through `jumpToFraction`) |
+| `scrollBy` (keyboard step) | `pulseVisibility(navigation: false)` → `pulse(navigation: false)` |
+| First live host hold / last one released | `hostHeld = true` → `hold` unless another holder holds; `false` → `release` unless another holder still holds |
+| `flashScrollbar()` | `flash()` → `pulse(navigation: isNavigationHidePending)`, the same pulse as a viewport enter; skipped while any holder holds |
+| First live host suppression / last one released | `suppressed = true` → grab ended, `release` + `hide`; `false` → `hold` if any holder holds, else nothing |
+| Attach | host flags read from the controller, then the clock starts at `0` (hidden, or holding when a holder holds) |
+| Unequal preset | `configureVisibility`: always → auto-hide starts from `1` and pulses (no flicker); auto-hide → auto-hide retimes the running clock; → always / none disposes it |
+| `TickerMode` off (`ticking`) | `visibilityMuted` mutes the fades; the idle timer still runs |
+
+Silent — no call, visibility unchanged: follow-tail on arrival (a layout
+path that consumes no tick delta), history loads, renormalize, band-stable
+delete recovery, inset and keyboard changes, row chrome transitions, and the
+day header's `holdsActivity` (the scrollbar clock is never pinned).
+
+At visibility `0` the frame is still resolved — the mouse strip stays live
+and reads it; touch grabs are declined — but the painter is not called. The release settle runs over the auto-hide
+`fadeOut` along its `curve` (250 ms `easeOut` under always), so the thumb
+comes to rest in step with the fade. The hover and grab factors ease on the
+same ticker, rising over `fadeIn` and falling over `fadeOut` along `curve`
+(250 ms `easeOut` under always); `reset` on detach snaps them.
+
 ## Floating header ownership
 
 | Concern | Owner |

@@ -81,8 +81,8 @@ When `fits`:
 | `_signedOverscroll` / `_overscrollOnSide` | **Not used**. The edge effect uses `_unconsumedOverscrollDelta` |
 | Drag / fling | Travel and fling suppressed; unconsumed drag dy still feeds the edge effect |
 | `_clampBoundaries` | **Single pin** only (not dual pin); skipped during delete recovery |
-| Scrollbar paint | **Skipped** — nothing to scroll |
-| Scrollbar drag | **Blocked** at pointer down |
+| Scrollbar paint | **Skipped** — nothing to scroll; the runtime frame is cleared |
+| Scrollbar grab | **Blocked** at pointer down (no frame, and the explicit fits check) |
 
 Single-pin stacking (when not in delete recovery and not a top-band handoff):
 

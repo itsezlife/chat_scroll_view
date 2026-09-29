@@ -105,6 +105,21 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `ChatEdgeEffect.none()`                        | Hard clamp; fling ends at the pin                       | Paint anything                             |
 | `==` / `hashCode`                              | Value equality; drives the equal-is-no-op swap          | Compare by identity                        |
 
+## `ChatScrollbar` (public value)
+
+| Member | Purpose | Must not |
+| ------ | ------- | -------- |
+| `ChatScrollbar(painter:, visibility:, grab:)` | Custom preset; defaults paint the unnamed pill, always shown, default grab | Hold runtime state |
+| `.mobile()` | Pill `.mobile()` (thumb only, 4 → 8 px grabbed, min 36, insets 3), default auto-hide, 20 × 96 px touch target, track press falls through | Branch on platform |
+| `.desktop()` | Pill `.desktop()` (6 px track + thumb, hover and grab recolour, min 40, insets 3), auto-hide with 150 ms linear fades and `followsPointer`, default grab | Branch on platform |
+| `.forPlatform(platform:)` | The `null` default: Android / iOS / Fuchsia → mobile, macOS / Windows / Linux → desktop, from `defaultTargetPlatform` | Read the theme or `ScrollConfiguration` |
+| `grab:` on `.mobile()` / `.desktop()` / `.forPlatform()` | Replaces the preset's grab, keeps painter and visibility; `null` keeps the preset's own | Override painter or visibility |
+| `.none()` | No scrollbar: no paint, no grab | Claim presses |
+| `ChatScrollbarGrab.none()` | Painted scrollbar that takes nothing: no strip (no hover, hold, or cursor), no touch target; visibility unaffected | Claim presses or move the factors |
+| `ChatScrollbarVisibility.autoHide(followsPointer:)` | Mouse / trackpad entering the viewport pulses; leaving fades at once unless list motion or a grab holds | Count stylus or touch |
+| `ChatPillScrollbarPainter` width / colour | Width `thickness` → `hoveredThickness` by hover → `grabbedThickness` by grab; thumb idle → hover → dragging colour the same way; track → `trackHoverColor` by the larger factor | Change where presses land |
+| `==` / `hashCode` | Value equality across preset, visibility, grab, painter; drives the equal-is-no-op swap | Compare by identity |
+
 ## `ChatFlingMotion` (`@internal`)
 
 | Member                        | Purpose                          | Must not               |
@@ -225,13 +240,20 @@ render object replaces it only on an unequal physics swap.
 | `_unconsumedOverscrollDelta` / `_cancelOverscroll`                                                                  | Overflow past pin travel → edge effect; missing box is not that edge |
 | `physics` setter / `_edgeTransform` / `applyPaintTransform`                                                        | Unequal swap cancels fling + resets edge; one edge matrix for paint, hit, reported transform, `paintTop` |
 | `_boundaryBox` / `_resolveAnchorBox`                                                                                | Boundary/anchor render boxes                                        |
-| `handleEvent` / `hitTestChildren`                                                                                   | Pointer / scrollbar / header / selection; press catches fling or edge spring; messages hit through `_edgeTransform` |
+| `hitTest`                                                                                                           | Adds the scrollbar strip target ahead of the children when the position lies in the mouse strip, then the viewport target anywhere inside while `tracksViewport` (the preset follows the pointer and a frame is resolved; neither in overlay mode) | Basic cursor over message cursors (the viewport target defers); `MouseTracker` enter / exit drive strip hover and the viewport enter pulse / leave fade; wheel still reaches `handleEvent` |
+| `handleEvent` / `hitTestChildren`                                                                                   | Pointer / scrollbar grab (fresh presses only, pointer-kind rules on the last painted frame) / header / selection; press catches fling or edge spring; messages hit through `_edgeTransform` | `_pressedPointers` tracks downs across overlay mode; a claimed press returns before fling catch, selection, and drag |
 | `ChatSelectionPointer` / `_selectionMessageIdAt` / `_spanHitAt` / `_selectSpanChain`                                | Viewport-owned long-press, tap, select/unselect span                | Yield + fling-cancel suppress; span polarity vs selection snapshot; empty set ends the span; the pinned floating date header is not a hit (tap/long-press/span go through to the message); other non-message slots and non-selectable rows freeze the far end; non-selectable ids are omitted from the chain; chrome wrap follows `showsChrome` (`gutterOnly` without check); select-span growth and grow-direction auto-scroll stop at `selectionCap` (unselect ignores the cap); a refused grow bumps `capHits` once per wall; origin-absent aborts the span (set kept); `selectionAllowed` assign / `reapplySelectionAllowed` refilters the set and invalidates chrome wrap via `addSelectionAllowedListener` |
 | `_onJump` / `_onScrollBy` / `_onDataChanged` / `_onBoundaryChanged`                                                 | Controller/DS reactions                                             |
 | `_onAnimateSettled` / `_cancelAnimate` / `_clearHighlight`                                                          | Animate settle/cancel                                               |
 | `_publishControllerState` / `_publishVisibleRange` / `_publishCenterBand` / `_publishIsAtTail` / `_computeIsAtTail` | Listenables                                                         |
 | `_updateScrollSemantics` / `_computeCanRevealOlder` / `Newer`                                                       | A11y scroll actions                                                 |
-| `_jumpToScrollbar` / `_computeScrollbarProgress` / band helpers                                                     | Scrollbar geometry                                                  |
+| `_computeScrollbarProgress` / band helpers                                                                          | Thumb progress + length share from band-edge fractional ids |
+| `_dragScrollbarTo`                                                                                                  | Grab position → band-top fractional id (`oldest + progress × (idCount − visible ids)`, frozen span share) → `jumpToFraction(id, fraction)` | Inverse of the band-metrics progress, so drag and paint share one mapping; skips an identical armed placement |
+| `scrollbar` setter / `_endScrollbarGrab`                                                                            | Equal preset no-op; unequal ends the grab and re-resolves visibility (`configureVisibility`). Ending releases the navigation placement, starts the thumb settle, ensures the ticker, repaints (setter: per `shouldRepaint` or a visibility change) |
+| `_paintScrollbar` / `ChatScrollbarRuntime.resolve`                                                                  | One frame per paint: rects from preset painter geometry and thumb motion (rest / grab / settle), plus visibility; cleared for `none` and fits here, for overlay mode in `_paintContents`; the painter is skipped at visibility `0` |
+| `ChatScrollbarRuntime.tryStartGrab` / `moveGrab` / `endGrab` / `tick`                                               | Declines everything under `ChatScrollbarGrab.none()`; otherwise routes by pointer kind per `ChatScrollbarGrab$Targets`: mouse / trackpad through the strip (live while hidden, primary button only, track press per `trackPress`), touch / stylus / unknown through the touch target while visibility > 0; press on thumb (or touch target) keeps the grab offset; press on track centres the thumb; moves repaint the thumb under the pointer at the frozen length; release eases the rect back over `settleDuration` / `settleCurve` (auto-hide fade-out and curve, else 250 ms `easeOut`) on the viewport ticker; `tick` also eases the hover and grab factors (up over the fade-in, down over the fade-out) | `_stopTickerIfIdle` keeps the ticker while `isAnimating` (settle or a factor easing); a grab holds visibility; `detach` resets all motion and disposes the visibility clock |
+| `_releaseMotionIfSettled`                                                                                           | Once no drag, fling, animate, pending delta, or span auto-scroll moves the list, releases the scroll activity and scrollbar visibility motion holds | Each release is a no-op without its hold |
+| `ChatScrollbarRuntime.configureVisibility` / `holdVisibility` / `releaseVisibility` / `pulseVisibility`             | Auto-hide clock lifecycle and edges: moving tick holds (navigation for animate-only delta), settled releases unless grabbing, `_onJump` pulses with the navigation delay, `_onScrollBy` with the idle delay | Pulses ignored while grabbing; always → auto-hide starts shown; `visibilityMuted` follows `ticking` |
 
 ## Paint / debug
 
@@ -239,7 +261,9 @@ Paint walks children at `Offset(0, parentData.offset)` inside the edge
 transform layer when the edge effect is active, header and scrollbar
 on top outside it; far-path stitch applies per-child translation (not a viewport fade);
 highlight paints over target row.
-`_paintScrollbar` returns immediately when content fits (no thumb travel).
+`_paintScrollbar` clears the scrollbar frame and paints nothing when the preset
+is `none`, content fits, or the thumb would leave no travel; the painter draws
+in viewport-local coordinates.
 
 Debug getters (`debugChildCount`, `debugDividerOpacity`, etc.) and
 `_fetchAnchorEvent` / `_scrollbarEvent` are diagnostics only.

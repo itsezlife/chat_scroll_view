@@ -91,6 +91,7 @@ Widget _harness({
   required ChatScrollController controller,
   ValueListenable<double> bottomPadding = const AlwaysStoppedAnimation(0),
   ValueListenable<double> topPadding = const AlwaysStoppedAnimation(0),
+  ChatScrollbar? scrollbar,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -103,6 +104,7 @@ Widget _harness({
           controller: controller,
           bottomPadding: bottomPadding,
           topPadding: topPadding,
+          scrollbar: scrollbar,
           messageBuilder: (context, id, message, status, runLayout) => SizedBox(
             height: _messageHeight,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
@@ -669,13 +671,14 @@ void main() {
       bottomInset.dispose();
     });
 
-    Future<void> mount(WidgetTester tester) async {
+    Future<void> mount(WidgetTester tester, {ChatScrollbar? scrollbar}) async {
       await tester.pumpWidget(
         _harness(
           dataSource: ds,
           controller: controller,
           topPadding: topInset,
           bottomPadding: bottomInset,
+          scrollbar: scrollbar,
         ),
       );
       await tester.pump();
@@ -800,13 +803,13 @@ void main() {
     testWidgets('a scrollbar drag releases the hold, including the jumps it '
         'makes', (tester) async {
       controller.jumpTo(50);
-      await mount(tester);
-      const scrollbarStrip = Offset(
-        _viewportWidth - ChatScrollbar.hitWidth / 2,
-        80,
-      );
+      await mount(tester, scrollbar: const ChatScrollbar.desktop());
+      const scrollbarStrip = Offset(_viewportWidth - 10, 80);
       final origin = tester.getTopLeft(find.byType(ChatScrollView));
-      final gesture = await tester.startGesture(origin + scrollbarStrip);
+      final gesture = await tester.startGesture(
+        origin + scrollbarStrip,
+        kind: PointerDeviceKind.mouse,
+      );
       await tester.pump();
       await gesture.moveBy(const Offset(0, 40));
       await tester.pump();

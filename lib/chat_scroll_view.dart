@@ -57,6 +57,7 @@ export 'src/chat_widgets/chat_row_chrome.dart';
 export 'src/chat_widgets/chat_scroll_theme.dart';
 export 'src/chat_widgets/chat_scroll_view.dart';
 export 'src/chat_widgets/chat_scrollbar.dart';
+export 'src/chat_widgets/chat_scrollbar_theme.dart';
 export 'src/chat_widgets/chat_secondary_message_tap_scope.dart';
 export 'src/chat_widgets/chat_selectable_message.dart';
 export 'src/chat_widgets/chat_selection_chrome.dart';

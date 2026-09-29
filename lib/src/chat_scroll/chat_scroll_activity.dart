@@ -63,24 +63,34 @@ final class ChatScrollActivityTiming {
 /// - [release] — movement ended; hide after the pending delay.
 /// - [pulse] — a discrete move (jump, step); show, and hide after the delay
 ///   unless a [hold] is active.
+/// - [hide] — fade out now instead of after the pending delay, unless a
+///   [hold] is active.
 /// - [pinned] — chrome must stay fully shown; snap to `1` until cleared.
 ///
 /// [value] changes inside ticker frames, and [onChanged] fires there — never
-/// synchronously from [hold] / [release] / [pulse], so callers may use them
-/// from layout or gesture callbacks. Setting [pinned] is the one synchronous
-/// change, and it does not notify.
+/// synchronously from [hold] / [release] / [pulse] / [hide], so callers may
+/// use them from layout or gesture callbacks. Setting [pinned] is the one
+/// synchronous change, and it does not notify.
 ///
 /// Not an `AnimationController`: the owner is a render object with no
 /// `TickerProvider`, and a zero-duration `animateTo` notifies synchronously.
 @internal
 final class ChatScrollActivityClock {
-  /// Starts idle at `0`.
+  /// Starts at rest at [initialValue] — idle at `0` by default — with no
+  /// fade running and no hide pending.
   ChatScrollActivityClock({
     required ChatScrollActivityTiming timing,
     required VoidCallback onChanged,
-  }) : _timing = timing,
+    double initialValue = 0,
+  }) : assert(
+         initialValue >= 0 && initialValue <= 1,
+         'initialValue must be in [0, 1]',
+       ),
+       _timing = timing,
        _onChanged = onChanged,
-       _nextDelay = timing.idleDelay {
+       _value = initialValue,
+       _from = initialValue,
+       _target = initialValue {
     _ticker = Ticker(_tick, debugLabel: 'ChatScrollActivityClock');
   }
 
@@ -96,19 +106,27 @@ final class ChatScrollActivityClock {
   /// Mutes fades while the host's `TickerMode` is off.
   set muted(bool value) => _ticker.muted = value;
 
-  double _value = 0;
-  double _from = 0;
-  double _target = 0;
+  double _value;
+  double _from;
+  double _target;
   Duration _duration = Duration.zero;
   bool _holding = false;
   bool _pinned = false;
-  Duration _nextDelay;
+
+  /// Whether the next scheduled hide waits the navigation delay.
+  bool _nextNavigation = false;
+  bool _navigationHidePending = false;
 
   /// Current activity in `[0, 1]`.
   double get value => _value;
 
   /// Whether a [hold] is active.
   bool get isHolding => _holding;
+
+  /// Whether a hide is pending and waits out the navigation delay — from a
+  /// navigation [pulse], or a [release] after a navigation [hold]. `false`
+  /// once it fires or is cancelled.
+  bool get isNavigationHidePending => _navigationHidePending;
 
   /// While `true`, [value] stays at `1` with no pending hide. Setting it
   /// snaps [value] to `1` synchronously, without notifying; clearing it
@@ -130,7 +148,7 @@ final class ChatScrollActivityClock {
   void hold({bool navigation = false}) {
     _holding = true;
     _cancelHide();
-    _nextDelay = navigation ? _timing.navigationIdleDelay : _timing.idleDelay;
+    _nextNavigation = navigation;
     _animateTo(1, _timing.fadeIn);
   }
 
@@ -145,17 +163,32 @@ final class ChatScrollActivityClock {
   /// waits for the navigation delay when [navigation] is set, the user idle
   /// delay otherwise.
   void pulse({bool navigation = true}) {
-    _nextDelay = navigation ? _timing.navigationIdleDelay : _timing.idleDelay;
+    _nextNavigation = navigation;
     _animateTo(1, _timing.fadeIn);
     if (!_holding && !_pinned) _scheduleHide();
   }
 
+  /// Starts the fade-out now: cancels a pending hide — a navigation delay
+  /// included — and eases from the current value to `0` over the fade-out.
+  /// No-op while a [hold] is active or [pinned]. The next hide waits the
+  /// idle delay again.
+  void hide() {
+    if (_holding || _pinned) return;
+    _cancelHide();
+    _nextNavigation = false;
+    _animateTo(0, _timing.fadeOut);
+  }
+
   void _scheduleHide() {
     _cancelHide();
-    final delay = _nextDelay;
-    _nextDelay = _timing.idleDelay;
+    _navigationHidePending = _nextNavigation;
+    _nextNavigation = false;
+    final delay = _navigationHidePending
+        ? _timing.navigationIdleDelay
+        : _timing.idleDelay;
     _hideTimer = Timer(delay, () {
       _hideTimer = null;
+      _navigationHidePending = false;
       _animateTo(0, _timing.fadeOut);
     });
   }
@@ -163,6 +196,7 @@ final class ChatScrollActivityClock {
   void _cancelHide() {
     _hideTimer?.cancel();
     _hideTimer = null;
+    _navigationHidePending = false;
   }
 
   void _animateTo(double target, Duration duration) {
