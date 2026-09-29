@@ -684,18 +684,18 @@ abstract class ChatScrollbarPainter {
 
   /// Width of [ChatScrollbarFrame.trackRect] and
   /// [ChatScrollbarFrame.thumbRect]: the widest this painter ever draws.
-  double get trackThickness;
+  abstract final double trackThickness;
 
   /// Gap between the viewport's trailing edge and the track.
-  double get crossAxisMargin;
+  abstract final double crossAxisMargin;
 
   /// Gap between each end of the scroll band and the track. Shortens the
   /// track, and so the thumb's travel, by twice this value.
-  double get mainAxisMargin;
+  abstract final double mainAxisMargin;
 
   /// Shortest thumb the viewport resolves. A thumb that would be at least as
   /// long as the track leaves nothing to travel, and no scrollbar is shown.
-  double get minThumbLength;
+  abstract final double minThumbLength;
 
   /// Draws [frame] onto [canvas] in viewport-local coordinates, coloured
   /// from [theme].
