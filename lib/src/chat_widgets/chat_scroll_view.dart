@@ -7,6 +7,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_floating_header_marker.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
@@ -62,6 +63,10 @@ typedef ChatMessageBuilder =
 /// any equatable value for custom grouping (week label, `(year, month)`, …).
 /// The same builder produces both the inline divider above the first message
 /// of each group and the floating header pinned to the top of the viewport.
+///
+/// Widgets this builder returns tell the two roles apart with
+/// [ChatFloatingHeaderMarker.isInside], read from their own build context —
+/// never from [context], which sits above the marker.
 typedef ChatGroupSeparatorBuilder =
     Widget Function(
       BuildContext context,
@@ -302,7 +307,8 @@ class ChatScrollView extends RenderObjectWidget {
   /// The builder receives the raw `groupBy` [bucket] and `firstMessageDate`
   /// (`createdAt` of the first message in that group). Format labels from
   /// `bucket` when it is not a `DateTime`, or from `firstMessageDate` for day
-  /// grouping.
+  /// grouping. See [ChatFloatingHeaderMarker] to style the floating header
+  /// apart from inline separators.
   ///
   /// How the inline separator and the floating header share the top of the
   /// viewport is the [dayHeaderDelegate]'s call.

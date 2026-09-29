@@ -4,6 +4,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_floating_header_marker.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/material.dart';
@@ -105,6 +106,25 @@ Future<void> _shift(
 
 RenderChatScrollView _render(WidgetTester tester) =>
     tester.renderObject<RenderChatScrollView>(find.byType(ChatScrollView));
+
+/// Separator whose label reports what [ChatFloatingHeaderMarker.isInside]
+/// answers from its own build context.
+class _MarkerProbe extends StatelessWidget {
+  const _MarkerProbe(this.date);
+
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    final role = ChatFloatingHeaderMarker.isInside(context)
+        ? 'floating'
+        : 'inline';
+    return SizedBox(
+      height: 24,
+      child: Text('sep-${date.month}-${date.day}-$role'),
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -414,6 +434,50 @@ void main() {
       expect(find.text('grp-afternoon'), findsWidgets);
       final ro = _render(tester);
       expect(ro.debugHeaderBucket, 'morning');
+    });
+
+    testWidgets('only the floating header copy reports floating', (
+      tester,
+    ) async {
+      // jumpTo(50): the header pins day 7 over msg-50, and inline separators
+      // for later days sit below it.
+      final controller = ChatScrollController()..jumpTo(50);
+      final builderContextAnswers = <bool>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: _PreloadedDataSource(_generate(256)),
+                  controller: controller,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      SizedBox(height: 60, child: Text('msg-$id')),
+                  dateSeparatorBuilder: (context, bucket, date) {
+                    builderContextAnswers.add(
+                      ChatFloatingHeaderMarker.isInside(context),
+                    );
+                    return _MarkerProbe(date);
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(_render(tester).debugHasFloatingHeader, isTrue);
+      expect(find.textContaining('-floating'), findsOneWidget);
+      expect(find.text('sep-1-7-floating'), findsOneWidget);
+      expect(find.textContaining('-inline'), findsAtLeastNWidgets(1));
+      expect(
+        builderContextAnswers,
+        allOf(isNotEmpty, everyElement(isFalse)),
+        reason: "the builder's own context sits above the marker",
+      );
     });
 
     testWidgets('tap inside the floating header reaches its builder', (

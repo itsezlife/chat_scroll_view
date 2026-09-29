@@ -46,6 +46,7 @@ export 'src/chat_scroll/chat_sender_run_layout.dart';
 export 'src/chat_widgets/chat_bubble_metrics.dart';
 export 'src/chat_widgets/chat_code_block_painter.dart';
 export 'src/chat_widgets/chat_dated_message.dart';
+export 'src/chat_widgets/chat_floating_header_marker.dart';
 export 'src/chat_widgets/chat_keyboard_shortcuts.dart';
 export 'src/chat_widgets/chat_markdown_autoscroll.dart';
 export 'src/chat_widgets/chat_markdown_body.dart';
