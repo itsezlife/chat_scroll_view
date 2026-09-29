@@ -146,11 +146,10 @@ Widget _harness({
           selectionController: selectionController,
           onIdleMessageTap: onIdleMessageTap,
           onSecondaryMessageTap: onSecondaryMessageTap,
-          messageBuilder: (context, id, message, status, runLayout) =>
-              SizedBox(
-                height: heightOf?.call(id) ?? 60,
-                child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-              ),
+          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
+            height: heightOf?.call(id) ?? 60,
+            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+          ),
         ),
       ),
     ),
@@ -161,10 +160,7 @@ void main() {
   group('ChatScrollbar preset', () {
     test('is value-equal', () {
       expect(const ChatScrollbar(), const ChatScrollbar());
-      expect(
-        const ChatScrollbar().hashCode,
-        const ChatScrollbar().hashCode,
-      );
+      expect(const ChatScrollbar().hashCode, const ChatScrollbar().hashCode);
       expect(
         const ChatScrollbar(painter: ChatPillScrollbarPainter()),
         const ChatScrollbar(),
@@ -374,10 +370,7 @@ void main() {
       expect(frame.thumbRect.left, frame.trackRect.left);
       expect(frame.thumbRect.right, frame.trackRect.right);
       expect(frame.thumbRect.top, greaterThanOrEqualTo(frame.trackRect.top));
-      expect(
-        frame.thumbRect.bottom,
-        lessThanOrEqualTo(frame.trackRect.bottom),
-      );
+      expect(frame.thumbRect.bottom, lessThanOrEqualTo(frame.trackRect.bottom));
       expect(frame.thumbRect.height, greaterThanOrEqualTo(16));
       expect(frame.textDirection, TextDirection.ltr);
       expect(frame.visibility, 1);
@@ -395,34 +388,6 @@ void main() {
       );
       expect(frames.last.trackRect, const Rect.fromLTRB(4, 4, 10, 596));
       expect(frames.last.textDirection, TextDirection.rtl);
-    });
-
-    testWidgets('the strip is the trailing 20 px in LTR', (tester) async {
-      setUpSource(256, 128);
-      await pumpViewport(tester);
-
-      await tester.tapAt(at(tester, _viewportWidth - 21, 100));
-      await tester.pumpAndSettle();
-      expect(controller.anchorMessageId, 128);
-
-      await tester.tapAt(at(tester, _viewportWidth - 20, 100));
-      await tester.pumpAndSettle();
-      expect(controller.anchorMessageId, isNot(128));
-    });
-
-    testWidgets('the strip mirrors to the leading 20 px in RTL', (
-      tester,
-    ) async {
-      setUpSource(256, 128);
-      await pumpViewport(tester, textDirection: TextDirection.rtl);
-
-      await tester.tapAt(at(tester, 21, 100));
-      await tester.pumpAndSettle();
-      expect(controller.anchorMessageId, 128);
-
-      await tester.tapAt(at(tester, 20, 100));
-      await tester.pumpAndSettle();
-      expect(controller.anchorMessageId, isNot(128));
     });
 
     testWidgets('the strip spans exactly the painted track inside the insets', (
@@ -445,16 +410,22 @@ void main() {
       expect(track.bottom, _viewportHeight - 120 - 4);
 
       final before = controller.anchorMessageId;
-      await tester.tapAt(at(tester, 395, track.top - 1));
+      await tester.tapAt(
+        at(tester, 395, track.top - 1),
+        kind: PointerDeviceKind.mouse,
+      );
       await tester.pumpAndSettle();
       expect(controller.anchorMessageId, before);
 
-      await tester.tapAt(at(tester, 395, track.top));
+      await tester.tapAt(
+        at(tester, 395, track.top),
+        kind: PointerDeviceKind.mouse,
+      );
       await tester.pumpAndSettle();
       expect(controller.anchorMessageId, isNot(before));
     });
 
-    testWidgets('a track press centres the thumb on the pointer', (
+    testWidgets('a mouse track press centres the thumb on the pointer', (
       tester,
     ) async {
       setUpSource(256, 128);
@@ -469,7 +440,10 @@ void main() {
       final y =
           track.top + thumbLength / 2 + 0.25 * (track.height - thumbLength);
 
-      final gesture = await tester.startGesture(at(tester, 395, y));
+      final gesture = await tester.startGesture(
+        at(tester, 395, y),
+        kind: PointerDeviceKind.mouse,
+      );
       await tester.pump();
       expect(frames.last.thumbRect.center.dy, moreOrLessEquals(y));
       // Ten rows fill the band, so the band top travels 256 - 10 ids:
@@ -530,27 +504,26 @@ void main() {
     ) async {
       setUpSource(256, 128);
       await pumpViewport(tester, scrollbar: const ChatScrollbar.none());
-      final before = (
-        controller.anchorMessageId,
-        controller.anchorPixelOffset,
-      );
+      final before = (controller.anchorMessageId, controller.anchorPixelOffset);
 
       await tester.dragFrom(at(tester, 395, 300), const Offset(0, 200));
       await tester.pumpAndSettle();
-      expect(
-        (controller.anchorMessageId, controller.anchorPixelOffset),
-        isNot(before),
-      );
+      expect((
+        controller.anchorMessageId,
+        controller.anchorPixelOffset,
+      ), isNot(before));
       // A scroll of a few rows, not a thumb jump through history.
       expect(controller.anchorMessageId, closeTo(128, 10));
     });
 
-    testWidgets('the default preset claims the same press', (tester) async {
+    testWidgets('the default preset claims the same press from a mouse', (
+      tester,
+    ) async {
       setUpSource(256, 128);
       final requests = <ChatMessageMenuRequest>[];
       await pumpViewport(tester, onIdleMessageTap: requests.add);
 
-      await tester.tapAt(at(tester, 395, 100));
+      await tester.tapAt(at(tester, 395, 100), kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
       expect(requests, isEmpty);
       expect(controller.anchorMessageId, isNot(128));
@@ -808,48 +781,52 @@ void main() {
       expect(rest.height, lessThan(grabbed.height));
     });
 
-    for (final (name, scrollbar, claims) in <(String, ChatScrollbar, bool)>[
-      ('the default preset', const ChatScrollbar(), true),
-      ('the none preset', const ChatScrollbar.none(), false),
-    ]) {
-      testWidgets('under $name a strip press fires no message gesture: '
-          '${claims ? 'grabbed' : 'reaches messages'}', (tester) async {
-        final controller = ChatScrollController()..jumpTo(128);
-        final dataSource = _PreloadedDataSource(256);
-        final selection = ChatSelectionController();
-        addTearDown(controller.dispose);
-        addTearDown(dataSource.dispose);
-        addTearDown(selection.dispose);
-        final taps = <ChatMessageMenuRequest>[];
-        final secondaryTaps = <ChatMessageMenuRequest>[];
-        await tester.pumpWidget(
-          _harness(
-            dataSource: dataSource,
-            controller: controller,
-            scrollbar: scrollbar,
-            selectionController: selection,
-            onIdleMessageTap: taps.add,
-            onSecondaryMessageTap: secondaryTaps.add,
-          ),
-        );
-        await tester.pumpAndSettle();
-        final point = at(tester, 300);
+    for (final claims in [true, false]) {
+      testWidgets(
+        'a press on the thumb fires no message gesture: '
+        '${claims ? 'grabbed' : 'under the none preset it reaches messages'}',
+        (tester) async {
+          final controller = ChatScrollController()..jumpTo(128);
+          final dataSource = _PreloadedDataSource(256);
+          final selection = ChatSelectionController();
+          addTearDown(controller.dispose);
+          addTearDown(dataSource.dispose);
+          addTearDown(selection.dispose);
+          final taps = <ChatMessageMenuRequest>[];
+          final thumbFrames = <ChatScrollbarFrame>[];
+          await tester.pumpWidget(
+            _harness(
+              dataSource: dataSource,
+              controller: controller,
+              scrollbar: ChatScrollbar(painter: _RecordingPainter(thumbFrames)),
+            ),
+          );
+          await tester.pumpAndSettle();
+          final point = at(tester, thumbFrames.last.thumbRect.center.dy);
+          await tester.pumpWidget(
+            _harness(
+              dataSource: dataSource,
+              controller: controller,
+              scrollbar: claims
+                  ? ChatScrollbar(painter: _RecordingPainter(thumbFrames))
+                  : const ChatScrollbar.none(),
+              selectionController: selection,
+              onIdleMessageTap: taps.add,
+            ),
+          );
+          await tester.pumpAndSettle();
 
-        await tester.tapAt(point);
-        await tester.pumpAndSettle();
-        await tester.tapAt(
-          point,
-          buttons: kSecondaryMouseButton,
-          kind: PointerDeviceKind.mouse,
-        );
-        await tester.pumpAndSettle();
-        await tester.longPressAt(point);
-        await tester.pumpAndSettle();
+          await tester.tapAt(point);
+          await tester.pumpAndSettle();
+          await tester.tapAt(point, kind: PointerDeviceKind.mouse);
+          await tester.pumpAndSettle();
+          await tester.longPressAt(point);
+          await tester.pumpAndSettle();
 
-        expect(taps, claims ? isEmpty : isNotEmpty);
-        expect(secondaryTaps, claims ? isEmpty : isNotEmpty);
-        expect(selection.isSelectionMode, !claims);
-      });
+          expect(taps, claims ? isEmpty : hasLength(2));
+          expect(selection.isSelectionMode, !claims);
+        },
+      );
     }
   });
 }

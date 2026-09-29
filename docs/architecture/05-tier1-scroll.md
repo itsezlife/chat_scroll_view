@@ -242,9 +242,34 @@ and follow-tail converge on the next layout.
   the origin still runs). A refused grow bumps `capHits` once per wall.
   Newly laid-out present messages can become
   the span hit. Lift or span abort releases the writer.
-- Scrollbar grab: a press in the strip is tested against the last painted
-  frame (resolved in `_paintScrollbar`), so a press lands on what was
-  painted. A press on the thumb records its offset into the thumb and moves
+- Scrollbar grab: pointer routing runs in this order.
+  1. `hitTest` adds the runtime's strip target ahead of every child when
+     the position lies in the mouse strip (no overlay mode), so its basic
+     cursor beats message cursors and `MouseTracker` enter / exit drive
+     strip hover. Wheel events still reach the viewport and scroll.
+  2. `handleEvent` records every pointer down / up / cancel. Only a
+     **fresh press** — a down while no other pointer is down on the
+     viewport — is offered to `ChatScrollbarRuntime.tryStartGrab`, and only
+     when the list can scroll. A press while another pointer holds a list
+     drag, span gesture, or fling catch never grabs; a lone press on the
+     scrollbar during a fling grabs and cancels the fling.
+  3. `tryStartGrab` tests the last painted frame (resolved in
+     `_paintScrollbar`), so a press lands on what was painted, and routes
+     by pointer kind with the preset's `ChatScrollbarGrab`. Mouse and
+     trackpad: the strip (`stripWidth`, live while hidden), primary button
+     only; thumb press grabs, track press centres the thumb or falls
+     through per `trackPress`. Touch, stylus, and unknown: only while
+     visibility is above `0`, only inside the touch target (the thumb
+     grown to `touchTargetWidth` from the edge and `touchTargetMinHeight`
+     tall); everything else falls through. Both reach at least across the
+     painter's track; RTL mirrors them to the left edge.
+  4. A claimed press returns before fling catch, selection pointer, and
+     drag, so no tap, long-press, span, or list drag starts from it. A
+     declined press continues down the usual path.
+
+  A message menu session covers the viewport with its own dismiss layer,
+  so a strip press there closes the menu and never reaches `handleEvent`.
+  A press on the thumb records its offset into the thumb and moves
   nothing; a press on the track centres the thumb on the pointer. The thumb
   length and the band's span share are frozen at the press. Each move
   repaints the thumb under the pointer and maps its progress through

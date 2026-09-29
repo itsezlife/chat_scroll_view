@@ -103,12 +103,12 @@ void main() {
       final anchorBefore = controller.anchorMessageId;
 
       // Tap left edge → no jump.
-      await tester.tapAt(leftEdge);
+      await tester.tapAt(leftEdge, kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
       expect(controller.anchorMessageId, anchorBefore);
 
       // Tap right edge → scrollbar drag start → jumpTo somewhere.
-      await tester.tapAt(rightStripHit);
+      await tester.tapAt(rightStripHit, kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
       expect(controller.anchorMessageId, isNot(anchorBefore));
     });
@@ -137,12 +137,12 @@ void main() {
       final anchorBefore = controller.anchorMessageId;
 
       // Right edge no longer triggers scrollbar in RTL.
-      await tester.tapAt(rightEdge);
+      await tester.tapAt(rightEdge, kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
       expect(controller.anchorMessageId, anchorBefore);
 
       // Left edge now owns the scrollbar.
-      await tester.tapAt(leftStripHit);
+      await tester.tapAt(leftStripHit, kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
       expect(controller.anchorMessageId, isNot(anchorBefore));
     });
@@ -169,7 +169,7 @@ void main() {
       final viewportTopLeft = tester.getTopLeft(find.byType(ChatScrollView));
       final leftStripHit = viewportTopLeft + const Offset(5, 100);
       final anchorBefore = controller.anchorMessageId;
-      await tester.tapAt(leftStripHit);
+      await tester.tapAt(leftStripHit, kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
       expect(controller.anchorMessageId, isNot(anchorBefore));
     });

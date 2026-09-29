@@ -5,6 +5,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../chat_message.dart';
@@ -101,7 +102,10 @@ void main() {
         final viewportTopLeft = tester.getTopLeft(find.byType(ChatScrollView));
         final start = viewportTopLeft + const Offset(395, 80);
         final end = viewportTopLeft + const Offset(395, 540);
-        final gesture = await tester.startGesture(start);
+        final gesture = await tester.startGesture(
+          start,
+          kind: PointerDeviceKind.mouse,
+        );
         // Multiple intermediate moves, ~30 px each, to mimic a real drag.
         const stepCount = 15;
         for (var i = 1; i <= stepCount; i++) {
@@ -167,7 +171,7 @@ void main() {
         // skipped, poll re-arms forever.
         final viewportTopLeft = tester.getTopLeft(find.byType(ChatScrollView));
         final tapPoint = viewportTopLeft + const Offset(395, 540);
-        await tester.tapAt(tapPoint);
+        await tester.tapAt(tapPoint, kind: PointerDeviceKind.mouse);
         // Pump well past the typical debounce so the timer must have had
         // every opportunity to fire.
         await tester.pump();
@@ -223,7 +227,10 @@ void main() {
         final viewportTopLeft = tester.getTopLeft(find.byType(ChatScrollView));
         final start = viewportTopLeft + const Offset(395, 80);
         final end = viewportTopLeft + const Offset(395, 540);
-        final gesture = await tester.startGesture(start);
+        final gesture = await tester.startGesture(
+          start,
+          kind: PointerDeviceKind.mouse,
+        );
         for (var i = 1; i <= 10; i++) {
           await gesture.moveTo(
             Offset(start.dx, start.dy + (end.dy - start.dy) * (i / 10)),
@@ -275,7 +282,7 @@ void main() {
         final viewportTopLeft = tester.getTopLeft(find.byType(ChatScrollView));
         // y = 540 / 600 → progress ≈ 0.9 → target id ≈ 4500.
         final tapPoint = viewportTopLeft + const Offset(395, 540);
-        await tester.tapAt(tapPoint);
+        await tester.tapAt(tapPoint, kind: PointerDeviceKind.mouse);
         // Drive enough frames for layout + post-microtask poll to fire.
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 200));

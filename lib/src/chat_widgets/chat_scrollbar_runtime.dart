@@ -5,18 +5,20 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/painting.dart';
+import 'package:flutter/services.dart';
 import 'package:meta/meta.dart';
 
 /// Where the press that started a grab landed.
 @internal
 enum ChatScrollbarPress {
-  /// On the thumb: the grab keeps the pointer's offset into the thumb, and
-  /// nothing moves until the pointer does.
+  /// On the thumb, or on a touch target around it: the grab keeps the
+  /// pointer's offset from the thumb's top, and nothing moves until the
+  /// pointer does.
   thumb,
 
-  /// On the track beside the thumb: the thumb centres on the pointer at
-  /// once and the grab continues from there.
+  /// On the track beside the thumb, under
+  /// [ChatScrollbarTrackPress.centerThumb]: the thumb centres on the
+  /// pointer at once and the grab continues from there.
   track,
 }
 
@@ -28,15 +30,33 @@ typedef ChatScrollbarGrabPosition = ({double progress, double spanShare});
 
 /// Per-viewport scrollbar state: the frame resolved at the last paint, the
 /// thumb's motion — at rest, grabbed by a pointer, or settling after a
-/// grab — and the scrollbar's visibility.
+/// grab — which presses and hovers the [grab] rules claim, and the
+/// scrollbar's visibility.
 ///
-/// Knows nothing of the data source, the controller, or anchor math — the
-/// render object computes the band's thumb progress and span share and
-/// hands them to [resolve], maps a [ChatScrollbarGrabPosition] back to a
-/// band position, and reports list motion to the visibility calls. Paint
-/// and grab hit-testing both read [frame], so a press lands on exactly what
-/// was last painted; between a layout and its paint no pointer event is
-/// dispatched, so [frame] is never staler than the pixels on screen.
+/// Knows nothing of the data source, the controller, anchor math, or which
+/// other pointers are down — the render object computes the band's thumb
+/// progress and span share and hands them to [resolve], maps a
+/// [ChatScrollbarGrabPosition] back to a band position, offers
+/// [tryStartGrab] only fresh presses, adds [stripTarget] to its hit tests,
+/// and reports list motion to the visibility calls. Paint and grab
+/// hit-testing both read [frame], so a press lands on exactly what was last
+/// painted; between a layout and its paint no pointer event is dispatched,
+/// so [frame] is never staler than the pixels on screen.
+///
+/// ## Grab targets
+///
+/// Measured on [frame] with the preset's [grab] parameters; both reach at
+/// least to the track's far edge from the trailing side, so a wide painter
+/// stays grabbable and a thin one never shrinks them:
+///
+/// - **Strip** (mouse and trackpad) — [ChatScrollbarGrab.stripWidth] in
+///   from the trailing edge over the track's vertical span, live at any
+///   visibility. [stripContains] tests it; [stripTarget] carries its hover
+///   and cursor.
+/// - **Touch target** (touch, stylus, unknown kinds) —
+///   [ChatScrollbarGrab.touchTargetWidth] in from the trailing edge, over
+///   the thumb grown to [ChatScrollbarGrab.touchTargetMinHeight], live only
+///   while [visibility] is above `0`.
 ///
 /// ## Frame and thumb motion
 ///
@@ -60,25 +80,31 @@ typedef ChatScrollbarGrabPosition = ({double progress, double spanShare});
 /// [configureVisibility]: constant `1` for always, a
 /// [ChatScrollActivityClock] of its own for auto-hide — never the viewport's
 /// scroll-activity clock, so nothing that pins scroll activity reaches it.
-/// Two holders keep an auto-hide clock held, and neither releases the
-/// other's hold:
+/// Three holders keep an auto-hide clock held, and none releases another's
+/// hold:
 ///
 /// - **List motion** — [holdVisibility] while a tick moves the list,
 ///   [releaseVisibility] once nothing does.
 /// - **The grab** — from [tryStartGrab] until [endGrab] or [reset].
+/// - **Strip hover** — while a mouse rests on the strip, from
+///   [stripTarget]'s enter to its exit or [reset].
 ///
 /// [pulseVisibility] reports a discrete move and is ignored while a grab
 /// holds: the grab's own jumps are part of the grab, and its release starts
 /// the idle delay, not the navigation delay.
 @internal
 final class ChatScrollbarRuntime {
-  /// A runtime that calls [onVisibilityChanged] inside ticker frames
-  /// whenever an auto-hide fade moves [visibility]; the owner repaints.
-  ChatScrollbarRuntime({required VoidCallback onVisibilityChanged})
-    : _onVisibilityChanged = onVisibilityChanged;
+  /// A runtime that calls [onChanged] whenever what the next frame shows
+  /// changes outside a paint: an auto-hide fade moves [visibility] (inside
+  /// ticker frames), or a mouse enters or leaves the strip (inside pointer
+  /// dispatch or the mouse tracker's post-frame update). The owner
+  /// repaints.
+  ChatScrollbarRuntime({required VoidCallback onChanged})
+    : _onChanged = onChanged;
 
-  /// Width of the grab strip along the viewport's trailing edge.
-  static const double stripWidth = 20;
+  /// The preset's grab rules, read by every strip and touch-target test.
+  /// A change reaches a resting mouse at the mouse tracker's next update.
+  ChatScrollbarGrab grab = const ChatScrollbarGrab();
 
   /// Settle length and curve under [ChatScrollbarVisibility.always], which
   /// has no fade to take them from.
@@ -174,6 +200,7 @@ final class ChatScrollbarRuntime {
       thumbRect: Rect.fromLTRB(left, thumbTop, right, thumbTop + thumbLength),
       textDirection: textDirection,
       visibility: visibility,
+      hoverFactor: _hovered ? 1.0 : 0.0,
       grabFactor: isGrabbing ? 1.0 : 0.0,
     );
   }
@@ -187,11 +214,13 @@ final class ChatScrollbarRuntime {
   }
 
   /// Drops [frame], all motion (a grab included), and the visibility state:
-  /// both holds are forgotten and an auto-hide clock is disposed, its
-  /// pending hide cancelled. For a render object leaving the tree, where the
-  /// grabbing pointer's remaining events never arrive; the owner calls
-  /// [configureVisibility] again on re-attach, which starts auto-hide
-  /// hidden.
+  /// the motion and grab holds are forgotten and an auto-hide clock is
+  /// disposed, its pending hide cancelled. For a render object leaving the
+  /// tree, where the grabbing pointer's remaining events never arrive. Strip
+  /// hover survives: the mouse tracker still reports its exit, so a pointer
+  /// resting on the strip across a same-frame re-parent keeps holding. The
+  /// owner calls [configureVisibility] again on re-attach, which starts
+  /// auto-hide hidden unless the hover holds.
   void reset() {
     _frame = null;
     _motion = null;
@@ -199,37 +228,105 @@ final class ChatScrollbarRuntime {
     configureVisibility(null);
   }
 
-  /// Starts a grab when [event] lands in the strip: [stripWidth] wide on the
-  /// trailing edge of [frame]'s direction, over the track's vertical span,
-  /// both bounds inclusive. Replaces a settle in flight, and holds
-  /// visibility until [endGrab].
+  // --- Grab targets ----------------------------------------------------------
+
+  /// Whether [dx] lies within [width] of [frame]'s trailing edge, or between
+  /// that edge and the track's far side when the track reaches further in.
+  /// Inclusive.
+  bool _nearTrailingEdge(ChatScrollbarFrame frame, double dx, double width) {
+    final track = frame.trackRect;
+    return switch (frame.textDirection) {
+      TextDirection.ltr => dx >= math.min(_viewportWidth - width, track.left),
+      TextDirection.rtl => dx <= math.max(width, track.right),
+    };
+  }
+
+  /// Whether a mouse or trackpad pointer at viewport-local [local] is over
+  /// the strip of the last resolved [frame] — at any visibility, `false`
+  /// with no frame. Bounds are inclusive; vertically the strip spans the
+  /// track.
+  bool stripContains(Offset local) {
+    final frame = _frame;
+    if (frame == null) return false;
+    final track = frame.trackRect;
+    return _nearTrailingEdge(frame, local.dx, grab.stripWidth) &&
+        local.dy >= track.top &&
+        local.dy <= track.bottom;
+  }
+
+  /// Whether a touch at [local] lands on [frame]'s touch target: the thumb
+  /// grown symmetrically to [ChatScrollbarGrab.touchTargetMinHeight], which
+  /// may reach past the track's ends. Bounds are inclusive.
+  bool _touchTargetContains(ChatScrollbarFrame frame, Offset local) {
+    final thumb = frame.thumbRect;
+    final grow = math.max(0, grab.touchTargetMinHeight - thumb.height) / 2;
+    return _nearTrailingEdge(frame, local.dx, grab.touchTargetWidth) &&
+        local.dy >= thumb.top - grow &&
+        local.dy <= thumb.bottom + grow;
+  }
+
+  /// Where a mouse or trackpad press lands under [grab]: the thumb, the
+  /// track under [ChatScrollbarTrackPress.centerThumb], or `null` — off the
+  /// strip, a track press under [ChatScrollbarTrackPress.fallThrough], or
+  /// any button but the primary one.
+  ChatScrollbarPress? _stripPress(
+    ChatScrollbarFrame frame,
+    PointerDownEvent event,
+  ) {
+    if (event.buttons & kPrimaryButton == 0) return null;
+    if (!stripContains(event.localPosition)) return null;
+    final dy = event.localPosition.dy;
+    if (dy >= frame.thumbRect.top && dy <= frame.thumbRect.bottom) {
+      return ChatScrollbarPress.thumb;
+    }
+    return switch (grab.trackPress) {
+      ChatScrollbarTrackPress.centerThumb => ChatScrollbarPress.track,
+      ChatScrollbarTrackPress.fallThrough => null,
+    };
+  }
+
+  /// Starts a grab when [event] lands on a live target of the last resolved
+  /// [frame] for its pointer kind — the strip for a mouse or trackpad, the
+  /// touch target for anything else (see the type docs). Replaces a settle
+  /// in flight, and holds visibility until [endGrab].
   ///
-  /// Returns where the press landed, or `null` when it missed the strip and
-  /// no grab started. On [ChatScrollbarPress.track] the thumb is centred on
-  /// the pointer; read [grabPosition] for the band position that asks for.
+  /// The caller decides whether the press is fresh; this reads only the
+  /// press itself, [frame], [grab], and [visibility]. Returns where the
+  /// press landed, or `null` when it was declined and no grab started. On
+  /// [ChatScrollbarPress.track] the thumb is centred on the pointer; read
+  /// [grabPosition] for the band position that asks for.
   ChatScrollbarPress? tryStartGrab(PointerDownEvent event) {
     final frame = _frame;
     if (frame == null) return null;
-    final Offset(:dx, :dy) = event.localPosition;
-    final inStrip = switch (frame.textDirection) {
-      TextDirection.ltr => dx >= _viewportWidth - stripWidth,
-      TextDirection.rtl => dx <= stripWidth,
+    final press = switch (event.kind) {
+      PointerDeviceKind.mouse ||
+      PointerDeviceKind.trackpad => _stripPress(frame, event),
+      PointerDeviceKind.touch ||
+      PointerDeviceKind.stylus ||
+      PointerDeviceKind.invertedStylus ||
+      PointerDeviceKind.unknown =>
+        visibility > 0 && _touchTargetContains(frame, event.localPosition)
+            ? ChatScrollbarPress.thumb
+            : null,
     };
-    if (!inStrip || dy < frame.trackRect.top || dy > frame.trackRect.bottom) {
-      return null;
-    }
+    if (press == null) return null;
+    final dy = event.localPosition.dy;
     final thumb = frame.thumbRect;
-    final onThumb = dy >= thumb.top && dy <= thumb.bottom;
     _motion = _Grab(
       pointer: event.pointer,
       pointerY: dy,
-      grabOffset: onThumb ? dy - thumb.top : thumb.height / 2,
+      grabOffset: switch (press) {
+        ChatScrollbarPress.thumb => dy - thumb.top,
+        ChatScrollbarPress.track => thumb.height / 2,
+      },
       thumbLength: thumb.height,
       spanShare: _spanShare,
     );
     _visibilityClock?.hold();
-    return onThumb ? ChatScrollbarPress.thumb : ChatScrollbarPress.track;
+    return press;
   }
+
+  // --- Grab motion and settle ------------------------------------------------
 
   /// The grab's thumb position against the last resolved track, or `null`
   /// when no grab is held or no frame is resolved.
@@ -257,7 +354,7 @@ final class ChatScrollbarRuntime {
   /// Ends the grab, if any, and starts the settle from the thumb the grab
   /// last asked for. Without a resolved frame the thumb goes straight to
   /// rest. Releases the grab's visibility hold: the idle delay starts
-  /// unless list motion still holds.
+  /// unless list motion or strip hover still holds.
   void endGrab() {
     if (_motion case final _Grab grab) {
       _motion = switch (_frame) {
@@ -267,7 +364,7 @@ final class ChatScrollbarRuntime {
         ),
         null => null,
       };
-      if (!_motionHeld) _visibilityClock?.release();
+      if (!_held) _visibilityClock?.release();
     }
   }
 
@@ -309,9 +406,40 @@ final class ChatScrollbarRuntime {
     return false;
   }
 
+  // --- Strip hover -----------------------------------------------------------
+
+  /// Hit-test target the owner adds ahead of its children wherever
+  /// [stripContains] holds, so the mouse tracker sees the strip as the
+  /// topmost region there: it shows [SystemMouseCursors.basic] over message
+  /// cursors, and its enter and exit drive the hover hold. Ignores the
+  /// pointer events it is dispatched; a press in the strip still reaches the
+  /// owner and the messages below.
+  late final HitTestTarget stripTarget = _StripTarget(this);
+
+  bool _hovered = false;
+
+  /// Enter and exit of [stripTarget]. Entering holds visibility (revealing
+  /// a hidden scrollbar) unless another holder already does; leaving
+  /// releases it unless another holder still holds. Either way the hover
+  /// factor flips, so the owner repaints.
+  void _hoverStrip(bool hovered) {
+    if (_hovered == hovered) return;
+    _hovered = hovered;
+    if (hovered) {
+      // A second hold would replace a live navigation hold's delay with the
+      // idle delay.
+      if (_visibilityClock case final clock? when !clock.isHolding) {
+        clock.hold();
+      }
+    } else if (!_held) {
+      _visibilityClock?.release();
+    }
+    _onChanged();
+  }
+
   // --- Visibility ------------------------------------------------------------
 
-  final VoidCallback _onVisibilityChanged;
+  final VoidCallback _onChanged;
 
   /// The preset's visibility; `null` with no painted preset or while
   /// detached.
@@ -320,9 +448,12 @@ final class ChatScrollbarRuntime {
   /// Live exactly while [_visibilityMode] is auto-hide.
   ChatScrollActivityClock? _visibilityClock;
 
-  /// Whether list motion holds visibility, separately from the grab's hold,
-  /// so ending one never drops the other.
+  /// Whether list motion holds visibility, separately from the grab's and
+  /// the hover's holds, so ending one never drops another.
   bool _motionHeld = false;
+
+  /// Whether any holder still wants the scrollbar shown.
+  bool get _held => _motionHeld || isGrabbing || _hovered;
 
   bool _visibilityMuted = false;
 
@@ -368,10 +499,10 @@ final class ChatScrollbarRuntime {
         }
         final clock = _visibilityClock = ChatScrollActivityClock(
           timing: timing,
-          onChanged: _onVisibilityChanged,
+          onChanged: _onChanged,
           initialValue: shown,
         )..muted = _visibilityMuted;
-        if (_motionHeld || isGrabbing) {
+        if (_held) {
           clock.hold();
         } else if (shown > 0) {
           clock.pulse(navigation: false);
@@ -390,12 +521,12 @@ final class ChatScrollbarRuntime {
     _visibilityClock?.hold(navigation: navigation);
   }
 
-  /// Nothing moves the list any more. Starts the hide delay unless a grab
-  /// still holds; a no-op without a motion hold.
+  /// Nothing moves the list any more. Starts the hide delay unless a grab or
+  /// strip hover still holds; a no-op without a motion hold.
   void releaseVisibility() {
     if (!_motionHeld) return;
     _motionHeld = false;
-    if (!isGrabbing) _visibilityClock?.release();
+    if (!_held) _visibilityClock?.release();
   }
 
   /// A discrete move of the reader's position: show, then hide after the
@@ -405,6 +536,37 @@ final class ChatScrollbarRuntime {
     if (isGrabbing) return;
     _visibilityClock?.pulse(navigation: navigation);
   }
+}
+
+/// [ChatScrollbarRuntime.stripTarget]: a mouse-tracker region with the basic
+/// cursor whose enter and exit report strip hover. Only mouse and trackpad
+/// hover counts: the tracker also follows a hovering stylus, which grabs by
+/// the touch rules and must not reveal a hidden scrollbar. Always valid —
+/// after the owner detaches, a late exit lands on a runtime with no clock,
+/// and the owner's repaint callback checks attachment.
+final class _StripTarget extends MouseTrackerAnnotation
+    implements HitTestTarget {
+  _StripTarget(ChatScrollbarRuntime runtime)
+    : super(
+        cursor: SystemMouseCursors.basic,
+        onEnter: (event) {
+          if (_hovers(event)) runtime._hoverStrip(true);
+        },
+        onExit: (event) {
+          if (_hovers(event)) runtime._hoverStrip(false);
+        },
+      );
+
+  static bool _hovers(PointerEvent event) => switch (event.kind) {
+    PointerDeviceKind.mouse || PointerDeviceKind.trackpad => true,
+    PointerDeviceKind.touch ||
+    PointerDeviceKind.stylus ||
+    PointerDeviceKind.invertedStylus ||
+    PointerDeviceKind.unknown => false,
+  };
+
+  @override
+  void handleEvent(PointerEvent event, HitTestEntry entry) {}
 }
 
 /// The thumb's motion away from rest; `null` in [ChatScrollbarRuntime] is

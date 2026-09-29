@@ -802,7 +802,10 @@ void main() {
       await mount(tester);
       const scrollbarStrip = Offset(_viewportWidth - 10, 80);
       final origin = tester.getTopLeft(find.byType(ChatScrollView));
-      final gesture = await tester.startGesture(origin + scrollbarStrip);
+      final gesture = await tester.startGesture(
+        origin + scrollbarStrip,
+        kind: PointerDeviceKind.mouse,
+      );
       await tester.pump();
       await gesture.moveBy(const Offset(0, 40));
       await tester.pump();

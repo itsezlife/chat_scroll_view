@@ -1223,13 +1223,20 @@ class RenderChatScrollView extends RenderBox {
   // Scrollbar visibility sits beside scroll activity, fed from the same motion
   // edges (tick hold, settle release, jump and scrollBy pulses) but owned by
   // the runtime: the day header's pin never reaches it.
+  //
+  // Pointer routing: [hitTest] puts the runtime's strip target ahead of the
+  // children (arrow cursor, hover hold); [handleEvent] offers only fresh
+  // presses ([_pressedPointers] empty) to the grab, before fling catch,
+  // selection, and the list drag.
 
   late final ChatScrollbarRuntime _scrollbarRuntime = ChatScrollbarRuntime(
-    onVisibilityChanged: _onScrollbarVisibilityChanged,
+    onChanged: _onScrollbarChanged,
   );
 
-  void _onScrollbarVisibilityChanged() {
-    if (hasSize) markNeedsPaint();
+  /// A fade tick or strip hover changed what the scrollbar shows. Hover
+  /// exits can arrive after [detach], from the mouse tracker's update.
+  void _onScrollbarChanged() {
+    if (attached && hasSize) markNeedsPaint();
   }
 
   ChatScrollbar _scrollbar;
@@ -1240,19 +1247,32 @@ class RenderChatScrollView extends RenderBox {
     ChatScrollbar$None() => null,
   };
 
+  /// The grab rules of a painted preset; the defaults for
+  /// [ChatScrollbar$None], which resolves no frame to grab.
+  ChatScrollbarGrab get _scrollbarGrab => switch (_scrollbar) {
+    ChatScrollbar$Painted(:final grab) => grab,
+    ChatScrollbar$None() => const ChatScrollbarGrab(),
+  };
+
+  /// Pointers down on the viewport, from their down to their up or cancel,
+  /// whatever claimed them. A press is fresh — offered to the scrollbar
+  /// grab — only while this is empty.
+  final Set<int> _pressedPointers = <int>{};
+
   /// The scrollbar preset. See [ChatScrollView.scrollbar].
   ///
   /// An equal value is a no-op. An unequal value ends an active grab (as a
-  /// pointer up would), hands the new visibility to the runtime while
-  /// attached, then repaints unless the shown visibility is unchanged and
-  /// both presets use painters of the same type with the new one declining
-  /// via [ChatScrollbarPainter.shouldRepaint].
+  /// pointer up would), hands the new grab rules and (while attached) the
+  /// new visibility to the runtime, then repaints unless the shown
+  /// visibility is unchanged and both presets use painters of the same type
+  /// with the new one declining via [ChatScrollbarPainter.shouldRepaint].
   ChatScrollbar get scrollbar => _scrollbar;
   set scrollbar(ChatScrollbar value) {
     if (_scrollbar == value) return;
     final old = _scrollbar;
     _scrollbar = value;
     _endScrollbarGrab();
+    _scrollbarRuntime.grab = _scrollbarGrab;
     final shownBefore = _scrollbarRuntime.visibility;
     if (attached) _scrollbarRuntime.configureVisibility(_scrollbarVisibility);
     final repaint = switch ((old, value)) {
@@ -1651,6 +1671,7 @@ class RenderChatScrollView extends RenderBox {
       _activity = _createActivityClock(timing);
     }
     _scrollbarRuntime
+      ..grab = _scrollbarGrab
       ..visibilityMuted = !_ticking
       ..configureVisibility(_scrollbarVisibility);
     _rowChromeTransitions = ChatRowChromeTransitionClock(
@@ -1736,8 +1757,10 @@ class RenderChatScrollView extends RenderBox {
       _cancelFling();
       _controller.flingCancelSuppressesLongPress = false;
       _flingCancelPointer = null;
-      // A grab's pointer events stop arriving and the settle's ticker goes.
+      // A grab's pointer events stop arriving and the settle's ticker goes;
+      // so do the ups of every pressed pointer.
       _scrollbarRuntime.reset();
+      _pressedPointers.clear();
       _ticker?.dispose();
       _ticker = null;
       _activity?.dispose();
@@ -5357,6 +5380,16 @@ class RenderChatScrollView extends RenderBox {
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
     assert(debugHandleEvent(event, entry));
 
+    // Tracked ahead of the overlay early-out: a press can go down over
+    // messages and lift over an overlay.
+    final freshPress = event is PointerDownEvent && _pressedPointers.isEmpty;
+    switch (event) {
+      case PointerDownEvent(:final pointer):
+        _pressedPointers.add(pointer);
+      case PointerUpEvent(:final pointer) || PointerCancelEvent(:final pointer):
+        _pressedPointers.remove(pointer);
+    }
+
     // Overlay mode: no messages to scroll over. The overlay child handles
     // its own pointers via the normal hit-test path; the viewport itself
     // contributes nothing.
@@ -5379,7 +5412,11 @@ class RenderChatScrollView extends RenderBox {
     }
 
     if (event is PointerDownEvent) {
-      if (_dataSource.newestKnownId != null && !_contentFitsInViewport()) {
+      // Only a fresh press may grab: a second finger during a list drag, a
+      // span gesture, or a fling catch belongs to that gesture's session.
+      if (freshPress &&
+          _dataSource.newestKnownId != null &&
+          !_contentFitsInViewport()) {
         if (scrollbar.tryStartGrab(event) case final press?) {
           _cancelFling();
           _controller.releaseNavigationPlacement();
@@ -5448,6 +5485,24 @@ class RenderChatScrollView extends RenderBox {
       _pendingScrollDelta -= event.scrollDelta.dy;
       _ensureTicker();
     }
+  }
+
+  /// Puts [ChatScrollbarRuntime.stripTarget] first in the path wherever the
+  /// last painted frame has its strip — ahead of messages, the floating
+  /// header, and this viewport — so the mouse tracker resolves the strip's
+  /// arrow cursor over message cursors and reports its hover. The target
+  /// ignores pointer events: children and [handleEvent] still receive every
+  /// press, and [handleEvent] alone decides whether it grabs. No strip in
+  /// overlay mode or while nothing is resolved (no painted preset, content
+  /// fits).
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (!size.contains(position)) return false;
+    if (_overlayKind == ChatOverlayKind.none &&
+        _scrollbarRuntime.stripContains(position)) {
+      result.add(HitTestEntry(_scrollbarRuntime.stripTarget));
+    }
+    return super.hitTest(result, position: position);
   }
 
   @override

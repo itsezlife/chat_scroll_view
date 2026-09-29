@@ -195,15 +195,16 @@ with no clock; `autoHide` runs a second `ChatScrollActivityClock`, owned by
 leaving auto-hide), with the preset's idle delay, navigation delay, fades,
 and curve. A `none` preset resolves `0`.
 
-The runtime tracks two holders — list motion and the thumb grab — because
-the clock's hold is a single flag: the clock is released only once both
-end.
+The runtime tracks three holders — list motion, the thumb grab, and mouse
+hover on the strip — because the clock's hold is a single flag: the clock
+is released only once all of them end.
 
 | Edge | Runtime call → clock |
 |------|----------------------|
 | A tick consumes scroll delta (drag, fling, wheel, animate — including a self-send's animated pull to the tail — span auto-scroll) | `holdVisibility(navigation: animate-only delta)` → `hold` |
-| Nothing moves the list (same rule as activity: `_releaseMotionIfSettled`) | `releaseVisibility()` → `release` unless a grab holds |
-| Thumb grab starts / ends | `tryStartGrab` → `hold`; `endGrab` → `release` unless list motion holds |
+| Nothing moves the list (same rule as activity: `_releaseMotionIfSettled`) | `releaseVisibility()` → `release` unless a grab or strip hover holds |
+| Thumb grab starts / ends | `tryStartGrab` → `hold`; `endGrab` → `release` unless list motion or strip hover holds |
+| Mouse enters / leaves the strip (`MouseTracker` on the strip target; leaving the viewport counts) | `hold`, hover factor `1`; leaving → `release` unless list motion or a grab holds, hover factor `0` |
 | Jump (`_onJump`: `jumpTo`, `jumpToCenterBand`, the jump that starts a far animate or a far self-send pull) | `pulseVisibility()` → `pulse()`; ignored while grabbing (grab moves seat through `jumpToFraction`) |
 | `scrollBy` (keyboard step) | `pulseVisibility(navigation: false)` → `pulse(navigation: false)` |
 | Attach | clock starts at `0`: an auto-hide scrollbar opens hidden |
@@ -215,8 +216,8 @@ path that consumes no tick delta), history loads, renormalize, band-stable
 delete recovery, inset and keyboard changes, row chrome transitions, and the
 day header's `holdsActivity` (the scrollbar clock is never pinned).
 
-At visibility `0` the frame is still resolved — strip hit-testing reads it —
-but the painter is not called. The release settle runs over the auto-hide
+At visibility `0` the frame is still resolved — the mouse strip stays live
+and reads it; touch grabs are declined — but the painter is not called. The release settle runs over the auto-hide
 `fadeOut` along its `curve` (250 ms `easeOut` under always), so the thumb
 comes to rest in step with the fade.
 

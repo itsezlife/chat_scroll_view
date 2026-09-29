@@ -7,6 +7,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -343,9 +344,12 @@ void main() {
       await tester.pump();
       expect(controller.anchorMessageId, count - 1);
 
-      // Press near the top of the right-edge scrollbar strip.
+      // Click near the top of the right-edge scrollbar strip.
       final box = tester.getRect(find.byType(ChatScrollView));
-      await tester.tapAt(Offset(box.right - 6, box.top + 24));
+      await tester.tapAt(
+        Offset(box.right - 6, box.top + 24),
+        kind: PointerDeviceKind.mouse,
+      );
       await tester.pump();
 
       expect(

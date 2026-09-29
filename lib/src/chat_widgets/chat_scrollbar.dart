@@ -13,8 +13,9 @@ import 'package:flutter/painting.dart';
 /// left-to-right, left in right-to-left) and paints outside the edge-effect
 /// transform. Its **track** stands for the known conversation span, its
 /// **thumb** for the visible band. The viewport owns thumb position and
-/// length, when the scrollbar is shown, and which presses it grabs; the
-/// painter owns only the look.
+/// length, when the scrollbar is shown ([ChatScrollbarVisibility]), and
+/// which presses it grabs ([ChatScrollbarGrab]); the painter owns only the
+/// look.
 ///
 /// No scrollbar is painted, and no press is grabbed, while the whole
 /// conversation fits in the scroll band or the viewport shows its loading or
@@ -26,11 +27,12 @@ import 'package:flutter/painting.dart';
 /// held it scrolls nothing until it lifts.
 @immutable
 sealed class ChatScrollbar {
-  /// A scrollbar drawn by [painter], shown per [visibility] — see
-  /// [ChatScrollbar$Painted].
+  /// A scrollbar drawn by [painter], shown per [visibility], grabbed per
+  /// [grab] — see [ChatScrollbar$Painted].
   const factory ChatScrollbar({
     ChatScrollbarPainter painter,
     ChatScrollbarVisibility visibility,
+    ChatScrollbarGrab grab,
   }) = ChatScrollbar$Painted;
 
   const ChatScrollbar._();
@@ -39,39 +41,20 @@ sealed class ChatScrollbar {
   const factory ChatScrollbar.none() = ChatScrollbar$None;
 }
 
-/// A scrollbar drawn by [painter], shown per [visibility].
+/// A scrollbar drawn by [painter], shown per [visibility], grabbed per
+/// [grab].
 ///
-/// A pointer that goes down within 20 px of the viewport's trailing edge,
-/// over the track's vertical span, grabs the scrollbar until it lifts —
-/// whether or not it is currently shown:
-///
-/// - A press on the thumb keeps the point it grabbed: nothing moves until
-///   the pointer does. A press on the track beside the thumb centres the
-///   thumb on the pointer at once and continues the same way.
-/// - While grabbed, the thumb is painted exactly under the pointer, with
-///   the length it had at the press. The list follows: the thumb's place on
-///   the track maps linearly onto message ids across the known span, and
-///   the scroll band's top edge lands at that position — inside a message
-///   when the position falls inside one, so dragging through a tall message
-///   moves through it continuously.
-/// - On release the thumb eases back to where the list's own position puts
-///   it, over [visibility]'s fade-out and curve (250 ms, [Curves.easeOut]
-///   under [ChatScrollbarVisibility.always]). The two can differ, because
-///   the list's position weighs how many messages fit in the band where it
-///   landed.
-///
-/// A grab starts only on a fresh press, cancels a fling in flight, releases
-/// a held navigation placement, and never reaches message selection, taps,
-/// secondary taps, or the list drag. It holds the scrollbar shown until the
-/// pointer lifts. Each move the list follows reports a jump to the
-/// controller's jump listeners, and fetches unloaded history the same way a
-/// jump does.
+/// The three parts are independent: [grab] reads the track and thumb rects
+/// the viewport resolved from [painter]'s geometry, never what [painter]
+/// drew, and [visibility] gates only touch grabs (a hidden scrollbar is
+/// still live under a mouse — see [ChatScrollbarGrab]).
 final class ChatScrollbar$Painted extends ChatScrollbar {
   /// A scrollbar drawn by [painter]; defaults to [ChatPillScrollbarPainter],
-  /// always shown.
+  /// always shown, with the default [ChatScrollbarGrab].
   const ChatScrollbar$Painted({
     this.painter = const ChatPillScrollbarPainter(),
     this.visibility = const ChatScrollbarVisibility.always(),
+    this.grab = const ChatScrollbarGrab(),
   }) : super._();
 
   /// The look. Part of this preset's equality: give custom painters value
@@ -83,18 +66,25 @@ final class ChatScrollbar$Painted extends ChatScrollbar {
   /// **scrollbar visibility** as [ChatScrollbarFrame.visibility].
   final ChatScrollbarVisibility visibility;
 
+  /// Which presses and hovers the scrollbar claims, and what a press on the
+  /// track does.
+  final ChatScrollbarGrab grab;
+
   @override
   bool operator ==(Object other) =>
       other is ChatScrollbar$Painted &&
       other.painter == painter &&
-      other.visibility == visibility;
+      other.visibility == visibility &&
+      other.grab == grab;
 
   @override
-  int get hashCode => Object.hash(ChatScrollbar$Painted, painter, visibility);
+  int get hashCode =>
+      Object.hash(ChatScrollbar$Painted, painter, visibility, grab);
 
   @override
   String toString() =>
-      'ChatScrollbar(painter: $painter, visibility: $visibility)';
+      'ChatScrollbar(painter: $painter, visibility: $visibility, '
+      'grab: $grab)';
 }
 
 /// No scrollbar: nothing is painted and no press is grabbed, so presses
@@ -249,6 +239,149 @@ final class ChatScrollbarVisibility$AutoHide extends ChatScrollbarVisibility {
       'fadeOut: $fadeOut, curve: $curve)';
 }
 
+/// **Scrollbar grab**: which presses and hovers a painted [ChatScrollbar]
+/// takes away from message scrolling, and what a grab does.
+///
+/// A closed behavior with tunable parameters. The rules follow the pointer
+/// kind of each event — a touchscreen laptop gets touch rules for touch and
+/// mouse rules for the mouse under one preset. Every target is measured
+/// from the track and thumb rects the viewport resolved for the painter
+/// ([ChatScrollbarFrame]), never from what the painter drew. No press is
+/// claimed and nothing is hovered while no scrollbar is resolved: the
+/// conversation fits in the scroll band, or the viewport shows its loading
+/// or empty overlay.
+///
+/// ## Touch and stylus
+///
+/// A touch or stylus press grabs only while the scrollbar is shown
+/// (visibility above `0` at the press) and only inside the **touch
+/// target**: [touchTargetWidth] in from the viewport's trailing edge, over
+/// the thumb grown to at least [touchTargetMinHeight] around its centre.
+/// Every other touch press — on a hidden scrollbar, on the track beside the
+/// thumb, just outside the target — is declined: a swipe that starts near
+/// the edge scrolls the list, and a tap or long-press there reaches the
+/// message under it. [trackPress] never applies to touch.
+///
+/// ## Mouse and trackpad
+///
+/// The **strip**, [stripWidth] in from the trailing edge over the track's
+/// vertical span, is live even while the scrollbar is hidden. Hovering it
+/// holds the scrollbar shown (revealing a hidden one), sets
+/// [ChatScrollbarFrame.hoverFactor] to `1`, and shows the basic arrow
+/// cursor over whatever lies beneath; leaving it drops
+/// the hover factor to `0` and starts the idle delay. The wheel over the
+/// strip scrolls messages as it does anywhere else. A primary-button press
+/// on the thumb grabs; a primary-button press on the track beside the thumb
+/// does what [trackPress] says. Other buttons are declined.
+///
+/// Both the strip and the touch target reach at least to the track's far
+/// edge from the trailing side, so a painter wider than [stripWidth] or
+/// [touchTargetWidth] stays grabbable across its whole track, and a thinner
+/// painter never shrinks either target.
+///
+/// ## Ownership
+///
+/// A grab starts only on a fresh press: one that goes down while no other
+/// pointer is down on the viewport — never during a span gesture, a list
+/// drag, a desktop drag selection, a press that caught a fling or edge
+/// spring, or another grab. A pointer on something drawn above the
+/// viewport, such as a text selection handle or a message menu session's
+/// dismiss layer, never reaches the scrollbar: a press on the strip while a
+/// message menu is open dismisses the menu and does not grab.
+///
+/// A grab cancels a fling in flight and releases a held navigation
+/// placement. It then owns its pointer until release: no tap, long-press,
+/// span gesture, secondary tap, or list drag fires from it. It holds the
+/// scrollbar shown until the pointer lifts. Declined presses reach messages
+/// exactly as if there were no scrollbar.
+///
+/// ## Drag
+///
+/// - A press on the thumb keeps the point it grabbed: nothing moves until
+///   the pointer does.
+/// - While grabbed, the thumb is painted exactly under the pointer, with
+///   the length it had at the press. The list follows: the thumb's place on
+///   the track maps linearly onto message ids across the known span, and
+///   the scroll band's top edge lands at that position — inside a message
+///   when the position falls inside one, so dragging through a tall message
+///   moves through it continuously. Each move reports a jump to the
+///   controller's jump listeners and fetches unloaded history the same way
+///   a jump does.
+/// - On release the thumb eases back to where the list's own position puts
+///   it, over the preset visibility's fade-out and curve (250 ms,
+///   [Curves.easeOut] under [ChatScrollbarVisibility.always]). The two can
+///   differ, because the list's position weighs how many messages fit in
+///   the band where it landed.
+///
+/// Immutable and value-equal, as part of the preset's equality.
+@immutable
+final class ChatScrollbarGrab {
+  /// Grab rules; the defaults give a 12 px mouse strip, a 32 × 48 px touch
+  /// target, and a track press that centres the thumb.
+  const ChatScrollbarGrab({
+    this.stripWidth = 12,
+    this.touchTargetWidth = 32,
+    this.touchTargetMinHeight = 48,
+    this.trackPress = ChatScrollbarTrackPress.centerThumb,
+  }) : assert(stripWidth > 0, 'stripWidth must be positive'),
+       assert(touchTargetWidth > 0, 'touchTargetWidth must be positive'),
+       assert(
+         touchTargetMinHeight >= 0,
+         'touchTargetMinHeight must not be negative',
+       );
+
+  /// Width of the mouse and trackpad strip, in from the viewport's trailing
+  /// edge.
+  final double stripWidth;
+
+  /// Width of the touch target, in from the viewport's trailing edge.
+  final double touchTargetWidth;
+
+  /// Shortest the touch target gets along the track. A shorter thumb gets
+  /// a target of this height centred on it, reaching past the track's ends
+  /// when the thumb rests at one; a longer thumb is its own target height.
+  final double touchTargetMinHeight;
+
+  /// What a mouse or trackpad press on the track beside the thumb does.
+  final ChatScrollbarTrackPress trackPress;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatScrollbarGrab &&
+      other.stripWidth == stripWidth &&
+      other.touchTargetWidth == touchTargetWidth &&
+      other.touchTargetMinHeight == touchTargetMinHeight &&
+      other.trackPress == trackPress;
+
+  @override
+  int get hashCode => Object.hash(
+    stripWidth,
+    touchTargetWidth,
+    touchTargetMinHeight,
+    trackPress,
+  );
+
+  @override
+  String toString() =>
+      'ChatScrollbarGrab(stripWidth: $stripWidth, '
+      'touchTargetWidth: $touchTargetWidth, '
+      'touchTargetMinHeight: $touchTargetMinHeight, '
+      'trackPress: $trackPress)';
+}
+
+/// What a mouse or trackpad press on the track beside the thumb does; see
+/// [ChatScrollbarGrab.trackPress].
+enum ChatScrollbarTrackPress {
+  /// Grabs: the thumb centres on the pointer at once, the list jumps to
+  /// match, and the grab continues from there as if the press had landed on
+  /// the thumb's centre.
+  centerThumb,
+
+  /// Declines the press, which reaches the message under it as if there
+  /// were no scrollbar.
+  fallThrough,
+}
+
 /// What a [ChatScrollbarPainter] draws in one frame, in viewport-local
 /// pixels.
 ///
@@ -292,7 +425,9 @@ final class ChatScrollbarFrame {
   /// while it is `0`.
   final double visibility;
 
-  /// How far a hovering pointer has engaged the scrollbar, in `[0, 1]`.
+  /// How far a hovering pointer has engaged the scrollbar, in `[0, 1]`: `1`
+  /// while a mouse or trackpad pointer rests on the strip (see
+  /// [ChatScrollbarGrab]).
   final double hoverFactor;
 
   /// How far a grab has engaged the scrollbar, in `[0, 1]`: `1` while a
@@ -428,23 +563,21 @@ final class ChatPillScrollbarPainter extends ChatScrollbarPainter {
   ) {
     final width = lerpDouble(thickness, grabbedThickness, frame.grabFactor)!;
     final radius = Radius.circular(width / 2);
-    RRect pill(Rect rect) => RRect.fromRectAndRadius(
-      switch (frame.textDirection) {
-        TextDirection.ltr => Rect.fromLTRB(
-          rect.right - width,
-          rect.top,
-          rect.right,
-          rect.bottom,
-        ),
-        TextDirection.rtl => Rect.fromLTRB(
-          rect.left,
-          rect.top,
-          rect.left + width,
-          rect.bottom,
-        ),
-      },
-      radius,
-    );
+    RRect pill(Rect rect) =>
+        RRect.fromRectAndRadius(switch (frame.textDirection) {
+          TextDirection.ltr => Rect.fromLTRB(
+            rect.right - width,
+            rect.top,
+            rect.right,
+            rect.bottom,
+          ),
+          TextDirection.rtl => Rect.fromLTRB(
+            rect.left,
+            rect.top,
+            rect.left + width,
+            rect.bottom,
+          ),
+        }, radius);
     Paint fill(Color color) =>
         _fill..color = color.withValues(alpha: color.a * frame.visibility);
 
@@ -468,8 +601,7 @@ final class ChatPillScrollbarPainter extends ChatScrollbarPainter {
   static final Paint _fill = Paint();
 
   @override
-  bool shouldRepaint(ChatPillScrollbarPainter oldPainter) =>
-      oldPainter != this;
+  bool shouldRepaint(ChatPillScrollbarPainter oldPainter) => oldPainter != this;
 
   @override
   bool operator ==(Object other) =>

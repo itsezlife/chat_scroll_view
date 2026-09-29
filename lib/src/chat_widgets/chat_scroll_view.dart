@@ -450,7 +450,8 @@ class ChatScrollView extends RenderObjectWidget {
   /// a specific chat thread inside an RTL app).
   ///
   /// Drives where the scrollbar paints (right in LTR, left in RTL) and where
-  /// its touch strip lives. The `messageBuilder` does not receive this value
+  /// its mouse strip and touch target live. The `messageBuilder` does not
+  /// receive this value
   /// — to mirror bubble alignment, read `Directionality.of(context)` inside
   /// the builder.
   final TextDirection? textDirection;
@@ -510,13 +511,14 @@ class ChatScrollView extends RenderObjectWidget {
   final ChatScrollPhysics? physics;
 
   /// The **scrollbar preset**: a scrollbar drawn by a
-  /// [ChatScrollbarPainter] and shown per a [ChatScrollbarVisibility], or
-  /// [ChatScrollbar.none] for no scrollbar.
+  /// [ChatScrollbarPainter], shown per a [ChatScrollbarVisibility], and
+  /// grabbed per a [ChatScrollbarGrab], or [ChatScrollbar.none] for no
+  /// scrollbar.
   ///
   /// `null` resolves to `const ChatScrollbar()` on every build: the
-  /// [ChatPillScrollbarPainter] at its defaults, always shown. Colours come
-  /// from [ChatScrollbarThemeData]; the painter picks sizes; where the
-  /// scrollbar sits follows [textDirection].
+  /// [ChatPillScrollbarPainter] at its defaults, always shown, with the
+  /// default grab rules. Colours come from [ChatScrollbarThemeData]; the
+  /// painter picks sizes; where the scrollbar sits follows [textDirection].
   ///
   /// Compared by value on rebuild: an equal value is a no-op, so a grab in
   /// progress and a pending auto-hide survive. An unequal value ends the

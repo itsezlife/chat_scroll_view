@@ -10,11 +10,11 @@
   preset (below).
 - **ADDED**: `ChatScrollView.scrollbar` takes a `ChatScrollbar`, an
   immutable, value-equal **scrollbar preset**: `ChatScrollbar(painter:)`
-  or `ChatScrollbar.none()`. Leaving it unset gives the same scrollbar as
-  before. Nothing changes for apps that pass nothing: it is always shown,
-  and a press within 20 px of the trailing edge still grabs it and jumps.
-  `ChatScrollbar.none()` paints nothing and grabs nothing, so presses along
-  the trailing edge tap messages and drag the list instead. An equal
+  or `ChatScrollbar.none()`. Leaving it unset gives the same look as
+  before, always shown; which presses grab it changed (see the grab entry
+  below). `ChatScrollbar.none()` paints nothing and grabs nothing, so
+  presses along the trailing edge tap messages and drag the list instead.
+  An equal
   preset on rebuild changes nothing; an unequal one ends an active grab,
   and the grabbing pointer then scrolls nothing until it lifts.
 - **ADDED**: `ChatScrollbarPainter`, the open **scrollbar painter**
@@ -40,10 +40,33 @@
   that only reshape the thumb stay silent: follow-tail on arrival, history
   loads, deletes, inset and keyboard changes, row chrome. A held day
   header does not keep it shown. While hidden the painter is not called
-  (`ChatScrollbarFrame.visibility` is `0`); the strip still takes presses.
+  (`ChatScrollbarFrame.visibility` is `0`); the mouse strip still takes
+  presses, touch does not.
   `TickerMode` off pauses the fades. Both variants are value-equal: an
   equal preset on rebuild changes nothing, an unequal one takes over from
   the visibility currently shown.
+- **CHANGED**: Which presses grab the scrollbar now follows the pointer
+  kind, tuned by `ChatScrollbar(grab:)`, a value-equal `ChatScrollbarGrab`.
+  Before, any press within 20 px of the trailing edge grabbed it — touch
+  included, hidden or not — so a swipe starting near the edge jumped
+  through history and taps and long-presses there never reached the
+  message. Now touch and stylus grab only a shown thumb, through a target
+  32 px in from the edge and at least 48 px tall around the thumb
+  (`touchTargetWidth`, `touchTargetMinHeight`); every other touch near the
+  edge scrolls, taps, or long-presses messages. A mouse or trackpad uses a
+  12 px strip (`stripWidth`) that stays live while hidden: hovering it
+  reveals and holds an auto-hide scrollbar, sets
+  `ChatScrollbarFrame.hoverFactor` to `1`, and shows the arrow cursor over
+  message cursors; the wheel over it scrolls messages. Only the primary
+  button grabs; a right-click there reaches the message. A mouse press on
+  the track beside the thumb centres the thumb and keeps dragging
+  (`ChatScrollbarTrackPress.centerThumb`, the default) or reaches the
+  message (`fallThrough`). A press that goes down while another pointer is
+  down on the viewport — a list drag, a span gesture, a fling catch — never
+  grabs. Both targets reach at least across the painter's track, so a wide
+  custom painter stays grabbable and a thin one never shrinks them. Code or
+  widget tests that jumped by tapping the track with a touch now tap the
+  message instead; press the thumb, or use a mouse pointer.
 - **CHANGED**: The thumb length a press maps through is the painted one.
   Before, the drag could use a different length from the paint when no
   row was laid out (a fixed 48 px), and a thumb as long as the track still
