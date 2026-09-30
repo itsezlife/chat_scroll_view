@@ -6,9 +6,19 @@ import 'package:flutter/material.dart';
 
 /// Floating chrome shell with Telegram-style liquid glass.
 ///
-/// Uses scene [BackdropFilter] (frost → blur → liquid). Hosts must keep
+/// Uses scene [BackdropFilter] (blur → liquid). Hosts must keep
 /// [ChatContentBottomFade] **under** this island with an island-shaped
 /// cutout so the wash is not sampled into the glass.
+///
+/// ## Route motion
+///
+/// While the enclosing [ModalRoute] moves — pushed, popped, dragged by a back
+/// gesture, or shifted by a route transitioning above it — the surface paints
+/// [TelegramGlassStyle.fill] flat instead of filtering the backdrop. A
+/// backdrop filter re-reads and re-filters everything under it on each frame
+/// it moves, which costs several frame budgets per frame on mobile GPUs. The
+/// glass returns once the route settles. Outside a route the glass is always
+/// on.
 class TelegramGlass extends StatefulWidget {
   /// Creates a glass surface around [child].
   const TelegramGlass({required this.style, required this.child, super.key});
@@ -27,10 +37,53 @@ class _TelegramGlassState extends State<TelegramGlass> {
   GlassShaderPrograms? _programs;
   Object? _loadError;
 
+  Animation<double>? _routeAnimation;
+  Animation<double>? _coveringAnimation;
+
+  /// Whether the enclosing route is at rest, so the backdrop can be filtered.
+  bool _routeSettled = true;
+
   @override
   void initState() {
     super.initState();
     _loadShader();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    _follow(route?.animation, route?.secondaryAnimation);
+  }
+
+  @override
+  void dispose() {
+    _follow(null, null);
+    super.dispose();
+  }
+
+  void _follow(Animation<double>? animation, Animation<double>? covering) {
+    if (identical(animation, _routeAnimation) &&
+        identical(covering, _coveringAnimation)) {
+      return;
+    }
+    _routeAnimation?.removeStatusListener(_onRouteStatus);
+    _coveringAnimation?.removeStatusListener(_onRouteStatus);
+    _routeAnimation = animation?..addStatusListener(_onRouteStatus);
+    _coveringAnimation = covering?..addStatusListener(_onRouteStatus);
+    _routeSettled = _settled();
+  }
+
+  bool _settled() {
+    final entered = _routeAnimation?.isCompleted ?? true;
+    final covering = _coveringAnimation?.status ?? AnimationStatus.dismissed;
+    return entered && !covering.isAnimating;
+  }
+
+  void _onRouteStatus(AnimationStatus _) {
+    final settled = _settled();
+    if (settled == _routeSettled || !mounted) return;
+    setState(() => _routeSettled = settled);
   }
 
   @override
@@ -77,16 +130,18 @@ class _TelegramGlassState extends State<TelegramGlass> {
         child: Stack(
           children: <Widget>[
             Positioned.fill(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return _SceneGlassBackdrop(
-                    style: style,
-                    size: constraints.biggest,
-                    programs: _programs,
-                    loadError: _loadError,
-                  );
-                },
-              ),
+              child: _routeSettled
+                  ? LayoutBuilder(
+                      builder: (context, constraints) {
+                        return _SceneGlassBackdrop(
+                          style: style,
+                          size: constraints.biggest,
+                          programs: _programs,
+                          loadError: _loadError,
+                        );
+                      },
+                    )
+                  : ColoredBox(color: style.fill),
             ),
             Positioned.fill(
               child: CustomPaint(painter: _GlassStrokePainter(style: style)),
@@ -119,11 +174,15 @@ class _SceneGlassBackdrop extends StatelessWidget {
         programs != null &&
         loadError == null &&
         LiquidGlassShader.isSupported;
+    // No frost prepass: under the full-resolution blur its N×N average moves
+    // sigma by a fraction of a pixel, and as a shader filter it costs a
+    // full-screen pass per frame.
     final filter = useLiquid
         ? LiquidGlassShader.createFilter(
             programs: programs!,
             size: size,
             style: style,
+            applyFrost: false,
           )
         : null;
 

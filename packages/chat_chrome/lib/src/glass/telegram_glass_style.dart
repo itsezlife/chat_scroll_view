@@ -5,8 +5,8 @@ import 'package:flutter/foundation.dart';
 /// Paint tokens for a Telegram-style liquid-glass surface.
 ///
 /// Composer island: radius 22 on height 44 → stadium; fill α ≈ 0.85;
-/// glass source 4× frost + blur σ≈4 **in downscaled space** (≈σ16 full-res)
-/// + sat ×3; liquid thickness 11.
+/// glass source blur σ≈4 **in downscaled space** (≈σ16 full-res) + sat ×3;
+/// liquid thickness 11.
 @immutable
 class TelegramGlassStyle {
   /// Creates a glass material style.
@@ -77,8 +77,8 @@ class TelegramGlassStyle {
   /// Glass-source downscale factor (`DownscaledRenderNode` scale, default 4).
   ///
   /// Real Android path: render glass source at 1/N, blur, upsample. Scene
-  /// [BackdropFilter] cannot change resolution, so we box-average N×N then
-  /// blur with [effectiveBlurSigma].
+  /// [BackdropFilter] cannot change resolution, so it blurs at full
+  /// resolution with [effectiveBlurSigma].
   final double sourceDownscale;
 
   /// Full-resolution Gaussian sigma matching Telegram's downscale→blur chain.
