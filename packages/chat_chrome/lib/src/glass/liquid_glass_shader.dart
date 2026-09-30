@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:chat_chrome/src/glass/telegram_glass_style.dart';
@@ -125,10 +126,30 @@ abstract final class LiquidGlassShader {
     );
   }
 
-  /// Configures a direct [ui.FragmentShader] that samples [image] (full capture).
+  static double _thickness(TelegramGlassStyle style, ui.Size size) =>
+      style.liquidThickness.clamp(1.0, size.shortestSide / 5).toDouble();
+
+  /// How far (logical px) outside a [size] surface the liquid shader samples.
   ///
-  /// [texOrigin] = island top-left in capture pixels;
-  /// [texScale] = logical px → capture px ([GlassBackdropController.pixelRatio]).
+  /// The rim bends the view ray inward by up to
+  /// `9 · thickness · intensity · index · sin(critical)`; on a surface
+  /// thinner than that the sample lands past the opposite edge.
+  static double backdropReach({
+    required TelegramGlassStyle style,
+    required ui.Size size,
+  }) {
+    if (!style.enableLiquid || size.isEmpty) return 0;
+    final index = style.liquidIndex;
+    final bend = index > 1 ? math.sqrt(1 - 1 / (index * index)) : 0.0;
+    return 9 * _thickness(style, size) * style.liquidIntensity * index * bend;
+  }
+
+  /// Configures a direct [ui.FragmentShader] that samples [image].
+  ///
+  /// [texOrigin] = surface top-left in image pixels; [texScale] = logical
+  /// px → image px. [blurRadius] (logical px) adds a 9-tap box blur for an
+  /// [image] that is not blurred yet. Refraction applies only with
+  /// [TelegramGlassStyle.enableLiquid].
   static ui.FragmentShader? createBackdropShader({
     required GlassShaderPrograms programs,
     required ui.Size size,
@@ -136,12 +157,11 @@ abstract final class LiquidGlassShader {
     required ui.Image image,
     required ui.Offset texOrigin,
     required double texScale,
+    double blurRadius = 0,
   }) {
     if (size.isEmpty || texScale <= 0) return null;
 
-    final thickness = style.liquidThickness
-        .clamp(1.0, size.shortestSide / 5)
-        .toDouble();
+    final thickness = _thickness(style, size);
     final radius = style.cornerRadius;
     final center = ui.Offset(size.width / 2, size.height / 2);
     final half = ui.Offset(size.width / 2, size.height / 2);
@@ -161,7 +181,7 @@ abstract final class LiquidGlassShader {
     shader.setFloat(i++, radius);
     shader.setFloat(i++, thickness);
     shader.setFloat(i++, style.liquidIndex);
-    shader.setFloat(i++, style.liquidIntensity);
+    shader.setFloat(i++, style.enableLiquid ? style.liquidIntensity : 0);
     shader.setFloat(i++, fill.r);
     shader.setFloat(i++, fill.g);
     shader.setFloat(i++, fill.b);
@@ -172,9 +192,7 @@ abstract final class LiquidGlassShader {
     shader.setFloat(i++, texOrigin.dx);
     shader.setFloat(i++, texOrigin.dy);
     shader.setFloat(i++, texScale);
-    // Two stacked 9-tap passes aren't available; use a wide logical radius so
-    // frost reads like Telegram glass (downscale + blur), not sharp tint.
-    shader.setFloat(i++, style.blurSigma * 2.5);
+    shader.setFloat(i++, blurRadius);
     shader.setImageSampler(0, image);
     return shader;
   }

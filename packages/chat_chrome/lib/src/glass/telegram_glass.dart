@@ -1,24 +1,25 @@
-import 'dart:ui' as ui;
-
-import 'package:chat_chrome/src/glass/liquid_glass_shader.dart';
+import 'package:chat_chrome/src/glass/glass_backdrop.dart';
+import 'package:chat_chrome/src/glass/glass_source.dart';
 import 'package:chat_chrome/src/glass/telegram_glass_style.dart';
 import 'package:flutter/material.dart';
 
 /// Floating chrome shell with Telegram-style liquid glass.
 ///
-/// Uses scene [BackdropFilter] (blur → liquid). Hosts must keep
+/// The backdrop is a [GlassBackdrop]: under a [GlassSourceScope] it samples
+/// the scope's [GlassSource], elsewhere it filters the scene. Hosts must keep
 /// [ChatContentBottomFade] **under** this island with an island-shaped
-/// cutout so the wash is not sampled into the glass.
+/// cutout, or outside the [GlassSource], so the wash is not sampled into the
+/// glass.
 ///
 /// ## Route motion
 ///
-/// While the enclosing [ModalRoute] moves — pushed, popped, dragged by a back
-/// gesture, or shifted by a route transitioning above it — the surface paints
-/// [TelegramGlassStyle.fill] flat instead of filtering the backdrop. A
-/// backdrop filter re-reads and re-filters everything under it on each frame
-/// it moves, which costs several frame budgets per frame on mobile GPUs. The
-/// glass returns once the route settles. Outside a route the glass is always
-/// on.
+/// Without a [GlassSourceScope], while the enclosing [ModalRoute] moves —
+/// pushed, popped, dragged by a back gesture, or shifted by a route
+/// transitioning above it — the surface paints [TelegramGlassStyle.fill] flat
+/// instead of filtering the backdrop. A backdrop filter re-reads and
+/// re-filters everything under it on each frame it moves, which costs several
+/// frame budgets per frame on mobile GPUs. The glass returns once the route
+/// settles. A sampled backdrop stays on throughout.
 class TelegramGlass extends StatefulWidget {
   /// Creates a glass surface around [child].
   const TelegramGlass({required this.style, required this.child, super.key});
@@ -34,20 +35,11 @@ class TelegramGlass extends StatefulWidget {
 }
 
 class _TelegramGlassState extends State<TelegramGlass> {
-  GlassShaderPrograms? _programs;
-  Object? _loadError;
-
   Animation<double>? _routeAnimation;
   Animation<double>? _coveringAnimation;
 
   /// Whether the enclosing route is at rest, so the backdrop can be filtered.
   bool _routeSettled = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadShader();
-  }
 
   @override
   void didChangeDependencies() {
@@ -87,29 +79,6 @@ class _TelegramGlassState extends State<TelegramGlass> {
   }
 
   @override
-  void didUpdateWidget(covariant TelegramGlass oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.style.enableLiquid != widget.style.enableLiquid) {
-      _loadShader();
-    }
-  }
-
-  Future<void> _loadShader() async {
-    if (!widget.style.enableLiquid) return;
-    try {
-      final programs = await LiquidGlassShader.load();
-      if (!mounted) return;
-      setState(() {
-        _programs = programs;
-        _loadError = null;
-      });
-    } on Object catch (error) {
-      if (!mounted) return;
-      setState(() => _loadError = error);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     final style = widget.style;
     final radius = BorderRadius.circular(style.cornerRadius);
@@ -122,6 +91,7 @@ class _TelegramGlassState extends State<TelegramGlass> {
             ),
           ]
         : const <BoxShadow>[];
+    final glassOn = _routeSettled || GlassBackdrop.capturesAt(context);
 
     return DecoratedBox(
       decoration: BoxDecoration(borderRadius: radius, boxShadow: shadow),
@@ -130,17 +100,8 @@ class _TelegramGlassState extends State<TelegramGlass> {
         child: Stack(
           children: <Widget>[
             Positioned.fill(
-              child: _routeSettled
-                  ? LayoutBuilder(
-                      builder: (context, constraints) {
-                        return _SceneGlassBackdrop(
-                          style: style,
-                          size: constraints.biggest,
-                          programs: _programs,
-                          loadError: _loadError,
-                        );
-                      },
-                    )
+              child: glassOn
+                  ? GlassBackdrop(style: style)
                   : ColoredBox(color: style.fill),
             ),
             Positioned.fill(
@@ -150,56 +111,6 @@ class _TelegramGlassState extends State<TelegramGlass> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _SceneGlassBackdrop extends StatelessWidget {
-  const _SceneGlassBackdrop({
-    required this.style,
-    required this.size,
-    required this.programs,
-    required this.loadError,
-  });
-
-  final TelegramGlassStyle style;
-  final Size size;
-  final GlassShaderPrograms? programs;
-  final Object? loadError;
-
-  @override
-  Widget build(BuildContext context) {
-    final useLiquid =
-        style.enableLiquid &&
-        programs != null &&
-        loadError == null &&
-        LiquidGlassShader.isSupported;
-    // No frost prepass: under the full-resolution blur its N×N average moves
-    // sigma by a fraction of a pixel, and as a shader filter it costs a
-    // full-screen pass per frame.
-    final filter = useLiquid
-        ? LiquidGlassShader.createFilter(
-            programs: programs!,
-            size: size,
-            style: style,
-            applyFrost: false,
-          )
-        : null;
-
-    if (filter != null) {
-      return BackdropFilter(
-        filter: filter,
-        child: const ColoredBox(color: Color(0x00000000)),
-      );
-    }
-
-    return BackdropFilter(
-      filter: ui.ImageFilter.blur(
-        sigmaX: style.effectiveBlurSigma,
-        sigmaY: style.effectiveBlurSigma,
-        tileMode: TileMode.clamp,
-      ),
-      child: ColoredBox(color: style.fill),
     );
   }
 }
