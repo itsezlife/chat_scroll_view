@@ -223,6 +223,11 @@ class _RenderCapturedGlass extends RenderBox implements GlassSampler {
     super.detach();
   }
 
+  /// Paints through a layer of its own, which an ancestor clip or transform
+  /// only reaches as a layer too.
+  @override
+  bool get alwaysNeedsCompositing => true;
+
   @override
   bool get sizedByParent => true;
 

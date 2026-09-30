@@ -180,6 +180,46 @@ void main() {
       expect(_readsBackdrop(tester), isFalse);
     });
 
+    testWidgets('an ancestor clip and transform apply to the captured glass', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GlassSourceScope(
+            child: Stack(
+              children: [
+                const Positioned.fill(
+                  child: GlassSource(
+                    child: ColoredBox(color: Color(0xFF3366FF)),
+                  ),
+                ),
+                Center(
+                  child: Transform.scale(
+                    scale: 0.9,
+                    child: const ClipOval(
+                      child: SizedBox.square(
+                        dimension: 44,
+                        child: GlassBackdrop(style: _style),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final glass = tester.layers.singleWhere(
+        (layer) => '${layer.runtimeType}' == '_CapturedGlassLayer',
+      );
+      final ancestors = <Type>[
+        for (Layer? layer = glass.parent; layer != null; layer = layer.parent)
+          layer.runtimeType,
+      ];
+      expect(ancestors, containsAllInOrder([ClipPathLayer, TransformLayer]));
+    });
+
     testWidgets('filters the scene when the backend cannot capture', (
       tester,
     ) async {
