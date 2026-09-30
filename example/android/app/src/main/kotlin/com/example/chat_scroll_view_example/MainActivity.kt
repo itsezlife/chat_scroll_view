@@ -119,8 +119,8 @@ class MainActivity : FlutterActivity() {
         preImeBackChannel?.invokeMethod("onBack", null)
     }
 
-    /// Telegram `ChatActivity.addToSelectedMessages` at the 100 cap:
-    /// `vibrator.vibrate(200)` — a 200 ms one-shot, not `APP_ERROR`.
+    /// Selecting past the 100-message cap: `vibrator.vibrate(200)` — a 200 ms
+    /// one-shot, not `APP_ERROR`.
     private fun playSelectionLimit() {
         val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val manager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager

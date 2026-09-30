@@ -37,7 +37,7 @@ class EmojiSearchStateIcon extends StatefulWidget {
   /// Stroke color.
   final Color color;
 
-  /// Paint bounds (Telegram intrinsic `dp(24)`).
+  /// Paint bounds (intrinsic 24 dp).
   final double size;
 
   @override
@@ -193,7 +193,9 @@ class _EmojiSearchStateIconState extends State<EmojiSearchStateIcon>
     return _from == EmojiSearchIconState.progress ? 1 - value : 0;
   }
 
-  /// Telegram `CircularProgressDrawable.getSegments`.
+  /// Writes the spinner arc `[start, end]` (degrees) at [t] ms into a
+  /// 5400 ms cycle: four staggered 250° head / tail steps on
+  /// [Curves.fastOutSlowIn].
   static void _progressSegments(double t, List<double> segments) {
     segments[0] = math.max(0, 1520 * t / 5400 - 20);
     segments[1] = 1520 * t / 5400;
@@ -391,7 +393,7 @@ class _SearchStatePainter extends CustomPainter {
         final ax = fromProgress
             ? lerpDouble(x(0.5 + progressRadius), x(0.2409), backValue)!
             : x(0.2409);
-        // Telegram uses x(.2452); equals w(.2452) for a square icon.
+        // x(.2452) equals w(.2452) for a square icon.
         final arm = x(0.2452) * backValue;
         final top = Offset(ax + arm, lerpDouble(y(0.5), y(0.25), backValue)!);
         final tip = Offset(ax, yMid);

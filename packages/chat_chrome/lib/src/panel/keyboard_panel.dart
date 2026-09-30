@@ -799,7 +799,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     final size = mq.size;
     final safeTop = mq.viewPadding.top;
     final safeBottom = mq.viewPadding.bottom;
-    // originalViewHeight − status − nav − dp(6) − actionBar − enterView.
+    // Target: view height − status − nav − 6 dp − app bar − composer.
     // Approximate: full screen minus status, nav, and a composer band (~48+).
     const composerBand = 56.0;
     const slack = 6.0;

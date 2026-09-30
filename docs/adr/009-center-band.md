@@ -20,7 +20,7 @@ only layout scroll state and is not the host persist/restore record.
 | Naming         | **Center Band** / `ChatCenterBand` / `jumpToCenterBand` — physical paint-band role; not “gaze”, not “Open Anchor”, not `*Restore`             |
 | Engine split   | Anchor origin (`anchorMessageId`, `anchorPixelOffset`) stays engine-only layout; Center Band is the host-facing reading snapshot              |
 | Heuristic      | Reject in-app `visibleRange` id midpoints — variable row heights make them wrong                                                              |
-| Telegram       | Inspiration for message + within-row offset / mid-band place; not a RecyclerView port                                                         |
+| Placement      | Message + within-row offset / mid-band place; not a RecyclerView port                                                                         |
 
 ## Rejected
 
@@ -28,7 +28,7 @@ only layout scroll state and is not the host persist/restore record.
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | Persist layout Anchor origin as leave/reopen                    | Wrong product: origin ≠ visual center; tall/mixed heights feel wrong                  |
 | Host-only heuristic from `visibleRange`                         | Cannot know which row crosses geometric center when heights vary                      |
-| Host-composed `jumpTo` + `scrollBy` restore                     | Fragile under Warm History / first layout / tall rows; Telegram-style place is one op |
+| Host-composed `jumpTo` + `scrollBy` restore                     | Fragile under Warm History / first layout / tall rows; place must be one op           |
 | Configurable center fraction or thick slab in v1                | Extra API + tie-breaks; mid-band ray matches the locked mid-screen intent             |
 | Rename / redefine Anchor origin to mean Center Band             | Lies about today’s engine contract and confuses architecture docs                     |
 | `*Restore` / “gaze” naming                                      | Metaphor, not measured role; conflicts with physical naming house style               |

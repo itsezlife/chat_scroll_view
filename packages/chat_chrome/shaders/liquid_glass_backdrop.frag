@@ -1,12 +1,12 @@
 #version 460 core
 #include <flutter/runtime_effect.glsl>
 
-// Liquid glass that samples a *full* backdrop capture (Telegram glass source).
-// Local frag coords map into the capture so refraction can reach chat pixels
-// outside the island — unlike crop-then-ImageFilter (edge clamp kills rim).
+// Liquid glass that samples a captured backdrop image larger than the surface.
+// Local frag coords map into the capture, so refraction reaches pixels outside
+// the surface — unlike crop-then-ImageFilter, where edge clamping kills the rim.
 //
-// Blur is done in-shader (9-tap) so frost is not dependent on Picture/saveLayer
-// blur surviving toImageSync.
+// A capture that is not blurred yet can use the optional in-shader 9-tap blur
+// (u_blur_logical > 0).
 
 uniform vec2 u_size;
 uniform vec2 u_center;

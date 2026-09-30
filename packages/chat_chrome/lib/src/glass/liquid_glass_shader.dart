@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:chat_chrome/src/glass/telegram_glass_style.dart';
+import 'package:chat_chrome/src/glass/liquid_glass_style.dart';
 import 'package:flutter/foundation.dart';
 
 /// Liquid refraction for [ImageFilter.shader] (scene / crop path).
@@ -12,7 +12,7 @@ const String kLiquidGlassShaderAsset =
 const String kLiquidGlassBackdropShaderAsset =
     'packages/chat_chrome/shaders/liquid_glass_backdrop.frag';
 
-/// 4× downscale stand-in (`DownscaledRenderNode` glass scale).
+/// Full-resolution stand-in for sampling the backdrop at 1/4 resolution.
 const String kGlassFrostPrepassAsset =
     'packages/chat_chrome/shaders/glass_frost_prepass.frag';
 
@@ -36,7 +36,7 @@ class GlassShaderPrograms {
   final ui.FragmentProgram frost;
 }
 
-/// Loads and caches Telegram liquid-glass filter programs.
+/// Loads and caches the liquid-glass shader programs.
 abstract final class LiquidGlassShader {
   static GlassShaderPrograms? _programs;
   static Future<GlassShaderPrograms>? _loading;
@@ -68,7 +68,7 @@ abstract final class LiquidGlassShader {
   static ui.ImageFilter? createFilter({
     required GlassShaderPrograms programs,
     required ui.Size size,
-    required TelegramGlassStyle style,
+    required LiquidGlassStyle style,
     bool applyFrost = true,
   }) {
     if (!isSupported || size.isEmpty) return null;
@@ -126,7 +126,7 @@ abstract final class LiquidGlassShader {
     );
   }
 
-  static double _thickness(TelegramGlassStyle style, ui.Size size) =>
+  static double _thickness(LiquidGlassStyle style, ui.Size size) =>
       style.liquidThickness.clamp(1.0, size.shortestSide / 5).toDouble();
 
   /// How far (logical px) outside a [size] surface the liquid shader samples.
@@ -135,7 +135,7 @@ abstract final class LiquidGlassShader {
   /// `9 · thickness · intensity · index · sin(critical)`; on a surface
   /// thinner than that the sample lands past the opposite edge.
   static double backdropReach({
-    required TelegramGlassStyle style,
+    required LiquidGlassStyle style,
     required ui.Size size,
   }) {
     if (!style.enableLiquid || size.isEmpty) return 0;
@@ -149,11 +149,11 @@ abstract final class LiquidGlassShader {
   /// [texOrigin] = surface top-left in image pixels; [texScale] = logical
   /// px → image px. [blurRadius] (logical px) adds a 9-tap box blur for an
   /// [image] that is not blurred yet. Refraction applies only with
-  /// [TelegramGlassStyle.enableLiquid].
+  /// [LiquidGlassStyle.enableLiquid].
   static ui.FragmentShader? createBackdropShader({
     required GlassShaderPrograms programs,
     required ui.Size size,
-    required TelegramGlassStyle style,
+    required LiquidGlassStyle style,
     required ui.Image image,
     required ui.Offset texOrigin,
     required double texScale,

@@ -54,8 +54,8 @@ class ChatScrollToBottomButton extends StatefulWidget {
 
   /// Same host predicate as [ChatScrollView.isSelfMessage]. When the newest
   /// known id is a self message, the unread baseline advances so own sends
-  /// (including multi-device) never inflate the badge — Telegram zeroes the
-  /// page-down counter on `hasFromMe`.
+  /// (including multi-device) never inflate the badge — a self message zeroes
+  /// the page-down counter.
   final bool Function(IChatMessage message)? isSelfMessage;
 
   /// Highest message id treated as "read" for the unread badge. When null,
@@ -545,7 +545,7 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
 
   void _onBoundaryChanged() {
     final newest = widget.dataSource.newestKnownId;
-    // Self insert (any device): Telegram zeroes page-down unread on hasFromMe.
+    // Self insert (any device) zeroes the page-down unread count.
     // Do this before the stable-at-tail path so the badge never flashes.
     if (newest != null &&
         _isSelfId(newest) &&

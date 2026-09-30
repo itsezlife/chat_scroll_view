@@ -8,31 +8,31 @@ abstract final class KeyboardPanelMotion {
   /// Delayed start before cold open animation.
   static const Duration startDelay = Duration(milliseconds: 50);
 
-  /// Search-field open/close duration (`openSearch` / 220ms).
+  /// Search-field open/close duration (220ms).
   static const Duration searchDuration = Duration(milliseconds: 220);
 
-  /// Panel height expand/collapse for emoji search (`setStickersExpanded` / 300ms).
+  /// Panel height expand/collapse for emoji search (300ms).
   static const Duration searchExpandDuration = Duration(milliseconds: 300);
 
-  /// Extra height above the keyboard-sized panel while searching (`dp(175)`).
+  /// Extra height above the keyboard-sized panel while searching (175 dp).
   static const double searchExpandExtra = 175;
 
-  /// Strip hide distance while search is open (`−dp(40)`).
+  /// Strip hide distance while search is open (slides up 40 dp).
   static const double searchStripHide = 40;
 
-  /// Restartable emoji keyword search debounce (`EmojiSearchAdapter.search`).
+  /// Restartable emoji keyword search debounce.
   static const Duration searchDebounce = Duration(milliseconds: 300);
 
-  /// Delay before leading search icon shows progress (`SearchStateDrawable`).
+  /// Delay before the leading search icon shows progress.
   static const Duration searchProgressDelay = Duration(milliseconds: 65);
 
-  /// Search icon morph duration (`SearchStateDrawable` / 350ms EASE_OUT_QUINT).
+  /// Search icon morph duration (350ms, [Curves.easeOutQuint]).
   static const Duration searchIconMorphDuration = Duration(milliseconds: 350);
 
-  /// Strip / search shadow fade (`BoolAnimator` 200ms EASE_OUT).
+  /// Strip / search shadow fade (200ms, [Curves.easeOut]).
   static const Duration shadowDuration = Duration(milliseconds: 200);
 
-  /// Reselect type-tab strip restore (`150ms` EASE_OUT_QUINT).
+  /// Reselect type-tab strip restore (150ms, [Curves.easeOutQuint]).
   static const Duration reselectStripDuration = Duration(milliseconds: 150);
 
   /// List-style cubic used for panel progress.

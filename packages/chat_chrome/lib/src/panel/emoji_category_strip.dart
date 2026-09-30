@@ -223,8 +223,8 @@ class _StripIconVisual extends StatelessWidget {
 
 /// Category strip + gated shadow, slides up while the grid scrolls.
 ///
-/// [shadowVisible] mirrors Telegram `checkEmojiShadow`: show when the strip
-/// bottom sits over content (spacer scrolled under the strip line).
+/// [shadowVisible]: show when the strip bottom sits over content (spacer
+/// scrolled under the strip line).
 class EmojiCategoryStripOverlay extends StatelessWidget {
   /// Creates the overlay strip.
   const EmojiCategoryStripOverlay({
@@ -251,7 +251,7 @@ class EmojiCategoryStripOverlay extends StatelessWidget {
   /// Whether the 1px shadow under the strip is shown.
   final bool shadowVisible;
 
-  /// Glow / shadow probe below strip (`dp(38)` in Java).
+  /// Glow / shadow probe below strip (38 dp).
   static const double shadowProbe = 38;
 
   @override

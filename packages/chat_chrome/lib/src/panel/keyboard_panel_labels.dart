@@ -54,10 +54,10 @@ class KeyboardPanelLabels {
   /// Search-field hint.
   final String searchHint;
 
-  /// Keyword-hit section header (`StickerOrEmojiSearchResult`).
+  /// Keyword-hit section header.
   final String searchResults;
 
-  /// Empty keyword-search placeholder (`NoEmojiFound`).
+  /// Empty keyword-search placeholder.
   final String searchEmpty;
 
   /// Clear-recents dialog title.

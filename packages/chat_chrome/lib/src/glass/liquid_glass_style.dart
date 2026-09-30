@@ -2,15 +2,15 @@ import 'dart:ui' show Brightness, Color, Offset;
 
 import 'package:flutter/foundation.dart';
 
-/// Paint tokens for a Telegram-style liquid-glass surface.
+/// Paint tokens for a liquid-glass surface.
 ///
 /// Composer island: radius 22 on height 44 → stadium; fill α ≈ 0.85;
-/// glass source blur σ≈4 **in downscaled space** (≈σ16 full-res) + sat ×3;
-/// liquid thickness 11.
+/// backdrop sampled at 1/4 resolution, blurred σ 4 in that space, saturation
+/// ×3; liquid thickness 11.
 @immutable
-class TelegramGlassStyle {
+class LiquidGlassStyle {
   /// Creates a glass material style.
-  const TelegramGlassStyle({
+  const LiquidGlassStyle({
     required this.fill,
     required this.strokeTop,
     required this.strokeBottom,
@@ -30,7 +30,7 @@ class TelegramGlassStyle {
   });
 
   /// Composer input-island material (glass path).
-  factory TelegramGlassStyle.composerIsland({
+  factory LiquidGlassStyle.composerIsland({
     required Color panelBackground,
     required Brightness brightness,
     bool liquidEnabled = true,
@@ -38,7 +38,7 @@ class TelegramGlassStyle {
   }) {
     final isDark = brightness == Brightness.dark;
     final fillAlpha = isDark ? (liquidEnabled ? 0.85 : 0.76) : (216 / 255);
-    return TelegramGlassStyle(
+    return LiquidGlassStyle(
       fill: panelBackground.withValues(alpha: fillAlpha),
       strokeTop: isDark ? const Color(0x28FFFFFF) : const Color(0xFFFFFFFF),
       strokeBottom: isDark ? const Color(0x14FFFFFF) : const Color(0xFFFFFFFF),
@@ -63,25 +63,26 @@ class TelegramGlassStyle {
   /// Painted corner radius (logical px).
   final double cornerRadius;
 
-  /// Backdrop blur sigma in **post-downscale** space (Telegram glass source).
+  /// Backdrop blur sigma in the downscaled sample (image px at
+  /// 1 / [sourceDownscale] of device resolution).
   ///
-  /// Android: `convertRadiusToSigma(dpf2(6))` ≈ 4 applied **after**
-  /// `DownscaledRenderNode` scale 4×. At full resolution that is
-  /// [effectiveBlurSigma] ≈ [blurSigma] × [sourceDownscale], not σ=4 alone.
-  /// Applying σ=4 at full res leaves glyph stems readable — the screenshot gap.
+  /// A captured backdrop is blurred after downscaling, so σ 4 there spans
+  /// about 4 × [sourceDownscale] device px.
   final double blurSigma;
 
-  /// Backdrop saturation before / in the liquid sample (`setSaturation(3)`).
+  /// Backdrop saturation applied in the liquid sample.
   final double backdropSaturation;
 
-  /// Glass-source downscale factor (`DownscaledRenderNode` scale, default 4).
+  /// How much smaller than device resolution the backdrop is sampled
+  /// (default 4).
   ///
-  /// Real Android path: render glass source at 1/N, blur, upsample. Scene
-  /// [BackdropFilter] cannot change resolution, so it blurs at full
+  /// A captured backdrop renders at 1/N, blurs, and upsamples in the shader.
+  /// A scene [BackdropFilter] cannot change resolution, so it blurs at full
   /// resolution with [effectiveBlurSigma].
   final double sourceDownscale;
 
-  /// Full-resolution Gaussian sigma matching Telegram's downscale→blur chain.
+  /// Full-resolution Gaussian sigma (logical px) standing in for the
+  /// downscale → blur chain on the [BackdropFilter] path.
   double get effectiveBlurSigma =>
       blurSigma * (sourceDownscale > 1 ? sourceDownscale : 1);
 
@@ -123,7 +124,7 @@ class TelegramGlassStyle {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is TelegramGlassStyle &&
+      other is LiquidGlassStyle &&
           fill == other.fill &&
           strokeTop == other.strokeTop &&
           strokeBottom == other.strokeBottom &&

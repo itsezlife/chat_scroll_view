@@ -72,34 +72,34 @@ class ChatChromeColors {
   /// Picks light/dark from [brightness].
   factory ChatChromeColors.forBrightness(Brightness brightness) =>
       brightness == Brightness.dark
-          ? const ChatChromeColors.dark()
-          : const ChatChromeColors();
+      ? const ChatChromeColors.dark()
+      : const ChatChromeColors();
 
-  /// `key_chat_emojiPanelBackground`.
+  /// Keyboard panel background.
   final Color panelBackground;
 
-  /// `key_chat_emojiPanelIcon`.
+  /// Idle panel tab icon.
   final Color panelIcon;
 
-  /// `key_chat_emojiPanelIconSelected`.
+  /// Selected panel tab icon.
   final Color panelIconSelected;
 
-  /// `key_chat_emojiPanelBackspace`.
+  /// Panel backspace icon.
   final Color panelBackspace;
 
-  /// `key_chat_emojiPanelShadowLine`.
+  /// Hairline shadow under the panel category strip.
   final Color panelShadowLine;
 
-  /// `key_chat_emojiPanelStickerPackSelector`.
+  /// Selected category tab background.
   final Color panelTabSelector;
 
-  /// `key_chat_emojiPanelStickerPackSelectorLine`.
+  /// Selected category tab underline.
   final Color panelTabSelectorLine;
 
-  /// `key_chat_emojiPanelStickerSetName`.
+  /// Catalog section header text.
   final Color panelStickerSetName;
 
-  /// `key_chat_emojiPanelEmptyText` (empty search / no-emoji placeholder).
+  /// Empty search / no-emoji placeholder text.
   final Color panelEmptyText;
 
   /// Floating type-pill / backspace fill (solid, opaque).
@@ -114,37 +114,37 @@ class ChatChromeColors {
   /// Idle type-tab label on floating chrome.
   final Color panelFloatingTextMuted;
 
-  /// Glass search pill fill (`getGlassIconColor(0.06)`).
+  /// Glass search pill fill (glass icon color at 0.06 alpha).
   final Color emojiSearchFill;
 
-  /// Glass search / clear icon (`getGlassIconColor(0.4)`).
+  /// Glass search / clear icon (glass icon color at 0.4 alpha).
   final Color emojiSearchIcon;
 
-  /// Glass search hint (`getGlassIconColor(0.45)`).
+  /// Glass search hint (glass icon color at 0.45 alpha).
   final Color emojiSearchHint;
 
-  /// Glass search input text (`getGlassIconColor(0.8)`).
+  /// Glass search input text (glass icon color at 0.8 alpha).
   final Color emojiSearchText;
 
-  /// `key_chat_messagePanelBackground`.
+  /// Composer background.
   final Color messagePanelBackground;
 
-  /// `key_chat_messagePanelText`.
+  /// Composer input text.
   final Color messagePanelText;
 
-  /// `key_chat_messagePanelHint`.
+  /// Composer hint text.
   final Color messagePanelHint;
 
-  /// `key_chat_messagePanelCursor`.
+  /// Composer cursor.
   final Color messagePanelCursor;
 
-  /// `key_chat_messagePanelIcons`.
+  /// Composer action icons.
   final Color messagePanelIcons;
 
-  /// `key_chat_messagePanelSend`.
+  /// Composer send button.
   final Color messagePanelSend;
 
-  /// `key_chat_messagePanelShadow`.
+  /// Composer shadow.
   final Color messagePanelShadow;
 
   /// Bottom content fade under composer / keyboard.
@@ -197,35 +197,35 @@ class ChatChromeColors {
 
   @override
   int get hashCode => Object.hashAll(<Object?>[
-        panelBackground,
-        panelIcon,
-        panelIconSelected,
-        panelBackspace,
-        panelShadowLine,
-        panelTabSelector,
-        panelTabSelectorLine,
-        panelStickerSetName,
-        panelEmptyText,
-        panelFloatingFill,
-        panelFloatingSelected,
-        panelFloatingText,
-        panelFloatingTextMuted,
-        emojiSearchFill,
-        emojiSearchIcon,
-        emojiSearchHint,
-        emojiSearchText,
-        messagePanelBackground,
-        messagePanelText,
-        messagePanelHint,
-        messagePanelCursor,
-        messagePanelIcons,
-        messagePanelSend,
-        messagePanelShadow,
-        contentBottomFade,
-        replyLine,
-        replyName,
-        replyText,
-      ]);
+    panelBackground,
+    panelIcon,
+    panelIconSelected,
+    panelBackspace,
+    panelShadowLine,
+    panelTabSelector,
+    panelTabSelectorLine,
+    panelStickerSetName,
+    panelEmptyText,
+    panelFloatingFill,
+    panelFloatingSelected,
+    panelFloatingText,
+    panelFloatingTextMuted,
+    emojiSearchFill,
+    emojiSearchIcon,
+    emojiSearchHint,
+    emojiSearchText,
+    messagePanelBackground,
+    messagePanelText,
+    messagePanelHint,
+    messagePanelCursor,
+    messagePanelIcons,
+    messagePanelSend,
+    messagePanelShadow,
+    contentBottomFade,
+    replyLine,
+    replyName,
+    replyText,
+  ]);
 }
 
 /// Inherited theme for chat_chrome widgets.
@@ -242,8 +242,8 @@ class ChatChromeTheme extends InheritedWidget {
 
   /// Resolves theme; falls back to light defaults.
   static ChatChromeColors of(BuildContext context) {
-    final scoped =
-        context.dependOnInheritedWidgetOfExactType<ChatChromeTheme>();
+    final scoped = context
+        .dependOnInheritedWidgetOfExactType<ChatChromeTheme>();
     return scoped?.colors ?? const ChatChromeColors();
   }
 

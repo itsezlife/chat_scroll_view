@@ -20,9 +20,8 @@ Core model: [Coordinate Model](./01-coordinate-model.md),
 [Invariants](./02-invariants.md).
 Decision record: [ADR 005](../adr/005-stitch-far-path-and-load-gate.md).
 
-**Authority when sources disagree:** Telegram
-`RecyclerAnimationScrollHelper` / `ChatActivity.scrollToMessageId` behavior →
-glossary → this document → older animateTo prose or changelog notes.
+**Authority when sources disagree:** the stitch / close-path contracts below
+→ glossary → this document → older animateTo prose or changelog notes.
 
 ## Entry
 
@@ -37,15 +36,10 @@ glossary → this document → older animateTo prose or changelog notes.
    `highlight` flag.
 4. Optional `loadPolicy` (default `immediate`) — see below.
 
-### Spam / re-entry (Telegram-style)
+### Spam / re-entry
 
-Telegram `RecyclerAnimationScrollHelper.scrollToPosition`:
-
-```java
-if (recyclerView.fastScrollAnimationRunning) {
-    return;
-}
-```
+While a navigation animation is running, a new request for a different
+target returns immediately without touching the in-flight motion.
 
 | Case                                                  | Behavior                                                           |
 | ----------------------------------------------------- | ------------------------------------------------------------------ |
@@ -63,10 +57,9 @@ follow-tail (close-path chance when the newest is already warming).
 Far-path **stitch must not run** until the target is a real destination row
 (loaded, measurable — not an unresolved shimmer stand-in).
 
-Telegram `ChatActivity.scrollToMessageId`: if the message is not in the
-adapter → load around that id (`LOAD_AROUND_MESSAGE` / progress) → scroll
-**after** load. The helper never dual-translates an unloaded placeholder
-band across a gap.
+If the message is not loaded → load around that id (with progress) → scroll
+**after** load. Stitch never dual-translates an unloaded placeholder band
+across a gap.
 
 | Rule         | Contract                                                                                                                                                                                 |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -86,11 +79,10 @@ Neither policy may fall back to shimmer-stitch. `preferBuilt` only improves
 the chance that self-insert / follow-tail takes the **close path** when the
 newest is already building.
 
-## Path selection (Telegram `found` → close)
+## Path selection (built → close)
 
-Only after the target is ready (or already built). Mirrors Telegram
-`ChatActivity.scrollToMessageId`: **found among current children** →
-`smoothScrollBy` (close); otherwise stitch helper / load.
+Only after the target is ready (or already built). Target **found among
+the currently built rows** → smooth scroll (close); otherwise stitch / load.
 
 | Condition                                   | Path                                                                               |
 | ------------------------------------------- | ---------------------------------------------------------------------------------- |
@@ -132,7 +124,7 @@ on target distance.
    `animateEndOffset = _closePathEndOffsetFor(targetId, height, alignment)`
    — band alignment for ordinary targets; **tail-pin top** (`bottomEdge − height`)
    when the target is the known newest (`reachedNewest` + `newestKnownId`).
-3. **Timing** — same Telegram formula as stitch:
+3. **Timing** — same formula as stitch:
    `duration = clamp(((travel / vh) + 1) * 200, 300, 1300)` with
    `Curves.easeOutQuint`. Caller `animateTo` duration/curve are not used for
    path motion (`duration ≤ 0` still means instant jump).
@@ -169,8 +161,8 @@ child and, when `elapsed` is supplied, restarts the travel clock.
 
 ## Far path (stitch)
 
-Telegram `RecyclerAnimationScrollHelper` — a **continuity illusion**, not
-scrolling through the gap and not a viewport opacity fade:
+A **continuity illusion**, not scrolling through the gap and not a viewport
+opacity fade:
 
 1. **Capture outgoing** — message boxes intersecting the paint band (id,
    frozen top Y / height, scroll direction). Apply **stitch presence pin**.
@@ -179,7 +171,7 @@ scrolling through the gap and not a viewport opacity fade:
 3. **Measure** — post-jump layout: **full-strip travel** from outgoing strip
    - incoming extents (including off-screen parts of tall rows). Duration
      scales with travel (~300–1300ms, `Curves.easeOutQuint`). Clock starts at
-     measure time. Align scrollLength with Telegram’s strip/incoming formula;
+     measure time. scrollLength is the outgoing strip plus incoming extents;
      do not viewport-cap travel for product reasons.
 4. **Paint invariant:** from the first post-jump frame, incoming rows use
    full entry offset (`scrollLength * (1−t)` at `t=0`), even before measure
@@ -189,10 +181,9 @@ scrolling through the gap and not a viewport opacity fade:
    - Outgoing: paint Y `±scrollLength * t` (exit)
    - Incoming: paint Y from `∓scrollLength * (1−t)` to layout Y
 6. **Day chrome:** inline date separators that are built rows ride the same
-   translate sets (Telegram `ChatActionCell`). Floating date follows
-   destination-visible content during the flight (Telegram
-   `scrollListener` → `invalidateMessagesVisiblePart`), not a fake mid-gap
-   timeline and not “update only after settle.”
+   translate sets. Floating date follows destination-visible content during
+   the flight (recomputed on every scroll tick), not a fake mid-gap timeline
+   and not “update only after settle.”
 7. **End** — bake dual-translate paint dy into layout offsets
    (`StitchCancelSnapshot` / `stitch.commit`), then clear pin, GC outgoing,
    `stitchProgress = 0`, complete completer, **restart highlight hold** /
@@ -251,7 +242,7 @@ Completer completes **before** layout `pinNewest`. Tail pin is deferred to the
 
 ## Highlight
 
-Telegram navigate-select (`highlightMessageId` / `setHighlighted`):
+Navigate-select (highlight the target row after navigation):
 
 1. **Host request** — `ChatScrollController.highlight` is the primitive
    (one pending Message id or none). `jumpTo(..., highlight: true)` writes
@@ -270,12 +261,11 @@ Telegram navigate-select (`highlightMessageId` / `setHighlighted`):
    `farAnimateActive && animateTargetId == jump target`. After jump,
    animator re-asserts `_requestHighlight` (pending until incoming row
    builds). Paint Y includes stitch dual-translate so the tint rides the
-   incoming row (Telegram paints highlight on the cell itself).
+   incoming row (the highlight belongs to the row, not the viewport).
 4. **Hold clock paused** during the flight (solid remains).
 5. **Settle** (`_completeAnimate`) restarts solid hold for
-   `highlightDuration` (default 1000ms — Telegram `startMessageUnselect`).
-6. **Fade** ~300ms (`kHighlightFadeDuration`) after hold — Telegram
-   `setHighlighted(false)` / `getHighlightAlpha`.
+   `highlightDuration` (default 1000ms).
+6. **Fade** ~300ms (`kHighlightFadeDuration`) after hold.
 7. **Already-there** arms solid and starts hold immediately.
 8. **Clear matrix**
 
@@ -289,7 +279,7 @@ Telegram navigate-select (`highlightMessageId` / `setHighlighted`):
    | Detach / remount, same controller                                      | keep slot                | keep slot (bind replays)             |
    | Target id absent or error                                              | drop                     | hard-clear                           |
 
-9. Paint: full-width **underlay** (`key_chat_selectedBackground` /
+9. Paint: full-width **underlay** (selected-background wash, default
    `0x280A90F0`) behind the target row; messages paint on top. Bubble
    selected-fill is host-owned.
 
@@ -303,8 +293,8 @@ flags write that slot; the animator only paints / holds / fades. Host
 
 ## Cancel rules
 
-Drag and `scrollBy` cancel animate and **fade** an armed highlight (Telegram
-drag clears selection); pending is **hard-cleared** so a later-built row
+Drag and `scrollBy` cancel animate and **fade** an armed highlight (a user
+drag dismisses the highlight); pending is **hard-cleared** so a later-built row
 does not flash. Clamp-hit (current), presence-pin removal, and span
 auto-scroll cancel animate with fade. Overlay, controller dispose / swap,
 and default `jumpTo` / `jumpToCenterBand` hard-clear highlight. Explicit host
@@ -335,5 +325,5 @@ No `chat_extent_coordinator.dart` in this codebase.
 5. Settle must leave layout as the authority for boundary pins.
 6. Far path keeps continuity via stitch translation, not fade.
 7. Honor load-gate + destination window + presence pin before any stitch.
-8. Day chrome follows destination-visible rows during stitch (Telegram), not
-   a synthetic mid-gap date timeline.
+8. Day chrome follows destination-visible rows during stitch, not a
+   synthetic mid-gap date timeline.

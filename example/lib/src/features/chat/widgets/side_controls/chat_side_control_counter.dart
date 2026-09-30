@@ -349,7 +349,7 @@ class _SideControlCounterPainter extends CustomPainter {
     return Rect.fromLTWH((size.width - w) / 2, 0, w, size.height);
   }
 
-  /// Text origin for the lerped slot — CounterDrawable `countLeft`.
+  /// Left edge of the centered text slot while lerping between counts.
   double _textLeft(Size size) => (size.width - textSlot) / 2;
 
   @override

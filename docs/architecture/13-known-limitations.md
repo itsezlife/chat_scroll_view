@@ -120,4 +120,5 @@ skip-rebuild cache. After delete, survivors kept stale chrome when
 
 **Fix:** `ChatSenderRunLayout.resolve` (injected policy) runs in the render object; `MessageRunLayout`
 is cached per id alongside message identity. `ChatMessageBuilder` receives a
-5th `runLayout` parameter. Demo chrome uses last-in-run (Telegram-style).
+5th `runLayout` parameter. Demo chrome uses last-in-run (avatar and tail on the
+newest message of each sender run).

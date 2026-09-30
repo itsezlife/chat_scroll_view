@@ -10,7 +10,7 @@ import 'package:panel_catalog/panel_catalog.dart';
 /// Viewport logical size shared by candidate and baseline harnesses.
 const Size kBenchViewportSize = Size(400, 600);
 
-/// Grid columns (Telegram-ish phone keyboard density at 400px).
+/// Grid columns (typical phone emoji-keyboard density at 400px).
 const int kBenchSpanCount = 8;
 
 /// Fixed cell / row pitch in logical pixels.

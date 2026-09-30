@@ -11,7 +11,7 @@ class ChatSideControlSlot {
   const ChatSideControlSlot({
     required this.visible,
     required this.child,
-    // Telegram accumulates `dp(44)` (glass), not the full chrome frame —
+    // Stacking accumulates the 44 dp glass, not the full chrome frame —
     // badge / hit padding may overlap the next slot (`Clip.none`).
     this.height = ChatSideControlFab.glassSize,
     this.gap,
@@ -23,14 +23,14 @@ class ChatSideControlSlot {
   /// Control chrome (typically [ChatSideControlFab]).
   final Widget child;
 
-  /// Layout height used for stacking (Telegram: glass diameter `44`).
+  /// Layout height used for stacking (glass diameter, 44 dp).
   final double height;
 
   /// Override stack gap after this slot; defaults to [ChatSideControlsStack.gap].
   final double? gap;
 }
 
-/// Telegram-style side-controls column: siblings share one visibility layout.
+/// Side-controls column: siblings share one visibility layout.
 ///
 /// Each frame, visible fraction `t` contributes `(height + gap) * t` to the
 /// stack height. Translation is `slideAway * (1 - t) - heightBelow`, so when
@@ -61,10 +61,10 @@ class ChatSideControlsStack extends StatefulWidget {
   /// Extra gap between consecutive visible slots.
   final double gap;
 
-  /// Slide distance when a slot is fully hidden (Telegram `dp(80)`).
+  /// Slide distance when a slot is fully hidden (80 dp).
   final double slideAway;
 
-  /// Scale at visibility `0` (Telegram `0.7`).
+  /// Scale at visibility `0` (0.7).
   final double hiddenScale;
 
   /// Show/hide animation duration.
@@ -155,7 +155,7 @@ class _ChatSideControlsStackState extends State<ChatSideControlsStack>
   }
 
   Widget _buildStack() {
-    // Mirror Telegram: accumulate height from bottom slot upward.
+    // Accumulate height from the bottom slot upward.
     var totalHeight = 0.0;
     final layers = <Widget>[];
     for (var i = 0; i < widget.slots.length; i++) {

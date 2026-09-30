@@ -1675,7 +1675,7 @@ void main() {
           ds: ds,
           lastSeen: lastSeen,
         );
-        // Settle Telegram-style entrance (280ms slide + scale + fade).
+        // Settle the entrance (280ms slide + scale + fade).
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
@@ -1841,7 +1841,7 @@ void main() {
         expect(afterScroll, isNot('10 new messages'));
         expect(lastSeen.value, greaterThan(lastRead));
         // A strong fling toward newer may settle on the tail and clear the
-        // badge — that matches Telegram. Require a non-zero badge only while
+        // badge, which is expected. Require a non-zero badge only while
         // still off-tail after settle.
         if (!controller.isAtTail.value) {
           expect(afterScroll, isNot('0 new messages'));

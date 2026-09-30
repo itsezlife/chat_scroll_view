@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _style = TelegramGlassStyle(
+const _style = LiquidGlassStyle(
   fill: Color(0xD9202020),
   strokeTop: Color(0x28FFFFFF),
   strokeBottom: Color(0x14FFFFFF),
@@ -24,7 +24,7 @@ Widget _scene() => GlassSourceScope(
         child: SizedBox(
           width: 200,
           height: 44,
-          child: TelegramGlass(
+          child: LiquidGlass(
             key: _glassKey,
             style: _style,
             child: SizedBox.expand(),
@@ -55,7 +55,91 @@ bool _drawsGlass() => find
     .evaluate()
     .isNotEmpty;
 
+class _Sampler implements GlassSampler {
+  _Sampler(this.region);
+
+  final Rect region;
+
+  @override
+  Rect? sampleRegion(RenderGlassSource source) => region;
+
+  @override
+  double get samplePixelRatio => 0.5;
+
+  @override
+  double get sampleBlurSigma => 2;
+}
+
 void main() {
+  group('mergeGlassRegions', () {
+    test('merges regions whose bounds stay cheap', () {
+      const composer = Rect.fromLTWH(0, 700, 400, 100);
+      const button = Rect.fromLTWH(340, 630, 60, 60);
+
+      expect(mergeGlassRegions([composer, button]), [
+        composer.expandToInclude(button),
+      ]);
+    });
+
+    test('keeps distant regions apart', () {
+      const top = Rect.fromLTWH(0, 0, 400, 60);
+      const bottom = Rect.fromLTWH(0, 740, 400, 60);
+
+      expect(mergeGlassRegions([top, bottom]), [top, bottom]);
+    });
+  });
+
+  group('GlassSourceLink', () {
+    late GlassSourceLink link;
+
+    Future<void> pumpScope(WidgetTester tester) => tester.pumpWidget(
+      MaterialApp(
+        home: GlassSourceScope(
+          child: Builder(
+            builder: (context) {
+              link = GlassSourceScope.maybeOf(context)!;
+              return const GlassSource(
+                child: ColoredBox(color: Color(0xFF3366FF)),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('shares one capture between nearby samplers', (tester) async {
+      await pumpScope(tester);
+      final composer = _Sampler(const Rect.fromLTWH(0, 500, 400, 100));
+      final button = _Sampler(const Rect.fromLTWH(340, 430, 60, 60));
+      link
+        ..addSampler(composer)
+        ..addSampler(button);
+
+      final a = link.captureFor(composer)!;
+      final b = link.captureFor(button)!;
+
+      expect(identical(a.image, b.image), isTrue);
+      expect(a.region, composer.region.expandToInclude(button.region));
+      await tester.pump();
+    });
+
+    testWidgets('captures distant samplers separately', (tester) async {
+      await pumpScope(tester);
+      final top = _Sampler(const Rect.fromLTWH(0, 0, 400, 60));
+      final bottom = _Sampler(const Rect.fromLTWH(0, 500, 400, 60));
+      link
+        ..addSampler(top)
+        ..addSampler(bottom);
+
+      final a = link.captureFor(top)!;
+      final b = link.captureFor(bottom)!;
+
+      expect(identical(a.image, b.image), isFalse);
+      expect((a.region, b.region), (top.region, bottom.region));
+      await tester.pump();
+    });
+  });
+
   group('GlassSource', () {
     setUp(() => GlassBackdrop.debugCaptureSupported = true);
     tearDown(() => GlassBackdrop.debugCaptureSupported = null);

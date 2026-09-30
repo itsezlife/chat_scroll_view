@@ -3,16 +3,16 @@
 **Status**: Accepted (amended 2026-09-13 — §4 press-lifecycle)  
 **Date**: 2026-09-13  
 **Deciders**: Maintainer, Agent  
-**Consulted**: Telegram Android (`TMessagesProj/ChatMessageCell.java`, `LinkSpanDrawable.java`), Telegram Desktop (`tdesktop/iv_markdown_article_paint.cpp`)  
+**Consulted**: Mobile and desktop chat clients' message-cell press tracking and markdown code-block paint  
 **Related ADRs**: [ADR 012](012-cross-platform-selection-policies.md), [ADR 013](013-viewport-owns-markdown-text-selection.md), [ADR 015](015-per-body-scope-owns-continuous-text-gestures.md)
 
 ## Context
 
 Chat messages frequently contain code blocks, inline monospace snippets,
-hyperlinks, and user mentions. In Telegram Android and Telegram Desktop, these
-elements exhibit distinct interaction zones, platform-specific chrome, hover
-feedback, and tactile press animations that diverge from simple rectangular
-widgets or uniform click-to-copy handlers:
+hyperlinks, and user mentions. On mobile and desktop, these elements need
+distinct interaction zones, platform-specific chrome, hover feedback, and
+tactile press animations that diverge from simple rectangular widgets or
+uniform click-to-copy handlers:
 
 1. **Fenced Code Blocks**:
    - On **desktop**, a fenced code block has a top header bar with the language
@@ -29,12 +29,11 @@ widgets or uniform click-to-copy handlers:
 3. **Press / Tap Highlight Effect**:
    - Pressing an inline link, inline code snippet, or mention does not wait for
      release to show feedback. Ink arms on pointer **down**, holds while
-     pressed, and fades on **up** / cancel (`LinkSpanDrawable` press tracking).
+     pressed, and fades on **up** / cancel (press tracking).
      Short tap and long-press share that lifecycle; host long-press actions are
      separate from paint.
-   - Telegram uses smooth contour rounding for multiline text highlights
-     (`LinkPath.java` / `LinkSpanDrawable.java`), avoiding jagged, stepped
-     rectangles.
+   - Multiline text highlights use smooth contour rounding, avoiding jagged,
+     stepped rectangles.
 
 ## Decision
 
@@ -79,9 +78,8 @@ We implement the vector-arc rounding algorithm in pure Dart inside
 
 ### 4. Press Feedback Lifecycle (`ChatSpanFeedbackPainter`)
 Actionable inline hits (links, inline code, fenced copy chrome) drive a
-**press-lifecycle** canvas feedback painter — Telegram Android
-`LinkSpanDrawable` / `ChatMessageCell` press tracking, not a one-shot flash
-fired only after the action:
+**press-lifecycle** canvas feedback painter — continuous press tracking, not a
+one-shot flash fired only after the action:
 
 | Phase | When | Visual |
 | ----- | ---- | ------ |
@@ -128,7 +126,8 @@ exposes only two minimal, non-breaking primitives:
 ## Consequences
 
 ### Positive
-- 1:1 interaction parity with Telegram Android and Desktop.
+- One interaction model covers mobile and desktop: header copy, hover
+  cursors, and press ink per platform policy.
 - Code blocks support both click-to-copy (header) and character-range text
   selection (body) without gesture conflicts.
 - Polished, tactile **press-lifecycle** feedback (expand / hold / release) with

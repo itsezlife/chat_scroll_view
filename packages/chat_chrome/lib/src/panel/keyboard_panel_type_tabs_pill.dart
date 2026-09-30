@@ -5,7 +5,7 @@ import 'package:chat_chrome/src/panel/keyboard_panel_labels.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-/// Shrink-wrapped type tabs + sliding indicator (`PagerSlidingTabStrip`).
+/// Shrink-wrapped type tabs + sliding indicator that tracks the pager.
 class KeyboardPanelTypeTabsPill extends StatefulWidget {
   /// Creates the type-tabs pill.
   const KeyboardPanelTypeTabsPill({
@@ -49,7 +49,8 @@ class KeyboardPanelTypeTabsPill extends StatefulWidget {
   final Color idleText;
 
   @override
-  State<KeyboardPanelTypeTabsPill> createState() => _KeyboardPanelTypeTabsPillState();
+  State<KeyboardPanelTypeTabsPill> createState() =>
+      _KeyboardPanelTypeTabsPillState();
 }
 
 class _KeyboardPanelTypeTabsPillState extends State<KeyboardPanelTypeTabsPill>

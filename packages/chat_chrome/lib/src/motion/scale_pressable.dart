@@ -26,7 +26,7 @@ class ScalePressable extends StatefulWidget {
   /// Press-in duration.
   static const Duration pressDuration = Duration(milliseconds: 80);
 
-  /// Release duration (`defaultAnimator`).
+  /// Release duration.
   static const Duration releaseDuration = Duration(milliseconds: 350);
 
   @override

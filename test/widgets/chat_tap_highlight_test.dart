@@ -337,7 +337,7 @@ void main() {
                               ChatTapHighlight(
                                 key: ValueKey('name-$id'),
                                 onTap: () {},
-                                // null onLongPress — Telegram name chrome
+                                // null onLongPress — sender-name chrome
                                 // passes long-press through to message selection.
                                 child: Text('name-$id'),
                               ),

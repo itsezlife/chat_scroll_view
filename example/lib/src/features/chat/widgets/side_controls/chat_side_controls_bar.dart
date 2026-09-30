@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 /// Drop-in side-controls overlay: search up/down + page-down in one stack.
 ///
 /// While [searching] is true, search chevrons animate in and page-down
-/// animates out (Telegram search mode). Slots share one layout so they
+/// animates out (search mode). Slots share one layout so they
 /// move together.
 class ChatSideControlsBar extends StatelessWidget {
   /// Creates the demo side-controls bar.
@@ -37,10 +37,10 @@ class ChatSideControlsBar extends StatelessWidget {
   /// Composer / keyboard inset.
   final ValueListenable<double>? bottomInset;
 
-  /// Jump to an older search hit (Telegram search-up / flipped chevron).
+  /// Jump to an older search hit (search-up / flipped chevron).
   final VoidCallback? onSearchUp;
 
-  /// Jump to a newer search hit (Telegram search-down).
+  /// Jump to a newer search hit (search-down).
   final VoidCallback? onSearchDown;
 
   /// Optional badge on search-up (hit count).
@@ -54,7 +54,7 @@ class ChatSideControlsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Bottom → top: page-down, search-down, search-up (Telegram order).
+    // Bottom → top: page-down, search-down, search-up.
     return ChatSideControlsStack(
       bottomInset: bottomInset,
       slots: [

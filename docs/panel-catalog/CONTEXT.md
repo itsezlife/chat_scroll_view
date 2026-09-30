@@ -27,15 +27,15 @@ Scroll state is an absolute content offset against a known (or estimated) catalo
 _Avoid_: Anchor origin, message-id fan-out, Chat Scroll position model
 
 **Near-path scroll**:
-Continuous smooth scroll when the section target is already attached or within the far-path distance gate (Telegram `LinearSmoothScrollerCustom`).
+Continuous smooth scroll when the section target is already attached or within the far-path distance gate.
 _Avoid_: Always stitch, always animateTo across the full catalog
 
 **Far-path scroll**:
-When the target is not attached and farther than the distance gate (or animations are disabled at the product flag). **Action is stitch**, not a bare content-offset jump (Telegram `RecyclerAnimationScrollHelper.scrollToPosition(..., smooth=true)`).
+When the target is not attached and farther than the distance gate (or animations are disabled at the product flag). **Action is stitch**, not a bare content-offset jump.
 _Avoid_: Naked `jumpTo` as the far-path UX, animateTo through the entire gap
 
 **Far-path distance gate**:
-Telegram emoji rule (`EmojiView.scrollEmojisToPosition`): target view not currently attached AND `|adapterPos − firstVisible| > spanCount * 9` in **per-cell** adapter space. In flat-row index (one slot per section header + one per leaf row) that is `|targetFlatIndex − firstVisibleFlatIndex| > [kFarPathDistanceGateFactor]` (= 9). Below that (or if the target header row is already visible), use near-path smooth scroll.
+Far path applies when the target view is not currently attached AND `|adapterPos − firstVisible| > spanCount * 9` in **per-cell** adapter space. In flat-row index (one slot per section header + one per leaf row) that is `|targetFlatIndex − firstVisibleFlatIndex| > [kFarPathDistanceGateFactor]` (= 9). Below that (or if the target header row is already visible), use near-path smooth scroll.
 _Avoid_: Multiplying the flat-row gate by spanCount again (over-widens near path), pixel-distance gates, treating “far” as synonymous with jumpTo, per-cell index for the gate when the catalog already uses flat rows
 
 **Section jump**:
@@ -51,7 +51,7 @@ _Avoid_: Landing at offset `headerTop` when [padding.top] reserves strip space
 _Avoid_: Inferring programmatic motion from offset deltas alone, re-entrant strip updates during near-path animate
 
 **Flat-row index**:
-Adapter-style index for section-jump gating: each section contributes one index for its header, then one index per leaf row at [spanCount] columns. Matches Telegram flat list / SuperSliverList header+row lists.
+Adapter-style index for section-jump gating: each section contributes one index for its header, then one index per leaf row at [spanCount] columns, like SuperSliverList header+row lists.
 _Avoid_: Per-cell index for the distance gate, message-id indices
 
 **Stitch**:
@@ -105,11 +105,11 @@ Reserved stand-in for async bitmap-page unicode leaves (solid circle ~0.4 × gly
 _Avoid_: Using circle as the default for paragraph-painted unicode, moving gradient wash, sticker-shaped shimmer for unicode cells
 
 **Thumb-first placeholder**:
-Loading stand-in for document-backed animated/custom emoji: static/SVG thumb via the image pipeline until media is ready (Telegram `AnimatedEmojiDrawable` + `ImageReceiver`).
+Loading stand-in for document-backed animated/custom emoji: static/SVG thumb via the image pipeline until media is ready.
 _Avoid_: Circle placeholder for animated leaves when a thumb exists
 
 **Shaped loading wash**:
-Loading stand-in for sticker leaves: sticker SVG silhouette with a moving gradient (Telegram `LoadingStickerDrawable`).
+Loading stand-in for sticker leaves: sticker SVG silhouette with a moving gradient.
 _Avoid_: Using this as the default for unicode emoji cells
 
 **Catalog data source**:
@@ -118,7 +118,7 @@ _Avoid_: Streams as the integration contract, fetch inside the viewport, subclas
 
 **Global catalog asset cache**:
 Process-wide cache for emoji / sticker / GIF document thumbs and media, shared by the Panel Catalog Viewport and by Chat Scroll (inline animated emoji, sticker messages, etc.). Viewport and chat cells only bind and paint; they do not each keep a private decode store. Ready/failed entries survive the last surface detach so pager keep-alive leave/return does not flash loading; [isRetained] tracks live binds only.
-_Avoid_: Per-panel-only drawable map as the source of truth, evicting settled readiness on every detach, duplicating Telegram `AnimatedEmojiDrawable` caches per surface
+_Avoid_: Per-panel-only drawable map as the source of truth, evicting settled readiness on every detach, duplicating animated-emoji drawable caches per surface
 
 **Document-backed leaf**:
 A catalog cell identified by a document (animated/custom emoji, sticker) rather than only a unicode glyph. v1 prepares identity and placeholder modes for these even if full media decode ships later.

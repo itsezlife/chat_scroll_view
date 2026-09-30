@@ -321,8 +321,8 @@
   loads later gets the separator when it is built. Swapping the builder
   rebuilds every built row. A `null` boundary paints nothing.
 - **CHANGED**: The separator animates in and out instead of appearing and
-  disappearing in one frame, with the timings of Telegram Android's chat
-  item animator. Leaving, it fades out over 120 ms while its slot collapses
+  disappearing in one frame, with the timings of the chat list item
+  animator. Leaving, it fades out over 120 ms while its slot collapses
   over 250 ms, so the neighbouring rows slide closed. Arriving, its slot
   grows over 250 ms while it fades in and scales up from 0.9. A moved
   boundary runs both at once. A change mid-transition reverses from the
@@ -350,8 +350,8 @@
   boundary from cached messages; at the first uncached id they fetch that
   whole chunk once, so an open makes at most one fetch. A failed fetch is
   logged and the chat opens at last-read without the bar.
-- **EXAMPLE**: `UnreadBoundaryController` holds the boundary for one open,
-  following Telegram Android's lifecycle. The bar stays put while the reader
+- **EXAMPLE**: `UnreadBoundaryController` holds the boundary for one open.
+  The bar stays put while the reader
   scrolls through unread messages; only the scroll-to-bottom pill's read
   baseline advances. Incoming messages never remove it: at the tail the list
   follows them and the bar scrolls away with the rows above. A send from
@@ -364,15 +364,14 @@
   later arrivals never resolve it. `separatorSeen` turns `true` on the first
   visible range push that shows the loaded boundary row, and resets when the
   boundary changes.
-- **EXAMPLE**: Any deletion removes the bar, as in Telegram Android: every
-  remove batch from the data source clears the boundary, pending or not,
+- **EXAMPLE**: Any deletion removes the bar: every remove batch from the data source clears the boundary, pending or not,
   including ids that were never loaded. Edits keep it. A read on another
   client removes it too: `UnreadBoundaryController` takes an optional
   `readElsewhere` listenable and clears on each notification, whatever read
   id the other client stored. This device's own read-progress writes never
   clear it.
-- **EXAMPLE**: A page-down that stitches to the tail removes the bar, as a
-  reloading page-down does in Telegram Android. When an `animateTo` whose
+- **EXAMPLE**: A page-down that stitches to the tail removes the bar, since
+  the rows in between were never scrolled through. When an `animateTo` whose
   target was the newest known message when it started ends with
   `ChatAnimateEnd.path == AnimateToPath.stitch`, `UnreadBoundaryController`
   clears the boundary. A page-down near the tail that scrolls through built
@@ -385,8 +384,8 @@
   `chat_read_state` changes for its chat and `userId`, and notifies
   `readElsewhere` for each change it did not write. It unsubscribes and
   goes silent on `dispose`.
-- **EXAMPLE**: A chat reopens where the reader left off, as in Telegram
-  Android. Leaving the demo chat (the screen is disposed or the app hides)
+- **EXAMPLE**: A chat reopens where the reader left off. Leaving the demo
+  chat (the screen is disposed or the app hides)
   saves its Center Band per chat in `ChatCenterBandStore`
   (`shared_preferences`). Leaving at the tail drops it, and so does leaving
   with an unread message from someone else as the newest visible row and
@@ -401,7 +400,7 @@
   band top, and to the newest message afterwards.
   `ChatScrollToBottomButton.interceptTap` lets the host take over a tap.
 - **EXAMPLE**: Messages that arrive while the app is in the background
-  move the bar, as in Telegram Android. `UnreadBoundaryController` treats
+  move the bar. `UnreadBoundaryController` treats
   hide to show (`AppLifecycleListener.onHide` / `onShow`) as one pause. The
   first incoming message that lands at a loaded tail during the pause
   becomes the boundary, replacing a placed or pending one, and later
@@ -436,8 +435,8 @@
   (a `ThemeExtension` with `light` and `dark` palettes) carries the strip,
   label and arrow colors; without a registered extension the palette follows
   the theme brightness.
-- **EXAMPLE**: Short unread content opens at the bottom, as with Telegram
-  Android's half-screen rule. An open at the unread boundary passes
+- **EXAMPLE**: Short unread content opens at the bottom (half-screen rule).
+  An open at the unread boundary passes
   `tailFitFraction: ChatDataSourceX.unreadBoundaryTailFitFraction` (`0.5`,
   carried on `MessageOpenPosition.tailFitFraction`). When the unread
   messages fit in half the viewport, the chat opens at the tail and

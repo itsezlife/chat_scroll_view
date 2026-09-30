@@ -585,7 +585,8 @@ void main() {
     test(
       'close path when target is built even beyond kCloseAnimateDistance',
       () {
-        // Telegram found → smoothScrollBy; distance must not force stitch.
+        // Target already built → smooth scroll; distance must not force a
+        // stitch.
         final controller = ChatScrollController();
         final box = _sizedBox();
         final animator = _animator(
@@ -612,7 +613,7 @@ void main() {
     test(
       'close path when band-intersecting even if offset exceeds distance',
       () {
-        // Telegram: found among current children → smoothScrollBy, not stitch.
+        // Found among current children → smooth scroll, not stitch.
         final controller = ChatScrollController();
         final box = _sizedBox(height: 5000);
         const startY = -(kCloseAnimateDistance + 2000);
@@ -636,7 +637,7 @@ void main() {
 
         expect(animator.farAnimateActive, isFalse);
         expect(animator.isAnimating, isTrue);
-        // ~4.5k px travel → Telegram max duration, not caller 200ms.
+        // ~4.5k px travel → max travel duration, not caller 200ms.
         expect(
           animator.animateDuration,
           chatAnimateTravelDuration(
@@ -652,35 +653,32 @@ void main() {
       },
     );
 
-    test(
-      'close path short travel uses Telegram min duration + easeOutQuint',
-      () {
-        final controller = ChatScrollController();
-        final box = _sizedBox();
-        final animator = _animator(
-          controller: controller,
-          offsetToBuiltMessage: (_) => 120.0,
-          closePathEndOffsetFor: (_, _, _) => 0.0,
-          childForId: (_) => box,
-          heightOfChild: (_) => box.size.height,
-          viewportHeight: () => 600.0,
-        );
+    test('close path short travel uses min travel duration + easeOutQuint', () {
+      final controller = ChatScrollController();
+      final box = _sizedBox();
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => 120.0,
+        closePathEndOffsetFor: (_, _, _) => 0.0,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+        viewportHeight: () => 600.0,
+      );
 
-        animator.animate(
-          5,
-          duration: const Duration(milliseconds: 80),
-          curve: Curves.linear,
-          highlight: false,
-        );
+      animator.animate(
+        5,
+        duration: const Duration(milliseconds: 80),
+        curve: Curves.linear,
+        highlight: false,
+      );
 
-        expect(animator.farAnimateActive, isFalse);
-        expect(
-          animator.animateDuration.inMilliseconds,
-          kAnimateTravelDurationMinMs,
-        );
-        expect(animator.animateCurve, Curves.easeOutQuint);
-      },
-    );
+      expect(animator.farAnimateActive, isFalse);
+      expect(
+        animator.animateDuration.inMilliseconds,
+        kAnimateTravelDurationMinMs,
+      );
+      expect(animator.animateCurve, Curves.easeOutQuint);
+    });
 
     test('preferBuilt becomes close path once target builds nearby', () {
       final controller = ChatScrollController();

@@ -119,7 +119,7 @@ void main() {
       expect(
         _render(tester).debugHighlightTargetId,
         target,
-        reason: 'Telegram: highlight arms at navigate start',
+        reason: 'highlight arms at navigate start',
       );
       expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
       expect(_render(tester).debugHighlightFactor, 1.0);
@@ -289,8 +289,8 @@ void main() {
       'far-path stitch keeps highlight armed through jump (not only at settle)',
       (tester) async {
         // Regression: _onJump used to hard-clear highlight on stitch teleport,
-        // so select tint only reappeared in _completeAnimate — unlike Telegram
-        // highlightMessageId set before scrollHelper.
+        // so select tint only reappeared in _completeAnimate. The highlight
+        // must be armed before the stitch starts.
         const count = 256;
         final controller = ChatScrollController()..jumpTo(count ~/ 2);
         final ds = _PreloadedDataSource(count);
@@ -376,7 +376,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 16));
       }
 
-      // Telegram: while animating, a different target is dropped.
+      // While animating, a different target is dropped.
       final secondFuture = controller.animateTo(
         125,
         duration: const Duration(milliseconds: 120),
@@ -548,7 +548,7 @@ void main() {
       expect(_render(tester).debugHighlightTargetId, 120);
 
       // Start a new animation while the previous highlight is still active.
-      // Telegram: clear then re-arm the new id at navigate start.
+      // Clear, then re-arm the new id at navigate start.
       final secondFuture = controller.animateTo(
         125,
         duration: const Duration(milliseconds: 80),

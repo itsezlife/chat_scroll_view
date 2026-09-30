@@ -9,19 +9,19 @@ import 'package:flutter/services.dart';
 
 /// Skin-tone popup window metrics (phone).
 abstract final class EmojiColorPickerMetrics {
-  /// Drawn tone cell (`emojiSize`, phone).
+  /// Drawn tone cell (phone).
   static const double emojiSize = 32;
 
-  /// Gap between cells (`dp(4)`).
+  /// Gap between cells (4 dp).
   static const double gap = 4;
 
-  /// Horizontal inset before first cell (`dp(5)`).
+  /// Horizontal inset before first cell (5 dp).
   static const double padH = 5;
 
-  /// Vertical padding around the row (`dp(15)` total chrome − size).
+  /// Vertical padding around the row (15 dp of chrome split top / bottom).
   static const double padV = 7.5;
 
-  /// Arrow tip below body (`dp(6)`).
+  /// Arrow tip below body (6 dp).
   static const double arrowH = 6;
 
   /// Corner radius on popup body.
@@ -127,7 +127,11 @@ class EmojiColorPicker extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              for (var i = 0; i < EmojiSkinTone.modifiers.length; i++) ...<Widget>[
+              for (
+                var i = 0;
+                i < EmojiSkinTone.modifiers.length;
+                i++
+              ) ...<Widget>[
                 if (i > 0) const SizedBox(width: EmojiColorPickerMetrics.gap),
                 _ToneCell(
                   glyph: EmojiSkinTone.apply(base, i),

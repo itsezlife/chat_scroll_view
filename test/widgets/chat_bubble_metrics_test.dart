@@ -23,7 +23,7 @@ void main() {
   );
 
   group('ChatMessageThemeData bubble tokens', () {
-    test('defaults match Telegram-aligned values', () {
+    test('defaults match the bubble metrics spec', () {
       const theme = ChatMessageThemeData.fallback;
       expect(theme.bubbleRadius, 17);
       expect(theme.cornerNearCap, 6);
@@ -192,7 +192,7 @@ void main() {
   group('ChatBubbleMetrics.bubbleContentPadding', () {
     const theme = ChatMessageThemeData.fallback;
 
-    test('symmetric horizontal inset (no Telegram tail-side +6)', () {
+    test('symmetric horizontal inset (no tail-side +6)', () {
       expect(
         ChatBubbleMetrics.bubbleContentPadding(theme: theme),
         const EdgeInsetsDirectional.fromSTEB(13, 8, 13, 8),

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 /// Frosted circle with optional Y-flipped chevron (search-up).
 ///
-/// Optical offset matches Telegram's page-down glass: top pad on the icon,
+/// Optical offset of the page-down glass: top pad on the icon,
 /// then `scaleY = -1` for search-up. Padding is flipped with the glyph so
 /// down sits slightly low and up slightly high — not a mirrored pair with
 /// the same post-flip top pad.
@@ -44,8 +44,8 @@ class ChatSideControlGlass extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Pad first, then flip — same order as Telegram ImageView padding +
-    // `scaleY = -1`, so search-up's optical bias points tip-ward.
+    // Pad first, then flip (`scaleY = -1`), so search-up's optical bias
+    // points tip-ward.
     Widget icon = Padding(
       padding: EdgeInsets.only(top: iconPaddingTop),
       child: Image.asset(

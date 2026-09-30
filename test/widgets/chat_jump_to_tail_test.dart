@@ -300,8 +300,8 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 16));
 
-        // Must not stitch: same visible newest should smooth-scroll (Telegram
-        // found→smoothScrollBy), never jump to band top then pin.
+        // Must not stitch: same visible newest should smooth-scroll (target
+        // already built → close path), never jump to band top then pin.
         expect(
           render.debugFarAnimateActive,
           isFalse,

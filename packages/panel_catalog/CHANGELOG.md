@@ -34,13 +34,12 @@ is pre-1.0.
   [CatalogAssetCache.readinessOf] when unbound so ready document leaves stay
   [CatalogLeafPresentation.content] after pool [detachAll] (pager reattach).
 - **Far-path distance gate** — near path when flat-row distance `≤ 9`
-  ([kFarPathDistanceGateFactor]), not `spanCount × 9` rows. Matches Telegram
-  `EmojiView.scrollEmojisToPosition` (`spanCount × 9` in per-cell adapter
-  space). The previous multiplier over-widened near-path smooth scroll.
+  ([kFarPathDistanceGateFactor]), not `spanCount × 9` rows. Equivalent to
+  `spanCount × 9` in per-cell adapter space. The previous multiplier
+  over-widened near-path smooth scroll.
 - **`PanelCatalogController.jumpToSection` re-entry** — while
   [isSectionJumpActive], additional requests are ignored and return the
-  in-flight future (Telegram `emojiSmoothScrolling` /
-  `fastScrollAnimationRunning`); user drag still cancels.
+  in-flight future; user drag still cancels.
 - **`PanelCatalogViewport.placeholderColor` removed** — use
   [PanelCatalogThemeData.placeholderColor] via [PanelCatalogTheme] instead.
 

@@ -319,7 +319,7 @@ void main() {
         final gesture = await tester.startGesture(start);
         await tester.pump(kLongPressTimeout + kPressTimeout);
         await tester.pump();
-        // Continuous hold: drag to extend (Telegram TextSelectionHelper path).
+        // Continuous hold: drag to extend without lifting.
         await gesture.moveTo(end);
         await tester.pump();
         await gesture.up();

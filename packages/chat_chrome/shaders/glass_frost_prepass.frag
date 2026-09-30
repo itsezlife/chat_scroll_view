@@ -1,7 +1,7 @@
 #version 460 core
 #include <flutter/runtime_effect.glsl>
 
-// Approximates Telegram glass `DownscaledRenderNode` scale N× at full
+// Approximates sampling the backdrop at 1/N resolution while staying at full
 // resolution: box-average an N×N neighborhood before Gaussian blur.
 // ImageFilter.shader auto-binds u_size + u_texture.
 
@@ -23,7 +23,7 @@ vec4 sampleAt(vec2 pixel) {
 
 void main() {
   vec2 p = FlutterFragCoord().xy;
-  // Unrolled 4×4 (Telegram default). If u_scale != 4, still use 4×4 span
+  // Unrolled 4×4 (the default scale). If u_scale != 4, still use 4×4 span
   // sized by u_scale so effective footprint matches downscale.
   float n = clamp(u_scale, 2.0, 8.0);
   float origin = -(n - 1.0) * 0.5;

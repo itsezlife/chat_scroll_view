@@ -13,7 +13,7 @@ surfaces (emoji / stickers / GIFs).
   pointer
 - **Section jump** — `PanelCatalogController.jumpToSection` with near-path
   smooth scroll when the far-path distance gate passes (`≤ 9` flat rows;
-  Telegram `spanCount × 9` in per-cell adapter space); `isSectionJumpActive`
+  `spanCount × 9` in per-cell adapter space); `isSectionJumpActive`
   for host strip-sync gating
 - **Paint leaves** — no per-cell `StatefulWidget` default; visible-band asset
   bind/recycle

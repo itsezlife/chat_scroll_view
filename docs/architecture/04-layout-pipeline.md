@@ -139,8 +139,8 @@ previous value (`_laidOutUnreadBoundary`) to the current one,
 `_startUnreadSeparatorTransitions` runs before the fan-out. The old row
 exits if it was laid out last frame with the separator. The new row enters
 if it was laid out last frame as a loaded message. Any other row is
-cancelled, so it changes without a transition. Timing and curves come from
-Telegram's chat item animator (TRACE in the unread-bar worked guide):
+cancelled, so it changes without a transition. Timing and curves follow the
+chat list item animator (TRACE in the unread-bar worked guide):
 
 - The slot extent follows the 250 ms list-item move curve.
 - The exit fades out over 120 ms.

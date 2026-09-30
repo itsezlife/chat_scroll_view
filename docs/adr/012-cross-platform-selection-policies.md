@@ -30,7 +30,7 @@ long-press on body text still enters message selection first.
 
 On text entry, this policy **preserves** the selected set of messages intact.
 Text selection nests under message selection without destroying other selected
-messages, matching Telegram Android behavior.
+messages.
 
 | Cause                                      | Text selection      | Message selection           |
 | ------------------------------------------ | ------------------- | --------------------------- |
@@ -51,7 +51,7 @@ message selection / span gesture.
 Direct character-range entry: press+drag (letter / word / paragraph by click
 count) on bubble text, with no prior **message selection**. Text-active and
 message membership are **mutually exclusive**. Settled **message selection**
-does not allow starting character-range text selection (tdesktop parity);
+does not allow starting character-range text selection;
 inline link/code activation may still fire without clearing membership.
 
 Desktop gestures are drag-distance driven (`startDragDistance`), without a

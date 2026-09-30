@@ -10,7 +10,7 @@ import 'package:flutter/services.dart';
 /// - Pointer up before the first repeat → one [onBackspace] (tap).
 /// - Hold past [initialRepeatDelay] → repeats, accelerating by
 ///   [repeatAcceleration] each tick down to [minRepeatInterval]
-///   (`postBackspaceRunnable` / `Math.max(50, time - 100)`).
+///   (`next = max(50, previous - 100)` ms).
 ///
 /// Visual press scale comes from [ScalePressable]; this widget owns the
 /// pointer lifecycle so [ScalePressable.onPressed] is not used for delete.
@@ -28,7 +28,7 @@ class BackspaceActionButton extends StatefulWidget {
   /// Painted icon (already sized for the action slot).
   final Widget child;
 
-  /// Delay before the first repeat (`postBackspaceRunnable(350)`).
+  /// Delay before the first repeat.
   static const Duration initialRepeatDelay = Duration(milliseconds: 350);
 
   /// Floor for the accelerating repeat interval.
@@ -81,12 +81,13 @@ class _BackspaceActionButtonState extends State<BackspaceActionButton> {
       if (!_pressed || !mounted) return;
       _repeatFired = true;
       _fireBackspace();
-      final nextMs = (delay.inMilliseconds -
-              BackspaceActionButton.repeatAcceleration.inMilliseconds)
-          .clamp(
-            BackspaceActionButton.minRepeatInterval.inMilliseconds,
-            BackspaceActionButton.initialRepeatDelay.inMilliseconds,
-          );
+      final nextMs =
+          (delay.inMilliseconds -
+                  BackspaceActionButton.repeatAcceleration.inMilliseconds)
+              .clamp(
+                BackspaceActionButton.minRepeatInterval.inMilliseconds,
+                BackspaceActionButton.initialRepeatDelay.inMilliseconds,
+              );
       _scheduleRepeat(Duration(milliseconds: nextMs));
     });
   }
@@ -102,10 +103,7 @@ class _BackspaceActionButtonState extends State<BackspaceActionButton> {
       onPointerDown: _onPointerDown,
       onPointerUp: _onPointerUp,
       onPointerCancel: _onPointerCancel,
-      child: ScalePressable(
-        onPressed: () {},
-        child: widget.child,
-      ),
+      child: ScalePressable(onPressed: () {}, child: widget.child),
     );
   }
 }

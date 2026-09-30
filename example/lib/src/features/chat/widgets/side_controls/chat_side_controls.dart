@@ -1,4 +1,4 @@
-/// Telegram-style side control FABs (page-down, search up/down, …).
+/// Side control FABs (page-down, search up/down, …).
 library;
 
 export 'chat_side_control_counter.dart';

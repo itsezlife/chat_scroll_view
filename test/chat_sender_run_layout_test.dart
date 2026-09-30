@@ -112,7 +112,7 @@ void main() {
       expect(last.isLastInSenderRun, isTrue);
     });
 
-    test('exactly maxClusterGap still clusters (Telegram ≤ window)', () {
+    test('exactly maxClusterGap still clusters (inclusive ≤ window)', () {
       final t0 = DateTime(2026, 5, 29, 14, 0);
       final ds = _LoadedSource([
         _msg(1, when: t0),

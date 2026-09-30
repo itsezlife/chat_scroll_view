@@ -18,7 +18,7 @@ import 'package:flutter/widgets.dart';
 /// ## Selection gestures
 ///
 /// - **Mobile / touch:** when [onLongPress] is null, long-press is **not**
-///   claimed — the viewport may enter **message selection** (Telegram name
+///   claimed — the viewport may enter **message selection** (sender-name
 ///   chrome). Pass [onLongPress] (even empty) to absorb, like an avatar.
 /// - **Desktop / mouse:** pointer-down excludes the pointer from viewport
 ///   message pan (see [ChatSelectionGestureExclusion]) so chrome press-drag
@@ -71,7 +71,7 @@ class ChatTapHighlight extends StatefulWidget {
   ///
   /// When non-null, this hit absorbs the press so the viewport does not start
   /// **message selection**. When null on touch, long-press passes through
-  /// (Telegram sender-name chrome).
+  /// (sender-name chrome).
   final VoidCallback? onLongPress;
 
   /// When false, skips ink and does not invoke [onTap] / [onLongPress].
@@ -261,7 +261,7 @@ class _ChatTapHighlightState extends State<ChatTapHighlight>
     if (!mounted || !_isInteractive(context)) return;
     // Desktop/mouse: exclude so chrome press does not pan-select.
     // Touch: exclude only when the host owns long-press; null [onLongPress]
-    // lets the viewport claim message selection (Telegram name chrome).
+    // lets the viewport claim message selection (sender-name chrome).
     if (_excludesViewportSelection(event)) {
       ChatSelectionGestureExclusion.exclude(event.pointer);
     }

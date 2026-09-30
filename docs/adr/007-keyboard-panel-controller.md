@@ -1,8 +1,8 @@
 # ADR 007: KeyboardPanel controller as chrome source of truth
 
 Chat chrome’s keyboard-replacement surface is **KeyboardPanel**, driven by a
-host-owned **KeyboardPanelController** — not Telegram’s imperative `EmojiView`
-/`GlobalKey<State>` model. The controller is the source of truth for open/tab/
+host-owned **KeyboardPanelController** — not an imperative panel view reached
+through a `GlobalKey<State>`. The controller is the source of truth for open/tab/
 search (and related chrome intents); the widget projects that state. Extent
 scroll stays on page-local [PanelCatalogController].
 
@@ -13,7 +13,7 @@ scroll stays on page-local [PanelCatalogController].
 
 | Topic          | Decision                                                                                                                                                                                                                               |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Name           | **KeyboardPanel** / **KeyboardPanelController** — role is IME-slot chrome; avoids CatalogPanel↔PanelCatalog mirror and lasting `EmojiPanel` / `EmojiView` API                                                                          |
+| Name           | **KeyboardPanel** / **KeyboardPanelController** — role is IME-slot chrome; avoids CatalogPanel↔PanelCatalog mirror and lasting `EmojiPanel` API                                                                                        |
 | Rename scope   | Chrome types → `KeyboardPanel*` (incl. [KeyboardPanelStore]); unicode page / glyph / `emoji_data` stay `Emoji*`; prefs keys → `keyboard_panel_*` with **no** legacy dual-read                                                          |
 | SoT            | Controller holds desired chrome state; commands commit and notify even when unbound; bound panel projects into motion/layout                                                                                                           |
 | Listeners      | Typed listeners (+ optional sealed panel events): dedup-on-add, snapshot dispatch, silent no-ops after dispose — same house pattern as [PanelCatalogController] / [ChatScrollController], not `ChangeNotifier` / app `StateController` |
@@ -28,7 +28,7 @@ scroll stays on page-local [PanelCatalogController].
 | Alternative                                    | Why not                                                               |
 | ---------------------------------------------- | --------------------------------------------------------------------- |
 | CatalogPanel naming                            | Mirrors Panel Catalog package / controller; footgun in pub API        |
-| Keep Telegram `EmojiView` / GlobalKey on State | Imperative, not usable cleanly outside composer; locks logic in State |
+| Imperative panel view + GlobalKey on State     | Imperative, not usable cleanly outside composer; locks logic in State |
 | Merge chrome into ChatBottomInsetController    | Mixes occupancy math with tabs/search/motion                          |
 | Merge chrome into PanelCatalogController       | Wrong layer — extent scroll ≠ panel chrome                            |
 | Command-only silent no-op while unbound        | Breaks deterministic control before/after mount                       |

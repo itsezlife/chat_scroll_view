@@ -5,8 +5,8 @@ import 'package:chat_chrome/src/composer/chat_composer_controller.dart';
 import 'package:chat_chrome/src/composer/chat_enter_icons.dart';
 import 'package:chat_chrome/src/composer/chat_enter_top_view.dart';
 import 'package:chat_chrome/src/composer/chat_input_metrics.dart';
-import 'package:chat_chrome/src/glass/telegram_glass.dart';
-import 'package:chat_chrome/src/glass/telegram_glass_style.dart';
+import 'package:chat_chrome/src/glass/liquid_glass.dart';
+import 'package:chat_chrome/src/glass/liquid_glass_style.dart';
 import 'package:chat_chrome/src/motion/keyboard_panel_motion.dart';
 import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
 import 'package:chat_chrome/src/util/value_listenable_select.dart';
@@ -444,7 +444,7 @@ class ChatEnterViewState extends State<ChatEnterView>
     final composer = widget.composer;
     final colors = ChatChromeTheme.of(context);
     final brightness = Theme.of(context).brightness;
-    final glassStyle = TelegramGlassStyle.composerIsland(
+    final glassStyle = LiquidGlassStyle.composerIsland(
       panelBackground: colors.messagePanelBackground,
       brightness: brightness,
       cornerRadius: ChatInputMetrics.bubbleRadius,
@@ -498,7 +498,7 @@ class ChatEnterViewState extends State<ChatEnterView>
         alignment: Alignment.bottomCenter,
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: widget.maxWidth),
-          child: TelegramGlass(
+          child: LiquidGlass(
             key: widget.glassKey,
             style: glassStyle,
             child: AnimatedBuilder(

@@ -2,7 +2,7 @@ import 'package:chat_chrome/chat_chrome.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _style = TelegramGlassStyle(
+const _style = LiquidGlassStyle(
   fill: Color(0xD9202020),
   strokeTop: Color(0x28FFFFFF),
   strokeBottom: Color(0x14FFFFFF),
@@ -16,11 +16,7 @@ Widget _glass() => const Center(
   child: SizedBox(
     width: 200,
     height: 44,
-    child: TelegramGlass(
-      key: _glassKey,
-      style: _style,
-      child: SizedBox.expand(),
-    ),
+    child: LiquidGlass(key: _glassKey, style: _style, child: SizedBox.expand()),
   ),
 );
 
@@ -46,7 +42,7 @@ bool _filtersBackdrop() => find
     .isNotEmpty;
 
 void main() {
-  group('TelegramGlass', () {
+  group('LiquidGlass', () {
     late GlobalKey<NavigatorState> navigator;
 
     setUp(() => navigator = GlobalKey<NavigatorState>());

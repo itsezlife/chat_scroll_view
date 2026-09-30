@@ -1011,7 +1011,7 @@ void main() {
     tester,
   ) async {
     // Scroll mid-tall-body so the previous tall row still intersects the
-    // paint band (Telegram found → smoothScrollBy), even when |offset| > 2400.
+    // paint band (built → close path), even when |offset| > 2400.
     const count = 30;
     const originId = 20;
     const targetId = 19;
@@ -1108,7 +1108,7 @@ void main() {
         mid.debugStitchScrollLength,
         greaterThan(_viewportHeight * 4),
         reason:
-            'Telegram full-strip travel must include tall outgoing extent; '
+            'full-strip travel must include tall outgoing extent; '
             'must not clamp to viewport*4 for product reasons',
       );
       expect(
@@ -1170,7 +1170,7 @@ void main() {
         mid.debugStitchScrollLength,
         greaterThan(_viewportHeight * 4),
         reason:
-            'Telegram full-strip travel must include tall incoming extent; '
+            'full-strip travel must include tall incoming extent; '
             'must not clamp to viewport*4 for product reasons',
       );
       expect(mid.debugBuiltMessageIds.contains(targetId), isTrue);
@@ -1210,7 +1210,7 @@ void main() {
       );
       await tester.pump();
 
-      // Bring taller older into the paint band (Telegram found → close).
+      // Bring taller older into the paint band (built → close path).
       await tester.drag(find.byType(ChatScrollView), const Offset(0, 900));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));

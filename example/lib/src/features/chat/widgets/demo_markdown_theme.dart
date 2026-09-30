@@ -36,7 +36,7 @@ MarkdownThemeData demoDarkMarkdownTheme(BuildContext context) {
     monospaceBackgroundColor: Colors.transparent,
     dividerColor: const Color(0x24FFFFFF),
     linkColor: const Color(0xFF58A6FF),
-    // Mobile: underline on top of [linkColor] (Telegram-style). Desktop
+    // Mobile: underline on top of [linkColor]. Desktop
     // keeps color + bold from the theme defaults without decoration.
     linkStyle: _underlineLinksOnPlatform
         ? const TextStyle(decoration: TextDecoration.underline)

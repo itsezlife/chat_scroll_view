@@ -220,7 +220,7 @@ abstract final class MessageMenuCatalog {
   /// Desktop/web idle Inside: Copy Selected Text when upon the range;
   /// whole-message Copy when there is no live text selection on this
   /// subject; **neither** when text is selected but the press is not upon
-  /// the range (Telegram `isUponSelected == -1`).
+  /// the range.
   static List<ChatMessageMenuItem> _desktopCopyRows(
     ChatMessageMenuRequest request,
   ) {

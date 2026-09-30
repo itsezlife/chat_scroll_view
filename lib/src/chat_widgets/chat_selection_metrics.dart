@@ -24,8 +24,8 @@ abstract final class ChatSelectionMetrics {
   /// Mobile text-selection soft arm band (logical px).
   ///
   /// Same depth as [spanSlop] / touch slop. The markdown package also ramps
-  /// into the content over this band; reference clients arm only past the pad
-  /// — exterior-only arming would need a markdown-package knob.
+  /// into the content over this band; arming only past the pad (exterior-only)
+  /// would need a markdown-package knob.
   static const double textAutoScrollEdgeZoneMobile = 8;
 
   /// Desktop text-selection soft arm band (logical px).

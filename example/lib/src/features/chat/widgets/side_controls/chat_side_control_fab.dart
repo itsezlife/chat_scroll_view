@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 export 'overshoot_curve.dart';
 
-/// Frosted round side-control FAB (Telegram page-down / search up-down chrome).
+/// Frosted round side-control FAB (page-down / search up-down chrome).
 ///
 /// Visibility (opacity + scale 0.7→1 + slide) is owned by
 /// [ChatSideControlsStack] so siblings share one layout. This widget only
@@ -26,7 +26,7 @@ class ChatSideControlFab extends StatefulWidget {
   /// Optional unread / hit badge above the glass (0 hides).
   final int count;
 
-  /// When `true`, flips the chevron (Telegram search-up).
+  /// When `true`, flips the chevron (search-up).
   final bool flipIconY;
 
   /// Accessibility label.
@@ -47,10 +47,10 @@ class ChatSideControlFab extends StatefulWidget {
   /// Total layout height of one FAB frame.
   static const double frameHeight = outerSize + counterBand;
 
-  /// Gap between consecutive slots when neither has a badge (Telegram `dp(10)`).
+  /// Gap between consecutive slots when neither has a badge (10 dp).
   static const double stackGap = 10;
 
-  /// Extra gap when the slot below shows a counter (Telegram `+ dp(10)`).
+  /// Gap when the slot below shows a counter (base gap + 10 dp).
   static const double stackGapWithBadge = 20;
 
   @override

@@ -1,22 +1,22 @@
 #version 460 core
 #include <flutter/runtime_effect.glsl>
 
-// Port of Telegram Android `liquid_glass_shader.agsl`.
+// Liquid-glass refraction over an already frosted backdrop (ImageFilter path).
 // ImageFilter.shader auto-binds u_size (float 0..1) and u_texture (sampler 0).
 //
-// Pipeline (matches blur3 glass source): blur(+sat) first, then this shader.
+// Pipeline: blur (+ saturation) first, then this shader.
 // u_texture is already the frosted backdrop — do not blur after refraction.
 
 uniform vec2 u_size;
 uniform vec2 u_center;
 uniform vec2 u_half_size;
-// order: rightBottom, rightTop, leftBottom, leftTop (matches AGSL)
+// order: rightBottom, rightTop, leftBottom, leftTop (corner radii)
 uniform vec4 u_radius;
 uniform float u_thickness;
 uniform float u_refract_index;
 uniform float u_refract_intensity;
 uniform vec4 u_foreground_premul;
-// ColorMatrix.setSaturation(3) on the glass source (RenderNodeEffects).
+// Backdrop saturation (3 for the composer island).
 uniform float u_saturation;
 
 uniform sampler2D u_texture;
@@ -44,7 +44,7 @@ vec4 sampleBackdrop(vec2 pixel) {
   return texture(u_texture, uv);
 }
 
-// Android ColorMatrix.setSaturation(s) luminance weights.
+// Saturation around Rec. 709-style luminance weights.
 vec3 applySaturation(vec3 rgb, float s) {
   float luma = dot(rgb, vec3(0.213, 0.715, 0.072));
   return mix(vec3(luma), rgb, s);

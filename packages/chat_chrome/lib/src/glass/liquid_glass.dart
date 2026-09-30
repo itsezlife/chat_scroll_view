@@ -1,9 +1,9 @@
 import 'package:chat_chrome/src/glass/glass_backdrop.dart';
 import 'package:chat_chrome/src/glass/glass_source.dart';
-import 'package:chat_chrome/src/glass/telegram_glass_style.dart';
+import 'package:chat_chrome/src/glass/liquid_glass_style.dart';
 import 'package:flutter/material.dart';
 
-/// Floating chrome shell with Telegram-style liquid glass.
+/// Floating chrome shell with liquid glass.
 ///
 /// The backdrop is a [GlassBackdrop]: under a [GlassSourceScope] it samples
 /// the scope's [GlassSource], elsewhere it filters the scene. Hosts must keep
@@ -15,26 +15,26 @@ import 'package:flutter/material.dart';
 ///
 /// Without a [GlassSourceScope], while the enclosing [ModalRoute] moves —
 /// pushed, popped, dragged by a back gesture, or shifted by a route
-/// transitioning above it — the surface paints [TelegramGlassStyle.fill] flat
+/// transitioning above it — the surface paints [LiquidGlassStyle.fill] flat
 /// instead of filtering the backdrop. A backdrop filter re-reads and
 /// re-filters everything under it on each frame it moves, which costs several
 /// frame budgets per frame on mobile GPUs. The glass returns once the route
 /// settles. A sampled backdrop stays on throughout.
-class TelegramGlass extends StatefulWidget {
+class LiquidGlass extends StatefulWidget {
   /// Creates a glass surface around [child].
-  const TelegramGlass({required this.style, required this.child, super.key});
+  const LiquidGlass({required this.style, required this.child, super.key});
 
   /// Material tokens (radius, tint, strokes, liquid params).
-  final TelegramGlassStyle style;
+  final LiquidGlassStyle style;
 
   /// Content drawn above the glass. Sizes the surface.
   final Widget child;
 
   @override
-  State<TelegramGlass> createState() => _TelegramGlassState();
+  State<LiquidGlass> createState() => _LiquidGlassState();
 }
 
-class _TelegramGlassState extends State<TelegramGlass> {
+class _LiquidGlassState extends State<LiquidGlass> {
   Animation<double>? _routeAnimation;
   Animation<double>? _coveringAnimation;
 
@@ -115,11 +115,11 @@ class _TelegramGlassState extends State<TelegramGlass> {
   }
 }
 
-/// Dual top/bottom stroke matching Android glass edge chrome.
+/// Dual top/bottom edge stroke of the glass chrome.
 class _GlassStrokePainter extends CustomPainter {
   _GlassStrokePainter({required this.style});
 
-  final TelegramGlassStyle style;
+  final LiquidGlassStyle style;
 
   @override
   void paint(Canvas canvas, Size size) {

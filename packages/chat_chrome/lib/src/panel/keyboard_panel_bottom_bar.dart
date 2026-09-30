@@ -11,9 +11,9 @@ import 'package:flutter/services.dart';
 
 /// Floating solid bottom chrome (text type tabs + trailing action).
 ///
-/// Type pill shrink-wraps (`setShouldExpand(false)`). Selection indicator
-/// follows [page] / settles like `PagerSlidingTabStrip` + `AnimatedFloat`.
-/// Trailing action swaps with scale+fade (`showBackspaceButton` / 200ms).
+/// Type pill shrink-wraps to its tabs instead of expanding. Selection
+/// indicator follows [page] while dragging and settles with an eased slide.
+/// Trailing action swaps with scale+fade (200ms).
 class KeyboardPanelBottomBar extends StatelessWidget {
   /// Creates the floating bottom chrome.
   const KeyboardPanelBottomBar({
@@ -33,7 +33,7 @@ class KeyboardPanelBottomBar extends StatelessWidget {
   /// Continuous pager position (`PageController.page`).
   final double page;
 
-  /// Settled pager tab (`onPageSelected`) — drives trailing action swap.
+  /// Settled pager tab — drives trailing action swap.
   final KeyboardPanelTab selectedTab;
 
   /// Host-localized tab titles.
@@ -66,25 +66,25 @@ class KeyboardPanelBottomBar extends StatelessWidget {
   /// Space under the floating controls.
   static const double padBottom = 4;
 
-  /// Absolute hide slide (`lerp(dp(45), …)` when visibility → 0).
+  /// Absolute hide slide (lerps to 45 dp as visibility → 0).
   static const double hideSlide = 45;
 
   /// Alias kept for callers.
   static const double hideTranslation = hideSlide;
 
-  /// Scroll distance before toggle (`checkBottomTabScroll` emoji page).
+  /// Emoji-page scroll distance before the bar toggles.
   static const double scrollToggleOffset = 38;
 
-  /// Hide/show duration (`BoolAnimator` EASE_OUT_QUINT).
+  /// Hide/show duration ([Curves.easeOutQuint]).
   static const Duration visibilityDuration = Duration(milliseconds: 380);
 
-  /// Indicator settle (`AnimatedFloat` 350 / EASE_OUT_QUINT).
+  /// Indicator settle (350ms, [Curves.easeOutQuint]).
   static const Duration indicatorDuration = Duration(milliseconds: 350);
 
-  /// Trailing action swap (`showBackspaceButton` / EASE_OUT).
+  /// Trailing action swap ([Curves.easeOut]).
   static const Duration actionSwapDuration = Duration(milliseconds: 200);
 
-  /// Indicator expands past text bounds (`lineLeft - dp(11)`).
+  /// Indicator expands 11 dp past the text bounds on each side.
   static const double indicatorPad = 11;
 
   @override

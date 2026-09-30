@@ -120,7 +120,7 @@ class EmojiPage extends StatefulWidget {
   /// While search mode is open the page writes `0` (field pinned). When
   /// [searchFocusNode] / [onOpenSearch] are set, this page paints
   /// [EmojiSearchField] with `Positioned` + `Transform.translate` under the
-  /// category strip (Telegram `setTranslationY`).
+  /// category strip, offset vertically by this value.
   final ValueNotifier<double>? searchFieldTranslationY;
 
   /// Written by this page: search-field bottom shadow while search is open.
@@ -132,10 +132,10 @@ class EmojiPage extends StatefulWidget {
   /// Search hint (host l10n).
   final String? searchHintText;
 
-  /// Section header for keyword hits (`StickerOrEmojiSearchResult`).
+  /// Section header for keyword hits.
   final String? searchResultsLabel;
 
-  /// Empty keyword-search placeholder (`NoEmojiFound`).
+  /// Empty keyword-search placeholder.
   final String? searchEmptyLabel;
 
   /// Fired when the user taps the sticky field while search is closed.
@@ -165,10 +165,10 @@ class EmojiPage extends StatefulWidget {
   /// Extra start inset for section header titles inside horizontal padding.
   static const double headerStartInset = 8;
 
-  /// Empty keyword-search label size (`NoEmojiFound`).
+  /// Empty keyword-search label size.
   static const double searchEmptyFontSize = 16;
 
-  /// Top inset for empty keyword-search text (Telegram HELP cell).
+  /// Top inset for empty keyword-search help text.
   static const double searchEmptyPadTop = 10;
 
   /// Minimum empty-search body height when the panel is short.
@@ -240,7 +240,7 @@ class EmojiPageState extends State<EmojiPage>
   /// Restartable debounce for keyword search.
   Timer? _searchDebounce;
 
-  /// Delayed leading-icon progress (Telegram 65ms).
+  /// Delayed leading-icon progress (65ms).
   Timer? _searchProgressDelay;
 
   /// Monotonic generation to ignore stale [EmojiDataSource.search] replies.
@@ -843,7 +843,8 @@ class EmojiPageState extends State<EmojiPage>
     await jumpToSection(0);
   }
 
-  /// Animates category strip `translationY` to `0` (150ms EASE_OUT_QUINT).
+  /// Animates category strip `translationY` to `0` (150ms,
+  /// [Curves.easeOutQuint]).
   Future<void> revealStrip() async {
     final from = _stripOffset.value;
     if (from >= -0.5) {
@@ -1367,7 +1368,7 @@ class _Cell {
   final bool supportsSkinTone;
 }
 
-/// Clips painting below [top] (Telegram `emojiContainer.drawChild` top edge).
+/// Keeps painting below [top]; anything drawn above that edge is clipped.
 final class _TopEdgeClipper extends CustomClipper<Rect> {
   _TopEdgeClipper(this.top);
 

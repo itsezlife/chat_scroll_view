@@ -255,7 +255,7 @@ _Avoid_: Context menu (alone), selection overlay (Flutter), floating toolbar (ho
 
 **Selection policy**:
 The product rules for how message selection and text selection enter, nest or exclude each other, dismiss, behave on Copy, and how **inline hits** relate to idle dismiss (mobile vs desktop/web strategies). Not a pointer kind and not a platform import fork by itself.
-_Avoid_: TargetPlatform (as the domain name), theme, “Telegram order” (when meaning only Android)
+_Avoid_: TargetPlatform (as the domain name), theme, “Android order” (as the policy name)
 
 **Selection interaction**:
 A host-observable outcome from the selection facade — successful clipboard **Copy**, hyperlink activation (tap or long-press), or code activation when auto-copy is off — delivered as one sealed `ChatSelectionInteraction` channel (`onInteraction` / `addInteractionListener`). Feedback UI stays app-side; handle `ChatCopied` for “Copied” chrome. Distinct from a **message menu request** (viewport slot geometry / menu entry).
@@ -306,7 +306,7 @@ Host- or backend-owned rich card for a URL (title, image, favicon, and so on). O
 _Avoid_: OG fetch in the viewport, preview slot as markdown, conflating styled links with webpage cards
 
 **Tap highlight** (press highlight):
-A transient visual plate under a pressable surface — markdown inline hits (links including mention-scheme URLs, inline code, fenced copy chrome) or host chrome such as a sender name via `ChatTapHighlight`. **Press-lifecycle:** expand on pointer down, hold while pressed, fade on up; abort / cancel clears immediately. Body ink aborts if the pointer is claimed by a **span gesture** or **text selection**, and under mobile **selection policy** does not arm while **message selection** or **text selection** is already active (desktop keeps press ink). `ChatTapHighlight` is selection-facade-free: under `ChatSelectionStateScope` it follows `canPerformActions`; padding expands paint/hit only (no layout shift). Null `onLongPress` on touch lets viewport **message selection** claim the press (Telegram name chrome); mouse presses exclude viewport message pan. Same paint for short tap and long-press (host action is separate). Composed of a vector-smoothed contour path with an expanding touch-origin ripple. Not persistent **text selection**, and not a whole-row **Message highlight**.
+A transient visual plate under a pressable surface — markdown inline hits (links including mention-scheme URLs, inline code, fenced copy chrome) or host chrome such as a sender name via `ChatTapHighlight`. **Press-lifecycle:** expand on pointer down, hold while pressed, fade on up; abort / cancel clears immediately. Body ink aborts if the pointer is claimed by a **span gesture** or **text selection**, and under mobile **selection policy** does not arm while **message selection** or **text selection** is already active (desktop keeps press ink). `ChatTapHighlight` is selection-facade-free: under `ChatSelectionStateScope` it follows `canPerformActions`; padding expands paint/hit only (no layout shift). Null `onLongPress` on touch lets viewport **message selection** claim the press (sender-name chrome); mouse presses exclude viewport message pan. Same paint for short tap and long-press (host action is separate). Composed of a vector-smoothed contour path with an expanding touch-origin ripple. Not persistent **text selection**, and not a whole-row **Message highlight**.
 _Avoid_: RippleDrawable, InkWell, selection highlight, active selection, one-shot long-press flash
 
 **Smooth text contour**:
@@ -424,7 +424,7 @@ After a navigation's **navigation alignment** (or Center Band placement) lands o
 _Avoid_: Sticky jump, re-jump on inset change, pinning the target
 
 **Close-path animation**:
-Continuous origin-offset interpolation when the target is already built (Telegram `found` → `smoothScrollBy`).
+Continuous origin-offset interpolation when the target is already built (found among built rows → smooth scroll).
 _Avoid_: Animate pixels, lerp ScrollPosition
 
 **Far-path animation**:

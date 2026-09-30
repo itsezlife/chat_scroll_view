@@ -2112,7 +2112,7 @@ void main() {
           expect(
             selection.isTextSelectionActive,
             isTrue,
-            reason: 'surface press arms text (tdesktop Selecting)',
+            reason: 'surface press arms text (desktop press-drag selecting)',
           );
 
           await mouse.up();

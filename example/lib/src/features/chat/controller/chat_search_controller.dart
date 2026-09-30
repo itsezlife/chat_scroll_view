@@ -123,7 +123,7 @@ final class ChatSearchController extends StateController<ChatSearchState> {
     );
   }
 
-  /// Older hit (Telegram search-up). Prefer [peekOlder] + [selectIndex] when
+  /// Older hit (search-up). Prefer [peekOlder] + [selectIndex] when
   /// pairing with [AnimateToBusyPolicy.ignore].
   void goOlder() {
     final step = peekOlder();
@@ -131,7 +131,7 @@ final class ChatSearchController extends StateController<ChatSearchState> {
     selectIndex(step.index);
   }
 
-  /// Newer hit (Telegram search-down). Prefer [peekNewer] + [selectIndex] when
+  /// Newer hit (search-down). Prefer [peekNewer] + [selectIndex] when
   /// pairing with [AnimateToBusyPolicy.ignore].
   void goNewer() {
     final step = peekNewer();

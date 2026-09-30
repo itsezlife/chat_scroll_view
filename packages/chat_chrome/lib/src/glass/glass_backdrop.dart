@@ -2,19 +2,21 @@ import 'dart:ui' as ui;
 
 import 'package:chat_chrome/src/glass/glass_source.dart';
 import 'package:chat_chrome/src/glass/liquid_glass_shader.dart';
-import 'package:chat_chrome/src/glass/telegram_glass_style.dart';
+import 'package:chat_chrome/src/glass/liquid_glass_style.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 /// Frosted, refracted backdrop filling its box, painted per [style].
 ///
 /// Under a [GlassSourceScope] on Impeller it samples the scope's
-/// [GlassSource]: each composited frame captures the region behind this box
-/// (plus the refraction reach) at 1 / [TelegramGlassStyle.sourceDownscale]
-/// resolution, blurs it by [TelegramGlassStyle.blurSigma] in that space and
-/// draws it through the liquid shader. Nothing reads back the onscreen
+/// [GlassSource]: each composited frame the scope captures the region behind
+/// this box (plus the refraction reach) at 1 /
+/// [LiquidGlassStyle.sourceDownscale] resolution, blurred by
+/// [LiquidGlassStyle.blurSigma] in that space — shared with nearby backdrops
+/// of the same resolution and blur — and this box draws it through the
+/// liquid shader. Nothing reads back the onscreen
 /// target, so appearing, moving or disappearing costs no more than a still
-/// frame. Until the shader loads it paints [TelegramGlassStyle.fill] flat.
+/// frame. Until the shader loads it paints [LiquidGlassStyle.fill] flat.
 ///
 /// Elsewhere it filters the scene behind it with a [BackdropFilter]: the
 /// whole frame then renders offscreen, and the first such frame after a few
@@ -24,7 +26,7 @@ class GlassBackdrop extends StatefulWidget {
   const GlassBackdrop({required this.style, super.key});
 
   /// Material tokens (tint, blur, saturation, refraction, radius).
-  final TelegramGlassStyle style;
+  final LiquidGlassStyle style;
 
   /// Overrides whether the backend can draw captured glass (Impeller only).
   @visibleForTesting
@@ -93,7 +95,7 @@ class _SceneGlassBackdrop extends StatelessWidget {
     required this.programs,
   });
 
-  final TelegramGlassStyle style;
+  final LiquidGlassStyle style;
   final Size size;
   final GlassShaderPrograms? programs;
 
@@ -140,7 +142,7 @@ class _CapturedGlass extends LeafRenderObjectWidget {
   });
 
   final GlassSourceLink link;
-  final TelegramGlassStyle style;
+  final LiquidGlassStyle style;
   final GlassShaderPrograms? programs;
   final double pixelRatio;
 
@@ -166,10 +168,10 @@ class _CapturedGlass extends LeafRenderObjectWidget {
   }
 }
 
-class _RenderCapturedGlass extends RenderBox {
+class _RenderCapturedGlass extends RenderBox implements GlassSampler {
   _RenderCapturedGlass({
     required GlassSourceLink link,
-    required TelegramGlassStyle style,
+    required LiquidGlassStyle style,
     required GlassShaderPrograms? programs,
     required double pixelRatio,
   }) : _link = link,
@@ -182,12 +184,14 @@ class _RenderCapturedGlass extends RenderBox {
   GlassSourceLink _link;
   set link(GlassSourceLink value) {
     if (identical(value, _link)) return;
+    if (attached) _link.removeSampler(this);
     _link = value;
+    if (attached) _link.addSampler(this);
     markNeedsPaint();
   }
 
-  TelegramGlassStyle _style;
-  set style(TelegramGlassStyle value) {
+  LiquidGlassStyle _style;
+  set style(LiquidGlassStyle value) {
     if (value == _style) return;
     _style = value;
     markNeedsPaint();
@@ -205,6 +209,18 @@ class _RenderCapturedGlass extends RenderBox {
     if (value == _pixelRatio) return;
     _pixelRatio = value;
     markNeedsPaint();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _link.addSampler(this);
+  }
+
+  @override
+  void detach() {
+    _link.removeSampler(this);
+    super.detach();
   }
 
   @override
@@ -228,61 +244,63 @@ class _RenderCapturedGlass extends RenderBox {
     super.dispose();
   }
 
+  @override
+  double get samplePixelRatio => _pixelRatio / _style.sourceDownscale;
+
+  @override
+  double get sampleBlurSigma => _style.blurSigma;
+
+  Rect _glassIn(RenderGlassSource source) =>
+      MatrixUtils.transformRect(getTransformTo(source), Offset.zero & size);
+
+  @override
+  Rect? sampleRegion(RenderGlassSource source) {
+    if (_programs == null || !attached || !hasSize || size.isEmpty) {
+      return null;
+    }
+    if (_layer.layer?.attached != true) return null;
+    final reach =
+        LiquidGlassShader.backdropReach(style: _style, size: size) +
+        3 * sampleBlurSigma / samplePixelRatio;
+    final region = _glassIn(
+      source,
+    ).inflate(reach).intersect(Offset.zero & source.size);
+    return region.isEmpty ? null : region;
+  }
+
   /// This frame's backdrop in local coordinates.
   ui.Picture record() {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     final rect = Offset.zero & size;
-    final capture = _capture();
-    if (capture == null) {
-      canvas.drawRect(rect, Paint()..color = _style.fill);
-      return recorder.endRecording();
-    }
-    final (image, shader) = capture;
-    canvas.drawRect(rect, Paint()..shader = shader);
+    final shader = _shader();
+    canvas.drawRect(
+      rect,
+      shader == null
+          ? (Paint()..color = _style.fill)
+          : (Paint()..shader = shader),
+    );
     final picture = recorder.endRecording();
-    shader.dispose();
-    image.dispose();
+    shader?.dispose();
     return picture;
   }
 
-  (ui.Image, ui.FragmentShader)? _capture() {
-    final source = _link.source;
+  ui.FragmentShader? _shader() {
     final programs = _programs;
-    if (source == null || programs == null || !attached) return null;
-    if (!source.attached || !source.hasSize) return null;
-
-    final style = _style;
-    final ratio = _pixelRatio / style.sourceDownscale;
-    final glass = MatrixUtils.transformRect(
-      getTransformTo(source),
-      Offset.zero & size,
-    );
-    final reach =
-        LiquidGlassShader.backdropReach(style: style, size: size) +
-        3 * style.blurSigma / ratio;
-    final region = glass.inflate(reach).intersect(Offset.zero & source.size);
-    if (region.isEmpty) return null;
-
-    final image = source.capture(
-      region,
-      pixelRatio: ratio,
-      blurSigma: style.blurSigma,
-    );
-    if (image == null) return null;
-    final shader = LiquidGlassShader.createBackdropShader(
+    final source = _link.source;
+    if (programs == null || source == null) return null;
+    final capture = _link.captureFor(this);
+    if (capture == null) return null;
+    return LiquidGlassShader.createBackdropShader(
       programs: programs,
       size: size,
-      style: style,
-      image: image,
-      texOrigin: (glass.topLeft - region.topLeft) * ratio,
-      texScale: ratio,
+      style: _style,
+      image: capture.image,
+      texOrigin:
+          (_glassIn(source).topLeft - capture.region.topLeft) *
+          capture.pixelRatio,
+      texScale: capture.pixelRatio,
     );
-    if (shader == null) {
-      image.dispose();
-      return null;
-    }
-    return (image, shader);
   }
 }
 

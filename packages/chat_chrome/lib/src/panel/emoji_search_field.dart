@@ -51,7 +51,7 @@ class EmojiSearchField extends StatefulWidget {
   /// Hint.
   final String hintText;
 
-  /// Search field layout height (`searchFieldHeight`).
+  /// Search field layout height.
   static const double height = 50;
 
   /// Painted pill height.
@@ -133,7 +133,7 @@ class _EmojiSearchFieldState extends State<EmojiSearchField>
     widget.controller.clear();
   }
 
-  /// Leading: magnifier → progress → back (`SearchStateDrawable`).
+  /// Leading: magnifier → progress → back ([EmojiSearchStateIcon]).
   ///
   /// Back only after a settled keyword search — not on the first keystroke
   /// before the progress delay fires.
@@ -204,7 +204,7 @@ class _EmojiSearchFieldState extends State<EmojiSearchField>
                       ),
                     ),
                   ),
-                  // Trailing clear stays visible during progress (Telegram).
+                  // Trailing clear stays visible during progress.
                   if (_hasText)
                     SizedBox(
                       width: EmojiSearchField.iconSize,

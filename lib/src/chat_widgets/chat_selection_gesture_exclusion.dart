@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 /// mouse/trackpad (desktop pan must not drag-select on chrome), and on touch
 /// only when the host supplies [ChatTapHighlight.onLongPress] (absorb). Null
 /// long-press on touch leaves the pointer alone so mobile **message selection**
-/// can claim the press (Telegram sender-name chrome).
+/// can claim the press (e.g. sender-name chrome).
 ///
 /// Hit-test dispatch reaches the leaf [Listener] before the viewport ancestor,
 /// so exclusion is visible when selection [addPointer] runs. Prefer this over

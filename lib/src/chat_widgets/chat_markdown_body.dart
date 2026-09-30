@@ -53,7 +53,7 @@ class ChatMarkdownBodyRegistration extends InheritedWidget {
 /// - [BlockPainter$ScrollableTable] so overflowing markdown tables pan
 ///   horizontally inside the bubble (catalog painter opt-in, not a theme
 ///   flag). [BlockPainter$ScrollableTable.enabled] is false while this
-///   [messageId] is in **message selection** (Telegram nested-block pan).
+///   [messageId] is in **message selection** (nested blocks do not pan).
 /// - Dynamic hover cursor resolution via [theme.cursorResolver], reflecting
 ///   interactive links, inline code spans, click-to-copy headers/bars, and text bodies.
 /// - Press-lifecycle tactile feedback via [ChatSpanFeedbackPainter]: begin on
