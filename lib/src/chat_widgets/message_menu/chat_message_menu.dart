@@ -129,36 +129,34 @@ Future<ChatMessageMenuResult?> _showChatMessageMenuOverlay({
   // does not steal IME focus. The hole is painted by the host, not a
   // modal barrier. The push future is not the session result — that
   // completes on tap so host work is not blocked by leave animation.
+  late final RawDialogRoute<void> route;
+  route = RawDialogRoute<void>(
+    requestFocus: false,
+    barrierDismissible: false,
+    barrierColor: const Color(0x00000000),
+    transitionDuration: Duration.zero,
+    pageBuilder: (routeContext, _, _) => MediaQuery(
+      data: MediaQuery.of(routeContext).removeViewInsets(removeBottom: true),
+      child: ChatMessageMenuHost(
+        config: config,
+        backButtonDispatcher: backDispatcher,
+        onResult: (result) {
+          if (!completer.isCompleted) completer.complete(result);
+        },
+        // The result completes before leave animation, so the caller may
+        // already have pushed a route (e.g. a confirmation) above this one.
+        // `pop()` would close that route and leave this invisible session
+        // absorbing every pointer; remove exactly this route instead.
+        onClosed: () {
+          if (route.isActive) navigator.removeRoute(route);
+        },
+      ),
+    ),
+  );
   unawaited(
-    navigator
-        .push<void>(
-          RawDialogRoute<void>(
-            requestFocus: false,
-            barrierDismissible: false,
-            barrierColor: const Color(0x00000000),
-            transitionDuration: Duration.zero,
-            pageBuilder: (routeContext, _, _) => MediaQuery(
-              data: MediaQuery.of(
-                routeContext,
-              ).removeViewInsets(removeBottom: true),
-              child: ChatMessageMenuHost(
-                config: config,
-                backButtonDispatcher: backDispatcher,
-                onResult: (result) {
-                  if (!completer.isCompleted) completer.complete(result);
-                },
-                onClosed: () {
-                  if (routeContext.mounted && navigator.canPop()) {
-                    navigator.pop();
-                  }
-                },
-              ),
-            ),
-          ),
-        )
-        .then((_) {
-          if (!completer.isCompleted) completer.complete(null);
-        }),
+    navigator.push<void>(route).then((_) {
+      if (!completer.isCompleted) completer.complete(null);
+    }),
   );
   return completer.future;
 }

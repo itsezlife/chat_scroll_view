@@ -95,6 +95,62 @@ void main() {
     expect(find.text('Edit'), findsNothing);
   });
 
+  testWidgets('a route pushed on the result survives the leave animation', (
+    tester,
+  ) async {
+    bool? confirmed;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () async {
+                final result = await showChatMessageMenu(
+                  context: context,
+                  messageRect: const Rect.fromLTWH(40, 120, 200, 48),
+                  items: _items,
+                );
+                if (result != const ChatMessageMenuResult.item('delete')) {
+                  return;
+                }
+                if (!context.mounted) return;
+                confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const Text('Confirm delete?'),
+                    actions: <Widget>[
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        child: const Text('Yes'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Confirm delete?'), findsOneWidget);
+    expect(find.text('Delete'), findsNothing);
+    await tester.tap(find.text('Yes'));
+    await tester.pumpAndSettle();
+    expect(confirmed, isTrue);
+    expect(find.text('Confirm delete?'), findsNothing);
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit'), findsOneWidget);
+  });
+
   testWidgets('choosing a reaction completes with that reaction', (
     tester,
   ) async {
