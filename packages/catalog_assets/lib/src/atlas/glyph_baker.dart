@@ -33,8 +33,8 @@ enum BakeStep {
 ///
 /// Pages bake in index order unless [prioritise] says which glyphs the user
 /// is looking at. A page is composed only when all its glyphs are in strips,
-/// and a glyph has a [spriteOf] only once its page is stored, so priority
-/// works at page granularity: where a glyph sits is fixed by catalogue order
+/// and a glyph can be drawn only once its page is stored ([isPageBaked]), so
+/// priority works at page granularity: where a glyph sits is fixed by catalogue order
 /// (a persisted page must match its glyphs again), and a visible glyph waits
 /// for at most the page it is on, never for the rest of the catalogue. It
 /// runs on the root isolate, because picture and text APIs are not available
@@ -95,8 +95,7 @@ final class GlyphBaker {
   int? get lastBakedPage => _lastBakedPage;
 
   /// Records that page [pageIndex] already exists in the store (restored from
-  /// a persisted set), so it is not baked again and its glyphs have a
-  /// [spriteOf]. Call it before baking starts.
+  /// a persisted set), so it is not baked again. Call it before baking starts.
   void markBaked(int pageIndex) {
     assert(
       pageIndex >= 0 && pageIndex < index.pageCount,
@@ -132,13 +131,6 @@ final class GlyphBaker {
     _wanted = pages;
   }
 
-  /// Sprite of [glyph], or null when it is unknown or its page is not baked
-  /// yet (the caller shows a placeholder until then).
-  GlyphSprite? spriteOf(String glyph) {
-    final planned = index.placementOf(glyph);
-    return planned != null && isPageBaked(planned.pageIndex) ? planned : null;
-  }
-
   /// Does one unit of work: a strip of up to [glyphs] glyphs, or the page
   /// composition once its glyphs are all stripped.
   Future<BakeStep> step({required int glyphs}) async {
@@ -162,18 +154,6 @@ final class GlyphBaker {
       return BakeStep.page;
     } finally {
       _stepping = false;
-    }
-  }
-
-  /// Bakes everything: one [step] per frame, waiting for [nextFrame] before
-  /// each. A fixed pace; adaptive pacing is the caller's to build on [step].
-  Future<void> bakeAll({
-    required int glyphsPerFrame,
-    required Future<void> Function() nextFrame,
-  }) async {
-    while (!isComplete && !_disposed) {
-      await nextFrame();
-      await step(glyphs: glyphsPerFrame);
     }
   }
 

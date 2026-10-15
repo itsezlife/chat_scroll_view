@@ -124,7 +124,7 @@ void main() {
       frames: frames,
       devicePixelRatio: 2,
       rasteriser: system,
-      store: FakeGlyphPageStore(),
+      newStore: FakeGlyphPageStore.new,
       observer: GlyphProbeBakeObserver(probe),
     );
   });

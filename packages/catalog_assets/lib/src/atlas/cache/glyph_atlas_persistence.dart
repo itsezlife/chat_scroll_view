@@ -27,6 +27,14 @@ final class GlyphAtlasPersistence {
   /// Density of the view the pages are baked for; a changed density discards
   /// the persisted pages.
   final double devicePixelRatio;
+
+  /// The same cache and art version, for pages baked at [devicePixelRatio].
+  GlyphAtlasPersistence withDevicePixelRatio(double devicePixelRatio) =>
+      GlyphAtlasPersistence(
+        cache: cache,
+        artVersion: artVersion,
+        devicePixelRatio: devicePixelRatio,
+      );
 }
 
 /// What a persistent atlas decided and how long its circles lasted, for a
