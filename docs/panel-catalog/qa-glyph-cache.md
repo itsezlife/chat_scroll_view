@@ -86,19 +86,21 @@ configuration with another density, then open the panel: the old pages are
 discarded, circles show as on a first run, the bake fills them in, and the next
 launch at that density is a hit.
 
-## What to report
-
-For each run: device, build mode, refresh rate, the label of the run, frames
-over budget and raster p99 from `example/perf/runs/<label>/`, the `cache*` meta
-keys, and a screen capture for the manual steps.
-
-## 4. Real OS update and the glyph probe (reference device)
+## 5. Real OS update (reference device)
 
 The simulated update above does not exercise the fingerprint. On a device whose
 system emoji font really changes (an OS update, or a font swap on a test
-device), launch without the `EMOJI_ART_VERSION` define before and after:
-the second launch must report `cacheVerdict: stale` and re-bake behind the old
-pages. On a device that lacks the newest emoji, the grid must show no
-missing-glyph box once the probe has finished (first run) or from the start (a
-later launch with the probe's persisted result). These are not automated; the
-logic is covered by the fake-system tests named in the package CHANGELOGs.
+device), launch without the `EMOJI_ART_VERSION` define before and after: the
+second launch must report `cacheVerdict: stale` and re-bake behind the old
+pages. This is not automated; the logic is covered by the fake-system tests
+named in the package CHANGELOGs.
+
+The glyph probe (hiding emoji the system cannot draw) is not wired into the
+demo, so there is nothing to check for it on a device yet.
+
+## What to report
+
+For each run: device, build mode, refresh rate, the label of the run, frames
+over budget and raster p99 from `example/perf/runs/<label>/`, the `cache*` and
+`atlasResident*` meta keys (resident pages must stay within 64 MiB), and a
+screen capture for the manual steps.

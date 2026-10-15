@@ -1,8 +1,10 @@
 /// Counters a host or a test reads to learn *how* the viewport drew, never
 /// whether it drew correctly.
 ///
-/// Kept apart from `panel_catalog_perf_probe.dart`, which is temporary: this
-/// outlives the investigation because the rule it checks outlives it.
+/// Observation only: nothing in the engine reads these values, so they never
+/// change what is drawn. They stay in release and profile builds (unlike an
+/// assert-only counter) because the rule they check, that emoji are not drawn
+/// as text where they are baked, is verified on a profile build on a device.
 library;
 
 /// How the viewport has drawn glyphs since the last [reset].

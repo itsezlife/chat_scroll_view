@@ -122,7 +122,12 @@ Future<ScenarioReport> measureScenario(
   ];
   final stats = FrameStats.of(samples, budgetMs: budgetMs);
   final paragraphDraws = PanelCatalogDiagnostics.glyphParagraphDraws;
-  final verdict = judge(stats, coverage: coverage);
+  final atlasInfo = atlasMeta(tester);
+  final verdict = judge(
+    stats,
+    coverage: coverage,
+    residentBytes: atlasInfo['atlasResidentBytes'] as int?,
+  );
   return ScenarioReport(
     scenario: name,
     asserted: asserted,
@@ -139,7 +144,7 @@ Future<ScenarioReport> measureScenario(
       // The marker that emoji are drawn from baked pages: on a platform that
       // bakes, no glyph is ever drawn as text at scroll time.
       'glyphParagraphDraws': paragraphDraws,
-      ...atlasMeta(tester),
+      ...atlasInfo,
     },
     samples: samples,
     stats: stats,
@@ -156,8 +161,12 @@ Future<ScenarioReport> measureScenario(
 
 /// How much of the catalogue the viewport's atlas had baked when the scenario
 /// ended: `atlasGlyphs` planned, `atlasBakedGlyphs` drawable. Empty when the
-/// panel is not mounted or the platform bakes nothing. Informational: circles
-/// are allowed while a first run bakes.
+/// panel is not mounted or the platform bakes nothing. Circles are allowed
+/// while a first run bakes, so those two are informational.
+///
+/// `atlasResidentBytes` and `atlasResidentPages` are what the atlas holds
+/// resident right now (raw RGBA, mip levels excluded); the scenario's verdict
+/// holds them to the 64 MiB ceiling.
 Map<String, Object?> atlasMeta(WidgetTester tester) {
   final finder = find.byType(PanelCatalogViewport);
   if (finder.evaluate().isEmpty) return const {};
@@ -176,6 +185,8 @@ Map<String, Object?> atlasMeta(WidgetTester tester) {
   return {
     'atlasGlyphs': atlas.index.glyphCount,
     'atlasBakedGlyphs': glyphs.where((g) => atlas.spriteOf(g) != null).length,
+    'atlasResidentBytes': atlas.residency.residentBytes,
+    'atlasResidentPages': atlas.residency.residentPages.length,
     // Present only for an atlas with a persistent cache: what it decided and
     // how long the circles lasted, measured from the atlas start.
     if (cache.verdict != null) ...{

@@ -31,6 +31,11 @@ is pre-1.0.
   are baked it built paragraphs that are never drawn. A host that called
   `warmAhead` drops the call; nothing replaces it (the atlas bakes in the
   background). On platforms that bake, no emoji paragraph is built at all.
+- **Experiment switches.** The `panel_catalog_perf_probe.dart` library (a
+  glyph override and paint coverage statistics read by the paint path) is
+  deleted with its two engine call sites. It was never exported; hosts and
+  tests measure through `PanelCatalogController` and the viewport's public
+  geometry, and `PanelCatalogDiagnostics` stays as the one observation entry.
 
 ### Changed
 

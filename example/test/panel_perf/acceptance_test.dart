@@ -100,6 +100,42 @@ void main() {
         isTrue,
       );
     });
+
+    group('resident emoji pages', () {
+      const mebibyte = 1024 * 1024;
+
+      test('64 MiB resident passes, a byte more fails', () {
+        expect(
+          judge(
+            _stats(_clean(100)),
+            residentBytes: kResidentPageCeilingBytes,
+          ).passed,
+          isTrue,
+        );
+        final verdict = judge(
+          _stats(_clean(100)),
+          residentBytes: kResidentPageCeilingBytes + 1,
+        );
+        expect(verdict.passed, isFalse);
+        expect(verdict.failures.single, contains('resident'));
+      });
+
+      test('the ceiling is 64 MiB', () {
+        expect(kResidentPageCeilingBytes, 64 * mebibyte);
+      });
+
+      test('a scenario with no atlas has nothing to judge', () {
+        expect(judge(_stats(_clean(100))).passed, isTrue);
+      });
+
+      test('names the size it found', () {
+        final verdict = judge(
+          _stats(_clean(100)),
+          residentBytes: 80 * mebibyte,
+        );
+        expect(verdict.failures.single, contains('80.0 MiB'));
+      });
+    });
   });
 
   group('FlingCoverage', () {

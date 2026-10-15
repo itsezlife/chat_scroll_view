@@ -6,8 +6,10 @@
 //                                     keep launches as the comparison baseline
 //
 // Suites: `bare` is the panel on a bare scaffold, `chat` is the panel opened
-// from the real chat screen over generated messages, `all` runs both (default
-// `bare`). With `all`, runs are labelled `<label>-bare` and `<label>-chat`.
+// from the real chat screen over generated messages, `first_run` is the cache
+// flows (no cache, valid cache, changed art version), `all` runs the three
+// (default `bare`). With `all`, runs are labelled `<label>-bare`,
+// `<label>-chat` and `<label>-first_run`.
 //
 // Each launch is `tool/run_panel_perf.sh <device-id> <label>-launchN` with the
 // suite's test target, a fresh install-and-launch, so the engine's glyph atlas
