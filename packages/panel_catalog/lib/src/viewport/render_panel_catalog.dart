@@ -6,6 +6,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
+import 'package:panel_catalog/panel_catalog_perf_probe.dart';
 import 'package:panel_catalog/src/data/catalog_data_source.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
@@ -593,6 +594,7 @@ class RenderPanelCatalog extends RenderBox {
   /// immediately when [rasterize] is false after paragraph ensure. MUST NOT
   /// be driven from scroll / paint ticks.
   Future<void> warmAhead({double screens = 2.5, bool rasterize = true}) {
+    if (PanelCatalogPerfProbe.skipWarmAhead) return Future<void>.value();
     final existing = _warmInFlight;
     if (existing != null) return existing;
     final future = _warmAheadBody(screens: screens, rasterize: rasterize);
@@ -1595,6 +1597,7 @@ class RenderPanelCatalog extends RenderBox {
     canvas.clipRect(offset & size);
 
     final scroll = _controller.offset;
+    PanelCatalogPerfProbe.recordPaint(scroll, _contentExtent, size.height);
     final contentOrigin = offset.translate(0, -scroll);
     final (top, bottom) = _paintWindow();
     final pressedSlotKey = _press?.pressedSlotKey;

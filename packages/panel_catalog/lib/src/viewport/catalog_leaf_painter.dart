@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
+import 'package:panel_catalog/panel_catalog_perf_probe.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
@@ -276,7 +277,10 @@ final class CatalogLeafPainter {
   }
 
   void _paintGlyph(Canvas canvas, Rect glyphRect, String glyph) {
-    final paragraph = _paragraphForGlyph(glyph, glyphRect.width);
+    final paragraph = _paragraphForGlyph(
+      PanelCatalogPerfProbe.glyphOverride ?? glyph,
+      glyphRect.width,
+    );
     canvas.drawParagraph(
       paragraph,
       Offset(
