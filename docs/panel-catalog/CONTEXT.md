@@ -130,6 +130,18 @@ _Avoid_: Per-leaf bitmap, per-binding pixel ownership, mutating a static page in
 The paced, background rasterisation of the glyphs the data layer supplies into atlas pages. Runs on the root isolate behind a rasteriser seam, a few glyphs per frame under a frame-time governor; prioritises the visible band and pauses during the panel open animation and scrolling. Persisted pages are reloaded instead of re-baked while the cache key still matches.
 _Avoid_: Detecting missing glyphs in the engine (the data layer decides the set), baking during a fling, a paragraph fallback on baking platforms, rasterising at scroll time
 
+**Bake governor**:
+The rule that sets how many glyphs the next frame may bake (up to about 16) from the measured cost of recent frames: it halves the pace when a frame nears its vsync budget and climbs back while frames stay cheap. It never reaches zero; stopping is the pause rules' job.
+_Avoid_: A fixed glyphs-per-frame number tuned on one device, a governor that pauses by itself, reacting to the same slow frame twice
+
+**Bake pause rules**:
+Baking runs only while the panel is visible, nothing is scrolling (including the fling) and the panel is not animating open; it resumes after a few quiet frames. The host owns the three signals; the bake only reads them.
+_Avoid_: Baking beside a fling or the open animation, a timer-based resume, wiring the signals inside the baker
+
+**Visible-band priority**:
+The host names the glyphs on screen and the bake composes their page first, then the nearest pages. A glyph's cell is fixed by catalogue order, so priority works per page: a visible glyph waits for its own page (about 44 frames at the default pace), never for the whole catalogue.
+_Avoid_: Reordering cells to put the visible band first (a persisted page must still match its glyphs), partial pages drawn before they are complete
+
 **Baked glyph (sprite)**:
 One glyph rasterised once at the baked cell size and addressed as a page plus a source rectangle. The viewport draws the sprites of one atlas page in one batched atlas draw. A paintable without a sprite paints itself.
 _Avoid_: Glyph drawn as text at scroll time on baking platforms, one image draw per leaf, a second paint path for emoji beside the shared paintable contract

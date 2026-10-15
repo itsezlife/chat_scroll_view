@@ -29,16 +29,27 @@ Terms: [Panel Catalog glossary](../../docs/panel-catalog/CONTEXT.md)
 | `GlyphBaker` | Strips of a few glyphs, then one page composed per step; the caller paces the steps |
 | `GlyphRasteriser` (seam) | Paints one glyph; `ParagraphGlyphRasteriser` uses the system font |
 | `GlyphPageStore` (seam) | Keeps composed pages; the in-memory fake is in `testing.dart` |
+| `GlyphBakeScheduler` | Runs one baker step per frame, only while the pause signals allow; resumes after a few quiet frames |
+| `BakeGovernor` / `BakePacing` | Glyphs per frame (up to 16) from measured frame cost: halves near the budget, climbs back while cheap |
+| `BakePauseSignals` | Three host-owned `ValueListenable<bool>`: panel visible, scrolling, panel opening |
+| `BakeFrameSource` (seam) | The frame clock: `SchedulerBakeFrameSource` in an app, `FakeBakeFrameSource` in tests |
 
 Host contract:
 
 | The host provides | The host must not |
 | --- | --- |
 | The glyph list (the data layer decides which glyphs exist) | Ask the baker to detect missing glyphs or fall back to a paragraph |
-| Pacing: when to call `step`, and how many glyphs per frame | Call `step` from a spawned isolate (text and picture APIs are root-isolate only) |
+| Pacing: a `GlyphBakeScheduler` on a `BakeFrameSource` (or its own calls to `step`) | Call `step` from a spawned isolate (text and picture APIs are root-isolate only) |
+| The three pause signals, updated from the real viewport and panel | Bake beside a fling or the open animation; a hidden panel bakes nothing |
+| `prioritise(glyphs)` with the visible band when scrolling settles | Expect a visible glyph before its whole page is composed; cells never move |
+| `dispose()` on the scheduler (and `SchedulerBakeFrameSource`) when the panel is torn down | Dispose the baker first: the scheduler leaves no frame request or listener behind |
 | A `GlyphPageStore` | Mutate or share a stored page; handles are cloned on write and read |
 
-`testing.dart` ships `FakeGlyphRasteriser` (predictable pixels, no emoji font),
-`FakeGlyphPageStore`, `ImagePixels`, and the contract suites
-`runGlyphRasteriserContract` and `runGlyphPageStoreContract` for adapter authors.
-On-device check: `example/integration_test/glyph_atlas_bake_test.dart`.
+`testing.dart` ships `FakeGlyphRasteriser` (predictable pixels, no emoji font;
+`onPaint` to model a slow or failing glyph), `FakeGlyphPageStore`,
+`FakeBakeFrameSource` and `ManualBakeClock` (frames and time a test steps),
+`ImagePixels`, and the contract suites `runGlyphRasteriserContract`,
+`runGlyphPageStoreContract` and `runBakeFrameSourceContract` for adapter authors.
+On-device checks: `example/integration_test/glyph_atlas_bake_test.dart` (bake
+and visual check) and `glyph_atlas_paced_bake_test.dart` (paced bake idle, while
+the panel opens, during a fling).
