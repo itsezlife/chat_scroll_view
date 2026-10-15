@@ -3,6 +3,8 @@ description: Example app for the chat_scroll_view package.
 publish_to: none
 version: 1.0.0+1
 
+resolution: workspace
+
 environment:
   sdk: ^3.11.0
 
@@ -47,9 +49,3 @@ flutter:
         - macos
         - linux
         - windows
-
-dependency_overrides:
-  # Local flutter_md: enableTouchGestures + enabled-flip chrome sync.
-  # Drop once feat/selection-chrome publishes those changes.
-  flutter_md:
-    path: ../../md

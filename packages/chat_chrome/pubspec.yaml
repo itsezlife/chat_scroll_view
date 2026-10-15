@@ -5,6 +5,8 @@ description: >
 version: 0.1.0
 publish_to: none
 
+resolution: workspace
+
 environment:
   sdk: ^3.11.0
   flutter: ">=3.32.0"

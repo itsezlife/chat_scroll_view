@@ -3,6 +3,8 @@ description: Panel Catalog Viewport — extent-scroll catalog body with paint le
 version: 0.1.0
 publish_to: none
 
+resolution: workspace
+
 environment:
   sdk: ^3.11.0
 

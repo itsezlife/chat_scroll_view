@@ -3,6 +3,18 @@ description: Endless, anchor-based chat scroll viewport for Flutter.
 version: 0.1.0+1
 publish_to: none
 
+# One resolution and one committed lockfile for the repo. Append new packages
+# here; scripts/check reads the list literally (no globs) and fails when a
+# package under packages/ or example/ is missing from it.
+workspace:
+  - packages/catalog_assets
+  - packages/chat_chrome
+  - packages/content_model
+  - packages/emoji_data
+  - packages/panel_catalog
+  - example
+  - scripts
+
 environment:
   sdk: ^3.11.0
 
@@ -23,6 +35,9 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   fake_async: ^1.3.3
 
+# Overrides are honoured only here, never in members. Local flutter_md:
+# enableTouchGestures + enabled-flip chrome sync. Drop once feat/selection-chrome
+# publishes those changes. CI checks the same ref out next to this repo.
 dependency_overrides:
   flutter_md:
     path: ../md

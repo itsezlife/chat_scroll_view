@@ -9,6 +9,10 @@ portable libs under `packages/`. Example app is `example/` only.
 ## Commands
 
 ```shell
+# Every gate CI runs: workspace lints, then analyze + tests per package in
+# dependency order (resolves the workspace first)
+scripts/check
+
 # Root package (viewport) — message + text selection live here
 flutter test
 dart analyze --fatal-infos
@@ -16,6 +20,14 @@ dart analyze --fatal-infos
 
 Prefer package-local tests for the package you changed. Full-repo suites are
 for integration claims, not every edit.
+
+The repo is one **pub workspace** (one `pubspec.lock`, at the root); package-local
+`flutter test` / `dart analyze` still work. Append a new package to the root
+`workspace:` list (literal paths, no globs). `dependency_overrides` (local
+`flutter_md` at `../md`) only works at the root.
+
+Lint rules, the fake / adapter naming conventions they read, the per-package
+`tool/check` hook and the legacy baseline: [scripts/README.md](scripts/README.md).
 
 ## Package map
 
@@ -26,6 +38,7 @@ for integration claims, not every edit.
 | `packages/panel_catalog`                 | Panel catalog viewport                                                    | emoji/sticker/GIF grid                                                           |
 | `packages/catalog_assets` / `emoji_data` | Shared catalog assets / emoji data                                        | leaf assets, not chat scroll origin                                              |
 | `example/`                               | Demo host only — not the portable contract                                | wiring demos                                                                     |
+| `scripts/`                               | `scripts/check` entry + the workspace lints (`workspace_check` package)   | CI gates, dependency direction, re-export / fakes rules                          |
 | `tdesktop/`                              | Read-only Telegram Desktop reference checkout                             | desktop selection parity analysis                                                |
 | `telegram-ios/`                          | Read-only Telegram-iOS sparse checkout                                    | iOS chat / selection parity analysis                                             |
 

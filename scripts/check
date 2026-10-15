@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Every gate CI runs, in the order they should be fixed: workspace lints, then
+# `dart analyze --fatal-infos` and tests per member, dependencies first, then
+# any member's tool/check hook. See scripts/lib/src/check_plan.dart.
+#
+# Usage: scripts/check
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+# One resolution for the whole workspace. In CI the committed lockfile must
+# already be right, so a change to a pubspec without its pubspec.lock fails
+# here instead of resolving something different from what was reviewed.
+if [[ -n "${CI:-}" ]]; then
+  flutter pub get --enforce-lockfile
+else
+  flutter pub get
+fi
+
+exec dart run scripts/bin/check.dart "$@"

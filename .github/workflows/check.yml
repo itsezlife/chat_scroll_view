@@ -1,0 +1,45 @@
+name: Check
+
+# The required gates: workspace lints, `dart analyze --fatal-infos` and tests
+# for every package, in dependency order. All logic lives in scripts/check so a
+# developer reproduces CI with the same command.
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # The workspace root overrides flutter_md with `path: ../md`, so the fork
+      # is checked out as a sibling of the repo, at the ref the pubspecs name.
+      - uses: actions/checkout@v4
+        with:
+          path: chat_scroll_view
+      - uses: actions/checkout@v4
+        with:
+          repository: itsezlife/md
+          ref: feat/selection-chrome
+          path: md
+
+      # Same SDK the lockfile was resolved with; bump deliberately.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.7
+          cache: true
+
+      # CI=true makes scripts/check resolve with --enforce-lockfile, so a
+      # pubspec change without its pubspec.lock fails here.
+      - name: scripts/check
+        working-directory: chat_scroll_view
+        run: scripts/check
