@@ -48,20 +48,21 @@ class KeyboardPanelBottomActions {
   factory KeyboardPanelBottomActions.standard({
     required VoidCallback onBackspace,
     VoidCallback? onStickerSettings,
-  }) => KeyboardPanelBottomActions(
-    resolve: (tab) => switch (tab) {
-      KeyboardPanelTab.emoji => KeyboardPanelBottomAction(
-        iconAsset: EmojiTabAssets.clear,
-        onPressed: onBackspace,
-        repeatOnHold: true,
-      ),
-      KeyboardPanelTab.stickers when onStickerSettings != null =>
-        KeyboardPanelBottomAction(
-          iconAsset: EmojiTabAssets.settings,
-          onPressed: onStickerSettings,
-          semanticsLabel: 'Settings',
-        ),
-      _ => null,
-    },
-  );
+  }) =>
+      KeyboardPanelBottomActions(
+        resolve: (tab) => switch (tab) {
+          KeyboardPanelTab.emoji => KeyboardPanelBottomAction(
+            iconAsset: EmojiTabAssets.clear,
+            onPressed: onBackspace,
+            repeatOnHold: true,
+          ),
+          KeyboardPanelTab.stickers when onStickerSettings != null =>
+            KeyboardPanelBottomAction(
+              iconAsset: EmojiTabAssets.settings,
+              onPressed: onStickerSettings,
+              semanticsLabel: 'Settings',
+            ),
+          _ => null,
+        },
+      );
 }
