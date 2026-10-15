@@ -7,23 +7,26 @@ before reaching for a generic “shimmer”.
 
 | Catalog kind | Loading paint | What you see while loading |
 | ------------ | ------------- | -------------------------- |
-| Standard emoji bitmap pages | Circle placeholder | **Solid circle**, not a moving shimmer |
+| Unicode emoji (baked glyph) | Circle placeholder | **Solid circle** until the glyph is baked, not a moving shimmer |
 | Animated / custom emoji | Static thumb (often SVG) | **Thumb-first** silhouette, then media |
 | Stickers (shaped wash) | SVG mask × moving gradient | SVG path × **moving** gradient (true shimmer-on-shape) |
 
 Calling every placeholder “shimmer” is wrong for keyboard emoji.
 
-## Standard emoji — circle placeholder
+## Unicode emoji — circle placeholder
 
-While the glyph's bitmap page is not loaded, request the page and paint a
-filled circle centered in the glyph bounds instead of the glyph.
+While the glyph is not baked into an atlas page yet, paint a filled circle
+centered in the glyph bounds instead of the sprite. There is no time limit:
+the circle stays until the sprite exists. With a valid disk cache it lasts at
+most 500 ms after a cold start. A strategy that draws paragraphs (web) has no
+unbaked state and never paints it.
 
 | Role | Value |
 | ---- | ----- |
 | Shape | Circle |
 | Radius | `0.4 × bounds.width` (glyph draw bounds, not full cell pitch) |
 | Fill | `placeholderColor` default `0x10000000`; inline text tints via `0x10ffffff & textColor` |
-| Motion | None — static until bitmap page loads |
+| Motion | None — static until the glyph is baked |
 
 Animated leaves never use this circle, even though a translucent placeholder
 tint (`0x0fffffff` / `0x0f000000`) exists for theme updates.
@@ -53,7 +56,7 @@ pattern for **sticker** leaves, not as the default for unicode emoji cells.
 
 | Leaf kind | Leaf presentation while loading |
 | --------- | -------------------------------- |
-| Unicode / bitmap glyph | Circle placeholder |
+| Unicode glyph | Circle placeholder until baked, then sprite |
 | Document-backed animated | Thumb-first (SVG/static), then drawable |
 | Sticker | Shaped loading wash |
 
