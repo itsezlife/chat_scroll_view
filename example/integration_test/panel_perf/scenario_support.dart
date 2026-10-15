@@ -7,6 +7,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
+import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 
 import 'acceptance.dart';
 import 'frame_metrics.dart';
@@ -86,6 +87,8 @@ Future<ScenarioReport> measureScenario(
   required Future<FlingCoverage?> Function() body,
   bool timeline = false,
 }) async {
+  // Counts glyph paragraphs drawn as text during this scenario only.
+  PanelCatalogDiagnostics.reset();
   final timings = <FrameTiming>[];
   void onTimings(List<FrameTiming> batch) => timings.addAll(batch);
   SchedulerBinding.instance.addTimingsCallback(onTimings);
@@ -118,6 +121,8 @@ Future<ScenarioReport> measureScenario(
       ),
   ];
   final stats = FrameStats.of(samples, budgetMs: budgetMs);
+  final paragraphDraws = PanelCatalogDiagnostics.glyphParagraphDraws;
+  final verdict = judge(stats, coverage: coverage);
   return ScenarioReport(
     scenario: name,
     asserted: asserted,
@@ -131,12 +136,46 @@ Future<ScenarioReport> measureScenario(
       'refreshRateHz': refreshRate,
       'devicePixelRatio': view.devicePixelRatio,
       'physicalSize': '${view.physicalSize.width}x${view.physicalSize.height}',
+      // The marker that emoji are drawn from baked pages: on a platform that
+      // bakes, no glyph is ever drawn as text at scroll time.
+      'glyphParagraphDraws': paragraphDraws,
+      ...atlasMeta(tester),
     },
     samples: samples,
     stats: stats,
-    verdict: judge(stats, coverage: coverage),
+    verdict: kIsWeb || paragraphDraws == 0
+        ? verdict
+        : Verdict([
+            ...verdict.failures,
+            '$paragraphDraws glyphs were drawn as text; emoji must be drawn '
+                'from baked atlas pages on this platform',
+          ]),
     coverage: coverage,
   );
+}
+
+/// How much of the catalogue the viewport's atlas had baked when the scenario
+/// ended: `atlasGlyphs` planned, `atlasBakedGlyphs` drawable. Empty when the
+/// panel is not mounted or the platform bakes nothing. Informational: circles
+/// are allowed while a first run bakes.
+Map<String, Object?> atlasMeta(WidgetTester tester) {
+  final finder = find.byType(PanelCatalogViewport);
+  if (finder.evaluate().isEmpty) return const {};
+  final atlas = tester
+      .widget<PanelCatalogViewport>(finder)
+      .assetCache
+      .glyphAtlas;
+  if (atlas == null) return const {'atlas': 'none'};
+  final glyphs = <String>{
+    for (final section
+        in tester.widget<PanelCatalogViewport>(finder).dataSource.sections)
+      for (final leaf in section.leaves)
+        if (leaf is UnicodeCatalogLeaf) leaf.glyph,
+  };
+  return {
+    'atlasGlyphs': atlas.index.glyphCount,
+    'atlasBakedGlyphs': glyphs.where((g) => atlas.spriteOf(g) != null).length,
+  };
 }
 
 /// Publishes [reports] through the binding, prints one line per scenario and

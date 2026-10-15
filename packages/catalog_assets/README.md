@@ -18,7 +18,10 @@ No scroll-viewport RenderObject dependency.
 
 Bakes the glyphs a host supplies into fixed-size **glyph atlas pages** and
 answers where each **baked glyph** (sprite: page plus source rectangle) is.
-Independent of the cache above; the cache and the viewport consume it later.
+`MemoryCatalogAssetCache(glyphAtlas: …)` exposes it to the surfaces that bind
+through the cache: unicode bindings resolve `sprite` from it and every binding
+listener hears a page landing. The viewport consumes it; page ownership by
+reference count in the cache is a later step.
 Terms: [Panel Catalog glossary](../../docs/panel-catalog/CONTEXT.md)
 (Glyph atlas page, Bake, Baked glyph).
 
@@ -33,6 +36,10 @@ Terms: [Panel Catalog glossary](../../docs/panel-catalog/CONTEXT.md)
 | `BakeGovernor` / `BakePacing` | Glyphs per frame (up to 16) from measured frame cost: halves near the budget, climbs back while cheap |
 | `BakePauseSignals` | Three host-owned `ValueListenable<bool>`: panel visible, scrolling, panel opening |
 | `BakeFrameSource` (seam) | The frame clock: `SchedulerBakeFrameSource` in an app, `FakeBakeFrameSource` in tests |
+| `GlyphAtlas` | A host's whole bake: baker + scheduler + the page images sprites are drawn from; `spriteOf(glyph)` is null until the glyph's page is baked and loaded |
+| `AtlasSprite` | Page image + source rectangle; the optional sprite capability of `CatalogAssetBinding.sprite` |
+| `MemoryGlyphPageStore` | In-memory page store (a disk store replaces it later) |
+| `createGlyphAtlasForPlatform` | The platform strategy: an atlas on Android, iOS and desktop, `null` on the web (draw text, start no bake) |
 
 Host contract:
 

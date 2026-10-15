@@ -19,4 +19,5 @@ void main() {
     glyphs: const ['A', '😀', '👨‍👩‍👧‍👦', '🇯🇵'],
   );
   runGlyphPageStoreContract('FakeGlyphPageStore', FakeGlyphPageStore.new);
+  runGlyphPageStoreContract('MemoryGlyphPageStore', MemoryGlyphPageStore.new);
 }

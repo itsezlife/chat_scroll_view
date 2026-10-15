@@ -116,6 +116,12 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// this widget as a fetch/decode owner — decode lives in the cache;
   /// presentation is projected from readiness + leaf kind
   /// (`CatalogLeafPresentation`).
+  ///
+  /// When the cache has a [CatalogAssetCache.glyphAtlas] the viewport draws
+  /// unicode glyphs from its baked pages, batched into one draw per page,
+  /// shows the circle placeholder until a glyph is baked, and tells the atlas
+  /// when it scrolls and what is on screen so the bake stays out of its way.
+  /// Without one (the web) glyphs are drawn as text.
   final CatalogAssetCache assetCache;
 
   /// Absolute content-offset and navigation entry points ([jumpTo], [scrollBy],

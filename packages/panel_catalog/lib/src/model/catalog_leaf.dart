@@ -31,8 +31,11 @@ sealed class CatalogLeaf {
 
 /// Standard unicode emoji leaf.
 ///
-/// Paints via paragraph cache (no async asset decode). Presentation is
-/// [CatalogLeafPresentation.content] unless the cache reports failed.
+/// Painted from its baked sprite where the asset cache has a glyph atlas (the
+/// circle placeholder until the sprite exists), else from a paragraph cache.
+/// Neither waits on an asset decode. Presentation is
+/// [CatalogLeafPresentation.content] once drawable, unless the cache reports
+/// failed.
 final class UnicodeCatalogLeaf implements CatalogLeaf {
   /// Creates a unicode leaf for [glyph].
   const UnicodeCatalogLeaf(this.glyph);

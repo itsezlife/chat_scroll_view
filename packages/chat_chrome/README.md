@@ -126,6 +126,19 @@ Use [EmojiGridView] / [EmojiPage] with an [EmojiDeferredRecents] snapshot when
 you do not need the full panel shell. Unicode page / glyph / `emoji_data` APIs
 stay `Emoji*`; chrome types use `KeyboardPanel*`.
 
+## Baked emoji
+
+On Android, iOS and desktop [KeyboardPanel] draws the emoji grid from baked
+atlas pages: it owns one atlas for the life of the shell (so closing and
+reopening the panel does not bake again), plans the glyphs the grid shows
+(recents first, the user's skin tones applied), bakes only while the panel is
+visible and not opening or closing, and hands the atlas to each [EmojiPage] it
+mounts. Until a glyph is baked its cell is a circle. On the web, and for an
+[EmojiPage] embedded on its own (no `glyphAtlas`), glyphs are drawn as text as
+before. A glyph the atlas did not plan (a skin tone chosen for the first time)
+makes the shell plan the atlas again; its cells are circles until the new pages
+bake.
+
 ## Related types
 
 - [ChatBottomInsetController] — keyboard vs panel height arbitration

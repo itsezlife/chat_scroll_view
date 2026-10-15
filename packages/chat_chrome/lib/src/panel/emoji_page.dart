@@ -53,8 +53,17 @@ class EmojiPage extends StatefulWidget {
     this.searchEmptyLabel,
     this.onOpenSearch,
     this.onClearRecents,
+    this.glyphAtlas,
     super.key,
   });
+
+  /// Baked emoji the grid draws as sprites, or null to draw them as text.
+  ///
+  /// The atlas must plan every glyph the grid shows (a glyph outside it stays a
+  /// placeholder); the panel shell owns one for its whole life and passes it to
+  /// each grid page it mounts. A page that is given none draws text, which is
+  /// right on a platform that does not bake and for a page embedded on its own.
+  final GlyphAtlas? glyphAtlas;
 
   /// Catalog, search, and skin-tone prefs.
   ///
@@ -205,8 +214,8 @@ class EmojiPageState extends State<EmojiPage>
   // --- Viewport / catalog ---------------------------------------------------
 
   final PanelCatalogController _catalogController = PanelCatalogController();
-  late final MemoryCatalogAssetCache _assetCache;
-  late final EmojiCatalogDataSource _catalogDataSource;
+  late MemoryCatalogAssetCache _assetCache;
+  late EmojiCatalogDataSource _catalogDataSource;
 
   var _spanCount = 1;
   var _rowCellExtent = EmojiPage.cellPitch;
@@ -362,7 +371,7 @@ class EmojiPageState extends State<EmojiPage>
   @override
   void initState() {
     super.initState();
-    _assetCache = MemoryCatalogAssetCache();
+    _assetCache = MemoryCatalogAssetCache(glyphAtlas: widget.glyphAtlas);
     _catalogDataSource = EmojiCatalogDataSource(
       emojiSource: widget.dataSource,
       assetCache: _assetCache,
@@ -391,9 +400,19 @@ class EmojiPageState extends State<EmojiPage>
   @override
   void didUpdateWidget(EmojiPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.dataSource != widget.dataSource) {
+    // Another atlas means another cache: bindings made against the old one
+    // would never hear of the new one's pages.
+    final atlasChanged = oldWidget.glyphAtlas != widget.glyphAtlas;
+    final sourceChanged = oldWidget.dataSource != widget.dataSource;
+    if (atlasChanged) {
+      _assetCache.dispose();
+      _assetCache = MemoryCatalogAssetCache(glyphAtlas: widget.glyphAtlas);
+    }
+    if (sourceChanged) {
       oldWidget.dataSource.removeDataListener(_onDataChanged);
       widget.dataSource.addDataListener(_onDataChanged);
+    }
+    if (atlasChanged || sourceChanged) {
       _catalogDataSource.dispose();
       _catalogDataSource = EmojiCatalogDataSource(
         emojiSource: widget.dataSource,
@@ -445,6 +464,7 @@ class EmojiPageState extends State<EmojiPage>
     _catalogController.removeScrollListener(_onCatalogScrollEvent);
     _catalogController.dispose();
     _catalogDataSource.dispose();
+    _assetCache.dispose();
     super.dispose();
   }
 
