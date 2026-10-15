@@ -1,14 +1,11 @@
 import 'package:chat_chrome/chat_chrome.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:panel_catalog/panel_catalog.dart';
 
 import 'panel_perf/acceptance.dart';
-import 'panel_perf/frame_metrics.dart';
 import 'panel_perf/report.dart';
+import 'panel_perf/scenario_support.dart';
 
 /// On-device acceptance test for the emoji keyboard panel (bare panel).
 ///
@@ -56,11 +53,11 @@ void main() {
     // The app shell is up and the panel closed before measuring starts: the
     // open animation is the first thing a user's tap would trigger.
     final harness = await _PanelHarness.start(tester);
-    await _settle(tester);
+    await settle(tester);
     await tester.pump(const Duration(milliseconds: 500));
 
     reports.add(
-      await _scenario(
+      await measureScenario(
         tester,
         binding,
         kPanelOpenScenario,
@@ -68,7 +65,7 @@ void main() {
         body: () async {
           harness.open();
           await tester.pump();
-          await _settle(tester);
+          await settle(tester);
           // As a user's first fling comes a moment after the panel appears.
           await tester.pump(const Duration(milliseconds: 800));
           return null;
@@ -77,23 +74,23 @@ void main() {
     );
 
     reports.add(
-      await _scenario(
+      await measureScenario(
         tester,
         binding,
         kColdFirstPassScenario,
         asserted: true,
         timeline: _traceTimeline,
-        body: () => _flingPass(tester),
+        body: () => flingPass(tester),
       ),
     );
 
     reports.add(
-      await _scenario(
+      await measureScenario(
         tester,
         binding,
         'warm_pass2',
         asserted: false,
-        body: () => _flingPass(tester),
+        body: () => flingPass(tester),
       ),
     );
 
@@ -107,168 +104,21 @@ void main() {
     final reopened = await _PanelHarness.start(tester);
     reopened.open();
     await tester.pump();
-    await _settle(tester);
+    await settle(tester);
     await tester.pump(const Duration(milliseconds: 800));
     reports.add(
-      await _scenario(
+      await measureScenario(
         tester,
         binding,
         'reopen_pass4',
         asserted: false,
-        body: () => _flingPass(tester),
+        body: () => flingPass(tester),
       ),
     );
     reopened.dispose();
 
-    // Publish before asserting: the driver writes reports even when red.
-    binding.reportData = {
-      ...?binding.reportData,
-      for (final report in reports) report.scenario: report.toJson(),
-    };
-    for (final report in reports) {
-      debugPrint(
-        '[panel-perf] ${report.scenario} ${report.stats.frames} frames, '
-        '${report.stats.overBudgetFrames} over budget, raster p99 '
-        '${report.stats.rasterP99Ms.toStringAsFixed(2)} ms, max '
-        '${report.stats.rasterMaxMs.toStringAsFixed(1)} ms'
-        '${report.verdict.passed ? '' : ' -> ${report.verdict.failures.join('; ')}'}',
-      );
-    }
-
-    final failures = [
-      for (final report in reports)
-        if (report.asserted && !report.verdict.passed)
-          '${report.scenario}: ${report.verdict.failures.join('; ')}',
-    ];
-    expect(failures, isEmpty, reason: failures.join('\n'));
+    publishAndAssert(binding, reports);
   });
-}
-
-/// Whole catalogue, down then back up: chained flings until the offset stops
-/// advancing (the end), then until the top is reached. Chained so each lands
-/// while the last coasts. Returns the evidence that it travelled that far.
-Future<FlingCoverage> _flingPass(WidgetTester tester) async {
-  final finder = find.byType(PanelCatalogViewport);
-  final viewport = tester.widget<PanelCatalogViewport>(finder);
-  final controller = viewport.controller;
-  final viewportHeight = tester.getSize(finder).height;
-
-  var maxOffset = 0.0;
-  void track(PanelCatalogScrollEvent _) {
-    if (controller.offset > maxOffset) maxOffset = controller.offset;
-  }
-
-  controller.addScrollListener(track);
-  Future<void> fling(double dy) async {
-    await tester.fling(finder, Offset(0, dy), 7000);
-    await tester.pump(const Duration(milliseconds: 250));
-  }
-
-  const cap = 120;
-  // At the end when two flings in a row no longer move the offset.
-  var stalled = 0;
-  for (var i = 0; i < cap && stalled < 2; i++) {
-    final before = controller.offset;
-    await fling(-300);
-    stalled = (controller.offset - before).abs() < 1 ? stalled + 1 : 0;
-  }
-  final reachedEnd = stalled >= 2;
-  await _settle(tester);
-  for (var i = 0; i < cap && controller.offset > 50; i++) {
-    await fling(300);
-  }
-  await _settle(tester);
-  controller.removeScrollListener(track);
-
-  return FlingCoverage(
-    reachedEnd: reachedEnd,
-    returnedToTop: controller.offset <= 50,
-    maxOffsetPx: maxOffset,
-    viewportHeightPx: viewportHeight,
-    expectedExtentPx: estimateContentExtent(
-      leavesPerSection: [
-        for (final section in viewport.dataSource.sections)
-          section.leaves.length,
-      ],
-      spanCount: viewport.spanCount,
-      cellExtent: viewport.cellExtent,
-      headerExtent: viewport.headerExtent,
-    ),
-  );
-}
-
-/// Pumps until no frame is scheduled (fling finished) or 15 s pass.
-Future<void> _settle(WidgetTester tester) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 15));
-  do {
-    await tester.pump(const Duration(milliseconds: 16));
-  } while (tester.binding.hasScheduledFrame &&
-      DateTime.now().isBefore(deadline));
-}
-
-/// Runs [body] while recording every frame, and judges the result.
-///
-/// [body] returns fling coverage when it flings; a scenario that returns it is
-/// also required to have covered the catalogue.
-Future<ScenarioReport> _scenario(
-  WidgetTester tester,
-  IntegrationTestWidgetsFlutterBinding binding,
-  String name, {
-  required bool asserted,
-  required Future<FlingCoverage?> Function() body,
-  bool timeline = false,
-}) async {
-  final timings = <FrameTiming>[];
-  void onTimings(List<FrameTiming> batch) => timings.addAll(batch);
-  SchedulerBinding.instance.addTimingsCallback(onTimings);
-
-  FlingCoverage? coverage;
-  if (timeline) {
-    await binding.traceAction(
-      () async => coverage = await body(),
-      streams: const ['Dart', 'Embedder', 'GC'],
-      reportKey: '${name}_timeline',
-    );
-  } else {
-    coverage = await body();
-  }
-
-  // Timings are delivered in batches; give the last one time to arrive.
-  await tester.pump(const Duration(milliseconds: 1500));
-  SchedulerBinding.instance.removeTimingsCallback(onTimings);
-
-  final view = tester.view;
-  final refreshRate = view.display.refreshRate;
-  final budgetMs = vsyncBudgetMs(refreshRate);
-  double ms(Duration d) => d.inMicroseconds / 1000;
-  final samples = [
-    for (final t in timings)
-      FrameSample(
-        buildMs: ms(t.buildDuration),
-        rasterMs: ms(t.rasterDuration),
-        totalMs: ms(t.totalSpan),
-      ),
-  ];
-  final stats = FrameStats.of(samples, budgetMs: budgetMs);
-  return ScenarioReport(
-    scenario: name,
-    asserted: asserted,
-    meta: {
-      'mode': switch ((kReleaseMode, kProfileMode)) {
-        (true, _) => 'release',
-        (_, true) => 'profile',
-        _ => 'debug',
-      },
-      'platform': defaultTargetPlatform.name,
-      'refreshRateHz': refreshRate,
-      'devicePixelRatio': view.devicePixelRatio,
-      'physicalSize': '${view.physicalSize.width}x${view.physicalSize.height}',
-    },
-    samples: samples,
-    stats: stats,
-    verdict: judge(stats, coverage: coverage),
-    coverage: coverage,
-  );
 }
 
 /// Real [KeyboardPanel] on a bare scaffold: no chat, no backend.

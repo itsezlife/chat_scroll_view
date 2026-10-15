@@ -1,0 +1,11 @@
+/// Fakes and contract suites for the seams of `catalog_assets`.
+///
+/// Opt-in: production entry points never export these, and production code
+/// never imports them.
+library;
+
+export 'src/atlas/testing/fake_glyph_page_store.dart';
+export 'src/atlas/testing/fake_glyph_rasteriser.dart';
+export 'src/atlas/testing/glyph_page_store_contract.dart';
+export 'src/atlas/testing/glyph_rasteriser_contract.dart';
+export 'src/atlas/testing/image_pixels.dart';
