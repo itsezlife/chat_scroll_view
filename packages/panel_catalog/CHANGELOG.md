@@ -21,8 +21,26 @@ is pre-1.0.
   (drag, fling, jump, wheel, section motion) and, once it settles, which glyphs
   are on screen so their page bakes first.
 
+### Removed
+
+- **Cold-start warm-up.** `PanelCatalogController.warmAhead`, the render
+  object's band walk, `CatalogLeafPainter.rasterizeGlyphsForWarmup` /
+  `ensureGlyphParagraph` / `cancelWarmup`, the viewport's device-pixel-ratio
+  field that only fed it, and the `PANEL_PERF_SKIP_WARM` switch are gone. The
+  offscreen `toImage` pass did not make the first fling cheaper, and where emoji
+  are baked it built paragraphs that are never drawn. A host that called
+  `warmAhead` drops the call; nothing replaces it (the atlas bakes in the
+  background). On platforms that bake, no emoji paragraph is built at all.
+
 ### Changed
 
+- **Bounded paragraph caches.** On the paragraph path (the web strategy) the
+  glyph cache keeps at most `PanelCatalogDiagnostics.glyphParagraphCacheLimit`
+  paragraphs per viewport and the section-header cache 64, least recently drawn
+  out first, and both are released when the viewport is disposed. Before, a
+  window resized step by step added a screenful of paragraphs per step for the
+  life of the viewport. `PanelCatalogDiagnostics.glyphParagraphsCached` reports
+  the live count.
 - **Unicode presentation with an atlas.** An unbaked glyph is
   `CatalogLeafPresentation.circlePlaceholder` (never text) and flips to
   `content` when its page lands, without a layout change. Hosts that pass a
@@ -37,13 +55,6 @@ is pre-1.0.
   `--dart-define=panel_catalog.debug.<category>=true` or a
   `#panel_catalog.debug.<category>: true` zone value, or all of them with
   `panel_catalog.debug`. Console name is `panel_catalog.<category>`.
-
-### Fixed
-
-- **Warm-up yield timer on detach.** [CatalogLeafPainter.rasterizeGlyphsForWarmup]
-  now takes optional [shouldContinue]; [cancelWarmup] aborts in-flight chunk
-  yields. [RenderPanelCatalog.detach] cancels warm-up so a zero-delay Timer is
-  not left pending after the viewport leaves the tree.
 
 ### Changed
 

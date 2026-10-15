@@ -12,7 +12,6 @@
 /// **Coverage map:**
 /// - extent scroll + DS notify
 /// - drag vs leaf long-press arena (no touch-slop catch-up jump)
-/// - cold-start warmAhead (paragraph + offscreen raster)
 /// - leaf presentation (unicode content, circle radius contract, thumb-first)
 /// - paint-leaf element flatness + binding recycle
 /// - tap / long-press identity, `leafLongPressEligible`, press scale
@@ -198,9 +197,6 @@ void main() {
         await tester.pumpAndSettle();
       },
     );
-
-    // Intentionally no warmAhead widget test: `controller.warmAhead` hangs
-    // forever under flutter_tester (0% CPU). Cover via integration / manual.
 
     testWidgets('notifyDataChanged refreshes the projected catalog', (
       tester,
