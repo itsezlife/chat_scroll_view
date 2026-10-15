@@ -1,5 +1,16 @@
 # Panel Catalog Viewport vs SuperSliverList & SliverGrid — Benchmark Report
 
+## Scope
+
+This benchmark is headless: it runs layout, build and paint recording but does
+no rasterisation. Use it for **layout cost and object counts** only. It makes
+**no claim about fling smoothness** on a device: a dropped frame caused by
+rasterising glyphs is invisible here. Smoothness is judged by the on-device
+acceptance test in `example/integration_test/panel_catalog_fling_test.dart`
+(three fresh launches on the reference device; see `example/tool/panel_perf.dart`).
+The fling rows below measure build, layout and paint-recording time per pumped
+frame, not what the user sees.
+
 ## Environment
 
 - Flutter 3.41.7, Dart 3.11.5, macOS ARM64
