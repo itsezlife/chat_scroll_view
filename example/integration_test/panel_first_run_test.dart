@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:catalog_assets/glyph_atlas.dart';
+import 'package:chat_chrome/chat_chrome.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -40,6 +41,11 @@ import 'panel_perf/scenario_support.dart';
 /// scenario runs with that value plus `-updated`, which is how an OS update is
 /// simulated without a plugin.
 ///
+/// With `--dart-define=GLYPH_ART_FINGERPRINT=true` the first two launches get
+/// their art version from the sentinel pixel fingerprint (computed at startup,
+/// one glyph per frame) instead of the fixed value, so the frame criteria cover
+/// the fingerprint too; the update launch still uses a fixed `-updated` value.
+///
 /// Run three fresh launches with
 /// `dart run tool/panel_perf.dart --suite first_run <device-id> <label>`, in
 /// `--profile`; only the reference device gates.
@@ -47,6 +53,8 @@ const _artVersion = String.fromEnvironment(
   'EMOJI_ART_VERSION',
   defaultValue: 'suite',
 );
+
+const _fingerprint = bool.fromEnvironment('GLYPH_ART_FINGERPRINT');
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized()
@@ -157,7 +165,9 @@ Future<PanelHarness> _mount(WidgetTester tester, Directory dir, String art) =>
     PanelHarness.start(
       tester,
       glyphCache: createGlyphCacheStoreForPlatform(dir.path),
-      glyphArtVersion: FixedGlyphArtVersion(art),
+      glyphArtVersion: _fingerprint && !art.endsWith('-updated')
+          ? SentinelGlyphArtVersion()
+          : FixedGlyphArtVersion(art),
     );
 
 Future<void> _unmount(WidgetTester tester, PanelHarness harness) async {
@@ -186,7 +196,11 @@ Future<void> _untilAllPages(WidgetTester tester) async {
 Future<int> _persistedPages(Directory dir, String art) async {
   final store = createGlyphCacheStoreForPlatform(dir.path);
   final committed = await store.openCommitted();
-  if (committed == null || committed.record.key.artVersion != art) return 0;
+  if (committed == null) return 0;
+  final committedArt = committed.record.key.artVersion;
+  if (_fingerprint ? !committedArt.startsWith('art1-') : committedArt != art) {
+    return 0;
+  }
   var pages = 0;
   for (var page = 0; page < 64; page++) {
     final image = await committed.pages.read(page);
