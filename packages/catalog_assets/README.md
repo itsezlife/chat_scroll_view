@@ -20,8 +20,10 @@ Bakes the glyphs a host supplies into fixed-size **glyph atlas pages** and
 answers where each **baked glyph** (sprite: page plus source rectangle) is.
 `MemoryCatalogAssetCache(glyphAtlas: …)` exposes it to the surfaces that bind
 through the cache: unicode bindings resolve `sprite` from it and every binding
-listener hears a page landing. The viewport consumes it; page ownership by
-reference count in the cache is a later step.
+listener hears a page landing. The viewport consumes it. Each unicode binding
+**holds the page its glyph is on** from attach to detach; the pages themselves
+sit in the atlas's `GlyphPageResidency` (see below), so evicting or clearing a
+cache entry never changes a count.
 Terms: [Panel Catalog glossary](../../docs/panel-catalog/CONTEXT.md)
 (Glyph atlas page, Bake, Baked glyph).
 
@@ -37,9 +39,30 @@ Terms: [Panel Catalog glossary](../../docs/panel-catalog/CONTEXT.md)
 | `BakePauseSignals` | Three host-owned `ValueListenable<bool>`: panel visible, scrolling, panel opening |
 | `BakeFrameSource` (seam) | The frame clock: `SchedulerBakeFrameSource` in an app, `FakeBakeFrameSource` in tests |
 | `GlyphAtlas` | A host's whole bake: baker + scheduler + the page images sprites are drawn from; `spriteOf(glyph)` is null until the glyph's page is baked and loaded |
+| `GlyphPageResidency` | Owns the resident page images: a hold count per page (bindings, and the open panel for every page), a retention time-to-live (default 60 s, `retention:`) once nothing holds a page, release of all pages at once on `memoryPressure` |
+| `SystemMemoryPressure` | The platform's memory-pressure signal as a `Listenable` (the production `memoryPressure`) |
 | `AtlasSprite` | Page image + source rectangle; the optional sprite capability of `CatalogAssetBinding.sprite` |
-| `MemoryGlyphPageStore` | In-memory page store (a disk store replaces it later) |
+| `MemoryGlyphPageStore` | In-memory page store, for an atlas that does not persist |
+| `GlyphAtlasPersistence` | `GlyphCacheStore` + `GlyphArtVersionSource` + density: an atlas given this instead of a store restores its pages on the next launch |
+| `GlyphCacheStore` (seam) | One committed generation (what the next launch finds) and at most one staged one; `createGlyphCacheStoreForPlatform(path)` is a `dart:io` file store, in memory on the web; `FakeGlyphCacheStore` in `testing.dart` |
+| `GlyphCacheKey` | Art version + density + glyph size + layout version + catalogue hash; decides hit, stale, discard or miss |
+| `GlyphArtVersionSource` (seam) | Says whether the system emoji art changed; `FixedGlyphArtVersion` until the pixel fingerprint exists; `FakeGlyphArtVersionSource` in `testing.dart` |
 | `createGlyphAtlasForPlatform` | The platform strategy: an atlas on Android, iOS and desktop, `null` on the web (draw text, start no bake) |
+
+### Disk cache
+
+With a `GlyphAtlasPersistence` the pages outlive the process. A launch reads
+the art version, builds the key and compares it with the persisted set:
+*hit* restores the pages (one read per frame, waiting only for scrolls and the
+open animation), *stale* keeps drawing the old pages while the new set bakes
+behind them and swaps once, *discard* and *miss* show circles and bake as on a
+first run, persisting each page as it lands. Damaged or missing pages are a
+miss for that page. A failing disk is reported once and never stops the bake.
+Pages are raw RGBA (16 MiB each, 48 MiB for the current catalogue) with a
+length-checked header; the cache directory is the host's (no plugin here) and
+may be cleared by the platform at any time. QA steps for the first run, the
+cold start and the OS-update case:
+[qa-glyph-cache.md](../../docs/panel-catalog/qa-glyph-cache.md).
 
 Host contract:
 
@@ -51,8 +74,10 @@ Host contract:
 | `prioritise(glyphs)` with the visible band when scrolling settles | Expect a visible glyph before its whole page is composed; cells never move |
 | `dispose()` on the scheduler (and `SchedulerBakeFrameSource`) when the panel is torn down | Dispose the baker first: the scheduler leaves no frame request or listener behind |
 | A `GlyphPageStore` | Mutate or share a stored page; handles are cloned on write and read |
+| A `GlyphPageResidency` per atlas: `retention` and `memoryPressure: SystemMemoryPressure()` (the host disposes the signal) | Keep a sprite across frames: a page can be released, ask `spriteOf` again; expect memory back from a released page while the store is the in-memory one (it keeps the texture) |
 
-`testing.dart` ships `FakeGlyphRasteriser` (predictable pixels, no emoji font;
+`testing.dart` ships `ManualRetentionTimers` and `ManualMemoryPressure` (the retention
+and the pressure a test moves by hand), `FakeGlyphRasteriser` (predictable pixels, no emoji font;
 `onPaint` to model a slow or failing glyph), `FakeGlyphPageStore`,
 `FakeBakeFrameSource` and `ManualBakeClock` (frames and time a test steps),
 `ImagePixels`, and the contract suites `runGlyphRasteriserContract`,

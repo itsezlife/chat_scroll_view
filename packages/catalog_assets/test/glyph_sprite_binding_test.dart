@@ -9,12 +9,14 @@ const _keyboard = CatalogAssetCacheType.keyboard;
 void main() {
   late FakeBakeFrameSource frames;
   late FakeGlyphPageStore store;
+  late ManualRetentionTimers timers;
   late ValueNotifier<bool> visible;
   late ValueNotifier<bool> opening;
 
   setUp(() {
     frames = FakeBakeFrameSource();
     store = FakeGlyphPageStore();
+    timers = ManualRetentionTimers();
     visible = ValueNotifier<bool>(true);
     opening = ValueNotifier<bool>(false);
   });
@@ -33,6 +35,7 @@ void main() {
       clock: ManualBakeClock().read,
       panelVisible: visible,
       panelOpening: opening,
+      residency: GlyphPageResidency(startTimer: timers.start),
     );
     addTearDown(atlas.dispose);
     return atlas;
@@ -178,6 +181,129 @@ void main() {
       atlas.dispose();
 
       expect(binding.sprite, isNull);
+    });
+  });
+
+  group('page holds', () {
+    // Counts are per page and belong to the binding that took them, so what
+    // happens to the cache entry under a live binding cannot change them.
+    test('a binding holds its glyph page from attach to detach', () {
+      final atlas = atlasOf(['a', 'b']);
+      final cache = MemoryCatalogAssetCache(glyphAtlas: atlas);
+      addTearDown(cache.dispose);
+      const key = CatalogAssetKey.unicode('a');
+
+      final first = cache.attach(key, _keyboard);
+      final second = cache.attach(key, CatalogAssetCacheType.messages);
+      // The open panel holds every page as well: 1 here, plus one per binding.
+      expect(atlas.residency.holdCount(0), 3);
+
+      first.detach();
+      expect(atlas.residency.holdCount(0), 2);
+      second.detach();
+      expect(atlas.residency.holdCount(0), 1);
+    });
+
+    test('detaching twice gives the page back once', () {
+      final atlas = atlasOf(['a']);
+      final cache = MemoryCatalogAssetCache(glyphAtlas: atlas);
+      addTearDown(cache.dispose);
+      const key = CatalogAssetKey.unicode('a');
+      final first = cache.attach(key, _keyboard);
+      cache.attach(key, _keyboard);
+
+      first
+        ..detach()
+        ..detach();
+
+      expect(atlas.residency.holdCount(0), 2);
+    });
+
+    test('evict with a live binding leaves the counts alone', () {
+      final atlas = atlasOf(['a']);
+      final cache = MemoryCatalogAssetCache(glyphAtlas: atlas);
+      addTearDown(cache.dispose);
+      const key = CatalogAssetKey.unicode('a');
+      final stale = cache.attach(key, _keyboard);
+
+      cache.evict(key, _keyboard);
+      expect(atlas.residency.holdCount(0), 2);
+
+      final fresh = cache.attach(key, _keyboard);
+      stale.detach();
+      expect(atlas.residency.holdCount(0), 2, reason: 'fresh still holds');
+      expect(cache.isRetained(key, _keyboard), isTrue);
+
+      fresh.detach();
+      expect(atlas.residency.holdCount(0), 1);
+      expect(cache.isRetained(key, _keyboard), isFalse);
+    });
+
+    test('clear with live bindings leaves the counts alone', () {
+      final atlas = atlasOf(['a', 'b']);
+      final cache = MemoryCatalogAssetCache(glyphAtlas: atlas);
+      addTearDown(cache.dispose);
+      final a = cache.attach(const CatalogAssetKey.unicode('a'), _keyboard);
+      final b = cache.attach(const CatalogAssetKey.unicode('b'), _keyboard);
+
+      cache.clear();
+      expect(atlas.residency.holdCount(0), 3);
+
+      a.detach();
+      b.detach();
+      expect(atlas.residency.holdCount(0), 1);
+    });
+
+    test(
+      'a page a binding holds survives its retention while closed',
+      () async {
+        final atlas = atlasOf(['a'])..start();
+        final cache = MemoryCatalogAssetCache(glyphAtlas: atlas);
+        addTearDown(cache.dispose);
+        final binding = cache.attach(
+          const CatalogAssetKey.unicode('a'),
+          _keyboard,
+        );
+        await bakeAll();
+        visible.value = false;
+
+        timers.elapse(const Duration(minutes: 5));
+        expect(binding.sprite, isNotNull);
+
+        binding.detach();
+        timers.elapse(const Duration(seconds: 60));
+        expect(binding.sprite, isNull);
+      },
+    );
+
+    test('disposing the cache gives back the holds of live bindings', () {
+      final atlas = atlasOf(['a']);
+      final cache = MemoryCatalogAssetCache(glyphAtlas: atlas);
+      final binding = cache.attach(
+        const CatalogAssetKey.unicode('a'),
+        _keyboard,
+      );
+      expect(atlas.residency.holdCount(0), 2);
+
+      cache.dispose();
+      expect(atlas.residency.holdCount(0), 1);
+
+      binding.detach();
+      expect(atlas.residency.holdCount(0), 1);
+    });
+
+    test('a document, a glyph outside the plan and no atlas hold nothing', () {
+      final atlas = atlasOf(['a']);
+      final cache = MemoryCatalogAssetCache(glyphAtlas: atlas);
+      addTearDown(cache.dispose);
+
+      cache.attach(const CatalogAssetKey.document('a'), _keyboard);
+      cache.attach(const CatalogAssetKey.unicode('zzz'), _keyboard);
+      MemoryCatalogAssetCache()
+        ..attach(const CatalogAssetKey.unicode('a'), _keyboard)
+        ..dispose();
+
+      expect(atlas.residency.holdCount(0), 1);
     });
   });
 }

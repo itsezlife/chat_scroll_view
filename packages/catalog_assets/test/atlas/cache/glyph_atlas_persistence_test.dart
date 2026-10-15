@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:flutter/foundation.dart';
@@ -40,6 +38,7 @@ void main() {
   ({GlyphAtlas atlas, FakeGlyphRasteriser rasteriser}) launch(
     List<String> glyphs, {
     double density = 2,
+    GlyphPageResidency? residency,
   }) {
     final rasteriser = FakeGlyphRasteriser();
     final atlas = GlyphAtlas(
@@ -54,6 +53,7 @@ void main() {
       clock: clock.read,
       panelVisible: visible,
       panelOpening: opening,
+      residency: residency,
     );
     addTearDown(atlas.dispose);
     return (atlas: atlas, rasteriser: rasteriser);
@@ -269,6 +269,44 @@ void main() {
         expect(run.atlas.spriteOf('g0'), isNull);
       },
     );
+  });
+
+  group('page residency', () {
+    test('a page released after the retention comes back from disk', () async {
+      await firstRun(_glyphs(3));
+      final timers = ManualRetentionTimers();
+      final run = launch(
+        _glyphs(3),
+        residency: GlyphPageResidency(startTimer: timers.start),
+      )..atlas.start();
+      await pumpEventQueue();
+      await bakeAll();
+      expect(run.atlas.spriteOf('g0'), isNotNull);
+
+      visible.value = false;
+      timers.elapse(GlyphPageResidency.defaultRetention);
+      cache.reads.clear();
+      expect(run.atlas.spriteOf('g0'), isNull, reason: 'released, a circle');
+
+      visible.value = true;
+      await pumpEventQueue();
+
+      expect(run.atlas.spriteOf('g0'), isNotNull);
+      expect(cache.reads, [0], reason: 'one page read, nothing baked');
+      expect(run.rasteriser.painted, isEmpty);
+    });
+
+    test('after a swap only the new pages are resident', () async {
+      final glyphs = _glyphs(_perPage + 1);
+      await firstRun(glyphs);
+      art.version = 'art-2';
+      final run = launch(glyphs)..atlas.start();
+      await pumpEventQueue();
+      await bakeAll();
+
+      expect(run.atlas.cacheReport.swapped, isTrue);
+      expect(run.atlas.residency.residentPages, [0, 1]);
+    });
   });
 
   group('damaged pages are a miss, not a failure', () {

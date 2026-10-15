@@ -185,6 +185,9 @@ class _KeyboardPanelState extends State<KeyboardPanel>
   /// Owns the emoji atlas across opens and closes; created once the view and
   /// density are known ([didChangeDependencies]).
   EmojiGlyphAtlasHost? _atlasHost;
+
+  /// Tells the atlas pages to go when the system wants memory back.
+  SystemMemoryPressure? _memoryPressure;
   SchedulerBakeFrameSource? _bakeFrames;
 
   // --- Bottom bar -----------------------------------------------------------
@@ -255,6 +258,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
               artVersion: widget.glyphArtVersion!,
               devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
             ),
+      memoryPressure: _memoryPressure = SystemMemoryPressure(),
     );
     _dataSource.addDataListener(_syncAtlas);
     _syncBakeSignals();
@@ -308,6 +312,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     _atlasHost
       ?..removeListener(_onAtlasChanged)
       ..dispose();
+    _memoryPressure?.dispose();
     _bakeFrames?.dispose();
     _progress
       ..removeListener(_onProgressTick)
@@ -592,21 +597,18 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       _inset.setPanelOccupancy(_inset.panelTarget);
       _opening = false;
       _ensurePageSyncedAfterOpen();
-      // Warm after snap so REPLACE open does not pay first-fling glyph raster.
-      _emojiPageKey.currentState?.warmAhead().ignore();
       return;
     }
 
     fine(.panel, 'KeyboardPanel.open COLD animate 0→1');
     _progress.value = 0;
     _inset.setPanelOccupancy(0);
-    // Layout the page, then warm glyphs without blocking the open animation.
+    // Let the page mount and lay out before the open animation starts.
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted || _closing) {
       _opening = false;
       return;
     }
-    _emojiPageKey.currentState?.warmAhead().ignore();
     await Future<void>.delayed(KeyboardPanelMotion.startDelay);
     if (!mounted || _closing) {
       fine(

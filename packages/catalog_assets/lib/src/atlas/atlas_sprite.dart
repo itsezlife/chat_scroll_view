@@ -10,10 +10,11 @@ import 'package:meta/meta.dart';
 /// itself, and draws every sprite of one page in a single batch; an asset
 /// without one paints itself.
 ///
-/// The [page] handle belongs to the [GlyphAtlas] that handed the sprite out
-/// and is disposed with it. A sprite is for use within the call that asked for
-/// it, never to be kept: ask again to learn whether the pixels are still
-/// there.
+/// The [page] handle belongs to the page residency of the [GlyphAtlas] that
+/// handed the sprite out and is disposed when the page is released (retention
+/// elapsed, memory pressure, or the atlas going away). A sprite is for use
+/// within the call that asked for it, never to be kept: ask again to learn
+/// whether the pixels are still there.
 ///
 /// [GlyphAtlas]: package:catalog_assets/glyph_atlas.dart
 @immutable

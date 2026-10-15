@@ -2,21 +2,13 @@
 /// (`.scratch/panel-catalog-glyph-perf`).
 ///
 /// Not part of the portable contract and deliberately **not** exported from
-/// `panel_catalog.dart`. Both switches default to off, so production paint and
-/// warm-up are unchanged. Delete this library and its two call sites once the
-/// investigation resolves.
+/// `panel_catalog.dart`. The switch defaults to off, so production paint is
+/// unchanged. Delete this library and its call sites once the investigation
+/// resolves.
 library;
 
-/// Runtime switches read by the engine on the warm-up and paint paths.
+/// Runtime switches read by the engine on the paint path.
 abstract final class PanelCatalogPerfProbe {
-  /// When true, [PanelCatalogController.warmAhead] completes immediately.
-  ///
-  /// Seeded from `--dart-define=PANEL_PERF_SKIP_WARM=true` so a cold run with
-  /// warm-up disabled needs no code edit.
-  static bool skipWarmAhead = const bool.fromEnvironment(
-    'PANEL_PERF_SKIP_WARM',
-  );
-
   /// When non-null, every unicode leaf paints this string instead of its glyph.
   ///
   /// A plain Latin letter takes the monochrome glyph path; if jank disappears
