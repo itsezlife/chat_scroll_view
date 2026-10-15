@@ -10,9 +10,14 @@
 # Precondition (it decides whether the numbers mean anything): the reference
 # device is cool, on a charger, screen on, display at its top refresh rate.
 #
-# Builds the APK once (Android) and reuses it on later runs; pass REBUILD=1 to
-# force a rebuild after code changes. Extra args pass through to `flutter
-# drive`, e.g. `--no-enable-impeller` (no rebuild needed) for a Skia A/B.
+# TARGET picks the test entry point (default: the bare-panel suite; the chat
+# suite is integration_test/panel_over_chat_test.dart). Each target keeps its
+# own built APK.
+#
+# Builds the APK once per target (Android) and reuses it on later runs; pass
+# REBUILD=1 to force a rebuild after code changes. Extra args pass through to
+# `flutter drive`, e.g. `--no-enable-impeller` (no rebuild needed) for a Skia
+# A/B.
 #
 # Reports land in perf/runs/<label>/ (git-ignored); the kept comparison set is
 # perf/baseline/ (see `dart run tool/panel_perf.dart --help`).
@@ -38,12 +43,17 @@ for d in json.load(sys.stdin):
 args=(--profile -d "$device" --driver="$driver" --target="$target" $defines)
 
 if [[ "$platform" == android-* ]]; then
-  apk=build/app/outputs/flutter-apk/app-profile.apk
+  built=build/app/outputs/flutter-apk/app-profile.apk
+  # The build output has one fixed name, so a second target would otherwise
+  # reuse the first target's binary.
+  apk="build/panel_perf/$(basename "$target" .dart).apk"
   if [[ "${REBUILD:-0}" == 1 || ! -f "$apk" ]]; then
     flutter build apk --profile --target-platform android-arm64 \
       --target="$target" $defines
+    [[ -f "$built" ]] || { echo "build produced no $built" >&2; exit 1; }
+    mkdir -p "$(dirname "$apk")"
+    cp "$built" "$apk"
   fi
-  [[ -f "$apk" ]] || { echo "build produced no $apk" >&2; exit 1; }
   args+=(--use-application-binary="$apk")
 fi
 

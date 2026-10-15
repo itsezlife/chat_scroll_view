@@ -157,6 +157,40 @@ void main() {
       expect(baseline.single.overBudgetFrames, 0);
     });
 
+    test('promoting several runs keeps the scenarios of all of them', () {
+      store
+        ..write('bare', _report('panel_open', samples: [_clean]))
+        ..write('chat', _report('chat_panel_open', samples: [_janky]))
+        ..promoteBaselineFrom(['bare', 'chat']);
+      expect(store.readBaseline().map((s) => s.scenario), [
+        'chat_panel_open',
+        'panel_open',
+      ]);
+    });
+
+    test('promoting several runs is refused when any has no reports', () {
+      store
+        ..write('bare', _report('panel_open', samples: [_clean]))
+        ..promoteBaseline('bare');
+      expect(
+        () => store.promoteBaselineFrom(['bare', 'missing']),
+        throwsStateError,
+      );
+      expect(store.readBaseline().map((s) => s.scenario), ['panel_open']);
+    });
+
+    test('a run is judged against the scenarios it is required to have', () {
+      store.write('c', _report('chat_panel_open', samples: [_clean]));
+      expect(
+        runPassed(
+          store.readRun('c'),
+          requiredScenarios: const ['chat_panel_open'],
+        ),
+        isTrue,
+      );
+      expect(runPassed(store.readRun('c')), isFalse);
+    });
+
     test('promoting a missing or empty run is refused', () {
       expect(() => store.promoteBaseline('missing'), throwsStateError);
     });

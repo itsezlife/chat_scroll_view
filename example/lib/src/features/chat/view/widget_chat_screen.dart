@@ -32,6 +32,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+/// Supplies the message source of a [WidgetChatScreen].
+typedef ChatDataSourceLoader = Future<ChatDataSource> Function();
+
 /// Demo screen for the widget-based [ChatScrollView] — the chat viewport,
 /// a bottom composer, and a contextual selection bar, wired together.
 class WidgetChatScreen extends StatefulWidget {
@@ -43,6 +46,7 @@ class WidgetChatScreen extends StatefulWidget {
   const WidgetChatScreen({
     this.keyboardPanelStore,
     this.emojiDataSource,
+    this.dataSourceLoader,
     super.key,
   });
 
@@ -51,6 +55,13 @@ class WidgetChatScreen extends StatefulWidget {
 
   /// Optional preloaded emoji catalog. When null, the screen owns one.
   final DefaultEmojiDataSource? emojiDataSource;
+
+  /// Supplies the message source instead of the bundled comments asset, so a
+  /// harness can run the real screen on generated messages with no backend.
+  ///
+  /// The screen owns the returned source and disposes it. The app leaves this
+  /// null.
+  final ChatDataSourceLoader? dataSourceLoader;
 
   @override
   State<WidgetChatScreen> createState() => _WidgetChatScreenState();
@@ -364,8 +375,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       // final backend = await BackendChatDataSource.connect(
       //   client: Supabase.instance.client,
       // );
-      final backend = await CommentsDataSource.load();
-      // final backend = GeneratedChatDataSource(messageCount: 15);
+      final backend =
+          await (widget.dataSourceLoader ?? CommentsDataSource.load)();
 
       // The screen may have been popped while `load()` was in flight. The
       // `dispose()` above already ran with `_dataSource == null`, so we
@@ -384,7 +395,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
         final BackendChatDataSource source =>
           await source.getLastReadMessageId(),
         CommentsDataSource() => 9990,
-        // GeneratedChatDataSource() => 5,
+        _ => null,
       };
       final store = await ChatCenterBandStore.open();
       final openPosition = await backend.resolveOpenPosition(
