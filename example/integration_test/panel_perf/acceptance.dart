@@ -29,7 +29,13 @@ final class Verdict {
   bool get passed => failures.isEmpty;
 }
 
-/// Judges [stats] against [criteria], and [coverage] when the scenario flings.
+/// Most raw bytes the resident glyph atlas pages may take while the panel is
+/// open (64 MiB).
+const int kResidentPageCeilingBytes = 64 * 1024 * 1024;
+
+/// Judges [stats] against [criteria], [coverage] when the scenario flings, and
+/// [residentBytes] (what the atlas held when the scenario ended) against
+/// [kResidentPageCeilingBytes] when the platform has an atlas.
 ///
 /// Every failed criterion is reported, so one red run names all that is wrong.
 /// A scenario that recorded no frames fails: silence is not smoothness.
@@ -37,6 +43,7 @@ Verdict judge(
   FrameStats stats, {
   AcceptanceCriteria criteria = const AcceptanceCriteria(),
   FlingCoverage? coverage,
+  int? residentBytes,
 }) {
   final failures = <String>[];
   if (stats.frames == 0) {
@@ -59,6 +66,12 @@ Verdict judge(
   }
   if (coverage != null && !coverage.isComplete) {
     failures.add('fling coverage incomplete: ${coverage.describe()}');
+  }
+  if (residentBytes != null && residentBytes > kResidentPageCeilingBytes) {
+    failures.add(
+      'resident emoji pages ${(residentBytes / (1024 * 1024)).toStringAsFixed(1)} '
+      'MiB (allowed ${kResidentPageCeilingBytes ~/ (1024 * 1024)} MiB)',
+    );
   }
   return Verdict(failures);
 }

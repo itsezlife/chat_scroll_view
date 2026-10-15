@@ -123,7 +123,7 @@ _Avoid_: Per-panel-only drawable map as the source of truth, evicting settled re
 ### Glyph atlas
 
 **Glyph atlas page**:
-A fixed-size GPU image (2048 × 2048) holding baked glyph cells with a transparent gutter around each. Owned by the global catalog asset cache and reference-counted per page; a leaf binding holds the page, never its pixels. A static page is immutable once composed.
+A fixed-size GPU image (2048 × 2048) holding baked glyph cells with a transparent gutter around each. Held through **page residency**, which the atlas and the asset cache's leaf bindings share and which counts holds per page; a leaf binding holds the page, never its pixels. A static page is immutable once composed.
 _Avoid_: Per-leaf bitmap, per-binding pixel ownership, mutating a static page in place, sharing a static page with animation frames
 
 **Bake**:
@@ -167,16 +167,12 @@ The bake draws every glyph once into a strip; an optional **bake observer** is s
 _Avoid_: A second rasterising pass for the probe, filtering the atlas plan by the probe (it would re-bake every page once the probe finishes)
 
 **Page residency**:
-Which atlas pages are resident and for how long. A page is pinned by a hold: one per leaf binding (the page its glyph is on, from attach to detach) and one on every page while the panel is open. When nothing pins a page, a retention time-to-live starts (60 seconds by default, host-configurable); a new hold within it cancels the release, so reopening needs no reload, and after it the page is read back from the page store. Memory pressure releases every page at once, pinned or not. Hold counts belong to the holder and survive the release of the image, so evicting or clearing a cache entry under a live binding never changes a count.
-_Avoid_: Releasing a hold by looking the entry up again, a count stored with the image, keeping pages for the life of the shell, a timer or release rule inside the viewport
+Which atlas pages are resident and for how long. A page is pinned by a hold: one per leaf binding (the page its glyph is on, from attach to detach) and one on every page while the panel is open. When nothing pins a page, its **retention** starts, a time-to-live layered on the cache's keep-until-pressure rule (60 seconds by default, host-configurable); a new hold within it cancels the release, so reopening needs no reload, and after it the page is read back from the page store. Memory pressure releases every page at once, pinned or not, ignoring the retention. Hold counts belong to the holder and survive the release of the image, so evicting or clearing a cache entry under a live binding never changes a count.
+_Avoid_: Releasing a hold by looking the entry up again, a count stored with the image, keeping pages for the life of the shell, releasing pages on every panel close, holding pages through memory pressure, a timer or release rule inside the viewport
 
 **Atlas page pool**:
-The set of atlas pages of one kind held by the asset cache within a resident-memory ceiling (64 MiB for static glyph pages). A later dynamic pool for animation frames follows the same sprite contract and is kept separate from the static pool.
+The set of atlas pages of one kind resident at once, within a resident-memory ceiling (64 MiB for static glyph pages). A later dynamic pool for animation frames follows the same sprite contract and is kept separate from the static pool.
 _Avoid_: One pool for static and animated content, a ceiling raised to avoid a size cap
-
-**Residency hold**:
-Retention time-to-live for atlas pages after the last holder releases them (60 seconds), layered on the cache's keep-until-pressure rule. Memory pressure releases pages immediately, ignoring the hold.
-_Avoid_: Releasing pages on every panel close, holding pages through memory pressure
 
 **Document-backed leaf**:
 A catalog cell identified by a document (animated/custom emoji, sticker) rather than only a unicode glyph. v1 prepares identity and placeholder modes for these even if full media decode ships later.

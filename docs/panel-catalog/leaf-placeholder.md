@@ -28,6 +28,18 @@ unbaked state and never paints it.
 | Fill | `placeholderColor` default `0x10000000`; inline text tints via `0x10ffffff & textColor` |
 | Motion | None — static until the glyph is baked |
 
+The cell flips from the circle to the sprite when its atlas page is ready,
+with no layout change. The circle returns, or stays, when:
+
+| Situation | What the cell shows |
+| --------- | ------------------- |
+| First run, nothing persisted | Circle until the glyph's page is baked (the visible page bakes first) |
+| Cold start, valid disk cache | Circle until the page is restored, at most 500 ms |
+| Glyph the atlas did not plan (for example a skin tone chosen for the first time) | Circle until the next bake covers it; pages already baked keep drawing |
+| System emoji art or catalogue changed (stale) | The old sprite, then every cell changes at once when the new set is complete |
+| Screen density or baked cell size changed (discard) | Circle, as on a first run |
+| A page released on memory pressure | Its cells draw again once the page is read back from the page store |
+
 Animated leaves never use this circle, even though a translucent placeholder
 tint (`0x0fffffff` / `0x0f000000`) exists for theme updates.
 
@@ -56,9 +68,11 @@ pattern for **sticker** leaves, not as the default for unicode emoji cells.
 
 | Leaf kind | Leaf presentation while loading |
 | --------- | -------------------------------- |
-| Unicode glyph | Circle placeholder until baked, then sprite |
+| Unicode glyph, baking platform | Circle placeholder until baked, then sprite |
+| Unicode glyph, paragraph strategy (web) | The glyph, drawn as text; no placeholder |
 | Document-backed animated | Thumb-first (SVG/static), then drawable |
 | Sticker | Shaped loading wash |
 
+A leaf marked failed paints the rounded stand-in rectangle of the other kinds.
 Viewport paints the matching placeholder mode; catalog data source owns fetch
 and readiness notify. Hosts scope tokens with [PanelCatalogTheme].

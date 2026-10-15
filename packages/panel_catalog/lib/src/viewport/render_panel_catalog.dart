@@ -6,7 +6,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:panel_catalog/panel_catalog_perf_probe.dart';
 import 'package:panel_catalog/src/data/catalog_data_source.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
@@ -1597,7 +1596,6 @@ class RenderPanelCatalog extends RenderBox {
     canvas.clipRect(offset & size);
 
     final scroll = _controller.offset;
-    PanelCatalogPerfProbe.recordPaint(scroll, _contentExtent, size.height);
     _bakeActivity?.notePaint(scroll);
     final contentOrigin = offset.translate(0, -scroll);
     final (top, bottom) = _paintWindow();
