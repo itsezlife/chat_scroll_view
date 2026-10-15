@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../integration_test/panel_perf/acceptance.dart';
 import '../../integration_test/panel_perf/acceptance_runner.dart';
 import '../../integration_test/panel_perf/report.dart';
 
@@ -27,14 +28,18 @@ final class _Script {
   final launched = <String>[];
   final lines = <String>[];
 
-  AcceptanceRunner get runner => AcceptanceRunner(
-    launch: (label) async {
-      launched.add(label);
-      return exitCodes[launched.length - 1];
-    },
-    readRun: (label) => runs[label] ?? const [],
-    log: lines.add,
-  );
+  AcceptanceRunner runnerFor([AcceptanceSuite suite = kBareSuite]) =>
+      AcceptanceRunner(
+        suite: suite,
+        launch: (label) async {
+          launched.add(label);
+          return exitCodes[launched.length - 1];
+        },
+        readRun: (label) => runs[label] ?? const [],
+        log: lines.add,
+      );
+
+  AcceptanceRunner get runner => runnerFor();
 }
 
 void main() {
@@ -148,5 +153,68 @@ void main() {
     final out = script.lines.join('\n');
     expect(out, contains('baseline'));
     expect(out, contains('21/455'));
+  });
+
+  group('suites', () {
+    List<ReportSummary> chatRun({bool passed = true}) => [
+      _summary('chat_panel_open', passed: passed),
+      _summary('chat_cold_first_pass', passed: passed),
+    ];
+
+    test('each suite asserts its own scenarios and has its own target', () {
+      expect(kBareSuite.assertedScenarios, ['panel_open', 'cold_first_pass']);
+      expect(kChatSuite.assertedScenarios, [
+        'chat_panel_open',
+        'chat_cold_first_pass',
+      ]);
+      expect(kBareSuite.target, isNot(kChatSuite.target));
+      final names = [for (final suite in kSuites) ...suite.assertedScenarios];
+      expect(names.toSet(), hasLength(names.length));
+    });
+
+    test('suites are found by name', () {
+      expect(suiteNamed('chat'), same(kChatSuite));
+      expect(suiteNamed('bare'), same(kBareSuite));
+      expect(suiteNamed('nope'), isNull);
+    });
+
+    test('three clean chat launches pass the chat suite', () async {
+      final script = _Script(
+        [0, 0, 0],
+        {for (var i = 1; i <= 3; i++) 'c-launch$i': chatRun()},
+      );
+      expect((await script.runnerFor(kChatSuite).run('c')).passed, isTrue);
+    });
+
+    test('bare reports do not satisfy a chat launch', () async {
+      final script = _Script(
+        [0, 0, 0],
+        {for (var i = 1; i <= 3; i++) 'c-launch$i': _run()},
+      );
+      expect((await script.runnerFor(kChatSuite).run('c')).passed, isFalse);
+    });
+
+    test('a failing chat scenario fails its launch', () async {
+      final script = _Script(
+        [0, 1, 0],
+        {
+          'c-launch1': chatRun(),
+          'c-launch2': chatRun(passed: false),
+          'c-launch3': chatRun(),
+        },
+      );
+      final outcome = await script.runnerFor(kChatSuite).run('c');
+      expect(outcome.passed, isFalse);
+      expect(script.lines.join('\n'), contains('chat_cold_first_pass'));
+    });
+
+    test('the console names the suite being run', () async {
+      final script = _Script(
+        [0, 0, 0],
+        {for (var i = 1; i <= 3; i++) 'c-launch$i': chatRun()},
+      );
+      await script.runnerFor(kChatSuite).run('c');
+      expect(script.lines.first, contains('chat'));
+    });
   });
 }

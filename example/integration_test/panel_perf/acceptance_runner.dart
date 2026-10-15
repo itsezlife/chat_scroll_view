@@ -5,6 +5,7 @@
 /// injected so the rule itself is testable without a device.
 library;
 
+import 'acceptance.dart';
 import 'report.dart';
 
 /// Number of consecutive fresh launches that must all pass.
@@ -25,6 +26,7 @@ final class LaunchResult {
     required this.label,
     required this.exitCode,
     required this.reports,
+    this.requiredScenarios = kAssertedScenarios,
   });
 
   final String label;
@@ -33,7 +35,13 @@ final class LaunchResult {
 
   /// A launch passes only with a clean exit *and* passing reports for every
   /// asserted scenario, so a harness that exits 0 without measuring fails.
-  bool get passed => exitCode == 0 && runPassed(reports);
+  bool get passed => exitCode == 0 && reportsPassed;
+
+  /// Set by [AcceptanceRunner] from the suite's own asserted scenarios.
+  final List<String> requiredScenarios;
+
+  bool get reportsPassed =>
+      runPassed(reports, requiredScenarios: requiredScenarios);
 }
 
 /// All launches of one acceptance run.
@@ -54,7 +62,11 @@ final class AcceptanceRunner {
     required this.readRun,
     required this.log,
     this.readBaseline,
+    this.suite = kBareSuite,
   });
+
+  /// What each launch must report; the bare panel unless told otherwise.
+  final AcceptanceSuite suite;
 
   /// Starts one fresh process under run label `<label>-launchN` and returns
   /// its exit code.
@@ -71,7 +83,10 @@ final class AcceptanceRunner {
   /// Runs every launch even after a failure: a red run is the baseline, and
   /// all three samples are the evidence.
   Future<AcceptanceOutcome> run(String label) async {
-    log('Panel catalog acceptance: $kRequiredLaunches fresh launches.');
+    log(
+      'Panel catalog acceptance, ${suite.name} suite: '
+      '$kRequiredLaunches fresh launches.',
+    );
     log('Preconditions (operator responsibility):');
     for (final line in kDevicePreconditions) {
       log('  - $line');
@@ -86,6 +101,7 @@ final class AcceptanceRunner {
         label: launchLabel,
         exitCode: exitCode,
         reports: readRun(launchLabel),
+        requiredScenarios: suite.assertedScenarios,
       );
       results.add(result);
       log('launch $i exit code $exitCode');

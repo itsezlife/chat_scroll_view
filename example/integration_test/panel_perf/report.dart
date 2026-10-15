@@ -114,18 +114,21 @@ final class ReportSummary {
 
   /// One line for a console table.
   String describe() =>
-      '${scenario.padRight(18)} ${passed ? 'PASS' : 'FAIL'}'
+      '${scenario.padRight(22)} ${passed ? 'PASS' : 'FAIL'}'
       '${asserted ? '' : ' (info)'} '
       '$overBudgetFrames/$frames frames over budget, '
       'raster p99 ${rasterP99Ms.toStringAsFixed(2)} ms, '
       'max ${rasterMaxMs.toStringAsFixed(1)} ms';
 }
 
-/// Whether a launch passed: every asserted scenario is present and passed.
+/// Whether a launch passed: every [requiredScenarios] scenario is present and passed.
 ///
 /// A launch that crashed before reporting has no summaries and so cannot pass.
-bool runPassed(List<ReportSummary> run) {
-  for (final name in kAssertedScenarios) {
+bool runPassed(
+  List<ReportSummary> run, {
+  List<String> requiredScenarios = kAssertedScenarios,
+}) {
+  for (final name in requiredScenarios) {
     final found = run.where((s) => s.scenario == name);
     if (found.isEmpty || !found.every((s) => s.passed)) return false;
   }
@@ -165,11 +168,21 @@ final class ReportStore {
   ///
   /// Throws [StateError] when the run has no reports, so a typo cannot wipe
   /// the baseline.
-  void promoteBaseline(String label) {
-    final source = _run(label);
-    final files = _reportFiles(source);
-    if (files.isEmpty) {
-      throw StateError('run "$label" has no reports to promote');
+  void promoteBaseline(String label) => promoteBaselineFrom([label]);
+
+  /// Replaces the baseline set with the reports of all runs in [labels], one
+  /// run per suite: each suite is its own launch, but one baseline is kept.
+  ///
+  /// Throws [StateError], leaving the baseline as it was, when any run has no
+  /// reports.
+  void promoteBaselineFrom(List<String> labels) {
+    final files = <File>[];
+    for (final label in labels) {
+      final found = _reportFiles(_run(label));
+      if (found.isEmpty) {
+        throw StateError('run "$label" has no reports to promote');
+      }
+      files.addAll(found);
     }
     if (_baseline.existsSync()) _baseline.deleteSync(recursive: true);
     _baseline.createSync(recursive: true);
