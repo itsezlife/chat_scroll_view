@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_index.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_layout.dart';
+import 'package:catalog_assets/src/atlas/glyph_bake_observer.dart';
 import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
 
@@ -38,7 +41,10 @@ enum BakeStep {
 /// pacing and pausing are the caller's (see `GlyphBakeScheduler`).
 ///
 /// The baker never detects missing glyphs and never falls back to a
-/// paragraph; it bakes exactly what the index lists.
+/// paragraph; it bakes exactly what the index lists. What it does offer is the
+/// pixels it draws anyway: an optional [GlyphBakeObserver] is shown each glyph's
+/// cell once, so the glyph-support probe shares this rasterising pass instead
+/// of running a second one.
 final class GlyphBaker {
   /// Creates a baker for [index] that rasterises with [rasteriser] and keeps
   /// the composed pages in [store].
@@ -46,14 +52,21 @@ final class GlyphBaker {
     required this.index,
     required GlyphRasteriser rasteriser,
     required GlyphPageStore store,
+    GlyphBakeObserver? observer,
   }) : _rasteriser = rasteriser,
-       _store = store;
+       _store = store,
+       _observer = observer;
 
   /// The plan being baked.
   final GlyphAtlasIndex index;
 
   final GlyphRasteriser _rasteriser;
   final GlyphPageStore _store;
+  final GlyphBakeObserver? _observer;
+
+  // Readbacks for the observer that are still in flight.
+  final Set<Future<void>> _observing = <Future<void>>{};
+  bool _referencesDrawn = false;
 
   // Strips of the page being baked, in slot order, and how many of its glyphs
   // they hold. Dropped as soon as the page is composed.
@@ -126,6 +139,10 @@ final class GlyphBaker {
     if (isComplete) return BakeStep.done;
     _stepping = true;
     try {
+      if (_needsReferenceStrip) {
+        _bakeReferenceStrip();
+        return BakeStep.strip;
+      }
       final page = _pageToBake();
       final onPage = index.glyphsOnPage(page);
       if (_stripped < onPage.length) {
@@ -148,6 +165,15 @@ final class GlyphBaker {
     while (!isComplete && !_disposed) {
       await nextFrame();
       await step(glyphs: glyphsPerFrame);
+    }
+  }
+
+  /// Completes when every readback handed to the observer has been delivered
+  /// (or dropped, after [dispose]). Baking never waits for it; a test or a
+  /// host that wants the observer's final state does.
+  Future<void> observationsSettled() async {
+    while (_observing.isNotEmpty) {
+      await Future.wait(_observing.toList());
     }
   }
 
@@ -185,13 +211,93 @@ final class GlyphBaker {
 
   void _bakeStrip(List<String> onPage, int budget) {
     final count = math.min(onPage.length - _stripped, budget);
+    final glyphs = onPage.sublist(_stripped, _stripped + count);
+    final strip = _drawStrip(glyphs);
+    _strips.add(strip);
+    _stripGlyphCounts.add(count);
+    _stripped += count;
+    _offer(strip, glyphs);
+  }
+
+  // --- Sharing the pass with the observer ---
+
+  bool get _needsReferenceStrip =>
+      !_referencesDrawn && (_observer?.pendingReferences.isNotEmpty ?? false);
+
+  /// Draws the observer's reference glyphs in a strip of their own, once. The
+  /// strip is read back and dropped; it never becomes part of a page.
+  void _bakeReferenceStrip() {
+    _referencesDrawn = true;
+    final references = _observer!.pendingReferences;
+    final strip = _drawStrip(references);
+    _offer(strip, references, references: true);
+    strip.dispose();
+  }
+
+  /// Hands the observer the cells of [glyphs] it wants, read back from [strip]
+  /// after this step so the step itself pays nothing for it.
+  void _offer(Image strip, List<String> glyphs, {bool references = false}) {
+    final observer = _observer;
+    if (observer == null) return;
+    // References are pending by definition; `wants` is about plan glyphs.
+    if (!references && !glyphs.any(observer.wants)) return;
+    final copy = strip.clone();
+    late final Future<void> reading;
+    reading = _readBack(observer, copy, glyphs, references).whenComplete(() {
+      _observing.remove(reading);
+    });
+    _observing.add(reading);
+  }
+
+  Future<void> _readBack(
+    GlyphBakeObserver observer,
+    Image strip,
+    List<String> glyphs,
+    bool references,
+  ) async {
+    try {
+      final data = await strip.toByteData();
+      if (data == null || _disposed) return;
+      final rgba = data.buffer.asUint8List(
+        data.offsetInBytes,
+        data.lengthInBytes,
+      );
+      final cell = _layout.cellSize;
+      final rowBytes = cell * GlyphAtlasLayout.bytesPerPixel;
+      final stripRowBytes = strip.width * GlyphAtlasLayout.bytesPerPixel;
+      for (var k = 0; k < glyphs.length; k++) {
+        if (!references && !observer.wants(glyphs[k])) continue;
+        final cellBytes = Uint8List(rowBytes * cell);
+        for (var y = 0; y < cell; y++) {
+          final from = y * stripRowBytes + k * rowBytes;
+          cellBytes.setRange(y * rowBytes, (y + 1) * rowBytes, rgba, from);
+        }
+        observer.observe(glyphs[k], cellBytes);
+      }
+    } catch (error, stack) {
+      // The observer's data is its own; losing it must never stop the bake.
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'catalog_assets',
+          context: ErrorDescription('while reading baked glyphs back'),
+        ),
+      );
+    } finally {
+      strip.dispose();
+    }
+  }
+
+  /// One strip image: [glyphs] side by side, one cell each.
+  Image _drawStrip(List<String> glyphs) {
     final cell = _layout.cellSize;
     final recorder = PictureRecorder();
     final canvas = Canvas(recorder);
-    for (var i = 0; i < count; i++) {
+    for (var i = 0; i < glyphs.length; i++) {
       _rasteriser.paint(
         canvas,
-        onPage[_stripped + i],
+        glyphs[i],
         Rect.fromLTWH(
           i * cell + GlyphAtlasLayout.gutter.toDouble(),
           GlyphAtlasLayout.gutter.toDouble(),
@@ -201,10 +307,9 @@ final class GlyphBaker {
       );
     }
     final picture = recorder.endRecording();
-    _strips.add(picture.toImageSync(count * cell, cell));
+    final strip = picture.toImageSync(glyphs.length * cell, cell);
     picture.dispose();
-    _stripGlyphCounts.add(count);
-    _stripped += count;
+    return strip;
   }
 
   Future<void> _composePage(int page, List<String> onPage) async {

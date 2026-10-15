@@ -10,6 +10,7 @@
 library;
 
 export 'src/atlas/atlas_sprite.dart';
+export 'src/atlas/cache/computed_glyph_art_version.dart';
 export 'src/atlas/cache/glyph_art_version_source.dart';
 export 'src/atlas/cache/glyph_atlas_persistence.dart';
 export 'src/atlas/cache/glyph_cache_key.dart';
@@ -21,9 +22,11 @@ export 'src/atlas/bake_pause_signals.dart';
 export 'src/atlas/glyph_atlas.dart';
 export 'src/atlas/glyph_atlas_index.dart';
 export 'src/atlas/glyph_atlas_layout.dart';
+export 'src/atlas/glyph_bake_observer.dart';
 export 'src/atlas/glyph_bake_scheduler.dart';
 export 'src/atlas/glyph_baker.dart';
 export 'src/atlas/glyph_page_residency.dart';
+export 'src/atlas/glyph_pixel_reader.dart';
 export 'src/atlas/glyph_page_store.dart';
 export 'src/atlas/glyph_rasteriser.dart';
 export 'src/atlas/memory_glyph_page_store.dart';

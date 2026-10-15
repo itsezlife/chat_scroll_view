@@ -10,6 +10,7 @@ import 'package:catalog_assets/src/atlas/cache/glyph_cache_key.dart';
 import 'package:catalog_assets/src/atlas/cache/glyph_cache_store.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_index.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_layout.dart';
+import 'package:catalog_assets/src/atlas/glyph_bake_observer.dart';
 import 'package:catalog_assets/src/atlas/glyph_bake_scheduler.dart';
 import 'package:catalog_assets/src/atlas/glyph_baker.dart';
 import 'package:catalog_assets/src/atlas/glyph_page_residency.dart';
@@ -35,6 +36,15 @@ import 'package:flutter/foundation.dart';
 /// as [panelVisible] and [panelOpening]; the surface that scrolls reports the
 /// middle one through [reportScrolling] and says what is on screen through
 /// [prioritise], because only it knows.
+///
+/// ## Sharing the pass
+///
+/// An optional [GlyphBakeObserver] is shown each glyph's cell as the bake
+/// draws it, so the glyph-support probe needs no rasterising pass of its own.
+/// It sees only what is baked: pages restored from a persisted set are not
+/// drawn again, so an observer that must have a verdict for every glyph keeps
+/// its own persisted result (valid for one art version) and `wants` nothing the
+/// result already holds.
 ///
 /// ## Persistence
 ///
@@ -97,6 +107,7 @@ final class GlyphAtlas {
     GlyphAtlasPersistence? persistence,
     BakeGovernor? governor,
     GlyphPageResidency? residency,
+    GlyphBakeObserver? observer,
   }) : assert(
          (store == null) != (persistence == null),
          'give a GlyphAtlas a store or a persistence, exactly one',
@@ -115,6 +126,7 @@ final class GlyphAtlas {
       index: index,
       rasteriser: rasteriser,
       store: _pageStore,
+      observer: observer,
     );
     _pageStore.onComposed = _keepComposed;
     _pageStore.onWriteFailed = _reportWriteFailed;

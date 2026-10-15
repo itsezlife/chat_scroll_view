@@ -17,6 +17,7 @@ typedef GlyphAtlasFactory =
       required ValueListenable<bool> panelVisible,
       required ValueListenable<bool> panelOpening,
       GlyphPageResidency? residency,
+      GlyphBakeObserver? observer,
     });
 
 /// Owns the [GlyphAtlas] of the emoji grid for as long as the panel shell
@@ -38,6 +39,16 @@ typedef GlyphAtlasFactory =
 /// atlas keeps drawing the old pages for the glyphs they hold while it bakes
 /// and swaps once (stale-while-rebake); without one its cells show placeholders
 /// until the new pages bake.
+///
+/// ## The glyph-support probe
+///
+/// An [observer] (a `GlyphProbeBakeObserver` over a `MissingGlyphProbe`) is
+/// shown every glyph the bake draws, so which glyphs the system cannot draw is
+/// learned in the same pass that bakes them. The atlas still plans the
+/// unfiltered glyph list: a glyph the probe flags keeps its cell (a box nobody
+/// draws), because filtering the plan would make the cache key depend on the
+/// probe's result and re-bake every page once the probe finishes. The grid
+/// hides the glyph by filtering its *data* (`GlyphProbeEmojiPlatformFilter`).
 ///
 /// ## Persistence
 ///
@@ -81,6 +92,7 @@ final class EmojiGlyphAtlasHost extends ChangeNotifier {
     GlyphPageStore? store,
     GlyphAtlasPersistence? persistence,
     BakeClock? clock,
+    GlyphBakeObserver? observer,
     GlyphAtlasFactory atlasFactory = createGlyphAtlasForPlatform,
   }) : assert(
          store == null || persistence == null,
@@ -95,6 +107,7 @@ final class EmojiGlyphAtlasHost extends ChangeNotifier {
        _rasteriser = rasteriser ?? ParagraphGlyphRasteriser(),
        _store = persistence != null ? null : store ?? MemoryGlyphPageStore(),
        _clock = clock ?? _wallClock(),
+       _observer = observer,
        _atlasFactory = atlasFactory;
 
   final EmojiDataSource _dataSource;
@@ -106,6 +119,7 @@ final class EmojiGlyphAtlasHost extends ChangeNotifier {
   final GlyphPageStore? _store;
   final GlyphAtlasPersistence? _persistence;
   final BakeClock _clock;
+  final GlyphBakeObserver? _observer;
   final GlyphAtlasFactory _atlasFactory;
 
   /// Whether the panel is on screen. A hidden panel bakes nothing.
@@ -155,6 +169,7 @@ final class EmojiGlyphAtlasHost extends ChangeNotifier {
       panelVisible: panelVisible,
       panelOpening: panelOpening,
       residency: residency,
+      observer: _observer,
     );
     // An atlas takes its residency over; without one nobody would dispose it.
     if (atlas == null) residency.dispose();

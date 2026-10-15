@@ -8,6 +8,17 @@ is pre-1.0.
 
 ### Added
 
+- **Bake pass shared with the glyph-support probe.** `GlyphBakeObserver` (a
+  pure-bytes seam) is shown each wanted glyph's cell, and the reference
+  glyphs once, as the baker draws them: `GlyphBaker(observer:)`,
+  `GlyphAtlas(observer:)`, `createGlyphAtlasForPlatform(observer:)`. Readback
+  runs after the strip is made, a strip at a time, and not at all for strips
+  nobody wants; `GlyphBaker.observationsSettled()` waits for it. Art version
+  from pixels: `GlyphPixelReader` (a glyph drawn by a `GlyphRasteriser`, read
+  back) and `ComputedGlyphArtVersion` (any computation as a
+  `GlyphArtVersionSource`, run once). `FakeGlyphBakeObserver` in
+  `testing.dart`.
+
 - **Disk cache for baked pages.** `GlyphAtlasPersistence` (a `GlyphCacheStore`,
   a `GlyphArtVersionSource` and the density) makes a `GlyphAtlas` persist its
   pages: the next launch restores them one page per frame instead of baking
