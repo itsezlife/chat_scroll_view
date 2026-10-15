@@ -149,6 +149,7 @@ void main() {
   Future<void> pumpViewport(
     WidgetTester tester, {
     CatalogAssetCache? assetCache,
+    double width = 320,
     ValueChanged<CatalogLeaf>? onLeafTap,
     void Function(CatalogLeaf leaf, LongPressStartDetails details)?
     onLeafLongPressStart,
@@ -159,7 +160,7 @@ void main() {
         child: Scaffold(
           body: Center(
             child: SizedBox(
-              width: 320,
+              width: width,
               height: 480,
               child: PanelCatalogViewport(
                 dataSource: dataSource,
@@ -363,6 +364,78 @@ void main() {
       }
 
       expect(PanelCatalogDiagnostics.glyphParagraphDraws, 0);
+    });
+  });
+
+  group('no emoji paragraph is requested where emoji are baked', () {
+    testWidgets(
+      'not through resizes, a press, a released atlas or an unbaked page',
+      (tester) async {
+        const count = 300;
+        dataSource.replaceSections([_section(count)]);
+        buildAtlas(count);
+        atlas.start();
+        await pumpViewport(tester);
+
+        for (var i = 0; i < 40; i++) {
+          await pumpViewport(tester, width: 60 + i * 2.5);
+          expect(paintOnce(tester).paragraphs, lessThanOrEqualTo(_headers));
+        }
+        await bakeAll(tester);
+        final gesture = await tester.startGesture(
+          tester.getCenter(find.byType(PanelCatalogViewport)),
+        );
+        await tester.pump(const Duration(milliseconds: 150));
+        expect(paintOnce(tester).paragraphs, lessThanOrEqualTo(_headers));
+        await gesture.up();
+        await tester.pumpAndSettle();
+        atlas.dispose();
+        controller.jumpTo(40);
+        await tester.pump();
+        expect(paintOnce(tester).paragraphs, lessThanOrEqualTo(_headers));
+
+        expect(PanelCatalogDiagnostics.glyphParagraphDraws, 0);
+        expect(PanelCatalogDiagnostics.glyphParagraphsCached, 0);
+      },
+    );
+  });
+
+  group('the paragraph cache of the web strategy', () {
+    testWidgets('stays within its bound however often the width changes', (
+      tester,
+    ) async {
+      dataSource.replaceSections([_section(200)]);
+      final plain = MemoryCatalogAssetCache();
+      var most = 0;
+
+      // Glyph size follows the cell width below 160 px, so every step is a new
+      // paragraph key for every visible glyph.
+      for (var i = 0; i < 240; i++) {
+        await pumpViewport(tester, assetCache: plain, width: 40 + i * 0.5);
+        most = most > PanelCatalogDiagnostics.glyphParagraphsCached
+            ? most
+            : PanelCatalogDiagnostics.glyphParagraphsCached;
+        expect(
+          PanelCatalogDiagnostics.glyphParagraphsCached,
+          lessThanOrEqualTo(PanelCatalogDiagnostics.glyphParagraphCacheLimit),
+        );
+      }
+
+      // The loop really did ask for more than the bound, or it proves nothing.
+      expect(most, PanelCatalogDiagnostics.glyphParagraphCacheLimit);
+    });
+
+    testWidgets('is released when the viewport is disposed', (tester) async {
+      dataSource.replaceSections([_section(80)]);
+      await pumpViewport(tester, assetCache: MemoryCatalogAssetCache());
+      expect(
+        PanelCatalogDiagnostics.glyphParagraphsCached,
+        greaterThanOrEqualTo(_visibleLeaves),
+      );
+
+      await tester.pumpWidget(const SizedBox());
+
+      expect(PanelCatalogDiagnostics.glyphParagraphsCached, 0);
     });
   });
 

@@ -570,21 +570,18 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       _inset.setPanelOccupancy(_inset.panelTarget);
       _opening = false;
       _ensurePageSyncedAfterOpen();
-      // Warm after snap so REPLACE open does not pay first-fling glyph raster.
-      _emojiPageKey.currentState?.warmAhead().ignore();
       return;
     }
 
     fine(.panel, 'KeyboardPanel.open COLD animate 0→1');
     _progress.value = 0;
     _inset.setPanelOccupancy(0);
-    // Layout the page, then warm glyphs without blocking the open animation.
+    // Let the page mount and lay out before the open animation starts.
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted || _closing) {
       _opening = false;
       return;
     }
-    _emojiPageKey.currentState?.warmAhead().ignore();
     await Future<void>.delayed(KeyboardPanelMotion.startDelay);
     if (!mounted || _closing) {
       fine(

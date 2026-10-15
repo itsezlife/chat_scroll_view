@@ -228,7 +228,6 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       headerLandingInset: headerLandingInset,
       cacheType: cacheType,
       paintTheme: CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr),
-      devicePixelRatio: dpr,
       onLeafTap: onLeafTap,
       onLeafLongPressStart: onLeafLongPressStart,
       onLeafLongPressMove: onLeafLongPressMove,
@@ -255,7 +254,6 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..headerLandingInset = headerLandingInset
       ..cacheType = cacheType
       ..paintTheme = CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr)
-      ..devicePixelRatio = dpr
       ..onLeafTap = onLeafTap
       ..onLeafLongPressStart = onLeafLongPressStart
       ..onLeafLongPressMove = onLeafLongPressMove

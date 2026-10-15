@@ -386,16 +386,8 @@ class EmojiPageState extends State<EmojiPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _updateSearchGeometry();
-      unawaited(warmAhead());
     });
   }
-
-  /// Cold-start warm-up for the first `[screens]` viewport heights of glyphs.
-  ///
-  /// Forwards to [PanelCatalogController.warmAhead]. Silent no-op when the
-  /// viewport is not yet bound.
-  Future<void> warmAhead({double screens = 2.5}) =>
-      _catalogController.warmAhead(screens: screens);
 
   @override
   void didUpdateWidget(EmojiPage oldWidget) {
