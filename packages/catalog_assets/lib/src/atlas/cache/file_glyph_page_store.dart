@@ -4,6 +4,17 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
+import 'package:catalog_assets/src/atlas/report_glyph_atlas_error.dart';
+
+/// Turns raw RGBA pixels into an [Image]; the shape of `decodeImageFromPixels`.
+typedef PixelDecoder =
+    void Function(
+      Uint8List pixels,
+      int width,
+      int height,
+      PixelFormat format,
+      ImageDecoderCallback callback,
+    );
 
 /// A [GlyphPageStore] that keeps each page as one file in [directory].
 ///
@@ -30,10 +41,19 @@ import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
 /// The caller paces it (the atlas moves one page per frame).
 final class FileGlyphPageStore implements GlyphPageStore {
   /// Creates a store keeping its pages in [directory], created on first write.
-  FileGlyphPageStore(this.directory);
+  ///
+  /// [decode] turns a page's raw pixels into an image; the default is the
+  /// engine's `decodeImageFromPixels`, and a test replaces it to make decoding
+  /// fail.
+  FileGlyphPageStore(
+    this.directory, {
+    PixelDecoder decode = decodeImageFromPixels,
+  }) : _decode = decode;
 
   /// Where the pages are.
   final Directory directory;
+
+  final PixelDecoder _decode;
 
   static const int _magic = 0x47504C47; // "GLPG" little-endian
   static const int _headerBytes = 16;
@@ -74,7 +94,17 @@ final class FileGlyphPageStore implements GlyphPageStore {
     final Uint8List bytes;
     try {
       bytes = await file.readAsBytes();
-    } on FileSystemException {
+    } on PathNotFoundException {
+      // Never written, or swept: the ordinary miss.
+      return null;
+    } on Object catch (error, stack) {
+      // Present but unreadable (permissions, a failing disk): still a miss,
+      // but one the host must be able to see, or every launch re-bakes quietly.
+      reportGlyphAtlasError(
+        error,
+        stack,
+        'while reading glyph atlas page $pageIndex',
+      );
       return null;
     }
     if (bytes.length < _headerBytes) return null;
@@ -91,14 +121,19 @@ final class FileGlyphPageStore implements GlyphPageStore {
     }
     final done = Completer<Image?>();
     try {
-      decodeImageFromPixels(
+      _decode(
         Uint8List.sublistView(bytes, _headerBytes),
         width,
         height,
         PixelFormat.rgba8888,
         done.complete,
       );
-    } on Object {
+    } on Object catch (error, stack) {
+      reportGlyphAtlasError(
+        error,
+        stack,
+        'while decoding glyph atlas page $pageIndex',
+      );
       return null;
     }
     return done.future;

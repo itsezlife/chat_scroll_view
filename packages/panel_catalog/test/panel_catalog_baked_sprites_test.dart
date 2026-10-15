@@ -395,48 +395,8 @@ void main() {
         expect(paintOnce(tester).paragraphs, lessThanOrEqualTo(_headers));
 
         expect(PanelCatalogDiagnostics.glyphParagraphDraws, 0);
-        expect(PanelCatalogDiagnostics.glyphParagraphsCached, 0);
       },
     );
-  });
-
-  group('the paragraph cache of the web strategy', () {
-    testWidgets('stays within its bound however often the width changes', (
-      tester,
-    ) async {
-      dataSource.replaceSections([_section(200)]);
-      final plain = MemoryCatalogAssetCache();
-      var most = 0;
-
-      // Glyph size follows the cell width below 160 px, so every step is a new
-      // paragraph key for every visible glyph.
-      for (var i = 0; i < 240; i++) {
-        await pumpViewport(tester, assetCache: plain, width: 40 + i * 0.5);
-        most = most > PanelCatalogDiagnostics.glyphParagraphsCached
-            ? most
-            : PanelCatalogDiagnostics.glyphParagraphsCached;
-        expect(
-          PanelCatalogDiagnostics.glyphParagraphsCached,
-          lessThanOrEqualTo(PanelCatalogDiagnostics.glyphParagraphCacheLimit),
-        );
-      }
-
-      // The loop really did ask for more than the bound, or it proves nothing.
-      expect(most, PanelCatalogDiagnostics.glyphParagraphCacheLimit);
-    });
-
-    testWidgets('is released when the viewport is disposed', (tester) async {
-      dataSource.replaceSections([_section(80)]);
-      await pumpViewport(tester, assetCache: MemoryCatalogAssetCache());
-      expect(
-        PanelCatalogDiagnostics.glyphParagraphsCached,
-        greaterThanOrEqualTo(_visibleLeaves),
-      );
-
-      await tester.pumpWidget(const SizedBox());
-
-      expect(PanelCatalogDiagnostics.glyphParagraphsCached, 0);
-    });
   });
 
   group('where nothing is baked (the web strategy)', () {

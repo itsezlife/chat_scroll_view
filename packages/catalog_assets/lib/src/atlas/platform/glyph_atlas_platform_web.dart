@@ -9,11 +9,12 @@ import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
 import 'package:flutter/foundation.dart';
 
 /// The web bakes nothing: its surfaces draw glyphs as text (the paragraph
-/// strategy), exactly as before the bake existed.
+/// strategy).
 ///
 /// Takes the arguments of the baking platforms' factory and ignores them, so
-/// the two files are interchangeable at the call site. A `residency` it is
-/// given is the caller's to dispose, as no atlas takes it over.
+/// the two files are interchangeable at the call site. A `residency` or a
+/// `predecessor` it is given is the caller's to dispose, as no atlas takes it
+/// over.
 GlyphAtlas? createGlyphAtlasForPlatform({
   required GlyphAtlasIndex index,
   required GlyphRasteriser rasteriser,
@@ -25,4 +26,5 @@ GlyphAtlas? createGlyphAtlasForPlatform({
   required ValueListenable<bool> panelOpening,
   GlyphPageResidency? residency,
   GlyphBakeObserver? observer,
+  RetiredGlyphArt? predecessor,
 }) => null;

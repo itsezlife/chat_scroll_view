@@ -65,8 +65,8 @@ final class GlyphPageHold {
 ///
 /// Counts live apart from images on purpose. A count tied to the image, or
 /// looked up by key when it is given back, would be lost or misapplied when
-/// the image is released first; that is the defect that evicting a cache entry
-/// under a live binding used to cause.
+/// the image is released first: evicting a cache entry under a live binding
+/// would then leave the binding's hold unbalanced.
 final class GlyphPageResidency {
   /// Creates a residency that releases unpinned pages after [retention].
   ///
@@ -79,7 +79,7 @@ final class GlyphPageResidency {
   }) : assert(!retention.isNegative, 'retention must not be negative'),
        _memoryPressure = memoryPressure,
        _startTimer = startTimer {
-    memoryPressure?.addListener(releaseAll);
+    memoryPressure?.addListener(_onMemoryPressure);
   }
 
   /// How long unpinned pages stay resident unless the host says otherwise.
@@ -95,6 +95,7 @@ final class GlyphPageResidency {
   final Map<int, int> _holds = <int, int>{};
   final Map<int, Timer> _expiry = <int, Timer>{};
   final List<ValueChanged<int>> _releaseListeners = <ValueChanged<int>>[];
+  final List<VoidCallback> _pressureListeners = <VoidCallback>[];
   int _openHolds = 0;
   bool _disposed = false;
 
@@ -158,6 +159,20 @@ final class GlyphPageResidency {
   void removeReleaseListener(ValueChanged<int> listener) =>
       _releaseListeners.remove(listener);
 
+  /// Calls [listener] when memory pressure arrives, after the resident pages
+  /// are released, so an owner of memory this residency does not count (the
+  /// atlas's stale set) can give it back at the same moment.
+  void addPressureListener(VoidCallback listener) =>
+      _pressureListeners.add(listener);
+
+  /// Hands page [pageIndex] to the caller instead of disposing it, or returns
+  /// null when it is not resident. The caller owns the image from then on and
+  /// no release listener hears of it: it is a transfer, not a release.
+  Image? takeImage(int pageIndex) {
+    _expiry.remove(pageIndex)?.cancel();
+    return _images.remove(pageIndex);
+  }
+
   /// Disposes every resident image now, whatever holds there are.
   void releaseAll() {
     if (_disposed) return;
@@ -171,7 +186,7 @@ final class GlyphPageResidency {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _memoryPressure?.removeListener(releaseAll);
+    _memoryPressure?.removeListener(_onMemoryPressure);
     for (final timer in _expiry.values) {
       timer.cancel();
     }
@@ -182,6 +197,14 @@ final class GlyphPageResidency {
     _images.clear();
     _holds.clear();
     _releaseListeners.clear();
+    _pressureListeners.clear();
+  }
+
+  void _onMemoryPressure() {
+    releaseAll();
+    for (final listener in List<VoidCallback>.of(_pressureListeners)) {
+      listener();
+    }
   }
 
   bool _isPinned(int pageIndex) => holdCount(pageIndex) > 0;

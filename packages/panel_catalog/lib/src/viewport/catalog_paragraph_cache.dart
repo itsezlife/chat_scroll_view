@@ -9,18 +9,17 @@ import 'dart:ui' as ui;
 /// the current frame draws survives as long as one frame draws fewer than
 /// [limit] paragraphs.
 ///
-/// [onLengthChanged] hears each change in size as a signed delta, so an owner
-/// can mirror the live count (see `PanelCatalogDiagnostics`) without polling.
+/// A paragraph holds engine memory outside the Dart heap, so an entry that
+/// leaves the cache, by eviction or [clear], is disposed. Drawing it records
+/// its glyphs into the canvas at once, so a picture already recorded does not
+/// depend on the paragraph staying alive.
 final class CatalogParagraphCache<K extends Object> {
   /// Creates an empty cache holding at most [limit] paragraphs.
-  CatalogParagraphCache({required this.limit, this.onLengthChanged})
+  CatalogParagraphCache({required this.limit})
     : assert(limit > 0, 'A cache that holds nothing lays out every draw.');
 
   /// Most paragraphs held at once.
   final int limit;
-
-  /// Told by how much [length] changed after each insert, eviction and clear.
-  final void Function(int delta)? onLengthChanged;
 
   // A Dart map iterates in insertion order, so the first key is the oldest.
   final Map<K, ui.Paragraph> _entries = {};
@@ -38,18 +37,16 @@ final class CatalogParagraphCache<K extends Object> {
     final paragraph = create();
     _entries[key] = paragraph;
     if (_entries.length > limit) {
-      // One in, one out: the size, and so the delta, is unchanged.
-      _entries.remove(_entries.keys.first);
-    } else {
-      onLengthChanged?.call(1);
+      _entries.remove(_entries.keys.first)?.dispose();
     }
     return paragraph;
   }
 
-  /// Drops every paragraph.
+  /// Drops and disposes every paragraph.
   void clear() {
-    final dropped = _entries.length;
+    for (final paragraph in _entries.values) {
+      paragraph.dispose();
+    }
     _entries.clear();
-    if (dropped != 0) onLengthChanged?.call(-dropped);
   }
 }

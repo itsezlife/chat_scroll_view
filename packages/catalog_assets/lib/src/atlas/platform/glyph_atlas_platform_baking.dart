@@ -11,7 +11,8 @@ import 'package:flutter/foundation.dart';
 /// The atlas for a platform that bakes glyphs: android, iOS and desktop.
 ///
 /// Arguments are those of [GlyphAtlas]; the web counterpart takes the same and
-/// returns null.
+/// returns null. A `residency` or `predecessor` the atlas is built with is
+/// owned by it from then on.
 GlyphAtlas? createGlyphAtlasForPlatform({
   required GlyphAtlasIndex index,
   required GlyphRasteriser rasteriser,
@@ -23,6 +24,7 @@ GlyphAtlas? createGlyphAtlasForPlatform({
   required ValueListenable<bool> panelOpening,
   GlyphPageResidency? residency,
   GlyphBakeObserver? observer,
+  RetiredGlyphArt? predecessor,
 }) => GlyphAtlas(
   index: index,
   rasteriser: rasteriser,
@@ -34,4 +36,5 @@ GlyphAtlas? createGlyphAtlasForPlatform({
   panelOpening: panelOpening,
   residency: residency,
   observer: observer,
+  predecessor: predecessor,
 );

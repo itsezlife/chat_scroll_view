@@ -17,6 +17,7 @@ import 'package:catalog_assets/src/atlas/glyph_page_residency.dart';
 import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
 import 'package:catalog_assets/src/atlas/memory_glyph_page_store.dart';
+import 'package:catalog_assets/src/atlas/report_glyph_atlas_error.dart';
 import 'package:flutter/foundation.dart';
 
 /// The baked glyphs of one catalogue, in the form a surface draws them: a
@@ -31,11 +32,12 @@ import 'package:flutter/foundation.dart';
 ///
 /// ## Who tells it to wait
 ///
-/// Baking runs only while the panel is visible, nothing scrolls and the panel
-/// is not opening ([BakePauseSignals]). The host owns the first and the last
-/// as [panelVisible] and [panelOpening]; the surface that scrolls reports the
-/// middle one through [reportScrolling] and says what is on screen through
-/// [prioritise], because only it knows.
+/// Baking runs only while the panel is visible, nothing scrolls and the
+/// panel is not opening ([BakePauseSignals]). The host owns the first and the
+/// last as [panelVisible] and [panelOpening]; each surface that scrolls
+/// reports the middle one through [reportScrolling] (motion lasts until every
+/// surface that reported it has said it stopped) and says what is on screen
+/// through [prioritise], because only it knows.
 ///
 /// ## Sharing the pass
 ///
@@ -60,9 +62,10 @@ import 'package:flutter/foundation.dart';
 ///   atlas commits it and swaps every sprite in one step. Both sets are
 ///   resident for that time (about twice the usual memory), which is the
 ///   price of no visible gap and is paid only after an OS, font or catalogue
-///   change. The stale images are outside the [residency] (they live for one
-///   rebake and are dropped at the swap), so memory pressure does not release
-///   them; the new pages are resident as usual;
+///   change. The old images are outside the [residency] (they live for one
+///   rebake and are dropped at the swap) but are counted in [residentBytes]
+///   and released with the resident pages under memory pressure; the new
+///   pages are resident as usual;
 /// - **discard** (density, glyph size or layout changed) and **miss** (first
 ///   run, or nothing readable): circles, as without a cache, and every baked
 ///   page is persisted as it lands.
@@ -80,13 +83,28 @@ import 'package:flutter/foundation.dart';
 /// counts the holds on each page (one per leaf binding, via [holdPageOf], and
 /// one for the whole panel while [panelVisible] is true), keeps the pages for
 /// its retention after the last hold goes, and releases them at once under
-/// memory pressure. A released page is read back from the store when the
-/// panel opens again or when a surface asks for one of its sprites, so
-/// [spriteOf] is null for a moment and the surface shows its placeholder. A
-/// sprite is valid until the page is released: ask again to draw.
+/// memory pressure. A released page is read back from the store, one page per
+/// frame, when the panel opens again or when a surface asks for one of its
+/// sprites, so [spriteOf] is null for a moment and the surface shows its
+/// placeholder. A sprite is valid until the page is released: ask again to
+/// draw.
+///
+/// A page the store cannot hand back is baked again once; if the second copy
+/// cannot be read either, the page is given up on and its glyphs keep their
+/// placeholder.
 ///
 /// The atlas owns its residency, and disposes it in [dispose]; it does not own
 /// the store, the rasteriser or the notifiers the host gave it.
+///
+/// ## Replacing an atlas without a gap
+///
+/// A plan cannot change in place, so a host that must plan again (a glyph
+/// appeared that the plan lacks, the density changed) builds a second atlas.
+/// [retire] stops this one and hands what it was drawing to the successor
+/// ([predecessor]), which shows that art from its first frame, bakes its own
+/// pages behind it and swaps once, as for a stale persisted set. Retiring also
+/// lets the successor wait for this atlas's disk work to finish
+/// ([RetiredGlyphArt.settled]), so two atlases never write one cache at once.
 ///
 /// Platforms that do not bake never build one (see
 /// `createGlyphAtlasForPlatform`): a surface without an atlas draws its glyphs
@@ -95,7 +113,8 @@ final class GlyphAtlas {
   /// Creates an atlas for the glyphs of [index]. Nothing runs until [start].
   ///
   /// Pass either a [store] (pages kept for this atlas's life only) or a
-  /// [persistence] (pages kept across launches), not both.
+  /// [persistence] (pages kept across launches), not both. A [predecessor] is
+  /// the art of the atlas this one replaces; see [retire].
   GlyphAtlas({
     required this.index,
     required GlyphRasteriser rasteriser,
@@ -108,6 +127,7 @@ final class GlyphAtlas {
     BakeGovernor? governor,
     GlyphPageResidency? residency,
     GlyphBakeObserver? observer,
+    RetiredGlyphArt? predecessor,
   }) : assert(
          (store == null) != (persistence == null),
          'give a GlyphAtlas a store or a persistence, exactly one',
@@ -118,10 +138,12 @@ final class GlyphAtlas {
        _panelVisible = panelVisible,
        _panelOpening = panelOpening,
        _residency = residency ?? GlyphPageResidency(),
-       _pageStore = _AtlasPageStore(
-         store ?? MemoryGlyphPageStore(),
-         resident: persistence != null,
-       ) {
+       _predecessorSettled = predecessor?.settled {
+    _pageStore = _AtlasPageStore(
+      store ?? MemoryGlyphPageStore(),
+      persistent: persistence != null,
+      ledger: _io,
+    );
     _baker = GlyphBaker(
       index: index,
       rasteriser: rasteriser,
@@ -143,8 +165,11 @@ final class GlyphAtlas {
       governor: governor,
       onPageBaked: _load,
     );
-    _residency.addReleaseListener(_onReleased);
+    _residency
+      ..addReleaseListener(_onReleased)
+      ..addPressureListener(_onPressure);
     panelVisible.addListener(_onVisibleChanged);
+    if (predecessor != null) _stale = predecessor._claimFor(index);
     _onVisibleChanged();
   }
 
@@ -157,28 +182,44 @@ final class GlyphAtlas {
   final ValueListenable<bool> _panelVisible;
   final ValueListenable<bool> _panelOpening;
   final GlyphPageResidency _residency;
-  final _AtlasPageStore _pageStore;
+  final Future<void>? _predecessorSettled;
+  final _IoLedger _io = _IoLedger();
+  late final _AtlasPageStore _pageStore;
   late final GlyphBaker _baker;
   late final BakePauseSignals _signals;
   late final GlyphBakeScheduler _scheduler;
   final ValueNotifier<bool> _scrolling = ValueNotifier<bool>(false);
+  // The surfaces that reported motion and have not yet reported it over.
+  final Set<Object> _scrollers = <Object>{};
+  _Lifecycle _lifecycle = _Lifecycle.created;
 
   // Sprites already cut, so a repaint allocates nothing. An entry is used only
   // while its page is still the image the residency holds.
   final Map<String, AtlasSprite> _sprites = <String, AtlasSprite>{};
   final List<ValueChanged<int>> _listeners = <ValueChanged<int>>[];
-  // Pages being read from the store, and pages the store could not hand back
-  // (reported once, never retried: a store that failed will fail again).
+  // Pages being read from the store (queued or in flight), and how many times
+  // a page could not be handed back: the first failure bakes it again, the
+  // second gives up (a store that failed twice will fail again).
   final Set<int> _loading = <int>{};
-  final Set<int> _unreadable = <int>{};
+  final Map<int, int> _readFailures = <int, int>{};
+  // Pages waiting for their paced reload, and the loop that drains them.
+  final List<int> _reloads = <int>[];
+  Future<void>? _reloadPump;
+  // Wake-ups of everything waiting on a frame or on a calm moment, so dispose
+  // can end the wait at once.
+  final Set<VoidCallback> _sleepers = <VoidCallback>{};
   // The claim on every page while the panel is open.
   GlyphPageHold? _openHold;
-  bool _started = false;
-  bool _disposed = false;
+
+  bool get _disposed => _lifecycle == _Lifecycle.disposed;
 
   /// The resident pages: their counts, retention and release. The cache's
   /// bindings hold pages through [holdPageOf]; this is for inspection.
   GlyphPageResidency get residency => _residency;
+
+  /// Raw bytes of every page image this atlas holds: the resident pages plus
+  /// the stale set still drawn while its replacement bakes.
+  int get residentBytes => _residency.residentBytes + (_stale?.bytes ?? 0);
 
   // --- Persistence state (unused without a GlyphAtlasPersistence) -------------
 
@@ -190,14 +231,10 @@ final class GlyphAtlas {
   final Set<int> _ready = <int>{};
   // The previous generation still being drawn while this plan bakes. Its
   // images are not in the residency: they are short-lived (one rebake) and
-  // are dropped at the swap or on dispose.
+  // are dropped at the swap, on memory pressure or on dispose.
   _StaleSet? _stale;
-  bool _writeFailed = false;
-  bool _swapping = false;
   Duration? _startedAt;
   GlyphCacheReport _report = const GlyphCacheReport();
-  Completer<void>? _restoreWake;
-  BakeFrameCancel? _restoreCancel;
 
   /// What the persistent flow decided and how long its circles lasted; a
   /// report with a null verdict for an atlas without persistence or before the
@@ -210,14 +247,15 @@ final class GlyphAtlas {
   /// With persistence the bake starts once the cache has been read and
   /// restored; until then the glyphs show their placeholder.
   void start() {
-    if (_started || _disposed) return;
-    _started = true;
+    if (_lifecycle != _Lifecycle.created) return;
+    _lifecycle = _Lifecycle.started;
     _startedAt = _clock();
-    if (_persistence == null) {
-      _scheduler.start();
+    final persistence = _persistence;
+    if (persistence == null) {
+      _startBaking();
       return;
     }
-    unawaited(_begin(_persistence));
+    unawaited(_begin(persistence));
   }
 
   /// The sprite of [glyph], or null while its page is not baked and loaded,
@@ -228,12 +266,20 @@ final class GlyphAtlas {
   /// holds, and nothing of the new set until the swap.
   ///
   /// A baked page that is not resident (released after the retention or under
-  /// memory pressure) is read back from the store now, which is why this is
+  /// memory pressure) is queued to be read back from the store, so this is
   /// not a pure read; listeners hear the page when it is drawable again.
+  ///
+  /// Allocation-free once a sprite has been cut: it runs for every visible
+  /// leaf on every paint.
   AtlasSprite? spriteOf(String glyph) {
     if (_disposed) return null;
     final stale = _stale;
     if (stale != null) return stale.sprites[glyph];
+    final cached = _sprites[glyph];
+    if (cached != null &&
+        identical(cached.page, _residency.imageOf(cached.pageIndex))) {
+      return cached;
+    }
     final placement = index.placementOf(glyph);
     if (placement == null) return null;
     final page = _residency.imageOf(placement.pageIndex);
@@ -241,8 +287,6 @@ final class GlyphAtlas {
       _reloadIfBaked(placement.pageIndex);
       return null;
     }
-    final cached = _sprites[glyph];
-    if (cached != null && identical(cached.page, page)) return cached;
     return _sprites[glyph] = AtlasSprite(
       pageIndex: placement.pageIndex,
       page: page,
@@ -270,12 +314,22 @@ final class GlyphAtlas {
   void removePageListener(ValueChanged<int> listener) =>
       _listeners.remove(listener);
 
-  /// Tells the atlas whether the surface it draws on is scrolling, so baking
-  /// stays out of the way of the motion. Report `false` again once it settled
-  /// and when the surface goes away.
-  void reportScrolling({required bool scrolling}) {
+  /// Tells the atlas whether the surface [reporter] draws on is scrolling, so
+  /// baking stays out of the way of the motion. Report `false` again once it
+  /// settled and when the surface goes away.
+  ///
+  /// Several surfaces can share one atlas, so motion is the union of what they
+  /// report: one that settles does not resume baking under another that is
+  /// still moving. [reporter] identifies the surface; any object that is the
+  /// same for every report of that surface will do.
+  void reportScrolling({required Object reporter, required bool scrolling}) {
     if (_disposed) return;
-    _scrolling.value = scrolling;
+    if (scrolling) {
+      _scrollers.add(reporter);
+    } else {
+      _scrollers.remove(reporter);
+    }
+    _scrolling.value = _scrollers.isNotEmpty;
   }
 
   /// Says which glyphs are on screen, most important first; the pages holding
@@ -289,14 +343,54 @@ final class GlyphAtlas {
   /// stay there.
   void dispose() {
     if (_disposed) return;
-    _disposed = true;
+    _shutdown();
+  }
+
+  /// Stops this atlas like [dispose], but gives the art it was drawing to a
+  /// successor instead of releasing it, so a surface moved to the successor
+  /// shows no gap. See "Replacing an atlas without a gap" above.
+  ///
+  /// What is handed over is what [spriteOf] answers right now: the resident
+  /// pages, or the stale set when one is still being drawn. Pages the bake had
+  /// not finished are not part of it. Whoever gets the [RetiredGlyphArt] must
+  /// pass it to a successor or [RetiredGlyphArt.dispose] it.
+  RetiredGlyphArt retire() {
+    final art = _StaleSet();
+    if (!_disposed) {
+      final stale = _stale;
+      if (stale != null) {
+        art.pages.addAll(stale.pages);
+        art.sprites.addAll(stale.sprites);
+        stale.pages.clear();
+        stale.sprites.clear();
+      } else {
+        for (final page in _residency.residentPages) {
+          final image = _residency.takeImage(page);
+          if (image == null) continue;
+          art.pages[page] = image;
+          for (final glyph in index.glyphsOnPage(page)) {
+            art.sprites[glyph] = AtlasSprite(
+              pageIndex: page,
+              page: image,
+              source: index.placementOf(glyph)!.source,
+            );
+          }
+        }
+      }
+    }
+    final settled = _io.settled;
+    dispose();
+    return RetiredGlyphArt._(art, settled);
+  }
+
+  void _shutdown() {
+    _lifecycle = _Lifecycle.disposed;
     _panelVisible.removeListener(_onVisibleChanged);
     _openHold?.release();
     _openHold = null;
-    _restoreCancel?.call();
-    _restoreCancel = null;
-    final wake = _restoreWake;
-    if (wake != null && !wake.isCompleted) wake.complete();
+    for (final wake in List<VoidCallback>.of(_sleepers)) {
+      wake();
+    }
     _scheduler.dispose();
     _baker.dispose();
     _sprites.clear();
@@ -304,7 +398,8 @@ final class GlyphAtlas {
       page.dispose();
     }
     _composed.clear();
-    _stale?.dispose();
+    _reloads.clear();
+    _stale?.release();
     _stale = null;
     _listeners.clear();
     _residency.dispose();
@@ -326,10 +421,41 @@ final class GlyphAtlas {
     }
   }
 
+  void _startBaking() {
+    _scheduler.start();
+    if (_stale != null && index.pageCount == 0) unawaited(_swap());
+  }
+
+  // --- Loading pages ------------------------------------------------------------
+
+  /// Queues the paced reload of a page that was baked and is no longer
+  /// resident (released after the retention or under memory pressure).
   void _reloadIfBaked(int pageIndex) {
-    if (_baker.isPageBaked(pageIndex) && !_residency.isResident(pageIndex)) {
-      _load(pageIndex);
+    if (!_baker.isPageBaked(pageIndex) ||
+        _residency.isResident(pageIndex) ||
+        _loading.contains(pageIndex) ||
+        _gaveUpOn(pageIndex)) {
+      return;
     }
+    _loading.add(pageIndex);
+    _reloads.add(pageIndex);
+    _reloadPump ??= _pumpReloads();
+  }
+
+  /// Reads the queued pages back, one per frame and never in a scroll or the
+  /// open animation, like the restore of a persisted set.
+  Future<void> _pumpReloads() async {
+    while (_reloads.isNotEmpty) {
+      if (!await _awaitRestoreFrame()) break;
+      if (_reloads.isEmpty) break;
+      final page = _reloads.removeAt(0);
+      if (_residency.isResident(page)) {
+        _loading.remove(page);
+        continue;
+      }
+      await _read(page);
+    }
+    _reloadPump = null;
   }
 
   void _onReleased(int pageIndex) {
@@ -339,16 +465,23 @@ final class GlyphAtlas {
     _notify(pageIndex);
   }
 
+  // Memory pressure also takes the stale images, which the residency does not
+  // hold: they are as much memory as the pages it just released.
+  void _onPressure() {
+    final stale = _stale;
+    if (stale == null) return;
+    stale.release().forEach(_notify);
+  }
+
   void _notify(int pageIndex) {
     for (final listener in List<ValueChanged<int>>.of(_listeners)) {
       listener(pageIndex);
     }
   }
 
+  /// Takes the page the baker has just composed into the residency.
   void _load(int pageIndex) {
-    if (_disposed ||
-        _loading.contains(pageIndex) ||
-        _unreadable.contains(pageIndex)) {
+    if (_disposed || _loading.contains(pageIndex) || _gaveUpOn(pageIndex)) {
       return;
     }
     _loading.add(pageIndex);
@@ -365,17 +498,30 @@ final class GlyphAtlas {
           throw StateError('The page store has no page $pageIndex to read.');
         }
       } on Object catch (error, stack) {
-        // A page that cannot be read back stays unbaked: its glyphs keep their
-        // placeholder. Reported rather than retried.
         _loading.remove(pageIndex);
-        _unreadable.add(pageIndex);
-        _reportError(error, stack, 'while loading glyph atlas page $pageIndex');
+        _fail(error, stack, 'while loading glyph atlas page $pageIndex');
+        _bakeAgainOrGiveUp(pageIndex);
         return;
       }
     }
     _loading.remove(pageIndex);
     _admit(pageIndex, image);
   }
+
+  /// A page the store could not hand back is baked again, once: the baker has
+  /// the glyphs, and a transient fault should not leave circles for the life
+  /// of the process. A second failure means the store cannot be trusted with
+  /// this page; it is left unbaked, and reported both times.
+  void _bakeAgainOrGiveUp(int pageIndex) {
+    final failures = _readFailures[pageIndex] = _failuresOf(pageIndex) + 1;
+    if (failures > 1 || _disposed) return;
+    _baker.markUnbaked(pageIndex);
+    _scheduler.resume();
+  }
+
+  int _failuresOf(int pageIndex) => _readFailures[pageIndex] ?? 0;
+
+  bool _gaveUpOn(int pageIndex) => _failuresOf(pageIndex) > 1;
 
   /// Takes ownership of [image] as page [pageIndex] of the current plan.
   void _admit(int pageIndex, Image image) {
@@ -398,17 +544,19 @@ final class GlyphAtlas {
   // --- Persistence -------------------------------------------------------------
 
   Future<void> _begin(GlyphAtlasPersistence persistence) async {
+    // One writer at a time: the atlas this one replaces may still be writing
+    // pages into the same cache.
+    await _predecessorSettled;
+    if (_disposed) return;
     try {
       await _decideAndRestore(persistence);
     } on Object catch (error, stack) {
       // Last resort: whatever went wrong, the bake still runs, in memory.
       _fail(error, stack, 'while restoring the glyph atlas cache');
-      _pageStore.target = MemoryGlyphPageStore();
-      _writeFailed = true;
+      _pageStore.useMemory();
     }
     if (_disposed) return;
-    _scheduler.start();
-    if (_stale != null && index.pageCount == 0) unawaited(_swap());
+    _startBaking();
   }
 
   Future<void> _decideAndRestore(GlyphAtlasPersistence persistence) async {
@@ -419,8 +567,7 @@ final class GlyphAtlas {
       // Without the art version nothing persisted can be trusted and nothing
       // new can be filed under a key: this launch bakes into memory only.
       _fail(error, stack, 'while reading the system emoji art version');
-      _pageStore.target = MemoryGlyphPageStore();
-      _writeFailed = true;
+      _pageStore.useMemory();
       return;
     }
     if (_disposed) return;
@@ -437,7 +584,7 @@ final class GlyphAtlas {
 
     GlyphCacheGeneration? committed;
     try {
-      committed = await cache.openCommitted();
+      committed = await _io.track(cache.openCommitted());
     } on Object catch (error, stack) {
       _fail(error, stack, 'while opening the glyph atlas cache');
     }
@@ -451,23 +598,29 @@ final class GlyphAtlas {
     try {
       switch (verdict) {
         case GlyphCacheVerdict.hit:
-          _pageStore.target = committed!.pages;
+          // The persisted set is exactly this plan: art inherited from a
+          // predecessor is moot.
+          _stale?.release();
+          _stale = null;
+          _pageStore.useGeneration(committed!.pages);
           await _restoreHit(committed.pages);
         case GlyphCacheVerdict.stale:
-          await _loadStale(committed!);
+          // Art inherited from a predecessor is newer than the persisted set
+          // and is already in memory: keep it, skip reading the old pages.
+          if (_stale == null) await _loadStale(committed!);
           if (_disposed) return;
-          _pageStore.target = await cache.stage(record);
+          _stale?.commitOnSwap = true;
+          _pageStore.useGeneration(await _io.track(cache.stage(record)));
         case GlyphCacheVerdict.discard:
         case GlyphCacheVerdict.miss:
-          _pageStore.target = await cache.stage(record);
+          _pageStore.useGeneration(await _io.track(cache.stage(record)));
           // Committed at once: each page is durable as soon as it is written,
           // and a launch after a kill restores the pages that made it.
-          await cache.commit();
+          await _io.track(cache.commit());
       }
     } on Object catch (error, stack) {
       _fail(error, stack, 'while preparing the glyph atlas cache');
-      _pageStore.target = MemoryGlyphPageStore();
-      _writeFailed = true;
+      _pageStore.useMemory();
     }
   }
 
@@ -524,20 +677,20 @@ final class GlyphAtlas {
 
   /// Replaces the stale set by the new one in a single step.
   Future<void> _swap() async {
-    if (_swapping || _disposed) return;
-    _swapping = true;
-    if (!_writeFailed) {
+    final stale = _stale;
+    if (stale == null || stale.swapping || _disposed) return;
+    stale.swapping = true;
+    if (stale.commitOnSwap && _pageStore.onDisk) {
       try {
-        await _persistence!.cache.commit();
+        await _io.track(_persistence!.cache.commit());
       } on Object catch (error, stack) {
         _fail(error, stack, 'while committing the glyph atlas cache');
       }
     }
-    final stale = _stale;
-    if (_disposed || stale == null) return;
+    if (_disposed || !identical(_stale, stale)) return;
     // Everything below is synchronous: no frame sees half of the swap.
     _stale = null;
-    stale.dispose();
+    stale.release();
     _report = _copyReport(swapped: true);
     _noteVisible(complete: true);
     for (var page = 0; page < index.pageCount; page++) {
@@ -547,49 +700,64 @@ final class GlyphAtlas {
 
   Future<Image?> _readOrNull(GlyphPageStore pages, int page) async {
     try {
-      return await pages.read(page);
+      return await _io.track(pages.read(page));
     } on Object catch (error, stack) {
       _fail(error, stack, 'while reading glyph atlas page $page from disk');
       return null;
     }
   }
 
+  // --- Waiting for a calm frame ----------------------------------------------------
+
+  bool get _isMoving => _scrolling.value || _panelOpening.value;
+
   /// Completes at the next frame on which restoring may run, or returns false
   /// once the atlas is disposed. Reading a page is real work on the root
   /// isolate, so it never lands in a scroll or the open animation.
   Future<bool> _awaitRestoreFrame() async {
     while (!_disposed) {
-      if (_scrolling.value || _panelOpening.value) {
+      if (_isMoving) {
         await _untilCalm();
         continue;
       }
-      final frame = Completer<void>();
-      _restoreWake = frame;
-      _restoreCancel = _frames.requestFrame((_) {
-        if (!frame.isCompleted) frame.complete();
-      });
-      await frame.future;
-      _restoreCancel = null;
+      await _untilNextFrame();
       if (_disposed) return false;
       // The user may have started moving while the frame was coming.
-      if (!_scrolling.value && !_panelOpening.value) return true;
+      if (!_isMoving) return true;
     }
     return false;
   }
 
-  Future<void> _untilCalm() async {
-    final wake = _restoreWake = Completer<void>();
+  Future<void> _untilNextFrame() =>
+      _sleep((wake) => _frames.requestFrame((_) => wake()));
+
+  Future<void> _untilCalm() => _sleep((wake) {
     final moving = Listenable.merge(<Listenable>[_scrolling, _panelOpening]);
     void check() {
-      if (!_scrolling.value && !_panelOpening.value && !wake.isCompleted) {
-        wake.complete();
-      }
+      if (!_isMoving) wake();
     }
 
     moving.addListener(check);
-    await wake.future;
-    moving.removeListener(check);
+    return () => moving.removeListener(check);
+  });
+
+  /// Waits until the armed condition calls `wake`, or the atlas is disposed.
+  /// [arm] starts watching and returns how to stop.
+  Future<void> _sleep(VoidCallback Function(VoidCallback wake) arm) {
+    final done = Completer<void>();
+    late final VoidCallback disarm;
+    void wake() {
+      _sleepers.remove(wake);
+      disarm();
+      if (!done.isCompleted) done.complete();
+    }
+
+    disarm = arm(wake);
+    _sleepers.add(wake);
+    return done.future;
   }
+
+  // --- Reporting ------------------------------------------------------------------
 
   void _noteVisible({required bool complete}) {
     final started = _startedAt;
@@ -629,27 +797,97 @@ final class GlyphAtlas {
     _composed[pageIndex] = clone;
   }
 
-  void _reportWriteFailed(Object error, StackTrace stack) {
-    // Once per atlas: a disk that refuses a page refuses the next one too.
-    if (_writeFailed || _disposed) return;
-    _writeFailed = true;
-    _fail(error, stack, 'while persisting a glyph atlas page');
-  }
+  void _reportWriteFailed(Object error, StackTrace stack) =>
+      _fail(error, stack, 'while persisting a glyph atlas page');
 
+  /// Reports a failure unless the atlas is already gone (a late fault of work
+  /// nobody waits for any more is not news).
   void _fail(Object error, StackTrace stack, String doing) {
     if (_disposed) return;
-    _reportError(error, stack, doing);
+    reportGlyphAtlasError(error, stack, doing);
+  }
+}
+
+/// What an atlas draws, handed over by [GlyphAtlas.retire] to the atlas that
+/// replaces it.
+///
+/// Holds page images, so it must end in exactly one of two ways: given to a
+/// successor (`GlyphAtlas(predecessor: ...)`), which then owns it, or
+/// [dispose]d.
+final class RetiredGlyphArt {
+  RetiredGlyphArt._(this._art, this.settled);
+
+  final _StaleSet _art;
+
+  /// Completes when the retired atlas has no disk operation left in flight. A
+  /// successor over the same cache waits for it before touching the cache.
+  /// Never completes with an error.
+  final Future<void> settled;
+
+  bool _claimed = false;
+
+  /// Releases the art instead of handing it on. Idempotent.
+  void dispose() {
+    _claimed = true;
+    _art.release();
   }
 
-  void _reportError(Object error, StackTrace stack, String doing) {
-    FlutterError.reportError(
-      FlutterErrorDetails(
-        exception: error,
-        stack: stack,
-        library: 'catalog_assets',
-        context: ErrorDescription(doing),
-      ),
+  /// The part of the art a plan can still draw, as a stale set; the pages
+  /// nothing of the plan uses are released here.
+  _StaleSet _claimFor(GlyphAtlasIndex index) {
+    assert(!_claimed, 'retired art can be given to one successor only');
+    _claimed = true;
+    final kept = _StaleSet();
+    for (final entry in _art.sprites.entries) {
+      // The catalogue contract: a glyph outside the plan has no sprite.
+      if (index.placementOf(entry.key) != null) {
+        kept.sprites[entry.key] = entry.value;
+      }
+    }
+    final used = <int>{
+      for (final sprite in kept.sprites.values) sprite.pageIndex,
+    };
+    for (final entry in _art.pages.entries) {
+      if (used.contains(entry.key)) {
+        kept.pages[entry.key] = entry.value;
+      } else {
+        entry.value.dispose();
+      }
+    }
+    _art.pages.clear();
+    _art.sprites.clear();
+    return kept;
+  }
+}
+
+/// Where an atlas is in its life: it cannot be disposed before it was created
+/// or start twice.
+enum _Lifecycle { created, started, disposed }
+
+/// The disk work an atlas has started and not yet seen finish.
+///
+/// A retired atlas stops starting work, but what it already started (a page
+/// write, a commit) runs on; its successor must not touch the same cache until
+/// that is over, because a cache store has a single writer.
+final class _IoLedger {
+  final Set<Future<void>> _inFlight = <Future<void>>{};
+
+  /// Records [operation] until it completes, then returns it unchanged.
+  Future<T> track<T>(Future<T> operation) {
+    final done = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
     );
+    _inFlight.add(done);
+    unawaited(done.whenComplete(() => _inFlight.remove(done)));
+    return operation;
+  }
+
+  /// Completes when nothing is in flight, including work started meanwhile.
+  Future<void> get settled async {
+    while (_inFlight.isNotEmpty) {
+      await Future.wait(_inFlight.toList());
+    }
   }
 }
 
@@ -657,31 +895,55 @@ final class GlyphAtlas {
 /// pass-through for an atlas with its own store; for a persistent one, a
 /// write-through that keeps the composed page for the atlas (so a disk store
 /// is not read back) and turns a failing disk into a report instead of a
-/// stopped bake. [target] is chosen when the cache has been read.
+/// stopped bake. The target is chosen when the cache has been read.
 final class _AtlasPageStore implements GlyphPageStore {
-  _AtlasPageStore(this.target, {required this.resident});
+  _AtlasPageStore(
+    this._target, {
+    required this.persistent,
+    required this.ledger,
+  }) : onDisk = persistent;
 
-  GlyphPageStore target;
-  final bool resident;
+  GlyphPageStore _target;
+  final bool persistent;
+  final _IoLedger ledger;
   void Function(int pageIndex, Image clone)? onComposed;
   void Function(Object error, StackTrace stack)? onWriteFailed;
 
+  /// Whether the pages being written still go to a persisted generation: false
+  /// for an atlas without persistence, after the disk failed, and when the
+  /// cache could not be used and the pages live in memory only. A generation
+  /// that is not on disk is never committed.
+  bool onDisk;
+
+  /// Sends the pages to [pages], a generation of the cache.
+  void useGeneration(GlyphPageStore pages) => _target = pages;
+
+  /// Keeps the pages in memory for this atlas's life; nothing is persisted.
+  void useMemory() {
+    _target = MemoryGlyphPageStore();
+    onDisk = false;
+  }
+
   @override
   Future<void> write(int pageIndex, Image page) async {
-    if (!resident) return target.write(pageIndex, page);
+    if (!persistent) return ledger.track(_target.write(pageIndex, page));
     onComposed?.call(pageIndex, page.clone());
     try {
-      await target.write(pageIndex, page);
+      await ledger.track(_target.write(pageIndex, page));
     } on Object catch (error, stack) {
-      onWriteFailed?.call(error, stack);
+      // Reported once: a disk that refuses a page refuses the next one too.
+      if (onDisk) {
+        onDisk = false;
+        onWriteFailed?.call(error, stack);
+      }
     }
   }
 
   @override
-  Future<Image?> read(int pageIndex) => target.read(pageIndex);
+  Future<Image?> read(int pageIndex) => ledger.track(_target.read(pageIndex));
 
   @override
-  Future<void> clear() => target.clear();
+  Future<void> clear() => _target.clear();
 }
 
 /// The previous generation, drawn while the new one bakes.
@@ -689,11 +951,32 @@ final class _StaleSet {
   final Map<int, Image> pages = <int, Image>{};
   final Map<String, AtlasSprite> sprites = <String, AtlasSprite>{};
 
-  void dispose() {
+  /// Whether the replacement is a staged generation that the swap must commit
+  /// (art or catalogue changed). False when it was committed as it started
+  /// (first run, discard) or is not persisted at all.
+  bool commitOnSwap = false;
+
+  /// Whether the swap has started; it waits on the commit, and a second page
+  /// completing meanwhile must not start another.
+  bool swapping = false;
+
+  /// Raw bytes of the images held.
+  int get bytes => pages.values.fold<int>(
+    0,
+    (sum, image) =>
+        sum + image.width * image.height * GlyphAtlasLayout.bytesPerPixel,
+  );
+
+  /// Disposes the images and forgets the sprites, keeping the set itself (a
+  /// stale set released by memory pressure still stands for "the replacement
+  /// is not swapped in yet"). Returns the pages that were released.
+  List<int> release() {
+    final released = pages.keys.toList();
     sprites.clear();
     for (final page in pages.values) {
       page.dispose();
     }
     pages.clear();
+    return released;
   }
 }

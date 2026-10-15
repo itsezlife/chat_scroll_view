@@ -49,3 +49,11 @@ enum CatalogLeafPresentation {
 /// MUST NOT be applied against the full cell pitch — that oversizes the
 /// circle relative to the eventual glyph.
 const double kCirclePlaceholderRadiusFactor = 0.4;
+
+/// Fraction of a cell's shorter side that its glyph is drawn in (the square
+/// centred in the cell), whether the glyph is a sprite, a paragraph or the
+/// circle placeholder standing in for it.
+///
+/// Public so a host that bakes glyphs sizes them for the box they will be drawn
+/// in instead of copying the number.
+const double kCatalogGlyphBoxFraction = 0.72;

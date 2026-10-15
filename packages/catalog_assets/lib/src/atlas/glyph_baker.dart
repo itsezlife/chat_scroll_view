@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_index.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_layout.dart';
 import 'package:catalog_assets/src/atlas/glyph_bake_observer.dart';
 import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
+import 'package:catalog_assets/src/atlas/report_glyph_atlas_error.dart';
 
 /// What one [GlyphBaker.step] did.
 enum BakeStep {
@@ -103,6 +104,14 @@ final class GlyphBaker {
     );
     assert(!_stepping && _current != pageIndex, 'the page is being baked');
     _baked.add(pageIndex);
+  }
+
+  /// Forgets that page [pageIndex] is stored (its pixels could not be read
+  /// back), so the next [step]s bake it again. Call it for a page no step is
+  /// working on.
+  void markUnbaked(int pageIndex) {
+    assert(_current != pageIndex, 'the page is being baked');
+    _baked.remove(pageIndex);
   }
 
   /// Says which glyphs the user is looking at, most important first; their
@@ -276,14 +285,7 @@ final class GlyphBaker {
       }
     } catch (error, stack) {
       // The observer's data is its own; losing it must never stop the bake.
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: error,
-          stack: stack,
-          library: 'catalog_assets',
-          context: ErrorDescription('while reading baked glyphs back'),
-        ),
-      );
+      reportGlyphAtlasError(error, stack, 'while reading baked glyphs back');
     } finally {
       strip.dispose();
     }
