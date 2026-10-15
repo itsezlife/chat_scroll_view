@@ -21,6 +21,7 @@ export 'src/atlas/bake_governor.dart';
 export 'src/atlas/bake_pause_signals.dart';
 export 'src/atlas/glyph_atlas.dart';
 export 'src/atlas/glyph_atlas_index.dart';
+export 'src/atlas/glyph_atlas_request.dart';
 export 'src/atlas/glyph_atlas_layout.dart';
 export 'src/atlas/glyph_bake_observer.dart';
 export 'src/atlas/glyph_bake_scheduler.dart';

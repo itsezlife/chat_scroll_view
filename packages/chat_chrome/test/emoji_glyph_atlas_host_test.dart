@@ -87,39 +87,14 @@ void main() {
       rasteriser: rasteriser ?? FakeGlyphRasteriser(),
       newStore: FakeGlyphPageStore.new,
       persistence: persistence,
-      atlasFactory:
-          ({
-            required index,
-            required rasteriser,
-            store,
-            persistence,
-            required frames,
-            required clock,
-            required panelVisible,
-            required panelOpening,
-            residency,
-            observer,
-            predecessor,
-          }) {
-            residencies.add(residency!);
-            stores.add(store);
-            if (!bakes) return null;
-            final atlas = GlyphAtlas(
-              index: index,
-              rasteriser: rasteriser,
-              store: store,
-              persistence: persistence,
-              frames: frames,
-              clock: clock,
-              panelVisible: panelVisible,
-              panelOpening: panelOpening,
-              residency: residency,
-              observer: observer,
-              predecessor: predecessor,
-            );
-            created.add(atlas);
-            return atlas;
-          },
+      atlasFactory: (request) {
+        residencies.add(request.residency!);
+        stores.add(request.store);
+        if (!bakes) return null;
+        final atlas = request.build();
+        created.add(atlas);
+        return atlas;
+      },
     );
     addTearDown(host.dispose);
     return host;

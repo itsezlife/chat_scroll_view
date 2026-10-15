@@ -6,21 +6,9 @@ import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 
-/// Builds the atlas for [index]; the web counterpart returns null.
-typedef GlyphAtlasFactory =
-    GlyphAtlas? Function({
-      required GlyphAtlasIndex index,
-      required GlyphRasteriser rasteriser,
-      GlyphPageStore? store,
-      GlyphAtlasPersistence? persistence,
-      required BakeFrameSource frames,
-      required BakeClock clock,
-      required ValueListenable<bool> panelVisible,
-      required ValueListenable<bool> panelOpening,
-      GlyphPageResidency? residency,
-      GlyphBakeObserver? observer,
-      RetiredGlyphArt? predecessor,
-    });
+/// Builds the atlas a [GlyphAtlasRequest] describes; the web counterpart
+/// returns null.
+typedef GlyphAtlasFactory = GlyphAtlas? Function(GlyphAtlasRequest request);
 
 /// Owns the [GlyphAtlas] of the emoji grid for as long as the panel shell
 /// lives, so closing and reopening the panel does not bake again.
@@ -197,23 +185,25 @@ final class EmojiGlyphAtlasHost extends ChangeNotifier {
     // The layout depends on the display only; the glyph box is nominal (the
     // grid scales the sprite to its real cell).
     final atlas = _atlasFactory(
-      index: GlyphAtlasIndex(
-        glyphs,
-        layout: GlyphAtlasLayout.forCell(
-          logicalExtent: EmojiPage.cellPitch * kCatalogGlyphBoxFraction,
-          devicePixelRatio: _devicePixelRatio,
+      GlyphAtlasRequest(
+        index: GlyphAtlasIndex(
+          glyphs,
+          layout: GlyphAtlasLayout.forCell(
+            logicalExtent: EmojiPage.cellPitch * kCatalogGlyphBoxFraction,
+            devicePixelRatio: _devicePixelRatio,
+          ),
         ),
+        rasteriser: _rasteriser,
+        store: store,
+        persistence: _persistence,
+        frames: _frames,
+        clock: _clock,
+        panelVisible: panelVisible,
+        panelOpening: panelOpening,
+        residency: residency,
+        observer: _observer,
+        predecessor: predecessor,
       ),
-      rasteriser: _rasteriser,
-      store: store,
-      persistence: _persistence,
-      frames: _frames,
-      clock: _clock,
-      panelVisible: panelVisible,
-      panelOpening: panelOpening,
-      residency: residency,
-      observer: _observer,
-      predecessor: predecessor,
     );
     if (atlas == null) {
       // Nothing took them over (a platform that does not bake).

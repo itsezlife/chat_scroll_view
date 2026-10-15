@@ -70,9 +70,12 @@ is pre-1.0.
   takes an optional `residency`. `testing.dart` adds `ManualRetentionTimers` and
   `ManualMemoryPressure`.
 
+- **`GlyphAtlasRequest`** — the arguments of a `GlyphAtlas` in one value.
+  `createGlyphAtlasForPlatform` takes it whole instead of repeating eleven
+  parameters in each platform file.
 - **Replacing an atlas without a gap.** `GlyphAtlas.retire()` stops an atlas
   and returns its drawn art as `RetiredGlyphArt`; `GlyphAtlas(predecessor:)`
-  (and `createGlyphAtlasForPlatform(predecessor:)`) draws that art from its
+  (and `GlyphAtlasRequest.predecessor`) draws that art from its
   first frame, bakes behind it and swaps once, as for a stale persisted set.
   `RetiredGlyphArt.settled` completes when the retired atlas has no disk
   operation in flight; a persistent successor waits for it before it stages,
