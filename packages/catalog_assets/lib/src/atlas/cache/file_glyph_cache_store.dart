@@ -4,6 +4,7 @@ import 'package:catalog_assets/src/atlas/cache/file_glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/cache/glyph_cache_key.dart';
 import 'package:catalog_assets/src/atlas/cache/glyph_cache_store.dart';
 import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
+import 'package:catalog_assets/src/atlas/report_glyph_atlas_error.dart';
 
 /// A [GlyphCacheStore] on the file system, under [root].
 ///
@@ -113,8 +114,17 @@ final class FileGlyphCacheStore implements GlyphCacheStore {
     final String text;
     try {
       text = await _manifest.readAsString();
-    } on Object {
-      // Missing, or not text: nothing committed.
+    } on PathNotFoundException {
+      // Nothing was ever committed: a first run.
+      return null;
+    } on Object catch (error, stack) {
+      // Unreadable or not text: nothing committed, but not silently, because
+      // a fault that repeats every launch looks exactly like a first run.
+      reportGlyphAtlasError(
+        error,
+        stack,
+        'while reading the glyph atlas cache manifest',
+      );
       return null;
     }
     final split = text.indexOf('\n');

@@ -1,37 +1,10 @@
-import 'package:catalog_assets/src/atlas/bake_frame_source.dart';
-import 'package:catalog_assets/src/atlas/cache/glyph_atlas_persistence.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas.dart';
-import 'package:catalog_assets/src/atlas/glyph_atlas_index.dart';
-import 'package:catalog_assets/src/atlas/glyph_bake_observer.dart';
-import 'package:catalog_assets/src/atlas/glyph_page_residency.dart';
-import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
-import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
-import 'package:flutter/foundation.dart';
+import 'package:catalog_assets/src/atlas/glyph_atlas_request.dart';
 
 /// The atlas for a platform that bakes glyphs: android, iOS and desktop.
 ///
-/// Arguments are those of [GlyphAtlas]; the web counterpart takes the same and
-/// returns null.
-GlyphAtlas? createGlyphAtlasForPlatform({
-  required GlyphAtlasIndex index,
-  required GlyphRasteriser rasteriser,
-  GlyphPageStore? store,
-  GlyphAtlasPersistence? persistence,
-  required BakeFrameSource frames,
-  required BakeClock clock,
-  required ValueListenable<bool> panelVisible,
-  required ValueListenable<bool> panelOpening,
-  GlyphPageResidency? residency,
-  GlyphBakeObserver? observer,
-}) => GlyphAtlas(
-  index: index,
-  rasteriser: rasteriser,
-  store: store,
-  persistence: persistence,
-  frames: frames,
-  clock: clock,
-  panelVisible: panelVisible,
-  panelOpening: panelOpening,
-  residency: residency,
-  observer: observer,
-);
+/// The web counterpart takes the same [request] and returns null. A
+/// `residency` or `predecessor` the request carries is owned by the atlas from
+/// then on.
+GlyphAtlas? createGlyphAtlasForPlatform(GlyphAtlasRequest request) =>
+    request.build();

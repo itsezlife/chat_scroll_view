@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_index.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_layout.dart';
 import 'package:catalog_assets/src/atlas/glyph_bake_observer.dart';
 import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
+import 'package:catalog_assets/src/atlas/report_glyph_atlas_error.dart';
 
 /// What one [GlyphBaker.step] did.
 enum BakeStep {
@@ -32,8 +33,8 @@ enum BakeStep {
 ///
 /// Pages bake in index order unless [prioritise] says which glyphs the user
 /// is looking at. A page is composed only when all its glyphs are in strips,
-/// and a glyph has a [spriteOf] only once its page is stored, so priority
-/// works at page granularity: where a glyph sits is fixed by catalogue order
+/// and a glyph can be drawn only once its page is stored ([isPageBaked]), so
+/// priority works at page granularity: where a glyph sits is fixed by catalogue order
 /// (a persisted page must match its glyphs again), and a visible glyph waits
 /// for at most the page it is on, never for the rest of the catalogue. It
 /// runs on the root isolate, because picture and text APIs are not available
@@ -94,8 +95,7 @@ final class GlyphBaker {
   int? get lastBakedPage => _lastBakedPage;
 
   /// Records that page [pageIndex] already exists in the store (restored from
-  /// a persisted set), so it is not baked again and its glyphs have a
-  /// [spriteOf]. Call it before baking starts.
+  /// a persisted set), so it is not baked again. Call it before baking starts.
   void markBaked(int pageIndex) {
     assert(
       pageIndex >= 0 && pageIndex < index.pageCount,
@@ -103,6 +103,14 @@ final class GlyphBaker {
     );
     assert(!_stepping && _current != pageIndex, 'the page is being baked');
     _baked.add(pageIndex);
+  }
+
+  /// Forgets that page [pageIndex] is stored (its pixels could not be read
+  /// back), so the next [step]s bake it again. Call it for a page no step is
+  /// working on.
+  void markUnbaked(int pageIndex) {
+    assert(_current != pageIndex, 'the page is being baked');
+    _baked.remove(pageIndex);
   }
 
   /// Says which glyphs the user is looking at, most important first; their
@@ -121,13 +129,6 @@ final class GlyphBaker {
       if (page != null && !pages.contains(page)) pages.add(page);
     }
     _wanted = pages;
-  }
-
-  /// Sprite of [glyph], or null when it is unknown or its page is not baked
-  /// yet (the caller shows a placeholder until then).
-  GlyphSprite? spriteOf(String glyph) {
-    final planned = index.placementOf(glyph);
-    return planned != null && isPageBaked(planned.pageIndex) ? planned : null;
   }
 
   /// Does one unit of work: a strip of up to [glyphs] glyphs, or the page
@@ -153,18 +154,6 @@ final class GlyphBaker {
       return BakeStep.page;
     } finally {
       _stepping = false;
-    }
-  }
-
-  /// Bakes everything: one [step] per frame, waiting for [nextFrame] before
-  /// each. A fixed pace; adaptive pacing is the caller's to build on [step].
-  Future<void> bakeAll({
-    required int glyphsPerFrame,
-    required Future<void> Function() nextFrame,
-  }) async {
-    while (!isComplete && !_disposed) {
-      await nextFrame();
-      await step(glyphs: glyphsPerFrame);
     }
   }
 
@@ -276,14 +265,7 @@ final class GlyphBaker {
       }
     } catch (error, stack) {
       // The observer's data is its own; losing it must never stop the bake.
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: error,
-          stack: stack,
-          library: 'catalog_assets',
-          context: ErrorDescription('while reading baked glyphs back'),
-        ),
-      );
+      reportGlyphAtlasError(error, stack, 'while reading baked glyphs back');
     } finally {
       strip.dispose();
     }

@@ -11,6 +11,7 @@ export 'src/atlas/testing/fake_glyph_bake_observer.dart';
 export 'src/atlas/testing/fake_glyph_cache_store.dart';
 export 'src/atlas/testing/fake_glyph_page_store.dart';
 export 'src/atlas/testing/fake_glyph_rasteriser.dart';
+export 'src/atlas/testing/glyph_baker_helpers.dart';
 export 'src/atlas/testing/glyph_cache_store_contract.dart';
 export 'src/atlas/testing/glyph_page_store_contract.dart';
 export 'src/atlas/testing/glyph_rasteriser_contract.dart';

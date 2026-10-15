@@ -14,6 +14,9 @@ Process-wide global catalog asset cache for catalog and conversation leaves.
 
 No scroll-viewport RenderObject dependency.
 
+Decisions: [ADR 006](../../docs/adr/006-panel-catalog-viewport.md) (the
+amendment on baked glyphs and the shared asset scope).
+
 ## Glyph atlas (`glyph_atlas.dart`, `testing.dart`)
 
 Bakes the glyphs a host supplies into fixed-size **glyph atlas pages** and
@@ -38,7 +41,7 @@ Terms: [Panel Catalog glossary](../../docs/panel-catalog/CONTEXT.md)
 | `BakeGovernor` / `BakePacing` | Glyphs per frame (up to 16) from measured frame cost: halves near the budget, climbs back while cheap |
 | `BakePauseSignals` | Three host-owned `ValueListenable<bool>`: panel visible, scrolling, panel opening |
 | `BakeFrameSource` (seam) | The frame clock: `SchedulerBakeFrameSource` in an app, `FakeBakeFrameSource` in tests |
-| `GlyphAtlas` | A host's whole bake: baker + scheduler + the page images sprites are drawn from; `spriteOf(glyph)` is null until the glyph's page is baked and loaded |
+| `GlyphAtlas` | A host's whole bake: baker + scheduler + the page images sprites are drawn from; `spriteOf(glyph)` is null until the glyph's page is baked and loaded; `retire()` hands the drawn art to the atlas that replaces it (`predecessor:`) |
 | `GlyphPageResidency` | Owns the resident page images: a hold count per page (bindings, and the open panel for every page), a retention time-to-live (default 60 s, `retention:`) once nothing holds a page, release of all pages at once on `memoryPressure` |
 | `SystemMemoryPressure` | The platform's memory-pressure signal as a `Listenable` (the production `memoryPressure`) |
 | `AtlasSprite` | Page image + source rectangle; the optional sprite capability of `CatalogAssetBinding.sprite` |
@@ -48,7 +51,7 @@ Terms: [Panel Catalog glossary](../../docs/panel-catalog/CONTEXT.md)
 | `GlyphCacheKey` | Art version + density + glyph size + layout version + catalogue hash; decides hit, stale, discard or miss |
 | `GlyphArtVersionSource` (seam) | Says whether the system emoji art changed; `FixedGlyphArtVersion`, `ComputedGlyphArtVersion` (a pixel fingerprint computed once; `GlyphPixelReader` draws the sentinels); `FakeGlyphArtVersionSource` in `testing.dart` |
 | `GlyphBakeObserver` (seam) | Shown each glyph's baked cell (RGBA bytes) so a glyph-support probe shares the bake pass; `FakeGlyphBakeObserver` in `testing.dart` |
-| `createGlyphAtlasForPlatform` | The platform strategy: an atlas on Android, iOS and desktop, `null` on the web (draw text, start no bake) |
+| `createGlyphAtlasForPlatform` | The platform strategy, taking a `GlyphAtlasRequest` (the arguments of `GlyphAtlas` in one value): an atlas on Android, iOS and desktop, `null` on the web (draw text, start no bake) |
 
 ### Disk cache
 
@@ -74,8 +77,17 @@ Host contract:
 | The three pause signals, updated from the real viewport and panel | Bake beside a fling or the open animation; a hidden panel bakes nothing |
 | `prioritise(glyphs)` with the visible band when scrolling settles | Expect a visible glyph before its whole page is composed; cells never move |
 | `dispose()` on the scheduler (and `SchedulerBakeFrameSource`) when the panel is torn down | Dispose the baker first: the scheduler leaves no frame request or listener behind |
+| `retire()` on the old atlas, and its `RetiredGlyphArt` given to the new one, when the plan must change | Run two atlases over one `GlyphCacheStore` at once: a cache has a single writer, and the successor waits for the retired atlas's disk work |
+| `reportScrolling(reporter:, scrolling:)` from each surface that scrolls | Share one reporter between surfaces, or leave a reporter at `true` when its surface goes away |
 | A `GlyphPageStore` | Mutate or share a stored page; handles are cloned on write and read |
 | A `GlyphPageResidency` per atlas: `retention` and `memoryPressure: SystemMemoryPressure()` (the host disposes the signal) | Keep a sprite across frames: a page can be released, ask `spriteOf` again; expect memory back from a released page while the store is the in-memory one (it keeps the texture) |
+
+`testing.dart` is opt-in: production entry points never export or import it.
+The contract suites are written with `flutter_test`, so the package lists
+`flutter_test` under `dependencies` (a library cannot import a dev dependency).
+The suites have no consumer outside this package yet; moving them to a package
+of their own would give `catalog_assets` a dev dependency on a package that
+depends on it, which the workspace dependency lint rejects as a cycle.
 
 `testing.dart` ships `ManualRetentionTimers` and `ManualMemoryPressure` (the retention
 and the pressure a test moves by hand), `FakeGlyphRasteriser` (predictable pixels, no emoji font;

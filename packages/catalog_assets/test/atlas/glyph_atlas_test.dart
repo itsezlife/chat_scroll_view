@@ -32,15 +32,22 @@ void main() {
     await store.clear();
   });
 
-  GlyphAtlas build(List<String> glyphs) {
+  GlyphAtlas build(
+    List<String> glyphs, {
+    GlyphPageStore? withStore,
+    GlyphPageResidency? residency,
+    RetiredGlyphArt? predecessor,
+  }) {
     final atlas = GlyphAtlas(
       index: GlyphAtlasIndex(glyphs),
       rasteriser: rasteriser,
-      store: store,
+      store: withStore ?? store,
       frames: frames,
       clock: clock.read,
       panelVisible: visible,
       panelOpening: opening,
+      residency: residency,
+      predecessor: predecessor,
     );
     addTearDown(atlas.dispose);
     return atlas;
@@ -166,10 +173,42 @@ void main() {
       final atlas = build(_glyphs(2))..start();
       expect(frames.hasPendingRequest, isTrue);
 
-      atlas.reportScrolling(scrolling: true);
+      final surface = Object();
+      atlas.reportScrolling(reporter: surface, scrolling: true);
       expect(frames.hasPendingRequest, isFalse);
 
-      atlas.reportScrolling(scrolling: false);
+      atlas.reportScrolling(reporter: surface, scrolling: false);
+      expect(frames.hasPendingRequest, isTrue);
+    });
+
+    test('with two surfaces, baking waits for the last one to settle', () {
+      final atlas = build(_glyphs(2))..start();
+      final first = Object();
+      final second = Object();
+
+      atlas
+        ..reportScrolling(reporter: first, scrolling: true)
+        ..reportScrolling(reporter: second, scrolling: true)
+        ..reportScrolling(reporter: second, scrolling: false);
+      expect(
+        frames.hasPendingRequest,
+        isFalse,
+        reason: 'the first surface is still flinging',
+      );
+
+      atlas.reportScrolling(reporter: first, scrolling: false);
+      expect(frames.hasPendingRequest, isTrue);
+    });
+
+    test('one surface reporting twice is still one surface', () {
+      final atlas = build(_glyphs(2))..start();
+      final surface = Object();
+
+      atlas
+        ..reportScrolling(reporter: surface, scrolling: true)
+        ..reportScrolling(reporter: surface, scrolling: true)
+        ..reportScrolling(reporter: surface, scrolling: false);
+
       expect(frames.hasPendingRequest, isTrue);
     });
 
@@ -241,6 +280,125 @@ void main() {
     });
   });
 
+  group('a page that cannot be read back', () {
+    late List<FlutterErrorDetails> errors;
+    setUp(() {
+      errors = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = errors.add;
+      addTearDown(() => FlutterError.onError = previous);
+    });
+
+    test('is baked again, once, and then draws', () async {
+      final atlas = build(
+        _glyphs(2),
+        withStore: _FlakyStore(store, failures: 1),
+      )..start();
+
+      await bakeAll();
+
+      expect(atlas.spriteOf('g0'), isNotNull);
+      expect(rasteriser.painted, ['g0', 'g1', 'g0', 'g1']);
+      expect(errors, hasLength(1));
+    });
+
+    test('is given up on after a second failed read', () async {
+      final atlas = build(
+        _glyphs(2),
+        withStore: _FlakyStore(store, failures: 100),
+      )..start();
+
+      await bakeAll();
+      // Painting again would be a bake loop on a store that cannot work.
+      await bakeAll();
+
+      expect(atlas.spriteOf('g0'), isNull);
+      expect(rasteriser.painted, ['g0', 'g1', 'g0', 'g1']);
+      expect(errors, hasLength(2));
+    });
+  });
+
+  group('handing over to a successor', () {
+    Future<GlyphAtlas> bakedFirst(List<String> glyphs) async {
+      final first = build(glyphs)..start();
+      await bakeAll();
+      expect(first.spriteOf(glyphs.first), isNotNull);
+      return first;
+    }
+
+    test('draws the retired art at once, with no frame in between', () async {
+      final first = await bakedFirst(_glyphs(3));
+
+      final art = first.retire();
+      final second = build(
+        ['g0', 'g1', 'new'],
+        withStore: FakeGlyphPageStore(),
+        predecessor: art,
+      )..start();
+
+      expect(second.spriteOf('g0'), isNotNull, reason: 'old art, no gap');
+      expect(second.spriteOf('g1'), isNotNull);
+      expect(second.spriteOf('new'), isNull, reason: 'not baked yet');
+      expect(second.spriteOf('g2'), isNull, reason: 'left the plan');
+    });
+
+    test('replaces the retired art in one step once its own pages are '
+        'drawable', () async {
+      final first = await bakedFirst(_glyphs(3));
+      final oldPage = first.spriteOf('g0')!.page;
+      final second = build(
+        ['g0', 'g1', 'new'],
+        withStore: FakeGlyphPageStore(),
+        predecessor: first.retire(),
+      )..start();
+      final heard = <int>[];
+      second.addPageListener(heard.add);
+
+      await bakeAll();
+
+      expect(second.spriteOf('new'), isNotNull);
+      expect(identical(second.spriteOf('g0')!.page, oldPage), isFalse);
+      expect(oldPage.debugDisposed, isTrue, reason: 'the old art is released');
+      expect(heard, [0], reason: 'one swap, one page');
+    });
+
+    test('the retired atlas stops: no frames, no sprites', () async {
+      final first = await bakedFirst(_glyphs(3));
+      first.retire();
+
+      expect(first.spriteOf('g0'), isNull);
+      expect(frames.hasPendingRequest, isFalse);
+    });
+
+    test('art nobody claims is released', () async {
+      final first = await bakedFirst(_glyphs(3));
+      final page = first.spriteOf('g0')!.page;
+
+      first.retire().dispose();
+
+      expect(page.debugDisposed, isTrue);
+    });
+
+    test('a retired stale set is handed over as it is drawn', () async {
+      final first = await bakedFirst(_glyphs(3));
+      final second = build(
+        _glyphs(3),
+        withStore: FakeGlyphPageStore(),
+        predecessor: first.retire(),
+      )..start();
+      final seen = second.spriteOf('g0')!.page;
+
+      // Retired before its own bake finished: what is drawn is the old art.
+      final third = build(
+        _glyphs(3),
+        withStore: FakeGlyphPageStore(),
+        predecessor: second.retire(),
+      )..start();
+
+      expect(identical(third.spriteOf('g0')!.page, seen), isTrue);
+    });
+  });
+
   test('a failing store is reported and does not crash the app', () async {
     final failing = _ReadReturnsNull();
     final atlas = GlyphAtlas(
@@ -264,6 +422,30 @@ void main() {
     expect(errors, isNotEmpty);
     expect(atlas.spriteOf('g0'), isNull);
   });
+}
+
+/// A store whose first [failures] reads answer nothing, then behaves.
+class _FlakyStore implements GlyphPageStore {
+  _FlakyStore(this._inner, {required this.failures});
+
+  final GlyphPageStore _inner;
+  int failures;
+
+  @override
+  Future<void> write(int pageIndex, Image page) =>
+      _inner.write(pageIndex, page);
+
+  @override
+  Future<Image?> read(int pageIndex) async {
+    if (failures > 0) {
+      failures--;
+      return null;
+    }
+    return _inner.read(pageIndex);
+  }
+
+  @override
+  Future<void> clear() => _inner.clear();
 }
 
 /// A store that accepts pages but cannot hand them back.

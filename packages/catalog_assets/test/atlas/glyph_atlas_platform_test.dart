@@ -26,27 +26,19 @@ void main() {
   });
 
   GlyphAtlas? create(
-    GlyphAtlas? Function({
-      required GlyphAtlasIndex index,
-      required GlyphRasteriser rasteriser,
-      required GlyphPageStore store,
-      required BakeFrameSource frames,
-      required BakeClock clock,
-      required ValueListenable<bool> panelVisible,
-      required ValueListenable<bool> panelOpening,
-      GlyphPageResidency? residency,
-    })
-    factory, {
+    GlyphAtlas? Function(GlyphAtlasRequest request) factory, {
     GlyphPageResidency? residency,
   }) => factory(
-    index: GlyphAtlasIndex(['a']),
-    rasteriser: FakeGlyphRasteriser(),
-    store: MemoryGlyphPageStore(),
-    frames: frames,
-    clock: ManualBakeClock().read,
-    panelVisible: visible,
-    panelOpening: opening,
-    residency: residency,
+    GlyphAtlasRequest(
+      index: GlyphAtlasIndex(['a']),
+      rasteriser: FakeGlyphRasteriser(),
+      store: MemoryGlyphPageStore(),
+      frames: frames,
+      clock: ManualBakeClock().read,
+      panelVisible: visible,
+      panelOpening: opening,
+      residency: residency,
+    ),
   );
 
   test('a baking platform gets an atlas', () {

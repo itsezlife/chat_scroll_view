@@ -13,6 +13,20 @@ IME handoff.
 | `emoji_data` | Reactive catalog, frequency recents, keyword search, skin-tone prefs, platform glyph filter. |
 | Package | Panel shell, type tabs, emoji grid, bottom bar, panel prefs store. |
 
+Decisions: [ADR 007](../../docs/adr/007-keyboard-panel-controller.md) (the
+controller as source of truth) and [ADR 006](../../docs/adr/006-panel-catalog-viewport.md)
+(the catalog viewport and the baked emoji).
+
+## Host contract
+
+| The host provides | The host must not |
+|-------------------|-------------------|
+| One [KeyboardPanelController] per panel, disposed by the host | Drive the panel through a `GlobalKey` on its State, or call [ChatBottomInsetController.openPanel] as well as `open` |
+| An [EmojiDataSource] (a localized catalog, recents, skin tones) that notifies its listeners when any of them change | Expect baked emoji before the source reports `isReady`: the atlas is planned from its catalogue |
+| Insert and backspace effects, and the strings of [KeyboardPanelLabels] | Expect the panel to edit text or wipe recents without `request.clear()` |
+| `glyphCache` with `glyphArtVersion` to keep baked emoji across launches (optional) | Give a `glyphCache` without a `glyphArtVersion`: the cache could not tell when the system art changed |
+| A `glyphBakeObserver` to learn which glyphs the system cannot draw (optional) | Filter the glyph list handed to the panel by what the observer finds: the plan, and so the cache key, would change with it |
+
 ## Host entry — `KeyboardPanelController`
 
 [KeyboardPanelController] is the chrome **source of truth**. Hosts call
@@ -131,13 +145,15 @@ stay `Emoji*`; chrome types use `KeyboardPanel*`.
 On Android, iOS and desktop [KeyboardPanel] draws the emoji grid from baked
 atlas pages: it owns one atlas for the life of the shell (so closing and
 reopening the panel does not bake again), plans the glyphs the grid shows
-(recents first, the user's skin tones applied), bakes only while the panel is
-visible and not opening or closing, and hands the atlas to each [EmojiPage] it
-mounts. Until a glyph is baked its cell is a circle. On the web, and for an
-[EmojiPage] embedded on its own (no `glyphAtlas`), glyphs are drawn as text as
-before. A glyph the atlas did not plan (a skin tone chosen for the first time)
-makes the shell plan the atlas again; its cells are circles until the new pages
-bake.
+(the catalogue in its own order with the user's skin tones applied, then the
+recents it lacks, so the cache key does not follow the recents), bakes only
+while the panel is visible and not opening or closing, and hands the atlas to
+each [EmojiPage] it mounts. Until a glyph is baked its cell is a circle. On the
+web, and for an [EmojiPage] embedded on its own (no `glyphAtlas`), glyphs are
+drawn as text. A glyph the atlas did not plan (a skin tone chosen for the first
+time) or a changed screen density makes the shell plan the atlas again; the new
+atlas draws what the old one drew until its own pages are ready, then swaps
+once.
 
 ## Related types
 

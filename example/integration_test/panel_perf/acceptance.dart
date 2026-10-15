@@ -33,9 +33,48 @@ final class Verdict {
 /// open (64 MiB).
 const int kResidentPageCeilingBytes = 64 * 1024 * 1024;
 
+/// How much of the catalogue shown by the viewport could be drawn from baked
+/// pages when a scenario ended.
+///
+/// A fling is judged on smoothness, and a fling over circles is smooth too: the
+/// circle placeholder costs next to nothing. Without this a cold first pass
+/// could go green while never touching the sprite path it is there to measure.
+/// The scenario settles (the bake runs while nothing scrolls) before it ends,
+/// so a catalogue that is not drawable by then means the bake did not keep up,
+/// and the return leg of the fling ran over circles. It is measured at the end
+/// of the scenario, not per frame.
+final class BakeCoverage {
+  const BakeCoverage({required this.bakedGlyphs, required this.shownGlyphs});
+
+  /// Distinct glyphs of the catalogue that had a sprite.
+  final int bakedGlyphs;
+
+  /// Distinct glyphs of the catalogue the viewport shows.
+  final int shownGlyphs;
+
+  /// Smallest [fraction] counted as the catalogue being baked.
+  static const double minFraction = 0.99;
+
+  double get fraction => shownGlyphs <= 0 ? 0 : bakedGlyphs / shownGlyphs;
+
+  bool get isComplete => shownGlyphs > 0 && fraction >= minFraction;
+
+  String describe() =>
+      '$bakedGlyphs of $shownGlyphs glyphs drawable '
+      '(${(fraction * 100).toStringAsFixed(1)}%)';
+
+  Map<String, Object?> toJson() => {
+    'bakedGlyphs': bakedGlyphs,
+    'shownGlyphs': shownGlyphs,
+    'fraction': fraction,
+    'complete': isComplete,
+  };
+}
+
 /// Judges [stats] against [criteria], [coverage] when the scenario flings, and
 /// [residentBytes] (what the atlas held when the scenario ended) against
-/// [kResidentPageCeilingBytes] when the platform has an atlas.
+/// [kResidentPageCeilingBytes] when the platform has an atlas, and [bake] when
+/// the scenario must have flung over baked sprites.
 ///
 /// Every failed criterion is reported, so one red run names all that is wrong.
 /// A scenario that recorded no frames fails: silence is not smoothness.
@@ -44,6 +83,7 @@ Verdict judge(
   AcceptanceCriteria criteria = const AcceptanceCriteria(),
   FlingCoverage? coverage,
   int? residentBytes,
+  BakeCoverage? bake,
 }) {
   final failures = <String>[];
   if (stats.frames == 0) {
@@ -66,6 +106,12 @@ Verdict judge(
   }
   if (coverage != null && !coverage.isComplete) {
     failures.add('fling coverage incomplete: ${coverage.describe()}');
+  }
+  if (bake != null && !bake.isComplete) {
+    failures.add(
+      'the catalogue was not baked when the scenario ended: '
+      '${bake.describe()}; the fling ran over circles, not sprites',
+    );
   }
   if (residentBytes != null && residentBytes > kResidentPageCeilingBytes) {
     failures.add(

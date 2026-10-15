@@ -77,6 +77,7 @@ void main() {
         kChatColdFirstPassScenario,
         asserted: true,
         timeline: _traceTimeline,
+        requireBaked: true,
         body: () => flingPass(tester),
       ),
     );

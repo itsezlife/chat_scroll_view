@@ -50,9 +50,14 @@ final class GlyphCacheKey {
   }
 
   /// Hash of [glyphs] in order, as the key's [catalogueHash]: two 32-bit
-  /// FNV-1a lanes with different bases, joined (64 bits, no 64-bit literals,
-  /// so it also compiles for the web). Every glyph is closed by a separator no
-  /// glyph contains, so `['ab', 'c']` and `['a', 'bc']` differ.
+  /// FNV-1a lanes with different bases, joined (64 bits). Every glyph is closed
+  /// by a separator no glyph contains, so `['ab', 'c']` and `['a', 'bc']`
+  /// differ.
+  ///
+  /// Deterministic on one platform, which is all a key read back by the same
+  /// build needs. It is not portable between platforms: the multiply can pass
+  /// 2^53, where web integers round, so a hash made on the web may differ from
+  /// the same list's hash on the VM.
   static String catalogueHashOf(Iterable<String> glyphs) {
     var a = 0x811C9DC5;
     var b = 0x050C5D1F;

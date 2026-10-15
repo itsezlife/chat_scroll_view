@@ -115,6 +115,6 @@ final class CatalogBakeActivity {
   void _setMoving({required bool moving}) {
     if (_reportedMoving == moving) return;
     _reportedMoving = moving;
-    _atlas.reportScrolling(scrolling: moving);
+    _atlas.reportScrolling(reporter: this, scrolling: moving);
   }
 }

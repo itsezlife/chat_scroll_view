@@ -16,6 +16,14 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// Far above the headers of one screen (a handful).
 const int kHeaderParagraphCacheLimit = 64;
 
+/// Most glyph paragraphs one painter keeps on the paragraph path (the web).
+///
+/// A paragraph is keyed by glyph and layout width, so a window that is resized
+/// step by step makes every visible glyph a new key per step. The least
+/// recently drawn paragraph is dropped past this count. It is far above what
+/// one screen draws, so scrolling and a settled layout never evict.
+const int kGlyphParagraphCacheLimit = 1024;
+
 /// Paints catalog headers and leaves onto a [Canvas].
 ///
 /// Owns bounded paragraph caches for section titles and unicode glyphs so
@@ -34,8 +42,9 @@ const int kHeaderParagraphCacheLimit = 64;
 ///
 /// ## Glyph and placeholder geometry
 ///
-/// Leaf glyph draw bounds are a centered square ≈ **72%** of
-/// `min(cellWidth, cellHeight)`. Circle placeholders use those bounds:
+/// Leaf glyph draw bounds are a centered square of
+/// [kCatalogGlyphBoxFraction] (**72%**) of `min(cellWidth, cellHeight)`.
+/// Circle placeholders use those bounds:
 ///
 /// ```text
 /// radius = glyphBounds.width * kCirclePlaceholderRadiusFactor  // 0.4
@@ -57,11 +66,10 @@ const int kHeaderParagraphCacheLimit = 64;
 /// nothing). Layout runs **once** when the paragraph is created. Scroll paints
 /// only [Canvas.drawParagraph] for that cached instance. Where emoji are baked
 /// this path is never reached for unicode: an unbaked glyph is presented as the
-/// circle placeholder, not as text, and no paragraph is built for it anywhere
-/// (there is no warm-up pass that builds them ahead of paint).
+/// circle placeholder, not as text, and no paragraph is built for it.
 ///
-/// The glyph cache holds at most [PanelCatalogDiagnostics.glyphParagraphCacheLimit]
-/// paragraphs, least recently drawn out first: the width is part of the key, so
+/// The glyph cache holds at most [kGlyphParagraphCacheLimit] paragraphs, least
+/// recently drawn out first: the width is part of the key, so
 /// a window resized step by step would otherwise add a screenful per step for
 /// good. The section-header cache is bounded the same way by
 /// [kHeaderParagraphCacheLimit].
@@ -85,14 +93,15 @@ const int kHeaderParagraphCacheLimit = 64;
 /// ## Theme vs layout constants
 ///
 /// [CatalogLeafPaintTheme] supplies section header typography and insets plus
-/// stand-in / press colors and radii. Glyph bounds use fixed fractions (`0.72`,
-/// `0.85`, [kCirclePlaceholderRadiusFactor]) — not theme fields.
+/// stand-in / press colors and radii. Glyph bounds use fixed fractions
+/// ([kCatalogGlyphBoxFraction], `0.85` for the paragraph's font size,
+/// [kCirclePlaceholderRadiusFactor]) — not theme fields.
 ///
 /// ## Dispose
 ///
-/// Call [dispose] when the owning render object disposes to drop cached
-/// paragraphs. Clearing the caches is enough — [ui.Paragraph] does not require
-/// a native dispose in current Flutter.
+/// Call [dispose] when the owning render object disposes: it disposes and
+/// drops the cached paragraphs, which hold engine memory outside the Dart heap
+/// (the caches dispose the ones they evict as well).
 final class CatalogLeafPainter {
   /// Creates a painter with empty paragraph caches.
   CatalogLeafPainter({required CatalogLeafPaintTheme theme}) : _theme = theme {
@@ -114,11 +123,7 @@ final class CatalogLeafPainter {
   final CatalogParagraphCache<_HeaderPaintKey> _headerParagraphs =
       CatalogParagraphCache(limit: kHeaderParagraphCacheLimit);
   final CatalogParagraphCache<_GlyphPaintKey> _glyphParagraphs =
-      CatalogParagraphCache(
-        limit: PanelCatalogDiagnostics.glyphParagraphCacheLimit,
-        onLengthChanged: (delta) =>
-            PanelCatalogDiagnostics.glyphParagraphsCached += delta,
-      );
+      CatalogParagraphCache(limit: kGlyphParagraphCacheLimit);
   final CatalogGlyphSpriteBatch _glyphSprites = CatalogGlyphSpriteBatch();
 
   /// Resolved paint tokens from [PanelCatalogThemeData] at the viewport.
@@ -231,7 +236,8 @@ final class CatalogLeafPainter {
       slot.width,
       slot.height,
     );
-    final glyphSize = math.min(slot.width, slot.height) * 0.72;
+    final glyphSize =
+        math.min(slot.width, slot.height) * kCatalogGlyphBoxFraction;
     final glyphRect = Rect.fromCenter(
       center: cellRect.center,
       width: glyphSize,

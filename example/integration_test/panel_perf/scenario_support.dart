@@ -78,7 +78,10 @@ Future<void> settle(WidgetTester tester) async {
 /// Runs [body] while recording every frame, and judges the result.
 ///
 /// [body] returns fling coverage when it flings; a scenario that returns it is
-/// also required to have covered the catalogue.
+/// also required to have covered the catalogue. [requireBaked] additionally
+/// requires the catalogue to be drawable from baked pages when the scenario
+/// ends (see [BakeCoverage]): set it for a fling that is meant to run over
+/// sprites. It is ignored where nothing is baked (the web).
 Future<ScenarioReport> measureScenario(
   WidgetTester tester,
   IntegrationTestWidgetsFlutterBinding binding,
@@ -86,6 +89,7 @@ Future<ScenarioReport> measureScenario(
   required bool asserted,
   required Future<FlingCoverage?> Function() body,
   bool timeline = false,
+  bool requireBaked = false,
 }) async {
   // Counts glyph paragraphs drawn as text during this scenario only.
   PanelCatalogDiagnostics.reset();
@@ -123,10 +127,15 @@ Future<ScenarioReport> measureScenario(
   final stats = FrameStats.of(samples, budgetMs: budgetMs);
   final paragraphDraws = PanelCatalogDiagnostics.glyphParagraphDraws;
   final atlasInfo = atlasMeta(tester);
+  final shown = atlasInfo['atlasShownGlyphs'] as int?;
+  final baked = atlasInfo['atlasBakedGlyphs'] as int?;
   final verdict = judge(
     stats,
     coverage: coverage,
     residentBytes: atlasInfo['atlasResidentBytes'] as int?,
+    bake: requireBaked && shown != null && baked != null
+        ? BakeCoverage(bakedGlyphs: baked, shownGlyphs: shown)
+        : null,
   );
   return ScenarioReport(
     scenario: name,
@@ -160,13 +169,17 @@ Future<ScenarioReport> measureScenario(
 }
 
 /// How much of the catalogue the viewport's atlas had baked when the scenario
-/// ended: `atlasGlyphs` planned, `atlasBakedGlyphs` drawable. Empty when the
-/// panel is not mounted or the platform bakes nothing. Circles are allowed
-/// while a first run bakes, so those two are informational.
+/// ended: `atlasGlyphs` planned, `atlasShownGlyphs` the distinct glyphs the
+/// viewport shows, `atlasBakedGlyphs` of those drawable. Empty when the panel
+/// is not mounted or the platform bakes nothing. Circles are allowed while a
+/// first run bakes, so a scenario judges these only when it asks for it
+/// (`requireBaked`).
 ///
-/// `atlasResidentBytes` and `atlasResidentPages` are what the atlas holds
-/// resident right now (raw RGBA, mip levels excluded); the scenario's verdict
-/// holds them to the 64 MiB ceiling.
+/// `atlasResidentBytes` is what the atlas holds right now, resident pages and
+/// the stale set still drawn (raw RGBA, mip levels excluded), and
+/// `atlasResidentPages` the resident page count; the scenario's verdict holds
+/// the bytes to the 64 MiB ceiling. They are read once, when the scenario ends,
+/// so they do not show the peak of a rebake that held two sets.
 Map<String, Object?> atlasMeta(WidgetTester tester) {
   final finder = find.byType(PanelCatalogViewport);
   if (finder.evaluate().isEmpty) return const {};
@@ -184,8 +197,9 @@ Map<String, Object?> atlasMeta(WidgetTester tester) {
   final cache = atlas.cacheReport;
   return {
     'atlasGlyphs': atlas.index.glyphCount,
+    'atlasShownGlyphs': glyphs.length,
     'atlasBakedGlyphs': glyphs.where((g) => atlas.spriteOf(g) != null).length,
-    'atlasResidentBytes': atlas.residency.residentBytes,
+    'atlasResidentBytes': atlas.residentBytes,
     'atlasResidentPages': atlas.residency.residentPages.length,
     // Present only for an atlas with a persistent cache: what it decided and
     // how long the circles lasted, measured from the atlas start.

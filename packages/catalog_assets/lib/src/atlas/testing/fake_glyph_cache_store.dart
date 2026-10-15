@@ -28,6 +28,10 @@ final class FakeGlyphCacheStore implements GlyphCacheStore {
   /// Whether [openCommitted] throws.
   bool failOpen = false;
 
+  /// While non-null, every page write waits for it: a disk that is slow, so a
+  /// test can act while a write is in flight.
+  Future<void>? writeGate;
+
   /// Page reads made through any generation, in order.
   final List<int> reads = <int>[];
 
@@ -76,6 +80,7 @@ final class _FaultyPages implements GlyphPageStore {
   @override
   Future<void> write(int pageIndex, Image page) async {
     _owner.writes.add(pageIndex);
+    await _owner.writeGate;
     if (_owner.failWrites) throw StateError('fake cache is full');
     await _pages.write(pageIndex, page);
   }

@@ -25,8 +25,7 @@ import 'package:flutter/painting.dart';
 /// [add] and the [flush] of the same paint pass.
 final class CatalogGlyphSpriteBatch {
   /// A baked glyph is drawn within a modest factor of its baked size, so
-  /// bilinear sampling is enough; the prototype that measured the batched draw
-  /// used this setting.
+  /// bilinear sampling is enough.
   final Paint _paint = Paint()..filterQuality = FilterQuality.low;
 
   // One bucket per page; buckets are kept (emptied) between passes.

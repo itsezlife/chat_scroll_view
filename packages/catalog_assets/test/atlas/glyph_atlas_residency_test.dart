@@ -53,10 +53,14 @@ void main() {
     return atlas;
   }
 
+  Future<void> frame() async {
+    frames.pump();
+    await pumpEventQueue();
+  }
+
   Future<void> bakeAll() async {
     while (frames.hasPendingRequest) {
-      frames.pump();
-      await pumpEventQueue();
+      await frame();
     }
   }
 
@@ -105,11 +109,50 @@ void main() {
 
       visible.value = true;
       await pumpEventQueue();
+      expect(store.reads, reads, reason: 'reading waits for a frame');
+      await frame();
 
       expect(store.reads, reads + 1);
       expect(atlas.spriteOf('a'), isNotNull);
       expect(heard, contains(0));
       expect(rasteriser.painted.length, 1, reason: 'reload does not rebake');
+    });
+
+    test('reopening reloads the released pages one per frame', () async {
+      final atlas = await baked([for (var i = 0; i < 1400; i++) 'g$i']);
+      expect(atlas.index.pageCount, 3);
+      final reads = store.reads;
+      visible.value = false;
+      timers.elapse(_retention);
+      expect(atlas.residency.residentPages, isEmpty);
+
+      visible.value = true;
+      await pumpEventQueue();
+      expect(store.reads, reads, reason: 'nothing is read before a frame');
+
+      for (var page = 1; page <= 3; page++) {
+        await frame();
+        expect(store.reads, reads + page, reason: 'frame $page');
+      }
+      expect(atlas.residency.residentPages, [0, 1, 2]);
+    });
+
+    test('reloading waits for a scroll to end', () async {
+      final atlas = await baked(['a']);
+      final reads = store.reads;
+      visible.value = false;
+      timers.elapse(_retention);
+      final surface = Object();
+      atlas.reportScrolling(reporter: surface, scrolling: true);
+
+      visible.value = true;
+      await frame();
+      expect(store.reads, reads);
+
+      atlas.reportScrolling(reporter: surface, scrolling: false);
+      await pumpEventQueue();
+      await frame();
+      expect(store.reads, reads + 1);
     });
 
     test('a page a binding holds outlives the retention', () async {
@@ -168,14 +211,14 @@ void main() {
 
       expect(atlas.spriteOf('a'), isNull);
       expect(atlas.spriteOf('a'), isNull, reason: 'one load, not two');
-      await pumpEventQueue();
+      await frame();
 
       expect(store.reads, reads + 1);
       expect(atlas.spriteOf('a'), isNotNull);
       expect(heard, [0, 0], reason: 'released, then drawable again');
     });
 
-    test('a page the store cannot hand back is reported once', () async {
+    test('a page the store lost is reported once and baked again', () async {
       final atlas = await baked(['a']);
       await store.clear();
       pressure.raise();
@@ -185,10 +228,14 @@ void main() {
       addTearDown(() => FlutterError.onError = previous);
 
       expect(atlas.spriteOf('a'), isNull);
-      await pumpEventQueue();
+      await frame();
       expect(atlas.spriteOf('a'), isNull);
-      await pumpEventQueue();
+      expect(errors, hasLength(1));
 
+      await bakeAll();
+
+      expect(atlas.spriteOf('a'), isNotNull, reason: 'not lost for good');
+      expect(rasteriser.painted, ['a', 'a']);
       expect(errors, hasLength(1));
     });
   });

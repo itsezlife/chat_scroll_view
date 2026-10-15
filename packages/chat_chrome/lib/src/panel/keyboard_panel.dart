@@ -112,6 +112,9 @@ class KeyboardPanel extends StatefulWidget {
   State<KeyboardPanel> createState() => _KeyboardPanelState();
 }
 
+/// Which cold animation the panel is running.
+enum _PanelMotion { rest, opening, closing }
+
 class _KeyboardPanelState extends State<KeyboardPanel>
     with TickerProviderStateMixin {
   ChatBottomInsetController get _inset => widget.controller.inset;
@@ -120,23 +123,28 @@ class _KeyboardPanelState extends State<KeyboardPanel>
 
   late final AnimationController _progress;
 
-  /// True while a cold open animation is in flight.
-  bool get _opening => _openingFlag;
-  set _opening(bool value) {
-    _openingFlag = value;
-    _syncBakeSignals();
-  }
+  /// What the cold open or close animation is doing. One value: the panel is
+  /// never opening and closing at once.
+  _PanelMotion _motion = _PanelMotion.rest;
 
-  var _openingFlag = false;
+  /// True while a cold open animation is in flight.
+  bool get _opening => _motion == _PanelMotion.opening;
 
   /// True while a cold close animation is in flight.
-  bool get _closing => _closingFlag;
-  set _closing(bool value) {
-    _closingFlag = value;
+  bool get _closing => _motion == _PanelMotion.closing;
+
+  /// Moves to [next] and tells the bake. Every change of motion goes through
+  /// here, so the bake never keeps running into an animation it was not told
+  /// about.
+  void _moveTo(_PanelMotion next) {
+    _motion = next;
     _syncBakeSignals();
   }
 
-  var _closingFlag = false;
+  /// Ends [motion] if it is the current one; a newer motion is left alone.
+  void _leave(_PanelMotion motion) {
+    if (_motion == motion) _moveTo(_PanelMotion.rest);
+  }
 
   /// Skip entrance animation when opening over a dismissing IME.
   var _replacingKeyboard = false;
@@ -249,20 +257,27 @@ class _KeyboardPanelState extends State<KeyboardPanel>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_atlasHost != null) return;
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final existing = _atlasHost;
+    if (existing != null) {
+      // The view can move to another display or change its size class while
+      // the panel lives: the baked glyphs follow the density it has now.
+      existing.devicePixelRatio = devicePixelRatio;
+      return;
+    }
     final frames = _bakeFrames = SchedulerBakeFrameSource(
       view: View.of(context),
     );
     final host = _atlasHost = EmojiGlyphAtlasHost(
       dataSource: _dataSource,
       frames: frames,
-      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+      devicePixelRatio: devicePixelRatio,
       persistence: widget.glyphCache == null
           ? null
           : GlyphAtlasPersistence(
               cache: widget.glyphCache!,
               artVersion: widget.glyphArtVersion!,
-              devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+              devicePixelRatio: devicePixelRatio,
             ),
       memoryPressure: _memoryPressure = SystemMemoryPressure(),
       observer: widget.glyphBakeObserver,
@@ -560,8 +575,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       return;
     }
 
-    _opening = true;
-    _closing = false;
+    _moveTo(_PanelMotion.opening);
     _replacingKeyboard = replacingKeyboard;
 
     final landscape =
@@ -602,7 +616,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       fine(.panel, 'KeyboardPanel.open REPLACE snap progress=1');
       _progress.value = 1;
       _inset.setPanelOccupancy(_inset.panelTarget);
-      _opening = false;
+      _leave(_PanelMotion.opening);
       _ensurePageSyncedAfterOpen();
       return;
     }
@@ -613,7 +627,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     // Let the page mount and lay out before the open animation starts.
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted || _closing) {
-      _opening = false;
+      _leave(_PanelMotion.opening);
       return;
     }
     await Future<void>.delayed(KeyboardPanelMotion.startDelay);
@@ -623,7 +637,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
         'KeyboardPanel.open COLD aborted after delay '
         'mounted=$mounted closing=$_closing',
       );
-      _opening = false;
+      _leave(_PanelMotion.opening);
       return;
     }
     try {
@@ -636,7 +650,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     } catch (e, st) {
       warning(.panel, e, st, 'KeyboardPanel.open COLD animate error');
     } finally {
-      _opening = false;
+      _leave(_PanelMotion.opening);
       _ensurePageSyncedAfterOpen();
     }
   }
@@ -679,7 +693,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       _contentVisible = true;
     }
 
-    _opening = false;
+    _leave(_PanelMotion.opening);
     if (notifyController) {
       widget.controller.adoptClose();
     }
@@ -710,7 +724,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       return;
     }
 
-    _closing = true;
+    _moveTo(_PanelMotion.closing);
     // Cold dismiss: animate occupancy target → −safeBottom, then release.
     _closeSafeBottom = MediaQuery.viewPaddingOf(context).bottom;
     _closeTarget = _inset.isPanelOpen
@@ -749,7 +763,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     if (!mounted) return;
     setState(() {
       _visible = false;
-      _closing = false;
+      _leave(_PanelMotion.closing);
       _handoffToKeyboard = false;
       _contentVisible = true;
       _searchOpen.value = false;

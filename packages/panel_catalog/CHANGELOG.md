@@ -21,6 +21,9 @@ is pre-1.0.
   (drag, fling, jump, wheel, section motion) and, once it settles, which glyphs
   are on screen so their page bakes first.
 
+- **`kCatalogGlyphBoxFraction`** (0.72) — the share of a cell's shorter side a
+  glyph is drawn in, public so a host that bakes glyphs sizes them for it.
+
 ### Removed
 
 - **Cold-start warm-up.** `PanelCatalogController.warmAhead`, the render
@@ -40,12 +43,11 @@ is pre-1.0.
 ### Changed
 
 - **Bounded paragraph caches.** On the paragraph path (the web strategy) the
-  glyph cache keeps at most `PanelCatalogDiagnostics.glyphParagraphCacheLimit`
-  paragraphs per viewport and the section-header cache 64, least recently drawn
-  out first, and both are released when the viewport is disposed. Before, a
-  window resized step by step added a screenful of paragraphs per step for the
-  life of the viewport. `PanelCatalogDiagnostics.glyphParagraphsCached` reports
-  the live count.
+  glyph cache keeps at most 1024 paragraphs per viewport
+  (`kGlyphParagraphCacheLimit`) and the section-header cache 64, least recently
+  drawn out first. A paragraph that leaves a cache, by eviction or when the
+  viewport is disposed, is disposed. Before, a window resized step by step
+  added a screenful of paragraphs per step for the life of the viewport.
 - **Unicode presentation with an atlas.** An unbaked glyph is
   `CatalogLeafPresentation.circlePlaceholder` (never text) and flips to
   `content` when its page lands, without a layout change. Hosts that pass a

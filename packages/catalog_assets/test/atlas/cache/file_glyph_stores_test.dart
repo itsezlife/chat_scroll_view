@@ -1,11 +1,11 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:catalog_assets/src/atlas/cache/file_glyph_cache_store.dart';
 import 'package:catalog_assets/src/atlas/cache/file_glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/cache/glyph_cache_key.dart';
 import 'package:catalog_assets/testing.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Directory _tempDir() {
@@ -14,6 +14,16 @@ Directory _tempDir() {
     if (dir.existsSync()) dir.deleteSync(recursive: true);
   });
   return dir;
+}
+
+/// Collects what is reported through [FlutterError.onError] until the end of
+/// the test.
+List<FlutterErrorDetails> _captureErrors() {
+  final reported = <FlutterErrorDetails>[];
+  final previous = FlutterError.onError;
+  FlutterError.onError = reported.add;
+  addTearDown(() => FlutterError.onError = previous);
+  return reported;
 }
 
 void main() {
@@ -93,6 +103,40 @@ void main() {
       File('${dir.path}/page_3.glyphpage.tmp').writeAsBytesSync(Uint8List(40));
       expect(await store.read(3), isNull);
     });
+
+    test('a page that is simply absent is a quiet miss', () async {
+      final reported = _captureErrors();
+      expect(await store.read(9), isNull);
+      expect(reported, isEmpty);
+    });
+
+    test('a page that cannot be read for another reason is reported, with '
+        'its stack, and is still a miss', () async {
+      final reported = _captureErrors();
+      // A directory where the file should be: present, but not readable.
+      Directory('${dir.path}/page_5.glyphpage').createSync();
+
+      expect(await store.read(5), isNull);
+
+      expect(reported, hasLength(1));
+      expect(reported.single.stack, isNotNull);
+      expect(reported.single.library, 'catalog_assets');
+    });
+
+    test('a page the engine cannot decode is reported and is a miss', () async {
+      final reported = _captureErrors();
+      final failing = FileGlyphPageStore(
+        dir,
+        decode: (pixels, width, height, format, onDecoded) =>
+            throw StateError('no decoder'),
+      );
+
+      expect(await failing.read(0), isNull);
+
+      expect(reported, hasLength(1));
+      expect(reported.single.exception, isA<StateError>());
+      expect(reported.single.stack, isNotNull);
+    });
   });
 
   group('FileGlyphCacheStore damage', () {
@@ -127,9 +171,23 @@ void main() {
       },
     );
 
-    test('a missing manifest means nothing is committed', () async {
+    test('a missing manifest means nothing is committed, quietly', () async {
+      final reported = _captureErrors();
       File('${root.path}/manifest.json').deleteSync();
       expect(await FileGlyphCacheStore(root).openCommitted(), isNull);
+      expect(reported, isEmpty);
+    });
+
+    test('a manifest that cannot be read is reported, not hidden', () async {
+      final reported = _captureErrors();
+      File('${root.path}/manifest.json').deleteSync();
+      Directory('${root.path}/manifest.json').createSync();
+
+      expect(await FileGlyphCacheStore(root).openCommitted(), isNull);
+
+      expect(reported, hasLength(1));
+      expect(reported.single.stack, isNotNull);
+      expect(reported.single.library, 'catalog_assets');
     });
 
     test('staging sweeps generations the manifest does not name', () async {

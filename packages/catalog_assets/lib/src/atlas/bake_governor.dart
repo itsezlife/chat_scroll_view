@@ -5,10 +5,10 @@ import 'package:meta/meta.dart';
 /// The numbers that shape [BakeGovernor]: how many glyphs one frame may bake
 /// and what share of the frame budget counts as cheap or expensive.
 ///
-/// The defaults come from the prototype (16 glyphs per frame bakes the whole
-/// catalogue in about 0.93 s with no dropped frame on the reference device,
-/// 4 per frame takes 3.4 s) and the two fractions are untuned guesses until
-/// they are measured on a device.
+/// The ceiling of 16 glyphs per frame is about a thousand glyphs a second at
+/// 60 Hz; the governor lowers it when frames get expensive and raises it back
+/// when they are cheap. The two fractions are starting points, not tuned
+/// values: a host that has measured its device passes its own.
 @immutable
 final class BakePacing {
   /// Creates a pacing.

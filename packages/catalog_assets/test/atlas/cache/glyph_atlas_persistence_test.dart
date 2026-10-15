@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:flutter/foundation.dart';
@@ -39,6 +41,7 @@ void main() {
     List<String> glyphs, {
     double density = 2,
     GlyphPageResidency? residency,
+    RetiredGlyphArt? predecessor,
   }) {
     final rasteriser = FakeGlyphRasteriser();
     final atlas = GlyphAtlas(
@@ -54,6 +57,7 @@ void main() {
       panelVisible: visible,
       panelOpening: opening,
       residency: residency,
+      predecessor: predecessor,
     );
     addTearDown(atlas.dispose);
     return (atlas: atlas, rasteriser: rasteriser);
@@ -234,10 +238,11 @@ void main() {
         expect(run.atlas.spriteOf('g0'), isNotNull);
 
         final second = launch(_glyphs(2))..atlas.start();
-        second.atlas.reportScrolling(scrolling: true);
+        final surface = Object();
+        second.atlas.reportScrolling(reporter: surface, scrolling: true);
         await pumpEventQueue();
         expect(frames.hasPendingRequest, isFalse);
-        second.atlas.reportScrolling(scrolling: false);
+        second.atlas.reportScrolling(reporter: surface, scrolling: false);
         await pumpEventQueue();
         await frame();
         expect(second.atlas.spriteOf('g0'), isNotNull);
@@ -290,6 +295,7 @@ void main() {
 
       visible.value = true;
       await pumpEventQueue();
+      await frame();
 
       expect(run.atlas.spriteOf('g0'), isNotNull);
       expect(cache.reads, [0], reason: 'one page read, nothing baked');
@@ -582,6 +588,106 @@ void main() {
 
       await bakeAll();
       expect(run.atlas.spriteOf('g0'), isNotNull);
+    });
+  });
+
+  group('stale pages and memory', () {
+    // One 2048 px RGBA page.
+    const pageBytes = 2048 * 2048 * 4;
+
+    Future<({GlyphAtlas atlas, ManualMemoryPressure pressure})> staleRun(
+      List<String> glyphs,
+    ) async {
+      await firstRun(glyphs);
+      art.version = 'art-2';
+      final pressure = ManualMemoryPressure();
+      addTearDown(pressure.dispose);
+      final run = launch(
+        glyphs,
+        residency: GlyphPageResidency(memoryPressure: pressure),
+      )..atlas.start();
+      await pumpEventQueue();
+      await frame();
+      await frame();
+      expect(run.atlas.cacheReport.verdict, GlyphCacheVerdict.stale);
+      return (atlas: run.atlas, pressure: pressure);
+    }
+
+    test('count towards the resident bytes', () async {
+      final run = await staleRun(_glyphs(3));
+
+      expect(run.atlas.residency.residentBytes, 0);
+      expect(run.atlas.residentBytes, pageBytes);
+    });
+
+    test('are released by memory pressure like the resident pages', () async {
+      final run = await staleRun(_glyphs(3));
+      final stalePage = run.atlas.spriteOf('g0')!.page;
+      final heard = <int>[];
+      run.atlas.addPageListener(heard.add);
+
+      run.pressure.raise();
+
+      expect(stalePage.debugDisposed, isTrue);
+      expect(run.atlas.residentBytes, 0);
+      expect(
+        run.atlas.spriteOf('g0'),
+        isNull,
+        reason: 'a circle until the swap',
+      );
+      expect(heard, [0], reason: 'a surface repaints the lost art');
+    });
+
+    test('the new set still swaps and commits after the pressure', () async {
+      final run = await staleRun(_glyphs(3));
+      final commitsBefore = cache.commits;
+      run.pressure.raise();
+
+      await bakeAll();
+
+      expect(run.atlas.spriteOf('g0'), isNotNull);
+      expect(run.atlas.cacheReport.swapped, isTrue);
+      expect(cache.commits, commitsBefore + 1);
+    });
+  });
+
+  group('one writer at a time', () {
+    test('a successor waits for the retired atlas to finish its disk work '
+        'before it stages', () async {
+      final gate = Completer<void>();
+      cache.writeGate = gate.future;
+      final first = launch(_glyphs(2))..atlas.start();
+      await pumpEventQueue();
+      while (cache.writes.isEmpty && frames.hasPendingRequest) {
+        await frame();
+      }
+      expect(cache.writes, isNotEmpty, reason: 'a write is in flight');
+      expect(cache.stages, 1);
+
+      final art = first.atlas.retire();
+      final second = launch(_glyphs(3), predecessor: art)..atlas.start();
+      await pumpEventQueue();
+      expect(cache.stages, 1, reason: 'the old atlas is still writing');
+
+      gate.complete();
+      await pumpEventQueue();
+
+      expect(cache.stages, 2);
+      await bakeAll();
+      expect(second.atlas.spriteOf('g2'), isNotNull);
+    });
+
+    test('a successor with nothing in flight does not wait', () async {
+      await firstRun(_glyphs(2));
+      final first = launch(_glyphs(2))..atlas.start();
+      await pumpEventQueue();
+      await bakeAll();
+
+      final second = launch(_glyphs(3), predecessor: first.atlas.retire())
+        ..atlas.start();
+      await pumpEventQueue();
+
+      expect(second.atlas.cacheReport.verdict, isNotNull);
     });
   });
 

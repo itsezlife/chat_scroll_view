@@ -138,6 +138,35 @@ void main() {
     });
   });
 
+  group('baked emoji at the end of a scenario', () {
+    test('a catalogue that is drawable passes', () {
+      final verdict = judge(
+        _stats(_clean(100)),
+        bake: const BakeCoverage(bakedGlyphs: 3700, shownGlyphs: 3700),
+      );
+      expect(verdict.passed, isTrue);
+    });
+
+    test('a fling mostly over circles fails, naming how many were baked', () {
+      final verdict = judge(
+        _stats(_clean(100)),
+        bake: const BakeCoverage(bakedGlyphs: 400, shownGlyphs: 3700),
+      );
+      expect(verdict.passed, isFalse);
+      expect(verdict.failures.single, contains('400 of 3700'));
+    });
+
+    test('nothing to show is never complete', () {
+      const empty = BakeCoverage(bakedGlyphs: 0, shownGlyphs: 0);
+      expect(empty.isComplete, isFalse);
+      expect(empty.fraction, 0);
+    });
+
+    test('a scenario that does not require it is not judged on it', () {
+      expect(judge(_stats(_clean(100))).passed, isTrue);
+    });
+  });
+
   group('FlingCoverage', () {
     test('fraction is the span the viewport showed over the content', () {
       expect(_fullCoverage.fraction, closeTo(1, 1e-9));

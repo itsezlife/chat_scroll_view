@@ -4,7 +4,9 @@ import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_chrome/src/panel/emoji_glyph_atlas_host.dart';
 import 'package:emoji_data/emoji_data.dart';
+import 'package:chat_chrome/src/panel/emoji_page.dart';
 import 'package:flutter/foundation.dart';
+import 'package:panel_catalog/panel_catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// An emoji source that is ready at once and whose tones the test sets.
@@ -50,11 +52,13 @@ void main() {
   late _Data data;
   late List<GlyphAtlas> created;
   late List<GlyphPageResidency> residencies;
+  late List<GlyphPageStore?> stores;
 
   setUp(() {
     frames = FakeBakeFrameSource();
     created = [];
     residencies = [];
+    stores = [];
     data = _Data([
       _category('faces', const [
         EmojiItem.unicode(glyph: '😀'),
@@ -81,38 +85,16 @@ void main() {
       frames: frames,
       devicePixelRatio: 2,
       rasteriser: rasteriser ?? FakeGlyphRasteriser(),
-      store: persistence == null ? FakeGlyphPageStore() : null,
+      newStore: FakeGlyphPageStore.new,
       persistence: persistence,
-      atlasFactory:
-          ({
-            required index,
-            required rasteriser,
-            store,
-            persistence,
-            required frames,
-            required clock,
-            required panelVisible,
-            required panelOpening,
-            residency,
-            observer,
-          }) {
-            residencies.add(residency!);
-            if (!bakes) return null;
-            final atlas = GlyphAtlas(
-              index: index,
-              rasteriser: rasteriser,
-              store: store,
-              persistence: persistence,
-              frames: frames,
-              clock: clock,
-              panelVisible: panelVisible,
-              panelOpening: panelOpening,
-              residency: residency,
-              observer: observer,
-            );
-            created.add(atlas);
-            return atlas;
-          },
+      atlasFactory: (request) {
+        residencies.add(request.residency!);
+        stores.add(request.store);
+        if (!bakes) return null;
+        final atlas = request.build();
+        created.add(atlas);
+        return atlas;
+      },
     );
     addTearDown(host.dispose);
     return host;
@@ -130,15 +112,43 @@ void main() {
     expect(h.atlas, isNotNull);
   });
 
-  test('plans the glyphs the grid will show, recents first', () {
-    final h = host()..sync(recents: const ['🔥']);
+  group('what is planned', () {
+    test('is the catalogue in its own order, then recents it lacks', () {
+      final h = host()..sync(recents: const ['🔥']);
 
-    final index = h.atlas!.index;
-    expect(index.glyphCount, 4);
-    expect(index.placementOf('🔥')!.source, index.layout.glyphRect(0));
-    for (final glyph in ['😀', '😁', '👍']) {
-      expect(index.placementOf(glyph), isNotNull, reason: glyph);
-    }
+      final index = h.atlas!.index;
+      expect(index.glyphs, ['😀', '😁', '👍', '🔥']);
+      expect(index.placementOf('😀')!.source, index.layout.glyphRect(0));
+    });
+
+    test('does not depend on the recents, so the cache key does not', () {
+      List<String> planned(List<String> recents) {
+        final h = host()..sync(recents: recents);
+        return h.atlas!.index.glyphs;
+      }
+
+      final none = planned(const []);
+
+      expect(
+        planned(const ['👍', '😀']),
+        none,
+        reason: 'recents in the catalogue',
+      );
+      expect(planned(const ['😁', '😀', '👍']), none, reason: 'their order');
+      expect(
+        GlyphCacheKey.catalogueHashOf(planned(const ['👍', '😀'])),
+        GlyphCacheKey.catalogueHashOf(none),
+      );
+    });
+
+    test('puts recents the catalogue lacks in a stable order', () {
+      List<String> planned(List<String> recents) {
+        final h = host()..sync(recents: recents);
+        return h.atlas!.index.glyphs;
+      }
+
+      expect(planned(const ['🔥', '🎉', '🔥']), planned(const ['🎉', '🔥']));
+    });
   });
 
   test('plans the tone the user chose, not the base glyph', () {
@@ -185,6 +195,88 @@ void main() {
       expect(frames.hasPendingRequest, isFalse);
     },
   );
+
+  group('planning again keeps the grid drawn', () {
+    Future<void> bake() async {
+      for (var i = 0; i < 200 && frames.hasPendingRequest; i++) {
+        frames.pump();
+        await pumpEventQueue();
+      }
+    }
+
+    test('the successor draws the old art in the frame it is built', () async {
+      final h = host()
+        ..sync(recents: const [])
+        ..panelVisible.value = true;
+      await bake();
+      expect(h.atlas!.spriteOf('😀'), isNotNull);
+
+      data.tones['👍'] = 3;
+      h.sync(recents: const []);
+
+      expect(h.atlas!.spriteOf('😀'), isNotNull, reason: 'no blank frame');
+      expect(h.atlas!.spriteOf(EmojiSkinTone.apply('👍', 3)), isNull);
+
+      await bake();
+      expect(h.atlas!.spriteOf(EmojiSkinTone.apply('👍', 3)), isNotNull);
+    });
+
+    test('each atlas has a store of its own', () {
+      final h = host()..sync(recents: const []);
+      data.tones['👍'] = 3;
+      h.sync(recents: const []);
+
+      expect(stores, hasLength(2));
+      expect(stores[0], isNotNull);
+      expect(stores[1], isNot(same(stores[0])));
+    });
+  });
+
+  group('density', () {
+    test('a changed density plans again at the new size', () {
+      final h = host()..sync(recents: const []);
+      final first = h.atlas!;
+      var notified = 0;
+      h.addListener(() => notified++);
+
+      h.devicePixelRatio = 3;
+
+      expect(h.atlas, isNot(same(first)));
+      expect(
+        h.atlas!.index.layout.glyphSize,
+        greaterThan(first.index.layout.glyphSize),
+      );
+      expect(h.atlas!.index.glyphs, first.index.glyphs);
+      expect(notified, 1);
+    });
+
+    test('the same density plans nothing', () {
+      final h = host()..sync(recents: const []);
+      final first = h.atlas;
+
+      h.devicePixelRatio = 2;
+
+      expect(h.atlas, same(first));
+    });
+
+    test('before the data is ready it only remembers the density', () {
+      data.ready = false;
+      final h = host()..sync(recents: const []);
+
+      h.devicePixelRatio = 3;
+      expect(h.atlas, isNull);
+
+      data.ready = true;
+      h.sync(recents: const []);
+      expect(
+        h.atlas!.index.layout.glyphSize,
+        GlyphAtlasLayout.forCell(
+          logicalExtent: EmojiPage.cellPitch * kCatalogGlyphBoxFraction,
+          devicePixelRatio: 3,
+        ).glyphSize,
+      );
+    });
+  });
 
   test('a platform that does not bake gets no atlas and starts no bake', () {
     final h = host(bakes: false)..sync(recents: const []);
@@ -333,6 +425,52 @@ void main() {
       h.dispose();
 
       expect(await cache.openCommitted(), isNotNull);
+    });
+
+    test(
+      'planning again waits for the replaced atlas to stop writing',
+      () async {
+        final gate = Completer<void>();
+        cache.writeGate = gate.future;
+        final h = host(persistence: persistence())
+          ..sync(recents: const [])
+          ..panelVisible.value = true;
+        await pumpEventQueue();
+        while (cache.writes.isEmpty && frames.hasPendingRequest) {
+          frames.pump();
+          await pumpEventQueue();
+        }
+        expect(cache.stages, 1);
+
+        data.tones['👍'] = 3;
+        h.sync(recents: const []);
+        await pumpEventQueue();
+        expect(
+          cache.stages,
+          1,
+          reason: 'the first atlas still has a write out',
+        );
+
+        gate.complete();
+        await pumpEventQueue();
+        expect(cache.stages, 2);
+      },
+    );
+
+    test('a changed density re-keys the cache', () async {
+      final h = host(persistence: persistence())
+        ..sync(recents: const [])
+        ..panelVisible.value = true;
+      await pumpEventQueue();
+      await bake();
+
+      h.devicePixelRatio = 3;
+      await pumpEventQueue();
+      await bake();
+
+      expect(h.atlas!.cacheReport.verdict, GlyphCacheVerdict.discard);
+      expect((await cache.openCommitted())!.record.key.devicePixelRatio, 3);
+      expect(h.atlas!.spriteOf('😀'), isNotNull);
     });
 
     test('a tone chosen for the first time keeps the old art drawn', () async {

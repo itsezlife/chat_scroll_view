@@ -5,6 +5,7 @@ import 'package:catalog_assets/src/atlas/bake_frame_source.dart';
 import 'package:catalog_assets/src/atlas/bake_governor.dart';
 import 'package:catalog_assets/src/atlas/bake_pause_signals.dart';
 import 'package:catalog_assets/src/atlas/glyph_baker.dart';
+import 'package:catalog_assets/src/atlas/report_glyph_atlas_error.dart';
 import 'package:flutter/foundation.dart';
 
 /// Drives a [GlyphBaker] one step per frame, so baking never costs the user a
@@ -59,10 +60,7 @@ final class GlyphBakeScheduler {
   final BakeGovernor _governor;
 
   BakeFrameCancel? _cancelFrame;
-  bool _started = false;
-  bool _stepping = false;
-  bool _disposed = false;
-  bool _failed = false;
+  _Phase _phase = _Phase.notStarted;
   int _quietFrames = 0;
   // How long the last strip step took, until the next frame folds it into one
   // observation with the engine's own measurement.
@@ -77,11 +75,18 @@ final class GlyphBakeScheduler {
   /// Starts baking, as far as the pause signals allow. Calling it twice, or
   /// after [dispose], does nothing.
   void start() {
-    if (_started || _disposed) return;
-    _started = true;
+    if (_phase != _Phase.notStarted) return;
+    _phase = _Phase.running;
     _signals.addListener(_onSignal);
     _resumeIfAllowed();
   }
+
+  /// Asks for a frame again if there is work and baking is allowed. The
+  /// scheduler stops asking once every page is baked; call this after the
+  /// baker was given work again (a page forgotten with
+  /// [GlyphBaker.markUnbaked]). Does nothing while a frame is already
+  /// requested, a step is running, or after a failure or [dispose].
+  void resume() => _resumeIfAllowed();
 
   /// Bakes the pages holding [glyphs] (the visible band, most important
   /// first) before the others. Safe to call at any time, including while a
@@ -92,10 +97,11 @@ final class GlyphBakeScheduler {
   /// Idempotent. Does not dispose the baker: stored pages and the baker belong
   /// to whoever made them, and a step already running finishes harmlessly.
   void dispose() {
-    if (_disposed) return;
-    _disposed = true;
+    final wasStarted = _phase != _Phase.notStarted;
+    if (_phase == _Phase.disposed) return;
+    _phase = _Phase.disposed;
     _cancelPendingFrame();
-    if (_started) _signals.removeListener(_onSignal);
+    if (wasStarted) _signals.removeListener(_onSignal);
   }
 
   // --- Pause rules -----------------------------------------------------------
@@ -112,10 +118,7 @@ final class GlyphBakeScheduler {
   }
 
   void _resumeIfAllowed() {
-    if (_disposed ||
-        _failed ||
-        !_started ||
-        _stepping ||
+    if (_phase != _Phase.running ||
         _cancelFrame != null ||
         _baker.isComplete ||
         !_signals.allowsBaking) {
@@ -133,7 +136,7 @@ final class GlyphBakeScheduler {
 
   void _onFrame(BakeFrame frame) {
     _cancelFrame = null;
-    if (_disposed || !_signals.allowsBaking) return;
+    if (_phase != _Phase.running || !_signals.allowsBaking) return;
 
     _observe(frame);
     if (_quietFrames < settleFrames) {
@@ -166,7 +169,7 @@ final class GlyphBakeScheduler {
   }
 
   Future<void> _runStep() async {
-    _stepping = true;
+    _phase = _Phase.stepping;
     try {
       final started = _clock();
       final result = await _baker.step(glyphs: _governor.glyphsPerFrame);
@@ -176,25 +179,38 @@ final class GlyphBakeScheduler {
         case BakeStep.page:
           // A page composes in one step whatever the pace and its time is
           // mostly the store's, so it is not held against the governor.
-          if (!_disposed) onPageBaked?.call(_baker.lastBakedPage!);
+          if (_phase != _Phase.disposed) {
+            onPageBaked?.call(_baker.lastBakedPage!);
+          }
         case BakeStep.done:
           break;
       }
     } on Object catch (error, stack) {
       // Never swallowed, and never retried in a loop: a rasteriser or store
       // that throws once will throw every frame.
-      _failed = true;
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: error,
-          stack: stack,
-          library: 'catalog_assets',
-          context: ErrorDescription('while baking glyph atlas pages'),
-        ),
-      );
-    } finally {
-      _stepping = false;
+      _phase = _Phase.failed;
+      reportGlyphAtlasError(error, stack, 'while baking glyph atlas pages');
     }
+    if (_phase == _Phase.stepping) _phase = _Phase.running;
     _resumeIfAllowed();
   }
+}
+
+/// Where the scheduler is in its life. One value instead of independent
+/// flags: it cannot be stepping before it started, or failed and disposed.
+enum _Phase {
+  /// Created; [GlyphBakeScheduler.start] has not run.
+  notStarted,
+
+  /// Started, between steps: waiting for a frame or for the signals.
+  running,
+
+  /// A [GlyphBaker.step] is in flight.
+  stepping,
+
+  /// A step threw. It would throw every frame, so nothing runs again.
+  failed,
+
+  /// Torn down; a step still in flight finishes harmlessly.
+  disposed,
 }
