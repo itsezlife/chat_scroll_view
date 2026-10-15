@@ -4,6 +4,7 @@ import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_chrome/src/panel/emoji_glyph_atlas_host.dart';
 import 'package:emoji_data/emoji_data.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// An emoji source that is ready at once and whose tones the test sets.
@@ -48,10 +49,12 @@ void main() {
   late FakeBakeFrameSource frames;
   late _Data data;
   late List<GlyphAtlas> created;
+  late List<GlyphPageResidency> residencies;
 
   setUp(() {
     frames = FakeBakeFrameSource();
     created = [];
+    residencies = [];
     data = _Data([
       _category('faces', const [
         EmojiItem.unicode(glyph: '😀'),
@@ -64,8 +67,14 @@ void main() {
   });
   tearDown(() => data.dispose());
 
-  EmojiGlyphAtlasHost host({bool bakes = true}) {
+  EmojiGlyphAtlasHost host({
+    bool bakes = true,
+    Duration? pageRetention,
+    Listenable? memoryPressure,
+  }) {
     final host = EmojiGlyphAtlasHost(
+      pageRetention: pageRetention ?? GlyphPageResidency.defaultRetention,
+      memoryPressure: memoryPressure,
       dataSource: data,
       frames: frames,
       devicePixelRatio: 2,
@@ -80,7 +89,9 @@ void main() {
             required clock,
             required panelVisible,
             required panelOpening,
+            residency,
           }) {
+            residencies.add(residency!);
             if (!bakes) return null;
             final atlas = GlyphAtlas(
               index: index,
@@ -90,6 +101,7 @@ void main() {
               clock: clock,
               panelVisible: panelVisible,
               panelOpening: panelOpening,
+              residency: residency,
             );
             created.add(atlas);
             return atlas;
@@ -187,6 +199,63 @@ void main() {
 
     h.panelOpening.value = false;
     expect(frames.hasPendingRequest, isTrue);
+  });
+
+  group('page residency', () {
+    test('keeps pages for 60 seconds by default', () {
+      host().sync(recents: const []);
+
+      expect(residencies.single.retention, const Duration(seconds: 60));
+    });
+
+    test('takes the retention the host configures, for every plan', () {
+      final h = host(pageRetention: const Duration(seconds: 5))
+        ..sync(recents: const []);
+      data.tones['👍'] = 3;
+      h.sync(recents: const []);
+
+      expect(residencies, hasLength(2));
+      expect(
+        residencies.map((r) => r.retention),
+        everyElement(const Duration(seconds: 5)),
+      );
+    });
+
+    test('memory pressure releases the baked pages', () async {
+      final pressure = ManualMemoryPressure();
+      addTearDown(pressure.dispose);
+      final h = host(memoryPressure: pressure)..sync(recents: const []);
+      h.panelVisible.value = true;
+      while (frames.hasPendingRequest) {
+        frames.pump();
+        await pumpEventQueue();
+      }
+      expect(h.atlas!.residency.residentPages, isNotEmpty);
+
+      pressure.raise();
+
+      expect(h.atlas!.residency.residentPages, isEmpty);
+    });
+
+    test('a replaced atlas stops listening to memory pressure', () {
+      final pressure = ManualMemoryPressure();
+      addTearDown(pressure.dispose);
+      final h = host(memoryPressure: pressure)..sync(recents: const []);
+      expect(pressure.isListened, isTrue);
+
+      h.dispose();
+
+      expect(pressure.isListened, isFalse);
+    });
+
+    test('a platform that does not bake keeps no residency listening', () {
+      final pressure = ManualMemoryPressure();
+      addTearDown(pressure.dispose);
+
+      host(bakes: false, memoryPressure: pressure).sync(recents: const []);
+
+      expect(pressure.isListened, isFalse);
+    });
   });
 
   test('dispose releases the atlas and the pause notifiers', () {

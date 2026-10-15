@@ -170,6 +170,9 @@ class _KeyboardPanelState extends State<KeyboardPanel>
   /// Owns the emoji atlas across opens and closes; created once the view and
   /// density are known ([didChangeDependencies]).
   EmojiGlyphAtlasHost? _atlasHost;
+
+  /// Tells the atlas pages to go when the system wants memory back.
+  SystemMemoryPressure? _memoryPressure;
   SchedulerBakeFrameSource? _bakeFrames;
 
   // --- Bottom bar -----------------------------------------------------------
@@ -233,6 +236,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       dataSource: _dataSource,
       frames: frames,
       devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+      memoryPressure: _memoryPressure = SystemMemoryPressure(),
     );
     _dataSource.addDataListener(_syncAtlas);
     _syncBakeSignals();
@@ -286,6 +290,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     _atlasHost
       ?..removeListener(_onAtlasChanged)
       ..dispose();
+    _memoryPressure?.dispose();
     _bakeFrames?.dispose();
     _progress
       ..removeListener(_onProgressTick)

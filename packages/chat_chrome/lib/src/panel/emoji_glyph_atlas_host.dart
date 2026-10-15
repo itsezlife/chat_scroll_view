@@ -15,6 +15,7 @@ typedef GlyphAtlasFactory =
       required BakeClock clock,
       required ValueListenable<bool> panelVisible,
       required ValueListenable<bool> panelOpening,
+      GlyphPageResidency? residency,
     });
 
 /// Owns the [GlyphAtlas] of the emoji grid for as long as the panel shell
@@ -36,18 +37,35 @@ typedef GlyphAtlasFactory =
 /// the new pages bake. Keeping the old pages visible meanwhile is the disk
 /// cache's job (baked-atlas ticket 09).
 ///
+/// ## How long the pages stay
+///
+/// The pages are not kept for the life of the shell. Each atlas gets a
+/// [GlyphPageResidency] that holds them while the panel is open and for
+/// `pageRetention` after it closes (60 seconds unless the host says
+/// otherwise), and releases them at once when `memoryPressure` fires.
+/// Reopening within the retention needs no reload; after it, or after
+/// pressure, the pages are read back from the store. With the default
+/// in-memory store the texture stays alive behind the store's own handle, so
+/// release frees the handles but not the bytes; a store that persists pages
+/// off the heap (the disk cache) is what returns the memory.
+///
 /// On a platform that does not bake ([atlasFactory] returns null) there is
 /// never an atlas and the grid draws text, as it always did.
 final class EmojiGlyphAtlasHost extends ChangeNotifier {
   /// Creates a host that plans from [dataSource] and bakes on [frames].
   ///
   /// [devicePixelRatio] sizes the baked glyph (capped at the atlas maximum).
-  /// The remaining arguments default to the system font, an in-memory store,
-  /// a wall clock and the platform's atlas factory; tests replace them.
+  /// [pageRetention] is how long baked pages stay resident after the panel
+  /// closes; [memoryPressure] (typically a `SystemMemoryPressure` the shell
+  /// owns and disposes) releases them at once. The remaining arguments default
+  /// to the system font, an in-memory store, a wall clock and the platform's
+  /// atlas factory; tests replace them.
   EmojiGlyphAtlasHost({
     required EmojiDataSource dataSource,
     required BakeFrameSource frames,
     required double devicePixelRatio,
+    Duration pageRetention = GlyphPageResidency.defaultRetention,
+    Listenable? memoryPressure,
     GlyphRasteriser? rasteriser,
     GlyphPageStore? store,
     BakeClock? clock,
@@ -55,6 +73,8 @@ final class EmojiGlyphAtlasHost extends ChangeNotifier {
   }) : _dataSource = dataSource,
        _frames = frames,
        _devicePixelRatio = devicePixelRatio,
+       _pageRetention = pageRetention,
+       _memoryPressure = memoryPressure,
        _rasteriser = rasteriser ?? ParagraphGlyphRasteriser(),
        _store = store ?? MemoryGlyphPageStore(),
        _clock = clock ?? _wallClock(),
@@ -63,6 +83,8 @@ final class EmojiGlyphAtlasHost extends ChangeNotifier {
   final EmojiDataSource _dataSource;
   final BakeFrameSource _frames;
   final double _devicePixelRatio;
+  final Duration _pageRetention;
+  final Listenable? _memoryPressure;
   final GlyphRasteriser _rasteriser;
   final GlyphPageStore _store;
   final BakeClock _clock;
@@ -93,6 +115,10 @@ final class EmojiGlyphAtlasHost extends ChangeNotifier {
       return;
     }
     current?.dispose();
+    final residency = GlyphPageResidency(
+      retention: _pageRetention,
+      memoryPressure: _memoryPressure,
+    );
     // The layout depends on the display only; the glyph box is nominal (the
     // grid scales the sprite to its real cell).
     final atlas = _atlasFactory(
@@ -109,7 +135,10 @@ final class EmojiGlyphAtlasHost extends ChangeNotifier {
       clock: _clock,
       panelVisible: panelVisible,
       panelOpening: panelOpening,
+      residency: residency,
     );
+    // An atlas takes its residency over; without one nobody would dispose it.
+    if (atlas == null) residency.dispose();
     _atlas = atlas?..start();
     if (current != null || atlas != null) notifyListeners();
   }

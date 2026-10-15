@@ -34,23 +34,21 @@ abstract final class EmojiTabAssets {
 
   /// Asset path for a known unicode category id (fallback: smiles).
   static String categoryAssetForId(String id) => switch (id) {
-        'recents' => recent,
-        'smileys' => smiles,
-        'animals' => cat,
-        'food' => food,
-        'activities' => activities,
-        'travel' => travel,
-        'objects' => objects,
-        'symbols' => other,
-        'flags' => flags,
-        _ => smiles,
-      };
+    'recents' => recent,
+    'smileys' => smiles,
+    'animals' => cat,
+    'food' => food,
+    'activities' => activities,
+    'travel' => travel,
+    'objects' => objects,
+    'symbols' => other,
+    'flags' => flags,
+    _ => smiles,
+  };
 
   /// Strip icon for a known unicode category id.
-  static EmojiStripIcon stripIconForId(String id) => EmojiStripIcon.asset(
-        categoryAssetForId(id),
-        package: package,
-      );
+  static EmojiStripIcon stripIconForId(String id) =>
+      EmojiStripIcon.asset(categoryAssetForId(id), package: package);
 
   /// Recents strip icon.
   static EmojiStripIcon get recentsStripIcon =>

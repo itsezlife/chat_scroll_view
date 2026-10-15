@@ -1,6 +1,7 @@
 import 'package:catalog_assets/src/atlas/bake_frame_source.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_index.dart';
+import 'package:catalog_assets/src/atlas/glyph_page_residency.dart';
 import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
 import 'package:flutter/foundation.dart';
@@ -17,6 +18,7 @@ GlyphAtlas? createGlyphAtlasForPlatform({
   required BakeClock clock,
   required ValueListenable<bool> panelVisible,
   required ValueListenable<bool> panelOpening,
+  GlyphPageResidency? residency,
 }) => GlyphAtlas(
   index: index,
   rasteriser: rasteriser,
@@ -25,4 +27,5 @@ GlyphAtlas? createGlyphAtlasForPlatform({
   clock: clock,
   panelVisible: panelVisible,
   panelOpening: panelOpening,
+  residency: residency,
 );
