@@ -16,7 +16,8 @@ indicative; label their numbers non-gating.
 - The demo keeps its cache in `<temporary directory>/emoji_glyph_atlas_cache`.
   Clear it with *Settings > Apps > (the demo) > Storage > Clear cache*, or
   uninstall and install again. The art version is
-  `--dart-define=EMOJI_ART_VERSION=<text>` (default `unversioned`).
+  `--dart-define=EMOJI_ART_VERSION=<text>`; without it the demo uses the
+  sentinel pixel fingerprint, which changes when the system's emoji art does.
 
 ## 1. First run, no cache (automated)
 
@@ -90,3 +91,14 @@ launch at that density is a hit.
 For each run: device, build mode, refresh rate, the label of the run, frames
 over budget and raster p99 from `example/perf/runs/<label>/`, the `cache*` meta
 keys, and a screen capture for the manual steps.
+
+## 4. Real OS update and the glyph probe (reference device)
+
+The simulated update above does not exercise the fingerprint. On a device whose
+system emoji font really changes (an OS update, or a font swap on a test
+device), launch without the `EMOJI_ART_VERSION` define before and after:
+the second launch must report `cacheVerdict: stale` and re-bake behind the old
+pages. On a device that lacks the newest emoji, the grid must show no
+missing-glyph box once the probe has finished (first run) or from the start (a
+later launch with the probe's persisted result). These are not automated; the
+logic is covered by the fake-system tests named in the package CHANGELOGs.

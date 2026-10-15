@@ -94,6 +94,7 @@ void main() {
             required panelVisible,
             required panelOpening,
             residency,
+            observer,
           }) {
             residencies.add(residency!);
             if (!bakes) return null;
@@ -107,6 +108,7 @@ void main() {
               panelVisible: panelVisible,
               panelOpening: panelOpening,
               residency: residency,
+              observer: observer,
             );
             created.add(atlas);
             return atlas;

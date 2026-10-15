@@ -32,6 +32,8 @@ export 'src/panel/emoji_color_picker.dart';
 export 'src/panel/emoji_deferred_recents.dart';
 export 'src/panel/emoji_glyph.dart';
 export 'src/panel/emoji_glyph_cell.dart';
+export 'src/panel/glyph_probe_bake_observer.dart';
+export 'src/panel/sentinel_glyph_art_version.dart';
 export 'src/panel/emoji_page.dart';
 export 'src/panel/keyboard_panel.dart';
 export 'src/panel/keyboard_panel_controller.dart';

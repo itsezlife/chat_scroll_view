@@ -62,6 +62,7 @@ class KeyboardPanel extends StatefulWidget {
     this.labels = KeyboardPanelLabels.english,
     this.glyphCache,
     this.glyphArtVersion,
+    this.glyphBakeObserver,
     super.key,
   }) : assert(
          glyphCache == null || glyphArtVersion != null,
@@ -101,6 +102,11 @@ class KeyboardPanel extends StatefulWidget {
   /// Tells when the system emoji art changed, so persisted pages are re-baked
   /// behind the old ones. Used with [glyphCache].
   final GlyphArtVersionSource? glyphArtVersion;
+
+  /// Shown every glyph the emoji bake draws, so the glyph-support probe shares
+  /// that pass (see `EmojiGlyphAtlasHost`). Read once, when the panel first
+  /// mounts.
+  final GlyphBakeObserver? glyphBakeObserver;
 
   @override
   State<KeyboardPanel> createState() => _KeyboardPanelState();
@@ -259,6 +265,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
               devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
             ),
       memoryPressure: _memoryPressure = SystemMemoryPressure(),
+      observer: widget.glyphBakeObserver,
     );
     _dataSource.addDataListener(_syncAtlas);
     _syncBakeSignals();

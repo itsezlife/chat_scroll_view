@@ -155,8 +155,16 @@ On a stale verdict the old pages keep drawing the glyphs they hold while the new
 _Avoid_: Swapping page by page, deleting the old pages when the rebake starts, committing the staged pages before they are all baked
 
 **Art version signal**:
-An opaque string that changes when the system emoji art may have changed (an OS or emoji font update), supplied behind the `GlyphArtVersionSource` seam without any native plugin. Part of the glyph cache key; a signal that cannot be read means nothing persisted is trusted for that launch.
+An opaque string that changes when the system emoji art may have changed (an OS or emoji font update), supplied behind the `GlyphArtVersionSource` seam without any native plugin. Part of the glyph cache key; a signal that cannot be read means nothing persisted is trusted for that launch. The intended source is a **sentinel fingerprint**: a pixel hash of a few sentinel glyphs spanning emoji versions, drawn by the same rasteriser the bake uses, one per frame, once per launch. It changes when a sentinel is restyled or a newer sentinel turns from a missing-glyph box into art; an OS version string is not part of it, because it changes without the art changing.
 _Avoid_: Reading the OS version in the engine, a native call for the font version
+
+**Glyph probe**:
+Decides which glyphs the system cannot draw, from pixels it is handed: a glyph is unsupported when its cell is identical to the cell of a missing-glyph reference, or empty. It rasterises nothing itself, keeps only a hash per cell, and has no verdict (neither supported nor unsupported) for a glyph it has not seen; a missing verdict means "show it". Its result is valid for one art version and is discarded for another. Pure Dart, in the emoji data layer.
+_Avoid_: A native glyph-support query, probing by drawing every glyph a second time, hiding a glyph that has no verdict
+
+**Shared bake pass**:
+The bake draws every glyph once into a strip; an optional **bake observer** is shown each wanted glyph's cell (and the reference glyphs, drawn once in a strip that is never baked into a page) after the strip is made, so the probe needs no rasterising pass of its own. The readback is off the baking step, a strip at a time, and skipped for strips nobody wants. The pass only sees what is baked: a cache hit restores pages and draws nothing, so the probe keeps its own persisted result for the art version. The atlas plans the unfiltered glyph list and the grid hides unsupported glyphs by filtering its data, so the cache key never depends on the probe's result.
+_Avoid_: A second rasterising pass for the probe, filtering the atlas plan by the probe (it would re-bake every page once the probe finishes)
 
 **Page residency**:
 Which atlas pages are resident and for how long. A page is pinned by a hold: one per leaf binding (the page its glyph is on, from attach to detach) and one on every page while the panel is open. When nothing pins a page, a retention time-to-live starts (60 seconds by default, host-configurable); a new hold within it cancels the release, so reopening needs no reload, and after it the page is read back from the page store. Memory pressure releases every page at once, pinned or not. Hold counts belong to the holder and survive the release of the image, so evicting or clearing a cache entry under a live binding never changes a count.

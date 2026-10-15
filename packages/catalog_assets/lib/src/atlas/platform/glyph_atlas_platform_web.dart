@@ -2,6 +2,7 @@ import 'package:catalog_assets/src/atlas/bake_frame_source.dart';
 import 'package:catalog_assets/src/atlas/cache/glyph_atlas_persistence.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_index.dart';
+import 'package:catalog_assets/src/atlas/glyph_bake_observer.dart';
 import 'package:catalog_assets/src/atlas/glyph_page_residency.dart';
 import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
@@ -23,4 +24,5 @@ GlyphAtlas? createGlyphAtlasForPlatform({
   required ValueListenable<bool> panelVisible,
   required ValueListenable<bool> panelOpening,
   GlyphPageResidency? residency,
+  GlyphBakeObserver? observer,
 }) => null;
