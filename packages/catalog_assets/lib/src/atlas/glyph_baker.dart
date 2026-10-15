@@ -27,11 +27,15 @@ enum BakeStep {
 /// - a **page**: the strips of one page composed into a 2048 px page image and
 ///   handed to the [GlyphPageStore].
 ///
-/// Pages bake in index order; a page is composed only when all its glyphs are
-/// in strips, and a glyph has a [spriteOf] only once its page is stored. It
+/// Pages bake in index order unless [prioritise] says which glyphs the user
+/// is looking at. A page is composed only when all its glyphs are in strips,
+/// and a glyph has a [spriteOf] only once its page is stored, so priority
+/// works at page granularity: where a glyph sits is fixed by catalogue order
+/// (a persisted page must match its glyphs again), and a visible glyph waits
+/// for at most the page it is on, never for the rest of the catalogue. It
 /// runs on the root isolate, because picture and text APIs are not available
 /// in spawned isolates. The baker decides nothing about *when* to run:
-/// pacing, priority and pausing are the caller's.
+/// pacing and pausing are the caller's (see `GlyphBakeScheduler`).
 ///
 /// The baker never detects missing glyphs and never falls back to a
 /// paragraph; it bakes exactly what the index lists.
@@ -56,17 +60,43 @@ final class GlyphBaker {
   final List<Image> _strips = <Image>[];
   final List<int> _stripGlyphCounts = <int>[];
   int _stripped = 0;
-  int _bakedPages = 0;
+  // The page whose strips are in [_strips], or null between pages.
+  int? _current;
+  final Set<int> _baked = <int>{};
+  // Pages holding the prioritised glyphs, in the order they were listed.
+  List<int> _wanted = const <int>[];
+  int? _lastBakedPage;
   bool _stepping = false;
   bool _disposed = false;
 
   GlyphAtlasLayout get _layout => index.layout;
 
   /// Whether every page is composed and stored.
-  bool get isComplete => _bakedPages >= index.pageCount;
+  bool get isComplete => _baked.length >= index.pageCount;
 
   /// Whether page [pageIndex] is composed and stored.
-  bool isPageBaked(int pageIndex) => pageIndex < _bakedPages;
+  bool isPageBaked(int pageIndex) => _baked.contains(pageIndex);
+
+  /// The page the latest [BakeStep.page] composed, or null before the first.
+  int? get lastBakedPage => _lastBakedPage;
+
+  /// Says which glyphs the user is looking at, most important first; their
+  /// pages bake before the others, then the pages nearest to them.
+  ///
+  /// A page in progress that holds none of them is left for later: its strips
+  /// are dropped and it bakes again from scratch, because making a visible
+  /// glyph wait for a whole page of unseen work is worse than redoing some of
+  /// it. A page in progress that holds one is finished, never restarted.
+  /// Glyphs outside the catalogue are ignored; an empty list restores
+  /// catalogue order. Cheap: nothing is baked until the next [step].
+  void prioritise(Iterable<String> glyphs) {
+    final pages = <int>[];
+    for (final glyph in glyphs) {
+      final page = index.placementOf(glyph)?.pageIndex;
+      if (page != null && !pages.contains(page)) pages.add(page);
+    }
+    _wanted = pages;
+  }
 
   /// Sprite of [glyph], or null when it is unknown or its page is not baked
   /// yet (the caller shows a placeholder until then).
@@ -84,7 +114,7 @@ final class GlyphBaker {
     if (isComplete) return BakeStep.done;
     _stepping = true;
     try {
-      final page = _bakedPages;
+      final page = _pageToBake();
       final onPage = index.glyphsOnPage(page);
       if (_stripped < onPage.length) {
         _bakeStrip(onPage, glyphs);
@@ -113,6 +143,32 @@ final class GlyphBaker {
   void dispose() {
     _disposed = true;
     _dropStrips();
+  }
+
+  /// The page this step works on: the one in progress while it is still
+  /// wanted (or nothing wanted is left), else the best unbaked page.
+  int _pageToBake() {
+    final current = _current;
+    final wanted = _wanted.where((p) => !isPageBaked(p));
+    if (current != null) {
+      if (wanted.isEmpty || _wanted.contains(current)) return current;
+      _dropStrips();
+    }
+    return _current = wanted.isNotEmpty ? wanted.first : _nearestUnbaked();
+  }
+
+  /// The unbaked page nearest to a wanted one, lowest index first on a tie;
+  /// with nothing wanted that is simply the lowest unbaked page.
+  int _nearestUnbaked() {
+    int distance(int page) => _wanted.isEmpty
+        ? page
+        : _wanted.map((w) => (w - page).abs()).reduce(math.min);
+    int? best;
+    for (var page = 0; page < index.pageCount; page++) {
+      if (isPageBaked(page)) continue;
+      if (best == null || distance(page) < distance(best)) best = page;
+    }
+    return best!;
   }
 
   void _bakeStrip(List<String> onPage, int budget) {
@@ -170,7 +226,9 @@ final class GlyphBaker {
     } finally {
       image.dispose();
     }
-    _bakedPages++;
+    _baked.add(page);
+    _lastBakedPage = page;
+    _current = null;
   }
 
   void _dropStrips() {
@@ -180,5 +238,6 @@ final class GlyphBaker {
     _strips.clear();
     _stripGlyphCounts.clear();
     _stripped = 0;
+    _current = null;
   }
 }

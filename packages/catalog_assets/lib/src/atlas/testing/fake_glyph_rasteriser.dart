@@ -6,6 +6,13 @@ import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
 /// one opaque colour derived from the glyph, so a test can tell which glyph
 /// ended up where by reading a pixel ([colorFor]).
 final class FakeGlyphRasteriser implements GlyphRasteriser {
+  /// Creates a fake; [onPaint] runs after each glyph is painted, so a test can
+  /// advance a clock to model a slow glyph or throw to model a missing font.
+  FakeGlyphRasteriser({this.onPaint});
+
+  /// Called with each glyph after it is painted, or null.
+  final void Function(String glyph)? onPaint;
+
   /// Glyphs painted so far, in order (one entry per [paint] call).
   final List<String> painted = <String>[];
 
@@ -28,5 +35,6 @@ final class FakeGlyphRasteriser implements GlyphRasteriser {
         ..color = colorFor(glyph)
         ..isAntiAlias = false,
     );
+    onPaint?.call(glyph);
   }
 }

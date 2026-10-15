@@ -6,9 +6,14 @@
 /// store are seams; their fakes and contract suites are in `testing.dart`.
 library;
 
+export 'src/atlas/bake_frame_source.dart';
+export 'src/atlas/bake_governor.dart';
+export 'src/atlas/bake_pause_signals.dart';
 export 'src/atlas/glyph_atlas_index.dart';
 export 'src/atlas/glyph_atlas_layout.dart';
+export 'src/atlas/glyph_bake_scheduler.dart';
 export 'src/atlas/glyph_baker.dart';
 export 'src/atlas/glyph_page_store.dart';
 export 'src/atlas/glyph_rasteriser.dart';
 export 'src/atlas/paragraph_glyph_rasteriser.dart';
+export 'src/atlas/scheduler_bake_frame_source.dart';
