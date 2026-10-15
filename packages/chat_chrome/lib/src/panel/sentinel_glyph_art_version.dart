@@ -9,8 +9,11 @@ import 'package:flutter/scheduler.dart';
 /// Joins the data layer's fingerprint (`computeGlyphArtFingerprint`, which
 /// knows sentinels and hashing) with the asset layer's seam
 /// (`GlyphArtVersionSource`, which knows the cache key). It draws with the same
-/// rasteriser the bake uses, so the version changes exactly when the baked art
-/// would. Computed once, on the first read (the atlas reads it at start), one
+/// rasteriser the bake uses, so a system emoji art update that redraws the
+/// sentinels changes the version. It samples a few glyphs, so an update
+/// confined to others goes unseen.
+///
+/// Computed once, on the first read (the atlas reads it at start), one
 /// sentinel per frame, so it never lands more than one small render in a
 /// frame; the persisted cache key holds the previous value, and a difference
 /// is what makes the cached pages stale.

@@ -81,6 +81,7 @@ void main() {
         kColdFirstPassScenario,
         asserted: true,
         timeline: _traceTimeline,
+        requireBaked: true,
         body: () => flingPass(tester),
       ),
     );

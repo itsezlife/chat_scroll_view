@@ -75,10 +75,14 @@ Each row below says whether it is **built** (in the packages today) or
 - Static glyph pages are immutable once composed and 2048 x 2048. The baked
   glyph size is one tunable constant capped at 72 px, with a 2 px transparent
   gutter (about 676 cells per page, three pages for the current catalogue).
-- Resident atlas memory is at most 64 MiB while the panel is open. Pages stay
-  resident for a 60 s **retention** after the last holder leaves and are
-  released at once on memory pressure; a released page is read back from the
-  page store. Escalation if the size cap fails a visual check on a device
+- Resident atlas memory is at most 64 MiB while the panel is open, except
+  while a rebake draws the previous pages behind it (an art, catalogue or
+  density change): both sets are resident until the swap, about twice that for
+  a few seconds, which is the price of no visible gap. The previous set is
+  counted with the resident bytes and released with them on memory pressure.
+  Pages stay resident for a 60 s **retention** after the last holder leaves and
+  are released at once on memory pressure; a released page is read back from
+  the page store, one page per frame. Escalation if the size cap fails a visual check on a device
   class: windowed residency (a few pages resident, the rest reloaded from the
   disk cache), not a higher ceiling.
 - A second, dynamic page pool for animation frames may join later under the

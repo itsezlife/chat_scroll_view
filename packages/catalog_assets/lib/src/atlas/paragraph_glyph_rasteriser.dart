@@ -8,7 +8,7 @@ import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
 /// This is the only place a glyph is drawn as text; the bake runs it once per
 /// glyph and scroll time draws the resulting sprite instead. The font size is
 /// [fontScale] of the cell: an emoji advance is wider than its em, and the
-/// prototype's 0.85 keeps the widest sequences inside their cell.
+/// default of 0.85 keeps the widest sequences inside their cell.
 final class ParagraphGlyphRasteriser implements GlyphRasteriser {
   /// Creates a rasteriser whose font size is [fontScale] of the cell height.
   ParagraphGlyphRasteriser({this.fontScale = 0.85});

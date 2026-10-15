@@ -102,5 +102,5 @@ demo, so there is nothing to check for it on a device yet.
 
 For each run: device, build mode, refresh rate, the label of the run, frames
 over budget and raster p99 from `example/perf/runs/<label>/`, the `cache*` and
-`atlasResident*` meta keys (resident pages must stay within 64 MiB), and a
+`atlasResident*` meta keys (resident pages must stay within 64 MiB; read when the scenario ends, so a rebake's two-set peak is not in them), and a
 screen capture for the manual steps.

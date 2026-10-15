@@ -35,9 +35,9 @@ with no layout change. The circle returns, or stays, when:
 | --------- | ------------------- |
 | First run, nothing persisted | Circle until the glyph's page is baked (the visible page bakes first) |
 | Cold start, valid disk cache | Circle until the page is restored, at most 500 ms |
-| Glyph the atlas did not plan (for example a skin tone chosen for the first time) | Circle until the next bake covers it; pages already baked keep drawing |
+| Glyph the atlas did not plan (for example a skin tone chosen for the first time) | Circle until the next bake covers it; the art already drawn keeps drawing |
 | System emoji art or catalogue changed (stale) | The old sprite, then every cell changes at once when the new set is complete |
-| Screen density or baked cell size changed (discard) | Circle, as on a first run |
+| Screen density or baked cell size differs from the persisted pages (discard) | Circle, as on a first run; when the density changes in a running session the art already drawn stays until the new set is complete |
 | A page released on memory pressure | Its cells draw again once the page is read back from the page store |
 
 Animated leaves never use this circle, even though a translucent placeholder

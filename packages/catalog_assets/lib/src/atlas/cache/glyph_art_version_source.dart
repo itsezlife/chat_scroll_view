@@ -3,10 +3,11 @@
 /// or emoji font update) and persisted pages are out of date.
 ///
 /// A seam, because how the version is learned is not this package's business
-/// and must not need a native plugin: the intended source is a pixel
-/// fingerprint of a few sentinel glyphs rendered at startup (the glyph probe),
-/// with the OS version string as a supplementary part where it is meaningful.
-/// Until that exists a host supplies a [FixedGlyphArtVersion].
+/// and must not need a native plugin. A host that knows the version (an OS
+/// version string, or a value that simulates an update) gives a
+/// [FixedGlyphArtVersion]; one that reads it from the pixels gives a
+/// [ComputedGlyphArtVersion] over a fingerprint of a few sentinel glyphs
+/// rendered by the rasteriser the bake uses.
 ///
 /// Contract: [read] completes with the same string for the same art, however
 /// often it is called, and may take several frames. It may throw; the atlas

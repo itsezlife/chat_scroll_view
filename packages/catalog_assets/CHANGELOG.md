@@ -70,8 +70,30 @@ is pre-1.0.
   takes an optional `residency`. `testing.dart` adds `ManualRetentionTimers` and
   `ManualMemoryPressure`.
 
+- **Replacing an atlas without a gap.** `GlyphAtlas.retire()` stops an atlas
+  and returns its drawn art as `RetiredGlyphArt`; `GlyphAtlas(predecessor:)`
+  (and `createGlyphAtlasForPlatform(predecessor:)`) draws that art from its
+  first frame, bakes behind it and swaps once, as for a stale persisted set.
+  `RetiredGlyphArt.settled` completes when the retired atlas has no disk
+  operation in flight; a persistent successor waits for it before it stages,
+  so a cache store has one writer. `GlyphAtlas.residentBytes` counts the
+  resident pages and the stale set; `GlyphPageResidency` gains
+  `addPressureListener` and `takeImage`; `GlyphAtlasPersistence` gains
+  `withDevicePixelRatio`.
+
 ### Fixed
 
+- A page the store cannot hand back is baked again once instead of staying a
+  circle for the life of the process; a second failed read gives up on it.
+- Released pages are read back one per frame, and not during a scroll or the
+  open animation, when the panel opens or a surface asks for a sprite. Before,
+  opening the panel read every released page at once.
+- `GlyphAtlas.spriteOf` allocates nothing once a sprite is cut.
+- The stale set is released on memory pressure like the resident pages, and
+  counted in `GlyphAtlas.residentBytes`.
+- `FileGlyphPageStore` and `FileGlyphCacheStore` report an unreadable page,
+  manifest or undecodable page through `FlutterError.reportError` with its
+  stack. A file that does not exist is still a quiet miss.
 - `MemoryCatalogAssetCache`: a binding detaching after `evict` / `clear` no
   longer decrements the attach count of a newer entry with the same key (it
   made a live surface look unretained and could drop its loading entry). A
@@ -79,6 +101,12 @@ is pre-1.0.
 
 ### Changed
 
+- `GlyphAtlas.reportScrolling` takes a `reporter`: motion is the union of what
+  the surfaces sharing an atlas report, so one that settles no longer resumes
+  baking under another that is still moving.
+- `GlyphBaker.bakeAll` and `GlyphBaker.spriteOf` are test conveniences now
+  (`GlyphBakerTesting` in `testing.dart`); a host paces the baker with
+  `GlyphBakeScheduler` and draws through `GlyphAtlas`.
 - `GlyphAtlas.spriteOf` reads a baked page that was released back from the
   store (a side effect of asking, listeners hear the page when it is drawable
   again), and page listeners are also told when a page is released. A sprite
