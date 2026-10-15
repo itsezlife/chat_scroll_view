@@ -34,9 +34,11 @@ void main() {
       required BakeClock clock,
       required ValueListenable<bool> panelVisible,
       required ValueListenable<bool> panelOpening,
+      GlyphPageResidency? residency,
     })
-    factory,
-  ) => factory(
+    factory, {
+    GlyphPageResidency? residency,
+  }) => factory(
     index: GlyphAtlasIndex(['a']),
     rasteriser: FakeGlyphRasteriser(),
     store: MemoryGlyphPageStore(),
@@ -44,6 +46,7 @@ void main() {
     clock: ManualBakeClock().read,
     panelVisible: visible,
     panelOpening: opening,
+    residency: residency,
   );
 
   test('a baking platform gets an atlas', () {
@@ -51,6 +54,17 @@ void main() {
     addTearDown(() => atlas?.dispose());
 
     expect(atlas, isNotNull);
+  });
+
+  test('a baking platform hands the residency to its atlas', () {
+    final residency = GlyphPageResidency();
+    final atlas = create(
+      baking.createGlyphAtlasForPlatform,
+      residency: residency,
+    );
+    addTearDown(() => atlas?.dispose());
+
+    expect(atlas!.residency, same(residency));
   });
 
   test('the web gets none, so it bakes nothing and draws text', () {

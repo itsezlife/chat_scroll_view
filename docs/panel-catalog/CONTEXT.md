@@ -146,6 +146,10 @@ _Avoid_: Reordering cells to put the visible band first (a persisted page must s
 One glyph rasterised once at the baked cell size and addressed as a page plus a source rectangle. The viewport draws the sprites of one atlas page in one batched atlas draw. A paintable without a sprite paints itself.
 _Avoid_: Glyph drawn as text at scroll time on baking platforms, one image draw per leaf, a second paint path for emoji beside the shared paintable contract
 
+**Page residency**:
+Which atlas pages are resident and for how long. A page is pinned by a hold: one per leaf binding (the page its glyph is on, from attach to detach) and one on every page while the panel is open. When nothing pins a page, a retention time-to-live starts (60 seconds by default, host-configurable); a new hold within it cancels the release, so reopening needs no reload, and after it the page is read back from the page store. Memory pressure releases every page at once, pinned or not. Hold counts belong to the holder and survive the release of the image, so evicting or clearing a cache entry under a live binding never changes a count.
+_Avoid_: Releasing a hold by looking the entry up again, a count stored with the image, keeping pages for the life of the shell, a timer or release rule inside the viewport
+
 **Atlas page pool**:
 The set of atlas pages of one kind held by the asset cache within a resident-memory ceiling (64 MiB for static glyph pages). A later dynamic pool for animation frames follows the same sprite contract and is kept separate from the static pool.
 _Avoid_: One pool for static and animated content, a ceiling raised to avoid a size cap

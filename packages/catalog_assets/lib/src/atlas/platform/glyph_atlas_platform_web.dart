@@ -1,6 +1,7 @@
 import 'package:catalog_assets/src/atlas/bake_frame_source.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_index.dart';
+import 'package:catalog_assets/src/atlas/glyph_page_residency.dart';
 import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
 import 'package:flutter/foundation.dart';
@@ -9,7 +10,8 @@ import 'package:flutter/foundation.dart';
 /// strategy), exactly as before the bake existed.
 ///
 /// Takes the arguments of the baking platforms' factory and ignores them, so
-/// the two files are interchangeable at the call site.
+/// the two files are interchangeable at the call site. A `residency` it is
+/// given is the caller's to dispose, as no atlas takes it over.
 GlyphAtlas? createGlyphAtlasForPlatform({
   required GlyphAtlasIndex index,
   required GlyphRasteriser rasteriser,
@@ -18,4 +20,5 @@ GlyphAtlas? createGlyphAtlasForPlatform({
   required BakeClock clock,
   required ValueListenable<bool> panelVisible,
   required ValueListenable<bool> panelOpening,
+  GlyphPageResidency? residency,
 }) => null;

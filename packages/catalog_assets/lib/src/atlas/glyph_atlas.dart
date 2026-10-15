@@ -8,6 +8,7 @@ import 'package:catalog_assets/src/atlas/bake_pause_signals.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_index.dart';
 import 'package:catalog_assets/src/atlas/glyph_bake_scheduler.dart';
 import 'package:catalog_assets/src/atlas/glyph_baker.dart';
+import 'package:catalog_assets/src/atlas/glyph_page_residency.dart';
 import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
 import 'package:flutter/foundation.dart';
@@ -32,10 +33,17 @@ import 'package:flutter/foundation.dart';
 ///
 /// ## Lifetime
 ///
-/// The atlas owns the page images it hands out, and its sprites are valid
-/// until [dispose]; it does not own the store, the rasteriser or the notifiers
-/// the host gave it. Page ownership by reference count moves into the asset
-/// cache later; until then one atlas serves one host.
+/// The page images are owned by the atlas's [residency], not held here: it
+/// counts the holds on each page (one per leaf binding, via [holdPageOf], and
+/// one for the whole panel while [panelVisible] is true), keeps the pages for
+/// its retention after the last hold goes, and releases them at once under
+/// memory pressure. A released page is read back from the store when the
+/// panel opens again or when a surface asks for one of its sprites, so
+/// [spriteOf] is null for a moment and the surface shows its placeholder. A
+/// sprite is valid until the page is released: ask again to draw.
+///
+/// The atlas owns its residency, and disposes it in [dispose]; it does not own
+/// the store, the rasteriser or the notifiers the host gave it.
 ///
 /// Platforms that do not bake never build one (see
 /// `createGlyphAtlasForPlatform`): a surface without an atlas draws its glyphs
@@ -51,7 +59,10 @@ final class GlyphAtlas {
     required ValueListenable<bool> panelVisible,
     required ValueListenable<bool> panelOpening,
     BakeGovernor? governor,
+    GlyphPageResidency? residency,
   }) : _store = store,
+       _panelVisible = panelVisible,
+       _residency = residency ?? GlyphPageResidency(),
        _baker = GlyphBaker(index: index, rasteriser: rasteriser, store: store) {
     _signals = BakePauseSignals(
       panelVisible: panelVisible,
@@ -64,25 +75,39 @@ final class GlyphAtlas {
       clock: clock,
       signals: _signals,
       governor: governor,
-      onPageBaked: _onPageBaked,
+      onPageBaked: _load,
     );
+    _residency.addReleaseListener(_onReleased);
+    panelVisible.addListener(_onVisibleChanged);
+    _onVisibleChanged();
   }
 
   /// The plan being baked.
   final GlyphAtlasIndex index;
 
   final GlyphPageStore _store;
+  final ValueListenable<bool> _panelVisible;
+  final GlyphPageResidency _residency;
   final GlyphBaker _baker;
   late final BakePauseSignals _signals;
   late final GlyphBakeScheduler _scheduler;
   final ValueNotifier<bool> _scrolling = ValueNotifier<bool>(false);
 
-  // Resident pages and the sprites cut from them. A sprite exists only while
-  // its page image is held here, so a lookup never returns a disposed image.
-  final Map<int, Image> _pages = <int, Image>{};
+  // Sprites already cut, so a repaint allocates nothing. An entry is used only
+  // while its page is still the image the residency holds.
   final Map<String, AtlasSprite> _sprites = <String, AtlasSprite>{};
   final List<ValueChanged<int>> _listeners = <ValueChanged<int>>[];
+  // Pages being read from the store, and pages the store could not hand back
+  // (reported once, never retried: a store that failed will fail again).
+  final Set<int> _loading = <int>{};
+  final Set<int> _unreadable = <int>{};
+  // The claim on every page while the panel is open.
+  GlyphPageHold? _openHold;
   bool _disposed = false;
+
+  /// The resident pages: their counts, retention and release. The cache's
+  /// bindings hold pages through [holdPageOf]; this is for inspection.
+  GlyphPageResidency get residency => _residency;
 
   /// Starts baking, as far as the pause signals allow. Does nothing after
   /// [dispose] or when called twice.
@@ -91,10 +116,42 @@ final class GlyphAtlas {
   /// The sprite of [glyph], or null while its page is not baked and loaded,
   /// when the glyph is not in the catalogue, and after [dispose]: the caller
   /// shows a placeholder or paints the glyph itself.
-  AtlasSprite? spriteOf(String glyph) => _sprites[glyph];
+  ///
+  /// A baked page that is not resident (released after the retention or under
+  /// memory pressure) is read back from the store now, which is why this is
+  /// not a pure read; listeners hear the page when it is drawable again.
+  AtlasSprite? spriteOf(String glyph) {
+    if (_disposed) return null;
+    final placement = index.placementOf(glyph);
+    if (placement == null) return null;
+    final page = _residency.imageOf(placement.pageIndex);
+    if (page == null) {
+      _reloadIfBaked(placement.pageIndex);
+      return null;
+    }
+    final cached = _sprites[glyph];
+    if (cached != null && identical(cached.page, page)) return cached;
+    return _sprites[glyph] = AtlasSprite(
+      pageIndex: placement.pageIndex,
+      page: page,
+      source: placement.source,
+    );
+  }
 
-  /// Calls [listener] with the index of each page once its sprites can be
-  /// drawn.
+  /// Claims the page [glyph] is on, for as long as the caller (a leaf binding)
+  /// is bound to it, or returns null when the glyph is not in the catalogue.
+  ///
+  /// The page stays resident while any claim covers it; release the hold when
+  /// unbound. It holds a count, not pixels: ask [spriteOf] when drawing.
+  GlyphPageHold? holdPageOf(String glyph) {
+    if (_disposed) return null;
+    final page = index.placementOf(glyph)?.pageIndex;
+    return page == null ? null : _residency.hold(page);
+  }
+
+  /// Calls [listener] with the index of each page whose drawability changed:
+  /// once its sprites can be drawn, and again when the page is released (a
+  /// surface repaints either way).
   void addPageListener(ValueChanged<int> listener) => _listeners.add(listener);
 
   /// Removes a listener added with [addPageListener].
@@ -121,32 +178,73 @@ final class GlyphAtlas {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _panelVisible.removeListener(_onVisibleChanged);
+    _openHold?.release();
+    _openHold = null;
     _scheduler.dispose();
     _baker.dispose();
     _sprites.clear();
-    for (final page in _pages.values) {
-      page.dispose();
-    }
-    _pages.clear();
     _listeners.clear();
+    _residency.dispose();
     _scrolling.dispose();
   }
 
-  void _onPageBaked(int pageIndex) => unawaited(_loadPage(pageIndex));
+  // The panel being open holds every page; closing it starts the retention.
+  void _onVisibleChanged() {
+    if (_disposed) return;
+    if (_panelVisible.value) {
+      if (_openHold != null) return;
+      _openHold = _residency.holdAll();
+      for (var page = 0; page < index.pageCount; page++) {
+        _reloadIfBaked(page);
+      }
+    } else {
+      _openHold?.release();
+      _openHold = null;
+    }
+  }
 
-  Future<void> _loadPage(int pageIndex) async {
+  void _reloadIfBaked(int pageIndex) {
+    if (_baker.isPageBaked(pageIndex) && !_residency.isResident(pageIndex)) {
+      _load(pageIndex);
+    }
+  }
+
+  void _onReleased(int pageIndex) {
+    for (final glyph in index.glyphsOnPage(pageIndex)) {
+      _sprites.remove(glyph);
+    }
+    _notify(pageIndex);
+  }
+
+  void _notify(int pageIndex) {
+    for (final listener in List<ValueChanged<int>>.of(_listeners)) {
+      listener(pageIndex);
+    }
+  }
+
+  void _load(int pageIndex) {
+    if (_disposed ||
+        _loading.contains(pageIndex) ||
+        _unreadable.contains(pageIndex)) {
+      return;
+    }
+    _loading.add(pageIndex);
+    unawaited(_read(pageIndex));
+  }
+
+  Future<void> _read(int pageIndex) async {
     Image? image;
     try {
       image = await _store.read(pageIndex);
       if (image == null) {
-        throw StateError(
-          'The page store has no page $pageIndex right after it was written.',
-        );
+        throw StateError('The page store has no page $pageIndex to read.');
       }
     } on Object catch (error, stack) {
       // A page that cannot be read back stays unbaked: its glyphs keep their
-      // placeholder. Reported rather than retried, as a store that failed once
-      // will fail again.
+      // placeholder. Reported rather than retried.
+      _loading.remove(pageIndex);
+      _unreadable.add(pageIndex);
       FlutterError.reportError(
         FlutterErrorDetails(
           exception: error,
@@ -159,22 +257,13 @@ final class GlyphAtlas {
       );
       return;
     }
+    _loading.remove(pageIndex);
     if (_disposed) {
       // The atlas went away while the page was on its way; nobody can draw it.
       image.dispose();
       return;
     }
-    _pages.remove(pageIndex)?.dispose();
-    _pages[pageIndex] = image;
-    for (final glyph in index.glyphsOnPage(pageIndex)) {
-      _sprites[glyph] = AtlasSprite(
-        pageIndex: pageIndex,
-        page: image,
-        source: index.placementOf(glyph)!.source,
-      );
-    }
-    for (final listener in List<ValueChanged<int>>.of(_listeners)) {
-      listener(pageIndex);
-    }
+    _residency.admit(pageIndex, image);
+    _notify(pageIndex);
   }
 }
