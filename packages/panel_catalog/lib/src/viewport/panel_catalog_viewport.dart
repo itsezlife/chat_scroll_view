@@ -61,6 +61,12 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// → engine [RenderPanelCatalog.paintTheme]. Hosts customize
 /// [PanelCatalogThemeData] only; the viewport owns density resolution and the
 /// single snapshot handoff.
+///
+/// ## Density
+///
+/// Density is read from the [MediaQuery] of the viewport's own subtree, so it
+/// is the density of the view the viewport sits in and follows that view's
+/// resize / display change. It is never read from the platform's first view.
 class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// Creates an extent-scroll catalog body backed by [dataSource],
   /// [assetCache], and [controller].
@@ -216,6 +222,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       headerLandingInset: headerLandingInset,
       cacheType: cacheType,
       paintTheme: CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr),
+      devicePixelRatio: dpr,
       onLeafTap: onLeafTap,
       onLeafLongPressStart: onLeafLongPressStart,
       onLeafLongPressMove: onLeafLongPressMove,
@@ -242,6 +249,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..headerLandingInset = headerLandingInset
       ..cacheType = cacheType
       ..paintTheme = CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr)
+      ..devicePixelRatio = dpr
       ..onLeafTap = onLeafTap
       ..onLeafLongPressStart = onLeafLongPressStart
       ..onLeafLongPressMove = onLeafLongPressMove

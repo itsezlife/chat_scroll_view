@@ -14,9 +14,8 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 ///
 /// ## Recycle contract
 ///
-/// [syncVisible] keeps bindings for leaf slots whose vertical span intersects
-/// `[top, bottom]` (inclusive band in content coordinates) and detaches keys
-/// that left the band. Header slots are ignored — they have no asset identity.
+/// [syncVisible] keeps bindings for the leaf slots in the index range the owner
+/// resolved for its content-y band and detaches keys that left it. Header slots are ignored — they have no asset identity.
 ///
 /// The owning render object typically passes the viewport band **plus** one
 /// cell of overscan so short drags do not thrash attach/detach every frame.
@@ -94,25 +93,32 @@ final class CatalogLeafBindingPool {
     _cacheType = cacheType;
   }
 
-  /// Syncs attaches to leaf slots intersecting `[top, bottom]` in content y.
+  /// Syncs attaches to the leaf slots in `slots[start, end)`.
+  ///
+  /// The caller resolves the index range for its content-y window (binary
+  /// search over the ascending [slots]) so this walk is proportional to the
+  /// visible band, never to the catalogue. The range is trusted: every leaf in
+  /// it is kept attached, so it MUST NOT include slots outside the intended
+  /// window. Header slots in the range are ignored.
   ///
   /// [pinnedKeys] are kept attached even when outside the window — used during
   /// far-path stitch so outgoing strip bindings survive the teleport.
   ///
-  /// Slots with `bottom < top` or `top > bottom` relative to the window are
-  /// skipped. Already-attached keys that remain visible are kept (no
-  /// re-attach). Keys that left the window are [CatalogAssetBinding.detach]ed
-  /// and removed from the map unless listed in [pinnedKeys].
+  /// Already-attached keys that remain in the range are kept (no re-attach).
+  /// Keys that left it are [CatalogAssetBinding.detach]ed and removed from the
+  /// map unless listed in [pinnedKeys]. [top] / [bottom] are the window the
+  /// range was resolved for; they feed diagnostics only.
   void syncVisible({
     required List<CatalogLayoutSlot> slots,
+    required int start,
+    required int end,
     required double top,
     required double bottom,
     Set<CatalogAssetKey>? pinnedKeys,
   }) {
     final visibleKeys = <CatalogAssetKey>{...?pinnedKeys};
-    for (final slot in slots) {
-      if (slot case final CatalogLeafSlot leaf) {
-        if (leaf.bottom < top || leaf.top > bottom) continue;
+    for (var i = start; i < end; i++) {
+      if (slots[i] case final CatalogLeafSlot leaf) {
         visibleKeys.add(leaf.leaf.assetKey);
         _ensure(leaf.leaf);
       }
