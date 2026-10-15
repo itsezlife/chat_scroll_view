@@ -172,22 +172,12 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// atlas the same leaves paint a paragraph. [CatalogBakeActivity] keeps the
 /// bake out of the way of motion and tells the atlas what is on screen.
 ///
-/// ## Cold-start warm-up
-///
-/// [warmAhead] walks unicode leaves in the first `[screens]` viewport heights
-/// from the current offset, ensures layout-once paragraphs via
-/// [CatalogLeafPainter.ensureGlyphParagraph], then optionally awaits
-/// [CatalogLeafPainter.rasterizeGlyphsForWarmup]. Concurrent callers share one
-/// in-flight future. Silent no-op before first layout, when detached, or when
-/// the band has no unicode glyphs. Hosts invoke via
-/// [PanelCatalogController.warmAhead] from open / idle — not from scroll ticks.
-///
 /// ## Lifecycle
 ///
 /// - [attach]: register data + controller listeners; create drag, leaf
 ///   pointer, press tickers, and press controller.
 /// - [detach]: unregister listeners; dispose recognizers / press / fling;
-///   [CatalogLeafPainter.cancelWarmup]; [CatalogLeafBindingPool.detachAll].
+///   [CatalogLeafBindingPool.detachAll].
 /// - [dispose]: same binding/painter teardown; safe if already detached.
 ///
 /// Listeners are only live while attached. Swapping [dataSource] /
@@ -228,7 +218,6 @@ class RenderPanelCatalog extends RenderBox {
     double? headerLandingInset,
     required CatalogAssetCacheType cacheType,
     required CatalogLeafPaintTheme paintTheme,
-    required double devicePixelRatio,
     ValueChanged<CatalogLeaf>? onLeafTap,
     void Function(CatalogLeaf leaf, LongPressStartDetails details)?
     onLeafLongPressStart,
@@ -250,7 +239,6 @@ class RenderPanelCatalog extends RenderBox {
        _onLeafLongPressEnd = onLeafLongPressEnd,
        _leafLongPressEligible = leafLongPressEligible,
        _paintTheme = paintTheme,
-       _devicePixelRatio = devicePixelRatio,
        _painter = CatalogLeafPainter(theme: paintTheme) {
     _pool = CatalogLeafBindingPool(
       assetCache: assetCache,
@@ -382,20 +370,6 @@ class RenderPanelCatalog extends RenderBox {
     if (_paintTheme == value) return;
     _paintTheme = value;
     _painter.theme = value;
-    markNeedsPaint();
-  }
-
-  /// Density of the view this viewport sits in (physical px per logical px).
-  ///
-  /// Supplied by [PanelCatalogViewport] from the [MediaQuery] of its own
-  /// subtree, which each view provides for itself. This object never asks the
-  /// platform for "the" view: on a multi-view host the first view is not
-  /// necessarily the one the viewport is in.
-  double _devicePixelRatio;
-  double get devicePixelRatio => _devicePixelRatio;
-  set devicePixelRatio(double value) {
-    if (_devicePixelRatio == value) return;
-    _devicePixelRatio = value;
     markNeedsPaint();
   }
 
@@ -628,81 +602,6 @@ class RenderPanelCatalog extends RenderBox {
     return null;
   }
 
-  // --- Cold-start warm-up ---------------------------------------------------
-
-  /// In-flight warm-up future; concurrent [warmAhead] callers share it.
-  Future<void>? _warmInFlight;
-
-  /// Prepares unicode glyphs for the first `[screens]` viewport heights.
-  ///
-  /// Band is `[offset, offset + height × screens]` clamped to content
-  /// ([screens] clamped to `[1, 8]`). Ensures layout-once paragraphs for each
-  /// unicode leaf in the band; when [rasterize] is true, awaits
-  /// [CatalogLeafPainter.rasterizeGlyphsForWarmup]. Concurrent callers share
-  /// one future. Silent no-op when detached, before first layout, when
-  /// glyph width ≤ 0, or when the band has no unicode leaves. Completes
-  /// immediately when [rasterize] is false after paragraph ensure. MUST NOT
-  /// be driven from scroll / paint ticks.
-  Future<void> warmAhead({double screens = 2.5, bool rasterize = true}) {
-    if (PanelCatalogPerfProbe.skipWarmAhead) return Future<void>.value();
-    final existing = _warmInFlight;
-    if (existing != null) return existing;
-    final future = _warmAheadBody(screens: screens, rasterize: rasterize);
-    _warmInFlight = future;
-    return future.whenComplete(() {
-      if (identical(_warmInFlight, future)) {
-        _warmInFlight = null;
-      }
-    });
-  }
-
-  /// Band walk + optional offscreen raster for [warmAhead]. Clears
-  /// [_warmInFlight] via the public future’s `whenComplete`.
-  Future<void> _warmAheadBody({
-    required double screens,
-    required bool rasterize,
-  }) async {
-    if (!attached || !hasSize || _slots.isEmpty) return;
-    final bandBottom = math.min(
-      _contentExtent,
-      _controller.offset + size.height * screens.clamp(1.0, 8.0),
-    );
-    final bandTop = _controller.offset.clamp(0.0, _contentExtent);
-    final glyphWidth = _glyphLogicalWidth;
-    if (glyphWidth <= 0) return;
-
-    final glyphs = <String>[];
-    final start = _firstSlotIndexAtOrBelow(bandTop);
-    final end = _slotIndexAfter(bandBottom);
-    for (var i = start; i < end; i++) {
-      final slot = _slots[i];
-      if (slot.bottom < bandTop || slot.top > bandBottom) continue;
-      if (slot case CatalogLeafSlot(:final leaf)) {
-        if (leaf case UnicodeCatalogLeaf(:final glyph)) {
-          glyphs.add(glyph);
-          _painter.ensureGlyphParagraph(glyph, glyphWidth);
-        }
-      }
-    }
-    if (!rasterize || glyphs.isEmpty) return;
-    await _painter.rasterizeGlyphsForWarmup(
-      glyphs: glyphs,
-      logicalWidth: glyphWidth,
-      devicePixelRatio: _devicePixelRatio,
-      shouldContinue: () => attached,
-    );
-  }
-
-  /// Logical glyph draw width matching [CatalogLeafPainter] (~72% of cell pitch).
-  double get _glyphLogicalWidth {
-    final usableW = (size.width - _padding.horizontal).clamp(
-      0.0,
-      double.infinity,
-    );
-    final cellW = usableW > 0 ? usableW / _spanCount : _cellExtent;
-    return math.min(cellW, _cellExtent) * 0.72;
-  }
-
   // --- Catalog invalidation -------------------------------------------------
 
   /// Marks layout and paint dirty after catalog or geometry changes.
@@ -745,8 +644,7 @@ class RenderPanelCatalog extends RenderBox {
       ..addJumpListener(_onJump)
       ..addScrollByListener(_onScrollBy)
       ..addSectionJumpListener(_onSectionJump)
-      ..addAnimateToListener(_onAnimateTo)
-      ..bindWarmAheadHandler((screens) => warmAhead(screens: screens));
+      ..addAnimateToListener(_onAnimateTo);
   }
 
   void _unbindController(PanelCatalogController controller) {
@@ -754,8 +652,7 @@ class RenderPanelCatalog extends RenderBox {
       ..removeJumpListener(_onJump)
       ..removeScrollByListener(_onScrollBy)
       ..removeSectionJumpListener(_onSectionJump)
-      ..removeAnimateToListener(_onAnimateTo)
-      ..bindWarmAheadHandler(null);
+      ..removeAnimateToListener(_onAnimateTo);
   }
 
   /// Cancels near scroll + fling, then runs the navigation path.
@@ -1176,9 +1073,6 @@ class RenderPanelCatalog extends RenderBox {
     _clearPressPointerRoute();
     _cancelSectionJumpMotion();
     _cancelFling();
-    // Abort cold-start raster so widget-test teardown does not leave a
-    // pending [Timer] from [CatalogLeafPainter.rasterizeGlyphsForWarmup].
-    _painter.cancelWarmup();
     _flingTicker = null;
     _nearScroll?.dispose();
     _nearScroll = null;

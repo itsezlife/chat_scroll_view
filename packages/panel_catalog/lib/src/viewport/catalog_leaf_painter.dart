@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -10,24 +9,22 @@ import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
 import 'package:panel_catalog/src/viewport/catalog_glyph_sprite_batch.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
+import 'package:panel_catalog/src/viewport/catalog_paragraph_cache.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
+
+/// Most section-header paragraphs one painter keeps; a header is keyed by title,
+/// style and layout width, so a resize adds one per visible header per step.
+/// Far above the headers of one screen (a handful).
+const int kHeaderParagraphCacheLimit = 64;
 
 /// Paints catalog headers and leaves onto a [Canvas].
 ///
-/// Owns paragraph caches for section titles and unicode glyphs so repeated
-/// paint of the same visible band does not rebuild text layouts every frame.
+/// Owns bounded paragraph caches for section titles and unicode glyphs so
+/// repeated paint of the same visible band does not rebuild text layouts every
+/// frame.
 /// Does **not** own layout slots, scroll offset, or asset readiness — the
 /// render object passes content [origin], slot geometry,
 /// [CatalogLeafPresentation], and [CatalogLeafPaintTheme].
-///
-/// ## Cold-start warm-up
-///
-/// [ensureGlyphParagraph] builds and layouts a glyph paragraph without
-/// painting. [rasterizeGlyphsForWarmup] draws those paragraphs into a
-/// temporary picture, awaits [ui.Picture.toImage], then disposes the image so
-/// the rasterizer’s color-emoji path is exercised before the first user
-/// fling. Callers MUST invoke warm-up from open / idle — not from scroll
-/// ticks (offscreen `toImage` on the fling path regresses frame time).
 ///
 /// ## Coordinate contract
 ///
@@ -61,7 +58,14 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// nothing). Layout runs **once** when the paragraph is created. Scroll paints
 /// only [Canvas.drawParagraph] for that cached instance. Where emoji are baked
 /// this path is never reached for unicode: an unbaked glyph is presented as the
-/// circle placeholder, not as text.
+/// circle placeholder, not as text, and no paragraph is built for it anywhere
+/// (there is no warm-up pass that builds them ahead of paint).
+///
+/// The glyph cache holds at most [PanelCatalogDiagnostics.glyphParagraphCacheLimit]
+/// paragraphs, least recently drawn out first: the width is part of the key, so
+/// a window resized step by step would otherwise add a screenful per step for
+/// good. The section-header cache is bounded the same way by
+/// [kHeaderParagraphCacheLimit].
 ///
 /// ## Presentation switch
 ///
@@ -88,25 +92,14 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// ## Dispose
 ///
 /// Call [dispose] when the owning render object disposes to drop cached
-/// paragraphs and abort any in-flight [rasterizeGlyphsForWarmup] yield timer.
-/// Clearing maps is enough for paragraphs — [ui.Paragraph] does not require a
-/// native dispose in current Flutter. [cancelWarmup] aborts warm-up without
-/// clearing caches (detach / rebind).
+/// paragraphs. Clearing the caches is enough — [ui.Paragraph] does not require
+/// a native dispose in current Flutter.
 final class CatalogLeafPainter {
   /// Creates a painter with empty paragraph caches.
   CatalogLeafPainter({required CatalogLeafPaintTheme theme}) : _theme = theme {
     _placeholderPaint.color = theme.placeholderColor;
     _documentStandInPaint.color = theme.documentStandInColor;
   }
-
-  /// Bumped by [cancelWarmup] / [dispose] so in-flight warm-up exits.
-  int _warmupEpoch = 0;
-
-  /// Zero-delay yield between warm-up chunks; cancelled on abort / dispose.
-  Timer? _warmupYield;
-
-  /// Completer for the in-flight yield; completed on timer fire or [cancelWarmup].
-  Completer<void>? _warmupYieldCompleter;
 
   CatalogLeafPaintTheme _theme;
 
@@ -119,8 +112,14 @@ final class CatalogLeafPainter {
   final Paint _documentStandInPaint = Paint();
   final Paint _highlightPaint = Paint();
 
-  final Map<_HeaderPaintKey, ui.Paragraph> _headerParagraphs = {};
-  final Map<_GlyphPaintKey, ui.Paragraph> _glyphParagraphs = {};
+  final CatalogParagraphCache<_HeaderPaintKey> _headerParagraphs =
+      CatalogParagraphCache(limit: kHeaderParagraphCacheLimit);
+  final CatalogParagraphCache<_GlyphPaintKey> _glyphParagraphs =
+      CatalogParagraphCache(
+        limit: PanelCatalogDiagnostics.glyphParagraphCacheLimit,
+        onLengthChanged: (delta) =>
+            PanelCatalogDiagnostics.glyphParagraphsCached += delta,
+      );
   final CatalogGlyphSpriteBatch _glyphSprites = CatalogGlyphSpriteBatch();
 
   /// Resolved paint tokens from [PanelCatalogThemeData] at the viewport.
@@ -140,25 +139,8 @@ final class CatalogLeafPainter {
     }
   }
 
-  /// Aborts in-flight [rasterizeGlyphsForWarmup] and cancels its yield timer.
-  ///
-  /// Does not clear paragraph caches. Safe to call while warm-up is idle.
-  /// After abort, a later [rasterizeGlyphsForWarmup] starts a new epoch.
-  /// Completes any awaiting chunk yield so the warm-up future does not hang.
-  void cancelWarmup() {
-    _warmupEpoch++;
-    _warmupYield?.cancel();
-    _warmupYield = null;
-    final pending = _warmupYieldCompleter;
-    _warmupYieldCompleter = null;
-    if (pending != null && !pending.isCompleted) {
-      pending.complete();
-    }
-  }
-
-  /// Releases cached paragraphs and aborts warm-up. Idempotent.
+  /// Releases cached paragraphs. Idempotent.
   void dispose() {
-    cancelWarmup();
     _headerParagraphs.clear();
     _glyphParagraphs.clear();
     _glyphSprites.dispose();
@@ -188,7 +170,7 @@ final class CatalogLeafPainter {
       0.0,
       contentWidth - padding.horizontal - theme.sectionHeaderStartInset,
     );
-    final paragraph = _headerParagraphs.putIfAbsent(
+    final paragraph = _headerParagraphs.obtain(
       _HeaderPaintKey(
         title: header.title,
         style: headerStyle,
@@ -348,20 +330,10 @@ final class CatalogLeafPainter {
     );
   }
 
-  /// Returns a laid-out [ui.Paragraph] for [glyph] at [logicalWidth].
-  ///
-  /// Creates and layouts on first use for that `(glyph, width)` key; later
-  /// calls reuse the cache. Does **not** draw and does **not** notify the
-  /// owner. [logicalWidth] ≤ 0 yields a paragraph laid out against that
-  /// width (caller SHOULD skip). Used by [rasterizeGlyphsForWarmup] and by
-  /// the owning render object’s cold-start band walk.
-  ui.Paragraph ensureGlyphParagraph(String glyph, double logicalWidth) =>
-      _paragraphForGlyph(glyph, logicalWidth);
-
   /// Cache lookup / create for one glyph paragraph at [logicalWidth].
   ui.Paragraph _paragraphForGlyph(String glyph, double logicalWidth) {
     final key = _GlyphPaintKey(glyph, logicalWidth);
-    return _glyphParagraphs.putIfAbsent(key, () {
+    return _glyphParagraphs.obtain(key, () {
       final builder = ui.ParagraphBuilder(
         ui.ParagraphStyle(
           textAlign: TextAlign.center,
@@ -371,83 +343,6 @@ final class CatalogLeafPainter {
       return builder.build()
         ..layout(ui.ParagraphConstraints(width: logicalWidth));
     });
-  }
-
-  /// Offscreen-rasterizes unique [glyphs] at [logicalWidth] (device pixels).
-  ///
-  /// [devicePixelRatio] is the density of the view the owning viewport sits in
-  /// (never the first view of the platform dispatcher, which is the wrong
-  /// window on multi-view hosts).
-  ///
-  /// For each chunk: builds a temporary picture of laid-out paragraphs,
-  /// awaits [ui.Picture.toImage], disposes the image and picture. Side
-  /// effect is exercising the rasterizer’s color-emoji path so a later
-  /// on-screen [paintLeaf] is cheaper. Empty [glyphs] or [logicalWidth] ≤ 0
-  /// is a silent no-op. Failed chunks are skipped (MUST NOT throw to the
-  /// host). Yields after each chunk so an in-flight open animation can
-  /// schedule. Stops early when [shouldContinue] returns `false`, or after
-  /// [cancelWarmup] / [dispose] (pending yield timer is cancelled — no
-  /// orphan [Timer] after the owning viewport leaves the tree). MUST NOT be
-  /// called from the scroll/paint tick path.
-  Future<void> rasterizeGlyphsForWarmup({
-    required Iterable<String> glyphs,
-    required double logicalWidth,
-    required double devicePixelRatio,
-    int chunkSize = 16,
-    bool Function()? shouldContinue,
-  }) async {
-    if (logicalWidth <= 0) return;
-    final unique = <String>{};
-    for (final g in glyphs) {
-      if (g.isNotEmpty) unique.add(g);
-    }
-    if (unique.isEmpty) return;
-
-    final epoch = _warmupEpoch;
-    final dpr = devicePixelRatio;
-    final pixelW = math.max(1, (logicalWidth * dpr).ceil());
-    final list = unique.toList(growable: false);
-
-    for (var i = 0; i < list.length; i += chunkSize) {
-      if (epoch != _warmupEpoch) return;
-      if (shouldContinue != null && !shouldContinue()) return;
-      final end = math.min(i + chunkSize, list.length);
-      final chunk = list.sublist(i, end);
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-      canvas.scale(dpr);
-      var y = 0.0;
-      for (final glyph in chunk) {
-        final paragraph = _paragraphForGlyph(glyph, logicalWidth);
-        final dy = (logicalWidth - paragraph.height) / 2;
-        canvas.drawParagraph(paragraph, Offset(0, y + dy));
-        y += logicalWidth;
-      }
-      final picture = recorder.endRecording();
-      final pixelH = math.max(1, (y * dpr).ceil());
-      try {
-        final image = await picture.toImage(pixelW, pixelH);
-        image.dispose();
-      } on Object {
-        // Warm-up must never break open; skip failed chunks.
-      } finally {
-        picture.dispose();
-      }
-      if (epoch != _warmupEpoch) return;
-      if (shouldContinue != null && !shouldContinue()) return;
-      // Let the open animation / input schedule run between chunks.
-      final yieldDone = Completer<void>();
-      _warmupYield?.cancel();
-      _warmupYieldCompleter = yieldDone;
-      _warmupYield = Timer(Duration.zero, () {
-        _warmupYield = null;
-        if (identical(_warmupYieldCompleter, yieldDone)) {
-          _warmupYieldCompleter = null;
-        }
-        if (!yieldDone.isCompleted) yieldDone.complete();
-      });
-      await yieldDone.future;
-    }
   }
 }
 

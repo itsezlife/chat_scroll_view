@@ -17,6 +17,19 @@ abstract final class PanelCatalogDiagnostics {
   /// cache has no atlas). `0` where emoji are baked.
   static int glyphParagraphDraws = 0;
 
+  /// Most glyph paragraphs one viewport keeps cached on the paragraph path.
+  ///
+  /// A paragraph is keyed by glyph and layout width, so a window that is
+  /// resized step by step makes every visible glyph a new key per step. The
+  /// least recently drawn paragraph is dropped past this count. It is far above
+  /// what one screen draws, so scrolling and a settled layout never evict.
+  static const int glyphParagraphCacheLimit = 1024;
+
+  /// Glyph paragraphs held right now by all live viewports (a gauge, not a
+  /// count of events: [reset] leaves it alone, a viewport gives its share back
+  /// when it is disposed).
+  static int glyphParagraphsCached = 0;
+
   /// Sets every counter back to zero.
   static void reset() {
     glyphParagraphDraws = 0;
