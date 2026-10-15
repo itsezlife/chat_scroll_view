@@ -1,29 +1,34 @@
 #!/usr/bin/env bash
-# Panel catalog fling perf on a real device (profile mode).
+# One launch of the panel catalog acceptance test on a real device (profile).
 #
 #   tool/run_panel_perf.sh <device-id> <label> [extra flutter drive args...]
+#
+# Exits non-zero when an asserted scenario fails. For the three-launch rule use
+# `dart run tool/panel_perf.dart <device-id> <label>`, which calls this once per
+# fresh launch.
+#
+# Precondition (it decides whether the numbers mean anything): the reference
+# device is cool, on a charger, screen on, display at its top refresh rate.
 #
 # Builds the APK once (Android) and reuses it on later runs; pass REBUILD=1 to
 # force a rebuild after code changes. Extra args pass through to `flutter
 # drive`, e.g. `--no-enable-impeller` (no rebuild needed) for a Skia A/B.
-# A cold run without warm-up needs a rebuild:
-#   DEFINES="--dart-define=PANEL_PERF_SKIP_WARM=true" REBUILD=1 \
-#     tool/run_panel_perf.sh <device-id> s25-nowarm
 #
-# Reports land in .scratch/panel-catalog-glyph-perf/traces/<label>-*.json.
+# Reports land in perf/runs/<label>/ (git-ignored); the kept comparison set is
+# perf/baseline/ (see `dart run tool/panel_perf.dart --help`).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 device="${1:?device id (see: flutter devices)}"
-label="${2:?label, e.g. s25-impeller}"
+label="${2:?label, e.g. s25-launch1}"
 shift 2
 
 target="${TARGET:-integration_test/all_tests.dart}"
 driver=test_driver/integration_test.dart
 defines="${DEFINES:-}"
 export PERF_LABEL="$label"
-export PERF_OUT="${PERF_OUT:-$PWD/../.scratch/panel-catalog-glyph-perf/traces}"
-mkdir -p "$PERF_OUT"
+export PERF_OUT="${PERF_OUT:-$PWD/perf}"
+mkdir -p "$PERF_OUT/runs/$label"
 
 platform="$(flutter devices --machine | python3 -c "
 import json,sys
@@ -42,5 +47,7 @@ if [[ "$platform" == android-* ]]; then
   args+=(--use-application-binary="$apk")
 fi
 
-flutter drive "${args[@]}" "$@"
-echo "reports: $PERF_OUT/$label-*.json"
+status=0
+flutter drive "${args[@]}" "$@" || status=$?
+echo "reports: $PERF_OUT/runs/$label/"
+exit "$status"

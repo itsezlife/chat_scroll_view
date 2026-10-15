@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:chat_chrome/chat_chrome.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -7,31 +5,38 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
-import 'package:panel_catalog/panel_catalog_perf_probe.dart';
 
-/// Fast-fling frame timing for the emoji keyboard panel, on a real device.
+import 'panel_perf/acceptance.dart';
+import 'panel_perf/frame_metrics.dart';
+import 'panel_perf/report.dart';
+
+/// On-device acceptance test for the emoji keyboard panel (bare panel).
+///
+/// The user's "native-like" bar as a test: the panel open animation and the
+/// cold first fling over the whole catalogue must drop no frame over one vsync
+/// budget (derived from the display's refresh rate) and keep raster p99 at most
+/// 2 ms. Today it fails; the numbers it prints are the baseline.
 ///
 /// Hosts the real [KeyboardPanel] (strip, catalog viewport, bottom bar) without
-/// the chat screen, so no backend is needed. Run with `tool/run_panel_perf.sh`
-/// in `--profile`; debug numbers are meaningless for raster cost.
+/// the chat screen, so no backend is needed. Run three fresh launches with
+/// `dart run tool/panel_perf.dart <device-id> <label>`, in `--profile`; debug
+/// numbers are meaningless for raster cost.
+///
+/// Depends only on the public panel and chrome APIs: no experiment switches or
+/// prototype code.
+///
+/// | Report key         | Asserted | What it isolates                          |
+/// | ------------------ | -------- | ----------------------------------------- |
+/// | `panel_open`       | yes      | open animation, first paint of the panel  |
+/// | `cold_first_pass`  | yes      | first sight of every glyph, whole catalogue down and back up |
+/// | `warm_pass2`       | no       | same pass with every glyph already seen   |
+/// | `reopen_pass4`     | no       | panel closed and reopened: new paragraph cache, warm atlas |
 ///
 /// Scenarios run in order inside one process, so the engine's glyph atlas is
-/// cold only for `cold_pass1`. Anything that needs a cold atlas (for example
-/// `--dart-define=PANEL_PERF_SKIP_WARM=true`) is a separate run.
+/// cold only for `panel_open` and `cold_first_pass`: every verdict needs a
+/// fresh launch. Reports are written before any assertion, so a red run still
+/// leaves its numbers behind.
 ///
-/// Each pass flings the whole catalog down and back up (`maxOffsetPx` in the
-/// report proves coverage).
-///
-/// | Report key                | What it isolates                              |
-/// | ------------------------- | --------------------------------------------- |
-/// | `cold_pass1` (+ timeline) | first sight of every glyph, warm-up as shipped |
-/// | `warm_pass2`              | same pass with every glyph already seen (also catches atlas eviction/rebuild) |
-/// | `warm_pass3`              | repeat of pass2: run-to-run variance          |
-/// | `reopen_pass4`            | panel closed and reopened: new paragraph cache, warm atlas |
-///
-/// Experiments that need a cold atlas are separate builds:
-/// `PANEL_PERF_SKIP_WARM=true` (no warm-up), `PANEL_PERF_GLYPH=A` (Latin letter
-/// instead of emoji).
 /// `traceAction` reaches the VM service over `localhost`, which a USB-attached
 /// device refuses (`Connection refused`), so the timeline is opt-in:
 /// `--dart-define=PANEL_PERF_TIMELINE=true`. `FrameTiming` always runs.
@@ -43,24 +48,54 @@ void main() {
     // scheduling cost.
     ..framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
 
-  testWidgets('panel catalog fast fling', (tester) async {
+  testWidgets('panel catalog cold first pass meets the frame budget', (
+    tester,
+  ) async {
+    final reports = <ScenarioReport>[];
+
+    // The app shell is up and the panel closed before measuring starts: the
+    // open animation is the first thing a user's tap would trigger.
     final harness = await _PanelHarness.start(tester);
-
-    // Let the open animation and `warmAhead` finish, as a user's first fling
-    // would typically come a moment after the panel appears.
     await _settle(tester);
-    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump(const Duration(milliseconds: 500));
 
-    for (final name in const ['cold_pass1', 'warm_pass2', 'warm_pass3']) {
-      PanelCatalogPerfProbe.resetCoverage();
+    reports.add(
       await _scenario(
         tester,
         binding,
-        name,
-        timeline: _traceTimeline && name == 'cold_pass1',
+        kPanelOpenScenario,
+        asserted: true,
+        body: () async {
+          harness.open();
+          await tester.pump();
+          await _settle(tester);
+          // As a user's first fling comes a moment after the panel appears.
+          await tester.pump(const Duration(milliseconds: 800));
+          return null;
+        },
+      ),
+    );
+
+    reports.add(
+      await _scenario(
+        tester,
+        binding,
+        kColdFirstPassScenario,
+        asserted: true,
+        timeline: _traceTimeline,
         body: () => _flingPass(tester),
-      );
-    }
+      ),
+    );
+
+    reports.add(
+      await _scenario(
+        tester,
+        binding,
+        'warm_pass2',
+        asserted: false,
+        body: () => _flingPass(tester),
+      ),
+    );
 
     harness.dispose();
 
@@ -70,45 +105,97 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 500));
     final reopened = await _PanelHarness.start(tester);
+    reopened.open();
+    await tester.pump();
     await _settle(tester);
     await tester.pump(const Duration(milliseconds: 800));
-    PanelCatalogPerfProbe.resetCoverage();
-    await _scenario(
-      tester,
-      binding,
-      'reopen_pass4',
-      body: () => _flingPass(tester),
+    reports.add(
+      await _scenario(
+        tester,
+        binding,
+        'reopen_pass4',
+        asserted: false,
+        body: () => _flingPass(tester),
+      ),
     );
     reopened.dispose();
+
+    // Publish before asserting: the driver writes reports even when red.
+    binding.reportData = {
+      ...?binding.reportData,
+      for (final report in reports) report.scenario: report.toJson(),
+    };
+    for (final report in reports) {
+      debugPrint(
+        '[panel-perf] ${report.scenario} ${report.stats.frames} frames, '
+        '${report.stats.overBudgetFrames} over budget, raster p99 '
+        '${report.stats.rasterP99Ms.toStringAsFixed(2)} ms, max '
+        '${report.stats.rasterMaxMs.toStringAsFixed(1)} ms'
+        '${report.verdict.passed ? '' : ' -> ${report.verdict.failures.join('; ')}'}',
+      );
+    }
+
+    final failures = [
+      for (final report in reports)
+        if (report.asserted && !report.verdict.passed)
+          '${report.scenario}: ${report.verdict.failures.join('; ')}',
+    ];
+    expect(failures, isEmpty, reason: failures.join('\n'));
   });
 }
 
-/// Whole catalog, down then back up: chained flings until the far end is
-/// reached, then until the top is. Chained so each lands while the last coasts.
-Future<void> _flingPass(WidgetTester tester) async {
-  final viewport = find.byType(PanelCatalogViewport);
+/// Whole catalogue, down then back up: chained flings until the offset stops
+/// advancing (the end), then until the top is reached. Chained so each lands
+/// while the last coasts. Returns the evidence that it travelled that far.
+Future<FlingCoverage> _flingPass(WidgetTester tester) async {
+  final finder = find.byType(PanelCatalogViewport);
+  final viewport = tester.widget<PanelCatalogViewport>(finder);
+  final controller = viewport.controller;
+  final viewportHeight = tester.getSize(finder).height;
+
+  var maxOffset = 0.0;
+  void track(PanelCatalogScrollEvent _) {
+    if (controller.offset > maxOffset) maxOffset = controller.offset;
+  }
+
+  controller.addScrollListener(track);
   Future<void> fling(double dy) async {
-    await tester.fling(viewport, Offset(0, dy), 7000);
+    await tester.fling(finder, Offset(0, dy), 7000);
     await tester.pump(const Duration(milliseconds: 250));
   }
 
-  const cap = 80;
-  for (var i = 0; i < cap && !_atEnd; i++) {
+  const cap = 120;
+  // At the end when two flings in a row no longer move the offset.
+  var stalled = 0;
+  for (var i = 0; i < cap && stalled < 2; i++) {
+    final before = controller.offset;
     await fling(-300);
+    stalled = (controller.offset - before).abs() < 1 ? stalled + 1 : 0;
   }
+  final reachedEnd = stalled >= 2;
   await _settle(tester);
-  for (var i = 0; i < cap && PanelCatalogPerfProbe.lastOffset > 50; i++) {
+  for (var i = 0; i < cap && controller.offset > 50; i++) {
     await fling(300);
   }
   await _settle(tester);
-}
+  controller.removeScrollListener(track);
 
-bool get _atEnd =>
-    PanelCatalogPerfProbe.contentExtent > 0 &&
-    PanelCatalogPerfProbe.lastOffset >=
-        PanelCatalogPerfProbe.contentExtent -
-            PanelCatalogPerfProbe.viewportHeight -
-            50;
+  return FlingCoverage(
+    reachedEnd: reachedEnd,
+    returnedToTop: controller.offset <= 50,
+    maxOffsetPx: maxOffset,
+    viewportHeightPx: viewportHeight,
+    expectedExtentPx: estimateContentExtent(
+      leavesPerSection: [
+        for (final section in viewport.dataSource.sections)
+          section.leaves.length,
+      ],
+      spanCount: viewport.spanCount,
+      cellExtent: viewport.cellExtent,
+      headerExtent: viewport.headerExtent,
+    ),
+  );
+}
 
 /// Pumps until no frame is scheduled (fling finished) or 15 s pass.
 Future<void> _settle(WidgetTester tester) async {
@@ -119,25 +206,31 @@ Future<void> _settle(WidgetTester tester) async {
       DateTime.now().isBefore(deadline));
 }
 
-Future<void> _scenario(
+/// Runs [body] while recording every frame, and judges the result.
+///
+/// [body] returns fling coverage when it flings; a scenario that returns it is
+/// also required to have covered the catalogue.
+Future<ScenarioReport> _scenario(
   WidgetTester tester,
   IntegrationTestWidgetsFlutterBinding binding,
   String name, {
-  required Future<void> Function() body,
+  required bool asserted,
+  required Future<FlingCoverage?> Function() body,
   bool timeline = false,
 }) async {
   final timings = <FrameTiming>[];
   void onTimings(List<FrameTiming> batch) => timings.addAll(batch);
   SchedulerBinding.instance.addTimingsCallback(onTimings);
 
+  FlingCoverage? coverage;
   if (timeline) {
     await binding.traceAction(
-      body,
+      () async => coverage = await body(),
       streams: const ['Dart', 'Embedder', 'GC'],
       reportKey: '${name}_timeline',
     );
   } else {
-    await body();
+    coverage = await body();
   }
 
   // Timings are delivered in batches; give the last one time to arrive.
@@ -146,11 +239,21 @@ Future<void> _scenario(
 
   final view = tester.view;
   final refreshRate = view.display.refreshRate;
-  final report = _summarize(
-    timings,
-    budgetMs: 1000 / refreshRate,
+  final budgetMs = vsyncBudgetMs(refreshRate);
+  double ms(Duration d) => d.inMicroseconds / 1000;
+  final samples = [
+    for (final t in timings)
+      FrameSample(
+        buildMs: ms(t.buildDuration),
+        rasterMs: ms(t.rasterDuration),
+        totalMs: ms(t.totalSpan),
+      ),
+  ];
+  final stats = FrameStats.of(samples, budgetMs: budgetMs);
+  return ScenarioReport(
+    scenario: name,
+    asserted: asserted,
     meta: {
-      'scenario': name,
       'mode': switch ((kReleaseMode, kProfileMode)) {
         (true, _) => 'release',
         (_, true) => 'profile',
@@ -160,71 +263,12 @@ Future<void> _scenario(
       'refreshRateHz': refreshRate,
       'devicePixelRatio': view.devicePixelRatio,
       'physicalSize': '${view.physicalSize.width}x${view.physicalSize.height}',
-      'skipWarmAhead': PanelCatalogPerfProbe.skipWarmAhead,
-      'glyphOverride': PanelCatalogPerfProbe.glyphOverride,
-      'maxOffsetPx': PanelCatalogPerfProbe.maxOffset,
-      'contentExtentPx': PanelCatalogPerfProbe.contentExtent,
-      'viewportHeightPx': PanelCatalogPerfProbe.viewportHeight,
     },
+    samples: samples,
+    stats: stats,
+    verdict: judge(stats, coverage: coverage),
+    coverage: coverage,
   );
-  binding.reportData ??= <String, dynamic>{};
-  binding.reportData![name] = report;
-  debugPrint('[panel-perf] $name ${report['summary']}');
-}
-
-Map<String, dynamic> _summarize(
-  List<FrameTiming> frames, {
-  required double budgetMs,
-  required Map<String, Object?> meta,
-}) {
-  double ms(Duration d) => d.inMicroseconds / 1000;
-  final build = frames.map((f) => ms(f.buildDuration)).toList();
-  final raster = frames.map((f) => ms(f.rasterDuration)).toList();
-  final total = frames.map((f) => ms(f.totalSpan)).toList();
-
-  Map<String, double> stats(List<double> v) {
-    if (v.isEmpty) return const {};
-    final s = [...v]..sort();
-    double q(double p) => s[math.min(s.length - 1, (p * s.length).floor())];
-    return {
-      'p50': q(0.5),
-      'p90': q(0.9),
-      'p99': q(0.99),
-      'max': s.last,
-      'mean': s.reduce((a, b) => a + b) / s.length,
-    };
-  }
-
-  var jank = 0;
-  var severe = 0;
-  for (var i = 0; i < frames.length; i++) {
-    final worst = math.max(build[i], raster[i]);
-    if (worst > budgetMs) jank++;
-    if (worst > budgetMs * 2) severe++;
-  }
-
-  return {
-    'meta': meta,
-    'summary': {
-      'frames': frames.length,
-      'budgetMs': budgetMs,
-      'jankFrames': jank,
-      'severeFrames(>2x)': severe,
-      'buildMs': stats(build),
-      'rasterMs': stats(raster),
-      'totalSpanMs': stats(total),
-    },
-    // Per-frame series, in delivery order, to correlate with the timeline.
-    'frames': {
-      'buildMs': build.map((v) => double.parse(v.toStringAsFixed(3))).toList(),
-      'rasterMs': raster
-          .map((v) => double.parse(v.toStringAsFixed(3)))
-          .toList(),
-      'totalSpanMs': total
-          .map((v) => double.parse(v.toStringAsFixed(3)))
-          .toList(),
-    },
-  };
 }
 
 /// Real [KeyboardPanel] on a bare scaffold: no chat, no backend.
@@ -284,10 +328,11 @@ final class _PanelHarness {
         ),
       ),
     );
-    controller.open(landscape: false);
     await tester.pump();
     return _PanelHarness._(store, inset, controller, data);
   }
+
+  void open() => controller.open(landscape: false);
 
   void dispose() {
     controller.dispose();
