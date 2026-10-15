@@ -81,7 +81,10 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// clearing caches (detach / rebind).
 final class CatalogLeafPainter {
   /// Creates a painter with empty paragraph caches.
-  CatalogLeafPainter({required CatalogLeafPaintTheme theme}) : _theme = theme;
+  CatalogLeafPainter({required CatalogLeafPaintTheme theme}) : _theme = theme {
+    _placeholderPaint.color = theme.placeholderColor;
+    _documentStandInPaint.color = theme.documentStandInColor;
+  }
 
   /// Bumped by [cancelWarmup] / [dispose] so in-flight warm-up exits.
   int _warmupEpoch = 0;
@@ -93,6 +96,16 @@ final class CatalogLeafPainter {
   Completer<void>? _warmupYieldCompleter;
 
   CatalogLeafPaintTheme _theme;
+
+  /// Fills reused by every leaf. A [Paint] is a heap object with a native-sized
+  /// backing buffer, so allocating one per leaf per frame is pure scroll-time
+  /// garbage. Colors only change with the theme (see [theme]); the highlight
+  /// alpha changes per press frame and is written just before use, which is
+  /// safe because the canvas copies a paint's state at the draw call.
+  final Paint _placeholderPaint = Paint();
+  final Paint _documentStandInPaint = Paint();
+  final Paint _highlightPaint = Paint();
+
   final Map<_HeaderPaintKey, ui.Paragraph> _headerParagraphs = {};
   final Map<_GlyphPaintKey, ui.Paragraph> _glyphParagraphs = {};
 
@@ -106,6 +119,8 @@ final class CatalogLeafPainter {
         _theme.sectionHeaderStyle != value.sectionHeaderStyle ||
         _theme.sectionHeaderStartInset != value.sectionHeaderStartInset;
     _theme = value;
+    _placeholderPaint.color = value.placeholderColor;
+    _documentStandInPaint.color = value.documentStandInColor;
     if (headerPaintChanged) {
       _headerParagraphs.clear();
     }
@@ -224,7 +239,7 @@ final class CatalogLeafPainter {
           cellRect,
           Radius.circular(theme.leafPressSelectorRadius),
         ),
-        Paint()
+        _highlightPaint
           ..color = theme.leafPressHighlightColor.withValues(
             alpha: theme.leafPressHighlightColor.a * factor,
           ),
@@ -244,7 +259,7 @@ final class CatalogLeafPainter {
         canvas.drawCircle(
           glyphRect.center,
           glyphRect.width * kCirclePlaceholderRadiusFactor,
-          Paint()..color = theme.placeholderColor,
+          _placeholderPaint,
         );
       case CatalogLeafPresentation.thumbFirstPlaceholder:
       case CatalogLeafPresentation.shapedLoadingWash:
@@ -254,7 +269,7 @@ final class CatalogLeafPainter {
             glyphRect,
             Radius.circular(theme.standInCornerRadius),
           ),
-          Paint()..color = theme.placeholderColor,
+          _placeholderPaint,
         );
       case CatalogLeafPresentation.content:
         switch (slot.leaf) {
@@ -266,7 +281,7 @@ final class CatalogLeafPainter {
                 glyphRect,
                 Radius.circular(theme.standInCornerRadius),
               ),
-              Paint()..color = theme.documentStandInColor,
+              _documentStandInPaint,
             );
         }
     }
@@ -317,6 +332,10 @@ final class CatalogLeafPainter {
 
   /// Offscreen-rasterizes unique [glyphs] at [logicalWidth] (device pixels).
   ///
+  /// [devicePixelRatio] is the density of the view the owning viewport sits in
+  /// (never the first view of the platform dispatcher, which is the wrong
+  /// window on multi-view hosts).
+  ///
   /// For each chunk: builds a temporary picture of laid-out paragraphs,
   /// awaits [ui.Picture.toImage], disposes the image and picture. Side
   /// effect is exercising the rasterizer’s color-emoji path so a later
@@ -330,6 +349,7 @@ final class CatalogLeafPainter {
   Future<void> rasterizeGlyphsForWarmup({
     required Iterable<String> glyphs,
     required double logicalWidth,
+    required double devicePixelRatio,
     int chunkSize = 16,
     bool Function()? shouldContinue,
   }) async {
@@ -341,8 +361,7 @@ final class CatalogLeafPainter {
     if (unique.isEmpty) return;
 
     final epoch = _warmupEpoch;
-    final views = ui.PlatformDispatcher.instance.views;
-    final dpr = views.isEmpty ? 1.0 : views.first.devicePixelRatio;
+    final dpr = devicePixelRatio;
     final pixelW = math.max(1, (logicalWidth * dpr).ceil());
     final list = unique.toList(growable: false);
 

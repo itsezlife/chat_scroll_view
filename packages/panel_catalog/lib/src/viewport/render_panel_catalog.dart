@@ -75,6 +75,10 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// the teleport. Readiness changes on attached bindings mark paint dirty so
 /// placeholders flip to content without a full catalog reproject.
 ///
+/// The visible window is resolved to a slot index range by binary search over
+/// the ascending projection, in both binding sync and paint, so scroll-time
+/// cost follows the visible band rather than the catalogue size.
+///
 /// Overscan is intentionally one cell row: enough that a short drag does not
 /// thrash attach/detach every frame, not a second viewport of prefetched
 /// bindings. Empty / short catalogs still project headers; unbound leaves
@@ -185,6 +189,12 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// the viewport rect. Slots outside the visible window (including overscan)
 /// are skipped in the paint loop even if still bound.
 ///
+/// ## Repaint boundary
+///
+/// [isRepaintBoundary] is `true`: paint runs against a layer of its own with
+/// the viewport at the origin. Scroll / press / readiness `markNeedsPaint`
+/// stops at this object instead of dirtying the host chrome's layer.
+///
 /// Constructed by [PanelCatalogViewport]; not exported from the public barrel.
 class RenderPanelCatalog extends RenderBox {
   /// Creates a panel catalog render body.
@@ -206,6 +216,7 @@ class RenderPanelCatalog extends RenderBox {
     double? headerLandingInset,
     required CatalogAssetCacheType cacheType,
     required CatalogLeafPaintTheme paintTheme,
+    required double devicePixelRatio,
     ValueChanged<CatalogLeaf>? onLeafTap,
     void Function(CatalogLeaf leaf, LongPressStartDetails details)?
     onLeafLongPressStart,
@@ -227,6 +238,7 @@ class RenderPanelCatalog extends RenderBox {
        _onLeafLongPressEnd = onLeafLongPressEnd,
        _leafLongPressEligible = leafLongPressEligible,
        _paintTheme = paintTheme,
+       _devicePixelRatio = devicePixelRatio,
        _painter = CatalogLeafPainter(theme: paintTheme) {
     _pool = CatalogLeafBindingPool(
       assetCache: assetCache,
@@ -350,6 +362,20 @@ class RenderPanelCatalog extends RenderBox {
     if (_paintTheme == value) return;
     _paintTheme = value;
     _painter.theme = value;
+    markNeedsPaint();
+  }
+
+  /// Density of the view this viewport sits in (physical px per logical px).
+  ///
+  /// Supplied by [PanelCatalogViewport] from the [MediaQuery] of its own
+  /// subtree, which each view provides for itself. This object never asks the
+  /// platform for "the" view: on a multi-view host the first view is not
+  /// necessarily the one the viewport is in.
+  double _devicePixelRatio;
+  double get devicePixelRatio => _devicePixelRatio;
+  set devicePixelRatio(double value) {
+    if (_devicePixelRatio == value) return;
+    _devicePixelRatio = value;
     markNeedsPaint();
   }
 
@@ -638,6 +664,7 @@ class RenderPanelCatalog extends RenderBox {
     await _painter.rasterizeGlyphsForWarmup(
       glyphs: glyphs,
       logicalWidth: glyphWidth,
+      devicePixelRatio: _devicePixelRatio,
       shouldContinue: () => attached,
     );
   }
@@ -1264,8 +1291,12 @@ class RenderPanelCatalog extends RenderBox {
   /// Reconciles [CatalogLeafBindingPool] attaches to the current [_visibleWindow].
   void _syncVisibleBindings() {
     final (top, bottom) = _visibleWindow();
+    // Binary-searched band, not a walk over every slot: scroll-time sync cost
+    // follows the visible window, not the catalogue size.
     _pool.syncVisible(
       slots: _slots,
+      start: _firstSlotIndexAtOrBelow(top),
+      end: _slotIndexAfter(bottom),
       top: top,
       bottom: bottom,
       pinnedKeys: _stitchPinnedKeys.isEmpty ? null : _stitchPinnedKeys,
@@ -1576,6 +1607,15 @@ class RenderPanelCatalog extends RenderBox {
   }
 
   // --- Paint ----------------------------------------------------------------
+
+  /// The viewport owns its own compositing layer.
+  ///
+  /// Hosts stack the category strip and search field over this body. Without a
+  /// boundary an overlay repaint (typing, strip highlight) re-records every
+  /// visible leaf, and every scroll frame re-records the overlays. With one,
+  /// each side repaints into its own layer and the other is reused as is.
+  @override
+  bool get isRepaintBoundary => true;
 
   /// Clips to the viewport, translates by `−offset`, paints intersecting slots.
   ///
