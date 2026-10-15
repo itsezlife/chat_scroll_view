@@ -6,6 +6,21 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- **Glyph atlas** (`glyph_atlas.dart`) — `GlyphAtlasLayout` (2048 px pages, glyph
+  capped at 72 px, 2 px gutter), `GlyphAtlasIndex` / `GlyphSprite`, the paced
+  `GlyphBaker`, and the `GlyphRasteriser` / `GlyphPageStore` seams with
+  `ParagraphGlyphRasteriser`. Independent of the asset cache.
+- **`testing.dart`** — `FakeGlyphRasteriser`, `FakeGlyphPageStore`,
+  `ImagePixels` and the `runGlyphRasteriserContract` /
+  `runGlyphPageStoreContract` suites.
+
+### Changed
+
+- The package now depends on the Flutter SDK (`dart:ui` for the baker) and on
+  `flutter_test` (contract suites); its tests run with `flutter test`.
+
 ### Changed
 
 - **Ready/failed retention** — after the last [CatalogAssetBinding.detach],
