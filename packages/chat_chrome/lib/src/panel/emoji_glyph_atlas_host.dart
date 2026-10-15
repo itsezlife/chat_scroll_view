@@ -10,7 +10,8 @@ typedef GlyphAtlasFactory =
     GlyphAtlas? Function({
       required GlyphAtlasIndex index,
       required GlyphRasteriser rasteriser,
-      required GlyphPageStore store,
+      GlyphPageStore? store,
+      GlyphAtlasPersistence? persistence,
       required BakeFrameSource frames,
       required BakeClock clock,
       required ValueListenable<bool> panelVisible,
@@ -32,9 +33,18 @@ typedef GlyphAtlasFactory =
 /// only draw glyphs it planned and the viewport never falls back to text where
 /// emoji are baked. When a glyph appears that is not planned (a tone chosen
 /// for the first time, a recent that is a tone variant) the atlas is planned
-/// again from scratch and listeners are told; its cells show placeholders until
-/// the new pages bake. Keeping the old pages visible meanwhile is the disk
-/// cache's job (baked-atlas ticket 09).
+/// again from scratch and listeners are told. With a [persistence] the new
+/// atlas keeps drawing the old pages for the glyphs they hold while it bakes
+/// and swaps once (stale-while-rebake); without one its cells show placeholders
+/// until the new pages bake.
+///
+/// ## Persistence
+///
+/// Given a [GlyphAtlasPersistence] the baked pages outlive the process: a
+/// later launch restores them instead of baking, and an OS or font update
+/// re-bakes behind the old pages. The host never clears the persisted pages
+/// (they are the point); a host that wants them gone clears its own cache
+/// store.
 ///
 /// On a platform that does not bake ([atlasFactory] returns null) there is
 /// never an atlas and the grid draws text, as it always did.
@@ -42,21 +52,29 @@ final class EmojiGlyphAtlasHost extends ChangeNotifier {
   /// Creates a host that plans from [dataSource] and bakes on [frames].
   ///
   /// [devicePixelRatio] sizes the baked glyph (capped at the atlas maximum).
-  /// The remaining arguments default to the system font, an in-memory store,
-  /// a wall clock and the platform's atlas factory; tests replace them.
+  /// The remaining arguments default to the system font, an in-memory store
+  /// (or, with [persistence], that persistent cache), a wall clock and the
+  /// platform's atlas factory; tests replace them. Give [store] or
+  /// [persistence], not both.
   EmojiGlyphAtlasHost({
     required EmojiDataSource dataSource,
     required BakeFrameSource frames,
     required double devicePixelRatio,
     GlyphRasteriser? rasteriser,
     GlyphPageStore? store,
+    GlyphAtlasPersistence? persistence,
     BakeClock? clock,
     GlyphAtlasFactory atlasFactory = createGlyphAtlasForPlatform,
-  }) : _dataSource = dataSource,
+  }) : assert(
+         store == null || persistence == null,
+         'give the host a store or a persistence, not both',
+       ),
+       _persistence = persistence,
+       _dataSource = dataSource,
        _frames = frames,
        _devicePixelRatio = devicePixelRatio,
        _rasteriser = rasteriser ?? ParagraphGlyphRasteriser(),
-       _store = store ?? MemoryGlyphPageStore(),
+       _store = persistence != null ? null : store ?? MemoryGlyphPageStore(),
        _clock = clock ?? _wallClock(),
        _atlasFactory = atlasFactory;
 
@@ -64,7 +82,8 @@ final class EmojiGlyphAtlasHost extends ChangeNotifier {
   final BakeFrameSource _frames;
   final double _devicePixelRatio;
   final GlyphRasteriser _rasteriser;
-  final GlyphPageStore _store;
+  final GlyphPageStore? _store;
+  final GlyphAtlasPersistence? _persistence;
   final BakeClock _clock;
   final GlyphAtlasFactory _atlasFactory;
 
@@ -105,6 +124,7 @@ final class EmojiGlyphAtlasHost extends ChangeNotifier {
       ),
       rasteriser: _rasteriser,
       store: _store,
+      persistence: _persistence,
       frames: _frames,
       clock: _clock,
       panelVisible: panelVisible,
@@ -122,7 +142,8 @@ final class EmojiGlyphAtlasHost extends ChangeNotifier {
     _atlas = null;
     panelVisible.dispose();
     panelOpening.dispose();
-    unawaited(_store.clear());
+    // Memory pages die with the host; persisted pages are kept on purpose.
+    if (_store != null) unawaited(_store.clear());
     super.dispose();
   }
 

@@ -80,6 +80,18 @@ final class GlyphBaker {
   /// The page the latest [BakeStep.page] composed, or null before the first.
   int? get lastBakedPage => _lastBakedPage;
 
+  /// Records that page [pageIndex] already exists in the store (restored from
+  /// a persisted set), so it is not baked again and its glyphs have a
+  /// [spriteOf]. Call it before baking starts.
+  void markBaked(int pageIndex) {
+    assert(
+      pageIndex >= 0 && pageIndex < index.pageCount,
+      'page $pageIndex is outside 0..${index.pageCount - 1}',
+    );
+    assert(!_stepping && _current != pageIndex, 'the page is being baked');
+    _baked.add(pageIndex);
+  }
+
   /// Says which glyphs the user is looking at, most important first; their
   /// pages bake before the others, then the pages nearest to them.
   ///

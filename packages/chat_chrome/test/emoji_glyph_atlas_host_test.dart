@@ -64,18 +64,24 @@ void main() {
   });
   tearDown(() => data.dispose());
 
-  EmojiGlyphAtlasHost host({bool bakes = true}) {
+  EmojiGlyphAtlasHost host({
+    bool bakes = true,
+    GlyphAtlasPersistence? persistence,
+    FakeGlyphRasteriser? rasteriser,
+  }) {
     final host = EmojiGlyphAtlasHost(
       dataSource: data,
       frames: frames,
       devicePixelRatio: 2,
-      rasteriser: FakeGlyphRasteriser(),
-      store: FakeGlyphPageStore(),
+      rasteriser: rasteriser ?? FakeGlyphRasteriser(),
+      store: persistence == null ? FakeGlyphPageStore() : null,
+      persistence: persistence,
       atlasFactory:
           ({
             required index,
             required rasteriser,
-            required store,
+            store,
+            persistence,
             required frames,
             required clock,
             required panelVisible,
@@ -86,6 +92,7 @@ void main() {
               index: index,
               rasteriser: rasteriser,
               store: store,
+              persistence: persistence,
               frames: frames,
               clock: clock,
               panelVisible: panelVisible,
@@ -200,5 +207,85 @@ void main() {
     expect(atlas.spriteOf('😀'), isNull);
     expect(h.atlas, isNull);
     expect(() => h.panelVisible.value = true, throwsFlutterError);
+  });
+
+  group('with a persistent cache', () {
+    late FakeGlyphCacheStore cache;
+    late FakeGlyphArtVersionSource art;
+
+    GlyphAtlasPersistence persistence() => GlyphAtlasPersistence(
+      cache: cache,
+      artVersion: art,
+      devicePixelRatio: 2,
+    );
+
+    setUp(() {
+      cache = FakeGlyphCacheStore();
+      art = FakeGlyphArtVersionSource();
+    });
+    tearDown(() => cache.clear());
+
+    Future<void> bake() async {
+      for (var i = 0; i < 200 && frames.hasPendingRequest; i++) {
+        frames.pump();
+        await pumpEventQueue();
+      }
+    }
+
+    test('the next launch restores the pages instead of baking', () async {
+      final first = FakeGlyphRasteriser();
+      final h1 = host(persistence: persistence(), rasteriser: first)
+        ..sync(recents: const [])
+        ..panelVisible.value = true;
+      await pumpEventQueue();
+      await bake();
+      expect(h1.atlas!.spriteOf('😀'), isNotNull);
+      expect(first.painted, isNotEmpty);
+      h1.dispose();
+
+      final second = FakeGlyphRasteriser();
+      final h2 = host(persistence: persistence(), rasteriser: second)
+        ..sync(recents: const [])
+        ..panelVisible.value = true;
+      await pumpEventQueue();
+      await bake();
+
+      expect(h2.atlas!.spriteOf('😀'), isNotNull);
+      expect(second.painted, isEmpty);
+    });
+
+    test('disposing the host keeps the persisted pages', () async {
+      final h = host(persistence: persistence())
+        ..sync(recents: const [])
+        ..panelVisible.value = true;
+      await pumpEventQueue();
+      await bake();
+
+      h.dispose();
+
+      expect(await cache.openCommitted(), isNotNull);
+    });
+
+    test('a tone chosen for the first time keeps the old art drawn', () async {
+      final h = host(persistence: persistence())
+        ..sync(recents: const [])
+        ..panelVisible.value = true;
+      await pumpEventQueue();
+      await bake();
+      expect(h.atlas!.spriteOf('😀'), isNotNull);
+
+      // A new tone is a new glyph: the plan is made again.
+      data.tones['👍'] = 3;
+      h.sync(recents: const []);
+      await pumpEventQueue();
+      frames.pump();
+      await pumpEventQueue();
+
+      expect(h.atlas!.spriteOf('😀'), isNotNull, reason: 'old pages, no gap');
+      expect(h.atlas!.spriteOf(EmojiSkinTone.apply('👍', 3)), isNull);
+
+      await bake();
+      expect(h.atlas!.spriteOf(EmojiSkinTone.apply('👍', 3)), isNotNull);
+    });
   });
 }

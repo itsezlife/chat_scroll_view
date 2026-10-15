@@ -60,8 +60,13 @@ class KeyboardPanel extends StatefulWidget {
     this.callbacks = const KeyboardPanelCallbacks(),
     this.bottomActions,
     this.labels = KeyboardPanelLabels.english,
+    this.glyphCache,
+    this.glyphArtVersion,
     super.key,
-  });
+  }) : assert(
+         glyphCache == null || glyphArtVersion != null,
+         'a glyphCache needs a glyphArtVersion to tell when it is out of date',
+       );
 
   /// Host-owned chrome SoT (open/search/tab + inset claim/release + panel store).
   final KeyboardPanelController controller;
@@ -86,6 +91,16 @@ class KeyboardPanel extends StatefulWidget {
 
   /// Trailing bottom-bar actions; defaults to [KeyboardPanelBottomActions.standard].
   final KeyboardPanelBottomActions? bottomActions;
+
+  /// Where baked emoji pages are kept between launches, or null to bake in
+  /// memory every launch. Read once, when the panel first mounts. Needs
+  /// [glyphArtVersion]. A cache directory is the host's to choose; see
+  /// `createGlyphCacheStoreForPlatform`.
+  final GlyphCacheStore? glyphCache;
+
+  /// Tells when the system emoji art changed, so persisted pages are re-baked
+  /// behind the old ones. Used with [glyphCache].
+  final GlyphArtVersionSource? glyphArtVersion;
 
   @override
   State<KeyboardPanel> createState() => _KeyboardPanelState();
@@ -233,6 +248,13 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       dataSource: _dataSource,
       frames: frames,
       devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+      persistence: widget.glyphCache == null
+          ? null
+          : GlyphAtlasPersistence(
+              cache: widget.glyphCache!,
+              artVersion: widget.glyphArtVersion!,
+              devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+            ),
     );
     _dataSource.addDataListener(_syncAtlas);
     _syncBakeSignals();

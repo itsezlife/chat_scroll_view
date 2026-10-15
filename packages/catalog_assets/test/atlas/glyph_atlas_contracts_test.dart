@@ -20,4 +20,9 @@ void main() {
   );
   runGlyphPageStoreContract('FakeGlyphPageStore', FakeGlyphPageStore.new);
   runGlyphPageStoreContract('MemoryGlyphPageStore', MemoryGlyphPageStore.new);
+  runGlyphCacheStoreContract(
+    'MemoryGlyphCacheStore',
+    MemoryGlyphCacheStore.new,
+  );
+  runGlyphCacheStoreContract('FakeGlyphCacheStore', FakeGlyphCacheStore.new);
 }

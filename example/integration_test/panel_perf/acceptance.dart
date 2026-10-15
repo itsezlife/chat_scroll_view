@@ -154,6 +154,24 @@ const String kChatPanelOpenScenario = 'chat_panel_open';
 /// The same cold first fling, with the panel hosted on the real chat screen.
 const String kChatColdFirstPassScenario = 'chat_cold_first_pass';
 
+/// First launch ever: the emoji cache is empty, so the panel shows circles
+/// while the atlas bakes. Circles may last as long as they last; a dropped
+/// frame may not.
+const String kFirstRunScenario = 'first_run_no_cache';
+
+/// A later launch with a valid cache: the atlas restores its pages instead of
+/// baking. Circles must not outlast [kCachedCircleBudget] and the panel open
+/// animation drops no frame.
+const String kCachedColdStartScenario = 'cold_start_valid_cache';
+
+/// The launch after an OS or emoji font update (the art version changed): the
+/// old pages keep drawing while the new set bakes, then swap once. Diagnostic:
+/// recorded, not asserted, until it has been measured on the reference device.
+const String kOsUpdateScenario = 'os_update_stale_rebake';
+
+/// The longest circles may last on a cold start with a valid cache.
+const Duration kCachedCircleBudget = Duration(milliseconds: 500);
+
 /// One test target and the scenarios it must report to count as a pass.
 ///
 /// Each suite is its own launch: the engine's glyph atlas is cold only in a
@@ -191,7 +209,17 @@ const AcceptanceSuite kChatSuite = AcceptanceSuite(
   assertedScenarios: [kChatPanelOpenScenario, kChatColdFirstPassScenario],
 );
 
-const List<AcceptanceSuite> kSuites = [kBareSuite, kChatSuite];
+/// The emoji cache flows: first run with no cache, cold start with a valid
+/// cache, and (diagnostic) the launch after an OS update. One launch runs the
+/// three in order against one cache directory that is fresh for the launch, so
+/// the first really is a first run.
+const AcceptanceSuite kFirstRunSuite = AcceptanceSuite(
+  name: 'first_run',
+  target: 'integration_test/panel_first_run_test.dart',
+  assertedScenarios: [kFirstRunScenario, kCachedColdStartScenario],
+);
+
+const List<AcceptanceSuite> kSuites = [kBareSuite, kChatSuite, kFirstRunSuite];
 
 /// The suite called [name], or null.
 AcceptanceSuite? suiteNamed(String name) {

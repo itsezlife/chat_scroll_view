@@ -1,6 +1,6 @@
 // Three-launch acceptance run for the panel catalog, and baseline handling.
 //
-//   dart run tool/panel_perf.dart [--suite bare|chat|all] <device-id> <label>
+//   dart run tool/panel_perf.dart [--suite bare|chat|first_run|all] <device-id> <label>
 //                                     three fresh launches per suite
 //   dart run tool/panel_perf.dart --promote <run-label>...
 //                                     keep launches as the comparison baseline
@@ -23,7 +23,7 @@ import '../integration_test/panel_perf/acceptance_runner.dart';
 import '../integration_test/panel_perf/report.dart';
 
 const _usage =
-    'usage: dart run tool/panel_perf.dart [--suite bare|chat|all] '
+    'usage: dart run tool/panel_perf.dart [--suite bare|chat|first_run|all] '
     '<device-id> <label>\n'
     '       dart run tool/panel_perf.dart --promote <run-label>...';
 
