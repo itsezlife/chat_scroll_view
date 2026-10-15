@@ -142,8 +142,61 @@ const String kPanelOpenScenario = 'panel_open';
 /// First fling over the whole catalogue with every glyph unseen by the engine.
 const String kColdFirstPassScenario = 'cold_first_pass';
 
-/// Scenarios whose verdict decides the run; others are diagnostics.
+/// Scenarios whose verdict decides the bare-panel run; others are diagnostics.
 const List<String> kAssertedScenarios = [
   kPanelOpenScenario,
   kColdFirstPassScenario,
 ];
+
+/// The panel open animation over the real chat screen.
+const String kChatPanelOpenScenario = 'chat_panel_open';
+
+/// The same cold first fling, with the panel hosted on the real chat screen.
+const String kChatColdFirstPassScenario = 'chat_cold_first_pass';
+
+/// One test target and the scenarios it must report to count as a pass.
+///
+/// Each suite is its own launch: the engine's glyph atlas is cold only in a
+/// fresh process, so two suites cannot share one without the second measuring
+/// a warm pass.
+final class AcceptanceSuite {
+  const AcceptanceSuite({
+    required this.name,
+    required this.target,
+    required this.assertedScenarios,
+  });
+
+  /// Short name on the command line.
+  final String name;
+
+  /// `integration_test` entry point, relative to the example directory.
+  final String target;
+
+  /// Scenarios whose verdict decides a launch of this suite.
+  final List<String> assertedScenarios;
+}
+
+/// The bare panel on a scaffold: no chat, no backend.
+const AcceptanceSuite kBareSuite = AcceptanceSuite(
+  name: 'bare',
+  target: 'integration_test/all_tests.dart',
+  assertedScenarios: kAssertedScenarios,
+);
+
+/// The panel opened from the composer of the real chat screen, over generated
+/// messages. Catches jank from the chat behind, the glass and neighbours.
+const AcceptanceSuite kChatSuite = AcceptanceSuite(
+  name: 'chat',
+  target: 'integration_test/panel_over_chat_test.dart',
+  assertedScenarios: [kChatPanelOpenScenario, kChatColdFirstPassScenario],
+);
+
+const List<AcceptanceSuite> kSuites = [kBareSuite, kChatSuite];
+
+/// The suite called [name], or null.
+AcceptanceSuite? suiteNamed(String name) {
+  for (final suite in kSuites) {
+    if (suite.name == name) return suite;
+  }
+  return null;
+}

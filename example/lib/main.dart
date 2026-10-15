@@ -56,6 +56,7 @@ class ChatDemoApp extends StatelessWidget {
   const ChatDemoApp({
     required this.keyboardPanelStore,
     required this.emojiDataSource,
+    this.chatDataSourceLoader,
     super.key,
   });
 
@@ -64,6 +65,10 @@ class ChatDemoApp extends StatelessWidget {
 
   /// Preloaded emoji catalog / recents.
   final DefaultEmojiDataSource emojiDataSource;
+
+  /// Replaces the bundled message source; see
+  /// [WidgetChatScreen.dataSourceLoader]. The app leaves this null.
+  final ChatDataSourceLoader? chatDataSourceLoader;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -84,6 +89,7 @@ class ChatDemoApp extends StatelessWidget {
     home: WidgetChatScreen(
       keyboardPanelStore: keyboardPanelStore,
       emojiDataSource: emojiDataSource,
+      dataSourceLoader: chatDataSourceLoader,
     ),
   );
 }
