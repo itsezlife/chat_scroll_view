@@ -8,6 +8,22 @@ is pre-1.0.
 
 ### Added
 
+- **Disk cache for baked pages.** `GlyphAtlasPersistence` (a `GlyphCacheStore`,
+  a `GlyphArtVersionSource` and the density) makes a `GlyphAtlas` persist its
+  pages: the next launch restores them one page per frame instead of baking
+  (`GlyphCacheVerdict.hit`); an art or catalogue change keeps the old pages
+  drawing while the new set bakes behind them and swaps in one step
+  (`stale`); a density, glyph size or `GlyphAtlasLayout.version` change
+  discards them (`discard`); damaged or missing pages are a miss, baked again.
+  `GlyphCacheKey`, `GlyphCacheRecord`, `GlyphCacheStore` (committed and staged
+  generations), `MemoryGlyphCacheStore`, `createGlyphCacheStoreForPlatform`
+  (a `dart:io` file store, in memory on the web), `FixedGlyphArtVersion`,
+  `GlyphAtlas.cacheReport` (verdict and how long circles lasted). Fakes and
+  contract suites in `testing.dart`: `FakeGlyphCacheStore`,
+  `FakeGlyphArtVersionSource`, `runGlyphCacheStoreContract`.
+  `GlyphAtlas`, `createGlyphAtlasForPlatform` take `persistence:` instead of
+  `store:` (exactly one); `store:` is now optional.
+
 - **Baked sprites for surfaces.** `GlyphAtlas` (baker, scheduler and resident
   page images behind `spriteOf`), `AtlasSprite`, `MemoryGlyphPageStore`, and
   `createGlyphAtlasForPlatform` (an atlas on baking platforms, `null` on the

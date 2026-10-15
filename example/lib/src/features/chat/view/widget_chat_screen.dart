@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 
+import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
@@ -47,6 +48,8 @@ class WidgetChatScreen extends StatefulWidget {
     this.keyboardPanelStore,
     this.emojiDataSource,
     this.dataSourceLoader,
+    this.glyphCache,
+    this.glyphArtVersion,
     super.key,
   });
 
@@ -62,6 +65,13 @@ class WidgetChatScreen extends StatefulWidget {
   /// The screen owns the returned source and disposes it. The app leaves this
   /// null.
   final ChatDataSourceLoader? dataSourceLoader;
+
+  /// Where the keyboard panel keeps baked emoji pages between launches, or
+  /// null to bake in memory every launch.
+  final GlyphCacheStore? glyphCache;
+
+  /// Tells when the system emoji art changed; used with [glyphCache].
+  final GlyphArtVersionSource? glyphArtVersion;
 
   @override
   State<WidgetChatScreen> createState() => _WidgetChatScreenState();
@@ -1100,6 +1110,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                                 allow: _emojiAllow,
                                 labels: KeyboardPanelLabels.russian,
                                 dataSource: _emojiDataSource,
+                                glyphCache: widget.glyphCache,
+                                glyphArtVersion: widget.glyphArtVersion,
                                 onEmojiSelected: (glyph) {
                                   _composer.insertText(glyph);
                                 },

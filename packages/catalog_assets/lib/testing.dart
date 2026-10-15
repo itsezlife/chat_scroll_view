@@ -6,8 +6,11 @@ library;
 
 export 'src/atlas/testing/bake_frame_source_contract.dart';
 export 'src/atlas/testing/fake_bake_frame_source.dart';
+export 'src/atlas/testing/fake_glyph_art_version_source.dart';
+export 'src/atlas/testing/fake_glyph_cache_store.dart';
 export 'src/atlas/testing/fake_glyph_page_store.dart';
 export 'src/atlas/testing/fake_glyph_rasteriser.dart';
+export 'src/atlas/testing/glyph_cache_store_contract.dart';
 export 'src/atlas/testing/glyph_page_store_contract.dart';
 export 'src/atlas/testing/glyph_rasteriser_contract.dart';
 export 'src/atlas/testing/image_pixels.dart';

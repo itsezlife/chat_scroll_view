@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'panel_perf/acceptance.dart';
+import 'panel_perf/panel_harness.dart';
 import 'panel_perf/report.dart';
 import 'panel_perf/scenario_support.dart';
 
@@ -52,7 +53,7 @@ void main() {
 
     // The app shell is up and the panel closed before measuring starts: the
     // open animation is the first thing a user's tap would trigger.
-    final harness = await _PanelHarness.start(tester);
+    final harness = await PanelHarness.start(tester);
     await settle(tester);
     await tester.pump(const Duration(milliseconds: 500));
 
@@ -101,7 +102,7 @@ void main() {
     // panel pays on every open, separate from first sight of a glyph.
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 500));
-    final reopened = await _PanelHarness.start(tester);
+    final reopened = await PanelHarness.start(tester);
     reopened.open();
     await tester.pump();
     await settle(tester);
@@ -119,74 +120,4 @@ void main() {
 
     publishAndAssert(binding, reports);
   });
-}
-
-/// Real [KeyboardPanel] on a bare scaffold: no chat, no backend.
-final class _PanelHarness {
-  _PanelHarness._(this.store, this.inset, this.controller, this.data);
-
-  final KeyboardPanelStore store;
-  final ChatBottomInsetController inset;
-  final KeyboardPanelController controller;
-  final DefaultEmojiDataSource data;
-
-  static Future<_PanelHarness> start(WidgetTester tester) async {
-    final store = KeyboardPanelStore(defaultHeight: 380);
-    final data = DefaultEmojiDataSource(
-      catalog: LocaleEmojiCatalogProvider(
-        locale: const Locale('ru'),
-        categoryTitles: EmojiCategoryTitles.russian,
-        stripIconFor: EmojiTabAssets.stripIconForId,
-      ),
-    );
-    await (store.load(), data.load()).wait;
-    final inset = ChatBottomInsetController(store: store);
-    final controller = KeyboardPanelController(inset: inset, store: store);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue,
-            brightness: Brightness.dark,
-          ),
-        ),
-        builder: (context, child) => ChatChromeTheme(
-          colors: const ChatChromeColors.dark(),
-          child: child!,
-        ),
-        home: Scaffold(
-          body: Align(
-            alignment: Alignment.bottomCenter,
-            child: ValueListenableBuilder<double>(
-              valueListenable: inset.heightListenable,
-              builder: (context, height, child) =>
-                  SizedBox(height: height, child: child),
-              child: RepaintBoundary(
-                child: KeyboardPanel(
-                  controller: controller,
-                  allow: KeyboardPanelAllow.emojiOnly,
-                  labels: KeyboardPanelLabels.russian,
-                  dataSource: data,
-                  onEmojiSelected: (_) {},
-                  onBackspace: () {},
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    return _PanelHarness._(store, inset, controller, data);
-  }
-
-  void open() => controller.open(landscape: false);
-
-  void dispose() {
-    controller.dispose();
-    inset.dispose();
-    data.dispose();
-  }
 }

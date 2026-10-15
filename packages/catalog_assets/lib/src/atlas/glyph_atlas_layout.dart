@@ -41,6 +41,12 @@ final class GlyphAtlasLayout {
     return GlyphAtlasLayout(glyphSize: math.min(maxGlyphSize, wanted));
   }
 
+  /// Version of the geometry below: bump it whenever a change would put an
+  /// existing glyph on another page or cell for the same glyph list (page
+  /// size, gutter, slot order). It is part of the persisted cache key, so
+  /// pages baked by older geometry are discarded instead of mis-addressed.
+  static const int version = 1;
+
   /// Page edge in px. Fixed: pages are 2048 by 2048.
   static const int pageSize = 2048;
 

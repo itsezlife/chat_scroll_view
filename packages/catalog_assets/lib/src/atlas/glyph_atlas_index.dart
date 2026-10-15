@@ -55,6 +55,10 @@ final class GlyphAtlasIndex {
   final List<String> _glyphs;
   final Map<String, int> _slotOf = <String, int>{};
 
+  /// The distinct glyphs in plan order: what is persisted next to the pages so
+  /// a later launch can address them with the geometry that placed them.
+  List<String> get glyphs => _glyphs;
+
   /// Distinct glyphs in the plan.
   int get glyphCount => _glyphs.length;
 

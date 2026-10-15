@@ -172,9 +172,20 @@ Map<String, Object?> atlasMeta(WidgetTester tester) {
       for (final leaf in section.leaves)
         if (leaf is UnicodeCatalogLeaf) leaf.glyph,
   };
+  final cache = atlas.cacheReport;
   return {
     'atlasGlyphs': atlas.index.glyphCount,
     'atlasBakedGlyphs': glyphs.where((g) => atlas.spriteOf(g) != null).length,
+    // Present only for an atlas with a persistent cache: what it decided and
+    // how long the circles lasted, measured from the atlas start.
+    if (cache.verdict != null) ...{
+      'cacheVerdict': cache.verdict!.name,
+      'cacheRestoredPages': cache.restoredPages,
+      'cacheStalePages': cache.stalePages,
+      'cacheSwapped': cache.swapped,
+      'cacheFirstPageMs': cache.firstPageAfterStart?.inMilliseconds,
+      'cacheAllPagesMs': cache.allPagesAfterStart?.inMilliseconds,
+    },
   };
 }
 

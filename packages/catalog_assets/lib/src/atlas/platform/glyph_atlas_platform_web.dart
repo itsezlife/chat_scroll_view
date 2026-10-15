@@ -1,4 +1,5 @@
 import 'package:catalog_assets/src/atlas/bake_frame_source.dart';
+import 'package:catalog_assets/src/atlas/cache/glyph_atlas_persistence.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_index.dart';
 import 'package:catalog_assets/src/atlas/glyph_page_residency.dart';
@@ -15,7 +16,8 @@ import 'package:flutter/foundation.dart';
 GlyphAtlas? createGlyphAtlasForPlatform({
   required GlyphAtlasIndex index,
   required GlyphRasteriser rasteriser,
-  required GlyphPageStore store,
+  GlyphPageStore? store,
+  GlyphAtlasPersistence? persistence,
   required BakeFrameSource frames,
   required BakeClock clock,
   required ValueListenable<bool> panelVisible,

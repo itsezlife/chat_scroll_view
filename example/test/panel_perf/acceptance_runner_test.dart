@@ -172,7 +172,25 @@ void main() {
       expect(names.toSet(), hasLength(names.length));
     });
 
+    test('the first-run suite asserts the two cache flows it measures', () {
+      expect(kFirstRunSuite.assertedScenarios, [
+        'first_run_no_cache',
+        'cold_start_valid_cache',
+      ]);
+      expect(
+        kFirstRunSuite.target,
+        'integration_test/panel_first_run_test.dart',
+      );
+      expect(kSuites, contains(kFirstRunSuite));
+      // The OS-update scenario is a diagnostic: reported, never decisive.
+      expect(
+        kFirstRunSuite.assertedScenarios,
+        isNot(contains(kOsUpdateScenario)),
+      );
+    });
+
     test('suites are found by name', () {
+      expect(suiteNamed('first_run'), same(kFirstRunSuite));
       expect(suiteNamed('chat'), same(kChatSuite));
       expect(suiteNamed('bare'), same(kBareSuite));
       expect(suiteNamed('nope'), isNull);
