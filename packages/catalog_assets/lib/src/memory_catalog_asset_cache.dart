@@ -1,3 +1,5 @@
+import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
+import 'package:catalog_assets/src/atlas/glyph_atlas.dart';
 import 'package:catalog_assets/src/catalog_asset_binding.dart';
 import 'package:catalog_assets/src/catalog_asset_cache.dart';
 import 'package:catalog_assets/src/catalog_asset_cache_type.dart';
@@ -20,7 +22,22 @@ import 'package:catalog_assets/src/catalog_asset_readiness.dart';
 ///
 /// Call [evict] / [clear] for explicit memory pressure. LRU eviction is not
 /// implemented yet.
+///
+/// ## Baked glyphs
+///
+/// With a [glyphAtlas], unicode bindings resolve [CatalogAssetBinding.sprite]
+/// from it, and every binding listener is told when a page of the atlas
+/// becomes drawable, so a surface repaints the cells that were placeholders.
+/// The cache listens to the atlas until [dispose]; it does not own the atlas.
 final class MemoryCatalogAssetCache implements CatalogAssetCache {
+  /// Creates a cache; pass [glyphAtlas] on platforms that bake glyphs.
+  MemoryCatalogAssetCache({this.glyphAtlas}) {
+    glyphAtlas?.addPageListener(_onPageBaked);
+  }
+
+  @override
+  final GlyphAtlas? glyphAtlas;
+
   final Map<_EntryId, _Entry> _entries = {};
 
   @override
@@ -66,6 +83,18 @@ final class MemoryCatalogAssetCache implements CatalogAssetCache {
 
   /// Drops every entry. Same live-binding caveat as [evict].
   void clear() => _entries.clear();
+
+  /// Stops listening to [glyphAtlas]. The atlas itself is the host's to
+  /// dispose. Idempotent.
+  void dispose() => glyphAtlas?.removePageListener(_onPageBaked);
+
+  void _onPageBaked(int pageIndex) {
+    // Every binding with a listener: the cells of one page are not tracked per
+    // entry, and a listener is a repaint request, which is idempotent.
+    for (final entry in List<_Entry>.of(_entries.values)) {
+      entry.notify();
+    }
+  }
 
   void _setReadiness(
     CatalogAssetKey key,
@@ -128,9 +157,9 @@ final class _Binding implements CatalogAssetBinding {
     required MemoryCatalogAssetCache cache,
     required _EntryId id,
     required _Entry entry,
-  })  : _cache = cache,
-        _id = id,
-        _entry = entry;
+  }) : _cache = cache,
+       _id = id,
+       _entry = entry;
 
   final MemoryCatalogAssetCache _cache;
   final _EntryId _id;
@@ -146,6 +175,12 @@ final class _Binding implements CatalogAssetBinding {
 
   @override
   CatalogAssetReadiness get readiness => _entry.readiness;
+
+  @override
+  AtlasSprite? get sprite => switch (_id.key) {
+    UnicodeCatalogAssetKey(:final glyph) => _cache.glyphAtlas?.spriteOf(glyph),
+    DocumentCatalogAssetKey() => null,
+  };
 
   @override
   void addListener(void Function() listener) {

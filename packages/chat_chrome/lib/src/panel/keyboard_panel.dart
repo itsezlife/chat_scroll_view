@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_chrome/src/composer/chat_input_metrics.dart';
 import 'package:chat_chrome/src/inset/chat_bottom_inset_controller.dart';
 import 'package:chat_chrome/src/motion/keyboard_panel_motion.dart';
 import 'package:chat_chrome/src/panel/emoji_deferred_recents.dart';
+import 'package:chat_chrome/src/panel/emoji_glyph_atlas_host.dart';
 import 'package:chat_chrome/src/panel/emoji_page.dart';
 import 'package:chat_chrome/src/panel/keyboard_panel_allow.dart';
 import 'package:chat_chrome/src/panel/keyboard_panel_bottom_actions.dart';
@@ -98,10 +100,22 @@ class _KeyboardPanelState extends State<KeyboardPanel>
   late final AnimationController _progress;
 
   /// True while a cold open animation is in flight.
-  var _opening = false;
+  bool get _opening => _openingFlag;
+  set _opening(bool value) {
+    _openingFlag = value;
+    _syncBakeSignals();
+  }
+
+  var _openingFlag = false;
 
   /// True while a cold close animation is in flight.
-  var _closing = false;
+  bool get _closing => _closingFlag;
+  set _closing(bool value) {
+    _closingFlag = value;
+    _syncBakeSignals();
+  }
+
+  var _closingFlag = false;
 
   /// Skip entrance animation when opening over a dismissing IME.
   var _replacingKeyboard = false;
@@ -151,6 +165,13 @@ class _KeyboardPanelState extends State<KeyboardPanel>
 
   final EmojiDeferredRecents _deferredRecents = EmojiDeferredRecents();
 
+  // --- Baked emoji ----------------------------------------------------------
+
+  /// Owns the emoji atlas across opens and closes; created once the view and
+  /// density are known ([didChangeDependencies]).
+  EmojiGlyphAtlasHost? _atlasHost;
+  SchedulerBakeFrameSource? _bakeFrames;
+
   // --- Bottom bar -----------------------------------------------------------
 
   /// Bottom-tab visibility — bar slides down when false.
@@ -187,10 +208,10 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     _pageController = PageController(initialPage: initialPage);
     _pageController.addListener(_onPageControllerTick);
     _deferredRecents.commit(_dataSource);
-    _progress = AnimationController(
-      vsync: this,
-      duration: KeyboardPanelMotion.duration,
-    )..addListener(_onProgressTick);
+    _progress =
+        AnimationController(vsync: this, duration: KeyboardPanelMotion.duration)
+          ..addListener(_onProgressTick)
+          ..addStatusListener((_) => _syncBakeSignals());
     _inset.addListener(_onController);
     _inset.heightListenable.addListener(_onInsetHeight);
     _bindPanelController(widget.controller);
@@ -199,6 +220,42 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       'KeyboardPanel initState isOpen=${widget.controller.isOpen} '
       'tabs=${_tabs.length}',
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_atlasHost != null) return;
+    final frames = _bakeFrames = SchedulerBakeFrameSource(
+      view: View.of(context),
+    );
+    final host = _atlasHost = EmojiGlyphAtlasHost(
+      dataSource: _dataSource,
+      frames: frames,
+      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+    );
+    _dataSource.addDataListener(_syncAtlas);
+    _syncBakeSignals();
+    host.sync(recents: _deferredRecents.glyphs);
+    // After the first sync: its change is part of the first build.
+    host.addListener(_onAtlasChanged);
+  }
+
+  /// Plans the emoji atlas again if the grid would now draw an unplanned glyph.
+  void _syncAtlas() => _atlasHost?.sync(recents: _deferredRecents.glyphs);
+
+  void _onAtlasChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Tells the bake whether the panel is on screen and moving, so it neither
+  /// runs behind a hidden panel nor competes with the open or close animation.
+  void _syncBakeSignals() {
+    final host = _atlasHost;
+    if (host == null) return;
+    host.panelVisible.value =
+        _visible && _contentVisible && !_handoffToKeyboard;
+    host.panelOpening.value = _opening || _closing || _progress.isAnimating;
   }
 
   @override
@@ -225,6 +282,11 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     _unbindPanelController(widget.controller);
     _inset.removeListener(_onController);
     _inset.heightListenable.removeListener(_onInsetHeight);
+    _dataSource.removeDataListener(_syncAtlas);
+    _atlasHost
+      ?..removeListener(_onAtlasChanged)
+      ..dispose();
+    _bakeFrames?.dispose();
     _progress
       ..removeListener(_onProgressTick)
       ..dispose();
@@ -386,6 +448,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     _visible = false;
     _contentVisible = true;
     _progress.value = 0;
+    _syncBakeSignals();
   }
 
   void _maybeDismissHandoffShell() {
@@ -400,6 +463,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     if (!_handoffToKeyboard && _contentVisible) return;
     _handoffToKeyboard = false;
     _contentVisible = true;
+    _syncBakeSignals();
   }
 
   void _onProgressTick() {
@@ -487,6 +551,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     _rebindPageController(_pageIndex.value);
     // Apply deferred frequency-map changes from the previous session.
     _deferredRecents.commit(_dataSource);
+    _syncAtlas();
 
     if (!_visible) {
       setState(() {
@@ -497,6 +562,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     } else if (mounted) {
       setState(() {});
     }
+    _syncBakeSignals();
 
     if (_replacingKeyboard) {
       fine(.panel, 'KeyboardPanel.open REPLACE snap progress=1');
@@ -599,6 +665,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       // Keyboard handoff: hide emoji chrome, keep panel shell + inset hold.
       _handoffToKeyboard = true;
       _contentVisible = false;
+      _syncBakeSignals();
       if (notifyController) {
         _inset.closePanel(waitForIme: true);
       }
@@ -659,6 +726,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       _searchFocus.unfocus();
       _inset.collapsePanelFromSearch();
     });
+    _syncBakeSignals();
     fine(.panel, 'KeyboardPanel.close done published=${_inset.height}');
   }
 
@@ -858,6 +926,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     _searchOpen.value = false;
     _search.clear();
     _deferredRecents.commit(_dataSource);
+    _syncAtlas();
 
     final from = _inset.panelTarget;
     final to = _inset.panelBaseTarget;
@@ -1066,6 +1135,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
                                 },
                                 onEmojiSelected: _onEmoji,
                                 onClearRecents: _onRequestClearRecents,
+                                glyphAtlas: _atlasHost?.atlas,
                               ),
                               KeyboardPanelTab.gifs => const GifPageStub(),
                               KeyboardPanelTab.stickers =>

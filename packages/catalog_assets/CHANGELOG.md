@@ -8,6 +8,16 @@ is pre-1.0.
 
 ### Added
 
+- **Baked sprites for surfaces.** `GlyphAtlas` (baker, scheduler and resident
+  page images behind `spriteOf`), `AtlasSprite`, `MemoryGlyphPageStore`, and
+  `createGlyphAtlasForPlatform` (an atlas on baking platforms, `null` on the
+  web). `CatalogAssetBinding.sprite` is the optional sprite capability;
+  `CatalogAssetCache.glyphAtlas` exposes the atlas to the surface;
+  `MemoryCatalogAssetCache(glyphAtlas:)` resolves unicode sprites from it,
+  notifies binding listeners when a page lands, and has a `dispose()`.
+  Implementers of `CatalogAssetCache` / `CatalogAssetBinding` must add the new
+  members (return `null` for no atlas / no sprite).
+
 - **Glyph atlas** (`glyph_atlas.dart`) — `GlyphAtlasLayout` (2048 px pages, glyph
   capped at 72 px, 2 px gutter), `GlyphAtlasIndex` / `GlyphSprite`, the paced
   `GlyphBaker`, and the `GlyphRasteriser` / `GlyphPageStore` seams with

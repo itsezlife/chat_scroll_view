@@ -2,10 +2,13 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/painting.dart';
+import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_catalog/panel_catalog_perf_probe.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
+import 'package:panel_catalog/src/viewport/catalog_glyph_sprite_batch.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 
@@ -47,9 +50,18 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 ///
 /// ## Unicode glyphs
 ///
-/// Glyphs use a cached [ui.Paragraph] keyed by `(glyph, logicalWidth)`.
-/// Layout runs **once** when the paragraph is created. Scroll paints only
-/// [Canvas.drawParagraph] for that cached instance.
+/// A glyph whose asset has a **sprite** (a baked glyph on an atlas page) is not
+/// drawn by [paintLeaf] at all: it is queued, and [flushGlyphSprites] draws
+/// every queued sprite of one page with one batched atlas draw. The pressed
+/// cell is queued scaled about its center, so it needs no canvas transform and
+/// stays in its page's batch.
+///
+/// A glyph without a sprite paints itself from a cached [ui.Paragraph] keyed by
+/// `(glyph, logicalWidth)` (the web strategy, or a surface whose cache bakes
+/// nothing). Layout runs **once** when the paragraph is created. Scroll paints
+/// only [Canvas.drawParagraph] for that cached instance. Where emoji are baked
+/// this path is never reached for unicode: an unbaked glyph is presented as the
+/// circle placeholder, not as text.
 ///
 /// ## Presentation switch
 ///
@@ -57,7 +69,8 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// |---------------------------|--------|
 /// | [CatalogLeafPresentation.circlePlaceholder] | Filled circle |
 /// | [CatalogLeafPresentation.thumbFirstPlaceholder] / [CatalogLeafPresentation.shapedLoadingWash] / [CatalogLeafPresentation.failed] | Rounded rect stand-in |
-/// | [CatalogLeafPresentation.content] + unicode | Cached glyph paragraph |
+/// | [CatalogLeafPresentation.content] + unicode with a sprite | Queued sprite (batched per page) |
+/// | [CatalogLeafPresentation.content] + unicode without | Cached glyph paragraph |
 /// | [CatalogLeafPresentation.content] + document | Ready-path stand-in rect until media decode lands |
 ///
 /// ## Press highlight
@@ -108,6 +121,7 @@ final class CatalogLeafPainter {
 
   final Map<_HeaderPaintKey, ui.Paragraph> _headerParagraphs = {};
   final Map<_GlyphPaintKey, ui.Paragraph> _glyphParagraphs = {};
+  final CatalogGlyphSpriteBatch _glyphSprites = CatalogGlyphSpriteBatch();
 
   /// Resolved paint tokens from [PanelCatalogThemeData] at the viewport.
   ///
@@ -147,7 +161,13 @@ final class CatalogLeafPainter {
     cancelWarmup();
     _headerParagraphs.clear();
     _glyphParagraphs.clear();
+    _glyphSprites.dispose();
   }
+
+  /// Draws the glyph sprites queued by [paintLeaf] since the last flush, one
+  /// batched atlas draw per page. Call once at the end of each paint pass, with
+  /// the same clip and transform as the pass.
+  void flushGlyphSprites(Canvas canvas) => _glyphSprites.flush(canvas);
 
   /// Paints [header] at content [origin].
   ///
@@ -210,11 +230,16 @@ final class CatalogLeafPainter {
   /// [pressProgress] drives the list-selector highlight on the **full cell
   /// rect** (unscaled). Skipped when the configured highlight color is fully
   /// transparent or progress is `≤ 0`.
+  ///
+  /// [sprite] is the leaf's baked glyph when its asset has one. A unicode leaf
+  /// presented as content with a sprite is queued for [flushGlyphSprites]
+  /// instead of being drawn here.
   void paintLeaf({
     required Canvas canvas,
     required Offset origin,
     required CatalogLeafSlot slot,
     required CatalogLeafPresentation presentation,
+    AtlasSprite? sprite,
     double pressScale = 1,
     double pressProgress = 0,
   }) {
@@ -244,6 +269,23 @@ final class CatalogLeafPainter {
             alpha: theme.leafPressHighlightColor.a * factor,
           ),
       );
+    }
+
+    // A queued sprite carries the press scale in its own transform, so it needs
+    // no canvas save and restore and stays in its page's batch.
+    final queuesSprite =
+        presentation == CatalogLeafPresentation.content &&
+        slot.leaf is UnicodeCatalogLeaf &&
+        sprite != null;
+    if (queuesSprite) {
+      final center = cellRect.center;
+      _glyphSprites.add(
+        sprite,
+        left: center.dx + (glyphRect.left - center.dx) * pressScale,
+        top: center.dy + (glyphRect.top - center.dy) * pressScale,
+        scale: glyphRect.width / sprite.source.width * pressScale,
+      );
+      return;
     }
 
     final scaled = pressScale != 1;
@@ -292,6 +334,7 @@ final class CatalogLeafPainter {
   }
 
   void _paintGlyph(Canvas canvas, Rect glyphRect, String glyph) {
+    PanelCatalogDiagnostics.glyphParagraphDraws++;
     final paragraph = _paragraphForGlyph(
       PanelCatalogPerfProbe.glyphOverride ?? glyph,
       glyphRect.width,

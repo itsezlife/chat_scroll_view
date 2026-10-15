@@ -6,6 +6,8 @@
 /// live surface binds. Fetch orchestration stays outside this package.
 library;
 
+export 'src/atlas/atlas_sprite.dart';
+export 'src/atlas/glyph_atlas.dart';
 export 'src/catalog_asset_binding.dart';
 export 'src/catalog_asset_cache.dart';
 export 'src/catalog_asset_cache_type.dart';

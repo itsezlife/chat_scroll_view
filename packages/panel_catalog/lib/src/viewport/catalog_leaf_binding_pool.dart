@@ -28,10 +28,14 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// [CatalogAssetCache.readinessOf] (settled entries survive zero attaches),
 /// else loading.
 ///
-/// **Unicode** glyphs paint from paragraph cache — no async asset decode.
-/// Unbound / loading unicode therefore resolves to
-/// [CatalogLeafPresentation.content] (not a circle). Circles only appear for
-/// unicode when the host has marked the key [CatalogAssetReadiness.failed].
+/// **Unicode** glyphs depend on how the cache draws them. With a
+/// [CatalogAssetCache.glyphAtlas] (platforms that bake emoji) a glyph is
+/// content only once its binding has a sprite; until then it is the
+/// [CatalogLeafPresentation.circlePlaceholder], never text, and it flips to
+/// content when the atlas page lands (the binding's listener fires). Without
+/// an atlas (the web) glyphs paint from a paragraph cache, so unbound / loading
+/// unicode is [CatalogLeafPresentation.content] and circles appear only when
+/// the host has marked the key [CatalogAssetReadiness.failed].
 ///
 /// **Document** leaves use loading placeholders when still loading. Ready
 /// document entries retained in the cache after [detachAll] still resolve to
@@ -40,7 +44,8 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 ///
 /// | Leaf | loading / unbound (no settled cache) | ready | failed |
 /// |------|--------------------------------------|-------|--------|
-/// | [UnicodeCatalogLeaf] | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.failed] |
+/// | [UnicodeCatalogLeaf], atlas | [CatalogLeafPresentation.circlePlaceholder] until it has a sprite, then [CatalogLeafPresentation.content] | same | [CatalogLeafPresentation.failed] |
+/// | [UnicodeCatalogLeaf], no atlas | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.failed] |
 /// | [DocumentCatalogLeaf] | [CatalogLeafPresentation.thumbFirstPlaceholder] | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.failed] |
 ///
 /// ## Lifecycle
@@ -70,6 +75,9 @@ final class CatalogLeafBindingPool {
   CatalogAssetCacheType _cacheType;
   final void Function() _onReadinessChanged;
   final Map<CatalogAssetKey, CatalogAssetBinding> _bindings = {};
+
+  /// The cache's baked glyphs, or null where glyphs are drawn as text.
+  GlyphAtlas? get glyphAtlas => _assetCache.glyphAtlas;
 
   /// Number of leaves currently retained via asset-cache attach.
   ///
@@ -158,6 +166,13 @@ final class CatalogLeafBindingPool {
     }
   }
 
+  /// The baked glyph of [leaf], or null when it has none (not bound, a
+  /// document leaf, a platform that bakes nothing, or a page not baked yet).
+  ///
+  /// Read at paint time and not kept: the page behind a sprite can go away
+  /// with its atlas.
+  AtlasSprite? spriteFor(CatalogLeaf leaf) => _bindings[leaf.assetKey]?.sprite;
+
   /// Presentation for [leaf], never `null`.
   ///
   /// Resolves readiness from the live binding when attached, otherwise from
@@ -165,9 +180,9 @@ final class CatalogLeafBindingPool {
   /// survived [detachAll] (pager keep-alive) do not flash loading placeholders.
   /// Absent cache entries are treated as loading.
   ///
-  /// Unicode glyphs do not wait on decode bytes — unbound/loading unicode is
-  /// [CatalogLeafPresentation.content]. Document leaves use a kind-specific
-  /// loading placeholder when still loading.
+  /// Unicode glyphs do not wait on decode bytes, but where they are baked they
+  /// wait for their sprite: see the class table. Document leaves use a
+  /// kind-specific loading placeholder when still loading.
   CatalogLeafPresentation presentationFor(CatalogLeaf leaf) {
     final readiness =
         _bindings[leaf.assetKey]?.readiness ??
@@ -176,7 +191,10 @@ final class CatalogLeafBindingPool {
     return switch ((leaf, readiness)) {
       (UnicodeCatalogLeaf(), CatalogAssetReadiness.failed) =>
         CatalogLeafPresentation.failed,
-      (UnicodeCatalogLeaf(), _) => CatalogLeafPresentation.content,
+      (UnicodeCatalogLeaf(), _) =>
+        glyphAtlas == null || spriteFor(leaf) != null
+            ? CatalogLeafPresentation.content
+            : CatalogLeafPresentation.circlePlaceholder,
       (DocumentCatalogLeaf(), CatalogAssetReadiness.ready) =>
         CatalogLeafPresentation.content,
       (DocumentCatalogLeaf(), CatalogAssetReadiness.failed) =>
@@ -199,8 +217,10 @@ final class CatalogLeafBindingPool {
   void _ensure(CatalogLeaf leaf) {
     final key = leaf.assetKey;
     if (_bindings.containsKey(key)) return;
-    // Unicode cells paint from cached paragraphs — no async decode. Mark ready
-    // on attach so hosts that never call markReady still resolve content.
+    // Unicode cells need no async decode (paragraph or baked sprite). Mark
+    // ready on attach so hosts that never call markReady still resolve content;
+    // whether a baked glyph has its sprite yet is the sprite's business, not
+    // readiness'.
     if (_assetCache case final MemoryCatalogAssetCache memory
         when leaf is UnicodeCatalogLeaf) {
       memory.markReady(key, _cacheType);

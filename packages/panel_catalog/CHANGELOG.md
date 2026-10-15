@@ -6,6 +6,28 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- **Baked sprites on screen.** When the asset cache has a
+  `CatalogAssetCache.glyphAtlas`, unicode leaves are drawn as sprites cut from
+  its pages: the painter queues each sprite and one paint pass draws every
+  page's sprites with a single batched atlas draw (the pressed cell is scaled
+  inside its batch). Existing behaviour is the web strategy: with no atlas
+  glyphs are drawn as paragraphs, as before.
+- **`panel_catalog_diagnostics.dart`** — `PanelCatalogDiagnostics.glyphParagraphDraws`,
+  the proof that no emoji is drawn as text where emoji are baked (`0`). Bumped
+  only on the paragraph path, so the sprite path pays nothing.
+- **Bake stays out of the way.** The viewport tells the atlas when it scrolls
+  (drag, fling, jump, wheel, section motion) and, once it settles, which glyphs
+  are on screen so their page bakes first.
+
+### Changed
+
+- **Unicode presentation with an atlas.** An unbaked glyph is
+  `CatalogLeafPresentation.circlePlaceholder` (never text) and flips to
+  `content` when its page lands, without a layout change. Hosts that pass a
+  cache without an atlas see no difference.
+
 ### Changed
 
 - **Diagnostics logger.** `PanelCatalogDevLog`, `DevLogFormat` and

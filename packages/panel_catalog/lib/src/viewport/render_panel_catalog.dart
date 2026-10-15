@@ -12,6 +12,7 @@ import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
 import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
+import 'package:panel_catalog/src/viewport/catalog_bake_activity.dart';
 import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
@@ -160,6 +161,17 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// [PanelCatalogTheme.of] + device pixel ratio — this object does not read
 /// [BuildContext]. Paint-only changes mark [markNeedsPaint] without layout.
 ///
+/// ## Baked glyphs
+///
+/// When the asset cache has a [GlyphAtlas] (platforms that bake emoji), each
+/// unicode leaf resolves to a sprite through its binding and the painter queues
+/// it; one pass draws the sprites of each atlas page in a single batched draw
+/// (`CatalogLeafPainter.flushGlyphSprites`, at the end of [paint]). An unbaked
+/// glyph is the circle placeholder and flips to its sprite when the atlas page
+/// lands (the binding listener marks paint dirty, never layout). Without an
+/// atlas the same leaves paint a paragraph. [CatalogBakeActivity] keeps the
+/// bake out of the way of motion and tells the atlas what is on screen.
+///
 /// ## Cold-start warm-up
 ///
 /// [warmAhead] walks unicode leaves in the first `[screens]` viewport heights
@@ -300,7 +312,15 @@ class RenderPanelCatalog extends RenderBox {
   /// Process-wide asset cache. Replacing detaches every binding first
   /// ([CatalogLeafBindingPool.replaceCache]) then reprojects.
   set assetCache(CatalogAssetCache value) {
+    final atlas = _pool.glyphAtlas;
     _pool.replaceCache(value);
+    // The bake reporter belongs to the cache's atlas. Hosts hand the same
+    // cache on every widget update; only a different atlas restarts it, or a
+    // drag in progress would forget it began.
+    if (!identical(atlas, value.glyphAtlas)) {
+      _stopBakeActivity();
+      _startBakeActivity();
+    }
     markCatalogNeedsUpdate();
   }
 
@@ -432,6 +452,10 @@ class RenderPanelCatalog extends RenderBox {
 
   late CatalogLeafBindingPool _pool;
   final CatalogLeafPainter _painter;
+
+  /// Keeps the glyph bake out of the way of motion; null without an atlas or
+  /// while detached.
+  CatalogBakeActivity? _bakeActivity;
   late final CatalogLeafPointer _leafPointer;
 
   /// Ballistic scroll simulation and tick integration in content offset space.
@@ -1129,7 +1153,9 @@ class RenderPanelCatalog extends RenderBox {
     _drag = VerticalDragGestureRecognizer()
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
-      ..onEnd = _onDragEnd;
+      ..onEnd = _onDragEnd
+      ..onCancel = _onDragCancel;
+    _startBakeActivity();
     final pending = _controller.pendingSectionJump;
     if (pending != null) {
       _handleSectionJump(pending.$1);
@@ -1164,6 +1190,7 @@ class RenderPanelCatalog extends RenderBox {
     _flingCancelPointer = null;
     _drag?.dispose();
     _drag = null;
+    _stopBakeActivity();
     _press?.dispose();
     _press = null;
     _pressTickers?.dispose();
@@ -1191,6 +1218,7 @@ class RenderPanelCatalog extends RenderBox {
     _drag?.dispose();
     _drag = null;
     _leafPointer.dispose();
+    _stopBakeActivity();
     _press?.dispose();
     _press = null;
     _pressTickers?.dispose();
@@ -1198,6 +1226,39 @@ class RenderPanelCatalog extends RenderBox {
     _pool.detachAll();
     _painter.dispose();
     super.dispose();
+  }
+
+  // --- Glyph bake -----------------------------------------------------------
+
+  void _startBakeActivity() {
+    final atlas = _pool.glyphAtlas;
+    if (!attached || atlas == null || _bakeActivity != null) return;
+    _bakeActivity = CatalogBakeActivity(
+      atlas: atlas,
+      isAnimating: () =>
+          _physics.isFlinging || isSectionJumpAnimating || isFarStitchActive,
+      visibleGlyphs: _visibleUnicodeGlyphs,
+    );
+  }
+
+  void _stopBakeActivity() {
+    _bakeActivity?.dispose();
+    _bakeActivity = null;
+  }
+
+  /// Unicode glyphs in the paint window, top first: what the atlas should bake
+  /// first. Walks the visible band only.
+  Iterable<String> _visibleUnicodeGlyphs() sync* {
+    final (top, bottom) = _paintWindow();
+    final start = _firstSlotIndexAtOrBelow(top);
+    final end = _slotIndexAfter(bottom);
+    for (var i = start; i < end; i++) {
+      final slot = _slots[i];
+      if (slot.bottom < top || slot.top > bottom) continue;
+      if (slot case CatalogLeafSlot(leaf: UnicodeCatalogLeaf(:final glyph))) {
+        yield glyph;
+      }
+    }
   }
 
   // --- Layout projection ----------------------------------------------------
@@ -1217,6 +1278,7 @@ class RenderPanelCatalog extends RenderBox {
     );
     _slots = projection.slots;
     _contentExtent = projection.contentExtent;
+    _bakeActivity?.visibleBandChanged();
   }
 
   /// Content-y window used for **binding** sync (viewport + one-cell overscan).
@@ -1307,6 +1369,7 @@ class RenderPanelCatalog extends RenderBox {
 
   /// Cancels fling and press before a new drag gesture owns the pointer.
   void _onDragStart(DragStartDetails details) {
+    _bakeActivity?.dragging = true;
     _cancelSectionJumpMotion();
     _cancelFling();
     _clearPressPointerRoute();
@@ -1325,6 +1388,7 @@ class RenderPanelCatalog extends RenderBox {
   /// No-op when [maxOffset] is `0` (nothing to scroll) or velocity is below
   /// the minimum. Finger-up velocity is negated into content-offset space.
   void _onDragEnd(DragEndDetails details) {
+    _bakeActivity?.dragging = false;
     final fingerVelocity = details.primaryVelocity ?? 0;
     // Finger up (negative primaryVelocity) → positive content-offset velocity.
     final contentVelocity = -fingerVelocity;
@@ -1334,6 +1398,8 @@ class RenderPanelCatalog extends RenderBox {
     _controller.notifyScrollEvent(PanelCatalogFlingStart(contentVelocity));
     _startFling(contentVelocity);
   }
+
+  void _onDragCancel() => _bakeActivity?.dragging = false;
 
   // --- Scroll — fling -------------------------------------------------------
 
@@ -1638,6 +1704,7 @@ class RenderPanelCatalog extends RenderBox {
 
     final scroll = _controller.offset;
     PanelCatalogPerfProbe.recordPaint(scroll, _contentExtent, size.height);
+    _bakeActivity?.notePaint(scroll);
     final contentOrigin = offset.translate(0, -scroll);
     final (top, bottom) = _paintWindow();
     final pressedSlotKey = _press?.pressedSlotKey;
@@ -1658,6 +1725,7 @@ class RenderPanelCatalog extends RenderBox {
           pressScale: pressScale,
           pressProgress: pressProgress,
         );
+        _painter.flushGlyphSprites(canvas);
         canvas.restore();
         debugLastPaintDuration = sw.elapsed;
         return;
@@ -1681,6 +1749,7 @@ class RenderPanelCatalog extends RenderBox {
       );
     }
 
+    _painter.flushGlyphSprites(canvas);
     _logPaintSummary(top, bottom);
 
     canvas.restore();
@@ -1746,6 +1815,7 @@ class RenderPanelCatalog extends RenderBox {
           origin: origin,
           slot: leaf,
           presentation: _pool.presentationFor(leaf.leaf),
+          sprite: _pool.spriteFor(leaf.leaf),
           pressScale: isPressed ? pressScale : 1.0,
           pressProgress: isPressed ? pressProgress : 0,
         );
