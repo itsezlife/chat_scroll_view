@@ -101,8 +101,8 @@ How one catalog cell appears: ready content, a kind-specific loading placeholder
 _Avoid_: One generic “shimmer” for every leaf kind, ChatMessageStatus, Absent, navigation load-gate for ordinary pack/section jumps
 
 **Circle placeholder**:
-Reserved stand-in for async bitmap-page unicode leaves (solid circle ~0.4 × glyph bounds). Current unicode cells paint from paragraph cache and resolve unbound/loading to content — they MUST NOT flash this circle across pager keep-alive gaps.
-_Avoid_: Using circle as the default for paragraph-painted unicode, moving gradient wash, sticker-shaped shimmer for unicode cells
+Reserved stand-in for a unicode leaf whose glyph is not baked yet (solid circle ~0.4 × glyph bounds). It shows with no time limit until the glyph's sprite exists; with a valid disk cache it lasts at most 500 ms after a cold start. A strategy that draws paragraphs (web) never has an unbaked state and never shows it.
+_Avoid_: Using circle for animated or sticker leaves, moving gradient wash, sticker-shaped shimmer for unicode cells, treating the circle as a failure state
 
 **Thumb-first placeholder**:
 Loading stand-in for document-backed animated/custom emoji: static/SVG thumb via the image pipeline until media is ready.
@@ -119,6 +119,28 @@ _Avoid_: Streams as the integration contract, fetch inside the viewport, subclas
 **Global catalog asset cache**:
 Process-wide cache for emoji / sticker / GIF document thumbs and media, shared by the Panel Catalog Viewport and by Chat Scroll (inline animated emoji, sticker messages, etc.). Viewport and chat cells only bind and paint; they do not each keep a private decode store. Ready/failed entries survive the last surface detach so pager keep-alive leave/return does not flash loading; [isRetained] tracks live binds only.
 _Avoid_: Per-panel-only drawable map as the source of truth, evicting settled readiness on every detach, duplicating animated-emoji drawable caches per surface
+
+### Glyph atlas
+
+**Glyph atlas page**:
+A fixed-size GPU image (2048 × 2048) holding baked glyph cells with a transparent gutter around each. Owned by the global catalog asset cache and reference-counted per page; a leaf binding holds the page, never its pixels. A static page is immutable once composed.
+_Avoid_: Per-leaf bitmap, per-binding pixel ownership, mutating a static page in place, sharing a static page with animation frames
+
+**Bake**:
+The paced, background rasterisation of the glyphs the data layer supplies into atlas pages. Runs on the root isolate behind a rasteriser seam, a few glyphs per frame under a frame-time governor; prioritises the visible band and pauses during the panel open animation and scrolling. Persisted pages are reloaded instead of re-baked while the cache key still matches.
+_Avoid_: Detecting missing glyphs in the engine (the data layer decides the set), baking during a fling, a paragraph fallback on baking platforms, rasterising at scroll time
+
+**Baked glyph (sprite)**:
+One glyph rasterised once at the baked cell size and addressed as a page plus a source rectangle. The viewport draws the sprites of one atlas page in one batched atlas draw. A paintable without a sprite paints itself.
+_Avoid_: Glyph drawn as text at scroll time on baking platforms, one image draw per leaf, a second paint path for emoji beside the shared paintable contract
+
+**Atlas page pool**:
+The set of atlas pages of one kind held by the asset cache within a resident-memory ceiling (64 MiB for static glyph pages). A later dynamic pool for animation frames follows the same sprite contract and is kept separate from the static pool.
+_Avoid_: One pool for static and animated content, a ceiling raised to avoid a size cap
+
+**Residency hold**:
+Retention time-to-live for atlas pages after the last holder releases them (60 seconds), layered on the cache's keep-until-pressure rule. Memory pressure releases pages immediately, ignoring the hold.
+_Avoid_: Releasing pages on every panel close, holding pages through memory pressure
 
 **Document-backed leaf**:
 A catalog cell identified by a document (animated/custom emoji, sticker) rather than only a unicode glyph. v1 prepares identity and placeholder modes for these even if full media decode ships later.
