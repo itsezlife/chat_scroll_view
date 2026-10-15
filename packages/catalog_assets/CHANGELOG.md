@@ -11,7 +11,7 @@ is pre-1.0.
 - **Bake pass shared with the glyph-support probe.** `GlyphBakeObserver` (a
   pure-bytes seam) is shown each wanted glyph's cell, and the reference
   glyphs once, as the baker draws them: `GlyphBaker(observer:)`,
-  `GlyphAtlas(observer:)`, `createGlyphAtlasForPlatform(observer:)`. Readback
+  `GlyphAtlas(observer:)`, `GlyphAtlasRequest.observer`. Readback
   runs after the strip is made, a strip at a time, and not at all for strips
   nobody wants; `GlyphBaker.observationsSettled()` waits for it. Art version
   from pixels: `GlyphPixelReader` (a glyph drawn by a `GlyphRasteriser`, read
@@ -32,13 +32,13 @@ is pre-1.0.
   `GlyphAtlas.cacheReport` (verdict and how long circles lasted). Fakes and
   contract suites in `testing.dart`: `FakeGlyphCacheStore`,
   `FakeGlyphArtVersionSource`, `runGlyphCacheStoreContract`.
-  `GlyphAtlas`, `createGlyphAtlasForPlatform` take `persistence:` instead of
+  `GlyphAtlas` and `GlyphAtlasRequest` take `persistence:` instead of
   `store:` (exactly one); `store:` is now optional.
 
 - **Baked sprites for surfaces.** `GlyphAtlas` (baker, scheduler and resident
   page images behind `spriteOf`), `AtlasSprite`, `MemoryGlyphPageStore`, and
   `createGlyphAtlasForPlatform` (an atlas on baking platforms, `null` on the
-  web). `CatalogAssetBinding.sprite` is the optional sprite capability;
+  web; it takes a `GlyphAtlasRequest`). `CatalogAssetBinding.sprite` is the optional sprite capability;
   `CatalogAssetCache.glyphAtlas` exposes the atlas to the surface;
   `MemoryCatalogAssetCache(glyphAtlas:)` resolves unicode sprites from it,
   notifies binding listeners when a page lands, and has a `dispose()`.
@@ -66,7 +66,7 @@ is pre-1.0.
   on memory pressure (`SystemMemoryPressure`). `GlyphAtlas(residency:)`,
   `GlyphAtlas.residency`, `GlyphAtlas.holdPageOf`; the atlas holds all pages
   while its panel is visible. Unicode bindings of `MemoryCatalogAssetCache`
-  hold their glyph's page from attach to detach. `createGlyphAtlasForPlatform`
+  hold their glyph's page from attach to detach. `GlyphAtlasRequest`
   takes an optional `residency`. `testing.dart` adds `ManualRetentionTimers` and
   `ManualMemoryPressure`.
 
