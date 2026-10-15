@@ -1,0 +1,3 @@
+# Strict modes and lint set come from the repo root; this package is pure Dart
+# (scripts/check enforces that), so nothing here is Flutter-specific.
+include: ../../analysis_options.yaml
