@@ -16,6 +16,9 @@ is pre-1.0.
 
 ### Removed
 
+- **`ScalePressable` and `OvershootCurve` exports.** Both moved to
+  `chrome_foundation`; the package now depends on it for them. A host that
+  imported either through `chat_chrome` imports `package:chrome_foundation`.
 - **`EmojiPageState.warmAhead`.** The cold-start warm-up it forwarded to is gone
   from `panel_catalog` (the atlas bakes in the background). A host that called
   it drops the call; nothing replaces it.

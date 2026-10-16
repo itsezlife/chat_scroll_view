@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls/overshoot_curve.dart';
+import 'package:chrome_foundation/chrome_foundation.dart' show OvershootCurve;
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 
