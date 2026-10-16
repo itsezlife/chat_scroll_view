@@ -76,6 +76,14 @@ is pre-1.0.
 
 ### Added
 
+- `CatalogPage.keepsScrollOnReopen` and `EmojiPage.keepsScrollOnReopen`:
+  whether the catalogue is where it was left when the panel is shown again.
+  By default it goes back to its start under `touch` and keeps its place
+  under `pointer`. A tab switch or a swipe keeps the place either way.
+  `CatalogPageController` follows the shell's presence
+  (`followPresence`, `restartsWhenHidden`) and resets when the panel is
+  hidden, whether or not the page is mounted.
+
 - The recents context menu ([ADR 025](../../docs/adr/025-panel-shell-and-pages.md)
   amendment): `CatalogPagePolicy.menuOf` / `onMenuAction` with the declarative
   `CatalogMenuEntry` (`item`, `separator`), drawn by `CatalogContextMenuHost`
@@ -160,6 +168,9 @@ is pre-1.0.
   idempotent.
 
 ### Fixed
+
+- The tone-for-all icon strokes its lines and rings as one path, so a
+  translucent colour is no brighter where a line meets its ring.
 
 - The variant picker no longer crops its glyphs. A colour emoji font draws
   bitmaps larger than the em box it lays out, and the old picker clipped each

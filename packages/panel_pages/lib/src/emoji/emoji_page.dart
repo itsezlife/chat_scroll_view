@@ -166,6 +166,7 @@ class EmojiPage extends StatefulWidget {
     this.deferChrome = false,
     this.searchDebounce = DebouncedSearch.defaultDebounce,
     this.stripLayout = EmojiStripLayout.automatic,
+    this.keepsScrollOnReopen,
     super.key,
   });
 
@@ -204,6 +205,10 @@ class EmojiPage extends StatefulWidget {
   /// reference client's rule (plain with no pack, grouped with any) unless the
   /// host fixes one.
   final EmojiStripLayout stripLayout;
+
+  /// Whether the grid is where it was left when the panel is shown again;
+  /// null for the arrangement's way. See [CatalogPage.keepsScrollOnReopen].
+  final bool? keepsScrollOnReopen;
 
   /// Horizontal inset of the grid.
   static const double gridPadH = 5;
@@ -420,6 +425,7 @@ class _EmojiPageState extends State<EmojiPage> {
     bake: _bake,
     searchFieldReady: _fieldReady,
     searchDebounce: widget.searchDebounce,
+    keepsScrollOnReopen: widget.keepsScrollOnReopen,
     padding: switch (PanelArrangementScope.of(context)) {
       PanelArrangement.touch => EdgeInsets.fromLTRB(
         EmojiPage.gridPadH,

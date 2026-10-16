@@ -5,6 +5,8 @@
 /// picker offers for the catalogue's entries.
 library;
 
+import 'dart:ui' as ui;
+
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
@@ -58,6 +60,37 @@ void main() {
     expect(policy.capabilities.topStrip, isTrue);
     expect(policy.capabilities.actions, [const PageAction.backspace()]);
     expect(EmojiPagePolicy.pageCapabilities, same(policy.capabilities));
+  });
+
+  testWidgets('the tone button\'s icon, in a half-transparent colour, is no '
+      'brighter where a line meets its ring than along the line', (
+    tester,
+  ) async {
+    final action = policy.actionOf(
+      const Collection(id: EmojiPagePolicy.colorAllSection),
+      ChromeStringsPresets.english.panel,
+      arrangement: PanelArrangement.pointer,
+    )!;
+    final recorder = ui.PictureRecorder();
+    action.painter!(
+      Canvas(recorder),
+      const Rect.fromLTWH(0, 0, 48, 48),
+      const Color(0x80FFFFFF),
+    );
+    final image = (await tester.runAsync(
+      () => recorder.endRecording().toImage(48, 48),
+    ))!;
+    final bytes = (await tester.runAsync(image.toByteData))!;
+    int alpha(int x, int y) => bytes.getUint8((y * 48 + x) * 4 + 3);
+
+    // The upper slider at 2x: its line along y = 17, its ring's left edge
+    // at x = 2 * (16.5 - 2.6).
+    final line = alpha(18, 17);
+    expect(line, greaterThan(0));
+    for (var x = 25; x <= 30; x++) {
+      expect(alpha(x, 17), lessThanOrEqualTo(line + 2), reason: 'x $x');
+    }
+    image.dispose();
   });
 
   group('geometry', () {

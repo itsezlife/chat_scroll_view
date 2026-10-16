@@ -40,8 +40,10 @@ void main() {
   late PanelShellController shell;
   late List<PanelEvent> events;
   late List<PageScrollActivity> activity;
+  bool? keepsScrollOnReopen;
 
   setUp(() {
+    keepsScrollOnReopen = null;
     preferences = FakePreferenceStore();
     source = FakeCollectionSource([
       FakeCollectionSpec(
@@ -77,6 +79,7 @@ void main() {
             searchSource: search,
             policy: const _Policy(),
             assets: assets,
+            keepsScrollOnReopen: keepsScrollOnReopen,
           ),
         ),
         PanelPage(
@@ -185,5 +188,67 @@ void main() {
       shell.controllers.peek<CatalogPageController>('emoji')!.catalog.offset,
       offset,
     );
+  });
+
+  group('reopening the panel', () {
+    // Scrolls the shown panel, hides it as a presentation does (presence
+    // first, then the shell goes), shows it again, and returns the offset
+    // the catalogue reopens at.
+    Future<double> scrollCloseReopen(
+      WidgetTester tester, {
+      PanelArrangement arrangement = PanelArrangement.touch,
+    }) async {
+      Future<void> pumpShown() async {
+        await tester.pumpWidget(
+          PanelShellTestScope(
+            child: PanelShell(
+              controller: shell,
+              arrangement: arrangement,
+              announcer: FakePanelAnnouncer(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      shell.updatePresence(visible: true, opening: false);
+      await pumpShown();
+      shell.controllers.peek<CatalogPageController>('emoji')!.catalog.jumpTo(
+        300,
+      );
+      await tester.pumpAndSettle();
+
+      shell.updatePresence(visible: false, opening: false);
+      await tester.pumpWidget(const SizedBox());
+      shell.updatePresence(visible: true, opening: true);
+      await pumpShown();
+      shell.updatePresence(visible: true, opening: false);
+      await tester.pumpAndSettle();
+      return shell.controllers
+          .peek<CatalogPageController>('emoji')!
+          .catalog
+          .offset;
+    }
+
+    testWidgets('under touch, the catalogue starts at the top again', (
+      tester,
+    ) async {
+      expect(await scrollCloseReopen(tester), 0);
+    });
+
+    testWidgets('under the pointer, it is where it was left', (tester) async {
+      expect(
+        await scrollCloseReopen(tester, arrangement: PanelArrangement.pointer),
+        300,
+      );
+    });
+
+    testWidgets('a page set to keep its place finds it under touch too', (
+      tester,
+    ) async {
+      keepsScrollOnReopen = true;
+
+      expect(await scrollCloseReopen(tester), 300);
+    });
   });
 }

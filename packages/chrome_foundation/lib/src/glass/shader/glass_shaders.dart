@@ -144,8 +144,13 @@ abstract final class GlassShaders {
     );
   }
 
-  static double _thickness(GlassStyle style, ui.Size size) =>
-      style.liquidThickness.clamp(1.0, size.shortestSide / 5).toDouble();
+  // The style's rim, no thicker than a fifth of the shorter side and no
+  // thinner than a pixel; a surface under five pixels (one growing from
+  // nothing) gets the pixel, the bound never falling below it.
+  static double _thickness(GlassStyle style, ui.Size size) => style
+      .liquidThickness
+      .clamp(1.0, math.max(1.0, size.shortestSide / 5))
+      .toDouble();
 
   /// How far (logical px) outside a [size] surface the liquid shader samples.
   ///

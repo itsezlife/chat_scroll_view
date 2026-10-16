@@ -248,13 +248,18 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
       ..strokeCap = StrokeCap.round;
     Offset at(double x, double y) => box.topLeft + Offset(x, y) * unit;
     const radius = 2.6;
-    // Upper slider: a line, then its knob at the right.
-    canvas
-      ..drawLine(at(5, 8.5), at(16.5 - radius, 8.5), pen)
-      ..drawCircle(at(16.5, 8.5), radius * unit, pen)
+    // One path, stroked once: a line meeting its knob would otherwise be
+    // painted twice where they overlap, brighter in a translucent colour.
+    final path = Path()
+      // Upper slider: a line, then its knob at the right.
+      ..moveTo(at(5, 8.5).dx, at(5, 8.5).dy)
+      ..lineTo(at(16.5 - radius, 8.5).dx, at(16.5 - radius, 8.5).dy)
+      ..addOval(Rect.fromCircle(center: at(16.5, 8.5), radius: radius * unit))
       // Lower slider: its knob at the left, then a line.
-      ..drawCircle(at(7.5, 15.5), radius * unit, pen)
-      ..drawLine(at(7.5 + radius, 15.5), at(19, 15.5), pen);
+      ..addOval(Rect.fromCircle(center: at(7.5, 15.5), radius: radius * unit))
+      ..moveTo(at(7.5 + radius, 15.5).dx, at(7.5 + radius, 15.5).dy)
+      ..lineTo(at(19, 15.5).dx, at(19, 15.5).dy);
+    canvas.drawPath(path, pen);
   }
 
   /// Opens the tone-for-all picker over the button: the waving hand as it is

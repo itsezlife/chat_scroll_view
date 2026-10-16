@@ -112,6 +112,7 @@ class CatalogPage extends StatefulWidget {
     this.padding = EdgeInsets.zero,
     this.sectionNearExtent,
     this.searchDebounce = DebouncedSearch.defaultDebounce,
+    this.keepsScrollOnReopen,
     super.key,
   });
 
@@ -156,6 +157,14 @@ class CatalogPage extends StatefulWidget {
 
   /// How long typing pauses before a search runs.
   final Duration searchDebounce;
+
+  /// Whether the catalogue is where it was left when the panel is shown
+  /// again, or back at its start; null for the arrangement's way (back at the
+  /// start under touch, where it was left under the pointer).
+  ///
+  /// The panel is hidden when the shell's presence says so, not when the page
+  /// is merely swiped off or its tab left: those keep the place either way.
+  final bool? keepsScrollOnReopen;
 
   @override
   State<CatalogPage> createState() => _CatalogPageState();
@@ -221,7 +230,7 @@ class _CatalogPageState extends State<CatalogPage>
     _controller = _host.controllers.obtain(
       _host.pageId,
       CatalogPageController.new,
-    );
+    )..followPresence(_host.panelVisible);
     _metrics = _CatalogMetrics(_catalog);
     _reveal = AnimationController(vsync: this)..addListener(_onRevealTick);
     _reporter = PageScrollReporter(
@@ -266,6 +275,7 @@ class _CatalogPageState extends State<CatalogPage>
         ..strings = strings
         ..arrangement = arrangement;
     }
+    _syncRestart();
     _syncLayout();
   }
 
@@ -281,6 +291,7 @@ class _CatalogPageState extends State<CatalogPage>
       ..searchSource = widget.searchSource
       ..policy = widget.policy;
     _forwarder.port = widget.bake;
+    _syncRestart();
     _syncLayout();
     if (!identical(oldWidget.searchFieldReady, widget.searchFieldReady)) {
       oldWidget.searchFieldReady?.removeListener(_onFieldReady);
@@ -309,6 +320,11 @@ class _CatalogPageState extends State<CatalogPage>
     _header.dispose();
     super.dispose();
   }
+
+  // Back at the start when the panel is shown again, unless the page keeps its
+  // place: by default only the pointer arrangement does.
+  void _syncRestart() => _controller.restartsWhenHidden =
+      !(widget.keepsScrollOnReopen ?? _arrangement == PanelArrangement.pointer);
 
   // --- The layout the arrangement asks for -----------------------------------
 

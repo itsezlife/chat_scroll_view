@@ -19,6 +19,12 @@ package is pre-1.0.
   sections (`people`, `nature`, `food`, `activity`, `travel`, `objects`,
   `symbols`) in the reference client's wording, not by Unicode group slugs.
 
+### Fixed
+
+- Glass on a surface less than five pixels across (one growing from nothing)
+  no longer throws from its rim thickness: the bound never falls below a
+  pixel.
+
 ### Changed
 
 - `MotionRole.popupHide` lasts 200 ms (was 150 ms), the reference client's fade-out;
