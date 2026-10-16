@@ -1,0 +1,35 @@
+name: panel_pages
+description: >
+  The shared page scaffold of the panel: CatalogPage composes the catalog
+  viewport, collections, search, near-viewport loading, scroll reporting and
+  the bake hand-off into one panel page, and CatalogPagePolicy lets each kind
+  of content (emoji, stickers, GIFs) stay a thin composition.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: '>=3.32.0'
+
+dependencies:
+  catalog_assets:
+    path: ../catalog_assets
+  chrome_foundation:
+    path: ../chrome_foundation
+  content_model:
+    path: ../content_model
+  flutter:
+    sdk: flutter
+  meta: ^1.17.0
+  panel_catalog:
+    path: ../panel_catalog
+  panel_shell:
+    path: ../panel_shell
+  # Only lib/testing.dart needs this: its contract suite
+  # (runBakeActivityPortContract) is written with the test framework, and a
+  # library cannot import a dev dependency. Production entry points never
+  # import it.
+  flutter_test:
+    sdk: flutter
