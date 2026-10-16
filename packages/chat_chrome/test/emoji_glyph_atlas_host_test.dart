@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_chrome/src/panel/emoji_glyph_atlas_host.dart';
-import 'package:emoji_data/emoji_data.dart';
+import 'package:chat_chrome/src/legacy_emoji/legacy_emoji.dart';
 import 'package:chat_chrome/src/panel/emoji_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:panel_catalog/panel_catalog.dart';

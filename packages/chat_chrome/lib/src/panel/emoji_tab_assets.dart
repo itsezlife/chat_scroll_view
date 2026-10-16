@@ -1,6 +1,6 @@
 // ignore_for_file: public_member_api_docs
 
-import 'package:emoji_data/emoji_data.dart';
+import 'package:chat_chrome/src/legacy_emoji/legacy_emoji.dart';
 
 /// Bundled category / type-tab drawable paths for [chat_chrome].
 ///

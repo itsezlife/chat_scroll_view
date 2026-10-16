@@ -7,7 +7,7 @@
 /// contracts.
 library;
 
-export 'package:emoji_data/emoji_data.dart';
+export 'src/legacy_emoji/legacy_emoji.dart';
 
 export 'src/composer/chat_composer_controller.dart';
 export 'src/composer/chat_composer_mode.dart';

@@ -9,6 +9,22 @@ abstract final class EmojiCatalogPackAssets {
   static const String structure =
       'packages/emoji_catalog_pack/assets/structure.tsv';
 
+  /// The locale ids that have a shipped keyword pack, in the order of the
+  /// generator's lock. A host asking for another locale gets no bundled pack.
+  static const List<String> locales = <String>[
+    'en',
+    'de',
+    'es',
+    'fr',
+    'hi',
+    'it',
+    'ja',
+    'nl',
+    'pt',
+    'ru',
+    'zh',
+  ];
+
   /// The asset key of the keyword pack of [locale], a CLDR locale id such as
   /// `de` or `pt`.
   ///

@@ -2,12 +2,14 @@ import 'package:workspace_check/src/library_file.dart';
 import 'package:workspace_check/src/violation.dart';
 import 'package:workspace_check/src/workspace.dart';
 
-/// Keeps the pure-Dart leaves free of Flutter.
+/// Keeps the pure-Dart packages free of Flutter.
 ///
 /// `content_model` is depended on by every other package, including logic
 /// packages that must run and be tested without a Flutter engine, so a single
-/// Flutter import there would drag the engine into all of them. Two things are
-/// reported:
+/// Flutter import there would drag the engine into all of them.
+/// `emoji_catalog_pack` and `emoji_data` are the emoji logic over it: data
+/// readers, sources and the glyph probe take bytes and strings, and the host
+/// supplies the asset bundle and the rasteriser. Two things are reported:
 ///
 /// - **A Flutter SDK dependency**, in `dependencies:` or `dev_dependencies:`
 ///   (`flutter`, `flutter_test`, `flutter_web_plugins`, ...). It also forces
@@ -20,7 +22,11 @@ import 'package:workspace_check/src/workspace.dart';
 /// Rules naming a package that is not in the workspace yet are inert, like the
 /// other lints.
 abstract final class PureDartLint {
-  static const Set<String> _pureDart = <String>{'content_model'};
+  static const Set<String> _pureDart = <String>{
+    'content_model',
+    'emoji_catalog_pack',
+    'emoji_data',
+  };
 
   // `package:flutter/` and `package:flutter_<name>/`, but not a package that
   // merely starts with the word (`flutterish`).

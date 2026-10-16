@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:isolate';
+
 import 'package:emoji_catalog_pack/emoji_catalog_pack.dart';
 import 'package:test/test.dart';
 
@@ -15,6 +18,22 @@ void main() {
         EmojiCatalogPackAssets.keywordPack('de'),
         'packages/emoji_catalog_pack/assets/keywords/de.tsv',
       );
+    });
+
+    test('lists exactly the locales that have a shipped pack', () async {
+      final library = await Isolate.resolvePackageUri(
+        Uri.parse('package:emoji_catalog_pack/emoji_catalog_pack.dart'),
+      );
+      final keywords = Directory.fromUri(
+        library!.resolve('../assets/keywords/'),
+      );
+
+      final shipped = [
+        for (final file in keywords.listSync().whereType<File>())
+          file.uri.pathSegments.last.replaceAll('.tsv', ''),
+      ]..sort();
+
+      expect([...EmojiCatalogPackAssets.locales]..sort(), shipped);
     });
 
     test('refuses a locale id that could leave the keywords directory', () {

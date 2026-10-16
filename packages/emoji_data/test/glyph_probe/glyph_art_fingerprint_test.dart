@@ -10,7 +10,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:emoji_data/emoji_data.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 Uint8List _bytes(int seed) =>
     Uint8List.fromList([for (var i = 0; i < 64; i++) (seed * 31 + i) & 0xFF]);
