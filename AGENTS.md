@@ -111,8 +111,8 @@ scope, policy, subject). Contracts only — no product screen inventories.
 | Skill                                      | When                                                            |
 | ------------------------------------------ | --------------------------------------------------------------- |
 | `think` (global: `~/.agents/skills/think/`) | Design / structure / Dart-Flutter canon before non-trivial code |
-| `.cursor/skills/control/`                  | Control-plane work as documented there                          |
-| `.cursor/skills/telegram-java-to-flutter/` | Porting from Telegram Android Java                              |
+| `.claude/skills/control/`                  | Control-plane work as documented there                          |
+| `.claude/skills/telegram-java-to-flutter/` | Porting from Telegram Android Java                              |
 
 Think map: `~/.agents/skills/think/index.md`
 (`foundation` + `patterns` always; `dart-flutter` when editing Dart).

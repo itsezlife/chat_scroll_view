@@ -44,8 +44,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Cursor IDE
-.cursor/
+# Claude Code
+.claude/
+CLAUDE.md
 
 # Local Telegram exports — never commit
 /Telegram/
