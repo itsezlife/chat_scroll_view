@@ -28,7 +28,8 @@ abstract final class EmojiPanelPage {
     capabilities: EmojiPagePolicy.pageCapabilities,
     builder: (context, host) => EmojiPage(
       host: host,
-      source: services.emojiSource,
+      // The catalogue, then the pack of animated emoji after its categories.
+      source: services.emojiPageSource,
       searchSource: services.emojiSearch,
       preferences: services.preferences,
       entryOf: services.emojiSource.entryOf,

@@ -30,6 +30,8 @@ dependencies:
     path: ../packages/emoji_catalog_pack
   emoji_data:
     path: ../packages/emoji_data
+  image_decoder:
+    path: ../packages/image_decoder
   kv_shared_preferences:
     path: ../packages/kv_shared_preferences
   panel_pages:
@@ -67,6 +69,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/chat/pagedown.webp
+    # The animated emoji pack and its licence credit; see LICENSE.md there.
+    - assets/animated_emoji/
     - path: assets/comments/
       platforms:
         - android

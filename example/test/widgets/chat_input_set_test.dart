@@ -9,6 +9,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -1005,6 +1006,26 @@ void main() {
       await rig.tapAction(tester, ChatComposerActions.primary);
       await tester.pump();
       expect(rig.sent, [_thumbsUp]);
+    });
+
+    testWidgets('of an animated emoji puts it in the composer as itself, '
+        'reading as the emoji it animates', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      final rocket = AnimatedEmojiPack.emoji.last;
+
+      // As the emoji page files it: in its one recents list.
+      rig.set.shell
+          .hostFor('emoji')
+          .pick(rocket.key, kind: SemanticKind.unicodeEmoji);
+      await tester.pump();
+
+      final text = rig.set.composer.richText;
+      expect(text.plain, '🚀');
+      expect(text.entities.single.kind, EntityKind.inlineContent(rocket.key));
+      expect(rig.services.recents.recents(SemanticKind.unicodeEmoji), [
+        rocket.key,
+      ]);
     });
 
     testWidgets('from search results is not recorded', (tester) async {

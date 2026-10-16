@@ -8,6 +8,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatPreImeBackClaim;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/stub_panel_pages.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
@@ -59,7 +60,7 @@ final class ChatEditTarget {
 /// | Created here | Role |
 /// | --- | --- |
 /// | [composer] | the input: text, focus, extent, soft-keyboard option |
-/// | [shell] | the panel's pages, search and events (one emoji page) |
+/// | [shell] | the panel's pages, search and events (one emoji page, with the animated emoji pack after its categories) |
 /// | [presentation] | where the panel appears and how much space it takes |
 /// | the three strategies | keyboard replacement, anchored popup, docked |
 /// | [insets] | the aggregation into what the viewport reserves |
@@ -71,8 +72,8 @@ final class ChatEditTarget {
 ///
 /// What the set decides, in one place each:
 ///
-/// - **Insert and record.** A picked emoji becomes an inline content
-///   reference in the composer and one `RecentsStore.record`; backspace edits
+/// - **Insert and record.** A picked emoji, unicode or animated, becomes an
+///   inline content reference in the composer and one `RecentsStore.record`; backspace edits
 ///   the composer; clearing recents asks [confirmClearRecents] first.
 /// - **Menu actions.** A right-click menu of the recents asks for a copy
 ///   (the emoji's text goes to the clipboard) and for one emoji to be
@@ -705,9 +706,11 @@ final class ChatInputSet {
     switch (event) {
       case ContentPicked(:final key, :final kind, :final source):
         unawaited(HapticFeedback.selectionClick());
-        if (key is ContentKey$Unicode && kind == SemanticKind.unicodeEmoji) {
+        // By the content, not the kind: the emoji page files unicode and
+        // animated emoji in one recents list, under one kind.
+        if (_textOf(key) case final alternativeText?) {
           composer.insertContent(
-            InlineContentRef(key: key, alternativeText: key.sequence),
+            InlineContentRef(key: key, alternativeText: alternativeText),
           );
         }
         unawaited(services.recents.record(key, kind: kind, source: source));
@@ -718,8 +721,8 @@ final class ChatInputSet {
         unawaited(HapticFeedback.mediumImpact());
         unawaited(_clearRecents(kind));
       case ContentCopyRequested(:final key):
-        if (key case ContentKey$Unicode(:final sequence)) {
-          unawaited(Clipboard.setData(ClipboardData(text: sequence)));
+        if (_textOf(key) case final text?) {
+          unawaited(Clipboard.setData(ClipboardData(text: text)));
         }
       case RecentRemoveRequested(:final key, :final kind):
         // Through the view the panel lists: the emoji leaves the list at once,
@@ -735,6 +738,14 @@ final class ChatInputSet {
         break;
     }
   }
+
+  // The text [key] reads as where it cannot be drawn: a unicode emoji itself,
+  // an animated emoji the emoji it animates; null for content this host does
+  // not insert.
+  static String? _textOf(ContentKey key) => switch (key) {
+    ContentKey$Unicode(:final sequence) => sequence,
+    _ => AnimatedEmojiPack.of(key)?.sequence,
+  };
 
   // One hold on the presentation for any number of the pages' holds: it goes
   // up with the first and down with the last.
