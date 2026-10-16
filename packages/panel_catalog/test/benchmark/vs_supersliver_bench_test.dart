@@ -29,8 +29,15 @@ import 'shared/baseline_sliver_grid_catalog.dart';
 import 'shared/baseline_supersliver_catalog.dart';
 import 'shared/catalog_presets.dart';
 import 'shared/metrics.dart';
+import 'shared/ratio_report.dart';
 
 enum _BaselineKind { superSliver, sliverGrid }
+
+/// A benchmark probe in the suite's semantics preset (see
+/// [benchSemanticsEnabled]); the one probe that measures semantics itself calls
+/// `testWidgets` directly.
+void _benchWidgets(String description, WidgetTesterCallback callback) =>
+    testWidgets(description, callback, semanticsEnabled: benchSemanticsEnabled);
 
 // ---------------------------------------------------------------------------
 // Harnesses
@@ -213,7 +220,7 @@ void main() {
   final semanticNodeCounts = <int, int>{};
 
   for (final leafCount in kBenchLeafCounts) {
-    testWidgets('forced layout — $leafCount leaves', (tester) async {
+    _benchWidgets('forced layout — $leafCount leaves', (tester) async {
       final sections = generateCatalogSections(leafCount);
 
       final snapshots = FakeCatalogSnapshotSource(sections: sections);
@@ -294,7 +301,7 @@ void main() {
       }
     });
 
-    testWidgets('scroll-only paint — $leafCount leaves', (tester) async {
+    _benchWidgets('scroll-only paint — $leafCount leaves', (tester) async {
       final sections = generateCatalogSections(leafCount);
 
       final snapshots = FakeCatalogSnapshotSource(sections: sections);
@@ -360,7 +367,7 @@ void main() {
       }
     });
 
-    testWidgets('fling frame timing — $leafCount leaves', (tester) async {
+    _benchWidgets('fling frame timing — $leafCount leaves', (tester) async {
       final sections = generateCatalogSections(leafCount);
 
       final snapshots = FakeCatalogSnapshotSource(sections: sections);
@@ -414,7 +421,7 @@ void main() {
       }
     });
 
-    testWidgets('near-path section jump — $leafCount leaves', (tester) async {
+    _benchWidgets('near-path section jump — $leafCount leaves', (tester) async {
       final sections = generateCatalogSections(leafCount);
       if (sections.length < 2) {
         // ignore: avoid_print
@@ -489,7 +496,7 @@ void main() {
       }
     });
 
-    testWidgets('far-path stitch vs animateTo — $leafCount leaves', (
+    _benchWidgets('far-path stitch vs animateTo — $leafCount leaves', (
       tester,
     ) async {
       final sections = generateCatalogSections(leafCount);
@@ -576,7 +583,7 @@ void main() {
       }
     });
 
-    testWidgets('mixed layouts (8 and 5 columns) — $leafCount leaves', (
+    _benchWidgets('mixed layouts (8 and 5 columns) — $leafCount leaves', (
       tester,
     ) async {
       // Candidate only: the baselines lay every section out at one span, so
@@ -787,15 +794,16 @@ void main() {
       // band whatever the catalogue size (about 16 rows of 8 cells here, the
       // viewport's own node and its container on top).
       expect(nodes, lessThan(200));
-      // A frame that moves the window describes about a row of new cells, one
-      // that does not only moves the nodes there are: about 1.2-2.3x the
-      // frame without a screen reader (debug, headless, a hundred µs or so
-      // more), and the same at 512 and 4096 leaves. A tripwire for describing
-      // the catalogue, not a measurement.
-      expect(on.medianUs, lessThan(off.medianUs * 5));
+      // No time is asserted here: a frame that moves the window describes
+      // about a row of new cells, and what that costs against the same frame
+      // without a screen reader (about 1.2x at 64 leaves, 2-5x at 512 and
+      // 4096 in debug, headless) is the nightly metric
+      // `semantics.scroll_frame.on_over_off.<leaves>`. A tripwire on a
+      // wall-clock ratio here tripped about one run in thirteen, in a required
+      // gate.
     }, semanticsEnabled: false);
 
-    testWidgets('memory at rest — $leafCount leaves', (tester) async {
+    _benchWidgets('memory at rest — $leafCount leaves', (tester) async {
       final sections = generateCatalogSections(leafCount);
 
       final snapshots = FakeCatalogSnapshotSource(sections: sections);
@@ -845,7 +853,7 @@ void main() {
       }
     });
 
-    testWidgets('memory after scroll-through — $leafCount leaves', (
+    _benchWidgets('memory after scroll-through — $leafCount leaves', (
       tester,
     ) async {
       final sections = generateCatalogSections(leafCount);
@@ -1012,5 +1020,53 @@ void main() {
         baselineLabel: 'SliverGrid + cells',
       ),
     );
+
+    // The numbers the nightly job watches (written only when BENCH_REPORT is
+    // set). Medians, not means: one slow frame moves a mean of 100 samples,
+    // and the ratios of two floor-level medians are what the hand-curated
+    // report quotes too.
+    final report = RatioReport('panel_catalog');
+    void ratios(
+      String probe,
+      String against,
+      List<(int, BenchmarkMetrics, BenchmarkMetrics)> rows,
+    ) {
+      for (final (leaves, cand, base) in rows) {
+        report.ratio('$probe.$against.$leaves', cand.medianUs, base.medianUs);
+      }
+    }
+
+    for (final (probe, ssl, grid) in [
+      ('forced_layout', layoutSsl, layoutGrid),
+      ('scroll_paint', paintSsl, paintGrid),
+      ('fling_frame', flingSsl, flingGrid),
+      ('near_jump', nearSsl, nearGrid),
+      ('far_stitch', farSsl, farGrid),
+    ]) {
+      ratios(probe, 'vs_ssl', ssl);
+      ratios(probe, 'vs_grid', grid);
+    }
+    ratios('mixed.layout', 'over_uniform', mixedLayout);
+    ratios('mixed.paint', 'over_uniform', mixedPaint);
+    ratios('mixed.near_jump', 'over_uniform', mixedNear);
+    ratios('mixed.far_stitch', 'over_uniform', mixedFar);
+    ratios('semantics.scroll_frame', 'on_over_off', semanticsFrames);
+    semanticNodeCounts.forEach(
+      (leaves, nodes) => report.count('semantics.nodes.$leaves', nodes),
+    );
+    for (final (leaves, cand, _) in memRestSsl) {
+      report
+        ..count('objects.rest.attached_leaves.$leaves', cand.attachedLeaves)
+        ..count('objects.rest.render_objects.$leaves', cand.renderObjectCount);
+    }
+    for (final (leaves, cand, _) in memScrollSsl) {
+      report
+        ..count('objects.scroll.attached_leaves.$leaves', cand.attachedLeaves)
+        ..count(
+          'objects.scroll.render_objects.$leaves',
+          cand.renderObjectCount,
+        );
+    }
+    report.writeIfRequested();
   });
 }
