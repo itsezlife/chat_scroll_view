@@ -11,6 +11,7 @@ workspace:
   - packages/chat_chrome
   - packages/chrome_foundation
   - packages/content_model
+  - packages/emoji_catalog_pack
   - packages/emoji_data
   - packages/kv_shared_preferences
   - packages/panel_catalog
