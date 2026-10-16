@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:flutter/painting.dart';
 
 /// Collects the baked glyphs of one paint pass and draws each atlas page's

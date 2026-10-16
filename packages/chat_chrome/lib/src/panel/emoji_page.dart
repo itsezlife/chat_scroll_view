@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/legacy_shim.dart';
+import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_chrome/src/panel/emoji_catalog_data_source.dart';
 import 'package:chat_chrome/src/util/constants.dart';

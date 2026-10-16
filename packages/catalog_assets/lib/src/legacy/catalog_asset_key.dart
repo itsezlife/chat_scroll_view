@@ -1,7 +1,10 @@
+import 'package:meta/meta.dart';
+
 /// Identity for an entry in the global catalog asset cache.
 ///
 /// Unicode glyphs and document-backed assets share one key type so multiple
 /// host surfaces can bind the same process-wide store.
+@immutable
 sealed class CatalogAssetKey {
   /// Creates a key for a standard unicode emoji glyph.
   const factory CatalogAssetKey.unicode(String glyph) = UnicodeCatalogAssetKey;
@@ -12,6 +15,7 @@ sealed class CatalogAssetKey {
 }
 
 /// Unicode glyph identity.
+@immutable
 final class UnicodeCatalogAssetKey implements CatalogAssetKey {
   /// Creates a unicode catalog asset key.
   const UnicodeCatalogAssetKey(this.glyph);
@@ -31,6 +35,7 @@ final class UnicodeCatalogAssetKey implements CatalogAssetKey {
 }
 
 /// Document-backed identity (animated/custom emoji, sticker, GIF).
+@immutable
 final class DocumentCatalogAssetKey implements CatalogAssetKey {
   /// Creates a document catalog asset key.
   const DocumentCatalogAssetKey(this.documentId);

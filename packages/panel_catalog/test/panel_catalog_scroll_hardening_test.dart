@@ -11,7 +11,7 @@
 /// - the binding sync cost follows the visible band, not the catalogue size
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/legacy_shim.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';

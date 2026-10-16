@@ -1,54 +1,42 @@
+import 'package:catalog_assets/src/asset/asset_binding.dart';
+import 'package:catalog_assets/src/asset/asset_cache_scope.dart';
+import 'package:catalog_assets/src/asset/asset_profile.dart';
+import 'package:catalog_assets/src/asset/asset_spec.dart';
 import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas.dart';
-import 'package:catalog_assets/src/atlas/glyph_page_residency.dart';
-import 'package:catalog_assets/src/catalog_asset_binding.dart';
-import 'package:catalog_assets/src/catalog_asset_cache.dart';
-import 'package:catalog_assets/src/catalog_asset_cache_type.dart';
-import 'package:catalog_assets/src/catalog_asset_key.dart';
-import 'package:catalog_assets/src/catalog_asset_readiness.dart';
+import 'package:catalog_assets/src/legacy/catalog_asset_binding.dart';
+import 'package:catalog_assets/src/legacy/catalog_asset_cache.dart';
+import 'package:catalog_assets/src/legacy/catalog_asset_cache_type.dart';
+import 'package:catalog_assets/src/legacy/catalog_asset_key.dart';
+import 'package:catalog_assets/src/legacy/catalog_asset_readiness.dart';
+import 'package:content_model/content_model.dart';
+import 'package:meta/meta.dart';
 
-/// In-memory [CatalogAssetCache] with attach refcounting and driven readiness.
+/// TEMPORARY SHIM, deleted with the migration of `panel_catalog` and
+/// `chat_chrome` to `AssetCacheScope`: the readiness-flag cache the catalogue
+/// viewport and the keyboard panel still talk to.
 ///
-/// Suitable as a process-local skeleton and as a deterministic fake for tests:
-/// callers (or tests) set readiness via [markReady] / [markFailed]; this class
-/// does not perform fetch/decode.
+/// Readiness is a driven flag as before ([markReady] / [markFailed]; nothing
+/// is fetched here). The baked-glyph half is not legacy any more: with a
+/// [glyphAtlas], unicode bindings attach through an `AssetCacheScope` that
+/// has the atlas registered as its glyph source, so the sprite, the page hold
+/// taken at attach and given back at detach, and the page signal all come from
+/// the real glyph media form. The shim keeps the old surface on top of it:
 ///
-/// ## Retention
-///
-/// [isRetained] is true while at least one [CatalogAssetBinding] is live.
-/// After the last [CatalogAssetBinding.detach]:
-/// - **ready / failed** entries stay in the map so a surface that re-attaches
-///   (pager keep-alive leave/return) does not flash [CatalogAssetReadiness.loading]
-/// - **loading** entries with zero attaches are dropped (abandoned fetch)
-///
-/// Call [evict] / [clear] for explicit memory pressure. LRU eviction is not
-/// implemented yet.
-///
-/// ## Baked glyphs
-///
-/// With a [glyphAtlas], unicode bindings resolve [CatalogAssetBinding.sprite]
-/// from it, and every binding listener is told when a page of the atlas
-/// becomes drawable, so a surface repaints the cells that were placeholders.
-/// The cache listens to the atlas until [dispose]; it does not own the atlas.
-///
-/// ## Page holds
-///
-/// A unicode binding **holds the atlas page its glyph is on** from attach to
-/// detach, so the page stays resident while any surface is bound to it (the
-/// atlas keeps every page while its panel is open, and for its retention
-/// after). The hold is a count taken by the binding, not by the entry: [evict]
-/// and [clear] drop entries and leave the holds of live bindings alone, and a
-/// binding gives back exactly what it took, once. The pixels stay with the
-/// atlas; a binding reads [CatalogAssetBinding.sprite] when it paints.
+/// - [isRetained] is true while at least one [CatalogAssetBinding] is live.
+/// - After the last detach, ready / failed entries stay (so a surface that
+///   re-attaches does not flash loading) and loading-only entries are dropped.
+/// - [evict] and [clear] drop entries and leave the holds of live bindings
+///   alone: the counts belong to the bindings.
 final class MemoryCatalogAssetCache implements CatalogAssetCache {
   /// Creates a cache; pass [glyphAtlas] on platforms that bake glyphs.
-  MemoryCatalogAssetCache({this.glyphAtlas}) {
-    glyphAtlas?.addPageListener(_onPageBaked);
-  }
+  MemoryCatalogAssetCache({this.glyphAtlas})
+    : _scope = AssetCacheScope(glyphSource: glyphAtlas);
 
   @override
   final GlyphAtlas? glyphAtlas;
 
+  final AssetCacheScope _scope;
   final Map<_EntryId, _Entry> _entries = {};
   final Set<_Binding> _live = {};
 
@@ -64,14 +52,33 @@ final class MemoryCatalogAssetCache implements CatalogAssetCache {
       cache: this,
       id: id,
       entry: entry,
-      pageHold: switch (key) {
-        UnicodeCatalogAssetKey(:final glyph) => glyphAtlas?.holdPageOf(glyph),
-        DocumentCatalogAssetKey() => null,
+      glyph: switch (key) {
+        UnicodeCatalogAssetKey(:final glyph) when glyphAtlas != null =>
+          _scope.attach(
+            ContentKey.unicode(glyph),
+            _specOf(cacheType),
+            const AssetProfile(),
+          ),
+        _ => null,
       },
     );
     _live.add(binding);
     return binding;
   }
+
+  // The glyph form ignores the spec (the atlas has one glyph size); the two
+  // old cache types only need to stay distinct.
+  static AssetSpec _specOf(CatalogAssetCacheType cacheType) =>
+      switch (cacheType) {
+        CatalogAssetCacheType.keyboard => const AssetSpec(
+          pixelWidth: 72,
+          pixelHeight: 72,
+        ),
+        CatalogAssetCacheType.messages => const AssetSpec(
+          pixelWidth: 36,
+          pixelHeight: 36,
+        ),
+      };
 
   @override
   bool isRetained(CatalogAssetKey key, CatalogAssetCacheType cacheType) {
@@ -106,23 +113,15 @@ final class MemoryCatalogAssetCache implements CatalogAssetCache {
   /// Drops every entry. Same live-binding caveat as [evict].
   void clear() => _entries.clear();
 
-  /// Stops listening to [glyphAtlas] and gives back the page holds of the
-  /// bindings still live, so a cache that goes away never pins pages. The atlas
-  /// itself is the host's to dispose. Idempotent.
+  /// Gives back the page holds of the bindings still live, so a cache that
+  /// goes away never pins pages. The atlas itself is the host's to dispose.
+  /// Idempotent.
   void dispose() {
-    glyphAtlas?.removePageListener(_onPageBaked);
+    _scope.dispose();
     for (final binding in List<_Binding>.of(_live)) {
-      binding.releasePage();
+      binding.releaseGlyph();
     }
     _live.clear();
-  }
-
-  void _onPageBaked(int pageIndex) {
-    // Every binding with a listener: the cells of one page are not tracked per
-    // entry, and a listener is a repaint request, which is idempotent.
-    for (final entry in List<_Entry>.of(_entries.values)) {
-      entry.notify();
-    }
   }
 
   void _setReadiness(
@@ -156,6 +155,12 @@ final class MemoryCatalogAssetCache implements CatalogAssetCache {
   }
 }
 
+/// Deterministic in-memory cache for widget and unit tests: the same
+/// attach / refcount / readiness API, driven by [MemoryCatalogAssetCache.markReady]
+/// and [MemoryCatalogAssetCache.markFailed].
+typedef FakeCatalogAssetCache = MemoryCatalogAssetCache;
+
+@immutable
 final class _EntryId {
   const _EntryId(this.key, this.cacheType);
 
@@ -187,21 +192,22 @@ final class _Binding implements CatalogAssetBinding {
     required MemoryCatalogAssetCache cache,
     required _EntryId id,
     required _Entry entry,
-    required GlyphPageHold? pageHold,
+    required AssetBinding? glyph,
   }) : _cache = cache,
        _id = id,
        _entry = entry,
-       _pageHold = pageHold;
+       _glyph = glyph;
 
   final MemoryCatalogAssetCache _cache;
   final _EntryId _id;
   final _Entry _entry;
   final List<void Function()> _listeners = [];
-  final GlyphPageHold? _pageHold;
+  final AssetBinding? _glyph;
   bool _detached = false;
 
-  /// Gives the page hold back (idempotent: a hold releases once).
-  void releasePage() => _pageHold?.release();
+  /// Detaches the underlying glyph binding (idempotent: it gives its hold
+  /// back once).
+  void releaseGlyph() => _glyph?.detach();
 
   @override
   CatalogAssetKey get key => _id.key;
@@ -213,10 +219,7 @@ final class _Binding implements CatalogAssetBinding {
   CatalogAssetReadiness get readiness => _entry.readiness;
 
   @override
-  AtlasSprite? get sprite => switch (_id.key) {
-    UnicodeCatalogAssetKey(:final glyph) => _cache.glyphAtlas?.spriteOf(glyph),
-    DocumentCatalogAssetKey() => null,
-  };
+  AtlasSprite? get sprite => _glyph?.paintable.sprite;
 
   @override
   void addListener(void Function() listener) {
@@ -225,12 +228,14 @@ final class _Binding implements CatalogAssetBinding {
     }
     _listeners.add(listener);
     _entry.listeners.add(listener);
+    _glyph?.addListener(listener);
   }
 
   @override
   void removeListener(void Function() listener) {
     _listeners.remove(listener);
     _entry.listeners.remove(listener);
+    _glyph?.removeListener(listener);
   }
 
   @override
@@ -239,11 +244,9 @@ final class _Binding implements CatalogAssetBinding {
       return;
     }
     _detached = true;
-    for (final listener in _listeners) {
-      _entry.listeners.remove(listener);
-    }
+    _listeners.forEach(_entry.listeners.remove);
     _listeners.clear();
-    releasePage();
+    releaseGlyph();
     _cache._detach(this, _id, _entry);
   }
 }

@@ -2,7 +2,6 @@ import 'dart:ui';
 
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
-import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -287,11 +286,7 @@ void main() {
     test(
       'the current catalogue stays within 64 MiB of resident pages',
       () async {
-        final glyphs = <String>{
-          for (final category in emojiCatalogForLocale(const Locale('en')))
-            for (final entry in category.entries) entry.glyph,
-        }.toList();
-        final atlas = await baked(glyphs);
+        final atlas = await baked(sampleGlyphCatalogue());
         final layout = atlas.index.layout;
 
         final bytes = atlas.residency.residentBytes;
