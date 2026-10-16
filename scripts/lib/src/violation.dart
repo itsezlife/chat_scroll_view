@@ -52,9 +52,11 @@ enum LintRule {
 
   /// A pure-Dart package depends on or imports Flutter.
   flutterInPureDartPackage(
-    'content_model is pure Dart: every package depends on it, so it must not '
-    'depend on the Flutter SDK or import package:flutter, a Flutter library '
-    'or dart:ui.',
+    'content_model, emoji_data and emoji_catalog_pack are pure Dart '
+    '(content_model because every package depends on it; the emoji logic '
+    'because it runs without an engine and takes bytes and strings from the '
+    'host), so they must not depend on the Flutter SDK or import '
+    'package:flutter, a Flutter library or dart:ui.',
   ),
 
   /// A [LegacyException] no longer matches any violation.
