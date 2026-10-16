@@ -3,7 +3,7 @@ type: Architecture Reference
 title: Host Chrome Insets
 description: How a host reserves the scroll band for occluding chrome without folding that chrome into the viewport render object.
 tags: [insets, host, chrome, padding]
-timestamp: 2026-08-19T00:00:00Z
+timestamp: 2026-10-16T00:00:00Z
 resource: lib/src/chat_widgets/chat_scroll_view.dart
 ---
 
@@ -25,13 +25,21 @@ Typical aggregation (names are roles, not required types):
 
 ```text
 topPadding    = safeTop + headerReserve
-bottomPadding = composerHeight + keyboard
+bottomPadding = composerExtent + panelOccupancy.bottom
+inlineEnd     = panelOccupancy.inlineEnd   // applied in layout, not as padding
 ```
 
 `safeTop` is persistent view padding (notch / status bar). `headerReserve` is
 only the overlay header’s occupancy (often `progress × barHeight`).
-`composerHeight` is the composer’s laid-out height **including** its own
-bottom safe-area pad, **excluding** keyboard. `keyboard` is live IME height.
+`composerExtent` is the height the composer publishes as data, **including**
+its own bottom safe-area pad, **excluding** the panel and the keyboard. The
+composer imports no inset types ([ADR 026](../adr/026-composer-model.md)).
+`panelOccupancy` is the `Observable` the active panel presentation publishes
+([ADR 028](../adr/028-panel-presentation.md)): for a keyboard-replacement
+presentation `bottom` is the animated `max(IME, panel)` and already contains
+the live IME height; an anchored popup publishes zero; a docked section
+publishes its width as `inlineEnd`. The host reads the occupancy of the
+presentation currently shown and never adds IME height a second time.
 
 ## Reserved inset vs overlay chrome
 
@@ -46,16 +54,18 @@ band for chrome that does not occlude messages.
 
 ## Keyboard
 
-Keyboard height is a live geometric signal, not a second scroll writer.
-The host lifts the composer by that height and adds the same value into
-`bottomPadding`. The viewport then compensates the pad change (invariant 16).
+Keyboard height is a live geometric signal, not a second scroll writer. The
+host feeds raw IME samples to the presentation through its single input port;
+without a panel presentation, or with one that publishes zero, the host lifts
+the composer by that height and adds the same value into `bottomPadding`. The viewport then compensates the pad change (invariant 16).
 Do not implement keyboard follow by pinning the newest row.
 
 ## Measurement
 
 A one-shot or layout-driven measure of composer height is a **bootstrap and
 correction**, not a second coordinate system. Seed `bottomPadding` with idle
-occupancy so the first frame is not zero, then publish measured height.
+occupancy so the first frame is not zero, then publish measured height
+(the composer's extent).
 Do not treat post-layout size as the animation driver if the host later
 animates composer height — publish the animated occupancy on the same
 listenable the viewport already consumes.
