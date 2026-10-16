@@ -4,10 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('ComposerHeader.prioritised', () {
-    final reply = ComposerHeader.reply(name: 'Ada', preview: 'hi');
-    final edit = ComposerHeader.edit(preview: 'draft');
-    final forward = ComposerHeader.forward(title: 'Forward', preview: '2');
-    final link = ComposerHeader.linkPreview(title: 'site', preview: 'url');
+    const reply = ComposerHeader.reply(name: 'Ada', preview: 'hi');
+    const edit = ComposerHeader.edit(preview: 'draft');
+    const forward = ComposerHeader.forward(title: 'Forward', preview: '2');
+    const link = ComposerHeader.linkPreview(title: 'site', preview: 'url');
     final suggestion = ComposerHeader.suggestion(
       builder: (context) => const SizedBox(),
     );
@@ -35,7 +35,7 @@ void main() {
     });
 
     test('keeps the first of two equal priorities', () {
-      final other = ComposerHeader.reply(name: 'Bo', preview: 'yo');
+      const other = ComposerHeader.reply(name: 'Bo', preview: 'yo');
 
       expect(ComposerHeader.prioritised([reply, other]), same(reply));
       expect(ComposerHeader.prioritised([other, reply]), same(other));
@@ -49,10 +49,10 @@ void main() {
   group('ComposerHeader.priority', () {
     test('orders the kinds strictly', () {
       final ordered = [
-        ComposerHeader.edit(preview: ''),
-        ComposerHeader.reply(name: '', preview: ''),
-        ComposerHeader.forward(title: '', preview: ''),
-        ComposerHeader.linkPreview(title: '', preview: ''),
+        const ComposerHeader.edit(preview: ''),
+        const ComposerHeader.reply(name: '', preview: ''),
+        const ComposerHeader.forward(title: '', preview: ''),
+        const ComposerHeader.linkPreview(title: '', preview: ''),
         ComposerHeader.suggestion(builder: (context) => const SizedBox()),
       ].map((header) => header.priority).toList();
 

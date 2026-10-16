@@ -57,7 +57,7 @@ void main() {
   testWidgets('paints the theme content fade colour when none is given', (
     tester,
   ) async {
-    final palette = ChromePalette.light();
+    const palette = ChromePalette.light();
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,

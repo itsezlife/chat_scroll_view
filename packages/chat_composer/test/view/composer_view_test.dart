@@ -75,7 +75,10 @@ void main() {
       await show(
         tester,
         ComposerSpec(
-          header: ComposerHeader.reply(name: 'Ada', preview: 'hello there'),
+          header: const ComposerHeader.reply(
+            name: 'Ada',
+            preview: 'hello there',
+          ),
         ),
       );
       await tester.pump();
@@ -86,7 +89,7 @@ void main() {
 
       await show(
         tester,
-        ComposerSpec(header: ComposerHeader.edit(preview: 'old text')),
+        ComposerSpec(header: const ComposerHeader.edit(preview: 'old text')),
       );
       await tester.pump();
       await tester.pump(_reveal);
@@ -102,7 +105,7 @@ void main() {
     ) async {
       await show(
         tester,
-        ComposerSpec(header: ComposerHeader.edit(preview: 'x')),
+        ComposerSpec(header: const ComposerHeader.edit(preview: 'x')),
       );
       await tester.pump(_reveal);
       expect(find.byType(ComposerHeaderStrip), findsOneWidget);
@@ -127,8 +130,8 @@ void main() {
         tester,
         ComposerSpec(
           header: ComposerHeader.suggestion(
-            builder: (context) => Column(
-              children: const [
+            builder: (context) => const Column(
+              children: [
                 SizedBox(key: Key('top'), height: 24, width: 10),
                 SizedBox(key: Key('bottom'), height: 24, width: 10),
               ],
@@ -167,7 +170,7 @@ void main() {
 
       await show(
         tester,
-        ComposerSpec(header: ComposerHeader.edit(preview: 'x')),
+        ComposerSpec(header: const ComposerHeader.edit(preview: 'x')),
       );
       for (var i = 0; i < 6; i++) {
         await tester.pump(_reveal * 0.15);
@@ -187,7 +190,7 @@ void main() {
 
       await show(
         tester,
-        ComposerSpec(header: ComposerHeader.edit(preview: 'x')),
+        ComposerSpec(header: const ComposerHeader.edit(preview: 'x')),
       );
       for (var i = 0; i < 8; i++) {
         await tester.pump(_reveal * 0.1);
@@ -203,7 +206,7 @@ void main() {
           ChromeMotionScope(
             speed: ChromeMotionSpeed.instant,
             child: view(
-              ComposerSpec(header: ComposerHeader.edit(preview: 'x')),
+              ComposerSpec(header: const ComposerHeader.edit(preview: 'x')),
             ),
           ),
         ),
@@ -278,7 +281,7 @@ void main() {
     testWidgets('moving back to the text panel mounts the field again', (
       tester,
     ) async {
-      resolver(BuildContext context, ComposerPanelId panel) =>
+      Widget resolver(BuildContext context, ComposerPanelId panel) =>
           const SizedBox(height: 44, child: Text('Join to write'));
       await show(tester, ComposerSpec(panel: _restricted), resolver: resolver);
       await show(tester, ComposerSpec(), resolver: resolver);
@@ -391,7 +394,7 @@ void main() {
 
       await show(
         tester,
-        ComposerSpec(header: ComposerHeader.edit(preview: 'x')),
+        ComposerSpec(header: const ComposerHeader.edit(preview: 'x')),
       );
       for (var i = 0; i < 6; i++) {
         await tester.pump(_reveal * 0.2);

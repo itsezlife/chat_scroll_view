@@ -16,6 +16,7 @@ export 'src/spec/composer_panel.dart';
 export 'src/spec/composer_spec.dart';
 export 'src/text/composer_entity_styles.dart';
 export 'src/text/composer_text_controller.dart';
+export 'src/text/content_span_builder.dart';
 export 'src/text/inline_content_span_builder.dart';
 export 'src/view/composer_bottom_fade.dart';
 export 'src/view/composer_metrics.dart';
