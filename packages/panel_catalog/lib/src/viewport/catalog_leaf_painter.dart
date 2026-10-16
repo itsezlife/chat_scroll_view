@@ -204,41 +204,49 @@ final class CatalogLeafPainter {
   /// Paints [header] at content [origin]: the title, and the trailing action
   /// when the section has one.
   ///
-  /// Paragraphs come from the bounded cache, keyed by text, typography and
-  /// layout width. Vertical placement centres each line in
-  /// [CatalogHeaderSlot.height]; the title starts
-  /// [CatalogLeafPaintTheme.sectionHeaderStartInset] after the section's own
-  /// left edge ([CatalogHeaderSlot.left]) and ends where the action's hit area
-  /// begins, or at the section's right edge ([CatalogHeaderSlot.width]) when
-  /// there is no action.
+  /// Paragraphs come from the bounded cache, keyed by text, typography, layout
+  /// width and direction. Vertical placement centres each line in
+  /// [CatalogHeaderSlot.height]. The title starts
+  /// [CatalogLeafPaintTheme.sectionHeaderStartInset] in from the band's start
+  /// edge (left in a left-to-right header, right in a right-to-left one) and
+  /// ends where the action's hit area begins, or at the band's end edge when
+  /// there is no action; the action sits at the end edge.
   void paintHeader({
     required Canvas canvas,
     required Offset origin,
     required CatalogHeaderSlot header,
   }) {
     final theme = _theme;
+    final inset = theme.sectionHeaderStartInset;
+    final direction = header.textDirection;
+    final ltr = direction == TextDirection.ltr;
     final action = _actionLayout(header);
-    final titleEnd = action?.hit.left ?? header.left + header.width;
-    final textWidth = math.max(
-      0.0,
-      titleEnd - header.left - theme.sectionHeaderStartInset,
-    );
+    final bandEnd = header.left + header.width;
+    // The title's box, from its end-side limit to its start-side limit.
+    final titleLeft = ltr
+        ? header.left + inset
+        : action?.hit.right ?? header.left;
+    final titleRight = ltr ? action?.hit.left ?? bandEnd : bandEnd - inset;
     final paragraph = _paragraph(
       header.title,
       theme.sectionHeaderStyle,
-      width: textWidth,
+      width: math.max(0.0, titleRight - titleLeft),
+      direction: direction,
     );
     final textY = header.top + (header.height - paragraph.height) / 2;
     canvas.drawParagraph(
       paragraph,
-      Offset(
-        origin.dx + header.left + theme.sectionHeaderStartInset,
-        origin.dy + textY,
-      ),
+      Offset(origin.dx + titleLeft, origin.dy + textY),
     );
     if (action == null) return;
-    var x = action.hit.right - theme.sectionHeaderStartInset - action.width;
-    for (final part in [?action.label, ?action.icon]) {
+    // Parts read start to end: the label first, then the icon. A right-to-left
+    // header puts the label at the right, so its parts are laid out from the
+    // left edge in the opposite order.
+    var x = ltr
+        ? action.hit.right - inset - action.width
+        : action.hit.left + inset;
+    final parts = [?action.label, ?action.icon];
+    for (final part in ltr ? parts : parts.reversed) {
       canvas.drawParagraph(
         part,
         Offset(
@@ -254,8 +262,8 @@ final class CatalogLeafPainter {
   /// when the section has none.
   ///
   /// The whole band tall, from the action's own start (less the header start
-  /// inset) to the section's right edge, and at least
-  /// [kCatalogActionMinHitWidth] wide.
+  /// inset) to the band's end edge (the right edge, or the left edge in a
+  /// right-to-left header), and at least [kCatalogActionMinHitWidth] wide.
   Rect? sectionActionBounds(CatalogHeaderSlot header) =>
       _actionLayout(header)?.hit;
 
@@ -264,11 +272,20 @@ final class CatalogLeafPainter {
     final action = header.action;
     if (action == null) return null;
     final style = _theme.sectionHeaderStyle;
+    final direction = header.textDirection;
     final label = action.label;
     final icon = action.icon;
+    // Left-aligned in a band-wide box: a part is drawn at its own x whatever
+    // the direction; the direction only orders its bidirectional text.
     final labelParagraph = label == null
         ? null
-        : _paragraph(label, style, width: header.width);
+        : _paragraph(
+            label,
+            style,
+            width: header.width,
+            direction: direction,
+            align: TextAlign.left,
+          );
     final iconParagraph = icon == null
         ? null
         : _paragraph(
@@ -280,6 +297,8 @@ final class CatalogLeafPainter {
               fontWeight: FontWeight.w400,
             ),
             width: header.width,
+            direction: direction,
+            align: TextAlign.left,
           );
     final width =
         (labelParagraph?.maxIntrinsicWidth ?? 0) +
@@ -293,34 +312,45 @@ final class CatalogLeafPainter {
       ),
     );
     final right = header.left + header.width;
-    return (
-      hit: Rect.fromLTRB(
-        right - hitWidth,
-        header.top,
-        right,
-        header.top + header.height,
-      ),
-      label: labelParagraph,
-      icon: iconParagraph,
-      width: width,
-    );
+    final hit = direction == TextDirection.ltr
+        ? Rect.fromLTRB(
+            right - hitWidth,
+            header.top,
+            right,
+            header.top + header.height,
+          )
+        : Rect.fromLTRB(
+            header.left,
+            header.top,
+            header.left + hitWidth,
+            header.top + header.height,
+          );
+    return (hit: hit, label: labelParagraph, icon: iconParagraph, width: width);
   }
 
   /// The laid-out paragraph of [text] in [style] across [width], from the
-  /// bounded cache.
+  /// bounded cache. [align] null is the start edge of [direction].
   ui.Paragraph _paragraph(
     String text,
     TextStyle style, {
     required double width,
-    bool centered = false,
+    TextDirection direction = TextDirection.ltr,
+    TextAlign? align,
   }) => _textParagraphs.obtain(
-    _TextPaintKey(text: text, style: style, width: width, centered: centered),
+    _TextPaintKey(
+      text: text,
+      style: style,
+      width: width,
+      direction: direction,
+      align: align,
+    ),
     () {
       final builder =
           ui.ParagraphBuilder(
               style.getParagraphStyle(
                 textScaler: TextScaler.noScaling,
-                textAlign: centered ? TextAlign.center : null,
+                textAlign: align,
+                textDirection: direction,
               ),
             )
             ..pushStyle(style.getTextStyle())
@@ -343,7 +373,7 @@ final class CatalogLeafPainter {
       slot.text,
       _messageStyle,
       width: width,
-      centered: true,
+      align: TextAlign.center,
     );
     canvas.drawParagraph(
       paragraph,
@@ -372,6 +402,7 @@ final class CatalogLeafPainter {
     required CatalogBoundLeaf? bound,
     double pressScale = 1,
     double pressProgress = 0,
+    bool focused = false,
   }) {
     final theme = _theme;
     final cellRect = Rect.fromLTWH(
@@ -387,6 +418,17 @@ final class CatalogLeafPainter {
       height: glyphSize,
     );
 
+    // Under the content like the press wash: a sprite is queued and drawn at
+    // the end of the pass, over everything painted here.
+    if (focused && theme.leafFocusHighlightColor.a > 0) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          cellRect,
+          Radius.circular(theme.leafPressSelectorRadius),
+        ),
+        _highlightPaint..color = theme.leafFocusHighlightColor,
+      );
+    }
     if (pressProgress > 0 && theme.leafPressHighlightColor.a > 0) {
       final factor = pressProgress.clamp(0.0, 1.0);
       canvas.drawRRect(
@@ -582,13 +624,15 @@ final class _TextPaintKey {
     required this.text,
     required this.style,
     required this.width,
-    required this.centered,
+    required this.direction,
+    required this.align,
   });
 
   final String text;
   final TextStyle style;
   final double width;
-  final bool centered;
+  final TextDirection direction;
+  final TextAlign? align;
 
   @override
   bool operator ==(Object other) =>
@@ -596,8 +640,9 @@ final class _TextPaintKey {
       other.text == text &&
       other.style == style &&
       other.width == width &&
-      other.centered == centered;
+      other.direction == direction &&
+      other.align == align;
 
   @override
-  int get hashCode => Object.hash(text, style, width, centered);
+  int get hashCode => Object.hash(text, style, width, direction, align);
 }

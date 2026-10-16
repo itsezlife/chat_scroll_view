@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:content_model/content_model.dart';
 import 'package:flutter/animation.dart';
+import 'package:flutter/painting.dart' show TextDirection;
 import 'package:panel_catalog/src/model/catalog_glyph_box.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_section_action.dart';
@@ -56,6 +57,7 @@ sealed class CatalogStitchCapturedSlot {
     required String title,
     required String sectionId,
     CatalogSectionAction? action,
+    TextDirection textDirection,
   }) = CatalogStitchCapturedHeader;
 
   /// Captured skeleton cell.
@@ -118,6 +120,7 @@ final class CatalogStitchCapturedHeader extends CatalogStitchCapturedSlot {
     required this.title,
     required this.sectionId,
     this.action,
+    this.textDirection = TextDirection.ltr,
   });
 
   /// Content x of the section's left edge at capture time.
@@ -134,6 +137,9 @@ final class CatalogStitchCapturedHeader extends CatalogStitchCapturedSlot {
 
   /// The section's trailing action at capture time.
   final CatalogSectionAction? action;
+
+  /// The direction the header read in at capture time.
+  final TextDirection textDirection;
 }
 
 /// Captured skeleton cell for stitch outgoing paint.
@@ -248,6 +254,7 @@ List<CatalogStitchCapturedSlot> captureCatalogStitchOutgoing({
             title: header.title,
             sectionId: header.sectionId,
             action: header.action,
+            textDirection: header.textDirection,
           ),
         );
       case final CatalogSkeletonSlot skeleton:

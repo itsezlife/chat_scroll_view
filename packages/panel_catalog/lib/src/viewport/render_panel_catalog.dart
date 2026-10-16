@@ -6,6 +6,11 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart'
+    show
+        MouseTrackerAnnotation,
+        PointerEnterEventListener,
+        PointerExitEventListener;
 import 'package:flutter/widgets.dart';
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
@@ -16,6 +21,8 @@ import 'package:panel_catalog/src/util/logger.dart';
 import 'package:panel_catalog/src/viewport/catalog_action_pointer.dart';
 import 'package:panel_catalog/src/viewport/catalog_bake_activity.dart';
 import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
+import 'package:panel_catalog/src/viewport/catalog_focus.dart';
+import 'package:panel_catalog/src/viewport/catalog_focus_navigation.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_painter.dart';
@@ -24,6 +31,7 @@ import 'package:panel_catalog/src/viewport/catalog_leaf_press.dart';
 import 'package:panel_catalog/src/viewport/catalog_near_scroll.dart';
 import 'package:panel_catalog/src/viewport/catalog_scroll_physics.dart';
 import 'package:panel_catalog/src/viewport/catalog_scroll_position.dart';
+import 'package:panel_catalog/src/viewport/catalog_semantics.dart';
 import 'package:panel_catalog/src/viewport/catalog_section_proximity.dart';
 import 'package:panel_catalog/src/viewport/catalog_section_navigation.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
@@ -208,7 +216,11 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// stops at this object instead of dirtying the host chrome's layer.
 ///
 /// Constructed by [PanelCatalogViewport]; not exported from the public barrel.
-class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
+class RenderPanelCatalog extends RenderBox
+    implements
+        CatalogScrollPosition,
+        CatalogSemanticsTarget,
+        MouseTrackerAnnotation {
   /// Creates a panel catalog render body.
   ///
   /// [spanCount] MUST be ≥ 1. [cellExtent] / [headerExtent] SHOULD be > 0;
@@ -226,6 +238,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     required double cellExtent,
     required double headerExtent,
     required EdgeInsets padding,
+    TextDirection textDirection = TextDirection.ltr,
     double? headerLandingInset,
     required CatalogLeafPaintTheme paintTheme,
     ValueChanged<CatalogLeafHit>? onLeafTap,
@@ -245,6 +258,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
        _cellExtent = cellExtent,
        _headerExtent = headerExtent,
        _padding = padding,
+       _textDirection = textDirection,
        _headerLandingInset = headerLandingInset,
        _onLeafTap = onLeafTap,
        _onLeafLongPressStart = onLeafLongPressStart,
@@ -294,6 +308,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     if (attached) {
       _snapshots.addListener(_onDataChanged);
     }
+    _validateFocus();
     markCatalogNeedsUpdate();
   }
 
@@ -379,6 +394,16 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     markCatalogNeedsUpdate();
   }
 
+  /// The direction of a section whose layout states none. Changing it moves
+  /// the cells of those sections to the other side of their rows and mirrors
+  /// their headers; rows and offsets stay.
+  TextDirection _textDirection;
+  set textDirection(TextDirection value) {
+    if (_textDirection == value) return;
+    _textDirection = value;
+    markCatalogNeedsUpdate();
+  }
+
   /// Section-jump landing inset; null → [padding.top].
   double? _headerLandingInset;
   set headerLandingInset(double? value) {
@@ -403,6 +428,9 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   ValueChanged<CatalogLeafHit>? _onLeafTap;
   set onLeafTap(ValueChanged<CatalogLeafHit>? value) {
     if (_onLeafTap == value) return;
+    // A node offers an action by whether the shell has one; the action itself
+    // reads the callback when performed.
+    if ((_onLeafTap == null) != (value == null)) _markSemanticsStale();
     _onLeafTap = value;
     _leafPointer.onLeafTap = value;
   }
@@ -414,6 +442,9 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     void Function(CatalogLeafHit hit, LongPressStartDetails details)? value,
   ) {
     if (_onLeafLongPressStart == value) return;
+    if ((_onLeafLongPressStart == null) != (value == null)) {
+      _markSemanticsStale();
+    }
     _onLeafLongPressStart = value;
     _leafPointer.onLeafLongPressStart = value;
   }
@@ -445,6 +476,9 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   bool Function(CatalogLeafHit hit)? _leafLongPressEligible;
   set leafLongPressEligible(bool Function(CatalogLeafHit hit)? value) {
     if (_leafLongPressEligible == value) return;
+    if ((_leafLongPressEligible == null) != (value == null)) {
+      _markSemanticsStale();
+    }
     _leafLongPressEligible = value;
     _leafPointer.leafLongPressEligible = value;
   }
@@ -453,6 +487,9 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   void Function(String sectionId, String actionId)? _onSectionAction;
   set onSectionAction(void Function(String sectionId, String actionId)? value) {
     if (_onSectionAction == value) return;
+    if ((_onSectionAction == null) != (value == null)) {
+      _markSemanticsStale();
+    }
     _onSectionAction = value;
     _actionPointer.onSectionAction = value;
   }
@@ -744,6 +781,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
         ),
       });
     }
+    _validateFocus();
     markCatalogNeedsUpdate();
   }
 
@@ -956,6 +994,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
       headerExtent: _headerExtent,
       padding: _padding,
       maxWidth: size.width,
+      textDirection: _textDirection,
     ).bands;
     final targetOffset = scrollOffsetForBand(
       bands[sectionIndex],
@@ -1245,6 +1284,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   void detach() {
     _snapshots.removeListener(_onDataChanged);
     _controller.detach(this);
+    _setFocus(null);
     _clearPressPointerRoute();
     _cancelSectionJumpMotion();
     _endSectionJump();
@@ -1361,6 +1401,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
       headerExtent: _headerExtent,
       padding: _padding,
       maxWidth: maxWidth,
+      textDirection: _textDirection,
     );
     final sections = _snapshots.value.sections;
     // A relayout that changes neither the sections nor the geometry (a forced
@@ -1718,6 +1759,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     _clampOffset();
     _syncVisibleBindings();
     _beginStitchMeasureIfNeeded();
+    _markSemanticsStale();
     debugLastLayoutDuration = sw.elapsed;
     _logLayoutEnd(constraints);
   }
@@ -1764,6 +1806,44 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   /// reach [handleEvent].
   @override
   bool hitTestSelf(Offset position) => size.contains(position);
+
+  /// Where the last hit test landed, for [cursor]. The mouse tracker hit-tests
+  /// the pointer before it reads the cursor of what it found, on every pointer
+  /// event and again after each frame, so this is where the mouse is when the
+  /// cursor is asked for.
+  Offset? _hitPosition;
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    _hitPosition = position;
+    return super.hitTest(result, position: position);
+  }
+
+  /// The click cursor over a leaf the shell can tap or long-press and over a
+  /// header action it listens to; the cursor of whatever is behind everywhere
+  /// else.
+  @override
+  MouseCursor get cursor {
+    final position = _hitPosition;
+    if (position == null || !hasSize) return MouseCursor.defer;
+    if ((_onLeafTap != null || _onLeafLongPressStart != null) &&
+        leafSlotAt(position) != null) {
+      return SystemMouseCursors.click;
+    }
+    if (_onSectionAction != null && actionAt(position) != null) {
+      return SystemMouseCursors.click;
+    }
+    return MouseCursor.defer;
+  }
+
+  @override
+  PointerEnterEventListener? get onEnter => null;
+
+  @override
+  PointerExitEventListener? get onExit => null;
+
+  @override
+  bool get validForMouseTracker => attached;
 
   /// Routes pointer-down to drag, leaf press/pointer, and fling-cancel logic;
   /// wheel scroll cancels fling and scrolls by delta.
@@ -1848,6 +1928,10 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     canvas.clipRect(offset & size);
 
     final scroll = _pixels;
+    if (_semanticsPixels != scroll) {
+      _semanticsPixels = scroll;
+      markNeedsSemanticsUpdate();
+    }
     _bakeActivity?.notePaint();
     _painter.beginPass(
       frameTime: _frameTime(),
@@ -1955,6 +2039,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
         _painter.paintHeader(canvas: canvas, origin: origin, header: header);
       case final CatalogLeafSlot leaf:
         final isPressed = pressedSlotKey != null && leaf.key == pressedSlotKey;
+        final focus = _focus;
         _painter.paintLeaf(
           canvas: canvas,
           origin: origin,
@@ -1962,6 +2047,10 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
           bound: _pool.boundFor(leaf),
           pressScale: isPressed ? pressScale : 1.0,
           pressProgress: isPressed ? pressProgress : 0,
+          focused:
+              focus != null &&
+              focus.index == leaf.index &&
+              focus.sectionId == leaf.sectionId,
         );
       case final CatalogSkeletonSlot skeleton:
         _painter.paintSkeleton(canvas: canvas, origin: origin, slot: skeleton);
@@ -2008,6 +2097,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
           :final width,
           :final sectionId,
           :final action,
+          :final textDirection,
         ):
           _paintLayoutSlot(
             canvas: canvas,
@@ -2020,6 +2110,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
               title: title,
               sectionId: sectionId,
               action: action,
+              textDirection: textDirection,
             ),
             pressedSlotKey: pressedSlotKey,
             pressScale: pressScale,
@@ -2121,6 +2212,339 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
         pressProgress: pressProgress,
       );
     }
+  }
+
+  // --- Semantics ------------------------------------------------------------
+
+  /// The nodes of the window handed to the platform; empty while no assistive
+  /// technology asks.
+  final CatalogSemanticNodes _semanticNodes = CatalogSemanticNodes();
+
+  /// The offset the semantics were last built for. Painting notices a move and
+  /// asks for new nodes, which covers every motion (drag, fling, jump, near and
+  /// far section jumps) without a call at each; with no assistive technology
+  /// running, asking is a no-op.
+  double _semanticsPixels = double.nan;
+
+  /// Whether the nodes must be described again even if the window is the same
+  /// one: the cells moved, the shell's actions or the focus changed. Without
+  /// it a scroll only moves the nodes already built.
+  var _semanticsStale = true;
+
+  /// The slot range the nodes were last assembled for.
+  (int, int)? _semanticsWindow;
+
+  void _markSemanticsStale() {
+    _semanticsStale = true;
+    markNeedsSemanticsUpdate();
+  }
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    config
+      ..isSemanticBoundary = true
+      ..explicitChildNodes = true
+      ..textDirection = _textDirection;
+    if (!hasSize || maxOffset <= 0) return;
+    final max = maxOffset;
+    config
+      ..hasImplicitScrolling = true
+      ..scrollPosition = _pixels
+      ..scrollExtentMin = 0
+      ..scrollExtentMax = max;
+    final page = size.height * 0.8;
+    if (_pixels < max) {
+      config.onScrollUp = () => scrollBy(math.min(page, max - _pixels));
+    }
+    if (_pixels > 0) {
+      config.onScrollDown = () => scrollBy(-math.min(page, _pixels));
+    }
+  }
+
+  @override
+  void assembleSemanticsNode(
+    SemanticsNode node,
+    SemanticsConfiguration config,
+    Iterable<SemanticsNode> children,
+  ) {
+    // The window is the one the bindings use: a binary search to the visible
+    // band and one cell of overscan, never a walk over the catalogue.
+    final (top, bottom) = _visibleWindow();
+    final start = _firstSlotIndexAtOrBelow(top);
+    final end = _slotIndexAfter(bottom);
+    if (!_semanticsStale &&
+        _semanticNodes.hasWindow &&
+        _semanticsWindow == (start, end)) {
+      _semanticNodes.scrollTo(
+        node: node,
+        config: config,
+        scrollOffset: _pixels,
+      );
+      return;
+    }
+    _semanticsStale = false;
+    _semanticsWindow = (start, end);
+    _semanticNodes.assemble(
+      node: node,
+      config: config,
+      slots: _slots,
+      start: start,
+      end: end,
+      scrollOffset: _pixels,
+      width: size.width,
+      textDirection: _textDirection,
+      target: this,
+    );
+  }
+
+  @override
+  void clearSemantics() {
+    super.clearSemantics();
+    _semanticNodes.clear();
+    _semanticsStale = true;
+    _semanticsWindow = null;
+  }
+
+  @override
+  Rect? semanticActionBounds(CatalogHeaderSlot header) =>
+      _painter.sectionActionBounds(header);
+
+  @override
+  VoidCallback? semanticTapOf(CatalogLeafHit hit) {
+    if (_onLeafTap == null) return null;
+    return () => _onLeafTap?.call(hit);
+  }
+
+  /// Reports the start of a long-press at the cell and nothing after it: there
+  /// is no gesture to release, so the shell opens what it opens on start and
+  /// the user goes on with the assistive technology.
+  @override
+  VoidCallback? semanticLongPressOf(CatalogLeafHit hit) {
+    if (_onLeafLongPressStart == null) return null;
+    final eligible = _leafLongPressEligible;
+    if (eligible != null && !eligible(hit)) return null;
+    return () {
+      final cell = _cellRectOf(hit.sectionId, hit.index);
+      final local = cell == null
+          ? Offset.zero
+          : cell.center.translate(0, -_pixels);
+      _onLeafLongPressStart?.call(
+        hit,
+        LongPressStartDetails(
+          globalPosition: localToGlobal(local),
+          localPosition: local,
+        ),
+      );
+    };
+  }
+
+  @override
+  VoidCallback? semanticActionOf(String sectionId, String actionId) {
+    if (_onSectionAction == null) return null;
+    return () => _onSectionAction?.call(sectionId, actionId);
+  }
+
+  @override
+  VoidCallback semanticFocusOf(CatalogLeafHit hit) =>
+      () => focusLeaf(hit.sectionId, hit.index, reveal: true);
+
+  @override
+  VoidCallback semanticRevealOf(String sectionId, int? index) =>
+      () => _reveal(sectionId, index, withHeader: false);
+
+  @override
+  bool semanticIsFocused(String sectionId, int index) {
+    final focus = _focus;
+    return focus != null &&
+        focus.index == index &&
+        focus.sectionId == sectionId;
+  }
+
+  // --- Roving focus ---------------------------------------------------------
+
+  /// The cell that holds roving focus; null when none does. Its leaf is the one
+  /// the last snapshot holds at that cell.
+  CatalogLeafHit? _focus;
+
+  @override
+  CatalogLeafHit? get focusedLeaf => _focus;
+
+  @override
+  bool focusLeaf(String sectionId, int index, {required bool reveal}) {
+    final cell = _cellById(sectionId, index);
+    if (cell == null) return false;
+    _setFocus(_hitOf(cell));
+    if (reveal) _reveal(sectionId, index, withHeader: true);
+    return true;
+  }
+
+  @override
+  bool moveFocus(CatalogFocusMove move) {
+    final sections = _projectedSections;
+    if (sections.isEmpty || !hasSize) return false;
+    final focus = _focus;
+    final current = focus == null
+        ? null
+        : _cellById(focus.sectionId, focus.index);
+    final CatalogCell? target;
+    if (current != null) {
+      target = moveCatalogFocus(
+        from: current,
+        move: move,
+        sections: sections,
+        bands: _bands,
+      );
+    } else {
+      // Nothing holds focus: a move enters the grid rather than stepping.
+      target = switch (move) {
+        CatalogFocusMove.first => firstCatalogCell(sections),
+        CatalogFocusMove.last => lastCatalogCell(sections),
+        _ => _firstCellInView() ?? firstCatalogCell(sections),
+      };
+    }
+    if (target == null) return false;
+    final hit = _hitOf(target);
+    _setFocus(hit);
+    _reveal(hit.sectionId, hit.index, withHeader: true);
+    return true;
+  }
+
+  @override
+  bool activateFocusedLeaf() {
+    final focus = _focus;
+    final tap = _onLeafTap;
+    if (focus == null || tap == null) return false;
+    tap(focus);
+    return true;
+  }
+
+  @override
+  void clearFocus() => _setFocus(null);
+
+  /// The cell [index] of section [sectionId] in the last projection.
+  CatalogCell? _cellById(String sectionId, int index) {
+    final sections = _projectedSections;
+    for (var s = 0; s < sections.length; s++) {
+      if (sections[s].id != sectionId) continue;
+      return index >= 0 && index < sections[s].leaves.length
+          ? (section: s, index: index)
+          : null;
+    }
+    return null;
+  }
+
+  CatalogLeafHit _hitOf(CatalogCell cell) {
+    final section = _projectedSections[cell.section];
+    return CatalogLeafHit(
+      sectionId: section.id,
+      index: cell.index,
+      leaf: section.leaves[cell.index],
+    );
+  }
+
+  /// The first leaf whose cell is wholly in view below the landing inset (the
+  /// first one cut by it when none is whole), or null with no leaf in view.
+  CatalogCell? _firstCellInView() {
+    final limit = _pixels + (_headerLandingInset ?? _padding.top);
+    final bottom = _pixels + size.height;
+    CatalogLeafSlot? partial;
+    for (var i = _firstSlotIndexAtOrBelow(limit); i < _slots.length; i++) {
+      final slot = _slots[i];
+      if (slot.top >= bottom) break;
+      if (slot is! CatalogLeafSlot) continue;
+      if (slot.top >= limit) return _cellById(slot.sectionId, slot.index);
+      partial ??= slot;
+    }
+    return partial == null ? null : _cellById(partial.sectionId, partial.index);
+  }
+
+  /// Makes [hit] the focused cell (null ends focus). The leaf is always taken
+  /// from [hit]; listeners hear a change only when the cell is another one.
+  void _setFocus(CatalogLeafHit? hit) {
+    final previous = _focus;
+    _focus = hit;
+    markNeedsPaint();
+    _markSemanticsStale();
+    if (previous == hit) return;
+    _controller.publish(PanelCatalogFocusChanged(hit));
+  }
+
+  /// Keeps [_focus] true to [snapshots]: the cell keeps focus with the leaf the
+  /// snapshot now holds there, or loses it when the snapshot has no such cell.
+  void _validateFocus() {
+    final focus = _focus;
+    if (focus == null) return;
+    for (final section in _snapshots.value.sections) {
+      if (section.id != focus.sectionId) continue;
+      if (focus.index < section.leaves.length) {
+        _focus = CatalogLeafHit(
+          sectionId: focus.sectionId,
+          index: focus.index,
+          leaf: section.leaves[focus.index],
+        );
+        _markSemanticsStale();
+        return;
+      }
+      break;
+    }
+    _setFocus(null);
+  }
+
+  // --- Cells by identity ----------------------------------------------------
+
+  /// The band of the section [sectionId] in the last projection, or null.
+  CatalogSectionBand? _bandOf(String sectionId) {
+    final sections = _projectedSections;
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].id == sectionId) return _bands[i];
+    }
+    return null;
+  }
+
+  /// Content rect of the cell [index] of section [sectionId] in the last
+  /// projection, or null when there is no such cell.
+  Rect? _cellRectOf(String sectionId, int index) {
+    final band = _bandOf(sectionId);
+    if (band == null || index < 0) return null;
+    final grid = band.grid;
+    return Rect.fromLTWH(
+      grid.cellLeft(index % grid.spanCount),
+      band.rowsTop + (index ~/ grid.spanCount) * grid.cellHeight,
+      grid.cellWidth,
+      grid.cellHeight,
+    );
+  }
+
+  /// Scrolls the cell [index] of [sectionId] (its header when [index] is null)
+  /// into view below the landing inset, moving as little as possible. With
+  /// [withHeader], a cell in the first row of its section brings its header
+  /// too. Returns whether the cell exists.
+  bool _reveal(String sectionId, int? index, {required bool withHeader}) {
+    final band = _bandOf(sectionId);
+    if (band == null || !hasSize) return false;
+    double top;
+    double bottom;
+    if (index == null) {
+      top = band.headerTop;
+      bottom = top + band.headerExtent;
+    } else {
+      final cell = _cellRectOf(sectionId, index);
+      if (cell == null) return false;
+      top = withHeader && index < band.grid.spanCount
+          ? band.headerTop
+          : cell.top;
+      bottom = cell.bottom;
+    }
+    final target = scrollOffsetToReveal(
+      top: top,
+      bottom: bottom,
+      pixels: _pixels,
+      viewportHeight: size.height,
+      topInset: _headerLandingInset ?? _padding.top,
+    ).clamp(0.0, maxOffset);
+    if (target != _pixels) jumpTo(target);
+    return true;
   }
 
   // --- Debug ----------------------------------------------------------------

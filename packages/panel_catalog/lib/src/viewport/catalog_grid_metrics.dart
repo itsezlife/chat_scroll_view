@@ -19,6 +19,7 @@ final class CatalogGridMetrics {
     required this.insets,
     required this.left,
     required this.usableWidth,
+    required this.textDirection,
   });
 
   /// Columns.
@@ -43,6 +44,38 @@ final class CatalogGridMetrics {
   /// Width the section's columns and header share.
   final double usableWidth;
 
+  /// The direction cells fill in, section override or viewport default.
+  final TextDirection textDirection;
+
+  /// Content x of the left edge of the cell in column `0`, the one at the start
+  /// edge: the leftmost left to right, the rightmost right to left.
+  double get startCellLeft => textDirection == TextDirection.ltr
+      ? left
+      : left + (spanCount - 1) * cellWidth;
+
+  /// What each further column adds to the left edge of the one before it:
+  /// [cellWidth] left to right, its negative right to left.
+  double get columnStep =>
+      textDirection == TextDirection.ltr ? cellWidth : -cellWidth;
+
+  /// Content x of the left edge of the cell in [column], counted from the
+  /// start edge. A caller placing many cells reads [startCellLeft] and
+  /// [columnStep] once instead.
+  double cellLeft(int column) => startCellLeft + column * columnStep;
+
+  /// The column from the left edge that the cell in logical [column] (counted
+  /// from the start edge) occupies.
+  int physicalColumn(int column) =>
+      textDirection == TextDirection.ltr ? column : spanCount - 1 - column;
+
+  /// The logical column (from the start edge) of the cell at content x [x],
+  /// held to the grid's columns.
+  int columnAt(double x) {
+    if (cellWidth <= 0) return 0;
+    final physical = ((x - left) / cellWidth).floor().clamp(0, spanCount - 1);
+    return physicalColumn(physical);
+  }
+
   /// Number of rows that [leafCount] leaves take at [spanCount] columns.
   int rowCountFor(int leafCount) =>
       leafCount == 0 ? 0 : (leafCount + spanCount - 1) ~/ spanCount;
@@ -51,7 +84,8 @@ final class CatalogGridMetrics {
   double get glyphBoxExtent => catalogGlyphBoxExtent(cellWidth, cellHeight);
 }
 
-/// Resolves [layout] (null = all defaults) against the viewport defaults.
+/// Resolves [layout] (null = all defaults) against the viewport defaults;
+/// [textDirection] is the direction of a layout that states none.
 ///
 /// A width with nothing left to divide (a degenerate constraint) makes the
 /// cells square at the cell extent rather than zero wide.
@@ -62,6 +96,7 @@ CatalogGridMetrics resolveCatalogGrid(
   required double headerExtent,
   required EdgeInsets padding,
   required double maxWidth,
+  TextDirection textDirection = TextDirection.ltr,
 }) {
   final grid = switch (layout) {
     final SectionLayout$Grid grid => grid,
@@ -86,6 +121,7 @@ CatalogGridMetrics resolveCatalogGrid(
     insets: insets,
     left: padding.left + insets.left,
     usableWidth: usableWidth,
+    textDirection: grid.textDirection ?? textDirection,
   );
 }
 

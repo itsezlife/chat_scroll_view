@@ -12,11 +12,13 @@ import 'support/asset_scopes.dart';
 void main() {
   group('FakeCatalogScrollPosition', () {
     runCatalogScrollPositionContract((tester) async {
-      final fake = FakeCatalogScrollPosition();
+      final fake = FakeCatalogScrollPosition(leafCounts: [4, 4, 4]);
       return CatalogScrollPositionHarness(
         position: fake,
         sectionCount: fake.sectionCount,
         settle: () async => fake.completeMotion(),
+        leafCounts: fake.leafCounts,
+        activations: () => fake.activations,
       );
     });
   });
@@ -37,6 +39,7 @@ void main() {
         ],
       );
       final controller = PanelCatalogController();
+      final taps = <CatalogLeafHit>[];
       addTearDown(() {
         snapshots.dispose();
         controller.dispose();
@@ -56,6 +59,7 @@ void main() {
                   spanCount: 4,
                   cellExtent: 40,
                   headerExtent: 24,
+                  onLeafTap: taps.add,
                 ),
               ),
             ),
@@ -70,6 +74,8 @@ void main() {
         settle: () async {
           await tester.pumpAndSettle();
         },
+        leafCounts: const [40, 40, 40, 40, 40, 40],
+        activations: () => taps,
       );
     });
   });

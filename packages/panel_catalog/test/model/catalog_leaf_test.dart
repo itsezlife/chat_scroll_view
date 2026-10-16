@@ -80,6 +80,18 @@ void main() {
         ),
         reason: 'tintable',
       );
+      expect(
+        base,
+        isNot(
+          const CatalogLeaf(
+            key: ContentKey.document('7'),
+            semanticKind: SemanticKind.sticker,
+            mediaForm: MediaForm.still,
+            spokenName: 'thumbs up',
+          ),
+        ),
+        reason: 'spoken name',
+      );
     });
 
     test('the host tag is excluded from equality', () {
@@ -116,7 +128,7 @@ void main() {
       expect(leaf.mediaForm, MediaForm.vectorAnimation);
     });
 
-    test('a descriptor supplies key and paint facts, not its other fields', () {
+    test('a descriptor supplies key, paint facts and spoken name', () {
       const descriptor = ContentDescriptor(
         key: ContentKey.document('9'),
         semanticKind: SemanticKind.customEmoji,
@@ -135,7 +147,29 @@ void main() {
       expect(leaf.animated, isTrue);
       expect(leaf.tintable, isTrue);
       expect(leaf.sizeHint, const ContentSize(100, 100));
+      expect(leaf.spokenName, 'wave');
       expect(leaf.tag, 'x');
+    });
+  });
+
+  group('semantic label', () {
+    test('is the spoken name when there is one', () {
+      expect(
+        CatalogLeaf.unicode('👍', spokenName: 'thumbs up').semanticLabel,
+        'thumbs up',
+      );
+      expect(
+        CatalogLeaf.document('1', spokenName: 'wave').semanticLabel,
+        'wave',
+      );
+    });
+
+    test('falls back to the glyph itself for a unicode emoji', () {
+      expect(CatalogLeaf.unicode('👍🏽').semanticLabel, '👍🏽');
+    });
+
+    test('is absent for other content with no spoken name', () {
+      expect(CatalogLeaf.document('1').semanticLabel, isNull);
     });
   });
 

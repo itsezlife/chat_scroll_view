@@ -119,7 +119,7 @@ The rule that sizes baked glyphs when sections have different cell sizes. A glyp
 _Avoid_: A second atlas for a section with other cell sizes, sizing the bake for the smallest cell (blurs the larger ones), a size derived from the viewport default when a section overrides it
 
 **Catalog leaf**:
-A value: content key, descriptor paint facts (semantic kind, media form, animated, size hint) and an opaque host tag. Equality covers the key and the facts and ignores the tag; the placeholder style is derived from the facts, and paint mode, readiness and sprite are never stored on it.
+A value: content key, descriptor paint facts (semantic kind, media form, animated, tintable, size hint), the spoken name and an opaque host tag. Equality covers the key, the facts and the spoken name and ignores the tag; the placeholder style is derived from the facts, and paint mode, readiness and sprite are never stored on it.
 _Avoid_: Leaf class hierarchy, instance-keyed side map, generic `CatalogLeaf<T>`
 
 **Leaf hit**:
@@ -150,8 +150,24 @@ _Avoid_: Pages polling scroll offsets, announcing the sections a jump flew over,
 Placeholder-styled cells painted after a loading or failed section's leaves, in the section's placeholder style and content box. They are not cells: nothing is attached to the asset cache for them and they are not hit targets. Never an error UI.
 _Avoid_: Error row, retry button, failed stand-in, binding a skeleton to the asset cache
 
+**Grid direction**:
+The direction a section fills its rows in, from the section's own text direction or, left unset, the `Directionality` the viewport sits in. Cells go start to end, so the first leaf of a right-to-left grid is at the right edge; a header reads and ends in the same direction (title at the start edge, action at the end edge). Only the x of a slot changes: rows, extents, landing offsets, slot order and the visible-window lookup are the same in both directions, and content is never mirrored.
+_Avoid_: Mirroring glyphs, stickers or GIFs, a second projection for right to left, direction-dependent vertical offsets
+
+**Windowed semantics**:
+The semantic nodes the viewport describes for the slot range it already resolves for its bindings (the visible band plus one cell of overscan): a button per leaf labelled by its spoken name, a header node per section, a button for the header action, the empty message. The cost follows the window, not the catalogue, and no node reads a binding or a sprite. A node outside the viewport but inside the overscan is not hidden: asking for it on screen scrolls its leaf in.
+_Avoid_: A semantic node for every leaf, page-level semantics only, asking the glyph source for a sprite to describe a leaf
+
+**Roving focus**:
+The one leaf cell that holds keyboard focus, owned by the attached viewport and driven through the controller (`focusLeaf`, `moveFocus`, `activateFocusedLeaf`, `clearFocus`). Arrow moves are physical, next and previous follow reading order; a vertical move keeps the screen column across sections; the focused cell scrolls into view and is painted with the focus highlight; activating reports the hit a tap would. Focus ends with the viewport and with the cell.
+_Avoid_: A focus node per leaf, a focus the host mirrors in its own state, key bindings inside the viewport (a page maps keys to moves)
+
+**Focus highlight**:
+The press-highlight wash on the full cell of the focused leaf, at full alpha and under the content (a baked sprite is flushed after it). It follows the press highlight token unless the theme names a focus token.
+_Avoid_: A new colour scale, a highlight drawn over the sprite
+
 **Scroll event**:
-The one typed controller event stream: drag, fling, section jump, near-viewport. A settled event carries the visible leaf keys.
+The one typed controller event stream: drag, fling, section jump, near-viewport, focus. A settled event carries the visible leaf keys.
 _Avoid_: Separate listener channels per concern
 
 ### Glyph atlas

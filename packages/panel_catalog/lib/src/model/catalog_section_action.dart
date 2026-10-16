@@ -15,12 +15,16 @@ final class CatalogSectionAction {
   ///
   /// [id] must not be empty, and the action needs a label or an icon to be
   /// seen at all.
-  const CatalogSectionAction({required this.id, this.label, this.icon})
-    : assert(id != '', 'An action is reported by its id.'),
-      assert(
-        label != null || icon != null,
-        'An action with neither label nor icon cannot be seen or tapped.',
-      );
+  const CatalogSectionAction({
+    required this.id,
+    this.label,
+    this.icon,
+    this.semanticLabel,
+  }) : assert(id != '', 'An action is reported by its id.'),
+       assert(
+         label != null || icon != null,
+         'An action with neither label nor icon cannot be seen or tapped.',
+       );
 
   /// What `onSectionAction` reports. Stable for the same action across
   /// snapshots.
@@ -34,15 +38,22 @@ final class CatalogSectionAction {
   /// works.
   final IconData? icon;
 
+  /// What a screen reader says for the action, or null to read [label].
+  ///
+  /// An icon-only action has no [label] to fall back on: give it one, or it is
+  /// a button without a name. Host-localized, like [label].
+  final String? semanticLabel;
+
   @override
   bool operator ==(Object other) =>
       other is CatalogSectionAction &&
       other.id == id &&
       other.label == label &&
-      other.icon == icon;
+      other.icon == icon &&
+      other.semanticLabel == semanticLabel;
 
   @override
-  int get hashCode => Object.hash(id, label, icon);
+  int get hashCode => Object.hash(id, label, icon, semanticLabel);
 
   @override
   String toString() => 'CatalogSectionAction($id)';

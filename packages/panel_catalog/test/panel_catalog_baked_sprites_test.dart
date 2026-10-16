@@ -324,6 +324,28 @@ void main() {
     );
   });
 
+  group('a focused glyph', () {
+    testWidgets('keeps its sprite, with the highlight drawn under the batch', (
+      tester,
+    ) async {
+      snapshots.replaceSections([_section(80)]);
+      buildAtlas(80);
+      atlas.start();
+      await pumpViewport(tester);
+      await bakeAll(tester);
+
+      controller.focusLeaf('a', 5);
+      await tester.pump();
+      final canvas = paintOnce(tester);
+
+      expect(canvas.atlasDraws, hasLength(1));
+      expect(canvas.atlasDraws.single.sprites, _visibleLeaves);
+      expect(canvas.rrects, hasLength(1), reason: 'the focus highlight');
+      // The batch is flushed at the end of the pass: over every highlight.
+      expect(canvas.ops, ['rrect', 'atlas']);
+    });
+  });
+
   group('sections with different cell sizes share one atlas', () {
     testWidgets('a single baked size, scaled down, never up', (tester) async {
       // 4 columns of 40 (a 28.8 glyph box) and 2 columns of 160 x 80 (57.6).

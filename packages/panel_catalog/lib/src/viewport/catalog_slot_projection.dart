@@ -36,6 +36,7 @@ sealed class CatalogLayoutSlot {
     required String title,
     required String sectionId,
     CatalogSectionAction? action,
+    TextDirection textDirection,
   }) = CatalogHeaderSlot;
 
   /// Leaf cell at column [left] with [width] (the section's cell width).
@@ -96,6 +97,7 @@ final class CatalogHeaderSlot extends CatalogLayoutSlot {
     required this.title,
     required this.sectionId,
     this.action,
+    this.textDirection = TextDirection.ltr,
   });
 
   /// Content x of the section's left edge (viewport padding plus the section's
@@ -113,6 +115,10 @@ final class CatalogHeaderSlot extends CatalogLayoutSlot {
 
   /// The section's trailing action, if it has one.
   final CatalogSectionAction? action;
+
+  /// The direction the title reads in: it starts at this side of the band and
+  /// the action sits at the other.
+  final TextDirection textDirection;
 }
 
 /// One skeleton cell: where a leaf will be while its section loads.
@@ -355,6 +361,7 @@ CatalogSectionBands projectCatalogSectionBands({
   required double headerExtent,
   required EdgeInsets padding,
   required double maxWidth,
+  TextDirection textDirection = TextDirection.ltr,
 }) {
   final bands = <CatalogSectionBand>[];
   var y = padding.top;
@@ -367,6 +374,7 @@ CatalogSectionBands projectCatalogSectionBands({
       headerExtent: headerExtent,
       padding: padding,
       maxWidth: maxWidth,
+      textDirection: textDirection,
     );
     final band = CatalogSectionBand(
       top: y,
@@ -418,6 +426,9 @@ final class CatalogSlotProjection {
 /// - Each section: its top inset, a header of its header extent, then leaves in
 ///   row-major order across its own columns, then its bottom inset. Sections
 ///   with different spans, cell sizes and insets stack in one ascending list.
+/// - Cells fill each row start to end: column `0` is at the left edge in a
+///   left-to-right grid and at the right edge in a right-to-left one. The
+///   direction is the section's own or [textDirection], and changes only x.
 /// - Cell width = `(maxWidth − padding.horizontal − insets.horizontal) /
 ///   spanCount` when usable width > 0; otherwise falls back to the cell extent
 ///   (degenerate narrow constraint).
@@ -435,6 +446,7 @@ CatalogSlotProjection projectCatalogSlots({
   required double headerExtent,
   required EdgeInsets padding,
   required double maxWidth,
+  TextDirection textDirection = TextDirection.ltr,
 }) {
   final projected = projectCatalogSectionBands(
     sections: sections,
@@ -443,6 +455,7 @@ CatalogSlotProjection projectCatalogSlots({
     headerExtent: headerExtent,
     padding: padding,
     maxWidth: maxWidth,
+    textDirection: textDirection,
   );
   final slots = <CatalogLayoutSlot>[];
   for (var s = 0; s < sections.length; s++) {
@@ -458,15 +471,18 @@ CatalogSlotProjection projectCatalogSlots({
         title: section.title,
         sectionId: section.id,
         action: section.action,
+        textDirection: grid.textDirection,
       ),
     );
     final leaves = section.leaves;
+    final firstLeft = grid.startCellLeft;
+    final step = grid.columnStep;
     for (var i = 0; i < leaves.length; i++) {
       slots.add(
         CatalogLayoutSlot.leaf(
           top: band.rowsTop + (i ~/ grid.spanCount) * grid.cellHeight,
           height: grid.cellHeight,
-          left: grid.left + (i % grid.spanCount) * grid.cellWidth,
+          left: firstLeft + (i % grid.spanCount) * step,
           width: grid.cellWidth,
           sectionId: section.id,
           index: i,
@@ -482,7 +498,7 @@ CatalogSlotProjection projectCatalogSlots({
         CatalogLayoutSlot.skeleton(
           top: band.rowsTop + (i ~/ grid.spanCount) * grid.cellHeight,
           height: grid.cellHeight,
-          left: grid.left + (i % grid.spanCount) * grid.cellWidth,
+          left: firstLeft + (i % grid.spanCount) * step,
           width: grid.cellWidth,
           contentBox: section.contentBox ?? CatalogContentBox.glyph,
           style: section.placeholderStyle ?? CatalogPlaceholderStyle.circle,

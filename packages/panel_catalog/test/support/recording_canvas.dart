@@ -31,13 +31,22 @@ typedef DrawnRRect = ({RRect rrect, Color color, ui.Shader? shader});
 /// A circle and the colour it was filled with, as drawn.
 typedef DrawnCircle = ({Offset center, double radius, Color color});
 
+/// A paragraph and where it was drawn: its top-left and the width it was laid
+/// out across.
+typedef DrawnParagraph = ({Offset offset, double width});
+
 /// Records what one paint asks of the canvas: what the viewport draws, never
 /// render-object fields.
 class RecordingCanvas implements Canvas {
   final List<AtlasDraw> atlasDraws = [];
   final List<DrawnCircle> circles = [];
   final List<DrawnRRect> rrects = [];
-  int paragraphs = 0;
+
+  /// Draw calls of the kinds above that matter for stacking, in the order the
+  /// canvas received them: `'rrect'` and `'atlas'`.
+  final List<String> ops = [];
+  final List<DrawnParagraph> paragraphDraws = [];
+  int get paragraphs => paragraphDraws.length;
   int saves = 0;
 
   @override
@@ -49,26 +58,32 @@ class RecordingCanvas implements Canvas {
     BlendMode? blendMode,
     Rect? cullRect,
     Paint paint,
-  ) => atlasDraws.add(
-    AtlasDraw(
-      atlas,
-      Float32List.fromList(rstTransforms),
-      Float32List.fromList(rects),
-    ),
-  );
+  ) {
+    ops.add('atlas');
+    atlasDraws.add(
+      AtlasDraw(
+        atlas,
+        Float32List.fromList(rstTransforms),
+        Float32List.fromList(rects),
+      ),
+    );
+  }
 
   @override
   void drawCircle(Offset c, double radius, Paint paint) =>
       circles.add((center: c, radius: radius, color: paint.color));
 
   @override
-  void drawParagraph(ui.Paragraph paragraph, Offset offset) => paragraphs++;
+  void drawParagraph(ui.Paragraph paragraph, Offset offset) =>
+      paragraphDraws.add((offset: offset, width: paragraph.width));
 
   // The paint is copied at the draw call, as the real canvas does: the painter
   // reuses its paints.
   @override
-  void drawRRect(RRect rrect, Paint paint) =>
-      rrects.add((rrect: rrect, color: paint.color, shader: paint.shader));
+  void drawRRect(RRect rrect, Paint paint) {
+    ops.add('rrect');
+    rrects.add((rrect: rrect, color: paint.color, shader: paint.shader));
+  }
 
   @override
   void save() => saves++;

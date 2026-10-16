@@ -1,4 +1,5 @@
 import 'package:content_model/content_model.dart';
+import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 
 /// Sealed hierarchy of scroll-side events emitted by [PanelCatalogViewport].
 ///
@@ -15,6 +16,9 @@ import 'package:content_model/content_model.dart';
 /// derived from them by the viewport and say whether the catalog is moving at
 /// all, so a page that paces background work (a glyph bake) reads two facts
 /// instead of re-deriving them from every motion event.
+///
+/// The focus event ([PanelCatalogFocusChanged]) is neither motion nor
+/// activity: it says which leaf holds roving focus.
 ///
 /// The proximity event ([PanelCatalogSectionNearViewport]) is neither: it says
 /// that an edge of a section is close to what the user sees, so a page can
@@ -240,4 +244,28 @@ final class PanelCatalogSectionNearViewport extends PanelCatalogScrollEvent {
 
   @override
   String toString() => 'PanelCatalogSectionNearViewport($sectionId, $edge)';
+}
+
+/// Roving focus moved to another leaf, or ended.
+///
+/// Published by [PanelCatalogController.focusLeaf], [moveFocus] and
+/// [clearFocus], and by the viewport when the leaf that held focus is gone from
+/// a new snapshot or the viewport leaves the tree. Not published when focus
+/// stays on the same cell, even if the leaf value there changed.
+final class PanelCatalogFocusChanged extends PanelCatalogScrollEvent {
+  /// Emitted when the focused cell changes; [leaf] is null when focus ended.
+  const PanelCatalogFocusChanged(this.leaf);
+
+  /// The cell that holds focus now, or null when none does.
+  final CatalogLeafHit? leaf;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PanelCatalogFocusChanged && other.leaf == leaf;
+
+  @override
+  int get hashCode => Object.hash(PanelCatalogFocusChanged, leaf);
+
+  @override
+  String toString() => 'PanelCatalogFocusChanged($leaf)';
 }

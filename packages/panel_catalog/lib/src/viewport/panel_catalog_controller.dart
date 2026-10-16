@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/animation.dart';
 import 'package:meta/meta.dart';
+import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
+import 'package:panel_catalog/src/viewport/catalog_focus.dart';
 import 'package:panel_catalog/src/viewport/catalog_scroll_position.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 
@@ -185,6 +187,10 @@ final class PanelCatalogController {
 
   /// Scrolls so [sectionIndex]'s header lands under the viewport top inset.
   ///
+  /// The landing offset is vertical and so the same in a right-to-left grid as
+  /// in a left-to-right one: direction moves cells along their row, never
+  /// rows.
+  ///
   /// Out-of-range [sectionIndex] completes immediately without scrolling or
   /// toggling [isSectionJumpActive].
   ///
@@ -206,6 +212,53 @@ final class PanelCatalogController {
     final completer = pending?.$2 ?? Completer<void>();
     _pendingSectionJump = (sectionIndex, completer);
     return completer.future;
+  }
+
+  // --- Roving focus ---------------------------------------------------------
+
+  /// The cell that holds roving focus, or null.
+  ///
+  /// Focus is the viewport's: it exists while a viewport is attached, ends when
+  /// it leaves the tree, and is dropped when a snapshot no longer holds the
+  /// cell. Listeners hear every change as [PanelCatalogFocusChanged].
+  CatalogLeafHit? get focusedLeaf => _position?.focusedLeaf;
+
+  /// Gives focus to the cell [index] of section [sectionId] and, unless
+  /// [reveal] is false, scrolls it into view under the landing inset.
+  ///
+  /// Returns whether the cell exists. Without a viewport there is no catalogue
+  /// to resolve the cell against, so it returns false and commits nothing.
+  bool focusLeaf(String sectionId, int index, {bool reveal = true}) {
+    if (_disposed) return false;
+    return _position?.focusLeaf(sectionId, index, reveal: reveal) ?? false;
+  }
+
+  /// Moves focus one step and scrolls the cell it lands on into view.
+  ///
+  /// The arrows are physical (see [CatalogFocusMove]); `next` and `previous`
+  /// follow reading order across leaves and sections. With no focus a move
+  /// enters the grid: `first` and `last` land on the ends of the catalog, any
+  /// other move on the first leaf in view. Returns false where there is nowhere
+  /// to go (the ends of the catalog) or without a viewport.
+  bool moveFocus(CatalogFocusMove move) {
+    if (_disposed) return false;
+    return _position?.moveFocus(move) ?? false;
+  }
+
+  /// Activates the focused cell: reports it to the viewport's `onLeafTap`
+  /// exactly as a tap on it would.
+  ///
+  /// Returns false when nothing has focus, the viewport has no tap or there is
+  /// no viewport.
+  bool activateFocusedLeaf() {
+    if (_disposed) return false;
+    return _position?.activateFocusedLeaf() ?? false;
+  }
+
+  /// Ends roving focus. A no-op when none is held or no viewport is attached.
+  void clearFocus() {
+    if (_disposed) return;
+    _position?.clearFocus();
   }
 
   // --- Viewport side --------------------------------------------------------

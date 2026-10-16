@@ -33,6 +33,7 @@ class CatalogLeafPaintTheme {
     required this.skeletonColor,
     required this.placeholderCornerRadius,
     required this.leafPressHighlightColor,
+    required this.leafFocusHighlightColor,
     required this.leafPressSelectorRadius,
     required this.sectionHeaderStyle,
     required this.sectionHeaderStartInset,
@@ -57,6 +58,8 @@ class CatalogLeafPaintTheme {
       skeletonColor: data.skeletonColor,
       placeholderCornerRadius: data.placeholderCornerRadius,
       leafPressHighlightColor: data.leafPressHighlightColor,
+      leafFocusHighlightColor:
+          data.leafFocusHighlightColor ?? data.leafPressHighlightColor,
       leafPressSelectorRadius: data.selectorRadiusLogicalPx(devicePixelRatio),
       sectionHeaderStyle: data.sectionHeaderStyle,
       sectionHeaderStartInset: data.sectionHeaderStartInset,
@@ -90,6 +93,11 @@ class CatalogLeafPaintTheme {
   /// multiplied by clamped press progress each frame.
   final Color leafPressHighlightColor;
 
+  /// List-selector wash on the cell that holds roving focus: the theme's focus
+  /// token, or the press highlight when it has none. Drawn at full alpha, with
+  /// the press highlight's radius.
+  final Color leafFocusHighlightColor;
+
   /// Press-highlight corner radius in logical pixels (density-resolved).
   final double leafPressSelectorRadius;
 
@@ -110,6 +118,7 @@ class CatalogLeafPaintTheme {
       other.skeletonColor == skeletonColor &&
       other.placeholderCornerRadius == placeholderCornerRadius &&
       other.leafPressHighlightColor == leafPressHighlightColor &&
+      other.leafFocusHighlightColor == leafFocusHighlightColor &&
       other.leafPressSelectorRadius == leafPressSelectorRadius &&
       other.sectionHeaderStyle == sectionHeaderStyle &&
       other.sectionHeaderStartInset == sectionHeaderStartInset;
@@ -124,6 +133,7 @@ class CatalogLeafPaintTheme {
     skeletonColor,
     placeholderCornerRadius,
     leafPressHighlightColor,
+    leafFocusHighlightColor,
     leafPressSelectorRadius,
     sectionHeaderStyle,
     sectionHeaderStartInset,

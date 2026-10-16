@@ -160,3 +160,24 @@ bool isNearPathSectionJump({
   );
   return (target.flatIndex - firstVisible).abs() <= distanceGateFactor;
 }
+
+/// The offset that brings the content-y span [top]..[bottom] into a viewport
+/// of [viewportHeight] currently at [pixels], moving as little as possible.
+///
+/// [topInset] is the band at the viewport top that something else covers (the
+/// landing inset: a category strip over the body), so a span is "in view" only
+/// below it. A span already in view keeps [pixels]; one taller than the room
+/// left shows its top. The result is not clamped to the scroll range.
+double scrollOffsetToReveal({
+  required double top,
+  required double bottom,
+  required double pixels,
+  required double viewportHeight,
+  double topInset = 0,
+}) {
+  if (top - pixels < topInset) return top - topInset;
+  if (bottom > pixels + viewportHeight) {
+    return math.min(bottom - viewportHeight, top - topInset);
+  }
+  return pixels;
+}
