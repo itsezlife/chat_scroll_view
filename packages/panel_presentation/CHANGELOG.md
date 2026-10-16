@@ -21,3 +21,18 @@ this package is pre-1.0.
 - `testing.dart`: `FakeImeInput`, `ManualPanelClock`,
   `FakePresentationStrategy`, `runPresentationPolicyContract` and
   `runImeInputPortContract`.
+- `KeyboardReplacementStrategy`: the panel replaces the soft keyboard in the
+  bottom slot. Hand-off state machine (`KeyboardSlot`, `KeyboardSlotState`)
+  with a fallback timeout, animated occupancy on the `listTransition` role,
+  search expansion, safe area and the nav-bar scrim, and `composerSafeInset`.
+- `KeyboardHeightStore` over a `KeyValueStore`: keyboard height per
+  orientation, sanity floor, window-class defaults in
+  `KeyboardReplacementTuning`.
+- `AnchoredPopupStrategy`, the desktop and web popup: mouse-only hover open
+  through `AnchoredPopupToggleRegion`, leave (300 ms) and idle (3 s) hide on
+  the `PanelClock`, auto-hide guard, outside-press and Escape dismissal,
+  bottom-end anchoring that mirrors in RTL, policy-sized height, scale and
+  fade from the bottom-end corner with the `popupShow` / `popupHide` roles,
+  focus in and back to the composer, zero occupancy.
+- `AnchoredPopupStyle`, `AnchoredPopupLayout`, `AnchoredPopupActions`,
+  `AnchoredPopupShortcuts`, `AnchoredPopupToggleIntent`.

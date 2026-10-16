@@ -27,7 +27,16 @@ Glossary: [Chat chrome](../../docs/chrome/CONTEXT.md). Host layout:
 | `PanelOccupancy` | The space taken, `bottom` and `inlineEnd`, both non-negative. |
 | `PanelPresentationStrategy`, `PanelStrategyContext` | What draws one kind and publishes its occupancy. The three kinds' strategies are registered with the controller; a kind without one takes no space and draws nothing. |
 | `PanelPresentationView` | The mounted widget: projects the visibility through the strategy of the active kind and keys it by kind. Keeps no state; switching kinds restores everything from the shell controller. |
+| `AnchoredPopupStrategy`, `AnchoredPopupStyle` | The desktop and web popup: floats above the composer, hover opens, leave and idle hide, Escape and an outside press dismiss, scale and fade from the bottom-end corner, zero occupancy. The style carries the width, corner radius, shadows and start scale; none have a default from a reference client. |
+| `AnchoredPopupToggleRegion` | Wraps the host's toggle; only a mouse entering it opens the popup. Touch and stylus click. |
+| `AnchoredPopupActions`, `AnchoredPopupShortcuts`, `AnchoredPopupToggleIntent` | `DismissIntent` steps back (search first, popup second), the toggle intent toggles, `PanelSearchIntent` shows the panel and focuses search. |
+| `AnchoredPopupLayout` | Where the popup sits: bottom on the anchor top, end edge on the anchor end edge, kept inside the window. |
 | `ImeInputPort`, `ImeInput`, `ImeSample` | The single port raw soft-keyboard samples enter by (height, animating, bottom safe area). |
+| `KeyboardReplacementStrategy` | The mobile strategy: the panel takes the place of the soft keyboard under the composer. Publishes `occupancy` (animated `max(keyboard, panel)`, safe area included), `state` (the hand-off phase) and `composerSafeInset`. |
+| `KeyboardSlot`, `KeyboardSlotState` | The hand-off state machine behind the strategy and its animated extent: `idle`, `opening`, `replacing`, `open`, `closing`, `handOffToIme`. Driven by `advance(elapsed)` and a `PanelClock`; no ticker, no wall clock. |
+| `KeyboardHeightStore`, `PanelOrientation` | The keyboard height remembered per orientation in a `KeyValueStore` (sanity floor 180, never lowered by one sample). |
+| `KeyboardReplacementTuning` | Default panel heights by window class, the 175 search expansion, the 1 s hand-off timeout, the cold-open delay. |
+| `KeyboardNavBarFade` | The scrim over the bottom safe band of the sheet. |
 | `PanelClock`, `PanelTimer` | The one way presentation code waits; `PanelClock.system` in the app, a manual clock in tests. |
 | `package:panel_presentation/testing.dart` | `FakeImeInput`, `ManualPanelClock`, `FakePresentationStrategy`, `runPresentationPolicyContract`, `runImeInputPortContract`. Tests only. |
 
@@ -75,8 +84,66 @@ PanelPresentationView(controller: presentation);
   `holdAutoHide()` is unreleased (a variant picker, a drag). A popup strategy
   keeps itself open while it holds; `interactions` signals every shell event so
   its idle delay can restart.
+- **Anchored popup.** Register `AnchoredPopupStrategy(style: ..., composerFocus:
+  ...)` and wrap the toggle in `AnchoredPopupToggleRegion`. A mouse over the
+  toggle opens the popup without taking focus from the composer; leaving the
+  toggle or the popup hides it after the policy's leave delay (300 ms) unless
+  the pointer reaches the other; an interaction with the pointer away hides it
+  after the idle delay (3 s), restarted by each interaction. A held guard
+  (`holdAutoHide`, search focus, a page being dragged) defeats both, and
+  releasing it starts the idle delay. A press outside the popup, other than on
+  the toggle, hides it; Escape closes search first and then the popup. Focus
+  enters on a non-hover open and returns to `composerFocus` on close. A popup
+  last pressed by touch or stylus has no leave or idle delay.
 - **Back.** `handleBack` closes search through the shell first, then hides the
   panel. A panel that is already hiding still consumes the press.
+
+## Keyboard replacement
+
+```dart
+final ime = ImeInput();                       // the host feeds this
+final window = ObservableValue(PanelWindow(width: w, height: h));
+final heights = await KeyboardHeightStore.open(keyValueStore);
+final keyboard = KeyboardReplacementStrategy(
+  ime: ime,
+  heights: heights,
+  window: window,
+);
+
+// Every MediaQuery / keyboard-insets change, honestly flagged:
+ime.report(ImeSample(
+  height: viewInsets.bottom,
+  animating: keyboardIsMoving,
+  safeAreaBottom: viewPadding.bottom,
+));
+
+// Layout: composer extent + keyboard.occupancy.value.bottom into the bottom
+// padding, and the composer's bottom safe area is keyboard.composerSafeInset.
+```
+
+- **One slot, two holders.** The bottom space is `max(keyboard, panel)`,
+  safe area included. A panel that replaces the keyboard claims the slot at
+  once, at least as tall as the keyboard; the keyboard collapsing or
+  glitching beneath it changes nothing.
+- **Hand-off to the keyboard.** `hide(waitForIme: true)` keeps the emptied
+  sheet and the occupancy until the keyboard reports a *settled* reading
+  (`animating` false, height up), or closes cold after one second. There are
+  no sample counters and no wall-clock windows: hosts must report `animating`
+  honestly.
+- **Panel height.** The measured keyboard height (content height without the
+  safe area), remembered per orientation, never below the 180 floor, with a
+  window-class default when nothing is known.
+- **Search.** Opening search in the shell grows the panel by 175, capped by
+  the window; closing it shrinks it back. `handleBack` closes search first,
+  then the panel.
+- **Safe area.** The sheet is laid out at content height plus the band the
+  host reported, with the shell seeing that band as its bottom padding and a
+  scrim over it. `composerSafeInset` is the part of the band the occupancy has
+  not covered yet, so the bottom of the window is `max(safe band, occupancy)`
+  with no step.
+- **Frame cost.** The shell widget is built once; a frame of the motion costs
+  the clip's layout and nothing under it. Measured on a device, see
+  [the QA notes](../../docs/panel-presentation/qa-keyboard-handoff.md).
 
 ## Host contract
 
@@ -88,5 +155,8 @@ PanelPresentationView(controller: presentation);
 | The composer rectangle through `anchor` for a popup. | Expect the popup to find the composer by itself. |
 | The aggregation of `occupancy` with its composer extent into the viewport padding, and `inlineEnd` in layout. | Add the keyboard height a second time while the occupancy already contains it. |
 | The persisted dock choice, read at construction and written when `dockPreferred` changes. | Expect the controller to persist it. |
-| `Esc` and outside-press bindings in a popup strategy, and `MediaQuery.disableAnimations` mapped to `ChromeMotionSpeed.instant`. | Expect the controller to bind keys or read reduce motion. |
+| For the keyboard strategy: every keyboard reading through the `ImeInputPort` with an honest `animating` flag and the bottom safe area, the window through an `ObservableValue<PanelWindow>`, a `KeyboardHeightStore` over a `KeyValueStore`, and `composerSafeInset` as the composer's bottom safe area. | Read `SystemChannels` or platform insets in the strategy's place, report a settled reading while the keyboard moves, or add the keyboard height to the occupancy again. |
+| The popup's `AnchoredPopupToggleRegion` around the composer's panel button, a click handler on that button that calls `toggle()`, and `AnchoredPopupActions` with `AnchoredPopupShortcuts.standard` above the composer so Escape and a toggle shortcut work while focus is there. The popup width, corners and shadow in `AnchoredPopupStyle`. | Expect hover to move focus, or a default popup size from a reference client. |
+| `MediaQuery.disableAnimations` mapped to `ChromeMotionSpeed.instant`, and the popup's `holdAutoHide()` while a variant picker is open. | Expect the controller to read reduce motion or to know about the picker. |
+| `Esc` and outside-press bindings in any other strategy (the popup binds its own). | Expect the controller to bind keys. |
 | `dispose()` of the controller, the shell and the strategies, each by their owner, in either order. | Expect the controller to dispose the shell or the strategies. |
