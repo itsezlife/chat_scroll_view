@@ -1,11 +1,12 @@
 import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 import 'package:panel_shell/src/controller/panel_search_state.dart';
 import 'package:panel_shell/src/page/page_controller_registry.dart';
 import 'package:panel_shell/src/scroll/page_scroll_activity.dart';
 
 /// A page's whole connection to the shell, handed to its builder.
 ///
-/// Everything flows through typed calls and observables: the shell reaches
+/// Everything flows through typed calls and listenables: the shell reaches
 /// into no page state and a page reaches into no shell state. Which page a
 /// host speaks for is fixed; the host of a page that is not selected keeps its
 /// state readable but its reports (scroll activity, progress, counts) are
@@ -18,14 +19,14 @@ abstract interface class PanelPageHost {
   ///
   /// The query survives page switches, so a page that becomes selected while
   /// a search is open finds the current query here and shows its results.
-  ValueObservable<PanelSearchState> get search;
+  ValueListenable<PanelSearchState> get search;
 
   /// Whether this page is the selected one.
-  ValueObservable<bool> get isActive;
+  ValueListenable<bool> get isActive;
 
   /// Signals when the user selects the tab of this page while it is already
   /// selected; pages conventionally scroll to their start.
-  Observable get reselected;
+  Listenable get reselected;
 
   /// Where the page keeps controllers that outlive its widget.
   PageControllerRegistry get controllers;
@@ -35,12 +36,12 @@ abstract interface class PanelPageHost {
   ///
   /// The pause signal of work that is pointless when nothing is seen, such as
   /// baking glyphs. The same observable for every page.
-  ValueObservable<bool> get panelVisible;
+  ValueListenable<bool> get panelVisible;
 
   /// Whether the panel is moving in or out, as the presentation reported it.
   ///
   /// The pause signal of work that would drop frames during the motion.
-  ValueObservable<bool> get panelOpening;
+  ValueListenable<bool> get panelOpening;
 
   /// Reports that the user picked [key] of [kind]; the shell publishes
   /// [ContentPicked] with [source].

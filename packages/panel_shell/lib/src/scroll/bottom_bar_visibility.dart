@@ -1,4 +1,4 @@
-import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 import 'package:panel_shell/src/scroll/page_scroll_activity.dart';
 
 /// Decides from [PageScrollActivity] alone whether the bottom bar is shown.
@@ -23,12 +23,13 @@ final class BottomBarVisibility {
   /// Pixels of one-direction scroll that toggle this bar.
   final double toggleOffset;
 
-  final _visible = ObservableValue<bool>(true);
+  final _visible = ValueNotifier<bool>(true);
   var _accumulated = 0.0;
   var _pinnedHidden = false;
+  var _disposed = false;
 
   /// Whether the bar is shown. Held down while [pinnedHidden].
-  ValueObservable<bool> get visible => _visible;
+  ValueListenable<bool> get visible => _visible;
 
   /// Whether something else (an open search) keeps the bar hidden.
   ///
@@ -37,7 +38,7 @@ final class BottomBarVisibility {
   bool get pinnedHidden => _pinnedHidden;
 
   set pinnedHidden(bool value) {
-    if (_pinnedHidden == value) return;
+    if (_disposed || _pinnedHidden == value) return;
     _pinnedHidden = value;
     _accumulated = 0;
     _visible.value = !value;
@@ -59,8 +60,13 @@ final class BottomBarVisibility {
   /// Shows the bar and forgets the distance counted so far.
   void show() => _set(true);
 
-  /// Stops notifying and drops listeners.
-  void dispose() => _visible.dispose();
+  /// Stops notifying and drops listeners. Idempotent; later input changes
+  /// nothing.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _visible.dispose();
+  }
 
   void _accumulate(double delta) {
     _accumulated += delta;
@@ -77,6 +83,7 @@ final class BottomBarVisibility {
   }
 
   void _set(bool shown) {
+    if (_disposed) return;
     _accumulated = 0;
     _visible.value = shown && !_pinnedHidden;
   }

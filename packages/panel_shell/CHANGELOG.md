@@ -6,6 +6,21 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Change notification is `package:listen` (`listen: ^1.0.1`), not
+  `content_model`'s removed `Observable` family. `selectedPageId`, `search`,
+  `searchBusy`, `visible` and `opening` are `ValueListenable`s (import
+  `package:listen/listen.dart`; Flutter's type of that name is a different
+  one), `PanelPageHost.reselected` is a `Listenable`, and `events`,
+  `scrollActivity` and `searchResultCounts` are synchronous broadcast
+  `Stream`s: `listen` and cancel the subscription instead of
+  `addListener` / `removeListener`. An event a listener publishes
+  (selecting a page from a `SearchOpened` handler) is delivered once the event
+  in flight has reached every listener, still before the intent returns. The
+  same callback added twice is called twice. `BottomBarVisibility` ignores
+  input after `dispose`.
+
 ### Fixed
 
 - The search field's progress ring turns on the `loop` motion role and stands
@@ -16,9 +31,9 @@ is pre-1.0.
 - `PanelPage` registry entries (`PanelTab`, `PageCapabilities`, `PageAction`)
   and `PanelPageHost`, the page's connection to the shell.
 - `PanelShellController`: selected page id (persisted as a string through
-  `PreferenceStore`) and `PanelSearchState` as `Observable`s, one-way intents,
+  `PreferenceStore`) and `PanelSearchState` as `ValueListenable`s, one-way intents,
   the per-page controller registry, `events` (one sealed `PanelEvent`), and
-  `visible` / `opening` presence observables for the host's pause signals.
+  `visible` / `opening` presence listenables for the host's pause signals.
 - `PanelShell` with the pager, type tabs, bottom bar and search field;
   `PageScrollActivity` and `BottomBarVisibility` replace the clock-based
   scroll heuristics of the old panel; `DebouncedSearch` is the shared search

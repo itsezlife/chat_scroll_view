@@ -111,6 +111,19 @@ void main() {
     });
   });
 
+  test('is idempotent to dispose and ignores input afterwards', () {
+    visibility
+      ..dispose()
+      ..dispose();
+
+    visibility
+      ..apply(const PageScrollDrag(40))
+      ..pinnedHidden = true
+      ..show();
+
+    expect(visibility.visible.value, isTrue);
+  });
+
   test('signals only when the visibility changes', () {
     var signals = 0;
     visibility.visible.addListener(() => signals++);

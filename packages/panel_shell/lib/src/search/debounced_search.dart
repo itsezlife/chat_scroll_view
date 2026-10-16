@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 
 /// The shared search helper of pages: turns a stream of typed text into
 /// debounced searches whose stale results never surface.
@@ -52,7 +52,7 @@ final class DebouncedSearch<R> {
   final void Function(String query, R result) _onResult;
   final void Function()? _onCleared;
 
-  final _busy = ObservableValue<bool>(false);
+  final _busy = ValueNotifier<bool>(false);
   Timer? _debounceTimer;
   Timer? _busyTimer;
   var _generation = 0;
@@ -61,7 +61,7 @@ final class DebouncedSearch<R> {
 
   /// Whether a search for the latest text is pending or in flight and has
   /// been for longer than [busyDelay].
-  ValueObservable<bool> get busy => _busy;
+  ValueListenable<bool> get busy => _busy;
 
   /// Feeds the latest text of the query.
   void update(String text) {

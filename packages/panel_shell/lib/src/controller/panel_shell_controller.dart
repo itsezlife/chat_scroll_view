@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
+import 'package:panel_shell/src/controller/event_publisher.dart';
 import 'package:panel_shell/src/controller/panel_search_state.dart';
 import 'package:panel_shell/src/event/panel_event.dart';
 import 'package:panel_shell/src/page/page_controller_registry.dart';
@@ -9,7 +11,7 @@ import 'package:panel_shell/src/page/panel_page_host.dart';
 import 'package:panel_shell/src/scroll/page_scroll_activity.dart';
 
 /// The single source of truth for which page is selected and what the search
-/// state is; the read side is a set of [Observable]s, the write side a set of
+/// state is; the read side is a set of [ValueListenable]s and event streams, the write side a set of
 /// one-way intents.
 ///
 /// ## Ownership
@@ -83,7 +85,7 @@ final class PanelShellController {
       _byId[page.id] = page;
     }
     final remembered = preferences.selectedPageId;
-    _selected = ObservableValue<String>(
+    _selected = ValueNotifier<String>(
       remembered != null && _byId.containsKey(remembered)
           ? remembered
           : pages.first.id,
@@ -100,47 +102,47 @@ final class PanelShellController {
   final PreferenceStore _preferences;
   final PanelPageControllers? _ownedControllers;
   final _byId = <String, PanelPage>{};
-  late final ObservableValue<String> _selected;
-  final _search = ObservableValue<PanelSearchState>(PanelSearchState.closed);
-  final _searchBusy = ObservableValue<bool>(false);
-  final _visible = ObservableValue<bool>(false);
-  final _opening = ObservableValue<bool>(false);
-  final _events = EventNotifier<PanelEvent>();
-  final _scrollActivity = EventNotifier<PageScrollActivity>();
-  final _searchResultCounts = EventNotifier<int>();
+  late final ValueNotifier<String> _selected;
+  final _search = ValueNotifier<PanelSearchState>(PanelSearchState.closed);
+  final _searchBusy = ValueNotifier<bool>(false);
+  final _visible = ValueNotifier<bool>(false);
+  final _opening = ValueNotifier<bool>(false);
+  final _events = EventPublisher<PanelEvent>();
+  final _scrollActivity = EventPublisher<PageScrollActivity>();
+  final _searchResultCounts = EventPublisher<int>();
   final _hosts = <String, _PageHost>{};
   var _disposed = false;
 
   /// The id of the selected page.
-  ValueObservable<String> get selectedPageId => _selected;
+  ValueListenable<String> get selectedPageId => _selected;
 
   /// The selected page.
   PanelPage get selectedPage => _byId[_selected.value]!;
 
   /// The search state: open, query and focus intent in one snapshot.
-  ValueObservable<PanelSearchState> get search => _search;
+  ValueListenable<PanelSearchState> get search => _search;
 
   /// Whether a search for the current query is in flight, as the selected
   /// page reported it.
-  ValueObservable<bool> get searchBusy => _searchBusy;
+  ValueListenable<bool> get searchBusy => _searchBusy;
 
   /// The outward effects of the panel: the one stream a host handles.
-  EventObservable<PanelEvent> get events => _events;
+  Stream<PanelEvent> get events => _events.stream;
 
   /// What the selected page's scroll is doing; the bottom bar listens.
-  EventObservable<PageScrollActivity> get scrollActivity => _scrollActivity;
+  Stream<PageScrollActivity> get scrollActivity => _scrollActivity.stream;
 
   /// Result counts the selected page reported for settled searches.
-  EventObservable<int> get searchResultCounts => _searchResultCounts;
+  Stream<int> get searchResultCounts => _searchResultCounts.stream;
 
   /// **Panel visible**: whether a presentation shows the panel on screen,
   /// including while it slides in or out. The pause signal of work that is
   /// pointless when nothing is seen.
-  ValueObservable<bool> get visible => _visible;
+  ValueListenable<bool> get visible => _visible;
 
   /// **Panel opening**: whether the panel is moving in or out. The pause
   /// signal of work that would drop frames during the motion.
-  ValueObservable<bool> get opening => _opening;
+  ValueListenable<bool> get opening => _opening;
 
   /// Whether [dispose] has been called.
   bool get isDisposed => _disposed;
@@ -170,7 +172,7 @@ final class PanelShellController {
     final page = _byId[pageId];
     if (page == null) return;
     if (pageId == _selected.value) {
-      _hosts[pageId]?._reselected.notify();
+      _hosts[pageId]?._reselect();
       return;
     }
     _selected.value = pageId;
@@ -291,7 +293,7 @@ final class PanelShellController {
     _scrollActivity.dispose();
     _searchResultCounts.dispose();
     for (final host in _hosts.values) {
-      host._dispose();
+      host.dispose();
     }
     _ownedControllers?.dispose();
   }
@@ -305,14 +307,12 @@ final class PanelShellController {
   }
 }
 
-final class _PageHost implements PanelPageHost {
+final class _PageHost with ChangeNotifier implements PanelPageHost {
   _PageHost(this._shell, PanelPage page)
     : pageId = page.id,
       isActive = _SelectedIs(_shell._selected, page.id);
 
   final PanelShellController _shell;
-  final _reselected = ObservableNotifier();
-
   @override
   final String pageId;
 
@@ -320,10 +320,10 @@ final class _PageHost implements PanelPageHost {
   final _SelectedIs isActive;
 
   @override
-  ValueObservable<PanelSearchState> get search => _shell._search;
+  ValueListenable<PanelSearchState> get search => _shell._search;
 
   @override
-  Observable get reselected => _reselected;
+  Listenable get reselected => this;
 
   @override
   PageControllerRegistry get controllers => _shell.controllers;
@@ -348,10 +348,10 @@ final class _PageHost implements PanelPageHost {
   }
 
   @override
-  ValueObservable<bool> get panelVisible => _shell._visible;
+  ValueListenable<bool> get panelVisible => _shell._visible;
 
   @override
-  ValueObservable<bool> get panelOpening => _shell._opening;
+  ValueListenable<bool> get panelOpening => _shell._opening;
 
   @override
   void releaseSearchFocus() {
@@ -373,39 +373,40 @@ final class _PageHost implements PanelPageHost {
     if (_speaksForSelected) _shell._searchResultCounts.publish(count);
   }
 
-  void _dispose() {
+  void _reselect() => notifyListeners();
+
+  // The shell disposes a host once, with itself.
+  @override
+  void dispose() {
     isActive.dispose();
-    _reselected.dispose();
+    super.dispose();
   }
 }
 
 /// Whether the observed page id equals [id]; signals only when that answer
 /// changes, so a page's `isActive` listeners do not wake for other pages.
-final class _SelectedIs implements ValueObservable<bool> {
-  _SelectedIs(this._source, this._id)
-    : _answer = ObservableValue(_source.value == _id) {
+final class _SelectedIs with ChangeNotifier implements ValueListenable<bool> {
+  _SelectedIs(this._source, this._id) : _answer = _source.value == _id {
     _source.addListener(_onSource);
   }
 
-  final ObservableValue<String> _source;
+  final ValueNotifier<String> _source;
   final String _id;
-  final ObservableValue<bool> _answer;
+  bool _answer;
 
-  void _onSource() => _answer.value = _source.value == _id;
-
-  @override
-  bool get value => _answer.value;
-
-  @override
-  void addListener(ObservableListener listener) =>
-      _answer.addListener(listener);
+  void _onSource() {
+    final next = _source.value == _id;
+    if (next == _answer) return;
+    _answer = next;
+    notifyListeners();
+  }
 
   @override
-  void removeListener(ObservableListener listener) =>
-      _answer.removeListener(listener);
+  bool get value => _answer;
 
+  @override
   void dispose() {
     _source.removeListener(_onSource);
-    _answer.dispose();
+    super.dispose();
   }
 }

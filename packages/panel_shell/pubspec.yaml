@@ -20,6 +20,7 @@ dependencies:
     path: ../content_model
   flutter:
     sdk: flutter
+  listen: ^1.0.1
   meta: ^1.17.0
   # Only lib/testing.dart needs this: the semantic-label rule is written with
   # the test framework, and a library cannot import a dev dependency.
