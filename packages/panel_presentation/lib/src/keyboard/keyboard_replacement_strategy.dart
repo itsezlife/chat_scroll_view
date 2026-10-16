@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:content_model/content_model.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/src/ime/ime_input_port.dart';
 import 'package:panel_presentation/src/keyboard/keyboard_height_store.dart';
 import 'package:panel_presentation/src/keyboard/keyboard_nav_bar_fade.dart';
@@ -57,7 +57,7 @@ final class KeyboardReplacementStrategy implements PanelPresentationStrategy {
   KeyboardReplacementStrategy({
     required ImeInputPort ime,
     required KeyboardHeightStore heights,
-    required ValueObservable<PanelWindow> window,
+    required listen.ValueListenable<PanelWindow> window,
     PanelClock clock = PanelClock.system,
     KeyboardReplacementTuning tuning = const KeyboardReplacementTuning(),
   }) : _slot = KeyboardSlot(
@@ -84,17 +84,18 @@ final class KeyboardReplacementStrategy implements PanelPresentationStrategy {
   bool get keyboardIsUp => _slot.keyboardIsUp;
 
   @override
-  ValueObservable<PanelOccupancy> get occupancy => _slot.occupancy;
+  listen.ValueListenable<PanelOccupancy> get occupancy => _slot.occupancy;
 
   /// Who holds the bottom slot: the keyboard alone, or the panel in one of
   /// its phases. A page that mounts paced content can skip the pacing while
   /// this is [KeyboardSlotState.replacing], when the panel is on screen at
   /// once.
-  ValueObservable<KeyboardSlotState> get state => _slot.state;
+  listen.ValueListenable<KeyboardSlotState> get state => _slot.state;
 
   /// The part of the bottom safe area the occupancy has not covered yet; the
   /// composer's bottom safe area.
-  ValueObservable<double> get composerSafeInset => _slot.composerSafeInset;
+  listen.ValueListenable<double> get composerSafeInset =>
+      _slot.composerSafeInset;
 
   /// Releases the slot and its listeners. Idempotent.
   void dispose() => _slot.dispose();

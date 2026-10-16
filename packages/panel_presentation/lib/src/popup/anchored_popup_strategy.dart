@@ -1,7 +1,9 @@
+import 'dart:async';
+
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:meta/meta.dart';
 import 'package:panel_presentation/src/controller/panel_presentation_controller.dart';
 import 'package:panel_presentation/src/kind/panel_occupancy.dart';
@@ -14,7 +16,7 @@ import 'package:panel_presentation/src/popup/anchored_popup_style.dart';
 import 'package:panel_presentation/src/popup/popup_hover.dart';
 import 'package:panel_presentation/src/strategy/panel_presentation_strategy.dart';
 import 'package:panel_presentation/src/time/panel_clock.dart';
-import 'package:panel_presentation/src/view/value_observable_builder.dart';
+import 'package:panel_presentation/src/view/listen_value_builder.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 /// The **anchored popup** of desktop and web: the panel floats above the
@@ -66,7 +68,8 @@ final class AnchoredPopupStrategy implements PanelPresentationStrategy {
   final FocusNode? composerFocus;
 
   final PopupHover _hover;
-  final _occupancy = ObservableValue<PanelOccupancy>(PanelOccupancy.zero);
+  final _occupancy = listen.ValueNotifier<PanelOccupancy>(PanelOccupancy.zero);
+  var _disposed = false;
 
   /// The pointer rules, shared with the toggle region.
   @internal
@@ -76,15 +79,17 @@ final class AnchoredPopupStrategy implements PanelPresentationStrategy {
   PanelPresentation get kind => const AnchoredPopup();
 
   @override
-  ValueObservable<PanelOccupancy> get occupancy => _occupancy;
+  listen.ValueListenable<PanelOccupancy> get occupancy => _occupancy;
 
   @override
   Widget build(BuildContext context, PanelStrategyContext view) =>
       _PopupBody(strategy: this, view: view);
 
-  /// Stops the delays and releases the occupancy observable. The controller
-  /// and the shell are left to their owners.
+  /// Stops the delays and releases the occupancy listenable. The controller
+  /// and the shell are left to their owners. Idempotent.
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     _hover.dispose();
     _occupancy.dispose();
   }
@@ -182,6 +187,7 @@ class _PopupBodyState extends State<_PopupBody>
   late final AnimationController _motion = AnimationController(vsync: this);
   final _scope = FocusScopeNode(debugLabel: 'AnchoredPopup');
   PanelAutoHideHold? _dragHold;
+  late final StreamSubscription<PageScrollActivity> _scrollActivity;
   Curve _curve = Curves.linear;
   var _synced = false;
   var _disposed = false;
@@ -203,7 +209,7 @@ class _PopupBodyState extends State<_PopupBody>
       });
     }
     _motion.value = widget.view.visibility.isShowing ? 0 : 1;
-    _controller.shell.scrollActivity.addListener(_onScroll);
+    _scrollActivity = _controller.shell.scrollActivity.listen(_onScroll);
   }
 
   @override
@@ -227,7 +233,7 @@ class _PopupBodyState extends State<_PopupBody>
   @override
   void dispose() {
     _disposed = true;
-    _controller.shell.scrollActivity.removeListener(_onScroll);
+    unawaited(_scrollActivity.cancel());
     _dragHold?.release();
     _dragHold = null;
     _restoreFocus();
@@ -303,10 +309,10 @@ class _PopupBodyState extends State<_PopupBody>
           ),
         ),
         Positioned.fill(
-          child: ValueObservableBuilder<Rect?>(
-            observable: controller.anchorRect,
-            builder: (context, anchor) => ValueObservableBuilder<PanelWindow>(
-              observable: controller.window,
+          child: ListenValueBuilder<Rect?>(
+            listenable: controller.anchorRect,
+            builder: (context, anchor) => ListenValueBuilder<PanelWindow>(
+              listenable: controller.window,
               builder: (context, window) => LayoutBuilder(
                 builder: (context, constraints) => CustomSingleChildLayout(
                   delegate: AnchoredPopupLayout(

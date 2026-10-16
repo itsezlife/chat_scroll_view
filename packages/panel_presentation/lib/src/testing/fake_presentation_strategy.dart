@@ -1,5 +1,5 @@
-import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -19,7 +19,7 @@ final class FakePresentationStrategy implements PanelPresentationStrategy {
     this.kind, {
     PanelOccupancy initialOccupancy = PanelOccupancy.zero,
     this.autoSettle = false,
-  }) : _occupancy = ObservableValue<PanelOccupancy>(initialOccupancy);
+  }) : _occupancy = listen.ValueNotifier<PanelOccupancy>(initialOccupancy);
 
   @override
   final PanelPresentation kind;
@@ -27,7 +27,7 @@ final class FakePresentationStrategy implements PanelPresentationStrategy {
   /// Whether to settle every moving build on the next frame.
   final bool autoSettle;
 
-  final ObservableValue<PanelOccupancy> _occupancy;
+  final listen.ValueNotifier<PanelOccupancy> _occupancy;
 
   /// The context of the latest build, or null before the first.
   PanelStrategyContext? lastContext;
@@ -35,16 +35,22 @@ final class FakePresentationStrategy implements PanelPresentationStrategy {
   /// How many times [build] ran.
   int buildCount = 0;
 
+  bool _disposed = false;
+
   @override
-  ValueObservable<PanelOccupancy> get occupancy => _occupancy;
+  listen.ValueListenable<PanelOccupancy> get occupancy => _occupancy;
 
   /// The occupancy being published; assign to publish another.
   PanelOccupancy get published => _occupancy.value;
 
   set published(PanelOccupancy occupancy) => _occupancy.value = occupancy;
 
-  /// Releases the occupancy observable.
-  void dispose() => _occupancy.dispose();
+  /// Releases the occupancy listenable. Idempotent.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _occupancy.dispose();
+  }
 
   @override
   Widget build(BuildContext context, PanelStrategyContext view) {

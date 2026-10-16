@@ -608,9 +608,9 @@ void main() {
 
     test('stops listening to the shell and to the strategies', () {
       build(policy: mobile);
-      controller.dispose();
       var signals = 0;
       controller.interactions.addListener(() => signals++);
+      controller.dispose();
       shell.selectPage('stickers');
       strategyOf(const KeyboardReplacement()).published = const PanelOccupancy(
         bottom: 300,

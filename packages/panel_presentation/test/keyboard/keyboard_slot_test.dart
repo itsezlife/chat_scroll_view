@@ -1,8 +1,8 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_presentation/testing.dart';
 
@@ -24,7 +24,7 @@ final class _Rig {
   }) async {
     final store = kv ?? FakeKeyValueStore();
     final heights = await KeyboardHeightStore.open(store);
-    final windowValue = ObservableValue<PanelWindow>(window);
+    final windowValue = listen.ValueNotifier<PanelWindow>(window);
     final rig = _Rig._(
       store,
       heights,
@@ -44,7 +44,7 @@ final class _Rig {
 
   final FakeKeyValueStore kv;
   final KeyboardHeightStore heights;
-  final ObservableValue<PanelWindow> window;
+  final listen.ValueNotifier<PanelWindow> window;
   final KeyboardSlot slot;
 
   double get bottom => slot.occupancy.value.bottom;

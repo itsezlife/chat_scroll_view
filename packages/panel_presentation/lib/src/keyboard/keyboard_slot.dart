@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:content_model/content_model.dart';
 import 'package:flutter/animation.dart' show Curves;
+import 'package:listen/listen.dart' as listen;
 import 'package:meta/meta.dart';
 import 'package:panel_presentation/src/ime/ime_input_port.dart';
 import 'package:panel_presentation/src/ime/ime_sample.dart';
@@ -64,7 +64,7 @@ final class KeyboardSlot {
   KeyboardSlot({
     required ImeInputPort ime,
     required KeyboardHeightStore heights,
-    required ValueObservable<PanelWindow> window,
+    required listen.ValueListenable<PanelWindow> window,
     required PanelClock clock,
     this.tuning = const KeyboardReplacementTuning(),
   }) : _ime = ime,
@@ -83,14 +83,16 @@ final class KeyboardSlot {
 
   final ImeInputPort _ime;
   final KeyboardHeightStore _heights;
-  final ValueObservable<PanelWindow> _window;
+  final listen.ValueListenable<PanelWindow> _window;
   final PanelClock _clock;
 
-  final _state = ObservableValue<KeyboardSlotState>(KeyboardSlotState.idle);
-  final _occupancy = ObservableValue<PanelOccupancy>(PanelOccupancy.zero);
-  final _composerSafeInset = ObservableValue<double>(0);
-  final _animating = ObservableValue<bool>(false);
-  final _changes = ObservableNotifier();
+  final _state = listen.ValueNotifier<KeyboardSlotState>(
+    KeyboardSlotState.idle,
+  );
+  final _occupancy = listen.ValueNotifier<PanelOccupancy>(PanelOccupancy.zero);
+  final _composerSafeInset = listen.ValueNotifier<double>(0);
+  final _animating = listen.ValueNotifier<bool>(false);
+  final _changes = _ChangeSignal();
 
   late ImeSample _sample;
   late PanelOrientation _orientation;
@@ -121,12 +123,12 @@ final class KeyboardSlot {
   // --- Published ------------------------------------------------------------
 
   /// Who holds the slot, and in which phase.
-  ValueObservable<KeyboardSlotState> get state => _state;
+  listen.ValueListenable<KeyboardSlotState> get state => _state;
 
   /// The space taken at the bottom of the window: the larger of the keyboard
   /// and the panel, safe area included. [PanelOccupancy.inlineEnd] is always
   /// zero.
-  ValueObservable<PanelOccupancy> get occupancy => _occupancy;
+  listen.ValueListenable<PanelOccupancy> get occupancy => _occupancy;
 
   /// The part of the bottom safe area the occupancy has not covered yet: what
   /// the composer still pads itself with.
@@ -134,14 +136,14 @@ final class KeyboardSlot {
   /// `max(0, safeBottom - occupancy.bottom)`, so the bottom of the window is
   /// `max(safeBottom, occupancy)` throughout, with no step and no double
   /// count.
-  ValueObservable<double> get composerSafeInset => _composerSafeInset;
+  listen.ValueListenable<double> get composerSafeInset => _composerSafeInset;
 
   /// Whether a motion is running, and so whether [advance] should be called
   /// every frame. False while a cold open waits for its start delay.
-  ValueObservable<bool> get animating => _animating;
+  listen.ValueListenable<bool> get animating => _animating;
 
   /// Signals whenever the extent, the state or the layout height changed.
-  Observable get changes => _changes;
+  listen.Listenable get changes => _changes;
 
   /// The height the sheet is laid out at: fixed while the slot grows or
   /// shrinks, so the content never reflows mid-motion, and equal to the
@@ -522,7 +524,7 @@ final class KeyboardSlot {
     final bottom = math.max(keyboard, _extent);
     _occupancy.value = PanelOccupancy(bottom: bottom);
     _composerSafeInset.value = math.max(0, safeBottom - bottom);
-    _changes.notify();
+    _changes.signal();
   }
 
   static const double _epsilon = 0.01;
@@ -553,4 +555,10 @@ final class _Tween {
 
   _Tween advanced(Duration by) =>
       _Tween(from: from, to: to, spec: spec, elapsed: elapsed + by);
+}
+
+/// The signal behind [KeyboardSlot.changes]: `notifyListeners` is protected,
+/// so the slot reaches it through this subclass.
+final class _ChangeSignal extends listen.ChangeNotifier {
+  void signal() => notifyListeners();
 }

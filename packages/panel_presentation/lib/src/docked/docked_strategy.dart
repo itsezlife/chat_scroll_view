@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:content_model/content_model.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/src/docked/docked_style.dart';
 import 'package:panel_presentation/src/kind/panel_occupancy.dart';
 import 'package:panel_presentation/src/kind/panel_presentation.dart';
@@ -52,21 +52,33 @@ final class DockedStrategy implements PanelPresentationStrategy {
   /// The composer's focus node, or null.
   final FocusNode? composerFocus;
 
-  final _occupancy = ObservableValue<PanelOccupancy>(PanelOccupancy.zero);
+  final _occupancy = listen.ValueNotifier<PanelOccupancy>(PanelOccupancy.zero);
+  var _disposed = false;
 
   @override
   PanelPresentation get kind => const Docked();
 
   @override
-  ValueObservable<PanelOccupancy> get occupancy => _occupancy;
+  listen.ValueListenable<PanelOccupancy> get occupancy => _occupancy;
 
   @override
   Widget build(BuildContext context, PanelStrategyContext view) =>
       _DockedBody(strategy: this, view: view);
 
-  /// Releases the occupancy observable. The controller and the shell are left
-  /// to their owners.
-  void dispose() => _occupancy.dispose();
+  /// Releases the occupancy listenable. The controller and the shell are left
+  /// to their owners. Idempotent.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _occupancy.dispose();
+  }
+
+  // A mounted section reports from frame callbacks and microtasks that can
+  // outlive the strategy's disposal; those reports are dropped.
+  void _report(PanelOccupancy occupancy) {
+    if (_disposed) return;
+    _occupancy.value = occupancy;
+  }
 }
 
 class _DockedBody extends StatefulWidget {
@@ -126,8 +138,8 @@ class _DockedBodyState extends State<_DockedBody>
     _scope.dispose();
     // The section is off screen from here on. Zero is published after the
     // tree has finished unmounting, for the same reason as a late publish.
-    final occupancy = _strategy._occupancy;
-    scheduleMicrotask(() => occupancy.value = PanelOccupancy.zero);
+    final strategy = _strategy;
+    scheduleMicrotask(() => strategy._report(PanelOccupancy.zero));
     super.dispose();
   }
 
@@ -143,8 +155,8 @@ class _DockedBodyState extends State<_DockedBody>
       });
       return;
     }
-    _strategy._occupancy.value = PanelOccupancy(
-      inlineEnd: _strategy.style.width * _progress,
+    _strategy._report(
+      PanelOccupancy(inlineEnd: _strategy.style.width * _progress),
     );
   }
 

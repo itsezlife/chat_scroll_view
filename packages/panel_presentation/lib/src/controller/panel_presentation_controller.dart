@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:ui' show Rect;
 
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/src/kind/panel_occupancy.dart';
 import 'package:panel_presentation/src/kind/panel_presentation.dart';
 import 'package:panel_presentation/src/kind/panel_visibility.dart';
@@ -107,9 +109,9 @@ final class PanelPresentationController {
     PanelWindow window,
     bool dockPreferred,
     this._preferences,
-  ) : _window = ObservableValue<PanelWindow>(window),
-      _dockPreferred = ObservableValue<bool>(dockPreferred) {
-    shell.events.addListener(_onShellEvent);
+  ) : _window = listen.ValueNotifier<PanelWindow>(window),
+      _dockPreferred = listen.ValueNotifier<bool>(dockPreferred) {
+    _shellEvents = shell.events.listen(_onShellEvent);
     shell.search.addListener(_updateGuard);
     _preferences?.changes.addListener(_onPreferencesChanged);
     _updateGuard();
@@ -124,25 +126,26 @@ final class PanelPresentationController {
 
   final Map<PanelPresentation, PanelPresentationStrategy> _strategies;
   final PreferenceStore? _preferences;
-  final ObservableValue<PanelWindow> _window;
-  final ObservableValue<bool> _dockPreferred;
-  final _state = ObservableValue<PanelVisibility>(PanelVisibility.hidden);
-  final _occupancy = ObservableValue<PanelOccupancy>(PanelOccupancy.zero);
-  final _anchor = ObservableValue<Rect?>(null);
-  final _guard = ObservableValue<bool>(false);
-  final _interactions = ObservableNotifier();
+  final listen.ValueNotifier<PanelWindow> _window;
+  final listen.ValueNotifier<bool> _dockPreferred;
+  final _state = listen.ValueNotifier<PanelVisibility>(PanelVisibility.hidden);
+  final _occupancy = listen.ValueNotifier<PanelOccupancy>(PanelOccupancy.zero);
+  final _anchor = listen.ValueNotifier<Rect?>(null);
+  final _guard = listen.ValueNotifier<bool>(false);
+  final _interactions = _InteractionSignal();
+  late final StreamSubscription<PanelEvent> _shellEvents;
   final _attachments = <_Attachment>[];
   var _holds = 0;
   var _disposed = false;
   // A docked section the window narrowed into a popup: it docks again when
   // the window widens. Any other change of state forgets it.
   var _demotedByWindow = false;
-  ValueObservable<PanelOccupancy>? _followed;
+  listen.ValueListenable<PanelOccupancy>? _followed;
 
   // --- State ----------------------------------------------------------------
 
   /// Whether and how the panel is on screen.
-  ValueObservable<PanelVisibility> get state => _state;
+  listen.ValueListenable<PanelVisibility> get state => _state;
 
   /// The space the presentation takes, for the host to aggregate.
   ///
@@ -150,27 +153,27 @@ final class PanelPresentationController {
   /// kind the policy would open now, so a keyboard strategy keeps publishing
   /// the soft keyboard's height and the host never adds it a second time.
   /// Zero for a kind without a strategy.
-  ValueObservable<PanelOccupancy> get occupancy => _occupancy;
+  listen.ValueListenable<PanelOccupancy> get occupancy => _occupancy;
 
   /// The host window the policy sizes against, as last reported.
-  ValueObservable<PanelWindow> get window => _window;
+  listen.ValueListenable<PanelWindow> get window => _window;
 
   /// Whether the user prefers the panel docked.
-  ValueObservable<bool> get dockPreferred => _dockPreferred;
+  listen.ValueListenable<bool> get dockPreferred => _dockPreferred;
 
   /// The composer rectangle an anchored popup attaches to, in the
   /// coordinates of the box that hosts the view; null until reported.
-  ValueObservable<Rect?> get anchorRect => _anchor;
+  listen.ValueListenable<Rect?> get anchorRect => _anchor;
 
   /// The **auto-hide guard**: whether something keeps a self-dismissing
   /// popup open. True while the search field holds focus or any
   /// [holdAutoHide] is unreleased.
-  ValueObservable<bool> get autoHideGuard => _guard;
+  listen.ValueListenable<bool> get autoHideGuard => _guard;
 
   /// Signals whenever the user does something in the panel: a page change,
   /// search opening or closing, a pick, an action. Self-dismissing
   /// presentations restart their idle delay on it.
-  Observable get interactions => _interactions;
+  listen.Listenable get interactions => _interactions;
 
   /// Whether [dispose] has been called.
   bool get isDisposed => _disposed;
@@ -347,7 +350,7 @@ final class PanelPresentationController {
     if (_disposed) return;
     final current = _state.value;
     _disposed = true;
-    shell.events.removeListener(_onShellEvent);
+    unawaited(_shellEvents.cancel());
     shell.search.removeListener(_updateGuard);
     _preferences?.changes.removeListener(_onPreferencesChanged);
     _followed?.removeListener(_onStrategyOccupancy);
@@ -460,7 +463,7 @@ final class PanelPresentationController {
   }
 
   void _onShellEvent(PanelEvent event) {
-    _interactions.notify();
+    _interactions.signal();
   }
 
   void _updateGuard() {
@@ -525,4 +528,11 @@ final class _AutoHideHold implements PanelAutoHideHold {
     _released = true;
     _controller._releaseHold();
   }
+}
+
+/// The signal behind [PanelPresentationController.interactions]:
+/// `notifyListeners` is protected, so the controller reaches it through this
+/// subclass.
+final class _InteractionSignal extends listen.ChangeNotifier {
+  void signal() => notifyListeners();
 }

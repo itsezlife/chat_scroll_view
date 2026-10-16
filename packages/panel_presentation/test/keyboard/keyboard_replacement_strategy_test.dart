@@ -1,8 +1,8 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_presentation/testing.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -51,7 +51,7 @@ class _HostState extends State<_Host> {
 
 void main() {
   late FakeImeInput ime;
-  late ObservableValue<PanelWindow> window;
+  late listen.ValueNotifier<PanelWindow> window;
   late KeyboardHeightStore heights;
   late KeyboardReplacementStrategy keyboard;
   late PanelShellController shell;
@@ -60,7 +60,7 @@ void main() {
 
   setUp(() async {
     ime = FakeImeInput();
-    window = ObservableValue(const PanelWindow(width: 400, height: 600));
+    window = listen.ValueNotifier(const PanelWindow(width: 400, height: 600));
     heights = await KeyboardHeightStore.open(FakeKeyValueStore());
     keyboard = KeyboardReplacementStrategy(
       ime: ime,
