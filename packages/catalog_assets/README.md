@@ -65,7 +65,9 @@ A unicode key bound in a scope that has a glyph source registered
 (`scope.glyphSource = atlas`) is the glyph form: a baked sprite on an atlas
 page, never a paragraph at scroll time on a platform that bakes. It is
 placeholder-stage (a circle) with no time limit until its glyph is baked, then
-final at `full` with a sprite. The binding **holds the page its glyph is on**
+final at `full` with a sprite. The strategy follows the source while the
+binding lives: registering one moves bindings made without it onto it, removing
+it sends them back to the producer (text). The binding **holds the page its glyph is on**
 from attach to detach (a count, never pixels) and has no cache entry, so the
 budget cannot evict it and nothing the cache does can change a hold. The pages
 belong to the source (the atlas's `GlyphPageResidency`): shared by the

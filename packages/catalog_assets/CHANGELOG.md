@@ -14,6 +14,12 @@ is pre-1.0.
 
 ### Changed
 
+- A unicode binding follows `AssetCacheScope.glyphSource` for as long as it is
+  attached, not only when it attaches: a source registered after glyphs drew as
+  text moves them onto it (a circle until baked, never a paragraph kept for
+  good), and a source removed sends them back to the producer instead of
+  leaving a placeholder. A disposed scope ignores a source set late (it no
+  longer registers a listener).
 - `TextGlyphProducer`'s paragraph is laid out once per size, not once per
   position: a rectangle's width is `right - left`, so the same size at two cells
   differs in the last bits and an exact comparison laid the paragraph out again
