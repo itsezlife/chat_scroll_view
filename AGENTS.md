@@ -125,6 +125,7 @@ from `packages/` has not landed yet. `scripts/check` enforces the rules.
 | Runtime constitution (scroll/layout/animation) | [docs/architecture/index.md](docs/architecture/index.md)       |
 | How to consume domain docs                     | [docs/agents/domain.md](docs/agents/domain.md)                 |
 | ADRs (policy)                                  | [docs/adr/](docs/adr/)                                         |
+| Host integration guide (packages, order, lifetimes) | [docs/host-integration.md](docs/host-integration.md)      |
 
 Read the architecture bundle **before** changing scroll, layout, day headers,
 or animations. Read ADR 012 and ADR 013 **before** changing selection

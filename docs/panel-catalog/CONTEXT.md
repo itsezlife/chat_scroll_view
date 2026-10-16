@@ -167,7 +167,7 @@ The press-highlight wash on the full cell of the focused leaf, at full alpha and
 _Avoid_: A new colour scale, a highlight drawn over the sprite
 
 **Scroll event**:
-The one typed controller event stream: drag, fling, section jump, near-viewport, focus. A settled event carries the visible leaf keys.
+The one typed controller event stream: drag, fling, section jump, near-viewport, focus and current-section changes, plus two derived activity facts. A scrolling-changed event fires at once when the catalogue starts moving and after one quiet frame when it stops; a settled event carries the visible leaf keys, top first.
 _Avoid_: Separate listener channels per concern
 
 ### Glyph atlas

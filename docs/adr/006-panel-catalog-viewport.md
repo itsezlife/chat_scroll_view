@@ -55,18 +55,19 @@ contracts are decided in [ADR 022](022-asset-cache-and-media-pipeline.md) and
 [ADR 024](024-panel-catalog-seams.md); this section keeps the panel-side view.
 
 Each row below says whether it is **built** (in the packages today) or
-**pending** (decided here and in those ADRs, built when the package seams land).
+**pending** (decided here and in those ADRs, not yet in the packages). Every
+row is built.
 
 ### Changes to the Decided table
 
 | Topic | Before | After | State |
 | ----- | ------ | ----- | ----- |
-| Assets | Process-wide **global catalog asset cache** shared with chat | **App-wide asset cache, host-created and provided through a scope**; no static singleton. The viewport and chat bind and paint only ([ADR 022](022-asset-cache-and-media-pipeline.md)). | Pending |
-| Presentation | Readiness drives presentation (ready / loading / failed per leaf) | The binding's stage is used only for crossfade. The placeholder is derived from the descriptor (media form, kind). There is no visible failed stage: a leaf that fails or hangs keeps its placeholder. | Pending (a failed unicode leaf still presents as `failed` today) |
-| Layout | Viewport-wide span count, cell extent, header extent | **Per-section layout** (sealed `SectionLayout`; `Grid` now); the viewport-wide values are the defaults ([ADR 024](024-panel-catalog-seams.md)). | Pending |
-| Leaf, data, controller | Leaf class hierarchy; parallel data source with listener channels; five controller channels | Leaf value with an opaque host tag and positional hit identity; snapshot data source on the model `Observable`; attach-and-position controller. Public seams only: render object, stitch and near / far invariants are unchanged ([ADR 024](024-panel-catalog-seams.md)). | Pending |
-| Paint surface | Bound drawable at the stage reached | A binding exposes an **optional sprite** (atlas page handle + source rectangle). The viewport draws the sprites of one atlas page in **one batched atlas draw**; a leaf without a sprite paints itself. | Built (the capability sits on `CatalogAssetBinding`; the `AssetPaintable` contract of [ADR 022](022-asset-cache-and-media-pipeline.md) moves it) |
-| Chrome and packages | Chrome around the viewport is **KeyboardPanel** ([ADR 007](007-keyboard-panel-controller.md)); packages are `catalog_assets`, `panel_catalog`, `emoji_data`, `chat_chrome` | Chrome is the **panel shell** with **pages** and a **panel presentation** ([ADR 025](025-panel-shell-and-pages.md), [ADR 028](028-panel-presentation.md)); the package set is [ADR 020](020-package-topology.md). Leaf callbacks return a positional leaf hit. | Pending |
+| Assets | Process-wide **global catalog asset cache** shared with chat | **App-wide asset cache, host-created and provided through a scope**; no static singleton. The viewport and chat bind and paint only ([ADR 022](022-asset-cache-and-media-pipeline.md)). | Built |
+| Presentation | Readiness drives presentation (ready / loading / failed per leaf) | The binding's stage is used only for crossfade. The placeholder is derived from the descriptor (media form, kind). There is no visible failed stage: a leaf that fails or hangs keeps its placeholder. | Built |
+| Layout | Viewport-wide span count, cell extent, header extent | **Per-section layout** (sealed `SectionLayout`; `Grid` now); the viewport-wide values are the defaults ([ADR 024](024-panel-catalog-seams.md)). | Built |
+| Leaf, data, controller | Leaf class hierarchy; parallel data source with listener channels; five controller channels | Leaf value with an opaque host tag and positional hit identity; snapshot data source on the model `Observable`; attach-and-position controller. Public seams only: render object, stitch and near / far invariants are unchanged ([ADR 024](024-panel-catalog-seams.md)). | Built |
+| Paint surface | Bound drawable at the stage reached | A binding exposes an **optional sprite** (atlas page handle + source rectangle). The viewport draws the sprites of one atlas page in **one batched atlas draw**; a leaf without a sprite paints itself. | Built (the sprite capability sits on `AssetPaintable`, [ADR 022](022-asset-cache-and-media-pipeline.md)) |
+| Chrome and packages | Chrome around the viewport is **KeyboardPanel** ([ADR 007](007-keyboard-panel-controller.md)); packages are `catalog_assets`, `panel_catalog`, `emoji_data`, `chat_chrome` | Chrome is the **panel shell** with **pages** and a **panel presentation** ([ADR 025](025-panel-shell-and-pages.md), [ADR 028](028-panel-presentation.md)); the package set is [ADR 020](020-package-topology.md). Leaf callbacks return a positional leaf hit. | Built |
 | Unicode glyph | Painted from a paragraph cache | **Baked glyph** (sprite) on a **glyph atlas page**. On a baking platform emoji are never drawn as text at scroll time and a paragraph is never a fallback. Web has no atlas and keeps the paragraph path, with a bounded, disposed cache. | Built |
 | Placeholder (circle) | Unicode never shows a circle | Unicode shows the circle placeholder until its glyph is baked, with no time limit; with a valid disk cache the circle lasts at most 500 ms after a cold start. | Built |
 | Warm-up | `warmAhead` rasterises the visible band offscreen on open | Removed. It did not make the first fling cheaper, and where emoji are baked it built paragraphs that are never drawn. | Built |

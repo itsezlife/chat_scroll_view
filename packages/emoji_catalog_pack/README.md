@@ -49,19 +49,15 @@ Gzip level 9, measured on the committed assets (a test holds each pack under
 | ru | 205.5 | 48.8 |
 | zh | 101.0 | 40.7 |
 
-The target of the data-layering decision was 26-41 KB per locale for the 1625
-rows the old tables held. The packs now carry 1923 records (18 percent more
-than the old tables had, and the CLDR flag and group annotations they lacked),
-so the Latin-script packs land at 31-46 KB and Hindi and Russian at 48-49 KB.
-Dropping keywords that repeat the spoken name saved 2 to 9 percent. Loading one locale costs one pack plus the
-13.5 KB structure, against about 1.8 MB in the AOT snapshot for the old
-`const` tables.
+Latin-script packs land at 31-46 KB and Hindi and Russian at 48-49 KB.
+Keywords that repeat the spoken name are dropped (2 to 9 percent of a pack).
+Loading one locale costs one pack plus the 13.5 KB structure.
 
 ## Host contract
 
 | The host provides | The host must not |
 | --- | --- |
-| The asset bundle: reads `EmojiCatalogPackAssets.structure` and `keywordPack(locale)` and passes the text to `EmojiCatalogStructure.decode` / `EmojiKeywordPack.decode`. | Parse the files itself; the formats are internal to the decoders. |
+| The asset bundle: loads the text behind the asset keys `EmojiCatalogPackAssets.structure` and `keywordPack(locale)` and passes it to `EmojiCatalogStructure.decode` / `EmojiKeywordPack.decode`. Depending on this package is what bundles the assets. | Parse the files itself; the formats are internal to the decoders. |
 | The ordered language set it wants packs for. A locale without a shipped pack (`EmojiCatalogPackAssets.locales` lists the shipped ones) is a host decision (fall back, or fetch a pack of its own). | Expect a pack for every CLDR locale: the shipped set is the locales of `tool/inputs.lock`. |
 | A spoken name for a tone variant: the entry's own name, extended by the host if it wants the tone read out. | Look a tone variant up in a pack: only entries and gender variants have records. |
 | Any server-supplied or newer keyword pack through a `KeywordSource`, keyed by the same `ContentKey`s. | Assume the keys of a newer Emoji version are in the shipped structure. |
@@ -108,9 +104,12 @@ when it is published.
 
 ## Decisions
 
-- Structure and keywords ship as separate text assets, loaded lazily per
-  locale; see the data-layering decision (ADR candidate `data-layering`,
-  promoted with the architecture ADRs).
+- [ADR 023: Data layering and persistence](../../docs/adr/023-data-layering-and-persistence.md)
+  (structure and keywords ship as separate text assets, loaded lazily per
+  locale), [ADR 020](../../docs/adr/020-package-topology.md) (dependency
+  direction), [ADR 030](../../docs/adr/030-testing-policy.md) (the generator
+  gate).
+- Glossary: [Content and Assets](../../docs/content/CONTEXT.md).
 - Unicode groups are kept as shipped (nine, `People & Body` separate from
   `Smileys & Emotion`; components excluded). Mapping them to panel categories
   is a page decision.

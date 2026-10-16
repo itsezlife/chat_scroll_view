@@ -123,16 +123,17 @@ nightly job tracks against committed baselines; see
 | --- | --- |
 | One `AssetCacheScope` per cache it wants shared, created once and disposed when it goes away | Keep a static instance, or create one per surface (entries would not be shared) |
 | A `producer` that makes the paintables of non-glyph content (usually an `AssetPipeline`), reporting through `AssetProgress` on the UI isolate | Report from another isolate or thread, or throw for a failed attempt (report `fail`) |
-| A `glyphSource` (the atlas) on platforms that bake glyphs; no source where glyphs are drawn as text | Pass a `GlyphAtlas` to anything but `glyphSource`, or read atlas types through the cache |
+| A `glyphSource` (the atlas) on platforms that bake glyphs, set by the host or by the page that owns the atlas; no source where glyphs are drawn as text | Pass a `GlyphAtlas` to anything but `glyphSource`, or read atlas types through the cache |
 | Budgets for its device class (`budgets`) and the memory-pressure signal (`memoryPressure:` or `clearAll()`) | Evict by hand to "free" a bound entry: bound entries are pinned |
 | `connectivityRestored()` when the network returns | Make the cache touch the network |
 | Pause layers on the clock (`routeMoving`, `fastScroll`, `lowPower`, `surfaceHidden`) | Run a timer per animation, or call a paintable's `paint` outside a paint |
 | `detach()` for every binding it attached, `visible` set to what it shows | Keep a `paintable` or a `sprite` across frames: a better stage replaces one, a page release can end the other |
 
-Decisions: [ADR 006](../../docs/adr/006-panel-catalog-viewport.md) (the
-amendment on baked glyphs and the shared asset scope). The asset cache ADR
-(cache core, staged readiness, producer seam) is promoted with the
-package-architecture documents.
+Decisions: [ADR 022](../../docs/adr/022-asset-cache-and-media-pipeline.md)
+(cache core, staged readiness, producer seam, page residency) and
+[ADR 006](../../docs/adr/006-panel-catalog-viewport.md) (the amendment on baked
+glyphs). Glossary: [Content and Assets](../../docs/content/CONTEXT.md),
+[Panel Catalog](../../docs/panel-catalog/CONTEXT.md) (glyph atlas terms).
 
 ## The fetch and decode pipeline
 
@@ -258,12 +259,13 @@ Behaviour that matters to a host:
   atlas. A glyph the atlas does not know stays a circle placeholder (the glyph
   form never falls back to text where an atlas is registered).
 - **Inline embeds in message bodies are a follow-up.** `InlineEmbed` and
-  `ContentEmbed` are the ready contract and adapter; laying them out and
-  painting them inside `flutter_md` and the root viewport body (placeholder
-  layout, alt text for copy, selection and accessibility, scheme-based
-  resolver registration) is tracked as issue 36, outside this package. The
+  `ContentEmbed` are the ready contract and adapter. Nothing lays them out or
+  paints them inside the markdown library and the root viewport body yet
+  (placeholder layout, alt text for copy, selection and accessibility,
+  scheme-based resolver registration), so a host sends a unicode emoji as its
+  own characters and keeps `![alt](scheme:id)` for other content. The
   composer's `InlineContentSpanBuilder` hook (the span must be as long as the
-  alternative text) is wired by the composer's field widget, also outside this
+  alternative text) is wired by the composer's field widget, outside this
   package.
 
 Decisions: [ADR 022](../../docs/adr/022-asset-cache-and-media-pipeline.md)
@@ -285,7 +287,8 @@ Bakes the glyphs a host supplies into fixed-size **glyph atlas pages** and
 answers where each **baked glyph** (sprite: page plus source rectangle) is.
 `AssetCacheScope.glyphSource = atlas` exposes it to the surfaces that bind
 through the scope: unicode bindings resolve their `paintable.sprite` from it
-and every binding hears a page landing. The viewport consumes it. Each unicode
+and every binding hears a page landing. Surfaces never see the atlas type: they
+draw the sprite their binding's paintable exposes. Each unicode
 binding **holds the page its glyph is on** from attach to detach; the pages
 themselves sit in the atlas's `GlyphPageResidency` (see below), so nothing done
 to the cache ever changes a count. The atlas implements `GlyphSpriteSource`,

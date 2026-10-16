@@ -1,7 +1,18 @@
 # panel_catalog
 
-Extent-scroll catalog body with recycled paint leaves for keyboard-panel
-surfaces (emoji / stickers / GIFs).
+The catalog viewport: an extent-scroll body with recycled paint leaves, for
+panel surfaces that show emoji, stickers and GIFs in sections. It draws
+`CatalogLeaf` values through the host's asset cache, reports taps and scroll
+facts, and owns the pointer, semantics and focus of its cells. It depends on
+`content_model` and `catalog_assets` only, never on `chrome_foundation` and
+never on the atlas types: it sees an `AssetPaintable` and its optional sprite.
+
+Entry points: `panel_catalog.dart` (viewport, controller, snapshot, section and
+leaf values, theme), `panel_catalog_diagnostics.dart` (counters a perf harness
+reads) and `testing.dart` (`FakeCatalogSnapshotSource`,
+`FakeCatalogScrollPosition`, `runCatalogScrollPositionContract`). Constructor
+requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
+`controller`; everything else is optional.
 
 ## Contract
 
@@ -99,10 +110,10 @@ surfaces (emoji / stickers / GIFs).
   leaf)`; the cell is the identity, so the same key in two sections is two
   hits. Shell callbacks for tap and long-press start/move/end; optional
   `leafLongPressEligible` per cell (plain glyphs stay tap-only)
-- **Theme** — [PanelCatalogTheme] scopes [PanelCatalogThemeData], a small
+- **Theme** — `PanelCatalogTheme` scopes `PanelCatalogThemeData`, a small
   token class the viewport owns: placeholder colours (circle, thumb, wash and
   its sweep period and highlight), skeleton colour, press highlight and
-  selector radius, section header style; [PanelCatalogThemeData.lerp] for
+  selector radius, section header style; `PanelCatalogThemeData.lerp` for
   transitions. The package depends on no chrome or design-system package: a
   page that has foundation tokens maps them onto this class in one place
 - **Data** — an immutable `CatalogSnapshot` (sections) published through a
@@ -147,8 +158,11 @@ surfaces (emoji / stickers / GIFs).
   paused), thumb-first (other media: the binding's own thumbnail once it has
   one)
 
+## Host contract
+
 | The host provides | The host must not |
 | --- | --- |
+| The three required inputs of `PanelCatalogViewport`: a `ValueObservable<CatalogSnapshot>` (`snapshots`), an `AssetCacheScope` (`assets`) and a `PanelCatalogController`. | Mount two viewports on one controller: it holds one position and a second attach replaces the first without telling it. |
 | A `ValueObservable<CatalogSnapshot>` and a `PanelCatalogController` (the host creates and disposes both) | Mutate a published snapshot or notify once per leaf: publish a new snapshot per logical mutation |
 | Listeners on `controller.events` for chrome that follows scrolling, and `PanelCatalogCurrentSectionChanged` / `controller.currentSection` for a strip that shows the section the user is in | Call the controller's `attach` / `detach` / `publish`: they belong to the viewport |
 | An `AssetCacheScope` (host-created and disposed) whose `glyphSource` is an atlas planning every glyph the data source shows, baked at `largestCatalogGlyphBox` of the layouts it serves; on the web no source and a `TextGlyphProducer` | Expect a glyph outside the atlas to draw as text: it stays a placeholder; build a second atlas for a section with other cell sizes |
@@ -169,10 +183,12 @@ catalog viewport and its amendment on baked glyphs),
 leaf value and its hit, snapshot data and the attach-and-position controller),
 [ADR 031](../../docs/adr/031-localization-accessibility-and-input.md) (grid
 direction, windowed semantics with spoken names, roving focus, cursor).
+Glossary: [Panel Catalog](../../docs/panel-catalog/CONTEXT.md). Pages that
+compose the viewport: [`panel_pages`](../panel_pages/README.md).
 
 ## Theme
 
-Wrap the catalog subtree in [PanelCatalogTheme] with [PanelCatalogThemeData]:
+Wrap the catalog subtree in `PanelCatalogTheme` with `PanelCatalogThemeData`:
 
 ```dart
 PanelCatalogTheme(
@@ -181,7 +197,7 @@ PanelCatalogTheme(
 )
 ```
 
-[PanelCatalogViewport] resolves [PanelCatalogTheme.of] into
+`PanelCatalogViewport` resolves `PanelCatalogTheme.of` into
 a density-resolved paint snapshot once per build and passes it to the engine.
 
 Pick preset from shell brightness:
@@ -190,7 +206,7 @@ Pick preset from shell brightness:
 data: PanelCatalogThemeData.forBrightness(brightness),
 ```
 
-Animate light ↔ dark by rebuilding with [PanelCatalogThemeData.lerp]:
+Animate light ↔ dark by rebuilding with `PanelCatalogThemeData.lerp`:
 
 ```dart
 data: PanelCatalogThemeData.lerp(PanelCatalogThemeData.light, PanelCatalogThemeData.dark, t),

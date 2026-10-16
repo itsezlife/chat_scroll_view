@@ -13,7 +13,10 @@ data payload, codec or fetcher. Decisions: [ADR 025](../../docs/adr/025-panel-sh
 (shell and pages), [ADR 024](../../docs/adr/024-panel-catalog-seams.md)
 (catalogue seams), [ADR 022](../../docs/adr/022-asset-cache-and-media-pipeline.md)
 (asset cache), [ADR 031](../../docs/adr/031-localization-accessibility-and-input.md)
-(strings, semantics, input).
+(strings, semantics, input). Glossary: [Chat chrome](../../docs/chrome/CONTEXT.md),
+[Panel Catalog](../../docs/panel-catalog/CONTEXT.md). Constructor requirements:
+`CatalogPage` takes `host`, `source`, `policy` and `assets`; `EmojiPage` takes
+`host`, `source`, `searchSource`, `preferences`, `entryOf` and `assets`.
 
 ## Types
 
@@ -33,7 +36,7 @@ data payload, codec or fetcher. Decisions: [ADR 025](../../docs/adr/025-panel-sh
 | `EmojiPage`, `EmojiPagePolicy`, `EmojiPageController`, `EmojiEntryOf` | The emoji page: the policy of eight columns, category titles, recents (only while there are some, alone for an empty search) with a header action that asks the host to clear them, and the variant picker; the widget loads every collection at once, plans the atlas, wires it and paces its mount; the controller keeps the atlas host across the widget. |
 | `EmojiCategoryStrip`, `EmojiCategories`, `EmojiCategoryTab` | The page's top strip: one tab per category (people folded into smileys), the active tab following the catalogue, a tap landing on the category's first section and staying active after the jump. |
 | `EmojiVariantPicker`, `EmojiVariantSession`, `emojiVariantOptions` | The popup of an emoji's base and variants and the long press that drives it: slide and release, or tap an option (a screen reader's long press has no release). |
-| `EmojiTabIconScope`, `EmojiTabIcons` | The strip's art (Telegram's, bundled) registered as `ChromeIcon` painters; decoded once per process. |
+| `EmojiTabIconScope`, `EmojiTabIcons` | The strip's art (bundled webp) registered as `ChromeIcon` painters; decoded once per process. |
 | `GlyphAtlasHost`, `GlyphPlan`, `GlyphAtlasHostFactory`, `GlyphPlanner` | The atlas of a page that shows baked glyphs: what is planned (the glyphs the collections show, chosen variants only, recents last and sorted), replanning behind the old art, density, the panel's visible and opening observables as the bake's pause signals, persistence, residency. |
 | `package:panel_pages/testing.dart` | `FakePanelPageHost`, `FakeBakeActivityPort`, `runBakeActivityPortContract`. Tests only. |
 
@@ -97,7 +100,7 @@ final page = PanelPage(
 | The host provides | The host must not |
 | --- | --- |
 | A `ChromeThemeScope` and a `ChromeStringsScope` above every page (both required). | Expect a default theme or language; mount a page without them. |
-| An `AssetCacheScope` per page, built with `PageAssets.createScope` (or equivalent): a glyph source where glyphs are baked, none where they are drawn as text. The host owns and disposes it. | Expect the page to decide how glyphs are drawn, to plan an atlas or to dispose the scope. |
+| The `AssetCacheScope` the page draws through (`assets:`, required), usually the app-wide one, built with `PageAssets.createScope` so unicode keys fall back to text where no atlas is registered. The host owns and disposes it. | Dispose the scope while a page is mounted, or register an atlas on it by hand while an `EmojiPage` is mounted: the page sets `assets.glyphSource` to its own atlas on mount and clears it when it leaves. |
 | Sources (`CollectionSource`, optionally `SearchSource`) that own their data and loading; a replacement source may be passed at any time. | Pass a source that publishes in place; every publication is a new list. Expect a failed load to be retried in a loop. |
 | A `BakeActivityPort` for the atlas that draws the page's glyphs, replaced when the atlas is. | Report the page's scrolling to the atlas as well; the page is already one reporter. |
 | For the emoji page: a `GlyphAtlasHostFactory` that builds a `GlyphAtlasHost` from the bake parts only the host has (frame source, page cache and art version, the glyph probe's observer, memory pressure), or none where nothing is baked; an `EmojiEntryOf` (the data layer's `entryOf`); the `PreferenceStore`. | Plan the atlas itself, or build it before the density of the view is known; hand the page a source that loads slowly and expect baked glyphs for the first leaves (see below). |
