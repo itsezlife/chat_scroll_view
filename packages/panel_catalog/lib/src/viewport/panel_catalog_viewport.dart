@@ -1,6 +1,7 @@
 import 'package:catalog_assets/legacy_shim.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
-import 'package:panel_catalog/src/data/catalog_data_source.dart';
+import 'package:panel_catalog/src/data/catalog_snapshot.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/theme/panel_catalog_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
@@ -17,18 +18,19 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// Layout fills the parent's constraints ([RenderBox.size] is the viewport).
 /// Content taller than the viewport scrolls by absolute
 /// [PanelCatalogController.offset] against a known content extent produced by
-/// projecting [CatalogDataSource.sections] into header + grid slots.
+/// projecting [CatalogSnapshot.sections] into header + grid slots.
 /// Intrinsic height is `0` (viewport-sized body, not content-sized).
 ///
 /// Does **not** own panel chrome (category strip, search, type tabs, pickers),
 /// asset fetch/decode ([CatalogAssetCache]), or catalog fetch orchestration
-/// ([CatalogDataSource]). This widget only listens, projects, binds the
+/// (the owner of [snapshots]). This widget only listens, projects, binds the
 /// visible band, and paints.
 ///
 /// ## Scroll and recycle
 ///
-/// Drag and pointer-wheel update [controller] via [PanelCatalogController.scrollBy];
-/// the render object clamps with [PanelCatalogController.correctOffset].
+/// Drag and pointer-wheel move the attached position
+/// ([PanelCatalogController.scrollBy]); the render object clamps to the valid
+/// range afterwards.
 /// [PanelCatalogController.jumpToSection] lands a section header under
 /// [padding.top] via near-path smooth scroll when [isNearPathSectionJump]
 /// passes ([kFarPathDistanceGateFactor] flat rows, not `spanCount ×` that
@@ -68,7 +70,7 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// is the density of the view the viewport sits in and follows that view's
 /// resize / display change. It is never read from the platform's first view.
 class PanelCatalogViewport extends LeafRenderObjectWidget {
-  /// Creates an extent-scroll catalog body backed by [dataSource],
+  /// Creates an extent-scroll catalog body backed by [snapshots],
   /// [assetCache], and [controller].
   ///
   /// [spanCount] MUST be ≥ 1. [cellExtent] / [headerExtent] SHOULD be > 0;
@@ -80,7 +82,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// start is wired, [leafLongPressEligible] optionally limits which leaves
   /// register the recognizer (plain glyphs stay tap-only).
   const PanelCatalogViewport({
-    required this.dataSource,
+    required this.snapshots,
     required this.assetCache,
     required this.controller,
     this.spanCount = 8,
@@ -97,17 +99,18 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     super.key,
   });
 
-  /// Authoritative catalog contents for this surface.
+  /// Authoritative catalog contents for this surface, as an immutable
+  /// [CatalogSnapshot] the host publishes.
   ///
-  /// The render object registers [CatalogDataSource.addDataListener] while
-  /// attached and reprojects slots when the source notifies. Empty
-  /// [CatalogDataSource.sections] is a confirmed empty catalog (headers only
-  /// if sections exist with empty leaf lists — see projection rules).
+  /// The render object listens while attached and reprojects slots when the
+  /// observable signals. Empty [CatalogSnapshot.sections] is a confirmed
+  /// empty catalog (headers only if sections exist with empty leaf lists —
+  /// see projection rules).
   ///
-  /// The viewport MUST NOT fetch inside layout/paint; subclasses of
-  /// [CatalogDataSource] own fetch and call [CatalogDataSource.notifyDataChanged]
-  /// once per logical mutation.
-  final CatalogDataSource dataSource;
+  /// The viewport MUST NOT fetch inside layout/paint; the owner of the
+  /// observable fetches and publishes one new snapshot per logical mutation
+  /// (grouping steps in the owner's batch).
+  final ValueObservable<CatalogSnapshot> snapshots;
 
   /// Process-wide asset cache for leaf readiness and decode.
   ///
@@ -125,13 +128,13 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   final CatalogAssetCache assetCache;
 
   /// Absolute content-offset and navigation entry points ([jumpTo], [scrollBy],
-  /// [PanelCatalogController.jumpToSection]).
+  /// [PanelCatalogController.jumpToSection]) and the scroll-event Observable.
   ///
-  /// Catalog top = `0`. After each navigation notify the bound render object
-  /// clamps to `[0, max(0, contentExtent − viewportHeight)]` via
-  /// [PanelCatalogController.correctOffset] (silent — jump/scroll listeners
-  /// are not re-fired). [offset] MAY briefly sit outside that range until
-  /// clamp runs (e.g. [jumpTo] past the end before layout knows extent).
+  /// Catalog top = `0`. The bound render object attaches itself as the
+  /// controller's position and clamps to `[0, max(0, contentExtent −
+  /// viewportHeight)]` after each navigation. [offset] MAY briefly sit outside
+  /// that range until clamp runs (e.g. [jumpTo] past the end before layout
+  /// knows extent).
   ///
   /// The viewport does **not** dispose this controller.
   final PanelCatalogController controller;
@@ -218,7 +221,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     final theme = PanelCatalogTheme.of(context, listen: true);
     final dpr = MediaQuery.devicePixelRatioOf(context);
     return RenderPanelCatalog(
-      dataSource: dataSource,
+      snapshots: snapshots,
       assetCache: assetCache,
       controller: controller,
       spanCount: spanCount,
@@ -244,7 +247,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     final theme = PanelCatalogTheme.of(context, listen: true);
     final dpr = MediaQuery.devicePixelRatioOf(context);
     renderObject
-      ..dataSource = dataSource
+      ..snapshots = snapshots
       ..assetCache = assetCache
       ..controller = controller
       ..spanCount = spanCount

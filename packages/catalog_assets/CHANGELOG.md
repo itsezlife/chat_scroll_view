@@ -57,6 +57,28 @@ is pre-1.0.
 - `legacy_shim.dart`: the removed readiness-flag API for `panel_catalog` and
   `chat_chrome` until they migrate. Temporary; do not import it from new code.
 
+### Added (content view and inline embed)
+
+- `ContentView`, a widget that attaches `(content, preset)` to the host's scope,
+  paints the binding and detaches when it leaves the tree. It keeps one attach
+  across rebuilds, takes (and gives back) the atlas page hold of a glyph with
+  its attach, follows `TickerMode` for `visible` and gets a repaint boundary
+  when its preset animates.
+- `AssetCacheProvider`, the `InheritedWidget` that hands the host-created
+  `AssetCacheScope` to the widgets below (never disposes it).
+- `AssetPreset` and `AssetPresets` (`keyboardCell`, `inlineMessage`): named
+  recipes of size, `AssetSpec` and `AssetProfile`.
+- `InlineEmbed`, `InlineEmbedResolver`, `InlineEmbedTarget`,
+  `InlineEmbedMetrics` and `InlineEmbedPaintContext`: the package-local,
+  painter-based embed contract a markdown body can lay out and paint, with
+  `ContentEmbed` (over an `AssetBinding`) and `ContentEmbedResolver`
+  (`unicode:` / `document:` / `external:` targets).
+- `TextGlyphProducer`: the paragraph strategy for a platform without an atlas
+  (the web): unicode keys are final on attach and paint as a cached paragraph,
+  bounded by the still budget.
+- `testing.dart`: `FakeInlineEmbed`, `FakeInlineEmbedResolver`,
+  `runInlineEmbedContract` and `runInlineEmbedResolverContract`.
+
 ### Added (fetcher, decoders, orchestration)
 
 - `AssetPipeline`, the `AssetProducer` that resolves, fetches and decodes:

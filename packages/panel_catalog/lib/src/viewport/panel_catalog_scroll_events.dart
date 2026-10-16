@@ -1,10 +1,20 @@
+import 'package:content_model/content_model.dart';
+
 /// Sealed hierarchy of scroll-side events emitted by [PanelCatalogViewport].
 ///
-/// Subscribe via [PanelCatalogController.addScrollListener] to react to user
-/// drags / flings / programmatic jumps / section motion without conflating
-/// channels — e.g. update sticky shell chrome on every offset tick, dismiss
-/// search focus on user drag only, or debounce bottom-bar hide while a fling
-/// is in flight.
+/// Subscribe via [PanelCatalogController.events] to react to user drags /
+/// flings / programmatic jumps / section motion without conflating channels —
+/// e.g. update sticky shell chrome on every offset tick, dismiss search focus
+/// on user drag only, or debounce bottom-bar hide while a fling is in flight.
+///
+/// ## Two layers
+///
+/// The motion events ([PanelCatalogUserDragStart] through
+/// [PanelCatalogOffsetChanged]) say what moved the catalog. The activity
+/// events ([PanelCatalogScrollingChanged], [PanelCatalogScrollSettled]) are
+/// derived from them by the viewport and say whether the catalog is moving at
+/// all, so a page that paces background work (a glyph bake) reads two facts
+/// instead of re-deriving them from every motion event.
 sealed class PanelCatalogScrollEvent {
   const PanelCatalogScrollEvent();
 }
@@ -23,6 +33,13 @@ final class PanelCatalogUserDragEnd extends PanelCatalogScrollEvent {
 
   /// Terminal drag velocity in pixels/second; positive reveals lower content.
   final double velocity;
+}
+
+/// The drag was cancelled without a release (the pointer was lost or the
+/// viewport left the tree).
+final class PanelCatalogUserDragCancel extends PanelCatalogScrollEvent {
+  /// Emitted when a drag ends without [PanelCatalogUserDragEnd].
+  const PanelCatalogUserDragCancel();
 }
 
 /// A fling simulation just started after drag end.
@@ -112,11 +129,12 @@ final class PanelCatalogSectionJumpEnd extends PanelCatalogScrollEvent {
   final int sectionIndex;
 }
 
-/// Absolute [offset] changed without a jump/scroll-by listener re-fire.
+/// Absolute [offset] changed.
 ///
-/// Emitted for near-path section ticks, [PanelCatalogController.animateTo]
-/// ticks, far-path stitch teleports, and silent viewport clamps — any write
-/// through [PanelCatalogController.applyOffset]. Shell chrome (sticky search,
+/// Emitted with every [PanelCatalogProgrammaticJump] and
+/// [PanelCatalogViewportScrolled], and alone for near-path section ticks,
+/// [PanelCatalogController.animateTo] ticks and far-path stitch teleports.
+/// The viewport's silent range clamp emits nothing. Shell chrome (sticky search,
 /// category strip) SHOULD listen here to stay aligned during programmatic
 /// motion.
 final class PanelCatalogOffsetChanged extends PanelCatalogScrollEvent {
@@ -128,4 +146,43 @@ final class PanelCatalogOffsetChanged extends PanelCatalogScrollEvent {
 
   /// `newOffset − previousOffset`; may be `0` when coalesced same-frame.
   final double delta;
+}
+
+/// The catalog started or stopped moving, as one fact over every way it can
+/// move.
+///
+/// `scrolling: true` is published at once when the catalog starts to move: an
+/// offset write (drag, wheel, fling tick, jump, animation tick), a drag in
+/// progress (a finger that holds still is not at rest), or a fling / section
+/// jump / stitch in flight between two ticks. `scrolling: false` follows one
+/// quiet frame after all of that has ended, immediately before
+/// [PanelCatalogScrollSettled]. Consecutive events always differ in
+/// [scrolling].
+///
+/// A viewport that leaves the tree while the catalog is moving publishes
+/// `scrolling: false` first, so a listener that paused work is never left
+/// waiting.
+final class PanelCatalogScrollingChanged extends PanelCatalogScrollEvent {
+  /// Emitted when the viewport's moving / resting state changes.
+  const PanelCatalogScrollingChanged({required this.scrolling});
+
+  /// Whether the catalog is moving now.
+  final bool scrolling;
+}
+
+/// The catalog came to rest, or its visible band changed while at rest.
+///
+/// [visibleKeys] lists the content on screen, top first, in projection order,
+/// so a listener can prioritise the work for what the user sees (the glyph
+/// bake bakes the page holding the visible band first). Published once per
+/// rest, one quiet frame after the last motion, and again when a new snapshot
+/// or geometry changes what is on screen while nothing moves. Never published
+/// while the catalog moves.
+final class PanelCatalogScrollSettled extends PanelCatalogScrollEvent {
+  /// Emitted when the catalog is at rest, with the content in view.
+  PanelCatalogScrollSettled(List<ContentKey> visibleKeys)
+    : visibleKeys = List<ContentKey>.unmodifiable(visibleKeys);
+
+  /// Keys of the leaves in the visible band, top first. Unmodifiable.
+  final List<ContentKey> visibleKeys;
 }

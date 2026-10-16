@@ -73,7 +73,7 @@ bindings that hold them and by the atlas itself, kept for the retention after
 the last hold and released under memory pressure unless held. Registering a new
 source moves live bindings to it in place. Without a registered source a
 unicode key is an ordinary entry, which is how a platform that draws glyphs as
-text plugs a producer that does.
+text plugs a producer that does (`TextGlyphProducer`, below).
 
 ### Defaults and how they were chosen
 
@@ -204,6 +204,75 @@ Adapter authors run `runAssetFetcherContract` and `runDecoderContract` from
 `testing.dart` against their implementations; the package tests the pipeline
 with `FakeFetcher`, `FakeDecoder` and `ManualClock`.
 
+## Widgets and inline embeds
+
+Two ways to draw cache content outside the catalogue viewport: a widget
+(`ContentView`, for a composer field, a header, a sticker in a bubble) and a
+painter-based inline embed (`ContentEmbed`, for content set inside text that a
+markdown body lays out and paints itself). Both attach `(content, spec,
+profile)` to the host's scope and so share its entries, budgets, playback clock
+and pause layers; a unicode glyph on a platform that bakes holds the page of
+its glyph from attach to detach (the page count is taken at attach, given back
+once at detach, whatever the cache does in between).
+
+```dart
+AssetCacheProvider(
+  scope: hostScope,                       // created and disposed by the host
+  child: ContentView(
+    content: const ContentKey.document('5368'),
+    preset: AssetPresets.keyboardCell(extent: 34, devicePixelRatio: dpr),
+    semanticLabel: 'waving hand',
+  ),
+)
+```
+
+| Type | Role |
+| --- | --- |
+| `AssetCacheProvider` | `InheritedWidget` handing the host's `AssetCacheScope` down; `of` throws without one, `maybeOf` is null. Never disposes the scope |
+| `ContentView` | Attaches on first build, again only when content, preset or scope change (new attach first, old one given back after, so a shared entry or glyph page is never left unheld), detaches on dispose. Sized by the preset; repaints on the binding's signal, never rebuilds for it. Follows `TickerMode` for `visible` |
+| `AssetPreset` / `AssetPresets` | Size (logical), `AssetSpec` and `AssetProfile` in one value. `keyboardCell(extent:, devicePixelRatio:)` and `inlineMessage(fontSize:, devicePixelRatio:)` (an extent of 1.2 times the font size by default); hosts build their own |
+| `InlineEmbed` (seam) | What a body lays out and paints: `sizeHint`, `paint(canvas, rect, context)`, an `Observable` invalidation signal, `visible`, `dispose`. No widget, no asset type |
+| `InlineEmbedResolver` (seam) | Maps an `InlineEmbedTarget` (scheme, id, alt) and `InlineEmbedMetrics` (font size, density) to a new `InlineEmbed`, or null |
+| `ContentEmbed` | The `InlineEmbed` over an `AssetBinding`: attaches at construction with a preset, paints the paintable at the shared clock's time, detaches in `dispose` |
+| `ContentEmbedResolver` | Resolves targets spelled as `ContentKey.encoded` (`unicode:1F44D`, `document:5368`, `external:...`) to `ContentEmbed`s, with `AssetPresets.inlineMessage` unless the host passes `presetFor` |
+| `TextGlyphProducer` | Paragraph strategy of the glyph form for a platform with no atlas (the web): unicode keys are final on attach and paint a cached paragraph in the system font; other keys go to the producer it wraps. Compose it as the scope's producer only where no `glyphSource` is registered |
+
+Behaviour that matters to a host:
+
+- **A view or embed signals; it does not poll.** Stages, a landed atlas page
+  and animation frames reach it as the binding's signal. A body repaints on an
+  embed's signal and calls `dispose` when its text goes away; a parent that
+  rebuilds `ContentView` every frame costs no attach.
+- **Playback.** An animated preset plays only while the view is shown
+  (`TickerMode` enabled, `visible` true for an embed), the clock is not paused
+  by a host layer, and the paintable animates. A body sets `visible = false`
+  on an embed it scrolled out of view.
+- **Atlas.** The view and the embed draw a baked sprite scaled to their box,
+  so message-sized content reuses the one atlas size; there is never a second
+  atlas. A glyph the atlas does not know stays a circle placeholder (the glyph
+  form never falls back to text where an atlas is registered).
+- **Inline embeds in message bodies are a follow-up.** `InlineEmbed` and
+  `ContentEmbed` are the ready contract and adapter; laying them out and
+  painting them inside `flutter_md` and the root viewport body (placeholder
+  layout, alt text for copy, selection and accessibility, scheme-based
+  resolver registration) is tracked as issue 36, outside this package. The
+  composer's `InlineContentSpanBuilder` hook (the span must be as long as the
+  alternative text) is wired by the composer's field widget, also outside this
+  package.
+
+Decisions: [ADR 022](../../docs/adr/022-asset-cache-and-media-pipeline.md)
+(paintable, glyph form, bindings) and
+[ADR 029](../../docs/adr/029-host-integration.md) (embed seam, scope boundary).
+
+### Host contract
+
+| The host provides | The host must not |
+| --- | --- |
+| An `AssetCacheProvider` above the widgets that draw content, or a `scope:` argument | Dispose the scope while views or embeds are attached (`attach` after `dispose` throws), or expect the provider to dispose it |
+| Presets for its surfaces (`AssetPresets` or its own `AssetPreset`), sized from the text and density the surface really has | Pass a pixel size of its own: the spec is part of the entry identity, so a stray size is a second decode |
+| `InlineEmbedResolver`s registered per scheme where it sets up a body, and `dispose` for every embed the body is done with | Keep an embed past its text, or share one embed between two places (each `resolve` returns an embed of its own) |
+| `TextGlyphProducer` as the scope's producer on a platform without an atlas | Use it where an atlas is registered (a paragraph at scroll time is what the glyph form avoids), or leave a hidden animated embed with `visible` true (it keeps costing ticks) |
+
 ## Glyph atlas (`glyph_atlas.dart`, `testing.dart`)
 
 Bakes the glyphs a host supplies into fixed-size **glyph atlas pages** and
@@ -291,6 +360,9 @@ readable), `ManualPlaybackTickSource`, and the contract suites
 `runGlyphSpriteSourceContract` (the fake and `GlyphAtlas` both pass it) and
 `runPlaybackTickSourceContract` (the manual and the scheduler source both pass
 it).
+For the widget and embed seams: `FakeInlineEmbed`, `FakeInlineEmbedResolver` and the
+contract suites `runInlineEmbedContract` (`ContentEmbed` and the fake both pass
+it) and `runInlineEmbedResolverContract`.
 On-device checks: `example/integration_test/glyph_atlas_bake_test.dart` (bake
 and visual check) and `glyph_atlas_paced_bake_test.dart` (paced bake idle, while
 the panel opens, during a fling).

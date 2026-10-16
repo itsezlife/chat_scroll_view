@@ -3,8 +3,8 @@ import 'package:flutter/animation.dart';
 /// Continuous smooth scroll for near-path section jumps.
 ///
 /// Owns one [AnimationController] driven by a [TickerProvider]. Applies
-/// intermediate offsets through [applyOffset] (typically silent viewport
-/// [PanelCatalogController.correctOffset] writes) and repaints each tick.
+/// intermediate offsets through [applyOffset] (the viewport publishes an offset
+/// event per write, never a jump) and repaints each tick.
 /// Does **not** own path selection, landing math, or stitch.
 final class CatalogNearScroll {
   /// Creates idle near-scroll state bound to [vsync].

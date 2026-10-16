@@ -395,7 +395,7 @@ class EmojiPageState extends State<EmojiPage>
       emojiSource: widget.dataSource,
       assetCache: _assetCache,
     );
-    _catalogController.addScrollListener(_onCatalogScrollEvent);
+    _catalogController.events.addListener(_onCatalogScrollEvent);
     _stripOffset.addListener(_onStripOffsetChanged);
     widget.dataSource.addDataListener(_onDataChanged);
     widget.searchController?.addListener(_onSearchController);
@@ -483,7 +483,7 @@ class EmojiPageState extends State<EmojiPage>
     _categoryIndex.dispose();
     _stripOffset.dispose();
     _stripShadowVisible.dispose();
-    _catalogController.removeScrollListener(_onCatalogScrollEvent);
+    _catalogController.events.removeListener(_onCatalogScrollEvent);
     _catalogController.dispose();
     _catalogDataSource.dispose();
     _assetCache.dispose();
@@ -1339,7 +1339,7 @@ class EmojiPageState extends State<EmojiPage>
               return PanelCatalogTheme(
                 data: _catalogTheme(colors, brightness),
                 child: PanelCatalogViewport(
-                  dataSource: _catalogDataSource,
+                  snapshots: _catalogDataSource.snapshots,
                   assetCache: _assetCache,
                   controller: _catalogController,
                   spanCount: _spanCount,
