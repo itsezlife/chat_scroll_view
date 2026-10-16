@@ -11,7 +11,6 @@
 /// and the atlas cache are what survives between launches.
 library;
 
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/glyph_atlas.dart';
@@ -137,7 +136,9 @@ void main() {
     launches = [];
   });
   tearDown(() async {
-    launches.forEach((launch) => launch.dispose());
+    for (final launch in launches) {
+      launch.dispose();
+    }
     await cache.clear();
   });
 
@@ -154,7 +155,9 @@ void main() {
       osVersion: osVersion,
     );
     // The process before this one has ended; what it persisted stays.
-    launches.forEach((earlier) => earlier.dispose());
+    for (final earlier in launches) {
+      earlier.dispose();
+    }
     launches.add(result);
     return result;
   }

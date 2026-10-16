@@ -9,7 +9,6 @@ library;
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:test/test.dart';
@@ -33,28 +32,24 @@ void main() {
     );
     return GlyphSupportHarness(
       support: probe,
-      learn:
-          ({
-            Set<ContentKey$Unicode> missing = const {},
-            String? artVersion,
-          }) async {
-            if (missing.isNotEmpty) {
-              probe.observe(_reference, _cell(9));
-              for (final key in missing) {
-                probe.observe(key.sequence, _cell(9));
-              }
-            }
-            if (artVersion != null) {
-              unawaited(probe.start());
-              version.complete(artVersion);
-            } else if (missing.isNotEmpty) {
-              // The probe publishes answers once it knows the art version they
-              // were established against.
-              unawaited(probe.start());
-              version.complete('art-under-test');
-            }
-            await pumpEventQueue();
-          },
+      learn: ({missing = const {}, artVersion}) async {
+        if (missing.isNotEmpty) {
+          probe.observe(_reference, _cell(9));
+          for (final key in missing) {
+            probe.observe(key.sequence, _cell(9));
+          }
+        }
+        if (artVersion != null) {
+          unawaited(probe.start());
+          version.complete(artVersion);
+        } else if (missing.isNotEmpty) {
+          // The probe publishes answers once it knows the art version they
+          // were established against.
+          unawaited(probe.start());
+          version.complete('art-under-test');
+        }
+        await pumpEventQueue();
+      },
     );
   });
 }

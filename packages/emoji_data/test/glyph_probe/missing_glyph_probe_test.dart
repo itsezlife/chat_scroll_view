@@ -353,7 +353,7 @@ void main() {
         final subject = probe(['a']);
         await subject.start();
 
-        expect(subject.isComplete, isFalse, reason: '${stored.value}');
+        expect(subject.isComplete, isFalse, reason: stored.value);
         expect(subject.pendingReferences, [_reference]);
       }
     });
