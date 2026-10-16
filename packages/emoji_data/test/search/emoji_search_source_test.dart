@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:emoji_data/emoji_data.dart';
@@ -271,6 +273,28 @@ void main() {
         [key('1F44D'), key('2764-FE0F')],
       );
       expect(publications, 1);
+    });
+
+    test('keeps the results on screen and reports a pack that cannot be read, '
+        'instead of swallowing it', () async {
+      final search = source();
+      addTearDown(search.dispose);
+      await search.search('heart');
+      final before = search.results.value;
+      final reported = <Object>[];
+
+      await runZonedGuarded(() async {
+        keywords.failure = Exception('unreadable pack');
+        keywords.publish(
+          _pack('en', {
+            '1F44D': ['heart'],
+          }),
+        );
+        await Future<void>.delayed(Duration.zero);
+      }, (error, stack) => reported.add(error));
+
+      expect(search.results.value, same(before));
+      expect(reported, [isA<Exception>()]);
     });
 
     test('leaves an empty query alone', () async {

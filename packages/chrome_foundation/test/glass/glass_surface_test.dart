@@ -3,6 +3,8 @@ import 'package:chrome_foundation/src/glass/strategy/glass_backdrops.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/missing_shaders.dart';
+
 const _glassKey = ValueKey('glass');
 
 Widget _surface({
@@ -67,22 +69,37 @@ Color? _flatFill() {
 }
 
 void main() {
+  group('GlassSurface shader loading', () {
+    testWidgets('reports a failure instead of swallowing it and keeps '
+        'painting on the flat path', (tester) async {
+      failGlassShaders(StateError('shader asset missing'));
+      await tester.pumpWidget(_surface(source: true));
+      await tester.pump();
+
+      final reported = tester.takeException();
+      expect(reported, isStateError);
+      expect(tester.takeException(), isNull, reason: 'reported once');
+      expect(_samples(), isFalse, reason: 'no shader path without programs');
+      expect(_flatFill(), isNotNull);
+    });
+  });
+
   group('GlassSurface strategy', () {
-    testWidgets('samples a source under full liquid', (tester) async {
+    testGlassWidgets('samples a source under full liquid', (tester) async {
       await tester.pumpWidget(_surface(source: true));
 
       expect(_samples(), isTrue);
       expect(_filters(), isFalse);
     });
 
-    testWidgets('filters the scene without a source', (tester) async {
+    testGlassWidgets('filters the scene without a source', (tester) async {
       await tester.pumpWidget(_surface());
 
       expect(_filters(), isTrue);
       expect(_samples(), isFalse);
     });
 
-    testWidgets('paints flat when the host asks for flat quality', (
+    testGlassWidgets('paints flat when the host asks for flat quality', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -94,14 +111,14 @@ void main() {
       expect(_flatFill(), isNotNull);
     });
 
-    testWidgets('paints flat in lite mode', (tester) async {
+    testGlassWidgets('paints flat in lite mode', (tester) async {
       await tester.pumpWidget(_surface(lite: true, source: true));
 
       expect(_samples(), isFalse);
       expect(_flatFill(), isNotNull);
     });
 
-    testWidgets('paints nothing but the child under off', (tester) async {
+    testGlassWidgets('paints nothing but the child under off', (tester) async {
       await tester.pumpWidget(_surface(quality: GlassQuality.off));
 
       expect(_inGlass(find.byType(DecoratedBox)), findsNothing);
@@ -109,7 +126,7 @@ void main() {
       expect(_filters(), isFalse);
     });
 
-    testWidgets('follows a change of policy', (tester) async {
+    testGlassWidgets('follows a change of policy', (tester) async {
       await tester.pumpWidget(_surface());
       expect(_filters(), isTrue);
 
@@ -119,7 +136,7 @@ void main() {
   });
 
   group('GlassSurface colours', () {
-    testWidgets('flat fill is the theme colour of the material', (
+    testGlassWidgets('flat fill is the theme colour of the material', (
       tester,
     ) async {
       for (final material in GlassMaterial.values) {
@@ -134,7 +151,7 @@ void main() {
       }
     });
 
-    testWidgets('a nested scope restyles one material', (tester) async {
+    testGlassWidgets('a nested scope restyles one material', (tester) async {
       const custom = GlassMaterialColors(
         fill: Color(0xFF123456),
         strokeTop: Color(0x00000000),
@@ -170,7 +187,7 @@ void main() {
       expect(_flatFill(), const Color(0xFF123456));
     });
 
-    testWidgets('fails without a chrome theme scope', (tester) async {
+    testGlassWidgets('fails without a chrome theme scope', (tester) async {
       await tester.pumpWidget(
         const Directionality(
           textDirection: TextDirection.ltr,

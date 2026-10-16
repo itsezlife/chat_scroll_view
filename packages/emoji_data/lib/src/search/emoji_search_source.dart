@@ -179,7 +179,10 @@ final class EmojiSearchSource implements SearchSource {
       final List<KeywordPack> packs;
       try {
         packs = await _packs();
-      } on Object {
+      } on Object catch (error, stackTrace) {
+        // The results already on screen stay; the failure goes to the zone
+        // like any other nobody awaits.
+        Zone.current.handleUncaughtError(error, stackTrace);
         return;
       }
       if (_disposed || generation != _generation) return;

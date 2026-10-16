@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/missing_shaders.dart';
+
 const _style = GlassStyle(
   fill: Color(0xD9202020),
   strokeTop: Color(0x28FFFFFF),
@@ -128,7 +130,9 @@ void main() {
       ),
     );
 
-    testWidgets('shares one capture between nearby samplers', (tester) async {
+    testGlassWidgets('shares one capture between nearby samplers', (
+      tester,
+    ) async {
       await pumpScope(tester);
       final composer = _Sampler(const Rect.fromLTWH(0, 500, 400, 100));
       final button = _Sampler(const Rect.fromLTWH(340, 430, 60, 60));
@@ -144,7 +148,7 @@ void main() {
       await tester.pump();
     });
 
-    testWidgets('captures distant samplers separately', (tester) async {
+    testGlassWidgets('captures distant samplers separately', (tester) async {
       await pumpScope(tester);
       final top = _Sampler(const Rect.fromLTWH(0, 0, 400, 60));
       final bottom = _Sampler(const Rect.fromLTWH(0, 500, 400, 60));
@@ -162,7 +166,9 @@ void main() {
   });
 
   group('GlassSource', () {
-    testWidgets('captures a region at the requested scale', (tester) async {
+    testGlassWidgets('captures a region at the requested scale', (
+      tester,
+    ) async {
       await tester.pumpWidget(MaterialApp(home: _themed(_scene())));
 
       final source = tester.renderObject<RenderGlassSource>(
@@ -178,14 +184,16 @@ void main() {
       expect((image.width, image.height), (50, 25));
     });
 
-    testWidgets('frosts without reading back the frame', (tester) async {
+    testGlassWidgets('frosts without reading back the frame', (tester) async {
       await tester.pumpWidget(MaterialApp(home: _themed(_scene())));
 
       expect(_drawsGlass(), isTrue);
       expect(_readsBackdrop(tester), isFalse);
     });
 
-    testWidgets('keeps the glass on while its route moves', (tester) async {
+    testGlassWidgets('keeps the glass on while its route moves', (
+      tester,
+    ) async {
       final navigator = GlobalKey<NavigatorState>();
       await tester.pumpWidget(
         MaterialApp(
@@ -202,54 +210,55 @@ void main() {
       expect(_readsBackdrop(tester), isFalse);
     });
 
-    testWidgets('an ancestor clip and transform apply to the captured glass', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: GlassSourceScope(
-            child: Stack(
-              children: [
-                const Positioned.fill(
-                  child: GlassSource(
-                    child: ColoredBox(color: Color(0xFF3366FF)),
+    testGlassWidgets(
+      'an ancestor clip and transform apply to the captured glass',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: GlassSourceScope(
+              child: Stack(
+                children: [
+                  const Positioned.fill(
+                    child: GlassSource(
+                      child: ColoredBox(color: Color(0xFF3366FF)),
+                    ),
                   ),
-                ),
-                Builder(
-                  builder: (context) => Center(
-                    child: Transform.scale(
-                      scale: 0.9,
-                      child: ClipOval(
-                        child: SizedBox.square(
-                          dimension: 44,
-                          child: SampledGlassBackdrop(
-                            link: glassSourceLinkOf(context)!,
-                            style: _style,
-                            programs: null,
-                            pixelRatio: 1,
+                  Builder(
+                    builder: (context) => Center(
+                      child: Transform.scale(
+                        scale: 0.9,
+                        child: ClipOval(
+                          child: SizedBox.square(
+                            dimension: 44,
+                            child: SampledGlassBackdrop(
+                              link: glassSourceLinkOf(context)!,
+                              style: _style,
+                              programs: null,
+                              pixelRatio: 1,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      final glass = tester.layers.singleWhere(
-        (layer) => '${layer.runtimeType}' == '_CapturedGlassLayer',
-      );
-      final ancestors = <Type>[
-        for (Layer? layer = glass.parent; layer != null; layer = layer.parent)
-          layer.runtimeType,
-      ];
-      expect(ancestors, containsAllInOrder([ClipPathLayer, TransformLayer]));
-    });
+        final glass = tester.layers.singleWhere(
+          (layer) => '${layer.runtimeType}' == '_CapturedGlassLayer',
+        );
+        final ancestors = <Type>[
+          for (Layer? layer = glass.parent; layer != null; layer = layer.parent)
+            layer.runtimeType,
+        ];
+        expect(ancestors, containsAllInOrder([ClipPathLayer, TransformLayer]));
+      },
+    );
 
-    testWidgets('filters the scene when the backend cannot capture', (
+    testGlassWidgets('filters the scene when the backend cannot capture', (
       tester,
     ) async {
       await tester.pumpWidget(
