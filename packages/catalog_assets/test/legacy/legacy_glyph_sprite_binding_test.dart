@@ -1,5 +1,5 @@
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/glyph_atlas.dart';
+import 'package:catalog_assets/legacy_shim.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';

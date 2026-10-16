@@ -1,7 +1,7 @@
 import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
-import 'package:catalog_assets/src/catalog_asset_cache_type.dart';
-import 'package:catalog_assets/src/catalog_asset_key.dart';
-import 'package:catalog_assets/src/catalog_asset_readiness.dart';
+import 'package:catalog_assets/src/legacy/catalog_asset_cache_type.dart';
+import 'package:catalog_assets/src/legacy/catalog_asset_key.dart';
+import 'package:catalog_assets/src/legacy/catalog_asset_readiness.dart';
 
 /// A live attach to one cache entry.
 ///

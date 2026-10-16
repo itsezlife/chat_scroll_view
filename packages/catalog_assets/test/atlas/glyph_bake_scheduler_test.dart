@@ -10,6 +10,7 @@ const _budget = Duration(microseconds: 8333);
 
 /// A pause signal that can say whether anyone still listens to it.
 class _Signal extends ValueNotifier<bool> {
+  // ignore: avoid_positional_boolean_parameters, mirrors ValueNotifier.
   _Signal(super.value);
 
   bool get isListenedTo => hasListeners;

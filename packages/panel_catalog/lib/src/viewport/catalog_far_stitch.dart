@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/legacy_shim.dart';
 import 'package:flutter/animation.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';

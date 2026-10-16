@@ -48,9 +48,9 @@ void main() {
 
   group('GlyphCacheRecord', () {
     test('survives a round trip through json, glyphs included', () {
-      final record = GlyphCacheRecord(
+      const record = GlyphCacheRecord(
         key: base,
-        glyphs: const ['😀', '👨‍👩‍👧‍👦', '🇯🇵', 'a"b\\c'],
+        glyphs: ['😀', '👨‍👩‍👧‍👦', '🇯🇵', r'a"b\c'],
       );
       final back = GlyphCacheRecord.fromJson(record.toJson());
       expect(back.key, base);
@@ -70,7 +70,7 @@ void main() {
     });
 
     test('rejects a record written by another format version', () {
-      final json = GlyphCacheRecord(key: base, glyphs: const ['a']).toJson();
+      final json = const GlyphCacheRecord(key: base, glyphs: ['a']).toJson();
       expect(
         () => GlyphCacheRecord.fromJson(
           json.replaceFirst('"format":1', '"format":99'),

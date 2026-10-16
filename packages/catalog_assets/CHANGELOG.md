@@ -6,6 +6,51 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (breaking)
+
+- **The readiness-flag cache is replaced by the asset cache core.**
+  `CatalogAssetCache`, `CatalogAssetKey`, `CatalogAssetBinding`,
+  `CatalogAssetReadiness`, `CatalogAssetCacheType`, `MemoryCatalogAssetCache`
+  and `FakeCatalogAssetCache` are no longer exported from
+  `catalog_assets.dart`. Code that attached `(key, cacheType)` and read
+  `loading` / `ready` / `failed` now attaches `(ContentKey, AssetSpec,
+  AssetProfile)` to an `AssetCacheScope` and reads a staged `AssetReadiness`
+  (`none`, `placeholder`, `firstFrame`, `full`, with `isFinal`); there is no
+  failed stage, and the entry that used to stay `failed` now keeps its
+  placeholder and is attempted again on re-attach, on
+  `connectivityRestored()` or on `retry()`. `CatalogAssetBinding.sprite`
+  becomes `AssetBinding.paintable.sprite` (the sprite capability of an
+  `AssetPaintable`). Entries with live bindings are pinned and unattached
+  ones are kept in a byte-budgeted LRU (`AssetCacheBudgets`, 24 MiB of stills
+  and 12 MiB of animations by default) instead of forever; `evict` and `clear`
+  are `clearAll()`, which leaves bound entries alone.
+- **`catalog_assets.dart` no longer exports `GlyphAtlas`.** Import
+  `glyph_atlas.dart` for it; the cache reaches an atlas only through
+  `GlyphSpriteSource`, which `GlyphAtlas` implements and the host registers as
+  `AssetCacheScope.glyphSource`. Swapping the source moves live bindings in
+  place.
+- `catalog_assets` depends on `content_model` (`ContentKey`, `Observable`).
+  The `emoji_data` dev dependency is gone: the tests that read the real
+  catalogue use `sampleGlyphCatalogue()` (1610 distinct glyphs, the size the
+  3 page / 48 MiB budget was measured at; 2704 is the 64 MiB ceiling).
+- `GlyphPageHold` implements `SpritePageHold`; `GlyphAtlas` implements
+  `GlyphSpriteSource`. No behaviour change.
+
+### Added (asset cache core)
+
+- `AssetCacheScope`, `AssetBinding`, `AssetSpec` (`AssetDecodeMode`,
+  `AssetVariant`), `AssetProfile`, `AssetPaintable` (+ `AssetPaintContext`),
+  `AssetStage` / `AssetReadiness`, `AssetCacheBudgets` / `AssetTier`, the
+  `AssetProducer` seam (`AssetRequest`, `AssetProgress`, `AssetTask`,
+  `AssetFailureKind`), `PlaybackClock` / `PlaybackPolicy` /
+  `PlaybackPauseLayer` and the `PlaybackTickSource` seam, `GlyphSpriteSource`
+  / `SpritePageHold`.
+- `testing.dart`: `FakeAssetProducer`, `FakeAssetPaintable`,
+  `FakeGlyphSpriteSource`, `ManualPlaybackTickSource`, `sampleGlyphCatalogue`,
+  `runGlyphSpriteSourceContract`, `runPlaybackTickSourceContract`.
+- `legacy_shim.dart`: the removed readiness-flag API for `panel_catalog` and
+  `chat_chrome` until they migrate. Temporary; do not import it from new code.
+
 ### Added
 
 - **Bake pass shared with the glyph-support probe.** `GlyphBakeObserver` (a
