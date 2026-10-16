@@ -27,6 +27,8 @@ dependencies:
   morphnext: ^0.6.0
 
 dev_dependencies:
+  content_model:
+    path: ../content_model
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

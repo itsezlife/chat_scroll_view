@@ -18,26 +18,28 @@ abstract final class EmojiCatalogSearch {
         .toSet();
     if (keywordSet.isEmpty) return const <UnicodeEmojiItem>[];
 
-    return catalog.where((item) {
-      final emojiKeywordSet = item.keywords
-          .map((k) => k.toLowerCase())
-          .toSet();
+    return catalog
+        .where((item) {
+          final emojiKeywordSet = item.keywords
+              .map((k) => k.toLowerCase())
+              .toSet();
 
-      final matchFirstKeyword = emojiKeywordSet.any(
-        (emojiKeyword) => emojiKeyword.startsWith(keywordSet.first),
-      );
-
-      var matchKeywords = false;
-      if (matchFirstKeyword) {
-        matchKeywords = keywordSet.skip(1).every((keyword) {
-          return emojiKeywordSet.any(
-            (emojiKeyword) => emojiKeyword.startsWith(keyword),
+          final matchFirstKeyword = emojiKeywordSet.any(
+            (emojiKeyword) => emojiKeyword.startsWith(keywordSet.first),
           );
-        });
-      }
 
-      final matchEmoji = item.glyph == q;
-      return matchKeywords || matchEmoji;
-    }).toList(growable: false);
+          var matchKeywords = false;
+          if (matchFirstKeyword) {
+            matchKeywords = keywordSet.skip(1).every((keyword) {
+              return emojiKeywordSet.any(
+                (emojiKeyword) => emojiKeyword.startsWith(keyword),
+              );
+            });
+          }
+
+          final matchEmoji = item.glyph == q;
+          return matchKeywords || matchEmoji;
+        })
+        .toList(growable: false);
   }
 }

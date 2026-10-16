@@ -237,7 +237,7 @@ Terms: [Panel Catalog glossary](../../docs/panel-catalog/CONTEXT.md)
 | `GlyphCacheStore` (seam) | One committed generation (what the next launch finds) and at most one staged one; `createGlyphCacheStoreForPlatform(path)` is a `dart:io` file store, in memory on the web; `FakeGlyphCacheStore` in `testing.dart` |
 | `GlyphCacheKey` | Art version + density + glyph size + layout version + catalogue hash; decides hit, stale, discard or miss |
 | `GlyphArtVersionSource` (seam) | Says whether the system emoji art changed; `FixedGlyphArtVersion`, `ComputedGlyphArtVersion` (a pixel fingerprint computed once; `GlyphPixelReader` draws the sentinels); `FakeGlyphArtVersionSource` in `testing.dart` |
-| `GlyphBakeObserver` (seam) | Shown each glyph's baked cell (RGBA bytes) so a glyph-support probe shares the bake pass; `FakeGlyphBakeObserver` in `testing.dart` |
+| `GlyphBakeObserver` (seam) | Shown each glyph's baked cell (RGBA bytes) so a glyph-support probe shares the bake pass; `CallbackGlyphBakeObserver` builds one from three functions (the bridge to a consumer that must not depend on this package); `FakeGlyphBakeObserver` in `testing.dart` |
 | `createGlyphAtlasForPlatform` | The platform strategy, taking a `GlyphAtlasRequest` (the arguments of `GlyphAtlas` in one value): an atlas on Android, iOS and desktop, `null` on the web (draw text, start no bake) |
 
 ### Disk cache

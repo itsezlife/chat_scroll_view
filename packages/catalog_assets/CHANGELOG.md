@@ -6,6 +6,12 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (glyph probe bridge)
+
+- `CallbackGlyphBakeObserver`: a `GlyphBakeObserver` made of three functions, so
+  the glyph-support probe in `emoji_data` is plugged into the bake pass without
+  either package depending on the other.
+
 ### Changed (breaking)
 
 - **The readiness-flag cache is replaced by the asset cache core.**

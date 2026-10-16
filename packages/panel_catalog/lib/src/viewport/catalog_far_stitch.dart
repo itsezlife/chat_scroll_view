@@ -168,7 +168,10 @@ bool catalogStitchSlotIsOutgoing(
 ) {
   for (final captured in outgoing) {
     switch ((slot, captured)) {
-      case (CatalogHeaderSlot header, CatalogStitchCapturedHeader capturedHeader):
+      case (
+        CatalogHeaderSlot header,
+        CatalogStitchCapturedHeader capturedHeader,
+      ):
         if (header.top == capturedHeader.contentTop) return true;
       case (CatalogLeafSlot leafSlot, CatalogStitchCapturedLeaf capturedLeaf):
         if (leafSlot.leaf.assetKey == capturedLeaf.leaf.assetKey) {
@@ -215,8 +218,9 @@ double measureCatalogStitchTravel({
     if (bottom > incomingBottom) incomingBottom = bottom;
   }
 
-  final finalHeight =
-      towardNewer ? outgoingBottom : viewportHeight - outgoingTop;
+  final finalHeight = towardNewer
+      ? outgoingBottom
+      : viewportHeight - outgoingTop;
   final scrollLength = hasIncoming
       ? finalHeight +
             (towardNewer ? -incomingTop : incomingBottom - viewportHeight)

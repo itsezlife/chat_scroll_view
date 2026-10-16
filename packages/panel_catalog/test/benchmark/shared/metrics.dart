@@ -172,9 +172,7 @@ String generateCatalogMemoryTable({
   final buf = StringBuffer()
     ..writeln('### $title')
     ..writeln()
-    ..writeln(
-      '| Leaves | Metric | Panel Catalog Viewport | $baselineLabel |',
-    )
+    ..writeln('| Leaves | Metric | Panel Catalog Viewport | $baselineLabel |')
     ..writeln(
       '|--------|--------|------------------------|${'-' * (baselineLabel.length + 2)}|',
     );

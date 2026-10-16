@@ -27,7 +27,10 @@ void main() {
       sectionHeaderStartInset: 12,
     );
     final mid = PanelCatalogThemeData.lerp(a, b, 0.5);
-    expect(mid.placeholderColor, Color.lerp(a.placeholderColor, b.placeholderColor, 0.5));
+    expect(
+      mid.placeholderColor,
+      Color.lerp(a.placeholderColor, b.placeholderColor, 0.5),
+    );
     expect(
       mid.leafPressHighlightColor,
       Color.lerp(a.leafPressHighlightColor, b.leafPressHighlightColor, 0.5),

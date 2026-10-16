@@ -207,23 +207,26 @@ void main() {
       expect(store.reads, reads, reason: 'nothing is read back');
     });
 
-    test('a page released for a closed panel loads again when it opens', () async {
-      final atlas = await baked(['a']);
-      visible.value = false;
-      final reads = store.reads;
-      final heard = <int>[];
-      atlas.addPageListener(heard.add);
-      pressure.raise();
-      visible.value = true;
+    test(
+      'a page released for a closed panel loads again when it opens',
+      () async {
+        final atlas = await baked(['a']);
+        visible.value = false;
+        final reads = store.reads;
+        final heard = <int>[];
+        atlas.addPageListener(heard.add);
+        pressure.raise();
+        visible.value = true;
 
-      expect(atlas.spriteOf('a'), isNull);
-      expect(atlas.spriteOf('a'), isNull, reason: 'one load, not two');
-      await frame();
+        expect(atlas.spriteOf('a'), isNull);
+        expect(atlas.spriteOf('a'), isNull, reason: 'one load, not two');
+        await frame();
 
-      expect(store.reads, reads + 1);
-      expect(atlas.spriteOf('a'), isNotNull);
-      expect(heard, [0, 0], reason: 'released, then drawable again');
-    });
+        expect(store.reads, reads + 1);
+        expect(atlas.spriteOf('a'), isNotNull);
+        expect(heard, [0, 0], reason: 'released, then drawable again');
+      },
+    );
 
     test('a page the store lost is reported once and baked again', () async {
       final atlas = await baked(['a']);

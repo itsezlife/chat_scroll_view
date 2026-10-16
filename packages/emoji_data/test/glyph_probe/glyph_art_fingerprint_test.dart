@@ -72,6 +72,39 @@ void main() {
     expect(ba, isNot(abc));
   });
 
+  group('the supplementary signal', () {
+    final art = {'a': 1, 'b': 2, 'c': 3};
+
+    Future<String> fingerprint({String? supplement}) =>
+        computeGlyphArtFingerprint(
+          sentinels: sentinels,
+          pixelsOf: renderer(art),
+          nextFrame: noWait,
+          supplement: supplement,
+        );
+
+    test('changes the fingerprint when it changes', () async {
+      expect(
+        await fingerprint(supplement: 'os 14'),
+        isNot(await fingerprint(supplement: 'os 15')),
+      );
+    });
+
+    test('is part of the identity: with and without differ', () async {
+      expect(
+        await fingerprint(supplement: 'os 14'),
+        isNot(await fingerprint()),
+      );
+    });
+
+    test(
+      'keeps the pixel-only fingerprint of a host that passes none',
+      () async {
+        expect(await fingerprint(), await fingerprint(supplement: null));
+      },
+    );
+  });
+
   test('renders one sentinel per frame, never two in a row', () async {
     final rendered = <String>[];
     var frames = 0;

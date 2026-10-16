@@ -6,7 +6,8 @@ typedef ValueListenableSelector<T, Value> = Value Function(T value);
 /// Filter for [ValueListenableSelectX.select].
 ///
 /// Return `true` to **allow** notify after the identical check fails.
-typedef ValueListenableSelectFilter<Value> = bool Function(Value prev, Value next);
+typedef ValueListenableSelectFilter<Value> =
+    bool Function(Value prev, Value next);
 
 /// Projects a derived [ValueListenable] from another [ValueListenable]'s
 /// [ValueListenable.value].
@@ -42,7 +43,8 @@ final class _ValueListenable$Select<T, Value>
   late Value _$value = _selector(_listenable.value);
 
   @override
-  Value get value => _subscribed ? _$value : _$value = _selector(_listenable.value);
+  Value get value =>
+      _subscribed ? _$value : _$value = _selector(_listenable.value);
 
   void _update() {
     final newValue = _selector(_listenable.value);

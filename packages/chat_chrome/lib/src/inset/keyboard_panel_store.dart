@@ -16,10 +16,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// sample (hide-animation frames must not poison the panel target).
 final class KeyboardPanelStore {
   /// Creates a store. Call [load] once before first [heightFor].
-  KeyboardPanelStore({
-    this.minRecordableHeight = 50,
-    this.defaultHeight = 200,
-  });
+  KeyboardPanelStore({this.minRecordableHeight = 50, this.defaultHeight = 200});
 
   /// Minimum height to persist from a settled IME sample.
   final double minRecordableHeight;
@@ -72,8 +69,7 @@ final class KeyboardPanelStore {
     if (_portrait != (prefs.getDouble(portraitHeightKey) ?? defaultHeight)) {
       await prefs.setDouble(portraitHeightKey, _portrait);
     }
-    if (_landscape !=
-        (prefs.getDouble(landscapeHeightKey) ?? defaultHeight)) {
+    if (_landscape != (prefs.getDouble(landscapeHeightKey) ?? defaultHeight)) {
       await prefs.setDouble(landscapeHeightKey, _landscape);
     }
   }
