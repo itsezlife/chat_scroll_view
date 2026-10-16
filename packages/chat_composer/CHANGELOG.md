@@ -21,6 +21,11 @@ is pre-1.0.
   so such a field never raised the keyboard it was allowed again). Changing
   `softKeyboard` alone still shows nothing, so a panel that closes leaves the
   keyboard down; a tap on such a field attaches it again by itself.
+- `ComposerView.onFieldPointerDown` / `onFieldPointerEnd` (and the same pair on
+  `ComposerField`): a pointer went down on the field, and lifted or was
+  cancelled. They come before the field reacts, so a host can lift a
+  suppressed keyboard on the press and the tap's focus attaches with the
+  keyboard allowed. The lift comes before `onFieldTap`.
 
 ### Changed
 

@@ -59,6 +59,8 @@ class ComposerView extends StatefulWidget {
     this.panelResolver,
     this.islandKey,
     this.onFieldTap,
+    this.onFieldPointerDown,
+    this.onFieldPointerEnd,
     this.shortcuts,
     this.safeAreaBottom,
     this.maxWidth = ComposerMetrics.maxWidth,
@@ -80,6 +82,16 @@ class ComposerView extends StatefulWidget {
 
   /// Called when the field is tapped, also if it already has focus.
   final VoidCallback? onFieldTap;
+
+  /// Called when a pointer goes down on the field, before the field reacts to
+  /// it. A host whose panel suppresses the keyboard lifts the suppression
+  /// here, so the focus the tap brings attaches with a keyboard type and the
+  /// keyboard already up (for a search field in the panel) stays up.
+  final VoidCallback? onFieldPointerDown;
+
+  /// Called when that pointer lifts or is cancelled. When the press was a tap,
+  /// [onFieldTap] follows in the same event.
+  final VoidCallback? onFieldPointerEnd;
 
   /// Key bindings; defaults to the [ComposerShortcutPolicy] of the platform.
   final Map<ShortcutActivator, Intent>? shortcuts;
@@ -243,6 +255,8 @@ class _ComposerViewState extends State<ComposerView>
         controller: widget.controller,
         enabled: _spec.enabled,
         onTap: widget.onFieldTap,
+        onPointerDown: widget.onFieldPointerDown,
+        onPointerEnd: widget.onFieldPointerEnd,
       );
     }
     final built = widget.panelResolver?.call(context, panel);

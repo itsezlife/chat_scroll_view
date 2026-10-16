@@ -93,6 +93,14 @@ final class KeyboardReplacementStrategy implements PanelPresentationStrategy {
   /// once.
   listen.ValueListenable<KeyboardSlotState> get state => _slot.state;
 
+  /// Whether the slot is moving: opening, closing, handing off, or growing or
+  /// shrinking for search. False while a cold open waits for its start delay.
+  ///
+  /// A host that orders steps by the panel's motion (search must shrink back
+  /// before the panel hands its slot to the keyboard) waits for it to turn
+  /// false.
+  listen.ValueListenable<bool> get animating => _slot.animating;
+
   /// The part of the bottom safe area the occupancy has not covered yet; the
   /// composer's bottom safe area.
   listen.ValueListenable<double> get composerSafeInset =>

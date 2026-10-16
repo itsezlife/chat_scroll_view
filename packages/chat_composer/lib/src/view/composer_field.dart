@@ -37,6 +37,8 @@ class ComposerField extends StatefulWidget {
     required this.controller,
     required this.enabled,
     this.onTap,
+    this.onPointerDown,
+    this.onPointerEnd,
     super.key,
   });
 
@@ -49,6 +51,12 @@ class ComposerField extends StatefulWidget {
   /// Called when the field is tapped, also while it already has focus. A host
   /// uses it to leave a panel for the keyboard.
   final VoidCallback? onTap;
+
+  /// Called when a pointer goes down on the field, before the field reacts.
+  final VoidCallback? onPointerDown;
+
+  /// Called when that pointer lifts or is cancelled.
+  final VoidCallback? onPointerEnd;
 
   @override
   State<ComposerField> createState() => _ComposerFieldState();
@@ -197,50 +205,56 @@ class _ComposerFieldState extends State<ComposerField> {
 
     return HeightReporter(
       onHeight: controller.reportFieldHeight,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          minHeight: ComposerMetrics.islandHeight,
-        ),
-        child: Padding(
-          padding: const EdgeInsetsDirectional.only(
-            top: ComposerMetrics.fieldTopPad,
-            bottom: ComposerMetrics.fieldBottomPad,
-            end: ComposerMetrics.fieldEndPad,
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) => widget.onPointerDown?.call(),
+        onPointerUp: (_) => widget.onPointerEnd?.call(),
+        onPointerCancel: (_) => widget.onPointerEnd?.call(),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: ComposerMetrics.islandHeight,
           ),
-          child: ListenValueBuilder<SoftKeyboardMode>(
-            listenable: controller.softKeyboard,
-            builder: (context, mode) {
-              _builtMode = mode;
-              return TextField(
-                key: _textFieldKey,
-                controller: controller.text,
-                focusNode: controller.focusNode,
-                scrollController: controller.fieldScroll,
-                enabled: widget.enabled,
-                minLines: 1,
-                maxLines: ComposerMetrics.fieldMaxLines,
-                keyboardType: mode == SoftKeyboardMode.suppressed
-                    ? TextInputType.none
-                    : TextInputType.multiline,
-                textInputAction: TextInputAction.newline,
-                textCapitalization: TextCapitalization.sentences,
-                onTap: _onTap,
-                cursorColor: composer.cursor,
-                style: TextStyle(
-                  color: composer.text,
-                  fontSize: fontSize,
-                  height: lineHeight,
-                ),
-                decoration: InputDecoration.collapsed(
-                  hintText: strings.messageHint,
-                  hintStyle: TextStyle(
-                    color: placeholder.fieldHint,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(
+              top: ComposerMetrics.fieldTopPad,
+              bottom: ComposerMetrics.fieldBottomPad,
+              end: ComposerMetrics.fieldEndPad,
+            ),
+            child: ListenValueBuilder<SoftKeyboardMode>(
+              listenable: controller.softKeyboard,
+              builder: (context, mode) {
+                _builtMode = mode;
+                return TextField(
+                  key: _textFieldKey,
+                  controller: controller.text,
+                  focusNode: controller.focusNode,
+                  scrollController: controller.fieldScroll,
+                  enabled: widget.enabled,
+                  minLines: 1,
+                  maxLines: ComposerMetrics.fieldMaxLines,
+                  keyboardType: mode == SoftKeyboardMode.suppressed
+                      ? TextInputType.none
+                      : TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  textCapitalization: TextCapitalization.sentences,
+                  onTap: _onTap,
+                  cursorColor: composer.cursor,
+                  style: TextStyle(
+                    color: composer.text,
                     fontSize: fontSize,
                     height: lineHeight,
                   ),
-                ),
-              );
-            },
+                  decoration: InputDecoration.collapsed(
+                    hintText: strings.messageHint,
+                    hintStyle: TextStyle(
+                      color: placeholder.fieldHint,
+                      fontSize: fontSize,
+                      height: lineHeight,
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),

@@ -10,6 +10,9 @@ this package is pre-1.0.
 
 - `KeyboardReplacementTuning.sheetCornerRadius` (29): the keyboard-replacement
   sheet has rounded top corners, seen at rest.
+- `KeyboardReplacementStrategy.animating`: whether the slot is moving, so a
+  host can wait for search to collapse back to the panel's height before it
+  hands the slot to the keyboard.
 
 ### Documented
 

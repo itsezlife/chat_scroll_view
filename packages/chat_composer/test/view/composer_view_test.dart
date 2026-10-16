@@ -558,6 +558,40 @@ void main() {
       expect(taps, 1);
     });
 
+    testWidgets('reports a press on the field: down, then end before the tap', (
+      tester,
+    ) async {
+      final events = <String>[];
+      await tester.pumpWidget(
+        composerHarness(
+          ComposerView(
+            controller: controller,
+            spec: ComposerSpec(),
+            onFieldTap: () => events.add('tap'),
+            onFieldPointerDown: () => events.add('down'),
+            onFieldPointerEnd: () => events.add('end'),
+          ),
+        ),
+      );
+
+      final press = await tester.startGesture(
+        tester.getCenter(find.byType(TextField)),
+      );
+      await tester.pump();
+      expect(events, ['down']);
+
+      await press.up();
+      await tester.pump();
+      expect(events, ['down', 'end', 'tap']);
+
+      final drag = await tester.startGesture(
+        tester.getCenter(find.byType(TextField)),
+      );
+      await drag.cancel();
+      await tester.pump();
+      expect(events, ['down', 'end', 'tap', 'down', 'end']);
+    });
+
     testWidgets('reports the caret anchor while a query is open', (
       tester,
     ) async {

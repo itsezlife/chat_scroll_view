@@ -215,6 +215,51 @@ void main() {
       expect(rig.set.composer.softKeyboard.value, SoftKeyboardMode.auto);
     });
 
+    testWidgets('leaving search for the keyboard: search closes and the panel '
+        'shrinks back first, then it hands off', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      final grid = rig.set.presentation.occupancy.value.bottom;
+      rig.set.shell.openSearch();
+      await rig.settle(tester);
+      expect(rig.set.presentation.occupancy.value.bottom, greaterThan(grid));
+
+      rig.set.handOffToKeyboard();
+      // The composer takes focus before search lets the keyboard go.
+      await tester.pump();
+      await tester.pump();
+      expect(rig.set.composer.hasFocus, isTrue);
+      expect(rig.set.shell.search.value.isOpen, isFalse);
+      // Shrinking back: still shown, not yet handing off.
+      expect(_state(rig), isA<PanelVisibility$Shown>());
+
+      await rig.settle(tester);
+      // At rest at the grid's height, then the hand-off.
+      expect(_state(rig), isA<PanelVisibility$Hiding>());
+      expect((_state(rig) as PanelVisibility$Hiding).waitForIme, isTrue);
+      expect(rig.set.presentation.occupancy.value.bottom, grid);
+
+      rig.keyboard.rest(grid);
+      await rig.settle(tester);
+      expect(_state(rig), isA<PanelVisibility$Hidden>());
+    });
+
+    testWidgets('a press on the field lifts the suppression before its tap '
+        'focuses it; a press that is not a tap puts it back', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      expect(rig.set.composer.softKeyboard.value, SoftKeyboardMode.suppressed);
+
+      rig.set.onFieldPointerDown();
+      expect(rig.set.composer.softKeyboard.value, SoftKeyboardMode.auto);
+      rig.set.onFieldPointerEnd();
+      await tester.pump();
+      await tester.pump();
+
+      expect(rig.set.composer.softKeyboard.value, SoftKeyboardMode.suppressed);
+      expect(_state(rig), isA<PanelVisibility$Shown>());
+    });
+
     testWidgets('back closes the panel and leaves the keyboard down, focus '
         'kept', (tester) async {
       final rig = await _mobileRig(tester);

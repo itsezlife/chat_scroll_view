@@ -159,6 +159,8 @@ class _ChatComposerState extends State<ChatComposer> {
             spec: spec,
             islandKey: widget.islandKey,
             onFieldTap: _input.onFieldTap,
+            onFieldPointerDown: _input.onFieldPointerDown,
+            onFieldPointerEnd: _input.onFieldPointerEnd,
             safeAreaBottom: safeAreaBottom,
           ),
         );

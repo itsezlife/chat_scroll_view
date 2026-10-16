@@ -323,16 +323,22 @@ second. Do not filter or smooth the samples.
 While a keyboard-replacement panel is on screen, give the composer
 `setSoftKeyboard(SoftKeyboardMode.suppressed)`; every other time `auto`. The
 field then keeps focus and caret without raising the keyboard. To return to the
-keyboard call `presentation.hide(waitForIme: true)`, keep composer focus, close
-search, and ask the platform to show the keyboard once on the next frame.
+keyboard, in this order: set `auto` and call `composer.requestKeyboard()`; if
+search is open, wait until the composer holds focus, close search and wait for
+the slot to stop moving (`KeyboardReplacementStrategy.animating`); then call
+`presentation.hide(waitForIme: true)`. Search collapses to the panel's height
+first and the keyboard takes the slot from there; done at once, the panel
+vanishes from its expanded height and the keyboard drops while focus moves.
+For a tap on the field, lift the suppression on the press
+(`ComposerView.onFieldPointerDown`) and put it back if the press ends without
+a tap, so the tap's focus attaches with the keyboard allowed.
 
 Android keeps the input type a field attached with, so a composer that took
 focus while suppressed holds a connection with no keyboard type. Changing the
 mode alone raises nothing: a panel closed with back leaves focus in the field
-and the keyboard down. To return to the keyboard, call
-`composer.requestKeyboard()` (after `presentation.hide(waitForIme: true)`): the
-field focuses, or attaches again with the current type, after the frame. A tap
-on the field does the same by itself.
+and the keyboard down. `composer.requestKeyboard()`, the first step above, is
+what raises it: the field focuses, or attaches again with the current type,
+after the frame. A tap on the field does the same by itself.
 
 Declaring no soft keyboard does not lower one that is already showing. When the
 panel opens over a raised keyboard, ask the platform to hide it once after the
