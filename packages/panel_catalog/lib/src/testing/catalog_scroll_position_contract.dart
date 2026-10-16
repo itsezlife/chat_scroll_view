@@ -1,5 +1,7 @@
 import 'package:flutter/animation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
+import 'package:panel_catalog/src/viewport/catalog_focus.dart';
 import 'package:panel_catalog/src/viewport/catalog_scroll_position.dart';
 
 /// What a [CatalogScrollPosition] contract run needs besides the position.
@@ -9,6 +11,8 @@ final class CatalogScrollPositionHarness {
     required this.position,
     required this.sectionCount,
     required this.settle,
+    required this.leafCounts,
+    required this.activations,
   });
 
   /// The position under test, laid out with a content extent larger than its
@@ -17,6 +21,14 @@ final class CatalogScrollPositionHarness {
 
   /// How many sections the position has (at least three).
   final int sectionCount;
+
+  /// Leaves per section: section `s<i>` holds `leafCounts[i]` leaves, laid out
+  /// in a grid of at least two columns. At least two sections of two leaves.
+  final List<int> leafCounts;
+
+  /// Every cell the shell's tap received so far, in order: what the position
+  /// reports when it activates the focused cell.
+  final List<CatalogLeafHit> Function() activations;
 
   /// Lets every motion in flight run to its end (pumping frames for a real
   /// viewport).
@@ -129,6 +141,105 @@ void runCatalogScrollPositionContract(
 
       expect(position.pixels, 0);
       expect(position.isSectionJumpActive, isFalse);
+    });
+
+    group('focus', () {
+      testWidgets('starts with nothing focused', (tester) async {
+        final harness = await create(tester);
+
+        expect(harness.position.focusedLeaf, isNull);
+        expect(harness.position.activateFocusedLeaf(), isFalse);
+      });
+
+      testWidgets('focusing a cell names it', (tester) async {
+        final harness = await create(tester);
+        final position = harness.position;
+
+        expect(position.focusLeaf('s1', 1, reveal: true), isTrue);
+
+        expect(position.focusedLeaf?.sectionId, 's1');
+        expect(position.focusedLeaf?.index, 1);
+      });
+
+      testWidgets('a cell that does not exist is refused', (tester) async {
+        final harness = await create(tester);
+        final position = harness.position;
+        position.focusLeaf('s0', 0, reveal: true);
+
+        expect(position.focusLeaf('nope', 0, reveal: true), isFalse);
+        expect(position.focusLeaf('s0', -1, reveal: true), isFalse);
+        expect(
+          position.focusLeaf('s0', harness.leafCounts[0], reveal: true),
+          isFalse,
+        );
+
+        expect(position.focusedLeaf?.sectionId, 's0');
+        expect(position.focusedLeaf?.index, 0);
+      });
+
+      testWidgets('next and previous follow reading order across sections', (
+        tester,
+      ) async {
+        final harness = await create(tester);
+        final position = harness.position;
+        final last = harness.leafCounts[0] - 1;
+        position.focusLeaf('s0', last, reveal: true);
+
+        expect(position.moveFocus(CatalogFocusMove.next), isTrue);
+        expect(position.focusedLeaf?.sectionId, 's1');
+        expect(position.focusedLeaf?.index, 0);
+
+        expect(position.moveFocus(CatalogFocusMove.previous), isTrue);
+        expect(position.focusedLeaf?.sectionId, 's0');
+        expect(position.focusedLeaf?.index, last);
+      });
+
+      testWidgets('first and last go to the ends and stay there', (
+        tester,
+      ) async {
+        final harness = await create(tester);
+        final position = harness.position;
+        final lastSection = harness.leafCounts.length - 1;
+
+        expect(position.moveFocus(CatalogFocusMove.last), isTrue);
+        expect(position.focusedLeaf?.sectionId, 's$lastSection');
+        expect(position.focusedLeaf?.index, harness.leafCounts.last - 1);
+        expect(position.moveFocus(CatalogFocusMove.next), isFalse);
+
+        expect(position.moveFocus(CatalogFocusMove.first), isTrue);
+        expect(position.focusedLeaf?.sectionId, 's0');
+        expect(position.focusedLeaf?.index, 0);
+        expect(position.moveFocus(CatalogFocusMove.previous), isFalse);
+        expect(position.focusedLeaf?.index, 0);
+      });
+
+      testWidgets('activating reports the focused cell to the shell', (
+        tester,
+      ) async {
+        final harness = await create(tester);
+        final position = harness.position;
+        position.focusLeaf('s1', 1, reveal: true);
+
+        expect(position.activateFocusedLeaf(), isTrue);
+
+        final hit = harness.activations().single;
+        expect(hit.sectionId, 's1');
+        expect(hit.index, 1);
+        expect(hit, position.focusedLeaf);
+      });
+
+      testWidgets('clearing ends focus and is repeatable', (tester) async {
+        final harness = await create(tester);
+        final position = harness.position;
+        position.focusLeaf('s0', 1, reveal: true);
+
+        position
+          ..clearFocus()
+          ..clearFocus();
+
+        expect(position.focusedLeaf, isNull);
+        expect(position.activateFocusedLeaf(), isFalse);
+      });
     });
   });
 }

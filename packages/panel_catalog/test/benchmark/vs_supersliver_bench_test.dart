@@ -16,6 +16,7 @@ import 'dart:async';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsNode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
@@ -205,6 +206,11 @@ void main() {
   final mixedPaint = <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
   final mixedNear = <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
   final mixedFar = <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
+  // Candidate only: scroll frames (build to semantics flush) with a screen
+  // reader running against the same frames without one, and the semantic nodes
+  // it gets.
+  final semanticsFrames = <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
+  final semanticNodeCounts = <int, int>{};
 
   for (final leafCount in kBenchLeafCounts) {
     testWidgets('forced layout — $leafCount leaves', (tester) async {
@@ -704,6 +710,91 @@ void main() {
       }
     });
 
+    // flutter_test switches semantics on for every widget test unless told
+    // otherwise, so every other probe in this file runs with semantics on. This
+    // one turns it off and asks for it where it measures the semantics-on pass.
+    testWidgets('semantics on — scroll frames — $leafCount leaves', (
+      tester,
+    ) async {
+      final sections = generateCatalogSections(leafCount);
+
+      Future<(BenchmarkMetrics, int)> scrollFrames({
+        required bool semantics,
+      }) async {
+        final handle = semantics ? tester.ensureSemantics() : null;
+        final snapshots = FakeCatalogSnapshotSource(sections: sections);
+        final controller = PanelCatalogController();
+        await tester.pumpWidget(
+          _candidateApp(
+            snapshots: snapshots,
+            assets: textGlyphScope(),
+            controller: controller,
+          ),
+        );
+        await tester.pumpAndSettle();
+        for (var i = 0; i < 10; i++) {
+          controller.scrollBy(5);
+          await tester.pump();
+        }
+        // A whole frame, semantics flush included: that is where the nodes
+        // are described.
+        final samples = <int>[];
+        for (var i = 0; i < 300; i++) {
+          controller.scrollBy(3);
+          final sw = Stopwatch()..start();
+          await tester.pump();
+          samples.add(sw.elapsedMicroseconds);
+        }
+        var nodes = 0;
+        if (semantics) {
+          void count(SemanticsNode node) {
+            nodes++;
+            node.visitChildren((child) {
+              count(child);
+              return true;
+            });
+          }
+
+          count(tester.getSemantics(find.byType(PanelCatalogViewport)));
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+        snapshots.dispose();
+        controller.dispose();
+        handle?.dispose();
+        return (
+          BenchmarkMetrics(
+            semantics ? 'semantics on' : 'semantics off',
+            samples,
+          ),
+          nodes,
+        );
+      }
+
+      // The first pass of a process pays for warming up; it is thrown away so
+      // that it does not flatter whichever side runs second.
+      await scrollFrames(semantics: false);
+      final (off, _) = await scrollFrames(semantics: false);
+      final (on, nodes) = await scrollFrames(semantics: true);
+      semanticsFrames.add((leafCount, on, off));
+      semanticNodeCounts[leafCount] = nodes;
+      // ignore: avoid_print
+      print(
+        '\n$leafCount leaves — scroll frames, semantics on ($nodes nodes) vs '
+        'off:\n  $on\n  $off',
+      );
+
+      // The window, not the catalogue: a fixed viewport describes a fixed
+      // band whatever the catalogue size (about 16 rows of 8 cells here, the
+      // viewport's own node and its container on top).
+      expect(nodes, lessThan(200));
+      // A frame that moves the window describes about a row of new cells, one
+      // that does not only moves the nodes there are: about 1.2-2.3x the
+      // frame without a screen reader (debug, headless, a hundred µs or so
+      // more), and the same at 512 and 4096 leaves. A tripwire for describing
+      // the catalogue, not a measurement.
+      expect(on.medianUs, lessThan(off.medianUs * 5));
+    }, semanticsEnabled: false);
+
     testWidgets('memory at rest — $leafCount leaves', (tester) async {
       final sections = generateCatalogSections(leafCount);
 
@@ -881,6 +972,16 @@ void main() {
         ),
       );
     }
+    // ignore: avoid_print
+    print(
+      generateCatalogComparisonTable(
+        title: 'Scroll frames with semantics on — vs the same without',
+        rows: semanticsFrames,
+        baselineLabel: 'Semantics off',
+      ),
+    );
+    // ignore: avoid_print
+    print('Semantic nodes by catalogue size: $semanticNodeCounts');
     // ignore: avoid_print
     print(
       generateCatalogMemoryTable(

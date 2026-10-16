@@ -120,6 +120,66 @@ void main() {
     expect(resolved.sectionHeaderStartInset, data.sectionHeaderStartInset);
   });
 
+  group('focus highlight', () {
+    test('follows the press highlight until a token says otherwise', () {
+      const data = PanelCatalogThemeData.light;
+      final resolved = CatalogLeafPaintTheme.resolve(data, devicePixelRatio: 2);
+
+      expect(data.leafFocusHighlightColor, isNull);
+      expect(resolved.leafFocusHighlightColor, data.leafPressHighlightColor);
+    });
+
+    test('a token of its own wins, and survives a transparent press', () {
+      final data = PanelCatalogThemeData.light.copyWith(
+        leafPressHighlightColor: const Color(0x00000000),
+        leafFocusHighlightColor: const Color(0x33336699),
+      );
+      final resolved = CatalogLeafPaintTheme.resolve(data, devicePixelRatio: 1);
+
+      expect(resolved.leafFocusHighlightColor, const Color(0x33336699));
+      expect(resolved.leafPressHighlightColor, const Color(0x00000000));
+    });
+
+    test('is part of equality and copyWith keeps it', () {
+      final data = PanelCatalogThemeData.light.copyWith(
+        leafFocusHighlightColor: const Color(0x33336699),
+      );
+
+      expect(data, isNot(PanelCatalogThemeData.light));
+      expect(data.copyWith().leafFocusHighlightColor, const Color(0x33336699));
+    });
+
+    test('lerp moves a token both themes have and keeps one only a has', () {
+      final a = PanelCatalogThemeData.light.copyWith(
+        leafFocusHighlightColor: const Color(0x40000000),
+      );
+      final b = PanelCatalogThemeData.dark.copyWith(
+        leafFocusHighlightColor: const Color(0x40FFFFFF),
+      );
+
+      expect(
+        PanelCatalogThemeData.lerp(a, b, 0.5).leafFocusHighlightColor,
+        Color.lerp(const Color(0x40000000), const Color(0x40FFFFFF), 0.5),
+      );
+      expect(
+        PanelCatalogThemeData.lerp(
+          a,
+          PanelCatalogThemeData.dark,
+          0.5,
+        ).leafFocusHighlightColor,
+        isNotNull,
+      );
+      expect(
+        PanelCatalogThemeData.lerp(
+          PanelCatalogThemeData.light,
+          PanelCatalogThemeData.dark,
+          0.5,
+        ).leafFocusHighlightColor,
+        isNull,
+      );
+    });
+  });
+
   testWidgets('maybeOf returns null when no ancestor is mounted', (
     tester,
   ) async {

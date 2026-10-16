@@ -9,6 +9,16 @@ import 'package:meta/meta.dart';
 /// `headerExtent` are the **defaults** a section inherits wherever its layout
 /// leaves a value unset (or has no layout at all).
 ///
+/// ## Direction
+///
+/// A grid fills its cells **start to end**: the first leaf is in the column at
+/// the start edge of the reading direction, so a right-to-left grid begins at
+/// the right. [SectionLayout$Grid.textDirection] states the section's
+/// direction; left unset it follows the viewport, which follows the
+/// `Directionality` it sits in. Only the x of a cell changes with direction:
+/// rows, extents, landing offsets and the order of leaves are the same, and
+/// content (a glyph, a sticker, a GIF) is never mirrored.
+///
 /// The family is sealed so further kinds, for example justified rows for GIFs,
 /// can join [SectionLayout$Grid] without a viewport-wide switch on a flag.
 @immutable
@@ -27,6 +37,7 @@ sealed class SectionLayout {
     double? cellAspect,
     double? headerExtent,
     EdgeInsets insets,
+    TextDirection? textDirection,
   }) = SectionLayout$Grid;
 
   const SectionLayout._();
@@ -41,6 +52,7 @@ final class SectionLayout$Grid extends SectionLayout {
     this.cellAspect,
     this.headerExtent,
     this.insets = EdgeInsets.zero,
+    this.textDirection,
   }) : assert(spanCount == null || spanCount >= 1, 'A grid needs a column.'),
        assert(
          cellExtent == null || cellAspect == null,
@@ -72,6 +84,12 @@ final class SectionLayout$Grid extends SectionLayout {
   /// last row. The header band itself never includes them.
   final EdgeInsets insets;
 
+  /// The direction cells fill in and the header reads in, or null for the
+  /// viewport's (the `Directionality` it sits in).
+  ///
+  /// [insets] are physical: `left` stays on the left in either direction.
+  final TextDirection? textDirection;
+
   @override
   bool operator ==(Object other) =>
       other is SectionLayout$Grid &&
@@ -79,14 +97,22 @@ final class SectionLayout$Grid extends SectionLayout {
       other.cellExtent == cellExtent &&
       other.cellAspect == cellAspect &&
       other.headerExtent == headerExtent &&
-      other.insets == insets;
+      other.insets == insets &&
+      other.textDirection == textDirection;
 
   @override
-  int get hashCode =>
-      Object.hash(spanCount, cellExtent, cellAspect, headerExtent, insets);
+  int get hashCode => Object.hash(
+    spanCount,
+    cellExtent,
+    cellAspect,
+    headerExtent,
+    insets,
+    textDirection,
+  );
 
   @override
   String toString() =>
       'SectionLayout.grid(span: $spanCount, cell: $cellExtent, '
-      'aspect: $cellAspect, header: $headerExtent)';
+      'aspect: $cellAspect, header: $headerExtent, '
+      'direction: $textDirection)';
 }

@@ -37,6 +37,11 @@ import 'package:flutter/painting.dart';
 /// Glyph scale (`0.8 + 0.2 x (1 - progress)`) applies to leaf content only,
 /// not to the highlight.
 ///
+/// [leafFocusHighlightColor] is the same wash on the cell that holds roving
+/// focus, at full strength. Left null it **is** the press highlight (same
+/// colour, same radius), so one token styles both; set it when the press
+/// highlight is off or too faint to be the only sign of where focus is.
+///
 /// [sectionHeaderStyle] and [sectionHeaderStartInset] control section title
 /// paint inside the header band; they do not change content extent.
 ///
@@ -63,6 +68,7 @@ class PanelCatalogThemeData {
     required this.sectionHeaderStyle,
     this.washPeriod = _defaultWashPeriod,
     this.placeholderCornerRadius = _defaultPlaceholderCornerRadius,
+    this.leafFocusHighlightColor,
     this.leafPressSelectorRadiusNominalDp = _defaultSelectorRadiusNominalDp,
     this.sectionHeaderStartInset = _defaultSectionHeaderStartInset,
   });
@@ -146,6 +152,14 @@ class PanelCatalogThemeData {
   /// Non-zero alpha is multiplied by clamped press progress each frame.
   final Color leafPressHighlightColor;
 
+  /// List-selector wash on the leaf cell that holds roving focus, or null to
+  /// paint it with [leafPressHighlightColor].
+  ///
+  /// Painted on the full cell rect, under the leaf, with the press highlight's
+  /// radius. Unlike the press highlight it is not scaled by progress: a focused
+  /// cell shows it at full alpha. Fully transparent disables it.
+  final Color? leafFocusHighlightColor;
+
   /// Nominal corner radius in dp for [selectorRadiusLogicalPx].
   ///
   /// Some hosts apply density twice (nominal dp passed into a callee that
@@ -208,6 +222,11 @@ class PanelCatalogThemeData {
         b.leafPressHighlightColor,
         t,
       )!,
+      leafFocusHighlightColor: Color.lerp(
+        a.leafFocusHighlightColor,
+        b.leafFocusHighlightColor,
+        t,
+      ),
       leafPressSelectorRadiusNominalDp: lerpDouble(
         a.leafPressSelectorRadiusNominalDp,
         b.leafPressSelectorRadiusNominalDp,
@@ -238,6 +257,7 @@ class PanelCatalogThemeData {
     Color? skeletonColor,
     double? placeholderCornerRadius,
     Color? leafPressHighlightColor,
+    Color? leafFocusHighlightColor,
     double? leafPressSelectorRadiusNominalDp,
     TextStyle? sectionHeaderStyle,
     double? sectionHeaderStartInset,
@@ -253,6 +273,8 @@ class PanelCatalogThemeData {
           placeholderCornerRadius ?? this.placeholderCornerRadius,
       leafPressHighlightColor:
           leafPressHighlightColor ?? this.leafPressHighlightColor,
+      leafFocusHighlightColor:
+          leafFocusHighlightColor ?? this.leafFocusHighlightColor,
       leafPressSelectorRadiusNominalDp:
           leafPressSelectorRadiusNominalDp ??
           this.leafPressSelectorRadiusNominalDp,
@@ -273,6 +295,7 @@ class PanelCatalogThemeData {
       other.skeletonColor == skeletonColor &&
       other.placeholderCornerRadius == placeholderCornerRadius &&
       other.leafPressHighlightColor == leafPressHighlightColor &&
+      other.leafFocusHighlightColor == leafFocusHighlightColor &&
       other.leafPressSelectorRadiusNominalDp ==
           leafPressSelectorRadiusNominalDp &&
       other.sectionHeaderStyle == sectionHeaderStyle &&
@@ -288,6 +311,7 @@ class PanelCatalogThemeData {
     skeletonColor,
     placeholderCornerRadius,
     leafPressHighlightColor,
+    leafFocusHighlightColor,
     leafPressSelectorRadiusNominalDp,
     sectionHeaderStyle,
     sectionHeaderStartInset,

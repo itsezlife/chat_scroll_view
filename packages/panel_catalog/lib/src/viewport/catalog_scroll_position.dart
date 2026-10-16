@@ -1,7 +1,10 @@
 import 'package:flutter/animation.dart';
+import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
+import 'package:panel_catalog/src/viewport/catalog_focus.dart';
 
 /// The one contract a bound viewport offers its [PanelCatalogController]:
-/// where the catalog is, how far it can go, and the four ways to move it.
+/// where the catalog is, how far it can go, the four ways to move it, and which
+/// leaf holds roving focus and how that moves.
 ///
 /// The render object implements this and attaches itself to the controller
 /// while it is in the tree; the controller forwards the host's commands to
@@ -15,6 +18,16 @@ import 'package:flutter/animation.dart';
 /// `0`. The position keeps it inside `[0, maxScrollExtent]` once it has a
 /// size; before the first layout it may sit outside that range (a jump past
 /// the end waits for the extent to be known).
+///
+/// ## Focus
+///
+/// [focusedLeaf] is the one cell that holds roving focus, or null. It belongs
+/// to the position: it ends when the position does, and the position drops it
+/// when a snapshot no longer has the cell. Focus commands answer whether they
+/// changed or found anything, and publish a focus event on the controller when
+/// the focused cell changes. Moving focus scrolls the cell into view (under
+/// the landing inset) and brings the header of a section along when the cell
+/// is in its first row.
 ///
 /// ## Commands
 ///
@@ -58,4 +71,26 @@ abstract interface class CatalogScrollPosition {
   ///
   /// An out-of-range index completes at once without moving.
   Future<void> jumpToSection(int sectionIndex);
+
+  /// The cell that holds roving focus, or null.
+  CatalogLeafHit? get focusedLeaf;
+
+  /// Gives focus to the cell [index] of section [sectionId], scrolling it into
+  /// view when [reveal]. Returns false, changing nothing, when there is no such
+  /// cell.
+  bool focusLeaf(String sectionId, int index, {required bool reveal});
+
+  /// Moves focus by [move] and scrolls the cell it lands on into view.
+  ///
+  /// With no focus, a move enters the grid instead of stepping: [first] and
+  /// [last] land on the ends, any other move on the first leaf in view.
+  /// Returns false, changing nothing, where there is nowhere to go.
+  bool moveFocus(CatalogFocusMove move);
+
+  /// Reports the focused cell to the shell's tap, as a tap on it would.
+  /// Returns false when nothing has focus or the shell has no tap.
+  bool activateFocusedLeaf();
+
+  /// Ends focus. A no-op when none is held.
+  void clearFocus();
 }

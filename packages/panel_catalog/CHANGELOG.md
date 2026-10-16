@@ -8,6 +8,38 @@ is pre-1.0.
 
 ### Added
 
+- **Grid direction.** Cells fill each row start to end: the first leaf of a
+  right-to-left grid is at the right edge. `PanelCatalogViewport` follows the
+  `Directionality` it sits in; `SectionLayout.grid(textDirection:)` states a
+  section's own. Only x changes: rows, extents, landing offsets and the order of
+  leaves are the same in both directions, and content is never mirrored. A
+  right-to-left header starts its title at the right edge and puts the header
+  action at the left.
+- **Windowed semantics.** With assistive technology running, the viewport
+  describes the leaves of the window it already binds (the visible band and one
+  cell of overscan, by binary search) as buttons labelled with
+  `CatalogLeaf.semanticLabel` (the spoken name, else the glyph of a unicode
+  emoji), plus header, header-action and empty-message nodes; none for the rest
+  of the catalogue and none for a skeleton. A leaf node taps through `onLeafTap`,
+  long-presses through `onLeafLongPressStart` (start only, where
+  `leafLongPressEligible` allows), gives roving focus on `focus` and scrolls its
+  cell in on `showOnScreen`; the viewport node scrolls on `scrollUp` and
+  `scrollDown`. No node reads a binding or a sprite. `CatalogLeaf.spokenName`
+  (carried by `fromDescriptor`) and `CatalogSectionAction.semanticLabel` are new.
+- **Roving focus.** `PanelCatalogController.focusedLeaf`, `focusLeaf`,
+  `moveFocus(CatalogFocusMove)`, `activateFocusedLeaf` and `clearFocus`, and the
+  `PanelCatalogFocusChanged` event. Moves cross rows and sections (empty and
+  loading sections are stepped over), keep the screen column vertically across
+  sections of other spans and directions, and scroll the cell in under the
+  landing inset, with its header when it is in a section's first row. Activating
+  reports the same `CatalogLeafHit` a tap does. `CatalogScrollPosition` gains the
+  same five members (the fake and the contract suite follow).
+- **Focus highlight.** The focused cell paints the press highlight at full alpha
+  under its content; `PanelCatalogThemeData.leafFocusHighlightColor` styles it
+  separately (null follows the press highlight).
+- **Click cursor.** The viewport is a mouse-tracker annotation: the click
+  cursor over a leaf the shell can tap or long-press and over a header action it
+  listens to.
 - **Section states.** `CatalogSection.state` (`CatalogSectionState`: loading,
   failed, loaded) mirrors the collection behind the section. A loading or
   failed section paints `skeletonCount` skeleton leaves (one row of its columns

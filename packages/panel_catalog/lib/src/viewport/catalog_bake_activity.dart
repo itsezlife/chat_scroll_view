@@ -113,7 +113,8 @@ final class CatalogBakeActivity {
           PanelCatalogSectionJumpEnd() ||
           PanelCatalogScrollingChanged() ||
           PanelCatalogScrollSettled() ||
-          PanelCatalogSectionNearViewport():
+          PanelCatalogSectionNearViewport() ||
+          PanelCatalogFocusChanged():
         break;
     }
   }

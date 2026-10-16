@@ -72,6 +72,21 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// [snapshots] when a section is close enough to load or paginate
 /// ([PanelCatalogSectionNearViewport]).
 ///
+/// ## Direction, semantics, focus and cursor
+///
+/// Cells fill each row start to end in the direction of the [Directionality]
+/// above the viewport (or of the section's own [SectionLayout.grid]
+/// `textDirection`), so a right-to-left grid begins at the right edge; only x
+/// changes, never rows, extents or landing offsets, and content is never
+/// mirrored. With assistive technology running, the viewport describes the
+/// window it binds (the visible band plus one cell of overscan) as semantic
+/// nodes whose actions reach [onLeafTap], [onLeafLongPressStart] and
+/// [onSectionAction]; no node exists for the rest of the catalogue. Roving
+/// focus is the controller's ([PanelCatalogController.moveFocus]): the focused
+/// leaf is painted with the press highlight, scrolled into view and activated
+/// through [onLeafTap]. The viewport shows the click cursor over a leaf the
+/// shell can tap or long-press and over a header action it listens to.
+///
 /// ## Theme
 ///
 /// Requires a [PanelCatalogTheme] ancestor. [PanelCatalogTheme.of] →
@@ -263,6 +278,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   RenderPanelCatalog createRenderObject(BuildContext context) {
     final theme = PanelCatalogTheme.of(context, listen: true);
     final dpr = MediaQuery.devicePixelRatioOf(context);
+    final textDirection = Directionality.of(context);
     return RenderPanelCatalog(
       snapshots: snapshots,
       assets: assets,
@@ -272,6 +288,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       cellExtent: cellExtent,
       headerExtent: headerExtent,
       padding: padding,
+      textDirection: textDirection,
       headerLandingInset: headerLandingInset,
       paintTheme: CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr),
       onLeafTap: onLeafTap,
@@ -300,6 +317,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..cellExtent = cellExtent
       ..headerExtent = headerExtent
       ..padding = padding
+      ..textDirection = Directionality.of(context)
       ..headerLandingInset = headerLandingInset
       ..paintTheme = CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr)
       ..onLeafTap = onLeafTap

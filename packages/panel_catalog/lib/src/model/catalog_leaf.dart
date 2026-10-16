@@ -22,12 +22,13 @@ enum CatalogPlaceholderStyle {
 /// A leaf is the identity of the content ([key]), the descriptor facts the
 /// viewport needs to ask the asset cache for it and to paint a stand-in before
 /// it arrives ([semanticKind], [mediaForm], [animated], [tintable], [sizeHint]),
-/// and an opaque host
+/// the name a screen reader speaks for it ([spokenName]), and an opaque host
 /// [tag]. It carries no readiness, no paint mode and no atlas or sprite state:
 /// those are projected at paint time from the asset binding, and storing them
 /// here would make a second write model that goes stale when readiness flips.
 ///
-/// Equality covers [key] and the facts. The [tag] is excluded from equality and
+/// Equality covers [key], the facts and the [spokenName] (a republished
+/// snapshot in another language is a different catalog). The [tag] is excluded from equality and
 /// is never painted: it lets the host that built a leaf recognise it again in a
 /// hit ([CatalogLeafHit.leaf]) without a side map keyed by leaf instance, and a
 /// republished snapshot whose leaves differ only by tag is the same catalog.
@@ -48,6 +49,7 @@ final class CatalogLeaf {
     this.animated = false,
     this.tintable = false,
     this.sizeHint,
+    this.spokenName,
     this.tag,
   });
 
@@ -55,8 +57,9 @@ final class CatalogLeaf {
   ///
   /// [glyph] is one or more code points (ZWJ sequences allowed) and must not be
   /// empty. The leaf is a [MediaForm.glyph] of kind
-  /// [SemanticKind.unicodeEmoji]: its stand-in is a circle.
-  CatalogLeaf.unicode(String glyph, {this.tag})
+  /// [SemanticKind.unicodeEmoji]: its stand-in is a circle. [spokenName] is the
+  /// name in the active language, when the host has one.
+  CatalogLeaf.unicode(String glyph, {this.spokenName, this.tag})
     : key = ContentKey.unicode(glyph),
       semanticKind = SemanticKind.unicodeEmoji,
       mediaForm = MediaForm.glyph,
@@ -73,18 +76,21 @@ final class CatalogLeaf {
     this.animated = false,
     this.tintable = false,
     this.sizeHint,
+    this.spokenName,
     this.tag,
   }) : key = ContentKey.document(documentId);
 
-  /// Creates the leaf of [descriptor]: its key and paint facts. The rest of the
-  /// descriptor (thumbnail, spoken name, flags) is the host's to use elsewhere.
+  /// Creates the leaf of [descriptor]: its key, paint facts and spoken name.
+  /// The rest of the descriptor (thumbnail, flags) is the host's to use
+  /// elsewhere.
   CatalogLeaf.fromDescriptor(ContentDescriptor descriptor, {this.tag})
     : key = descriptor.key,
       semanticKind = descriptor.semanticKind,
       mediaForm = descriptor.mediaForm,
       animated = descriptor.animated,
       tintable = descriptor.tintable,
-      sizeHint = descriptor.size;
+      sizeHint = descriptor.size,
+      spokenName = descriptor.spokenName;
 
   /// The identity of the content.
   final ContentKey key;
@@ -106,8 +112,23 @@ final class CatalogLeaf {
   /// Intrinsic size of the content, when the host knows it.
   final ContentSize? sizeHint;
 
+  /// The name read aloud for this content in the active language, or null when
+  /// the data has none (see [semanticLabel] for what is read then).
+  final String? spokenName;
+
   /// Opaque host data, excluded from equality and never painted.
   final Object? tag;
+
+  /// What a screen reader says for this leaf: the [spokenName]; failing that
+  /// the glyph itself for a unicode emoji (the plain-text alternative, which the
+  /// platform reads in its own language); failing that nothing. Never a guessed
+  /// name.
+  String? get semanticLabel =>
+      spokenName ??
+      switch (key) {
+        ContentKey$Unicode(:final sequence) => sequence,
+        _ => null,
+      };
 
   /// The box this leaf's content is drawn in unless its section says
   /// otherwise: a sticker, mask or GIF fills its cell, everything else (a glyph,
@@ -142,11 +163,19 @@ final class CatalogLeaf {
       other.mediaForm == mediaForm &&
       other.animated == animated &&
       other.tintable == tintable &&
-      other.sizeHint == sizeHint;
+      other.sizeHint == sizeHint &&
+      other.spokenName == spokenName;
 
   @override
-  int get hashCode =>
-      Object.hash(key, semanticKind, mediaForm, animated, tintable, sizeHint);
+  int get hashCode => Object.hash(
+    key,
+    semanticKind,
+    mediaForm,
+    animated,
+    tintable,
+    sizeHint,
+    spokenName,
+  );
 
   @override
   String toString() => 'CatalogLeaf($key)';

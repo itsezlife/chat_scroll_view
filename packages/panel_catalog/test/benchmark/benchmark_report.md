@@ -186,6 +186,51 @@ one glyph was laid out again at each cell, because a rectangle's width is
 until a layout tolerance was added), and a save and a clip per cell cost more
 than the glyph (the clip now happens only for a glyph wider than its box).
 
+### Direction, semantics, focus and cursor
+
+Right-to-left cell placement, windowed semantics, roving focus and the click
+cursor touch the render object, so the whole suite was run before and after
+(same machine, three alternating whole-suite runs; median of the three per-run
+medians; ratio is after / before). Semantic nodes are built only for the slot
+range the viewport already binds (the visible band plus one cell of overscan, by
+binary search), never read a binding or a sprite, and live in content space
+under one container whose transform is the scroll offset, so a scroll that keeps
+the same window moves one transform and rebuilds no node.
+
+`flutter_test` turns semantics **on** for every widget test unless told
+otherwise, so the suite's own numbers are a semantics-on preset; the same suite
+was also run with semantics off (every probe forced off, before and after).
+
+| Probe (64 / 512 / 4096 leaves) | Semantics off, after / before | Semantics on (suite default), after / before |
+| ------------------------------ | ----------------------------- | -------------------------------------------- |
+| Scroll-only paint, median | 1.09 / 1.04 / 1.00 | 1.03 / 1.04 / 1.03 |
+| Forced relayout, median | 1.05 / 0.88 / 1.05 | 1.13 / 1.35 / 0.98 |
+| Fling frame time, median | 0.96 / 0.94 / 1.00 | 1.05 / 1.00 / 1.00 |
+| Near-path jump, median | 1.00 / 0.88 / 1.07 | 1.00 / 0.94 / 1.00 |
+| Far-path stitch, median | 1.00 / 1.00 / 1.00 | 0.94 / 0.94 / 1.00 |
+
+With semantics off nothing moves beyond run-to-run noise (the medians sit at the
+floor of a sampled frame, 14-25 µs, except relayout and paint). With semantics
+on the only probe that moves is forced relayout at 64 / 512 leaves, by 7-8 µs
+absolute: a relayout marks the window's nodes stale, which costs something only
+while a screen reader is running (the 4096-leaf row does not move).
+
+A semantics probe of its own (`semantics on - scroll frames`) pumps 300 scrolled
+frames, semantics flush included, with and without a screen reader on the same
+catalogue:
+
+| Leaves | Frame median, semantics off | Frame median, semantics on | Ratio | Semantic nodes |
+| ------ | --------------------------- | -------------------------- | ----- | -------------- |
+| 64 | 70-77 µs | 82-90 µs | about 1.2x | 74 |
+| 512 | 65-71 µs | 136-160 µs | about 2.0-2.3x | 83 |
+| 4096 | 65-67 µs | 129-134 µs | about 2.0x | 83 |
+
+The node count is the window (about 16 rows of 8 cells here), not the catalogue:
+it is the same at 512 and 4096 leaves, and the test asserts the bound and a
+generous 5x tripwire on the median. Absolute microseconds are debug-mode;
+the ratio is the signal. A device run with TalkBack or VoiceOver is not part of
+this report.
+
 ## Accepted gaps
 
 Evidence that does not exist yet, accepted by the spec ("only the reference
