@@ -14,11 +14,13 @@ is pre-1.0.
   layout and reaches the host a frame late, so a sum that relied on the pad
   dipped while a panel closed under the safe area. A host that fed the extent
   straight into the chat's bottom padding adds the safe area now.
-- The field attaches to the platform's text input again, one frame after the
-  soft keyboard mode changes while it has focus, so the platform sees the input
-  type the mode declares. Android keeps the type a field attached with: a field
-  that took focus suppressed never raised the keyboard it was allowed again.
-  Focus drops for that one frame.
+- `ComposerController.requestKeyboard()`: asks the field to raise the
+  on-screen keyboard after the frame. The field focuses, or, when it took focus
+  while the keyboard was suppressed, attaches to the platform's text input
+  again with the current type (Android keeps the type a field attached with,
+  so such a field never raised the keyboard it was allowed again). Changing
+  `softKeyboard` alone still shows nothing, so a panel that closes leaves the
+  keyboard down; a tap on such a field attaches it again by itself.
 
 ### Changed
 

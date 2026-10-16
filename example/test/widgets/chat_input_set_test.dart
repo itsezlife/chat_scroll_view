@@ -215,6 +215,31 @@ void main() {
       expect(rig.set.composer.softKeyboard.value, SoftKeyboardMode.auto);
     });
 
+    testWidgets('back closes the panel and leaves the keyboard down, focus '
+        'kept', (tester) async {
+      final rig = await _mobileRig(tester);
+      rig.set.composer.requestFocus();
+      await tester.pump();
+      await _open(tester, rig);
+      final attaches = tester.testTextInput.log
+          .where((call) => call.method == 'TextInput.setClient')
+          .length;
+
+      expect(await rig.set.handleBack(), isTrue);
+      await rig.settle(tester);
+
+      expect(_state(rig), isA<PanelVisibility$Hidden>());
+      expect(rig.set.composer.hasFocus, isTrue);
+      // No new attach: the field keeps the connection it had while the panel
+      // was up, which carries no keyboard type.
+      expect(
+        tester.testTextInput.log
+            .where((call) => call.method == 'TextInput.setClient')
+            .length,
+        attaches,
+      );
+    });
+
     testWidgets('a tap on the field hands the slot back to the keyboard, '
         'which the field then raises by attaching with it', (tester) async {
       final rig = await _mobileRig(tester);
