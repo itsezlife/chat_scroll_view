@@ -1,5 +1,39 @@
 ## Unreleased
 
+### Package architecture
+- **BREAKING**: `packages/chat_chrome` is deleted and has no successor: no
+  package re-exports another package's API, so a host imports what it uses.
+  The panel, composer, theme, glass and emoji code it held moved to the
+  packages below. Nothing is shimmed; hosts migrate to the new types.
+
+  | Was (`chat_chrome`) | Now |
+  | --- | --- |
+  | `KeyboardPanel`, `KeyboardPanelController`, `KeyboardPanelAllow`, `KeyboardPanelTab` | `panel_shell`: `PanelShell`, `PanelShellController`, `PanelPage` registry; visibility and kind in `panel_presentation`'s `PanelPresentationController` |
+  | `KeyboardPanelStore`, `keyboard_panel_*` preferences | `content_model` `PreferenceStore` and `KeyValueStore` (string page id); `panel_presentation` `KeyboardHeightStore` |
+  | `KeyboardPanelLabels`, `KeyboardPanelCallbacks` | `chrome_foundation` `ChromeStrings`; one `PanelEvent` family from `panel_shell` |
+  | `ChatBottomInsetController`, `KeyboardPanel` motion | `panel_presentation`: `PanelOccupancy` and the keyboard-replacement strategy; the host aggregates composer extent and occupancy into the viewport padding |
+  | `ChatEnterView`, `ChatComposerController`, `ChatComposerMode`, `ChatEnterTopView`, `ChatInputMetrics` | `chat_composer`: `ComposerView`, `ComposerSpec`, `ComposerController`, `ComposerTextController` |
+  | `ChatContentBottomFade` | `chat_composer` `ComposerBottomFade` |
+  | `ChatChromeTheme`, `ChatChromeColors` | `chrome_foundation` `ChromePalette`, token groups and `ChromeThemeScope` |
+  | `ScalePressable`, `OvershootCurve`, glass stack | `chrome_foundation` |
+  | `EmojiPage`, `EmojiCategoryStrip`, `EmojiColorPicker`, `EmojiGlyphAtlasHost` | `panel_pages`: `EmojiPage`, `EmojiCategoryStrip`, `EmojiVariantPicker`, `GlyphAtlasHost` |
+  | `SentinelGlyphArtVersion`, `GlyphProbeBakeObserver` | `emoji_data` `computeGlyphArtFingerprint` and the glyph probe; `catalog_assets` `CallbackGlyphBakeObserver`; wired by the host (`example/lib/src/common/emoji_glyph_probe.dart`) |
+  | `DefaultEmojiDataSource`, `EmojiDataSource`, locale catalogue tables, recents and skin-tone preferences, `chat_chrome` re-export of `emoji_data` | `emoji_data` collection and search sources over `content_model` seams; `emoji_catalog_pack` assets |
+- **BREAKING**: `emoji_data` is pure Dart. Its native plugin (method channel
+  `emoji_data`, platform directories) and the `emojiCatalogForLocale` tables
+  are gone.
+- **BREAKING**: `catalog_assets` loses `CatalogAssetCache`, `CatalogAssetKey`,
+  `CatalogAssetBinding`, `CatalogAssetReadiness`, `CatalogAssetCacheType`,
+  `MemoryCatalogAssetCache` and `FakeCatalogAssetCache`. Use the asset cache
+  scope and `AssetBinding`.
+- **REMOVED**: `warmAhead` and its offscreen raster helper. Emoji are drawn
+  from the baked glyph atlas, or from a bounded paragraph cache where nothing
+  is baked.
+- **ADDED**: `content_model`, `chrome_foundation`, `emoji_catalog_pack`,
+  `kv_shared_preferences`, `panel_shell`, `panel_pages`, `panel_presentation`
+  and `chat_composer`; the dependency direction is in
+  [ADR 020](docs/adr/020-package-topology.md).
+
 ### Day separators
 - **ADDED**: `ChatFloatingHeaderMarker`. The viewport now builds the
   floating header under this marker, and `ChatFloatingHeaderMarker.isInside`
