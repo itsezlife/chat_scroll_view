@@ -310,21 +310,24 @@ void main() {
       expect(menu(recents, arrangement: PanelArrangement.touch), isEmpty);
     });
 
-    test('is for emoji only', () {
-      const sticker = CatalogLeafHit(
+    test('is for a custom emoji of the recents too: they share the list', () {
+      const custom = CatalogLeafHit(
         sectionId: 's',
         index: 0,
-        leaf: CatalogLeaf(key: ContentKey.document('5368')),
+        leaf: CatalogLeaf(
+          key: ContentKey.document('5368'),
+          semanticKind: SemanticKind.customEmoji,
+        ),
       );
 
       expect(
         policy.menuOf(
-          sticker,
+          custom,
           recents,
           _strings,
           arrangement: PanelArrangement.pointer,
         ),
-        isEmpty,
+        hasLength(4),
       );
     });
 
@@ -509,6 +512,30 @@ void main() {
             )!
             .source,
         PickSource.search,
+      );
+    });
+
+    test('of a custom emoji are filed in the page\'s one recents list', () {
+      const custom = CatalogLeafHit(
+        sectionId: 'pack',
+        index: 0,
+        leaf: CatalogLeaf(
+          key: ContentKey.document('5368'),
+          semanticKind: SemanticKind.customEmoji,
+        ),
+      );
+
+      expect(
+        policy.pickOf(
+          custom,
+          const Collection(id: CollectionId.set('pack')),
+          searching: false,
+        ),
+        const CatalogPick(
+          key: ContentKey.document('5368'),
+          kind: EmojiPagePolicy.recentsKind,
+          source: PickSource.collection,
+        ),
       );
     });
   });

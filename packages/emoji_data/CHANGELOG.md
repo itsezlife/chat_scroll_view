@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `EmojiCollectionSource(resolver:)`: the recents describe keys outside the
+  catalogue (custom emoji) through the host's `ContentResolver`, batched and
+  once per key. Bare until answered; a key the resolver does not know leaves
+  the list; a failed batch is asked again at the next change.
+
 ### Changed
 
 - Source-breaking: the glyph probe's free functions and defaults live on

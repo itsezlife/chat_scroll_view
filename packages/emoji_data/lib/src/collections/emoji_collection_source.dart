@@ -22,7 +22,8 @@ import 'package:listen/listen.dart';
 /// each described as a unicode emoji drawn as a glyph. The item is the entry's
 /// base key, or the variant the user chose for it (see [chooseVariant]).
 /// Recents hold what the [RecentsStore] holds for `SemanticKind.unicodeEmoji`,
-/// best first, as it was picked.
+/// best first, as it was picked: the emoji page's one list, so custom emoji
+/// picked on the page are in it too (see *Custom emoji in the recents*).
 ///
 /// ## Loading
 ///
@@ -36,6 +37,24 @@ import 'package:listen/listen.dart';
 /// pages already loaded stay loaded when emoji are hidden or shown.
 ///
 /// Nothing fails, so no collection ever reaches `failed`.
+///
+/// ## Custom emoji in the recents
+///
+/// The recents list holds every emoji picked on the emoji page, custom emoji
+/// (document keys) among the unicode ones, as the reference clients keep one
+/// list. The catalogue describes only unicode keys; the others are described
+/// by the host's [ContentResolver], asked in one batch for the keys it has
+/// not answered yet whenever the recents are derived:
+///
+/// - until the resolver answers, a key is listed bare, in its place;
+/// - a key it resolves is listed with its descriptor from then on;
+/// - a key it leaves out (unknown or deleted content) leaves the list, so the
+///   page never draws a stand-in for content that will not come;
+/// - a batch that fails (no connection) is the state "not described yet", not
+///   an error: its keys stay bare and are asked again the next time the
+///   recents change.
+///
+/// Without a resolver every key outside the catalogue is listed bare.
 ///
 /// ## Glyph support
 ///
@@ -63,6 +82,7 @@ final class EmojiCollectionSource implements CollectionSource {
     required PreferenceStore preferences,
     GlyphSupport? glyphSupport,
     KeywordSource? keywords,
+    ContentResolver? resolver,
     List<String> languages = const [],
     int? pageSize,
     List<EmojiSection> sections = EmojiSection.reference,
@@ -80,6 +100,7 @@ final class EmojiCollectionSource implements CollectionSource {
        ),
        _glyphSupport = glyphSupport,
        _keywords = keywords,
+       _resolver = resolver,
        _languages = List<String>.unmodifiable(languages),
        _pageSize = pageSize,
        _sections = _withUnnamedGroups(catalog, sections) {
@@ -96,6 +117,7 @@ final class EmojiCollectionSource implements CollectionSource {
   final GlyphSupport? _glyphSupport;
   final EmojiItems _items;
   final KeywordSource? _keywords;
+  final ContentResolver? _resolver;
   final List<String> _languages;
   final int? _pageSize;
   final List<EmojiSection> _sections;
@@ -110,6 +132,10 @@ final class EmojiCollectionSource implements CollectionSource {
   final Map<CollectionId, int> _pages = {};
   final Map<CollectionId, Future<void>> _loading = {};
   final Set<CollectionId> _loadingMore = {};
+  // What the resolver said about recents outside the catalogue: a descriptor,
+  // or null for content it does not know.
+  final Map<ContentKey, ContentDescriptor?> _resolved = {};
+  final Set<ContentKey> _resolving = {};
   bool _disposed = false;
 
   @override
@@ -235,9 +261,10 @@ final class EmojiCollectionSource implements CollectionSource {
 
   CollectionContents _contentsOf(CollectionId id) {
     if (id == CollectionId.recent) {
+      final keys = _recents.recents(SemanticKind.unicodeEmoji);
+      _resolveUnknown(keys);
       return CollectionContents.loaded([
-        for (final key in _recents.recents(SemanticKind.unicodeEmoji))
-          ?_items.itemForKey(key),
+        for (final key in keys) ?_recentItemOf(key),
       ]);
     }
     final section = _sections.firstWhere(
@@ -255,6 +282,46 @@ final class EmojiCollectionSource implements CollectionSource {
     return CollectionContents.loaded(
       visible.sublist(0, shown),
       nextPageToken: shown < visible.length ? PageToken('$shown') : null,
+    );
+  }
+
+  CollectionItem? _recentItemOf(ContentKey key) {
+    if (key case ContentKey$Unicode()) return _items.itemForKey(key);
+    if (!_resolved.containsKey(key)) return CollectionItem.bare(key);
+    return switch (_resolved[key]) {
+      final descriptor? => CollectionItem.described(descriptor),
+      null => null,
+    };
+  }
+
+  // Asks the resolver, in one batch, about the recents outside the catalogue
+  // it has not answered and is not answering now.
+  void _resolveUnknown(List<ContentKey> keys) {
+    final resolver = _resolver;
+    if (resolver == null) return;
+    final unknown = [
+      for (final key in keys)
+        if (key is! ContentKey$Unicode &&
+            !_resolved.containsKey(key) &&
+            !_resolving.contains(key))
+          key,
+    ];
+    if (unknown.isEmpty) return;
+    _resolving.addAll(unknown);
+    unawaited(
+      resolver.resolve(unknown).then(
+        (found) {
+          _resolving.removeAll(unknown);
+          for (final key in unknown) {
+            _resolved[key] = found[key];
+          }
+          _refresh();
+        },
+        // Not described yet: the keys stay bare and are asked again at the
+        // next change (see the class documentation). Reporting it would
+        // report every recents change made offline.
+        onError: (Object _) => _resolving.removeAll(unknown),
+      ),
     );
   }
 

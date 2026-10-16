@@ -110,7 +110,7 @@ Seams producing collections and paged search-result collections.
 _Avoid_: A single content data source, facades per kind
 
 **Recents store**:
-Host-driven `record(key, {source})`. Keeps count and last-used time, orders by frequency then recency, separate per semantic kind, default cap 48. Search picks do not record.
+Host-driven `record(key, {source})`. Keeps count and last-used time, orders by frequency then recency, default cap 48. Search picks do not record. One list per kind recorded under; the kind names the page's list, not each key's content (the emoji page files unicode and custom emoji in one list).
 _Avoid_: Pure most-recently-used, recording inside the page on tap
 
 **Preference store**:

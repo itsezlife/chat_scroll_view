@@ -10,6 +10,7 @@ of this repository.
 **Status**: Accepted  
 **Date**: 2026-10-16  
 **Amended**: 2026-10-16 — change notification is [`package:listen`](https://pub.dev/packages/listen), see [Amendment](#amendment-change-notification-is-packagelisten)  
+**Amended**: 2026-10-17 — a recents list belongs to the page that files into it, see [Amendment](#amendment-one-recents-list-per-page)  
 **Relates to**: [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 022](022-asset-cache-and-media-pipeline.md)
 
 ## Decided
@@ -135,3 +136,31 @@ emoji sources show, for an emoji with no choice of its own, its variant whose
 people all have the default's tone, else its base; recents are untouched. The
 key-value store persists it as `"defaultVariant": [tone names]` (empty for
 the emoji as it is).
+
+## Amendment: one recents list per page
+
+The kind a pick is recorded under names a **recents list**, and the list
+belongs to the page that files into it, not to the semantic kind of each key
+in it. The store is unchanged: still one list per `SemanticKind` value, ranked
+by frequency, then recency.
+
+| Area | Decision |
+| ---- | -------- |
+| Emoji page | Files every pick under `SemanticKind.unicodeEmoji` (`EmojiPagePolicy.recentsKind`): unicode emoji and custom emoji (document keys) in one list, as both reference clients keep one list for the emoji tab. Remove, clear and the recents menu act on that list whatever the key. |
+| Content kind | Stays in the descriptor. A consumer that needs to know what a recent is reads its key or descriptor, never the list's kind; the host inserts and copies by key. |
+| Describing | `EmojiCollectionSource` describes the keys outside its catalogue through an optional host `ContentResolver`, batched, once per key. A key is bare until answered, described once resolved, and leaves the list when the resolver does not know it; a failed batch keeps the keys bare and is asked again at the next change. |
+
+### Why
+
+- Telegram Android keeps one `recentEmoji` list of unicode and custom emoji
+  ids; Telegram-iOS one ordered list for the emoji tab. A list per content
+  kind would split what the user sees as one row, and merging two lists has
+  no shared order: each ranks only against itself.
+
+### Rejected
+
+| Alternative | Why not |
+| ----------- | ------- |
+| A store query that ranks several kinds together | A seam change across every store and fake for the same result; the kind would still have to say which lists a page merges |
+| Custom emoji recents under `customEmoji`, shown after the unicode ones | Two blocks in one row, in no order the user made |
+

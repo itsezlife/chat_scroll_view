@@ -409,6 +409,122 @@ void main() {
     });
   });
 
+  group('custom emoji in the recents', () {
+    const party = ContentKey.document('party');
+    const gone = ContentKey.document('gone');
+    const partyDescriptor = ContentDescriptor(
+      key: party,
+      semanticKind: SemanticKind.customEmoji,
+      mediaForm: MediaForm.video,
+      animated: true,
+    );
+    late FakeContentResolver resolver;
+    late EmojiCollectionSource emoji;
+
+    setUp(() {
+      resolver = FakeContentResolver([partyDescriptor]);
+      emoji = EmojiCollectionSource(
+        catalog: sampleCatalog(),
+        recents: recents,
+        preferences: preferences,
+        resolver: resolver,
+      );
+    });
+    tearDown(() => emoji.dispose());
+
+    List<CollectionItem> recentItems() =>
+        (emoji.collections.value.first.contents as CollectionContents$Loaded)
+            .items;
+
+    // Lets the resolver's answer land and the recents republish.
+    Future<void> settle() => Future<void>.delayed(Duration.zero);
+
+    test('lists them among the unicode emoji, in the store\'s order, '
+        'described by the resolver', () async {
+      await recents.record(key('1F600'), kind: SemanticKind.unicodeEmoji);
+      await recents.record(party, kind: SemanticKind.unicodeEmoji);
+
+      await emoji.load(CollectionId.recent);
+      await settle();
+
+      expect(recentItems().map((item) => item.key), [party, key('1F600')]);
+      expect(recentItems().first.descriptor, partyDescriptor);
+    });
+
+    test('lists a key bare until the resolver answers', () async {
+      await recents.record(party, kind: SemanticKind.unicodeEmoji);
+
+      await emoji.load(CollectionId.recent);
+
+      expect(recentItems().single, const CollectionItem.bare(party));
+      await settle();
+      expect(recentItems().single.descriptor, partyDescriptor);
+    });
+
+    test('drops content the resolver does not know', () async {
+      await recents.record(gone, kind: SemanticKind.unicodeEmoji);
+      await recents.record(party, kind: SemanticKind.unicodeEmoji);
+
+      await emoji.load(CollectionId.recent);
+      await settle();
+
+      expect(recentItems().map((item) => item.key), [party]);
+    });
+
+    test('asks once per key, in one batch, never for a unicode key', () async {
+      await recents.record(gone, kind: SemanticKind.unicodeEmoji);
+      await recents.record(party, kind: SemanticKind.unicodeEmoji);
+      await recents.record(key('1F600'), kind: SemanticKind.unicodeEmoji);
+
+      await emoji.load(CollectionId.recent);
+      await settle();
+      await recents.record(key('1F600'), kind: SemanticKind.unicodeEmoji);
+      await settle();
+
+      expect(resolver.requests, [
+        [party, gone],
+      ]);
+    });
+
+    test('keeps keys bare when the resolver fails, and asks again at the '
+        'next change', () async {
+      resolver.failure = Exception('offline');
+      await recents.record(party, kind: SemanticKind.unicodeEmoji);
+
+      await emoji.load(CollectionId.recent);
+      await settle();
+      expect(recentItems().single, const CollectionItem.bare(party));
+
+      resolver.failure = null;
+      await recents.record(key('1F600'), kind: SemanticKind.unicodeEmoji);
+      await settle();
+
+      expect(resolver.requests, hasLength(2));
+      expect(
+        recentItems().singleWhere((item) => item.key == party).descriptor,
+        partyDescriptor,
+      );
+    });
+
+    test('lists them bare without a resolver', () async {
+      final bare = EmojiCollectionSource(
+        catalog: sampleCatalog(),
+        recents: recents,
+        preferences: preferences,
+      );
+      addTearDown(bare.dispose);
+      await recents.record(party, kind: SemanticKind.unicodeEmoji);
+
+      await bare.load(CollectionId.recent);
+
+      expect(
+        (bare.collections.value.first.contents as CollectionContents$Loaded)
+            .items,
+        [const CollectionItem.bare(party)],
+      );
+    });
+  });
+
   group('glyph support', () {
     late EmojiCollectionSource emoji;
     const faces = CollectionId.category('faces');
