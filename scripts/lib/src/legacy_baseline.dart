@@ -29,12 +29,16 @@ abstract final class LegacyBaseline {
   /// The excused violations of the current tree.
   static const List<LegacyException> current = <LegacyException>[
     LegacyException(
-      LintRule.fakeExportedOutsideTesting,
-      'packages/catalog_assets/lib/catalog_assets.dart exports '
-      'src/fake_catalog_asset_cache.dart',
+      LintRule.pluginDependencyOutsideAdapter,
+      'chat_chrome -> shared_preferences',
+      removedBy: 'issue 32 (chat_chrome is deleted)',
+    ),
+    LegacyException(
+      LintRule.pluginDependencyOutsideAdapter,
+      'chat_scroll_view_example -> shared_preferences',
       removedBy:
-          'issue 09 (the asset cache API is replaced; fakes move to '
-          'testing.dart)',
+          'the example host\'s own persisted settings move onto '
+          'kv_shared_preferences (no issue owns this yet)',
     ),
     LegacyException(
       LintRule.fakeExportedOutsideTesting,

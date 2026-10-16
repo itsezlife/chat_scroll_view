@@ -1,7 +1,8 @@
 import 'dart:async' show Completer, Future, unawaited;
 import 'dart:math' as math;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/legacy_shim.dart';
+import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';

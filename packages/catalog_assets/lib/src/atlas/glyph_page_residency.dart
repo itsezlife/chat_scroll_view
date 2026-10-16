@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:catalog_assets/src/atlas/glyph_atlas_layout.dart';
+import 'package:catalog_assets/src/glyph/glyph_sprite_source.dart';
 import 'package:flutter/foundation.dart';
 
 /// Starts a timer that calls [callback] once after [delay]. The default is
@@ -15,16 +16,15 @@ typedef RetentionTimerFactory =
 /// [GlyphPageResidency.holdAll] (every page). A hold is a count, never pixels:
 /// whoever has one asks the residency for the image when it draws, because the
 /// image can go away under memory pressure while the count stays.
-final class GlyphPageHold {
+final class GlyphPageHold implements SpritePageHold {
   GlyphPageHold._(this._onRelease);
 
   void Function()? _onRelease;
 
-  /// Whether [release] was called.
+  @override
   bool get isReleased => _onRelease == null;
 
-  /// Gives the claim back. A second call does nothing, so a count is never
-  /// taken from someone else's claim.
+  @override
   void release() {
     final onRelease = _onRelease;
     _onRelease = null;
@@ -229,9 +229,7 @@ final class GlyphPageResidency {
     if (_disposed) return;
     _openHolds--;
     if (_openHolds > 0) return;
-    for (final page in _images.keys.toList()) {
-      _startExpiryIfUnpinned(page);
-    }
+    _images.keys.toList().forEach(_startExpiryIfUnpinned);
   }
 
   void _startExpiryIfUnpinned(int pageIndex) {

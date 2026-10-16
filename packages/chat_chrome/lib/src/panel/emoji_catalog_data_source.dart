@@ -1,4 +1,4 @@
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/legacy_shim.dart';
 import 'package:chat_chrome/src/panel/emoji_tab_assets.dart';
 import 'package:chat_chrome/src/util/constants.dart';
 import 'package:chat_chrome/src/util/logger.dart';

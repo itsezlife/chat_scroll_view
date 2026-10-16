@@ -1,4 +1,5 @@
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/legacy_shim.dart';
+import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
 import 'package:panel_catalog/src/util/constants.dart';

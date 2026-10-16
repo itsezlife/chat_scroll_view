@@ -404,7 +404,7 @@ void main() {
     });
 
     test('pages baked by another layout version are discarded', () async {
-      final seeded = (await cache.stage(
+      final seeded = await cache.stage(
         GlyphCacheRecord(
           key: GlyphCacheKey(
             artVersion: 'art-1',
@@ -418,7 +418,7 @@ void main() {
           ),
           glyphs: _glyphs(3),
         ),
-      ));
+      );
       expect(seeded, isNotNull);
       await cache.commit();
 

@@ -2,9 +2,9 @@
 /// a changed fingerprint makes the persisted pages stale.
 ///
 /// **Seam:** `GlyphAtlas(persistence:)` whose art version source is
-/// `ComputedGlyphArtVersion` over a fingerprint of the sentinels' pixels
-/// (`_fingerprint`, the shape of the data layer's fingerprint without its
-/// package) and `GlyphPixelReader` over a `FakeGlyphRasteriser`. "The system updates its emoji art" is a
+/// `ComputedGlyphArtVersion` over a fingerprint of sentinel pixels and
+/// `GlyphPixelReader` over a `FakeGlyphRasteriser`. "The system updates its
+/// emoji art" is a
 /// rasteriser that paints the sentinels in another colour; no emoji font.
 library;
 
@@ -16,21 +16,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _sentinels = ['s1', 's2'];
-
-/// Joins a hash of each sentinel's pixels, one sentinel per frame: any change
-/// in how one is drawn changes the string.
-Future<String> _fingerprint({
-  required Iterable<String> sentinels,
-  required Future<Uint8List> Function(String glyph) pixelsOf,
-  required Future<void> Function() nextFrame,
-}) async {
-  final hashes = <int>[];
-  for (final glyph in sentinels) {
-    await nextFrame();
-    hashes.add(Object.hashAll(await pixelsOf(glyph)));
-  }
-  return 'art1-${hashes.join('.')}';
-}
 
 /// A system whose sentinels look like [art]; everything else looks the same.
 final class _System implements GlyphRasteriser {
@@ -45,6 +30,17 @@ final class _System implements GlyphRasteriser {
     _sentinels.contains(glyph) ? '$glyph$art' : glyph,
     cell,
   );
+}
+
+/// The art version as the production fingerprint makes it: one opaque string
+/// that is the same for the same sentinel pixels and different otherwise.
+Future<String> _fingerprint(GlyphPixelReader reader) async {
+  final pixels = <int>[];
+  for (final sentinel in _sentinels) {
+    await Future<void>.delayed(Duration.zero);
+    pixels.add(Object.hashAll(await reader.pixelsOf(sentinel)));
+  }
+  return 'art1-${Object.hashAll(pixels)}';
 }
 
 void main() {
@@ -70,13 +66,7 @@ void main() {
   ({GlyphAtlas atlas, FakeGlyphRasteriser baked}) launch(String art) {
     final system = _System(art);
     final reader = GlyphPixelReader(system, size: 16);
-    final source = ComputedGlyphArtVersion(
-      () => _fingerprint(
-        sentinels: _sentinels,
-        pixelsOf: reader.pixelsOf,
-        nextFrame: () async {},
-      ),
-    );
+    final source = ComputedGlyphArtVersion(() => _fingerprint(reader));
     final baked = FakeGlyphRasteriser();
     final atlas = GlyphAtlas(
       index: GlyphAtlasIndex(['a', 'b']),

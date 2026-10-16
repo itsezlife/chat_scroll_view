@@ -1,17 +1,30 @@
-/// Process-wide global catalog asset cache for catalog and chat leaves.
+/// The asset cache core: what a surface binds to, how far an asset has come,
+/// how long it is kept, and what advances its animation.
 ///
-/// Callers bind by key and cache type, observe leaf readiness, and
-/// attach/detach. Ready/failed entries survive the last detach so pager
-/// keep-alive leave/return does not flash loading; [isRetained] still tracks
-/// live surface binds. Fetch orchestration stays outside this package.
+/// A host creates one `AssetCacheScope` and hands it to the surfaces that draw
+/// content. A surface calls `attach(key, spec, profile)` and gets an
+/// `AssetBinding`: a staged readiness (`none`, `placeholder`, `firstFrame`,
+/// `full`, never a failed one), an `AssetPaintable` to draw, and a pin that
+/// keeps the entry in a byte-budgeted LRU until `detach`. Content is made
+/// behind the `AssetProducer` seam; unicode glyphs bind to baked sprites on an
+/// atlas page through the narrow `GlyphSpriteSource` seam (the atlas itself is
+/// `glyph_atlas.dart`). One `PlaybackClock` advances every animation, gated per
+/// binding and by host-set pause layers.
+///
+/// Single-threaded on the UI isolate; no static state.
 library;
 
+export 'src/asset/asset_binding.dart';
+export 'src/asset/asset_cache_budgets.dart';
+export 'src/asset/asset_cache_scope.dart';
+export 'src/asset/asset_paintable.dart';
+export 'src/asset/asset_producer.dart';
+export 'src/asset/asset_profile.dart';
+export 'src/asset/asset_readiness.dart';
+export 'src/asset/asset_spec.dart';
 export 'src/atlas/atlas_sprite.dart';
-export 'src/atlas/glyph_atlas.dart';
-export 'src/catalog_asset_binding.dart';
-export 'src/catalog_asset_cache.dart';
-export 'src/catalog_asset_cache_type.dart';
-export 'src/catalog_asset_key.dart';
-export 'src/catalog_asset_readiness.dart';
-export 'src/fake_catalog_asset_cache.dart';
-export 'src/memory_catalog_asset_cache.dart';
+export 'src/glyph/glyph_sprite_source.dart';
+export 'src/playback/playback_clock.dart' show PlaybackClock;
+export 'src/playback/playback_policy.dart';
+export 'src/playback/playback_tick_source.dart';
+export 'src/playback/scheduler_playback_tick_source.dart';

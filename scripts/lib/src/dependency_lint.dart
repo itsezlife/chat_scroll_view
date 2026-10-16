@@ -18,6 +18,13 @@ import 'package:workspace_check/src/workspace.dart';
 ///   tokens to it, so it never depends on `chrome_foundation`, directly or
 ///   transitively.
 ///
+/// - **Plugins stay in their adapter.** Only `kv_shared_preferences` declares
+///   `shared_preferences` (or one of its `shared_preferences_*` platform
+///   packages), in `dependencies:` or `dev_dependencies:`. Everything else
+///   reaches durable storage through `KeyValueStore`. Reported as
+///   `member -> package`, only for direct declarations: the plugin's own
+///   transitive packages are not the member's choice.
+///
 /// Adapter packages are recognised by name, since nothing else marks them: a
 /// package is an adapter when a `_`-delimited word of its name is `codec`,
 /// `decoder` or `fetcher` (or the plural): `lottie_codec`, `disk_fetchers`. An
@@ -47,12 +54,18 @@ abstract final class DependencyLint {
     'panel_catalog': <String>{'chrome_foundation'},
   };
 
+  // The plugin and the only member allowed to declare it.
+  static const String _preferencesPlugin = 'shared_preferences';
+  static const String _preferencesAdapter = 'kv_shared_preferences';
+
   /// All violations in [graph]: cycles first, then leaf breaches, then the
-  /// remaining forbidden edges, each group in member order.
+  /// remaining forbidden edges, then plugin declarations outside their
+  /// adapter, each group in member order.
   static List<Violation> check(WorkspaceGraph graph) => <Violation>[
     ..._cycles(graph),
     ..._leafBreaches(graph),
     ..._forbiddenBreaches(graph),
+    ..._pluginBreaches(graph),
   ];
 
   static Iterable<Violation> _cycles(WorkspaceGraph graph) {
@@ -100,6 +113,19 @@ abstract final class DependencyLint {
             '${member.name} -> $dependency',
           ),
   ];
+
+  static Iterable<Violation> _pluginBreaches(WorkspaceGraph graph) =>
+      <Violation>[
+        for (final member in graph.members)
+          if (member.name != _preferencesAdapter)
+            for (final name in member.dependencies.toList()..sort())
+              if (name == _preferencesPlugin ||
+                  name.startsWith('${_preferencesPlugin}_'))
+                Violation(
+                  LintRule.pluginDependencyOutsideAdapter,
+                  '${member.name} -> $name',
+                ),
+      ];
 
   static Iterable<Violation> _forbiddenBreaches(WorkspaceGraph graph) =>
       <Violation>[

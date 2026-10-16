@@ -243,6 +243,43 @@ void main() {
       expect(violations.single.subject, 'panel_catalog -> chrome_foundation');
     });
 
+    group('shared_preferences', () {
+      test('is allowed in kv_shared_preferences', () {
+        expect(
+          rulesOf({
+            'content_model': {},
+            'kv_shared_preferences': {'content_model', 'shared_preferences'},
+          }),
+          isEmpty,
+        );
+      });
+
+      test('is reported in any other member', () {
+        final violations = DependencyLint.check(
+          graphOf({
+            'emoji_data': {'shared_preferences'},
+            'kv_shared_preferences': {'shared_preferences'},
+          }),
+        );
+
+        expect(violations.map((v) => v.rule), [
+          LintRule.pluginDependencyOutsideAdapter,
+        ]);
+        expect(violations.single.subject, 'emoji_data -> shared_preferences');
+      });
+
+      test('is reported for its platform implementation packages too', () {
+        expect(
+          DependencyLint.check(
+            graphOf({
+              'panel_pages': {'shared_preferences_android'},
+            }),
+          ).map((v) => v.subject),
+          ['panel_pages -> shared_preferences_android'],
+        );
+      });
+    });
+
     test('reports every kind of violation in one pass, in a stable order', () {
       expect(
         rulesOf({

@@ -5,8 +5,8 @@ import 'package:meta/meta.dart';
 /// A baked glyph ready to draw: the page image it sits on and the rectangle of
 /// its pixels on that page.
 ///
-/// This is the optional sprite capability of a catalog asset. A surface that
-/// finds one draws the rectangle of [page] instead of painting the asset
+/// This is the optional sprite capability of an `AssetPaintable`. A surface
+/// that finds one draws the rectangle of [page] instead of painting the asset
 /// itself, and draws every sprite of one page in a single batch; an asset
 /// without one paints itself.
 ///

@@ -1,8 +1,8 @@
 name: content_model
 description: >
-  Pure-Dart content identity and collection value types, the Observable
-  primitive, data seams with reference stores, and their fakes and contract
-  suites.
+  Pure-Dart content identity and collection value types, rich text with an
+  opt-in markdown helper, the Observable primitive, data seams with reference
+  stores, and their fakes and contract suites.
 version: 0.1.0
 publish_to: none
 resolution: workspace
