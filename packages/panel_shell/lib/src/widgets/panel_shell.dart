@@ -52,6 +52,7 @@ class PanelShell extends StatefulWidget {
     this.focusPolicy = PanelFocusPolicy.none,
     this.announcer = const SemanticsServiceAnnouncer(),
     this.searchContextMenuBuilder,
+    this.deferSearchField = false,
     super.key,
   });
 
@@ -73,6 +74,16 @@ class PanelShell extends StatefulWidget {
   /// Builds the selection toolbar of the search field; null shows none.
   final EditableTextContextMenuBuilder? searchContextMenuBuilder;
 
+  /// Whether the search field mounts in the frame after the first one.
+  ///
+  /// A text field costs a frame of its own at 120 Hz, and the first frame of a
+  /// panel already builds the page. A presentation that mounts the shell while
+  /// nothing moves (a cold open) sets it, so the page, the field and the
+  /// page's own strip arrive one frame apart; one that mounts the shell over
+  /// content already on screen leaves it off, or the field would pop in.
+  /// Read once, when the shell mounts.
+  final bool deferSearchField;
+
   @override
   State<PanelShell> createState() => _PanelShellState();
 }
@@ -82,6 +93,7 @@ class _PanelShellState extends State<PanelShell> {
   final _position = ValueNotifier<double>(0);
   final _dragging = ValueNotifier<bool>(false);
   final _barVisibility = BottomBarVisibility();
+  late var _fieldMounted = !widget.deferSearchField;
 
   PanelShellController get _shell => widget.controller;
 
@@ -89,6 +101,11 @@ class _PanelShellState extends State<PanelShell> {
   void initState() {
     super.initState();
     _bind(widget.controller);
+    if (!_fieldMounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _fieldMounted = true);
+      });
+    }
   }
 
   @override
@@ -211,21 +228,7 @@ class _PanelShellState extends State<PanelShell> {
                 children: [
                   ValueObservableBuilder<String>(
                     observable: _shell.selectedPageId,
-                    builder: (context, _) => AnimatedSize(
-                      duration: motion.durationOf(MotionRole.search),
-                      curve: motion.curveOf(MotionRole.search),
-                      alignment: AlignmentDirectional.topStart,
-                      child: _shell.selectedPage.capabilities.search
-                          ? FocusTraversalOrder(
-                              order: const NumericFocusOrder(3),
-                              child: PanelSearchField(
-                                controller: _shell,
-                                contextMenuBuilder:
-                                    widget.searchContextMenuBuilder,
-                              ),
-                            )
-                          : const SizedBox(width: double.infinity),
-                    ),
+                    builder: (context, _) => _searchSlot(motion),
                   ),
                   Expanded(
                     child: Stack(
@@ -268,6 +271,30 @@ class _PanelShellState extends State<PanelShell> {
           ),
         ),
       ),
+    );
+  }
+
+  // The field comes and goes with the selected page. A zero duration (instant
+  // motion speed) skips AnimatedSize: its render object re-dirties itself in
+  // its own layout when it is asked to resize over no time, which is a
+  // framework error, and there is nothing to animate anyway.
+  Widget _searchSlot(ChromeMotionData motion) {
+    final slot = _fieldMounted && _shell.selectedPage.capabilities.search
+        ? FocusTraversalOrder(
+            order: const NumericFocusOrder(3),
+            child: PanelSearchField(
+              controller: _shell,
+              contextMenuBuilder: widget.searchContextMenuBuilder,
+            ),
+          )
+        : const SizedBox(width: double.infinity);
+    final duration = motion.durationOf(MotionRole.search);
+    if (duration == Duration.zero) return slot;
+    return AnimatedSize(
+      duration: duration,
+      curve: motion.curveOf(MotionRole.search),
+      alignment: AlignmentDirectional.topStart,
+      child: slot,
     );
   }
 

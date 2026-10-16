@@ -30,6 +30,18 @@ abstract interface class PanelPageHost {
   /// Where the page keeps controllers that outlive its widget.
   PageControllerRegistry get controllers;
 
+  /// Whether the panel is on screen, including while it slides in or out, as
+  /// the presentation reported it.
+  ///
+  /// The pause signal of work that is pointless when nothing is seen, such as
+  /// baking glyphs. The same observable for every page.
+  ValueObservable<bool> get panelVisible;
+
+  /// Whether the panel is moving in or out, as the presentation reported it.
+  ///
+  /// The pause signal of work that would drop frames during the motion.
+  ValueObservable<bool> get panelOpening;
+
   /// Reports that the user picked [key] of [kind]; the shell publishes
   /// [ContentPicked] with [source].
   void pick(
@@ -41,6 +53,13 @@ abstract interface class PanelPageHost {
   /// Reports that the user asked to clear the recents of [kind]; the shell
   /// publishes [ClearRecentsRequested].
   void requestClearRecents(SemanticKind kind);
+
+  /// Withdraws the search field's focus intent, keeping search open: the soft
+  /// keyboard goes away so the user can see the results. A page calls it when
+  /// the user takes hold of its content.
+  ///
+  /// Only the selected page is heard.
+  void releaseSearchFocus();
 
   /// Reports what the page's scroll is doing; drives the bottom bar.
   void reportScrollActivity(PageScrollActivity activity);

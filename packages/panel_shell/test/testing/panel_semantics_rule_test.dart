@@ -12,6 +12,7 @@ ChromeStrings stringsWith({
   return ChromeStrings(
     panel: PanelStrings(
       tabLabel: tabLabel ?? base.panel.tabLabel,
+      categoryTitle: base.panel.categoryTitle,
       recentlyUsedTitle: base.panel.recentlyUsedTitle,
       searchResultsTitle: base.panel.searchResultsTitle,
       searchHint: base.panel.searchHint,
@@ -30,6 +31,7 @@ ChromeStrings stringsWith({
       searchResultCount: base.semantics.searchResultCount,
       backspaceAction: base.semantics.backspaceAction,
       variantsAction: base.semantics.variantsAction,
+      categoryStripLabel: base.semantics.categoryStripLabel,
     ),
   );
 }

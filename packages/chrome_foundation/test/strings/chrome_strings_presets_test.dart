@@ -102,6 +102,21 @@ void main() {
       expect(ChromeStringsPresets.english.panel.tabLabel('custom'), 'custom');
     });
 
+    test('category ids resolve to titles and an unknown one to itself', () {
+      expect(
+        ChromeStringsPresets.english.panel.categoryTitle('flags'),
+        'Flags',
+      );
+      expect(
+        ChromeStringsPresets.russian.panel.categoryTitle('flags'),
+        'Флаги',
+      );
+      expect(
+        ChromeStringsPresets.english.panel.categoryTitle('custom-set'),
+        'custom-set',
+      );
+    });
+
     test('known page ids resolve to their tab names', () {
       expect(ChromeStringsPresets.english.panel.tabLabel('emoji'), 'Emoji');
       expect(

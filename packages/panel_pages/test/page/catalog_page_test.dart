@@ -11,6 +11,7 @@ library;
 import 'dart:async';
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
@@ -73,7 +74,7 @@ class _Policy extends CatalogPagePolicy {
   SectionLayout? layoutOf(Collection collection) => _layout;
 
   @override
-  CatalogSectionAction? actionOf(Collection collection) =>
+  CatalogSectionAction? actionOf(Collection collection, PanelStrings strings) =>
       const CatalogSectionAction(id: 'more', label: 'More');
 
   @override
@@ -326,6 +327,31 @@ void main() {
 
       expect(host.scrollActivity.whereType<PageScrollDrag>(), isNotEmpty);
       expect(host.scrollActivity.last, isA<PageScrollIdle>());
+    });
+
+    testWidgets('taking hold of the catalogue releases the search focus', (
+      tester,
+    ) async {
+      source.dispose();
+      source = _source(faces: [80], animals: [40]);
+      await pumpPage(tester);
+      expect(host.searchFocusReleases, 0);
+
+      await tester.drag(
+        find.byType(PanelCatalogViewport),
+        const Offset(0, -120),
+      );
+      await tester.pumpAndSettle();
+
+      expect(host.searchFocusReleases, 1);
+    });
+
+    testWidgets('a tap does not release the search focus', (tester) async {
+      await pumpPage(tester);
+
+      await tapCell(tester);
+
+      expect(host.searchFocusReleases, 0);
     });
 
     testWidgets('selecting the tab again scrolls back to the start', (

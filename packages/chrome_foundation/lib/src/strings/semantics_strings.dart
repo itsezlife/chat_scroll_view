@@ -14,6 +14,7 @@ final class SemanticsStrings {
     required this.searchResultCount,
     required this.backspaceAction,
     required this.variantsAction,
+    required this.categoryStripLabel,
   });
 
   /// Announced when the panel opens.
@@ -38,4 +39,7 @@ final class SemanticsStrings {
 
   /// Label of the custom action that opens an item's variants (skin tones).
   final String variantsAction;
+
+  /// Semantic label of the strip that jumps between categories.
+  final String categoryStripLabel;
 }

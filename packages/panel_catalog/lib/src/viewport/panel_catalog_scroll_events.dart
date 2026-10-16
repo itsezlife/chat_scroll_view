@@ -17,6 +17,9 @@ import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 /// all, so a page that paces background work (a glyph bake) reads two facts
 /// instead of re-deriving them from every motion event.
 ///
+/// The section event ([PanelCatalogCurrentSectionChanged]) says which section
+/// the viewport is in, for a page's strip.
+///
 /// The focus event ([PanelCatalogFocusChanged]) is neither motion nor
 /// activity: it says which leaf holds roving focus.
 ///
@@ -268,4 +271,43 @@ final class PanelCatalogFocusChanged extends PanelCatalogScrollEvent {
 
   @override
   String toString() => 'PanelCatalogFocusChanged($leaf)';
+}
+
+/// The section the viewport is in changed.
+///
+/// A section is current from the moment its header reaches the landing line
+/// (the viewport's `headerLandingInset`, else its top padding) until the next
+/// section's header does. At the end of content that scrolls the last section
+/// is current when its header is in view, because a section too short to bring
+/// its header to the line could otherwise never be the one a jump to it lands
+/// in. Before the first header reaches the line, the first section is current.
+///
+/// Published once per change, from the first layout that has sections, and
+/// again when new sections change which one is current (or its index). It is
+/// derived from the offset alone: it says nothing about why the catalogue
+/// moved, so a strip that is driving a section jump itself ignores it while
+/// `PanelCatalogController.isSectionJumpActive`. No event while there are no
+/// sections.
+final class PanelCatalogCurrentSectionChanged extends PanelCatalogScrollEvent {
+  /// Emitted when section [sectionId], at [sectionIndex], became current.
+  const PanelCatalogCurrentSectionChanged(this.sectionIndex, this.sectionId);
+
+  /// Position of the section in the snapshot, from zero.
+  final int sectionIndex;
+
+  /// [CatalogSection.id] of the section.
+  final String sectionId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PanelCatalogCurrentSectionChanged &&
+      other.sectionIndex == sectionIndex &&
+      other.sectionId == sectionId;
+
+  @override
+  int get hashCode => Object.hash(sectionIndex, sectionId);
+
+  @override
+  String toString() =>
+      'PanelCatalogCurrentSectionChanged($sectionIndex, $sectionId)';
 }

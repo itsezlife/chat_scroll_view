@@ -78,6 +78,7 @@ final class PanelCatalogController {
   CatalogScrollPosition? _position;
   double _offset = 0;
   (int sectionIndex, Completer<void> completer)? _pendingSectionJump;
+  PanelCatalogCurrentSectionChanged? _currentSection;
   var _disposed = false;
 
   /// What the viewport does, as one typed stream of synchronous events.
@@ -104,6 +105,14 @@ final class PanelCatalogController {
   /// Largest valid [offset]: `max(0, contentExtent − viewportExtent)`; `0`
   /// before the first layout or when no viewport is attached.
   double get maxScrollExtent => _position?.maxScrollExtent ?? 0;
+
+  /// The section the viewport is in, as the last
+  /// [PanelCatalogCurrentSectionChanged] said, or null before one was
+  /// published or while the catalogue has no sections.
+  ///
+  /// For a listener that subscribes after the viewport has laid out (a strip
+  /// that mounts a frame later) and has missed the event.
+  PanelCatalogCurrentSectionChanged? get currentSection => _currentSection;
 
   /// Whether a viewport is attached.
   bool get hasPosition => _position != null;
@@ -265,7 +274,14 @@ final class PanelCatalogController {
 
   /// Publishes [event] to [events] listeners. Viewport-only.
   @internal
-  void publish(PanelCatalogScrollEvent event) => _events.publish(event);
+  void publish(PanelCatalogScrollEvent event) {
+    if (event is PanelCatalogCurrentSectionChanged) _currentSection = event;
+    _events.publish(event);
+  }
+
+  /// Forgets the current section, for a catalogue that has none. Viewport-only.
+  @internal
+  void clearCurrentSection() => _currentSection = null;
 
   /// Binds [position] as the one attached viewport. Viewport-only.
   ///

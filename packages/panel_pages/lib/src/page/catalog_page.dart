@@ -131,6 +131,7 @@ class _CatalogPageState extends State<CatalogPage> {
       events: _catalog.events,
       port: widget.bake,
     );
+    _catalog.events.addListener(_onCatalogEvent);
     _host.reselected.addListener(_onReselected);
     _host.isActive.addListener(_onActiveChanged);
   }
@@ -174,6 +175,7 @@ class _CatalogPageState extends State<CatalogPage> {
 
   @override
   void dispose() {
+    _catalog.events.removeListener(_onCatalogEvent);
     _host.isActive.removeListener(_onActiveChanged);
     _host.reselected.removeListener(_onReselected);
     _model.showsResults.removeListener(_onShowsResultsChanged);
@@ -189,6 +191,13 @@ class _CatalogPageState extends State<CatalogPage> {
   bool _atEdge() {
     final offset = _catalog.offset;
     return offset <= 0.5 || offset >= _catalog.maxScrollExtent - 0.5;
+  }
+
+  // The user took hold of the catalogue: the soft keyboard goes, so the
+  // results are not hidden behind it. A drag that continues a section jump the
+  // user started with the strip is a drag all the same.
+  void _onCatalogEvent(PanelCatalogScrollEvent event) {
+    if (event is PanelCatalogUserDragStart) _host.releaseSearchFocus();
   }
 
   void _onReselected() {

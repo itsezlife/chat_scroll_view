@@ -558,6 +558,9 @@ class RenderPanelCatalog extends RenderBox
   double _projectedWidth = -1;
   var _proximityScheduled = false;
 
+  /// The section last published as current, by index and id.
+  (int, String)? _currentSection;
+
   /// Ballistic scroll simulation and tick integration in content offset space.
   final CatalogScrollPhysics _physics = CatalogScrollPhysics();
 
@@ -795,7 +798,7 @@ class RenderPanelCatalog extends RenderBox
     _clampOffset();
     _syncVisibleBindings();
     markNeedsPaint();
-    _noteSectionProximity();
+    _noteSections();
   }
 
   /// Moves to [pixels] at once: publishes the jump, cancels programmatic
@@ -1149,7 +1152,7 @@ class RenderPanelCatalog extends RenderBox
     _applyOffset(targetOffset);
     _clampOffset();
     _syncVisibleBindings();
-    _noteSectionProximity();
+    _noteSections();
     _controller.publish(
       PanelCatalogSectionJumpStart(sectionIndex, targetOffset, farPath: true),
     );
@@ -1258,7 +1261,7 @@ class RenderPanelCatalog extends RenderBox
         _clampOffset();
         _syncVisibleBindings();
         markNeedsPaint();
-        _noteSectionProximity();
+        _noteSections();
       },
     );
     _farStitch = CatalogFarStitch(
@@ -1304,6 +1307,7 @@ class RenderPanelCatalog extends RenderBox
     _stopBakeActivity();
     // Back in a tree the same edges are near again and are announced again.
     _proximity.reset();
+    _currentSection = null;
     _projectedWidth = -1;
     _press?.dispose();
     _press = null;
@@ -1434,7 +1438,40 @@ class RenderPanelCatalog extends RenderBox
 
   void _runScheduledProximity(Duration _) {
     _proximityScheduled = false;
+    _noteSections();
+  }
+
+  /// What the viewport tells the page about its sections after a change of
+  /// offset or layout: which edges are near, and which section it is in.
+  void _noteSections() {
     _noteSectionProximity();
+    _noteCurrentSection();
+  }
+
+  /// Publishes [PanelCatalogCurrentSectionChanged] when the section the
+  /// viewport is in, or its index, is not the one last published.
+  ///
+  /// Like proximity it waits for the first layout, and it is only ever called
+  /// outside layout (a post-frame callback or an offset write).
+  void _noteCurrentSection() {
+    if (!attached || !hasSize) return;
+    final index = currentSectionIndex(
+      _bands,
+      offset: _pixels,
+      landingInset: _headerLandingInset ?? _padding.top,
+      viewportHeight: size.height,
+      maxScrollExtent: math.max(0, _contentExtent - size.height),
+    );
+    if (index == null) {
+      _currentSection = null;
+      _controller.clearCurrentSection();
+      return;
+    }
+    final id = _projectedSections[index].id;
+    final current = _currentSection;
+    if (current != null && current.$1 == index && current.$2 == id) return;
+    _currentSection = (index, id);
+    _controller.publish(PanelCatalogCurrentSectionChanged(index, id));
   }
 
   /// Publishes [PanelCatalogSectionNearViewport] for the edges that entered the

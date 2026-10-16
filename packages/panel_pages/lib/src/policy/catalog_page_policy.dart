@@ -142,7 +142,10 @@ abstract class CatalogPagePolicy {
       collection.id is CollectionId$Query ? strings.searchEmpty : null;
 
   /// The trailing action of the section's header, or null for a title alone.
-  CatalogSectionAction? actionOf(Collection collection) => null;
+  ///
+  /// Its label and semantic label are in the language of [strings].
+  CatalogSectionAction? actionOf(Collection collection, PanelStrings strings) =>
+      null;
 
   /// The tag the default [leafOf] attaches to the cell of [item]: the host's
   /// opaque data, excluded from the cell's equality and never painted.

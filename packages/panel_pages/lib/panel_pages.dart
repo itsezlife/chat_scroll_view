@@ -17,6 +17,8 @@
 library;
 
 export 'src/assets/page_assets.dart';
+export 'src/atlas/glyph_atlas_host.dart';
+export 'src/atlas/glyph_plan.dart';
 export 'src/bake/bake_activity_port.dart';
 export 'src/bake/catalog_bake_forwarder.dart';
 export 'src/bake/glyph_atlas_bake_port.dart';

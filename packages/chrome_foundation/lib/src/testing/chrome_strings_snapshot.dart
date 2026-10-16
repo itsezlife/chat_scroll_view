@@ -13,6 +13,8 @@ Map<String, String> describeChromeStrings(ChromeStrings strings) {
   final semantics = strings.semantics;
   return {
     for (final id in _knownPageIds) 'panel.tabLabel[$id]': panel.tabLabel(id),
+    for (final id in _knownCategoryIds)
+      'panel.categoryTitle[$id]': panel.categoryTitle(id),
     'panel.recentlyUsedTitle': panel.recentlyUsedTitle,
     'panel.searchResultsTitle': panel.searchResultsTitle,
     'panel.searchHint': panel.searchHint,
@@ -39,8 +41,20 @@ Map<String, String> describeChromeStrings(ChromeStrings strings) {
       'semantics.searchResultCount[$count]': semantics.searchResultCount(count),
     'semantics.backspaceAction': semantics.backspaceAction,
     'semantics.variantsAction': semantics.variantsAction,
+    'semantics.categoryStripLabel': semantics.categoryStripLabel,
   };
 }
 
 const _knownPageIds = ['emoji', 'stickers', 'gif'];
+const _knownCategoryIds = [
+  'smileys-emotion',
+  'people-body',
+  'animals-nature',
+  'food-drink',
+  'travel-places',
+  'activities',
+  'objects',
+  'symbols',
+  'flags',
+];
 const _pluralSamples = [0, 1, 2, 5, 11, 21];

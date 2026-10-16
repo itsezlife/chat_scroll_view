@@ -7,6 +7,7 @@ final class PanelStrings {
   /// Panel strings with every member given.
   const PanelStrings({
     required this.tabLabel,
+    required this.categoryTitle,
     required this.recentlyUsedTitle,
     required this.searchResultsTitle,
     required this.searchHint,
@@ -22,6 +23,13 @@ final class PanelStrings {
   /// registered; an id it does not know should come back as itself rather
   /// than throw.
   final String Function(String pageId) tabLabel;
+
+  /// The title of the category section registered under [categoryId], such as
+  /// a group of the emoji catalogue (`smileys-emotion`, `flags`).
+  ///
+  /// Category ids come from the data, so they are open: an id the host does
+  /// not know should come back as itself rather than throw.
+  final String Function(String categoryId) categoryTitle;
 
   /// Title of the recently-used section.
   final String recentlyUsedTitle;
