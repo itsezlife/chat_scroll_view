@@ -145,9 +145,8 @@ final class CatalogLeaf {
   /// else the thumbnail silhouette. A unicode [key] is a glyph whatever the
   /// facts say.
   CatalogPlaceholderStyle get placeholderStyle {
-    if (mediaForm == MediaForm.glyph || key is ContentKey$Unicode) {
-      return CatalogPlaceholderStyle.circle;
-    }
+    if (mediaForm == MediaForm.glyph) return CatalogPlaceholderStyle.circle;
+    if (key case ContentKey$Unicode()) return CatalogPlaceholderStyle.circle;
     return switch (semanticKind) {
       SemanticKind.sticker ||
       SemanticKind.mask => CatalogPlaceholderStyle.shapedWash,

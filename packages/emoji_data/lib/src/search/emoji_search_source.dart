@@ -103,7 +103,10 @@ final class EmojiSearchSource implements SearchSource {
   @override
   Future<void> search(String query) async {
     if (_disposed) return;
-    final retry = _results.value.contents is CollectionContents$Failed;
+    final retry = switch (_results.value.contents) {
+      CollectionContents$Failed() => true,
+      _ => false,
+    };
     if (query == _query && !retry) return;
     _query = query;
     final generation = ++_generation;
@@ -121,10 +124,11 @@ final class EmojiSearchSource implements SearchSource {
   @override
   Future<void> loadMore() async {
     if (_disposed || _loadingMore) return;
-    final contents = _results.value.contents;
-    if (contents is! CollectionContents$Loaded ||
-        contents.nextPageToken == null) {
-      return;
+    switch (_results.value.contents) {
+      case CollectionContents$Loaded(nextPageToken: != null):
+        break;
+      case _:
+        return;
     }
     _loadingMore = true;
     final generation = _generation;
@@ -169,10 +173,11 @@ final class EmojiSearchSource implements SearchSource {
   // no loading state in between since results are already on screen.
   void _rerun() {
     if (_disposed || _folded(_query).isEmpty) return;
-    final contents = _results.value.contents;
-    if (contents is! CollectionContents$Loaded &&
-        contents is! CollectionContents$Failed) {
-      return;
+    switch (_results.value.contents) {
+      case CollectionContents$Loaded() || CollectionContents$Failed():
+        break;
+      case CollectionContents$Idle() || CollectionContents$Loading():
+        return;
     }
     final generation = _generation;
     unawaited(() async {
@@ -192,10 +197,10 @@ final class EmojiSearchSource implements SearchSource {
   }
 
   void _rederive() {
-    if (_disposed || _results.value.contents is! CollectionContents$Loaded) {
-      return;
+    if (_disposed) return;
+    if (_results.value.contents case CollectionContents$Loaded()) {
+      _publishLoaded();
     }
-    _publishLoaded();
   }
 
   Future<List<KeywordPack>> _packs() async {
@@ -249,9 +254,10 @@ final class EmojiSearchSource implements SearchSource {
       if (item != null && seen.add(item.key)) items.add(item);
     }
     final size = _pageSize;
-    final shown = size == null
-        ? items.length
-        : (_pages * size).clamp(0, items.length);
+    final shown = switch (size) {
+      final size? => (_pages * size).clamp(0, items.length),
+      null => items.length,
+    };
     _results.value = Collection(
       id: CollectionId.query(_query),
       contents: CollectionContents.loaded(

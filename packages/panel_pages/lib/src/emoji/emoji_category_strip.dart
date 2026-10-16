@@ -104,8 +104,10 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
   }
 
   void _onScroll(PanelCatalogScrollEvent event) {
-    if (event is! PanelCatalogCurrentSectionChanged || _jumping) return;
-    _select(_tabOfSection(event.sectionId));
+    if (_jumping) return;
+    if (event case PanelCatalogCurrentSectionChanged(:final sectionId)) {
+      _select(_tabOfSection(sectionId));
+    }
   }
 
   void _select(EmojiCategoryTab? tab) {
@@ -204,9 +206,10 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
               final tab = _tabs[index];
               return _TabButton(
                 tab: tab.tab,
-                label: tab.tab.titleGroup == null
-                    ? strings.panel.recentlyUsedTitle
-                    : strings.panel.categoryTitle(tab.tab.titleGroup!),
+                label: switch (tab.tab.titleGroup) {
+                  final group? => strings.panel.categoryTitle(group),
+                  null => strings.panel.recentlyUsedTitle,
+                },
                 selected: tab.tab == _active,
                 tokens: panel,
                 duration: motion.durationOf(MotionRole.fade),

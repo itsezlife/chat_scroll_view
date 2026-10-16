@@ -97,7 +97,10 @@ void _writeLine(
     }
     if (atom != null) {
       final markup = _atomMarkup(plain, atom, escapes);
-      out.structural(link == null ? markup : _linkPiece(markup, link.url));
+      out.structural(switch (link) {
+        final link? => _linkPiece(markup, link.url),
+        null => markup,
+      });
     } else if (isCode) {
       out.structural(_codeSpan(plain.substring(from, to)));
     } else if (link != null) {
@@ -113,10 +116,12 @@ void _writeToggles(_Out out, List<Entity> entities, int position) {
   final closing = <EntityStyle>[];
   final opening = <EntityStyle>[];
   for (final entity in entities) {
-    final kind = entity.kind;
-    if (kind is! EntityKind$Style || kind.style == EntityStyle.code) continue;
-    if (entity.end == position) closing.add(kind.style);
-    if (entity.offset == position) opening.add(kind.style);
+    if (entity.kind case EntityKind$Style(
+      :final style,
+    ) when style != EntityStyle.code) {
+      if (entity.end == position) closing.add(style);
+      if (entity.offset == position) opening.add(style);
+    }
   }
   // Last opened, first closed, so `***x***` reads the way it is written.
   for (final style in closing.reversed.toList()..sort(_byMarkerOrder)) {

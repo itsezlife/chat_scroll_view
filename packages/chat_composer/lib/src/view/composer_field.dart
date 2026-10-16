@@ -86,12 +86,8 @@ class _ComposerFieldState extends State<ComposerField> {
     final editable = _editableTextState();
     final fieldBox = context.findRenderObject();
     final selection = controller.selection;
-    if (editable == null ||
-        fieldBox is! RenderBox ||
-        !fieldBox.hasSize ||
-        !selection.isValid) {
-      return;
-    }
+    if (editable == null || !selection.isValid) return;
+    if (fieldBox is! RenderBox || !fieldBox.hasSize) return;
     final render = editable.renderEditable;
     final caret = render.getLocalRectForCaret(
       TextPosition(offset: selection.baseOffset),

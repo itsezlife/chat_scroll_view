@@ -37,10 +37,10 @@ final class EmojiItems {
   }
 
   /// The item for [entry] as the grid shows it, or null when hidden.
-  CollectionItem? itemOf(EmojiEntry entry) {
-    final key = shownKey(entry);
-    return key == null ? null : describe(key);
-  }
+  CollectionItem? itemOf(EmojiEntry entry) => switch (shownKey(entry)) {
+    final key? => describe(key),
+    null => null,
+  };
 
   /// The item for a key taken as it is (a recent), or null when the device
   /// cannot draw it. A key that is not a unicode key stays a bare item.

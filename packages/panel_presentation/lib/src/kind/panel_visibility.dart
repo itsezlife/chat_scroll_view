@@ -39,11 +39,34 @@ sealed class PanelVisibility {
   PanelPresentation? get kind;
 
   /// Whether the panel is on screen, including while it slides in or out.
-  bool get isVisible => this is! PanelVisibility$Hidden;
+  bool get isVisible => switch (this) {
+    PanelVisibility$Hidden() => false,
+    PanelVisibility$Showing() ||
+    PanelVisibility$Shown() ||
+    PanelVisibility$Hiding() => true,
+  };
 
   /// Whether the panel is moving: showing or hiding.
-  bool get isMoving =>
-      this is PanelVisibility$Showing || this is PanelVisibility$Hiding;
+  bool get isMoving => switch (this) {
+    PanelVisibility$Showing() || PanelVisibility$Hiding() => true,
+    PanelVisibility$Hidden() || PanelVisibility$Shown() => false,
+  };
+
+  /// Whether the panel is animating in.
+  bool get isShowing => switch (this) {
+    PanelVisibility$Showing() => true,
+    PanelVisibility$Hidden() ||
+    PanelVisibility$Shown() ||
+    PanelVisibility$Hiding() => false,
+  };
+
+  /// Whether the panel is animating out.
+  bool get isHiding => switch (this) {
+    PanelVisibility$Hiding() => true,
+    PanelVisibility$Hidden() ||
+    PanelVisibility$Showing() ||
+    PanelVisibility$Shown() => false,
+  };
 
   /// The same phase with [kind] swapped; hidden stays hidden.
   PanelVisibility withKind(PanelPresentation kind) => switch (this) {

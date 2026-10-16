@@ -139,7 +139,10 @@ abstract class CatalogPagePolicy {
   ///
   /// The default is the panel strings' text for empty search results.
   String? emptyMessageOf(Collection collection, PanelStrings strings) =>
-      collection.id is CollectionId$Query ? strings.searchEmpty : null;
+      switch (collection.id) {
+        CollectionId$Query() => strings.searchEmpty,
+        _ => null,
+      };
 
   /// The trailing action of the section's header, or null for a title alone.
   ///

@@ -2364,9 +2364,10 @@ class RenderPanelCatalog extends RenderBox
     if (eligible != null && !eligible(hit)) return null;
     return () {
       final cell = _cellRectOf(hit.sectionId, hit.index);
-      final local = cell == null
-          ? Offset.zero
-          : cell.center.translate(0, -_pixels);
+      final local = switch (cell) {
+        final cell? => cell.center.translate(0, -_pixels),
+        null => Offset.zero,
+      };
       _onLeafLongPressStart?.call(
         hit,
         LongPressStartDetails(
@@ -2422,9 +2423,10 @@ class RenderPanelCatalog extends RenderBox
     final sections = _projectedSections;
     if (sections.isEmpty || !hasSize) return false;
     final focus = _focus;
-    final current = focus == null
-        ? null
-        : _cellById(focus.sectionId, focus.index);
+    final current = switch (focus) {
+      final focus? => _cellById(focus.sectionId, focus.index),
+      null => null,
+    };
     final CatalogCell? target;
     if (current != null) {
       target = moveCatalogFocus(
@@ -2490,11 +2492,15 @@ class RenderPanelCatalog extends RenderBox
     for (var i = _firstSlotIndexAtOrBelow(limit); i < _slots.length; i++) {
       final slot = _slots[i];
       if (slot.top >= bottom) break;
-      if (slot is! CatalogLeafSlot) continue;
-      if (slot.top >= limit) return _cellById(slot.sectionId, slot.index);
-      partial ??= slot;
+      if (slot case final CatalogLeafSlot leaf) {
+        if (leaf.top >= limit) return _cellById(leaf.sectionId, leaf.index);
+        partial ??= leaf;
+      }
     }
-    return partial == null ? null : _cellById(partial.sectionId, partial.index);
+    return switch (partial) {
+      final partial? => _cellById(partial.sectionId, partial.index),
+      null => null,
+    };
   }
 
   /// Makes [hit] the focused cell (null ends focus). The leaf is always taken

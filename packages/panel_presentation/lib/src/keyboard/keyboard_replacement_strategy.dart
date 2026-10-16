@@ -222,7 +222,7 @@ class _KeyboardPanelState extends State<_KeyboardPanel>
     final state = _slot.state.value;
     switch (widget.view.visibility) {
       case PanelVisibility$Showing() when state.isAtRest:
-      case PanelVisibility$Hiding() when state is KeyboardSlotState$Idle:
+      case PanelVisibility$Hiding() when !state.holdsSlot:
         widget.view.motionSettled();
       case _:
         break;
@@ -267,7 +267,10 @@ class _KeyboardPanelState extends State<_KeyboardPanel>
     final height = _slot.layoutHeight > 0
         ? _slot.layoutHeight
         : _slot.restingHeight;
-    final handingOff = _slot.state.value is KeyboardSlotState$HandOffToIme;
+    final handingOff = switch (_slot.state.value) {
+      KeyboardSlotState$HandOffToIme() => true,
+      _ => false,
+    };
 
     // The sheet owns the bottom band: the keyboard no longer insets its
     // content and the safe area is the one the strategy was told about.

@@ -155,23 +155,22 @@ final class KeyValueRecentsStore implements RecentsStore {
     } on FormatException {
       return const [];
     }
-    if (json is! Map<String, Object?>) return const [];
-    final entries = json['entries'];
-    if (entries is! List<Object?>) return const [];
-    return [for (final raw in entries) ?_decodeEntry(raw)];
+    if (json case {'entries': final List<Object?> entries}) {
+      return [for (final raw in entries) ?_decodeEntry(raw)];
+    }
+    return const [];
   }
 
   static RecentsEntry? _decodeEntry(Object? raw) {
-    if (raw is! Map<String, Object?>) return null;
-    final key = ContentKey.tryParse(switch (raw['key']) {
-      final String encoded => encoded,
-      _ => null,
-    });
-    final count = raw['count'];
-    final lastUsed = raw['lastUsed'];
-    if (key == null || count is! int || count < 1 || lastUsed is! int) {
-      return null;
+    if (raw case {
+      'key': final String encoded,
+      'count': final int count,
+      'lastUsed': final int lastUsed,
+    } when count >= 1) {
+      if (ContentKey.tryParse(encoded) case final key?) {
+        return RecentsEntry(key, count: count, lastUsed: lastUsed);
+      }
     }
-    return RecentsEntry(key, count: count, lastUsed: lastUsed);
+    return null;
   }
 }

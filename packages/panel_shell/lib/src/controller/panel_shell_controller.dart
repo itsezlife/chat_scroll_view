@@ -54,7 +54,10 @@ final class PanelShellController {
     required PreferenceStore preferences,
     PageControllerRegistry? controllers,
   }) {
-    final owned = controllers == null ? PanelPageControllers() : null;
+    final owned = switch (controllers) {
+      null => PanelPageControllers(),
+      _ => null,
+    };
     return PanelShellController._(
       pages,
       preferences,

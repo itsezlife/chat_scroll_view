@@ -278,33 +278,38 @@ final class CatalogLeafPainter {
     final icon = action.icon;
     // Left-aligned in a band-wide box: a part is drawn at its own x whatever
     // the direction; the direction only orders its bidirectional text.
-    final labelParagraph = label == null
-        ? null
-        : _paragraph(
-            label,
-            style,
-            width: header.width,
-            direction: direction,
-            align: TextAlign.left,
-          );
-    final iconParagraph = icon == null
-        ? null
-        : _paragraph(
-            String.fromCharCode(icon.codePoint),
-            style.copyWith(
-              fontFamily: icon.fontFamily,
-              package: icon.fontPackage,
-              fontSize: (style.fontSize ?? 14) * _kActionIconScale,
-              fontWeight: FontWeight.w400,
-            ),
-            width: header.width,
-            direction: direction,
-            align: TextAlign.left,
-          );
+    final labelParagraph = switch (label) {
+      final label? => _paragraph(
+        label,
+        style,
+        width: header.width,
+        direction: direction,
+        align: TextAlign.left,
+      ),
+      null => null,
+    };
+    final iconParagraph = switch (icon) {
+      final icon? => _paragraph(
+        String.fromCharCode(icon.codePoint),
+        style.copyWith(
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
+          fontSize: (style.fontSize ?? 14) * _kActionIconScale,
+          fontWeight: FontWeight.w400,
+        ),
+        width: header.width,
+        direction: direction,
+        align: TextAlign.left,
+      ),
+      null => null,
+    };
     final width =
         (labelParagraph?.maxIntrinsicWidth ?? 0) +
         (iconParagraph?.maxIntrinsicWidth ?? 0) +
-        (labelParagraph != null && iconParagraph != null ? _kActionPartGap : 0);
+        switch ((labelParagraph, iconParagraph)) {
+          (_?, _?) => _kActionPartGap,
+          _ => 0,
+        };
     final hitWidth = math.min(
       header.width,
       math.max(
@@ -486,7 +491,7 @@ final class CatalogLeafPainter {
           _needsFrame = true;
           _paintStandIn(canvas, style, glyphRect, alpha: 1 - opacity);
         }
-        if (slot.leaf.key is ContentKey$Unicode) {
+        if (slot.leaf.key case ContentKey$Unicode()) {
           PanelCatalogDiagnostics.glyphParagraphDraws++;
         }
         binding!.paint(canvas, glyphRect, opacity: opacity);

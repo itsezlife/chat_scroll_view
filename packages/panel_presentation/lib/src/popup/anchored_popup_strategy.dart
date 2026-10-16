@@ -136,9 +136,11 @@ class _AnchoredPopupToggleRegionState extends State<AnchoredPopupToggleRegion> {
   }
 
   Rect? _bounds() {
-    final box = context.findRenderObject();
-    if (box is! RenderBox || !box.attached || !box.hasSize) return null;
-    return box.localToGlobal(Offset.zero) & box.size;
+    if (context.findRenderObject() case final RenderBox box
+        when box.attached && box.hasSize) {
+      return box.localToGlobal(Offset.zero) & box.size;
+    }
+    return null;
   }
 
   @override
@@ -195,12 +197,12 @@ class _PopupBodyState extends State<_PopupBody>
     // the scope is in the tree.
     if (!_hover.openedByHover) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_disposed && widget.view.visibility is! PanelVisibility$Hiding) {
+        if (!_disposed && !widget.view.visibility.isHiding) {
           _scope.requestFocus();
         }
       });
     }
-    _motion.value = widget.view.visibility is PanelVisibility$Showing ? 0 : 1;
+    _motion.value = widget.view.visibility.isShowing ? 0 : 1;
     _controller.shell.scrollActivity.addListener(_onScroll);
   }
 
@@ -217,7 +219,7 @@ class _PopupBodyState extends State<_PopupBody>
   void didUpdateWidget(_PopupBody oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.view.visibility != widget.view.visibility) {
-      if (widget.view.visibility is PanelVisibility$Hiding) _restoreFocus();
+      if (widget.view.visibility.isHiding) _restoreFocus();
       _play();
     }
   }
@@ -341,7 +343,7 @@ class _PopupBodyState extends State<_PopupBody>
         builder: (context, child) {
           final t = _curve.transform(_motion.value);
           return IgnorePointer(
-            ignoring: widget.view.visibility is PanelVisibility$Hiding,
+            ignoring: widget.view.visibility.isHiding,
             child: Opacity(
               opacity: t.clamp(0.0, 1.0),
               child: Transform.scale(

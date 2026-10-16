@@ -31,11 +31,23 @@ sealed class KeyboardSlotState {
       KeyboardSlotState$HandOffToIme();
 
   /// Whether the panel holds the slot in any phase.
-  bool get holdsSlot => this is! KeyboardSlotState$Idle;
+  bool get holdsSlot => switch (this) {
+    KeyboardSlotState$Idle() => false,
+    KeyboardSlotState$Opening() ||
+    KeyboardSlotState$Replacing() ||
+    KeyboardSlotState$Open() ||
+    KeyboardSlotState$Closing() ||
+    KeyboardSlotState$HandOffToIme() => true,
+  };
 
   /// Whether the panel is on screen at rest, over a keyboard or not.
-  bool get isAtRest =>
-      this is KeyboardSlotState$Open || this is KeyboardSlotState$Replacing;
+  bool get isAtRest => switch (this) {
+    KeyboardSlotState$Open() || KeyboardSlotState$Replacing() => true,
+    KeyboardSlotState$Idle() ||
+    KeyboardSlotState$Opening() ||
+    KeyboardSlotState$Closing() ||
+    KeyboardSlotState$HandOffToIme() => false,
+  };
 }
 
 /// See [KeyboardSlotState.idle].

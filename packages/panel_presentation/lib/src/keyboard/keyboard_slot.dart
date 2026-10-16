@@ -174,14 +174,15 @@ final class KeyboardSlot {
   void open(MotionSpec spec, {bool animate = true}) {
     if (_disposed) return;
     final current = _state.value;
-    if (current is KeyboardSlotState$Open ||
-        current is KeyboardSlotState$Replacing ||
-        current is KeyboardSlotState$Opening) {
+    if (current
+        case KeyboardSlotState$Open() ||
+            KeyboardSlotState$Replacing() ||
+            KeyboardSlotState$Opening()) {
       return;
     }
     _cancelTimers();
     _sticky = 0;
-    if (current is KeyboardSlotState$Idle) {
+    if (current case KeyboardSlotState$Idle()) {
       _base = _resolveBase();
       _expanded = null;
     }
@@ -190,7 +191,7 @@ final class KeyboardSlot {
       _land(KeyboardSlotState.replacing, goal);
     } else if (!animate || spec.duration == Duration.zero) {
       _land(KeyboardSlotState.open, goal);
-    } else if (current is KeyboardSlotState$Idle) {
+    } else if (current case KeyboardSlotState$Idle()) {
       _extent = 0;
       _fixedLayout = goal;
       _state.value = KeyboardSlotState.opening;
@@ -220,11 +221,14 @@ final class KeyboardSlot {
   void close(MotionSpec spec, {bool waitForIme = false}) {
     if (_disposed) return;
     final current = _state.value;
-    if (current is KeyboardSlotState$Idle ||
-        current is KeyboardSlotState$Closing ||
-        (waitForIme && current is KeyboardSlotState$HandOffToIme)) {
-      return;
-    }
+    final nothingToClose = switch (current) {
+      KeyboardSlotState$Idle() || KeyboardSlotState$Closing() => true,
+      KeyboardSlotState$HandOffToIme() => waitForIme,
+      KeyboardSlotState$Opening() ||
+      KeyboardSlotState$Replacing() ||
+      KeyboardSlotState$Open() => false,
+    };
+    if (nothingToClose) return;
     _cancelTimers();
     _expanded = null;
     if (waitForIme) {
@@ -257,9 +261,10 @@ final class KeyboardSlot {
   }) {
     if (_disposed) return;
     final current = _state.value;
-    if (current is! KeyboardSlotState$Opening &&
-        current is! KeyboardSlotState$Open &&
-        current is! KeyboardSlotState$Replacing) {
+    if (current
+        case KeyboardSlotState$Idle() ||
+            KeyboardSlotState$Closing() ||
+            KeyboardSlotState$HandOffToIme()) {
       return;
     }
     final before = _expanded;
@@ -276,7 +281,7 @@ final class KeyboardSlot {
     }
     if (_expanded == before) return;
     final goal = _contentTarget + safeBottom;
-    if (current is KeyboardSlotState$Opening) _fixedLayout = goal;
+    if (current case KeyboardSlotState$Opening()) _fixedLayout = goal;
     _retarget(goal, spec);
     _publish();
   }
@@ -333,13 +338,15 @@ final class KeyboardSlot {
     if (_disposed) return;
     final before = _sample;
     _sample = _ime.samples.value;
-    if (_state.value is KeyboardSlotState$HandOffToIme && _keyboardSettledUp) {
-      _handOver();
-    } else if (_state.value is KeyboardSlotState$Replacing &&
-        _keyboardSettledGone) {
-      _state.value = KeyboardSlotState.open;
+    switch (_state.value) {
+      case KeyboardSlotState$HandOffToIme() when _keyboardSettledUp:
+        _handOver();
+      case KeyboardSlotState$Replacing() when _keyboardSettledGone:
+        _state.value = KeyboardSlotState.open;
+      case _:
+        break;
     }
-    if (_state.value is KeyboardSlotState$Idle) _measure();
+    if (_state.value case KeyboardSlotState$Idle()) _measure();
     _updateSticky();
     if (_sample.safeAreaBottom != before.safeAreaBottom) _refreshGoal();
     _publish();
@@ -351,8 +358,7 @@ final class KeyboardSlot {
     if (next == _orientation) return;
     _orientation = next;
     final current = _state.value;
-    if (current is KeyboardSlotState$Idle ||
-        current is KeyboardSlotState$Closing) {
+    if (current case KeyboardSlotState$Idle() || KeyboardSlotState$Closing()) {
       return;
     }
     final grown = (_expanded ?? _base) - _base;
@@ -379,9 +385,10 @@ final class KeyboardSlot {
 
   void _handOffTimedOut() {
     _handOffTimer = null;
-    if (_state.value is! KeyboardSlotState$HandOffToIme) return;
-    _beginClose(_closeSpec);
-    _publish();
+    if (_state.value case KeyboardSlotState$HandOffToIme()) {
+      _beginClose(_closeSpec);
+      _publish();
+    }
   }
 
   void _beginClose(MotionSpec spec) {
@@ -443,7 +450,8 @@ final class KeyboardSlot {
   /// resting panel snaps.
   void _refreshGoal() {
     final current = _state.value;
-    if (!current.holdsSlot || current is KeyboardSlotState$Closing) return;
+    if (!current.holdsSlot) return;
+    if (current case KeyboardSlotState$Closing()) return;
     final goal = switch (current) {
       KeyboardSlotState$HandOffToIme() => _base + safeBottom,
       _ => _contentTarget + safeBottom,
@@ -451,7 +459,7 @@ final class KeyboardSlot {
     final tween = _tween;
     if (tween != null) {
       _tween = _Tween(from: _extent, to: goal, spec: tween.spec);
-      if (current is KeyboardSlotState$Opening) _fixedLayout = goal;
+      if (current case KeyboardSlotState$Opening()) _fixedLayout = goal;
     } else {
       _extent = goal;
     }

@@ -67,7 +67,10 @@ class _ScalePressableState extends State<ScalePressable>
     _scale.animateTo(
       1,
       duration: spec.duration,
-      curve: tension == null ? spec.curve : OvershootCurve(tension),
+      curve: switch (tension) {
+        final tension? => OvershootCurve(tension),
+        null => spec.curve,
+      },
     );
   }
 

@@ -164,10 +164,10 @@ final class EmojiKeywordPack {
     if (fields.length < 2 || fields.length > 3 || fields[1].isEmpty) {
       throw FormatException('Not a keyword record.', line);
     }
-    final key = ContentKey.tryParse('unicode:${fields[0]}');
-    if (key is! ContentKey$Unicode) {
-      throw FormatException('Not a code point sequence.', line);
-    }
+    final key = switch (ContentKey.tryParse('unicode:${fields[0]}')) {
+      final ContentKey$Unicode unicode => unicode,
+      _ => throw FormatException('Not a code point sequence.', line),
+    };
     return EmojiKeywordRecord(
       key: key,
       spokenName: fields[1],

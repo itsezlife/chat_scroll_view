@@ -65,18 +65,34 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
   }) : _palette = palette,
        _composer =
            composer ??
-           (palette == null ? null : ComposerTokens.fromPalette(palette)),
+           switch (palette) {
+             final palette? => ComposerTokens.fromPalette(palette),
+             null => null,
+           },
        _panel =
-           panel ?? (palette == null ? null : PanelTokens.fromPalette(palette)),
+           panel ??
+           switch (palette) {
+             final palette? => PanelTokens.fromPalette(palette),
+             null => null,
+           },
        _action =
            action ??
-           (palette == null ? null : ActionTokens.fromPalette(palette)),
+           switch (palette) {
+             final palette? => ActionTokens.fromPalette(palette),
+             null => null,
+           },
        _placeholder =
            placeholder ??
-           (palette == null ? null : PlaceholderTokens.fromPalette(palette)),
+           switch (palette) {
+             final palette? => PlaceholderTokens.fromPalette(palette),
+             null => null,
+           },
        _glass =
            glass ??
-           (palette == null ? null : GlassMaterialTokens.fromPalette(palette));
+           switch (palette) {
+             final palette? => GlassMaterialTokens.fromPalette(palette),
+             null => null,
+           };
 
   /// A scope supplying every part of [data] verbatim.
   ChromeThemeScope.data({
@@ -182,8 +198,10 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
   }
 
   @override
-  bool isSupportedAspect(Object aspect) =>
-      aspect is ChromeThemeAspect && _part(aspect) != null;
+  bool isSupportedAspect(Object aspect) => switch (aspect) {
+    final ChromeThemeAspect known => _part(known) != null,
+    _ => false,
+  };
 
   @override
   bool updateShouldNotify(ChromeThemeScope oldWidget) => ChromeThemeAspect

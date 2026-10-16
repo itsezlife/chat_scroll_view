@@ -362,7 +362,10 @@ class _EmojiPageState extends State<EmojiPage> {
     };
     if (identical(atlas, _boundAtlas)) return;
     _boundAtlas = atlas;
-    final port = atlas == null ? null : GlyphAtlasBakePort(atlas);
+    final port = switch (atlas) {
+      final atlas? => GlyphAtlasBakePort(atlas),
+      null => null,
+    };
     if (notify && mounted) {
       setState(() => _bake = port);
     } else {

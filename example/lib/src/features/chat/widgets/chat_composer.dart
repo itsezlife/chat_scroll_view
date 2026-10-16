@@ -160,12 +160,13 @@ class _ChatComposerState extends State<ChatComposer> {
         // The keyboard presentation owns the bottom band while it is up; the
         // composer pads itself with what the occupancy has not covered yet.
         // Without one the composer keeps its default pad.
-        return inset == null
-            ? view(null)
-            : ValueObservableBuilder<double>(
-                observable: inset,
-                builder: (context, safe) => view(safe),
-              );
+        return switch (inset) {
+          final observable? => ValueObservableBuilder<double>(
+            observable: observable,
+            builder: (context, safe) => view(safe),
+          ),
+          null => view(null),
+        };
       },
     );
   }

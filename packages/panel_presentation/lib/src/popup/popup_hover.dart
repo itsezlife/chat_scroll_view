@@ -73,17 +73,22 @@ final class PopupHover {
     _cancel();
     if (!controller.policy.hoverOpens) return;
     final state = controller.state.value;
-    final canOpen =
-        state is PanelVisibility$Hidden ||
-        (state is PanelVisibility$Hiding && state.kind is AnchoredPopup);
+    final canOpen = switch (state) {
+      PanelVisibility$Hidden() => true,
+      PanelVisibility$Hiding(kind: AnchoredPopup()) => true,
+      PanelVisibility$Hiding() ||
+      PanelVisibility$Showing() ||
+      PanelVisibility$Shown() => false,
+    };
     if (!canOpen) return;
     final target = controller.policy.resolve(
       windowClass: controller.window.value.windowClass,
       dockPreferred: controller.dockPreferred.value,
     );
-    if (target is! AnchoredPopup) return;
-    if (state is PanelVisibility$Hidden) _openedByHover = true;
-    controller.show(kind: const AnchoredPopup());
+    if (target case AnchoredPopup()) {
+      if (state case PanelVisibility$Hidden()) _openedByHover = true;
+      controller.show(kind: const AnchoredPopup());
+    }
   }
 
   /// A mouse pointer left a toggle.
@@ -139,12 +144,11 @@ final class PopupHover {
     _toggles.clear();
   }
 
-  bool get _isOpen {
-    final state = _controller?.state.value;
-    return (state is PanelVisibility$Showing ||
-            state is PanelVisibility$Shown) &&
-        state?.kind is AnchoredPopup;
-  }
+  bool get _isOpen => switch (_controller?.state.value) {
+    PanelVisibility$Showing(kind: AnchoredPopup()) ||
+    PanelVisibility$Shown(kind: AnchoredPopup()) => true,
+    _ => false,
+  };
 
   bool _allows(PanelDismissal dismissal) {
     final controller = _controller;
@@ -157,7 +161,7 @@ final class PopupHover {
   bool get _pointerAway => !_overPopup && !_overToggle && !_touchDriven;
 
   void _onState() {
-    if (_controller?.state.value is PanelVisibility$Hidden) {
+    if (_controller?.state.value case PanelVisibility$Hidden()) {
       _cancel();
       _overPopup = false;
       _openedByHover = false;

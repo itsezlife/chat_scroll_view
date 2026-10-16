@@ -138,10 +138,11 @@ final class EmojiCollectionSource implements CollectionSource {
   @override
   Future<void> loadMore(CollectionId id) async {
     if (_disposed || _loadingMore.contains(id)) return;
-    final contents = _states[id];
-    if (contents is! CollectionContents$Loaded ||
-        contents.nextPageToken == null) {
-      return;
+    switch (_states[id]) {
+      case CollectionContents$Loaded(nextPageToken: != null):
+        break;
+      case _:
+        return;
     }
     _loadingMore.add(id);
     await Future<void>.value();
@@ -167,7 +168,7 @@ final class EmojiCollectionSource implements CollectionSource {
   void _refresh() {
     if (_disposed) return;
     for (final id in _states.keys.toList()) {
-      if (_states[id] is CollectionContents$Loaded) {
+      if (_states[id] case CollectionContents$Loaded()) {
         _states[id] = _contentsOf(id);
       }
     }
@@ -186,9 +187,10 @@ final class EmojiCollectionSource implements CollectionSource {
       for (final entry in _catalog.entriesOf(group)) ?_items.itemOf(entry),
     ];
     final size = _pageSize;
-    final shown = size == null
-        ? visible.length
-        : (_pages[id]! * size).clamp(0, visible.length);
+    final shown = switch (size) {
+      final size? => (_pages[id]! * size).clamp(0, visible.length),
+      null => visible.length,
+    };
     return CollectionContents.loaded(
       visible.sublist(0, shown),
       nextPageToken: shown < visible.length ? PageToken('$shown') : null,

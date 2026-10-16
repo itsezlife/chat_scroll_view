@@ -52,7 +52,10 @@ final class PanelPageControllers implements PageControllerRegistry {
   @override
   T? peek<T extends PanelPageController>(String pageId) {
     final existing = _controllers[pageId];
-    return existing == null ? null : _typed<T>(pageId, existing);
+    return switch (existing) {
+      final existing? => _typed<T>(pageId, existing),
+      null => null,
+    };
   }
 
   /// Disposes every controller kept and forgets them. Idempotent.
@@ -70,7 +73,7 @@ final class PanelPageControllers implements PageControllerRegistry {
     String pageId,
     PanelPageController existing,
   ) {
-    if (existing is T) return existing;
+    if (existing case final T typed) return typed;
     throw StateError(
       'Page "$pageId" keeps a ${existing.runtimeType}, not a $T.',
     );

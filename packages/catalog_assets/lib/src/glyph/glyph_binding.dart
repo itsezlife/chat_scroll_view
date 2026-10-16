@@ -95,9 +95,10 @@ final class GlyphBinding extends AssetBindingBase {
   @override
   AssetReadiness get liveReadiness {
     if (_entry case final entry?) return entry.readiness;
-    return _sprite == null
-        ? const AssetReadiness(AssetStage.placeholder)
-        : const AssetReadiness(AssetStage.full, isFinal: true);
+    return switch (_sprite) {
+      null => const AssetReadiness(AssetStage.placeholder),
+      _ => const AssetReadiness(AssetStage.full, isFinal: true),
+    };
   }
 
   @override

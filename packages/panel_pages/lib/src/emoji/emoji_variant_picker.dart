@@ -167,7 +167,10 @@ class EmojiVariantPicker extends StatelessWidget {
                     glyph: options[i].sequence,
                     selected: i == selected,
                     highlight: highlight,
-                    onTap: onChoose == null ? null : () => onChoose!(i),
+                    onTap: switch (onChoose) {
+                      final choose? => () => choose(i),
+                      null => null,
+                    },
                   ),
               ],
             ),

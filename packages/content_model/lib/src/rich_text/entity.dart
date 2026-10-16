@@ -54,17 +54,20 @@ final class Entity {
   /// Throws a [FormatException] when [json] is not shaped like [toJson]'s
   /// output for a known kind.
   static Entity? fromJson(Object? json) {
-    if (json is! Map<Object?, Object?>) {
-      throw FormatException('An entity must be a JSON object.', json);
-    }
-    final kind = _kindFromJson(json);
-    if (kind == null) return null;
-    final offset = json['offset'];
-    final length = json['length'];
-    if (offset is! int || length is! int || offset < 0 || length <= 0) {
+    final object = switch (json) {
+      final Map<Object?, Object?> map => map,
+      _ => throw FormatException('An entity must be a JSON object.', json),
+    };
+    if (_kindFromJson(object) case final kind?) {
+      if (object case {
+        'offset': final int offset,
+        'length': final int length,
+      } when offset >= 0 && length > 0) {
+        return Entity(offset, length, kind);
+      }
       throw FormatException('An entity needs a valid offset and length.', json);
     }
-    return Entity(offset, length, kind);
+    return null;
   }
 
   static const String _link = 'link';
@@ -72,10 +75,10 @@ final class Entity {
   static const String _inlineContent = 'inlineContent';
 
   static EntityKind? _kindFromJson(Map<Object?, Object?> json) {
-    final name = json['kind'];
-    if (name is! String) {
-      throw FormatException('An entity needs a kind.', json);
-    }
+    final name = switch (json['kind']) {
+      final String kind => kind,
+      _ => throw FormatException('An entity needs a kind.', json),
+    };
     switch (name) {
       case _link:
         return EntityKind.link(_requireString(json, 'url'));
@@ -95,11 +98,8 @@ final class Entity {
   }
 
   static String _requireString(Map<Object?, Object?> json, String field) {
-    final value = json[field];
-    if (value is! String || value.isEmpty) {
-      throw FormatException('An entity needs a non-empty "$field".', json);
-    }
-    return value;
+    if (json[field] case final String value when value.isNotEmpty) return value;
+    throw FormatException('An entity needs a non-empty "$field".', json);
   }
 
   @override

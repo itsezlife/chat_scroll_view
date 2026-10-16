@@ -120,10 +120,10 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     ];
   }
 
-  static bool _hasItems(Collection collection) {
-    final contents = collection.contents;
-    return contents is CollectionContents$Loaded && contents.items.isNotEmpty;
-  }
+  static bool _hasItems(Collection collection) => switch (collection.contents) {
+    CollectionContents$Loaded(:final items) => items.isNotEmpty,
+    _ => false,
+  };
 
   @override
   String titleOf(Collection collection, PanelStrings strings) =>
@@ -163,10 +163,10 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   bool hasLongPress(CatalogLeafHit hit, Collection collection) =>
       _variantsOf(hit.leaf.key) != null;
 
-  EmojiEntry? _variantsOf(ContentKey key) {
-    final entry = entryOf(key);
-    return entry == null || entry.variants.isEmpty ? null : entry;
-  }
+  EmojiEntry? _variantsOf(ContentKey key) => switch (entryOf(key)) {
+    final entry? when entry.variants.isNotEmpty => entry,
+    _ => null,
+  };
 
   @override
   CatalogLongPressSession? beginLongPress(
@@ -175,16 +175,20 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     Collection collection,
     LongPressStartDetails details,
   ) {
-    final entry = _variantsOf(hit.leaf.key);
     final key = hit.leaf.key;
-    if (entry == null || key is! ContentKey$Unicode) return null;
-    return EmojiVariantSession.show(
-      context: context,
-      options: emojiVariantOptions(entry),
-      initial: key,
-      anchor: details.globalPosition,
-      onChosen: (chosen) => _choose(entry, chosen, collection),
-    );
+    if ((_variantsOf(key), key) case (
+      final EmojiEntry entry,
+      final ContentKey$Unicode initial,
+    )) {
+      return EmojiVariantSession.show(
+        context: context,
+        options: emojiVariantOptions(entry),
+        initial: initial,
+        anchor: details.globalPosition,
+        onChosen: (chosen) => _choose(entry, chosen, collection),
+      );
+    }
+    return null;
   }
 
   void _choose(

@@ -180,9 +180,12 @@ final class MissingGlyphProbe implements GlyphSupport {
     if (stored == null || stored.version != recordVersion) return;
     final GlyphProbeSnapshot snapshot;
     try {
-      final json = jsonDecode(stored.value);
-      if (json is! Map<String, Object?>) return;
-      snapshot = GlyphProbeSnapshot.fromJson(json);
+      switch (jsonDecode(stored.value)) {
+        case final Map<String, Object?> json:
+          snapshot = GlyphProbeSnapshot.fromJson(json);
+        case _:
+          return;
+      }
     } on FormatException {
       return;
     }

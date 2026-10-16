@@ -93,7 +93,7 @@ class _DockedBodyState extends State<_DockedBody>
   @override
   void initState() {
     super.initState();
-    _motion.value = widget.view.visibility is PanelVisibility$Showing ? 0 : 1;
+    _motion.value = widget.view.visibility.isShowing ? 0 : 1;
     _motion.addListener(_publish);
     if (_motion.value > 0) _publish();
   }
@@ -111,7 +111,7 @@ class _DockedBodyState extends State<_DockedBody>
   void didUpdateWidget(_DockedBody oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.view.visibility != widget.view.visibility) {
-      if (widget.view.visibility is PanelVisibility$Hiding) _restoreFocus();
+      if (widget.view.visibility.isHiding) _restoreFocus();
       _play();
     }
   }
@@ -201,18 +201,19 @@ class _DockedBodyState extends State<_DockedBody>
             child: child,
           ),
           child: IgnorePointer(
-            ignoring: widget.view.visibility is PanelVisibility$Hiding,
+            ignoring: widget.view.visibility.isHiding,
             child: SizedBox(
               width: style.width,
               height: double.infinity,
               child: DecoratedBox(
                 position: DecorationPosition.foreground,
                 decoration: BoxDecoration(
-                  border: style.separator == null
-                      ? null
-                      : BorderDirectional(
-                          start: BorderSide(color: style.separator!),
-                        ),
+                  border: switch (style.separator) {
+                    final separator? => BorderDirectional(
+                      start: BorderSide(color: separator),
+                    ),
+                    null => null,
+                  },
                 ),
                 child: FocusScope(
                   node: _scope,

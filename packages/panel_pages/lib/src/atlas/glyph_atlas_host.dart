@@ -199,7 +199,10 @@ final class GlyphAtlasHost {
       retention: _pageRetention,
       memoryPressure: _memoryPressure,
     );
-    final store = _persistence == null ? _newStore() : null;
+    final store = switch (_persistence) {
+      null => _newStore(),
+      _ => null,
+    };
     // The layout depends on the display only; the glyph box is nominal (the
     // page scales the sprite to its real cell).
     final atlas = _atlasFactory(
@@ -230,7 +233,10 @@ final class GlyphAtlasHost {
       unawaited(store?.clear());
       _platformBakesNothing = true;
     }
-    _atlasStore = atlas == null ? null : store;
+    _atlasStore = switch (atlas) {
+      null => null,
+      _ => store,
+    };
     _atlas.value = atlas?..start();
   }
 
