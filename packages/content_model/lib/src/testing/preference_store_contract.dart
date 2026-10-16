@@ -113,6 +113,48 @@ void runPreferenceStoreContract(Future<PreferenceStore> Function() create) {
       });
     });
 
+    group('dock preference', () {
+      test('is off until chosen', () {
+        expect(store.dockPreferred, isFalse);
+      });
+
+      test('is the choice that was made, on and off again', () async {
+        await store.setDockPreferred(preferred: true);
+        expect(store.dockPreferred, isTrue);
+
+        await store.setDockPreferred(preferred: false);
+        expect(store.dockPreferred, isFalse);
+      });
+
+      test('is independent of the other choices', () async {
+        await store.setDockPreferred(preferred: true);
+        await store.setSelectedPageId('emoji');
+        await store.setPreferredVariant(thumbs, thumbsDark);
+        await store.setSelectedPageId(null);
+        await store.setPreferredVariant(thumbs, null);
+
+        expect(store.dockPreferred, isTrue);
+      });
+
+      test('signals once per change and stays silent on a repeat', () async {
+        await store.setDockPreferred(preferred: true);
+        await store.setDockPreferred(preferred: true);
+        await store.setDockPreferred(preferred: false);
+        await store.setDockPreferred(preferred: false);
+
+        expect(signals, 2);
+      });
+
+      test('is readable when the signal arrives', () async {
+        bool? seen;
+        store.changes.addListener(() => seen = store.dockPreferred);
+
+        await store.setDockPreferred(preferred: true);
+
+        expect(seen, isTrue);
+      });
+    });
+
     group('signal', () {
       test('goes out once per choice that changed something', () async {
         await store.setPreferredVariant(thumbs, thumbsDark);
@@ -185,6 +227,8 @@ void runPreferenceStoreContract(Future<PreferenceStore> Function() create) {
 
         await store.setSelectedPageId('gifs');
         await store.setPreferredVariant(thumbs, thumbsDark);
+        await store.setDockPreferred(preferred: true);
+        expect(store.dockPreferred, isFalse);
 
         expect(store.selectedPageId, 'emoji');
         expect(store.preferredVariant(thumbs), isNull);

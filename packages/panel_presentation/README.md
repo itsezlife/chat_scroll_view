@@ -31,6 +31,7 @@ Glossary: [Chat chrome](../../docs/chrome/CONTEXT.md). Host layout:
 | `AnchoredPopupToggleRegion` | Wraps the host's toggle; only a mouse entering it opens the popup. Touch and stylus click. |
 | `AnchoredPopupActions`, `AnchoredPopupShortcuts`, `AnchoredPopupToggleIntent` | `DismissIntent` steps back (search first, popup second), the toggle intent toggles, `PanelSearchIntent` shows the panel and focuses search. |
 | `AnchoredPopupLayout` | Where the popup sits: bottom on the anchor top, end edge on the anchor end edge, kept inside the window. |
+| `DockedStrategy`, `DockedStyle` | The desktop and web docked section: full height on the end edge (the left in RTL), slides in with the `panelSlide` role, publishes its visible width as `inlineEnd` occupancy so the host can shrink the chat. No hover, idle or outside-press dismissal; Escape only closes search. The style carries the width and an optional separator line. |
 | `ImeInputPort`, `ImeInput`, `ImeSample` | The single port raw soft-keyboard samples enter by (height, animating, bottom safe area). |
 | `PanelClock`, `PanelTimer` | The one way presentation code waits; `PanelClock.system` in the app, a manual clock in tests. |
 | `package:panel_presentation/testing.dart` | `FakeImeInput`, `ManualPanelClock`, `FakePresentationStrategy`, `runPresentationPolicyContract`, `runImeInputPortContract`. Tests only. |
@@ -73,8 +74,22 @@ PanelPresentationView(controller: presentation);
   of the kind the policy would open. A keyboard strategy keeps publishing the
   soft keyboard's height then, so the host never adds it a second time.
 - **Docking.** `dock()` records the preference and, in a wide window, moves a
-  popup into the docked section; `undock()` closes the section. The host
-  persists `dockPreferred` and passes it back at construction.
+  popup into the docked section; `undock()` closes the section; `toggleDock()`
+  is the dock button's action. Pass the host's `PreferenceStore` as
+  `preferences:`: the controller starts from its `dockPreferred`, writes every
+  `dock()` / `undock()` to it (a failed write is reported through
+  `FlutterError.reportError`, the choice stays in memory) and follows a change
+  made elsewhere. Without a store the preference is in memory, seeded by the
+  `dockPreferred` flag. A docked section that the window narrows falls back to
+  a popup and docks again when the window is wide, unless the user changed
+  something in between.
+- **Docked section.** Register `DockedStrategy(style: ..., composerFocus: ...)`.
+  The view publishes the section's visible width as `occupancy.inlineEnd`
+  while it slides, so apply it as end padding (mirrored in RTL) on the chat
+  viewport. With no mounted view the occupancy is zero. Opening does not take
+  focus from the composer; focus inside returns to `composerFocus` on close.
+  The box the view fills must be bounded and at least `DockedStyle.width`
+  wide.
 - **Auto-hide guard.** True while the search field wants focus or any
   `holdAutoHide()` is unreleased (a variant picker, a drag). A popup strategy
   keeps itself open while it holds; `interactions` signals every shell event so
@@ -102,7 +117,8 @@ PanelPresentationView(controller: presentation);
 | Raw soft-keyboard readings through one `ImeInputPort` handed to the keyboard strategy. | Filter, debounce or smooth them, or feed a second port. |
 | The composer rectangle through `anchor` for a popup. | Expect the popup to find the composer by itself. |
 | The aggregation of `occupancy` with its composer extent into the viewport padding, and `inlineEnd` in layout. | Add the keyboard height a second time while the occupancy already contains it. |
-| The persisted dock choice, read at construction and written when `dockPreferred` changes. | Expect the controller to persist it. |
+| The loaded `PreferenceStore` (from `content_model`), passed as `preferences:`; its `dockPreferred` is the persisted dock choice. | Persist the choice a second time, or expect `dock()` to persist without a store. |
+| The docked section's width in `DockedStyle`, `inlineEnd` applied to the chat viewport's layout, and a box for the view that is bounded and at least that wide. | Expect the docked section to cover the chat, to be dismissed by hover or an outside press, or a default width from a reference client. |
 | The popup's `AnchoredPopupToggleRegion` around the composer's panel button, a click handler on that button that calls `toggle()`, and `AnchoredPopupActions` with `AnchoredPopupShortcuts.standard` above the composer so Escape and a toggle shortcut work while focus is there. The popup width, corners and shadow in `AnchoredPopupStyle`. | Expect hover to move focus, or a default popup size from a reference client. |
 | `MediaQuery.disableAnimations` mapped to `ChromeMotionSpeed.instant`, and the popup's `holdAutoHide()` while a variant picker is open. | Expect the controller to read reduce motion or to know about the picker. |
 | `Esc` and outside-press bindings in any other strategy (the popup binds its own). | Expect the controller to bind keys. |

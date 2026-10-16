@@ -20,7 +20,7 @@ import 'package:content_model/src/store/store_name.dart';
 /// [load]. The value is JSON, written at schema version [recordVersion]:
 ///
 /// ```json
-/// {"variants": {"unicode:1F44D": "unicode:1F44D-1F3FF"}, "selectedPageId": "emoji"}
+/// {"variants": {"unicode:1F44D": "unicode:1F44D-1F3FF"}, "selectedPageId": "emoji", "dockPreferred": true}
 /// ```
 ///
 /// Keys are written as [ContentKey.encoded] and read back with
@@ -28,7 +28,9 @@ import 'package:content_model/src/store/store_name.dart';
 /// shape above, reads as no choices and is replaced by the next write; a
 /// variants entry that cannot be read is skipped and the rest is kept. Once
 /// no choice is left the record is removed. The store never migrates an older
-/// version: it has none.
+/// version: it has none. The dock preference is written only while it is on and
+/// read only from a boolean `true`, so a record from before it existed reads
+/// as off.
 ///
 /// ## Persisting
 ///
@@ -67,6 +69,7 @@ final class KeyValuePreferenceStore implements PreferenceStore {
   final _changes = ObservableNotifier();
   final _variants = <ContentKey$Unicode, ContentKey$Unicode>{};
   String? _selectedPageId;
+  var _dockPreferred = false;
 
   @override
   Observable get changes => _changes;
@@ -102,12 +105,23 @@ final class KeyValuePreferenceStore implements PreferenceStore {
   }
 
   @override
+  bool get dockPreferred => _dockPreferred;
+
+  @override
+  Future<void> setDockPreferred({required bool preferred}) async {
+    if (_changes.isDisposed || _dockPreferred == preferred) return;
+    _dockPreferred = preferred;
+    _changes.notify();
+    await _persist();
+  }
+
+  @override
   void dispose() => _changes.dispose();
 
   // Reads the state after the signal, so a listener that sets again inside it
   // is written once with the final state rather than overtaken.
   Future<void> _persist() {
-    if (_variants.isEmpty && _selectedPageId == null) {
+    if (_variants.isEmpty && _selectedPageId == null && !_dockPreferred) {
       return _storage.remove(_namespace, _recordKey);
     }
     return _storage.write(
@@ -121,6 +135,7 @@ final class KeyValuePreferenceStore implements PreferenceStore {
                 entry.key.encoded: entry.value.encoded,
             },
           'selectedPageId': ?_selectedPageId,
+          if (_dockPreferred) 'dockPreferred': true,
         }),
         version: recordVersion,
       ),
@@ -146,5 +161,6 @@ final class KeyValuePreferenceStore implements PreferenceStore {
       }
     }
     if (json['selectedPageId'] case final String id) _selectedPageId = id;
+    if (json['dockPreferred'] case true) _dockPreferred = true;
   }
 }

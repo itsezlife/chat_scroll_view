@@ -41,6 +41,16 @@ abstract interface class PreferenceStore {
   /// Remembers [id] as the page last open, or forgets it when null.
   Future<void> setSelectedPageId(String? id);
 
+  /// Whether the user keeps the panel docked beside the content rather than
+  /// popping it up. Off until chosen.
+  ///
+  /// A choice, not a state: it says what the user wants when the window is
+  /// wide enough, not whether a docked section is on screen now.
+  bool get dockPreferred;
+
+  /// Remembers whether the user wants the panel docked.
+  Future<void> setDockPreferred({required bool preferred});
+
   /// Releases the store and its listeners.
   void dispose();
 }

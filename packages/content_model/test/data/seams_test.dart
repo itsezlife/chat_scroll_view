@@ -80,6 +80,12 @@ class _PreferenceStore implements PreferenceStore {
   Future<void> setSelectedPageId(String? id) async {}
 
   @override
+  bool get dockPreferred => false;
+
+  @override
+  Future<void> setDockPreferred({required bool preferred}) async {}
+
+  @override
   void dispose() => _changes.dispose();
 }
 
