@@ -331,6 +331,9 @@ final class _StripHandle implements CatalogStripHandle {
   EventObservable<PanelCatalogScrollEvent> get scrollEvents => _catalog.events;
 
   @override
+  String? get currentSectionId => _catalog.currentSection?.sectionId;
+
+  @override
   Future<void> jumpToSection(String sectionId) {
     final index = _model.sectionIndexOf(sectionId);
     return index == null ? Future<void>.value() : _catalog.jumpToSection(index);

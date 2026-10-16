@@ -40,7 +40,16 @@ abstract interface class CatalogStripHandle {
   ValueObservable<List<CatalogStripEntry>> get entries;
 
   /// The scroll events of the catalogue, for a strip that follows its scroll.
+  ///
+  /// `PanelCatalogCurrentSectionChanged` says which section the user is in.
   EventObservable<PanelCatalogScrollEvent> get scrollEvents;
+
+  /// The id of the section the catalogue is in now, or null before it has laid
+  /// out or while it shows no section.
+  ///
+  /// For a strip that mounts after the catalogue did and has missed the
+  /// event that said it.
+  String? get currentSectionId;
 
   /// Scrolls to the header of section [sectionId]; completes when the motion
   /// ends. Does nothing for an id the catalogue does not hold.
