@@ -34,6 +34,22 @@ surfaces (emoji / stickers / GIFs).
   section's rows counted at its own column count; `spanCount × 9` in per-cell
   adapter space); `isSectionJumpActive` for host strip-sync gating.
   `scrollOffsetForSectionHeader` is the landing offset of a section as painted
+- **Section states** — `CatalogSection.state` (loading, failed, loaded)
+  mirrors the collection: loading and failed paint skeleton leaves (a count
+  after the section's leaves, in its placeholder style, no error UI, nothing
+  attached to the asset cache, not hit targets); loaded paints the leaves or,
+  with none, the section's `emptyMessage` in a row of its own
+- **Header action** — an optional trailing `CatalogSectionAction` (id, label
+  and / or icon) painted at the header's end by the viewport, which owns its
+  hit area (the band tall, at least 48 px wide) and reports a tap through
+  `onSectionAction(sectionId, actionId)`
+- **Near-viewport events** — `PanelCatalogSectionNearViewport(sectionId,
+  edge)` on `controller.events` when a section's leading or trailing edge comes
+  within `sectionNearExtent` of the viewport (one viewport height by default),
+  once per approach; the trailing edge is announced again when the section
+  published with more leaves so a page can paginate. A teleporting jump
+  announces only its landing. It carries no motion: the bake's scrolling and
+  settled facts are unchanged
 - **Paint leaves** — no per-cell `StatefulWidget` default; visible-band asset
   bind/recycle
 - **Leaf** — `CatalogLeaf` is a value: content key, descriptor paint facts
@@ -97,6 +113,8 @@ surfaces (emoji / stickers / GIFs).
 | A `ValueObservable<CatalogSnapshot>` and a `PanelCatalogController` (the host creates and disposes both) | Mutate a published snapshot or notify once per leaf: publish a new snapshot per logical mutation |
 | Listeners on `controller.events` for chrome that follows scrolling | Call the controller's `attach` / `detach` / `publish`: they belong to the viewport |
 | An `AssetCacheScope` (host-created and disposed) whose `glyphSource` is an atlas planning every glyph the data source shows, baked at `largestCatalogGlyphBox` of the layouts it serves; on the web no source and a `TextGlyphProducer` | Expect a glyph outside the atlas to draw as text: it stays a placeholder; build a second atlas for a section with other cell sizes |
+| Listeners on `controller.events` that load a section (or the next page of it) on `PanelCatalogSectionNearViewport`, publish `loading` / `failed` / `loaded` section states and the empty message copy | Paint a loading or error state of its own over the viewport, or poll the controller's offset to decide what to load |
+| An `onSectionAction` callback for the header actions the sections carry, and the label / icon of each | Overlay widgets on the header to host an action |
 | Stable section ids and, where the host needs to recognise a cell, a `tag` on the leaf | Identify a cell by its content key alone (the same key can be in several sections), or key a side map by leaf instance |
 | The bake's three signals, and a listener on `controller.events` that calls the atlas (`reportScrolling` on `PanelCatalogScrollingChanged`, `prioritise` on `PanelCatalogScrollSettled`): the viewport tells no atlas anything | Start a bake on the web, or run one beside the open animation |
 | A new atlas (and cache) when the planned glyphs change, built from the old one's `retire()` so the cells do not blank | Dispose the atlas while a viewport still draws from it and expect the last frame to survive: the cells show placeholders |

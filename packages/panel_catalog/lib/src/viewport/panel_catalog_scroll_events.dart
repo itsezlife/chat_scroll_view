@@ -7,7 +7,7 @@ import 'package:content_model/content_model.dart';
 /// e.g. update sticky shell chrome on every offset tick, dismiss search focus
 /// on user drag only, or debounce bottom-bar hide while a fling is in flight.
 ///
-/// ## Two layers
+/// ## Three kinds
 ///
 /// The motion events ([PanelCatalogUserDragStart] through
 /// [PanelCatalogOffsetChanged]) say what moved the catalog. The activity
@@ -15,6 +15,11 @@ import 'package:content_model/content_model.dart';
 /// derived from them by the viewport and say whether the catalog is moving at
 /// all, so a page that paces background work (a glyph bake) reads two facts
 /// instead of re-deriving them from every motion event.
+///
+/// The proximity event ([PanelCatalogSectionNearViewport]) is neither: it says
+/// that an edge of a section is close to what the user sees, so a page can
+/// load the section or load more of it. It is no motion and does not move the
+/// activity facts, so whoever paces background work on them is unaffected.
 sealed class PanelCatalogScrollEvent {
   const PanelCatalogScrollEvent();
 }
@@ -185,4 +190,54 @@ final class PanelCatalogScrollSettled extends PanelCatalogScrollEvent {
 
   /// Keys of the leaves in the visible band, top first. Unmodifiable.
   final List<ContentKey> visibleKeys;
+}
+
+/// An edge of a section of the catalog.
+enum CatalogSectionEdge {
+  /// The top of the section: its header band.
+  leading,
+
+  /// The bottom of the section: the end of its last row. This is the edge a
+  /// page watches to load more of a loaded section.
+  trailing,
+}
+
+/// An edge of a section came close enough to the viewport that its owner
+/// should load the section or load more of it.
+///
+/// "Close enough" is the viewport band widened by the viewport's
+/// `sectionNearExtent` on both sides: an edge is near while it lies inside that
+/// window. The event is published once as an edge comes inside, not while it
+/// stays; it is published again when the edge leaves the window and comes back.
+/// An edge that is already near is announced again when the section it belongs
+/// to is published with a different number of leaves
+/// ([CatalogSectionEdge.trailing] only: the end of a section that grew is a
+/// different end), so a page that paginates is asked again while the end it
+/// loaded up to is still in reach, until it is not. A change of state alone
+/// (loading to failed) asks nothing: a retry is the owner's decision.
+///
+/// A jump that teleports (a far section jump, `jumpTo`) announces only the
+/// edges in the window it lands on; sections it flew over are never announced.
+/// Events of one evaluation come in section order, leading before trailing.
+final class PanelCatalogSectionNearViewport extends PanelCatalogScrollEvent {
+  /// Emitted when [edge] of section [sectionId] comes near the viewport.
+  const PanelCatalogSectionNearViewport(this.sectionId, this.edge);
+
+  /// [CatalogSection.id] of the section.
+  final String sectionId;
+
+  /// Which edge of the section is near.
+  final CatalogSectionEdge edge;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PanelCatalogSectionNearViewport &&
+      other.sectionId == sectionId &&
+      other.edge == edge;
+
+  @override
+  int get hashCode => Object.hash(sectionId, edge);
+
+  @override
+  String toString() => 'PanelCatalogSectionNearViewport($sectionId, $edge)';
 }

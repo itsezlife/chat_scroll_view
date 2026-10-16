@@ -131,16 +131,24 @@ The immutable list of sections the viewport renders, published through an `Obser
 _Avoid_: Catalog data source with listener channels, streams as the integration contract, fetch inside the viewport
 
 **Section action**:
-An optional trailing header action painted by the viewport and reported by id.
+An optional trailing header action (label and / or icon, plus an action id) painted by the viewport and reported by `onSectionAction(sectionId, actionId)`. Its hit area is the whole header band tall and at least 48 px wide at the header's end.
 _Avoid_: Host overlays on the header
 
+**Section state**:
+Where the collection behind a section stands for painting: loading, failed or loaded. It mirrors the collection's contents; a page maps idle to loading. The viewport paints a state and never changes one.
+_Avoid_: An empty state of its own (empty is loaded with no leaves), a viewport that retries or fetches
+
+**Empty message row**:
+The row a loaded section with no leaves paints from its host-supplied message, centred under the header. Without a message the section is its header alone.
+_Avoid_: Skeletons for an empty section, an error row
+
 **Near-viewport event**:
-A controller event telling a page that a section is close enough to load or paginate. Carries the section and the edge.
-_Avoid_: Pages polling scroll offsets
+A controller event telling a page that a section edge (leading or trailing) is inside the viewport band widened by the near extent, so the section can be loaded or paginated. Published once per approach; the trailing edge again when the section grew while still near. A teleporting jump announces only its landing. It is no motion and does not touch the scrolling and settled facts that pace the bake.
+_Avoid_: Pages polling scroll offsets, announcing the sections a jump flew over, counting it as scroll activity
 
 **Skeleton leaves**:
-Placeholder-styled leaves painted for loading or failed sections. Never an error UI.
-_Avoid_: Error row, retry button, failed stand-in
+Placeholder-styled cells painted after a loading or failed section's leaves, in the section's placeholder style and content box. They are not cells: nothing is attached to the asset cache for them and they are not hit targets. Never an error UI.
+_Avoid_: Error row, retry button, failed stand-in, binding a skeleton to the asset cache
 
 **Scroll event**:
 The one typed controller event stream: drag, fling, section jump, near-viewport. A settled event carries the visible leaf keys.

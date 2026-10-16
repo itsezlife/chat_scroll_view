@@ -4,6 +4,8 @@ import 'package:panel_catalog/src/model/catalog_glyph_box.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 import 'package:panel_catalog/src/model/catalog_section.dart';
+import 'package:panel_catalog/src/model/catalog_section_action.dart';
+import 'package:panel_catalog/src/model/catalog_section_state.dart';
 import 'package:panel_catalog/src/viewport/catalog_grid_metrics.dart';
 
 /// One laid-out band in the flattened catalog projection (content coordinates).
@@ -18,7 +20,8 @@ import 'package:panel_catalog/src/viewport/catalog_grid_metrics.dart';
 /// previous section's, and the slots of a row share their vertical extent. That
 /// order is what lets the visible window be found by binary search.
 ///
-/// Use [CatalogLayoutSlot.header] / [CatalogLayoutSlot.leaf] factories.
+/// Use [CatalogLayoutSlot.header] / [CatalogLayoutSlot.leaf] /
+/// [CatalogLayoutSlot.skeleton] / [CatalogLayoutSlot.message] factories.
 sealed class CatalogLayoutSlot {
   /// Creates a slot spanning `[top, top + height)`.
   const CatalogLayoutSlot({required this.top, required this.height});
@@ -31,6 +34,8 @@ sealed class CatalogLayoutSlot {
     required double left,
     required double width,
     required String title,
+    required String sectionId,
+    CatalogSectionAction? action,
   }) = CatalogHeaderSlot;
 
   /// Leaf cell at column [left] with [width] (the section's cell width).
@@ -45,6 +50,27 @@ sealed class CatalogLayoutSlot {
     CatalogContentBox? contentBox,
     CatalogPlaceholderStyle? placeholderStyle,
   }) = CatalogLeafSlot;
+
+  /// Skeleton cell of a section that is loading or failed: geometry and the
+  /// style it stands in, no content and no identity.
+  const factory CatalogLayoutSlot.skeleton({
+    required double top,
+    required double height,
+    required double left,
+    required double width,
+    required CatalogContentBox contentBox,
+    required CatalogPlaceholderStyle style,
+  }) = CatalogSkeletonSlot;
+
+  /// The row of a loaded section with nothing in it: [text] across the
+  /// section's usable width.
+  const factory CatalogLayoutSlot.message({
+    required double top,
+    required double height,
+    required double left,
+    required double width,
+    required String text,
+  }) = CatalogMessageSlot;
 
   /// Content y of the slot top edge.
   final double top;
@@ -68,6 +94,8 @@ final class CatalogHeaderSlot extends CatalogLayoutSlot {
     required this.left,
     required this.width,
     required this.title,
+    required this.sectionId,
+    this.action,
   });
 
   /// Content x of the section's left edge (viewport padding plus the section's
@@ -79,6 +107,65 @@ final class CatalogHeaderSlot extends CatalogLayoutSlot {
 
   /// Host-localized section title (viewport paints; does not own l10n).
   final String title;
+
+  /// [CatalogSection.id] of the section this header belongs to.
+  final String sectionId;
+
+  /// The section's trailing action, if it has one.
+  final CatalogSectionAction? action;
+}
+
+/// One skeleton cell: where a leaf will be while its section loads.
+///
+/// A skeleton is geometry plus the style it stands in. It has no content key,
+/// attaches nothing to the asset cache, and is not a hit target.
+final class CatalogSkeletonSlot extends CatalogLayoutSlot {
+  /// Creates a skeleton cell.
+  const CatalogSkeletonSlot({
+    required super.top,
+    required super.height,
+    required this.left,
+    required this.width,
+    required this.contentBox,
+    required this.style,
+  });
+
+  /// Content x of the cell left edge.
+  final double left;
+
+  /// Cell width.
+  final double width;
+
+  /// The box the skeleton is drawn in.
+  final CatalogContentBox contentBox;
+
+  /// The stand-in drawn.
+  final CatalogPlaceholderStyle style;
+
+  /// Side of the square the skeleton is drawn in.
+  double get contentExtent =>
+      catalogContentBoxExtent(contentBox, width, height);
+}
+
+/// The row that tells a loaded section has nothing to show.
+final class CatalogMessageSlot extends CatalogLayoutSlot {
+  /// Creates a message row.
+  const CatalogMessageSlot({
+    required super.top,
+    required super.height,
+    required this.left,
+    required this.width,
+    required this.text,
+  });
+
+  /// Content x of the section's left edge.
+  final double left;
+
+  /// The section's usable width.
+  final double width;
+
+  /// Host-localized message.
+  final String text;
 }
 
 /// One leaf cell in the grid.
@@ -233,6 +320,29 @@ final class CatalogSectionBands {
   final double contentExtent;
 }
 
+/// Skeleton cells [section] paints after its leaves: none unless it is
+/// loading or failed, else [CatalogSection.skeletonCount] or one row of its
+/// columns.
+int catalogSkeletonCount(CatalogSection section, CatalogGridMetrics grid) =>
+    section.state == CatalogSectionState.loaded
+    ? 0
+    : section.skeletonCount ?? grid.spanCount;
+
+/// Whether [section] shows its empty message: loaded, no leaves, a message.
+bool catalogShowsEmptyMessage(CatalogSection section) =>
+    section.state == CatalogSectionState.loaded &&
+    section.leaves.isEmpty &&
+    section.emptyMessage != null;
+
+/// Rows [section] takes under its header: the rows of its leaves and skeleton
+/// cells, or the one row of its empty message.
+int catalogSectionRowCount(CatalogSection section, CatalogGridMetrics grid) =>
+    catalogShowsEmptyMessage(section)
+    ? 1
+    : grid.rowCountFor(
+        section.leaves.length + catalogSkeletonCount(section, grid),
+      );
+
 /// Lays [sections] out as bands, each by its own layout resolved against the
 /// viewport defaults.
 ///
@@ -261,7 +371,7 @@ CatalogSectionBands projectCatalogSectionBands({
     final band = CatalogSectionBand(
       top: y,
       grid: grid,
-      rowCount: grid.rowCountFor(section.leaves.length),
+      rowCount: catalogSectionRowCount(section, grid),
       flatIndex: flat,
     );
     bands.add(band);
@@ -311,7 +421,9 @@ final class CatalogSlotProjection {
 /// - Cell width = `(maxWidth − padding.horizontal − insets.horizontal) /
 ///   spanCount` when usable width > 0; otherwise falls back to the cell extent
 ///   (degenerate narrow constraint).
-/// - Empty leaf lists still emit the header; they do **not** add a row.
+/// - Empty leaf lists still emit the header; they do **not** add a row, unless
+///   the section is loaded with an empty message (one message row) or is
+///   loading or failed (skeleton cells continuing the grid after the leaves).
 /// - Ends with `y += padding.bottom` → [CatalogSlotProjection.contentExtent].
 ///
 /// The default [spanCount] MUST be ≥ 1 (division). Zero/negative extents
@@ -344,6 +456,8 @@ CatalogSlotProjection projectCatalogSlots({
         left: grid.left,
         width: grid.usableWidth,
         title: section.title,
+        sectionId: section.id,
+        action: section.action,
       ),
     );
     final leaves = section.leaves;
@@ -359,6 +473,30 @@ CatalogSlotProjection projectCatalogSlots({
           leaf: leaves[i],
           contentBox: section.contentBox,
           placeholderStyle: section.placeholderStyle,
+        ),
+      );
+    }
+    final skeletons = catalogSkeletonCount(section, grid);
+    for (var i = leaves.length; i < leaves.length + skeletons; i++) {
+      slots.add(
+        CatalogLayoutSlot.skeleton(
+          top: band.rowsTop + (i ~/ grid.spanCount) * grid.cellHeight,
+          height: grid.cellHeight,
+          left: grid.left + (i % grid.spanCount) * grid.cellWidth,
+          width: grid.cellWidth,
+          contentBox: section.contentBox ?? CatalogContentBox.glyph,
+          style: section.placeholderStyle ?? CatalogPlaceholderStyle.circle,
+        ),
+      );
+    }
+    if (catalogShowsEmptyMessage(section)) {
+      slots.add(
+        CatalogLayoutSlot.message(
+          top: band.rowsTop,
+          height: grid.cellHeight,
+          left: grid.left,
+          width: grid.usableWidth,
+          text: section.emptyMessage!,
         ),
       );
     }

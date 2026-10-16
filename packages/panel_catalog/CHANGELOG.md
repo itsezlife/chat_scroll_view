@@ -6,6 +6,25 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- **Section states.** `CatalogSection.state` (`CatalogSectionState`: loading,
+  failed, loaded) mirrors the collection behind the section. A loading or
+  failed section paints `skeletonCount` skeleton leaves (one row of its columns
+  by default) after its leaves, in its placeholder style, with no error UI;
+  skeletons attach nothing to the asset cache and are not hit targets. A loaded
+  section with no leaves paints `emptyMessage` in a row of its own.
+- **Header action.** `CatalogSection.action` (`CatalogSectionAction`: id, label
+  and / or icon) is painted at the end of the header band; its hit area is the
+  whole band tall and at least `kCatalogActionMinHitWidth` wide. A tap reaches
+  the new `PanelCatalogViewport.onSectionAction(sectionId, actionId)`.
+- **Near-viewport events.** `PanelCatalogSectionNearViewport(sectionId, edge)`
+  (`CatalogSectionEdge`: leading, trailing) on `controller.events` when an edge
+  of a section comes within `PanelCatalogViewport.sectionNearExtent` of the
+  viewport (one viewport height by default), so a page can load a section or
+  paginate it. It is no motion and does not touch the scrolling / settled
+  facts that pace the bake.
+
 ### Changed
 
 - **BREAKING: leaf value and hit.** `CatalogLeaf` is a value (content key,

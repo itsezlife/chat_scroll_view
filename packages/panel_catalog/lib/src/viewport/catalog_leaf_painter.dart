@@ -8,21 +8,30 @@ import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_catalog/src/model/catalog_glyph_box.dart'
     show kCirclePlaceholderRadiusFactor;
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
+import 'package:panel_catalog/src/model/catalog_section_action.dart';
 import 'package:panel_catalog/src/viewport/catalog_glyph_sprite_batch.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_paragraph_cache.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 
-/// Most section-header paragraphs one painter keeps; a header is keyed by title,
-/// style and layout width, so a resize adds one per visible header per step.
-/// Far above the headers of one screen (a handful).
+/// Most text paragraphs one painter keeps; a paragraph is keyed by text, style
+/// and layout width, so a resize adds a few per visible header per step (title,
+/// action label, action icon). Far above the headers of one screen (a
+/// handful).
 const int kHeaderParagraphCacheLimit = 64;
+
+/// Space between an action's label and its icon.
+const double _kActionPartGap = 4;
+
+/// An action icon is drawn this much larger than the header text.
+const double _kActionIconScale = 1.3;
 
 /// Paints catalog headers and leaves onto a [Canvas].
 ///
-/// Owns a bounded paragraph cache for section titles so repeated paint of the
-/// same visible band does not rebuild text layouts every frame. Does **not**
+/// Owns a bounded paragraph cache for section titles, action labels and empty
+/// messages so repeated paint of the same visible band does not rebuild text
+/// layouts every frame. Does **not**
 /// own layout slots, scroll offset or the asset cache: the render object
 /// passes content [origin], slot geometry, the leaf's [CatalogBoundLeaf] and
 /// [CatalogLeafPaintTheme].
@@ -98,10 +107,14 @@ const int kHeaderParagraphCacheLimit = 64;
 final class CatalogLeafPainter {
   /// Creates a painter with an empty header paragraph cache.
   CatalogLeafPainter({required CatalogLeafPaintTheme theme}) : _theme = theme {
-    _applyThemeColors(theme);
+    _applyTheme(theme);
   }
 
   CatalogLeafPaintTheme _theme;
+
+  // The header style at regular weight, derived once per theme rather than per
+  // paint.
+  late TextStyle _messageStyle;
 
   // Fills reused by every leaf. A [Paint] is a heap object with a native-sized
   // backing buffer, so allocating one per leaf per frame is pure scroll-time
@@ -110,11 +123,12 @@ final class CatalogLeafPainter {
   // because the canvas copies a paint's state at the draw call.
   final Paint _circlePaint = Paint();
   final Paint _thumbPaint = Paint();
+  final Paint _skeletonPaint = Paint();
   final Paint _washPaint = Paint();
   final Paint _fadePaint = Paint();
   final Paint _highlightPaint = Paint();
 
-  final CatalogParagraphCache<_HeaderPaintKey> _headerParagraphs =
+  final CatalogParagraphCache<_TextPaintKey> _textParagraphs =
       CatalogParagraphCache(limit: kHeaderParagraphCacheLimit);
   final CatalogGlyphSpriteBatch _glyphSprites = CatalogGlyphSpriteBatch();
 
@@ -135,20 +149,24 @@ final class CatalogLeafPainter {
         _theme.sectionHeaderStyle != value.sectionHeaderStyle ||
         _theme.sectionHeaderStartInset != value.sectionHeaderStartInset;
     _theme = value;
-    _applyThemeColors(value);
+    _applyTheme(value);
     if (headerPaintChanged) {
-      _headerParagraphs.clear();
+      _textParagraphs.clear();
     }
   }
 
-  void _applyThemeColors(CatalogLeafPaintTheme theme) {
+  void _applyTheme(CatalogLeafPaintTheme theme) {
     _circlePaint.color = theme.circleColor;
     _thumbPaint.color = theme.thumbColor;
+    _skeletonPaint.color = theme.skeletonColor;
+    _messageStyle = theme.sectionHeaderStyle.copyWith(
+      fontWeight: FontWeight.w400,
+    );
   }
 
   /// Releases cached paragraphs and buffers. Idempotent.
   void dispose() {
-    _headerParagraphs.clear();
+    _textParagraphs.clear();
     _glyphSprites.dispose();
     _releaseWashShader();
   }
@@ -183,40 +201,32 @@ final class CatalogLeafPainter {
     _washShader = null;
   }
 
-  /// Paints [header] at content [origin].
+  /// Paints [header] at content [origin]: the title, and the trailing action
+  /// when the section has one.
   ///
-  /// Title paragraph is cached by title, typography, colour and layout width.
-  /// Vertical placement centres the line in [CatalogHeaderSlot.height];
-  /// horizontal placement adds [CatalogLeafPaintTheme.sectionHeaderStartInset]
-  /// after the section's own left edge ([CatalogHeaderSlot.left]), and the
-  /// text shares the section's [CatalogHeaderSlot.width].
+  /// Paragraphs come from the bounded cache, keyed by text, typography and
+  /// layout width. Vertical placement centres each line in
+  /// [CatalogHeaderSlot.height]; the title starts
+  /// [CatalogLeafPaintTheme.sectionHeaderStartInset] after the section's own
+  /// left edge ([CatalogHeaderSlot.left]) and ends where the action's hit area
+  /// begins, or at the section's right edge ([CatalogHeaderSlot.width]) when
+  /// there is no action.
   void paintHeader({
     required Canvas canvas,
     required Offset origin,
     required CatalogHeaderSlot header,
   }) {
     final theme = _theme;
-    final headerStyle = theme.sectionHeaderStyle;
+    final action = _actionLayout(header);
+    final titleEnd = action?.hit.left ?? header.left + header.width;
     final textWidth = math.max(
       0.0,
-      header.width - theme.sectionHeaderStartInset,
+      titleEnd - header.left - theme.sectionHeaderStartInset,
     );
-    final paragraph = _headerParagraphs.obtain(
-      _HeaderPaintKey(
-        title: header.title,
-        style: headerStyle,
-        width: textWidth,
-      ),
-      () {
-        final builder =
-            ui.ParagraphBuilder(
-                headerStyle.getParagraphStyle(textScaler: TextScaler.noScaling),
-              )
-              ..pushStyle(headerStyle.getTextStyle())
-              ..addText(header.title);
-        return builder.build()
-          ..layout(ui.ParagraphConstraints(width: textWidth));
-      },
+    final paragraph = _paragraph(
+      header.title,
+      theme.sectionHeaderStyle,
+      width: textWidth,
     );
     final textY = header.top + (header.height - paragraph.height) / 2;
     canvas.drawParagraph(
@@ -224,6 +234,122 @@ final class CatalogLeafPainter {
       Offset(
         origin.dx + header.left + theme.sectionHeaderStartInset,
         origin.dy + textY,
+      ),
+    );
+    if (action == null) return;
+    var x = action.hit.right - theme.sectionHeaderStartInset - action.width;
+    for (final part in [?action.label, ?action.icon]) {
+      canvas.drawParagraph(
+        part,
+        Offset(
+          origin.dx + x,
+          origin.dy + header.top + (header.height - part.height) / 2,
+        ),
+      );
+      x += part.maxIntrinsicWidth + _kActionPartGap;
+    }
+  }
+
+  /// The hit area of [header]'s trailing action in content coordinates, or null
+  /// when the section has none.
+  ///
+  /// The whole band tall, from the action's own start (less the header start
+  /// inset) to the section's right edge, and at least
+  /// [kCatalogActionMinHitWidth] wide.
+  Rect? sectionActionBounds(CatalogHeaderSlot header) =>
+      _actionLayout(header)?.hit;
+
+  ({Rect hit, ui.Paragraph? label, ui.Paragraph? icon, double width})?
+  _actionLayout(CatalogHeaderSlot header) {
+    final action = header.action;
+    if (action == null) return null;
+    final style = _theme.sectionHeaderStyle;
+    final label = action.label;
+    final icon = action.icon;
+    final labelParagraph = label == null
+        ? null
+        : _paragraph(label, style, width: header.width);
+    final iconParagraph = icon == null
+        ? null
+        : _paragraph(
+            String.fromCharCode(icon.codePoint),
+            style.copyWith(
+              fontFamily: icon.fontFamily,
+              package: icon.fontPackage,
+              fontSize: (style.fontSize ?? 14) * _kActionIconScale,
+              fontWeight: FontWeight.w400,
+            ),
+            width: header.width,
+          );
+    final width =
+        (labelParagraph?.maxIntrinsicWidth ?? 0) +
+        (iconParagraph?.maxIntrinsicWidth ?? 0) +
+        (labelParagraph != null && iconParagraph != null ? _kActionPartGap : 0);
+    final hitWidth = math.min(
+      header.width,
+      math.max(
+        kCatalogActionMinHitWidth,
+        width + 2 * _theme.sectionHeaderStartInset,
+      ),
+    );
+    final right = header.left + header.width;
+    return (
+      hit: Rect.fromLTRB(
+        right - hitWidth,
+        header.top,
+        right,
+        header.top + header.height,
+      ),
+      label: labelParagraph,
+      icon: iconParagraph,
+      width: width,
+    );
+  }
+
+  /// The laid-out paragraph of [text] in [style] across [width], from the
+  /// bounded cache.
+  ui.Paragraph _paragraph(
+    String text,
+    TextStyle style, {
+    required double width,
+    bool centered = false,
+  }) => _textParagraphs.obtain(
+    _TextPaintKey(text: text, style: style, width: width, centered: centered),
+    () {
+      final builder =
+          ui.ParagraphBuilder(
+              style.getParagraphStyle(
+                textScaler: TextScaler.noScaling,
+                textAlign: centered ? TextAlign.center : null,
+              ),
+            )
+            ..pushStyle(style.getTextStyle())
+            ..addText(text);
+      return builder.build()..layout(ui.ParagraphConstraints(width: width));
+    },
+  );
+
+  /// Paints the empty-message row of a loaded section with nothing in it:
+  /// [CatalogMessageSlot.text] in the header style at regular weight, centred
+  /// across the section's usable width and in the row's height.
+  void paintMessage({
+    required Canvas canvas,
+    required Offset origin,
+    required CatalogMessageSlot slot,
+  }) {
+    final inset = _theme.sectionHeaderStartInset;
+    final width = math.max(0.0, slot.width - 2 * inset);
+    final paragraph = _paragraph(
+      slot.text,
+      _messageStyle,
+      width: width,
+      centered: true,
+    );
+    canvas.drawParagraph(
+      paragraph,
+      Offset(
+        origin.dx + slot.left + inset,
+        origin.dy + slot.top + (slot.height - paragraph.height) / 2,
       ),
     );
   }
@@ -328,6 +454,54 @@ final class CatalogLeafPainter {
     }
   }
 
+  /// Paints one skeleton cell: the stand-in of its style in its content box, in
+  /// the skeleton colour (the sticker wash keeps its sweep, so a loading
+  /// sticker section shimmers like a loading sticker).
+  ///
+  /// Reads no binding and asks no cache for anything.
+  void paintSkeleton({
+    required Canvas canvas,
+    required Offset origin,
+    required CatalogSkeletonSlot slot,
+  }) {
+    final cellRect = Rect.fromLTWH(
+      origin.dx + slot.left,
+      origin.dy + slot.top,
+      slot.width,
+      slot.height,
+    );
+    final side = slot.contentExtent;
+    final box = Rect.fromCenter(
+      center: cellRect.center,
+      width: side,
+      height: side,
+    );
+    switch (slot.style) {
+      case CatalogPlaceholderStyle.circle:
+        canvas.drawCircle(
+          box.center,
+          box.width * kCirclePlaceholderRadiusFactor,
+          _skeletonPaint,
+        );
+      case CatalogPlaceholderStyle.thumbFirst:
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            box,
+            Radius.circular(_theme.placeholderCornerRadius),
+          ),
+          _skeletonPaint,
+        );
+      case CatalogPlaceholderStyle.shapedWash:
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            box,
+            Radius.circular(_theme.placeholderCornerRadius),
+          ),
+          _wash(),
+        );
+    }
+  }
+
   /// The placeholder of [style] in [glyphRect], at [alpha] of its colour.
   void _paintStandIn(
     Canvas canvas,
@@ -401,25 +575,29 @@ final class CatalogLeafPainter {
   }
 }
 
-/// Cache key for header paragraphs (title, style, layout width).
-final class _HeaderPaintKey {
-  const _HeaderPaintKey({
-    required this.title,
+/// Cache key for the painter's text paragraphs: header titles, action labels
+/// and icons, and empty messages (text, style, layout width, alignment).
+final class _TextPaintKey {
+  const _TextPaintKey({
+    required this.text,
     required this.style,
     required this.width,
+    required this.centered,
   });
 
-  final String title;
+  final String text;
   final TextStyle style;
   final double width;
+  final bool centered;
 
   @override
   bool operator ==(Object other) =>
-      other is _HeaderPaintKey &&
-      other.title == title &&
+      other is _TextPaintKey &&
+      other.text == text &&
       other.style == style &&
-      other.width == width;
+      other.width == width &&
+      other.centered == centered;
 
   @override
-  int get hashCode => Object.hash(title, style, width);
+  int get hashCode => Object.hash(text, style, width, centered);
 }

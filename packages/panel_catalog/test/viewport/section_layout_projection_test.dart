@@ -316,6 +316,7 @@ void main() {
       for (final slot in projection.slots) {
         final isNewItem = switch (slot) {
           CatalogHeaderSlot() => true,
+          CatalogSkeletonSlot() || CatalogMessageSlot() => true,
           CatalogLeafSlot() =>
             items.isEmpty ||
                 items.last.$1 != slot.top ||
@@ -399,6 +400,100 @@ void main() {
         ]),
         30 * kCatalogGlyphBoxFraction,
       );
+    });
+  });
+
+  group('section states in the projection', () {
+    test('skeleton cells continue the grid after the leaves', () {
+      final p = _project([
+        CatalogSection(
+          id: 'a',
+          title: 'A',
+          leaves: [for (var i = 0; i < 6; i++) CatalogLeaf.unicode('a$i')],
+          state: CatalogSectionState.loading,
+          skeletonCount: 5,
+        ),
+      ]);
+
+      final skeletons = p.slots.whereType<CatalogSkeletonSlot>().toList();
+      expect(skeletons, hasLength(5));
+      // 8 columns of 50: cells 6 and 7 finish row 0, cells 8..10 start row 1.
+      expect(skeletons.map((s) => s.left), [300, 350, 0, 50, 100]);
+      expect(skeletons.map((s) => s.top), [32, 32, 80, 80, 80]);
+      expect(p.contentExtent, 32 + 2 * 48);
+    });
+
+    test(
+      'a loading section adds the rows of its skeletons to the flat index',
+      () {
+        final bands = _bands([
+          const CatalogSection(
+            id: 'a',
+            title: 'A',
+            leaves: [],
+            state: CatalogSectionState.loading,
+            skeletonCount: 17,
+          ),
+          _section('b', 1),
+        ]);
+
+        // 17 skeletons at 8 columns are 3 rows: header + 3 rows, then b.
+        expect(bands[0].rowCount, 3);
+        expect(bands[1].flatIndex, 4);
+      },
+    );
+
+    test('the message row takes one row across the usable width', () {
+      final p = _project([
+        const CatalogSection(
+          id: 'a',
+          title: 'A',
+          leaves: [],
+          emptyMessage: 'None',
+        ),
+      ], padding: const EdgeInsets.symmetric(horizontal: 10));
+
+      final message = p.slots.whereType<CatalogMessageSlot>().single;
+      expect(message.top, 32);
+      expect(message.height, 48);
+      expect(message.left, 10);
+      expect(message.width, 380);
+      expect(p.contentExtent, 32 + 48);
+    });
+
+    test('the header slot carries its section and action', () {
+      const action = CatalogSectionAction(id: 'more', label: 'More');
+      final p = _project([
+        const CatalogSection(id: 'a', title: 'A', leaves: [], action: action),
+      ]);
+
+      final header = p.slots.whereType<CatalogHeaderSlot>().single;
+      expect(header.sectionId, 'a');
+      expect(header.action, action);
+    });
+
+    test('slots of all kinds stay in ascending order', () {
+      final p = _project([
+        const CatalogSection(
+          id: 'a',
+          title: 'A',
+          leaves: [],
+          state: CatalogSectionState.failed,
+          skeletonCount: 20,
+        ),
+        const CatalogSection(
+          id: 'b',
+          title: 'B',
+          leaves: [],
+          emptyMessage: 'None',
+        ),
+        _section('c', 30),
+      ]);
+
+      for (var i = 1; i < p.slots.length; i++) {
+        expect(p.slots[i].top, greaterThanOrEqualTo(p.slots[i - 1].top));
+        expect(p.slots[i].bottom, greaterThanOrEqualTo(p.slots[i - 1].bottom));
+      }
     });
   });
 }

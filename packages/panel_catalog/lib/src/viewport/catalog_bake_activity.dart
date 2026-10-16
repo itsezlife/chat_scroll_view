@@ -112,7 +112,8 @@ final class CatalogBakeActivity {
           PanelCatalogAnimateEnd() ||
           PanelCatalogSectionJumpEnd() ||
           PanelCatalogScrollingChanged() ||
-          PanelCatalogScrollSettled():
+          PanelCatalogScrollSettled() ||
+          PanelCatalogSectionNearViewport():
         break;
     }
   }

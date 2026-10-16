@@ -10,7 +10,9 @@
 /// [PanelCatalogController.jumpToSection], [PanelCatalogController.events]),
 /// [PanelCatalogThemeData], [PanelCatalogTheme], the leaf value
 /// ([CatalogLeaf], [CatalogLeafHit]) and the section models ([CatalogSection],
-/// [SectionLayout]), and section landing helpers ([scrollOffsetForSectionHeader],
+/// [SectionLayout], [CatalogSectionState], [CatalogSectionAction]), the
+/// near-viewport event ([PanelCatalogSectionNearViewport]), and section
+/// landing helpers ([scrollOffsetForSectionHeader],
 /// [kFarPathDistanceGateFactor] flat-row near/far gate). Fakes live in
 /// `package:panel_catalog/testing.dart`.
 ///
@@ -34,6 +36,8 @@ export 'src/model/catalog_glyph_box.dart'
 export 'src/model/catalog_leaf.dart';
 export 'src/model/catalog_leaf_hit.dart';
 export 'src/model/catalog_section.dart';
+export 'src/model/catalog_section_action.dart';
+export 'src/model/catalog_section_state.dart';
 export 'src/model/section_layout.dart';
 export 'src/theme/panel_catalog_theme.dart';
 export 'src/viewport/catalog_grid_metrics.dart' show largestCatalogGlyphBox;
