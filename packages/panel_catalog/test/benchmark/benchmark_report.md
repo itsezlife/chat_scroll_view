@@ -6,7 +6,10 @@ Two kinds of evidence, kept apart on purpose:
    only evidence that says whether the catalogue feels smooth. Status:
    **pending reference-device run**. No on-device number is quoted below.
 2. **Headless benchmark** (layout cost and object counts against two widget
-   baselines): runs anywhere, says nothing about smoothness.
+   baselines): runs anywhere, says nothing about smoothness. Tracked nightly as
+   ratios against committed baselines, see
+   [benchmarks/README.md](../../../../benchmarks/README.md) for the tolerance,
+   the re-run and the re-baseline steps.
 
 ## What the headless benchmark can and cannot show
 
@@ -30,17 +33,20 @@ debug-mode numbers inflated by asserts; the ratios are the signal.
 
 ## On-device acceptance: pending reference-device run
 
-Bar (binding): on the reference device, per scenario, **zero frames over one
-vsync budget** (budget derived from the display's refresh rate) and **raster
-p99 at most 2 ms**, three of three fresh launches; resident glyph pages at most
-64 MiB while the panel is open. Only the reference device gates.
+Bar (binding): per scenario on the reference device, judged by the pure-Dart
+rule in `example/integration_test/panel_perf/acceptance.dart`
+(`AcceptanceCriteria`: frames over one vsync budget and raster p99;
+`kResidentPageCeilingBytes`: the resident glyph page ceiling) over the number of
+fresh launches `kRequiredLaunches` in `acceptance_runner.dart` requires. The
+thresholds live there only; this report does not restate them, so it cannot
+drift from the test. Only the reference device gates.
 
 | Suite | Scenarios asserted | Status |
 | ----- | ------------------ | ------ |
 | `bare` | `panel_open`, `cold_first_pass` (diagnostics: `warm_pass2`, `reopen_pass4`) | pending reference-device run |
 | `chat` | `chat_panel_open`, `chat_cold_first_pass` (diagnostic: `chat_warm_pass2`) | pending reference-device run |
 | `first_run` | `first_run_no_cache`, `cold_start_valid_cache` (diagnostic: `os_update_stale_rebake`) | pending reference-device run |
-| Resident bytes | `atlasResidentBytes` / `atlasResidentPages` in every report, judged against 64 MiB | pending reference-device run |
+| Resident bytes | `atlasResidentBytes` / `atlasResidentPages` in every report, judged against `kResidentPageCeilingBytes` | pending reference-device run |
 
 Commands (run from `example/`; device cool, on a charger, screen on, display at
 its top refresh rate, profile build; each launch is a fresh process):
@@ -71,7 +77,7 @@ three of three:
 dart run tool/panel_perf.dart --promote <label>-bare-launch1 <label>-chat-launch1 <label>-first_run-launch1
 ```
 
-Per-ticket device checks, not part of the three-of-three rule (all take
+Per-ticket device checks, not part of the launch rule (all take
 `TARGET=<test> [DEFINES=...] tool/run_panel_perf.sh <device-id> <label>`):
 
 | Question | Command |
@@ -85,18 +91,20 @@ The manual cache, OS-update and density checks are in
 
 ## Headless benchmark results
 
-Re-run 2026-10-16: Flutter 3.41.7, Dart 3.11.5, macOS ARM64, headless debug,
-one run. Viewport 400×600 logical px (span 8, cell 48, header 32); catalogue
-presets of 64 / 512 / 4096 unicode leaves (8 leaves per section). Candidate:
-Panel Catalog Viewport with an `AssetCacheScope` that draws glyphs as text
-(paragraph path). Baselines:
+Re-baselined 2026-10-16 (ticket 21, after the seam work of tickets 16-20):
+Flutter 3.41.7, Dart 3.11.5, macOS ARM64, headless debug, **semantics off**
+(the suite's preset, see below). Viewport 400×600 logical px (span 8, cell 48,
+header 32); catalogue presets of 64 / 512 / 4096 unicode leaves (8 leaves per
+section). Candidate: Panel Catalog Viewport with an `AssetCacheScope` that
+draws glyphs as text (paragraph path). Baselines:
 **SliverGrid** (section headers plus a `SliverGrid` per section) and
 **SuperSliverList** (frozen flat header-and-row list, the previous keyboard
-panel body).
+panel body). Ranges below are min-max over four whole-suite runs.
 
 ```shell
 cd packages/panel_catalog
 flutter test test/benchmark/vs_supersliver_bench_test.dart
+BENCH_SEMANTICS=on flutter test test/benchmark/vs_supersliver_bench_test.dart
 ```
 
 The suite prints the full per-metric tables in `tearDownAll`; below is the
@@ -105,11 +113,17 @@ Ranges cover the 64 / 512 / 4096 presets.
 
 | Probe | vs SliverGrid | vs SuperSliverList | Notes |
 | ----- | ------------- | ------------------ | ----- |
-| Forced relayout (mean) | 0.01–0.07x | 0.07–0.34x | Grid at 4096 janks 62 of 100 relayouts; PCV 0 |
-| Scroll-only paint (mean) | 3.0–6.8x (Grid faster) | 4.3–7.9x (SSL faster) | Isolated paint recording; see below |
-| Fling frame time (mean / p95) | 0.05–0.20x / 0.03–0.09x | 0.26–0.41x / 0.15–0.18x | 300 pumped frames |
-| Near-path section jump (mean / p95) | 0.09–0.22x / 0.05–0.13x | 0.33–0.52x / 0.32–0.35x | against a 220 ms `animateTo` |
-| Far-path stitch (mean / p95) | 0.00–0.08x / 0.01–0.11x | 0.01–0.19x / 0.02–0.24x | against a travel-scaled `animateTo` |
+| Forced relayout (mean) | 0.01–0.11x | 0.09–0.56x | Grid at 4096 janks about 60 of 100 relayouts; PCV 0 |
+| Scroll-only paint (mean) | 3.2–7.0x (Grid faster) | 2.0–7.7x (SSL faster) | Isolated paint recording; see below |
+| Fling frame time (mean / p95) | 0.08–0.90x / 0.04–0.47x | 0.29–0.92x / 0.19–0.51x | 300 pumped frames; medians sit at 0.9–1.2x (the floor of a sampled frame) |
+| Near-path section jump (mean / p95) | 0.11–0.51x / 0.05–0.27x | 0.48–1.00x / 0.38–0.71x | against a 220 ms `animateTo` |
+| Far-path stitch (mean / p95) | 0.01–0.17x / 0.01–0.22x | 0.01–0.34x / 0.02–0.50x | against a travel-scaled `animateTo` |
+
+The medians of the quick probes (near jump, fling) are at the floor of a
+sampled frame (about 15 µs), so their ratios against a widget baseline read
+0.9–1.1x; the means and p95 carry the signal there. The nightly job watches the
+medians (what a ratio of two floor-level numbers can bear is the reason its
+tolerance is wide).
 
 Object counts (flat, as the catalogue grows):
 
@@ -129,14 +143,14 @@ viewport defaults (8 columns of 48), odd ones a 5-column layout of 64
 (`generateMixedLayoutSections`; same leaf and section counts as the uniform
 preset). The baselines lay every section out at one span, so the comparison is
 the candidate against itself: ratio is mixed / uniform at the same leaf count,
-range over four runs and the 64 / 512 / 4096 presets.
+range over four runs (re-run at ticket 21) and the 64 / 512 / 4096 presets.
 
 | Probe | Mixed / uniform (median) | Mixed / uniform (mean) | Notes |
 | ----- | ------------------------ | ---------------------- | ----- |
-| Forced relayout | 0.62–1.10x | 0.68–1.39x | Per-section grid resolution is O(sections) on top of O(slots) |
-| Scroll-only paint | 0.69–0.76x | 0.66–0.90x | Taller 5-column cells show fewer cells per screen |
-| Near-path section jump | 1.00–1.33x | 0.54–1.16x | Medians sit at the floor of a sampled frame (about 16 µs) |
-| Far-path stitch | 0.94–1.07x | 0.78–2.10x | The 2.1x mean is the 64-leaf preset, where one slow frame moves the mean |
+| Forced relayout | 0.78–1.17x | 0.83–1.74x | Per-section grid resolution is O(sections) on top of O(slots) |
+| Scroll-only paint | 0.79–0.86x | 0.68–0.97x | Taller 5-column cells show fewer cells per screen |
+| Near-path section jump | 0.43–1.06x | 0.58–2.40x | Medians sit at the floor of a sampled frame (about 16 µs) |
+| Far-path stitch | 0.94–1.12x | 0.74–2.48x | The 2.2-2.5x mean is the 64-leaf preset, where one slow frame moves the mean |
 
 Against the pre-change viewport (the integration branch before the per-section
 seam, same machine, four alternating runs of the whole suite) the uniform
@@ -226,10 +240,97 @@ catalogue:
 | 4096 | 65-67 µs | 129-134 µs | about 2.0x | 83 |
 
 The node count is the window (about 16 rows of 8 cells here), not the catalogue:
-it is the same at 512 and 4096 leaves, and the test asserts the bound and a
-generous 5x tripwire on the median. Absolute microseconds are debug-mode;
-the ratio is the signal. A device run with TalkBack or VoiceOver is not part of
-this report.
+it is the same at 512 and 4096 leaves, and the test asserts the bound. (It
+used to assert a 5x tripwire on the median too; that tripped about one run in
+thirteen on a busy machine, in a required gate, and a wall-clock assertion has
+no place there. The ratio is now the nightly metric
+`semantics.scroll_frame.on_over_off.<leaves>`.) Absolute microseconds are
+debug-mode; the ratio is the signal. A device run with TalkBack or VoiceOver is
+not part of this report.
+
+### The semantics preset (ticket 21)
+
+Chosen deliberately, not inherited from `flutter_test`: the headline suite runs
+with **semantics off**, the shipped default (a semantic tree exists on a device
+only while a screen reader runs), selected by `BENCH_SEMANTICS` (`off`, the
+default, or `on`). The probe that measures semantics itself always compares the
+same frames with and without. The nightly job runs both presets as separate
+suites (`panel_catalog.semantics-off`, `panel_catalog.semantics-on`), so a
+regression that only a screen reader pays is still tracked.
+
+Against the widget baselines the preset hardly matters (both sides pay for
+semantics, so the ratios agree within noise); it matters for the absolute cost
+of the viewport, which is what the next section measures.
+
+### Forced-layout drift, re-measured (ticket 21)
+
+Ticket 19 reported forced layout 5-10% slower in an A/B and could not explain
+it. Re-measured by checking out the integration branch after tickets 18, 19 and
+20, running the same bench file in each, four alternating rounds per preset
+(whole suite per round, same machine); median of the four per-run medians of the
+viewport's own forced-layout time, in µs (one relayout, debug, headless):
+
+| Preset | Leaves | After 18 | After 19 | After 20 |
+| ------ | ------ | -------- | -------- | -------- |
+| Semantics off | 64 | 55 | 59 | 58 |
+| Semantics off | 512 | 20 | 22 | 25 |
+| Semantics off | 4096 | 77 | 83 | 85 |
+| Semantics on | 64 | 50 | 55 | 73 |
+| Semantics on | 512 | 25 | 25 | 42 |
+| Semantics on | 4096 | 91 | 95 | 103 |
+
+Reading it:
+
+- **Ticket 19 (header actions, section states) costs 0-10%, 2-6 µs.** The
+  rounds overlap (64 leaves, off: 46-61 before, 52-65 after); the direction is
+  consistent but the size is at the noise floor. It is real but negligible, not
+  a regression worth a change.
+- **Ticket 20 is the rest, and it is semantics.** With semantics on, forced
+  layout rises 30-70% at 64 and 512 leaves (about 18 µs): a relayout marks the
+  window's semantic nodes stale. That cost exists only while a screen reader
+  runs, as ticket 20 predicted, and it is why the semantics-on suite is tracked
+  on its own. With semantics off ticket 20 adds 0-25% (0-3 µs), again inside
+  the spread.
+- So the drift is explained: a few microseconds from 19, and the
+  screen-reader-only marking cost from 20. Nothing was changed in the viewport
+  for it. The cumulative off-preset drift since ticket 18 (5-10%, 3-8 µs) is
+  what the committed baselines now contain.
+
+### Asset-cache benchmark (ticket 21)
+
+`packages/catalog_assets/test/benchmark/asset_cache_ratio_bench_test.dart`
+(`asset_cache_churn_bench_test.dart` stays: it is the sweep behind the default
+budgets). Four probes, reduced to machine-independent numbers: cache cycles as
+a ratio against a bare byte-budgeted LRU doing the same bookkeeping on the same
+machine; hit rates at the default budgets (counts, exact); one clock tick
+fanned out to 10 / 100 / 1000 animated bindings, as cost per binding against
+10 bindings, against the same number of closure calls, and the repaint requests
+the 30 fps cap lets through; glyph bindings holding pages of a real
+`GlyphPageResidency` against plain entries, and memory pressure with pinned
+pages. Baseline medians (macOS, five runs):
+
+| Probe | Value | Reading |
+| ----- | ----- | ------- |
+| Churn, 200 keys (all resident), over bare LRU | 7.5x | Pinning, staged readiness and listeners on top of the map work |
+| Churn, 5000 keys (evicting every cycle), over bare LRU | 6.0x | Evicting costs no more relative to the reference than a hit |
+| Evicting over resident cycle | 5.4x | |
+| Fan-out per binding, 1000 over 10 bindings | 0.52x | Flat or better: fixed cost per tick is amortised, no superlinear growth |
+| Fan-out tick over N closure calls, N = 10 / 100 / 1000 | 17x / 22x / 24x | Dispatch through the clock against bare closures |
+| Repaint requests per binding per tick (30 fps cap) | 0.5 | Exact |
+| Glyph binding cycle over plain entry cycle, 4 pages | 1.6x | Taking and giving back a page hold |
+| Glyph binding cycle, 256 pages over 4 pages | 0.99x | Holds do not scale with the number of pages |
+| Hit rates on the way back: stickers 4 / 8 screens | 100% / 75% | At the default 24 MiB (matches the package README table) |
+| Hit rates: emoji 4 / 8 screens; animated 1 / 4 screens | 100% / 100%; 100% / 25% | At the default budgets |
+| Pages resident after memory pressure with 12 of 16 pages pinned | 12 | Pinned pages survive, unpinned go (asserted) |
+
+### What is tracked, and how
+
+Both suites write their ratios, counts and rates to the file `BENCH_REPORT`
+names, and `scripts/bench` compares the median of several runs against the
+committed baselines in `benchmarks/baselines/`. Tolerance, re-run and
+re-baseline steps, and the nightly workflow (a regression opens an issue and
+never blocks a merge): [benchmarks/README.md](../../../../benchmarks/README.md).
+This report is refreshed in the same change as a re-baseline.
 
 ## Accepted gaps
 

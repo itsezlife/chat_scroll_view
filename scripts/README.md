@@ -14,6 +14,11 @@ Every step runs even after a failure; the exit code is 1 if any failed, 2 if
 the repository is not a workspace the gates understand (including a package
 under `packages/` or `example/` missing from the root `workspace:` list).
 
+`scripts/bench` is not a gate and not part of `scripts/check`: it runs the
+headless benchmarks and sets their ratios against the committed baselines. The
+nightly workflow calls it; usage, tolerance and re-baselining are in
+[benchmarks/README.md](../benchmarks/README.md).
+
 ## Lints
 
 | Lint | Fails when |

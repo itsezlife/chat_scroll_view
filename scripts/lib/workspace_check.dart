@@ -3,6 +3,9 @@
 /// analyze / test plan.
 library;
 
+export 'src/bench_baseline_store.dart';
+export 'src/bench_compare.dart';
+export 'src/bench_report.dart';
 export 'src/check_plan.dart';
 export 'src/dependency_lint.dart';
 export 'src/fakes_lint.dart';

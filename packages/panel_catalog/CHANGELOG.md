@@ -8,6 +8,9 @@ is pre-1.0.
 
 ### Added
 
+- The headless benchmark runs with semantics off by default (`BENCH_SEMANTICS`
+  selects the preset), writes its ratios for the nightly job, and no longer
+  asserts a wall-clock ratio for the semantics probe. Nothing a consumer sees.
 - **Grid direction.** Cells fill each row start to end: the first leaf of a
   right-to-left grid is at the right edge. `PanelCatalogViewport` follows the
   `Directionality` it sits in; `SectionLayout.grid(textDirection:)` states a

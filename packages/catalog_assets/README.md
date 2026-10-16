@@ -111,6 +111,12 @@ costs two frame buffers, as the Android client counts a Lottie drawable.
   times are inflated by asserts and are never asserted; the hit-rate tables are
   counts and are exact.
 
+`test/benchmark/asset_cache_ratio_bench_test.dart` reduces the same cache (plus
+clock fan-out to many animated bindings, page-hold churn against a real
+`GlyphPageResidency` and memory pressure) to ratios, counts and rates that the
+nightly job tracks against committed baselines; see
+[benchmarks/README.md](../../benchmarks/README.md).
+
 ### Host contract
 
 | The host provides | The host must not |
