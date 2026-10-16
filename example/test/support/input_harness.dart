@@ -1,0 +1,195 @@
+import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
+import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_bottom_chrome.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_model/content_model.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:panel_presentation/panel_presentation.dart';
+
+import 'fake_soft_keyboard.dart';
+
+/// One chat's input set and bottom chrome under the app's scopes, as the chat
+/// screen lays them out, over a filler where the chat is.
+///
+/// The set is created from the first dependencies with the view's size and
+/// disposed with the harness, as the screen does. What it sends and edits is
+/// logged.
+final class InputRig {
+  InputRig._(this.services, this.keyboard, this.selection);
+
+  /// The app's services; the rig disposes none of them.
+  final AppServices services;
+
+  /// The soft keyboard.
+  final FakeSoftKeyboard keyboard;
+
+  /// The chat's selection, to hide the composer.
+  final ChatSelectionController selection;
+
+  bool Function()? _failSends;
+
+  /// Bodies sent.
+  final List<String> sent = <String>[];
+
+  /// Edits saved, as `id:body`.
+  final List<String> edited = <String>[];
+
+  /// Kinds the user was asked to clear and agreed to.
+  final List<SemanticKind> clearAsked = <SemanticKind>[];
+
+  /// The set under test, once the first frame is built.
+  late ChatInputSet set;
+
+  final GlobalKey _island = GlobalKey();
+  final GlobalKey _space = GlobalKey();
+
+  /// Pumps the rig into [tester]. [policy] is the platform's unless given;
+  /// [size] is the window.
+  static Future<InputRig> pump(
+    WidgetTester tester, {
+    required AppServices services,
+    PanelPresentationPolicy? policy,
+    Size size = const Size(400, 800),
+    FakeSoftKeyboard? keyboard,
+    bool Function()? failSends,
+  }) async {
+    final rig = InputRig._(
+      services,
+      keyboard ?? FakeSoftKeyboard(),
+      ChatSelectionController(),
+    ).._failSends = failSends;
+    addTearDown(() async {
+      rig.selection.dispose();
+      await rig.keyboard.dispose();
+    });
+    tester.view
+      ..physicalSize = size
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        builder: (context, child) =>
+            AppChrome(services: services, child: child!),
+        home: _Screen(rig: rig, policy: policy),
+      ),
+    );
+    return rig;
+  }
+
+  /// The composer's text field (the panel's search field is another).
+  Finder get field => find.byWidgetPredicate(
+    (widget) =>
+        widget is EditableText && widget.focusNode == set.composer.focusNode,
+  );
+
+  /// The composer's action [id].
+  Finder action(String id) => find.byKey(ValueKey<String>(id));
+
+  /// Taps the composer's action [id] and runs a frame.
+  Future<void> tapAction(WidgetTester tester, String id) async {
+    await tester.tap(action(id));
+    await tester.pump();
+  }
+
+  /// Runs frames until nothing is moving or [limit] has passed.
+  Future<void> settle(
+    WidgetTester tester, [
+    Duration limit = const Duration(seconds: 3),
+  ]) async {
+    final end = tester.binding.clock.now().add(limit);
+    do {
+      await tester.pump(const Duration(milliseconds: 16));
+    } while (tester.binding.hasScheduledFrame &&
+        tester.binding.clock.now().isBefore(end));
+  }
+}
+
+class _Screen extends StatefulWidget {
+  const _Screen({required this.rig, required this.policy});
+
+  final InputRig rig;
+  final PanelPresentationPolicy? policy;
+
+  @override
+  State<_Screen> createState() => _ScreenState();
+}
+
+class _ScreenState extends State<_Screen> {
+  ChatInputSet? _input;
+
+  InputRig get _rig => widget.rig;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final input = _input ??= _rig.set = ChatInputSet(
+      services: _rig.services,
+      view: View.of(context),
+      send: (body) async {
+        if (_rig._failSends?.call() ?? false) throw Exception('network');
+        _rig.sent.add(body);
+      },
+      edit: (id, body) async => _rig.edited.add('$id:$body'),
+      confirmClearRecents: (kind) async {
+        _rig.clearAsked.add(kind);
+        return true;
+      },
+      keyboard: _rig.keyboard,
+      policy: widget.policy,
+    );
+    final safe = MediaQuery.viewPaddingOf(context);
+    input
+      ..updateEnvironment(
+        size: MediaQuery.sizeOf(context),
+        safeTop: safe.top,
+        safeBottom: safe.bottom,
+      )
+      ..applyTheme(ChromeThemeScope.composerOf(context));
+  }
+
+  @override
+  void dispose() {
+    _input?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final input = _input!;
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      body: Stack(
+        key: _rig._space,
+        children: [
+          Positioned.fill(
+            child: Padding(
+              padding: EdgeInsetsDirectional.only(
+                end: input.insets.inlineEnd.value,
+              ),
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: ChatBottomChrome(
+                  input: input,
+                  selection: _rig.selection,
+                  islandKey: _rig._island,
+                  anchorSpace: _rig._space,
+                ),
+              ),
+            ),
+          ),
+          if (!ChatBottomChrome.replacesKeyboard(input))
+            Positioned.fill(
+              child: PanelPresentationView(controller: input.presentation),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A unicode emoji key.
+ContentKey$Unicode emojiKey(String glyph) => ContentKey$Unicode(glyph);

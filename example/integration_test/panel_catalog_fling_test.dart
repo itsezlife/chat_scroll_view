@@ -1,5 +1,3 @@
-import 'package:chat_chrome/chat_chrome.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -15,8 +13,9 @@ import 'panel_perf/scenario_support.dart';
 /// budget (derived from the display's refresh rate) and keep raster p99 at most
 /// 2 ms. Today it fails; the numbers it prints are the baseline.
 ///
-/// Hosts the real [KeyboardPanel] (strip, catalog viewport, bottom bar) without
-/// the chat screen, so no backend is needed. Run three fresh launches with
+/// Hosts the real panel (`EmojiPanelPage` under the keyboard-replacement
+/// presentation: strip, catalog viewport, bottom bar) without the chat screen,
+/// so no backend is needed. Run three fresh launches with
 /// `dart run tool/panel_perf.dart <device-id> <label>`, in `--profile`; debug
 /// numbers are meaningless for raster cost.
 ///
@@ -28,7 +27,7 @@ import 'panel_perf/scenario_support.dart';
 /// | `panel_open`       | yes      | open animation, first paint of the panel  |
 /// | `cold_first_pass`  | yes      | first sight of every glyph, whole catalogue down and back up |
 /// | `warm_pass2`       | no       | same pass with every glyph already seen   |
-/// | `reopen_pass4`     | no       | panel closed and reopened: new paragraph cache, warm atlas |
+/// | `reopen_pass4`     | no       | panel closed and reopened: new panel, new atlas, warm engine |
 ///
 /// Scenarios run in order inside one process, so the engine's glyph atlas is
 /// cold only for `panel_open` and `cold_first_pass`: every verdict needs a
@@ -96,12 +95,10 @@ void main() {
       ),
     );
 
-    harness.dispose();
-
-    // Close and reopen: a new render object starts with an empty paragraph
-    // cache while the engine's glyph atlas stays warm. Isolates the cost the
-    // panel pays on every open, separate from first sight of a glyph.
-    await tester.pumpWidget(const SizedBox.shrink());
+    // Close and reopen: a new panel, new render objects and a new atlas over
+    // an engine that stays warm. Isolates the cost the panel pays on every
+    // open, separate from first sight of a glyph.
+    await harness.dispose(tester);
     await tester.pump(const Duration(milliseconds: 500));
     final reopened = await PanelHarness.start(tester);
     reopened.open();
@@ -117,7 +114,7 @@ void main() {
         body: () => flingPass(tester),
       ),
     );
-    reopened.dispose();
+    await reopened.dispose(tester);
 
     publishAndAssert(binding, reports);
   });

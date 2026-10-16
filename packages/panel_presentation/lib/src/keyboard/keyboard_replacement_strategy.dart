@@ -73,6 +73,16 @@ final class KeyboardReplacementStrategy implements PanelPresentationStrategy {
   @override
   PanelPresentation get kind => const KeyboardReplacement();
 
+  /// Whether the soft keyboard is up in the latest reading, so a panel shown
+  /// now replaces it and is on screen from its first frame.
+  ///
+  /// A host's pages read it when they mount to decide whether to pace their
+  /// own chrome: a panel that grows into a free slot mounts while nothing
+  /// moves and may spread its first frame over several, a panel that
+  /// replaces the keyboard must not (the chrome would pop in over content
+  /// already on screen).
+  bool get keyboardIsUp => _slot.keyboardIsUp;
+
   @override
   ValueObservable<PanelOccupancy> get occupancy => _slot.occupancy;
 
@@ -123,7 +133,11 @@ class _KeyboardPanelState extends State<_KeyboardPanel>
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick);
-    _shellView = PanelShell(controller: _shell);
+    // The search field is the shell's own chrome to pace; see keyboardIsUp.
+    _shellView = PanelShell(
+      controller: _shell,
+      deferSearchField: !_slot.keyboardIsUp,
+    );
     _slot.animating.addListener(_onAnimating);
     _slot.state.addListener(_report);
     _slot.changes.addListener(_onChanged);

@@ -1,5 +1,4 @@
 // ignore_for_file: implementation_imports
-import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
@@ -9,7 +8,6 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
-import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/scroll_to_bottom_button.dart';
@@ -275,7 +273,6 @@ class _DemoPillScaffold extends StatefulWidget {
 
 class _DemoPillScaffoldState extends State<_DemoPillScaffold> {
   late final ChatSelectionController _selection = ChatSelectionController();
-  late final ChatComposerController _composer = ChatComposerController();
   ValueNotifier<double>? _ownedBottomInset;
 
   ValueNotifier<double> get _bottomInset =>
@@ -292,7 +289,6 @@ class _DemoPillScaffoldState extends State<_DemoPillScaffold> {
   @override
   void dispose() {
     _selection.dispose();
-    _composer.dispose();
     _ownedBottomInset?.dispose();
     super.dispose();
   }
@@ -360,13 +356,9 @@ class _DemoPillScaffoldState extends State<_DemoPillScaffold> {
                 bottom: 0,
                 child: MeasureSize(
                   onChange: (size) => _bottomInset.value = size.height,
-                  child: ChatComposer(
-                    composer: _composer,
-                    selection: _selection,
-                    dataSource: widget.dataSource,
-                    onSend: (_) async {},
-                    onEmojiPressed: () {},
-                  ),
+                  // Stands for the composer: a bar of the height the real island
+                  // takes, for the pill to sit above.
+                  child: const SizedBox(height: _composerBarHeight),
                 ),
               ),
             ],
@@ -410,6 +402,9 @@ bool _fabVisible(WidgetTester tester) =>
 
 Finder _fabTapTarget() =>
     find.byKey(const ValueKey<String>('scroll_to_bottom'));
+
+/// Height of the stand-in for the composer.
+const double _composerBarHeight = 68;
 
 void main() {
   group('ChatScrollToBottomButton', () {

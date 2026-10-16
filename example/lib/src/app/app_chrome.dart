@@ -1,0 +1,46 @@
+import 'package:catalog_assets/catalog_assets.dart';
+import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:panel_pages/panel_pages.dart';
+
+/// The app-level scopes every chrome widget reads, over [child].
+///
+/// Host-owned and above the whole app: the chrome theme (dark palette), the
+/// strings, the motion speed (reduce motion mapped to instant: no chrome
+/// package reads the platform flag itself), the glass quality, the panel's
+/// category icons and the asset cache the content widgets look up. The chat screen adds its own
+/// nested scopes (glass source) below.
+///
+/// Needs a [MediaQuery] above it; nothing here owns [AppServices.assets].
+class AppChrome extends StatelessWidget {
+  /// Scopes [child] with what [services] provides.
+  const AppChrome({required this.services, required this.child, super.key});
+
+  /// Where the asset cache comes from.
+  final AppServices services;
+
+  /// The app.
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ChromeThemeScope(
+    palette: const ChromePalette.dark(),
+    child: ChromeStringsScope(
+      strings: demoChromeStrings,
+      child: ChromeMotionScope(
+        speed: MediaQuery.disableAnimationsOf(context)
+            ? ChromeMotionSpeed.instant
+            : ChromeMotionSpeed.normal,
+        // The glass policy of the app: the best strategy the device supports.
+        // A host with a low-power mode passes `liteMode` here.
+        child: GlassQualityScope(
+          child: EmojiTabIconScope(
+            child: AssetCacheProvider(scope: services.assets, child: child),
+          ),
+        ),
+      ),
+    ),
+  );
+}

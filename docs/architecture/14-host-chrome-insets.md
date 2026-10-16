@@ -41,6 +41,32 @@ the live IME height; an anchored popup publishes zero; a docked section
 publishes its width as `inlineEnd`. The host reads the occupancy of the
 presentation currently shown and never adds IME height a second time.
 
+## Reference wiring
+
+The reference host (`example/`) keeps the aggregation in one small object,
+`ChatViewportInsets`, created with the chat screen's controller set and
+disposed with it. It is handed the two observables and follows them; it owns
+neither:
+
+| Input | Role |
+|-------|------|
+| The composer's extent observable | Frame-by-frame height of the composer, own safe pad included. Until the first publication the aggregation uses a seed so the first frame is not zero. |
+| The presentation's `occupancy` observable | `bottom` in the sum above, `inlineEnd` as the width the host takes from the chat region. |
+
+| Output | Consumer |
+|--------|----------|
+| `bottomPadding` | The viewport, and overlay chrome that positions against the reserved edge (never adds to it). |
+| `inlineEnd` | A padding at the end edge of the whole chat region (viewport, composer and overlays), mirrored in right-to-left text, around the box a docked panel is drawn over. |
+| `topPadding`, `chromeTop` | The viewport, and chrome that sits below the safe area and the selection header. |
+
+The soft keyboard enters once, through the presentation's input port: the host
+forwards every reading it has (height, whether the system is animating it, the
+bottom safe area from the same `MediaQuery` update) and invents none. The
+composer is handed `composerSafeInset` as its bottom safe area only where a
+keyboard-replacement presentation exists. Where the panel is a popup or a
+dock, the host draws the presentation view over the chat in a box it owns and
+reports the composer's rectangle to the popup with `anchor`.
+
 ## Reserved inset vs overlay chrome
 
 **Reserved inset** is space the scroll band yields so messages are not

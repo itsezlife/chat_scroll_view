@@ -82,6 +82,8 @@ void main() {
 
   double bottom() => controller.occupancy.value.bottom;
 
+  bool strategyKeyboardUp() => keyboard.keyboardIsUp;
+
   Future<void> mount(
     WidgetTester tester, {
     ChromeMotionSpeed speed = ChromeMotionSpeed.normal,
@@ -400,6 +402,36 @@ void main() {
       final media = MediaQuery.of(tester.element(find.byType(PanelShell)));
       expect(media.padding.bottom, 40);
       expect(media.viewInsets.bottom, 0);
+      await tearDownTree(tester);
+    });
+  });
+
+  group('paced mount', () {
+    testWidgets('a cold open mounts the search field one frame after the '
+        'page', (tester) async {
+      await mount(tester);
+      controller.show();
+      await tester.pump();
+
+      expect(find.text('page emoji'), findsOneWidget);
+      expect(find.byType(EditableText), findsNothing);
+      expect(strategyKeyboardUp(), isFalse);
+
+      await tester.pump();
+
+      expect(find.byType(EditableText), findsOneWidget);
+      await tearDownTree(tester);
+    });
+
+    testWidgets('a panel that replaces the keyboard mounts it all at once, '
+        'so no chrome pops in over what is on screen', (tester) async {
+      ime.report(const ImeSample(height: 320));
+      await mount(tester);
+      controller.show();
+      await tester.pump();
+
+      expect(strategyKeyboardUp(), isTrue);
+      expect(find.byType(EditableText), findsOneWidget);
       await tearDownTree(tester);
     });
   });

@@ -1,167 +1,108 @@
-// ignore_for_file: implementation_imports
 import 'dart:async';
 
-import 'package:chat_chrome/chat_chrome.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
-import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
-import 'package:flutter/material.dart';
+import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _PreloadedDataSource extends ChatDataSource {
-  _PreloadedDataSource() {
-    seedBoundaries(reachedOldest: true, reachedNewest: true);
-  }
+import '../support/input_harness.dart';
+import '../support/test_services.dart';
 
-  @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+Future<AppServices> _services(WidgetTester tester) async {
+  final services = (await tester.runAsync(createTestServices))!;
+  addTearDown(services.dispose);
+  return services;
 }
 
-Widget _composerHarness({
-  required ChatComposerController composer,
-  required ChatSelectionController selection,
-  required ChatDataSource dataSource,
-  required Future<void> Function(String text) onSend,
-}) => MaterialApp(
-  home: Scaffold(
-    body: Column(
-      children: <Widget>[
-        const Expanded(child: SizedBox()),
-        ChatComposer(
-          composer: composer,
-          selection: selection,
-          dataSource: dataSource,
-          onSend: onSend,
-          onEmojiPressed: () {},
-        ),
-      ],
-    ),
-  ),
-);
+Future<void> _type(WidgetTester tester, InputRig rig, String text) async {
+  await tester.enterText(rig.field, text);
+  await tester.pump();
+}
 
 Future<void> _pumpAsync(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
 }
 
-Future<void> _tapSend(WidgetTester tester) async {
-  await tester.tap(find.byIcon(Icons.send_rounded));
-  await _pumpAsync(tester);
-}
-
 void main() {
-  group('ChatComposer send', () {
-    testWidgets('invokes onSend with trimmed text and clears on success', (
-      tester,
-    ) async {
-      final selection = ChatSelectionController();
-      final dataSource = _PreloadedDataSource();
-      final composer = ChatComposerController();
-      String? sent;
-      addTearDown(selection.dispose);
-      addTearDown(dataSource.dispose);
-      addTearDown(composer.dispose);
-
-      await tester.pumpWidget(
-        _composerHarness(
-          composer: composer,
-          selection: selection,
-          dataSource: dataSource,
-          onSend: (text) async {
-            sent = text;
-          },
-        ),
+  group('the composer sends', () {
+    testWidgets('the trimmed text, and empties on success', (tester) async {
+      final rig = await InputRig.pump(
+        tester,
+        services: await _services(tester),
       );
-      await tester.pump();
 
-      await tester.enterText(find.byType(TextField), '  hello world  ');
-      await tester.pump();
-      await _tapSend(tester);
-
-      expect(sent, 'hello world');
-      expect(find.byType(TextField), findsOneWidget);
-      final field = tester.widget<TextField>(find.byType(TextField));
-      expect(field.controller!.text, isEmpty);
-    });
-
-    testWidgets('whitespace-only send does not invoke onSend', (tester) async {
-      final selection = ChatSelectionController();
-      final dataSource = _PreloadedDataSource();
-      final composer = ChatComposerController();
-      var invoked = false;
-      addTearDown(selection.dispose);
-      addTearDown(dataSource.dispose);
-      addTearDown(composer.dispose);
-
-      await tester.pumpWidget(
-        _composerHarness(
-          composer: composer,
-          selection: selection,
-          dataSource: dataSource,
-          onSend: (_) async {
-            invoked = true;
-          },
-        ),
-      );
-      await tester.pump();
-
-      await tester.enterText(find.byType(TextField), '   \n  ');
-      await tester.pump();
-      expect(find.byIcon(Icons.send_rounded), findsNothing);
-      expect(find.byIcon(Icons.mic_none_rounded), findsOneWidget);
-      await tester.tap(find.byIcon(Icons.mic_none_rounded));
+      await _type(tester, rig, '  hello world  ');
+      await rig.tapAction(tester, ChatComposerActions.primary);
       await _pumpAsync(tester);
 
-      expect(invoked, isFalse);
+      expect(rig.sent, ['hello world']);
+      expect(rig.set.composer.text.text, isEmpty);
     });
 
-    testWidgets('retains text and re-enables send after onSend throws', (
-      tester,
-    ) async {
-      final selection = ChatSelectionController();
-      final dataSource = _PreloadedDataSource();
-      final composer = ChatComposerController();
-      var attempts = 0;
+    testWidgets('nothing for a whitespace-only message', (tester) async {
+      final rig = await InputRig.pump(
+        tester,
+        services: await _services(tester),
+      );
+
+      await _type(tester, rig, '   \n  ');
+      await rig.tapAction(tester, ChatComposerActions.primary);
+      await _pumpAsync(tester);
+
+      expect(rig.sent, isEmpty);
+    });
+
+    testWidgets('and keeps the text when the send fails, so it can be tried '
+        'again', (tester) async {
+      final services = await _services(tester);
       Object? asyncError;
-      addTearDown(selection.dispose);
-      addTearDown(dataSource.dispose);
-      addTearDown(composer.dispose);
-
+      var attempts = 0;
       await runZonedGuarded(() async {
-        await tester.pumpWidget(
-          _composerHarness(
-            composer: composer,
-            selection: selection,
-            dataSource: dataSource,
-            onSend: (text) async {
-              attempts++;
-              if (attempts == 1) {
-                throw Exception('network');
-              }
-            },
-          ),
+        final rig = await InputRig.pump(
+          tester,
+          services: services,
+          failSends: () => attempts++ == 0,
         );
-        await tester.pump();
 
-        await tester.enterText(find.byType(TextField), 'retry me');
-        await tester.pump();
-        await _tapSend(tester);
+        await _type(tester, rig, 'retry me');
+        await rig.tapAction(tester, ChatComposerActions.primary);
+        await _pumpAsync(tester);
 
-        expect(attempts, 1);
-        final field = tester.widget<TextField>(find.byType(TextField));
-        expect(field.controller!.text, 'retry me');
+        expect(rig.sent, isEmpty);
+        expect(rig.set.composer.text.text, 'retry me');
+        expect(rig.set.busy.value, isFalse);
 
-        await _tapSend(tester);
+        await rig.tapAction(tester, ChatComposerActions.primary);
+        await _pumpAsync(tester);
 
-        expect(attempts, 2);
-        expect(field.controller!.text, isEmpty);
+        expect(rig.sent, ['retry me']);
+        expect(rig.set.composer.text.text, isEmpty);
       }, (error, stack) => asyncError = error);
 
       expect(asyncError, isA<Exception>());
+    });
+  });
+
+  group('the primary action', () {
+    testWidgets('is the voice button while the composer is empty', (
+      tester,
+    ) async {
+      final rig = await InputRig.pump(
+        tester,
+        services: await _services(tester),
+      );
+
+      expect(
+        tester.getSemantics(rig.action(ChatComposerActions.primary)).label,
+        'Записать голосовое сообщение',
+      );
+
+      await _type(tester, rig, 'a');
+
+      expect(
+        tester.getSemantics(rig.action(ChatComposerActions.primary)).label,
+        'Отправить',
+      );
     });
   });
 }
