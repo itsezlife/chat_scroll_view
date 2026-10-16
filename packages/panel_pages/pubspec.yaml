@@ -27,7 +27,9 @@ dependencies:
     path: ../panel_catalog
   panel_shell:
     path: ../panel_shell
-
-dev_dependencies:
+  # Only lib/testing.dart needs this: its contract suite
+  # (runBakeActivityPortContract) is written with the test framework, and a
+  # library cannot import a dev dependency. Production entry points never
+  # import it.
   flutter_test:
     sdk: flutter
