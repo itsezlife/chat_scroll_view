@@ -48,8 +48,9 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// ## Events
 ///
 /// [events] is the one typed Observable of what the viewport does: drag,
-/// fling, programmatic jump, animate, section jump, offset ticks, and the
-/// derived scrolling / settled activity. It replaces per-kind listener
+/// fling, programmatic jump, animate, section jump, offset ticks, the derived
+/// scrolling / settled activity, and [PanelCatalogSectionNearViewport] for
+/// pages that load sections as they come close. It replaces per-kind listener
 /// channels. Same listener twice is a no-op; dispatch iterates a snapshot so
 /// listeners MAY add or remove listeners while it runs.
 ///

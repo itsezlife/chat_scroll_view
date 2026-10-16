@@ -62,6 +62,16 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// painted from [PanelCatalogTheme] — scale on glyph content, list-selector
 /// highlight on the full cell rect. A fling-cancel tap does not insert a leaf.
 ///
+/// ## Sections
+///
+/// A [CatalogSection] paints by its [CatalogSection.state]: skeleton leaves
+/// after its leaves while it is loading or failed (no error UI, nothing
+/// attached to [assets]), its leaves or its empty-message row when loaded. A
+/// header may carry a trailing [CatalogSectionAction]; a tap on it reaches
+/// [onSectionAction]. [PanelCatalogController.events] tells the owner of
+/// [snapshots] when a section is close enough to load or paginate
+/// ([PanelCatalogSectionNearViewport]).
+///
 /// ## Theme
 ///
 /// Requires a [PanelCatalogTheme] ancestor. [PanelCatalogTheme.of] →
@@ -112,6 +122,8 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     this.onLeafLongPressMove,
     this.onLeafLongPressEnd,
     this.leafLongPressEligible,
+    this.onSectionAction,
+    this.sectionNearExtent,
     super.key,
   });
 
@@ -231,6 +243,22 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// glyphs without variant picker, vs recents or tone-capable bases).
   final bool Function(CatalogLeafHit hit)? leafLongPressEligible;
 
+  /// Shell reaction to a tapped section header action, with the id of the
+  /// [CatalogSection] and the [CatalogSectionAction.id].
+  ///
+  /// Null disables recognition (the header is silent; scroll drag still works).
+  /// The viewport paints the action and owns its hit area, and decides nothing
+  /// about what the action does.
+  final void Function(String sectionId, String actionId)? onSectionAction;
+
+  /// How far beyond the viewport, above and below, a section edge counts as
+  /// near for [PanelCatalogSectionNearViewport], in content coordinates.
+  ///
+  /// Null is one viewport height. `0` is the viewport band itself. Larger
+  /// values load earlier, at the price of loading sections the user may never
+  /// reach.
+  final double? sectionNearExtent;
+
   @override
   RenderPanelCatalog createRenderObject(BuildContext context) {
     final theme = PanelCatalogTheme.of(context, listen: true);
@@ -251,6 +279,8 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       onLeafLongPressMove: onLeafLongPressMove,
       onLeafLongPressEnd: onLeafLongPressEnd,
       leafLongPressEligible: leafLongPressEligible,
+      onSectionAction: onSectionAction,
+      sectionNearExtent: sectionNearExtent,
     );
   }
 
@@ -276,6 +306,8 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..onLeafLongPressStart = onLeafLongPressStart
       ..onLeafLongPressMove = onLeafLongPressMove
       ..onLeafLongPressEnd = onLeafLongPressEnd
-      ..leafLongPressEligible = leafLongPressEligible;
+      ..leafLongPressEligible = leafLongPressEligible
+      ..onSectionAction = onSectionAction
+      ..sectionNearExtent = sectionNearExtent;
   }
 }

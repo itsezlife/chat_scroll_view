@@ -10,8 +10,10 @@ import 'package:flutter/widgets.dart';
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
+import 'package:panel_catalog/src/model/catalog_section.dart';
 import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
+import 'package:panel_catalog/src/viewport/catalog_action_pointer.dart';
 import 'package:panel_catalog/src/viewport/catalog_bake_activity.dart';
 import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
@@ -22,6 +24,7 @@ import 'package:panel_catalog/src/viewport/catalog_leaf_press.dart';
 import 'package:panel_catalog/src/viewport/catalog_near_scroll.dart';
 import 'package:panel_catalog/src/viewport/catalog_scroll_physics.dart';
 import 'package:panel_catalog/src/viewport/catalog_scroll_position.dart';
+import 'package:panel_catalog/src/viewport/catalog_section_proximity.dart';
 import 'package:panel_catalog/src/viewport/catalog_section_navigation.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
@@ -233,6 +236,8 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     void Function(CatalogLeafHit hit, LongPressEndDetails details)?
     onLeafLongPressEnd,
     bool Function(CatalogLeafHit hit)? leafLongPressEligible,
+    void Function(String sectionId, String actionId)? onSectionAction,
+    double? sectionNearExtent,
   }) : _snapshots = snapshots,
        _controller = controller,
        _pixels = controller.offset,
@@ -246,6 +251,8 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
        _onLeafLongPressMove = onLeafLongPressMove,
        _onLeafLongPressEnd = onLeafLongPressEnd,
        _leafLongPressEligible = leafLongPressEligible,
+       _onSectionAction = onSectionAction,
+       _sectionNearExtent = sectionNearExtent,
        _paintTheme = paintTheme,
        _devicePixelRatio = devicePixelRatio,
        _painter = CatalogLeafPainter(theme: paintTheme) {
@@ -263,6 +270,10 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
       ..onLeafLongPressEnd = onLeafLongPressEnd
       ..leafLongPressEligible = leafLongPressEligible
       ..onGestureCancel = _onLeafGestureCancel
+      ..flingCancelSuppresses = () => _flingCancelSuppressesLeaf;
+    _actionPointer = CatalogActionPointer(debugOwner: this)
+      ..actionAt = actionAt
+      ..onSectionAction = onSectionAction
       ..flingCancelSuppresses = () => _flingCancelSuppressesLeaf;
   }
 
@@ -438,6 +449,24 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     _leafPointer.leafLongPressEligible = value;
   }
 
+  /// Shell reaction to a tapped header action. Null disables recognition.
+  void Function(String sectionId, String actionId)? _onSectionAction;
+  set onSectionAction(void Function(String sectionId, String actionId)? value) {
+    if (_onSectionAction == value) return;
+    _onSectionAction = value;
+    _actionPointer.onSectionAction = value;
+  }
+
+  /// Distance beyond the viewport at which a section edge is near; null is
+  /// one viewport height.
+  double? _sectionNearExtent;
+  set sectionNearExtent(double? value) {
+    if (_sectionNearExtent == value) return;
+    _sectionNearExtent = value;
+    _proximity.invalidate();
+    _scheduleSectionProximity();
+  }
+
   // --- Runtime state --------------------------------------------------------
 
   late CatalogLeafBindingPool _pool;
@@ -481,6 +510,16 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   (double target, Duration duration, Curve curve, Completer<void> completer)?
   _pendingAnimateTo;
   late final CatalogLeafPointer _leafPointer;
+  late final CatalogActionPointer _actionPointer;
+
+  /// Which section edges are near the viewport.
+  final CatalogSectionProximity _proximity = CatalogSectionProximity();
+
+  /// The sections and bands of the last projection, aligned.
+  List<CatalogSection> _projectedSections = const [];
+  List<CatalogSectionBand> _bands = const [];
+  double _projectedWidth = -1;
+  var _proximityScheduled = false;
 
   /// Ballistic scroll simulation and tick integration in content offset space.
   final CatalogScrollPhysics _physics = CatalogScrollPhysics();
@@ -660,6 +699,29 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     return null;
   }
 
+  /// Resolves the header action under [localPosition] as `(sectionId,
+  /// actionId)`, or `null` when the point is on no action's hit area.
+  ///
+  /// Binary search to the slots at the point's content y, then a scan of the
+  /// few that share it: the cost follows the row, not the catalogue.
+  (String sectionId, String actionId)? actionAt(Offset localPosition) {
+    if (!hasSize) return null;
+    final contentX = localPosition.dx;
+    final contentY = localPosition.dy + _pixels;
+    final slots = _slots;
+    for (var i = _firstSlotIndexAtOrBelow(contentY); i < slots.length; i++) {
+      final slot = slots[i];
+      if (slot.top > contentY) break;
+      if (slot case final CatalogHeaderSlot header when header.action != null) {
+        final bounds = _painter.sectionActionBounds(header);
+        if (bounds != null && bounds.contains(Offset(contentX, contentY))) {
+          return (header.sectionId, header.action!.id);
+        }
+      }
+    }
+    return null;
+  }
+
   // --- Catalog invalidation -------------------------------------------------
 
   /// Marks layout and paint dirty after catalog or geometry changes.
@@ -695,6 +757,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     _clampOffset();
     _syncVisibleBindings();
     markNeedsPaint();
+    _noteSectionProximity();
   }
 
   /// Moves to [pixels] at once: publishes the jump, cancels programmatic
@@ -1047,6 +1110,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     _applyOffset(targetOffset);
     _clampOffset();
     _syncVisibleBindings();
+    _noteSectionProximity();
     _controller.publish(
       PanelCatalogSectionJumpStart(sectionIndex, targetOffset, farPath: true),
     );
@@ -1155,6 +1219,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
         _clampOffset();
         _syncVisibleBindings();
         markNeedsPaint();
+        _noteSectionProximity();
       },
     );
     _farStitch = CatalogFarStitch(
@@ -1197,6 +1262,9 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     _drag = null;
     _userDragging = false;
     _stopBakeActivity();
+    // Back in a tree the same edges are near again and are announced again.
+    _proximity.reset();
+    _projectedWidth = -1;
     _press?.dispose();
     _press = null;
     _pressTickers?.dispose();
@@ -1226,6 +1294,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     _drag = null;
     _userDragging = false;
     _leafPointer.dispose();
+    _actionPointer.dispose();
     _stopBakeActivity();
     _press?.dispose();
     _press = null;
@@ -1293,9 +1362,56 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
       padding: _padding,
       maxWidth: maxWidth,
     );
+    final sections = _snapshots.value.sections;
+    // A relayout that changes neither the sections nor the geometry (a forced
+    // layout, a parent's pass) has nothing new to announce.
+    final changed = !identical(sections, _projectedSections);
+    final moved =
+        changed ||
+        projection.contentExtent != _contentExtent ||
+        maxWidth != _projectedWidth;
     _slots = projection.slots;
     _contentExtent = projection.contentExtent;
+    _projectedSections = sections;
+    _projectedWidth = maxWidth;
+    _bands = projection.bands;
+    if (changed) _proximity.invalidate();
+    if (moved) _scheduleSectionProximity();
     _bakeActivity?.visibleBandChanged();
+  }
+
+  // --- Section proximity ------------------------------------------------------
+
+  /// Evaluates proximity after this frame: a layout must not publish events,
+  /// because a listener that answers with a snapshot would mark this object for
+  /// layout while it is laying out and the request would be lost.
+  void _scheduleSectionProximity() {
+    if (_proximityScheduled) return;
+    _proximityScheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback(_runScheduledProximity);
+  }
+
+  void _runScheduledProximity(Duration _) {
+    _proximityScheduled = false;
+    _noteSectionProximity();
+  }
+
+  /// Publishes [PanelCatalogSectionNearViewport] for the edges that entered the
+  /// window around the viewport since the last call.
+  ///
+  /// Cheap when no edge moved ([CatalogSectionProximity.update]). Does nothing
+  /// until the first layout has sized the viewport and projected the sections.
+  void _noteSectionProximity() {
+    if (!attached || !hasSize) return;
+    final extent = _sectionNearExtent ?? size.height;
+    _proximity.update(
+      bands: _bands,
+      sections: _projectedSections,
+      windowTop: _pixels - extent,
+      windowBottom: _pixels + size.height + extent,
+      onNear: (sectionId, edge) =>
+          _controller.publish(PanelCatalogSectionNearViewport(sectionId, edge)),
+    );
   }
 
   /// Content-y window used for **binding** sync (viewport + one-cell overscan).
@@ -1679,6 +1795,8 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
             _beginLeafPress(event, slot);
           }
           _leafPointer.addPointer(event);
+        } else {
+          _actionPointer.addPointer(event);
         }
       case PointerUpEvent() || PointerCancelEvent():
         if (_flingCancelPointer == event.pointer) {
@@ -1845,6 +1963,10 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
           pressScale: isPressed ? pressScale : 1.0,
           pressProgress: isPressed ? pressProgress : 0,
         );
+      case final CatalogSkeletonSlot skeleton:
+        _painter.paintSkeleton(canvas: canvas, origin: origin, slot: skeleton);
+      case final CatalogMessageSlot message:
+        _painter.paintMessage(canvas: canvas, origin: origin, slot: message);
     }
   }
 
@@ -1884,6 +2006,8 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
           :final height,
           :final left,
           :final width,
+          :final sectionId,
+          :final action,
         ):
           _paintLayoutSlot(
             canvas: canvas,
@@ -1894,6 +2018,8 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
               left: left,
               width: width,
               title: title,
+              sectionId: sectionId,
+              action: action,
             ),
             pressedSlotKey: pressedSlotKey,
             pressScale: pressScale,
@@ -1922,6 +2048,48 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
               leaf: leaf,
               contentBox: contentBox,
               placeholderStyle: placeholderStyle,
+            ),
+            pressedSlotKey: pressedSlotKey,
+            pressScale: pressScale,
+            pressProgress: pressProgress,
+          );
+        case CatalogStitchCapturedSkeleton(
+          :final left,
+          :final width,
+          :final height,
+          :final contentBox,
+          :final style,
+        ):
+          _paintLayoutSlot(
+            canvas: canvas,
+            origin: bandOrigin,
+            slot: CatalogSkeletonSlot(
+              top: 0,
+              height: height,
+              left: left,
+              width: width,
+              contentBox: contentBox,
+              style: style,
+            ),
+            pressedSlotKey: pressedSlotKey,
+            pressScale: pressScale,
+            pressProgress: pressProgress,
+          );
+        case CatalogStitchCapturedMessage(
+          :final left,
+          :final width,
+          :final height,
+          :final text,
+        ):
+          _paintLayoutSlot(
+            canvas: canvas,
+            origin: bandOrigin,
+            slot: CatalogMessageSlot(
+              top: 0,
+              height: height,
+              left: left,
+              width: width,
+              text: text,
             ),
             pressedSlotKey: pressedSlotKey,
             pressScale: pressScale,

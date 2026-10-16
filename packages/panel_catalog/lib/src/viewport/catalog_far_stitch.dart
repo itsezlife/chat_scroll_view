@@ -4,6 +4,7 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/animation.dart';
 import 'package:panel_catalog/src/model/catalog_glyph_box.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
+import 'package:panel_catalog/src/model/catalog_section_action.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 
 /// Floor for travel-scaled [catalogStitchTravelDuration] (ms).
@@ -53,7 +54,30 @@ sealed class CatalogStitchCapturedSlot {
     required double left,
     required double width,
     required String title,
+    required String sectionId,
+    CatalogSectionAction? action,
   }) = CatalogStitchCapturedHeader;
+
+  /// Captured skeleton cell.
+  const factory CatalogStitchCapturedSlot.skeleton({
+    required double contentTop,
+    required double viewportTop,
+    required double height,
+    required double left,
+    required double width,
+    required CatalogContentBox contentBox,
+    required CatalogPlaceholderStyle style,
+  }) = CatalogStitchCapturedSkeleton;
+
+  /// Captured empty-message row.
+  const factory CatalogStitchCapturedSlot.message({
+    required double contentTop,
+    required double viewportTop,
+    required double height,
+    required double left,
+    required double width,
+    required String text,
+  }) = CatalogStitchCapturedMessage;
 
   /// Captured leaf cell.
   const factory CatalogStitchCapturedSlot.leaf({
@@ -92,6 +116,8 @@ final class CatalogStitchCapturedHeader extends CatalogStitchCapturedSlot {
     required this.left,
     required this.width,
     required this.title,
+    required this.sectionId,
+    this.action,
   });
 
   /// Content x of the section's left edge at capture time.
@@ -102,6 +128,60 @@ final class CatalogStitchCapturedHeader extends CatalogStitchCapturedSlot {
 
   /// Section title text used to paint the header band.
   final String title;
+
+  /// Section the header belonged to at capture time.
+  final String sectionId;
+
+  /// The section's trailing action at capture time.
+  final CatalogSectionAction? action;
+}
+
+/// Captured skeleton cell for stitch outgoing paint.
+final class CatalogStitchCapturedSkeleton extends CatalogStitchCapturedSlot {
+  /// Creates a captured skeleton cell.
+  const CatalogStitchCapturedSkeleton({
+    required super.contentTop,
+    required super.viewportTop,
+    required super.height,
+    required this.left,
+    required this.width,
+    required this.contentBox,
+    required this.style,
+  });
+
+  /// Content x of the cell left edge at capture time.
+  final double left;
+
+  /// Cell width at capture time.
+  final double width;
+
+  /// The box the skeleton was drawn in.
+  final CatalogContentBox contentBox;
+
+  /// The stand-in the skeleton was drawn as.
+  final CatalogPlaceholderStyle style;
+}
+
+/// Captured empty-message row for stitch outgoing paint.
+final class CatalogStitchCapturedMessage extends CatalogStitchCapturedSlot {
+  /// Creates a captured message row.
+  const CatalogStitchCapturedMessage({
+    required super.contentTop,
+    required super.viewportTop,
+    required super.height,
+    required this.left,
+    required this.width,
+    required this.text,
+  });
+
+  /// Content x of the section's left edge at capture time.
+  final double left;
+
+  /// The section's usable width at capture time.
+  final double width;
+
+  /// The message text.
+  final String text;
 }
 
 /// Captured leaf cell for stitch outgoing paint.
@@ -166,6 +246,31 @@ List<CatalogStitchCapturedSlot> captureCatalogStitchOutgoing({
             left: header.left,
             width: header.width,
             title: header.title,
+            sectionId: header.sectionId,
+            action: header.action,
+          ),
+        );
+      case final CatalogSkeletonSlot skeleton:
+        captured.add(
+          CatalogStitchCapturedSlot.skeleton(
+            contentTop: slot.top,
+            viewportTop: viewportTop,
+            height: skeleton.height,
+            left: skeleton.left,
+            width: skeleton.width,
+            contentBox: skeleton.contentBox,
+            style: skeleton.style,
+          ),
+        );
+      case final CatalogMessageSlot message:
+        captured.add(
+          CatalogStitchCapturedSlot.message(
+            contentTop: slot.top,
+            viewportTop: viewportTop,
+            height: message.height,
+            left: message.left,
+            width: message.width,
+            text: message.text,
           ),
         );
       case final CatalogLeafSlot leaf:
@@ -217,6 +322,19 @@ bool catalogStitchSlotIsOutgoing(
             leafSlot.index == capturedLeaf.index) {
           return true;
         }
+      case (
+        CatalogSkeletonSlot skeleton,
+        CatalogStitchCapturedSkeleton capturedSkeleton,
+      ):
+        if (skeleton.top == capturedSkeleton.contentTop &&
+            skeleton.left == capturedSkeleton.left) {
+          return true;
+        }
+      case (
+        CatalogMessageSlot message,
+        CatalogStitchCapturedMessage capturedMessage,
+      ):
+        if (message.top == capturedMessage.contentTop) return true;
       default:
         continue;
     }
