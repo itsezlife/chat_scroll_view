@@ -140,6 +140,11 @@ ime.report(ImeSample(
   safe area included. A panel that replaces the keyboard claims the slot at
   once, at least as tall as the keyboard; the keyboard collapsing or
   glitching beneath it changes nothing.
+- **Paced mount.** The strategy mounts the shell with the search field one
+  frame after the page when the panel grows into a free slot, and all at once
+  when it replaces the keyboard (chrome would pop in over content already on
+  screen). `keyboardIsUp` is the same fact for a host's own pages: read it when
+  a page mounts to decide whether to pace its chrome the same way.
 - **Hand-off to the keyboard.** `hide(waitForIme: true)` keeps the emptied
   sheet and the occupancy until the keyboard reports a *settled* reading
   (`animating` false, height up), or closes cold after one second. There are

@@ -156,6 +156,11 @@ final class KeyboardSlot {
   /// The bottom safe area, as the latest reading reports it.
   double get safeBottom => _sample.safeAreaBottom;
 
+  /// Whether the latest reading has the soft keyboard up (animating or not):
+  /// the condition under which [open] replaces the keyboard instead of
+  /// growing into a free slot.
+  bool get keyboardIsUp => _keyboardUp;
+
   // --- Intents --------------------------------------------------------------
 
   /// Takes the slot for the panel.
