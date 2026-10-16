@@ -99,7 +99,8 @@ class BaselineSuperSliverCatalog extends StatefulWidget {
 }
 
 /// Public state for bench offset helpers.
-class BaselineSuperSliverCatalogState extends State<BaselineSuperSliverCatalog> {
+class BaselineSuperSliverCatalogState
+    extends State<BaselineSuperSliverCatalog> {
   late List<_FlatItem> _flat = _flatten(
     widget.sections,
     spanCount: widget.spanCount,

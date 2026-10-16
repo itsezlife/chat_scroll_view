@@ -7,6 +7,7 @@ export 'src/collections/emoji_collection_source.dart';
 export 'src/glyph_probe/glyph_art_fingerprint.dart';
 export 'src/glyph_probe/glyph_pixel_hash.dart';
 export 'src/glyph_probe/missing_glyph_probe.dart';
+export 'src/glyph_probe/paced_glyph_probe_pass.dart';
 export 'src/keywords/bundled_keyword_source.dart';
 export 'src/keywords/layered_keyword_source.dart';
 export 'src/loading/emoji_asset_loader.dart';

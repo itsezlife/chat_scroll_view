@@ -16,11 +16,7 @@ void main() {
   testWidgets('default path mounts the stock text field', (tester) async {
     await tester.pumpWidget(
       _harness(
-        ChatEnterView(
-          composer: composer,
-          onSend: () {},
-          onEmojiPressed: () {},
-        ),
+        ChatEnterView(composer: composer, onSend: () {}, onEmojiPressed: () {}),
       ),
     );
     await tester.pump();
@@ -35,10 +31,8 @@ void main() {
           composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
-          inputBuilder: (context, field) => const Text(
-            key: Key('custom-enter-row'),
-            'custom row',
-          ),
+          inputBuilder: (context, field) =>
+              const Text(key: Key('custom-enter-row'), 'custom row'),
         ),
       ),
     );
@@ -81,10 +75,7 @@ void main() {
           composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
-          topBanner: const ChatEnterTopBanner(
-            title: 'Ada',
-            subtitle: 'hello',
-          ),
+          topBanner: const ChatEnterTopBanner(title: 'Ada', subtitle: 'hello'),
           onTopBannerClose: () {},
         ),
       ),
@@ -107,10 +98,8 @@ void main() {
             title: 'ignored',
             subtitle: 'ignored',
           ),
-          topBannerBuilder: (context) => const Text(
-            key: Key('custom-top-banner'),
-            'custom banner',
-          ),
+          topBannerBuilder: (context) =>
+              const Text(key: Key('custom-top-banner'), 'custom banner'),
         ),
       ),
     );
@@ -124,11 +113,7 @@ void main() {
   testWidgets('top banner clip-reveals when it appears', (tester) async {
     await tester.pumpWidget(
       _harness(
-        ChatEnterView(
-          composer: composer,
-          onSend: () {},
-          onEmojiPressed: () {},
-        ),
+        ChatEnterView(composer: composer, onSend: () {}, onEmojiPressed: () {}),
       ),
     );
     await tester.pump();
@@ -173,10 +158,7 @@ void main() {
           composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
-          topBanner: const ChatEnterTopBanner(
-            title: 'Ada',
-            subtitle: 'hello',
-          ),
+          topBanner: const ChatEnterTopBanner(title: 'Ada', subtitle: 'hello'),
           onTopBannerClose: () {},
         ),
       ),
@@ -186,11 +168,7 @@ void main() {
 
     await tester.pumpWidget(
       _harness(
-        ChatEnterView(
-          composer: composer,
-          onSend: () {},
-          onEmojiPressed: () {},
-        ),
+        ChatEnterView(composer: composer, onSend: () {}, onEmojiPressed: () {}),
       ),
     );
     await tester.pump();
@@ -270,11 +248,7 @@ void main() {
   testWidgets('focus stays through banner reveal', (tester) async {
     await tester.pumpWidget(
       _bottomAnchoredHarness(
-        ChatEnterView(
-          composer: composer,
-          onSend: () {},
-          onEmojiPressed: () {},
-        ),
+        ChatEnterView(composer: composer, onSend: () {}, onEmojiPressed: () {}),
       ),
     );
     await tester.pumpAndSettle();
@@ -288,10 +262,7 @@ void main() {
           composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
-          topBanner: const ChatEnterTopBanner(
-            title: 'Edit',
-            subtitle: 'x',
-          ),
+          topBanner: const ChatEnterTopBanner(title: 'Edit', subtitle: 'x'),
           onTopBannerClose: () {},
         ),
       ),
@@ -359,11 +330,7 @@ void main() {
 
     await tester.pumpWidget(
       _bottomAnchoredHarness(
-        ChatEnterView(
-          composer: composer,
-          onSend: () {},
-          onEmojiPressed: () {},
-        ),
+        ChatEnterView(composer: composer, onSend: () {}, onEmojiPressed: () {}),
       ),
     );
     await tester.pumpAndSettle();
@@ -420,14 +387,7 @@ Widget _bottomAnchoredHarness(Widget child) {
       colors: const ChatChromeColors(),
       child: Scaffold(
         body: Stack(
-          children: [
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: child,
-            ),
-          ],
+          children: [Positioned(left: 0, right: 0, bottom: 0, child: child)],
         ),
       ),
     ),

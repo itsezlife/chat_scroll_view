@@ -41,14 +41,22 @@ void main() {
       source.addDataListener(() => notifyCount++);
 
       await source.recordPick(
-        const UnicodeEmojiItem(glyph: '😀', keywords: <String>[], supportsSkinTone: false),
+        const UnicodeEmojiItem(
+          glyph: '😀',
+          keywords: <String>[],
+          supportsSkinTone: false,
+        ),
         source: EmojiPickSource.grid,
       );
       expect(notifyCount, 1);
       expect(source.recentGlyphs, ['😀']);
 
       await source.recordPick(
-        const UnicodeEmojiItem(glyph: '🎉', keywords: <String>[], supportsSkinTone: false),
+        const UnicodeEmojiItem(
+          glyph: '🎉',
+          keywords: <String>[],
+          supportsSkinTone: false,
+        ),
         source: EmojiPickSource.search,
       );
       expect(notifyCount, 1);
@@ -57,7 +65,11 @@ void main() {
 
     test('clearRecents notifies listeners', () async {
       await source.recordPick(
-        const UnicodeEmojiItem(glyph: '😀', keywords: <String>[], supportsSkinTone: false),
+        const UnicodeEmojiItem(
+          glyph: '😀',
+          keywords: <String>[],
+          supportsSkinTone: false,
+        ),
         source: EmojiPickSource.grid,
       );
       var notifyCount = 0;

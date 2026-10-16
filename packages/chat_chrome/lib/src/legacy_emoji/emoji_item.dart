@@ -11,10 +11,8 @@ sealed class EmojiItem {
     bool supportsSkinTone,
   }) = UnicodeEmojiItem;
 
-  const factory EmojiItem.custom({
-    required String id,
-    String? previewGlyph,
-  }) = CustomEmojiItem;
+  const factory EmojiItem.custom({required String id, String? previewGlyph}) =
+      CustomEmojiItem;
 
   /// Stable key for recents / persistence (glyph or custom id).
   String get pickKey;
