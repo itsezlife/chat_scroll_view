@@ -147,6 +147,11 @@ void main() {
         CatalogPlaceholderStyle.thumbFirst,
       );
       expect(
+        const CatalogLeaf(key: ContentKey.unicode('😀')).placeholderStyle,
+        CatalogPlaceholderStyle.circle,
+        reason: 'a unicode key is a glyph whatever the facts say',
+      );
+      expect(
         CatalogLeaf.document('3').placeholderStyle,
         CatalogPlaceholderStyle.thumbFirst,
         reason: 'unknown facts fall back to the thumbnail silhouette',

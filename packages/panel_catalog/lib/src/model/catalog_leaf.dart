@@ -100,12 +100,15 @@ final class CatalogLeaf {
 
   /// The stand-in for this leaf's content, from [mediaForm] and
   /// [semanticKind]: a glyph is a circle, a sticker a shaped wash, anything
-  /// else the thumbnail silhouette.
+  /// else the thumbnail silhouette. A unicode [key] is a glyph whatever the
+  /// facts say.
   CatalogPlaceholderStyle get placeholderStyle {
-    if (mediaForm == MediaForm.glyph) return CatalogPlaceholderStyle.circle;
+    if (mediaForm == MediaForm.glyph || key is ContentKey$Unicode) {
+      return CatalogPlaceholderStyle.circle;
+    }
     return switch (semanticKind) {
-      SemanticKind.sticker || SemanticKind.mask =>
-        CatalogPlaceholderStyle.shapedWash,
+      SemanticKind.sticker ||
+      SemanticKind.mask => CatalogPlaceholderStyle.shapedWash,
       _ => CatalogPlaceholderStyle.thumbFirst,
     };
   }
