@@ -21,7 +21,7 @@ pure-Dart `package:listen` (`ValueListenable`: `softKeyboard`, `fieldHeight`,
 | --- | --- | --- |
 | **Header** | The strip above the row: reply, edit, forward, link preview or a host-built suggestion. Reveals and hides with the `headerReveal` motion role. | `ComposerSpec.header`; several candidates are ranked by `ComposerHeader.prioritised` (edit, reply, forward, link preview, suggestion). |
 | **Panel** | What occupies the row between the actions: the text field by default. | A `ComposerPanelId` in the spec; every id but `ComposerPanelId.text` is built by the host's `ComposerPanelResolver` (recording, recorded preview, restricted, join). |
-| **Actions** | Buttons before and after the panel, mirrored in right-to-left text. | `ActionDescriptor`s: id, semantic icon id, placement, enabled, visible, `primary`, tap handler and a required semantic label. |
+| **Actions** | Buttons before and after the panel, mirrored in right-to-left text. | `ActionDescriptor`s: id, semantic icon id, placement, enabled, visible, `primary`, `active`, tap handler, an optional `wrap` and a required semantic label. |
 
 The view holds no mode. Replying is a header the host sets, restricted is a
 panel it names, send-or-voice is one action id whose icon it swaps (the glyph
@@ -34,7 +34,7 @@ morphs in place).
 | `ComposerSpec` | The host's declarative description: `header`, `panel`, `actions`, `enabled`, `busy`. Rebuilt from chat state, never mutated. |
 | `ComposerView` | The island: glass surface, header reveal, row with field-height animation, action slots, panel resolver, shortcuts. Publishes `ComposerController.extent`. |
 | `ComposerHeader` | Sealed: `reply`, `edit`, `forward`, `linkPreview`, `suggestion`. Reply and edit titles come from `ChromeStrings.composer`. |
-| `ActionDescriptor`, `ActionPlacement` | One action as data. |
+| `ActionDescriptor`, `ActionPlacement`, `ActionWrap` | One action as data. `active` draws the glyph in the accent colour and announces the button as selected (a toggle that is on keeps its one glyph). `wrap` is a widget the composer builds around the rendered button, for whatever the host needs around it (a hover region, a tooltip, a measuring probe); the composer knows none of them. |
 | `ComposerPanelId`, `ComposerPanelResolver` | An open set of panel names and the host function that builds the non-default ones. |
 | `ComposerBottomFade` | The soft fade under the composer, with an island-shaped cutout. Mounts under the island, outside the glass source. |
 | `ComposerShortcutPolicy`, `SubmitComposerIntent`, `DismissComposerHeaderIntent` | Intents and the `$Mobile` / `$Desktop` default key maps. |

@@ -3,13 +3,17 @@
 /// the viewport is told to reserve, and who frees what.
 library;
 
+import 'dart:ui' show Tristate;
+
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' hide RichText;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide RichText;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
@@ -269,25 +273,319 @@ void main() {
     });
   });
 
-  group('the popup on a desktop platform', () {
-    testWidgets('a click on the button that the popup\'s outside press has '
-        'just closed does not open it again', (tester) async {
-      final rig = await InputRig.pump(
+  group('the panel button on a desktop platform', () {
+    Future<InputRig> desktop(
+      WidgetTester tester, {
+      Size size = const Size(1000, 800),
+      AppServices? services,
+    }) async => InputRig.pump(
+      tester,
+      services: services ?? await _services(tester),
+      policy: _desktop,
+      size: size,
+    );
+
+    Future<TestGesture> mouse(WidgetTester tester, {Offset? at}) async {
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: at ?? const Offset(4, 4));
+      addTearDown(gesture.removePointer);
+      await tester.pump();
+      return gesture;
+    }
+
+    Finder panelIcon(InputRig rig) => find.descendant(
+      of: rig.action(ChatComposerActions.panel),
+      matching: find.byType(AnimatedChromeIcon),
+    );
+
+    group('a click', () {
+      testWidgets('opens the popup when the panel is hidden', (tester) async {
+        final rig = await desktop(tester);
+
+        await _open(tester, rig);
+
+        expect(_state(rig), isA<PanelVisibility$Shown>());
+        expect(_state(rig).kind, isA<AnchoredPopup>());
+      });
+
+      testWidgets('on a shown popup docks it where the window can dock', (
         tester,
-        services: await _services(tester),
-        policy: _desktop,
-        size: const Size(1000, 800),
-      );
+      ) async {
+        final rig = await desktop(tester);
+        await _open(tester, rig);
+        rig.set.shell
+          ..openSearch()
+          ..setQuery('cat');
+        await tester.pump();
+
+        await _open(tester, rig);
+
+        expect(_state(rig).kind, isA<Docked>());
+        expect(rig.set.presentation.dockPreferred.value, isTrue);
+        expect(
+          rig.set.shell.search.value.query,
+          'cat',
+          reason: 'the same panel moved, not a new one',
+        );
+      });
+
+      testWidgets('on a docked panel undocks it, and no popup follows', (
+        tester,
+      ) async {
+        final rig = await desktop(tester);
+        await _open(tester, rig);
+        await _open(tester, rig);
+        expect(_state(rig).kind, isA<Docked>());
+        final kinds = <PanelPresentation?>[];
+        rig.set.presentation.state.addListener(
+          () => kinds.add(_state(rig).kind),
+        );
+
+        await _open(tester, rig);
+
+        expect(_state(rig), PanelVisibility.hidden);
+        expect(rig.set.presentation.dockPreferred.value, isFalse);
+        expect(kinds.whereType<AnchoredPopup>(), isEmpty);
+      });
+
+      testWidgets('on a shown popup hides it where the window cannot dock', (
+        tester,
+      ) async {
+        final rig = await desktop(tester, size: const Size(700, 800));
+        await _open(tester, rig);
+        expect(_state(rig).kind, isA<AnchoredPopup>());
+
+        await _open(tester, rig);
+
+        expect(_state(rig), PanelVisibility.hidden);
+        expect(rig.set.presentation.dockPreferred.value, isFalse);
+      });
+
+      testWidgets('on a hidden panel opens it docked when the saved choice is '
+          'docked and the window can dock', (tester) async {
+        final services = await _services(tester);
+        final first = await desktop(tester, services: services);
+        await _open(tester, first);
+        await _open(tester, first);
+        expect(first.set.presentation.dockPreferred.value, isTrue);
+
+        // A new chat screen over the same preferences, as after a restart.
+        await tester.pumpWidget(const SizedBox.shrink());
+        final second = await desktop(tester, services: services);
+        expect(second.set.presentation.dockPreferred.value, isTrue);
+        await _open(tester, second);
+
+        expect(_state(second).kind, isA<Docked>());
+      });
+
+      testWidgets('after an undock the next click opens a popup again', (
+        tester,
+      ) async {
+        final rig = await desktop(tester);
+        await _open(tester, rig);
+        await _open(tester, rig);
+        await _open(tester, rig);
+        expect(_state(rig), PanelVisibility.hidden);
+
+        await _open(tester, rig);
+
+        expect(_state(rig).kind, isA<AnchoredPopup>());
+      });
+    });
+
+    group('the button', () {
+      testWidgets('keeps one glyph and one label in every state', (
+        tester,
+      ) async {
+        final rig = await desktop(tester);
+        String label() =>
+            tester.getSemantics(rig.action(ChatComposerActions.panel)).label;
+        ChromeIconId icon() =>
+            tester.widget<AnimatedChromeIcon>(panelIcon(rig)).id;
+        final hiddenIcon = icon();
+        final hiddenLabel = label();
+        expect(hiddenIcon, rig.set.pageIcon);
+
+        await _open(tester, rig);
+        expect(icon(), hiddenIcon, reason: 'popup');
+        expect(label(), hiddenLabel, reason: 'popup');
+
+        await _open(tester, rig);
+        expect(_state(rig).kind, isA<Docked>());
+        expect(icon(), hiddenIcon, reason: 'docked');
+        expect(label(), hiddenLabel, reason: 'docked');
+      });
+
+      testWidgets('is in the accent colour while the panel is docked, and '
+          'only then', (tester) async {
+        final rig = await desktop(tester);
+        Color glyph() =>
+            tester.widget<AnimatedChromeIcon>(panelIcon(rig)).color!;
+        final tokens = ChromeThemeScope.actionOf(
+          tester.element(rig.action(ChatComposerActions.panel)),
+        );
+        expect(glyph(), tokens.icon, reason: 'hidden');
+
+        await _open(tester, rig);
+        expect(glyph(), tokens.icon, reason: 'popup');
+
+        await _open(tester, rig);
+        expect(glyph(), tokens.send, reason: 'docked');
+
+        await _open(tester, rig);
+        expect(glyph(), tokens.icon, reason: 'undocked');
+      });
+
+      testWidgets('is announced as selected while docked', (tester) async {
+        final handle = tester.ensureSemantics();
+        final rig = await desktop(tester);
+        Tristate selected() => tester
+            .getSemantics(rig.action(ChatComposerActions.panel))
+            .getSemanticsData()
+            .flagsCollection
+            .isSelected;
+        expect(selected(), isNot(Tristate.isTrue));
+
+        await _open(tester, rig);
+        await _open(tester, rig);
+
+        expect(selected(), Tristate.isTrue);
+        handle.dispose();
+      });
+
+      testWidgets('sits at the end of the row, under the popup, so the pointer '
+          'can cross to it', (tester) async {
+        final rig = await desktop(tester);
+        await _open(tester, rig);
+        final popup = tester.getRect(find.byType(PanelShell).first);
+
+        final toggle = tester.getRect(rig.action(ChatComposerActions.panel));
+
+        expect(toggle.left, greaterThanOrEqualTo(popup.left));
+        expect(toggle.right, lessThanOrEqualTo(popup.right));
+        expect(toggle.top, greaterThanOrEqualTo(popup.bottom));
+      });
+
+      testWidgets('has no keyboard glyph on a desktop kind', (tester) async {
+        final rig = await desktop(tester);
+        await _open(tester, rig);
+
+        expect(
+          tester.widget<AnimatedChromeIcon>(panelIcon(rig)).id,
+          isNot(ChromeIconId.keyboard),
+        );
+      });
+    });
+
+    group('the pointer', () {
+      testWidgets('hovering the button opens the popup at once', (
+        tester,
+      ) async {
+        final rig = await desktop(tester);
+        final pointer = await mouse(tester);
+
+        await pointer.moveTo(
+          tester.getCenter(rig.action(ChatComposerActions.panel)),
+        );
+        await tester.pump();
+
+        expect(_state(rig), isA<PanelVisibility$Showing>());
+        expect(_state(rig).kind, isA<AnchoredPopup>());
+      });
+
+      testWidgets('crossing from the button up to the popup never closes it', (
+        tester,
+      ) async {
+        final rig = await desktop(tester);
+        final pointer = await mouse(tester);
+        final toggle = tester.getCenter(rig.action(ChatComposerActions.panel));
+        await pointer.moveTo(toggle);
+        await rig.settle(tester);
+        final popup = tester.getRect(find.byType(PanelShell).first);
+
+        for (var y = toggle.dy; y > popup.center.dy; y -= 3) {
+          await pointer.moveTo(Offset(toggle.dx, y));
+          await tester.pump(const Duration(milliseconds: 1));
+          expect(
+            _state(rig),
+            isA<PanelVisibility$Shown>(),
+            reason: 'closed with the pointer at y=$y',
+          );
+        }
+        await tester.pump(const Duration(seconds: 2));
+        expect(_state(rig), isA<PanelVisibility$Shown>());
+      });
+
+      testWidgets('leaving the popup closes it after the grace', (
+        tester,
+      ) async {
+        final rig = await desktop(tester);
+        final pointer = await mouse(tester);
+        await pointer.moveTo(
+          tester.getCenter(rig.action(ChatComposerActions.panel)),
+        );
+        await rig.settle(tester);
+        await pointer.moveTo(tester.getCenter(find.byType(PanelShell).first));
+        await tester.pump();
+
+        await pointer.moveTo(const Offset(4, 4));
+        await tester.pump(const Duration(milliseconds: 250));
+        expect(_state(rig), isA<PanelVisibility$Shown>());
+        await tester.pump(const Duration(milliseconds: 100));
+        await rig.settle(tester);
+
+        expect(_state(rig), PanelVisibility.hidden);
+      });
+
+      testWidgets('a press in the composer\'s input does not dismiss the '
+          'popup, and the caret stays in it', (tester) async {
+        final rig = await desktop(tester);
+        await _open(tester, rig);
+        rig.set.composer.requestFocus();
+        await tester.pump();
+
+        await tester.tap(rig.field);
+        await rig.settle(tester);
+
+        expect(_state(rig), isA<PanelVisibility$Shown>());
+        expect(rig.set.composer.hasFocus, isTrue);
+      });
+
+      testWidgets('a press elsewhere outside dismisses it at once', (
+        tester,
+      ) async {
+        final rig = await desktop(tester);
+        await _open(tester, rig);
+
+        await tester.tapAt(const Offset(4, 4));
+        await rig.settle(tester);
+
+        expect(_state(rig), PanelVisibility.hidden);
+      });
+
+      testWidgets('a click on the button is the button\'s alone: no hide '
+          'before it, no reopening after it', (tester) async {
+        final rig = await desktop(tester, size: const Size(700, 800));
+        await _open(tester, rig);
+        expect(_state(rig), isA<PanelVisibility$Shown>());
+
+        await _open(tester, rig);
+
+        expect(_state(rig), PanelVisibility.hidden);
+      });
+    });
+
+    testWidgets('the popup does not take the caret from the composer', (
+      tester,
+    ) async {
+      final rig = await desktop(tester);
+      rig.set.composer.requestFocus();
+      await tester.pump();
+
       await _open(tester, rig);
+
       expect(_state(rig), isA<PanelVisibility$Shown>());
-
-      // The press outside hides the popup before the button's tap lands.
-      rig.set.presentation.hide();
-      await tester.pump();
-      rig.set.togglePanel();
-      await tester.pump();
-
-      expect(_state(rig), isA<PanelVisibility$Hiding>());
+      expect(rig.set.composer.hasFocus, isTrue);
     });
   });
 

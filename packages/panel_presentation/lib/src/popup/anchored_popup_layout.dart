@@ -12,6 +12,11 @@ import 'package:meta/meta.dart';
 /// right-to-left layout. It stays inside the box horizontally and never
 /// starts above it. Without an anchor the popup sits in the bottom-end corner
 /// of the box.
+///
+/// The [outset] grows the child beyond the popup on each side without moving
+/// the popup: the child is the popup plus a margin, and the popup keeps the
+/// place it would have had without one. The anchored popup uses it for the
+/// transparent margin that still counts as the popup to the pointer.
 @immutable
 final class AnchoredPopupLayout extends SingleChildLayoutDelegate {
   /// A layout for a popup [width] by [height].
@@ -20,6 +25,7 @@ final class AnchoredPopupLayout extends SingleChildLayoutDelegate {
     required this.height,
     required this.textDirection,
     this.anchor,
+    this.outset = EdgeInsets.zero,
   });
 
   /// The popup's preferred width.
@@ -34,15 +40,24 @@ final class AnchoredPopupLayout extends SingleChildLayoutDelegate {
   /// The composer rectangle, in the coordinates of the box, or null.
   final Rect? anchor;
 
+  /// The margin around the popup that the child also covers. Its left and
+  /// right are the same, so the mirroring of a right-to-left layout does not
+  /// change it.
+  final EdgeInsets outset;
+
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
       BoxConstraints.tightFor(
-        width: math.min(width, constraints.maxWidth),
-        height: height,
+        width: math.min(width, constraints.maxWidth) + outset.horizontal,
+        height: height + outset.vertical,
       );
 
   @override
   Offset getPositionForChild(Size size, Size childSize) {
+    final popupSize = Size(
+      childSize.width - outset.horizontal,
+      childSize.height - outset.vertical,
+    );
     final rect =
         anchor ??
         Rect.fromLTWH(
@@ -52,13 +67,14 @@ final class AnchoredPopupLayout extends SingleChildLayoutDelegate {
           0,
         );
     final left = textDirection == TextDirection.ltr
-        ? rect.right - childSize.width
+        ? rect.right - popupSize.width
         : rect.left;
-    final maxLeft = math.max<double>(0, size.width - childSize.width);
+    final maxLeft = math.max<double>(0, size.width - popupSize.width);
     return Offset(
-      left.clamp(0, maxLeft),
-      math.max<double>(0, rect.top - childSize.height),
-    );
+          left.clamp(0, maxLeft),
+          math.max<double>(0, rect.top - popupSize.height),
+        ) -
+        Offset(outset.left, outset.top);
   }
 
   @override
@@ -66,5 +82,6 @@ final class AnchoredPopupLayout extends SingleChildLayoutDelegate {
       oldDelegate.width != width ||
       oldDelegate.height != height ||
       oldDelegate.textDirection != textDirection ||
-      oldDelegate.anchor != anchor;
+      oldDelegate.anchor != anchor ||
+      oldDelegate.outset != outset;
 }

@@ -52,8 +52,9 @@ enum MotionRole {
 ///
 /// Durations here are the design durations at normal speed; the scope's
 /// `ChromeMotionSpeed` scales them. The values are the ones the previous
-/// chrome shipped, except `popupShow`, `popupHide` and `headerReveal`, which
-/// are chosen defaults not yet checked against the reference client.
+/// chrome shipped, except `headerReveal`, a chosen default not yet checked
+/// against the reference client, and `popupShow` / `popupHide`, whose 200 ms
+/// durations are the reference client's (its curves are not measured here).
 @immutable
 final class ChromeMotion {
   /// A motion table with every role given.
@@ -91,7 +92,7 @@ final class ChromeMotion {
         Duration(milliseconds: 200),
         Curves.easeOutQuint,
       ),
-      popupHide = const MotionSpec(Duration(milliseconds: 150), Curves.easeIn),
+      popupHide = const MotionSpec(Duration(milliseconds: 200), Curves.easeIn),
       presentationSwitch = const MotionSpec(_quarterSecond, androidListCurve),
       themeSwitch = const MotionSpec(_quarterSecond, Curves.linear),
       loop = const MotionSpec(Duration(milliseconds: 900), Curves.linear);

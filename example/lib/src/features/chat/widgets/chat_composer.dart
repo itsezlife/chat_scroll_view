@@ -142,7 +142,10 @@ class _ChatComposerState extends State<ChatComposer> {
           editing: _input.editing.value,
           hasText: composer.text.text.trim().isNotEmpty,
           busy: _input.busy.value,
-          panelOpen: _input.isPanelOpening,
+          panelReplacesKeyboard: _input.panelReplacesKeyboard,
+          panelDocked: _input.isPanelDocked,
+          panelPlacement: _input.panelPlacement,
+          wrapPanelToggle: _input.wrapPanelToggle,
           pageIcon: _input.pageIcon,
           onTogglePanel: _input.togglePanel,
           onSubmit: () => unawaited(_input.submit()),
@@ -150,12 +153,14 @@ class _ChatComposerState extends State<ChatComposer> {
           onVoice: widget.onVoicePressed ?? () {},
           onCancelEdit: _input.cancelEdit,
         );
-        Widget view(double? safeAreaBottom) => ComposerView(
-          controller: composer,
-          spec: spec,
-          islandKey: widget.islandKey,
-          onFieldTap: _input.onFieldTap,
-          safeAreaBottom: safeAreaBottom,
+        Widget view(double? safeAreaBottom) => _input.keepPopupOpenOver(
+          ComposerView(
+            controller: composer,
+            spec: spec,
+            islandKey: widget.islandKey,
+            onFieldTap: _input.onFieldTap,
+            safeAreaBottom: safeAreaBottom,
+          ),
         );
         // The keyboard presentation owns the bottom band while it is up; the
         // composer pads itself with what the occupancy has not covered yet.

@@ -15,12 +15,14 @@ final class AnchoredPopupStyle {
     this.cornerRadius = 0,
     this.shadows = const <BoxShadow>[],
     this.scaleBegin = 0.9,
+    this.hoverGutter = 10,
   }) : assert(width > 0, 'width must be positive'),
        assert(cornerRadius >= 0, 'cornerRadius must not be negative'),
        assert(
          scaleBegin > 0 && scaleBegin <= 1,
          'scaleBegin must be in (0, 1]',
-       );
+       ),
+       assert(hoverGutter >= 0, 'hoverGutter must not be negative');
 
   /// The width of the popup. Narrower when the window is.
   final double width;
@@ -37,17 +39,30 @@ final class AnchoredPopupStyle {
   /// A chosen default, not checked against a reference client.
   final double scaleBegin;
 
+  /// The transparent margin around the popup, on every side, that still
+  /// counts as the popup to the pointer (and to an outside press). It is the
+  /// room a [shadows] blur is drawn in: a pointer crossing the shadow has not
+  /// left the popup. Below, it grows to reach the toggle, so there is no gap
+  /// between the two where the pointer is over neither.
+  final double hoverGutter;
+
   @override
   bool operator ==(Object other) =>
       other is AnchoredPopupStyle &&
       other.width == width &&
       other.cornerRadius == cornerRadius &&
       other.scaleBegin == scaleBegin &&
+      other.hoverGutter == hoverGutter &&
       _sameShadows(other.shadows, shadows);
 
   @override
-  int get hashCode =>
-      Object.hash(width, cornerRadius, scaleBegin, Object.hashAll(shadows));
+  int get hashCode => Object.hash(
+    width,
+    cornerRadius,
+    scaleBegin,
+    hoverGutter,
+    Object.hashAll(shadows),
+  );
 
   @override
   String toString() => 'AnchoredPopupStyle(width: $width)';

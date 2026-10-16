@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -107,7 +108,31 @@ void main() {
   });
 
   group('leaving', () {
-    testWidgets('leaving the toggle hides after 300 ms, not before', (
+    // Reference client: the toggle's leave arms a 0 ms timer, which the
+    // popup's enter cancels because the two rectangles touch.
+    testWidgets(
+      'leaving the toggle hides on the next event pass, not at once',
+      (tester) async {
+        final rig = PopupRig();
+        await rig.pump(tester);
+        final mouse = await rig.mouse(tester);
+        await mouse.moveTo(_toggleCentre);
+        await settleMotion(tester);
+
+        await mouse.moveTo(_nowhere);
+        await tester.pump();
+        expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
+        expect(rig.clock.pendingCount, 1);
+
+        rig.clock.advance(Duration.zero);
+        await tester.pump();
+        expect(rig.controller.state.value, isA<PanelVisibility$Hiding>());
+        await settleMotion(tester);
+        expect(rig.controller.state.value, PanelVisibility.hidden);
+      },
+    );
+
+    testWidgets('moving from the toggle straight into the popup cancels it', (
       tester,
     ) async {
       final rig = PopupRig();
@@ -116,29 +141,6 @@ void main() {
       await mouse.moveTo(_toggleCentre);
       await settleMotion(tester);
 
-      await mouse.moveTo(_nowhere);
-      await tester.pump();
-      rig.clock.advance(const Duration(milliseconds: 299));
-      await settleMotion(tester);
-      expect(rig.controller.state.value.isVisible, isTrue);
-
-      rig.clock.advance(const Duration(milliseconds: 1));
-      await settleMotion(tester);
-      expect(rig.controller.state.value, PanelVisibility.hidden);
-    });
-
-    testWidgets('moving from the toggle into the popup cancels the hide', (
-      tester,
-    ) async {
-      final rig = PopupRig();
-      await rig.pump(tester);
-      final mouse = await rig.mouse(tester);
-      await mouse.moveTo(_toggleCentre);
-      await settleMotion(tester);
-
-      await mouse.moveTo(_nowhere);
-      await tester.pump();
-      rig.clock.advance(const Duration(milliseconds: 100));
       await mouse.moveTo(_popupCentre);
       await tester.pump();
       rig.clock.advance(const Duration(seconds: 1));
@@ -150,7 +152,61 @@ void main() {
       );
     });
 
-    testWidgets('leaving the popup hides after 300 ms', (tester) async {
+    testWidgets(
+      'no dead zone: a pointer crossing the gap from the toggle up to the '
+      'popup never lets it hide',
+      (tester) async {
+        final rig = PopupRig();
+        // A composer 120 px tall puts the toggle (650..690) 70 px under the
+        // popup's bottom edge, far more than the shadow gutter alone covers.
+        await rig.pump(
+          tester,
+          composerRect: const Rect.fromLTWH(0, 580, 800, 120),
+        );
+        final mouse = await rig.mouse(tester);
+        await mouse.moveTo(_toggleCentre);
+        await settleMotion(tester);
+
+        for (var y = 670.0; y >= 400; y -= 2) {
+          await mouse.moveTo(Offset(760, y));
+          await tester.pump();
+          rig.clock.advance(Duration.zero);
+          expect(
+            rig.controller.state.value,
+            isA<PanelVisibility$Shown>(),
+            reason: 'hid with the pointer at y=$y',
+          );
+        }
+        rig.clock.advance(const Duration(seconds: 1));
+        expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
+      },
+    );
+
+    testWidgets('the shadow gutter around the popup counts as inside it', (
+      tester,
+    ) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      final mouse = await rig.mouse(tester, at: _popupCentre);
+      rig.controller.show();
+      await settleMotion(tester);
+      // 300 wide at the end edge: the card's left edge is x=500, its top is
+      // 640 - 525 = 115 in a 700 px window; 4 px outside is within the gutter.
+      await mouse.moveTo(const Offset(496, 400));
+      await tester.pump();
+      rig.clock.advance(const Duration(seconds: 5));
+      expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
+
+      await mouse.moveTo(const Offset(480, 400));
+      await tester.pump();
+      rig.clock.advance(const Duration(milliseconds: 300));
+      await settleMotion(tester);
+      expect(rig.controller.state.value, PanelVisibility.hidden);
+    });
+
+    testWidgets('leaving the popup hides after 300 ms, not before', (
+      tester,
+    ) async {
       final rig = PopupRig();
       await rig.pump(tester);
       final mouse = await rig.mouse(tester, at: _popupCentre);
@@ -159,19 +215,40 @@ void main() {
 
       await mouse.moveTo(_nowhere);
       await tester.pump();
-      rig.clock.advance(const Duration(milliseconds: 300));
+      rig.clock.advance(const Duration(milliseconds: 299));
       await settleMotion(tester);
+      expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
 
+      rig.clock.advance(const Duration(milliseconds: 1));
+      await settleMotion(tester);
       expect(rig.controller.state.value, PanelVisibility.hidden);
     });
 
-    testWidgets('re-entering the toggle during the hide delay keeps it open', (
+    testWidgets('leaving the popup while it is still appearing hides at the '
+        'next pass, with no grace', (tester) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      final mouse = await rig.mouse(tester, at: _popupCentre);
+      rig.controller.show();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(rig.controller.state.value, isA<PanelVisibility$Showing>());
+
+      await mouse.moveTo(_nowhere);
+      await tester.pump();
+      rig.clock.advance(Duration.zero);
+      await tester.pump();
+
+      expect(rig.controller.state.value, isA<PanelVisibility$Hiding>());
+    });
+
+    testWidgets('re-entering the toggle during the popup grace keeps it open', (
       tester,
     ) async {
       final rig = PopupRig();
       await rig.pump(tester);
-      final mouse = await rig.mouse(tester);
-      await mouse.moveTo(_toggleCentre);
+      final mouse = await rig.mouse(tester, at: _popupCentre);
+      rig.controller.show();
       await settleMotion(tester);
       await mouse.moveTo(_nowhere);
       await tester.pump();
@@ -195,7 +272,7 @@ void main() {
       await settleMotion(tester);
       await mouse.moveTo(_nowhere);
       await tester.pump();
-      rig.clock.advance(const Duration(milliseconds: 300));
+      rig.clock.advance(Duration.zero);
       await tester.pump(const Duration(milliseconds: 20));
       expect(rig.controller.state.value, isA<PanelVisibility$Hiding>());
 
@@ -208,10 +285,37 @@ void main() {
       );
     });
 
-    testWidgets('a click-opened popup also hides on leave', (tester) async {
+    testWidgets('entering the popup while it is hiding shows it again', (
+      tester,
+    ) async {
       final rig = PopupRig();
       await rig.pump(tester);
-      final mouse = await rig.mouse(tester, at: _toggleCentre);
+      final mouse = await rig.mouse(tester);
+      await mouse.moveTo(_toggleCentre);
+      await settleMotion(tester);
+      await mouse.moveTo(_nowhere);
+      await tester.pump();
+      rig.clock.advance(Duration.zero);
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(rig.controller.state.value, isA<PanelVisibility$Hiding>());
+
+      await mouse.moveTo(_popupCentre);
+      await settleMotion(tester);
+
+      expect(
+        rig.controller.state.value,
+        const PanelVisibility.shown(AnchoredPopup()),
+      );
+      rig.clock.advance(const Duration(seconds: 5));
+      expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
+    });
+
+    testWidgets('a click-opened popup also hides when the pointer leaves it', (
+      tester,
+    ) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      final mouse = await rig.mouse(tester, at: _popupCentre);
       rig.controller.toggle();
       await settleMotion(tester);
 
@@ -222,9 +326,31 @@ void main() {
 
       expect(rig.controller.state.value, PanelVisibility.hidden);
     });
+
+    testWidgets('a toggle that unmounts under the pointer is left, not stuck', (
+      tester,
+    ) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      final mouse = await rig.mouse(tester);
+      await mouse.moveTo(_toggleCentre);
+      await settleMotion(tester);
+      final hold = rig.controller.holdAutoHide();
+
+      // The toggle leaves the tree with the pointer still over it, and the
+      // pointer then goes elsewhere: nothing says it is still on the toggle.
+      await rig.pump(tester, withToggle: false);
+      await mouse.moveTo(_nowhere);
+      await tester.pump();
+      hold.release();
+      rig.clock.advance(const Duration(seconds: 3));
+      await settleMotion(tester);
+
+      expect(rig.controller.state.value, PanelVisibility.hidden);
+    });
   });
 
-  group('preventAutoHide', () {
+  group('holds', () {
     testWidgets('a held guard keeps the popup when the pointer leaves', (
       tester,
     ) async {
@@ -244,49 +370,49 @@ void main() {
       hold.release();
     });
 
-    testWidgets('a timer that fires under the guard does not hide', (
-      tester,
-    ) async {
+    testWidgets('a leave that happened under a hold hides 3 s after the '
+        'release, not 300 ms', (tester) async {
       final rig = PopupRig();
       await rig.pump(tester);
       final mouse = await rig.mouse(tester);
       await mouse.moveTo(_toggleCentre);
       await settleMotion(tester);
+      final hold = rig.controller.holdAutoHide();
       await mouse.moveTo(_nowhere);
       await tester.pump();
-      final hold = rig.controller.holdAutoHide();
+      rig.clock.advance(const Duration(seconds: 1));
 
-      rig.clock.advance(const Duration(milliseconds: 300));
+      hold.release();
+      rig.clock.advance(const Duration(milliseconds: 2999));
+      await settleMotion(tester);
+      expect(rig.controller.state.value.isVisible, isTrue);
+      rig.clock.advance(const Duration(milliseconds: 1));
       await settleMotion(tester);
 
-      expect(rig.controller.state.value.isVisible, isTrue);
-      hold.release();
+      expect(rig.controller.state.value, PanelVisibility.hidden);
     });
 
-    testWidgets(
-      'releasing the guard with the pointer away starts the idle delay',
-      (tester) async {
-        final rig = PopupRig();
-        await rig.pump(tester);
-        final mouse = await rig.mouse(tester);
-        await mouse.moveTo(_toggleCentre);
-        await settleMotion(tester);
-        final hold = rig.controller.holdAutoHide();
-        await mouse.moveTo(_nowhere);
-        await tester.pump();
+    testWidgets('releasing a hold with the pointer still inside arms nothing', (
+      tester,
+    ) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      final mouse = await rig.mouse(tester, at: _popupCentre);
+      rig.controller.show();
+      await settleMotion(tester);
+      final hold = rig.controller.holdAutoHide();
+      await mouse.moveBy(const Offset(1, 1));
+      await tester.pump();
 
-        hold.release();
-        rig.clock.advance(const Duration(milliseconds: 2999));
-        await settleMotion(tester);
-        expect(rig.controller.state.value.isVisible, isTrue);
-        rig.clock.advance(const Duration(milliseconds: 1));
-        await settleMotion(tester);
+      hold.release();
+      rig.clock.advance(const Duration(seconds: 10));
 
-        expect(rig.controller.state.value, PanelVisibility.hidden);
-      },
-    );
+      expect(rig.clock.pendingCount, 0);
+      expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
+    });
 
-    testWidgets('search focus keeps the popup open', (tester) async {
+    testWidgets('search focus is not a hold: with the pointer away the leave '
+        'rule applies', (tester) async {
       final rig = PopupRig();
       await rig.pump(tester);
       final mouse = await rig.mouse(tester);
@@ -294,13 +420,32 @@ void main() {
       await settleMotion(tester);
       rig.shell.openSearch();
       await tester.pump();
+      expect(rig.controller.autoHideGuard.value, isFalse);
 
       await mouse.moveTo(_nowhere);
+      await tester.pump();
+      rig.clock.advance(Duration.zero);
+      await settleMotion(tester);
+
+      expect(rig.controller.state.value, PanelVisibility.hidden);
+    });
+
+    testWidgets('search focus with the pointer inside keeps it open', (
+      tester,
+    ) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      final mouse = await rig.mouse(tester, at: _popupCentre);
+      rig.controller.show();
+      await settleMotion(tester);
+
+      rig.shell.openSearch();
       await tester.pump();
       rig.clock.advance(const Duration(seconds: 10));
       await settleMotion(tester);
 
-      expect(rig.controller.state.value.isVisible, isTrue);
+      expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
+      await mouse.moveBy(const Offset(1, 1));
     });
 
     testWidgets('a drag of a page keeps it open until the page is idle', (
@@ -323,12 +468,57 @@ void main() {
       host.reportScrollActivity(const PageScrollIdle());
       expect(rig.controller.autoHideGuard.value, isFalse);
     });
-  });
 
-  group('delayed hide after interaction', () {
-    testWidgets('an interaction with the pointer away hides after 3 s', (
+    testWidgets(
+      'a button pressed inside the popup holds it while the pointer drags out; '
+      '3 s after the release it hides',
+      (tester) async {
+        final rig = PopupRig();
+        await rig.pump(tester);
+        final mouse = await rig.mouse(tester, at: _popupCentre);
+        rig.controller.show();
+        await settleMotion(tester);
+
+        await mouse.down(_popupCentre);
+        await tester.pump();
+        expect(rig.controller.autoHideGuard.value, isTrue);
+        await mouse.moveTo(_nowhere);
+        await tester.pump();
+        rig.clock.advance(const Duration(seconds: 10));
+        await settleMotion(tester);
+        expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
+
+        await mouse.up();
+        await tester.pump();
+        expect(rig.controller.autoHideGuard.value, isFalse);
+        rig.clock.advance(const Duration(milliseconds: 2999));
+        expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
+        rig.clock.advance(const Duration(milliseconds: 1));
+        await settleMotion(tester);
+        expect(rig.controller.state.value, PanelVisibility.hidden);
+      },
+    );
+
+    testWidgets('a press that began outside the popup is not a hold', (
       tester,
     ) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      rig.controller.toggle();
+      await settleMotion(tester);
+      final mouse = await rig.mouse(tester);
+
+      await mouse.down(_toggleCentre);
+      await tester.pump();
+
+      expect(rig.controller.autoHideGuard.value, isFalse);
+      await mouse.up();
+    });
+  });
+
+  group('no other idle timer', () {
+    testWidgets('an interaction in the panel with the pointer away arms '
+        'nothing', (tester) async {
       final rig = PopupRig();
       await rig.pump(tester);
       rig.controller.toggle();
@@ -337,55 +527,16 @@ void main() {
 
       rig.shell.selectPage('stickers');
       await tester.pump();
-      rig.clock.advance(const Duration(milliseconds: 2999));
-      await settleMotion(tester);
-      expect(rig.controller.state.value.isVisible, isTrue);
-      rig.clock.advance(const Duration(milliseconds: 1));
+      rig.clock.advance(const Duration(seconds: 30));
       await settleMotion(tester);
 
-      expect(rig.controller.state.value, PanelVisibility.hidden);
+      expect(rig.clock.pendingCount, 0);
+      expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
     });
 
-    testWidgets('each interaction restarts the 3 s', (tester) async {
-      final rig = PopupRig();
-      await rig.pump(tester);
-      rig.controller.toggle();
-      await settleMotion(tester);
-      await rig.mouse(tester);
-
-      rig.shell.selectPage('stickers');
-      rig.clock.advance(const Duration(seconds: 2));
-      rig.shell.selectPage('emoji');
-      rig.clock.advance(const Duration(seconds: 2));
-      await settleMotion(tester);
-      expect(rig.controller.state.value.isVisible, isTrue);
-
-      rig.clock.advance(const Duration(seconds: 1));
-      await settleMotion(tester);
-      expect(rig.controller.state.value, PanelVisibility.hidden);
-    });
-
-    testWidgets(
-      'an interaction with the pointer inside the popup arms nothing',
-      (tester) async {
-        final rig = PopupRig();
-        await rig.pump(tester);
-        final mouse = await rig.mouse(tester, at: _popupCentre);
-        rig.controller.show();
-        await settleMotion(tester);
-        await mouse.moveBy(const Offset(1, 1));
-        await tester.pump();
-
-        rig.shell.selectPage('stickers');
-        await tester.pump();
-        rig.clock.advance(const Duration(seconds: 10));
-        await settleMotion(tester);
-
-        expect(rig.controller.state.value.isVisible, isTrue);
-      },
-    );
-
-    testWidgets('a touch-driven popup does not time out', (tester) async {
+    testWidgets('a touch-driven popup does not time out after a hold either', (
+      tester,
+    ) async {
       final rig = PopupRig();
       await rig.pump(tester);
       rig.controller.toggle();
@@ -394,12 +545,102 @@ void main() {
       await touch.up();
       await tester.pump();
 
-      rig.shell.selectPage('stickers');
-      await tester.pump();
+      final hold = rig.controller.holdAutoHide()..release();
       rig.clock.advance(const Duration(seconds: 10));
       await settleMotion(tester);
 
+      expect(hold, isNotNull);
       expect(rig.controller.state.value.isVisible, isTrue);
+    });
+
+    testWidgets('touch flags do not survive the popup: after it hides a '
+        'click-open times out after a hold', (tester) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      rig.controller.toggle();
+      await settleMotion(tester);
+      final touch = await tester.startGesture(_popupCentre);
+      await touch.up();
+      await tester.pump();
+      rig.controller.hide();
+      await settleMotion(tester);
+      expect(rig.controller.state.value, PanelVisibility.hidden);
+
+      rig.controller.toggle();
+      await settleMotion(tester);
+      rig.controller.holdAutoHide().release();
+      rig.clock.advance(const Duration(seconds: 3));
+      await settleMotion(tester);
+
+      expect(rig.controller.state.value, PanelVisibility.hidden);
+    });
+  });
+
+  group('outside press', () {
+    testWidgets('a press on a registered exempt region does not dismiss', (
+      tester,
+    ) async {
+      final rig = PopupRig();
+      await rig.pump(tester, exemptRect: const Rect.fromLTWH(20, 650, 300, 40));
+      rig.controller.toggle();
+      await settleMotion(tester);
+
+      final mouse = await rig.mouse(tester);
+      await mouse.down(const Offset(100, 670));
+      await tester.pump();
+      await mouse.up();
+      await settleMotion(tester);
+
+      expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
+    });
+
+    testWidgets('a press just outside that region still dismisses', (
+      tester,
+    ) async {
+      final rig = PopupRig();
+      await rig.pump(tester, exemptRect: const Rect.fromLTWH(20, 650, 300, 40));
+      rig.controller.toggle();
+      await settleMotion(tester);
+
+      final mouse = await rig.mouse(tester);
+      await mouse.down(const Offset(100, 600));
+      await mouse.up();
+      await settleMotion(tester);
+
+      expect(rig.controller.state.value, PanelVisibility.hidden);
+    });
+
+    testWidgets('a press in the popup\'s own gutter is not outside', (
+      tester,
+    ) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      rig.controller.toggle();
+      await settleMotion(tester);
+
+      final mouse = await rig.mouse(tester);
+      await mouse.down(const Offset(496, 400));
+      await mouse.up();
+      await settleMotion(tester);
+
+      expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
+    });
+
+    testWidgets('an exempt region that unmounts stops exempting', (
+      tester,
+    ) async {
+      final rig = PopupRig();
+      await rig.pump(tester, exemptRect: const Rect.fromLTWH(20, 650, 300, 40));
+      await rig.pump(tester);
+      rig.controller.toggle();
+      await settleMotion(tester);
+
+      final mouse = await rig.mouse(tester);
+      await mouse.down(const Offset(100, 670));
+      await mouse.up();
+      await settleMotion(tester);
+
+      expect(rig.controller.state.value, PanelVisibility.hidden);
     });
   });
 }

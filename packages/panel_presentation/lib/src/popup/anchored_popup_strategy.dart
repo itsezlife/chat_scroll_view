@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -33,20 +34,32 @@ import 'package:panel_shell/panel_shell.dart';
 /// ## Pointer
 ///
 /// The host wraps its toggle in an [AnchoredPopupToggleRegion]. A mouse
-/// entering it opens the popup (a click is the host's own
-/// `PanelPresentationController.toggle`); the mouse leaving the toggle or the
-/// popup hides it after the policy's leave delay, entering either cancels
-/// that, and an interaction in the panel with the pointer away hides it after
-/// the idle delay. A held auto-hide guard (search focus, an open variant
-/// picker, a page being dragged) defeats every delay. Touch and stylus never
-/// open or time out the popup.
+/// entering it opens the popup at once (a click is the host's own
+/// `PanelPresentationController.toggle`). The mouse leaving the toggle hides
+/// it at the next event pass unless the pointer has entered the popup by
+/// then, which it does when it crosses straight from one to the other: the
+/// popup's hover area reaches down to the toggle, so there is no gap where
+/// the pointer is over neither. Leaving the popup hides it after the policy's
+/// leave delay (at once while it is still appearing), and entering it again,
+/// even while it fades out, brings it back. A held auto-hide guard (an open
+/// menu or variant picker, a page being dragged, a button pressed inside the
+/// popup) defeats those delays; once the last hold is released with the
+/// pointer away, the popup hides after the policy's after-hold delay. Nothing
+/// else times a popup out. Touch and stylus never open or time out the
+/// popup.
 ///
 /// ## Dismissal and focus
 ///
-/// A press outside the popup, other than on the toggle, hides it. Escape
-/// steps back: the shell closes search first, then the popup. Focus enters
-/// the popup when it opens, except when a hover opened it (the user is still
-/// typing in the composer), and returns to [composerFocus] when it closes.
+/// A press outside the popup hides it, except on the toggle and on any
+/// [AnchoredPopupExemptRegion] (the composer's input area, where the user
+/// clicks back to keep typing). Escape steps back: the shell closes search
+/// first, then the popup.
+///
+/// The popup never takes focus when it opens, however it was opened: the
+/// composer keeps the caret, the search field is focused only by the user
+/// clicking into it, and the panel is still reachable by Tab. Closing hands
+/// focus back to [composerFocus] only if the popup held it (search was
+/// focused).
 ///
 /// Every wait goes through the [PanelClock]; nothing reads the wall clock.
 final class AnchoredPopupStrategy implements PanelPresentationStrategy {
@@ -99,8 +112,9 @@ final class AnchoredPopupStrategy implements PanelPresentationStrategy {
 ///
 /// Only [PointerDeviceKind.mouse] counts: touch and stylus press it as a
 /// click, which stays the host's own handler. A press by touch or stylus
-/// marks the popup touch-driven, so it has no leave or idle delay until a
-/// mouse hovers again.
+/// marks the popup touch-driven, so it has no leave or after-hold delay
+/// until a mouse hovers again. A press on the toggle never dismisses the
+/// popup, and the popup's hover area reaches down to the toggle's top edge.
 class AnchoredPopupToggleRegion extends StatefulWidget {
   /// A region around [child] that opens [strategy]'s popup on [controller].
   const AnchoredPopupToggleRegion({
@@ -126,6 +140,7 @@ class AnchoredPopupToggleRegion extends StatefulWidget {
 
 class _AnchoredPopupToggleRegionState extends State<AnchoredPopupToggleRegion> {
   late void Function() _unregister;
+  var _inside = false;
 
   @override
   void initState() {
@@ -137,26 +152,24 @@ class _AnchoredPopupToggleRegionState extends State<AnchoredPopupToggleRegion> {
   @override
   void dispose() {
     _unregister();
+    // No exit is delivered to a region that leaves the tree under the pointer.
+    if (_inside) widget.strategy.hover.toggleRemoved();
     super.dispose();
   }
 
-  Rect? _bounds() {
-    if (context.findRenderObject() case final RenderBox box
-        when box.attached && box.hasSize) {
-      return box.localToGlobal(Offset.zero) & box.size;
-    }
-    return null;
-  }
+  Rect? _bounds() => _globalBounds(context);
 
   @override
   Widget build(BuildContext context) => MouseRegion(
     onEnter: (event) {
       if (event.kind == PointerDeviceKind.mouse) {
+        _inside = true;
         widget.strategy.hover.toggleEntered(widget.controller);
       }
     },
     onExit: (event) {
       if (event.kind == PointerDeviceKind.mouse) {
+        _inside = false;
         widget.strategy.hover.toggleExited();
       }
     },
@@ -170,6 +183,70 @@ class _AnchoredPopupToggleRegionState extends State<AnchoredPopupToggleRegion> {
       child: widget.child,
     ),
   );
+}
+
+/// Marks a region of the host's screen where a press does not dismiss an
+/// anchored popup.
+///
+/// The composer's input area is one: a click back into it to keep typing is
+/// not a click away from the popup. The press still reaches the child; this
+/// only tells the popup not to treat it as outside. The toggle needs no such
+/// wrapper, an [AnchoredPopupToggleRegion] is exempt already.
+class AnchoredPopupExemptRegion extends StatefulWidget {
+  /// A region around [child] that [strategy]'s popup does not dismiss on.
+  const AnchoredPopupExemptRegion({
+    required this.strategy,
+    required this.child,
+    super.key,
+  });
+
+  /// The strategy whose popup the region exempts.
+  final AnchoredPopupStrategy strategy;
+
+  /// What is exempt.
+  final Widget child;
+
+  @override
+  State<AnchoredPopupExemptRegion> createState() =>
+      _AnchoredPopupExemptRegionState();
+}
+
+class _AnchoredPopupExemptRegionState extends State<AnchoredPopupExemptRegion> {
+  late void Function() _unregister;
+
+  @override
+  void initState() {
+    super.initState();
+    _unregister = widget.strategy.hover.registerExempt(_bounds);
+  }
+
+  @override
+  void didUpdateWidget(AnchoredPopupExemptRegion oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.strategy, widget.strategy)) {
+      _unregister();
+      _unregister = widget.strategy.hover.registerExempt(_bounds);
+    }
+  }
+
+  @override
+  void dispose() {
+    _unregister();
+    super.dispose();
+  }
+
+  Rect? _bounds() => _globalBounds(context);
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
+Rect? _globalBounds(BuildContext context) {
+  if (context.findRenderObject() case final RenderBox box
+      when box.attached && box.hasSize) {
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+  return null;
 }
 
 class _PopupBody extends StatefulWidget {
@@ -186,9 +263,16 @@ class _PopupBodyState extends State<_PopupBody>
     with SingleTickerProviderStateMixin {
   late final AnimationController _motion = AnimationController(vsync: this);
   final _scope = FocusScopeNode(debugLabel: 'AnchoredPopup');
+  final _regionKey = GlobalKey();
   PanelAutoHideHold? _dragHold;
+  PanelAutoHideHold? _pressHold;
+  final _pressedPointers = <int>{};
   late final StreamSubscription<PageScrollActivity> _scrollActivity;
+  late final void Function() _unexemptRegion;
   Curve _curve = Curves.linear;
+  // How far the hover area reaches below the popup, to touch the toggle.
+  var _bridge = 0.0;
+  var _bridgeScheduled = false;
   var _synced = false;
   var _disposed = false;
 
@@ -199,15 +283,11 @@ class _PopupBodyState extends State<_PopupBody>
   void initState() {
     super.initState();
     _hover.bind(_controller);
-    // autofocus would be ignored while the composer holds focus, so ask once
-    // the scope is in the tree.
-    if (!_hover.openedByHover) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_disposed && !widget.view.visibility.isHiding) {
-          _scope.requestFocus();
-        }
-      });
-    }
+    // The hover area, shadow gutter and bridge included, is the popup's: a
+    // press in it is not an outside press.
+    _unexemptRegion = _hover.registerExempt(
+      () => _globalBounds(_regionKey.currentContext ?? context),
+    );
     _motion.value = widget.view.visibility.isShowing ? 0 : 1;
     _scrollActivity = _controller.shell.scrollActivity.listen(_onScroll);
   }
@@ -236,6 +316,9 @@ class _PopupBodyState extends State<_PopupBody>
     unawaited(_scrollActivity.cancel());
     _dragHold?.release();
     _dragHold = null;
+    _pressHold?.release();
+    _pressHold = null;
+    _unexemptRegion();
     _restoreFocus();
     _motion.dispose();
     _scope.dispose();
@@ -293,6 +376,44 @@ class _PopupBodyState extends State<_PopupBody>
 
   void _onPointerDown(PointerDownEvent event) {
     if (event.kind != PointerDeviceKind.mouse) _hover.touched();
+    // A button pressed inside the popup (a scrollbar drag, a selection) is
+    // finished by the pointer even if it leaves the popup on the way.
+    _pressedPointers.add(event.pointer);
+    _pressHold ??= _controller.holdAutoHide();
+  }
+
+  void _onPointerEnd(PointerEvent event) {
+    if (!_pressedPointers.remove(event.pointer) ||
+        _pressedPointers.isNotEmpty) {
+      return;
+    }
+    _pressHold?.release();
+    _pressHold = null;
+  }
+
+  // The hover area reaches down to the toggle. Where the toggle is is known
+  // only after layout, so it is measured once a frame has laid out and only
+  // rebuilt when it moved.
+  void _scheduleBridge() {
+    if (_bridgeScheduled) return;
+    _bridgeScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _bridgeScheduled = false;
+      if (_disposed || !mounted) return;
+      final region = _globalBounds(_regionKey.currentContext ?? context);
+      if (region == null) return;
+      final gutter = widget.strategy.style.hoverGutter;
+      final popupBottom = region.bottom - math.max(gutter, _bridge);
+      var reach = 0.0;
+      for (final toggle in _hover.toggleRects) {
+        if (toggle.top >= popupBottom) {
+          // A pixel into the toggle, so rounding cannot leave a seam.
+          final needed = toggle.top - popupBottom + 1;
+          reach = reach == 0 ? needed : math.min(reach, needed);
+        }
+      }
+      if ((reach - _bridge).abs() > 0.5) setState(() => _bridge = reach);
+    });
   }
 
   @override
@@ -314,19 +435,23 @@ class _PopupBodyState extends State<_PopupBody>
             builder: (context, anchor) => ListenValueBuilder<PanelWindow>(
               listenable: controller.window,
               builder: (context, window) => LayoutBuilder(
-                builder: (context, constraints) => CustomSingleChildLayout(
-                  delegate: AnchoredPopupLayout(
-                    width: style.width,
-                    height: controller.policy.popupHeight(
-                      windowHeight: window.height > 0
-                          ? window.height
-                          : constraints.maxHeight,
+                builder: (context, constraints) {
+                  _scheduleBridge();
+                  return CustomSingleChildLayout(
+                    delegate: AnchoredPopupLayout(
+                      width: style.width,
+                      height: controller.policy.popupHeight(
+                        windowHeight: window.height > 0
+                            ? window.height
+                            : constraints.maxHeight,
+                      ),
+                      textDirection: textDirection,
+                      anchor: anchor,
+                      outset: _outset(style),
                     ),
-                    textDirection: textDirection,
-                    anchor: anchor,
-                  ),
-                  child: _popup(style),
-                ),
+                    child: _popup(style),
+                  );
+                },
               ),
             ),
           ),
@@ -335,15 +460,34 @@ class _PopupBodyState extends State<_PopupBody>
     );
   }
 
+  EdgeInsets _outset(AnchoredPopupStyle style) => EdgeInsets.fromLTRB(
+    style.hoverGutter,
+    style.hoverGutter,
+    style.hoverGutter,
+    math.max(style.hoverGutter, _bridge),
+  );
+
+  // Two regions: the outer one is the popup to the pointer, transparent
+  // margin included, and lets what lies under the margin (the toggle, the
+  // composer) take hits; the inner one is the card, which absorbs them. The
+  // outer one is what enters and leaves.
   Widget _popup(AnchoredPopupStyle style) => MouseRegion(
+    key: _regionKey,
+    hitTestBehavior: HitTestBehavior.translucent,
     onEnter: (event) {
       if (event.kind == PointerDeviceKind.mouse) _hover.popupEntered();
     },
     onExit: (event) {
       if (event.kind == PointerDeviceKind.mouse) _hover.popupExited();
     },
+    child: Padding(padding: _outset(style), child: _card(style)),
+  );
+
+  Widget _card(AnchoredPopupStyle style) => MouseRegion(
     child: Listener(
       onPointerDown: _onPointerDown,
+      onPointerUp: _onPointerEnd,
+      onPointerCancel: _onPointerEnd,
       child: AnimatedBuilder(
         animation: _motion,
         builder: (context, child) {

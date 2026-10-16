@@ -6,6 +6,12 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- `MotionRole.popupHide` lasts 200 ms (was 150 ms), the reference client's fade-out;
+  `popupShow` was already 200 ms. A popup that fades out for 50 ms longer can be
+  turned back for that long, which is what hovering it again does.
+
 ### Added
 
 - The `loop` motion role (one turn of an indeterminate loop, 900 ms linear).

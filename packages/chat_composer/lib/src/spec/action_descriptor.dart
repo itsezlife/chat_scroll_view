@@ -1,5 +1,5 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 /// Which side of the panel an action sits on, in reading direction.
 ///
@@ -12,6 +12,12 @@ enum ActionPlacement {
   /// After the panel, at the end edge.
   trailing,
 }
+
+/// Builds a widget around the rendered button of an action.
+///
+/// [button] is the composer's own button for the action; the result replaces
+/// it in the row, so a wrapper keeps it as (a descendant of) what it returns.
+typedef ActionWrap = Widget Function(BuildContext context, Widget button);
 
 /// One action of the composer, described as data: the composer lays it out
 /// and animates it, the host decides what it is and what tapping does.
@@ -35,7 +41,9 @@ final class ActionDescriptor {
     this.enabled = true,
     this.visible = true,
     this.primary = false,
+    this.active = false,
     this.onTap,
+    this.wrap,
   }) : assert(id != '', 'an action id must not be empty'),
        assert(semanticLabel != '', 'an action needs a semantic label');
 
@@ -64,9 +72,25 @@ final class ActionDescriptor {
   /// visible one wins.
   final bool primary;
 
+  /// Whether the action is in its active, on or selected state: its glyph is
+  /// drawn in the accent colour and it is announced as selected. A toggle that
+  /// has switched something on says so with this; the glyph itself stays the
+  /// same, so no second icon is needed for the state.
+  final bool active;
+
   /// Called on tap, click or keyboard activation. Null makes the action
   /// inert.
   final VoidCallback? onTap;
+
+  /// A widget the composer builds around the rendered button, or null.
+  ///
+  /// The composer knows nothing about what the host needs around one of its
+  /// actions: a hover region, a tooltip, a drag target, a measuring probe.
+  /// Rather than a field for each, the host wraps the button itself. The
+  /// wrapper takes part in layout as the action does (an action that is not
+  /// visible is not wrapped), receives the pointer events the button would, and is
+  /// rebuilt with the spec.
+  final ActionWrap? wrap;
 
   /// Whether a tap would do anything: visible, enabled and given a handler.
   bool get isTappable => visible && enabled && onTap != null;
@@ -79,7 +103,9 @@ final class ActionDescriptor {
     bool? enabled,
     bool? visible,
     bool? primary,
+    bool? active,
     VoidCallback? onTap,
+    ActionWrap? wrap,
   }) => ActionDescriptor(
     id: id,
     icon: icon ?? this.icon,
@@ -88,6 +114,8 @@ final class ActionDescriptor {
     enabled: enabled ?? this.enabled,
     visible: visible ?? this.visible,
     primary: primary ?? this.primary,
+    active: active ?? this.active,
     onTap: onTap ?? this.onTap,
+    wrap: wrap ?? this.wrap,
   );
 }

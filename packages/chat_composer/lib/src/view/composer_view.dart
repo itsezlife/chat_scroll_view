@@ -210,14 +210,26 @@ class _ComposerViewState extends State<ComposerView>
   bool _usable(ActionDescriptor action) =>
       _spec.enabled && action.isTappable && !(_spec.busy && action.primary);
 
-  Widget _button(ActionDescriptor action) => ComposerButton(
-    key: ValueKey<String>(action.id),
-    icon: action.icon,
-    semanticLabel: action.semanticLabel,
-    onTap: action.onTap,
-    enabled: _usable(action),
-    primary: action.primary,
-  );
+  Widget _button(ActionDescriptor action) {
+    final button = ComposerButton(
+      key: ValueKey<String>(action.id),
+      icon: action.icon,
+      semanticLabel: action.semanticLabel,
+      onTap: action.onTap,
+      enabled: _usable(action),
+      primary: action.primary,
+      active: action.active,
+    );
+    final wrap = action.wrap;
+    if (wrap == null) return button;
+    // The wrapper's slot in the row is keyed apart from the button's own key,
+    // so finding the button by its id still finds the button, and a row that
+    // reorders keeps each slot's state with its action.
+    return Builder(
+      key: ValueKey<String>('wrap:${action.id}'),
+      builder: (context) => wrap(context, button),
+    );
+  }
 
   Widget _panel(BuildContext context) {
     final panel = _spec.panel;

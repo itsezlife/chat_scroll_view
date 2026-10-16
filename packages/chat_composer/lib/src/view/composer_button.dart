@@ -18,6 +18,7 @@ class ComposerButton extends StatefulWidget {
     required this.onTap,
     this.enabled = true,
     this.primary = false,
+    this.active = false,
     this.iconSize = ComposerMetrics.actionIconSize,
     this.width = ComposerMetrics.actionSize,
     this.height = ComposerMetrics.actionSize,
@@ -39,6 +40,11 @@ class ComposerButton extends StatefulWidget {
 
   /// Whether the button is drawn emphasised, as a filled disc.
   final bool primary;
+
+  /// Whether the button is in its active state: the glyph takes the accent
+  /// colour and the button is announced as selected. A [primary] button
+  /// already is the accent.
+  final bool active;
 
   /// Size of the glyph.
   final double iconSize;
@@ -70,9 +76,12 @@ class _ComposerButtonState extends State<ComposerButton> {
   Widget build(BuildContext context) {
     final tokens = ChromeThemeScope.actionOf(context);
     final dim = _active ? 1.0 : _disabledOpacity;
-    final glyph = (widget.primary ? tokens.onSend : tokens.icon).withValues(
-      alpha: (widget.primary ? tokens.onSend : tokens.icon).a * dim,
-    );
+    final base = switch ((widget.primary, widget.active)) {
+      (true, _) => tokens.onSend,
+      (false, true) => tokens.send,
+      (false, false) => tokens.icon,
+    };
+    final glyph = base.withValues(alpha: base.a * dim);
     final face = Stack(
       alignment: Alignment.center,
       children: [
@@ -102,6 +111,8 @@ class _ComposerButtonState extends State<ComposerButton> {
       button: true,
       focusable: _active,
       enabled: _active,
+      // Null, not false: an inactive button is not a selectable one.
+      selected: widget.active ? true : null,
       label: widget.semanticLabel,
       onTap: _active ? widget.onTap : null,
       excludeSemantics: true,

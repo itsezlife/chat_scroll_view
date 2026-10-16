@@ -20,8 +20,10 @@ enum PanelDismissal {
   /// The pointer left the panel and its toggle.
   leave,
 
-  /// No interaction for a while.
-  idle,
+  /// A hold on auto-hide ended while the pointer was away from the panel and
+  /// its toggle: the panel was kept open past a leave it would have taken,
+  /// and goes after a delay instead.
+  afterHold,
 }
 
 /// The **presentation policy**: which kind the panel takes, what opens it,
@@ -93,11 +95,19 @@ sealed class PanelPresentationPolicy {
   /// How [kind] can be dismissed under this policy.
   Set<PanelDismissal> dismissalsFor(PanelPresentation kind);
 
-  /// How long after the pointer leaves a popup and its toggle it hides.
+  /// How long after the pointer leaves a popup it hides, when no animation is
+  /// running.
+  ///
+  /// Leaving the toggle is not governed by this: the popup's rectangle
+  /// touches the toggle's, so the hide of a toggle leave waits only for the
+  /// next event pass, which entering the popup cancels. A popup that is still
+  /// appearing also hides at that pass rather than after this grace.
   Duration get leaveDelay => const Duration(milliseconds: 300);
 
-  /// How long a popup without interaction waits before hiding.
-  Duration get idleDelay => const Duration(seconds: 3);
+  /// How long a popup waits to hide after a hold on auto-hide was released
+  /// with the pointer away. There is no other idle timer: a popup nobody has
+  /// hovered and nothing held stays until dismissed.
+  Duration get afterHoldDelay => const Duration(seconds: 3);
 
   /// The height of a popup in a window [windowHeight] tall: three quarters
   /// of it, kept within [popupMinHeight] and [popupMaxHeight].
@@ -183,7 +193,7 @@ final class PanelPresentationPolicy$Desktop extends PanelPresentationPolicy {
       PanelDismissal.escape,
       PanelDismissal.outsidePress,
       PanelDismissal.leave,
-      PanelDismissal.idle,
+      PanelDismissal.afterHold,
     },
     KeyboardReplacement() || Docked() => const {PanelDismissal.back},
   };

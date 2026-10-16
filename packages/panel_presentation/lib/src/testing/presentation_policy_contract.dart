@@ -97,7 +97,7 @@ void runPresentationPolicyContract(
     test('timers are positive', () {
       final policy = create();
       expect(policy.leaveDelay, greaterThan(Duration.zero));
-      expect(policy.idleDelay, greaterThan(Duration.zero));
+      expect(policy.afterHoldDelay, greaterThan(Duration.zero));
     });
 
     test(

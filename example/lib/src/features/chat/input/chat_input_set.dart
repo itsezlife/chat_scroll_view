@@ -327,6 +327,46 @@ final class ChatInputSet {
   /// Whether the panel is on screen in any phase.
   bool get isPanelVisible => presentation.state.value.isVisible;
 
+  /// Whether the panel stands in for the soft keyboard (the mobile kind) and
+  /// is not on its way out: the composer's toggle then shows the keyboard's
+  /// glyph, because pressing it gives the keyboard back.
+  bool get panelReplacesKeyboard =>
+      isPanelOpening && presentation.state.value.kind is KeyboardReplacement;
+
+  /// Whether the panel is docked and not on its way out: the composer's
+  /// toggle then draws in its active state.
+  bool get isPanelDocked =>
+      isPanelOpening && presentation.state.value.kind is Docked;
+
+  /// Whether the panel is a popup or a dock beside the composer, as opposed
+  /// to a panel that replaces the soft keyboard.
+  bool get hasPopup => presentation.policy is! PanelPresentationPolicy$Mobile;
+
+  /// Where the composer puts the panel's toggle: at the start edge where the
+  /// panel replaces the keyboard, and at the end edge where a popup anchors
+  /// to the composer's end edge, so the toggle sits under it and the pointer
+  /// crosses from one to the other.
+  ActionPlacement get panelPlacement =>
+      hasPopup ? ActionPlacement.trailing : ActionPlacement.leading;
+
+  /// Wraps the composer's panel toggle so a mouse hovering it opens the
+  /// popup, and so a press on it is not an outside press of that popup. Where
+  /// the panel replaces the keyboard there is no popup, and the toggle stays
+  /// as it is.
+  Widget wrapPanelToggle(BuildContext context, Widget toggle) => hasPopup
+      ? AnchoredPopupToggleRegion(
+          strategy: popup,
+          controller: presentation,
+          child: toggle,
+        )
+      : toggle;
+
+  /// Marks the composer as a place where a press does not dismiss the popup:
+  /// the user clicking back into it to keep typing is not leaving it.
+  Widget keepPopupOpenOver(Widget composer) => hasPopup
+      ? AnchoredPopupExemptRegion(strategy: popup, child: composer)
+      : composer;
+
   /// The icon of the page the panel is showing, for the composer's toggle.
   ChromeIconId get pageIcon => shell.selectedPage.tab.icon;
 
@@ -421,21 +461,41 @@ final class ChatInputSet {
   // --- Panel ----------------------------------------------------------------
 
   /// The composer's panel button.
+  ///
+  /// Where the panel replaces the keyboard, a press gives the keyboard back
+  /// or opens the panel. On a desktop platform it is the dock control too:
+  ///
+  /// | The panel is | A press |
+  /// | --- | --- |
+  /// | hidden or hiding | shows it, docked if that is the saved choice and the window can dock, else as a popup |
+  /// | a popup, and the window can dock | docks it; the same panel moves, its page, scroll and search with it |
+  /// | a popup, and the window cannot dock | hides it |
+  /// | docked | undocks it: the section closes, and the popup does not appear until the pointer re-enters the button |
+  ///
+  /// The saved choice is `PanelPresentationController.dockPreferred`, which
+  /// the preference store keeps, so a later session opens as this one left it.
   void togglePanel() {
     if (_disposed) return;
     final state = presentation.state.value;
     switch (state) {
-      case PanelVisibility$Showing() || PanelVisibility$Shown():
-        if (state.kind is KeyboardReplacement) {
-          handOffToKeyboard();
-        } else {
-          presentation.hide();
+      case PanelVisibility$Showing(:final kind) ||
+          PanelVisibility$Shown(:final kind):
+        switch (kind) {
+          case KeyboardReplacement():
+            handOffToKeyboard();
+          case AnchoredPopup():
+            final canDock = presentation.policy.canDock(
+              presentation.window.value.windowClass,
+            );
+            if (canDock) {
+              presentation.dock();
+            } else {
+              presentation.hide();
+            }
+          case Docked():
+            presentation.undock();
         }
-      case PanelVisibility$Hiding(:final kind):
-        // The press that reached this button was outside the popup and has
-        // just closed it; the same click must not open it again.
-        if (kind is! AnchoredPopup) presentation.show();
-      case PanelVisibility$Hidden():
+      case PanelVisibility$Hiding() || PanelVisibility$Hidden():
         presentation.show();
     }
   }

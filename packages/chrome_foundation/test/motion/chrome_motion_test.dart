@@ -40,6 +40,20 @@ void main() {
       expect(spec.curve, Curves.linear);
     });
 
+    test(
+      'a popup shows and hides in 200 ms each, as the reference client does',
+      () {
+        expect(
+          motion[MotionRole.popupShow].duration,
+          const Duration(milliseconds: 200),
+        );
+        expect(
+          motion[MotionRole.popupHide].duration,
+          const Duration(milliseconds: 200),
+        );
+      },
+    );
+
     test('release overshoots and press does not', () {
       expect(motion[MotionRole.release].curve, isA<OvershootCurve>());
       expect(motion[MotionRole.press].curve, Curves.linear);

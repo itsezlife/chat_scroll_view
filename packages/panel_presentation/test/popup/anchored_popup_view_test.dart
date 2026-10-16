@@ -282,11 +282,23 @@ void main() {
       expect(rig.controller.state.value, PanelVisibility.hidden);
     });
 
-    testWidgets('Escape with search closed closes the popup', (tester) async {
+    testWidgets('Escape with search closed closes the popup, from inside it', (
+      tester,
+    ) async {
       final rig = PopupRig();
       await rig.pump(tester);
       rig.controller.toggle();
       await settleMotion(tester);
+      // The popup takes no focus on open; a keyboard user tabs into it.
+      rig.composerFocus.requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(
+        FocusManager.instance.primaryFocus?.context
+            ?.findAncestorWidgetOfExactType<PanelShell>(),
+        isNotNull,
+      );
 
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await settleMotion(tester);
@@ -354,7 +366,9 @@ void main() {
   });
 
   group('focus', () {
-    testWidgets('enters the popup on open', (tester) async {
+    testWidgets('a click-opened popup leaves the caret in the composer', (
+      tester,
+    ) async {
       final rig = PopupRig();
       await rig.pump(tester);
       rig.composerFocus.requestFocus();
@@ -364,20 +378,7 @@ void main() {
       rig.controller.toggle();
       await settleMotion(tester);
 
-      expect(rig.composerFocus.hasFocus, isFalse);
-      expect(FocusManager.instance.primaryFocus?.context, isNotNull);
-    });
-
-    testWidgets('returns to the composer on close', (tester) async {
-      final rig = PopupRig();
-      await rig.pump(tester);
-      rig.composerFocus.requestFocus();
-      rig.controller.toggle();
-      await settleMotion(tester);
-
-      rig.controller.hide();
-      await settleMotion(tester);
-
+      expect(popupIsUp(tester), isTrue);
       expect(rig.composerFocus.hasFocus, isTrue);
     });
 
@@ -394,6 +395,59 @@ void main() {
       await settleMotion(tester);
 
       expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
+      expect(rig.composerFocus.hasFocus, isTrue);
+    });
+
+    testWidgets('opening does not focus the search field either', (
+      tester,
+    ) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      rig.composerFocus.requestFocus();
+      await tester.pump();
+
+      rig.controller.toggle();
+      await settleMotion(tester);
+
+      expect(rig.shell.search.value.isOpen, isFalse);
+      expect(rig.composerFocus.hasFocus, isTrue);
+    });
+
+    testWidgets('Tab from the composer still reaches the popup', (
+      tester,
+    ) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      rig.composerFocus.requestFocus();
+      rig.controller.toggle();
+      await settleMotion(tester);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+
+      expect(rig.composerFocus.hasFocus, isFalse);
+      expect(
+        FocusManager.instance.primaryFocus?.context
+            ?.findAncestorWidgetOfExactType<PanelShell>(),
+        isNotNull,
+      );
+    });
+
+    testWidgets('closing with search focused returns focus to the composer', (
+      tester,
+    ) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      rig.composerFocus.requestFocus();
+      rig.controller.toggle();
+      await settleMotion(tester);
+      rig.shell.openSearch();
+      await settleMotion(tester);
+      expect(rig.composerFocus.hasFocus, isFalse);
+
+      rig.controller.hide();
+      await settleMotion(tester);
+
       expect(rig.composerFocus.hasFocus, isTrue);
     });
 

@@ -16,6 +16,14 @@ is pre-1.0.
 
 ### Added
 
+- `ActionDescriptor.wrap` (`ActionWrap`): a widget the composer builds around
+  the action's rendered button, so a host can put a hover region, a tooltip
+  or a probe around one action without the composer knowing it. The button
+  keeps its key and still receives taps; an action that is not visible is not
+  wrapped.
+- `ActionDescriptor.active` and `ComposerButton.active`: the on state of a
+  toggle. The glyph takes the accent colour and the button is announced as
+  selected; an inactive button sets no selected state, as before.
 - `ComposerSpec` (header, panel, actions, enabled, busy) and `ComposerView`:
   the island with a glass surface, a header strip that reveals and hides, a
   row that follows the height of its panel, directional layout and action
