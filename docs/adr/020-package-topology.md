@@ -29,7 +29,8 @@ another package's API.
 
 Codec and fetcher adapters (Lottie, WebM, WebP, network, disk) are separate
 packages created when needed. They depend on `catalog_assets`; the host wires
-them.
+them. Landed: `image_decoder` (the engine's image codecs: stills and animated
+WebP / GIF).
 
 Rules, enforced by the dependency lint in `scripts/check` ([ADR 030](030-testing-policy.md)):
 
