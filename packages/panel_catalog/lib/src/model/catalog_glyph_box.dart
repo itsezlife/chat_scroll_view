@@ -24,3 +24,26 @@ const double kCirclePlaceholderRadiusFactor = 0.4;
 /// can show, so the two cannot disagree about how large a glyph is.
 double catalogGlyphBoxExtent(double cellWidth, double cellHeight) =>
     math.min(cellWidth, cellHeight) * kCatalogGlyphBoxFraction;
+
+/// The square a leaf's content is asked for from the cache and drawn in,
+/// centred in its cell.
+enum CatalogContentBox {
+  /// [kCatalogGlyphBoxFraction] of the cell's shorter side: an emoji, which
+  /// sits in the text-like box and leaves room around it.
+  glyph,
+
+  /// The cell's shorter side: a sticker or a GIF, which fills its cell.
+  cell,
+}
+
+/// The side of the square [box] draws content in, in a cell of [cellWidth] x
+/// [cellHeight]. Both the cache request and the paint read it, so the pixels
+/// asked for are the pixels drawn.
+double catalogContentBoxExtent(
+  CatalogContentBox box,
+  double cellWidth,
+  double cellHeight,
+) => switch (box) {
+  CatalogContentBox.glyph => catalogGlyphBoxExtent(cellWidth, cellHeight),
+  CatalogContentBox.cell => math.min(cellWidth, cellHeight),
+};

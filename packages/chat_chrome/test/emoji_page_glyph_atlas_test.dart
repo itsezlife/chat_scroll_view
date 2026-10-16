@@ -86,10 +86,12 @@ void main() {
     ),
   );
 
-  GlyphAtlas? drawnFrom(WidgetTester tester) => tester
-      .widget<PanelCatalogViewport>(find.byType(PanelCatalogViewport))
-      .assetCache
-      .glyphAtlas;
+  GlyphAtlas? drawnFrom(WidgetTester tester) =>
+      tester
+              .widget<PanelCatalogViewport>(find.byType(PanelCatalogViewport))
+              .assets
+              .glyphSource
+          as GlyphAtlas?;
 
   testWidgets('a page without an atlas draws text', (tester) async {
     await tester.pumpWidget(page(null));

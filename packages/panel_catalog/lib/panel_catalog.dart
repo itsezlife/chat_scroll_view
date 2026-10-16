@@ -2,7 +2,7 @@
 ///
 /// Owns recycle, cell paint, and section geometry for the **catalog body**.
 /// Does **not** own panel chrome (category strip, search, type tabs, pickers)
-/// or asset fetch/decode (`CatalogAssetCache` from `catalog_assets`).
+/// or asset fetch/decode (the host's `AssetCacheScope` from `catalog_assets`).
 ///
 /// Primary host types: [PanelCatalogViewport], [CatalogSnapshot] (published
 /// through a `ValueObservable` from `content_model`),
@@ -14,8 +14,9 @@
 /// [kFarPathDistanceGateFactor] flat-row near/far gate). Fakes live in
 /// `package:panel_catalog/testing.dart`.
 ///
-/// [PanelCatalogThemeData] / [PanelCatalogTheme] supply host paint tokens;
-/// [PanelCatalogViewport] resolves [CatalogLeafPaintTheme] for the engine.
+/// [PanelCatalogThemeData] / [PanelCatalogTheme] supply the viewport's own
+/// paint tokens (placeholders, press, section header); the viewport resolves
+/// them for the engine and depends on no chrome package.
 ///
 /// Engine internals (`RenderPanelCatalog`, binding pool, painter, slot
 /// projection) are not exported — they live under `src/viewport/`.
@@ -25,6 +26,8 @@ library;
 export 'src/data/catalog_snapshot.dart';
 export 'src/model/catalog_glyph_box.dart'
     show
+        CatalogContentBox,
+        catalogContentBoxExtent,
         catalogGlyphBoxExtent,
         kCatalogGlyphBoxFraction,
         kCirclePlaceholderRadiusFactor;

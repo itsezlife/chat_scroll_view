@@ -2,6 +2,7 @@
 /// suite flings, records and judges the same way.
 library;
 
+import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
@@ -184,10 +185,10 @@ Future<ScenarioReport> measureScenario(
 Map<String, Object?> atlasMeta(WidgetTester tester) {
   final finder = find.byType(PanelCatalogViewport);
   if (finder.evaluate().isEmpty) return const {};
-  final atlas = tester
-      .widget<PanelCatalogViewport>(finder)
-      .assetCache
-      .glyphAtlas;
+  // The harness composed the scope with an atlas as its glyph source.
+  final atlas =
+      tester.widget<PanelCatalogViewport>(finder).assets.glyphSource
+          as GlyphAtlas?;
   if (atlas == null) return const {'atlas': 'none'};
   final glyphs = <String>{
     for (final section

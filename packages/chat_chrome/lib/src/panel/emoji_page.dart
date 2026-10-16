@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:catalog_assets/legacy_shim.dart';
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_chrome/chat_chrome.dart';
+import 'package:chat_chrome/src/panel/catalog_atlas_bake_forwarder.dart';
 import 'package:chat_chrome/src/panel/emoji_catalog_data_source.dart';
 import 'package:chat_chrome/src/util/constants.dart';
 import 'package:chat_chrome/src/util/logger.dart';
@@ -228,7 +229,8 @@ class EmojiPageState extends State<EmojiPage>
   // --- Viewport / catalog ---------------------------------------------------
 
   final PanelCatalogController _catalogController = PanelCatalogController();
-  late MemoryCatalogAssetCache _assetCache;
+  late AssetCacheScope _assets;
+  CatalogAtlasBakeForwarder? _bakeForwarder;
   late EmojiCatalogDataSource _catalogDataSource;
 
   // How much of the page is mounted; a page without [EmojiPage.deferChrome]
@@ -391,11 +393,9 @@ class EmojiPageState extends State<EmojiPage>
     super.initState();
     _mount = widget.deferChrome ? _PageMount.grid : _PageMount.complete;
     _mountNextStage();
-    _assetCache = MemoryCatalogAssetCache(glyphAtlas: widget.glyphAtlas);
-    _catalogDataSource = EmojiCatalogDataSource(
-      emojiSource: widget.dataSource,
-      assetCache: _assetCache,
-    );
+    _assets = _newAssets();
+    _syncBakeForwarder();
+    _catalogDataSource = EmojiCatalogDataSource(emojiSource: widget.dataSource);
     _catalogController.events.addListener(_onCatalogScrollEvent);
     _stripOffset.addListener(_onStripOffsetChanged);
     widget.dataSource.addDataListener(_onDataChanged);
@@ -407,6 +407,29 @@ class EmojiPageState extends State<EmojiPage>
       if (!mounted) return;
       _updateSearchGeometry();
     });
+  }
+
+  /// The scope the viewport binds through: glyphs are baked sprites of the
+  /// page's atlas where there is one, and text where there is none (the web).
+  AssetCacheScope _newAssets() {
+    final atlas = widget.glyphAtlas;
+    return AssetCacheScope(
+      glyphSource: atlas,
+      producer: atlas == null ? const TextGlyphProducer() : null,
+    );
+  }
+
+  /// Keeps the bake pausing for, and prioritising, what this page's catalogue
+  /// does.
+  void _syncBakeForwarder() {
+    _bakeForwarder?.dispose();
+    final atlas = widget.glyphAtlas;
+    _bakeForwarder = atlas == null
+        ? null
+        : CatalogAtlasBakeForwarder(
+            atlas: atlas,
+            events: _catalogController.events,
+          );
   }
 
   /// Mounts the next stage of a deferred page in the next frame, one stage per
@@ -423,13 +446,14 @@ class EmojiPageState extends State<EmojiPage>
   @override
   void didUpdateWidget(EmojiPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Another atlas means another cache: bindings made against the old one
+    // Another atlas means another scope: bindings made against the old one
     // would never hear of the new one's pages.
     final atlasChanged = oldWidget.glyphAtlas != widget.glyphAtlas;
     final sourceChanged = oldWidget.dataSource != widget.dataSource;
     if (atlasChanged) {
-      _assetCache.dispose();
-      _assetCache = MemoryCatalogAssetCache(glyphAtlas: widget.glyphAtlas);
+      _assets.dispose();
+      _assets = _newAssets();
+      _syncBakeForwarder();
     }
     if (sourceChanged) {
       oldWidget.dataSource.removeDataListener(_onDataChanged);
@@ -439,7 +463,6 @@ class EmojiPageState extends State<EmojiPage>
       _catalogDataSource.dispose();
       _catalogDataSource = EmojiCatalogDataSource(
         emojiSource: widget.dataSource,
-        assetCache: _assetCache,
       );
       _rebuildCatalog();
     } else if (!identical(oldWidget.recents, widget.recents) ||
@@ -487,7 +510,8 @@ class EmojiPageState extends State<EmojiPage>
     _catalogController.events.removeListener(_onCatalogScrollEvent);
     _catalogController.dispose();
     _catalogDataSource.dispose();
-    _assetCache.dispose();
+    _bakeForwarder?.dispose();
+    _assets.dispose();
     super.dispose();
   }
 
@@ -1344,14 +1368,13 @@ class EmojiPageState extends State<EmojiPage>
                 data: _catalogTheme(colors, brightness),
                 child: PanelCatalogViewport(
                   snapshots: _catalogDataSource.snapshots,
-                  assetCache: _assetCache,
+                  assets: _assets,
                   controller: _catalogController,
                   spanCount: _spanCount,
                   cellExtent: _rowCellExtent,
                   headerExtent: EmojiPage.headerHeight,
                   padding: _catalogPadding,
                   headerLandingInset: _headerLandingInset,
-                  cacheType: CatalogAssetCacheType.keyboard,
                   onLeafTap: _onLeafTap,
                   onLeafLongPressStart: _onLeafLongPressStart,
                   onLeafLongPressMove: _onLeafLongPressMove,

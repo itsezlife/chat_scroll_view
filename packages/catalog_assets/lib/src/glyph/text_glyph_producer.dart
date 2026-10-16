@@ -25,8 +25,8 @@ import 'package:content_model/content_model.dart';
 /// the byte-budgeted LRU bounds how many paragraphs stay alive. The
 /// paragraph is laid out when the glyph is first painted and again only when
 /// the rectangle's size changes; drawing it afterwards is one
-/// `Canvas.drawParagraph`. A glyph keeps its own colours: a tint does not
-/// apply.
+/// `Canvas.drawParagraph`, inside a clip only for a sequence wider than the
+/// rectangle. A glyph keeps its own colours: a tint does not apply.
 final class TextGlyphProducer implements AssetProducer {
   /// Creates a producer that wraps [next] for every key but a unicode one
   /// (without [next] those entries stay at `AssetStage.none`).
@@ -84,9 +84,15 @@ final class _TextGlyphPaintable implements AssetPaintable {
   Paragraph? _paragraph;
   double _laidOutFor = 0;
   double _laidOutWidth = 0;
+  // Known once per layout: asking the engine for it on every draw would cost
+  // more than the clip it saves.
+  bool _overflows = false;
 
   // Single-threaded painting sets the paint fully on every use.
   static final Paint _fade = Paint();
+
+  // Logical pixels below which two sizes are the same layout.
+  static const double _layoutTolerance = 1e-3;
 
   @override
   AtlasSprite? get sprite => null;
@@ -104,34 +110,46 @@ final class _TextGlyphPaintable implements AssetPaintable {
         _fade..color = Color.fromRGBO(0, 0, 0, context.opacity),
       );
     }
-    canvas
-      ..save()
-      // Clipped, so a sequence wider than the box cannot bleed out of it.
-      ..clipRect(rect)
-      ..drawParagraph(
-        paragraph,
-        Offset(rect.left, rect.top + (rect.height - paragraph.height) / 2),
-      )
-      ..restore();
+    final at = Offset(
+      rect.left,
+      rect.top + (rect.height - paragraph.height) / 2,
+    );
+    // Clipped only when a sequence is wider than the box, so it cannot bleed
+    // out of it. Nearly every glyph fits, and a save and a clip per cell of a
+    // screenful are most of what drawing one costs.
+    if (_overflows) {
+      canvas
+        ..save()
+        ..clipRect(rect)
+        ..drawParagraph(paragraph, at)
+        ..restore();
+    } else {
+      canvas.drawParagraph(paragraph, at);
+    }
     if (fades) canvas.restore();
   }
 
   Paragraph _paragraphFor(Rect rect) {
     final fontSize = rect.shortestSide * _fontScale;
     final cached = _paragraph;
+    // A rectangle's width is `right - left`, so the same size at two positions
+    // differs in the last bits; a tolerance keeps one paragraph for all of
+    // them instead of laying it out again at every cell it is drawn in.
     if (cached != null &&
-        _laidOutFor == fontSize &&
-        _laidOutWidth == rect.width) {
+        (_laidOutFor - fontSize).abs() < _layoutTolerance &&
+        (_laidOutWidth - rect.width).abs() < _layoutTolerance) {
       return cached;
     }
     cached?.dispose();
     _laidOutFor = fontSize;
     _laidOutWidth = rect.width;
-    return _paragraph =
+    final laidOut =
         (ParagraphBuilder(
             ParagraphStyle(textAlign: TextAlign.center, fontSize: fontSize),
           )..addText(_glyph)).build()
           ..layout(ParagraphConstraints(width: rect.width));
+    _overflows = laidOut.longestLine > rect.width;
+    return _paragraph = laidOut;
   }
 
   @override

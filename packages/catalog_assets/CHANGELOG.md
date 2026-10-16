@@ -6,6 +6,20 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- `TextGlyphProducer`'s paragraph is laid out once per size, not once per
+  position: a rectangle's width is `right - left`, so the same size at two cells
+  differs in the last bits and an exact comparison laid the paragraph out again
+  at every cell it was drawn in. It also clips only a sequence wider than the
+  box instead of every glyph, which cost a save and a clip per cell.
+
+### Removed
+
+- The temporary `legacy_shim.dart` (the readiness-flag cache API) and its
+  tests: `panel_catalog` binds through `AssetCacheScope` and `chat_chrome`
+  composes a scope with the atlas as glyph source.
+
 ### Added (glyph probe bridge)
 
 - `CallbackGlyphBakeObserver`: a `GlyphBakeObserver` made of three functions, so
@@ -54,8 +68,6 @@ is pre-1.0.
 - `testing.dart`: `FakeAssetProducer`, `FakeAssetPaintable`,
   `FakeGlyphSpriteSource`, `ManualPlaybackTickSource`, `sampleGlyphCatalogue`,
   `runGlyphSpriteSourceContract`, `runPlaybackTickSourceContract`.
-- `legacy_shim.dart`: the removed readiness-flag API for `panel_catalog` and
-  `chat_chrome` until they migrate. Temporary; do not import it from new code.
 
 ### Added (content view and inline embed)
 

@@ -13,7 +13,7 @@
 
 import 'dart:async';
 
-import 'package:catalog_assets/legacy_shim.dart';
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,6 +21,8 @@ import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
+
+import '../support/asset_scopes.dart';
 
 import 'shared/baseline_sliver_grid_catalog.dart';
 import 'shared/baseline_supersliver_catalog.dart';
@@ -35,7 +37,7 @@ enum _BaselineKind { superSliver, sliverGrid }
 
 Widget _candidateApp({
   required ValueObservable<CatalogSnapshot> snapshots,
-  required CatalogAssetCache assetCache,
+  required AssetCacheScope assets,
   required PanelCatalogController controller,
   double width = 400,
   double height = 600,
@@ -50,7 +52,7 @@ Widget _candidateApp({
             height: height,
             child: PanelCatalogViewport(
               snapshots: snapshots,
-              assetCache: assetCache,
+              assets: assets,
               controller: controller,
               spanCount: kBenchSpanCount,
               cellExtent: kBenchCellExtent,
@@ -209,14 +211,14 @@ void main() {
       final sections = generateCatalogSections(leafCount);
 
       final snapshots = FakeCatalogSnapshotSource(sections: sections);
-      final assetCache = FakeCatalogAssetCache();
+      final assetScope = textGlyphScope();
       final controller = PanelCatalogController();
 
       Future<void> pumpCand(double width) async {
         await tester.pumpWidget(
           _candidateApp(
             snapshots: snapshots,
-            assetCache: assetCache,
+            assets: assetScope,
             controller: controller,
             width: width,
           ),
@@ -290,12 +292,12 @@ void main() {
       final sections = generateCatalogSections(leafCount);
 
       final snapshots = FakeCatalogSnapshotSource(sections: sections);
-      final assetCache = FakeCatalogAssetCache();
+      final assetScope = textGlyphScope();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -356,12 +358,12 @@ void main() {
       final sections = generateCatalogSections(leafCount);
 
       final snapshots = FakeCatalogSnapshotSource(sections: sections);
-      final assetCache = FakeCatalogAssetCache();
+      final assetScope = textGlyphScope();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -415,12 +417,12 @@ void main() {
       }
 
       final snapshots = FakeCatalogSnapshotSource(sections: sections);
-      final assetCache = FakeCatalogAssetCache();
+      final assetScope = textGlyphScope();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -492,12 +494,12 @@ void main() {
       }
 
       final snapshots = FakeCatalogSnapshotSource(sections: sections);
-      final assetCache = FakeCatalogAssetCache();
+      final assetScope = textGlyphScope();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -579,12 +581,12 @@ void main() {
 
       Future<BenchmarkMetrics> layoutOf(List<CatalogSection> sections) async {
         final snapshots = FakeCatalogSnapshotSource(sections: sections);
-        final assetCache = FakeCatalogAssetCache();
+        final assetScope = textGlyphScope();
         final controller = PanelCatalogController();
         Future<void> pumpCand(double width) => tester.pumpWidget(
           _candidateApp(
             snapshots: snapshots,
-            assetCache: assetCache,
+            assets: assetScope,
             controller: controller,
             width: width,
           ),
@@ -611,12 +613,12 @@ void main() {
 
       Future<BenchmarkMetrics> paintOf(List<CatalogSection> sections) async {
         final snapshots = FakeCatalogSnapshotSource(sections: sections);
-        final assetCache = FakeCatalogAssetCache();
+        final assetScope = textGlyphScope();
         final controller = PanelCatalogController();
         await tester.pumpWidget(
           _candidateApp(
             snapshots: snapshots,
-            assetCache: assetCache,
+            assets: assetScope,
             controller: controller,
           ),
         );
@@ -644,12 +646,12 @@ void main() {
         required int maxFrames,
       }) async {
         final snapshots = FakeCatalogSnapshotSource(sections: sections);
-        final assetCache = FakeCatalogAssetCache();
+        final assetScope = textGlyphScope();
         final controller = PanelCatalogController();
         await tester.pumpWidget(
           _candidateApp(
             snapshots: snapshots,
-            assetCache: assetCache,
+            assets: assetScope,
             controller: controller,
           ),
         );
@@ -706,12 +708,12 @@ void main() {
       final sections = generateCatalogSections(leafCount);
 
       final snapshots = FakeCatalogSnapshotSource(sections: sections);
-      final assetCache = FakeCatalogAssetCache();
+      final assetScope = textGlyphScope();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -758,12 +760,12 @@ void main() {
       final sections = generateCatalogSections(leafCount);
 
       final snapshots = FakeCatalogSnapshotSource(sections: sections);
-      final assetCache = FakeCatalogAssetCache();
+      final assetScope = textGlyphScope();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
         ),
       );

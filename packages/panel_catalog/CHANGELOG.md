@@ -36,15 +36,42 @@ is pre-1.0.
   write methods are deleted. `controller.events` is the one typed Observable.
   Commands given with no viewport commit a target that the next viewport starts
   from; a `jumpToSection` given before the first layout is applied after it.
+- **BREAKING: assets come from the host's scope.** `PanelCatalogViewport` takes
+  `assets: AssetCacheScope` instead of `assetCache` and `cacheType`; the
+  `cacheType` enum is gone and nothing is downcast to a cache implementation.
+  Each visible leaf is attached as `attach(key, spec, profile)` (its glyph box
+  in physical pixels at the view's density; animate only for an animated leaf,
+  and only while in the painted window and not flinging) and the viewport paints
+  the binding's `AssetPaintable`: a sprite is queued for the batched atlas draw,
+  anything else paints itself. Content that was not there at attach fades in
+  over its placeholder; a memory hit does not. There is no `failed`
+  presentation: a leaf that fails or hangs keeps its placeholder. A host that
+  drew text on the web composes `TextGlyphProducer` into its scope. `CatalogLeaf`
+  gains the `tintable` fact (the template decode).
+- **BREAKING: slim theme.** `PanelCatalogThemeData` carries the viewport's own
+  tokens: `circleColor`, `thumbColor`, `washColor`, `washHighlightColor`,
+  `washPeriod`, `skeletonColor`, `placeholderCornerRadius`, press highlight and
+  radius, section header style. `placeholderColor`, `documentStandInColor` and
+  `standInCornerRadius` (the failed and stub tokens) are gone. The package does
+  not depend on `chrome_foundation`.
+- **BREAKING: the viewport tells no atlas anything.** `CatalogAtlasBakeBridge`
+  is deleted. Whoever owns the bake listens to `controller.events`
+  (`PanelCatalogScrollingChanged`, `PanelCatalogScrollSettled`) and calls
+  `GlyphAtlas.reportScrolling` / `prioritise`. The glyph paragraph cache and
+  `kGlyphParagraphCacheLimit` are gone: the scope's byte-budgeted LRU bounds
+  the paragraphs of the text strategy (section headers keep a bounded cache).
 - **The bake pause is event-driven.** `CatalogBakeActivity` derives its two
   outputs from the controller's events instead of the paint offset and
   publishes them as `PanelCatalogScrollingChanged` and
-  `PanelCatalogScrollSettled(visibleKeys)`. The interim forwarding to the
-  cache's glyph atlas is `CatalogAtlasBakeBridge`, deleted with the legacy
-  cache API.
+  `PanelCatalogScrollSettled(visibleKeys)`.
 
 ### Added
 
+- `CatalogContentBox` and the per-section overrides `CatalogSection.contentBox`
+  and `CatalogSection.placeholderStyle`: the square a leaf is asked for from the
+  cache and drawn in (the glyph box for emoji, the whole cell for a sticker,
+  mask or GIF) and its stand-in, which a section can state instead of taking
+  the leaf's facts.
 - `SectionLayout`, `CatalogLeafHit`, `CatalogPlaceholderStyle`,
   `catalogGlyphBoxExtent` and `largestCatalogGlyphBox`: the rule that sizes a
   single baked glyph size for sections with different cell sizes.
@@ -52,18 +79,17 @@ is pre-1.0.
   `PanelCatalogScrollSettled` scroll events; `PanelCatalogController` extents
   (`viewportExtent`, `contentExtent`, `maxScrollExtent`, `hasPosition`).
 
-- **Baked sprites on screen.** When the asset cache has a
-  `CatalogAssetCache.glyphAtlas`, unicode leaves are drawn as sprites cut from
-  its pages: the painter queues each sprite and one paint pass draws every
-  page's sprites with a single batched atlas draw (the pressed cell is scaled
-  inside its batch). Existing behaviour is the web strategy: with no atlas
-  glyphs are drawn as paragraphs, as before.
+- **Baked sprites on screen.** A binding whose paintable has a sprite (a baked
+  glyph on an atlas page) is queued by the painter, and one paint pass draws
+  every page's sprites with a single batched atlas draw (the pressed cell is
+  scaled inside its batch). A paintable without one paints itself, which is the
+  web strategy.
 - **`panel_catalog_diagnostics.dart`** — `PanelCatalogDiagnostics.glyphParagraphDraws`,
   the proof that no emoji is drawn as text where emoji are baked (`0`). Bumped
-  only on the paragraph path, so the sprite path pays nothing.
-- **Bake stays out of the way.** The viewport tells the atlas when it scrolls
-  (drag, fling, jump, wheel, section motion) and, once it settles, which glyphs
-  are on screen so their page bakes first.
+  only for a glyph a paintable draws as text, so the sprite path pays nothing.
+- **Bake stays out of the way.** The viewport publishes when it scrolls (drag,
+  fling, jump, wheel, section motion) and, once it settles, which glyphs are on
+  screen, so the bake's owner can pause it and bake the visible page first.
 
 - **`kCatalogGlyphBoxFraction`** (0.72) — the share of a cell's shorter side a
   glyph is drawn in, public so a host that bakes glyphs sizes them for it.

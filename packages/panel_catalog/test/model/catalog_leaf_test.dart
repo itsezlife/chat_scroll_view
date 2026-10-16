@@ -68,6 +68,18 @@ void main() {
         ),
         reason: 'size hint',
       );
+      expect(
+        base,
+        isNot(
+          const CatalogLeaf(
+            key: ContentKey.document('7'),
+            semanticKind: SemanticKind.sticker,
+            mediaForm: MediaForm.still,
+            tintable: true,
+          ),
+        ),
+        reason: 'tintable',
+      );
     });
 
     test('the host tag is excluded from equality', () {
@@ -110,6 +122,7 @@ void main() {
         semanticKind: SemanticKind.customEmoji,
         mediaForm: MediaForm.vectorAnimation,
         animated: true,
+        tintable: true,
         size: ContentSize(100, 100),
         spokenName: 'wave',
       );
@@ -120,6 +133,7 @@ void main() {
       expect(leaf.semanticKind, SemanticKind.customEmoji);
       expect(leaf.mediaForm, MediaForm.vectorAnimation);
       expect(leaf.animated, isTrue);
+      expect(leaf.tintable, isTrue);
       expect(leaf.sizeHint, const ContentSize(100, 100));
       expect(leaf.tag, 'x');
     });
@@ -157,6 +171,35 @@ void main() {
         reason: 'unknown facts fall back to the thumbnail silhouette',
       );
     });
+  });
+
+  group('content box', () {
+    test(
+      'a sticker, mask or GIF fills its cell, anything else the glyph box',
+      () {
+        CatalogContentBox boxOf(SemanticKind kind) =>
+            CatalogLeaf.document('1', semanticKind: kind).contentBox;
+
+        expect(boxOf(SemanticKind.sticker), CatalogContentBox.cell);
+        expect(boxOf(SemanticKind.mask), CatalogContentBox.cell);
+        expect(boxOf(SemanticKind.gif), CatalogContentBox.cell);
+        expect(boxOf(SemanticKind.customEmoji), CatalogContentBox.glyph);
+        expect(boxOf(SemanticKind.unknown), CatalogContentBox.glyph);
+        expect(CatalogLeaf.unicode('😀').contentBox, CatalogContentBox.glyph);
+      },
+    );
+
+    test(
+      'the extent is the glyph fraction or the shorter side of the cell',
+      () {
+        expect(
+          catalogContentBoxExtent(CatalogContentBox.glyph, 80, 40),
+          closeTo(28.8, 1e-9),
+        );
+        expect(catalogContentBoxExtent(CatalogContentBox.cell, 80, 40), 40);
+        expect(catalogContentBoxExtent(CatalogContentBox.cell, 30, 40), 30);
+      },
+    );
   });
 
   group('hit identity', () {

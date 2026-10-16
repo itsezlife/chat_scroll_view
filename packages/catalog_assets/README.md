@@ -366,13 +366,3 @@ it) and `runInlineEmbedResolverContract`.
 On-device checks: `example/integration_test/glyph_atlas_bake_test.dart` (bake
 and visual check) and `glyph_atlas_paced_bake_test.dart` (paced bake idle, while
 the panel opens, during a fling).
-
-## Temporary shim
-
-`legacy_shim.dart` keeps the readiness-flag API (`CatalogAssetCache`,
-`MemoryCatalogAssetCache`, `CatalogAssetBinding`, ...) that `panel_catalog` and
-`chat_chrome` still call, so the tree stays green while they migrate. Its
-baked-glyph half runs on the real glyph form (an internal `AssetCacheScope`
-with the atlas registered); only the driven `loading` / `ready` / `failed`
-flags are legacy. It is deleted with the migration of those two packages. New
-code must not import it.

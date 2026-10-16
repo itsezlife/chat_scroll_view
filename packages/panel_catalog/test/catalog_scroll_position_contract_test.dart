@@ -1,12 +1,13 @@
 /// The position contract against its fake and against the real viewport.
 library;
 
-import 'package:catalog_assets/legacy_shim.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
+
+import 'support/asset_scopes.dart';
 
 void main() {
   group('FakeCatalogScrollPosition', () {
@@ -50,7 +51,7 @@ void main() {
                 height: 480,
                 child: PanelCatalogViewport(
                   snapshots: snapshots,
-                  assetCache: FakeCatalogAssetCache(),
+                  assets: textGlyphScope(),
                   controller: controller,
                   spanCount: 4,
                   cellExtent: 40,
