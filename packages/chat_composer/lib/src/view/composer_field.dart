@@ -181,11 +181,15 @@ class _ComposerFieldState extends State<ComposerField> {
     final line = render.getLineAtOffset(selection.extent);
     var top = caret.top;
     var bottom = caret.bottom;
-    for (final box in render.getBoxesForSelection(
-      TextSelection(baseOffset: line.start, extentOffset: line.end),
-    )) {
-      top = math.min(top, box.top);
-      bottom = math.max(bottom, box.bottom);
+    // An empty field has no line (the range is -1..-1, which the painter
+    // asserts on): the caret is all there is to show.
+    if (line.isValid) {
+      for (final box in render.getBoxesForSelection(
+        TextSelection(baseOffset: line.start, extentOffset: line.end),
+      )) {
+        top = math.min(top, box.top);
+        bottom = math.max(bottom, box.bottom);
+      }
     }
     final shift = switch (render.size.height) {
       final height when bottom > height => bottom - height,

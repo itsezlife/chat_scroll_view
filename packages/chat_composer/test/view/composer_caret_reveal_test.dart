@@ -95,4 +95,28 @@ void main() {
 
     expect(lastLineShown(tester), isTrue);
   });
+
+  testWidgets('a backspace that empties the field, and one on an empty field, '
+      'reveal without an error', (tester) async {
+    await tester.pumpWidget(
+      composerHarness(
+        ComposerView(controller: controller, spec: ComposerSpec()),
+      ),
+    );
+    controller
+      ..insertText('a')
+      ..requestFocus();
+    await tester.pumpAndSettle();
+
+    controller.backspace();
+    await tester.pump();
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(controller.text.text, isEmpty);
+
+    controller.backspace();
+    await tester.pump();
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
 }

@@ -14,6 +14,10 @@ is pre-1.0.
 
 ### Fixed
 
+- A backspace from the host (the panel's) that empties the field, or one on
+  an empty field, no longer fails an assertion while revealing the caret: an
+  empty field has no line to measure, only the caret.
+
 - An edit made through the controller (`insertText`, `insertContent`,
   `backspace`: a panel's emoji or backspace) scrolls a field past its maximum
   lines to show the whole line the caret is on, as typing does. Flutter
