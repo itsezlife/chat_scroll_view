@@ -21,3 +21,10 @@ this package is pre-1.0.
 - `testing.dart`: `FakeImeInput`, `ManualPanelClock`,
   `FakePresentationStrategy`, `runPresentationPolicyContract` and
   `runImeInputPortContract`.
+- `KeyboardReplacementStrategy`: the panel replaces the soft keyboard in the
+  bottom slot. Hand-off state machine (`KeyboardSlot`, `KeyboardSlotState`)
+  with a fallback timeout, animated occupancy on the `listTransition` role,
+  search expansion, safe area and the nav-bar scrim, and `composerSafeInset`.
+- `KeyboardHeightStore` over a `KeyValueStore`: keyboard height per
+  orientation, sanity floor, window-class defaults in
+  `KeyboardReplacementTuning`.
