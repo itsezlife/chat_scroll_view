@@ -27,7 +27,7 @@ Future<FlingCoverage> flingPass(WidgetTester tester) async {
     if (controller.offset > maxOffset) maxOffset = controller.offset;
   }
 
-  controller.addScrollListener(track);
+  controller.events.addListener(track);
   Future<void> fling(double dy) async {
     await tester.fling(finder, Offset(0, dy), 7000);
     await tester.pump(const Duration(milliseconds: 250));
@@ -47,7 +47,7 @@ Future<FlingCoverage> flingPass(WidgetTester tester) async {
     await fling(300);
   }
   await settle(tester);
-  controller.removeScrollListener(track);
+  controller.events.removeListener(track);
 
   return FlingCoverage(
     reachedEnd: reachedEnd,
@@ -56,7 +56,7 @@ Future<FlingCoverage> flingPass(WidgetTester tester) async {
     viewportHeightPx: viewportHeight,
     expectedExtentPx: estimateContentExtent(
       leavesPerSection: [
-        for (final section in viewport.dataSource.sections)
+        for (final section in viewport.snapshots.value.sections)
           section.leaves.length,
       ],
       spanCount: viewport.spanCount,
@@ -190,7 +190,7 @@ Map<String, Object?> atlasMeta(WidgetTester tester) {
   if (atlas == null) return const {'atlas': 'none'};
   final glyphs = <String>{
     for (final section
-        in tester.widget<PanelCatalogViewport>(finder).dataSource.sections)
+        in tester.widget<PanelCatalogViewport>(finder).snapshots.value.sections)
       for (final leaf in section.leaves)
         if (leaf is UnicodeCatalogLeaf) leaf.glyph,
   };

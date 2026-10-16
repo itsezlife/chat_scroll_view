@@ -34,14 +34,6 @@ abstract final class LegacyBaseline {
       'package:emoji_data/emoji_data.dart',
       removedBy: 'issue 32 (chat_chrome is deleted)',
     ),
-    LegacyException(
-      LintRule.fakeExportedOutsideTesting,
-      'packages/panel_catalog/lib/panel_catalog.dart exports '
-      'src/data/fake_catalog_data_source.dart',
-      removedBy:
-          'issue 16 (FakeCatalogDataSource becomes a snapshot fake in '
-          'testing.dart)',
-    ),
   ];
 
   /// [found] without the violations [legacy] excuses, plus a

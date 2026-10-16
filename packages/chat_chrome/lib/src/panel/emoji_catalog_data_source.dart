@@ -2,6 +2,7 @@ import 'package:catalog_assets/legacy_shim.dart';
 import 'package:chat_chrome/src/panel/emoji_tab_assets.dart';
 import 'package:chat_chrome/src/util/constants.dart';
 import 'package:chat_chrome/src/util/logger.dart';
+import 'package:content_model/content_model.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:panel_catalog/panel_catalog.dart';
@@ -47,7 +48,8 @@ final class EmojiCatalogStripTab {
   final EmojiStripIcon icon;
 }
 
-/// [CatalogDataSource] adapter for [EmojiPage].
+/// Snapshot owner for [EmojiPage]: publishes the [CatalogSnapshot] the viewport
+/// projects.
 ///
 /// Owns the viewport-facing section list projected from [EmojiDataSource],
 /// optional recents, and keyword-search results. Maintains a side map from each
@@ -56,11 +58,12 @@ final class EmojiCatalogStripTab {
 ///
 /// Does **not** own fetch — listens to [EmojiDataSource] and rebuilds on
 /// [rebuild]. Call [rebuild] when recents or search projection inputs change;
-/// the emoji source listener triggers rebuild automatically.
+/// the emoji source listener triggers rebuild automatically. Each [rebuild]
+/// publishes one new snapshot on [snapshots].
 ///
 /// Unicode leaves are marked ready on [CatalogAssetCache] during [rebuild] so
 /// paint skips circle placeholders for standard emoji cells.
-final class EmojiCatalogDataSource extends CatalogDataSource {
+final class EmojiCatalogDataSource {
   /// Creates an adapter over [emojiSource] and [assetCache].
   EmojiCatalogDataSource({
     required EmojiDataSource emojiSource,
@@ -71,13 +74,21 @@ final class EmojiCatalogDataSource extends CatalogDataSource {
   final EmojiDataSource _emojiSource;
   final CatalogAssetCache _assetCache;
 
-  List<CatalogSection> _sections = const [];
+  final _snapshots = ObservableValue<CatalogSnapshot>(
+    const CatalogSnapshot.empty(),
+  );
   List<EmojiCatalogStripTab> _stripTabs = const [];
   Map<CatalogLeaf, EmojiLeafMeta> _leafMeta =
       const <CatalogLeaf, EmojiLeafMeta>{};
   var _searchEmpty = false;
 
-  /// Parallel strip tabs for [_sections] (same length and order).
+  /// The current sections, published for the viewport.
+  ValueObservable<CatalogSnapshot> get snapshots => _snapshots;
+
+  /// Current sections in display order.
+  List<CatalogSection> get sections => _snapshots.value.sections;
+
+  /// Parallel strip tabs for [sections] (same length and order).
   List<EmojiCatalogStripTab> get stripTabs => _stripTabs;
 
   /// Whether the last keyword search completed with zero hits.
@@ -209,7 +220,6 @@ final class EmojiCatalogDataSource extends CatalogDataSource {
     Map<CatalogLeaf, EmojiLeafMeta> meta,
     bool searchEmpty,
   ) {
-    _sections = List<CatalogSection>.unmodifiable(sections);
     _stripTabs = List<EmojiCatalogStripTab>.unmodifiable(tabs);
     _leafMeta = Map<CatalogLeaf, EmojiLeafMeta>.unmodifiable(meta);
     _searchEmpty = searchEmpty;
@@ -222,7 +232,7 @@ final class EmojiCatalogDataSource extends CatalogDataSource {
         'meta': meta.length,
       });
     }
-    notifyDataChanged();
+    _snapshots.value = CatalogSnapshot(sections);
   }
 
   ({String pickGlyph, String displayGlyph, bool supportsSkinTone})
@@ -247,6 +257,6 @@ final class EmojiCatalogDataSource extends CatalogDataSource {
     }
   }
 
-  @override
-  List<CatalogSection> get sections => _sections;
+  /// Drops the snapshot listeners. Idempotent.
+  void dispose() => _snapshots.dispose();
 }

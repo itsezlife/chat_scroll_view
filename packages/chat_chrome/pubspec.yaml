@@ -16,6 +16,8 @@ dependencies:
     sdk: flutter
   catalog_assets:
     path: ../catalog_assets
+  content_model:
+    path: ../content_model
   emoji_data:
     path: ../emoji_data
   meta: ^1.17.0

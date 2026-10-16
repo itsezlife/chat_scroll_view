@@ -813,11 +813,11 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     if (identical(_boundCatalogController, controller)) return;
     _unbindCatalogScroll();
     _boundCatalogController = controller;
-    controller.addScrollListener(_onCatalogScroll);
+    controller.events.addListener(_onCatalogScroll);
   }
 
   void _unbindCatalogScroll() {
-    _boundCatalogController?.removeScrollListener(_onCatalogScroll);
+    _boundCatalogController?.events.removeListener(_onCatalogScroll);
     _boundCatalogController = null;
   }
 

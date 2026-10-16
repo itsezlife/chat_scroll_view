@@ -14,11 +14,13 @@
 import 'dart:async';
 
 import 'package:catalog_assets/legacy_shim.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
+import 'package:panel_catalog/testing.dart';
 
 import 'shared/baseline_sliver_grid_catalog.dart';
 import 'shared/baseline_supersliver_catalog.dart';
@@ -32,7 +34,7 @@ enum _BaselineKind { superSliver, sliverGrid }
 // ---------------------------------------------------------------------------
 
 Widget _candidateApp({
-  required CatalogDataSource dataSource,
+  required ValueObservable<CatalogSnapshot> snapshots,
   required CatalogAssetCache assetCache,
   required PanelCatalogController controller,
   double width = 400,
@@ -47,7 +49,7 @@ Widget _candidateApp({
             width: width,
             height: height,
             child: PanelCatalogViewport(
-              dataSource: dataSource,
+              snapshots: snapshots,
               assetCache: assetCache,
               controller: controller,
               spanCount: kBenchSpanCount,
@@ -200,14 +202,14 @@ void main() {
     testWidgets('forced layout — $leafCount leaves', (tester) async {
       final sections = generateCatalogSections(leafCount);
 
-      final dataSource = FakeCatalogDataSource(sections: sections);
+      final snapshots = FakeCatalogSnapshotSource(sections: sections);
       final assetCache = FakeCatalogAssetCache();
       final controller = PanelCatalogController();
 
       Future<void> pumpCand(double width) async {
         await tester.pumpWidget(
           _candidateApp(
-            dataSource: dataSource,
+            snapshots: snapshots,
             assetCache: assetCache,
             controller: controller,
             width: width,
@@ -230,7 +232,7 @@ void main() {
         );
       }
       await tester.pumpWidget(const SizedBox.shrink());
-      dataSource.dispose();
+      snapshots.dispose();
       controller.dispose();
       final cand = BenchmarkMetrics('PCV layout', candLayout);
 
@@ -281,12 +283,12 @@ void main() {
     testWidgets('scroll-only paint — $leafCount leaves', (tester) async {
       final sections = generateCatalogSections(leafCount);
 
-      final dataSource = FakeCatalogDataSource(sections: sections);
+      final snapshots = FakeCatalogSnapshotSource(sections: sections);
       final assetCache = FakeCatalogAssetCache();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
-          dataSource: dataSource,
+          snapshots: snapshots,
           assetCache: assetCache,
           controller: controller,
         ),
@@ -304,7 +306,7 @@ void main() {
         candPaint.add(candRo.debugLastPaintDuration.inMicroseconds);
       }
       await tester.pumpWidget(const SizedBox.shrink());
-      dataSource.dispose();
+      snapshots.dispose();
       controller.dispose();
       final cand = BenchmarkMetrics('PCV paint', candPaint);
 
@@ -347,12 +349,12 @@ void main() {
     testWidgets('fling frame timing — $leafCount leaves', (tester) async {
       final sections = generateCatalogSections(leafCount);
 
-      final dataSource = FakeCatalogDataSource(sections: sections);
+      final snapshots = FakeCatalogSnapshotSource(sections: sections);
       final assetCache = FakeCatalogAssetCache();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
-          dataSource: dataSource,
+          snapshots: snapshots,
           assetCache: assetCache,
           controller: controller,
         ),
@@ -365,7 +367,7 @@ void main() {
         find.byType(PanelCatalogViewport),
       );
       await tester.pumpWidget(const SizedBox.shrink());
-      dataSource.dispose();
+      snapshots.dispose();
       controller.dispose();
       final cand = BenchmarkMetrics('PCV fling', candFling);
 
@@ -406,12 +408,12 @@ void main() {
         return;
       }
 
-      final dataSource = FakeCatalogDataSource(sections: sections);
+      final snapshots = FakeCatalogSnapshotSource(sections: sections);
       final assetCache = FakeCatalogAssetCache();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
-          dataSource: dataSource,
+          snapshots: snapshots,
           assetCache: assetCache,
           controller: controller,
         ),
@@ -422,7 +424,7 @@ void main() {
         start: () => controller.jumpToSection(1),
       );
       await tester.pumpWidget(const SizedBox.shrink());
-      dataSource.dispose();
+      snapshots.dispose();
       controller.dispose();
       final cand = BenchmarkMetrics('PCV near', candNear);
 
@@ -483,12 +485,12 @@ void main() {
         return;
       }
 
-      final dataSource = FakeCatalogDataSource(sections: sections);
+      final snapshots = FakeCatalogSnapshotSource(sections: sections);
       final assetCache = FakeCatalogAssetCache();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
-          dataSource: dataSource,
+          snapshots: snapshots,
           assetCache: assetCache,
           controller: controller,
         ),
@@ -501,7 +503,7 @@ void main() {
         maxFrames: 180,
       );
       await tester.pumpWidget(const SizedBox.shrink());
-      dataSource.dispose();
+      snapshots.dispose();
       controller.dispose();
       final cand = BenchmarkMetrics('PCV far stitch', candFar);
 
@@ -563,12 +565,12 @@ void main() {
     testWidgets('memory at rest — $leafCount leaves', (tester) async {
       final sections = generateCatalogSections(leafCount);
 
-      final dataSource = FakeCatalogDataSource(sections: sections);
+      final snapshots = FakeCatalogSnapshotSource(sections: sections);
       final assetCache = FakeCatalogAssetCache();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
-          dataSource: dataSource,
+          snapshots: snapshots,
           assetCache: assetCache,
           controller: controller,
         ),
@@ -580,7 +582,7 @@ void main() {
         renderObjectCount: _renderObjectCount(tester),
       );
       await tester.pumpWidget(const SizedBox.shrink());
-      dataSource.dispose();
+      snapshots.dispose();
       controller.dispose();
 
       for (final kind in _BaselineKind.values) {
@@ -615,12 +617,12 @@ void main() {
     ) async {
       final sections = generateCatalogSections(leafCount);
 
-      final dataSource = FakeCatalogDataSource(sections: sections);
+      final snapshots = FakeCatalogSnapshotSource(sections: sections);
       final assetCache = FakeCatalogAssetCache();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
-          dataSource: dataSource,
+          snapshots: snapshots,
           assetCache: assetCache,
           controller: controller,
         ),
@@ -645,7 +647,7 @@ void main() {
         renderObjectCount: candPeakRo,
       );
       await tester.pumpWidget(const SizedBox.shrink());
-      dataSource.dispose();
+      snapshots.dispose();
       controller.dispose();
 
       for (final kind in _BaselineKind.values) {
