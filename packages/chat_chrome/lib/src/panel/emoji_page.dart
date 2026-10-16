@@ -54,6 +54,7 @@ class EmojiPage extends StatefulWidget {
     this.onOpenSearch,
     this.onClearRecents,
     this.glyphAtlas,
+    this.deferChrome = false,
     super.key,
   });
 
@@ -64,6 +65,17 @@ class EmojiPage extends StatefulWidget {
   /// each grid page it mounts. A page that is given none draws text, which is
   /// right on a platform that does not bake and for a page embedded on its own.
   final GlyphAtlas? glyphAtlas;
+
+  /// Whether the search field and the category strip mount in the frames after
+  /// the grid (one each) instead of with it.
+  ///
+  /// Mounting the whole page in one frame costs more than a 120 Hz frame (the
+  /// catalogue projection, the grid, a text field and the strip together). A
+  /// panel that opens with an animation mounts the page while nothing moves, so
+  /// it can spread that cost over three frames at no visible price; a panel that
+  /// is already on screen when the page mounts (it replaces the keyboard) must
+  /// not, or the chrome would pop in. Read once, when the page mounts.
+  final bool deferChrome;
 
   /// Catalog, search, and skin-tone prefs.
   ///
@@ -216,6 +228,10 @@ class EmojiPageState extends State<EmojiPage>
   final PanelCatalogController _catalogController = PanelCatalogController();
   late MemoryCatalogAssetCache _assetCache;
   late EmojiCatalogDataSource _catalogDataSource;
+
+  // How much of the page is mounted; a page without [EmojiPage.deferChrome]
+  // starts complete.
+  late _PageMount _mount;
 
   var _spanCount = 1;
   var _rowCellExtent = EmojiPage.cellPitch;
@@ -371,6 +387,8 @@ class EmojiPageState extends State<EmojiPage>
   @override
   void initState() {
     super.initState();
+    _mount = widget.deferChrome ? _PageMount.grid : _PageMount.complete;
+    _mountNextStage();
     _assetCache = MemoryCatalogAssetCache(glyphAtlas: widget.glyphAtlas);
     _catalogDataSource = EmojiCatalogDataSource(
       emojiSource: widget.dataSource,
@@ -386,6 +404,17 @@ class EmojiPageState extends State<EmojiPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _updateSearchGeometry();
+    });
+  }
+
+  /// Mounts the next stage of a deferred page in the next frame, one stage per
+  /// frame.
+  void _mountNextStage() {
+    if (_mount == _PageMount.complete) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _mount = _PageMount.values[_mount.index + 1]);
+      _mountNextStage();
     });
   }
 
@@ -1330,10 +1359,11 @@ class EmojiPageState extends State<EmojiPage>
         ),
         // With sticky search, always reserve this slot so empty↔hits does not
         // remount the field (null-aware insert shifts Stack children).
-        if (_hasStickySearchOverlay || _catalogDataSource.isSearchEmpty)
+        if (_mount != _PageMount.grid &&
+            (_hasStickySearchOverlay || _catalogDataSource.isSearchEmpty))
           _emptySearchOverlay(),
-        ?_stickySearchOverlay(),
-        if (showStrip)
+        if (_mount != _PageMount.grid) ?_stickySearchOverlay(),
+        if (_mount == _PageMount.complete && showStrip)
           Positioned(
             top: 0,
             left: 0,
@@ -1362,6 +1392,12 @@ class EmojiPageState extends State<EmojiPage>
     );
   }
 }
+
+/// Stages of a page that spreads its first mount over frames
+/// ([EmojiPage.deferChrome]): the grid, then the search field, then the
+/// category strip. The strip is last because it is the last child of the page's
+/// [Stack]: mounting it earlier would move it when the search field arrives.
+enum _PageMount { grid, search, complete }
 
 // --- Private models ---------------------------------------------------------
 

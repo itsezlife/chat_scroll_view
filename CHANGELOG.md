@@ -1308,6 +1308,18 @@ repository. Each entry says what to change.
     `jumpToSection`.
   - A correctness suite and A/B benchmarks against SuperSliverList and
     SliverGrid live in `packages/panel_catalog/test/benchmark/`.
+- **CHANGED**: A cold open of `KeyboardPanel` no longer mounts the whole emoji
+  page in one frame. On the reference phone that single frame took 8.6 to
+  11.9 ms of build time against an 8.33 ms budget at 120 Hz (and about 8.7 ms
+  on a warm reopen). The page now mounts the grid, then the search field, then
+  the category strip, one frame each, inside the existing
+  `KeyboardPanelMotion.startDelay` while the panel is still at zero height, so
+  the slide starts with the full page and nothing pops in. The measured
+  mount frames are 3.5 to 4.7 ms. A panel that replaces the keyboard is on
+  screen at once and still mounts everything in one frame. `EmojiPage` gains
+  `deferChrome` (default `false`, so a page embedded on its own is unchanged);
+  code that finds `EmojiSearchField` or `EmojiCategoryStripOverlay` in the
+  first frame after a cold open now finds them two frames later.
 - **REMOVED**: The legacy `chat_chrome_emoji_*` recents migration and dual-read
   in emoji_data. Only `emoji_data_use_history` is persisted.
 - **FIXED**: Sticky emoji search keeps focus and the cursor when keyword
