@@ -8,6 +8,16 @@ is pre-1.0.
 
 ### Changed
 
+- Under the touch arrangement, `EmojiCategoryStrip` follows `EmojiStripLayout`
+  too: with a pack (by default) it is the reference mobile client's strip with
+  custom emoji: the recents, the categories folded into a group that opens
+  while one of them is active, then a tab per pack drawn by its cover. Without
+  a pack, or with `EmojiStripLayout.plain`, it is the row of category tabs as
+  before. Hosts that relied on the touch strip never showing packs pass
+  `EmojiStripLayout.plain`.
+  A pack's tab is its cover's first frame, a still, as the reference client
+  draws it; the pill stays still on the open group while the category inside
+  it changes.
 - `EmojiPagePolicy` files every pick under `EmojiPagePolicy.recentsKind`
   (`SemanticKind.unicodeEmoji`), custom emoji included: the page has one
   recents list, as the reference clients do. A custom emoji pick reached the

@@ -12,6 +12,7 @@ top strip. This supersedes the controller and widget-API parts of
 **Amended**: 2026-10-16 — the **panel arrangement** (`touch`, `pointer`) splits the bottom chrome and places a page's strip ([Amendment](#amendment-panel-arrangement))  
 **Amended**: 2026-10-16 — cell interactions under a mouse: the recents context menu, the variant picker rules and the hold seam ([Amendment](#amendment-cell-interactions-under-a-mouse))  
 **Amended**: 2026-10-16 — under `touch` a page may place the search field itself and draw a sticky header ([Amendment](#amendment-where-the-field-sits)); the arrangement selects between the two  
+**Amended**: 2026-10-17 — the touch strip with packs is the reference mobile client's ([Amendment](#amendment-the-touch-strip-with-packs))  
 **Relates to**: [ADR 007](007-keyboard-panel-controller.md) (superseded in part), [ADR 020](020-package-topology.md), [ADR 023](023-data-layering-and-persistence.md), [ADR 024](024-panel-catalog-seams.md), [ADR 028](028-panel-presentation.md)
 
 ## Decided
@@ -175,3 +176,22 @@ reference clients. It amends the rows above where it says so.
 | Plain strip | Supersedes the even spread of *Amendment: desktop chrome and mobile search*: the plain layout is the grouped footer's look (30 px slots from 3 px in, the 28 px square) with nothing folded. |
 | Tone for all | Under `pointer` the Smileys & People header ends in a button (`EmojiPagePolicy.colorAllActionId`) that opens the waving hand as it is and in each tone under `PanelStrings.colorAllTitle`. A choice is `PreferenceStore.setDefaultVariant`: every per-emoji choice is forgotten and the tone is shown for every emoji with a variant whose people all have it (others keep their base); a later choice for one emoji wins; recents keep what was picked; nothing is inserted. Policies get the action's bounds and a context (`onSectionAction(context:, bounds:, viewportBounds:)`), from `PanelCatalogController.sectionActionBoundsOf`. |
 | Mobile picker | Anything but a mouse gets the reference mobile client's picker (`EmojiToneSession`, `EmojiTonePicker`): one person, a 222 x 47 window of 32 px emoji 5 px in and 4 px apart over a card with an arrow whose tip is on the top of the glyph's box, the saved tone over the pressed glyph, held 5 px inside the overlay; the finger moves the mark in 36 px steps once it has left a 0.2 cm slop, the mark (36 px, radius 4) sliding over 125 ms on an ease-out quint and the option under it at full size, the others at 0.9; lifting chooses. Two people: the emoji as it is beside a separator and a row of five tones per person (225 x 75.66); lifting leaves it up, a tap or drag on a row sets that person's tone (given to both while the other has none) and keeps the choice at once, a press elsewhere closes it. Haptics as Flutter maps them on Android: `vibrate` on open, `selectionClick` per change, `mediumImpact` on the choice. An assistive tap on an option chooses it. Not ported: the cell springing back as the picker opens, and the system dropdown animation (it fades). |
+
+## Amendment: the touch strip with packs
+
+Supersedes "The touch strip has no pack tabs" (*Amendment: desktop polish*).
+Under `touch` the emoji strip follows `EmojiStripLayout` as the pointer
+footer does: plain with no pack, grouped with any, unless the host fixes one.
+Grouped is the reference mobile client's `EmojiTabsStrip` with custom emoji
+(`EmojiStripTabs`).
+
+| Area | Decision |
+| ---- | -------- |
+| Row | 36 px, 11 px in from both ends, 30 px tabs 3 px apart: the recents, the group of the categories, then a tab per pack drawn by its cover, else its first item, at 24 px (a still). It scrolls sideways when it does not fit. |
+| Group | Open while a category is active: 32 px a category, as wide as `32 · min(5.7, n)`, scrolling inside beyond that. Otherwise one tab wide, showing its first category, back at its start. Its width moves over 475 ms ease-out quint. |
+| Pill | One pill marks the active tab, or the whole open group; the category in it is told by its icon's colour (350 ms). It slides between tabs over 350 ms ease-out quint, widening by up to 30 % and flattening by 5 % at the middle of its way. The group is drawn only inside the pill and its first tab's circle, so it is revealed as the pill reaches it. |
+| Scroll | A pack is kept 50 px in from either edge; the recents and the group bring the row back to its start; an open group keeps its active category in view; 250 ms ease-out quint. First build, disabled animations and instant motion place everything at once. |
+
+Metrics and traces: the `telegram-java-to-flutter` skill's
+`emoji-tabs-strip.md`.
+
