@@ -1,4 +1,5 @@
 import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 
 /// A [KeywordSource] that answers from a host's source first and from a
 /// baseline underneath: the bundled packs are the offline floor, whatever the
@@ -15,11 +16,11 @@ import 'package:content_model/content_model.dart';
 ///
 /// The inputs belong to the caller: [dispose] stops listening to them and
 /// does not dispose them.
-final class LayeredKeywordSource implements KeywordSource {
+final class LayeredKeywordSource with ChangeNotifier implements KeywordSource {
   /// Layers [overlay] over [base].
   LayeredKeywordSource({required this.base, required this.overlay}) {
-    base.changes.addListener(_changes.notify);
-    overlay.changes.addListener(_changes.notify);
+    base.changes.addListener(notifyListeners);
+    overlay.changes.addListener(notifyListeners);
   }
 
   /// The baseline, answering where the overlay has nothing.
@@ -28,18 +29,18 @@ final class LayeredKeywordSource implements KeywordSource {
   /// The host's source, answering first.
   final KeywordSource overlay;
 
-  final ObservableNotifier _changes = ObservableNotifier();
   final Map<String, _Merge> _merged = {};
+  bool _disposed = false;
 
   @override
-  Observable get changes => _changes;
+  Listenable get changes => this;
 
   @override
   Future<KeywordPack?> pack(String language) async {
-    if (_changes.isDisposed) return null;
+    if (_disposed) return null;
     final lower = await base.pack(language);
     final upper = await overlay.pack(language);
-    if (_changes.isDisposed) return null;
+    if (_disposed) return null;
     if (lower == null || upper == null) return upper ?? lower;
     final known = _merged[language];
     if (known != null &&
@@ -58,9 +59,11 @@ final class LayeredKeywordSource implements KeywordSource {
 
   @override
   void dispose() {
-    base.changes.removeListener(_changes.notify);
-    overlay.changes.removeListener(_changes.notify);
-    _changes.dispose();
+    if (_disposed) return;
+    _disposed = true;
+    base.changes.removeListener(notifyListeners);
+    overlay.changes.removeListener(notifyListeners);
+    super.dispose();
     _merged.clear();
   }
 }

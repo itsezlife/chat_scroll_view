@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/src/glyph_probe/glyph_pixel_hash.dart';
+import 'package:listen/listen.dart';
 
 /// What systems tend to draw for a code point that is not a character: their
 /// missing-glyph cell (a box, a question mark) or nothing at all. The probe
@@ -56,7 +57,7 @@ const String _blank = 'blank';
 ///
 /// A failing [KeyValueStore] costs only the persisted verdicts: the failure is
 /// reported to the zone and the probe keeps answering from memory.
-final class MissingGlyphProbe implements GlyphSupport {
+final class MissingGlyphProbe with ChangeNotifier implements GlyphSupport {
   /// Creates a probe for [glyphs] (the strings of the unicode keys it is asked
   /// about), persisting through [store].
   ///
@@ -90,7 +91,7 @@ final class MissingGlyphProbe implements GlyphSupport {
   final Map<String, String> _cellHashes = <String, String>{};
   final Completer<void> _completed = Completer<void>();
   bool _isComplete = false;
-  final ObservableNotifier _changes = ObservableNotifier();
+  bool _disposed = false;
 
   Future<void>? _started;
   Object? _artVersionError;
@@ -107,7 +108,7 @@ final class MissingGlyphProbe implements GlyphSupport {
   // --- GlyphSupport ---
 
   @override
-  Observable get changes => _changes;
+  Listenable get changes => this;
 
   @override
   String? get artVersion => _artVersion;
@@ -121,7 +122,9 @@ final class MissingGlyphProbe implements GlyphSupport {
   /// [artVersionReady] then fails with a [StateError].
   @override
   void dispose() {
-    _changes.dispose();
+    if (_disposed) return;
+    _disposed = true;
+    super.dispose();
     if (!_completed.isCompleted) _completed.complete();
   }
 
@@ -153,17 +156,17 @@ final class MissingGlyphProbe implements GlyphSupport {
   Future<void> _start() async {
     try {
       final version = await _produceArtVersion();
-      if (_changes.isDisposed) return;
+      if (_disposed) return;
       await _restore(version);
       _artVersion = version;
     } on Object catch (error, stack) {
       _artVersionError = error;
       _artVersionStack = stack;
     }
-    if (_changes.isDisposed) return;
+    if (_disposed) return;
     _publishing = true;
     _missing = _computeMissing();
-    _changes.notify();
+    notifyListeners();
     _settle();
   }
 
@@ -221,7 +224,7 @@ final class MissingGlyphProbe implements GlyphSupport {
   /// gets its verdict. Anything else is ignored. Observing twice is harmless.
   /// The first call starts the art version producer if nothing has.
   void observe(String glyph, Uint8List pixels) {
-    if (_changes.isDisposed) return;
+    if (_disposed) return;
     if (_references.contains(glyph)) {
       _referenceHashes.add(_hashOf(pixels));
     } else if (_glyphs.contains(glyph)) {
@@ -299,13 +302,13 @@ final class MissingGlyphProbe implements GlyphSupport {
 
   void _flush() {
     _flushScheduled = false;
-    if (_changes.isDisposed) return;
+    if (_disposed) return;
     final missing = _computeMissing();
     if (missing.length == _missing.length && missing.containsAll(_missing)) {
       return;
     }
     _missing = missing;
-    _changes.notify();
+    notifyListeners();
   }
 
   void _settle() {

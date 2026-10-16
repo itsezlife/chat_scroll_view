@@ -4,6 +4,7 @@ import 'package:content_model/content_model.dart';
 import 'package:emoji_data/src/catalog/emoji_catalog.dart';
 import 'package:emoji_data/src/collections/emoji_items.dart';
 import 'package:emoji_data/src/collections/emoji_spoken_names.dart';
+import 'package:listen/listen.dart';
 
 /// The emoji catalogue as a [CollectionSource]: the user's recents followed by
 /// one category per catalogue group.
@@ -81,7 +82,7 @@ final class EmojiCollectionSource implements CollectionSource {
          for (final group in catalog.structure.groups)
            CollectionId.category(group.id),
        ] {
-    _collections = ObservableValue<List<Collection>>(_snapshot());
+    _collections = ValueNotifier<List<Collection>>(_snapshot());
     _recents.changes.addListener(_refresh);
     _preferences.changes.addListener(_refresh);
     _glyphSupport?.changes.addListener(_refresh);
@@ -99,7 +100,7 @@ final class EmojiCollectionSource implements CollectionSource {
   final List<CollectionId> _ids;
   Future<void>? _namesRead;
 
-  late final ObservableValue<List<Collection>> _collections;
+  late final ValueNotifier<List<Collection>> _collections;
   final Map<CollectionId, CollectionContents> _states = {};
   final Map<CollectionId, int> _pages = {};
   final Map<CollectionId, Future<void>> _loading = {};
@@ -107,7 +108,7 @@ final class EmojiCollectionSource implements CollectionSource {
   bool _disposed = false;
 
   @override
-  ValueObservable<List<Collection>> get collections => _collections;
+  ValueListenable<List<Collection>> get collections => _collections;
 
   /// The entry [key] is the base or a variant of, or null when the catalogue
   /// holds no such key. The same answer for the grid, the variant picker and
