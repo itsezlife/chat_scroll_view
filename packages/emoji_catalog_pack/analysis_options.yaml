@@ -1,0 +1,3 @@
+# Strict modes and lint set come from the repo root; the package is pure Dart
+# (its assets are consumed by Flutter hosts, but no code here imports Flutter).
+include: ../../analysis_options.yaml
