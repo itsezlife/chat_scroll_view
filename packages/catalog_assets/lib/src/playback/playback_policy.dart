@@ -23,9 +23,10 @@ enum PlaybackPauseLayer {
 /// ## Defaults and where they come from
 ///
 /// Every layer pauses. A small asset runs at 30 fps and a large one at 60:
-/// Telegram Android caps emoji up to 90 dp at about 30 fps and Desktop
-/// repaints no faster than every 33 ms, because a small animation is not
-/// visibly smoother at 60 and costs a repaint of its surface each frame.
+/// the reference client caps emoji up to 90 dp at about 30 fps on mobile and
+/// repaints no faster than every 33 ms on desktop, because a small animation
+/// is not visibly smoother at 60 and costs a repaint of its surface each
+/// frame.
 /// Specs are in pixels, so the threshold [smallEdgePixels] (270) is 90 dp at
 /// the common density of 3. The cap derives from the spec, not from a surface
 /// name, so the same asset at two sizes is capped separately. 60 fps is a

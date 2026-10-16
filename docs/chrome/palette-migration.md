@@ -53,9 +53,9 @@ surfaces, the old light blue `54A1DB` reaches 2.8:1 as text and under a white
 glyph, and some dark muted greys fall to 2.8 to 3.8:1. The presets keep the
 old colour where it passes and use the nearest value that passes where it does
 not (the table shows each change). The old numbers are the `ChatChromeColors`
-defaults as ported; they were not re-derived from the Telegram sources, which
-are not part of this checkout, so a fidelity review of the shipped values is
-still open.
+defaults as ported; they were not re-derived from the reference client's
+sources, which are not part of this checkout, so a fidelity review of the
+shipped values is still open.
 
 The palette and token groups themselves are described in
 [`chrome_foundation`](../../packages/chrome_foundation/README.md).

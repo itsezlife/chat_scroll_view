@@ -6,8 +6,8 @@ import 'package:meta/meta.dart';
 /// groups the tab leads to.
 ///
 /// A tab can cover several groups (smileys and people are one tab, as in
-/// Telegram): tapping it lands on the first of its sections that the page
-/// shows, and the tab is active while the user is in any of them.
+/// the reference client): tapping it lands on the first of its sections that
+/// the page shows, and the tab is active while the user is in any of them.
 @immutable
 final class EmojiCategoryTab {
   /// A tab named [id], painted as [icon], covering the catalogue groups

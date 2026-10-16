@@ -34,7 +34,7 @@ under a host quality policy
 | `GlassSourceScope`, `GlassSource` | Marks the content that sampled glass reads. A scope above the content and the surfaces, a source around the content. |
 | `package:chrome_foundation/testing.dart` | `ChromeStringsPresets.english` / `.russian` and `describeChromeStrings` for completeness checks. Tests and demos only. |
 
-Geometry is not a token here: Telegram-derived metrics stay constants owned by
+Geometry is not a token here: metrics taken from the reference client stay constants owned by
 the component that draws them. Labels are host strings, never tokens. Motion is
 a role table with a speed scale, not a colour-style group, so it has no `lerp`.
 

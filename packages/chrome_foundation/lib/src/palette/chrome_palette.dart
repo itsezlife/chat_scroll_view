@@ -41,8 +41,9 @@ final class ChromePalette {
     required this.shadow,
   });
 
-  /// Telegram-derived light palette, adjusted where the original greys and
-  /// blue fell below AA (see the package README for the original values).
+  /// The light palette of the reference client, adjusted where the original
+  /// greys and blue fell below AA (see the package README for the original
+  /// values).
   const ChromePalette.light()
     : brightness = Brightness.light,
       surface = const Color(0xFFFFFFFF),
@@ -61,8 +62,8 @@ final class ChromePalette {
       contentFade = const Color(0xFFFFFFFF),
       shadow = const Color(0xFF000000);
 
-  /// Telegram-derived dark palette, adjusted where the original greys fell
-  /// below AA (see the package README for the original values).
+  /// The dark palette of the reference client, adjusted where the original
+  /// greys fell below AA (see the package README for the original values).
   const ChromePalette.dark()
     : brightness = Brightness.dark,
       surface = const Color(0xFF20242A),

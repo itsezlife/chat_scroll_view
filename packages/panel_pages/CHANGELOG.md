@@ -40,7 +40,7 @@ is pre-1.0.
   category, active tab follows the catalogue, landing rules), `EmojiVariantPicker`
   and `EmojiVariantSession` (an entry's base and variants, chosen by sliding or
   tapping, remembered per base through `PreferenceStore`) and `EmojiTabIconScope`
-  (the strip's Telegram art as chrome icon painters).
+  (the strip's art as chrome icon painters).
 - `GlyphAtlasHost` and `GlyphPlan`: the atlas of a page that shows baked glyphs,
   planned from the glyph list of the page's collections (the chosen variant of
   each emoji, then recents the catalogue lacks, sorted, so a pick never

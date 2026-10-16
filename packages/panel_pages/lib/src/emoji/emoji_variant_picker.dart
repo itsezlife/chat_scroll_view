@@ -8,8 +8,9 @@ import 'package:panel_pages/src/policy/catalog_page_policy.dart';
 /// The geometry of the variant picker: a rounded body of cells in rows, with
 /// an arrow pointing down at the cell that was pressed.
 ///
-/// A set of documented constants rather than tokens: the picker is Telegram's
-/// popup, and its size is part of how it feels under a thumb.
+/// A set of documented constants rather than tokens: the picker follows the
+/// reference client's popup, and its size is part of how it feels under a
+/// thumb.
 abstract final class EmojiVariantPickerMetrics {
   /// Side of one option.
   static const double cell = 32;

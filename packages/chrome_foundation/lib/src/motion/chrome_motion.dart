@@ -49,7 +49,7 @@ enum MotionRole {
 /// Durations here are the design durations at normal speed; the scope's
 /// `ChromeMotionSpeed` scales them. The values are the ones the previous
 /// chrome shipped, except `popupShow`, `popupHide` and `headerReveal`, which
-/// are chosen defaults not yet checked against the Telegram clients.
+/// are chosen defaults not yet checked against the reference client.
 @immutable
 final class ChromeMotion {
   /// A motion table with every role given.
@@ -92,8 +92,9 @@ final class ChromeMotion {
 
   static const Duration _quarterSecond = Duration(milliseconds: 250);
 
-  /// The cubic Telegram Android uses for list and panel transitions, measured
-  /// from its interpolator rather than approximated by a named Flutter curve.
+  /// The cubic the reference client uses for list and panel transitions,
+  /// measured from its interpolator rather than approximated by a named
+  /// Flutter curve.
   static const Cubic androidListCurve = Cubic(
     0.19919472913616398,
     0.010644531250000006,
