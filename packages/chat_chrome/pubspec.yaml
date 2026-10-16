@@ -16,6 +16,8 @@ dependencies:
     sdk: flutter
   catalog_assets:
     path: ../catalog_assets
+  chrome_foundation:
+    path: ../chrome_foundation
   emoji_data:
     path: ../emoji_data
   meta: ^1.17.0

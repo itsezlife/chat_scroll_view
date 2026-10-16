@@ -19,6 +19,8 @@ dependencies:
     path: ../packages/catalog_assets
   chat_chrome:
     path: ../packages/chat_chrome
+  chrome_foundation:
+    path: ../packages/chrome_foundation
   emoji_data:
     path: ../packages/emoji_data
   flutter_md:
