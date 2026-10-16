@@ -1181,6 +1181,12 @@ class _KeyboardPanelState extends State<KeyboardPanel>
                                 onEmojiSelected: _onEmoji,
                                 onClearRecents: _onRequestClearRecents,
                                 glyphAtlas: _atlasHost?.atlas,
+                                // A cold open mounts the page while nothing
+                                // moves (the slide starts after
+                                // [KeyboardPanelMotion.startDelay]), so the
+                                // mount can take three frames. A panel that
+                                // replaces the keyboard is on screen at once.
+                                deferChrome: !_replacingKeyboard,
                               ),
                               KeyboardPanelTab.gifs => const GifPageStub(),
                               KeyboardPanelTab.stickers =>
