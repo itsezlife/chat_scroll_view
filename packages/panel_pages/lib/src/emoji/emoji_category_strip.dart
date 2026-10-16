@@ -154,20 +154,23 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
     final end = start + EmojiCategoryStrip.cell;
     final view = _scroll.position.viewportDimension;
     final offset = _scroll.offset;
+    // The strip slides on the fade role: under an instant speed (a zero duration, which
+    // `moveTo` turns into a jump) the tab lands at once.
+    final spec = ChromeMotionScope.of(context).specOf(MotionRole.fade);
     if (start < offset) {
       unawaited(
-        _scroll.animateTo(
+        _scroll.position.moveTo(
           start - EmojiCategoryStrip.padH,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.decelerate,
+          duration: spec.duration,
+          curve: spec.curve,
         ),
       );
     } else if (end > offset + view) {
       unawaited(
-        _scroll.animateTo(
+        _scroll.position.moveTo(
           end - view + EmojiCategoryStrip.padH,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.decelerate,
+          duration: spec.duration,
+          curve: spec.curve,
         ),
       );
     }
