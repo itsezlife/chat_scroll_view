@@ -1,7 +1,7 @@
 import 'package:chat_composer/src/input/composer_controller.dart';
 import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
 import 'package:chat_composer/src/view/composer_metrics.dart';
-import 'package:chat_composer/src/view/observable_builder.dart';
+import 'package:chat_composer/src/view/listen_value_builder.dart';
 import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart';
@@ -134,8 +134,8 @@ class _ComposerFieldState extends State<ComposerField> {
             bottom: ComposerMetrics.fieldBottomPad,
             end: ComposerMetrics.fieldEndPad,
           ),
-          child: ObservableBuilder<SoftKeyboardMode>(
-            observable: controller.softKeyboard,
+          child: ListenValueBuilder<SoftKeyboardMode>(
+            listenable: controller.softKeyboard,
             builder: (context, mode) => TextField(
               key: _textFieldKey,
               controller: controller.text,
