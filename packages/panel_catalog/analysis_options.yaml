@@ -1,1 +1,2 @@
-include: package:flutter_lints/flutter.yaml
+# Strict modes and lint set come from the repo root.
+include: ../../analysis_options.yaml

@@ -1,4 +1,5 @@
 import 'package:content_model/content_model.dart';
+import 'package:meta/meta.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 
 /// Sealed hierarchy of scroll-side events emitted by [PanelCatalogViewport].
@@ -27,6 +28,7 @@ import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 /// that an edge of a section is close to what the user sees, so a page can
 /// load the section or load more of it. It is no motion and does not move the
 /// activity facts, so whoever paces background work on them is unaffected.
+@immutable
 sealed class PanelCatalogScrollEvent {
   const PanelCatalogScrollEvent();
 }

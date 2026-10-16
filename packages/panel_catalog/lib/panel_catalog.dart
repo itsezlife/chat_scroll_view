@@ -44,8 +44,8 @@ export 'src/theme/panel_catalog_theme.dart';
 export 'src/viewport/catalog_focus.dart';
 export 'src/viewport/catalog_grid_metrics.dart' show largestCatalogGlyphBox;
 export 'src/viewport/catalog_scroll_position.dart';
+export 'src/viewport/catalog_section_navigation.dart'
+    show kFarPathDistanceGateFactor, scrollOffsetForSectionHeader;
 export 'src/viewport/panel_catalog_controller.dart';
 export 'src/viewport/panel_catalog_scroll_events.dart';
 export 'src/viewport/panel_catalog_viewport.dart';
-export 'src/viewport/catalog_section_navigation.dart'
-    show kFarPathDistanceGateFactor, scrollOffsetForSectionHeader;

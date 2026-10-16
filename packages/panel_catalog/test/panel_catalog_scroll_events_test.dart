@@ -8,6 +8,8 @@
 /// commands return.
 library;
 
+import 'dart:async';
+
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
@@ -346,7 +348,7 @@ void main() {
     ) async {
       snapshots.replaceSections([_section('a', 40), _section('b', 200)]);
       var landed = false;
-      controller.jumpToSection(1).then((_) => landed = true);
+      unawaited(controller.jumpToSection(1).then((_) => landed = true));
 
       await pumpViewport(tester);
       await tester.pumpAndSettle();

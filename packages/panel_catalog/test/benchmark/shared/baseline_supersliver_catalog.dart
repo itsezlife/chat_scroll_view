@@ -143,40 +143,35 @@ class BaselineSuperSliverCatalogState
             },
             itemCount: flat.length,
             addAutomaticKeepAlives: false,
-            itemBuilder: (context, index) {
-              return switch (flat[index]) {
-                _HeaderItem(:final title) => SizedBox(
-                  height: kBenchHeaderExtent,
-                  width: double.infinity,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
+            itemBuilder: (context, index) => switch (flat[index]) {
+              _HeaderItem(:final title) => SizedBox(
+                height: kBenchHeaderExtent,
+                width: double.infinity,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
                 ),
-                _RowItem(:final glyphs) => SizedBox(
-                  height: kBenchCellExtent,
-                  child: Row(
-                    children: [
-                      for (final glyph in glyphs)
-                        BaselineGlyphCell(
-                          glyph: glyph,
-                          extent: kBenchCellExtent,
-                        ),
-                      if (glyphs.length < span)
-                        Spacer(flex: span - glyphs.length),
-                    ],
-                  ),
+              ),
+              _RowItem(:final glyphs) => SizedBox(
+                height: kBenchCellExtent,
+                child: Row(
+                  children: [
+                    for (final glyph in glyphs)
+                      BaselineGlyphCell(glyph: glyph, extent: kBenchCellExtent),
+                    if (glyphs.length < span)
+                      Spacer(flex: span - glyphs.length),
+                  ],
                 ),
-              };
+              ),
             },
           ),
         ],

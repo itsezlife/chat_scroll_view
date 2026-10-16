@@ -104,8 +104,8 @@ CatalogGridMetrics resolveCatalogGrid(
   };
   final span = grid.spanCount ?? spanCount;
   final insets = grid.insets;
-  final usableWidth = math.max(
-    0.0,
+  final usableWidth = math.max<double>(
+    0,
     maxWidth - padding.horizontal - insets.horizontal,
   );
   final fixedHeight = grid.cellExtent ?? cellExtent;

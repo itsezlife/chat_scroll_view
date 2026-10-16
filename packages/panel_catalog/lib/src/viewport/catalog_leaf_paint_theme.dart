@@ -48,23 +48,21 @@ class CatalogLeafPaintTheme {
   factory CatalogLeafPaintTheme.resolve(
     PanelCatalogThemeData data, {
     required double devicePixelRatio,
-  }) {
-    return CatalogLeafPaintTheme(
-      circleColor: data.circleColor,
-      thumbColor: data.thumbColor,
-      washColor: data.washColor,
-      washHighlightColor: data.washHighlightColor,
-      washPeriod: data.washPeriod,
-      skeletonColor: data.skeletonColor,
-      placeholderCornerRadius: data.placeholderCornerRadius,
-      leafPressHighlightColor: data.leafPressHighlightColor,
-      leafFocusHighlightColor:
-          data.leafFocusHighlightColor ?? data.leafPressHighlightColor,
-      leafPressSelectorRadius: data.selectorRadiusLogicalPx(devicePixelRatio),
-      sectionHeaderStyle: data.sectionHeaderStyle,
-      sectionHeaderStartInset: data.sectionHeaderStartInset,
-    );
-  }
+  }) => CatalogLeafPaintTheme(
+    circleColor: data.circleColor,
+    thumbColor: data.thumbColor,
+    washColor: data.washColor,
+    washHighlightColor: data.washHighlightColor,
+    washPeriod: data.washPeriod,
+    skeletonColor: data.skeletonColor,
+    placeholderCornerRadius: data.placeholderCornerRadius,
+    leafPressHighlightColor: data.leafPressHighlightColor,
+    leafFocusHighlightColor:
+        data.leafFocusHighlightColor ?? data.leafPressHighlightColor,
+    leafPressSelectorRadius: data.selectorRadiusLogicalPx(devicePixelRatio),
+    sectionHeaderStyle: data.sectionHeaderStyle,
+    sectionHeaderStartInset: data.sectionHeaderStartInset,
+  );
 
   /// Fill of the circle placeholder of an unbaked glyph.
   final Color circleColor;

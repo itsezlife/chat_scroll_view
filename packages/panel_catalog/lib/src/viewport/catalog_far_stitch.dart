@@ -303,12 +303,10 @@ List<CatalogStitchCapturedSlot> captureCatalogStitchOutgoing({
 /// Content keys of captured outgoing leaves (for binding pin during stitch).
 Set<ContentKey> catalogStitchOutgoingLeafKeys(
   List<CatalogStitchCapturedSlot> outgoing,
-) {
-  return {
-    for (final slot in outgoing)
-      if (slot case CatalogStitchCapturedLeaf(:final leaf)) leaf.key,
-  };
-}
+) => {
+  for (final slot in outgoing)
+    if (slot case CatalogStitchCapturedLeaf(:final leaf)) leaf.key,
+};
 
 /// Whether [slot] was captured in the outgoing strip (skip incoming dual-translate).
 bool catalogStitchSlotIsOutgoing(
@@ -398,9 +396,7 @@ double catalogStitchOutgoingPaintDy({
   required bool towardNewer,
   required double travel,
   required double progress,
-}) {
-  return towardNewer ? -travel * progress : travel * progress;
-}
+}) => towardNewer ? -travel * progress : travel * progress;
 
 /// Paint-time Y delta for one incoming visible slot during stitch flight.
 ///

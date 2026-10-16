@@ -58,14 +58,13 @@ final class CatalogLeafPress {
     return 0.8 + 0.2 * (1 - progress);
   }
 
-  AnimationController get _ensureController {
-    return _controller ??= AnimationController(
-      vsync: _vsync,
-      value: 0,
-      lowerBound: -0.35,
-      upperBound: 1,
-    )..addListener(onChanged);
-  }
+  AnimationController get _ensureController =>
+      _controller ??= AnimationController(
+        vsync: _vsync,
+        value: 0,
+        lowerBound: -0.35,
+        upperBound: 1,
+      )..addListener(onChanged);
 
   double get _pressStep {
     final hz = SchedulerBinding

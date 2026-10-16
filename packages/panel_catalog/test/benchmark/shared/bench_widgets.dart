@@ -48,13 +48,11 @@ class BaselineGlyphCell extends StatelessWidget {
   final double extent;
 
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: extent,
-      height: extent,
-      child: Center(
-        child: Text(glyph, style: TextStyle(fontSize: extent * 0.55)),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => SizedBox(
+    width: extent,
+    height: extent,
+    child: Center(
+      child: Text(glyph, style: TextStyle(fontSize: extent * 0.55)),
+    ),
+  );
 }
