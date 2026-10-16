@@ -1,11 +1,11 @@
 # content_model
 
 Pure-Dart value types that identify and group catalog content (stickers,
-GIFs, custom and unicode emoji), the one synchronous change-notification
-primitive, and the seams through which packages reach data. No Flutter, no I/O,
-one dependency (`meta`), plus `package:test` for the opt-in `testing.dart`.
-Every other package in the workspace speaks these types, so it depends on no
-workspace package (`scripts/check` enforces both).
+GIFs, custom and unicode emoji), formatted text (`RichText`), the one
+synchronous change-notification primitive, and the seams through which packages
+reach data. No Flutter, no I/O, one dependency (`meta`), plus `package:test` for
+the opt-in `testing.dart`. Every other package in the workspace speaks these
+types, so it depends on no workspace package (`scripts/check` enforces both).
 
 ## Types
 
@@ -16,6 +16,8 @@ workspace package (`scripts/check` enforces both).
 | `Collection` | `CollectionId` + `CollectionMetadata` + `CollectionContents` (`idle`, `loading`, `loaded` with `CollectionItem`s and a `PageToken`, `failed`). Sets, personal lists, search results and trending are all collections. |
 | `EmojiEntry` | A base unicode key and its variants. Each variant is its own key, tagged with `EmojiModifiers` (ordered tones, gender). |
 | `InlineContentRef` | A key plus the mandatory plain-text alternative, for content embedded in text. |
+| `RichText` | Plain text plus `Entity` spans (UTF-16 offset and length, and an `EntityKind`: bold, italic, underline, strike, spoiler, code, quote, link, mention, inline content). Always canonical, so equal meaning is equal value; edits (`insert`, `delete`, `replaceRange`, `slice`) keep the entities consistent; JSON in and out for drafts. |
+| `RichTextMarkdown` | Opt-in, in `package:content_model/markdown.dart`: `RichText` to and from the markdown the viewport's markdown library reads. The host's helper for send, draft, edit-load and body materialise. |
 | `Observable`, `ValueObservable<T>`, `EventObservable<T>` | The read sides of change notification: a signal, a signal guarding a snapshot, a typed event stream. Listeners run synchronously; dedup-on-add, snapshot dispatch, silent after dispose. |
 | `ObservableNotifier`, `ObservableValue<T>`, `EventNotifier<T>` | The owner sides. `batch` turns many changes into one signal; `ObservableValue` skips equal snapshots. |
 | `CollectionSource`, `SearchSource` | Publish `Collection`s as immutable snapshots, with load and paging commands. Failure is a state, never an exception. |
@@ -72,9 +74,30 @@ void main() {
 | One `KeyValueStore` namespace per package, and a version on every value it writes. | Share a namespace between packages, or expect the store to migrate or interpret a value. |
 | Disposal: whoever creates a notifier, source or store disposes it. | Signal from a consumer's side (only the owner type can), or rely on a listener running after dispose. |
 | Listeners that tolerate being called synchronously, inside the call that changed the state, and that read the owner for the new state. | Throw from a listener to stop the others (a throwing listener is reported to the zone and the rest still run), or assume a signal carries a payload (`Observable` has none; use `EventObservable`). |
+| Links and mentions as entities, made where the user or the host decides what is a link (a pasted URL, a picked mention). | Expect `RichText` or the markdown helper to detect a bare URL or `@name`. Body linkify is host-invoked (ADR 017); the helper writes and reads only what is already an entity or a markdown link. |
+| Imports of `RichText` that avoid the Flutter widget of the same name: `hide RichText` on the widgets import, or `as model` here. | Import both unqualified in one file. |
+| The `mention:` scheme read as a mention when it decodes a body, and its own targets for links. | Make a link whose target starts with `mention:`; the model rejects it. |
+| Edits as `RichText` operations, passing the styled run to continue a style (equal kinds that touch merge). | Expect typing at the edge of a styled run to extend it, or edits inside a mention or inline content to keep it: the entity is removed. |
+
+## Rich text and markdown
+
+`RichText` is the neutral value a composer produces and a host stores, sends
+and loads back for editing. It shares its name with Flutter's `RichText`
+widget; the glossary term is _rich text_ and the name stays, so a host file
+that needs both writes `import 'package:flutter/widgets.dart' hide RichText;`.
+
+`package:content_model/markdown.dart` is the host helper between `RichText` and
+a markdown body. It is a separate library, has no markdown dependency, and
+follows the dialect of the viewport's markdown library (styles are toggles,
+which lets styles overlap). `RichTextMarkdown` documents the mapping, the
+escape rules and where that dialect falls short. Bodies stay markdown; nothing
+here is called from a scroll or paint path.
 
 ## Decisions
 
 - [Content identity and collection model](../../docs/adr/021-content-identity-and-collections.md)
 - [Data layering](../../docs/adr/023-data-layering-and-persistence.md)
 - [Testing policy](../../docs/adr/030-testing-policy.md)
+- [Composer model](../../docs/adr/026-composer-model.md) (rich-text value and its home)
+- [Host integration](../../docs/adr/029-host-integration.md) (the markdown helper)
+- [Body linkify is host-invoked](../../docs/adr/017-body-linkify-host-invoked.md)
