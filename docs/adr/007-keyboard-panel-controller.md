@@ -41,7 +41,7 @@ scroll stays on page-local [PanelCatalogController].
 | Topic | Now |
 | ----- | --- |
 | SoT, Widget API | Page and search state: `PanelShellController`; visibility: `PanelPresentationController`; one `PanelEvent` handler ([ADR 025](025-panel-shell-and-pages.md), [ADR 028](028-panel-presentation.md)) |
-| Listeners | `content_model` `Observable` ([ADR 023](023-data-layering-and-persistence.md)) |
+| Listeners | `package:listen` and synchronous `Stream`s ([ADR 023](023-data-layering-and-persistence.md)) |
 | Inset | The presentation owns occupancy and IME arbitration; the host aggregates ([ADR 028](028-panel-presentation.md)) |
 | Rename scope, Recents store | The `KeyboardPanel*` types are replaced; recents move to the `RecentsStore` seam ([ADR 023](023-data-layering-and-persistence.md)) |
 

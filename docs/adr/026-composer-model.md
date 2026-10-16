@@ -7,6 +7,7 @@ neutral rich-text value. It knows neither the panel nor any inset arbiter.
 
 **Status**: Accepted  
 **Date**: 2026-10-16  
+**Amended**: 2026-10-16 — the input query is a `package:listen` `ValueListenable` ([ADR 023](023-data-layering-and-persistence.md) Amendment)  
 **Relates to**: [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 027](027-foundation-theme-glass-motion.md), [ADR 028](028-panel-presentation.md)
 
 ## Decided
@@ -17,7 +18,7 @@ neutral rich-text value. It knows neither the panel nor any inset arbiter.
 | State owner | Declarative. The host builds `ComposerSpec(header, panel, actions, enabled, busy)` and passes it to the widget, which animates between specs. `ComposerController` owns input only: entity-aware text, focus, selection, input queries, field scroll and height, and the commands `insertContent`, `insertText`, `backspace` and `clear`. Reply and edit begin-commands, stored ids and preview strings stay with the host. |
 | Text model | `ComposerTextController` (a `TextEditingController` subclass) keeps plain text and entity spans in sync with edits and renders inline content through the asset cache. It exposes the neutral rich-text value, plain text plus entities (offset, length, kind), used for drafts, send and edit-load. Entity kinds: inline content ref, bold, italic, code, strike, underline, spoiler, quote, link, mention. Formatting UI is the platform selection menu extended, not a toolbar widget. Entity edits commit on finished IME composition. |
 | Rich-text home | `content_model`, next to the inline content ref. The root viewport does not depend on it; hosts map the value to their body model (markdown, per [ADR 017](017-body-linkify-host-invoked.md) and [ADR 029](029-host-integration.md)). |
-| Suggestions | The composer exposes the active token as an `Observable` input query (kind, text, replace range, caret anchor rect) and `replaceQuery(...)`. Query kinds are an open, host-registered set (trigger plus rule). The host builds mention, hashtag, command and inline-emoji panels. |
+| Suggestions | The composer exposes the active token as a `ValueListenable` (`package:listen`) input query (kind, text, replace range, caret anchor rect) and `replaceQuery(...)`. Query kinds are an open, host-registered set (trigger plus rule). The host builds mention, hashtag, command and inline-emoji panels. |
 | Extent | The composer publishes its own height as data; the host feeds it, with presentation occupancy, into the viewport bottom padding ([host insets](../architecture/14-host-chrome-insets.md)). The composer imports no inset types. |
 | IME | An input option `softKeyboard: auto or suppressed` plus focus commands. Hand-off choreography with the panel belongs to presentation ([ADR 028](028-panel-presentation.md)). The composer does not use `SystemChannels` to coordinate with the panel. |
 | Units | Island shell (glass), header slot (reveal animation), field (entity input, height animation), action slots, panel resolver. The bottom fade stays with the composer. The emoji-face icon resolver is deleted: the host sets the action's semantic icon. |

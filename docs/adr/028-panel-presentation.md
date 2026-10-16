@@ -2,12 +2,13 @@
 
 `panel_presentation` decides where the panel appears and how it opens, closes
 and takes space. A sealed set of presentation kinds is chosen by a pure-Dart
-`$Mobile` / `$Desktop` policy, each kind publishes the space it occupies as an
-`Observable`, and one controller owns visibility. This supersedes the
+`$Mobile` / `$Desktop` policy, each kind publishes the space it occupies as a
+`ValueListenable` (`package:listen`), and one controller owns visibility. This supersedes the
 inset-controller parts of [ADR 007](007-keyboard-panel-controller.md).
 
 **Status**: Accepted  
 **Date**: 2026-10-16  
+**Amended**: 2026-10-16 — occupancy and state are `package:listen` `ValueListenable`s ([ADR 023](023-data-layering-and-persistence.md) Amendment)  
 **Relates to**: [ADR 007](007-keyboard-panel-controller.md) (superseded in part), [ADR 012](012-cross-platform-selection-policies.md) (same policy shape), [ADR 025](025-panel-shell-and-pages.md), [host chrome insets](../architecture/14-host-chrome-insets.md) (amended by this ADR)
 
 ## Decided
@@ -15,7 +16,7 @@ inset-controller parts of [ADR 007](007-keyboard-panel-controller.md).
 | Area | Decision |
 | ---- | -------- |
 | Kinds and policy | Sealed `PanelPresentation`: `KeyboardReplacement` (in-flow, takes the bottom slot), `AnchoredPopup`, `Docked`. A pure-Dart policy in the [ADR 012](012-cross-platform-selection-policies.md) shape (`$Mobile`, `$Desktop`, no `_vm` / `_js` forks) owns open triggers, dismissal, sizing and animation roles. The default follows OS family (iOS and Android: `$Mobile`; desktop and web: `$Desktop`) and an adaptive window class; the host may override per call. A sheet or modal kind can be added later. |
-| Occupancy | Each presentation publishes an `Observable` occupancy (bottom extent, inline-end extent). `KeyboardReplacement`: animated `max(IME, panel)`. `AnchoredPopup`: zero. `Docked`: inline-end width. The host adds composer extent and `occupancy.bottom` into the viewport `bottomPadding` and applies `inlineEnd` in layout. |
+| Occupancy | Each presentation publishes a `ValueListenable` occupancy (bottom extent, inline-end extent). `KeyboardReplacement`: animated `max(IME, panel)`. `AnchoredPopup`: zero. `Docked`: inline-end width. The host adds composer extent and `occupancy.bottom` into the viewport `bottomPadding` and applies `inlineEnd` in layout. |
 | IME input | The host feeds raw IME samples (height, animating, safe area) through one input port, from `MediaQuery` or a keyboard-insets package. The mobile strategy applies filtering, hold and hand-off internally. Foundation reads no platform insets. |
 | Controller | One `PanelPresentationController`: sealed visibility state (`hidden`, `showing`, `shown`, `hiding`, plus the active kind), `show`, `hide`, `toggle`, `handleBack`, and strategy-aware intents (`waitForIme`, anchor, dock and undock). Commands commit when unbound. It wraps the `PanelShellController` and reacts to `SearchOpened`, `SearchClosed` and `PageChanged`. |
 | Switching | Selected page, search state, per-page scroll offsets and loaded collections live in controllers (shell and per-page), not widget state. A switch rebuilds the shell subtree and restores everything. No `GlobalKey` reparenting. The transition is a motion role. |

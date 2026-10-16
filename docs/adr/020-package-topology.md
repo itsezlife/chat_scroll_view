@@ -8,13 +8,14 @@ another package's API.
 
 **Status**: Accepted  
 **Date**: 2026-10-16  
+**Amended**: 2026-10-16 — change notification is `package:listen`, an external package every package that names its types declares for itself; it is not a workspace edge and is never re-exported ([ADR 023](023-data-layering-and-persistence.md) Amendment)  
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (package list in its Decided table is replaced by this one), [ADR 007](007-keyboard-panel-controller.md), [ADR 012](012-cross-platform-selection-policies.md)
 
 ## Decided
 
 | Package | Role | Depends on |
 | ------- | ---- | ---------- |
-| `content_model` | Pure-Dart leaf. Content identity, collections, `Observable`, data seams (`CollectionSource`, `SearchSource`, `RecentsStore`, `PreferenceStore`, `KeywordSource`, `GlyphSupport`, `KeyValueStore`, `ContentResolver`), reference stores, fakes and contract suites, the inline content ref and the rich-text value, opt-in `markdown.dart` | none |
+| `content_model` | Pure-Dart leaf (its only non-SDK dependencies are `meta` and `listen`, which are not workspace packages). Content identity, collections, data seams (`CollectionSource`, `SearchSource`, `RecentsStore`, `PreferenceStore`, `KeywordSource`, `GlyphSupport`, `KeyValueStore`, `ContentResolver`), reference stores, fakes and contract suites, the inline content ref and the rich-text value, opt-in `markdown.dart` | none |
 | `chrome_foundation` | Leaf. Palette, token groups, theme scope, motion roles, strings scope, icon registry, glass. Nothing chat-specific | none |
 | `catalog_assets` | Asset cache core: paintable, spec and profile, staged readiness, tiered LRU, playback clock, fetcher and decoder seams, baked glyph atlas, scope, content embed | `content_model` |
 | `panel_catalog` | Catalog viewport. Public seams per [ADR 024](024-panel-catalog-seams.md) | `content_model`, `catalog_assets` |
