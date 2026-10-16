@@ -286,25 +286,26 @@ void main() {
       expect(field.focusNode.hasFocus, isTrue);
     });
 
-    testWidgets('restores the scroll offset of the selected page on a round trip', (
-      tester,
-    ) async {
-      build();
-      await pump(tester);
-      controller.show();
-      shell.selectPage('stickers');
-      await tester.pumpAndSettle();
-      scrollTo(tester, 'stickers', 200);
-      await tester.pumpAndSettle();
+    testWidgets(
+      'restores the scroll offset of the selected page on a round trip',
+      (tester) async {
+        build();
+        await pump(tester);
+        controller.show();
+        shell.selectPage('stickers');
+        await tester.pumpAndSettle();
+        scrollTo(tester, 'stickers', 200);
+        await tester.pumpAndSettle();
 
-      controller.show(kind: const AnchoredPopup());
-      await tester.pumpAndSettle();
-      controller.show(kind: const KeyboardReplacement());
-      await tester.pumpAndSettle();
+        controller.show(kind: const AnchoredPopup());
+        await tester.pumpAndSettle();
+        controller.show(kind: const KeyboardReplacement());
+        await tester.pumpAndSettle();
 
-      expect(shell.selectedPageId.value, 'stickers');
-      expect(offsetOf(tester, 'stickers'), 200);
-    });
+        expect(shell.selectedPageId.value, 'stickers');
+        expect(offsetOf(tester, 'stickers'), 200);
+      },
+    );
 
     testWidgets('a switch keeps the panel visible to the shell throughout', (
       tester,
