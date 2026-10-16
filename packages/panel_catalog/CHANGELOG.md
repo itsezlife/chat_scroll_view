@@ -8,6 +8,9 @@ is pre-1.0.
 
 ### Added
 
+- `PanelCatalogController.sectionActionBoundsOf(sectionId)` through
+  `CatalogScrollPosition.sectionActionBounds` (source-breaking for
+  implementers; the fake answers `sectionActionRects`).
 - `PanelCatalogThemeData.leafHoverHighlightSize` (a hover box of that size,
   centred in the cell) and `leafPressFeedback` (`CatalogPressFeedback`:
   `inkAndScale`, the default, or `none`, where a press draws nothing and the

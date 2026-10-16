@@ -339,11 +339,17 @@ abstract class CatalogPagePolicy {
   ///
   /// [host] is the page's connection to the shell, where an action that asks
   /// the host something answers (for example `host.requestClearRecents`).
+  /// [context] is the page's, for a surface the action opens, and [bounds]
+  /// the action's button in global coordinates with [viewportBounds] the
+  /// catalogue's, to place it against (null before layout).
   void onSectionAction(
     Collection collection,
     String actionId,
-    PanelPageHost host,
-  ) {}
+    PanelPageHost host, {
+    BuildContext? context,
+    Rect? bounds,
+    Rect? viewportBounds,
+  }) {}
 
   // --- Chrome inside the page -----------------------------------------------
 

@@ -81,6 +81,31 @@ void main() {
         expect(second.selectedPageId, 'stickers');
       });
 
+      test('writes the default variant as tone names and hands it to the next '
+          'store, the base included', () async {
+        final first = await open();
+        await first.setDefaultVariant(
+          EmojiModifiers(tones: const [SkinTone.mediumDark]),
+        );
+        expect(jsonDecode(storage.entries[_address]!.value), {
+          'defaultVariant': ['mediumDark'],
+        });
+
+        expect(
+          (await open()).defaultVariant,
+          EmojiModifiers(tones: const [SkinTone.mediumDark]),
+        );
+
+        await first.setDefaultVariant(EmojiModifiers.none);
+        expect((await open()).defaultVariant, EmojiModifiers.none);
+      });
+
+      test('drops a default variant whose tone it cannot read', () async {
+        final store = await openWith('{"defaultVariant": ["purple"]}');
+
+        expect(store.defaultVariant, isNull);
+      });
+
       test('hands the next store what the last one chose', () async {
         final first = await open();
         await first.setPreferredVariant(_thumbs, _thumbsDark);

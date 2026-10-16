@@ -2546,6 +2546,23 @@ class RenderPanelCatalog extends RenderBox
   }
 
   @override
+  Rect? sectionActionBounds(String sectionId) {
+    if (!hasSize) return null;
+    for (final slot in _slots) {
+      if (slot case final CatalogHeaderSlot header
+          when header.sectionId == sectionId && header.action != null) {
+        final bounds = _painter.sectionActionBounds(header);
+        if (bounds == null) return null;
+        return MatrixUtils.transformRect(
+          getTransformTo(null),
+          bounds.shift(Offset(0, -_pixels)),
+        );
+      }
+    }
+    return null;
+  }
+
+  @override
   bool focusLeaf(String sectionId, int index, {required bool reveal}) {
     final cell = _cellById(sectionId, index);
     if (cell == null) return false;

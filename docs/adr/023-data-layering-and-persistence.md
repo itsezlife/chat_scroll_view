@@ -125,3 +125,13 @@ judges nothing until every reference is seen, and asks the bake for every
 reference not seen yet. Its record (version 2) keeps the cell of each
 reference by name and is trusted only for the same references, so verdicts
 taken against one reference are taken again.
+
+## Amendment: a default variant
+
+`PreferenceStore.defaultVariant` / `setDefaultVariant(EmojiModifiers)`: the
+reference desktop client's "tone for all". Setting it forgets every choice
+made per emoji; choices made afterwards are kept beside it and win. The
+emoji sources show, for an emoji with no choice of its own, its variant whose
+people all have the default's tone, else its base; recents are untouched. The
+key-value store persists it as `"defaultVariant": [tone names]` (empty for
+the emoji as it is).

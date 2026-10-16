@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:content_model/src/data/key_value_store.dart';
 import 'package:content_model/src/data/preference_store.dart';
+import 'package:content_model/src/emoji/emoji_entry.dart';
 import 'package:content_model/src/identity/content_key.dart';
 import 'package:content_model/src/store/store_name.dart';
 import 'package:listen/listen.dart';
@@ -19,8 +20,11 @@ import 'package:listen/listen.dart';
 /// [load]. The value is JSON, written at schema version [recordVersion]:
 ///
 /// ```json
-/// {"variants": {"unicode:1F44D": "unicode:1F44D-1F3FF"}, "selectedPageId": "emoji", "dockPreferred": true}
+/// {"variants": {"unicode:1F44D": "unicode:1F44D-1F3FF"}, "defaultVariant": ["dark"], "selectedPageId": "emoji", "dockPreferred": true}
 /// ```
+///
+/// `defaultVariant` is the default's tones by [SkinTone] name (an empty list
+/// for the emoji as it is); a name that cannot be read drops the default.
 ///
 /// Keys are written as [ContentKey.encoded] and read back with
 /// [ContentKey.tryParse]. A record of another version, or one that is not the
@@ -69,6 +73,7 @@ final class KeyValuePreferenceStore
   final String _namespace;
   var _disposed = false;
   final _variants = <ContentKey$Unicode, ContentKey$Unicode>{};
+  EmojiModifiers? _defaultVariant;
   String? _selectedPageId;
   var _dockPreferred = false;
 
@@ -90,6 +95,20 @@ final class KeyValuePreferenceStore
     } else {
       _variants[base] = variant;
     }
+    notifyListeners();
+    await _persist();
+  }
+
+  @override
+  EmojiModifiers? get defaultVariant => _defaultVariant;
+
+  @override
+  Future<void> setDefaultVariant(EmojiModifiers modifiers) async {
+    if (_disposed || (_defaultVariant == modifiers && _variants.isEmpty)) {
+      return;
+    }
+    _defaultVariant = modifiers;
+    _variants.clear();
     notifyListeners();
     await _persist();
   }
@@ -127,7 +146,10 @@ final class KeyValuePreferenceStore
   // Reads the state after the signal, so a listener that sets again inside it
   // is written once with the final state rather than overtaken.
   Future<void> _persist() {
-    if (_variants.isEmpty && _selectedPageId == null && !_dockPreferred) {
+    if (_variants.isEmpty &&
+        _defaultVariant == null &&
+        _selectedPageId == null &&
+        !_dockPreferred) {
       return _storage.remove(_namespace, _recordKey);
     }
     return _storage.write(
@@ -140,6 +162,8 @@ final class KeyValuePreferenceStore
               for (final entry in _variants.entries)
                 entry.key.encoded: entry.value.encoded,
             },
+          if (_defaultVariant case final variant?)
+            'defaultVariant': [for (final tone in variant.tones) tone.name],
           'selectedPageId': ?_selectedPageId,
           if (_dockPreferred) 'dockPreferred': true,
         }),
@@ -173,6 +197,16 @@ final class KeyValuePreferenceStore
         )) {
           _variants[from] = to;
         }
+      }
+    }
+    if (json['defaultVariant'] case final List<Object?> names) {
+      final tones = [
+        for (final name in names)
+          for (final tone in SkinTone.values)
+            if (tone.name == name) tone,
+      ];
+      if (tones.length == names.length) {
+        _defaultVariant = EmojiModifiers(tones: tones);
       }
     }
     if (json['selectedPageId'] case final String id) _selectedPageId = id;

@@ -124,6 +124,38 @@ void main() {
           .isSelected ==
       Tristate.isTrue;
 
+  testWidgets('on a transparent shell paints no fill of its own', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      PanelShellTestScope(
+        child: PanelBackgroundScope(
+          color: const Color(0x00000000),
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 360,
+              child: EmojiCategoryStrip(handle: handle),
+            ),
+          ),
+        ),
+      ),
+    );
+    final panel = ChromeThemeScope.panelOf(
+      tester.element(find.byType(EmojiCategoryStrip)),
+    );
+
+    expect(
+      find.descendant(
+        of: find.byType(EmojiCategoryStrip),
+        matching: find.byWidgetPredicate(
+          (w) => w is ColoredBox && w.color == panel.background,
+        ),
+      ),
+      findsNothing,
+    );
+  });
+
   group('the tabs', () {
     testWidgets('are the reference client\'s, one per category, with no tab '
         'of their own for flags or people', (tester) async {
@@ -408,25 +440,26 @@ void main() {
     );
 
     group('with no pack (automatic)', () {
-      testWidgets('spreads the recents and every category over the width, '
-          'in whole pixels from 3 px in', (tester) async {
+      testWidgets('gives the recents and every category a 30 px slot of its '
+          'own from 3 px in, as the grouped footer does, nothing folded', (
+        tester,
+      ) async {
         final semantics = tester.ensureSemantics();
         handle.setIds(all);
         await pumpPinned(tester, layout: EmojiStripLayout.automatic);
 
-        // (345 - 3 - 3) / 8 = 42 px each.
         expect(
           slot(tester, 'Recently used'),
-          const Rect.fromLTWH(3, 0, 42, 36),
+          const Rect.fromLTWH(3, 0, 30, 36),
         );
         for (var i = 0; i < categoryLabels.length; i++) {
           expect(
             slot(tester, categoryLabels[i]),
-            Rect.fromLTWH(3 + (i + 1) * 42, 0, 42, 36),
+            Rect.fromLTWH(3 + (i + 1) * 30, 0, 30, 36),
             reason: categoryLabels[i],
           );
         }
-        expect(marker(tester), const Rect.fromLTWH(10, 4, 28, 28));
+        expect(marker(tester), const Rect.fromLTWH(4, 4, 28, 28));
         semantics.dispose();
       });
 
@@ -439,7 +472,7 @@ void main() {
         handle.enter('${all[3]}', 3);
         await tester.pumpAndSettle();
 
-        expect(marker(tester), const Rect.fromLTWH(3 + 3 * 42 + 7, 4, 28, 28));
+        expect(marker(tester), const Rect.fromLTWH(3 + 3 * 30 + 1, 4, 28, 28));
         expect(markerRadius(tester), BorderRadius.circular(8));
       });
 
@@ -482,14 +515,13 @@ void main() {
         ];
         await pumpPinned(tester, layout: EmojiStripLayout.plain);
 
-        // (345 - 6) / 9 = 37 px each.
         expect(
           slot(tester, 'Symbols'),
-          const Rect.fromLTWH(3 + 7 * 37, 0, 37, 36),
+          const Rect.fromLTWH(3 + 7 * 30, 0, 30, 36),
         );
         expect(
           slot(tester, 'Pack 0'),
-          const Rect.fromLTWH(3 + 8 * 37, 0, 37, 36),
+          const Rect.fromLTWH(3 + 8 * 30, 0, 30, 36),
         );
         semantics.dispose();
       });

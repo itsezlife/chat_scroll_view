@@ -380,6 +380,27 @@ void main() {
       expect(controller.leafBoundsOf(nowhere), isNull);
     });
 
+    testWidgets('the controller reports a section action\'s button globally, '
+        'with the offset', (tester) async {
+      snapshots.replaceSections([
+        CatalogSection(
+          id: 'a',
+          title: 'Title a',
+          action: const CatalogSectionAction(id: 'tone', label: 'Tone'),
+          leaves: [for (var i = 0; i < 8; i++) CatalogLeaf.unicode(_glyph(i))],
+        ),
+      ]);
+      await pumpViewport(tester, onLeafTap: (_) {});
+
+      // At the end of the 24 px header band, at least 48 px wide.
+      final bounds = controller.sectionActionBoundsOf('a')!;
+      expect(bounds.right, 320);
+      expect(bounds.top, 0);
+      expect(bounds.height, 24);
+      expect(bounds.width, greaterThanOrEqualTo(48));
+      expect(controller.sectionActionBoundsOf('missing'), isNull);
+    });
+
     testWidgets('is null while no viewport is attached', (tester) async {
       expect(controller.viewportBounds, isNull);
     });

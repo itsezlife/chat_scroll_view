@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -603,7 +604,14 @@ class _CatalogPageState extends State<CatalogPage>
   void _onSectionAction(String sectionId, String actionId) {
     final collection = _model.collectionOf(sectionId);
     if (collection == null) return;
-    widget.policy.onSectionAction(collection, actionId, _host);
+    widget.policy.onSectionAction(
+      collection,
+      actionId,
+      _host,
+      context: context,
+      bounds: _catalog.sectionActionBoundsOf(sectionId),
+      viewportBounds: _catalog.viewportBounds,
+    );
   }
 
   // --- Build ----------------------------------------------------------------
@@ -611,6 +619,9 @@ class _CatalogPageState extends State<CatalogPage>
   @override
   Widget build(BuildContext context) {
     final panel = ChromeThemeScope.panelOf(context);
+    // The shell's background: transparent on glass, which the bands over the
+    // catalogue then let through.
+    final background = PanelBackgroundScope.of(context);
     final atBottom = _stripAtBottomNow;
     final sticky = _stripSticky;
     final browsing = sticky ? _stripShown : !_showsResults;
@@ -638,41 +649,51 @@ class _CatalogPageState extends State<CatalogPage>
                 children: [
                   // Only the catalogue binds the arrows and Space: a strip
                   // around it keeps the keys of its own controls.
-                  CatalogKeyboardFocus(
-                    controller: _catalog,
-                    child: Listener(
-                      behavior: HitTestBehavior.translucent,
-                      onPointerDown: (event) => _lastKind = event.kind,
-                      child: PanelCatalogViewport(
-                        snapshots: _model.snapshots,
-                        assets: widget.assets,
-                        controller: _catalog,
-                        padding: padding,
-                        headerLandingInset: overlay == null ? null : stripBand,
-                        sectionNearExtent: widget.sectionNearExtent,
-                        onLeafTap: _onTap,
-                        onLeafSecondaryTap: _onSecondaryTap,
-                        leafLongPressEligible: _longPressEligible,
-                        leafLongPressDelay: _longPressDelay,
-                        onLeafLongPressStart: _onLongPressStart,
-                        onLeafLongPressMove: _onLongPressMove,
-                        onLeafLongPressEnd: _onLongPressEnd,
-                        pinnedLeaf: _pinned,
-                        onSectionAction: _onSectionAction,
+                  _BelowHeader(
+                    header: _header,
+                    stripExtent: overlay == null ? 0 : _stripExtent,
+                    fieldExtent: _inlineSearch && fieldMounted
+                        ? PanelSearchField.height
+                        : 0,
+                    child: CatalogKeyboardFocus(
+                      controller: _catalog,
+                      child: Listener(
+                        behavior: HitTestBehavior.translucent,
+                        onPointerDown: (event) => _lastKind = event.kind,
+                        child: PanelCatalogViewport(
+                          snapshots: _model.snapshots,
+                          assets: widget.assets,
+                          controller: _catalog,
+                          padding: padding,
+                          // A header lands under the strip that overlays the
+                          // catalogue, never under the field's band, which
+                          // scrolls away (or, pinned, keeps a band of its own).
+                          headerLandingInset: widget.padding.top + stripBand,
+                          sectionNearExtent: widget.sectionNearExtent,
+                          onLeafTap: _onTap,
+                          onLeafSecondaryTap: _onSecondaryTap,
+                          leafLongPressEligible: _longPressEligible,
+                          leafLongPressDelay: _longPressDelay,
+                          onLeafLongPressStart: _onLongPressStart,
+                          onLeafLongPressMove: _onLongPressMove,
+                          onLeafLongPressEnd: _onLongPressEnd,
+                          pinnedLeaf: _pinned,
+                          onSectionAction: _onSectionAction,
+                        ),
                       ),
                     ),
                   ),
                   if (_inlineSearch && fieldMounted)
                     _SearchLayer(
                       header: _header,
-                      background: panel.background,
+                      background: background,
                       stripShown: overlay != null,
                       stripExtent: _stripExtent,
                     ),
                   if (overlay != null)
                     _StripLayer(
                       header: _header,
-                      background: panel.background,
+                      background: background,
                       hairline: panel.hairline,
                       extent: _stripExtent,
                       child: overlay,
@@ -708,6 +729,41 @@ final class _CatalogMetrics implements CatalogScrollMetrics {
 
   @override
   bool get isSectionJumpActive => _catalog.isSectionJumpActive;
+}
+
+/// The catalogue, painted from the lower edge of the bands over it (the strip,
+/// the field) as they move: nothing is drawn behind them, so a band on a
+/// see-through background shows what is behind the panel (its glass), not
+/// cells passing under it. Hit testing is not clipped; the bands take their
+/// own taps above it.
+class _BelowHeader extends StatelessWidget {
+  const _BelowHeader({
+    required this.header,
+    required this.stripExtent,
+    required this.fieldExtent,
+    required this.child,
+  });
+
+  final CatalogStickyHeader header;
+  final double stripExtent;
+  final double fieldExtent;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ListenValueBuilder<double>(
+    listenable: header.stripOffset,
+    builder: (context, stripOffset) => ListenValueBuilder<double>(
+      listenable: header.searchOffset,
+      builder: (context, searchOffset) {
+        final strip = stripExtent > 0 ? stripExtent + stripOffset : 0.0;
+        final field = fieldExtent > 0 ? searchOffset + fieldExtent : 0.0;
+        return ClipRect(
+          clipper: _TopEdgeClipper(math.max(0, math.max(strip, field))),
+          child: child,
+        );
+      },
+    ),
+  );
 }
 
 /// The search field over the catalogue: in its band at rest, translated by the

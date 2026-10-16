@@ -8,6 +8,11 @@ is pre-1.0.
 
 ### Changed
 
+- `PanelBackgroundScope`: the shell's background for a page's bands
+  (transparent on glass).
+- `PanelShell.sectionTabsBar` (`PanelSectionTabsBar.label`, the default, or
+  `section`): the underline as wide as the label, rounded on top.
+- A press on the focused search field raises its keyboard again.
 - Under `pointer` the page switcher is the reference desktop client's tabs
   slider (equal sections, a sliding accent bar, labels following it, a ripple,
   choice on release, a line under it), and choosing a page slides the pages

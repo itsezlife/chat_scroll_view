@@ -358,6 +358,25 @@ void main() {
       expect(controller.search.value.wantsFocus, isTrue);
     });
 
+    testWidgets('a press on a focused field whose keyboard was lowered raises '
+        'it again', (tester) async {
+      build();
+      await pump(tester);
+      controller.openSearch();
+      await tester.pumpAndSettle();
+      // The host lowered the keyboard; the field kept its focus.
+      await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+      tester.testTextInput.log.clear();
+
+      await tester.tap(find.byType(EditableText));
+      await tester.pump();
+
+      expect(
+        tester.testTextInput.log.map((call) => call.method),
+        contains('TextInput.show'),
+      );
+    });
+
     testWidgets('shows progress while the selected page reports a search '
         'in flight', (tester) async {
       build();

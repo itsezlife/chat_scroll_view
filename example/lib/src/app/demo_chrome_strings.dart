@@ -33,6 +33,7 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     copyAction: 'Копировать',
     removeRecentAction: 'Удалить из недавних',
     clearRecentAction: 'Очистить недавние',
+    colorAllTitle: 'Выберите тон кожи по умолчанию',
   ),
   composer: ComposerStrings(
     messageHint: 'Сообщение',

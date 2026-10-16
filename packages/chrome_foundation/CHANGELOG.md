@@ -8,6 +8,8 @@ package is pre-1.0.
 
 ### Added
 
+- `PanelStrings.colorAllTitle` (source-breaking for hosts that build
+  `PanelStrings`): the title of the tone-for-all picker.
 - `ActionTokens.iconHover` (from `ChromePalette.iconActive`): the colour of a
   composer action's glyph while a mouse is over it.
 

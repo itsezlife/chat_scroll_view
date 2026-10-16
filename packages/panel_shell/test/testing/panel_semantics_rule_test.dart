@@ -24,6 +24,7 @@ ChromeStrings stringsWith({
       copyAction: base.panel.copyAction,
       removeRecentAction: base.panel.removeRecentAction,
       clearRecentAction: base.panel.clearRecentAction,
+      colorAllTitle: base.panel.colorAllTitle,
     ),
     composer: base.composer,
     semantics: SemanticsStrings(

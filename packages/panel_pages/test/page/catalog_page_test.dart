@@ -108,8 +108,11 @@ class _Policy extends CatalogPagePolicy {
   void onSectionAction(
     Collection collection,
     String actionId,
-    PanelPageHost host,
-  ) => sectionActions.add('${collection.id}/$actionId');
+    PanelPageHost host, {
+    BuildContext? context,
+    Rect? bounds,
+    Rect? viewportBounds,
+  }) => sectionActions.add('${collection.id}/$actionId');
 
   @override
   Widget? buildStrip(BuildContext context, CatalogStripHandle handle) {

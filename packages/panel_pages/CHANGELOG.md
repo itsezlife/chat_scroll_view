@@ -8,6 +8,18 @@ is pre-1.0.
 
 ### Changed
 
+- The bands over the catalogue and the touch strip paint the shell's
+  background, and the catalogue is clipped below them.
+- A header lands at the page's top padding plus an overlaying strip, never
+  under a field that scrolls away.
+- The plain strip has 30 px slots, nothing folded.
+- Under `pointer` the Smileys & People header has the tone-for-all button
+  (`EmojiPagePolicy.colorAllActionId`); `EmojiVariantPicker` takes a `title`.
+- Source-breaking: `CatalogPagePolicy.onSectionAction` takes `context`,
+  `bounds` and `viewportBounds`.
+- Anything but a mouse gets the reference mobile client's tone picker
+  (`EmojiToneSession`, `EmojiTonePicker`, `EmojiTonePickerLayout`), with
+  haptics and a two-person picker.
 - `EmojiStripLayout` (`automatic`, `plain`, `grouped`) on
   `EmojiCategoryStrip.layout`, `EmojiPagePolicy.stripLayout` and
   `EmojiPage.stripLayout`: plain with no pack and grouped with any by default,

@@ -586,23 +586,25 @@ void main() {
   });
 
   group('a finger', () {
-    testWidgets('keeps the platform delay and releases anywhere on the '
-        'nearest option', (tester) async {
+    testWidgets('keeps the platform delay, gets the mobile picker and '
+        'releases anywhere on the nearest option', (tester) async {
       await pumpPage(tester, arrangement: PanelArrangement.touch);
 
       final touch = await tester.startGesture(cell(tester, top: people));
       await tester.pump(const Duration(milliseconds: 300));
-      expect(picker(), findsNothing);
+      final tones = find.byType(EmojiTonePicker);
+      expect(tones, findsNothing);
       await tester.pump(const Duration(milliseconds: 300));
-      expect(picker(), findsOneWidget);
-      expect(tester.widget<EmojiVariantPicker>(picker()).selected, 0);
+      // A finger gets the mobile picker, whatever the arrangement.
+      expect(tones, findsOneWidget);
+      expect(tester.widget<EmojiTonePicker>(tones).marked, 0);
 
       // Far to the right of the card, level with it: the last option.
       await touch.moveTo(
-        Offset(tester.getRect(picker()).right + 60, cardOf(tester).center.dy),
+        Offset(tester.getRect(tones).right + 60, tester.getCenter(tones).dy),
       );
       await tester.pump();
-      expect(tester.widget<EmojiVariantPicker>(picker()).selected, 5);
+      expect(tester.widget<EmojiTonePicker>(tones).marked, 5);
       await touch.up();
       await tester.pumpAndSettle();
 
@@ -718,6 +720,70 @@ void main() {
     };
     expect(sizes, {closeTo(24, 1e-9)});
     await gesture.up();
+  });
+
+  group('the tone for all (the Smileys & People header\'s button)', () {
+    // The button sits at the end of the header band of the second section:
+    // the band ends 4 px before the viewport's right edge.
+    Offset button(WidgetTester tester) {
+      final viewport = tester.getRect(find.byType(PanelCatalogViewport));
+      final padding = tester
+          .widget<PanelCatalogViewport>(find.byType(PanelCatalogViewport))
+          .padding;
+      return Offset(
+        viewport.right - padding.right - 12,
+        viewport.top + padding.top + smileys + EmojiPagePolicy.headerExtent / 2,
+      );
+    }
+
+    testWidgets('opens the waving hand in every tone under a title, and a '
+        'choice is the tone of every emoji, inserting nothing', (tester) async {
+      await pumpPage(tester);
+
+      await tester.tapAt(button(tester), kind: PointerDeviceKind.mouse);
+      await tester.pump(_settle);
+
+      expect(picker(), findsOneWidget);
+      expect(
+        find.descendant(
+          of: picker(),
+          matching: find.text(strings.colorAllTitle),
+        ),
+        findsOneWidget,
+      );
+      final options = tester.widget<EmojiVariantPicker>(picker()).options;
+      expect(options, [
+        for (final glyph in [
+          '👋',
+          '👋\u{1F3FB}',
+          '👋\u{1F3FC}',
+          '👋\u{1F3FD}',
+          '👋\u{1F3FE}',
+          '👋\u{1F3FF}',
+        ])
+          fixtures.key(glyph),
+      ]);
+
+      await tester.tap(
+        find.descendant(of: picker(), matching: find.text('👋\u{1F3FE}')),
+      );
+      await tester.pump(_settle);
+
+      expect(
+        preferences.defaultVariant,
+        EmojiModifiers(tones: const [SkinTone.mediumDark]),
+      );
+      expect(host.picks, isEmpty);
+      expect(picker(), findsNothing);
+    });
+
+    testWidgets('a finger has no such button', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpPage(tester, arrangement: PanelArrangement.touch);
+
+      expect(find.bySemanticsLabel(strings.colorAllTitle), findsNothing);
+      semantics.dispose();
+    });
   });
 
   group(

@@ -8,6 +8,10 @@ package is pre-1.0.
 
 ### Added
 
+- Source-breaking for implementers: `PreferenceStore.defaultVariant` and
+  `setDefaultVariant(EmojiModifiers)`, a tone for every emoji that forgets the
+  choices made per emoji; `KeyValuePreferenceStore` persists it as tone names,
+  `FakePreferenceStore` and the contract cover it.
 - `DeferredRecentsStore`: a `RecentsStore` view that shows the recents of
   another as of its last `commit()`, so a panel that lists them does not
   reorder under the finger picking from it. Picks go to the real store at once;

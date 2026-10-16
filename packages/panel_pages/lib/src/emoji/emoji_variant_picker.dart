@@ -27,8 +27,19 @@ import 'package:panel_shell/panel_shell.dart';
 @immutable
 final class EmojiVariantPickerLayout {
   /// The layout of [count] options in cells of size [cell].
-  const EmojiVariantPickerLayout({required this.count, required this.cell})
-    : assert(count > 0, 'a picker offers something');
+  const EmojiVariantPickerLayout({
+    required this.count,
+    required this.cell,
+    this.titleExtent = 0,
+  }) : assert(count > 0, 'a picker offers something');
+
+  /// The band a titled picker keeps above its options: the reference desktop
+  /// client's 6 px over a 12 px label, less 1.
+  static const double titleBand = 21;
+
+  /// Height of the title band above the options, or 0 for an untitled
+  /// picker.
+  final double titleExtent;
 
   /// Padding between the card's edge and the options, and around the
   /// separator.
@@ -74,7 +85,7 @@ final class EmojiVariantPickerLayout {
     hasSeparator
         ? 4 * pad + separatorWidth + count * cell.width
         : 2 * pad + columns * cell.width,
-    2 * pad + rows * cell.height,
+    titleExtent + 2 * pad + rows * cell.height,
   );
 
   /// Size of the whole picker, the shadow margin included.
@@ -90,7 +101,7 @@ final class EmojiVariantPickerLayout {
         : pad + column * cell.width;
     return Rect.fromLTWH(
       left,
-      pad + row * cell.height,
+      titleExtent + pad + row * cell.height,
       cell.width,
       cell.height,
     );
@@ -98,7 +109,12 @@ final class EmojiVariantPickerLayout {
 
   /// Where the separator is, in the card's own coordinates, or null for none.
   Rect? get separatorRect => hasSeparator
-      ? Rect.fromLTWH(2 * pad + cell.width, pad, separatorWidth, cell.height)
+      ? Rect.fromLTWH(
+          2 * pad + cell.width,
+          titleExtent + pad,
+          separatorWidth,
+          cell.height,
+        )
       : null;
 
   /// The option whose cell holds [local] (the card's own coordinates), or
@@ -199,6 +215,7 @@ class EmojiVariantPicker extends StatelessWidget {
     required this.cell,
     this.glyphExtent,
     this.highlightSize,
+    this.title,
     this.selected,
     this.onChoose,
     this.onHover,
@@ -219,6 +236,10 @@ class EmojiVariantPicker extends StatelessWidget {
   /// [EmojiVariantPickerLayout.highlightInset].
   final Size? highlightSize;
 
+  /// A line above the options (12 px, the muted text colour, centred), or
+  /// null for none.
+  final String? title;
+
   /// Index of the highlighted option, or null for none.
   final int? selected;
 
@@ -234,7 +255,11 @@ class EmojiVariantPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = ChromeThemeScope.paletteOf(context);
     final strings = ChromeStringsScope.semanticsOf(context);
-    final layout = EmojiVariantPickerLayout(count: options.length, cell: cell);
+    final layout = EmojiVariantPickerLayout(
+      count: options.length,
+      cell: cell,
+      titleExtent: title == null ? 0 : EmojiVariantPickerLayout.titleBand,
+    );
     final card = layout.card;
     final glyphBox = catalogGlyphBoxExtent(
       cell.width,
@@ -266,6 +291,23 @@ class EmojiVariantPicker extends StatelessWidget {
             height: card.height,
             child: Stack(
               children: [
+                if (title case final text?)
+                  Positioned(
+                    left: EmojiVariantPickerLayout.pad,
+                    right: EmojiVariantPickerLayout.pad,
+                    top: 6,
+                    child: Text(
+                      text,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: palette.onSurfaceMuted,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ),
                 if (layout.separatorRect case final separator?)
                   Positioned.fromRect(
                     rect: separator,
@@ -440,6 +482,7 @@ final class EmojiVariantSession implements CatalogLongPressSession {
     required this.layout,
     required this.glyphExtent,
     required this.highlightSize,
+    required this.title,
     required PanelPageHold hold,
     required int? selected,
     required Rect card,
@@ -465,12 +508,14 @@ final class EmojiVariantSession implements CatalogLongPressSession {
     required ValueChanged<ContentKey$Unicode> onChosen,
     double? glyphExtent,
     Size? highlightSize,
+    String? title,
   }) {
     final overlay = Overlay.of(context);
     final scopes = ChromeOverlayScopes.capture(context);
     final layout = EmojiVariantPickerLayout(
       count: options.length,
       cell: cellBounds.size,
+      titleExtent: title == null ? 0 : EmojiVariantPickerLayout.titleBand,
     );
     final overlayBox = overlay.context.findRenderObject()! as RenderBox;
     final originGlobal = layout.originFor(cellBounds, viewportBounds);
@@ -481,6 +526,7 @@ final class EmojiVariantSession implements CatalogLongPressSession {
       layout: layout,
       glyphExtent: glyphExtent,
       highlightSize: highlightSize,
+      title: title,
       hold: hold,
       selected: mode == EmojiVariantPickerMode.touch
           ? math.max(0, options.indexOf(initial))
@@ -526,6 +572,9 @@ final class EmojiVariantSession implements CatalogLongPressSession {
 
   /// The highlight size of an option, or null for the inset cell.
   final Size? highlightSize;
+
+  /// The line above the options, or null for none.
+  final String? title;
 
   final PanelPageHold _hold;
 
@@ -700,6 +749,7 @@ class _PickerOverlayState extends State<_PickerOverlay>
                   cell: session.layout.cell,
                   glyphExtent: session.glyphExtent,
                   highlightSize: session.highlightSize,
+                  title: session.title,
                   selected: session._selected,
                   onChoose: session._choose,
                   onHover: session.mode == EmojiVariantPickerMode.touch

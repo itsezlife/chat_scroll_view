@@ -10,9 +10,11 @@ import 'package:panel_shell/src/page/panel_page.dart';
 /// tabs slider at the top of its emoji panel.
 ///
 /// The column's width is shared equally by one section per page, each with
-/// its name centred. The selected section is marked by a [barStroke] bar
-/// across the whole section at its bottom, in the accent, which slides
-/// linearly over [duration] to the next section; a label's colour goes from
+/// its name centred. The selected section is marked by a [barStroke] bar in
+/// the accent near its bottom, as wide as its label with rounded top corners
+/// ([PanelSectionTabsBar.label], the reference client's) or across the whole
+/// section ([PanelSectionTabsBar.section]); it slides linearly over
+/// [duration] to the next one, taking its width. A label's colour goes from
 /// the muted text colour to the accent as the bar comes over it. A press
 /// grows a ripple from where it went down and the section is chosen when the
 /// press is released over it (a press that leaves it chooses nothing). There
@@ -29,8 +31,12 @@ class PanelSectionTabs extends StatefulWidget {
   const PanelSectionTabs({
     required this.pages,
     required this.selectedPageId,
+    this.bar = PanelSectionTabsBar.label,
     super.key,
   });
+
+  /// How wide the bar is.
+  final PanelSectionTabsBar bar;
 
   /// The pages, in order.
   final List<PanelPage> pages;
@@ -49,6 +55,9 @@ class PanelSectionTabs extends StatefulWidget {
 
   /// Thickness of the bar.
   static const double barStroke = 3;
+
+  /// Radius of a label-wide bar's top corners.
+  static const double barRadius = 2;
 
   /// Size of a label.
   static const double fontSize = 13;
@@ -118,6 +127,63 @@ class _PanelSectionTabsState extends State<PanelSectionTabs>
     super.dispose();
   }
 
+  static TextStyle get _labelStyle => const TextStyle(
+    fontSize: PanelSectionTabs.fontSize,
+    fontWeight: FontWeight.w600,
+  );
+
+  static double _labelWidth(String label, TextScaler scaler) {
+    final painter = TextPainter(
+      text: TextSpan(text: label, style: _labelStyle),
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout();
+    final width = painter.width;
+    painter.dispose();
+    return width;
+  }
+
+  // The bar at [position] (in sections): across the section, or as wide as
+  // the labels it is between, centred under them.
+  Widget _bar({
+    required double position,
+    required double section,
+    required double Function(double index) leftOf,
+    required List<double> widths,
+    required Color color,
+  }) {
+    final (left, width, radius) = switch (widget.bar) {
+      PanelSectionTabsBar.section => (leftOf(position), section, 0.0),
+      PanelSectionTabsBar.label => () {
+        final from = position.floor().clamp(0, widths.length - 1);
+        final to = position.ceil().clamp(0, widths.length - 1);
+        final t = position - from;
+        final width = widths[from] + (widths[to] - widths[from]) * t;
+        return (
+          leftOf(position) + (section - width) / 2,
+          width,
+          PanelSectionTabs.barRadius,
+        );
+      }(),
+    };
+    return Positioned(
+      key: PanelSectionTabs.barKey,
+      left: left,
+      top: PanelSectionTabs.barTop,
+      width: width,
+      height: PanelSectionTabs.barStroke,
+      child: IgnorePointer(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(radius)),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _select(PanelPage page) => Actions.maybeInvoke<PanelSelectPageIntent>(
     context,
     PanelSelectPageIntent(page.id),
@@ -138,6 +204,16 @@ class _PanelSectionTabsState extends State<PanelSectionTabs>
           final rtl = Directionality.of(context) == TextDirection.rtl;
           double leftOf(double index) =>
               (rtl ? count - 1 - index : index) * section;
+          // Each section's label width, measured as it is drawn.
+          final labels = [
+            for (final page in widget.pages)
+              strings.tabLabel(page.tab.labelKey),
+          ];
+          final scaler = MediaQuery.textScalerOf(context);
+          final widths = [
+            for (final label in labels)
+              math.min(section, _labelWidth(label, scaler)),
+          ];
           return AnimatedBuilder(
             animation: _slide,
             builder: (context, _) {
@@ -151,7 +227,7 @@ class _PanelSectionTabsState extends State<PanelSectionTabs>
                       width: section,
                       height: PanelSectionTabs.height,
                       child: _Section(
-                        label: strings.tabLabel(widget.pages[i].tab.labelKey),
+                        label: labels[i],
                         selected: i == _selected,
                         active: 1 - clampDouble((position - i).abs(), 0, 1),
                         muted: palette.onSurfaceMuted,
@@ -169,15 +245,12 @@ class _PanelSectionTabsState extends State<PanelSectionTabs>
                       child: ColoredBox(color: panel.hairline),
                     ),
                   ),
-                  Positioned(
-                    key: PanelSectionTabs.barKey,
-                    left: leftOf(position),
-                    top: PanelSectionTabs.barTop,
-                    width: section,
-                    height: PanelSectionTabs.barStroke,
-                    child: IgnorePointer(
-                      child: ColoredBox(color: palette.accent),
-                    ),
+                  _bar(
+                    position: position,
+                    section: section,
+                    leftOf: leftOf,
+                    widths: widths,
+                    color: palette.accent,
                   ),
                 ],
               );
@@ -289,9 +362,7 @@ class _SectionState extends State<_Section> with TickerProviderStateMixin {
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: PanelSectionTabs.fontSize,
-                      fontWeight: FontWeight.w600,
+                    style: _PanelSectionTabsState._labelStyle.copyWith(
                       color: Color.lerp(
                         widget.muted,
                         widget.accent,
@@ -364,4 +435,14 @@ class _FocusRingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_FocusRingPainter old) => old.color != color;
+}
+
+/// How wide the bar under the selected section tab is.
+enum PanelSectionTabsBar {
+  /// As wide as the label, with rounded top corners: the reference desktop
+  /// client's.
+  label,
+
+  /// Across the whole section.
+  section,
 }

@@ -219,6 +219,70 @@ void main() {
       expect(firstThing(), key('1F44D-1F3FF'));
     });
 
+    group('with a tone chosen for all', () {
+      ContentKey keyOf(String label) => key(label);
+
+      test('shows an emoji the user chose nothing for in that tone', () async {
+        await preferences.setDefaultVariant(
+          EmojiModifiers(tones: const [SkinTone.dark]),
+        );
+
+        await emoji.load(things);
+
+        expect(firstThing(), keyOf('1F44D-1F3FF'));
+        expect(emoji.shownKeyOf(toned('1F44D')), keyOf('1F44D-1F3FF'));
+      });
+
+      test('a choice made for one emoji afterwards wins', () async {
+        await preferences.setDefaultVariant(
+          EmojiModifiers(tones: const [SkinTone.dark]),
+        );
+        await preferences.setPreferredVariant(
+          key('1F44D'),
+          key('1F44D-1F3FB'),
+        );
+
+        await emoji.load(things);
+
+        expect(firstThing(), keyOf('1F44D-1F3FB'));
+      });
+
+      test('the emoji as it is, chosen for all, shows every base', () async {
+        await preferences.setDefaultVariant(EmojiModifiers.none);
+
+        await emoji.load(things);
+
+        expect(firstThing(), keyOf('1F44D'));
+      });
+
+      test('an emoji with no variant in that tone shows its base', () async {
+        await preferences.setDefaultVariant(
+          EmojiModifiers(tones: const [SkinTone.medium]),
+        );
+
+        await emoji.load(things);
+
+        expect(firstThing(), keyOf('1F44D'));
+      });
+
+      test('leaves the recents as they were picked', () async {
+        await recents.record(key('1F44D'), kind: SemanticKind.unicodeEmoji);
+        await preferences.setDefaultVariant(
+          EmojiModifiers(tones: const [SkinTone.dark]),
+        );
+
+        await emoji.load(CollectionId.recent);
+
+        final recent = emoji.collections.value.firstWhere(
+          (c) => c.id == CollectionId.recent,
+        );
+        expect(
+          (recent.contents as CollectionContents$Loaded).items.single.key,
+          keyOf('1F44D'),
+        );
+      });
+    });
+
     test('shows the base when the stored choice is no variant of it', () async {
       await preferences.setPreferredVariant(key('1F44D'), key('1F44E-1F3FB'));
 

@@ -19,6 +19,7 @@ final class PanelStrings {
     required this.copyAction,
     required this.removeRecentAction,
     required this.clearRecentAction,
+    required this.colorAllTitle,
   });
 
   /// The name of the panel page registered under [pageId]. Page ids are open
@@ -68,4 +69,8 @@ final class PanelStrings {
   /// attention style. Answered by the clear-recents confirmation
   /// ([clearRecentsTitle], [clearRecentsMessage], [clearAction]).
   final String clearRecentAction;
+
+  /// The title of the picker that chooses one tone for every emoji, and the
+  /// spoken label of the button that opens it.
+  final String colorAllTitle;
 }

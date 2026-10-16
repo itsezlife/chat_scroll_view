@@ -243,6 +243,13 @@ final class PanelCatalogController {
   /// rectangle may lie partly or wholly outside [viewportBounds].
   Rect? leafBoundsOf(CatalogLeafHit hit) => _position?.leafBounds(hit);
 
+  /// The button of the action of section [sectionId]'s header, in global
+  /// coordinates under the current offset, or null when no viewport is
+  /// attached, the section has no action or is not in the snapshot: where a
+  /// host anchors what the action opens.
+  Rect? sectionActionBoundsOf(String sectionId) =>
+      _position?.sectionActionBounds(sectionId);
+
   // --- Roving focus ---------------------------------------------------------
 
   /// The cell that holds roving focus, or null.

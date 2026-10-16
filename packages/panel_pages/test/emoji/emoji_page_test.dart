@@ -279,22 +279,13 @@ void main() {
     // after the smileys' one row (27 + 45).
     const peopleTop = 72.0;
 
-    // The centre of option [index] of the open picker: its card sits inside the
-    // shadow margin, and the option is one grid cell of 43.75 x 45.
-    Offset pickerOptionCenter(WidgetTester tester, int index) {
-      final outer = tester.getTopLeft(find.byType(EmojiVariantPicker));
-      const cell = Size(43.75, 45);
-      final layout = EmojiVariantPickerLayout(
-        count: fixtures.thumbsUp.variants.length + 1,
-        cell: cell,
-      );
-      return outer +
-          const Offset(
-            EmojiVariantPickerLayout.shadowMargin,
-            EmojiVariantPickerLayout.shadowMargin,
-          ) +
-          layout.optionRect(index).center;
-    }
+    // The centre of option [index] of the open picker: 32 px emoji 5 px in and
+    // 4 px apart.
+    Offset pickerOptionCenter(WidgetTester tester, int index) =>
+        tester.getTopLeft(find.byType(EmojiTonePicker)) +
+        EmojiTonePickerLayout(
+          count: fixtures.thumbsUp.variants.length + 1,
+        ).optionRect(index).center;
 
     Future<TestGesture> pressThumb(WidgetTester tester) async {
       source = fixtures.source(count: 0);
@@ -309,15 +300,15 @@ void main() {
         'entry', (tester) async {
       final gesture = await pressThumb(tester);
 
-      expect(find.byType(EmojiVariantPicker), findsOneWidget);
-      final picker = tester.widget<EmojiVariantPicker>(
-        find.byType(EmojiVariantPicker),
+      expect(find.byType(EmojiTonePicker), findsOneWidget);
+      final picker = tester.widget<EmojiTonePicker>(
+        find.byType(EmojiTonePicker),
       );
       expect(picker.options, [
         fixtures.thumbsUp.base,
         for (final variant in fixtures.thumbsUp.variants) variant.key,
       ]);
-      expect(picker.selected, 0);
+      expect(picker.marked, 0);
       await gesture.up();
       await tester.pump();
     });
@@ -335,7 +326,7 @@ void main() {
       expect(host.picks.single.key, chosen);
       expect(host.picks.single.source, PickSource.collection);
       expect(preferences.preferredVariant(fixtures.thumbsUp.base), chosen);
-      expect(find.byType(EmojiVariantPicker), findsNothing);
+      expect(find.byType(EmojiTonePicker), findsNothing);
     });
 
     testWidgets('choosing the base is a choice too: it is remembered as the '
@@ -345,6 +336,9 @@ void main() {
         fixtures.thumbsUp.variants.first.key,
       );
       final gesture = await pressThumb(tester);
+      // The saved tone is marked; the emoji as it is is the first option.
+      await gesture.moveTo(pickerOptionCenter(tester, 0));
+      await tester.pump();
 
       await gesture.up();
       await tester.pump(const Duration(milliseconds: 300));
@@ -369,18 +363,18 @@ void main() {
       await gesture.up();
       await tester.pump();
 
-      expect(find.byType(EmojiVariantPicker), findsNothing);
+      expect(find.byType(EmojiTonePicker), findsNothing);
       expect(host.picks.single.key, fixtures.key('❤'));
     });
 
     testWidgets('is cancelled when the page leaves mid-press', (tester) async {
       final gesture = await pressThumb(tester);
-      expect(find.byType(EmojiVariantPicker), findsOneWidget);
+      expect(find.byType(EmojiTonePicker), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump();
 
-      expect(find.byType(EmojiVariantPicker), findsNothing);
+      expect(find.byType(EmojiTonePicker), findsNothing);
       await gesture.up();
       expect(host.picks, isEmpty);
     });
@@ -398,15 +392,15 @@ void main() {
         SemanticsAction.longPress,
       );
       await tester.pump();
-      expect(find.byType(EmojiVariantPicker), findsOneWidget);
+      expect(find.byType(EmojiTonePicker), findsOneWidget);
       await tester.pump(const Duration(seconds: 2));
-      expect(find.byType(EmojiVariantPicker), findsOneWidget);
+      expect(find.byType(EmojiTonePicker), findsOneWidget);
 
       await tester.tap(find.text('👍\u{1F3FE}'));
       await tester.pumpAndSettle();
 
       expect(host.picks.single.key, fixtures.thumbsUp.variants[3].key);
-      expect(find.byType(EmojiVariantPicker), findsNothing);
+      expect(find.byType(EmojiTonePicker), findsNothing);
       handle.dispose();
     });
 

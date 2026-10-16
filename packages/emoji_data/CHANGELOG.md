@@ -8,6 +8,9 @@ is pre-1.0.
 
 ### Changed
 
+- The sources show an emoji with no choice of its own in the default
+  variant's tone (its variant whose people all have it), else its base; the
+  recents are untouched.
 - Source-breaking: `GlyphProbeSnapshot.referenceHashes` is a map by reference,
   and the probe's record is version 2 (records of version 1 are probed again).
 - `defaultMissingGlyphReferences` adds U+F0000 to U+10FFFF: a system that

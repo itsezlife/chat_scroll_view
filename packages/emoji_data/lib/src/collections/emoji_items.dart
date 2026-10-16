@@ -26,19 +26,36 @@ final class EmojiItems {
   /// languages are known; null leaves the items unnamed.
   EmojiSpokenNames? spokenNames;
 
-  /// The key the grid shows for [entry]: the chosen variant, else the base.
+  /// The key the grid shows for [entry]: the variant chosen for it, else the
+  /// one in the tone chosen for all ([PreferenceStore.defaultVariant]: the
+  /// variant every person of which has that tone), else the base.
   ///
   /// A choice that is not a variant of [entry] (the catalogue moved on) is
   /// ignored, and so is one the device cannot draw, so a missing tone never
   /// hides an emoji whose base is fine. Null when even the base is missing.
   ContentKey$Unicode? shownKey(EmojiEntry entry) {
-    final chosen = preferences.preferredVariant(entry.base);
+    final chosen =
+        preferences.preferredVariant(entry.base) ?? _defaultOf(entry);
     if (chosen != null &&
         entry.modifiersOf(chosen) != null &&
         _supports(chosen)) {
       return chosen;
     }
     return _supports(entry.base) ? entry.base : null;
+  }
+
+  ContentKey$Unicode? _defaultOf(EmojiEntry entry) {
+    final tones = preferences.defaultVariant?.tones;
+    if (tones == null) return null;
+    if (tones.isEmpty) return entry.base;
+    final tone = tones.first;
+    for (final variant in entry.variants) {
+      final own = variant.modifiers.tones;
+      if (own.isNotEmpty && own.every((each) => each == tone)) {
+        return variant.key;
+      }
+    }
+    return null;
   }
 
   /// The item for [entry] as the grid shows it, or null when hidden.

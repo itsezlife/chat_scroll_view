@@ -81,6 +81,11 @@ abstract interface class CatalogScrollPosition {
   /// or wholly outside the viewport.
   Rect? leafBounds(CatalogLeafHit hit);
 
+  /// The button of the action of section [sectionId]'s header, as a rectangle
+  /// in global coordinates under the current offset, or null when the section
+  /// has no action or is not in the snapshot.
+  Rect? sectionActionBounds(String sectionId);
+
   /// The cell that holds roving focus, or null.
   CatalogLeafHit? get focusedLeaf;
 

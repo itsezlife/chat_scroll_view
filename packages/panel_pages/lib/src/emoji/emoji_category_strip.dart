@@ -236,8 +236,9 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
     return Semantics(
       container: true,
       label: strings.semantics.categoryStripLabel,
+      // The shell's background: see-through on glass.
       child: ColoredBox(
-        color: panel.background,
+        color: PanelBackgroundScope.of(context),
         child: SizedBox(
           height: EmojiCategoryStrip.height,
           width: double.infinity,
@@ -328,15 +329,15 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
 
 /// How the emoji strip lays its icons out under the pointer arrangement.
 ///
-/// The reference desktop client decides by the data alone: with no pack of
-/// custom emoji its footer is plain, with any it is grouped. [automatic] does
-/// the same; a host can fix either.
+/// Grouped as soon as there is a pack of custom emoji, as the reference
+/// desktop client groups; plain otherwise. [automatic] does that; a host can
+/// fix either.
 enum EmojiStripLayout {
   /// Plain with no pack, grouped with any: the reference client's rule.
   automatic,
 
-  /// Every icon in a slot of its own, spread over the width in whole pixels
-  /// (never narrower than a grouped slot, scrolling past that).
+  /// Every icon in a 30 px slot of its own, as the grouped layout lays them,
+  /// with nothing folded (scrolling when they overflow).
   plain,
 
   /// 30 px slots: the recents, the categories folded into one icon that opens

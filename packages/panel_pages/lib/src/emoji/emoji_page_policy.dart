@@ -1,15 +1,18 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:catalog_assets/catalog_assets.dart'
     show AssetCacheScope, TextGlyphProducer;
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/emoji/emoji_category_strip.dart';
 import 'package:panel_pages/src/emoji/emoji_tab_icons.dart';
+import 'package:panel_pages/src/emoji/emoji_tone_picker.dart';
 import 'package:panel_pages/src/emoji/emoji_variant_picker.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
@@ -105,6 +108,24 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   /// The id of the context menu item that clears the recents.
   static const String clearRecentItemId = 'clear-recent';
 
+  /// The id of the Smileys & People header's action, which chooses one tone
+  /// for every emoji.
+  static const String colorAllActionId = 'color-all';
+
+  /// The category whose header carries [colorAllActionId].
+  static const CollectionId colorAllSection = CollectionId.category('people');
+
+  // The emoji the tone-for-all picker offers: the waving hand, as it is and in
+  // each tone, as the reference desktop client offers it.
+  static final List<(ContentKey$Unicode, EmojiModifiers)> _colorAllOptions = [
+    (const ContentKey$Unicode('\u{1F44B}'), EmojiModifiers.none),
+    for (final (i, tone) in SkinTone.values.indexed)
+      (
+        ContentKey$Unicode('\u{1F44B}${String.fromCharCode(0x1F3FB + i)}'),
+        EmojiModifiers(tones: [tone]),
+      ),
+  ];
+
   /// How long a mouse holds a press on an emoji whose variant the user has
   /// chosen before the picker opens: the reference client's 500 ms.
   static const Duration pointerHoldDelay = Duration(milliseconds: 500);
@@ -196,6 +217,81 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     PanelArrangement.touch => _layout,
     PanelArrangement.pointer => _pointerLayout,
   };
+
+  // --- Section header -------------------------------------------------------
+
+  /// Under a pointer, the Smileys & People header ends in a button that opens
+  /// a picker of one tone for every emoji, as in the reference desktop
+  /// client.
+  @override
+  CatalogSectionAction? actionOf(
+    Collection collection,
+    PanelStrings strings, {
+    PanelArrangement arrangement = PanelArrangement.touch,
+  }) => switch ((arrangement, collection.id)) {
+    (PanelArrangement.pointer, final id) when id == colorAllSection =>
+      CatalogSectionAction(
+        id: colorAllActionId,
+        icon: Icons.waving_hand_outlined,
+        semanticLabel: strings.colorAllTitle,
+      ),
+    _ => null,
+  };
+
+  /// Opens the tone-for-all picker over the button: the waving hand as it is
+  /// and in each tone, under its title. A choice is the default variant of
+  /// every emoji ([PreferenceStore.setDefaultVariant], which forgets the
+  /// choices made per emoji); nothing is inserted and the recents keep what
+  /// was picked.
+  @override
+  void onSectionAction(
+    Collection collection,
+    String actionId,
+    PanelPageHost host, {
+    BuildContext? context,
+    Rect? bounds,
+    Rect? viewportBounds,
+  }) {
+    if (actionId != colorAllActionId ||
+        context == null ||
+        bounds == null ||
+        viewportBounds == null) {
+      return;
+    }
+    final strings = ChromeStringsScope.panelOf(context);
+    final hold = host.holdAutoHide();
+    final options = [for (final (key, _) in _colorAllOptions) key];
+    try {
+      EmojiVariantSession.show(
+        context: context,
+        options: options,
+        initial: options.first,
+        cellBounds: bounds,
+        viewportBounds: viewportBounds,
+        mode: EmojiVariantPickerMode.pointerHold,
+        hold: hold,
+        title: strings.colorAllTitle,
+        highlightSize: ChromeCatalogTheme.pointerHoverSize,
+        glyphExtent: switch (layoutOf(
+          collection,
+          arrangement: PanelArrangement.pointer,
+        )) {
+          SectionLayout$Grid(:final glyphExtent) => glyphExtent,
+          null => null,
+        },
+        onChosen: (chosen) {
+          for (final (key, modifiers) in _colorAllOptions) {
+            if (key == chosen) {
+              unawaited(preferences.setDefaultVariant(modifiers));
+            }
+          }
+        },
+      );
+    } on Object {
+      hold.release();
+      rethrow;
+    }
+  }
 
   // --- Context menu ---------------------------------------------------------
 
@@ -293,13 +389,27 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
       final EmojiEntry entry,
       final ContentKey$Unicode initial,
     )) {
-      final mode = switch (kind) {
-        PointerDeviceKind.mouse => EmojiVariantPickerMode.pointerHold,
-        _ => EmojiVariantPickerMode.touch,
-      };
       // The hold goes up with the picker: the move onto it is the first thing
       // the panel's hover rule hears of.
       final hold = host.holdAutoHide();
+      // Anything but a mouse gets the reference mobile client's picker.
+      if (kind != PointerDeviceKind.mouse) {
+        try {
+          return _showTones(
+            context,
+            entry,
+            initial,
+            collection,
+            details: details,
+            cellBounds: cellBounds,
+            hold: hold,
+          );
+        } on Object {
+          hold.release();
+          rethrow;
+        }
+      }
+      const mode = EmojiVariantPickerMode.pointerHold;
       try {
         return EmojiVariantSession.show(
           context: context,
@@ -330,6 +440,74 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
       }
     }
     return null;
+  }
+
+  // The touch picker: a row of the emoji as it is and its tones, or, for two
+  // people, a row of tones per person whose changes are kept at once.
+  EmojiToneSession _showTones(
+    BuildContext context,
+    EmojiEntry entry,
+    ContentKey$Unicode initial,
+    Collection collection, {
+    required LongPressStartDetails details,
+    required Rect cellBounds,
+    required PanelPageHold hold,
+  }) {
+    final compound = entry.variants.any(
+      (variant) => variant.modifiers.tones.length > 1,
+    );
+    // As the reference client: the saved choice is marked, not whatever the
+    // cell shows (the recents show what was picked).
+    final saved = preferences.preferredVariant(entry.base) ?? initial;
+    if (!compound) {
+      final options = emojiVariantOptions(entry);
+      return EmojiToneSession.show(
+        context: context,
+        options: options,
+        initial: math.max(0, options.indexOf(saved)),
+        cellBounds: cellBounds,
+        pressedAt: details.globalPosition,
+        hold: hold,
+        onChosen: (chosen) => _choose(entry, chosen, collection),
+      );
+    }
+    // Each person's row shows the emoji with both people in that tone.
+    ContentKey$Unicode? both(int tone) => entry.keyFor(
+      EmojiModifiers(tones: [SkinTone.values[tone], SkinTone.values[tone]]),
+    );
+    final tones = entry.modifiersOf(saved)?.tones ?? const [];
+    return EmojiToneSession.show(
+      context: context,
+      options: [entry.base],
+      initial: 0,
+      cellBounds: cellBounds,
+      pressedAt: details.globalPosition,
+      hold: hold,
+      onChosen: (chosen) {},
+      rowOptions: [
+        for (var row = 0; row < 2; row++)
+          [
+            for (var tone = 0; tone < SkinTone.values.length; tone++)
+              both(tone),
+          ],
+      ],
+      initialRows: tones.length == 2
+          ? [tones[0].index, tones[1].index]
+          : const [-1, -1],
+      onCompound: (rows) {
+        final key = rows.every((tone) => tone < 0)
+            ? entry.base
+            : entry.keyFor(
+                EmojiModifiers(
+                  tones: [
+                    for (final tone in rows) SkinTone.values[math.max(0, tone)],
+                  ],
+                ),
+              );
+        if (key == null || collection.id == CollectionId.recent) return;
+        unawaited(preferences.setPreferredVariant(entry.base, key));
+      },
+    );
   }
 
   void _choose(

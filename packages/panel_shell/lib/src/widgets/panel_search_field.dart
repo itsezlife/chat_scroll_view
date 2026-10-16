@@ -99,6 +99,7 @@ class _PanelSearchFieldState extends State<PanelSearchField>
     with SingleTickerProviderStateMixin {
   final _text = TextEditingController();
   final _focus = FocusNode(debugLabel: 'PanelSearchField');
+  final _editable = GlobalKey<EditableTextState>();
   late final AnimationController _shadow = AnimationController(
     vsync: this,
     value: (widget.shadow?.value ?? false) ? 1 : 0,
@@ -236,11 +237,14 @@ class _PanelSearchFieldState extends State<PanelSearchField>
     }
   }
 
+  // A field with no selection gestures of its own: a press on it while it is
+  // focused raises the keyboard the host may have lowered (the catalogue was
+  // dragged), and asks search for its focus back.
   void _onFieldPressed() {
+    if (!_focus.hasFocus) return;
+    _editable.currentState?.requestKeyboard();
     final state = _shell.search.value;
-    if (state.isOpen && !state.wantsFocus && _focus.hasFocus) {
-      _shell.requestSearchFocus();
-    }
+    if (state.isOpen && !state.wantsFocus) _shell.requestSearchFocus();
   }
 
   void _clear() => _shell.setQuery('');
@@ -326,6 +330,7 @@ class _PanelSearchFieldState extends State<PanelSearchField>
                               Listener(
                                 onPointerDown: (_) => _onFieldPressed(),
                                 child: EditableText(
+                                  key: _editable,
                                   controller: _text,
                                   focusNode: _focus,
                                   style: textStyle,

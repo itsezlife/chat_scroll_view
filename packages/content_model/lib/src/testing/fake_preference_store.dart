@@ -31,6 +31,21 @@ final class FakePreferenceStore with ChangeNotifier implements PreferenceStore {
     notifyListeners();
   }
 
+  EmojiModifiers? _defaultVariant;
+
+  @override
+  EmojiModifiers? get defaultVariant => _defaultVariant;
+
+  @override
+  Future<void> setDefaultVariant(EmojiModifiers modifiers) async {
+    if (_disposed || (_defaultVariant == modifiers && _variants.isEmpty)) {
+      return;
+    }
+    _defaultVariant = modifiers;
+    _variants.clear();
+    notifyListeners();
+  }
+
   @override
   String? get selectedPageId => _selectedPageId;
 

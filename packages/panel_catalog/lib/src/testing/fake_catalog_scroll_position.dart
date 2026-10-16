@@ -129,6 +129,12 @@ final class FakeCatalogScrollPosition implements CatalogScrollPosition {
   Rect? leafBounds(CatalogLeafHit hit) =>
       leafRects['${hit.sectionId}/${hit.index}'];
 
+  /// What [sectionActionBounds] answers per section; a missing one is null.
+  final Map<String, Rect> sectionActionRects = {};
+
+  @override
+  Rect? sectionActionBounds(String sectionId) => sectionActionRects[sectionId];
+
   @override
   CatalogLeafHit? get focusedLeaf => _focused;
 

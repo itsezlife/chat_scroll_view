@@ -138,6 +138,10 @@ _Avoid_: A header clear button, the page writing recents, a menu for a finger
 The card of an emoji's variants a press opens over the grid: the grid's own cell and glyph box for every option, one row with a separator after the first, above the pressed cell (below near the top edge), fading, modal on a barrier, holding auto-hide while open. A mouse opens it after a 500 ms hold, a click picks the emoji as shown; a finger after the platform's long press. Under the mouse the option under it gets the grid's 34 x 32 hover box.
 _Avoid_: Options in a smaller container than the grid's cell, clipping the glyph, a picker that lets a press through
 
+**Tone for all**:
+The Smileys & People header's button under the pointer arrangement: a picker of the waving hand in each tone whose choice is the default variant of every emoji, forgetting the choices made per emoji.
+_Avoid_: A tone that overwrites the recents, a button under touch
+
 **Section tabs**:
 The pointer arrangement's page switcher: one equal section per page across the column, the selected one marked by a sliding bar in the accent, the labels following it in colour, chosen on release; choosing slides the pages. Under touch the switcher is the pill in the bottom bar.
 _Avoid_: The pill above the column on a desktop kind, a hover paint

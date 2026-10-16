@@ -7,6 +7,7 @@ library;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -41,6 +42,7 @@ void main() {
     PanelArrangement? arrangement,
     List<FakePanelPage>? pages,
     EdgeInsets padding = EdgeInsets.zero,
+    PanelSectionTabsBar sectionTabsBar = PanelSectionTabsBar.label,
   }) async {
     controller = PanelShellController(
       pages: (pages ?? [emoji, stickers]).map((p) => p.page).toList(),
@@ -55,6 +57,7 @@ void main() {
             controller: controller,
             announcer: FakePanelAnnouncer(),
             arrangement: arrangement ?? PanelArrangement.touch,
+            sectionTabsBar: sectionTabsBar,
           ),
         ),
       ),
@@ -164,6 +167,18 @@ void main() {
     Rect bar(WidgetTester tester) =>
         tester.getRect(find.byKey(PanelSectionTabs.barKey));
 
+    // Where a label's text is painted: centred in its section, as wide as the
+    // text (the Text widget itself spans the section).
+    Rect label(WidgetTester tester, String text) {
+      final paragraph = tester.renderObject<RenderParagraph>(find.text(text));
+      final box = tester.getRect(find.text(text));
+      return Rect.fromCenter(
+        center: box.center,
+        width: paragraph.getMaxIntrinsicWidth(double.infinity),
+        height: box.height,
+      );
+    }
+
     testWidgets('span the column above the search field, one equal section '
         'per page, 53 px tall, with a line under them', (tester) async {
       await pump(tester, arrangement: PanelArrangement.pointer);
@@ -190,9 +205,31 @@ void main() {
       );
     });
 
-    testWidgets('mark the active one with a 3 px bar across its section, in '
-        'the accent, and its label in the accent', (tester) async {
+    testWidgets('mark the active one with a 3 px bar as wide as its label, '
+        'rounded on top, in the accent', (tester) async {
       await pump(tester, arrangement: PanelArrangement.pointer);
+      final emoji = label(tester, 'Emoji');
+
+      expect(bar(tester), Rect.fromLTWH(emoji.left, 50, emoji.width, 3));
+      final bar0 = tester.widget<DecoratedBox>(
+        find.descendant(
+          of: find.byKey(PanelSectionTabs.barKey),
+          matching: find.byType(DecoratedBox),
+        ),
+      );
+      expect(
+        (bar0.decoration as BoxDecoration).borderRadius,
+        const BorderRadius.vertical(top: Radius.circular(2)),
+      );
+    });
+
+    testWidgets('a host can ask for a bar across the whole section, and the '
+        'active label is in the accent', (tester) async {
+      await pump(
+        tester,
+        arrangement: PanelArrangement.pointer,
+        sectionTabsBar: PanelSectionTabsBar.section,
+      );
       final palette = ChromeThemeScope.paletteOf(
         tester.element(find.byType(PanelSectionTabs)),
       );
@@ -206,7 +243,11 @@ void main() {
 
     testWidgets('slide the bar linearly over 150 ms to the section chosen on '
         'release, the labels following it', (tester) async {
-      await pump(tester, arrangement: PanelArrangement.pointer);
+      await pump(
+        tester,
+        arrangement: PanelArrangement.pointer,
+        sectionTabsBar: PanelSectionTabsBar.section,
+      );
       final palette = ChromeThemeScope.paletteOf(
         tester.element(find.byType(PanelSectionTabs)),
       );
@@ -223,6 +264,23 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 75));
       expect(bar(tester).left, 400);
+    });
+
+    testWidgets('a label-wide bar slides from one label to the other, '
+        'taking its width', (tester) async {
+      await pump(tester, arrangement: PanelArrangement.pointer);
+      final from = label(tester, 'Emoji');
+      final to = label(tester, 'Stickers');
+
+      await tester.tap(find.text('Stickers'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 75));
+
+      expect(bar(tester).left, closeTo((from.left + to.left) / 2, 0.5));
+      expect(bar(tester).width, closeTo((from.width + to.width) / 2, 0.5));
+      await tester.pump(const Duration(milliseconds: 75));
+      expect(bar(tester).left, closeTo(to.left, 0.01));
+      expect(bar(tester).width, closeTo(to.width, 0.01));
     });
 
     testWidgets('a press that leaves its section chooses nothing', (

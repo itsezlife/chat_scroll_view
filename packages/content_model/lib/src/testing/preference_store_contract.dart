@@ -77,6 +77,50 @@ void runPreferenceStoreContract(Future<PreferenceStore> Function() create) {
       });
     });
 
+    group('default variant', () {
+      final dark = EmojiModifiers(tones: const [SkinTone.dark]);
+
+      test('is none until one is chosen', () {
+        expect(store.defaultVariant, isNull);
+      });
+
+      test('is what was chosen, the base (no modifier) included', () async {
+        await store.setDefaultVariant(dark);
+        expect(store.defaultVariant, dark);
+
+        await store.setDefaultVariant(EmojiModifiers.none);
+        expect(store.defaultVariant, EmojiModifiers.none);
+      });
+
+      test('choosing it forgets every choice made per emoji', () async {
+        await store.setPreferredVariant(thumbs, thumbsLight);
+        await store.setPreferredVariant(wave, waveMedium);
+
+        await store.setDefaultVariant(dark);
+
+        expect(store.preferredVariant(thumbs), isNull);
+        expect(store.preferredVariant(wave), isNull);
+      });
+
+      test('a choice made afterwards is kept beside it', () async {
+        await store.setDefaultVariant(dark);
+
+        await store.setPreferredVariant(thumbs, thumbsLight);
+
+        expect(store.preferredVariant(thumbs), thumbsLight);
+        expect(store.defaultVariant, dark);
+      });
+
+      test('choosing it again with nothing to forget signals nothing', () async {
+        await store.setDefaultVariant(dark);
+        final before = signals;
+
+        await store.setDefaultVariant(dark);
+
+        expect(signals, before);
+      });
+    });
+
     group('selected page', () {
       test('is none until one is remembered', () {
         expect(store.selectedPageId, isNull);

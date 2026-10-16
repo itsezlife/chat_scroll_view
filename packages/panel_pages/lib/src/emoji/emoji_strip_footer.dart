@@ -192,8 +192,7 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
   static const double _slot = EmojiStripFooter.slot;
   static const double _inset = EmojiStripFooter.inset;
 
-  // The reference client's plain footer: no pack, every icon spread over the
-  // width in whole pixels.
+  // The plain footer: every icon in a slot of its own, nothing folded.
   bool get _plain => switch (widget.layout) {
     EmojiStripLayout.plain => true,
     EmojiStripLayout.grouped => false,
@@ -206,13 +205,8 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
     ...widget.packs,
   ];
 
-  // A plain slot: the width less the insets over the icons, whole pixels, never
-  // narrower than a grouped slot.
-  double get _plainSlot {
-    final count = _plainIcons.length;
-    if (count == 0) return _slot;
-    return math.max(_slot, ((_width - 2 * _inset) / count).floorToDouble());
-  }
+  // A plain slot is a grouped one: the footer's look, nothing folded.
+  double get _plainSlot => _slot;
 
   // The slot of the layout in use: the marker sits in its middle.
   double get _slotWidth => _plain ? _plainSlot : _slot;

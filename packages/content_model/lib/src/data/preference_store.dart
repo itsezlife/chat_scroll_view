@@ -1,3 +1,4 @@
+import 'package:content_model/src/emoji/emoji_entry.dart';
 import 'package:content_model/src/identity/content_key.dart';
 import 'package:listen/listen.dart';
 
@@ -37,6 +38,19 @@ abstract interface class PreferenceStore {
     ContentKey$Unicode base,
     ContentKey$Unicode? variant,
   );
+
+  /// The variant every emoji is shown in when the user chose none for it, as
+  /// the modifiers to apply (its tones), or null when no default was chosen.
+  /// [EmojiModifiers.none] is a default too: the emoji as it is.
+  ///
+  /// What it means for an emoji whose variants do not have those modifiers
+  /// is the caller's to decide; the store keeps what it was given.
+  EmojiModifiers? get defaultVariant;
+
+  /// Remembers [modifiers] as the default variant and forgets every choice
+  /// made per emoji ([preferredVariant]), as a "this tone for all" choice
+  /// does. Choices made afterwards are kept beside it.
+  Future<void> setDefaultVariant(EmojiModifiers modifiers);
 
   /// The id of the page the user last had open, or null when none was
   /// remembered. Opaque to the store.

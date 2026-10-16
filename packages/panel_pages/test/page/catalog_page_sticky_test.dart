@@ -11,8 +11,10 @@ library;
 import 'dart:async';
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
@@ -56,6 +58,10 @@ class _Policy extends CatalogPagePolicy {
   double get stripExtent => 40;
 
   @override
+  bool stripAtBottom(PanelArrangement arrangement) =>
+      arrangement == PanelArrangement.pointer;
+
+  @override
   SectionLayout? layoutOf(
     Collection collection, {
     PanelArrangement arrangement = PanelArrangement.touch,
@@ -90,20 +96,33 @@ void main() {
     });
   });
 
-  Future<void> pumpPage(WidgetTester tester) async {
+  Future<void> pumpPage(
+    WidgetTester tester, {
+    PanelArrangement arrangement = PanelArrangement.touch,
+    Color? background,
+  }) async {
+    Widget page(Widget child) => switch (background) {
+      final colour? => PanelBackgroundScope(color: colour, child: child),
+      null => child,
+    };
     await tester.pumpWidget(
       PanelShellTestScope(
         child: FakeSearchFieldScope(
-          child: Center(
-            child: SizedBox(
-              width: 320,
-              height: 480,
-              child: CatalogPage(
-                host: host,
-                source: source,
-                searchSource: search,
-                policy: policy,
-                assets: assets,
+          child: PanelArrangementScope(
+            arrangement: arrangement,
+            child: page(
+              Center(
+                child: SizedBox(
+                  width: 320,
+                  height: 480,
+                  child: CatalogPage(
+                    host: host,
+                    source: source,
+                    searchSource: search,
+                    policy: policy,
+                    assets: assets,
+                  ),
+                ),
               ),
             ),
           ),
@@ -135,6 +154,54 @@ void main() {
     catalog().scrollBy(distance);
     await tester.pump();
   }
+
+  group('on a transparent shell (glass behind it)', () {
+    const clear = Color(0x00000000);
+
+    // The top of what the catalogue may paint, in the page.
+    double paintTop(WidgetTester tester) {
+      final clip = tester.renderObject<RenderClipRect>(
+        find
+            .ancestor(
+              of: find.byType(PanelCatalogViewport),
+              matching: find.byType(ClipRect),
+            )
+            .first,
+      );
+      return clip.clipper!.getClip(clip.size).top;
+    }
+
+    testWidgets('the strip and the field bands paint no fill of their own', (
+      tester,
+    ) async {
+      await pumpPage(tester, background: clear);
+      final panel = ChromeThemeScope.panelOf(
+        tester.element(find.byType(CatalogPage)),
+      );
+
+      expect(
+        find.descendant(
+          of: find.byType(CatalogPage),
+          matching: find.byWidgetPredicate(
+            (w) => w is ColoredBox && w.color == panel.background,
+          ),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('no cell is drawn behind them: the catalogue paints from '
+        'their lower edge as they move', (tester) async {
+      await pumpPage(tester, background: clear);
+      expect(paintTop(tester), 90, reason: 'the strip (40) and the field (50)');
+
+      await place(tester, 400);
+      await read(tester, 60);
+      // The strip slid up 40 and the field scrolled away with the content.
+      expect(stripTop(tester), -40);
+      expect(paintTop(tester), 0);
+    });
+  });
 
   group('at rest', () {
     testWidgets('the strip is at the top and the field in its band under it', (
@@ -234,6 +301,18 @@ void main() {
   });
 
   group('jumping to a section', () {
+    testWidgets('under the pointer, with the strip below and the field '
+        'scrolling away, lands the header flush at the top', (tester) async {
+      await pumpPage(tester, arrangement: PanelArrangement.pointer);
+
+      unawaited(policy.handle!.jumpToSection('CollectionId.set(animals)'));
+      await tester.pumpAndSettle();
+
+      // The field's band (50), section 0's header (24) and 30 rows of 40.
+      const headerContentTop = 50 + 24 + 30 * 40;
+      expect(catalog().offset, headerContentTop);
+    });
+
     testWidgets('lands its header right under the strip and leaves the strip '
         'whole', (tester) async {
       await pumpPage(tester);

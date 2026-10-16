@@ -71,3 +71,9 @@ remainder split as a margin.
 | ---- | -------- |
 | Hover | `PanelCatalogThemeData.leafHoverHighlightSize` paints the hover wash as a box of that size centred in the cell (held to it) instead of the inset cell. The reference desktop client's is 34 x 32, radius 8, whatever the cell. |
 | Press | `leafPressFeedback`: `inkAndScale` (the default: the press wash and the 0.8 shrink, a touch grid) or `none` (a desktop list: no wash, no shrink, the hover box stays on the pressed cell until release, and the leaf is chosen on release). |
+
+## Amendment: where a header action is
+
+`PanelCatalogController.sectionActionBoundsOf(sectionId)` (through
+`CatalogScrollPosition.sectionActionBounds`): the button of a section header's
+action in global coordinates, for a host to anchor what it opens.

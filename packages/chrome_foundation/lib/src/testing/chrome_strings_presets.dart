@@ -38,6 +38,7 @@ abstract final class ChromeStringsPresets {
       copyAction: 'Copy',
       removeRecentAction: 'Remove from recent',
       clearRecentAction: 'Clear recent',
+      colorAllTitle: 'Choose default skin tone',
     ),
     composer: ComposerStrings(
       messageHint: 'Message',
@@ -97,6 +98,7 @@ abstract final class ChromeStringsPresets {
       copyAction: 'Копировать',
       removeRecentAction: 'Удалить из недавних',
       clearRecentAction: 'Очистить недавние',
+      colorAllTitle: 'Выберите тон кожи по умолчанию',
     ),
     composer: ComposerStrings(
       messageHint: 'Сообщение',

@@ -80,6 +80,12 @@ class _PreferenceStore implements PreferenceStore {
   ) async {}
 
   @override
+  EmojiModifiers? get defaultVariant => null;
+
+  @override
+  Future<void> setDefaultVariant(EmojiModifiers modifiers) async {}
+
+  @override
   String? get selectedPageId => null;
 
   @override

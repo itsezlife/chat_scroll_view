@@ -11,6 +11,7 @@ import 'package:panel_shell/src/page/panel_page.dart';
 import 'package:panel_shell/src/scroll/bottom_bar_visibility.dart';
 import 'package:panel_shell/src/widgets/listen_value_builder.dart';
 import 'package:panel_shell/src/widgets/panel_arrangement.dart';
+import 'package:panel_shell/src/widgets/panel_background_scope.dart';
 import 'package:panel_shell/src/widgets/panel_bottom_bar.dart';
 import 'package:panel_shell/src/widgets/panel_pager.dart';
 import 'package:panel_shell/src/widgets/panel_search_field.dart';
@@ -72,6 +73,7 @@ class PanelShell extends StatefulWidget {
     this.searchContextMenuBuilder,
     this.deferSearchField = false,
     this.background,
+    this.sectionTabsBar = PanelSectionTabsBar.label,
     super.key,
   });
 
@@ -79,6 +81,11 @@ class PanelShell extends StatefulWidget {
   /// background. A presentation that puts the shell on glass passes a
   /// transparent colour so the glass shows through.
   final Color? background;
+
+  /// How wide the bar under the selected section tab is under the pointer
+  /// arrangement: its label's width (the reference client's) or the whole
+  /// section's.
+  final PanelSectionTabsBar sectionTabsBar;
 
   /// The controller this shell projects.
   final PanelShellController controller;
@@ -341,24 +348,27 @@ class _PanelShellState extends State<PanelShell> {
             node: _scope,
             child: FocusTraversalGroup(
               policy: OrderedTraversalPolicy(),
-              child: ColoredBox(
+              child: PanelBackgroundScope(
                 color: widget.background ?? panel.background,
-                child: Column(
-                  children: [
-                    if (pointer) _sectionTabs(),
-                    ListenValueBuilder<String>(
-                      listenable: _shell.selectedPageId,
-                      builder: (context, _) => _searchSlot(motion),
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.only(
-                          bottom: pointer ? safeBottom : 0,
-                        ),
-                        child: stack,
+                child: ColoredBox(
+                  color: widget.background ?? panel.background,
+                  child: Column(
+                    children: [
+                      if (pointer) _sectionTabs(),
+                      ListenValueBuilder<String>(
+                        listenable: _shell.selectedPageId,
+                        builder: (context, _) => _searchSlot(motion),
                       ),
-                    ),
-                  ],
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            bottom: pointer ? safeBottom : 0,
+                          ),
+                          child: stack,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -383,6 +393,7 @@ class _PanelShellState extends State<PanelShell> {
           child: PanelSectionTabs(
             pages: _shell.pages,
             selectedPageId: selectedId,
+            bar: widget.sectionTabsBar,
           ),
         );
       },

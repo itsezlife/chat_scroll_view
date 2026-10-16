@@ -26,6 +26,7 @@ Map<String, String> describeChromeStrings(ChromeStrings strings) {
     'panel.copyAction': panel.copyAction,
     'panel.removeRecentAction': panel.removeRecentAction,
     'panel.clearRecentAction': panel.clearRecentAction,
+    'panel.colorAllTitle': panel.colorAllTitle,
     'composer.messageHint': composer.messageHint,
     'composer.sendAction': composer.sendAction,
     'composer.confirmEditAction': composer.confirmEditAction,
