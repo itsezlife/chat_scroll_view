@@ -1,5 +1,6 @@
 import 'package:content_model/content_model.dart';
 import 'package:meta/meta.dart';
+import 'package:panel_catalog/src/model/catalog_glyph_box.dart';
 
 /// How a cell stands in for its content until the content can be drawn.
 ///
@@ -19,8 +20,9 @@ enum CatalogPlaceholderStyle {
 /// One cell of a [CatalogSection], as a value.
 ///
 /// A leaf is the identity of the content ([key]), the descriptor facts the
-/// viewport needs to paint a stand-in before the content arrives
-/// ([semanticKind], [mediaForm], [animated], [sizeHint]), and an opaque host
+/// viewport needs to ask the asset cache for it and to paint a stand-in before
+/// it arrives ([semanticKind], [mediaForm], [animated], [tintable], [sizeHint]),
+/// and an opaque host
 /// [tag]. It carries no readiness, no paint mode and no atlas or sprite state:
 /// those are projected at paint time from the asset binding, and storing them
 /// here would make a second write model that goes stale when readiness flips.
@@ -44,6 +46,7 @@ final class CatalogLeaf {
     this.semanticKind = SemanticKind.unknown,
     this.mediaForm = MediaForm.unknown,
     this.animated = false,
+    this.tintable = false,
     this.sizeHint,
     this.tag,
   });
@@ -58,6 +61,7 @@ final class CatalogLeaf {
       semanticKind = SemanticKind.unicodeEmoji,
       mediaForm = MediaForm.glyph,
       animated = false,
+      tintable = false,
       sizeHint = null;
 
   /// Creates a document-backed leaf (custom emoji, sticker, GIF) for the
@@ -67,6 +71,7 @@ final class CatalogLeaf {
     this.semanticKind = SemanticKind.unknown,
     this.mediaForm = MediaForm.unknown,
     this.animated = false,
+    this.tintable = false,
     this.sizeHint,
     this.tag,
   }) : key = ContentKey.document(documentId);
@@ -78,6 +83,7 @@ final class CatalogLeaf {
       semanticKind = descriptor.semanticKind,
       mediaForm = descriptor.mediaForm,
       animated = descriptor.animated,
+      tintable = descriptor.tintable,
       sizeHint = descriptor.size;
 
   /// The identity of the content.
@@ -92,11 +98,26 @@ final class CatalogLeaf {
   /// Whether the content animates.
   final bool animated;
 
+  /// Whether the content is a template the surface tints: the viewport asks
+  /// the cache for its alpha only (`AssetDecodeMode.template`), so one decode
+  /// serves every colour.
+  final bool tintable;
+
   /// Intrinsic size of the content, when the host knows it.
   final ContentSize? sizeHint;
 
   /// Opaque host data, excluded from equality and never painted.
   final Object? tag;
+
+  /// The box this leaf's content is drawn in unless its section says
+  /// otherwise: a sticker, mask or GIF fills its cell, everything else (a glyph,
+  /// custom or animated emoji) is drawn in the glyph box.
+  CatalogContentBox get contentBox => switch (semanticKind) {
+    SemanticKind.sticker ||
+    SemanticKind.mask ||
+    SemanticKind.gif => CatalogContentBox.cell,
+    _ => CatalogContentBox.glyph,
+  };
 
   /// The stand-in for this leaf's content, from [mediaForm] and
   /// [semanticKind]: a glyph is a circle, a sticker a shaped wash, anything
@@ -120,11 +141,12 @@ final class CatalogLeaf {
       other.semanticKind == semanticKind &&
       other.mediaForm == mediaForm &&
       other.animated == animated &&
+      other.tintable == tintable &&
       other.sizeHint == sizeHint;
 
   @override
   int get hashCode =>
-      Object.hash(key, semanticKind, mediaForm, animated, sizeHint);
+      Object.hash(key, semanticKind, mediaForm, animated, tintable, sizeHint);
 
   @override
   String toString() => 'CatalogLeaf($key)';

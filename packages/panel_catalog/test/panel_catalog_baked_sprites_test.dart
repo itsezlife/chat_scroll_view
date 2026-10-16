@@ -1,26 +1,33 @@
 /// Baked sprites on screen: the Panel Catalog Viewport draws unicode glyphs
 /// from glyph atlas pages instead of as text.
 ///
-/// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogSnapshotSource] and a
-/// [MemoryCatalogAssetCache] that carries a [GlyphAtlas] built on the fakes of
-/// the bake (`FakeGlyphRasteriser`, `FakeGlyphPageStore`, `FakeBakeFrameSource`):
-/// no emoji font, no device. What is observed is what the viewport asks its
-/// canvas to draw (a recording canvas passed to `paint`), never render-object
-/// fields: how many batched atlas draws, which page each is cut from, how many
-/// sprites each holds, and that no paragraph, circle or layout comes with them.
+/// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogSnapshotSource] and
+/// an [AssetCacheScope] whose glyph source is a [GlyphAtlas] built on the fakes
+/// of the bake (`FakeGlyphRasteriser`, `FakeGlyphPageStore`,
+/// `FakeBakeFrameSource`): no emoji font, no device. What is observed is what
+/// the viewport asks its canvas to draw (a recording canvas passed to `paint`),
+/// never render-object fields: how many batched atlas draws, which page each is
+/// cut from, how many sprites each holds, and that no paragraph, circle or
+/// layout comes with them.
+///
+/// The viewport names no atlas. The page that owns the bake listens to the
+/// controller's events and tells the atlas; `_PageBake` below is that listener,
+/// so the chain from a drag to a paused bake is still pinned end to end.
 library;
 
-import 'dart:typed_data';
-import 'dart:ui' as ui;
-
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/glyph_atlas.dart';
-import 'package:catalog_assets/legacy_shim.dart';
 import 'package:catalog_assets/testing.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';
+import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
+
+import 'support/asset_scopes.dart';
+import 'support/recording_canvas.dart';
 
 const _perPage = 676; // GlyphAtlasLayout().cellsPerPage
 
@@ -42,63 +49,31 @@ CatalogSection _section(int count) => CatalogSection(
   leaves: [for (var i = 0; i < count; i++) CatalogLeaf.unicode(_glyph(i))],
 );
 
-/// One batched atlas draw as the canvas received it.
-class _AtlasDraw {
-  _AtlasDraw(this.image, this.transforms, this.rects);
+/// What the page that owns the bake does with the controller's events: tells
+/// the atlas when the catalogue moves and which glyphs it settled on.
+class _PageBake {
+  _PageBake(this.atlas, this.events) {
+    events.addListener(_onEvent);
+  }
 
-  final ui.Image image;
-  final Float32List transforms;
-  final Float32List rects;
+  final GlyphAtlas atlas;
+  final EventObservable<PanelCatalogScrollEvent> events;
 
-  int get sprites => rects.length ~/ 4;
+  void dispose() => events.removeListener(_onEvent);
 
-  /// Source rectangles, copied so a reused buffer cannot change them later.
-  List<Rect> get sources => [
-    for (var i = 0; i < rects.length; i += 4)
-      Rect.fromLTRB(rects[i], rects[i + 1], rects[i + 2], rects[i + 3]),
-  ];
-
-  /// Scale of each sprite's transform (`scos`).
-  List<double> get scales => [
-    for (var i = 0; i < transforms.length; i += 4) transforms[i],
-  ];
-}
-
-/// Records what one paint asks of the canvas.
-class _RecordingCanvas implements Canvas {
-  final List<_AtlasDraw> atlasDraws = [];
-  int circles = 0;
-  int paragraphs = 0;
-  int highlights = 0;
-
-  @override
-  void drawRawAtlas(
-    ui.Image atlas,
-    Float32List rstTransforms,
-    Float32List rects,
-    Int32List? colors,
-    BlendMode? blendMode,
-    Rect? cullRect,
-    Paint paint,
-  ) => atlasDraws.add(
-    _AtlasDraw(
-      atlas,
-      Float32List.fromList(rstTransforms),
-      Float32List.fromList(rects),
-    ),
-  );
-
-  @override
-  void drawCircle(Offset c, double radius, Paint paint) => circles++;
-
-  @override
-  void drawParagraph(ui.Paragraph paragraph, Offset offset) => paragraphs++;
-
-  @override
-  void drawRRect(RRect rrect, Paint paint) => highlights++;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => null;
+  void _onEvent(PanelCatalogScrollEvent event) {
+    switch (event) {
+      case PanelCatalogScrollingChanged(:final scrolling):
+        atlas.reportScrolling(reporter: this, scrolling: scrolling);
+      case PanelCatalogScrollSettled(:final visibleKeys):
+        atlas.prioritise([
+          for (final key in visibleKeys)
+            if (key is ContentKey$Unicode) key.sequence,
+        ]);
+      default:
+        break;
+    }
+  }
 }
 
 void main() {
@@ -109,7 +84,8 @@ void main() {
   late ValueNotifier<bool> visible;
   late ValueNotifier<bool> opening;
   late GlyphAtlas atlas;
-  late MemoryCatalogAssetCache cache;
+  late AssetCacheScope scope;
+  _PageBake? pageBake;
 
   setUp(() {
     PanelCatalogDiagnostics.reset();
@@ -121,6 +97,8 @@ void main() {
     opening = ValueNotifier<bool>(false);
   });
   tearDown(() async {
+    pageBake?.dispose();
+    pageBake = null;
     snapshots.dispose();
     controller.dispose();
     visible.dispose();
@@ -128,8 +106,9 @@ void main() {
     await store.clear();
   });
 
-  /// An atlas over the first [count] glyphs of the harness catalogue, held by
-  /// the cache the viewport is given. Not started: tests start it.
+  /// An atlas over the first [count] glyphs of the harness catalogue, the glyph
+  /// source of the scope the viewport is given, and the page that forwards the
+  /// viewport's events to it. Not started: tests start it.
   void buildAtlas(int count, {GlyphAtlasLayout? layout}) {
     atlas = GlyphAtlas(
       index: GlyphAtlasIndex([
@@ -142,16 +121,18 @@ void main() {
       panelVisible: visible,
       panelOpening: opening,
     );
-    cache = MemoryCatalogAssetCache(glyphAtlas: atlas);
+    scope = AssetCacheScope(glyphSource: atlas);
+    pageBake?.dispose();
+    pageBake = _PageBake(atlas, controller.events);
     addTearDown(() {
-      cache.dispose();
+      scope.dispose();
       atlas.dispose();
     });
   }
 
   Future<void> pumpViewport(
     WidgetTester tester, {
-    CatalogAssetCache? assetCache,
+    AssetCacheScope? assets,
     double width = 320,
     ValueChanged<CatalogLeafHit>? onLeafTap,
     void Function(CatalogLeafHit hit, LongPressStartDetails details)?
@@ -167,7 +148,7 @@ void main() {
               height: 480,
               child: PanelCatalogViewport(
                 snapshots: snapshots,
-                assetCache: assetCache ?? cache,
+                assets: assets ?? scope,
                 controller: controller,
                 spanCount: _span,
                 cellExtent: 40,
@@ -185,8 +166,8 @@ void main() {
   RenderBox render(WidgetTester tester) =>
       tester.renderObject(find.byType(PanelCatalogViewport));
 
-  _RecordingCanvas paintOnce(WidgetTester tester) {
-    final canvas = _RecordingCanvas();
+  RecordingCanvas paintOnce(WidgetTester tester) {
+    final canvas = RecordingCanvas();
     render(tester).paint(TestRecordingPaintingContext(canvas), Offset.zero);
     return canvas;
   }
@@ -210,7 +191,7 @@ void main() {
 
       final canvas = paintOnce(tester);
 
-      expect(canvas.circles, _visibleLeaves);
+      expect(canvas.circles.length, _visibleLeaves);
       expect(canvas.atlasDraws, isEmpty);
       expect(canvas.paragraphs, _headers);
     });
@@ -237,7 +218,7 @@ void main() {
         await tester.pump();
         final canvas = paintOnce(tester);
 
-        expect(canvas.circles, 0);
+        expect(canvas.circles.length, 0);
         expect(canvas.atlasDraws, isNotEmpty);
         expect(render(tester).size, sizeBefore);
       },
@@ -258,7 +239,7 @@ void main() {
 
       expect(canvas.atlasDraws, hasLength(1));
       expect(canvas.atlasDraws.single.sprites, _visibleLeaves);
-      expect(canvas.circles, 0);
+      expect(canvas.circles.length, 0);
       expect(canvas.paragraphs, _headers);
     });
 
@@ -311,7 +292,7 @@ void main() {
       expect(byPage.keys, unorderedEquals([0, 1]));
       expect(byPage[0]!.sprites, 36);
       expect(byPage[1]!.sprites, 16);
-      expect(canvas.circles, 0);
+      expect(canvas.circles.length, 0);
     });
 
     testWidgets(
@@ -338,7 +319,7 @@ void main() {
 
         expect(canvas.atlasDraws, hasLength(1));
         expect(canvas.atlasDraws.single.sprites, 36);
-        expect(canvas.circles, 16);
+        expect(canvas.circles.length, 16);
       },
     );
   });
@@ -387,7 +368,7 @@ void main() {
       expect(scales.take(8), everyElement(closeTo(28.8 / 58, 1e-6)));
       expect(scales.skip(8), everyElement(closeTo(57.6 / 58, 1e-6)));
       expect(scales, everyElement(lessThanOrEqualTo(1)));
-      expect(canvas.circles, 0);
+      expect(canvas.circles.length, 0);
     });
   });
 
@@ -455,14 +436,14 @@ void main() {
       tester,
     ) async {
       snapshots.replaceSections([_section(80)]);
-      final plain = MemoryCatalogAssetCache();
-      await pumpViewport(tester, assetCache: plain);
+      final plain = textGlyphScope();
+      await pumpViewport(tester, assets: plain);
 
       PanelCatalogDiagnostics.reset();
       final canvas = paintOnce(tester);
 
       expect(canvas.paragraphs, _visibleLeaves + _headers);
-      expect(canvas.circles, 0);
+      expect(canvas.circles.length, 0);
       expect(canvas.atlasDraws, isEmpty);
       expect(PanelCatalogDiagnostics.glyphParagraphDraws, _visibleLeaves);
       expect(frames.requested, 0);
@@ -588,36 +569,97 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('a cache with another atlas takes over the reports', (
+    testWidgets('a scope with another atlas takes over the bindings', (
       tester,
     ) async {
+      // A hidden panel holds no page of its own, so the counts below are the
+      // bindings' alone.
+      visible.value = false;
       snapshots.replaceSections([_section(300)]);
       buildAtlas(300);
-      atlas.start();
-      final firstFrames = frames;
+      final firstAtlas = atlas;
       await pumpViewport(tester);
+      expect(firstAtlas.residency.holdCount(0), greaterThan(0));
 
-      // A second atlas on its own frame source, in a second cache.
       frames = FakeBakeFrameSource();
-      final firstCache = cache;
       buildAtlas(300);
-      atlas.start();
       await pumpViewport(tester);
-      expect(firstFrames.hasPendingRequest, isTrue);
-      expect(frames.hasPendingRequest, isTrue);
 
-      final gesture = await tester.startGesture(
-        tester.getCenter(find.byType(PanelCatalogViewport)),
+      // The viewport draws from the new scope: circles, and the first atlas has
+      // no page held for it any more.
+      expect(firstAtlas.residency.holdCount(0), 0);
+      expect(atlas.residency.holdCount(0), greaterThan(0));
+      final canvas = paintOnce(tester);
+      expect(canvas.atlasDraws, isEmpty);
+      expect(canvas.circles.length, _visibleLeaves);
+    });
+  });
+
+  group('page holds', () {
+    // A source of fixed pages whose hold counts a test reads, in place of an
+    // atlas: 100 glyphs to a page, so rows 0..12 sit on page 0.
+    late FakeGlyphSpriteSource source;
+
+    Future<void> pumpOn(WidgetTester tester) async {
+      source = FakeGlyphSpriteSource([
+        for (var i = 0; i < 400; i++) _glyph(i),
+      ], glyphsPerPage: 100);
+      final onSource = AssetCacheScope(glyphSource: source);
+      addTearDown(() {
+        onSource.dispose();
+        source.dispose();
+      });
+      snapshots.replaceSections([_section(400)]);
+      await pumpViewport(tester, assets: onSource);
+    }
+
+    testWidgets('a visible glyph holds its page, never its pixels', (
+      tester,
+    ) async {
+      await pumpOn(tester);
+
+      // Every attached glyph (the window plus one row of overscan) holds once.
+      expect(
+        source.holdCount(0),
+        (render(tester) as RenderPanelCatalog).attachedLeafCount,
       );
-      await gesture.moveBy(const Offset(0, -100));
+      expect(source.holdCount(1), 0);
+
+      // The page going away under memory pressure leaves the count alone, and
+      // nothing is drawn from it.
+      source.bakePage(0);
+      await tester.pump();
+      expect(paintOnce(tester).atlasDraws, hasLength(1));
+      final held = source.holdCount(0);
+      source.releasePage(0);
+      await tester.pump();
+      expect(source.holdCount(0), held);
+      expect(paintOnce(tester).atlasDraws, isEmpty);
+    });
+
+    testWidgets('far bindings release their page', (tester) async {
+      await pumpOn(tester);
+      expect(source.holdCount(0), greaterThan(0));
+
+      // Row 60 is leaf 240, on page 2.
+      controller.jumpTo(_offsetOfRow(60));
       await tester.pump();
 
-      // Only the atlas the viewport now draws from is told to wait.
-      expect(frames.hasPendingRequest, isFalse);
-      expect(firstFrames.hasPendingRequest, isTrue);
-      await gesture.up();
-      await tester.pumpAndSettle();
-      expect(identical(cache, firstCache), isFalse);
+      expect(source.holdCount(0), 0);
+      expect(source.holdCount(2), greaterThan(0));
+      expect(
+        source.holdCount(1) + source.holdCount(2) + source.holdCount(3),
+        (render(tester) as RenderPanelCatalog).attachedLeafCount,
+      );
+    });
+
+    testWidgets('leaving the tree gives every page back', (tester) async {
+      await pumpOn(tester);
+      expect(source.holdCount(0), greaterThan(0));
+
+      await tester.pumpWidget(const SizedBox());
+
+      expect(source.holdCount(0), 0);
     });
   });
 
@@ -636,7 +678,7 @@ void main() {
       final canvas = paintOnce(tester);
 
       expect(canvas.atlasDraws, isEmpty);
-      expect(canvas.circles, greaterThanOrEqualTo(_visibleLeaves));
+      expect(canvas.circles.length, greaterThanOrEqualTo(_visibleLeaves));
     });
   });
 
@@ -704,7 +746,7 @@ void main() {
         final scales = canvas.atlasDraws.single.scales;
         final full = scales.reduce((a, b) => a > b ? a : b);
         expect(scales.where((s) => s < full), hasLength(1));
-        expect(canvas.highlights, greaterThanOrEqualTo(1));
+        expect(canvas.rrects.length, greaterThanOrEqualTo(1));
       },
     );
 

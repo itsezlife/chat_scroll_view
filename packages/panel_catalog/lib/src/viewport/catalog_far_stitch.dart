@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 
-import 'package:catalog_assets/legacy_shim.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter/animation.dart';
+import 'package:panel_catalog/src/model/catalog_glyph_box.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
-import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 
 /// Floor for travel-scaled [catalogStitchTravelDuration] (ms).
@@ -65,6 +65,8 @@ sealed class CatalogStitchCapturedSlot {
     required String sectionId,
     required int index,
     required CatalogLeaf leaf,
+    CatalogContentBox? contentBox,
+    CatalogPlaceholderStyle? placeholderStyle,
   }) = CatalogStitchCapturedLeaf;
 
   /// Content y of the slot top at capture time.
@@ -114,6 +116,8 @@ final class CatalogStitchCapturedLeaf extends CatalogStitchCapturedSlot {
     required this.sectionId,
     required this.index,
     required this.leaf,
+    this.contentBox,
+    this.placeholderStyle,
   });
 
   /// Content x of the cell left edge at capture time.
@@ -130,6 +134,12 @@ final class CatalogStitchCapturedLeaf extends CatalogStitchCapturedSlot {
 
   /// Leaf identity at capture time.
   final CatalogLeaf leaf;
+
+  /// The section's content box override at capture time.
+  final CatalogContentBox? contentBox;
+
+  /// The section's placeholder style override at capture time.
+  final CatalogPlaceholderStyle? placeholderStyle;
 }
 
 /// Captures slots intersecting the pre-jump viewport band.
@@ -169,6 +179,8 @@ List<CatalogStitchCapturedSlot> captureCatalogStitchOutgoing({
             sectionId: leaf.sectionId,
             index: leaf.index,
             leaf: leaf.leaf,
+            contentBox: leaf.contentBoxOverride,
+            placeholderStyle: leaf.placeholderStyleOverride,
           ),
         );
     }
@@ -176,13 +188,13 @@ List<CatalogStitchCapturedSlot> captureCatalogStitchOutgoing({
   return captured;
 }
 
-/// Asset keys of captured outgoing leaves (for binding pin during stitch).
-Set<CatalogAssetKey> catalogStitchOutgoingLeafKeys(
+/// Content keys of captured outgoing leaves (for binding pin during stitch).
+Set<ContentKey> catalogStitchOutgoingLeafKeys(
   List<CatalogStitchCapturedSlot> outgoing,
 ) {
   return {
     for (final slot in outgoing)
-      if (slot case CatalogStitchCapturedLeaf(:final leaf)) leaf.legacyAssetKey,
+      if (slot case CatalogStitchCapturedLeaf(:final leaf)) leaf.key,
   };
 }
 

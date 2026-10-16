@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
+import 'package:panel_catalog/src/model/catalog_glyph_box.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 import 'package:panel_catalog/src/model/catalog_section.dart';
@@ -41,6 +42,8 @@ sealed class CatalogLayoutSlot {
     required String sectionId,
     required int index,
     required CatalogLeaf leaf,
+    CatalogContentBox? contentBox,
+    CatalogPlaceholderStyle? placeholderStyle,
   }) = CatalogLeafSlot;
 
   /// Content y of the slot top edge.
@@ -93,7 +96,10 @@ final class CatalogLeafSlot extends CatalogLayoutSlot {
     required this.sectionId,
     required this.index,
     required this.leaf,
-  });
+    CatalogContentBox? contentBox,
+    CatalogPlaceholderStyle? placeholderStyle,
+  }) : _contentBox = contentBox,
+       _placeholderStyle = placeholderStyle;
 
   /// Content x of the cell left edge (includes section padding.left).
   final double left;
@@ -110,6 +116,29 @@ final class CatalogLeafSlot extends CatalogLayoutSlot {
 
   /// Leaf projected into this cell (identity only).
   final CatalogLeaf leaf;
+
+  final CatalogContentBox? _contentBox;
+  final CatalogPlaceholderStyle? _placeholderStyle;
+
+  /// The box this cell's content is asked for and drawn in: its section's
+  /// override, else what the leaf's facts say.
+  CatalogContentBox get contentBox => _contentBox ?? leaf.contentBox;
+
+  /// The stand-in of this cell: its section's override, else what the leaf's
+  /// facts say.
+  CatalogPlaceholderStyle get placeholderStyle =>
+      _placeholderStyle ?? leaf.placeholderStyle;
+
+  /// Side of the square the content is asked for and drawn in.
+  double get contentExtent =>
+      catalogContentBoxExtent(contentBox, width, height);
+
+  /// The section override of [contentBox], to carry onto a copy of this slot.
+  CatalogContentBox? get contentBoxOverride => _contentBox;
+
+  /// The section override of [placeholderStyle], to carry onto a copy of this
+  /// slot.
+  CatalogPlaceholderStyle? get placeholderStyleOverride => _placeholderStyle;
 
   /// The interaction result for this cell.
   CatalogLeafHit get hit =>
@@ -328,6 +357,8 @@ CatalogSlotProjection projectCatalogSlots({
           sectionId: section.id,
           index: i,
           leaf: leaves[i],
+          contentBox: section.contentBox,
+          placeholderStyle: section.placeholderStyle,
         ),
       );
     }

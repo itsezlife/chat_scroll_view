@@ -1,4 +1,4 @@
-import 'package:catalog_assets/legacy_shim.dart';
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
@@ -24,7 +24,7 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// Intrinsic height is `0` (viewport-sized body, not content-sized).
 ///
 /// Does **not** own panel chrome (category strip, search, type tabs, pickers),
-/// asset fetch/decode ([CatalogAssetCache]), or catalog fetch orchestration
+/// asset fetch/decode (the host's [AssetCacheScope]), or catalog fetch orchestration
 /// (the owner of [snapshots]). This widget only listens, projects, binds the
 /// visible band, and paints.
 ///
@@ -45,8 +45,8 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// [PanelCatalogController.isSectionJumpActive] is `true` during programmatic
 /// section motion so hosts can suppress strip sync.
 /// Asset bindings attach only for leaves in the visible window plus
-/// one default [cellExtent] of overscan; readiness flips mark paint dirty
-/// without a full catalog reproject. The window is found by binary search
+/// one default [cellExtent] of overscan; a better stage on a binding marks
+/// paint dirty without a full catalog reproject. The window is found by binary search
 /// over one ascending slot list, so its cost follows the visible band whatever
 /// mix of section layouts the catalog holds.
 ///
@@ -75,9 +75,20 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// Density is read from the [MediaQuery] of the viewport's own subtree, so it
 /// is the density of the view the viewport sits in and follows that view's
 /// resize / display change. It is never read from the platform's first view.
+/// Assets are asked for at that density.
+///
+/// ## Assets
+///
+/// The viewport attaches through the host's [assets] and paints the
+/// [AssetPaintable] each binding exposes; it names no cache implementation and
+/// no atlas. A paintable with a sprite is drawn in one batched atlas draw per
+/// page; any other paints itself. Which strategy draws unicode glyphs (baked
+/// sprites on a platform that bakes, text where it does not) is decided by how
+/// the host builds the scope, not here. A leaf that cannot load keeps its
+/// placeholder.
 class PanelCatalogViewport extends LeafRenderObjectWidget {
-  /// Creates an extent-scroll catalog body backed by [snapshots],
-  /// [assetCache], and [controller].
+  /// Creates an extent-scroll catalog body backed by [snapshots], [assets]
+  /// and [controller].
   ///
   /// [spanCount] MUST be ≥ 1. [cellExtent] / [headerExtent] SHOULD be > 0;
   /// zero collapses rows/headers to empty bands but does not assert.
@@ -89,14 +100,13 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// register the recognizer (plain glyphs stay tap-only).
   const PanelCatalogViewport({
     required this.snapshots,
-    required this.assetCache,
+    required this.assets,
     required this.controller,
     this.spanCount = 8,
     this.cellExtent = 48,
     this.headerExtent = 32,
     this.padding = EdgeInsets.zero,
     this.headerLandingInset,
-    this.cacheType = CatalogAssetCacheType.keyboard,
     this.onLeafTap,
     this.onLeafLongPressStart,
     this.onLeafLongPressMove,
@@ -118,20 +128,23 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// (grouping steps in the owner's batch).
   final ValueObservable<CatalogSnapshot> snapshots;
 
-  /// Process-wide asset cache for leaf readiness and decode.
+  /// The host's asset cache, shared with every other surface that draws
+  /// content.
   ///
-  /// The viewport binds **visible** leaves only (plus overscan) via
-  /// [CatalogAssetCache.attach] and detaches the rest. Hosts MUST NOT treat
-  /// this widget as a fetch/decode owner — decode lives in the cache;
-  /// what is drawn is projected from readiness + the leaf's descriptor
-  /// facts ([CatalogLeaf.placeholderStyle]).
+  /// The viewport attaches **visible** leaves only (plus overscan) through
+  /// [AssetCacheScope.attach] and detaches the rest; a baked glyph's binding
+  /// holds its atlas page for as long as it is attached. Hosts MUST NOT treat
+  /// this widget as a fetch/decode owner: decode lives in the cache, and what
+  /// is painted comes from the binding plus the leaf's descriptor facts
+  /// ([CatalogLeaf.placeholderStyle]).
   ///
-  /// When the cache has a [CatalogAssetCache.glyphAtlas] the viewport draws
-  /// unicode glyphs from its baked pages, batched into one draw per page,
-  /// shows the circle placeholder until a glyph is baked, and tells the atlas
-  /// when it scrolls and what is on screen so the bake stays out of its way.
-  /// Without one (the web) glyphs are drawn as text.
-  final CatalogAssetCache assetCache;
+  /// Whoever owns the bake listens to [PanelCatalogController.events]
+  /// ([PanelCatalogScrollingChanged] and [PanelCatalogScrollSettled] with the
+  /// visible keys); the viewport tells no atlas anything.
+  ///
+  /// Swapping the scope detaches every binding made on the old one. The host
+  /// disposes it; the viewport never does.
+  final AssetCacheScope assets;
 
   /// Absolute content-offset and navigation entry points ([jumpTo], [scrollBy],
   /// [PanelCatalogController.jumpToSection]) and the scroll-event Observable.
@@ -184,12 +197,6 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// behavior.
   final double? headerLandingInset;
 
-  /// Attach size class passed to [CatalogAssetCache.attach] for each leaf.
-  ///
-  /// Replacing the type detaches every binding before re-attach on the next
-  /// sync.
-  final CatalogAssetCacheType cacheType;
-
   /// Shell tap when the user selects a cell.
   ///
   /// Null disables tap recognition (scroll drag still works). Header and
@@ -230,14 +237,14 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     final dpr = MediaQuery.devicePixelRatioOf(context);
     return RenderPanelCatalog(
       snapshots: snapshots,
-      assetCache: assetCache,
+      assets: assets,
+      devicePixelRatio: dpr,
       controller: controller,
       spanCount: spanCount,
       cellExtent: cellExtent,
       headerExtent: headerExtent,
       padding: padding,
       headerLandingInset: headerLandingInset,
-      cacheType: cacheType,
       paintTheme: CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr),
       onLeafTap: onLeafTap,
       onLeafLongPressStart: onLeafLongPressStart,
@@ -256,14 +263,14 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     final dpr = MediaQuery.devicePixelRatioOf(context);
     renderObject
       ..snapshots = snapshots
-      ..assetCache = assetCache
+      ..assets = assets
+      ..devicePixelRatio = dpr
       ..controller = controller
       ..spanCount = spanCount
       ..cellExtent = cellExtent
       ..headerExtent = headerExtent
       ..padding = padding
       ..headerLandingInset = headerLandingInset
-      ..cacheType = cacheType
       ..paintTheme = CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr)
       ..onLeafTap = onLeafTap
       ..onLeafLongPressStart = onLeafLongPressStart

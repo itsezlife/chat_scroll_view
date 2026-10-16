@@ -1,4 +1,5 @@
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
+import 'package:panel_catalog/src/model/catalog_glyph_box.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/section_layout.dart';
 
@@ -22,11 +23,16 @@ import 'package:panel_catalog/src/model/section_layout.dart';
 final class CatalogSection {
   /// Creates a section with stable [id], display [title], and [leaves],
   /// laid out by [layout] (the viewport defaults when null).
+  ///
+  /// [contentBox] and [placeholderStyle] override what each leaf's facts say
+  /// for every leaf of the section.
   const CatalogSection({
     required this.id,
     required this.title,
     required this.leaves,
     this.layout,
+    this.contentBox,
+    this.placeholderStyle,
   });
 
   /// Stable section identity (category / pack id).
@@ -47,4 +53,14 @@ final class CatalogSection {
   /// The section's geometry, or null to use the viewport's default
   /// `spanCount`, `cellExtent` and `headerExtent` with no insets.
   final SectionLayout? layout;
+
+  /// The box this section's leaves are asked for and drawn in, or null for what
+  /// each leaf's facts say ([CatalogLeaf.contentBox]). A sticker section that
+  /// shows its stickers inset, or an emoji section of large custom emoji,
+  /// states it here instead of changing the leaves.
+  final CatalogContentBox? contentBox;
+
+  /// The stand-in of this section's leaves, or null for what each leaf's facts
+  /// say ([CatalogLeaf.placeholderStyle]).
+  final CatalogPlaceholderStyle? placeholderStyle;
 }

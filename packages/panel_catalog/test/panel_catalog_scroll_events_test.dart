@@ -8,13 +8,15 @@
 /// commands return.
 library;
 
-import 'package:catalog_assets/legacy_shim.dart';
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
+
+import 'support/asset_scopes.dart';
 
 // Geometry: 4 columns of 40 px cells under a 24 px header in a 480 px
 // viewport. At offset 0 that shows 12 rows, 48 leaves.
@@ -40,7 +42,7 @@ int _firstVisibleLeaf(double offset) =>
 Widget _app({
   required ValueObservable<CatalogSnapshot> snapshots,
   required PanelCatalogController controller,
-  CatalogAssetCache? assetCache,
+  AssetCacheScope? assets,
   void Function(CatalogLeafHit)? onLeafTap,
 }) => MaterialApp(
   home: PanelCatalogTheme(
@@ -52,7 +54,7 @@ Widget _app({
           height: 480,
           child: PanelCatalogViewport(
             snapshots: snapshots,
-            assetCache: assetCache ?? FakeCatalogAssetCache(),
+            assets: assets ?? textGlyphScope(),
             controller: controller,
             spanCount: _span,
             cellExtent: 40,

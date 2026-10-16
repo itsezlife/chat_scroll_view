@@ -1,7 +1,7 @@
 /// Scroll-time hardening of the Panel Catalog Viewport.
 ///
 /// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogSnapshotSource] and
-/// [FakeCatalogAssetCache], the same boundary as the correctness suite. Raster
+/// a `TextGlyphProducer` scope, the same boundary as the correctness suite. Raster
 /// cost is not asserted here (a headless run does no rasterisation); these tests
 /// pin the structural guarantees that keep scroll-time work small:
 ///
@@ -11,7 +11,7 @@
 /// - the binding sync cost follows the visible band, not the catalogue size
 library;
 
-import 'package:catalog_assets/legacy_shim.dart';
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -20,9 +20,11 @@ import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
 
+import 'support/asset_scopes.dart';
+
 Widget _app({
   required ValueObservable<CatalogSnapshot> snapshots,
-  required CatalogAssetCache assetCache,
+  required AssetCacheScope assets,
   required PanelCatalogController controller,
   List<Widget> overlays = const [],
   double width = 320,
@@ -44,7 +46,7 @@ Widget _app({
                 Positioned.fill(
                   child: PanelCatalogViewport(
                     snapshots: snapshots,
-                    assetCache: assetCache,
+                    assets: assets,
                     controller: controller,
                     spanCount: spanCount,
                     cellExtent: cellExtent,
@@ -112,12 +114,12 @@ double _medianMicros(int runs, void Function() body) {
 
 void main() {
   late FakeCatalogSnapshotSource snapshots;
-  late FakeCatalogAssetCache assetCache;
+  late AssetCacheScope assetScope;
   late PanelCatalogController controller;
 
   setUp(() {
     snapshots = FakeCatalogSnapshotSource();
-    assetCache = FakeCatalogAssetCache();
+    assetScope = textGlyphScope();
     controller = PanelCatalogController();
   });
 
@@ -135,11 +137,7 @@ void main() {
         ]),
       ]);
       await tester.pumpWidget(
-        _app(
-          snapshots: snapshots,
-          assetCache: assetCache,
-          controller: controller,
-        ),
+        _app(snapshots: snapshots, assets: assetScope, controller: controller),
       );
 
       final render = _render(tester);
@@ -161,7 +159,7 @@ void main() {
       await tester.pumpWidget(
         _app(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
           overlays: [
             Positioned(
@@ -204,11 +202,7 @@ void main() {
         ]),
       ]);
       await tester.pumpWidget(
-        _app(
-          snapshots: snapshots,
-          assetCache: assetCache,
-          controller: controller,
-        ),
+        _app(snapshots: snapshots, assets: assetScope, controller: controller),
       );
 
       final canvas = _paintOnce(_render(tester));
@@ -228,11 +222,7 @@ void main() {
         ]),
       ]);
       await tester.pumpWidget(
-        _app(
-          snapshots: snapshots,
-          assetCache: assetCache,
-          controller: controller,
-        ),
+        _app(snapshots: snapshots, assets: assetScope, controller: controller),
       );
       final render = _render(tester);
       final idleSaves = _paintOnce(render).saves;
@@ -269,7 +259,7 @@ void main() {
         final c = PanelCatalogController();
         addTearDown(c.dispose);
         await tester.pumpWidget(
-          _app(snapshots: ds, assetCache: assetCache, controller: c),
+          _app(snapshots: ds, assets: assetScope, controller: c),
         );
         // Park deep in the catalogue so a front-to-back scan has to walk it.
         c.jumpTo(_render(tester).maxOffset / 2);
@@ -312,7 +302,7 @@ void main() {
         final c = PanelCatalogController();
         addTearDown(c.dispose);
         await tester.pumpWidget(
-          _app(snapshots: ds, assetCache: assetCache, controller: c),
+          _app(snapshots: ds, assets: assetScope, controller: c),
         );
         final render = _render(tester);
         c.jumpTo(render.maxOffset / 2);

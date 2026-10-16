@@ -1,32 +1,30 @@
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:content_model/content_model.dart';
-import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
+import 'package:panel_catalog/panel_catalog.dart';
 
-/// TEMPORARY SHIM: forwards the viewport's scrolling / settled events to the
-/// [GlyphAtlas] its cache carries, so the bake keeps pausing while the
-/// catalogue moves and baking the visible band first.
+/// TEMPORARY SHIM: forwards the catalogue's scrolling and settled events to the
+/// [GlyphAtlas] the page owns, so the bake keeps pausing while the catalogue
+/// moves and baking the visible band first.
 ///
-/// Deleted when the viewport binds through the asset-cache scope and stops
-/// seeing the atlas: the page that owns the atlas then listens to
-/// [PanelCatalogController.events] itself and makes the same two calls
-/// ([GlyphAtlas.reportScrolling] with a reporter of its own,
-/// [GlyphAtlas.prioritise] with the glyphs behind the settled keys).
+/// The viewport names no atlas; the page that plans one listens to
+/// [PanelCatalogController.events] and tells it. This is that page's half until
+/// the emoji page of `panel_pages` owns the atlas (the page makes the same two
+/// calls: [GlyphAtlas.reportScrolling] with a reporter of its own and
+/// [GlyphAtlas.prioritise] with the glyphs behind the settled keys). Deleted
+/// with `chat_chrome`.
 ///
-/// One bridge reports as one reporter, so an atlas shared with other
+/// One forwarder reports as one reporter, so an atlas shared with other
 /// reporters still pauses until all of them rest.
-final class CatalogAtlasBakeBridge {
-  /// Starts forwarding [events] to [atlas]. [scrolling] is the state to report
-  /// at once, for a bridge created while the catalogue is already moving.
-  CatalogAtlasBakeBridge({
+final class CatalogAtlasBakeForwarder {
+  /// Starts forwarding [events] to [atlas].
+  CatalogAtlasBakeForwarder({
     required this.atlas,
     required EventObservable<PanelCatalogScrollEvent> events,
-    bool scrolling = false,
   }) : _events = events {
     _events.addListener(_onEvent);
-    if (scrolling) _setScrolling(scrolling: true);
   }
 
-  /// The atlas this bridge reports to.
+  /// The atlas this forwarder reports to.
   final GlyphAtlas atlas;
 
   final EventObservable<PanelCatalogScrollEvent> _events;

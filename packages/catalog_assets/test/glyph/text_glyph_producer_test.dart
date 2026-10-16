@@ -75,6 +75,50 @@ void main() {
       expect(_drawn(canvas), hasLength(3));
     });
 
+    test('keep one layout for the same size at another position', () {
+      final scope = scopeOf(const TextGlyphProducer());
+      final binding = scope.attach(_glyph, _preset.spec, _preset.profile);
+      addTearDown(binding.detach);
+      final canvas = TestRecordingCanvas();
+      // The same 20 x 20 box, two places: `width` is `right - left`, which
+      // differs in the last bits.
+      const first = Rect.fromLTWH(0, 0, 20, 20);
+      const second = Rect.fromLTWH(123.456, 0, 20, 20);
+      expect(first.width, isNot(second.width));
+
+      binding.paint(canvas, first);
+      binding.paint(canvas, second);
+
+      final paragraphs = [
+        for (final call in canvas.invocations)
+          if (call.invocation.memberName == #drawParagraph)
+            call.invocation.positionalArguments.first,
+      ];
+      expect(paragraphs, hasLength(2));
+      expect(paragraphs.first, same(paragraphs.last));
+    });
+
+    test('clip only a glyph wider than the box', () {
+      // A glyph that cannot be split over lines is wider than the box when
+      // the font is larger than it, which the default scale avoids.
+      final fits = scopeOf(
+        const TextGlyphProducer(),
+      ).attach(_glyph, _preset.spec, _preset.profile);
+      final wide = scopeOf(
+        const TextGlyphProducer(fontScale: 2),
+      ).attach(_glyph, _preset.spec, _preset.profile);
+      addTearDown(fits.detach);
+      addTearDown(wide.detach);
+      List<Symbol> calls(AssetBinding binding) {
+        final canvas = TestRecordingCanvas();
+        binding.paint(canvas, const Rect.fromLTWH(0, 0, 20, 20));
+        return [for (final c in canvas.invocations) c.invocation.memberName];
+      }
+
+      expect(calls(fits), isNot(contains(#clipRect)));
+      expect(calls(wide), contains(#clipRect));
+    });
+
     test('fade as a whole when the opacity is below one', () {
       final scope = scopeOf(const TextGlyphProducer());
       final binding = scope.attach(_glyph, _preset.spec, _preset.profile);

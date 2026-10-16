@@ -1,4 +1,3 @@
-import 'package:catalog_assets/legacy_shim.dart';
 import 'package:chat_chrome/src/legacy_emoji/legacy_emoji.dart';
 import 'package:chat_chrome/src/panel/emoji_tab_assets.dart';
 import 'package:chat_chrome/src/util/constants.dart';
@@ -61,19 +60,12 @@ final class EmojiCatalogStripTab {
 /// [rebuild]. Call [rebuild] when recents or search projection inputs change;
 /// the emoji source listener triggers rebuild automatically. Each [rebuild]
 /// publishes one new snapshot on [snapshots].
-///
-/// Unicode leaves are marked ready on [CatalogAssetCache] during [rebuild] so
-/// paint skips circle placeholders for standard emoji cells.
 final class EmojiCatalogDataSource {
-  /// Creates an adapter over [emojiSource] and [assetCache].
-  EmojiCatalogDataSource({
-    required EmojiDataSource emojiSource,
-    required CatalogAssetCache assetCache,
-  }) : _emojiSource = emojiSource,
-       _assetCache = assetCache;
+  /// Creates an adapter over [emojiSource].
+  EmojiCatalogDataSource({required EmojiDataSource emojiSource})
+    : _emojiSource = emojiSource;
 
   final EmojiDataSource _emojiSource;
-  final CatalogAssetCache _assetCache;
 
   final _snapshots = ObservableValue<CatalogSnapshot>(
     const CatalogSnapshot.empty(),
@@ -144,7 +136,6 @@ final class EmojiCatalogDataSource {
             ),
           ),
         );
-        _markUnicodeReady(cell.displayGlyph);
       }
       sections.add(
         CatalogSection(id: 'search', title: searchResultsLabel, leaves: leaves),
@@ -173,7 +164,6 @@ final class EmojiCatalogDataSource {
             ),
           ),
         );
-        _markUnicodeReady(glyph);
       }
       sections.add(
         CatalogSection(
@@ -206,7 +196,6 @@ final class EmojiCatalogDataSource {
               ),
             ),
           );
-          _markUnicodeReady(cell.displayGlyph);
         }
       }
       if (leaves.isEmpty) continue;
@@ -253,15 +242,6 @@ final class EmojiCatalogDataSource {
       displayGlyph: display,
       supportsSkinTone: supports,
     );
-  }
-
-  void _markUnicodeReady(String glyph) {
-    if (_assetCache case final MemoryCatalogAssetCache memory) {
-      memory.markReady(
-        CatalogAssetKey.unicode(glyph),
-        CatalogAssetCacheType.keyboard,
-      );
-    }
   }
 
   /// Drops the snapshot listeners. Idempotent.

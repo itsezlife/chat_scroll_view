@@ -2,7 +2,7 @@
 /// section jumps (near and far path), stitch continuity and the visible band.
 ///
 /// **Seam:** [PanelCatalogViewport] driven with a [FakeCatalogSnapshotSource]
-/// and [FakeCatalogAssetCache], observed through the controller, the shell
+/// and a `TextGlyphProducer` scope, observed through the controller, the shell
 /// callbacks, the controller's settled events and the render object's
 /// published geometry.
 ///
@@ -11,7 +11,7 @@
 /// 80 cells and a 40 header of 3 rows is 280 tall.
 library;
 
-import 'package:catalog_assets/legacy_shim.dart';
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +20,8 @@ import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
+
+import 'support/asset_scopes.dart';
 
 const _stickers = SectionLayout.grid(
   spanCount: 5,
@@ -53,7 +55,7 @@ List<CatalogSection> _alternating(int pairs) => [
 
 Widget _app({
   required FakeCatalogSnapshotSource snapshots,
-  required FakeCatalogAssetCache assetCache,
+  required AssetCacheScope assets,
   required PanelCatalogController controller,
   ValueChanged<CatalogLeafHit>? onLeafTap,
   void Function(CatalogLeafHit, LongPressStartDetails)? onLongPressStart,
@@ -67,7 +69,7 @@ Widget _app({
           height: 400,
           child: PanelCatalogViewport(
             snapshots: snapshots,
-            assetCache: assetCache,
+            assets: assets,
             controller: controller,
             spanCount: 8,
             cellExtent: 48,
@@ -88,13 +90,13 @@ RenderPanelCatalog _render(WidgetTester tester) =>
 
 void main() {
   late FakeCatalogSnapshotSource snapshots;
-  late FakeCatalogAssetCache assetCache;
+  late AssetCacheScope assetScope;
   late PanelCatalogController controller;
   late List<PanelCatalogScrollEvent> events;
 
   setUp(() {
     snapshots = FakeCatalogSnapshotSource();
-    assetCache = FakeCatalogAssetCache();
+    assetScope = textGlyphScope();
     controller = PanelCatalogController();
     events = [];
     controller.events.addListener(events.add);
@@ -112,7 +114,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         snapshots: snapshots,
-        assetCache: assetCache,
+        assets: assetScope,
         controller: controller,
         onLeafTap: onLeafTap,
         onLongPressStart: onLongPressStart,

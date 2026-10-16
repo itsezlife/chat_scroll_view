@@ -1,10 +1,10 @@
 /// Correctness suite for the Panel Catalog Viewport public API.
 ///
 /// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogSnapshotSource] and
-/// [FakeCatalogAssetCache] — chat-style preloaded DS, no device farm.
+/// a `TextGlyphProducer` scope — chat-style preloaded DS, no device farm.
 ///
 /// **Observability:** [RenderPanelCatalog] getters used here
-/// (`contentExtent`, `cellPaintOf`, `isFlinging`, `isFarStitchActive`,
+/// (`contentExtent`, `isFlinging`, `isFarStitchActive`,
 /// `farStitchProgress`, press seams) are package-private test seams.
 /// Controller offset, jump futures, and shell callbacks are preferred when
 /// they already distinguish the behavior under test.
@@ -12,7 +12,7 @@
 /// **Coverage map:**
 /// - extent scroll + DS notify
 /// - drag vs leaf long-press arena (no touch-slop catch-up jump)
-/// - leaf presentation (unicode content, circle radius contract, thumb-first)
+/// - leaf presentation (unicode as text, thumb-first)
 /// - paint-leaf element flatness + binding recycle
 /// - tap / long-press identity, `leafLongPressEligible`, press scale
 /// - fling stability + fling-cancel leaf suppress
@@ -20,21 +20,24 @@
 /// - far-path stitch (not naked jump), re-entry, cancel
 library;
 
-import 'package:catalog_assets/legacy_shim.dart';
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
-import 'package:panel_catalog/src/viewport/catalog_cell_paint.dart';
+import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_catalog/src/viewport/catalog_section_navigation.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
 
+import 'support/asset_scopes.dart';
+import 'support/recording_canvas.dart';
+
 Widget _harness({
   required ValueObservable<CatalogSnapshot> snapshots,
-  required CatalogAssetCache assetCache,
+  required AssetCacheScope assets,
   required PanelCatalogController controller,
   double width = 320,
   double height = 480,
@@ -61,7 +64,7 @@ Widget _harness({
             height: height,
             child: PanelCatalogViewport(
               snapshots: snapshots,
-              assetCache: assetCache,
+              assets: assets,
               controller: controller,
               spanCount: spanCount,
               cellExtent: cellExtent,
@@ -97,12 +100,12 @@ RenderPanelCatalog _render(WidgetTester tester) =>
 
 void main() {
   late FakeCatalogSnapshotSource snapshots;
-  late FakeCatalogAssetCache assetCache;
+  late AssetCacheScope assetScope;
   late PanelCatalogController controller;
 
   setUp(() {
     snapshots = FakeCatalogSnapshotSource();
-    assetCache = FakeCatalogAssetCache();
+    assetScope = textGlyphScope();
     controller = PanelCatalogController();
   });
 
@@ -124,7 +127,7 @@ void main() {
         await tester.pumpWidget(
           _harness(
             snapshots: snapshots,
-            assetCache: assetCache,
+            assets: assetScope,
             controller: controller,
           ),
         );
@@ -163,7 +166,7 @@ void main() {
         await tester.pumpWidget(
           _harness(
             snapshots: snapshots,
-            assetCache: assetCache,
+            assets: assetScope,
             controller: controller,
             onLeafTap: (_) {},
             onLeafLongPressStart: (_, _) {},
@@ -211,7 +214,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -235,8 +238,9 @@ void main() {
 
   group('leaf presentation', () {
     testWidgets(
-      'unicode leaves paint as content without waiting on cache ready',
+      'a unicode leaf is drawn as text where the scope draws glyphs as text',
       (tester) async {
+        PanelCatalogDiagnostics.reset();
         final leaf = CatalogLeaf.unicode('😀');
         snapshots.replaceSections([
           _section('a', [leaf]),
@@ -245,44 +249,27 @@ void main() {
         await tester.pumpWidget(
           _harness(
             snapshots: snapshots,
-            assetCache: assetCache,
+            assets: assetScope,
             controller: controller,
           ),
         );
         await tester.pumpAndSettle();
+        PanelCatalogDiagnostics.reset();
+        final canvas = RecordingCanvas();
+        _render(
+          tester,
+        ).paint(TestRecordingPaintingContext(canvas), Offset.zero);
 
-        // Unicode paints from paragraph cache — no circle while loading/unbound.
-        expect(_render(tester).cellPaintOf(leaf), CatalogCellPaint.content);
+        // The header and the glyph; no circle while it loads.
+        expect(canvas.paragraphs, 2);
+        expect(canvas.circles, isEmpty);
+        expect(PanelCatalogDiagnostics.glyphParagraphDraws, 1);
         expect(kCirclePlaceholderRadiusFactor, 0.4);
       },
     );
 
-    testWidgets('failed unicode leaf presents failed stand-in', (tester) async {
-      final leaf = CatalogLeaf.unicode('😀');
-      snapshots.replaceSections([
-        _section('a', [leaf]),
-      ]);
-
-      await tester.pumpWidget(
-        _harness(
-          snapshots: snapshots,
-          assetCache: assetCache,
-          controller: controller,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      assetCache.markFailed(
-        CatalogAssetKey.unicode('😀'),
-        CatalogAssetCacheType.keyboard,
-      );
-      await tester.pump();
-
-      expect(_render(tester).cellPaintOf(leaf), CatalogCellPaint.failed);
-    });
-
     testWidgets(
-      'ready document stays content after binding detachAll (pager reattach)',
+      'a document leaf is the thumb-first silhouette until its media arrives',
       (tester) async {
         final leaf = CatalogLeaf.document('doc-42');
         snapshots.replaceSections([
@@ -292,46 +279,18 @@ void main() {
         await tester.pumpWidget(
           _harness(
             snapshots: snapshots,
-            assetCache: assetCache,
-            controller: controller,
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        assetCache.markReady(
-          CatalogAssetKey.document('doc-42'),
-          CatalogAssetCacheType.keyboard,
-        );
-        await tester.pump();
-        expect(_render(tester).cellPaintOf(leaf), CatalogCellPaint.content);
-
-        // Simulate keep-alive leave: render detach drops pool binds; cache
-        // must retain ready so paint before re-sync does not flash thumb.
-        _render(tester).debugDetachBindings();
-        expect(_render(tester).cellPaintOf(leaf), CatalogCellPaint.content);
-      },
-    );
-
-    testWidgets(
-      'document-backed leaf identity hooks exist with thumb-first placeholder',
-      (tester) async {
-        final leaf = CatalogLeaf.document('doc-42');
-        snapshots.replaceSections([
-          _section('a', [leaf]),
-        ]);
-
-        await tester.pumpWidget(
-          _harness(
-            snapshots: snapshots,
-            assetCache: assetCache,
+            assets: assetScope,
             controller: controller,
           ),
         );
         await tester.pumpAndSettle();
 
         final render = _render(tester);
+        final canvas = RecordingCanvas();
+        render.paint(TestRecordingPaintingContext(canvas), Offset.zero);
         expect(render.projectedLeaves, [leaf]);
-        expect(render.cellPaintOf(leaf), CatalogCellPaint.thumb);
+        expect(canvas.rrects, hasLength(1));
+        expect(canvas.circles, isEmpty);
       },
     );
   });
@@ -350,7 +309,7 @@ void main() {
           await tester.pumpWidget(
             _harness(
               snapshots: snapshots,
-              assetCache: assetCache,
+              assets: assetScope,
               controller: controller,
             ),
           );
@@ -387,7 +346,7 @@ void main() {
         await tester.pumpWidget(
           _harness(
             snapshots: snapshots,
-            assetCache: assetCache,
+            assets: assetScope,
             controller: controller,
           ),
         );
@@ -424,7 +383,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
           onLeafTap: (leaf) => tapped = leaf,
         ),
@@ -451,7 +410,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
           onLeafTap: (_) => taps += 1,
         ),
@@ -479,7 +438,7 @@ void main() {
         await tester.pumpWidget(
           _harness(
             snapshots: snapshots,
-            assetCache: assetCache,
+            assets: assetScope,
             controller: controller,
             onLeafLongPressStart: (l, _) => started = l,
             onLeafLongPressMove: (l, _) => moved = l,
@@ -518,7 +477,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
           leafLongPressEligible: (hit) => hit.leaf == eligible,
           onLeafTap: (_) => taps += 1,
@@ -558,7 +517,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
           onLeafTap: (_) {},
           onLeafLongPressStart: (l, _) => started = l,
@@ -595,7 +554,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
           onLeafTap: (_) {},
           headerExtent: 24,
@@ -646,7 +605,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
           onLeafTap: (_) {},
         ),
@@ -683,7 +642,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -716,7 +675,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
           onLeafTap: (_) => taps += 1,
         ),
@@ -757,7 +716,7 @@ void main() {
         await tester.pumpWidget(
           _harness(
             snapshots: snapshots,
-            assetCache: assetCache,
+            assets: assetScope,
             controller: controller,
             height: 240,
             padding: const EdgeInsets.only(top: stripInset),
@@ -801,7 +760,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
           height: 240,
           spanCount: 4,
@@ -826,7 +785,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
           height: 240,
         ),
@@ -851,7 +810,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -874,7 +833,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
           height: 240,
           spanCount: 4,
@@ -925,7 +884,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
           height: viewportHeight,
           spanCount: spanCount,
@@ -1006,7 +965,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
           height: viewportHeight,
           spanCount: spanCount,
@@ -1059,7 +1018,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
-          assetCache: assetCache,
+          assets: assetScope,
           controller: controller,
           height: 240,
           spanCount: 4,

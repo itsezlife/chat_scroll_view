@@ -180,7 +180,9 @@ Future<void> _unmount(WidgetTester tester, PanelHarness harness) async {
 GlyphAtlas? _atlasOf(WidgetTester tester) {
   final finder = find.byType(PanelCatalogViewport);
   if (finder.evaluate().isEmpty) return null;
-  return tester.widget<PanelCatalogViewport>(finder).assetCache.glyphAtlas;
+  // The harness composed the scope with an atlas as its glyph source.
+  return tester.widget<PanelCatalogViewport>(finder).assets.glyphSource
+      as GlyphAtlas?;
 }
 
 /// Pumps until the atlas has every page drawable, or 30 s pass.

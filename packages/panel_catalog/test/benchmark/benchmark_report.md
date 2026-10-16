@@ -20,7 +20,7 @@ GPU.
 | Build, layout and paint-recording time per pumped frame (ratios) | Raster time, glyph rasterisation, atlas upload, draw-call cost |
 | Object counts: attached leaves and `RenderObject`s stay flat as the catalogue grows | The cost of the first sight of a colour glyph (the original jank) |
 | That stitch and the near path stay cheap in the main isolate | Memory in bytes, GPU memory, resident atlas pages |
-| That scroll cost does not grow with catalogue size | Anything about the baked-atlas pipeline: the benchmark uses a fake asset cache with no atlas, so it exercises the paragraph path (the web strategy) |
+| That scroll cost does not grow with catalogue size | Anything about the baked-atlas pipeline: the benchmark's scope has no glyph source and draws glyphs as text (`TextGlyphProducer`), so it exercises the paragraph path (the web strategy) |
 
 Consequence: a dropped frame caused by rasterising emoji is invisible here. The
 previous version of this benchmark passed while the first pass over the
@@ -88,7 +88,8 @@ The manual cache, OS-update and density checks are in
 Re-run 2026-10-16: Flutter 3.41.7, Dart 3.11.5, macOS ARM64, headless debug,
 one run. Viewport 400×600 logical px (span 8, cell 48, header 32); catalogue
 presets of 64 / 512 / 4096 unicode leaves (8 leaves per section). Candidate:
-Panel Catalog Viewport with a fake asset cache (paragraph path). Baselines:
+Panel Catalog Viewport with an `AssetCacheScope` that draws glyphs as text
+(paragraph path). Baselines:
 **SliverGrid** (section headers plus a `SliverGrid` per section) and
 **SuperSliverList** (frozen flat header-and-row list, the previous keyboard
 panel body).
@@ -158,6 +159,32 @@ unchanged at about 45–60 µs). It is a steady tax far below a frame, not
 evidence that a widget grid scrolls better: end-to-end fling frames favour the
 viewport. The probe also does not draw sprites, so it does not describe the
 shipped baking path; the batched atlas draw is judged on the device.
+
+### Asset binding (viewport attaches through the scope)
+
+The viewport moved from the readiness-flag cache to `AssetCacheScope`
+(`attach(key, spec, profile)`, paint the `AssetPaintable`), with the glyph
+paragraph cache replaced by the scope's byte-budgeted LRU. Same machine, three
+alternating whole-suite runs of the integration branch before and after;
+median of the three per-run medians (mean in brackets), ratio is after / before
+against SuperSliverList. The paragraph path is what the benchmark exercises, so
+this is the cost of going through the binding for text glyphs; the baked sprite
+path is not measured headless.
+
+| Probe (64 / 512 / 4096 leaves) | Before (µs) | After (µs) | After / before |
+| ------------------------------ | ----------- | ---------- | -------------- |
+| Scroll-only paint, median | 41 / 37 / 37 | 33 / 28 / 29 | 0.80 / 0.76 / 0.78 |
+| Scroll-only paint, mean | 49 / 49 / 57 | 42 / 35 / 35 | 0.86 / 0.72 / 0.62 |
+| Forced relayout, median | 55 / 29 / 75 | 49 / 19 / 71 | 0.89 / 0.66 / 0.95 |
+| Fling frame time, median | 22 / 15 / 15 | 23 / 15 / 15 | 1.05 / 1.00 / 1.00 |
+| Near-path jump, median | 19 / 15 / 15 | 19 / 16 / 15 | 1.00 / 1.07 / 1.00 |
+
+Scroll-only paint and the other rows are within run-to-run noise or better.
+Two traps found while measuring, both fixed: a paragraph shared by every cell of
+one glyph was laid out again at each cell, because a rectangle's width is
+`right - left` and differs in the last bits between positions (paint 4x slower
+until a layout tolerance was added), and a save and a clip per cell cost more
+than the glyph (the clip now happens only for a glyph wider than its box).
 
 ## Accepted gaps
 
@@ -244,8 +271,8 @@ unit-tested; these are not:
 [ADR 006](../../../../docs/adr/006-panel-catalog-viewport.md), marked pending
 there): scope-provided shared asset cache; per-section layout, snapshot data
 source and attach-and-position controller are built; the paintable contract
-that replaces the sprite capability now carried on `CatalogAssetBinding`
-remains.
+that replaces the sprite capability now carried on `CatalogAssetBinding` is
+built (see the asset-binding A/B below).
 
 ## Follow-on: animated media
 

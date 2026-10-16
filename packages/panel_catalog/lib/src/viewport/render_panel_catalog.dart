@@ -1,8 +1,7 @@
 import 'dart:async' show Completer, Future, unawaited;
 import 'dart:math' as math;
 
-import 'package:catalog_assets/glyph_atlas.dart';
-import 'package:catalog_assets/legacy_shim.dart';
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
@@ -13,9 +12,7 @@ import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
-import 'package:panel_catalog/src/viewport/catalog_atlas_bake_bridge.dart';
 import 'package:panel_catalog/src/viewport/catalog_bake_activity.dart';
-import 'package:panel_catalog/src/viewport/catalog_cell_paint.dart';
 import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
@@ -38,7 +35,7 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// absolute content offset on [PanelCatalogController].
 ///
 /// Does **not** own panel chrome (category strip, search, type tabs, pickers),
-/// asset fetch/decode ([CatalogAssetCache] does), or catalog fetch
+/// asset fetch/decode (the host's [AssetCacheScope] does), or catalog fetch
 /// (the owner of the snapshot observable does). Hosts wire those; this object
 /// only listens and projects.
 ///
@@ -70,18 +67,18 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// memory and layout cost. Headers are paint-only as well.
 ///
 /// Scrolling is Tier-1 cheap: clamp + re-sync bindings + [markNeedsPaint].
-/// Unicode glyphs reuse a layout-once paragraph cache (drawParagraph only on
-/// scroll). Geometry changes (span, pitch, padding, data notify) call
+/// Leaves paint what their asset binding has reached and never decode
+/// anything. Geometry changes (span, pitch, padding, data notify) call
 /// [markCatalogNeedsUpdate] so the next layout reprojects slots.
 ///
 /// ## Binding recycle
 ///
-/// [CatalogLeafBindingPool] attaches [CatalogAssetCache] bindings only for
+/// [CatalogLeafBindingPool] attaches [AssetCacheScope] bindings only for
 /// leaf slots intersecting the visible window (viewport band plus one
 /// [cellExtent] of overscan above and below). Leaves that leave that band
 /// are detached unless their key is listed in the stitch pin set during
 /// far-path flight ([CatalogFarStitch]) so outgoing strip bindings survive
-/// the teleport. Readiness changes on attached bindings mark paint dirty so
+/// the teleport. A better stage on an attached binding marks paint dirty so
 /// placeholders flip to content without a full catalog reproject.
 ///
 /// The visible window is resolved to a slot index range by binary search over
@@ -91,7 +88,7 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// Overscan is intentionally one cell row: enough that a short drag does not
 /// thrash attach/detach every frame, not a second viewport of prefetched
 /// bindings. Empty / short catalogs still project headers; unbound leaves
-/// paint as loading placeholders via [CatalogCellPaint].
+/// paint the placeholder their descriptor facts name.
 ///
 /// ## Scroll input
 ///
@@ -170,15 +167,16 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 ///
 /// ## Baked glyphs
 ///
-/// When the asset cache has a [GlyphAtlas] (platforms that bake emoji), each
-/// unicode leaf resolves to a sprite through its binding and the painter queues
-/// it; one pass draws the sprites of each atlas page in a single batched draw
-/// (`CatalogLeafPainter.flushGlyphSprites`, at the end of [paint]). An unbaked
-/// glyph is the circle placeholder and flips to its sprite when the atlas page
-/// lands (the binding listener marks paint dirty, never layout). Without an
-/// atlas the same leaves paint a paragraph. [CatalogBakeActivity] publishes
-/// whether the catalogue is moving and what is on screen as scroll events,
-/// which keep the bake out of the way of motion.
+/// Where the scope's glyphs are baked, each unicode leaf resolves to a sprite
+/// through its binding and the painter queues it; one pass draws the sprites of
+/// each atlas page in a single batched draw ([CatalogLeafPainter.endPass], at
+/// the end of [paint]). An unbaked glyph is the circle placeholder and flips to
+/// its sprite when the atlas page lands (the binding listener marks paint
+/// dirty, never layout). Where the scope draws glyphs as text the leaf's
+/// paintable paints itself; this object cannot tell the two apart.
+/// [CatalogBakeActivity] publishes whether the catalogue is moving and what is
+/// on screen as scroll events; whoever owns the bake listens to them, so the
+/// bake stays out of the way of motion.
 ///
 /// ## Lifecycle
 ///
@@ -218,14 +216,14 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   /// null long-press start disables the long-press recognizer.
   RenderPanelCatalog({
     required ValueObservable<CatalogSnapshot> snapshots,
-    required CatalogAssetCache assetCache,
+    required AssetCacheScope assets,
+    required double devicePixelRatio,
     required PanelCatalogController controller,
     required int spanCount,
     required double cellExtent,
     required double headerExtent,
     required EdgeInsets padding,
     double? headerLandingInset,
-    required CatalogAssetCacheType cacheType,
     required CatalogLeafPaintTheme paintTheme,
     ValueChanged<CatalogLeafHit>? onLeafTap,
     void Function(CatalogLeafHit hit, LongPressStartDetails details)?
@@ -249,11 +247,13 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
        _onLeafLongPressEnd = onLeafLongPressEnd,
        _leafLongPressEligible = leafLongPressEligible,
        _paintTheme = paintTheme,
+       _devicePixelRatio = devicePixelRatio,
        _painter = CatalogLeafPainter(theme: paintTheme) {
+    _assets = assets;
     _pool = CatalogLeafBindingPool(
-      assetCache: assetCache,
-      cacheType: cacheType,
-      onReadinessChanged: markNeedsPaint,
+      scope: assets,
+      devicePixelRatio: devicePixelRatio,
+      onChanged: markNeedsPaint,
     );
     _leafPointer = CatalogLeafPointer(debugOwner: this)
       ..leafAt = leafAt
@@ -311,17 +311,25 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     markNeedsPaint();
   }
 
-  /// Process-wide asset cache. Replacing detaches every binding first
-  /// ([CatalogLeafBindingPool.replaceCache]) then reprojects.
-  set assetCache(CatalogAssetCache value) {
-    final atlas = _pool.glyphAtlas;
-    _pool.replaceCache(value);
-    // The atlas bridge belongs to the cache's atlas. Hosts hand the same
-    // cache on every widget update; only a different atlas replaces it. The
-    // activity itself lives on, so a drag in progress is not forgotten.
-    if (!identical(atlas, value.glyphAtlas)) {
-      _syncAtlasBridge();
-    }
+  /// The host's asset cache. Replacing it detaches every binding first
+  /// ([CatalogLeafBindingPool.replaceScope]) then reprojects; the same scope on
+  /// a widget update changes nothing, so a drag or a bake in progress is not
+  /// disturbed.
+  late AssetCacheScope _assets;
+  set assets(AssetCacheScope value) {
+    if (identical(_assets, value)) return;
+    _assets = value;
+    _pool.replaceScope(value);
+    markCatalogNeedsUpdate();
+  }
+
+  /// Density of the view this body sits in. Bindings are asked for pixels at
+  /// it, so a change swaps every attached binding for one at the new size.
+  double _devicePixelRatio;
+  set devicePixelRatio(double value) {
+    if (_devicePixelRatio == value) return;
+    _devicePixelRatio = value;
+    _pool.devicePixelRatio = value;
     markCatalogNeedsUpdate();
   }
 
@@ -365,12 +373,6 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   set headerLandingInset(double? value) {
     if (_headerLandingInset == value) return;
     _headerLandingInset = value;
-    markCatalogNeedsUpdate();
-  }
-
-  /// Attach size class for leaf bindings. Replacing detaches then reprojects.
-  set cacheType(CatalogAssetCacheType value) {
-    _pool.replaceCacheType(value);
     markCatalogNeedsUpdate();
   }
 
@@ -445,9 +447,23 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   /// detached.
   CatalogBakeActivity? _bakeActivity;
 
-  /// Interim forwarder of those events to the cache's glyph atlas; null
-  /// without an atlas (the web) or while detached.
-  CatalogAtlasBakeBridge? _atlasBridge;
+  /// Frame time of the paint pass, from the scheduler unless a test fixes it.
+  Duration Function() _frameTime = _schedulerFrameTime;
+  // The raw timestamp rather than `currentFrameTimeStamp`, which is null
+  // outside a frame: a paint inside a frame reads the same value, and a paint
+  // driven by hand (a golden, a test) still has a time.
+  static Duration _schedulerFrameTime() =>
+      SchedulerBinding.instance.currentSystemFrameTimeStamp;
+
+  /// Fixes the frame time the placeholders' motion and the content fade read,
+  /// so a test or a golden paints at a chosen instant. Null restores the
+  /// scheduler's.
+  @visibleForTesting
+  set debugFrameTime(Duration Function()? value) =>
+      _frameTime = value ?? _schedulerFrameTime;
+
+  /// Whether a frame request for placeholder motion or a fade is pending.
+  var _motionFrameRequested = false;
 
   /// Absolute content offset. This render object owns it while attached; the
   /// controller keeps the committed value while no viewport is attached.
@@ -479,7 +495,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   List<CatalogStitchCapturedSlot> _stitchOutgoing = const [];
 
   /// Outgoing leaf bindings pinned for the stitch flight.
-  Set<CatalogAssetKey> _stitchPinnedKeys = const {};
+  Set<ContentKey> _stitchPinnedKeys = const {};
 
   /// Completes when the in-flight far stitch settles or is cancelled.
   Completer<void>? _stitchFlightCompleter;
@@ -560,20 +576,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
       if (slot case final CatalogLeafSlot leaf) leaf.leaf,
   ];
 
-  /// What is drawn for [leaf], or `null` when no projected leaf equals it.
-  ///
-  /// Uses the binding pool (live bind or settled [CatalogAssetCache.readinessOf]).
-  /// `null` means the leaf is absent from the current projection entirely.
-  CatalogCellPaint? cellPaintOf(CatalogLeaf leaf) {
-    for (final slot in _slots) {
-      if (slot case final CatalogLeafSlot cell when cell.leaf == leaf) {
-        return _pool.paintFor(cell.leaf);
-      }
-    }
-    return null;
-  }
-
-  /// Count of leaves currently retained via asset-cache attach.
+  /// Count of bindings currently attached in the scope's cache.
   ///
   /// Bounded by the visible window + overscan, not by total catalog size.
   int get attachedLeafCount => _pool.attachedCount;
@@ -581,8 +584,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   /// Test seam: drops every pool binding without disposing this render object.
   ///
   /// Models pager keep-alive leave (`detachAll` while the page [State] and
-  /// [CatalogAssetCache] survive). Settled cache readiness MUST still drive
-  /// [cellPaintOf] so paint does not flash loading placeholders.
+  /// the scope survive).
   @visibleForTesting
   void debugDetachBindings() => _pool.detachAll();
 
@@ -1251,29 +1253,12 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
           _physics.isFlinging || isSectionJumpAnimating || isFarStitchActive,
       visibleKeys: _visibleLeafKeys,
     );
-    _syncAtlasBridge();
   }
 
   void _stopBakeActivity() {
-    // Reports "not moving" through the bridge before it goes.
+    // Publishes "not moving" before it goes.
     _bakeActivity?.dispose();
     _bakeActivity = null;
-    _syncAtlasBridge();
-  }
-
-  /// Keeps [_atlasBridge] on the cache's current atlas while an activity runs.
-  void _syncAtlasBridge() {
-    final activity = _bakeActivity;
-    final atlas = activity == null ? null : _pool.glyphAtlas;
-    if (identical(_atlasBridge?.atlas, atlas)) return;
-    _atlasBridge?.dispose();
-    _atlasBridge = atlas == null || activity == null
-        ? null
-        : CatalogAtlasBakeBridge(
-            atlas: atlas,
-            events: _controller.events,
-            scrolling: activity.isMoving,
-          );
   }
 
   /// Keys of the leaves in the paint window, top first: what a settled
@@ -1387,10 +1372,14 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     final (top, bottom) = _visibleWindow();
     // Binary-searched band, not a walk over every slot: scroll-time sync cost
     // follows the visible window, not the catalogue size.
+    final (paintTop, paintBottom) = _paintWindow();
     _pool.syncVisible(
       slots: _slots,
       start: _firstSlotIndexAtOrBelow(top),
       end: _slotIndexAfter(bottom),
+      paintTop: paintTop,
+      paintBottom: paintBottom,
+      animate: !_physics.isFlinging,
       top: top,
       bottom: bottom,
       pinnedKeys: _stitchPinnedKeys.isEmpty ? null : _stitchPinnedKeys,
@@ -1445,6 +1434,8 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   void _startFling(double contentVelocity) {
     _physics.startFling(contentVelocity);
     _ensureFlingTicker();
+    // Animated leaves stop playing while the coast runs.
+    _syncVisibleBindings();
   }
 
   /// Stops simulation and ticker; safe when already idle.
@@ -1453,6 +1444,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     _physics.cancelFling();
     _flingTicker?.stop();
     if (wasFlinging) {
+      _syncVisibleBindings();
       _controller.publish(const PanelCatalogFlingEnd());
     }
   }
@@ -1483,6 +1475,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     if (delta == 0) {
       if (!_physics.isFlinging) {
         _flingTicker?.stop();
+        _syncVisibleBindings();
         _controller.publish(const PanelCatalogFlingEnd());
       }
       return;
@@ -1738,6 +1731,11 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
 
     final scroll = _pixels;
     _bakeActivity?.notePaint();
+    _painter.beginPass(
+      frameTime: _frameTime(),
+      viewport: offset & size,
+      animateWash: !_assets.clock.isPaused,
+    );
     final contentOrigin = offset.translate(0, -scroll);
     final (top, bottom) = _paintWindow();
     final pressedSlotKey = _press?.pressedSlotKey;
@@ -1758,7 +1756,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
           pressScale: pressScale,
           pressProgress: pressProgress,
         );
-        _painter.flushGlyphSprites(canvas);
+        _endPaintPass(canvas);
         canvas.restore();
         debugLastPaintDuration = sw.elapsed;
         return;
@@ -1782,43 +1780,45 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
       );
     }
 
-    _painter.flushGlyphSprites(canvas);
+    _endPaintPass(canvas);
     _logPaintSummary(top, bottom);
 
     canvas.restore();
     debugLastPaintDuration = sw.elapsed;
   }
 
+  /// Draws what the pass queued and, when something painted moves with time (a
+  /// fade, a wash), asks for the next frame after this one.
+  ///
+  /// The request is one post-frame callback at most; a viewport that paints no
+  /// motion asks for none, so an idle catalogue keeps the engine asleep.
+  void _endPaintPass(Canvas canvas) {
+    final needsFrame = _painter.endPass(canvas);
+    if (!needsFrame || _motionFrameRequested) return;
+    _motionFrameRequested = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _motionFrameRequested = false;
+      if (attached) markNeedsPaint();
+    });
+  }
+
   void _logPaintSummary(double visibleTop, double visibleBottom) {
     if (!LogCategory.paint.enabled) return;
     final frame = ++_paintFrame;
     if (frame % 15 != 0) return;
-    var content = 0;
-    var circle = 0;
-    var thumb = 0;
-    var failed = 0;
+    var leaves = 0;
+    var bound = 0;
     for (final slot in _slots) {
       if (slot is! CatalogLeafSlot) continue;
       if (slot.bottom < visibleTop || slot.top > visibleBottom) continue;
-      switch (_pool.paintFor(slot.leaf)) {
-        case CatalogCellPaint.content:
-          content++;
-        case CatalogCellPaint.circle:
-          circle++;
-        case CatalogCellPaint.thumb:
-        case CatalogCellPaint.wash:
-          thumb++;
-        case CatalogCellPaint.failed:
-          failed++;
-      }
+      leaves++;
+      if (_pool.boundFor(slot) != null) bound++;
     }
     fine(.paint, 'paint.summary', {
       'frame': frame,
       'offset': LogFormat.f(_pixels),
-      'content': content,
-      'circle': circle,
-      'thumb': thumb,
-      'failed': failed,
+      'leaves': leaves,
+      'bound': bound,
       'attached': _pool.attachedCount,
     });
   }
@@ -1841,8 +1841,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
           canvas: canvas,
           origin: origin,
           slot: leaf,
-          presentation: _pool.paintFor(leaf.leaf),
-          sprite: _pool.spriteFor(leaf.leaf),
+          bound: _pool.boundFor(leaf),
           pressScale: isPressed ? pressScale : 1.0,
           pressProgress: isPressed ? pressProgress : 0,
         );
@@ -1907,6 +1906,8 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
           :final sectionId,
           :final index,
           :final leaf,
+          :final contentBox,
+          :final placeholderStyle,
         ):
           _paintLayoutSlot(
             canvas: canvas,
@@ -1919,6 +1920,8 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
               sectionId: sectionId,
               index: index,
               leaf: leaf,
+              contentBox: contentBox,
+              placeholderStyle: placeholderStyle,
             ),
             pressedSlotKey: pressedSlotKey,
             pressScale: pressScale,

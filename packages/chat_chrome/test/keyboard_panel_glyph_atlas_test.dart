@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_chrome/chat_chrome.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -85,13 +86,17 @@ void main() {
     ),
   );
 
-  int bakedGlyphSize(WidgetTester tester) => tester
-      .widget<PanelCatalogViewport>(find.byType(PanelCatalogViewport))
-      .assetCache
-      .glyphAtlas!
-      .index
-      .layout
-      .glyphSize;
+  int bakedGlyphSize(WidgetTester tester) =>
+      (tester
+                  .widget<PanelCatalogViewport>(
+                    find.byType(PanelCatalogViewport),
+                  )
+                  .assets
+                  .glyphSource!
+              as GlyphAtlas)
+          .index
+          .layout
+          .glyphSize;
 
   testWidgets('the baked glyph size follows the screen density mid-session', (
     tester,
