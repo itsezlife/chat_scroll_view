@@ -26,8 +26,9 @@ enum PickSource {
 /// [recents] orders by how often a key was picked, most often first, and
 /// breaks ties by how recently, latest first. Each [SemanticKind] has its own
 /// list; a key recorded under one kind never appears in another. A list holds
-/// no key twice and never more than the store's capacity: recording past it
-/// drops the key that sorts last.
+/// no key twice and never more than the store's capacity. A key new to a full
+/// list pushes out the key that ranked last before it, so the pick just made is
+/// always listed; picking a key already listed drops nobody.
 ///
 /// ## Loaded stores only
 ///
