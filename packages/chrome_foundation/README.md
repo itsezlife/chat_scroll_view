@@ -6,6 +6,11 @@ workspace package (`scripts/check` enforces that), only on Flutter and `meta`.
 Composer, panel and page packages read their colours from here; none of them
 carries a colour default of its own.
 
+Scope of this release: palette, token groups and theme scope. Motion roles,
+strings, the icon registry and the glass stack are part of the same package's
+roadmap ([ADR 027](../../docs/adr/027-foundation-theme-glass-motion.md)) and
+are not here yet.
+
 ## Types
 
 | Type | Role |
@@ -129,7 +134,9 @@ still open.
 
 ## Decisions
 
-Token structure, delivery, palettes (ADR candidate
-`foundation-theme-glass-motion`) and the contrast rule (ADR candidate
-`l10n-a11y-input`) are proposed and move to `docs/adr/` with the architecture
-documentation.
+- [ADR 027: Foundation theme tokens, glass and motion](../../docs/adr/027-foundation-theme-glass-motion.md)
+  (token structure, delivery, palettes)
+- [ADR 031: Localization, accessibility and input](../../docs/adr/031-localization-accessibility-and-input.md)
+  (contrast rule)
+- Glossary: [chrome CONTEXT](../../docs/chrome/CONTEXT.md) (chrome palette,
+  token group, chrome theme scope)
