@@ -6,6 +6,12 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `test/benchmark/asset_cache_ratio_bench_test.dart`: churn, LRU pressure,
+  clock fan-out and page-hold ratios for the nightly job
+  (`benchmarks/README.md`). Nothing a consumer sees.
+
 ### Changed
 
 - `TextGlyphProducer`'s paragraph is laid out once per size, not once per

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# The headless benchmarks as ratio reports against the stored baselines. Not a
+# gate: the nightly workflow runs it, and a regression opens an issue.
+# Usage and exit codes: scripts/bin/bench.dart; tolerance and re-baselining:
+# benchmarks/README.md.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+if [[ -n "${CI:-}" ]]; then
+  flutter pub get --enforce-lockfile
+else
+  flutter pub get
+fi
+
+exec dart run scripts/bin/bench.dart "$@"

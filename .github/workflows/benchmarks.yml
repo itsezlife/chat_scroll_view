@@ -1,0 +1,129 @@
+name: Benchmarks
+
+# Nightly ratio report of the headless benchmarks against the committed
+# baselines (benchmarks/baselines). NOT a gate: there is no pull_request
+# trigger, nothing here is a required check, and a regression opens an issue
+# instead of failing a merge, because headless debug timings are noisy
+# (ADR 030). Only a benchmark that fails to run at all turns the job red.
+#
+# Layout cost and object counts only. Frame timing, raster cost and the 64 MiB
+# atlas ceiling are the device acceptance (example/integration_test/panel_perf),
+# which needs a device and is run by hand, never here.
+on:
+  schedule:
+    # Schedules only run on the default branch.
+    - cron: '23 3 * * *'
+  workflow_dispatch:
+    inputs:
+      force_regression:
+        description: >-
+          Make every measured ratio 2x worse before comparing, to prove the
+          issue path end to end (the drill issue is closed straight away).
+        type: boolean
+        default: false
+      runs:
+        description: Runs per suite; the median is compared.
+        default: '3'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: benchmarks
+  cancel-in-progress: false
+
+jobs:
+  benchmarks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      # The workspace root overrides flutter_md with `path: ../md` (see
+      # check.yml), so the fork is checked out as a sibling.
+      - uses: actions/checkout@v4
+        with:
+          path: chat_scroll_view
+      - uses: actions/checkout@v4
+        with:
+          repository: itsezlife/md
+          ref: feat/selection-chrome
+          path: md
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.7
+          cache: true
+
+      # Exit codes of scripts/bench: 0 fine, 1 regression, 2 did not run. The
+      # step itself always succeeds; the code decides what follows.
+      - name: scripts/bench
+        id: bench
+        working-directory: chat_scroll_view
+        env:
+          CI: 'true'
+          RUNS: ${{ inputs.runs || '3' }}
+          FORCE: ${{ inputs.force_regression && '--inject-regression 2' || '' }}
+        run: |
+          set +e
+          # shellcheck disable=SC2086
+          scripts/bench --runs "$RUNS" --out build/bench $FORCE
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        if: always()
+        working-directory: chat_scroll_view
+        run: |
+          if [[ -f build/bench/report.md ]]; then
+            cat build/bench/report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # The measured ratios of every suite, per run and merged. Committing
+      # results/<suite>.json as benchmarks/baselines/<suite>.linux.json seeds
+      # or refreshes the baseline of this runner class (benchmarks/README.md).
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: chat_scroll_view/build/bench
+          if-no-files-found: ignore
+
+      - name: Open or update the regression issue
+        if: steps.bench.outputs.code == '1'
+        working-directory: chat_scroll_view
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          FORCED: ${{ inputs.force_regression }}
+        run: |
+          label=benchmark-regression
+          title="Benchmark regression"
+          if [[ "$FORCED" == "true" ]]; then
+            label=benchmark-drill
+            title="Benchmark regression drill (forced, not a real regression)"
+          fi
+          gh label create "$label" --color B60205 \
+            --description "Nightly benchmark ratios moved past the tolerance" 2>/dev/null || true
+          {
+            cat build/bench/report.md
+            echo
+            echo "Run: $RUN_URL (artifact: benchmark-results)"
+          } > build/bench/issue.md
+          existing=$(gh issue list --label "$label" --state open --json number --jq '.[0].number // empty')
+          if [[ -n "$existing" ]]; then
+            gh issue comment "$existing" --body-file build/bench/issue.md
+          else
+            url=$(gh issue create --title "$title" --label "$label" --body-file build/bench/issue.md)
+            echo "Opened $url"
+            if [[ "$FORCED" == "true" ]]; then
+              gh issue close "$url" --comment "Drill finished: the issue path works."
+            fi
+          fi
+
+      - name: Fail only if the benchmarks did not run
+        if: steps.bench.outputs.code == '2'
+        run: |
+          echo "::error::scripts/bench could not run a benchmark; see the step log."
+          exit 1

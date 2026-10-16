@@ -15,141 +15,14 @@
 //   * It makes no claim about fling smoothness or decode cost: no pixels are
 //     decoded and nothing is rasterised.
 //
-// Cell sizes are decoded RGBA at 3x density: a sticker panel cell of 64 dp,
-// a custom emoji of 34 dp (Telegram's keyboard size), an animated sticker of
-// 85 dp whose entry costs two frame buffers, as the Android client counts a
-// Lottie drawable (width * height * 4 * 2).
+// The workloads and the scroll trace are in scroll_trace.dart, shared with the
+// ratio benchmark the nightly job runs (asset_cache_ratio_bench_test.dart).
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
-import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _mebibyte = 1024 * 1024;
-
-/// A catalogue the trace scrolls over.
-final class _Workload {
-  const _Workload({
-    required this.name,
-    required this.cells,
-    required this.visible,
-    required this.perRow,
-    required this.bytesPerCell,
-    required this.tier,
-  });
-
-  final String name;
-  final int cells;
-  final int visible;
-  final int perRow;
-  final int bytesPerCell;
-  final AssetTier tier;
-
-  AssetSpec get spec => const AssetSpec(pixelWidth: 192, pixelHeight: 192);
-}
-
-const _stickers = _Workload(
-  name: 'stickers (192 px, 144 KiB, 600 cells, 24 visible)',
-  cells: 600,
-  visible: 24,
-  perRow: 4,
-  bytesPerCell: 192 * 192 * 4,
-  tier: AssetTier.still,
-);
-
-const _customEmoji = _Workload(
-  name: 'custom emoji (102 px, 40 KiB, 2000 cells, 64 visible)',
-  cells: 2000,
-  visible: 64,
-  perRow: 8,
-  bytesPerCell: 102 * 102 * 4,
-  tier: AssetTier.still,
-);
-
-const _animated = _Workload(
-  name: 'animated stickers (256 px, 512 KiB, 120 cells, 12 visible)',
-  cells: 120,
-  visible: 12,
-  perRow: 3,
-  bytesPerCell: 256 * 256 * 4 * 2,
-  tier: AssetTier.animated,
-);
-
-ContentKey _id(int n) => ContentKey.document('doc-$n');
-
-/// What the scroll trace saw.
-final class _Result {
-  _Result(this.hitsBack, this.attachesBack, this.peakBytes, this.evictions);
-
-  final int hitsBack;
-  final int attachesBack;
-  final int peakBytes;
-  final int evictions;
-
-  double get hitRate => attachesBack == 0 ? 0 : hitsBack / attachesBack;
-}
-
-/// Scrolls [screens] screens down a catalogue one row at a time, then back up
-/// the same way, and counts how many attaches on the way back find their entry
-/// already decoded. The entry is made at once when missing, as a memory-only
-/// producer would.
-_Result _scrollDownAndBack(_Workload workload, int budgetBytes, int screens) {
-  final producer = FakeAssetProducer();
-  final scope = AssetCacheScope(
-    producer: producer,
-    budgets: AssetCacheBudgets(
-      stillBytes: budgetBytes,
-      animatedBytes: budgetBytes,
-    ),
-    clock: PlaybackClock(ticks: ManualPlaybackTickSource()),
-  );
-  producer.onProduce = (attempt) => attempt.advance(
-    AssetStage.full,
-    bytes: workload.bytesPerCell,
-    tier: workload.tier,
-  );
-  final bound = <int, AssetBinding>{};
-  var hitsBack = 0;
-  var attachesBack = 0;
-  var peak = 0;
-  var evictions = 0;
-
-  void show(int first, {required bool back}) {
-    final wanted = {
-      for (var n = first; n < first + workload.visible; n++)
-        if (n >= 0 && n < workload.cells) n,
-    };
-    for (final n in bound.keys.toList()) {
-      if (!wanted.contains(n)) bound.remove(n)!.detach();
-    }
-    for (final n in wanted) {
-      if (bound.containsKey(n)) continue;
-      final hit = scope.contains(_id(n), workload.spec);
-      if (back) {
-        attachesBack++;
-        if (hit) hitsBack++;
-      }
-      bound[n] = scope.attach(_id(n), workload.spec, const AssetProfile());
-    }
-    final bytes = scope.bytesIn(workload.tier);
-    if (bytes > peak) peak = bytes;
-  }
-
-  final lastRow = screens * workload.visible ~/ workload.perRow;
-  for (var row = 0; row <= lastRow; row++) {
-    show(row * workload.perRow, back: false);
-  }
-  final entriesAtTurn = scope.entryCount;
-  for (var row = lastRow; row >= 0; row--) {
-    show(row * workload.perRow, back: true);
-  }
-  evictions = entriesAtTurn - scope.entryCount;
-  for (final binding in bound.values) {
-    binding.detach();
-  }
-  scope.dispose();
-  return _Result(hitsBack, attachesBack, peak, evictions < 0 ? 0 : evictions);
-}
+import 'scroll_trace.dart';
 
 String _row(String label, List<String> cells) =>
     '${label.padRight(9)}${cells.map((c) => c.padLeft(9)).join()}';
@@ -157,14 +30,14 @@ String _row(String label, List<String> cells) =>
 void main() {
   const budgetsMiB = [1, 2, 4, 8, 12, 16, 24, 32, 48];
 
-  void sweep(_Workload workload, int screens) {
+  void sweep(TraceWorkload workload, int screens) {
     test('hit rate on the way back, ${workload.name}, $screens screens', () {
       final rates = <double>[];
       final lines = <String>[
         _row('budget', [for (final b in budgetsMiB) '$b MiB']),
       ];
       for (final mib in budgetsMiB) {
-        final result = _scrollDownAndBack(workload, mib * _mebibyte, screens);
+        final result = scrollDownAndBack(workload, mib * mebibyte, screens);
         rates.add(result.hitRate);
         // The invariant under test: the unattached part never exceeds the
         // budget; the only bytes above it are what a window of visible cells
@@ -172,7 +45,7 @@ void main() {
         final pinned = workload.visible * workload.bytesPerCell;
         expect(
           result.peakBytes,
-          lessThanOrEqualTo(mib * _mebibyte + pinned),
+          lessThanOrEqualTo(mib * mebibyte + pinned),
           reason: 'peak bytes at $mib MiB',
         );
       }
@@ -196,13 +69,13 @@ void main() {
   }
 
   group('hit-rate sweep', () {
-    sweep(_stickers, 4);
-    sweep(_stickers, 8);
-    sweep(_customEmoji, 4);
-    sweep(_customEmoji, 8);
-    sweep(_animated, 1);
-    sweep(_animated, 2);
-    sweep(_animated, 4);
+    sweep(stickersWorkload, 4);
+    sweep(stickersWorkload, 8);
+    sweep(customEmojiWorkload, 4);
+    sweep(customEmojiWorkload, 8);
+    sweep(animatedWorkload, 1);
+    sweep(animatedWorkload, 2);
+    sweep(animatedWorkload, 4);
   });
 
   group('the documented defaults', () {
@@ -212,18 +85,18 @@ void main() {
       // scroll-back case the budget exists for. Further back, decoding again
       // is the expected price: an animation costs half a MiB, so 12 MiB is
       // one screen of them behind the visible one.
-      final stickers = _scrollDownAndBack(
-        _stickers,
+      final stickers = scrollDownAndBack(
+        stickersWorkload,
         AssetCacheBudgets.defaults.stillBytes,
         4,
       );
-      final emoji = _scrollDownAndBack(
-        _customEmoji,
+      final emoji = scrollDownAndBack(
+        customEmojiWorkload,
         AssetCacheBudgets.defaults.stillBytes,
         4,
       );
-      final animated = _scrollDownAndBack(
-        _animated,
+      final animated = scrollDownAndBack(
+        animatedWorkload,
         AssetCacheBudgets.defaults.animatedBytes,
         1,
       );
@@ -249,7 +122,7 @@ void main() {
 
       for (var i = 0; i < operations; i++) {
         // 5000 distinct entries cycled: far more than the budget keeps.
-        scope.attach(_id(i % 5000), spec, const AssetProfile()).detach();
+        scope.attach(traceKey(i % 5000), spec, const AssetProfile()).detach();
       }
 
       watch.stop();
@@ -259,7 +132,7 @@ void main() {
         '\nchurn: $operations attach+produce+detach+evict cycles, '
         '${perOp.toStringAsFixed(2)} us each, '
         '${scope.entryCount} entries and '
-        '${(scope.bytesIn(AssetTier.still) / _mebibyte).toStringAsFixed(1)} '
+        '${(scope.bytesIn(AssetTier.still) / mebibyte).toStringAsFixed(1)} '
         'MiB resident at the end',
       );
       expect(
@@ -286,7 +159,7 @@ void main() {
       for (var i = 0; i < 100; i++) {
         scope
             .attach(
-              _id(i),
+              traceKey(i),
               const AssetSpec(pixelWidth: 100, pixelHeight: 100),
               const AssetProfile(animate: true),
             )
