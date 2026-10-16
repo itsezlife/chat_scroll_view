@@ -42,7 +42,6 @@ Lint rules, the fake / adapter naming conventions they read, the per-package
 | `packages/kv_shared_preferences`         | `shared_preferences`-backed `KeyValueStore`                               | persistence adapter only                                                         |
 | `packages/panel_shell` / `panel_pages` / `panel_presentation` | Panel shell + page registry / catalog pages / presentation kinds and policy | panel tabs, search, pages, popup / docked / keyboard replacement, occupancy |
 | `packages/chat_composer`                 | Slot-based composer, input controller, entity text                        | composer slots, input, queries                                                   |
-| `packages/chat_chrome`                   | Retiring: dissolved by [ADR 020](docs/adr/020-package-topology.md)        | only while it still exists; do not add to it                                     |
 | `example/`                               | Demo host only — not the portable contract                                | wiring demos                                                                     |
 | `scripts/`                               | `scripts/check` entry + the workspace lints (`workspace_check` package)   | CI gates, dependency direction, re-export / fakes rules                          |
 | `tdesktop/`                              | Read-only Telegram Desktop reference checkout                             | desktop selection parity analysis                                                |

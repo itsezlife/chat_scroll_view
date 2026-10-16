@@ -4,7 +4,7 @@ import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:test/test.dart';
 
-const _namespace = 'chat_chrome';
+const _namespace = 'host';
 const _address = '$_namespace:preferences';
 const _thumbs = ContentKey$Unicode('\u{1F44D}');
 const _thumbsDark = ContentKey$Unicode('\u{1F44D}\u{1F3FF}');

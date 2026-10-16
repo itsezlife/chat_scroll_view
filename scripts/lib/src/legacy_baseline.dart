@@ -27,13 +27,7 @@ final class LegacyException {
 /// change that removes the offending code deletes its entry in the same edit.
 abstract final class LegacyBaseline {
   /// The excused violations of the current tree.
-  static const List<LegacyException> current = <LegacyException>[
-    LegacyException(
-      LintRule.pluginDependencyOutsideAdapter,
-      'chat_chrome -> shared_preferences',
-      removedBy: 'issue 32 (chat_chrome is deleted)',
-    ),
-  ];
+  static const List<LegacyException> current = <LegacyException>[];
 
   /// [found] without the violations [legacy] excuses, plus a
   /// [LintRule.staleLegacyException] for every exception that excused nothing.
