@@ -12,6 +12,18 @@ import 'package:meta/meta.dart';
 @immutable
 sealed class PageScrollActivity {
   const PageScrollActivity();
+
+  /// A drag step of [delta] pixels; see [PageScrollDrag].
+  const factory PageScrollActivity.drag(double delta) = PageScrollDrag;
+
+  /// A fling step of [delta] pixels; see [PageScrollFling].
+  const factory PageScrollActivity.fling(double delta) = PageScrollFling;
+
+  /// A programmatic scroll started; see [PageScrollJump].
+  const factory PageScrollActivity.jump() = PageScrollJump;
+
+  /// The content is at rest; see [PageScrollIdle].
+  const factory PageScrollActivity.idle({bool atEdge}) = PageScrollIdle;
 }
 
 /// The user's finger is moving the content by [delta] pixels.

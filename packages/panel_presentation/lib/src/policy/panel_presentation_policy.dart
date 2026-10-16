@@ -38,11 +38,19 @@ enum PanelDismissal {
 sealed class PanelPresentationPolicy {
   const PanelPresentationPolicy();
 
+  /// The phone and tablet policy; see [PanelPresentationPolicy$Mobile].
+  const factory PanelPresentationPolicy.mobile() =
+      PanelPresentationPolicy$Mobile;
+
+  /// The desktop and web policy; see [PanelPresentationPolicy$Desktop].
+  const factory PanelPresentationPolicy.desktop() =
+      PanelPresentationPolicy$Desktop;
+
   /// The policy for [family]: mobile for Android and iOS, desktop otherwise.
   factory PanelPresentationPolicy.forFamily(PanelOsFamily family) =>
       family.isMobile
-      ? const PanelPresentationPolicy$Mobile()
-      : const PanelPresentationPolicy$Desktop();
+      ? const PanelPresentationPolicy.mobile()
+      : const PanelPresentationPolicy.desktop();
 
   /// The share of the window height a popup takes.
   static const double popupHeightFraction = 0.75;

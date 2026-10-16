@@ -16,6 +16,36 @@ import 'package:meta/meta.dart';
 @immutable
 sealed class PanelEvent {
   const PanelEvent();
+
+  /// The user picked [key] of [kind] from [source]; see [ContentPicked].
+  const factory PanelEvent.contentPicked({
+    required ContentKey key,
+    required SemanticKind kind,
+    PickSource source,
+  }) = ContentPicked;
+
+  /// The user asked to delete one character; see [BackspaceRequested].
+  const factory PanelEvent.backspaceRequested() = BackspaceRequested;
+
+  /// The user invoked [actionId] of page [pageId]; see [ActionInvoked].
+  const factory PanelEvent.actionInvoked({
+    required String pageId,
+    required String actionId,
+  }) = ActionInvoked;
+
+  /// The user asked to clear the recents of [kind]; see
+  /// [ClearRecentsRequested].
+  const factory PanelEvent.clearRecentsRequested({required SemanticKind kind}) =
+      ClearRecentsRequested;
+
+  /// The selected page changed to [pageId]; see [PageChanged].
+  const factory PanelEvent.pageChanged(String pageId) = PageChanged;
+
+  /// Search mode opened; see [SearchOpened].
+  const factory PanelEvent.searchOpened() = SearchOpened;
+
+  /// Search mode closed; see [SearchClosed].
+  const factory PanelEvent.searchClosed() = SearchClosed;
 }
 
 /// The user picked [key] of [kind] from [source].
