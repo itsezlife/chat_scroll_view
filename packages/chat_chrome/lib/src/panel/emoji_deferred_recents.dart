@@ -1,4 +1,4 @@
-import 'package:emoji_data/emoji_data.dart';
+import 'package:chat_chrome/src/legacy_emoji/legacy_emoji.dart';
 
 /// Snapshots [EmojiDataSource.recentGlyphs] for display while a panel is open.
 ///

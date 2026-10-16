@@ -8,17 +8,16 @@ only on Flutter, `meta` and `morphnext` (used by the icon registry alone).
 Composer, panel and page packages read their colours, durations, strings and
 icons from here; none of them carries a default of its own.
 
-Scope of this release: palette, token groups, theme scope, motion, strings and
-icons. The glass stack is part of the same package's roadmap
-([ADR 027](../../docs/adr/027-foundation-theme-glass-motion.md)) and is not
-here yet.
+Also here: the **glass stack**, named glass materials drawn by `GlassSurface`
+under a host quality policy
+([ADR 027](../../docs/adr/027-foundation-theme-glass-motion.md)).
 
 ## Types
 
 | Type | Role |
 | --- | --- |
 | `ChromePalette` | The **chrome palette**: 15 semantic colour roles (surfaces, text, icons, accent, separator, ...) plus a brightness. Constructors: custom (every role), `light`, `dark`, `highContrastLight`, `highContrastDark`, `forBrightness`, `fromColorScheme`. |
-| `ComposerTokens`, `PanelTokens`, `ActionTokens`, `PlaceholderTokens`, `GlassMaterialTokens` | **Token groups**: immutable colours per component, each derived from a palette by `fromPalette`, with `copyWith` and `lerp`. The glass group is data only; the glass stack that paints it is a later addition. |
+| `ComposerTokens`, `PanelTokens`, `ActionTokens`, `PlaceholderTokens`, `GlassMaterialTokens` | **Token groups**: immutable colours per component, each derived from a palette by `fromPalette`, with `copyWith` and `lerp`. `GlassMaterialTokens.colorsOf(material)` is what `GlassSurface` reads. |
 | `ChromeThemeData` | A palette plus one value of every group: what a root scope carries and what two themes are interpolated between. |
 | `ChromeThemeScope` | The **chrome theme scope** (`InheritedModel`). Required: a lookup with no supplier fails. Nested scopes override only the parts they supply. `of`, `paletteOf`, `composerOf`, ... |
 | `AnimatedChromeThemeScope` | A scope that interpolates to new tokens with each part's `lerp`. |
@@ -30,6 +29,9 @@ here yet.
 | `ChromeStringsScope` | Required scope supplying `ChromeStrings`; a lookup with no scope fails in debug builds. |
 | `ChromeIconId`, `ChromeIconPainter`, `ChromeIconRegistry` | A **chrome icon** is a semantic id; the registry maps ids to painters (font glyph or paint callback). `ChromeIconRegistry.stock` paints the chrome's own ids; an unknown id draws a neutral fallback glyph. |
 | `ChromeIconScope`, `ChromeIcon`, `AnimatedChromeIcon` | Scope adding host painters, the widget that draws an id, and the variant that morphs (font to font) or cross-fades (custom painter) when the id changes. |
+| `GlassSurface`, `GlassMaterial` | A **glass material** (`composerIsland`, `panelButton`, `topPanel`) drawn over what is behind it. Colours come from `GlassMaterialTokens` in the chrome theme scope; the shape of the effect and the backdrop strategy are internal. |
+| `GlassQuality`, `GlassQualityScope`, `GlassCapabilities` | The host's **glass quality** policy (`fullLiquid`, `frosted`, `flat`, `off`), a lite-mode flag, and the capabilities (shader filter, sampled backdrop, backdrop filter) that the strategy chain reads. `GlassCapabilities.detect()` is the default; a host or test can force a row of the matrix. |
+| `GlassSourceScope`, `GlassSource` | Marks the content that sampled glass reads. A scope above the content and the surfaces, a source around the content. |
 | `package:chrome_foundation/testing.dart` | `ChromeStringsPresets.english` / `.russian` and `describeChromeStrings` for completeness checks. Tests and demos only. |
 
 Geometry is not a token here: Telegram-derived metrics stay constants owned by
@@ -109,7 +111,56 @@ AnimatedChromeIcon(ChromeIconId.keyboard);       // morphs on id change
 | High-contrast mode by choosing `highContrastLight` / `highContrastDark` (the package does not read `MediaQuery.highContrast`). | Expect geometry here: it stays with the component that draws it. |
 | A `ChromeStringsScope` above every chrome widget, filled from its own localisation or server language packs, including plural rules for `searchResultCount`. | Expect a default language, or import `testing.dart` from production code. Packages ship no translation. |
 | A `ChromeMotionScope` with `ChromeMotionSpeed.instant` when `MediaQuery.disableAnimations` or its lite mode is on. | Assume the package honours the platform reduce-motion flag by itself: only the host maps it. |
+| A `GlassSourceScope` over the content and the glass surfaces when sampled glass is wanted, and a `GlassQualityScope` to cap quality (low-power flag mapped by the host). | Import or name a strategy; the chain is not API. Put a fade or wash inside the `GlassSource` it should not frost. |
 | Painters for its own icon ids through `ChromeIconScope` (or `ChromeIconRegistry.withPainters`). | Name an icon by glyph in a descriptor, or import morphnext to animate chrome icons. |
+
+### Glass
+
+```dart
+GlassSourceScope(                       // chat screen: over content + chrome
+  child: Stack(children: [
+    GlassSource(child: messageList),    // what the glass frosts
+    GlassSurface(material: GlassMaterial.composerIsland, child: composer),
+  ]),
+)
+// Host policy (optional; the default is fullLiquid on detected capabilities):
+GlassQualityScope(quality: GlassQuality.frosted, liteMode: batterySaver, child: ...)
+```
+
+`GlassSurface` picks how to draw its backdrop each build from four inputs: the
+host's `GlassQuality` (lite mode caps it at flat), `GlassCapabilities`, whether a
+`GlassSourceScope` is above it, and route motion. The chain is internal and not
+exported:
+
+| Quality | Source + sampling backend | No source, filter backend | Route moves, no source | No filters |
+| --- | --- | --- | --- | --- |
+| `fullLiquid` | sampled liquid (capture, refraction) | backdrop filter (liquid shader filter where supported, else blur) | flat | flat |
+| `frosted` | sampled frost (capture, no refraction) | backdrop filter (blur) | flat | flat |
+| `flat` | flat | flat | flat | flat |
+| `off` | nothing | nothing | nothing | nothing |
+
+- A sampled surface renders a downscaled, blurred copy of the source region
+  once per frame for every surface in the scope (regions close enough merge
+  into one capture) and never reads back the onscreen target, so route motion
+  does not matter to it.
+- A backdrop filter re-reads and re-filters everything under it on every frame
+  it moves, so a surface paints flat while its route is pushed, popped, dragged
+  by a back gesture, or covered by another route moving.
+- Shaders load on first need. Until they load a sampled surface paints its fill
+  flat; if loading fails the shader paths are dropped and the chain falls back
+  to the blur-only filter.
+- `GlassMaterial` fixes what does not vary with the theme (blur, saturation,
+  refraction, stroke widths, default corner radius); `topPanel` never refracts.
+  Pass `cornerRadius` for a different size (half the height makes a stadium).
+- Keep content fades and washes outside the `GlassSource` (or cut them out
+  under the surface) so they are not sampled into the glass.
+
+**Glass capture cost: not yet measured.** The per-frame cost of the shared
+capture on a mid-range device (frame time with and without glass, by surface
+count) needs a device run; none has been done, so this package states no number.
+[docs/chrome/glass-device-checklist.md](../../docs/chrome/glass-device-checklist.md)
+lists what to measure and fills in the fallback matrix (Impeller, web,
+Android, Windows, Linux).
 
 ## Migration: `ChatChromeColors` to token groups
 
@@ -192,6 +243,14 @@ curve from the page that adapts it).
 - Icons: registry lookup, custom registration, fallback, scope nesting and
   morph between two ids (same state morphs; instant skips it; painted icons
   cross-fade over the `fade` role).
+- Glass: strategy-selection table (`GlassQuality` x capabilities x source x
+  route motion, lite mode), surface behaviour per quality, theme colours per
+  material, the shared capture and route-motion tests, and a check that the
+  barrel exports no strategy, shader or resolved-style file.
+  `glass_flat_<material>.png` goldens cover the flat path (light and dark over
+  a striped backdrop, 1% pixel tolerance for anti-aliased edges, pinned to
+  macOS); sampled and filtered output is device-dependent and covered by the
+  device checklist.
 - `test/goldens/` holds one swatch per preset. The swatch is solid rectangles
   on whole pixels with no text, so it renders identically on macOS and Linux
   with no tolerance. Regenerate with

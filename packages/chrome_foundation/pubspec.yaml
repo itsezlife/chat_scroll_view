@@ -25,6 +25,11 @@ dev_dependencies:
     sdk: flutter
 
 flutter:
+  # The three glass fragment programs, loaded by the glass stack on demand.
+  shaders:
+    - shaders/liquid_glass.frag
+    - shaders/liquid_glass_backdrop.frag
+    - shaders/glass_frost_prepass.frag
   # The stock icon registry draws Material icon glyphs, and its tests need the
   # font in the test bundle.
   uses-material-design: true

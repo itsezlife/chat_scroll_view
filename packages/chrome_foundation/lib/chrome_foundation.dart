@@ -3,6 +3,12 @@
 /// registry.
 library;
 
+export 'src/glass/glass_capabilities.dart';
+export 'src/glass/glass_material.dart';
+export 'src/glass/glass_quality.dart';
+export 'src/glass/glass_quality_scope.dart';
+export 'src/glass/glass_source.dart' show GlassSource, GlassSourceScope;
+export 'src/glass/glass_surface.dart';
 export 'src/icons/chrome_icon.dart';
 export 'src/icons/chrome_icon_id.dart';
 export 'src/icons/chrome_icon_painter.dart';

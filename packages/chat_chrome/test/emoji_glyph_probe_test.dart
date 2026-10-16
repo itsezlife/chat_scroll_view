@@ -21,6 +21,8 @@ import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_chrome/src/panel/emoji_glyph_atlas_host.dart';
+import 'package:emoji_data/emoji_data.dart'
+    show MissingGlyphProbe, defaultMissingGlyphReferences;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';

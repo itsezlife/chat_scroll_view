@@ -16,6 +16,7 @@ workspace:
   - packages/emoji_data
   - packages/kv_shared_preferences
   - packages/panel_catalog
+  - packages/panel_shell
   - example
   - scripts
 

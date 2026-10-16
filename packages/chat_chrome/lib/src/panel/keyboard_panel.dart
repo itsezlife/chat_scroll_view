@@ -18,7 +18,7 @@ import 'package:chat_chrome/src/panel/keyboard_panel_controller.dart';
 import 'package:chat_chrome/src/panel/sticker_gif_stubs.dart';
 import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
 import 'package:chat_chrome/src/util/logger.dart';
-import 'package:emoji_data/emoji_data.dart';
+import 'package:chat_chrome/src/legacy_emoji/legacy_emoji.dart';
 import 'package:flutter/material.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 
