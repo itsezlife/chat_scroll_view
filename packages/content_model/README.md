@@ -98,4 +98,6 @@ here is called from a scroll or paint path.
 - [Content identity and collection model](../../docs/adr/021-content-identity-and-collections.md)
 - [Data layering](../../docs/adr/023-data-layering-and-persistence.md)
 - [Testing policy](../../docs/adr/030-testing-policy.md)
+- [Composer model](../../docs/adr/026-composer-model.md) (rich-text value and its home)
+- [Host integration](../../docs/adr/029-host-integration.md) (the markdown helper)
 - [Body linkify is host-invoked](../../docs/adr/017-body-linkify-host-invoked.md)
