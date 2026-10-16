@@ -84,6 +84,17 @@ final class RecentsLedger {
     _set(kind, entries);
   }
 
+  /// Forgets [key] under [kind]. Returns whether it was listed, which is
+  /// whether anything changed.
+  bool remove(SemanticKind kind, ContentKey key) {
+    final entries = List.of(entriesOf(kind));
+    final index = entries.indexWhere((entry) => entry.key == key);
+    if (index < 0) return false;
+    entries.removeAt(index);
+    _set(kind, entries);
+    return true;
+  }
+
   /// Forgets [kind], or every kind when it is null. Returns the kinds that
   /// held something, which are the ones that changed.
   Set<SemanticKind> clear({SemanticKind? kind}) {

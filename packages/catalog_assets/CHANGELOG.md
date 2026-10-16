@@ -8,6 +8,9 @@ is pre-1.0.
 
 ### Added
 
+- `TextGlyphProducer.defaultFontScale` (0.85): the one number for a glyph's font
+  size within its box, used by the paragraph strategy, the baked one
+  (`ParagraphGlyphRasteriser`) and the variant picker, so they cannot drift.
 - `test/benchmark/asset_cache_ratio_bench_test.dart`: churn, LRU pressure,
   clock fan-out and page-hold ratios for the nightly job
   (`benchmarks/README.md`). Nothing a consumer sees.

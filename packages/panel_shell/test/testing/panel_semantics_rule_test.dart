@@ -21,6 +21,9 @@ ChromeStrings stringsWith({
       clearRecentsMessage: base.panel.clearRecentsMessage,
       clearAction: base.panel.clearAction,
       cancelAction: base.panel.cancelAction,
+      copyAction: base.panel.copyAction,
+      removeRecentAction: base.panel.removeRecentAction,
+      clearRecentAction: base.panel.clearRecentAction,
     ),
     composer: base.composer,
     semantics: SemanticsStrings(

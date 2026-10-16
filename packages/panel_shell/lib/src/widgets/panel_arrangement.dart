@@ -31,6 +31,14 @@ enum PanelArrangement {
   /// room for. Under [pointer] the field and the whole catalogue are on
   /// screen together, so clearing the text is all it takes to see the grid.
   bool get narrowsEmptySearch => this == touch;
+
+  /// Whether a secondary click (a mouse's right button) on content opens a
+  /// context menu, which takes the place of the buttons a touch page puts in
+  /// its section headers.
+  ///
+  /// A finger has no right button, so under [touch] those actions stay in the
+  /// header and a right click does nothing.
+  bool get usesContextMenu => this == pointer;
 }
 
 /// Provides the [PanelArrangement] the enclosing `PanelShell` was given to the

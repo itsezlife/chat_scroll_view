@@ -8,6 +8,7 @@ attaches a position contract. This amends [ADR 006](006-panel-catalog-viewport.m
 **Status**: Accepted  
 **Date**: 2026-10-16  
 **Amended**: 2026-10-16 — the snapshot is a `package:listen` `ValueListenable` and the scroll events a synchronous broadcast `Stream` ([ADR 023](023-data-layering-and-persistence.md) Amendment)  
+**Amended**: 2026-10-16 — mouse seams: secondary tap, per-kind long-press delay, pinned leaf, leaf bounds  
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (amended), [ADR 021](021-content-identity-and-collections.md), [ADR 022](022-asset-cache-and-media-pipeline.md), [ADR 031](031-localization-accessibility-and-input.md)
 
 ## Decided
@@ -22,6 +23,7 @@ attaches a position contract. This amends [ADR 006](006-panel-catalog-viewport.m
 | Controller | `ScrollController`-style. The render object attaches one position contract (offset, extents, `jumpTo`, `animateTo`, `scrollBy`, `jumpToSection`); commands call it, and when unbound they commit a target and apply it on attach. One typed scroll-event `Stream` (synchronous, broadcast) carries drag, fling, section jump and near-viewport events; settled events carry the visible leaf keys so visible-band priority keeps working. The five hand-rolled channels are deleted. |
 | Data source | `CatalogDataSource` is replaced by a `ValueListenable` (`package:listen`) of an immutable `CatalogSnapshot` (sections), notifying once per assigned snapshot. The fake becomes a snapshot fake. |
 | Theme | `PanelCatalogThemeData` stays a small viewport-owned paint-token class: placeholder style tokens (circle, thumb and wash colours, shimmer parameters), press highlight, selector radius, header style, skeleton colour. Failed and stub tokens are removed. `panel_catalog` does not depend on `chrome_foundation`; `panel_pages` maps foundation tokens to it in one adapter and scopes it with `PanelCatalogTheme`. |
+| Mouse seams | Generic, so `panel_catalog` stays chrome-free: `onLeafSecondaryTap(hit, globalPosition)` for a mouse's right button (never a tap, a press animation or a long press); `leafLongPressDelay(hit, kind)` choosing a long-press delay per cell and pointer kind (null is the platform's, `Duration.zero` is at once; one recognizer per distinct delay); `pinnedLeaf`, which keeps one cell's hover wash and ignores the wheel while a host surface is open over it; and `PanelCatalogController.leafBoundsOf` / `viewportBounds` (global rectangles, through `CatalogScrollPosition`) so a host can place that surface. Only the primary button starts the press animation. What a right click or a held press opens is the page's. |
 | Accessibility | Windowed leaf semantics, roving-focus controller API, focus highlight token and cursor, as [ADR 031](031-localization-accessibility-and-input.md) specifies. |
 
 Render-object internals the seams imply (per-section projection, hit

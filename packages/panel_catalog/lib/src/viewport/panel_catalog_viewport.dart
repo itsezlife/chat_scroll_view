@@ -1,4 +1,5 @@
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
@@ -133,10 +134,13 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     this.padding = EdgeInsets.zero,
     this.headerLandingInset,
     this.onLeafTap,
+    this.onLeafSecondaryTap,
     this.onLeafLongPressStart,
     this.onLeafLongPressMove,
     this.onLeafLongPressEnd,
     this.leafLongPressEligible,
+    this.leafLongPressDelay,
+    this.pinnedLeaf,
     this.onSectionAction,
     this.sectionNearExtent,
     super.key,
@@ -230,6 +234,16 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// padding taps are silent — no synthetic hit.
   final ValueChanged<CatalogLeafHit>? onLeafTap;
 
+  /// Shell secondary tap: a mouse right click (button up) on a cell, with the
+  /// cell and the global position of the click.
+  ///
+  /// Only a mouse reports it. The secondary button never taps, presses
+  /// (no press animation) or long-presses a cell, whether this is wired or
+  /// not; wiring it only makes the click reach the host. Null leaves the
+  /// button silent. What the click opens is the host's.
+  final void Function(CatalogLeafHit hit, Offset globalPosition)?
+  onLeafSecondaryTap;
+
   /// Shell long-press start (picker / contextual leaf actions).
   ///
   /// Null disables the long-press recognizer. When non-null, a long-press
@@ -257,6 +271,26 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// tap is not cancelled after the long-press timeout (e.g. plain unicode
   /// glyphs without variant picker, vs recents or tone-capable bases).
   final bool Function(CatalogLeafHit hit)? leafLongPressEligible;
+
+  /// How long a press on a cell must last to be a long press, per cell and
+  /// per pointer kind; null from the callback, or no callback, is the
+  /// platform's timeout.
+  ///
+  /// A host that wants a mouse to open its long-press surface at once answers
+  /// [Duration.zero] for [PointerDeviceKind.mouse]: the long press then starts
+  /// as the event loop turns after the button went down (a click that lifts
+  /// sooner stays a tap), so a surface can be up while the button is still
+  /// held.
+  final Duration? Function(CatalogLeafHit hit, PointerDeviceKind kind)?
+  leafLongPressDelay;
+
+  /// The cell a transient surface the host opened (a picker) is over, or null.
+  ///
+  /// While set, that cell keeps its hover wash wherever the mouse moves and
+  /// the mouse wheel does not scroll, so the surface stays where it was
+  /// opened and the cell it belongs to stays marked. Two effects of one
+  /// state: the host has the interaction.
+  final CatalogLeafHit? pinnedLeaf;
 
   /// Shell reaction to a tapped section header action, with the id of the
   /// [CatalogSection] and the [CatalogSectionAction.id].
@@ -292,10 +326,13 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       headerLandingInset: headerLandingInset,
       paintTheme: CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr),
       onLeafTap: onLeafTap,
+      onLeafSecondaryTap: onLeafSecondaryTap,
       onLeafLongPressStart: onLeafLongPressStart,
       onLeafLongPressMove: onLeafLongPressMove,
       onLeafLongPressEnd: onLeafLongPressEnd,
       leafLongPressEligible: leafLongPressEligible,
+      leafLongPressDelay: leafLongPressDelay,
+      pinnedLeaf: pinnedLeaf,
       onSectionAction: onSectionAction,
       sectionNearExtent: sectionNearExtent,
     );
@@ -321,10 +358,13 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..headerLandingInset = headerLandingInset
       ..paintTheme = CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr)
       ..onLeafTap = onLeafTap
+      ..onLeafSecondaryTap = onLeafSecondaryTap
       ..onLeafLongPressStart = onLeafLongPressStart
       ..onLeafLongPressMove = onLeafLongPressMove
       ..onLeafLongPressEnd = onLeafLongPressEnd
       ..leafLongPressEligible = leafLongPressEligible
+      ..leafLongPressDelay = leafLongPressDelay
+      ..pinnedLeaf = pinnedLeaf
       ..onSectionAction = onSectionAction
       ..sectionNearExtent = sectionNearExtent;
   }

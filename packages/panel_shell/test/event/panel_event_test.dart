@@ -22,6 +22,20 @@ void main() {
       const ClearRecentsRequested(kind: SemanticKind.sticker),
       const ClearRecentsRequested(kind: SemanticKind.sticker),
     );
+    expect(
+      const ContentCopyRequested(key: thumbs, kind: SemanticKind.unicodeEmoji),
+      const ContentCopyRequested(key: thumbs, kind: SemanticKind.unicodeEmoji),
+    );
+    expect(
+      const RecentRemoveRequested(
+        key: thumbs,
+        kind: SemanticKind.unicodeEmoji,
+      ).hashCode,
+      const RecentRemoveRequested(
+        key: thumbs,
+        kind: SemanticKind.unicodeEmoji,
+      ).hashCode,
+    );
   });
 
   test('events that differ in a part are not equal', () {
@@ -37,6 +51,15 @@ void main() {
     );
     expect(const PageChanged('a'), isNot(const PageChanged('b')));
     expect(const SearchOpened(), isNot(const SearchClosed()));
+    expect(
+      const ContentCopyRequested(key: thumbs, kind: SemanticKind.unicodeEmoji),
+      isNot(
+        const RecentRemoveRequested(
+          key: thumbs,
+          kind: SemanticKind.unicodeEmoji,
+        ),
+      ),
+    );
   });
 
   test('a handler can switch over the whole family exhaustively', () {
@@ -45,6 +68,8 @@ void main() {
       BackspaceRequested() => 'backspace',
       ActionInvoked() => 'action',
       ClearRecentsRequested() => 'clear',
+      ContentCopyRequested() => 'copy',
+      RecentRemoveRequested() => 'remove',
       PageChanged() => 'page',
       SearchOpened() => 'opened',
       SearchClosed() => 'closed',

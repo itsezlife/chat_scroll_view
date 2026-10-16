@@ -14,6 +14,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_i
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
@@ -70,6 +71,13 @@ final class ChatEditTarget {
 /// - **Insert and record.** A picked emoji becomes an inline content
 ///   reference in the composer and one `RecentsStore.record`; backspace edits
 ///   the composer; clearing recents asks [confirmClearRecents] first.
+/// - **Menu actions.** A right-click menu of the recents asks for a copy
+///   (the emoji's text goes to the clipboard) and for one emoji to be
+///   forgotten (`RecentsStore.remove`); its third item is the clear above.
+/// - **Holds.** A menu or variant picker the panel opens stands outside the
+///   panel, so the pointer moving onto it would read as leaving a popup. The
+///   shell counts the holds its pages take; while any is up the set holds
+///   the presentation's auto-hide with one hold of its own.
 /// - **Soft keyboard.** While a keyboard-replacement panel is on screen the
 ///   composer declares no soft keyboard; every other time it does. Leaving the
 ///   panel for the keyboard ([handOffToKeyboard]) is the one place the keyboard
@@ -237,12 +245,16 @@ final class ChatInputSet {
       _lastImeHeight = keyboardPort.restingHeight;
       _imeHeights = heights = keyboardPort.heights.listen(_onImeHeight);
       _panelEvents = panelEvents = shell.events.listen(_onPanelEvent);
+      shell.autoHideHolds.addListener(_onPanelHolds);
+      _onPanelHolds();
       presentation.state.addListener(_onPresentationState);
       _onPresentationState();
     } on Object {
       // The factory frees what it passed in; the rest is this object's.
       unawaited(heights?.cancel());
       unawaited(panelEvents?.cancel());
+      shell.autoHideHolds.removeListener(_onPanelHolds);
+      _autoHideHold?.release();
       presentation.state.removeListener(_onPresentationState);
       _editing.dispose();
       _busy.dispose();
@@ -307,6 +319,7 @@ final class ChatInputSet {
   double _lastImeHeight = 0;
   double _safeBottom = 0;
   ChatPreImeBackClaim? _backClaim;
+  PanelAutoHideHold? _autoHideHold;
   var _handingOff = false;
   var _disposed = false;
 
@@ -555,12 +568,30 @@ final class ChatInputSet {
         composer.backspace();
       case ClearRecentsRequested(:final kind):
         unawaited(_clearRecents(kind));
+      case ContentCopyRequested(:final key):
+        if (key case ContentKey$Unicode(:final sequence)) {
+          unawaited(Clipboard.setData(ClipboardData(text: sequence)));
+        }
+      case RecentRemoveRequested(:final key, :final kind):
+        unawaited(services.recents.remove(key, kind: kind));
       case SearchClosed():
         // The search field's keyboard goes with its focus; the composer takes
         // it back, still with no keyboard of its own while the panel is up.
         if (isPanelVisible) composer.requestFocus();
       case ActionInvoked() || PageChanged() || SearchOpened():
         break;
+    }
+  }
+
+  // One hold on the presentation for any number of the pages' holds: it goes
+  // up with the first and down with the last.
+  void _onPanelHolds() {
+    if (_disposed) return;
+    if (shell.autoHideHolds.value > 0) {
+      _autoHideHold ??= presentation.holdAutoHide();
+    } else {
+      _autoHideHold?.release();
+      _autoHideHold = null;
     }
   }
 
@@ -614,6 +645,9 @@ final class ChatInputSet {
     unawaited(_imeHeights.cancel());
     unawaited(_panelEvents.cancel());
     presentation.state.removeListener(_onPresentationState);
+    shell.autoHideHolds.removeListener(_onPanelHolds);
+    _autoHideHold?.release();
+    _autoHideHold = null;
     insets.dispose();
     presentation.dispose();
     keyboardStrategy.dispose();

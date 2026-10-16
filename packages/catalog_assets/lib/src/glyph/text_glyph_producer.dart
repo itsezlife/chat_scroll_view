@@ -37,9 +37,15 @@ final class TextGlyphProducer implements AssetProducer {
   const TextGlyphProducer({
     this.next,
     this.paragraphBytes = 16 * 1024,
-    this.fontScale = 0.85,
+    this.fontScale = defaultFontScale,
   }) : assert(paragraphBytes > 0, 'a paragraph costs memory'),
        assert(fontScale > 0, 'the font needs a size');
+
+  /// The font size of a glyph as a fraction of the box it is drawn in, for the
+  /// paragraph strategy here and for the baked one
+  /// (`ParagraphGlyphRasteriser`): the one number a surface that draws an
+  /// emoji next to the grid (a variant picker) reads to look the same.
+  static const double defaultFontScale = 0.85;
 
   /// The producer for content that is not a unicode glyph, or null.
   final AssetProducer? next;

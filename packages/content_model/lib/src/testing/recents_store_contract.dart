@@ -307,6 +307,81 @@ void runRecentsStoreContract(RecentsStoreFactory create) {
       });
     });
 
+    group('remove', () {
+      test('forgets one key and keeps the order of the rest', () async {
+        await pick(thumbs, times: 3);
+        await pick(heart, times: 2);
+        await pick(fire);
+
+        await store.remove(heart, kind: emoji);
+
+        expect(store.recents(emoji), [thumbs, fire]);
+      });
+
+      test('signals once, with the key already gone', () async {
+        await pick(thumbs);
+        await pick(heart);
+        signals = 0;
+        List<ContentKey>? seen;
+        store.changes.addListener(() => seen = store.recents(emoji));
+
+        await store.remove(heart, kind: emoji);
+
+        expect(signals, 1);
+        expect(seen, [thumbs]);
+      });
+
+      test('leaves the same key under another kind', () async {
+        await store.record(thumbs, kind: SemanticKind.unicodeEmoji);
+        await store.record(thumbs, kind: SemanticKind.sticker);
+
+        await store.remove(thumbs, kind: SemanticKind.sticker);
+
+        expect(store.recents(SemanticKind.unicodeEmoji), [thumbs]);
+        expect(store.recents(SemanticKind.sticker), isEmpty);
+      });
+
+      test('says nothing for a key that was not listed', () async {
+        await pick(thumbs);
+        signals = 0;
+
+        await store.remove(heart, kind: emoji);
+        await store.remove(thumbs, kind: SemanticKind.gif);
+
+        expect(signals, 0);
+        expect(store.recents(emoji), [thumbs]);
+      });
+
+      test('forgets the count: a key picked again starts from one', () async {
+        await pick(thumbs, times: 5);
+        await pick(heart, times: 2);
+
+        await store.remove(thumbs, kind: emoji);
+        await pick(thumbs);
+
+        expect(store.recents(emoji), [heart, thumbs]);
+      });
+
+      test('frees the room it held at capacity', () async {
+        await open(capacity: 2);
+        await pick(thumbs, times: 2);
+        await pick(heart);
+
+        await store.remove(thumbs, kind: emoji);
+        await pick(fire);
+
+        expect(store.recents(emoji), [fire, heart]);
+      });
+
+      test('can empty a kind', () async {
+        await pick(thumbs);
+
+        await store.remove(thumbs, kind: emoji);
+
+        expect(store.recents(emoji), isEmpty);
+      });
+    });
+
     group('after dispose', () {
       test('is silent', () async {
         await pick(thumbs);
@@ -314,6 +389,7 @@ void runRecentsStoreContract(RecentsStoreFactory create) {
 
         store.dispose();
         await pick(heart);
+        await store.remove(thumbs, kind: emoji);
         await store.clear();
 
         expect(signals, 0);
@@ -333,6 +409,7 @@ void runRecentsStoreContract(RecentsStoreFactory create) {
         store.dispose();
 
         await pick(heart);
+        await store.remove(thumbs, kind: emoji);
         await store.clear();
 
         expect(store.recents(emoji), [thumbs]);

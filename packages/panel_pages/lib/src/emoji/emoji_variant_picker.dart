@@ -1,86 +1,172 @@
 import 'dart:math' as math;
 
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
+import 'package:panel_catalog/panel_catalog.dart';
+import 'package:panel_pages/src/overlay/chrome_overlay_scopes.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
+import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
+import 'package:panel_shell/panel_shell.dart';
 
-/// The geometry of the variant picker: a rounded body of cells in rows, with
-/// an arrow pointing down at the cell that was pressed.
+/// The geometry of the variant picker: a rounded card of options in one row
+/// (or, for more than [maxColumns], rows) over the grid, inside a margin the
+/// shadow is drawn in.
 ///
-/// A set of documented constants rather than tokens: the picker follows the
-/// reference client's popup, and its size is part of how it feels under a
-/// thumb.
-abstract final class EmojiVariantPickerMetrics {
-  /// Side of one option.
-  static const double cell = 32;
+/// Every option is the **same cell the grid draws** ([cell], the pressed
+/// cell's own size) and its glyph the same box and font scale the grid uses
+/// (`catalogGlyphBoxExtent`, `TextGlyphProducer.defaultFontScale`), so an
+/// emoji looks the same in the picker as under the finger and cannot be
+/// cropped by a container smaller than the ink it is drawn with.
+///
+/// A picker of up to [maxColumns] options is one row with a separator after
+/// the first (the emoji as it is, then the variants); one of more is a grid of
+/// [maxColumns] columns with no separator.
+@immutable
+final class EmojiVariantPickerLayout {
+  /// The layout of [count] options in cells of size [cell].
+  const EmojiVariantPickerLayout({required this.count, required this.cell})
+    : assert(count > 0, 'a picker offers something');
 
-  /// Gap between options, in a row and between rows.
-  static const double gap = 4;
+  /// Padding between the card's edge and the options, and around the
+  /// separator.
+  static const double pad = 8;
 
-  /// Inset before the first option.
-  static const double padH = 5;
+  /// Width of the separator after the first option.
+  static const double separatorWidth = 1;
 
-  /// Vertical padding around the rows.
-  static const double padV = 7.5;
+  /// Room around the card for its shadow; part of the picker's box, not of
+  /// the card.
+  static const double shadowMargin = 10;
 
-  /// Height of the arrow below the body.
-  static const double arrowHeight = 6;
+  /// Corner radius of the card and of an option's highlight.
+  static const double radius = 8;
 
-  /// Corner radius of the body.
-  static const double radius = 12;
+  /// Inset of an option's highlight from its cell, the grid's hover inset.
+  static const double highlightInset = 2;
+
+  /// Distance between the picked cell and the card.
+  static const double anchorGap = 2;
 
   /// Most options in a row; more wrap onto further rows.
   static const int maxColumns = 6;
 
-  /// Columns for [count] options.
-  static int columnsFor(int count) => math.min(maxColumns, math.max(1, count));
+  /// How many options.
+  final int count;
 
-  /// Rows for [count] options.
-  static int rowsFor(int count) => (count / columnsFor(count)).ceil();
+  /// The size of one option: the grid's cell.
+  final Size cell;
 
-  /// Width of a picker of [count] options.
-  static double widthFor(int count) {
-    final columns = columnsFor(count);
-    return columns * cell + (columns - 1) * gap + 2 * padH;
-  }
+  /// Whether the options are one row with a separator after the first.
+  bool get hasSeparator => count > 1 && count <= maxColumns;
 
-  /// Height of the body of a picker of [count] options, arrow excluded.
-  static double bodyHeightFor(int count) {
-    final rows = rowsFor(count);
-    return rows * cell + (rows - 1) * gap + 2 * padV;
-  }
+  /// Options in a row.
+  int get columns => math.min(count, maxColumns);
 
-  /// Height of the picker with its arrow.
-  static double heightFor(int count) => bodyHeightFor(count) + arrowHeight;
+  /// Rows of options.
+  int get rows => (count / columns).ceil();
 
-  /// Centre of option [index] in the picker's own coordinates.
-  static Offset centerOf(int index, int count) {
-    final columns = columnsFor(count);
+  /// Size of the card.
+  Size get card => Size(
+    hasSeparator
+        ? 4 * pad + separatorWidth + count * cell.width
+        : 2 * pad + columns * cell.width,
+    2 * pad + rows * cell.height,
+  );
+
+  /// Size of the whole picker, the shadow margin included.
+  Size get outer =>
+      Size(card.width + 2 * shadowMargin, card.height + 2 * shadowMargin);
+
+  /// Where option [index] is, in the card's own coordinates.
+  Rect optionRect(int index) {
     final column = index % columns;
     final row = index ~/ columns;
-    return Offset(
-      padH + column * (cell + gap) + cell / 2,
-      padV + row * (cell + gap) + cell / 2,
+    final left = hasSeparator
+        ? (index == 0 ? pad : 3 * pad + separatorWidth + index * cell.width)
+        : pad + column * cell.width;
+    return Rect.fromLTWH(
+      left,
+      pad + row * cell.height,
+      cell.width,
+      cell.height,
     );
   }
 
-  /// The option under [local] (the picker's own coordinates) out of [count],
-  /// held to the options that exist.
+  /// Where the separator is, in the card's own coordinates, or null for none.
+  Rect? get separatorRect => hasSeparator
+      ? Rect.fromLTWH(2 * pad + cell.width, pad, separatorWidth, cell.height)
+      : null;
+
+  /// The option whose cell holds [local] (the card's own coordinates), or
+  /// null when it is on a pad, the separator or outside the card.
+  int? indexAt(Offset local) {
+    for (var i = 0; i < count; i++) {
+      if (optionRect(i).contains(local)) return i;
+    }
+    return null;
+  }
+
+  /// The option nearest to [local], whatever lies between: where a finger
+  /// sliding along the row means.
   ///
-  /// A single row ignores the vertical position, so a finger sliding along it
-  /// may wander off above or below; with several rows it is read too.
-  static int indexAt(Offset local, int count) {
-    final columns = columnsFor(count);
-    final rows = rowsFor(count);
-    final column = ((local.dx - padH) / (cell + gap)).floor().clamp(
-      0,
-      columns - 1,
+  /// A single row ignores the vertical position, so a finger wandering above
+  /// or below keeps its option; several rows read it too.
+  int nearestIndex(Offset local) {
+    // Distance from [value] to the span [low, high]: zero inside it.
+    double outside(double value, double low, double high) => value < low
+        ? low - value
+        : value > high
+        ? value - high
+        : 0;
+    var best = 0;
+    var bestDistance = double.infinity;
+    for (var i = 0; i < count; i++) {
+      final rect = optionRect(i);
+      final dx = outside(local.dx, rect.left, rect.right);
+      final dy = rows == 1 ? 0 : outside(local.dy, rect.top, rect.bottom);
+      final distance = dx * dx + dy * dy;
+      if (distance < bestDistance) {
+        best = i;
+        bestDistance = distance;
+      }
+    }
+    return best;
+  }
+
+  /// The top left of the picker's box for a card shown against [cellBounds]
+  /// inside [viewport] (both global).
+  ///
+  /// The card sits above the cell with [anchorGap] between, and below it when
+  /// it would cross the top of the viewport. Horizontally it slides with the
+  /// cell's column: left-aligned over the first, right-aligned over the last,
+  /// proportionally in between, and never leaves the viewport.
+  Offset originFor(Rect cellBounds, Rect viewport) {
+    final box = outer;
+    final columnsInGrid = math.max(
+      1,
+      (viewport.width / cellBounds.width).round(),
     );
-    final row = rows == 1
-        ? 0
-        : ((local.dy - padV) / (cell + gap)).floor().clamp(0, rows - 1);
-    return math.min(row * columns + column, count - 1);
+    final column = ((cellBounds.left - viewport.left) / cellBounds.width)
+        .round()
+        .clamp(0, columnsInGrid - 1);
+    final slide = columnsInGrid == 1
+        ? 0.0
+        : (viewport.width - box.width) * column / (columnsInGrid - 1);
+    final left = math.max(
+      viewport.left - shadowMargin,
+      math.min(
+        viewport.left + slide,
+        viewport.right - box.width + shadowMargin,
+      ),
+    );
+    final above = cellBounds.top - anchorGap - card.height - shadowMargin;
+    final top = above + shadowMargin < viewport.top
+        ? cellBounds.bottom + anchorGap - shadowMargin
+        : above;
+    return Offset(left, top);
   }
 }
 
@@ -95,83 +181,99 @@ List<ContentKey$Unicode> emojiVariantOptions(EmojiEntry entry) => [
   for (final variant in entry.variants) variant.key,
 ];
 
-/// The popup that offers an emoji's variants (skin tones and genders).
+/// The card of options a variant picker draws.
 ///
-/// Stateless: [selected] and the arrow are given. [EmojiVariantSession] owns
+/// Stateless: [selected] and the layout are given. [EmojiVariantSession] owns
 /// the live selection and the overlay it is shown in.
 class EmojiVariantPicker extends StatelessWidget {
-  /// A picker of [options], with option [selected] highlighted and the arrow
-  /// at [arrowX] in the picker's own coordinates (under the selection when
-  /// null).
+  /// A picker of [options] in cells of size [cell], with option [selected]
+  /// highlighted.
   ///
   /// [onChoose] is called with an option's index when it is tapped, for a
-  /// pointer that is not the long press that opened the picker and for
-  /// assistive technology.
+  /// pointer that is not the press that opened the picker and for assistive
+  /// technology. [onHover] hears the option a mouse enters (with its index)
+  /// and leaves (with null).
   const EmojiVariantPicker({
     required this.options,
-    required this.selected,
-    this.arrowX,
+    required this.cell,
+    this.selected,
     this.onChoose,
+    this.onHover,
     super.key,
   });
 
   /// What is offered, in order.
   final List<ContentKey$Unicode> options;
 
-  /// Index of the highlighted option.
-  final int selected;
+  /// The size of one option: the pressed grid cell.
+  final Size cell;
 
-  /// Arrow tip, in the picker's own x; null centres it under [selected].
-  final double? arrowX;
+  /// Index of the highlighted option, or null for none.
+  final int? selected;
 
   /// Called with the index of a tapped option, or null for a picker that is
   /// only looked at.
   final ValueChanged<int>? onChoose;
 
+  /// Called as a mouse enters an option and leaves it, or null to ignore the
+  /// mouse.
+  final ValueChanged<int?>? onHover;
+
   @override
   Widget build(BuildContext context) {
-    final theme = ChromeThemeScope.of(context);
+    final palette = ChromeThemeScope.paletteOf(context);
     final strings = ChromeStringsScope.semanticsOf(context);
-    final count = options.length;
-    final arrow =
-        arrowX ??
-        EmojiVariantPickerMetrics.centerOf(
-          math.min(selected, count - 1),
-          count,
-        ).dx;
-    final highlight = theme.palette.iconIdle.withValues(alpha: 0.18);
+    final layout = EmojiVariantPickerLayout(count: options.length, cell: cell);
+    final card = layout.card;
+    final glyphBox = catalogGlyphBoxExtent(cell.width, cell.height);
+    final wash = ChromeCatalogTheme.hoverWashOf(palette);
     return Semantics(
       container: true,
       label: strings.variantsAction,
-      child: PhysicalShape(
-        clipper: _PickerShapeClipper(arrowX: arrow),
-        color: theme.palette.surfaceRaised,
-        elevation: 8,
-        shadowColor: theme.palette.shadow.withValues(alpha: 0.35),
-        child: SizedBox(
-          width: EmojiVariantPickerMetrics.widthFor(count),
-          height: EmojiVariantPickerMetrics.heightFor(count),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              EmojiVariantPickerMetrics.padH,
-              EmojiVariantPickerMetrics.padV,
-              EmojiVariantPickerMetrics.padH,
-              EmojiVariantPickerMetrics.padV +
-                  EmojiVariantPickerMetrics.arrowHeight,
+      child: Padding(
+        padding: const EdgeInsets.all(EmojiVariantPickerLayout.shadowMargin),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: palette.surfaceRaised,
+            borderRadius: BorderRadius.circular(
+              EmojiVariantPickerLayout.radius,
             ),
-            child: Wrap(
-              spacing: EmojiVariantPickerMetrics.gap,
-              runSpacing: EmojiVariantPickerMetrics.gap,
+            boxShadow: [
+              BoxShadow(
+                color: palette.shadow.withValues(alpha: 0.28),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: SizedBox(
+            width: card.width,
+            height: card.height,
+            child: Stack(
               children: [
-                for (var i = 0; i < count; i++)
-                  _Option(
-                    glyph: options[i].sequence,
-                    selected: i == selected,
-                    highlight: highlight,
-                    onTap: switch (onChoose) {
-                      final choose? => () => choose(i),
-                      null => null,
-                    },
+                if (layout.separatorRect case final separator?)
+                  Positioned.fromRect(
+                    rect: separator,
+                    child: ColoredBox(color: palette.separator),
+                  ),
+                for (var i = 0; i < options.length; i++)
+                  Positioned.fromRect(
+                    rect: layout.optionRect(i),
+                    child: _Option(
+                      glyph: options[i].sequence,
+                      glyphBox: glyphBox,
+                      selected: i == selected,
+                      wash: wash,
+                      color: palette.onSurface,
+                      onTap: switch (onChoose) {
+                        final choose? => () => choose(i),
+                        null => null,
+                      },
+                      onHover: switch (onHover) {
+                        final hover? => (inside) => hover(inside ? i : null),
+                        null => null,
+                      },
+                    ),
                   ),
               ],
             ),
@@ -182,18 +284,29 @@ class EmojiVariantPicker extends StatelessWidget {
   }
 }
 
+// One option: the grid's cell with the grid's glyph box, and nothing that
+// clips. An emoji font draws ink beyond the em box it lays out (Apple Color
+// Emoji is the common case: a hand or a couple spills several pixels past it),
+// so a container sized to the box crops the picture. The cell is larger than
+// the box by design and the glyph may use the difference.
 class _Option extends StatelessWidget {
   const _Option({
     required this.glyph,
+    required this.glyphBox,
     required this.selected,
-    required this.highlight,
+    required this.wash,
+    required this.color,
     required this.onTap,
+    required this.onHover,
   });
 
   final String glyph;
+  final double glyphBox;
   final bool selected;
-  final Color highlight;
+  final Color wash;
+  final Color color;
   final VoidCallback? onTap;
+  final ValueChanged<bool>? onHover;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -202,20 +315,38 @@ class _Option extends StatelessWidget {
     label: glyph,
     onTap: onTap,
     child: ExcludeSemantics(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: ColoredBox(
-            color: selected ? highlight : const Color(0x00000000),
-            child: SizedBox(
-              width: EmojiVariantPickerMetrics.cell,
-              height: EmojiVariantPickerMetrics.cell,
-              // One line, scaled down to the cell: a sequence of several code
-              // points (a couple, a tone) is one picture, never a wrapped
-              // line, and a font that draws it wider than the cell still fits.
-              child: Center(
+      child: MouseRegion(
+        onEnter: onHover == null ? null : (_) => onHover!(true),
+        onExit: onHover == null ? null : (_) => onHover!(false),
+        cursor: onTap == null ? MouseCursor.defer : SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (selected)
+                Positioned.fill(
+                  child: Padding(
+                    padding: const EdgeInsets.all(
+                      EmojiVariantPickerLayout.highlightInset,
+                    ),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: wash,
+                        borderRadius: BorderRadius.circular(
+                          EmojiVariantPickerLayout.radius,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              // The grid's rule: a glyph is drawn at a fixed fraction of its
+              // box and only a sequence that lays out wider than the box
+              // (a font that draws a family as separate faces) is brought
+              // down to it, measured rather than clipped. Height is free.
+              SizedBox(
+                width: glyphBox,
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
@@ -223,18 +354,17 @@ class _Option extends StatelessWidget {
                     textDirection: TextDirection.ltr,
                     softWrap: false,
                     maxLines: 1,
-                    textHeightBehavior: const TextHeightBehavior(
-                      applyHeightToFirstAscent: false,
-                      applyHeightToLastDescent: false,
-                    ),
-                    style: const TextStyle(
-                      fontSize: EmojiVariantPickerMetrics.cell * 0.82,
-                      height: 1,
+                    // The grid ignores the text scale; so does its twin.
+                    textScaler: TextScaler.noScaling,
+                    style: TextStyle(
+                      fontSize: glyphBox * TextGlyphProducer.defaultFontScale,
+                      color: color,
+                      decoration: TextDecoration.none,
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -242,133 +372,109 @@ class _Option extends StatelessWidget {
   );
 }
 
-// The rounded body with a downward arrow, as one path.
-class _PickerShapeClipper extends CustomClipper<Path> {
-  const _PickerShapeClipper({required this.arrowX});
+/// How a picker answers the end of the press that opened it.
+enum EmojiVariantPickerMode {
+  /// A finger: the highlight follows it along the row, wherever it is, and
+  /// lifting chooses the option it is on.
+  touch,
 
-  final double arrowX;
+  /// A mouse that held the button for the long-press delay: lifting over an
+  /// option chooses it, lifting elsewhere on the card closes it, lifting
+  /// outside the card closes it without choosing.
+  pointerHold,
 
-  @override
-  Path getClip(Size size) {
-    const arrowH = EmojiVariantPickerMetrics.arrowHeight;
-    const r = EmojiVariantPickerMetrics.radius;
-    final bodyH = size.height - arrowH;
-    final w = size.width;
-    final ax = arrowX.clamp(r + 8, w - r - 8);
-    return Path()
-      ..moveTo(r, 0)
-      ..lineTo(w - r, 0)
-      ..arcToPoint(Offset(w, r), radius: const Radius.circular(r))
-      ..lineTo(w, bodyH - r)
-      ..arcToPoint(Offset(w - r, bodyH), radius: const Radius.circular(r))
-      ..lineTo(ax + 7, bodyH)
-      ..lineTo(ax, size.height)
-      ..lineTo(ax - 7, bodyH)
-      ..lineTo(r, bodyH)
-      ..arcToPoint(Offset(0, bodyH - r), radius: const Radius.circular(r))
-      ..lineTo(0, r)
-      ..arcToPoint(const Offset(r, 0), radius: const Radius.circular(r))
-      ..close();
-  }
-
-  @override
-  bool shouldReclip(_PickerShapeClipper oldClipper) =>
-      oldClipper.arrowX != arrowX;
+  /// A mouse whose press opened the picker at once, because the user has
+  /// never chosen a variant of this emoji: lifting over an option chooses it,
+  /// lifting elsewhere on the card closes it, and lifting outside the card
+  /// leaves it up until the next click, so the options can be read and
+  /// clicked.
+  pointerImmediate,
 }
 
-/// A variant picker shown over the page for one long press, and the gesture
-/// that drives it.
+/// A variant picker shown over the page for one press, and the gesture that
+/// drives it.
 ///
-/// The long press that opened it keeps going: moving the finger changes the
-/// highlighted option ([update]) and lifting it chooses that option ([end]).
-/// A picker opened without a pointer (a screen reader's long-press action,
-/// which has no gesture to continue) stays until an option is tapped or the
-/// area around it is, and an interrupted press ([cancel]) removes it without
-/// choosing.
+/// The press that opened it keeps going: moving changes the highlighted
+/// option ([update]) and lifting answers by the [mode] ([end]). A picker
+/// opened without a pointer (a screen reader's long-press action, which has no
+/// gesture to continue) stays until an option is tapped, and an interrupted
+/// press ([cancel]) removes it without choosing.
 ///
-/// What choosing does is the caller's: [onChosen] gets the option's key, once.
+/// ## Modal while it is up
+///
+/// The picker sits over the whole window on a barrier. A press anywhere else
+/// (any button, so a right click too) dismisses it and goes no further, as the
+/// press that closes a native popup does not also act on what is below it. It
+/// fades in and out over the fade motion role.
+///
+/// ## Hold
+///
+/// The picker stands outside the panel, so the pointer moving onto it reads as
+/// leaving the panel. The `hold` the caller took on the page's auto-hide as
+/// the picker opened is released by the session as it starts to close,
+/// however it closes.
+///
+/// What choosing does is the caller's: `onChosen` gets the option's key, once.
 final class EmojiVariantSession implements CatalogLongPressSession {
   EmojiVariantSession._({
     required this.options,
     required this.onChosen,
-    required int selected,
-    required Offset origin,
-  }) : _selected = selected,
-       _origin = origin;
+    required this.mode,
+    required this.layout,
+    required PanelPageHold hold,
+    required int? selected,
+    required Rect card,
+  }) : _hold = hold,
+       _selected = selected,
+       _card = card;
 
-  /// Opens the picker for [options] above [anchor] (global coordinates, the
-  /// pressed cell's centre), with option [initial] highlighted.
+  /// Opens the picker for [options] against the pressed cell [cellBounds] in
+  /// [viewportBounds] (both global), with option [initial] highlighted when
+  /// [mode] is touch.
   ///
   /// The picker is placed in the nearest `Overlay` and re-provides the chrome
-  /// theme, strings and direction of [context], because the overlay sits
-  /// outside the subtree they were scoped to.
+  /// theme, strings, motion and direction of [context], because the overlay
+  /// sits outside the subtree they were scoped to.
   static EmojiVariantSession show({
     required BuildContext context,
     required List<ContentKey$Unicode> options,
     required ContentKey$Unicode initial,
-    required Offset anchor,
+    required Rect cellBounds,
+    required Rect viewportBounds,
+    required EmojiVariantPickerMode mode,
+    required PanelPageHold hold,
     required ValueChanged<ContentKey$Unicode> onChosen,
   }) {
     final overlay = Overlay.of(context);
-    final theme = ChromeThemeScope.of(context);
-    final strings = ChromeStringsScope.of(context);
-    final direction = Directionality.of(context);
-    final screen = MediaQuery.sizeOf(context);
-    final count = options.length;
-    final initialIndex = math.max(0, options.indexOf(initial));
-    final width = EmojiVariantPickerMetrics.widthFor(count);
-    final height = EmojiVariantPickerMetrics.heightFor(count);
-    // The initial option sits under the finger, as far as the screen allows.
-    final left = math.min<double>(
-      math.max<double>(
-        8,
-        anchor.dx - EmojiVariantPickerMetrics.centerOf(initialIndex, count).dx,
-      ),
-      math.max<double>(8, screen.width - width - 8),
+    final scopes = ChromeOverlayScopes.capture(context);
+    final layout = EmojiVariantPickerLayout(
+      count: options.length,
+      cell: cellBounds.size,
     );
-    final top = math.min<double>(
-      math.max<double>(8, anchor.dy - height - 4),
-      math.max<double>(8, screen.height - height - 8),
-    );
+    final overlayBox = overlay.context.findRenderObject()! as RenderBox;
+    final originGlobal = layout.originFor(cellBounds, viewportBounds);
     final session = EmojiVariantSession._(
       options: options,
       onChosen: onChosen,
-      selected: initialIndex,
-      origin: Offset(left, top),
+      mode: mode,
+      layout: layout,
+      hold: hold,
+      selected: mode == EmojiVariantPickerMode.touch
+          ? math.max(0, options.indexOf(initial))
+          : null,
+      card: (originGlobal & layout.outer).deflate(
+        EmojiVariantPickerLayout.shadowMargin,
+      ),
     );
-    final arrowX = math.min<double>(
-      math.max<double>(16, anchor.dx - left),
-      width - 16,
-    );
+    final fade = scopes.motion.specOf(MotionRole.fade);
+    final origin = overlayBox.globalToLocal(originGlobal);
     session._entry = OverlayEntry(
-      builder: (context) => Directionality(
-        textDirection: direction,
-        child: ChromeThemeScope.data(
-          data: theme,
-          child: ChromeStringsScope(
-            strings: strings,
-            child: Stack(
-              children: [
-                // Taps around the picker dismiss it.
-                Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onTap: session.cancel,
-                  ),
-                ),
-                Positioned(
-                  left: left,
-                  top: top,
-                  child: EmojiVariantPicker(
-                    options: options,
-                    selected: session._selected,
-                    arrowX: arrowX,
-                    onChoose: session._choose,
-                  ),
-                ),
-              ],
-            ),
-          ),
+      builder: (context) => scopes.wrap(
+        _PickerOverlay(
+          session: session,
+          origin: origin,
+          duration: fade.duration,
+          curve: fade.curve,
         ),
       ),
     );
@@ -382,49 +488,197 @@ final class EmojiVariantSession implements CatalogLongPressSession {
   /// Called once with the chosen option.
   final ValueChanged<ContentKey$Unicode> onChosen;
 
-  final Offset _origin;
+  /// How the end of the opening press is answered.
+  final EmojiVariantPickerMode mode;
+
+  /// The geometry the picker was laid out with.
+  final EmojiVariantPickerLayout layout;
+
+  final PanelPageHold _hold;
+
+  // The card without its shadow margin, in global coordinates.
+  final Rect _card;
+  final _open = listen.ValueNotifier<bool>(true);
+  // Bumped whenever what the overlay draws changes.
+  final _drawn = ValueNotifier<int>(0);
   OverlayEntry? _entry;
-  int _selected;
-  var _over = false;
+  int? _selected;
+  var _closing = false;
 
-  /// The highlighted option.
+  /// The highlighted option, or null for none.
   @visibleForTesting
-  int get selected => _selected;
+  int? get selected => _selected;
 
-  /// Whether the session ended, by a choice or a cancel.
-  bool get isOver => _over;
+  /// Whether the session ended, by a choice, a dismissal or a cancel.
+  bool get isOver => !_open.value;
+
+  @override
+  listen.ValueListenable<bool> get isOpen => _open;
+
+  void _select(int? index) {
+    if (_closing || index == _selected) return;
+    _selected = index;
+    _drawn.value++;
+  }
 
   @override
   void update(LongPressMoveUpdateDetails details) {
-    if (_over) return;
-    final next = EmojiVariantPickerMetrics.indexAt(
-      details.globalPosition - _origin,
-      options.length,
-    );
-    if (next == _selected) return;
-    _selected = next;
-    _entry?.markNeedsBuild();
+    if (_closing) return;
+    final global = details.globalPosition;
+    final local = global - _card.topLeft;
+    _select(switch (mode) {
+      EmojiVariantPickerMode.touch => layout.nearestIndex(local),
+      _ => _card.contains(global) ? layout.indexAt(local) : null,
+    });
   }
 
   @override
-  void end(LongPressEndDetails details) => _choose(_selected);
+  void end(LongPressEndDetails details) {
+    if (_closing) return;
+    final global = details.globalPosition;
+    final local = global - _card.topLeft;
+    switch (mode) {
+      case EmojiVariantPickerMode.touch:
+        _choose(layout.nearestIndex(local));
+      case EmojiVariantPickerMode.pointerHold:
+        if (_card.contains(global)) {
+          _chooseOrClose(layout.indexAt(local));
+        } else {
+          _close();
+        }
+      case EmojiVariantPickerMode.pointerImmediate:
+        // Outside the card the picker waits for the next click.
+        if (_card.contains(global)) _chooseOrClose(layout.indexAt(local));
+    }
+  }
 
   @override
   void cancel() {
-    if (_over) return;
-    _finish();
+    if (_entry != null) _finish();
+  }
+
+  void _chooseOrClose(int? index) {
+    if (index == null) {
+      _close();
+    } else {
+      _choose(index);
+    }
   }
 
   void _choose(int index) {
-    if (_over) return;
-    _finish();
-    onChosen(options[index]);
+    if (_closing) return;
+    final chosen = options[index];
+    _close();
+    onChosen(chosen);
   }
 
+  // Starts the way out: the hold goes now, so the panel's own rule is back in
+  // force as the picker starts to fade, and the overlay leaves after it.
+  void _close() {
+    if (_closing) return;
+    _closing = true;
+    _hold.release();
+    _open.value = false;
+  }
+
+  // At once: the page left, or the fade is over.
   void _finish() {
-    _over = true;
+    _closing = true;
+    _hold.release();
+    if (_open.value) _open.value = false;
     _entry?.remove();
     _entry?.dispose();
     _entry = null;
+  }
+}
+
+class _PickerOverlay extends StatefulWidget {
+  const _PickerOverlay({
+    required this.session,
+    required this.origin,
+    required this.duration,
+    required this.curve,
+  });
+
+  final EmojiVariantSession session;
+  final Offset origin;
+  final Duration duration;
+  final Curve curve;
+
+  @override
+  State<_PickerOverlay> createState() => _PickerOverlayState();
+}
+
+class _PickerOverlayState extends State<_PickerOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _fade = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+  );
+  late final Animation<double> _opacity = CurvedAnimation(
+    parent: _fade,
+    curve: widget.curve,
+  );
+
+  EmojiVariantSession get _session => widget.session;
+
+  @override
+  void initState() {
+    super.initState();
+    _session._open.addListener(_onOpenChanged);
+    _fade.forward();
+  }
+
+  @override
+  void dispose() {
+    _session._open.removeListener(_onOpenChanged);
+    _fade.dispose();
+    super.dispose();
+  }
+
+  // Out: fades for as long as it faded in, passing presses on meanwhile, then
+  // leaves the overlay.
+  void _onOpenChanged() {
+    if (_session._open.value) return;
+    setState(() {});
+    _fade.reverse().whenComplete(() {
+      if (mounted) _session._finish();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = _session;
+    return IgnorePointer(
+      ignoring: !session._open.value,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: (_) => session._close(),
+          ),
+          Positioned(
+            left: widget.origin.dx,
+            top: widget.origin.dy,
+            child: FadeTransition(
+              opacity: _opacity,
+              child: ListenableBuilder(
+                listenable: session._drawn,
+                builder: (context, _) => EmojiVariantPicker(
+                  options: session.options,
+                  cell: session.layout.cell,
+                  selected: session._selected,
+                  onChoose: session._choose,
+                  onHover: session.mode == EmojiVariantPickerMode.touch
+                      ? null
+                      : session._select,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

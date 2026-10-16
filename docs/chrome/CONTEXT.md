@@ -119,8 +119,20 @@ The host-facing controller: sealed visibility state, show, hide, toggle, back, a
 _Avoid_: One controller class per presentation kind
 
 **Auto-hide guard**:
-True exactly while any `holdAutoHide()` hold is unreleased (a menu, a variant picker, a drag, a pointer button pressed inside the popup). The presentation controller counts the holds; the shell reports no such flag, and search focus is not a hold. A popup stays open while it holds, and hides 3 s after the last release if the pointer is away.
-_Avoid_: Timers that ignore the guard, a flag the shell sets, search focus as a hold
+True exactly while any `holdAutoHide()` hold is unreleased (a menu, a variant picker, a drag, a pointer button pressed inside the popup). The presentation controller counts the holds. A page's hold goes through the shell (**Page hold**); the shell counts those and the host turns the count into one hold here. Search focus is not a hold. A popup stays open while it holds, and hides 3 s after the last release if the pointer is away.
+_Avoid_: Timers that ignore the guard, a flag the shell sets on the presentation, search focus as a hold
+
+**Page hold**:
+A claim a page keeps on the host's auto-hide while it shows a surface outside the panel's own box (a context menu, a variant picker): `PanelPageHost.holdAutoHide()` returns a handle whose `release()` is idempotent. The shell counts the holds of every page and publishes `PanelShellController.autoHideHolds`; the host listens and holds the presentation's auto-hide while the count is above zero.
+_Avoid_: A page reaching the presentation controller, the shell naming a presentation
+
+**Recents menu**:
+The context menu a right click opens on an emoji of the recents under the pointer arrangement: copy, remove from recent, a separator, clear recent (attention colour). A page decision through a policy (`menuOf`), drawn by `CatalogContextMenuHost`, modal, with the keys of a menu; its items reach the host as `ContentCopyRequested`, `RecentRemoveRequested` and `ClearRecentsRequested`. Under the pointer arrangement the recents header has no clear button.
+_Avoid_: A header clear button on a pointer, the page writing recents, a menu for a finger
+
+**Variant picker**:
+The card of an emoji's variants a press opens over the grid: the grid's own cell and glyph box for every option, one row with a separator after the first, above the pressed cell (below near the top edge), fading, modal on a barrier, holding auto-hide while open. A mouse opens it at once for an emoji whose variant was never chosen and after 500 ms otherwise; a finger after the platform's long press.
+_Avoid_: Options in a smaller container than the grid's cell, clipping the glyph, a picker that lets a press through
 
 **Anchored popup**:
 The desktop and web presentation kind: the panel floats above the composer, opens at once on mouse hover over the toggle or on a click, hides when the pointer leaves it (at the next event pass from the toggle, after a short grace from the popup), and takes no layout space. It never takes focus: the composer keeps the caret however it was opened.

@@ -38,8 +38,8 @@ import 'package:listen/listen.dart';
 ///
 /// ## Persisting
 ///
-/// A pick or clear changes memory, signals, and writes the records of the
-/// kinds it touched, all before its future completes; the future then
+/// A pick, removal or clear changes memory, signals, and writes the records of
+/// the kinds it touched, all before its future completes; the future then
 /// completes when the write has (and fails if it failed, keeping the
 /// in-memory change, as the contract says). A later successful write persists
 /// the whole record again, so a lost write is repaired by the next one.
@@ -104,6 +104,13 @@ final class KeyValueRecentsStore with ChangeNotifier implements RecentsStore {
   }) async {
     if (_disposed || source == PickSource.search) return;
     _ledger.record(kind, key, now: _clock().millisecondsSinceEpoch);
+    notifyListeners();
+    await _persist(kind);
+  }
+
+  @override
+  Future<void> remove(ContentKey key, {required SemanticKind kind}) async {
+    if (_disposed || !_ledger.remove(kind, key)) return;
     notifyListeners();
     await _persist(kind);
   }

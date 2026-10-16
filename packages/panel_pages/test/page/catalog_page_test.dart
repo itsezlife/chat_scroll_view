@@ -18,6 +18,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_pages/testing.dart';
@@ -74,8 +75,11 @@ class _Policy extends CatalogPagePolicy {
   SectionLayout? layoutOf(Collection collection) => _layout;
 
   @override
-  CatalogSectionAction? actionOf(Collection collection, PanelStrings strings) =>
-      const CatalogSectionAction(id: 'more', label: 'More');
+  CatalogSectionAction? actionOf(
+    Collection collection,
+    PanelStrings strings, {
+    PanelArrangement arrangement = PanelArrangement.touch,
+  }) => const CatalogSectionAction(id: 'more', label: 'More');
 
   @override
   bool hasLongPress(CatalogLeafHit hit, Collection collection) => longPress;
@@ -85,8 +89,11 @@ class _Policy extends CatalogPagePolicy {
     BuildContext context,
     CatalogLeafHit hit,
     Collection collection,
-    LongPressStartDetails details,
-  ) {
+    LongPressStartDetails details, {
+    required PointerDeviceKind kind,
+    required Rect cellBounds,
+    required Rect viewportBounds,
+  }) {
     sessionLog.add('begin ${hit.sectionId}/${hit.index}');
     return _Session(sessionLog);
   }
@@ -110,15 +117,25 @@ class _Session implements CatalogLongPressSession {
   _Session(this.log);
 
   final List<String> log;
+  final _open = listen.ValueNotifier<bool>(true);
+
+  @override
+  listen.ValueListenable<bool> get isOpen => _open;
 
   @override
   void update(LongPressMoveUpdateDetails details) => log.add('update');
 
   @override
-  void end(LongPressEndDetails details) => log.add('end');
+  void end(LongPressEndDetails details) {
+    log.add('end');
+    _open.value = false;
+  }
 
   @override
-  void cancel() => log.add('cancel');
+  void cancel() {
+    log.add('cancel');
+    _open.value = false;
+  }
 }
 
 void main() {

@@ -126,6 +126,22 @@ _Avoid_: Leaf class hierarchy, instance-keyed side map, generic `CatalogLeaf<T>`
 The identity of an interaction: (section id, index, leaf). The cell is the identity, so equality covers the section id and the index, and the same key in two sections (or twice in one) is two hits. The leaf in a hit still carries the host tag.
 _Avoid_: Key-only identity, host-owned (section, key) maps
 
+**Secondary tap**:
+A mouse right click (button up) on a cell, reported as `onLeafSecondaryTap(hit, globalPosition)`. Mouse only (a stylus barrel button reports the same bit and is ignored). The secondary button never taps, starts the press animation or long-presses a cell, whether the callback is wired or not.
+_Avoid_: A context menu inside the viewport, a secondary long press
+
+**Long-press delay**:
+How long a press on a cell must last to be a long press, asked per cell and pointer kind (`leafLongPressDelay`); null is the platform's. `Duration.zero` starts the long press as the event loop turns after the button went down (a click that lifts sooner stays a tap). The viewport keeps one recognizer per distinct delay, because a recognizer's deadline is fixed when it is made.
+_Avoid_: One timeout for every pointer, a timer in the host racing the recognizer
+
+**Pinned leaf**:
+The cell a transient surface the host opened is over (`pinnedLeaf`): it keeps its hover wash wherever the mouse goes and the wheel does not scroll until it is released. The host sets it for as long as the surface is open.
+_Avoid_: Freezing hover in the host, a scroll lock the host removes on its own
+
+**Leaf bounds**:
+The global rectangle of a cell (`PanelCatalogController.leafBoundsOf(hit)`) and of the viewport (`viewportBounds`), so a host can place a surface it opens over a cell without knowing the grid's geometry.
+_Avoid_: The host recomputing grid geometry
+
 **Catalog snapshot**:
 The immutable list of sections the viewport renders, published through a `ValueListenable` (`package:listen`) and replaced once per logical mutation, the final snapshot assigned once.
 _Avoid_: Catalog data source with listener channels, streams as the integration contract, fetch inside the viewport

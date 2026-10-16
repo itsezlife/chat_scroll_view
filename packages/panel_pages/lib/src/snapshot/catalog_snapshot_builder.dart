@@ -2,6 +2,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
+import 'package:panel_shell/panel_shell.dart';
 
 /// Builds the viewport's [CatalogSnapshot] from the collections a page shows.
 ///
@@ -34,13 +35,14 @@ final class CatalogSnapshotBuilder {
   CatalogSnapshot build(
     List<Collection> collections, {
     required PanelStrings strings,
+    PanelArrangement arrangement = PanelArrangement.touch,
   }) {
     final byId = <String, Collection>{};
     final sections = <CatalogSection>[];
     for (final collection in collections) {
       final id = policy.sectionIdOf(collection);
       byId[id] = collection;
-      sections.add(_sectionOf(id, collection, strings));
+      sections.add(_sectionOf(id, collection, strings, arrangement));
     }
     _collections = byId;
     return CatalogSnapshot(sections);
@@ -53,6 +55,7 @@ final class CatalogSnapshotBuilder {
     String id,
     Collection collection,
     PanelStrings strings,
+    PanelArrangement arrangement,
   ) {
     final contents = collection.contents;
     final loaded = switch (contents) {
@@ -78,7 +81,7 @@ final class CatalogSnapshotBuilder {
       },
       skeletonCount: loaded ? null : policy.skeletonCountOf(collection),
       emptyMessage: loaded ? policy.emptyMessageOf(collection, strings) : null,
-      action: policy.actionOf(collection, strings),
+      action: policy.actionOf(collection, strings, arrangement: arrangement),
     );
   }
 }

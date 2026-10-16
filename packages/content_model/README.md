@@ -21,7 +21,7 @@ types, so it depends on no workspace package (`scripts/check` enforces both).
 | `RichText` | Plain text plus `Entity` spans (UTF-16 offset and length, and an `EntityKind`: bold, italic, underline, strike, spoiler, code, quote, link, mention, inline content). Always canonical, so equal meaning is equal value; edits (`insert`, `delete`, `replaceRange`, `slice`) keep the entities consistent; JSON in and out for drafts. |
 | `RichTextMarkdown` | Opt-in, in `package:content_model/markdown.dart`: `RichText` to and from the markdown the viewport's markdown library reads. The host's helper for send, draft, edit-load and body materialise. |
 | `CollectionSource`, `SearchSource` | Publish `Collection`s as immutable snapshots, with load and paging commands. Failure is a state, never an exception. |
-| `RecentsStore`, `PreferenceStore` | Loaded, synchronous-read stores for picks (per `SemanticKind`, frequency then recency) and typed user choices (preferred variant per emoji, last page, dock preference). |
+| `RecentsStore`, `PreferenceStore` | Loaded, synchronous-read stores for picks (per `SemanticKind`, frequency then recency; `record`, `remove` one key, `clear`) and typed user choices (preferred variant per emoji, last page, dock preference). |
 | `KeywordSource`, `KeywordPack` | Per-language search keywords, bundled or supplied by the host. |
 | `GlyphSupport` | Which unicode keys the device draws, and the identity of its emoji art. Optimistic: `true` until known missing. |
 | `KeyValueStore`, `StoredValue` | Namespaced, versioned string persistence; the only way logic packages reach durable storage. |

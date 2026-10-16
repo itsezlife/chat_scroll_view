@@ -72,6 +72,15 @@ abstract interface class CatalogScrollPosition {
   /// An out-of-range index completes at once without moving.
   Future<void> jumpToSection(int sectionIndex);
 
+  /// The viewport's box in global coordinates, or null before the first
+  /// layout.
+  Rect? get viewportBounds;
+
+  /// The cell [hit] names, as a rectangle in global coordinates under the
+  /// current offset, or null when there is no such cell. It may lie partly
+  /// or wholly outside the viewport.
+  Rect? leafBounds(CatalogLeafHit hit);
+
   /// The cell that holds roving focus, or null.
   CatalogLeafHit? get focusedLeaf;
 

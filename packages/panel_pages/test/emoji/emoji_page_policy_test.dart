@@ -8,6 +8,7 @@ library;
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
@@ -192,6 +193,185 @@ void main() {
         );
 
       expect(host.clearRecentsRequests, isEmpty);
+    });
+  });
+
+  group('under the pointer arrangement the recents have no header action', () {
+    test('the header action is gone, the touch one is unchanged', () {
+      const recents = Collection(id: CollectionId.recent);
+
+      expect(
+        policy.actionOf(
+          recents,
+          _strings,
+          arrangement: PanelArrangement.pointer,
+        ),
+        isNull,
+      );
+      expect(
+        policy.actionOf(recents, _strings, arrangement: PanelArrangement.touch),
+        isNotNull,
+      );
+    });
+  });
+
+  group('the recents context menu', () {
+    const recents = Collection(id: CollectionId.recent);
+    const flags = Collection(id: CollectionId.category('flags'));
+
+    List<CatalogMenuEntry> menu(
+      Collection collection, {
+      PanelArrangement arrangement = PanelArrangement.pointer,
+    }) => policy.menuOf(
+      _hit('😀'),
+      collection,
+      _strings,
+      arrangement: arrangement,
+    );
+
+    test('is copy, remove from recent, a separator, clear recent', () {
+      expect(menu(recents), [
+        CatalogMenuEntry.item(
+          id: EmojiPagePolicy.copyItemId,
+          label: _strings.copyAction,
+        ),
+        CatalogMenuEntry.item(
+          id: EmojiPagePolicy.removeRecentItemId,
+          label: _strings.removeRecentAction,
+        ),
+        const CatalogMenuEntry.separator(),
+        CatalogMenuEntry.item(
+          id: EmojiPagePolicy.clearRecentItemId,
+          label: _strings.clearRecentAction,
+          attention: true,
+        ),
+      ]);
+    });
+
+    test('is the recents section only', () {
+      expect(menu(flags), isEmpty);
+      expect(menu(const Collection(id: CollectionId.query('x'))), isEmpty);
+    });
+
+    test('is for a pointer only: a finger has the header action', () {
+      expect(menu(recents, arrangement: PanelArrangement.touch), isEmpty);
+    });
+
+    test('is for emoji only', () {
+      const sticker = CatalogLeafHit(
+        sectionId: 's',
+        index: 0,
+        leaf: CatalogLeaf(key: ContentKey.document('5368')),
+      );
+
+      expect(
+        policy.menuOf(
+          sticker,
+          recents,
+          _strings,
+          arrangement: PanelArrangement.pointer,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('asks the host to copy, remove and clear, in the emoji kind', () {
+      final hit = _hit('😀');
+
+      policy
+        ..onMenuAction(hit, recents, EmojiPagePolicy.copyItemId, host)
+        ..onMenuAction(hit, recents, EmojiPagePolicy.removeRecentItemId, host)
+        ..onMenuAction(hit, recents, EmojiPagePolicy.clearRecentItemId, host);
+
+      expect(host.copyRequests, [
+        (key: fixtures.key('😀'), kind: SemanticKind.unicodeEmoji),
+      ]);
+      expect(host.removeRecentRequests, [
+        (key: fixtures.key('😀'), kind: SemanticKind.unicodeEmoji),
+      ]);
+      expect(host.clearRecentsRequests, [SemanticKind.unicodeEmoji]);
+    });
+
+    test('ignores an unknown item and an item of another section', () {
+      final hit = _hit('😀');
+
+      policy
+        ..onMenuAction(hit, recents, 'other', host)
+        ..onMenuAction(hit, flags, EmojiPagePolicy.copyItemId, host);
+
+      expect(host.copyRequests, isEmpty);
+      expect(host.removeRecentRequests, isEmpty);
+      expect(host.clearRecentsRequests, isEmpty);
+    });
+  });
+
+  group('the long press delay', () {
+    const flags = Collection(id: CollectionId.category('flags'));
+    const recents = Collection(id: CollectionId.recent);
+
+    Duration? delay(
+      String glyph,
+      PointerDeviceKind kind, {
+      Collection collection = flags,
+    }) => policy.longPressDelayOf(_hit(glyph), collection, kind);
+
+    test('is zero for a mouse on an emoji whose variant was never chosen', () {
+      expect(delay('👍', PointerDeviceKind.mouse), Duration.zero);
+    });
+
+    test('is the 500 ms hold once a variant was chosen for its base', () async {
+      await preferences.setPreferredVariant(
+        fixtures.thumbsUp.base,
+        fixtures.thumbsUp.variants.first.key,
+      );
+
+      expect(
+        delay('👍', PointerDeviceKind.mouse),
+        const Duration(milliseconds: 500),
+      );
+      // Any spelling of the entry counts, not only the base.
+      expect(
+        delay(
+          fixtures.thumbsUp.variants[2].key.sequence,
+          PointerDeviceKind.mouse,
+        ),
+        EmojiPagePolicy.pointerHoldDelay,
+      );
+    });
+
+    test('counts the base chosen as itself as chosen', () async {
+      await preferences.setPreferredVariant(
+        fixtures.thumbsUp.base,
+        fixtures.thumbsUp.base,
+      );
+
+      expect(
+        delay('👍', PointerDeviceKind.mouse),
+        EmojiPagePolicy.pointerHoldDelay,
+      );
+    });
+
+    test('holds in the recents, where the cell is the exact emoji used', () {
+      expect(
+        delay('👍', PointerDeviceKind.mouse, collection: recents),
+        EmojiPagePolicy.pointerHoldDelay,
+      );
+    });
+
+    test('is the platform\'s for a finger, a stylus and anything else', () {
+      for (final kind in [
+        PointerDeviceKind.touch,
+        PointerDeviceKind.stylus,
+        PointerDeviceKind.invertedStylus,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.unknown,
+      ]) {
+        expect(delay('👍', kind), isNull, reason: '$kind');
+      }
+    });
+
+    test('is the platform\'s where there is no long press at all', () {
+      expect(delay('❤', PointerDeviceKind.mouse), isNull);
     });
   });
 

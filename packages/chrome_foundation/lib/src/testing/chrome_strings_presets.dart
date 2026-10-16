@@ -37,6 +37,9 @@ abstract final class ChromeStringsPresets {
       clearRecentsMessage: 'Do you want to clear all your recent emoji?',
       clearAction: 'Clear',
       cancelAction: 'Cancel',
+      copyAction: 'Copy',
+      removeRecentAction: 'Remove from recent',
+      clearRecentAction: 'Clear recent',
     ),
     composer: ComposerStrings(
       messageHint: 'Message',
@@ -95,6 +98,9 @@ abstract final class ChromeStringsPresets {
       clearRecentsMessage: 'Вы хотите очистить все недавние эмодзи?',
       clearAction: 'Очистить',
       cancelAction: 'Отмена',
+      copyAction: 'Копировать',
+      removeRecentAction: 'Удалить из недавних',
+      clearRecentAction: 'Очистить недавние',
     ),
     composer: ComposerStrings(
       messageHint: 'Сообщение',

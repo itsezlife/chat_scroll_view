@@ -14,6 +14,10 @@ package is pre-1.0.
 
 ### Added
 
+- `PanelStrings.copyAction`, `removeRecentAction` and `clearRecentAction`: the
+  labels of the recents context menu (the last is answered by the existing
+  clear-recents confirmation). Required, like every member; the English and
+  Russian presets have them.
 - The `selectionSlide` motion role (a selection marker moving to the next
   control, 400 ms ease-out cubic). `ChromeMotion` takes and copies it. A host
   that builds `ChromeMotion(...)` field by field must pass it.

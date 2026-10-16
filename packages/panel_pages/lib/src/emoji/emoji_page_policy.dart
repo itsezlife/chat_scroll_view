@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
@@ -33,13 +34,21 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 ///   emoji) when there are any, under the touch arrangement; under the
 ///   pointer arrangement the whole catalogue and the strip stay, so clearing
 ///   the field is all it takes to see the grid again.
-/// - **Recents.** A header action asks the host to clear them
-///   (`PanelPageHost.requestClearRecents`); the page never clears or records
-///   anything itself.
+/// - **Recents.** Under the touch arrangement a header action asks the host
+///   to clear them (`PanelPageHost.requestClearRecents`). Under the pointer
+///   arrangement there is no header action: a right click on an emoji of the
+///   recents opens a menu (copy, remove from recent, clear recent) whose items
+///   ask the host the same way. The page never clears, removes, copies or
+///   records anything itself, and a right click anywhere else opens nothing.
 /// - **Variants.** A long press on an emoji the catalogue holds variants for
 ///   opens the variant picker; releasing on an option picks it and remembers
-///   it for the emoji's base through the `PreferenceStore`, so the grid shows
-///   it from then on. An emoji with no variants has no long press.
+///   it for the emoji's base through the `PreferenceStore`, the base itself
+///   included (that the user chose is what the next press asks), so the grid
+///   shows it from then on. An emoji with no variants has no long press.
+///   Under a mouse the press opens the picker at once for an emoji the user
+///   has never chosen a variant of, and after [pointerHoldDelay] otherwise (a
+///   release before then picks the emoji as the grid shows it); a finger or
+///   stylus keeps the platform's long-press delay.
 /// - **Strip.** The category strip above the catalogue, or pinned below it
 ///   under the pointer arrangement ([stripReady] defers it).
 final class EmojiPagePolicy extends CatalogPagePolicy {
@@ -74,6 +83,19 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
 
   /// The id of the header action that clears the recents.
   static const String clearRecentsActionId = 'clear-recents';
+
+  /// The id of the context menu item that copies the emoji.
+  static const String copyItemId = 'copy';
+
+  /// The id of the context menu item that forgets the emoji in the recents.
+  static const String removeRecentItemId = 'remove-recent';
+
+  /// The id of the context menu item that clears the recents.
+  static const String clearRecentItemId = 'clear-recent';
+
+  /// How long a mouse holds a press on an emoji whose variant the user has
+  /// chosen before the picker opens: the reference client's 500 ms.
+  static const Duration pointerHoldDelay = Duration(milliseconds: 500);
 
   /// The side of the box an emoji is drawn in: what a glyph atlas for this
   /// page is baked for.
@@ -139,8 +161,13 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   SectionLayout? layoutOf(Collection collection) => _layout;
 
   @override
-  CatalogSectionAction? actionOf(Collection collection, PanelStrings strings) =>
-      collection.id == CollectionId.recent
+  CatalogSectionAction? actionOf(
+    Collection collection,
+    PanelStrings strings, {
+    PanelArrangement arrangement = PanelArrangement.touch,
+  }) =>
+      // A pointer has the menu; the header keeps a button for a finger.
+      collection.id == CollectionId.recent && !arrangement.usesContextMenu
       ? CatalogSectionAction(
           id: clearRecentsActionId,
           label: strings.clearAction,
@@ -160,6 +187,54 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     }
   }
 
+  // --- Context menu ---------------------------------------------------------
+
+  @override
+  List<CatalogMenuEntry> menuOf(
+    CatalogLeafHit hit,
+    Collection collection,
+    PanelStrings strings, {
+    required PanelArrangement arrangement,
+  }) {
+    if (!arrangement.usesContextMenu ||
+        collection.id != CollectionId.recent ||
+        hit.leaf.key is! ContentKey$Unicode) {
+      return const [];
+    }
+    return [
+      CatalogMenuEntry.item(id: copyItemId, label: strings.copyAction),
+      CatalogMenuEntry.item(
+        id: removeRecentItemId,
+        label: strings.removeRecentAction,
+      ),
+      const CatalogMenuEntry.separator(),
+      CatalogMenuEntry.item(
+        id: clearRecentItemId,
+        label: strings.clearRecentAction,
+        attention: true,
+      ),
+    ];
+  }
+
+  @override
+  void onMenuAction(
+    CatalogLeafHit hit,
+    Collection collection,
+    String itemId,
+    PanelPageHost host,
+  ) {
+    if (collection.id != CollectionId.recent) return;
+    const kind = SemanticKind.unicodeEmoji;
+    switch (itemId) {
+      case copyItemId:
+        host.requestCopy(hit.leaf.key, kind: kind);
+      case removeRecentItemId:
+        host.requestRemoveRecent(hit.leaf.key, kind: kind);
+      case clearRecentItemId:
+        host.requestClearRecents(kind);
+    }
+  }
+
   // --- Variants -------------------------------------------------------------
 
   @override
@@ -171,25 +246,65 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     _ => null,
   };
 
+  // A cell of the recents is already the exact emoji that was used: it counts
+  // as chosen, so a mouse holds for the picker there instead of getting it
+  // on every press.
+  bool _opensAtOnce(EmojiEntry entry, Collection collection) =>
+      collection.id != CollectionId.recent &&
+      preferences.preferredVariant(entry.base) == null;
+
+  @override
+  Duration? longPressDelayOf(
+    CatalogLeafHit hit,
+    Collection collection,
+    PointerDeviceKind kind,
+  ) {
+    if (kind != PointerDeviceKind.mouse) return null;
+    final entry = _variantsOf(hit.leaf.key);
+    if (entry == null) return null;
+    return _opensAtOnce(entry, collection) ? Duration.zero : pointerHoldDelay;
+  }
+
   @override
   CatalogLongPressSession? beginLongPress(
     BuildContext context,
     CatalogLeafHit hit,
     Collection collection,
-    LongPressStartDetails details,
-  ) {
+    LongPressStartDetails details, {
+    required PointerDeviceKind kind,
+    required Rect cellBounds,
+    required Rect viewportBounds,
+  }) {
     final key = hit.leaf.key;
     if ((_variantsOf(key), key) case (
       final EmojiEntry entry,
       final ContentKey$Unicode initial,
     )) {
-      return EmojiVariantSession.show(
-        context: context,
-        options: emojiVariantOptions(entry),
-        initial: initial,
-        anchor: details.globalPosition,
-        onChosen: (chosen) => _choose(entry, chosen, collection),
-      );
+      final mode = switch (kind) {
+        PointerDeviceKind.mouse =>
+          _opensAtOnce(entry, collection)
+              ? EmojiVariantPickerMode.pointerImmediate
+              : EmojiVariantPickerMode.pointerHold,
+        _ => EmojiVariantPickerMode.touch,
+      };
+      // The hold goes up with the picker: the move onto it is the first thing
+      // the panel's hover rule hears of.
+      final hold = host.holdAutoHide();
+      try {
+        return EmojiVariantSession.show(
+          context: context,
+          options: emojiVariantOptions(entry),
+          initial: initial,
+          cellBounds: cellBounds,
+          viewportBounds: viewportBounds,
+          mode: mode,
+          hold: hold,
+          onChosen: (chosen) => _choose(entry, chosen, collection),
+        );
+      } on Object {
+        hold.release();
+        rethrow;
+      }
     }
     return null;
   }
@@ -202,7 +317,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     // A pick from the recents is the exact emoji that was used; it says
     // nothing new about what the user prefers.
     if (collection.id != CollectionId.recent) {
-      unawaited(_remember(entry.base, chosen == entry.base ? null : chosen));
+      unawaited(_remember(entry.base, chosen));
     }
     host.pick(
       chosen,
@@ -215,9 +330,11 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     );
   }
 
+  // The base is remembered like any variant: choosing the emoji as it is
+  // still says the user chose.
   Future<void> _remember(
     ContentKey$Unicode base,
-    ContentKey$Unicode? variant,
+    ContentKey$Unicode variant,
   ) async {
     try {
       await preferences.setPreferredVariant(base, variant);

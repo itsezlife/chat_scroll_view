@@ -232,6 +232,12 @@ void onPanelEvent(PanelEvent event) {
       composer.backspace();
     case ClearRecentsRequested(:final kind):
       unawaited(confirmThenClear(kind));
+    case ContentCopyRequested(:final key):
+      if (key is ContentKey$Unicode) {
+        unawaited(Clipboard.setData(ClipboardData(text: key.sequence)));
+      }
+    case RecentRemoveRequested(:final key, :final kind):
+      unawaited(recents.remove(key, kind: kind));
     case SearchOpened() || SearchClosed() || ActionInvoked() || PageChanged():
       break;
   }
@@ -246,6 +252,17 @@ are delivered after the one being handled has reached every listener, before
 the call returns. Cancel the subscription when the chat screen goes away.
 
 `record` ignores `PickSource.search`; the host decides that a pick counts.
+
+A right click on a recent (the pointer arrangement of a popup or a docked
+section) opens a menu whose items arrive as `ContentCopyRequested`,
+`RecentRemoveRequested` and `ClearRecentsRequested`. The panel copies nothing
+and removes nothing: the host does, and asks the user before clearing. The menu
+labels are `PanelStrings.copyAction`, `removeRecentAction` and
+`clearRecentAction`, supplied with the rest of the strings. A finger keeps the
+clear button in the recents header instead. Which emoji have variants, and
+whether the user has chosen one, is the page's business; the host only
+supplies the `PreferenceStore` the page remembers it in (choosing the emoji as
+it is is remembered as the base itself).
 
 ## 5. Layout and the keyboard
 
@@ -336,9 +353,24 @@ else `show()`. Give the descriptor `active: true` while docked and keep the one
 glyph in every state of a desktop kind.
 
 **Holds.** Anything that must keep the popup open while the pointer is
-elsewhere (an open context menu, a variant picker) takes
-`presentation.holdAutoHide()` and releases the hold when it closes. Search
-focus is not one.
+elsewhere takes `presentation.holdAutoHide()` and releases the hold when it
+closes. Search focus is not one. The panel's own menu and variant picker stand
+outside its box, and pages and the shell cannot reach the presentation, so the
+host forwards them: listen to `shell.autoHideHolds` (a count of the pages'
+holds) and keep one presentation hold while it is above zero.
+
+```dart
+PanelAutoHideHold? hold;
+void onPageHolds() {
+  if (shell.autoHideHolds.value > 0) {
+    hold ??= presentation.holdAutoHide();
+  } else {
+    hold?.release();
+    hold = null;
+  }
+}
+shell.autoHideHolds.addListener(onPageHolds); // release the hold on dispose
+```
 
 ### Back
 

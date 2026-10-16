@@ -3,6 +3,20 @@ import 'package:listen/listen.dart';
 import 'package:panel_shell/panel_shell.dart';
 import 'package:panel_shell/testing.dart';
 
+final class _FakeHold implements PanelPageHold {
+  _FakeHold(this._onRelease);
+
+  final void Function() _onRelease;
+  var _released = false;
+
+  @override
+  void release() {
+    if (_released) return;
+    _released = true;
+    _onRelease();
+  }
+}
+
 /// A [PanelPageHost] for tests of a page: the listenables are settable and
 /// every report the page makes is recorded.
 ///
@@ -31,6 +45,19 @@ final class FakePanelPageHost with ChangeNotifier implements PanelPageHost {
 
   /// Every clear-recents request, in order.
   final List<SemanticKind> clearRecentsRequests = [];
+
+  /// Every copy request, in order.
+  final List<({ContentKey key, SemanticKind kind})> copyRequests = [];
+
+  /// Every remove-from-recent request, in order.
+  final List<({ContentKey key, SemanticKind kind})> removeRecentRequests = [];
+
+  /// How many holds on auto-hide the page took in all.
+  int holdsTaken = 0;
+
+  /// How many holds the page keeps now: taken and not yet released.
+  int get activeHolds => _activeHolds;
+  int _activeHolds = 0;
 
   /// Every scroll activity the page reported, in order.
   final List<PageScrollActivity> scrollActivity = [];
@@ -88,6 +115,21 @@ final class FakePanelPageHost with ChangeNotifier implements PanelPageHost {
 
   @override
   void requestClearRecents(SemanticKind kind) => clearRecentsRequests.add(kind);
+
+  @override
+  void requestCopy(ContentKey key, {required SemanticKind kind}) =>
+      copyRequests.add((key: key, kind: kind));
+
+  @override
+  void requestRemoveRecent(ContentKey key, {required SemanticKind kind}) =>
+      removeRecentRequests.add((key: key, kind: kind));
+
+  @override
+  PanelPageHold holdAutoHide() {
+    holdsTaken++;
+    _activeHolds++;
+    return _FakeHold(() => _activeHolds--);
+  }
 
   @override
   void releaseSearchFocus() => searchFocusReleases++;

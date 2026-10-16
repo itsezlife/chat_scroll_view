@@ -229,6 +229,20 @@ final class PanelCatalogController {
     return completer.future;
   }
 
+  // --- Geometry -------------------------------------------------------------
+
+  /// The viewport's box in global coordinates, or null while none is attached
+  /// or before its first layout.
+  ///
+  /// With [leafBoundsOf], what a host needs to place a surface it opens over a
+  /// cell (a picker, a menu) without knowing the grid's geometry.
+  Rect? get viewportBounds => _position?.viewportBounds;
+
+  /// The cell [hit] names, in global coordinates under the current offset, or
+  /// null when no viewport is attached or the snapshot has no such cell. The
+  /// rectangle may lie partly or wholly outside [viewportBounds].
+  Rect? leafBoundsOf(CatalogLeafHit hit) => _position?.leafBounds(hit);
+
   // --- Roving focus ---------------------------------------------------------
 
   /// The cell that holds roving focus, or null.

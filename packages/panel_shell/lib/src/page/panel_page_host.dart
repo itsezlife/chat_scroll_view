@@ -4,6 +4,13 @@ import 'package:panel_shell/src/controller/panel_search_state.dart';
 import 'package:panel_shell/src/page/page_controller_registry.dart';
 import 'package:panel_shell/src/scroll/page_scroll_activity.dart';
 
+/// A claim kept by a page on the host's auto-hide, from
+/// [PanelPageHost.holdAutoHide].
+abstract interface class PanelPageHold {
+  /// Releases the claim. Idempotent: only the first call counts.
+  void release();
+}
+
 /// A page's whole connection to the shell, handed to its builder.
 ///
 /// Everything flows through typed calls and listenables: the shell reaches
@@ -54,6 +61,28 @@ abstract interface class PanelPageHost {
   /// Reports that the user asked to clear the recents of [kind]; the shell
   /// publishes [ClearRecentsRequested].
   void requestClearRecents(SemanticKind kind);
+
+  /// Reports that the user asked to copy [key] of [kind]; the shell publishes
+  /// [ContentCopyRequested].
+  void requestCopy(ContentKey key, {required SemanticKind kind});
+
+  /// Reports that the user asked to forget [key] in the recents of [kind]; the
+  /// shell publishes [RecentRemoveRequested].
+  void requestRemoveRecent(ContentKey key, {required SemanticKind kind});
+
+  /// Asks that a presentation which dismisses itself (a popup that closes
+  /// when the pointer leaves it) stays open until the returned hold is
+  /// released.
+  ///
+  /// A page takes one the moment it opens a surface the pointer will move
+  /// onto (a context menu, a variant picker): such a surface sits outside the
+  /// panel's own box, so without a hold the move onto it reads as leaving the
+  /// panel. Holds are counted, from every page, and published as
+  /// `PanelShellController.autoHideHolds`; the host forwards them to its
+  /// presentation, because the shell and its pages know no presentation.
+  /// Release when the surface closes, and when the page goes away with it
+  /// open. Holds taken after the shell is disposed are inert.
+  PanelPageHold holdAutoHide();
 
   /// Withdraws the search field's focus intent, keeping search open: the soft
   /// keyboard goes away so the user can see the results. A page calls it when

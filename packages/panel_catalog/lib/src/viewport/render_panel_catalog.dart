@@ -243,6 +243,8 @@ class RenderPanelCatalog extends RenderBox
     TextDirection textDirection = TextDirection.ltr,
     double? headerLandingInset,
     ValueChanged<CatalogLeafHit>? onLeafTap,
+    void Function(CatalogLeafHit hit, Offset globalPosition)?
+    onLeafSecondaryTap,
     void Function(CatalogLeafHit hit, LongPressStartDetails details)?
     onLeafLongPressStart,
     void Function(CatalogLeafHit hit, LongPressMoveUpdateDetails details)?
@@ -250,6 +252,9 @@ class RenderPanelCatalog extends RenderBox
     void Function(CatalogLeafHit hit, LongPressEndDetails details)?
     onLeafLongPressEnd,
     bool Function(CatalogLeafHit hit)? leafLongPressEligible,
+    Duration? Function(CatalogLeafHit hit, PointerDeviceKind kind)?
+    leafLongPressDelay,
+    CatalogLeafHit? pinnedLeaf,
     void Function(String sectionId, String actionId)? onSectionAction,
     double? sectionNearExtent,
   }) : _snapshots = snapshots,
@@ -262,6 +267,8 @@ class RenderPanelCatalog extends RenderBox
        _textDirection = textDirection,
        _headerLandingInset = headerLandingInset,
        _onLeafTap = onLeafTap,
+       _onLeafSecondaryTap = onLeafSecondaryTap,
+       _pinnedLeaf = pinnedLeaf,
        _onLeafLongPressStart = onLeafLongPressStart,
        _onLeafLongPressMove = onLeafLongPressMove,
        _onLeafLongPressEnd = onLeafLongPressEnd,
@@ -280,10 +287,12 @@ class RenderPanelCatalog extends RenderBox
     _leafPointer = CatalogLeafPointer(debugOwner: this)
       ..leafAt = leafAt
       ..onLeafTap = onLeafTap
+      ..onLeafSecondaryTap = onLeafSecondaryTap
       ..onLeafLongPressStart = onLeafLongPressStart
       ..onLeafLongPressMove = onLeafLongPressMove
       ..onLeafLongPressEnd = onLeafLongPressEnd
       ..leafLongPressEligible = leafLongPressEligible
+      ..leafLongPressDelay = leafLongPressDelay
       ..onGestureCancel = _onLeafGestureCancel
       ..flingCancelSuppresses = () => _flingCancelSuppressesLeaf;
     _actionPointer = CatalogActionPointer(debugOwner: this)
@@ -434,6 +443,31 @@ class RenderPanelCatalog extends RenderBox
     if ((_onLeafTap == null) != (value == null)) _markSemanticsStale();
     _onLeafTap = value;
     _leafPointer.onLeafTap = value;
+  }
+
+  /// Shell secondary tap (mouse right click). Null leaves the button
+  /// unrecognised.
+  void Function(CatalogLeafHit hit, Offset globalPosition)? _onLeafSecondaryTap;
+  set onLeafSecondaryTap(
+    void Function(CatalogLeafHit hit, Offset globalPosition)? value,
+  ) {
+    if (_onLeafSecondaryTap == value) return;
+    _onLeafSecondaryTap = value;
+    _leafPointer.onLeafSecondaryTap = value;
+  }
+
+  /// Per-cell, per-pointer-kind long-press delay. Null = the platform's.
+  set leafLongPressDelay(
+    Duration? Function(CatalogLeafHit hit, PointerDeviceKind kind)? value,
+  ) => _leafPointer.leafLongPressDelay = value;
+
+  /// The cell a transient surface is open over: its hover wash stays and the
+  /// wheel is ignored until it is released.
+  CatalogLeafHit? _pinnedLeaf;
+  set pinnedLeaf(CatalogLeafHit? value) {
+    if (_pinnedLeaf == value) return;
+    _pinnedLeaf = value;
+    markNeedsPaint();
   }
 
   /// Shell long-press start. Null disables the long-press recognizer.
@@ -1709,10 +1743,19 @@ class RenderPanelCatalog extends RenderBox
     return leafSlotAt(position)?.key;
   }
 
+  bool _isHovered(CatalogLeafSlot leaf) {
+    if (_paintTheme.leafHoverHighlightColor == null) return false;
+    if (_pinnedLeaf case final pinned?) {
+      return pinned.sectionId == leaf.sectionId && pinned.index == leaf.index;
+    }
+    return _hoveredKey != null && leaf.key == _hoveredKey;
+  }
+
   void _hoverAt(Offset? position) {
     if (_hoverPosition == position) return;
     _hoverPosition = position;
-    if (_hoverSlotKey() != _hoveredKey) markNeedsPaint();
+    // A pinned cell holds the wash wherever the mouse goes.
+    if (_pinnedLeaf == null && _hoverSlotKey() != _hoveredKey) markNeedsPaint();
   }
 
   // A mouse that was already there when the viewport appeared (or came back
@@ -1945,7 +1988,9 @@ class RenderPanelCatalog extends RenderBox
         final slot = leafSlotAt(event.localPosition);
         if (slot != null) {
           // Fling-cancel taps stop the coast only — no press chrome / pick.
-          if (!suppressLeafActions) {
+          // Only the primary button presses a cell: a right click is the
+          // host's menu, not a press, and animating it would read as one.
+          if (!suppressLeafActions && event.buttons & kPrimaryButton != 0) {
             _beginLeafPress(event, slot);
           }
           _leafPointer.addPointer(event);
@@ -1964,6 +2009,7 @@ class RenderPanelCatalog extends RenderBox
           });
         }
       case PointerScrollEvent(:final scrollDelta):
+        if (_pinnedLeaf != null) return;
         _cancelFling();
         scrollBy(scrollDelta.dy);
       case PointerHoverEvent(
@@ -2131,7 +2177,7 @@ class RenderPanelCatalog extends RenderBox
               focus != null &&
               focus.index == leaf.index &&
               focus.sectionId == leaf.sectionId,
-          hovered: _hoveredKey != null && leaf.key == _hoveredKey,
+          hovered: _isHovered(leaf),
         );
       case final CatalogSkeletonSlot skeleton:
         _painter.paintSkeleton(canvas: canvas, origin: origin, slot: skeleton);
@@ -2451,6 +2497,29 @@ class RenderPanelCatalog extends RenderBox
 
   @override
   CatalogLeafHit? get focusedLeaf => _focus;
+
+  @override
+  Rect? get viewportBounds => hasSize
+      ? MatrixUtils.transformRect(getTransformTo(null), Offset.zero & size)
+      : null;
+
+  // A scan of the slots, once per call: asked when a surface opens, not per
+  // frame.
+  @override
+  Rect? leafBounds(CatalogLeafHit hit) {
+    if (!hasSize) return null;
+    for (final slot in _slots) {
+      if (slot is CatalogLeafSlot &&
+          slot.sectionId == hit.sectionId &&
+          slot.index == hit.index) {
+        return MatrixUtils.transformRect(
+          getTransformTo(null),
+          Rect.fromLTWH(slot.left, slot.top - _pixels, slot.width, slot.height),
+        );
+      }
+    }
+    return null;
+  }
 
   @override
   bool focusLeaf(String sectionId, int index, {required bool reveal}) {

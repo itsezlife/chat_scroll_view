@@ -38,6 +38,19 @@ sealed class PanelEvent {
   const factory PanelEvent.clearRecentsRequested({required SemanticKind kind}) =
       ClearRecentsRequested;
 
+  /// The user asked to copy [key] of [kind]; see [ContentCopyRequested].
+  const factory PanelEvent.contentCopyRequested({
+    required ContentKey key,
+    required SemanticKind kind,
+  }) = ContentCopyRequested;
+
+  /// The user asked to forget [key] of [kind] in the recents; see
+  /// [RecentRemoveRequested].
+  const factory PanelEvent.recentRemoveRequested({
+    required ContentKey key,
+    required SemanticKind kind,
+  }) = RecentRemoveRequested;
+
   /// The selected page changed to [pageId]; see [PageChanged].
   const factory PanelEvent.pageChanged(String pageId) = PageChanged;
 
@@ -152,6 +165,57 @@ final class ClearRecentsRequested extends PanelEvent {
 
   @override
   String toString() => 'ClearRecentsRequested($kind)';
+}
+
+/// The user asked to copy [key] of [kind] to the clipboard.
+///
+/// The panel copies nothing: the host puts a representation of the content on
+/// the clipboard (for a unicode key, its text) and shows whatever feedback it
+/// wants.
+final class ContentCopyRequested extends PanelEvent {
+  /// A request to copy [key], whose semantic kind is [kind].
+  const ContentCopyRequested({required this.key, required this.kind});
+
+  /// Identity of the content to copy.
+  final ContentKey key;
+
+  /// The semantic kind of the content.
+  final SemanticKind kind;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ContentCopyRequested && other.key == key && other.kind == kind;
+
+  @override
+  int get hashCode => Object.hash(ContentCopyRequested, key, kind);
+
+  @override
+  String toString() => 'ContentCopyRequested($key, $kind)';
+}
+
+/// The user asked to forget [key] in the recents of [kind].
+///
+/// The panel never writes recents: the host calls
+/// `RecentsStore.remove(key, kind: kind)`.
+final class RecentRemoveRequested extends PanelEvent {
+  /// A request to remove [key] from the recents filed under [kind].
+  const RecentRemoveRequested({required this.key, required this.kind});
+
+  /// Identity of the content to forget.
+  final ContentKey key;
+
+  /// The kind of the recents list it is in.
+  final SemanticKind kind;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RecentRemoveRequested && other.key == key && other.kind == kind;
+
+  @override
+  int get hashCode => Object.hash(RecentRemoveRequested, key, kind);
+
+  @override
+  String toString() => 'RecentRemoveRequested($key, $kind)';
 }
 
 /// The selected page changed to [pageId].

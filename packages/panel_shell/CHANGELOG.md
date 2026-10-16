@@ -8,6 +8,16 @@ is pre-1.0.
 
 ### Added
 
+- `PanelPageHost.holdAutoHide()` returning a `PanelPageHold`, and
+  `PanelShellController.autoHideHolds` (a `ValueListenable<int>`): pages hold a
+  presentation's auto-hide while a menu or picker is open; the host forwards
+  the count to its presentation. Source-breaking for an implementer of
+  `PanelPageHost` (the fake in `panel_pages/testing.dart` is updated).
+- `PanelPageHost.requestCopy` and `requestRemoveRecent`, and the matching
+  `PanelEvent`s `ContentCopyRequested(key, kind)` and
+  `RecentRemoveRequested(key, kind)`. Source-breaking for an exhaustive `switch`
+  over `PanelEvent` and for an implementer of `PanelPageHost`.
+- `PanelArrangement.usesContextMenu` (true under `pointer`).
 - `PanelArrangement` (`touch`, `pointer`), `PanelShell(arrangement:)` and
   `PanelArrangementScope`, which hands the arrangement to the pages below the
   shell (`touch` outside any shell). `touch` is what the shell always did.

@@ -260,6 +260,23 @@ void main() {
     // after the smileys' one row (27 + 45).
     const peopleTop = 72.0;
 
+    // The centre of option [index] of the open picker: its card sits inside the
+    // shadow margin, and the option is one grid cell of 43.75 x 45.
+    Offset pickerOptionCenter(WidgetTester tester, int index) {
+      final outer = tester.getTopLeft(find.byType(EmojiVariantPicker));
+      const cell = Size(43.75, 45);
+      final layout = EmojiVariantPickerLayout(
+        count: fixtures.thumbsUp.variants.length + 1,
+        cell: cell,
+      );
+      return outer +
+          const Offset(
+            EmojiVariantPickerLayout.shadowMargin,
+            EmojiVariantPickerLayout.shadowMargin,
+          ) +
+          layout.optionRect(index).center;
+    }
+
     Future<TestGesture> pressThumb(WidgetTester tester) async {
       source = fixtures.source(count: 0);
       await tester.pumpWidget(page());
@@ -289,18 +306,11 @@ void main() {
     testWidgets('releasing on an option picks it and remembers it for the '
         'base', (tester) async {
       final gesture = await pressThumb(tester);
-      final picker = tester.getTopLeft(find.byType(EmojiVariantPicker));
       // The fourth option's centre.
-      await gesture.moveTo(
-        picker +
-            EmojiVariantPickerMetrics.centerOf(
-              3,
-              fixtures.thumbsUp.variants.length + 1,
-            ),
-      );
+      await gesture.moveTo(pickerOptionCenter(tester, 3));
       await tester.pump();
       await gesture.up();
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       final chosen = fixtures.thumbsUp.variants[2].key;
       expect(host.picks.single.key, chosen);
@@ -309,7 +319,8 @@ void main() {
       expect(find.byType(EmojiVariantPicker), findsNothing);
     });
 
-    testWidgets('choosing the base forgets the choice', (tester) async {
+    testWidgets('choosing the base is a choice too: it is remembered as the '
+        'base itself', (tester) async {
       await preferences.setPreferredVariant(
         fixtures.thumbsUp.base,
         fixtures.thumbsUp.variants.first.key,
@@ -317,10 +328,13 @@ void main() {
       final gesture = await pressThumb(tester);
 
       await gesture.up();
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(host.picks.single.key, fixtures.thumbsUp.base);
-      expect(preferences.preferredVariant(fixtures.thumbsUp.base), isNull);
+      expect(
+        preferences.preferredVariant(fixtures.thumbsUp.base),
+        fixtures.thumbsUp.base,
+      );
     });
 
     testWidgets('a pick from the recents is not a preference', (tester) async {
@@ -332,7 +346,7 @@ void main() {
       expect(find.byType(EmojiVariantPicker), findsOneWidget);
 
       await gesture.up();
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(host.picks.single.source, PickSource.recents);
       expect(preferences.preferredVariant(fixtures.thumbsUp.base), isNull);
@@ -385,7 +399,7 @@ void main() {
       expect(find.byType(EmojiVariantPicker), findsOneWidget);
 
       await tester.tap(find.text('👍\u{1F3FE}'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(host.picks.single.key, fixtures.thumbsUp.variants[3].key);
       expect(find.byType(EmojiVariantPicker), findsNothing);
@@ -395,6 +409,8 @@ void main() {
     testWidgets('is labelled, with its options', (tester) async {
       final handle = tester.ensureSemantics();
       final gesture = await pressThumb(tester);
+      // The picker fades in: a node is in the tree once it shows.
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.bySemanticsLabel('Show variants'), findsOneWidget);
       expect(find.bySemanticsLabel('👍\u{1F3FD}'), findsOneWidget);

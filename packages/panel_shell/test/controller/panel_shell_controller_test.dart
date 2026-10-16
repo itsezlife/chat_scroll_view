@@ -311,6 +311,26 @@ void main() {
       ]);
     });
 
+    test('turns copy and remove requests into panel events', () {
+      final host = build().hostFor('emoji');
+      const thumbs = ContentKey.unicode('1F44D');
+
+      host
+        ..requestCopy(thumbs, kind: SemanticKind.unicodeEmoji)
+        ..requestRemoveRecent(thumbs, kind: SemanticKind.unicodeEmoji);
+
+      expect(events, [
+        const ContentCopyRequested(
+          key: thumbs,
+          kind: SemanticKind.unicodeEmoji,
+        ),
+        const RecentRemoveRequested(
+          key: thumbs,
+          kind: SemanticKind.unicodeEmoji,
+        ),
+      ]);
+    });
+
     test('isActive follows the selected page', () {
       final controller = build();
       final emoji = controller.hostFor('emoji');
@@ -393,6 +413,62 @@ void main() {
 
     test('rejects a page id that is not registered', () {
       expect(() => build().hostFor('gif'), throwsArgumentError);
+    });
+  });
+
+  group('auto-hide holds', () {
+    test('count the unreleased holds of every page', () {
+      final controller = build();
+      expect(controller.autoHideHolds.value, 0);
+
+      final first = controller.hostFor('emoji').holdAutoHide();
+      final second = controller.hostFor('stickers').holdAutoHide();
+      expect(controller.autoHideHolds.value, 2);
+
+      first.release();
+      expect(controller.autoHideHolds.value, 1);
+      second.release();
+      expect(controller.autoHideHolds.value, 0);
+    });
+
+    test('release is idempotent: a second call undoes nothing more', () {
+      final controller = build();
+      final host = controller.hostFor('emoji');
+      final first = host.holdAutoHide();
+      host.holdAutoHide();
+
+      first
+        ..release()
+        ..release();
+
+      expect(controller.autoHideHolds.value, 1);
+    });
+
+    test('signal on every change of the count', () {
+      final controller = build();
+      final seen = <int>[];
+      controller.autoHideHolds.addListener(
+        () => seen.add(controller.autoHideHolds.value),
+      );
+
+      final host = controller.hostFor('emoji');
+      final first = host.holdAutoHide();
+      final second = host.holdAutoHide();
+      first.release();
+      second.release();
+
+      expect(seen, [1, 2, 1, 0]);
+    });
+
+    test('are inert after dispose', () {
+      final controller = build();
+      final host = controller.hostFor('emoji');
+      final hold = host.holdAutoHide();
+
+      controller.dispose();
+
+      expect(host.holdAutoHide().release, returnsNormally);
+      expect(hold.release, returnsNormally);
     });
   });
 

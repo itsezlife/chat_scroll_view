@@ -43,7 +43,7 @@ enum PickSource {
 /// After [dispose] [changes] is silent, [recents] keeps answering with the
 /// last state and the commands do nothing.
 abstract interface class RecentsStore {
-  /// Signals once per [record] or [clear] that changed some list.
+  /// Signals once per [record], [remove] or [clear] that changed some list.
   Listenable get changes;
 
   /// The keys of [kind], best first. Unmodifiable; empty when none were
@@ -59,6 +59,12 @@ abstract interface class RecentsStore {
     required SemanticKind kind,
     PickSource source = PickSource.collection,
   });
+
+  /// Forgets [key] under [kind]: it leaves the list and its count goes with
+  /// it, so a later pick starts from one. The keys that remain keep their
+  /// order. Does nothing, and signals nothing, when [key] was not listed under
+  /// [kind]; the same key under another kind is untouched.
+  Future<void> remove(ContentKey key, {required SemanticKind kind});
 
   /// Forgets everything recorded under [kind], or under every kind when it is
   /// null. Does nothing, and signals nothing, when there was nothing to

@@ -81,6 +81,13 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
   (`leafHoverHighlightRadius`, `leafHoverHighlightInset`), under the content,
   instantly; the cell is found again at every paint, so a wheel step under a
   still mouse moves it. A finger never hovers
+- **Mouse seams** — `onLeafSecondaryTap(hit, globalPosition)` reports a mouse
+  right click (button up; never a tap, a press animation or a long press);
+  `leafLongPressDelay(hit, kind)` sets a long-press delay per cell and pointer
+  kind (`Duration.zero` opens at once, a click that lifts sooner stays a tap);
+  `pinnedLeaf` keeps one cell's hover wash and stops the wheel while a host
+  surface is open over it; `PanelCatalogController.leafBoundsOf` and
+  `viewportBounds` give the global rectangles to place that surface by
 - **Cursor** — the viewport asks for the click cursor over a leaf the shell can
   tap or long-press and over a header action it listens to, and defers
   elsewhere

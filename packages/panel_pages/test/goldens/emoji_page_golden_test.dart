@@ -285,4 +285,57 @@ void main() {
 
     await matches(tester, 'pointer_hover_light_ltr');
   });
+
+  // The third cell of the recents row, 👍: the one with variants.
+  Offset thumbCell(WidgetTester tester) =>
+      tester.getTopLeft(find.byType(EmojiPage)) +
+      const Offset(5 + 43.75 * 2.5, 27 + 22.5);
+
+  for (final MapEntry(key: variant, value: (brightness, direction))
+      in variants.entries.where((e) => e.key != 'light_rtl')) {
+    testWidgets('the variant picker under a mouse, $variant', (tester) async {
+      await pumpPointerScene(
+        tester,
+        brightness: brightness,
+        direction: direction,
+      );
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      // A recent is held for: the picker opens after the hold. The first
+      // option has the pointer's highlight.
+      await mouse.down(thumbCell(tester));
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pumpAndSettle();
+      await mouse.moveTo(
+        tester.getTopLeft(find.byType(EmojiVariantPicker)) +
+            const Offset(10 + 8 + 45 + 8 + 1 + 8 + 45 + 22, 10 + 8 + 22),
+      );
+      await tester.pump();
+
+      await matches(tester, 'mouse_picker_$variant');
+      await mouse.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('the recents menu, $variant', (tester) async {
+      await pumpPointerScene(
+        tester,
+        brightness: brightness,
+        direction: direction,
+      );
+      final mouse = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+
+      await mouse.down(thumbCell(tester));
+      await mouse.up();
+      await tester.pumpAndSettle();
+
+      await matches(tester, 'menu_$variant');
+    });
+  }
 }

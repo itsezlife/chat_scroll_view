@@ -120,8 +120,10 @@ final class EmojiCollectionSource implements CollectionSource {
   ContentKey$Unicode shownKeyOf(EmojiEntry entry) =>
       _items.shownKey(entry) ?? entry.base;
 
-  /// Remembers [variant] as the user's choice for [entry]; choosing the base
-  /// itself forgets the choice.
+  /// Remembers [variant] as the user's choice for [entry]. Choosing the base
+  /// itself is remembered too, as the base: the grid shows the same emoji, and
+  /// `PreferenceStore.preferredVariant` still tells that the user chose, which
+  /// is what a page asks to decide how a press opens the variant picker.
   ///
   /// The loaded collections show it before the returned future completes,
   /// which completes when the choice is persisted. Throws an
@@ -135,10 +137,7 @@ final class EmojiCollectionSource implements CollectionSource {
         'Not the base or a variant of ${entry.base}.',
       );
     }
-    return _preferences.setPreferredVariant(
-      entry.base,
-      variant == entry.base ? null : variant,
-    );
+    return _preferences.setPreferredVariant(entry.base, variant);
   }
 
   @override

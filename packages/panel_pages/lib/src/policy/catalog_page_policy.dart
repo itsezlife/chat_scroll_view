@@ -1,6 +1,8 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -38,13 +40,90 @@ final class CatalogPick {
   String toString() => 'CatalogPick($key, $kind, $source)';
 }
 
+/// One entry of a context menu a policy offers for a cell.
+///
+/// Declarative on purpose: the policy says what the menu holds and, when an
+/// item is chosen, is asked what it does ([CatalogPagePolicy.onMenuAction]);
+/// the page draws the menu and owns its focus, keys and hold on auto-hide.
+@immutable
+sealed class CatalogMenuEntry {
+  const CatalogMenuEntry();
+
+  /// An item the user can choose; see [CatalogMenuItem].
+  const factory CatalogMenuEntry.item({
+    required String id,
+    required String label,
+    bool attention,
+  }) = CatalogMenuItem;
+
+  /// A line between two groups of items; see [CatalogMenuSeparator].
+  const factory CatalogMenuEntry.separator() = CatalogMenuSeparator;
+}
+
+/// A choosable item of a context menu.
+final class CatalogMenuItem extends CatalogMenuEntry {
+  /// An item [label]led, answered by [id] when chosen.
+  const CatalogMenuItem({
+    required this.id,
+    required this.label,
+    this.attention = false,
+  });
+
+  /// Names the item to [CatalogPagePolicy.onMenuAction]; unique in its menu.
+  final String id;
+
+  /// The text of the item, in the language of the panel strings.
+  final String label;
+
+  /// Whether the item is drawn in the attention colour: one that throws
+  /// something away.
+  final bool attention;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CatalogMenuItem &&
+      other.id == id &&
+      other.label == label &&
+      other.attention == attention;
+
+  @override
+  int get hashCode => Object.hash(id, label, attention);
+
+  @override
+  String toString() => 'CatalogMenuItem($id, $label)';
+}
+
+/// A separator line between two groups of items.
+final class CatalogMenuSeparator extends CatalogMenuEntry {
+  /// A separator.
+  const CatalogMenuSeparator();
+
+  @override
+  bool operator ==(Object other) => other is CatalogMenuSeparator;
+
+  @override
+  int get hashCode => (CatalogMenuSeparator).hashCode;
+
+  @override
+  String toString() => 'CatalogMenuSeparator()';
+}
+
 /// One long press in progress, handed out by the policy at its start.
 ///
 /// The page forwards the rest of the gesture to it and ends it when the
 /// gesture does, or when the page goes away first. What a long press shows (a
 /// variant picker, a sticker preview) is the session's business; the page only
 /// carries the gesture to it.
+///
+/// A session may outlive the gesture: one that stays up after the button is
+/// released (a picker that waits for the next click) keeps [isOpen] true until
+/// it closes itself. The page keeps the cell the session belongs to pinned
+/// (hover wash held, wheel locked) for as long as it is open.
 abstract interface class CatalogLongPressSession {
+  /// Whether the session still shows something; false once it is over, by a
+  /// choice, a dismissal or [cancel].
+  ValueListenable<bool> get isOpen;
+
   /// The finger moved.
   void update(LongPressMoveUpdateDetails details);
 
@@ -148,9 +227,14 @@ abstract class CatalogPagePolicy {
 
   /// The trailing action of the section's header, or null for a title alone.
   ///
-  /// Its label and semantic label are in the language of [strings].
-  CatalogSectionAction? actionOf(Collection collection, PanelStrings strings) =>
-      null;
+  /// Its label and semantic label are in the language of [strings]. Under an
+  /// [arrangement] that [PanelArrangement.usesContextMenu] a page may leave an
+  /// action to its context menu instead.
+  CatalogSectionAction? actionOf(
+    Collection collection,
+    PanelStrings strings, {
+    PanelArrangement arrangement = PanelArrangement.touch,
+  }) => null;
 
   /// The tag the default [leafOf] attaches to the cell of [item]: the host's
   /// opaque data, excluded from the cell's equality and never painted.
@@ -196,6 +280,40 @@ abstract class CatalogPagePolicy {
         : PickSource.collection,
   );
 
+  /// The entries of the context menu a secondary click on [hit], a cell of
+  /// [collection], opens, in the language of [strings]; empty for no menu (the
+  /// click then does nothing at all).
+  ///
+  /// Asked only under an [arrangement] that [PanelArrangement.usesContextMenu]
+  /// answers true for; the default has no menu.
+  List<CatalogMenuEntry> menuOf(
+    CatalogLeafHit hit,
+    Collection collection,
+    PanelStrings strings, {
+    required PanelArrangement arrangement,
+  }) => const [];
+
+  /// The user chose the menu item [itemId] of the menu [menuOf] built for
+  /// [hit]. [host] is the page's connection to the shell, where an item that
+  /// asks the host something answers.
+  void onMenuAction(
+    CatalogLeafHit hit,
+    Collection collection,
+    String itemId,
+    PanelPageHost host,
+  ) {}
+
+  /// How long a press on [hit] by a pointer of [kind] must last to be a long
+  /// press, or null for the platform's timeout.
+  ///
+  /// Asked only where [hasLongPress] answered true. [Duration.zero] opens the
+  /// long press as the press lands.
+  Duration? longPressDelayOf(
+    CatalogLeafHit hit,
+    Collection collection,
+    PointerDeviceKind kind,
+  ) => null;
+
   /// Whether a long press on [hit] does anything.
   ///
   /// A cell that answers false keeps tap only, so a tap is not delayed by a
@@ -205,12 +323,18 @@ abstract class CatalogPagePolicy {
   /// Begins the long press on [hit], or returns null to decline it.
   ///
   /// Only called where [hasLongPress] answered true. [context] is the page's.
+  /// [kind] is the pointer that pressed, and [cellBounds] and [viewportBounds]
+  /// the pressed cell and the catalogue's box in global coordinates, so a
+  /// surface can be placed against both.
   CatalogLongPressSession? beginLongPress(
     BuildContext context,
     CatalogLeafHit hit,
     Collection collection,
-    LongPressStartDetails details,
-  ) => null;
+    LongPressStartDetails details, {
+    required PointerDeviceKind kind,
+    required Rect cellBounds,
+    required Rect viewportBounds,
+  }) => null;
 
   /// The user tapped the header action [actionId] of [collection]'s section.
   ///

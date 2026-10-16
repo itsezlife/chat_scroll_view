@@ -55,6 +55,9 @@ class _RecentsStore implements RecentsStore {
   }) async {}
 
   @override
+  Future<void> remove(ContentKey key, {required SemanticKind kind}) async {}
+
+  @override
   Future<void> clear({SemanticKind? kind}) async {}
 
   @override

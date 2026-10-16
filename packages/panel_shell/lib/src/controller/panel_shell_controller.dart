@@ -111,6 +111,7 @@ final class PanelShellController {
   final _scrollActivity = EventPublisher<PageScrollActivity>();
   final _searchResultCounts = EventPublisher<int>();
   final _bottomExtent = ValueNotifier<double>(0);
+  final _autoHideHolds = ValueNotifier<int>(0);
   final _bottomExtents = <String, double>{};
   final _hosts = <String, _PageHost>{};
   var _disposed = false;
@@ -142,6 +143,12 @@ final class PanelShellController {
   ///
   /// The floating bar of the pointer arrangement rises by it.
   ValueListenable<double> get bottomExtent => _bottomExtent;
+
+  /// How many holds on auto-hide the pages keep now
+  /// ([PanelPageHost.holdAutoHide]), from every page.
+  ///
+  /// The host listens and keeps its presentation open while it is above zero.
+  ValueListenable<int> get autoHideHolds => _autoHideHolds;
 
   /// **Panel visible**: whether a presentation shows the panel on screen,
   /// including while it slides in or out. The pause signal of work that is
@@ -302,6 +309,7 @@ final class PanelShellController {
     _scrollActivity.dispose();
     _searchResultCounts.dispose();
     _bottomExtent.dispose();
+    _autoHideHolds.dispose();
     for (final host in _hosts.values) {
       host.dispose();
     }
@@ -358,6 +366,25 @@ final class _PageHost with ChangeNotifier implements PanelPageHost {
   }
 
   @override
+  void requestCopy(ContentKey key, {required SemanticKind kind}) {
+    if (_shell._disposed) return;
+    _shell._events.publish(ContentCopyRequested(key: key, kind: kind));
+  }
+
+  @override
+  void requestRemoveRecent(ContentKey key, {required SemanticKind kind}) {
+    if (_shell._disposed) return;
+    _shell._events.publish(RecentRemoveRequested(key: key, kind: kind));
+  }
+
+  @override
+  PanelPageHold holdAutoHide() {
+    final hold = _Hold(_shell);
+    if (!_shell._disposed) _shell._autoHideHolds.value++;
+    return hold;
+  }
+
+  @override
   ValueListenable<bool> get panelVisible => _shell._visible;
 
   @override
@@ -400,6 +427,24 @@ final class _PageHost with ChangeNotifier implements PanelPageHost {
   void dispose() {
     isActive.dispose();
     super.dispose();
+  }
+}
+
+final class _Hold implements PanelPageHold {
+  _Hold(this._shell) : _counted = !_shell._disposed;
+
+  final PanelShellController _shell;
+
+  // A hold taken after dispose never counted, and releasing it must not count
+  // down.
+  final bool _counted;
+  var _released = false;
+
+  @override
+  void release() {
+    if (_released) return;
+    _released = true;
+    if (_counted && !_shell._disposed) _shell._autoHideHolds.value--;
   }
 }
 

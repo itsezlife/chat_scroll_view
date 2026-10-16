@@ -164,12 +164,13 @@ void main() {
       expect(publications, 0);
     });
 
-    test('forgets the choice when the base itself is chosen', () async {
+    test('remembers the base as the choice when it is chosen itself', () async {
       await emoji.chooseVariant(toned('1F44D'), key('1F44D-1F3FB'));
 
       await emoji.chooseVariant(toned('1F44D'), key('1F44D'));
 
-      expect(preferences.preferredVariant(key('1F44D')), isNull);
+      expect(preferences.preferredVariant(key('1F44D')), key('1F44D'));
+      expect(emoji.shownKeyOf(toned('1F44D')), key('1F44D'));
     });
 
     test('refuses a key that is not a variant of the entry', () {

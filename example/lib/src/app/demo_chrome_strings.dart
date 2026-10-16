@@ -32,6 +32,9 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     clearRecentsMessage: 'Вы хотите очистить все недавние эмодзи?',
     clearAction: 'Очистить',
     cancelAction: 'Отмена',
+    copyAction: 'Копировать',
+    removeRecentAction: 'Удалить из недавних',
+    clearRecentAction: 'Очистить недавние',
   ),
   composer: ComposerStrings(
     messageHint: 'Сообщение',

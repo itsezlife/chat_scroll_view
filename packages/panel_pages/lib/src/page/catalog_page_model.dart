@@ -284,7 +284,11 @@ final class CatalogPageModel {
             _source.collections.value,
             searchOpen: _searchOpen && _arrangement.narrowsEmptySearch,
           );
-    final snapshot = _builder.build(collections, strings: _strings);
+    final snapshot = _builder.build(
+      collections,
+      strings: _strings,
+      arrangement: _arrangement,
+    );
     _entries.value = results
         ? const []
         : List.unmodifiable([

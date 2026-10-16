@@ -4,6 +4,7 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
+import 'package:panel_shell/panel_shell.dart';
 
 final _strings = ChromeStringsPresets.english.panel;
 
@@ -47,8 +48,11 @@ final class _OpinionatedPolicy extends CatalogPagePolicy {
       'nothing here';
 
   @override
-  CatalogSectionAction? actionOf(Collection collection, PanelStrings strings) =>
-      CatalogSectionAction(id: 'more', label: strings.clearAction);
+  CatalogSectionAction? actionOf(
+    Collection collection,
+    PanelStrings strings, {
+    PanelArrangement arrangement = PanelArrangement.touch,
+  }) => CatalogSectionAction(id: 'more', label: strings.clearAction);
 
   @override
   Object? tagOf(CollectionItem item, Collection collection) =>

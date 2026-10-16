@@ -21,6 +21,12 @@ class ChromeCatalogTheme extends StatelessWidget {
   /// The subtree that reads the theme.
   final Widget child;
 
+  /// The wash of a hovered or focused item on a card, in [palette]: the text
+  /// colour at alpha `0x12`. The one recipe the cell hover, the variant
+  /// picker and the context menu share.
+  static Color hoverWashOf(ChromePalette palette) =>
+      palette.onSurface.withAlpha(0x12);
+
   /// The catalogue theme the chrome theme [chrome] stands for.
   ///
   /// - Every stand-in (circle, thumbnail silhouette, sticker wash) and the
@@ -48,7 +54,7 @@ class ChromeCatalogTheme extends StatelessWidget {
       leafPressHighlightColor: palette.onSurface.withAlpha(0x0F),
       leafFocusHighlightColor: palette.accent.withAlpha(0x40),
       leafHoverHighlightColor: switch (arrangement) {
-        PanelArrangement.pointer => palette.onSurface.withAlpha(0x12),
+        PanelArrangement.pointer => hoverWashOf(palette),
         PanelArrangement.touch => null,
       },
       sectionHeaderStyle: base.sectionHeaderStyle.copyWith(

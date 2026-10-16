@@ -8,6 +8,10 @@ is pre-1.0.
 
 ### Changed
 
+- `EmojiCollectionSource.chooseVariant` remembers the base as the choice when
+  the base itself is chosen (it used to forget the choice). The grid shows the
+  same emoji; `PreferenceStore.preferredVariant(base)` now tells that the user
+  chose, which the variant picker's press rule asks.
 - Change notification is `package:listen` (`listen: ^1.0.1`) instead of
   `content_model`'s removed `Observable` family: `changes` is a `Listenable`,
   `collections` and `results` are `ValueListenable`s, and the keyword sources

@@ -15,6 +15,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' hide RichText;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide RichText;
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_presentation/panel_presentation.dart';
@@ -661,6 +662,90 @@ void main() {
 
       expect(rig.clearAsked, [SemanticKind.unicodeEmoji]);
       expect(rig.services.recents.recents(SemanticKind.unicodeEmoji), isEmpty);
+    });
+  });
+
+  group('what the recents menu asks for', () {
+    testWidgets('a copy puts the emoji\'s text on the clipboard', (
+      tester,
+    ) async {
+      final rig = await _mobileRig(tester);
+      final copied = <String?>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied.add((call.arguments as Map)['text'] as String?);
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
+      rig.set.shell
+          .hostFor('emoji')
+          .requestCopy(emojiKey(_thumbsUp), kind: SemanticKind.unicodeEmoji);
+      await tester.pump();
+
+      expect(copied, [_thumbsUp]);
+    });
+
+    testWidgets('a removal forgets that emoji only', (tester) async {
+      final rig = await _mobileRig(tester);
+      const heart = '\u{2764}\u{FE0F}';
+      for (final glyph in [_thumbsUp, heart]) {
+        await rig.services.recents.record(
+          emojiKey(glyph),
+          kind: SemanticKind.unicodeEmoji,
+        );
+      }
+
+      rig.set.shell
+          .hostFor('emoji')
+          .requestRemoveRecent(
+            emojiKey(_thumbsUp),
+            kind: SemanticKind.unicodeEmoji,
+          );
+      await tester.pump();
+
+      expect(rig.services.recents.recents(SemanticKind.unicodeEmoji), [
+        emojiKey(heart),
+      ]);
+    });
+  });
+
+  group('holds the panel\'s pages take', () {
+    testWidgets('keep the presentation open as one hold, from the first to '
+        'the last', (tester) async {
+      final rig = await _mobileRig(tester);
+      final guard = rig.set.presentation.autoHideGuard;
+      final host = rig.set.shell.hostFor('emoji');
+      expect(guard.value, isFalse);
+
+      final first = host.holdAutoHide();
+      final second = host.holdAutoHide();
+      expect(guard.value, isTrue);
+
+      first.release();
+      expect(guard.value, isTrue);
+      second.release();
+      expect(guard.value, isFalse);
+    });
+
+    testWidgets('are let go with the set', (tester) async {
+      final rig = await _mobileRig(tester);
+      final guard = rig.set.presentation.autoHideGuard;
+      rig.set.shell.hostFor('emoji').holdAutoHide();
+      expect(guard.value, isTrue);
+
+      rig.set.dispose();
+
+      expect(guard.value, isFalse);
     });
   });
 

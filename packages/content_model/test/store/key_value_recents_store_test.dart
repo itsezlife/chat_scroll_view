@@ -143,6 +143,29 @@ void main() {
         expect(storage.entries.keys, ['$_namespace:recents.unicode_emoji']);
       });
 
+      test('persists a removal and forgets the count with it', () async {
+        final store = await open();
+        await store.record(_thumbs, kind: SemanticKind.unicodeEmoji);
+        await store.record(_thumbs, kind: SemanticKind.unicodeEmoji);
+        await store.record(_heart, kind: SemanticKind.unicodeEmoji);
+
+        await store.remove(_thumbs, kind: SemanticKind.unicodeEmoji);
+
+        final second = await open();
+        expect(second.recents(SemanticKind.unicodeEmoji), [_heart]);
+        await second.record(_thumbs, kind: SemanticKind.unicodeEmoji);
+        expect(second.recents(SemanticKind.unicodeEmoji), [_thumbs, _heart]);
+      });
+
+      test('removes the record of a kind whose last key was removed', () async {
+        final store = await open();
+        await store.record(_thumbs, kind: SemanticKind.unicodeEmoji);
+
+        await store.remove(_thumbs, kind: SemanticKind.unicodeEmoji);
+
+        expect(storage.entries, isEmpty);
+      });
+
       test('removes every record when everything is cleared', () async {
         final store = await open();
         await store.record(_thumbs, kind: SemanticKind.unicodeEmoji);

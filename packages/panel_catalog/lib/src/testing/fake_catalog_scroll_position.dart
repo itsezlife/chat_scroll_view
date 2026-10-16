@@ -118,6 +118,17 @@ final class FakeCatalogScrollPosition implements CatalogScrollPosition {
     return _motion.future;
   }
 
+  /// What [viewportBounds] answers: a test sets it.
+  @override
+  Rect? viewportBounds;
+
+  /// What [leafBounds] answers per `section/index`; a missing cell is null.
+  final Map<String, Rect> leafRects = {};
+
+  @override
+  Rect? leafBounds(CatalogLeafHit hit) =>
+      leafRects['${hit.sectionId}/${hit.index}'];
+
   @override
   CatalogLeafHit? get focusedLeaf => _focused;
 

@@ -1,5 +1,5 @@
 /// Strings of the panel: tab names, section titles, search copy and the
-/// clear-recents confirmation.
+/// clear-recents confirmation and the recents menu.
 ///
 /// Supplied by the host as part of `ChromeStrings`; this package ships no
 /// translation. Members are required so a host cannot forget one.
@@ -16,6 +16,9 @@ final class PanelStrings {
     required this.clearRecentsMessage,
     required this.clearAction,
     required this.cancelAction,
+    required this.copyAction,
+    required this.removeRecentAction,
+    required this.clearRecentAction,
   });
 
   /// The name of the panel page registered under [pageId]. Page ids are open
@@ -54,4 +57,15 @@ final class PanelStrings {
 
   /// Dismissing action of the clear-recents confirmation.
   final String cancelAction;
+
+  /// Menu item that copies the content under the pointer to the clipboard.
+  final String copyAction;
+
+  /// Menu item that forgets one item of the recently-used list.
+  final String removeRecentAction;
+
+  /// Menu item that asks to clear the whole recently-used list; shown in the
+  /// attention style. Answered by the clear-recents confirmation
+  /// ([clearRecentsTitle], [clearRecentsMessage], [clearAction]).
+  final String clearRecentAction;
 }

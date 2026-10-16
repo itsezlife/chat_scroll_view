@@ -23,6 +23,10 @@ abstract interface class PreferenceStore {
   /// none. The answer is the exact variant key, never an index: a variant is
   /// its own unicode key.
   ///
+  /// A user who chose the emoji as it is (the base) is remembered like any
+  /// other choice, as [base] itself: a non-null answer means the user has
+  /// chosen a variant of [base] at some point, and null that they never did.
+  ///
   /// The store keeps what it was given. Whether that key still belongs to
   /// [base] in the current catalogue is for the caller to check.
   ContentKey$Unicode? preferredVariant(ContentKey$Unicode base);

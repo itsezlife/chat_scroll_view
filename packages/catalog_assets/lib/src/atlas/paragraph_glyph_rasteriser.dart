@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
+import 'package:catalog_assets/src/glyph/text_glyph_producer.dart';
 
 /// Draws a glyph as a text paragraph in the system font, so a baked glyph looks
 /// exactly like the same emoji in the composer and in message text.
@@ -11,7 +12,9 @@ import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
 /// default of 0.85 keeps the widest sequences inside their cell.
 final class ParagraphGlyphRasteriser implements GlyphRasteriser {
   /// Creates a rasteriser whose font size is [fontScale] of the cell height.
-  ParagraphGlyphRasteriser({this.fontScale = 0.85});
+  ParagraphGlyphRasteriser({
+    this.fontScale = TextGlyphProducer.defaultFontScale,
+  });
 
   /// Font size as a fraction of the cell edge.
   final double fontScale;

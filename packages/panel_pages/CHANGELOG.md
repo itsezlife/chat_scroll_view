@@ -8,6 +8,28 @@ is pre-1.0.
 
 ### Added
 
+- The recents context menu ([ADR 025](../../docs/adr/025-panel-shell-and-pages.md)
+  amendment): `CatalogPagePolicy.menuOf` / `onMenuAction` with the declarative
+  `CatalogMenuEntry` (`item`, `separator`), drawn by `CatalogContextMenuHost`
+  (built on `RawMenuAnchor`; modal, with Escape, arrows and Enter, taking
+  focus and giving it back, holding auto-hide while open). The emoji policy
+  offers copy, remove from recent and clear recent on a recent emoji under the
+  pointer arrangement. `CatalogPagePolicy.actionOf` takes the arrangement; the
+  emoji policy has no recents header action under `pointer`.
+- `CatalogPagePolicy.longPressDelayOf(hit, collection, kind)`; the emoji policy
+  opens the picker at once under a mouse for an emoji whose variant was never
+  chosen and after 500 ms otherwise. `CatalogLongPressSession.isOpen` (a
+  session may outlive the gesture; the page pins the cell meanwhile) and
+  `beginLongPress` takes the pointer kind and the pressed cell's and the
+  viewport's global bounds. Source-breaking for a policy that overrides them.
+- `EmojiVariantPickerLayout`, `EmojiVariantPickerMode` and a rewritten
+  `EmojiVariantPicker` / `EmojiVariantSession`: the grid's own cell and glyph
+  box for every option, 8 px pads, a separator after the first, above the
+  pressed cell or below near the top, proportional to the column, 200 ms fade,
+  modal on a barrier, holding auto-hide. Replaces `EmojiVariantPickerMetrics`
+  and the arrow.
+- `ChromeCatalogTheme.hoverWashOf(palette)`; goldens for the menu and the picker
+  under a mouse were generated on macOS.
 - The pointer arrangement of `PanelShell` ([ADR 025](../../docs/adr/025-panel-shell-and-pages.md)
   amendment). `CatalogPagePolicy.stripAtBottom(arrangement)` (default false;
   the emoji policy answers true for `pointer`) puts the strip below the
@@ -30,6 +52,9 @@ is pre-1.0.
 
 ### Changed
 
+- Choosing an emoji as it is in the picker is remembered as the base itself
+  (`PreferenceStore.preferredVariant(base) == base`), so the next press can tell
+  the user has chosen. The grid shows the same emoji.
 - Change notification is `package:listen` (`listen: ^1.0.1`), not
   `content_model`'s removed `Observable` family: `CatalogStripHandle.entries`,
   `GlyphAtlasHost.atlas` and the presence inputs are `ValueListenable`s (the
@@ -41,6 +66,11 @@ is pre-1.0.
 
 ### Fixed
 
+- The variant picker no longer crops its glyphs. A colour emoji font draws
+  bitmaps larger than the em box it lays out, and the old picker clipped each
+  option to a 32 px rounded container (four of six options of a test set were
+  cut at the edge with Apple Color Emoji). Options are the grid's cell with
+  the grid's glyph box and font scale, and nothing clips. The arrow is gone.
 - The category strip slides a tab into view on the `fade` motion role (and lands
   at once under an instant speed) instead of a literal 200 ms.
 - Closing the panel no longer turns the glyphs of surfaces outside it (the

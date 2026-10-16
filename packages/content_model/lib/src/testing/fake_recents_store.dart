@@ -34,6 +34,12 @@ final class FakeRecentsStore with ChangeNotifier implements RecentsStore {
   }
 
   @override
+  Future<void> remove(ContentKey key, {required SemanticKind kind}) async {
+    if (_disposed) return;
+    if (_ledger.remove(kind, key)) notifyListeners();
+  }
+
+  @override
   Future<void> clear({SemanticKind? kind}) async {
     if (_disposed) return;
     if (_ledger.clear(kind: kind).isNotEmpty) notifyListeners();

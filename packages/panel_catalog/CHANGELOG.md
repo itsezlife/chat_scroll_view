@@ -8,6 +8,15 @@ is pre-1.0.
 
 ### Added
 
+- Mouse seams on `PanelCatalogViewport` ([ADR 024](../../docs/adr/024-panel-catalog-seams.md)):
+  `onLeafSecondaryTap(hit, globalPosition)` for a mouse's right button (button
+  up); `leafLongPressDelay(hit, kind)`, a long-press delay per cell and pointer
+  kind (null: the platform's; `Duration.zero`: at once, a click that lifts
+  sooner stays a tap); `pinnedLeaf`, which keeps one cell's hover wash and
+  ignores the wheel while a host surface is open over it.
+- `PanelCatalogController.leafBoundsOf(hit)` and `viewportBounds`: global
+  rectangles, through two new members of the `CatalogScrollPosition` contract
+  (the fake answers what a test sets).
 - Hover highlight: `PanelCatalogThemeData.leafHoverHighlightColor` (null, the
   default, paints none), `leafHoverHighlightRadius` (8) and
   `leafHoverHighlightInset` (2). A mouse over a leaf paints a rounded wash on its
@@ -73,6 +82,9 @@ is pre-1.0.
 
 ### Changed
 
+- Only the primary button starts the press animation on a cell: a right click
+  no longer flashes it. A left click, a touch and a stylus contact are
+  unchanged.
 - Change notification is `package:listen` (`listen: ^1.0.1`), not
   `content_model`'s removed `Observable` family. **Breaking:** `snapshots` is a
   `ValueListenable<CatalogSnapshot>` (import `package:listen/listen.dart`, not

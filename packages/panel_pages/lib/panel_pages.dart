@@ -29,6 +29,7 @@ export 'src/emoji/emoji_page_policy.dart';
 export 'src/emoji/emoji_tab_icons.dart';
 export 'src/emoji/emoji_variant_picker.dart';
 export 'src/input/catalog_keyboard_focus.dart';
+export 'src/menu/catalog_context_menu.dart';
 export 'src/page/catalog_page.dart';
 export 'src/page/catalog_page_controller.dart';
 export 'src/page/catalog_page_model.dart';

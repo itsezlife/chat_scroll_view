@@ -8,6 +8,10 @@ package is pre-1.0.
 
 ### Changed
 
+- `PreferenceStore.preferredVariant` documents that choosing the base is stored
+  as the base itself; no new member and no record change (the reference store
+  already round-trips it), so existing data reads as before: a user who chose
+  the base earlier is simply a user who has not chosen.
 - Change notification is `package:listen` (`listen: ^1.0.1`), not a type of
   this package. The seams expose `Listenable` (`changes`) and
   `ValueListenable` (`collections`, `results`); the reference stores and the
@@ -23,6 +27,10 @@ package is pre-1.0.
 
 ### Added
 
+- `RecentsStore.remove(key, {kind})`: forgets one key under one kind, its count
+  with it, and signals once (nothing when it was not listed). In the contract
+  suite, the reference store, the ledger and the fake. Source-breaking for an
+  implementer of `RecentsStore`.
 - Pure-Dart value types for catalog content: `ContentKey` (`unicode`,
   `document`, `external`, with a stable string encoding), `ContentDescriptor`,
   `SemanticKind`, `MediaForm`, `Collection`, `CollectionId`,
