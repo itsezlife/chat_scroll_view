@@ -17,9 +17,6 @@ final class FakeSoftKeyboard implements SoftKeyboardPort {
   @override
   bool heightsIncludeSafeArea = true;
 
-  /// How many times the keyboard was asked to show.
-  int showCount = 0;
-
   /// How many times the keyboard was asked to hide.
   int hideCount = 0;
 
@@ -40,9 +37,6 @@ final class FakeSoftKeyboard implements SoftKeyboardPort {
 
   @override
   Future<void> hide() async => hideCount++;
-
-  @override
-  Future<void> show() async => showCount++;
 
   /// Releases the stream.
   Future<void> dispose() => _heights.close();

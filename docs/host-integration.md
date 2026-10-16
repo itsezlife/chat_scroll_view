@@ -274,14 +274,19 @@ the view: the emoji leaves the list at once and nothing else in it moves.
 The host owns aggregation ([host insets](architecture/14-host-chrome-insets.md)):
 
 ```text
-bottomPadding = composer.extent + presentation.occupancy.bottom
+bottomPadding = composer.extent + max(safeBottom, presentation.occupancy.bottom)
 inlineEnd     = presentation.occupancy.inlineEnd   // layout, mirrored in RTL
 ```
 
-`composer.extent` already holds the composer's own bottom pad; a keyboard
-presentation's `occupancy.bottom` already holds the live keyboard. Do not add
-either twice. Until the composer publishes its first extent (zero), reserve a
-seed so the first frame is not empty.
+`composer.extent` leaves out the composer's bottom safe-area pad: the host adds
+the bottom band itself, as the larger of the safe area and the occupancy. A
+keyboard presentation's `occupancy.bottom` already holds the live keyboard,
+safe area included, so the keyboard is not added twice. Computing the band
+from the occupancy matters: the extent is measured after layout and arrives a
+frame late, so a sum that relied on the composer's own pad to grow as the slot
+shrinks dipped by up to the band at the end of every close. Until the
+composer publishes its first extent (zero), reserve a seed so the first frame
+is not empty.
 
 Mount `PanelPresentationView(controller: presentation)` in the box the host
 reserves. Where the panel replaces the keyboard that box is
@@ -320,6 +325,13 @@ While a keyboard-replacement panel is on screen, give the composer
 field then keeps focus and caret without raising the keyboard. To return to the
 keyboard call `presentation.hide(waitForIme: true)`, keep composer focus, close
 search, and ask the platform to show the keyboard once on the next frame.
+
+Changing the composer's soft keyboard mode while it has focus makes the field
+attach again (one frame later), with the input type the mode now declares:
+Android keeps the type a field attached with, so a field that attached
+suppressed would otherwise never raise the keyboard it is allowed again. That
+attach is what raises the keyboard on the way back from the panel; the host
+sends no show command.
 
 Declaring no soft keyboard does not lower one that is already showing. When the
 panel opens over a raised keyboard, ask the platform to hide it once after the

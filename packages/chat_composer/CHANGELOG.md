@@ -8,6 +8,20 @@ is pre-1.0.
 
 ### Changed
 
+- **`ComposerController.extent` excludes the bottom safe-area pad.** The view
+  still draws `safeAreaBottom`; the host adds the bottom band itself (the larger
+  of the safe area and the presentation occupancy). The extent is measured after
+  layout and reaches the host a frame late, so a sum that relied on the pad
+  dipped while a panel closed under the safe area. A host that fed the extent
+  straight into the chat's bottom padding adds the safe area now.
+- The field attaches to the platform's text input again, one frame after the
+  soft keyboard mode changes while it has focus, so the platform sees the input
+  type the mode declares. Android keeps the type a field attached with: a field
+  that took focus suppressed never raised the keyboard it was allowed again.
+  Focus drops for that one frame.
+
+### Changed
+
 - Change notification is `package:listen` (`listen: ^1.0.1`), not
   `content_model`'s removed `Observable` family: `ComposerController`'s
   `softKeyboard`, `fieldHeight`, `extent` and `query` are `ValueListenable`s

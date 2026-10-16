@@ -25,14 +25,17 @@ Typical aggregation (names are roles, not required types):
 
 ```text
 topPadding    = safeTop + headerReserve
-bottomPadding = composerExtent + panelOccupancy.bottom
+bottomPadding = composerExtent + max(safeBottom, panelOccupancy.bottom)
 inlineEnd     = panelOccupancy.inlineEnd   // applied in layout, not as padding
 ```
 
 `safeTop` is persistent view padding (notch / status bar). `headerReserve` is
 only the overlay header’s occupancy (often `progress × barHeight`).
-`composerExtent` is the height the composer publishes as data, **including**
-its own bottom safe-area pad, **excluding** the panel and the keyboard. The
+`composerExtent` is the height the composer publishes as data, **excluding**
+its bottom safe-area pad, the panel and the keyboard. The bottom band is the
+host's, `max(safeBottom, panelOccupancy.bottom)`, computed from the occupancy
+at once: the extent is measured after layout and arrives a frame late, so the
+pad must not ride on it. The
 composer imports no inset types ([ADR 026](../adr/026-composer-model.md)).
 `panelOccupancy` is the `ValueListenable` (`package:listen`) the active panel presentation publishes
 ([ADR 028](../adr/028-panel-presentation.md)): for a keyboard-replacement

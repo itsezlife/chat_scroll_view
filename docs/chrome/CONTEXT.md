@@ -189,7 +189,7 @@ Input only: text, focus, selection, queries, field scroll and height, and insert
 _Avoid_: Reply or edit state, stored message ids
 
 **Composer extent**:
-The height the composer view takes in its parent, published as data while it animates: island, header, margins and its own bottom safe-area pad, without any panel or keyboard below. The host adds the presentation occupancy and feeds the sum to the viewport padding.
+The height the composer view takes in its parent, published as data while it animates: island, header and margins, without the bottom safe-area pad it draws and without any panel or keyboard below. The host adds the bottom band (the larger of the safe area and the presentation occupancy) and feeds the sum to the viewport padding.
 _Avoid_: Reading the composer's render box from the host, a composer that knows insets
 
 **Primary action**:

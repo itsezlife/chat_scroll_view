@@ -142,8 +142,9 @@ ime.report(ImeSample(
   safeAreaBottom: viewPadding.bottom,
 ));
 
-// Layout: composer extent + keyboard.occupancy.value.bottom into the bottom
-// padding, and the composer's bottom safe area is keyboard.composerSafeInset.
+// Layout: composer extent + max(safe area, keyboard.occupancy.value.bottom)
+// into the bottom padding, and the composer's bottom safe area is
+// keyboard.composerSafeInset.
 ```
 
 - **One slot, two holders.** The bottom space is `max(keyboard, panel)`,

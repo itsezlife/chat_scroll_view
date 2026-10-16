@@ -76,10 +76,26 @@ Each item: pass, or fail with the observed jump.
    never shows a gap.
 9. **Reduce motion.** With the platform animation scale at zero the panel
    lands at once, in every item above.
+10. **Panel opened from idle, then the toggle.** With no keyboard shown, open
+    the panel with its button, then press the button again. The keyboard rises
+    within its own animation and the emptied sheet goes with it; the sheet
+    never waits out the one-second fallback.
+11. **The end of a close.** Close the panel (back, or the toggle with the
+    keyboard blocked) and watch the last messages: they come to rest without a
+    dip or a jump back. With `--dart-define=PANEL_TRACE=true` the example logs
+    `panel <ms> bottomPadding <value>`; the values only fall.
+
+Reading the signals: build the example with `--dart-define=PANEL_TRACE=true`
+and run `adb logcat -s flutter | grep "panel "`. Every change of the
+presentation state, the slot state, the occupancy, the composer's extent and
+safe inset, the soft keyboard mode, the composer's focus, the IME samples and
+the chat's bottom padding is one line, with the milliseconds since the chat
+opened.
 
 ## Results
 
 | Device | Build | Cold open: frames over budget / raster p99 | Hand-off: frames over budget | Items 1-9 |
 | --- | --- | --- | --- | --- |
 | Mid-range Android | profile | not measured | not measured | not run |
+| Galaxy S25 Ultra (SM-S938B), Android 16, three-button bar | profile | not measured | not measured | 1, 2, 3, 6, 8, 10, 11 pass (2026-10-16) |
 | iPhone | profile | not measured | not measured | not run |

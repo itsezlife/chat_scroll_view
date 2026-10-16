@@ -1,5 +1,6 @@
 /// How the host aggregates occluding chrome into what the viewport reserves:
-/// `bottomPadding = composer extent + occupancy.bottom`, `inlineEnd` applied
+/// `bottomPadding = composer extent + max(safe bottom, occupancy.bottom)`,
+/// `inlineEnd` applied
 /// in layout, and the top as safe area plus header plus search.
 library;
 
@@ -30,6 +31,27 @@ void main() {
   group('bottom', () {
     test('is seeded before the composer has published its extent', () {
       expect(insets.bottomPadding.value, ChatViewportInsets.composerSeed);
+    });
+
+    test('is the composer extent plus the larger of the safe band and the '
+        'occupancy', () {
+      extent.value = 64;
+      insets.setSafeBottom(48);
+
+      // Nothing under the composer yet: the band is the safe area.
+      expect(insets.bottomPadding.value, 112);
+
+      // While the occupancy is under the safe band the sum does not move, so
+      // a panel closing to its end cannot dip: the composer draws the rest of
+      // the band as its own pad.
+      for (final bottom in [40.0, 20.0, 6.0, 0.0]) {
+        occupancy.value = PanelOccupancy(bottom: bottom);
+        expect(insets.bottomPadding.value, 112, reason: 'occupancy $bottom');
+      }
+
+      // Past it the occupancy leads.
+      occupancy.value = const PanelOccupancy(bottom: 300);
+      expect(insets.bottomPadding.value, 364);
     });
 
     test('is the composer extent plus the presentation occupancy', () {

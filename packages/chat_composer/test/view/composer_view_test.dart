@@ -12,6 +12,13 @@ const _restricted = ComposerPanelId('restricted');
 // running animation never hides behind pumpAndSettle.
 const _reveal = Duration(milliseconds: 381);
 
+// The input type the platform's text input was last attached with.
+String _attachedType(WidgetTester tester) {
+  final args = tester.testTextInput.setClientArgs;
+  final type = args!['inputType']! as Map<String, dynamic>;
+  return '${type['name']}';
+}
+
 void main() {
   late ComposerController controller;
 
@@ -340,49 +347,52 @@ void main() {
   });
 
   group('extent', () {
-    testWidgets('publishes the view height with margins and safe area', (
+    testWidgets(
+      'publishes the view height with margins, without the safe area',
+      (tester) async {
+        await tester.pumpWidget(
+          composerHarness(
+            view(ComposerSpec()),
+            viewPadding: const EdgeInsets.only(bottom: 20),
+          ),
+        );
+        await tester.pump();
+
+        expect(
+          controller.extent.value,
+          ComposerMetrics.islandTopGap +
+              ComposerMetrics.islandHeight +
+              ComposerMetrics.islandBottomGap,
+        );
+        // The view itself is as tall as that and the pad it draws.
+        expect(
+          tester.getSize(find.byType(ComposerView)).height,
+          controller.extent.value + 20,
+        );
+      },
+    );
+
+    testWidgets('a pad the host sets changes the view and not the extent', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        composerHarness(
-          view(ComposerSpec()),
-          viewPadding: const EdgeInsets.only(bottom: 20),
-        ),
-      );
-      await tester.pump();
-
-      expect(
-        controller.extent.value,
-        ComposerMetrics.islandTopGap +
-            ComposerMetrics.islandHeight +
-            ComposerMetrics.islandBottomGap +
-            20,
-      );
-      expect(
-        controller.extent.value,
-        tester.getSize(find.byType(ComposerView)).height,
-      );
-    });
-
-    testWidgets('a host can cover the safe area with zero', (tester) async {
       await tester.pumpWidget(
         composerHarness(
           ComposerView(
             controller: controller,
             spec: ComposerSpec(),
-            safeAreaBottom: 0,
+            safeAreaBottom: 7,
           ),
           viewPadding: const EdgeInsets.only(bottom: 20),
         ),
       );
       await tester.pump();
 
-      expect(
-        controller.extent.value,
-        ComposerMetrics.islandTopGap +
-            ComposerMetrics.islandHeight +
-            ComposerMetrics.islandBottomGap,
-      );
+      const bare =
+          ComposerMetrics.islandTopGap +
+          ComposerMetrics.islandHeight +
+          ComposerMetrics.islandBottomGap;
+      expect(controller.extent.value, bare);
+      expect(tester.getSize(find.byType(ComposerView)).height, bare + 7);
     });
 
     testWidgets('follows the header reveal frame by frame', (tester) async {
@@ -432,7 +442,57 @@ void main() {
         tester.widget<TextField>(find.byType(TextField)).keyboardType,
         TextInputType.none,
       );
+      // The field attaches again with the new type, a frame later.
+      await tester.pump();
+      await tester.pump();
       expect(controller.hasFocus, isTrue);
+    });
+
+    testWidgets('a field that attached suppressed attaches again, with a '
+        'keyboard type, when the keyboard is allowed', (tester) async {
+      controller.setSoftKeyboard(SoftKeyboardMode.suppressed);
+      await show(tester, ComposerSpec());
+      controller.requestFocus();
+      await tester.pump();
+      expect(tester.testTextInput.hasAnyClients, isTrue);
+      expect(_attachedType(tester), 'TextInputType.none');
+
+      controller.setSoftKeyboard(SoftKeyboardMode.auto);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      expect(controller.hasFocus, isTrue);
+      expect(tester.testTextInput.hasAnyClients, isTrue);
+      expect(_attachedType(tester), startsWith('TextInputType.multiline'));
+    });
+
+    testWidgets('and the other way: allowed, then suppressed', (tester) async {
+      await show(tester, ComposerSpec());
+      controller.requestFocus();
+      await tester.pump();
+      expect(_attachedType(tester), startsWith('TextInputType.multiline'));
+
+      controller.setSoftKeyboard(SoftKeyboardMode.suppressed);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      expect(controller.hasFocus, isTrue);
+      expect(_attachedType(tester), 'TextInputType.none');
+    });
+
+    testWidgets('a field without focus is not touched by a change of mode', (
+      tester,
+    ) async {
+      await show(tester, ComposerSpec());
+
+      controller.setSoftKeyboard(SoftKeyboardMode.suppressed);
+      await tester.pump();
+      await tester.pump();
+
+      expect(controller.hasFocus, isFalse);
+      expect(tester.testTextInput.hasAnyClients, isFalse);
     });
 
     testWidgets('disabled spec disables the field', (tester) async {
