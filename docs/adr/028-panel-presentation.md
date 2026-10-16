@@ -11,6 +11,7 @@ inset-controller parts of [ADR 007](007-keyboard-panel-controller.md).
 **Amended**: 2026-10-16 — occupancy and state are `package:listen` `ValueListenable`s ([ADR 023](023-data-layering-and-persistence.md) Amendment)  
 **Amended**: 2026-10-16 — desktop parity of the popup: it never takes focus, the hover machine is the reference client's, the panel button docks and undocks, and `holdAutoHide` is the one hold seam (see below)  
 **Amended**: 2026-10-16 — the host wires the shell's page holds to that seam ([ADR 025](025-panel-shell-and-pages.md) Amendment)  
+**Amended**: 2026-10-16 — keyboard readings include the safe area; the sheet's rounded top; the host lowers a raised keyboard when the panel takes its place  
 **Relates to**: [ADR 007](007-keyboard-panel-controller.md) (superseded in part), [ADR 012](012-cross-platform-selection-policies.md) (same policy shape), [ADR 025](025-panel-shell-and-pages.md), [host chrome insets](../architecture/14-host-chrome-insets.md) (amended by this ADR)
 
 ## Decided
@@ -28,8 +29,20 @@ inset-controller parts of [ADR 007](007-keyboard-panel-controller.md).
 | Dismissal | Esc steps back (search first, then the popup). A press outside dismisses at once, except on the toggle, on the popup's own hover area, and on any `AnchoredPopupExemptRegion` the host registers (the composer: a click back into it keeps the popup). `AnchoredPopupToggleRegion` is exempt by itself. |
 | Focus | The popup never takes focus when it opens, by hover or by click: the composer keeps the caret, the search field is focused only by the user clicking into it, and the panel stays reachable by Tab. A pick keeps focus in the composer and the popup stays open. Closing with the search field focused hands focus back to the composer (the reference client drops it to the window; this is deliberate). |
 | Docked | Copied from Desktop `TabbedSection`. A persisted `PreferenceStore` choice. Occupancy is the inline-end width. The popup does not take focus from the composer, and neither does the section. |
+| Arrangement | A kind chooses the shell's `PanelArrangement` ([ADR 025](025-panel-shell-and-pages.md)) and nothing else decides it. `KeyboardReplacement` is `touch`: the sticky header, the inline search field and the bar that slides away, as the amendment below keeps them on the sheet. `AnchoredPopup` and `Docked` are `pointer`: tabs on top, the strip pinned at the bottom, nothing that slides away. A popup docked in place changes arrangement under a mounted page, which takes the other layout without losing its scroll or search. |
 | Toggle click | On a desktop kind the panel button is also the dock control: hidden or hiding shows (docked if the saved choice is docked and the window can dock, else a popup); a popup in a window that can dock docks, the same panel moving with its page, scroll and search; a popup in a window that cannot dock hides; a docked panel undocks, and the popup does not appear until the pointer re-enters the toggle. The glyph is the same in every state; docked is drawn as the active state. Only the mobile keyboard-replacement kind shows the keyboard glyph. |
 | KeyboardReplacement | Android `WindowInsetsStateHolder` and the iOS height table are the references. Occupancy animates with the `listTransition` role. Panel height comes from the measured IME height persisted per orientation (sanity floor, device-class default). Explicit IME and panel hand-off states have a fallback timeout (Android: 1 s). `SearchOpened` grows the panel to an expanded height. Safe area and navigation bar are added inside the strategy. `handleBack` closes search first, then the panel. The host sets the composer's `softKeyboard` from presentation visibility. |
+
+## Amendment: what the host owes the keyboard strategy
+
+Device checks of the first cut found three things the decisions above left to
+the host without saying so.
+
+| Area | Decision |
+| ---- | -------- |
+| Keyboard readings | `ImeSample.height` counts the bottom safe area as part of the keyboard. iOS reports it that way; the Android inset plugin reports the IME without the system bars. A host whose platform does not count the band adds it back while the keyboard shows any height (a height of nothing stays nothing). Without it the slot measures the keyboard too short by the band, and the composer sinks behind a keyboard that stands that much higher. |
+| Lowering the keyboard | Declaring no soft keyboard does not lower one that is showing. When a keyboard-replacement panel opens the host asks the keyboard to hide, keeping focus. |
+| Sheet | The keyboard-replacement sheet is the slot: while the slot grows or shrinks the sheet's top edge (rounded, `KeyboardReplacementTuning.sheetCornerRadius`, 29) rides it and the strip and the search field stay under the composer, and the bottom bar stays on the bottom edge. The first cut laid the sheet out at its final height and let the slot clip it, so the content stood still and was uncovered from the bottom; the panel it replaced moved with its top edge, and that is the motion kept. A slot shorter than the shortest sheet (96) shows the top of a shell laid out at 96 instead of overflowing. `KeyboardSlot.layoutHeight` stays for a presentation that wants the still content; this strategy does not read it. |
 
 ## Why
 

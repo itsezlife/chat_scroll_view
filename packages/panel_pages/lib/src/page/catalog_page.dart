@@ -4,6 +4,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
@@ -14,7 +15,9 @@ import 'package:panel_pages/src/menu/catalog_context_menu.dart';
 import 'package:panel_pages/src/page/bottom_extent_reporter.dart';
 import 'package:panel_pages/src/page/catalog_page_controller.dart';
 import 'package:panel_pages/src/page/catalog_page_model.dart';
+import 'package:panel_pages/src/page/catalog_sticky_header.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
+import 'package:panel_pages/src/page/listen_value_builder.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
 import 'package:panel_pages/src/scroll/page_scroll_reporter.dart';
 import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
@@ -47,6 +50,42 @@ import 'package:panel_shell/panel_shell.dart';
 /// - Binds the keys of the roving focus (arrows, Home, End, Enter, Space).
 /// - Scopes the catalogue's theme from the chrome theme above
 ///   ([ChromeCatalogTheme]).
+/// - Draws the page's **sticky header** over the catalogue under the touch
+///   arrangement, and a plain column around it under the pointer arrangement
+///   (below).
+///
+/// ## The arrangement
+///
+/// `PanelArrangementScope` says which of two layouts the page takes; without a
+/// shell above it is `touch`.
+///
+/// - `touch`: the sticky header below. A strip the policy keeps at the top and
+///   declares an extent for is a part of it; so is an inline search field.
+/// - `pointer`: nothing slides. The strip is a part of the column, above the
+///   catalogue or, where [CatalogPagePolicy.stripAtBottom] says so, pinned
+///   below it with its measured height reported through
+///   `PanelPageHost.reportBottomExtent`; search is always the shell's own
+///   field, whatever placement the page declared; an empty query does not
+///   narrow the catalogue.
+///
+/// ## The sticky header
+///
+/// The policy's strip and, for a page that declares `SearchPlacement.inline`,
+/// the shell's search field are drawn over the catalogue, which is padded by
+/// their extent so its first row starts under both.
+///
+/// - The **strip** (above the field) slides away as the user reads on and
+///   comes back as they read back; a tap on one of its entries lands the
+///   section's header right under it ([PanelCatalogViewport.headerLandingInset]).
+///   It is not part of the page while search is open or results show.
+/// - The **field** is the first thing in the content: it scrolls away with it,
+///   and pins to the top while search is open, with a hairline under it while
+///   content passes beneath.
+/// - Both rest on an opaque panel background so the content passes under them.
+///
+/// The geometry (offsets, hairlines, when the strip yields) is
+/// [CatalogStickyHeader]'s; this widget feeds it the catalogue's scroll and
+/// paints what it publishes.
 ///
 /// ## What it does not do
 ///
@@ -55,7 +94,8 @@ import 'package:panel_shell/panel_shell.dart';
 /// plans no atlas: picks go to the shell, and the page that owns an atlas gives
 /// this one a [BakeActivityPort].
 ///
-/// Requires a `ChromeThemeScope` and a `ChromeStringsScope` above.
+/// Requires a `ChromeThemeScope` and a `ChromeStringsScope` above, and, for an
+/// inline search field, the `PanelSearchFieldScope` a `PanelShell` provides.
 ///
 /// The [host] of a page does not change for the life of its widget.
 class CatalogPage extends StatefulWidget {
@@ -67,6 +107,7 @@ class CatalogPage extends StatefulWidget {
     required this.assets,
     this.searchSource,
     this.bake,
+    this.searchFieldReady,
     this.padding = EdgeInsets.zero,
     this.sectionNearExtent,
     this.searchDebounce = DebouncedSearch.defaultDebounce,
@@ -97,7 +138,15 @@ class CatalogPage extends StatefulWidget {
   /// replanned for another density).
   final BakeActivityPort? bake;
 
-  /// Padding around the catalogue, passed to the viewport.
+  /// Whether the inline search field may mount, or null for always.
+  ///
+  /// The band it occupies is reserved either way, so a page that paces its
+  /// first mount over frames (grid, then field, then strip) does not move its
+  /// content when the field arrives.
+  final listen.ValueListenable<bool>? searchFieldReady;
+
+  /// Padding around the catalogue, passed to the viewport. The header's extent
+  /// is added to its top.
   final EdgeInsets padding;
 
   /// How far beyond the viewport a section edge counts as near, or null for the
@@ -111,7 +160,8 @@ class CatalogPage extends StatefulWidget {
   State<CatalogPage> createState() => _CatalogPageState();
 }
 
-class _CatalogPageState extends State<CatalogPage> {
+class _CatalogPageState extends State<CatalogPage>
+    with SingleTickerProviderStateMixin {
   late final CatalogPageController _controller;
   late final CatalogPageModel _model;
   late final PageScrollReporter _reporter;
@@ -119,17 +169,50 @@ class _CatalogPageState extends State<CatalogPage> {
   late final StreamSubscription<PanelCatalogScrollEvent> _catalogEvents;
   late final _StripHandle _strip;
   final _menu = CatalogContextMenuController();
+  late CatalogStickyHeader _header;
+  late final _CatalogMetrics _metrics;
+  late bool _inlineSearch;
+  // What the header was last built for, to know when the arrangement or the
+  // policy asks for another one.
+  double _headerStripExtent = -1;
+  bool? _headerInline;
+  late final AnimationController _reveal;
+  var _revealFrom = 0.0;
+  Curve _revealCurve = Curves.linear;
   CatalogLongPressSession? _longPress;
   CatalogLeafHit? _pinned;
   // The kind of the pointer that went down last: the long-press callbacks
   // carry none, and what a long press opens depends on it.
   var _lastKind = PointerDeviceKind.touch;
   var _showsResults = false;
+  var _searchOpen = false;
   var _modelReady = false;
   var _stripAtBottom = false;
+  var _disposed = false;
 
   PanelPageHost get _host => widget.host;
   PanelCatalogController get _catalog => _controller.catalog;
+
+  PanelArrangement get _arrangement => _model.arrangement;
+
+  // Pinned at the bottom of the page's column (the policy says, per
+  // arrangement): a fixed part of the column, never part of the header.
+  bool get _stripAtBottomNow => widget.policy.stripAtBottom(_arrangement);
+
+  // The strip is a sticky header (over the catalogue, sliding away as the user
+  // reads on) only where the arrangement lets a header slide and the policy
+  // keeps its strip at the top and declares how tall it is. Otherwise it is a
+  // plain part of the column.
+  bool get _stripSticky =>
+      _arrangement.headerSlidesAway &&
+      !_stripAtBottomNow &&
+      widget.policy.stripExtent > 0;
+
+  double get _stripExtent => _stripSticky ? widget.policy.stripExtent : 0;
+
+  // The sticky strip is part of the page only while browsing: search, open or
+  // with results, takes its place at the top.
+  bool get _stripShown => _stripExtent > 0 && !_searchOpen && !_showsResults;
 
   @override
   void initState() {
@@ -138,6 +221,8 @@ class _CatalogPageState extends State<CatalogPage> {
       _host.pageId,
       CatalogPageController.new,
     );
+    _metrics = _CatalogMetrics(_catalog);
+    _reveal = AnimationController(vsync: this)..addListener(_onRevealTick);
     _reporter = PageScrollReporter(
       events: _catalog.events,
       report: _host.reportScrollActivity,
@@ -148,6 +233,9 @@ class _CatalogPageState extends State<CatalogPage> {
       port: widget.bake,
     );
     _catalogEvents = _catalog.events.listen(_onCatalogEvent);
+    _searchOpen = _host.search.value.isOpen;
+    _host.search.addListener(_onSearchChanged);
+    widget.searchFieldReady?.addListener(_onFieldReady);
     _host.reselected.addListener(_onReselected);
     _host.isActive.addListener(_onActiveChanged);
   }
@@ -169,7 +257,7 @@ class _CatalogPageState extends State<CatalogPage> {
         arrangement: arrangement,
         searchDebounce: widget.searchDebounce,
       );
-      _strip = _StripHandle(_model, _catalog);
+      _strip = _StripHandle(_model, _catalog, _revealNow);
       _showsResults = _model.showsResults.value;
       _model.showsResults.addListener(_onShowsResultsChanged);
     } else {
@@ -177,7 +265,7 @@ class _CatalogPageState extends State<CatalogPage> {
         ..strings = strings
         ..arrangement = arrangement;
     }
-    _syncStripPlacement();
+    _syncLayout();
   }
 
   @override
@@ -192,25 +280,69 @@ class _CatalogPageState extends State<CatalogPage> {
       ..searchSource = widget.searchSource
       ..policy = widget.policy;
     _forwarder.port = widget.bake;
-    _syncStripPlacement();
+    _syncLayout();
+    if (!identical(oldWidget.searchFieldReady, widget.searchFieldReady)) {
+      oldWidget.searchFieldReady?.removeListener(_onFieldReady);
+      widget.searchFieldReady?.addListener(_onFieldReady);
+    }
   }
 
   @override
   void dispose() {
     _releaseBottomExtent();
+    _disposed = true;
     unawaited(_catalogEvents.cancel());
+    widget.searchFieldReady?.removeListener(_onFieldReady);
+    _host.search.removeListener(_onSearchChanged);
     _host.isActive.removeListener(_onActiveChanged);
     _host.reselected.removeListener(_onReselected);
     _model.showsResults.removeListener(_onShowsResultsChanged);
+    _reveal
+      ..removeListener(_onRevealTick)
+      ..dispose();
     _cancelLongPress(unpin: false);
     _menu.dispose();
     _forwarder.dispose();
     _reporter.dispose();
     _model.dispose();
+    _header.dispose();
     super.dispose();
   }
 
-  // --- The strip at the bottom -----------------------------------------------
+  // --- The layout the arrangement asks for -----------------------------------
+
+  // The page is laid out for an arrangement and a policy: the sticky header
+  // (strip over the catalogue, inline search field) under the touch
+  // arrangement, a plain column (strip above or pinned below the catalogue,
+  // the shell's own search field) under the pointer arrangement. Either can
+  // change while the page lives (a popup docked in place), so this is asked
+  // again whenever one does.
+  void _syncLayout() {
+    final capabilities = widget.policy.capabilities;
+    _inlineSearch =
+        capabilities.search &&
+        _arrangement.searchPlacementOf(capabilities.searchPlacement) ==
+            SearchPlacement.inline &&
+        widget.searchSource != null;
+    _syncStripPlacement();
+    final stripExtent = _stripExtent;
+    if (_headerInline == _inlineSearch && _headerStripExtent == stripExtent) {
+      return;
+    }
+    final first = _headerInline == null;
+    final old = first ? null : _header;
+    _headerInline = _inlineSearch;
+    _headerStripExtent = stripExtent;
+    _header = CatalogStickyHeader(
+      stripExtent: stripExtent,
+      searchExtent: _inlineSearch ? PanelSearchField.height : 0,
+    );
+    _configureHeader();
+    if (old != null) {
+      // The layers below still listen to the old one until they rebuild.
+      WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+    }
+  }
 
   // The extent the shell was told stays true only while the strip is pinned at
   // the bottom: when the arrangement or the policy moves it, the clearance it
@@ -218,7 +350,7 @@ class _CatalogPageState extends State<CatalogPage> {
   // reached from build and dispose, where the shell must not be asked to
   // rebuild.
   void _syncStripPlacement() {
-    final atBottom = widget.policy.stripAtBottom(_model.arrangement);
+    final atBottom = _stripAtBottomNow;
     if (_stripAtBottom && !atBottom) _releaseBottomExtent();
     _stripAtBottom = atBottom;
   }
@@ -237,16 +369,76 @@ class _CatalogPageState extends State<CatalogPage> {
     return offset <= 0.5 || offset >= _catalog.maxScrollExtent - 0.5;
   }
 
-  // The user took hold of the catalogue: the soft keyboard goes, so the
-  // results are not hidden behind it. A drag that continues a section jump the
-  // user started with the strip is a drag all the same.
-  void _onCatalogEvent(PanelCatalogScrollEvent event) {
-    if (event case PanelCatalogUserDragStart()) _host.releaseSearchFocus();
+  void _configureHeader() => _header.configure(
+    searchOpen: _searchOpen,
+    stripShown: _stripShown,
+    metrics: _metrics,
+  );
+
+  // The header's notifiers feed widgets, so a change made while the frame is
+  // building or laying out waits for the end of it.
+  void _whenSafe(void Function() run) {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (!_disposed) run();
+      });
+    } else {
+      run();
+    }
   }
+
+  void _onCatalogEvent(PanelCatalogScrollEvent event) {
+    switch (event) {
+      // The user took hold of the catalogue: the soft keyboard goes, so the
+      // results are not hidden behind it. A drag that continues a section jump
+      // the user started with the strip is a drag all the same.
+      case PanelCatalogUserDragStart():
+        _host.releaseSearchFocus();
+      case PanelCatalogViewportScrolled(:final delta):
+        _whenSafe(() => _header.scrolled(delta, _metrics));
+      case PanelCatalogOffsetChanged() ||
+          PanelCatalogProgrammaticJump() ||
+          PanelCatalogSectionJumpStart() ||
+          PanelCatalogSectionJumpEnd() ||
+          PanelCatalogAnimateStart():
+        _whenSafe(() => _header.sync(_metrics));
+      default:
+        break;
+    }
+  }
+
+  void _onSearchChanged() {
+    final open = _host.search.value.isOpen;
+    if (open == _searchOpen) return;
+    _searchOpen = open;
+    _configureHeader();
+    if (!open) {
+      // The strip is part of the page again: it comes back, whatever it was
+      // doing when search opened.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_disposed) unawaited(_revealStrip());
+      });
+    }
+    setState(() {});
+  }
+
+  void _onFieldReady() => setState(() {});
 
   void _onReselected() {
     _cancelLongPress();
-    _catalog.animateTo(0);
+    if (_stripShown) {
+      unawaited(_revealThenJumpToFirstSection());
+    } else {
+      _catalog.animateTo(0);
+    }
+  }
+
+  Future<void> _revealThenJumpToFirstSection() async {
+    await _revealStrip();
+    if (_disposed) return;
+    final first = _model.snapshots.value.sections;
+    if (first.isNotEmpty) await _catalog.jumpToSection(0);
   }
 
   void _onActiveChanged() {
@@ -272,7 +464,45 @@ class _CatalogPageState extends State<CatalogPage> {
         });
       }
     }
-    setState(() => _showsResults = shows);
+    _showsResults = shows;
+    _configureHeader();
+    setState(() {});
+  }
+
+  // --- The strip's reveal ---------------------------------------------------
+
+  // Slides the strip back at once: a jump to a section starts from a strip
+  // that is whole.
+  void _revealNow() {
+    _reveal.stop();
+    _header.setStripOffset(0, _metrics);
+  }
+
+  void _onRevealTick() => _header.setStripOffset(
+    _revealFrom * (1 - _revealCurve.transform(_reveal.value)),
+    _metrics,
+  );
+
+  // Slides the strip back over the reveal role's motion; completes when it is
+  // whole, or when another motion took over.
+  Future<void> _revealStrip() async {
+    final from = _header.stripOffset.value;
+    final spec = ChromeMotionScope.of(context).specOf(MotionRole.stripReveal);
+    if (from >= -0.5 || spec.duration == Duration.zero) {
+      _revealNow();
+      return;
+    }
+    _revealFrom = from;
+    _revealCurve = spec.curve;
+    _reveal
+      ..stop()
+      ..duration = spec.duration;
+    try {
+      await _reveal.forward(from: 0);
+      if (!_disposed) _header.setStripOffset(0, _metrics);
+    } on TickerCanceled {
+      // A newer reveal, or the page leaving, took over.
+    }
   }
 
   // --- Interaction ----------------------------------------------------------
@@ -378,42 +608,74 @@ class _CatalogPageState extends State<CatalogPage> {
 
   @override
   Widget build(BuildContext context) {
-    final strip = _showsResults
-        ? null
-        : widget.policy.buildStrip(context, _strip);
-    final atBottom = widget.policy.stripAtBottom(_model.arrangement);
+    final panel = ChromeThemeScope.panelOf(context);
+    final atBottom = _stripAtBottomNow;
+    final sticky = _stripSticky;
+    final browsing = sticky ? _stripShown : !_showsResults;
+    final strip = browsing ? widget.policy.buildStrip(context, _strip) : null;
+    // A sticky strip is drawn over the catalogue; any other is a part of the
+    // column, above the catalogue or below it.
+    final overlay = sticky ? strip : null;
+    final inColumn = sticky ? null : strip;
+    final fieldBand = _inlineSearch ? PanelSearchField.height : 0.0;
+    final stripBand = overlay == null ? 0.0 : _stripExtent;
+    final padding = widget.padding.copyWith(
+      top: widget.padding.top + stripBand + fieldBand,
+    );
+    final fieldMounted = widget.searchFieldReady?.value ?? true;
     return ChromeCatalogTheme(
       child: CatalogContextMenuHost(
         host: _host,
         controller: _menu,
         child: Column(
           children: [
-            if (!atBottom) ?strip,
+            if (!atBottom) ?inColumn,
             Expanded(
-              // Only the catalogue binds the arrows and Space: a strip above
-              // it keeps the keys of its own controls.
-              child: CatalogKeyboardFocus(
-                controller: _catalog,
-                child: Listener(
-                  behavior: HitTestBehavior.translucent,
-                  onPointerDown: (event) => _lastKind = event.kind,
-                  child: PanelCatalogViewport(
-                    snapshots: _model.snapshots,
-                    assets: widget.assets,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Only the catalogue binds the arrows and Space: a strip
+                  // around it keeps the keys of its own controls.
+                  CatalogKeyboardFocus(
                     controller: _catalog,
-                    padding: widget.padding,
-                    sectionNearExtent: widget.sectionNearExtent,
-                    onLeafTap: _onTap,
-                    onLeafSecondaryTap: _onSecondaryTap,
-                    leafLongPressEligible: _longPressEligible,
-                    leafLongPressDelay: _longPressDelay,
-                    onLeafLongPressStart: _onLongPressStart,
-                    onLeafLongPressMove: _onLongPressMove,
-                    onLeafLongPressEnd: _onLongPressEnd,
-                    pinnedLeaf: _pinned,
-                    onSectionAction: _onSectionAction,
+                    child: Listener(
+                      behavior: HitTestBehavior.translucent,
+                      onPointerDown: (event) => _lastKind = event.kind,
+                      child: PanelCatalogViewport(
+                        snapshots: _model.snapshots,
+                        assets: widget.assets,
+                        controller: _catalog,
+                        padding: padding,
+                        headerLandingInset: overlay == null ? null : stripBand,
+                        sectionNearExtent: widget.sectionNearExtent,
+                        onLeafTap: _onTap,
+                        onLeafSecondaryTap: _onSecondaryTap,
+                        leafLongPressEligible: _longPressEligible,
+                        leafLongPressDelay: _longPressDelay,
+                        onLeafLongPressStart: _onLongPressStart,
+                        onLeafLongPressMove: _onLongPressMove,
+                        onLeafLongPressEnd: _onLongPressEnd,
+                        pinnedLeaf: _pinned,
+                        onSectionAction: _onSectionAction,
+                      ),
+                    ),
                   ),
-                ),
+                  if (_inlineSearch && fieldMounted)
+                    _SearchLayer(
+                      header: _header,
+                      background: panel.background,
+                      stripShown: overlay != null,
+                      stripExtent: _stripExtent,
+                    ),
+                  if (overlay != null)
+                    _StripLayer(
+                      header: _header,
+                      background: panel.background,
+                      hairline: panel.hairline,
+                      extent: _stripExtent,
+                      child: overlay,
+                    ),
+                ],
               ),
             ),
             // Measured, not assumed: no strip (results showing, a single
@@ -421,7 +683,7 @@ class _CatalogPageState extends State<CatalogPage> {
             if (atBottom)
               BottomExtentReporter(
                 onExtent: _host.reportBottomExtent,
-                child: strip ?? const SizedBox.shrink(),
+                child: inColumn ?? const SizedBox.shrink(),
               ),
           ],
         ),
@@ -430,11 +692,209 @@ class _CatalogPageState extends State<CatalogPage> {
   }
 }
 
+/// The catalogue controller seen as the scroll the header reads.
+final class _CatalogMetrics implements CatalogScrollMetrics {
+  _CatalogMetrics(this._catalog);
+
+  final PanelCatalogController _catalog;
+
+  @override
+  double get offset => _catalog.offset;
+
+  @override
+  double get maxScrollExtent => _catalog.maxScrollExtent;
+
+  @override
+  bool get isSectionJumpActive => _catalog.isSectionJumpActive;
+}
+
+/// The search field over the catalogue: in its band at rest, translated by the
+/// header, clipped at the strip's lower edge so it passes under the strip
+/// rather than over it.
+class _SearchLayer extends StatelessWidget {
+  const _SearchLayer({
+    required this.header,
+    required this.background,
+    required this.stripShown,
+    required this.stripExtent,
+  });
+
+  final CatalogStickyHeader header;
+  final Color background;
+  final bool stripShown;
+  final double stripExtent;
+
+  @override
+  Widget build(BuildContext context) {
+    // Built once: a frame of scrolling rebuilds the clip and the translation
+    // around it, never the field.
+    final field = ColoredBox(
+      color: background,
+      child: PanelSearchField(shadow: header.searchShadow),
+    );
+    return Positioned.fill(
+      child: ListenValueBuilder<double>(
+        listenable: header.searchOffset,
+        builder: (context, offset) => ListenValueBuilder<double>(
+          listenable: header.stripOffset,
+          builder: (context, stripOffset) {
+            final clipTop = stripShown
+                ? (stripExtent + stripOffset + 1).clamp(0.0, double.infinity)
+                : 0.0;
+            return ClipRect(
+              clipper: _TopEdgeClipper(clipTop),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Transform.translate(
+                  offset: Offset(0, offset),
+                  child: field,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// The strip over the catalogue: slid up by the header, on an opaque
+/// background, with a hairline under it while content passes beneath.
+class _StripLayer extends StatelessWidget {
+  const _StripLayer({
+    required this.header,
+    required this.background,
+    required this.hairline,
+    required this.extent,
+    required this.child,
+  });
+
+  final CatalogStickyHeader header;
+  final Color background;
+  final Color hairline;
+  final double extent;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final strip = SizedBox(
+      height: extent,
+      width: double.infinity,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: ColoredBox(color: background, child: child),
+          ),
+          // Painted below the strip's box: the strip's own layout stays its
+          // height, and a hairline that fades in does not move it.
+          Positioned(
+            left: 0,
+            right: 0,
+            top: extent,
+            child: _Hairline(visible: header.stripShadow, color: hairline),
+          ),
+        ],
+      ),
+    );
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: ListenValueBuilder<double>(
+        listenable: header.stripOffset,
+        builder: (context, offset) =>
+            Transform.translate(offset: Offset(0, offset), child: strip),
+      ),
+    );
+  }
+}
+
+/// A 1 px line that fades in and out with [visible].
+class _Hairline extends StatefulWidget {
+  const _Hairline({required this.visible, required this.color});
+
+  final listen.ValueListenable<bool> visible;
+  final Color color;
+
+  @override
+  State<_Hairline> createState() => _HairlineState();
+}
+
+class _HairlineState extends State<_Hairline>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _fade = AnimationController(
+    vsync: this,
+    value: widget.visible.value ? 1 : 0,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    widget.visible.addListener(_onVisible);
+  }
+
+  @override
+  void didUpdateWidget(_Hairline oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.visible, widget.visible)) {
+      oldWidget.visible.removeListener(_onVisible);
+      widget.visible.addListener(_onVisible);
+      _onVisible();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.visible.removeListener(_onVisible);
+    _fade.dispose();
+    super.dispose();
+  }
+
+  void _onVisible() {
+    final duration = ChromeMotionScope.of(context).durationOf(MotionRole.fade);
+    if (widget.visible.value) {
+      unawaited(_fade.animateTo(1, duration: duration));
+    } else {
+      unawaited(_fade.animateBack(0, duration: duration));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _fade,
+    builder: (context, _) {
+      final t = Curves.easeOut.transform(_fade.value);
+      if (t <= 0.001) return const SizedBox.shrink();
+      // Alpha on the fill, not an Opacity: no saveLayer while it fades over
+      // scrolling content.
+      return ColoredBox(
+        color: widget.color.withValues(alpha: widget.color.a * t),
+        child: const SizedBox(height: 1, width: double.infinity),
+      );
+    },
+  );
+}
+
+/// Keeps painting below [top]; anything drawn above that edge is clipped.
+final class _TopEdgeClipper extends CustomClipper<Rect> {
+  const _TopEdgeClipper(this.top);
+
+  final double top;
+
+  @override
+  Rect getClip(Size size) => Rect.fromLTRB(0, top, size.width, size.height);
+
+  @override
+  bool shouldReclip(_TopEdgeClipper oldClipper) => oldClipper.top != top;
+}
+
 final class _StripHandle implements CatalogStripHandle {
-  _StripHandle(this._model, this._catalog);
+  _StripHandle(this._model, this._catalog, this._revealNow);
 
   final CatalogPageModel _model;
   final PanelCatalogController _catalog;
+  final void Function() _revealNow;
 
   @override
   listen.ValueListenable<List<CatalogStripEntry>> get entries =>
@@ -450,7 +910,11 @@ final class _StripHandle implements CatalogStripHandle {
   Future<void> jumpToSection(String sectionId) {
     final index = _model.sectionIndexOf(sectionId);
     return switch (index) {
-      final index? => _catalog.jumpToSection(index),
+      final index? => () {
+        // A jump starts from a strip that is whole: it lands under it.
+        _revealNow();
+        return _catalog.jumpToSection(index);
+      }(),
       null => Future<void>.value(),
     };
   }

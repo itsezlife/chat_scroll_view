@@ -250,10 +250,15 @@ class _PanelShellState extends State<PanelShell> {
               : safeBottom + PanelBottomBar.height,
         ),
       ),
-      child: PanelPager(
+      // A page that places its own search field finds the controller here.
+      child: PanelSearchFieldScope(
         controller: _shell,
-        position: _position,
-        dragging: _dragging,
+        contextMenuBuilder: widget.searchContextMenuBuilder,
+        child: PanelPager(
+          controller: _shell,
+          position: _position,
+          dragging: _dragging,
+        ),
       ),
     );
     final stack = Stack(
@@ -381,7 +386,14 @@ class _PanelShellState extends State<PanelShell> {
   // its own layout when it is asked to resize over no time, which is a
   // framework error, and there is nothing to animate anyway.
   Widget _searchSlot(ChromeMotionData motion) {
-    final slot = _fieldMounted && _shell.selectedPage.capabilities.search
+    final capabilities = _shell.selectedPage.capabilities;
+    final slot =
+        _fieldMounted &&
+            capabilities.search &&
+            widget.arrangement.searchPlacementOf(
+                  capabilities.searchPlacement,
+                ) ==
+                SearchPlacement.pinned
         ? FocusTraversalOrder(
             order: const NumericFocusOrder(3),
             child: PanelSearchField(

@@ -19,9 +19,11 @@ Headless, in `packages/panel_presentation/test/keyboard/`:
   assertions are exact.
 - **Frame cost** (`keyboard_replacement_strategy_test.dart`, "rebuilds nothing
   under the sheet"): across the whole motion the shell and its pages are built
-  once. A frame of the open costs the clip's relayout and the occupancy
-  listeners of the host; the sheet is a fixed-height box clipped by the slot,
-  so its content never reflows.
+  once. A frame of the open costs the layout of the sheet and the occupancy
+  listeners of the host; the sheet is the slot, so the page's viewport lays out
+  at the slot's height each frame (its strip, search field and rounded corners
+  ride the slot's top edge, the bottom bar stays on the bottom). The first
+  device pass should read the raster and build times of exactly that.
 - **Pause signals**: the shell is told `opening` for the whole `showing` phase
   and `visible` while the panel is on screen, so the atlas bake and the
   paced mount keep their signals.

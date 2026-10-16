@@ -11,6 +11,7 @@ top strip. This supersedes the controller and widget-API parts of
 **Amended**: 2026-10-16 — state is `package:listen`, typed events are synchronous `Stream`s ([ADR 023](023-data-layering-and-persistence.md) Amendment)  
 **Amended**: 2026-10-16 — the **panel arrangement** (`touch`, `pointer`) splits the bottom chrome and places a page's strip ([Amendment](#amendment-panel-arrangement))  
 **Amended**: 2026-10-16 — cell interactions under a mouse: the recents context menu, the variant picker rules and the hold seam ([Amendment](#amendment-cell-interactions-under-a-mouse))  
+**Amended**: 2026-10-16 — under `touch` a page may place the search field itself and draw a sticky header ([Amendment](#amendment-where-the-field-sits)); the arrangement selects between the two  
 **Relates to**: [ADR 007](007-keyboard-panel-controller.md) (superseded in part), [ADR 020](020-package-topology.md), [ADR 023](023-data-layering-and-persistence.md), [ADR 024](024-panel-catalog-seams.md), [ADR 028](028-panel-presentation.md)
 
 ## Decided
@@ -39,11 +40,12 @@ shell. This amends the *Strip and bottom chrome* and *Search* rows above.
 | Area | Decision |
 | ---- | -------- |
 | Vocabulary | `PanelArrangement { touch, pointer }`, defined in `panel_shell` beside `PanelShell`. A presentation chooses it and hands it to `PanelShell(arrangement:)`; the shell provides it to its pages through `PanelArrangementScope`, which answers `touch` where no shell is above. No package reads the platform for it: a presentation strategy decides. `KeyboardReplacement` and the fake presentation keep `touch`; `AnchoredPopup` and `Docked` pass `pointer`. |
-| `touch` | Unchanged: type tabs and the page's actions in one floating bottom bar that slides away as the content is read; the page's strip above its catalogue; an empty search narrows a page to its most used content. |
+| `touch` | Unchanged: type tabs and the page's actions in one floating bottom bar that slides away as the content is read; the page's strip over its catalogue, sliding away with the reading, and a search field a page may place among its content ([where the field sits](#amendment-where-the-field-sits)); an empty search narrows a page to its most used content. |
 | `pointer`, tabs | The type tabs pill moves to the top of the shell column, above the search field. One page has no tabs. |
 | `pointer`, bar | The floating bar keeps only the selected page's actions (backspace) at the end side. Scrolling never hides it (a wheel step is a drag report; hide-on-scroll is a touch idiom); an open search does, as under `touch`. It rises above the strip the page pins at the bottom: the page tells the shell that strip's measured height (`PanelPageHost.reportBottomExtent`, kept per page, read as `PanelShellController.bottomExtent`), so no height is repeated in the shell. The shell keeps the safe inset for itself under `pointer`, and tells pages the bar's room only. |
 | `pointer`, strip | A page that pins its strip at the bottom says so per arrangement (`CatalogPagePolicy.stripAtBottom`) and the strip stays page-owned: shell owns the bar, page owns the strip. The emoji strip is then a 1 px separator over 36 px of icons on its own fill, the active category marked by a 28 px square of radius 8 that slides to the next icon over the `selectionSlide` motion role (400 ms, ease-out cubic; placed, not moved, on the first selection and where animations are off), no paint on hover, the click cursor over an icon. |
-| `pointer`, search | An empty query with search open keeps the whole catalogue and the strip. The trailing control clears the text and the grid is back with the same press; on an empty field it closes search, as before. Under `touch` the narrowing stays. |
+| `pointer`, search | The shell draws the search field below the tabs whatever placement the page declared (`inline` is a `touch` idiom: `PanelArrangement.searchPlacementOf`). An empty query with search open keeps the whole catalogue and the strip. The trailing control is a cancel control while search is open: the first press clears the text and the grid is back, the second closes search, since a mouse has no back gesture. Under `touch` the narrowing stays and the trailing control only clears. |
+| `pointer`, header | Nothing a page draws slides: a strip is a plain part of the page's column (above the catalogue, or pinned below it) and there is no sticky header. `PanelArrangement.headerSlidesAway` is the one question a page asks. |
 | `pointer`, cells | A mouse hovering a cell paints the hover wash (rounded rect, inset from the cell, instant) through `PanelCatalogThemeData.leafHoverHighlightColor`, which the page maps from chrome tokens and sets only under `pointer`; the click cursor over a cell is the viewport's own. |
 
 ## Amendment: cell interactions under a mouse
@@ -64,6 +66,34 @@ The reference client has no backspace control; it is kept because the product
 asked for it, as the one action in a bar that stays out of the way. Dropping it
 is one declaration: remove `PageAction.backspace()` from the page's
 capabilities.
+
+## Amendment: where the field sits
+
+This is the `touch` arrangement's layout; under `pointer` the arrangement above
+wins (the shell draws the field, the strip is plain column). A page reads the
+arrangement and takes one layout or the other; the two are never blended, and a
+page built with no shell above answers `touch`.
+
+The first cut drew the one field in the shell, above the pager, and the page's
+strip in a column above the catalogue. Both stood still while the catalogue
+scrolled, which dropped the behavior the panel shipped with: the category strip
+slides away as the user reads on and returns as they read back, and the search
+field is the first thing in the content, scrolls away with it and pins to the
+top once search opens.
+
+| Area | Decision |
+| ---- | -------- |
+| State | Unchanged. The shell controller owns the query, the focus intent and open or closed; the field is a projection of it, wherever it is drawn. |
+| Placement | `PageCapabilities.searchPlacement`: `pinned` (the default; the shell draws the field above the pager) or `inline` (the page draws it; honoured under `touch` only). An inline page places a `PanelSearchField` among its own content; the shell gives it the controller and the selection toolbar through a `PanelSearchFieldScope` above the pager. The shell draws no field for an inline page. |
+| Sticky header | `CatalogPage` draws the policy's strip and, for an inline page, the field over the catalogue and pads the catalogue by their extent. The geometry (offsets, hairlines, when the strip yields) is one pure class, `CatalogStickyHeader`, fed by the catalogue's scroll events. The strip's extent is declared by the policy (`stripExtent`), and section jumps land under it (`headerLandingInset`). |
+| Field chrome | The leading icon morphs (magnifier, progress ring, back chevron that clears), under both arrangements. Under `touch` the trailing control clears the query only and search is left through the controller (back, the composer, another page), not by a control of the field; `pointer` adds the cancel behavior above. |
+| Motion | Two roles join the table: `stripReveal` and `iconMorph`. |
+
+Why page placement and not shell-side translation: the field's position is a
+function of the catalogue's offset and of the strip's, both of which the page
+owns; reporting them out to the shell to move a widget back in would invent a
+channel for one consumer. State stays in the shell, which is what lets the
+field survive a page switch.
 
 ## Supersedes in ADR 007
 

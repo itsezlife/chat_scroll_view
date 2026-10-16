@@ -45,6 +45,7 @@ final class AppServices {
   AppServices._({
     required this.keyValueStore,
     required this.recents,
+    required this.recentsShown,
     required this.preferences,
     required this.keyboardHeights,
     required this.centerBands,
@@ -162,10 +163,17 @@ final class AppServices {
       ];
       final probe = wireSystemEmojiGlyphProbe(glyphs: glyphs, store: storage);
       owned(probe.probe, (probe) => probe.dispose());
+      // What the panel lists is a view that catches up with the store when the
+      // panel opens and when search ends, not on every pick (see
+      // [recentsShown]).
+      final recentsShown = owned(
+        DeferredRecentsStore(recents),
+        (view) => view.dispose(),
+      );
       final emojiSource = owned(
         EmojiCollectionSource(
           catalog: catalog,
-          recents: recents,
+          recents: recentsShown,
           preferences: preferences,
           glyphSupport: probe.probe,
           keywords: keywords,
@@ -178,7 +186,7 @@ final class AppServices {
           catalog: catalog,
           keywords: keywords,
           languages: languages,
-          recents: recents,
+          recents: recentsShown,
           preferences: preferences,
           glyphSupport: probe.probe,
         ),
@@ -188,6 +196,7 @@ final class AppServices {
       return AppServices._(
         keyValueStore: storage,
         recents: recents,
+        recentsShown: recentsShown,
         preferences: preferences,
         keyboardHeights: keyboardHeights,
         centerBands: centerBands,
@@ -219,6 +228,12 @@ final class AppServices {
 
   /// What the user picked, per kind of content.
   final RecentsStore recents;
+
+  /// The recents as the panel shows them: those of [recents] as of the last
+  /// `commit`. A pick is recorded in [recents] at once and listed here when
+  /// the host commits, so the grid does not reorder under the finger that is
+  /// picking from it.
+  final DeferredRecentsStore recentsShown;
 
   /// The variant chosen per emoji, the selected panel page and the dock
   /// choice.
@@ -303,6 +318,7 @@ final class AppServices {
     _webProbePass?.cancel();
     emojiSearch.dispose();
     emojiSource.dispose();
+    recentsShown.dispose();
     glyphProbe.dispose();
     _lifecycle.dispose();
     assets.dispose();

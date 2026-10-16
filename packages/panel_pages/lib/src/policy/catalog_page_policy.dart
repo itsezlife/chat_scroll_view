@@ -349,17 +349,31 @@ abstract class CatalogPagePolicy {
   // --- Chrome inside the page -----------------------------------------------
 
   /// Whether the strip is pinned at the bottom of the page, below the
-  /// catalogue, rather than above it. Asked per [arrangement]: a page that
-  /// answers true for one reports the strip's extent to the shell
+  /// catalogue, rather than over it at the top. Asked per [arrangement]: a page
+  /// that answers true for one reports the strip's extent to the shell
   /// (`PanelPageHost.reportBottomExtent`), so floating chrome stays above it.
   /// The default keeps the strip on top.
+  ///
+  /// A strip at the bottom is a fixed part of the page's column: it neither
+  /// slides away nor is measured by [stripExtent].
   bool stripAtBottom(PanelArrangement arrangement) => false;
 
+  /// The height of the strip [buildStrip] builds where it is on top (where
+  /// [stripAtBottom] is false), or 0 for a policy with none.
+  ///
+  /// The page draws that strip over the catalogue and pads the catalogue by this
+  /// much, so the strip's own layout must be exactly this tall.
+  double get stripExtent => 0;
+
   /// The strip (a category or set strip) shown with the catalogue while
-  /// browsing, or null for none; above it, or below it where [stripAtBottom].
+  /// browsing, or null for none: over the top of it, or below it where
+  /// [stripAtBottom].
   ///
   /// The page owns the strip: [strip] gives it the sections to show and the
   /// jump to one. It reads the arrangement it is drawn for from
-  /// `PanelArrangementScope`. It is not shown while search results are.
+  /// `PanelArrangementScope`. At the top it slides away as the user reads on
+  /// and returns as they read back, and it is not part of the page while search
+  /// is open or results are shown; at the bottom it stays, and only results
+  /// take it away.
   Widget? buildStrip(BuildContext context, CatalogStripHandle strip) => null;
 }

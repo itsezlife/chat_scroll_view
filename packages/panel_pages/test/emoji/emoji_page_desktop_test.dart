@@ -70,28 +70,30 @@ void main() {
     await tester.pumpWidget(
       PanelShellTestScope(
         textDirection: direction,
-        child: Overlay(
-          initialEntries: [
-            OverlayEntry(
-              builder: (context) => PanelArrangementScope(
-                arrangement: arrangement,
-                child: Center(
-                  child: SizedBox(
-                    width: 360,
-                    height: 480,
-                    child: EmojiPage(
-                      host: host,
-                      source: source,
-                      searchSource: search,
-                      preferences: preferences,
-                      entryOf: fixtures.entryOf,
-                      assets: assets,
+        child: FakeSearchFieldScope(
+          child: Overlay(
+            initialEntries: [
+              OverlayEntry(
+                builder: (context) => PanelArrangementScope(
+                  arrangement: arrangement,
+                  child: Center(
+                    child: SizedBox(
+                      width: 360,
+                      height: 480,
+                      child: EmojiPage(
+                        host: host,
+                        source: source,
+                        searchSource: search,
+                        preferences: preferences,
+                        entryOf: fixtures.entryOf,
+                        assets: assets,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -102,15 +104,24 @@ void main() {
       tester.getTopLeft(find.byType(EmojiPage));
 
   // The centre of the cell at [row], [column] of the section whose header is
-  // [top] below the page's top.
+  // [top] below the content's start: the page's top under the pointer
+  // arrangement, below whatever the page pins over the grid (the strip, the
+  // search field) under touch, which the viewport's padding makes room for.
   Offset cell(
     WidgetTester tester, {
     required double top,
     int row = 0,
     int column = 0,
-  }) =>
-      origin(tester) +
-      Offset(5 + 43.75 * (column + 0.5), top + 27 + 45 * row + 22.5);
+  }) {
+    final viewport = tester.widget<PanelCatalogViewport>(
+      find.byType(PanelCatalogViewport),
+    );
+    return tester.getTopLeft(find.byType(PanelCatalogViewport)) +
+        Offset(
+          5 + 43.75 * (column + 0.5),
+          viewport.padding.top + top + 27 + 45 * row + 22.5,
+        );
+  }
 
   const recents0 = 0.0; // 😀 (column 0) and 👍 (column 1)
   const smileys = 72.0; // 😀 (column 0), ❤ (column 1)
@@ -573,10 +584,7 @@ void main() {
         'nearest option', (tester) async {
       await pumpPage(tester, arrangement: PanelArrangement.touch);
 
-      // The strip is on top for a finger: 36 px more above the grid.
-      final touch = await tester.startGesture(
-        cell(tester, top: people) + const Offset(0, 36),
-      );
+      final touch = await tester.startGesture(cell(tester, top: people));
       await tester.pump(const Duration(milliseconds: 300));
       expect(picker(), findsNothing);
       await tester.pump(const Duration(milliseconds: 300));

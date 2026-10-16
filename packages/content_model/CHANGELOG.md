@@ -6,6 +6,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `DeferredRecentsStore`: a `RecentsStore` view that shows the recents of
+  another as of its last `commit()`, so a panel that lists them does not
+  reorder under the finger picking from it. Picks go to the real store at once;
+  a clear commits at once.
+
 ### Changed
 
 - `PreferenceStore.preferredVariant` documents that choosing the base is stored
@@ -31,6 +38,9 @@ package is pre-1.0.
   with it, and signals once (nothing when it was not listed). In the contract
   suite, the reference store, the ledger and the fake. Source-breaking for an
   implementer of `RecentsStore`.
+  `DeferredRecentsStore.remove` forgets in the real store and takes the key out
+  of what the view shows at once, leaving every other waiting pick for the next
+  `commit` (a pick of the same key not yet shown is forgotten with it).
 - Pure-Dart value types for catalog content: `ContentKey` (`unicode`,
   `document`, `external`, with a stable string encoding), `ContentDescriptor`,
   `SemanticKind`, `MediaForm`, `Collection`, `CollectionId`,

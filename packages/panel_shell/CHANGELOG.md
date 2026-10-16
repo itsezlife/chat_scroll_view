@@ -33,6 +33,35 @@ is pre-1.0.
   the reports.
 - `BottomBarVisibility(hidesOnScroll:)`: a bar that scroll activity does not
   hide.
+- `SearchPlacement` and `PageCapabilities.searchPlacement`. A page that
+  declares `inline` draws the search field itself (a `PanelSearchField` under
+  the `PanelSearchFieldScope` the shell provides above its pager), among its own
+  content, so it can scroll away with it and pin when search opens; the shell
+  draws none for it. `pinned`, the default, is the previous behavior. Only
+  `touch` honours `inline`: `PanelArrangement.searchPlacementOf` answers
+  `pinned` for `pointer`, where the shell draws the field below the type tabs
+  whatever the page declared. `PanelArrangement.headerSlidesAway` says whether a
+  page's strip and inline field may slide away (`touch`).
+- `PanelSearchField` and `PanelSearchStateIcon` are exported. The field's
+  controller is optional (the scope's is used), and it takes a `shadow`
+  listenable for the hairline under it.
+
+### Changed
+
+- The search field looks and acts as the panel's did: the leading icon morphs
+  from magnifier to progress ring (while a search is in flight) to a back
+  chevron that clears the query (once it settled); the trailing control is a
+  clear control that shows only with text. **Under `touch` the cancel control that
+  closed search is gone**: search is left through the controller (`closeSearch`,
+  `handleBack`), as the panel's back handling already did. Existing code that
+  tapped the field's "Cancel" to close search closes it through the controller
+  instead.
+  Under `pointer`, which has no back gesture, the trailing control stays the
+  cancel control it was: it shows while search is open, the first press empties
+  the query and the second closes search. `FakePanelPage` with an inline
+  placement draws its field only where the arrangement lets a page place it.
+- The progress ring is the morphing icon's arc, which follows its own ticker;
+  the `loop` motion role is no longer read by this package.
 
 ### Changed
 

@@ -117,7 +117,9 @@ final class CatalogLeafPointer {
     _ensureRecognizers();
     _tap?.addPointer(event);
     if (longPressEligible) {
-      _longPressFor(leafLongPressDelay?.call(hit, event.kind)).addPointer(event);
+      _longPressFor(
+        leafLongPressDelay?.call(hit, event.kind),
+      ).addPointer(event);
     }
   }
 
@@ -163,14 +165,12 @@ final class CatalogLeafPointer {
   }
 
   LongPressGestureRecognizer _longPressFor(Duration? delay) =>
-      _longPresses[delay] ??= LongPressGestureRecognizer(
-        debugOwner: debugOwner,
-        duration: delay,
-      )
-        ..onLongPressStart = _onLongPressStart
-        ..onLongPressMoveUpdate = _onLongPressMoveUpdate
-        ..onLongPressEnd = _onLongPressEnd
-        ..onLongPressCancel = _onCancel;
+      _longPresses[delay] ??=
+          LongPressGestureRecognizer(debugOwner: debugOwner, duration: delay)
+            ..onLongPressStart = _onLongPressStart
+            ..onLongPressMoveUpdate = _onLongPressMoveUpdate
+            ..onLongPressEnd = _onLongPressEnd
+            ..onLongPressCancel = _onCancel;
 
   void _onTap() {
     if (flingCancelSuppresses?.call() ?? false) return;

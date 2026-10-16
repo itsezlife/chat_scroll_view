@@ -234,9 +234,8 @@ void main() {
         onLeafTap: (_) {},
         onLongPressStart: (hit, _) => started.add(hit),
         onLongPressEnd: (_, _) {},
-        delay: (hit, kind) => kind == PointerDeviceKind.mouse
-            ? Duration.zero
-            : null,
+        delay: (hit, kind) =>
+            kind == PointerDeviceKind.mouse ? Duration.zero : null,
       );
       final gesture = await mouse(tester);
 
@@ -274,9 +273,8 @@ void main() {
         onLeafTap: (_) {},
         onLongPressStart: (_, _) => started++,
         onLongPressEnd: (_, _) {},
-        delay: (hit, kind) => kind == PointerDeviceKind.mouse
-            ? Duration.zero
-            : null,
+        delay: (hit, kind) =>
+            kind == PointerDeviceKind.mouse ? Duration.zero : null,
       );
 
       final touch = await tester.startGesture(_first);
@@ -287,34 +285,36 @@ void main() {
       await touch.up();
     });
 
-    testWidgets('a mouse delay of 500 ms waits for it, and a quick click taps',
-        (tester) async {
-      var taps = 0;
-      var started = 0;
-      await pumpViewport(
-        tester,
-        onLeafTap: (_) => taps++,
-        onLongPressStart: (_, _) => started++,
-        onLongPressEnd: (_, _) {},
-        delay: (hit, kind) => const Duration(milliseconds: 200),
-      );
-      final gesture = await mouse(tester);
+    testWidgets(
+      'a mouse delay of 500 ms waits for it, and a quick click taps',
+      (tester) async {
+        var taps = 0;
+        var started = 0;
+        await pumpViewport(
+          tester,
+          onLeafTap: (_) => taps++,
+          onLongPressStart: (_, _) => started++,
+          onLongPressEnd: (_, _) {},
+          delay: (hit, kind) => const Duration(milliseconds: 200),
+        );
+        final gesture = await mouse(tester);
 
-      await gesture.down(_first);
-      await tester.pump(const Duration(milliseconds: 150));
-      expect(started, 0);
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(started, 1);
-      await gesture.up();
-      await tester.pump();
+        await gesture.down(_first);
+        await tester.pump(const Duration(milliseconds: 150));
+        expect(started, 0);
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(started, 1);
+        await gesture.up();
+        await tester.pump();
 
-      await gesture.down(_second);
-      await tester.pump(const Duration(milliseconds: 50));
-      await gesture.up();
-      await tester.pump();
-      expect(taps, 1);
-      expect(started, 1);
-    });
+        await gesture.down(_second);
+        await tester.pump(const Duration(milliseconds: 50));
+        await gesture.up();
+        await tester.pump();
+        expect(taps, 1);
+        expect(started, 1);
+      },
+    );
 
     testWidgets('the delay is asked per cell', (tester) async {
       var started = 0;
@@ -388,9 +388,7 @@ void main() {
   group('pinned leaf', () {
     Rect? washOf(WidgetTester tester) {
       final canvas = RecordingCanvas();
-      render(
-        tester,
-      ).paint(TestRecordingPaintingContext(canvas), Offset.zero);
+      render(tester).paint(TestRecordingPaintingContext(canvas), Offset.zero);
       final washes = [
         for (final r in canvas.rrects)
           if (r.color.toARGB32() == _hover.toARGB32()) r.rrect.outerRect,

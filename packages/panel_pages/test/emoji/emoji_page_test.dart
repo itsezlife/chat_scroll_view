@@ -67,35 +67,37 @@ void main() {
     TextDirection direction = TextDirection.ltr,
   }) => PanelShellTestScope(
     textDirection: direction,
-    child: Overlay(
-      initialEntries: [
-        OverlayEntry(
-          builder: (context) => ListenableBuilder(
-            listenable: Listenable.merge([swapped, density]),
-            builder: (context, _) => MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(devicePixelRatio: density.value),
-              child: Center(
-                child: SizedBox(
-                  width: 360,
-                  height: 480,
-                  child: EmojiPage(
-                    host: host,
-                    source: swapped.value ?? withSource ?? source,
-                    searchSource: search,
-                    preferences: preferences,
-                    entryOf: fixtures.entryOf,
-                    assets: assets,
-                    deferChrome: deferChrome,
-                    atlasHostFactory: atlas,
+    child: FakeSearchFieldScope(
+      child: Overlay(
+        initialEntries: [
+          OverlayEntry(
+            builder: (context) => ListenableBuilder(
+              listenable: Listenable.merge([swapped, density]),
+              builder: (context, _) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(devicePixelRatio: density.value),
+                child: Center(
+                  child: SizedBox(
+                    width: 360,
+                    height: 480,
+                    child: EmojiPage(
+                      host: host,
+                      source: swapped.value ?? withSource ?? source,
+                      searchSource: search,
+                      preferences: preferences,
+                      entryOf: fixtures.entryOf,
+                      assets: assets,
+                      deferChrome: deferChrome,
+                      atlasHostFactory: atlas,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 
@@ -103,7 +105,7 @@ void main() {
       tester.getTopLeft(find.byType(EmojiPage));
 
   /// The centre of the cell at [row], [column] of a section whose header
-  /// starts [top] px below the strip.
+  /// starts [top] px below the strip and the search field's band.
   Offset cell(
     WidgetTester tester, {
     required double top,
@@ -114,7 +116,7 @@ void main() {
       origin(tester) +
       Offset(
         5 + 43.75 * (column + 0.5),
-        (strip ? 36 : 0) + top + 27 + 45 * row + 22.5,
+        (strip ? 36 : 0) + 50 + top + 27 + 45 * row + 22.5,
       );
 
   Future<void> pumpPage(WidgetTester tester) async {
@@ -237,7 +239,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // The action sits at the trailing end of the recents header.
-      await tester.tapAt(origin(tester) + const Offset(330, 36 + 13));
+      await tester.tapAt(origin(tester) + const Offset(330, 36 + 50 + 13));
       await tester.pump();
 
       expect(host.clearRecentsRequests, [SemanticKind.unicodeEmoji]);
@@ -854,7 +856,7 @@ void main() {
 
       // The first recent, ❤, is in the rightmost column.
       await tester.tapAt(
-        origin(tester) + const Offset(360 - 5 - 43.75 / 2, 36 + 27 + 22.5),
+        origin(tester) + const Offset(360 - 5 - 43.75 / 2, 36 + 50 + 27 + 22.5),
       );
       await tester.pump();
 

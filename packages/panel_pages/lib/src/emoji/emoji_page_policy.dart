@@ -65,9 +65,12 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     this.stripReady,
   });
 
-  /// What the page declares to the shell: search, a top strip and backspace.
+  /// What the page declares to the shell: search, placed inline among the
+  /// content so it scrolls away with it and pins when search opens; a top
+  /// strip; and backspace.
   static const PageCapabilities pageCapabilities = PageCapabilities(
     search: true,
+    searchPlacement: SearchPlacement.inline,
     topStrip: true,
     actions: [PageAction.backspace()],
   );
@@ -357,6 +360,9 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   @override
   bool stripAtBottom(PanelArrangement arrangement) =>
       arrangement == PanelArrangement.pointer;
+
+  @override
+  double get stripExtent => EmojiCategoryStrip.height;
 
   @override
   Widget? buildStrip(BuildContext context, CatalogStripHandle strip) {

@@ -65,20 +65,22 @@ void main() {
           key: const ValueKey('scene'),
           child: ColoredBox(
             color: ChromePalette.forBrightness(brightness).surfaceDim,
-            child: Overlay(
-              initialEntries: [
-                OverlayEntry(
-                  builder: (context) => EmojiPage(
-                    host: host,
-                    source: source,
-                    searchSource: searchSource,
-                    preferences: FakePreferenceStore(),
-                    entryOf: fixtures.entryOf,
-                    assets: assets,
-                    searchDebounce: Duration.zero,
+            child: FakeSearchFieldScope(
+              child: Overlay(
+                initialEntries: [
+                  OverlayEntry(
+                    builder: (context) => EmojiPage(
+                      host: host,
+                      source: source,
+                      searchSource: searchSource,
+                      preferences: FakePreferenceStore(),
+                      entryOf: fixtures.entryOf,
+                      assets: assets,
+                      searchDebounce: Duration.zero,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

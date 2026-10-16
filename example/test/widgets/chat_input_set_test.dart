@@ -22,6 +22,7 @@ import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 import '../support/disposal_watch.dart';
+import '../support/fake_soft_keyboard.dart';
 import '../support/input_harness.dart';
 import '../support/test_services.dart';
 
@@ -65,6 +66,9 @@ final class _BrokenKeyboard implements SoftKeyboardPort {
   double get restingHeight => throw StateError('no keyboard to read');
 
   @override
+  bool get heightsIncludeSafeArea => true;
+
+  @override
   Future<void> hide() async {}
 
   @override
@@ -72,6 +76,70 @@ final class _BrokenKeyboard implements SoftKeyboardPort {
 }
 
 void main() {
+  group('the keyboard readings the presentation is fed', () {
+    Future<InputRig> rigWithSafeArea(
+      WidgetTester tester, {
+      required bool includesSafeArea,
+    }) async {
+      tester.view
+        ..padding = const FakeViewPadding(bottom: 34)
+        ..viewPadding = const FakeViewPadding(bottom: 34);
+      addTearDown(tester.view.resetPadding);
+      addTearDown(tester.view.resetViewPadding);
+      final keyboard = FakeSoftKeyboard()
+        ..heightsIncludeSafeArea = includesSafeArea;
+      return InputRig.pump(
+        tester,
+        services: await _services(tester),
+        policy: _mobile,
+        keyboard: keyboard,
+      );
+    }
+
+    testWidgets('a platform that reports the keyboard without the bottom safe '
+        'area gets the band added back', (tester) async {
+      final rig = await rigWithSafeArea(tester, includesSafeArea: false);
+
+      rig.keyboard.rest(310);
+
+      expect(rig.set.ime.samples.value.height, 344);
+      expect(rig.set.ime.samples.value.safeAreaBottom, 34);
+    });
+
+    testWidgets('a platform that reports it with the band is taken at its '
+        'word', (tester) async {
+      final rig = await rigWithSafeArea(tester, includesSafeArea: true);
+
+      rig.keyboard.rest(344);
+
+      expect(rig.set.ime.samples.value.height, 344);
+    });
+
+    testWidgets('no keyboard stays no keyboard however the platform counts '
+        'the band', (tester) async {
+      final rig = await rigWithSafeArea(tester, includesSafeArea: false);
+      rig.keyboard.rest(310);
+
+      rig.keyboard.rest(0);
+
+      expect(rig.set.ime.samples.value.height, 0);
+    });
+
+    testWidgets('the composer stays above a keyboard that excludes the band', (
+      tester,
+    ) async {
+      final rig = await rigWithSafeArea(tester, includesSafeArea: false);
+      final idle = tester.getRect(rig.island).bottom;
+      rig.keyboard.rest(310);
+      await rig.settle(tester);
+
+      final bottom = tester.getRect(rig.island).bottom;
+      // The real keyboard stands 344 under the window's bottom edge.
+      expect(bottom, lessThanOrEqualTo(800 - 344));
+      expect(idle, greaterThan(bottom));
+    });
+  });
+
   group('on a platform where the panel replaces the keyboard', () {
     testWidgets('the panel button opens the panel and the icon says what the '
         'next press does', (tester) async {
@@ -90,6 +158,20 @@ void main() {
         tester.getSemantics(rig.action(ChatComposerActions.panel)).label,
         'Показать клавиатуру',
       );
+    });
+
+    testWidgets('a keyboard that is up goes down when the panel takes its '
+        'place, and the field keeps focus', (tester) async {
+      final rig = await _mobileRig(tester);
+      rig.set.composer.requestFocus();
+      rig.keyboard.rest(300);
+      await rig.settle(tester);
+      expect(rig.keyboard.hideCount, 0);
+
+      await _open(tester, rig);
+
+      expect(rig.keyboard.hideCount, 1);
+      expect(rig.set.composer.hasFocus, isTrue);
     });
 
     testWidgets('the field declares no soft keyboard while the panel is up and '
@@ -188,10 +270,11 @@ void main() {
       await rig.settle(tester);
       rig.keyboard.rest(300);
       await tester.pump();
+      final hiddenBefore = rig.keyboard.hideCount;
 
       expect(await rig.set.handleBack(), isTrue);
 
-      expect(rig.keyboard.hideCount, 1);
+      expect(rig.keyboard.hideCount, hiddenBefore + 1);
       expect(rig.set.shell.search.value.isOpen, isTrue);
     });
   });
@@ -705,6 +788,12 @@ void main() {
         );
       }
 
+      rig.services.recentsShown.commit();
+      await rig.services.recents.record(
+        emojiKey('\u{1F525}'),
+        kind: SemanticKind.unicodeEmoji,
+      );
+
       rig.set.shell
           .hostFor('emoji')
           .requestRemoveRecent(
@@ -713,7 +802,13 @@ void main() {
           );
       await tester.pump();
 
+      // The list the panel shows loses it at once and does not take in the
+      // pick that is waiting for the next open.
+      expect(rig.services.recentsShown.recents(SemanticKind.unicodeEmoji), [
+        emojiKey(heart),
+      ]);
       expect(rig.services.recents.recents(SemanticKind.unicodeEmoji), [
+        emojiKey('\u{1F525}'),
         emojiKey(heart),
       ]);
     });

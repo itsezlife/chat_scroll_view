@@ -180,15 +180,52 @@ void main() {
       await tearDownTree(tester);
     });
 
-    testWidgets('lays the sheet out at full height while the slot grows', (
+    testWidgets('the sheet is the slot: its top rides the slot while it grows '
+        'and the bottom bar stays on the bottom edge', (tester) async {
+      await mount(tester);
+      await startOpen(tester);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 100));
+      final slot = tester.getRect(find.byKey(const ValueKey('slot')));
+      expect(slot.height, inExclusiveRange(96, 200));
+
+      final sheet = tester.getRect(find.byType(PanelShell));
+      expect(sheet.top, slot.top);
+      expect(sheet.bottom, slot.bottom);
+      await finishMotion(tester);
+      await tearDownTree(tester);
+    });
+
+    testWidgets('a slot shorter than the shortest sheet cuts the shell off '
+        'from the bottom instead of overflowing', (tester) async {
+      await mount(tester);
+      await startOpen(tester);
+      await tester.pump(const Duration(milliseconds: 55));
+      await tester.pump(const Duration(milliseconds: 16));
+      final slot = tester.getRect(find.byKey(const ValueKey('slot')));
+      expect(slot.height, lessThan(96));
+
+      // Laid out at 96, top aligned: the clip shows its top part.
+      expect(tester.getSize(find.byType(PanelShell)).height, 96);
+      expect(tester.getTopLeft(find.byType(PanelShell)).dy, slot.top);
+      expect(tester.takeException(), isNull);
+      await finishMotion(tester);
+      await tearDownTree(tester);
+    });
+
+    testWidgets('the corners of the sheet are rounded and ride its top edge', (
       tester,
     ) async {
       await mount(tester);
       await startOpen(tester);
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(bottom(), lessThan(200));
-      expect(tester.getSize(find.byType(PanelShell)).height, 200);
       await finishMotion(tester);
+
+      final clip = tester.widget<ClipRRect>(find.byType(ClipRRect).first);
+      expect(
+        clip.borderRadius,
+        const BorderRadius.vertical(top: Radius.circular(29)),
+      );
       await tearDownTree(tester);
     });
 

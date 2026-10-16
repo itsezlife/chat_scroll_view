@@ -137,8 +137,7 @@ final class _PendingGlyphSource implements GlyphSpriteSource {
 /// ## Paced mount
 ///
 /// With [deferChrome] the page mounts in steps, one frame each: the grid
-/// first, then (the frame between is the shell's search field, see
-/// `PanelShell.deferSearchField`) the strip. A first frame that carried
+/// first, then the search field, then the strip. A first frame that carried
 /// the catalogue, a text field and the strip together costs more than a 120 Hz
 /// frame. A panel that opens with an animation mounts its page while nothing
 /// moves, so spreading the cost is free; a panel already on screen when the
@@ -214,6 +213,7 @@ class _EmojiPageState extends State<EmojiPage> {
   late final EmojiPageController _controller;
   late EmojiPagePolicy _policy;
   final _stripReady = listen.ValueNotifier<bool>(true);
+  final _fieldReady = listen.ValueNotifier<bool>(true);
   GlyphAtlas? _boundAtlas;
   GlyphAtlasBakePort? _bake;
   var _density = 0.0;
@@ -231,12 +231,15 @@ class _EmojiPageState extends State<EmojiPage> {
     _policy = _newPolicy();
     widget.source.collections.addListener(_onCollections);
     if (widget.deferChrome) {
+      _fieldReady.value = false;
       _stripReady.value = false;
-      // The grid is frame one, the shell's field is frame two (its post-frame
-      // callback), and this is the third.
+      // The grid is frame one, the search field frame two and the strip frame
+      // three: a first frame that carried all three costs more than a 120 Hz
+      // frame. The bands of both are reserved from the first, so nothing moves
+      // when they arrive.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        setState(() {});
+        _fieldReady.value = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _stripReady.value = true;
         });
@@ -292,6 +295,7 @@ class _EmojiPageState extends State<EmojiPage> {
     // The atlas stays the scope's glyph source: the host outlives this widget,
     // and so do the composer's inline emoji drawn through the same scope. The
     // controller takes it out when the shell disposes it.
+    _fieldReady.dispose();
     _stripReady.dispose();
     super.dispose();
   }
@@ -390,6 +394,7 @@ class _EmojiPageState extends State<EmojiPage> {
     policy: _policy,
     assets: widget.assets,
     bake: _bake,
+    searchFieldReady: _fieldReady,
     searchDebounce: widget.searchDebounce,
     padding: EdgeInsets.fromLTRB(
       EmojiPage.gridPadH,

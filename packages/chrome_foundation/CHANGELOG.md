@@ -24,6 +24,9 @@ package is pre-1.0.
 - `PanelTokens.stripFill`: the fill of the category strip where a page pins it
   at the bottom (the text colour at alpha `0x0A` over `background`), one step
   off the grid in light and dark. Required in the `PanelTokens` constructor.
+- The `stripReveal` (150 ms, ease-out quint) and `iconMorph` (350 ms, ease-out
+  quint) motion roles. `ChromeMotion` takes and copies them like the other
+  roles, so code that constructs a full table must now give both.
 
 - The `loop` motion role (one turn of an indeterminate loop, 900 ms linear).
   `ChromeMotion` takes and copies it like the other roles.

@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_shell/panel_shell.dart';
 import 'package:panel_shell/src/widgets/hold_repeat_button.dart';
 import 'package:panel_shell/src/widgets/panel_bottom_bar.dart';
-import 'package:panel_shell/src/widgets/panel_search_field.dart';
+import 'package:panel_shell/src/widgets/panel_pager.dart';
 import 'package:panel_shell/src/widgets/panel_type_tabs.dart';
 import 'package:panel_shell/testing.dart';
 
@@ -320,6 +320,83 @@ void main() {
         bottom(tester, find.byType(HoldRepeatButton)),
         600 - 20 - PanelBottomBar.padBottom,
       );
+    });
+  });
+
+  group('the search field', () {
+    testWidgets('is the shell\'s under pointer whatever the page declared, '
+        'and the page draws none', (tester) async {
+      emoji = FakePanelPage(
+        'emoji',
+        search: true,
+        searchPlacement: SearchPlacement.inline,
+        actions: const [PageAction.backspace()],
+      );
+      await pump(tester, arrangement: PanelArrangement.pointer);
+
+      expect(find.byType(PanelSearchField), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: find.byType(PanelSearchField),
+          matching: find.byType(PanelPager),
+        ),
+        findsNothing,
+        reason: 'above the pager, which holds none of its own',
+      );
+    });
+
+    testWidgets('is the page\'s own under touch when it declares inline', (
+      tester,
+    ) async {
+      emoji = FakePanelPage(
+        'emoji',
+        search: true,
+        searchPlacement: SearchPlacement.inline,
+      );
+      await pump(tester);
+
+      expect(find.byType(PanelSearchField), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: find.byType(PanelSearchField),
+          matching: find.byType(PanelPager),
+        ),
+        findsOneWidget,
+        reason: 'inside the page, among its content',
+      );
+    });
+
+    testWidgets('has a cancel control while search is open: the first press '
+        'clears, the second closes', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pump(tester, arrangement: PanelArrangement.pointer);
+      controller
+        ..openSearch()
+        ..setQuery('cat');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.bySemanticsLabel('Cancel'));
+      await tester.pumpAndSettle();
+      expect(controller.search.value.query, '');
+      expect(controller.search.value.isOpen, isTrue);
+
+      await tester.tap(find.bySemanticsLabel('Cancel'));
+      await tester.pumpAndSettle();
+      expect(controller.search.value.isOpen, isFalse);
+      semantics.dispose();
+    });
+
+    testWidgets('has no control that closes search under touch', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await pump(tester);
+      controller.openSearch();
+      await tester.pumpAndSettle();
+
+      expect(find.bySemanticsLabel('Cancel'), findsNothing);
+      expect(find.bySemanticsLabel('Clear'), findsNothing);
+      semantics.dispose();
     });
   });
 }

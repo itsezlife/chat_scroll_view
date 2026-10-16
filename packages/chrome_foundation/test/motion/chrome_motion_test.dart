@@ -60,6 +60,16 @@ void main() {
       expect(spec.curve, Curves.easeOutCubic);
     });
 
+    test('the strip reveals in 150 ms and an icon morphs in 350 ms, both on '
+        'ease-out quint', () {
+      final reveal = motion[MotionRole.stripReveal];
+      expect(reveal.duration, const Duration(milliseconds: 150));
+      expect(reveal.curve, Curves.easeOutQuint);
+      final morph = motion[MotionRole.iconMorph];
+      expect(morph.duration, const Duration(milliseconds: 350));
+      expect(morph.curve, Curves.easeOutQuint);
+    });
+
     test('release overshoots and press does not', () {
       expect(motion[MotionRole.release].curve, isA<OvershootCurve>());
       expect(motion[MotionRole.press].curve, Curves.linear);

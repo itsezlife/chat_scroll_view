@@ -14,6 +14,9 @@ final class FakeSoftKeyboard implements SoftKeyboardPort {
   @override
   double restingHeight = 0;
 
+  @override
+  bool heightsIncludeSafeArea = true;
+
   /// How many times the keyboard was asked to show.
   int showCount = 0;
 
