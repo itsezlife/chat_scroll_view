@@ -17,7 +17,9 @@ final class AssetProfile {
   }) : assert(cornerRadius >= 0, 'A corner radius cannot be negative.');
 
   /// Whether the surface wants the asset to play when it is visible and no
-  /// pause layer is set. A surface that does not animate shows one frame.
+  /// pause layer is set. A surface that does not animate shows one frame: its
+  /// binding paints at the playback time of its first paint, however the
+  /// shared clock moves for the others.
   final bool animate;
 
   /// Whether a playing asset starts again after its last frame.

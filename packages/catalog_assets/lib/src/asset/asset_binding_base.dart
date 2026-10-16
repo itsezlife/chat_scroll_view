@@ -89,12 +89,19 @@ abstract base class AssetBindingBase
     if (!_detached) onVisibleChanged();
   }
 
+  // The time a binding whose profile does not animate paints at: the clock's
+  // at its first paint, kept. The clock runs for every animated binding of
+  // the scope, so painting at its live time would step an animated
+  // paintable whenever the surface happened to repaint (a strip's own motion,
+  // say): bursts of frames, where the profile promises one.
+  Duration? _stillTime;
+
   @override
   void paint(Canvas canvas, Rect rect, {Color? tint, double opacity = 1}) {
     final context = AssetPaintContext(
       tint: tint,
       opacity: opacity,
-      time: _clock.now,
+      time: profile.animate ? _clock.now : _stillTime ??= _clock.now,
     );
     final radius = profile.cornerRadius;
     if (radius <= 0) {
