@@ -6,7 +6,9 @@ library;
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:content_model/content_model.dart' hide RichText;
 import 'package:flutter/material.dart' hide RichText;
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +16,7 @@ import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_shell/panel_shell.dart';
 
+import '../support/disposal_watch.dart';
 import '../support/input_harness.dart';
 import '../support/test_services.dart';
 
@@ -43,6 +46,24 @@ Future<InputRig> _mobileRig(
 Future<void> _open(WidgetTester tester, InputRig rig) async {
   await rig.tapAction(tester, ChatComposerActions.panel);
   await rig.settle(tester);
+}
+
+/// A soft keyboard that cannot be read.
+final class _BrokenKeyboard implements SoftKeyboardPort {
+  @override
+  Stream<double> get heights => const Stream<double>.empty();
+
+  @override
+  bool get isAnimating => false;
+
+  @override
+  double get restingHeight => throw StateError('no keyboard to read');
+
+  @override
+  Future<void> hide() async {}
+
+  @override
+  Future<void> show() async {}
 }
 
 void main() {
@@ -413,6 +434,30 @@ void main() {
             const AssetProfile(),
           )
           .detach();
+    });
+
+    group('a set that cannot be built', () {
+      testWidgets('frees what it made so far and rethrows', (tester) async {
+        final services = await _services(tester);
+        final watch = DisposalWatch();
+        addTearDown(watch.stop);
+
+        // The last thing the set does is read the soft keyboard.
+        expect(
+          () => ChatInputSet(
+            services: services,
+            view: tester.view,
+            send: (_) async {},
+            edit: (_, _) async {},
+            confirmClearRecents: (_) async => false,
+            keyboard: _BrokenKeyboard(),
+            policy: _mobile,
+          ),
+          throwsStateError,
+        );
+
+        expect(watch.undisposed, isEmpty);
+      });
     });
   });
 }

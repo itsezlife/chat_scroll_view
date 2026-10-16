@@ -92,79 +92,124 @@ final class AppServices {
     GlyphArtVersionSource? glyphArtVersion,
     List<String> languages = const <String>['ru', 'en'],
   }) async {
-    // 1. The adapter.
-    final storage =
-        keyValueStore ?? await SharedPreferencesKeyValueStore.open();
+    // What each step made, to free in reverse if a later one fails: a failed
+    // boot must not leave a lifecycle listener or a pressure signal behind.
+    final unwind = <void Function()>[];
+    T owned<T>(T value, void Function(T value) dispose) {
+      unwind.add(() => dispose(value));
+      return value;
+    }
 
-    // 2. Stores, loaded.
-    final (recents, preferences, keyboardHeights) = await (
-      KeyValueRecentsStore.load(storage, namespace: recentsNamespace),
-      KeyValuePreferenceStore.load(storage, namespace: preferencesNamespace),
-      KeyboardHeightStore.open(storage),
-    ).wait;
-    final centerBands = ChatCenterBandStore(storage);
+    try {
+      // 1. The adapter.
+      final storage =
+          keyValueStore ?? await SharedPreferencesKeyValueStore.open();
 
-    // 3. The asset cache. Its memory pressure is shared with the glyph atlas.
-    final memoryPressure = SystemMemoryPressure();
-    final assets = PageAssets.createScope(memoryPressure: memoryPressure);
-    var hidden = false;
-    final lifecycle = AppLifecycleListener(
-      onHide: () {
-        hidden = true;
-        assets.clock.setPaused(PlaybackPauseLayer.surfaceHidden, paused: true);
-      },
-      onShow: () {
-        hidden = false;
-        assets.clock.setPaused(PlaybackPauseLayer.surfaceHidden, paused: false);
-      },
-    );
+      // 2. Stores, loaded. Each registers as it arrives, so one that loaded
+      // beside a sibling that failed is still freed.
+      final (recents, preferences, keyboardHeights) = await (
+        KeyValueRecentsStore.load(
+          storage,
+          namespace: recentsNamespace,
+        ).then((store) => owned(store, (store) => store.dispose())),
+        KeyValuePreferenceStore.load(
+          storage,
+          namespace: preferencesNamespace,
+        ).then((store) => owned(store, (store) => store.dispose())),
+        KeyboardHeightStore.open(storage),
+      ).wait;
+      final centerBands = ChatCenterBandStore(storage);
 
-    // 4. Data sources over the stores.
-    final loader = EmojiCatalogLoader(assetLoader ?? rootBundle.loadString);
-    final catalog = EmojiCatalog(await loader.structure());
-    final keywords = BundledKeywordSource(loader);
-    // The probe's verdicts and the atlas plan are over the same glyphs: the
-    // catalogue's, unfiltered.
-    final glyphs = <String>[
-      for (final entry in catalog.entries) entry.base.sequence,
-    ];
-    final probe = wireSystemEmojiGlyphProbe(glyphs: glyphs, store: storage);
-    final emojiSource = EmojiCollectionSource(
-      catalog: catalog,
-      recents: recents,
-      preferences: preferences,
-      glyphSupport: probe.probe,
-    );
-    final emojiSearch = EmojiSearchSource(
-      catalog: catalog,
-      keywords: keywords,
-      languages: languages,
-      recents: recents,
-      preferences: preferences,
-      glyphSupport: probe.probe,
-    );
+      // 3. The asset cache. Its memory pressure is shared with the glyph
+      // atlas.
+      final memoryPressure = owned(
+        SystemMemoryPressure(),
+        (pressure) => pressure.dispose(),
+      );
+      final assets = owned(
+        PageAssets.createScope(memoryPressure: memoryPressure),
+        (scope) => scope.dispose(),
+      );
+      var hidden = false;
+      final lifecycle = owned(
+        AppLifecycleListener(
+          onHide: () {
+            hidden = true;
+            assets.clock.setPaused(
+              PlaybackPauseLayer.surfaceHidden,
+              paused: true,
+            );
+          },
+          onShow: () {
+            hidden = false;
+            assets.clock.setPaused(
+              PlaybackPauseLayer.surfaceHidden,
+              paused: false,
+            );
+          },
+        ),
+        (listener) => listener.dispose(),
+      );
 
-    return AppServices._(
-      keyValueStore: storage,
-      recents: recents,
-      preferences: preferences,
-      keyboardHeights: keyboardHeights,
-      centerBands: centerBands,
-      memoryPressure: memoryPressure,
-      assets: assets,
-      catalog: catalog,
-      keywords: keywords,
-      emojiSource: emojiSource,
-      emojiSearch: emojiSearch,
-      glyphProbe: probe.probe,
-      glyphArtVersion: glyphArtVersion ?? probe.artVersion,
-      glyphBakeObserver: probe.bakeObserver,
-      glyphCache: glyphCache,
-      lifecycle: lifecycle,
-      webProbePass: kIsWeb
-          ? _webPass(probe.probe, isPaused: () => hidden)
-          : null,
-    );
+      // 4. Data sources over the stores.
+      final loader = EmojiCatalogLoader(assetLoader ?? rootBundle.loadString);
+      final catalog = EmojiCatalog(await loader.structure());
+      final keywords = BundledKeywordSource(loader);
+      // The probe's verdicts and the atlas plan are over the same glyphs: the
+      // catalogue's, unfiltered.
+      final glyphs = <String>[
+        for (final entry in catalog.entries) entry.base.sequence,
+      ];
+      final probe = wireSystemEmojiGlyphProbe(glyphs: glyphs, store: storage);
+      owned(probe.probe, (probe) => probe.dispose());
+      final emojiSource = owned(
+        EmojiCollectionSource(
+          catalog: catalog,
+          recents: recents,
+          preferences: preferences,
+          glyphSupport: probe.probe,
+        ),
+        (source) => source.dispose(),
+      );
+      final emojiSearch = owned(
+        EmojiSearchSource(
+          catalog: catalog,
+          keywords: keywords,
+          languages: languages,
+          recents: recents,
+          preferences: preferences,
+          glyphSupport: probe.probe,
+        ),
+        (source) => source.dispose(),
+      );
+
+      return AppServices._(
+        keyValueStore: storage,
+        recents: recents,
+        preferences: preferences,
+        keyboardHeights: keyboardHeights,
+        centerBands: centerBands,
+        memoryPressure: memoryPressure,
+        assets: assets,
+        catalog: catalog,
+        keywords: keywords,
+        emojiSource: emojiSource,
+        emojiSearch: emojiSearch,
+        glyphProbe: probe.probe,
+        glyphArtVersion: glyphArtVersion ?? probe.artVersion,
+        glyphBakeObserver: probe.bakeObserver,
+        glyphCache: glyphCache,
+        lifecycle: lifecycle,
+        webProbePass: kIsWeb
+            ? _webPass(probe.probe, isPaused: () => hidden)
+            : null,
+      );
+    } on Object {
+      for (final undo in unwind.reversed) {
+        undo();
+      }
+      rethrow;
+    }
   }
 
   /// The adapter every store writes through.
