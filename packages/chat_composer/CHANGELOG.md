@@ -8,6 +8,25 @@ is pre-1.0.
 
 ### Added
 
+- `ComposerSpec` (header, panel, actions, enabled, busy) and `ComposerView`:
+  the island with a glass surface, a header strip that reveals and hides, a
+  row that follows the height of its panel, directional layout and action
+  slots. Replaces the sealed idle, editing and replying mode, the hard-coded
+  attach, voice and send buttons and the emoji-face icon resolver of the
+  previous chrome: those become a `ComposerHeader`, an `ActionDescriptor`
+  list and a host-set icon id.
+- `ComposerHeader` (reply, edit, forward, link preview, suggestion) with
+  `prioritised`; `ComposerPanelId` and `ComposerPanelResolver` for panels the
+  host supplies; `ActionDescriptor` with a required semantic label.
+- `ComposerController.extent`: the view's height as data, for the host's
+  bottom padding.
+- `ComposerBottomFade` (from `ChatContentBottomFade`), `ComposerMetrics` (from
+  `ChatInputMetrics`), `ComposerShortcutPolicy` with
+  `SubmitComposerIntent` and `DismissComposerHeaderIntent`.
+- `contentSpanBuilder`: inline content in the field drawn by `ContentView`.
+- A suppressed soft keyboard declares `TextInputType.none`; the composer uses
+  no platform channel.
+
 - `ComposerController`: input-only controller (text, focus, selection, field
   scroll and height, `SoftKeyboardMode`, commands `insertText`, `insertContent`,
   `backspace`, `clear`, `restore`).
