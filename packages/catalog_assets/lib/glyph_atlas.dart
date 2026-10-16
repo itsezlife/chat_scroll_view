@@ -23,6 +23,7 @@ export 'src/atlas/cache/glyph_atlas_persistence.dart';
 export 'src/atlas/cache/glyph_cache_key.dart';
 export 'src/atlas/cache/glyph_cache_store.dart';
 export 'src/atlas/cache/memory_glyph_cache_store.dart';
+export 'src/atlas/callback_glyph_bake_observer.dart';
 export 'src/atlas/glyph_atlas.dart';
 export 'src/atlas/glyph_atlas_index.dart';
 export 'src/atlas/glyph_atlas_layout.dart';

@@ -1,14 +1,18 @@
 /// Which glyphs the system cannot draw: cells rendered identical to a
-/// missing-glyph reference, or not rendered at all.
+/// missing-glyph reference, or not rendered at all; what is persisted of that
+/// and when it is trusted again.
 ///
-/// **Seam:** `MissingGlyphProbe.observe` fed cell pixels the way the bake pass
-/// feeds them, read back through `supports`, `completed` and the snapshot.
-/// Pixels are plain bytes, so nothing here needs a rasteriser or a font.
+/// **Seam:** `MissingGlyphProbe` fed cell pixels the way the bake pass feeds
+/// them, with a `FakeKeyValueStore` and an art version producer the test
+/// answers by hand. Pixels are plain bytes, so nothing needs a rasteriser or a
+/// font.
 library;
 
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:content_model/content_model.dart';
+import 'package:content_model/testing.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:test/test.dart';
 
@@ -20,142 +24,365 @@ Uint8List _art(int seed) =>
 final Uint8List _tofu = _art(99);
 final Uint8List _blank = Uint8List(32);
 
-MissingGlyphProbe _probe(
-  List<String> glyphs, {
-  String artVersion = 'art-1',
-  GlyphProbeSnapshot? restored,
-}) => MissingGlyphProbe(
-  glyphs: glyphs,
-  references: const [_reference],
-  artVersion: artVersion,
-  restored: restored,
-);
+ContentKey$Unicode _key(String glyph) => ContentKey$Unicode(glyph);
 
 void main() {
-  test('a glyph drawn like the missing-glyph reference is unsupported', () {
-    final probe = _probe(['a', 'b']);
+  late FakeKeyValueStore store;
 
-    probe.observe(_reference, _tofu);
-    probe.observe('a', _art(1));
-    probe.observe('b', Uint8List.fromList(_tofu));
+  setUp(() => store = FakeKeyValueStore());
 
-    expect(probe.supports('a'), isTrue);
-    expect(probe.supports('b'), isFalse);
+  MissingGlyphProbe probe(
+    List<String> glyphs, {
+    String artVersion = 'art-1',
+    Future<String> Function()? producer,
+  }) {
+    final result = MissingGlyphProbe(
+      glyphs: glyphs,
+      references: const [_reference],
+      store: store,
+      artVersion: producer ?? () async => artVersion,
+    );
+    addTearDown(result.dispose);
+    return result;
+  }
+
+  /// Observes a finished probe's worth of evidence and waits for it to settle.
+  Future<MissingGlyphProbe> observed(
+    List<String> glyphs, {
+    String artVersion = 'art-1',
+    Map<String, Uint8List> cells = const {},
+  }) async {
+    final result = probe(glyphs, artVersion: artVersion);
+    await result.start();
+    result.observe(_reference, _tofu);
+    for (final glyph in glyphs) {
+      result.observe(glyph, cells[glyph] ?? _art(glyph.codeUnitAt(0)));
+    }
+    await result.completed;
+    return result;
+  }
+
+  group('verdicts', () {
+    test(
+      'a glyph drawn like the missing-glyph reference is unsupported',
+      () async {
+        final subject = await observed(['a', 'b'], cells: {'b': _tofu});
+
+        expect(subject.supports(_key('a')), isTrue);
+        expect(subject.supports(_key('b')), isFalse);
+      },
+    );
+
+    test(
+      'a glyph that drew nothing is unsupported, whatever the reference',
+      () {
+        final subject = probe(['a'])..observe('a', _blank);
+
+        expect(subject.verdictOf('a'), isFalse);
+      },
+    );
+
+    test('a glyph is not judged before the reference has been seen', () {
+      final subject = probe(['a'])..observe('a', _tofu);
+      expect(subject.verdictOf('a'), isNull);
+
+      subject.observe(_reference, _tofu);
+      expect(subject.verdictOf('a'), isFalse);
+    });
+
+    test('a glyph not yet observed has no verdict and is shown', () async {
+      final subject = probe(['a', 'b']);
+      await subject.start();
+      subject
+        ..observe(_reference, _tofu)
+        ..observe('a', _art(1));
+
+      expect(subject.verdictOf('b'), isNull);
+      expect(subject.verdictOf('not planned'), isNull);
+      expect(subject.supports(_key('b')), isTrue);
+    });
+
+    test('it asks for what it lacks and nothing it already has', () {
+      final subject = probe(['a', 'b']);
+      expect(subject.pendingReferences, [_reference]);
+      expect(subject.pendingGlyphs, ['a', 'b']);
+      expect(subject.wants('a'), isTrue);
+      expect(subject.wants('not planned'), isFalse);
+
+      subject
+        ..observe(_reference, _tofu)
+        ..observe('a', _art(1));
+
+      expect(subject.pendingReferences, isEmpty);
+      expect(subject.pendingGlyphs, ['b']);
+      expect(subject.wants('a'), isFalse);
+      expect(subject.wants('b'), isTrue);
+    });
+
+    test('the unsupported glyphs are listed as the evidence stands', () {
+      final subject = probe(['a', 'b', 'c'])
+        ..observe(_reference, _tofu)
+        ..observe('a', _art(1))
+        ..observe('b', _tofu)
+        ..observe('c', _blank);
+
+      expect(subject.unsupported, unorderedEquals(['b', 'c']));
+    });
   });
 
-  test('a glyph that drew nothing is unsupported, whatever the reference', () {
-    final probe = _probe(['a']);
+  group('a system that draws no emoji at all', () {
+    final many = [for (var i = 0; i < 20; i++) 'g$i'];
 
-    probe.observe('a', _blank);
+    test(
+      'is not believed: nothing is hidden and nothing is persisted',
+      () async {
+        // Fonts that have not loaded yet draw every glyph as the reference.
+        final subject = probe(many);
+        await subject.start();
+        subject.observe(_reference, _tofu);
+        for (final glyph in many) {
+          subject.observe(glyph, _tofu);
+        }
+        await subject.completed;
 
-    expect(probe.supports('a'), isFalse);
+        expect(subject.supports(_key('g0')), isTrue);
+        expect(subject.unsupported, isEmpty);
+        expect(store.writeCount, 0);
+      },
+    );
+
+    test('does not hide the one glyph a mostly working system lacks', () async {
+      final subject = probe(many);
+      await subject.start();
+      subject.observe(_reference, _tofu);
+      for (final glyph in many) {
+        subject.observe(glyph, glyph == 'g3' ? _tofu : _art(glyph.length));
+      }
+      await subject.completed;
+
+      expect(subject.supports(_key('g3')), isFalse);
+      expect(subject.supports(_key('g4')), isTrue);
+    });
   });
 
-  test('a glyph is not judged before the reference has been seen', () {
-    final probe = _probe(['a']);
+  group('publishing', () {
+    test('holds the answers back until the art version is known', () async {
+      final version = Completer<String>();
+      final subject = probe(['a'], producer: () => version.future);
+      var signals = 0;
+      subject.changes.addListener(() => signals++);
 
-    probe.observe('a', _tofu);
-    expect(probe.supports('a'), isNull);
+      subject
+        ..observe(_reference, _tofu)
+        ..observe('a', _tofu);
+      await pumpEventQueue();
+      expect(subject.supports(_key('a')), isTrue);
+      expect(signals, 0);
 
-    probe.observe(_reference, _tofu);
-    expect(probe.supports('a'), isFalse);
+      version.complete('art-1');
+      await pumpEventQueue();
+      expect(subject.supports(_key('a')), isFalse);
+      expect(subject.artVersion, 'art-1');
+      expect(signals, 1);
+    });
+
+    test('a strip of observations is one signal; seeing art is none', () async {
+      final subject = probe(['a', 'b', 'c']);
+      await subject.start();
+      var signals = 0;
+      subject.changes.addListener(() => signals++);
+
+      subject
+        ..observe(_reference, _tofu)
+        ..observe('a', _art(1))
+        ..observe('b', _tofu)
+        ..observe('c', _tofu);
+      await pumpEventQueue();
+
+      expect(signals, 1);
+
+      subject.observe('a', _art(2));
+      await pumpEventQueue();
+      expect(signals, 1, reason: 'nothing new was hidden');
+    });
+
+    test(
+      'a failing art version producer still lets verdicts be published',
+      () async {
+        final subject = probe([
+          'a',
+        ], producer: () async => throw StateError('x'));
+        subject
+          ..observe(_reference, _tofu)
+          ..observe('a', _tofu);
+        await pumpEventQueue();
+
+        expect(subject.supports(_key('a')), isFalse);
+        expect(subject.artVersion, isNull);
+        await expectLater(subject.artVersionReady(), throwsStateError);
+        expect(store.writeCount, 0, reason: 'nothing to key the record on');
+      },
+    );
+
+    test('the art version producer runs once however it is asked', () async {
+      var runs = 0;
+      final subject = probe(
+        ['a'],
+        producer: () async {
+          runs++;
+          return 'art-1';
+        },
+      );
+
+      expect(await subject.artVersionReady(), 'art-1');
+      subject.observe('a', _art(1));
+      await subject.start();
+      expect(await subject.artVersionReady(), 'art-1');
+
+      expect(runs, 1);
+    });
   });
 
-  test('a glyph not yet observed has no verdict', () {
-    final probe = _probe(['a', 'b']);
-    probe.observe(_reference, _tofu);
-    probe.observe('a', _art(1));
+  group('persistence', () {
+    test('writes one record once every glyph has a verdict', () async {
+      await observed(['a', 'b'], cells: {'b': _tofu});
 
-    expect(probe.supports('b'), isNull);
-    expect(probe.supports('not planned'), isNull);
-  });
+      expect(store.writeCount, 1);
+      final stored = store.entries['emoji_data:glyph_probe']!;
+      expect(stored.version, MissingGlyphProbe.recordVersion);
+    });
 
-  test('it asks for what it lacks and nothing it already has', () {
-    final probe = _probe(['a', 'b']);
-    expect(probe.pendingReferences, [_reference]);
-    expect(probe.wants('a'), isTrue);
-    expect(probe.wants('not planned'), isFalse);
+    test('does not write before the probe is complete', () async {
+      final subject = probe(['a', 'b']);
+      await subject.start();
+      subject
+        ..observe(_reference, _tofu)
+        ..observe('a', _art(1));
+      await pumpEventQueue();
 
-    probe.observe(_reference, _tofu);
-    probe.observe('a', _art(1));
+      expect(store.writeCount, 0);
+      expect(subject.isComplete, isFalse);
+    });
 
-    expect(probe.pendingReferences, isEmpty);
-    expect(probe.wants('a'), isFalse);
-    expect(probe.wants('b'), isTrue);
-  });
+    test('a later launch under the same art version has the verdicts without '
+        'observing anything', () async {
+      await observed(['a', 'b'], cells: {'b': _tofu});
 
-  test('completed fires once the references and every glyph are in', () async {
-    final probe = _probe(['a', 'b']);
-    var done = false;
-    unawaited(probe.completed.then((_) => done = true));
+      final later = probe(['a', 'b']);
+      await later.completed;
 
-    probe.observe('a', _art(1));
-    probe.observe('b', _art(2));
-    await pumpEventQueue();
-    expect(done, isFalse, reason: 'no reference yet');
+      expect(later.artVersion, 'art-1');
+      expect(later.supports(_key('a')), isTrue);
+      expect(later.supports(_key('b')), isFalse);
+      expect(later.pendingReferences, isEmpty);
+      expect(later.wants('a'), isFalse);
+      expect(store.writeCount, 1, reason: 'nothing new to save');
+    });
 
-    probe.observe(_reference, _tofu);
-    await pumpEventQueue();
-    expect(done, isTrue);
-    expect(probe.isComplete, isTrue);
-  });
+    test('a restore is one signal with the art version', () async {
+      await observed(['a', 'b'], cells: {'b': _tofu});
+      final later = probe(['a', 'b']);
+      var signals = 0;
+      later.changes.addListener(() => signals++);
 
-  test('the unsupported glyphs are listed once the probe is complete', () {
-    final probe = _probe(['a', 'b', 'c']);
-    probe.observe(_reference, _tofu);
-    probe.observe('a', _art(1));
-    probe.observe('b', _tofu);
-    probe.observe('c', _blank);
+      await later.completed;
+      await pumpEventQueue();
 
-    expect(probe.unsupported, unorderedEquals(['b', 'c']));
+      expect(signals, 1);
+    });
+
+    test(
+      'verdicts taken under another art version are ignored and replaced',
+      () async {
+        await observed(['a', 'b'], cells: {'b': _tofu});
+
+        final later = probe(['a', 'b'], artVersion: 'art-2');
+        await later.start();
+
+        expect(later.supports(_key('b')), isTrue);
+        expect(later.isComplete, isFalse);
+        expect(later.pendingReferences, [_reference]);
+        expect(later.wants('a'), isTrue);
+
+        later
+          ..observe(_reference, _tofu)
+          ..observe('a', _tofu)
+          ..observe('b', _art(5));
+        await later.completed;
+
+        expect(later.supports(_key('a')), isFalse);
+        expect(later.supports(_key('b')), isTrue);
+        expect(store.writeCount, 2);
+      },
+    );
+
+    test('keeps its verdicts and probes only a glyph added since', () async {
+      await observed(['a', 'b'], cells: {'b': _tofu});
+
+      final later = probe(['a', 'b', 'c']);
+      await later.start();
+
+      expect(later.isComplete, isFalse);
+      expect(later.supports(_key('b')), isFalse);
+      expect(later.pendingGlyphs, ['c']);
+      expect(later.pendingReferences, isEmpty);
+    });
+
+    test('what was observed before the restore wins over the record', () async {
+      await observed(['a'], cells: {'a': _tofu});
+      final version = Completer<String>();
+      final later = probe(['a'], producer: () => version.future)
+        ..observe('a', _art(1));
+
+      version.complete('art-1');
+      await later.completed;
+
+      expect(later.supports(_key('a')), isTrue);
+    });
+
+    test('damaged or foreign records read as nothing', () async {
+      for (final stored in [
+        const StoredValue('{"artVersion": 3}', version: 1),
+        const StoredValue('not json', version: 1),
+        const StoredValue('[]', version: 1),
+        const StoredValue('{}', version: 2),
+      ]) {
+        store = FakeKeyValueStore();
+        await store.write('emoji_data', 'glyph_probe', stored);
+
+        final subject = probe(['a']);
+        await subject.start();
+
+        expect(subject.isComplete, isFalse, reason: stored.value);
+        expect(subject.pendingReferences, [_reference]);
+      }
+    });
+
+    test('a store that cannot be read costs only the record', () async {
+      store.failure = Exception('disk');
+      final errors = <Object>[];
+      await runZonedGuarded(() async {
+        final subject = probe(['a'])
+          ..observe(_reference, _tofu)
+          ..observe('a', _tofu);
+        await subject.completed;
+
+        expect(subject.supports(_key('a')), isFalse);
+      }, (error, _) => errors.add(error));
+
+      expect(errors, isNotEmpty);
+    });
   });
 
   group('a snapshot', () {
-    MissingGlyphProbe finished({String artVersion = 'art-1'}) {
-      final probe = _probe(['a', 'b'], artVersion: artVersion);
-      probe.observe(_reference, _tofu);
-      probe.observe('a', _art(1));
-      probe.observe('b', _tofu);
-      return probe;
-    }
+    test('round-trips through json', () async {
+      final subject = await observed(['a', 'b'], cells: {'b': _tofu});
 
-    test('restores the verdicts without observing anything', () {
-      final json = finished().snapshot().toJson();
+      final restored = GlyphProbeSnapshot.fromJson(subject.snapshot().toJson());
 
-      final restored = _probe([
-        'a',
-        'b',
-      ], restored: GlyphProbeSnapshot.fromJson(json));
-
-      expect(restored.isComplete, isTrue);
-      expect(restored.supports('a'), isTrue);
-      expect(restored.supports('b'), isFalse);
-      expect(restored.pendingReferences, isEmpty);
-      expect(restored.wants('a'), isFalse);
-    });
-
-    test('is dropped when the art version differs: the glyphs are probed '
-        'again', () {
-      final snapshot = finished(artVersion: 'art-1').snapshot();
-
-      final probe = _probe(['a', 'b'], artVersion: 'art-2', restored: snapshot);
-
-      expect(probe.isComplete, isFalse);
-      expect(probe.supports('b'), isNull);
-      expect(probe.pendingReferences, [_reference]);
-      expect(probe.wants('a'), isTrue);
-    });
-
-    test('keeps its verdicts and probes only a glyph added since', () {
-      final snapshot = finished().snapshot();
-
-      final probe = _probe(['a', 'b', 'c'], restored: snapshot);
-
-      expect(probe.isComplete, isFalse);
-      expect(probe.supports('b'), isFalse);
-      expect(probe.wants('a'), isFalse);
-      expect(probe.wants('c'), isTrue);
-      expect(probe.pendingReferences, isEmpty);
+      expect(restored.artVersion, 'art-1');
+      expect(restored.cellHashes.keys, unorderedEquals(['a', 'b']));
+      expect(restored.referenceHashes, hasLength(1));
     });
 
     test('with damaged json is a FormatException', () {

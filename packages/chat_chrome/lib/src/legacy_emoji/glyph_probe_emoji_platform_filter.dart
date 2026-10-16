@@ -22,6 +22,6 @@ final class GlyphProbeEmojiPlatformFilter implements EmojiPlatformFilter {
   @override
   FutureOr<List<UnicodeEmojiItem>> filter(List<UnicodeEmojiItem> items) => [
     for (final item in items)
-      if (probe.supports(item.glyph) != false) item,
+      if (probe.verdictOf(item.glyph) != false) item,
   ];
 }

@@ -204,8 +204,7 @@ class PanelCatalogThemeData {
       leafPressHighlightColor:
           leafPressHighlightColor ?? this.leafPressHighlightColor,
       sectionHeaderStyle: sectionHeaderStyle ?? this.sectionHeaderStyle,
-      documentStandInColor:
-          documentStandInColor ?? this.documentStandInColor,
+      documentStandInColor: documentStandInColor ?? this.documentStandInColor,
       leafPressSelectorRadiusNominalDp:
           leafPressSelectorRadiusNominalDp ??
           this.leafPressSelectorRadiusNominalDp,

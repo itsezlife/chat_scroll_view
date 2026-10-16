@@ -192,14 +192,13 @@ int _openAnchor({required ChatDataSource ds, int? storedLastRead}) =>
 Future<MessageOpenPosition> _openAtMessage(
   ChatDataSource ds, {
   required int? storedLastRead,
-}) async =>
-    switch (await ds.resolveOpenPosition(
-      storedLastRead: storedLastRead,
-      isSelfMessage: _isSelf,
-    )) {
-      final MessageOpenPosition position => position,
-      CenterBandOpenPosition() => throw StateError('opened at a Center Band'),
-    };
+}) async => switch (await ds.resolveOpenPosition(
+  storedLastRead: storedLastRead,
+  isSelfMessage: _isSelf,
+)) {
+  final MessageOpenPosition position => position,
+  CenterBandOpenPosition() => throw StateError('opened at a Center Band'),
+};
 
 void main() {
   group('open at last read', () {
@@ -759,10 +758,7 @@ void main() {
 
       final bandTop = tester.getTopLeft(find.byType(ChatScrollView)).dy;
       final separatorTop = tester.getTopLeft(find.text('unread')).dy;
-      expect(
-        separatorTop,
-        bandTop + ChatDataSourceX.unreadBoundaryPixelOffset,
-      );
+      expect(separatorTop, bandTop + ChatDataSourceX.unreadBoundaryPixelOffset);
       expect(
         tester.getTopLeft(find.text('msg-${lastRead + 1}')).dy,
         separatorTop + 32,
@@ -1159,10 +1155,7 @@ void main() {
       });
 
       test('a remove batch drops a pending boundary', () {
-        final (:ds, :boundary, :heard) = holder(
-          initial: null,
-          omitIds: {70},
-        );
+        final (:ds, :boundary, :heard) = holder(initial: null, omitIds: {70});
 
         boundary.setPendingBoundary(70);
         ds
@@ -1547,11 +1540,13 @@ void main() {
           isSelfMessage: _isSelf,
           savedCenterBand: saved,
         );
-        final CenterBandOpenPosition(:centerBand, :pendingBoundaryFrom) =
-            switch (position) {
-              final CenterBandOpenPosition restore => restore,
-              MessageOpenPosition() => throw StateError('opened at a message'),
-            };
+        final CenterBandOpenPosition(
+          :centerBand,
+          :pendingBoundaryFrom,
+        ) = switch (position) {
+          final CenterBandOpenPosition restore => restore,
+          MessageOpenPosition() => throw StateError('opened at a message'),
+        };
         final controller = ChatScrollController()
           ..jumpToCenterBand(
             centerBand.messageId,

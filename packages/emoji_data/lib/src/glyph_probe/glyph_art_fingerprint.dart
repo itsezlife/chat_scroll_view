@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:emoji_data/src/glyph_probe/glyph_pixel_hash.dart';
@@ -24,8 +25,14 @@ const List<String> defaultArtSentinelGlyphs = <String>[
 /// frame: [nextFrame] is awaited before each, so the work spreads over
 /// `sentinels.length` frames and never lands two renders in one. The result is
 /// one opaque string, stable for the same art and different when any sentinel
-/// is drawn differently or the sentinels differ. The OS version string is
-/// deliberately not part of it: it changes without the art changing.
+/// is drawn differently or the sentinels differ.
+///
+/// [supplement] is a host-chosen text that also belongs to the identity, such
+/// as the operating system version where an update is known to bring new art.
+/// The sentinels sample a few glyphs, so an update confined to others goes
+/// unseen by the pixels; a supplement catches it, at the price of a re-bake
+/// whenever the text changes without the art changing. It is not part of the
+/// result when null, so a host without one keeps its existing fingerprint.
 ///
 /// A failing [pixelsOf] or [nextFrame] fails the returned future; the caller
 /// decides what an unknown art version means.
@@ -33,6 +40,7 @@ Future<String> computeGlyphArtFingerprint({
   required Iterable<String> sentinels,
   required Future<Uint8List> Function(String glyph) pixelsOf,
   required Future<void> Function() nextFrame,
+  String? supplement,
 }) async {
   final hashes = <String>[];
   for (final glyph in sentinels) {
@@ -40,5 +48,8 @@ Future<String> computeGlyphArtFingerprint({
     hashes.add(hashGlyphPixels(await pixelsOf(glyph)));
   }
   // Order is part of the identity: the list is hashed, not a set of hashes.
-  return 'art1-${hashGlyphPixels(Uint8List.fromList(hashes.join('.').codeUnits))}';
+  final identity = supplement == null
+      ? hashes.join('.')
+      : '${hashes.join('.')}|$supplement';
+  return 'art1-${hashGlyphPixels(Uint8List.fromList(utf8.encode(identity)))}';
 }
