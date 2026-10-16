@@ -3,7 +3,7 @@
 Pure-Dart value types that identify and group catalog content (stickers,
 GIFs, custom and unicode emoji), the one synchronous change-notification
 primitive, and the seams through which packages reach data. No Flutter, no I/O,
-one dependency (`meta`).
+one dependency (`meta`), plus `package:test` for the opt-in `testing.dart`.
 Every other package in the workspace speaks these types, so it depends on no
 workspace package (`scripts/check` enforces both).
 
@@ -24,6 +24,36 @@ workspace package (`scripts/check` enforces both).
 | `GlyphSupport` | Which unicode keys the device draws, and the identity of its emoji art. Optimistic: `true` until known missing. |
 | `KeyValueStore`, `StoredValue` | Namespaced, versioned string persistence; the only way logic packages reach durable storage. |
 | `ContentResolver` | Batched async resolution of bare keys to descriptors. |
+| `KeyValueRecentsStore`, `KeyValuePreferenceStore` | The reference `RecentsStore` and `PreferenceStore` over a `KeyValueStore`. Created only by their async `load`, which reads persisted state first, so no store exists unloaded. Structured, versioned JSON records, one namespace per package. |
+
+## Testing
+
+`package:content_model/testing.dart` is opt-in: production code never imports
+it and `content_model.dart` never exports it (`scripts/check` enforces both).
+
+| Seam | Fake | Contract suite |
+| --- | --- | --- |
+| `Observable` | `FakeObservable` (hand-signalled, counts listeners) | `runObservableContract` |
+| `KeyValueStore` | `FakeKeyValueStore` (in memory, `failure` switch) | `runKeyValueStoreContract` |
+| `RecentsStore` | `FakeRecentsStore` | `runRecentsStoreContract` |
+| `PreferenceStore` | `FakePreferenceStore` | `runPreferenceStoreContract` |
+| `CollectionSource` | `FakeCollectionSource` (scripted `FakePages`, pausable, failure switches) | `runCollectionSourceContract` |
+| `SearchSource` | `FakeSearchSource` | `runSearchSourceContract` |
+| `KeywordSource` | `FakeKeywordSource` | `runKeywordSourceContract` |
+| `GlyphSupport` | `FakeGlyphSupport` | `runGlyphSupportContract` |
+| `ContentResolver` | `FakeContentResolver` (records batches) | `runContentResolverContract` |
+
+A contract suite takes a factory for the implementation under test. The
+suites for sources and resolvers also take a small harness that names facts
+about the content only the implementation knows (an id with two pages, a key
+it cannot resolve) and, where a backend can be made to fail, a switch for it.
+Run the suite from the implementation's own test file:
+
+```dart
+void main() {
+  runKeyValueStoreContract(MyPlatformKeyValueStore.new);
+}
+```
 
 ## Host contract
 
@@ -35,7 +65,9 @@ workspace package (`scripts/check` enforces both).
 | Titles as data (`CollectionMetadata.title`), in the source's own language. | Rely on a collection carrying an icon or a localized label. A page maps the `CollectionId` to those. |
 | One `Collection` per change. A first-load failure is `failed`; later page trouble stays `loaded` with its `nextPageToken`. | Mutate items or variants: the lists are unmodifiable copies. |
 | Entries whose variant keys are the exact sequences it sends, and tags for each. | Compute a variant by appending a modifier to the base, or fold FE0F spellings into one key. Keys compare exactly. |
-| Implementations of the seams it needs: sources, stores, a `ContentResolver`, a `KeyValueStore` adapter for its platform storage. Each seam's dartdoc states the contract to meet. | Reach a seam's implementation through a downcast, or let a seam throw for an expected condition. Missing data is null or an absent entry; a failed load is a `failed` state. |
+| Implementations of the seams it needs: sources, a `ContentResolver`, a `KeyValueStore` adapter for its platform storage. Each seam's dartdoc states the contract to meet. | Reach a seam's implementation through a downcast, or let a seam throw for an expected condition. Missing data is null or an absent entry; a failed load is a `failed` state. |
+| Its stores from `KeyValueRecentsStore.load` and `KeyValuePreferenceStore.load` over its `KeyValueStore`, awaited once at startup. | Try to use a store before `load` completes (there is no such store), or wrap `load` in a second layer of caching. |
+| A test for every implementation of a seam: the matching `run...Contract` suite from `testing.dart`. | Ship a fake, or import `testing.dart`, from production code. |
 | The decision that a pick counts: it calls `RecentsStore.record` on insert or send, with the `PickSource` it came from. | Record from inside a page, or record a pick made from search results. |
 | One `KeyValueStore` namespace per package, and a version on every value it writes. | Share a namespace between packages, or expect the store to migrate or interpret a value. |
 | Disposal: whoever creates a notifier, source or store disposes it. | Signal from a consumer's side (only the owner type can), or rely on a listener running after dispose. |
@@ -45,3 +77,4 @@ workspace package (`scripts/check` enforces both).
 
 - [Content identity and collection model](../../docs/adr/021-content-identity-and-collections.md)
 - [Data layering](../../docs/adr/023-data-layering-and-persistence.md)
+- [Testing policy](../../docs/adr/030-testing-policy.md)
