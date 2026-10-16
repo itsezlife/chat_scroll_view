@@ -75,6 +75,6 @@ void main() {
 
 ## Decisions
 
-- [Content identity and collection model](../../.scratch/package-architecture/adr-candidates/content-identity.md)
-- [Data layering](../../.scratch/package-architecture/adr-candidates/data-layering.md)
-- Testing policy: fakes and contract suites live with their seam, behind a separate `testing.dart` entry point.
+- [Content identity and collection model](../../docs/adr/021-content-identity-and-collections.md)
+- [Data layering](../../docs/adr/023-data-layering-and-persistence.md)
+- [Testing policy](../../docs/adr/030-testing-policy.md)

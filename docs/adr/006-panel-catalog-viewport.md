@@ -5,13 +5,15 @@ a thin extent-scroll RenderObject engine with paint leaves and
 **stitch** far jumps — not `SuperSliverList` forever and not a fork of Chat
 Scroll’s message-id / anchor model. Assets live in a **global catalog asset
 cache** shared with chat; catalog DS notifies like `ChatDataSource` but does
-not own decode bytes. Monorepo: root `packages/` (`catalog_assets`,
-`panel_catalog`, `emoji_data`, `chat_chrome`); `chat_scroll_view` remains at
-repo root.
+not own decode bytes. Monorepo: root `packages/`; `chat_scroll_view` remains at
+repo root. The package set, the cache contract and the public seams are
+amended by [ADR 020](020-package-topology.md), [ADR 022](022-asset-cache-and-media-pipeline.md)
+and [ADR 024](024-panel-catalog-seams.md); the baked glyph atlas is described
+in the [Amendment](#amendment-baked-glyph-atlas-and-shared-asset-scope).
 
-**Status**: Accepted (amended 2026-10-16 — baked glyph atlas, see [Amendment](#amendment-baked-glyph-atlas-and-shared-asset-scope))  
+**Status**: Accepted (amended 2026-10-16: baked glyph atlas and shared asset scope, see [Amendment](#amendment-baked-glyph-atlas-and-shared-asset-scope); package set amended by [ADR 020](020-package-topology.md), asset cache by [ADR 022](022-asset-cache-and-media-pipeline.md), public seams by [ADR 024](024-panel-catalog-seams.md))  
 **Date**: 2026-08-24  
-**Amended**: 2026-10-16 — unicode emoji are baked into atlas pages and drawn as batched sprites; asset cache shared through a host scope; per-section layout
+**Amended**: 2026-10-16 — unicode emoji are baked into atlas pages and drawn as batched sprites; asset cache shared through a host scope; per-section layout; chrome and package set replaced by the shell, pages and presentation packages
 
 ## Decided
 
@@ -48,21 +50,23 @@ repo root.
 Two efforts change this decision together, so they are recorded once: the
 baked glyph atlas (why a colour-glyph fling janked, and the pipeline that
 removes it) and the package-architecture seams (shared cache through a scope,
-per-section layout, snapshot data, attach-and-position controller). Names of
-the seams that are not built yet are provisional.
+per-section layout, snapshot data, attach-and-position controller). The seam
+contracts are decided in [ADR 022](022-asset-cache-and-media-pipeline.md) and
+[ADR 024](024-panel-catalog-seams.md); this section keeps the panel-side view.
 
 Each row below says whether it is **built** (in the packages today) or
-**pending** (decided here, built when the package seams land).
+**pending** (decided here and in those ADRs, built when the package seams land).
 
 ### Changes to the Decided table
 
 | Topic | Before | After | State |
 | ----- | ------ | ----- | ----- |
-| Assets | Process-wide **global catalog asset cache** shared with chat | **App-wide asset cache, host-created and provided through a scope**; no static singleton. The viewport and chat bind and paint only. | Pending |
+| Assets | Process-wide **global catalog asset cache** shared with chat | **App-wide asset cache, host-created and provided through a scope**; no static singleton. The viewport and chat bind and paint only ([ADR 022](022-asset-cache-and-media-pipeline.md)). | Pending |
 | Presentation | Readiness drives presentation (ready / loading / failed per leaf) | The binding's stage is used only for crossfade. The placeholder is derived from the descriptor (media form, kind). There is no visible failed stage: a leaf that fails or hangs keeps its placeholder. | Pending (a failed unicode leaf still presents as `failed` today) |
-| Layout | Viewport-wide span count, cell extent, header extent | **Per-section layout** (sealed `SectionLayout`; `Grid` now); the viewport-wide values are the defaults. | Pending |
-| Leaf, data, controller | Leaf class hierarchy; parallel data source with listener channels; five controller channels | Leaf value with an opaque host tag and positional hit identity; snapshot data source on the model `Observable`; attach-and-position controller. Public seams only: render object, stitch and near / far invariants are unchanged. | Pending |
-| Paint surface | Bound drawable at the stage reached | A binding exposes an **optional sprite** (atlas page handle + source rectangle). The viewport draws the sprites of one atlas page in **one batched atlas draw**; a leaf without a sprite paints itself. | Built (the capability sits on `CatalogAssetBinding`; the paintable contract renames it) |
+| Layout | Viewport-wide span count, cell extent, header extent | **Per-section layout** (sealed `SectionLayout`; `Grid` now); the viewport-wide values are the defaults ([ADR 024](024-panel-catalog-seams.md)). | Pending |
+| Leaf, data, controller | Leaf class hierarchy; parallel data source with listener channels; five controller channels | Leaf value with an opaque host tag and positional hit identity; snapshot data source on the model `Observable`; attach-and-position controller. Public seams only: render object, stitch and near / far invariants are unchanged ([ADR 024](024-panel-catalog-seams.md)). | Pending |
+| Paint surface | Bound drawable at the stage reached | A binding exposes an **optional sprite** (atlas page handle + source rectangle). The viewport draws the sprites of one atlas page in **one batched atlas draw**; a leaf without a sprite paints itself. | Built (the capability sits on `CatalogAssetBinding`; the `AssetPaintable` contract of [ADR 022](022-asset-cache-and-media-pipeline.md) moves it) |
+| Chrome and packages | Chrome around the viewport is **KeyboardPanel** ([ADR 007](007-keyboard-panel-controller.md)); packages are `catalog_assets`, `panel_catalog`, `emoji_data`, `chat_chrome` | Chrome is the **panel shell** with **pages** and a **panel presentation** ([ADR 025](025-panel-shell-and-pages.md), [ADR 028](028-panel-presentation.md)); the package set is [ADR 020](020-package-topology.md). Leaf callbacks return a positional leaf hit. | Pending |
 | Unicode glyph | Painted from a paragraph cache | **Baked glyph** (sprite) on a **glyph atlas page**. On a baking platform emoji are never drawn as text at scroll time and a paragraph is never a fallback. Web has no atlas and keeps the paragraph path, with a bounded, disposed cache. | Built |
 | Placeholder (circle) | Unicode never shows a circle | Unicode shows the circle placeholder until its glyph is baked, with no time limit; with a valid disk cache the circle lasts at most 500 ms after a cold start. | Built |
 | Warm-up | `warmAhead` rasterises the visible band offscreen on open | Removed. It did not make the first fling cheaper, and where emoji are baked it built paragraphs that are never drawn. | Built |
@@ -152,4 +156,5 @@ reference device gates; other devices and platforms are best effort.
 
 - Chat stitch / load-gate: [ADR 005](005-stitch-far-path-and-load-gate.md) (chat-only rules; panel does **not** inherit message load-gate by default)
 - Context map: [CONTEXT-MAP.md](../../CONTEXT-MAP.md)
+- Package set, asset cache and seam contracts: [ADR 020](020-package-topology.md), [ADR 022](022-asset-cache-and-media-pipeline.md), [ADR 024](024-panel-catalog-seams.md)
 - Glyph atlas vocabulary: [Panel Catalog glossary](../panel-catalog/CONTEXT.md) (Glyph atlas group); cache and invalidation QA: [qa-glyph-cache.md](../panel-catalog/qa-glyph-cache.md)
