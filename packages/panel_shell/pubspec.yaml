@@ -1,0 +1,35 @@
+name: panel_shell
+description: >
+  Host-independent panel shell: an open registry of panel pages, the shell
+  controller that owns page and search state, the pager, type tabs, bottom
+  bar and search field, one sealed panel event, page scroll activity, focus
+  and shortcuts.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: '>=3.32.0'
+
+dependencies:
+  chrome_foundation:
+    path: ../chrome_foundation
+  content_model:
+    path: ../content_model
+  flutter:
+    sdk: flutter
+  meta: ^1.17.0
+  # Only lib/testing.dart needs this: the semantic-label rule is written with
+  # the test framework, and a library cannot import a dev dependency.
+  # Production entry points never import it. Moving the rule to a package of
+  # its own would leave panel_shell with a dev dependency on a package that
+  # depends on it, a cycle the workspace dependency lint rejects.
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  # The stock chrome icons draw Material icon glyphs, and the widget tests and
+  # goldens need the font in the test bundle.
+  uses-material-design: true

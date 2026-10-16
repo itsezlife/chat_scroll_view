@@ -68,6 +68,18 @@ _Avoid_: Tab enum, allow bitset, plain widget page
 The single source of truth for the selected page id and the search state (open, query, focus intent). Presentation visibility is a separate controller.
 _Avoid_: One controller for shell and visibility, `adopt*` back-doors, `GlobalKey` control
 
+**Focus intent**:
+Part of the search state: whether the search field should hold focus. The field realises it; losing focus withdraws it without closing search.
+_Avoid_: Focus node owned by the host, search open as a proxy for focus
+
+**Panel presence**:
+Two Observables the shell publishes for the host's pause signals: panel visible (on screen, including while moving) and panel opening (moving). The presentation controller reports them.
+_Avoid_: A shell that reads its own visibility, pause flags inside pages
+
+**Page controller registry**:
+The per-page store of controllers (scroll offsets, loaded collections) that the shell controller owns, so a presentation switch restores page state.
+_Avoid_: State kept in the page widget, `GlobalKey` reach-in
+
 **Panel event**:
 The one sealed outward effect type: content picked, backspace, action invoked, clear recents, page changed, search opened or closed. The host handles it and records recents.
 _Avoid_: Callback bag, panel writing recents
