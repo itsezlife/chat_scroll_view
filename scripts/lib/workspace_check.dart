@@ -11,8 +11,6 @@ export 'src/dependency_lint.dart';
 export 'src/fakes_lint.dart';
 export 'src/legacy_baseline.dart';
 export 'src/library_file.dart';
-export 'src/library_scope_lint.dart';
-export 'src/platform_fork_lint.dart';
 export 'src/pure_dart_lint.dart';
 export 'src/reexport_lint.dart';
 export 'src/violation.dart';

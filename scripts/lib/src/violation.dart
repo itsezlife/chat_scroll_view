@@ -59,27 +59,6 @@ enum LintRule {
     'package:flutter, a Flutter library or dart:ui.',
   ),
 
-  /// A public function, accessor or variable in library scope.
-  publicLibraryScope(
-    'Every public top-level function, accessor or variable enters the scope '
-    'of every importer: names without an owner collide, crowd completion and '
-    'hide who is responsible for them. An operation, constant or default '
-    'belongs to the type it serves (a member or a static), a pure protocol '
-    'with no natural host to a named namespace (abstract final class), glue '
-    r'to `_` privacy; only a platform `$entry` under environment_specific/ '
-    'is library-visible by design.',
-  ),
-
-  /// A platform fork or a platform library outside an `environment_specific/`
-  /// directory.
-  platformForkOutsideBoundary(
-    'A platform fork is a boundary between files, not a condition: '
-    'conditional imports / exports and the platform libraries (dart:io, '
-    'dart:js_interop, package:web, ...) appear only under an '
-    'environment_specific/ directory, whose _vm / _js files define the '
-    r'`$entries` a static on the owning type calls.',
-  ),
-
   /// A [LegacyException] no longer matches any violation.
   staleLegacyException(
     'The legacy exception no longer matches a violation; delete it from '

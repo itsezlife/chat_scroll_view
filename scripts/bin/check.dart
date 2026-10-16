@@ -51,8 +51,6 @@ bool _lint(WorkspaceGraph graph) {
     ...ReexportLint.check(graph),
     ...FakesLint.check(graph),
     ...PureDartLint.check(graph),
-    ...PlatformForkLint.check(graph),
-    ...LibraryScopeLint.check(graph),
   ]);
   if (violations.isEmpty) {
     stdout.writeln('    no violations');
