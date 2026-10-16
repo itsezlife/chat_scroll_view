@@ -60,6 +60,7 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
   var _tabs = const <_StripTab>[];
   EmojiCategoryTab? _active;
   var _jumping = false;
+  late StreamSubscription<PanelCatalogScrollEvent> _scrollEvents;
 
   CatalogStripHandle get _handle => widget.handle;
 
@@ -69,7 +70,7 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
     _tabs = _tabsOf(_handle.entries.value);
     _active = _tabOfSection(_handle.currentSectionId) ?? _tabs.firstOrNull?.tab;
     _handle.entries.addListener(_onEntries);
-    _handle.scrollEvents.addListener(_onScroll);
+    _scrollEvents = _handle.scrollEvents.listen(_onScroll);
   }
 
   @override
@@ -77,16 +78,16 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
     super.didUpdateWidget(oldWidget);
     if (identical(oldWidget.handle, widget.handle)) return;
     oldWidget.handle.entries.removeListener(_onEntries);
-    oldWidget.handle.scrollEvents.removeListener(_onScroll);
+    unawaited(_scrollEvents.cancel());
     _handle.entries.addListener(_onEntries);
-    _handle.scrollEvents.addListener(_onScroll);
+    _scrollEvents = _handle.scrollEvents.listen(_onScroll);
     _onEntries();
   }
 
   @override
   void dispose() {
     _handle.entries.removeListener(_onEntries);
-    _handle.scrollEvents.removeListener(_onScroll);
+    unawaited(_scrollEvents.cancel());
     _scroll.dispose();
     super.dispose();
   }

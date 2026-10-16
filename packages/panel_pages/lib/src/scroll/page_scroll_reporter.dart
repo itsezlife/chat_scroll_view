@@ -1,4 +1,5 @@
-import 'package:content_model/content_model.dart';
+import 'dart:async';
+
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -27,16 +28,15 @@ final class PageScrollReporter {
   /// [atEdge] is asked when the catalogue rests, to tell whether it rests at
   /// its start or its end.
   PageScrollReporter({
-    required EventObservable<PanelCatalogScrollEvent> events,
+    required Stream<PanelCatalogScrollEvent> events,
     required void Function(PageScrollActivity activity) report,
     required bool Function() atEdge,
-  }) : _events = events,
-       _report = report,
+  }) : _report = report,
        _atEdge = atEdge {
-    _events.addListener(_onEvent);
+    _subscription = events.listen(_onEvent);
   }
 
-  final EventObservable<PanelCatalogScrollEvent> _events;
+  late final StreamSubscription<PanelCatalogScrollEvent> _subscription;
   final void Function(PageScrollActivity activity) _report;
   final bool Function() _atEdge;
 
@@ -76,6 +76,6 @@ final class PageScrollReporter {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _events.removeListener(_onEvent);
+    unawaited(_subscription.cancel());
   }
 }

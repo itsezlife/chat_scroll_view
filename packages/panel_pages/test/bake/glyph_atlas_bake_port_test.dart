@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:content_model/content_model.dart';
@@ -10,12 +12,12 @@ const _perPage = 676; // GlyphAtlasLayout().cellsPerPage
 
 void main() {
   late FakeBakeFrameSource frames;
-  late EventNotifier<PanelCatalogScrollEvent> events;
+  late StreamController<PanelCatalogScrollEvent> events;
   late GlyphAtlas atlas;
 
   setUp(() {
     frames = FakeBakeFrameSource();
-    events = EventNotifier<PanelCatalogScrollEvent>();
+    events = StreamController<PanelCatalogScrollEvent>.broadcast(sync: true);
     final visible = ValueNotifier<bool>(true);
     final opening = ValueNotifier<bool>(false);
     atlas = GlyphAtlas(
@@ -27,29 +29,32 @@ void main() {
       panelVisible: visible,
       panelOpening: opening,
     )..start();
-    CatalogBakeForwarder(events: events, port: GlyphAtlasBakePort(atlas));
+    CatalogBakeForwarder(
+      events: events.stream,
+      port: GlyphAtlasBakePort(atlas),
+    );
     addTearDown(() {
       atlas.dispose();
       visible.dispose();
       opening.dispose();
-      events.dispose();
+      unawaited(events.close());
     });
   });
 
   test('baking waits while the catalogue moves and resumes at rest', () {
     expect(frames.hasPendingRequest, isTrue);
 
-    events.publish(const PanelCatalogScrollingChanged(scrolling: true));
+    events.add(const PanelCatalogScrollingChanged(scrolling: true));
     expect(frames.hasPendingRequest, isFalse);
 
-    events.publish(const PanelCatalogScrollingChanged(scrolling: false));
+    events.add(const PanelCatalogScrollingChanged(scrolling: false));
     expect(frames.hasPendingRequest, isTrue);
   });
 
   test(
     'the page holding the band the catalogue settled on bakes first',
     () async {
-      events.publish(
+      events.add(
         PanelCatalogScrollSettled(const [ContentKey.unicode('g$_perPage')]),
       );
 

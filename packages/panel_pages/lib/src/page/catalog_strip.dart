@@ -1,4 +1,5 @@
 import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 import 'package:meta/meta.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 
@@ -37,12 +38,12 @@ abstract interface class CatalogStripHandle {
   /// The sections of the catalogue being browsed, in display order.
   ///
   /// Replaced whole on every change of the catalogue.
-  ValueObservable<List<CatalogStripEntry>> get entries;
+  ValueListenable<List<CatalogStripEntry>> get entries;
 
   /// The scroll events of the catalogue, for a strip that follows its scroll.
   ///
   /// `PanelCatalogCurrentSectionChanged` says which section the user is in.
-  EventObservable<PanelCatalogScrollEvent> get scrollEvents;
+  Stream<PanelCatalogScrollEvent> get scrollEvents;
 
   /// The id of the section the catalogue is in now, or null before it has laid
   /// out or while it shows no section.

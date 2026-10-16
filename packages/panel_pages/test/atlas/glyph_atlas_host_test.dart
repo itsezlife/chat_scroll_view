@@ -2,7 +2,7 @@
 /// released, and what it is told about the panel.
 ///
 /// **Seam:** [GlyphAtlasHost] with a fake frame source, rasteriser, stores and
-/// atlas factory, driven by [GlyphPlan]s and the presence observables, and
+/// atlas factory, driven by [GlyphPlan]s and the presence listenables, and
 /// observed through the atlas it exposes, the requests the factory received
 /// and the frames the bake asked for.
 library;
@@ -11,9 +11,9 @@ import 'dart:async';
 
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
-import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_pages/panel_pages.dart';
 
 /// The box emoji are drawn in on a 45 px cell (the glyph box fraction of it).
@@ -26,16 +26,16 @@ GlyphPlan _plan([List<String> extra = const []]) =>
 
 void main() {
   late FakeBakeFrameSource frames;
-  late ObservableValue<bool> visible;
-  late ObservableValue<bool> opening;
+  late listen.ValueNotifier<bool> visible;
+  late listen.ValueNotifier<bool> opening;
   late List<GlyphAtlas> created;
   late List<GlyphPageResidency> residencies;
   late List<GlyphPageStore?> stores;
 
   setUp(() {
     frames = FakeBakeFrameSource();
-    visible = ObservableValue(false);
-    opening = ObservableValue(false);
+    visible = listen.ValueNotifier(false);
+    opening = listen.ValueNotifier(false);
     created = [];
     residencies = [];
     stores = [];

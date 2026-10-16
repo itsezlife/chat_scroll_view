@@ -1,25 +1,26 @@
 import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 import 'package:panel_shell/panel_shell.dart';
 import 'package:panel_shell/testing.dart';
 
-/// A [PanelPageHost] for tests of a page: the observables are settable and
+/// A [PanelPageHost] for tests of a page: the listenables are settable and
 /// every report the page makes is recorded.
 ///
 /// Unlike the shell's real host, it drops nothing: reports of a page that is
 /// not active are kept too, so a test sees what the page said and decides
 /// whether the shell would have listened.
-final class FakePanelPageHost implements PanelPageHost {
+final class FakePanelPageHost with ChangeNotifier implements PanelPageHost {
   /// A host for the page [pageId].
   FakePanelPageHost({this.pageId = 'page'});
 
   @override
   final String pageId;
 
-  final _search = ObservableValue<PanelSearchState>(PanelSearchState.closed);
-  final _isActive = ObservableValue<bool>(true);
-  final _reselected = ObservableNotifier();
-  final _panelVisible = ObservableValue<bool>(true);
-  final _panelOpening = ObservableValue<bool>(false);
+  final _search = ValueNotifier<PanelSearchState>(PanelSearchState.closed);
+  final _isActive = ValueNotifier<bool>(true);
+  var _disposed = false;
+  final _panelVisible = ValueNotifier<bool>(true);
+  final _panelOpening = ValueNotifier<bool>(false);
 
   @override
   final FakePageControllerRegistry controllers = FakePageControllerRegistry();
@@ -44,21 +45,21 @@ final class FakePanelPageHost implements PanelPageHost {
   final List<int> searchResultCounts = [];
 
   @override
-  ValueObservable<PanelSearchState> get search => _search;
+  ValueListenable<PanelSearchState> get search => _search;
 
   @override
-  ValueObservable<bool> get isActive => _isActive;
+  ValueListenable<bool> get isActive => _isActive;
 
   @override
-  Observable get reselected => _reselected;
+  Listenable get reselected => this;
 
   /// Whether the panel is shown; true unless a test hides it.
   @override
-  ValueObservable<bool> get panelVisible => _panelVisible;
+  ValueListenable<bool> get panelVisible => _panelVisible;
 
   /// Whether the panel is moving; false unless a test moves it.
   @override
-  ValueObservable<bool> get panelOpening => _panelOpening;
+  ValueListenable<bool> get panelOpening => _panelOpening;
 
   /// Sets whether the panel is on screen.
   set visible(bool value) => _panelVisible.value = value;
@@ -73,7 +74,7 @@ final class FakePanelPageHost implements PanelPageHost {
   set active(bool value) => _isActive.value = value;
 
   /// Signals that the user selected the tab of this page again.
-  void reselect() => _reselected.notify();
+  void reselect() => notifyListeners();
 
   @override
   void pick(
@@ -98,12 +99,15 @@ final class FakePanelPageHost implements PanelPageHost {
   @override
   void reportSearchResultCount(int count) => searchResultCounts.add(count);
 
-  /// Releases the observables.
+  /// Releases the listenables. Idempotent.
+  @override
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     _search.dispose();
     _isActive.dispose();
-    _reselected.dispose();
     _panelVisible.dispose();
     _panelOpening.dispose();
+    super.dispose();
   }
 }

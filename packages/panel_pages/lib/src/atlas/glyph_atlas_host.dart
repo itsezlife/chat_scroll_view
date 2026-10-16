@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:catalog_assets/glyph_atlas.dart';
-import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_pages/src/atlas/glyph_plan.dart';
 
 /// Builds the atlas a [GlyphAtlasRequest] describes; the web counterpart
@@ -38,7 +38,7 @@ typedef GlyphAtlasFactory = GlyphAtlas? Function(GlyphAtlasRequest request);
 /// ## Pause signals
 ///
 /// The atlas bakes only while the panel is [visible] and not [opening]; the
-/// host mirrors the two observables it is given (published by the shell,
+/// host mirrors the two listenables it is given (published by the shell,
 /// which has them from the presentation) into the notifiers the atlas takes.
 ///
 /// ## The glyph-support probe
@@ -89,8 +89,8 @@ final class GlyphAtlasHost {
     required BakeFrameSource frames,
     required double devicePixelRatio,
     required double glyphBoxExtent,
-    required ValueObservable<bool> visible,
-    required ValueObservable<bool> opening,
+    required listen.ValueListenable<bool> visible,
+    required listen.ValueListenable<bool> opening,
     Duration pageRetention = GlyphPageResidency.defaultRetention,
     Listenable? memoryPressure,
     GlyphRasteriser? rasteriser,
@@ -120,8 +120,8 @@ final class GlyphAtlasHost {
 
   final BakeFrameSource _frames;
   final double _glyphBoxExtent;
-  final ValueObservable<bool> _visibleSource;
-  final ValueObservable<bool> _openingSource;
+  final listen.ValueListenable<bool> _visibleSource;
+  final listen.ValueListenable<bool> _openingSource;
   final Duration _pageRetention;
   final Listenable? _memoryPressure;
   final GlyphRasteriser _rasteriser;
@@ -131,7 +131,7 @@ final class GlyphAtlasHost {
   final GlyphAtlasFactory _atlasFactory;
   final ValueNotifier<bool> _visible;
   final ValueNotifier<bool> _opening;
-  final _atlas = ObservableValue<GlyphAtlas?>(null);
+  final _atlas = listen.ValueNotifier<GlyphAtlas?>(null);
 
   double _devicePixelRatio;
   GlyphAtlasPersistence? _persistence;
@@ -147,7 +147,7 @@ final class GlyphAtlasHost {
 
   /// The atlas to draw from, or null before there is a plan and on a platform
   /// that does not bake. Signals when it is replaced.
-  ValueObservable<GlyphAtlas?> get atlas => _atlas;
+  listen.ValueListenable<GlyphAtlas?> get atlas => _atlas;
 
   /// Whether a plan found out that this platform bakes nothing, so no atlas
   /// will ever exist. False until the first plan is made.

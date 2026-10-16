@@ -18,6 +18,7 @@ import 'package:content_model/testing.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_pages/panel_pages.dart';
@@ -850,9 +851,9 @@ void main() {
 /// glyphs it is told to show, already loaded.
 final class _MutableSource implements CollectionSource {
   _MutableSource({required List<String> glyphs})
-    : _collections = ObservableValue(_of(glyphs));
+    : _collections = listen.ValueNotifier(_of(glyphs));
 
-  final ObservableValue<List<Collection>> _collections;
+  final listen.ValueNotifier<List<Collection>> _collections;
 
   static List<Collection> _of(List<String> glyphs) => [
     Collection(
@@ -870,7 +871,7 @@ final class _MutableSource implements CollectionSource {
   void show(List<String> glyphs) => _collections.value = _of(glyphs);
 
   @override
-  ValueObservable<List<Collection>> get collections => _collections;
+  listen.ValueListenable<List<Collection>> get collections => _collections;
 
   @override
   Future<void> load(CollectionId id) async {}
