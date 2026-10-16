@@ -3,6 +3,11 @@
 /// registry.
 library;
 
+export 'src/icons/chrome_icon.dart';
+export 'src/icons/chrome_icon_id.dart';
+export 'src/icons/chrome_icon_painter.dart';
+export 'src/icons/chrome_icon_registry.dart';
+export 'src/icons/chrome_icon_scope.dart';
 export 'src/motion/chrome_motion.dart';
 export 'src/motion/chrome_motion_scope.dart';
 export 'src/motion/chrome_motion_speed.dart';
