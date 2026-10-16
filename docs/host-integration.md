@@ -317,8 +317,15 @@ band taller than the slot believes. The example's `SoftKeyboardPort` states
 which kind of platform it is on (`heightsIncludeSafeArea`).
 
 Report `animating` truthfully. The hand-off to the keyboard waits for a
-settled reading (`animating` false, height up) and closes cold after one
-second. Do not filter or smooth the samples.
+settled reading (`animating` false, height up) to stand for a short
+confirmation (`KeyboardReplacementTuning.settleConfirmation`) and closes cold
+after one second. Do not filter or smooth the samples; the slot discounts the
+lone settled spike a crossing hide and show report.
+
+The panel button acts on what the previous press asked for, not on how far
+its motion has come. A press while the panel leaves for the keyboard (search
+still shrinking, or the keyboard still rising) keeps or brings back the panel
+and lowers the keyboard again; the toggle's glyph follows the press at once.
 
 While a keyboard-replacement panel is on screen, give the composer
 `setSoftKeyboard(SoftKeyboardMode.suppressed)`; every other time `auto`. The

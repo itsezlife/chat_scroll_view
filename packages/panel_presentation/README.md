@@ -157,9 +157,14 @@ ime.report(ImeSample(
   screen). `keyboardIsUp` is the same fact for a host's own pages: read it when
   a page mounts to decide whether to pace its chrome the same way.
 - **Hand-off to the keyboard.** `hide(waitForIme: true)` keeps the emptied
-  sheet and the occupancy until the keyboard reports a *settled* reading
-  (`animating` false, height up), or closes cold after one second. There are
-  no sample counters and no wall-clock windows: hosts must report `animating`
+  sheet and the occupancy until the keyboard is *confirmed up*: a settled
+  reading (`animating` false, height up) that stands for
+  `KeyboardReplacementTuning.settleConfirmation` (80 ms) with no other
+  reading after it. A hide and a show that cross report one settled reading
+  at full height between zeros, which the confirmation lets pass. A keyboard
+  the panel has just replaced was asked down and must read up again. With no
+  confirmation within one second the panel closes cold, or hands over to a
+  keyboard that still reads settled up. Hosts must report `animating`
   honestly.
 - **Panel height.** The measured keyboard height (content height without the
   safe area), remembered per orientation, never below the 180 floor, with a

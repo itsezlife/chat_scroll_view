@@ -17,6 +17,7 @@ final class KeyboardReplacementTuning {
     this.searchExpansion = 175,
     this.searchReserve = 62,
     this.handOffTimeout = const Duration(seconds: 1),
+    this.settleConfirmation = const Duration(milliseconds: 80),
     this.coldOpenDelay = const Duration(milliseconds: 50),
     this.settleTolerance = 2,
     this.sheetCornerRadius = 29,
@@ -43,6 +44,16 @@ final class KeyboardReplacementTuning {
   /// How long a hand-off to the soft keyboard waits for the keyboard before
   /// it gives up and closes the panel on its own.
   final Duration handOffTimeout;
+
+  /// How long a settled reading of a raised keyboard must stand, with no
+  /// other reading after it, before the slot takes the keyboard to be up.
+  ///
+  /// A hide and a show that cross (the panel opened over the keyboard and
+  /// left for it again within a few frames) can report one settled reading
+  /// at the keyboard's full height between zeros; taken at its word, the
+  /// panel would hand over to a keyboard that is about to fall and rise
+  /// again. Zero takes every settled reading at once.
+  final Duration settleConfirmation;
 
   /// How long a cold open waits, after the panel has been built, before it
   /// starts to move, so the page mounts while nothing animates.
@@ -74,6 +85,7 @@ final class KeyboardReplacementTuning {
       other.searchExpansion == searchExpansion &&
       other.searchReserve == searchReserve &&
       other.handOffTimeout == handOffTimeout &&
+      other.settleConfirmation == settleConfirmation &&
       other.coldOpenDelay == coldOpenDelay &&
       other.settleTolerance == settleTolerance &&
       other.sheetCornerRadius == sheetCornerRadius;
@@ -86,6 +98,7 @@ final class KeyboardReplacementTuning {
     searchExpansion,
     searchReserve,
     handOffTimeout,
+    settleConfirmation,
     coldOpenDelay,
     settleTolerance,
     sheetCornerRadius,

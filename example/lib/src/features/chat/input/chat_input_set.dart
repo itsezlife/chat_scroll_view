@@ -265,6 +265,7 @@ final class ChatInputSet {
       presentation.state.removeListener(_onPresentationState);
       _editing.dispose();
       _busy.dispose();
+      _leaving.dispose();
       rethrow;
     }
   }
@@ -320,6 +321,7 @@ final class ChatInputSet {
   final ValueNotifier<ChatEditTarget?> _editing =
       ValueNotifier<ChatEditTarget?>(null);
   final ValueNotifier<bool> _busy = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _leaving = ValueNotifier<bool>(false);
 
   late StreamSubscription<double> _imeHeights;
   late StreamSubscription<PanelEvent> _panelEvents;
@@ -327,9 +329,10 @@ final class ChatInputSet {
   double _safeBottom = 0;
   ChatPreImeBackClaim? _backClaim;
   PanelAutoHideHold? _autoHideHold;
-  var _handingOff = false;
+  var _handOffRun = 0;
   var _armedForTap = false;
   var _wasVisible = false;
+  var _wasReplacing = false;
   var _disposed = false;
 
   // --- State ----------------------------------------------------------------
@@ -339,6 +342,11 @@ final class ChatInputSet {
 
   /// Whether a send or an edit is in flight.
   ValueListenable<bool> get busy => _busy;
+
+  /// Whether the panel is on its way to giving its slot to the keyboard while
+  /// it is still on screen: search shrinks back first. The user's choice is
+  /// made, so the toggle already reads as a panel that is leaving.
+  ValueListenable<bool> get leavingForKeyboard => _leaving;
 
   /// Whether the panel is on screen or on its way there (not on its way out).
   bool get isPanelOpening => switch (presentation.state.value) {
@@ -350,10 +358,10 @@ final class ChatInputSet {
   bool get isPanelVisible => presentation.state.value.isVisible;
 
   /// Whether the panel stands in for the soft keyboard (the mobile kind) and
-  /// is not on its way out: the composer's toggle then shows the keyboard's
-  /// glyph, because pressing it gives the keyboard back.
-  bool get panelReplacesKeyboard =>
-      isPanelOpening && presentation.state.value.kind is KeyboardReplacement;
+  /// is not on its way out, hiding or [leavingForKeyboard]: the composer's
+  /// toggle then shows the keyboard's glyph, because pressing it gives the
+  /// keyboard back.
+  bool get panelReplacesKeyboard => _panelReplacesKeyboard && !_leaving.value;
 
   /// Whether the panel is docked and not on its way out: the composer's
   /// toggle then draws in its active state.
@@ -498,6 +506,12 @@ final class ChatInputSet {
   ///
   /// The saved choice is `PanelPresentationController.dockPreferred`, which
   /// the preference store keeps, so a later session opens as this one left it.
+  ///
+  /// Every press acts on what the previous one asked for, not on how far its
+  /// motion has come: pressed again while the panel leaves for the keyboard
+  /// (search still shrinking, or the keyboard still rising), the panel stays
+  /// or comes back and the keyboard goes down; pressed again while it opens,
+  /// it leaves.
   void togglePanel() {
     if (_disposed) return;
     final state = presentation.state.value;
@@ -505,6 +519,8 @@ final class ChatInputSet {
       case PanelVisibility$Showing(:final kind) ||
           PanelVisibility$Shown(:final kind):
         switch (kind) {
+          case KeyboardReplacement() when _leaving.value:
+            _stayOnPanel();
           case KeyboardReplacement():
             handOffToKeyboard();
           case AnchoredPopup():
@@ -528,7 +544,7 @@ final class ChatInputSet {
   /// replaces it.
   void onFieldTap() {
     if (_disposed) return;
-    if (_panelReplacesKeyboard) handOffToKeyboard();
+    if (panelReplacesKeyboard) handOffToKeyboard();
   }
 
   /// A pointer went down on the composer's field.
@@ -538,7 +554,7 @@ final class ChatInputSet {
   /// keyboard type, and a keyboard that is up for the panel's search field
   /// passes to the composer instead of dropping and rising again.
   void onFieldPointerDown() {
-    if (_disposed || !_panelReplacesKeyboard) return;
+    if (_disposed || !panelReplacesKeyboard) return;
     _armedForTap = true;
     composer.setSoftKeyboard(SoftKeyboardMode.auto);
   }
@@ -551,7 +567,7 @@ final class ChatInputSet {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_disposed || !_armedForTap) return;
       _armedForTap = false;
-      if (!_handingOff && _panelReplacesKeyboard) {
+      if (panelReplacesKeyboard) {
         composer.setSoftKeyboard(SoftKeyboardMode.suppressed);
       }
     });
@@ -570,14 +586,19 @@ final class ChatInputSet {
   /// closes and the panel shrinks back to the grid at its keyboard height;
   /// only when that has settled does the panel hand its slot over, so the slot
   /// is held at the keyboard's height, not the grown one, and nothing jumps.
+  ///
+  /// [leavingForKeyboard] is true from the call until the panel hides; a
+  /// toggle in between keeps the panel ([togglePanel]).
   void handOffToKeyboard() {
-    if (_disposed || _handingOff) return;
-    _handingOff = true;
+    if (_disposed || _leaving.value) return;
+    _leaving.value = true;
     _armedForTap = false;
-    unawaited(_handOff());
+    unawaited(_handOff(++_handOffRun));
   }
 
-  Future<void> _handOff() async {
+  Future<void> _handOff(int run) async {
+    // A later press kept the panel, or the set went away.
+    bool superseded() => _disposed || run != _handOffRun;
     try {
       // Asked for here and only here, so a panel closed any other way (back)
       // leaves the keyboard down. The field answers after the frame,
@@ -586,18 +607,28 @@ final class ChatInputSet {
         ..setSoftKeyboard(SoftKeyboardMode.auto)
         ..requestKeyboard();
       if (shell.search.value.isOpen) {
-        await _waitFrames(until: () => composer.hasFocus);
-        if (_disposed) return;
+        await _waitFrames(until: () => composer.hasFocus || superseded());
+        if (superseded()) return;
         shell.closeSearch();
         await _slotAtRest();
-        if (_disposed) return;
+        if (superseded()) return;
       }
       // Back, or another close, may have taken the panel away meanwhile.
       if (!_panelReplacesKeyboard) return;
       presentation.hide(waitForIme: true);
     } finally {
-      _handingOff = false;
+      if (!superseded()) _leaving.value = false;
     }
+  }
+
+  // A toggle while the panel was leaving for the keyboard and is still on
+  // screen: the hand-off stops where it is, and the panel stays in place of
+  // a keyboard that goes back down.
+  void _stayOnPanel() {
+    _handOffRun++;
+    _leaving.value = false;
+    composer.setSoftKeyboard(SoftKeyboardMode.suppressed);
+    _dismissKeyboardForPanel();
   }
 
   // Waits for frames until [until] holds, for at most a few.
@@ -701,13 +732,15 @@ final class ChatInputSet {
     final opened = !_wasVisible && state.isVisible;
     if (opened) services.recentsShown.commit();
     _wasVisible = state.isVisible;
-    if (opened && state.kind is KeyboardReplacement) _dismissKeyboardForPanel();
     // The panel stands in for the keyboard only while it is coming or on
     // screen; once it is leaving, the field is a field again.
+    final replacing = panelReplacesKeyboard;
+    // Also when it turns back while hiding: the keyboard its hand-off asked
+    // for is on its way up and goes down again.
+    if (replacing && !_wasReplacing) _dismissKeyboardForPanel();
+    _wasReplacing = replacing;
     composer.setSoftKeyboard(
-      isPanelOpening && state.kind is KeyboardReplacement
-          ? SoftKeyboardMode.suppressed
-          : SoftKeyboardMode.auto,
+      replacing ? SoftKeyboardMode.suppressed : SoftKeyboardMode.auto,
     );
     if (state.isVisible) {
       _backClaim ??= ChatPreImeBackClaim.push(handleBack);
@@ -723,7 +756,8 @@ final class ChatInputSet {
   // one; it does not lower the one that is showing, which needs the command.
   void _dismissKeyboardForPanel() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_disposed || !isPanelOpening) return;
+      // A press in the same frame may have asked for the keyboard again.
+      if (_disposed || !panelReplacesKeyboard) return;
       unawaited(_keyboardPort.hide());
     });
   }
@@ -782,5 +816,6 @@ final class ChatInputSet {
     _text.dispose();
     _editing.dispose();
     _busy.dispose();
+    _leaving.dispose();
   }
 }

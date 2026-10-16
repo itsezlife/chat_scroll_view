@@ -13,6 +13,9 @@ this package is pre-1.0.
 - `KeyboardReplacementStrategy.animating`: whether the slot is moving, so a
   host can wait for search to collapse back to the panel's height before it
   hands the slot to the keyboard.
+- `KeyboardReplacementTuning.settleConfirmation` (80 ms): how long a settled
+  reading of a raised keyboard must stand, with no other reading after it,
+  before the slot takes the keyboard to be up.
 
 ### Documented
 
@@ -21,6 +24,17 @@ this package is pre-1.0.
 
 ### Changed
 
+- **The hand-off to the keyboard waits for a confirmed reading.** A settled
+  reading of a raised keyboard counts once it has stood for
+  `settleConfirmation` with no other reading after it, before a close and
+  during the hold alike. Before, one settled reading handed over, and the
+  lone full-height reading a crossing hide and show report between zeros
+  dropped the composer by the keyboard's height and raised it again. A
+  panel that replaces the keyboard drops the confirmation (it asks that
+  keyboard down), and a hand-off that times out over a keyboard still
+  reading settled up hands over instead of closing cold. A legitimate
+  hand-off ends up to 80 ms later, while the emptied sheet sits under the
+  keyboard at its height.
 - **The anchored popup never takes focus when it opens.** Before, a click-opened
   popup moved the caret from the composer into the panel (a hover-opened one
   did not). Now no open does: the composer keeps the caret, the search field is

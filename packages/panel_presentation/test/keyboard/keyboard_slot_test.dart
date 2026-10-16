@@ -62,6 +62,9 @@ final class _Rig {
   void moving(double height, {double safe = 0}) => ime.report(
     ImeSample(height: height, animating: true, safeAreaBottom: safe),
   );
+
+  /// Lets the latest settled reading stand for the confirmation time.
+  void confirm() => clock.advance(const Duration(milliseconds: 80));
 }
 
 void main() {
@@ -308,15 +311,86 @@ void main() {
         expect(rig.state, KeyboardSlotState.handOffToIme);
 
         rig.settled(310);
+        expect(rig.state, KeyboardSlotState.handOffToIme, reason: 'standing');
+        rig.confirm();
         expect(rig.state, KeyboardSlotState.idle);
         expect(rig.bottom, 310);
       },
     );
 
-    test('a keyboard that is already up takes over at once', () {
-      rig.settled(310);
-      rig.slot.open(_slide);
+    test('a keyboard that rose beneath the panel and stood takes over at '
+        'once', () async {
+      await openCold();
+      rig
+        ..moving(150)
+        ..settled(310)
+        ..confirm();
       rig.slot.close(_slide, waitForIme: true);
+      expect(rig.state, KeyboardSlotState.idle);
+      expect(rig.bottom, 310);
+    });
+
+    test('a settled spike between zeros does not release the hold', () async {
+      await openCold();
+      rig.slot.close(_slide, waitForIme: true);
+      rig
+        ..settled(0)
+        ..settled(310)
+        ..settled(0)
+        ..confirm();
+      expect(rig.state, KeyboardSlotState.handOffToIme);
+      expect(rig.bottom, 310);
+
+      // The keyboard then truly rises.
+      rig
+        ..moving(120)
+        ..moving(300)
+        ..settled(310)
+        ..confirm();
+      expect(rig.state, KeyboardSlotState.idle);
+      expect(rig.bottom, 310);
+    });
+
+    test('a keyboard that read up only just before the close is confirmed '
+        'first', () async {
+      await openCold();
+      rig.settled(310);
+      rig.slot.close(_slide, waitForIme: true);
+      expect(rig.state, KeyboardSlotState.handOffToIme);
+      rig.settled(0);
+      rig.confirm();
+      expect(rig.state, KeyboardSlotState.handOffToIme);
+      expect(rig.bottom, 310);
+    });
+
+    test('a keyboard the panel has just replaced must read up again', () {
+      rig
+        ..settled(310)
+        ..confirm();
+      rig.slot.open(_slide);
+      expect(rig.state, KeyboardSlotState.replacing);
+      // Left again before the keyboard has answered the hide.
+      rig.slot.close(_slide, waitForIme: true);
+      expect(rig.state, KeyboardSlotState.handOffToIme);
+      expect(rig.bottom, 310);
+
+      rig
+        ..settled(0)
+        ..moving(150)
+        ..settled(310)
+        ..confirm();
+      expect(rig.state, KeyboardSlotState.idle);
+      expect(rig.bottom, 310);
+    });
+
+    test('a keyboard that never moved again takes over at the timeout', () {
+      rig
+        ..settled(310)
+        ..confirm();
+      rig.slot
+        ..open(_slide)
+        ..close(_slide, waitForIme: true);
+      _Rig.clock.advance(const Duration(seconds: 1));
       expect(rig.state, KeyboardSlotState.idle);
       expect(rig.bottom, 310);
     });
@@ -341,7 +415,9 @@ void main() {
         rig.finishMotion();
         rig.slot.close(_slide, waitForIme: true);
 
-        rig.settled(309.33);
+        rig
+          ..settled(309.33)
+          ..confirm();
         expect(rig.state, KeyboardSlotState.idle);
         expect(rig.bottom, 310.4);
         rig.settled(309.69);
@@ -356,7 +432,9 @@ void main() {
       rig.slot.open(_slide);
       rig.finishMotion();
       rig.slot.close(_slide, waitForIme: true);
-      rig.settled(309.33);
+      rig
+        ..settled(309.33)
+        ..confirm();
 
       for (final h in <double>[308, 280, 200, 100, 40, 8]) {
         rig.moving(h);
@@ -369,8 +447,10 @@ void main() {
     test('a settled zero right after the hand-off is a real hide', () async {
       await openCold();
       rig.slot.close(_slide, waitForIme: true);
-      rig.settled(310);
-      rig.settled(0);
+      rig
+        ..settled(310)
+        ..confirm()
+        ..settled(0);
       expect(rig.bottom, 0);
     });
 
@@ -395,7 +475,9 @@ void main() {
       await openCold();
       rig.slot.close(_slide, waitForIme: true);
       expect(_Rig.clock.pendingCount, 1);
-      rig.settled(310);
+      rig
+        ..settled(310)
+        ..confirm();
       expect(_Rig.clock.pendingCount, 0);
     });
 
@@ -618,7 +700,9 @@ void main() {
       rig.slot.close(_slide, waitForIme: true);
       rig.window.value = _landscape;
       expect(rig.bottom, 190);
-      rig.settled(190);
+      rig
+        ..settled(190)
+        ..confirm();
       expect(rig.state, KeyboardSlotState.idle);
       expect(rig.bottom, 190);
     });
@@ -664,7 +748,9 @@ void main() {
       rig.slot.open(_slide);
       rig.finishMotion();
       rig.slot.close(_slide, waitForIme: true);
-      rig.settled(210);
+      rig
+        ..settled(210)
+        ..confirm();
       expect(rig.heights.heightFor(PanelOrientation.portrait), 210);
     });
   });

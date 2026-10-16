@@ -98,15 +98,19 @@ final class InputRig {
     await tester.pump();
   }
 
-  /// Runs frames until nothing is moving or [limit] has passed.
+  /// Runs frames until nothing is moving or [limit] has passed, and for at
+  /// least 100 ms: a keyboard reading is confirmed by a timer, not a frame.
   Future<void> settle(
     WidgetTester tester, [
     Duration limit = const Duration(seconds: 3),
   ]) async {
-    final end = tester.binding.clock.now().add(limit);
+    final start = tester.binding.clock.now();
+    final end = start.add(limit);
+    final least = start.add(const Duration(milliseconds: 100));
     do {
       await tester.pump(const Duration(milliseconds: 16));
-    } while (tester.binding.hasScheduledFrame &&
+    } while ((tester.binding.hasScheduledFrame ||
+            tester.binding.clock.now().isBefore(least)) &&
         tester.binding.clock.now().isBefore(end));
   }
 }

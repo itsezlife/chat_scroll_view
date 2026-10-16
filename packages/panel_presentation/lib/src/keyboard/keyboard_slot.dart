@@ -43,16 +43,21 @@ import 'package:panel_presentation/src/time/panel_clock.dart';
 /// * **Keyboard to panel** ([open] with the keyboard up): the panel takes the
 ///   slot at once, at least as tall as the keyboard ([KeyboardSlotState.replacing]).
 /// * **Panel to keyboard** ([close] with `waitForIme`): the panel keeps the
-///   slot, emptied, until the keyboard reports a *settled* reading, a sample
-///   whose `animating` is false and whose height is up
-///   ([KeyboardSlotState.handOffToIme]). Samples that are animating never
-///   release it, which is what makes a keyboard's transient zeros and
-///   spikes harmless without counting samples or reading the wall clock.
-///   When no such reading arrives within [KeyboardReplacementTuning.handOffTimeout]
-///   the panel closes cold.
+///   slot, emptied, until the keyboard is *confirmed up*
+///   ([KeyboardSlotState.handOffToIme]): a sample whose `animating` is false
+///   and whose height is up has stood for
+///   [KeyboardReplacementTuning.settleConfirmation] with no other sample
+///   after it. Samples that are animating never release it, and neither does
+///   a settled spike that the next sample contradicts: a hide and a show that
+///   cross report one at the keyboard's full height between zeros. A keyboard
+///   confirmed up before the close takes the slot at once, unless the panel
+///   has replaced it since: that keyboard was asked down and must read up
+///   again. When the keyboard is not confirmed up within
+///   [KeyboardReplacementTuning.handOffTimeout] the panel closes cold, or
+///   hands over to a keyboard that still reads settled up.
 ///
-/// Hosts must therefore report `animating` honestly: a sample that claims to
-/// be settled is taken at its word.
+/// Hosts must therefore report `animating` honestly: a settled sample that
+/// stands is taken at its word.
 ///
 /// ## Time
 ///
@@ -72,6 +77,8 @@ final class KeyboardSlot {
        _window = window,
        _clock = clock {
     _sample = ime.samples.value;
+    // A keyboard that is up before the slot exists has stood long enough.
+    _keyboardConfirmedUp = _keyboardSettledUp;
     _orientation = _orientationOf(window.value);
     _ime.samples.addListener(_onSample);
     _window.addListener(_onWindow);
@@ -117,6 +124,11 @@ final class KeyboardSlot {
   var _delayed = false;
   PanelTimer? _delayTimer;
   PanelTimer? _handOffTimer;
+
+  /// Whether the latest settled reading of a raised keyboard has stood for
+  /// the confirmation time, and the timer that confirms it meanwhile.
+  var _keyboardConfirmedUp = false;
+  PanelTimer? _confirmTimer;
   MotionSpec _closeSpec = const MotionSpec(Duration.zero, Curves.linear);
   var _disposed = false;
 
@@ -190,6 +202,11 @@ final class KeyboardSlot {
     }
     final goal = _contentTarget + safeBottom;
     if (_keyboardUp) {
+      // The keyboard the panel replaces is on its way down: what it read
+      // before no longer says it stays up.
+      _confirmTimer?.cancel();
+      _confirmTimer = null;
+      _keyboardConfirmedUp = false;
       _land(KeyboardSlotState.replacing, goal);
     } else if (!animate || spec.duration == Duration.zero) {
       _land(KeyboardSlotState.open, goal);
@@ -234,7 +251,7 @@ final class KeyboardSlot {
     _cancelTimers();
     _expanded = null;
     if (waitForIme) {
-      if (_keyboardSettledUp) {
+      if (_keyboardConfirmedUp) {
         _handOver();
       } else {
         _state.value = KeyboardSlotState.handOffToIme;
@@ -325,6 +342,8 @@ final class KeyboardSlot {
     if (_disposed) return;
     _disposed = true;
     _cancelTimers();
+    _confirmTimer?.cancel();
+    _confirmTimer = null;
     _ime.samples.removeListener(_onSample);
     _window.removeListener(_onWindow);
     _state.dispose();
@@ -340,8 +359,9 @@ final class KeyboardSlot {
     if (_disposed) return;
     final before = _sample;
     _sample = _ime.samples.value;
+    _confirm(before);
     switch (_state.value) {
-      case KeyboardSlotState$HandOffToIme() when _keyboardSettledUp:
+      case KeyboardSlotState$HandOffToIme() when _keyboardConfirmedUp:
         _handOver();
       case KeyboardSlotState$Replacing() when _keyboardSettledGone:
         _state.value = KeyboardSlotState.open;
@@ -370,6 +390,39 @@ final class KeyboardSlot {
     _publish();
   }
 
+  /// Starts confirming a settled reading of a raised keyboard, keeps a
+  /// confirmation that the same height continues, and drops it on any other
+  /// reading.
+  void _confirm(ImeSample before) {
+    if (!_keyboardSettledUp) {
+      _confirmTimer?.cancel();
+      _confirmTimer = null;
+      _keyboardConfirmedUp = false;
+      return;
+    }
+    final continues =
+        !before.animating &&
+        before.height > tuning.settleTolerance &&
+        (before.height - _sample.height).abs() <= tuning.settleTolerance;
+    if (continues && (_keyboardConfirmedUp || _confirmTimer != null)) return;
+    _confirmTimer?.cancel();
+    _confirmTimer = null;
+    _keyboardConfirmedUp = tuning.settleConfirmation <= Duration.zero;
+    if (!_keyboardConfirmedUp) {
+      _confirmTimer = _clock.after(tuning.settleConfirmation, _confirmed);
+    }
+  }
+
+  void _confirmed() {
+    _confirmTimer = null;
+    if (_disposed) return;
+    _keyboardConfirmedUp = true;
+    if (_state.value case KeyboardSlotState$HandOffToIme()) {
+      _handOver();
+      _publish();
+    }
+  }
+
   // --- Transitions ----------------------------------------------------------
 
   /// Hands the slot to the keyboard that has risen.
@@ -388,7 +441,13 @@ final class KeyboardSlot {
   void _handOffTimedOut() {
     _handOffTimer = null;
     if (_state.value case KeyboardSlotState$HandOffToIme()) {
-      _beginClose(_closeSpec);
+      // A keyboard that never moved again (its hide and show cancelled each
+      // other before either showed) has been up all along.
+      if (_keyboardSettledUp) {
+        _handOver();
+      } else {
+        _beginClose(_closeSpec);
+      }
       _publish();
     }
   }

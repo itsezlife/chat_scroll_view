@@ -244,6 +244,85 @@ void main() {
       expect(_state(rig), isA<PanelVisibility$Hidden>());
     });
 
+    group('presses in quick succession: each acts on what the last asked', () {
+      testWidgets('a press while search shrinks back keeps the panel and '
+          'lowers the keyboard', (tester) async {
+        final rig = await _mobileRig(tester);
+        await _open(tester, rig);
+        rig.set.shell.openSearch();
+        await rig.settle(tester);
+        final hiddenBefore = rig.keyboard.hideCount;
+
+        await rig.tapAction(tester, ChatComposerActions.panel);
+        await tester.pump();
+        expect(rig.set.leavingForKeyboard.value, isTrue);
+        expect(rig.set.panelReplacesKeyboard, isFalse, reason: 'the glyph');
+        await rig.tapAction(tester, ChatComposerActions.panel);
+        await rig.settle(tester);
+
+        expect(rig.set.leavingForKeyboard.value, isFalse);
+        expect(_state(rig), isA<PanelVisibility$Shown>());
+        expect(
+          rig.set.composer.softKeyboard.value,
+          SoftKeyboardMode.suppressed,
+        );
+        expect(rig.keyboard.hideCount, hiddenBefore + 1);
+      });
+
+      testWidgets('a press while the keyboard rises to take the slot brings '
+          'the panel back and sends the keyboard down', (tester) async {
+        final rig = await _mobileRig(tester);
+        await _open(tester, rig);
+        final grid = rig.set.presentation.occupancy.value.bottom;
+        final hiddenBefore = rig.keyboard.hideCount;
+
+        await rig.tapAction(tester, ChatComposerActions.panel);
+        expect(_state(rig), isA<PanelVisibility$Hiding>());
+        rig.keyboard.move(120, animating: true);
+        await tester.pump();
+        await rig.tapAction(tester, ChatComposerActions.panel);
+        await tester.pump();
+
+        expect(_state(rig), isNot(isA<PanelVisibility$Hiding>()));
+        expect(
+          rig.set.composer.softKeyboard.value,
+          SoftKeyboardMode.suppressed,
+        );
+        expect(rig.keyboard.hideCount, hiddenBefore + 1);
+
+        rig.keyboard.rest(0);
+        await rig.settle(tester);
+        expect(_state(rig), isA<PanelVisibility$Shown>());
+        expect(rig.set.presentation.occupancy.value.bottom, grid);
+      });
+
+      for (final presses in [2, 3, 4, 5]) {
+        testWidgets('$presses presses one frame apart end as the last asked', (
+          tester,
+        ) async {
+          final rig = await _mobileRig(tester);
+          for (var i = 0; i < presses; i++) {
+            await rig.tapAction(tester, ChatComposerActions.panel);
+          }
+          await rig.settle(tester);
+          // An even count ends on the keyboard, which rises to take the slot.
+          if (presses.isEven) rig.keyboard.rest(300);
+          await rig.settle(tester);
+
+          expect(
+            _state(rig),
+            presses.isOdd
+                ? isA<PanelVisibility$Shown>()
+                : isA<PanelVisibility$Hidden>(),
+          );
+          expect(
+            rig.set.composer.softKeyboard.value,
+            presses.isOdd ? SoftKeyboardMode.suppressed : SoftKeyboardMode.auto,
+          );
+        });
+      }
+    });
+
     testWidgets('a press on the field lifts the suppression before its tap '
         'focuses it; a press that is not a tap puts it back', (tester) async {
       final rig = await _mobileRig(tester);

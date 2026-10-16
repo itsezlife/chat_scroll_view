@@ -329,6 +329,9 @@ void main() {
 
       ime.rampTo(310, steps: 3);
       await tester.pump();
+      expect(controller.state.value, isA<PanelVisibility$Hiding>());
+      // The settled reading stands for the confirmation time.
+      await tester.pump(const Duration(milliseconds: 80));
       expect(controller.state.value, PanelVisibility.hidden);
       expect(bottom(), 310, reason: 'the keyboard holds the slot');
       expect(find.byType(PanelShell, skipOffstage: false), findsNothing);

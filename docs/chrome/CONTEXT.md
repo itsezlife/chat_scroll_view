@@ -159,8 +159,8 @@ The user's choice to keep the panel docked at the inline end in a wide window. I
 _Avoid_: A flag held only in the widget, persistence by the presentation package itself
 
 **Hand-off**:
-The phases by which the keyboard-replacement panel and the soft keyboard exchange the bottom slot: the panel keeps its emptied sheet until the keyboard reports a settled reading, or closes cold after a timeout.
-_Avoid_: Cross-fade between keyboard and panel, sample counters, wall-clock windows
+The phases by which the keyboard-replacement panel and the soft keyboard exchange the bottom slot: the panel keeps its emptied sheet until the keyboard is confirmed up (a settled reading that stands, with no other reading after it, for a short confirmation on the presentation clock), or closes cold after a timeout.
+_Avoid_: Cross-fade between keyboard and panel, sample counters
 
 **Panel height**:
 The measured soft-keyboard height (content height without the safe area), remembered per orientation. The keyboard-replacement panel takes at least this height; a window-class default stands in until one is known.
