@@ -200,8 +200,9 @@ final class GlyphAtlas implements GlyphSpriteSource {
   final Map<String, AtlasSprite> _sprites = <String, AtlasSprite>{};
   final List<ValueChanged<int>> _listeners = <ValueChanged<int>>[];
   // Pages being read from the store (queued or in flight), and how many times
-  // a page could not be handed back: the first failure bakes it again, the
-  // second gives up (a store that failed twice will fail again).
+  // a page could not be handed back since it last loaded: the first failure
+  // bakes it again, the second gives up (a store that failed twice in a row
+  // will fail again).
   final Set<int> _loading = <int>{};
   final Map<int, int> _readFailures = <int, int>{};
   // Pages waiting for their paced reload, and the loop that drains them.
@@ -556,6 +557,9 @@ final class GlyphAtlas implements GlyphSpriteSource {
       return;
     }
     _residency.admit(pageIndex, image);
+    // The store handed the page back: whatever failed before was transient,
+    // and a later failure of this page is a first one again.
+    _readFailures.remove(pageIndex);
     _ready.add(pageIndex);
     // Behind a stale set the new pages wait for the swap.
     if (_stale != null) {
@@ -770,14 +774,24 @@ final class GlyphAtlas implements GlyphSpriteSource {
   /// [arm] starts watching and returns how to stop.
   Future<void> _sleep(VoidCallback Function(VoidCallback wake) arm) {
     final done = Completer<void>();
-    late final VoidCallback disarm;
+    VoidCallback? disarm;
+    var woken = false;
     void wake() {
+      if (woken) return;
+      woken = true;
       _sleepers.remove(wake);
-      disarm();
+      disarm?.call();
       if (!done.isCompleted) done.complete();
     }
 
-    disarm = arm(wake);
+    final stop = arm(wake);
+    if (woken) {
+      // The condition was already met inside [arm]: nothing is left to
+      // watch, and the wake-up has been and gone.
+      stop();
+      return done.future;
+    }
+    disarm = stop;
     _sleepers.add(wake);
     return done.future;
   }
