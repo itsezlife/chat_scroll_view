@@ -29,6 +29,25 @@ abstract final class LegacyBaseline {
   /// The excused violations of the current tree.
   static const List<LegacyException> current = <LegacyException>[
     LegacyException(
+      LintRule.pluginDependencyOutsideAdapter,
+      'chat_chrome -> shared_preferences',
+      removedBy: 'issue 32 (chat_chrome is deleted)',
+    ),
+    LegacyException(
+      LintRule.pluginDependencyOutsideAdapter,
+      'emoji_data -> shared_preferences',
+      removedBy:
+          'issue 13 (recents and preferences move onto KeyValueStore, so the '
+          'plugin dependency goes)',
+    ),
+    LegacyException(
+      LintRule.pluginDependencyOutsideAdapter,
+      'chat_scroll_view_example -> shared_preferences',
+      removedBy:
+          'the example host\'s own persisted settings move onto '
+          'kv_shared_preferences (no issue owns this yet)',
+    ),
+    LegacyException(
       LintRule.crossPackageReexport,
       'packages/chat_chrome/lib/chat_chrome.dart exports '
       'package:emoji_data/emoji_data.dart',

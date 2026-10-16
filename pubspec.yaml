@@ -14,6 +14,7 @@ workspace:
   - packages/content_model
   - packages/emoji_catalog_pack
   - packages/emoji_data
+  - packages/kv_shared_preferences
   - packages/panel_catalog
   - example
   - scripts
