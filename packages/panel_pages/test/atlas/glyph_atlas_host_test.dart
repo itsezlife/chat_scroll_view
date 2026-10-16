@@ -107,7 +107,7 @@ void main() {
     h
       ..sync(_plan(['😂']))
       ..sync(_plan())
-      ..sync(GlyphPlan(['😂']));
+      ..sync(GlyphPlan(const ['😂']));
 
     expect(h.atlas.value, same(first));
     expect(notified, 0);
@@ -121,7 +121,7 @@ void main() {
       var notified = 0;
       h.atlas.addListener(() => notified++);
 
-      h.sync(GlyphPlan(['😀', '😁', _tone]));
+      h.sync(GlyphPlan(const ['😀', '😁', _tone]));
 
       expect(h.atlas.value, isNot(same(first)));
       expect(h.atlas.value!.index.placementOf(_tone), isNotNull);
@@ -139,7 +139,7 @@ void main() {
       await bake();
       expect(h.atlas.value!.spriteOf('😀'), isNotNull);
 
-      h.sync(GlyphPlan(['😀', '😁', _tone]));
+      h.sync(GlyphPlan(const ['😀', '😁', _tone]));
 
       expect(
         h.atlas.value!.spriteOf('😀'),
@@ -154,7 +154,7 @@ void main() {
 
     test('each atlas has a store of its own', () {
       final h = host()..sync(_plan());
-      h.sync(GlyphPlan(['😀', '😁', _tone]));
+      h.sync(GlyphPlan(const ['😀', '😁', _tone]));
 
       expect(stores, hasLength(2));
       expect(stores[0], isNotNull);
@@ -257,7 +257,7 @@ void main() {
 
     test('takes the retention the host configures, for every plan', () {
       final h = host(pageRetention: const Duration(seconds: 5))..sync(_plan());
-      h.sync(GlyphPlan(['😀', _tone]));
+      h.sync(GlyphPlan(const ['😀', _tone]));
 
       expect(residencies, hasLength(2));
       expect(
@@ -393,7 +393,7 @@ void main() {
         }
         expect(cache.stages, 1);
 
-        h.sync(GlyphPlan(['😀', '😁', _tone]));
+        h.sync(GlyphPlan(const ['😀', '😁', _tone]));
         await pumpEventQueue();
         expect(
           cache.stages,
@@ -430,7 +430,7 @@ void main() {
       expect(h.atlas.value!.spriteOf('😀'), isNotNull);
 
       // A new tone is a new glyph: the plan is made again.
-      h.sync(GlyphPlan(['😀', '😁', _tone]));
+      h.sync(GlyphPlan(const ['😀', '😁', _tone]));
       await pumpEventQueue();
       frames.pump();
       await pumpEventQueue();

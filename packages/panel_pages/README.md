@@ -30,6 +30,11 @@ data payload, codec or fetcher. Decisions: [ADR 025](../../docs/adr/025-panel-sh
 | `ChromeCatalogTheme` | The one place that knows both the chrome tokens and `PanelCatalogThemeData`: maps colours, leaves geometry and text metrics to the viewport. |
 | `PageAssets` | Builds the `AssetCacheScope` a page draws through: baked sprites where a glyph source is registered, text (`TextGlyphProducer`) where none is. |
 | `CatalogKeyboardFocus`, `CatalogMoveFocusIntent` | The key bindings of roving focus: arrows, Home, End, Enter, Space. |
+| `EmojiPage`, `EmojiPagePolicy`, `EmojiPageController`, `EmojiEntryOf` | The emoji page: the policy of eight columns, category titles, recents (only while there are some, alone for an empty search) with a header action that asks the host to clear them, and the variant picker; the widget loads every collection at once, plans the atlas, wires it and paces its mount; the controller keeps the atlas host across the widget. |
+| `EmojiCategoryStrip`, `EmojiCategories`, `EmojiCategoryTab` | The page's top strip: one tab per category (people folded into smileys), the active tab following the catalogue, a tap landing on the category's first section and staying active after the jump. |
+| `EmojiVariantPicker`, `EmojiVariantSession`, `emojiVariantOptions` | The popup of an emoji's base and variants and the long press that drives it: slide and release, or tap an option (a screen reader's long press has no release). |
+| `EmojiTabIconScope`, `EmojiTabIcons` | The strip's art (Telegram's, bundled) registered as `ChromeIcon` painters; decoded once per process. |
+| `GlyphAtlasHost`, `GlyphPlan`, `GlyphAtlasHostFactory`, `GlyphPlanner` | The atlas of a page that shows baked glyphs: what is planned (the glyphs the collections show, chosen variants only, recents last and sorted), replanning behind the old art, density, the panel's visible and opening observables as the bake's pause signals, persistence, residency. |
 | `package:panel_pages/testing.dart` | `FakePanelPageHost`, `FakeBakeActivityPort`, `runBakeActivityPortContract`. Tests only. |
 
 ## Using it
@@ -95,11 +100,33 @@ final page = PanelPage(
 | An `AssetCacheScope` per page, built with `PageAssets.createScope` (or equivalent): a glyph source where glyphs are baked, none where they are drawn as text. The host owns and disposes it. | Expect the page to decide how glyphs are drawn, to plan an atlas or to dispose the scope. |
 | Sources (`CollectionSource`, optionally `SearchSource`) that own their data and loading; a replacement source may be passed at any time. | Pass a source that publishes in place; every publication is a new list. Expect a failed load to be retried in a loop. |
 | A `BakeActivityPort` for the atlas that draws the page's glyphs, replaced when the atlas is. | Report the page's scrolling to the atlas as well; the page is already one reporter. |
+| For the emoji page: a `GlyphAtlasHostFactory` that builds a `GlyphAtlasHost` from the bake parts only the host has (frame source, page cache and art version, the glyph probe's observer, memory pressure), or none where nothing is baked; an `EmojiEntryOf` (the data layer's `entryOf`); the `PreferenceStore`. | Plan the atlas itself, or build it before the density of the view is known; hand the page a source that loads slowly and expect baked glyphs for the first leaves (see below). |
+| For a cold mount: `EmojiPage.deferChrome` and `PanelShell.deferSearchField` set together while the panel opens with an animation, and left off when it replaces the keyboard. | Defer over content already on screen, or the chrome pops in. |
 | One `PanelEvent` handler on the shell that inserts picked content and records recents. | Expect the page to insert content or write recents. |
 | Strings: `PanelStrings` titles for recents, search results and empty search. | Pass raw ids as titles; the page does not own language. |
 
 ## Not in this package
 
 The shell (pager, tabs, bottom bar, search field), the catalogue viewport and
-its layout maths, asset fetch and decode, the glyph atlas and its planning, the
-emoji page, variant picker and category strip, and every data source.
+its layout maths, asset fetch and decode, the glyph atlas itself (this package
+plans and keeps one; `catalog_assets` bakes it), the emoji catalogue, its
+keywords and the glyph-support probe (the emoji data layer: this package never
+depends on it or on a payload), and every data source.
+
+## The emoji page
+
+- **Loading.** An atlas has to be planned for every emoji before the first glyph
+  is drawn, since a glyph attached while none exists is drawn as text. So the
+  page asks every collection to load as soon as it is listed (and pages to the
+  end). The emoji source answers within one microtask, before the next frame;
+  a slow source shows its first leaves as text.
+- **Unfiltered plan.** A glyph the glyph-support probe hides leaves the
+  collections, and with them the plan, so the cache key would change once the
+  probe finishes. The atlas keeps a glyph it planned (a plan that only lost
+  glyphs changes nothing), but the next launch plans from the filtered
+  collections: a host that wants the unfiltered plan passes a `planner` that
+  adds the catalogue's glyphs.
+- **Search focus.** Dragging the catalogue releases the search field's focus
+  and keeps search open; the field is the shell's.
+- **Sizes.** Emoji are baked for `EmojiPagePolicy.glyphBoxExtent` (the glyph box
+  of a 45 px cell, one size per atlas, capped at 72 px); wider cells upscale.

@@ -33,8 +33,11 @@ final EmojiEntry thumbsUp = EmojiEntry(
 final EmojiEntry detective = EmojiEntry(
   base: key('🕵'),
   variants: [
-    EmojiVariant(key('🕵‍♀'), EmojiModifiers(genders: [EmojiGender.woman])),
-    EmojiVariant(key('🕵‍♂'), EmojiModifiers(genders: [EmojiGender.man])),
+    EmojiVariant(
+      key('🕵‍♀'),
+      EmojiModifiers(genders: const [EmojiGender.woman]),
+    ),
+    EmojiVariant(key('🕵‍♂'), EmojiModifiers(genders: const [EmojiGender.man])),
   ],
 );
 

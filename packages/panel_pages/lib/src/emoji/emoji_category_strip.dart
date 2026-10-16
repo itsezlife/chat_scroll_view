@@ -19,10 +19,13 @@ import 'package:panel_pages/src/page/catalog_strip.dart';
 ///   the catalogue's own scroll is ignored while the strip drives it, and a
 ///   tap while a jump runs is ignored, so the highlight and the motion cannot
 ///   disagree.
+/// - After the jump the tapped tab stays active until the user scrolls into
+///   another section, even where the catalogue could not bring the header to
+///   the top because the content ends first (a category within the last
+///   screenful is reached, and the end of the content is in the last
+///   category): the tap is the user's own word.
 /// - Otherwise the active tab is the one of the section the user is in
-///   (`PanelCatalogCurrentSectionChanged`), also after a jump ends, where the
-///   viewport's own answer decides (the last category is active at the end of
-///   the content even if it is too short to reach the top).
+///   (`PanelCatalogCurrentSectionChanged`).
 ///
 /// The strip is the page's own widget: its whole connection is the
 /// [CatalogStripHandle]. It requires the chrome theme and strings scopes.
@@ -135,10 +138,7 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
       await _handle.jumpToSection(tab.sectionIds.first);
     } finally {
       if (mounted) {
-        setState(() {
-          _jumping = false;
-          _active = _tabOfSection(_handle.currentSectionId) ?? tab.tab;
-        });
+        setState(() => _jumping = false);
       }
     }
   }

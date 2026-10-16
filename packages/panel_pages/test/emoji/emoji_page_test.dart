@@ -8,14 +8,18 @@
 /// (5 + 21.875, 36 + 27 + 22.5) from the page's top left.
 library;
 
+import 'dart:ui' show Tristate;
+
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/glyph_atlas.dart';
+import 'package:catalog_assets/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
+import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_pages/testing.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -30,6 +34,7 @@ void main() {
   late FakePanelPageHost host;
   late AssetCacheScope assets;
   late ValueNotifier<CollectionSource?> swapped;
+  late ValueNotifier<double> density;
 
   setUp(() {
     source = fixtures.source();
@@ -42,6 +47,7 @@ void main() {
     host = FakePanelPageHost(pageId: 'emoji');
     assets = PageAssets.createScope();
     swapped = ValueNotifier<CollectionSource?>(null);
+    density = ValueNotifier<double>(2);
     addTearDown(() {
       source.dispose();
       search.dispose();
@@ -49,6 +55,7 @@ void main() {
       host.dispose();
       assets.dispose();
       swapped.dispose();
+      density.dispose();
     });
   });
 
@@ -62,21 +69,26 @@ void main() {
     child: Overlay(
       initialEntries: [
         OverlayEntry(
-          builder: (context) => ValueListenableBuilder<CollectionSource?>(
-            valueListenable: swapped,
-            builder: (context, _, _) => Center(
-              child: SizedBox(
-                width: 360,
-                height: 480,
-                child: EmojiPage(
-                  host: host,
-                  source: swapped.value ?? withSource ?? source,
-                  searchSource: search,
-                  preferences: preferences,
-                  entryOf: fixtures.entryOf,
-                  assets: assets,
-                  deferChrome: deferChrome,
-                  atlasHostFactory: atlas,
+          builder: (context) => ListenableBuilder(
+            listenable: Listenable.merge([swapped, density]),
+            builder: (context, _) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(devicePixelRatio: density.value),
+              child: Center(
+                child: SizedBox(
+                  width: 360,
+                  height: 480,
+                  child: EmojiPage(
+                    host: host,
+                    source: swapped.value ?? withSource ?? source,
+                    searchSource: search,
+                    preferences: preferences,
+                    entryOf: fixtures.entryOf,
+                    assets: assets,
+                    deferChrome: deferChrome,
+                    atlasHostFactory: atlas,
+                  ),
                 ),
               ),
             ),
@@ -413,4 +425,339 @@ void main() {
       }
     });
   });
+
+  group('the glyph atlas', () {
+    late FakeBakeFrameSource frames;
+
+    GlyphAtlasHostFactory factory() =>
+        ({
+          required devicePixelRatio,
+          required glyphBoxExtent,
+          required visible,
+          required opening,
+        }) => GlyphAtlasHost(
+          frames: frames,
+          devicePixelRatio: devicePixelRatio,
+          glyphBoxExtent: glyphBoxExtent,
+          visible: visible,
+          opening: opening,
+          rasteriser: FakeGlyphRasteriser(),
+          newStore: FakeGlyphPageStore.new,
+        );
+
+    setUp(() {
+      frames = FakeBakeFrameSource();
+    });
+
+    GlyphAtlas? atlas() => controller().atlasHost?.atlas.value;
+
+    testWidgets('is planned for what the page shows, once it is loaded', (
+      tester,
+    ) async {
+      source = fixtures.source(recents: ['🔥'], count: 3);
+      await tester.pumpWidget(page(atlas: factory()));
+      await tester.pumpAndSettle();
+
+      final glyphs = atlas()!.index.glyphs;
+      for (final collection in source.collections.value) {
+        if (collection.id == CollectionId.recent) continue;
+        final contents = collection.contents as CollectionContents$Loaded;
+        for (final item in contents.items) {
+          expect(glyphs, contains((item.key as ContentKey$Unicode).sequence));
+        }
+      }
+      expect(
+        glyphs.last,
+        '🔥',
+        reason: 'recents the catalogue lacks come last',
+      );
+    });
+
+    testWidgets('is the glyph source of the scope, and the grid draws no '
+        'paragraph where glyphs are baked', (tester) async {
+      PanelCatalogDiagnostics.reset();
+      await tester.pumpWidget(page(atlas: factory()));
+      await tester.pumpAndSettle();
+
+      expect(assets.glyphSource, same(atlas()));
+      expect(PanelCatalogDiagnostics.glyphParagraphDraws, 0);
+    });
+
+    testWidgets('is sized for the density of the view and replanned when it '
+        'changes', (tester) async {
+      density.value = 2;
+      await tester.pumpWidget(page(atlas: factory()));
+      await tester.pumpAndSettle();
+      final first = atlas()!;
+
+      density.value = 3;
+      await tester.pumpAndSettle();
+
+      expect(atlas(), isNot(same(first)));
+      expect(
+        atlas()!.index.layout.glyphSize,
+        greaterThan(first.index.layout.glyphSize),
+      );
+      expect(assets.glyphSource, same(atlas()), reason: 'rebound in place');
+    });
+
+    testWidgets('bakes only while the panel is visible', (tester) async {
+      host.visible = false;
+      await tester.pumpWidget(page(atlas: factory()));
+      await tester.pumpAndSettle();
+      expect(frames.hasPendingRequest, isFalse);
+
+      host.visible = true;
+      await tester.pump();
+
+      expect(frames.hasPendingRequest, isTrue);
+      host.opening = true;
+      await tester.pump();
+      expect(frames.hasPendingRequest, isFalse);
+    });
+
+    testWidgets('survives the page: closing and reopening does not bake '
+        'again', (tester) async {
+      await tester.pumpWidget(page(atlas: factory()));
+      await tester.pumpAndSettle();
+      final first = atlas()!;
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(page(atlas: factory()));
+      await tester.pumpAndSettle();
+
+      expect(atlas(), same(first));
+      expect(assets.glyphSource, same(first));
+    });
+
+    testWidgets('is released with the shell controller', (tester) async {
+      await tester.pumpWidget(page(atlas: factory()));
+      await tester.pumpAndSettle();
+      final first = atlas()!;
+      final atlasHost = controller().atlasHost!;
+
+      await tester.pumpWidget(const SizedBox());
+      host.controllers.disposeAll();
+
+      expect(atlasHost.atlas.value, isNull);
+      expect(first.spriteOf('😀'), isNull);
+    });
+
+    testWidgets('is let go of by the scope when the page leaves', (
+      tester,
+    ) async {
+      await tester.pumpWidget(page(atlas: factory()));
+      await tester.pumpAndSettle();
+
+      await tester.pumpWidget(const SizedBox());
+
+      expect(assets.glyphSource, isNull);
+    });
+
+    testWidgets('is planned again behind the old art when a variant is chosen '
+        'for the first time', (tester) async {
+      final mutable = _MutableSource(glyphs: ['😀', '👍']);
+      addTearDown(mutable.dispose);
+      await tester.pumpWidget(page(withSource: mutable, atlas: factory()));
+      await tester.pumpAndSettle();
+      final first = atlas()!;
+
+      mutable.show(['😀', fixtures.thumbsUp.variants[2].key.sequence]);
+      await tester.pump();
+
+      expect(atlas(), isNot(same(first)));
+      expect(
+        atlas()!.index.placementOf(fixtures.thumbsUp.variants[2].key.sequence),
+        isNotNull,
+      );
+      expect(assets.glyphSource, same(atlas()));
+    });
+
+    testWidgets('is not planned with no factory: glyphs are drawn as text', (
+      tester,
+    ) async {
+      await tester.pumpWidget(page());
+      await tester.pumpAndSettle();
+
+      expect(controller().atlasHost, isNull);
+      expect(assets.glyphSource, isNull);
+    });
+  });
+
+  group('the paced mount', () {
+    Finder strip() => find.byType(EmojiCategoryStrip);
+
+    testWidgets('mounts the strip with the grid by default', (tester) async {
+      await tester.pumpWidget(page());
+
+      expect(find.byType(PanelCatalogViewport), findsOneWidget);
+      expect(strip(), findsOneWidget);
+    });
+
+    testWidgets('a deferred page mounts the grid, then (after the shell\'s '
+        'search field) the strip, one frame each', (tester) async {
+      await tester.pumpWidget(page(deferChrome: true));
+
+      expect(find.byType(PanelCatalogViewport), findsOneWidget);
+      expect(strip(), findsNothing);
+
+      await tester.pump(); // The frame of the shell's search field.
+      expect(strip(), findsNothing);
+
+      await tester.pump();
+      expect(strip(), findsOneWidget);
+    });
+
+    testWidgets('the grid does not move when the strip arrives', (
+      tester,
+    ) async {
+      await tester.pumpWidget(page(deferChrome: true));
+      final before = tester.getTopLeft(find.byType(PanelCatalogViewport));
+
+      await tester.pump();
+      await tester.pump();
+
+      expect(tester.getTopLeft(find.byType(PanelCatalogViewport)), before);
+    });
+  });
+
+  group('the strip follows the catalogue', () {
+    bool selected(WidgetTester tester, String label) =>
+        tester
+            .getSemantics(
+              find.descendant(
+                of: find.byType(EmojiCategoryStrip),
+                matching: find.bySemanticsLabel(label),
+              ),
+            )
+            .getSemanticsData()
+            .flagsCollection
+            .isSelected ==
+        Tristate.isTrue;
+
+    testWidgets('scrolling into a category activates its tab', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpPage(tester);
+      expect(selected(tester, 'Smileys'), isTrue);
+
+      controller().catalog.jumpTo(controller().catalog.maxScrollExtent);
+      await tester.pumpAndSettle();
+
+      expect(selected(tester, 'Flags'), isTrue);
+      expect(selected(tester, 'Smileys'), isFalse);
+      handle.dispose();
+    });
+
+    testWidgets('a tap lands the category under the strip', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpPage(tester);
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(EmojiCategoryStrip),
+          matching: find.bySemanticsLabel('Animals & nature'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(selected(tester, 'Animals & nature'), isTrue);
+      expect(controller().catalog.offset, greaterThan(0));
+      handle.dispose();
+    });
+
+    testWidgets('is not shown over search results', (tester) async {
+      await pumpPage(tester);
+
+      host.searchState = const PanelSearchState(isOpen: true, query: 'japan');
+      await tester.pump(DebouncedSearch.defaultDebounce);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(EmojiCategoryStrip), findsNothing);
+    });
+  });
+
+  group('search', () {
+    testWidgets('shows results for the shell query, as one section', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await pumpPage(tester);
+
+      host.searchState = const PanelSearchState(isOpen: true, query: 'japan');
+      await tester.pump(DebouncedSearch.defaultDebounce);
+      await tester.pumpAndSettle();
+
+      expect(find.semantics.byLabel('Search result'), findsOneWidget);
+      expect(find.semantics.byLabel('Smileys'), findsNothing);
+      expect(host.searchResultCounts, [1]);
+      handle.dispose();
+    });
+
+    testWidgets('says so when nothing is found', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpPage(tester);
+
+      host.searchState = const PanelSearchState(isOpen: true, query: 'zzzz');
+      await tester.pump(DebouncedSearch.defaultDebounce);
+      await tester.pumpAndSettle();
+
+      expect(find.semantics.byLabel('No emoji found'), findsOneWidget);
+      expect(host.searchResultCounts, [0]);
+      handle.dispose();
+    });
+  });
+
+  group('reading direction', () {
+    testWidgets('a right-to-left page fills the grid from the right', (
+      tester,
+    ) async {
+      source = fixtures.source(recents: ['❤', '😀'], count: 0);
+      await tester.pumpWidget(page(direction: TextDirection.rtl));
+      await tester.pumpAndSettle();
+
+      // The first recent, ❤, is in the rightmost column.
+      await tester.tapAt(
+        origin(tester) + const Offset(360 - 5 - 43.75 / 2, 36 + 27 + 22.5),
+      );
+      await tester.pump();
+
+      expect(host.picks.single.key, fixtures.key('❤'));
+    });
+  });
+}
+
+/// A source whose collections the test replaces by hand: one category of the
+/// glyphs it is told to show, already loaded.
+final class _MutableSource implements CollectionSource {
+  _MutableSource({required List<String> glyphs})
+    : _collections = ObservableValue(_of(glyphs));
+
+  final ObservableValue<List<Collection>> _collections;
+
+  static List<Collection> _of(List<String> glyphs) => [
+    Collection(
+      id: CollectionId.recent,
+      contents: CollectionContents.loaded(const []),
+    ),
+    Collection(
+      id: const CollectionId.category('smileys-emotion'),
+      contents: CollectionContents.loaded([
+        for (final glyph in glyphs) fixtures.item(glyph),
+      ]),
+    ),
+  ];
+
+  void show(List<String> glyphs) => _collections.value = _of(glyphs);
+
+  @override
+  ValueObservable<List<Collection>> get collections => _collections;
+
+  @override
+  Future<void> load(CollectionId id) async {}
+
+  @override
+  Future<void> loadMore(CollectionId id) async {}
+
+  @override
+  void dispose() => _collections.dispose();
 }

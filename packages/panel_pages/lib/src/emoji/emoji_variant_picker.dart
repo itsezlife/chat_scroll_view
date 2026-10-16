@@ -142,34 +142,34 @@ class EmojiVariantPicker extends StatelessWidget {
     return Semantics(
       container: true,
       label: strings.variantsAction,
-      child: ClipPath(
+      child: PhysicalShape(
         clipper: _PickerShapeClipper(arrowX: arrow),
-        child: ColoredBox(
-          color: theme.palette.surfaceRaised,
-          child: SizedBox(
-            width: EmojiVariantPickerMetrics.widthFor(count),
-            height: EmojiVariantPickerMetrics.heightFor(count),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                EmojiVariantPickerMetrics.padH,
-                EmojiVariantPickerMetrics.padV,
-                EmojiVariantPickerMetrics.padH,
-                EmojiVariantPickerMetrics.padV +
-                    EmojiVariantPickerMetrics.arrowHeight,
-              ),
-              child: Wrap(
-                spacing: EmojiVariantPickerMetrics.gap,
-                runSpacing: EmojiVariantPickerMetrics.gap,
-                children: [
-                  for (var i = 0; i < count; i++)
-                    _Option(
-                      glyph: options[i].sequence,
-                      selected: i == selected,
-                      highlight: highlight,
-                      onTap: onChoose == null ? null : () => onChoose!(i),
-                    ),
-                ],
-              ),
+        color: theme.palette.surfaceRaised,
+        elevation: 8,
+        shadowColor: theme.palette.shadow.withValues(alpha: 0.35),
+        child: SizedBox(
+          width: EmojiVariantPickerMetrics.widthFor(count),
+          height: EmojiVariantPickerMetrics.heightFor(count),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              EmojiVariantPickerMetrics.padH,
+              EmojiVariantPickerMetrics.padV,
+              EmojiVariantPickerMetrics.padH,
+              EmojiVariantPickerMetrics.padV +
+                  EmojiVariantPickerMetrics.arrowHeight,
+            ),
+            child: Wrap(
+              spacing: EmojiVariantPickerMetrics.gap,
+              runSpacing: EmojiVariantPickerMetrics.gap,
+              children: [
+                for (var i = 0; i < count; i++)
+                  _Option(
+                    glyph: options[i].sequence,
+                    selected: i == selected,
+                    highlight: highlight,
+                    onTap: onChoose == null ? null : () => onChoose!(i),
+                  ),
+              ],
             ),
           ),
         ),
@@ -208,17 +208,25 @@ class _Option extends StatelessWidget {
             child: SizedBox(
               width: EmojiVariantPickerMetrics.cell,
               height: EmojiVariantPickerMetrics.cell,
+              // One line, scaled down to the cell: a sequence of several code
+              // points (a couple, a tone) is one picture, never a wrapped
+              // line, and a font that draws it wider than the cell still fits.
               child: Center(
-                child: Text(
-                  glyph,
-                  textDirection: TextDirection.ltr,
-                  textHeightBehavior: const TextHeightBehavior(
-                    applyHeightToFirstAscent: false,
-                    applyHeightToLastDescent: false,
-                  ),
-                  style: const TextStyle(
-                    fontSize: EmojiVariantPickerMetrics.cell * 0.82,
-                    height: 1,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    glyph,
+                    textDirection: TextDirection.ltr,
+                    softWrap: false,
+                    maxLines: 1,
+                    textHeightBehavior: const TextHeightBehavior(
+                      applyHeightToFirstAscent: false,
+                      applyHeightToLastDescent: false,
+                    ),
+                    style: const TextStyle(
+                      fontSize: EmojiVariantPickerMetrics.cell * 0.82,
+                      height: 1,
+                    ),
                   ),
                 ),
               ),

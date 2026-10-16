@@ -85,7 +85,7 @@ void main() {
           id: _faces,
           contents: CollectionContents.loaded([
             _item('😀'),
-            CollectionItem.bare(const ContentKey.document('5368')),
+            const CollectionItem.bare(ContentKey.document('5368')),
           ]),
         ),
       ]);
@@ -160,9 +160,12 @@ void main() {
   });
 
   test('plans of the same glyphs in the same order are equal', () {
-    expect(GlyphPlan(['a', 'b']), GlyphPlan(['a', 'b']));
-    expect(GlyphPlan(['a', 'b']), isNot(GlyphPlan(['b', 'a'])));
-    expect(GlyphPlan(['a', 'a', 'b']).glyphs, ['a', 'b']);
-    expect(GlyphPlan(['a', 'b']).hashCode, GlyphPlan(['a', 'b']).hashCode);
+    expect(GlyphPlan(const ['a', 'b']), GlyphPlan(const ['a', 'b']));
+    expect(GlyphPlan(const ['a', 'b']), isNot(GlyphPlan(const ['b', 'a'])));
+    expect(GlyphPlan(const ['a', 'a', 'b']).glyphs, ['a', 'b']);
+    expect(
+      GlyphPlan(const ['a', 'b']).hashCode,
+      GlyphPlan(const ['a', 'b']).hashCode,
+    );
   });
 }
