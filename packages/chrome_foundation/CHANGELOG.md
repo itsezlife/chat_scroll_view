@@ -25,6 +25,12 @@ package is pre-1.0.
   fallback glyph), `ChromeIconScope`, `ChromeIcon` and `AnimatedChromeIcon`
   (morph between font glyphs, cross-fade for painted icons).
 
+- Glass stack: `GlassSurface`, `GlassMaterial`, `GlassQuality`,
+  `GlassQualityScope`, `GlassCapabilities`, `GlassSourceScope` and
+  `GlassSource`, with an internal strategy chain (sampled liquid, sampled
+  frost, backdrop filter, flat) and the three fragment shaders, moved here
+  from `chat_chrome`. `GlassMaterialTokens.colorsOf`.
+
 ### Changed
 
 - `AnimatedChromeThemeScope` takes its default duration and curve from the

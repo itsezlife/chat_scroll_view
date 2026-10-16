@@ -1,20 +1,20 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:chat_chrome/src/glass/liquid_glass_style.dart';
+import 'package:chrome_foundation/src/glass/glass_style.dart';
 import 'package:flutter/foundation.dart';
 
 /// Liquid refraction for [ImageFilter.shader] (scene / crop path).
-const String kLiquidGlassShaderAsset =
-    'packages/chat_chrome/shaders/liquid_glass.frag';
+const String _liquidAsset =
+    'packages/chrome_foundation/shaders/liquid_glass.frag';
 
 /// Liquid refraction that samples a full backdrop [ui.Image] (capture path).
-const String kLiquidGlassBackdropShaderAsset =
-    'packages/chat_chrome/shaders/liquid_glass_backdrop.frag';
+const String _liquidBackdropAsset =
+    'packages/chrome_foundation/shaders/liquid_glass_backdrop.frag';
 
 /// Full-resolution stand-in for sampling the backdrop at 1/4 resolution.
-const String kGlassFrostPrepassAsset =
-    'packages/chat_chrome/shaders/glass_frost_prepass.frag';
+const String _frostPrepassAsset =
+    'packages/chrome_foundation/shaders/glass_frost_prepass.frag';
 
 /// Loaded fragment programs for the glass pipeline.
 @immutable
@@ -37,7 +37,7 @@ class GlassShaderPrograms {
 }
 
 /// Loads and caches the liquid-glass shader programs.
-abstract final class LiquidGlassShader {
+abstract final class GlassShaders {
   static GlassShaderPrograms? _programs;
   static Future<GlassShaderPrograms>? _loading;
 
@@ -50,9 +50,9 @@ abstract final class LiquidGlassShader {
     if (existing != null) return SynchronousFuture(existing);
     return _loading ??= () async {
       final pair = await (
-        ui.FragmentProgram.fromAsset(kLiquidGlassShaderAsset),
-        ui.FragmentProgram.fromAsset(kLiquidGlassBackdropShaderAsset),
-        ui.FragmentProgram.fromAsset(kGlassFrostPrepassAsset),
+        ui.FragmentProgram.fromAsset(_liquidAsset),
+        ui.FragmentProgram.fromAsset(_liquidBackdropAsset),
+        ui.FragmentProgram.fromAsset(_frostPrepassAsset),
       ).wait;
       final programs = GlassShaderPrograms(
         liquid: pair.$1,
@@ -68,7 +68,7 @@ abstract final class LiquidGlassShader {
   static ui.ImageFilter? createFilter({
     required GlassShaderPrograms programs,
     required ui.Size size,
-    required LiquidGlassStyle style,
+    required GlassStyle style,
     bool applyFrost = true,
   }) {
     if (!isSupported || size.isEmpty) return null;
@@ -108,7 +108,7 @@ abstract final class LiquidGlassShader {
       tileMode: ui.TileMode.clamp,
     );
 
-    ui.ImageFilter inner = blur;
+    var inner = blur;
     final downscale = style.sourceDownscale;
     if (applyFrost && downscale > 1) {
       final frost = programs.frost.fragmentShader();
@@ -126,7 +126,7 @@ abstract final class LiquidGlassShader {
     );
   }
 
-  static double _thickness(LiquidGlassStyle style, ui.Size size) =>
+  static double _thickness(GlassStyle style, ui.Size size) =>
       style.liquidThickness.clamp(1.0, size.shortestSide / 5).toDouble();
 
   /// How far (logical px) outside a [size] surface the liquid shader samples.
@@ -135,7 +135,7 @@ abstract final class LiquidGlassShader {
   /// `9 · thickness · intensity · index · sin(critical)`; on a surface
   /// thinner than that the sample lands past the opposite edge.
   static double backdropReach({
-    required LiquidGlassStyle style,
+    required GlassStyle style,
     required ui.Size size,
   }) {
     if (!style.enableLiquid || size.isEmpty) return 0;
@@ -149,11 +149,11 @@ abstract final class LiquidGlassShader {
   /// [texOrigin] = surface top-left in image pixels; [texScale] = logical
   /// px → image px. [blurRadius] (logical px) adds a 9-tap box blur for an
   /// [image] that is not blurred yet. Refraction applies only with
-  /// [LiquidGlassStyle.enableLiquid].
+  /// [GlassStyle.enableLiquid].
   static ui.FragmentShader? createBackdropShader({
     required GlassShaderPrograms programs,
     required ui.Size size,
-    required LiquidGlassStyle style,
+    required GlassStyle style,
     required ui.Image image,
     required ui.Offset texOrigin,
     required double texScale,
