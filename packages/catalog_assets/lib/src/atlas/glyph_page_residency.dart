@@ -41,8 +41,8 @@ final class GlyphPageHold {
 /// A page is **pinned** while at least one hold covers it: a [hold] per leaf
 /// binding (the page its glyph is on) and a [holdAll] for as long as the panel
 /// is open, because every page must be resident then, not only the ones in
-/// view. Pinned pages stay for ever, so the cache's keep-until-pressure rule
-/// holds while a surface is using them.
+/// view. Pinned pages stay for as long as the hold does, memory pressure
+/// included (see below).
 ///
 /// ## Retention
 ///
@@ -54,10 +54,15 @@ final class GlyphPageHold {
 ///
 /// ## Memory pressure
 ///
-/// [memoryPressure] releases every page at once, pinned or not: the system
-/// asked for memory back and a surface repaints a placeholder until the page
-/// is loaded again. Hold counts are untouched, so holds released later still
-/// balance. Released pages are announced to [addReleaseListener].
+/// [memoryPressure] releases every page that nothing pins, at once, and leaves
+/// the pinned ones. Releasing a pinned page would hand back no memory that
+/// lasts: the surface using it repaints, asks for the page again and the atlas
+/// reads the same bytes back within a few frames, while the user watched
+/// placeholders for the time in between. (Flutter's `ImageCache` makes the same
+/// choice: pressure empties the cache, not the images still in use.) The memory
+/// of an open panel comes back when it closes and the retention elapses. Hold
+/// counts are untouched. Released pages are announced to
+/// [addReleaseListener].
 ///
 /// The residency owns the images it was given: it disposes them on release and
 /// on [dispose]. It does not know where pages come from or how they are
@@ -173,11 +178,11 @@ final class GlyphPageResidency {
     return _images.remove(pageIndex);
   }
 
-  /// Disposes every resident image now, whatever holds there are.
-  void releaseAll() {
+  /// Disposes every resident image that no hold covers, now.
+  void releaseUnpinned() {
     if (_disposed) return;
     for (final page in residentPages) {
-      _release(page);
+      if (!_isPinned(page)) _release(page);
     }
   }
 
@@ -201,7 +206,7 @@ final class GlyphPageResidency {
   }
 
   void _onMemoryPressure() {
-    releaseAll();
+    releaseUnpinned();
     for (final listener in List<VoidCallback>.of(_pressureListeners)) {
       listener();
     }

@@ -83,6 +83,9 @@ final class FileGlyphCacheStore implements GlyphCacheStore {
       throw StateError('commit() without a staged generation');
     }
     final previous = (await _readManifest())?.name;
+    // A fixed name is safe because a cache store has a single writer (the
+    // atlas's disk ledger enforces it); two commits at once would share it.
+    // A commit that fails leaves the file behind, and the next one overwrites it.
     final temp = File('${_manifest.path}.tmp');
     await temp.writeAsString('$name\n${record.toJson()}', flush: true);
     await temp.rename(_manifest.path);

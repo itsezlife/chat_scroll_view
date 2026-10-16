@@ -42,7 +42,7 @@ Terms: [Panel Catalog glossary](../../docs/panel-catalog/CONTEXT.md)
 | `BakePauseSignals` | Three host-owned `ValueListenable<bool>`: panel visible, scrolling, panel opening |
 | `BakeFrameSource` (seam) | The frame clock: `SchedulerBakeFrameSource` in an app, `FakeBakeFrameSource` in tests |
 | `GlyphAtlas` | A host's whole bake: baker + scheduler + the page images sprites are drawn from; `spriteOf(glyph)` is null until the glyph's page is baked and loaded; `retire()` hands the drawn art to the atlas that replaces it (`predecessor:`) |
-| `GlyphPageResidency` | Owns the resident page images: a hold count per page (bindings, and the open panel for every page), a retention time-to-live (default 60 s, `retention:`) once nothing holds a page, release of all pages at once on `memoryPressure` |
+| `GlyphPageResidency` | Owns the resident page images: a hold count per page (bindings, and the open panel for every page), a retention time-to-live (default 60 s, `retention:`) once nothing holds a page, release of the pages nothing holds, at once, on `memoryPressure` (a held page, such as any page while the panel is open, is kept) |
 | `SystemMemoryPressure` | The platform's memory-pressure signal as a `Listenable` (the production `memoryPressure`) |
 | `AtlasSprite` | Page image + source rectangle; the optional sprite capability of `CatalogAssetBinding.sprite` |
 | `MemoryGlyphPageStore` | In-memory page store, for an atlas that does not persist |

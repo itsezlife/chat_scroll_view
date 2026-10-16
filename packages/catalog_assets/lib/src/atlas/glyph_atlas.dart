@@ -64,8 +64,9 @@ import 'package:flutter/foundation.dart';
 ///   price of no visible gap and is paid only after an OS, font or catalogue
 ///   change. The old images are outside the [residency] (they live for one
 ///   rebake and are dropped at the swap) but are counted in [residentBytes]
-///   and released with the resident pages under memory pressure; the new
-///   pages are resident as usual;
+///   and released under memory pressure (they are drawn, not held, so pressure
+///   takes them even while the panel is open); the new pages are resident as
+///   usual. If a new page is given up on, the swap goes ahead without it;
 /// - **discard** (density, glyph size or layout changed) and **miss** (first
 ///   run, or nothing readable): circles, as without a cache, and every baked
 ///   page is persisted as it lands.
@@ -82,8 +83,8 @@ import 'package:flutter/foundation.dart';
 /// The page images are owned by the atlas's [residency], not held here: it
 /// counts the holds on each page (one per leaf binding, via [holdPageOf], and
 /// one for the whole panel while [panelVisible] is true), keeps the pages for
-/// its retention after the last hold goes, and releases them at once under
-/// memory pressure. A released page is read back from the store, one page per
+/// its retention after the last hold goes, and releases the pages nothing holds
+/// at once under memory pressure. A released page is read back from the store, one page per
 /// frame, when the panel opens again or when a surface asks for one of its
 /// sprites, so [spriteOf] is null for a moment and the surface shows its
 /// placeholder. A sprite is valid until the page is released: ask again to
@@ -482,6 +483,9 @@ final class GlyphAtlas {
   /// Takes the page the baker has just composed into the residency.
   void _load(int pageIndex) {
     if (_disposed || _loading.contains(pageIndex) || _gaveUpOn(pageIndex)) {
+      // The clone shares the native image: left in [_composed] it would keep a
+      // whole page alive past the residency's release.
+      _composed.remove(pageIndex)?.dispose();
       return;
     }
     _loading.add(pageIndex);
@@ -514,9 +518,27 @@ final class GlyphAtlas {
   /// this page; it is left unbaked, and reported both times.
   void _bakeAgainOrGiveUp(int pageIndex) {
     final failures = _readFailures[pageIndex] = _failuresOf(pageIndex) + 1;
-    if (failures > 1 || _disposed) return;
+    if (_disposed) return;
+    if (failures > 1) {
+      _swapIfSettled();
+      return;
+    }
     _baker.markUnbaked(pageIndex);
     _scheduler.resume();
+  }
+
+  /// Starts the swap once every page of the plan is either drawable or given
+  /// up on. Waiting for a page that will never load would keep the stale set,
+  /// and the memory of both sets, for the rest of the process; swapping leaves
+  /// that page's glyphs as placeholders, which is what a given-up page is
+  /// anyway. A plan with no drawable page keeps the stale art: a bare
+  /// placeholder grid is worse than the old glyphs.
+  void _swapIfSettled() {
+    if (_stale == null || _ready.isEmpty) return;
+    for (var page = 0; page < index.pageCount; page++) {
+      if (!_ready.contains(page) && !_gaveUpOn(page)) return;
+    }
+    unawaited(_swap());
   }
 
   int _failuresOf(int pageIndex) => _readFailures[pageIndex] ?? 0;
@@ -534,7 +556,7 @@ final class GlyphAtlas {
     _ready.add(pageIndex);
     // Behind a stale set the new pages wait for the swap.
     if (_stale != null) {
-      if (_ready.length == index.pageCount) unawaited(_swap());
+      _swapIfSettled();
       return;
     }
     _noteVisible(complete: _ready.length == index.pageCount);

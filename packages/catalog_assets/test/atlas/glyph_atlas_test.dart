@@ -362,6 +362,48 @@ void main() {
       expect(heard, [0], reason: 'one swap, one page');
     });
 
+    test('swaps without a page it gave up on', () async {
+      final first = await bakedFirst(_glyphs(3));
+      final oldPage = first.spriteOf('g0')!.page;
+      final errors = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = errors.add;
+      addTearDown(() => FlutterError.onError = previous);
+      final glyphs = _glyphs(_perPage + 1);
+      final second = build(
+        glyphs,
+        withStore: _PageBlindStore(FakeGlyphPageStore(), {1}),
+        predecessor: first.retire(),
+      )..start();
+
+      await bakeAll();
+
+      expect(errors, hasLength(2), reason: 'the page failed twice');
+      expect(second.spriteOf('g0'), isNotNull);
+      expect(identical(second.spriteOf('g0')!.page, oldPage), isFalse);
+      expect(oldPage.debugDisposed, isTrue, reason: 'the old set is released');
+      expect(second.spriteOf('g$_perPage'), isNull, reason: 'a circle');
+    });
+
+    test('keeps the old art when no page of the new plan can be read', () async {
+      final first = await bakedFirst(_glyphs(3));
+      final oldPage = first.spriteOf('g0')!.page;
+      final errors = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = errors.add;
+      addTearDown(() => FlutterError.onError = previous);
+      final second = build(
+        _glyphs(3),
+        withStore: _FlakyStore(FakeGlyphPageStore(), failures: 100),
+        predecessor: first.retire(),
+      )..start();
+
+      await bakeAll();
+
+      expect(identical(second.spriteOf('g0')!.page, oldPage), isTrue);
+      expect(oldPage.debugDisposed, isFalse);
+    });
+
     test('the retired atlas stops: no frames, no sprites', () async {
       final first = await bakedFirst(_glyphs(3));
       first.retire();
@@ -443,6 +485,25 @@ class _FlakyStore implements GlyphPageStore {
     }
     return _inner.read(pageIndex);
   }
+
+  @override
+  Future<void> clear() => _inner.clear();
+}
+
+/// A store that cannot hand back the pages in [blind], whatever it holds.
+class _PageBlindStore implements GlyphPageStore {
+  _PageBlindStore(this._inner, this.blind);
+
+  final GlyphPageStore _inner;
+  final Set<int> blind;
+
+  @override
+  Future<void> write(int pageIndex, Image page) =>
+      _inner.write(pageIndex, page);
+
+  @override
+  Future<Image?> read(int pageIndex) async =>
+      blind.contains(pageIndex) ? null : _inner.read(pageIndex);
 
   @override
   Future<void> clear() => _inner.clear();

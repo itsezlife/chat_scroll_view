@@ -202,21 +202,38 @@ void main() {
   });
 
   group('memory pressure', () {
-    test('releases every page at once, held or not', () {
+    test('releases the unpinned pages at once and keeps the pinned ones', () {
       admit(0);
       admit(1);
+      admit(2);
       final held = residency.hold(1);
-      final open = residency.holdAll();
-      final images = [residency.imageOf(0)!, residency.imageOf(1)!];
+      final unheldImages = [residency.imageOf(0)!, residency.imageOf(2)!];
+      final heldImage = residency.imageOf(1)!;
 
       pressure.raise();
 
-      expect(residency.residentPages, isEmpty);
-      expect(residency.residentBytes, 0);
-      expect(images.every((i) => i.debugDisposed), isTrue);
-      expect(released, [0, 1]);
+      expect(residency.residentPages, [1]);
+      expect(unheldImages.every((i) => i.debugDisposed), isTrue);
+      expect(heldImage.debugDisposed, isFalse);
+      expect(released, [0, 2]);
       held.release();
+    });
+
+    test('keeps every page while the panel holds them all', () {
+      admit(0);
+      admit(1);
+      final open = residency.holdAll();
+
+      pressure.raise();
+
+      expect(residency.residentPages, [0, 1]);
+      expect(released, isEmpty);
+
       open.release();
+      pressure.raise();
+
+      expect(residency.residentPages, isEmpty);
+      expect(released, [0, 1]);
     });
 
     test('leaves the hold counts exactly as they were', () {

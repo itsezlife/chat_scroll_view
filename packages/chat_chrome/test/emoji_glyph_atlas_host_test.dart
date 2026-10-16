@@ -320,7 +320,7 @@ void main() {
       );
     });
 
-    test('memory pressure releases the baked pages', () async {
+    test('memory pressure releases the pages of a closed panel', () async {
       final pressure = ManualMemoryPressure();
       addTearDown(pressure.dispose);
       final h = host(memoryPressure: pressure)..sync(recents: const []);
@@ -331,6 +331,14 @@ void main() {
       }
       expect(h.atlas!.residency.residentPages, isNotEmpty);
 
+      pressure.raise();
+      expect(
+        h.atlas!.residency.residentPages,
+        isNotEmpty,
+        reason: 'an open panel is drawing them',
+      );
+
+      h.panelVisible.value = false;
       pressure.raise();
 
       expect(h.atlas!.residency.residentPages, isEmpty);

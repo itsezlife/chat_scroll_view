@@ -6,7 +6,8 @@
 /// store are seams; their fakes and contract suites are in `testing.dart`. The
 /// resident pages are owned by a `GlyphPageResidency`: held per page by the
 /// bindings that draw them and by the open panel, kept for a retention after
-/// the last hold, and released at once under memory pressure.
+/// the last hold, and released under memory pressure unless a hold still covers
+/// them.
 library;
 
 export 'src/atlas/atlas_sprite.dart';

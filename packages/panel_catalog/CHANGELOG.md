@@ -24,6 +24,14 @@ is pre-1.0.
 - **`kCatalogGlyphBoxFraction`** (0.72) — the share of a cell's shorter side a
   glyph is drawn in, public so a host that bakes glyphs sizes them for it.
 
+### Changed
+
+- **The viewport is a repaint boundary.** `RenderPanelCatalog.isRepaintBoundary`
+  is `true`: paint runs into a layer of its own, so a host that stacked
+  viewports sees one more compositing layer per viewport. Scrolling repaints
+  that layer without repainting what is around it, and what is around it does
+  not repaint the viewport.
+
 ### Removed
 
 - **Cold-start warm-up.** `PanelCatalogController.warmAhead`, the render

@@ -62,8 +62,9 @@ is pre-1.0.
 
 - **Page ownership and residency.** `GlyphPageResidency` owns the resident atlas
   pages: a hold count per page, a retention time-to-live (default 60 s, set
-  with `retention`) layered on keep-until-pressure, and release of every page
-  on memory pressure (`SystemMemoryPressure`). `GlyphAtlas(residency:)`,
+  with `retention`) layered on keep-until-pressure, and release of the pages
+  nothing holds on memory pressure (`SystemMemoryPressure`); a held page, such
+  as any page while the panel is open, stays. `GlyphAtlas(residency:)`,
   `GlyphAtlas.residency`, `GlyphAtlas.holdPageOf`; the atlas holds all pages
   while its panel is visible. Unicode bindings of `MemoryCatalogAssetCache`
   hold their glyph's page from attach to detach. `GlyphAtlasRequest`
@@ -98,8 +99,14 @@ is pre-1.0.
   open animation, when the panel opens or a surface asks for a sprite. Before,
   opening the panel read every released page at once.
 - `GlyphAtlas.spriteOf` allocates nothing once a sprite is cut.
-- The stale set is released on memory pressure like the resident pages, and
-  counted in `GlyphAtlas.residentBytes`.
+- The stale set is released on memory pressure, even while the panel is open,
+  and counted in `GlyphAtlas.residentBytes`.
+- A stale set is swapped out even when one page of the new plan was given up on
+  after two failed reads; before, the old art and the memory of both sets
+  stayed for the rest of the process. The given-up page's glyphs show their
+  placeholder.
+- A composed page clone no longer outlives its page when the page is already
+  loading or was given up on.
 - `FileGlyphPageStore` and `FileGlyphCacheStore` report an unreadable page,
   manifest or undecodable page through `FlutterError.reportError` with its
   stack. A file that does not exist is still a quiet miss.

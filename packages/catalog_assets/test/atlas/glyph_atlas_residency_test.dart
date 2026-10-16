@@ -194,20 +194,28 @@ void main() {
       );
     });
 
-    test('releases the pages at once while the panel is open', () async {
+    test('keeps the pages while the panel is open', () async {
       final atlas = await baked(['a']);
+      final image = atlas.spriteOf('a')!.page;
+      final reads = store.reads;
 
       pressure.raise();
+      await pumpEventQueue();
 
-      expect(atlas.residency.residentBytes, 0);
+      expect(atlas.residency.residentBytes, isNot(0));
+      expect(image.debugDisposed, isFalse);
+      expect(atlas.spriteOf('a'), isNotNull, reason: 'drawn, no placeholder');
+      expect(store.reads, reads, reason: 'nothing is read back');
     });
 
-    test('an open panel that paints a released page loads it again', () async {
+    test('a page released for a closed panel loads again when it opens', () async {
       final atlas = await baked(['a']);
+      visible.value = false;
       final reads = store.reads;
       final heard = <int>[];
       atlas.addPageListener(heard.add);
       pressure.raise();
+      visible.value = true;
 
       expect(atlas.spriteOf('a'), isNull);
       expect(atlas.spriteOf('a'), isNull, reason: 'one load, not two');
@@ -220,8 +228,10 @@ void main() {
 
     test('a page the store lost is reported once and baked again', () async {
       final atlas = await baked(['a']);
+      visible.value = false;
       await store.clear();
       pressure.raise();
+      visible.value = true;
       final errors = <FlutterErrorDetails>[];
       final previous = FlutterError.onError;
       FlutterError.onError = errors.add;

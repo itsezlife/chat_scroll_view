@@ -107,6 +107,36 @@ layout version, catalogue hash) is therefore the only invalidation. A page
 overwritten in place with bytes of the same length is drawn as it is; clear the
 cache directory if a device shows corrupt art.
 
+## What a cache left by a killed process looks like
+
+The first run and a discard commit an empty generation before the first page is
+baked, so each page is durable the moment it is written. A process killed
+mid-bake therefore leaves a committed set with only some of its pages. The next
+launch reads it as a `hit`, reads the pages that exist and bakes the missing
+ones again; its report shows `cacheVerdict: hit` with `restoredPages` lower than
+the page count, and `cacheAllPagesMs` includes that bake. Do not read such a run
+as a failed cache. To time a clean `hit`, let the first run finish (no circles)
+before closing the app; the automated suite does.
+
+## When the plan changes in a running session
+
+The cache key hashes the whole plan, so a glyph the plan lacks (a skin tone
+chosen for the first time, a recent the catalogue does not hold) is a new plan:
+the atlas re-bakes every page behind the old art, holds about twice the usual
+memory while it runs and rewrites the disk set. The host sorts the recents the
+catalogue lacks and puts them last so the common case does not do this. A
+first-time tone pick still does, and is the one case a user can trigger. Reserving
+spare cells in the plan would avoid it and is not done.
+
+## Memory pressure
+
+Pressure releases the pages nothing holds and the stale set; the pages an open
+panel holds stay, because reading them straight back would restore the same
+bytes and show placeholders in between. To check it, open the panel, raise
+pressure (`adb shell am send-trim-memory <package> RUNNING_CRITICAL`) and
+confirm the grid keeps drawing; close the panel, wait out the retention or raise
+pressure again, and confirm resident bytes fall to zero.
+
 ## What to report
 
 For each run: device, build mode, refresh rate, the label of the run, frames
