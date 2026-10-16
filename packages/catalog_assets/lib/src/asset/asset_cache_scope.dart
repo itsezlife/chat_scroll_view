@@ -170,6 +170,7 @@ final class AssetCacheScope {
     final binding = _EntryBinding(scope: this, entry: entry, profile: profile);
     _unpinned[entry.tier]!.remove(entry);
     entry.bindings.add(binding);
+    entry.demand.refresh(entry.bindings);
     binding.syncPlayback();
     if (entry.attempt == null && !entry.isFinal) _start(entry);
     return binding;
@@ -243,6 +244,7 @@ final class AssetCacheScope {
       final task = producer.produce(
         AssetRequest(entry.key, entry.spec),
         attempt,
+        entry.demand,
       );
       // The attempt may already have ended inside produce (a memory hit).
       if (!attempt.ended) attempt.task = task;
@@ -316,6 +318,7 @@ final class AssetCacheScope {
   void _detached(_EntryBinding binding) {
     final entry = binding.entry;
     entry.bindings.remove(binding);
+    entry.demand.refresh(entry.bindings);
     if (entry.bindings.isNotEmpty) return;
     entry.attempt?.cancel();
     if (entry.stage.index <= AssetStage.placeholder.index) {
@@ -335,6 +338,7 @@ final class _Entry {
   final ContentKey key;
   final AssetSpec spec;
   final Set<_EntryBinding> bindings = {};
+  final _Demand demand = _Demand();
   AssetStage stage = AssetStage.none;
   AssetPaintable? paintable;
   int bytes = 0;
@@ -347,6 +351,17 @@ final class _Entry {
       stage == AssetStage.full ||
       (stage == AssetStage.firstFrame &&
           spec.variant == AssetVariant.firstFrame);
+}
+
+final class _Demand implements AssetDemand {
+  @override
+  AssetPriority priority = AssetPriority.visible;
+
+  void refresh(Set<_EntryBinding> bindings) {
+    priority = bindings.any((binding) => binding.visible)
+        ? AssetPriority.visible
+        : AssetPriority.preload;
+  }
 }
 
 final class _Attempt implements AssetProgress {
@@ -473,7 +488,10 @@ final class _EntryBinding extends AssetBindingBase {
   }
 
   @override
-  void onVisibleChanged() => syncPlayback();
+  void onVisibleChanged() {
+    entry.demand.refresh(entry.bindings);
+    syncPlayback();
+  }
 
   /// Registers with or leaves the playback clock to match what the binding
   /// wants now.

@@ -25,7 +25,7 @@ the content.
 | `AssetBinding` | One surface's live attach: `readiness`, `paintable`, `lastError`, `isPlaying`, `visible`, `paint`, `retry`, `detach`; an `Observable` |
 | `AssetPaintable` | What a binding yields: `paint(canvas, rect, context)`, `isAnimated`, and an optional `sprite` (atlas page + source rectangle) for surfaces that batch |
 | `AssetStage` / `AssetReadiness` | `none`, `placeholder`, `firstFrame`, `full` and `isFinal`. There is no failed stage |
-| `AssetProducer` (seam) | Makes the paintables of entries: `produce(request, progress)` returns an `AssetTask`; reports stages, failures and cancellation through `AssetProgress` |
+| `AssetProducer` (seam) | Makes the paintables of entries: `produce(request, progress, demand)` returns an `AssetTask`; reports stages, failures and cancellation through `AssetProgress`. `AssetPipeline` is the fetching and decoding implementation |
 | `AssetCacheBudgets` | Byte budgets of the unattached entries per tier (`still`, `animated`); documented defaults |
 | `PlaybackClock` / `PlaybackPolicy` | One shared animation clock, per-binding gating, host-set pause layers (`PlaybackPauseLayer`), fps caps derived from the spec size |
 | `PlaybackTickSource` (seam) | The clock's per-frame callback; `SchedulerPlaybackTickSource` in an app, `ManualPlaybackTickSource` in tests |
@@ -116,7 +116,7 @@ costs two frame buffers, as the Android client counts a Lottie drawable.
 | The host provides | The host must not |
 | --- | --- |
 | One `AssetCacheScope` per cache it wants shared, created once and disposed when it goes away | Keep a static instance, or create one per surface (entries would not be shared) |
-| A `producer` that makes the paintables of non-glyph content, reporting through `AssetProgress` on the UI isolate | Report from another isolate or thread, or throw for a failed attempt (report `fail`) |
+| A `producer` that makes the paintables of non-glyph content (usually an `AssetPipeline`), reporting through `AssetProgress` on the UI isolate | Report from another isolate or thread, or throw for a failed attempt (report `fail`) |
 | A `glyphSource` (the atlas) on platforms that bake glyphs; no source where glyphs are drawn as text | Pass a `GlyphAtlas` to anything but `glyphSource`, or read atlas types through the cache |
 | Budgets for its device class (`budgets`) and the memory-pressure signal (`memoryPressure:` or `clearAll()`) | Evict by hand to "free" a bound entry: bound entries are pinned |
 | `connectivityRestored()` when the network returns | Make the cache touch the network |
@@ -127,6 +127,82 @@ Decisions: [ADR 006](../../docs/adr/006-panel-catalog-viewport.md) (the
 amendment on baked glyphs and the shared asset scope). The asset cache ADR
 (cache core, staged readiness, producer seam) is promoted with the
 package-architecture documents.
+
+## The fetch and decode pipeline
+
+`AssetPipeline` is the `AssetProducer` that makes the entries of a scope by
+fetching and decoding. The scope still owns one attempt per entry, stage
+bookkeeping, budgets and cancellation when the last binding leaves; the
+pipeline adds what a screenful of entries needs on top of it, and nothing for
+unicode glyphs, which bind to baked sprites through the glyph source and never
+reach it (its queues and caps never delay a glyph, and the baker stays paced by
+frames on the root isolate).
+
+```dart
+final pipeline = AssetPipeline(
+  fetcher: hostFetcher,                    // network, disk tier, file refs
+  decoders: DecoderRegistry()
+    ..register(MediaForm.still, stillDecoder)
+    ..register(MediaForm.vectorAnimation, vectorDecoder),
+  resolver: hostResolver,                  // optional: bare keys
+);
+final scope = AssetCacheScope(producer: pipeline, glyphSource: atlas);
+pipeline.know(descriptor);                 // descriptors the host already holds
+```
+
+| Type | Role |
+| --- | --- |
+| `AssetPipeline` / `AssetPipelineLimits` | Resolve, fetch, decode, report stages. Caps: 6 fetches, 2 decodes, 16 fetched items waiting for a decode slot, 4096 remembered descriptors (all configurable) |
+| `ContentFetcher` (seam) | `fetch(FetchRequest)`: the thumbnail or the content of a descriptor as bytes or a file, or a `FetchFailure` that is `transient` or `permanent`. Owns network, file-reference refresh and the disk tier |
+| `FetchRequest` / `FetchPart` / `FetchedContent` | What is asked (the `AssetPriority` class included, for a fetcher with its own network queue), which bytes, what comes back (`FetchedBytes` or `FetchedFile`) |
+| `CancellationToken` | Cancelled when the last binding of the entry leaves; the fetcher stops and settles its future |
+| `Decoder` (seam) / `DecoderRegistry` | One decoder per `MediaForm` (still, vector animation, video), registered by the host from adapter packages: `DecodeRequest` plus an `AssetProgress` to stages. The glyph form has none by design |
+| `AssetDemand` / `AssetPriority` | What the entry's bindings want, live: `visible` while one shows it, `preload` when all are hidden; a thumbnail is `placeholder` |
+| `AssetPipelineError` | Why an entry could not be made when no fetch or decode failed (unknown to the resolver, no decoder); `lastError` only |
+
+Behaviour that matters to a host:
+
+- **Priority.** Waiting work is served `placeholder` (thumbnail) before
+  `visible` before `preload`, oldest first within a class, separately for the
+  fetch and the decode queue. The class of content work is read live, so an
+  entry that scrolls into view jumps the preloads. Running work is never
+  preempted.
+- **Caps and backpressure.** At most 6 fetches and 2 decodes run; the Android
+  client runs 5 small and 2 large file loads. Fetching is held back while 16
+  fetched items wait for a decode slot, so a slow decoder cannot pile up
+  bytes. These are starting values from the research, not measured on a device.
+- **Cancel.** Queued work is dropped, a running fetch gets its token cancelled,
+  a running decode its task cancelled, and the slot is free at once. A late
+  result is ignored.
+- **Dedupe.** One attempt per entry (content key plus spec) however many
+  surfaces attach. The same content at two sizes is two entries and two
+  fetches; the host fetcher's disk tier is what shares the bytes.
+- **Bare keys.** A key with no known descriptor goes to the host
+  `ContentResolver`, batched with every other key asked for in the same turn
+  and never asked twice while in flight. The entry stays `none` until it
+  resolves. Descriptors are remembered in a bounded LRU; `know` seeds it.
+- **Failure is never shown.** Offline, a server error, an unknown key, no
+  decoder and bad data all end the attempt and leave the entry at its stage.
+  The attempt is repeated on re-attach and `retry()` for every failure, and on
+  `connectivityRestored()` for transient ones only: a `FetchFailure.transient`,
+  any other error a fetcher throws, and a resolver that cannot be reached.
+  Permanent: `FetchFailure.permanent`, a key the resolver leaves out, no
+  resolver, no decoder, and every decode failure. A failed thumbnail is
+  ignored.
+
+### Host contract
+
+| The host provides | The host must not |
+| --- | --- |
+| A `ContentFetcher` that owns the network, file-reference refresh and the disk tier, reports `FetchFailure.transient` for offline and busy and `permanent` for missing content, and settles a cancelled fetch | Make the pipeline cache bytes or touch the network itself, throw instead of failing the future, or leave a cancelled fetch pending |
+| A `DecoderRegistry` with one decoder per `MediaForm` it shows | Register a decoder for `glyph` (unicode glyphs bind through the glyph source) or two for one form |
+| A `ContentResolver` if bare keys can occur, and `know(descriptor)` for descriptors it already holds | Expect an unknown key to be an error the user sees: the entry stays at `none` |
+| `AssetCacheScope.connectivityRestored()` when the network returns | Treat `lastError` as UI state |
+| `dispose()` on the pipeline after the scope | Dispose the fetcher, decoders or resolver through the pipeline: they stay the host's |
+
+Adapter authors run `runAssetFetcherContract` and `runDecoderContract` from
+`testing.dart` against their implementations; the package tests the pipeline
+with `FakeFetcher`, `FakeDecoder` and `ManualClock`.
 
 ## Glyph atlas (`glyph_atlas.dart`, `testing.dart`)
 
@@ -207,6 +283,7 @@ and the pressure a test moves by hand), `FakeGlyphRasteriser` (predictable pixel
 `ImagePixels`, `sampleGlyphCatalogue` (a catalogue of the current size without any emoji
 data), and the contract suites `runGlyphRasteriserContract`,
 `runGlyphPageStoreContract` and `runBakeFrameSourceContract` for adapter authors.
+For the pipeline: `FakeFetcher` (serves fixed content, goes offline, answers by itself or waits for the test), `FakeDecoder`, `ManualClock` (latency without waiting) and the contract suites `runAssetFetcherContract` and `runDecoderContract`.
 For the cache core: `FakeAssetProducer` (every attempt waits for the test, which
 plays the producer through `FakeAssetAttempt`), `FakeAssetPaintable`,
 `FakeGlyphSpriteSource` (pages baked and released by hand, hold counts

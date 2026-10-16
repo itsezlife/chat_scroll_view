@@ -206,6 +206,9 @@ void main() {
 
 final class _ThrowingProducer implements AssetProducer {
   @override
-  AssetTask produce(AssetRequest request, AssetProgress progress) =>
-      throw StateError('producer bug');
+  AssetTask produce(
+    AssetRequest request,
+    AssetProgress progress,
+    AssetDemand demand,
+  ) => throw StateError('producer bug');
 }
