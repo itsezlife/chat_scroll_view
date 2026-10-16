@@ -2,10 +2,11 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/glyph_atlas.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter/painting.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';
-import 'package:panel_catalog/src/model/catalog_leaf.dart';
-import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
+import 'package:panel_catalog/src/model/catalog_glyph_box.dart';
+import 'package:panel_catalog/src/viewport/catalog_cell_paint.dart';
 import 'package:panel_catalog/src/viewport/catalog_glyph_sprite_batch.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_paragraph_cache.dart';
@@ -31,7 +32,7 @@ const int kGlyphParagraphCacheLimit = 1024;
 /// frame.
 /// Does **not** own layout slots, scroll offset, or asset readiness — the
 /// render object passes content [origin], slot geometry,
-/// [CatalogLeafPresentation], and [CatalogLeafPaintTheme].
+/// [CatalogCellPaint], and [CatalogLeafPaintTheme].
 ///
 /// ## Coordinate contract
 ///
@@ -43,8 +44,11 @@ const int kGlyphParagraphCacheLimit = 1024;
 /// ## Glyph and placeholder geometry
 ///
 /// Leaf glyph draw bounds are a centered square of
-/// [kCatalogGlyphBoxFraction] (**72%**) of `min(cellWidth, cellHeight)`.
-/// Circle placeholders use those bounds:
+/// [kCatalogGlyphBoxFraction] (**72%**) of `min(cellWidth, cellHeight)`, taken
+/// from the slot's own cell: a section with larger cells draws a larger glyph,
+/// and a baked sprite is scaled to the box, so one baked size serves every
+/// section (see [largestCatalogGlyphBox]). Circle placeholders use those
+/// bounds:
 ///
 /// ```text
 /// radius = glyphBounds.width * kCirclePlaceholderRadiusFactor  // 0.4
@@ -74,15 +78,15 @@ const int kGlyphParagraphCacheLimit = 1024;
 /// good. The section-header cache is bounded the same way by
 /// [kHeaderParagraphCacheLimit].
 ///
-/// ## Presentation switch
+/// ## Paint switch
 ///
-/// | [CatalogLeafPresentation] | Paint |
-/// |---------------------------|--------|
-/// | [CatalogLeafPresentation.circlePlaceholder] | Filled circle |
-/// | [CatalogLeafPresentation.thumbFirstPlaceholder] / [CatalogLeafPresentation.shapedLoadingWash] / [CatalogLeafPresentation.failed] | Rounded rect stand-in |
-/// | [CatalogLeafPresentation.content] + unicode with a sprite | Queued sprite (batched per page) |
-/// | [CatalogLeafPresentation.content] + unicode without | Cached glyph paragraph |
-/// | [CatalogLeafPresentation.content] + document | Ready-path stand-in rect until media decode lands |
+/// | [CatalogCellPaint] | Paint |
+/// |--------------------|--------|
+/// | [CatalogCellPaint.circle] | Filled circle |
+/// | [CatalogCellPaint.thumb] / [CatalogCellPaint.wash] / [CatalogCellPaint.failed] | Rounded rect stand-in |
+/// | [CatalogCellPaint.content] + unicode with a sprite | Queued sprite (batched per page) |
+/// | [CatalogCellPaint.content] + unicode without | Cached glyph paragraph |
+/// | [CatalogCellPaint.content] + document | Ready-path stand-in rect until media decode lands |
 ///
 /// ## Press highlight
 ///
@@ -160,19 +164,18 @@ final class CatalogLeafPainter {
   /// Title paragraph is cached by title, typography, color, and layout width.
   /// Vertical placement centers the line in [CatalogHeaderSlot.height];
   /// horizontal placement adds [CatalogLeafPaintTheme.sectionHeaderStartInset]
-  /// after [padding.left].
+  /// after the section's own left edge ([CatalogHeaderSlot.left]), and the
+  /// text shares the section's [CatalogHeaderSlot.width].
   void paintHeader({
     required Canvas canvas,
     required Offset origin,
     required CatalogHeaderSlot header,
-    required double contentWidth,
-    required EdgeInsets padding,
   }) {
     final theme = _theme;
     final headerStyle = theme.sectionHeaderStyle;
     final textWidth = math.max(
       0.0,
-      contentWidth - padding.horizontal - theme.sectionHeaderStartInset,
+      header.width - theme.sectionHeaderStartInset,
     );
     final paragraph = _headerParagraphs.obtain(
       _HeaderPaintKey(
@@ -195,7 +198,7 @@ final class CatalogLeafPainter {
     canvas.drawParagraph(
       paragraph,
       Offset(
-        origin.dx + padding.left + theme.sectionHeaderStartInset,
+        origin.dx + header.left + theme.sectionHeaderStartInset,
         origin.dy + textY,
       ),
     );
@@ -203,9 +206,9 @@ final class CatalogLeafPainter {
 
   /// Paints one leaf cell for [presentation].
   ///
-  /// Glyph draw bounds are ~72% of the cell pitch, centered. Circle
+  /// Glyph draw bounds are ~72% of the cell's shorter side, centered. Circle
   /// placeholders use those bounds, not the full cell rect. Document
-  /// [CatalogLeafPresentation.content] may still paint a stand-in while media
+  /// [CatalogCellPaint.content] may still paint a stand-in while media
   /// decode is stubbed — identity and readiness are already resolved; bytes
   /// are not this painter’s concern.
   ///
@@ -224,7 +227,7 @@ final class CatalogLeafPainter {
     required Canvas canvas,
     required Offset origin,
     required CatalogLeafSlot slot,
-    required CatalogLeafPresentation presentation,
+    required CatalogCellPaint presentation,
     AtlasSprite? sprite,
     double pressScale = 1,
     double pressProgress = 0,
@@ -236,8 +239,7 @@ final class CatalogLeafPainter {
       slot.width,
       slot.height,
     );
-    final glyphSize =
-        math.min(slot.width, slot.height) * kCatalogGlyphBoxFraction;
+    final glyphSize = catalogGlyphBoxExtent(slot.width, slot.height);
     final glyphRect = Rect.fromCenter(
       center: cellRect.center,
       width: glyphSize,
@@ -260,9 +262,10 @@ final class CatalogLeafPainter {
 
     // A queued sprite carries the press scale in its own transform, so it needs
     // no canvas save and restore and stays in its page's batch.
+    final unicode = slot.leaf.key;
     final queuesSprite =
-        presentation == CatalogLeafPresentation.content &&
-        slot.leaf is UnicodeCatalogLeaf &&
+        presentation == CatalogCellPaint.content &&
+        unicode is ContentKey$Unicode &&
         sprite != null;
     if (queuesSprite) {
       final center = cellRect.center;
@@ -284,15 +287,15 @@ final class CatalogLeafPainter {
     }
 
     switch (presentation) {
-      case CatalogLeafPresentation.circlePlaceholder:
+      case CatalogCellPaint.circle:
         canvas.drawCircle(
           glyphRect.center,
           glyphRect.width * kCirclePlaceholderRadiusFactor,
           _placeholderPaint,
         );
-      case CatalogLeafPresentation.thumbFirstPlaceholder:
-      case CatalogLeafPresentation.shapedLoadingWash:
-      case CatalogLeafPresentation.failed:
+      case CatalogCellPaint.thumb:
+      case CatalogCellPaint.wash:
+      case CatalogCellPaint.failed:
         canvas.drawRRect(
           RRect.fromRectAndRadius(
             glyphRect,
@@ -300,11 +303,11 @@ final class CatalogLeafPainter {
           ),
           _placeholderPaint,
         );
-      case CatalogLeafPresentation.content:
-        switch (slot.leaf) {
-          case UnicodeCatalogLeaf(:final glyph):
-            _paintGlyph(canvas, glyphRect, glyph);
-          case DocumentCatalogLeaf():
+      case CatalogCellPaint.content:
+        switch (unicode) {
+          case ContentKey$Unicode(:final sequence):
+            _paintGlyph(canvas, glyphRect, sequence);
+          case ContentKey$Document() || ContentKey$External():
             canvas.drawRRect(
               RRect.fromRectAndRadius(
                 glyphRect,

@@ -130,9 +130,11 @@ void main() {
 
   /// An atlas over the first [count] glyphs of the harness catalogue, held by
   /// the cache the viewport is given. Not started: tests start it.
-  void buildAtlas(int count) {
+  void buildAtlas(int count, {GlyphAtlasLayout? layout}) {
     atlas = GlyphAtlas(
-      index: GlyphAtlasIndex([for (var i = 0; i < count; i++) _glyph(i)]),
+      index: GlyphAtlasIndex([
+        for (var i = 0; i < count; i++) _glyph(i),
+      ], layout: layout ?? const GlyphAtlasLayout()),
       rasteriser: FakeGlyphRasteriser(),
       store: store,
       frames: frames,
@@ -151,8 +153,8 @@ void main() {
     WidgetTester tester, {
     CatalogAssetCache? assetCache,
     double width = 320,
-    ValueChanged<CatalogLeaf>? onLeafTap,
-    void Function(CatalogLeaf leaf, LongPressStartDetails details)?
+    ValueChanged<CatalogLeafHit>? onLeafTap,
+    void Function(CatalogLeafHit hit, LongPressStartDetails details)?
     onLeafLongPressStart,
   }) => tester.pumpWidget(
     MaterialApp(
@@ -339,6 +341,54 @@ void main() {
         expect(canvas.circles, 16);
       },
     );
+  });
+
+  group('sections with different cell sizes share one atlas', () {
+    testWidgets('a single baked size, scaled down, never up', (tester) async {
+      // 4 columns of 40 (a 28.8 glyph box) and 2 columns of 160 x 80 (57.6).
+      final sections = [
+        CatalogSection(
+          id: 'small',
+          title: 'Small',
+          leaves: [for (var i = 0; i < 8; i++) CatalogLeaf.unicode(_glyph(i))],
+        ),
+        CatalogSection(
+          id: 'large',
+          title: 'Large',
+          layout: const SectionLayout.grid(spanCount: 2, cellExtent: 80),
+          leaves: [for (var i = 8; i < 16; i++) CatalogLeaf.unicode(_glyph(i))],
+        ),
+      ];
+      snapshots.replaceSections(sections);
+      final largest = largestCatalogGlyphBox(
+        layouts: [for (final section in sections) section.layout],
+        spanCount: _span,
+        cellExtent: 40,
+        padding: EdgeInsets.zero,
+        maxWidth: 320,
+      );
+      expect(largest, 80 * kCatalogGlyphBoxFraction);
+      final layout = GlyphAtlasLayout.forCell(
+        logicalExtent: largest,
+        devicePixelRatio: 1,
+      );
+      expect(layout.glyphSize, 58);
+      buildAtlas(16, layout: layout);
+      atlas.start();
+      await pumpViewport(tester);
+      await bakeAll(tester);
+
+      final canvas = paintOnce(tester);
+
+      // One page, one draw: the large cells are not served by a second atlas.
+      expect(canvas.atlasDraws, hasLength(1));
+      final scales = canvas.atlasDraws.single.scales;
+      expect(scales, hasLength(16));
+      expect(scales.take(8), everyElement(closeTo(28.8 / 58, 1e-6)));
+      expect(scales.skip(8), everyElement(closeTo(57.6 / 58, 1e-6)));
+      expect(scales, everyElement(lessThanOrEqualTo(1)));
+      expect(canvas.circles, 0);
+    });
   });
 
   group('text is not used to draw emoji where emoji are baked', () {
@@ -595,7 +645,7 @@ void main() {
       snapshots.replaceSections([_section(80)]);
       buildAtlas(80);
       atlas.start();
-      final tapped = <CatalogLeaf>[];
+      final tapped = <CatalogLeafHit>[];
       await pumpViewport(tester, onLeafTap: tapped.add);
       await bakeAll(tester);
 
@@ -603,7 +653,8 @@ void main() {
       await tester.tapAt(box.topLeft + const Offset(100, 24 + 20));
 
       expect(tapped, hasLength(1));
-      expect((tapped.single as UnicodeCatalogLeaf).glyph, _glyph(1));
+      expect(tapped.single.leaf, CatalogLeaf.unicode(_glyph(1)));
+      expect(tapped.single.index, 1);
     });
 
     testWidgets('a long press on a baked cell reports that leaf, not a tap', (
@@ -612,12 +663,12 @@ void main() {
       snapshots.replaceSections([_section(80)]);
       buildAtlas(80);
       atlas.start();
-      final tapped = <CatalogLeaf>[];
-      final pressed = <CatalogLeaf>[];
+      final tapped = <CatalogLeafHit>[];
+      final pressed = <CatalogLeafHit>[];
       await pumpViewport(
         tester,
         onLeafTap: tapped.add,
-        onLeafLongPressStart: (leaf, _) => pressed.add(leaf),
+        onLeafLongPressStart: (hit, _) => pressed.add(hit),
       );
       await bakeAll(tester);
 
@@ -627,7 +678,7 @@ void main() {
 
       expect(tapped, isEmpty);
       expect(pressed, hasLength(1));
-      expect((pressed.single as UnicodeCatalogLeaf).glyph, _glyph(1));
+      expect(pressed.single.leaf, CatalogLeaf.unicode(_glyph(1)));
     });
 
     testWidgets(
@@ -661,7 +712,7 @@ void main() {
       snapshots.replaceSections([_section(300)]);
       buildAtlas(300);
       atlas.start();
-      final tapped = <CatalogLeaf>[];
+      final tapped = <CatalogLeafHit>[];
       await pumpViewport(tester, onLeafTap: tapped.add);
       await bakeAll(tester);
 

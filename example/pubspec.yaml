@@ -47,6 +47,8 @@ dev_dependencies:
   # the viewport's public controller and diagnostics.
   flutter_driver:
     sdk: flutter
+  content_model:
+    path: ../packages/content_model
   panel_catalog:
     path: ../packages/panel_catalog
   freezed: ^3.2.5

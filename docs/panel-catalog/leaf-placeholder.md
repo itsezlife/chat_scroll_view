@@ -66,7 +66,7 @@ pattern for **sticker** leaves, not as the default for unicode emoji cells.
 | RRect stand-in corner | [PanelCatalogThemeData.standInCornerRadius] (default `6`) |
 | Document ready-path stub | [PanelCatalogThemeData.documentStandInColor] |
 
-| Leaf kind | Leaf presentation while loading |
+| Leaf kind | Placeholder while loading (`CatalogLeaf.placeholderStyle`, derived from the leaf's descriptor facts) |
 | --------- | -------------------------------- |
 | Unicode glyph, baking platform | Circle placeholder until baked, then sprite |
 | Unicode glyph, paragraph strategy (web) | The glyph, drawn as text; no placeholder |

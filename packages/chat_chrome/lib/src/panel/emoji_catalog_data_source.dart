@@ -9,9 +9,10 @@ import 'package:panel_catalog/panel_catalog.dart';
 
 /// Host metadata for one projected [CatalogLeaf] in the emoji grid.
 ///
-/// [CatalogLeaf] carries paint identity only; pick policy and long-press
-/// eligibility live here so [EmojiPage] can wire viewport callbacks without
-/// inferring from glyph strings alone.
+/// [CatalogLeaf] carries content identity and paint facts only; pick policy and
+/// long-press eligibility live here, carried as the leaf's [CatalogLeaf.tag],
+/// so [EmojiPage] can wire viewport callbacks without inferring from glyph
+/// strings alone.
 @immutable
 final class EmojiLeafMeta {
   /// Creates metadata for a catalog or recents cell.
@@ -52,9 +53,9 @@ final class EmojiCatalogStripTab {
 /// projects.
 ///
 /// Owns the viewport-facing section list projected from [EmojiDataSource],
-/// optional recents, and keyword-search results. Maintains a side map from each
-/// projected [CatalogLeaf] instance to [EmojiLeafMeta] for tap and long-press
-/// policy.
+/// optional recents, and keyword-search results. Each projected leaf carries its
+/// [EmojiLeafMeta] as its tag, so a hit ([CatalogLeafHit]) names the policy of
+/// the very cell that was hit.
 ///
 /// Does **not** own fetch — listens to [EmojiDataSource] and rebuilds on
 /// [rebuild]. Call [rebuild] when recents or search projection inputs change;
@@ -78,8 +79,6 @@ final class EmojiCatalogDataSource {
     const CatalogSnapshot.empty(),
   );
   List<EmojiCatalogStripTab> _stripTabs = const [];
-  Map<CatalogLeaf, EmojiLeafMeta> _leafMeta =
-      const <CatalogLeaf, EmojiLeafMeta>{};
   var _searchEmpty = false;
 
   /// The current sections, published for the viewport.
@@ -97,11 +96,14 @@ final class EmojiCatalogDataSource {
   /// Host overlays empty-search copy; the viewport projects no slots.
   bool get isSearchEmpty => _searchEmpty;
 
-  /// Metadata for [leaf], or null when the leaf is unknown.
+  /// Metadata for the cell [hit], or null when it carries none.
   ///
-  /// Lookup is by leaf **instance** (projection identity), not [CatalogAssetKey]
-  /// alone — recents and catalog can share the same glyph string.
-  EmojiLeafMeta? metaFor(CatalogLeaf leaf) => _leafMeta[leaf];
+  /// Read from the hit leaf's tag, so recents and catalog cells that share a
+  /// glyph string keep their own policy.
+  EmojiLeafMeta? metaFor(CatalogLeafHit hit) => switch (hit.leaf.tag) {
+    final EmojiLeafMeta meta => meta,
+    _ => null,
+  };
 
   /// Rebuilds sections from catalog, [recents], and optional [searchCells].
   ///
@@ -119,7 +121,6 @@ final class EmojiCatalogDataSource {
     searchCells,
     required String searchResultsLabel,
   }) {
-    final meta = <CatalogLeaf, EmojiLeafMeta>{};
     final sections = <CatalogSection>[];
     final tabs = <EmojiCatalogStripTab>[];
     var searchEmpty = false;
@@ -127,18 +128,21 @@ final class EmojiCatalogDataSource {
     if (searchQuery.isNotEmpty) {
       if (searchCells.isEmpty) {
         searchEmpty = true;
-        _applyProjection(sections, tabs, meta, searchEmpty);
+        _applyProjection(sections, tabs, searchEmpty);
         return;
       }
       final leaves = <CatalogLeaf>[];
       for (final cell in searchCells) {
-        final leaf = CatalogLeaf.unicode(cell.displayGlyph);
-        leaves.add(leaf);
-        meta[leaf] = EmojiLeafMeta(
-          pickGlyph: cell.pickGlyph,
-          isRecent: false,
-          supportsSkinTone: cell.supportsSkinTone,
-          pickSource: EmojiPickSource.search,
+        leaves.add(
+          CatalogLeaf.unicode(
+            cell.displayGlyph,
+            tag: EmojiLeafMeta(
+              pickGlyph: cell.pickGlyph,
+              isRecent: false,
+              supportsSkinTone: cell.supportsSkinTone,
+              pickSource: EmojiPickSource.search,
+            ),
+          ),
         );
         _markUnicodeReady(cell.displayGlyph);
       }
@@ -151,20 +155,23 @@ final class EmojiCatalogDataSource {
           icon: EmojiTabAssets.recentsStripIcon,
         ),
       );
-      _applyProjection(sections, tabs, meta, searchEmpty);
+      _applyProjection(sections, tabs, searchEmpty);
       return;
     }
 
     if (recents.isNotEmpty) {
       final leaves = <CatalogLeaf>[];
       for (final glyph in recents) {
-        final leaf = CatalogLeaf.unicode(glyph);
-        leaves.add(leaf);
-        meta[leaf] = EmojiLeafMeta(
-          pickGlyph: glyph,
-          isRecent: true,
-          supportsSkinTone: false,
-          pickSource: EmojiPickSource.recent,
+        leaves.add(
+          CatalogLeaf.unicode(
+            glyph,
+            tag: EmojiLeafMeta(
+              pickGlyph: glyph,
+              isRecent: true,
+              supportsSkinTone: false,
+              pickSource: EmojiPickSource.recent,
+            ),
+          ),
         );
         _markUnicodeReady(glyph);
       }
@@ -188,13 +195,16 @@ final class EmojiCatalogDataSource {
       for (final item in cat.items) {
         if (item case final UnicodeEmojiItem unicode) {
           final cell = _cellForCatalogItem(unicode);
-          final leaf = CatalogLeaf.unicode(cell.displayGlyph);
-          leaves.add(leaf);
-          meta[leaf] = EmojiLeafMeta(
-            pickGlyph: cell.pickGlyph,
-            isRecent: false,
-            supportsSkinTone: cell.supportsSkinTone,
-            pickSource: EmojiPickSource.grid,
+          leaves.add(
+            CatalogLeaf.unicode(
+              cell.displayGlyph,
+              tag: EmojiLeafMeta(
+                pickGlyph: cell.pickGlyph,
+                isRecent: false,
+                supportsSkinTone: cell.supportsSkinTone,
+                pickSource: EmojiPickSource.grid,
+              ),
+            ),
           );
           _markUnicodeReady(cell.displayGlyph);
         }
@@ -211,17 +221,15 @@ final class EmojiCatalogDataSource {
       );
     }
 
-    _applyProjection(sections, tabs, meta, searchEmpty);
+    _applyProjection(sections, tabs, searchEmpty);
   }
 
   void _applyProjection(
     List<CatalogSection> sections,
     List<EmojiCatalogStripTab> tabs,
-    Map<CatalogLeaf, EmojiLeafMeta> meta,
     bool searchEmpty,
   ) {
     _stripTabs = List<EmojiCatalogStripTab>.unmodifiable(tabs);
-    _leafMeta = Map<CatalogLeaf, EmojiLeafMeta>.unmodifiable(meta);
     _searchEmpty = searchEmpty;
     if (LogCategory.emoji.enabled) {
       final leafCount = sections.fold<int>(0, (n, s) => n + s.leaves.length);
@@ -229,7 +237,6 @@ final class EmojiCatalogDataSource {
         'sections': sections.length,
         'leaves': leafCount,
         'searchEmpty': searchEmpty,
-        'meta': meta.length,
       });
     }
     _snapshots.value = CatalogSnapshot(sections);

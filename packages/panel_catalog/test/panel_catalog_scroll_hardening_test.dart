@@ -284,6 +284,56 @@ void main() {
       // 400k slots costs milliseconds, three orders of magnitude above this.
       expect(large, lessThan(small * 8 + 250));
     });
+
+    testWidgets('stays proportional to the band with per-section layouts', (
+      tester,
+    ) async {
+      // Alternating default and 5-column sections: 160 sections of 100 leaves
+      // against 320000 of them.
+      Future<({double scroll, double hit})> costsFor(int sectionCount) async {
+        final ds = FakeCatalogSnapshotSource()
+          ..replaceSections([
+            for (var s = 0; s < sectionCount; s++)
+              CatalogSection(
+                id: 's$s',
+                title: 'Section $s',
+                layout: s.isOdd
+                    ? const SectionLayout.grid(spanCount: 5, cellExtent: 64)
+                    : null,
+                leaves: [
+                  for (var i = 0; i < 100; i++)
+                    CatalogLeaf.unicode(
+                      '${String.fromCharCode(0x20000 + i % 0x10000)}$s',
+                    ),
+                ],
+              ),
+          ]);
+        addTearDown(ds.dispose);
+        final c = PanelCatalogController();
+        addTearDown(c.dispose);
+        await tester.pumpWidget(
+          _app(snapshots: ds, assetCache: assetCache, controller: c),
+        );
+        final render = _render(tester);
+        c.jumpTo(render.maxOffset / 2);
+        await tester.pump();
+        return (
+          scroll: _medianMicros(300, () => c.scrollBy(1)),
+          hit: _medianMicros(
+            300,
+            () => render.leafSlotAt(const Offset(100, 200)),
+          ),
+        );
+      }
+
+      final small = await costsFor(2);
+      final large = await costsFor(3200);
+
+      // Binary search over the one ascending slot list, then the visible band:
+      // a front-to-back scan of 320000 slots costs milliseconds.
+      expect(large.scroll, lessThan(small.scroll * 8 + 250));
+      expect(large.hit, lessThan(small.hit * 8 + 120));
+    });
   });
 }
 

@@ -1,84 +1,128 @@
-import 'package:catalog_assets/legacy_shim.dart';
 import 'package:content_model/content_model.dart';
+import 'package:meta/meta.dart';
 
-/// One cell in the catalog projection.
+/// How a cell stands in for its content until the content can be drawn.
 ///
-/// Carries **identity only** (unicode glyph or document id). Presentation
-/// (ready content vs kind-specific placeholder) is projected by the viewport
-/// from asset-cache readiness — MUST NOT be stored on the leaf itself.
-/// Storing paint mode on the model would duplicate the cache as a second
-/// write model and go stale when readiness flips.
-///
-/// Bind to [CatalogAssetCache] via [assetKey]. Equality is **not** overridden
-/// on the leaf types; use [assetKey] (and its equality) for maps, sets, and
-/// presentation lookup. Two [UnicodeCatalogLeaf] instances with the same
-/// glyph are not `==` unless you compare [assetKey].
-sealed class CatalogLeaf {
-  /// Cache / hit-test identity for this leaf ([CatalogAssetKey]).
-  CatalogAssetKey get assetKey;
+/// Derived from the descriptor facts of a leaf ([CatalogLeaf.placeholderStyle]);
+/// a leaf never stores it, and a paint mode never lives on the leaf at all.
+enum CatalogPlaceholderStyle {
+  /// A filled circle in the glyph box: a glyph that is not drawable yet.
+  circle,
 
-  /// The leaf's identity as content, or null for a leaf without one (an empty
-  /// glyph or id).
-  ///
-  /// Scroll events name visible leaves by this key.
-  ContentKey? get contentKey;
+  /// A silhouette of the content's thumbnail: animated or custom media.
+  thumbFirst,
 
-  /// Creates a unicode emoji leaf for [glyph].
-  ///
-  /// [glyph] is one or more codepoints (ZWJ sequences allowed). Empty string
-  /// is undefined for paint.
-  const factory CatalogLeaf.unicode(String glyph) = UnicodeCatalogLeaf;
-
-  /// Creates a document-backed leaf for [documentId].
-  ///
-  /// [documentId] MUST be unique within the process-wide asset-cache key
-  /// space (stable across notifies for the same media).
-  const factory CatalogLeaf.document(String documentId) = DocumentCatalogLeaf;
+  /// A shaped wash: a sticker.
+  shapedWash,
 }
 
-/// Standard unicode emoji leaf.
+/// One cell of a [CatalogSection], as a value.
 ///
-/// Painted from its baked sprite where the asset cache has a glyph atlas (the
-/// circle placeholder until the sprite exists), else from a paragraph cache.
-/// Neither waits on an asset decode. Presentation is
-/// [CatalogLeafPresentation.content] once drawable, unless the cache reports
-/// failed.
-final class UnicodeCatalogLeaf implements CatalogLeaf {
-  /// Creates a unicode leaf for [glyph].
-  const UnicodeCatalogLeaf(this.glyph);
-
-  /// The emoji glyph string (one or more codepoints, including ZWJ sequences).
-  final String glyph;
-
-  @override
-  CatalogAssetKey get assetKey => CatalogAssetKey.unicode(glyph);
-
-  @override
-  ContentKey? get contentKey =>
-      glyph.isEmpty ? null : ContentKey.unicode(glyph);
-}
-
-/// Document-backed leaf (animated/custom emoji, sticker, GIF).
+/// A leaf is the identity of the content ([key]), the descriptor facts the
+/// viewport needs to paint a stand-in before the content arrives
+/// ([semanticKind], [mediaForm], [animated], [sizeHint]), and an opaque host
+/// [tag]. It carries no readiness, no paint mode and no atlas or sprite state:
+/// those are projected at paint time from the asset binding, and storing them
+/// here would make a second write model that goes stale when readiness flips.
 ///
-/// Identity is available even when media decode is stubbed — the viewport can
-/// still project, bind, and paint a stand-in. Loading projects to
-/// [CatalogLeafPresentation.thumbFirstPlaceholder]. Ready paint may still be
-/// a stand-in until the host media pipeline supplies bytes to the cache.
-final class DocumentCatalogLeaf implements CatalogLeaf {
-  /// Creates a document-backed leaf for [documentId].
-  const DocumentCatalogLeaf(this.documentId);
-
-  /// Stable document identifier for the host media pipeline.
+/// Equality covers [key] and the facts. The [tag] is excluded from equality and
+/// is never painted: it lets the host that built a leaf recognise it again in a
+/// hit ([CatalogLeafHit.leaf]) without a side map keyed by leaf instance, and a
+/// republished snapshot whose leaves differ only by tag is the same catalog.
+///
+/// The same [key] may appear in several sections, or twice in one. A leaf says
+/// _what_ is shown; _which cell_ was hit is [CatalogLeafHit.sectionId] and
+/// [CatalogLeafHit.index].
+@immutable
+final class CatalogLeaf {
+  /// Creates a leaf for [key] with the descriptor facts the host has.
   ///
-  /// MUST be unique within the process-wide asset-cache key space. Changing
-  /// the id is a different leaf — the old binding detaches when it leaves the
-  /// visible band.
-  final String documentId;
+  /// Facts left at their defaults make the stand-in the thumbnail silhouette
+  /// ([CatalogPlaceholderStyle.thumbFirst]).
+  const CatalogLeaf({
+    required this.key,
+    this.semanticKind = SemanticKind.unknown,
+    this.mediaForm = MediaForm.unknown,
+    this.animated = false,
+    this.sizeHint,
+    this.tag,
+  });
+
+  /// Creates a unicode emoji leaf for the exact [glyph] sequence.
+  ///
+  /// [glyph] is one or more code points (ZWJ sequences allowed) and must not be
+  /// empty. The leaf is a [MediaForm.glyph] of kind
+  /// [SemanticKind.unicodeEmoji]: its stand-in is a circle.
+  CatalogLeaf.unicode(String glyph, {this.tag})
+    : key = ContentKey.unicode(glyph),
+      semanticKind = SemanticKind.unicodeEmoji,
+      mediaForm = MediaForm.glyph,
+      animated = false,
+      sizeHint = null;
+
+  /// Creates a document-backed leaf (custom emoji, sticker, GIF) for the
+  /// opaque [documentId], which must not be empty.
+  CatalogLeaf.document(
+    String documentId, {
+    this.semanticKind = SemanticKind.unknown,
+    this.mediaForm = MediaForm.unknown,
+    this.animated = false,
+    this.sizeHint,
+    this.tag,
+  }) : key = ContentKey.document(documentId);
+
+  /// Creates the leaf of [descriptor]: its key and paint facts. The rest of the
+  /// descriptor (thumbnail, spoken name, flags) is the host's to use elsewhere.
+  CatalogLeaf.fromDescriptor(ContentDescriptor descriptor, {this.tag})
+    : key = descriptor.key,
+      semanticKind = descriptor.semanticKind,
+      mediaForm = descriptor.mediaForm,
+      animated = descriptor.animated,
+      sizeHint = descriptor.size;
+
+  /// The identity of the content.
+  final ContentKey key;
+
+  /// What the content is; picks the stand-in for non-glyph content.
+  final SemanticKind semanticKind;
+
+  /// How the content is drawn once it arrives.
+  final MediaForm mediaForm;
+
+  /// Whether the content animates.
+  final bool animated;
+
+  /// Intrinsic size of the content, when the host knows it.
+  final ContentSize? sizeHint;
+
+  /// Opaque host data, excluded from equality and never painted.
+  final Object? tag;
+
+  /// The stand-in for this leaf's content, from [mediaForm] and
+  /// [semanticKind]: a glyph is a circle, a sticker a shaped wash, anything
+  /// else the thumbnail silhouette.
+  CatalogPlaceholderStyle get placeholderStyle {
+    if (mediaForm == MediaForm.glyph) return CatalogPlaceholderStyle.circle;
+    return switch (semanticKind) {
+      SemanticKind.sticker || SemanticKind.mask =>
+        CatalogPlaceholderStyle.shapedWash,
+      _ => CatalogPlaceholderStyle.thumbFirst,
+    };
+  }
 
   @override
-  CatalogAssetKey get assetKey => CatalogAssetKey.document(documentId);
+  bool operator ==(Object other) =>
+      other is CatalogLeaf &&
+      other.key == key &&
+      other.semanticKind == semanticKind &&
+      other.mediaForm == mediaForm &&
+      other.animated == animated &&
+      other.sizeHint == sizeHint;
 
   @override
-  ContentKey? get contentKey =>
-      documentId.isEmpty ? null : ContentKey.document(documentId);
+  int get hashCode =>
+      Object.hash(key, semanticKind, mediaForm, animated, sizeHint);
+
+  @override
+  String toString() => 'CatalogLeaf($key)';
 }

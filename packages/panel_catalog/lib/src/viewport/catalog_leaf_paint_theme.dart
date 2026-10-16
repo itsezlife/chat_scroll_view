@@ -54,8 +54,8 @@ class CatalogLeafPaintTheme {
     );
   }
 
-  /// Fill for circle / stand-in placeholders ([CatalogLeafPresentation]
-  /// loading paths).
+  /// Fill for circle / stand-in placeholders (the loading paths of
+  /// [CatalogLeaf.placeholderStyle]).
   final Color placeholderColor;
 
   /// List-selector wash on the full cell rect while pressed.
@@ -70,7 +70,7 @@ class CatalogLeafPaintTheme {
   /// Extra start inset after horizontal content padding for header titles.
   final double sectionHeaderStartInset;
 
-  /// Fill for document [CatalogLeafPresentation.content] ready-path stand-in.
+  /// Fill for the ready-path stand-in of document-backed content.
   final Color documentStandInColor;
 
   /// Press-highlight corner radius in logical pixels (density-resolved).

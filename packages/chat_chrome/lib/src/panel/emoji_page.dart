@@ -7,6 +7,7 @@ import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_chrome/src/panel/emoji_catalog_data_source.dart';
 import 'package:chat_chrome/src/util/constants.dart';
 import 'package:chat_chrome/src/util/logger.dart';
+import 'package:content_model/content_model.dart' show ContentKey;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -946,11 +947,11 @@ class EmojiPageState extends State<EmojiPage>
 
   // --- Viewport leaf callbacks ----------------------------------------------
 
-  void _onLeafTap(CatalogLeaf leaf) {
-    final meta = _catalogDataSource.metaFor(leaf);
+  void _onLeafTap(CatalogLeafHit hit) {
+    final meta = _catalogDataSource.metaFor(hit);
     if (LogCategory.emoji.enabled) {
       fine(.emoji, 'leaf.tap', {
-        'key': leaf.assetKey.toString(),
+        'key': hit.leaf.key.encoded,
         'meta': meta != null,
         'recent': meta?.isRecent,
       });
@@ -959,14 +960,17 @@ class EmojiPageState extends State<EmojiPage>
     _onTap(meta.pickGlyph, source: meta.pickSource, isRecent: meta.isRecent);
   }
 
-  bool _leafLongPressEligible(CatalogLeaf leaf) {
-    final meta = _catalogDataSource.metaFor(leaf);
+  bool _leafLongPressEligible(CatalogLeafHit hit) {
+    final meta = _catalogDataSource.metaFor(hit);
     if (meta == null) return false;
     return meta.isRecent || meta.supportsSkinTone;
   }
 
-  void _onLeafLongPressStart(CatalogLeaf leaf, LongPressStartDetails details) {
-    final meta = _catalogDataSource.metaFor(leaf);
+  void _onLeafLongPressStart(
+    CatalogLeafHit hit,
+    LongPressStartDetails details,
+  ) {
+    final meta = _catalogDataSource.metaFor(hit);
     if (meta == null) return;
     _onLongPressStart(
       meta.pickGlyph,
@@ -976,13 +980,13 @@ class EmojiPageState extends State<EmojiPage>
   }
 
   void _onLeafLongPressMove(
-    CatalogLeaf leaf,
+    CatalogLeafHit hit,
     LongPressMoveUpdateDetails details,
   ) {
     _onLongPressMove(details);
   }
 
-  void _onLeafLongPressEnd(CatalogLeaf leaf, LongPressEndDetails details) {
+  void _onLeafLongPressEnd(CatalogLeafHit hit, LongPressEndDetails details) {
     unawaited(_onLongPressEnd(details));
   }
 
@@ -1226,7 +1230,7 @@ class EmojiPageState extends State<EmojiPage>
           y += _rowCellExtent;
         }
         final leaf = leaves[i];
-        if (leaf is UnicodeCatalogLeaf && leaf.glyph == displayGlyph) {
+        if (leaf.key == ContentKey.unicode(displayGlyph)) {
           return y + _rowCellExtent / 2;
         }
       }
@@ -1243,7 +1247,7 @@ class EmojiPageState extends State<EmojiPage>
     final sections = _catalogDataSource.sections;
     for (var s = 0; s < sections.length; s++) {
       for (final leaf in sections[s].leaves) {
-        if (leaf is UnicodeCatalogLeaf && leaf.glyph == displayGlyph) {
+        if (leaf.key == ContentKey.unicode(displayGlyph)) {
           return s;
         }
       }
@@ -1270,7 +1274,7 @@ class EmojiPageState extends State<EmojiPage>
           y += _rowCellExtent;
         }
         final leaf = leaves[i];
-        if (leaf is UnicodeCatalogLeaf && leaf.glyph == displayGlyph) {
+        if (leaf.key == ContentKey.unicode(displayGlyph)) {
           final x = padding.left + col * cellW + cellW / 2;
           final contentCenterY = y + _rowCellExtent / 2;
           final viewportY = contentCenterY - _catalogController.offset;

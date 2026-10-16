@@ -31,7 +31,7 @@ When the target is not attached and farther than the distance gate (or animation
 _Avoid_: Naked `jumpTo` as the far-path UX, animateTo through the entire gap
 
 **Far-path distance gate**:
-Far path applies when the target view is not currently attached AND `|adapterPos − firstVisible| > spanCount * 9` in **per-cell** adapter space. In flat-row index (one slot per section header + one per leaf row) that is `|targetFlatIndex − firstVisibleFlatIndex| > [kFarPathDistanceGateFactor]` (= 9). Below that (or if the target header row is already visible), use near-path smooth scroll.
+Far path applies when the target view is not currently attached AND `|adapterPos − firstVisible| > spanCount * 9` in **per-cell** adapter space. In flat-row index (one slot per section header + one per leaf row, rows counted at each section's own column count) that is `|targetFlatIndex − firstVisibleFlatIndex| > [kFarPathDistanceGateFactor]` (= 9). Below that (or if the target header row is already visible), use near-path smooth scroll.
 _Avoid_: Multiplying the flat-row gate by spanCount again (over-widens near path), pixel-distance gates, treating “far” as synonymous with jumpTo, per-cell index for the gate when the catalog already uses flat rows
 
 **Section jump**:
@@ -111,15 +111,19 @@ A projection of a collection plus presentation hints; never the data itself.
 _Avoid_: Treating a section as the collection
 
 **Section layout**:
-Sealed per-section geometry. `Grid(...)` now; other kinds (justified rows) can be added later. The viewport-wide span, cell and header values are defaults.
-_Avoid_: One geometry for the whole viewport, per-leaf flex sizing
+Sealed per-section geometry. `Grid(spanCount, cell extent or cell aspect, header extent, insets)` now; other kinds (justified rows) can be added later. A value the layout leaves unset is inherited from the viewport-wide span, cell and header defaults, and a section with no layout is all defaults. Insets nest in the viewport padding: left and right narrow the section's columns and header text, top and bottom add space around the section. Landing, the near / far gate and the visible-window lookup all read the per-section geometry, and all slots of all sections stay in one ascending list, so a lookup is a binary search plus the visible band.
+_Avoid_: One geometry for the whole viewport, per-leaf flex sizing, a lookup that walks sections or the catalogue
+
+**Largest glyph box**:
+The rule that sizes baked glyphs when sections have different cell sizes. A glyph is drawn in a box of 0.72 of its cell's shorter side; a host that bakes glyphs bakes **one** size per atlas, for the largest box any section it serves draws (`largestCatalogGlyphBox`, which uses the very formula the painter draws with), so a section with larger cells is not upscaled and one with smaller cells scales the same sprites down. The atlas layout still caps the baked size, which keeps the page count and the resident ceiling the same.
+_Avoid_: A second atlas for a section with other cell sizes, sizing the bake for the smallest cell (blurs the larger ones), a size derived from the viewport default when a section overrides it
 
 **Catalog leaf**:
-A value: content key, descriptor paint facts and an opaque host tag. Equality ignores the tag, and paint mode is never stored on it.
+A value: content key, descriptor paint facts (semantic kind, media form, animated, size hint) and an opaque host tag. Equality covers the key and the facts and ignores the tag; the placeholder style is derived from the facts, and paint mode, readiness and sprite are never stored on it.
 _Avoid_: Leaf class hierarchy, instance-keyed side map, generic `CatalogLeaf<T>`
 
 **Leaf hit**:
-The identity of an interaction: (section id, index, leaf). The same key in two sections is two hits.
+The identity of an interaction: (section id, index, leaf). The cell is the identity, so equality covers the section id and the index, and the same key in two sections (or twice in one) is two hits. The leaf in a hit still carries the host tag.
 _Avoid_: Key-only identity, host-owned (section, key) maps
 
 **Catalog snapshot**:

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:catalog_assets/legacy_shim.dart';
 import 'package:flutter/animation.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
+import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 
 /// Floor for travel-scaled [catalogStitchTravelDuration] (ms).
@@ -49,6 +50,8 @@ sealed class CatalogStitchCapturedSlot {
     required double contentTop,
     required double viewportTop,
     required double height,
+    required double left,
+    required double width,
     required String title,
   }) = CatalogStitchCapturedHeader;
 
@@ -59,6 +62,8 @@ sealed class CatalogStitchCapturedSlot {
     required double height,
     required double left,
     required double width,
+    required String sectionId,
+    required int index,
     required CatalogLeaf leaf,
   }) = CatalogStitchCapturedLeaf;
 
@@ -82,8 +87,16 @@ final class CatalogStitchCapturedHeader extends CatalogStitchCapturedSlot {
     required super.contentTop,
     required super.viewportTop,
     required super.height,
+    required this.left,
+    required this.width,
     required this.title,
   });
+
+  /// Content x of the section's left edge at capture time.
+  final double left;
+
+  /// Width the header shared with its columns at capture time.
+  final double width;
 
   /// Section title text used to paint the header band.
   final String title;
@@ -98,6 +111,8 @@ final class CatalogStitchCapturedLeaf extends CatalogStitchCapturedSlot {
     required super.height,
     required this.left,
     required this.width,
+    required this.sectionId,
+    required this.index,
     required this.leaf,
   });
 
@@ -106,6 +121,12 @@ final class CatalogStitchCapturedLeaf extends CatalogStitchCapturedSlot {
 
   /// Cell width at capture time.
   final double width;
+
+  /// Section the cell belonged to at capture time.
+  final String sectionId;
+
+  /// Position of the cell in that section at capture time.
+  final int index;
 
   /// Leaf identity at capture time.
   final CatalogLeaf leaf;
@@ -132,6 +153,8 @@ List<CatalogStitchCapturedSlot> captureCatalogStitchOutgoing({
             contentTop: slot.top,
             viewportTop: viewportTop,
             height: header.height,
+            left: header.left,
+            width: header.width,
             title: header.title,
           ),
         );
@@ -143,6 +166,8 @@ List<CatalogStitchCapturedSlot> captureCatalogStitchOutgoing({
             height: leaf.height,
             left: leaf.left,
             width: leaf.width,
+            sectionId: leaf.sectionId,
+            index: leaf.index,
             leaf: leaf.leaf,
           ),
         );
@@ -157,7 +182,7 @@ Set<CatalogAssetKey> catalogStitchOutgoingLeafKeys(
 ) {
   return {
     for (final slot in outgoing)
-      if (slot case CatalogStitchCapturedLeaf(:final leaf)) leaf.assetKey,
+      if (slot case CatalogStitchCapturedLeaf(:final leaf)) leaf.legacyAssetKey,
   };
 }
 
@@ -168,10 +193,16 @@ bool catalogStitchSlotIsOutgoing(
 ) {
   for (final captured in outgoing) {
     switch ((slot, captured)) {
-      case (CatalogHeaderSlot header, CatalogStitchCapturedHeader capturedHeader):
+      case (
+        CatalogHeaderSlot header,
+        CatalogStitchCapturedHeader capturedHeader,
+      ):
         if (header.top == capturedHeader.contentTop) return true;
       case (CatalogLeafSlot leafSlot, CatalogStitchCapturedLeaf capturedLeaf):
-        if (leafSlot.leaf.assetKey == capturedLeaf.leaf.assetKey) {
+        // The cell, not its content: the same key in another section is a
+        // different cell and must still travel as incoming.
+        if (leafSlot.sectionId == capturedLeaf.sectionId &&
+            leafSlot.index == capturedLeaf.index) {
           return true;
         }
       default:
@@ -215,8 +246,9 @@ double measureCatalogStitchTravel({
     if (bottom > incomingBottom) incomingBottom = bottom;
   }
 
-  final finalHeight =
-      towardNewer ? outgoingBottom : viewportHeight - outgoingTop;
+  final finalHeight = towardNewer
+      ? outgoingBottom
+      : viewportHeight - outgoingTop;
   final scrollLength = hasIncoming
       ? finalHeight +
             (towardNewer ? -incomingTop : incomingBottom - viewportHeight)

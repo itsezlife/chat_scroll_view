@@ -97,8 +97,8 @@ class PanelCatalogThemeData {
   /// Default extra start inset after [PanelCatalogViewport.padding.left].
   static const double _defaultSectionHeaderStartInset = 8;
 
-  /// Fill for circle / stand-in placeholders ([CatalogLeafPresentation]
-  /// loading paths). Paint-only — does not affect layout extent.
+  /// Fill for circle / stand-in placeholders (the loading paths of
+  /// [CatalogLeaf.placeholderStyle]). Paint-only — does not affect layout extent.
   final Color placeholderColor;
 
   /// List-selector wash on pressed leaf cells.
@@ -118,7 +118,7 @@ class PanelCatalogThemeData {
   /// when painting [CatalogHeaderSlot] titles.
   final double sectionHeaderStartInset;
 
-  /// Fill for document [CatalogLeafPresentation.content] ready-path stand-in
+  /// Fill for the ready-path stand-in of document-backed content
   /// when media bytes are not yet painted by the host pipeline.
   final Color documentStandInColor;
 
@@ -204,8 +204,7 @@ class PanelCatalogThemeData {
       leafPressHighlightColor:
           leafPressHighlightColor ?? this.leafPressHighlightColor,
       sectionHeaderStyle: sectionHeaderStyle ?? this.sectionHeaderStyle,
-      documentStandInColor:
-          documentStandInColor ?? this.documentStandInColor,
+      documentStandInColor: documentStandInColor ?? this.documentStandInColor,
       leafPressSelectorRadiusNominalDp:
           leafPressSelectorRadiusNominalDp ??
           this.leafPressSelectorRadiusNominalDp,
