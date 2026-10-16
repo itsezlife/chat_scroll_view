@@ -1,8 +1,8 @@
 name: content_model
 description: >
-  Pure-Dart content identity and collection value types: content key,
-  descriptor, collections, emoji variants, inline content refs and rich text,
-  with an opt-in markdown helper.
+  Pure-Dart content identity and collection value types, rich text with an
+  opt-in markdown helper, the Observable primitive, data seams with reference
+  stores, and their fakes and contract suites.
 version: 0.1.0
 publish_to: none
 resolution: workspace
@@ -12,6 +12,10 @@ environment:
 
 dependencies:
   meta: ^1.17.0
-
-dev_dependencies:
+  # Only lib/testing.dart needs this: its contract suites (runRecentsStoreContract
+  # and the like) are written with the test framework, and a library cannot
+  # import a dev dependency. Production entry points never import it. Moving the
+  # suites to a package of their own would leave content_model with a dev
+  # dependency on a package that depends on it, a cycle the workspace
+  # dependency lint rejects; adapters and hosts run the suites from here.
   test: ^1.25.0
