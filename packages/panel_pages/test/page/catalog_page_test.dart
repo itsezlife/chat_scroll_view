@@ -71,6 +71,9 @@ class _Policy extends CatalogPagePolicy {
   CatalogStripHandle? stripHandle;
 
   @override
+  double get stripExtent => strip ? 40 : 0;
+
+  @override
   SectionLayout? layoutOf(Collection collection) => _layout;
 
   @override

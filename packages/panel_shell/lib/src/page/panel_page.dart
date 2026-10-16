@@ -113,6 +113,18 @@ final class PageAction {
   String toString() => 'PageAction($id)';
 }
 
+/// Where the search field of a page that searches is drawn.
+enum SearchPlacement {
+  /// Above the pager, in the shell: one field that stays where it is while the
+  /// page scrolls.
+  pinned,
+
+  /// Inside the page: the page places the field itself (a `PanelSearchField`
+  /// under the shell's scope) among its own content, so it can scroll away
+  /// with it and pin when search opens. The shell draws none.
+  inline,
+}
+
 /// What a page declares it can do, which the shell reads to decide what to
 /// show around it.
 @immutable
@@ -120,6 +132,7 @@ final class PageCapabilities {
   /// Capabilities of a page.
   const PageCapabilities({
     this.search = false,
+    this.searchPlacement = SearchPlacement.pinned,
     this.topStrip = false,
     this.actions = const [],
   });
@@ -128,8 +141,12 @@ final class PageCapabilities {
   static const PageCapabilities none = PageCapabilities();
 
   /// Whether the page maps the search query to results of its own. The shell
-  /// shows its search field only above pages that declare it.
+  /// shows its search field only for pages that declare it, where
+  /// [searchPlacement] says.
   final bool search;
+
+  /// Where the field is drawn for a page that declares [search].
+  final SearchPlacement searchPlacement;
 
   /// Whether the page draws a top strip (a category or set strip) inside its
   /// own content. The page owns and positions the strip; this is declared so

@@ -27,9 +27,36 @@ is pre-1.0.
 - `ChromeCatalogTheme.dataFor(chrome, arrangement:)`: under `pointer` the
   catalogue paints a hover wash (the text colour at alpha `0x12`).
 - `FakePanelPageHost.bottomExtents`.
+- The sticky header, under `touch` (what `PanelArrangementScope` answers where
+  no shell is above). `CatalogPage` draws the policy's strip over the
+  catalogue, where it slides away as the user reads on and returns as they read
+  back, and, for a page whose capabilities say `SearchPlacement.inline`, the
+  shell's search field as the first thing in the content (it scrolls away, and
+  pins when search opens). The catalogue is padded by their extent and section
+  jumps land under the strip. The geometry is `CatalogStickyHeader`, a pure
+  class. Under `pointer` there is no sticky header: the strip is a part of the
+  column (above the catalogue, or pinned below it where `stripAtBottom`) and
+  the shell draws the search field whatever placement the page declared. A page
+  moved from one arrangement to the other (a popup docked in place) takes the
+  other layout in place.
+- `CatalogPagePolicy.stripExtent`: the height of the strip the policy builds
+  where it is a sticky header (0, the default, for none). A policy that builds
+  a strip it keeps at the top under `touch` must declare it; one pinned at the
+  bottom is measured instead.
+- `CatalogPage.searchFieldReady`, and `FakeSearchFieldScope` in
+  `package:panel_pages/testing.dart` for tests that mount a page without a
+  shell.
 
 ### Changed
 
+- `EmojiPagePolicy.pageCapabilities` places the search field inline (honoured
+  under `touch`; under `pointer` the shell draws it).
+  `EmojiPage.deferChrome` paces the field and then the strip, one frame each
+  after the grid, as the panel did.
+- The category strip's touch form no longer draws a hairline of its own (the
+  page draws it while content passes under the strip), and its selected wash is
+  the idle icon colour at 18 % alpha again. The pinned (pointer) form is
+  unchanged.
 - Change notification is `package:listen` (`listen: ^1.0.1`), not
   `content_model`'s removed `Observable` family: `CatalogStripHandle.entries`,
   `GlyphAtlasHost.atlas` and the presence inputs are `ValueListenable`s (the

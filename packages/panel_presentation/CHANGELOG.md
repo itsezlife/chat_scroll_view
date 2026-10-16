@@ -6,6 +6,16 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `KeyboardReplacementTuning.sheetCornerRadius` (29): the keyboard-replacement
+  sheet has rounded top corners, seen at rest.
+
+### Documented
+
+- `ImeSample.height` counts the bottom safe area as part of the keyboard. A host
+  whose platform reports the keyboard without it adds it back.
+
 ### Changed
 
 - **The anchored popup never takes focus when it opens.** Before, a click-opened

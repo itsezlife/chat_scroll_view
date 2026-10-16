@@ -19,6 +19,7 @@ final class KeyboardReplacementTuning {
     this.handOffTimeout = const Duration(seconds: 1),
     this.coldOpenDelay = const Duration(milliseconds: 50),
     this.settleTolerance = 2,
+    this.sheetCornerRadius = 29,
   });
 
   /// The panel content height, when no keyboard height is known, in a
@@ -51,6 +52,11 @@ final class KeyboardReplacementTuning {
   /// being held and still count as the same height.
   final double settleTolerance;
 
+  /// The radius of the sheet's top corners, seen once the panel has grown to
+  /// its height: a moving sheet is clipped by the slot it grows in, so its
+  /// corners show only at rest.
+  final double sheetCornerRadius;
+
   /// The default content height in a window of class [windowClass].
   double defaultHeightFor(PanelWindowClass windowClass) =>
       switch (windowClass) {
@@ -69,7 +75,8 @@ final class KeyboardReplacementTuning {
       other.searchReserve == searchReserve &&
       other.handOffTimeout == handOffTimeout &&
       other.coldOpenDelay == coldOpenDelay &&
-      other.settleTolerance == settleTolerance;
+      other.settleTolerance == settleTolerance &&
+      other.sheetCornerRadius == sheetCornerRadius;
 
   @override
   int get hashCode => Object.hash(
@@ -81,5 +88,6 @@ final class KeyboardReplacementTuning {
     handOffTimeout,
     coldOpenDelay,
     settleTolerance,
+    sheetCornerRadius,
   );
 }

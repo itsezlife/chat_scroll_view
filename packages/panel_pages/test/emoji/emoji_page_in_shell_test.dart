@@ -118,7 +118,7 @@ void main() {
 
     await tester.tapAt(
       tester.getTopLeft(find.byType(PanelCatalogViewport)) +
-          const Offset(27, 27 + 23),
+          const Offset(27, 36 + 50 + 27 + 23),
     );
     await tester.pump();
 
@@ -133,7 +133,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final viewport = tester.getTopRight(find.byType(PanelCatalogViewport));
-    await tester.tapAt(viewport + const Offset(-30, 13));
+    await tester.tapAt(viewport + const Offset(-30, 36 + 50 + 13));
     await tester.pump();
 
     expect(

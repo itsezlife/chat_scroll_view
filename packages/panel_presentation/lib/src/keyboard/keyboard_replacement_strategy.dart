@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/scheduler.dart';
@@ -120,8 +121,9 @@ class _KeyboardPanelState extends State<_KeyboardPanel>
   late final Ticker _ticker;
 
   /// The shell, built once per controller. Handing the same widget instance
-  /// to every frame of the motion lets the framework skip the whole subtree:
-  /// a frame costs the clip's layout and nothing under it.
+  /// to every frame of the motion lets the framework skip rebuilding it: a
+  /// frame costs the layout of the sheet and what lays out under it, not a
+  /// build.
   late Widget _shellView;
   var _last = Duration.zero;
   var _searchOpen = false;
@@ -265,9 +267,6 @@ class _KeyboardPanelState extends State<_KeyboardPanel>
     final media = MediaQuery.of(context);
     final panel = ChromeThemeScope.panelOf(context);
     final safe = _slot.safeBottom;
-    final height = _slot.layoutHeight > 0
-        ? _slot.layoutHeight
-        : _slot.restingHeight;
     final handingOff = switch (_slot.state.value) {
       KeyboardSlotState$HandOffToIme() => true,
       _ => false,
@@ -281,36 +280,54 @@ class _KeyboardPanelState extends State<_KeyboardPanel>
         padding: media.padding.copyWith(bottom: safe),
         viewPadding: media.viewPadding.copyWith(bottom: safe),
       ),
-      // The sheet is as tall as the panel, bottom-aligned, so a shorter box
-      // clips its top instead of squeezing its content.
-      child: ClipRect(
-        child: OverflowBox(
-          alignment: Alignment.bottomCenter,
-          minHeight: height,
-          maxHeight: height,
-          child: ColoredBox(
-            color: panel.background,
-            child: Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                // Emptied, not removed, while the keyboard takes over: the
-                // sheet stays and the shell keeps its state.
-                Offstage(offstage: handingOff, child: _shellView),
-                if (safe > 0)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: KeyboardNavBarFade(
-                      height: safe,
-                      color: panel.background,
-                    ),
-                  ),
-              ],
-            ),
+      // The sheet is the slot: it grows and shrinks with it, so its top edge
+      // (the rounded corners, the strip and the search field under it) rides
+      // under the composer while the bottom bar stays on the bottom edge. A
+      // slot too short to lay the shell out in (the first frames of a cold
+      // open, the last of a close) gets a shell of the shortest height, cut
+      // off from the bottom, instead of an overflow.
+      child: ClipRRect(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(_slot.tuning.sheetCornerRadius),
+        ),
+        child: ColoredBox(
+          color: panel.background,
+          child: LayoutBuilder(
+            builder: (context, box) {
+              final height = box.hasBoundedHeight
+                  ? math.max(box.maxHeight, _minSheetHeight)
+                  : _slot.restingHeight;
+              return OverflowBox(
+                alignment: Alignment.topCenter,
+                minHeight: height,
+                maxHeight: height,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    // Emptied, not removed, while the keyboard takes over: the
+                    // sheet stays and the shell keeps its state.
+                    Offstage(offstage: handingOff, child: _shellView),
+                    if (safe > 0)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: KeyboardNavBarFade(
+                          height: safe,
+                          color: panel.background,
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ),
     );
   }
+
+  // The shortest height the shell is laid out at: the search field, the
+  // strip and a row of the grid with the bottom bar over it.
+  static const double _minSheetHeight = 96;
 }

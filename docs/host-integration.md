@@ -276,11 +276,20 @@ The presentation package reads no platform channel. The host feeds one port,
 
 ```dart
 ime.report(ImeSample(
-  height: keyboardHeight,        // as the system reports it, zero when hidden
+  height: keyboardHeight,        // with the bottom safe area counted in; zero when hidden
   animating: keyboardIsMoving,   // honest: a settled reading ends the hand-off
   safeAreaBottom: viewPadding.bottom,
 ));
 ```
+
+**The height counts the bottom safe area.** The slot measures the keyboard as
+the space it takes at the bottom of the window. iOS reports it that way (the
+distance from the keyboard's top edge to the screen's bottom); the Android
+inset plugin reports the IME without the system bars. A host whose platform
+leaves the band out adds it back while the keyboard shows any height, and
+leaves zero as zero. Skipped, the composer sinks behind a keyboard that is the
+band taller than the slot believes. The example's `SoftKeyboardPort` states
+which kind of platform it is on (`heightsIncludeSafeArea`).
 
 Report `animating` truthfully. The hand-off to the keyboard waits for a
 settled reading (`animating` false, height up) and closes cold after one
@@ -291,6 +300,19 @@ While a keyboard-replacement panel is on screen, give the composer
 field then keeps focus and caret without raising the keyboard. To return to the
 keyboard call `presentation.hide(waitForIme: true)`, keep composer focus, close
 search, and ask the platform to show the keyboard once on the next frame.
+
+Declaring no soft keyboard does not lower one that is already showing. When the
+panel opens over a raised keyboard, ask the platform to hide it once after the
+frame (focus stays in the field); the slot's replace hand-off keeps the space
+meanwhile.
+
+### Recents while the panel is open
+
+The panel lists the recents first, so a pick that updated them at once would
+reorder the grid under the finger that is picking from it. Give the panel's
+sources a `DeferredRecentsStore` over the real store, record picks in the real
+store, and `commit()` the view when the panel opens and when search ends. A
+clear commits at once.
 
 ### Composer wiring
 

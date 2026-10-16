@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:panel_shell/src/page/panel_page.dart';
 
 /// How the panel's chrome is arranged for the way the user points.
 ///
@@ -8,14 +9,16 @@ import 'package:flutter/widgets.dart';
 enum PanelArrangement {
   /// Fingers: the type tabs and the page actions float together at the
   /// bottom and slide away while the content is read; a page puts its strip
-  /// at the top. The default, and what every presentation did before the
-  /// arrangement existed.
+  /// at the top, over its content, where it slides away and returns with the
+  /// reading, and may place the search field among its content. The default,
+  /// and what every presentation did before the arrangement existed.
   touch,
 
   /// A mouse or trackpad: the type tabs sit above the search field, the
   /// floating bar holds the page actions only and never slides away on its
-  /// own, and a page pins its strip at the bottom. Hover and the click cursor
-  /// are on, and an empty search shows the whole catalogue.
+  /// own, the search field is always the shell's own, and a page pins its
+  /// strip at the bottom and does not slide it. Hover and the click cursor are
+  /// on, and an empty search shows the whole catalogue.
   pointer;
 
   /// Whether the floating bar slides away while the content is scrolled.
@@ -24,6 +27,20 @@ enum PanelArrangement {
   /// would otherwise take the bar out of reach of a cursor that has no way to
   /// bring it back but scrolling the other way.
   bool get barHidesOnScroll => this == touch;
+
+  /// Whether a page's strip (where it is at the top) and inline search field
+  /// sit over the content and slide away as it is read.
+  ///
+  /// A touch idiom, like [barHidesOnScroll]: a cursor has no way to bring a
+  /// strip back but scrolling the other way.
+  bool get headerSlidesAway => this == touch;
+
+  /// Where the search field of a page that declared [declared] is drawn.
+  ///
+  /// Under [touch] where the page said. Under [pointer] always `pinned`: the
+  /// shell draws the field below the type tabs and above the page.
+  SearchPlacement searchPlacementOf(SearchPlacement declared) =>
+      this == touch ? declared : SearchPlacement.pinned;
 
   /// Whether an empty search narrows a page to the content used most.
   ///

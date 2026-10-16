@@ -228,26 +228,75 @@ void main() {
   });
 
   group('under the touch arrangement', () {
-    testWidgets('the strip stays above the grid and the shell hears no '
-        'extent', (tester) async {
+    testWidgets('the strip is a sticky header over the grid, and the shell '
+        'hears no extent', (tester) async {
       await pumpShell(tester, arrangement: PanelArrangement.touch);
 
+      final page = tester.getRect(find.byType(EmojiPage));
+      expect(tester.getTopLeft(strip()).dy, page.top);
       expect(
-        tester.getTopLeft(strip()).dy,
-        tester.getTopLeft(find.byType(EmojiPage)).dy,
+        tester.getTopLeft(grid()).dy,
+        page.top,
+        reason: 'the grid runs under the strip; it is padded, not shortened',
       );
-      expect(tester.getBottomLeft(strip()).dy, tester.getTopLeft(grid()).dy);
+      expect(tester.getBottomLeft(strip()).dy, greaterThan(page.top));
       expect(shell.bottomExtent.value, 0);
     });
 
-    testWidgets('an empty search still narrows the page to the recents, so '
-        'the strip has nothing to navigate', (tester) async {
+    testWidgets('the search field is the page\'s own, among its content', (
+      tester,
+    ) async {
+      await pumpShell(tester, arrangement: PanelArrangement.touch);
+
+      final page = tester.getRect(find.byType(EmojiPage));
+      expect(
+        tester.getTopLeft(find.byType(EditableText)).dy,
+        greaterThan(page.top),
+        reason: 'inside the page, below the strip',
+      );
+    });
+
+    testWidgets('an empty search still narrows the page to the recents, and '
+        'the strip leaves with it', (tester) async {
+      final semantics = tester.ensureSemantics();
       await pumpShell(tester, arrangement: PanelArrangement.touch);
 
       shell.openSearch();
       await tester.pumpAndSettle();
 
-      expect(tester.getSize(strip()).height, 0);
+      expect(strip(), findsNothing);
+      expect(find.bySemanticsLabel('Animals & nature'), findsNothing);
+      semantics.dispose();
+    });
+  });
+
+  group('the search field follows the arrangement', () {
+    testWidgets('under pointer it is the shell\'s, above the page', (
+      tester,
+    ) async {
+      await pumpShell(tester, arrangement: PanelArrangement.pointer);
+
+      final page = tester.getRect(find.byType(EmojiPage));
+      expect(
+        tester.getBottomLeft(find.byType(EditableText)).dy,
+        lessThanOrEqualTo(page.top),
+      );
+    });
+
+    testWidgets('moving the arrangement moves it in place', (tester) async {
+      await pumpShell(tester, arrangement: PanelArrangement.pointer);
+      final page = tester.getRect(find.byType(EmojiPage));
+      expect(find.byType(EditableText), findsOneWidget);
+
+      arrangementOf.value = PanelArrangement.touch;
+      await tester.pumpAndSettle();
+
+      expect(find.byType(EditableText), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.byType(EditableText)).dy,
+        greaterThan(tester.getTopLeft(find.byType(EmojiPage)).dy),
+      );
+      expect(tester.getRect(find.byType(EmojiPage)).top, isNot(page.top));
     });
   });
 }

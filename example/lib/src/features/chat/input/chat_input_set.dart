@@ -9,11 +9,13 @@ import 'package:chat_scroll_view/chat_scroll_view.dart'
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/stub_panel_pages.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
@@ -158,6 +160,9 @@ final class ChatInputSet {
                   set.presentation.state.value.kind is KeyboardReplacement &&
                   !keyboardStrategy.keyboardIsUp,
             ),
+            // Type tabs in the order of the panel: emoji, GIFs, stickers.
+            StubPanelPages.gif(),
+            StubPanelPages.stickers(),
           ],
           preferences: services.preferences,
         ),
@@ -308,6 +313,7 @@ final class ChatInputSet {
   double _safeBottom = 0;
   ChatPreImeBackClaim? _backClaim;
   var _handingOff = false;
+  var _wasVisible = false;
   var _disposed = false;
 
   // --- State ----------------------------------------------------------------
@@ -545,6 +551,7 @@ final class ChatInputSet {
   void _onPanelEvent(PanelEvent event) {
     switch (event) {
       case ContentPicked(:final key, :final kind, :final source):
+        unawaited(HapticFeedback.selectionClick());
         if (key is ContentKey$Unicode && kind == SemanticKind.unicodeEmoji) {
           composer.insertContent(
             InlineContentRef(key: key, alternativeText: key.sequence),
@@ -552,10 +559,14 @@ final class ChatInputSet {
         }
         unawaited(services.recents.record(key, kind: kind, source: source));
       case BackspaceRequested():
+        unawaited(HapticFeedback.selectionClick());
         composer.backspace();
       case ClearRecentsRequested(:final kind):
+        unawaited(HapticFeedback.mediumImpact());
         unawaited(_clearRecents(kind));
       case SearchClosed():
+        // What was picked while searching is listed once search is over.
+        services.recentsShown.commit();
         // The search field's keyboard goes with its focus; the composer takes
         // it back, still with no keyboard of its own while the panel is up.
         if (isPanelVisible) composer.requestFocus();
@@ -571,6 +582,12 @@ final class ChatInputSet {
 
   void _onPresentationState() {
     final state = presentation.state.value;
+    // The panel shows the recents as of the moment it opens: what was picked
+    // in the last session is listed now, not while the user picks.
+    final opened = !_wasVisible && state.isVisible;
+    if (opened) services.recentsShown.commit();
+    _wasVisible = state.isVisible;
+    if (opened && state.kind is KeyboardReplacement) _dismissKeyboardForPanel();
     // The panel stands in for the keyboard only while it is coming or on
     // screen; once it is leaving, the field is a field again.
     composer.setSoftKeyboard(
@@ -586,16 +603,37 @@ final class ChatInputSet {
     }
   }
 
+  // A keyboard that is up when the panel takes its place goes down, and focus
+  // stays in the field, caret and hardware keys included. Declaring no soft
+  // keyboard (`SoftKeyboardMode.suppressed`) keeps the next focus from raising
+  // one; it does not lower the one that is showing, which needs the command.
+  void _dismissKeyboardForPanel() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_disposed || !isPanelOpening) return;
+      unawaited(_keyboardPort.hide());
+    });
+  }
+
   void _onImeHeight(double height) {
     _lastImeHeight = height;
     _reportIme();
+  }
+
+  // The slot measures the keyboard with the bottom safe area in it. A
+  // platform that reports it without that band gets the band added back
+  // while the keyboard shows any height at all: an inset of nothing means
+  // no keyboard, and the band is the safe area's own.
+  double get _imeHeightWithSafeArea {
+    final height = math.max<double>(0, _lastImeHeight);
+    if (_keyboardPort.heightsIncludeSafeArea || height <= 0) return height;
+    return height + _safeBottom;
   }
 
   void _reportIme() {
     if (_disposed) return;
     ime.report(
       ImeSample(
-        height: math.max(0, _lastImeHeight),
+        height: _imeHeightWithSafeArea,
         animating: _keyboardPort.isAnimating,
         safeAreaBottom: _safeBottom,
       ),

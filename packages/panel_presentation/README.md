@@ -35,11 +35,11 @@ takes `ime`, `heights` and `window`. Host layout:
 | `AnchoredPopupActions`, `AnchoredPopupShortcuts`, `AnchoredPopupToggleIntent` | `DismissIntent` steps back (search first, popup second), the toggle intent toggles, `PanelSearchIntent` shows the panel and focuses search. |
 | `AnchoredPopupLayout` | Where the popup sits: bottom on the anchor top, end edge on the anchor end edge, kept inside the window. |
 | `DockedStrategy`, `DockedStyle` | The desktop and web docked section: full height on the end edge (the left in RTL), slides in with the `panelSlide` role, publishes its visible width as `inlineEnd` occupancy so the host can shrink the chat. No hover, idle or outside-press dismissal; Escape only closes search. The style carries the width and an optional separator line. |
-| `ImeInputPort`, `ImeInput`, `ImeSample` | The single port raw soft-keyboard samples enter by (height, animating, bottom safe area). |
+| `ImeInputPort`, `ImeInput`, `ImeSample` | The single port raw soft-keyboard samples enter by (height, animating, bottom safe area). The height counts the safe area as part of the keyboard: a platform that reports the keyboard without it (the Android inset plugin) has the band added back by the host. |
 | `KeyboardReplacementStrategy` | The mobile strategy: the panel takes the place of the soft keyboard under the composer. Publishes `occupancy` (animated `max(keyboard, panel)`, safe area included), `state` (the hand-off phase) and `composerSafeInset`. |
 | `KeyboardSlot`, `KeyboardSlotState` | The hand-off state machine behind the strategy and its animated extent: `idle`, `opening`, `replacing`, `open`, `closing`, `handOffToIme`. Driven by `advance(elapsed)` and a `PanelClock`; no ticker, no wall clock. |
 | `KeyboardHeightStore`, `PanelOrientation` | The keyboard height remembered per orientation in a `KeyValueStore` (sanity floor 180, never lowered by one sample). |
-| `KeyboardReplacementTuning` | Default panel heights by window class, the 175 search expansion, the 1 s hand-off timeout, the cold-open delay. |
+| `KeyboardReplacementTuning` | Default panel heights by window class, the 175 search expansion, the 1 s hand-off timeout, the cold-open delay, the sheet's top corner radius (29). |
 | `KeyboardNavBarFade` | The scrim over the bottom safe band of the sheet. |
 | `PanelClock`, `PanelTimer` | The one way presentation code waits; `PanelClock.system` in the app, a manual clock in tests. |
 | `package:panel_presentation/testing.dart` | `FakeImeInput`, `ManualPanelClock`, `FakePresentationStrategy`, `runPresentationPolicyContract`, `runImeInputPortContract`. Tests only. |
@@ -166,13 +166,14 @@ ime.report(ImeSample(
 - **Search.** Opening search in the shell grows the panel by 175, capped by
   the window; closing it shrinks it back. `handleBack` closes search first,
   then the panel.
-- **Safe area.** The sheet is laid out at content height plus the band the
-  host reported, with the shell seeing that band as its bottom padding and a
-  scrim over it. `composerSafeInset` is the part of the band the occupancy has
+- **Safe area.** The sheet is the slot, the content height plus the band the
+  host reported when at rest, with the shell seeing that band as its bottom
+  padding and a scrim over it. `composerSafeInset` is the part of the band the occupancy has
   not covered yet, so the bottom of the window is `max(safe band, occupancy)`
   with no step.
 - **Frame cost.** The shell widget is built once; a frame of the motion costs
-  the clip's layout and nothing under it (a headless test asserts it). Frame
+  the layout of the sheet, which follows the slot, and no build (a headless
+  test asserts it). Frame
   budgets on a device are open: the table in
   [the QA notes](../../docs/panel-presentation/qa-keyboard-handoff.md) holds
   the numbers once someone measures them.

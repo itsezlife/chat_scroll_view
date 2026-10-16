@@ -21,5 +21,6 @@ export 'src/identity/inline_content_ref.dart';
 export 'src/rich_text/entity.dart';
 export 'src/rich_text/entity_kind.dart';
 export 'src/rich_text/rich_text.dart';
+export 'src/store/deferred_recents_store.dart';
 export 'src/store/key_value_preference_store.dart';
 export 'src/store/key_value_recents_store.dart';

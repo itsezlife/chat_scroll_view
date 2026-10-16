@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/services.dart';
 import 'package:keyboard_insets/keyboard_insets.dart';
 
@@ -18,6 +20,15 @@ abstract interface class SoftKeyboardPort {
   /// The height of a keyboard that is up and at rest, or zero.
   double get restingHeight;
 
+  /// Whether [heights] count the bottom safe area (the home indicator, the
+  /// navigation bar) as part of the keyboard.
+  ///
+  /// The panel's slot measures the keyboard as the space it takes at the
+  /// bottom of the window, safe area included. A platform that reports the
+  /// keyboard without that band must say so, so the host can add it back
+  /// before the reading reaches the presentation.
+  bool get heightsIncludeSafeArea;
+
   /// Hides the on-screen keyboard, leaving focus where it is.
   Future<void> hide();
 
@@ -34,6 +45,14 @@ final class PlatformSoftKeyboard implements SoftKeyboardPort {
 
   @override
   Stream<double> get heights => KeyboardInsets.insets;
+
+  // iOS reports the distance from the keyboard's top edge to the bottom of
+  // the screen, home indicator included. The Android plugin subtracts the
+  // system bars from the IME inset, so its readings stop at the navigation
+  // bar.
+  @override
+  bool get heightsIncludeSafeArea =>
+      defaultTargetPlatform == TargetPlatform.iOS;
 
   @override
   bool get isAnimating => KeyboardInsets.isAnimating;

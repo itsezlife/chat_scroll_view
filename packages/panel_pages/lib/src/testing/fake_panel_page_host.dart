@@ -1,4 +1,7 @@
 import 'package:content_model/content_model.dart';
+import 'package:content_model/testing.dart';
+import 'package:flutter/widgets.dart'
+    show BuildContext, State, StatefulWidget, Widget;
 import 'package:listen/listen.dart';
 import 'package:panel_shell/panel_shell.dart';
 import 'package:panel_shell/testing.dart';
@@ -116,4 +119,44 @@ final class FakePanelPageHost with ChangeNotifier implements PanelPageHost {
     _panelOpening.dispose();
     super.dispose();
   }
+}
+
+/// What a page that places the shell's search field inline needs above it when
+/// a test mounts the page without a shell: a `PanelSearchFieldScope` over a
+/// controller of its own.
+///
+/// The field projects that controller, not the [FakePanelPageHost] the page was
+/// built with, so a test that drives the field drives the controller, and one
+/// that drives the page sets the host's search state.
+class FakeSearchFieldScope extends StatefulWidget {
+  /// Provides a search field scope to [child].
+  const FakeSearchFieldScope({required this.child, super.key});
+
+  /// The subtree that contains the page.
+  final Widget child;
+
+  @override
+  State<FakeSearchFieldScope> createState() => _FakeSearchFieldScopeState();
+}
+
+class _FakeSearchFieldScopeState extends State<FakeSearchFieldScope> {
+  late final FakePreferenceStore _preferences = FakePreferenceStore();
+  late final PanelShellController _controller = PanelShellController(
+    pages: [FakePanelPage('fake', search: true).page],
+    preferences: _preferences,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _preferences.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => PanelSearchFieldScope(
+    controller: _controller,
+    contextMenuBuilder: null,
+    child: widget.child,
+  );
 }
