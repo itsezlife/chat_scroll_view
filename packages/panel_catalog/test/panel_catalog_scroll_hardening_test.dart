@@ -1,6 +1,6 @@
 /// Scroll-time hardening of the Panel Catalog Viewport.
 ///
-/// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogDataSource] and
+/// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogSnapshotSource] and
 /// [FakeCatalogAssetCache], the same boundary as the correctness suite. Raster
 /// cost is not asserted here (a headless run does no rasterisation); these tests
 /// pin the structural guarantees that keep scroll-time work small:
@@ -12,14 +12,16 @@
 library;
 
 import 'package:catalog_assets/legacy_shim.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
+import 'package:panel_catalog/testing.dart';
 
 Widget _app({
-  required CatalogDataSource dataSource,
+  required ValueObservable<CatalogSnapshot> snapshots,
   required CatalogAssetCache assetCache,
   required PanelCatalogController controller,
   List<Widget> overlays = const [],
@@ -41,7 +43,7 @@ Widget _app({
               children: [
                 Positioned.fill(
                   child: PanelCatalogViewport(
-                    dataSource: dataSource,
+                    snapshots: snapshots,
                     assetCache: assetCache,
                     controller: controller,
                     spanCount: spanCount,
@@ -109,24 +111,24 @@ double _medianMicros(int runs, void Function() body) {
 }
 
 void main() {
-  late FakeCatalogDataSource dataSource;
+  late FakeCatalogSnapshotSource snapshots;
   late FakeCatalogAssetCache assetCache;
   late PanelCatalogController controller;
 
   setUp(() {
-    dataSource = FakeCatalogDataSource();
+    snapshots = FakeCatalogSnapshotSource();
     assetCache = FakeCatalogAssetCache();
     controller = PanelCatalogController();
   });
 
   tearDown(() {
-    dataSource.dispose();
+    snapshots.dispose();
     controller.dispose();
   });
 
   group('repaint boundary', () {
     testWidgets('the viewport paints into its own layer', (tester) async {
-      dataSource.replaceSections([
+      snapshots.replaceSections([
         _section('a', [
           for (var i = 0; i < 40; i++)
             CatalogLeaf.unicode(String.fromCharCode(0x1F600 + i)),
@@ -134,7 +136,7 @@ void main() {
       ]);
       await tester.pumpWidget(
         _app(
-          dataSource: dataSource,
+          snapshots: snapshots,
           assetCache: assetCache,
           controller: controller,
         ),
@@ -148,7 +150,7 @@ void main() {
     testWidgets('an overlay repaint does not repaint the viewport', (
       tester,
     ) async {
-      dataSource.replaceSections([
+      snapshots.replaceSections([
         _section('a', [
           for (var i = 0; i < 40; i++)
             CatalogLeaf.unicode(String.fromCharCode(0x1F600 + i)),
@@ -158,7 +160,7 @@ void main() {
       addTearDown(tick.dispose);
       await tester.pumpWidget(
         _app(
-          dataSource: dataSource,
+          snapshots: snapshots,
           assetCache: assetCache,
           controller: controller,
           overlays: [
@@ -196,14 +198,14 @@ void main() {
     testWidgets('placeholder fills share one paint across leaves', (
       tester,
     ) async {
-      dataSource.replaceSections([
+      snapshots.replaceSections([
         _section('a', [
           for (var i = 0; i < 24; i++) CatalogLeaf.document('doc-$i'),
         ]),
       ]);
       await tester.pumpWidget(
         _app(
-          dataSource: dataSource,
+          snapshots: snapshots,
           assetCache: assetCache,
           controller: controller,
         ),
@@ -220,14 +222,14 @@ void main() {
     });
 
     testWidgets('save is spent only on the pressed leaf', (tester) async {
-      dataSource.replaceSections([
+      snapshots.replaceSections([
         _section('a', [
           for (var i = 0; i < 24; i++) CatalogLeaf.document('doc-$i'),
         ]),
       ]);
       await tester.pumpWidget(
         _app(
-          dataSource: dataSource,
+          snapshots: snapshots,
           assetCache: assetCache,
           controller: controller,
         ),
@@ -254,7 +256,7 @@ void main() {
       tester,
     ) async {
       Future<double> scrollCostFor(int leafCount) async {
-        final ds = FakeCatalogDataSource()
+        final ds = FakeCatalogSnapshotSource()
           ..replaceSections([
             _section('a', [
               for (var i = 0; i < leafCount; i++)
@@ -267,7 +269,7 @@ void main() {
         final c = PanelCatalogController();
         addTearDown(c.dispose);
         await tester.pumpWidget(
-          _app(dataSource: ds, assetCache: assetCache, controller: c),
+          _app(snapshots: ds, assetCache: assetCache, controller: c),
         );
         // Park deep in the catalogue so a front-to-back scan has to walk it.
         c.jumpTo(_render(tester).maxOffset / 2);

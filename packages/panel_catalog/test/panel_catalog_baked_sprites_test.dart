@@ -1,7 +1,7 @@
 /// Baked sprites on screen: the Panel Catalog Viewport draws unicode glyphs
 /// from glyph atlas pages instead of as text.
 ///
-/// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogDataSource] and a
+/// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogSnapshotSource] and a
 /// [MemoryCatalogAssetCache] that carries a [GlyphAtlas] built on the fakes of
 /// the bake (`FakeGlyphRasteriser`, `FakeGlyphPageStore`, `FakeBakeFrameSource`):
 /// no emoji font, no device. What is observed is what the viewport asks its
@@ -13,13 +13,14 @@ library;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/legacy_shim.dart';
 import 'package:catalog_assets/glyph_atlas.dart';
+import 'package:catalog_assets/legacy_shim.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';
+import 'package:panel_catalog/testing.dart';
 
 const _perPage = 676; // GlyphAtlasLayout().cellsPerPage
 
@@ -101,7 +102,7 @@ class _RecordingCanvas implements Canvas {
 }
 
 void main() {
-  late FakeCatalogDataSource dataSource;
+  late FakeCatalogSnapshotSource snapshots;
   late PanelCatalogController controller;
   late FakeBakeFrameSource frames;
   late FakeGlyphPageStore store;
@@ -112,7 +113,7 @@ void main() {
 
   setUp(() {
     PanelCatalogDiagnostics.reset();
-    dataSource = FakeCatalogDataSource();
+    snapshots = FakeCatalogSnapshotSource();
     controller = PanelCatalogController();
     frames = FakeBakeFrameSource();
     store = FakeGlyphPageStore();
@@ -120,7 +121,7 @@ void main() {
     opening = ValueNotifier<bool>(false);
   });
   tearDown(() async {
-    dataSource.dispose();
+    snapshots.dispose();
     controller.dispose();
     visible.dispose();
     opening.dispose();
@@ -163,7 +164,7 @@ void main() {
               width: width,
               height: 480,
               child: PanelCatalogViewport(
-                dataSource: dataSource,
+                snapshots: snapshots,
                 assetCache: assetCache ?? cache,
                 controller: controller,
                 spanCount: _span,
@@ -201,7 +202,7 @@ void main() {
     testWidgets('shows the circle placeholder, not a sprite or text', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(80)]);
+      snapshots.replaceSections([_section(80)]);
       buildAtlas(80);
       await pumpViewport(tester);
 
@@ -215,7 +216,7 @@ void main() {
     testWidgets(
       'switches to its sprite when the page is ready, with no layout change',
       (tester) async {
-        dataSource.replaceSections([_section(80)]);
+        snapshots.replaceSections([_section(80)]);
         buildAtlas(80);
         atlas.start();
         await pumpViewport(tester);
@@ -245,7 +246,7 @@ void main() {
     testWidgets('all sprites of one page are drawn in one batch', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(80)]);
+      snapshots.replaceSections([_section(80)]);
       buildAtlas(80);
       atlas.start();
       await pumpViewport(tester);
@@ -260,7 +261,7 @@ void main() {
     });
 
     testWidgets('cells cut from the right place on the page', (tester) async {
-      dataSource.replaceSections([_section(80)]);
+      snapshots.replaceSections([_section(80)]);
       buildAtlas(80);
       atlas.start();
       await pumpViewport(tester);
@@ -281,7 +282,7 @@ void main() {
       tester,
     ) async {
       const count = _perPage + 40;
-      dataSource.replaceSections([_section(count)]);
+      snapshots.replaceSections([_section(count)]);
       buildAtlas(count);
       atlas.start();
       await pumpViewport(tester);
@@ -315,7 +316,7 @@ void main() {
       'a page that is ready draws while its neighbour shows circles',
       (tester) async {
         const count = _perPage + 40;
-        dataSource.replaceSections([_section(count)]);
+        snapshots.replaceSections([_section(count)]);
         buildAtlas(count);
         atlas.start();
         await pumpViewport(tester);
@@ -345,7 +346,7 @@ void main() {
       tester,
     ) async {
       const count = 300;
-      dataSource.replaceSections([_section(count)]);
+      snapshots.replaceSections([_section(count)]);
       buildAtlas(count);
       atlas.start();
       await pumpViewport(tester);
@@ -372,7 +373,7 @@ void main() {
       'not through resizes, a press, a released atlas or an unbaked page',
       (tester) async {
         const count = 300;
-        dataSource.replaceSections([_section(count)]);
+        snapshots.replaceSections([_section(count)]);
         buildAtlas(count);
         atlas.start();
         await pumpViewport(tester);
@@ -403,7 +404,7 @@ void main() {
     testWidgets('glyphs are drawn as text and no bake is started', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(80)]);
+      snapshots.replaceSections([_section(80)]);
       final plain = MemoryCatalogAssetCache();
       await pumpViewport(tester, assetCache: plain);
 
@@ -422,7 +423,7 @@ void main() {
     testWidgets('waits while a drag moves the catalogue, resumes after', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(300)]);
+      snapshots.replaceSections([_section(300)]);
       buildAtlas(300);
       atlas.start();
       await pumpViewport(tester);
@@ -448,7 +449,7 @@ void main() {
     testWidgets('waits through a fling and a programmatic jump', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(300)]);
+      snapshots.replaceSections([_section(300)]);
       buildAtlas(300);
       atlas.start();
       await pumpViewport(tester);
@@ -475,7 +476,7 @@ void main() {
     ) async {
       // Enough below row 170 that the jump is not clamped back up.
       const count = _perPage + 200;
-      dataSource.replaceSections([_section(count)]);
+      snapshots.replaceSections([_section(count)]);
       buildAtlas(count);
       atlas.start();
       await pumpViewport(tester);
@@ -496,7 +497,7 @@ void main() {
     testWidgets('a viewport that goes away mid-scroll lets baking resume', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(300)]);
+      snapshots.replaceSections([_section(300)]);
       buildAtlas(300);
       atlas.start();
       await pumpViewport(tester);
@@ -518,7 +519,7 @@ void main() {
     testWidgets('a rebuild with the same cache does not forget a drag', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(300)]);
+      snapshots.replaceSections([_section(300)]);
       buildAtlas(300);
       atlas.start();
       await pumpViewport(tester);
@@ -540,7 +541,7 @@ void main() {
     testWidgets('a cache with another atlas takes over the reports', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(300)]);
+      snapshots.replaceSections([_section(300)]);
       buildAtlas(300);
       atlas.start();
       final firstFrames = frames;
@@ -572,7 +573,7 @@ void main() {
 
   group('page lifetime', () {
     testWidgets('a page that was released is not painted from', (tester) async {
-      dataSource.replaceSections([_section(80)]);
+      snapshots.replaceSections([_section(80)]);
       buildAtlas(80);
       atlas.start();
       await pumpViewport(tester);
@@ -591,7 +592,7 @@ void main() {
 
   group('behaviour that must not change', () {
     testWidgets('tapping a baked cell reports that leaf', (tester) async {
-      dataSource.replaceSections([_section(80)]);
+      snapshots.replaceSections([_section(80)]);
       buildAtlas(80);
       atlas.start();
       final tapped = <CatalogLeaf>[];
@@ -608,7 +609,7 @@ void main() {
     testWidgets('a long press on a baked cell reports that leaf, not a tap', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(80)]);
+      snapshots.replaceSections([_section(80)]);
       buildAtlas(80);
       atlas.start();
       final tapped = <CatalogLeaf>[];
@@ -632,7 +633,7 @@ void main() {
     testWidgets(
       'a pressed baked cell shrinks inside its batch and gets the highlight',
       (tester) async {
-        dataSource.replaceSections([_section(80)]);
+        snapshots.replaceSections([_section(80)]);
         buildAtlas(80);
         atlas.start();
         await pumpViewport(tester, onLeafTap: (_) {});
@@ -657,7 +658,7 @@ void main() {
     );
 
     testWidgets('a tap that stops a fling picks nothing', (tester) async {
-      dataSource.replaceSections([_section(300)]);
+      snapshots.replaceSections([_section(300)]);
       buildAtlas(300);
       atlas.start();
       final tapped = <CatalogLeaf>[];

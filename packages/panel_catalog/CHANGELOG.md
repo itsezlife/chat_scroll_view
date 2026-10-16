@@ -6,7 +6,32 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING: snapshot data source.** `CatalogDataSource` and its listener list
+  are replaced by an immutable `CatalogSnapshot` published through a
+  `ValueObservable<CatalogSnapshot>` (`content_model`); `PanelCatalogViewport`
+  takes `snapshots` instead of `dataSource`. `FakeCatalogDataSource` becomes
+  `FakeCatalogSnapshotSource` in the new `package:panel_catalog/testing.dart`.
+- **BREAKING: attach-and-position controller.** The render object attaches one
+  `CatalogScrollPosition` to `PanelCatalogController`; the five listener
+  channels (`addScrollListener`, `addJumpListener`, `addScrollByListener`,
+  `addAnimateToListener`, `addSectionJumpListener`) and the viewport-only
+  write methods are deleted. `controller.events` is the one typed Observable.
+  Commands given with no viewport commit a target that the next viewport starts
+  from; a `jumpToSection` given before the first layout is applied after it.
+- **The bake pause is event-driven.** `CatalogBakeActivity` derives its two
+  outputs from the controller's events instead of the paint offset and
+  publishes them as `PanelCatalogScrollingChanged` and
+  `PanelCatalogScrollSettled(visibleKeys)`. The interim forwarding to the
+  cache's glyph atlas is `CatalogAtlasBakeBridge`, deleted with the legacy
+  cache API.
+
 ### Added
+
+- `PanelCatalogUserDragCancel`, `PanelCatalogScrollingChanged`,
+  `PanelCatalogScrollSettled` scroll events; `PanelCatalogController` extents
+  (`viewportExtent`, `contentExtent`, `maxScrollExtent`, `hasPosition`).
 
 - **Baked sprites on screen.** When the asset cache has a
   `CatalogAssetCache.glyphAtlas`, unicode leaves are drawn as sprites cut from

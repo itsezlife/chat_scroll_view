@@ -1,69 +1,109 @@
 import 'dart:async';
 
+import 'package:content_model/content_model.dart';
 import 'package:flutter/animation.dart';
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
+import 'package:panel_catalog/src/viewport/catalog_scroll_position.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 
-/// Extent-scroll position for [PanelCatalogViewport].
+/// Extent-scroll controller for [PanelCatalogViewport], in the style of a
+/// scroll controller: the viewport **attaches** one position and the host
+/// commands it through this object.
 ///
-/// Owns the absolute content [offset] (logical pixels from the catalog top)
-/// and the host navigation entry points ([jumpTo], [scrollBy],
-/// [animateTo], [jumpToSection]). This is an **extent** model: offset is a
-/// content-y scroll position against a known content height, not an id-relative
-/// anchor.
-///
-/// The bound viewport owns range validity. After each navigation notify it
-/// clamps writes to:
+/// The offset is an absolute content-y position (logical pixels from the
+/// catalog top) against a known content height, not an id-relative anchor.
+/// While a viewport is attached it owns the offset, clamps it to
 ///
 /// ```text
 /// [0, max(0, contentExtent − viewportHeight)]
 /// ```
 ///
-/// via [correctOffset] (silent — jump/scroll listeners are not re-fired).
-/// Until that correction runs, [offset] MAY briefly sit outside the valid
-/// range (e.g. [jumpTo] past the end before the first layout knows
-/// `contentExtent`).
+/// and answers [offset], [viewportExtent], [contentExtent] and
+/// [maxScrollExtent] from its geometry. Until its first layout the offset MAY
+/// sit outside that range (a [jumpTo] past the end waits for the extent).
 ///
-/// ## Listeners
+/// ## Commands
 ///
-/// Typed [addJumpListener] / [addScrollByListener] and sealed
-/// [addScrollListener] / [PanelCatalogScrollEvent]. Same callback twice is a
-/// no-op (dedup-on-add). Dispatch iterates a snapshot so listeners MAY
-/// add/remove during notify without concurrent modification.
+/// [jumpTo], [scrollBy], [animateTo] and [jumpToSection] are forwarded to the
+/// attached position. Same-value [jumpTo], `scrollBy(0)` and an [animateTo]
+/// within half a pixel are silent no-ops.
 ///
-/// Jump and scroll-by are separate channels: a [jumpTo] does **not** fire
-/// scroll-by listeners and vice versa. [applyOffset] and [correctOffset] do
-/// not re-fire jump/scroll-by; [applyOffset] emits
-/// [PanelCatalogOffsetChanged] for shell chrome that must track programmatic
-/// motion ticks.
+/// ## Without a viewport
+///
+/// Commands never fail for lack of a viewport: the controller **commits** the
+/// target and the viewport that attaches next starts from it, so a host can
+/// position the catalog before it is mounted, or while a keep-alive page is
+/// off-screen. [offset] reads the committed value and the motion events are
+/// published as if the jump had happened.
+///
+/// - [jumpTo] and [scrollBy] move the committed offset.
+/// - [animateTo] commits its target as a jump and completes at once: there is
+///   nothing to animate.
+/// - [jumpToSection] needs the projected layout, so it stays pending (the
+///   returned future incomplete) and is applied when a viewport attaches; a
+///   later call before then retargets the same pending request and returns the
+///   same future.
+/// - Detaching keeps the offset the viewport reached.
+///
+/// ## Events
+///
+/// [events] is the one typed Observable of what the viewport does: drag,
+/// fling, programmatic jump, animate, section jump, offset ticks, and the
+/// derived scrolling / settled activity. It replaces per-kind listener
+/// channels. Same listener twice is a no-op; dispatch iterates a snapshot so
+/// listeners MAY add or remove listeners while it runs.
 ///
 /// ## Section jump
 ///
-/// [jumpToSection] requests a category/section landing under
+/// [jumpToSection] requests a category / section landing under
 /// [PanelCatalogViewport.headerLandingInset] when set, otherwise
 /// [PanelCatalogViewport.padding.top]. The bound viewport chooses near-path
 /// smooth scroll vs far-path stitch from [isNearPathSectionJump] (flat-row
 /// distance gate [kFarPathDistanceGateFactor] plus attached-header shortcut).
 ///
 /// While a jump owns scroll, [isSectionJumpActive] is `true`. Additional
-/// [jumpToSection] calls during that window are silent no-ops at the controller
-/// (in-flight [Future] returned; section-jump listeners not re-fired). Hosts
-/// SHOULD gate strip/category re-taps the same way so selection and target
-/// stay aligned. User drag cancels in-flight near scroll or far-path stitch;
-/// only then may a new [jumpToSection] start.
+/// [jumpToSection] calls during that window are silent no-ops (the in-flight
+/// [Future] is returned). Hosts SHOULD gate strip / category re-taps the same
+/// way so selection and target stay aligned. User drag cancels an in-flight
+/// near scroll or far-path stitch; only then may a new [jumpToSection] start.
 ///
-/// The viewport does **not** dispose this controller. After [dispose],
-/// mutating entry points are silent no-ops and listeners are cleared.
+/// The viewport does **not** dispose this controller. After [dispose], every
+/// command is a silent no-op, pending futures are completed and listeners are
+/// dropped.
 final class PanelCatalogController {
+  final _events = EventNotifier<PanelCatalogScrollEvent>();
+  CatalogScrollPosition? _position;
   double _offset = 0;
+  (int sectionIndex, Completer<void> completer)? _pendingSectionJump;
   var _disposed = false;
+
+  /// What the viewport does, as one typed stream of synchronous events.
+  ///
+  /// See [PanelCatalogScrollEvent] for the catalogue. Events for commands
+  /// given while no viewport is attached are published by the controller; for
+  /// an attached viewport, by the viewport.
+  EventObservable<PanelCatalogScrollEvent> get events => _events;
 
   /// Absolute content offset in logical pixels (catalog top = `0`).
   ///
-  /// Increasing [offset] reveals content further down the catalog. Read is
-  /// always available; validity relative to the current viewport is enforced
-  /// by the bound render object after navigation / layout.
-  double get offset => _offset;
+  /// The attached viewport's offset, else the committed one. Increasing
+  /// [offset] reveals content further down the catalog.
+  double get offset => _position?.pixels ?? _offset;
+
+  /// Height of the attached viewport; `0` before its first layout or when no
+  /// viewport is attached.
+  double get viewportExtent => _position?.viewportExtent ?? 0;
+
+  /// Height of the projected catalog (padding included); `0` before the first
+  /// layout or when no viewport is attached.
+  double get contentExtent => _position?.contentExtent ?? 0;
+
+  /// Largest valid [offset]: `max(0, contentExtent − viewportExtent)`; `0`
+  /// before the first layout or when no viewport is attached.
+  double get maxScrollExtent => _position?.maxScrollExtent ?? 0;
+
+  /// Whether a viewport is attached.
+  bool get hasPosition => _position != null;
 
   /// Whether [dispose] has been called.
   ///
@@ -76,203 +116,71 @@ final class PanelCatalogController {
   /// `true` from path selection through near-path animate or far-path stitch
   /// until the jump completes or user drag cancels it. Hosts use this to
   /// suppress category-strip scroll sync and to ignore strip re-taps while
-  /// motion is in flight. Becomes `false` on completion or drag cancel — not
-  /// when a superseding [jumpToSection] arrives (those are ignored while
-  /// active).
-  bool get isSectionJumpActive => _sectionJumpActive;
+  /// motion is in flight. Always `false` while no viewport is attached.
+  bool get isSectionJumpActive => _position?.isSectionJumpActive ?? false;
 
-  // --- Scroll events --------------------------------------------------------
+  // --- Commands -------------------------------------------------------------
 
-  final _scrollListeners = <ValueChanged<PanelCatalogScrollEvent>>[];
-
-  /// Subscribe to sealed scroll-side events from the bound viewport.
+  /// Jumps to [pixels].
   ///
-  /// Adding the same callback twice is a no-op. Unknown removals are no-ops.
-  void addScrollListener(ValueChanged<PanelCatalogScrollEvent> callback) {
-    if (_scrollListeners.contains(callback)) return;
-    _scrollListeners.add(callback);
-  }
-
-  /// Unsubscribe from [addScrollListener]. Unknown [callback] is a no-op.
-  void removeScrollListener(ValueChanged<PanelCatalogScrollEvent> callback) =>
-      _scrollListeners.remove(callback);
-
-  /// Viewport-only emitter. Iterates a snapshot — a listener removing itself
-  /// or another listener during dispatch is safe.
-  @internal
-  void notifyScrollEvent(PanelCatalogScrollEvent event) => _emitScroll(event);
-
-  void _emitScroll(PanelCatalogScrollEvent event) {
-    if (_disposed) return;
-    for (final cb in List<ValueChanged<PanelCatalogScrollEvent>>.of(
-      _scrollListeners,
-      growable: false,
-    )) {
-      cb(event);
-    }
-  }
-
-  // --- Jump -----------------------------------------------------------------
-
-  final _jumpListeners = <ValueChanged<double>>[];
-
-  /// Subscribe to [jumpTo] events. Callback receives the **requested** offset
-  /// (pre-clamp).
-  ///
-  /// Adding the same callback twice is a no-op. Unknown removals are no-ops.
-  void addJumpListener(ValueChanged<double> callback) {
-    if (_jumpListeners.contains(callback)) return;
-    _jumpListeners.add(callback);
-  }
-
-  /// Unsubscribe from [jumpTo] events. Unknown [callback] is a no-op.
-  void removeJumpListener(ValueChanged<double> callback) =>
-      _jumpListeners.remove(callback);
-
-  /// Jumps to [pixels] and notifies jump listeners.
-  ///
-  /// Same-value calls (`pixels == offset`) are a silent no-op — listeners are
-  /// not notified. After dispose, this is a silent no-op.
-  ///
-  /// The viewport clamps after notify via [correctOffset]; [offset] MAY
-  /// briefly exceed the valid range until that correction runs. Listeners
-  /// that read [offset] inside the callback see the requested value, not
-  /// necessarily the post-clamp value.
+  /// Same-value calls (`pixels == offset`) and calls after dispose are silent
+  /// no-ops. The attached viewport clamps after publishing: listeners that
+  /// read [offset] inside the callback see the requested value, not
+  /// necessarily the clamped one.
   void jumpTo(double pixels) {
     if (_disposed) return;
+    final position = _position;
+    if (position != null) {
+      position.jumpTo(pixels);
+      return;
+    }
     if (_offset == pixels) return;
     final delta = pixels - _offset;
     _offset = pixels;
-    _emitScroll(PanelCatalogProgrammaticJump(pixels));
-    _emitScroll(PanelCatalogOffsetChanged(pixels, delta));
-    for (final cb in List<ValueChanged<double>>.of(
-      _jumpListeners,
-      growable: false,
-    )) {
-      cb(pixels);
+    _events
+      ..publish(PanelCatalogProgrammaticJump(pixels))
+      ..publish(PanelCatalogOffsetChanged(pixels, delta));
+  }
+
+  /// Adds [delta] to the offset (positive reveals content below).
+  ///
+  /// **`scrollBy(0)` is a silent no-op**, as is any call after dispose. The
+  /// attached viewport clamps afterwards. Drag and wheel input on the viewport
+  /// take this path.
+  void scrollBy(double delta) {
+    if (_disposed) return;
+    if (delta == 0) return;
+    final position = _position;
+    if (position != null) {
+      position.scrollBy(delta);
+      return;
     }
+    _offset += delta;
+    _events
+      ..publish(PanelCatalogViewportScrolled(delta))
+      ..publish(PanelCatalogOffsetChanged(_offset, delta));
   }
-
-  // --- Smooth scroll --------------------------------------------------------
-
-  final _animateToListeners = <VoidCallback>[];
-  (double target, Duration duration, Curve curve, Completer<void> completer)?
-  _pendingAnimateTo;
-
-  /// Pending [animateTo] request while the viewport has not yet consumed it.
-  (double target, Duration duration, Curve curve, Completer<void> completer)?
-  get pendingAnimateTo => _pendingAnimateTo;
-
-  /// Subscribe to [animateTo] requests. The bound viewport runs near-path
-  /// motion and completes the returned [Future].
-  void addAnimateToListener(VoidCallback callback) {
-    if (_animateToListeners.contains(callback)) return;
-    _animateToListeners.add(callback);
-  }
-
-  /// Unsubscribe from [animateTo] events. Unknown [callback] is a no-op.
-  void removeAnimateToListener(VoidCallback callback) =>
-      _animateToListeners.remove(callback);
 
   /// Smoothly scrolls to absolute [pixels] (220ms decelerate by default).
   ///
-  /// Same-value and post-dispose calls complete immediately without scrolling.
-  /// Cancels any in-flight [animateTo] request. User drag cancels viewport
-  /// motion and completes the pending future without error.
+  /// Same-value (within half a pixel) and post-dispose calls complete
+  /// immediately without scrolling. A new call cancels an in-flight one; user
+  /// drag cancels viewport motion and completes the future without error.
+  /// While no viewport is attached the target is committed as a [jumpTo].
   Future<void> animateTo(
     double pixels, {
     Duration duration = const Duration(milliseconds: 220),
     Curve curve = Curves.decelerate,
   }) {
     if (_disposed) return Future.value();
-    if ((_offset - pixels).abs() < 0.5) return Future.value();
-    _completePendingAnimateTo();
-
-    final completer = Completer<void>();
-    _pendingAnimateTo = (pixels, duration, curve, completer);
-    if (_animateToListeners.isEmpty) {
-      jumpTo(pixels);
-      _completePendingAnimateTo();
-      return completer.future;
+    if ((offset - pixels).abs() < 0.5) return Future.value();
+    final position = _position;
+    if (position != null) {
+      return position.animateTo(pixels, duration: duration, curve: curve);
     }
-    for (final cb in List<VoidCallback>.of(
-      _animateToListeners,
-      growable: false,
-    )) {
-      cb();
-    }
-    return completer.future;
+    jumpTo(pixels);
+    return Future.value();
   }
-
-  /// Completes the pending [animateTo] future. Viewport-only.
-  void completePendingAnimateTo() {
-    final pending = _pendingAnimateTo;
-    if (pending == null) return;
-    _pendingAnimateTo = null;
-    if (!pending.$4.isCompleted) {
-      pending.$4.complete();
-    }
-  }
-
-  void _completePendingAnimateTo() => completePendingAnimateTo();
-
-  // --- Scroll-by ------------------------------------------------------------
-
-  final _scrollByListeners = <ValueChanged<double>>[];
-
-  /// Subscribe to [scrollBy] events. Callback receives the pixel [delta]
-  /// passed to [scrollBy] (not the resulting absolute offset).
-  ///
-  /// Adding the same callback twice is a no-op.
-  void addScrollByListener(ValueChanged<double> callback) {
-    if (_scrollByListeners.contains(callback)) return;
-    _scrollByListeners.add(callback);
-  }
-
-  /// Unsubscribe from [scrollBy] events. Unknown [callback] is a no-op.
-  void removeScrollByListener(ValueChanged<double> callback) =>
-      _scrollByListeners.remove(callback);
-
-  /// Adds [delta] to [offset] (positive reveals content below).
-  ///
-  /// **`scrollBy(0)` is a silent no-op** — listeners are not notified.
-  /// After dispose, this is a silent no-op.
-  ///
-  /// After notify, the viewport clamps via [correctOffset]. Drag and wheel
-  /// input on the viewport call this path.
-  void scrollBy(double delta) {
-    if (_disposed) return;
-    if (delta == 0) return;
-    _offset += delta;
-    _emitScroll(PanelCatalogViewportScrolled(delta));
-    _emitScroll(PanelCatalogOffsetChanged(_offset, delta));
-    for (final cb in List<ValueChanged<double>>.of(
-      _scrollByListeners,
-      growable: false,
-    )) {
-      cb(delta);
-    }
-  }
-
-  // --- Section jump ---------------------------------------------------------
-
-  final _sectionJumpListeners = <ValueChanged<int>>[];
-  (int sectionIndex, Completer<void> completer)? _pendingSectionJump;
-  var _sectionJumpActive = false;
-
-  /// Subscribe to [jumpToSection] requests. Callback receives the section
-  /// index (`0..sectionCount−1`).
-  ///
-  /// The bound viewport handles path selection and completes the returned
-  /// [Future]. Adding the same callback twice is a no-op.
-  void addSectionJumpListener(ValueChanged<int> callback) {
-    if (_sectionJumpListeners.contains(callback)) return;
-    _sectionJumpListeners.add(callback);
-  }
-
-  /// Unsubscribe from [jumpToSection] events. Unknown [callback] is a no-op.
-  void removeSectionJumpListener(ValueChanged<int> callback) =>
-      _sectionJumpListeners.remove(callback);
 
   /// Scrolls so [sectionIndex]'s header lands under the viewport top inset.
   ///
@@ -280,105 +188,73 @@ final class PanelCatalogController {
   /// toggling [isSectionJumpActive].
   ///
   /// **Re-entry:** while [isSectionJumpActive] is `true`, this is a silent
-  /// no-op — returns the in-flight [Future], does not notify section-jump
-  /// listeners, and does not retarget motion. User drag on the viewport
-  /// cancels the active jump first; the next call after cancel starts fresh.
+  /// no-op — returns the in-flight [Future], does not retarget motion. User
+  /// drag on the viewport cancels the active jump first; the next call after
+  /// cancel starts fresh.
   ///
-  /// Path selection (near smooth scroll vs far stitch) is viewport-owned via
-  /// [isNearPathSectionJump].
+  /// While no viewport is attached the request stays pending until one
+  /// attaches (see class docs). Path selection (near smooth scroll vs far
+  /// stitch) is viewport-owned via [isNearPathSectionJump].
   ///
   /// After [dispose], returns an immediately-completed future.
   Future<void> jumpToSection(int sectionIndex) {
     if (_disposed) return Future.value();
-    if (_sectionJumpActive) {
-      return _pendingSectionJump?.$2.future ?? Future.value();
-    }
-
-    final completer = Completer<void>();
+    final position = _position;
+    if (position != null) return position.jumpToSection(sectionIndex);
+    final pending = _pendingSectionJump;
+    final completer = pending?.$2 ?? Completer<void>();
     _pendingSectionJump = (sectionIndex, completer);
-    for (final cb in List<ValueChanged<int>>.of(
-      _sectionJumpListeners,
-      growable: false,
-    )) {
-      cb(sectionIndex);
-    }
     return completer.future;
   }
 
-  /// Called by the bound viewport when section-jump activity starts or ends.
-  ///
-  /// Hosts MUST NOT call this — use [isSectionJumpActive] read-only.
-  void setSectionJumpActive(bool active) {
-    if (_disposed) return;
-    _sectionJumpActive = active;
-  }
+  // --- Viewport side --------------------------------------------------------
 
-  /// Completes the pending [jumpToSection] future when [sectionIndex] matches
-  /// the pending request (or any pending request when [sectionIndex] is null).
+  /// Publishes [event] to [events] listeners. Viewport-only.
+  @internal
+  void publish(PanelCatalogScrollEvent event) => _events.publish(event);
+
+  /// Binds [position] as the one attached viewport. Viewport-only.
   ///
-  /// Viewport-only. Unknown indices are no-ops.
-  void completePendingSectionJump({int? sectionIndex}) {
+  /// The viewport reads [offset] **before** attaching and starts from it, so
+  /// a committed target is applied. A section jump committed while unbound is
+  /// then handed to [position]. Replaces a previously attached position,
+  /// which is forgotten without being told.
+  @internal
+  void attach(CatalogScrollPosition position) {
+    if (_disposed) return;
+    _position = position;
     final pending = _pendingSectionJump;
     if (pending == null) return;
-    if (sectionIndex != null && pending.$1 != sectionIndex) return;
     _pendingSectionJump = null;
-    if (!pending.$2.isCompleted) {
-      pending.$2.complete();
-    }
+    unawaited(
+      position.jumpToSection(pending.$1).whenComplete(() {
+        if (!pending.$2.isCompleted) pending.$2.complete();
+      }),
+    );
   }
 
-  void _completePendingSectionJump() {
-    completePendingSectionJump();
-  }
-
-  /// Pending section jump, if any — used when attaching after an early request.
-  (int sectionIndex, Completer<void> completer)? get pendingSectionJump =>
-      _pendingSectionJump;
-
-  // --- Viewport offset writes -----------------------------------------------
-
-  /// Writes [pixels] and emits [PanelCatalogOffsetChanged].
-  ///
-  /// Viewport-only: near-path section ticks, [animateTo], and far-path stitch
-  /// teleports use this instead of [correctOffset] so shell chrome can react
-  /// during programmatic motion. Does not notify jump/scroll-by listeners.
-  void applyOffset(double pixels) {
-    if (_disposed) return;
-    if (_offset == pixels) return;
-    final delta = pixels - _offset;
-    _offset = pixels;
-    _emitScroll(PanelCatalogOffsetChanged(pixels, delta));
-  }
-
-  /// Silently writes [pixels] without notifying listeners.
-  ///
-  /// Owned by the bound viewport’s range clamp. Navigation that must notify
-  /// listeners uses [jumpTo] / [scrollBy] / [applyOffset] instead.
-  ///
-  /// Same-value and post-dispose calls are silent no-ops.
-  void correctOffset(double pixels) {
-    if (_disposed) return;
-    if (_offset == pixels) return;
-    _offset = pixels;
+  /// Unbinds [position] and keeps the offset it reached as the committed one.
+  /// Viewport-only. Ignored when [position] is not the attached one.
+  @internal
+  void detach(CatalogScrollPosition position) {
+    if (!identical(_position, position)) return;
+    _offset = position.pixels;
+    _position = null;
   }
 
   // --- Lifecycle ------------------------------------------------------------
 
   /// Drops all listeners and marks the controller disposed. Idempotent.
   ///
-  /// After dispose, [jumpTo] / [scrollBy] / [animateTo] / [jumpToSection] /
-  /// [correctOffset] / [applyOffset] are silent no-ops. Safe to
-  /// call more than once.
+  /// Completes a pending [jumpToSection]. An attached viewport keeps its own
+  /// offset but can no longer be commanded or publish events here.
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _completePendingSectionJump();
-    _completePendingAnimateTo();
-    _sectionJumpActive = false;
-    _jumpListeners.clear();
-    _scrollByListeners.clear();
-    _sectionJumpListeners.clear();
-    _animateToListeners.clear();
-    _scrollListeners.clear();
+    final pending = _pendingSectionJump;
+    _pendingSectionJump = null;
+    if (pending != null && !pending.$2.isCompleted) pending.$2.complete();
+    _position = null;
+    _events.dispose();
   }
 }
