@@ -43,5 +43,5 @@ workspace package (`scripts/check` enforces both).
 
 ## Decisions
 
-- [Content identity and collection model](../../.scratch/package-architecture/adr-candidates/content-identity.md)
-- [Data layering](../../.scratch/package-architecture/adr-candidates/data-layering.md)
+- [Content identity and collection model](../../docs/adr/021-content-identity-and-collections.md)
+- [Data layering](../../docs/adr/023-data-layering-and-persistence.md)
