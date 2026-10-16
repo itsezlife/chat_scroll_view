@@ -57,6 +57,7 @@ final class FileGlyphPageStore implements GlyphPageStore {
 
   static const int _magic = 0x47504C47; // "GLPG" little-endian
   static const int _headerBytes = 16;
+  static int _nextTemp = 0;
 
   File _file(int pageIndex) => File(
     '${directory.path}${Platform.pathSeparator}page_$pageIndex.glyphpage',
@@ -75,17 +76,28 @@ final class FileGlyphPageStore implements GlyphPageStore {
       ..setUint32(12, pixels.lengthInBytes, Endian.little);
     await directory.create(recursive: true);
     final target = _file(pageIndex);
-    final temp = File('${target.path}.tmp');
-    final out = await temp.open(mode: FileMode.write);
+    // One name per write: two writes of a page that overlap (a rebake
+    // persisting page N while an earlier write of it is still in flight) must
+    // not share a temp file, or one truncates or interleaves with the other and
+    // the rename publishes bytes the length check cannot tell from a page.
+    final temp = File('${target.path}.${_nextTemp++}.tmp');
     try {
-      await out.writeFrom(header.buffer.asUint8List());
-      await out.writeFrom(
-        pixels.buffer.asUint8List(pixels.offsetInBytes, pixels.lengthInBytes),
-      );
-    } finally {
-      await out.close();
+      final out = await temp.open(mode: FileMode.write);
+      try {
+        await out.writeFrom(header.buffer.asUint8List());
+        await out.writeFrom(
+          pixels.buffer.asUint8List(pixels.offsetInBytes, pixels.lengthInBytes),
+        );
+      } finally {
+        await out.close();
+      }
+      await temp.rename(target.path);
+    } on Object {
+      // Nothing sweeps a failed write's leftover; it would sit on disk until
+      // the cache is discarded.
+      if (temp.existsSync()) temp.deleteSync();
+      rethrow;
     }
-    await temp.rename(target.path);
   }
 
   @override

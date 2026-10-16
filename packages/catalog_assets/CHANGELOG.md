@@ -86,6 +86,12 @@ is pre-1.0.
 
 ### Fixed
 
+- **`FileGlyphPageStore.write`** uses a temp file per write, so two overlapping
+  writes of one page cannot truncate or interleave each other before the
+  rename, and removes its temp file when a write fails.
+- **`GlyphBakeScheduler`** drops an unobserved step cost when baking pauses, so
+  the first frame after a pause does not slow the pace for a step that ended
+  before it.
 - A page the store cannot hand back is baked again once instead of staying a
   circle for the life of the process; a second failed read gives up on it.
 - Released pages are read back one per frame, and not during a scroll or the

@@ -98,6 +98,15 @@ named in the package CHANGELOGs.
 The glyph probe (hiding emoji the system cannot draw) is not wired into the
 demo, so there is nothing to check for it on a device yet.
 
+## Invalidation is by key only
+
+A page file is checked for size and header on read, not for content: hashing
+16 MiB per page on the UI isolate costs more than the frame budget, and the
+pages regenerate. The cache key (system art version, density, baked cell size,
+layout version, catalogue hash) is therefore the only invalidation. A page
+overwritten in place with bytes of the same length is drawn as it is; clear the
+cache directory if a device shows corrupt art.
+
 ## What to report
 
 For each run: device, build mode, refresh rate, the label of the run, frames

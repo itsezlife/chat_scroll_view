@@ -114,6 +114,10 @@ final class GlyphBakeScheduler {
       // began to scroll. Settling starts over when the pause ends.
       _cancelPendingFrame();
       _quietFrames = 0;
+      // An unobserved step cost belongs to the run that just ended; folded
+      // into the first frame after the pause it would slow the pace for a
+      // step the user never waited on.
+      _lastStepCost = null;
     }
   }
 

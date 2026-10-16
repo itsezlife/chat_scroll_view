@@ -302,6 +302,28 @@ void main() {
       expect(rasteriser.painted, hasLength(16));
     });
 
+    test('a step cost from before a pause is not held against the first '
+        'frame after it', () async {
+      // Each glyph costs 1 ms of the clock, so the first step overruns the
+      // budget by itself; the pause comes before anything observes that.
+      rasteriser = FakeGlyphRasteriser(
+        onPaint: (_) => clock.advance(const Duration(milliseconds: 1)),
+      );
+      build(2000, settleFrames: 0).start();
+      await frame();
+      expect(scheduler.glyphsPerFrame, 16);
+
+      scrolling.value = true;
+      scrolling.value = false;
+      await frame(cost: _budget * 0.1);
+
+      expect(
+        scheduler.glyphsPerFrame,
+        16,
+        reason: 'only the engine\'s cheap frame was observed',
+      );
+    });
+
     test('every pause input must be clear for baking to run', () async {
       build(100, settleFrames: 0).start();
       scrolling.value = true;

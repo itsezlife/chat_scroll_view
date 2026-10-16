@@ -104,6 +104,53 @@ void main() {
       expect(await store.read(3), isNull);
     });
 
+    test('a write that fails leaves no temporary file behind', () async {
+      // A directory in the page's place makes the final rename fail.
+      Directory('${dir.path}/page_5.glyphpage').createSync();
+      final image = page();
+      await expectLater(store.write(5, image), throwsA(anything));
+      image.dispose();
+      final leftovers = dir.listSync().where(
+        (entity) => entity.path.endsWith('.tmp'),
+      );
+      expect(leftovers, isEmpty);
+    });
+
+    test('overlapping writes of one page never publish a mixture', () async {
+      Image solid(Color color) {
+        final recorder = PictureRecorder();
+        Canvas(recorder).drawRect(
+          const Rect.fromLTWH(0, 0, 16, 16),
+          Paint()
+            ..color = color
+            ..isAntiAlias = false,
+        );
+        final picture = recorder.endRecording();
+        final image = picture.toImageSync(16, 16);
+        picture.dispose();
+        return image;
+      }
+
+      final red = solid(const Color(0xFFFF0000));
+      final green = solid(const Color(0xFF00FF00));
+      await Future.wait([store.write(1, red), store.write(1, green)]);
+      red.dispose();
+      green.dispose();
+      final read = (await store.read(1))!;
+      final pixels = await ImagePixels.of(read);
+      read.dispose();
+      final first = pixels.at(0, 0);
+      expect(
+        [pixels.at(8, 8), pixels.at(15, 15)],
+        everyElement(first),
+        reason: 'one writer\'s page, whole',
+      );
+      expect(
+        dir.listSync().where((entity) => entity.path.endsWith('.tmp')),
+        isEmpty,
+      );
+    });
+
     test('a page that is simply absent is a quiet miss', () async {
       final reported = _captureErrors();
       expect(await store.read(9), isNull);
