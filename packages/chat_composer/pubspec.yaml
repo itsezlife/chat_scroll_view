@@ -1,0 +1,26 @@
+name: chat_composer
+description: >
+  Chat composer input side: an input-only controller, an entity-aware text
+  controller that produces a RichText, and host-registered input queries.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: '>=3.27.0'
+
+dependencies:
+  characters: ^1.4.0
+  chrome_foundation:
+    path: ../chrome_foundation
+  content_model:
+    path: ../content_model
+  flutter:
+    sdk: flutter
+  meta: ^1.17.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
