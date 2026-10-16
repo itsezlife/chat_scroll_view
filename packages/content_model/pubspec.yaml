@@ -1,7 +1,8 @@
 name: content_model
 description: >
   Pure-Dart content identity and collection value types: content key,
-  descriptor, collections, emoji variants and inline content refs.
+  descriptor, collections, emoji variants, inline content refs and rich text,
+  with an opt-in markdown helper.
 version: 0.1.0
 publish_to: none
 resolution: workspace
