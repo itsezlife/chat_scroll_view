@@ -382,13 +382,6 @@ enum EmojiVariantPickerMode {
   /// option chooses it, lifting elsewhere on the card closes it, lifting
   /// outside the card closes it without choosing.
   pointerHold,
-
-  /// A mouse whose press opened the picker at once, because the user has
-  /// never chosen a variant of this emoji: lifting over an option chooses it,
-  /// lifting elsewhere on the card closes it, and lifting outside the card
-  /// leaves it up until the next click, so the options can be read and
-  /// clicked.
-  pointerImmediate,
 }
 
 /// A variant picker shown over the page for one press, and the gesture that
@@ -469,12 +462,16 @@ final class EmojiVariantSession implements CatalogLongPressSession {
     final fade = scopes.motion.specOf(MotionRole.fade);
     final origin = overlayBox.globalToLocal(originGlobal);
     session._entry = OverlayEntry(
+      // In the text fields' tap group, barrier included: choosing a variant
+      // or dismissing the picker is not a press outside the composer.
       builder: (context) => scopes.wrap(
-        _PickerOverlay(
-          session: session,
-          origin: origin,
-          duration: fade.duration,
-          curve: fade.curve,
+        TextFieldTapRegion(
+          child: _PickerOverlay(
+            session: session,
+            origin: origin,
+            duration: fade.duration,
+            curve: fade.curve,
+          ),
         ),
       ),
     );
@@ -546,9 +543,6 @@ final class EmojiVariantSession implements CatalogLongPressSession {
         } else {
           _close();
         }
-      case EmojiVariantPickerMode.pointerImmediate:
-        // Outside the card the picker waits for the next click.
-        if (_card.contains(global)) _chooseOrClose(layout.indexAt(local));
     }
   }
 

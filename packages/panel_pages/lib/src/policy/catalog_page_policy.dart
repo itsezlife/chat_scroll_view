@@ -195,8 +195,12 @@ abstract class CatalogPagePolicy {
         _ => collection.metadata.title ?? '',
       };
 
-  /// The geometry of the section, or null for the viewport's defaults.
-  SectionLayout? layoutOf(Collection collection) => null;
+  /// The geometry of the section under [arrangement], or null for the
+  /// viewport's defaults.
+  SectionLayout? layoutOf(
+    Collection collection, {
+    PanelArrangement arrangement = PanelArrangement.touch,
+  }) => null;
 
   /// The box the section's content is drawn in, or null for what each cell's
   /// facts say.

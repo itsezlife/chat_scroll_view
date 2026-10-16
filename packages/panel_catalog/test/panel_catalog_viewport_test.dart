@@ -112,6 +112,71 @@ void main() {
     controller.dispose();
   });
 
+  group('who drags the catalogue', () {
+    Future<void> pumpLong(WidgetTester tester) async {
+      snapshots.replaceSections([
+        _section('a', [
+          for (var i = 0; i < 80; i++)
+            CatalogLeaf.unicode(String.fromCharCode(0x1F600 + i)),
+        ]),
+      ]);
+      await tester.pumpWidget(
+        _harness(
+          snapshots: snapshots,
+          assets: assetScope,
+          controller: controller,
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a mouse pressed and dragged over the grid does not scroll it: '
+        'a mouse scrolls by its wheel and the scrollbar', (tester) async {
+      await pumpLong(tester);
+
+      await tester.drag(
+        find.byType(PanelCatalogViewport),
+        const Offset(0, -120),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pumpAndSettle();
+
+      expect(controller.offset, 0);
+    });
+
+    testWidgets('a finger, a stylus and a trackpad still drag it', (
+      tester,
+    ) async {
+      for (final kind in [PointerDeviceKind.touch, PointerDeviceKind.stylus]) {
+        await pumpLong(tester);
+        controller.jumpTo(0);
+        await tester.pump();
+
+        await tester.drag(
+          find.byType(PanelCatalogViewport),
+          const Offset(0, -120),
+          kind: kind,
+        );
+        await tester.pumpAndSettle();
+
+        expect(controller.offset, greaterThan(0), reason: '$kind');
+      }
+    });
+
+    testWidgets('the wheel still scrolls under a mouse', (tester) async {
+      await pumpLong(tester);
+      final mouse = TestPointer(1, PointerDeviceKind.mouse);
+
+      await tester.sendEventToBinding(
+        mouse.hover(tester.getCenter(find.byType(PanelCatalogViewport))),
+      );
+      await tester.sendEventToBinding(mouse.scroll(const Offset(0, 120)));
+      await tester.pumpAndSettle();
+
+      expect(controller.offset, greaterThan(0));
+    });
+  });
+
   group('extent scroll and notify', () {
     testWidgets(
       'catalog body scrolls with absolute content offset against known extent',

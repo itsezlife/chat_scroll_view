@@ -8,6 +8,10 @@ this package is pre-1.0.
 
 ### Changed
 
+- The popup's hover area and the dock's body are part of the composer's tap
+  region (`TextFieldTapRegion`): a click in the panel keeps the composer's
+  focus on desktop platforms ([ADR 028](../../docs/adr/028-panel-presentation.md)
+  amendment).
 - Source-breaking: the dock is a standing section ([ADR 028](../../docs/adr/028-panel-presentation.md)
   amendment). `PanelPresentationPolicy.canDock`, `defaultKind` and `resolve`
   take the `PanelWindow` instead of its class; a window has the room for a

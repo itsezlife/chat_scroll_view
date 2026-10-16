@@ -75,7 +75,10 @@ class _Policy extends CatalogPagePolicy {
   double get stripExtent => strip ? 40 : 0;
 
   @override
-  SectionLayout? layoutOf(Collection collection) => _layout;
+  SectionLayout? layoutOf(
+    Collection collection, {
+    PanelArrangement arrangement = PanelArrangement.touch,
+  }) => _layout;
 
   @override
   CatalogSectionAction? actionOf(

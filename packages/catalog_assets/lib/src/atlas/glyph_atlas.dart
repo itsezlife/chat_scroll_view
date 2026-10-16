@@ -310,6 +310,11 @@ final class GlyphAtlas implements GlyphSpriteSource {
     return page == null ? null : _residency.hold(page);
   }
 
+  /// True for the glyphs of the plan, which wait for the bake (and, once the
+  /// atlas is gone, for whatever replaces it); false for every other glyph.
+  @override
+  bool waitsForSprite(String glyph) => index.placementOf(glyph) != null;
+
   /// Calls [listener] with the index of each page whose drawability changed:
   /// once its sprites can be drawn, and again when the page is released (a
   /// surface repaints either way).

@@ -8,6 +8,22 @@ is pre-1.0.
 
 ### Added
 
+- `GlyphSpriteSource.waitsForSprite(glyph)` (source-breaking for
+  implementers): whether a sprite for the glyph is on its way. `GlyphAtlas`
+  answers yes for every planned glyph; `FakeGlyphSpriteSource` takes
+  `onDemand` and `learn()`, and the contract suite covers it.
+- `LayeredGlyphSource`: one glyph sprite source over a background-baked first
+  layer and layers added on demand ([ADR 022](../../docs/adr/022-asset-cache-and-media-pipeline.md)
+  amendment).
+
+### Changed
+
+- A glyph binding whose source has no sprite and does not wait for one paints
+  the glyph as text (`firstFrame`) instead of keeping the circle, and moves to
+  the sprite when its page arrives.
+
+### Added
+
 - `TextGlyphProducer.defaultFontScale` (0.85): the one number for a glyph's font
   size within its box, used by the paragraph strategy, the baked one
   (`ParagraphGlyphRasteriser`) and the variant picker, so they cannot drift.

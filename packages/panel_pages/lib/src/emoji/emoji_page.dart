@@ -1,13 +1,12 @@
 import 'dart:async';
 
 import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_pages/src/atlas/glyph_atlas_host.dart';
 import 'package:panel_pages/src/atlas/glyph_plan.dart';
-import 'package:panel_pages/src/bake/glyph_atlas_bake_port.dart';
+import 'package:panel_pages/src/bake/bake_activity_port.dart';
 import 'package:panel_pages/src/emoji/emoji_page_policy.dart';
 import 'package:panel_pages/src/page/catalog_page.dart';
 import 'package:panel_pages/src/page/catalog_page_controller.dart';
@@ -68,7 +67,7 @@ final class EmojiPageController extends CatalogPageController {
     final bound = scope.glyphSource;
     if (bound == null) return;
     if (identical(bound, _PendingGlyphSource.instance) ||
-        identical(bound, atlasHost?.atlas.value)) {
+        identical(bound, atlasHost?.source.value)) {
       scope.glyphSource = null;
     }
   }
@@ -87,6 +86,11 @@ final class _PendingGlyphSource implements GlyphSpriteSource {
 
   @override
   SpritePageHold? holdPageOf(String glyph) => null;
+
+  // Every glyph waits: the atlas that will draw it is on its way, and a
+  // paragraph drawn meanwhile is the cost the atlas exists to avoid.
+  @override
+  bool waitsForSprite(String glyph) => true;
 
   @override
   void addPageListener(void Function(int pageIndex) listener) {}
@@ -119,10 +123,12 @@ final class _PendingGlyphSource implements GlyphSpriteSource {
 /// With an [atlasHostFactory], the page plans a glyph atlas from [planner]'s
 /// plan of the source's collections (by default exactly what the page shows:
 /// the chosen variant of each emoji, then recents the catalogue lacks), keeps
-/// it in its [EmojiPageController], and wires it: the atlas is the `assets`
-/// scope's glyph source, and the scaffold forwards the catalogue's motion and
-/// visible band to it. When the plan grows (a variant chosen for the first
-/// time) or the density changes the host plans again behind the old art. With
+/// it in its [EmojiPageController], and wires it: the host's layered source
+/// is the `assets` scope's glyph source, and the scaffold forwards the
+/// catalogue's motion and visible band to the host. When the plan grows (a
+/// variant chosen for the first time) the host bakes the new glyphs in a layer
+/// of their own, and keeps every glyph it ever drew, for the composer; when
+/// the density changes it plans again behind the old art. With
 /// none the page draws text, which is right on the web and for a page
 /// embedded on its own.
 ///
@@ -195,6 +201,12 @@ class EmojiPage extends StatefulWidget {
   /// Horizontal inset of the grid.
   static const double gridPadH = 5;
 
+  /// Left padding of the grid under the pointer arrangement.
+  static const double pointerGridPadStart = 8;
+
+  /// Right padding of the grid under the pointer arrangement.
+  static const double pointerGridPadEnd = 4;
+
   /// What the bottom bar and the safe area do not cover, kept clear below the
   /// last row.
   ///
@@ -214,8 +226,8 @@ class _EmojiPageState extends State<EmojiPage> {
   late EmojiPagePolicy _policy;
   final _stripReady = listen.ValueNotifier<bool>(true);
   final _fieldReady = listen.ValueNotifier<bool>(true);
-  GlyphAtlas? _boundAtlas;
-  GlyphAtlasBakePort? _bake;
+  GlyphSpriteSource? _boundSource;
+  BakeActivityPort? _bake;
   var _density = 0.0;
   var _dependenciesReady = false;
 
@@ -283,7 +295,7 @@ class _EmojiPageState extends State<EmojiPage> {
     }
     if (!identical(oldWidget.assets, widget.assets)) {
       _controller._releaseGlyphSource();
-      _boundAtlas = null;
+      _boundSource = null;
       _bindAtlas(notify: false);
     }
   }
@@ -291,7 +303,7 @@ class _EmojiPageState extends State<EmojiPage> {
   @override
   void dispose() {
     widget.source.collections.removeListener(_onCollections);
-    _controller.atlasHost?.atlas.removeListener(_onAtlas);
+    _controller.atlasHost?.source.removeListener(_onAtlas);
     // The atlas stays the scope's glyph source: the host outlives this widget,
     // and so do the composer's inline emoji drawn through the same scope. The
     // controller takes it out when the shell disposes it.
@@ -328,7 +340,7 @@ class _EmojiPageState extends State<EmojiPage> {
     atlasHost.sync(plan);
     // A platform that bakes nothing says so now, with no atlas to signal it:
     // the glyphs that waited for one are drawn as text from here on.
-    _applyAtlas(atlasHost.atlas.value, notify: false);
+    _applyAtlas(atlasHost.source.value, notify: false);
   }
 
   // --- The atlas ------------------------------------------------------------
@@ -352,16 +364,16 @@ class _EmojiPageState extends State<EmojiPage> {
     final atlasHost = _controller.atlasHost;
     if (atlasHost == null) return;
     _controller.assets = widget.assets;
-    atlasHost.atlas
+    atlasHost.source
       ..removeListener(_onAtlas)
       ..addListener(_onAtlas);
-    _applyAtlas(atlasHost.atlas.value, notify: notify);
+    _applyAtlas(atlasHost.source.value, notify: notify);
   }
 
   void _onAtlas() =>
-      _applyAtlas(_controller.atlasHost!.atlas.value, notify: true);
+      _applyAtlas(_controller.atlasHost!.source.value, notify: true);
 
-  void _applyAtlas(GlyphAtlas? atlas, {required bool notify}) {
+  void _applyAtlas(GlyphSpriteSource? atlas, {required bool notify}) {
     final atlasHost = _controller.atlasHost;
     // No atlas yet: wait for it unless the platform has none to wait for.
     // The scope rebinds the glyphs on screen to the new source in place, so a
@@ -371,10 +383,11 @@ class _EmojiPageState extends State<EmojiPage> {
       null when atlasHost?.bakesNothing ?? true => null,
       null => _PendingGlyphSource.instance,
     };
-    if (identical(atlas, _boundAtlas)) return;
-    _boundAtlas = atlas;
+    if (identical(atlas, _boundSource)) return;
+    _boundSource = atlas;
+    // The host reaches every atlas it keeps, including the ones it adds.
     final port = switch (atlas) {
-      final atlas? => GlyphAtlasBakePort(atlas),
+      _? => atlasHost,
       null => null,
     };
     if (notify && mounted) {
@@ -396,11 +409,22 @@ class _EmojiPageState extends State<EmojiPage> {
     bake: _bake,
     searchFieldReady: _fieldReady,
     searchDebounce: widget.searchDebounce,
-    padding: EdgeInsets.fromLTRB(
-      EmojiPage.gridPadH,
-      0,
-      EmojiPage.gridPadH,
-      MediaQuery.paddingOf(context).bottom + EmojiPage.gridPadBottom,
-    ),
+    padding: switch (PanelArrangementScope.of(context)) {
+      PanelArrangement.touch => EdgeInsets.fromLTRB(
+        EmojiPage.gridPadH,
+        0,
+        EmojiPage.gridPadH,
+        MediaQuery.paddingOf(context).bottom + EmojiPage.gridPadBottom,
+      ),
+      // The reference desktop client's list: 8 in from the left (its
+      // corner), 4 short of the right (its scrollbar's room less the margin
+      // the columns may take).
+      PanelArrangement.pointer => EdgeInsets.fromLTRB(
+        EmojiPage.pointerGridPadStart,
+        0,
+        EmojiPage.pointerGridPadEnd,
+        MediaQuery.paddingOf(context).bottom + EmojiPage.gridPadBottom,
+      ),
+    },
   );
 }

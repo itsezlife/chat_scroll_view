@@ -87,3 +87,11 @@ there, and it stays. This amends the *Docked*, *Dismissal*, *Toggle click* and
 | Resizing | A 6 px strip along the dock's start edge (`dockResizeExtent`) under the horizontal-resize cursor. The edge follows the pointer from the press, with the point grabbed under it (the reference client's press offset); `PanelPresentationController.resizeDock` takes the raw wish frame by frame and the chat narrows with it, `endDockResize` holds it to the bounds and keeps it. What is kept is the wish, in `DockWidthStore` (a sibling of `KeyboardHeightStore`: a size of the panel's own chrome, not a typed choice of the `PreferenceStore`), so a window that widens gives the dragged width back. |
 | Popup gap | `AnchoredPopupStyle.edgeGap` is the room between the popup and the composer's top and end edges (the reference client's popup is a card 10 px in from the corner). The pointer's hover area still bridges it to the toggle. |
 | Motion | Unchanged: the dock slides with `panelSlide`. The reference client opens and closes it instantly. |
+
+## Amendment: the composer keeps its focus
+
+On a desktop platform a text field gives up its focus on a mouse press outside
+its tap region, so a click on an emoji took the caret from the composer. The
+popup (its hover area), the dock's body, the variant picker and the context menu
+are each a `TextFieldTapRegion`: a press there belongs to the composer's region
+and leaves its focus and selection where they are, as in the reference client.

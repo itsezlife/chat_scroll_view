@@ -88,7 +88,7 @@ The core's single shared animation ticker, with per-binding gating and global pa
 _Avoid_: Per-surface ticker, self-scheduling paintable
 
 **Glyph sprite source**:
-The one narrow seam through which the asset cache reaches a glyph atlas: the sprite of a glyph, a hold on its page, and a page listener. The atlas implements it and the host registers it with the scope. Bindings hold the page from attach to detach.
+The one narrow seam through which the asset cache reaches a glyph atlas: the sprite of a glyph, a hold on its page, a page listener, and whether a sprite is on its way (`waitsForSprite`; a glyph nothing waits for is drawn as text). Several atlases are one source through a layered source: the background bake first, glyphs that joined later after it. The atlas implements it and the host registers it with the scope. Bindings hold the page from attach to detach.
 _Avoid_: The cache creating or owning atlases, `panel_catalog` importing atlas types
 
 **Content embed**:

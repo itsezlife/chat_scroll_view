@@ -142,3 +142,13 @@ reference clients. It amends the rows above where it says so.
 | Search results | A hit on any key of an emoji (its base, a tone, a gender) is one result, shown as the grid shows the emoji. The glyph atlas is planned from what the grid shows, so a result of a variant's own had no art and was drawn as a circle. |
 | Sections | `EmojiCollectionSource` lists the reference client's categories (`EmojiSection.reference`): people (smileys and people), nature, food, activity, travel, objects and symbols, the flags after the symbols, in that order. The ids are those of `CollectionId.category`. A group no section names keeps a section of its own, so a catalogue that gains a group shows it. The order of the emoji inside a section is the catalogue's. |
 | Tabs | The type tabs pill is scaled down as a whole when the column is narrower than it, instead of overflowing it (a dock at its narrowest, large text). |
+
+## Amendment: desktop polish
+
+| Area | Decision |
+| ---- | -------- |
+| Long press | Supersedes the zero delay of *Long press* above: a mouse on an emoji with variants always holds for 500 ms, chosen before or not; a click picks the emoji as the grid shows it. `EmojiVariantPickerMode.pointerImmediate` is gone, and a picker a mouse opened closes when the button lifts outside it. |
+| Context menu | The menu takes focus on its own scope, not on its first item: nothing is highlighted until the pointer or a key says so (Down highlights the first item, Up the last). |
+| Genders | `EmojiCatalog` lists the person, the man and the woman of an emoji as entries of their own, in that order, each with its tones only, as the reference clients do (`flattenGenders`, on by default). An emoji whose genders have no toneless form (two people of mixed tones) keeps its one entry. |
+| Grid | Under `pointer` the emoji grid is adaptive ([ADR 024](024-panel-catalog-seams.md)): 37 px desired cells, 2 px shorter than wide, 8 px in from the start and 4 from the end. A dock or popup that changes width changes its columns and cell size. |
+| Glyphs | A variant chosen for the first time is baked on its own, in a layer of the atlas host, and every glyph the host ever drew stays drawn ([ADR 022](022-asset-cache-and-media-pipeline.md)). |

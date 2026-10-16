@@ -290,6 +290,9 @@ void main() {
     testWidgets('scrolls away with the grid and comes back with it', (
       tester,
     ) async {
+      // Enough rows to scroll past the field at the pointer grid's columns.
+      source.dispose();
+      source = fixtures.source(recents: ['😀'], count: 200);
       await pumpShell(tester, arrangement: PanelArrangement.pointer);
       final catalog = shell.controllers
           .peek<CatalogPageController>('emoji')!

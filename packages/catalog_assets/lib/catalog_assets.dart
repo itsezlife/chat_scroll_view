@@ -34,6 +34,7 @@ export 'src/embed/content_embed.dart';
 export 'src/embed/content_embed_resolver.dart';
 export 'src/embed/inline_embed.dart';
 export 'src/glyph/glyph_sprite_source.dart';
+export 'src/glyph/layered_glyph_source.dart';
 export 'src/glyph/text_glyph_producer.dart';
 export 'src/pipeline/asset_pipeline.dart';
 export 'src/pipeline/cancellation_token.dart';

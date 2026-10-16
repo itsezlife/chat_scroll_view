@@ -281,57 +281,63 @@ class _DockedBodyState extends State<_DockedBody>
           ),
           child: IgnorePointer(
             ignoring: widget.view.visibility.isHiding,
-            child: SizedBox(
-              width: _width,
-              height: double.infinity,
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      position: DecorationPosition.foreground,
-                      decoration: BoxDecoration(
-                        border: switch (style.separator) {
-                          final separator? => BorderDirectional(
-                            start: BorderSide(color: separator),
+            // In the text fields' tap group: a press on the section is not a
+            // press outside the composer, which a desktop field would answer
+            // by giving up focus.
+            child: TextFieldTapRegion(
+              child: SizedBox(
+                width: _width,
+                height: double.infinity,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        position: DecorationPosition.foreground,
+                        decoration: BoxDecoration(
+                          border: switch (style.separator) {
+                            final separator? => BorderDirectional(
+                              start: BorderSide(color: separator),
+                            ),
+                            null => null,
+                          },
+                        ),
+                        child: FocusScope(
+                          node: _scope,
+                          child: PanelShell(
+                            controller: _controller.shell,
+                            arrangement: PanelArrangement.pointer,
                           ),
-                          null => null,
-                        },
-                      ),
-                      child: FocusScope(
-                        node: _scope,
-                        child: PanelShell(
-                          controller: _controller.shell,
-                          arrangement: PanelArrangement.pointer,
                         ),
                       ),
                     ),
-                  ),
-                  // Over the section's start edge, as the reference client's
-                  // strip is: it takes the pointer away from what is under it
-                  // there, which is the section's own margin.
-                  PositionedDirectional(
-                    start: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: extent,
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.resizeColumn,
-                      child: GestureDetector(
-                        key: DockedStrategy.resizeHandleKey,
-                        behavior: HitTestBehavior.opaque,
-                        // From the press, not past the touch slop: the edge
-                        // follows the pointer from the first pixel.
-                        dragStartBehavior: DragStartBehavior.down,
-                        onHorizontalDragStart: (details) =>
-                            _grabAt(details.globalPosition),
-                        onHorizontalDragUpdate: (details) =>
-                            _dragTo(details.globalPosition),
-                        onHorizontalDragEnd: (_) => _controller.endDockResize(),
-                        onHorizontalDragCancel: _controller.endDockResize,
+                    // Over the section's start edge, as the reference client's
+                    // strip is: it takes the pointer away from what is under it
+                    // there, which is the section's own margin.
+                    PositionedDirectional(
+                      start: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: extent,
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.resizeColumn,
+                        child: GestureDetector(
+                          key: DockedStrategy.resizeHandleKey,
+                          behavior: HitTestBehavior.opaque,
+                          // From the press, not past the touch slop: the edge
+                          // follows the pointer from the first pixel.
+                          dragStartBehavior: DragStartBehavior.down,
+                          onHorizontalDragStart: (details) =>
+                              _grabAt(details.globalPosition),
+                          onHorizontalDragUpdate: (details) =>
+                              _dragTo(details.globalPosition),
+                          onHorizontalDragEnd: (_) =>
+                              _controller.endDockResize(),
+                          onHorizontalDragCancel: _controller.endDockResize,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

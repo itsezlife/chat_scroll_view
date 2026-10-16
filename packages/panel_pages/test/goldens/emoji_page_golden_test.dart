@@ -291,8 +291,9 @@ void main() {
   // The third cell of the recents row, 👍: the one with variants.
   Offset thumbCell(WidgetTester tester) =>
       tester.getTopLeft(find.byType(EmojiPage)) +
-      // Below the search field, the first thing in the content.
-      const Offset(5 + 43.75 * 2.5, 50 + 27 + 22.5);
+      // Below the search field, the first thing in the content; the pointer
+      // grid at 360 is nine columns of 38 x 36 from 11 across.
+      const Offset(11 + 38 * 2.5, 50 + 27 + 18);
 
   for (final MapEntry(key: variant, value: (brightness, direction))
       in variants.entries.where((e) => e.key != 'light_rtl')) {

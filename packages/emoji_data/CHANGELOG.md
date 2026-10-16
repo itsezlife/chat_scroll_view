@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- `EmojiCatalog` flattens genders by default (`flattenGenders`): the person,
+  the man and the woman of an emoji are entries of their own, in that order,
+  each with its tones only. An emoji whose genders have no toneless form keeps
+  its one entry. Pass `flattenGenders: false` for the merged entries.
+
 ### Added
 
 - `EmojiSection` and `EmojiCollectionSource(sections:)`: the collections are the

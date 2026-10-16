@@ -31,10 +31,17 @@ sealed class SectionLayout {
   /// [cellExtent] is a fixed row height. [cellAspect] is the cell's
   /// width / height and makes the row height follow the cell width instead, so
   /// the two are exclusive. [spanCount] must be at least 1.
+  ///
+  /// [desiredCellWidth] takes the columns from the width instead of
+  /// [spanCount]: as many as fit at least that wide. [cellHeightInset] makes
+  /// the row that much shorter than the cell is wide. Together they are the
+  /// reference desktop client's emoji list (37 and 2).
   const factory SectionLayout.grid({
     int? spanCount,
     double? cellExtent,
     double? cellAspect,
+    double? desiredCellWidth,
+    double? cellHeightInset,
     double? headerExtent,
     EdgeInsets insets,
     TextDirection? textDirection,
@@ -50,6 +57,8 @@ final class SectionLayout$Grid extends SectionLayout {
     this.spanCount,
     this.cellExtent,
     this.cellAspect,
+    this.desiredCellWidth,
+    this.cellHeightInset,
     this.headerExtent,
     this.insets = EdgeInsets.zero,
     this.textDirection,
@@ -62,6 +71,19 @@ final class SectionLayout$Grid extends SectionLayout {
          cellAspect == null || cellAspect > 0,
          'A cell aspect must be positive.',
        ),
+       assert(
+         desiredCellWidth == null || desiredCellWidth > 0,
+         'A desired cell width must be positive.',
+       ),
+       assert(
+         desiredCellWidth == null || spanCount == null,
+         'A grid takes its columns from a count or from a width, not both.',
+       ),
+       assert(
+         cellHeightInset == null || (cellExtent == null && cellAspect == null),
+         'A row is a fixed extent, an aspect of the cell or the cell width '
+         'less an inset: one of them.',
+       ),
        super._();
 
   /// Columns, or null for the viewport default.
@@ -73,6 +95,16 @@ final class SectionLayout$Grid extends SectionLayout {
 
   /// Cell width / height. The row height is the cell width divided by it.
   final double? cellAspect;
+
+  /// The narrowest a column may be, or null to use [spanCount]: the grid has
+  /// as many columns as fit at this width (at least one), each a whole number
+  /// of logical pixels wide, and what the division leaves is split on both
+  /// sides, the smaller half at the start.
+  final double? desiredCellWidth;
+
+  /// How much shorter than the cell is wide a row is, or null for
+  /// [cellExtent] / [cellAspect].
+  final double? cellHeightInset;
 
   /// Header band height, or null for the viewport default.
   final double? headerExtent;
@@ -96,6 +128,8 @@ final class SectionLayout$Grid extends SectionLayout {
       other.spanCount == spanCount &&
       other.cellExtent == cellExtent &&
       other.cellAspect == cellAspect &&
+      other.desiredCellWidth == desiredCellWidth &&
+      other.cellHeightInset == cellHeightInset &&
       other.headerExtent == headerExtent &&
       other.insets == insets &&
       other.textDirection == textDirection;
@@ -105,6 +139,8 @@ final class SectionLayout$Grid extends SectionLayout {
     spanCount,
     cellExtent,
     cellAspect,
+    desiredCellWidth,
+    cellHeightInset,
     headerExtent,
     insets,
     textDirection,
@@ -113,6 +149,7 @@ final class SectionLayout$Grid extends SectionLayout {
   @override
   String toString() =>
       'SectionLayout.grid(span: $spanCount, cell: $cellExtent, '
-      'aspect: $cellAspect, header: $headerExtent, '
+      'aspect: $cellAspect, desired: $desiredCellWidth, '
+      'inset: $cellHeightInset, header: $headerExtent, '
       'direction: $textDirection)';
 }

@@ -271,8 +271,9 @@ final class ChatInputSet {
     }
   }
 
+  // The reference desktop client's popup: 345 wide, nine columns of 37.
   static const AnchoredPopupStyle _popupStyle = AnchoredPopupStyle(
-    width: 380,
+    width: 345,
     cornerRadius: 14,
     // The room the reference client leaves between its popup and the composer
     // corner it floats over.

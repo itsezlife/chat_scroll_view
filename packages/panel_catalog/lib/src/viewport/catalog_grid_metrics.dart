@@ -102,24 +102,40 @@ CatalogGridMetrics resolveCatalogGrid(
     final SectionLayout$Grid grid => grid,
     null => const SectionLayout$Grid(),
   };
-  final span = grid.spanCount ?? spanCount;
   final insets = grid.insets;
   final usableWidth = math.max<double>(
     0,
     maxWidth - padding.horizontal - insets.horizontal,
   );
   final fixedHeight = grid.cellExtent ?? cellExtent;
-  final cellWidth = usableWidth > 0 ? usableWidth / span : fixedHeight;
+  final desired = grid.desiredCellWidth;
+  // Columns from the width: whole pixels, as the reference client counts
+  // them, the remainder split with the smaller half at the start.
+  final span = desired != null && usableWidth > 0
+      ? math.max(1, (usableWidth / desired).floor())
+      : grid.spanCount ?? spanCount;
+  final cellWidth = usableWidth <= 0
+      ? fixedHeight
+      : desired != null
+      ? (usableWidth / span).floorToDouble()
+      : usableWidth / span;
+  final slack = desired != null && usableWidth > 0
+      ? ((usableWidth - span * cellWidth) / 2).floorToDouble()
+      : 0.0;
   final aspect = grid.cellAspect;
+  final heightInset = grid.cellHeightInset;
   return CatalogGridMetrics(
     spanCount: span,
     cellWidth: cellWidth,
-    cellHeight: aspect != null && usableWidth > 0
-        ? cellWidth / aspect
-        : fixedHeight,
+    cellHeight: switch ((aspect, heightInset)) {
+      _ when usableWidth <= 0 => fixedHeight,
+      (final aspect?, _) => cellWidth / aspect,
+      (_, final inset?) => math.max<double>(1, cellWidth - inset),
+      _ => fixedHeight,
+    },
     headerExtent: grid.headerExtent ?? headerExtent,
     insets: insets,
-    left: padding.left + insets.left,
+    left: padding.left + insets.left + slack,
     usableWidth: usableWidth,
     textDirection: grid.textDirection ?? textDirection,
   );

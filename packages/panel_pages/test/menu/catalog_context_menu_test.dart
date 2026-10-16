@@ -281,13 +281,53 @@ void main() {
   });
 
   group('keyboard', () {
-    testWidgets('the first item has focus, the arrows move it and Enter '
+    testWidgets('opens with no item highlighted, as a native menu does', (
+      tester,
+    ) async {
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.alwaysTraditional;
+      addTearDown(
+        () => FocusManager.instance.highlightStrategy =
+            FocusHighlightStrategy.automatic,
+      );
+      await pump(tester);
+      open(const Offset(100, 200));
+      await tester.pump();
+      await tester.pump();
+
+      final washed = tester
+          .widgetList<Container>(
+            find.ancestor(of: item('Copy'), matching: find.byType(Container)),
+          )
+          .where((c) => c.color != null && c.color!.a > 0);
+      expect(washed, isEmpty);
+      expect(FocusManager.instance.primaryFocus?.debugLabel, isNot('copy'));
+    });
+
+    testWidgets('Enter with nothing highlighted chooses nothing', (
+      tester,
+    ) async {
+      await pump(tester);
+      open(const Offset(100, 200));
+      await tester.pump();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+
+      expect(chosen, isEmpty);
+      expect(controller.isOpen, isTrue);
+    });
+
+    testWidgets('Down highlights the first item, the next moves on, and Enter '
         'chooses', (tester) async {
       await pump(tester);
       open(const Offset(100, 200));
       await tester.pump();
       await tester.pump();
 
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
       await tester.pump();
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -297,8 +337,7 @@ void main() {
       expect(controller.isOpen, isFalse);
     });
 
-    testWidgets('Enter on the first item chooses it, and Up wraps to the '
-        'last', (tester) async {
+    testWidgets('Up from nothing highlights the last item', (tester) async {
       await pump(tester);
       open(const Offset(100, 200));
       await tester.pump();

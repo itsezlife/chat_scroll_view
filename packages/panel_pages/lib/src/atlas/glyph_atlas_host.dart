@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:catalog_assets/catalog_assets.dart'
+    show GlyphSpriteSource, LayeredGlyphSource;
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:flutter/foundation.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_pages/src/atlas/glyph_plan.dart';
+import 'package:panel_pages/src/bake/bake_activity_port.dart';
 
 /// Builds the atlas a [GlyphAtlasRequest] describes; the web counterpart
 /// returns null.
@@ -19,21 +22,22 @@ typedef GlyphAtlasFactory = GlyphAtlas? Function(GlyphAtlasRequest request);
 ///
 /// ## What is planned
 ///
-/// [sync] takes a [GlyphPlan] and plans an atlas for it, because an atlas can
-/// only draw glyphs it planned and the viewport never falls back to text where
-/// glyphs are baked. When a glyph appears that the current atlas does not hold
-/// (a variant chosen for the first time, a recent the catalogue lacks) or the
-/// density changes ([devicePixelRatio]), the atlas is planned again and [atlas]
-/// signals. The new atlas takes over what the old one was drawing
-/// ([GlyphAtlas.retire]), so the grid never goes blank: it shows the old art
-/// for the glyphs both plans hold while the new pages bake, and swaps once.
-/// The old atlas stops before the new one touches the cache, so a persistent
-/// cache always has one writer.
+/// The first [sync] plans the [atlas] for its [GlyphPlan], baked in the
+/// background. A later plan with glyphs no atlas holds (a variant chosen for
+/// the first time, a recent the catalogue lacks) does not plan that atlas
+/// again: an atlas for just those glyphs joins as a layer of [source], and
+/// bakes them in a page or two. Nothing already baked is baked again, and the
+/// persisted pages keep their key. Until a layer has baked a glyph, [source]
+/// does not make a surface wait for it ([GlyphSpriteSource.waitsForSprite]):
+/// the glyph is drawn as text for those frames, never as a placeholder.
 ///
-/// A plan whose glyphs are all held already changes nothing: a glyph that
-/// left the plan (an emoji the device turned out not to draw) keeps its cell,
-/// because planning without it would change the cache key and re-bake every
-/// page.
+/// No glyph ever leaves [source]: a plan without one (the user chose another
+/// tone) still has surfaces outside the panel drawing it, such as the inline
+/// emoji of a composer. Only a density change ([devicePixelRatio]) plans the
+/// [atlas] again, for every glyph of every layer; the layers go, and the new
+/// atlas takes over what the old one was drawing ([GlyphAtlas.retire]) so the
+/// grid never goes blank. The old atlas stops before the new one touches the
+/// cache, so a persistent cache always has one writer.
 ///
 /// ## Pause signals
 ///
@@ -70,7 +74,12 @@ typedef GlyphAtlasFactory = GlyphAtlas? Function(GlyphAtlasRequest request);
 ///
 /// On a platform that does not bake ([atlasFactory] returns null) there is
 /// never an atlas and the page draws text.
-final class GlyphAtlasHost {
+///
+/// ## Activity
+///
+/// The host is the [BakeActivityPort] of its page: motion and the glyphs on
+/// screen reach every layer, including one added while the motion lasts.
+final class GlyphAtlasHost implements BakeActivityPort {
   /// Creates a host that bakes on [frames], sized for glyphs drawn in a box
   /// [glyphBoxExtent] logical pixels wide.
   ///
@@ -132,22 +141,32 @@ final class GlyphAtlasHost {
   final ValueNotifier<bool> _visible;
   final ValueNotifier<bool> _opening;
   final _atlas = listen.ValueNotifier<GlyphAtlas?>(null);
+  final _source = listen.ValueNotifier<LayeredGlyphSource?>(null);
+  // The atlases planned after [_atlas] for the glyphs it lacked, with the
+  // in-memory store of each.
+  final List<(GlyphAtlas, GlyphPageStore)> _layers = [];
+  final Set<Object> _scrollers = {};
+  List<String> _priority = const [];
 
   double _devicePixelRatio;
   GlyphAtlasPersistence? _persistence;
   // The in-memory store of the current atlas (null with persistence); cleared
   // when that atlas is replaced.
   GlyphPageStore? _atlasStore;
-  // The last plan given, so a density change can plan again without the page.
-  GlyphPlan? _plan;
   // The factory said once that this platform bakes nothing; it will not change
   // its mind, so later plans do not ask again.
   bool _platformBakesNothing = false;
   bool _disposed = false;
 
-  /// The atlas to draw from, or null before there is a plan and on a platform
-  /// that does not bake. Signals when it is replaced.
+  /// The atlas of the first plan, baked in the background, or null before
+  /// there is a plan and on a platform that does not bake. Signals when it is
+  /// replaced.
   listen.ValueListenable<GlyphAtlas?> get atlas => _atlas;
+
+  /// What a surface draws from: [atlas], then the layers planned for the
+  /// glyphs it lacked. Null exactly when [atlas] is; replaced (and signals)
+  /// with it, not when a layer joins.
+  listen.ValueListenable<GlyphSpriteSource?> get source => _source;
 
   /// Whether a plan found out that this platform bakes nothing, so no atlas
   /// will ever exist. False until the first plan is made.
@@ -166,27 +185,62 @@ final class GlyphAtlasHost {
     if (value == _devicePixelRatio) return;
     _devicePixelRatio = value;
     _persistence = _persistence?.withDevicePixelRatio(value);
-    final plan = _plan;
-    if (_disposed || plan == null || _atlas.value == null) return;
-    _replan(plan);
+    final current = _atlas.value;
+    if (_disposed || current == null) return;
+    _replan(GlyphPlan([..._glyphs]));
   }
 
-  /// Plans the atlas for [plan] if the page would draw a glyph the current one
-  /// does not hold.
+  /// Makes sure every glyph of [plan] is held: the first plan becomes the
+  /// [atlas]; a later one adds a layer for the glyphs nothing holds yet.
   void sync(GlyphPlan plan) {
     if (_disposed || _platformBakesNothing) return;
-    final current = _atlas.value;
-    if (current != null &&
-        plan.glyphs.every(
-          (glyph) => current.index.placementOf(glyph) != null,
-        )) {
+    if (_atlas.value == null) {
+      _replan(plan);
       return;
     }
-    _plan = plan;
-    _replan(plan);
+    final held = _glyphs;
+    final missing = [
+      for (final glyph in plan.glyphs)
+        if (!held.contains(glyph)) glyph,
+    ];
+    if (missing.isEmpty) return;
+    _addLayer(missing);
   }
 
-  /// Builds an atlas for [plan] and puts it in place of the current one.
+  @override
+  void reportScrolling({required Object reporter, required bool scrolling}) {
+    if (_disposed) return;
+    if (scrolling) {
+      _scrollers.add(reporter);
+    } else {
+      _scrollers.remove(reporter);
+    }
+    for (final atlas in _atlases) {
+      atlas.reportScrolling(reporter: reporter, scrolling: scrolling);
+    }
+  }
+
+  @override
+  void prioritise(List<String> glyphs) {
+    if (_disposed) return;
+    _priority = glyphs;
+    for (final atlas in _atlases) {
+      atlas.prioritise(glyphs);
+    }
+  }
+
+  Iterable<GlyphAtlas> get _atlases => [
+    ?_atlas.value,
+    for (final (atlas, _) in _layers) atlas,
+  ];
+
+  // Every glyph some atlas holds, in plan order.
+  Set<String> get _glyphs => {
+    for (final atlas in _atlases) ...atlas.index.glyphs,
+  };
+
+  /// Builds an atlas for [plan] and puts it in place of the current one and
+  /// its layers.
   void _replan(GlyphPlan plan) {
     final current = _atlas.value;
     final replacedStore = _atlasStore;
@@ -195,40 +249,19 @@ final class GlyphAtlasHost {
       // The retired atlas may still be writing its last page.
       unawaited(predecessor.settled.then((_) => replacedStore.clear()));
     }
-    final residency = GlyphPageResidency(
-      retention: _pageRetention,
-      memoryPressure: _memoryPressure,
-    );
+    _dropLayers();
     final store = switch (_persistence) {
       null => _newStore(),
       _ => null,
     };
-    // The layout depends on the display only; the glyph box is nominal (the
-    // page scales the sprite to its real cell).
-    final atlas = _atlasFactory(
-      GlyphAtlasRequest(
-        index: GlyphAtlasIndex(
-          plan.glyphs,
-          layout: GlyphAtlasLayout.forCell(
-            logicalExtent: _glyphBoxExtent,
-            devicePixelRatio: _devicePixelRatio,
-          ),
-        ),
-        rasteriser: _rasteriser,
-        store: store,
-        persistence: _persistence,
-        frames: _frames,
-        clock: _clock,
-        panelVisible: _visible,
-        panelOpening: _opening,
-        residency: residency,
-        observer: _observer,
-        predecessor: predecessor,
-      ),
+    final atlas = _build(
+      plan.glyphs,
+      store: store,
+      persistence: _persistence,
+      predecessor: predecessor,
     );
     if (atlas == null) {
       // Nothing took them over (a platform that does not bake).
-      residency.dispose();
       predecessor?.dispose();
       unawaited(store?.clear());
       _platformBakesNothing = true;
@@ -238,6 +271,76 @@ final class GlyphAtlasHost {
       _ => store,
     };
     _atlas.value = atlas?..start();
+    _source.value?.dispose();
+    _source.value = switch (atlas) {
+      final atlas? => LayeredGlyphSource(atlas),
+      null => null,
+    };
+  }
+
+  /// Plans an atlas of its own for [glyphs], in a store of its own (never the
+  /// persistent cache, whose key is the first plan's), and adds it to
+  /// [source].
+  void _addLayer(List<String> glyphs) {
+    final store = _newStore();
+    final atlas = _build(glyphs, store: store);
+    if (atlas == null) {
+      unawaited(store.clear());
+      return;
+    }
+    _layers.add((atlas, store));
+    for (final reporter in _scrollers) {
+      atlas.reportScrolling(reporter: reporter, scrolling: true);
+    }
+    if (_priority.isNotEmpty) atlas.prioritise(_priority);
+    atlas.start();
+    _source.value?.add(atlas);
+  }
+
+  GlyphAtlas? _build(
+    List<String> glyphs, {
+    required GlyphPageStore? store,
+    GlyphAtlasPersistence? persistence,
+    RetiredGlyphArt? predecessor,
+  }) {
+    final residency = GlyphPageResidency(
+      retention: _pageRetention,
+      memoryPressure: _memoryPressure,
+    );
+    // The layout depends on the display only; the glyph box is nominal (the
+    // page scales the sprite to its real cell).
+    final atlas = _atlasFactory(
+      GlyphAtlasRequest(
+        index: GlyphAtlasIndex(
+          glyphs,
+          layout: GlyphAtlasLayout.forCell(
+            logicalExtent: _glyphBoxExtent,
+            devicePixelRatio: _devicePixelRatio,
+          ),
+        ),
+        rasteriser: _rasteriser,
+        store: store,
+        persistence: persistence,
+        frames: _frames,
+        clock: _clock,
+        panelVisible: _visible,
+        panelOpening: _opening,
+        residency: residency,
+        observer: _observer,
+        predecessor: predecessor,
+      ),
+    );
+    if (atlas == null) residency.dispose();
+    return atlas;
+  }
+
+  void _dropLayers() {
+    for (final (atlas, store) in _layers) {
+      _source.value?.remove(atlas);
+      final retired = atlas.retire()..dispose();
+      unawaited(retired.settled.then((_) => store.clear()));
+    }
+    _layers.clear();
   }
 
   void _onVisible() => _visible.value = _visibleSource.value;
@@ -250,6 +353,10 @@ final class GlyphAtlasHost {
     _disposed = true;
     _visibleSource.removeListener(_onVisible);
     _openingSource.removeListener(_onOpening);
+    _dropLayers();
+    _source.value?.dispose();
+    _source.value = null;
+    _source.dispose();
     _atlas.value?.dispose();
     _atlas.value = null;
     _atlas.dispose();

@@ -209,6 +209,9 @@ final class _ResidencySource implements GlyphSpriteSource {
   }
 
   @override
+  bool waitsForSprite(String glyph) => _pageOf.containsKey(glyph);
+
+  @override
   void addPageListener(void Function(int pageIndex) listener) =>
       residency.addReleaseListener(listener);
 

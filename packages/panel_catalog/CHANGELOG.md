@@ -8,6 +8,18 @@ is pre-1.0.
 
 ### Added
 
+- An adaptive grid: `SectionLayout.grid(desiredCellWidth:, cellHeightInset:)`
+  fits as many columns of the desired width as the width allows, widens the
+  cell to share the room and centres the remainder ([ADR 024](../../docs/adr/024-panel-catalog-seams.md)
+  amendment).
+
+### Changed
+
+- A mouse no longer drags the catalogue; the wheel and the scrollbar scroll
+  it.
+
+### Added
+
 - Mouse seams on `PanelCatalogViewport` ([ADR 024](../../docs/adr/024-panel-catalog-seams.md)):
   `onLeafSecondaryTap(hit, globalPosition)` for a mouse's right button (button
   up); `leafLongPressDelay(hit, kind)`, a long-press delay per cell and pointer

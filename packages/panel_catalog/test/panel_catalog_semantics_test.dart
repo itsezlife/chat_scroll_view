@@ -549,6 +549,9 @@ class _CountingSource implements GlyphSpriteSource {
   SpritePageHold? holdPageOf(String glyph) => null;
 
   @override
+  bool waitsForSprite(String glyph) => true;
+
+  @override
   void addPageListener(void Function(int pageIndex) listener) {}
 
   @override

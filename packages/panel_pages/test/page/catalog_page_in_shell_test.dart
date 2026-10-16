@@ -25,7 +25,10 @@ class _Policy extends CatalogPagePolicy {
   PageCapabilities get capabilities => const PageCapabilities(search: true);
 
   @override
-  SectionLayout? layoutOf(Collection collection) =>
+  SectionLayout? layoutOf(
+    Collection collection, {
+    PanelArrangement arrangement = PanelArrangement.touch,
+  }) =>
       const SectionLayout.grid(spanCount: 4, cellExtent: 40, headerExtent: 24);
 }
 

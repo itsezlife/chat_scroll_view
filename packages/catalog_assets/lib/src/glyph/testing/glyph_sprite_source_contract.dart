@@ -56,6 +56,12 @@ void runGlyphSpriteSourceContract(GlyphSpriteSourceHarness Function() create) {
       expect(sprite!.pageIndex, isNonNegative);
     });
 
+    test('makes a surface wait for a planned glyph and not for an unplanned '
+        'one', () {
+      expect(harness.source.waitsForSprite(harness.plannedGlyph), isTrue);
+      expect(harness.source.waitsForSprite(harness.unplannedGlyph), isFalse);
+    });
+
     test('tells page listeners when a page becomes drawable', () async {
       final heard = <int>[];
       harness.source.addPageListener(heard.add);

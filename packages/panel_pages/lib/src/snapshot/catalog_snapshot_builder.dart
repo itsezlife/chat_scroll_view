@@ -71,7 +71,7 @@ final class CatalogSnapshotBuilder {
         ],
         _ => const [],
       },
-      layout: policy.layoutOf(collection),
+      layout: policy.layoutOf(collection, arrangement: arrangement),
       contentBox: policy.contentBoxOf(collection),
       placeholderStyle: policy.placeholderStyleOf(collection),
       state: switch (contents) {

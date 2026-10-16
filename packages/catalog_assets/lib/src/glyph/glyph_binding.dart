@@ -6,6 +6,7 @@ import 'package:catalog_assets/src/asset/asset_paintable.dart';
 import 'package:catalog_assets/src/asset/asset_readiness.dart';
 import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
 import 'package:catalog_assets/src/glyph/glyph_sprite_source.dart';
+import 'package:catalog_assets/src/glyph/text_glyph_paintable.dart';
 import 'package:content_model/content_model.dart';
 
 /// The binding of the glyph media form: a unicode key bound to a baked sprite
@@ -15,10 +16,13 @@ import 'package:content_model/content_model.dart';
 /// count taken from the [GlyphSpriteSource], never pixels) and gives it back
 /// once. It has no cache entry then: the pixels belong to the source, so there
 /// is nothing for the budget to evict and nothing the cache can do to a live
-/// binding's hold. Until the glyph is baked it is at [AssetStage.placeholder]
-/// with no time limit and paints the scope's placeholder; once baked it is
-/// final at [AssetStage.full] and exposes the sprite. A glyph the source does
-/// not know stays a placeholder.
+/// binding's hold. Once baked it is final at [AssetStage.full] and exposes the
+/// sprite. Before, it does what the source says ([GlyphSpriteSource.waitsForSprite]):
+/// a glyph of the background bake is at [AssetStage.placeholder] with no time
+/// limit and paints the scope's placeholder; any other (one the source does
+/// not know, or bakes on demand) is at [AssetStage.firstFrame] and paints the
+/// glyph as text until its sprite is there. A source that learns a glyph
+/// after the attach gets the hold on its page when the page is drawable.
 ///
 /// Without a source it is the binding of the entry the scope's producer makes
 /// (text on a platform that draws glyphs as text) and reads everything from
@@ -54,6 +58,9 @@ final class GlyphBinding extends AssetBindingBase {
   GlyphSpriteSource? _source;
   SpritePageHold? _hold;
   AssetBinding? _entry;
+  // The glyph as text while the source has no sprite and does not make the
+  // binding wait for one; laid out lazily, dropped with the binding.
+  TextGlyphPaintable? _text;
 
   /// Moves this binding to [source] (null for the producer's entry): gives
   /// back what it held of the old mode, takes what the new needs and signals.
@@ -85,20 +92,39 @@ final class GlyphBinding extends AssetBindingBase {
     _entry = null;
   }
 
-  /// A page of the source changed drawability; the surface repaints.
+  /// A page of the source changed drawability; the surface repaints. A glyph
+  /// the source has come to know takes the hold on its page it could not take
+  /// at the attach.
   void pageChanged() {
-    if (!isDetached) signal();
+    if (isDetached) return;
+    final source = _source;
+    if (_hold == null && source != null && _entry == null) {
+      _hold = source.holdPageOf(_glyph);
+    }
+    signal();
   }
+
+  // Whether the binding draws the glyph as text while it has no sprite: the
+  // source does not make it wait. Asked only once the sprite is known to be
+  // missing, so a paint asks the source for the sprite once.
+  bool get _drawsText {
+    final source = _source;
+    return source != null && !source.waitsForSprite(_glyph);
+  }
+
+  TextGlyphPaintable get _textPaintable => _text ??= TextGlyphPaintable(_glyph);
 
   AtlasSprite? get _sprite => _source?.spriteOf(_glyph);
 
   @override
   AssetReadiness get liveReadiness {
     if (_entry case final entry?) return entry.readiness;
-    return switch (_sprite) {
-      null => const AssetReadiness(AssetStage.placeholder),
-      _ => const AssetReadiness(AssetStage.full, isFinal: true),
-    };
+    if (_sprite != null) {
+      return const AssetReadiness(AssetStage.full, isFinal: true);
+    }
+    return _drawsText
+        ? const AssetReadiness(AssetStage.firstFrame)
+        : const AssetReadiness(AssetStage.placeholder);
   }
 
   @override
@@ -120,6 +146,8 @@ final class GlyphBinding extends AssetBindingBase {
   void releaseResources() {
     _hold?.release();
     _hold = null;
+    _text?.dispose();
+    _text = null;
     _closeEntry();
     _onDetach(this);
   }
@@ -144,7 +172,11 @@ final class _GlyphPaintable implements AssetPaintable {
   void paint(Canvas canvas, Rect rect, AssetPaintContext context) {
     final sprite = this.sprite;
     if (sprite == null) {
-      _placeholder.paint(canvas, rect, context);
+      if (_binding._drawsText) {
+        _binding._textPaintable.paint(canvas, rect, context);
+      } else {
+        _placeholder.paint(canvas, rect, context);
+      }
       return;
     }
     _paint.color = Color.fromRGBO(0, 0, 0, context.opacity);

@@ -7,14 +7,31 @@ import 'package:catalog_assets/src/glyph/glyph_sprite_source.dart';
 /// releases by hand, with hold counts it can read.
 ///
 /// Glyph `i` of the list sits on page `i ~/ glyphsPerPage`. A page has a
-/// sprite for its glyphs only while baked.
+/// sprite for its glyphs only while baked. The glyphs of [onDemand] are
+/// planned but do not make a surface wait ([waitsForSprite]); [learn] adds a
+/// glyph to the end of the plan, as a source that grows does.
 final class FakeGlyphSpriteSource implements GlyphSpriteSource {
   /// Creates a source for [glyphs], [glyphsPerPage] to a page.
-  FakeGlyphSpriteSource(this.glyphs, {this.glyphsPerPage = 2})
-    : assert(glyphsPerPage > 0, 'a page holds at least one glyph');
+  FakeGlyphSpriteSource(
+    List<String> glyphs, {
+    this.glyphsPerPage = 2,
+    Set<String> onDemand = const {},
+  }) : assert(glyphsPerPage > 0, 'a page holds at least one glyph'),
+       glyphs = List.of(glyphs),
+       onDemand = Set.of(onDemand);
 
   /// The planned glyphs, in page order.
   final List<String> glyphs;
+
+  /// The planned glyphs a surface does not wait for.
+  final Set<String> onDemand;
+
+  /// Adds [glyph] to the end of the plan, baked on demand.
+  void learn(String glyph) {
+    if (glyphs.contains(glyph)) return;
+    glyphs.add(glyph);
+    onDemand.add(glyph);
+  }
 
   /// Glyphs on each page.
   final int glyphsPerPage;
@@ -84,6 +101,10 @@ final class FakeGlyphSpriteSource implements GlyphSpriteSource {
     _holds[page] = holdCount(page) + 1;
     return _FakeHold(() => _holds[page] = holdCount(page) - 1);
   }
+
+  @override
+  bool waitsForSprite(String glyph) =>
+      !_disposed && glyphs.contains(glyph) && !onDemand.contains(glyph);
 
   @override
   void addPageListener(void Function(int pageIndex) listener) =>

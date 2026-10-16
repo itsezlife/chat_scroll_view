@@ -51,3 +51,15 @@ identity, semantics) keep the near / far invariants in
 
 - Glossary: [Panel Catalog](../panel-catalog/CONTEXT.md)
 - Asset side: [ADR 022](022-asset-cache-and-media-pipeline.md)
+
+## Amendment: an adaptive grid
+
+The reference desktop client sizes its emoji columns from the panel's width: as
+many columns of a desired width as fit, the cell widened to share the room, the
+remainder split as a margin.
+
+| Area | Decision |
+| ---- | -------- |
+| Grid | `SectionLayout.grid` takes an optional `desiredCellWidth` and `cellHeightInset`. With them, `cols = max(floor(usable / desired), 1)`, `cellWidth = floor(usable / cols)`, `cellHeight = cellWidth - inset`, and `floor(remainder / 2)` is added to the leading padding. Without them the fixed column count and cell stay as they were. |
+| Policy | `CatalogPagePolicy.layoutOf(collection, {arrangement})`: a page may lay a section out per arrangement. The emoji page asks for 37 px cells, 2 px shorter than wide, under `pointer`. |
+| Drag | A mouse does not drag the catalogue; the wheel and the scrollbar scroll it. Touch, stylus and trackpad still drag. |

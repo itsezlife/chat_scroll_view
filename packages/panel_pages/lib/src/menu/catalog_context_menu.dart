@@ -154,12 +154,16 @@ class _CatalogContextMenuHostState extends State<CatalogContextMenuHost> {
     onClose: () {
       if (!_moving) _releaseHold();
     },
-    overlayBuilder: (context, info) => _MenuSurface(
-      position: info.anchorRect.topLeft + (info.position ?? Offset.zero),
-      overlaySize: info.overlaySize,
-      entries: _entries,
-      onChoose: _choose,
-      onDismiss: _close,
+    // In the text fields' tap group, barrier included: a press on the menu
+    // is not a press outside the composer.
+    overlayBuilder: (context, info) => TextFieldTapRegion(
+      child: _MenuSurface(
+        position: info.anchorRect.topLeft + (info.position ?? Offset.zero),
+        overlaySize: info.overlaySize,
+        entries: _entries,
+        onChoose: _choose,
+        onDismiss: _close,
+      ),
     ),
     child: widget.child,
   );
@@ -296,10 +300,12 @@ class _CatalogContextMenuPanelState extends State<CatalogContextMenuPanel> {
   void initState() {
     super.initState();
     _nodes = _nodesFor(widget.entries);
-    // The keys go to the menu while it is up. The composer keeps its caret in
-    // its own node and has it back at the end.
+    // The keys go to the menu while it is up, but to the menu, not to an
+    // item: like a native menu it opens with nothing highlighted, and the
+    // first arrow press highlights the first (Down) or the last (Up) item. The
+    // composer keeps its caret in its own node and has it back at the end.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _nodes.isNotEmpty) _nodes.first.requestFocus();
+      if (mounted && _nodes.isNotEmpty) _scope.requestFocus();
     });
   }
 

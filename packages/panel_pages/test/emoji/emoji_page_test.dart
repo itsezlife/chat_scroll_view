@@ -472,6 +472,8 @@ void main() {
 
     GlyphAtlas? atlas() => controller().atlasHost?.atlas.value;
 
+    GlyphSpriteSource? drawnFrom() => controller().atlasHost?.source.value;
+
     testWidgets('is planned for what the page shows, once it is loaded', (
       tester,
     ) async {
@@ -500,7 +502,7 @@ void main() {
       await tester.pumpWidget(page(atlas: factory()));
       await tester.pumpAndSettle();
 
-      expect(assets.glyphSource, same(atlas()));
+      expect(assets.glyphSource, same(drawnFrom()));
       expect(PanelCatalogDiagnostics.glyphParagraphDraws, 0);
     });
 
@@ -519,7 +521,7 @@ void main() {
         atlas()!.index.layout.glyphSize,
         greaterThan(first.index.layout.glyphSize),
       );
-      expect(assets.glyphSource, same(atlas()), reason: 'rebound in place');
+      expect(assets.glyphSource, same(drawnFrom()), reason: 'rebound');
     });
 
     testWidgets('bakes only while the panel is visible', (tester) async {
@@ -548,7 +550,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(atlas(), same(first));
-      expect(assets.glyphSource, same(first));
+      expect(assets.glyphSource, same(drawnFrom()));
     });
 
     testWidgets('is released with the shell controller', (tester) async {
@@ -570,11 +572,11 @@ void main() {
     ) async {
       await tester.pumpWidget(page(atlas: factory()));
       await tester.pumpAndSettle();
-      final first = atlas()!;
+      final drawn = drawnFrom()!;
 
       await tester.pumpWidget(const SizedBox());
 
-      expect(assets.glyphSource, same(first));
+      expect(assets.glyphSource, same(drawn));
     });
 
     testWidgets('keeps drawing the glyphs of a surface outside the panel after '
@@ -652,7 +654,7 @@ void main() {
         }
       });
 
-      expect(assets.glyphSource, same(atlas()));
+      expect(assets.glyphSource, same(drawnFrom()));
       expect(early.paintable.sprite, isNotNull);
       expect(PanelCatalogDiagnostics.glyphParagraphDraws, 0);
     });
@@ -695,23 +697,43 @@ void main() {
       expect(early.readiness.stage, AssetStage.full);
     });
 
-    testWidgets('is planned again behind the old art when a variant is chosen '
-        'for the first time', (tester) async {
+    testWidgets('a variant chosen for the first time is baked on its own, and '
+        'the one it replaced stays drawn outside the panel', (tester) async {
+      final dark = fixtures.thumbsUp.variants[2].key.sequence;
+      final light = fixtures.thumbsUp.variants[0].key.sequence;
       final mutable = _MutableSource(glyphs: ['😀', '👍']);
       addTearDown(mutable.dispose);
       await tester.pumpWidget(page(withSource: mutable, atlas: factory()));
       await tester.pumpAndSettle();
       final first = atlas()!;
+      Future<void> bake() => tester.runAsync(() async {
+        for (var i = 0; i < 200 && frames.hasPendingRequest; i++) {
+          frames.pump();
+          await pumpEventQueue();
+        }
+      });
 
-      mutable.show(['😀', fixtures.thumbsUp.variants[2].key.sequence]);
+      mutable.show(['😀', dark]);
       await tester.pump();
-
-      expect(atlas(), isNot(same(first)));
-      expect(
-        atlas()!.index.placementOf(fixtures.thumbsUp.variants[2].key.sequence),
-        isNotNull,
+      expect(atlas(), same(first), reason: 'nothing baked again');
+      expect(assets.glyphSource, same(drawnFrom()));
+      await bake();
+      // The composer has the dark one typed in.
+      const spec = AssetSpec(pixelWidth: 72, pixelHeight: 72);
+      final typed = assets.attach(
+        fixtures.key(dark),
+        spec,
+        const AssetProfile(),
       );
-      expect(assets.glyphSource, same(atlas()));
+      addTearDown(typed.detach);
+      expect(typed.paintable.sprite, isNotNull);
+
+      mutable.show(['😀', light]);
+      await tester.pump();
+      await bake();
+
+      expect(typed.paintable.sprite, isNotNull, reason: 'not a circle');
+      expect(drawnFrom()!.spriteOf(light), isNotNull);
     });
 
     testWidgets('is not planned with no factory: glyphs are drawn as text', (

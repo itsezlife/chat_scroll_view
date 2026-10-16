@@ -24,8 +24,13 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 
 /// The decisions that make a catalogue page the emoji page.
 ///
-/// - **Geometry.** Eight columns of [cellPitch] rows under a [headerExtent]
-///   header, for the categories and the search results alike. Emoji are drawn
+/// - **Geometry.** Under the touch arrangement eight columns of [cellPitch]
+///   rows under a [headerExtent] header, for the categories and the search
+///   results alike. Under the pointer arrangement the reference desktop
+///   client's grid: as many columns of at least [pointerDesiredCellWidth] as
+///   the width holds, whole pixels wide, each row [pointerCellHeightInset]
+///   shorter, so a dock that is dragged wider or narrower gains or loses
+///   columns at once. Emoji are drawn
 ///   in the glyph box of the cell ([glyphBoxExtent]), which is also the size
 ///   the glyph atlas is baked for.
 /// - **Sections.** One per category with the title the panel strings give the
@@ -44,10 +49,12 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 ///   it for the emoji's base through the `PreferenceStore`, the base itself
 ///   included (that the user chose is what the next press asks), so the grid
 ///   shows it from then on. An emoji with no variants has no long press.
-///   Under a mouse the press opens the picker at once for an emoji the user
-///   has never chosen a variant of, and after [pointerHoldDelay] otherwise (a
-///   release before then picks the emoji as the grid shows it); a finger or
-///   stylus keeps the platform's long-press delay.
+///   Under a mouse the picker opens after a [pointerHoldDelay] hold, whether
+///   or not a variant was ever chosen, and a release before then picks the
+///   emoji as the grid shows it: a click is always a pick. (The reference
+///   desktop client opens it on the press for an emoji never chosen; a click
+///   that inserts nothing read as a bug.) A finger or stylus keeps the
+///   platform's long-press delay.
 /// - **Strip.** The category strip above the catalogue, or pinned below it
 ///   under the pointer arrangement ([stripReady] defers it).
 final class EmojiPagePolicy extends CatalogPagePolicy {
@@ -109,6 +116,19 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     headerExtent: headerExtent,
   );
 
+  /// The narrowest a column of the pointer grid is: the reference desktop
+  /// client's emoji list, whose columns are as many as fit at this width.
+  static const double pointerDesiredCellWidth = 37;
+
+  /// How much shorter than it is wide a row of the pointer grid is.
+  static const double pointerCellHeightInset = 2;
+
+  static const SectionLayout _pointerLayout = SectionLayout.grid(
+    desiredCellWidth: pointerDesiredCellWidth,
+    cellHeightInset: pointerCellHeightInset,
+    headerExtent: headerExtent,
+  );
+
   /// The page's connection to the shell.
   final PanelPageHost host;
 
@@ -151,7 +171,13 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
       };
 
   @override
-  SectionLayout? layoutOf(Collection collection) => _layout;
+  SectionLayout? layoutOf(
+    Collection collection, {
+    PanelArrangement arrangement = PanelArrangement.touch,
+  }) => switch (arrangement) {
+    PanelArrangement.touch => _layout,
+    PanelArrangement.pointer => _pointerLayout,
+  };
 
   // --- Context menu ---------------------------------------------------------
 
@@ -218,13 +244,6 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     _ => null,
   };
 
-  // A cell of the recents is already the exact emoji that was used: it counts
-  // as chosen, so a mouse holds for the picker there instead of getting it
-  // on every press.
-  bool _opensAtOnce(EmojiEntry entry, Collection collection) =>
-      collection.id != CollectionId.recent &&
-      preferences.preferredVariant(entry.base) == null;
-
   @override
   Duration? longPressDelayOf(
     CatalogLeafHit hit,
@@ -232,9 +251,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     PointerDeviceKind kind,
   ) {
     if (kind != PointerDeviceKind.mouse) return null;
-    final entry = _variantsOf(hit.leaf.key);
-    if (entry == null) return null;
-    return _opensAtOnce(entry, collection) ? Duration.zero : pointerHoldDelay;
+    return _variantsOf(hit.leaf.key) == null ? null : pointerHoldDelay;
   }
 
   @override
@@ -259,10 +276,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
       final ContentKey$Unicode initial,
     )) {
       final mode = switch (kind) {
-        PointerDeviceKind.mouse =>
-          _opensAtOnce(entry, collection)
-              ? EmojiVariantPickerMode.pointerImmediate
-              : EmojiVariantPickerMode.pointerHold,
+        PointerDeviceKind.mouse => EmojiVariantPickerMode.pointerHold,
         _ => EmojiVariantPickerMode.touch,
       };
       // The hold goes up with the picker: the move onto it is the first thing

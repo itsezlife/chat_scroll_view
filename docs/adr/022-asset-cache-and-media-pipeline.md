@@ -59,3 +59,19 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 
 - Panel-side view and acceptance: [ADR 006](006-panel-catalog-viewport.md) (amendment); cache and invalidation QA: [qa-glyph-cache.md](../panel-catalog/qa-glyph-cache.md)
 - Glossary: [Content and assets](../content/CONTEXT.md), [Panel Catalog](../panel-catalog/CONTEXT.md) (glyph atlas group)
+
+## Amendment: glyphs that join after the plan
+
+An atlas draws only what it was planned with, and its plan cannot change in
+place. Planning the whole atlas again for every new glyph (a tone chosen for the
+first time) re-baked the catalogue for one emoji, re-keyed the persistent cache,
+and dropped from the new plan the glyphs the grid no longer showed while a
+composer still drew them, as placeholders, until the panel was reopened. The
+reference clients draw a new emoji at once and never unload one in use.
+
+| Area | Decision |
+| ---- | -------- |
+| Waiting | The glyph sprite source answers `waitsForSprite(glyph)`: whether a sprite for it is on its way. An atlas says yes for every glyph it planned (circle until baked, the rule above); a glyph no source waits for is drawn as text by its binding (`firstFrame`), so a glyph outside every plan is never a circle for good. |
+| Layers | `LayeredGlyphSource` is one source over several: the first layer is the background bake and decides `waitsForSprite`; layers added later bake on demand, and a surface draws their glyphs as text until their sprite exists. Sprites and holds come from the first layer that has the glyph; page listeners hear every layer and each add or remove. It owns no layer. |
+| Growth | The page's atlas host keeps the first atlas and, for a plan with glyphs no atlas holds, plans an atlas of just those glyphs (an in-memory store of its own, never the persistent cache) and adds it as a layer. Nothing baked is baked again, the persisted pages keep their key, and no glyph ever leaves the source while the host lives. Only a density change plans the first atlas again, for every glyph of every layer. |
+| Activity | Motion and the visible band reach every layer, including one added while the motion lasts. |

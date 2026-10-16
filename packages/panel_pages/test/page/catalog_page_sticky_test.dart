@@ -56,7 +56,10 @@ class _Policy extends CatalogPagePolicy {
   double get stripExtent => 40;
 
   @override
-  SectionLayout? layoutOf(Collection collection) =>
+  SectionLayout? layoutOf(
+    Collection collection, {
+    PanelArrangement arrangement = PanelArrangement.touch,
+  }) =>
       const SectionLayout.grid(spanCount: 4, cellExtent: 40, headerExtent: 24);
 
   @override

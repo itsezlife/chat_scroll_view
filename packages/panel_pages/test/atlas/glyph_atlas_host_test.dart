@@ -113,52 +113,82 @@ void main() {
     expect(notified, 0);
   });
 
-  test(
-    'plans again, and says so, when a glyph appears that is not planned',
-    () {
+  group('a glyph the atlas does not hold joins in a layer of its own', () {
+    const other = '👍\u{1F3FF}';
+
+    test('the atlas stays and only the new glyph is planned', () {
       final h = host()..sync(_plan());
       final first = h.atlas.value!;
+      final source = h.source.value;
       var notified = 0;
       h.atlas.addListener(() => notified++);
 
       h.sync(GlyphPlan(const ['😀', '😁', _tone]));
 
-      expect(h.atlas.value, isNot(same(first)));
-      expect(h.atlas.value!.index.placementOf(_tone), isNotNull);
-      expect(notified, 1);
-      // The replaced atlas is released, not left baking.
-      expect(first.spriteOf('😀'), isNull);
-      expect(frames.hasPendingRequest, isFalse);
-    },
-  );
+      expect(h.atlas.value, same(first));
+      expect(notified, 0);
+      expect(created, hasLength(2));
+      expect(created.last.index.glyphs, [_tone]);
+      expect(h.source.value, same(source), reason: 'one source for the scope');
+    });
 
-  group('planning again keeps the grid drawn', () {
-    test('the successor draws the old art in the frame it is built', () async {
-      final h = host()..sync(_plan());
+    test('the grid keeps its art and nothing it had is baked again', () async {
+      final rasteriser = FakeGlyphRasteriser();
+      final h = host(rasteriser: rasteriser)..sync(_plan());
       visible.value = true;
       await bake();
-      expect(h.atlas.value!.spriteOf('😀'), isNotNull);
+      final painted = rasteriser.painted.length;
+
+      h.sync(GlyphPlan(const ['😀', '😁', _tone]));
+      expect(h.source.value!.spriteOf('😀'), isNotNull, reason: 'no gap');
+      await bake();
+
+      expect(h.source.value!.spriteOf(_tone), isNotNull);
+      expect(rasteriser.painted.skip(painted), [_tone]);
+    });
+
+    test('until it is baked a surface draws it as text, not a circle', () {
+      final h = host()..sync(_plan());
 
       h.sync(GlyphPlan(const ['😀', '😁', _tone]));
 
-      expect(
-        h.atlas.value!.spriteOf('😀'),
-        isNotNull,
-        reason: 'no blank frame',
-      );
-      expect(h.atlas.value!.spriteOf(_tone), isNull);
-
-      await bake();
-      expect(h.atlas.value!.spriteOf(_tone), isNotNull);
+      expect(h.source.value!.waitsForSprite(_tone), isFalse);
+      expect(h.source.value!.waitsForSprite('😀'), isTrue);
     });
 
-    test('each atlas has a store of its own', () {
+    test('a glyph that leaves the plan stays drawn: a composer may still '
+        'show it', () async {
+      final h = host()..sync(_plan());
+      visible.value = true;
+      h.sync(GlyphPlan(const ['😀', '😁', _tone]));
+      await bake();
+
+      h.sync(GlyphPlan(const ['😀', '😁', other]));
+      await bake();
+
+      expect(h.source.value!.spriteOf(_tone), isNotNull);
+      expect(h.source.value!.spriteOf(other), isNotNull);
+    });
+
+    test('each layer has a store of its own', () {
       final h = host()..sync(_plan());
       h.sync(GlyphPlan(const ['😀', '😁', _tone]));
 
       expect(stores, hasLength(2));
-      expect(stores[0], isNotNull);
+      expect(stores[1], isNotNull);
       expect(stores[1], isNot(same(stores[0])));
+    });
+
+    test('scrolling reaches every layer, also one added while it lasts', () {
+      final h = host()..sync(_plan());
+      visible.value = true;
+      h.reportScrolling(reporter: 'grid', scrolling: true);
+
+      h.sync(GlyphPlan(const ['😀', '😁', _tone]));
+      expect(frames.hasPendingRequest, isFalse, reason: 'every layer waits');
+
+      h.reportScrolling(reporter: 'grid', scrolling: false);
+      expect(frames.hasPendingRequest, isTrue);
     });
   });
 
@@ -187,6 +217,16 @@ void main() {
       h.devicePixelRatio = 3;
 
       expect(h.atlas.value!.index.glyphs, contains('😂'));
+    });
+
+    test('folds the layers into the atlas it plans again', () {
+      final h = host()..sync(_plan());
+      h.sync(GlyphPlan(const ['😀', '😁', _tone]));
+
+      h.devicePixelRatio = 3;
+
+      expect(h.atlas.value!.index.glyphs, contains(_tone));
+      expect(h.source.value!.waitsForSprite(_tone), isTrue);
     });
 
     test('the same density plans nothing', () {
@@ -258,8 +298,9 @@ void main() {
     test('takes the retention the host configures, for every plan', () {
       final h = host(pageRetention: const Duration(seconds: 5))..sync(_plan());
       h.sync(GlyphPlan(const ['😀', _tone]));
+      h.devicePixelRatio = 3;
 
-      expect(residencies, hasLength(2));
+      expect(residencies, hasLength(3));
       expect(
         residencies.map((r) => r.retention),
         everyElement(const Duration(seconds: 5)),
@@ -393,7 +434,7 @@ void main() {
         }
         expect(cache.stages, 1);
 
-        h.sync(GlyphPlan(const ['😀', '😁', _tone]));
+        h.devicePixelRatio = 3;
         await pumpEventQueue();
         expect(
           cache.stages,
@@ -422,28 +463,22 @@ void main() {
       expect(h.atlas.value!.spriteOf('😀'), isNotNull);
     });
 
-    test('a tone chosen for the first time keeps the old art drawn', () async {
+    test('a tone chosen for the first time leaves the persisted atlas as it '
+        'is', () async {
       final h = host(persistence: persistence())..sync(_plan());
       visible.value = true;
       await pumpEventQueue();
       await bake();
-      expect(h.atlas.value!.spriteOf('😀'), isNotNull);
+      final committed = (await cache.openCommitted())!.record.key;
 
-      // A new tone is a new glyph: the plan is made again.
       h.sync(GlyphPlan(const ['😀', '😁', _tone]));
       await pumpEventQueue();
-      frames.pump();
-      await pumpEventQueue();
-
-      expect(
-        h.atlas.value!.spriteOf('😀'),
-        isNotNull,
-        reason: 'old pages, no gap',
-      );
-      expect(h.atlas.value!.spriteOf(_tone), isNull);
-
       await bake();
-      expect(h.atlas.value!.spriteOf(_tone), isNotNull);
+
+      expect(h.source.value!.spriteOf('😀'), isNotNull);
+      expect(h.source.value!.spriteOf(_tone), isNotNull);
+      expect((await cache.openCommitted())!.record.key, committed);
+      expect(cache.stages, 1, reason: 'nothing staged again');
     });
   });
 }

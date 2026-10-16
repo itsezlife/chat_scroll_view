@@ -122,7 +122,7 @@ void main() {
       },
     );
 
-    test('a glyph outside the plan stays a placeholder', () async {
+    test('a glyph outside the plan is drawn as text, never a circle', () async {
       final atlas = atlasOf(['a'])..start();
       final binding = scopeOf(
         atlas,
@@ -131,7 +131,31 @@ void main() {
       await bakeAll();
 
       expect(binding.paintable.sprite, isNull);
+      expect(
+        binding.readiness,
+        const AssetReadiness(AssetStage.firstFrame),
+        reason: 'drawable now, a sprite may still come',
+      );
+      expect(
+        (Canvas canvas) =>
+            binding.paint(canvas, const Rect.fromLTWH(0, 0, 32, 32)),
+        paints..paragraph(),
+      );
+    });
+
+    test('a planned glyph keeps its circle while the bake runs: no paragraph '
+        'in a scrolled frame', () async {
+      final atlas = atlasOf(['a']);
+      final binding = scopeOf(
+        atlas,
+      ).attach(_glyph('a'), _keyboardSpec, _profile);
+
       expect(binding.readiness.stage, AssetStage.placeholder);
+      expect(
+        (Canvas canvas) =>
+            binding.paint(canvas, const Rect.fromLTWH(0, 0, 32, 32)),
+        isNot(paints..paragraph()),
+      );
     });
 
     test(
@@ -481,6 +505,49 @@ void main() {
       scope.glyphSource = source;
 
       expect(source.listenerCount, 0);
+      expect(source.holdCount(0), 0);
+    });
+  });
+
+  group('a glyph the source bakes on demand', () {
+    test('is drawn as text until its sprite is there, then as the sprite', () {
+      final source = FakeGlyphSpriteSource(['a', 'b'], onDemand: {'b'});
+      final binding = scopeOf(
+        source,
+      ).attach(_glyph('b'), _keyboardSpec, _profile);
+
+      expect(binding.readiness, const AssetReadiness(AssetStage.firstFrame));
+      expect(
+        (Canvas canvas) =>
+            binding.paint(canvas, const Rect.fromLTWH(0, 0, 32, 32)),
+        paints..paragraph(),
+      );
+
+      source.bakePage(0);
+
+      expect(
+        binding.readiness,
+        const AssetReadiness(AssetStage.full, isFinal: true),
+      );
+      expect(binding.paintable.sprite, isNotNull);
+    });
+
+    test('a glyph the source learns after the attach takes a hold on its '
+        'page once it can be drawn', () {
+      final source = FakeGlyphSpriteSource(['a']);
+      final binding = scopeOf(
+        source,
+      ).attach(_glyph('b'), _keyboardSpec, _profile);
+      expect(binding.readiness.stage, AssetStage.firstFrame);
+
+      source
+        ..learn('b')
+        ..bakePage(0);
+
+      expect(binding.paintable.sprite, isNotNull);
+      expect(source.holdCount(0), 1);
+
+      binding.detach();
       expect(source.holdCount(0), 0);
     });
   });

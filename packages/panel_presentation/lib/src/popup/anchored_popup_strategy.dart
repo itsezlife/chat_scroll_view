@@ -472,7 +472,14 @@ class _PopupBodyState extends State<_PopupBody>
   // margin included, and lets what lies under the margin (the toggle, the
   // composer) take hits; the inner one is the card, which absorbs them. The
   // outer one is what enters and leaves.
-  Widget _popup(AnchoredPopupStyle style) => MouseRegion(
+  //
+  // Both are in the text fields' tap group: on a desktop platform a field
+  // gives up focus to a mouse press outside it, and a press on the panel is
+  // not outside the composer it types into.
+  Widget _popup(AnchoredPopupStyle style) =>
+      TextFieldTapRegion(child: _hoverArea(style));
+
+  Widget _hoverArea(AnchoredPopupStyle style) => MouseRegion(
     key: _regionKey,
     hitTestBehavior: HitTestBehavior.translucent,
     onEnter: (event) {

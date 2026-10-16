@@ -312,8 +312,16 @@ void main() {
       Collection collection = flags,
     }) => policy.longPressDelayOf(_hit(glyph), collection, kind);
 
-    test('is zero for a mouse on an emoji whose variant was never chosen', () {
-      expect(delay('👍', PointerDeviceKind.mouse), Duration.zero);
+    test('is the 500 ms hold for a mouse even before any variant was chosen: '
+        'a click always inserts', () {
+      expect(
+        delay('👍', PointerDeviceKind.mouse),
+        EmojiPagePolicy.pointerHoldDelay,
+      );
+      expect(
+        EmojiPagePolicy.pointerHoldDelay,
+        const Duration(milliseconds: 500),
+      );
     });
 
     test('is the 500 ms hold once a variant was chosen for its base', () async {

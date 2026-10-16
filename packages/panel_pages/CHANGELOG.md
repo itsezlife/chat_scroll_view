@@ -8,6 +8,21 @@ is pre-1.0.
 
 ### Changed
 
+- Source-breaking: `GlyphAtlasHost` is the page's `BakeActivityPort` and has a
+  `source`, the layered glyph source the scope draws from. A plan with new
+  glyphs no longer plans the atlas again: an atlas of just those glyphs joins as
+  a layer, nothing baked is baked again, the persisted pages keep their key, and
+  no glyph leaves the source (a composer's emoji of an earlier tone stays
+  drawn). `atlas` is the first atlas; only a density change replaces it.
+- Source-breaking: `CatalogPagePolicy.layoutOf` takes the arrangement. Under
+  `pointer` the emoji grid is adaptive (37 px desired cells, 2 px shorter than
+  wide), padded 8 from the start and 4 from the end.
+- A mouse on an emoji with variants always holds 500 ms before the picker
+  opens; `EmojiVariantPickerMode.pointerImmediate` is gone.
+- The context menu opens with no item highlighted; Down highlights the first,
+  Up the last.
+- The variant picker and the context menu are part of the composer's tap
+  region, so a click on them keeps the composer's focus.
 - Source-breaking: `CatalogPagePolicy.visibleCollections` takes no `searchOpen`
   flag. An open search with no query shows what browsing shows, under both
   arrangements, and the emoji page no longer narrows to the recents.

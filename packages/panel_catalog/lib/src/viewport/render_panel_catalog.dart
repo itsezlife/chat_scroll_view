@@ -105,7 +105,10 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// ## Scroll input
 ///
 /// Drag (`VerticalDragGestureRecognizer`) and pointer-wheel
-/// ([PointerScrollEvent]) both call [PanelCatalogController.scrollBy].
+/// ([PointerScrollEvent]) both call [PanelCatalogController.scrollBy]. A
+/// mouse never drags: it scrolls by its wheel and the scrollbar, as the
+/// reference desktop client's grid does, and a press-and-move of it is a
+/// press on a cell, not a scroll ([_dragDevices]).
 /// Drag-up (negative primary delta) reveals content below → positive delta
 /// on the controller. Drag start cancels fling and clears in-flight press.
 ///
@@ -640,6 +643,16 @@ class RenderPanelCatalog extends RenderBox
 
   double _contentExtent = 0;
   VerticalDragGestureRecognizer? _drag;
+
+  // Every pointer kind but the mouse. Flutter's own scroll behaviour leaves
+  // the mouse out of dragging on the same grounds.
+  static const Set<PointerDeviceKind> _dragDevices = {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.stylus,
+    PointerDeviceKind.invertedStylus,
+    PointerDeviceKind.trackpad,
+    PointerDeviceKind.unknown,
+  };
 
   /// Whether a drag started and has not ended, so its end can be told apart
   /// from the cancel the recognizer reports for a tap.
@@ -1303,7 +1316,7 @@ class RenderPanelCatalog extends RenderBox
       vsync: _pressTickers!,
       onTick: markNeedsPaint,
     );
-    _drag = VerticalDragGestureRecognizer()
+    _drag = VerticalDragGestureRecognizer(supportedDevices: _dragDevices)
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
       ..onEnd = _onDragEnd

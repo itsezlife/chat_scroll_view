@@ -131,15 +131,15 @@ A claim a page keeps on the host's auto-hide while it shows a surface outside th
 _Avoid_: A page reaching the presentation controller, the shell naming a presentation
 
 **Recents menu**:
-The context menu a right click opens on an emoji of the recents under the pointer arrangement: copy, remove from recent, a separator, clear recent (attention colour). A page decision through a policy (`menuOf`), drawn by `CatalogContextMenuHost`, modal, with the keys of a menu; its items reach the host as `ContentCopyRequested`, `RecentRemoveRequested` and `ClearRecentsRequested`. The recents header has no clear button under either arrangement: a finger's long press on a recent asks the host to clear them.
+The context menu a right click opens on an emoji of the recents under the pointer arrangement: copy, remove from recent, a separator, clear recent (attention colour). A page decision through a policy (`menuOf`), drawn by `CatalogContextMenuHost`, modal, with the keys of a menu and no item highlighted until the pointer or a key picks one; its items reach the host as `ContentCopyRequested`, `RecentRemoveRequested` and `ClearRecentsRequested`. The recents header has no clear button under either arrangement: a finger's long press on a recent asks the host to clear them.
 _Avoid_: A header clear button, the page writing recents, a menu for a finger
 
 **Variant picker**:
-The card of an emoji's variants a press opens over the grid: the grid's own cell and glyph box for every option, one row with a separator after the first, above the pressed cell (below near the top edge), fading, modal on a barrier, holding auto-hide while open. A mouse opens it at once for an emoji whose variant was never chosen and after 500 ms otherwise; a finger after the platform's long press.
+The card of an emoji's variants a press opens over the grid: the grid's own cell and glyph box for every option, one row with a separator after the first, above the pressed cell (below near the top edge), fading, modal on a barrier, holding auto-hide while open. A mouse opens it after a 500 ms hold, a click picks the emoji as shown; a finger after the platform's long press.
 _Avoid_: Options in a smaller container than the grid's cell, clipping the glyph, a picker that lets a press through
 
 **Anchored popup**:
-The desktop and web presentation kind: the panel floats above the composer, opens at once on mouse hover over the toggle or on a click, hides when the pointer leaves it (at the next event pass from the toggle, after a short grace from the popup), and takes no layout space. It never takes focus: the composer keeps the caret however it was opened.
+The desktop and web presentation kind: the panel floats above the composer, opens at once on mouse hover over the toggle or on a click, hides when the pointer leaves it (at the next event pass from the toggle, after a short grace from the popup), and takes no layout space. It never takes focus: the composer keeps the caret however it was opened, and a click inside it (or in the dock, a picker or a menu) counts as the composer's tap region.
 _Avoid_: Tooltip, dropdown, a popup that takes composer focus on any open, an idle timeout
 
 **Popup hover area**:

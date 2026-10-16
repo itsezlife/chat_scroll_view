@@ -29,8 +29,10 @@ final class _OpinionatedPolicy extends CatalogPagePolicy {
   const _OpinionatedPolicy();
 
   @override
-  SectionLayout? layoutOf(Collection collection) =>
-      const SectionLayout.grid(spanCount: 5, cellAspect: 1.5);
+  SectionLayout? layoutOf(
+    Collection collection, {
+    PanelArrangement arrangement = PanelArrangement.touch,
+  }) => const SectionLayout.grid(spanCount: 5, cellAspect: 1.5);
 
   @override
   CatalogContentBox? contentBoxOf(Collection collection) =>

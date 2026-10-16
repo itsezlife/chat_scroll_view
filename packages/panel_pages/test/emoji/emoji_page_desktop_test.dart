@@ -1,5 +1,5 @@
 /// The emoji page under a mouse: the right-click menu of the recents, the
-/// press that opens the variant picker at once or after a hold, and the rules
+/// press that opens the variant picker after a hold, and the rules
 /// of that picker while it is up.
 ///
 /// **Seam:** [EmojiPage] under the pointer arrangement in an overlay, driven
@@ -7,8 +7,10 @@
 /// observed through the picks and requests a fake page host recorded, the
 /// holds it counts, the preferences, and what is on screen. Geometry: the
 /// page is 360 x 480 with its strip at the bottom, so the first cell of the
-/// first section is 5 + 21.875 across and 27 + 22.5 down from the page's top
-/// left; sections here are one row of 72 (27 header + 45 row) each.
+/// page is the reference desktop client's grid at 360 wide: nine columns of
+/// 38 x 36 from 11 across (8 padding and half the 6 px the columns leave), so
+/// the first cell's centre is 11 + 19 across and 27 + 18 down from the page's
+/// top left; sections here are one row of 63 (27 header + 36 row) each.
 library;
 
 import 'package:catalog_assets/catalog_assets.dart';
@@ -27,6 +29,11 @@ import 'package:panel_shell/testing.dart';
 import 'emoji_fixtures.dart' as fixtures;
 
 const _hold = Duration(milliseconds: 500);
+
+// The pointer grid at the page's 360 px (see the library comment).
+const _cellWidth = 38.0;
+const _cellHeight = 36.0;
+const _x0 = 11.0;
 const _settle = Duration(milliseconds: 400);
 
 void main() {
@@ -66,6 +73,7 @@ void main() {
     List<String> recents = const ['😀', '👍'],
     TextDirection direction = TextDirection.ltr,
     int count = 0,
+    double width = 360,
   }) async {
     source = fixtures.source(recents: recents, count: count);
     await tester.pumpWidget(
@@ -79,7 +87,7 @@ void main() {
                   arrangement: arrangement,
                   child: Center(
                     child: SizedBox(
-                      width: 360,
+                      width: width,
                       height: 480,
                       child: EmojiPage(
                         host: host,
@@ -119,14 +127,14 @@ void main() {
     );
     return tester.getTopLeft(find.byType(PanelCatalogViewport)) +
         Offset(
-          5 + 43.75 * (column + 0.5),
-          viewport.padding.top + top + 27 + 45 * row + 22.5,
+          _x0 + _cellWidth * (column + 0.5),
+          viewport.padding.top + top + 27 + _cellHeight * (row + 0.5),
         );
   }
 
   const recents0 = 0.0; // 😀 (column 0) and 👍 (column 1)
-  const smileys = 72.0; // 😀 (column 0), ❤ (column 1)
-  const people = 144.0; // 👍 (column 0), 🕵, 💑
+  const smileys = 27 + _cellHeight; // 😀 (column 0), ❤ (column 1)
+  const people = 2 * (27 + _cellHeight); // 👍 (column 0), 🕵, 💑
 
   // One mouse is one device with one button state: a test that clicks with
   // both buttons takes the first away before the second comes.
@@ -162,7 +170,7 @@ void main() {
     final outer = tester.getTopLeft(picker());
     final layout = EmojiVariantPickerLayout(
       count: count,
-      cell: const Size(43.75, 45),
+      cell: const Size(_cellWidth, _cellHeight),
     );
     return outer +
         const Offset(
@@ -305,14 +313,30 @@ void main() {
   });
 
   group('a mouse press on an emoji with variants', () {
-    testWidgets('opens the picker at once when no variant was ever chosen', (
-      tester,
-    ) async {
+    testWidgets('a quick click inserts the emoji as the grid shows it, before '
+        'any variant was chosen too: the picker needs a hold', (tester) async {
       await pumpPage(tester);
 
       final gesture = await mouse(tester);
       await gesture.down(cell(tester, top: people));
-      await tester.pump(Duration.zero);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(picker(), findsNothing);
+      await gesture.up();
+      await tester.pump();
+
+      expect(picker(), findsNothing);
+      expect(host.picks.single.key, fixtures.thumbsUp.base);
+    });
+
+    testWidgets('a 500 ms hold opens the picker, before any variant was chosen '
+        'too', (tester) async {
+      await pumpPage(tester);
+
+      final gesture = await mouse(tester);
+      await gesture.down(cell(tester, top: people));
+      await tester.pump(const Duration(milliseconds: 450));
+      expect(picker(), findsNothing);
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(picker(), findsOneWidget);
       expect(host.activeHolds, 1, reason: 'the picker holds auto-hide');
@@ -325,17 +349,17 @@ void main() {
       await pumpPage(tester);
       final gesture = await mouse(tester);
       await gesture.down(cell(tester, top: people));
-      await tester.pump(_settle);
+      await tester.pump(_hold + _settle);
 
       final widget = tester.widget<EmojiVariantPicker>(picker());
       expect(widget.options, [
         fixtures.thumbsUp.base,
         for (final v in fixtures.thumbsUp.variants) v.key,
       ]);
-      expect(widget.cell, const Size(43.75, 45));
+      expect(widget.cell, const Size(_cellWidth, _cellHeight));
       final card = cardOf(tester);
-      expect(card.width, 4 * 8 + 1 + 6 * 43.75);
-      expect(card.height, 2 * 8 + 45);
+      expect(card.width, 4 * 8 + 1 + 6 * _cellWidth);
+      expect(card.height, 2 * 8 + _cellHeight);
       expect(tester.getSize(picker()), Size(card.width + 20, card.height + 20));
       await gesture.up();
     });
@@ -345,7 +369,7 @@ void main() {
       await pumpPage(tester);
       final gesture = await mouse(tester);
       await gesture.down(cell(tester, top: people));
-      await tester.pump(_settle);
+      await tester.pump(_hold + _settle);
 
       expect(tester.widget<EmojiVariantPicker>(picker()).selected, isNull);
       expect(
@@ -372,7 +396,7 @@ void main() {
       await pumpPage(tester);
       final gesture = await mouse(tester);
       await gesture.down(cell(tester, top: people));
-      await tester.pump(_settle);
+      await tester.pump(_hold + _settle);
 
       await gesture.moveTo(optionCenter(tester, 4));
       await tester.pump();
@@ -392,71 +416,13 @@ void main() {
       );
     });
 
-    testWidgets('releasing outside the picker the first time leaves it open '
-        'until the next click', (tester) async {
-      await pumpPage(tester);
-      final gesture = await mouse(tester);
-      await gesture.down(cell(tester, top: people));
-      await tester.pump(_settle);
-
-      await gesture.up();
-      await tester.pumpAndSettle();
-
-      expect(picker(), findsOneWidget);
-      expect(host.picks, isEmpty, reason: 'the release is not a click');
-      expect(host.activeHolds, 1);
-
-      // A click on an option now picks it.
-      await tester.tapAt(optionCenter(tester, 1));
-      await tester.pumpAndSettle();
-      expect(host.picks.single.key, fixtures.thumbsUp.variants.first.key);
-      expect(picker(), findsNothing);
-      expect(host.activeHolds, 0);
-    });
-
-    testWidgets('a click elsewhere closes it and is swallowed', (tester) async {
-      await pumpPage(tester);
-      final gesture = await mouse(tester);
-      await gesture.down(cell(tester, top: people));
-      await tester.pump(_settle);
-      await gesture.up();
-      await tester.pumpAndSettle();
-
-      // Beside the card, over the page: a cell that was not the picker's.
-      await tester.tapAt(origin(tester) + const Offset(340, 60));
-      await tester.pumpAndSettle();
-
-      expect(picker(), findsNothing);
-      expect(host.picks, isEmpty);
-      expect(host.activeHolds, 0);
-    });
-
-    testWidgets('a right click closes it too, and opens no menu', (
-      tester,
-    ) async {
-      await pumpPage(tester);
-      final gesture = await mouse(tester);
-      await gesture.down(cell(tester, top: people));
-      await tester.pump(_settle);
-      await gesture.up();
-      await tester.pumpAndSettle();
-
-      await rightClick(tester, cell(tester, top: recents0));
-      await tester.pumpAndSettle();
-
-      expect(picker(), findsNothing);
-      expect(menu(), findsNothing);
-    });
-
     testWidgets('the wheel does not scroll the grid while it is open', (
       tester,
     ) async {
       await pumpPage(tester);
       final gesture = await mouse(tester);
       await gesture.down(cell(tester, top: people));
-      await tester.pump(_settle);
-      await gesture.up();
-      await tester.pumpAndSettle();
+      await tester.pump(_hold + _settle);
       final controller = host.controllers.peek<EmojiPageController>('emoji')!;
 
       final wheel = TestPointer(7, PointerDeviceKind.mouse);
@@ -530,24 +496,20 @@ void main() {
       expect(host.picks.single.key, fixtures.thumbsUp.variants[4].key);
     });
 
-    testWidgets('choosing the base is remembered, so the next press holds', (
-      tester,
-    ) async {
+    testWidgets('choosing the base is remembered as a choice', (tester) async {
       await pumpPage(tester);
       final gesture = await mouse(tester);
       await gesture.down(cell(tester, top: people));
-      await tester.pump(_settle);
+      await tester.pump(_hold + _settle);
       await gesture.moveTo(optionCenter(tester, 0));
       await tester.pump();
       await gesture.up();
       await tester.pumpAndSettle();
       expect(host.picks.single.key, fixtures.thumbsUp.base);
-
-      await gesture.down(cell(tester, top: people));
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(picker(), findsNothing, reason: 'a variant was chosen: it holds');
-      await gesture.up();
+      expect(
+        preferences.preferredVariant(fixtures.thumbsUp.base),
+        fixtures.thumbsUp.base,
+      );
     });
 
     testWidgets('an emoji without variants stays a plain click', (
@@ -612,10 +574,14 @@ void main() {
       // The people row: far enough down for the card to fit above.
       final at = cell(tester, top: people);
       await gesture.down(at);
-      await tester.pump(_settle);
+      await tester.pump(_hold + _settle);
 
       final card = cardOf(tester);
-      final cellRect = Rect.fromCenter(center: at, width: 43.75, height: 45);
+      final cellRect = Rect.fromCenter(
+        center: at,
+        width: _cellWidth,
+        height: _cellHeight,
+      );
       expect(card.bottom, cellRect.top - 2);
       await gesture.up();
     });
@@ -634,7 +600,11 @@ void main() {
       await tester.pump(_hold + _settle);
 
       final card = cardOf(tester);
-      final cellRect = Rect.fromCenter(center: at, width: 43.75, height: 45);
+      final cellRect = Rect.fromCenter(
+        center: at,
+        width: _cellWidth,
+        height: _cellHeight,
+      );
       expect(card.top, cellRect.bottom + 2);
       await gesture.up();
     });
@@ -643,13 +613,13 @@ void main() {
         'last, inside the page', (tester) async {
       await pumpPage(
         tester,
-        recents: ['👍', '😀', '😀', '😀', '😀', '😀', '😀', '👍'],
+        recents: ['👍', '😀', '😀', '😀', '😀', '😀', '😀', '😀', '👍'],
       );
       final page = tester.getRect(find.byType(EmojiPage));
       final gesture = await mouse(tester);
 
       await gesture.down(cell(tester, top: people));
-      await tester.pump(_settle);
+      await tester.pump(_hold + _settle);
       expect(cardOf(tester).left, closeTo(page.left + 10, 0.01));
       await gesture.up();
       await tester.pumpAndSettle();
@@ -660,7 +630,7 @@ void main() {
         fixtures.thumbsUp.base,
         fixtures.thumbsUp.variants.first.key,
       );
-      await gesture.down(cell(tester, top: recents0, column: 7));
+      await gesture.down(cell(tester, top: recents0, column: 8));
       await tester.pump(_hold + _settle);
       expect(cardOf(tester).right, closeTo(page.right - 10, 0.01));
       await gesture.up();
@@ -672,8 +642,10 @@ void main() {
     await pumpPage(tester, direction: TextDirection.rtl);
     final page = tester.getRect(find.byType(EmojiPage));
     // The first recent is the first cell from the right.
+    // The columns end 7 short of the right (4 padding and the other half of
+    // what they leave).
     final first = Offset(
-      page.right - 5 - 21.875,
+      page.right - 7 - _cellWidth / 2,
       cell(tester, top: recents0).dy,
     );
 
@@ -685,4 +657,87 @@ void main() {
     await tester.pump();
     expect(host.removeRecentRequests.single.key, fixtures.key('😀'));
   });
+
+  group(
+    'the grid follows its width, as the reference desktop client\'s does',
+    () {
+      // The page's width W: columns of 37 at least, whole pixels wide, the row
+      // 2 shorter; the columns start 8 in from the left and end 4 before the
+      // right, and the integer remainder is split. Recents: 30 smileys.
+      for (final (width, columns, cellWidth, cellHeight, left) in [
+        (292.0, 7, 40.0, 38.0, 0.0),
+        (345.0, 9, 37.0, 35.0, 0.0),
+        (392.0, 10, 38.0, 36.0, 0.0),
+      ]) {
+        testWidgets(
+          '$width wide: $columns columns of $cellWidth x $cellHeight',
+          (tester) async {
+            final recents = [
+              for (var i = 0; i < 30; i++) String.fromCharCode(0x1F600 + i),
+            ];
+            await pumpPage(tester, recents: recents, width: width);
+            final viewport = tester.getRect(find.byType(PanelCatalogViewport));
+            final top =
+                viewport.top +
+                tester
+                    .widget<PanelCatalogViewport>(
+                      find.byType(PanelCatalogViewport),
+                    )
+                    .padding
+                    .top +
+                EmojiPagePolicy.headerExtent;
+            final x0 = viewport.left + 8 + left;
+
+            // The last column of the first row, then the first of the second.
+            await tester.tapAt(
+              Offset(x0 + (columns - 0.5) * cellWidth, top + cellHeight / 2),
+            );
+            await tester.tapAt(
+              Offset(x0 + cellWidth / 2, top + cellHeight * 1.5),
+            );
+            await tester.pump(const Duration(milliseconds: 500));
+
+            expect(
+              [for (final pick in host.picks) pick.key],
+              [
+                fixtures.key(recents[columns - 1]),
+                fixtures.key(recents[columns]),
+              ],
+            );
+          },
+        );
+      }
+
+      testWidgets('a finger keeps the eight columns of the touch grid', (
+        tester,
+      ) async {
+        final recents = [
+          for (var i = 0; i < 30; i++) String.fromCharCode(0x1F600 + i),
+        ];
+        await pumpPage(
+          tester,
+          recents: recents,
+          width: 392,
+          arrangement: PanelArrangement.touch,
+        );
+        final viewport = tester.getRect(find.byType(PanelCatalogViewport));
+        final padding = tester
+            .widget<PanelCatalogViewport>(find.byType(PanelCatalogViewport))
+            .padding;
+        const cellHeight = EmojiPagePolicy.cellPitch;
+        final cellWidth = (392 - padding.horizontal) / 8;
+        final top = viewport.top + padding.top + EmojiPagePolicy.headerExtent;
+
+        await tester.tapAt(
+          Offset(
+            viewport.left + padding.left + 7.5 * cellWidth,
+            top + cellHeight / 2,
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 500));
+
+        expect(host.picks.single.key, fixtures.key(recents[7]));
+      });
+    },
+  );
 }

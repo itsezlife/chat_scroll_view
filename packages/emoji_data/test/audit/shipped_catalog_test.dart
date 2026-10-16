@@ -12,6 +12,9 @@ import 'package:test/test.dart';
 import '../support/pack_assets.dart';
 import '../support/synthetic_catalog.dart';
 
+ContentKey$Unicode emojiKeyOf(String hex) =>
+    ContentKey.parse('unicode:$hex') as ContentKey$Unicode;
+
 void main() {
   late EmojiCatalogLoader loader;
   late EmojiCatalog catalog;
@@ -53,6 +56,41 @@ void main() {
         item.key,
     ];
   }
+
+  group('genders', () {
+    test(
+      'no entry of one person mixes genders: the picker of a cell offers its '
+      'tones only',
+      () {
+        // Two people with a tone each (holding hands, a couple) are
+        // combinations with no toneless form of their own; they stay with the
+        // entry the data gives them.
+        for (final entry in catalog.entries.where(
+          (e) => e.variants.every((v) => v.modifiers.tones.length <= 1),
+        )) {
+          final genders = {
+            for (final v in entry.variants) v.modifiers.genders.join(','),
+          };
+          expect(genders.length, lessThanOrEqualTo(1), reason: '${entry.base}');
+        }
+      },
+    );
+
+    test('the man and the woman of an emoji follow its person', () {
+      final person = catalog.entryOf(emojiKeyOf('1F645'))!;
+      final man = catalog.entryOf(emojiKeyOf('1F645-200D-2642-FE0F'))!;
+      final woman = catalog.entryOf(emojiKeyOf('1F645-200D-2640-FE0F'))!;
+
+      expect(
+        catalog.positionOf(man.base),
+        catalog.positionOf(person.base)! + 1,
+      );
+      expect(catalog.positionOf(woman.base), catalog.positionOf(man.base)! + 1);
+      for (final entry in [person, man, woman]) {
+        expect(entry.variants, hasLength(5));
+      }
+    });
+  });
 
   group('variants (picker and grid agree)', () {
     test('every key of an entry resolves to that entry', () {

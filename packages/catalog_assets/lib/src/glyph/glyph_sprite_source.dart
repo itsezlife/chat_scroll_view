@@ -37,12 +37,27 @@ abstract interface class SpritePageHold {
 ///   pressure rules decide the rest).
 /// - Page listeners hear the index of each page whose drawability changed:
 ///   once its sprites can be drawn and again when it is released.
+/// - [waitsForSprite] says how a surface bridges the time before a sprite:
+///   with its placeholder (a glyph of the source's background bake) or with
+///   the glyph drawn as text (one the source does not know, or bakes on
+///   demand).
 abstract interface class GlyphSpriteSource {
   /// The sprite of [glyph], or null (see the class contract).
   AtlasSprite? spriteOf(String glyph);
 
   /// Claims the page [glyph] is on, or returns null for an unknown glyph.
   SpritePageHold? holdPageOf(String glyph);
+
+  /// Whether a surface shows its placeholder while [glyph] has no sprite,
+  /// rather than drawing the glyph as text.
+  ///
+  /// True for the glyphs of the background bake: drawing them as text while
+  /// it runs would lay out a paragraph for every cell of every scrolled frame,
+  /// which is what baking avoids. False for a glyph the source does not know
+  /// and for one it bakes on demand (a tone the user just chose, an emoji
+  /// typed elsewhere): there are few of them, and a circle where the user
+  /// expects the emoji they chose reads as a failure.
+  bool waitsForSprite(String glyph);
 
   /// Calls [listener] with the index of each page whose drawability changed.
   void addPageListener(void Function(int pageIndex) listener);
