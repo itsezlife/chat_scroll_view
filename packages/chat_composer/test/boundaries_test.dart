@@ -10,6 +10,7 @@ void main() {
 
   test('imports only the packages the composer may know', () {
     const allowed = {
+      'catalog_assets',
       'chat_composer',
       'chrome_foundation',
       'content_model',
@@ -32,11 +33,11 @@ void main() {
   });
 
   test(
-    'names no panel, inset or presentation type and no platform channel',
+    'names no panel, inset or presentation type, no platform channel and no legacy composer type',
     () {
       final forbidden = RegExp(
         'SystemChannels|KeyboardPanel|PanelShell|PanelPresentation|'
-        'InsetArbiter|ChatChrome',
+        'InsetArbiter|ChatChrome|ChatEnter|ChatComposer|ChatInputMetrics',
       );
       final offenders = [
         for (final file in sources)
@@ -46,4 +47,14 @@ void main() {
       expect(offenders, isEmpty);
     },
   );
+
+  test('holds no literal duration: motion comes from the role table', () {
+    final offenders = [
+      for (final file in sources)
+        if (RegExp(r'\bDuration\(').hasMatch(file.readAsStringSync()))
+          file.path,
+    ];
+
+    expect(offenders, isEmpty);
+  });
 }

@@ -60,6 +60,7 @@ final class ComposerController {
   final bool _ownsScroll;
   final ObservableValue<SoftKeyboardMode> _softKeyboard;
   final _fieldHeight = ObservableValue<double>(0);
+  final _extent = ObservableValue<double>(0);
   final _query = ObservableValue<ComposerInputQuery?>(null);
   final _kinds = <ComposerQueryKind>[];
   Rect? _anchor;
@@ -155,6 +156,22 @@ final class ComposerController {
   void reportFieldHeight(double height) {
     if (_disposed) return;
     _fieldHeight.value = height;
+  }
+
+  /// The height the composer view takes in its parent, as last reported, zero
+  /// before the first report: the island with its header, margins and bottom
+  /// safe-area pad, without any panel or keyboard.
+  ///
+  /// It follows the header reveal and the field growth frame by frame, so a
+  /// host that feeds it into its chat bottom padding moves with the
+  /// animation. The composer imports no inset type; the host adds the
+  /// presentation occupancy itself.
+  ValueObservable<double> get extent => _extent;
+
+  /// Reports the laid-out [height] of the composer view. Called by the view.
+  void reportExtent(double height) {
+    if (_disposed) return;
+    _extent.value = height;
   }
 
   /// Scrolls the field to its end once it has laid out. Programmatic edits do
@@ -255,6 +272,7 @@ final class ComposerController {
     text.removeListener(_detectQuery);
     _softKeyboard.dispose();
     _fieldHeight.dispose();
+    _extent.dispose();
     _query.dispose();
     if (_ownsText) text.dispose();
     if (_ownsFocus) focusNode.dispose();

@@ -1,7 +1,8 @@
 name: chat_composer
 description: >
-  Chat composer input side: an input-only controller, an entity-aware text
-  controller that produces a RichText, and host-registered input queries.
+  Slot-based chat composer: a host-built ComposerSpec, a glass island view,
+  an input-only controller, an entity-aware text controller that produces a
+  RichText, and host-registered input queries.
 version: 0.1.0
 publish_to: none
 
@@ -12,6 +13,8 @@ environment:
   flutter: '>=3.27.0'
 
 dependencies:
+  catalog_assets:
+    path: ../catalog_assets
   characters: ^1.4.0
   chrome_foundation:
     path: ../chrome_foundation
@@ -24,3 +27,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+flutter:
+  # The stock icon registry draws Material glyphs; tests and goldens need the
+  # font bundled.
+  uses-material-design: true
