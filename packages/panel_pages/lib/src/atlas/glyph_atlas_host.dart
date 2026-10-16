@@ -149,6 +149,10 @@ final class GlyphAtlasHost {
   /// that does not bake. Signals when it is replaced.
   ValueObservable<GlyphAtlas?> get atlas => _atlas;
 
+  /// Whether a plan found out that this platform bakes nothing, so no atlas
+  /// will ever exist. False until the first plan is made.
+  bool get bakesNothing => _platformBakesNothing;
+
   /// The density the baked glyphs are sized for.
   double get devicePixelRatio => _devicePixelRatio;
 

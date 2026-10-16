@@ -36,19 +36,62 @@ typedef GlyphAtlasHostFactory =
 /// and the glyph atlas host.
 ///
 /// The page widget is torn down every time the panel closes; the baked pages
-/// must not be. The shell's controller owns this through the page's registry
-/// and disposes the host with it.
+/// must not be, and neither must their being the scope's glyph source: the
+/// scope is the host's, and surfaces outside the panel (the composer's inline
+/// emoji) draw through it. The shell's controller owns this through the page's
+/// registry; disposing it takes the atlas back out of the scope, then disposes
+/// the host.
 final class EmojiPageController extends CatalogPageController {
   /// The atlas host, or null until the page knows its density, and for a page
   /// that bakes nothing.
   GlyphAtlasHost? atlasHost;
 
+  /// The scope the page registered its atlas with, so disposing the
+  /// controller can take it out again. Null before the page mounts.
+  AssetCacheScope? assets;
+
   @override
   void dispose() {
+    _releaseGlyphSource();
     atlasHost?.dispose();
     atlasHost = null;
     super.dispose();
   }
+
+  // Leaves the scope without a source of ours: what is registered is either
+  // the atlas about to be disposed or the stand-in that waited for it.
+  void _releaseGlyphSource() {
+    final scope = assets;
+    assets = null;
+    if (scope == null) return;
+    final bound = scope.glyphSource;
+    if (bound == null) return;
+    if (identical(bound, _PendingGlyphSource.instance) ||
+        identical(bound, atlasHost?.atlas.value)) {
+      scope.glyphSource = null;
+    }
+  }
+}
+
+/// The glyph source of a scope whose atlas is on its way: it knows no glyph, so
+/// every glyph attached is a circle until the real atlas replaces it, instead
+/// of a paragraph drawn in the meantime and kept for good.
+final class _PendingGlyphSource implements GlyphSpriteSource {
+  const _PendingGlyphSource._();
+
+  static const _PendingGlyphSource instance = _PendingGlyphSource._();
+
+  @override
+  AtlasSprite? spriteOf(String glyph) => null;
+
+  @override
+  SpritePageHold? holdPageOf(String glyph) => null;
+
+  @override
+  void addPageListener(void Function(int pageIndex) listener) {}
+
+  @override
+  void removePageListener(void Function(int pageIndex) listener) {}
 }
 
 /// The emoji page: the emoji catalogue, its category strip, search results and
@@ -81,6 +124,14 @@ final class EmojiPageController extends CatalogPageController {
 /// time) or the density changes the host plans again behind the old art. With
 /// none the page draws text, which is right on the web and for a page
 /// embedded on its own.
+///
+/// Until the plan exists (a source that pages its collections is not ready to
+/// be planned) the scope's glyph source is a stand-in that knows nothing, so
+/// the glyphs attached meanwhile are circles that move onto the atlas when it
+/// arrives, never paragraphs; a platform that bakes nothing takes the stand-in
+/// out and they are drawn as text. The atlas stays the scope's glyph source
+/// after the page is unmounted, for the surfaces outside the panel that draw
+/// through the same scope, until the controller is disposed.
 ///
 /// ## Paced mount
 ///
@@ -221,7 +272,7 @@ class _EmojiPageState extends State<EmojiPage> {
       _policy = _newPolicy();
     }
     if (!identical(oldWidget.assets, widget.assets)) {
-      oldWidget.assets.glyphSource = null;
+      _controller._releaseGlyphSource();
       _boundAtlas = null;
       _bindAtlas(notify: false);
     }
@@ -231,11 +282,9 @@ class _EmojiPageState extends State<EmojiPage> {
   void dispose() {
     widget.source.collections.removeListener(_onCollections);
     _controller.atlasHost?.atlas.removeListener(_onAtlas);
-    // The host outlives this widget; the scope must not keep an atlas the
-    // shell controller may dispose.
-    if (identical(widget.assets.glyphSource, _boundAtlas)) {
-      widget.assets.glyphSource = null;
-    }
+    // The atlas stays the scope's glyph source: the host outlives this widget,
+    // and so do the composer's inline emoji drawn through the same scope. The
+    // controller takes it out when the shell disposes it.
     _stripReady.dispose();
     super.dispose();
   }
@@ -264,7 +313,11 @@ class _EmojiPageState extends State<EmojiPage> {
     final atlasHost = _controller.atlasHost;
     if (atlasHost == null) return;
     final plan = widget.planner(widget.source.collections.value);
-    if (plan != null) atlasHost.sync(plan);
+    if (plan == null) return;
+    atlasHost.sync(plan);
+    // A platform that bakes nothing says so now, with no atlas to signal it:
+    // the glyphs that waited for one are drawn as text from here on.
+    _applyAtlas(atlasHost.atlas.value, notify: false);
   }
 
   // --- The atlas ------------------------------------------------------------
@@ -287,6 +340,7 @@ class _EmojiPageState extends State<EmojiPage> {
   void _bindAtlas({required bool notify}) {
     final atlasHost = _controller.atlasHost;
     if (atlasHost == null) return;
+    _controller.assets = widget.assets;
     atlasHost.atlas
       ..removeListener(_onAtlas)
       ..addListener(_onAtlas);
@@ -297,10 +351,16 @@ class _EmojiPageState extends State<EmojiPage> {
       _applyAtlas(_controller.atlasHost!.atlas.value, notify: true);
 
   void _applyAtlas(GlyphAtlas? atlas, {required bool notify}) {
-    if (identical(atlas, _boundAtlas)) return;
-    // The scope rebinds the glyphs on screen to the new atlas in place, so a
+    final atlasHost = _controller.atlasHost;
+    // No atlas yet: wait for it unless the platform has none to wait for.
+    // The scope rebinds the glyphs on screen to the new source in place, so a
     // replan swaps art without re-attaching a leaf.
-    widget.assets.glyphSource = atlas;
+    widget.assets.glyphSource = switch (atlas) {
+      final baked? => baked,
+      null when atlasHost?.bakesNothing ?? true => null,
+      null => _PendingGlyphSource.instance,
+    };
+    if (identical(atlas, _boundAtlas)) return;
     _boundAtlas = atlas;
     final port = atlas == null ? null : GlyphAtlasBakePort(atlas);
     if (notify && mounted) {
