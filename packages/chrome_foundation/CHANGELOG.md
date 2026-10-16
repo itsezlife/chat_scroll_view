@@ -8,6 +8,8 @@ package is pre-1.0.
 
 ### Added
 
+- The `loop` motion role (one turn of an indeterminate loop, 900 ms linear).
+  `ChromeMotion` takes and copies it like the other roles.
 - `ValueObservableBuilder`, the one bridge from a model `ValueObservable` to
   the widget tree (a change signalled from layout rebuilds after the frame).
   It replaces the copies `panel_shell`, `panel_presentation`, `chat_composer`

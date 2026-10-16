@@ -8,6 +8,8 @@ is pre-1.0.
 
 ### Fixed
 
+- The category strip slides a tab into view on the `fade` motion role (and lands
+  at once under an instant speed) instead of a literal 200 ms.
 - Closing the panel no longer turns the glyphs of surfaces outside it (the
   composer's inline emoji, drawn through the same scope) into circles: the
   emoji page leaves its atlas registered with the scope when it unmounts and
