@@ -88,6 +88,7 @@ void main() {
             key: key('2764-FE0F'),
             semanticKind: SemanticKind.unicodeEmoji,
             mediaForm: MediaForm.glyph,
+            spokenName: 'red heart',
           ),
         ),
       );

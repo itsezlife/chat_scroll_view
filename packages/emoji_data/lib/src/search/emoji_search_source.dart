@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/src/catalog/emoji_catalog.dart';
 import 'package:emoji_data/src/collections/emoji_items.dart';
+import 'package:emoji_data/src/collections/emoji_spoken_names.dart';
 import 'package:emoji_data/src/search/keyword_index.dart';
 
 /// Emoji search as a [SearchSource]: a query over the keywords of an ordered
@@ -30,7 +31,9 @@ import 'package:emoji_data/src/search/keyword_index.dart';
 ///
 /// A hit on an entry's base key is shown as the variant the user chose for
 /// it, like the grid. Emoji the [GlyphSupport] says the device cannot draw
-/// are left out. Searching is not use: nothing is recorded.
+/// are left out. Each item carries the spoken name of its emoji from the first
+/// of [languages] whose pack names it. Searching is not use: nothing is
+/// recorded.
 ///
 /// ## Lifecycle
 ///
@@ -164,6 +167,7 @@ final class EmojiSearchSource implements SearchSource {
       return;
     }
     if (_disposed || generation != _generation) return;
+    _items.spokenNames = EmojiSpokenNames(_catalog, packs);
     _ranked = _rank(_folded(_query), packs);
     _pages = 1;
     _publishLoaded();
@@ -191,6 +195,7 @@ final class EmojiSearchSource implements SearchSource {
         return;
       }
       if (_disposed || generation != _generation) return;
+      _items.spokenNames = EmojiSpokenNames(_catalog, packs);
       _ranked = _rank(_folded(_query), packs);
       _publishLoaded();
     }());

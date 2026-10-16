@@ -168,6 +168,8 @@ final class AppServices {
           recents: recents,
           preferences: preferences,
           glyphSupport: probe.probe,
+          keywords: keywords,
+          languages: languages,
         ),
         (source) => source.dispose(),
       );

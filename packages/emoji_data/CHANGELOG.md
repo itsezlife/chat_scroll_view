@@ -24,6 +24,15 @@ is pre-1.0.
   share, `GlyphProbeSnapshot` and `hashGlyphPixels`.
 - `package:emoji_data/testing.dart` with `FakeEmojiAssetLoader`.
 
+### Changed
+
+- The items of `EmojiCollectionSource` and `EmojiSearchSource` carry the spoken
+  name of their emoji (the first word of its keyword record, from the first
+  language that names it; a tone variant is named as its entry), so a screen
+  reader says the name and not the glyph. `EmojiCollectionSource` takes
+  optional `keywords` and `languages` for it, and waits for the packs before
+  publishing a collection as loaded.
+
 ### Removed
 
 - The native emoji platform filter and its plugin code: which glyphs the

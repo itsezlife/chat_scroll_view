@@ -137,6 +137,31 @@ void main() {
     );
   });
 
+  group('what a screen reader says', () {
+    test('every emoji the grid shows carries a spoken name in the app '
+        'language', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      final group = services.catalog.structure.groups.first.id;
+      await services.emojiSource.load(CollectionId.category(group));
+
+      final loaded =
+          services.emojiSource.collections.value
+                  .firstWhere((c) => c.id == CollectionId.category(group))
+                  .contents
+              as CollectionContents$Loaded;
+      final spoken = [
+        for (final item in loaded.items) item.descriptor?.spokenName,
+      ];
+      expect(
+        spoken.first,
+        'широко улыбается',
+        reason: 'ru is the first language',
+      );
+      expect(spoken, everyElement(isNotNull));
+    });
+  });
+
   group('the atlas plan', () {
     Future<(AppServices, List<Collection>)> loaded() async {
       final services = await createTestServices();
