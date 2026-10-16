@@ -112,15 +112,12 @@ void main() {
       expect(tester.getTopLeft(grid()).dy, page.top);
     });
 
-    testWidgets('the strip is a 1 px line over 36 px of icons', (tester) async {
+    testWidgets('the strip is 36 px of icons, with no line over it', (
+      tester,
+    ) async {
       await pumpShell(tester, arrangement: PanelArrangement.pointer);
 
-      expect(
-        tester.getSize(strip()).height,
-        EmojiCategoryStrip.separatorExtent + EmojiCategoryStrip.height,
-      );
-      expect(EmojiCategoryStrip.separatorExtent, 1);
-      expect(EmojiCategoryStrip.height, 36);
+      expect(tester.getSize(strip()).height, 36);
     });
 
     testWidgets('the page tells the shell how tall the strip is, and there is '
@@ -173,7 +170,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(strip(), findsOneWidget);
-      expect(find.bySemanticsLabel('Animals & Nature'), findsOneWidget);
+      // The categories are folded into the first one's icon while the recents
+      // are active.
+      expect(find.bySemanticsLabel('Smileys & People'), findsOneWidget);
       semantics.dispose();
     });
 
@@ -194,7 +193,7 @@ void main() {
 
       expect(shell.search.value.query, '');
       expect(strip(), findsOneWidget);
-      expect(find.bySemanticsLabel('Animals & Nature'), findsOneWidget);
+      expect(find.bySemanticsLabel('Smileys & People'), findsOneWidget);
       expect(find.bySemanticsLabel('Recently used'), findsOneWidget);
 
       // Nothing is left to clear: the control goes, and search stays open.

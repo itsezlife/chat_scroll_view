@@ -8,6 +8,17 @@ is pre-1.0.
 
 ### Changed
 
+- Source-breaking: under `pointer` the emoji strip is the reference desktop
+  client's footer with packs (`EmojiStripFooter`): no line over it, 30 px
+  slots from 3 px in, the categories folded into one icon that opens into
+  theirs while one is active, a slot per pack (`CollectionId.set` sections,
+  drawn by their cover from `EmojiCategoryStrip.assets`), wheel and drag
+  scrolling, centring, edge fades. `EmojiCategoryStrip.separatorExtent`,
+  `highlightSize`, `highlightRadius`, `pointerPadH` and `pointerMinPitch` are
+  gone; `EmojiPagePolicy` takes `assets`.
+- Under `pointer` an emoji is drawn at 24 px at every width, in the grid and
+  the variant picker (`EmojiPagePolicy.pointerGlyphSize`); the picker takes
+  the grid's `glyphExtent`.
 - Source-breaking: `GlyphAtlasHost` is the page's `BakeActivityPort` and has a
   `source`, the layered glyph source the scope draws from. A plan with new
   glyphs no longer plans the atlas again: an atlas of just those glyphs joins as

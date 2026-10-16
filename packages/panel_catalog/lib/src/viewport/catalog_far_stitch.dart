@@ -69,6 +69,7 @@ sealed class CatalogStitchCapturedSlot {
     required double width,
     required CatalogContentBox contentBox,
     required CatalogPlaceholderStyle style,
+    double? glyphExtent,
   }) = CatalogStitchCapturedSkeleton;
 
   /// Captured empty-message row.
@@ -93,6 +94,7 @@ sealed class CatalogStitchCapturedSlot {
     required CatalogLeaf leaf,
     CatalogContentBox? contentBox,
     CatalogPlaceholderStyle? placeholderStyle,
+    double? glyphExtent,
   }) = CatalogStitchCapturedLeaf;
 
   /// Content y of the slot top at capture time.
@@ -153,6 +155,7 @@ final class CatalogStitchCapturedSkeleton extends CatalogStitchCapturedSlot {
     required this.width,
     required this.contentBox,
     required this.style,
+    this.glyphExtent,
   });
 
   /// Content x of the cell left edge at capture time.
@@ -166,6 +169,9 @@ final class CatalogStitchCapturedSkeleton extends CatalogStitchCapturedSlot {
 
   /// The stand-in the skeleton was drawn as.
   final CatalogPlaceholderStyle style;
+
+  /// The grid's fixed glyph box side at capture time, if any.
+  final double? glyphExtent;
 }
 
 /// Captured empty-message row for stitch outgoing paint.
@@ -204,6 +210,7 @@ final class CatalogStitchCapturedLeaf extends CatalogStitchCapturedSlot {
     required this.leaf,
     this.contentBox,
     this.placeholderStyle,
+    this.glyphExtent,
   });
 
   /// Content x of the cell left edge at capture time.
@@ -226,6 +233,9 @@ final class CatalogStitchCapturedLeaf extends CatalogStitchCapturedSlot {
 
   /// The section's placeholder style override at capture time.
   final CatalogPlaceholderStyle? placeholderStyle;
+
+  /// The grid's fixed glyph box side at capture time, if any.
+  final double? glyphExtent;
 }
 
 /// Captures slots intersecting the pre-jump viewport band.
@@ -267,6 +277,7 @@ List<CatalogStitchCapturedSlot> captureCatalogStitchOutgoing({
             width: skeleton.width,
             contentBox: skeleton.contentBox,
             style: skeleton.style,
+            glyphExtent: skeleton.glyphExtent,
           ),
         );
       case final CatalogMessageSlot message:
@@ -293,6 +304,7 @@ List<CatalogStitchCapturedSlot> captureCatalogStitchOutgoing({
             leaf: leaf.leaf,
             contentBox: leaf.contentBoxOverride,
             placeholderStyle: leaf.placeholderStyleOverride,
+            glyphExtent: leaf.glyphExtent,
           ),
         );
     }

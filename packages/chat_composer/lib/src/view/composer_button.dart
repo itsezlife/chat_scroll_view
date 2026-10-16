@@ -7,7 +7,9 @@ import 'package:flutter/widgets.dart';
 /// action and of the header's dismiss control.
 ///
 /// It never takes focus from the field on a pointer tap, so pressing it
-/// leaves the caret and the keyboard where they were; keyboard users reach it
+/// leaves the caret and the keyboard where they were, and it is part of the
+/// field's tap region, so a desktop field (which lets go of its focus on a
+/// mouse press outside that region) keeps it too; keyboard users reach it
 /// through traversal and activate it with Enter or Space. A [primary] button
 /// is drawn as a filled disc.
 class ComposerButton extends StatefulWidget {
@@ -120,32 +122,36 @@ class _ComposerButtonState extends State<ComposerButton> {
       label: widget.semanticLabel,
       onTap: _active ? widget.onTap : null,
       excludeSemantics: true,
-      child: FocusableActionDetector(
-        enabled: _active,
-        mouseCursor: _active ? SystemMouseCursors.click : MouseCursor.defer,
-        shortcuts: _activate,
-        actions: {
-          ActivateIntent: CallbackAction<ActivateIntent>(
-            onInvoke: (_) {
-              widget.onTap?.call();
-              return null;
-            },
-          ),
-        },
-        onShowFocusHighlight: (show) => setState(() => _focusHighlight = show),
-        // A region of its own, not the detector's hover highlight: that one
-        // is reported only while the framework's highlight mode is the
-        // traditional one, which a touch-first platform with a mouse
-        // attached has not entered.
-        child: MouseRegion(
-          onEnter: (_) => setState(() => _hovered = true),
-          onExit: (_) => setState(() => _hovered = false),
-          child: ScalePressable(
-            onPressed: _active ? widget.onTap : null,
-            child: SizedBox(
-              width: widget.width,
-              height: widget.height,
-              child: face,
+      // Inside the semantics, so the button's own node stays its root.
+      child: TextFieldTapRegion(
+        child: FocusableActionDetector(
+          enabled: _active,
+          mouseCursor: _active ? SystemMouseCursors.click : MouseCursor.defer,
+          shortcuts: _activate,
+          actions: {
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (_) {
+                widget.onTap?.call();
+                return null;
+              },
+            ),
+          },
+          onShowFocusHighlight: (show) =>
+              setState(() => _focusHighlight = show),
+          // A region of its own, not the detector's hover highlight: that one
+          // is reported only while the framework's highlight mode is the
+          // traditional one, which a touch-first platform with a mouse
+          // attached has not entered.
+          child: MouseRegion(
+            onEnter: (_) => setState(() => _hovered = true),
+            onExit: (_) => setState(() => _hovered = false),
+            child: ScalePressable(
+              onPressed: _active ? widget.onTap : null,
+              child: SizedBox(
+                width: widget.width,
+                height: widget.height,
+                child: face,
+              ),
             ),
           ),
         ),

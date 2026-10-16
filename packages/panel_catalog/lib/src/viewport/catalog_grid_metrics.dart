@@ -20,6 +20,7 @@ final class CatalogGridMetrics {
     required this.left,
     required this.usableWidth,
     required this.textDirection,
+    this.glyphExtent,
   });
 
   /// Columns.
@@ -46,6 +47,10 @@ final class CatalogGridMetrics {
 
   /// The direction cells fill in, section override or viewport default.
   final TextDirection textDirection;
+
+  /// The fixed side of the glyph box ([SectionLayout$Grid.glyphExtent]), or
+  /// null for the fraction of the cell.
+  final double? glyphExtent;
 
   /// Content x of the left edge of the cell in column `0`, the one at the start
   /// edge: the leftmost left to right, the rightmost right to left.
@@ -81,7 +86,8 @@ final class CatalogGridMetrics {
       leafCount == 0 ? 0 : (leafCount + spanCount - 1) ~/ spanCount;
 
   /// The side of the glyph box a cell of this grid draws in.
-  double get glyphBoxExtent => catalogGlyphBoxExtent(cellWidth, cellHeight);
+  double get glyphBoxExtent =>
+      catalogGlyphBoxExtent(cellWidth, cellHeight, fixed: glyphExtent);
 }
 
 /// Resolves [layout] (null = all defaults) against the viewport defaults;
@@ -138,6 +144,7 @@ CatalogGridMetrics resolveCatalogGrid(
     left: padding.left + insets.left + slack,
     usableWidth: usableWidth,
     textDirection: grid.textDirection ?? textDirection,
+    glyphExtent: grid.glyphExtent,
   );
 }
 

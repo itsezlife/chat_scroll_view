@@ -196,6 +196,7 @@ class EmojiVariantPicker extends StatelessWidget {
   const EmojiVariantPicker({
     required this.options,
     required this.cell,
+    this.glyphExtent,
     this.selected,
     this.onChoose,
     this.onHover,
@@ -207,6 +208,9 @@ class EmojiVariantPicker extends StatelessWidget {
 
   /// The size of one option: the pressed grid cell.
   final Size cell;
+
+  /// The grid's fixed glyph box side, or null for the fraction of [cell].
+  final double? glyphExtent;
 
   /// Index of the highlighted option, or null for none.
   final int? selected;
@@ -225,7 +229,11 @@ class EmojiVariantPicker extends StatelessWidget {
     final strings = ChromeStringsScope.semanticsOf(context);
     final layout = EmojiVariantPickerLayout(count: options.length, cell: cell);
     final card = layout.card;
-    final glyphBox = catalogGlyphBoxExtent(cell.width, cell.height);
+    final glyphBox = catalogGlyphBoxExtent(
+      cell.width,
+      cell.height,
+      fixed: glyphExtent,
+    );
     final wash = ChromeCatalogTheme.hoverWashOf(palette);
     return Semantics(
       container: true,
@@ -414,6 +422,7 @@ final class EmojiVariantSession implements CatalogLongPressSession {
     required this.onChosen,
     required this.mode,
     required this.layout,
+    required this.glyphExtent,
     required PanelPageHold hold,
     required int? selected,
     required Rect card,
@@ -437,6 +446,7 @@ final class EmojiVariantSession implements CatalogLongPressSession {
     required EmojiVariantPickerMode mode,
     required PanelPageHold hold,
     required ValueChanged<ContentKey$Unicode> onChosen,
+    double? glyphExtent,
   }) {
     final overlay = Overlay.of(context);
     final scopes = ChromeOverlayScopes.capture(context);
@@ -451,6 +461,7 @@ final class EmojiVariantSession implements CatalogLongPressSession {
       onChosen: onChosen,
       mode: mode,
       layout: layout,
+      glyphExtent: glyphExtent,
       hold: hold,
       selected: mode == EmojiVariantPickerMode.touch
           ? math.max(0, options.indexOf(initial))
@@ -490,6 +501,9 @@ final class EmojiVariantSession implements CatalogLongPressSession {
 
   /// The geometry the picker was laid out with.
   final EmojiVariantPickerLayout layout;
+
+  /// The grid's fixed glyph box side, or null for the fraction of the cell.
+  final double? glyphExtent;
 
   final PanelPageHold _hold;
 
@@ -662,6 +676,7 @@ class _PickerOverlayState extends State<_PickerOverlay>
                 builder: (context, _) => EmojiVariantPicker(
                   options: session.options,
                   cell: session.layout.cell,
+                  glyphExtent: session.glyphExtent,
                   selected: session._selected,
                   onChoose: session._choose,
                   onHover: session.mode == EmojiVariantPickerMode.touch

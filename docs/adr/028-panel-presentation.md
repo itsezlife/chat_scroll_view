@@ -95,3 +95,5 @@ its tap region, so a click on an emoji took the caret from the composer. The
 popup (its hover area), the dock's body, the variant picker and the context menu
 are each a `TextFieldTapRegion`: a press there belongs to the composer's region
 and leaves its focus and selection where they are, as in the reference client.
+The composer's own buttons (the panel toggle among them) are in that region
+too, so clicking one never takes the caret from the field.

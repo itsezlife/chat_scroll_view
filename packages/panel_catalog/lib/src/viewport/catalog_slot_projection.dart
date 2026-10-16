@@ -50,6 +50,7 @@ sealed class CatalogLayoutSlot {
     required CatalogLeaf leaf,
     CatalogContentBox? contentBox,
     CatalogPlaceholderStyle? placeholderStyle,
+    double? glyphExtent,
   }) = CatalogLeafSlot;
 
   /// Skeleton cell of a section that is loading or failed: geometry and the
@@ -61,6 +62,7 @@ sealed class CatalogLayoutSlot {
     required double width,
     required CatalogContentBox contentBox,
     required CatalogPlaceholderStyle style,
+    double? glyphExtent,
   }) = CatalogSkeletonSlot;
 
   /// The row of a loaded section with nothing in it: [text] across the
@@ -134,6 +136,7 @@ final class CatalogSkeletonSlot extends CatalogLayoutSlot {
     required this.width,
     required this.contentBox,
     required this.style,
+    this.glyphExtent,
   });
 
   /// Content x of the cell left edge.
@@ -148,9 +151,16 @@ final class CatalogSkeletonSlot extends CatalogLayoutSlot {
   /// The stand-in drawn.
   final CatalogPlaceholderStyle style;
 
+  /// The grid's fixed glyph box side, or null for the fraction of the cell.
+  final double? glyphExtent;
+
   /// Side of the square the skeleton is drawn in.
-  double get contentExtent =>
-      catalogContentBoxExtent(contentBox, width, height);
+  double get contentExtent => catalogContentBoxExtent(
+    contentBox,
+    width,
+    height,
+    glyphExtent: glyphExtent,
+  );
 }
 
 /// The row that tells a loaded section has nothing to show.
@@ -191,6 +201,7 @@ final class CatalogLeafSlot extends CatalogLayoutSlot {
     required this.leaf,
     CatalogContentBox? contentBox,
     CatalogPlaceholderStyle? placeholderStyle,
+    this.glyphExtent,
   }) : _contentBox = contentBox,
        _placeholderStyle = placeholderStyle;
 
@@ -222,9 +233,16 @@ final class CatalogLeafSlot extends CatalogLayoutSlot {
   CatalogPlaceholderStyle get placeholderStyle =>
       _placeholderStyle ?? leaf.placeholderStyle;
 
+  /// The grid's fixed glyph box side, or null for the fraction of the cell.
+  final double? glyphExtent;
+
   /// Side of the square the content is asked for and drawn in.
-  double get contentExtent =>
-      catalogContentBoxExtent(contentBox, width, height);
+  double get contentExtent => catalogContentBoxExtent(
+    contentBox,
+    width,
+    height,
+    glyphExtent: glyphExtent,
+  );
 
   /// The section override of [contentBox], to carry onto a copy of this slot.
   CatalogContentBox? get contentBoxOverride => _contentBox;
@@ -489,6 +507,7 @@ CatalogSlotProjection projectCatalogSlots({
           leaf: leaves[i],
           contentBox: section.contentBox,
           placeholderStyle: section.placeholderStyle,
+          glyphExtent: grid.glyphExtent,
         ),
       );
     }
@@ -502,6 +521,7 @@ CatalogSlotProjection projectCatalogSlots({
           width: grid.cellWidth,
           contentBox: section.contentBox ?? CatalogContentBox.glyph,
           style: section.placeholderStyle ?? CatalogPlaceholderStyle.circle,
+          glyphExtent: grid.glyphExtent,
         ),
       );
     }

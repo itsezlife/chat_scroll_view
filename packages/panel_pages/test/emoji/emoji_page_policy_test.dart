@@ -5,6 +5,7 @@
 /// picker offers for the catalogue's entries.
 library;
 
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
@@ -74,6 +75,28 @@ void main() {
             headerExtent: 27,
           ),
           reason: '$id',
+        );
+      }
+    });
+
+    test('under the pointer draws an emoji 24 px, the reference desktop '
+        'client\'s size, at every width', () {
+      final layout = policy.layoutOf(
+        const Collection(id: CollectionId.recent),
+        arrangement: PanelArrangement.pointer,
+      );
+      for (final width in [292.0, 345.0, 392.0]) {
+        final box = largestCatalogGlyphBox(
+          layouts: [layout],
+          spanCount: 8,
+          cellExtent: EmojiPagePolicy.cellPitch,
+          padding: const EdgeInsets.fromLTRB(8, 0, 4, 0),
+          maxWidth: width,
+        );
+        expect(
+          box * TextGlyphProducer.defaultFontScale,
+          closeTo(24, 1e-9),
+          reason: '$width',
         );
       }
     });

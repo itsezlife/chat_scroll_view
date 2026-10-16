@@ -51,6 +51,32 @@ void main() {
     expect(layered.spriteOf('z'), isNull);
   });
 
+  test('a page index names one page image across every layer: a surface '
+      'that batches by it draws each glyph from its own page', () {
+    // Both layers number their pages from 0.
+    layered.add(extra);
+    base.bakePage(0);
+    extra.bakePage(0);
+
+    final a = layered.spriteOf('a')!;
+    final x = layered.spriteOf('x')!;
+
+    expect(a.page, isNot(same(x.page)));
+    expect(a.pageIndex, isNot(x.pageIndex));
+    expect(layered.spriteOf('b')!.pageIndex, a.pageIndex);
+  });
+
+  test('a page listener hears the index its sprites carry', () {
+    final heard = <int>[];
+    layered
+      ..add(extra)
+      ..addPageListener(heard.add);
+
+    extra.bakePage(0);
+
+    expect(heard, contains(layered.spriteOf('x')!.pageIndex));
+  });
+
   test('a hold is taken on the layer that has the glyph', () {
     layered.add(extra);
 

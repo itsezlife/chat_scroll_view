@@ -6,6 +6,11 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- A mouse click on a composer button keeps the field focused on desktop
+  platforms: the buttons are part of the field's tap region.
+
 ### Changed
 
 - Source-breaking: `ComposerBottomFade` is a `StatelessWidget` that washes the

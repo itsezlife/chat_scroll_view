@@ -17,13 +17,23 @@ const double kCatalogGlyphBoxFraction = 0.72;
 const double kCirclePlaceholderRadiusFactor = 0.4;
 
 /// The side of the glyph box drawn in a cell of [cellWidth] x [cellHeight]:
-/// [kCatalogGlyphBoxFraction] of the shorter side.
+/// [kCatalogGlyphBoxFraction] of the shorter side, or [fixed] (a grid's
+/// `glyphExtent`) held to the shorter side.
 ///
 /// The painter draws every glyph, sprite or placeholder in this box, and
 /// [largestCatalogGlyphBox] takes the maximum of it over the cells a catalog
 /// can show, so the two cannot disagree about how large a glyph is.
-double catalogGlyphBoxExtent(double cellWidth, double cellHeight) =>
-    math.min(cellWidth, cellHeight) * kCatalogGlyphBoxFraction;
+double catalogGlyphBoxExtent(
+  double cellWidth,
+  double cellHeight, {
+  double? fixed,
+}) {
+  final side = math.min(cellWidth, cellHeight);
+  return switch (fixed) {
+    final extent? => math.min(extent, side),
+    null => side * kCatalogGlyphBoxFraction,
+  };
+}
 
 /// The square a leaf's content is asked for from the cache and drawn in,
 /// centred in its cell.
@@ -37,13 +47,19 @@ enum CatalogContentBox {
 }
 
 /// The side of the square [box] draws content in, in a cell of [cellWidth] x
-/// [cellHeight]. Both the cache request and the paint read it, so the pixels
-/// asked for are the pixels drawn.
+/// [cellHeight], with the grid's fixed [glyphExtent] if it has one. Both the
+/// cache request and the paint read it, so the pixels asked for are the pixels
+/// drawn.
 double catalogContentBoxExtent(
   CatalogContentBox box,
   double cellWidth,
-  double cellHeight,
-) => switch (box) {
-  CatalogContentBox.glyph => catalogGlyphBoxExtent(cellWidth, cellHeight),
+  double cellHeight, {
+  double? glyphExtent,
+}) => switch (box) {
+  CatalogContentBox.glyph => catalogGlyphBoxExtent(
+    cellWidth,
+    cellHeight,
+    fixed: glyphExtent,
+  ),
   CatalogContentBox.cell => math.min(cellWidth, cellHeight),
 };

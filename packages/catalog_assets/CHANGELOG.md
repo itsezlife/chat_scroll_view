@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- `LayeredGlyphSource` gives each layer a block of page indices of its own
+  (`layerPageStride`), so a surface that batches by page index no longer cuts
+  a later layer's glyph from the first layer's page: a tone chosen for the
+  first time showed the first emoji of the catalogue.
+
 ### Added
 
 - `GlyphSpriteSource.waitsForSprite(glyph)` (source-breaking for

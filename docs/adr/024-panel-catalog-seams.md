@@ -62,4 +62,5 @@ remainder split as a margin.
 | ---- | -------- |
 | Grid | `SectionLayout.grid` takes an optional `desiredCellWidth` and `cellHeightInset`. With them, `cols = max(floor(usable / desired), 1)`, `cellWidth = floor(usable / cols)`, `cellHeight = cellWidth - inset`, and `floor(remainder / 2)` is added to the leading padding. Without them the fixed column count and cell stay as they were. |
 | Policy | `CatalogPagePolicy.layoutOf(collection, {arrangement})`: a page may lay a section out per arrangement. The emoji page asks for 37 px cells, 2 px shorter than wide, under `pointer`. |
+| Glyph size | `SectionLayout.grid(glyphExtent:)` fixes the side of the glyph box instead of 0.72 of the cell's shorter side (held to that side); the leaf asks the cache for that box and draws in it, sprite, paragraph or placeholder alike. Content that fills its cell ignores it. |
 | Drag | A mouse does not drag the catalogue; the wheel and the scrollbar scroll it. Touch, stylus and trackpad still drag. |

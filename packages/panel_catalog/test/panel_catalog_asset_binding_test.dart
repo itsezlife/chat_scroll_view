@@ -240,6 +240,29 @@ void main() {
       expect(drawn, [closeTo(28.8, 1e-9), closeTo(40, 1e-9)]);
     });
 
+    testWidgets('a grid with a glyph extent draws its emoji that size, '
+        'whatever its cell; a sticker still fills the cell', (tester) async {
+      final emoji = _doc(0);
+      final sticker = _sticker(1);
+      snapshots.replaceSections([
+        CatalogSection(
+          id: 'a',
+          title: 'A',
+          leaves: [emoji, sticker],
+          layout: const SectionLayout.grid(glyphExtent: 24),
+        ),
+      ]);
+      await pumpViewport(tester, devicePixelRatio: 2);
+
+      expect(requestOf(emoji).spec.pixelWidth, 48);
+      expect(requestOf(sticker).spec.pixelWidth, 80);
+      final canvas = paintOnce(tester);
+      expect(canvas.rrects.map((r) => r.rrect.width), [
+        closeTo(24, 1e-9),
+        closeTo(40, 1e-9),
+      ]);
+    });
+
     testWidgets('a section overrides the box and the placeholder style', (
       tester,
     ) async {

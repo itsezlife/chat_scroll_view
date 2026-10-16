@@ -658,6 +658,25 @@ void main() {
     expect(host.removeRecentRequests.single.key, fixtures.key('😀'));
   });
 
+  testWidgets('the picker draws its emoji the size the grid does', (
+    tester,
+  ) async {
+    await pumpPage(tester);
+
+    final gesture = await mouse(tester);
+    await gesture.down(cell(tester, top: people));
+    await tester.pump(_hold + _settle);
+
+    final sizes = {
+      for (final text in tester.widgetList<Text>(
+        find.descendant(of: picker(), matching: find.byType(Text)),
+      ))
+        text.style?.fontSize,
+    };
+    expect(sizes, {closeTo(24, 1e-9)});
+    await gesture.up();
+  });
+
   group(
     'the grid follows its width, as the reference desktop client\'s does',
     () {

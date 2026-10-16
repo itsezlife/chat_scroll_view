@@ -2265,6 +2265,7 @@ class RenderPanelCatalog extends RenderBox
           :final leaf,
           :final contentBox,
           :final placeholderStyle,
+          :final glyphExtent,
         ):
           _paintLayoutSlot(
             canvas: canvas,
@@ -2279,6 +2280,7 @@ class RenderPanelCatalog extends RenderBox
               leaf: leaf,
               contentBox: contentBox,
               placeholderStyle: placeholderStyle,
+              glyphExtent: glyphExtent,
             ),
             pressedSlotKey: pressedSlotKey,
             pressScale: pressScale,
@@ -2290,6 +2292,7 @@ class RenderPanelCatalog extends RenderBox
           :final height,
           :final contentBox,
           :final style,
+          :final glyphExtent,
         ):
           _paintLayoutSlot(
             canvas: canvas,
@@ -2301,6 +2304,7 @@ class RenderPanelCatalog extends RenderBox
               width: width,
               contentBox: contentBox,
               style: style,
+              glyphExtent: glyphExtent,
             ),
             pressedSlotKey: pressedSlotKey,
             pressScale: pressScale,

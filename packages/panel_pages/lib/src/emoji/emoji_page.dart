@@ -265,6 +265,7 @@ class _EmojiPageState extends State<EmojiPage> {
     entryOf: widget.entryOf,
     preferences: widget.preferences,
     stripReady: _stripReady,
+    assets: widget.assets,
   );
 
   @override
@@ -290,7 +291,8 @@ class _EmojiPageState extends State<EmojiPage> {
       _onCollections();
     }
     if (!identical(oldWidget.entryOf, widget.entryOf) ||
-        !identical(oldWidget.preferences, widget.preferences)) {
+        !identical(oldWidget.preferences, widget.preferences) ||
+        !identical(oldWidget.assets, widget.assets)) {
       _policy = _newPolicy();
     }
     if (!identical(oldWidget.assets, widget.assets)) {

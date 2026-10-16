@@ -36,12 +36,18 @@ sealed class SectionLayout {
   /// [spanCount]: as many as fit at least that wide. [cellHeightInset] makes
   /// the row that much shorter than the cell is wide. Together they are the
   /// reference desktop client's emoji list (37 and 2).
+  ///
+  /// [glyphExtent] fixes the side of the glyph box instead of taking a
+  /// fraction of the cell: an emoji is drawn that size, centred, whatever the
+  /// width gives the cell, as the reference desktop client draws its emoji
+  /// list.
   const factory SectionLayout.grid({
     int? spanCount,
     double? cellExtent,
     double? cellAspect,
     double? desiredCellWidth,
     double? cellHeightInset,
+    double? glyphExtent,
     double? headerExtent,
     EdgeInsets insets,
     TextDirection? textDirection,
@@ -59,6 +65,7 @@ final class SectionLayout$Grid extends SectionLayout {
     this.cellAspect,
     this.desiredCellWidth,
     this.cellHeightInset,
+    this.glyphExtent,
     this.headerExtent,
     this.insets = EdgeInsets.zero,
     this.textDirection,
@@ -78,6 +85,10 @@ final class SectionLayout$Grid extends SectionLayout {
        assert(
          desiredCellWidth == null || spanCount == null,
          'A grid takes its columns from a count or from a width, not both.',
+       ),
+       assert(
+         glyphExtent == null || glyphExtent > 0,
+         'A glyph extent must be positive.',
        ),
        assert(
          cellHeightInset == null || (cellExtent == null && cellAspect == null),
@@ -106,6 +117,11 @@ final class SectionLayout$Grid extends SectionLayout {
   /// [cellExtent] / [cellAspect].
   final double? cellHeightInset;
 
+  /// The side of the box a glyph is drawn in, or null for
+  /// `kCatalogGlyphBoxFraction` of the cell's shorter side. Held to the cell's
+  /// shorter side. Content that fills its cell (a sticker) ignores it.
+  final double? glyphExtent;
+
   /// Header band height, or null for the viewport default.
   final double? headerExtent;
 
@@ -130,6 +146,7 @@ final class SectionLayout$Grid extends SectionLayout {
       other.cellAspect == cellAspect &&
       other.desiredCellWidth == desiredCellWidth &&
       other.cellHeightInset == cellHeightInset &&
+      other.glyphExtent == glyphExtent &&
       other.headerExtent == headerExtent &&
       other.insets == insets &&
       other.textDirection == textDirection;
@@ -141,6 +158,7 @@ final class SectionLayout$Grid extends SectionLayout {
     cellAspect,
     desiredCellWidth,
     cellHeightInset,
+    glyphExtent,
     headerExtent,
     insets,
     textDirection,
@@ -150,6 +168,6 @@ final class SectionLayout$Grid extends SectionLayout {
   String toString() =>
       'SectionLayout.grid(span: $spanCount, cell: $cellExtent, '
       'aspect: $cellAspect, desired: $desiredCellWidth, '
-      'inset: $cellHeightInset, header: $headerExtent, '
+      'inset: $cellHeightInset, glyph: $glyphExtent, header: $headerExtent, '
       'direction: $textDirection)';
 }

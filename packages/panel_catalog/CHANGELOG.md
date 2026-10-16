@@ -8,6 +8,9 @@ is pre-1.0.
 
 ### Added
 
+- `SectionLayout.grid(glyphExtent:)`: a fixed side for the glyph box, held to
+  the cell's shorter side, instead of 0.72 of it. `catalogGlyphBoxExtent` and
+  `catalogContentBoxExtent` take it as `fixed:` / `glyphExtent:`.
 - An adaptive grid: `SectionLayout.grid(desiredCellWidth:, cellHeightInset:)`
   fits as many columns of the desired width as the width allows, widens the
   cell to share the room and centres the remainder ([ADR 024](../../docs/adr/024-panel-catalog-seams.md)

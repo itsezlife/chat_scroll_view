@@ -13,7 +13,6 @@ import 'dart:ui' show Tristate;
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:listen/listen.dart' as listen;
@@ -343,30 +342,73 @@ void main() {
     });
   });
 
-  group('pinned at the bottom (the pointer arrangement)', () {
-    // 4 tabs over 360 px: 3 px insets and 88.5 px for each icon.
-    const pitch = (360 - 6) / 4;
-    double highlightStart(WidgetTester tester) =>
-        tester.getTopLeft(find.byKey(EmojiCategoryStrip.highlightKey)).dx;
-    double expectedStart(int index) => 3 + index * pitch + (pitch - 28) / 2;
+  group('pinned at the bottom (the pointer arrangement): the reference '
+      'desktop client\'s footer', () {
+    final all = [
+      _recents,
+      for (final id in [
+        'people',
+        'nature',
+        'food',
+        'activity',
+        'travel',
+        'objects',
+        'symbols',
+      ])
+        CollectionId.category(id),
+    ];
+    const categoryLabels = [
+      'Smileys & People',
+      'Animals & Nature',
+      'Food & Drink',
+      'Activity',
+      'Travel & Places',
+      'Objects',
+      'Symbols',
+    ];
 
     Future<void> pumpPinned(
       WidgetTester tester, {
       bool disableAnimations = false,
-      double width = 360,
+      double width = 345,
+      ChromeMotionSpeed speed = ChromeMotionSpeed.normal,
     }) => pump(
       tester,
       width: width,
       arrangement: PanelArrangement.pointer,
       disableAnimations: disableAnimations,
+      speed: speed,
     );
 
-    testWidgets('is a 1 px line over 36 px of icons on its own fill', (
+    Rect marker(WidgetTester tester) =>
+        tester.getRect(find.byKey(EmojiCategoryStrip.highlightKey));
+
+    BorderRadiusGeometry? markerRadius(WidgetTester tester) {
+      final box = tester.widget<DecoratedBox>(
+        find.descendant(
+          of: find.byKey(EmojiCategoryStrip.highlightKey),
+          matching: find.byType(DecoratedBox),
+        ),
+      );
+      return (box.decoration as BoxDecoration).borderRadius;
+    }
+
+    Rect slot(WidgetTester tester, String label) => tester.getRect(
+      find.descendant(
+        of: find.byType(EmojiCategoryStrip),
+        matching: find.byWidgetPredicate(
+          (w) => w is Semantics && w.properties.label == label,
+        ),
+      ),
+    );
+
+    testWidgets('is 36 px of icons on its own fill, with no line over it', (
       tester,
     ) async {
+      handle.setIds(all);
       await pumpPinned(tester);
 
-      expect(tester.getSize(find.byType(EmojiCategoryStrip)).height, 37);
+      expect(tester.getSize(find.byType(EmojiCategoryStrip)).height, 36);
       final panel = ChromeThemeScope.panelOf(
         tester.element(find.byType(EmojiCategoryStrip)),
       );
@@ -378,154 +420,226 @@ void main() {
             ),
           )
           .map((box) => box.color);
-      expect(fills, containsAll([panel.hairline, panel.stripFill]));
-      expect(panel.stripFill, isNot(panel.background));
+      expect(fills, contains(panel.stripFill));
+      expect(fills, isNot(contains(panel.hairline)));
     });
 
-    testWidgets('marks the active category with a 28 px square of radius 8', (
-      tester,
-    ) async {
-      await pumpPinned(tester);
-
-      final marker = find.byKey(EmojiCategoryStrip.highlightKey);
-      expect(tester.getSize(marker), const Size(28, 28));
-      final decoration =
-          tester
-                  .widget<DecoratedBox>(
-                    find.descendant(
-                      of: marker,
-                      matching: find.byType(DecoratedBox),
-                    ),
-                  )
-                  .decoration
-              as BoxDecoration;
-      expect(decoration.borderRadius, BorderRadius.circular(8));
-      expect(decoration.shape, BoxShape.rectangle);
-    });
-
-    testWidgets('puts the square on the first selection without moving it', (
-      tester,
-    ) async {
-      await pumpPinned(tester);
-
-      expect(highlightStart(tester), closeTo(expectedStart(0), 0.01));
-    });
-
-    testWidgets('slides the square to the next icon over 400 ms, easing '
-        'out', (tester) async {
-      await pumpPinned(tester);
-
-      handle.enter('$_symbols', 3);
-      await tester.pump(); // the first frame of the slide
-      await tester.pump(const Duration(milliseconds: 200));
-
-      final from = expectedStart(0);
-      final to = expectedStart(3);
-      // An ease-out cubic is 87.5% of the way at half the time.
-      expect(highlightStart(tester), closeTo(from + (to - from) * 0.875, 0.5));
-
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(highlightStart(tester), closeTo(to, 0.01));
-    });
-
-    testWidgets('moves the square at once when animations are disabled', (
-      tester,
-    ) async {
-      await pumpPinned(tester, disableAnimations: true);
-
-      handle.enter('$_symbols', 3);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 1));
-
-      expect(highlightStart(tester), closeTo(expectedStart(3), 0.01));
-    });
-
-    testWidgets('moves the square at once under instant motion', (
-      tester,
-    ) async {
-      await pump(
-        tester,
-        arrangement: PanelArrangement.pointer,
-        speed: ChromeMotionSpeed.instant,
-      );
-
-      handle.enter('$_symbols', 3);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 1));
-
-      expect(highlightStart(tester), closeTo(expectedStart(3), 0.01));
-    });
-
-    testWidgets('paints nothing under a hovering mouse', (tester) async {
-      await pumpPinned(tester);
-      List<Color?> fills() => [
-        for (final box in tester.widgetList<DecoratedBox>(
-          find.descendant(
-            of: find.byType(EmojiCategoryStrip),
-            matching: find.byType(DecoratedBox),
-          ),
-        ))
-          (box.decoration as BoxDecoration).color,
-      ];
-      final before = fills();
-
-      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await mouse.addPointer(location: Offset.zero);
-      addTearDown(mouse.removePointer);
-      await mouse.moveTo(tester.getCenter(find.bySemanticsLabel('Symbols')));
-      await tester.pump();
-
-      expect(fills(), before);
-    });
-
-    testWidgets('shows the click cursor over an icon, and none under touch', (
+    testWidgets('puts the recents in a 30 px slot 3 px in, then every '
+        'category folded into one icon while the recents are active', (
       tester,
     ) async {
       final semantics = tester.ensureSemantics();
-      MouseCursor? cursorOver(WidgetTester tester, Offset position) =>
-          RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1);
-
+      handle.setIds(all);
       await pumpPinned(tester);
-      final flags = tester.getCenter(find.bySemanticsLabel('Symbols'));
-      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await mouse.addPointer(location: flags);
-      addTearDown(mouse.removePointer);
-      await tester.pump();
-      expect(cursorOver(tester, flags), SystemMouseCursors.click);
 
-      await pump(tester);
-      await mouse.moveTo(flags + const Offset(0, 1));
-      await tester.pump();
-      expect(cursorOver(tester, flags), isNot(SystemMouseCursors.click));
+      expect(slot(tester, 'Recently used'), const Rect.fromLTWH(3, 0, 30, 36));
+      expect(
+        slot(tester, 'Smileys & People'),
+        const Rect.fromLTWH(33, 0, 30, 36),
+      );
+      expect(find.bySemanticsLabel('Symbols'), findsNothing);
+      expect(selected(tester, 'Recently used'), isTrue);
+      expect(marker(tester), const Rect.fromLTWH(4, 4, 28, 28));
+      expect(markerRadius(tester), BorderRadius.circular(8));
       semantics.dispose();
     });
 
-    testWidgets('a tap still lands on the category', (tester) async {
+    testWidgets('opens the categories into their icons while one is active, '
+        'under a pill of radius 14, the category told by its colour', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      handle.setIds(all);
       await pumpPinned(tester);
 
-      await _tapTab(tester, 'Symbols');
-
-      expect(handle.jumps, ['$_symbols']);
-    });
-
-    testWidgets('scrolls only where the icons would get less than 33 px, and '
-        'reveals the active one', (tester) async {
-      await pumpPinned(tester, width: 100);
-
-      handle.enter('$_symbols', 3);
+      handle.enter('${all[3]}', 3);
       await tester.pumpAndSettle();
 
-      // 4 icons of 33 px and 3 px insets: 138 px in a 100 px strip.
-      expect(stripOffset(tester), 38);
+      // 345 px leave the group every icon: 7 of 30 px after the recents.
+      for (var i = 0; i < categoryLabels.length; i++) {
+        expect(
+          slot(tester, categoryLabels[i]).left,
+          33 + i * 30,
+          reason: categoryLabels[i],
+        );
+      }
+      expect(marker(tester), const Rect.fromLTWH(34, 4, 208, 28));
+      expect(markerRadius(tester), BorderRadius.circular(14));
+      expect(selected(tester, 'Food & Drink'), isTrue);
+      expect(selected(tester, 'Smileys & People'), isFalse);
+      semantics.dispose();
     });
 
-    testWidgets('does not scroll when the icons fit', (tester) async {
+    testWidgets('slides the marker over 400 ms, easing out, as the catalogue '
+        'moves into another section', (tester) async {
+      handle.setIds(all);
       await pumpPinned(tester);
 
-      handle.enter('$_symbols', 3);
-      await tester.pumpAndSettle();
+      handle.enter('${all[1]}', 1);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
-      expect(stripOffset(tester), 0);
+      // An ease-out cubic is 87.5% of the way at half the time: the width
+      // goes from the recents' 28 to the pill's 208.
+      expect(marker(tester).width, closeTo(28 + 180 * 0.875, 0.5));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(marker(tester).width, 208);
+    });
+
+    testWidgets('moves at once when animations are disabled, or the motion '
+        'is instant', (tester) async {
+      handle.setIds(all);
+      await pumpPinned(tester, disableAnimations: true);
+      handle.enter('${all[1]}', 1);
+      await tester.pump();
+      expect(marker(tester).width, 208);
+
+      await pumpPinned(tester, speed: ChromeMotionSpeed.instant);
+      handle.enter('$_recents', 0);
+      await tester.pump();
+      expect(marker(tester).width, 28);
+    });
+
+    group('with packs', () {
+      List<CatalogStripEntry> withPacks(int count) => [
+        ..._entries(all),
+        for (var i = 0; i < count; i++)
+          CatalogStripEntry(
+            sectionId: 'pack-$i',
+            collection: Collection(
+              id: CollectionId.set('p$i'),
+              metadata: CollectionMetadata(title: 'Pack $i'),
+            ),
+          ),
+      ];
+
+      testWidgets('gives each pack a 30 px slot after the categories, and a '
+          'click lands on it', (tester) async {
+        final semantics = tester.ensureSemantics();
+        handle.entries.value = withPacks(2);
+        await pumpPinned(tester);
+
+        expect(slot(tester, 'Pack 0'), const Rect.fromLTWH(63, 0, 30, 36));
+        expect(slot(tester, 'Pack 1'), const Rect.fromLTWH(93, 0, 30, 36));
+
+        await _tapTab(tester, 'Pack 1');
+        expect(handle.jumps, ['pack-1']);
+        expect(selected(tester, 'Pack 1'), isTrue);
+        semantics.dispose();
+      });
+
+      testWidgets('a click puts the marker on the icon at once', (
+        tester,
+      ) async {
+        handle.entries.value = withPacks(2);
+        await pumpPinned(tester);
+
+        await _tapTab(tester, 'Pack 1');
+        await tester.pump(const Duration(milliseconds: 16));
+
+        expect(marker(tester), const Rect.fromLTWH(94, 4, 28, 28));
+      });
+
+      testWidgets('centres the active icon, scrolling linearly over 400 ms, '
+          'when they overflow', (tester) async {
+        final semantics = tester.ensureSemantics();
+        // 10 packs: 3 + 30 + 30 + 300 + 3 = 366 px in 345, 21 px to scroll.
+        handle.entries.value = withPacks(10);
+        await pumpPinned(tester);
+        expect(slot(tester, 'Pack 9').right, 363);
+
+        handle.enter('pack-9', 17);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(slot(tester, 'Pack 9').right, closeTo(363 - 21 / 2, 0.01));
+
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(slot(tester, 'Pack 9').right, 342);
+        semantics.dispose();
+      });
+
+      testWidgets('the wheel scrolls them at once, held to their ends', (
+        tester,
+      ) async {
+        final semantics = tester.ensureSemantics();
+        handle.entries.value = withPacks(10);
+        await pumpPinned(tester);
+        final at = tester.getCenter(find.byType(EmojiCategoryStrip));
+
+        tester.binding.handlePointerEvent(
+          PointerScrollEvent(position: at, scrollDelta: const Offset(0, 15)),
+        );
+        await tester.pump();
+        expect(slot(tester, 'Recently used').left, 3 - 15);
+
+        tester.binding.handlePointerEvent(
+          PointerScrollEvent(position: at, scrollDelta: const Offset(50, 0)),
+        );
+        await tester.pump();
+        expect(slot(tester, 'Recently used').left, 3 - 21);
+        semantics.dispose();
+      });
+
+      testWidgets('a mouse drag scrolls them and picks nothing', (
+        tester,
+      ) async {
+        final semantics = tester.ensureSemantics();
+        handle.entries.value = withPacks(10);
+        await pumpPinned(tester);
+
+        final mouse = await tester.startGesture(
+          tester.getCenter(find.bySemanticsLabel('Pack 5')),
+          kind: PointerDeviceKind.mouse,
+        );
+        await mouse.moveBy(const Offset(-15, 0));
+        await tester.pump();
+        await mouse.up();
+        await tester.pump();
+
+        expect(slot(tester, 'Recently used').left, 3 - 15);
+        expect(handle.jumps, isEmpty);
+        semantics.dispose();
+      });
+
+      testWidgets('fades an edge with icons beyond it', (tester) async {
+        handle.entries.value = withPacks(10);
+        await pumpPinned(tester);
+        int fades() => tester
+            .widgetList<DecoratedBox>(
+              find.descendant(
+                of: find.byType(EmojiCategoryStrip),
+                matching: find.byType(DecoratedBox),
+              ),
+            )
+            .where((box) => (box.decoration as BoxDecoration).gradient != null)
+            .length;
+        expect(fades(), 1, reason: 'the end only');
+
+        tester.binding.handlePointerEvent(
+          PointerScrollEvent(
+            position: tester.getCenter(find.byType(EmojiCategoryStrip)),
+            scrollDelta: const Offset(10, 0),
+          ),
+        );
+        await tester.pump();
+        expect(fades(), 2);
+      });
+
+      testWidgets('a narrower group shows five and a half categories and '
+          'centres the active one in it', (tester) async {
+        final semantics = tester.ensureSemantics();
+        // 5 packs: 345 + 30 - 7 * 30 = 165, the least a group is.
+        handle.entries.value = withPacks(5);
+        await pumpPinned(tester);
+
+        handle.enter('${all[7]}', 7);
+        await tester.pumpAndSettle();
+
+        expect(marker(tester).width, 165 - 2);
+        // The last category's icon ends at the group's end.
+        expect(slot(tester, 'Symbols').right, closeTo(33 + 165, 0.01));
+        semantics.dispose();
+      });
     });
   });
 }

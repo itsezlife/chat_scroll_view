@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:catalog_assets/catalog_assets.dart'
+    show AssetCacheScope, TextGlyphProducer;
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
@@ -30,9 +32,10 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 ///   client's grid: as many columns of at least [pointerDesiredCellWidth] as
 ///   the width holds, whole pixels wide, each row [pointerCellHeightInset]
 ///   shorter, so a dock that is dragged wider or narrower gains or loses
-///   columns at once. Emoji are drawn
-///   in the glyph box of the cell ([glyphBoxExtent]), which is also the size
-///   the glyph atlas is baked for.
+///   columns at once. Under touch an emoji is drawn in the glyph box of the
+///   cell; under the pointer at [pointerGlyphSize], centred, whatever the
+///   width gives the cell, as the reference desktop client draws it. The
+///   atlas is baked for the larger of the two ([glyphBoxExtent]).
 /// - **Sections.** One per category with the title the panel strings give the
 ///   category; the recents first, only while there are some. Search open with
 ///   no query changes none of it: the reference clients keep the whole
@@ -69,6 +72,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     required this.entryOf,
     required this.preferences,
     this.stripReady,
+    this.assets,
   });
 
   /// What the page declares to the shell: search, placed inline among the
@@ -123,9 +127,15 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   /// How much shorter than it is wide a row of the pointer grid is.
   static const double pointerCellHeightInset = 2;
 
+  /// The size an emoji is drawn at under the pointer, at every width: the
+  /// reference desktop client's large emoji (24 logical pixels, the art
+  /// filling its square, as a colour emoji font fills its em).
+  static const double pointerGlyphSize = 24;
+
   static const SectionLayout _pointerLayout = SectionLayout.grid(
     desiredCellWidth: pointerDesiredCellWidth,
     cellHeightInset: pointerCellHeightInset,
+    glyphExtent: pointerGlyphSize / TextGlyphProducer.defaultFontScale,
     headerExtent: headerExtent,
   );
 
@@ -140,6 +150,9 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
 
   /// Whether the strip may mount; null for always.
   final listen.ValueListenable<bool>? stripReady;
+
+  /// Where the strip draws the covers of packs from; null draws none.
+  final AssetCacheScope? assets;
 
   @override
   PageCapabilities get capabilities => pageCapabilities;
@@ -287,6 +300,14 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
           context: context,
           options: emojiVariantOptions(entry),
           initial: initial,
+          // The options are the grid's cells, drawn the grid's size.
+          glyphExtent: switch (layoutOf(
+            collection,
+            arrangement: PanelArrangementScope.of(context),
+          )) {
+            SectionLayout$Grid(:final glyphExtent) => glyphExtent,
+            null => null,
+          },
           cellBounds: cellBounds,
           viewportBounds: viewportBounds,
           mode: mode,
@@ -360,8 +381,9 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     return _StripGate(ready: gate, strip: () => _strip(strip));
   }
 
-  Widget _strip(CatalogStripHandle strip) =>
-      EmojiTabIconScope(child: EmojiCategoryStrip(handle: strip));
+  Widget _strip(CatalogStripHandle strip) => EmojiTabIconScope(
+    child: EmojiCategoryStrip(handle: strip, assets: assets),
+  );
 }
 
 // Holds the strip's place until the page lets it mount, so the grid does not

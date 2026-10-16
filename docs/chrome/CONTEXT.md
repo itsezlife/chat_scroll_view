@@ -139,7 +139,7 @@ The card of an emoji's variants a press opens over the grid: the grid's own cell
 _Avoid_: Options in a smaller container than the grid's cell, clipping the glyph, a picker that lets a press through
 
 **Anchored popup**:
-The desktop and web presentation kind: the panel floats above the composer, opens at once on mouse hover over the toggle or on a click, hides when the pointer leaves it (at the next event pass from the toggle, after a short grace from the popup), and takes no layout space. It never takes focus: the composer keeps the caret however it was opened, and a click inside it (or in the dock, a picker or a menu) counts as the composer's tap region.
+The desktop and web presentation kind: the panel floats above the composer, opens at once on mouse hover over the toggle or on a click, hides when the pointer leaves it (at the next event pass from the toggle, after a short grace from the popup), and takes no layout space. It never takes focus: the composer keeps the caret however it was opened, and a click inside it (or in the dock, a picker, a menu or on a composer button) counts as the composer's tap region.
 _Avoid_: Tooltip, dropdown, a popup that takes composer focus on any open, an idle timeout
 
 **Popup hover area**:

@@ -284,6 +284,23 @@ void main() {
 
       expect(controller.hasFocus, isTrue);
     });
+
+    testWidgets(
+      'a mouse click on an action leaves the field focused on a desktop',
+      (tester) async {
+        // There a text field lets go of its focus on a mouse press outside
+        // its tap region.
+        await show(tester, ComposerSpec(actions: [_action('a', onTap: () {})]));
+        controller.requestFocus();
+        await tester.pump();
+
+        await tester.tap(button('a'), kind: PointerDeviceKind.mouse);
+        await tester.pump();
+
+        expect(controller.hasFocus, isTrue);
+      },
+      variant: TargetPlatformVariant.desktop(),
+    );
   });
 
   group('wrap', () {
