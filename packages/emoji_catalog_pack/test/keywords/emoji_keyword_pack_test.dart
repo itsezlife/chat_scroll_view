@@ -13,8 +13,8 @@ ContentKey$Unicode _key(List<int> codePoints) =>
     ContentKey$Unicode(String.fromCharCodes(codePoints));
 
 void main() {
-  group('KeywordPack.decode', () {
-    final pack = KeywordPack.decode(_source);
+  group('EmojiKeywordPack.decode', () {
+    final pack = EmojiKeywordPack.decode(_source);
 
     test('reads the locale and the CLDR version', () {
       expect(pack.locale, 'de');
@@ -52,14 +52,14 @@ void main() {
 
     test('rejects a key listed twice', () {
       expect(
-        () => KeywordPack.decode('${_source}1F600\tagain\n'),
+        () => EmojiKeywordPack.decode('${_source}1F600\tagain\n'),
         throwsFormatException,
       );
     });
 
     test('rejects a record without a spoken name', () {
       expect(
-        () => KeywordPack.decode(
+        () => EmojiKeywordPack.decode(
           _source.replaceFirst('1F600\tgrinsendes Gesicht', '1F600\t'),
         ),
         throwsFormatException,
@@ -68,7 +68,7 @@ void main() {
 
     test('rejects a file of another format version', () {
       expect(
-        () => KeywordPack.decode(
+        () => EmojiKeywordPack.decode(
           _source.replaceFirst('keywords\t1', 'keywords\t9'),
         ),
         throwsFormatException,
@@ -76,13 +76,13 @@ void main() {
     });
   });
 
-  group('KeywordPack.encode', () {
+  group('EmojiKeywordPack.encode', () {
     test('refuses a name the format cannot carry', () {
-      final pack = KeywordPack(
+      final pack = EmojiKeywordPack(
         locale: 'en',
         cldrVersion: '49',
         records: [
-          KeywordRecord(
+          EmojiKeywordRecord(
             key: _key([0x1F600]),
             spokenName: 'tab\there',
             keywords: const [],
@@ -94,11 +94,11 @@ void main() {
     });
 
     test('refuses a keyword that contains the separator', () {
-      final pack = KeywordPack(
+      final pack = EmojiKeywordPack(
         locale: 'en',
         cldrVersion: '49',
         records: [
-          KeywordRecord(
+          EmojiKeywordRecord(
             key: _key([0x1F600]),
             spokenName: 'grinning face',
             keywords: const ['a|b'],

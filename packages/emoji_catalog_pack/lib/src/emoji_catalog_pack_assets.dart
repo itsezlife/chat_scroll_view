@@ -3,7 +3,7 @@
 ///
 /// The pack does not load anything itself: reading an asset is the host's
 /// platform, decoding the text is [EmojiCatalogStructure.decode] and
-/// [KeywordPack.decode].
+/// [EmojiKeywordPack.decode].
 abstract final class EmojiCatalogPackAssets {
   /// The asset key of the locale-independent structure.
   static const String structure =

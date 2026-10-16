@@ -22,8 +22,13 @@ The structure accounts for every fully-qualified sequence of the pinned
 tones and normalising its gender gives that entry (`1F469 200D 1F4BB`, woman
 technologist, is the woman variant of `1F9D1 200D 1F4BB`; a mixed-tone
 handshake belongs to the handshake). Formats are documented on
-`EmojiCatalogStructure` and `KeywordPack`; both readers are strict and throw a
-`FormatException` on anything they cannot read.
+`EmojiCatalogStructure` and `EmojiKeywordPack`; both readers are strict and
+throw a `FormatException` on anything they cannot read.
+
+`EmojiKeywordPack` is the reader of this asset and also carries the spoken
+names. It is not `content_model`'s `KeywordPack`, the language-keyed value a
+`KeywordSource` supplies to search: the package that wires the assets to
+search converts one into the other.
 
 ### Size report
 
@@ -56,10 +61,10 @@ Dropping keywords that repeat the spoken name saved 2 to 9 percent. Loading one 
 
 | The host provides | The host must not |
 | --- | --- |
-| The asset bundle: reads `EmojiCatalogPackAssets.structure` and `keywordPack(locale)` and passes the text to `EmojiCatalogStructure.decode` / `KeywordPack.decode`. | Parse the files itself; the formats are internal to the decoders. |
+| The asset bundle: reads `EmojiCatalogPackAssets.structure` and `keywordPack(locale)` and passes the text to `EmojiCatalogStructure.decode` / `EmojiKeywordPack.decode`. | Parse the files itself; the formats are internal to the decoders. |
 | The ordered language set it wants packs for. A locale without a shipped pack is a host decision (fall back, or fetch a pack of its own). | Expect a pack for every CLDR locale: the shipped set is the locales of `tool/inputs.lock`. |
 | A spoken name for a tone variant: the entry's own name, extended by the host if it wants the tone read out. | Look a tone variant up in a pack: only entries and gender variants have records. |
-| Any server-supplied or newer keyword pack, as `KeywordRecord`s keyed by the same `ContentKey`s. | Assume the keys of a newer Emoji version are in the shipped structure. |
+| Any server-supplied or newer keyword pack through a `KeywordSource`, keyed by the same `ContentKey`s. | Assume the keys of a newer Emoji version are in the shipped structure. |
 
 Dependency direction: `panel_shell`, `panel_pages` and `panel_presentation`
 never depend on this package (`scripts/check` enforces it). A composition root

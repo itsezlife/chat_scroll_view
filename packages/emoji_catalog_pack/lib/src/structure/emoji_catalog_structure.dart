@@ -4,7 +4,7 @@ import 'package:meta/meta.dart';
 /// The locale-independent shape of the emoji catalog: Unicode groups and
 /// subgroups in palette order, each holding [EmojiEntry]s.
 ///
-/// Names and keywords are not here; they are per locale ([KeywordPack]). The
+/// Names and keywords are not here; they are per locale ([EmojiKeywordPack]). The
 /// structure is the same for every locale, so a host loads it once.
 ///
 /// ## Asset format

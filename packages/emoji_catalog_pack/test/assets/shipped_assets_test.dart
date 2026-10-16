@@ -37,7 +37,7 @@ const int _toned = 2040;
 
 late final Directory _root;
 late final EmojiCatalogStructure _structure;
-late final Map<String, KeywordPack> _packs;
+late final Map<String, EmojiKeywordPack> _packs;
 
 String _read(String path) => File('${_root.path}/$path').readAsStringSync();
 
@@ -59,7 +59,7 @@ void main() {
     _structure = EmojiCatalogStructure.decode(_read('assets/structure.tsv'));
     _packs = {
       for (final locale in _locales)
-        locale: KeywordPack.decode(_read('assets/keywords/$locale.tsv')),
+        locale: EmojiKeywordPack.decode(_read('assets/keywords/$locale.tsv')),
     };
   });
 

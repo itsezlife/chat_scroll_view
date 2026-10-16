@@ -25,7 +25,7 @@ final _complete = [
   '<annotation cp="🏳" type="tts">white flag</annotation>',
 ].join();
 
-KeywordPack _build(String xml) => buildKeywordPack(
+EmojiKeywordPack _build(String xml) => buildEmojiKeywordPack(
   structure: _structure,
   annotations: _annotations(xml),
   locale: 'en',
@@ -36,7 +36,7 @@ ContentKey$Unicode _key(List<int> codePoints) =>
     ContentKey$Unicode(String.fromCharCodes(codePoints));
 
 void main() {
-  group('buildKeywordPack', () {
+  group('buildEmojiKeywordPack', () {
     test('has a record per entry and per gender-only variant, in order', () {
       final pack = _build(_complete);
 

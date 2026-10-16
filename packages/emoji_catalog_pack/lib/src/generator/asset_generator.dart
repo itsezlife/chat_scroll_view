@@ -1,7 +1,7 @@
 import 'package:emoji_catalog_pack/src/generator/cldr_annotations.dart';
+import 'package:emoji_catalog_pack/src/generator/emoji_keyword_pack_builder.dart';
 import 'package:emoji_catalog_pack/src/generator/emoji_test_file.dart';
 import 'package:emoji_catalog_pack/src/generator/inputs_lock.dart';
-import 'package:emoji_catalog_pack/src/generator/keyword_pack_builder.dart';
 import 'package:emoji_catalog_pack/src/generator/structure_builder.dart';
 
 /// The text of every shipped asset of the pack, by path inside the package.
@@ -29,7 +29,7 @@ Map<String, String> generateAssets({
   return {
     'assets/structure.tsv': structure.encode(),
     for (final locale in lock.locales)
-      'assets/keywords/$locale.tsv': buildKeywordPack(
+      'assets/keywords/$locale.tsv': buildEmojiKeywordPack(
         structure: structure,
         annotations: CldrAnnotations.merge([
           CldrAnnotations.parse(readInput('cldr/annotations/$locale.xml')),

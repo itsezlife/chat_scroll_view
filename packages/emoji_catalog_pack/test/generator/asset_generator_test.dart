@@ -61,7 +61,9 @@ void main() {
     });
 
     test('stamps each pack with its locale and the CLDR release', () {
-      final pack = KeywordPack.decode(_generate()['assets/keywords/de.tsv']!);
+      final pack = EmojiKeywordPack.decode(
+        _generate()['assets/keywords/de.tsv']!,
+      );
 
       expect(pack.locale, 'de');
       expect(pack.cldrVersion, '49');

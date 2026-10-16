@@ -1,6 +1,6 @@
 import 'package:content_model/content_model.dart';
 import 'package:emoji_catalog_pack/src/generator/cldr_annotations.dart';
-import 'package:emoji_catalog_pack/src/keywords/keyword_pack.dart';
+import 'package:emoji_catalog_pack/src/keywords/emoji_keyword_pack.dart';
 import 'package:emoji_catalog_pack/src/structure/emoji_catalog_structure.dart';
 
 /// Builds the keyword pack of [locale] for [structure] from [annotations].
@@ -18,13 +18,13 @@ import 'package:emoji_catalog_pack/src/structure/emoji_catalog_structure.dart';
 /// Throws a [FormatException] naming the sequence when [annotations] has no
 /// spoken name for a sequence that needs a record: a locale that does not
 /// cover the catalog must stop the generator, not ship a pack with holes.
-KeywordPack buildKeywordPack({
+EmojiKeywordPack buildEmojiKeywordPack({
   required EmojiCatalogStructure structure,
   required CldrAnnotations annotations,
   required String locale,
   required String cldrVersion,
 }) {
-  KeywordRecord recordOf(ContentKey$Unicode key) {
+  EmojiKeywordRecord recordOf(ContentKey$Unicode key) {
     final annotation = annotations[key.sequence.runes.toList()];
     final name = annotation?.spokenName;
     if (annotation == null || name == null) {
@@ -32,7 +32,7 @@ KeywordPack buildKeywordPack({
         'No spoken name for ${key.encoded.substring(8)} in $locale.',
       );
     }
-    return KeywordRecord(
+    return EmojiKeywordRecord(
       key: key,
       spokenName: name,
       keywords: [
@@ -42,7 +42,7 @@ KeywordPack buildKeywordPack({
     );
   }
 
-  return KeywordPack(
+  return EmojiKeywordPack(
     locale: locale,
     cldrVersion: cldrVersion,
     records: [

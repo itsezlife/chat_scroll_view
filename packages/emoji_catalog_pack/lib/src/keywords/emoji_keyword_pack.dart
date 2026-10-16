@@ -3,9 +3,9 @@ import 'package:meta/meta.dart';
 
 /// The spoken name and search keywords of one emoji sequence in one locale.
 @immutable
-final class KeywordRecord {
+final class EmojiKeywordRecord {
   /// Creates the record of [key].
-  KeywordRecord({
+  EmojiKeywordRecord({
     required this.key,
     required this.spokenName,
     required List<String> keywords,
@@ -26,7 +26,7 @@ final class KeywordRecord {
 ///
 /// A pack answers by [ContentKey], the same key the structure uses, and is
 /// independent of the structure's version: a host may pair it with a pack it
-/// fetched itself ([KeywordRecord] is all a keyword source has to provide).
+/// fetched itself ([EmojiKeywordRecord] is all a keyword source has to provide).
 ///
 /// ## Asset format
 ///
@@ -43,14 +43,14 @@ final class KeywordRecord {
 /// Names and keywords never contain a tab, a line break or the `|` separator;
 /// [encode] refuses text that does, so a pack always reads back as written.
 @immutable
-final class KeywordPack {
+final class EmojiKeywordPack {
   /// Creates a pack of [records] for [locale].
   ///
   /// Throws an [ArgumentError] when two records share a key.
-  KeywordPack({
+  EmojiKeywordPack({
     required this.locale,
     required this.cldrVersion,
-    required List<KeywordRecord> records,
+    required List<EmojiKeywordRecord> records,
   }) : records = List.unmodifiable(records),
        _byKey = {for (final record in records) record.key: record} {
     if (_byKey.length != records.length) {
@@ -62,11 +62,11 @@ final class KeywordPack {
   ///
   /// Throws a [FormatException] on any line it cannot read or a key listed
   /// twice, so a damaged or newer-format asset fails loudly.
-  factory KeywordPack.decode(String source) {
+  factory EmojiKeywordPack.decode(String source) {
     String? locale;
     String? cldr;
     var sawMarker = false;
-    final records = <KeywordRecord>[];
+    final records = <EmojiKeywordRecord>[];
     final seen = <ContentKey>{};
     for (final line in source.split('\n')) {
       if (line.isEmpty) continue;
@@ -92,7 +92,11 @@ final class KeywordPack {
     if (!sawMarker || locale == null || cldr == null) {
       throw const FormatException('Missing keyword pack header.');
     }
-    return KeywordPack(locale: locale, cldrVersion: cldr, records: records);
+    return EmojiKeywordPack(
+      locale: locale,
+      cldrVersion: cldr,
+      records: records,
+    );
   }
 
   /// The CLDR locale id (`de`).
@@ -102,14 +106,14 @@ final class KeywordPack {
   final String cldrVersion;
 
   /// The records in file order. Unmodifiable.
-  final List<KeywordRecord> records;
+  final List<EmojiKeywordRecord> records;
 
-  final Map<ContentKey, KeywordRecord> _byKey;
+  final Map<ContentKey, EmojiKeywordRecord> _byKey;
 
   /// The record of [key], or null when the pack does not list it.
-  KeywordRecord? operator [](ContentKey key) => _byKey[key];
+  EmojiKeywordRecord? operator [](ContentKey key) => _byKey[key];
 
-  /// The `keywords/<locale>.tsv` text of this pack; [KeywordPack.decode]
+  /// The `keywords/<locale>.tsv` text of this pack; [EmojiKeywordPack.decode]
   /// reads back an equal pack.
   ///
   /// Throws an [ArgumentError] when a name or keyword holds a tab, a line
@@ -156,7 +160,7 @@ final class KeywordPack {
     return fields[1];
   }
 
-  static KeywordRecord _record(List<String> fields, String line) {
+  static EmojiKeywordRecord _record(List<String> fields, String line) {
     if (fields.length < 2 || fields.length > 3 || fields[1].isEmpty) {
       throw FormatException('Not a keyword record.', line);
     }
@@ -164,7 +168,7 @@ final class KeywordPack {
     if (key is! ContentKey$Unicode) {
       throw FormatException('Not a code point sequence.', line);
     }
-    return KeywordRecord(
+    return EmojiKeywordRecord(
       key: key,
       spokenName: fields[1],
       keywords: fields.length == 3 ? fields[2].split('|') : const [],
