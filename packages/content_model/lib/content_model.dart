@@ -21,3 +21,5 @@ export 'src/observable/event_notifier.dart';
 export 'src/observable/observable.dart';
 export 'src/observable/observable_notifier.dart';
 export 'src/observable/observable_value.dart';
+export 'src/store/key_value_preference_store.dart';
+export 'src/store/key_value_recents_store.dart';
