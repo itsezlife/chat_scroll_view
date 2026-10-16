@@ -89,6 +89,7 @@ final class MissingGlyphProbe implements GlyphSupport {
   final Set<String> _referenceHashes = <String>{};
   final Map<String, String> _cellHashes = <String, String>{};
   final Completer<void> _completed = Completer<void>();
+  bool _isComplete = false;
   final ObservableNotifier _changes = ObservableNotifier();
 
   Future<void>? _started;
@@ -114,8 +115,15 @@ final class MissingGlyphProbe implements GlyphSupport {
   @override
   bool supports(ContentKey$Unicode key) => !_missing.contains(key.sequence);
 
+  /// Stops the probe: it answers and publishes nothing more, and [completed]
+  /// completes if it had not (check [isComplete] for whether the verdicts were
+  /// all in and saved). An art version still being produced is dropped:
+  /// [artVersionReady] then fails with a [StateError].
   @override
-  void dispose() => _changes.dispose();
+  void dispose() {
+    _changes.dispose();
+    if (!_completed.isCompleted) _completed.complete();
+  }
 
   // --- Art version ---
 
@@ -127,12 +135,19 @@ final class MissingGlyphProbe implements GlyphSupport {
   /// The art version, once known: the value the host passes on as the atlas
   /// cache key. Starts the probe. Fails with the producer's error when the
   /// version cannot be produced; the probe then still collects verdicts, but
-  /// cannot persist them.
+  /// cannot persist them, and with a [StateError] when the probe is disposed
+  /// before the version is known.
   Future<String> artVersionReady() async {
     await start();
-    final version = _artVersion;
-    if (version != null) return version;
-    Error.throwWithStackTrace(_artVersionError!, _artVersionStack!);
+    if (_artVersion case final version?) return version;
+    Error.throwWithStackTrace(
+      _artVersionError ??
+          StateError(
+            'MissingGlyphProbe was disposed before its art version '
+            'was known.',
+          ),
+      _artVersionStack ?? StackTrace.current,
+    );
   }
 
   Future<void> _start() async {
@@ -236,10 +251,11 @@ final class MissingGlyphProbe implements GlyphSupport {
 
   /// Whether every glyph of the probe has a verdict and the result has been
   /// handed to the store.
-  bool get isComplete => _completed.isCompleted;
+  bool get isComplete => _isComplete;
 
-  /// Completes when [isComplete] becomes true. Asking starts the probe, since
-  /// a restored probe completes without anybody observing anything.
+  /// Completes when [isComplete] becomes true, or when the probe is disposed
+  /// first (then [isComplete] stays false). Asking starts the probe, since a
+  /// restored probe completes without anybody observing anything.
   Future<void> get completed {
     unawaited(start());
     return _completed.future;
@@ -313,7 +329,8 @@ final class MissingGlyphProbe implements GlyphSupport {
         Zone.current.handleUncaughtError(error, stack);
       }
     }
-    _completed.complete();
+    _isComplete = true;
+    if (!_completed.isCompleted) _completed.complete();
   }
 
   static String _hashOf(Uint8List pixels) =>
