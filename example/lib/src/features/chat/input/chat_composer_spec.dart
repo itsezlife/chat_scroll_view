@@ -6,8 +6,8 @@ import 'package:flutter/foundation.dart';
 /// The ids of the composer's actions, so a test and a golden name the same
 /// ones.
 abstract final class ChatComposerActions {
-  /// The panel's toggle: the page's icon, or the keyboard's while the panel
-  /// is up.
+  /// The panel's toggle: the page's icon in every state, or the keyboard's
+  /// while a panel that replaces the keyboard is up.
   static const String panel = 'panel';
 
   /// Attach.
@@ -22,12 +22,20 @@ abstract final class ChatComposerActions {
 ///
 /// Rebuilt by the host whenever the text, the edit, the busy flag or the
 /// panel changes; the composer view holds no mode of its own.
+///
+/// The panel's toggle sits where the platform's panel is reached from: first
+/// at the start edge where the panel replaces the keyboard, and at the end
+/// edge, under the popup that anchors to it, where the panel is a popup or a
+/// dock ([panelPlacement]).
 ComposerSpec buildChatComposerSpec({
   required ChromeStrings strings,
   required ChatEditTarget? editing,
   required bool hasText,
   required bool busy,
-  required bool panelOpen,
+  required bool panelReplacesKeyboard,
+  required bool panelDocked,
+  required ActionPlacement panelPlacement,
+  required ActionWrap? wrapPanelToggle,
   required ChromeIconId pageIcon,
   required VoidCallback onTogglePanel,
   required VoidCallback onSubmit,
@@ -45,11 +53,13 @@ ComposerSpec buildChatComposerSpec({
     actions: [
       ActionDescriptor(
         id: ChatComposerActions.panel,
-        icon: panelOpen ? ChromeIconId.keyboard : pageIcon,
-        semanticLabel: panelOpen
+        icon: panelReplacesKeyboard ? ChromeIconId.keyboard : pageIcon,
+        semanticLabel: panelReplacesKeyboard
             ? composer.showKeyboardAction
             : composer.showPanelAction,
-        placement: ActionPlacement.leading,
+        placement: panelPlacement,
+        active: panelDocked,
+        wrap: wrapPanelToggle,
         onTap: onTogglePanel,
       ),
       ActionDescriptor(

@@ -1,5 +1,6 @@
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -16,6 +17,32 @@ void main() {
       expect(action.visible, isTrue);
       expect(action.primary, isFalse);
       expect(action.onTap, isNull);
+    });
+
+    test('has no wrapper and is not active by default', () {
+      const action = ActionDescriptor(
+        id: 'panel',
+        icon: ChromeIconId.emoji,
+        semanticLabel: 'Panel',
+      );
+
+      expect(action.wrap, isNull);
+      expect(action.active, isFalse);
+    });
+
+    test('copyWith carries the wrapper and the active flag', () {
+      Widget wrap(BuildContext context, Widget button) => button;
+      final action = ActionDescriptor(
+        id: 'panel',
+        icon: ChromeIconId.emoji,
+        semanticLabel: 'Panel',
+        wrap: wrap,
+        active: true,
+      );
+
+      expect(action.copyWith(enabled: false).wrap, same(action.wrap));
+      expect(action.copyWith(enabled: false).active, isTrue);
+      expect(action.copyWith(active: false).active, isFalse);
     });
 
     test('is usable only when enabled, visible and given a handler', () {

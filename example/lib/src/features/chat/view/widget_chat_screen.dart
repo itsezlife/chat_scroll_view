@@ -6,7 +6,6 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
-import 'package:chat_scroll_view_example/src/common/widgets/listen_value_builder.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_state.dart';
@@ -917,7 +916,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             onDelete: () => _handleDeleteSelected(_selection.selectedIds),
           ),
         ),
-        // Demo: search + bubble radius + dock — top-right chrome. Position
+        // Demo: search + bubble radius — top-right chrome. Position
         // against [chromeTop] (not [topPadding]) so search reserve does not
         // push this row further down. [Positioned] must be a *direct* Stack
         // child; wrapping it in ValueListenableBuilder makes the builder
@@ -942,10 +941,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                   children: [
                     const ChatSearchToggleButton(),
                     const SizedBox(width: 4),
-                    if (!mobilePanel) ...[
-                      _DockButton(presentation: input.presentation),
-                      const SizedBox(width: 4),
-                    ],
                     IconButton.filledTonal(
                       tooltip: 'Message corners',
                       onPressed: _openBubbleRadiusSettings,
@@ -1088,33 +1083,4 @@ class _ChatSideControlsHost extends StatelessWidget {
       ),
     );
   }
-}
-
-/// The dock button of a presentation that can dock: moves the panel between
-/// a popup and a section at the end edge, in a window wide enough.
-class _DockButton extends StatelessWidget {
-  const _DockButton({required this.presentation});
-
-  final PanelPresentationController presentation;
-
-  @override
-  Widget build(BuildContext context) => ListenValueBuilder<PanelWindow>(
-    listenable: presentation.window,
-    builder: (context, window) {
-      if (!presentation.policy.canDock(window.windowClass)) {
-        return const SizedBox.shrink();
-      }
-      return ListenValueBuilder<bool>(
-        listenable: presentation.dockPreferred,
-        builder: (context, docked) => IconButton.filledTonal(
-          tooltip: docked ? 'Undock panel' : 'Dock panel',
-          onPressed: presentation.toggleDock,
-          icon: Icon(
-            docked ? Icons.vertical_split : Icons.view_sidebar_outlined,
-            size: 20,
-          ),
-        ),
-      );
-    },
-  );
 }
