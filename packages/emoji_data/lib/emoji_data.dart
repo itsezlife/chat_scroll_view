@@ -1,23 +1,14 @@
-/// Reactive emoji catalog, recents, search, and skin-tone preferences.
+/// Emoji logic over the `content_model` seams: structure and keyword loaders,
+/// the emoji collection source, merged search and the pure-Dart glyph probe.
 library;
 
-export 'src/catalog/emoji_category_titles.dart';
-export 'src/catalog/emoji_catalog_search.dart';
-export 'src/catalog/emoji_platform_filter.dart';
-export 'src/catalog/locale_emoji_catalog.dart';
-export 'src/default_emoji_data_source.dart';
-export 'src/emoji_catalog_provider.dart';
-export 'src/emoji_category_spec.dart';
-export 'src/emoji_data_listener.dart';
-export 'src/emoji_data_source.dart';
-export 'src/emoji_item.dart';
-export 'src/emoji_pick_source.dart';
-export 'src/locale_emoji_catalog_provider.dart';
-export 'src/emoji_recents_store.dart';
-export 'src/emoji_skin_tone.dart';
-export 'src/emoji_strip_icon.dart';
+export 'src/catalog/emoji_catalog.dart';
+export 'src/collections/emoji_collection_source.dart';
 export 'src/glyph_probe/glyph_art_fingerprint.dart';
 export 'src/glyph_probe/glyph_pixel_hash.dart';
-export 'src/glyph_probe/glyph_probe_emoji_platform_filter.dart';
 export 'src/glyph_probe/missing_glyph_probe.dart';
-export 'src/skin_tone_prefs.dart';
+export 'src/keywords/bundled_keyword_source.dart';
+export 'src/keywords/layered_keyword_source.dart';
+export 'src/loading/emoji_asset_loader.dart';
+export 'src/loading/emoji_catalog_loader.dart';
+export 'src/search/emoji_search_source.dart';

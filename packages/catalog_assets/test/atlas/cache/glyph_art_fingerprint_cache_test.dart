@@ -2,9 +2,9 @@
 /// a changed fingerprint makes the persisted pages stale.
 ///
 /// **Seam:** `GlyphAtlas(persistence:)` whose art version source is
-/// `ComputedGlyphArtVersion` over `computeGlyphArtFingerprint` (from
-/// `emoji_data`, a dev dependency of this package) and `GlyphPixelReader`
-/// over a `FakeGlyphRasteriser`. "The system updates its emoji art" is a
+/// `ComputedGlyphArtVersion` over a fingerprint of the sentinels' pixels
+/// (`_fingerprint`, the shape of the data layer's fingerprint without its
+/// package) and `GlyphPixelReader` over a `FakeGlyphRasteriser`. "The system updates its emoji art" is a
 /// rasteriser that paints the sentinels in another colour; no emoji font.
 library;
 
@@ -12,11 +12,25 @@ import 'dart:ui';
 
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
-import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _sentinels = ['s1', 's2'];
+
+/// Joins a hash of each sentinel's pixels, one sentinel per frame: any change
+/// in how one is drawn changes the string.
+Future<String> _fingerprint({
+  required Iterable<String> sentinels,
+  required Future<Uint8List> Function(String glyph) pixelsOf,
+  required Future<void> Function() nextFrame,
+}) async {
+  final hashes = <int>[];
+  for (final glyph in sentinels) {
+    await nextFrame();
+    hashes.add(Object.hashAll(await pixelsOf(glyph)));
+  }
+  return 'art1-${hashes.join('.')}';
+}
 
 /// A system whose sentinels look like [art]; everything else looks the same.
 final class _System implements GlyphRasteriser {
@@ -57,7 +71,7 @@ void main() {
     final system = _System(art);
     final reader = GlyphPixelReader(system, size: 16);
     final source = ComputedGlyphArtVersion(
-      () => computeGlyphArtFingerprint(
+      () => _fingerprint(
         sentinels: _sentinels,
         pixelsOf: reader.pixelsOf,
         nextFrame: () async {},

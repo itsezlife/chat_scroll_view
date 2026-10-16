@@ -19,6 +19,10 @@ dependencies:
     path: ../packages/catalog_assets
   chat_chrome:
     path: ../packages/chat_chrome
+  # Not imported: depending on it is what bundles the catalog assets that
+  # integration_test/panel_perf/shipped_glyphs.dart reads.
+  emoji_catalog_pack:
+    path: ../packages/emoji_catalog_pack
   emoji_data:
     path: ../packages/emoji_data
   flutter_md:

@@ -1,0 +1,64 @@
+import 'package:content_model/content_model.dart';
+import 'package:emoji_data/src/catalog/emoji_catalog.dart';
+
+/// Turns catalogue entries and keys into the [CollectionItem]s a page shows:
+/// the one place that applies the user's variant choice and the device's
+/// glyph support, so a grid and search results cannot disagree about either.
+final class EmojiItems {
+  /// Creates the resolver over [catalog] and the two stores that shape it.
+  const EmojiItems({
+    required this.catalog,
+    required this.preferences,
+    this.glyphSupport,
+  });
+
+  /// The catalogue entries come from.
+  final EmojiCatalog catalog;
+
+  /// Holds the variant the user chose per base.
+  final PreferenceStore preferences;
+
+  /// Says which keys the device can draw; null shows everything.
+  final GlyphSupport? glyphSupport;
+
+  /// The key the grid shows for [entry]: the chosen variant, else the base.
+  ///
+  /// A choice that is not a variant of [entry] (the catalogue moved on) is
+  /// ignored, and so is one the device cannot draw, so a missing tone never
+  /// hides an emoji whose base is fine. Null when even the base is missing.
+  ContentKey$Unicode? shownKey(EmojiEntry entry) {
+    final chosen = preferences.preferredVariant(entry.base);
+    if (chosen != null &&
+        entry.modifiersOf(chosen) != null &&
+        _supports(chosen)) {
+      return chosen;
+    }
+    return _supports(entry.base) ? entry.base : null;
+  }
+
+  /// The item for [entry] as the grid shows it, or null when hidden.
+  CollectionItem? itemOf(EmojiEntry entry) {
+    final key = shownKey(entry);
+    return key == null ? null : describe(key);
+  }
+
+  /// The item for a key taken as it is (a recent), or null when the device
+  /// cannot draw it. A key that is not a unicode key stays a bare item.
+  CollectionItem? itemForKey(ContentKey key) => switch (key) {
+    final ContentKey$Unicode unicode =>
+      _supports(unicode) ? describe(unicode) : null,
+    _ => CollectionItem.bare(key),
+  };
+
+  /// The described item of the unicode emoji [key].
+  static CollectionItem describe(ContentKey$Unicode key) =>
+      CollectionItem.described(
+        ContentDescriptor(
+          key: key,
+          semanticKind: SemanticKind.unicodeEmoji,
+          mediaForm: MediaForm.glyph,
+        ),
+      );
+
+  bool _supports(ContentKey$Unicode key) => glyphSupport?.supports(key) ?? true;
+}

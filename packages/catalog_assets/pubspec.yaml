@@ -23,8 +23,5 @@ dependencies:
     sdk: flutter
 
 dev_dependencies:
-  # The "current catalogue" budget test reads the real glyph set.
-  emoji_data:
-    path: ../emoji_data
   lints: ^6.0.0
   test: ^1.25.0

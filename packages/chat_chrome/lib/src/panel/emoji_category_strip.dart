@@ -1,5 +1,5 @@
 import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
-import 'package:emoji_data/emoji_data.dart';
+import 'package:chat_chrome/src/legacy_emoji/legacy_emoji.dart';
 import 'package:flutter/material.dart';
 
 /// One category-strip tab (stable id + strip chrome).

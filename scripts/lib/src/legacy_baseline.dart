@@ -29,12 +29,6 @@ abstract final class LegacyBaseline {
   /// The excused violations of the current tree.
   static const List<LegacyException> current = <LegacyException>[
     LegacyException(
-      LintRule.crossPackageReexport,
-      'packages/chat_chrome/lib/chat_chrome.dart exports '
-      'package:emoji_data/emoji_data.dart',
-      removedBy: 'issue 32 (chat_chrome is deleted)',
-    ),
-    LegacyException(
       LintRule.fakeExportedOutsideTesting,
       'packages/catalog_assets/lib/catalog_assets.dart exports '
       'src/fake_catalog_asset_cache.dart',

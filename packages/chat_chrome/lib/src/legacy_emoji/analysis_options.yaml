@@ -1,0 +1,3 @@
+# The interim emoji data API was written under the plain flutter_lints set;
+# it is deleted with this package, so it is not brought up to the repo rules.
+include: package:flutter_lints/flutter.yaml
