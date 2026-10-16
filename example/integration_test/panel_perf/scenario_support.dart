@@ -56,16 +56,27 @@ Future<FlingCoverage> flingPass(WidgetTester tester) async {
     returnedToTop: controller.offset <= 50,
     maxOffsetPx: maxOffset,
     viewportHeightPx: viewportHeight,
-    expectedExtentPx: estimateContentExtent(
-      leavesPerSection: [
-        for (final section in viewport.snapshots.value.sections)
-          section.leaves.length,
-      ],
-      spanCount: viewport.spanCount,
-      cellExtent: viewport.cellExtent,
-      headerExtent: viewport.headerExtent,
-    ),
+    expectedExtentPx: _expectedExtent(viewport),
   );
+}
+
+/// The content extent the viewport lays out, from what each section says of
+/// its own grid (a page sets its geometry per section; the viewport's props are
+/// only the default of a section that says nothing).
+double _expectedExtent(PanelCatalogViewport viewport) {
+  var extent = 0.0;
+  for (final section in viewport.snapshots.value.sections) {
+    final grid = section.layout is SectionLayout$Grid
+        ? section.layout! as SectionLayout$Grid
+        : null;
+    extent += estimateContentExtent(
+      leavesPerSection: [section.leaves.length],
+      spanCount: grid?.spanCount ?? viewport.spanCount,
+      cellExtent: grid?.cellExtent ?? viewport.cellExtent,
+      headerExtent: grid?.headerExtent ?? viewport.headerExtent,
+    );
+  }
+  return extent;
 }
 
 /// Pumps until no frame is scheduled (fling finished) or 15 s pass.

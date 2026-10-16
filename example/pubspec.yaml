@@ -17,8 +17,8 @@ dependencies:
     path: packages/keyboard_insets
   catalog_assets:
     path: ../packages/catalog_assets
-  chat_chrome:
-    path: ../packages/chat_chrome
+  chat_composer:
+    path: ../packages/chat_composer
   chrome_foundation:
     path: ../packages/chrome_foundation
   content_model:
@@ -29,6 +29,14 @@ dependencies:
     path: ../packages/emoji_catalog_pack
   emoji_data:
     path: ../packages/emoji_data
+  kv_shared_preferences:
+    path: ../packages/kv_shared_preferences
+  panel_pages:
+    path: ../packages/panel_pages
+  panel_presentation:
+    path: ../packages/panel_presentation
+  panel_shell:
+    path: ../packages/panel_shell
   flutter_md:
     git:
       url: https://github.com/itsezlife/md.git
@@ -37,7 +45,6 @@ dependencies:
   supabase_flutter: ^2.15.0
   control: 1.0.0-dev.1
   freezed_annotation: ^3.1.0
-  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:
@@ -49,8 +56,6 @@ dev_dependencies:
   # the viewport's public controller and diagnostics.
   flutter_driver:
     sdk: flutter
-  content_model:
-    path: ../packages/content_model
   panel_catalog:
     path: ../packages/panel_catalog
   freezed: ^3.2.5

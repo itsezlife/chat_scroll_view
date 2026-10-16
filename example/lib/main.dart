@@ -1,16 +1,18 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 
-import 'package:catalog_assets/glyph_atlas.dart';
-import 'package:chat_chrome/chat_chrome.dart';
+import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
+import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
+import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:flutter/material.dart';
+import 'package:panel_presentation/panel_presentation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Entry point for the widget-based [ChatScrollView] demo.
@@ -19,35 +21,20 @@ void main() => runZonedGuarded<void>(
     WidgetsFlutterBinding.ensureInitialized();
     bindExamplePreImeBack();
 
-    final keyboardPanelStore = KeyboardPanelStore();
-    final emojiDataSource = DefaultEmojiDataSource(
-      catalog: LocaleEmojiCatalogProvider(
-        locale: const Locale('ru'),
-        categoryTitles: EmojiCategoryTitles.russian,
-        stripIconFor: EmojiTabAssets.stripIconForId,
-      ),
-    );
-
-    // Prefs + emoji catalog before first frame so composer last-tab icon and
-    // panel initial page match persist storage (no smile→GIF flash).
-    await (
+    final glyphCache = createExampleEmojiGlyphCache();
+    // Backend, stores and the emoji catalogue before the first frame, so the
+    // panel's last page and the recents are there when it first paints.
+    final (_, services) = await (
       Supabase.initialize(
         url: DemoConfig.supabaseUrl,
         publishableKey: DemoConfig.supabasePublishableKey,
       ),
-      keyboardPanelStore.load(),
-      emojiDataSource.load(),
-    ).wait;
-
-    final glyphCache = createExampleEmojiGlyphCache();
-    runApp(
-      ChatDemoApp(
-        keyboardPanelStore: keyboardPanelStore,
-        emojiDataSource: emojiDataSource,
+      AppServices.create(
         glyphCache: glyphCache.cache,
         glyphArtVersion: glyphCache.artVersion,
       ),
-    );
+    ).wait;
+    runApp(ChatDemoApp(services: services));
   },
   (error, stackTrace) =>
       dev.log('Top level exception', error: error, stackTrace: stackTrace),
@@ -55,34 +42,32 @@ void main() => runZonedGuarded<void>(
 
 /// {@template chat_demo_app}
 /// App hosting the chat viewport demo.
+///
+/// The app owns nothing: [services] are created by the caller (`main`, or a
+/// test) and disposed by it.
 /// {@endtemplate}
 class ChatDemoApp extends StatelessWidget {
   /// {@macro chat_demo_app}
   const ChatDemoApp({
-    required this.keyboardPanelStore,
-    required this.emojiDataSource,
+    required this.services,
     this.chatDataSourceLoader,
-    this.glyphCache,
-    this.glyphArtVersion,
+    this.softKeyboard = const PlatformSoftKeyboard(),
+    this.presentationPolicy,
     super.key,
   });
 
-  /// Preloaded panel height + last type-tab prefs.
-  final KeyboardPanelStore keyboardPanelStore;
-
-  /// Preloaded emoji catalog / recents.
-  final DefaultEmojiDataSource emojiDataSource;
+  /// The long-lived services every screen draws on.
+  final AppServices services;
 
   /// Replaces the bundled message source; see
   /// [WidgetChatScreen.dataSourceLoader]. The app leaves this null.
   final ChatDataSourceLoader? chatDataSourceLoader;
 
-  /// Persistent home of the baked emoji pages; null bakes in memory every
-  /// launch (what the acceptance harness does, so every run starts cold).
-  final GlyphCacheStore? glyphCache;
+  /// The soft keyboard's readings and commands; a test passes a fake.
+  final SoftKeyboardPort softKeyboard;
 
-  /// Tells when the system emoji art changed; used with [glyphCache].
-  final GlyphArtVersionSource? glyphArtVersion;
+  /// Where the panel appears; null for the policy of the platform.
+  final PanelPresentationPolicy? presentationPolicy;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -94,18 +79,17 @@ class ChatDemoApp extends StatelessWidget {
       ),
       extensions: const <ThemeExtension<dynamic>>[UnreadSeparatorColors.dark],
     ),
-    builder: (context, child) => ChatChromeTheme(
-      colors: const ChatChromeColors.dark(),
+    builder: (context, child) => AppChrome(
+      services: services,
       child: DemoMarkdownTheme(child: DemoChatTheme(child: child!)),
     ),
     debugShowCheckedModeBanner: false,
     showPerformanceOverlay: false,
     home: WidgetChatScreen(
-      keyboardPanelStore: keyboardPanelStore,
-      emojiDataSource: emojiDataSource,
+      services: services,
       dataSourceLoader: chatDataSourceLoader,
-      glyphCache: glyphCache,
-      glyphArtVersion: glyphArtVersion,
+      softKeyboard: softKeyboard,
+      presentationPolicy: presentationPolicy,
     ),
   );
 }

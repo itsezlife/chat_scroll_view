@@ -1,90 +1,70 @@
-import 'package:chat_chrome/chat_chrome.dart';
-import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
-import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'dart:async';
 
-/// Floating composer island for the widget chat demo.
+import 'package:chat_composer/chat_composer.dart';
+import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/value_observable_builder.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart' hide RichText;
+
+/// The chat's composer island: a [ComposerView] over the chat's
+/// [ChatInputSet].
 ///
-/// Idle / edit: [ChatEnterView]. Selection mode: hidden — actions live on the
-/// selection app bar, not a morph of this island.
-/// Does not host [KeyboardPanel]; the screen places the panel in the keyboard
-/// slot.
-///
-/// Chrome SoT is [composer] ([ChatComposerController]). The host owns lifetime
-/// and drives reply / edit / emoji / IME without a [GlobalKey].
+/// Hidden while a selection is active (the actions live on the selection app
+/// bar, not on a morph of this island); starting a selection leaves edit mode
+/// and takes focus away. Builds the [ComposerSpec] of the moment from the
+/// input set and the strings of the chrome, and on platforms with an anchored
+/// popup reports where the island is so the popup can sit on it.
 class ChatComposer extends StatefulWidget {
-  /// Creates the composer.
+  /// The composer of [input].
   const ChatComposer({
-    required this.composer,
+    required this.input,
     required this.selection,
-    required this.dataSource,
-    required this.onSend,
-    required this.onEmojiPressed,
-    this.onEditSelected,
-    this.onSizeChanged,
+    required this.islandKey,
+    this.anchorSpace,
     this.onAttachPressed,
-    this.onMicPressed,
-    this.bottomInset,
-    this.onFieldTapWhilePanelOpen,
-    this.glassKey,
+    this.onVoicePressed,
     super.key,
   });
 
-  /// Host-owned composer SoT.
-  final ChatComposerController composer;
+  /// The chat's input set.
+  final ChatInputSet input;
 
-  /// When selection is active, the island is hidden.
+  /// When a selection is active the island is hidden.
   final ChatSelectionController selection;
 
-  /// Source for edit content lookup ([beginEdit]).
-  final ChatDataSource dataSource;
+  /// Key of the glass island, for the bottom fade's cutout.
+  final GlobalKey islandKey;
 
-  /// Persists a trimmed message.
-  final Future<void> Function(String text) onSend;
-
-  /// Emoji / keyboard toggle (host toggles panel open flag).
-  final VoidCallback onEmojiPressed;
-
-  /// Saves edited content for one message.
-  final Future<void> Function(int messageId, String text)? onEditSelected;
-
-  /// Measured chrome height: island + island→keyboard gap (+ safe pad when
-  /// the keyboard slot is closed).
-  ///
-  /// Does **not** include the keyboard / keyboard-panel slot — that is the
-  /// separate `keyboard` term in [ChatViewportInsets.bottomPadding].
-  final void Function(double height)? onSizeChanged;
+  /// The box whose coordinates the popup's anchor is reported in, when the
+  /// presentation is an anchored popup. Null reports nothing.
+  final GlobalKey? anchorSpace;
 
   /// Attach button.
   final VoidCallback? onAttachPressed;
 
-  /// Mic when empty.
-  final VoidCallback? onMicPressed;
-
-  /// Bottom inset.
-  final ValueListenable<double>? bottomInset;
-
-  /// Tap on the field while the keyboard panel is open (switch back to IME).
-  final VoidCallback? onFieldTapWhilePanelOpen;
-
-  /// Key on the glass island for bottom-fade cutout tracking.
-  final GlobalKey? glassKey;
+  /// The voice button while the composer is empty.
+  final VoidCallback? onVoicePressed;
 
   @override
-  State<ChatComposer> createState() => ChatComposerState();
+  State<ChatComposer> createState() => _ChatComposerState();
 }
 
-/// State for [ChatComposer].
-class ChatComposerState extends State<ChatComposer> {
-  bool _selectionMode = false;
+class _ChatComposerState extends State<ChatComposer> {
+  var _selectionMode = false;
+  var _anchorScheduled = false;
+
+  ChatInputSet get _input => widget.input;
 
   @override
   void initState() {
     super.initState();
     _selectionMode = widget.selection.isSelectionMode;
     widget.selection.addListener(_onSelectionChanged);
+    // The island's place changes with its extent, between rebuilds.
+    _input.composer.extent.addListener(_scheduleAnchor);
   }
 
   @override
@@ -99,120 +79,93 @@ class ChatComposerState extends State<ChatComposer> {
 
   @override
   void dispose() {
+    _input.composer.extent.removeListener(_scheduleAnchor);
     widget.selection.removeListener(_onSelectionChanged);
     super.dispose();
   }
 
   void _onSelectionChanged() {
     final mode = widget.selection.isSelectionMode;
-    if (mode && widget.composer.mode.isEditing) {
-      widget.composer.clear();
+    if (mode == _selectionMode) return;
+    if (mode) {
+      _input
+        ..cancelEdit()
+        ..composer.unfocus();
     }
-    if (mode != _selectionMode) {
-      if (mode) widget.composer.unfocus();
-      setState(() => _selectionMode = mode);
-    }
+    setState(() => _selectionMode = mode);
   }
 
-  Future<void> _handleSend() async {
-    final composer = widget.composer;
-    if (composer.state.isProcessing || !composer.data.enabled) return;
-    final text = composer.text.text.trim();
-    if (text.isEmpty) return;
-    final editing = composer.mode.isEditing;
-    composer.setBusy(true, message: editing ? 'Saving edit' : 'Sending');
-    try {
-      final mode = composer.mode;
-      if (mode is ChatComposerMode$Editing) {
-        final id = mode.id;
-        if (id is! int) return;
-        await widget.onEditSelected?.call(id, text);
-        if (!mounted) return;
-      } else {
-        await widget.onSend(text);
-        if (!mounted) return;
-      }
-      composer.clear();
-    } finally {
-      composer.setBusy(
-        false,
-        message: editing ? 'Finished editing' : 'Finished sending',
-      );
+  // --- Popup anchor ---------------------------------------------------------
+
+  void _scheduleAnchor() {
+    if (_anchorScheduled || widget.anchorSpace == null) return;
+    _anchorScheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _anchorScheduled = false;
+      if (mounted) _reportAnchor();
+    });
+  }
+
+  void _reportAnchor() {
+    final island = widget.islandKey.currentContext?.findRenderObject();
+    final space = widget.anchorSpace?.currentContext?.findRenderObject();
+    if (island is! RenderBox ||
+        space is! RenderBox ||
+        !island.attached ||
+        !space.attached) {
+      return;
     }
+    final origin = island.localToGlobal(Offset.zero, ancestor: space);
+    _input.anchorTo(origin & island.size);
   }
 
-  /// Loads [messageId] into the input for editing.
-  void beginEdit(int messageId) {
-    final content = widget.dataSource.getMessage(messageId)?.text;
-    if (content == null) return;
-    widget.selection.clear();
-    widget.composer.text.value = TextEditingValue(
-      text: content,
-      selection: TextSelection.collapsed(offset: content.length),
-    );
-    widget.composer.beginEdit(id: messageId, preview: content);
-  }
-
-  void _cancelEdit() => widget.composer.clear();
+  // --- Build ----------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    if (_selectionMode) {
-      return const SizedBox.shrink();
-    }
-
-    final composer = widget.composer;
-    final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
-    const hPad = ChatInputMetrics.bubblePadding;
-
-    return ValueListenableBuilder<ChatComposerMode>(
-      valueListenable: composer.select((s) => s.data.mode),
-      builder: (context, mode, _) {
-        final isEditing = mode is ChatComposerMode$Editing;
-        final child = MeasureSize(
-          onChange: (size) =>
-              widget.onSizeChanged?.call(size.height + safeBottom),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                hPad,
-                10,
-                hPad,
-                ChatInputMetrics.bubbleBottomGap,
-              ),
-              child: ChatEnterView(
-                composer: composer,
-                onSend: _handleSend,
-                onEmojiPressed: widget.onEmojiPressed,
-                onAttachPressed: widget.onAttachPressed,
-                onMicPressed: widget.onMicPressed,
-                onFieldTapWhilePanelOpen: widget.onFieldTapWhilePanelOpen,
-                glassKey: widget.glassKey,
-                hintText: isEditing ? 'Edit message' : 'Message',
-                topBanner: isEditing
-                    ? const ChatEnterTopBanner(
-                        title: 'Edit message',
-                        subtitle: 'Tap ✕ to cancel',
-                        isEdit: true,
-                      )
-                    : null,
-                onTopBannerClose: isEditing ? _cancelEdit : null,
-              ),
-            ),
-          ),
+    if (_selectionMode) return const SizedBox.shrink();
+    final strings = ChromeStringsScope.of(context);
+    final composer = _input.composer;
+    final inset = _input.composerSafeInset;
+    _scheduleAnchor();
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        composer.text,
+        _input.editing,
+        _input.busy,
+        ObservableListenable(_input.presentation.state),
+        ObservableListenable(_input.shell.selectedPageId),
+      ]),
+      builder: (context, _) {
+        final spec = buildChatComposerSpec(
+          strings: strings,
+          editing: _input.editing.value,
+          hasText: composer.text.text.trim().isNotEmpty,
+          busy: _input.busy.value,
+          panelOpen: _input.isPanelOpening,
+          pageIcon: _input.pageIcon,
+          onTogglePanel: _input.togglePanel,
+          onSubmit: () => unawaited(_input.submit()),
+          onAttach: widget.onAttachPressed ?? () {},
+          onVoice: widget.onVoicePressed ?? () {},
+          onCancelEdit: _input.cancelEdit,
         );
-
-        final bottomInset = widget.bottomInset;
-        if (bottomInset == null) return child;
-
-        return ValueListenableBuilder(
-          valueListenable: bottomInset,
-          child: child,
-          builder: (context, bottomInset, child) => Padding(
-            padding: EdgeInsets.only(bottom: bottomInset),
-            child: child,
-          ),
+        Widget view(double? safeAreaBottom) => ComposerView(
+          controller: composer,
+          spec: spec,
+          islandKey: widget.islandKey,
+          onFieldTap: _input.onFieldTap,
+          safeAreaBottom: safeAreaBottom,
         );
+        // The keyboard presentation owns the bottom band while it is up; the
+        // composer pads itself with what the occupancy has not covered yet.
+        // Without one the composer keeps its default pad.
+        return inset == null
+            ? view(null)
+            : ValueObservableBuilder<double>(
+                observable: inset,
+                builder: (context, safe) => view(safe),
+              );
       },
     );
   }

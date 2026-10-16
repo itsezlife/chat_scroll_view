@@ -33,13 +33,6 @@ abstract final class LegacyBaseline {
       'chat_chrome -> shared_preferences',
       removedBy: 'issue 32 (chat_chrome is deleted)',
     ),
-    LegacyException(
-      LintRule.pluginDependencyOutsideAdapter,
-      'chat_scroll_view_example -> shared_preferences',
-      removedBy:
-          'the example host\'s own persisted settings move onto '
-          'kv_shared_preferences (no issue owns this yet)',
-    ),
   ];
 
   /// [found] without the violations [legacy] excuses, plus a

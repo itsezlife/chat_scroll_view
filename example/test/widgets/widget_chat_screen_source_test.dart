@@ -1,15 +1,16 @@
-import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/main.dart';
+import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_backend_error.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import 'emoji_page_test.dart' show createTestEmojiDataSource;
+import '../support/fake_soft_keyboard.dart';
+import '../support/test_services.dart';
 
 /// The chat screen runs from a generated, backend-free message source.
 ///
@@ -19,25 +20,26 @@ import 'emoji_page_test.dart' show createTestEmojiDataSource;
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late KeyboardPanelStore store;
-  late DefaultEmojiDataSource emoji;
+  late AppServices services;
   late GeneratedChatDataSource source;
+  late FakeSoftKeyboard keyboard;
 
   setUp(() async {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
-    store = KeyboardPanelStore(defaultHeight: 280);
-    await store.load();
-    emoji = await createTestEmojiDataSource();
+    keyboard = FakeSoftKeyboard();
     source = GeneratedChatDataSource(messageCount: 200);
   });
 
-  tearDown(() => emoji.dispose());
+  tearDown(() async {
+    await keyboard.dispose();
+  });
 
   Future<void> pumpApp(WidgetTester tester) async {
+    services = (await tester.runAsync(createTestServices))!;
+    addTearDown(services.dispose);
     await tester.pumpWidget(
       ChatDemoApp(
-        keyboardPanelStore: store,
-        emojiDataSource: emoji,
+        services: services,
+        softKeyboard: keyboard,
         chatDataSourceLoader: () async => source,
       ),
     );
@@ -56,13 +58,15 @@ void main() {
     expect(find.byType(DemoMessageBubble), findsWidgets);
   });
 
-  testWidgets('the composer emoji button opens the catalogue panel', (
+  testWidgets('the composer panel button opens the catalogue panel', (
     tester,
   ) async {
     await pumpApp(tester);
     expect(find.byType(PanelCatalogViewport), findsNothing);
 
-    await tester.tap(find.byType(ChatEnterIconButton).first);
+    await tester.tap(
+      find.byKey(const ValueKey<String>(ChatComposerActions.panel)),
+    );
     for (var i = 0; i < 40; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }

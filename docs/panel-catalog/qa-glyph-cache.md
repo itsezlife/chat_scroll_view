@@ -16,8 +16,10 @@ indicative; label their numbers non-gating.
 - The demo keeps its cache in `<temporary directory>/emoji_glyph_atlas_cache`.
   Clear it with *Settings > Apps > (the demo) > Storage > Clear cache*, or
   uninstall and install again. The art version is
-  `--dart-define=EMOJI_ART_VERSION=<text>`; without it the demo uses the
-  sentinel pixel fingerprint, which changes when the system's emoji art does.
+  `--dart-define=EMOJI_ART_VERSION=<text>`; without it the demo uses the glyph
+  probe's sentinel pixel fingerprint (plus the operating-system version), which
+  changes when the system's emoji art does. The probe rides the bake in every
+  run below, so its cost (hashing each baked cell) is part of what is measured.
 
 ## 1. First run, no cache (automated)
 

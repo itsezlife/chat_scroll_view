@@ -1,11 +1,12 @@
-import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_scroll_view_example/main.dart';
+import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
+import 'package:content_model/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'panel_perf/acceptance.dart';
 import 'panel_perf/report.dart';
@@ -97,32 +98,24 @@ void main() {
   });
 }
 
-/// The real [ChatDemoApp] on generated messages, started from clean prefs.
+/// The real [ChatDemoApp] on generated messages, started from clean storage.
 final class _ChatHarness {
-  _ChatHarness._(this._tester, this._emoji);
+  _ChatHarness._(this._tester, this._services);
 
   final WidgetTester _tester;
-  final DefaultEmojiDataSource _emoji;
+  final AppServices _services;
 
   static Future<_ChatHarness> start(WidgetTester tester) async {
-    // A previous session may have left the panel on another tab or a
-    // different height; every launch must open the same panel.
-    await (await SharedPreferences.getInstance()).clear();
-
-    final store = KeyboardPanelStore();
-    final emoji = DefaultEmojiDataSource(
-      catalog: LocaleEmojiCatalogProvider(
-        locale: const Locale('ru'),
-        categoryTitles: EmojiCategoryTitles.russian,
-        stripIconFor: EmojiTabAssets.stripIconForId,
-      ),
+    // A previous session may have left the panel on another page or a
+    // different height; every launch must open the same panel, so the stores
+    // start empty.
+    final services = await AppServices.create(
+      keyValueStore: FakeKeyValueStore(),
     );
-    await (store.load(), emoji.load()).wait;
 
     await tester.pumpWidget(
       ChatDemoApp(
-        keyboardPanelStore: store,
-        emojiDataSource: emoji,
+        services: services,
         chatDataSourceLoader: () async =>
             GeneratedChatDataSource(messageCount: _messageCount),
       ),
@@ -139,19 +132,21 @@ final class _ChatHarness {
     }
     await settle(tester);
     await tester.pump(const Duration(milliseconds: 500));
-    return _ChatHarness._(tester, emoji);
+    return _ChatHarness._(tester, services);
   }
 
-  /// The user's path: tap the composer's emoji button.
+  /// The user's path: tap the composer's panel button.
   Future<void> openPanel() async {
-    await _tester.tap(find.byType(ChatEnterIconButton).first);
+    await _tester.tap(
+      find.byKey(const ValueKey<String>(ChatComposerActions.panel)),
+    );
     await _tester.pump();
     await settle(_tester);
   }
 
-  /// Unmounts the screen before freeing the emoji data it still listens to.
+  /// Unmounts the screen before freeing the services it still listens to.
   Future<void> dispose() async {
     await _tester.pumpWidget(const SizedBox.shrink());
-    _emoji.dispose();
+    _services.dispose();
   }
 }
