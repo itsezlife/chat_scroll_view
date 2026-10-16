@@ -1,5 +1,6 @@
 import 'dart:ui' show Brightness, Color;
 
+import 'package:chrome_foundation/src/glass/glass_material.dart';
 import 'package:chrome_foundation/src/palette/chrome_palette.dart';
 import 'package:meta/meta.dart';
 
@@ -75,11 +76,10 @@ final class GlassMaterialColors {
 
 /// Palette-derived colours of the named glass materials.
 ///
-/// Type only: the surface widget, quality policy and strategy chain that paint
-/// these materials arrive with the glass stack. Derived from a
-/// [ChromePalette] by [GlassMaterialTokens.fromPalette]; a host overrides one
-/// material with [copyWith] or supplies the whole group to a
-/// `ChromeThemeScope`.
+/// `GlassSurface` reads these through the chrome theme scope: [colorsOf] maps a
+/// [GlassMaterial] to its colours. Derived from a [ChromePalette] by
+/// [GlassMaterialTokens.fromPalette]; a host overrides one material with
+/// [copyWith] or supplies the whole group to a `ChromeThemeScope`.
 @immutable
 final class GlassMaterialTokens {
   /// A glass token group with every material given.
@@ -124,6 +124,13 @@ final class GlassMaterialTokens {
 
   /// The bar docked at the top of the panel.
   final GlassMaterialColors topPanel;
+
+  /// The colours of [material].
+  GlassMaterialColors colorsOf(GlassMaterial material) => switch (material) {
+    GlassMaterial.composerIsland => composerIsland,
+    GlassMaterial.panelButton => panelButton,
+    GlassMaterial.topPanel => topPanel,
+  };
 
   /// A copy with the named materials replaced.
   GlassMaterialTokens copyWith({

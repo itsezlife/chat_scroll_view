@@ -1,14 +1,6 @@
-import 'package:chat_chrome/chat_chrome.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-const _style = LiquidGlassStyle(
-  fill: Color(0xD9202020),
-  strokeTop: Color(0x28FFFFFF),
-  strokeBottom: Color(0x14FFFFFF),
-  shadowColor: Color(0x00000000),
-  enableLiquid: false,
-);
 
 const _glassKey = ValueKey('glass');
 
@@ -16,7 +8,11 @@ Widget _glass() => const Center(
   child: SizedBox(
     width: 200,
     height: 44,
-    child: LiquidGlass(key: _glassKey, style: _style, child: SizedBox.expand()),
+    child: GlassSurface(
+      key: _glassKey,
+      material: GlassMaterial.composerIsland,
+      child: SizedBox.expand(),
+    ),
   ),
 );
 
@@ -42,13 +38,25 @@ bool _filtersBackdrop() => find
     .isNotEmpty;
 
 void main() {
-  group('LiquidGlass', () {
+  group('GlassSurface route motion', () {
     late GlobalKey<NavigatorState> navigator;
 
     setUp(() => navigator = GlobalKey<NavigatorState>());
 
     Future<void> pumpHome(WidgetTester tester, Widget home) =>
-        tester.pumpWidget(MaterialApp(navigatorKey: navigator, home: home));
+        tester.pumpWidget(
+          MaterialApp(
+            navigatorKey: navigator,
+            builder: (context, child) => ChromeThemeScope(
+              palette: const ChromePalette.dark(),
+              child: GlassQualityScope(
+                capabilities: GlassCapabilities.all,
+                child: child!,
+              ),
+            ),
+            home: home,
+          ),
+        );
 
     testWidgets('filters the backdrop outside a moving route', (tester) async {
       await pumpHome(tester, _glass());

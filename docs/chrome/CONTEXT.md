@@ -31,12 +31,16 @@ Required, nestable, animatable theme scope. Lookup asserts without one; a nested
 _Avoid_: Silent light fallback, theme parameter on every widget
 
 **Glass material**:
-A named glass preset (composer island, panel button, top panel).
+A named glass preset (composer island, panel button, top panel) drawn by `GlassSurface`. Its colours are a token group; its shape of effect is fixed by the material.
 _Avoid_: Flag-driven glass widgets
 
 **Glass quality**:
-Host policy (full liquid, frosted, flat, off) combined with detected capabilities and route motion to pick a strategy.
+Host policy (full liquid, frosted, flat, off) plus a lite-mode flag, combined with detected capabilities, the presence of a glass source and route motion to pick a strategy.
 _Avoid_: A public renderer interface, per-widget quality flags
+
+**Glass source**:
+The content subtree that sampled glass frosts, marked by `GlassSource` inside a `GlassSourceScope`. One capture per frame is shared by every surface in the scope.
+_Avoid_: Reading back the onscreen target for each surface
 
 **Motion role**:
 A named duration and curve (list transition, panel slide, search, popup show). A global speed scale implements reduce-motion and lite mode.

@@ -28,6 +28,32 @@ final class AssetRequest {
   String toString() => 'AssetRequest($key, $spec)';
 }
 
+/// How soon work for an entry is wanted. Producers that queue work order it by
+/// this class, highest first.
+enum AssetPriority {
+  /// Nothing shows the entry: it is kept attached for later (a page beside
+  /// the visible one). Served after everything a surface is waiting for.
+  preload,
+
+  /// A surface that shows the entry is waiting for it.
+  visible,
+
+  /// A cheap stand-in (a thumbnail) for an entry. Small and what the surface
+  /// shows first, so served before the entries' full content; an attached
+  /// entry's [AssetDemand] never reports it, a producer assigns it to the
+  /// work it knows is a stand-in.
+  placeholder,
+}
+
+/// What the surfaces attached to an entry want from its producer, read live:
+/// the scope updates it as bindings attach, detach and show or hide.
+abstract interface class AssetDemand {
+  /// [AssetPriority.visible] while any attached binding shows the entry,
+  /// [AssetPriority.preload] when all are hidden. Never
+  /// [AssetPriority.placeholder].
+  AssetPriority get priority;
+}
+
 /// Whether a failed attempt is worth repeating when the network comes back.
 enum AssetFailureKind {
   /// The attempt may succeed later (offline, timeout, server busy). The scope
@@ -86,8 +112,9 @@ abstract interface class AssetTask {
 
 /// Makes the paintables of the entries a scope does not make itself.
 ///
-/// The seam between the cache core and whatever fetches, decodes and renders
-/// (fetcher, decoders and orchestration plug in behind it). The scope owns
+/// The seam between the cache core and whatever fetches, decodes and renders;
+/// `AssetPipeline` is the implementation that fetches and decodes through the
+/// host's `ContentFetcher` and `Decoder`s. The scope owns
 /// everything else about an entry: one attempt at a time per entry, stage
 /// bookkeeping, budgets, pinning, retry, cancellation when the last binding
 /// leaves.
@@ -97,6 +124,11 @@ abstract interface class AssetTask {
 /// synchronously from [produce] if the result is already at hand. It never
 /// throws for a failed attempt: it calls [AssetProgress.fail].
 abstract interface class AssetProducer {
-  /// Starts making [request], reporting to [progress].
-  AssetTask produce(AssetRequest request, AssetProgress progress);
+  /// Starts making [request], reporting to [progress]. [demand] stays valid
+  /// for the whole attempt and says how urgent the work is.
+  AssetTask produce(
+    AssetRequest request,
+    AssetProgress progress,
+    AssetDemand demand,
+  );
 }

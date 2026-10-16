@@ -16,6 +16,12 @@ is pre-1.0.
 
 ### Removed
 
+- **Glass exports** (`LiquidGlass`, `LiquidGlassStyle`, `GlassBackdrop`,
+  `GlassSource`, `GlassSourceScope`, `LiquidGlassShader`, the glass shaders).
+  The glass stack moved to `chrome_foundation` as `GlassSurface` with named
+  `GlassMaterial`s, a `GlassQualityScope` policy and `GlassSourceScope` /
+  `GlassSource`. The composer island draws through `GlassSurface`; a host that
+  used the old widgets imports `package:chrome_foundation`.
 - **`ScalePressable` and `OvershootCurve` exports.** Both moved to
   `chrome_foundation`; the package now depends on it for them. A host that
   imported either through `chat_chrome` imports `package:chrome_foundation`.

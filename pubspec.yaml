@@ -9,10 +9,12 @@ publish_to: none
 workspace:
   - packages/catalog_assets
   - packages/chat_chrome
+  - packages/chat_composer
   - packages/chrome_foundation
   - packages/content_model
   - packages/emoji_catalog_pack
   - packages/emoji_data
+  - packages/kv_shared_preferences
   - packages/panel_catalog
   - packages/panel_shell
   - example
