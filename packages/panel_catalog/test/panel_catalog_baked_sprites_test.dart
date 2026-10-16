@@ -15,6 +15,8 @@
 /// so the chain from a drag to a paused bake is still pinned end to end.
 library;
 
+import 'dart:async';
+
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
@@ -52,14 +54,14 @@ CatalogSection _section(int count) => CatalogSection(
 /// What the page that owns the bake does with the controller's events: tells
 /// the atlas when the catalogue moves and which glyphs it settled on.
 class _PageBake {
-  _PageBake(this.atlas, this.events) {
-    events.addListener(_onEvent);
+  _PageBake(this.atlas, Stream<PanelCatalogScrollEvent> events) {
+    _subscription = events.listen(_onEvent);
   }
 
   final GlyphAtlas atlas;
-  final EventObservable<PanelCatalogScrollEvent> events;
+  late final StreamSubscription<PanelCatalogScrollEvent> _subscription;
 
-  void dispose() => events.removeListener(_onEvent);
+  void dispose() => unawaited(_subscription.cancel());
 
   void _onEvent(PanelCatalogScrollEvent event) {
     switch (event) {

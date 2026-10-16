@@ -21,10 +21,10 @@
 library;
 
 import 'package:catalog_assets/catalog_assets.dart';
-import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_catalog/src/viewport/catalog_section_navigation.dart';
@@ -36,7 +36,7 @@ import 'support/asset_scopes.dart';
 import 'support/recording_canvas.dart';
 
 Widget _harness({
-  required ValueObservable<CatalogSnapshot> snapshots,
+  required listen.ValueListenable<CatalogSnapshot> snapshots,
   required AssetCacheScope assets,
   required PanelCatalogController controller,
   double width = 320,

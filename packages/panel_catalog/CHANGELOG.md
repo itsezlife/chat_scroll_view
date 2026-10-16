@@ -67,6 +67,17 @@ is pre-1.0.
 
 ### Changed
 
+- Change notification is `package:listen` (`listen: ^1.0.1`), not
+  `content_model`'s removed `Observable` family. **Breaking:** `snapshots` is a
+  `ValueListenable<CatalogSnapshot>` (import `package:listen/listen.dart`, not
+  Flutter's `ValueListenable`, which is a different type), and
+  `controller.events` is a synchronous broadcast `Stream`: `listen` instead of
+  `addListener`, cancel the subscription instead of `removeListener`, the same
+  callback listened to twice is called twice, and an event a listener
+  publishes (the bake activity's `PanelCatalogScrollingChanged`) is delivered
+  once the event in flight has reached every listener, still before the
+  command that caused it returns. `FakeCatalogSnapshotSource.batch` is gone:
+  assign the final snapshot once.
 - **BREAKING: leaf value and hit.** `CatalogLeaf` is a value (content key,
   descriptor paint facts, opaque host `tag` excluded from equality) instead of
   the sealed `UnicodeCatalogLeaf` / `DocumentCatalogLeaf` pair, and
@@ -85,14 +96,14 @@ is pre-1.0.
   key.
 - **BREAKING: snapshot data source.** `CatalogDataSource` and its listener list
   are replaced by an immutable `CatalogSnapshot` published through a
-  `ValueObservable<CatalogSnapshot>` (`content_model`); `PanelCatalogViewport`
+  `ValueListenable<CatalogSnapshot>` (`package:listen`); `PanelCatalogViewport`
   takes `snapshots` instead of `dataSource`. `FakeCatalogDataSource` becomes
   `FakeCatalogSnapshotSource` in the new `package:panel_catalog/testing.dart`.
 - **BREAKING: attach-and-position controller.** The render object attaches one
   `CatalogScrollPosition` to `PanelCatalogController`; the five listener
   channels (`addScrollListener`, `addJumpListener`, `addScrollByListener`,
   `addAnimateToListener`, `addSectionJumpListener`) and the viewport-only
-  write methods are deleted. `controller.events` is the one typed Observable.
+  write methods are deleted. `controller.events` is the one typed stream.
   Commands given with no viewport commit a target that the next viewport starts
   from; a `jumpToSection` given before the first layout is applied after it.
 - **BREAKING: assets come from the host's scope.** `PanelCatalogViewport` takes

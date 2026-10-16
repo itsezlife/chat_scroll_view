@@ -2,7 +2,7 @@
 ///
 /// **Seam:** [PanelCatalogController] driven against a
 /// [FakeCatalogScrollPosition] standing in for the bound render object, and
-/// observed through its public offset, flags and `events` Observable.
+/// observed through its public offset, flags and `events` stream.
 library;
 
 import 'dart:async';
@@ -19,7 +19,7 @@ void main() {
   setUp(() {
     controller = PanelCatalogController();
     events = [];
-    controller.events.addListener(events.add);
+    controller.events.listen(events.add);
   });
   tearDown(() => controller.dispose());
 
@@ -221,33 +221,45 @@ void main() {
   });
 
   group('events', () {
-    test('a listener may remove itself and add another while it runs', () {
+    test('a listener may cancel itself and listen again while it runs', () {
       final heard = <String>[];
-      void next(PanelCatalogScrollEvent _) => heard.add('next');
-      void once(PanelCatalogScrollEvent _) {
+      late StreamSubscription<PanelCatalogScrollEvent> once;
+      once = controller.events.listen((_) {
         heard.add('once');
-        controller.events
-          ..removeListener(once)
-          ..addListener(next);
-      }
+        unawaited(once.cancel());
+        controller.events.listen((_) => heard.add('next'));
+      });
 
-      controller.events.addListener(once);
       controller.jumpTo(1); // two events: jump and offset
       controller.jumpTo(2);
 
       expect(heard, ['once', 'next', 'next', 'next']);
     });
 
-    test('the same listener twice is called once per event', () {
-      var calls = 0;
-      void listener(PanelCatalogScrollEvent _) => calls++;
+    test('an event a listener provokes reaches every listener in one order, '
+        'before the command returns', () {
+      final first = <PanelCatalogScrollEvent>[];
+      final second = <PanelCatalogScrollEvent>[];
+      var provoked = false;
       controller.events
-        ..addListener(listener)
-        ..addListener(listener);
+        ..listen((event) {
+          first.add(event);
+          if (provoked || event is! PanelCatalogProgrammaticJump) return;
+          provoked = true;
+          controller.scrollBy(5);
+        })
+        ..listen(second.add);
 
-      controller.jumpTo(1);
+      controller.jumpTo(10);
 
-      expect(calls, 2); // jump and offset, once each
+      expect(first.map((e) => e.runtimeType), [
+        PanelCatalogProgrammaticJump,
+        PanelCatalogViewportScrolled,
+        PanelCatalogOffsetChanged,
+        PanelCatalogOffsetChanged,
+      ]);
+      expect(second, first);
+      expect(controller.offset, 15);
     });
   });
 
@@ -289,11 +301,28 @@ void main() {
     test('a listener added after dispose is never called', () {
       controller.dispose();
       var calls = 0;
-      controller.events.addListener((_) => calls++);
+      controller.events.listen((_) => calls++);
 
       controller.jumpTo(5);
 
       expect(calls, 0);
     });
+
+    test(
+      'a listener may dispose the controller while an event is delivered',
+      () {
+        var ended = false;
+        var otherHeard = 0;
+        controller.events
+          ..listen((_) => controller.dispose(), onDone: () => ended = true)
+          ..listen((_) => otherHeard++);
+
+        controller.jumpTo(5);
+
+        expect(otherHeard, 1, reason: 'the event in flight reaches everyone');
+        expect(events, hasLength(1), reason: 'and nothing follows it');
+        expect(ended, isTrue);
+      },
+    );
   });
 }

@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:content_model/content_model.dart';
 import 'package:flutter/animation.dart';
 import 'package:meta/meta.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 import 'package:panel_catalog/src/viewport/catalog_focus.dart';
 import 'package:panel_catalog/src/viewport/catalog_scroll_position.dart';
+import 'package:panel_catalog/src/viewport/event_publisher.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 
 /// Extent-scroll controller for [PanelCatalogViewport], in the style of a
@@ -49,12 +49,18 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 ///
 /// ## Events
 ///
-/// [events] is the one typed Observable of what the viewport does: drag,
-/// fling, programmatic jump, animate, section jump, offset ticks, the derived
-/// scrolling / settled activity, and [PanelCatalogSectionNearViewport] for
-/// pages that load sections as they come close. It replaces per-kind listener
-/// channels. Same listener twice is a no-op; dispatch iterates a snapshot so
-/// listeners MAY add or remove listeners while it runs.
+/// [events] is the one typed, synchronous broadcast [Stream] of what the
+/// viewport does: drag, fling, programmatic jump, animate, section jump,
+/// offset ticks, the derived scrolling / settled activity, and
+/// [PanelCatalogSectionNearViewport] for pages that load sections as they come
+/// close. It replaces per-kind listener channels. Each `listen` is its own
+/// subscription (the same callback twice is called twice) and the host cancels
+/// it. A subscription added while an event is delivered first hears the next
+/// one; one cancelled meanwhile is not called again. An event published from
+/// inside a listener (the bake activity does) is delivered after the one in
+/// flight has reached every listener, still before the call that caused it
+/// returns, so all listeners see one order. A listener that throws is reported
+/// to the zone and the others still run.
 ///
 /// ## Section jump
 ///
@@ -74,7 +80,7 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// command is a silent no-op, pending futures are completed and listeners are
 /// dropped.
 final class PanelCatalogController {
-  final _events = EventNotifier<PanelCatalogScrollEvent>();
+  final _events = EventPublisher<PanelCatalogScrollEvent>();
   CatalogScrollPosition? _position;
   double _offset = 0;
   (int sectionIndex, Completer<void> completer)? _pendingSectionJump;
@@ -86,7 +92,7 @@ final class PanelCatalogController {
   /// See [PanelCatalogScrollEvent] for the catalogue. Events for commands
   /// given while no viewport is attached are published by the controller; for
   /// an attached viewport, by the viewport.
-  EventObservable<PanelCatalogScrollEvent> get events => _events;
+  Stream<PanelCatalogScrollEvent> get events => _events.stream;
 
   /// Absolute content offset in logical pixels (catalog top = `0`).
   ///

@@ -28,7 +28,7 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
   viewport attached, commands commit a target and the viewport that attaches
   starts from it ([ADR 007](../../docs/adr/007-keyboard-panel-controller.md)
   semantics); `jumpToSection` stays pending until a viewport is laid out. One
-  typed `controller.events` Observable carries drag, fling, programmatic jump,
+  typed `controller.events` stream (a synchronous broadcast `Stream`) carries drag, fling, programmatic jump,
   animate, section jump and offset events, plus two derived activity facts:
   `PanelCatalogScrollingChanged` (at once when the catalogue starts moving,
   after one quiet frame when it stops) and `PanelCatalogScrollSettled` (the
@@ -117,8 +117,8 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
   transitions. The package depends on no chrome or design-system package: a
   page that has foundation tokens maps them onto this class in one place
 - **Data** — an immutable `CatalogSnapshot` (sections) published through a
-  `ValueObservable<CatalogSnapshot>` from `content_model`, one notification per
-  logical mutation (group steps in the owner's `batch`); fetch stays in the
+  `ValueListenable<CatalogSnapshot>` from `package:listen`, one notification per
+  logical mutation (assign the final snapshot once); fetch stays in the
   owner. `package:panel_catalog/testing.dart` has `FakeCatalogSnapshotSource`
   and `FakeCatalogScrollPosition`
 - **Assets** — the viewport attaches each visible leaf through the host's
@@ -162,8 +162,8 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
 
 | The host provides | The host must not |
 | --- | --- |
-| The three required inputs of `PanelCatalogViewport`: a `ValueObservable<CatalogSnapshot>` (`snapshots`), an `AssetCacheScope` (`assets`) and a `PanelCatalogController`. | Mount two viewports on one controller: it holds one position and a second attach replaces the first without telling it. |
-| A `ValueObservable<CatalogSnapshot>` and a `PanelCatalogController` (the host creates and disposes both) | Mutate a published snapshot or notify once per leaf: publish a new snapshot per logical mutation |
+| The three required inputs of `PanelCatalogViewport`: a `ValueListenable<CatalogSnapshot>` from `package:listen` (`snapshots`), an `AssetCacheScope` (`assets`) and a `PanelCatalogController`. | Mount two viewports on one controller: it holds one position and a second attach replaces the first without telling it. |
+| A `ValueListenable<CatalogSnapshot>` and a `PanelCatalogController` (the host creates and disposes both) | Mutate a published snapshot or notify once per leaf: publish a new snapshot per logical mutation |
 | Listeners on `controller.events` for chrome that follows scrolling, and `PanelCatalogCurrentSectionChanged` / `controller.currentSection` for a strip that shows the section the user is in | Call the controller's `attach` / `detach` / `publish`: they belong to the viewport |
 | An `AssetCacheScope` (host-created and disposed) whose `glyphSource` is an atlas planning every glyph the data source shows, baked at `largestCatalogGlyphBox` of the layouts it serves; on the web no source and a `TextGlyphProducer` | Expect a glyph outside the atlas to draw as text: it stays a placeholder; build a second atlas for a section with other cell sizes |
 | Listeners on `controller.events` that load a section (or the next page of it) on `PanelCatalogSectionNearViewport`, publish `loading` / `failed` / `loaded` section states and the empty message copy | Paint a loading or error state of its own over the viewport, or poll the controller's offset to decide what to load |

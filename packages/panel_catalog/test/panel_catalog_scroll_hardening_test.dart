@@ -12,10 +12,10 @@
 library;
 
 import 'package:catalog_assets/catalog_assets.dart';
-import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
@@ -23,7 +23,7 @@ import 'package:panel_catalog/testing.dart';
 import 'support/asset_scopes.dart';
 
 Widget _app({
-  required ValueObservable<CatalogSnapshot> snapshots,
+  required listen.ValueListenable<CatalogSnapshot> snapshots,
   required AssetCacheScope assets,
   required PanelCatalogController controller,
   List<Widget> overlays = const [],

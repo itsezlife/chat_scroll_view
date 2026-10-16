@@ -12,6 +12,7 @@ import 'package:flutter/services.dart'
         PointerEnterEventListener,
         PointerExitEventListener;
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
@@ -230,7 +231,7 @@ class RenderPanelCatalog extends RenderBox
   /// Leaf callbacks are forwarded to [CatalogLeafPointer] while attached;
   /// null long-press start disables the long-press recognizer.
   RenderPanelCatalog({
-    required ValueObservable<CatalogSnapshot> snapshots,
+    required listen.ValueListenable<CatalogSnapshot> snapshots,
     required AssetCacheScope assets,
     required double devicePixelRatio,
     required PanelCatalogController controller,
@@ -294,12 +295,12 @@ class RenderPanelCatalog extends RenderBox
   // --- Configuration --------------------------------------------------------
 
   /// Authoritative catalog contents. Reprojected when the snapshot
-  /// [ValueObservable] signals while attached.
+  /// [listen.ValueListenable] signals while attached.
   ///
   /// Swapping while attached moves the listener to the new source and marks
   /// layout+paint dirty. The previous source is unsubscribed first.
-  ValueObservable<CatalogSnapshot> _snapshots;
-  set snapshots(ValueObservable<CatalogSnapshot> value) {
+  listen.ValueListenable<CatalogSnapshot> _snapshots;
+  set snapshots(listen.ValueListenable<CatalogSnapshot> value) {
     if (_snapshots == value) return;
     if (attached) {
       _snapshots.removeListener(_onDataChanged);

@@ -41,7 +41,7 @@ void main() {
     snapshots = FakeCatalogSnapshotSource();
     controller = PanelCatalogController();
     events = [];
-    controller.events.addListener(events.add);
+    controller.events.listen(events.add);
   });
   tearDown(() {
     snapshots.dispose();
