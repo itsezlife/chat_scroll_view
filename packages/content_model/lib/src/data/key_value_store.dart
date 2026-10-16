@@ -34,7 +34,8 @@ final class StoredValue {
 /// ## Names
 ///
 /// A namespace or key is a non-empty string of ASCII letters, digits, `_`,
-/// `.` and `-`; anything else is a programming error. In particular `:` is
+/// `.` and `-`; anything else is a programming error, rejected with an
+/// [ArgumentError] (the returned future fails with it). In particular `:` is
 /// excluded, so an adapter may join the two with it without ambiguity.
 ///
 /// ## Values

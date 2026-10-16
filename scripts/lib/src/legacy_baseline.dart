@@ -36,14 +36,6 @@ abstract final class LegacyBaseline {
     ),
     LegacyException(
       LintRule.fakeExportedOutsideTesting,
-      'packages/catalog_assets/lib/catalog_assets.dart exports '
-      'src/fake_catalog_asset_cache.dart',
-      removedBy:
-          'issue 09 (the asset cache API is replaced; fakes move to '
-          'testing.dart)',
-    ),
-    LegacyException(
-      LintRule.fakeExportedOutsideTesting,
       'packages/panel_catalog/lib/panel_catalog.dart exports '
       'src/data/fake_catalog_data_source.dart',
       removedBy:

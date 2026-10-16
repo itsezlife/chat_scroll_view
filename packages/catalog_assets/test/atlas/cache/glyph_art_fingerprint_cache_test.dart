@@ -2,9 +2,9 @@
 /// a changed fingerprint makes the persisted pages stale.
 ///
 /// **Seam:** `GlyphAtlas(persistence:)` whose art version source is
-/// `ComputedGlyphArtVersion` over `computeGlyphArtFingerprint` (from
-/// `emoji_data`, a dev dependency of this package) and `GlyphPixelReader`
-/// over a `FakeGlyphRasteriser`. "The system updates its emoji art" is a
+/// `ComputedGlyphArtVersion` over a fingerprint of sentinel pixels and
+/// `GlyphPixelReader` over a `FakeGlyphRasteriser`. "The system updates its
+/// emoji art" is a
 /// rasteriser that paints the sentinels in another colour; no emoji font.
 library;
 
@@ -12,7 +12,6 @@ import 'dart:ui';
 
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
-import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -31,6 +30,17 @@ final class _System implements GlyphRasteriser {
     _sentinels.contains(glyph) ? '$glyph$art' : glyph,
     cell,
   );
+}
+
+/// The art version as the production fingerprint makes it: one opaque string
+/// that is the same for the same sentinel pixels and different otherwise.
+Future<String> _fingerprint(GlyphPixelReader reader) async {
+  final pixels = <int>[];
+  for (final sentinel in _sentinels) {
+    await Future<void>.delayed(Duration.zero);
+    pixels.add(Object.hashAll(await reader.pixelsOf(sentinel)));
+  }
+  return 'art1-${Object.hashAll(pixels)}';
 }
 
 void main() {
@@ -56,13 +66,7 @@ void main() {
   ({GlyphAtlas atlas, FakeGlyphRasteriser baked}) launch(String art) {
     final system = _System(art);
     final reader = GlyphPixelReader(system, size: 16);
-    final source = ComputedGlyphArtVersion(
-      () => computeGlyphArtFingerprint(
-        sentinels: _sentinels,
-        pixelsOf: reader.pixelsOf,
-        nextFrame: () async {},
-      ),
-    );
+    final source = ComputedGlyphArtVersion(() => _fingerprint(reader));
     final baked = FakeGlyphRasteriser();
     final atlas = GlyphAtlas(
       index: GlyphAtlasIndex(['a', 'b']),

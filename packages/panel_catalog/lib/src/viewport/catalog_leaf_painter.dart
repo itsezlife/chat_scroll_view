@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:flutter/painting.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';

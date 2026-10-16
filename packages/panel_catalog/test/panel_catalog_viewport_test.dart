@@ -20,7 +20,7 @@
 /// - far-path stitch (not naked jump), re-entry, cancel
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/legacy_shim.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
