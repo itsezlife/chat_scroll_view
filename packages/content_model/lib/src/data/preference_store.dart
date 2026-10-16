@@ -1,5 +1,5 @@
 import 'package:content_model/src/identity/content_key.dart';
-import 'package:content_model/src/observable/observable.dart';
+import 'package:listen/listen.dart';
 
 /// Typed user choices that outlive a session.
 ///
@@ -17,7 +17,7 @@ import 'package:content_model/src/observable/observable.dart';
 /// answering with the last state and setters do nothing.
 abstract interface class PreferenceStore {
   /// Signals once per setter call that changed a preference.
-  Observable get changes;
+  Listenable get changes;
 
   /// The variant of the emoji [base] the user chose, or null when they chose
   /// none. The answer is the exact variant key, never an index: a variant is

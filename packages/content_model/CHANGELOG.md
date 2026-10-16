@@ -6,6 +6,21 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Change notification is `package:listen` (`listen: ^1.0.1`), not a type of
+  this package. The seams expose `Listenable` (`changes`) and
+  `ValueListenable` (`collections`, `results`); the reference stores and the
+  fakes are `ChangeNotifier`s, and `FakeCollectionSource` / `FakeSearchSource`
+  hold a `ValueNotifier`. `Observable`, `ValueObservable`, `EventObservable`,
+  `ObservableNotifier`, `ObservableValue`, `EventNotifier`, `FakeObservable`
+  and `runObservableContract` are removed; the owners' `dispose` stays
+  idempotent. What changes for hosts: a listener added twice runs twice, an
+  owner no longer ignores `addListener` or a signal after `dispose` (they assert
+  in debug builds), a throwing listener goes to the static `Listenable.onError`,
+  whose default rethrows, and `batch` is gone (assign the final value once).
+  Typed events are a broadcast `Stream` in the packages that publish them.
+
 ### Added
 
 - Pure-Dart value types for catalog content: `ContentKey` (`unicode`,
@@ -18,14 +33,11 @@ package is pre-1.0.
   and `slice`, and JSON in and out. `package:content_model/markdown.dart` adds
   `RichTextMarkdown` to read and write the markdown the viewport's markdown
   library understands.
-- The synchronous change-notification primitives `Observable`,
-  `ValueObservable`, `EventObservable` and their owners `ObservableNotifier`,
-  `ObservableValue`, `EventNotifier`.
 - The seams packages reach data through: `CollectionSource`, `SearchSource`,
   `RecentsStore`, `PreferenceStore`, `KeywordSource` with `KeywordPack`,
   `GlyphSupport`, `KeyValueStore` with `StoredValue`, and `ContentResolver`.
 - `KeyValueRecentsStore` and `KeyValuePreferenceStore`, the reference stores
   over a `KeyValueStore`, created only by their async `load`.
 - `package:content_model/testing.dart`: a fake and a contract suite for every
-  seam (`runObservableContract`, `runKeyValueStoreContract`, ...). It depends on
+  seam (`runKeyValueStoreContract`, ...). It depends on
   `package:test`; production code never imports it.

@@ -3,9 +3,8 @@ import 'dart:convert';
 import 'package:content_model/src/data/key_value_store.dart';
 import 'package:content_model/src/data/preference_store.dart';
 import 'package:content_model/src/identity/content_key.dart';
-import 'package:content_model/src/observable/observable.dart';
-import 'package:content_model/src/observable/observable_notifier.dart';
 import 'package:content_model/src/store/store_name.dart';
+import 'package:listen/listen.dart';
 
 /// The reference [PreferenceStore]: keeps the choices in memory and persists
 /// them through a [KeyValueStore].
@@ -39,7 +38,9 @@ import 'package:content_model/src/store/store_name.dart';
 /// when the write has (and fails if it failed, keeping the in-memory change,
 /// as the contract says). A later successful write persists the whole record
 /// again, so a lost write is repaired by the next one.
-final class KeyValuePreferenceStore implements PreferenceStore {
+final class KeyValuePreferenceStore
+    with ChangeNotifier
+    implements PreferenceStore {
   KeyValuePreferenceStore._(this._storage, this._namespace);
 
   /// The schema version of the record this store writes and reads.
@@ -66,13 +67,13 @@ final class KeyValuePreferenceStore implements PreferenceStore {
 
   final KeyValueStore _storage;
   final String _namespace;
-  final _changes = ObservableNotifier();
+  var _disposed = false;
   final _variants = <ContentKey$Unicode, ContentKey$Unicode>{};
   String? _selectedPageId;
   var _dockPreferred = false;
 
   @override
-  Observable get changes => _changes;
+  Listenable get changes => this;
 
   @override
   ContentKey$Unicode? preferredVariant(ContentKey$Unicode base) =>
@@ -83,13 +84,13 @@ final class KeyValuePreferenceStore implements PreferenceStore {
     ContentKey$Unicode base,
     ContentKey$Unicode? variant,
   ) async {
-    if (_changes.isDisposed || _variants[base] == variant) return;
+    if (_disposed || _variants[base] == variant) return;
     if (variant == null) {
       _variants.remove(base);
     } else {
       _variants[base] = variant;
     }
-    _changes.notify();
+    notifyListeners();
     await _persist();
   }
 
@@ -98,9 +99,9 @@ final class KeyValuePreferenceStore implements PreferenceStore {
 
   @override
   Future<void> setSelectedPageId(String? id) async {
-    if (_changes.isDisposed || _selectedPageId == id) return;
+    if (_disposed || _selectedPageId == id) return;
     _selectedPageId = id;
-    _changes.notify();
+    notifyListeners();
     await _persist();
   }
 
@@ -109,14 +110,19 @@ final class KeyValuePreferenceStore implements PreferenceStore {
 
   @override
   Future<void> setDockPreferred({required bool preferred}) async {
-    if (_changes.isDisposed || _dockPreferred == preferred) return;
+    if (_disposed || _dockPreferred == preferred) return;
     _dockPreferred = preferred;
-    _changes.notify();
+    notifyListeners();
     await _persist();
   }
 
+  // Idempotent: ChangeNotifier asserts on a second dispose, the seam does not.
   @override
-  void dispose() => _changes.dispose();
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    super.dispose();
+  }
 
   // Reads the state after the signal, so a listener that sets again inside it
   // is written once with the final state rather than overtaken.

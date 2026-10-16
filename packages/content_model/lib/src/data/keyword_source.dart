@@ -1,5 +1,5 @@
 import 'package:content_model/src/identity/content_key.dart';
-import 'package:content_model/src/observable/observable.dart';
+import 'package:listen/listen.dart';
 import 'package:meta/meta.dart';
 
 /// The search keywords of one language, keyed by the content they find.
@@ -53,7 +53,7 @@ final class KeywordPack {
 /// After [dispose] [changes] is silent and [pack] answers null.
 abstract interface class KeywordSource {
   /// Signals when [pack] would now answer differently for some language.
-  Observable get changes;
+  Listenable get changes;
 
   /// The keywords for the language tag [language], or null when there are
   /// none.

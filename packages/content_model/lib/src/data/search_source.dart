@@ -1,5 +1,5 @@
 import 'package:content_model/src/collection/collection.dart';
-import 'package:content_model/src/observable/observable.dart';
+import 'package:listen/listen.dart';
 
 /// Turns a query into one paged results [Collection].
 ///
@@ -38,7 +38,7 @@ import 'package:content_model/src/observable/observable.dart';
 /// After [dispose] nothing is published and commands do nothing.
 abstract interface class SearchSource {
   /// The results of the latest query.
-  ValueObservable<Collection> get results;
+  ValueListenable<Collection> get results;
 
   /// Replaces the current query with [query].
   Future<void> search(String query);

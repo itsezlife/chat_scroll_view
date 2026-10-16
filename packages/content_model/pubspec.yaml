@@ -1,8 +1,8 @@
 name: content_model
 description: >
   Pure-Dart content identity and collection value types, rich text with an
-  opt-in markdown helper, the Observable primitive, data seams with reference
-  stores, and their fakes and contract suites.
+  opt-in markdown helper, data seams with reference stores whose change
+  notification is `package:listen`, and their fakes and contract suites.
 version: 0.1.0
 publish_to: none
 resolution: workspace
@@ -11,6 +11,7 @@ environment:
   sdk: ^3.11.0
 
 dependencies:
+  listen: ^1.0.1
   meta: ^1.17.0
   # Only lib/testing.dart needs this: its contract suites (runRecentsStoreContract
   # and the like) are written with the test framework, and a library cannot

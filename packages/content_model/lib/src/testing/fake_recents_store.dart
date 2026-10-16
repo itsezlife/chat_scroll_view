@@ -1,22 +1,23 @@
 import 'package:content_model/content_model.dart';
 import 'package:content_model/src/store/recents_ledger.dart';
+import 'package:listen/listen.dart';
 
 /// An in-memory [RecentsStore] for tests, with nothing persisted.
 ///
 /// Follows the whole seam contract. Use it to drive a page or host without
 /// storage; use the reference store over a `FakeKeyValueStore` when the test
 /// is about what reaches storage.
-final class FakeRecentsStore implements RecentsStore {
+final class FakeRecentsStore with ChangeNotifier implements RecentsStore {
   /// Creates an empty store holding at most [capacity] keys per kind.
   FakeRecentsStore({int capacity = 48})
     : _ledger = RecentsLedger(capacity: capacity);
 
   final RecentsLedger _ledger;
-  final _changes = ObservableNotifier();
+  var _disposed = false;
   var _clock = 0;
 
   @override
-  Observable get changes => _changes;
+  Listenable get changes => this;
 
   @override
   List<ContentKey> recents(SemanticKind kind) => _ledger.keysOf(kind);
@@ -27,17 +28,22 @@ final class FakeRecentsStore implements RecentsStore {
     required SemanticKind kind,
     PickSource source = PickSource.collection,
   }) async {
-    if (_changes.isDisposed || source == PickSource.search) return;
+    if (_disposed || source == PickSource.search) return;
     _ledger.record(kind, key, now: ++_clock);
-    _changes.notify();
+    notifyListeners();
   }
 
   @override
   Future<void> clear({SemanticKind? kind}) async {
-    if (_changes.isDisposed) return;
-    if (_ledger.clear(kind: kind).isNotEmpty) _changes.notify();
+    if (_disposed) return;
+    if (_ledger.clear(kind: kind).isNotEmpty) notifyListeners();
   }
 
+  // Idempotent: ChangeNotifier asserts on a second dispose, the seam does not.
   @override
-  void dispose() => _changes.dispose();
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    super.dispose();
+  }
 }

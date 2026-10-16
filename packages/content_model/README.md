@@ -1,10 +1,12 @@
 # content_model
 
 Pure-Dart value types that identify and group catalog content (stickers,
-GIFs, custom and unicode emoji), formatted text (`RichText`), the one
-synchronous change-notification primitive, and the seams through which packages
-reach data. No Flutter, no I/O, one dependency (`meta`), plus `package:test` for
-the opt-in `testing.dart`. Every other package in the workspace speaks these
+GIFs, custom and unicode emoji), formatted text (`RichText`), and the seams
+through which packages reach data. Change notification is the pure-Dart
+[`package:listen`](https://pub.dev/packages/listen) (`Listenable`,
+`ValueListenable`, `ChangeNotifier`, `ValueNotifier`), not a type of this
+package. No Flutter, no I/O, two dependencies (`meta`, `listen`), plus
+`package:test` for the opt-in `testing.dart`. Every other package in the workspace speaks these
 types, so it depends on no workspace package (`scripts/check` enforces both).
 
 ## Types
@@ -18,8 +20,6 @@ types, so it depends on no workspace package (`scripts/check` enforces both).
 | `InlineContentRef` | A key plus the mandatory plain-text alternative, for content embedded in text. |
 | `RichText` | Plain text plus `Entity` spans (UTF-16 offset and length, and an `EntityKind`: bold, italic, underline, strike, spoiler, code, quote, link, mention, inline content). Always canonical, so equal meaning is equal value; edits (`insert`, `delete`, `replaceRange`, `slice`) keep the entities consistent; JSON in and out for drafts. |
 | `RichTextMarkdown` | Opt-in, in `package:content_model/markdown.dart`: `RichText` to and from the markdown the viewport's markdown library reads. The host's helper for send, draft, edit-load and body materialise. |
-| `Observable`, `ValueObservable<T>`, `EventObservable<T>` | The read sides of change notification: a signal, a signal guarding a snapshot, a typed event stream. Listeners run synchronously; dedup-on-add, snapshot dispatch, silent after dispose. |
-| `ObservableNotifier`, `ObservableValue<T>`, `EventNotifier<T>` | The owner sides. `batch` turns many changes into one signal; `ObservableValue` skips equal snapshots. |
 | `CollectionSource`, `SearchSource` | Publish `Collection`s as immutable snapshots, with load and paging commands. Failure is a state, never an exception. |
 | `RecentsStore`, `PreferenceStore` | Loaded, synchronous-read stores for picks (per `SemanticKind`, frequency then recency) and typed user choices (preferred variant per emoji, last page, dock preference). |
 | `KeywordSource`, `KeywordPack` | Per-language search keywords, bundled or supplied by the host. |
@@ -35,7 +35,6 @@ it and `content_model.dart` never exports it (`scripts/check` enforces both).
 
 | Seam | Fake | Contract suite |
 | --- | --- | --- |
-| `Observable` | `FakeObservable` (hand-signalled, counts listeners) | `runObservableContract` |
 | `KeyValueStore` | `FakeKeyValueStore` (in memory, `failure` switch) | `runKeyValueStoreContract` |
 | `RecentsStore` | `FakeRecentsStore` | `runRecentsStoreContract` |
 | `PreferenceStore` | `FakePreferenceStore` | `runPreferenceStoreContract` |
@@ -72,8 +71,9 @@ void main() {
 | A test for every implementation of a seam: the matching `run...Contract` suite from `testing.dart`. | Ship a fake, or import `testing.dart`, from production code. |
 | The decision that a pick counts: it calls `RecentsStore.record` on insert or send, with the `PickSource` it came from. | Record from inside a page, or record a pick made from search results. |
 | One `KeyValueStore` namespace per package, and a version on every value it writes. | Share a namespace between packages, or expect the store to migrate or interpret a value. |
-| Disposal: whoever creates a notifier, source or store disposes it. | Signal from a consumer's side (only the owner type can), or rely on a listener running after dispose. |
-| Listeners that tolerate being called synchronously, inside the call that changed the state, and that read the owner for the new state. | Throw from a listener to stop the others (a throwing listener is reported to the zone and the rest still run), or assume a signal carries a payload (`Observable` has none; use `EventObservable`). |
+| Disposal: whoever creates a notifier, source or store disposes it, once. A seam owner's `dispose` is idempotent; `ChangeNotifier.dispose` itself is not. | Signal from a consumer's side (only the owner type can), add a listener to a disposed owner (an assertion in debug builds), or dispose an owner from inside one of its own listeners. |
+| Listeners that tolerate being called synchronously, inside the call that changed the state, and that read the owner for the new state. | Add the same function twice and expect one call (`package:listen` does not deduplicate: it is called twice and must be removed twice), or assume a signal carries a payload (a `Listenable` has none). |
+| `Listenable.onError` set once, at startup, to report listener errors and not rethrow. This package never sets it. | Expect one throwing listener not to stop the rest: with the default `onError` (rethrow) the notification pass is aborted. |
 | Links and mentions as entities, made where the user or the host decides what is a link (a pasted URL, a picked mention). | Expect `RichText` or the markdown helper to detect a bare URL or `@name`. Body linkify is host-invoked (ADR 017); the helper writes and reads only what is already an entity or a markdown link. |
 | Imports of `RichText` that avoid the Flutter widget of the same name: `hide RichText` on the widgets import, or `as model` here. | Import both unqualified in one file. |
 | The `mention:` scheme read as a mention when it decodes a body, and its own targets for links. | Make a link whose target starts with `mention:`; the model rejects it. |

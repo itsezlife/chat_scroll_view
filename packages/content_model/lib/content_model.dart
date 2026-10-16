@@ -1,5 +1,6 @@
-/// Pure-Dart content identity and collection value types, the synchronous
-/// [Observable] primitive and the data seams the catalogue packages share.
+/// Pure-Dart content identity and collection value types and the data seams
+/// the catalogue packages share. The seams signal change through
+/// `package:listen`, which this library does not re-export.
 library;
 
 export 'src/collection/collection.dart';
@@ -17,10 +18,6 @@ export 'src/emoji/emoji_entry.dart';
 export 'src/identity/content_descriptor.dart';
 export 'src/identity/content_key.dart';
 export 'src/identity/inline_content_ref.dart';
-export 'src/observable/event_notifier.dart';
-export 'src/observable/observable.dart';
-export 'src/observable/observable_notifier.dart';
-export 'src/observable/observable_value.dart';
 export 'src/rich_text/entity.dart';
 export 'src/rich_text/entity_kind.dart';
 export 'src/rich_text/rich_text.dart';

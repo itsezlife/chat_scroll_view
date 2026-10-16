@@ -1,6 +1,6 @@
 import 'package:content_model/src/identity/content_descriptor.dart';
 import 'package:content_model/src/identity/content_key.dart';
-import 'package:content_model/src/observable/observable.dart';
+import 'package:listen/listen.dart';
 
 /// Where in the interface a pick was made; decides whether it counts as use.
 enum PickSource {
@@ -44,7 +44,7 @@ enum PickSource {
 /// last state and the commands do nothing.
 abstract interface class RecentsStore {
   /// Signals once per [record] or [clear] that changed some list.
-  Observable get changes;
+  Listenable get changes;
 
   /// The keys of [kind], best first. Unmodifiable; empty when none were
   /// recorded.

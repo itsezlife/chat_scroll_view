@@ -1,4 +1,5 @@
 import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 import 'package:test/test.dart';
 
 // The seams are interfaces a host implements with nothing but the public
@@ -7,7 +8,9 @@ import 'package:test/test.dart';
 
 class _CollectionSource implements CollectionSource {
   @override
-  final ObservableValue<List<Collection>> collections = ObservableValue([]);
+  final ValueNotifier<List<Collection>> collections = ValueNotifier(
+    <Collection>[],
+  );
 
   @override
   Future<void> load(CollectionId id) async {}
@@ -21,7 +24,7 @@ class _CollectionSource implements CollectionSource {
 
 class _SearchSource implements SearchSource {
   @override
-  final ObservableValue<Collection> results = ObservableValue(
+  final ValueNotifier<Collection> results = ValueNotifier(
     const Collection(id: CollectionId.query('')),
   );
 
@@ -36,10 +39,10 @@ class _SearchSource implements SearchSource {
 }
 
 class _RecentsStore implements RecentsStore {
-  final _changes = ObservableNotifier();
+  final _changes = ChangeNotifier();
 
   @override
-  Observable get changes => _changes;
+  Listenable get changes => _changes;
 
   @override
   List<ContentKey> recents(SemanticKind kind) => const [];
@@ -59,10 +62,10 @@ class _RecentsStore implements RecentsStore {
 }
 
 class _PreferenceStore implements PreferenceStore {
-  final _changes = ObservableNotifier();
+  final _changes = ChangeNotifier();
 
   @override
-  Observable get changes => _changes;
+  Listenable get changes => _changes;
 
   @override
   ContentKey$Unicode? preferredVariant(ContentKey$Unicode base) => null;
@@ -90,10 +93,10 @@ class _PreferenceStore implements PreferenceStore {
 }
 
 class _KeywordSource implements KeywordSource {
-  final _changes = ObservableNotifier();
+  final _changes = ChangeNotifier();
 
   @override
-  Observable get changes => _changes;
+  Listenable get changes => _changes;
 
   @override
   Future<KeywordPack?> pack(String language) async => null;
@@ -103,10 +106,10 @@ class _KeywordSource implements KeywordSource {
 }
 
 class _GlyphSupport implements GlyphSupport {
-  final _changes = ObservableNotifier();
+  final _changes = ChangeNotifier();
 
   @override
-  Observable get changes => _changes;
+  Listenable get changes => _changes;
 
   @override
   String? get artVersion => null;

@@ -1,6 +1,6 @@
 import 'package:content_model/src/collection/collection.dart';
 import 'package:content_model/src/collection/collection_id.dart';
-import 'package:content_model/src/observable/observable.dart';
+import 'package:listen/listen.dart';
 
 /// Where a page gets its [Collection]s: an ordered set of collections, each
 /// with its own contents, loading state and paging.
@@ -48,7 +48,7 @@ import 'package:content_model/src/observable/observable.dart';
 /// flight is dropped, not published.
 abstract interface class CollectionSource {
   /// The collections on offer, in display order.
-  ValueObservable<List<Collection>> get collections;
+  ValueListenable<List<Collection>> get collections;
 
   /// Starts the first load of the collection [id].
   Future<void> load(CollectionId id);
