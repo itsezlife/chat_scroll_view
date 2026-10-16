@@ -57,10 +57,16 @@ import 'package:panel_shell/panel_shell.dart';
 /// ## Shell
 ///
 /// The controller wraps [shell] without owning it: it reports presence to it
-/// ([PanelShellController.updatePresence]) after every change of visibility,
-/// folds the shell's search focus into [autoHideGuard], and turns every shell
-/// event (a page change, search opening or closing, a pick) into a signal on
-/// [interactions]. [handleBack] steps back through the shell first.
+/// ([PanelShellController.updatePresence]) after every change of visibility
+/// and turns every shell event (a page change, search opening or closing, a
+/// pick) into a signal on [interactions]. [handleBack] steps back through the
+/// shell first.
+///
+/// ## Holds
+///
+/// [holdAutoHide] is the one seam through which something keeps a
+/// self-dismissing presentation open: an open menu or variant picker, a drag.
+/// Search focus is deliberately not a hold; see [autoHideGuard].
 final class PanelPresentationController {
   /// Creates a controller over [shell].
   ///
@@ -112,9 +118,7 @@ final class PanelPresentationController {
   ) : _window = listen.ValueNotifier<PanelWindow>(window),
       _dockPreferred = listen.ValueNotifier<bool>(dockPreferred) {
     _shellEvents = shell.events.listen(_onShellEvent);
-    shell.search.addListener(_updateGuard);
     _preferences?.changes.addListener(_onPreferencesChanged);
-    _updateGuard();
     _followOccupancyOf(_idleKind());
   }
 
@@ -166,13 +170,16 @@ final class PanelPresentationController {
   listen.ValueListenable<Rect?> get anchorRect => _anchor;
 
   /// The **auto-hide guard**: whether something keeps a self-dismissing
-  /// popup open. True while the search field holds focus or any
-  /// [holdAutoHide] is unreleased.
+  /// popup open. True exactly while any [holdAutoHide] is unreleased.
+  ///
+  /// The search field's focus is not a hold. The reference client's panel
+  /// hides on the pointer leaving whether or not search is focused, and a
+  /// popup the pointer has not left stays open anyway.
   listen.ValueListenable<bool> get autoHideGuard => _guard;
 
   /// Signals whenever the user does something in the panel: a page change,
-  /// search opening or closing, a pick, an action. Self-dismissing
-  /// presentations restart their idle delay on it.
+  /// search opening or closing, a pick, an action. For hosts that react to
+  /// activity; no presentation times out on it.
   listen.Listenable get interactions => _interactions;
 
   /// Whether [dispose] has been called.
@@ -316,10 +323,15 @@ final class PanelPresentationController {
   }
 
   /// Keeps a self-dismissing presentation open until the returned hold is
-  /// released: a variant picker is up, a drag is in progress.
+  /// released: a menu or a variant picker is up, a drag is in progress, a
+  /// pointer button pressed inside the panel is still down.
   ///
-  /// Holds are counted; the guard stays true until all are released. After
-  /// [dispose] the hold is inert.
+  /// This is the one seam for such claims. Holds are counted and independent:
+  /// each [PanelAutoHideHold.release] undoes only its own hold, in any order,
+  /// and the guard stays true until all are released. It notifies on the first
+  /// hold and on the last release, not in between. A hold that outlives a
+  /// hide stays in force for the next show. After [dispose] a hold is inert
+  /// and releasing it is harmless.
   PanelAutoHideHold holdAutoHide() {
     final hold = _AutoHideHold(this);
     if (!_disposed) {
@@ -351,7 +363,6 @@ final class PanelPresentationController {
     final current = _state.value;
     _disposed = true;
     unawaited(_shellEvents.cancel());
-    shell.search.removeListener(_updateGuard);
     _preferences?.changes.removeListener(_onPreferencesChanged);
     _followed?.removeListener(_onStrategyOccupancy);
     _followed = null;
@@ -466,10 +477,7 @@ final class PanelPresentationController {
     _interactions.signal();
   }
 
-  void _updateGuard() {
-    final search = shell.search.value;
-    _guard.value = (search.isOpen && search.wantsFocus) || _holds > 0;
-  }
+  void _updateGuard() => _guard.value = _holds > 0;
 
   void _releaseHold() {
     if (_disposed) return;

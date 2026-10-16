@@ -72,6 +72,7 @@ final class PopupRig {
 
   static const toggleKey = ValueKey('toggle');
   static const outsideKey = ValueKey('outside');
+  static const exemptKey = ValueKey('exempt');
 
   /// The composer strip, 60 px tall, at the bottom of an 800 x 700 window.
   static const composer = Rect.fromLTWH(0, 640, 800, 60);
@@ -85,14 +86,19 @@ final class PopupRig {
     Size size = const Size(800, 700),
     ChromeMotionSpeed speed = ChromeMotionSpeed.normal,
     VoidCallback? onOutsideTap,
+    Rect? composerRect,
+    Rect? exemptRect,
+    bool withToggle = true,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final composerRect = size.width == 800 && size.height == 700
-        ? composer
-        : Rect.fromLTWH(0, size.height - 60, size.width, 60);
-    controller.anchor(composerRect);
+    final composerBox =
+        composerRect ??
+        (size.width == 800 && size.height == 700
+            ? composer
+            : Rect.fromLTWH(0, size.height - 60, size.width, 60));
+    controller.anchor(composerBox);
     await tester.pumpWidget(
       PanelShellTestScope(
         size: size,
@@ -125,13 +131,25 @@ final class PopupRig {
                     40,
                     40,
                   ),
-                  child: AnchoredPopupToggleRegion(
-                    strategy: strategy,
-                    controller: controller,
-                    child: const SizedBox.expand(key: toggleKey),
-                  ),
+                  child: withToggle
+                      ? AnchoredPopupToggleRegion(
+                          strategy: strategy,
+                          controller: controller,
+                          child: const SizedBox.expand(key: toggleKey),
+                        )
+                      : const SizedBox.shrink(),
                 ),
+                if (exemptRect != null)
+                  Positioned.fromRect(
+                    key: const ValueKey('exempt-slot'),
+                    rect: exemptRect,
+                    child: AnchoredPopupExemptRegion(
+                      strategy: strategy,
+                      child: const SizedBox.expand(key: exemptKey),
+                    ),
+                  ),
                 Positioned.fill(
+                  key: const ValueKey('presentation-slot'),
                   child: PanelPresentationView(controller: controller),
                 ),
               ],

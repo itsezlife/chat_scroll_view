@@ -445,17 +445,10 @@ void main() {
       expect(controller.autoHideGuard.value, isFalse);
     });
 
-    test('is true while the search field wants focus', () {
+    test('search focus is not a hold', () {
       build();
       shell.openSearch();
-      expect(controller.autoHideGuard.value, isTrue);
-      shell.releaseSearchFocus();
-      expect(controller.autoHideGuard.value, isFalse);
-    });
-
-    test('is false for search open without focus', () {
-      build();
-      shell.openSearch(focus: false);
+      expect(shell.search.value.wantsFocus, isTrue);
       expect(controller.autoHideGuard.value, isFalse);
     });
 
@@ -467,6 +460,18 @@ void main() {
       first.release();
       expect(controller.autoHideGuard.value, isTrue);
       second.release();
+      expect(controller.autoHideGuard.value, isFalse);
+    });
+
+    test('holds release in any order', () {
+      build();
+      final first = controller.holdAutoHide();
+      final second = controller.holdAutoHide();
+      final third = controller.holdAutoHide();
+      second.release();
+      third.release();
+      expect(controller.autoHideGuard.value, isTrue);
+      first.release();
       expect(controller.autoHideGuard.value, isFalse);
     });
 
@@ -482,11 +487,54 @@ void main() {
       expect(controller.autoHideGuard.value, isFalse);
     });
 
-    test('stays true while search has focus and a hold is released', () {
+    test('notifies on the first hold and the last release only', () {
       build();
-      shell.openSearch();
+      var notifications = 0;
+      controller.autoHideGuard.addListener(() => notifications++);
+
+      final first = controller.holdAutoHide();
+      final second = controller.holdAutoHide();
+      expect(notifications, 1);
+      first.release();
+      expect(notifications, 1);
+      second.release();
+      expect(notifications, 2);
+    });
+
+    test('a hold taken again after a full release holds again', () {
+      build();
       controller.holdAutoHide().release();
+      final again = controller.holdAutoHide();
       expect(controller.autoHideGuard.value, isTrue);
+      again.release();
+      expect(controller.autoHideGuard.value, isFalse);
+    });
+
+    test('a hold outlives a hide and a show', () {
+      build()
+        ..show()
+        ..hide();
+      final hold = controller.holdAutoHide();
+      controller.show();
+      expect(controller.autoHideGuard.value, isTrue);
+      hold.release();
+      expect(controller.autoHideGuard.value, isFalse);
+    });
+
+    test('a hold taken after dispose holds nothing', () {
+      build();
+      controller.dispose();
+      final hold = controller.holdAutoHide();
+      hold.release();
+    });
+
+    test('a hold released after dispose is harmless', () {
+      build();
+      final hold = controller.holdAutoHide();
+      controller.dispose();
+      hold
+        ..release()
+        ..release();
     });
   });
 

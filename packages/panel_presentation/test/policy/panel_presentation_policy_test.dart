@@ -214,20 +214,23 @@ void main() {
       }
     });
 
-    test('a desktop popup dismisses by Esc, outside press, leave and idle', () {
-      expect(
-        const PanelPresentationPolicy$Desktop().dismissalsFor(
-          const AnchoredPopup(),
-        ),
-        {
-          PanelDismissal.back,
-          PanelDismissal.escape,
-          PanelDismissal.outsidePress,
-          PanelDismissal.leave,
-          PanelDismissal.idle,
-        },
-      );
-    });
+    test(
+      'a desktop popup dismisses by Esc, outside press, leave and after a hold',
+      () {
+        expect(
+          const PanelPresentationPolicy$Desktop().dismissalsFor(
+            const AnchoredPopup(),
+          ),
+          {
+            PanelDismissal.back,
+            PanelDismissal.escape,
+            PanelDismissal.outsidePress,
+            PanelDismissal.leave,
+            PanelDismissal.afterHold,
+          },
+        );
+      },
+    );
 
     test(
       'a desktop docked section and keyboard panel dismiss by back only',
@@ -240,11 +243,14 @@ void main() {
       },
     );
 
-    test('timers follow the desktop client: 300 ms leave, 3 s idle', () {
-      const policy = PanelPresentationPolicy$Desktop();
-      expect(policy.leaveDelay, const Duration(milliseconds: 300));
-      expect(policy.idleDelay, const Duration(seconds: 3));
-    });
+    test(
+      'timers follow the reference client: 300 ms leave, 3 s after a hold',
+      () {
+        const policy = PanelPresentationPolicy$Desktop();
+        expect(policy.leaveDelay, const Duration(milliseconds: 300));
+        expect(policy.afterHoldDelay, const Duration(seconds: 3));
+      },
+    );
   });
 
   group('sizing', () {
