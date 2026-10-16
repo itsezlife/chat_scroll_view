@@ -18,6 +18,14 @@ enum MotionRole {
   /// A bar or header sliding in or out of view.
   headerReveal,
 
+  /// A strip above a catalogue sliding back into view, for instance after a
+  /// tap on its page's tab.
+  stripReveal,
+
+  /// One icon morphing into another, such as a search glyph into a progress
+  /// ring or a back arrow.
+  iconMorph,
+
   /// A pointer going down on a pressable target.
   press,
 
@@ -62,6 +70,8 @@ final class ChromeMotion {
     required this.panelSlide,
     required this.search,
     required this.headerReveal,
+    required this.stripReveal,
+    required this.iconMorph,
     required this.press,
     required this.release,
     required this.fade,
@@ -79,6 +89,14 @@ final class ChromeMotion {
       search = const MotionSpec(Duration(milliseconds: 220), androidListCurve),
       headerReveal = const MotionSpec(
         Duration(milliseconds: 380),
+        Curves.easeOutQuint,
+      ),
+      stripReveal = const MotionSpec(
+        Duration(milliseconds: 150),
+        Curves.easeOutQuint,
+      ),
+      iconMorph = const MotionSpec(
+        Duration(milliseconds: 350),
         Curves.easeOutQuint,
       ),
       press = const MotionSpec(Duration(milliseconds: 80), Curves.linear),
@@ -120,6 +138,12 @@ final class ChromeMotion {
   /// [MotionRole.headerReveal].
   final MotionSpec headerReveal;
 
+  /// [MotionRole.stripReveal].
+  final MotionSpec stripReveal;
+
+  /// [MotionRole.iconMorph].
+  final MotionSpec iconMorph;
+
   /// [MotionRole.press].
   final MotionSpec press;
 
@@ -150,6 +174,8 @@ final class ChromeMotion {
     MotionRole.panelSlide => panelSlide,
     MotionRole.search => search,
     MotionRole.headerReveal => headerReveal,
+    MotionRole.stripReveal => stripReveal,
+    MotionRole.iconMorph => iconMorph,
     MotionRole.press => press,
     MotionRole.release => release,
     MotionRole.fade => fade,
@@ -166,6 +192,8 @@ final class ChromeMotion {
     MotionSpec? panelSlide,
     MotionSpec? search,
     MotionSpec? headerReveal,
+    MotionSpec? stripReveal,
+    MotionSpec? iconMorph,
     MotionSpec? press,
     MotionSpec? release,
     MotionSpec? fade,
@@ -179,6 +207,8 @@ final class ChromeMotion {
     panelSlide: panelSlide ?? this.panelSlide,
     search: search ?? this.search,
     headerReveal: headerReveal ?? this.headerReveal,
+    stripReveal: stripReveal ?? this.stripReveal,
+    iconMorph: iconMorph ?? this.iconMorph,
     press: press ?? this.press,
     release: release ?? this.release,
     fade: fade ?? this.fade,

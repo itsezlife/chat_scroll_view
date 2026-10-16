@@ -57,12 +57,16 @@ _Avoid_: Per-package label classes, hard-coded English defaults
 ### Panel shell and pages
 
 **Panel shell**:
-The host-independent panel: pager, type tabs, bottom bar and search field around the active page. No insets, no positioning.
+The host-independent panel: pager, type tabs and bottom bar around the active page, and the search field for a page that does not place it itself. No insets, no positioning.
 _Avoid_: KeyboardPanel, catalog shell, emoji panel
 
 **Panel page**:
 A registry entry: id, tab descriptor, builder and declared capabilities (search, bottom actions, top strip). The registry is open.
 _Avoid_: Tab enum, allow bitset, plain widget page
+
+**Sticky header**:
+What a catalogue page draws over its content at the top: the strip, which slides away as the user reads on and returns as they read back, and, for a page that places its search field inline, the field, which is the first thing in the content, scrolls away with it and pins to the top once search opens. The page pads the catalogue by their extent; the geometry is `CatalogStickyHeader`.
+_Avoid_: A header that stands still, a field the shell draws for a page that placed it itself
 
 **Panel shell controller**:
 The single source of truth for the selected page id and the search state (open, query, focus intent). Presentation visibility is a separate controller.

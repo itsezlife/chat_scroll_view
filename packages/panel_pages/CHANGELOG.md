@@ -6,6 +6,29 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- The sticky header. `CatalogPage` draws the policy's strip over the catalogue,
+  where it slides away as the user reads on and returns as they read back, and,
+  for a page whose capabilities say `SearchPlacement.inline`, the shell's search
+  field as the first thing in the content (it scrolls away, and pins when search
+  opens). The catalogue is padded by their extent and section jumps land under
+  the strip. The geometry is `CatalogStickyHeader`, a pure class.
+- `CatalogPagePolicy.stripExtent`: the height of the strip the policy builds
+  (0, the default, for none). A policy that builds a strip must declare it.
+- `CatalogPage.searchFieldReady`, and `FakeSearchFieldScope` in
+  `package:panel_pages/testing.dart` for tests that mount a page without a
+  shell.
+
+### Changed
+
+- `EmojiPagePolicy.pageCapabilities` places the search field inline.
+  `EmojiPage.deferChrome` paces the field and then the strip, one frame each
+  after the grid, as the panel did.
+- The category strip no longer draws a hairline of its own (the page draws it
+  while content passes under the strip), and its selected wash is the idle icon
+  colour at 18 % alpha again.
+
 ### Changed
 
 - Change notification is `package:listen` (`listen: ^1.0.1`), not

@@ -6,6 +6,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `DeferredRecentsStore`: a `RecentsStore` view that shows the recents of
+  another as of its last `commit()`, so a panel that lists them does not
+  reorder under the finger picking from it. Picks go to the real store at once;
+  a clear commits at once.
+
 ### Changed
 
 - Change notification is `package:listen` (`listen: ^1.0.1`), not a type of

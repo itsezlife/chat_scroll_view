@@ -1,32 +1,60 @@
+import 'dart:async';
+
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' show ValueListenable;
 import 'package:panel_shell/src/controller/panel_shell_controller.dart';
+import 'package:panel_shell/src/widgets/panel_search_state_icon.dart';
 
-/// The search field the shell owns: one field, one query, one focus, for
+/// The search field of the panel: one field, one query, one focus, for
 /// whichever page is selected.
 ///
 /// The field is a projection of `PanelShellController.search`. Typing calls
 /// `setQuery`; gaining focus while search is closed calls `openSearch`; losing
-/// focus withdraws the focus intent; and the trailing control clears the
-/// query first and closes search on the second press. The text, the focus
-/// node and the query therefore cannot disagree, and they survive page
-/// switches because the field sits outside the pager.
+/// focus withdraws the focus intent; and the clear control empties the query.
+/// The text, the focus node and the query therefore cannot disagree. Search
+/// is left through the controller (`closeSearch`, `handleBack`), never by a
+/// control of the field, so the field has no cancel button.
+///
+/// ## Leading icon
+///
+/// A magnifier that morphs into a progress ring while a search is in flight
+/// and, once a search for a non-empty query has settled, into a back chevron
+/// that clears the query. See [PanelSearchStateIcon].
+///
+/// ## Where it sits
+///
+/// Where the field is drawn is the host's or the page's: the shell places it
+/// above the pager for a page that declares `SearchPlacement.pinned`, and a
+/// page that declares `SearchPlacement.inline` places it itself through
+/// `PanelPageHost.buildSearchField`, inside its own scrolling content. The
+/// field survives neither move: its text and focus are rebuilt from the
+/// controller, which is why the controller holds them.
 ///
 /// Built on `EditableText`, so no Material ancestor is required. Hosts that
-/// want a selection toolbar (paste on touch) pass [contextMenuBuilder].
+/// want a selection toolbar (paste on touch) pass [contextMenuBuilder], or
+/// give the shell one.
 class PanelSearchField extends StatefulWidget {
   /// A field projecting the search state of [controller].
   const PanelSearchField({
-    required this.controller,
+    this.controller,
+    this.shadow,
     this.contextMenuBuilder,
     super.key,
   });
 
-  /// The controller whose search state the field shows and changes.
-  final PanelShellController controller;
+  /// The controller whose search state the field shows and changes; null takes
+  /// the one of the [PanelSearchFieldScope] above, which a `PanelShell` gives
+  /// its pages.
+  final PanelShellController? controller;
 
-  /// Builds the text selection toolbar; null shows none.
+  /// Whether the hairline under the field shows: a page raises it while
+  /// content scrolls beneath the pinned field. Null shows none.
+  final ValueListenable<bool>? shadow;
+
+  /// Builds the text selection toolbar; null falls back to the one the shell
+  /// was given, if any.
   final EditableTextContextMenuBuilder? contextMenuBuilder;
 
   /// Layout height of the field row.
@@ -44,8 +72,11 @@ class PanelSearchField extends StatefulWidget {
   /// Hit box of the leading and trailing controls.
   static const double iconBox = 36;
 
-  /// Size of the search icon and the progress indicator.
-  static const double iconSize = 20;
+  /// Size of the leading icon.
+  static const double iconSize = 24;
+
+  /// Size of the clear glyph.
+  static const double clearSize = 20;
 
   /// Largest text scale the fixed-height pill honours.
   static const double maxTextScale = 1.3;
@@ -54,17 +85,42 @@ class PanelSearchField extends StatefulWidget {
   State<PanelSearchField> createState() => _PanelSearchFieldState();
 }
 
-class _PanelSearchFieldState extends State<PanelSearchField> {
+class _PanelSearchFieldState extends State<PanelSearchField>
+    with SingleTickerProviderStateMixin {
   final _text = TextEditingController();
   final _focus = FocusNode(debugLabel: 'PanelSearchField');
+  late final AnimationController _shadow = AnimationController(
+    vsync: this,
+    value: (widget.shadow?.value ?? false) ? 1 : 0,
+  );
   var _syncing = false;
 
-  PanelShellController get _shell => widget.controller;
+  // Whether a search for a non-empty query has settled: the icon shows the
+  // back chevron only then, not on the first keystroke before the progress
+  // ring has had its turn.
+  var _settled = false;
+
+  late PanelShellController _shell;
+
+  PanelShellController _resolve() {
+    final given = widget.controller;
+    if (given != null) return given;
+    final scope = context
+        .getInheritedWidgetOfExactType<PanelSearchFieldScope>();
+    assert(
+      scope != null,
+      'A PanelSearchField without a controller needs a PanelSearchFieldScope '
+      'above it: it belongs under a PanelShell.',
+    );
+    return scope!.controller;
+  }
 
   @override
   void initState() {
     super.initState();
-    _bind(widget.controller);
+    _shell = _resolve();
+    _bind(_shell);
+    widget.shadow?.addListener(_onShadow);
     _focus.addListener(_onFocus);
     _text.addListener(_onText);
     _applyState();
@@ -74,15 +130,23 @@ class _PanelSearchFieldState extends State<PanelSearchField> {
   void didUpdateWidget(PanelSearchField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.controller, widget.controller)) {
-      _unbind(oldWidget.controller);
-      _bind(widget.controller);
+      _unbind(_shell);
+      _shell = _resolve();
+      _bind(_shell);
       _applyState();
+    }
+    if (!identical(oldWidget.shadow, widget.shadow)) {
+      oldWidget.shadow?.removeListener(_onShadow);
+      widget.shadow?.addListener(_onShadow);
+      _onShadow();
     }
   }
 
   @override
   void dispose() {
-    _unbind(widget.controller);
+    _unbind(_shell);
+    widget.shadow?.removeListener(_onShadow);
+    _shadow.dispose();
     _focus
       ..removeListener(_onFocus)
       ..dispose();
@@ -102,7 +166,20 @@ class _PanelSearchFieldState extends State<PanelSearchField> {
     controller.searchBusy.removeListener(_onBusy);
   }
 
-  void _onBusy() => setState(() {});
+  void _onShadow() {
+    final shown = widget.shadow?.value ?? false;
+    final duration = ChromeMotionScope.of(context).durationOf(MotionRole.fade);
+    if (shown) {
+      unawaited(_shadow.animateTo(1, duration: duration));
+    } else {
+      unawaited(_shadow.animateBack(0, duration: duration));
+    }
+  }
+
+  void _onBusy() {
+    if (!_shell.searchBusy.value && _text.text.isNotEmpty) _settled = true;
+    setState(() {});
+  }
 
   void _onSearch() {
     _applyState();
@@ -121,6 +198,7 @@ class _PanelSearchFieldState extends State<PanelSearchField> {
       );
       _syncing = false;
     }
+    if (state.query.isEmpty) _settled = false;
     if (state.isOpen && state.wantsFocus && !_focus.hasFocus) {
       _focus.requestFocus();
     } else if (!state.isOpen && _focus.hasFocus) {
@@ -130,6 +208,7 @@ class _PanelSearchFieldState extends State<PanelSearchField> {
 
   void _onText() {
     if (_syncing) return;
+    if (_text.text.isEmpty) _settled = false;
     setState(() {});
     _shell.setQuery(_text.text);
   }
@@ -147,12 +226,12 @@ class _PanelSearchFieldState extends State<PanelSearchField> {
     }
   }
 
-  void _onTrailing() {
-    if (_text.text.isNotEmpty) {
-      _shell.setQuery('');
-    } else {
-      _shell.closeSearch();
-    }
+  void _clear() => _shell.setQuery('');
+
+  PanelSearchIconState get _leading {
+    if (_shell.searchBusy.value) return PanelSearchIconState.progress;
+    if (_text.text.isNotEmpty && _settled) return PanelSearchIconState.back;
+    return PanelSearchIconState.search;
   }
 
   @override
@@ -161,208 +240,195 @@ class _PanelSearchFieldState extends State<PanelSearchField> {
     final placeholder = ChromeThemeScope.placeholderOf(context);
     final palette = ChromeThemeScope.paletteOf(context);
     final strings = ChromeStringsScope.of(context);
-    final motion = ChromeMotionScope.of(context);
-    final state = _shell.search.value;
-    final showTrailing = state.isOpen || _text.text.isNotEmpty;
     final textStyle = TextStyle(color: panel.searchText, fontSize: 16);
+    final leading = _leading;
+    final menu =
+        widget.contextMenuBuilder ??
+        PanelSearchFieldScope.maybeOf(context)?.contextMenuBuilder;
 
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: PanelSearchField.maxTextScale,
       child: SizedBox(
         height: PanelSearchField.height,
         width: double.infinity,
-        child: Padding(
-          padding: const EdgeInsetsDirectional.only(
-            start: PanelSearchField.pillMargin,
-            end: PanelSearchField.pillMargin,
-            top: PanelSearchField.pillMarginTop,
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: panel.searchFill,
-              borderRadius: BorderRadius.circular(
-                PanelSearchField.pillHeight / 2,
-              ),
-            ),
-            child: SizedBox(
-              height: PanelSearchField.pillHeight,
-              child: Row(
-                children: [
-                  SizedBox.square(
-                    dimension: PanelSearchField.iconBox,
-                    child: Center(
-                      child: _shell.searchBusy.value
-                          ? SizedBox.square(
-                              dimension: PanelSearchField.iconSize - 4,
-                              child: _Progress(color: panel.searchIcon),
-                            )
-                          : ChromeIcon(
-                              ChromeIconId.search,
-                              size: PanelSearchField.iconSize,
-                              color: panel.searchIcon,
-                            ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsetsDirectional.only(
+                  start: PanelSearchField.pillMargin,
+                  end: PanelSearchField.pillMargin,
+                  top: PanelSearchField.pillMarginTop,
+                  bottom:
+                      PanelSearchField.height -
+                      PanelSearchField.pillMarginTop -
+                      PanelSearchField.pillHeight,
+                ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: panel.searchFill,
+                    borderRadius: BorderRadius.circular(
+                      PanelSearchField.pillHeight / 2,
                     ),
                   ),
-                  Expanded(
-                    child: Semantics(
-                      label: strings.semantics.searchFieldLabel,
-                      textField: true,
-                      child: Stack(
-                        alignment: AlignmentDirectional.centerStart,
-                        children: [
-                          if (_text.text.isEmpty)
-                            ExcludeSemantics(
-                              child: Text(
-                                strings.panel.searchHint,
-                                maxLines: 1,
-                                style: textStyle.copyWith(
-                                  color: placeholder.fieldHint,
-                                ),
-                              ),
-                            ),
-                          EditableText(
-                            controller: _text,
-                            focusNode: _focus,
-                            style: textStyle,
-                            cursorColor: palette.accent,
-                            backgroundCursorColor: panel.searchFill,
-                            textInputAction: TextInputAction.search,
-                            contextMenuBuilder: widget.contextMenuBuilder,
-                            maxLines: 1,
-                          ),
-                        ],
+                  child: Row(
+                    children: [
+                      _Control(
+                        label: strings.panel.clearAction,
+                        onPressed: leading == PanelSearchIconState.back
+                            ? _clear
+                            : null,
+                        child: PanelSearchStateIcon(
+                          state: leading,
+                          color: panel.searchIcon,
+                          size: PanelSearchField.iconSize,
+                        ),
                       ),
-                    ),
-                  ),
-                  AnimatedSwitcher(
-                    duration: motion.durationOf(MotionRole.search),
-                    switchInCurve: motion.curveOf(MotionRole.search),
-                    child: showTrailing
-                        ? _TrailingButton(
-                            key: const ValueKey('trailing'),
-                            label: strings.panel.cancelAction,
-                            color: panel.searchIcon,
-                            onPressed: _onTrailing,
-                          )
-                        : const SizedBox.square(
-                            key: ValueKey('none'),
-                            dimension: PanelSearchField.iconBox,
+                      Expanded(
+                        child: Semantics(
+                          label: strings.semantics.searchFieldLabel,
+                          textField: true,
+                          child: Stack(
+                            alignment: AlignmentDirectional.centerStart,
+                            children: [
+                              if (_text.text.isEmpty)
+                                ExcludeSemantics(
+                                  child: Text(
+                                    strings.panel.searchHint,
+                                    maxLines: 1,
+                                    style: textStyle.copyWith(
+                                      color: placeholder.fieldHint,
+                                    ),
+                                  ),
+                                ),
+                              EditableText(
+                                controller: _text,
+                                focusNode: _focus,
+                                style: textStyle,
+                                cursorColor: palette.accent,
+                                backgroundCursorColor: panel.searchFill,
+                                textInputAction: TextInputAction.search,
+                                contextMenuBuilder: menu,
+                                maxLines: 1,
+                              ),
+                            ],
                           ),
+                        ),
+                      ),
+                      if (_text.text.isNotEmpty)
+                        _Control(
+                          label: strings.panel.clearAction,
+                          onPressed: _clear,
+                          child: ChromeIcon(
+                            ChromeIconId.close,
+                            size: PanelSearchField.clearSize,
+                            color: panel.searchIcon,
+                          ),
+                        ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
-          ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: AnimatedBuilder(
+                animation: _shadow,
+                builder: (context, _) {
+                  final t = Curves.easeOut.transform(_shadow.value);
+                  if (t <= 0.001) return const SizedBox.shrink();
+                  // Alpha on the fill, not an Opacity: no saveLayer while the
+                  // line fades in over scrolling content.
+                  return ColoredBox(
+                    color: panel.hairline.withValues(
+                      alpha: panel.hairline.a * t,
+                    ),
+                    child: const SizedBox(height: 1, width: double.infinity),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _TrailingButton extends StatelessWidget {
-  const _TrailingButton({
-    required this.label,
-    required this.color,
-    required this.onPressed,
+/// What a `PanelShell` tells the search fields below it: the controller they
+/// project and the selection toolbar they build, so a page that places the
+/// field inline asks for neither.
+@immutable
+class PanelSearchFieldScope extends InheritedWidget {
+  /// Gives the fields below [child] the shell's [controller] and
+  /// [contextMenuBuilder].
+  const PanelSearchFieldScope({
+    required this.controller,
+    required this.contextMenuBuilder,
+    required super.child,
     super.key,
   });
 
-  final String label;
-  final Color color;
-  final VoidCallback onPressed;
+  /// The controller whose search state the fields project.
+  final PanelShellController controller;
+
+  /// The selection toolbar builder of the shell, or null for none.
+  final EditableTextContextMenuBuilder? contextMenuBuilder;
+
+  /// The scope above [context], or null when the field is not under a shell.
+  static PanelSearchFieldScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<PanelSearchFieldScope>();
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    label: label,
-    onTap: onPressed,
-    excludeSemantics: true,
-    child: FocusableActionDetector(
-      mouseCursor: SystemMouseCursors.click,
-      actions: <Type, Action<Intent>>{
-        ActivateIntent: CallbackAction<ActivateIntent>(
-          onInvoke: (_) {
-            onPressed();
-            return null;
-          },
-        ),
-      },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onPressed,
-        child: SizedBox.square(
-          dimension: PanelSearchField.iconBox,
-          child: Center(
-            child: ChromeIcon(
-              ChromeIconId.close,
-              size: PanelSearchField.iconSize,
-              color: color,
-            ),
+  bool updateShouldNotify(PanelSearchFieldScope oldWidget) =>
+      oldWidget.controller != controller ||
+      oldWidget.contextMenuBuilder != contextMenuBuilder;
+}
+
+// A square hit box that is a button when it has an action and a plain box
+// when it has none, so the leading icon only answers taps as a back chevron.
+class _Control extends StatelessWidget {
+  const _Control({
+    required this.label,
+    required this.onPressed,
+    required this.child,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final box = SizedBox.square(
+      dimension: PanelSearchField.iconBox,
+      child: Center(child: child),
+    );
+    final action = onPressed;
+    if (action == null) return ExcludeSemantics(child: box);
+    return Semantics(
+      button: true,
+      label: label,
+      onTap: action,
+      excludeSemantics: true,
+      child: FocusableActionDetector(
+        mouseCursor: SystemMouseCursors.click,
+        actions: <Type, Action<Intent>>{
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              action();
+              return null;
+            },
           ),
+        },
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: action,
+          child: box,
         ),
       ),
-    ),
-  );
-}
-
-/// A small indeterminate ring in [color]; the widgets layer has none of its
-/// own, and the Material one would need a Material ancestor.
-class _Progress extends StatefulWidget {
-  const _Progress({required this.color});
-
-  final Color color;
-
-  @override
-  State<_Progress> createState() => _ProgressState();
-}
-
-class _ProgressState extends State<_Progress>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _spin = AnimationController(vsync: this);
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // One turn per period of the loop role; under an instant speed the ring
-    // stands still instead of looping at no duration.
-    final period = ChromeMotionScope.of(context).durationOf(MotionRole.loop);
-    if (period == Duration.zero) {
-      _spin.stop();
-    } else if (_spin.duration != period || !_spin.isAnimating) {
-      _spin
-        ..duration = period
-        ..repeat();
-    }
+    );
   }
-
-  @override
-  void dispose() {
-    _spin.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => RotationTransition(
-    turns: _spin,
-    child: CustomPaint(painter: _RingPainter(widget.color)),
-  );
-}
-
-class _RingPainter extends CustomPainter {
-  const _RingPainter(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(Offset.zero & size, 0, 4.2, false, paint);
-  }
-
-  @override
-  bool shouldRepaint(_RingPainter oldDelegate) => oldDelegate.color != color;
 }

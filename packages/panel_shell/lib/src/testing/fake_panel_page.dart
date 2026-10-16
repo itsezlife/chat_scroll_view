@@ -4,6 +4,7 @@ import 'package:panel_shell/src/controller/panel_search_state.dart';
 import 'package:panel_shell/src/page/panel_page.dart';
 import 'package:panel_shell/src/page/panel_page_host.dart';
 import 'package:panel_shell/src/widgets/listen_value_builder.dart';
+import 'package:panel_shell/src/widgets/panel_search_field.dart';
 
 /// A page for shell tests: a coloured box that shows its own id and, while
 /// search is open, the query, and that remembers the host it was built with.
@@ -20,6 +21,7 @@ final class FakePanelPage {
     String? labelKey,
     ChromeIconId? icon,
     bool search = false,
+    SearchPlacement searchPlacement = SearchPlacement.pinned,
     bool topStrip = false,
     List<PageAction> actions = const [],
     Color color = const Color(0xFF808080),
@@ -29,13 +31,22 @@ final class FakePanelPage {
       tab: PanelTab(icon: icon ?? ChromeIconId.emoji, labelKey: labelKey ?? id),
       capabilities: PageCapabilities(
         search: search,
+        searchPlacement: searchPlacement,
         topStrip: topStrip,
         actions: actions,
       ),
       builder: (context, host) {
         this.host = host;
         buildCount++;
-        return _FakePageBody(id: id, host: host, color: color);
+        final body = _FakePageBody(id: id, host: host, color: color);
+        if (searchPlacement != SearchPlacement.inline) return body;
+        // An inline page places the shell's field among its own content.
+        return Column(
+          children: [
+            const PanelSearchField(),
+            Expanded(child: body),
+          ],
+        );
       },
     );
   }

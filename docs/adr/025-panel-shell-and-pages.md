@@ -9,6 +9,7 @@ top strip. This supersedes the controller and widget-API parts of
 **Status**: Accepted  
 **Date**: 2026-10-16  
 **Amended**: 2026-10-16 — state is `package:listen`, typed events are synchronous `Stream`s ([ADR 023](023-data-layering-and-persistence.md) Amendment)  
+**Amended**: 2026-10-16 — a page may place the search field itself and draw a sticky header (see *Amendment: where the field sits*)  
 **Relates to**: [ADR 007](007-keyboard-panel-controller.md) (superseded in part), [ADR 020](020-package-topology.md), [ADR 023](023-data-layering-and-persistence.md), [ADR 024](024-panel-catalog-seams.md), [ADR 028](028-panel-presentation.md)
 
 ## Decided
@@ -27,6 +28,29 @@ top strip. This supersedes the controller and widget-API parts of
 Boundary items handled by presentation: search growing the panel
 (`SearchOpened` and `SearchClosed` are the signal), IME hand-off on search
 focus, and visibility, open and close, and persisted height or popup size.
+
+## Amendment: where the field sits
+
+The first cut drew the one field in the shell, above the pager, and the page's
+strip in a column above the catalogue. Both stood still while the catalogue
+scrolled, which dropped the behavior the panel shipped with: the category strip
+slides away as the user reads on and returns as they read back, and the search
+field is the first thing in the content, scrolls away with it and pins to the
+top once search opens.
+
+| Area | Decision |
+| ---- | -------- |
+| State | Unchanged. The shell controller owns the query, the focus intent and open or closed; the field is a projection of it, wherever it is drawn. |
+| Placement | `PageCapabilities.searchPlacement`: `pinned` (the default; the shell draws the field above the pager) or `inline` (the page draws it). An inline page places a `PanelSearchField` among its own content; the shell gives it the controller and the selection toolbar through a `PanelSearchFieldScope` above the pager. The shell draws no field for an inline page. |
+| Sticky header | `CatalogPage` draws the policy's strip and, for an inline page, the field over the catalogue and pads the catalogue by their extent. The geometry (offsets, hairlines, when the strip yields) is one pure class, `CatalogStickyHeader`, fed by the catalogue's scroll events. The strip's extent is declared by the policy (`stripExtent`), and section jumps land under it (`headerLandingInset`). |
+| Field chrome | The leading icon morphs (magnifier, progress ring, back chevron that clears); the trailing control clears the query only. Search is left through the controller (back, the composer, another page), not by a control of the field. |
+| Motion | Two roles join the table: `stripReveal` and `iconMorph`. |
+
+Why page placement and not shell-side translation: the field's position is a
+function of the catalogue's offset and of the strip's, both of which the page
+owns; reporting them out to the shell to move a widget back in would invent a
+channel for one consumer. State stays in the shell, which is what lets the
+field survive a page switch.
 
 ## Supersedes in ADR 007
 

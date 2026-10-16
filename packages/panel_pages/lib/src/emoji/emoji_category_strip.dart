@@ -188,11 +188,8 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
     return Semantics(
       container: true,
       label: strings.semantics.categoryStripLabel,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: panel.background,
-          border: Border(bottom: BorderSide(color: panel.hairline, width: 0.5)),
-        ),
+      child: ColoredBox(
+        color: panel.background,
         child: SizedBox(
           height: EmojiCategoryStrip.height,
           width: double.infinity,
@@ -289,9 +286,10 @@ class _TabButton extends StatelessWidget {
               builder: (context, t, _) => DecoratedBox(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  // Alpha on the fill: no saveLayer.
-                  color: tokens.tabSelector.withValues(
-                    alpha: tokens.tabSelector.a * t,
+                  // The idle icon colour at a low alpha, on the fill: the
+                  // wash is a tint of the icon, and no saveLayer.
+                  color: tokens.categoryIcon.withValues(
+                    alpha: tokens.categoryIcon.a * 0.18 * t,
                   ),
                 ),
                 child: Center(

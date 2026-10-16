@@ -222,10 +222,18 @@ abstract class CatalogPagePolicy {
 
   // --- Chrome inside the page -----------------------------------------------
 
-  /// The top strip (a category or set strip) shown above the catalogue while
+  /// The height of the strip [buildStrip] builds, or 0 for a policy with none.
+  ///
+  /// The page draws the strip over the catalogue and pads the catalogue by this
+  /// much, so the strip's own layout must be exactly this tall.
+  double get stripExtent => 0;
+
+  /// The top strip (a category or set strip) shown over the catalogue while
   /// browsing, or null for none.
   ///
   /// The page owns the strip: [strip] gives it the sections to show and the
-  /// jump to one. It is not shown while search results are.
+  /// jump to one. It slides away as the user reads on and returns as they read
+  /// back, and it is not part of the page while search is open or results are
+  /// shown.
   Widget? buildStrip(BuildContext context, CatalogStripHandle strip) => null;
 }

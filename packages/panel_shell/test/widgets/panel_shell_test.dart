@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_shell/panel_shell.dart';
 import 'package:panel_shell/src/widgets/hold_repeat_button.dart';
 import 'package:panel_shell/src/widgets/panel_bottom_bar.dart';
-import 'package:panel_shell/src/widgets/panel_search_field.dart';
+import 'package:panel_shell/src/widgets/panel_pager.dart';
 import 'package:panel_shell/src/widgets/panel_type_tabs.dart';
 import 'package:panel_shell/testing.dart';
 
@@ -234,6 +234,33 @@ void main() {
       expect(find.bySemanticsLabel('Search'), findsNothing);
     });
 
+    testWidgets('an inline page places the one field itself and the shell '
+        'draws none above the pager', (tester) async {
+      final inline = FakePanelPage(
+        'inline',
+        search: true,
+        searchPlacement: SearchPlacement.inline,
+      );
+      build(pages: [inline]);
+      await pump(tester);
+
+      // One field, inside the page, working off the shell's controller.
+      expect(find.byType(PanelSearchField), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(PanelPager),
+          matching: find.byType(PanelSearchField),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.byType(EditableText));
+      await tester.pumpAndSettle();
+      expect(controller.search.value.isOpen, isTrue);
+      await tester.enterText(find.byType(EditableText), 'cat');
+      await tester.pump();
+      expect(controller.search.value.query, 'cat');
+    });
+
     testWidgets('tapping the field opens search with focus', (tester) async {
       build();
       await pump(tester);
@@ -280,24 +307,23 @@ void main() {
       expect(find.text('dog'), findsOneWidget);
     });
 
-    testWidgets('the trailing control clears the query, then closes search', (
-      tester,
-    ) async {
+    testWidgets('the clear control empties the query and leaves search open; '
+        'the field has no control that closes it', (tester) async {
       build();
       await pump(tester);
+      expect(find.bySemanticsLabel('Clear'), findsNothing);
       controller
         ..openSearch()
         ..setQuery('cat');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.bySemanticsLabel('Cancel'));
+      await tester.tap(find.bySemanticsLabel('Clear').last);
       await tester.pumpAndSettle();
+
       expect(controller.search.value.query, '');
       expect(controller.search.value.isOpen, isTrue);
-
-      await tester.tap(find.bySemanticsLabel('Cancel'));
-      await tester.pumpAndSettle();
-      expect(controller.search.value.isOpen, isFalse);
+      expect(find.bySemanticsLabel('Cancel'), findsNothing);
+      expect(find.bySemanticsLabel('Clear'), findsNothing);
     });
 
     testWidgets('dismissing the keyboard keeps search open without focus', (
@@ -329,59 +355,76 @@ void main() {
       expect(controller.searchBusy.value, isTrue);
     });
 
-    group('the progress ring', () {
-      double turns(WidgetTester tester) => tester
-          .widget<RotationTransition>(
-            find.descendant(
-              of: find.byType(PanelSearchField),
-              matching: find.byType(RotationTransition),
-            ),
-          )
-          .turns
-          .value;
+    group('the leading icon', () {
+      PanelSearchIconState state(WidgetTester tester) => tester
+          .widget<PanelSearchStateIcon>(find.byType(PanelSearchStateIcon))
+          .state;
 
-      Future<void> startBusy(
+      Future<void> open(
         WidgetTester tester, {
         ChromeMotionSpeed speed = ChromeMotionSpeed.normal,
-        ChromeMotion? motion,
       }) async {
         build();
         await pump(
           tester,
-          wrap: (shell) =>
-              ChromeMotionScope(motion: motion, speed: speed, child: shell),
+          wrap: (shell) => ChromeMotionScope(speed: speed, child: shell),
         );
         controller.openSearch();
-        await tester.pumpAndSettle();
-        emoji.host!.reportSearchProgress(busy: true);
         await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
       }
 
-      testWidgets('turns once per loop period of the motion table', (
-        tester,
-      ) async {
-        await startBusy(tester);
-        await tester.pump(const Duration(milliseconds: 450));
-        expect(turns(tester), closeTo(0.5, 0.02), reason: 'standard: 900 ms');
+      testWidgets('is a magnifier until a search is in flight', (tester) async {
+        await open(tester);
+        expect(state(tester), PanelSearchIconState.search);
+
+        emoji.host!.reportSearchProgress(busy: true);
+        await tester.pump();
+        expect(state(tester), PanelSearchIconState.progress);
       });
 
-      testWidgets('follows a slower loop role', (tester) async {
-        await startBusy(
-          tester,
-          motion: const ChromeMotion.standard().copyWith(
-            loop: const MotionSpec(Duration(seconds: 2), Curves.linear),
-          ),
+      testWidgets('becomes a back chevron once a search for a query has '
+          'settled, and tapping it clears the query', (tester) async {
+        await open(tester);
+        controller.setQuery('cat');
+        await tester.pump();
+        // Typed, nothing searched yet: still a magnifier.
+        expect(state(tester), PanelSearchIconState.search);
+
+        emoji.host!.reportSearchProgress(busy: true);
+        await tester.pump();
+        emoji.host!.reportSearchProgress(busy: false);
+        await tester.pump();
+        expect(state(tester), PanelSearchIconState.back);
+
+        await tester.tapAt(tester.getCenter(find.byType(PanelSearchStateIcon)));
+        await tester.pump();
+        expect(controller.search.value.query, '');
+        expect(state(tester), PanelSearchIconState.search);
+      });
+
+      testWidgets('the ring turns with the ticker: two frames apart, two '
+          'arcs', (tester) async {
+        await open(tester);
+        emoji.host!.reportSearchProgress(busy: true);
+        await tester.pump(const Duration(milliseconds: 400));
+        final paint = find.descendant(
+          of: find.byType(PanelSearchStateIcon),
+          matching: find.byType(CustomPaint),
         );
-        await tester.pump(const Duration(seconds: 1));
-        expect(turns(tester), closeTo(0.5, 0.02));
+        final first = tester.widget<CustomPaint>(paint).painter;
+        await tester.pump(const Duration(milliseconds: 300));
+        final second = tester.widget<CustomPaint>(paint).painter;
+        expect(second!.shouldRepaint(first!), isTrue);
       });
 
       testWidgets('stands still, and lets the frame settle, when motion is '
           'instant', (tester) async {
-        await startBusy(tester, speed: ChromeMotionSpeed.instant);
+        await open(tester, speed: ChromeMotionSpeed.instant);
+        emoji.host!.reportSearchProgress(busy: true);
+        await tester.pump();
 
-        await tester.pump(const Duration(milliseconds: 450));
-        expect(turns(tester), 0);
+        expect(state(tester), PanelSearchIconState.progress);
         await tester.pumpAndSettle();
       });
     });

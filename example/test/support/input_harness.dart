@@ -86,6 +86,9 @@ final class InputRig {
         widget is EditableText && widget.focusNode == set.composer.focusNode,
   );
 
+  /// The composer's glass island.
+  Finder get island => find.byKey(_island);
+
   /// The composer's action [id].
   Finder action(String id) => find.byKey(ValueKey<String>(id));
 

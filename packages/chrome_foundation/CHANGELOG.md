@@ -8,6 +8,12 @@ package is pre-1.0.
 
 ### Added
 
+- The `stripReveal` (150 ms, ease-out quint) and `iconMorph` (350 ms, ease-out
+  quint) motion roles. `ChromeMotion` takes and copies them like the other
+  roles, so code that constructs a full table must now give both.
+
+### Added
+
 - The `loop` motion role (one turn of an indeterminate loop, 900 ms linear).
   `ChromeMotion` takes and copies it like the other roles.
 - `PanelStrings.categoryTitle` (the title of a category section by id) and

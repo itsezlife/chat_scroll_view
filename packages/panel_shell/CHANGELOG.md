@@ -6,6 +6,30 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `SearchPlacement` and `PageCapabilities.searchPlacement`. A page that
+  declares `inline` draws the search field itself (a `PanelSearchField` under
+  the `PanelSearchFieldScope` the shell provides above its pager), among its own
+  content, so it can scroll away with it and pin when search opens; the shell
+  draws none for it. `pinned`, the default, is the previous behavior.
+- `PanelSearchField` and `PanelSearchStateIcon` are exported. The field's
+  controller is optional (the scope's is used), and it takes a `shadow`
+  listenable for the hairline under it.
+
+### Changed
+
+- The search field looks and acts as the panel's did: the leading icon morphs
+  from magnifier to progress ring (while a search is in flight) to a back
+  chevron that clears the query (once it settled); the trailing control is a
+  clear control that shows only with text. **The cancel control that closed
+  search is gone**: search is left through the controller (`closeSearch`,
+  `handleBack`), as the panel's back handling already did. Existing code that
+  tapped the field's "Cancel" to close search closes it through the controller
+  instead.
+- The progress ring is the morphing icon's arc, which follows its own ticker;
+  the `loop` motion role is no longer read by this package.
+
 ### Changed
 
 - Change notification is `package:listen` (`listen: ^1.0.1`), not
