@@ -3,9 +3,9 @@
 /// **Seam:** the composition a host writes (`wireEmojiGlyphProbe`) with the
 /// real `GlyphAtlas` (persistent, paced by a fake frame source) and the real
 /// `MissingGlyphProbe`; the system is a documented fake rasteriser that draws a
-/// missing-glyph box for the glyphs it "has no art for" and a solid colour per
-/// glyph otherwise, and sentinel pixels from a table. There is no emoji font,
-/// so this shows the logic, not any real device's output.
+/// missing-glyph box (an outline) for the glyphs it "has no art for" and a
+/// solid colour per glyph otherwise, and sentinel pixels from a table. There
+/// is no emoji font, so this shows the logic, not any real device's output.
 ///
 /// A launch is the whole set of objects a process builds; the key-value store
 /// and the atlas cache are what survives between launches.
@@ -42,14 +42,19 @@ final class _System implements GlyphRasteriser {
   @override
   void paint(ui.Canvas canvas, String glyph, ui.Rect cell) {
     painted.add(glyph);
-    _draw.paint(
-      canvas,
-      lacking.contains(glyph) ||
-              glyph == MissingGlyphProbe.defaultReferences.first
-          ? 'missing-glyph box'
-          : glyph,
-      cell,
-    );
+    if (lacking.contains(glyph) ||
+        MissingGlyphProbe.defaultReferences.contains(glyph)) {
+      // The missing-glyph box: an outline, as systems draw it.
+      canvas.drawRect(
+        cell.deflate(cell.width / 4),
+        ui.Paint()
+          ..style = ui.PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = const ui.Color(0xFFFFFFFF),
+      );
+      return;
+    }
+    _draw.paint(canvas, glyph, cell);
   }
 
   Future<Uint8List> sentinelPixels(String glyph) async => Uint8List.fromList([

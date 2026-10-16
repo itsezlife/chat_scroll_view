@@ -88,7 +88,10 @@ final class MissingGlyphProbe with ChangeNotifier implements GlyphSupport {
   static const String recordKey = 'glyph_probe';
 
   /// The schema version of the record.
-  static const int recordVersion = 2;
+  ///
+  /// 3: cells are keyed by their solid ink; a record of version 2 holds hashes
+  /// of raw pixels, which no longer compare, and is probed again.
+  static const int recordVersion = 3;
 
   final Set<String> _glyphs;
   final KeyValueStore _store;
@@ -355,8 +358,25 @@ final class MissingGlyphProbe with ChangeNotifier implements GlyphSupport {
     if (!_completed.isCompleted) _completed.complete();
   }
 
-  static String _hashOf(Uint8List pixels) =>
-      pixels.every((byte) => byte == 0) ? _blank : GlyphPixelHash.of(pixels);
+  // A cell is compared by its solid ink: the pixels at least half opaque, as
+  // a bit mask. The same missing-glyph box rasterised into two cells can
+  // differ in its faint anti-aliased edge (on Android a reference and a
+  // glyph's box came out a few edge pixels apart, so comparing their bytes
+  // let most missing glyphs through), but not in its solid ink, and an
+  // emoji's solid ink is nowhere near a box's. A cell with no solid ink drew
+  // nothing visible.
+  static String _hashOf(Uint8List pixels) {
+    final count = pixels.length ~/ 4;
+    final shape = Uint8List((count + 7) ~/ 8);
+    var inked = false;
+    for (var pixel = 0; pixel < count; pixel++) {
+      if (pixels[pixel * 4 + 3] >= 128) {
+        shape[pixel >> 3] |= 1 << (pixel & 7);
+        inked = true;
+      }
+    }
+    return inked ? GlyphPixelHash.of(shape) : _blank;
+  }
 }
 
 /// What a [MissingGlyphProbe] knew at some point: the cell hashes of the

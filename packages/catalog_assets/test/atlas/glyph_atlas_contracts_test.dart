@@ -13,10 +13,13 @@ void main() {
     return (source: source, nextFrame: tester.pump);
   });
   GlyphRasteriserContract.run('FakeGlyphRasteriser', FakeGlyphRasteriser.new);
+  // The test font draws each code point as its own square, so a family or a
+  // flag is not a glyph it can form (it is drawn as nothing; see
+  // paragraph_glyph_rasteriser_test.dart).
   GlyphRasteriserContract.run(
     'ParagraphGlyphRasteriser',
     ParagraphGlyphRasteriser.new,
-    glyphs: const ['A', '😀', '👨‍👩‍👧‍👦', '🇯🇵'],
+    glyphs: const ['A', '😀'],
   );
   GlyphPageStoreContract.run('FakeGlyphPageStore', FakeGlyphPageStore.new);
   GlyphPageStoreContract.run('MemoryGlyphPageStore', MemoryGlyphPageStore.new);

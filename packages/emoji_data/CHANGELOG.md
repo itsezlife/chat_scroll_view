@@ -15,6 +15,16 @@ is pre-1.0.
   `hashGlyphPixels(pixels)` is `GlyphPixelHash.of(pixels)` and
   `defaultMissingGlyphReferences` is `MissingGlyphProbe.defaultReferences`.
 
+### Fixed
+
+- `MissingGlyphProbe` compares cells by their solid ink (the pixels at least
+  half opaque) instead of their raw bytes. On Android the missing-glyph box
+  rasterised into different cells differs in a few faint anti-aliased edge
+  pixels, so most missing emoji (Emoji 18 hands, a new face) matched no
+  reference and showed as boxes; their solid ink is identical to the
+  references', and a real emoji's is nowhere near it. The record version is
+  now 3: a version 2 record holds raw-pixel hashes and is probed again once.
+
 ### Changed
 
 - An emoji whose base the device cannot draw is hidden in every tone: its

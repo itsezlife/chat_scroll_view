@@ -17,8 +17,16 @@ import 'package:test/test.dart';
 
 const _reference = 'REF';
 
-Uint8List _art(String glyph) =>
-    Uint8List.fromList(List.filled(16, glyph.codeUnitAt(0)));
+// Eight pixels whose solid ink is the bits of the glyph's last code unit: the
+// probe compares cells by their solid ink.
+Uint8List _art(String glyph) => Uint8List.fromList([
+  for (var bit = 0; bit < 8; bit++) ...[
+    0x80,
+    0x80,
+    0x80,
+    if (glyph.codeUnits.last >> bit & 1 == 1) 255 else 20,
+  ],
+]);
 
 /// A frame clock that ticks only when told to.
 final class _ManualFrames {

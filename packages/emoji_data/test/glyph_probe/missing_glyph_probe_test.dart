@@ -18,13 +18,26 @@ import 'package:test/test.dart';
 
 const _reference = 'REF';
 
-Uint8List _art(int seed) =>
-    Uint8List.fromList([for (var i = 0; i < 32; i++) (seed * 7 + i) & 0xFF]);
+// A cell of eight pixels whose solid ink is the bits of [seed]: cells are
+// compared by their solid ink, so distinct seeds are distinct art.
+Uint8List _art(int seed) => Uint8List.fromList([
+  for (var bit = 0; bit < 8; bit++) ...[
+    seed & 0xFF,
+    0x40,
+    bit * 30,
+    if (seed >> bit & 1 == 1) 255 else 20,
+  ],
+]);
 
 final Uint8List _tofu = _art(99);
 final Uint8List _blank = Uint8List(32);
 
 ContentKey$Unicode _key(String glyph) => ContentKey$Unicode(glyph);
+
+// A cell of one RGBA pixel per alpha in [alphas], all of colour [rgb].
+Uint8List _cell(List<int> alphas, {int rgb = 0xC0}) => Uint8List.fromList([
+  for (final alpha in alphas) ...[rgb, rgb, rgb, alpha],
+]);
 
 void main() {
   late FakeKeyValueStore store;
@@ -81,6 +94,26 @@ void main() {
         expect(subject.verdictOf('a'), isFalse);
       },
     );
+
+    // Measured on a device: the same box rasterised into different cells
+    // differs only in its faint anti-aliased edge (alpha under one half),
+    // never in its solid ink.
+    test('a glyph drawn like the reference but for its faint edge is '
+        'unsupported', () {
+      final subject = probe(['a'])
+        ..observe(_reference, _cell([255, 255, 0, 40, 0]))
+        ..observe('a', _cell([255, 255, 0, 90, 30], rgb: 0xB0));
+
+      expect(subject.verdictOf('a'), isFalse);
+    });
+
+    test('a glyph whose solid ink differs from the reference is drawable', () {
+      final subject = probe(['a'])
+        ..observe(_reference, _cell([255, 255, 0, 40, 0]))
+        ..observe('a', _cell([255, 0, 255, 40, 0]));
+
+      expect(subject.verdictOf('a'), isTrue);
+    });
 
     group('with several references (a system that draws one as nothing and '
         'another as its box)', () {
@@ -461,6 +494,25 @@ void main() {
         expect(subject.isComplete, isFalse, reason: stored.value);
         expect(subject.pendingReferences, [_reference]);
       }
+    });
+
+    test('a record of raw pixel hashes (the version before shapes) is not '
+        'trusted', () async {
+      await store.write(
+        'emoji_data',
+        'glyph_probe',
+        const StoredValue(
+          '{"artVersion": "art-1", "referenceHashes": {"REF": "x"}, '
+          '"cellHashes": {"a": "x"}}',
+          version: 2,
+        ),
+      );
+
+      final subject = probe(['a']);
+      await subject.start();
+
+      expect(subject.pendingReferences, [_reference]);
+      expect(subject.verdictOf('a'), isNull);
     });
 
     test('a store that cannot be read costs only the record', () async {

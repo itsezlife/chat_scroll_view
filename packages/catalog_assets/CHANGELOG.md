@@ -28,6 +28,12 @@ is pre-1.0.
 
 ### Fixed
 
+- `ParagraphGlyphRasteriser` draws nothing for a sequence the font cannot
+  form into one glyph (its layout wraps onto a second line). A joined emoji a
+  font lacks, such as 👁️‍🗨️ on some Android fonts, used to be drawn as its
+  parts wrapped and cut by the cell (half an eye over half a speech bubble);
+  an empty cell is what a glyph-support probe reads as a glyph the system
+  cannot draw, so the emoji is now hidden.
 - `LayeredGlyphSource` gives each layer a block of page indices of its own
   (`layerPageStride`), so a surface that batches by page index no longer cuts
   a later layer's glyph from the first layer's page: a tone chosen for the
