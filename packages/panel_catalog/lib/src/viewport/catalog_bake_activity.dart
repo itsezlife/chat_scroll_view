@@ -1,89 +1,120 @@
-import 'package:catalog_assets/glyph_atlas.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 
-/// Tells a [GlyphAtlas] when the catalog is moving and, once it stops, which
-/// glyphs are on screen, so the bake never competes with motion and bakes the
-/// visible band first.
+/// Turns the viewport's motion events into the two facts a background
+/// producer wants: **is the catalogue moving**, and, once it stops, **what is
+/// on screen**.
 ///
-/// The viewport is the only one who knows. This class turns what it sees into
-/// the two facts the atlas wants:
+/// The producer is a page-level baker that must neither compete with motion
+/// nor bake the wrong page first. It does not read motion events; it reads
+/// what this class publishes on the same stream:
 ///
-/// - **moving**: the paint offset changed this frame, a drag is in progress, or
-///   the viewport says it is animating (fling, section jump). Reported as
-///   `true` at once, so the bake pauses before its next step, and as `false`
-///   only after a whole frame passed with nothing moving;
-/// - **settled**: at that moment, [GlyphAtlas.prioritise] gets the glyphs now
-///   on screen.
+/// - [PanelCatalogScrollingChanged] `true` at once when the catalogue starts
+///   to move, and `false` only after a whole frame passed with nothing moving;
+/// - [PanelCatalogScrollSettled] with the visible keys, right after that
+///   `false` event, and again when a new snapshot changes what is on screen
+///   while nothing moves.
 ///
-/// Offset change is read at paint, which covers every way of moving (wheel,
-/// jump, animation) without listening to each. A rest between two ticks of an
-/// animation is not mistaken for settling: [isAnimating] is asked first.
-/// A finger that holds still after dragging is not a frame without motion, so
-/// the drag flag keeps the bake paused until the finger lifts.
+/// ## What counts as moving
 ///
-/// Nothing here holds a timer. The only pending work is one post-frame callback
-/// while the catalog moves, and none when it rests.
+/// - an offset write: [PanelCatalogViewportScrolled] (drag, wheel, fling
+///   ticks), [PanelCatalogOffsetChanged] (animation and stitch ticks, jumps),
+///   [PanelCatalogProgrammaticJump];
+/// - a drag in progress, from [PanelCatalogUserDragStart] until
+///   [PanelCatalogUserDragEnd] or [PanelCatalogUserDragCancel]: a finger that
+///   holds still after dragging is not a frame without motion, so the bake
+///   stays paused until the finger lifts;
+/// - the viewport saying it is mid-fling, mid-jump or mid-stitch
+///   ([isAnimating] is asked first, so a rest between two ticks of an
+///   animation is not mistaken for settling);
+/// - the start of a fling, animation or section jump.
+///
+/// Nothing here holds a timer. The only pending work is one post-frame
+/// callback while the catalogue moves, and none when it rests.
 final class CatalogBakeActivity {
-  /// Creates the reporter for [atlas].
+  /// Creates the reporter. It listens to [events] and publishes through
+  /// [publish], which must deliver to the same stream.
   ///
   /// [isAnimating] says whether the viewport is mid-fling or mid-jump;
-  /// [visibleGlyphs] lists the unicode glyphs on screen, top first.
+  /// [visibleKeys] lists the leaves on screen, top first.
   CatalogBakeActivity({
-    required GlyphAtlas atlas,
+    required EventObservable<PanelCatalogScrollEvent> events,
+    required void Function(PanelCatalogScrollEvent event) publish,
     required bool Function() isAnimating,
-    required Iterable<String> Function() visibleGlyphs,
+    required List<ContentKey> Function() visibleKeys,
     SchedulerBinding? binding,
-  }) : _atlas = atlas,
+  }) : _events = events,
+       _publish = publish,
        _isAnimating = isAnimating,
-       _visibleGlyphs = visibleGlyphs,
-       _binding = binding ?? SchedulerBinding.instance;
+       _visibleKeys = visibleKeys,
+       _binding = binding ?? SchedulerBinding.instance {
+    _events.addListener(_onEvent);
+  }
 
-  final GlyphAtlas _atlas;
+  final EventObservable<PanelCatalogScrollEvent> _events;
+  final void Function(PanelCatalogScrollEvent event) _publish;
   final bool Function() _isAnimating;
-  final Iterable<String> Function() _visibleGlyphs;
+  final List<ContentKey> Function() _visibleKeys;
   final SchedulerBinding _binding;
 
-  double? _lastOffset;
   bool _movedThisFrame = false;
   bool _dragging = false;
   bool _reportedMoving = false;
   bool _checkScheduled = false;
-  bool _prioritiseOnNextPaint = true;
+  bool _settleOnNextPaint = true;
   bool _disposed = false;
 
-  /// A drag began (`true`) or ended or was cancelled (`false`).
-  set dragging(bool value) {
-    if (_dragging == value) return;
-    _dragging = value;
-    _noteActivity();
-  }
+  /// Whether the last published [PanelCatalogScrollingChanged] said moving.
+  bool get isMoving => _reportedMoving;
 
   /// The slots changed, so what is on screen may have too: say so at the next
   /// paint that is not a scroll.
-  void visibleBandChanged() => _prioritiseOnNextPaint = true;
+  void visibleBandChanged() => _settleOnNextPaint = true;
 
-  /// Called from every paint with the scroll offset it drew.
-  void notePaint(double offset) {
+  /// Called from every paint.
+  void notePaint() {
     if (_disposed) return;
-    final previous = _lastOffset;
-    _lastOffset = offset;
-    if (previous != null && previous != offset) {
-      _movedThisFrame = true;
-      _noteActivity();
-      return;
-    }
-    if (_prioritiseOnNextPaint && !_reportedMoving) {
-      _prioritiseOnNextPaint = false;
-      _atlas.prioritise(_visibleGlyphs());
+    if (_settleOnNextPaint && !_reportedMoving) {
+      _settleOnNextPaint = false;
+      _publishSettled();
     }
   }
 
-  /// Reports "not moving" and stops. Call when the viewport leaves the tree; a
-  /// pending callback then does nothing.
+  /// Reports "not moving" and stops listening. Call when the viewport leaves
+  /// the tree; a pending callback then does nothing.
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _events.removeListener(_onEvent);
     _setMoving(moving: false);
+  }
+
+  void _onEvent(PanelCatalogScrollEvent event) {
+    switch (event) {
+      case PanelCatalogUserDragStart():
+        _dragging = true;
+        _noteActivity();
+      case PanelCatalogUserDragEnd() || PanelCatalogUserDragCancel():
+        if (!_dragging) break;
+        _dragging = false;
+        _noteActivity();
+      case PanelCatalogViewportScrolled() ||
+          PanelCatalogOffsetChanged() ||
+          PanelCatalogProgrammaticJump():
+        _movedThisFrame = true;
+        _noteActivity();
+      case PanelCatalogFlingStart() ||
+          PanelCatalogAnimateStart() ||
+          PanelCatalogSectionJumpStart():
+        _noteActivity();
+      case PanelCatalogFlingEnd() ||
+          PanelCatalogAnimateEnd() ||
+          PanelCatalogSectionJumpEnd() ||
+          PanelCatalogScrollingChanged() ||
+          PanelCatalogScrollSettled():
+        break;
+    }
   }
 
   void _noteActivity() {
@@ -108,13 +139,15 @@ final class CatalogBakeActivity {
       return;
     }
     _setMoving(moving: false);
-    _prioritiseOnNextPaint = false;
-    _atlas.prioritise(_visibleGlyphs());
+    _settleOnNextPaint = false;
+    _publishSettled();
   }
 
   void _setMoving({required bool moving}) {
     if (_reportedMoving == moving) return;
     _reportedMoving = moving;
-    _atlas.reportScrolling(reporter: this, scrolling: moving);
+    _publish(PanelCatalogScrollingChanged(scrolling: moving));
   }
+
+  void _publishSettled() => _publish(PanelCatalogScrollSettled(_visibleKeys()));
 }

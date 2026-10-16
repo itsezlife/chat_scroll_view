@@ -40,14 +40,6 @@ abstract final class LegacyBaseline {
           'the example host\'s own persisted settings move onto '
           'kv_shared_preferences (no issue owns this yet)',
     ),
-    LegacyException(
-      LintRule.fakeExportedOutsideTesting,
-      'packages/panel_catalog/lib/panel_catalog.dart exports '
-      'src/data/fake_catalog_data_source.dart',
-      removedBy:
-          'issue 16 (FakeCatalogDataSource becomes a snapshot fake in '
-          'testing.dart)',
-    ),
   ];
 
   /// [found] without the violations [legacy] excuses, plus a

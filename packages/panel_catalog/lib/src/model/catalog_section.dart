@@ -1,3 +1,4 @@
+import 'package:panel_catalog/src/data/catalog_snapshot.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 
 /// One titled band of leaves in the catalog.
@@ -7,7 +8,7 @@ import 'package:panel_catalog/src/model/catalog_leaf.dart';
 /// land under reserved header space. Leaf rows follow the header in display
 /// order; row count is `ceil(leaves.length / spanCount)`.
 ///
-/// [id] MUST stay stable across [CatalogDataSource] notifies for the same
+/// [id] MUST stay stable across [CatalogSnapshot] publications for the same
 /// logical section (category / pack). Unstable ids break host jump maps and
 /// any future section-keyed recycle. [title] is host-localized display copy —
 /// the viewport paints it but does **not** own l10n; do not put raw l10n keys
@@ -26,7 +27,7 @@ final class CatalogSection {
 
   /// Stable section identity (category / pack id).
   ///
-  /// MUST be unique among siblings in a single [CatalogDataSource.sections]
+  /// MUST be unique among siblings in a single [CatalogSnapshot.sections]
   /// snapshot when hosts key jumps or chrome by section.
   final String id;
 

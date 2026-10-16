@@ -1,4 +1,5 @@
 import 'package:catalog_assets/legacy_shim.dart';
+import 'package:content_model/content_model.dart';
 
 /// One cell in the catalog projection.
 ///
@@ -15,6 +16,12 @@ import 'package:catalog_assets/legacy_shim.dart';
 sealed class CatalogLeaf {
   /// Cache / hit-test identity for this leaf ([CatalogAssetKey]).
   CatalogAssetKey get assetKey;
+
+  /// The leaf's identity as content, or null for a leaf without one (an empty
+  /// glyph or id).
+  ///
+  /// Scroll events name visible leaves by this key.
+  ContentKey? get contentKey;
 
   /// Creates a unicode emoji leaf for [glyph].
   ///
@@ -45,6 +52,10 @@ final class UnicodeCatalogLeaf implements CatalogLeaf {
 
   @override
   CatalogAssetKey get assetKey => CatalogAssetKey.unicode(glyph);
+
+  @override
+  ContentKey? get contentKey =>
+      glyph.isEmpty ? null : ContentKey.unicode(glyph);
 }
 
 /// Document-backed leaf (animated/custom emoji, sticker, GIF).
@@ -66,4 +77,8 @@ final class DocumentCatalogLeaf implements CatalogLeaf {
 
   @override
   CatalogAssetKey get assetKey => CatalogAssetKey.document(documentId);
+
+  @override
+  ContentKey? get contentKey =>
+      documentId.isEmpty ? null : ContentKey.document(documentId);
 }

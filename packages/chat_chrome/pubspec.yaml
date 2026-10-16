@@ -18,6 +18,8 @@ dependencies:
     path: ../catalog_assets
   chrome_foundation:
     path: ../chrome_foundation
+  content_model:
+    path: ../content_model
   emoji_data:
     path: ../emoji_data
   meta: ^1.17.0
