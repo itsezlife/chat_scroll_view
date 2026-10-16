@@ -5,11 +5,12 @@ import 'package:catalog_assets/src/asset/asset_profile.dart';
 import 'package:catalog_assets/src/asset/asset_readiness.dart';
 import 'package:catalog_assets/src/asset/asset_spec.dart';
 import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 
 /// One surface's live attach to a cache entry, from `AssetCacheScope.attach`
 /// until [detach].
 ///
-/// A binding signals (as an [Observable]) when what it would paint changes:
+/// A binding signals (as a [Listenable]) when what it would paint changes:
 /// its stage improved, a baked page it draws from landed, or an animation
 /// ticked. The signal carries nothing; the surface reads [readiness] and
 /// [paintable] and repaints.
@@ -29,7 +30,7 @@ import 'package:content_model/content_model.dart';
 /// network, a server error or bad data, and is attempted again on the next
 /// attach, when the host reports connectivity (if the failure was transient)
 /// or on [retry]. [lastError] is for logs and diagnostics, not for painting.
-abstract interface class AssetBinding implements Observable {
+abstract interface class AssetBinding implements Listenable {
   /// Which content.
   ContentKey get key;
 

@@ -7,6 +7,7 @@ import 'package:catalog_assets/src/asset/asset_readiness.dart';
 import 'package:catalog_assets/src/asset/asset_spec.dart';
 import 'package:catalog_assets/src/playback/playback_clock.dart';
 import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 import 'package:meta/meta.dart';
 
 /// What every binding shares, whatever media form is behind it: identity,
@@ -16,7 +17,9 @@ import 'package:meta/meta.dart';
 ///
 /// Internal to the package: bindings are created by `AssetCacheScope`.
 @internal
-abstract base class AssetBindingBase implements AssetBinding {
+abstract base class AssetBindingBase
+    with ChangeNotifier
+    implements AssetBinding {
   /// Creates the shared part of a binding of [key] decoded as [spec].
   AssetBindingBase({
     required this.key,
@@ -38,7 +41,6 @@ abstract base class AssetBindingBase implements AssetBinding {
 
   final AssetPaintable _placeholder;
   final PlaybackClock _clock;
-  final ObservableNotifier _changes = ObservableNotifier();
   bool _visible = true;
   bool _detached = false;
 
@@ -66,7 +68,9 @@ abstract base class AssetBindingBase implements AssetBinding {
 
   /// Tells the listeners something this binding paints changed.
   @protected
-  void signal() => _changes.notify();
+  void signal() {
+    if (!_detached) notifyListeners();
+  }
 
   @override
   AssetReadiness get readiness =>
@@ -84,14 +88,6 @@ abstract base class AssetBindingBase implements AssetBinding {
     _visible = value;
     if (!_detached) onVisibleChanged();
   }
-
-  @override
-  void addListener(ObservableListener listener) =>
-      _changes.addListener(listener);
-
-  @override
-  void removeListener(ObservableListener listener) =>
-      _changes.removeListener(listener);
 
   @override
   void paint(Canvas canvas, Rect rect, {Color? tint, double opacity = 1}) {
@@ -117,6 +113,6 @@ abstract base class AssetBindingBase implements AssetBinding {
     if (_detached) return;
     _detached = true;
     releaseResources();
-    _changes.dispose();
+    dispose();
   }
 }

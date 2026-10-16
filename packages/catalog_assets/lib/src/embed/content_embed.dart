@@ -1,10 +1,11 @@
-import 'dart:ui';
+import 'dart:ui' hide VoidCallback;
 
 import 'package:catalog_assets/src/asset/asset_binding.dart';
 import 'package:catalog_assets/src/asset/asset_cache_scope.dart';
 import 'package:catalog_assets/src/asset/asset_preset.dart';
 import 'package:catalog_assets/src/embed/inline_embed.dart';
 import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 
 /// An [InlineEmbed] that draws cache content: it attaches `(content, spec,
 /// profile)` of a preset to an [AssetCacheScope] when created, paints the
@@ -41,11 +42,10 @@ final class ContentEmbed implements InlineEmbed {
   set visible(bool value) => _binding.visible = value;
 
   @override
-  void addListener(ObservableListener listener) =>
-      _binding.addListener(listener);
+  void addListener(VoidCallback listener) => _binding.addListener(listener);
 
   @override
-  void removeListener(ObservableListener listener) =>
+  void removeListener(VoidCallback listener) =>
       _binding.removeListener(listener);
 
   @override

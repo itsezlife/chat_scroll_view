@@ -14,6 +14,14 @@ is pre-1.0.
 
 ### Changed
 
+- Change notification is `package:listen` (`listen: ^1.0.1`) instead of
+  `content_model`'s removed `Observable`: `AssetBinding` and `InlineEmbed` are
+  `Listenable`s. A listener added twice is called twice, `addListener` on a
+  detached binding or a disposed embed asserts in debug builds (bindings stop
+  signalling at detach, `FakeInlineEmbed.invalidate` after `dispose` does
+  nothing), and `CancellationToken` reports a throwing callback to
+  `Listenable.onError`, which the host sets (this package never does).
+  `runInlineEmbedContract` no longer adds a listener after dispose.
 - A unicode binding follows `AssetCacheScope.glyphSource` for as long as it is
   attached, not only when it attaches: a source registered after glyphs drew as
   text moves them onto it (a circle until baked, never a paragraph kept for
@@ -61,7 +69,7 @@ is pre-1.0.
   `GlyphSpriteSource`, which `GlyphAtlas` implements and the host registers as
   `AssetCacheScope.glyphSource`. Swapping the source moves live bindings in
   place.
-- `catalog_assets` depends on `content_model` (`ContentKey`, `Observable`).
+- `catalog_assets` depends on `content_model` (`ContentKey`).
   The `emoji_data` dev dependency is gone: the tests that read the real
   catalogue use `sampleGlyphCatalogue()` (1610 distinct glyphs, the size the
   3 page / 48 MiB budget was measured at; 2704 is the 64 MiB ceiling).

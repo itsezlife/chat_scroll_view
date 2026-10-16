@@ -7,7 +7,8 @@ the baked glyph atlas that unicode glyphs are drawn from.
 Entry points: `catalog_assets.dart` (the cache core), `glyph_atlas.dart` (the
 atlas: planning, baking, paging), `testing.dart` (opt-in fakes and contract
 suites). No scroll-viewport RenderObject dependency. Depends on
-`content_model` (`ContentKey`, `Observable`) only.
+`content_model` (`ContentKey`) and, for change notification, the pure-Dart
+`package:listen` (`Listenable`).
 
 ## The cache core
 
@@ -22,7 +23,7 @@ the content.
 | `AssetCacheScope` | Host-created instance (no static singleton); owns entries, the default clock and placeholder, and nothing it was handed. `attach`, `clearAll`, `connectivityRestored`, `dispose`; `glyphSource`, `budgets` |
 | `AssetSpec` | What is decoded: pixel size at density, decode mode (`original` / `template`), variant (`full` / `firstFrame`). With the `ContentKey` it is the entry identity |
 | `AssetProfile` | Per-attach behaviour: animate, loop, autoplay first frame, corner radius. Never splits an entry |
-| `AssetBinding` | One surface's live attach: `readiness`, `paintable`, `lastError`, `isPlaying`, `visible`, `paint`, `retry`, `detach`; an `Observable` |
+| `AssetBinding` | One surface's live attach: `readiness`, `paintable`, `lastError`, `isPlaying`, `visible`, `paint`, `retry`, `detach`; a `listen` `Listenable` |
 | `AssetPaintable` | What a binding yields: `paint(canvas, rect, context)`, `isAnimated`, and an optional `sprite` (atlas page + source rectangle) for surfaces that batch |
 | `AssetStage` / `AssetReadiness` | `none`, `placeholder`, `firstFrame`, `full` and `isFinal`. There is no failed stage |
 | `AssetProducer` (seam) | Makes the paintables of entries: `produce(request, progress, demand)` returns an `AssetTask`; reports stages, failures and cancellation through `AssetProgress`. `AssetPipeline` is the fetching and decoding implementation |
@@ -240,7 +241,7 @@ AssetCacheProvider(
 | `AssetCacheProvider` | `InheritedWidget` handing the host's `AssetCacheScope` down; `of` throws without one, `maybeOf` is null. Never disposes the scope |
 | `ContentView` | Attaches on first build, again only when content, preset or scope change (new attach first, old one given back after, so a shared entry or glyph page is never left unheld), detaches on dispose. Sized by the preset; repaints on the binding's signal, never rebuilds for it. Follows `TickerMode` for `visible` |
 | `AssetPreset` / `AssetPresets` | Size (logical), `AssetSpec` and `AssetProfile` in one value. `keyboardCell(extent:, devicePixelRatio:)` and `inlineMessage(fontSize:, devicePixelRatio:)` (an extent of 1.2 times the font size by default); hosts build their own |
-| `InlineEmbed` (seam) | What a body lays out and paints: `sizeHint`, `paint(canvas, rect, context)`, an `Observable` invalidation signal, `visible`, `dispose`. No widget, no asset type |
+| `InlineEmbed` (seam) | What a body lays out and paints: `sizeHint`, `paint(canvas, rect, context)`, a `Listenable` invalidation signal, `visible`, `dispose`. No widget, no asset type |
 | `InlineEmbedResolver` (seam) | Maps an `InlineEmbedTarget` (scheme, id, alt) and `InlineEmbedMetrics` (font size, density) to a new `InlineEmbed`, or null |
 | `ContentEmbed` | The `InlineEmbed` over an `AssetBinding`: attaches at construction with a preset, paints the paintable at the shared clock's time, detaches in `dispose` |
 | `ContentEmbedResolver` | Resolves targets spelled as `ContentKey.encoded` (`unicode:1F44D`, `document:5368`, `external:...`) to `ContentEmbed`s, with `AssetPresets.inlineMessage` unless the host passes `presetFor` |

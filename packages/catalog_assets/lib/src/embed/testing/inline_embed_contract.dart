@@ -42,15 +42,23 @@ void runInlineEmbedContract(InlineEmbed Function() create) {
         ..dispose();
     });
 
-    test('paints nothing and signals nothing after dispose', () {
+    test('paints nothing after dispose', () {
       embed.dispose();
 
       embed.paint(canvas, rect, paintContext);
-      embed.addListener(() => fail('signalled after dispose'));
     });
 
     test('ignores removing a listener it never had', () {
       embed.removeListener(() {});
+    });
+
+    test('lets a listener unregister after dispose', () {
+      void listener() {}
+      embed
+        ..addListener(listener)
+        ..dispose();
+
+      embed.removeListener(listener);
     });
   });
 }

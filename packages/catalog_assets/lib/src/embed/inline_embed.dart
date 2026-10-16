@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 import 'package:meta/meta.dart';
 
 /// What an [InlineEmbed] is painted with besides its rectangle: the colour of
@@ -96,7 +96,7 @@ final class InlineEmbedMetrics {
 /// This is the contract a markdown body lays out and paints; it carries no
 /// widget and no asset type. A body asks its [InlineEmbedResolver] for one per
 /// reference, reserves [sizeHint] in the text, calls [paint] while painting,
-/// repaints when it hears the [Observable] signal, and calls [dispose] when
+/// repaints when it hears the [Listenable] signal, and calls [dispose] when
 /// the text goes away. The alternative text of the reference, not the embed,
 /// is what copy, selection and accessibility use.
 ///
@@ -105,14 +105,16 @@ final class InlineEmbedMetrics {
 /// - [sizeHint] is the size the body reserves; it does not change over the
 ///   embed's life. [paint] may be given a rectangle of another size and
 ///   scales to it.
-/// - The signal (the [Observable]) means "what [paint] draws is different
-///   now"; it carries nothing. It is silent after [dispose].
+/// - The signal (the [Listenable]) means "what [paint] draws is different
+///   now"; it carries nothing. It is silent after [dispose], and a listener
+///   must not be added after it (`package:listen` asserts); removing one is
+///   always allowed.
 /// - [paint] draws only inside the rectangle and nothing at all after
 ///   [dispose]. It is called during painting and does not schedule work.
 /// - [visible] is true on creation. A body sets it false for an embed that is
 ///   scrolled out of view or hidden, so an animated one stops costing ticks.
 /// - [dispose] is idempotent and gives back everything the embed holds.
-abstract interface class InlineEmbed implements Observable {
+abstract interface class InlineEmbed implements Listenable {
   /// The logical size the body reserves for the embed.
   Size get sizeHint;
 
