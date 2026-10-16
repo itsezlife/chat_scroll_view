@@ -25,6 +25,13 @@ enum LintRule {
     '(pages adapt tokens).',
   ),
 
+  /// A member declares a platform-plugin dependency reserved for an adapter.
+  pluginDependencyOutsideAdapter(
+    'Platform plugins stay behind the seams of content_model: '
+    'shared_preferences is declared only by kv_shared_preferences, so logic '
+    'packages depend on KeyValueStore and one adapter owns the plugin.',
+  ),
+
   /// A library re-exports another workspace package.
   crossPackageReexport(
     'No package re-exports another workspace package; hosts import what they '
