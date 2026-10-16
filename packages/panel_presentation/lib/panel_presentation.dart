@@ -8,6 +8,8 @@
 library;
 
 export 'src/controller/panel_presentation_controller.dart';
+export 'src/docked/docked_strategy.dart';
+export 'src/docked/docked_style.dart';
 export 'src/ime/ime_input_port.dart';
 export 'src/ime/ime_sample.dart';
 export 'src/keyboard/keyboard_height_store.dart';

@@ -36,3 +36,10 @@ this package is pre-1.0.
   focus in and back to the composer, zero occupancy.
 - `AnchoredPopupStyle`, `AnchoredPopupLayout`, `AnchoredPopupActions`,
   `AnchoredPopupShortcuts`, `AnchoredPopupToggleIntent`.
+- `DockedStrategy` and `DockedStyle`, the desktop and web docked section:
+  end-edge placement that mirrors in RTL, `panelSlide` motion, animated
+  inline-end occupancy, focus back to the composer on close.
+- `PanelPresentationController(preferences:)`: the dock preference is read
+  from and written to a `PreferenceStore`, and follows changes made elsewhere;
+  `toggleDock()`; a docked section narrowed into a popup docks again when the
+  window is wide.

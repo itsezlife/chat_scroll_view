@@ -55,6 +55,32 @@ void main() {
         });
       });
 
+      test(
+        'writes the dock preference into the record, only when on',
+        () async {
+          final store = await open();
+
+          await store.setDockPreferred(preferred: true);
+          expect(jsonDecode(storage.entries[_address]!.value), {
+            'dockPreferred': true,
+          });
+
+          await store.setDockPreferred(preferred: false);
+          expect(storage.entries, isEmpty);
+        },
+      );
+
+      test('hands the next store the dock preference', () async {
+        final first = await open();
+        await first.setDockPreferred(preferred: true);
+        await first.setSelectedPageId('stickers');
+
+        final second = await open();
+
+        expect(second.dockPreferred, isTrue);
+        expect(second.selectedPageId, 'stickers');
+      });
+
       test('hands the next store what the last one chose', () async {
         final first = await open();
         await first.setPreferredVariant(_thumbs, _thumbsDark);
@@ -151,6 +177,21 @@ void main() {
         expect(store.preferredVariant(_thumbs), _thumbsDark);
         expect(store.preferredVariant(_wave), isNull);
         expect(store.selectedPageId, isNull);
+      });
+
+      test('reads a record from before the dock preference as off', () async {
+        final store = await openWith('{"selectedPageId":"emoji"}');
+
+        expect(store.dockPreferred, isFalse);
+      });
+
+      test('reads the dock preference only from a boolean true', () async {
+        expect((await openWith('{"dockPreferred":true}')).dockPreferred, true);
+        expect(
+          (await openWith('{"dockPreferred":"yes"}')).dockPreferred,
+          false,
+        );
+        expect((await openWith('{"dockPreferred":1}')).dockPreferred, false);
       });
 
       test('reads a record with only a page', () async {

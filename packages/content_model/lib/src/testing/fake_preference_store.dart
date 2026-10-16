@@ -7,6 +7,7 @@ final class FakePreferenceStore implements PreferenceStore {
   final _variants = <ContentKey$Unicode, ContentKey$Unicode>{};
   final _changes = ObservableNotifier();
   String? _selectedPageId;
+  var _dockPreferred = false;
 
   @override
   Observable get changes => _changes;
@@ -36,6 +37,16 @@ final class FakePreferenceStore implements PreferenceStore {
   Future<void> setSelectedPageId(String? id) async {
     if (_changes.isDisposed || _selectedPageId == id) return;
     _selectedPageId = id;
+    _changes.notify();
+  }
+
+  @override
+  bool get dockPreferred => _dockPreferred;
+
+  @override
+  Future<void> setDockPreferred({required bool preferred}) async {
+    if (_changes.isDisposed || _dockPreferred == preferred) return;
+    _dockPreferred = preferred;
     _changes.notify();
   }
 

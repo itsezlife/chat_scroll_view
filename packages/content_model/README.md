@@ -21,7 +21,7 @@ types, so it depends on no workspace package (`scripts/check` enforces both).
 | `Observable`, `ValueObservable<T>`, `EventObservable<T>` | The read sides of change notification: a signal, a signal guarding a snapshot, a typed event stream. Listeners run synchronously; dedup-on-add, snapshot dispatch, silent after dispose. |
 | `ObservableNotifier`, `ObservableValue<T>`, `EventNotifier<T>` | The owner sides. `batch` turns many changes into one signal; `ObservableValue` skips equal snapshots. |
 | `CollectionSource`, `SearchSource` | Publish `Collection`s as immutable snapshots, with load and paging commands. Failure is a state, never an exception. |
-| `RecentsStore`, `PreferenceStore` | Loaded, synchronous-read stores for picks (per `SemanticKind`, frequency then recency) and typed user choices. |
+| `RecentsStore`, `PreferenceStore` | Loaded, synchronous-read stores for picks (per `SemanticKind`, frequency then recency) and typed user choices (preferred variant per emoji, last page, dock preference). |
 | `KeywordSource`, `KeywordPack` | Per-language search keywords, bundled or supplied by the host. |
 | `GlyphSupport` | Which unicode keys the device draws, and the identity of its emoji art. Optimistic: `true` until known missing. |
 | `KeyValueStore`, `StoredValue` | Namespaced, versioned string persistence; the only way logic packages reach durable storage. |
