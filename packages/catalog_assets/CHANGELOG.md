@@ -51,6 +51,23 @@ is pre-1.0.
 - `legacy_shim.dart`: the removed readiness-flag API for `panel_catalog` and
   `chat_chrome` until they migrate. Temporary; do not import it from new code.
 
+### Added (fetcher, decoders, orchestration)
+
+- `AssetPipeline`, the `AssetProducer` that resolves, fetches and decodes:
+  priority classes (`AssetPriority`: placeholder, visible, preload), caps on
+  concurrent fetches and decodes with backpressure
+  (`AssetPipelineLimits`), cancellation when the last binding leaves, and
+  batched `ContentResolver` lookups for bare keys (`know` seeds known
+  descriptors).
+- Seams `ContentFetcher` (`FetchRequest`, `FetchPart`, `FetchedContent`,
+  `FetchFailure`, `CancellationToken`) and `Decoder` (`DecodeRequest`) with a
+  `DecoderRegistry` per `MediaForm`.
+- `testing.dart`: `FakeFetcher`, `FakeDecoder`, `ManualClock`,
+  `runAssetFetcherContract`, `runDecoderContract`.
+- **Changed:** `AssetProducer.produce` takes a third argument, an
+  `AssetDemand` that says whether a surface shows the entry. `FakeAssetAttempt`
+  exposes it as `demand`.
+
 ### Added
 
 - **Bake pass shared with the glyph-support probe.** `GlyphBakeObserver` (a

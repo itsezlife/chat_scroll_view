@@ -5,11 +5,10 @@ import 'package:chat_chrome/src/composer/chat_composer_controller.dart';
 import 'package:chat_chrome/src/composer/chat_enter_icons.dart';
 import 'package:chat_chrome/src/composer/chat_enter_top_view.dart';
 import 'package:chat_chrome/src/composer/chat_input_metrics.dart';
-import 'package:chat_chrome/src/glass/liquid_glass.dart';
-import 'package:chat_chrome/src/glass/liquid_glass_style.dart';
 import 'package:chat_chrome/src/motion/keyboard_panel_motion.dart';
 import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
 import 'package:chat_chrome/src/util/value_listenable_select.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -444,10 +443,9 @@ class ChatEnterViewState extends State<ChatEnterView>
     final composer = widget.composer;
     final colors = ChatChromeTheme.of(context);
     final brightness = Theme.of(context).brightness;
-    final glassStyle = LiquidGlassStyle.composerIsland(
+    final glassTokens = _islandGlassTokens(
       panelBackground: colors.messagePanelBackground,
       brightness: brightness,
-      cornerRadius: ChatInputMetrics.bubbleRadius,
     );
 
     final inputRow = switch (widget.inputBuilder) {
@@ -498,31 +496,57 @@ class ChatEnterViewState extends State<ChatEnterView>
         alignment: Alignment.bottomCenter,
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: widget.maxWidth),
-          child: LiquidGlass(
-            key: widget.glassKey,
-            style: glassStyle,
-            child: AnimatedBuilder(
-              animation: Listenable.merge([_topViewCurved, _fieldHeightCurved]),
-              child: inputRow,
-              builder: (context, child) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    ?_buildTopView(context),
-                    _AnimatedFieldHeight(
-                      height: _fieldHeight,
-                      onChildSize: _onFieldMeasured,
-                      child: child!,
-                    ),
-                  ],
-                );
-              },
+          child: ChromeThemeScope(
+            glass: glassTokens,
+            child: GlassSurface(
+              key: widget.glassKey,
+              material: GlassMaterial.composerIsland,
+              cornerRadius: ChatInputMetrics.bubbleRadius,
+              child: AnimatedBuilder(
+                animation: Listenable.merge([
+                  _topViewCurved,
+                  _fieldHeightCurved,
+                ]),
+                child: inputRow,
+                builder: (context, child) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      ?_buildTopView(context),
+                      _AnimatedFieldHeight(
+                        height: _fieldHeight,
+                        onChildSize: _onFieldMeasured,
+                        child: child!,
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+// Interim: until the composer reads `ChromeThemeScope`, the island supplies
+// the glass group itself from the composer colours.
+GlassMaterialTokens _islandGlassTokens({
+  required Color panelBackground,
+  required Brightness brightness,
+}) {
+  final isDark = brightness == Brightness.dark;
+  return GlassMaterialTokens.fromPalette(
+    ChromePalette.forBrightness(brightness),
+  ).copyWith(
+    composerIsland: GlassMaterialColors(
+      fill: panelBackground.withValues(alpha: isDark ? 0.85 : 216 / 255),
+      strokeTop: isDark ? const Color(0x28FFFFFF) : const Color(0xFFFFFFFF),
+      strokeBottom: isDark ? const Color(0x14FFFFFF) : const Color(0xFFFFFFFF),
+      shadow: isDark ? const Color(0x00000000) : const Color(0x20000000),
+    ),
+  );
 }
 
 /// Clip-reveals a fixed-[extent] child as [progress] rises (top-aligned).

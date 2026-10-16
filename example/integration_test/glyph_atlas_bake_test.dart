@@ -4,12 +4,13 @@ import 'dart:ui' as ui;
 
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
-import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+
+import 'panel_perf/shipped_glyphs.dart';
 
 /// On-device check of the glyph atlas baker (baked-atlas ticket 05).
 ///
@@ -80,10 +81,7 @@ void main() {
   );
 
   testWidgets('glyph atlas bake', (tester) async {
-    final glyphs = <String>{
-      for (final category in emojiCatalogForLocale(const Locale('en')))
-        for (final entry in category.entries) entry.glyph,
-    }.toList();
+    final glyphs = await loadShippedGlyphs();
     const layout = GlyphAtlasLayout();
     final index = GlyphAtlasIndex(glyphs, layout: layout);
     final store = FakeGlyphPageStore();

@@ -1,6 +1,6 @@
-import 'package:chat_chrome/src/motion/scale_pressable.dart';
 import 'package:chat_chrome/src/panel/emoji_glyph.dart';
 import 'package:chat_chrome/src/panel/emoji_page.dart';
+import 'package:chrome_foundation/chrome_foundation.dart' show OvershootCurve;
 import 'package:flutter/material.dart';
 
 /// One emoji grid cell with press feedback.

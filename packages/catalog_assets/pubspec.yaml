@@ -1,5 +1,5 @@
 name: catalog_assets
-description: Asset cache core (paintable, spec, staged readiness, tiered LRU, playback clock) plus the glyph atlas baker.
+description: Asset cache core (paintable, spec, staged readiness, tiered LRU, playback clock), the fetch and decode pipeline, and the glyph atlas baker.
 version: 0.1.0
 publish_to: none
 

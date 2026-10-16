@@ -1,7 +1,8 @@
 name: chrome_foundation
 description: >
   Leaf foundation for chat chrome: semantic palette, per-component token
-  groups and the nestable, animatable theme scope.
+  groups, the nestable theme scope, motion roles, strings scope and icon
+  registry.
 version: 0.1.0
 publish_to: none
 
@@ -9,13 +10,26 @@ resolution: workspace
 
 environment:
   sdk: ^3.11.0
-  flutter: '>=3.27.0'
+  flutter: '>=3.32.0'
 
 dependencies:
   flutter:
     sdk: flutter
   meta: ^1.17.0
+  # Icon morph transitions. Only the icon registry imports it, so a host never
+  # names morphnext and swapping it touches one directory.
+  morphnext: ^0.6.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+flutter:
+  # The three glass fragment programs, loaded by the glass stack on demand.
+  shaders:
+    - shaders/liquid_glass.frag
+    - shaders/liquid_glass_backdrop.frag
+    - shaders/glass_frost_prepass.frag
+  # The stock icon registry draws Material icon glyphs, and its tests need the
+  # font in the test bundle.
+  uses-material-design: true

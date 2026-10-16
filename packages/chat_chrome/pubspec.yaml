@@ -16,6 +16,8 @@ dependencies:
     sdk: flutter
   catalog_assets:
     path: ../catalog_assets
+  chrome_foundation:
+    path: ../chrome_foundation
   content_model:
     path: ../content_model
   emoji_data:
@@ -33,9 +35,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  shaders:
-    - shaders/liquid_glass.frag
-    - shaders/liquid_glass_backdrop.frag
-    - shaders/glass_frost_prepass.frag
   assets:
     - assets/emoji_tabs/

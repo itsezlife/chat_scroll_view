@@ -6,7 +6,8 @@
 /// `AssetBinding`: a staged readiness (`none`, `placeholder`, `firstFrame`,
 /// `full`, never a failed one), an `AssetPaintable` to draw, and a pin that
 /// keeps the entry in a byte-budgeted LRU until `detach`. Content is made
-/// behind the `AssetProducer` seam; unicode glyphs bind to baked sprites on an
+/// behind the `AssetProducer` seam (`AssetPipeline` resolves, fetches through
+/// the host's `ContentFetcher` and decodes with its `Decoder`s); unicode glyphs bind to baked sprites on an
 /// atlas page through the narrow `GlyphSpriteSource` seam (the atlas itself is
 /// `glyph_atlas.dart`). One `PlaybackClock` advances every animation, gated per
 /// binding and by host-set pause layers.
@@ -24,6 +25,10 @@ export 'src/asset/asset_readiness.dart';
 export 'src/asset/asset_spec.dart';
 export 'src/atlas/atlas_sprite.dart';
 export 'src/glyph/glyph_sprite_source.dart';
+export 'src/pipeline/asset_pipeline.dart';
+export 'src/pipeline/cancellation_token.dart';
+export 'src/pipeline/content_fetcher.dart';
+export 'src/pipeline/decoder.dart';
 export 'src/playback/playback_clock.dart' show PlaybackClock;
 export 'src/playback/playback_policy.dart';
 export 'src/playback/playback_tick_source.dart';

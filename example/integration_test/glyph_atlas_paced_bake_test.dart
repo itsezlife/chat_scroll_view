@@ -3,7 +3,6 @@ import 'dart:math' as math;
 
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
-import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -11,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'panel_perf/frame_metrics.dart';
+import 'panel_perf/shipped_glyphs.dart';
 
 /// On-device check of the paced bake (baked-atlas ticket 06): the governor,
 /// the visible-band priority and the pause rules, with the real system font
@@ -56,10 +56,8 @@ void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized()
     ..framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
 
-  final glyphs = <String>{
-    for (final category in emojiCatalogForLocale(const Locale('en')))
-      for (final entry in category.entries) entry.glyph,
-  }.toList();
+  late final List<String> glyphs;
+  setUpAll(() async => glyphs = await loadShippedGlyphs());
 
   testWidgets('paced bake while idle', (tester) async {
     await _run(

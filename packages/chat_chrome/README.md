@@ -10,7 +10,7 @@ IME handoff.
 | Role | Responsibility |
 |------|----------------|
 | Host | Owns [KeyboardPanelController] lifetime; mounts [KeyboardPanel]; builds [DefaultEmojiDataSource] with localized titles + strip icons; wires insert/backspace; aggregates chrome into scroll `bottomPadding`. |
-| `emoji_data` | Reactive catalog, frequency recents, keyword search, skin-tone prefs, platform glyph filter. |
+| Interim emoji data (`lib/src/legacy_emoji/`) | Reactive catalog, frequency recents, keyword search, skin-tone prefs, platform glyph filter. Replaced by the `emoji_data` logic package and deleted with this package. |
 | Package | Panel shell, type tabs, emoji grid, bottom bar, panel prefs store. |
 
 Decisions: [ADR 007](../../docs/adr/007-keyboard-panel-controller.md) (the
@@ -137,7 +137,7 @@ Long-press on a frequently-used glyph fires `onClearRecents`. The panel does
 ## Embed grid only
 
 Use [EmojiGridView] / [EmojiPage] with an [EmojiDeferredRecents] snapshot when
-you do not need the full panel shell. Unicode page / glyph / `emoji_data` APIs
+you do not need the full panel shell. Unicode page / glyph / interim emoji data APIs
 stay `Emoji*`; chrome types use `KeyboardPanel*`.
 
 ## Baked emoji

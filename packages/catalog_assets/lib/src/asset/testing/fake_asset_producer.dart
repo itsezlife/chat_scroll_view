@@ -6,12 +6,15 @@ import 'package:catalog_assets/src/asset/testing/fake_asset_paintable.dart';
 /// One attempt a [FakeAssetProducer] was asked to make; the test plays the
 /// producer by calling [advance], [fail] and [cancelled].
 final class FakeAssetAttempt implements AssetTask {
-  FakeAssetAttempt._(this.request, this._progress);
+  FakeAssetAttempt._(this.request, this._progress, this.demand);
 
   /// What was asked for.
   final AssetRequest request;
 
   final AssetProgress _progress;
+
+  /// What the bindings of the entry want, live.
+  final AssetDemand demand;
 
   /// Whether the scope cancelled this attempt.
   bool isCancelled = false;
@@ -68,8 +71,12 @@ final class FakeAssetProducer implements AssetProducer {
   FakeAssetAttempt get last => attempts.last;
 
   @override
-  AssetTask produce(AssetRequest request, AssetProgress progress) {
-    final attempt = FakeAssetAttempt._(request, progress);
+  AssetTask produce(
+    AssetRequest request,
+    AssetProgress progress,
+    AssetDemand demand,
+  ) {
+    final attempt = FakeAssetAttempt._(request, progress, demand);
     attempts.add(attempt);
     onProduce?.call(attempt);
     return attempt;

@@ -1,7 +1,7 @@
-import 'package:chat_chrome/src/motion/scale_pressable.dart';
 import 'package:chat_chrome/src/panel/keyboard_panel_allow.dart';
 import 'package:chat_chrome/src/panel/keyboard_panel_bottom_bar.dart';
 import 'package:chat_chrome/src/panel/keyboard_panel_labels.dart';
+import 'package:chrome_foundation/chrome_foundation.dart' show ScalePressable;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 

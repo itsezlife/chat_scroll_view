@@ -7,7 +7,7 @@
 /// contracts.
 library;
 
-export 'package:emoji_data/emoji_data.dart';
+export 'src/legacy_emoji/legacy_emoji.dart';
 
 export 'src/composer/chat_composer_controller.dart';
 export 'src/composer/chat_composer_mode.dart';
@@ -17,14 +17,8 @@ export 'src/composer/chat_enter_view.dart';
 export 'src/composer/chat_input_metrics.dart';
 export 'src/composer/chat_content_bottom_fade.dart';
 export 'src/util/value_listenable_select.dart';
-export 'src/glass/glass_backdrop.dart';
-export 'src/glass/glass_source.dart';
-export 'src/glass/liquid_glass_shader.dart';
-export 'src/glass/liquid_glass.dart';
-export 'src/glass/liquid_glass_style.dart';
 export 'src/inset/chat_bottom_inset_controller.dart';
 export 'src/inset/keyboard_panel_store.dart';
-export 'src/motion/scale_pressable.dart';
 export 'src/motion/keyboard_panel_motion.dart';
 export 'src/panel/backspace_action_button.dart';
 export 'src/panel/emoji_category_strip.dart';

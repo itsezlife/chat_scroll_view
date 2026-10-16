@@ -1,0 +1,26 @@
+name: kv_shared_preferences
+description: >
+  The shared_preferences-backed KeyValueStore: the one package in the
+  workspace that depends on the plugin.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: '>=3.27.0'
+
+dependencies:
+  content_model:
+    path: ../content_model
+  flutter:
+    sdk: flutter
+  shared_preferences: ^2.5.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # The tests install an in-memory platform and a failing one.
+  shared_preferences_platform_interface: ^2.4.1
+  # runKeyValueStoreContract is written with package:test.
+  test: ^1.25.0

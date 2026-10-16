@@ -62,7 +62,7 @@ Dropping keywords that repeat the spoken name saved 2 to 9 percent. Loading one 
 | The host provides | The host must not |
 | --- | --- |
 | The asset bundle: reads `EmojiCatalogPackAssets.structure` and `keywordPack(locale)` and passes the text to `EmojiCatalogStructure.decode` / `EmojiKeywordPack.decode`. | Parse the files itself; the formats are internal to the decoders. |
-| The ordered language set it wants packs for. A locale without a shipped pack is a host decision (fall back, or fetch a pack of its own). | Expect a pack for every CLDR locale: the shipped set is the locales of `tool/inputs.lock`. |
+| The ordered language set it wants packs for. A locale without a shipped pack (`EmojiCatalogPackAssets.locales` lists the shipped ones) is a host decision (fall back, or fetch a pack of its own). | Expect a pack for every CLDR locale: the shipped set is the locales of `tool/inputs.lock`. |
 | A spoken name for a tone variant: the entry's own name, extended by the host if it wants the tone read out. | Look a tone variant up in a pack: only entries and gender variants have records. |
 | Any server-supplied or newer keyword pack through a `KeywordSource`, keyed by the same `ContentKey`s. | Assume the keys of a newer Emoji version are in the shipped structure. |
 
