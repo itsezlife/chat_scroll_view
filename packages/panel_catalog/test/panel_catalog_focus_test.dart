@@ -44,7 +44,7 @@ void main() {
     controller = PanelCatalogController();
     taps = [];
     focusEvents = [];
-    controller.events.addListener((event) {
+    controller.events.listen((event) {
       if (event is PanelCatalogFocusChanged) focusEvents.add(event);
     });
   });

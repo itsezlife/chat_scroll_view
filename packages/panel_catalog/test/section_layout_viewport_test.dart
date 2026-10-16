@@ -99,7 +99,7 @@ void main() {
     assetScope = textGlyphScope();
     controller = PanelCatalogController();
     events = [];
-    controller.events.addListener(events.add);
+    controller.events.listen(events.add);
   });
   tearDown(() {
     snapshots.dispose();

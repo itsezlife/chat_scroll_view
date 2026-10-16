@@ -4,6 +4,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_pages/src/atlas/glyph_atlas_host.dart';
 import 'package:panel_pages/src/atlas/glyph_plan.dart';
 import 'package:panel_pages/src/bake/glyph_atlas_bake_port.dart';
@@ -28,8 +29,8 @@ typedef GlyphAtlasHostFactory =
     GlyphAtlasHost Function({
       required double devicePixelRatio,
       required double glyphBoxExtent,
-      required ValueObservable<bool> visible,
-      required ValueObservable<bool> opening,
+      required listen.ValueListenable<bool> visible,
+      required listen.ValueListenable<bool> opening,
     });
 
 /// What the emoji page keeps across being unmounted: the catalogue's controller
@@ -206,7 +207,7 @@ class EmojiPage extends StatefulWidget {
 class _EmojiPageState extends State<EmojiPage> {
   late final EmojiPageController _controller;
   late EmojiPagePolicy _policy;
-  final _stripReady = ObservableValue<bool>(true);
+  final _stripReady = listen.ValueNotifier<bool>(true);
   GlyphAtlas? _boundAtlas;
   GlyphAtlasBakePort? _bake;
   var _density = 0.0;

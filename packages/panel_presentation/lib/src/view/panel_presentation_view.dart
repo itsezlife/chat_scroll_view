@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:panel_presentation/src/controller/panel_presentation_controller.dart';
 import 'package:panel_presentation/src/kind/panel_visibility.dart';
 import 'package:panel_presentation/src/strategy/panel_presentation_strategy.dart';
-import 'package:panel_presentation/src/view/value_observable_builder.dart';
+import 'package:panel_presentation/src/view/listen_value_builder.dart';
 
 /// The mounted presentation: projects the visibility state of a
 /// [PanelPresentationController] through the strategy of the active kind.
@@ -55,8 +55,8 @@ class _PanelPresentationViewState extends State<PanelPresentationView> {
   }
 
   @override
-  Widget build(BuildContext context) => ValueObservableBuilder<PanelVisibility>(
-    observable: widget.controller.state,
+  Widget build(BuildContext context) => ListenValueBuilder<PanelVisibility>(
+    listenable: widget.controller.state,
     builder: (context, visibility) {
       final kind = visibility.kind;
       if (kind == null) return const SizedBox.shrink();

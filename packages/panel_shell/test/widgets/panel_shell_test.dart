@@ -41,7 +41,7 @@ void main() {
       pages: (pages ?? [emoji, stickers]).map((p) => p.page).toList(),
       preferences: preferences,
     );
-    controller.events.addListener(events.add);
+    controller.events.listen(events.add);
     addTearDown(controller.dispose);
   }
 

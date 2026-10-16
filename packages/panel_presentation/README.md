@@ -4,7 +4,7 @@ How the panel is **presented**: where it appears, what opens and dismisses it,
 and how much space it takes. A sealed set of **panel presentation** kinds is
 chosen by a pure-Dart **presentation policy**, one **presentation controller**
 owns the visibility and wraps the `panel_shell` controller, and each kind
-publishes its **occupancy** as an `Observable` the host aggregates. It depends
+publishes its **occupancy** as a `ValueListenable` (`package:listen`) the host aggregates. It depends
 on `panel_shell`, `chrome_foundation` and `content_model` only
 (`scripts/check` enforces that) and never sees page content or data payloads.
 
@@ -120,7 +120,7 @@ PanelPresentationView(controller: presentation);
 
 ```dart
 final ime = ImeInput();                       // the host feeds this
-final window = ObservableValue(PanelWindow(width: w, height: h));
+final window = ValueNotifier(PanelWindow(width: w, height: h)); // package:listen
 final heights = await KeyboardHeightStore.open(keyValueStore);
 final keyboard = KeyboardReplacementStrategy(
   ime: ime,
@@ -181,7 +181,7 @@ ime.report(ImeSample(
 | The aggregation of `occupancy` with its composer extent into the viewport padding, and `inlineEnd` in layout. | Add the keyboard height a second time while the occupancy already contains it. |
 | The loaded `PreferenceStore` (from `content_model`), passed as `preferences:`; its `dockPreferred` is the persisted dock choice. | Persist the choice a second time, or expect `dock()` to persist without a store. |
 | The docked section's width in `DockedStyle`, `inlineEnd` applied to the chat viewport's layout, and a box for the view that is bounded and at least that wide. | Expect the docked section to cover the chat, to be dismissed by hover or an outside press, or a default width from a reference client. |
-| For the keyboard strategy: every keyboard reading through the `ImeInputPort` with an honest `animating` flag and the bottom safe area, the window through an `ObservableValue<PanelWindow>`, a `KeyboardHeightStore` over a `KeyValueStore`, and `composerSafeInset` as the composer's bottom safe area. | Read `SystemChannels` or platform insets in the strategy's place, report a settled reading while the keyboard moves, or add the keyboard height to the occupancy again. |
+| For the keyboard strategy: every keyboard reading through the `ImeInputPort` with an honest `animating` flag and the bottom safe area, the window through a `ValueListenable<PanelWindow>` from `package:listen`, a `KeyboardHeightStore` over a `KeyValueStore`, and `composerSafeInset` as the composer's bottom safe area. | Read `SystemChannels` or platform insets in the strategy's place, report a settled reading while the keyboard moves, or add the keyboard height to the occupancy again. |
 | The popup's `AnchoredPopupToggleRegion` around the composer's panel button, a click handler on that button that calls `toggle()`, and `AnchoredPopupActions` with `AnchoredPopupShortcuts.standard` above the composer so Escape and a toggle shortcut work while focus is there. The popup width, corners and shadow in `AnchoredPopupStyle`. | Expect hover to move focus, or a default popup size from a reference client. |
 | `MediaQuery.disableAnimations` mapped to `ChromeMotionSpeed.instant`, and the popup's `holdAutoHide()` while a variant picker is open. | Expect the controller to read reduce motion or to know about the picker. |
 | `Esc` and outside-press bindings in any other strategy (the popup binds its own). | Expect the controller to bind keys. |

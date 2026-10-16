@@ -6,6 +6,14 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Change notification is `package:listen` (`listen: ^1.0.1`) instead of
+  `content_model`'s removed `Observable` family: `changes` is a `Listenable`,
+  `collections` and `results` are `ValueListenable`s, and the keyword sources
+  and `MissingGlyphProbe` are `ChangeNotifier`s whose `dispose` stays
+  idempotent. `addListener` on a disposed source asserts in debug builds.
+
 ### Added
 
 - Emoji logic over the `content_model` seams, in pure Dart: no Flutter, no

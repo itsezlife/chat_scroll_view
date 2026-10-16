@@ -84,8 +84,8 @@ void main() {
       ],
       preferences: preferences,
     );
-    shell.events.addListener(events.add);
-    shell.scrollActivity.addListener(activity.add);
+    shell.events.listen(events.add);
+    shell.scrollActivity.listen(activity.add);
     addTearDown(() {
       shell.dispose();
       source.dispose();

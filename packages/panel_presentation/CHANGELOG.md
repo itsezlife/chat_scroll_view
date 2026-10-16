@@ -6,6 +6,17 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Change notification is `package:listen` (`listen: ^1.0.1`), not
+  `content_model`'s removed `Observable` family: `occupancy`, `state`, `window`,
+  `anchorRect`, `samples` and the like are `ValueListenable`s (the
+  `package:listen` type, not Flutter's), `PanelPresentationController
+  .interactions` and `KeyboardSlot.changes` are `Listenable`s, and
+  `ValueObservableBuilder` becomes `ListenValueBuilder`. `dispose` of the
+  strategies, `ImeInput` and the fakes stays idempotent, and
+  `DockedStrategy` drops a late occupancy report after its disposal.
+
 ### Added
 
 - Sealed `PanelPresentation` kinds (`KeyboardReplacement`, `AnchoredPopup`,

@@ -6,6 +6,7 @@ import 'package:chat_composer/src/text/composer_text_controller.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart' hide RichText;
+import 'package:listen/listen.dart' as listen;
 
 /// The input side of the composer: the entity-aware text, focus, selection,
 /// the field's scroll and height, the soft keyboard option, and the input
@@ -40,7 +41,7 @@ final class ComposerController {
        _ownsText = text == null,
        _ownsFocus = focusNode == null,
        _ownsScroll = fieldScroll == null,
-       _softKeyboard = ObservableValue(softKeyboard) {
+       _softKeyboard = listen.ValueNotifier(softKeyboard) {
     queryKinds.forEach(registerQueryKind);
     this.text.addListener(_detectQuery);
     _detectQuery();
@@ -58,10 +59,10 @@ final class ComposerController {
   final bool _ownsText;
   final bool _ownsFocus;
   final bool _ownsScroll;
-  final ObservableValue<SoftKeyboardMode> _softKeyboard;
-  final _fieldHeight = ObservableValue<double>(0);
-  final _extent = ObservableValue<double>(0);
-  final _query = ObservableValue<ComposerInputQuery?>(null);
+  final listen.ValueNotifier<SoftKeyboardMode> _softKeyboard;
+  final _fieldHeight = listen.ValueNotifier<double>(0);
+  final _extent = listen.ValueNotifier<double>(0);
+  final _query = listen.ValueNotifier<ComposerInputQuery?>(null);
   final _kinds = <ComposerQueryKind>[];
   Rect? _anchor;
   var _disposed = false;
@@ -138,7 +139,7 @@ final class ComposerController {
   // --- Soft keyboard ---
 
   /// Whether focusing the field may show the on-screen keyboard.
-  ValueObservable<SoftKeyboardMode> get softKeyboard => _softKeyboard;
+  listen.ValueListenable<SoftKeyboardMode> get softKeyboard => _softKeyboard;
 
   /// Sets the soft keyboard option.
   void setSoftKeyboard(SoftKeyboardMode mode) {
@@ -150,7 +151,7 @@ final class ComposerController {
 
   /// The height of the field as last reported, zero before the first report.
   /// The host feeds it, with the other extents, to the chat bottom padding.
-  ValueObservable<double> get fieldHeight => _fieldHeight;
+  listen.ValueListenable<double> get fieldHeight => _fieldHeight;
 
   /// Reports the laid-out [height] of the field. Called by the field.
   void reportFieldHeight(double height) {
@@ -166,7 +167,7 @@ final class ComposerController {
   /// host that feeds it into its chat bottom padding moves with the
   /// animation. The composer imports no inset type; the host adds the
   /// presentation occupancy itself.
-  ValueObservable<double> get extent => _extent;
+  listen.ValueListenable<double> get extent => _extent;
 
   /// Reports the laid-out [height] of the composer view. Called by the view.
   void reportExtent(double height) {
@@ -196,7 +197,7 @@ final class ComposerController {
   /// The token at the caret that a registered kind recognises, or null.
   ///
   /// A signal means the token, its kind or its anchor changed.
-  ValueObservable<ComposerInputQuery?> get query => _query;
+  listen.ValueListenable<ComposerInputQuery?> get query => _query;
 
   /// The registered kinds, in registration order.
   List<ComposerQueryKind> get queryKinds => List.unmodifiable(_kinds);

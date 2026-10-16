@@ -29,7 +29,7 @@ void main() {
       preferences: preferences,
       controllers: controllers,
     );
-    controller.events.addListener(events.add);
+    controller.events.listen(events.add);
     addTearDown(controller.dispose);
     return controller;
   }
@@ -152,6 +152,29 @@ void main() {
       expect(controller.selectedPageId.value, 'emoji');
       expect(events, isEmpty);
     });
+
+    test(
+      'an event a listener provokes reaches every listener in one order',
+      () {
+        final controller = build();
+        final second = <PanelEvent>[];
+        controller.events
+          ..listen((event) {
+            if (event is SearchOpened) controller.selectPage('stickers');
+          })
+          ..listen(second.add);
+
+        controller.openSearch();
+
+        expect(events.map((e) => e.runtimeType), [
+          SearchOpened,
+          SearchClosed,
+          PageChanged,
+        ]);
+        expect(second, events);
+        expect(controller.selectedPageId.value, 'stickers');
+      },
+    );
   });
 
   group('search', () {
@@ -304,7 +327,7 @@ void main() {
     test('forwards scroll activity of the selected page only', () {
       final controller = build();
       final seen = <PageScrollActivity>[];
-      controller.scrollActivity.addListener(seen.add);
+      controller.scrollActivity.listen(seen.add);
 
       controller
           .hostFor('stickers')
@@ -317,7 +340,7 @@ void main() {
     test('mirrors search progress and result counts of the selected page', () {
       final controller = build();
       final counts = <int>[];
-      controller.searchResultCounts.addListener(counts.add);
+      controller.searchResultCounts.listen(counts.add);
 
       controller.hostFor('emoji')
         ..reportSearchProgress(busy: true)

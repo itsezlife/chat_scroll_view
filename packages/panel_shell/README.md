@@ -18,7 +18,7 @@ pages), [ADR 031](../../docs/adr/031-localization-accessibility-and-input.md)
 | Type | Role |
 | --- | --- |
 | `PanelPage`, `PanelTab`, `PageCapabilities`, `PageAction` | One registry entry: a stable id, the **tab descriptor** (semantic icon id and label key, never glyph or text), a builder, and what it declares (search, top strip, bottom actions). Every action carries a required semantic label. |
-| `PanelShellController` | The single source of truth for the selected page id and `PanelSearchState`, as `Observable`s. One-way intents (`selectPage`, `openSearch`, `closeSearch`, `setQuery`, `invokeAction`, `handleBack`, ...) used by hosts and by the widgets' own gestures alike. No `adopt*`, no `GlobalKey`. Persists the page id as a string through `PreferenceStore`. |
+| `PanelShellController` | The single source of truth for the selected page id and `PanelSearchState`, as `package:listen` `ValueListenable`s; `events`, `scrollActivity` and `searchResultCounts` are synchronous broadcast `Stream`s. One-way intents (`selectPage`, `openSearch`, `closeSearch`, `setQuery`, `invokeAction`, `handleBack`, ...) used by hosts and by the widgets' own gestures alike. No `adopt*`, no `GlobalKey`. Persists the page id as a string through `PreferenceStore`. |
 | `PanelSearchState` | Open, query and **focus intent** in one snapshot. |
 | `PanelPageHost`, `PageControllerRegistry`, `PanelPageController` | A page's whole connection to the shell (search state, the panel's `panelVisible` / `panelOpening` presence, `pick`, scroll and search reports, `releaseSearchFocus`) and the per-page registry the controller owns, so a presentation switch restores scroll offsets and loaded collections. |
 | `PanelEvent` (`ContentPicked`, `BackspaceRequested`, `ActionInvoked`, `ClearRecentsRequested`, `PageChanged`, `SearchOpened`, `SearchClosed`) | The one sealed outward effect type, delivered on `controller.events`. The panel inserts nothing and writes no recents. |
@@ -61,7 +61,7 @@ PanelShell(controller: controller);
 - **Presence.** `controller.visible` and `controller.opening` are the two
   pause signals of work that must not run while the panel is hidden or moving
   (the glyph atlas bake, for one). A presentation controller reports them with
-  `updatePresence`; the host wires the observables to whatever it pauses.
+  `updatePresence`; the host wires the listenables to whatever it pauses.
 - **Escape and back.** The shell's `DismissIntent` action closes search while
   it is open and otherwise forwards the intent to the nearest enclosing
   `Actions`, so a popup that hosts the shell closes on the second press. The

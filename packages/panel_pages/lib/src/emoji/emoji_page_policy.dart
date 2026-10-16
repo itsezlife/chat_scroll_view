@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/emoji/emoji_category_strip.dart';
 import 'package:panel_pages/src/emoji/emoji_tab_icons.dart';
@@ -44,7 +45,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   ///
   /// [entryOf] answers the catalogue's variants. [preferences] keeps the
   /// variant a user chose per base. [stripReady] gates the category strip: a
-  /// page that mounts its chrome one frame at a time passes an observable
+  /// page that mounts its chrome one frame at a time passes a listenable
   /// that turns true when the strip may mount; null mounts it at once.
   EmojiPagePolicy({
     required this.host,
@@ -95,7 +96,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   final PreferenceStore preferences;
 
   /// Whether the strip may mount; null for always.
-  final ValueObservable<bool>? stripReady;
+  final listen.ValueListenable<bool>? stripReady;
 
   @override
   PageCapabilities get capabilities => pageCapabilities;
@@ -250,7 +251,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
 class _StripGate extends StatefulWidget {
   const _StripGate({required this.ready, required this.strip});
 
-  final ValueObservable<bool> ready;
+  final listen.ValueListenable<bool> ready;
   final Widget Function() strip;
 
   @override

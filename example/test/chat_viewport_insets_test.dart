@@ -4,20 +4,20 @@
 library;
 
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets.dart';
-import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_presentation/testing.dart';
 
 void main() {
-  late ObservableValue<double> extent;
-  late ObservableValue<PanelOccupancy> occupancy;
+  late ValueNotifier<double> extent;
+  late ValueNotifier<PanelOccupancy> occupancy;
   late ChatViewportInsets insets;
 
   setUp(() {
-    extent = ObservableValue<double>(0);
-    occupancy = ObservableValue<PanelOccupancy>(PanelOccupancy.zero);
+    extent = ValueNotifier<double>(0);
+    occupancy = ValueNotifier<PanelOccupancy>(PanelOccupancy.zero);
     insets = ChatViewportInsets(composerExtent: extent, occupancy: occupancy);
   });
 
@@ -112,9 +112,7 @@ void main() {
   group('with a keyboard presentation', () {
     test('the soft keyboard is counted once, through the occupancy', () async {
       final ime = FakeImeInput();
-      final window = ObservableValue(
-        const PanelWindow(width: 400, height: 800),
-      );
+      final window = ValueNotifier(const PanelWindow(width: 400, height: 800));
       final keyboard = KeyboardReplacementStrategy(
         ime: ime,
         heights: await KeyboardHeightStore.open(FakeKeyValueStore()),
@@ -140,11 +138,15 @@ void main() {
 
   test('disposing stops following without disposing what it was given', () {
     insets.dispose();
+    // A disposed notifier refuses listeners and assignments, so these would
+    // fail had the aggregate disposed what it was given.
+    var heard = 0;
+    extent.addListener(() => heard++);
+    occupancy.addListener(() => heard++);
     extent.value = 10;
     occupancy.value = const PanelOccupancy(bottom: 5);
 
-    expect(extent.isDisposed, isFalse);
-    expect(occupancy.isDisposed, isFalse);
+    expect(heard, 2);
     expect(insets.bottomPadding.value, ChatViewportInsets.composerSeed);
   });
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
@@ -5,17 +7,20 @@ import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_pages/testing.dart';
 
 void main() {
-  late EventNotifier<PanelCatalogScrollEvent> events;
+  late StreamController<PanelCatalogScrollEvent> events;
   late FakeBakeActivityPort port;
 
   setUp(() {
-    events = EventNotifier<PanelCatalogScrollEvent>();
+    events = StreamController<PanelCatalogScrollEvent>.broadcast(sync: true);
     port = FakeBakeActivityPort();
-    addTearDown(events.dispose);
+    addTearDown(events.close);
   });
 
   CatalogBakeForwarder forward({BakeActivityPort? to}) {
-    final forwarder = CatalogBakeForwarder(events: events, port: to ?? port);
+    final forwarder = CatalogBakeForwarder(
+      events: events.stream,
+      port: to ?? port,
+    );
     addTearDown(forwarder.dispose);
     return forwarder;
   }
@@ -23,7 +28,7 @@ void main() {
   group('motion', () {
     test('tells the baker at once when the catalogue starts moving', () {
       forward();
-      events.publish(const PanelCatalogScrollingChanged(scrolling: true));
+      events.add(const PanelCatalogScrollingChanged(scrolling: true));
 
       expect(port.isScrolling, isTrue);
     });
@@ -31,8 +36,8 @@ void main() {
     test('tells it again when the catalogue rests', () {
       forward();
       events
-        ..publish(const PanelCatalogScrollingChanged(scrolling: true))
-        ..publish(const PanelCatalogScrollingChanged(scrolling: false));
+        ..add(const PanelCatalogScrollingChanged(scrolling: true))
+        ..add(const PanelCatalogScrollingChanged(scrolling: false));
 
       expect(port.isScrolling, isFalse);
     });
@@ -40,8 +45,8 @@ void main() {
     test('does not repeat a report that changes nothing', () {
       forward();
       events
-        ..publish(const PanelCatalogScrollingChanged(scrolling: true))
-        ..publish(const PanelCatalogScrollingChanged(scrolling: true));
+        ..add(const PanelCatalogScrollingChanged(scrolling: true))
+        ..add(const PanelCatalogScrollingChanged(scrolling: true));
 
       expect(port.reports, hasLength(1));
     });
@@ -49,30 +54,32 @@ void main() {
     test('is one reporter, the same for every report', () {
       final forwarder = forward();
       events
-        ..publish(const PanelCatalogScrollingChanged(scrolling: true))
-        ..publish(const PanelCatalogScrollingChanged(scrolling: false));
+        ..add(const PanelCatalogScrollingChanged(scrolling: true))
+        ..add(const PanelCatalogScrollingChanged(scrolling: false));
 
       expect(port.reports.map((report) => report.$1), everyElement(forwarder));
     });
 
     test('keeps a shared baker waiting for the surface that still moves', () {
-      final other = EventNotifier<PanelCatalogScrollEvent>();
-      addTearDown(other.dispose);
+      final other = StreamController<PanelCatalogScrollEvent>.broadcast(
+        sync: true,
+      );
+      addTearDown(other.close);
       forward();
-      CatalogBakeForwarder(events: other, port: port);
-      events.publish(const PanelCatalogScrollingChanged(scrolling: true));
-      other.publish(const PanelCatalogScrollingChanged(scrolling: true));
+      CatalogBakeForwarder(events: other.stream, port: port);
+      events.add(const PanelCatalogScrollingChanged(scrolling: true));
+      other.add(const PanelCatalogScrollingChanged(scrolling: true));
 
-      events.publish(const PanelCatalogScrollingChanged(scrolling: false));
+      events.add(const PanelCatalogScrollingChanged(scrolling: false));
       expect(port.isScrolling, isTrue);
 
-      other.publish(const PanelCatalogScrollingChanged(scrolling: false));
+      other.add(const PanelCatalogScrollingChanged(scrolling: false));
       expect(port.isScrolling, isFalse);
     });
 
     test('is not moved by a near-viewport event', () {
       forward();
-      events.publish(
+      events.add(
         const PanelCatalogSectionNearViewport('s', CatalogSectionEdge.trailing),
       );
 
@@ -84,7 +91,7 @@ void main() {
   group('visible band', () {
     test('asks the baker for the glyphs on screen, top first', () {
       forward();
-      events.publish(
+      events.add(
         PanelCatalogScrollSettled(const [
           ContentKey.unicode('😀'),
           ContentKey.unicode('👍🏽'),
@@ -98,7 +105,7 @@ void main() {
 
     test('leaves out content that is not a unicode glyph', () {
       forward();
-      events.publish(
+      events.add(
         PanelCatalogScrollSettled(const [
           ContentKey.document('5368'),
           ContentKey.unicode('😀'),
@@ -116,7 +123,7 @@ void main() {
     test('tells the old one the surface rests and the new one it moves', () {
       final forwarder = forward();
       final next = FakeBakeActivityPort();
-      events.publish(const PanelCatalogScrollingChanged(scrolling: true));
+      events.add(const PanelCatalogScrollingChanged(scrolling: true));
 
       forwarder.port = next;
 
@@ -136,9 +143,7 @@ void main() {
     test('hands the new baker the band the user is looking at', () {
       final forwarder = forward();
       final next = FakeBakeActivityPort();
-      events.publish(
-        PanelCatalogScrollSettled(const [ContentKey.unicode('😀')]),
-      );
+      events.add(PanelCatalogScrollSettled(const [ContentKey.unicode('😀')]));
 
       forwarder.port = next;
 
@@ -151,8 +156,8 @@ void main() {
       final forwarder = forward();
       final next = FakeBakeActivityPort();
       events
-        ..publish(PanelCatalogScrollSettled(const [ContentKey.unicode('😀')]))
-        ..publish(const PanelCatalogScrollingChanged(scrolling: true));
+        ..add(PanelCatalogScrollSettled(const [ContentKey.unicode('😀')]))
+        ..add(const PanelCatalogScrollingChanged(scrolling: true));
 
       forwarder.port = next;
 
@@ -160,9 +165,9 @@ void main() {
     });
 
     test('works while no baker exists and picks up the one set later', () {
-      final forwarder = CatalogBakeForwarder(events: events);
+      final forwarder = CatalogBakeForwarder(events: events.stream);
       addTearDown(forwarder.dispose);
-      events.publish(const PanelCatalogScrollingChanged(scrolling: true));
+      events.add(const PanelCatalogScrollingChanged(scrolling: true));
 
       forwarder.port = port;
 
@@ -173,7 +178,7 @@ void main() {
   group('dispose', () {
     test('tells the baker the surface is not moving', () {
       final forwarder = forward();
-      events.publish(const PanelCatalogScrollingChanged(scrolling: true));
+      events.add(const PanelCatalogScrollingChanged(scrolling: true));
 
       forwarder.dispose();
 
@@ -182,7 +187,7 @@ void main() {
 
     test('stops forwarding', () {
       forward().dispose();
-      events.publish(const PanelCatalogScrollingChanged(scrolling: true));
+      events.add(const PanelCatalogScrollingChanged(scrolling: true));
 
       expect(port.reports, isEmpty);
     });

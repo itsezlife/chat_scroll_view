@@ -1,18 +1,16 @@
-import 'dart:ui';
+import 'dart:ui' hide VoidCallback;
 
 import 'package:catalog_assets/src/embed/inline_embed.dart';
-import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 
 /// An [InlineEmbed] that records what is done to it and signals when a test
 /// calls [invalidate].
-final class FakeInlineEmbed implements InlineEmbed {
+final class FakeInlineEmbed with ChangeNotifier implements InlineEmbed {
   /// Creates an embed reserving [sizeHint].
   FakeInlineEmbed({this.sizeHint = const Size(18, 18)});
 
   @override
   final Size sizeHint;
-
-  final ObservableNotifier _changes = ObservableNotifier();
 
   @override
   bool visible = true;
@@ -27,15 +25,9 @@ final class FakeInlineEmbed implements InlineEmbed {
   bool get isDisposed => disposals > 0;
 
   /// Signals the listeners that what the embed paints changed.
-  void invalidate() => _changes.notify();
-
-  @override
-  void addListener(ObservableListener listener) =>
-      _changes.addListener(listener);
-
-  @override
-  void removeListener(ObservableListener listener) =>
-      _changes.removeListener(listener);
+  void invalidate() {
+    if (!isDisposed) notifyListeners();
+  }
 
   @override
   void paint(Canvas canvas, Rect rect, InlineEmbedPaintContext context) {
@@ -47,7 +39,7 @@ final class FakeInlineEmbed implements InlineEmbed {
   void dispose() {
     if (isDisposed) return;
     disposals++;
-    _changes.dispose();
+    super.dispose();
   }
 }
 

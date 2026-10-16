@@ -127,7 +127,7 @@ The identity of an interaction: (section id, index, leaf). The cell is the ident
 _Avoid_: Key-only identity, host-owned (section, key) maps
 
 **Catalog snapshot**:
-The immutable list of sections the viewport renders, published through an `Observable` and replaced once per logical mutation.
+The immutable list of sections the viewport renders, published through a `ValueListenable` (`package:listen`) and replaced once per logical mutation, the final snapshot assigned once.
 _Avoid_: Catalog data source with listener channels, streams as the integration contract, fetch inside the viewport
 
 **Section action**:

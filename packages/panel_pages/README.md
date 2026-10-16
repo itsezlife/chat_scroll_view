@@ -37,7 +37,7 @@ data payload, codec or fetcher. Decisions: [ADR 025](../../docs/adr/025-panel-sh
 | `EmojiCategoryStrip`, `EmojiCategories`, `EmojiCategoryTab` | The page's top strip: one tab per category (people folded into smileys), the active tab following the catalogue, a tap landing on the category's first section and staying active after the jump. |
 | `EmojiVariantPicker`, `EmojiVariantSession`, `emojiVariantOptions` | The popup of an emoji's base and variants and the long press that drives it: slide and release, or tap an option (a screen reader's long press has no release). |
 | `EmojiTabIconScope`, `EmojiTabIcons` | The strip's art (bundled webp) registered as `ChromeIcon` painters; decoded once per process. |
-| `GlyphAtlasHost`, `GlyphPlan`, `GlyphAtlasHostFactory`, `GlyphPlanner` | The atlas of a page that shows baked glyphs: what is planned (the glyphs the collections show, chosen variants only, recents last and sorted), replanning behind the old art, density, the panel's visible and opening observables as the bake's pause signals, persistence, residency. |
+| `GlyphAtlasHost`, `GlyphPlan`, `GlyphAtlasHostFactory`, `GlyphPlanner` | The atlas of a page that shows baked glyphs: what is planned (the glyphs the collections show, chosen variants only, recents last and sorted), replanning behind the old art, density, the panel's visible and opening listenables as the bake's pause signals, persistence, residency. |
 | `package:panel_pages/testing.dart` | `FakePanelPageHost`, `FakeBakeActivityPort`, `runBakeActivityPortContract`. Tests only. |
 
 ## Using it

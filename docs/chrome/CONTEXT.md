@@ -73,7 +73,7 @@ Part of the search state: whether the search field should hold focus. The field 
 _Avoid_: Focus node owned by the host, search open as a proxy for focus
 
 **Panel presence**:
-Two Observables the shell publishes for the host's pause signals: panel visible (on screen, including while moving) and panel opening (moving). The presentation controller reports them.
+Two `ValueListenable`s (`package:listen`) the shell publishes for the host's pause signals: panel visible (on screen, including while moving) and panel opening (moving). The presentation controller reports them.
 _Avoid_: A shell that reads its own visibility, pause flags inside pages
 
 **Page controller registry**:
@@ -103,7 +103,7 @@ A pure-Dart `$Mobile` / `$Desktop` strategy owning open triggers, dismissal, siz
 _Avoid_: `_vm` / `_js` forks, switching by last pointer kind
 
 **Occupancy**:
-An Observable of the space a presentation takes (bottom, inline-end). The host aggregates it with composer extent into the viewport padding.
+A `ValueListenable` (`package:listen`) of the space a presentation takes (bottom, inline-end). The host aggregates it with composer extent into the viewport padding.
 _Avoid_: A shared inset service every presentation reports into
 
 **IME input port**:

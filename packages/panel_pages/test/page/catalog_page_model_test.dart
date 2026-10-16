@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
@@ -25,7 +27,7 @@ const _animalsSection = 'CollectionId.set(animals)';
 void main() {
   late FakeCollectionSource source;
   late FakePanelPageHost host;
-  late EventNotifier<PanelCatalogScrollEvent> events;
+  late StreamController<PanelCatalogScrollEvent> events;
   final models = <CatalogPageModel>[];
 
   void disposeModels() {
@@ -54,12 +56,12 @@ void main() {
       ),
     ]);
     host = FakePanelPageHost();
-    events = EventNotifier<PanelCatalogScrollEvent>();
+    events = StreamController<PanelCatalogScrollEvent>.broadcast(sync: true);
     addTearDown(() {
       disposeModels();
       source.dispose();
       host.dispose();
-      events.dispose();
+      unawaited(events.close());
     });
   });
 
@@ -74,7 +76,7 @@ void main() {
       policy: policy,
       strings: _strings,
       host: host,
-      events: events,
+      events: events.stream,
     );
     models.add(model);
     return model;
@@ -85,7 +87,7 @@ void main() {
   };
 
   void near(String section, CatalogSectionEdge edge) =>
-      events.publish(PanelCatalogSectionNearViewport(section, edge));
+      events.add(PanelCatalogSectionNearViewport(section, edge));
 
   group('the catalogue it shows', () {
     test('holds one section per collection, loading until announced', () {
@@ -234,8 +236,8 @@ void main() {
 
         near('missing', CatalogSectionEdge.leading);
         events
-          ..publish(const PanelCatalogUserDragStart())
-          ..publish(const PanelCatalogScrollingChanged(scrolling: true));
+          ..add(const PanelCatalogUserDragStart())
+          ..add(const PanelCatalogScrollingChanged(scrolling: true));
         await pumpEventQueue();
 
         expect(
@@ -300,7 +302,7 @@ void main() {
       );
     });
 
-    test('keeps the viewport on the same snapshot observable', () {
+    test('keeps the viewport on the same snapshot listenable', () {
       final model = build();
       final snapshots = model.snapshots;
       final next = other();

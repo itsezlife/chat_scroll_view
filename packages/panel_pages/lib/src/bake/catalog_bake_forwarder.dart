@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:content_model/content_model.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/bake/bake_activity_port.dart';
@@ -30,14 +32,13 @@ final class CatalogBakeForwarder {
   /// Starts forwarding [events] to [port], which may be null while no baker
   /// exists.
   CatalogBakeForwarder({
-    required EventObservable<PanelCatalogScrollEvent> events,
+    required Stream<PanelCatalogScrollEvent> events,
     BakeActivityPort? port,
-  }) : _events = events,
-       _port = port {
-    _events.addListener(_onEvent);
+  }) : _port = port {
+    _subscription = events.listen(_onEvent);
   }
 
-  final EventObservable<PanelCatalogScrollEvent> _events;
+  late final StreamSubscription<PanelCatalogScrollEvent> _subscription;
   BakeActivityPort? _port;
   var _scrolling = false;
   List<String>? _settled;
@@ -59,7 +60,7 @@ final class CatalogBakeForwarder {
   /// Stops forwarding and tells the baker the surface is not moving.
   void dispose() {
     if (_disposed) return;
-    _events.removeListener(_onEvent);
+    unawaited(_subscription.cancel());
     if (_scrolling) {
       _port?.reportScrolling(reporter: this, scrolling: false);
     }

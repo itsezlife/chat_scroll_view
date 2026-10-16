@@ -1,12 +1,12 @@
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
-import 'package:chat_scroll_view_example/src/common/widgets/value_observable_builder.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/listen_value_builder.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
-import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -36,7 +36,7 @@ final class PanelHarness {
   final PanelShellController _shell;
   final KeyboardReplacementStrategy _keyboard;
   final ImeInput _ime;
-  final ObservableValue<PanelWindow> _window;
+  final listen.ValueNotifier<PanelWindow> _window;
   final SchedulerBakeFrameSource _frames;
 
   /// The height the bare panel opens at: a stored keyboard height, as a device
@@ -62,7 +62,7 @@ final class PanelHarness {
     );
     final view = tester.view;
     final size = view.physicalSize / view.devicePixelRatio;
-    final window = ObservableValue<PanelWindow>(
+    final window = listen.ValueNotifier<PanelWindow>(
       PanelWindow(width: size.width, height: size.height),
     );
     final ime = ImeInput();
@@ -110,8 +110,8 @@ final class PanelHarness {
         home: Scaffold(
           body: Align(
             alignment: Alignment.bottomCenter,
-            child: ValueObservableBuilder<PanelOccupancy>(
-              observable: presentation.occupancy,
+            child: ListenValueBuilder<PanelOccupancy>(
+              listenable: presentation.occupancy,
               builder: (context, occupancy) =>
                   SizedBox(height: occupancy.bottom, child: panel),
             ),

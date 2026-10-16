@@ -1,4 +1,4 @@
-import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 import 'package:panel_presentation/src/ime/ime_sample.dart';
 
 /// The **IME input port**: the one place raw soft-keyboard samples enter the
@@ -12,7 +12,7 @@ abstract interface class ImeInputPort {
   /// The latest sample; [ImeSample.hidden] before the first report.
   ///
   /// Signals once per report that differs from the previous one.
-  ValueObservable<ImeSample> get samples;
+  ValueListenable<ImeSample> get samples;
 
   /// Feeds a raw reading in. Ignored after [dispose].
   void report(ImeSample sample);
@@ -23,17 +23,22 @@ abstract interface class ImeInputPort {
 
 /// The port a host creates and feeds.
 final class ImeInput implements ImeInputPort {
-  final _samples = ObservableValue<ImeSample>(ImeSample.hidden);
+  final _samples = ValueNotifier<ImeSample>(ImeSample.hidden);
+  var _disposed = false;
 
   @override
-  ValueObservable<ImeSample> get samples => _samples;
+  ValueListenable<ImeSample> get samples => _samples;
 
   @override
   void report(ImeSample sample) {
-    if (_samples.isDisposed) return;
+    if (_disposed) return;
     _samples.value = sample;
   }
 
   @override
-  void dispose() => _samples.dispose();
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _samples.dispose();
+  }
 }

@@ -5,6 +5,7 @@ import 'package:emoji_data/src/catalog/emoji_catalog.dart';
 import 'package:emoji_data/src/collections/emoji_items.dart';
 import 'package:emoji_data/src/collections/emoji_spoken_names.dart';
 import 'package:emoji_data/src/search/keyword_index.dart';
+import 'package:listen/listen.dart';
 
 /// Emoji search as a [SearchSource]: a query over the keywords of an ordered
 /// set of languages, merged into one ranked, paged results collection.
@@ -86,7 +87,7 @@ final class EmojiSearchSource implements SearchSource {
   final int? _pageSize;
   final EmojiItems _items;
 
-  final ObservableValue<Collection> _results = ObservableValue(
+  final ValueNotifier<Collection> _results = ValueNotifier(
     const Collection(id: CollectionId.query('')),
   );
   final Expando<KeywordIndex> _indexes = Expando('KeywordIndex');
@@ -101,7 +102,7 @@ final class EmojiSearchSource implements SearchSource {
   bool _disposed = false;
 
   @override
-  ValueObservable<Collection> get results => _results;
+  ValueListenable<Collection> get results => _results;
 
   @override
   Future<void> search(String query) async {

@@ -14,10 +14,10 @@
 import 'dart:async';
 
 import 'package:catalog_assets/catalog_assets.dart';
-import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show SemanticsNode;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
@@ -44,7 +44,7 @@ void _benchWidgets(String description, WidgetTesterCallback callback) =>
 // ---------------------------------------------------------------------------
 
 Widget _candidateApp({
-  required ValueObservable<CatalogSnapshot> snapshots,
+  required listen.ValueListenable<CatalogSnapshot> snapshots,
   required AssetCacheScope assets,
   required PanelCatalogController controller,
   double width = 400,

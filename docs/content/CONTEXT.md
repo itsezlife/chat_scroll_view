@@ -125,6 +125,6 @@ _Avoid_: Native glyph-support plugin, OS version string as the art signal
 Async, namespaced, versioned persistence seam. Adapters are host-chosen; factories return loaded stores.
 _Avoid_: `shared_preferences` in logic packages, unloaded stores
 
-**Observable**:
-The one synchronous change-notification primitive of the pure-Dart packages: dedup on add, snapshot dispatch, one notification per logical mutation.
-_Avoid_: Streams, `Listenable` in the leaf, hand-rolled listener lists
+**Listenable**:
+The change-notification primitive of the pure-Dart packages is [`Listenable` / `ValueListenable` from `package:listen`](https://pub.dev/documentation/listen/latest/listen/Listenable-class.html) (owners: `ChangeNotifier`, `ValueNotifier`); this repository defines none of its own. Seams expose it; typed events (things that happen, not state that is) are synchronous broadcast `Stream`s. The host sets `Listenable.onError`; the packages never do ([ADR 023](../adr/023-data-layering-and-persistence.md), amendment).
+_Avoid_: A repository-owned observable type, Flutter's `Listenable` in the leaf, hand-rolled listener lists, assuming a listener is deduplicated or that a disposed notifier is silent

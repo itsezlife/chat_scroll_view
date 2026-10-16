@@ -55,21 +55,6 @@ void main() {
       expect(source.value.sections.single.leaves, hasLength(3));
     });
 
-    test('a batch of replacements notifies once with the last snapshot', () {
-      var calls = 0;
-      source.addListener(() => calls++);
-
-      source.batch(() {
-        source
-          ..replaceSections([_section('a', 1)])
-          ..replaceSections([_section('b', 1)])
-          ..replaceSections([_section('c', 1)]);
-      });
-
-      expect(calls, 1);
-      expect(source.value.sections.single.id, 'c');
-    });
-
     test('a listener may add and remove listeners while it runs', () {
       final order = <String>[];
       void late() => order.add('late');

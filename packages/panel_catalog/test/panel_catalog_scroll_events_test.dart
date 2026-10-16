@@ -4,7 +4,7 @@
 ///
 /// **Seam:** [PanelCatalogViewport] driven with a
 /// [FakeCatalogSnapshotSource]; observed only through the controller's
-/// public `events` Observable, `offset` and flags, and the futures its
+/// public `events` stream, `offset` and flags, and the futures its
 /// commands return.
 library;
 
@@ -15,6 +15,7 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
 
@@ -42,7 +43,7 @@ int _firstVisibleLeaf(double offset) =>
     (((offset - 24) / 40).ceil() - 1).clamp(0, 1 << 20) * _span;
 
 Widget _app({
-  required ValueObservable<CatalogSnapshot> snapshots,
+  required listen.ValueListenable<CatalogSnapshot> snapshots,
   required PanelCatalogController controller,
   AssetCacheScope? assets,
   void Function(CatalogLeafHit)? onLeafTap,
@@ -78,7 +79,7 @@ void main() {
     snapshots = FakeCatalogSnapshotSource();
     controller = PanelCatalogController();
     events = [];
-    controller.events.addListener(events.add);
+    controller.events.listen(events.add);
   });
   tearDown(() {
     snapshots.dispose();
@@ -423,19 +424,17 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('a batch of snapshots relayouts to the last one', (
+    testWidgets('snapshots published within one frame relayout to the last', (
       tester,
     ) async {
       snapshots.replaceSections([_section('a', 300)]);
       await pumpViewport(tester);
       events.clear();
 
-      snapshots.batch(() {
-        snapshots
-          ..replaceSections([_section('b', 8)])
-          ..replaceSections([_section('c', 8)])
-          ..replaceSections([_section('d', 100, from: 10)]);
-      });
+      snapshots
+        ..replaceSections([_section('b', 8)])
+        ..replaceSections([_section('c', 8)])
+        ..replaceSections([_section('d', 100, from: 10)]);
       await tester.pump();
 
       expect(lastSettledKeys().first, _key(10));
@@ -448,12 +447,9 @@ void main() {
       snapshots.replaceSections([_section('a', 300)]);
       await pumpViewport(tester);
       var late = 0;
-      void lateListener(PanelCatalogScrollEvent _) => late++;
-      void remover(PanelCatalogScrollEvent _) =>
-          controller.events.removeListener(lateListener);
-      controller.events
-        ..addListener(remover)
-        ..addListener(lateListener);
+      late StreamSubscription<PanelCatalogScrollEvent> lateSubscription;
+      controller.events.listen((_) => unawaited(lateSubscription.cancel()));
+      lateSubscription = controller.events.listen((_) => late++);
 
       controller.jumpTo(50);
 

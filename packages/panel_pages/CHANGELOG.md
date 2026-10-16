@@ -6,6 +6,17 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Change notification is `package:listen` (`listen: ^1.0.1`), not
+  `content_model`'s removed `Observable` family: `CatalogStripHandle.entries`,
+  `GlyphAtlasHost.atlas` and the presence inputs are `ValueListenable`s (the
+  `package:listen` type, not Flutter's), `CatalogStripHandle.scrollEvents` is a
+  `Stream<PanelCatalogScrollEvent>`, and the scroll reporter, bake forwarder
+  and page model subscribe to the catalogue's event stream and cancel in
+  `dispose`. `FakePanelPageHost` is a `ChangeNotifier` whose `dispose` stays
+  idempotent.
+
 ### Fixed
 
 - The category strip slides a tab into view on the `fade` motion role (and lands

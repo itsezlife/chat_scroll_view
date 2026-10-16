@@ -3,7 +3,7 @@
 ///
 /// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogSnapshotSource]
 /// and a text-glyph scope, observed only through the controller's public
-/// `events` Observable and the commands that move the catalogue.
+/// `events` stream and the commands that move the catalogue.
 ///
 /// Geometry: six sections `a`..`f` of 20 leaves each, 4 columns of 40 px cells
 /// under a 24 px header, so each is 224 tall (tops 0, 224, ... 1120) in a
@@ -50,7 +50,7 @@ void main() {
     snapshots = FakeCatalogSnapshotSource();
     controller = PanelCatalogController();
     events = [];
-    controller.events.addListener(events.add);
+    controller.events.listen(events.add);
   });
   tearDown(() {
     snapshots.dispose();

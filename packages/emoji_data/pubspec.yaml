@@ -10,6 +10,7 @@ environment:
   sdk: ^3.11.0
 
 dependencies:
+  listen: ^1.0.1
   meta: ^1.17.0
   content_model:
     path: ../content_model

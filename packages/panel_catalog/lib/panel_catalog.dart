@@ -5,7 +5,7 @@
 /// or asset fetch/decode (the host's `AssetCacheScope` from `catalog_assets`).
 ///
 /// Primary host types: [PanelCatalogViewport], [CatalogSnapshot] (published
-/// through a `ValueObservable` from `content_model`),
+/// through a `ValueListenable` from `package:listen`),
 /// [PanelCatalogController] ([jumpTo], [scrollBy],
 /// [PanelCatalogController.jumpToSection], [PanelCatalogController.events],
 /// roving focus: [PanelCatalogController.moveFocus] with [CatalogFocusMove]),

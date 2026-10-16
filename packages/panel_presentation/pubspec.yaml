@@ -20,6 +20,7 @@ dependencies:
     path: ../content_model
   flutter:
     sdk: flutter
+  listen: ^1.0.1
   meta: ^1.17.0
   panel_shell:
     path: ../panel_shell

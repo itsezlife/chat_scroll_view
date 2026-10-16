@@ -19,7 +19,8 @@ Terms: [Chat chrome](chrome/CONTEXT.md), [Content and Assets](content/CONTEXT.md
 ```yaml
 dependencies:
   chrome_foundation:      # theme, motion, strings, icons, glass
-  content_model:          # keys, collections, Observable, stores, RichText
+  content_model:          # keys, collections, stores, RichText
+  listen:                 # Listenable, ValueListenable, ChangeNotifier, ValueNotifier (pub.dev)
   catalog_assets:         # asset cache, glyph atlas
   emoji_data:             # emoji sources, glyph probe
   emoji_catalog_pack:     # bundled emoji assets (declare it so Flutter bundles them)
@@ -29,6 +30,11 @@ dependencies:
   panel_presentation:     # keyboard replacement, popup, dock, occupancy
   chat_composer:          # composer view and controllers
 ```
+
+`listen` is the pure-Dart package behind every change signal in the seams and
+controllers (the same `Listenable` family as `package:flutter/foundation`,
+standalone). Depend on it to name its types or to own a notifier; no package
+re-exports it.
 
 `panel_catalog` arrives through `panel_pages`; depend on it directly only to
 name its types (the controller's events, `CatalogSnapshot`). Nothing re-exports
@@ -50,6 +56,8 @@ the host (not a panel package) reads payloads and hands data in.
 Create these once, in this order. Each step needs only what the steps above it
 made. Whoever creates an object disposes it, in the reverse order.
 
+0. **Listener errors.** Before anything notifies, set `Listenable.onError`
+   from `package:listen` (see below). The packages never set it.
 1. **Key-value adapter.** `await SharedPreferencesKeyValueStore.open()`.
 2. **Stores, loaded.** `KeyValueRecentsStore.load` and
    `KeyValuePreferenceStore.load` (one namespace per package, each awaited once
@@ -90,6 +98,34 @@ final emojiSearch = EmojiSearchSource(
   preferences: preferences,
 );
 ```
+
+**`Listenable.onError` is yours to set.** A listener that throws during a
+notification is reported to this one static hook, whose default rethrows: the
+notification stops at that listener, the others are never called, and the
+notifier is left mid-dispatch. Set it once at startup to report and not
+rethrow, so one faulty listener cannot starve the rest or interrupt the code
+that changed the state. The reference host routes it to
+`FlutterError.reportError` (`reportListenerErrors`, installed by `bootApp`).
+The same hook receives the debug assertions `package:listen` adds for a
+notifier used after `dispose`. Typed events (the panel event, scroll events)
+are `Stream`s instead, where a throwing listener is reported to the zone and
+the others still run.
+
+Other differences from the homemade primitive this repository used to have,
+all in the seams' and controllers' dartdoc and in
+[ADR 023](adr/023-data-layering-and-persistence.md):
+
+- A listener added twice is called twice and must be removed twice.
+- After `dispose`, `addListener` and a signal assert in debug builds
+  (`removeListener` is always allowed). Dispose an owner once, outside its own
+  listeners.
+- A `package:listen` `Listenable` is not Flutter's: `ListenableBuilder`, a
+  `Listenable.merge` of Flutter and `AnimatedBuilder` do not accept it. Read
+  one in the widget tree with a small builder over `addListener` (the
+  reference host has `ListenValueBuilder`) or adapt it (`ListenableBridge`).
+  A file that imports Flutter imports `package:listen/listen.dart as listen`.
+- There is no batching: a mutation that changes several things assigns the
+  final value once.
 
 The package set has no content resolver consumer in an emoji-only host: unicode
 keys resolve to glyphs without one. Supply a `ContentResolver` (to the
@@ -140,7 +176,8 @@ ancestor.
 A chat screen creates these when it opens and disposes them when it closes.
 Creation order:
 
-1. `ImeInput` (the keyboard port) and an `ObservableValue<PanelWindow>`.
+1. `ImeInput` (the keyboard port) and a `ValueNotifier<PanelWindow>` (from
+   `package:listen`).
 2. `ComposerTextController(inlineContentBuilder: contentSpanBuilder(scope: assets))`
    and `ComposerController(text: ...)`.
 3. The strategies: `KeyboardReplacementStrategy(ime:, heights:, window:)`,
@@ -200,8 +237,13 @@ void onPanelEvent(PanelEvent event) {
   }
 }
 
-shell.events.addListener(onPanelEvent);
+final panelEvents = shell.events.listen(onPanelEvent); // cancel with the screen
 ```
+
+`events` is a synchronous broadcast `Stream`. A handler may answer an event by
+calling the shell (selecting a page, closing search): the events that causes
+are delivered after the one being handled has reached every listener, before
+the call returns. Cancel the subscription when the chat screen goes away.
 
 `record` ignores `PickSource.search`; the host decides that a pick counts.
 
@@ -317,7 +359,7 @@ from the keyword pack (`EmojiKeywordPack`) and puts them on its descriptors.
 **Baked glyphs.** On platforms that bake, pass `EmojiPage.atlasHostFactory`: a
 function that builds a `GlyphAtlasHost` from the parts only the host has (a
 `BakeFrameSource` such as `SchedulerBakeFrameSource(view:)`, the page's
-`devicePixelRatio`, `glyphBoxExtent`, `visible` and `opening` observables,
+`devicePixelRatio`, `glyphBoxExtent`, `visible` and `opening` listenables,
 memory pressure, optional `GlyphAtlasPersistence` and glyph probe observer).
 The page plans the atlas from its collections, registers it on the shared
 `assets` scope while mounted, and clears it after. Without a factory (the web)
@@ -384,7 +426,8 @@ Animated content stops playing while any layer is set.
 | `PanelShellController`, `PanelPresentationController`, the strategies, `ImeInput` | Chat screen | Chat screen | Chat screen |
 | Page controllers (catalogue offset, atlas host) | The shell's registry | Chat screen | The shell controller |
 | `ComposerSpec`, the page list | Host, rebuilt from chat state | Chat screen | Host |
-| Panel event handler, inset aggregation | Host | Chat screen | Host |
+| Panel event handler (a subscription to the shell's `events`), inset aggregation | Host | Chat screen | Host (cancel the subscription) |
+| `Listenable.onError` | Host | App | Never reset |
 
 The creator disposes. A package never disposes what it was handed; where a
 class creates a part itself (the composer's default focus node, the shell's
@@ -440,6 +483,7 @@ toggle region.
 | Step | File |
 | --- | --- |
 | Composition root, disposal | `example/lib/src/app/app_services.dart` |
+| `Listenable.onError` policy, installed at boot | `example/lib/src/app/listener_errors.dart`, `example/lib/src/app/boot.dart` |
 | App scopes | `example/lib/src/app/app_chrome.dart` |
 | Per-chat controller set, event handler, back, hand-off | `example/lib/src/features/chat/input/chat_input_set.dart` |
 | Emoji page composition (atlas host factory, planner) | `example/lib/src/features/chat/input/emoji_panel_page.dart` |

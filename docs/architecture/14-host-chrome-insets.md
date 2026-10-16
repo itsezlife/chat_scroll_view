@@ -34,7 +34,7 @@ only the overlay header’s occupancy (often `progress × barHeight`).
 `composerExtent` is the height the composer publishes as data, **including**
 its own bottom safe-area pad, **excluding** the panel and the keyboard. The
 composer imports no inset types ([ADR 026](../adr/026-composer-model.md)).
-`panelOccupancy` is the `Observable` the active panel presentation publishes
+`panelOccupancy` is the `ValueListenable` (`package:listen`) the active panel presentation publishes
 ([ADR 028](../adr/028-panel-presentation.md)): for a keyboard-replacement
 presentation `bottom` is the animated `max(IME, panel)` and already contains
 the live IME height; an anchored popup publishes zero; a docked section
@@ -45,13 +45,13 @@ presentation currently shown and never adds IME height a second time.
 
 The reference host (`example/`) keeps the aggregation in one small object,
 `ChatViewportInsets`, created with the chat screen's controller set and
-disposed with it. It is handed the two observables and follows them; it owns
+disposed with it. It is handed the two listenables and follows them; it owns
 neither:
 
 | Input | Role |
 |-------|------|
-| The composer's extent observable | Frame-by-frame height of the composer, own safe pad included. Until the first publication the aggregation uses a seed so the first frame is not zero. |
-| The presentation's `occupancy` observable | `bottom` in the sum above, `inlineEnd` as the width the host takes from the chat region. |
+| The composer's extent `ValueListenable` | Frame-by-frame height of the composer, own safe pad included. Until the first publication the aggregation uses a seed so the first frame is not zero. |
+| The presentation's `occupancy` `ValueListenable` | `bottom` in the sum above, `inlineEnd` as the width the host takes from the chat region. |
 
 | Output | Consumer |
 |--------|----------|

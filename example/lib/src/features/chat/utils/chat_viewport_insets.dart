@@ -1,5 +1,5 @@
-import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
 
 /// Aggregates host chrome into the reserved insets a chat viewport consumes
@@ -22,8 +22,8 @@ import 'package:panel_presentation/panel_presentation.dart';
 final class ChatViewportInsets {
   /// Aggregates [composerExtent] and [occupancy] into the reserved insets.
   ChatViewportInsets({
-    required ValueObservable<double> composerExtent,
-    required ValueObservable<PanelOccupancy> occupancy,
+    required listen.ValueListenable<double> composerExtent,
+    required listen.ValueListenable<PanelOccupancy> occupancy,
     double safeTop = 0,
   }) : _composerExtent = composerExtent,
        _occupancy = occupancy,
@@ -43,8 +43,8 @@ final class ChatViewportInsets {
   /// published its first extent, so the first frame is not zero.
   static const double composerSeed = 96;
 
-  final ValueObservable<double> _composerExtent;
-  final ValueObservable<PanelOccupancy> _occupancy;
+  final listen.ValueListenable<double> _composerExtent;
+  final listen.ValueListenable<PanelOccupancy> _occupancy;
   double _safeTop;
   double _searchReserve = 0;
   var _disposed = false;

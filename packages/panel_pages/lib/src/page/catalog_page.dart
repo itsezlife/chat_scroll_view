@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/bake/bake_activity_port.dart';
 import 'package:panel_pages/src/bake/catalog_bake_forwarder.dart';
@@ -107,6 +110,7 @@ class _CatalogPageState extends State<CatalogPage> {
   late final CatalogPageModel _model;
   late final PageScrollReporter _reporter;
   late final CatalogBakeForwarder _forwarder;
+  late final StreamSubscription<PanelCatalogScrollEvent> _catalogEvents;
   late final _StripHandle _strip;
   CatalogLongPressSession? _longPress;
   var _showsResults = false;
@@ -131,7 +135,7 @@ class _CatalogPageState extends State<CatalogPage> {
       events: _catalog.events,
       port: widget.bake,
     );
-    _catalog.events.addListener(_onCatalogEvent);
+    _catalogEvents = _catalog.events.listen(_onCatalogEvent);
     _host.reselected.addListener(_onReselected);
     _host.isActive.addListener(_onActiveChanged);
   }
@@ -175,7 +179,7 @@ class _CatalogPageState extends State<CatalogPage> {
 
   @override
   void dispose() {
-    _catalog.events.removeListener(_onCatalogEvent);
+    unawaited(_catalogEvents.cancel());
     _host.isActive.removeListener(_onActiveChanged);
     _host.reselected.removeListener(_onReselected);
     _model.showsResults.removeListener(_onShowsResultsChanged);
@@ -325,10 +329,11 @@ final class _StripHandle implements CatalogStripHandle {
   final PanelCatalogController _catalog;
 
   @override
-  ValueObservable<List<CatalogStripEntry>> get entries => _model.stripEntries;
+  listen.ValueListenable<List<CatalogStripEntry>> get entries =>
+      _model.stripEntries;
 
   @override
-  EventObservable<PanelCatalogScrollEvent> get scrollEvents => _catalog.events;
+  Stream<PanelCatalogScrollEvent> get scrollEvents => _catalog.events;
 
   @override
   String? get currentSectionId => _catalog.currentSection?.sectionId;

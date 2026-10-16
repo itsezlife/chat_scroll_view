@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
@@ -63,7 +64,7 @@ final class CatalogPageModel {
     required CatalogPagePolicy policy,
     required PanelStrings strings,
     required PanelPageHost host,
-    required EventObservable<PanelCatalogScrollEvent> events,
+    required Stream<PanelCatalogScrollEvent> events,
     SearchSource? searchSource,
     Duration searchDebounce = DebouncedSearch.defaultDebounce,
   }) : _source = source,
@@ -71,7 +72,6 @@ final class CatalogPageModel {
        _policy = policy,
        _strings = strings,
        _host = host,
-       _events = events,
        _builder = CatalogSnapshotBuilder(policy: policy) {
     _debounced = DebouncedSearch<void>(
       search: (query) => _searchSource?.search(query) ?? Future<void>.value(),
@@ -83,18 +83,18 @@ final class CatalogPageModel {
     _source.collections.addListener(_onSourceChanged);
     _searchSource?.results.addListener(_onResultsChanged);
     _host.search.addListener(_onSearchState);
-    _events.addListener(_onEvent);
+    _eventSubscription = events.listen(_onEvent);
     _syncSearchState();
-    _snapshots = ObservableValue(_build());
+    _snapshots = ValueNotifier(_build());
   }
 
   final PanelPageHost _host;
-  final EventObservable<PanelCatalogScrollEvent> _events;
+  late final StreamSubscription<PanelCatalogScrollEvent> _eventSubscription;
   final CatalogSnapshotBuilder _builder;
   late final DebouncedSearch<void> _debounced;
-  late final ObservableValue<CatalogSnapshot> _snapshots;
-  final _showsResults = ObservableValue<bool>(false);
-  final _entries = ObservableValue<List<CatalogStripEntry>>(const []);
+  late final ValueNotifier<CatalogSnapshot> _snapshots;
+  final _showsResults = ValueNotifier<bool>(false);
+  final _entries = ValueNotifier<List<CatalogStripEntry>>(const []);
 
   CollectionSource _source;
   SearchSource? _searchSource;
@@ -106,14 +106,14 @@ final class CatalogPageModel {
   var _disposed = false;
 
   /// What the viewport shows. A new snapshot per change, never an edit.
-  ValueObservable<CatalogSnapshot> get snapshots => _snapshots;
+  ValueListenable<CatalogSnapshot> get snapshots => _snapshots;
 
   /// Whether the catalogue shows search results rather than the collections.
-  ValueObservable<bool> get showsResults => _showsResults;
+  ValueListenable<bool> get showsResults => _showsResults;
 
   /// The sections being browsed, for the page's top strip. Empty while search
   /// results are shown.
-  ValueObservable<List<CatalogStripEntry>> get stripEntries => _entries;
+  ValueListenable<List<CatalogStripEntry>> get stripEntries => _entries;
 
   /// The collection behind section [sectionId] of the current catalogue, or
   /// null.
@@ -301,7 +301,7 @@ final class CatalogPageModel {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _events.removeListener(_onEvent);
+    unawaited(_eventSubscription.cancel());
     _host.search.removeListener(_onSearchState);
     _source.collections.removeListener(_onSourceChanged);
     _searchSource?.results.removeListener(_onResultsChanged);

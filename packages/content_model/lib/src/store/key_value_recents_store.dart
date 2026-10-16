@@ -4,10 +4,9 @@ import 'package:content_model/src/data/key_value_store.dart';
 import 'package:content_model/src/data/recents_store.dart';
 import 'package:content_model/src/identity/content_descriptor.dart';
 import 'package:content_model/src/identity/content_key.dart';
-import 'package:content_model/src/observable/observable.dart';
-import 'package:content_model/src/observable/observable_notifier.dart';
 import 'package:content_model/src/store/recents_ledger.dart';
 import 'package:content_model/src/store/store_name.dart';
+import 'package:listen/listen.dart';
 
 /// The reference [RecentsStore]: ranks picks in memory and persists them
 /// through a [KeyValueStore].
@@ -44,7 +43,7 @@ import 'package:content_model/src/store/store_name.dart';
 /// completes when the write has (and fails if it failed, keeping the
 /// in-memory change, as the contract says). A later successful write persists
 /// the whole record again, so a lost write is repaired by the next one.
-final class KeyValueRecentsStore implements RecentsStore {
+final class KeyValueRecentsStore with ChangeNotifier implements RecentsStore {
   KeyValueRecentsStore._(
     this._storage,
     this._namespace,
@@ -89,10 +88,10 @@ final class KeyValueRecentsStore implements RecentsStore {
   final String _namespace;
   final RecentsLedger _ledger;
   final DateTime Function() _clock;
-  final _changes = ObservableNotifier();
+  var _disposed = false;
 
   @override
-  Observable get changes => _changes;
+  Listenable get changes => this;
 
   @override
   List<ContentKey> recents(SemanticKind kind) => _ledger.keysOf(kind);
@@ -103,23 +102,28 @@ final class KeyValueRecentsStore implements RecentsStore {
     required SemanticKind kind,
     PickSource source = PickSource.collection,
   }) async {
-    if (_changes.isDisposed || source == PickSource.search) return;
+    if (_disposed || source == PickSource.search) return;
     _ledger.record(kind, key, now: _clock().millisecondsSinceEpoch);
-    _changes.notify();
+    notifyListeners();
     await _persist(kind);
   }
 
   @override
   Future<void> clear({SemanticKind? kind}) async {
-    if (_changes.isDisposed) return;
+    if (_disposed) return;
     final cleared = _ledger.clear(kind: kind);
     if (cleared.isEmpty) return;
-    _changes.notify();
+    notifyListeners();
     await Future.wait([for (final kind in cleared) _persist(kind)]);
   }
 
+  // Idempotent: ChangeNotifier asserts on a second dispose, the seam does not.
   @override
-  void dispose() => _changes.dispose();
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    super.dispose();
+  }
 
   // Reads the ledger after the signal, so a listener that picks again inside
   // it is written once with the final state rather than overtaken.

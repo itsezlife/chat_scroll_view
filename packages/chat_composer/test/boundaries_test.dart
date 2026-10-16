@@ -16,6 +16,7 @@ void main() {
       'content_model',
       'characters',
       'flutter',
+      'listen',
       'meta',
     };
     final pattern = RegExp('''^(?:import|export) 'package:([a-z_]+)/''');

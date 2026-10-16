@@ -1,6 +1,7 @@
 import 'package:content_model/content_model.dart';
 import 'package:content_model/src/testing/fake_gate.dart';
 import 'package:content_model/src/testing/fake_pages.dart';
+import 'package:listen/listen.dart';
 
 /// An in-memory [SearchSource] for tests, serving scripted pages per query.
 ///
@@ -13,9 +14,7 @@ final class FakeSearchSource implements SearchSource {
 
   final Map<String, FakePages> _results;
   final _gate = FakeGate();
-  final _current = ObservableValue(
-    const Collection(id: CollectionId.query('')),
-  );
+  final _current = ValueNotifier(const Collection(id: CollectionId.query('')));
   var _generation = 0;
   var _paging = false;
   var _disposed = false;
@@ -33,7 +32,7 @@ final class FakeSearchSource implements SearchSource {
   void resume() => _gate.resume();
 
   @override
-  ValueObservable<Collection> get results => _current;
+  ValueListenable<Collection> get results => _current;
 
   @override
   Future<void> search(String query) async {
@@ -79,6 +78,7 @@ final class FakeSearchSource implements SearchSource {
 
   @override
   void dispose() {
+    if (_disposed) return;
     _disposed = true;
     _current.dispose();
   }

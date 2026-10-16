@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:content_model/content_model.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
@@ -33,26 +35,25 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// Nothing here holds a timer. The only pending work is one post-frame
 /// callback while the catalogue moves, and none when it rests.
 final class CatalogBakeActivity {
-  /// Creates the reporter. It listens to [events] and publishes through
+  /// Creates the reporter. It subscribes to [events] and publishes through
   /// [publish], which must deliver to the same stream.
   ///
   /// [isAnimating] says whether the viewport is mid-fling or mid-jump;
   /// [visibleKeys] lists the leaves on screen, top first.
   CatalogBakeActivity({
-    required EventObservable<PanelCatalogScrollEvent> events,
+    required Stream<PanelCatalogScrollEvent> events,
     required void Function(PanelCatalogScrollEvent event) publish,
     required bool Function() isAnimating,
     required List<ContentKey> Function() visibleKeys,
     SchedulerBinding? binding,
-  }) : _events = events,
-       _publish = publish,
+  }) : _publish = publish,
        _isAnimating = isAnimating,
        _visibleKeys = visibleKeys,
        _binding = binding ?? SchedulerBinding.instance {
-    _events.addListener(_onEvent);
+    _subscription = events.listen(_onEvent);
   }
 
-  final EventObservable<PanelCatalogScrollEvent> _events;
+  late final StreamSubscription<PanelCatalogScrollEvent> _subscription;
   final void Function(PanelCatalogScrollEvent event) _publish;
   final bool Function() _isAnimating;
   final List<ContentKey> Function() _visibleKeys;
@@ -86,7 +87,7 @@ final class CatalogBakeActivity {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _events.removeListener(_onEvent);
+    unawaited(_subscription.cancel());
     _setMoving(moving: false);
   }
 

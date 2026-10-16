@@ -1,13 +1,14 @@
 import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 
 /// An in-memory [GlyphSupport] for tests: draws everything until a test says
 /// otherwise.
 ///
 /// Follows the whole seam contract. [learn] plays the part of a probe
 /// finishing a step.
-final class FakeGlyphSupport implements GlyphSupport {
+final class FakeGlyphSupport with ChangeNotifier implements GlyphSupport {
   final _missing = <ContentKey$Unicode>{};
-  final _changes = ObservableNotifier();
+  var _disposed = false;
   String? _artVersion;
 
   /// Establishes, in one step and one signal, that the [missing] keys are not
@@ -15,17 +16,17 @@ final class FakeGlyphSupport implements GlyphSupport {
   ///
   /// A step that teaches nothing new signals nothing.
   void learn({Set<ContentKey$Unicode> missing = const {}, String? artVersion}) {
-    if (_changes.isDisposed) return;
+    if (_disposed) return;
     final newlyMissing = missing.difference(_missing);
     final versionChanged = artVersion != null && artVersion != _artVersion;
     if (newlyMissing.isEmpty && !versionChanged) return;
     _missing.addAll(newlyMissing);
     if (versionChanged) _artVersion = artVersion;
-    _changes.notify();
+    notifyListeners();
   }
 
   @override
-  Observable get changes => _changes;
+  Listenable get changes => this;
 
   @override
   String? get artVersion => _artVersion;
@@ -33,6 +34,11 @@ final class FakeGlyphSupport implements GlyphSupport {
   @override
   bool supports(ContentKey$Unicode key) => !_missing.contains(key);
 
+  // Idempotent: ChangeNotifier asserts on a second dispose, the seam does not.
   @override
-  void dispose() => _changes.dispose();
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    super.dispose();
+  }
 }

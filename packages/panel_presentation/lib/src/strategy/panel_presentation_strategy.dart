@@ -1,5 +1,5 @@
-import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/src/controller/panel_presentation_controller.dart';
 import 'package:panel_presentation/src/kind/panel_occupancy.dart';
 import 'package:panel_presentation/src/kind/panel_presentation.dart';
@@ -26,7 +26,7 @@ abstract interface class PanelPresentationStrategy {
   /// Read even while the panel is hidden: the keyboard strategy keeps
   /// publishing the soft keyboard's own height then, so the host never adds
   /// the keyboard a second time.
-  ValueObservable<PanelOccupancy> get occupancy;
+  listen.ValueListenable<PanelOccupancy> get occupancy;
 
   /// Builds the panel for [view.visibility], which is never hidden.
   ///

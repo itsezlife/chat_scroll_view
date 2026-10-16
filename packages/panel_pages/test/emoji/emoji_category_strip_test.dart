@@ -14,17 +14,21 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_shell/testing.dart';
 
 final class _Handle implements CatalogStripHandle {
-  _Handle(List<CollectionId> ids) : entries = ObservableValue(_entries(ids));
+  _Handle(List<CollectionId> ids)
+    : entries = listen.ValueNotifier(_entries(ids));
 
   @override
-  final ObservableValue<List<CatalogStripEntry>> entries;
+  final listen.ValueNotifier<List<CatalogStripEntry>> entries;
 
-  final events = EventNotifier<PanelCatalogScrollEvent>();
+  final events = StreamController<PanelCatalogScrollEvent>.broadcast(
+    sync: true,
+  );
 
   @override
   String? currentSectionId;
@@ -33,7 +37,7 @@ final class _Handle implements CatalogStripHandle {
   Completer<void>? pending;
 
   @override
-  EventObservable<PanelCatalogScrollEvent> get scrollEvents => events;
+  Stream<PanelCatalogScrollEvent> get scrollEvents => events.stream;
 
   @override
   Future<void> jumpToSection(String sectionId) {
@@ -45,12 +49,12 @@ final class _Handle implements CatalogStripHandle {
 
   void enter(String sectionId, int index) {
     currentSectionId = sectionId;
-    events.publish(PanelCatalogCurrentSectionChanged(index, sectionId));
+    events.add(PanelCatalogCurrentSectionChanged(index, sectionId));
   }
 
   void dispose() {
     entries.dispose();
-    events.dispose();
+    unawaited(events.close());
   }
 }
 

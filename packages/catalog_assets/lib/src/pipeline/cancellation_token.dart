@@ -1,6 +1,4 @@
-import 'dart:async';
-
-import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 
 /// Tells a fetch that nobody wants its result any more.
 ///
@@ -9,25 +7,26 @@ import 'package:content_model/content_model.dart';
 /// cancelling a token is a request, never a failure, and a fetch that
 /// finishes anyway is simply ignored.
 final class CancellationToken {
-  final ObservableNotifier _listeners = ObservableNotifier();
+  final _CancelSignal _listeners = _CancelSignal();
   bool _cancelled = false;
 
   /// Whether [cancel] was called.
   bool get isCancelled => _cancelled;
 
   /// Cancels the token and runs the callbacks registered so far, once.
-  /// Further calls do nothing. A callback that throws is reported to the zone
-  /// and does not stop the others.
+  /// Further calls do nothing. A callback that throws is reported to
+  /// [Listenable.onError]; whether the others still run is up to that handler
+  /// (the host sets one that does not rethrow).
   void cancel() {
     if (_cancelled) return;
     _cancelled = true;
     _listeners
-      ..notify()
+      ..fire()
       ..dispose();
   }
 
   /// Runs [callback] when the token is cancelled, at once if it already is.
-  void onCancel(ObservableListener callback) {
+  void onCancel(VoidCallback callback) {
     if (!_cancelled) {
       _listeners.addListener(callback);
       return;
@@ -35,7 +34,13 @@ final class CancellationToken {
     try {
       callback();
     } on Object catch (error, stackTrace) {
-      Zone.current.handleUncaughtError(error, stackTrace);
+      Listenable.onError(error, stackTrace, ErrorContext.listener);
     }
   }
+}
+
+/// The one-shot signal behind [CancellationToken]: `notifyListeners` is
+/// protected, so the token reaches it through this subclass.
+final class _CancelSignal extends ChangeNotifier {
+  void fire() => notifyListeners();
 }

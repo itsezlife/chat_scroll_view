@@ -76,7 +76,7 @@ void main() {
       ],
       preferences: preferences,
     );
-    shell.events.addListener(events.add);
+    shell.events.listen(events.add);
     addTearDown(() {
       shell.dispose();
       source.dispose();
@@ -160,7 +160,7 @@ void main() {
   testWidgets('a query is searched through the search source and the results '
       'replace the catalogue', (tester) async {
     final counts = <int>[];
-    shell.searchResultCounts.addListener(counts.add);
+    shell.searchResultCounts.listen(counts.add);
     await pumpShell(tester);
     await tester.pumpAndSettle();
 

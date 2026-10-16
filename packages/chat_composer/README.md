@@ -7,9 +7,10 @@ view sit the input-only controller, a text controller that keeps formatting
 and inline content in step with every edit, and input queries for the
 suggestion panels a host builds.
 
-It depends on `content_model` (the `RichText` value, `InlineContentRef`,
-`Observable`), `chrome_foundation` (theme tokens, glass, motion, strings,
-icons) and `catalog_assets` (inline content in the field is drawn by
+It depends on `content_model` (the `RichText` value, `InlineContentRef`), the
+pure-Dart `package:listen` (`ValueListenable`: `softKeyboard`, `fieldHeight`,
+`extent` and `query` are `package:listen` types, not Flutter's),
+`chrome_foundation` (theme tokens, glass, motion, strings, icons) and `catalog_assets` (inline content in the field is drawn by
 `ContentView`), and knows no panel, inset or presentation type
 ([ADR 026](../../docs/adr/026-composer-model.md),
 [ADR 020](../../docs/adr/020-package-topology.md)).
@@ -43,7 +44,7 @@ morphs in place).
 | `contentSpanBuilder` | An `InlineContentSpanBuilder` that draws each inline reference through `ContentView`. |
 | `SoftKeyboardMode` | `auto` or `suppressed`: whether focusing the field may show the on-screen keyboard. |
 | `ComposerQueryKind`, `ComposerQueryRule` | A kind of token the host wants watched (trigger, where it may open, which characters it is made of). The set is open; the composer knows none. |
-| `ComposerInputQuery` | The token at the caret: kind, text after the trigger, replace range and the caret anchor rectangle. Published by `ComposerController.query` (`ValueObservable`); `null` when there is no token. |
+| `ComposerInputQuery` | The token at the caret: kind, text after the trigger, replace range and the caret anchor rectangle. Published by `ComposerController.query` (a `ValueListenable`); `null` when there is no token. |
 | `ComposerEntityStyles` | The host's colours for links, mentions, code, spoiler and quote in the field. |
 | `InlineContentSpanBuilder` | How the field shows an inline content reference. |
 

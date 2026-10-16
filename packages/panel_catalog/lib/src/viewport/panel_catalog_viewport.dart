@@ -1,6 +1,6 @@
 import 'package:catalog_assets/catalog_assets.dart';
-import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 import 'package:panel_catalog/src/theme/panel_catalog_theme.dart';
@@ -146,14 +146,14 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// [CatalogSnapshot] the host publishes.
   ///
   /// The render object listens while attached and reprojects slots when the
-  /// observable signals. Empty [CatalogSnapshot.sections] is a confirmed
+  /// listenable signals. Empty [CatalogSnapshot.sections] is a confirmed
   /// empty catalog (headers only if sections exist with empty leaf lists —
   /// see projection rules).
   ///
   /// The viewport MUST NOT fetch inside layout/paint; the owner of the
-  /// observable fetches and publishes one new snapshot per logical mutation
-  /// (grouping steps in the owner's batch).
-  final ValueObservable<CatalogSnapshot> snapshots;
+  /// listenable fetches and publishes one new snapshot per logical mutation
+  /// (assigning the final snapshot once, not each step).
+  final listen.ValueListenable<CatalogSnapshot> snapshots;
 
   /// The host's asset cache, shared with every other surface that draws
   /// content.
@@ -174,7 +174,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   final AssetCacheScope assets;
 
   /// Absolute content-offset and navigation entry points ([jumpTo], [scrollBy],
-  /// [PanelCatalogController.jumpToSection]) and the scroll-event Observable.
+  /// [PanelCatalogController.jumpToSection]) and the scroll-event stream.
   ///
   /// Catalog top = `0`. The bound render object attaches itself as the
   /// controller's position and clamps to `[0, max(0, contentExtent −

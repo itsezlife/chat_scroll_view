@@ -1,5 +1,5 @@
 import 'package:content_model/src/identity/content_key.dart';
-import 'package:content_model/src/observable/observable.dart';
+import 'package:listen/listen.dart';
 
 /// Answers which unicode keys the device can draw, so pages can hide emoji it
 /// would show as blanks or boxes.
@@ -23,7 +23,7 @@ import 'package:content_model/src/observable/observable.dart';
 /// After [dispose] [changes] is silent and the last answers stay readable.
 abstract interface class GlyphSupport {
   /// Signals when some [supports] answer or [artVersion] changed.
-  Observable get changes;
+  Listenable get changes;
 
   /// The identity of the device's emoji art, or null while unknown.
   String? get artVersion;

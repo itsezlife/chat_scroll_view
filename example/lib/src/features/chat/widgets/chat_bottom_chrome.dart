@@ -1,5 +1,5 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:chat_scroll_view_example/src/common/widgets/value_observable_builder.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/listen_value_builder.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
 import 'package:flutter/widgets.dart';
@@ -85,8 +85,8 @@ class _ChatBottomChromeState extends State<ChatBottomChrome> {
             ),
           ),
         if (replacesKeyboard)
-          ValueObservableBuilder<PanelOccupancy>(
-            observable: input.presentation.occupancy,
+          ListenValueBuilder<PanelOccupancy>(
+            listenable: input.presentation.occupancy,
             builder: (context, occupancy) =>
                 SizedBox(height: occupancy.bottom, child: _panelView),
           ),

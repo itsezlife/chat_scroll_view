@@ -6,6 +6,14 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Change notification is `package:listen` (`listen: ^1.0.1`), not
+  `content_model`'s removed `Observable` family: `ComposerController`'s
+  `softKeyboard`, `fieldHeight`, `extent` and `query` are `ValueListenable`s
+  (the `package:listen` type, not Flutter's, which is a different one), and
+  the internal `ObservableBuilder` is `ListenValueBuilder`.
+
 ### Added
 
 - `ComposerSpec` (header, panel, actions, enabled, busy) and `ComposerView`:
@@ -33,5 +41,5 @@ is pre-1.0.
 - `ComposerTextController`: a `TextEditingController` that keeps `RichText`
   entities in step with edits, treats inline content and mentions as atomic,
   and applies IME compositions as one replacement when they finish.
-- `ComposerInputQuery` observable with host-registered `ComposerQueryKind`s
+- `ComposerInputQuery` listenable with host-registered `ComposerQueryKind`s
   and `ComposerController.replaceQuery`.

@@ -1,6 +1,7 @@
 import 'package:content_model/content_model.dart';
 import 'package:content_model/src/testing/fake_gate.dart';
 import 'package:content_model/src/testing/fake_pages.dart';
+import 'package:listen/listen.dart';
 
 /// A collection a [FakeCollectionSource] lists, with the pages its contents
 /// are served in.
@@ -31,7 +32,7 @@ final class FakeCollectionSource implements CollectionSource {
   /// Creates a source listing [collections] in order, all idle.
   FakeCollectionSource(Iterable<FakeCollectionSpec> collections)
     : _specs = {for (final spec in collections) spec.id: spec} {
-    _collections = ObservableValue(
+    _collections = ValueNotifier(
       [
         for (final spec in _specs.values)
           Collection(id: spec.id, metadata: spec.metadata),
@@ -43,7 +44,7 @@ final class FakeCollectionSource implements CollectionSource {
   final _gate = FakeGate();
   final _loading = <CollectionId>{};
   final _paging = <CollectionId>{};
-  late final ObservableValue<List<Collection>> _collections;
+  late final ValueNotifier<List<Collection>> _collections;
   var _disposed = false;
 
   /// While true, a first load ends in a failed state.
@@ -59,7 +60,7 @@ final class FakeCollectionSource implements CollectionSource {
   void resume() => _gate.resume();
 
   @override
-  ValueObservable<List<Collection>> get collections => _collections;
+  ValueListenable<List<Collection>> get collections => _collections;
 
   @override
   Future<void> load(CollectionId id) async {
@@ -102,6 +103,7 @@ final class FakeCollectionSource implements CollectionSource {
 
   @override
   void dispose() {
+    if (_disposed) return;
     _disposed = true;
     _collections.dispose();
   }

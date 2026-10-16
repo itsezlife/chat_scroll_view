@@ -2,6 +2,7 @@ import 'package:content_model/content_model.dart';
 import 'package:emoji_catalog_pack/emoji_catalog_pack.dart';
 import 'package:emoji_data/src/loading/cached_futures.dart';
 import 'package:emoji_data/src/loading/emoji_catalog_loader.dart';
+import 'package:listen/listen.dart';
 
 /// The keyword packs shipped in `emoji_catalog_pack`, as a [KeywordSource]:
 /// the offline baseline search answers from before any host pack arrives.
@@ -18,7 +19,7 @@ import 'package:emoji_data/src/loading/emoji_catalog_loader.dart';
 /// cannot be read fails the future and is read again on the next ask.
 ///
 /// The bundle never changes, so [changes] never signals.
-final class BundledKeywordSource implements KeywordSource {
+final class BundledKeywordSource with ChangeNotifier implements KeywordSource {
   /// Creates a source over the packs [loader] reads.
   ///
   /// [languages] are the locale ids that have a shipped pack; the default is
@@ -31,11 +32,10 @@ final class BundledKeywordSource implements KeywordSource {
   final EmojiCatalogLoader _loader;
   final Set<String> _languages;
   final CachedFutures<String, KeywordPack> _packs = CachedFutures();
-  final ObservableNotifier _changes = ObservableNotifier();
   bool _disposed = false;
 
   @override
-  Observable get changes => _changes;
+  Listenable get changes => this;
 
   @override
   Future<KeywordPack?> pack(String language) async {
@@ -51,8 +51,9 @@ final class BundledKeywordSource implements KeywordSource {
 
   @override
   void dispose() {
+    if (_disposed) return;
     _disposed = true;
-    _changes.dispose();
+    super.dispose();
   }
 
   static KeywordPack _convert(EmojiKeywordPack pack) => KeywordPack(

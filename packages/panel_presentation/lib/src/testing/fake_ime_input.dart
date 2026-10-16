@@ -1,4 +1,4 @@
-import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 
 /// An [ImeInputPort] for tests: a scripted soft keyboard.
@@ -6,19 +6,20 @@ import 'package:panel_presentation/panel_presentation.dart';
 /// Records every [report] in [reports] and can play the readings of a
 /// keyboard animation with [rampTo]. Follows the whole port contract.
 final class FakeImeInput implements ImeInputPort {
-  final _samples = ObservableValue<ImeSample>(ImeSample.hidden);
+  final _samples = ValueNotifier<ImeSample>(ImeSample.hidden);
   final _reports = <ImeSample>[];
+  var _disposed = false;
 
   /// Every sample reported so far, in order, repeats included.
   List<ImeSample> get reports => List.unmodifiable(_reports);
 
   @override
-  ValueObservable<ImeSample> get samples => _samples;
+  ValueListenable<ImeSample> get samples => _samples;
 
   @override
   void report(ImeSample sample) {
     _reports.add(sample);
-    if (_samples.isDisposed) return;
+    if (_disposed) return;
     _samples.value = sample;
   }
 
@@ -42,5 +43,9 @@ final class FakeImeInput implements ImeInputPort {
   }
 
   @override
-  void dispose() => _samples.dispose();
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _samples.dispose();
+  }
 }

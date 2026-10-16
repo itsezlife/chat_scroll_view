@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_shell/src/controller/panel_shell_controller.dart';
@@ -7,11 +9,11 @@ import 'package:panel_shell/src/input/panel_focus_policy.dart';
 import 'package:panel_shell/src/input/panel_intents.dart';
 import 'package:panel_shell/src/page/panel_page.dart';
 import 'package:panel_shell/src/scroll/bottom_bar_visibility.dart';
+import 'package:panel_shell/src/widgets/listen_value_builder.dart';
 import 'package:panel_shell/src/widgets/panel_bottom_bar.dart';
 import 'package:panel_shell/src/widgets/panel_pager.dart';
 import 'package:panel_shell/src/widgets/panel_search_field.dart';
 import 'package:panel_shell/src/widgets/panel_type_tabs.dart';
-import 'package:panel_shell/src/widgets/value_observable_builder.dart';
 
 /// The host-independent panel: the search field above a pager of pages, with
 /// the bottom bar (type tabs and the selected page's actions) floating over
@@ -93,6 +95,7 @@ class _PanelShellState extends State<PanelShell> {
   final _position = ValueNotifier<double>(0);
   final _dragging = ValueNotifier<bool>(false);
   final _barVisibility = BottomBarVisibility();
+  final _subscriptions = <StreamSubscription<Object?>>[];
   late var _fieldMounted = !widget.deferSearchField;
 
   PanelShellController get _shell => widget.controller;
@@ -133,19 +136,22 @@ class _PanelShellState extends State<PanelShell> {
       ..show();
     controller.search.addListener(_onSearch);
     controller.selectedPageId.addListener(_onPageSelected);
-    controller.scrollActivity.addListener(_barVisibility.apply);
-    controller.events.addListener(_onEvent);
-    controller.searchResultCounts.addListener(_onResultCount);
     controller.visible.addListener(_onVisible);
+    _subscriptions.addAll([
+      controller.scrollActivity.listen(_barVisibility.apply),
+      controller.events.listen(_onEvent),
+      controller.searchResultCounts.listen(_onResultCount),
+    ]);
   }
 
   void _unbind(PanelShellController controller) {
     controller.search.removeListener(_onSearch);
     controller.selectedPageId.removeListener(_onPageSelected);
-    controller.scrollActivity.removeListener(_barVisibility.apply);
-    controller.events.removeListener(_onEvent);
-    controller.searchResultCounts.removeListener(_onResultCount);
     controller.visible.removeListener(_onVisible);
+    for (final subscription in _subscriptions) {
+      unawaited(subscription.cancel());
+    }
+    _subscriptions.clear();
   }
 
   void _onSearch() {
@@ -226,8 +232,8 @@ class _PanelShellState extends State<PanelShell> {
               color: panel.background,
               child: Column(
                 children: [
-                  ValueObservableBuilder<String>(
-                    observable: _shell.selectedPageId,
+                  ListenValueBuilder<String>(
+                    listenable: _shell.selectedPageId,
                     builder: (context, _) => _searchSlot(motion),
                   ),
                   Expanded(
@@ -308,8 +314,8 @@ class _PanelShellState extends State<PanelShell> {
       onFocusChange: (focused) {
         if (focused) _barVisibility.show();
       },
-      child: ValueObservableBuilder<bool>(
-        observable: _barVisibility.visible,
+      child: ListenValueBuilder<bool>(
+        listenable: _barVisibility.visible,
         builder: (context, visible) => TweenAnimationBuilder<double>(
           tween: Tween<double>(
             end: visible ? 0 : PanelBottomBar.hideSlide + safeBottom,
@@ -320,8 +326,8 @@ class _PanelShellState extends State<PanelShell> {
               Transform.translate(offset: Offset(0, y), child: child),
           child: Padding(
             padding: EdgeInsets.only(bottom: safeBottom),
-            child: ValueObservableBuilder<String>(
-              observable: _shell.selectedPageId,
+            child: ListenValueBuilder<String>(
+              listenable: _shell.selectedPageId,
               builder: (context, _) => PanelBottomBar(
                 pages: _shell.pages,
                 selected: _shell.selectedPage,
