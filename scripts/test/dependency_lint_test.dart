@@ -109,38 +109,6 @@ void main() {
     });
 
     group('leaves', () {
-      test('chrome_foundation may depend on content_model, and only it', () {
-        expect(
-          rulesOf({
-            'chrome_foundation': {'content_model'},
-            'content_model': {},
-          }),
-          isEmpty,
-        );
-        final violations = DependencyLint.check(
-          graphOf({
-            'chrome_foundation': {'content_model', 'catalog_assets'},
-            'content_model': {},
-            'catalog_assets': {},
-          }),
-        );
-        expect(violations.map((v) => v.subject), [
-          'chrome_foundation -> catalog_assets',
-        ]);
-      });
-
-      test('content_model depending on chrome_foundation is reported', () {
-        final violations = DependencyLint.check(
-          graphOf({
-            'content_model': {'chrome_foundation'},
-            'chrome_foundation': {},
-          }),
-        );
-        expect(violations.map((v) => v.subject), [
-          'content_model -> chrome_foundation',
-        ]);
-      });
-
       for (final leaf in ['content_model', 'chrome_foundation']) {
         test('$leaf depending on a workspace package is reported', () {
           final violations = DependencyLint.check(

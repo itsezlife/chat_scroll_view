@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:panel_shell/src/controller/panel_search_state.dart';
 import 'package:panel_shell/src/page/panel_page.dart';
 import 'package:panel_shell/src/page/panel_page_host.dart';
+import 'package:panel_shell/src/widgets/value_observable_builder.dart';
 
 /// A page for shell tests: a coloured box that shows its own id and, while
 /// search is open, the query, and that remembers the host it was built with.

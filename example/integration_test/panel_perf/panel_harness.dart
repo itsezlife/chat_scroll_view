@@ -1,8 +1,8 @@
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/value_observable_builder.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
-import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/material.dart';

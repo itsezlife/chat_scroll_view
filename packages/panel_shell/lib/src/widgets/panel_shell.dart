@@ -11,6 +11,7 @@ import 'package:panel_shell/src/widgets/panel_bottom_bar.dart';
 import 'package:panel_shell/src/widgets/panel_pager.dart';
 import 'package:panel_shell/src/widgets/panel_search_field.dart';
 import 'package:panel_shell/src/widgets/panel_type_tabs.dart';
+import 'package:panel_shell/src/widgets/value_observable_builder.dart';
 
 /// The host-independent panel: the search field above a pager of pages, with
 /// the bottom bar (type tabs and the selected page's actions) floating over
