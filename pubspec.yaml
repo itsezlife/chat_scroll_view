@@ -8,7 +8,6 @@ publish_to: none
 # package under packages/ or example/ is missing from it.
 workspace:
   - packages/catalog_assets
-  - packages/chat_chrome
   - packages/chat_composer
   - packages/chrome_foundation
   - packages/content_model

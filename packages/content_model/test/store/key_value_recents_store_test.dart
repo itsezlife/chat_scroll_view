@@ -4,7 +4,7 @@ import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:test/test.dart';
 
-const _namespace = 'chat_chrome';
+const _namespace = 'host';
 const _thumbs = ContentKey.unicode('\u{1F44D}\u{1F3FB}');
 const _heart = ContentKey.unicode('\u{2764}\u{FE0F}');
 const _sticker = ContentKey.document('5368');

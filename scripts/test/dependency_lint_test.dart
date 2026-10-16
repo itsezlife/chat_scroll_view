@@ -55,14 +55,17 @@ void main() {
       );
     });
 
-    test('accepts the packages as they are before the redesign', () {
+    test('accepts the layers as the workspace stands', () {
       expect(
         rulesOf({
-          'catalog_assets': {},
-          'emoji_data': {},
-          'panel_catalog': {'catalog_assets'},
-          'chat_chrome': {'catalog_assets', 'emoji_data', 'panel_catalog'},
-          'example': {'chat_chrome', 'panel_catalog', 'emoji_data'},
+          'content_model': {},
+          'chrome_foundation': {},
+          'catalog_assets': {'content_model'},
+          'emoji_data': {'content_model'},
+          'panel_catalog': {'catalog_assets', 'content_model'},
+          'panel_shell': {'chrome_foundation', 'content_model'},
+          'panel_pages': {'panel_catalog', 'panel_shell', 'catalog_assets'},
+          'example': {'panel_pages', 'panel_shell', 'emoji_data'},
         }),
         isEmpty,
       );
