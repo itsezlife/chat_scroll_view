@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/frozen_value.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls/chat_side_control_counter.dart';
-import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls/overshoot_curve.dart';
+import 'package:chrome_foundation/chrome_foundation.dart' show OvershootCurve;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';

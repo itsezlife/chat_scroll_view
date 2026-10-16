@@ -1,3 +1,5 @@
+import 'package:chrome_foundation/src/motion/chrome_motion.dart';
+import 'package:chrome_foundation/src/motion/chrome_motion_scope.dart';
 import 'package:chrome_foundation/src/palette/chrome_palette.dart';
 import 'package:chrome_foundation/src/theme/chrome_theme_data.dart';
 import 'package:chrome_foundation/src/tokens/action_tokens.dart';
@@ -201,7 +203,11 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
 /// interpolated with its own `lerp` whenever the target changes. A part that
 /// goes from supplied to absent (or the reverse) switches at once, since
 /// there is nothing to interpolate towards.
-class AnimatedChromeThemeScope extends ImplicitlyAnimatedWidget {
+///
+/// Timing defaults to the `themeSwitch` motion role; an explicit [duration] or
+/// [curve] replaces the role's. The enclosing `ChromeMotionScope` speed scales
+/// either duration, so reduce-motion makes the switch instant.
+class AnimatedChromeThemeScope extends StatelessWidget {
   /// An animated scope supplying [palette] and/or individual token groups.
   const AnimatedChromeThemeScope({
     required this.child,
@@ -211,10 +217,10 @@ class AnimatedChromeThemeScope extends ImplicitlyAnimatedWidget {
     this.action,
     this.placeholder,
     this.glass,
+    this.duration,
+    this.curve,
+    this.onEnd,
     super.key,
-    super.curve,
-    super.duration = const Duration(milliseconds: 250),
-    super.onEnd,
   });
 
   /// The target palette; see [ChromeThemeScope.new].
@@ -235,16 +241,67 @@ class AnimatedChromeThemeScope extends ImplicitlyAnimatedWidget {
   /// The target glass material tokens.
   final GlassMaterialTokens? glass;
 
+  /// How long a change takes at normal speed; null uses the `themeSwitch`
+  /// role.
+  final Duration? duration;
+
+  /// The easing of a change; null uses the `themeSwitch` role.
+  final Curve? curve;
+
+  /// Called when an animation to new tokens finishes.
+  final VoidCallback? onEnd;
+
   /// The subtree that sees the animated tokens.
   final Widget child;
 
   @override
-  AnimatedWidgetBaseState<AnimatedChromeThemeScope> createState() =>
+  Widget build(BuildContext context) {
+    final motion = ChromeMotionScope.of(context);
+    final role = motion.motion[MotionRole.themeSwitch];
+    return _AnimatedChromeThemeScope(
+      palette: palette,
+      composer: composer,
+      panel: panel,
+      action: action,
+      placeholder: placeholder,
+      glass: glass,
+      duration: motion.speed.scale(duration ?? role.duration),
+      curve: curve ?? role.curve,
+      onEnd: onEnd,
+      child: child,
+    );
+  }
+}
+
+class _AnimatedChromeThemeScope extends ImplicitlyAnimatedWidget {
+  const _AnimatedChromeThemeScope({
+    required this.child,
+    required this.palette,
+    required this.composer,
+    required this.panel,
+    required this.action,
+    required this.placeholder,
+    required this.glass,
+    required super.duration,
+    required super.curve,
+    required super.onEnd,
+  });
+
+  final ChromePalette? palette;
+  final ComposerTokens? composer;
+  final PanelTokens? panel;
+  final ActionTokens? action;
+  final PlaceholderTokens? placeholder;
+  final GlassMaterialTokens? glass;
+  final Widget child;
+
+  @override
+  AnimatedWidgetBaseState<_AnimatedChromeThemeScope> createState() =>
       _AnimatedChromeThemeScopeState();
 }
 
 class _AnimatedChromeThemeScopeState
-    extends AnimatedWidgetBaseState<AnimatedChromeThemeScope> {
+    extends AnimatedWidgetBaseState<_AnimatedChromeThemeScope> {
   _PartTween<ChromePalette>? _palette;
   _PartTween<ComposerTokens>? _composer;
   _PartTween<PanelTokens>? _panel;

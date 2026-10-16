@@ -1,15 +1,17 @@
 # chrome_foundation
 
 Leaf foundation of the chat chrome: a semantic colour palette, per-component
-token groups and a required, nestable, animatable theme scope. It depends on no
-workspace package (`scripts/check` enforces that), only on Flutter and `meta`.
-Composer, panel and page packages read their colours from here; none of them
-carries a colour default of its own.
+token groups, a required, nestable, animatable theme scope, **motion roles**
+with a speed scale, a required **chrome strings** scope and a **chrome icon**
+registry. It depends on no workspace package (`scripts/check` enforces that),
+only on Flutter, `meta` and `morphnext` (used by the icon registry alone).
+Composer, panel and page packages read their colours, durations, strings and
+icons from here; none of them carries a default of its own.
 
-Scope of this release: palette, token groups and theme scope. Motion roles,
-strings, the icon registry and the glass stack are part of the same package's
-roadmap ([ADR 027](../../docs/adr/027-foundation-theme-glass-motion.md)) and
-are not here yet.
+Scope of this release: palette, token groups, theme scope, motion, strings and
+icons. The glass stack is part of the same package's roadmap
+([ADR 027](../../docs/adr/027-foundation-theme-glass-motion.md)) and is not
+here yet.
 
 ## Types
 
@@ -21,10 +23,18 @@ are not here yet.
 | `ChromeThemeScope` | The **chrome theme scope** (`InheritedModel`). Required: a lookup with no supplier fails. Nested scopes override only the parts they supply. `of`, `paletteOf`, `composerOf`, ... |
 | `AnimatedChromeThemeScope` | A scope that interpolates to new tokens with each part's `lerp`. |
 | `ChromeContrast` | WCAG contrast ratio and the AA thresholds, for palette tests. |
+| `MotionRole`, `MotionSpec`, `ChromeMotion` | The **motion role** table: one duration and curve per named thing chrome animates (list transition 250 ms on the Android cubic, panel slide, search, header reveal, press, release, fade, popup show / hide, presentation switch, theme switch). Immutable, overridable with `copyWith`. |
+| `ChromeMotionSpeed`, `ChromeMotionScope`, `ChromeMotionData` | The speed scale (`normal`, `times(n)`, `instant`) and the nestable scope that supplies roles and speed. Components call `ChromeMotionScope.of(context).specOf(role)`. |
+| `ScalePressable`, `OvershootCurve` | Press-scale hit target driven by the `press` / `release` roles, and the overshoot easing (Android's `OvershootInterpolator`). |
+| `ChromeStrings` (`PanelStrings`, `ComposerStrings`, `SemanticsStrings`) | The **chrome strings**: grouped, host-provided text, with functions for plural and data-dependent wording. |
+| `ChromeStringsScope` | Required scope supplying `ChromeStrings`; a lookup with no scope fails in debug builds. |
+| `ChromeIconId`, `ChromeIconPainter`, `ChromeIconRegistry` | A **chrome icon** is a semantic id; the registry maps ids to painters (font glyph or paint callback). `ChromeIconRegistry.stock` paints the chrome's own ids; an unknown id draws a neutral fallback glyph. |
+| `ChromeIconScope`, `ChromeIcon`, `AnimatedChromeIcon` | Scope adding host painters, the widget that draws an id, and the variant that morphs (font to font) or cross-fades (custom painter) when the id changes. |
+| `package:chrome_foundation/testing.dart` | `ChromeStringsPresets.english` / `.russian` and `describeChromeStrings` for completeness checks. Tests and demos only. |
 
-Geometry, motion, strings and icons are not tokens here: Telegram-derived
-metrics stay constants owned by the component that draws them; labels are host
-strings, never tokens.
+Geometry is not a token here: Telegram-derived metrics stay constants owned by
+the component that draws them. Labels are host strings, never tokens. Motion is
+a role table with a speed scale, not a colour-style group, so it has no `lerp`.
 
 ## Using it
 
@@ -51,6 +61,42 @@ final composer = ChromeThemeScope.composerOf(context);
 - `ChromePalette.fromColorScheme` builds a palette from a Material
   `ColorScheme`; nothing else here reads `ThemeData`.
 
+### Motion, strings and icons
+
+```dart
+ChromeMotionScope(
+  // Reduce motion: the one input. The package never reads the platform flag.
+  speed: MediaQuery.disableAnimationsOf(context)
+      ? ChromeMotionSpeed.instant
+      : ChromeMotionSpeed.normal,
+  child: ChromeStringsScope(
+    strings: myChromeStrings,                    // from the host l10n
+    child: ChromeIconScope(
+      icons: {const ChromeIconId('star'): ChromeIconPainter.font(Icons.star)},
+      child: ...,
+    ),
+  ),
+)
+// in a component:
+final spec = ChromeMotionScope.of(context).specOf(MotionRole.fade);
+final hint = ChromeStringsScope.panelOf(context).searchHint;
+AnimatedChromeIcon(ChromeIconId.keyboard);       // morphs on id change
+```
+
+- Components hold no literal durations (a test scans `lib/src` outside
+  `lib/src/motion/`). A scope's `speed` scales every role, including an
+  explicit duration given to `AnimatedChromeThemeScope`.
+- `ChromeMotionScope` is optional: with none, widgets run the shipped roles at
+  normal speed. Scopes nest; an inner one overrides only the `motion` or
+  `speed` it names. Overriding one role is `motion.copyWith(search: ...)`.
+- `ChromeStringsScope` is required and has no default language. Required
+  constructor parameters make a missing string a compile error; run
+  `describeChromeStrings(strings)` in a host test to check none is empty.
+- `ChromeIconScope` adds painters to the enclosing registry (default
+  `ChromeIconRegistry.stock`). Between two font glyphs the icon morphs through
+  morphnext; any change involving a painted icon cross-fades over the `fade`
+  role; under instant speed it swaps at once.
+
 ## Host contract
 
 | The host provides | The host must not |
@@ -60,7 +106,10 @@ final composer = ChromeThemeScope.composerOf(context);
 | Brightness changes by supplying another palette, or by `AnimatedChromeThemeScope` for a cross-fade. | Mutate tokens or keep its own light/dark flag in a chrome widget. |
 | Per-surface variation (a per-conversation look) as a nested scope naming only the groups that differ. | Wrap a group in a second theme mechanism (a `ThemeData` extension, a per-widget colour parameter). |
 | Wallpaper-dependent colours through the groups (for example `ComposerTokens.contentFade`). | Expect tokens to read the wallpaper. |
-| High-contrast mode by choosing `highContrastLight` / `highContrastDark` (the package does not read `MediaQuery.highContrast`). | Expect labels, icons or motion here: they are separate concerns. |
+| High-contrast mode by choosing `highContrastLight` / `highContrastDark` (the package does not read `MediaQuery.highContrast`). | Expect geometry here: it stays with the component that draws it. |
+| A `ChromeStringsScope` above every chrome widget, filled from its own localisation or server language packs, including plural rules for `searchResultCount`. | Expect a default language, or import `testing.dart` from production code. Packages ship no translation. |
+| A `ChromeMotionScope` with `ChromeMotionSpeed.instant` when `MediaQuery.disableAnimations` or its lite mode is on. | Assume the package honours the platform reduce-motion flag by itself: only the host maps it. |
+| Painters for its own icon ids through `ChromeIconScope` (or `ChromeIconRegistry.withPainters`). | Name an icon by glyph in a descriptor, or import morphnext to animate chrome icons. |
 
 ## Migration: `ChatChromeColors` to token groups
 
@@ -121,12 +170,28 @@ defaults as ported; they were not re-derived from the Telegram sources, which
 are not part of this checkout, so a fidelity review of the shipped values is
 still open.
 
+## Consolidated copies
+
+`OvershootCurve` and `ScalePressable` live here. `chat_chrome` and the example
+app use these; `panel_catalog` keeps its own `OvershootCurve` because the
+dependency rules forbid it from reaching this package (the catalog takes its
+curve from the page that adapts it).
+
 ## Tests and goldens
 
 - Lerp, `copyWith`, equality, nesting, per-aspect rebuilds and missing-scope
   tests cover every group and the scope.
 - `palette_contrast_test.dart` checks every text and icon pairing in the four
   presets (AA), and text again at 7:1 in the high-contrast presets.
+- Motion: speed scale (scaled, instant, per-role override, nesting), role
+  table, overshoot curve, press / release timing and a scan that no component
+  spells a literal `Duration`.
+- Strings: scope missing-scope assert and nesting, preset completeness (every
+  key non-empty in each preset, same keys in both, snapshot lists every
+  declared member) and plural wording.
+- Icons: registry lookup, custom registration, fallback, scope nesting and
+  morph between two ids (same state morphs; instant skips it; painted icons
+  cross-fade over the `fade` role).
 - `test/goldens/` holds one swatch per preset. The swatch is solid rectangles
   on whole pixels with no text, so it renders identically on macOS and Linux
   with no tolerance. Regenerate with
@@ -137,6 +202,6 @@ still open.
 - [ADR 027: Foundation theme tokens, glass and motion](../../docs/adr/027-foundation-theme-glass-motion.md)
   (token structure, delivery, palettes)
 - [ADR 031: Localization, accessibility and input](../../docs/adr/031-localization-accessibility-and-input.md)
-  (contrast rule)
+  (contrast rule, strings scope, reduce motion)
 - Glossary: [chrome CONTEXT](../../docs/chrome/CONTEXT.md) (chrome palette,
-  token group, chrome theme scope)
+  token group, chrome theme scope, motion role, chrome icon, chrome strings)

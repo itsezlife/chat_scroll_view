@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:chat_chrome/src/motion/scale_pressable.dart';
+import 'package:chrome_foundation/chrome_foundation.dart' show ScalePressable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

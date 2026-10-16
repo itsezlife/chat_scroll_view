@@ -24,7 +24,6 @@ export 'src/glass/liquid_glass.dart';
 export 'src/glass/liquid_glass_style.dart';
 export 'src/inset/chat_bottom_inset_controller.dart';
 export 'src/inset/keyboard_panel_store.dart';
-export 'src/motion/scale_pressable.dart';
 export 'src/motion/keyboard_panel_motion.dart';
 export 'src/panel/backspace_action_button.dart';
 export 'src/panel/emoji_category_strip.dart';

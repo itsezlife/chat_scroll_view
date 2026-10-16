@@ -1,9 +1,7 @@
 import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls/chat_side_control_counter.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls/chat_side_control_glass.dart';
-import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls/overshoot_curve.dart';
+import 'package:chrome_foundation/chrome_foundation.dart' show OvershootCurve;
 import 'package:flutter/material.dart';
-
-export 'overshoot_curve.dart';
 
 /// Frosted round side-control FAB (page-down / search up-down chrome).
 ///
