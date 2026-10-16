@@ -385,24 +385,27 @@ void main() {
       expect(second.spriteOf('g$_perPage'), isNull, reason: 'a circle');
     });
 
-    test('keeps the old art when no page of the new plan can be read', () async {
-      final first = await bakedFirst(_glyphs(3));
-      final oldPage = first.spriteOf('g0')!.page;
-      final errors = <FlutterErrorDetails>[];
-      final previous = FlutterError.onError;
-      FlutterError.onError = errors.add;
-      addTearDown(() => FlutterError.onError = previous);
-      final second = build(
-        _glyphs(3),
-        withStore: _FlakyStore(FakeGlyphPageStore(), failures: 100),
-        predecessor: first.retire(),
-      )..start();
+    test(
+      'keeps the old art when no page of the new plan can be read',
+      () async {
+        final first = await bakedFirst(_glyphs(3));
+        final oldPage = first.spriteOf('g0')!.page;
+        final errors = <FlutterErrorDetails>[];
+        final previous = FlutterError.onError;
+        FlutterError.onError = errors.add;
+        addTearDown(() => FlutterError.onError = previous);
+        final second = build(
+          _glyphs(3),
+          withStore: _FlakyStore(FakeGlyphPageStore(), failures: 100),
+          predecessor: first.retire(),
+        )..start();
 
-      await bakeAll();
+        await bakeAll();
 
-      expect(identical(second.spriteOf('g0')!.page, oldPage), isTrue);
-      expect(oldPage.debugDisposed, isFalse);
-    });
+        expect(identical(second.spriteOf('g0')!.page, oldPage), isTrue);
+        expect(oldPage.debugDisposed, isFalse);
+      },
+    );
 
     test('the retired atlas stops: no frames, no sprites', () async {
       final first = await bakedFirst(_glyphs(3));
