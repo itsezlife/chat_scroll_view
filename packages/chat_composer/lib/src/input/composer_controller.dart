@@ -160,13 +160,14 @@ final class ComposerController {
   }
 
   /// The height the composer view takes in its parent, as last reported, zero
-  /// before the first report: the island with its header, margins and bottom
-  /// safe-area pad, without any panel or keyboard.
+  /// before the first report: the island with its header and margins, without
+  /// the bottom safe-area pad and without any panel or keyboard.
   ///
   /// It follows the header reveal and the field growth frame by frame, so a
   /// host that feeds it into its chat bottom padding moves with the
-  /// animation. The composer imports no inset type; the host adds the
-  /// presentation occupancy itself.
+  /// animation. The composer imports no inset type; the host adds the bottom
+  /// band itself (the larger of the safe area and the presentation's
+  /// occupancy), which it knows without waiting for a layout.
   listen.ValueListenable<double> get extent => _extent;
 
   /// Reports the laid-out [height] of the composer view. Called by the view.

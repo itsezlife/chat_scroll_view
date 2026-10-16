@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
@@ -6,16 +8,21 @@ import 'package:panel_presentation/panel_presentation.dart';
 /// (`docs/architecture/14-host-chrome-insets.md`).
 ///
 /// ```text
-/// bottomPadding = composer extent + presentation occupancy.bottom
+/// bottomPadding = composer extent + max(safe bottom, occupancy.bottom)
 /// inlineEnd     = presentation occupancy.inlineEnd   // applied in layout
 /// topPadding    = safe top + header reserve + search reserve
 /// ```
 ///
-/// The composer extent already holds its own bottom safe-area pad, and the
-/// occupancy of a keyboard presentation already holds the live soft keyboard,
-/// so neither is added a second time. Overlay chrome that only reads the
-/// reserved edge (the page-down button) takes [bottomPadding] and adds
-/// nothing to it.
+/// The composer extent leaves out the bottom safe-area pad; the host adds the
+/// band here, as the larger of the safe area and the occupancy (which already
+/// holds the live soft keyboard, safe area included, so the keyboard is not
+/// added a second time). The composer draws the part of the band the
+/// occupancy has not covered yet as its own pad, so the two always agree, and
+/// the sum is computed from the occupancy at once rather than from a
+/// measurement that arrives a frame after the layout it measures: the chat
+/// never reads a padding the composer has not got yet. Overlay chrome that
+/// only reads the reserved edge (the page-down button) takes [bottomPadding]
+/// and adds nothing to it.
 ///
 /// It follows the two observables it is given and disposes neither: their
 /// owners do.
@@ -39,13 +46,15 @@ final class ChatViewportInsets {
     occupancy.addListener(_publishBottom);
   }
 
-  /// What the viewport reserves for the composer until the composer has
-  /// published its first extent, so the first frame is not zero.
-  static const double composerSeed = 96;
+  /// What the viewport reserves for the composer, without the bottom band,
+  /// until the composer has published its first extent, so the first frame is
+  /// not zero.
+  static const double composerSeed = 64;
 
   final listen.ValueListenable<double> _composerExtent;
   final listen.ValueListenable<PanelOccupancy> _occupancy;
   double _safeTop;
+  double _safeBottom = 0;
   double _searchReserve = 0;
   var _disposed = false;
 
@@ -95,6 +104,16 @@ final class ChatViewportInsets {
     _publishTop();
   }
 
+  /// Persistent bottom safe-area inset (home indicator, navigation bar): the
+  /// least the chat keeps clear under the composer.
+  ///
+  /// Hosts push `MediaQuery.viewPadding.bottom` from `didChangeDependencies`.
+  void setSafeBottom(double value) {
+    if (_safeBottom == value) return;
+    _safeBottom = value;
+    _publishBottom();
+  }
+
   /// Measured open-search occupancy, including its outer pad above the field.
   ///
   /// Zero while search chrome is closed. Does **not** include the safe top or
@@ -130,7 +149,8 @@ final class ChatViewportInsets {
     final extent = _composerExtent.value;
     final occupancy = _occupancy.value;
     _bottomPadding.value =
-        (extent > 0 ? extent : composerSeed) + occupancy.bottom;
+        (extent > 0 ? extent : composerSeed) +
+        math.max(_safeBottom, occupancy.bottom);
     _inlineEnd.value = occupancy.inlineEnd;
   }
 }

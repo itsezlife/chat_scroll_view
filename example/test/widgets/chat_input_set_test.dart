@@ -65,9 +65,6 @@ final class _BrokenKeyboard implements SoftKeyboardPort {
 
   @override
   Future<void> hide() async {}
-
-  @override
-  Future<void> show() async {}
 }
 
 void main() {
@@ -118,6 +115,37 @@ void main() {
       rig.keyboard.rest(0);
 
       expect(rig.set.ime.samples.value.height, 0);
+    });
+
+    testWidgets('a panel closing to its end never lets the chat padding dip '
+        'under where it comes to rest', (tester) async {
+      final rig = await rigWithSafeArea(tester, includesSafeArea: true);
+      await rig.tapAction(tester, ChatComposerActions.panel);
+      await rig.settle(tester);
+      final seen = <double>[];
+      rig.set.insets.bottomPadding.addListener(
+        () => seen.add(rig.set.insets.bottomPadding.value),
+      );
+
+      rig.set.presentation.hide();
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await rig.settle(tester);
+
+      final rest = rig.set.insets.bottomPadding.value;
+      expect(seen, isNotEmpty);
+      // The sum is the composer and the band, and the band never gives way
+      // before the occupancy has gone: nothing is reported under the rest.
+      expect(
+        seen.where((value) => value < rest - 0.01),
+        isEmpty,
+        reason: 'a dip is a frame of the chat laid out too low: $seen',
+      );
+      // And it only falls: no bounce on the way down.
+      for (var i = 1; i < seen.length; i++) {
+        expect(seen[i], lessThanOrEqualTo(seen[i - 1] + 0.01));
+      }
     });
 
     testWidgets('the composer stays above a keyboard that excludes the band', (
@@ -182,8 +210,8 @@ void main() {
       expect(rig.set.composer.softKeyboard.value, SoftKeyboardMode.auto);
     });
 
-    testWidgets('a tap on the field hands the slot back to the keyboard and '
-        'asks for it once', (tester) async {
+    testWidgets('a tap on the field hands the slot back to the keyboard, '
+        'which the field then raises by attaching with it', (tester) async {
       final rig = await _mobileRig(tester);
       await _open(tester, rig);
 
@@ -194,7 +222,6 @@ void main() {
       expect(_state(rig), isA<PanelVisibility$Hiding>());
       expect((_state(rig) as PanelVisibility$Hiding).waitForIme, isTrue);
       expect(rig.set.composer.softKeyboard.value, SoftKeyboardMode.auto);
-      expect(rig.keyboard.showCount, 1);
 
       // The keyboard rises and takes the slot; the panel lets go.
       rig.keyboard.rest(300);
@@ -214,7 +241,8 @@ void main() {
       await tester.pump();
 
       expect(_state(rig), isA<PanelVisibility$Hiding>());
-      expect(rig.keyboard.showCount, 1);
+      expect((_state(rig) as PanelVisibility$Hiding).waitForIme, isTrue);
+      expect(rig.set.composer.softKeyboard.value, SoftKeyboardMode.auto);
     });
 
     testWidgets('a cold open mounts the page in steps, an open over the '

@@ -7,7 +7,7 @@ import 'package:keyboard_insets/keyboard_insets.dart';
 /// seam between the platform and the chat's input set.
 ///
 /// The presentation package never touches a platform channel (ADR 031), so the
-/// raw readings and the two commands live here, in the host.
+/// raw readings and the command live here, in the host.
 abstract interface class SoftKeyboardPort {
   /// The keyboard's height as the system reports it, frame by frame while it
   /// moves; zero when it is hidden.
@@ -31,9 +31,6 @@ abstract interface class SoftKeyboardPort {
 
   /// Hides the on-screen keyboard, leaving focus where it is.
   Future<void> hide();
-
-  /// Shows the on-screen keyboard for the focused field.
-  Future<void> show();
 }
 
 /// The [SoftKeyboardPort] over the `keyboard_insets` plugin and the text-input
@@ -67,9 +64,6 @@ final class PlatformSoftKeyboard implements SoftKeyboardPort {
 
   @override
   Future<void> hide() => _invoke('TextInput.hide');
-
-  @override
-  Future<void> show() => _invoke('TextInput.show');
 
   Future<void> _invoke(String method) async {
     try {

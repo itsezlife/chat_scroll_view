@@ -13,21 +13,32 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_the
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:flutter/material.dart';
+import 'package:l/l.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Entry point for the widget-based [ChatScrollView] demo.
-void main() => runZonedGuarded<void>(
-  () async {
-    WidgetsFlutterBinding.ensureInitialized();
-    bindExamplePreImeBack();
-    await bootApp(
-      createServices: _createServices,
-      appOf: (services) => ChatDemoApp(services: services),
-    );
-  },
-  (error, stackTrace) =>
-      dev.log('Top level exception', error: error, stackTrace: stackTrace),
+void main() => l.capture<void>(
+  () => runZonedGuarded<void>(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      bindExamplePreImeBack();
+      await bootApp(
+        createServices: _createServices,
+        appOf: (services) => ChatDemoApp(services: services),
+      );
+    },
+    (error, stackTrace) =>
+        dev.log('Top level exception', error: error, stackTrace: stackTrace),
+  ),
+  // Every log goes through `print`, so `adb logcat -s flutter`, `flutter run`
+  // and `grep` all see it. Verbose levels follow `l`'s defaults.
+  const LogOptions(
+    handlePrint: true,
+    printColors: false,
+    output: LogOutput.print,
+    outputInRelease: true,
+  ),
 );
 
 // Backend, stores and the emoji catalogue before the first frame, so the

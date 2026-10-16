@@ -5,6 +5,7 @@ import 'package:chat_composer/chat_composer.dart' show ComposerBottomFade;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/common/panel_trace.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/listen_value_builder.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
@@ -87,6 +88,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// the view) and disposed with the screen.
   ChatInputSet? _inputSet;
 
+  /// Logs the panel's signals when `PANEL_TRACE` is defined.
+  PanelTrace? _trace;
+
   bool _loading = true;
   String? _errorMessage;
   MessageMenu? _messageMenu;
@@ -139,6 +143,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final fresh = _inputSet == null;
     final input = _inputSet ??= ChatInputSet(
       services: widget.services,
       view: View.of(context),
@@ -148,6 +153,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       keyboard: widget.softKeyboard,
       policy: widget.presentationPolicy,
     );
+    if (fresh && kPanelTrace) _trace = PanelTrace(input);
     final safe = MediaQuery.viewPaddingOf(context);
     input
       ..updateEnvironment(
@@ -258,6 +264,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _search?.dispose();
     _controller.dispose();
     _selection.dispose();
+    _trace?.dispose();
     _inputSet?.dispose();
     if (_dataSource case final BackendChatDataSource source) {
       source.removeReconnectGapListener(_onReconnectGap);

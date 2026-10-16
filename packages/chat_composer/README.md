@@ -51,10 +51,11 @@ morphs in place).
 ## Extent
 
 `ComposerController.extent` is the height the view takes in its parent, as
-data, frame by frame while it animates: the island with its header, the
-margins around it and the bottom safe-area pad (`safeAreaBottom`, default the
-bottom view padding; pass zero when a keyboard or panel covers it). It excludes
-any panel or keyboard below. The host adds the presentation occupancy and feeds
+data, frame by frame while it animates: the island with its header and the
+margins around it. It excludes the bottom safe-area pad the view draws
+(`safeAreaBottom`, default the bottom view padding; pass what a keyboard or
+panel has left of it) and any panel or keyboard below. The host adds the bottom
+band (the larger of the safe area and the presentation occupancy) and feeds
 the sum to the chat's bottom padding ([host insets](../../docs/architecture/14-host-chrome-insets.md)).
 The view imports no inset type.
 
@@ -96,7 +97,7 @@ The view imports no inset type.
 | --- | --- |
 | A `ComposerSpec` rebuilt from chat state, every action's `semanticLabel` (from `ChromeStrings.composer` or its own language), and for any panel other than the text field a `panelResolver`. | Mutate a spec, give two actions one id, or look for mode state in the composer. |
 | Above the view: `ChromeThemeScope`, `ChromeStringsScope`, a `Directionality`, a `MediaQuery` and Material localisations (the text selection menu). Optional: `GlassSourceScope`, `GlassQualityScope`, `ChromeMotionScope` (map `MediaQuery.disableAnimations` to instant speed), `ChromeIconScope` and an `AssetCacheProvider` when inline content is drawn. | Expect a default language, a silent light theme or reduce-motion read from the platform. |
-| The extent: `ComposerController.extent` plus the presentation occupancy into the chat's bottom padding, and `safeAreaBottom: 0` while a keyboard or panel covers the safe area. | Expect the composer to know insets, the panel or the keyboard height. |
+| The extent: `ComposerController.extent` plus `max(safe area, presentation occupancy)` into the chat's bottom padding, and as `safeAreaBottom` what a keyboard or panel has left of the safe area. | Expect the composer to know insets, the panel or the keyboard height. |
 | Icons for header kinds without a stock id (`forward`, `link`) through `ChromeIconScope`; any custom action icon the same way. | Expect an unregistered id to draw more than the neutral glyph. |
 | Query kinds (`registerQueryKind`) and the suggestion panels for them; the replacement `RichText` (with its mention or inline reference entity and any trailing space) passed to `replaceQuery`. | Expect the composer to look anything up, detect bare URLs or `@names` (body linkify is host-invoked, [ADR 017](../../docs/adr/017-body-linkify-host-invoked.md)), or draw a suggestion panel. |
 | Entities that are links and mentions, made where the user or the host decides what they are, inserted with `text.insert` or `replaceQuery`. | Rely on the controller to turn typed text into an entity. |

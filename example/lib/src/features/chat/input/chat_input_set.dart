@@ -73,9 +73,10 @@ final class ChatEditTarget {
 ///   reference in the composer and one `RecentsStore.record`; backspace edits
 ///   the composer; clearing recents asks [confirmClearRecents] first.
 /// - **Soft keyboard.** While a keyboard-replacement panel is on screen the
-///   composer declares no soft keyboard; every other time it does. Leaving the
-///   panel for the keyboard ([handOffToKeyboard]) is the one place the keyboard
-///   is asked for.
+///   composer declares no soft keyboard; every other time it does. A raised
+///   keyboard is asked to lower when the panel takes its place, and the field
+///   raises it again by attaching with the new mode when the panel leaves for
+///   the keyboard ([handOffToKeyboard]).
 /// - **Paced mount.** A panel that grows into a free slot mounts its page over
 ///   three frames (grid, search field, strip); one that replaces the keyboard
 ///   mounts at once.
@@ -354,7 +355,9 @@ final class ChatInputSet {
     required double safeBottom,
   }) {
     if (_disposed) return;
-    insets.setSafeTop(safeTop);
+    insets
+      ..setSafeTop(safeTop)
+      ..setSafeBottom(safeBottom);
     final window = PanelWindow(width: size.width, height: size.height);
     if (_window.value != window) {
       _window.value = window;
@@ -465,13 +468,9 @@ final class ChatInputSet {
     composer.requestFocus();
     shell.closeSearch();
     presentation.hide(waitForIme: true);
-    // The field declares a soft keyboard again from the next frame; it has to
-    // be asked for once, because focus did not change.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _handingOff = false;
-      if (_disposed || !composer.hasFocus) return;
-      unawaited(_keyboardPort.show());
-    });
+    // The field declares a soft keyboard again from the next frame and, having
+    // focus, attaches again with it, which is what raises the keyboard.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handingOff = false);
   }
 
   /// Back: with search focused over a raised keyboard, the keyboard goes

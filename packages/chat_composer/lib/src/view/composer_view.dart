@@ -36,10 +36,14 @@ import 'package:flutter/widgets.dart';
 /// ## Extent
 ///
 /// The view publishes the height it takes as data on [ComposerController.extent],
-/// frame by frame while it animates. It includes the island's margins and the
-/// bottom safe-area pad ([safeAreaBottom]) and excludes any panel or keyboard
-/// below it. The host adds the presentation occupancy and feeds the sum to
-/// the chat's bottom padding.
+/// frame by frame while it animates. It includes the island's margins and
+/// excludes the bottom safe-area pad ([safeAreaBottom]) and any panel or
+/// keyboard below it. The pad is left out because it is the host's to add: the
+/// host knows the band the keyboard or the panel has covered, and the
+/// measurement arrives a frame after the layout it measures, so a pad that
+/// moved with the keyboard would show in the chat's bottom padding a frame late.
+/// The host adds the presentation's bottom band (the larger of the safe area
+/// and the occupancy) and feeds the sum to the chat's bottom padding.
 ///
 /// ## Environment
 ///
@@ -80,9 +84,10 @@ class ComposerView extends StatefulWidget {
   /// Key bindings; defaults to the [ComposerShortcutPolicy] of the platform.
   final Map<ShortcutActivator, Intent>? shortcuts;
 
-  /// Bottom safe-area pad inside the view, which counts in the extent.
-  /// Defaults to the bottom view padding of the `MediaQuery`; a host that
-  /// covers the area (a keyboard or panel stands below) passes zero.
+  /// Bottom safe-area pad inside the view, which does not count in the
+  /// extent. Defaults to the bottom view padding of the `MediaQuery`; a host
+  /// that covers the area (a keyboard or panel stands below) passes what is
+  /// left of it.
   final double? safeAreaBottom;
 
   /// Widest the island grows.
@@ -273,7 +278,7 @@ class _ComposerViewState extends State<ComposerView>
     );
 
     return HeightReporter(
-      onHeight: widget.controller.reportExtent,
+      onHeight: (height) => widget.controller.reportExtent(height - safeBottom),
       child: Align(
         alignment: AlignmentDirectional.bottomCenter,
         heightFactor: 1,

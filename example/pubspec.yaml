@@ -15,6 +15,7 @@ dependencies:
     path: ../
   keyboard_insets:
     path: packages/keyboard_insets
+  l: ^5.0.1
   catalog_assets:
     path: ../packages/catalog_assets
   chat_composer:

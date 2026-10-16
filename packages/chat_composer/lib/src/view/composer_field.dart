@@ -18,8 +18,14 @@ import 'package:flutter/scheduler.dart';
 /// **Soft keyboard.** While the controller's `softKeyboard` is
 /// [SoftKeyboardMode.suppressed] the field declares `TextInputType.none`:
 /// focus, caret, selection and hardware keys work, and the platform keeps its
-/// on-screen keyboard down. That is the whole mechanism; no platform channel
-/// is used, and the hand-off with a panel is the host's presentation's job.
+/// on-screen keyboard down. No platform channel is used.
+///
+/// The platform keeps the input type a field attached with, so a change of
+/// mode while the field has focus would not be seen by it (a field that
+/// attached suppressed would never raise the keyboard it is now allowed to).
+/// The field therefore **re-attaches**: one frame after the change, it drops
+/// focus and takes it back, with the new type. Focus, caret and selection are
+/// as they were; the hand-off with a panel is the host's presentation's job.
 ///
 /// Needs a Material ancestor and Material localisations, which the text
 /// selection menu draws with.
@@ -54,6 +60,7 @@ class _ComposerFieldState extends State<ComposerField> {
   void initState() {
     super.initState();
     widget.controller.text.addListener(_scheduleAnchor);
+    widget.controller.softKeyboard.addListener(_onSoftKeyboardMode);
   }
 
   @override
@@ -61,14 +68,33 @@ class _ComposerFieldState extends State<ComposerField> {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.controller, widget.controller)) {
       oldWidget.controller.text.removeListener(_scheduleAnchor);
+      oldWidget.controller.softKeyboard.removeListener(_onSoftKeyboardMode);
       widget.controller.text.addListener(_scheduleAnchor);
+      widget.controller.softKeyboard.addListener(_onSoftKeyboardMode);
     }
   }
 
   @override
   void dispose() {
     widget.controller.text.removeListener(_scheduleAnchor);
+    widget.controller.softKeyboard.removeListener(_onSoftKeyboardMode);
     super.dispose();
+  }
+
+  // The mode changed: once the frame has rebuilt the field with the new input
+  // type, a field that has focus attaches again with it. Waiting a frame also
+  // covers a host that asked for focus and changed the mode in one call, when
+  // focus has not landed yet.
+  void _onSoftKeyboardMode() {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final node = widget.controller.focusNode;
+      if (!node.hasFocus) return;
+      node.unfocus();
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.enabled) node.requestFocus();
+      });
+    });
   }
 
   void _scheduleAnchor() {
