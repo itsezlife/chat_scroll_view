@@ -213,12 +213,11 @@ void main() {
         languages: [language],
       );
       addTearDown(emoji.dispose);
-      final group = catalog.structure.groups.first.id;
-      await emoji.load(CollectionId.category(group));
+      // The first section after the recents holds the grinning face.
+      final first = emoji.collections.value[1].id;
+      await emoji.load(first);
       final items =
-          (emoji.collections.value
-                      .firstWhere((c) => c.id == CollectionId.category(group))
-                      .contents
+          (emoji.collections.value.firstWhere((c) => c.id == first).contents
                   as CollectionContents$Loaded)
               .items;
       return _spoken(items.firstWhere((item) => item.key == of));

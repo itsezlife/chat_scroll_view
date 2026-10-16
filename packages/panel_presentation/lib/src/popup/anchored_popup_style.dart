@@ -16,13 +16,15 @@ final class AnchoredPopupStyle {
     this.shadows = const <BoxShadow>[],
     this.scaleBegin = 0.9,
     this.hoverGutter = 10,
+    this.edgeGap = 0,
   }) : assert(width > 0, 'width must be positive'),
        assert(cornerRadius >= 0, 'cornerRadius must not be negative'),
        assert(
          scaleBegin > 0 && scaleBegin <= 1,
          'scaleBegin must be in (0, 1]',
        ),
-       assert(hoverGutter >= 0, 'hoverGutter must not be negative');
+       assert(hoverGutter >= 0, 'hoverGutter must not be negative'),
+       assert(edgeGap >= 0, 'edgeGap must not be negative');
 
   /// The width of the popup. Narrower when the window is.
   final double width;
@@ -39,6 +41,13 @@ final class AnchoredPopupStyle {
   /// A chosen default, not checked against a reference client.
   final double scaleBegin;
 
+  /// The room left between the popup and the composer it anchors to: above the
+  /// composer's top edge and inside its end edge. The reference client keeps
+  /// the same room on both sides, so the popup is a card floating over the
+  /// corner, not a sheet standing on the composer. The pointer's hover area
+  /// still reaches the toggle across it.
+  final double edgeGap;
+
   /// The transparent margin around the popup, on every side, that still
   /// counts as the popup to the pointer (and to an outside press). It is the
   /// room a [shadows] blur is drawn in: a pointer crossing the shadow has not
@@ -53,6 +62,7 @@ final class AnchoredPopupStyle {
       other.cornerRadius == cornerRadius &&
       other.scaleBegin == scaleBegin &&
       other.hoverGutter == hoverGutter &&
+      other.edgeGap == edgeGap &&
       _sameShadows(other.shadows, shadows);
 
   @override
@@ -61,6 +71,7 @@ final class AnchoredPopupStyle {
     cornerRadius,
     scaleBegin,
     hoverGutter,
+    edgeGap,
     Object.hashAll(shadows),
   );
 

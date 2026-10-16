@@ -16,6 +16,20 @@ import 'package:panel_shell/src/widgets/panel_pager.dart';
 import 'package:panel_shell/src/widgets/panel_type_tabs.dart';
 import 'package:panel_shell/testing.dart';
 
+const _extra = PageAction(
+  id: 'extra',
+  icon: ChromeIconId.attach,
+  semanticLabel: _extraLabel,
+);
+
+String _extraLabel(ChromeStrings strings) => 'Extra';
+
+/// The buttons of the bottom bar's action row.
+final _actionButton = find.descendant(
+  of: find.byType(PanelBottomBar),
+  matching: find.byType(ScalePressable),
+);
+
 void main() {
   late FakePanelPage emoji;
   late FakePanelPage stickers;
@@ -47,11 +61,7 @@ void main() {
   }
 
   setUp(() {
-    emoji = FakePanelPage(
-      'emoji',
-      search: true,
-      actions: const [PageAction.backspace()],
-    );
+    emoji = FakePanelPage('emoji', search: true, actions: const [_extra]);
     stickers = FakePanelPage('stickers');
   });
 
@@ -183,6 +193,40 @@ void main() {
       );
     });
 
+    testWidgets('shrink to fit a narrow shell instead of overflowing it', (
+      tester,
+    ) async {
+      controller = PanelShellController(
+        pages: [emoji, stickers].map((p) => p.page).toList(),
+        preferences: FakePreferenceStore(),
+      );
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        PanelShellTestScope(
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 180,
+              height: 600,
+              child: PanelShell(
+                controller: controller,
+                announcer: FakePanelAnnouncer(),
+                arrangement: PanelArrangement.pointer,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final tabs = tester.getRect(find.byType(PanelTypeTabs));
+      expect(
+        tabs.width,
+        lessThanOrEqualTo(180 - 2 * PanelBottomBar.padHorizontal),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('are not drawn for one page', (tester) async {
       await pump(tester, arrangement: PanelArrangement.pointer, pages: [emoji]);
 
@@ -207,13 +251,62 @@ void main() {
     testWidgets('holds the page action and nothing else', (tester) async {
       await pump(tester, arrangement: PanelArrangement.pointer);
 
-      expect(
-        find.descendant(
-          of: find.byType(PanelBottomBar),
-          matching: find.byType(HoldRepeatButton),
-        ),
-        findsOneWidget,
+      expect(_actionButton, findsOneWidget);
+    });
+
+    testWidgets('has no backspace, which is a touch idiom: a keyboard has '
+        'its own', (tester) async {
+      emoji = FakePanelPage(
+        'emoji',
+        search: true,
+        actions: const [PageAction.backspace()],
       );
+      await pump(tester, arrangement: PanelArrangement.pointer);
+
+      expect(find.byType(HoldRepeatButton), findsNothing);
+      expect(find.byType(PanelBottomBar), findsNothing);
+    });
+
+    testWidgets('leaves the page its whole column when there is no bar', (
+      tester,
+    ) async {
+      emoji = FakePanelPage(
+        'emoji',
+        search: true,
+        actions: const [PageAction.backspace()],
+      );
+      await pump(tester, arrangement: PanelArrangement.pointer);
+
+      expect(
+        tester.getSize(find.text('page emoji')).height,
+        greaterThan(0),
+        reason: 'the pager has a viewport',
+      );
+      expect(tester.getSize(find.byType(PanelPager)).height, greaterThan(300));
+    });
+
+    testWidgets('keeps the page\'s other actions beside a backspace it '
+        'leaves out', (tester) async {
+      emoji = FakePanelPage(
+        'emoji',
+        search: true,
+        actions: const [PageAction.backspace(), _extra],
+      );
+      await pump(tester, arrangement: PanelArrangement.pointer);
+
+      expect(find.byType(HoldRepeatButton), findsNothing);
+      expect(_actionButton, findsOneWidget);
+    });
+
+    testWidgets('touch still offers backspace', (tester) async {
+      emoji = FakePanelPage(
+        'emoji',
+        search: true,
+        actions: const [PageAction.backspace()],
+      );
+      await pump(tester);
+
+      expect(find.byType(HoldRepeatButton), findsOneWidget);
     });
 
     testWidgets('a wheel step (a drag report) does not hide it', (
@@ -266,7 +359,7 @@ void main() {
     testWidgets('sits at the end side of the bottom edge', (tester) async {
       await pump(tester, arrangement: PanelArrangement.pointer);
 
-      final button = find.byType(HoldRepeatButton);
+      final button = _actionButton;
       expect(
         tester.getBottomRight(button).dx,
         tester.getSize(find.byType(PanelShell)).width -
@@ -279,7 +372,7 @@ void main() {
       tester,
     ) async {
       await pump(tester, arrangement: PanelArrangement.pointer);
-      final button = find.byType(HoldRepeatButton);
+      final button = _actionButton;
       final resting = bottom(tester, button);
 
       emoji.host!.reportBottomExtent(36);
@@ -295,14 +388,14 @@ void main() {
     testWidgets('an extent reported by a page that is not selected is kept '
         'for when it is', (tester) async {
       await pump(tester, arrangement: PanelArrangement.pointer);
-      final button = find.byType(HoldRepeatButton);
+      final button = _actionButton;
       final resting = bottom(tester, button);
 
       emoji.host!.reportBottomExtent(36);
       controller.selectPage('stickers');
       await tester.pumpAndSettle();
       // The stickers page has no actions and reported nothing.
-      expect(find.byType(HoldRepeatButton), findsNothing);
+      expect(_actionButton, findsNothing);
 
       controller.selectPage('emoji');
       await tester.pumpAndSettle();
@@ -317,21 +410,36 @@ void main() {
       );
 
       expect(
-        bottom(tester, find.byType(HoldRepeatButton)),
+        bottom(tester, _actionButton),
         600 - 20 - PanelBottomBar.padBottom,
       );
     });
   });
 
   group('the search field', () {
-    testWidgets('is the shell\'s under pointer whatever the page declared, '
-        'and the page draws none', (tester) async {
+    testWidgets('is the page\'s own under pointer too when it declares inline: '
+        'it scrolls with the content', (tester) async {
       emoji = FakePanelPage(
         'emoji',
         search: true,
         searchPlacement: SearchPlacement.inline,
-        actions: const [PageAction.backspace()],
+        actions: const [_extra],
       );
+      await pump(tester, arrangement: PanelArrangement.pointer);
+
+      expect(find.byType(PanelSearchField), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: find.byType(PanelSearchField),
+          matching: find.byType(PanelPager),
+        ),
+        findsOneWidget,
+        reason: 'inside the page, among its content',
+      );
+    });
+
+    testWidgets('is the shell\'s under pointer when the page declares it '
+        'pinned', (tester) async {
       await pump(tester, arrangement: PanelArrangement.pointer);
 
       expect(find.byType(PanelSearchField), findsOneWidget);
@@ -366,8 +474,8 @@ void main() {
       );
     });
 
-    testWidgets('has a cancel control while search is open: the first press '
-        'clears, the second closes', (tester) async {
+    testWidgets('has a cancel control only while there is text: pressing it '
+        'empties the query and leaves search open', (tester) async {
       final semantics = tester.ensureSemantics();
       await pump(tester, arrangement: PanelArrangement.pointer);
       controller
@@ -377,12 +485,24 @@ void main() {
 
       await tester.tap(find.bySemanticsLabel('Cancel'));
       await tester.pumpAndSettle();
+
       expect(controller.search.value.query, '');
       expect(controller.search.value.isOpen, isTrue);
+      expect(find.bySemanticsLabel('Cancel'), findsNothing);
+      semantics.dispose();
+    });
 
-      await tester.tap(find.bySemanticsLabel('Cancel'));
+    testWidgets('has no cancel control for an empty query, open or not', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await pump(tester, arrangement: PanelArrangement.pointer);
+      expect(find.bySemanticsLabel('Cancel'), findsNothing);
+
+      controller.openSearch();
       await tester.pumpAndSettle();
-      expect(controller.search.value.isOpen, isFalse);
+
+      expect(find.bySemanticsLabel('Cancel'), findsNothing);
       semantics.dispose();
     });
 

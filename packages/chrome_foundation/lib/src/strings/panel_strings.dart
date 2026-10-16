@@ -28,7 +28,7 @@ final class PanelStrings {
   final String Function(String pageId) tabLabel;
 
   /// The title of the category section registered under [categoryId], such as
-  /// a group of the emoji catalogue (`smileys-emotion`, `flags`).
+  /// a section of the emoji grid (`people`, `symbols`).
   ///
   /// Category ids come from the data, so they are open: an id the host does
   /// not know should come back as itself rather than throw.

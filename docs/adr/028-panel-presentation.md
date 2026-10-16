@@ -12,6 +12,7 @@ inset-controller parts of [ADR 007](007-keyboard-panel-controller.md).
 **Amended**: 2026-10-16 — desktop parity of the popup: it never takes focus, the hover machine is the reference client's, the panel button docks and undocks, and `holdAutoHide` is the one hold seam (see below)  
 **Amended**: 2026-10-16 — the host wires the shell's page holds to that seam ([ADR 025](025-panel-shell-and-pages.md) Amendment)  
 **Amended**: 2026-10-16 — keyboard readings include the safe area; the sheet's rounded top; the host lowers a raised keyboard when the panel takes its place  
+**Amended**: 2026-10-16 — the dock is a standing section with a width the user drags; the popup keeps a gap from the composer  
 **Relates to**: [ADR 007](007-keyboard-panel-controller.md) (superseded in part), [ADR 012](012-cross-platform-selection-policies.md) (same policy shape), [ADR 025](025-panel-shell-and-pages.md), [host chrome insets](../architecture/14-host-chrome-insets.md) (amended by this ADR)
 
 ## Decided
@@ -68,3 +69,21 @@ the host without saying so.
 ## Related
 
 - Glossary: [Chat chrome](../chrome/CONTEXT.md)
+
+## Amendment: the dock is a standing section
+
+The first cut treated the dock as a panel a click or a hover brought up that
+happened to sit at the end edge. The reference client's is a section of the
+window: the user's saved choice and the room the window has decide whether it is
+there, and it stays. This amends the *Docked*, *Dismissal*, *Toggle click* and
+*Occupancy* rows above.
+
+| Area | Decision |
+| ---- | -------- |
+| Whether it shows | `dockPreferred` (the saved choice) and `PanelPresentationPolicy.canDock(window)`. The window has the room when the content and a dock fit side by side: 380 and 292 logical pixels, so 672 wide. The Material window class is not read. |
+| Standing | While both hold the dock is on screen with no click: the controller shows it at construction, when the preference is turned on, and when the window widens to the room. When either stops holding the panel is hidden (a window that narrows does not turn the dock into a popup, and the preference stays), and a popup open when the dock comes back gives way to it. The controller acts when the answer changes, not on every report of the window, so a dock the host hid on purpose stays hidden until the window or the choice changes. |
+| Dismissal | A dock is dismissed by no gesture (`dismissalsFor(Docked)` is empty): Escape and back step out of search, and nothing else; the panel button undocks (preference off, panel hidden, no popup until the pointer re-enters the button). |
+| Width | `PanelPresentationPolicy.dockWidthIn(window, wanted:)`: the wish held between `dockMinWidth` (292) and `dockMaxWidth` (392), no wider than leaves `dockMinChatWidth` (380) to the content, never under 292. A dock nobody has dragged is `DockedStyle.width` held to those bounds, or 292. |
+| Resizing | A 6 px strip along the dock's start edge (`dockResizeExtent`) under the horizontal-resize cursor. The edge follows the pointer from the press, with the point grabbed under it (the reference client's press offset); `PanelPresentationController.resizeDock` takes the raw wish frame by frame and the chat narrows with it, `endDockResize` holds it to the bounds and keeps it. What is kept is the wish, in `DockWidthStore` (a sibling of `KeyboardHeightStore`: a size of the panel's own chrome, not a typed choice of the `PreferenceStore`), so a window that widens gives the dragged width back. |
+| Popup gap | `AnchoredPopupStyle.edgeGap` is the room between the popup and the composer's top and end edges (the reference client's popup is a card 10 px in from the corner). The pointer's hover area still bridges it to the toggle. |
+| Motion | Unchanged: the dock slides with `panelSlide`. The reference client opens and closes it instantly. |

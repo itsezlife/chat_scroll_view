@@ -25,7 +25,7 @@ import 'package:panel_presentation/panel_presentation.dart';
 ///
 /// 1. the [KeyValueStore] adapter (`kv_shared_preferences`);
 /// 2. the stores, which arrive loaded: [recents], [preferences],
-///    [keyboardHeights] and [centerBands];
+///    [keyboardHeights], [dockWidths] and [centerBands];
 /// 3. the asset cache [assets] with its pause layer and memory pressure
 ///    (this host has no fetcher or decoder: its content is emoji glyphs, so
 ///    the cache has no producer behind the glyph path and the content
@@ -48,6 +48,7 @@ final class AppServices {
     required this.recentsShown,
     required this.preferences,
     required this.keyboardHeights,
+    required this.dockWidths,
     required this.centerBands,
     required this.memoryPressure,
     required this.assets,
@@ -108,7 +109,7 @@ final class AppServices {
 
       // 2. Stores, loaded. Each registers as it arrives, so one that loaded
       // beside a sibling that failed is still freed.
-      final (recents, preferences, keyboardHeights) = await (
+      final (recents, preferences, keyboardHeights, dockWidths) = await (
         KeyValueRecentsStore.load(
           storage,
           namespace: recentsNamespace,
@@ -118,6 +119,7 @@ final class AppServices {
           namespace: preferencesNamespace,
         ).then((store) => owned(store, (store) => store.dispose())),
         KeyboardHeightStore.open(storage),
+        DockWidthStore.open(storage),
       ).wait;
       final centerBands = ChatCenterBandStore(storage);
 
@@ -199,6 +201,7 @@ final class AppServices {
         recentsShown: recentsShown,
         preferences: preferences,
         keyboardHeights: keyboardHeights,
+        dockWidths: dockWidths,
         centerBands: centerBands,
         memoryPressure: memoryPressure,
         assets: assets,
@@ -241,6 +244,9 @@ final class AppServices {
 
   /// The keyboard height remembered per orientation.
   final KeyboardHeightStore keyboardHeights;
+
+  /// The width the user dragged the docked panel to.
+  final DockWidthStore dockWidths;
 
   /// The saved reading position of each chat.
   final ChatCenterBandStore centerBands;

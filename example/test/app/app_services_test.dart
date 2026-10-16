@@ -142,12 +142,13 @@ void main() {
         'language', () async {
       final services = await createTestServices();
       addTearDown(services.dispose);
-      final group = services.catalog.structure.groups.first.id;
-      await services.emojiSource.load(CollectionId.category(group));
+      // The first section after the recents.
+      final first = services.emojiSource.collections.value[1].id;
+      await services.emojiSource.load(first);
 
       final loaded =
           services.emojiSource.collections.value
-                  .firstWhere((c) => c.id == CollectionId.category(group))
+                  .firstWhere((c) => c.id == first)
                   .contents
               as CollectionContents$Loaded;
       final spoken = [

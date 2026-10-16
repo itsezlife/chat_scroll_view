@@ -67,10 +67,11 @@ void main() {
       return (rig, pointer);
     }
 
-    // The first cell of the recents: under the search field, past the header.
+    // The first cell of the recents: past the search field, the first thing in
+    // the content, and the header.
     Offset firstCell(WidgetTester tester) {
       final viewport = tester.getRect(find.byType(PanelCatalogViewport));
-      return viewport.topLeft + const Offset(25, 27 + 22);
+      return viewport.topLeft + const Offset(25, 50 + 27 + 22);
     }
 
     testWidgets('a right click on a recent opens the menu, and the popup '

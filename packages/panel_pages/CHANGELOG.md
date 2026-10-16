@@ -6,6 +6,23 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Source-breaking: `CatalogPagePolicy.visibleCollections` takes no `searchOpen`
+  flag. An open search with no query shows what browsing shows, under both
+  arrangements, and the emoji page no longer narrows to the recents.
+- The emoji recents header has no clear button. A finger's long press on a
+  recent asks the host to clear them (`requestClearRecents`) instead of
+  opening the variant picker; a mouse keeps the hold and the right-click menu.
+  `EmojiPagePolicy.clearRecentsActionId` is gone.
+- Under `pointer` an `inline` search field is the page's, scrolls with the grid
+  and does not pin.
+- The emoji tabs follow the reference client's seven categories
+  (`EmojiSection.reference`): the flags have no tab and the ids are
+  `people`, `nature`, `food`, `activity`, `travel`, `objects`, `symbols`;
+  activity comes before travel. Hosts that supply strings key
+  `PanelStrings.categoryTitle` by those ids.
+
 ### Added
 
 - The recents context menu ([ADR 025](../../docs/adr/025-panel-shell-and-pages.md)

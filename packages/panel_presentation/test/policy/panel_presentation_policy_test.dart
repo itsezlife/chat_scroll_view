@@ -106,61 +106,101 @@ void main() {
     });
   });
 
-  group('default kind, OS family x window class', () {
+  group('default kind, OS family x window', () {
     const mobile = PanelPresentationPolicy$Mobile();
     const desktop = PanelPresentationPolicy$Desktop();
+    const windows = [
+      PanelWindow(width: 360, height: 800),
+      PanelWindow(width: 700, height: 800),
+      PanelWindow(width: 1400, height: 900),
+    ];
+    const wide = PanelWindow(width: 1000, height: 700);
 
-    test('mobile replaces the keyboard at every window class', () {
-      for (final windowClass in PanelWindowClass.values) {
-        expect(
-          mobile.defaultKind(windowClass: windowClass),
-          const KeyboardReplacement(),
-        );
+    test('mobile replaces the keyboard in every window', () {
+      for (final window in windows) {
+        expect(mobile.defaultKind(window: window), const KeyboardReplacement());
       }
     });
 
     test('mobile ignores a dock preference', () {
       expect(
-        mobile.defaultKind(
-          windowClass: PanelWindowClass.expanded,
-          dockPreferred: true,
-        ),
+        mobile.defaultKind(window: wide, dockPreferred: true),
         const KeyboardReplacement(),
       );
     });
 
-    test('desktop opens a popup at every window class by default', () {
-      for (final windowClass in PanelWindowClass.values) {
-        expect(
-          desktop.defaultKind(windowClass: windowClass),
-          const AnchoredPopup(),
-        );
+    test('desktop opens a popup in every window by default', () {
+      for (final window in windows) {
+        expect(desktop.defaultKind(window: window), const AnchoredPopup());
       }
     });
 
-    test('desktop docks only when preferred and the window is wide', () {
+    test('desktop docks only when preferred and the window has room', () {
       expect(
-        desktop.defaultKind(
-          windowClass: PanelWindowClass.expanded,
-          dockPreferred: true,
-        ),
+        desktop.defaultKind(window: wide, dockPreferred: true),
         const Docked(),
       );
-      for (final windowClass in [
-        PanelWindowClass.compact,
-        PanelWindowClass.medium,
-      ]) {
-        expect(
-          desktop.defaultKind(windowClass: windowClass, dockPreferred: true),
-          const AnchoredPopup(),
-        );
-      }
+      expect(
+        desktop.defaultKind(window: windows.first, dockPreferred: true),
+        const AnchoredPopup(),
+      );
     });
 
-    test('only desktop can dock, and only in a wide window', () {
-      expect(mobile.canDock(PanelWindowClass.expanded), isFalse);
-      expect(desktop.canDock(PanelWindowClass.expanded), isTrue);
-      expect(desktop.canDock(PanelWindowClass.medium), isFalse);
+    test('only desktop can dock, and only where the chat and the dock fit '
+        'side by side: 380 and 292', () {
+      expect(mobile.canDock(wide), isFalse);
+      expect(
+        desktop.canDock(const PanelWindow(width: 672, height: 600)),
+        isTrue,
+      );
+      expect(
+        desktop.canDock(const PanelWindow(width: 671.9, height: 600)),
+        isFalse,
+      );
+      expect(desktop.canDock(const PanelWindow(width: 0, height: 0)), isFalse);
+    });
+  });
+
+  group('the dock\'s size', () {
+    const policy = PanelPresentationPolicy$Desktop();
+    const wide = PanelWindow(width: 1200, height: 800);
+
+    test(
+      'is the reference client\'s: 292 to 392, the chat never under 380',
+      () {
+        expect(policy.dockMinWidth, 292);
+        expect(policy.dockMaxWidth, 392);
+        expect(policy.dockMinChatWidth, 380);
+        expect(policy.dockResizeExtent, 6);
+      },
+    );
+
+    test('is the narrowest one nobody has resized', () {
+      expect(policy.dockWidthIn(wide), 292);
+    });
+
+    test('follows a wish between the two bounds, and is held by them', () {
+      expect(policy.dockWidthIn(wide, wanted: 340), 340);
+      expect(policy.dockWidthIn(wide, wanted: 100), 292);
+      expect(policy.dockWidthIn(wide, wanted: 900), 392);
+    });
+
+    test('yields to the chat\'s room in a window that is only just wide '
+        'enough', () {
+      expect(
+        policy.dockWidthIn(
+          const PanelWindow(width: 700, height: 600),
+          wanted: 392,
+        ),
+        320,
+      );
+      expect(
+        policy.dockWidthIn(
+          const PanelWindow(width: 672, height: 600),
+          wanted: 392,
+        ),
+        292,
+      );
     });
   });
 
@@ -177,7 +217,7 @@ void main() {
         ]) {
           expect(
             policy.resolve(
-              windowClass: PanelWindowClass.compact,
+              window: const PanelWindow(width: 360, height: 800),
               override: kind,
             ),
             kind,
@@ -188,9 +228,10 @@ void main() {
 
     test('falls back to the default without one', () {
       const policy = PanelPresentationPolicy$Desktop();
+      const window = PanelWindow(width: 700, height: 800);
       expect(
-        policy.resolve(windowClass: PanelWindowClass.medium),
-        policy.defaultKind(windowClass: PanelWindowClass.medium),
+        policy.resolve(window: window),
+        policy.defaultKind(window: window),
       );
     });
   });
@@ -232,16 +273,18 @@ void main() {
       },
     );
 
-    test(
-      'a desktop docked section and keyboard panel dismiss by back only',
-      () {
-        const policy = PanelPresentationPolicy$Desktop();
-        expect(policy.dismissalsFor(const Docked()), {PanelDismissal.back});
-        expect(policy.dismissalsFor(const KeyboardReplacement()), {
-          PanelDismissal.back,
-        });
-      },
-    );
+    test('a desktop dock is not dismissed by any gesture: it is a standing '
+        'section, closed by the dock control', () {
+      const policy = PanelPresentationPolicy$Desktop();
+      expect(policy.dismissalsFor(const Docked()), isEmpty);
+    });
+
+    test('a desktop keyboard panel dismisses by back only', () {
+      const policy = PanelPresentationPolicy$Desktop();
+      expect(policy.dismissalsFor(const KeyboardReplacement()), {
+        PanelDismissal.back,
+      });
+    });
 
     test(
       'timers follow the reference client: 300 ms leave, 3 s after a hold',

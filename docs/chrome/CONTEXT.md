@@ -61,7 +61,7 @@ The host-independent panel: pager, type tabs and bottom bar around the active pa
 _Avoid_: KeyboardPanel, catalog shell, emoji panel
 
 **Panel arrangement**:
-How the shell lays out its chrome for the way the user points: `touch` (tabs and page actions in one floating bottom bar that hides as the content is read; the page's strip and inline search field as a sticky header that slides away with the reading) or `pointer` (tabs above the search field, which is always the shell's; a bar of page actions that never hides on scroll and rises above the strip the page pins at the bottom; nothing a page draws slides). It is the one switch between those two layouts. Chosen by the presentation, given to the shell, read by pages through the scope. The platform is never read for it.
+How the shell lays out its chrome for the way the user points: `touch` (tabs and page actions in one floating bottom bar that hides as the content is read; the page's strip and inline search field as a sticky header that slides away with the reading) or `pointer` (tabs above the search field; a bar of the page actions the arrangement offers (backspace is not) that never hides on scroll and rises above the strip the page pins at the bottom, absent when none is left; an inline search field scrolls with the grid and never pins; nothing else a page draws slides). It is the one switch between those two layouts. Chosen by the presentation, given to the shell, read by pages through the scope. The platform is never read for it.
 _Avoid_: Layout mode, platform layout, desktop / mobile shell
 
 **Panel page**:
@@ -131,8 +131,8 @@ A claim a page keeps on the host's auto-hide while it shows a surface outside th
 _Avoid_: A page reaching the presentation controller, the shell naming a presentation
 
 **Recents menu**:
-The context menu a right click opens on an emoji of the recents under the pointer arrangement: copy, remove from recent, a separator, clear recent (attention colour). A page decision through a policy (`menuOf`), drawn by `CatalogContextMenuHost`, modal, with the keys of a menu; its items reach the host as `ContentCopyRequested`, `RecentRemoveRequested` and `ClearRecentsRequested`. Under the pointer arrangement the recents header has no clear button.
-_Avoid_: A header clear button on a pointer, the page writing recents, a menu for a finger
+The context menu a right click opens on an emoji of the recents under the pointer arrangement: copy, remove from recent, a separator, clear recent (attention colour). A page decision through a policy (`menuOf`), drawn by `CatalogContextMenuHost`, modal, with the keys of a menu; its items reach the host as `ContentCopyRequested`, `RecentRemoveRequested` and `ClearRecentsRequested`. The recents header has no clear button under either arrangement: a finger's long press on a recent asks the host to clear them.
+_Avoid_: A header clear button, the page writing recents, a menu for a finger
 
 **Variant picker**:
 The card of an emoji's variants a press opens over the grid: the grid's own cell and glyph box for every option, one row with a separator after the first, above the pressed cell (below near the top edge), fading, modal on a barrier, holding auto-hide while open. A mouse opens it at once for an emoji whose variant was never chosen and after 500 ms otherwise; a finger after the platform's long press.
@@ -155,7 +155,7 @@ The composer's one button for the panel. On the mobile kind it opens the panel a
 _Avoid_: A separate dock button, a second glyph for the open state on a desktop kind
 
 **Dock preference**:
-The user's choice to keep the panel docked at the inline end in a wide window. It lives in the `PreferenceStore`; the controller starts from it and writes every dock and undock to it.
+The user's choice to keep the panel docked at the inline end. It lives in the `PreferenceStore`; the controller starts from it and writes every dock and undock to it. Whether a dock is on screen is the **Standing dock**.
 _Avoid_: A flag held only in the widget, persistence by the presentation package itself
 
 **Hand-off**:
@@ -250,3 +250,23 @@ Migration notes. These terms name code that the package set replaces.
 | ChatChromeColors | Chrome palette and token groups |
 | ChatComposerMode, ChatEnterView | Composer spec and slots |
 | ChatBottomInsetController | Occupancy and the host's padding aggregation |
+
+**Standing dock**:
+The docked section while the user prefers it and the window has the room for it (the content keeps 380, the dock is at least 292): on screen because of the window and the choice, not because of a click or a hover. A window without the room takes it away (no popup takes its place) and the choice stays; one with the room brings it back. No gesture dismisses it; the panel button undocks it.
+_Avoid_: A dock that is a popup moved to the edge, a dock closed by back or Escape, a dock tied to a window class
+
+**Dock width**:
+How wide the dock is: the user's dragged wish held between 292 and 392 and to what leaves the content 380, in `PanelPresentationPolicy.dockWidthIn`. The wish is kept (`DockWidthStore`) as dragged and held when the drag ends, so a window that widens gives it back.
+_Avoid_: A fixed dock width, a width kept already clamped by the window
+
+**Dock resize strip**:
+The 6 px strip along the dock's start edge that resizes it: horizontal-resize cursor, the grabbed point stays under the pointer, the chat narrows frame by frame, the wish is kept where the drag ends.
+_Avoid_: A splitter that moves on release, a strip that only appears on hover
+
+**Edge gap**:
+`AnchoredPopupStyle.edgeGap`: the room between a popup and the composer's top and end edges.
+_Avoid_: Margin inside the popup card, a gap the pointer falls through
+
+**Emoji section**:
+One category of the emoji grid, folded from the catalogue's groups by `EmojiSection`: the reference client's people, nature, food, activity, travel, objects and symbols (flags close the symbols). Its id is the `CollectionId.category` id.
+_Avoid_: Unicode group slugs as the grid's sections, a tab for flags

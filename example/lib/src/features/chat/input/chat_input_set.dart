@@ -185,6 +185,7 @@ final class ChatInputSet {
           strategies: [keyboardStrategy, popup, docked],
           window: window.value,
           preferences: services.preferences,
+          dockWidths: services.dockWidths,
         ),
         (presentation) => presentation.dispose(),
       );
@@ -273,13 +274,17 @@ final class ChatInputSet {
   static const AnchoredPopupStyle _popupStyle = AnchoredPopupStyle(
     width: 380,
     cornerRadius: 14,
+    // The room the reference client leaves between its popup and the composer
+    // corner it floats over.
+    edgeGap: 10,
     shadows: <BoxShadow>[
       BoxShadow(color: Color(0x66000000), blurRadius: 24, offset: Offset(0, 8)),
     ],
   );
 
+  // No width of its own: a dock nobody has dragged is the policy's narrowest,
+  // as the reference client's is.
   static const DockedStyle _dockedStyle = DockedStyle(
-    width: 360,
     separator: Color(0x24FFFFFF),
   );
 
@@ -525,7 +530,7 @@ final class ChatInputSet {
             handOffToKeyboard();
           case AnchoredPopup():
             final canDock = presentation.policy.canDock(
-              presentation.window.value.windowClass,
+              presentation.window.value,
             );
             if (canDock) {
               presentation.dock();

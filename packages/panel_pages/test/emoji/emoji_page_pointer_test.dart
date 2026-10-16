@@ -104,6 +104,7 @@ void main() {
       tester,
     ) async {
       await pumpShell(tester, arrangement: PanelArrangement.pointer);
+      debugDumpApp();
 
       final page = tester.getRect(find.byType(EmojiPage));
       expect(tester.getBottomLeft(strip()).dy, page.bottom);
@@ -122,17 +123,13 @@ void main() {
       expect(EmojiCategoryStrip.height, 36);
     });
 
-    testWidgets('the page tells the shell how tall the strip is, and the '
-        'backspace sits right above it', (tester) async {
+    testWidgets('the page tells the shell how tall the strip is, and there is '
+        'no backspace above it', (tester) async {
       final semantics = tester.ensureSemantics();
       await pumpShell(tester, arrangement: PanelArrangement.pointer);
 
       expect(shell.bottomExtent.value, tester.getSize(strip()).height);
-      final backspace = tester.getRect(find.bySemanticsLabel('Delete'));
-      expect(
-        backspace.bottom,
-        lessThanOrEqualTo(tester.getTopLeft(strip()).dy),
-      );
+      expect(find.bySemanticsLabel('Delete'), findsNothing);
       semantics.dispose();
     });
 
@@ -176,7 +173,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(strip(), findsOneWidget);
-      expect(find.bySemanticsLabel('Animals & nature'), findsOneWidget);
+      expect(find.bySemanticsLabel('Animals & Nature'), findsOneWidget);
       semantics.dispose();
     });
 
@@ -197,13 +194,12 @@ void main() {
 
       expect(shell.search.value.query, '');
       expect(strip(), findsOneWidget);
-      expect(find.bySemanticsLabel('Animals & nature'), findsOneWidget);
+      expect(find.bySemanticsLabel('Animals & Nature'), findsOneWidget);
       expect(find.bySemanticsLabel('Recently used'), findsOneWidget);
 
-      // On an empty field the same control closes search.
-      await tester.tap(find.bySemanticsLabel('Cancel'));
-      await tester.pumpAndSettle();
-      expect(shell.search.value.isOpen, isFalse);
+      // Nothing is left to clear: the control goes, and search stays open.
+      expect(find.bySemanticsLabel('Cancel'), findsNothing);
+      expect(shell.search.value.isOpen, isTrue);
       semantics.dispose();
     });
 
@@ -256,47 +252,92 @@ void main() {
       );
     });
 
-    testWidgets('an empty search still narrows the page to the recents, and '
-        'the strip leaves with it', (tester) async {
-      final semantics = tester.ensureSemantics();
+    testWidgets('an empty search keeps the whole catalogue, and only the '
+        'strip leaves', (tester) async {
       await pumpShell(tester, arrangement: PanelArrangement.touch);
+      final catalog = shell.controllers
+          .peek<CatalogPageController>('emoji')!
+          .catalog;
+      final before = catalog.maxScrollExtent;
+      expect(before, greaterThan(0));
 
       shell.openSearch();
       await tester.pumpAndSettle();
 
       expect(strip(), findsNothing);
-      expect(find.bySemanticsLabel('Animals & nature'), findsNothing);
-      semantics.dispose();
+      // The strip's 36 px leave with it; no section does.
+      expect(catalog.maxScrollExtent, closeTo(before, 40));
     });
   });
 
-  group('the search field follows the arrangement', () {
-    testWidgets('under pointer it is the shell\'s, above the page', (
+  group('the search field under the pointer arrangement', () {
+    double fieldTop(WidgetTester tester) =>
+        tester.getTopLeft(find.byType(EditableText)).dy;
+
+    testWidgets('is the page\'s, the first thing in its content', (
       tester,
     ) async {
       await pumpShell(tester, arrangement: PanelArrangement.pointer);
 
       final page = tester.getRect(find.byType(EmojiPage));
+      expect(fieldTop(tester), greaterThanOrEqualTo(page.top));
       expect(
         tester.getBottomLeft(find.byType(EditableText)).dy,
-        lessThanOrEqualTo(page.top),
+        lessThanOrEqualTo(tester.getTopLeft(grid()).dy + 60),
       );
     });
 
-    testWidgets('moving the arrangement moves it in place', (tester) async {
+    testWidgets('scrolls away with the grid and comes back with it', (
+      tester,
+    ) async {
       await pumpShell(tester, arrangement: PanelArrangement.pointer);
-      final page = tester.getRect(find.byType(EmojiPage));
+      final catalog = shell.controllers
+          .peek<CatalogPageController>('emoji')!
+          .catalog;
+      final resting = fieldTop(tester);
+
+      catalog.jumpTo(120);
+      await tester.pump();
+      expect(
+        tester.getBottomLeft(find.byType(EditableText)).dy,
+        lessThanOrEqualTo(tester.getTopLeft(find.byType(EmojiPage)).dy),
+        reason: 'the whole field has gone with the first rows',
+      );
+
+      catalog.jumpTo(0);
+      await tester.pump();
+      expect(fieldTop(tester), resting);
+    });
+
+    testWidgets('stays in the content when search opens: it does not pin', (
+      tester,
+    ) async {
+      await pumpShell(tester, arrangement: PanelArrangement.pointer);
+      final catalog = shell.controllers
+          .peek<CatalogPageController>('emoji')!
+          .catalog;
+      shell.openSearch();
+      await tester.pumpAndSettle();
+
+      catalog.jumpTo(200);
+      await tester.pump();
+
+      expect(
+        tester.getBottomLeft(find.byType(EditableText)).dy,
+        lessThan(tester.getTopLeft(find.byType(EmojiPage)).dy + 10),
+        reason: 'gone with the first rows, not pinned at the top',
+      );
+    });
+
+    testWidgets('does not move when the arrangement changes: the page owns '
+        'it under both', (tester) async {
+      await pumpShell(tester, arrangement: PanelArrangement.pointer);
       expect(find.byType(EditableText), findsOneWidget);
 
       arrangementOf.value = PanelArrangement.touch;
       await tester.pumpAndSettle();
 
       expect(find.byType(EditableText), findsOneWidget);
-      expect(
-        tester.getTopLeft(find.byType(EditableText)).dy,
-        greaterThan(tester.getTopLeft(find.byType(EmojiPage)).dy),
-      );
-      expect(tester.getRect(find.byType(EmojiPage)).top, isNot(page.top));
     });
   });
 }

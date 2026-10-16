@@ -9,6 +9,7 @@ import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
@@ -62,7 +63,7 @@ void main() {
     test('is eight columns for the categories and the results alike', () {
       for (final id in [
         CollectionId.recent,
-        const CollectionId.category('flags'),
+        const CollectionId.category('symbols'),
         const CollectionId.query('cat'),
       ]) {
         expect(
@@ -93,40 +94,27 @@ void main() {
     final recents = _loaded(CollectionId.recent, ['😀']);
     final empty = _loaded(CollectionId.recent, const []);
     const idle = Collection(id: CollectionId.recent);
-    final flags = _loaded(const CollectionId.category('flags'), ['🇯🇵']);
+    final flags = _loaded(const CollectionId.category('symbols'), ['🇯🇵']);
 
     List<CollectionId> ids(List<Collection> collections) => [
       for (final collection in collections) collection.id,
     ];
 
     test('the recents come first while there are some', () {
-      expect(
-        ids(policy.visibleCollections([recents, flags], searchOpen: false)),
-        [CollectionId.recent, flags.id],
-      );
+      expect(ids(policy.visibleCollections([recents, flags])), [
+        CollectionId.recent,
+        flags.id,
+      ]);
     });
 
     test('empty and unloaded recents are not a section', () {
       for (final hidden in [empty, idle]) {
         expect(
-          ids(policy.visibleCollections([hidden, flags], searchOpen: false)),
+          ids(policy.visibleCollections([hidden, flags])),
           [flags.id],
           reason: '${hidden.contents}',
         );
       }
-    });
-
-    test('an empty search shows the frequently used emoji only', () {
-      expect(
-        ids(policy.visibleCollections([recents, flags], searchOpen: true)),
-        [CollectionId.recent],
-      );
-    });
-
-    test('an empty search without recents shows everything', () {
-      expect(ids(policy.visibleCollections([empty, flags], searchOpen: true)), [
-        flags.id,
-      ]);
     });
   });
 
@@ -134,10 +122,10 @@ void main() {
     test('name a category by the panel strings, and the rest as usual', () {
       expect(
         policy.titleOf(
-          const Collection(id: CollectionId.category('animals-nature')),
+          const Collection(id: CollectionId.category('nature')),
           _strings,
         ),
-        'Animals & nature',
+        'Animals & Nature',
       );
       expect(
         policy.titleOf(const Collection(id: CollectionId.recent), _strings),
@@ -150,74 +138,83 @@ void main() {
     });
   });
 
-  group('the recents header action', () {
-    test('is on the recents alone, in the language of the strings', () {
-      expect(
-        policy.actionOf(const Collection(id: CollectionId.recent), _strings),
-        CatalogSectionAction(
-          id: EmojiPagePolicy.clearRecentsActionId,
-          label: _strings.clearAction,
-          semanticLabel: _strings.clearRecentsTitle,
+  group('the recents under a finger', () {
+    const recents = Collection(id: CollectionId.recent);
+    const flags = Collection(id: CollectionId.category('symbols'));
+
+    Future<CatalogLongPressSession?> longPress(
+      WidgetTester tester,
+      String glyph,
+      Collection collection, {
+      PointerDeviceKind kind = PointerDeviceKind.touch,
+    }) async {
+      late BuildContext context;
+      await tester.pumpWidget(
+        Builder(
+          builder: (c) {
+            context = c;
+            return const SizedBox();
+          },
         ),
       );
-      expect(
-        policy.actionOf(
-          const Collection(id: CollectionId.category('flags')),
-          _strings,
-        ),
-        isNull,
+      return policy.beginLongPress(
+        context,
+        _hit(glyph),
+        collection,
+        const LongPressStartDetails(),
+        kind: kind,
+        cellBounds: const Rect.fromLTWH(0, 0, 40, 40),
+        viewportBounds: const Rect.fromLTWH(0, 0, 360, 480),
       );
-    });
+    }
 
-    test('asks the host to clear the emoji recents', () {
-      policy.onSectionAction(
-        const Collection(id: CollectionId.recent),
-        EmojiPagePolicy.clearRecentsActionId,
-        host,
-      );
-
-      expect(host.clearRecentsRequests, [SemanticKind.unicodeEmoji]);
-    });
-
-    test('ignores any other action, and the action of another section', () {
-      policy
-        ..onSectionAction(
-          const Collection(id: CollectionId.recent),
-          'other',
-          host,
-        )
-        ..onSectionAction(
-          const Collection(id: CollectionId.category('flags')),
-          EmojiPagePolicy.clearRecentsActionId,
-          host,
+    test('have no header action, in any arrangement', () {
+      for (final arrangement in PanelArrangement.values) {
+        expect(
+          policy.actionOf(recents, _strings, arrangement: arrangement),
+          isNull,
+          reason: '$arrangement',
         );
+      }
+    });
+
+    test('answer a long press even for an emoji with no variants', () {
+      expect(policy.hasLongPress(_hit('❤'), recents), isTrue);
+      expect(policy.hasLongPress(_hit('❤'), flags), isFalse);
+    });
+
+    testWidgets('ask the host to clear them, and open no picker', (
+      tester,
+    ) async {
+      for (final glyph in ['❤', '👍']) {
+        final session = await longPress(tester, glyph, recents);
+
+        expect(session, isNull, reason: glyph);
+      }
+      expect(host.clearRecentsRequests, [
+        SemanticKind.unicodeEmoji,
+        SemanticKind.unicodeEmoji,
+      ]);
+    });
+
+    testWidgets('are left to the mouse\'s hold when a mouse presses', (
+      tester,
+    ) async {
+      await longPress(tester, '❤', recents, kind: PointerDeviceKind.mouse);
+
+      expect(host.clearRecentsRequests, isEmpty);
+    });
+
+    testWidgets('are the only cells a long press clears from', (tester) async {
+      await longPress(tester, '❤', flags);
 
       expect(host.clearRecentsRequests, isEmpty);
     });
   });
 
-  group('under the pointer arrangement the recents have no header action', () {
-    test('the header action is gone, the touch one is unchanged', () {
-      const recents = Collection(id: CollectionId.recent);
-
-      expect(
-        policy.actionOf(
-          recents,
-          _strings,
-          arrangement: PanelArrangement.pointer,
-        ),
-        isNull,
-      );
-      expect(
-        policy.actionOf(recents, _strings, arrangement: PanelArrangement.touch),
-        isNotNull,
-      );
-    });
-  });
-
   group('the recents context menu', () {
     const recents = Collection(id: CollectionId.recent);
-    const flags = Collection(id: CollectionId.category('flags'));
+    const flags = Collection(id: CollectionId.category('symbols'));
 
     List<CatalogMenuEntry> menu(
       Collection collection, {
@@ -306,7 +303,7 @@ void main() {
   });
 
   group('the long press delay', () {
-    const flags = Collection(id: CollectionId.category('flags'));
+    const flags = Collection(id: CollectionId.category('symbols'));
     const recents = Collection(id: CollectionId.recent);
 
     Duration? delay(
@@ -376,7 +373,7 @@ void main() {
   });
 
   group('the variant picker agrees with the catalogue', () {
-    const flags = Collection(id: CollectionId.category('flags'));
+    const flags = Collection(id: CollectionId.category('symbols'));
 
     test('is offered for every entry that has variants, and no other', () {
       for (final entry in fixtures.catalogue) {

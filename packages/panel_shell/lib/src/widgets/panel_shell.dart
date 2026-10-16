@@ -276,9 +276,19 @@ class _PanelShellState extends State<PanelShell> {
               left: 0,
               right: 0,
               bottom: extent,
-              child: FocusTraversalOrder(
-                order: const NumericFocusOrder(2),
-                child: _bar(slide: PanelBottomBar.hideSlide + extent, lift: 0),
+              // A page with nothing to offer here (its only action is a touch
+              // idiom) has no bar, and an empty one would still take the room.
+              child: ListenValueBuilder<String>(
+                listenable: _shell.selectedPageId,
+                builder: (context, _) => _barActions().isEmpty
+                    ? const SizedBox.shrink()
+                    : FocusTraversalOrder(
+                        order: const NumericFocusOrder(2),
+                        child: _bar(
+                          slide: PanelBottomBar.hideSlide + extent,
+                          lift: 0,
+                        ),
+                      ),
               ),
             ),
           )
@@ -366,13 +376,20 @@ class _PanelShellState extends State<PanelShell> {
               PanelBottomBar.padHorizontal,
               PanelBottomBar.padBottom,
             ),
+            // Scaled down as a whole when the column is narrower than the pill
+            // (a dock dragged to its narrowest, large text): the pill measures
+            // its own tabs against its own strip, so a scale above it moves
+            // nothing inside.
             child: Center(
-              child: PanelTypeTabs(
-                pages: _shell.pages,
-                position: _position,
-                dragging: _dragging,
-                selectedPageId: selectedId,
-                display: widget.tabDisplay,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: PanelTypeTabs(
+                  pages: _shell.pages,
+                  position: _position,
+                  dragging: _dragging,
+                  selectedPageId: selectedId,
+                  display: widget.tabDisplay,
+                ),
               ),
             ),
           ),
@@ -390,10 +407,7 @@ class _PanelShellState extends State<PanelShell> {
     final slot =
         _fieldMounted &&
             capabilities.search &&
-            widget.arrangement.searchPlacementOf(
-                  capabilities.searchPlacement,
-                ) ==
-                SearchPlacement.pinned
+            capabilities.searchPlacement == SearchPlacement.pinned
         ? FocusTraversalOrder(
             order: const NumericFocusOrder(3),
             child: PanelSearchField(
@@ -411,6 +425,12 @@ class _PanelShellState extends State<PanelShell> {
       child: slot,
     );
   }
+
+  // What the selected page declares and the arrangement offers.
+  List<PageAction> _barActions() => [
+    for (final action in _shell.selectedPage.capabilities.actions)
+      if (widget.arrangement.offersAction(action)) action,
+  ];
 
   // [slide] is how far the bar goes down to hide, [lift] the room under it
   // that the bar keeps for itself.
@@ -441,6 +461,7 @@ class _PanelShellState extends State<PanelShell> {
               builder: (context, _) => PanelBottomBar(
                 pages: _shell.pages,
                 selected: _shell.selectedPage,
+                actions: _barActions(),
                 position: _position,
                 dragging: _dragging,
                 display: widget.tabDisplay,

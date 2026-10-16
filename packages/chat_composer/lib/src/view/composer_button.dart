@@ -69,6 +69,7 @@ class _ComposerButtonState extends State<ComposerButton> {
   static const double _disabledOpacity = 0.4;
 
   var _focusHighlight = false;
+  var _hovered = false;
 
   bool get _active => widget.enabled && widget.onTap != null;
 
@@ -76,10 +77,13 @@ class _ComposerButtonState extends State<ComposerButton> {
   Widget build(BuildContext context) {
     final tokens = ChromeThemeScope.actionOf(context);
     final dim = _active ? 1.0 : _disabledOpacity;
+    // A mouse over a button that would act turns its glyph to the hover
+    // colour, as the reference client's does; the accent of an active button
+    // and the send disc keep their own.
     final base = switch ((widget.primary, widget.active)) {
       (true, _) => tokens.onSend,
       (false, true) => tokens.send,
-      (false, false) => tokens.icon,
+      (false, false) => _active && _hovered ? tokens.iconHover : tokens.icon,
     };
     final glyph = base.withValues(alpha: base.a * dim);
     final face = Stack(
@@ -129,12 +133,20 @@ class _ComposerButtonState extends State<ComposerButton> {
           ),
         },
         onShowFocusHighlight: (show) => setState(() => _focusHighlight = show),
-        child: ScalePressable(
-          onPressed: _active ? widget.onTap : null,
-          child: SizedBox(
-            width: widget.width,
-            height: widget.height,
-            child: face,
+        // A region of its own, not the detector's hover highlight: that one
+        // is reported only while the framework's highlight mode is the
+        // traditional one, which a touch-first platform with a mouse
+        // attached has not entered.
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: ScalePressable(
+            onPressed: _active ? widget.onTap : null,
+            child: SizedBox(
+              width: widget.width,
+              height: widget.height,
+              child: face,
+            ),
           ),
         ),
       ),

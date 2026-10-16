@@ -50,6 +50,73 @@ void main() {
 
   Finder button(String id) => find.byKey(ValueKey<String>(id));
 
+  group('hover', () {
+    final tokens = ActionTokens.fromPalette(const ChromePalette.light());
+
+    Color glyphOf(WidgetTester tester, String id) => tester
+        .widget<AnimatedChromeIcon>(
+          find.descendant(
+            of: button(id),
+            matching: find.byType(AnimatedChromeIcon),
+          ),
+        )
+        .color!;
+
+    Future<TestGesture> mouse(WidgetTester tester) async {
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: const Offset(1, 1));
+      addTearDown(gesture.removePointer);
+      return gesture;
+    }
+
+    testWidgets('a mouse over an action turns its glyph to the hover colour, '
+        'and off it turns it back', (tester) async {
+      await show(
+        tester,
+        ComposerSpec(
+          actions: [
+            _action('a', onTap: () {}),
+            _action('b', onTap: () {}),
+          ],
+        ),
+      );
+      final idle = glyphOf(tester, 'a');
+      expect(idle, tokens.icon);
+      final pointer = await mouse(tester);
+
+      await pointer.moveTo(tester.getCenter(button('a')));
+      await tester.pump();
+      expect(glyphOf(tester, 'a'), tokens.iconHover);
+      expect(glyphOf(tester, 'b'), idle, reason: 'only the one it is over');
+
+      await pointer.moveTo(const Offset(1, 1));
+      await tester.pump();
+      expect(glyphOf(tester, 'a'), idle);
+    });
+
+    testWidgets('a disabled action is not highlighted', (tester) async {
+      await show(tester, ComposerSpec(actions: [_action('a', enabled: false)]));
+      final idle = glyphOf(tester, 'a');
+      final pointer = await mouse(tester);
+
+      await pointer.moveTo(tester.getCenter(button('a')));
+      await tester.pump();
+
+      expect(glyphOf(tester, 'a'), idle);
+    });
+
+    testWidgets('a primary action keeps its own colours', (tester) async {
+      await show(tester, ComposerSpec(actions: [_action('a', primary: true)]));
+      final idle = glyphOf(tester, 'a');
+      final pointer = await mouse(tester);
+
+      await pointer.moveTo(tester.getCenter(button('a')));
+      await tester.pump();
+
+      expect(glyphOf(tester, 'a'), idle);
+    });
+  });
+
   group('visibility and enabled', () {
     testWidgets('an invisible action takes no part in the layout', (
       tester,

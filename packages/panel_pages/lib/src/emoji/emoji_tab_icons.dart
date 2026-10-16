@@ -22,11 +22,10 @@ abstract final class EmojiTabIcons {
     ChromeIconId('emoji.smileys'): 'msg_emoji_smiles',
     ChromeIconId('emoji.animals'): 'msg_emoji_cat',
     ChromeIconId('emoji.food'): 'msg_emoji_food',
-    ChromeIconId('emoji.travel'): 'msg_emoji_travel',
     ChromeIconId('emoji.activities'): 'msg_emoji_activities',
+    ChromeIconId('emoji.travel'): 'msg_emoji_travel',
     ChromeIconId('emoji.objects'): 'msg_emoji_objects',
     ChromeIconId('emoji.symbols'): 'msg_emoji_other',
-    ChromeIconId('emoji.flags'): 'msg_emoji_flags',
   };
 
   /// The bundle key of [id]'s art, or null for an id that is not a tab's.
@@ -41,7 +40,7 @@ abstract final class EmojiTabIcons {
   static final _cache = <String, Future<ui.Image>>{};
 
   /// The decoded art at bundle [key], shared by every scope for the life of the
-  /// process: nine images of a few kilobytes, decoded once however often the
+  /// process: eight images of a few kilobytes, decoded once however often the
   /// panel opens, so the open does not pay for them again.
   static Future<ui.Image> imageFor(String key) =>
       _cache.putIfAbsent(key, () => _fromBundle(key));

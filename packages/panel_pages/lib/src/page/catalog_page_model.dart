@@ -22,9 +22,8 @@ import 'package:panel_shell/panel_shell.dart';
 /// While browsing, the collections of the [source] (as the policy filters
 /// them), one section each. While search is open **and the query is not
 /// empty** and a [searchSource] exists, one section: the search results.
-/// Search open with an empty query still browses; under the touch arrangement
-/// the policy may narrow what it shows then, under the pointer arrangement it
-/// shows what it always does.
+/// Search open with an empty query still browses, and shows what browsing
+/// always does: the whole catalogue, under either arrangement.
 ///
 /// Results of an earlier query stay up while the next one is searched
 /// (typing does not flash skeletons); before any results exist for the first
@@ -174,8 +173,7 @@ final class CatalogPageModel {
     _republish();
   }
 
-  /// How the page's chrome is arranged. Under an arrangement that does not
-  /// narrow an empty search the policy is never told search is open.
+  /// How the page's chrome is arranged.
   PanelArrangement get arrangement => _arrangement;
   set arrangement(PanelArrangement next) {
     if (_disposed || _arrangement == next) return;
@@ -280,10 +278,7 @@ final class CatalogPageModel {
     _showsResults.value = results;
     final collections = results
         ? [_resultsFor(_query)]
-        : _policy.visibleCollections(
-            _source.collections.value,
-            searchOpen: _searchOpen && _arrangement.narrowsEmptySearch,
-          );
+        : _policy.visibleCollections(_source.collections.value);
     final snapshot = _builder.build(
       collections,
       strings: _strings,

@@ -374,48 +374,6 @@ void main() {
       expect(sectionsOf(model).keys, [_facesSection, _animalsSection]);
     });
 
-    searchTest('lets the policy narrow what an empty search shows', (
-      tester,
-    ) async {
-      final model = build(
-        search: search,
-        policy: const _OnlyFacesWhileSearching(),
-      );
-
-      expect(sectionsOf(model).keys, [_facesSection, _animalsSection]);
-
-      host.searchState = open('');
-
-      expect(sectionsOf(model).keys, [_facesSection]);
-    });
-
-    searchTest('does not let the policy narrow an empty search under the '
-        'pointer arrangement', (tester) async {
-      final model = build(
-        search: search,
-        policy: const _OnlyFacesWhileSearching(),
-        arrangement: PanelArrangement.pointer,
-      );
-
-      host.searchState = open('');
-
-      expect(sectionsOf(model).keys, [_facesSection, _animalsSection]);
-    });
-
-    searchTest('narrows again when the arrangement changes under an open '
-        'search', (tester) async {
-      final model = build(
-        search: search,
-        policy: const _OnlyFacesWhileSearching(),
-        arrangement: PanelArrangement.pointer,
-      );
-      host.searchState = open('');
-
-      model.arrangement = PanelArrangement.touch;
-
-      expect(sectionsOf(model).keys, [_facesSection]);
-    });
-
     searchTest('shows loading results as soon as there is a query', (
       tester,
     ) async {
@@ -600,26 +558,8 @@ final class _OnlyFaces extends CatalogPagePolicy {
   const _OnlyFaces();
 
   @override
-  List<Collection> visibleCollections(
-    List<Collection> all, {
-    required bool searchOpen,
-  }) => [
+  List<Collection> visibleCollections(List<Collection> all) => [
     for (final collection in all)
       if (collection.id == _faces) collection,
   ];
-}
-
-final class _OnlyFacesWhileSearching extends CatalogPagePolicy {
-  const _OnlyFacesWhileSearching();
-
-  @override
-  List<Collection> visibleCollections(
-    List<Collection> all, {
-    required bool searchOpen,
-  }) => searchOpen
-      ? [
-          for (final collection in all)
-            if (collection.id == _faces) collection,
-        ]
-      : all;
 }

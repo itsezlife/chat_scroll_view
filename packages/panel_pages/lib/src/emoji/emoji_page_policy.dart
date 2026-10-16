@@ -29,17 +29,16 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 ///   in the glyph box of the cell ([glyphBoxExtent]), which is also the size
 ///   the glyph atlas is baked for.
 /// - **Sections.** One per category with the title the panel strings give the
-///   category; the recents first, only while there are some. While search is
-///   open with no query the page narrows to the recents (frequently used
-///   emoji) when there are any, under the touch arrangement; under the
-///   pointer arrangement the whole catalogue and the strip stay, so clearing
-///   the field is all it takes to see the grid again.
-/// - **Recents.** Under the touch arrangement a header action asks the host
-///   to clear them (`PanelPageHost.requestClearRecents`). Under the pointer
-///   arrangement there is no header action: a right click on an emoji of the
-///   recents opens a menu (copy, remove from recent, clear recent) whose items
-///   ask the host the same way. The page never clears, removes, copies or
-///   records anything itself, and a right click anywhere else opens nothing.
+///   category; the recents first, only while there are some. Search open with
+///   no query changes none of it: the reference clients keep the whole
+///   catalogue on screen until there is something to look for.
+/// - **Recents.** The header is a title, with no button. A finger's long press
+///   on an emoji of the recents asks the host to clear them
+///   (`PanelPageHost.requestClearRecents`), instead of the variant picker.
+///   Under a pointer a right click on one opens a menu (copy, remove from
+///   recent, clear recent) whose items ask the host the same way. The page
+///   never clears, removes, copies or records anything itself, and a right
+///   click anywhere else opens nothing.
 /// - **Variants.** A long press on an emoji the catalogue holds variants for
 ///   opens the variant picker; releasing on an option picks it and remembers
 ///   it for the emoji's base through the `PreferenceStore`, the base itself
@@ -83,9 +82,6 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
 
   /// Height of a section header.
   static const double headerExtent = 27;
-
-  /// The id of the header action that clears the recents.
-  static const String clearRecentsActionId = 'clear-recents';
 
   /// The id of the context menu item that copies the emoji.
   static const String copyItemId = 'copy';
@@ -131,20 +127,14 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   // --- Sections -------------------------------------------------------------
 
   @override
-  List<Collection> visibleCollections(
-    List<Collection> all, {
-    required bool searchOpen,
-  }) {
-    final recents = [
-      for (final collection in all)
-        if (collection.id == CollectionId.recent && _hasItems(collection))
-          collection,
-    ];
-    if (searchOpen && recents.isNotEmpty) return recents;
+  List<Collection> visibleCollections(List<Collection> all) {
+    final hasRecents = all.any(
+      (collection) =>
+          collection.id == CollectionId.recent && _hasItems(collection),
+    );
     return [
       for (final collection in all)
-        if (collection.id != CollectionId.recent || recents.isNotEmpty)
-          collection,
+        if (collection.id != CollectionId.recent || hasRecents) collection,
     ];
   }
 
@@ -162,33 +152,6 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
 
   @override
   SectionLayout? layoutOf(Collection collection) => _layout;
-
-  @override
-  CatalogSectionAction? actionOf(
-    Collection collection,
-    PanelStrings strings, {
-    PanelArrangement arrangement = PanelArrangement.touch,
-  }) =>
-      // A pointer has the menu; the header keeps a button for a finger.
-      collection.id == CollectionId.recent && !arrangement.usesContextMenu
-      ? CatalogSectionAction(
-          id: clearRecentsActionId,
-          label: strings.clearAction,
-          semanticLabel: strings.clearRecentsTitle,
-        )
-      : null;
-
-  @override
-  void onSectionAction(
-    Collection collection,
-    String actionId,
-    PanelPageHost host,
-  ) {
-    if (actionId == clearRecentsActionId &&
-        collection.id == CollectionId.recent) {
-      host.requestClearRecents(SemanticKind.unicodeEmoji);
-    }
-  }
 
   // --- Context menu ---------------------------------------------------------
 
@@ -240,9 +203,15 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
 
   // --- Variants -------------------------------------------------------------
 
+  // A recent answers every long press: a finger's asks to clear, and the
+  // mouse's hold opens the picker for the ones that have variants.
   @override
   bool hasLongPress(CatalogLeafHit hit, Collection collection) =>
-      _variantsOf(hit.leaf.key) != null;
+      _isRecentEmoji(hit, collection) || _variantsOf(hit.leaf.key) != null;
+
+  static bool _isRecentEmoji(CatalogLeafHit hit, Collection collection) =>
+      collection.id == CollectionId.recent &&
+      hit.leaf.key is ContentKey$Unicode;
 
   EmojiEntry? _variantsOf(ContentKey key) => switch (entryOf(key)) {
     final entry? when entry.variants.isNotEmpty => entry,
@@ -279,6 +248,12 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     required Rect viewportBounds,
   }) {
     final key = hit.leaf.key;
+    // A finger on a recent asks to clear them. The pointer keeps the picker
+    // (its menu has the clear item), and a cell with no variants has none.
+    if (kind != PointerDeviceKind.mouse && _isRecentEmoji(hit, collection)) {
+      host.requestClearRecents(SemanticKind.unicodeEmoji);
+      return null;
+    }
     if ((_variantsOf(key), key) case (
       final EmojiEntry entry,
       final ContentKey$Unicode initial,

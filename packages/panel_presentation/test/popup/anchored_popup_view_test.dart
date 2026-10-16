@@ -44,6 +44,35 @@ void main() {
       expect(rect.width, 300);
     });
 
+    testWidgets('keeps the style\'s gap above the composer and inside its end '
+        'edge (LTR)', (tester) async {
+      final rig = PopupRig(
+        style: const AnchoredPopupStyle(width: 300, edgeGap: 10),
+      );
+      await rig.pump(tester);
+
+      rig.controller.show();
+      await settleMotion(tester);
+
+      final rect = _popupRect(tester);
+      expect(rect.bottom, 640 - 10);
+      expect(rect.right, 800 - 10);
+    });
+
+    testWidgets('keeps the gap at the start side in RTL', (tester) async {
+      final rig = PopupRig(
+        style: const AnchoredPopupStyle(width: 300, edgeGap: 10),
+      );
+      await rig.pump(tester, textDirection: TextDirection.rtl);
+
+      rig.controller.show();
+      await settleMotion(tester);
+
+      final rect = _popupRect(tester);
+      expect(rect.left, 10);
+      expect(rect.bottom, 640 - 10);
+    });
+
     testWidgets('mirrors in RTL: the end edge is the left one', (tester) async {
       final rig = PopupRig();
       await rig.pump(tester, textDirection: TextDirection.rtl);

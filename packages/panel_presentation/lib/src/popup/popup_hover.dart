@@ -113,7 +113,7 @@ final class PopupHover {
     };
     if (!canOpen) return;
     final target = controller.policy.resolve(
-      windowClass: controller.window.value.windowClass,
+      window: controller.window.value,
       dockPreferred: controller.dockPreferred.value,
     );
     if (target case AnchoredPopup()) {

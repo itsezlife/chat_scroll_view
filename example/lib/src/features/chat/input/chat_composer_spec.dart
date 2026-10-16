@@ -26,7 +26,7 @@ abstract final class ChatComposerActions {
 /// The panel's toggle sits where the platform's panel is reached from: first
 /// at the start edge where the panel replaces the keyboard, and at the end
 /// edge, under the popup that anchors to it, where the panel is a popup or a
-/// dock ([panelPlacement]).
+/// dock ([panelPlacement]). Attach takes the other edge.
 ComposerSpec buildChatComposerSpec({
   required ChromeStrings strings,
   required ChatEditTarget? editing,
@@ -66,6 +66,14 @@ ComposerSpec buildChatComposerSpec({
         id: ChatComposerActions.attach,
         icon: ChromeIconId.attach,
         semanticLabel: composer.attachAction,
+        // Where the panel is at the end (a desktop), attach takes the start
+        // edge, before the field, as in the reference client: attach, field,
+        // panel, send. Where the panel is first (a phone) attach stays with
+        // the voice and send actions at the end.
+        placement: switch (panelPlacement) {
+          ActionPlacement.trailing => ActionPlacement.leading,
+          ActionPlacement.leading => ActionPlacement.trailing,
+        },
         visible: !isEditing,
         onTap: onAttach,
       ),

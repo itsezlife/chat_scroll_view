@@ -87,101 +87,31 @@ void main() {
     );
   });
 
-  testWidgets(
-    'clears island cutout when glass unmounts without zoneHeight change',
-    (tester) async {
-      final glassKey = GlobalKey();
-      final islandVisible = ValueNotifier<bool>(true);
-      addTearDown(islandVisible.dispose);
-
-      await tester.pumpWidget(
-        _FadeHarness(glassKey: glassKey, islandVisible: islandVisible),
-      );
-      await tester.pump();
-
-      final state = tester.state<ComposerBottomFadeState>(
-        find.byType(ComposerBottomFade),
-      );
-      expect(state.debugCutout, isNotNull);
-
-      islandVisible.value = false;
-      await tester.pump();
-      await tester.pump();
-
-      expect(state.debugCutout, isNull);
-      expect(find.byType(ComposerBottomFade), findsOneWidget);
-    },
-  );
-
-  testWidgets('restores island cutout when glass remounts via cutoutSync', (
+  testWidgets('washes the whole zone, with no hole for the island above it', (
     tester,
   ) async {
-    final glassKey = GlobalKey();
-    final islandVisible = ValueNotifier<bool>(true);
-    addTearDown(islandVisible.dispose);
-
     await tester.pumpWidget(
-      _FadeHarness(glassKey: glassKey, islandVisible: islandVisible),
-    );
-    await tester.pump();
-
-    final state = tester.state<ComposerBottomFadeState>(
-      find.byType(ComposerBottomFade),
-    );
-    expect(state.debugCutout, isNotNull);
-
-    islandVisible.value = false;
-    await tester.pump();
-    await tester.pump();
-    expect(state.debugCutout, isNull);
-
-    islandVisible.value = true;
-    await tester.pump();
-    await tester.pump();
-    expect(state.debugCutout, isNotNull);
-  });
-}
-
-/// Fade is **outside** [ListenableBuilder] so it does not rebuild when the
-/// island unmounts — only [ComposerBottomFade.cutoutSync] fires.
-class _FadeHarness extends StatelessWidget {
-  const _FadeHarness({required this.glassKey, required this.islandVisible});
-
-  final GlobalKey glassKey;
-  final ValueNotifier<bool> islandVisible;
-
-  @override
-  Widget build(BuildContext context) => MaterialApp(
-    home: Scaffold(
-      body: Stack(
-        children: <Widget>[
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 120,
-            child: ComposerBottomFade(
-              zoneHeight: 120,
-              color: const Color(0xFF15191E),
-              glassKey: glassKey,
-              cutoutSync: islandVisible,
-            ),
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: ChromeThemeScope(
+          palette: const ChromePalette.light(),
+          child: const Align(
+            alignment: Alignment.bottomCenter,
+            child: ComposerBottomFade(zoneHeight: 120),
           ),
-          ListenableBuilder(
-            listenable: islandVisible,
-            builder: (context, _) {
-              if (!islandVisible.value) return const SizedBox.shrink();
-              return Positioned(
-                left: 24,
-                right: 24,
-                bottom: 16,
-                height: 48,
-                child: ColoredBox(key: glassKey, color: Colors.white),
-              );
-            },
-          ),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+
+    final paint = find.descendant(
+      of: find.byType(ComposerBottomFade),
+      matching: find.byType(CustomPaint),
+    );
+    // One rectangle of the gradient, drawn whole.
+    expect(tester.renderObject(paint), paints..rect());
+  });
+
+  test('holds no state: nothing to keep in step with an island', () {
+    expect(const ComposerBottomFade(zoneHeight: 48), isA<StatelessWidget>());
+  });
 }

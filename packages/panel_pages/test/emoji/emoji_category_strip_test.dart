@@ -70,17 +70,15 @@ List<CatalogStripEntry> _entries(List<CollectionId> ids) => [
 ];
 
 const _recents = CollectionId.recent;
-const _smileys = CollectionId.category('smileys-emotion');
-const _people = CollectionId.category('people-body');
-const _animals = CollectionId.category('animals-nature');
-const _flags = CollectionId.category('flags');
+const _smileys = CollectionId.category('people');
+const _food = CollectionId.category('food');
+const _animals = CollectionId.category('nature');
+const _symbols = CollectionId.category('symbols');
 
 void main() {
   late _Handle handle;
 
-  setUp(
-    () => handle = _Handle([_recents, _smileys, _people, _animals, _flags]),
-  );
+  setUp(() => handle = _Handle([_recents, _smileys, _animals, _symbols]));
   tearDown(() => handle.dispose());
 
   Future<void> pump(
@@ -127,40 +125,43 @@ void main() {
       Tristate.isTrue;
 
   group('the tabs', () {
-    testWidgets('are one per category, with people folded into smileys', (
-      tester,
-    ) async {
+    testWidgets('are the reference client\'s, one per category, with no tab '
+        'of their own for flags or people', (tester) async {
       final semantics = tester.ensureSemantics();
+      handle.setIds([_recents, _smileys, _animals, _food, _symbols]);
       await pump(tester);
 
       for (final label in [
         'Recently used',
-        'Smileys',
-        'Animals & nature',
-        'Flags',
+        'Smileys & People',
+        'Animals & Nature',
+        'Food & Drink',
+        'Symbols',
       ]) {
         expect(find.bySemanticsLabel(label), findsOneWidget, reason: label);
       }
-      expect(find.bySemanticsLabel('People'), findsNothing);
+      for (final label in ['People', 'Flags']) {
+        expect(find.bySemanticsLabel(label), findsNothing, reason: label);
+      }
       semantics.dispose();
     });
 
     testWidgets('leave out a category the page does not show', (tester) async {
       final semantics = tester.ensureSemantics();
-      handle.setIds([_smileys, _flags]);
+      handle.setIds([_smileys, _symbols]);
       await pump(tester);
 
       expect(find.bySemanticsLabel('Recently used'), findsNothing);
-      expect(find.bySemanticsLabel('Animals & nature'), findsNothing);
+      expect(find.bySemanticsLabel('Animals & Nature'), findsNothing);
       semantics.dispose();
     });
 
     testWidgets('follow the sections the catalogue holds', (tester) async {
       final semantics = tester.ensureSemantics();
-      handle.setIds([_smileys, _flags]);
+      handle.setIds([_smileys, _symbols]);
       await pump(tester);
 
-      handle.setIds([_recents, _smileys, _flags]);
+      handle.setIds([_recents, _smileys, _symbols]);
       await tester.pump();
 
       expect(find.bySemanticsLabel('Recently used'), findsOneWidget);
@@ -168,7 +169,7 @@ void main() {
     });
 
     testWidgets('are not drawn for a single category', (tester) async {
-      handle.setIds([_smileys, _people]);
+      handle.setIds([_smileys]);
       await pump(tester);
 
       expect(tester.getSize(find.byType(EmojiCategoryStrip)).height, 0);
@@ -180,9 +181,9 @@ void main() {
 
       expect(find.bySemanticsLabel('Categories'), findsOneWidget);
       expect(
-        tester.getSemantics(find.bySemanticsLabel('Flags')),
+        tester.getSemantics(find.bySemanticsLabel('Symbols')),
         matchesSemantics(
-          label: 'Flags',
+          label: 'Symbols',
           isButton: true,
           hasSelectedState: true,
           hasTapAction: true,
@@ -197,7 +198,7 @@ void main() {
     testWidgets('slides over the fade role at normal speed', (tester) async {
       await pump(tester, width: 100);
 
-      handle.enter('$_flags', 4);
+      handle.enter('$_symbols', 3);
       await tester.pump();
       await tester.pump(); // the animation's first frame
       await tester.pump(const Duration(milliseconds: 100));
@@ -213,7 +214,7 @@ void main() {
     testWidgets('lands at once when motion is instant', (tester) async {
       await pump(tester, width: 100, speed: ChromeMotionSpeed.instant);
 
-      handle.enter('$_flags', 4);
+      handle.enter('$_symbols', 3);
       await tester.pump();
 
       expect(stripOffset(tester), 51);
@@ -237,7 +238,7 @@ void main() {
       handle.currentSectionId = '$_animals';
       await pump(tester);
 
-      expect(selected(tester, 'Animals & nature'), isTrue);
+      expect(selected(tester, 'Animals & Nature'), isTrue);
       semantics.dispose();
     });
 
@@ -245,29 +246,14 @@ void main() {
       final semantics = tester.ensureSemantics();
       await pump(tester);
 
-      handle.enter('$_people', 2);
+      handle.enter('$_animals', 2);
       await tester.pump();
-      expect(selected(tester, 'Smileys'), isTrue);
+      expect(selected(tester, 'Animals & Nature'), isTrue);
 
-      handle.enter('$_flags', 4);
+      handle.enter('$_symbols', 3);
       await tester.pump();
-      expect(selected(tester, 'Flags'), isTrue);
-      expect(selected(tester, 'Smileys'), isFalse);
-      semantics.dispose();
-    });
-
-    testWidgets('stays on the tab when scrolling stays in its category', (
-      tester,
-    ) async {
-      final semantics = tester.ensureSemantics();
-      await pump(tester);
-      handle.enter('$_smileys', 1);
-      await tester.pump();
-
-      handle.enter('$_people', 2);
-      await tester.pump();
-
-      expect(selected(tester, 'Smileys'), isTrue);
+      expect(selected(tester, 'Symbols'), isTrue);
+      expect(selected(tester, 'Animals & Nature'), isFalse);
       semantics.dispose();
     });
   });
@@ -279,7 +265,7 @@ void main() {
 
       await tester.tap(
         find.byWidgetPredicate(
-          (w) => w is Semantics && w.properties.label == 'Smileys',
+          (w) => w is Semantics && w.properties.label == 'Smileys & People',
         ),
       );
       await tester.pump();
@@ -293,39 +279,39 @@ void main() {
       final semantics = tester.ensureSemantics();
       await pump(tester);
 
-      await _tapTab(tester, 'Flags');
-      handle.enter('$_animals', 3); // The catalogue flies over it.
+      await _tapTab(tester, 'Symbols');
+      handle.enter('$_animals', 2); // The catalogue flies over it.
       await tester.pump();
-      expect(selected(tester, 'Flags'), isTrue);
+      expect(selected(tester, 'Symbols'), isTrue);
 
-      handle.currentSectionId = '$_flags';
+      handle.currentSectionId = '$_symbols';
       handle.pending!.complete();
       await tester.pump();
-      expect(selected(tester, 'Flags'), isTrue);
+      expect(selected(tester, 'Symbols'), isTrue);
       semantics.dispose();
     });
 
     testWidgets('is ignored while a jump runs', (tester) async {
       await pump(tester);
-      await _tapTab(tester, 'Flags');
+      await _tapTab(tester, 'Symbols');
 
-      await _tapTab(tester, 'Animals & nature');
+      await _tapTab(tester, 'Animals & Nature');
 
-      expect(handle.jumps, ['$_flags']);
+      expect(handle.jumps, ['$_symbols']);
     });
 
     testWidgets('keeps its tab after the jump even where the content ended '
         'before the header reached the top', (tester) async {
       final semantics = tester.ensureSemantics();
       await pump(tester);
-      await _tapTab(tester, 'Animals & nature');
+      await _tapTab(tester, 'Animals & Nature');
 
       // The catalogue could only scroll as far as the end, which is in flags.
-      handle.currentSectionId = '$_flags';
+      handle.currentSectionId = '$_symbols';
       handle.pending!.complete();
       await tester.pump();
 
-      expect(selected(tester, 'Animals & nature'), isTrue);
+      expect(selected(tester, 'Animals & Nature'), isTrue);
       semantics.dispose();
     });
 
@@ -334,26 +320,26 @@ void main() {
     ) async {
       final semantics = tester.ensureSemantics();
       await pump(tester);
-      await _tapTab(tester, 'Animals & nature');
+      await _tapTab(tester, 'Animals & Nature');
       handle.pending!.complete();
       await tester.pump();
 
       handle.enter('$_smileys', 1);
       await tester.pump();
 
-      expect(selected(tester, 'Smileys'), isTrue);
+      expect(selected(tester, 'Smileys & People'), isTrue);
       semantics.dispose();
     });
 
     testWidgets('can be made again once the jump ended', (tester) async {
       await pump(tester);
-      await _tapTab(tester, 'Flags');
+      await _tapTab(tester, 'Symbols');
       handle.pending!.complete();
       await tester.pump();
 
-      await _tapTab(tester, 'Animals & nature');
+      await _tapTab(tester, 'Animals & Nature');
 
-      expect(handle.jumps, ['$_flags', '$_animals']);
+      expect(handle.jumps, ['$_symbols', '$_animals']);
     });
   });
 
@@ -429,7 +415,7 @@ void main() {
         'out', (tester) async {
       await pumpPinned(tester);
 
-      handle.enter('$_flags', 4);
+      handle.enter('$_symbols', 3);
       await tester.pump(); // the first frame of the slide
       await tester.pump(const Duration(milliseconds: 200));
 
@@ -447,7 +433,7 @@ void main() {
     ) async {
       await pumpPinned(tester, disableAnimations: true);
 
-      handle.enter('$_flags', 4);
+      handle.enter('$_symbols', 3);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 1));
 
@@ -463,7 +449,7 @@ void main() {
         speed: ChromeMotionSpeed.instant,
       );
 
-      handle.enter('$_flags', 4);
+      handle.enter('$_symbols', 3);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 1));
 
@@ -486,7 +472,7 @@ void main() {
       final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await mouse.addPointer(location: Offset.zero);
       addTearDown(mouse.removePointer);
-      await mouse.moveTo(tester.getCenter(find.bySemanticsLabel('Flags')));
+      await mouse.moveTo(tester.getCenter(find.bySemanticsLabel('Symbols')));
       await tester.pump();
 
       expect(fills(), before);
@@ -500,7 +486,7 @@ void main() {
           RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1);
 
       await pumpPinned(tester);
-      final flags = tester.getCenter(find.bySemanticsLabel('Flags'));
+      final flags = tester.getCenter(find.bySemanticsLabel('Symbols'));
       final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await mouse.addPointer(location: flags);
       addTearDown(mouse.removePointer);
@@ -517,16 +503,16 @@ void main() {
     testWidgets('a tap still lands on the category', (tester) async {
       await pumpPinned(tester);
 
-      await _tapTab(tester, 'Flags');
+      await _tapTab(tester, 'Symbols');
 
-      expect(handle.jumps, ['$_flags']);
+      expect(handle.jumps, ['$_symbols']);
     });
 
     testWidgets('scrolls only where the icons would get less than 33 px, and '
         'reveals the active one', (tester) async {
       await pumpPinned(tester, width: 100);
 
-      handle.enter('$_flags', 4);
+      handle.enter('$_symbols', 3);
       await tester.pumpAndSettle();
 
       // 4 icons of 33 px and 3 px insets: 138 px in a 100 px strip.
@@ -536,7 +522,7 @@ void main() {
     testWidgets('does not scroll when the icons fit', (tester) async {
       await pumpPinned(tester);
 
-      handle.enter('$_flags', 4);
+      handle.enter('$_symbols', 3);
       await tester.pumpAndSettle();
 
       expect(stripOffset(tester), 0);

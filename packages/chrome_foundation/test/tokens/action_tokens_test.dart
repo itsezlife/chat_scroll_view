@@ -11,6 +11,21 @@ void main() {
       expect(tokens.floatingLabel, const Color(0xFF000000));
     });
 
+    test(
+      'an action icon under the pointer takes the palette\'s active icon',
+      () {
+        for (final palette in [
+          const ChromePalette.light(),
+          const ChromePalette.dark(),
+        ]) {
+          final tokens = ActionTokens.fromPalette(palette);
+
+          expect(tokens.iconHover, palette.iconActive);
+          expect(tokens.iconHover, isNot(tokens.icon));
+        }
+      },
+    );
+
     test('the send button is the accent with its on-accent glyph', () {
       final palette = const ChromePalette.dark().copyWith(
         accent: const Color(0xFF0000FF),
@@ -30,6 +45,15 @@ void main() {
       expect(next.icon, base.icon);
       expect(next.copyWith(send: base.send), base);
     });
+
+    test('overrides the hover icon too', () {
+      final base = ActionTokens.fromPalette(const ChromePalette.light());
+
+      expect(
+        base.copyWith(iconHover: const Color(0xFF040506)).iconHover,
+        const Color(0xFF040506),
+      );
+    });
   });
 
   group('lerp', () {
@@ -45,6 +69,7 @@ void main() {
       final mid = ActionTokens.lerp(a, b, 0.5);
       expect(mid.floatingFill, Color.lerp(a.floatingFill, b.floatingFill, 0.5));
       expect(mid.send, Color.lerp(a.send, b.send, 0.5));
+      expect(mid.iconHover, Color.lerp(a.iconHover, b.iconHover, 0.5));
     });
   });
 

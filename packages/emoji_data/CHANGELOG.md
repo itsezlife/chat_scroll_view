@@ -6,6 +6,20 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `EmojiSection` and `EmojiCollectionSource(sections:)`: the collections are the
+  reference client's seven categories by default (`EmojiSection.reference`),
+  folded from the catalogue's groups; a group no section names keeps a section
+  of its own.
+
+### Changed
+
+- Search lists one result per emoji: a hit on any variant (a tone, a gender) is
+  the emoji as the grid shows it, so every result has art in the glyph atlas.
+- The default collections are no longer one per Unicode group: ids are
+  `people`, `nature`, `food`, `activity`, `travel`, `objects`, `symbols`.
+
 ### Changed
 
 - `EmojiCollectionSource.chooseVariant` remembers the base as the choice when

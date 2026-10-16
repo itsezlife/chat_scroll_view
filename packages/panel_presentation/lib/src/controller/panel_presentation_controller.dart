@@ -4,6 +4,7 @@ import 'dart:ui' show Rect;
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:panel_presentation/src/docked/dock_width_store.dart';
 import 'package:panel_presentation/src/kind/panel_occupancy.dart';
 import 'package:panel_presentation/src/kind/panel_presentation.dart';
 import 'package:panel_presentation/src/kind/panel_visibility.dart';
@@ -44,6 +45,23 @@ import 'package:panel_shell/panel_shell.dart';
 /// settles whatever is moving, so a state never waits for motion that no one
 /// plays.
 ///
+/// ## The dock
+///
+/// A dock is a **standing section**, as in the reference client: while the
+/// user prefers it ([dockPreferred]) and the window has room for it
+/// (`PanelPresentationPolicy.canDock`) it is on screen, shown by the window
+/// and not by a click or a hover. The preference is the user's, the window is
+/// the host's, and the dock is what both allow: a window that narrows below
+/// the room takes the dock away (the panel is hidden, not turned into a
+/// popup, and the preference stays), a window that widens again brings it
+/// back, and turning the preference off closes it. A dock cannot be dismissed
+/// by back or Escape (see `PanelPresentationPolicy.dismissalsFor`).
+///
+/// Its width is the user's too: [resizeDock] follows a drag and [endDockResize]
+/// keeps where it ended, in the [DockWidthStore] when there is one. What is
+/// kept is the wish ([dockWanted]); the width a dock has in a window is the
+/// policy's (`dockWidthIn`), so a window that widens gives the wish back.
+///
 /// ## Dock preference
 ///
 /// With a [PreferenceStore] the controller starts from its `dockPreferred`,
@@ -78,6 +96,9 @@ final class PanelPresentationController {
   /// `dockPreferred` wins over the [dockPreferred] flag, which only seeds a
   /// controller that has no store.
   ///
+  /// [dockWidths], when given, is where the width the user drags the dock to is
+  /// kept; the controller starts from it.
+  ///
   /// Throws an [ArgumentError] for two strategies of one kind.
   factory PanelPresentationController({
     required PanelShellController shell,
@@ -86,6 +107,7 @@ final class PanelPresentationController {
     PanelWindow window = const PanelWindow(width: 0, height: 0),
     bool dockPreferred = false,
     PreferenceStore? preferences,
+    DockWidthStore? dockWidths,
   }) {
     final byKind = <PanelPresentation, PanelPresentationStrategy>{};
     for (final strategy in strategies) {
@@ -105,6 +127,7 @@ final class PanelPresentationController {
       window,
       preferences?.dockPreferred ?? dockPreferred,
       preferences,
+      dockWidths,
     );
   }
 
@@ -115,11 +138,14 @@ final class PanelPresentationController {
     PanelWindow window,
     bool dockPreferred,
     this._preferences,
+    this._dockWidths,
   ) : _window = listen.ValueNotifier<PanelWindow>(window),
-      _dockPreferred = listen.ValueNotifier<bool>(dockPreferred) {
+      _dockPreferred = listen.ValueNotifier<bool>(dockPreferred),
+      _dockWanted = listen.ValueNotifier<double?>(_dockWidths?.width) {
     _shellEvents = shell.events.listen(_onShellEvent);
     _preferences?.changes.addListener(_onPreferencesChanged);
     _followOccupancyOf(_idleKind());
+    _syncDock();
   }
 
   /// The wrapped shell: page and search state, the pages' controllers.
@@ -130,8 +156,10 @@ final class PanelPresentationController {
 
   final Map<PanelPresentation, PanelPresentationStrategy> _strategies;
   final PreferenceStore? _preferences;
+  final DockWidthStore? _dockWidths;
   final listen.ValueNotifier<PanelWindow> _window;
   final listen.ValueNotifier<bool> _dockPreferred;
+  final listen.ValueNotifier<double?> _dockWanted;
   final _state = listen.ValueNotifier<PanelVisibility>(PanelVisibility.hidden);
   final _occupancy = listen.ValueNotifier<PanelOccupancy>(PanelOccupancy.zero);
   final _anchor = listen.ValueNotifier<Rect?>(null);
@@ -141,9 +169,9 @@ final class PanelPresentationController {
   final _attachments = <_Attachment>[];
   var _holds = 0;
   var _disposed = false;
-  // A docked section the window narrowed into a popup: it docks again when
-  // the window widens. Any other change of state forgets it.
-  var _demotedByWindow = false;
+  // Whether the dock stood at the last sync: what a change of the answer is
+  // measured against.
+  var _dockStood = false;
   listen.ValueListenable<PanelOccupancy>? _followed;
 
   // --- State ----------------------------------------------------------------
@@ -164,6 +192,11 @@ final class PanelPresentationController {
 
   /// Whether the user prefers the panel docked.
   listen.ValueListenable<bool> get dockPreferred => _dockPreferred;
+
+  /// The width the user wants the dock to have, as dragged, or null before
+  /// they dragged it. The width a dock has in the window is
+  /// `policy.dockWidthIn(window.value, wanted: dockWanted.value)`.
+  listen.ValueListenable<double?> get dockWanted => _dockWanted;
 
   /// The composer rectangle an anchored popup attaches to, in the
   /// coordinates of the box that hosts the view; null until reported.
@@ -201,7 +234,7 @@ final class PanelPresentationController {
   void show({PanelPresentation? kind}) {
     if (_disposed) return;
     final target = policy.resolve(
-      windowClass: _window.value.windowClass,
+      window: _window.value,
       dockPreferred: _dockPreferred.value,
       override: kind,
     );
@@ -253,16 +286,20 @@ final class PanelPresentationController {
   /// Steps back by one level and returns whether it consumed the press.
   ///
   /// The order is fixed: the shell closes search first; then a visible panel
-  /// hides. A panel that is already hiding still consumes the press, so a
-  /// second back does not leave the screen mid-animation. A hidden panel
-  /// consumes nothing.
+  /// hides, if its kind is dismissed by back (a dock is not). A panel that is
+  /// already hiding still consumes the press, so a second back does not leave
+  /// the screen mid-animation. A hidden panel consumes nothing.
   bool handleBack() {
     if (_disposed) return false;
     if (shell.handleBack()) return true;
     final current = _state.value;
-    if (!current.isVisible) return false;
-    hide();
-    return true;
+    if (current.kind case final kind?
+        when current.isVisible &&
+            policy.dismissalsFor(kind).contains(PanelDismissal.back)) {
+      hide();
+      return true;
+    }
+    return false;
   }
 
   /// Reports the composer rectangle an anchored popup attaches to, in the
@@ -272,32 +309,42 @@ final class PanelPresentationController {
     _anchor.value = composerRect;
   }
 
-  /// Reports the host window. The window class and height feed the policy.
+  /// Reports the host window. Its width decides whether a dock fits and how
+  /// wide it is, its height how tall a popup is.
   ///
-  /// A docked section that no longer fits falls back to the policy's default
-  /// kind in place; when the window is wide again that popup returns to the
-  /// dock, unless something else changed the state in between.
+  /// A standing dock follows: a window that no longer has the room for it
+  /// takes it away, one that has again brings it back (see the class
+  /// documentation).
   void updateWindow(PanelWindow window) {
     if (_disposed) return;
-    final before = _window.value.windowClass;
     _window.value = window;
-    final current = _state.value;
-    final windowClass = window.windowClass;
-    if (windowClass != before) {
-      if (current.kind case Docked() when !policy.canDock(windowClass)) {
-        _commit(current.withKind(policy.defaultKind(windowClass: windowClass)));
-        _demotedByWindow = true;
-        return;
-      }
-      if (current.kind case AnchoredPopup()
-          when _demotedByWindow &&
-              _dockPreferred.value &&
-              policy.canDock(windowClass)) {
-        _commit(current.withKind(const Docked()));
-        return;
-      }
-    }
-    _followOccupancyOf(current.kind ?? _idleKind());
+    _syncDock();
+    _followOccupancyOf(_state.value.kind ?? _idleKind());
+  }
+
+  /// Follows a drag of the dock's resize strip: the dock is to be [wanted]
+  /// logical pixels wide. Held to the policy's bounds in the window when it is
+  /// used, not here, so the wish is what the user dragged to.
+  ///
+  /// Nothing is kept until [endDockResize]. A width that is not finite is
+  /// ignored.
+  void resizeDock(double wanted) {
+    if (_disposed || !wanted.isFinite) return;
+    _dockWanted.value = wanted;
+  }
+
+  /// Ends a drag of the dock: the wish is held to the policy's bounds and kept
+  /// in the [DockWidthStore], if there is one.
+  ///
+  /// A failed write is reported to the zone by the store and never thrown
+  /// into this call; the width stays in memory.
+  void endDockResize() {
+    if (_disposed) return;
+    final wanted = _dockWanted.value;
+    if (wanted == null) return;
+    final held = wanted.clamp(policy.dockMinWidth, policy.dockMaxWidth);
+    _dockWanted.value = held;
+    unawaited(_dockWidths?.record(held) ?? Future<void>.value());
   }
 
   /// Records the user's choice to keep the panel docked and, when a popup is
@@ -372,6 +419,7 @@ final class PanelPresentationController {
     _attachments.clear();
     _window.dispose();
     _dockPreferred.dispose();
+    _dockWanted.dispose();
     _state.dispose();
     _occupancy.dispose();
     _anchor.dispose();
@@ -382,9 +430,36 @@ final class PanelPresentationController {
   // --- Internals ------------------------------------------------------------
 
   PanelPresentation _idleKind() => policy.resolve(
-    windowClass: _window.value.windowClass,
+    window: _window.value,
     dockPreferred: _dockPreferred.value,
   );
+
+  // Brings the dock to what the user and the window allow: on screen while
+  // preferred and fitting, off it otherwise. Whatever else was showing in its
+  // place (a popup) gives way to it.
+  //
+  // Acts when the answer changes, not on every call: a host reports its window
+  // with every layout, and a dock that was hidden on purpose (`hide`) must not
+  // come back with the next report of the same window.
+  void _syncDock() {
+    final stands = _dockPreferred.value && policy.canDock(_window.value);
+    if (stands == _dockStood) return;
+    _dockStood = stands;
+    final current = _state.value;
+    if (stands) {
+      switch (current) {
+        case PanelVisibility$Hidden() || PanelVisibility$Hiding():
+          _commit(const PanelVisibility.showing(Docked()));
+        case PanelVisibility$Showing(kind: Docked()) ||
+            PanelVisibility$Shown(kind: Docked()):
+          break;
+        case PanelVisibility$Showing() || PanelVisibility$Shown():
+          _commit(current.withKind(const Docked()));
+      }
+    } else if (current.kind case Docked() when current.isVisible) {
+      hide();
+    }
+  }
 
   void _setDockPreferred({required bool preferred}) {
     if (_disposed) return;
@@ -395,20 +470,9 @@ final class PanelPresentationController {
 
   // The state change of a new dock choice, wherever the choice came from.
   void _applyDockPreferred({required bool preferred}) {
-    _demotedByWindow = false;
     _dockPreferred.value = preferred;
-    final current = _state.value;
-    if (preferred) {
-      if (current.kind case AnchoredPopup()
-          when policy.canDock(_window.value.windowClass)) {
-        _commit(current.withKind(const Docked()));
-        return;
-      }
-    } else if (current.kind case Docked()) {
-      hide();
-      return;
-    }
-    _followOccupancyOf(current.kind ?? _idleKind());
+    _syncDock();
+    _followOccupancyOf(_state.value.kind ?? _idleKind());
   }
 
   Future<void> _persistDockPreferred(
@@ -439,7 +503,6 @@ final class PanelPresentationController {
   }
 
   void _commit(PanelVisibility next) {
-    _demotedByWindow = false;
     final settled = _attachments.isEmpty ? _settle(next) : next;
     if (settled == _state.value) return;
     _followOccupancyOf(settled.kind ?? _idleKind());

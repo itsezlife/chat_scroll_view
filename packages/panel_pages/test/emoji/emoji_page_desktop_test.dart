@@ -65,8 +65,9 @@ void main() {
     PanelArrangement arrangement = PanelArrangement.pointer,
     List<String> recents = const ['😀', '👍'],
     TextDirection direction = TextDirection.ltr,
+    int count = 0,
   }) async {
-    source = fixtures.source(recents: recents, count: 0);
+    source = fixtures.source(recents: recents, count: count);
     await tester.pumpWidget(
       PanelShellTestScope(
         textDirection: direction,
@@ -622,10 +623,13 @@ void main() {
     testWidgets('flips below the cell where it would cross the top edge', (
       tester,
     ) async {
-      await pumpPage(tester, recents: ['👍']);
+      await pumpPage(tester, recents: ['👍'], count: 40);
       final gesture = await mouse(tester);
-      // 👍 is in the first recents row, 27 under the page's top.
-      final at = cell(tester, top: recents0);
+      // The search field is the first thing in the content; scrolled past, 👍
+      // in the first recents row is 27 under the page's top.
+      host.controllers.peek<CatalogPageController>('emoji')!.catalog.jumpTo(50);
+      await tester.pump();
+      final at = cell(tester, top: recents0) - const Offset(0, 50);
       await gesture.down(at);
       await tester.pump(_hold + _settle);
 
@@ -668,7 +672,10 @@ void main() {
     await pumpPage(tester, direction: TextDirection.rtl);
     final page = tester.getRect(find.byType(EmojiPage));
     // The first recent is the first cell from the right.
-    final first = Offset(page.right - 5 - 21.875, page.top + 27 + 22.5);
+    final first = Offset(
+      page.right - 5 - 21.875,
+      cell(tester, top: recents0).dy,
+    );
 
     await rightClick(tester, first);
 

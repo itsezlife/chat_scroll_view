@@ -65,9 +65,8 @@ void main() {
       expect(rig.controller.state.value, PanelVisibility.hidden);
     });
 
-    testWidgets('a docked preference in a wide window is not hover-opened', (
-      tester,
-    ) async {
+    testWidgets('a dock standing in a wide window is not joined by a popup '
+        'on hover', (tester) async {
       final rig = PopupRig(window: const PanelWindow(width: 900, height: 700));
       rig.controller.dock();
       await rig.pump(tester);
@@ -76,7 +75,7 @@ void main() {
       await mouse.moveTo(_toggleCentre);
       await tester.pump();
 
-      expect(rig.controller.state.value, PanelVisibility.hidden);
+      expect(rig.controller.state.value.kind, const Docked());
     });
 
     testWidgets('a docked panel is left alone by a hover', (tester) async {
@@ -181,6 +180,29 @@ void main() {
         expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
       },
     );
+
+    testWidgets('no dead zone across the style\'s edge gap either', (
+      tester,
+    ) async {
+      final rig = PopupRig(
+        style: const AnchoredPopupStyle(width: 300, edgeGap: 10),
+      );
+      await rig.pump(tester);
+      final mouse = await rig.mouse(tester);
+      await mouse.moveTo(_toggleCentre);
+      await settleMotion(tester);
+
+      for (var y = 670.0; y >= 400; y -= 1) {
+        await mouse.moveTo(Offset(760, y));
+        await tester.pump();
+        rig.clock.advance(Duration.zero);
+        expect(
+          rig.controller.state.value,
+          isA<PanelVisibility$Shown>(),
+          reason: 'hid with the pointer at y=$y',
+        );
+      }
+    });
 
     testWidgets('the shadow gutter around the popup counts as inside it', (
       tester,

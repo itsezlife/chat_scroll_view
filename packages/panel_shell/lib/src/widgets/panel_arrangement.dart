@@ -16,9 +16,9 @@ enum PanelArrangement {
 
   /// A mouse or trackpad: the type tabs sit above the search field, the
   /// floating bar holds the page actions only and never slides away on its
-  /// own, the search field is always the shell's own, and a page pins its
-  /// strip at the bottom and does not slide it. Hover and the click cursor are
-  /// on, and an empty search shows the whole catalogue.
+  /// own, the search field is where the page declared it (in its content, it
+  /// scrolls away with it and never pins), and a page pins its strip at the
+  /// bottom and does not slide it. Hover and the click cursor are on.
   pointer;
 
   /// Whether the floating bar slides away while the content is scrolled.
@@ -35,19 +35,21 @@ enum PanelArrangement {
   /// strip back but scrolling the other way.
   bool get headerSlidesAway => this == touch;
 
-  /// Where the search field of a page that declared [declared] is drawn.
+  /// Whether the bar offers [action] under this arrangement.
   ///
-  /// Under [touch] where the page said. Under [pointer] always `pinned`: the
-  /// shell draws the field below the type tabs and above the page.
-  SearchPlacement searchPlacementOf(SearchPlacement declared) =>
-      this == touch ? declared : SearchPlacement.pinned;
+  /// Backspace is a touch idiom: a soft keyboard that the panel replaced has
+  /// no backspace key of its own, a physical one does, and the desktop
+  /// reference client's panel has no such button.
+  bool offersAction(PageAction action) =>
+      this == touch || action.id != PageAction.backspaceId;
 
-  /// Whether an empty search narrows a page to the content used most.
+  /// Whether an inline search field pins to the top of the page once search
+  /// opens, instead of staying in the content where it scrolls away.
   ///
-  /// Under [touch] opening search shows the short list the keyboard leaves
-  /// room for. Under [pointer] the field and the whole catalogue are on
-  /// screen together, so clearing the text is all it takes to see the grid.
-  bool get narrowsEmptySearch => this == touch;
+  /// A touch idiom: a finger has the keyboard up and the results below the
+  /// field, so the field stays in reach. A cursor scrolls the field away like
+  /// any content, as the reference client's does.
+  bool get pinsSearchWhenOpen => this == touch;
 
   /// Whether a secondary click (a mouse's right button) on content opens a
   /// context menu, which takes the place of the buttons a touch page puts in

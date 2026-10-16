@@ -172,15 +172,10 @@ abstract class CatalogPagePolicy {
   /// The collections shown while browsing, from everything [all] the source
   /// publishes, in display order.
   ///
-  /// [searchOpen] is true while the shell's search is open with an empty
-  /// query, when a page may show less (frequently used content only). It is
-  /// never true under an arrangement that keeps the whole catalogue on screen
-  /// with the field (`PanelArrangement.narrowsEmptySearch`), so clearing the
-  /// text is all it takes to see the grid. The default shows everything.
-  List<Collection> visibleCollections(
-    List<Collection> all, {
-    required bool searchOpen,
-  }) => all;
+  /// Asked the same way whether search is open or not: an open search with no
+  /// query keeps the catalogue on screen, as the reference clients do, so the
+  /// policy has no say in it. The default shows everything.
+  List<Collection> visibleCollections(List<Collection> all) => all;
 
   /// The id of the section that shows [collection].
   ///

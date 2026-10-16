@@ -4,7 +4,6 @@ import 'package:panel_shell/src/controller/panel_search_state.dart';
 import 'package:panel_shell/src/page/panel_page.dart';
 import 'package:panel_shell/src/page/panel_page_host.dart';
 import 'package:panel_shell/src/widgets/listen_value_builder.dart';
-import 'package:panel_shell/src/widgets/panel_arrangement.dart';
 import 'package:panel_shell/src/widgets/panel_search_field.dart';
 
 /// A page for shell tests: a coloured box that shows its own id and, while
@@ -40,13 +39,8 @@ final class FakePanelPage {
         this.host = host;
         buildCount++;
         final body = _FakePageBody(id: id, host: host, color: color);
-        final placement = PanelArrangementScope.of(
-          context,
-        ).searchPlacementOf(searchPlacement);
-        if (placement != SearchPlacement.inline) return body;
-        // An inline page places the shell's field among its own content
-        // (where the arrangement lets it; under `pointer` the shell's own is
-        // drawn).
+        if (searchPlacement != SearchPlacement.inline) return body;
+        // An inline page places the shell's field among its own content.
         return Column(
           children: [
             const PanelSearchField(),

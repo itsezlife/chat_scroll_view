@@ -529,7 +529,7 @@ void main() {
       await rig.settle(tester);
 
       expect(_state(rig).kind, isA<Docked>());
-      expect(rig.set.insets.inlineEnd.value, 360);
+      expect(rig.set.insets.inlineEnd.value, 292);
       expect(rig.set.insets.bottomPadding.value, rig.set.composer.extent.value);
     });
   });
@@ -558,6 +558,47 @@ void main() {
       of: rig.action(ChatComposerActions.panel),
       matching: find.byType(AnimatedChromeIcon),
     );
+
+    group('a saved dock', () {
+      testWidgets('stands in a window with the room, with no click, and the '
+          'chat gives up its width', (tester) async {
+        final services = await _services(tester);
+        await services.preferences.setDockPreferred(preferred: true);
+
+        final rig = await desktop(
+          tester,
+          services: services,
+          size: const Size(1200, 800),
+        );
+        await rig.settle(tester);
+
+        expect(_state(rig).kind, isA<Docked>());
+        expect(rig.set.insets.inlineEnd.value, 292);
+      });
+
+      testWidgets('goes when the window narrows past the room, and the '
+          'choice stays', (tester) async {
+        final services = await _services(tester);
+        await services.preferences.setDockPreferred(preferred: true);
+        final rig = await desktop(
+          tester,
+          services: services,
+          size: const Size(1200, 800),
+        );
+        await rig.settle(tester);
+
+        rig.set.updateEnvironment(
+          size: const Size(600, 800),
+          safeTop: 0,
+          safeBottom: 0,
+        );
+        await rig.settle(tester);
+
+        expect(_state(rig), PanelVisibility.hidden);
+        expect(rig.set.insets.inlineEnd.value, 0);
+        expect(rig.set.presentation.dockPreferred.value, isTrue);
+      });
+    });
 
     group('a click', () {
       testWidgets('opens the popup when the panel is hidden', (tester) async {
@@ -612,7 +653,7 @@ void main() {
       testWidgets('on a shown popup hides it where the window cannot dock', (
         tester,
       ) async {
-        final rig = await desktop(tester, size: const Size(700, 800));
+        final rig = await desktop(tester, size: const Size(600, 800));
         await _open(tester, rig);
         expect(_state(rig).kind, isA<AnchoredPopup>());
 
@@ -826,7 +867,8 @@ void main() {
 
       testWidgets('a click on the button is the button\'s alone: no hide '
           'before it, no reopening after it', (tester) async {
-        final rig = await desktop(tester, size: const Size(700, 800));
+        // A window too narrow to dock in, so the click hides the popup.
+        final rig = await desktop(tester, size: const Size(600, 800));
         await _open(tester, rig);
         expect(_state(rig), isA<PanelVisibility$Shown>());
 

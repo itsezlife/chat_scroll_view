@@ -126,14 +126,17 @@ void main() {
     expect(events.whereType<ContentPicked>().single.source, PickSource.recents);
   });
 
-  testWidgets('the clear action of the recents reaches the host', (
-    tester,
-  ) async {
+  testWidgets('a finger\'s long press on a recent reaches the host as a '
+      'request to clear them', (tester) async {
     await pumpShell(tester);
     await tester.pumpAndSettle();
 
-    final viewport = tester.getTopRight(find.byType(PanelCatalogViewport));
-    await tester.tapAt(viewport + const Offset(-30, 36 + 50 + 13));
+    final viewport = tester.getTopLeft(find.byType(PanelCatalogViewport));
+    final gesture = await tester.startGesture(
+      viewport + const Offset(30, 36 + 50 + 27 + 22),
+    );
+    await tester.pump(const Duration(milliseconds: 700));
+    await gesture.up();
     await tester.pump();
 
     expect(

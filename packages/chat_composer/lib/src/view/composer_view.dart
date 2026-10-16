@@ -77,7 +77,8 @@ class ComposerView extends StatefulWidget {
   /// Builds the panels other than the text field.
   final ComposerPanelResolver? panelResolver;
 
-  /// Key on the glass island, for the `ComposerBottomFade` cutout.
+  /// Key on the glass island, for a host that measures it (to anchor a popup
+  /// to it, say).
   final GlobalKey? islandKey;
 
   /// Called when the field is tapped, also if it already has focus.

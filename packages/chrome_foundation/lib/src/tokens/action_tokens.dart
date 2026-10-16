@@ -14,6 +14,7 @@ final class ActionTokens {
   /// An action token group with every colour given.
   const ActionTokens({
     required this.icon,
+    required this.iconHover,
     required this.send,
     required this.onSend,
     required this.backspace,
@@ -26,6 +27,7 @@ final class ActionTokens {
   /// The default mapping of [palette] roles onto action fields.
   factory ActionTokens.fromPalette(ChromePalette palette) => ActionTokens(
     icon: palette.iconIdle,
+    iconHover: palette.iconActive,
     send: palette.accent,
     onSend: palette.onAccent,
     backspace: palette.iconIdle,
@@ -37,6 +39,10 @@ final class ActionTokens {
 
   /// Composer action icons.
   final Color icon;
+
+  /// A composer action icon while a mouse is over its button: the reference
+  /// client swaps the icon's colour and draws nothing else.
+  final Color iconHover;
 
   /// Send button fill.
   final Color send;
@@ -62,6 +68,7 @@ final class ActionTokens {
   /// A copy with the named fields replaced.
   ActionTokens copyWith({
     Color? icon,
+    Color? iconHover,
     Color? send,
     Color? onSend,
     Color? backspace,
@@ -71,6 +78,7 @@ final class ActionTokens {
     Color? floatingLabelMuted,
   }) => ActionTokens(
     icon: icon ?? this.icon,
+    iconHover: iconHover ?? this.iconHover,
     send: send ?? this.send,
     onSend: onSend ?? this.onSend,
     backspace: backspace ?? this.backspace,
@@ -86,6 +94,7 @@ final class ActionTokens {
   static ActionTokens lerp(ActionTokens a, ActionTokens b, double t) =>
       ActionTokens(
         icon: Color.lerp(a.icon, b.icon, t)!,
+        iconHover: Color.lerp(a.iconHover, b.iconHover, t)!,
         send: Color.lerp(a.send, b.send, t)!,
         onSend: Color.lerp(a.onSend, b.onSend, t)!,
         backspace: Color.lerp(a.backspace, b.backspace, t)!,
@@ -108,6 +117,7 @@ final class ActionTokens {
       identical(this, other) ||
       other is ActionTokens &&
           icon == other.icon &&
+          iconHover == other.iconHover &&
           send == other.send &&
           onSend == other.onSend &&
           backspace == other.backspace &&
@@ -119,6 +129,7 @@ final class ActionTokens {
   @override
   int get hashCode => Object.hash(
     icon,
+    iconHover,
     send,
     onSend,
     backspace,

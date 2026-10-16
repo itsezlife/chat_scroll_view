@@ -207,53 +207,70 @@ void main() {
       final handle = tester.ensureSemantics();
       await pumpPage(tester);
 
-      // One header, one strip tab; People has a header but no tab of its own.
-      expect(find.semantics.byLabel('People'), findsOneWidget);
-      expect(find.semantics.byLabel('Smileys'), findsNWidgets(2));
+      // One header and one strip tab each.
+      expect(find.semantics.byLabel('Food & Drink'), findsNWidgets(2));
+      expect(find.semantics.byLabel('Smileys & People'), findsNWidgets(2));
       expect(find.semantics.byLabel('Recently used'), findsNothing);
       handle.dispose();
     });
 
-    testWidgets('an empty search narrows the page to the recents', (
+    testWidgets('an empty search keeps the whole catalogue on screen', (
       tester,
     ) async {
       source = fixtures.source(recents: ['❤']);
       await tester.pumpWidget(page());
       await tester.pumpAndSettle();
       final model = controller().catalog;
-      expect(model.maxScrollExtent, greaterThan(0));
+      final before = model.maxScrollExtent;
+      expect(before, greaterThan(0));
 
       host.searchState = const PanelSearchState(isOpen: true);
       await tester.pumpAndSettle();
 
-      // One section of one row: nothing left to scroll.
-      expect(model.maxScrollExtent, 0);
+      // The strip's 36 px leave with the open search; no section does.
+      expect(model.maxScrollExtent, closeTo(before, 40));
     });
   });
 
-  group('the recents header action', () {
-    testWidgets('asks the host to clear the emoji recents, and clears none '
-        'itself', (tester) async {
+  group('the recents', () {
+    testWidgets('have no header button: the header is a title', (tester) async {
+      final handle = tester.ensureSemantics();
       source = fixtures.source(recents: ['❤'], count: 0);
       await tester.pumpWidget(page());
       await tester.pumpAndSettle();
 
-      // The action sits at the trailing end of the recents header.
+      expect(find.semantics.byLabel('Clear recent emoji'), findsNothing);
       await tester.tapAt(origin(tester) + const Offset(330, 36 + 50 + 13));
+      await tester.pump();
+      expect(host.clearRecentsRequests, isEmpty);
+      handle.dispose();
+    });
+
+    testWidgets('a long press on a recent asks the host to clear them, and '
+        'picks nothing', (tester) async {
+      source = fixtures.source(recents: ['❤'], count: 0);
+      await tester.pumpWidget(page());
+      await tester.pumpAndSettle();
+
+      final gesture = await tester.startGesture(cell(tester, top: 0));
+      await tester.pump(const Duration(milliseconds: 700));
+      await gesture.up();
       await tester.pump();
 
       expect(host.clearRecentsRequests, [SemanticKind.unicodeEmoji]);
       expect(host.picks, isEmpty);
     });
 
-    testWidgets('is labelled', (tester) async {
-      final handle = tester.ensureSemantics();
+    testWidgets('a tap on a recent still picks it', (tester) async {
       source = fixtures.source(recents: ['❤'], count: 0);
       await tester.pumpWidget(page());
       await tester.pumpAndSettle();
 
-      expect(find.semantics.byLabel('Clear recent emoji'), findsOneWidget);
-      handle.dispose();
+      await tester.tapAt(cell(tester, top: 0));
+      await tester.pump();
+
+      expect(host.picks.single.key, fixtures.key('❤'));
+      expect(host.clearRecentsRequests, isEmpty);
     });
   });
 
@@ -337,21 +354,6 @@ void main() {
         preferences.preferredVariant(fixtures.thumbsUp.base),
         fixtures.thumbsUp.base,
       );
-    });
-
-    testWidgets('a pick from the recents is not a preference', (tester) async {
-      source = fixtures.source(recents: ['👍'], count: 0);
-      await tester.pumpWidget(page());
-      await tester.pumpAndSettle();
-      final gesture = await tester.startGesture(cell(tester, top: 0));
-      await tester.pump(const Duration(milliseconds: 700));
-      expect(find.byType(EmojiVariantPicker), findsOneWidget);
-
-      await gesture.up();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(host.picks.single.source, PickSource.recents);
-      expect(preferences.preferredVariant(fixtures.thumbsUp.base), isNull);
     });
 
     testWidgets('an emoji without variants has no long press', (tester) async {
@@ -777,13 +779,13 @@ void main() {
     testWidgets('scrolling into a category activates its tab', (tester) async {
       final handle = tester.ensureSemantics();
       await pumpPage(tester);
-      expect(selected(tester, 'Smileys'), isTrue);
+      expect(selected(tester, 'Smileys & People'), isTrue);
 
       controller().catalog.jumpTo(controller().catalog.maxScrollExtent);
       await tester.pumpAndSettle();
 
-      expect(selected(tester, 'Flags'), isTrue);
-      expect(selected(tester, 'Smileys'), isFalse);
+      expect(selected(tester, 'Symbols'), isTrue);
+      expect(selected(tester, 'Smileys & People'), isFalse);
       handle.dispose();
     });
 
@@ -794,12 +796,12 @@ void main() {
       await tester.tap(
         find.descendant(
           of: find.byType(EmojiCategoryStrip),
-          matching: find.bySemanticsLabel('Animals & nature'),
+          matching: find.bySemanticsLabel('Animals & Nature'),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(selected(tester, 'Animals & nature'), isTrue);
+      expect(selected(tester, 'Animals & Nature'), isTrue);
       expect(controller().catalog.offset, greaterThan(0));
       handle.dispose();
     });
@@ -827,7 +829,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.semantics.byLabel('Search result'), findsOneWidget);
-      expect(find.semantics.byLabel('Smileys'), findsNothing);
+      expect(find.semantics.byLabel('Smileys & People'), findsNothing);
       expect(host.searchResultCounts, [1]);
       handle.dispose();
     });
@@ -879,7 +881,7 @@ final class _MutableSource implements CollectionSource {
       contents: CollectionContents.loaded(const []),
     ),
     Collection(
-      id: const CollectionId.category('smileys-emotion'),
+      id: const CollectionId.category('people'),
       contents: CollectionContents.loaded([
         for (final glyph in glyphs) fixtures.item(glyph),
       ]),

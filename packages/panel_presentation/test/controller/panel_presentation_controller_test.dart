@@ -325,10 +325,18 @@ void main() {
       expect(controller.dockPreferred.value, isTrue);
     });
 
-    test('dock while hidden records the preference for the next show', () {
+    test('dock while hidden, in a window with the room, shows the dock', () {
       build(window: wide).dock();
+      expect(controller.state.value.kind, const Docked());
+    });
+
+    test('dock while hidden, in a window without the room, records the '
+        'preference for when it has', () {
+      build(window: narrow).dock();
       expect(controller.state.value, PanelVisibility.hidden);
       controller.show();
+      expect(controller.state.value.kind, const AnchoredPopup());
+      controller.updateWindow(wide);
       expect(controller.state.value.kind, const Docked());
     });
 
@@ -349,13 +357,13 @@ void main() {
       expect(controller.state.value.kind, const AnchoredPopup());
     });
 
-    test('a docked section falls back to a popup when the window narrows', () {
+    test('a docked section goes when the window narrows, and comes back', () {
       build(window: wide, dockPreferred: true).show();
       controller.updateWindow(narrow);
-      expect(
-        controller.state.value,
-        const PanelVisibility.shown(AnchoredPopup()),
-      );
+      expect(controller.state.value, PanelVisibility.hidden);
+
+      controller.updateWindow(wide);
+      expect(controller.state.value.kind, const Docked());
     });
 
     test('a docked section stays when the window changes within wide', () {

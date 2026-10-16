@@ -30,9 +30,9 @@ import 'package:listen/listen.dart';
 ///
 /// ## Items
 ///
-/// A hit on an entry's base key is shown as the variant the user chose for
-/// it, like the grid. Emoji the [GlyphSupport] says the device cannot draw
-/// are left out. Each item carries the spoken name of its emoji from the first
+/// A hit on any key of an entry (its base or one of its variants) is one
+/// result, shown as the variant the user chose for the entry, like the grid.
+/// Emoji the [GlyphSupport] says the device cannot draw are left out. Each item carries the spoken name of its emoji from the first
 /// of [languages] whose pack names it. Searching is not use: nothing is
 /// recorded.
 ///
@@ -254,7 +254,10 @@ final class EmojiSearchSource implements SearchSource {
     final items = <CollectionItem>[];
     for (final key in _ranked) {
       final entry = _catalog.entryOf(key);
-      final item = entry != null && entry.base == key
+      // A hit on any spelling of an entry (the base, a tone, a gender) is a
+      // hit on the entry, shown as the grid shows it. The page bakes only
+      // what the grid shows, so a variant of its own would be a circle.
+      final item = entry != null
           ? _items.itemOf(entry)
           : _items.itemForKey(key);
       if (item != null && seen.add(item.key)) items.add(item);

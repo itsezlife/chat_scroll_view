@@ -448,6 +448,7 @@ class _PopupBodyState extends State<_PopupBody>
                       textDirection: textDirection,
                       anchor: anchor,
                       outset: _outset(style),
+                      gap: style.edgeGap,
                     ),
                     child: _popup(style),
                   );

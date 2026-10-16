@@ -6,6 +6,28 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Source-breaking: the dock is a standing section ([ADR 028](../../docs/adr/028-panel-presentation.md)
+  amendment). `PanelPresentationPolicy.canDock`, `defaultKind` and `resolve`
+  take the `PanelWindow` instead of its class; a window has the room for a
+  dock when the content keeps 380 and the dock is at least 292. The dock shows
+  by itself while preferred and fitting, goes (no popup) when the window
+  narrows, returns when it widens, and is dismissed by no gesture
+  (`dismissalsFor(Docked)` is empty; `handleBack` leaves it up).
+- `DockedStyle.width` is optional: a dock nobody dragged is the policy's
+  narrowest.
+
+### Added
+
+- Resizing: `PanelPresentationPolicy.dockMinWidth`, `dockMaxWidth`,
+  `dockMinChatWidth`, `dockResizeExtent` and `dockWidthIn`;
+  `PanelPresentationController.resizeDock`, `endDockResize` and `dockWanted`; a
+  6 px strip on the docked view's start edge; `DockWidthStore` (the
+  `dockWidths:` argument) keeps the width across sessions.
+- `AnchoredPopupStyle.edgeGap` and `AnchoredPopupLayout.gap`: the room between
+  the popup and the composer's top and end edges.
+
 ### Added
 
 - `KeyboardReplacementTuning.sheetCornerRadius` (29): the keyboard-replacement

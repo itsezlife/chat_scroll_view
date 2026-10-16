@@ -868,8 +868,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         ),
         // Soft fade over chat in the chrome zone. Under the composer so the
         // panel is not washed, and outside the glass source so the island
-        // frosts the chat and not this wash. Its island hole clears when the
-        // island unmounts (selection mode).
+        // frosts the chat and not this wash.
         ValueListenableBuilder<double>(
           valueListenable: insets.bottomPadding,
           builder: (context, zoneHeight, _) {
@@ -882,8 +881,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               child: ComposerBottomFade(
                 zoneHeight: zoneHeight,
                 color: ChromeThemeScope.composerOf(context).contentFade,
-                glassKey: _composerGlassKey,
-                cutoutSync: _selection,
               ),
             );
           },

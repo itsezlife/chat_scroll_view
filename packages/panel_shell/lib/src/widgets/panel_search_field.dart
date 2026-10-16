@@ -18,12 +18,11 @@ import 'package:panel_shell/src/widgets/panel_search_state_icon.dart';
 ///
 /// ## The trailing control
 ///
-/// Under the touch arrangement it is a clear control that shows with text and
-/// nothing else: search is left through the controller (`closeSearch`,
-/// `handleBack`), never by a control of the field, so the field has no cancel
-/// button. Under the pointer arrangement, which has no back gesture, it is a
-/// cancel control that shows while search is open: the first press empties the
-/// query, the second closes search.
+/// A clear control that shows with text and nothing else, under either
+/// arrangement: it empties the query and leaves search open. Search is left
+/// through the controller (`closeSearch`, `handleBack`, Escape), never by a
+/// control of the field. A cross over an empty field would have nothing to
+/// clear, and the reference client's field shows none either.
 ///
 /// ## Leading icon
 ///
@@ -40,10 +39,8 @@ import 'package:panel_shell/src/widgets/panel_search_state_icon.dart';
 /// field survives neither move: its text and focus are rebuilt from the
 /// controller, which is why the controller holds them.
 ///
-/// What the page shows between the two presses (an emptied query with search
-/// still open) is the page's: under the touch arrangement it may narrow to its
-/// most used content, under the pointer arrangement it shows its whole
-/// catalogue, so one press is enough to see the grid again.
+/// What the page shows while search is open with an emptied query is the
+/// page's: the whole catalogue, so clearing is enough to see the grid again.
 ///
 /// Built on `EditableText`, so no Material ancestor is required. Hosts that
 /// want a selection toolbar (paste on touch) pass [contextMenuBuilder], or
@@ -241,15 +238,6 @@ class _PanelSearchFieldState extends State<PanelSearchField>
 
   void _clear() => _shell.setQuery('');
 
-  // The pointer arrangement's trailing control: clears, then closes.
-  void _clearOrClose() {
-    if (_text.text.isNotEmpty) {
-      _clear();
-    } else {
-      _shell.closeSearch();
-    }
-  }
-
   PanelSearchIconState get _leading {
     if (_shell.searchBusy.value) return PanelSearchIconState.progress;
     if (_text.text.isNotEmpty && _settled) return PanelSearchIconState.back;
@@ -339,13 +327,12 @@ class _PanelSearchFieldState extends State<PanelSearchField>
                           ),
                         ),
                       ),
-                      if (_text.text.isNotEmpty ||
-                          (pointer && _shell.search.value.isOpen))
+                      if (_text.text.isNotEmpty)
                         _Control(
                           label: pointer
                               ? strings.panel.cancelAction
                               : strings.panel.clearAction,
-                          onPressed: pointer ? _clearOrClose : _clear,
+                          onPressed: _clear,
                           child: ChromeIcon(
                             ChromeIconId.close,
                             size: PanelSearchField.clearSize,

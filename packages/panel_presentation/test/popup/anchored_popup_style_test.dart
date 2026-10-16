@@ -25,4 +25,28 @@ void main() {
       );
     });
   });
+
+  group('AnchoredPopupStyle.edgeGap', () {
+    test('is nothing unless the host asks for one', () {
+      expect(const AnchoredPopupStyle(width: 300).edgeGap, 0);
+    });
+
+    test('takes part in equality', () {
+      expect(
+        const AnchoredPopupStyle(width: 300, edgeGap: 10),
+        const AnchoredPopupStyle(width: 300, edgeGap: 10),
+      );
+      expect(
+        const AnchoredPopupStyle(width: 300, edgeGap: 10),
+        isNot(const AnchoredPopupStyle(width: 300)),
+      );
+    });
+
+    test('is never negative', () {
+      expect(
+        () => AnchoredPopupStyle(width: 300, edgeGap: -1),
+        throwsAssertionError,
+      );
+    });
+  });
 }

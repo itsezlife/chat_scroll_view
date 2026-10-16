@@ -16,6 +16,7 @@ final class DockedRig {
     PanelWindow window = const PanelWindow(width: 1000, height: 600),
     bool dockPreferred = false,
     PreferenceStore? preferences,
+    DockWidthStore? dockWidths,
   }) {
     final composerFocus = FocusNode(debugLabel: 'composer');
     final docked = DockedStrategy(style: style, composerFocus: composerFocus);
@@ -37,6 +38,7 @@ final class DockedRig {
       window: window,
       dockPreferred: dockPreferred,
       preferences: preferences,
+      dockWidths: dockWidths,
     );
     addTearDown(() {
       controller.dispose();

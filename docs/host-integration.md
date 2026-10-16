@@ -258,8 +258,9 @@ section) opens a menu whose items arrive as `ContentCopyRequested`,
 `RecentRemoveRequested` and `ClearRecentsRequested`. The panel copies nothing
 and removes nothing: the host does, and asks the user before clearing. The menu
 labels are `PanelStrings.copyAction`, `removeRecentAction` and
-`clearRecentAction`, supplied with the rest of the strings. A finger keeps the
-clear button in the recents header instead. Which emoji have variants, and
+`clearRecentAction`, supplied with the rest of the strings. A finger's long
+press on a recent asks the same (`ClearRecentsRequested`), and the recents
+header has no button. Which emoji have variants, and
 whether the user has chosen one, is the page's business; the host only
 supplies the `PreferenceStore` the page remembers it in (choosing the emoji as
 it is is remembered as the base itself).

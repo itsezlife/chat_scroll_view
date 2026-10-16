@@ -5,9 +5,9 @@ import 'package:meta/meta.dart';
 /// One tab of the emoji category strip: a semantic icon, and the catalogue
 /// groups the tab leads to.
 ///
-/// A tab can cover several groups (smileys and people are one tab, as in
-/// the reference client): tapping it lands on the first of its sections that
-/// the page shows, and the tab is active while the user is in any of them.
+/// A tab can cover several categories: tapping it lands on the first of its
+/// sections that the page shows, and the tab is active while the user is in
+/// any of them. The reference client's sections are one category per tab.
 @immutable
 final class EmojiCategoryTab {
   /// A tab named [id], painted as [icon], covering the catalogue groups
@@ -47,8 +47,9 @@ final class EmojiCategoryTab {
 
 /// The tabs of the emoji strip and their icons.
 ///
-/// The ids of the groups are the Unicode group slugs the emoji catalogue uses;
-/// a group no tab names has a section but no tab. Presentation owns the
+/// The ids are those of the emoji sections (`EmojiSection.reference`: the
+/// reference client's seven categories); a section no tab names has a section
+/// of its own but no tab. Presentation owns the
 /// pictures: [icons] are painters a host registers (or [EmojiTabIconScope]
 /// does) under these ids, so a host can restyle a tab by registering its own.
 abstract final class EmojiCategories {
@@ -63,35 +64,35 @@ abstract final class EmojiCategories {
   static const EmojiCategoryTab smileys = EmojiCategoryTab(
     id: 'smileys',
     icon: ChromeIconId('emoji.smileys'),
-    groupIds: ['smileys-emotion', 'people-body'],
+    groupIds: ['people'],
   );
 
   /// Animals and nature.
   static const EmojiCategoryTab animals = EmojiCategoryTab(
     id: 'animals',
     icon: ChromeIconId('emoji.animals'),
-    groupIds: ['animals-nature'],
+    groupIds: ['nature'],
   );
 
   /// Food and drink.
   static const EmojiCategoryTab food = EmojiCategoryTab(
     id: 'food',
     icon: ChromeIconId('emoji.food'),
-    groupIds: ['food-drink'],
+    groupIds: ['food'],
   );
 
   /// Travel and places.
   static const EmojiCategoryTab travel = EmojiCategoryTab(
     id: 'travel',
     icon: ChromeIconId('emoji.travel'),
-    groupIds: ['travel-places'],
+    groupIds: ['travel'],
   );
 
   /// Activities.
   static const EmojiCategoryTab activities = EmojiCategoryTab(
     id: 'activities',
     icon: ChromeIconId('emoji.activities'),
-    groupIds: ['activities'],
+    groupIds: ['activity'],
   );
 
   /// Objects.
@@ -101,31 +102,24 @@ abstract final class EmojiCategories {
     groupIds: ['objects'],
   );
 
-  /// Symbols.
+  /// Symbols, the flags among them.
   static const EmojiCategoryTab symbols = EmojiCategoryTab(
     id: 'symbols',
     icon: ChromeIconId('emoji.symbols'),
     groupIds: ['symbols'],
   );
 
-  /// Flags.
-  static const EmojiCategoryTab flags = EmojiCategoryTab(
-    id: 'flags',
-    icon: ChromeIconId('emoji.flags'),
-    groupIds: ['flags'],
-  );
-
-  /// Every tab, in strip order.
+  /// Every tab, in strip order: the reference client's, which puts activity
+  /// before travel.
   static const List<EmojiCategoryTab> tabs = [
     recents,
     smileys,
     animals,
     food,
-    travel,
     activities,
+    travel,
     objects,
     symbols,
-    flags,
   ];
 
   /// The tab that covers the section of [collection], or null for none.

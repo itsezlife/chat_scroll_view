@@ -86,12 +86,11 @@ CollectionItem item(String glyph) => CollectionItem.described(
 );
 
 /// The ids the fixture source lists after the recents.
-const categories = [
-  'smileys-emotion',
-  'people-body',
-  'animals-nature',
-  'flags',
-];
+///
+/// Four sections whose second holds the toned and gendered emoji, so a test
+/// can put a press on them without counting the first section's cells. Their
+/// ids are real ones; what each holds is the fixture's.
+const categories = ['people', 'food', 'nature', 'symbols'];
 
 /// Glyphs of a category: [count] copies of distinct private-use stand-ins
 /// first, then the catalogue entries that belong to it.
@@ -100,9 +99,9 @@ List<String> glyphsOf(String category, {int count = 24}) {
   return [
     for (var i = 0; i < count; i++) String.fromCharCode(0x1F400 + base + i),
     ...switch (category) {
-      'smileys-emotion' => ['😀', '❤'],
-      'people-body' => ['👍', '🕵', '💑'],
-      'flags' => ['🇯🇵'],
+      'people' => ['😀', '❤'],
+      'food' => ['👍', '🕵', '💑'],
+      'symbols' => ['🇯🇵'],
       _ => const <String>[],
     },
   ];

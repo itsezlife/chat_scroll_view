@@ -8,6 +8,14 @@ is pre-1.0.
 
 ### Changed
 
+- Source-breaking: `ComposerBottomFade` is a `StatelessWidget` that washes the
+  whole zone: the island-shaped hole and its `glassKey`, `glassCornerRadius`,
+  `cutoutSync` and `ComposerBottomFadeState` are gone. `ComposerView.islandKey`
+  stays for hosts that measure the island.
+- A mouse over an enabled action turns its glyph to `ActionTokens.iconHover`.
+
+### Changed
+
 - **`ComposerController.extent` excludes the bottom safe-area pad.** The view
   still draws `safeAreaBottom`; the host adds the bottom band itself (the larger
   of the safe area and the presentation occupancy). The extent is measured after

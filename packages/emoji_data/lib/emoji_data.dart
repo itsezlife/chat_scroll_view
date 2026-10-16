@@ -4,6 +4,7 @@ library;
 
 export 'src/catalog/emoji_catalog.dart';
 export 'src/collections/emoji_collection_source.dart';
+export 'src/collections/emoji_section.dart';
 export 'src/glyph_probe/glyph_art_fingerprint.dart';
 export 'src/glyph_probe/glyph_pixel_hash.dart';
 export 'src/glyph_probe/missing_glyph_probe.dart';

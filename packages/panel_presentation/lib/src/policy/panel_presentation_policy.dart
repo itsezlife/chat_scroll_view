@@ -63,12 +63,44 @@ sealed class PanelPresentationPolicy {
   /// The tallest a popup is, whatever the window.
   static const double popupMaxHeight = 640;
 
+  /// The narrowest a dock is, whatever the user drags it to: the reference
+  /// client's third column.
+  double get dockMinWidth => 292;
+
+  /// The widest a dock is.
+  double get dockMaxWidth => 392;
+
+  /// The room the content keeps beside a dock: a window narrower than this
+  /// plus [dockMinWidth] has no dock, and a wider dock gives way to it.
+  double get dockMinChatWidth => 380;
+
+  /// The width of the strip along a dock's start edge that resizes it.
+  double get dockResizeExtent => 6;
+
+  /// The width of a dock in [window] when the user wants [wanted] (null for
+  /// no wish): the wish held between [dockMinWidth] and [dockMaxWidth], then
+  /// no wider than leaves [dockMinChatWidth] to the content, and never below
+  /// [dockMinWidth] whatever the window.
+  ///
+  /// The wish is the user's and is kept as it was dragged, so a window that
+  /// widens again gives it back.
+  double dockWidthIn(PanelWindow window, {double? wanted}) {
+    final held = math.min(
+      dockMaxWidth,
+      math.max(dockMinWidth, wanted ?? dockMinWidth),
+    );
+    return math.max(
+      dockMinWidth,
+      math.min(held, window.width - dockMinChatWidth),
+    );
+  }
+
   /// The kind opened when the host names none.
   ///
   /// [dockPreferred] is the user's persisted choice to keep the panel docked;
   /// a policy honours it only where [canDock] says docking is possible.
   PanelPresentation defaultKind({
-    required PanelWindowClass windowClass,
+    required PanelWindow window,
     bool dockPreferred = false,
   });
 
@@ -78,15 +110,18 @@ sealed class PanelPresentationPolicy {
   /// An override is not checked against [canDock] or anything else: it is the
   /// host's explicit decision for this call.
   PanelPresentation resolve({
-    required PanelWindowClass windowClass,
+    required PanelWindow window,
     bool dockPreferred = false,
     PanelPresentation? override,
-  }) =>
-      override ??
-      defaultKind(windowClass: windowClass, dockPreferred: dockPreferred);
+  }) => override ?? defaultKind(window: window, dockPreferred: dockPreferred);
 
-  /// Whether the panel can be docked in a window of class [windowClass].
-  bool canDock(PanelWindowClass windowClass);
+  /// Whether the panel can be docked in [window]: the content and the dock fit
+  /// side by side ([dockMinChatWidth] and [dockMinWidth]).
+  ///
+  /// Not the window class: the reference client docks as soon as the two
+  /// minimums fit, and a window that does not fit has no dock however wide the
+  /// user would like it.
+  bool canDock(PanelWindow window);
 
   /// Whether a mouse pointer over the toggle opens the panel. Touch and
   /// stylus never do: they click.
@@ -140,12 +175,12 @@ final class PanelPresentationPolicy$Mobile extends PanelPresentationPolicy {
 
   @override
   PanelPresentation defaultKind({
-    required PanelWindowClass windowClass,
+    required PanelWindow window,
     bool dockPreferred = false,
   }) => const KeyboardReplacement();
 
   @override
-  bool canDock(PanelWindowClass windowClass) => false;
+  bool canDock(PanelWindow window) => false;
 
   @override
   bool get hoverOpens => false;
@@ -167,21 +202,21 @@ final class PanelPresentationPolicy$Mobile extends PanelPresentationPolicy {
 
 /// The desktop and web policy: an anchored popup that hover opens and that
 /// dismisses itself, or a docked section when the user prefers it and the
-/// window is wide.
+/// window has the room.
 final class PanelPresentationPolicy$Desktop extends PanelPresentationPolicy {
   /// The desktop policy.
   const PanelPresentationPolicy$Desktop();
 
   @override
   PanelPresentation defaultKind({
-    required PanelWindowClass windowClass,
+    required PanelWindow window,
     bool dockPreferred = false,
-  }) => dockPreferred && canDock(windowClass)
-      ? const Docked()
-      : const AnchoredPopup();
+  }) =>
+      dockPreferred && canDock(window) ? const Docked() : const AnchoredPopup();
 
   @override
-  bool canDock(PanelWindowClass windowClass) => windowClass.isWide;
+  bool canDock(PanelWindow window) =>
+      window.width >= dockMinChatWidth + dockMinWidth;
 
   @override
   bool get hoverOpens => true;
@@ -195,7 +230,10 @@ final class PanelPresentationPolicy$Desktop extends PanelPresentationPolicy {
       PanelDismissal.leave,
       PanelDismissal.afterHold,
     },
-    KeyboardReplacement() || Docked() => const {PanelDismissal.back},
+    // A dock is a standing section: no gesture closes it, the dock control
+    // does (and Escape only steps back out of search, which the shell owns).
+    Docked() => const {},
+    KeyboardReplacement() => const {PanelDismissal.back},
   };
 
   @override

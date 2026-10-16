@@ -12,7 +12,7 @@ enum PanelWindowClass {
   /// A tablet-width or narrowed desktop window.
   medium,
 
-  /// A window wide enough to dock a section beside the content.
+  /// A tablet-or-wider window.
   expanded;
 
   /// The class of a window [width] logical pixels wide.
@@ -22,15 +22,16 @@ enum PanelWindowClass {
     return compact;
   }
 
-  /// Whether the window is wide enough to dock the panel.
+  /// Whether the window is of the widest class. Docking does not read it: the
+  /// policy asks whether the content and a dock fit side by side.
   bool get isWide => this == expanded;
 }
 
 /// The size of the host window in logical pixels, with its [windowClass].
 ///
 /// Fed by the host (usually from `MediaQuery.sizeOf`) to the presentation
-/// controller; the policy reads the class to pick a kind and the height to
-/// size a popup.
+/// controller; the policy reads the width to pick a kind and size a dock, and
+/// the height to size a popup.
 @immutable
 final class PanelWindow {
   /// A window [width] by [height] logical pixels.

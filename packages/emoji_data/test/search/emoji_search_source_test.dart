@@ -164,6 +164,35 @@ void main() {
       expect(found(), [key('1F44D-1F3FF')]);
     });
 
+    test('show a hit on a variant as the emoji the grid shows, once', () async {
+      keywords.publish(
+        _pack('en', {
+          '1F44D': ['thumbs up'],
+          '1F44D-1F3FB': ['thumbs up: light skin tone', 'thumbs up'],
+          '1F44D-1F3FF': ['thumbs up: dark skin tone', 'thumbs up'],
+        }, version: 1),
+      );
+
+      await search.search('thumbs');
+
+      // One result for the entry, never a result per tone: a tone the user
+      // did not choose is not in the grid, so nothing is drawn for it.
+      expect(found(), [key('1F44D')]);
+    });
+
+    test('show a hit on another variant as the one the user chose', () async {
+      await preferences.setPreferredVariant(key('1F44D'), key('1F44D-1F3FB'));
+      keywords.publish(
+        _pack('en', {
+          '1F44D-1F3FF': ['thumbs up: dark skin tone'],
+        }, version: 1),
+      );
+
+      await search.search('dark skin');
+
+      expect(found(), [key('1F44D-1F3FB')]);
+    });
+
     test('leave out what the device cannot draw', () async {
       glyphs.learn(missing: {key('1F600')});
 

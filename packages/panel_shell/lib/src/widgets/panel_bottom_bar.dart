@@ -21,6 +21,7 @@ class PanelBottomBar extends StatelessWidget {
   const PanelBottomBar({
     required this.pages,
     required this.selected,
+    required this.actions,
     required this.position,
     required this.dragging,
     required this.display,
@@ -32,8 +33,12 @@ class PanelBottomBar extends StatelessWidget {
   /// All pages, for the tabs.
   final List<PanelPage> pages;
 
-  /// The selected page, whose actions the row shows.
+  /// The selected page.
   final PanelPage selected;
+
+  /// The actions of [selected] the row shows: what the page declares and the
+  /// arrangement offers.
+  final List<PageAction> actions;
 
   /// The pager's continuous page.
   final ValueListenable<double> position;
@@ -102,7 +107,11 @@ class PanelBottomBar extends StatelessWidget {
                 ),
               Align(
                 alignment: AlignmentDirectional.bottomEnd,
-                child: _ActionRow(page: selected, onAction: onAction),
+                child: _ActionRow(
+                  page: selected,
+                  actions: actions,
+                  onAction: onAction,
+                ),
               ),
             ],
           ),
@@ -113,9 +122,14 @@ class PanelBottomBar extends StatelessWidget {
 }
 
 class _ActionRow extends StatelessWidget {
-  const _ActionRow({required this.page, required this.onAction});
+  const _ActionRow({
+    required this.page,
+    required this.actions,
+    required this.onAction,
+  });
 
   final PanelPage page;
+  final List<PageAction> actions;
   final PanelActionHandler onAction;
 
   @override
@@ -133,7 +147,7 @@ class _ActionRow extends StatelessWidget {
         key: ValueKey<String>(page.id),
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (final action in page.capabilities.actions)
+          for (final action in actions)
             _ActionButton(
               action: action,
               onTrigger: () => onAction(page, action),

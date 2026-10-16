@@ -61,12 +61,12 @@ import 'package:panel_shell/panel_shell.dart';
 ///
 /// - `touch`: the sticky header below. A strip the policy keeps at the top and
 ///   declares an extent for is a part of it; so is an inline search field.
-/// - `pointer`: nothing slides. The strip is a part of the column, above the
-///   catalogue or, where [CatalogPagePolicy.stripAtBottom] says so, pinned
-///   below it with its measured height reported through
-///   `PanelPageHost.reportBottomExtent`; search is always the shell's own
-///   field, whatever placement the page declared; an empty query does not
-///   narrow the catalogue.
+/// - `pointer`: nothing slides but the content. The strip is a part of the
+///   column, above the catalogue or, where [CatalogPagePolicy.stripAtBottom]
+///   says so, pinned below it with its measured height reported through
+///   `PanelPageHost.reportBottomExtent`; an inline search field is the first
+///   thing in the content, scrolls away with it and does not pin when search
+///   opens.
 ///
 /// ## The sticky header
 ///
@@ -312,17 +312,17 @@ class _CatalogPageState extends State<CatalogPage>
   // --- The layout the arrangement asks for -----------------------------------
 
   // The page is laid out for an arrangement and a policy: the sticky header
-  // (strip over the catalogue, inline search field) under the touch
+  // (strip over the catalogue, inline search field that pins) under the touch
   // arrangement, a plain column (strip above or pinned below the catalogue,
-  // the shell's own search field) under the pointer arrangement. Either can
+  // an inline search field that only scrolls) under the pointer arrangement.
+  // Either can
   // change while the page lives (a popup docked in place), so this is asked
   // again whenever one does.
   void _syncLayout() {
     final capabilities = widget.policy.capabilities;
     _inlineSearch =
         capabilities.search &&
-        _arrangement.searchPlacementOf(capabilities.searchPlacement) ==
-            SearchPlacement.inline &&
+        capabilities.searchPlacement == SearchPlacement.inline &&
         widget.searchSource != null;
     _syncStripPlacement();
     final stripExtent = _stripExtent;
@@ -369,8 +369,10 @@ class _CatalogPageState extends State<CatalogPage>
     return offset <= 0.5 || offset >= _catalog.maxScrollExtent - 0.5;
   }
 
+  // A field that pins when search opens does so under the arrangement that
+  // says so; under the other it stays among the content however search is.
   void _configureHeader() => _header.configure(
-    searchOpen: _searchOpen,
+    searchOpen: _searchOpen && _arrangement.pinsSearchWhenOpen,
     stripShown: _stripShown,
     metrics: _metrics,
   );

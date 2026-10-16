@@ -6,6 +6,22 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Source-breaking: `PanelArrangement.narrowsEmptySearch` and `searchPlacementOf`
+  are gone. An open search with no query keeps the whole catalogue under both
+  arrangements, and a page's declared search placement is its placement: an
+  `inline` field under `pointer` is the page's, scrolls with the grid and does
+  not pin (`PanelArrangement.pinsSearchWhenOpen` is touch-only).
+- The search field's trailing control shows only with text, under both
+  arrangements, and only clears: it no longer closes search when the field is
+  empty.
+- The pointer arrangement does not offer backspace
+  (`PanelArrangement.offersAction`), and builds no bar when a page has no
+  other action. `PanelBottomBar` takes the `actions` it shows.
+- The type tabs pill under `pointer` scales down as a whole when the column is
+  narrower than it, instead of overflowing.
+
 ### Added
 
 - `PanelPageHost.holdAutoHide()` returning a `PanelPageHold`, and

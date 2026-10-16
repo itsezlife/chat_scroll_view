@@ -54,6 +54,89 @@ void main() {
     });
   });
 
+  group('the reference sections', () {
+    // The catalogue's groups as Unicode slugs name them, in its order.
+    EmojiCatalog unicodeGroups() => catalogOf({
+      'smileys-emotion': [plain('1F600')],
+      'people-body': [toned('1F44D')],
+      'animals-nature': [plain('1F436')],
+      'activities': [plain('26BD')],
+      'symbols': [plain('2764-FE0F')],
+      'flags': [plain('1F3F4')],
+      'mystery': [plain('1F984')],
+    });
+
+    EmojiCollectionSource sections() => EmojiCollectionSource(
+      catalog: unicodeGroups(),
+      recents: recents,
+      preferences: preferences,
+    );
+
+    test('are the reference client\'s: smileys and people are one, and flags '
+        'close the symbols', () {
+      expect(
+        [for (final c in sections().collections.value) c.id],
+        [
+          CollectionId.recent,
+          const CollectionId.category('people'),
+          const CollectionId.category('nature'),
+          const CollectionId.category('activity'),
+          const CollectionId.category('symbols'),
+          // A group no section names is not lost: it is a section of its own.
+          const CollectionId.category('mystery'),
+        ],
+      );
+    });
+
+    test(
+      'hold the entries of their groups, one group after the other',
+      () async {
+        final emoji = sections();
+        addTearDown(emoji.dispose);
+        for (final id in ['people', 'symbols']) {
+          await emoji.load(CollectionId.category(id));
+        }
+
+        List<ContentKey> keys(String id) =>
+            (emoji.collections.value
+                        .firstWhere((c) => c.id == CollectionId.category(id))
+                        .contents
+                    as CollectionContents$Loaded)
+                .items
+                .map((item) => item.key)
+                .toList();
+
+        expect(keys('people'), [key('1F600'), key('1F44D')]);
+        expect(keys('symbols'), [key('2764-FE0F'), key('1F3F4')]);
+      },
+    );
+
+    test('are the host\'s to replace', () {
+      final emoji = EmojiCollectionSource(
+        catalog: unicodeGroups(),
+        recents: recents,
+        preferences: preferences,
+        sections: const [
+          EmojiSection('all', [
+            'smileys-emotion',
+            'people-body',
+            'animals-nature',
+            'activities',
+            'symbols',
+            'flags',
+            'mystery',
+          ]),
+        ],
+      );
+      addTearDown(emoji.dispose);
+
+      expect(
+        [for (final c in emoji.collections.value) c.id],
+        [CollectionId.recent, const CollectionId.category('all')],
+      );
+    });
+  });
+
   group('a category', () {
     late EmojiCollectionSource emoji;
 

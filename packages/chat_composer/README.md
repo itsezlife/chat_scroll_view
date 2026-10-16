@@ -36,7 +36,7 @@ morphs in place).
 | `ComposerHeader` | Sealed: `reply`, `edit`, `forward`, `linkPreview`, `suggestion`. Reply and edit titles come from `ChromeStrings.composer`. |
 | `ActionDescriptor`, `ActionPlacement`, `ActionWrap` | One action as data. `active` draws the glyph in the accent colour and announces the button as selected (a toggle that is on keeps its one glyph). `wrap` is a widget the composer builds around the rendered button, for whatever the host needs around it (a hover region, a tooltip, a measuring probe); the composer knows none of them. |
 | `ComposerPanelId`, `ComposerPanelResolver` | An open set of panel names and the host function that builds the non-default ones. |
-| `ComposerBottomFade` | The soft fade under the composer, with an island-shaped cutout. Mounts under the island, outside the glass source. |
+| `ComposerBottomFade` | The soft fade under the composer. Mounts under the island, outside the glass source. |
 | `ComposerShortcutPolicy`, `SubmitComposerIntent`, `DismissComposerHeaderIntent` | Intents and the `$Mobile` / `$Desktop` default key maps. |
 | `ComposerMetrics` | The island geometry, documented as component constants. |
 | `ComposerController` | Input only: the text, focus, selection, field scroll, height and extent, the `softKeyboard` option, the input query and its commands (`insertText`, `insertContent`, `backspace`, `clear`, `restore`, `replaceQuery`). No mode state, no reply or edit ids. |

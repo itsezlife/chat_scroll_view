@@ -50,14 +50,12 @@ Map<String, String> describeChromeStrings(ChromeStrings strings) {
 
 const _knownPageIds = ['emoji', 'stickers', 'gif'];
 const _knownCategoryIds = [
-  'smileys-emotion',
-  'people-body',
-  'animals-nature',
-  'food-drink',
-  'travel-places',
-  'activities',
+  'people',
+  'nature',
+  'food',
+  'activity',
+  'travel',
   'objects',
   'symbols',
-  'flags',
 ];
 const _pluralSamples = [0, 1, 2, 5, 11, 21];

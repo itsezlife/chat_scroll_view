@@ -25,7 +25,7 @@ takes `ime`, `heights` and `window`. Host layout:
 | --- | --- |
 | `PanelPresentation` (`KeyboardReplacement`, `AnchoredPopup`, `Docked`) | The sealed kinds. Values only; what draws a kind is a strategy. |
 | `PanelPresentationPolicy` (`PanelPresentationPolicy$Mobile`, `PanelPresentationPolicy$Desktop`) | Plain-Dart decisions: the default kind from OS family, window class and dock preference, whether hover opens, how each kind is dismissed (`PanelDismissal`), the 300 ms leave and 3 s after-hold delays (`PanelDismissal.afterHold`), popup height (0.75 of the window, clamped 278..640) and the motion role of showing, hiding and switching. A host override of the kind wins. |
-| `PanelOsFamily`, `PanelWindowClass`, `PanelWindow` | The inputs of the policy: Android and iOS are mobile, every other OS and the web are desktop; compact below 600 px, medium below 840, expanded (wide) from 840. |
+| `PanelOsFamily`, `PanelWindowClass`, `PanelWindow` | The inputs of the policy: Android and iOS are mobile, every other OS and the web are desktop; compact below 600 px, medium below 840, expanded from 840 (docking does not read the class: the policy asks whether the content and a dock fit, 380 + 292). |
 | `PanelPresentationController` | Owns the sealed `PanelVisibility` (`hidden`, `showing`, `shown`, `hiding`, each with its kind), `show` / `hide` / `toggle` / `handleBack`, `anchor`, `dock` / `undock`, `updateWindow`, the published `occupancy`, the `autoHideGuard` (true while a `holdAutoHide()` is unreleased; search focus is not one) and the `interactions` signal. Reports presence to the shell with `updatePresence`. Intents commit when no view is mounted. |
 | `PanelOccupancy` | The space taken, `bottom` and `inlineEnd`, both non-negative. |
 | `PanelPresentationStrategy`, `PanelStrategyContext` | What draws one kind and publishes its occupancy. The three kinds' strategies are registered with the controller; a kind without one takes no space and draws nothing. |
@@ -34,7 +34,7 @@ takes `ime`, `heights` and `window`. Host layout:
 | `AnchoredPopupToggleRegion`, `AnchoredPopupExemptRegion` | The first wraps the host's toggle; only a mouse entering it opens the popup, touch and stylus click, and a press on it never dismisses. The second marks a region (the composer) where a press does not dismiss. |
 | `AnchoredPopupActions`, `AnchoredPopupShortcuts`, `AnchoredPopupToggleIntent` | `DismissIntent` steps back (search first, popup second), the toggle intent toggles, `PanelSearchIntent` shows the panel and focuses search. |
 | `AnchoredPopupLayout` | Where the popup sits: bottom on the anchor top, end edge on the anchor end edge, kept inside the window. |
-| `DockedStrategy`, `DockedStyle` | The desktop and web docked section: full height on the end edge (the left in RTL), slides in with the `panelSlide` role, publishes its visible width as `inlineEnd` occupancy so the host can shrink the chat. No hover, idle or outside-press dismissal; Escape only closes search. The style carries the width and an optional separator line. |
+| `DockedStrategy`, `DockedStyle` | The desktop and web docked section: full height on the end edge (the left in RTL), slides in with the `panelSlide` role, publishes its visible width as `inlineEnd` occupancy so the host can shrink the chat. A standing section: no gesture dismisses it, Escape only closes search. A 6 px strip on its start edge resizes it (292 to 392, the content keeps 380); `DockWidthStore` keeps where the user left it. The style carries the width of a dock nobody dragged (optional) and a separator line. |
 | `ImeInputPort`, `ImeInput`, `ImeSample` | The single port raw soft-keyboard samples enter by (height, animating, bottom safe area). The height counts the safe area as part of the keyboard: a platform that reports the keyboard without it (the Android inset plugin) has the band added back by the host. |
 | `KeyboardReplacementStrategy` | The mobile strategy: the panel takes the place of the soft keyboard under the composer. Publishes `occupancy` (animated `max(keyboard, panel)`, safe area included), `state` (the hand-off phase) and `composerSafeInset`. |
 | `KeyboardSlot`, `KeyboardSlotState` | The hand-off state machine behind the strategy and its animated extent: `idle`, `opening`, `replacing`, `open`, `closing`, `handOffToIme`. Driven by `advance(elapsed)` and a `PanelClock`; no ticker, no wall clock. |
@@ -81,23 +81,32 @@ PanelPresentationView(controller: presentation);
 - **Occupancy.** The occupancy of the active kind's strategy; while hidden,
   of the kind the policy would open. A keyboard strategy keeps publishing the
   soft keyboard's height then, so the host never adds it a second time.
-- **Docking.** `dock()` records the preference and, in a wide window, moves a
-  popup into the docked section; `undock()` closes the section; `toggleDock()`
-  is the dock button's action. Pass the host's `PreferenceStore` as
+- **Docking.** The dock is a standing section: on screen while the user
+  prefers it and the window has the room (`policy.canDock(window)`: the
+  content keeps 380 and the dock is at least 292), whatever opened the panel.
+  `dock()` records the preference and shows the dock (a popup gives way to
+  it); `undock()` closes it; `toggleDock()` is the dock button's action. Pass the host's `PreferenceStore` as
   `preferences:`: the controller starts from its `dockPreferred`, writes every
   `dock()` / `undock()` to it (a failed write is reported through
   `FlutterError.reportError`, the choice stays in memory) and follows a change
   made elsewhere. Without a store the preference is in memory, seeded by the
-  `dockPreferred` flag. A docked section that the window narrows falls back to
-  a popup and docks again when the window is wide, unless the user changed
-  something in between.
+  `dockPreferred` flag. A window that narrows past the room takes the dock away
+  (the panel is hidden, no popup takes its place, the preference stays) and
+  one that has the room again brings it back; a dock the host hid on purpose
+  stays hidden until the window or the choice changes. Back and Escape do not
+  dismiss it.
+- **Resizing.** The docked view has a 6 px strip along its start edge:
+  dragging calls `resizeDock(wanted)` frame by frame and letting go calls
+  `endDockResize()`, which holds the wish to 292–392 and keeps it in the
+  `DockWidthStore` passed as `dockWidths:`. `policy.dockWidthIn(window,
+  wanted:)` is the width a dock has; the content keeps 380.
 - **Docked section.** Register `DockedStrategy(style: ..., composerFocus: ...)`.
   The view publishes the section's visible width as `occupancy.inlineEnd`
   while it slides, so apply it as end padding (mirrored in RTL) on the chat
   viewport. With no mounted view the occupancy is zero. Opening does not take
   focus from the composer; focus inside returns to `composerFocus` on close.
-  The box the view fills must be bounded and at least `DockedStyle.width`
-  wide.
+  The box the view fills must be bounded and as wide as a dock in it (292 at
+  least).
 - **Auto-hide guard and holds.** `holdAutoHide()` is the one seam through
   which anything keeps a self-dismissing popup open (an open menu or variant
   picker, a drag, a button pressed inside the popup). Holds are counted and
@@ -194,7 +203,7 @@ ime.report(ImeSample(
 | The composer rectangle through `anchor` for a popup. | Expect the popup to find the composer by itself. |
 | The aggregation of `occupancy` with its composer extent into the viewport padding, and `inlineEnd` in layout. | Add the keyboard height a second time while the occupancy already contains it. |
 | The loaded `PreferenceStore` (from `content_model`), passed as `preferences:`; its `dockPreferred` is the persisted dock choice. | Persist the choice a second time, or expect `dock()` to persist without a store. |
-| The docked section's width in `DockedStyle`, `inlineEnd` applied to the chat viewport's layout, and a box for the view that is bounded and at least that wide. | Expect the docked section to cover the chat, to be dismissed by hover or an outside press, or a default width from a reference client. |
+| The docked section's default width in `DockedStyle` (optional), `inlineEnd` applied to the chat viewport's layout, and a box for the view that is bounded and at least that wide. | Expect the docked section to cover the chat, to be dismissed by hover or an outside press, or a default width from a reference client. |
 | For the keyboard strategy: every keyboard reading through the `ImeInputPort` with an honest `animating` flag and the bottom safe area, the window through a `ValueListenable<PanelWindow>` from `package:listen`, a `KeyboardHeightStore` over a `KeyValueStore`, and `composerSafeInset` as the composer's bottom safe area. | Read `SystemChannels` or platform insets in the strategy's place, report a settled reading while the keyboard moves, or add the keyboard height to the occupancy again. |
 | The popup's `AnchoredPopupToggleRegion` around the composer's panel button (placed under the popup), an `AnchoredPopupExemptRegion` around the composer, a click handler on that button (`toggle()`, or `dock()` / `undock()` on a desktop kind), and `AnchoredPopupActions` with `AnchoredPopupShortcuts.standard` above the composer so Escape and a toggle shortcut work while focus is there. The popup width, corners, shadow and gutter in `AnchoredPopupStyle`. | Expect the popup to take focus, to be dismissed by a click back into the composer, or a default popup size from a reference client. |
 | `MediaQuery.disableAnimations` mapped to `ChromeMotionSpeed.instant`, and `holdAutoHide()` taken for as long as a menu or variant picker is open. | Expect the controller to read reduce motion or to know about the picker. |

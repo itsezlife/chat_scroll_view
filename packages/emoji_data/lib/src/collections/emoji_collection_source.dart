@@ -3,18 +3,22 @@ import 'dart:async';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/src/catalog/emoji_catalog.dart';
 import 'package:emoji_data/src/collections/emoji_items.dart';
+import 'package:emoji_data/src/collections/emoji_section.dart';
 import 'package:emoji_data/src/collections/emoji_spoken_names.dart';
 import 'package:listen/listen.dart';
 
 /// The emoji catalogue as a [CollectionSource]: the user's recents followed by
-/// one category per catalogue group.
+/// one category per [EmojiSection].
 ///
 /// ## Collections
 ///
 /// [collections] lists `CollectionId.recent` first, then
-/// `CollectionId.category(groupId)` for each group of the catalogue in its
-/// order. They carry no title and no cover: naming and icons of categories
-/// belong to the page. A category holds one item per entry, in palette order,
+/// `CollectionId.category(sectionId)` for each of the [sections]: the
+/// reference client's seven by default, a fold of the catalogue's groups. A
+/// group no section names gets a section of its own, with the group's id, after
+/// the rest, so a catalogue that gains a group shows it. The collections carry
+/// no title and no cover: naming and icons of categories belong to the page. A
+/// category holds one item per entry, in palette order, group after group,
 /// each described as a unicode emoji drawn as a glyph. The item is the entry's
 /// base key, or the variant the user chose for it (see [chooseVariant]).
 /// Recents hold what the [RecentsStore] holds for `SemanticKind.unicodeEmoji`,
@@ -61,6 +65,7 @@ final class EmojiCollectionSource implements CollectionSource {
     KeywordSource? keywords,
     List<String> languages = const [],
     int? pageSize,
+    List<EmojiSection> sections = EmojiSection.reference,
   }) : assert(
          pageSize == null || pageSize > 0,
          'A page size must be positive.',
@@ -77,11 +82,7 @@ final class EmojiCollectionSource implements CollectionSource {
        _keywords = keywords,
        _languages = List<String>.unmodifiable(languages),
        _pageSize = pageSize,
-       _ids = [
-         CollectionId.recent,
-         for (final group in catalog.structure.groups)
-           CollectionId.category(group.id),
-       ] {
+       _sections = _withUnnamedGroups(catalog, sections) {
     _collections = ValueNotifier<List<Collection>>(_snapshot());
     _recents.changes.addListener(_refresh);
     _preferences.changes.addListener(_refresh);
@@ -97,7 +98,11 @@ final class EmojiCollectionSource implements CollectionSource {
   final KeywordSource? _keywords;
   final List<String> _languages;
   final int? _pageSize;
-  final List<CollectionId> _ids;
+  final List<EmojiSection> _sections;
+  late final List<CollectionId> _ids = [
+    CollectionId.recent,
+    for (final section in _sections) CollectionId.category(section.id),
+  ];
   Future<void>? _namesRead;
 
   late final ValueNotifier<List<Collection>> _collections;
@@ -235,9 +240,12 @@ final class EmojiCollectionSource implements CollectionSource {
           ?_items.itemForKey(key),
       ]);
     }
-    final group = (id as CollectionId$Category).id;
+    final section = _sections.firstWhere(
+      (section) => section.id == (id as CollectionId$Category).id,
+    );
     final visible = [
-      for (final entry in _catalog.entriesOf(group)) ?_items.itemOf(entry),
+      for (final group in section.groupIds)
+        for (final entry in _catalog.entriesOf(group)) ?_items.itemOf(entry),
     ];
     final size = _pageSize;
     final shown = switch (size) {
@@ -248,6 +256,22 @@ final class EmojiCollectionSource implements CollectionSource {
       visible.sublist(0, shown),
       nextPageToken: shown < visible.length ? PageToken('$shown') : null,
     );
+  }
+
+  // The [sections] that hold a group the catalogue has, and a section for each
+  // group of the catalogue they leave out.
+  static List<EmojiSection> _withUnnamedGroups(
+    EmojiCatalog catalog,
+    List<EmojiSection> sections,
+  ) {
+    final present = {for (final group in catalog.structure.groups) group.id};
+    final named = {for (final section in sections) ...section.groupIds};
+    return List.unmodifiable([
+      for (final section in sections)
+        if (section.groupIds.any(present.contains)) section,
+      for (final group in catalog.structure.groups)
+        if (!named.contains(group.id)) EmojiSection(group.id, [group.id]),
+    ]);
   }
 
   List<Collection> _snapshot() => List.unmodifiable([

@@ -1,4 +1,7 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_model/testing.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -69,7 +72,7 @@ void main() {
 
   group('occupancy', () {
     testWidgets('is zero while hidden', (tester) async {
-      final rig = DockedRig(dockPreferred: true);
+      final rig = DockedRig();
       await rig.pump(tester);
 
       expect(rig.controller.occupancy.value, PanelOccupancy.zero);
@@ -217,26 +220,27 @@ void main() {
       expect(_chatRect(tester).width, 1000);
     });
 
-    testWidgets('a narrowing window turns the section into a popup', (
-      tester,
-    ) async {
+    testWidgets('a window too narrow for it takes the section away: no popup '
+        'takes its place', (tester) async {
       final rig = DockedRig(dockPreferred: true);
       await rig.pump(tester);
-      rig.controller.show();
       await settleDock(tester);
+      expect(rig.controller.state.value.kind, const Docked());
 
       rig.controller.updateWindow(const PanelWindow(width: 500, height: 600));
       await settleDock(tester);
 
-      expect(rig.controller.state.value.kind, const AnchoredPopup());
+      expect(rig.controller.state.value, PanelVisibility.hidden);
       expect(rig.controller.occupancy.value, PanelOccupancy.zero);
       expect(_chatRect(tester).width, 1000);
+      expect(rig.controller.dockPreferred.value, isTrue);
     });
 
-    testWidgets('widening again docks the section back', (tester) async {
+    testWidgets('widening again brings the section back by itself', (
+      tester,
+    ) async {
       final rig = DockedRig(dockPreferred: true);
       await rig.pump(tester);
-      rig.controller.show();
       await settleDock(tester);
       rig.controller.updateWindow(const PanelWindow(width: 500, height: 600));
       await settleDock(tester);
@@ -246,6 +250,17 @@ void main() {
 
       expect(rig.controller.state.value.kind, const Docked());
       expect(rig.controller.occupancy.value.inlineEnd, 320);
+    });
+
+    testWidgets('a window that has the room shows a preferred dock with no '
+        'click: it stands', (tester) async {
+      final rig = DockedRig(dockPreferred: true);
+      await rig.pump(tester);
+      await settleDock(tester);
+
+      expect(rig.controller.state.value, const PanelVisibility.shown(Docked()));
+      expect(_panelRect(tester).width, 320);
+      expect(_chatRect(tester).right, 1000 - 320);
     });
   });
 
@@ -264,16 +279,18 @@ void main() {
       expect(rig.controller.state.value.kind, const Docked());
     });
 
-    testWidgets('back hides the section', (tester) async {
+    testWidgets('back leaves the section up: a dock is not dismissed', (
+      tester,
+    ) async {
       final rig = DockedRig();
       await rig.pump(tester);
       rig.controller.show(kind: const Docked());
       await settleDock(tester);
 
-      expect(rig.controller.handleBack(), isTrue);
+      expect(rig.controller.handleBack(), isFalse);
       await settleDock(tester);
 
-      expect(rig.controller.state.value, PanelVisibility.hidden);
+      expect(rig.controller.state.value.kind, const Docked());
     });
 
     testWidgets('opening does not take focus from the composer', (
@@ -304,6 +321,178 @@ void main() {
       await settleDock(tester);
 
       expect(rig.composerFocus.hasPrimaryFocus, isTrue);
+    });
+  });
+
+  group('resizing', () {
+    Finder handle() => find.byKey(DockedStrategy.resizeHandleKey);
+
+    Future<DockedRig> docked(
+      WidgetTester tester, {
+      DockedStyle style = const DockedStyle(width: 320),
+      PanelWindow window = const PanelWindow(width: 1000, height: 600),
+      TextDirection textDirection = TextDirection.ltr,
+      DockWidthStore? dockWidths,
+    }) async {
+      final rig = DockedRig(
+        style: style,
+        window: window,
+        dockWidths: dockWidths,
+      );
+      await rig.pump(
+        tester,
+        textDirection: textDirection,
+        size: Size(window.width, window.height),
+      );
+      rig.controller.show(kind: const Docked());
+      await settleDock(tester);
+      return rig;
+    }
+
+    testWidgets('is a 6 px strip along the dock\'s start edge, over a '
+        'horizontal-resize cursor', (tester) async {
+      await docked(tester);
+
+      final strip = tester.getRect(handle());
+      expect(strip.width, 6);
+      expect(strip.left, 1000 - 320);
+      expect(strip.top, 0);
+      expect(strip.bottom, 600);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: strip.center);
+      addTearDown(mouse.removePointer);
+      await tester.pump();
+      expect(
+        RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
+        SystemMouseCursors.resizeColumn,
+      );
+    });
+
+    testWidgets('dragging it toward the content widens the dock and narrows '
+        'the chat as it goes', (tester) async {
+      final rig = await docked(tester);
+
+      final drag = await tester.startGesture(tester.getCenter(handle()));
+      await drag.moveBy(const Offset(-40, 0));
+      await tester.pump();
+
+      expect(_panelRect(tester).width, 360);
+      expect(_panelRect(tester).right, 1000);
+      expect(rig.controller.occupancy.value.inlineEnd, 360);
+      expect(_chatRect(tester).right, 1000 - 360);
+      await drag.up();
+    });
+
+    testWidgets('dragging the other way narrows it', (tester) async {
+      await docked(tester);
+
+      final drag = await tester.startGesture(tester.getCenter(handle()));
+      await drag.moveBy(const Offset(20, 0));
+      await tester.pump();
+
+      expect(_panelRect(tester).width, 300);
+      await drag.up();
+    });
+
+    testWidgets('is held between 292 and 392 while it is dragged', (
+      tester,
+    ) async {
+      await docked(tester);
+
+      final drag = await tester.startGesture(tester.getCenter(handle()));
+      await drag.moveBy(const Offset(-300, 0));
+      await tester.pump();
+      expect(_panelRect(tester).width, 392);
+
+      await drag.moveBy(const Offset(600, 0));
+      await tester.pump();
+      expect(_panelRect(tester).width, 292);
+      await drag.up();
+    });
+
+    testWidgets('keeps the chat 380 wide in a window that is only just wide '
+        'enough', (tester) async {
+      await docked(tester, window: const PanelWindow(width: 700, height: 600));
+
+      final drag = await tester.startGesture(tester.getCenter(handle()));
+      await drag.moveBy(const Offset(-200, 0));
+      await tester.pump();
+
+      expect(_panelRect(tester).width, 320);
+      expect(_chatRect(tester).width, 380);
+      await drag.up();
+    });
+
+    testWidgets('mirrors in RTL: the handle is on the right of a dock on the '
+        'left, and dragging right widens it', (tester) async {
+      await docked(tester, textDirection: TextDirection.rtl);
+
+      final strip = tester.getRect(handle());
+      expect(strip.right, 320);
+      final drag = await tester.startGesture(strip.center);
+      await drag.moveBy(const Offset(40, 0));
+      await tester.pump();
+
+      expect(_panelRect(tester).width, 360);
+      expect(_panelRect(tester).left, 0);
+      await drag.up();
+    });
+
+    testWidgets('keeps nothing until the drag ends, then the width where it '
+        'ended, held to the bounds', (tester) async {
+      final kv = FakeKeyValueStore();
+      final store = await DockWidthStore.open(kv);
+      final rig = await docked(tester, dockWidths: store);
+
+      final drag = await tester.startGesture(tester.getCenter(handle()));
+      await drag.moveBy(const Offset(-500, 0));
+      await tester.pump();
+      expect(store.width, isNull, reason: 'not while it moves');
+      expect(rig.controller.dockWanted.value, 820);
+
+      await drag.up();
+      await tester.pump();
+
+      expect(rig.controller.dockWanted.value, 392);
+      expect(store.width, 392);
+      expect((await DockWidthStore.open(kv)).width, 392);
+    });
+
+    testWidgets('a dock starts from the width that was kept', (tester) async {
+      final kv = FakeKeyValueStore();
+      await (await DockWidthStore.open(kv)).record(350);
+
+      await docked(tester, dockWidths: await DockWidthStore.open(kv));
+
+      expect(_panelRect(tester).width, 350);
+    });
+
+    testWidgets('a window that widens gives the dragged width back', (
+      tester,
+    ) async {
+      final rig = await docked(
+        tester,
+        window: const PanelWindow(width: 700, height: 600),
+      );
+      final drag = await tester.startGesture(tester.getCenter(handle()));
+      await drag.moveBy(const Offset(-200, 0));
+      await drag.up();
+      await tester.pump();
+      expect(_panelRect(tester).width, 320);
+
+      tester.view.physicalSize = const Size(1000, 600);
+      rig.controller.updateWindow(const PanelWindow(width: 1000, height: 600));
+      await settleDock(tester);
+
+      expect(_panelRect(tester).width, 392);
+    });
+
+    testWidgets('is not in the way of a hidden dock', (tester) async {
+      final rig = DockedRig();
+      await rig.pump(tester);
+
+      expect(handle(), findsNothing);
+      expect(rig.controller.state.value, PanelVisibility.hidden);
     });
   });
 }

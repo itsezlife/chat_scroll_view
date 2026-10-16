@@ -104,12 +104,12 @@ void main() {
 
     test('category ids resolve to titles and an unknown one to itself', () {
       expect(
-        ChromeStringsPresets.english.panel.categoryTitle('flags'),
-        'Flags',
+        ChromeStringsPresets.english.panel.categoryTitle('people'),
+        'Smileys & People',
       );
       expect(
-        ChromeStringsPresets.russian.panel.categoryTitle('flags'),
-        'Флаги',
+        ChromeStringsPresets.russian.panel.categoryTitle('people'),
+        'Смайлики и люди',
       );
       expect(
         ChromeStringsPresets.english.panel.categoryTitle('custom-set'),

@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:panel_presentation/src/controller/panel_presentation_controller.dart';
 import 'package:panel_presentation/src/docked/docked_style.dart';
 import 'package:panel_presentation/src/kind/panel_occupancy.dart';
 import 'package:panel_presentation/src/kind/panel_presentation.dart';
@@ -19,14 +21,24 @@ import 'package:panel_shell/panel_shell.dart';
 /// view fills (the left edge in a right-to-left layout). The section slides in
 /// from that edge with the `panelSlide` role and slides back out.
 ///
+/// ## Width
+///
+/// The section is as wide as the policy says for the window and the width the
+/// user wants (`PanelPresentationPolicy.dockWidthIn`, with the controller's
+/// `dockWanted`, or the style's width before they dragged it). A strip along
+/// its start edge resizes it: dragging follows the pointer frame by frame
+/// through `PanelPresentationController.resizeDock` and letting go keeps
+/// where it ended (`endDockResize`).
+///
 /// ## Occupancy
 ///
 /// The occupancy is the section's visible width on the inline-end axis, and
 /// zero on the bottom axis. The host applies it in layout (for example as
 /// end padding on the chat viewport), so the chat is never covered; it
-/// follows the slide frame by frame, so the chat narrows as the section
-/// arrives. The mounted view publishes it, because only a mounted view puts a
-/// section on screen: with no view, or after the view leaves, it is zero.
+/// follows the slide and the resize frame by frame, so the chat narrows as
+/// the section arrives or grows. The mounted view publishes it, because only
+/// a mounted view puts a section on screen: with no view, or after the view
+/// leaves, it is zero.
 ///
 /// ## What it leaves out
 ///
@@ -45,6 +57,10 @@ final class DockedStrategy implements PanelPresentationStrategy {
   /// [composerFocus] is where focus goes back to when the section closes
   /// while it held focus; null leaves focus where the framework puts it.
   DockedStrategy({required this.style, this.composerFocus});
+
+  /// The key of the strip that resizes the section, for tests.
+  @visibleForTesting
+  static const Key resizeHandleKey = ValueKey<String>('dockResizeHandle');
 
   /// How the section looks.
   final DockedStyle style;
@@ -100,13 +116,23 @@ class _DockedBodyState extends State<_DockedBody>
   var _disposed = false;
 
   DockedStrategy get _strategy => widget.strategy;
+  PanelPresentationController get _controller => widget.view.controller;
   double get _progress => _curve.transform(_motion.value).clamp(0.0, 1.0);
+
+  // The width the dock has now: the policy's for this window and what the
+  // user wants, or the style's before they dragged it.
+  double get _width => _controller.policy.dockWidthIn(
+    _controller.window.value,
+    wanted: _controller.dockWanted.value ?? _strategy.style.width,
+  );
 
   @override
   void initState() {
     super.initState();
     _motion.value = widget.view.visibility.isShowing ? 0 : 1;
     _motion.addListener(_publish);
+    _controller.dockWanted.addListener(_onWidth);
+    _controller.window.addListener(_onWidth);
     if (_motion.value > 0) _publish();
   }
 
@@ -132,6 +158,8 @@ class _DockedBodyState extends State<_DockedBody>
   void dispose() {
     _disposed = true;
     _restoreFocus();
+    _controller.dockWanted.removeListener(_onWidth);
+    _controller.window.removeListener(_onWidth);
     _motion
       ..removeListener(_publish)
       ..dispose();
@@ -155,9 +183,47 @@ class _DockedBodyState extends State<_DockedBody>
       });
       return;
     }
-    _strategy._report(
-      PanelOccupancy(inlineEnd: _strategy.style.width * _progress),
-    );
+    _strategy._report(PanelOccupancy(inlineEnd: _width * _progress));
+  }
+
+  // The width changed (a drag, a window): the dock and the chat beside it
+  // follow in this frame.
+  void _onWidth() {
+    if (_disposed) return;
+    setState(() {});
+    _publish();
+  }
+
+  // How far the pointer was from the section's start edge when it went down on
+  // the strip, so the edge stays under the point that was grabbed, not
+  // under the pointer's hotspot.
+  var _grab = 0.0;
+
+  // The start edge of the section, in the box it sits in.
+  double? _startEdge(RenderBox box) => switch (Directionality.of(context)) {
+    TextDirection.rtl => _width,
+    TextDirection.ltr => box.size.width - _width,
+  };
+
+  RenderBox? get _box => switch (context.findRenderObject()) {
+    final RenderBox box when box.hasSize => box,
+    _ => null,
+  };
+
+  void _grabAt(Offset global) {
+    final box = _box;
+    if (box == null) return;
+    _grab = box.globalToLocal(global).dx - (_startEdge(box) ?? 0);
+  }
+
+  // The pointer is at [global]: the dock is as wide as the space between its
+  // end edge and the start edge the pointer holds.
+  void _dragTo(Offset global) {
+    final box = _box;
+    if (box == null) return;
+    final edge = box.globalToLocal(global).dx - _grab;
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    _controller.resizeDock(rtl ? edge : box.size.width - edge);
   }
 
   // Plays the motion for the visibility being shown, and reports its end.
@@ -202,6 +268,7 @@ class _DockedBodyState extends State<_DockedBody>
   Widget build(BuildContext context) {
     final style = _strategy.style;
     final rtl = Directionality.of(context) == TextDirection.rtl;
+    final extent = _controller.policy.dockResizeExtent;
     return ClipRect(
       child: Align(
         alignment: AlignmentDirectional.centerEnd,
@@ -215,25 +282,56 @@ class _DockedBodyState extends State<_DockedBody>
           child: IgnorePointer(
             ignoring: widget.view.visibility.isHiding,
             child: SizedBox(
-              width: style.width,
+              width: _width,
               height: double.infinity,
-              child: DecoratedBox(
-                position: DecorationPosition.foreground,
-                decoration: BoxDecoration(
-                  border: switch (style.separator) {
-                    final separator? => BorderDirectional(
-                      start: BorderSide(color: separator),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      position: DecorationPosition.foreground,
+                      decoration: BoxDecoration(
+                        border: switch (style.separator) {
+                          final separator? => BorderDirectional(
+                            start: BorderSide(color: separator),
+                          ),
+                          null => null,
+                        },
+                      ),
+                      child: FocusScope(
+                        node: _scope,
+                        child: PanelShell(
+                          controller: _controller.shell,
+                          arrangement: PanelArrangement.pointer,
+                        ),
+                      ),
                     ),
-                    null => null,
-                  },
-                ),
-                child: FocusScope(
-                  node: _scope,
-                  child: PanelShell(
-                    controller: widget.view.controller.shell,
-                    arrangement: PanelArrangement.pointer,
                   ),
-                ),
+                  // Over the section's start edge, as the reference client's
+                  // strip is: it takes the pointer away from what is under it
+                  // there, which is the section's own margin.
+                  PositionedDirectional(
+                    start: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: extent,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.resizeColumn,
+                      child: GestureDetector(
+                        key: DockedStrategy.resizeHandleKey,
+                        behavior: HitTestBehavior.opaque,
+                        // From the press, not past the touch slop: the edge
+                        // follows the pointer from the first pixel.
+                        dragStartBehavior: DragStartBehavior.down,
+                        onHorizontalDragStart: (details) =>
+                            _grabAt(details.globalPosition),
+                        onHorizontalDragUpdate: (details) =>
+                            _dragTo(details.globalPosition),
+                        onHorizontalDragEnd: (_) => _controller.endDockResize(),
+                        onHorizontalDragCancel: _controller.endDockResize,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

@@ -131,7 +131,54 @@ void main() {
     });
   });
 
+  group('the reference sections', () {
+    test('cover every entry of the shipped catalogue exactly once', () async {
+      final source = collections();
+      addTearDown(source.dispose);
+      final ids = [
+        for (final c in source.collections.value)
+          if (c.id case CollectionId$Category(:final id)) id,
+      ];
+      expect(ids, [
+        'people',
+        'nature',
+        'food',
+        'activity',
+        'travel',
+        'objects',
+        'symbols',
+      ]);
+
+      var shown = 0;
+      for (final id in ids) {
+        await source.load(CollectionId.category(id));
+      }
+      for (final c in source.collections.value) {
+        if (c.contents case CollectionContents$Loaded(:final items)) {
+          shown += items.length;
+        }
+      }
+
+      expect(shown, catalog.entries.length);
+    });
+  });
+
   group('search', () {
+    test('only ever lists what the grid shows, whatever the query', () async {
+      // A query that is one letter matches the keywords of many variants (a
+      // tone, a gender); the page bakes only what the grid shows, so a result
+      // of its own for a variant would be drawn as a circle.
+      final grid = {for (final entry in catalog.entries) entry.base};
+      for (final query in ['g', 'man', 'woman', 'person', 'hand']) {
+        final keys = await found(search(), query);
+
+        expect(keys, isNotEmpty, reason: query);
+        for (final key in keys) {
+          expect(grid, contains(key), reason: '$query: $key is a variant');
+        }
+      }
+    });
+
     test('finds a flag by its country name, in each language', () async {
       final source = search(languages: const ['en', 'de', 'ru']);
       addTearDown(source.dispose);

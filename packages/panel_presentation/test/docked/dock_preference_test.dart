@@ -21,6 +21,7 @@ void main() {
     required PreferenceStore? preferences,
     PanelWindow window = wide,
     bool dockPreferred = false,
+    DockWidthStore? dockWidths,
   }) {
     final shell = PanelShellController(
       pages: [FakePanelPage('emoji').page],
@@ -37,6 +38,7 @@ void main() {
       window: window,
       dockPreferred: dockPreferred,
       preferences: preferences,
+      dockWidths: dockWidths,
     );
     addTearDown(() {
       controller.dispose();
@@ -172,22 +174,21 @@ void main() {
     });
   });
 
-  group('window class changes while docked', () {
-    test('narrowing falls back to a popup and widening docks again', () async {
-      final controller = build(preferences: await openStore())
-        ..dock()
-        ..show();
+  group('the window and the dock', () {
+    test('narrowing takes the dock away, widening brings it back', () async {
+      final controller = build(preferences: await openStore())..dock();
       expect(controller.state.value.kind, const Docked());
 
       controller.updateWindow(narrow);
-      expect(controller.state.value.kind, const AnchoredPopup());
+      expect(controller.state.value, PanelVisibility.hidden);
       expect(controller.dockPreferred.value, isTrue);
 
       controller.updateWindow(wide);
       expect(controller.state.value.kind, const Docked());
     });
 
-    test('a popup the user opened by choice stays a popup on widening', () {
+    test('a popup open in a window that then has the room gives way to the '
+        'preferred dock', () {
       final controller = build(preferences: null, window: narrow)
         ..dock()
         ..show();
@@ -195,30 +196,105 @@ void main() {
 
       controller.updateWindow(wide);
 
-      expect(controller.state.value.kind, const AnchoredPopup());
+      expect(controller.state.value.kind, const Docked());
     });
 
     test('undocking while narrowed cancels the return to the dock', () {
       final controller = build(preferences: null)
         ..dock()
-        ..show()
         ..updateWindow(narrow)
         ..undock()
         ..updateWindow(wide);
 
+      expect(controller.state.value, PanelVisibility.hidden);
+    });
+
+    test('a window that never had the room shows a preferred dock as a popup '
+        'when asked', () {
+      final controller = build(preferences: null, window: narrow)
+        ..dock()
+        ..show();
+
       expect(controller.state.value.kind, const AnchoredPopup());
     });
 
-    test('a hidden panel docks on the next show after widening', () {
+    test('a dock the host hid stays hidden until the window or the choice '
+        'changes', () {
       final controller = build(preferences: null)
         ..dock()
-        ..show()
-        ..updateWindow(narrow)
         ..hide()
-        ..updateWindow(wide)
-        ..show();
+        ..updateWindow(const PanelWindow(width: 1300, height: 800));
+      expect(controller.state.value, PanelVisibility.hidden);
+
+      controller
+        ..updateWindow(narrow)
+        ..updateWindow(wide);
 
       expect(controller.state.value.kind, const Docked());
+    });
+
+    test('back does not hide a dock, and Escape is the shell\'s', () {
+      final controller = build(preferences: null)..dock();
+
+      expect(controller.handleBack(), isFalse);
+      expect(controller.state.value.kind, const Docked());
+    });
+  });
+
+  group('the dock\'s width', () {
+    test('is the wish as dragged until the drag ends', () {
+      final controller = build(preferences: null)..dock();
+
+      controller.resizeDock(500);
+
+      expect(controller.dockWanted.value, 500);
+    });
+
+    test('ends held to the policy\'s bounds', () {
+      final controller = build(preferences: null)..dock();
+
+      controller
+        ..resizeDock(500)
+        ..endDockResize();
+      expect(controller.dockWanted.value, 392);
+
+      controller
+        ..resizeDock(10)
+        ..endDockResize();
+      expect(controller.dockWanted.value, 292);
+    });
+
+    test('ignores a width that is not a number', () {
+      final controller = build(preferences: null)..resizeDock(double.nan);
+
+      expect(controller.dockWanted.value, isNull);
+    });
+
+    test(
+      'is kept in the store, and a later controller starts from it',
+      () async {
+        final widths = await DockWidthStore.open(storage);
+        final controller = build(preferences: null, dockWidths: widths)
+          ..resizeDock(333)
+          ..endDockResize();
+        await pumpEventQueue();
+
+        final later = build(
+          preferences: null,
+          dockWidths: await DockWidthStore.open(storage),
+        );
+
+        expect(widths.width, 333);
+        expect(controller.dockWanted.value, 333);
+        expect(later.dockWanted.value, 333);
+      },
+    );
+
+    test('a resize with nothing dragged keeps nothing', () async {
+      final widths = await DockWidthStore.open(storage);
+      build(preferences: null, dockWidths: widths).endDockResize();
+
+      expect(widths.width, isNull);
     });
   });
 }

@@ -1,4 +1,3 @@
-import 'package:chat_composer/src/view/composer_metrics.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
 
@@ -12,24 +11,18 @@ import 'package:flutter/widgets.dart';
 /// receives taps on top.
 ///
 /// **Stacking.** Mount the fade **under** the island (an earlier [Stack]
-/// sibling) and pass the island's key as [glassKey], so the wash punches an
-/// island-shaped hole. The island's glass then samples the content through
-/// the hole, not the wash. While the island is unmounted (the host hides the
-/// composer) [glassKey] has no context and the hole clears, the wash stays.
-/// The fade does **not** rebuild when the island unmounts and [zoneHeight] is
-/// unchanged, so the host passes [cutoutSync], a listenable that fires when
-/// the island may have appeared or gone; otherwise the hole lingers until the
-/// next height change.
-class ComposerBottomFade extends StatefulWidget {
+/// sibling). The wash is drawn whole, under the island too: the island's glass
+/// samples the content and the wash together. An earlier cut punched an
+/// island-shaped hole in it so the glass saw the content alone, and had to
+/// measure the island after every layout and keep the hole in step with it
+/// as the island came and went, for a difference of tint under the glass.
+class ComposerBottomFade extends StatelessWidget {
   /// Creates a fade of [zoneHeight] using [color], or the theme's content
   /// fade colour when none is given.
   const ComposerBottomFade({
     required this.zoneHeight,
     this.color,
     this.fadeHeight = defaultFadeHeight,
-    this.glassKey,
-    this.glassCornerRadius = ComposerMetrics.islandRadius,
-    this.cutoutSync,
     super.key,
   });
 
@@ -46,19 +39,6 @@ class ComposerBottomFade extends StatefulWidget {
 
   /// Height of the transparent→wash ramp at the top of the zone.
   final double fadeHeight;
-
-  /// Key on the glass island. Null or unmounted gives a full wash, no hole.
-  final GlobalKey? glassKey;
-
-  /// Corner radius of the DestinationOut hole (matches island).
-  final double glassCornerRadius;
-
-  /// Notifies when island visibility may change without [zoneHeight] changing.
-  ///
-  /// A host that hides the island but keeps its occupancy in the inset leaves
-  /// [zoneHeight] unchanged; without this, the cutout never re-syncs and the
-  /// hole stays.
-  final Listenable? cutoutSync;
 
   /// Vertical gradient that paints the fade across a [zoneHeight]-tall box.
   ///
@@ -102,128 +82,19 @@ class ComposerBottomFade extends StatefulWidget {
   }
 
   @override
-  State<ComposerBottomFade> createState() => ComposerBottomFadeState();
-}
-
-/// State of [ComposerBottomFade].
-class ComposerBottomFadeState extends State<ComposerBottomFade> {
-  /// Island rect in this fade's local coordinates; null = no hole.
-  Rect? _cutout;
-  var _syncScheduled = false;
-
-  /// Test seam: local island hole, or `null` when the wash is unclipped.
-  @visibleForTesting
-  Rect? get debugCutout => _cutout;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.cutoutSync?.addListener(_scheduleSync);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _scheduleSync();
-  }
-
-  @override
-  void didUpdateWidget(covariant ComposerBottomFade oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.cutoutSync, widget.cutoutSync)) {
-      oldWidget.cutoutSync?.removeListener(_scheduleSync);
-      widget.cutoutSync?.addListener(_scheduleSync);
-    }
-    if (oldWidget.zoneHeight != widget.zoneHeight ||
-        oldWidget.glassKey != widget.glassKey ||
-        oldWidget.glassCornerRadius != widget.glassCornerRadius) {
-      _scheduleSync();
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.cutoutSync?.removeListener(_scheduleSync);
-    super.dispose();
-  }
-
-  void _scheduleSync() {
-    if (_syncScheduled) return;
-    _syncScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _syncScheduled = false;
-      if (!mounted) return;
-      _syncCutout();
-      // Island can unmount later in this frame (selection) without a fade
-      // rebuild. Probe once more while a hole is punched.
-      if (_cutout != null) _scheduleSync();
-    });
-  }
-
-  void _syncCutout() {
-    final key = widget.glassKey;
-    final glassContext = key?.currentContext;
-    if (glassContext == null) {
-      _setCutout(null);
-      return;
-    }
-
-    final glassBox = glassContext.findRenderObject() as RenderBox?;
-    final fadeBox = context.findRenderObject() as RenderBox?;
-    if (glassBox == null ||
-        !glassBox.hasSize ||
-        fadeBox == null ||
-        !fadeBox.hasSize) {
-      _setCutout(null);
-      // Glass may still be laying out — try again next frame.
-      _scheduleSync();
-      return;
-    }
-
-    final topLeft = fadeBox.globalToLocal(glassBox.localToGlobal(Offset.zero));
-    final next = topLeft & glassBox.size;
-    final bounds = Offset.zero & fadeBox.size;
-    // Only punch where the island intersects the fade layer.
-    final clipped = next.intersect(bounds);
-    _setCutout(clipped.isEmpty ? null : clipped);
-  }
-
-  bool _cutoutChanged(Rect? a, Rect? b) {
-    if (identical(a, b)) return false;
-    if (a == null || b == null) return a != b;
-    return (a.left - b.left).abs() > 0.5 ||
-        (a.top - b.top).abs() > 0.5 ||
-        (a.width - b.width).abs() > 0.5 ||
-        (a.height - b.height).abs() > 0.5;
-  }
-
-  void _setCutout(Rect? next) {
-    if (!_cutoutChanged(_cutout, next)) return;
-    setState(() => _cutout = next);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (widget.zoneHeight <= 0) return const SizedBox.shrink();
-
-    // Re-measure after this build (resize / first layout).
-    _scheduleSync();
-
+    if (zoneHeight <= 0) return const SizedBox.shrink();
     return AbsorbPointer(
       child: SizedBox(
-        height: widget.zoneHeight,
+        height: zoneHeight,
         width: double.infinity,
         child: CustomPaint(
-          painter: _FadeWithCutoutPainter(
+          painter: _FadePainter(
             gradient: ComposerBottomFade.gradient(
-              zoneHeight: widget.zoneHeight,
-              color:
-                  widget.color ??
-                  ChromeThemeScope.composerOf(context).contentFade,
-              fadeHeight: widget.fadeHeight,
+              zoneHeight: zoneHeight,
+              color: color ?? ChromeThemeScope.composerOf(context).contentFade,
+              fadeHeight: fadeHeight,
             ),
-            cutout: _cutout,
-            cornerRadius: widget.glassCornerRadius,
           ),
         ),
       ),
@@ -231,43 +102,19 @@ class ComposerBottomFadeState extends State<ComposerBottomFade> {
   }
 }
 
-class _FadeWithCutoutPainter extends CustomPainter {
-  _FadeWithCutoutPainter({
-    required this.gradient,
-    required this.cutout,
-    required this.cornerRadius,
-  });
+class _FadePainter extends CustomPainter {
+  _FadePainter({required this.gradient});
 
   final LinearGradient gradient;
-  final Rect? cutout;
-  final double cornerRadius;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
     final rect = Offset.zero & size;
-    final shader = gradient.createShader(rect);
-
-    final hole = cutout;
-    if (hole == null || hole.isEmpty) {
-      canvas.drawRect(rect, Paint()..shader = shader);
-      return;
-    }
-
-    // Full wash, then clear the island so glass under this layer stays bright
-    // and BackdropFilter samples chat — not the fade.
-    canvas.saveLayer(rect, Paint());
-    canvas.drawRect(rect, Paint()..shader = shader);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(hole, Radius.circular(cornerRadius)),
-      Paint()..blendMode = BlendMode.dstOut,
-    );
-    canvas.restore();
+    canvas.drawRect(rect, Paint()..shader = gradient.createShader(rect));
   }
 
   @override
-  bool shouldRepaint(covariant _FadeWithCutoutPainter oldDelegate) =>
-      oldDelegate.cutout != cutout ||
-      oldDelegate.cornerRadius != cornerRadius ||
+  bool shouldRepaint(covariant _FadePainter oldDelegate) =>
       oldDelegate.gradient != gradient;
 }

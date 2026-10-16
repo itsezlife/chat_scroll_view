@@ -6,6 +6,17 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `ActionTokens.iconHover` (from `ChromePalette.iconActive`): the colour of a
+  composer action's glyph while a mouse is over it.
+
+### Changed
+
+- The preset strings' `categoryTitle` is keyed by the reference client's
+  sections (`people`, `nature`, `food`, `activity`, `travel`, `objects`,
+  `symbols`) in the reference client's wording, not by Unicode group slugs.
+
 ### Changed
 
 - `MotionRole.popupHide` lasts 200 ms (was 150 ms), the reference client's fade-out;
