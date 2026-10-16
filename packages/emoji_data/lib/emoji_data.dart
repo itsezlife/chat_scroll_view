@@ -16,4 +16,8 @@ export 'src/locale_emoji_catalog_provider.dart';
 export 'src/emoji_recents_store.dart';
 export 'src/emoji_skin_tone.dart';
 export 'src/emoji_strip_icon.dart';
+export 'src/glyph_probe/glyph_art_fingerprint.dart';
+export 'src/glyph_probe/glyph_pixel_hash.dart';
+export 'src/glyph_probe/glyph_probe_emoji_platform_filter.dart';
+export 'src/glyph_probe/missing_glyph_probe.dart';
 export 'src/skin_tone_prefs.dart';

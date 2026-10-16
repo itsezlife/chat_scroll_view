@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 
+import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_theme.dart';
@@ -37,10 +39,13 @@ void main() => runZonedGuarded<void>(
       emojiDataSource.load(),
     ).wait;
 
+    final glyphCache = createExampleEmojiGlyphCache();
     runApp(
       ChatDemoApp(
         keyboardPanelStore: keyboardPanelStore,
         emojiDataSource: emojiDataSource,
+        glyphCache: glyphCache.cache,
+        glyphArtVersion: glyphCache.artVersion,
       ),
     );
   },
@@ -56,6 +61,9 @@ class ChatDemoApp extends StatelessWidget {
   const ChatDemoApp({
     required this.keyboardPanelStore,
     required this.emojiDataSource,
+    this.chatDataSourceLoader,
+    this.glyphCache,
+    this.glyphArtVersion,
     super.key,
   });
 
@@ -64,6 +72,17 @@ class ChatDemoApp extends StatelessWidget {
 
   /// Preloaded emoji catalog / recents.
   final DefaultEmojiDataSource emojiDataSource;
+
+  /// Replaces the bundled message source; see
+  /// [WidgetChatScreen.dataSourceLoader]. The app leaves this null.
+  final ChatDataSourceLoader? chatDataSourceLoader;
+
+  /// Persistent home of the baked emoji pages; null bakes in memory every
+  /// launch (what the acceptance harness does, so every run starts cold).
+  final GlyphCacheStore? glyphCache;
+
+  /// Tells when the system emoji art changed; used with [glyphCache].
+  final GlyphArtVersionSource? glyphArtVersion;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -84,6 +103,9 @@ class ChatDemoApp extends StatelessWidget {
     home: WidgetChatScreen(
       keyboardPanelStore: keyboardPanelStore,
       emojiDataSource: emojiDataSource,
+      dataSourceLoader: chatDataSourceLoader,
+      glyphCache: glyphCache,
+      glyphArtVersion: glyphArtVersion,
     ),
   );
 }

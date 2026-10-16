@@ -7,14 +7,16 @@
 ///
 /// | Leaf kind | Loading / unbound | Ready | Failed |
 /// |-----------|-------------------|-------|--------|
-/// | Unicode (paragraph paint) | [content] | [content] | [failed] |
+/// | Unicode, baked (the asset cache has a glyph atlas) | [circlePlaceholder] until its sprite exists | [content] | [failed] |
+/// | Unicode, drawn as text (no atlas: the web) | [content] | [content] | [failed] |
 /// | Document-backed media | [thumbFirstPlaceholder] | [content] | [failed] |
 /// | Sticker | [shapedLoadingWash] | [content] | [failed] |
 ///
-/// [circlePlaceholder] remains for a future bitmap-page unicode path (async
-/// page decode). The current unicode leaf paints glyphs via paragraph cache
-/// with no decode wait — unbound/loading MUST resolve to [content] so pager
-/// keep-alive gaps do not flash empty circles.
+/// Where emoji are baked, a glyph is never drawn as text at scroll time: until
+/// its atlas page lands it is the [circlePlaceholder], and it flips to its
+/// sprite without a layout change. Where they are not, a glyph is a paragraph
+/// with no decode wait, so unbound / loading MUST resolve to [content] and the
+/// circle never appears.
 ///
 /// [shapedLoadingWash] is not the loading mode for unicode cells.
 enum CatalogLeafPresentation {
@@ -22,12 +24,12 @@ enum CatalogLeafPresentation {
   /// still stubbed for document leaves).
   content,
 
-  /// Reserved for async bitmap-page unicode loading (glyph draw-bounds circle).
+  /// A baked unicode glyph whose atlas page is not ready yet (glyph
+  /// draw-bounds circle).
   ///
   /// Radius is `glyphBounds.width * kCirclePlaceholderRadiusFactor` (~0.4).
-  /// MUST NOT be sized against the full cell pitch. Current
-  /// [UnicodeCatalogLeaf] paragraph paint does not select this mode for
-  /// unbound/loading — see [CatalogLeafBindingPool.presentationFor].
+  /// MUST NOT be sized against the full cell pitch. Not selected where unicode
+  /// is drawn as text — see [CatalogLeafBindingPool.presentationFor].
   circlePlaceholder,
 
   /// Document-backed loading: static/SVG thumb silhouette (may be stubbed as
@@ -47,3 +49,11 @@ enum CatalogLeafPresentation {
 /// MUST NOT be applied against the full cell pitch — that oversizes the
 /// circle relative to the eventual glyph.
 const double kCirclePlaceholderRadiusFactor = 0.4;
+
+/// Fraction of a cell's shorter side that its glyph is drawn in (the square
+/// centred in the cell), whether the glyph is a sprite, a paragraph or the
+/// circle placeholder standing in for it.
+///
+/// Public so a host that bakes glyphs sizes them for the box they will be drawn
+/// in instead of copying the number.
+const double kCatalogGlyphBoxFraction = 0.72;

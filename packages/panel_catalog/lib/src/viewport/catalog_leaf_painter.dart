@@ -1,29 +1,37 @@
-import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/painting.dart';
+import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
+import 'package:panel_catalog/src/viewport/catalog_glyph_sprite_batch.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
+import 'package:panel_catalog/src/viewport/catalog_paragraph_cache.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
+
+/// Most section-header paragraphs one painter keeps; a header is keyed by title,
+/// style and layout width, so a resize adds one per visible header per step.
+/// Far above the headers of one screen (a handful).
+const int kHeaderParagraphCacheLimit = 64;
+
+/// Most glyph paragraphs one painter keeps on the paragraph path (the web).
+///
+/// A paragraph is keyed by glyph and layout width, so a window that is resized
+/// step by step makes every visible glyph a new key per step. The least
+/// recently drawn paragraph is dropped past this count. It is far above what
+/// one screen draws, so scrolling and a settled layout never evict.
+const int kGlyphParagraphCacheLimit = 1024;
 
 /// Paints catalog headers and leaves onto a [Canvas].
 ///
-/// Owns paragraph caches for section titles and unicode glyphs so repeated
-/// paint of the same visible band does not rebuild text layouts every frame.
+/// Owns bounded paragraph caches for section titles and unicode glyphs so
+/// repeated paint of the same visible band does not rebuild text layouts every
+/// frame.
 /// Does **not** own layout slots, scroll offset, or asset readiness — the
 /// render object passes content [origin], slot geometry,
 /// [CatalogLeafPresentation], and [CatalogLeafPaintTheme].
-///
-/// ## Cold-start warm-up
-///
-/// [ensureGlyphParagraph] builds and layouts a glyph paragraph without
-/// painting. [rasterizeGlyphsForWarmup] draws those paragraphs into a
-/// temporary picture, awaits [ui.Picture.toImage], then disposes the image so
-/// the rasterizer’s color-emoji path is exercised before the first user
-/// fling. Callers MUST invoke warm-up from open / idle — not from scroll
-/// ticks (offscreen `toImage` on the fling path regresses frame time).
 ///
 /// ## Coordinate contract
 ///
@@ -34,8 +42,9 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 ///
 /// ## Glyph and placeholder geometry
 ///
-/// Leaf glyph draw bounds are a centered square ≈ **72%** of
-/// `min(cellWidth, cellHeight)`. Circle placeholders use those bounds:
+/// Leaf glyph draw bounds are a centered square of
+/// [kCatalogGlyphBoxFraction] (**72%**) of `min(cellWidth, cellHeight)`.
+/// Circle placeholders use those bounds:
 ///
 /// ```text
 /// radius = glyphBounds.width * kCirclePlaceholderRadiusFactor  // 0.4
@@ -46,9 +55,24 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 ///
 /// ## Unicode glyphs
 ///
-/// Glyphs use a cached [ui.Paragraph] keyed by `(glyph, logicalWidth)`.
-/// Layout runs **once** when the paragraph is created. Scroll paints only
-/// [Canvas.drawParagraph] for that cached instance.
+/// A glyph whose asset has a **sprite** (a baked glyph on an atlas page) is not
+/// drawn by [paintLeaf] at all: it is queued, and [flushGlyphSprites] draws
+/// every queued sprite of one page with one batched atlas draw. The pressed
+/// cell is queued scaled about its center, so it needs no canvas transform and
+/// stays in its page's batch.
+///
+/// A glyph without a sprite paints itself from a cached [ui.Paragraph] keyed by
+/// `(glyph, logicalWidth)` (the web strategy, or a surface whose cache bakes
+/// nothing). Layout runs **once** when the paragraph is created. Scroll paints
+/// only [Canvas.drawParagraph] for that cached instance. Where emoji are baked
+/// this path is never reached for unicode: an unbaked glyph is presented as the
+/// circle placeholder, not as text, and no paragraph is built for it.
+///
+/// The glyph cache holds at most [kGlyphParagraphCacheLimit] paragraphs, least
+/// recently drawn out first: the width is part of the key, so
+/// a window resized step by step would otherwise add a screenful per step for
+/// good. The section-header cache is bounded the same way by
+/// [kHeaderParagraphCacheLimit].
 ///
 /// ## Presentation switch
 ///
@@ -56,7 +80,8 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// |---------------------------|--------|
 /// | [CatalogLeafPresentation.circlePlaceholder] | Filled circle |
 /// | [CatalogLeafPresentation.thumbFirstPlaceholder] / [CatalogLeafPresentation.shapedLoadingWash] / [CatalogLeafPresentation.failed] | Rounded rect stand-in |
-/// | [CatalogLeafPresentation.content] + unicode | Cached glyph paragraph |
+/// | [CatalogLeafPresentation.content] + unicode with a sprite | Queued sprite (batched per page) |
+/// | [CatalogLeafPresentation.content] + unicode without | Cached glyph paragraph |
 /// | [CatalogLeafPresentation.content] + document | Ready-path stand-in rect until media decode lands |
 ///
 /// ## Press highlight
@@ -68,32 +93,38 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// ## Theme vs layout constants
 ///
 /// [CatalogLeafPaintTheme] supplies section header typography and insets plus
-/// stand-in / press colors and radii. Glyph bounds use fixed fractions (`0.72`,
-/// `0.85`, [kCirclePlaceholderRadiusFactor]) — not theme fields.
+/// stand-in / press colors and radii. Glyph bounds use fixed fractions
+/// ([kCatalogGlyphBoxFraction], `0.85` for the paragraph's font size,
+/// [kCirclePlaceholderRadiusFactor]) — not theme fields.
 ///
 /// ## Dispose
 ///
-/// Call [dispose] when the owning render object disposes to drop cached
-/// paragraphs and abort any in-flight [rasterizeGlyphsForWarmup] yield timer.
-/// Clearing maps is enough for paragraphs — [ui.Paragraph] does not require a
-/// native dispose in current Flutter. [cancelWarmup] aborts warm-up without
-/// clearing caches (detach / rebind).
+/// Call [dispose] when the owning render object disposes: it disposes and
+/// drops the cached paragraphs, which hold engine memory outside the Dart heap
+/// (the caches dispose the ones they evict as well).
 final class CatalogLeafPainter {
   /// Creates a painter with empty paragraph caches.
-  CatalogLeafPainter({required CatalogLeafPaintTheme theme}) : _theme = theme;
-
-  /// Bumped by [cancelWarmup] / [dispose] so in-flight warm-up exits.
-  int _warmupEpoch = 0;
-
-  /// Zero-delay yield between warm-up chunks; cancelled on abort / dispose.
-  Timer? _warmupYield;
-
-  /// Completer for the in-flight yield; completed on timer fire or [cancelWarmup].
-  Completer<void>? _warmupYieldCompleter;
+  CatalogLeafPainter({required CatalogLeafPaintTheme theme}) : _theme = theme {
+    _placeholderPaint.color = theme.placeholderColor;
+    _documentStandInPaint.color = theme.documentStandInColor;
+  }
 
   CatalogLeafPaintTheme _theme;
-  final Map<_HeaderPaintKey, ui.Paragraph> _headerParagraphs = {};
-  final Map<_GlyphPaintKey, ui.Paragraph> _glyphParagraphs = {};
+
+  /// Fills reused by every leaf. A [Paint] is a heap object with a native-sized
+  /// backing buffer, so allocating one per leaf per frame is pure scroll-time
+  /// garbage. Colors only change with the theme (see [theme]); the highlight
+  /// alpha changes per press frame and is written just before use, which is
+  /// safe because the canvas copies a paint's state at the draw call.
+  final Paint _placeholderPaint = Paint();
+  final Paint _documentStandInPaint = Paint();
+  final Paint _highlightPaint = Paint();
+
+  final CatalogParagraphCache<_HeaderPaintKey> _headerParagraphs =
+      CatalogParagraphCache(limit: kHeaderParagraphCacheLimit);
+  final CatalogParagraphCache<_GlyphPaintKey> _glyphParagraphs =
+      CatalogParagraphCache(limit: kGlyphParagraphCacheLimit);
+  final CatalogGlyphSpriteBatch _glyphSprites = CatalogGlyphSpriteBatch();
 
   /// Resolved paint tokens from [PanelCatalogThemeData] at the viewport.
   ///
@@ -105,33 +136,24 @@ final class CatalogLeafPainter {
         _theme.sectionHeaderStyle != value.sectionHeaderStyle ||
         _theme.sectionHeaderStartInset != value.sectionHeaderStartInset;
     _theme = value;
+    _placeholderPaint.color = value.placeholderColor;
+    _documentStandInPaint.color = value.documentStandInColor;
     if (headerPaintChanged) {
       _headerParagraphs.clear();
     }
   }
 
-  /// Aborts in-flight [rasterizeGlyphsForWarmup] and cancels its yield timer.
-  ///
-  /// Does not clear paragraph caches. Safe to call while warm-up is idle.
-  /// After abort, a later [rasterizeGlyphsForWarmup] starts a new epoch.
-  /// Completes any awaiting chunk yield so the warm-up future does not hang.
-  void cancelWarmup() {
-    _warmupEpoch++;
-    _warmupYield?.cancel();
-    _warmupYield = null;
-    final pending = _warmupYieldCompleter;
-    _warmupYieldCompleter = null;
-    if (pending != null && !pending.isCompleted) {
-      pending.complete();
-    }
-  }
-
-  /// Releases cached paragraphs and aborts warm-up. Idempotent.
+  /// Releases cached paragraphs. Idempotent.
   void dispose() {
-    cancelWarmup();
     _headerParagraphs.clear();
     _glyphParagraphs.clear();
+    _glyphSprites.dispose();
   }
+
+  /// Draws the glyph sprites queued by [paintLeaf] since the last flush, one
+  /// batched atlas draw per page. Call once at the end of each paint pass, with
+  /// the same clip and transform as the pass.
+  void flushGlyphSprites(Canvas canvas) => _glyphSprites.flush(canvas);
 
   /// Paints [header] at content [origin].
   ///
@@ -152,7 +174,7 @@ final class CatalogLeafPainter {
       0.0,
       contentWidth - padding.horizontal - theme.sectionHeaderStartInset,
     );
-    final paragraph = _headerParagraphs.putIfAbsent(
+    final paragraph = _headerParagraphs.obtain(
       _HeaderPaintKey(
         title: header.title,
         style: headerStyle,
@@ -194,11 +216,16 @@ final class CatalogLeafPainter {
   /// [pressProgress] drives the list-selector highlight on the **full cell
   /// rect** (unscaled). Skipped when the configured highlight color is fully
   /// transparent or progress is `≤ 0`.
+  ///
+  /// [sprite] is the leaf's baked glyph when its asset has one. A unicode leaf
+  /// presented as content with a sprite is queued for [flushGlyphSprites]
+  /// instead of being drawn here.
   void paintLeaf({
     required Canvas canvas,
     required Offset origin,
     required CatalogLeafSlot slot,
     required CatalogLeafPresentation presentation,
+    AtlasSprite? sprite,
     double pressScale = 1,
     double pressProgress = 0,
   }) {
@@ -209,7 +236,8 @@ final class CatalogLeafPainter {
       slot.width,
       slot.height,
     );
-    final glyphSize = math.min(slot.width, slot.height) * 0.72;
+    final glyphSize =
+        math.min(slot.width, slot.height) * kCatalogGlyphBoxFraction;
     final glyphRect = Rect.fromCenter(
       center: cellRect.center,
       width: glyphSize,
@@ -223,11 +251,28 @@ final class CatalogLeafPainter {
           cellRect,
           Radius.circular(theme.leafPressSelectorRadius),
         ),
-        Paint()
+        _highlightPaint
           ..color = theme.leafPressHighlightColor.withValues(
             alpha: theme.leafPressHighlightColor.a * factor,
           ),
       );
+    }
+
+    // A queued sprite carries the press scale in its own transform, so it needs
+    // no canvas save and restore and stays in its page's batch.
+    final queuesSprite =
+        presentation == CatalogLeafPresentation.content &&
+        slot.leaf is UnicodeCatalogLeaf &&
+        sprite != null;
+    if (queuesSprite) {
+      final center = cellRect.center;
+      _glyphSprites.add(
+        sprite,
+        left: center.dx + (glyphRect.left - center.dx) * pressScale,
+        top: center.dy + (glyphRect.top - center.dy) * pressScale,
+        scale: glyphRect.width / sprite.source.width * pressScale,
+      );
+      return;
     }
 
     final scaled = pressScale != 1;
@@ -243,7 +288,7 @@ final class CatalogLeafPainter {
         canvas.drawCircle(
           glyphRect.center,
           glyphRect.width * kCirclePlaceholderRadiusFactor,
-          Paint()..color = theme.placeholderColor,
+          _placeholderPaint,
         );
       case CatalogLeafPresentation.thumbFirstPlaceholder:
       case CatalogLeafPresentation.shapedLoadingWash:
@@ -253,7 +298,7 @@ final class CatalogLeafPainter {
             glyphRect,
             Radius.circular(theme.standInCornerRadius),
           ),
-          Paint()..color = theme.placeholderColor,
+          _placeholderPaint,
         );
       case CatalogLeafPresentation.content:
         switch (slot.leaf) {
@@ -265,7 +310,7 @@ final class CatalogLeafPainter {
                 glyphRect,
                 Radius.circular(theme.standInCornerRadius),
               ),
-              Paint()..color = theme.documentStandInColor,
+              _documentStandInPaint,
             );
         }
     }
@@ -276,6 +321,7 @@ final class CatalogLeafPainter {
   }
 
   void _paintGlyph(Canvas canvas, Rect glyphRect, String glyph) {
+    PanelCatalogDiagnostics.glyphParagraphDraws++;
     final paragraph = _paragraphForGlyph(glyph, glyphRect.width);
     canvas.drawParagraph(
       paragraph,
@@ -286,20 +332,10 @@ final class CatalogLeafPainter {
     );
   }
 
-  /// Returns a laid-out [ui.Paragraph] for [glyph] at [logicalWidth].
-  ///
-  /// Creates and layouts on first use for that `(glyph, width)` key; later
-  /// calls reuse the cache. Does **not** draw and does **not** notify the
-  /// owner. [logicalWidth] ≤ 0 yields a paragraph laid out against that
-  /// width (caller SHOULD skip). Used by [rasterizeGlyphsForWarmup] and by
-  /// the owning render object’s cold-start band walk.
-  ui.Paragraph ensureGlyphParagraph(String glyph, double logicalWidth) =>
-      _paragraphForGlyph(glyph, logicalWidth);
-
   /// Cache lookup / create for one glyph paragraph at [logicalWidth].
   ui.Paragraph _paragraphForGlyph(String glyph, double logicalWidth) {
     final key = _GlyphPaintKey(glyph, logicalWidth);
-    return _glyphParagraphs.putIfAbsent(key, () {
+    return _glyphParagraphs.obtain(key, () {
       final builder = ui.ParagraphBuilder(
         ui.ParagraphStyle(
           textAlign: TextAlign.center,
@@ -309,79 +345,6 @@ final class CatalogLeafPainter {
       return builder.build()
         ..layout(ui.ParagraphConstraints(width: logicalWidth));
     });
-  }
-
-  /// Offscreen-rasterizes unique [glyphs] at [logicalWidth] (device pixels).
-  ///
-  /// For each chunk: builds a temporary picture of laid-out paragraphs,
-  /// awaits [ui.Picture.toImage], disposes the image and picture. Side
-  /// effect is exercising the rasterizer’s color-emoji path so a later
-  /// on-screen [paintLeaf] is cheaper. Empty [glyphs] or [logicalWidth] ≤ 0
-  /// is a silent no-op. Failed chunks are skipped (MUST NOT throw to the
-  /// host). Yields after each chunk so an in-flight open animation can
-  /// schedule. Stops early when [shouldContinue] returns `false`, or after
-  /// [cancelWarmup] / [dispose] (pending yield timer is cancelled — no
-  /// orphan [Timer] after the owning viewport leaves the tree). MUST NOT be
-  /// called from the scroll/paint tick path.
-  Future<void> rasterizeGlyphsForWarmup({
-    required Iterable<String> glyphs,
-    required double logicalWidth,
-    int chunkSize = 16,
-    bool Function()? shouldContinue,
-  }) async {
-    if (logicalWidth <= 0) return;
-    final unique = <String>{};
-    for (final g in glyphs) {
-      if (g.isNotEmpty) unique.add(g);
-    }
-    if (unique.isEmpty) return;
-
-    final epoch = _warmupEpoch;
-    final views = ui.PlatformDispatcher.instance.views;
-    final dpr = views.isEmpty ? 1.0 : views.first.devicePixelRatio;
-    final pixelW = math.max(1, (logicalWidth * dpr).ceil());
-    final list = unique.toList(growable: false);
-
-    for (var i = 0; i < list.length; i += chunkSize) {
-      if (epoch != _warmupEpoch) return;
-      if (shouldContinue != null && !shouldContinue()) return;
-      final end = math.min(i + chunkSize, list.length);
-      final chunk = list.sublist(i, end);
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-      canvas.scale(dpr);
-      var y = 0.0;
-      for (final glyph in chunk) {
-        final paragraph = _paragraphForGlyph(glyph, logicalWidth);
-        final dy = (logicalWidth - paragraph.height) / 2;
-        canvas.drawParagraph(paragraph, Offset(0, y + dy));
-        y += logicalWidth;
-      }
-      final picture = recorder.endRecording();
-      final pixelH = math.max(1, (y * dpr).ceil());
-      try {
-        final image = await picture.toImage(pixelW, pixelH);
-        image.dispose();
-      } on Object {
-        // Warm-up must never break open; skip failed chunks.
-      } finally {
-        picture.dispose();
-      }
-      if (epoch != _warmupEpoch) return;
-      if (shouldContinue != null && !shouldContinue()) return;
-      // Let the open animation / input schedule run between chunks.
-      final yieldDone = Completer<void>();
-      _warmupYield?.cancel();
-      _warmupYieldCompleter = yieldDone;
-      _warmupYield = Timer(Duration.zero, () {
-        _warmupYield = null;
-        if (identical(_warmupYieldCompleter, yieldDone)) {
-          _warmupYieldCompleter = null;
-        }
-        if (!yieldDone.isCompleted) yieldDone.complete();
-      });
-      await yieldDone.future;
-    }
   }
 }
 

@@ -6,6 +6,61 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- **Baked sprites on screen.** When the asset cache has a
+  `CatalogAssetCache.glyphAtlas`, unicode leaves are drawn as sprites cut from
+  its pages: the painter queues each sprite and one paint pass draws every
+  page's sprites with a single batched atlas draw (the pressed cell is scaled
+  inside its batch). Existing behaviour is the web strategy: with no atlas
+  glyphs are drawn as paragraphs, as before.
+- **`panel_catalog_diagnostics.dart`** — `PanelCatalogDiagnostics.glyphParagraphDraws`,
+  the proof that no emoji is drawn as text where emoji are baked (`0`). Bumped
+  only on the paragraph path, so the sprite path pays nothing.
+- **Bake stays out of the way.** The viewport tells the atlas when it scrolls
+  (drag, fling, jump, wheel, section motion) and, once it settles, which glyphs
+  are on screen so their page bakes first.
+
+- **`kCatalogGlyphBoxFraction`** (0.72) — the share of a cell's shorter side a
+  glyph is drawn in, public so a host that bakes glyphs sizes them for it.
+
+### Changed
+
+- **The viewport is a repaint boundary.** `RenderPanelCatalog.isRepaintBoundary`
+  is `true`: paint runs into a layer of its own, so a host that stacked
+  viewports sees one more compositing layer per viewport. Scrolling repaints
+  that layer without repainting what is around it, and what is around it does
+  not repaint the viewport.
+
+### Removed
+
+- **Cold-start warm-up.** `PanelCatalogController.warmAhead`, the render
+  object's band walk, `CatalogLeafPainter.rasterizeGlyphsForWarmup` /
+  `ensureGlyphParagraph` / `cancelWarmup`, the viewport's device-pixel-ratio
+  field that only fed it, and the `PANEL_PERF_SKIP_WARM` switch are gone. The
+  offscreen `toImage` pass did not make the first fling cheaper, and where emoji
+  are baked it built paragraphs that are never drawn. A host that called
+  `warmAhead` drops the call; nothing replaces it (the atlas bakes in the
+  background). On platforms that bake, no emoji paragraph is built at all.
+- **Experiment switches.** The `panel_catalog_perf_probe.dart` library (a
+  glyph override and paint coverage statistics read by the paint path) is
+  deleted with its two engine call sites. It was never exported; hosts and
+  tests measure through `PanelCatalogController` and the viewport's public
+  geometry, and `PanelCatalogDiagnostics` stays as the one observation entry.
+
+### Changed
+
+- **Bounded paragraph caches.** On the paragraph path (the web strategy) the
+  glyph cache keeps at most 1024 paragraphs per viewport
+  (`kGlyphParagraphCacheLimit`) and the section-header cache 64, least recently
+  drawn out first. A paragraph that leaves a cache, by eviction or when the
+  viewport is disposed, is disposed. Before, a window resized step by step
+  added a screenful of paragraphs per step for the life of the viewport.
+- **Unicode presentation with an atlas.** An unbaked glyph is
+  `CatalogLeafPresentation.circlePlaceholder` (never text) and flips to
+  `content` when its page lands, without a layout change. Hosts that pass a
+  cache without an atlas see no difference.
+
 ### Changed
 
 - **Diagnostics logger.** `PanelCatalogDevLog`, `DevLogFormat` and
@@ -15,13 +70,6 @@ is pre-1.0.
   `--dart-define=panel_catalog.debug.<category>=true` or a
   `#panel_catalog.debug.<category>: true` zone value, or all of them with
   `panel_catalog.debug`. Console name is `panel_catalog.<category>`.
-
-### Fixed
-
-- **Warm-up yield timer on detach.** [CatalogLeafPainter.rasterizeGlyphsForWarmup]
-  now takes optional [shouldContinue]; [cancelWarmup] aborts in-flight chunk
-  yields. [RenderPanelCatalog.detach] cancels warm-up so a zero-delay Timer is
-  not left pending after the viewport leaves the tree.
 
 ### Changed
 

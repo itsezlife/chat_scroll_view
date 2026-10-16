@@ -131,5 +131,55 @@ void main() {
       expect(firstNotifications, 0);
       expect(secondNotifications, 1);
     });
+
+    group('evict and clear with a live binding', () {
+      // Audit defect: a binding released its count by looking its key up, so
+      // after an evict it decremented whichever entry now had that key.
+      const key = CatalogAssetKey.unicode('😀');
+      const type = CatalogAssetCacheType.keyboard;
+
+      test('a stale binding detaching leaves the new entry retained', () {
+        final stale = cache.attach(key, type);
+        cache.evict(key, type);
+        final fresh = cache.attach(key, type);
+
+        stale.detach();
+
+        expect(cache.isRetained(key, type), isTrue);
+        fresh.detach();
+        expect(cache.isRetained(key, type), isFalse);
+      });
+
+      test('a stale binding detaching does not drop a loading entry', () {
+        final stale = cache.attach(key, type);
+        cache.clear();
+        final fresh = cache.attach(key, type);
+
+        stale.detach();
+
+        expect(cache.readinessOf(key, type), CatalogAssetReadiness.loading);
+        expect(fresh.readiness, CatalogAssetReadiness.loading);
+      });
+
+      test('detaching twice releases the count once', () {
+        final first = cache.attach(key, type);
+        cache.attach(key, type);
+
+        first
+          ..detach()
+          ..detach();
+
+        expect(cache.isRetained(key, type), isTrue);
+      });
+
+      test('an evicted entry has no readers left to retain it', () {
+        cache.attach(key, type);
+
+        cache.evict(key, type);
+
+        expect(cache.isRetained(key, type), isFalse);
+        expect(cache.readinessOf(key, type), isNull);
+      });
+    });
   });
 }

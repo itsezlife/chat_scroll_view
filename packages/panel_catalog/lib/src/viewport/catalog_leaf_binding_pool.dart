@@ -14,9 +14,8 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 ///
 /// ## Recycle contract
 ///
-/// [syncVisible] keeps bindings for leaf slots whose vertical span intersects
-/// `[top, bottom]` (inclusive band in content coordinates) and detaches keys
-/// that left the band. Header slots are ignored — they have no asset identity.
+/// [syncVisible] keeps bindings for the leaf slots in the index range the owner
+/// resolved for its content-y band and detaches keys that left it. Header slots are ignored — they have no asset identity.
 ///
 /// The owning render object typically passes the viewport band **plus** one
 /// cell of overscan so short drags do not thrash attach/detach every frame.
@@ -29,10 +28,14 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// [CatalogAssetCache.readinessOf] (settled entries survive zero attaches),
 /// else loading.
 ///
-/// **Unicode** glyphs paint from paragraph cache — no async asset decode.
-/// Unbound / loading unicode therefore resolves to
-/// [CatalogLeafPresentation.content] (not a circle). Circles only appear for
-/// unicode when the host has marked the key [CatalogAssetReadiness.failed].
+/// **Unicode** glyphs depend on how the cache draws them. With a
+/// [CatalogAssetCache.glyphAtlas] (platforms that bake emoji) a glyph is
+/// content only once its binding has a sprite; until then it is the
+/// [CatalogLeafPresentation.circlePlaceholder], never text, and it flips to
+/// content when the atlas page lands (the binding's listener fires). Without
+/// an atlas (the web) glyphs paint from a paragraph cache, so unbound / loading
+/// unicode is [CatalogLeafPresentation.content] and circles appear only when
+/// the host has marked the key [CatalogAssetReadiness.failed].
 ///
 /// **Document** leaves use loading placeholders when still loading. Ready
 /// document entries retained in the cache after [detachAll] still resolve to
@@ -41,7 +44,8 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 ///
 /// | Leaf | loading / unbound (no settled cache) | ready | failed |
 /// |------|--------------------------------------|-------|--------|
-/// | [UnicodeCatalogLeaf] | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.failed] |
+/// | [UnicodeCatalogLeaf], atlas | [CatalogLeafPresentation.circlePlaceholder] until it has a sprite, then [CatalogLeafPresentation.content] | same | [CatalogLeafPresentation.failed] |
+/// | [UnicodeCatalogLeaf], no atlas | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.failed] |
 /// | [DocumentCatalogLeaf] | [CatalogLeafPresentation.thumbFirstPlaceholder] | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.failed] |
 ///
 /// ## Lifecycle
@@ -72,6 +76,9 @@ final class CatalogLeafBindingPool {
   final void Function() _onReadinessChanged;
   final Map<CatalogAssetKey, CatalogAssetBinding> _bindings = {};
 
+  /// The cache's baked glyphs, or null where glyphs are drawn as text.
+  GlyphAtlas? get glyphAtlas => _assetCache.glyphAtlas;
+
   /// Number of leaves currently retained via asset-cache attach.
   ///
   /// Bounded by the last [syncVisible] window, not by total catalog size.
@@ -94,25 +101,32 @@ final class CatalogLeafBindingPool {
     _cacheType = cacheType;
   }
 
-  /// Syncs attaches to leaf slots intersecting `[top, bottom]` in content y.
+  /// Syncs attaches to the leaf slots in `slots[start, end)`.
+  ///
+  /// The caller resolves the index range for its content-y window (binary
+  /// search over the ascending [slots]) so this walk is proportional to the
+  /// visible band, never to the catalogue. The range is trusted: every leaf in
+  /// it is kept attached, so it MUST NOT include slots outside the intended
+  /// window. Header slots in the range are ignored.
   ///
   /// [pinnedKeys] are kept attached even when outside the window — used during
   /// far-path stitch so outgoing strip bindings survive the teleport.
   ///
-  /// Slots with `bottom < top` or `top > bottom` relative to the window are
-  /// skipped. Already-attached keys that remain visible are kept (no
-  /// re-attach). Keys that left the window are [CatalogAssetBinding.detach]ed
-  /// and removed from the map unless listed in [pinnedKeys].
+  /// Already-attached keys that remain in the range are kept (no re-attach).
+  /// Keys that left it are [CatalogAssetBinding.detach]ed and removed from the
+  /// map unless listed in [pinnedKeys]. [top] / [bottom] are the window the
+  /// range was resolved for; they feed diagnostics only.
   void syncVisible({
     required List<CatalogLayoutSlot> slots,
+    required int start,
+    required int end,
     required double top,
     required double bottom,
     Set<CatalogAssetKey>? pinnedKeys,
   }) {
     final visibleKeys = <CatalogAssetKey>{...?pinnedKeys};
-    for (final slot in slots) {
-      if (slot case final CatalogLeafSlot leaf) {
-        if (leaf.bottom < top || leaf.top > bottom) continue;
+    for (var i = start; i < end; i++) {
+      if (slots[i] case final CatalogLeafSlot leaf) {
         visibleKeys.add(leaf.leaf.assetKey);
         _ensure(leaf.leaf);
       }
@@ -152,6 +166,13 @@ final class CatalogLeafBindingPool {
     }
   }
 
+  /// The baked glyph of [leaf], or null when it has none (not bound, a
+  /// document leaf, a platform that bakes nothing, or a page not baked yet).
+  ///
+  /// Read at paint time and not kept: the page behind a sprite can go away
+  /// with its atlas.
+  AtlasSprite? spriteFor(CatalogLeaf leaf) => _bindings[leaf.assetKey]?.sprite;
+
   /// Presentation for [leaf], never `null`.
   ///
   /// Resolves readiness from the live binding when attached, otherwise from
@@ -159,9 +180,9 @@ final class CatalogLeafBindingPool {
   /// survived [detachAll] (pager keep-alive) do not flash loading placeholders.
   /// Absent cache entries are treated as loading.
   ///
-  /// Unicode glyphs do not wait on decode bytes — unbound/loading unicode is
-  /// [CatalogLeafPresentation.content]. Document leaves use a kind-specific
-  /// loading placeholder when still loading.
+  /// Unicode glyphs do not wait on decode bytes, but where they are baked they
+  /// wait for their sprite: see the class table. Document leaves use a
+  /// kind-specific loading placeholder when still loading.
   CatalogLeafPresentation presentationFor(CatalogLeaf leaf) {
     final readiness =
         _bindings[leaf.assetKey]?.readiness ??
@@ -170,7 +191,10 @@ final class CatalogLeafBindingPool {
     return switch ((leaf, readiness)) {
       (UnicodeCatalogLeaf(), CatalogAssetReadiness.failed) =>
         CatalogLeafPresentation.failed,
-      (UnicodeCatalogLeaf(), _) => CatalogLeafPresentation.content,
+      (UnicodeCatalogLeaf(), _) =>
+        glyphAtlas == null || spriteFor(leaf) != null
+            ? CatalogLeafPresentation.content
+            : CatalogLeafPresentation.circlePlaceholder,
       (DocumentCatalogLeaf(), CatalogAssetReadiness.ready) =>
         CatalogLeafPresentation.content,
       (DocumentCatalogLeaf(), CatalogAssetReadiness.failed) =>
@@ -193,8 +217,10 @@ final class CatalogLeafBindingPool {
   void _ensure(CatalogLeaf leaf) {
     final key = leaf.assetKey;
     if (_bindings.containsKey(key)) return;
-    // Unicode cells paint from cached paragraphs — no async decode. Mark ready
-    // on attach so hosts that never call markReady still resolve content.
+    // Unicode cells need no async decode (paragraph or baked sprite). Mark
+    // ready on attach so hosts that never call markReady still resolve content;
+    // whether a baked glyph has its sprite yet is the sprite's business, not
+    // readiness'.
     if (_assetCache case final MemoryCatalogAssetCache memory
         when leaf is UnicodeCatalogLeaf) {
       memory.markReady(key, _cacheType);

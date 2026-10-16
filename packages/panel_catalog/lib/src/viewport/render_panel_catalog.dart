@@ -11,6 +11,7 @@ import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
 import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
+import 'package:panel_catalog/src/viewport/catalog_bake_activity.dart';
 import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
@@ -73,6 +74,10 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// far-path flight ([CatalogFarStitch]) so outgoing strip bindings survive
 /// the teleport. Readiness changes on attached bindings mark paint dirty so
 /// placeholders flip to content without a full catalog reproject.
+///
+/// The visible window is resolved to a slot index range by binary search over
+/// the ascending projection, in both binding sync and paint, so scroll-time
+/// cost follows the visible band rather than the catalogue size.
 ///
 /// Overscan is intentionally one cell row: enough that a short drag does not
 /// thrash attach/detach every frame, not a second viewport of prefetched
@@ -155,22 +160,23 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// [PanelCatalogTheme.of] + device pixel ratio — this object does not read
 /// [BuildContext]. Paint-only changes mark [markNeedsPaint] without layout.
 ///
-/// ## Cold-start warm-up
+/// ## Baked glyphs
 ///
-/// [warmAhead] walks unicode leaves in the first `[screens]` viewport heights
-/// from the current offset, ensures layout-once paragraphs via
-/// [CatalogLeafPainter.ensureGlyphParagraph], then optionally awaits
-/// [CatalogLeafPainter.rasterizeGlyphsForWarmup]. Concurrent callers share one
-/// in-flight future. Silent no-op before first layout, when detached, or when
-/// the band has no unicode glyphs. Hosts invoke via
-/// [PanelCatalogController.warmAhead] from open / idle — not from scroll ticks.
+/// When the asset cache has a [GlyphAtlas] (platforms that bake emoji), each
+/// unicode leaf resolves to a sprite through its binding and the painter queues
+/// it; one pass draws the sprites of each atlas page in a single batched draw
+/// (`CatalogLeafPainter.flushGlyphSprites`, at the end of [paint]). An unbaked
+/// glyph is the circle placeholder and flips to its sprite when the atlas page
+/// lands (the binding listener marks paint dirty, never layout). Without an
+/// atlas the same leaves paint a paragraph. [CatalogBakeActivity] keeps the
+/// bake out of the way of motion and tells the atlas what is on screen.
 ///
 /// ## Lifecycle
 ///
 /// - [attach]: register data + controller listeners; create drag, leaf
 ///   pointer, press tickers, and press controller.
 /// - [detach]: unregister listeners; dispose recognizers / press / fling;
-///   [CatalogLeafPainter.cancelWarmup]; [CatalogLeafBindingPool.detachAll].
+///   [CatalogLeafBindingPool.detachAll].
 /// - [dispose]: same binding/painter teardown; safe if already detached.
 ///
 /// Listeners are only live while attached. Swapping [dataSource] /
@@ -183,6 +189,12 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// content-y `offset` aligns with the viewport top. The canvas is clipped to
 /// the viewport rect. Slots outside the visible window (including overscan)
 /// are skipped in the paint loop even if still bound.
+///
+/// ## Repaint boundary
+///
+/// [isRepaintBoundary] is `true`: paint runs against a layer of its own with
+/// the viewport at the origin. Scroll / press / readiness `markNeedsPaint`
+/// stops at this object instead of dirtying the host chrome's layer.
 ///
 /// Constructed by [PanelCatalogViewport]; not exported from the public barrel.
 class RenderPanelCatalog extends RenderBox {
@@ -287,7 +299,15 @@ class RenderPanelCatalog extends RenderBox {
   /// Process-wide asset cache. Replacing detaches every binding first
   /// ([CatalogLeafBindingPool.replaceCache]) then reprojects.
   set assetCache(CatalogAssetCache value) {
+    final atlas = _pool.glyphAtlas;
     _pool.replaceCache(value);
+    // The bake reporter belongs to the cache's atlas. Hosts hand the same
+    // cache on every widget update; only a different atlas restarts it, or a
+    // drag in progress would forget it began.
+    if (!identical(atlas, value.glyphAtlas)) {
+      _stopBakeActivity();
+      _startBakeActivity();
+    }
     markCatalogNeedsUpdate();
   }
 
@@ -405,6 +425,10 @@ class RenderPanelCatalog extends RenderBox {
 
   late CatalogLeafBindingPool _pool;
   final CatalogLeafPainter _painter;
+
+  /// Keeps the glyph bake out of the way of motion; null without an atlas or
+  /// while detached.
+  CatalogBakeActivity? _bakeActivity;
   late final CatalogLeafPointer _leafPointer;
 
   /// Ballistic scroll simulation and tick integration in content offset space.
@@ -577,79 +601,6 @@ class RenderPanelCatalog extends RenderBox {
     return null;
   }
 
-  // --- Cold-start warm-up ---------------------------------------------------
-
-  /// In-flight warm-up future; concurrent [warmAhead] callers share it.
-  Future<void>? _warmInFlight;
-
-  /// Prepares unicode glyphs for the first `[screens]` viewport heights.
-  ///
-  /// Band is `[offset, offset + height × screens]` clamped to content
-  /// ([screens] clamped to `[1, 8]`). Ensures layout-once paragraphs for each
-  /// unicode leaf in the band; when [rasterize] is true, awaits
-  /// [CatalogLeafPainter.rasterizeGlyphsForWarmup]. Concurrent callers share
-  /// one future. Silent no-op when detached, before first layout, when
-  /// glyph width ≤ 0, or when the band has no unicode leaves. Completes
-  /// immediately when [rasterize] is false after paragraph ensure. MUST NOT
-  /// be driven from scroll / paint ticks.
-  Future<void> warmAhead({double screens = 2.5, bool rasterize = true}) {
-    final existing = _warmInFlight;
-    if (existing != null) return existing;
-    final future = _warmAheadBody(screens: screens, rasterize: rasterize);
-    _warmInFlight = future;
-    return future.whenComplete(() {
-      if (identical(_warmInFlight, future)) {
-        _warmInFlight = null;
-      }
-    });
-  }
-
-  /// Band walk + optional offscreen raster for [warmAhead]. Clears
-  /// [_warmInFlight] via the public future’s `whenComplete`.
-  Future<void> _warmAheadBody({
-    required double screens,
-    required bool rasterize,
-  }) async {
-    if (!attached || !hasSize || _slots.isEmpty) return;
-    final bandBottom = math.min(
-      _contentExtent,
-      _controller.offset + size.height * screens.clamp(1.0, 8.0),
-    );
-    final bandTop = _controller.offset.clamp(0.0, _contentExtent);
-    final glyphWidth = _glyphLogicalWidth;
-    if (glyphWidth <= 0) return;
-
-    final glyphs = <String>[];
-    final start = _firstSlotIndexAtOrBelow(bandTop);
-    final end = _slotIndexAfter(bandBottom);
-    for (var i = start; i < end; i++) {
-      final slot = _slots[i];
-      if (slot.bottom < bandTop || slot.top > bandBottom) continue;
-      if (slot case CatalogLeafSlot(:final leaf)) {
-        if (leaf case UnicodeCatalogLeaf(:final glyph)) {
-          glyphs.add(glyph);
-          _painter.ensureGlyphParagraph(glyph, glyphWidth);
-        }
-      }
-    }
-    if (!rasterize || glyphs.isEmpty) return;
-    await _painter.rasterizeGlyphsForWarmup(
-      glyphs: glyphs,
-      logicalWidth: glyphWidth,
-      shouldContinue: () => attached,
-    );
-  }
-
-  /// Logical glyph draw width matching [CatalogLeafPainter] (~72% of cell pitch).
-  double get _glyphLogicalWidth {
-    final usableW = (size.width - _padding.horizontal).clamp(
-      0.0,
-      double.infinity,
-    );
-    final cellW = usableW > 0 ? usableW / _spanCount : _cellExtent;
-    return math.min(cellW, _cellExtent) * 0.72;
-  }
-
   // --- Catalog invalidation -------------------------------------------------
 
   /// Marks layout and paint dirty after catalog or geometry changes.
@@ -692,8 +643,7 @@ class RenderPanelCatalog extends RenderBox {
       ..addJumpListener(_onJump)
       ..addScrollByListener(_onScrollBy)
       ..addSectionJumpListener(_onSectionJump)
-      ..addAnimateToListener(_onAnimateTo)
-      ..bindWarmAheadHandler((screens) => warmAhead(screens: screens));
+      ..addAnimateToListener(_onAnimateTo);
   }
 
   void _unbindController(PanelCatalogController controller) {
@@ -701,8 +651,7 @@ class RenderPanelCatalog extends RenderBox {
       ..removeJumpListener(_onJump)
       ..removeScrollByListener(_onScrollBy)
       ..removeSectionJumpListener(_onSectionJump)
-      ..removeAnimateToListener(_onAnimateTo)
-      ..bindWarmAheadHandler(null);
+      ..removeAnimateToListener(_onAnimateTo);
   }
 
   /// Cancels near scroll + fling, then runs the navigation path.
@@ -1100,7 +1049,9 @@ class RenderPanelCatalog extends RenderBox {
     _drag = VerticalDragGestureRecognizer()
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
-      ..onEnd = _onDragEnd;
+      ..onEnd = _onDragEnd
+      ..onCancel = _onDragCancel;
+    _startBakeActivity();
     final pending = _controller.pendingSectionJump;
     if (pending != null) {
       _handleSectionJump(pending.$1);
@@ -1121,9 +1072,6 @@ class RenderPanelCatalog extends RenderBox {
     _clearPressPointerRoute();
     _cancelSectionJumpMotion();
     _cancelFling();
-    // Abort cold-start raster so widget-test teardown does not leave a
-    // pending [Timer] from [CatalogLeafPainter.rasterizeGlyphsForWarmup].
-    _painter.cancelWarmup();
     _flingTicker = null;
     _nearScroll?.dispose();
     _nearScroll = null;
@@ -1135,6 +1083,7 @@ class RenderPanelCatalog extends RenderBox {
     _flingCancelPointer = null;
     _drag?.dispose();
     _drag = null;
+    _stopBakeActivity();
     _press?.dispose();
     _press = null;
     _pressTickers?.dispose();
@@ -1162,6 +1111,7 @@ class RenderPanelCatalog extends RenderBox {
     _drag?.dispose();
     _drag = null;
     _leafPointer.dispose();
+    _stopBakeActivity();
     _press?.dispose();
     _press = null;
     _pressTickers?.dispose();
@@ -1169,6 +1119,39 @@ class RenderPanelCatalog extends RenderBox {
     _pool.detachAll();
     _painter.dispose();
     super.dispose();
+  }
+
+  // --- Glyph bake -----------------------------------------------------------
+
+  void _startBakeActivity() {
+    final atlas = _pool.glyphAtlas;
+    if (!attached || atlas == null || _bakeActivity != null) return;
+    _bakeActivity = CatalogBakeActivity(
+      atlas: atlas,
+      isAnimating: () =>
+          _physics.isFlinging || isSectionJumpAnimating || isFarStitchActive,
+      visibleGlyphs: _visibleUnicodeGlyphs,
+    );
+  }
+
+  void _stopBakeActivity() {
+    _bakeActivity?.dispose();
+    _bakeActivity = null;
+  }
+
+  /// Unicode glyphs in the paint window, top first: what the atlas should bake
+  /// first. Walks the visible band only.
+  Iterable<String> _visibleUnicodeGlyphs() sync* {
+    final (top, bottom) = _paintWindow();
+    final start = _firstSlotIndexAtOrBelow(top);
+    final end = _slotIndexAfter(bottom);
+    for (var i = start; i < end; i++) {
+      final slot = _slots[i];
+      if (slot.bottom < top || slot.top > bottom) continue;
+      if (slot case CatalogLeafSlot(leaf: UnicodeCatalogLeaf(:final glyph))) {
+        yield glyph;
+      }
+    }
   }
 
   // --- Layout projection ----------------------------------------------------
@@ -1188,6 +1171,7 @@ class RenderPanelCatalog extends RenderBox {
     );
     _slots = projection.slots;
     _contentExtent = projection.contentExtent;
+    _bakeActivity?.visibleBandChanged();
   }
 
   /// Content-y window used for **binding** sync (viewport + one-cell overscan).
@@ -1262,8 +1246,12 @@ class RenderPanelCatalog extends RenderBox {
   /// Reconciles [CatalogLeafBindingPool] attaches to the current [_visibleWindow].
   void _syncVisibleBindings() {
     final (top, bottom) = _visibleWindow();
+    // Binary-searched band, not a walk over every slot: scroll-time sync cost
+    // follows the visible window, not the catalogue size.
     _pool.syncVisible(
       slots: _slots,
+      start: _firstSlotIndexAtOrBelow(top),
+      end: _slotIndexAfter(bottom),
       top: top,
       bottom: bottom,
       pinnedKeys: _stitchPinnedKeys.isEmpty ? null : _stitchPinnedKeys,
@@ -1274,6 +1262,7 @@ class RenderPanelCatalog extends RenderBox {
 
   /// Cancels fling and press before a new drag gesture owns the pointer.
   void _onDragStart(DragStartDetails details) {
+    _bakeActivity?.dragging = true;
     _cancelSectionJumpMotion();
     _cancelFling();
     _clearPressPointerRoute();
@@ -1292,6 +1281,7 @@ class RenderPanelCatalog extends RenderBox {
   /// No-op when [maxOffset] is `0` (nothing to scroll) or velocity is below
   /// the minimum. Finger-up velocity is negated into content-offset space.
   void _onDragEnd(DragEndDetails details) {
+    _bakeActivity?.dragging = false;
     final fingerVelocity = details.primaryVelocity ?? 0;
     // Finger up (negative primaryVelocity) → positive content-offset velocity.
     final contentVelocity = -fingerVelocity;
@@ -1301,6 +1291,8 @@ class RenderPanelCatalog extends RenderBox {
     _controller.notifyScrollEvent(PanelCatalogFlingStart(contentVelocity));
     _startFling(contentVelocity);
   }
+
+  void _onDragCancel() => _bakeActivity?.dragging = false;
 
   // --- Scroll — fling -------------------------------------------------------
 
@@ -1575,6 +1567,15 @@ class RenderPanelCatalog extends RenderBox {
 
   // --- Paint ----------------------------------------------------------------
 
+  /// The viewport owns its own compositing layer.
+  ///
+  /// Hosts stack the category strip and search field over this body. Without a
+  /// boundary an overlay repaint (typing, strip highlight) re-records every
+  /// visible leaf, and every scroll frame re-records the overlays. With one,
+  /// each side repaints into its own layer and the other is reused as is.
+  @override
+  bool get isRepaintBoundary => true;
+
   /// Clips to the viewport, translates by `−offset`, paints intersecting slots.
   ///
   /// During far-path stitch, paints captured outgoing strip and incoming band
@@ -1595,6 +1596,7 @@ class RenderPanelCatalog extends RenderBox {
     canvas.clipRect(offset & size);
 
     final scroll = _controller.offset;
+    _bakeActivity?.notePaint(scroll);
     final contentOrigin = offset.translate(0, -scroll);
     final (top, bottom) = _paintWindow();
     final pressedSlotKey = _press?.pressedSlotKey;
@@ -1615,6 +1617,7 @@ class RenderPanelCatalog extends RenderBox {
           pressScale: pressScale,
           pressProgress: pressProgress,
         );
+        _painter.flushGlyphSprites(canvas);
         canvas.restore();
         debugLastPaintDuration = sw.elapsed;
         return;
@@ -1638,6 +1641,7 @@ class RenderPanelCatalog extends RenderBox {
       );
     }
 
+    _painter.flushGlyphSprites(canvas);
     _logPaintSummary(top, bottom);
 
     canvas.restore();
@@ -1703,6 +1707,7 @@ class RenderPanelCatalog extends RenderBox {
           origin: origin,
           slot: leaf,
           presentation: _pool.presentationFor(leaf.leaf),
+          sprite: _pool.spriteFor(leaf.leaf),
           pressScale: isPressed ? pressScale : 1.0,
           pressProgress: isPressed ? pressProgress : 0,
         );

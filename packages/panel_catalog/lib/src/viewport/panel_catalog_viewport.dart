@@ -61,6 +61,12 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// → engine [RenderPanelCatalog.paintTheme]. Hosts customize
 /// [PanelCatalogThemeData] only; the viewport owns density resolution and the
 /// single snapshot handoff.
+///
+/// ## Density
+///
+/// Density is read from the [MediaQuery] of the viewport's own subtree, so it
+/// is the density of the view the viewport sits in and follows that view's
+/// resize / display change. It is never read from the platform's first view.
 class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// Creates an extent-scroll catalog body backed by [dataSource],
   /// [assetCache], and [controller].
@@ -110,6 +116,12 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// this widget as a fetch/decode owner — decode lives in the cache;
   /// presentation is projected from readiness + leaf kind
   /// (`CatalogLeafPresentation`).
+  ///
+  /// When the cache has a [CatalogAssetCache.glyphAtlas] the viewport draws
+  /// unicode glyphs from its baked pages, batched into one draw per page,
+  /// shows the circle placeholder until a glyph is baked, and tells the atlas
+  /// when it scrolls and what is on screen so the bake stays out of its way.
+  /// Without one (the web) glyphs are drawn as text.
   final CatalogAssetCache assetCache;
 
   /// Absolute content-offset and navigation entry points ([jumpTo], [scrollBy],

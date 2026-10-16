@@ -1,5 +1,5 @@
 name: catalog_assets
-description: Process-wide global catalog asset cache for catalog and conversation leaves.
+description: Process-wide global catalog asset cache for catalog and conversation leaves, plus the glyph atlas baker.
 version: 0.1.0
 publish_to: none
 
@@ -7,7 +7,24 @@ resolution: workspace
 
 environment:
   sdk: ^3.11.0
+  flutter: '>=3.27.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  meta: ^1.17.0
+  # Only lib/testing.dart needs this: its contract suites (runGlyphPageStoreContract
+  # and the like) are written with the test framework, and a library cannot
+  # import a dev dependency. Production entry points never import it. Moving the
+  # suites to a package of their own would leave catalog_assets with a dev
+  # dependency on a package that depends on it, a cycle the workspace
+  # dependency lint rejects; they have no consumer outside this package yet.
+  flutter_test:
+    sdk: flutter
 
 dev_dependencies:
+  # The "current catalogue" budget test reads the real glyph set.
+  emoji_data:
+    path: ../emoji_data
   lints: ^6.0.0
   test: ^1.25.0

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 
+import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
@@ -32,6 +33,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+/// Supplies the message source of a [WidgetChatScreen].
+typedef ChatDataSourceLoader = Future<ChatDataSource> Function();
+
 /// Demo screen for the widget-based [ChatScrollView] — the chat viewport,
 /// a bottom composer, and a contextual selection bar, wired together.
 class WidgetChatScreen extends StatefulWidget {
@@ -43,6 +47,9 @@ class WidgetChatScreen extends StatefulWidget {
   const WidgetChatScreen({
     this.keyboardPanelStore,
     this.emojiDataSource,
+    this.dataSourceLoader,
+    this.glyphCache,
+    this.glyphArtVersion,
     super.key,
   });
 
@@ -51,6 +58,20 @@ class WidgetChatScreen extends StatefulWidget {
 
   /// Optional preloaded emoji catalog. When null, the screen owns one.
   final DefaultEmojiDataSource? emojiDataSource;
+
+  /// Supplies the message source instead of the bundled comments asset, so a
+  /// harness can run the real screen on generated messages with no backend.
+  ///
+  /// The screen owns the returned source and disposes it. The app leaves this
+  /// null.
+  final ChatDataSourceLoader? dataSourceLoader;
+
+  /// Where the keyboard panel keeps baked emoji pages between launches, or
+  /// null to bake in memory every launch.
+  final GlyphCacheStore? glyphCache;
+
+  /// Tells when the system emoji art changed; used with [glyphCache].
+  final GlyphArtVersionSource? glyphArtVersion;
 
   @override
   State<WidgetChatScreen> createState() => _WidgetChatScreenState();
@@ -364,8 +385,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       // final backend = await BackendChatDataSource.connect(
       //   client: Supabase.instance.client,
       // );
-      final backend = await CommentsDataSource.load();
-      // final backend = GeneratedChatDataSource(messageCount: 15);
+      final backend =
+          await (widget.dataSourceLoader ?? CommentsDataSource.load)();
 
       // The screen may have been popped while `load()` was in flight. The
       // `dispose()` above already ran with `_dataSource == null`, so we
@@ -384,7 +405,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
         final BackendChatDataSource source =>
           await source.getLastReadMessageId(),
         CommentsDataSource() => 9990,
-        // GeneratedChatDataSource() => 5,
+        _ => null,
       };
       final store = await ChatCenterBandStore.open();
       final openPosition = await backend.resolveOpenPosition(
@@ -1089,6 +1110,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                                 allow: _emojiAllow,
                                 labels: KeyboardPanelLabels.russian,
                                 dataSource: _emojiDataSource,
+                                glyphCache: widget.glyphCache,
+                                glyphArtVersion: widget.glyphArtVersion,
                                 onEmojiSelected: (glyph) {
                                   _composer.insertText(glyph);
                                 },

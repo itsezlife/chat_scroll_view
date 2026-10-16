@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_chrome/src/composer/chat_input_metrics.dart';
 import 'package:chat_chrome/src/inset/chat_bottom_inset_controller.dart';
 import 'package:chat_chrome/src/motion/keyboard_panel_motion.dart';
 import 'package:chat_chrome/src/panel/emoji_deferred_recents.dart';
+import 'package:chat_chrome/src/panel/emoji_glyph_atlas_host.dart';
 import 'package:chat_chrome/src/panel/emoji_page.dart';
 import 'package:chat_chrome/src/panel/keyboard_panel_allow.dart';
 import 'package:chat_chrome/src/panel/keyboard_panel_bottom_actions.dart';
@@ -58,8 +60,14 @@ class KeyboardPanel extends StatefulWidget {
     this.callbacks = const KeyboardPanelCallbacks(),
     this.bottomActions,
     this.labels = KeyboardPanelLabels.english,
+    this.glyphCache,
+    this.glyphArtVersion,
+    this.glyphBakeObserver,
     super.key,
-  });
+  }) : assert(
+         glyphCache == null || glyphArtVersion != null,
+         'a glyphCache needs a glyphArtVersion to tell when it is out of date',
+       );
 
   /// Host-owned chrome SoT (open/search/tab + inset claim/release + panel store).
   final KeyboardPanelController controller;
@@ -85,9 +93,27 @@ class KeyboardPanel extends StatefulWidget {
   /// Trailing bottom-bar actions; defaults to [KeyboardPanelBottomActions.standard].
   final KeyboardPanelBottomActions? bottomActions;
 
+  /// Where baked emoji pages are kept between launches, or null to bake in
+  /// memory every launch. Read once, when the panel first mounts. Needs
+  /// [glyphArtVersion]. A cache directory is the host's to choose; see
+  /// `createGlyphCacheStoreForPlatform`.
+  final GlyphCacheStore? glyphCache;
+
+  /// Tells when the system emoji art changed, so persisted pages are re-baked
+  /// behind the old ones. Used with [glyphCache].
+  final GlyphArtVersionSource? glyphArtVersion;
+
+  /// Shown every glyph the emoji bake draws, so the glyph-support probe shares
+  /// that pass (see `EmojiGlyphAtlasHost`). Read once, when the panel first
+  /// mounts.
+  final GlyphBakeObserver? glyphBakeObserver;
+
   @override
   State<KeyboardPanel> createState() => _KeyboardPanelState();
 }
+
+/// Which cold animation the panel is running.
+enum _PanelMotion { rest, opening, closing }
 
 class _KeyboardPanelState extends State<KeyboardPanel>
     with TickerProviderStateMixin {
@@ -97,11 +123,28 @@ class _KeyboardPanelState extends State<KeyboardPanel>
 
   late final AnimationController _progress;
 
+  /// What the cold open or close animation is doing. One value: the panel is
+  /// never opening and closing at once.
+  _PanelMotion _motion = _PanelMotion.rest;
+
   /// True while a cold open animation is in flight.
-  var _opening = false;
+  bool get _opening => _motion == _PanelMotion.opening;
 
   /// True while a cold close animation is in flight.
-  var _closing = false;
+  bool get _closing => _motion == _PanelMotion.closing;
+
+  /// Moves to [next] and tells the bake. Every change of motion goes through
+  /// here, so the bake never keeps running into an animation it was not told
+  /// about.
+  void _moveTo(_PanelMotion next) {
+    _motion = next;
+    _syncBakeSignals();
+  }
+
+  /// Ends [motion] if it is the current one; a newer motion is left alone.
+  void _leave(_PanelMotion motion) {
+    if (_motion == motion) _moveTo(_PanelMotion.rest);
+  }
 
   /// Skip entrance animation when opening over a dismissing IME.
   var _replacingKeyboard = false;
@@ -151,6 +194,16 @@ class _KeyboardPanelState extends State<KeyboardPanel>
 
   final EmojiDeferredRecents _deferredRecents = EmojiDeferredRecents();
 
+  // --- Baked emoji ----------------------------------------------------------
+
+  /// Owns the emoji atlas across opens and closes; created once the view and
+  /// density are known ([didChangeDependencies]).
+  EmojiGlyphAtlasHost? _atlasHost;
+
+  /// Tells the atlas pages to go when the system wants memory back.
+  SystemMemoryPressure? _memoryPressure;
+  SchedulerBakeFrameSource? _bakeFrames;
+
   // --- Bottom bar -----------------------------------------------------------
 
   /// Bottom-tab visibility — bar slides down when false.
@@ -187,10 +240,10 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     _pageController = PageController(initialPage: initialPage);
     _pageController.addListener(_onPageControllerTick);
     _deferredRecents.commit(_dataSource);
-    _progress = AnimationController(
-      vsync: this,
-      duration: KeyboardPanelMotion.duration,
-    )..addListener(_onProgressTick);
+    _progress =
+        AnimationController(vsync: this, duration: KeyboardPanelMotion.duration)
+          ..addListener(_onProgressTick)
+          ..addStatusListener((_) => _syncBakeSignals());
     _inset.addListener(_onController);
     _inset.heightListenable.addListener(_onInsetHeight);
     _bindPanelController(widget.controller);
@@ -199,6 +252,58 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       'KeyboardPanel initState isOpen=${widget.controller.isOpen} '
       'tabs=${_tabs.length}',
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final existing = _atlasHost;
+    if (existing != null) {
+      // The view can move to another display or change its size class while
+      // the panel lives: the baked glyphs follow the density it has now.
+      existing.devicePixelRatio = devicePixelRatio;
+      return;
+    }
+    final frames = _bakeFrames = SchedulerBakeFrameSource(
+      view: View.of(context),
+    );
+    final host = _atlasHost = EmojiGlyphAtlasHost(
+      dataSource: _dataSource,
+      frames: frames,
+      devicePixelRatio: devicePixelRatio,
+      persistence: widget.glyphCache == null
+          ? null
+          : GlyphAtlasPersistence(
+              cache: widget.glyphCache!,
+              artVersion: widget.glyphArtVersion!,
+              devicePixelRatio: devicePixelRatio,
+            ),
+      memoryPressure: _memoryPressure = SystemMemoryPressure(),
+      observer: widget.glyphBakeObserver,
+    );
+    _dataSource.addDataListener(_syncAtlas);
+    _syncBakeSignals();
+    host.sync(recents: _deferredRecents.glyphs);
+    // After the first sync: its change is part of the first build.
+    host.addListener(_onAtlasChanged);
+  }
+
+  /// Plans the emoji atlas again if the grid would now draw an unplanned glyph.
+  void _syncAtlas() => _atlasHost?.sync(recents: _deferredRecents.glyphs);
+
+  void _onAtlasChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Tells the bake whether the panel is on screen and moving, so it neither
+  /// runs behind a hidden panel nor competes with the open or close animation.
+  void _syncBakeSignals() {
+    final host = _atlasHost;
+    if (host == null) return;
+    host.panelVisible.value =
+        _visible && _contentVisible && !_handoffToKeyboard;
+    host.panelOpening.value = _opening || _closing || _progress.isAnimating;
   }
 
   @override
@@ -225,6 +330,12 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     _unbindPanelController(widget.controller);
     _inset.removeListener(_onController);
     _inset.heightListenable.removeListener(_onInsetHeight);
+    _dataSource.removeDataListener(_syncAtlas);
+    _atlasHost
+      ?..removeListener(_onAtlasChanged)
+      ..dispose();
+    _memoryPressure?.dispose();
+    _bakeFrames?.dispose();
     _progress
       ..removeListener(_onProgressTick)
       ..dispose();
@@ -386,6 +497,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     _visible = false;
     _contentVisible = true;
     _progress.value = 0;
+    _syncBakeSignals();
   }
 
   void _maybeDismissHandoffShell() {
@@ -400,6 +512,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     if (!_handoffToKeyboard && _contentVisible) return;
     _handoffToKeyboard = false;
     _contentVisible = true;
+    _syncBakeSignals();
   }
 
   void _onProgressTick() {
@@ -462,8 +575,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       return;
     }
 
-    _opening = true;
-    _closing = false;
+    _moveTo(_PanelMotion.opening);
     _replacingKeyboard = replacingKeyboard;
 
     final landscape =
@@ -487,6 +599,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     _rebindPageController(_pageIndex.value);
     // Apply deferred frequency-map changes from the previous session.
     _deferredRecents.commit(_dataSource);
+    _syncAtlas();
 
     if (!_visible) {
       setState(() {
@@ -497,28 +610,26 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     } else if (mounted) {
       setState(() {});
     }
+    _syncBakeSignals();
 
     if (_replacingKeyboard) {
       fine(.panel, 'KeyboardPanel.open REPLACE snap progress=1');
       _progress.value = 1;
       _inset.setPanelOccupancy(_inset.panelTarget);
-      _opening = false;
+      _leave(_PanelMotion.opening);
       _ensurePageSyncedAfterOpen();
-      // Warm after snap so REPLACE open does not pay first-fling glyph raster.
-      _emojiPageKey.currentState?.warmAhead().ignore();
       return;
     }
 
     fine(.panel, 'KeyboardPanel.open COLD animate 0→1');
     _progress.value = 0;
     _inset.setPanelOccupancy(0);
-    // Layout the page, then warm glyphs without blocking the open animation.
+    // Let the page mount and lay out before the open animation starts.
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted || _closing) {
-      _opening = false;
+      _leave(_PanelMotion.opening);
       return;
     }
-    _emojiPageKey.currentState?.warmAhead().ignore();
     await Future<void>.delayed(KeyboardPanelMotion.startDelay);
     if (!mounted || _closing) {
       fine(
@@ -526,7 +637,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
         'KeyboardPanel.open COLD aborted after delay '
         'mounted=$mounted closing=$_closing',
       );
-      _opening = false;
+      _leave(_PanelMotion.opening);
       return;
     }
     try {
@@ -539,7 +650,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     } catch (e, st) {
       warning(.panel, e, st, 'KeyboardPanel.open COLD animate error');
     } finally {
-      _opening = false;
+      _leave(_PanelMotion.opening);
       _ensurePageSyncedAfterOpen();
     }
   }
@@ -582,7 +693,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       _contentVisible = true;
     }
 
-    _opening = false;
+    _leave(_PanelMotion.opening);
     if (notifyController) {
       widget.controller.adoptClose();
     }
@@ -599,6 +710,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       // Keyboard handoff: hide emoji chrome, keep panel shell + inset hold.
       _handoffToKeyboard = true;
       _contentVisible = false;
+      _syncBakeSignals();
       if (notifyController) {
         _inset.closePanel(waitForIme: true);
       }
@@ -612,7 +724,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       return;
     }
 
-    _closing = true;
+    _moveTo(_PanelMotion.closing);
     // Cold dismiss: animate occupancy target → −safeBottom, then release.
     _closeSafeBottom = MediaQuery.viewPaddingOf(context).bottom;
     _closeTarget = _inset.isPanelOpen
@@ -651,7 +763,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     if (!mounted) return;
     setState(() {
       _visible = false;
-      _closing = false;
+      _leave(_PanelMotion.closing);
       _handoffToKeyboard = false;
       _contentVisible = true;
       _searchOpen.value = false;
@@ -659,6 +771,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       _searchFocus.unfocus();
       _inset.collapsePanelFromSearch();
     });
+    _syncBakeSignals();
     fine(.panel, 'KeyboardPanel.close done published=${_inset.height}');
   }
 
@@ -858,6 +971,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     _searchOpen.value = false;
     _search.clear();
     _deferredRecents.commit(_dataSource);
+    _syncAtlas();
 
     final from = _inset.panelTarget;
     final to = _inset.panelBaseTarget;
@@ -1066,6 +1180,13 @@ class _KeyboardPanelState extends State<KeyboardPanel>
                                 },
                                 onEmojiSelected: _onEmoji,
                                 onClearRecents: _onRequestClearRecents,
+                                glyphAtlas: _atlasHost?.atlas,
+                                // A cold open mounts the page while nothing
+                                // moves (the slide starts after
+                                // [KeyboardPanelMotion.startDelay]), so the
+                                // mount can take three frames. A panel that
+                                // replaces the keyboard is on screen at once.
+                                deferChrome: !_replacingKeyboard,
                               ),
                               KeyboardPanelTab.gifs => const GifPageStub(),
                               KeyboardPanelTab.stickers =>

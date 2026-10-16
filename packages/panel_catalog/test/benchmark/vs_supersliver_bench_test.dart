@@ -5,6 +5,10 @@
 //   flutter test test/benchmark/vs_supersliver_bench_test.dart
 //
 // Debug mode — absolute µs inflated by asserts; ratios are the signal.
+//
+// Headless: no rasterisation. Valid for layout cost and object counts only; it
+// makes no claim about fling smoothness. That is judged on a device by
+// example/integration_test/panel_catalog_fling_test.dart.
 // Report: test/benchmark/benchmark_report.md
 
 import 'dart:async';
@@ -684,6 +688,11 @@ void main() {
   }
 
   tearDownAll(() {
+    // ignore: avoid_print
+    print(
+      'NOTE: headless benchmark (no rasterisation). Layout cost and object '
+      'counts only; no claim about fling smoothness.',
+    );
     void dump(
       String title,
       List<(int, BenchmarkMetrics, BenchmarkMetrics)> ssl,

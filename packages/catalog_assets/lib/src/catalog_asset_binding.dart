@@ -1,3 +1,4 @@
+import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
 import 'package:catalog_assets/src/catalog_asset_cache_type.dart';
 import 'package:catalog_assets/src/catalog_asset_key.dart';
 import 'package:catalog_assets/src/catalog_asset_readiness.dart';
@@ -16,7 +17,17 @@ abstract interface class CatalogAssetBinding {
   /// Current leaf readiness.
   CatalogAssetReadiness get readiness;
 
-  /// Registers [listener] for readiness changes.
+  /// The asset as a baked sprite, or null when it has none (yet).
+  ///
+  /// The optional sprite capability of what this binding paints: a surface
+  /// that finds a sprite draws it, batched with the others of its page; one
+  /// that does not paints the asset itself. A unicode glyph on a platform that
+  /// bakes has one once its page is baked and none before, so null there means
+  /// "show the placeholder", not "paint the glyph as text". Read it when
+  /// painting, never keep it: the page behind it can go away.
+  AtlasSprite? get sprite;
+
+  /// Registers [listener] for readiness changes and for [sprite] appearing.
   void addListener(void Function() listener);
 
   /// Removes a previously registered [listener].

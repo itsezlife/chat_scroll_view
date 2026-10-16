@@ -27,9 +27,24 @@ surfaces (emoji / stickers / GIFs).
   (no streams); fetch stays in the source
 - **Assets** — readiness from `catalog_assets`; leaf identity is
   `CatalogAssetKey` via `CatalogLeaf.assetKey`
-- **Placeholders** — circle (unicode), thumb-first / shaped wash reserved
+- **Baked glyphs** — with a `CatalogAssetCache.glyphAtlas`, unicode leaves are
+  drawn as sprites from atlas pages, one batched draw per page; the circle
+  placeholder shows until a glyph is baked. Without an atlas (the web) glyphs
+  are paragraphs. `panel_catalog_diagnostics.dart` counts glyphs drawn as text:
+  `0` where emoji are baked
+- **Placeholders** — circle (unicode until baked), thumb-first / shaped wash
+  reserved
+
+| The host provides | The host must not |
+| --- | --- |
+| A `CatalogAssetCache` whose `glyphAtlas` plans every glyph the data source shows (none on the web) | Expect a glyph outside the atlas to draw as text: it stays a placeholder |
+| The atlas's `panelVisible` / `panelOpening` signals (the viewport reports scrolling and the visible band itself) | Start a bake on the web, or run one beside the open animation |
+| A new atlas (and cache) when the planned glyphs change, built from the old one's `retire()` so the cells do not blank | Dispose the atlas while a viewport still draws from it and expect the last frame to survive: the cells show placeholders |
 
 Shell chrome (strip, search, tabs, pickers) lives outside this package.
+
+Decisions: [ADR 006](../../docs/adr/006-panel-catalog-viewport.md) (the
+catalog viewport and its amendment on baked glyphs).
 
 ## Theme
 
