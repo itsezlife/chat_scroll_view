@@ -8,6 +8,7 @@ import 'package:content_model/testing.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/disposal_watch.dart';
 import '../support/test_services.dart';
 
 /// A key-value store that logs each read into [log] with the others' reads.
@@ -30,6 +31,19 @@ final class _LoggingStore implements KeyValueStore {
   @override
   Future<void> remove(String namespace, String key) =>
       _inner.remove(namespace, key);
+}
+
+/// A store whose reads fail.
+final class _FailingStore implements KeyValueStore {
+  @override
+  Future<StoredValue?> read(String namespace, String key) =>
+      Future.error(StateError('unreadable'));
+
+  @override
+  Future<void> write(String namespace, String key, StoredValue value) async {}
+
+  @override
+  Future<void> remove(String namespace, String key) async {}
 }
 
 void main() {
@@ -85,6 +99,66 @@ void main() {
         (collection) => collection.id == CollectionId.recent,
       );
       expect(recent.contents, isA<CollectionContents$Loaded>());
+    });
+  });
+
+  group('a step that fails', () {
+    test('frees what the earlier steps made and rethrows', () async {
+      final watch = DisposalWatch();
+      addTearDown(watch.stop);
+
+      await expectLater(
+        AppServices.create(
+          keyValueStore: FakeKeyValueStore(),
+          assetLoader: (key) async => throw StateError('no catalogue'),
+        ),
+        throwsStateError,
+      );
+
+      expect(watch.undisposed, isEmpty);
+    });
+
+    test(
+      'is the same whichever step it is: a store that cannot be read',
+      () async {
+        final watch = DisposalWatch();
+        addTearDown(watch.stop);
+
+        await expectLater(
+          AppServices.create(
+            keyValueStore: _FailingStore(),
+            assetLoader: rootBundle.loadString,
+          ),
+          throwsA(isA<ParallelWaitError<Object?, Object?>>()),
+        );
+
+        expect(watch.undisposed, isEmpty);
+      },
+    );
+  });
+
+  group('what a screen reader says', () {
+    test('every emoji the grid shows carries a spoken name in the app '
+        'language', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      final group = services.catalog.structure.groups.first.id;
+      await services.emojiSource.load(CollectionId.category(group));
+
+      final loaded =
+          services.emojiSource.collections.value
+                  .firstWhere((c) => c.id == CollectionId.category(group))
+                  .contents
+              as CollectionContents$Loaded;
+      final spoken = [
+        for (final item in loaded.items) item.descriptor?.spokenName,
+      ];
+      expect(
+        spoken.first,
+        'широко улыбается',
+        reason: 'ru is the first language',
+      );
+      expect(spoken, everyElement(isNotNull));
     });
   });
 

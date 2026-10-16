@@ -128,7 +128,10 @@ _Link? _linkOf(
   if (item.tones.isEmpty) return null;
   final parent =
       bySkeleton[item.skeleton] ?? byName[item.entry.name.split(':').first];
-  return parent == null ? null : (parent: parent, genders: const []);
+  return switch (parent) {
+    final parent? => (parent: parent, genders: const []),
+    null => null,
+  };
 }
 
 // One fully-qualified sequence with the facts the grouping rules read.

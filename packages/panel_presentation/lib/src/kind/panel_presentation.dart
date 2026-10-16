@@ -12,6 +12,15 @@ import 'package:meta/meta.dart';
 sealed class PanelPresentation {
   const PanelPresentation();
 
+  /// The panel replaces the soft keyboard in the bottom slot.
+  const factory PanelPresentation.keyboardReplacement() = KeyboardReplacement;
+
+  /// The panel floats above the content next to the composer.
+  const factory PanelPresentation.anchoredPopup() = AnchoredPopup;
+
+  /// The panel is a permanent section at the reading end of the window.
+  const factory PanelPresentation.docked() = Docked;
+
   /// A stable identifier, for keys and diagnostics.
   String get name;
 

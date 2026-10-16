@@ -73,6 +73,72 @@ class PanelCatalogThemeData {
     this.sectionHeaderStartInset = _defaultSectionHeaderStartInset,
   });
 
+  /// Picks [light] or [dark] from [brightness].
+  ///
+  /// Convenience when the host already knows shell brightness and does not
+  /// maintain a custom [PanelCatalogThemeData] instance.
+  factory PanelCatalogThemeData.forBrightness(Brightness brightness) =>
+      brightness == Brightness.dark ? dark : light;
+
+  /// Linearly interpolates [a] and [b] by [t] (`0` gives [a], `1` gives [b]).
+  ///
+  /// [t] is not clamped. Rebuild [PanelCatalogTheme] with the result each
+  /// animation tick so the viewport's paint snapshot follows. Colors use
+  /// [Color.lerp], numbers [lerpDouble], the wash period its microseconds and
+  /// header typography [TextStyle.lerp].
+  factory PanelCatalogThemeData.lerp(
+    PanelCatalogThemeData a,
+    PanelCatalogThemeData b,
+    double t,
+  ) => PanelCatalogThemeData(
+    circleColor: Color.lerp(a.circleColor, b.circleColor, t)!,
+    thumbColor: Color.lerp(a.thumbColor, b.thumbColor, t)!,
+    washColor: Color.lerp(a.washColor, b.washColor, t)!,
+    washHighlightColor: Color.lerp(
+      a.washHighlightColor,
+      b.washHighlightColor,
+      t,
+    )!,
+    washPeriod: Duration(
+      microseconds: lerpDouble(
+        a.washPeriod.inMicroseconds,
+        b.washPeriod.inMicroseconds,
+        t,
+      )!.round(),
+    ),
+    skeletonColor: Color.lerp(a.skeletonColor, b.skeletonColor, t)!,
+    placeholderCornerRadius: lerpDouble(
+      a.placeholderCornerRadius,
+      b.placeholderCornerRadius,
+      t,
+    )!,
+    leafPressHighlightColor: Color.lerp(
+      a.leafPressHighlightColor,
+      b.leafPressHighlightColor,
+      t,
+    )!,
+    leafFocusHighlightColor: Color.lerp(
+      a.leafFocusHighlightColor,
+      b.leafFocusHighlightColor,
+      t,
+    ),
+    leafPressSelectorRadiusNominalDp: lerpDouble(
+      a.leafPressSelectorRadiusNominalDp,
+      b.leafPressSelectorRadiusNominalDp,
+      t,
+    )!,
+    sectionHeaderStyle: TextStyle.lerp(
+      a.sectionHeaderStyle,
+      b.sectionHeaderStyle,
+      t,
+    )!,
+    sectionHeaderStartInset: lerpDouble(
+      a.sectionHeaderStartInset,
+      b.sectionHeaderStartInset,
+      t,
+    )!,
+  );
+
   /// Light catalog paint defaults.
   ///
   /// Reference preset for [forBrightness] / [lerp] light targets.
@@ -104,13 +170,6 @@ class PanelCatalogThemeData {
       color: Color(0xFF999999),
     ),
   );
-
-  /// Picks [light] or [dark] from [brightness].
-  ///
-  /// Convenience when the host already knows shell brightness and does not
-  /// maintain a custom [PanelCatalogThemeData] instance.
-  factory PanelCatalogThemeData.forBrightness(Brightness brightness) =>
-      brightness == Brightness.dark ? dark : light;
 
   /// One sweep of the wash highlight, from the reference placeholder.
   static const Duration _defaultWashPeriod = Duration(milliseconds: 1800);
@@ -184,67 +243,6 @@ class PanelCatalogThemeData {
   double selectorRadiusLogicalPx(double devicePixelRatio) =>
       leafPressSelectorRadiusNominalDp * devicePixelRatio;
 
-  /// Linearly interpolates [a] and [b] by [t] (`0` gives [a], `1` gives [b]).
-  ///
-  /// [t] is not clamped. Rebuild [PanelCatalogTheme] with the result each
-  /// animation tick so the viewport's paint snapshot follows. Colors use
-  /// [Color.lerp], numbers [lerpDouble], the wash period its microseconds and
-  /// header typography [TextStyle.lerp].
-  static PanelCatalogThemeData lerp(
-    PanelCatalogThemeData a,
-    PanelCatalogThemeData b,
-    double t,
-  ) {
-    return PanelCatalogThemeData(
-      circleColor: Color.lerp(a.circleColor, b.circleColor, t)!,
-      thumbColor: Color.lerp(a.thumbColor, b.thumbColor, t)!,
-      washColor: Color.lerp(a.washColor, b.washColor, t)!,
-      washHighlightColor: Color.lerp(
-        a.washHighlightColor,
-        b.washHighlightColor,
-        t,
-      )!,
-      washPeriod: Duration(
-        microseconds: lerpDouble(
-          a.washPeriod.inMicroseconds,
-          b.washPeriod.inMicroseconds,
-          t,
-        )!.round(),
-      ),
-      skeletonColor: Color.lerp(a.skeletonColor, b.skeletonColor, t)!,
-      placeholderCornerRadius: lerpDouble(
-        a.placeholderCornerRadius,
-        b.placeholderCornerRadius,
-        t,
-      )!,
-      leafPressHighlightColor: Color.lerp(
-        a.leafPressHighlightColor,
-        b.leafPressHighlightColor,
-        t,
-      )!,
-      leafFocusHighlightColor: Color.lerp(
-        a.leafFocusHighlightColor,
-        b.leafFocusHighlightColor,
-        t,
-      ),
-      leafPressSelectorRadiusNominalDp: lerpDouble(
-        a.leafPressSelectorRadiusNominalDp,
-        b.leafPressSelectorRadiusNominalDp,
-        t,
-      )!,
-      sectionHeaderStyle: TextStyle.lerp(
-        a.sectionHeaderStyle,
-        b.sectionHeaderStyle,
-        t,
-      )!,
-      sectionHeaderStartInset: lerpDouble(
-        a.sectionHeaderStartInset,
-        b.sectionHeaderStartInset,
-        t,
-      )!,
-    );
-  }
-
   /// Returns a copy with the given fields replaced.
   ///
   /// Omitted arguments retain the current value. Does not mutate `this`.
@@ -261,28 +259,26 @@ class PanelCatalogThemeData {
     double? leafPressSelectorRadiusNominalDp,
     TextStyle? sectionHeaderStyle,
     double? sectionHeaderStartInset,
-  }) {
-    return PanelCatalogThemeData(
-      circleColor: circleColor ?? this.circleColor,
-      thumbColor: thumbColor ?? this.thumbColor,
-      washColor: washColor ?? this.washColor,
-      washHighlightColor: washHighlightColor ?? this.washHighlightColor,
-      washPeriod: washPeriod ?? this.washPeriod,
-      skeletonColor: skeletonColor ?? this.skeletonColor,
-      placeholderCornerRadius:
-          placeholderCornerRadius ?? this.placeholderCornerRadius,
-      leafPressHighlightColor:
-          leafPressHighlightColor ?? this.leafPressHighlightColor,
-      leafFocusHighlightColor:
-          leafFocusHighlightColor ?? this.leafFocusHighlightColor,
-      leafPressSelectorRadiusNominalDp:
-          leafPressSelectorRadiusNominalDp ??
-          this.leafPressSelectorRadiusNominalDp,
-      sectionHeaderStyle: sectionHeaderStyle ?? this.sectionHeaderStyle,
-      sectionHeaderStartInset:
-          sectionHeaderStartInset ?? this.sectionHeaderStartInset,
-    );
-  }
+  }) => PanelCatalogThemeData(
+    circleColor: circleColor ?? this.circleColor,
+    thumbColor: thumbColor ?? this.thumbColor,
+    washColor: washColor ?? this.washColor,
+    washHighlightColor: washHighlightColor ?? this.washHighlightColor,
+    washPeriod: washPeriod ?? this.washPeriod,
+    skeletonColor: skeletonColor ?? this.skeletonColor,
+    placeholderCornerRadius:
+        placeholderCornerRadius ?? this.placeholderCornerRadius,
+    leafPressHighlightColor:
+        leafPressHighlightColor ?? this.leafPressHighlightColor,
+    leafFocusHighlightColor:
+        leafFocusHighlightColor ?? this.leafFocusHighlightColor,
+    leafPressSelectorRadiusNominalDp:
+        leafPressSelectorRadiusNominalDp ??
+        this.leafPressSelectorRadiusNominalDp,
+    sectionHeaderStyle: sectionHeaderStyle ?? this.sectionHeaderStyle,
+    sectionHeaderStartInset:
+        sectionHeaderStartInset ?? this.sectionHeaderStartInset,
+  );
 
   @override
   bool operator ==(Object other) =>

@@ -2,6 +2,8 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/missing_shaders.dart';
+
 const _glassKey = ValueKey('glass');
 
 Widget _glass() => const Center(
@@ -58,13 +60,15 @@ void main() {
           ),
         );
 
-    testWidgets('filters the backdrop outside a moving route', (tester) async {
+    testGlassWidgets('filters the backdrop outside a moving route', (
+      tester,
+    ) async {
       await pumpHome(tester, _glass());
 
       expect(_filtersBackdrop(), isTrue);
     });
 
-    testWidgets(
+    testGlassWidgets(
       'paints its fill flat while its route is pushed, then filters',
       (tester) async {
         await pumpHome(tester, const SizedBox());
@@ -79,7 +83,7 @@ void main() {
       },
     );
 
-    testWidgets('paints its fill flat while its route is popped', (
+    testGlassWidgets('paints its fill flat while its route is popped', (
       tester,
     ) async {
       await pumpHome(tester, const SizedBox());
@@ -93,23 +97,24 @@ void main() {
       expect(_filtersBackdrop(), isFalse);
     });
 
-    testWidgets('paints its fill flat while a route above it transitions', (
-      tester,
-    ) async {
-      await pumpHome(tester, _glass());
-      navigator.currentState!
-          .push(
-            MaterialPageRoute<void>(builder: (_) => const SizedBox.expand()),
-          )
-          .ignore();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+    testGlassWidgets(
+      'paints its fill flat while a route above it transitions',
+      (tester) async {
+        await pumpHome(tester, _glass());
+        navigator.currentState!
+            .push(
+              MaterialPageRoute<void>(builder: (_) => const SizedBox.expand()),
+            )
+            .ignore();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
-      expect(_filtersBackdrop(), isFalse);
+        expect(_filtersBackdrop(), isFalse);
 
-      navigator.currentState!.pop();
-      await tester.pumpAndSettle();
-      expect(_filtersBackdrop(), isTrue);
-    });
+        navigator.currentState!.pop();
+        await tester.pumpAndSettle();
+        expect(_filtersBackdrop(), isTrue);
+      },
+    );
   });
 }

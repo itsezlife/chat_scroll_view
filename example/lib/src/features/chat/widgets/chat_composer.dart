@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:chat_scroll_view_example/src/common/widgets/value_observable_builder.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/observable_listenable.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -160,12 +160,13 @@ class _ChatComposerState extends State<ChatComposer> {
         // The keyboard presentation owns the bottom band while it is up; the
         // composer pads itself with what the occupancy has not covered yet.
         // Without one the composer keeps its default pad.
-        return inset == null
-            ? view(null)
-            : ValueObservableBuilder<double>(
-                observable: inset,
-                builder: (context, safe) => view(safe),
-              );
+        return switch (inset) {
+          final observable? => ValueObservableBuilder<double>(
+            observable: observable,
+            builder: (context, safe) => view(safe),
+          ),
+          null => view(null),
+        };
       },
     );
   }

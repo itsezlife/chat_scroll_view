@@ -281,9 +281,10 @@ final class _Job implements AssetTask {
     }
     descriptor = known;
     final content = _content = _Work(this, FetchPart.content, decoder);
-    final thumbnail = known.thumbnail == null
-        ? null
-        : (_thumbnail = _Work(this, FetchPart.thumbnail, decoder));
+    final thumbnail = switch (known.thumbnail) {
+      null => null,
+      _ => _thumbnail = _Work(this, FetchPart.thumbnail, decoder),
+    };
     // The lane picks by priority, so the order of these two only breaks ties.
     if (thumbnail != null) pipeline._fetchLane.enqueue(thumbnail);
     if (!_ended) pipeline._fetchLane.enqueue(content);
@@ -369,9 +370,10 @@ final class _Work implements LaneWork {
     if (_cancelled) return;
     phase = _Phase.done;
     _pipeline._fetchLane.release(this);
-    final kind = error is FetchFailure
-        ? error.kind
-        : AssetFailureKind.transient;
+    final kind = switch (error) {
+      FetchFailure(:final kind) => kind,
+      _ => AssetFailureKind.transient,
+    };
     job.workFailed(this, error, stackTrace, kind);
   }
 

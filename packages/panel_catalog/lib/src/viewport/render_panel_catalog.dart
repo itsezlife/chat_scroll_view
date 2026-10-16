@@ -31,9 +31,9 @@ import 'package:panel_catalog/src/viewport/catalog_leaf_press.dart';
 import 'package:panel_catalog/src/viewport/catalog_near_scroll.dart';
 import 'package:panel_catalog/src/viewport/catalog_scroll_physics.dart';
 import 'package:panel_catalog/src/viewport/catalog_scroll_position.dart';
-import 'package:panel_catalog/src/viewport/catalog_semantics.dart';
-import 'package:panel_catalog/src/viewport/catalog_section_proximity.dart';
 import 'package:panel_catalog/src/viewport/catalog_section_navigation.dart';
+import 'package:panel_catalog/src/viewport/catalog_section_proximity.dart';
+import 'package:panel_catalog/src/viewport/catalog_semantics.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
@@ -238,9 +238,9 @@ class RenderPanelCatalog extends RenderBox
     required double cellExtent,
     required double headerExtent,
     required EdgeInsets padding,
+    required CatalogLeafPaintTheme paintTheme,
     TextDirection textDirection = TextDirection.ltr,
     double? headerLandingInset,
-    required CatalogLeafPaintTheme paintTheme,
     ValueChanged<CatalogLeafHit>? onLeafTap,
     void Function(CatalogLeafHit hit, LongPressStartDetails details)?
     onLeafLongPressStart,
@@ -644,7 +644,7 @@ class RenderPanelCatalog extends RenderBox
   ///
   /// Requires [hasSize]; callers MUST NOT read this before the first layout.
   /// Equals `max(0, contentExtent − size.height)`.
-  double get maxOffset => math.max(0.0, _contentExtent - size.height);
+  double get maxOffset => math.max(0, _contentExtent - size.height);
 
   /// Flat leaves in projection order (headers omitted).
   ///
@@ -1767,9 +1767,7 @@ class RenderPanelCatalog extends RenderBox
   /// whole catalog and defeat scrolling. Usable scroll requires a bounded
   /// height constraint from the parent.
   @override
-  double computeMinIntrinsicHeight(double width) {
-    return 0;
-  }
+  double computeMinIntrinsicHeight(double width) => 0;
 
   @override
   double computeMaxIntrinsicHeight(double width) =>
@@ -1890,7 +1888,10 @@ class RenderPanelCatalog extends RenderBox
   /// on pointer-up preserves suppress through arena tap resolution.
   @override
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
-    assert(debugHandleEvent(event, entry));
+    assert(
+      debugHandleEvent(event, entry),
+      'debugHandleEvent always answers true',
+    );
     switch (event) {
       case PointerDownEvent():
         var suppressLeafActions = false;
@@ -2363,9 +2364,10 @@ class RenderPanelCatalog extends RenderBox
     if (eligible != null && !eligible(hit)) return null;
     return () {
       final cell = _cellRectOf(hit.sectionId, hit.index);
-      final local = cell == null
-          ? Offset.zero
-          : cell.center.translate(0, -_pixels);
+      final local = switch (cell) {
+        final cell? => cell.center.translate(0, -_pixels),
+        null => Offset.zero,
+      };
       _onLeafLongPressStart?.call(
         hit,
         LongPressStartDetails(
@@ -2421,9 +2423,10 @@ class RenderPanelCatalog extends RenderBox
     final sections = _projectedSections;
     if (sections.isEmpty || !hasSize) return false;
     final focus = _focus;
-    final current = focus == null
-        ? null
-        : _cellById(focus.sectionId, focus.index);
+    final current = switch (focus) {
+      final focus? => _cellById(focus.sectionId, focus.index),
+      null => null,
+    };
     final CatalogCell? target;
     if (current != null) {
       target = moveCatalogFocus(
@@ -2489,11 +2492,15 @@ class RenderPanelCatalog extends RenderBox
     for (var i = _firstSlotIndexAtOrBelow(limit); i < _slots.length; i++) {
       final slot = _slots[i];
       if (slot.top >= bottom) break;
-      if (slot is! CatalogLeafSlot) continue;
-      if (slot.top >= limit) return _cellById(slot.sectionId, slot.index);
-      partial ??= slot;
+      if (slot case final CatalogLeafSlot leaf) {
+        if (leaf.top >= limit) return _cellById(leaf.sectionId, leaf.index);
+        partial ??= leaf;
+      }
     }
-    return partial == null ? null : _cellById(partial.sectionId, partial.index);
+    return switch (partial) {
+      final partial? => _cellById(partial.sectionId, partial.index),
+      null => null,
+    };
   }
 
   /// Makes [hit] the focused cell (null ends focus). The leaf is always taken

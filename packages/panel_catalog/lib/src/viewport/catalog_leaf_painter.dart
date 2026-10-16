@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/painting.dart';
+import 'package:meta/meta.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_catalog/src/model/catalog_glyph_box.dart'
     show kCirclePlaceholderRadiusFactor;
@@ -230,7 +231,7 @@ final class CatalogLeafPainter {
     final paragraph = _paragraph(
       header.title,
       theme.sectionHeaderStyle,
-      width: math.max(0.0, titleRight - titleLeft),
+      width: math.max<double>(0, titleRight - titleLeft),
       direction: direction,
     );
     final textY = header.top + (header.height - paragraph.height) / 2;
@@ -277,33 +278,38 @@ final class CatalogLeafPainter {
     final icon = action.icon;
     // Left-aligned in a band-wide box: a part is drawn at its own x whatever
     // the direction; the direction only orders its bidirectional text.
-    final labelParagraph = label == null
-        ? null
-        : _paragraph(
-            label,
-            style,
-            width: header.width,
-            direction: direction,
-            align: TextAlign.left,
-          );
-    final iconParagraph = icon == null
-        ? null
-        : _paragraph(
-            String.fromCharCode(icon.codePoint),
-            style.copyWith(
-              fontFamily: icon.fontFamily,
-              package: icon.fontPackage,
-              fontSize: (style.fontSize ?? 14) * _kActionIconScale,
-              fontWeight: FontWeight.w400,
-            ),
-            width: header.width,
-            direction: direction,
-            align: TextAlign.left,
-          );
+    final labelParagraph = switch (label) {
+      final label? => _paragraph(
+        label,
+        style,
+        width: header.width,
+        direction: direction,
+        align: TextAlign.left,
+      ),
+      null => null,
+    };
+    final iconParagraph = switch (icon) {
+      final icon? => _paragraph(
+        String.fromCharCode(icon.codePoint),
+        style.copyWith(
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
+          fontSize: (style.fontSize ?? 14) * _kActionIconScale,
+          fontWeight: FontWeight.w400,
+        ),
+        width: header.width,
+        direction: direction,
+        align: TextAlign.left,
+      ),
+      null => null,
+    };
     final width =
         (labelParagraph?.maxIntrinsicWidth ?? 0) +
         (iconParagraph?.maxIntrinsicWidth ?? 0) +
-        (labelParagraph != null && iconParagraph != null ? _kActionPartGap : 0);
+        switch ((labelParagraph, iconParagraph)) {
+          (_?, _?) => _kActionPartGap,
+          _ => 0,
+        };
     final hitWidth = math.min(
       header.width,
       math.max(
@@ -368,7 +374,7 @@ final class CatalogLeafPainter {
     required CatalogMessageSlot slot,
   }) {
     final inset = _theme.sectionHeaderStartInset;
-    final width = math.max(0.0, slot.width - 2 * inset);
+    final width = math.max<double>(0, slot.width - 2 * inset);
     final paragraph = _paragraph(
       slot.text,
       _messageStyle,
@@ -485,7 +491,7 @@ final class CatalogLeafPainter {
           _needsFrame = true;
           _paintStandIn(canvas, style, glyphRect, alpha: 1 - opacity);
         }
-        if (slot.leaf.key is ContentKey$Unicode) {
+        if (slot.leaf.key case ContentKey$Unicode()) {
           PanelCatalogDiagnostics.glyphParagraphDraws++;
         }
         binding!.paint(canvas, glyphRect, opacity: opacity);
@@ -606,7 +612,7 @@ final class CatalogLeafPainter {
     final phase = period <= 0
         ? 0.0
         : (_frameTime.inMicroseconds % period) / period;
-    final band = math.max(1.0, _viewport.width * 0.5);
+    final band = math.max<double>(1, _viewport.width * 0.5);
     final start = _viewport.left - band + phase * (_viewport.width + band);
     return ui.Gradient.linear(
       Offset(start, 0),
@@ -619,6 +625,7 @@ final class CatalogLeafPainter {
 
 /// Cache key for the painter's text paragraphs: header titles, action labels
 /// and icons, and empty messages (text, style, layout width, alignment).
+@immutable
 final class _TextPaintKey {
   const _TextPaintKey({
     required this.text,

@@ -49,29 +49,27 @@ Widget _candidateApp({
   required PanelCatalogController controller,
   double width = 400,
   double height = 600,
-}) {
-  return MaterialApp(
-    home: PanelCatalogTheme(
-      data: PanelCatalogThemeData.light,
-      child: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: width,
-            height: height,
-            child: PanelCatalogViewport(
-              snapshots: snapshots,
-              assets: assets,
-              controller: controller,
-              spanCount: kBenchSpanCount,
-              cellExtent: kBenchCellExtent,
-              headerExtent: kBenchHeaderExtent,
-            ),
+}) => MaterialApp(
+  home: PanelCatalogTheme(
+    data: PanelCatalogThemeData.light,
+    child: Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: PanelCatalogViewport(
+            snapshots: snapshots,
+            assets: assets,
+            controller: controller,
+            spanCount: kBenchSpanCount,
+            cellExtent: kBenchCellExtent,
+            headerExtent: kBenchHeaderExtent,
           ),
         ),
       ),
     ),
-  );
-}
+  ),
+);
 
 Widget _baselineApp({
   required _BaselineKind kind,
@@ -156,6 +154,9 @@ Future<List<int>> _pumpUntilSettledSamples(
       EnginePhase.sendSemanticsUpdate,
       const Duration(seconds: 3),
     );
+    // A timeout is a FlutterError the harness throws; there is nothing else
+    // to tell it from.
+    // ignore: avoid_catching_errors
   } on FlutterError {
     // Timed out still settling; sampled frames remain valid.
   }
@@ -177,16 +178,10 @@ double _baselineHeaderOffset({
   required int sectionIndex,
   required GlobalKey<BaselineSuperSliverCatalogState> sslKey,
   required GlobalKey<BaselineSliverGridCatalogState> gridKey,
-}) {
-  return switch (kind) {
-    _BaselineKind.superSliver => sslKey.currentState!.headerOffset(
-      sectionIndex,
-    ),
-    _BaselineKind.sliverGrid => gridKey.currentState!.headerOffset(
-      sectionIndex,
-    ),
-  };
-}
+}) => switch (kind) {
+  _BaselineKind.superSliver => sslKey.currentState!.headerOffset(sectionIndex),
+  _BaselineKind.sliverGrid => gridKey.currentState!.headerOffset(sectionIndex),
+};
 
 // ---------------------------------------------------------------------------
 // Suite

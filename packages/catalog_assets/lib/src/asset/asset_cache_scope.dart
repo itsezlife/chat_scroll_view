@@ -46,6 +46,9 @@ import 'package:flutter/foundation.dart';
 /// bind to a baked sprite on an atlas page and never reach the [producer]
 /// (see [GlyphSpriteSource]). Without one they are ordinary entries, which is
 /// how a platform that draws glyphs as text plugs in a producer that does.
+/// The strategy follows the source for the life of a binding, not only at
+/// attach: registering or removing the source moves the bindings already
+/// attached.
 ///
 /// ## Threading
 ///
@@ -116,12 +119,23 @@ final class AssetCacheScope {
 
   /// Registers (or, with null, removes) the source glyph bindings read.
   ///
-  /// Bindings already attached move to the new source in place: each gives
-  /// back its hold on the old one, takes one on the new one and signals its
-  /// listeners, so a host that plans a new atlas replaces it without
-  /// re-attaching every leaf. The scope never disposes a source.
+  /// Every unicode binding already attached moves in place, whichever way it
+  /// was made: each gives back what it held of the old mode (a hold on the old
+  /// source, or its entry when there was none), takes what the new needs (a
+  /// hold on the new source; without one, an entry of the producer) and
+  /// signals its listeners. A host that plans a new atlas replaces it without
+  /// re-attaching every leaf; one that registers its first atlas late, after
+  /// leaves drew as text, moves them onto it; one that drops it sends them
+  /// back to the producer instead of leaving a placeholder. The scope never
+  /// disposes a source. After [dispose] the value is only remembered.
   set glyphSource(GlyphSpriteSource? value) {
     if (identical(_glyphSource, value)) return;
+    if (_disposed) {
+      // Nothing is bound or listened to any more; a source arriving late is a
+      // host's ordering, not a lifecycle bug worth throwing for.
+      _glyphSource = value;
+      return;
+    }
     _glyphSource?.removePageListener(_onGlyphPage);
     _glyphSource = value;
     value?.addPageListener(_onGlyphPage);
@@ -152,20 +166,28 @@ final class AssetCacheScope {
     if (_disposed) {
       throw StateError('AssetCacheScope.attach called after dispose.');
     }
-    final source = _glyphSource;
-    if (key is ContentKey$Unicode && source != null) {
+    if (key case final ContentKey$Unicode glyph) {
       final binding = GlyphBinding(
-        key: key,
+        key: glyph,
         spec: spec,
         profile: profile,
         placeholder: placeholder,
         clock: _clock,
-        source: source,
+        source: _glyphSource,
+        openEntry: () => _attachEntry(key, spec, profile),
         onDetach: _glyphBindings.remove,
       );
       _glyphBindings.add(binding);
       return binding;
     }
+    return _attachEntry(key, spec, profile);
+  }
+
+  _EntryBinding _attachEntry(
+    ContentKey key,
+    AssetSpec spec,
+    AssetProfile profile,
+  ) {
     final entry = _entries.putIfAbsent((key, spec), () => _Entry(key, spec));
     final binding = _EntryBinding(scope: this, entry: entry, profile: profile);
     _unpinned[entry.tier]!.remove(entry);

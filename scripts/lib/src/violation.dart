@@ -14,7 +14,8 @@ enum LintRule {
   /// A leaf package ([DependencyLint]) depends on another workspace member.
   leafDependsOnPackage(
     'content_model and chrome_foundation are leaves: every other package may '
-    'depend on them, so they depend on no workspace package.',
+    'depend on them, so content_model depends on no workspace package and '
+    'chrome_foundation on none but content_model.',
   ),
 
   /// An edge the package topology forbids outright.
@@ -52,9 +53,11 @@ enum LintRule {
 
   /// A pure-Dart package depends on or imports Flutter.
   flutterInPureDartPackage(
-    'content_model is pure Dart: every package depends on it, so it must not '
-    'depend on the Flutter SDK or import package:flutter, a Flutter library '
-    'or dart:ui.',
+    'content_model, emoji_data and emoji_catalog_pack are pure Dart '
+    '(content_model because every package depends on it; the emoji logic '
+    'because it runs without an engine and takes bytes and strings from the '
+    'host), so they must not depend on the Flutter SDK or import '
+    'package:flutter, a Flutter library or dart:ui.',
   ),
 
   /// A [LegacyException] no longer matches any violation.

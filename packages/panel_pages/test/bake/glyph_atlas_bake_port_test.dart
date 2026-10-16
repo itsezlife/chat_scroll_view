@@ -50,7 +50,7 @@ void main() {
     'the page holding the band the catalogue settled on bakes first',
     () async {
       events.publish(
-        PanelCatalogScrollSettled([const ContentKey.unicode('g$_perPage')]),
+        PanelCatalogScrollSettled(const [ContentKey.unicode('g$_perPage')]),
       );
 
       for (var i = 0; i < 60 && atlas.spriteOf('g$_perPage') == null; i++) {

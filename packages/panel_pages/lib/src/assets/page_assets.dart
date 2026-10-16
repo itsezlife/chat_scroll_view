@@ -15,9 +15,11 @@ import 'package:flutter/foundation.dart';
 ///   exist yet.
 ///
 /// The text path is composed whether or not an atlas is registered because the
-/// producer only ever sees unicode keys the glyph source did not take. A
-/// scope whose atlas is dropped later falls back to text for glyphs attached
-/// after that; the viewport never decides the strategy.
+/// producer only ever sees unicode keys the glyph source did not take. The
+/// strategy follows the source for the life of a glyph, not only when it
+/// attaches: glyphs drawn as text move onto an atlas registered later, and
+/// glyphs on an atlas that is dropped go back to the text path (never to a
+/// placeholder that stays); the viewport never decides the strategy.
 abstract final class PageAssets {
   /// A scope that draws unicode glyphs through [glyphSource] when given and as
   /// text otherwise, and everything else through [producer].

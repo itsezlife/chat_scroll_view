@@ -112,7 +112,17 @@ class _GlassSurfaceState extends State<GlassSurface> {
       final programs = await GlassShaders.load();
       if (!mounted) return;
       setState(() => _programs = programs);
-    } on Object {
+    } on Object catch (error, stackTrace) {
+      // The surface keeps working on the flat path; the failure is reported,
+      // not hidden, so a missing shader asset is seen.
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'chrome_foundation',
+          context: ErrorDescription('while loading the glass shaders'),
+        ),
+      );
       if (!mounted) return;
       setState(() => _shadersFailed = true);
     }

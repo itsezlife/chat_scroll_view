@@ -5,6 +5,8 @@
 /// observed through its public offset, flags and `events` Observable.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/animation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
@@ -73,7 +75,7 @@ void main() {
 
     test('jumpToSection stays pending and is not an active jump', () {
       var done = false;
-      controller.jumpToSection(3).then((_) => done = true);
+      unawaited(controller.jumpToSection(3).then((_) => done = true));
 
       expect(controller.isSectionJumpActive, isFalse);
       expect(done, isFalse);
@@ -92,7 +94,7 @@ void main() {
     test('applies the pending section jump and completes with it', () async {
       final position = FakeCatalogScrollPosition();
       var done = false;
-      controller.jumpToSection(3).then((_) => done = true);
+      unawaited(controller.jumpToSection(3).then((_) => done = true));
 
       controller.attach(position);
       expect(position.commands, ['jumpToSection(3)']);

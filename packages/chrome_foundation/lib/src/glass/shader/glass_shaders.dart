@@ -44,24 +44,42 @@ abstract final class GlassShaders {
   /// Whether [ui.ImageFilter.shader] is usable on this backend (Impeller).
   static bool get isSupported => ui.ImageFilter.isShaderFilterSupported;
 
+  /// Where [load] gets the programs from the first time. A test replaces it
+  /// (the shader assets are not in a unit test's bundle) and puts
+  /// [loadFromAssets] back.
+  @visibleForTesting
+  static Future<GlassShaderPrograms> Function() loader = loadFromAssets;
+
   /// Loads programs once; safe to call from multiple widgets.
   static Future<GlassShaderPrograms> load() {
     final existing = _programs;
     if (existing != null) return SynchronousFuture(existing);
-    return _loading ??= () async {
-      final pair = await (
-        ui.FragmentProgram.fromAsset(_liquidAsset),
-        ui.FragmentProgram.fromAsset(_liquidBackdropAsset),
-        ui.FragmentProgram.fromAsset(_frostPrepassAsset),
-      ).wait;
-      final programs = GlassShaderPrograms(
-        liquid: pair.$1,
-        liquidBackdrop: pair.$2,
-        frost: pair.$3,
-      );
-      _programs = programs;
-      return programs;
-    }();
+    return _loading ??= loader();
+  }
+
+  /// Reads the compiled programs from the package's assets.
+  @visibleForTesting
+  static Future<GlassShaderPrograms> loadFromAssets() async {
+    final pair = await (
+      ui.FragmentProgram.fromAsset(_liquidAsset),
+      ui.FragmentProgram.fromAsset(_liquidBackdropAsset),
+      ui.FragmentProgram.fromAsset(_frostPrepassAsset),
+    ).wait;
+    final programs = GlassShaderPrograms(
+      liquid: pair.$1,
+      liquidBackdrop: pair.$2,
+      frost: pair.$3,
+    );
+    _programs = programs;
+    return programs;
+  }
+
+  /// Forgets what was loaded, or failed to, and restores the asset loader.
+  @visibleForTesting
+  static void debugReset() {
+    _programs = null;
+    _loading = null;
+    loader = loadFromAssets;
   }
 
   /// Builds glass filter: frost? → blur → liquid (scene [BackdropFilter] path).

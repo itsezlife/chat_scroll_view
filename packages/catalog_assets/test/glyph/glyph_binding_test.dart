@@ -366,15 +366,38 @@ void main() {
       expect(second.listenerCount, 1);
     });
 
-    test('removing the source leaves live bindings as placeholders', () {
+    test('removing the source gives the hold back and draws as text again', () {
       final source = FakeGlyphSpriteSource(['a'])..bakePage(0);
       final scope = scopeOf(source);
       final binding = scope.attach(_glyph('a'), _keyboardSpec, _profile);
+      var heard = 0;
+      binding.addListener(() => heard++);
 
       scope.glyphSource = null;
 
       expect(source.holdCount(0), 0);
       expect(binding.paintable.sprite, isNull);
+      expect(heard, 1);
+      expect(producer.attempts, hasLength(1), reason: 'the producer path');
+      final glyph = producer.last.advance(AssetStage.full);
+      expect(binding.paintable, same(glyph), reason: 'never a stuck circle');
+      expect(binding.readiness.stage, AssetStage.full);
+      binding.detach();
+      expect(source.holdCount(0), 0);
+    });
+
+    test('a binding that went back to the producer can move to a source', () {
+      final source = FakeGlyphSpriteSource(['a'])..bakePage(0);
+      final scope = scopeOf(source);
+      final binding = scope.attach(_glyph('a'), _keyboardSpec, _profile);
+      scope.glyphSource = null;
+      expect(scope.isAttached(_glyph('a'), _keyboardSpec), isTrue);
+
+      scope.glyphSource = source;
+
+      expect(scope.isAttached(_glyph('a'), _keyboardSpec), isFalse);
+      expect(source.holdCount(0), 1);
+      expect(binding.paintable.sprite, isNotNull);
       binding.detach();
       expect(source.holdCount(0), 0);
     });
@@ -388,6 +411,77 @@ void main() {
       scope.glyphSource = second;
 
       expect(second.holdCount(0), 0);
+    });
+  });
+
+  group('registering the source after bindings attached', () {
+    // A unicode leaf can attach before the atlas exists (a source that pages
+    // its collections plans it late). It must not stay a paragraph for good.
+    test('moves a binding made without a source onto it, with its hold', () {
+      final scope = scopeOf();
+      final binding = scope.attach(_glyph('a'), _keyboardSpec, _profile);
+      producer.last.advance(AssetStage.full);
+      var heard = 0;
+      binding.addListener(() => heard++);
+      final source = FakeGlyphSpriteSource(['a']);
+
+      scope.glyphSource = source;
+
+      expect(source.holdCount(0), 1);
+      expect(heard, 1);
+      expect(binding.paintable.sprite, isNull, reason: 'a circle until baked');
+      expect(binding.readiness.stage, AssetStage.placeholder);
+      source.bakePage(0);
+      expect(binding.paintable.sprite, isNotNull);
+      expect(heard, 2);
+    });
+
+    test('draws no paragraph from the moment it is registered', () {
+      final scope = scopeOf();
+      final binding = scope.attach(_glyph('a'), _keyboardSpec, _profile);
+      final paragraph = producer.last.advance(AssetStage.full);
+      expect(binding.paintable, same(paragraph));
+
+      scope.glyphSource = FakeGlyphSpriteSource(['a']);
+
+      expect(binding.paintable, isNot(same(paragraph)));
+      expect(binding.paintable.sprite, isNull);
+    });
+
+    test('a slow, paged source: placeholders until each page bakes', () {
+      final source = FakeGlyphSpriteSource(['a', 'b', 'c', 'd']);
+      final scope = scopeOf();
+      final first = scope.attach(_glyph('a'), _keyboardSpec, _profile);
+      final last = scope.attach(_glyph('d'), _keyboardSpec, _profile);
+      scope.glyphSource = source;
+
+      expect(first.paintable.sprite, isNull);
+      expect(last.paintable.sprite, isNull);
+      source.bakePage(0);
+      expect(first.paintable.sprite, isNotNull);
+      expect(last.paintable.sprite, isNull);
+      source.bakePage(1);
+      expect(last.paintable.sprite, isNotNull);
+    });
+
+    test('a binding detached before the source arrives takes no hold', () {
+      final scope = scopeOf();
+      scope.attach(_glyph('a'), _keyboardSpec, _profile).detach();
+      final source = FakeGlyphSpriteSource(['a']);
+
+      scope.glyphSource = source;
+
+      expect(source.holdCount(0), 0);
+    });
+
+    test('is ignored, and listens to nothing, after the scope is disposed', () {
+      final source = FakeGlyphSpriteSource(['a']);
+      final scope = scopeOf()..dispose();
+
+      scope.glyphSource = source;
+
+      expect(source.listenerCount, 0);
+      expect(source.holdCount(0), 0);
     });
   });
 

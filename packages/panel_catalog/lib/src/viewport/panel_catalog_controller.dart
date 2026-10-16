@@ -275,7 +275,9 @@ final class PanelCatalogController {
   /// Publishes [event] to [events] listeners. Viewport-only.
   @internal
   void publish(PanelCatalogScrollEvent event) {
-    if (event is PanelCatalogCurrentSectionChanged) _currentSection = event;
+    if (event case final PanelCatalogCurrentSectionChanged current) {
+      _currentSection = current;
+    }
     _events.publish(event);
   }
 

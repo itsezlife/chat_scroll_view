@@ -10,8 +10,8 @@ typedef EmojiTabAssetLoader = Future<ByteData> Function(String key);
 
 /// The pictures of the category strip, as chrome icon painters.
 ///
-/// The art is Telegram's, single-colour alpha masks bundled with this package
-/// and drawn tinted with the icon's colour.
+/// The art is the reference client's: single-colour alpha masks bundled with
+/// this package and drawn tinted with the icon's colour.
 abstract final class EmojiTabIcons {
   /// The package the art is bundled in.
   static const String package = 'panel_pages';
@@ -32,9 +32,10 @@ abstract final class EmojiTabIcons {
   /// The bundle key of [id]'s art, or null for an id that is not a tab's.
   static String? assetKeyOf(ChromeIconId id) {
     final name = assets[id];
-    return name == null
-        ? null
-        : 'packages/$package/assets/emoji_tabs/$name.webp';
+    return switch (name) {
+      final name? => 'packages/$package/assets/emoji_tabs/$name.webp',
+      null => null,
+    };
   }
 
   static final _cache = <String, Future<ui.Image>>{};
@@ -129,9 +130,10 @@ class _EmojiTabIconScopeState extends State<EmojiTabIconScope> {
     final key = EmojiTabIcons.assetKeyOf(id)!;
     final loader = widget.loader;
     try {
-      final image = loader == null
-          ? await EmojiTabIcons.imageFor(key)
-          : await EmojiTabIcons.decode(loader(key));
+      final image = switch (loader) {
+        final loader? => await EmojiTabIcons.decode(loader(key)),
+        null => await EmojiTabIcons.imageFor(key),
+      };
       if (_disposed) {
         if (loader != null) image.dispose();
         return;

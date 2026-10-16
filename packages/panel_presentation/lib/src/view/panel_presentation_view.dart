@@ -1,8 +1,8 @@
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_presentation/src/controller/panel_presentation_controller.dart';
 import 'package:panel_presentation/src/kind/panel_visibility.dart';
 import 'package:panel_presentation/src/strategy/panel_presentation_strategy.dart';
-import 'package:panel_presentation/src/view/value_observable_builder.dart';
 
 /// The mounted presentation: projects the visibility state of a
 /// [PanelPresentationController] through the strategy of the active kind.

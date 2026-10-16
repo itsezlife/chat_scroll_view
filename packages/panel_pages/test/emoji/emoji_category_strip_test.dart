@@ -10,6 +10,7 @@ library;
 import 'dart:async';
 import 'dart:ui' show Tristate;
 
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -75,14 +76,32 @@ void main() {
   );
   tearDown(() => handle.dispose());
 
-  Future<void> pump(WidgetTester tester) => tester.pumpWidget(
+  Future<void> pump(
+    WidgetTester tester, {
+    double width = 360,
+    ChromeMotionSpeed speed = ChromeMotionSpeed.normal,
+  }) => tester.pumpWidget(
     PanelShellTestScope(
+      speed: speed,
       child: Align(
         alignment: Alignment.topLeft,
-        child: SizedBox(width: 360, child: EmojiCategoryStrip(handle: handle)),
+        child: SizedBox(
+          width: width,
+          child: EmojiCategoryStrip(handle: handle),
+        ),
       ),
     ),
   );
+
+  double stripOffset(WidgetTester tester) => tester
+      .state<ScrollableState>(
+        find.descendant(
+          of: find.byType(EmojiCategoryStrip),
+          matching: find.byType(Scrollable),
+        ),
+      )
+      .position
+      .pixels;
 
   bool selected(WidgetTester tester, String label) =>
       tester
@@ -155,6 +174,34 @@ void main() {
         ),
       );
       semantics.dispose();
+    });
+  });
+
+  group('revealing the active tab', () {
+    // 4 tabs of 30 + 3 in a 100 px strip: the last one starts off screen.
+    testWidgets('slides over the fade role at normal speed', (tester) async {
+      await pump(tester, width: 100);
+
+      handle.enter('$_flags', 4);
+      await tester.pump();
+      await tester.pump(); // the animation's first frame
+      await tester.pump(const Duration(milliseconds: 100));
+      final partway = stripOffset(tester);
+      await tester.pump(const Duration(milliseconds: 150));
+
+      expect(partway, greaterThan(0));
+      expect(stripOffset(tester), greaterThan(partway));
+      await tester.pumpAndSettle();
+      expect(stripOffset(tester), 51);
+    });
+
+    testWidgets('lands at once when motion is instant', (tester) async {
+      await pump(tester, width: 100, speed: ChromeMotionSpeed.instant);
+
+      handle.enter('$_flags', 4);
+      await tester.pump();
+
+      expect(stripOffset(tester), 51);
     });
   });
 

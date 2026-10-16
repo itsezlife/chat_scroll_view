@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/src/catalog/emoji_catalog.dart';
 import 'package:emoji_data/src/collections/emoji_items.dart';
+import 'package:emoji_data/src/collections/emoji_spoken_names.dart';
 import 'package:emoji_data/src/search/keyword_index.dart';
 
 /// Emoji search as a [SearchSource]: a query over the keywords of an ordered
@@ -30,7 +31,9 @@ import 'package:emoji_data/src/search/keyword_index.dart';
 ///
 /// A hit on an entry's base key is shown as the variant the user chose for
 /// it, like the grid. Emoji the [GlyphSupport] says the device cannot draw
-/// are left out. Searching is not use: nothing is recorded.
+/// are left out. Each item carries the spoken name of its emoji from the first
+/// of [languages] whose pack names it. Searching is not use: nothing is
+/// recorded.
 ///
 /// ## Lifecycle
 ///
@@ -103,7 +106,10 @@ final class EmojiSearchSource implements SearchSource {
   @override
   Future<void> search(String query) async {
     if (_disposed) return;
-    final retry = _results.value.contents is CollectionContents$Failed;
+    final retry = switch (_results.value.contents) {
+      CollectionContents$Failed() => true,
+      _ => false,
+    };
     if (query == _query && !retry) return;
     _query = query;
     final generation = ++_generation;
@@ -121,10 +127,11 @@ final class EmojiSearchSource implements SearchSource {
   @override
   Future<void> loadMore() async {
     if (_disposed || _loadingMore) return;
-    final contents = _results.value.contents;
-    if (contents is! CollectionContents$Loaded ||
-        contents.nextPageToken == null) {
-      return;
+    switch (_results.value.contents) {
+      case CollectionContents$Loaded(nextPageToken: != null):
+        break;
+      case _:
+        return;
     }
     _loadingMore = true;
     final generation = _generation;
@@ -160,6 +167,7 @@ final class EmojiSearchSource implements SearchSource {
       return;
     }
     if (_disposed || generation != _generation) return;
+    _items.spokenNames = EmojiSpokenNames(_catalog, packs);
     _ranked = _rank(_folded(_query), packs);
     _pages = 1;
     _publishLoaded();
@@ -169,30 +177,35 @@ final class EmojiSearchSource implements SearchSource {
   // no loading state in between since results are already on screen.
   void _rerun() {
     if (_disposed || _folded(_query).isEmpty) return;
-    final contents = _results.value.contents;
-    if (contents is! CollectionContents$Loaded &&
-        contents is! CollectionContents$Failed) {
-      return;
+    switch (_results.value.contents) {
+      case CollectionContents$Loaded() || CollectionContents$Failed():
+        break;
+      case CollectionContents$Idle() || CollectionContents$Loading():
+        return;
     }
     final generation = _generation;
     unawaited(() async {
       final List<KeywordPack> packs;
       try {
         packs = await _packs();
-      } on Object {
+      } on Object catch (error, stackTrace) {
+        // The results already on screen stay; the failure goes to the zone
+        // like any other nobody awaits.
+        Zone.current.handleUncaughtError(error, stackTrace);
         return;
       }
       if (_disposed || generation != _generation) return;
+      _items.spokenNames = EmojiSpokenNames(_catalog, packs);
       _ranked = _rank(_folded(_query), packs);
       _publishLoaded();
     }());
   }
 
   void _rederive() {
-    if (_disposed || _results.value.contents is! CollectionContents$Loaded) {
-      return;
+    if (_disposed) return;
+    if (_results.value.contents case CollectionContents$Loaded()) {
+      _publishLoaded();
     }
-    _publishLoaded();
   }
 
   Future<List<KeywordPack>> _packs() async {
@@ -246,9 +259,10 @@ final class EmojiSearchSource implements SearchSource {
       if (item != null && seen.add(item.key)) items.add(item);
     }
     final size = _pageSize;
-    final shown = size == null
-        ? items.length
-        : (_pages * size).clamp(0, items.length);
+    final shown = switch (size) {
+      final size? => (_pages * size).clamp(0, items.length),
+      null => items.length,
+    };
     _results.value = Collection(
       id: CollectionId.query(_query),
       contents: CollectionContents.loaded(

@@ -417,7 +417,7 @@ unit-tested; these are not:
 [ADR 006](../../../../docs/adr/006-panel-catalog-viewport.md), marked pending
 there): scope-provided shared asset cache; per-section layout, snapshot data
 source and attach-and-position controller are built; the paintable contract
-that replaces the sprite capability now carried on `CatalogAssetBinding` is
+that replaces the old sprite capability, carried on the asset binding, is
 built (see the asset-binding A/B below).
 
 ## Follow-on: animated media

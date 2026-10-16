@@ -5,7 +5,7 @@ import 'package:panel_presentation/src/policy/panel_window.dart';
 ///
 /// Plain values so a host can adjust one without forking the strategy. The
 /// defaults are the shipped ones: the search expansion, the hand-off timeout
-/// and the default keyboard height of Telegram Android; the larger-window
+/// and the default keyboard height of the reference client; the larger-window
 /// heights and the cold-open delay are chosen defaults.
 @immutable
 final class KeyboardReplacementTuning {

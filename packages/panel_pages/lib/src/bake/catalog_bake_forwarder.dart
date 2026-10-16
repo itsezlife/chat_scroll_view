@@ -77,7 +77,7 @@ final class CatalogBakeForwarder {
       case PanelCatalogScrollSettled(:final visibleKeys):
         final glyphs = [
           for (final key in visibleKeys)
-            if (key is ContentKey$Unicode) key.sequence,
+            if (key case ContentKey$Unicode(:final sequence)) sequence,
         ];
         _settled = glyphs;
         _port?.prioritise(glyphs);

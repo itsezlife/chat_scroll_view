@@ -55,7 +55,10 @@ final class CatalogSnapshotBuilder {
     PanelStrings strings,
   ) {
     final contents = collection.contents;
-    final loaded = contents is CollectionContents$Loaded;
+    final loaded = switch (contents) {
+      CollectionContents$Loaded() => true,
+      _ => false,
+    };
     return CatalogSection(
       id: id,
       title: policy.titleOf(collection, strings),

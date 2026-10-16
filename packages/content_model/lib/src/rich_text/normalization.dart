@@ -16,7 +16,10 @@ final class EntityFitException implements Exception {
   final Entity? entity;
 
   @override
-  String toString() => entity == null ? message : '$entity: $message';
+  String toString() => switch (entity) {
+    final entity? => '$entity: $message',
+    null => message,
+  };
 }
 
 /// The canonical entity list for [plain], or an [EntityFitException] when
@@ -152,10 +155,13 @@ void _shape(String plain, Entity entity, List<Entity> out) {
   }
 }
 
-bool _isTextStyle(EntityKind kind) =>
-    kind is EntityKind$Style &&
-    kind.style != EntityStyle.code &&
-    kind.style != EntityStyle.quote;
+bool _isTextStyle(EntityKind kind) => switch (kind) {
+  EntityKind$Style(:final style) =>
+    style != EntityStyle.code && style != EntityStyle.quote,
+  EntityKind$Link() ||
+  EntityKind$Mention() ||
+  EntityKind$InlineContent() => false,
+};
 
 Entity _widenToLines(String plain, Entity entity) {
   var start = entity.offset;
@@ -269,7 +275,10 @@ void _checkOverlap(Entity a, Entity b) {
       throw EntityFitException('Atomic entities cannot overlap: $a and $b.');
     }
     final (atom, other) = aKind.isAtomic ? (a, b) : (b, a);
-    if (other.kind is EntityKind$Link && atom.kind is EntityKind$Mention) {
+    if ((other.kind, atom.kind) case (
+      EntityKind$Link(),
+      EntityKind$Mention(),
+    )) {
       throw EntityFitException('A link cannot overlap a mention: $a and $b.');
     }
     if (_isCode(other)) {
@@ -282,14 +291,14 @@ void _checkOverlap(Entity a, Entity b) {
   }
   if (_isCode(a) || _isCode(b)) {
     final (code, other) = _isCode(a) ? (a, b) : (b, a);
-    if (other.kind is EntityKind$Link) {
+    if (other.kind case EntityKind$Link()) {
       throw EntityFitException('A link cannot overlap code: $a and $b.');
     }
     if (!_covers(other, code)) {
       throw EntityFitException('$other cuts into the code $code.');
     }
   }
-  if (aKind is EntityKind$Link && bKind is EntityKind$Link) {
+  if ((aKind, bKind) case (EntityKind$Link(), EntityKind$Link())) {
     throw EntityFitException('Links cannot overlap: $a and $b.');
   }
 }

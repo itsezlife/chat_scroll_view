@@ -329,6 +329,63 @@ void main() {
       expect(controller.searchBusy.value, isTrue);
     });
 
+    group('the progress ring', () {
+      double turns(WidgetTester tester) => tester
+          .widget<RotationTransition>(
+            find.descendant(
+              of: find.byType(PanelSearchField),
+              matching: find.byType(RotationTransition),
+            ),
+          )
+          .turns
+          .value;
+
+      Future<void> startBusy(
+        WidgetTester tester, {
+        ChromeMotionSpeed speed = ChromeMotionSpeed.normal,
+        ChromeMotion? motion,
+      }) async {
+        build();
+        await pump(
+          tester,
+          wrap: (shell) =>
+              ChromeMotionScope(motion: motion, speed: speed, child: shell),
+        );
+        controller.openSearch();
+        await tester.pumpAndSettle();
+        emoji.host!.reportSearchProgress(busy: true);
+        await tester.pump();
+      }
+
+      testWidgets('turns once per loop period of the motion table', (
+        tester,
+      ) async {
+        await startBusy(tester);
+        await tester.pump(const Duration(milliseconds: 450));
+        expect(turns(tester), closeTo(0.5, 0.02), reason: 'standard: 900 ms');
+      });
+
+      testWidgets('follows a slower loop role', (tester) async {
+        await startBusy(
+          tester,
+          motion: const ChromeMotion.standard().copyWith(
+            loop: const MotionSpec(Duration(seconds: 2), Curves.linear),
+          ),
+        );
+        await tester.pump(const Duration(seconds: 1));
+        expect(turns(tester), closeTo(0.5, 0.02));
+      });
+
+      testWidgets('stands still, and lets the frame settle, when motion is '
+          'instant', (tester) async {
+        await startBusy(tester, speed: ChromeMotionSpeed.instant);
+
+        await tester.pump(const Duration(milliseconds: 450));
+        expect(turns(tester), 0);
+        await tester.pumpAndSettle();
+      });
+    });
+
     testWidgets('the query survives switching between searchable pages', (
       tester,
     ) async {

@@ -1,12 +1,13 @@
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/src/catalog/emoji_catalog.dart';
+import 'package:emoji_data/src/collections/emoji_spoken_names.dart';
 
 /// Turns catalogue entries and keys into the [CollectionItem]s a page shows:
 /// the one place that applies the user's variant choice and the device's
 /// glyph support, so a grid and search results cannot disagree about either.
 final class EmojiItems {
   /// Creates the resolver over [catalog] and the two stores that shape it.
-  const EmojiItems({
+  EmojiItems({
     required this.catalog,
     required this.preferences,
     this.glyphSupport,
@@ -20,6 +21,10 @@ final class EmojiItems {
 
   /// Says which keys the device can draw; null shows everything.
   final GlyphSupport? glyphSupport;
+
+  /// What a screen reader says for an emoji, once the packs of the active
+  /// languages are known; null leaves the items unnamed.
+  EmojiSpokenNames? spokenNames;
 
   /// The key the grid shows for [entry]: the chosen variant, else the base.
   ///
@@ -37,10 +42,10 @@ final class EmojiItems {
   }
 
   /// The item for [entry] as the grid shows it, or null when hidden.
-  CollectionItem? itemOf(EmojiEntry entry) {
-    final key = shownKey(entry);
-    return key == null ? null : describe(key);
-  }
+  CollectionItem? itemOf(EmojiEntry entry) => switch (shownKey(entry)) {
+    final key? => describe(key),
+    null => null,
+  };
 
   /// The item for a key taken as it is (a recent), or null when the device
   /// cannot draw it. A key that is not a unicode key stays a bare item.
@@ -51,14 +56,14 @@ final class EmojiItems {
   };
 
   /// The described item of the unicode emoji [key].
-  static CollectionItem describe(ContentKey$Unicode key) =>
-      CollectionItem.described(
-        ContentDescriptor(
-          key: key,
-          semanticKind: SemanticKind.unicodeEmoji,
-          mediaForm: MediaForm.glyph,
-        ),
-      );
+  CollectionItem describe(ContentKey$Unicode key) => CollectionItem.described(
+    ContentDescriptor(
+      key: key,
+      semanticKind: SemanticKind.unicodeEmoji,
+      mediaForm: MediaForm.glyph,
+      spokenName: spokenNames?.of(key),
+    ),
+  );
 
   bool _supports(ContentKey$Unicode key) => glyphSupport?.supports(key) ?? true;
 }

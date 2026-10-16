@@ -48,8 +48,9 @@ Future<String> computeGlyphArtFingerprint({
     hashes.add(hashGlyphPixels(await pixelsOf(glyph)));
   }
   // Order is part of the identity: the list is hashed, not a set of hashes.
-  final identity = supplement == null
-      ? hashes.join('.')
-      : '${hashes.join('.')}|$supplement';
+  final identity = switch (supplement) {
+    final supplement? => '${hashes.join('.')}|$supplement',
+    null => hashes.join('.'),
+  };
   return 'art1-${hashGlyphPixels(Uint8List.fromList(utf8.encode(identity)))}';
 }

@@ -6,6 +6,11 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- The search field's progress ring turns on the `loop` motion role and stands
+  still under an instant speed, instead of spinning at a literal 900 ms.
+
 ### Added
 
 - `PanelPage` registry entries (`PanelTab`, `PageCapabilities`, `PageAction`)

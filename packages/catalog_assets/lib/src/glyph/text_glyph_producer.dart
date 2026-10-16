@@ -56,11 +56,10 @@ final class TextGlyphProducer implements AssetProducer {
     AssetProgress progress,
     AssetDemand demand,
   ) {
-    final key = request.key;
-    if (key is ContentKey$Unicode) {
+    if (request.key case ContentKey$Unicode(:final sequence)) {
       progress.advance(
         AssetStage.full,
-        _TextGlyphPaintable(key.sequence, fontScale),
+        _TextGlyphPaintable(sequence, fontScale),
         bytes: paragraphBytes,
       );
       return const _FinishedTask();

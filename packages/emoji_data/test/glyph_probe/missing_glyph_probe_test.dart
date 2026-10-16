@@ -243,6 +243,59 @@ void main() {
     });
   });
 
+  group('disposal in flight', () {
+    test('fails the art version with a defined error instead of a null '
+        'check', () async {
+      final version = Completer<String>();
+      final subject = probe(['a'], producer: () => version.future);
+      final asked = subject.artVersionReady();
+      final failed = expectLater(asked, throwsStateError);
+
+      subject.dispose();
+      version.complete('art-1');
+
+      await failed;
+      expect(subject.artVersion, isNull);
+      await expectLater(subject.artVersionReady(), throwsStateError);
+    });
+
+    test(
+      'completes `completed` without claiming the probe is complete',
+      () async {
+        final subject = probe(['a'])..observe('a', _art(1));
+
+        subject.dispose();
+
+        await subject.completed.timeout(const Duration(seconds: 1));
+        expect(subject.isComplete, isFalse);
+      },
+    );
+
+    test('completes a `completed` that was already being awaited', () async {
+      final subject = probe(['a', 'b']);
+      final waiting = subject.completed;
+
+      subject.dispose();
+
+      await waiting.timeout(const Duration(seconds: 1));
+    });
+
+    test(
+      'a write that finishes after disposal does not complete twice',
+      () async {
+        final subject = probe(['a']);
+        await subject.start();
+        subject
+          ..observe(_reference, _tofu)
+          ..observe('a', _art(1))
+          ..dispose();
+
+        await pumpEventQueue();
+        await subject.completed;
+      },
+    );
+  });
+
   group('persistence', () {
     test('writes one record once every glyph has a verdict', () async {
       await observed(['a', 'b'], cells: {'b': _tofu});

@@ -204,7 +204,12 @@ final class PanelPresentationController {
           _commit(current.withKind(target));
         }
       case PanelVisibility$Hiding(kind: final active):
-        _commit(PanelVisibility.showing(kind == null ? active : target));
+        _commit(
+          PanelVisibility.showing(switch (kind) {
+            null => active,
+            _ => target,
+          }),
+        );
     }
   }
 
@@ -216,9 +221,10 @@ final class PanelPresentationController {
   void hide({bool waitForIme = false}) {
     if (_disposed) return;
     final current = _state.value;
-    if (current is PanelVisibility$Showing ||
-        current is PanelVisibility$Shown) {
-      _commit(PanelVisibility.hiding(current.kind!, waitForIme: waitForIme));
+    if (current
+        case PanelVisibility$Showing(:final kind) ||
+            PanelVisibility$Shown(:final kind)) {
+      _commit(PanelVisibility.hiding(kind, waitForIme: waitForIme));
     }
   }
 
@@ -227,8 +233,7 @@ final class PanelPresentationController {
   void toggle({PanelPresentation? kind}) {
     if (_disposed) return;
     final current = _state.value;
-    if (current is PanelVisibility$Showing ||
-        current is PanelVisibility$Shown) {
+    if (current case PanelVisibility$Showing() || PanelVisibility$Shown()) {
       hide();
     } else {
       show(kind: kind);
@@ -269,15 +274,15 @@ final class PanelPresentationController {
     final current = _state.value;
     final windowClass = window.windowClass;
     if (windowClass != before) {
-      if (current.kind is Docked && !policy.canDock(windowClass)) {
+      if (current.kind case Docked() when !policy.canDock(windowClass)) {
         _commit(current.withKind(policy.defaultKind(windowClass: windowClass)));
         _demotedByWindow = true;
         return;
       }
-      if (_demotedByWindow &&
-          current.kind is AnchoredPopup &&
-          _dockPreferred.value &&
-          policy.canDock(windowClass)) {
+      if (current.kind case AnchoredPopup()
+          when _demotedByWindow &&
+              _dockPreferred.value &&
+              policy.canDock(windowClass)) {
         _commit(current.withKind(const Docked()));
         return;
       }
@@ -380,12 +385,12 @@ final class PanelPresentationController {
     _dockPreferred.value = preferred;
     final current = _state.value;
     if (preferred) {
-      if (current.kind is AnchoredPopup &&
-          policy.canDock(_window.value.windowClass)) {
+      if (current.kind case AnchoredPopup()
+          when policy.canDock(_window.value.windowClass)) {
         _commit(current.withKind(const Docked()));
         return;
       }
-    } else if (current.kind is Docked) {
+    } else if (current.kind case Docked()) {
       hide();
       return;
     }

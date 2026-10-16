@@ -39,9 +39,7 @@ void main() {
   });
 
   test('releases the paragraph it evicts, and only that one', () {
-    for (final key in ['a', 'b', 'c']) {
-      obtain(key);
-    }
+    ['a', 'b', 'c'].forEach(obtain);
 
     obtain('d');
 
@@ -50,9 +48,7 @@ void main() {
   });
 
   test('a lookup keeps its entry alive: the least recently used goes', () {
-    for (final key in ['a', 'b', 'c']) {
-      obtain(key);
-    }
+    ['a', 'b', 'c'].forEach(obtain);
     obtain('a');
 
     obtain('d');
@@ -62,9 +58,7 @@ void main() {
   });
 
   test('clear releases every paragraph', () {
-    for (final key in ['a', 'b']) {
-      obtain(key);
-    }
+    ['a', 'b'].forEach(obtain);
 
     cache.clear();
 

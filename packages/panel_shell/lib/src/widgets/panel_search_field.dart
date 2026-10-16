@@ -318,10 +318,22 @@ class _Progress extends StatefulWidget {
 
 class _ProgressState extends State<_Progress>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _spin = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  )..repeat();
+  late final AnimationController _spin = AnimationController(vsync: this);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // One turn per period of the loop role; under an instant speed the ring
+    // stands still instead of looping at no duration.
+    final period = ChromeMotionScope.of(context).durationOf(MotionRole.loop);
+    if (period == Duration.zero) {
+      _spin.stop();
+    } else if (_spin.duration != period || !_spin.isAnimating) {
+      _spin
+        ..duration = period
+        ..repeat();
+    }
+  }
 
   @override
   void dispose() {

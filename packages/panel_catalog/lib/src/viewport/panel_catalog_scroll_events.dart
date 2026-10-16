@@ -1,4 +1,5 @@
 import 'package:content_model/content_model.dart';
+import 'package:meta/meta.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 
 /// Sealed hierarchy of scroll-side events emitted by [PanelCatalogViewport].
@@ -27,8 +28,92 @@ import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 /// that an edge of a section is close to what the user sees, so a page can
 /// load the section or load more of it. It is no motion and does not move the
 /// activity facts, so whoever paces background work on them is unaffected.
+@immutable
 sealed class PanelCatalogScrollEvent {
   const PanelCatalogScrollEvent();
+
+  /// A user drag began; see [PanelCatalogUserDragStart].
+  const factory PanelCatalogScrollEvent.userDragStart() =
+      PanelCatalogUserDragStart;
+
+  /// A user drag ended at [velocity]; see [PanelCatalogUserDragEnd].
+  const factory PanelCatalogScrollEvent.userDragEnd(double velocity) =
+      PanelCatalogUserDragEnd;
+
+  /// A user drag was cancelled; see [PanelCatalogUserDragCancel].
+  const factory PanelCatalogScrollEvent.userDragCancel() =
+      PanelCatalogUserDragCancel;
+
+  /// A fling started at [velocity]; see [PanelCatalogFlingStart].
+  const factory PanelCatalogScrollEvent.flingStart(double velocity) =
+      PanelCatalogFlingStart;
+
+  /// A fling ended; see [PanelCatalogFlingEnd].
+  const factory PanelCatalogScrollEvent.flingEnd() = PanelCatalogFlingEnd;
+
+  /// A jump to [offset]; see [PanelCatalogProgrammaticJump].
+  const factory PanelCatalogScrollEvent.programmaticJump(double offset) =
+      PanelCatalogProgrammaticJump;
+
+  /// An animation to [offset] over [duration] started; see
+  /// [PanelCatalogAnimateStart].
+  const factory PanelCatalogScrollEvent.animateStart(
+    double offset,
+    Duration duration,
+  ) = PanelCatalogAnimateStart;
+
+  /// An animation ended at [offset]; see [PanelCatalogAnimateEnd].
+  const factory PanelCatalogScrollEvent.animateEnd(double offset) =
+      PanelCatalogAnimateEnd;
+
+  /// A pixel [delta] was applied; see [PanelCatalogViewportScrolled].
+  const factory PanelCatalogScrollEvent.viewportScrolled(double delta) =
+      PanelCatalogViewportScrolled;
+
+  /// A jump to section [sectionIndex] began; see
+  /// [PanelCatalogSectionJumpStart].
+  const factory PanelCatalogScrollEvent.sectionJumpStart(
+    int sectionIndex,
+    double targetOffset, {
+    bool farPath,
+  }) = PanelCatalogSectionJumpStart;
+
+  /// A jump to section [sectionIndex] ended; see [PanelCatalogSectionJumpEnd].
+  const factory PanelCatalogScrollEvent.sectionJumpEnd(int sectionIndex) =
+      PanelCatalogSectionJumpEnd;
+
+  /// The offset was written; see [PanelCatalogOffsetChanged].
+  const factory PanelCatalogScrollEvent.offsetChanged(
+    double offset,
+    double delta,
+  ) = PanelCatalogOffsetChanged;
+
+  /// The catalog started or stopped moving; see
+  /// [PanelCatalogScrollingChanged].
+  const factory PanelCatalogScrollEvent.scrollingChanged({
+    required bool scrolling,
+  }) = PanelCatalogScrollingChanged;
+
+  /// The catalog came to rest over [visibleKeys]; see
+  /// [PanelCatalogScrollSettled].
+  factory PanelCatalogScrollEvent.scrollSettled(List<ContentKey> visibleKeys) =
+      PanelCatalogScrollSettled;
+
+  /// An edge of a section came near; see [PanelCatalogSectionNearViewport].
+  const factory PanelCatalogScrollEvent.sectionNearViewport(
+    String sectionId,
+    CatalogSectionEdge edge,
+  ) = PanelCatalogSectionNearViewport;
+
+  /// Roving focus moved to [leaf]; see [PanelCatalogFocusChanged].
+  const factory PanelCatalogScrollEvent.focusChanged(CatalogLeafHit? leaf) =
+      PanelCatalogFocusChanged;
+
+  /// The current section changed; see [PanelCatalogCurrentSectionChanged].
+  const factory PanelCatalogScrollEvent.currentSectionChanged(
+    int sectionIndex,
+    String sectionId,
+  ) = PanelCatalogCurrentSectionChanged;
 }
 
 /// User touched the viewport and started dragging.

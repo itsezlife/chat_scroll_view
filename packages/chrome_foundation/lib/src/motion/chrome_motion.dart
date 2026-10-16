@@ -38,6 +38,10 @@ enum MotionRole {
 
   /// Interpolating between two chrome themes.
   themeSwitch,
+
+  /// One turn of an indeterminate loop, such as a progress ring. Under an
+  /// instant speed nothing loops: the component shows its resting frame.
+  loop,
 }
 
 /// The **motion role** table: one [MotionSpec] per [MotionRole].
@@ -49,7 +53,7 @@ enum MotionRole {
 /// Durations here are the design durations at normal speed; the scope's
 /// `ChromeMotionSpeed` scales them. The values are the ones the previous
 /// chrome shipped, except `popupShow`, `popupHide` and `headerReveal`, which
-/// are chosen defaults not yet checked against the Telegram clients.
+/// are chosen defaults not yet checked against the reference client.
 @immutable
 final class ChromeMotion {
   /// A motion table with every role given.
@@ -65,6 +69,7 @@ final class ChromeMotion {
     required this.popupHide,
     required this.presentationSwitch,
     required this.themeSwitch,
+    required this.loop,
   });
 
   /// The shipped defaults.
@@ -88,12 +93,14 @@ final class ChromeMotion {
       ),
       popupHide = const MotionSpec(Duration(milliseconds: 150), Curves.easeIn),
       presentationSwitch = const MotionSpec(_quarterSecond, androidListCurve),
-      themeSwitch = const MotionSpec(_quarterSecond, Curves.linear);
+      themeSwitch = const MotionSpec(_quarterSecond, Curves.linear),
+      loop = const MotionSpec(Duration(milliseconds: 900), Curves.linear);
 
   static const Duration _quarterSecond = Duration(milliseconds: 250);
 
-  /// The cubic Telegram Android uses for list and panel transitions, measured
-  /// from its interpolator rather than approximated by a named Flutter curve.
+  /// The cubic the reference client uses for list and panel transitions,
+  /// measured from its interpolator rather than approximated by a named
+  /// Flutter curve.
   static const Cubic androidListCurve = Cubic(
     0.19919472913616398,
     0.010644531250000006,
@@ -134,6 +141,9 @@ final class ChromeMotion {
   /// [MotionRole.themeSwitch].
   final MotionSpec themeSwitch;
 
+  /// [MotionRole.loop].
+  final MotionSpec loop;
+
   /// The spec playing [role].
   MotionSpec operator [](MotionRole role) => switch (role) {
     MotionRole.listTransition => listTransition,
@@ -147,6 +157,7 @@ final class ChromeMotion {
     MotionRole.popupHide => popupHide,
     MotionRole.presentationSwitch => presentationSwitch,
     MotionRole.themeSwitch => themeSwitch,
+    MotionRole.loop => loop,
   };
 
   /// A copy with the named roles replaced.
@@ -162,6 +173,7 @@ final class ChromeMotion {
     MotionSpec? popupHide,
     MotionSpec? presentationSwitch,
     MotionSpec? themeSwitch,
+    MotionSpec? loop,
   }) => ChromeMotion(
     listTransition: listTransition ?? this.listTransition,
     panelSlide: panelSlide ?? this.panelSlide,
@@ -174,6 +186,7 @@ final class ChromeMotion {
     popupHide: popupHide ?? this.popupHide,
     presentationSwitch: presentationSwitch ?? this.presentationSwitch,
     themeSwitch: themeSwitch ?? this.themeSwitch,
+    loop: loop ?? this.loop,
   );
 
   @override

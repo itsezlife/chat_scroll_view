@@ -34,6 +34,12 @@ void main() {
       }
     });
 
+    test('the loop role is one turn of a progress ring: 900 ms, linear', () {
+      final spec = motion[MotionRole.loop];
+      expect(spec.duration, const Duration(milliseconds: 900));
+      expect(spec.curve, Curves.linear);
+    });
+
     test('release overshoots and press does not', () {
       expect(motion[MotionRole.release].curve, isA<OvershootCurve>());
       expect(motion[MotionRole.press].curve, Curves.linear);

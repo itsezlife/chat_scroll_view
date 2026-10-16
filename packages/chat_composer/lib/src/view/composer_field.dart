@@ -1,7 +1,6 @@
 import 'package:chat_composer/src/input/composer_controller.dart';
 import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
 import 'package:chat_composer/src/view/composer_metrics.dart';
-import 'package:chat_composer/src/view/observable_builder.dart';
 import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart';
@@ -86,12 +85,8 @@ class _ComposerFieldState extends State<ComposerField> {
     final editable = _editableTextState();
     final fieldBox = context.findRenderObject();
     final selection = controller.selection;
-    if (editable == null ||
-        fieldBox is! RenderBox ||
-        !fieldBox.hasSize ||
-        !selection.isValid) {
-      return;
-    }
+    if (editable == null || !selection.isValid) return;
+    if (fieldBox is! RenderBox || !fieldBox.hasSize) return;
     final render = editable.renderEditable;
     final caret = render.getLocalRectForCaret(
       TextPosition(offset: selection.baseOffset),
@@ -138,7 +133,7 @@ class _ComposerFieldState extends State<ComposerField> {
             bottom: ComposerMetrics.fieldBottomPad,
             end: ComposerMetrics.fieldEndPad,
           ),
-          child: ObservableBuilder<SoftKeyboardMode>(
+          child: ValueObservableBuilder<SoftKeyboardMode>(
             observable: controller.softKeyboard,
             builder: (context, mode) => TextField(
               key: _textFieldKey,

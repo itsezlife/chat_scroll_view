@@ -48,13 +48,18 @@ final class GlyphPlan {
         case CollectionContents$Loaded(:final items, :final nextPageToken):
           if (nextPageToken != null) return null;
           final keys = [for (final item in items) item.key];
-          if (collection.id == CollectionId.recent) {
-            recents = keys;
-          } else if (collection.id is! CollectionId$Query) {
-            catalogues++;
-            for (final key in keys) {
-              if (key is ContentKey$Unicode) catalogue.add(key.sequence);
-            }
+          switch (collection.id) {
+            case CollectionId.recent:
+              recents = keys;
+            case CollectionId$Query():
+              break;
+            case _:
+              catalogues++;
+              for (final key in keys) {
+                if (key case ContentKey$Unicode(:final sequence)) {
+                  catalogue.add(sequence);
+                }
+              }
           }
       }
     }
@@ -62,8 +67,10 @@ final class GlyphPlan {
     final known = catalogue.toSet();
     final extras = <String>{
       for (final key in recents)
-        if (key is ContentKey$Unicode && !known.contains(key.sequence))
-          key.sequence,
+        if (key case ContentKey$Unicode(
+          :final sequence,
+        ) when !known.contains(sequence))
+          sequence,
     }.toList()..sort();
     return GlyphPlan([...catalogue, ...extras]);
   }

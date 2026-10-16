@@ -85,9 +85,9 @@ void main() {
     test('asks the baker for the glyphs on screen, top first', () {
       forward();
       events.publish(
-        PanelCatalogScrollSettled([
-          const ContentKey.unicode('😀'),
-          const ContentKey.unicode('👍🏽'),
+        PanelCatalogScrollSettled(const [
+          ContentKey.unicode('😀'),
+          ContentKey.unicode('👍🏽'),
         ]),
       );
 
@@ -99,10 +99,10 @@ void main() {
     test('leaves out content that is not a unicode glyph', () {
       forward();
       events.publish(
-        PanelCatalogScrollSettled([
-          const ContentKey.document('5368'),
-          const ContentKey.unicode('😀'),
-          const ContentKey.external('x'),
+        PanelCatalogScrollSettled(const [
+          ContentKey.document('5368'),
+          ContentKey.unicode('😀'),
+          ContentKey.external('x'),
         ]),
       );
 
@@ -137,7 +137,7 @@ void main() {
       final forwarder = forward();
       final next = FakeBakeActivityPort();
       events.publish(
-        PanelCatalogScrollSettled([const ContentKey.unicode('😀')]),
+        PanelCatalogScrollSettled(const [ContentKey.unicode('😀')]),
       );
 
       forwarder.port = next;
@@ -151,7 +151,7 @@ void main() {
       final forwarder = forward();
       final next = FakeBakeActivityPort();
       events
-        ..publish(PanelCatalogScrollSettled([const ContentKey.unicode('😀')]))
+        ..publish(PanelCatalogScrollSettled(const [ContentKey.unicode('😀')]))
         ..publish(const PanelCatalogScrollingChanged(scrolling: true));
 
       forwarder.port = next;

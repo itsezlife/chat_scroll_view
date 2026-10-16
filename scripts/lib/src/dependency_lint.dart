@@ -8,8 +8,9 @@ import 'package:workspace_check/src/workspace.dart';
 ///
 /// - **No cycles.** Reported once per cycle, as `a -> b -> a` starting from the
 ///   alphabetically smallest member.
-/// - **Leaves stay leaves.** `content_model` and `chrome_foundation` depend on
-///   no workspace package.
+/// - **Leaves stay leaves.** `content_model` depends on no workspace package;
+///   `chrome_foundation` on none but `content_model`, the pure-Dart leaf its
+///   bridge from a model observable to widgets is typed over.
 /// - **Panel hosts stay payload-free.** `panel_shell`, `panel_pages` and
 ///   `panel_presentation` never depend on `emoji_catalog_pack` or on a codec /
 ///   decoder / fetcher adapter package, directly or through other members
@@ -37,6 +38,12 @@ abstract final class DependencyLint {
     'content_model',
     'chrome_foundation',
   };
+
+  // The one workspace dependency a leaf may have.
+  static const Map<String, Set<String>> _leafMayDependOn =
+      <String, Set<String>>{
+        'chrome_foundation': <String>{'content_model'},
+      };
 
   static const Set<String> _payloadFreeHosts = <String>{
     'panel_shell',
@@ -108,10 +115,11 @@ abstract final class DependencyLint {
     for (final member in graph.members)
       if (_leaves.contains(member.name))
         for (final dependency in graph.dependenciesOf(member))
-          Violation(
-            LintRule.leafDependsOnPackage,
-            '${member.name} -> $dependency',
-          ),
+          if (!(_leafMayDependOn[member.name]?.contains(dependency) ?? false))
+            Violation(
+              LintRule.leafDependsOnPackage,
+              '${member.name} -> $dependency',
+            ),
   ];
 
   static Iterable<Violation> _pluginBreaches(WorkspaceGraph graph) =>

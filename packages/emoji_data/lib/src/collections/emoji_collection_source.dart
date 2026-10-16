@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/src/catalog/emoji_catalog.dart';
 import 'package:emoji_data/src/collections/emoji_items.dart';
+import 'package:emoji_data/src/collections/emoji_spoken_names.dart';
 
 /// The emoji catalogue as a [CollectionSource]: the user's recents followed by
 /// one category per catalogue group.
@@ -20,7 +23,8 @@ import 'package:emoji_data/src/collections/emoji_items.dart';
 ///
 /// Everything is in memory, but the commands are asynchronous like every
 /// source's: [load] publishes `loading` and publishes `loaded` after a
-/// microtask, never in the same call. A loaded collection stays current: the
+/// microtask (and, with spoken names, after the packs are read), never in the
+/// same call. A loaded collection stays current: the
 /// recents follow their store, and a category follows the variant choices
 /// and the [GlyphSupport], each change one publication for all collections it
 /// touches. [pageSize] splits a category into pages (default: one page); the
@@ -32,6 +36,18 @@ import 'package:emoji_data/src/collections/emoji_items.dart';
 ///
 /// Emoji the [GlyphSupport] says the device cannot draw are left out of
 /// every collection. Without one everything shows.
+///
+/// ## Spoken names
+///
+/// Given [KeywordSource] and the ordered `languages` (the app language first),
+/// each item carries the spoken name of its emoji from the first language
+/// that names it, so a screen reader says the name and not the glyph. The
+/// packs are read before the first collection is published as loaded (and not
+/// again: a source keeps what it read), and a newer pack arriving on
+/// [KeywordSource.changes] re-derives the loaded collections. A pack that
+/// cannot be read is reported to the zone and leaves the items unnamed; it
+/// never fails a collection. Without a keyword source the items have no
+/// spoken name.
 final class EmojiCollectionSource implements CollectionSource {
   /// Creates the source over [catalog].
   ///
@@ -41,6 +57,8 @@ final class EmojiCollectionSource implements CollectionSource {
     required RecentsStore recents,
     required PreferenceStore preferences,
     GlyphSupport? glyphSupport,
+    KeywordSource? keywords,
+    List<String> languages = const [],
     int? pageSize,
   }) : assert(
          pageSize == null || pageSize > 0,
@@ -55,6 +73,8 @@ final class EmojiCollectionSource implements CollectionSource {
          glyphSupport: glyphSupport,
        ),
        _glyphSupport = glyphSupport,
+       _keywords = keywords,
+       _languages = List<String>.unmodifiable(languages),
        _pageSize = pageSize,
        _ids = [
          CollectionId.recent,
@@ -65,6 +85,7 @@ final class EmojiCollectionSource implements CollectionSource {
     _recents.changes.addListener(_refresh);
     _preferences.changes.addListener(_refresh);
     _glyphSupport?.changes.addListener(_refresh);
+    _keywords?.changes.addListener(_onKeywords);
   }
 
   final EmojiCatalog _catalog;
@@ -72,8 +93,11 @@ final class EmojiCollectionSource implements CollectionSource {
   final PreferenceStore _preferences;
   final GlyphSupport? _glyphSupport;
   final EmojiItems _items;
+  final KeywordSource? _keywords;
+  final List<String> _languages;
   final int? _pageSize;
   final List<CollectionId> _ids;
+  Future<void>? _namesRead;
 
   late final ObservableValue<List<Collection>> _collections;
   final Map<CollectionId, CollectionContents> _states = {};
@@ -128,6 +152,7 @@ final class EmojiCollectionSource implements CollectionSource {
 
   Future<void> _finishLoad(CollectionId id) async {
     await Future<void>.value();
+    await (_namesRead ??= _readNames());
     _loading.removeWhere((loadingId, _) => loadingId == id);
     if (_disposed) return;
     _pages[id] = 1;
@@ -138,10 +163,11 @@ final class EmojiCollectionSource implements CollectionSource {
   @override
   Future<void> loadMore(CollectionId id) async {
     if (_disposed || _loadingMore.contains(id)) return;
-    final contents = _states[id];
-    if (contents is! CollectionContents$Loaded ||
-        contents.nextPageToken == null) {
-      return;
+    switch (_states[id]) {
+      case CollectionContents$Loaded(nextPageToken: != null):
+        break;
+      case _:
+        return;
     }
     _loadingMore.add(id);
     await Future<void>.value();
@@ -159,7 +185,35 @@ final class EmojiCollectionSource implements CollectionSource {
     _recents.changes.removeListener(_refresh);
     _preferences.changes.removeListener(_refresh);
     _glyphSupport?.changes.removeListener(_refresh);
+    _keywords?.changes.removeListener(_onKeywords);
     _collections.dispose();
+  }
+
+  // The packs of the active languages, as the names the items carry. A pack
+  // that cannot be read is reported and costs only the names.
+  Future<void> _readNames() async {
+    final keywords = _keywords;
+    if (keywords == null || _languages.isEmpty) return;
+    try {
+      final found = await Future.wait([
+        for (final language in _languages) keywords.pack(language),
+      ]);
+      if (_disposed) return;
+      _items.spokenNames = EmojiSpokenNames(_catalog, {...found.nonNulls});
+    } on Object catch (error, stackTrace) {
+      Zone.current.handleUncaughtError(error, stackTrace);
+    }
+  }
+
+  // A pack was added or replaced: read the names again, and re-derive what is
+  // loaded once they are in.
+  void _onKeywords() {
+    if (_disposed || _namesRead == null) return;
+    unawaited(
+      (_namesRead = _readNames()).then((_) {
+        if (!_disposed) _refresh();
+      }),
+    );
   }
 
   // Re-derives what is loaded from the stores, and publishes once if any of
@@ -167,7 +221,7 @@ final class EmojiCollectionSource implements CollectionSource {
   void _refresh() {
     if (_disposed) return;
     for (final id in _states.keys.toList()) {
-      if (_states[id] is CollectionContents$Loaded) {
+      if (_states[id] case CollectionContents$Loaded()) {
         _states[id] = _contentsOf(id);
       }
     }
@@ -186,9 +240,10 @@ final class EmojiCollectionSource implements CollectionSource {
       for (final entry in _catalog.entriesOf(group)) ?_items.itemOf(entry),
     ];
     final size = _pageSize;
-    final shown = size == null
-        ? visible.length
-        : (_pages[id]! * size).clamp(0, visible.length);
+    final shown = switch (size) {
+      final size? => (_pages[id]! * size).clamp(0, visible.length),
+      null => visible.length,
+    };
     return CollectionContents.loaded(
       visible.sublist(0, shown),
       nextPageToken: shown < visible.length ? PageToken('$shown') : null,

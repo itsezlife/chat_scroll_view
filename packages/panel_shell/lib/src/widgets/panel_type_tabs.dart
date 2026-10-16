@@ -135,8 +135,13 @@ class _PanelTypeTabsState extends State<PanelTypeTabs>
     final a = rects[i];
     if (a == null) return null;
     final b = i + 1 < rects.length ? rects[i + 1] : null;
-    final left = b == null ? a.left : a.left + (b.left - a.left) * t;
-    final right = b == null ? a.right : a.right + (b.right - a.right) * t;
+    final (left, right) = switch (b) {
+      final b? => (
+        a.left + (b.left - a.left) * t,
+        a.right + (b.right - a.right) * t,
+      ),
+      null => (a.left, a.right),
+    };
     return (left - PanelTypeTabs.capsulePad, right + PanelTypeTabs.capsulePad);
   }
 

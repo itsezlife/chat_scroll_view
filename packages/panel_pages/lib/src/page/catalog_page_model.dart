@@ -210,23 +210,30 @@ final class CatalogPageModel {
   void _announceResults() {
     final results = _searchSource?.results.value;
     if (results == null || _query.isEmpty) return;
-    final contents = results.contents;
-    if (results.id != CollectionId.query(_query) ||
-        contents is! CollectionContents$Loaded ||
-        _announced == results.id) {
+    if (results.id != CollectionId.query(_query) || _announced == results.id) {
       return;
     }
-    _announced = results.id;
-    _host.reportSearchResultCount(contents.items.length);
+    if (results.contents case CollectionContents$Loaded(:final items)) {
+      _announced = results.id;
+      _host.reportSearchResultCount(items.length);
+    }
   }
 
   // --- Near-viewport answers ------------------------------------------------
 
   void _onEvent(PanelCatalogScrollEvent event) {
-    if (event is! PanelCatalogSectionNearViewport) return;
-    final collection = _builder.collectionOf(event.sectionId);
+    if (event case PanelCatalogSectionNearViewport(
+      :final sectionId,
+      :final edge,
+    )) {
+      _onSectionNear(sectionId, edge);
+    }
+  }
+
+  void _onSectionNear(String sectionId, CatalogSectionEdge edge) {
+    final collection = _builder.collectionOf(sectionId);
     if (collection == null) return;
-    final trailing = event.edge == CatalogSectionEdge.trailing;
+    final trailing = edge == CatalogSectionEdge.trailing;
     final contents = collection.contents;
     if (_showsResults.value) {
       if (trailing && _hasNextPage(contents)) {
@@ -244,8 +251,10 @@ final class CatalogPageModel {
     }
   }
 
-  bool _hasNextPage(CollectionContents contents) =>
-      contents is CollectionContents$Loaded && contents.nextPageToken != null;
+  bool _hasNextPage(CollectionContents contents) => switch (contents) {
+    CollectionContents$Loaded(nextPageToken: != null) => true,
+    _ => false,
+  };
 
   // --- Building the catalogue -----------------------------------------------
 
@@ -277,8 +286,11 @@ final class CatalogPageModel {
 
   Collection _resultsFor(String query) {
     final current = _searchSource!.results.value;
-    final id = current.id;
-    if (id is CollectionId$Query && id.text.trim().isNotEmpty) return current;
+    if (current.id case CollectionId$Query(
+      :final text,
+    ) when text.trim().isNotEmpty) {
+      return current;
+    }
     return Collection(
       id: CollectionId.query(query),
       contents: CollectionContents.loading,

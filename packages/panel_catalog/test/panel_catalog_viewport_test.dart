@@ -53,35 +53,33 @@ Widget _harness({
   void Function(CatalogLeafHit hit, LongPressEndDetails details)?
   onLeafLongPressEnd,
   bool Function(CatalogLeafHit hit)? leafLongPressEligible,
-}) {
-  return MaterialApp(
-    home: PanelCatalogTheme(
-      data: PanelCatalogThemeData.light,
-      child: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: width,
-            height: height,
-            child: PanelCatalogViewport(
-              snapshots: snapshots,
-              assets: assets,
-              controller: controller,
-              spanCount: spanCount,
-              cellExtent: cellExtent,
-              headerExtent: headerExtent,
-              padding: padding,
-              onLeafTap: onLeafTap,
-              onLeafLongPressStart: onLeafLongPressStart,
-              onLeafLongPressMove: onLeafLongPressMove,
-              onLeafLongPressEnd: onLeafLongPressEnd,
-              leafLongPressEligible: leafLongPressEligible,
-            ),
+}) => MaterialApp(
+  home: PanelCatalogTheme(
+    data: PanelCatalogThemeData.light,
+    child: Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: PanelCatalogViewport(
+            snapshots: snapshots,
+            assets: assets,
+            controller: controller,
+            spanCount: spanCount,
+            cellExtent: cellExtent,
+            headerExtent: headerExtent,
+            padding: padding,
+            onLeafTap: onLeafTap,
+            onLeafLongPressStart: onLeafLongPressStart,
+            onLeafLongPressMove: onLeafLongPressMove,
+            onLeafLongPressEnd: onLeafLongPressEnd,
+            leafLongPressEligible: leafLongPressEligible,
           ),
         ),
       ),
     ),
-  );
-}
+  ),
+);
 
 CatalogSection _section(String id, List<CatalogLeaf> leaves) =>
     CatalogSection(id: id, title: 'Section $id', leaves: leaves);
@@ -182,7 +180,7 @@ void main() {
         await tester.pump();
 
         // One move that crosses touch slop — the arena accepts drag here.
-        await gesture.moveBy(Offset(0, -(kTouchSlop + 1)));
+        await gesture.moveBy(const Offset(0, -(kTouchSlop + 1)));
         await tester.pump();
 
         // Start behavior: pending slop is not applied as scroll. Down

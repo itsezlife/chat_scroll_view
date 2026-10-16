@@ -8,6 +8,13 @@ package is pre-1.0.
 
 ### Added
 
+- The `loop` motion role (one turn of an indeterminate loop, 900 ms linear).
+  `ChromeMotion` takes and copies it like the other roles.
+- `ValueObservableBuilder`, the one bridge from a model `ValueObservable` to
+  the widget tree (a change signalled from layout rebuilds after the frame).
+  It replaces the copies `panel_shell`, `panel_presentation`, `chat_composer`
+  and the example kept. `chrome_foundation` now depends on `content_model`, the
+  only workspace package it may depend on.
 - `PanelStrings.categoryTitle` (the title of a category section by id) and
   `SemanticsStrings.categoryStripLabel`, both required, with English and
   Russian presets.

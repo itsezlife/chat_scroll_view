@@ -2,20 +2,27 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
-/// Rebuilds [builder] with the current value of [observable] whenever it
-/// changes.
+/// Rebuilds [builder] with the current value of [observable] each time it
+/// signals.
 ///
-/// The `content_model` observables are not Flutter `Listenable`s (the model
-/// package is pure Dart), so the host adapts them at the widget boundary.
+/// The one bridge from the model's `ValueObservable` to the widget tree. The
+/// model package is pure Dart, so its observables are not `Listenable`s by
+/// design; adapting them is a framework-edge job, done here once for every
+/// package that draws from them.
+///
+/// A change can be published from layout (a view reporting its extent). The
+/// rebuild then waits for the end of that frame instead of being scheduled
+/// from inside it. [observable] stays its owner's: the builder only listens,
+/// and stops when it is removed or given another one.
 class ValueObservableBuilder<T> extends StatefulWidget {
-  /// Builds from [observable].
+  /// Builds from [observable] through [builder].
   const ValueObservableBuilder({
     required this.observable,
     required this.builder,
     super.key,
   });
 
-  /// What to follow. Its owner disposes it.
+  /// The observed value.
   final ValueObservable<T> observable;
 
   /// Builds the subtree for the current value.
@@ -50,9 +57,6 @@ class _ValueObservableBuilderState<T> extends State<ValueObservableBuilder<T>> {
 
   void _onChanged() {
     if (!mounted) return;
-    // A change can be reported from layout (a view publishing its extent):
-    // the rebuild waits for the end of that frame instead of being scheduled
-    // from inside it.
     if (SchedulerBinding.instance.schedulerPhase ==
         SchedulerPhase.persistentCallbacks) {
       SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -66,20 +70,4 @@ class _ValueObservableBuilderState<T> extends State<ValueObservableBuilder<T>> {
   @override
   Widget build(BuildContext context) =>
       widget.builder(context, widget.observable.value);
-}
-
-/// An [Observable] seen as a Flutter [Listenable], to merge with the
-/// controllers that are one (`Listenable.merge`, `ListenableBuilder`).
-final class ObservableListenable implements Listenable {
-  /// Adapts [observable].
-  const ObservableListenable(this._observable);
-
-  final Observable _observable;
-
-  @override
-  void addListener(VoidCallback listener) => _observable.addListener(listener);
-
-  @override
-  void removeListener(VoidCallback listener) =>
-      _observable.removeListener(listener);
 }

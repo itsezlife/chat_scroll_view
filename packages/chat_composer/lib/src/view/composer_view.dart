@@ -120,7 +120,10 @@ class _ComposerViewState extends State<ComposerView>
     _shownHeader = _spec.header;
     _reveal = AnimationController(
       vsync: this,
-      value: _spec.header == null ? 0 : 1,
+      value: switch (_spec.header) {
+        null => 0,
+        _ => 1,
+      },
     )..addStatusListener(_onRevealStatus);
     _rowProgress = AnimationController(vsync: this, value: 1);
   }

@@ -21,7 +21,7 @@ Decisions: [ADR 021](../../docs/adr/021-content-identity-and-collections.md)
 | `EmojiCatalog` | Index over the structure: from any key, base or variant, to its `EmojiEntry` and palette position. The one answer to "does this emoji have variants", shared by grid, picker and search. |
 | `BundledKeywordSource` | The shipped packs as a `KeywordSource`: the offline baseline. Spoken name first, then keywords; version 0. |
 | `LayeredKeywordSource` | A host `KeywordSource` over the bundled one: the host's records replace the bundled ones per key and add keys the bundle lacks. |
-| `EmojiCollectionSource` | `CollectionSource`: recents (from a `RecentsStore`, `SemanticKind.unicodeEmoji`) then one category per catalogue group. Shows the variant the user chose per base (`PreferenceStore`), hides what a `GlyphSupport` says is missing, optional paging. `chooseVariant`, `entryOf` and `shownKeyOf` are the picker path. |
+| `EmojiCollectionSource` | `CollectionSource`: recents (from a `RecentsStore`, `SemanticKind.unicodeEmoji`) then one category per catalogue group. With a `KeywordSource` and `languages` every item carries its spoken name (the first word of its record, from the first language that names it). Shows the variant the user chose per base (`PreferenceStore`), hides what a `GlyphSupport` says is missing, optional paging. `chooseVariant`, `entryOf` and `shownKeyOf` are the picker path. |
 | `EmojiSearchSource` | `SearchSource` over an ordered language set: merged packs, rank exact > prefix > later-token prefix > recents frequency, de-duplicated by key, same variant and glyph rules as the grid. Re-runs when a pack arrives. |
 | `MissingGlyphProbe` | The `GlyphSupport`: cells in (`observe`), `supports` and `artVersion` out, one signal per step on `changes`. Flags a cell identical to a missing-glyph reference or empty. Keeps its verdicts through a `KeyValueStore`, under the art version they were taken for. Rasterising is the host's. |
 | `computeGlyphArtFingerprint`, `defaultArtSentinelGlyphs` | The system emoji art version signal: a pixel fingerprint of a few sentinel glyphs, one rendered per frame, plus an optional host `supplement` (such as the OS version). No native call. |
@@ -45,6 +45,8 @@ final keywords = LayeredKeywordSource(
 );
 final emoji = EmojiCollectionSource(
   catalog: catalog,
+  keywords: keywords, // spoken names for screen readers
+  languages: const ['de', 'en'], // app locale first
   recents: recents, // KeyValueRecentsStore.load(...)
   preferences: preferences, // KeyValuePreferenceStore.load(...)
   glyphSupport: glyphSupport, // optional

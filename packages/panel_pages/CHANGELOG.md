@@ -6,6 +6,17 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- The category strip slides a tab into view on the `fade` motion role (and lands
+  at once under an instant speed) instead of a literal 200 ms.
+- Closing the panel no longer turns the glyphs of surfaces outside it (the
+  composer's inline emoji, drawn through the same scope) into circles: the
+  emoji page leaves its atlas registered with the scope when it unmounts and
+  the shell's controller takes it out when disposed. Until the atlas is
+  planned (a source that lists its collections late) the glyphs shown are
+  circles that move onto it, not paragraphs.
+
 ### Added
 
 - `CatalogPage`, the page scaffold: viewport hosting on collections, loading
@@ -31,7 +42,7 @@ is pre-1.0.
   category, active tab follows the catalogue, landing rules), `EmojiVariantPicker`
   and `EmojiVariantSession` (an entry's base and variants, chosen by sliding or
   tapping, remembered per base through `PreferenceStore`) and `EmojiTabIconScope`
-  (the strip's Telegram art as chrome icon painters).
+  (the strip's art as chrome icon painters).
 - `GlyphAtlasHost` and `GlyphPlan`: the atlas of a page that shows baked glyphs,
   planned from the glyph list of the page's collections (the chosen variant of
   each emoji, then recents the catalogue lacks, sorted, so a pick never

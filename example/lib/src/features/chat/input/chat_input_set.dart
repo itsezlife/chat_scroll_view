@@ -93,72 +93,114 @@ final class ChatInputSet {
     SoftKeyboardPort keyboard = const PlatformSoftKeyboard(),
     PanelPresentationPolicy? policy,
   }) {
-    final ime = ImeInput();
-    final window = ObservableValue<PanelWindow>(
-      const PanelWindow(width: 0, height: 0),
-    );
-    final text = ComposerTextController(
-      inlineContentBuilder: contentSpanBuilder(scope: services.assets),
-    );
-    final composer = ComposerController(text: text);
-    final keyboardStrategy = KeyboardReplacementStrategy(
-      ime: ime,
-      heights: services.keyboardHeights,
-      window: window,
-    );
-    final popup = AnchoredPopupStrategy(
-      style: _popupStyle,
-      composerFocus: composer.focusNode,
-    );
-    final docked = DockedStrategy(
-      style: _dockedStyle,
-      composerFocus: composer.focusNode,
-    );
-    late final ChatInputSet set;
-    final frames = SchedulerBakeFrameSource(view: view);
-    final shell = PanelShellController(
-      pages: [
-        EmojiPanelPage.of(
-          services: services,
-          frames: frames,
-          // The panel that grows into a free slot mounts while nothing else
-          // moves; the one that replaces the keyboard is on screen already.
-          deferChrome: () =>
-              set.presentation.state.value.kind is KeyboardReplacement &&
-              !keyboardStrategy.keyboardIsUp,
+    // What has been made so far, to free in reverse if a later step throws
+    // (a constructor assertion, a keyboard that cannot be read): a half-built
+    // set has no handle for anyone to dispose.
+    final unwind = <void Function()>[];
+    T owned<T>(T value, void Function(T value) dispose) {
+      unwind.add(() => dispose(value));
+      return value;
+    }
+
+    try {
+      final ime = owned(ImeInput(), (ime) => ime.dispose());
+      final window = owned(
+        ObservableValue<PanelWindow>(const PanelWindow(width: 0, height: 0)),
+        (window) => window.dispose(),
+      );
+      final text = owned(
+        ComposerTextController(
+          inlineContentBuilder: contentSpanBuilder(scope: services.assets),
         ),
-      ],
-      preferences: services.preferences,
-    );
-    final presentation = PanelPresentationController(
-      shell: shell,
-      policy: policy,
-      strategies: [keyboardStrategy, popup, docked],
-      window: window.value,
-      preferences: services.preferences,
-    );
-    final insets = ChatViewportInsets(
-      composerExtent: composer.extent,
-      occupancy: presentation.occupancy,
-    );
-    return set = ChatInputSet._(
-      services: services,
-      frames: frames,
-      keyboardPort: keyboard,
-      send: send,
-      edit: edit,
-      confirmClearRecents: confirmClearRecents,
-      ime: ime,
-      window: window,
-      text: text,
-      composer: composer,
-      keyboardStrategy: keyboardStrategy,
-      popup: popup,
-      docked: docked,
-      shell: shell,
-      presentation: presentation,
-      insets: insets,
-    );
+        (text) => text.dispose(),
+      );
+      final composer = owned(
+        ComposerController(text: text),
+        (composer) => composer.dispose(),
+      );
+      final keyboardStrategy = owned(
+        KeyboardReplacementStrategy(
+          ime: ime,
+          heights: services.keyboardHeights,
+          window: window,
+        ),
+        (strategy) => strategy.dispose(),
+      );
+      final popup = owned(
+        AnchoredPopupStrategy(
+          style: _popupStyle,
+          composerFocus: composer.focusNode,
+        ),
+        (strategy) => strategy.dispose(),
+      );
+      final docked = owned(
+        DockedStrategy(style: _dockedStyle, composerFocus: composer.focusNode),
+        (strategy) => strategy.dispose(),
+      );
+      late final ChatInputSet set;
+      final frames = owned(
+        SchedulerBakeFrameSource(view: view),
+        (frames) => frames.dispose(),
+      );
+      final shell = owned(
+        PanelShellController(
+          pages: [
+            EmojiPanelPage.of(
+              services: services,
+              frames: frames,
+              // The panel that grows into a free slot mounts while nothing
+              // else moves; the one that replaces the keyboard is on screen
+              // already.
+              deferChrome: () =>
+                  set.presentation.state.value.kind is KeyboardReplacement &&
+                  !keyboardStrategy.keyboardIsUp,
+            ),
+          ],
+          preferences: services.preferences,
+        ),
+        (shell) => shell.dispose(),
+      );
+      final presentation = owned(
+        PanelPresentationController(
+          shell: shell,
+          policy: policy,
+          strategies: [keyboardStrategy, popup, docked],
+          window: window.value,
+          preferences: services.preferences,
+        ),
+        (presentation) => presentation.dispose(),
+      );
+      final insets = owned(
+        ChatViewportInsets(
+          composerExtent: composer.extent,
+          occupancy: presentation.occupancy,
+        ),
+        (insets) => insets.dispose(),
+      );
+      return set = ChatInputSet._(
+        services: services,
+        frames: frames,
+        keyboardPort: keyboard,
+        send: send,
+        edit: edit,
+        confirmClearRecents: confirmClearRecents,
+        ime: ime,
+        window: window,
+        text: text,
+        composer: composer,
+        keyboardStrategy: keyboardStrategy,
+        popup: popup,
+        docked: docked,
+        shell: shell,
+        presentation: presentation,
+        insets: insets,
+      );
+    } on Object {
+      for (final undo in unwind.reversed) {
+        undo();
+      }
+      rethrow;
+    }
   }
 
   ChatInputSet._({
@@ -185,12 +227,23 @@ final class ChatInputSet {
        _confirmClearRecents = confirmClearRecents,
        _window = window,
        _text = text {
-    // A screen opened with the keyboard already up has no stream event yet.
-    _lastImeHeight = keyboardPort.restingHeight;
-    _imeHeights = keyboardPort.heights.listen(_onImeHeight);
-    shell.events.addListener(_onPanelEvent);
-    presentation.state.addListener(_onPresentationState);
-    _onPresentationState();
+    StreamSubscription<double>? heights;
+    try {
+      // A screen opened with the keyboard already up has no stream event yet.
+      _lastImeHeight = keyboardPort.restingHeight;
+      _imeHeights = heights = keyboardPort.heights.listen(_onImeHeight);
+      shell.events.addListener(_onPanelEvent);
+      presentation.state.addListener(_onPresentationState);
+      _onPresentationState();
+    } on Object {
+      // The factory frees what it passed in; the rest is this object's.
+      unawaited(heights?.cancel());
+      shell.events.removeListener(_onPanelEvent);
+      presentation.state.removeListener(_onPresentationState);
+      _editing.dispose();
+      _busy.dispose();
+      rethrow;
+    }
   }
 
   static const AnchoredPopupStyle _popupStyle = AnchoredPopupStyle(

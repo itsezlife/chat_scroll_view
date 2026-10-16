@@ -541,17 +541,137 @@ void main() {
 
       expect(atlasHost.atlas.value, isNull);
       expect(first.spriteOf('😀'), isNull);
+      expect(assets.glyphSource, isNull, reason: 'the scope lets it go');
     });
 
-    testWidgets('is let go of by the scope when the page leaves', (
+    testWidgets('stays the glyph source of the scope when the page leaves', (
       tester,
     ) async {
       await tester.pumpWidget(page(atlas: factory()));
       await tester.pumpAndSettle();
+      final first = atlas()!;
 
       await tester.pumpWidget(const SizedBox());
 
+      expect(assets.glyphSource, same(first));
+    });
+
+    testWidgets('keeps drawing the glyphs of a surface outside the panel after '
+        'the panel closes', (tester) async {
+      // The composer's inline emoji draw through the scope the panel shares.
+      const spec = AssetSpec(pixelWidth: 72, pixelHeight: 72);
+      final outside = assets.attach(
+        fixtures.key('😀'),
+        spec,
+        const AssetProfile(),
+      );
+      addTearDown(outside.detach);
+      await tester.pumpWidget(page(atlas: factory()));
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        for (var i = 0; i < 200 && frames.hasPendingRequest; i++) {
+          frames.pump();
+          await pumpEventQueue();
+        }
+      });
+      expect(outside.paintable.sprite, isNotNull, reason: 'open: the atlas');
+
+      await tester.pumpWidget(const SizedBox());
+
+      expect(outside.paintable.sprite, isNotNull, reason: 'closed: the atlas');
+      expect(outside.readiness.stage, AssetStage.full);
+    });
+
+    testWidgets('after the controller is gone a surface outside the panel is '
+        'drawn as text again, never a circle for good', (tester) async {
+      const spec = AssetSpec(pixelWidth: 72, pixelHeight: 72);
+      final outside = assets.attach(
+        fixtures.key('😀'),
+        spec,
+        const AssetProfile(),
+      );
+      addTearDown(outside.detach);
+      await tester.pumpWidget(page(atlas: factory()));
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox());
+
+      host.controllers.disposeAll();
+
+      expect(outside.readiness.stage, AssetStage.full, reason: 'the text');
+      expect(outside.paintable.sprite, isNull);
+    });
+
+    testWidgets('a source that lists its collections late: the glyphs shown '
+        'meanwhile are circles that move onto the atlas, never paragraphs', (
+      tester,
+    ) async {
+      PanelCatalogDiagnostics.reset();
+      final slow = fixtures.source()..pause();
+      addTearDown(slow.dispose);
+      await tester.pumpWidget(page(withSource: slow, atlas: factory()));
+      await tester.pump();
+
+      expect(controller().atlasHost!.atlas.value, isNull, reason: 'no plan');
+      expect(assets.glyphSource, isNotNull, reason: 'waiting for the atlas');
+      const spec = AssetSpec(pixelWidth: 72, pixelHeight: 72);
+      final early = assets.attach(
+        fixtures.key('😀'),
+        spec,
+        const AssetProfile(),
+      );
+      addTearDown(early.detach);
+      expect(early.readiness.stage, AssetStage.placeholder);
+
+      slow.resume();
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        for (var i = 0; i < 200 && frames.hasPendingRequest; i++) {
+          frames.pump();
+          await pumpEventQueue();
+        }
+      });
+
+      expect(assets.glyphSource, same(atlas()));
+      expect(early.paintable.sprite, isNotNull);
+      expect(PanelCatalogDiagnostics.glyphParagraphDraws, 0);
+    });
+
+    testWidgets('on a platform that bakes nothing the glyphs that waited are '
+        'drawn as text', (tester) async {
+      final slow = fixtures.source()..pause();
+      addTearDown(slow.dispose);
+      GlyphAtlasHostFactory noAtlas() =>
+          ({
+            required devicePixelRatio,
+            required glyphBoxExtent,
+            required visible,
+            required opening,
+          }) => GlyphAtlasHost(
+            frames: frames,
+            devicePixelRatio: devicePixelRatio,
+            glyphBoxExtent: glyphBoxExtent,
+            visible: visible,
+            opening: opening,
+            rasteriser: FakeGlyphRasteriser(),
+            newStore: FakeGlyphPageStore.new,
+            atlasFactory: (_) => null,
+          );
+      await tester.pumpWidget(page(withSource: slow, atlas: noAtlas()));
+      await tester.pump();
+      const spec = AssetSpec(pixelWidth: 72, pixelHeight: 72);
+      final early = assets.attach(
+        fixtures.key('😀'),
+        spec,
+        const AssetProfile(),
+      );
+      addTearDown(early.detach);
+      expect(early.readiness.stage, AssetStage.placeholder);
+
+      slow.resume();
+      await tester.pumpAndSettle();
+
       expect(assets.glyphSource, isNull);
+      expect(early.readiness.stage, AssetStage.full);
     });
 
     testWidgets('is planned again behind the old art when a variant is chosen '

@@ -197,7 +197,7 @@ class _CatalogPageState extends State<CatalogPage> {
   // results are not hidden behind it. A drag that continues a section jump the
   // user started with the strip is a drag all the same.
   void _onCatalogEvent(PanelCatalogScrollEvent event) {
-    if (event is PanelCatalogUserDragStart) _host.releaseSearchFocus();
+    if (event case PanelCatalogUserDragStart()) _host.releaseSearchFocus();
   }
 
   void _onReselected() {
@@ -336,6 +336,9 @@ final class _StripHandle implements CatalogStripHandle {
   @override
   Future<void> jumpToSection(String sectionId) {
     final index = _model.sectionIndexOf(sectionId);
-    return index == null ? Future<void>.value() : _catalog.jumpToSection(index);
+    return switch (index) {
+      final index? => _catalog.jumpToSection(index),
+      null => Future<void>.value(),
+    };
   }
 }

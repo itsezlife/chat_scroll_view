@@ -32,36 +32,34 @@ Widget _app({
   int spanCount = 4,
   double cellExtent = 40,
   double headerExtent = 24,
-}) {
-  return MaterialApp(
-    home: PanelCatalogTheme(
-      data: PanelCatalogThemeData.light,
-      child: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: width,
-            height: height,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: PanelCatalogViewport(
-                    snapshots: snapshots,
-                    assets: assets,
-                    controller: controller,
-                    spanCount: spanCount,
-                    cellExtent: cellExtent,
-                    headerExtent: headerExtent,
-                  ),
+}) => MaterialApp(
+  home: PanelCatalogTheme(
+    data: PanelCatalogThemeData.light,
+    child: Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: PanelCatalogViewport(
+                  snapshots: snapshots,
+                  assets: assets,
+                  controller: controller,
+                  spanCount: spanCount,
+                  cellExtent: cellExtent,
+                  headerExtent: headerExtent,
                 ),
-                ...overlays,
-              ],
-            ),
+              ),
+              ...overlays,
+            ],
           ),
         ),
       ),
     ),
-  );
-}
+  ),
+);
 
 CatalogSection _section(String id, List<CatalogLeaf> leaves) =>
     CatalogSection(id: id, title: 'Section $id', leaves: leaves);

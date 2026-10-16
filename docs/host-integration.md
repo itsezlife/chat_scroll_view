@@ -294,8 +294,12 @@ low-power flag to `GlassQualityScope(liteMode:)` and set the clock's
 scale at 1.3x (their pill heights are fixed). The composer field and the
 strings follow the platform scale; cap it with
 `MediaQuery.withClampedTextScaling` above the composer if the island must not
-grow past a limit. Catalog section headers paint at a fixed size and do not
-scale.
+grow past a limit. Catalog section headers are fixed-extent and unscaled on
+purpose: the grid's layout reserves one header height, and the viewport paints
+the title at that size whatever the platform scale. Nothing is lost for a
+reader who needs larger text or a screen reader: every leaf and every header
+carries its spoken name in the semantics tree, and the search field scales as
+above.
 
 **Strings and directions.** Every user-visible string comes from
 `ChromeStrings` (required constructor parameters, so a missing one is a compile

@@ -150,13 +150,22 @@ final class KeyValuePreferenceStore implements PreferenceStore {
     } on FormatException {
       return;
     }
-    if (json is! Map<String, Object?>) return;
+    if (json case final Map<String, Object?> record) _restoreRecord(record);
+  }
+
+  void _restoreRecord(Map<String, Object?> json) {
     if (json['variants'] case final Map<String, Object?> variants) {
       for (final MapEntry(:key, :value) in variants.entries) {
         final base = ContentKey.tryParse(key);
-        final variant = ContentKey.tryParse(value is String ? value : null);
-        if (base is ContentKey$Unicode && variant is ContentKey$Unicode) {
-          _variants[base] = variant;
+        final variant = ContentKey.tryParse(switch (value) {
+          final String encoded => encoded,
+          _ => null,
+        });
+        if ((base, variant) case (
+          final ContentKey$Unicode from,
+          final ContentKey$Unicode to,
+        )) {
+          _variants[from] = to;
         }
       }
     }

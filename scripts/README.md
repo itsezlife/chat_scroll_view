@@ -23,10 +23,10 @@ nightly workflow calls it; usage, tolerance and re-baselining are in
 
 | Lint | Fails when |
 | --- | --- |
-| `DependencyLint` | members form a cycle; `content_model` / `chrome_foundation` depend on a member; `panel_shell` / `panel_pages` / `panel_presentation` reach `emoji_catalog_pack` or an adapter package; `panel_catalog` reaches `chrome_foundation`; any member but `kv_shared_preferences` declares `shared_preferences` (or a `shared_preferences_*` package) |
+| `DependencyLint` | members form a cycle; `content_model` depends on a member, or `chrome_foundation` on one but `content_model`; `panel_shell` / `panel_pages` / `panel_presentation` reach `emoji_catalog_pack` or an adapter package; `panel_catalog` reaches `chrome_foundation`; any member but `kv_shared_preferences` declares `shared_preferences` (or a `shared_preferences_*` package) |
 | `ReexportLint` | a `lib/` file exports another workspace package |
 | `FakesLint` | production code under `lib/` exports or imports a fake source |
-| `PureDartLint` | `content_model` declares a Flutter SDK dependency, or a file under its `lib/` imports or exports `package:flutter*` or `dart:ui` |
+| `PureDartLint` | `content_model`, `emoji_data` or `emoji_catalog_pack` declares a Flutter SDK dependency, or a file under its `lib/` imports or exports `package:flutter*` or `dart:ui` |
 
 Conventions the lints read:
 

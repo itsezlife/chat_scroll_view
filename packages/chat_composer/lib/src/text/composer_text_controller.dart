@@ -372,10 +372,10 @@ class ComposerTextController extends TextEditingController {
         );
       }
       final content = active.where(
-        (e) =>
-            e.kind is EntityKind$InlineContent &&
-            e.offset == from &&
-            e.end == to,
+        (e) => switch (e.kind) {
+          EntityKind$InlineContent() => e.offset == from && e.end == to,
+          _ => false,
+        },
       );
       if (content.isNotEmpty) {
         final reference = rich.inlineContentOf(content.first)!;

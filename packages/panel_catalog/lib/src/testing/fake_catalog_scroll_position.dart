@@ -138,7 +138,7 @@ final class FakeCatalogScrollPosition implements CatalogScrollPosition {
   bool focusLeaf(String sectionId, int index, {required bool reveal}) {
     for (var s = 0; s < leafCounts.length; s++) {
       if ('s$s' != sectionId || index < 0 || index >= leafCounts[s]) continue;
-      _focus(_cell(s, index));
+      _focused = _cell(s, index);
       if (reveal) reveals.add('$sectionId/$index');
       return true;
     }
@@ -168,7 +168,7 @@ final class FakeCatalogScrollPosition implements CatalogScrollPosition {
     };
     if (target < 0 || target >= cells.length) return false;
     final (section, index) = cells[target];
-    _focus(_cell(section, index));
+    _focused = _cell(section, index);
     reveals.add('s$section/$index');
     return true;
   }
@@ -182,9 +182,5 @@ final class FakeCatalogScrollPosition implements CatalogScrollPosition {
   }
 
   @override
-  void clearFocus() => _focus(null);
-
-  void _focus(CatalogLeafHit? hit) {
-    _focused = hit;
-  }
+  void clearFocus() => _focused = null;
 }

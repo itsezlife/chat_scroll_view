@@ -74,14 +74,15 @@ final class RichText {
   /// when its entities do not fit its text. Use [tryFromJson] for data that
   /// may be damaged.
   factory RichText.fromJson(Object? json) {
-    if (json is! Map<Object?, Object?>) {
-      throw FormatException('Rich text must be a JSON object.', json);
-    }
-    final text = json['text'];
-    if (text is! String) {
-      throw FormatException('Rich text needs a string "text".', json);
-    }
-    final items = switch (json['entities']) {
+    final object = switch (json) {
+      final Map<Object?, Object?> map => map,
+      _ => throw FormatException('Rich text must be a JSON object.', json),
+    };
+    final text = switch (object['text']) {
+      final String plain => plain,
+      _ => throw FormatException('Rich text needs a string "text".', json),
+    };
+    final items = switch (object['entities']) {
       null => const <Object?>[],
       final List<Object?> list => list,
       final other => throw FormatException('"entities" must be a list.', other),

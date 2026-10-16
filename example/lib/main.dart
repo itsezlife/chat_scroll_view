@@ -3,6 +3,7 @@ import 'dart:developer' as dev;
 
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/app/boot.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
@@ -20,25 +21,37 @@ void main() => runZonedGuarded<void>(
   () async {
     WidgetsFlutterBinding.ensureInitialized();
     bindExamplePreImeBack();
-
-    final glyphCache = createExampleEmojiGlyphCache();
-    // Backend, stores and the emoji catalogue before the first frame, so the
-    // panel's last page and the recents are there when it first paints.
-    final (_, services) = await (
-      Supabase.initialize(
-        url: DemoConfig.supabaseUrl,
-        publishableKey: DemoConfig.supabasePublishableKey,
-      ),
-      AppServices.create(
-        glyphCache: glyphCache.cache,
-        glyphArtVersion: glyphCache.artVersion,
-      ),
-    ).wait;
-    runApp(ChatDemoApp(services: services));
+    await bootApp(
+      createServices: _createServices,
+      appOf: (services) => ChatDemoApp(services: services),
+    );
   },
   (error, stackTrace) =>
       dev.log('Top level exception', error: error, stackTrace: stackTrace),
 );
+
+// Backend, stores and the emoji catalogue before the first frame, so the
+// panel's last page and the recents are there when it first paints. When one
+// of the two fails the other, if it got as far as existing, is freed.
+Future<AppServices> _createServices() async {
+  final glyphCache = createExampleEmojiGlyphCache();
+  final services = AppServices.create(
+    glyphCache: glyphCache.cache,
+    glyphArtVersion: glyphCache.artVersion,
+  );
+  // Its own failure is awaited below; until then it is not an unhandled one.
+  services.ignore();
+  try {
+    await Supabase.initialize(
+      url: DemoConfig.supabaseUrl,
+      publishableKey: DemoConfig.supabasePublishableKey,
+    );
+  } on Object {
+    unawaited(services.then((made) => made.dispose(), onError: (_) {}));
+    rethrow;
+  }
+  return services;
+}
 
 /// {@template chat_demo_app}
 /// App hosting the chat viewport demo.
