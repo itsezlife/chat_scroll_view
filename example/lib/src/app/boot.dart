@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as dev;
 
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/app/listener_errors.dart';
 import 'package:flutter/material.dart';
 
 /// Builds the app's services and runs the app over them, or, when that
@@ -11,11 +12,15 @@ import 'package:flutter/material.dart';
 /// that cannot start) leaves the first frame blank with the error only in the
 /// log. [createServices] must free what it made when it throws (as
 /// `AppServices.create` does); [run] is `runApp` unless a test replaces it.
+///
+/// Boot also sets the one global policy the packages leave to the host:
+/// [reportListenerErrors], before anything that notifies exists.
 Future<void> bootApp({
   required Future<AppServices> Function() createServices,
   required Widget Function(AppServices services) appOf,
   void Function(Widget app) run = runApp,
 }) async {
+  reportListenerErrors();
   final AppServices services;
   try {
     services = await createServices();

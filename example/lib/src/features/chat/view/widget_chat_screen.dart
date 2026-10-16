@@ -6,8 +6,8 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/listen_value_builder.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
-import 'package:chat_scroll_view_example/src/common/widgets/value_observable_builder.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_state.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/unread_boundary_controller.dart';
@@ -1098,14 +1098,14 @@ class _DockButton extends StatelessWidget {
   final PanelPresentationController presentation;
 
   @override
-  Widget build(BuildContext context) => ValueObservableBuilder<PanelWindow>(
-    observable: presentation.window,
+  Widget build(BuildContext context) => ListenValueBuilder<PanelWindow>(
+    listenable: presentation.window,
     builder: (context, window) {
       if (!presentation.policy.canDock(window.windowClass)) {
         return const SizedBox.shrink();
       }
-      return ValueObservableBuilder<bool>(
-        observable: presentation.dockPreferred,
+      return ListenValueBuilder<bool>(
+        listenable: presentation.dockPreferred,
         builder: (context, docked) => IconButton.filledTonal(
           tooltip: docked ? 'Undock panel' : 'Dock panel',
           onPressed: presentation.toggleDock,

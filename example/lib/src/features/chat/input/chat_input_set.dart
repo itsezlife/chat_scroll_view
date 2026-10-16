@@ -15,6 +15,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' hide RichText;
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -105,7 +106,9 @@ final class ChatInputSet {
     try {
       final ime = owned(ImeInput(), (ime) => ime.dispose());
       final window = owned(
-        ObservableValue<PanelWindow>(const PanelWindow(width: 0, height: 0)),
+        listen.ValueNotifier<PanelWindow>(
+          const PanelWindow(width: 0, height: 0),
+        ),
         (window) => window.dispose(),
       );
       final text = owned(
@@ -211,7 +214,7 @@ final class ChatInputSet {
     required ChatBodyEditor edit,
     required ClearRecentsConfirm confirmClearRecents,
     required this.ime,
-    required ObservableValue<PanelWindow> window,
+    required listen.ValueNotifier<PanelWindow> window,
     required ComposerTextController text,
     required this.composer,
     required this.keyboardStrategy,
@@ -228,17 +231,18 @@ final class ChatInputSet {
        _window = window,
        _text = text {
     StreamSubscription<double>? heights;
+    StreamSubscription<PanelEvent>? panelEvents;
     try {
       // A screen opened with the keyboard already up has no stream event yet.
       _lastImeHeight = keyboardPort.restingHeight;
       _imeHeights = heights = keyboardPort.heights.listen(_onImeHeight);
-      shell.events.addListener(_onPanelEvent);
+      _panelEvents = panelEvents = shell.events.listen(_onPanelEvent);
       presentation.state.addListener(_onPresentationState);
       _onPresentationState();
     } on Object {
       // The factory frees what it passed in; the rest is this object's.
       unawaited(heights?.cancel());
-      shell.events.removeListener(_onPanelEvent);
+      unawaited(panelEvents?.cancel());
       presentation.state.removeListener(_onPresentationState);
       _editing.dispose();
       _busy.dispose();
@@ -291,7 +295,7 @@ final class ChatInputSet {
   final ChatBodySender _send;
   final ChatBodyEditor _edit;
   final ClearRecentsConfirm _confirmClearRecents;
-  final ObservableValue<PanelWindow> _window;
+  final listen.ValueNotifier<PanelWindow> _window;
   final ComposerTextController _text;
 
   final ValueNotifier<ChatEditTarget?> _editing =
@@ -299,6 +303,7 @@ final class ChatInputSet {
   final ValueNotifier<bool> _busy = ValueNotifier<bool>(false);
 
   late StreamSubscription<double> _imeHeights;
+  late StreamSubscription<PanelEvent> _panelEvents;
   double _lastImeHeight = 0;
   double _safeBottom = 0;
   ChatPreImeBackClaim? _backClaim;
@@ -328,7 +333,7 @@ final class ChatInputSet {
   /// The part of the bottom safe area the keyboard presentation's occupancy
   /// has not covered yet: the composer's bottom pad. A host of a platform
   /// with no keyboard presentation leaves the composer its default pad.
-  ValueObservable<double>? get composerSafeInset =>
+  listen.ValueListenable<double>? get composerSafeInset =>
       presentation.policy is PanelPresentationPolicy$Mobile
       ? keyboardStrategy.composerSafeInset
       : null;
@@ -547,7 +552,7 @@ final class ChatInputSet {
     _backClaim?.pop();
     _backClaim = null;
     unawaited(_imeHeights.cancel());
-    shell.events.removeListener(_onPanelEvent);
+    unawaited(_panelEvents.cancel());
     presentation.state.removeListener(_onPresentationState);
     insets.dispose();
     presentation.dispose();

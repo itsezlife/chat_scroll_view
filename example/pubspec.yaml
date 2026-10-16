@@ -41,6 +41,7 @@ dependencies:
     git:
       url: https://github.com/itsezlife/md.git
       ref: feat/selection-chrome
+  listen: ^1.0.1
   meta: ^1.17.0
   supabase_flutter: ^2.15.0
   control: 1.0.0-dev.1

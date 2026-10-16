@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:chat_scroll_view_example/src/common/widgets/value_observable_builder.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/listen_value_builder.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -133,8 +133,8 @@ class _ChatComposerState extends State<ChatComposer> {
         composer.text,
         _input.editing,
         _input.busy,
-        ObservableListenable(_input.presentation.state),
-        ObservableListenable(_input.shell.selectedPageId),
+        ListenableBridge(_input.presentation.state),
+        ListenableBridge(_input.shell.selectedPageId),
       ]),
       builder: (context, _) {
         final spec = buildChatComposerSpec(
@@ -161,8 +161,8 @@ class _ChatComposerState extends State<ChatComposer> {
         // composer pads itself with what the occupancy has not covered yet.
         // Without one the composer keeps its default pad.
         return switch (inset) {
-          final observable? => ValueObservableBuilder<double>(
-            observable: observable,
+          final safeInset? => ListenValueBuilder<double>(
+            listenable: safeInset,
             builder: (context, safe) => view(safe),
           ),
           null => view(null),

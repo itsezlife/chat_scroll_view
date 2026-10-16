@@ -29,7 +29,7 @@ Future<FlingCoverage> flingPass(WidgetTester tester) async {
     if (controller.offset > maxOffset) maxOffset = controller.offset;
   }
 
-  controller.events.addListener(track);
+  final tracking = controller.events.listen(track);
   Future<void> fling(double dy) async {
     await tester.fling(finder, Offset(0, dy), 7000);
     await tester.pump(const Duration(milliseconds: 250));
@@ -49,7 +49,7 @@ Future<FlingCoverage> flingPass(WidgetTester tester) async {
     await fling(300);
   }
   await settle(tester);
-  controller.events.removeListener(track);
+  await tracking.cancel();
 
   return FlingCoverage(
     reachedEnd: reachedEnd,
