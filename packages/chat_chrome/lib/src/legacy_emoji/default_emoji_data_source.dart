@@ -18,9 +18,9 @@ final class DefaultEmojiDataSource extends EmojiDataSource
     EmojiCatalogProvider? catalog,
     EmojiRecentsStore? recentsStore,
     SkinTonePrefs? skinTonePrefs,
-  })  : _catalog = catalog ?? LocaleEmojiCatalogProvider(),
-        recentsStore = recentsStore ?? SharedPrefsEmojiRecentsStore(),
-        skinTonePrefs = skinTonePrefs ?? SharedPrefsSkinTonePrefs();
+  }) : _catalog = catalog ?? LocaleEmojiCatalogProvider(),
+       recentsStore = recentsStore ?? SharedPrefsEmojiRecentsStore(),
+       skinTonePrefs = skinTonePrefs ?? SharedPrefsSkinTonePrefs();
 
   EmojiCatalogProvider _catalog;
 

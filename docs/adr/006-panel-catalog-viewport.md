@@ -108,13 +108,17 @@ Each row below says whether it is **built** (in the packages today) or
   discards them and shows circles.
 - The art version signal is a pixel fingerprint of a few sentinel glyphs drawn
   by the bake's own rasteriser, one per frame, once per launch. It needs no
-  native call and no OS version string.
+  native call; the OS version string is at most a supplementary component a
+  host may add to it. The glyph-support probe produces it and the host hands it
+  on as the cache key component, so it is rendered once for both.
 - The glyph-support probe is pure Dart in the emoji data layer. It shares the
   bake pass: each glyph is rasterised once into a strip and the probe is shown
   its cell, so it adds no rasterising pass. The atlas plans the unfiltered
   glyph list; the grid hides unsupported glyphs by filtering its data, so the
-  cache key never depends on the probe's result. Removing the native plugin
-  from the emoji data package is pending.
+  cache key never depends on the probe's result. The probe's verdicts are
+  persisted through the key-value store under the art version, so a launch
+  that restores baked pages (where the bake draws nothing) still has them. The
+  native plugin is gone from the emoji data package.
 
 ### Scroll-time hardening
 

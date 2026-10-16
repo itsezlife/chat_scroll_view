@@ -21,6 +21,7 @@ import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_chrome/src/panel/emoji_glyph_atlas_host.dart';
+import 'package:content_model/testing.dart';
 import 'package:emoji_data/emoji_data.dart'
     show MissingGlyphProbe, defaultMissingGlyphReferences;
 import 'package:flutter/material.dart';
@@ -120,7 +121,11 @@ void main() {
       for (final glyph in _glyphs) EmojiItem.unicode(glyph: glyph),
     ]);
     system = _SystemWithoutNewEmoji();
-    probe = MissingGlyphProbe(glyphs: _glyphs, artVersion: 'art-1');
+    probe = MissingGlyphProbe(
+      glyphs: _glyphs,
+      store: FakeKeyValueStore(),
+      artVersion: () async => 'art-1',
+    );
     host = EmojiGlyphAtlasHost(
       dataSource: data,
       frames: frames,
@@ -189,9 +194,9 @@ void main() {
     await bakeEverything(tester);
 
     expect(probe.isComplete, isTrue);
-    expect(probe.supports('😀'), isTrue);
-    expect(probe.supports('😁'), isTrue);
-    expect(probe.supports('🫩'), isFalse);
+    expect(probe.verdictOf('😀'), isTrue);
+    expect(probe.verdictOf('😁'), isTrue);
+    expect(probe.verdictOf('🫩'), isFalse);
     expect(probe.unsupported, {'🫩'});
     // One rasterising pass served both the atlas and the probe: each glyph and
     // the reference were drawn exactly once.

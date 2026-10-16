@@ -8,6 +8,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:chat_chrome/src/legacy_emoji/legacy_emoji.dart';
+import 'package:content_model/testing.dart';
 import 'package:emoji_data/emoji_data.dart' show MissingGlyphProbe;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -22,7 +23,8 @@ void main() {
 
   MissingGlyphProbe newProbe() => MissingGlyphProbe(
     glyphs: ['cat', 'dog', 'owl'],
-    artVersion: 'art-1',
+    store: FakeKeyValueStore(),
+    artVersion: () async => 'art-1',
     references: const [_reference],
   );
 

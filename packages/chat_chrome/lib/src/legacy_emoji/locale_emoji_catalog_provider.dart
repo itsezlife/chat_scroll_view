@@ -20,10 +20,8 @@ final class LocaleEmojiCatalogProvider implements EmojiCatalogProvider {
     Map<String, String>? categoryTitles,
     this.stripIconFor,
     EmojiPlatformFilter? platformFilter,
-  })  : categoryTitles =
-            categoryTitles ?? EmojiCategoryTitles.forLocale(locale),
-        _platformFilter =
-            platformFilter ?? PassthroughEmojiPlatformFilter();
+  }) : categoryTitles = categoryTitles ?? EmojiCategoryTitles.forLocale(locale),
+       _platformFilter = platformFilter ?? PassthroughEmojiPlatformFilter();
 
   /// Keyword-table locale (`languageCode` selects the bundled catalog).
   final Locale locale;

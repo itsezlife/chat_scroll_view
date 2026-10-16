@@ -4,10 +4,7 @@ import 'package:flutter/foundation.dart';
 /// Raw category bucket before mapping to [EmojiCategorySpec].
 @immutable
 final class EmojiCatalogCategory {
-  const EmojiCatalogCategory({
-    required this.id,
-    required this.entries,
-  });
+  const EmojiCatalogCategory({required this.id, required this.entries});
 
   /// Stable id (`smileys`, `animals`, …).
   final String id;

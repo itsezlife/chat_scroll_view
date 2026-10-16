@@ -23,10 +23,7 @@ abstract class EmojiDataSource {
   FutureOr<List<EmojiItem>> search(String query);
 
   /// Records a pick when [source] allows it.
-  Future<void> recordPick(
-    EmojiItem item, {
-    required EmojiPickSource source,
-  });
+  Future<void> recordPick(EmojiItem item, {required EmojiPickSource source});
 
   /// Clears frequently-used history.
   Future<void> clearRecents();

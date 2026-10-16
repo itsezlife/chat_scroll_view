@@ -91,7 +91,7 @@ class KeyboardPanelCallbacks {
 
   /// Search mode ended while the panel stays open (IME dismissed).
   ///
-  /// Host SHOULD restore composer focus with soft IME still suppressed. 
+  /// Host SHOULD restore composer focus with soft IME still suppressed.
   /// Keyboard handoff owns its own [requestKeyboard].
   final VoidCallback? onSearchClosed;
 }

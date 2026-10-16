@@ -21,6 +21,8 @@ dependencies:
     path: ../packages/chat_chrome
   chrome_foundation:
     path: ../packages/chrome_foundation
+  content_model:
+    path: ../packages/content_model
   # Not imported: depending on it is what bundles the catalog assets that
   # integration_test/panel_perf/shipped_glyphs.dart reads.
   emoji_catalog_pack:

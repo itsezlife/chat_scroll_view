@@ -9,8 +9,10 @@ void main() {
       await store.recordPick('😀', source: EmojiPickSource.grid);
       expect(store.recents, ['😀']);
 
-      final unchanged =
-          await store.recordPick('🎉', source: EmojiPickSource.search);
+      final unchanged = await store.recordPick(
+        '🎉',
+        source: EmojiPickSource.search,
+      );
       expect(unchanged, isNull);
       expect(store.recents, ['😀']);
     });
@@ -103,10 +105,7 @@ void main() {
 
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getStringList(legacyListKey), ['🔥', '💯']);
-      expect(
-        prefs.containsKey(SharedPrefsEmojiRecentsStore.prefsKey),
-        isFalse,
-      );
+      expect(prefs.containsKey(SharedPrefsEmojiRecentsStore.prefsKey), isFalse);
     });
 
     test('search picks do not update persisted recents', () async {
@@ -117,16 +116,15 @@ void main() {
       final store = SharedPrefsEmojiRecentsStore();
       await store.load();
 
-      final unchanged =
-          await store.recordPick('🎉', source: EmojiPickSource.search);
+      final unchanged = await store.recordPick(
+        '🎉',
+        source: EmojiPickSource.search,
+      );
       expect(unchanged, isNull);
       expect(store.recents, ['😀']);
 
       final prefs = await SharedPreferences.getInstance();
-      expect(
-        prefs.getString(SharedPrefsEmojiRecentsStore.prefsKey),
-        '😀=1',
-      );
+      expect(prefs.getString(SharedPrefsEmojiRecentsStore.prefsKey), '😀=1');
     });
 
     test('clear removes the current history key', () async {
@@ -140,10 +138,7 @@ void main() {
       expect(store.recents, isEmpty);
 
       final prefs = await SharedPreferences.getInstance();
-      expect(
-        prefs.containsKey(SharedPrefsEmojiRecentsStore.prefsKey),
-        isFalse,
-      );
+      expect(prefs.containsKey(SharedPrefsEmojiRecentsStore.prefsKey), isFalse);
     });
   });
 }

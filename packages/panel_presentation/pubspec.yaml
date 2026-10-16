@@ -1,0 +1,35 @@
+name: panel_presentation
+description: >
+  How the panel is presented: sealed presentation kinds (keyboard
+  replacement, anchored popup, docked), the pure-Dart mobile and desktop
+  policy that picks one, the presentation controller that owns visibility and
+  wraps the panel shell, published occupancy, and the IME input port.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: '>=3.32.0'
+
+dependencies:
+  chrome_foundation:
+    path: ../chrome_foundation
+  content_model:
+    path: ../content_model
+  flutter:
+    sdk: flutter
+  meta: ^1.17.0
+  panel_shell:
+    path: ../panel_shell
+  # Only lib/testing.dart needs this: the policy contract suite is written
+  # with the test framework, and a library cannot import a dev dependency.
+  # Production entry points never import it.
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  # The stock chrome icons draw Material icon glyphs, and widget tests that
+  # mount the shell need the font in the test bundle.
+  uses-material-design: true
