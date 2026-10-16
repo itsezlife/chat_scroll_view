@@ -3,8 +3,9 @@
 Leaf foundation of the chat chrome: a semantic colour palette, per-component
 token groups, a required, nestable, animatable theme scope, **motion roles**
 with a speed scale, a required **chrome strings** scope and a **chrome icon**
-registry. It depends on no workspace package (`scripts/check` enforces that),
-only on Flutter, `meta` and `morphnext` (used by the icon registry alone).
+registry. It depends on one workspace package, `content_model` (pure Dart, and
+the only one `scripts/check` allows it), plus Flutter, `meta` and `morphnext`
+(used by the icon registry alone).
 Composer, panel and page packages read their colours, durations, strings and
 icons from here; none of them carries a default of its own.
 
@@ -32,6 +33,7 @@ under a host quality policy
 | `GlassSurface`, `GlassMaterial` | A **glass material** (`composerIsland`, `panelButton`, `topPanel`) drawn over what is behind it. Colours come from `GlassMaterialTokens` in the chrome theme scope; the shape of the effect and the backdrop strategy are internal. |
 | `GlassQuality`, `GlassQualityScope`, `GlassCapabilities` | The host's **glass quality** policy (`fullLiquid`, `frosted`, `flat`, `off`), a lite-mode flag, and the capabilities (shader filter, sampled backdrop, backdrop filter) that the strategy chain reads. `GlassCapabilities.detect()` is the default; a host or test can force a row of the matrix. |
 | `GlassSourceScope`, `GlassSource` | Marks the content that sampled glass reads. A scope above the content and the surfaces, a source around the content. |
+| `ValueObservableBuilder` | The one bridge from a model `ValueObservable` to the widget tree: rebuilds with the current value on each signal, and waits for the end of the frame when the signal comes from layout. The model's observables are not `Listenable`s by design, so packages and hosts use this instead of adapters of their own. |
 | `package:chrome_foundation/testing.dart` | `ChromeStringsPresets.english` / `.russian` and `describeChromeStrings` for completeness checks. Tests and demos only. |
 
 Geometry is not a token here: metrics taken from the reference client stay constants owned by

@@ -1,8 +1,9 @@
 # ADR 020: Package topology and dependency direction
 
 The catalog, panel and composer code is split into a directed graph of small
-packages. Two pure leaves (`content_model`, `chrome_foundation`) depend on
-nothing. The asset cache, data layer, panel shell, pages, presentation and
+packages. Two leaves (`content_model`, `chrome_foundation`) sit at the bottom:
+`content_model` depends on nothing, `chrome_foundation` only on `content_model`
+(the model observable its widget bridge is typed over). The asset cache, data layer, panel shell, pages, presentation and
 composer sit above them. `chat_chrome` is dissolved and no package re-exports
 another package's API.
 
@@ -15,7 +16,7 @@ another package's API.
 | Package | Role | Depends on |
 | ------- | ---- | ---------- |
 | `content_model` | Pure-Dart leaf. Content identity, collections, `Observable`, data seams (`CollectionSource`, `SearchSource`, `RecentsStore`, `PreferenceStore`, `KeywordSource`, `GlyphSupport`, `KeyValueStore`, `ContentResolver`), reference stores, fakes and contract suites, the inline content ref and the rich-text value, opt-in `markdown.dart` | none |
-| `chrome_foundation` | Leaf. Palette, token groups, theme scope, motion roles, strings scope, icon registry, glass. Nothing chat-specific | none |
+| `chrome_foundation` | Leaf. Palette, token groups, theme scope, motion roles, strings scope, icon registry, glass, the `ValueObservableBuilder` bridge. Nothing chat-specific | `content_model` |
 | `catalog_assets` | Asset cache core: paintable, spec and profile, staged readiness, tiered LRU, playback clock, fetcher and decoder seams, baked glyph atlas, scope, content embed | `content_model` |
 | `panel_catalog` | Catalog viewport. Public seams per [ADR 024](024-panel-catalog-seams.md) | `content_model`, `catalog_assets` |
 | `emoji_data` | Emoji-specific logic only: structure and keyword loaders, emoji `CollectionSource`, merged search, variants, pure-Dart glyph probe. No assets, no native code | `content_model` |
@@ -32,7 +33,7 @@ them.
 
 Rules, enforced by the dependency lint in `scripts/check` ([ADR 030](030-testing-policy.md)):
 
-1. The graph is a DAG. `content_model` and `chrome_foundation` depend on no workspace package.
+1. The graph is a DAG. `content_model` depends on no workspace package; `chrome_foundation` on none but `content_model`.
 2. No package re-exports another package's API. A host imports what it uses.
 3. `panel_shell`, `panel_pages` and `panel_presentation` never depend on data payloads (`emoji_catalog_pack`), codecs or fetchers.
 4. Fakes are exported only from a package's `testing.dart` and never used by production code.

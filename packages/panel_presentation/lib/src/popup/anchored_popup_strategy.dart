@@ -14,7 +14,6 @@ import 'package:panel_presentation/src/popup/anchored_popup_style.dart';
 import 'package:panel_presentation/src/popup/popup_hover.dart';
 import 'package:panel_presentation/src/strategy/panel_presentation_strategy.dart';
 import 'package:panel_presentation/src/time/panel_clock.dart';
-import 'package:panel_presentation/src/view/value_observable_builder.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 /// The **anchored popup** of desktop and web: the panel floats above the

@@ -14,7 +14,8 @@ enum LintRule {
   /// A leaf package ([DependencyLint]) depends on another workspace member.
   leafDependsOnPackage(
     'content_model and chrome_foundation are leaves: every other package may '
-    'depend on them, so they depend on no workspace package.',
+    'depend on them, so content_model depends on no workspace package and '
+    'chrome_foundation on none but content_model.',
   ),
 
   /// An edge the package topology forbids outright.

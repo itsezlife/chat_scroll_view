@@ -13,6 +13,8 @@ environment:
   flutter: '>=3.32.0'
 
 dependencies:
+  content_model:
+    path: ../content_model
   flutter:
     sdk: flutter
   meta: ^1.17.0
