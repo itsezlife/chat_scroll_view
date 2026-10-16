@@ -16,11 +16,6 @@ class GlassSourceScope extends StatefulWidget {
   /// Subtree holding one [GlassSource] and the samplers that read it.
   final Widget child;
 
-  /// Link of the nearest scope, or null outside a scope.
-  static GlassSourceLink? maybeOf(BuildContext context) => context
-      .dependOnInheritedWidgetOfExactType<_GlassSourceScopeMarker>()
-      ?.link;
-
   @override
   State<GlassSourceScope> createState() => _GlassSourceScopeState();
 }
@@ -48,6 +43,12 @@ class _GlassSourceScopeMarker extends InheritedWidget {
   bool updateShouldNotify(_GlassSourceScopeMarker oldWidget) =>
       !identical(link, oldWidget.link);
 }
+
+/// The link of the nearest [GlassSourceScope] at [context], or null outside
+/// one. Depends on the scope. Not exported: surfaces reach the link, hosts
+/// only place the scope.
+GlassSourceLink? glassSourceLinkOf(BuildContext context) =>
+    context.dependOnInheritedWidgetOfExactType<_GlassSourceScopeMarker>()?.link;
 
 /// A surface drawn from the [GlassSource] of its [GlassSourceScope].
 abstract interface class GlassSampler {
@@ -228,7 +229,7 @@ class GlassSource extends SingleChildRenderObjectWidget {
   }
 
   static GlassSourceLink _linkOf(BuildContext context) {
-    final link = GlassSourceScope.maybeOf(context);
+    final link = glassSourceLinkOf(context);
     assert(link != null, 'GlassSource needs a GlassSourceScope ancestor.');
     return link!;
   }

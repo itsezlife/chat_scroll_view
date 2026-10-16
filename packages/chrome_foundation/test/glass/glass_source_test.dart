@@ -1,32 +1,50 @@
-import 'package:chat_chrome/chat_chrome.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:chrome_foundation/src/glass/glass_source.dart';
+import 'package:chrome_foundation/src/glass/glass_style.dart';
+import 'package:chrome_foundation/src/glass/strategy/glass_backdrops.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _style = LiquidGlassStyle(
+const _style = GlassStyle(
   fill: Color(0xD9202020),
   strokeTop: Color(0x28FFFFFF),
   strokeBottom: Color(0x14FFFFFF),
   shadowColor: Color(0x00000000),
 );
 
+const _filtersOnly = GlassCapabilities(
+  sampledBackdrop: false,
+  shaderFilter: false,
+  backdropFilter: true,
+);
+
 const _sourceKey = ValueKey('source');
 const _glassKey = ValueKey('glass');
 
-Widget _scene() => GlassSourceScope(
+Widget _themed(Widget child, {GlassCapabilities? capabilities}) =>
+    ChromeThemeScope(
+      palette: const ChromePalette.dark(),
+      child: GlassQualityScope(
+        capabilities: capabilities ?? GlassCapabilities.all,
+        child: child,
+      ),
+    );
+
+Widget _scene() => const GlassSourceScope(
   child: Stack(
     children: [
-      const Positioned.fill(
+      Positioned.fill(
         key: _sourceKey,
         child: GlassSource(child: ColoredBox(color: Color(0xFF3366FF))),
       ),
-      const Center(
+      Center(
         child: SizedBox(
           width: 200,
           height: 44,
-          child: LiquidGlass(
+          child: GlassSurface(
             key: _glassKey,
-            style: _style,
+            material: GlassMaterial.composerIsland,
             child: SizedBox.expand(),
           ),
         ),
@@ -51,7 +69,10 @@ bool _readsBackdrop(WidgetTester tester) =>
     tester.layers.whereType<BackdropFilterLayer>().isNotEmpty;
 
 bool _drawsGlass() => find
-    .descendant(of: find.byKey(_glassKey), matching: find.byType(GlassBackdrop))
+    .descendant(
+      of: find.byKey(_glassKey),
+      matching: find.byType(SampledGlassBackdrop),
+    )
     .evaluate()
     .isNotEmpty;
 
@@ -97,7 +118,7 @@ void main() {
         home: GlassSourceScope(
           child: Builder(
             builder: (context) {
-              link = GlassSourceScope.maybeOf(context)!;
+              link = glassSourceLinkOf(context)!;
               return const GlassSource(
                 child: ColoredBox(color: Color(0xFF3366FF)),
               );
@@ -141,11 +162,8 @@ void main() {
   });
 
   group('GlassSource', () {
-    setUp(() => GlassBackdrop.debugCaptureSupported = true);
-    tearDown(() => GlassBackdrop.debugCaptureSupported = null);
-
     testWidgets('captures a region at the requested scale', (tester) async {
-      await tester.pumpWidget(MaterialApp(home: _scene()));
+      await tester.pumpWidget(MaterialApp(home: _themed(_scene())));
 
       final source = tester.renderObject<RenderGlassSource>(
         find.byType(GlassSource),
@@ -161,7 +179,7 @@ void main() {
     });
 
     testWidgets('frosts without reading back the frame', (tester) async {
-      await tester.pumpWidget(MaterialApp(home: _scene()));
+      await tester.pumpWidget(MaterialApp(home: _themed(_scene())));
 
       expect(_drawsGlass(), isTrue);
       expect(_readsBackdrop(tester), isFalse);
@@ -170,7 +188,11 @@ void main() {
     testWidgets('keeps the glass on while its route moves', (tester) async {
       final navigator = GlobalKey<NavigatorState>();
       await tester.pumpWidget(
-        MaterialApp(navigatorKey: navigator, home: const SizedBox()),
+        MaterialApp(
+          navigatorKey: navigator,
+          builder: (context, child) => _themed(child!),
+          home: const SizedBox(),
+        ),
       );
       navigator.currentState!.push(_route(_scene())).ignore();
       await tester.pump();
@@ -193,13 +215,20 @@ void main() {
                     child: ColoredBox(color: Color(0xFF3366FF)),
                   ),
                 ),
-                Center(
-                  child: Transform.scale(
-                    scale: 0.9,
-                    child: const ClipOval(
-                      child: SizedBox.square(
-                        dimension: 44,
-                        child: GlassBackdrop(style: _style),
+                Builder(
+                  builder: (context) => Center(
+                    child: Transform.scale(
+                      scale: 0.9,
+                      child: ClipOval(
+                        child: SizedBox.square(
+                          dimension: 44,
+                          child: SampledGlassBackdrop(
+                            link: glassSourceLinkOf(context)!,
+                            style: _style,
+                            programs: null,
+                            pixelRatio: 1,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -223,8 +252,9 @@ void main() {
     testWidgets('filters the scene when the backend cannot capture', (
       tester,
     ) async {
-      GlassBackdrop.debugCaptureSupported = false;
-      await tester.pumpWidget(MaterialApp(home: _scene()));
+      await tester.pumpWidget(
+        MaterialApp(home: _themed(_scene(), capabilities: _filtersOnly)),
+      );
 
       expect(_readsBackdrop(tester), isTrue);
     });

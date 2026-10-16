@@ -1,16 +1,19 @@
-import 'dart:ui' show Brightness, Color, Offset;
+import 'dart:ui' show Color, Offset;
 
+import 'package:chrome_foundation/src/glass/glass_material.dart';
+import 'package:chrome_foundation/src/tokens/glass_material_tokens.dart';
 import 'package:flutter/foundation.dart';
 
-/// Paint tokens for a liquid-glass surface.
+/// Resolved paint parameters of one glass surface: the material's colours from
+/// the theme plus the shape constants of its effect. Internal.
 ///
-/// Composer island: radius 22 on height 44 → stadium; fill α ≈ 0.85;
-/// backdrop sampled at 1/4 resolution, blurred σ 4 in that space, saturation
-/// ×3; liquid thickness 11.
+/// Composer island: radius 22 on height 44 gives a stadium; fill alpha about
+/// 0.85; backdrop sampled at 1/4 resolution, blurred with sigma 4 in that
+/// space, saturation x3; liquid thickness 11.
 @immutable
-class LiquidGlassStyle {
-  /// Creates a glass material style.
-  const LiquidGlassStyle({
+class GlassStyle {
+  /// Creates a style with every colour given.
+  const GlassStyle({
     required this.fill,
     required this.strokeTop,
     required this.strokeBottom,
@@ -29,35 +32,32 @@ class LiquidGlassStyle {
     this.enableLiquid = true,
   });
 
-  /// Composer input-island material (glass path).
-  factory LiquidGlassStyle.composerIsland({
-    required Color panelBackground,
-    required Brightness brightness,
-    bool liquidEnabled = true,
-    double cornerRadius = 22,
-  }) {
-    final isDark = brightness == Brightness.dark;
-    final fillAlpha = isDark ? (liquidEnabled ? 0.85 : 0.76) : (216 / 255);
-    return LiquidGlassStyle(
-      fill: panelBackground.withValues(alpha: fillAlpha),
-      strokeTop: isDark ? const Color(0x28FFFFFF) : const Color(0xFFFFFFFF),
-      strokeBottom: isDark ? const Color(0x14FFFFFF) : const Color(0xFFFFFFFF),
-      shadowColor: isDark ? const Color(0x00000000) : const Color(0x20000000),
-      cornerRadius: cornerRadius,
-      enableLiquid: liquidEnabled,
-    );
-  }
+  /// The style of [material] in [colors]. [liquid] is false when the
+  /// effective quality has no refraction.
+  factory GlassStyle.resolve({
+    required GlassMaterial material,
+    required GlassMaterialColors colors,
+    required double cornerRadius,
+    required bool liquid,
+  }) => GlassStyle(
+    fill: colors.fill,
+    strokeTop: colors.strokeTop,
+    strokeBottom: colors.strokeBottom,
+    shadowColor: colors.shadow,
+    cornerRadius: cornerRadius,
+    enableLiquid: liquid && material != GlassMaterial.topPanel,
+  );
 
-  /// Premultiplied tint drawn over the refracted backdrop.
+  /// Tint drawn over the refracted backdrop.
   final Color fill;
 
-  /// Top edge highlight / stroke.
+  /// Top edge highlight.
   final Color strokeTop;
 
   /// Bottom edge stroke.
   final Color strokeBottom;
 
-  /// Soft drop shadow (often zero in dark).
+  /// Soft drop shadow ink (transparent where the material casts none).
   final Color shadowColor;
 
   /// Painted corner radius (logical px).
@@ -66,33 +66,32 @@ class LiquidGlassStyle {
   /// Backdrop blur sigma in the downscaled sample (image px at
   /// 1 / [sourceDownscale] of device resolution).
   ///
-  /// A captured backdrop is blurred after downscaling, so σ 4 there spans
-  /// about 4 × [sourceDownscale] device px.
+  /// A captured backdrop is blurred after downscaling, so sigma 4 there spans
+  /// about 4 x [sourceDownscale] device px.
   final double blurSigma;
 
   /// Backdrop saturation applied in the liquid sample.
   final double backdropSaturation;
 
-  /// How much smaller than device resolution the backdrop is sampled
-  /// (default 4).
+  /// How much smaller than device resolution the backdrop is sampled.
   ///
   /// A captured backdrop renders at 1/N, blurs, and upsamples in the shader.
-  /// A scene [BackdropFilter] cannot change resolution, so it blurs at full
+  /// A scene backdrop filter cannot change resolution, so it blurs at full
   /// resolution with [effectiveBlurSigma].
   final double sourceDownscale;
 
   /// Full-resolution Gaussian sigma (logical px) standing in for the
-  /// downscale → blur chain on the [BackdropFilter] path.
+  /// downscale then blur chain on the scene-filter path.
   double get effectiveBlurSigma =>
       blurSigma * (sourceDownscale > 1 ? sourceDownscale : 1);
 
-  /// Liquid rim thickness (default 11).
+  /// Liquid rim thickness.
   final double liquidThickness;
 
-  /// Refraction strength (default 0.75).
+  /// Refraction strength.
   final double liquidIntensity;
 
-  /// Index of refraction (default 1.5).
+  /// Index of refraction.
   final double liquidIndex;
 
   /// Top stroke width.
@@ -107,10 +106,10 @@ class LiquidGlassStyle {
   /// Shadow offset.
   final Offset shadowOffset;
 
-  /// When false, blur + tint only (no refraction pass).
+  /// When false, blur and tint only (no refraction pass).
   final bool enableLiquid;
 
-  /// Premultiplied RGBA for the liquid-glass shader tint.
+  /// Premultiplied RGBA for the liquid shader tint.
   Color get fillPremultiplied {
     final a = fill.a;
     return Color.from(
@@ -124,7 +123,7 @@ class LiquidGlassStyle {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is LiquidGlassStyle &&
+      other is GlassStyle &&
           fill == other.fill &&
           strokeTop == other.strokeTop &&
           strokeBottom == other.strokeBottom &&
@@ -161,4 +160,7 @@ class LiquidGlassStyle {
     shadowOffset,
     enableLiquid,
   ]);
+
+  @override
+  String toString() => 'GlassStyle(fill: $fill, cornerRadius: $cornerRadius)';
 }
