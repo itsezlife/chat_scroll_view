@@ -345,6 +345,17 @@ final class _PageHost implements PanelPageHost {
   }
 
   @override
+  ValueObservable<bool> get panelVisible => _shell._visible;
+
+  @override
+  ValueObservable<bool> get panelOpening => _shell._opening;
+
+  @override
+  void releaseSearchFocus() {
+    if (_speaksForSelected) _shell.releaseSearchFocus();
+  }
+
+  @override
   void reportScrollActivity(PageScrollActivity activity) {
     if (_speaksForSelected) _shell._scrollActivity.publish(activity);
   }

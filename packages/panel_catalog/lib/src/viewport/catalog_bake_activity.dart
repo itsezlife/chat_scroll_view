@@ -114,6 +114,7 @@ final class CatalogBakeActivity {
           PanelCatalogScrollingChanged() ||
           PanelCatalogScrollSettled() ||
           PanelCatalogSectionNearViewport() ||
+          PanelCatalogCurrentSectionChanged() ||
           PanelCatalogFocusChanged():
         break;
     }

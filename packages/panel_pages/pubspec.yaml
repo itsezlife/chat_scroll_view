@@ -33,3 +33,7 @@ dependencies:
   # import it.
   flutter_test:
     sdk: flutter
+
+flutter:
+  assets:
+    - assets/emoji_tabs/

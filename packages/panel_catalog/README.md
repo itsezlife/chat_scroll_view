@@ -150,7 +150,7 @@ surfaces (emoji / stickers / GIFs).
 | The host provides | The host must not |
 | --- | --- |
 | A `ValueObservable<CatalogSnapshot>` and a `PanelCatalogController` (the host creates and disposes both) | Mutate a published snapshot or notify once per leaf: publish a new snapshot per logical mutation |
-| Listeners on `controller.events` for chrome that follows scrolling | Call the controller's `attach` / `detach` / `publish`: they belong to the viewport |
+| Listeners on `controller.events` for chrome that follows scrolling, and `PanelCatalogCurrentSectionChanged` / `controller.currentSection` for a strip that shows the section the user is in | Call the controller's `attach` / `detach` / `publish`: they belong to the viewport |
 | An `AssetCacheScope` (host-created and disposed) whose `glyphSource` is an atlas planning every glyph the data source shows, baked at `largestCatalogGlyphBox` of the layouts it serves; on the web no source and a `TextGlyphProducer` | Expect a glyph outside the atlas to draw as text: it stays a placeholder; build a second atlas for a section with other cell sizes |
 | Listeners on `controller.events` that load a section (or the next page of it) on `PanelCatalogSectionNearViewport`, publish `loading` / `failed` / `loaded` section states and the empty message copy | Paint a loading or error state of its own over the viewport, or poll the controller's offset to decide what to load |
 | An `onSectionAction` callback for the header actions the sections carry, and the label / icon of each | Overlay widgets on the header to host an action |

@@ -54,6 +54,44 @@ double scrollOffsetForBand(
   required double landingInset,
 }) => math.max(0, band.headerTop - landingInset);
 
+/// The index of the section the viewport at [offset] is in, or null for no
+/// [bands].
+///
+/// A section is current from the moment its header reaches the line
+/// [landingInset] below the viewport top until the next one does; before the
+/// first header reaches it, the first section is. At the end of content that
+/// scrolls ([offset] at [maxScrollExtent], above zero) the last section is
+/// current when its header is in view: a section too short to bring its header
+/// to the line is still where a jump to it lands. [bands] are ascending, so
+/// the search is binary.
+int? currentSectionIndex(
+  List<CatalogSectionBand> bands, {
+  required double offset,
+  required double landingInset,
+  required double viewportHeight,
+  required double maxScrollExtent,
+}) {
+  if (bands.isEmpty) return null;
+  final last = bands.length - 1;
+  if (maxScrollExtent > 0.5 &&
+      offset >= maxScrollExtent - 0.5 &&
+      bands[last].headerTop < offset + viewportHeight) {
+    return last;
+  }
+  final line = offset + landingInset + 0.5;
+  var lo = 0;
+  var hi = last;
+  while (lo < hi) {
+    final mid = (lo + hi + 1) >> 1;
+    if (bands[mid].headerTop <= line) {
+      lo = mid;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return lo;
+}
+
 /// Whether [headerTop]…[headerTop]+[headerExtent] intersects the viewport band.
 ///
 /// `scrollOffset` is the current content offset; the viewport shows

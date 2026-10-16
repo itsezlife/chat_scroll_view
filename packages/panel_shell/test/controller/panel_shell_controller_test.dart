@@ -330,6 +330,39 @@ void main() {
       expect(counts, [3]);
     });
 
+    test('shows the panel presence the presentation reported', () {
+      final controller = build();
+      final host = controller.hostFor('emoji');
+      expect(host.panelVisible.value, isFalse);
+      expect(host.panelOpening.value, isFalse);
+
+      controller.updatePresence(visible: true, opening: true);
+
+      expect(host.panelVisible.value, isTrue);
+      expect(host.panelOpening.value, isTrue);
+      expect(host.panelVisible, same(controller.visible));
+    });
+
+    test('lets the selected page release the search focus, keeping search '
+        'open', () {
+      final controller = build()..openSearch();
+      expect(controller.search.value.wantsFocus, isTrue);
+
+      controller.hostFor('emoji').releaseSearchFocus();
+
+      expect(controller.search.value.isOpen, isTrue);
+      expect(controller.search.value.wantsFocus, isFalse);
+    });
+
+    test('ignores a release of the search focus by a page that is not '
+        'selected', () {
+      final controller = build()..openSearch();
+
+      controller.hostFor('stickers').releaseSearchFocus();
+
+      expect(controller.search.value.wantsFocus, isTrue);
+    });
+
     test('shares one search observable with the controller', () {
       final controller = build()..openSearch();
       expect(controller.hostFor('emoji').search.value.isOpen, isTrue);

@@ -8,6 +8,11 @@ is pre-1.0.
 
 ### Added
 
+- `PanelCatalogCurrentSectionChanged` on `controller.events`, and
+  `controller.currentSection`: which section the viewport is in (the last whose
+  header reached the landing line; at the end of scrolling content the last
+  one), for a page's category strip. Source-breaking for an exhaustive `switch`
+  over `PanelCatalogScrollEvent`, like every event added to the sealed family.
 - The headless benchmark runs with semantics off by default (`BENCH_SEMANTICS`
   selects the preset), writes its ratios for the nightly job, and no longer
   asserts a wall-clock ratio for the semantics probe. Nothing a consumer sees.

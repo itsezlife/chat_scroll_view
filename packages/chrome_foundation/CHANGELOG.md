@@ -8,6 +8,9 @@ package is pre-1.0.
 
 ### Added
 
+- `PanelStrings.categoryTitle` (the title of a category section by id) and
+  `SemanticsStrings.categoryStripLabel`, both required, with English and
+  Russian presets.
 - `ChromePalette` (custom, light, dark, high-contrast, `fromColorScheme`).
 - Token groups `ComposerTokens`, `PanelTokens`, `ActionTokens`,
   `PlaceholderTokens`, `GlassMaterialTokens`, each with `fromPalette`,

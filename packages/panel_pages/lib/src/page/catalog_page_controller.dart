@@ -9,7 +9,11 @@ import 'package:panel_shell/panel_shell.dart';
 /// swiped off screen) finds the same scroll position again. A host that wants
 /// to move the catalogue of a page from outside reaches it with
 /// `registry.peek<CatalogPageController>(pageId)`.
-final class CatalogPageController implements PanelPageController {
+///
+/// A page that keeps more than the catalogue (the emoji page keeps its glyph
+/// atlas) extends it: one page id holds one controller, and the scaffold finds
+/// the subtype where it asks for this type.
+base class CatalogPageController implements PanelPageController {
   /// The catalogue controller of the page: scroll commands, scroll events and
   /// roving focus.
   final PanelCatalogController catalog = PanelCatalogController();

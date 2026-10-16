@@ -17,6 +17,18 @@ abstract final class ChromeStringsPresets {
         'gif' => 'GIF',
         _ => id,
       },
+      categoryTitle: (id) => switch (id) {
+        'smileys-emotion' => 'Smileys',
+        'people-body' => 'People',
+        'animals-nature' => 'Animals & nature',
+        'food-drink' => 'Food & drink',
+        'travel-places' => 'Travel & places',
+        'activities' => 'Activities',
+        'objects' => 'Objects',
+        'symbols' => 'Symbols',
+        'flags' => 'Flags',
+        _ => id,
+      },
       recentlyUsedTitle: 'Recently used',
       searchResultsTitle: 'Search result',
       searchHint: 'Search',
@@ -50,6 +62,7 @@ abstract final class ChromeStringsPresets {
       },
       backspaceAction: 'Delete',
       variantsAction: 'Show variants',
+      categoryStripLabel: 'Categories',
     ),
   );
 
@@ -60,6 +73,18 @@ abstract final class ChromeStringsPresets {
         'emoji' => 'Эмодзи',
         'stickers' => 'Стикеры',
         'gif' => 'GIF',
+        _ => id,
+      },
+      categoryTitle: (id) => switch (id) {
+        'smileys-emotion' => 'Смайлики',
+        'people-body' => 'Люди',
+        'animals-nature' => 'Животные и природа',
+        'food-drink' => 'Еда и напитки',
+        'travel-places' => 'Путешествия и места',
+        'activities' => 'Активности',
+        'objects' => 'Предметы',
+        'symbols' => 'Символы',
+        'flags' => 'Флаги',
         _ => id,
       },
       recentlyUsedTitle: 'Недавние',
@@ -95,6 +120,7 @@ abstract final class ChromeStringsPresets {
       },
       backspaceAction: 'Удалить',
       variantsAction: 'Показать варианты',
+      categoryStripLabel: 'Категории',
     ),
   );
 }

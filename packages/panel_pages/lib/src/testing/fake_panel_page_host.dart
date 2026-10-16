@@ -18,6 +18,8 @@ final class FakePanelPageHost implements PanelPageHost {
   final _search = ObservableValue<PanelSearchState>(PanelSearchState.closed);
   final _isActive = ObservableValue<bool>(true);
   final _reselected = ObservableNotifier();
+  final _panelVisible = ObservableValue<bool>(true);
+  final _panelOpening = ObservableValue<bool>(false);
 
   @override
   final FakePageControllerRegistry controllers = FakePageControllerRegistry();
@@ -31,6 +33,9 @@ final class FakePanelPageHost implements PanelPageHost {
 
   /// Every scroll activity the page reported, in order.
   final List<PageScrollActivity> scrollActivity = [];
+
+  /// How many times the page released the search focus.
+  int searchFocusReleases = 0;
 
   /// Every search-progress report, in order.
   final List<bool> searchProgress = [];
@@ -46,6 +51,20 @@ final class FakePanelPageHost implements PanelPageHost {
 
   @override
   Observable get reselected => _reselected;
+
+  /// Whether the panel is shown; true unless a test hides it.
+  @override
+  ValueObservable<bool> get panelVisible => _panelVisible;
+
+  /// Whether the panel is moving; false unless a test moves it.
+  @override
+  ValueObservable<bool> get panelOpening => _panelOpening;
+
+  /// Sets whether the panel is on screen.
+  set visible(bool value) => _panelVisible.value = value;
+
+  /// Sets whether the panel is moving.
+  set opening(bool value) => _panelOpening.value = value;
 
   /// Sets the search state the page follows.
   set searchState(PanelSearchState state) => _search.value = state;
@@ -67,6 +86,9 @@ final class FakePanelPageHost implements PanelPageHost {
   void requestClearRecents(SemanticKind kind) => clearRecentsRequests.add(kind);
 
   @override
+  void releaseSearchFocus() => searchFocusReleases++;
+
+  @override
   void reportScrollActivity(PageScrollActivity activity) =>
       scrollActivity.add(activity);
 
@@ -81,5 +103,7 @@ final class FakePanelPageHost implements PanelPageHost {
     _search.dispose();
     _isActive.dispose();
     _reselected.dispose();
+    _panelVisible.dispose();
+    _panelOpening.dispose();
   }
 }

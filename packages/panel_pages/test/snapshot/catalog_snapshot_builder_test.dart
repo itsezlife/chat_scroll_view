@@ -47,8 +47,8 @@ final class _OpinionatedPolicy extends CatalogPagePolicy {
       'nothing here';
 
   @override
-  CatalogSectionAction? actionOf(Collection collection) =>
-      const CatalogSectionAction(id: 'more', label: 'More');
+  CatalogSectionAction? actionOf(Collection collection, PanelStrings strings) =>
+      CatalogSectionAction(id: 'more', label: strings.clearAction);
 
   @override
   Object? tagOf(CollectionItem item, Collection collection) =>
@@ -234,7 +234,7 @@ void main() {
       expect(section.placeholderStyle, CatalogPlaceholderStyle.shapedWash);
       expect(
         section.action,
-        const CatalogSectionAction(id: 'more', label: 'More'),
+        CatalogSectionAction(id: 'more', label: _strings.clearAction),
       );
     });
 

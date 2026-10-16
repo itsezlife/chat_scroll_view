@@ -798,6 +798,62 @@ void main() {
     });
   });
 
+  group('paced mount', () {
+    testWidgets('mounts everything with the first frame by default', (
+      tester,
+    ) async {
+      build();
+      await pump(tester);
+
+      expect(find.byType(PanelSearchField), findsOneWidget);
+    });
+
+    testWidgets('a deferred search field joins one frame after the page', (
+      tester,
+    ) async {
+      build();
+      await tester.pumpWidget(
+        PanelShellTestScope(
+          child: PanelShell(
+            controller: controller,
+            announcer: announcer,
+            deferSearchField: true,
+          ),
+        ),
+      );
+
+      expect(find.text('page emoji'), findsOneWidget);
+      expect(find.byType(PanelSearchField), findsNothing);
+
+      await tester.pump();
+
+      expect(find.byType(PanelSearchField), findsOneWidget);
+    });
+
+    testWidgets('a deferred field is there at once for a page selected later', (
+      tester,
+    ) async {
+      build();
+      await tester.pumpWidget(
+        PanelShellTestScope(
+          child: PanelShell(
+            controller: controller,
+            announcer: announcer,
+            deferSearchField: true,
+          ),
+        ),
+      );
+      await tester.pump();
+      controller.selectPage('stickers');
+      await tester.pumpAndSettle();
+
+      controller.selectPage('emoji');
+      await tester.pump();
+
+      expect(find.byType(PanelSearchField), findsOneWidget);
+    });
+  });
+
   group('motion and text scale', () {
     testWidgets('under instant motion the bar hides within one frame', (
       tester,
@@ -819,6 +875,28 @@ void main() {
         tester.getTopLeft(find.byType(PanelBottomBar)).dy,
         greaterThan(shown + 40),
       );
+    });
+
+    testWidgets('under instant motion the search field comes and goes with '
+        'the page without a layout error', (tester) async {
+      build();
+      await tester.pumpWidget(
+        PanelShellTestScope(
+          speed: ChromeMotionSpeed.instant,
+          child: PanelShell(controller: controller, announcer: announcer),
+        ),
+      );
+      expect(find.byType(PanelSearchField), findsOneWidget);
+
+      controller.selectPage('stickers');
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(PanelSearchField), findsNothing);
+
+      controller.selectPage('emoji');
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(PanelSearchField), findsOneWidget);
     });
 
     testWidgets('large text does not overflow the fixed-height controls', (
