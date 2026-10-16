@@ -14,6 +14,7 @@ workspace:
   - packages/emoji_catalog_pack
   - packages/emoji_data
   - packages/panel_catalog
+  - packages/panel_shell
   - example
   - scripts
 
