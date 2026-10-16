@@ -1,4 +1,4 @@
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/legacy_shim.dart';
 
 /// One cell in the catalog projection.
 ///

@@ -1,5 +1,5 @@
 name: catalog_assets
-description: Process-wide global catalog asset cache for catalog and conversation leaves, plus the glyph atlas baker.
+description: Asset cache core (paintable, spec, staged readiness, tiered LRU, playback clock) plus the glyph atlas baker.
 version: 0.1.0
 publish_to: none
 
@@ -10,6 +10,8 @@ environment:
   flutter: '>=3.27.0'
 
 dependencies:
+  content_model:
+    path: ../content_model
   flutter:
     sdk: flutter
   meta: ^1.17.0
@@ -23,8 +25,5 @@ dependencies:
     sdk: flutter
 
 dev_dependencies:
-  # The "current catalogue" budget test reads the real glyph set.
-  emoji_data:
-    path: ../emoji_data
   lints: ^6.0.0
   test: ^1.25.0

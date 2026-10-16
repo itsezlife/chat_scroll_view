@@ -1,4 +1,4 @@
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:flutter/scheduler.dart';
 
 /// Tells a [GlyphAtlas] when the catalog is moving and, once it stops, which

@@ -18,6 +18,7 @@ import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
 import 'package:catalog_assets/src/atlas/memory_glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/report_glyph_atlas_error.dart';
+import 'package:catalog_assets/src/glyph/glyph_sprite_source.dart';
 import 'package:flutter/foundation.dart';
 
 /// The baked glyphs of one catalogue, in the form a surface draws them: a
@@ -110,7 +111,7 @@ import 'package:flutter/foundation.dart';
 /// Platforms that do not bake never build one (see
 /// `createGlyphAtlasForPlatform`): a surface without an atlas draws its glyphs
 /// as text.
-final class GlyphAtlas {
+final class GlyphAtlas implements GlyphSpriteSource {
   /// Creates an atlas for the glyphs of [index]. Nothing runs until [start].
   ///
   /// Pass either a [store] (pages kept for this atlas's life only) or a
@@ -272,6 +273,7 @@ final class GlyphAtlas {
   ///
   /// Allocation-free once a sprite has been cut: it runs for every visible
   /// leaf on every paint.
+  @override
   AtlasSprite? spriteOf(String glyph) {
     if (_disposed) return null;
     final stale = _stale;
@@ -300,6 +302,7 @@ final class GlyphAtlas {
   ///
   /// The page stays resident while any claim covers it; release the hold when
   /// unbound. It holds a count, not pixels: ask [spriteOf] when drawing.
+  @override
   GlyphPageHold? holdPageOf(String glyph) {
     if (_disposed) return null;
     final page = index.placementOf(glyph)?.pageIndex;
@@ -309,9 +312,11 @@ final class GlyphAtlas {
   /// Calls [listener] with the index of each page whose drawability changed:
   /// once its sprites can be drawn, and again when the page is released (a
   /// surface repaints either way).
+  @override
   void addPageListener(ValueChanged<int> listener) => _listeners.add(listener);
 
   /// Removes a listener added with [addPageListener].
+  @override
   void removePageListener(ValueChanged<int> listener) =>
       _listeners.remove(listener);
 
@@ -460,9 +465,7 @@ final class GlyphAtlas {
   }
 
   void _onReleased(int pageIndex) {
-    for (final glyph in index.glyphsOnPage(pageIndex)) {
-      _sprites.remove(glyph);
-    }
+    index.glyphsOnPage(pageIndex).forEach(_sprites.remove);
     _notify(pageIndex);
   }
 
@@ -624,7 +627,7 @@ final class GlyphAtlas {
           // predecessor is moot.
           _stale?.release();
           _stale = null;
-          _pageStore.useGeneration(committed!.pages);
+          _pageStore.generation = committed!.pages;
           await _restoreHit(committed.pages);
         case GlyphCacheVerdict.stale:
           // Art inherited from a predecessor is newer than the persisted set
@@ -632,10 +635,10 @@ final class GlyphAtlas {
           if (_stale == null) await _loadStale(committed!);
           if (_disposed) return;
           _stale?.commitOnSwap = true;
-          _pageStore.useGeneration(await _io.track(cache.stage(record)));
+          _pageStore.generation = await _io.track(cache.stage(record));
         case GlyphCacheVerdict.discard:
         case GlyphCacheVerdict.miss:
-          _pageStore.useGeneration(await _io.track(cache.stage(record)));
+          _pageStore.generation = await _io.track(cache.stage(record));
           // Committed at once: each page is durable as soon as it is written,
           // and a launch after a kill restores the pages that made it.
           await _io.track(cache.commit());
@@ -937,8 +940,8 @@ final class _AtlasPageStore implements GlyphPageStore {
   /// that is not on disk is never committed.
   bool onDisk;
 
-  /// Sends the pages to [pages], a generation of the cache.
-  void useGeneration(GlyphPageStore pages) => _target = pages;
+  /// Sends the pages to the generation of the cache set here.
+  set generation(GlyphPageStore pages) => _target = pages;
 
   /// Keeps the pages in memory for this atlas's life; nothing is persisted.
   void useMemory() {

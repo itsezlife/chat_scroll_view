@@ -1,8 +1,8 @@
 import 'package:catalog_assets/src/atlas/glyph_atlas.dart';
-import 'package:catalog_assets/src/catalog_asset_binding.dart';
-import 'package:catalog_assets/src/catalog_asset_cache_type.dart';
-import 'package:catalog_assets/src/catalog_asset_key.dart';
-import 'package:catalog_assets/src/catalog_asset_readiness.dart';
+import 'package:catalog_assets/src/legacy/catalog_asset_binding.dart';
+import 'package:catalog_assets/src/legacy/catalog_asset_cache_type.dart';
+import 'package:catalog_assets/src/legacy/catalog_asset_key.dart';
+import 'package:catalog_assets/src/legacy/catalog_asset_readiness.dart';
 
 /// Process-wide global catalog asset cache.
 ///
