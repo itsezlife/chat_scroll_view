@@ -41,7 +41,7 @@ morphs in place).
 | `ComposerMetrics` | The island geometry, documented as component constants. |
 | `ComposerController` | Input only: the text, focus, selection, field scroll, height and extent, the `softKeyboard` option, the input query and its commands (`insertText`, `insertContent`, `backspace`, `clear`, `restore`, `replaceQuery`). No mode state, no reply or edit ids. |
 | `ComposerTextController` | A `TextEditingController` whose text carries entities. Recovers the replacement behind each platform value, applies it to a `RichText`, and exposes `richText` for drafts, send and edit-load. `restore` loads a `RichText` back. |
-| `contentSpanBuilder` | An `InlineContentSpanBuilder` that draws each inline reference through `ContentView`. |
+| `ContentViewSpans` | `ContentViewSpans.builder`, an `InlineContentSpanBuilder` that draws each inline reference through `ContentView`. |
 | `SoftKeyboardMode` | `auto` or `suppressed`: whether focusing the field may show the on-screen keyboard. |
 | `ComposerQueryKind`, `ComposerQueryRule` | A kind of token the host wants watched (trigger, where it may open, which characters it is made of). The set is open; the composer knows none. |
 | `ComposerInputQuery` | The token at the caret: kind, text after the trigger, replace range and the caret anchor rectangle. Published by `ComposerController.query` (a `ValueListenable`); `null` when there is no token. |
@@ -112,8 +112,8 @@ Constructor requirements: `ComposerView` takes `controller` and `spec`;
 `ComposerController` takes nothing (it builds the text controller, focus node
 and scroll controller it is not handed, and disposes only those);
 `ComposerTextController` takes nothing, or an `inlineContentBuilder`.
-`contentSpanBuilder` takes the `AssetCacheScope` to draw through, or looks up
-the nearest `AssetCacheProvider`.
+`ContentViewSpans.builder` takes the `AssetCacheScope` to draw through, or
+looks up the nearest `AssetCacheProvider`.
 
 Decisions: [ADR 026](../../docs/adr/026-composer-model.md) (model, queries),
 [ADR 031](../../docs/adr/031-localization-accessibility-and-input.md) (entity
@@ -124,7 +124,7 @@ edits commit on finished IME composition),
 ## Testing
 
 The package defines no data seam, so there is no `testing.dart`. The pure
-parts (`diffText`, query detection, header priority) and the controllers run
+parts (`TextReplacement.between`, query detection, header priority) and the controllers run
 in plain `flutter test` with `TextEditingValue` writes standing in for the
 platform (`test/support/simulated_input.dart`); the view runs under
 `test/support/composer_harness.dart`, which supplies every required scope with

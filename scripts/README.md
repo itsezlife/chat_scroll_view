@@ -27,8 +27,19 @@ nightly workflow calls it; usage, tolerance and re-baselining are in
 | `ReexportLint` | a `lib/` file exports another workspace package |
 | `FakesLint` | production code under `lib/` exports or imports a fake source |
 | `PureDartLint` | `content_model`, `emoji_data` or `emoji_catalog_pack` declares a Flutter SDK dependency, or a file under its `lib/` imports or exports `package:flutter*` or `dart:ui` |
+| `PlatformForkLint` | a file under `lib/` outside an `environment_specific/` directory has a conditional import / export, or imports a platform library (`dart:io`, `dart:ffi`, `dart:html`, `dart:js*`, `package:web`); `workspace_check` itself is VM-only and exempt |
+| `LibraryScopeLint` | a file under `lib/` declares a public top-level function, getter, setter or variable, except a `$entry` in an `environment_specific/` file; the example app and `workspace_check` are exempt |
 
 Conventions the lints read:
+
+- **Platform fork**: a directory named `environment_specific/` holds a hub
+  (`x.dart`: `export 'x_vm.dart' if (dart.library.js_interop) 'x_js.dart';`)
+  and its `_vm` / `_js` files, each defining the same `$entries`. The owning
+  type imports the hub `as environment_specific` and calls the entry from a
+  static (`GlyphCacheStore.forPlatform`).
+- **Top-level declaration** (`LibraryScopeLint`, text-based): a column-0 line
+  that is not a directive, annotation, comment, closing bracket or type
+  declaration, read the way `dart format` lays code out.
 
 - **Fake source**: `lib/testing.dart`, any file under a `testing/` or `fakes/`
   directory, or a file named `fake_*.dart` / `*_fake.dart`. Fake sources are

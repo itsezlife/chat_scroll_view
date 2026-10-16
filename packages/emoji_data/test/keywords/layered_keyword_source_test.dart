@@ -38,7 +38,7 @@ void main() {
     overlay.dispose();
   });
 
-  runKeywordSourceContract(() async {
+  KeywordSourceContract.run(() async {
     final base = FakeKeywordSource([
       _pack('en', {
         '1F600': ['grinning face'],

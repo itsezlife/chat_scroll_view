@@ -5,51 +5,56 @@ import 'package:content_model/src/rich_text/markdown/markdown_syntax.dart';
 import 'package:content_model/src/rich_text/normalization.dart';
 import 'package:content_model/src/rich_text/rich_text.dart';
 
-/// The rich text [markdown] describes; see `RichTextMarkdown.decode`.
-RichText decodeMarkdown(String markdown) {
-  final lines = markdown.split('\n');
-  final plain = StringBuffer();
-  final entities = <Entity>[];
-  var first = true;
+/// The reading half of `RichTextMarkdown`: markdown to rich text.
+abstract final class MarkdownDecoder {
+  /// The rich text [markdown] describes; see `RichTextMarkdown.decode`.
+  static RichText decode(String markdown) {
+    final lines = markdown.split('\n');
+    final plain = StringBuffer();
+    final entities = <Entity>[];
+    var first = true;
 
-  void startUnit() {
-    if (!first) plain.write('\n');
-    first = false;
-  }
-
-  void writeInline(String line) {
-    final parsed = _InlineParser(line).parse();
-    final offset = plain.length;
-    plain.write(parsed.text);
-    for (final entity in parsed.entities) {
-      entities.add(Entity(entity.offset + offset, entity.length, entity.kind));
+    void startUnit() {
+      if (!first) plain.write('\n');
+      first = false;
     }
-  }
 
-  var i = 0;
-  while (i < lines.length) {
-    if (!lines[i].startsWith('>')) {
+    void writeInline(String line) {
+      final parsed = _InlineParser(line).parse();
+      final offset = plain.length;
+      plain.write(parsed.text);
+      for (final entity in parsed.entities) {
+        entities.add(
+          Entity(entity.offset + offset, entity.length, entity.kind),
+        );
+      }
+    }
+
+    var i = 0;
+    while (i < lines.length) {
+      if (!lines[i].startsWith('>')) {
+        startUnit();
+        writeInline(lines[i]);
+        i++;
+        continue;
+      }
       startUnit();
-      writeInline(lines[i]);
-      i++;
-      continue;
+      final quoteStart = plain.length;
+      var quoteLine = 0;
+      for (; i < lines.length && lines[i].startsWith('>'); i++, quoteLine++) {
+        if (quoteLine > 0) plain.write('\n');
+        writeInline(_withoutQuoteMarker(lines[i]));
+      }
+      if (plain.length > quoteStart) {
+        entities.add(
+          Entity(quoteStart, plain.length - quoteStart, EntityKind.quote),
+        );
+      }
+      // The blank line that ends a quote is not part of the text.
+      if (i < lines.length && lines[i].isEmpty) i++;
     }
-    startUnit();
-    final quoteStart = plain.length;
-    var quoteLine = 0;
-    for (; i < lines.length && lines[i].startsWith('>'); i++, quoteLine++) {
-      if (quoteLine > 0) plain.write('\n');
-      writeInline(_withoutQuoteMarker(lines[i]));
-    }
-    if (plain.length > quoteStart) {
-      entities.add(
-        Entity(quoteStart, plain.length - quoteStart, EntityKind.quote),
-      );
-    }
-    // The blank line that ends a quote is not part of the text.
-    if (i < lines.length && lines[i].isEmpty) i++;
+    return RichText(plain.toString(), entities);
   }
-  return RichText(plain.toString(), entities);
 }
 
 String _withoutQuoteMarker(String line) =>
@@ -208,8 +213,8 @@ final class _InlineParser {
     final reference = _readReference(start);
     if (reference == null) return null;
     final (:label, :target, :end) = reference;
-    if (target.startsWith(mentionScheme)) {
-      final id = target.substring(mentionScheme.length);
+    if (target.startsWith(MarkdownSyntax.mentionScheme)) {
+      final id = target.substring(MarkdownSyntax.mentionScheme.length);
       final text = _unescape(label);
       if (id.isEmpty || text.isEmpty) return null;
       return _SourceAtom(start, end, text, [
@@ -294,7 +299,7 @@ final class _InlineParser {
         if (unit == 0x3C) return null;
         if (unit == 0x5C &&
             i + 1 < s.length &&
-            isAsciiPunctuation(s.codeUnitAt(i + 1))) {
+            MarkdownSyntax.isAsciiPunctuation(s.codeUnitAt(i + 1))) {
           i++;
         }
         target.writeCharCode(s.codeUnitAt(i));
@@ -304,7 +309,7 @@ final class _InlineParser {
       var depth = 0;
       while (i < s.length) {
         final unit = s.codeUnitAt(i);
-        if (isWhitespaceUnit(unit)) break;
+        if (CanonicalEntities.isWhitespaceUnit(unit)) break;
         if (unit == 0x28) depth++;
         if (unit == 0x29) {
           if (depth == 0) break;
@@ -312,7 +317,7 @@ final class _InlineParser {
         }
         if (unit == 0x5C &&
             i + 1 < s.length &&
-            isAsciiPunctuation(s.codeUnitAt(i + 1))) {
+            MarkdownSyntax.isAsciiPunctuation(s.codeUnitAt(i + 1))) {
           i++;
         }
         target.writeCharCode(s.codeUnitAt(i));
@@ -342,7 +347,7 @@ final class _InlineParser {
       final unit = text.codeUnitAt(i);
       if (unit == 0x5C &&
           i + 1 < text.length &&
-          isAsciiPunctuation(text.codeUnitAt(i + 1))) {
+          MarkdownSyntax.isAsciiPunctuation(text.codeUnitAt(i + 1))) {
         i++;
       }
       out.writeCharCode(text.codeUnitAt(i));
@@ -377,7 +382,7 @@ final class _InlineParser {
       final unit = s.codeUnitAt(i);
       if (unit == 0x5C &&
           i + 1 < s.length &&
-          isAsciiPunctuation(s.codeUnitAt(i + 1))) {
+          MarkdownSyntax.isAsciiPunctuation(s.codeUnitAt(i + 1))) {
         text.writeCharCode(s.codeUnitAt(i + 1));
         i += 2;
         continue;
@@ -430,13 +435,14 @@ final class _InlineParser {
   bool _canOpen(int i, int unit, int length) {
     final s = _source;
     final after = i + length;
-    if (after >= s.length || isWhitespaceUnit(s.codeUnitAt(after))) {
+    if (after >= s.length ||
+        CanonicalEntities.isWhitespaceUnit(s.codeUnitAt(after))) {
       return false;
     }
     if (unit == 0x5F &&
         length == 1 &&
         i > 0 &&
-        isWordUnit(s.codeUnitAt(i - 1))) {
+        MarkdownSyntax.isWordUnit(s.codeUnitAt(i - 1))) {
       return false;
     }
     return _hasCloser(after, unit, length);
@@ -444,12 +450,13 @@ final class _InlineParser {
 
   bool _canClose(int i, int unit, int length) {
     final s = _source;
-    if (i == 0 || isWhitespaceUnit(s.codeUnitAt(i - 1))) return false;
+    if (i == 0 || CanonicalEntities.isWhitespaceUnit(s.codeUnitAt(i - 1)))
+      return false;
     final after = i + length;
     return !(unit == 0x5F &&
         length == 1 &&
         after < s.length &&
-        isWordUnit(s.codeUnitAt(after)));
+        MarkdownSyntax.isWordUnit(s.codeUnitAt(after)));
   }
 
   // Whether a marker that could close a style opened by [length] characters of
@@ -482,7 +489,7 @@ final class _InlineParser {
       final doubled = j + 1 < s.length && s.codeUnitAt(j + 1) == unit;
       final follows =
           j > 0 &&
-          !isWhitespaceUnit(s.codeUnitAt(j - 1)) &&
+          !CanonicalEntities.isWhitespaceUnit(s.codeUnitAt(j - 1)) &&
           (s.codeUnitAt(j - 1) != unit || wasEscaped);
       if (length == 2) {
         if (doubled) {
@@ -492,7 +499,9 @@ final class _InlineParser {
       } else if (follows) {
         if (unit != 0x5F) return true;
         final after = j + 1;
-        if (after >= s.length || !isWordUnit(s.codeUnitAt(after))) return true;
+        if (after >= s.length ||
+            !MarkdownSyntax.isWordUnit(s.codeUnitAt(after)))
+          return true;
       }
     }
     return false;

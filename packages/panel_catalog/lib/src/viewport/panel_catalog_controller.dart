@@ -67,8 +67,10 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// [jumpToSection] requests a category / section landing under
 /// [PanelCatalogViewport.headerLandingInset] when set, otherwise
 /// [PanelCatalogViewport.padding.top]. The bound viewport chooses near-path
-/// smooth scroll vs far-path stitch from [isNearPathSectionJump] (flat-row
-/// distance gate [kFarPathDistanceGateFactor] plus attached-header shortcut).
+/// smooth scroll vs far-path stitch from
+/// [CatalogSectionNavigation.isNearPathSectionJump] (flat-row distance gate
+/// [CatalogSectionNavigation.farPathDistanceGateFactor] plus attached-header
+/// shortcut).
 ///
 /// While a jump owns scroll, [isSectionJumpActive] is `true`. Additional
 /// [jumpToSection] calls during that window are silent no-ops (the in-flight
@@ -216,7 +218,8 @@ final class PanelCatalogController {
   ///
   /// While no viewport is attached the request stays pending until one
   /// attaches (see class docs). Path selection (near smooth scroll vs far
-  /// stitch) is viewport-owned via [isNearPathSectionJump].
+  /// stitch) is viewport-owned via
+  /// [CatalogSectionNavigation.isNearPathSectionJump].
   ///
   /// After [dispose], returns an immediately-completed future.
   Future<void> jumpToSection(int sectionIndex) {

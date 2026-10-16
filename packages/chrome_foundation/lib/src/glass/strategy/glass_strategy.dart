@@ -16,43 +16,43 @@ enum GlassStrategy {
   flat,
 
   /// Nothing behind the child.
-  none,
-}
+  none;
 
-/// Picks the strategy for one surface.
-///
-/// [quality] is the host's ceiling and [liteMode] caps any glass at flat.
-/// With a source ([hasSource]) on a backend that can capture, the surface
-/// samples it: that read does not touch the onscreen target, so route motion
-/// does not matter. Otherwise it filters the scene, except while its route
-/// moves ([routeMoving]), when a backdrop filter would re-read and re-filter
-/// everything under it on every frame, so it paints flat. Without any filter
-/// support it paints flat.
-GlassStrategy selectGlassStrategy({
-  required GlassQuality quality,
-  required bool liteMode,
-  required GlassCapabilities capabilities,
-  required bool hasSource,
-  required bool routeMoving,
-}) {
-  final effective = switch (quality) {
-    GlassQuality.off => GlassQuality.off,
-    _ when liteMode => GlassQuality.flat,
-    _ => quality,
-  };
-  switch (effective) {
-    case GlassQuality.off:
-      return GlassStrategy.none;
-    case GlassQuality.flat:
-      return GlassStrategy.flat;
-    case GlassQuality.fullLiquid || GlassQuality.frosted:
-      if (hasSource && capabilities.sampledBackdrop) {
-        return effective == GlassQuality.fullLiquid
-            ? GlassStrategy.sampledLiquid
-            : GlassStrategy.sampledFrost;
-      }
-      if (routeMoving || !capabilities.backdropFilter)
+  /// Picks the strategy for one surface.
+  ///
+  /// [quality] is the host's ceiling and [liteMode] caps any glass at flat.
+  /// With a source ([hasSource]) on a backend that can capture, the surface
+  /// samples it: that read does not touch the onscreen target, so route motion
+  /// does not matter. Otherwise it filters the scene, except while its route
+  /// moves ([routeMoving]), when a backdrop filter would re-read and re-filter
+  /// everything under it on every frame, so it paints flat. Without any filter
+  /// support it paints flat.
+  static GlassStrategy select({
+    required GlassQuality quality,
+    required bool liteMode,
+    required GlassCapabilities capabilities,
+    required bool hasSource,
+    required bool routeMoving,
+  }) {
+    final effective = switch (quality) {
+      GlassQuality.off => GlassQuality.off,
+      _ when liteMode => GlassQuality.flat,
+      _ => quality,
+    };
+    switch (effective) {
+      case GlassQuality.off:
+        return GlassStrategy.none;
+      case GlassQuality.flat:
         return GlassStrategy.flat;
-      return GlassStrategy.backdropFilter;
+      case GlassQuality.fullLiquid || GlassQuality.frosted:
+        if (hasSource && capabilities.sampledBackdrop) {
+          return effective == GlassQuality.fullLiquid
+              ? GlassStrategy.sampledLiquid
+              : GlassStrategy.sampledFrost;
+        }
+        if (routeMoving || !capabilities.backdropFilter)
+          return GlassStrategy.flat;
+        return GlassStrategy.backdropFilter;
+    }
   }
 }

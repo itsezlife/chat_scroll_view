@@ -358,7 +358,7 @@ void main() {
 
   group('stitch capture across layouts', () {
     List<CatalogLayoutSlot> project(List<CatalogSection> sections) =>
-        projectCatalogSlots(
+        CatalogSlotProjection.project(
           sections: sections,
           spanCount: 8,
           cellExtent: 48,
@@ -371,7 +371,7 @@ void main() {
       final slots = project(_alternating(2));
 
       // The viewport [100, 300) crosses e0 (0..128) and s0 (128..488).
-      final outgoing = captureCatalogStitchOutgoing(
+      final outgoing = CatalogFarStitch.captureOutgoing(
         slots: slots,
         scrollOffset: 100,
         viewportHeight: 200,
@@ -404,20 +404,20 @@ void main() {
         ),
       ]);
       // Only section a is on screen before the jump.
-      final outgoing = captureCatalogStitchOutgoing(
+      final outgoing = CatalogFarStitch.captureOutgoing(
         slots: slots,
         scrollOffset: 0,
         viewportHeight: 60,
       );
       final cells = slots.whereType<CatalogLeafSlot>().toList();
 
-      expect(catalogStitchSlotIsOutgoing(cells[0], outgoing), isTrue);
-      expect(catalogStitchSlotIsOutgoing(cells[1], outgoing), isFalse);
+      expect(CatalogFarStitch.slotIsOutgoing(cells[0], outgoing), isTrue);
+      expect(CatalogFarStitch.slotIsOutgoing(cells[1], outgoing), isFalse);
     });
 
     test('the travel spans the incoming strip of the target layout', () {
       final slots = project(_alternating(3));
-      final outgoing = captureCatalogStitchOutgoing(
+      final outgoing = CatalogFarStitch.captureOutgoing(
         slots: slots,
         scrollOffset: 0,
         viewportHeight: 400,
@@ -428,7 +428,7 @@ void main() {
           if (slot.bottom >= 616 && slot.top <= 1016) slot,
       ];
 
-      final travel = measureCatalogStitchTravel(
+      final travel = CatalogFarStitch.measureTravel(
         outgoing: outgoing,
         incomingVisible: incoming,
         towardNewer: true,

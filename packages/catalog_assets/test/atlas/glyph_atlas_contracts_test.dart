@@ -3,26 +3,26 @@ import 'package:catalog_assets/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  runBakeFrameSourceContract('FakeBakeFrameSource', (tester) {
+  BakeFrameSourceContract.run('FakeBakeFrameSource', (tester) {
     final source = FakeBakeFrameSource();
     return (source: source, nextFrame: () async => source.pump());
   });
-  runBakeFrameSourceContract('SchedulerBakeFrameSource', (tester) {
+  BakeFrameSourceContract.run('SchedulerBakeFrameSource', (tester) {
     final source = SchedulerBakeFrameSource(view: tester.view);
     addTearDown(source.dispose);
     return (source: source, nextFrame: tester.pump);
   });
-  runGlyphRasteriserContract('FakeGlyphRasteriser', FakeGlyphRasteriser.new);
-  runGlyphRasteriserContract(
+  GlyphRasteriserContract.run('FakeGlyphRasteriser', FakeGlyphRasteriser.new);
+  GlyphRasteriserContract.run(
     'ParagraphGlyphRasteriser',
     ParagraphGlyphRasteriser.new,
     glyphs: const ['A', '😀', '👨‍👩‍👧‍👦', '🇯🇵'],
   );
-  runGlyphPageStoreContract('FakeGlyphPageStore', FakeGlyphPageStore.new);
-  runGlyphPageStoreContract('MemoryGlyphPageStore', MemoryGlyphPageStore.new);
-  runGlyphCacheStoreContract(
+  GlyphPageStoreContract.run('FakeGlyphPageStore', FakeGlyphPageStore.new);
+  GlyphPageStoreContract.run('MemoryGlyphPageStore', MemoryGlyphPageStore.new);
+  GlyphCacheStoreContract.run(
     'MemoryGlyphCacheStore',
     MemoryGlyphCacheStore.new,
   );
-  runGlyphCacheStoreContract('FakeGlyphCacheStore', FakeGlyphCacheStore.new);
+  GlyphCacheStoreContract.run('FakeGlyphCacheStore', FakeGlyphCacheStore.new);
 }

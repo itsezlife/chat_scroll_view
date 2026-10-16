@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('ManualPlaybackTickSource', () {
     var clock = Duration.zero;
-    runPlaybackTickSourceContract(() {
+    PlaybackTickSourceContract.run(() {
       final source = ManualPlaybackTickSource();
       return PlaybackTickHarness(
         source: source,
@@ -21,7 +21,7 @@ void main() {
   group('SchedulerPlaybackTickSource', () {
     final binding = TestWidgetsFlutterBinding.ensureInitialized();
     var timestamp = Duration.zero;
-    runPlaybackTickSourceContract(
+    PlaybackTickSourceContract.run(
       () => PlaybackTickHarness(
         source: SchedulerPlaybackTickSource(),
         pumpFrame: () async {

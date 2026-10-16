@@ -3903,7 +3903,7 @@ void main() {
         await tester.pump();
         expect(selection.bodyOf(1)?.toString(), updated);
 
-        await tester.pump(kChatMessageChangeDuration);
+        await tester.pump(ChatMessageChangeParams.duration);
         await tester.pumpAndSettle();
 
         expect(

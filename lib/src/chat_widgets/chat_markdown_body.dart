@@ -47,9 +47,9 @@ class ChatMarkdownBodyRegistration extends InheritedWidget {
 /// surface when [ChatSelectionController.exposesSelectionSurface] is true for [messageId].
 ///
 /// Automatically integrates:
-/// - [ChatCodeBlockPainter] via [chatCodeBlockBuilder] to separate interactive
-///   code header/bottom bars from selectable code body text under the active
-///   [controller.selectionPolicy].
+/// - [ChatCodeBlockPainter] via [ChatCodeBlockPainter.builder] to separate
+///   interactive code header/bottom bars from selectable code body text under
+///   the active [controller.selectionPolicy].
 /// - [BlockPainter$ScrollableTable] so overflowing markdown tables pan
 ///   horizontally inside the bubble (catalog painter opt-in, not a theme
 ///   flag). [BlockPainter$ScrollableTable.enabled] is false while this
@@ -405,7 +405,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
             enabled: tablePanEnabled,
           );
         }
-        return chatCodeBlockBuilder(
+        return ChatCodeBlockPainter.builder(
           block,
           themeData,
           policy: policy,

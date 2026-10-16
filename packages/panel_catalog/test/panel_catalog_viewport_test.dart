@@ -27,7 +27,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';
-import 'package:panel_catalog/src/viewport/catalog_section_navigation.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
@@ -327,7 +326,7 @@ void main() {
         expect(canvas.paragraphs, 2);
         expect(canvas.circles, isEmpty);
         expect(PanelCatalogDiagnostics.glyphParagraphDraws, 1);
-        expect(kCirclePlaceholderRadiusFactor, 0.4);
+        expect(CatalogPlaceholderStyle.circleRadiusFactor, 0.4);
       },
     );
 
@@ -626,7 +625,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final projection = projectCatalogSlots(
+      final projection = CatalogSlotProjection.project(
         sections: snapshots.value.sections,
         spanCount: 4,
         cellExtent: 40,
@@ -788,15 +787,16 @@ void main() {
         await tester.pumpAndSettle();
 
         const targetSection = 1;
-        final expectedOffset = scrollOffsetForSectionHeader(
-          sectionIndex: targetSection,
-          sections: sections,
-          spanCount: 4,
-          cellExtent: 40,
-          headerExtent: 24,
-          padding: const EdgeInsets.only(top: stripInset),
-          maxWidth: 320,
-        );
+        final expectedOffset =
+            CatalogSectionNavigation.scrollOffsetForSectionHeader(
+              sectionIndex: targetSection,
+              sections: sections,
+              spanCount: 4,
+              cellExtent: 40,
+              headerExtent: 24,
+              padding: const EdgeInsets.only(top: stripInset),
+              maxWidth: 320,
+            );
 
         final future = controller.jumpToSection(targetSection);
         await tester.pump();
@@ -905,9 +905,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        isNearPathSectionJump(
+        CatalogSectionNavigation.isNearPathSectionJump(
           targetSectionIndex: 4,
-          bands: projectCatalogSectionBands(
+          bands: CatalogSectionBands.project(
             sections: snapshots.value.sections,
             spanCount: 4,
             cellExtent: 40,
@@ -959,7 +959,7 @@ void main() {
       await tester.pumpAndSettle();
 
       const targetSection = 19;
-      final projection = projectCatalogSlots(
+      final projection = CatalogSlotProjection.project(
         sections: snapshots.value.sections,
         spanCount: spanCount,
         cellExtent: cellExtent,
@@ -967,20 +967,21 @@ void main() {
         padding: padding,
         maxWidth: 320,
       );
-      final expectedOffset = scrollOffsetForSectionHeader(
-        sectionIndex: targetSection,
-        sections: snapshots.value.sections,
-        spanCount: spanCount,
-        cellExtent: cellExtent,
-        headerExtent: headerExtent,
-        padding: padding,
-        maxWidth: 320,
-      ).clamp(0.0, projection.contentExtent - viewportHeight);
+      final expectedOffset =
+          CatalogSectionNavigation.scrollOffsetForSectionHeader(
+            sectionIndex: targetSection,
+            sections: snapshots.value.sections,
+            spanCount: spanCount,
+            cellExtent: cellExtent,
+            headerExtent: headerExtent,
+            padding: padding,
+            maxWidth: 320,
+          ).clamp(0.0, projection.contentExtent - viewportHeight);
 
       expect(
-        isNearPathSectionJump(
+        CatalogSectionNavigation.isNearPathSectionJump(
           targetSectionIndex: targetSection,
-          bands: projectCatalogSectionBands(
+          bands: CatalogSectionBands.project(
             sections: snapshots.value.sections,
             spanCount: spanCount,
             cellExtent: cellExtent,
@@ -1041,7 +1042,7 @@ void main() {
 
       const targetSection = 19;
       const ignoredSection = 5;
-      final projection = projectCatalogSlots(
+      final projection = CatalogSlotProjection.project(
         sections: snapshots.value.sections,
         spanCount: spanCount,
         cellExtent: cellExtent,
@@ -1049,15 +1050,16 @@ void main() {
         padding: padding,
         maxWidth: 320,
       );
-      final expectedOffset = scrollOffsetForSectionHeader(
-        sectionIndex: targetSection,
-        sections: snapshots.value.sections,
-        spanCount: spanCount,
-        cellExtent: cellExtent,
-        headerExtent: headerExtent,
-        padding: padding,
-        maxWidth: 320,
-      ).clamp(0.0, projection.contentExtent - viewportHeight);
+      final expectedOffset =
+          CatalogSectionNavigation.scrollOffsetForSectionHeader(
+            sectionIndex: targetSection,
+            sections: snapshots.value.sections,
+            spanCount: spanCount,
+            cellExtent: cellExtent,
+            headerExtent: headerExtent,
+            padding: padding,
+            maxWidth: 320,
+          ).clamp(0.0, projection.contentExtent - viewportHeight);
 
       final future = controller.jumpToSection(targetSection);
       await tester.pump();

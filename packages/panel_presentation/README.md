@@ -42,7 +42,7 @@ takes `ime`, `heights` and `window`. Host layout:
 | `KeyboardReplacementTuning` | Default panel heights by window class, the 175 search expansion, the 1 s hand-off timeout, the cold-open delay, the sheet's top corner radius (29). |
 | `KeyboardNavBarFade` | The scrim over the bottom safe band of the sheet. |
 | `PanelClock`, `PanelTimer` | The one way presentation code waits; `PanelClock.system` in the app, a manual clock in tests. |
-| `package:panel_presentation/testing.dart` | `FakeImeInput`, `ManualPanelClock`, `FakePresentationStrategy`, `runPresentationPolicyContract`, `runImeInputPortContract`. Tests only. |
+| `package:panel_presentation/testing.dart` | `FakeImeInput`, `ManualPanelClock`, `FakePresentationStrategy`, `PresentationPolicyContract.run`, `ImeInputPortContract.run`. Tests only. |
 
 ## Using it
 

@@ -162,7 +162,7 @@ ChromeThemeScope(
 | `ChromeMotionScope` | No | Without it, roles run at normal speed. Reduce motion is only this scope's `speed` (section 6) |
 | `GlassQualityScope` | No | Default is the best strategy the device supports |
 | `EmojiTabIconScope` | With `EmojiCategoryStrip` | Registers the strip's icon painters |
-| `AssetCacheProvider` | With `ContentView`, `contentSpanBuilder()` without a `scope:`, inline embeds | Hands the host-created scope down; never disposes it |
+| `AssetCacheProvider` | With `ContentView`, `ContentViewSpans.builder()` without a `scope:`, inline embeds | Hands the host-created scope down; never disposes it |
 
 The chat screen adds `GlassSourceScope` over its content and glass surfaces,
 with a `GlassSource` around the message list, when sampled glass is wanted.
@@ -178,7 +178,7 @@ Creation order:
 
 1. `ImeInput` (the keyboard port) and a `ValueNotifier<PanelWindow>` (from
    `package:listen`).
-2. `ComposerTextController(inlineContentBuilder: contentSpanBuilder(scope: assets))`
+2. `ComposerTextController(inlineContentBuilder: ContentViewSpans.builder(scope: assets))`
    and `ComposerController(text: ...)`.
 3. The strategies: `KeyboardReplacementStrategy(ime:, heights:, window:)`,
    `AnchoredPopupStrategy(style:, composerFocus:)`,
@@ -454,7 +454,7 @@ above.
 
 **Strings and directions.** Every user-visible string comes from
 `ChromeStrings` (required constructor parameters, so a missing one is a compile
-error; run `describeChromeStrings` in a test to catch empty ones). Directional
+error; run `ChromeStringsSnapshot.of` in a test to catch empty ones). Directional
 primitives mirror the layout under a right-to-left `Directionality`; content
 (glyphs, stickers, GIFs) is never mirrored.
 
@@ -550,7 +550,7 @@ Everything above stays. Add:
    the disk tier, and one `Decoder` per `MediaForm` it shows (still, vector
    animation, video), registered in a `DecoderRegistry`. Build
    `AssetPipeline(fetcher:, decoders:, resolver:)` and pass it as the scope's
-   `producer:`. Run the `runAssetFetcherContract` and `runDecoderContract`
+   `producer:`. Run the `AssetFetcherContract.run` and `DecoderContract.run`
    suites against your adapters.
 2. **Sources.** A `CollectionSource` (sets, trending, recents) and a
    `SearchSource` for each kind. Failure is a state on the collection, never an

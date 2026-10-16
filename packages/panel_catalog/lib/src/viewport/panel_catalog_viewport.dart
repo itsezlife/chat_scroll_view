@@ -1,10 +1,15 @@
+import 'dart:math' as math;
+
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
+import 'package:panel_catalog/src/model/catalog_glyph_box.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
+import 'package:panel_catalog/src/model/section_layout.dart';
 import 'package:panel_catalog/src/theme/panel_catalog_theme.dart';
+import 'package:panel_catalog/src/viewport/catalog_grid_metrics.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
@@ -35,9 +40,11 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// ([PanelCatalogController.scrollBy]); the render object clamps to the valid
 /// range afterwards.
 /// [PanelCatalogController.jumpToSection] lands a section header under
-/// [padding.top] via near-path smooth scroll when [isNearPathSectionJump]
-/// passes ([kFarPathDistanceGateFactor] flat rows, counted at each section's
-/// own column count, not `spanCount ×` that value), or via far-path [CatalogFarStitch] when the gate fails. Re-entry
+/// [padding.top] via near-path smooth scroll when
+/// [CatalogSectionNavigation.isNearPathSectionJump] passes
+/// ([CatalogSectionNavigation.farPathDistanceGateFactor] flat rows, counted at
+/// each section's own column count, not `spanCount ×` that value), or via
+/// far-path [CatalogFarStitch] when the gate fails. Re-entry
 /// while [PanelCatalogController.isSectionJumpActive] is ignored at the
 /// controller; hosts SHOULD gate category strip the same way. Drag-end with
 /// enough velocity starts a ballistic fling; pointer-down while flinging
@@ -145,6 +152,42 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     this.sectionNearExtent,
     super.key,
   });
+
+  /// The largest glyph box any of [layouts] draws a glyph in, for a viewport
+  /// of [maxWidth] with these defaults and [padding].
+  ///
+  /// A host that bakes glyphs has **one** baked size per atlas, so it sizes it
+  /// for the largest box and every section draws the same sprites scaled down:
+  /// sizing for a smaller one would blur the sections with larger cells, and a
+  /// second atlas for them would double the resident pages. Pass the layout of
+  /// each section the atlas serves (`null` is the viewport default); with
+  /// none, the default's box is returned. The box is
+  /// [CatalogContentBox.glyphBoxExtent] of the resolved cell, the very formula
+  /// the painter draws with.
+  static double largestGlyphBox({
+    required Iterable<SectionLayout?> layouts,
+    required int spanCount,
+    required double cellExtent,
+    required EdgeInsets padding,
+    required double maxWidth,
+  }) {
+    double boxOf(SectionLayout? layout) => CatalogGridMetrics.resolve(
+      layout,
+      spanCount: spanCount,
+      cellExtent: cellExtent,
+      headerExtent: 0,
+      padding: padding,
+      maxWidth: maxWidth,
+    ).glyphBoxExtent;
+
+    var largest = 0.0;
+    var any = false;
+    for (final layout in layouts) {
+      any = true;
+      largest = math.max(largest, boxOf(layout));
+    }
+    return any ? largest : boxOf(null);
+  }
 
   /// Authoritative catalog contents for this surface, as an immutable
   /// [CatalogSnapshot] the host publishes.

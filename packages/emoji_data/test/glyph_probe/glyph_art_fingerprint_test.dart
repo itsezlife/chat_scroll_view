@@ -1,7 +1,7 @@
 /// The system emoji art version signal: a fingerprint of the pixels a few
 /// sentinel glyphs render to, computed through an injected renderer.
 ///
-/// **Seam:** `computeGlyphArtFingerprint` with a renderer that answers bytes
+/// **Seam:** `GlyphArtFingerprint.compute` with a renderer that answers bytes
 /// from a table and a frame clock the test advances by hand. No font, no
 /// platform channel.
 library;
@@ -27,12 +27,12 @@ void main() {
   test('the same art gives the same fingerprint', () async {
     final art = {'a': 1, 'b': 2, 'c': 3};
 
-    final first = await computeGlyphArtFingerprint(
+    final first = await GlyphArtFingerprint.compute(
       sentinels: sentinels,
       pixelsOf: renderer(art),
       nextFrame: noWait,
     );
-    final second = await computeGlyphArtFingerprint(
+    final second = await GlyphArtFingerprint.compute(
       sentinels: sentinels,
       pixelsOf: renderer(art),
       nextFrame: noWait,
@@ -42,12 +42,12 @@ void main() {
   });
 
   test('one sentinel drawn differently changes the fingerprint', () async {
-    final before = await computeGlyphArtFingerprint(
+    final before = await GlyphArtFingerprint.compute(
       sentinels: sentinels,
       pixelsOf: renderer({'a': 1, 'b': 2, 'c': 3}),
       nextFrame: noWait,
     );
-    final after = await computeGlyphArtFingerprint(
+    final after = await GlyphArtFingerprint.compute(
       sentinels: sentinels,
       pixelsOf: renderer({'a': 1, 'b': 2, 'c': 4}),
       nextFrame: noWait,
@@ -58,12 +58,12 @@ void main() {
 
   test('the same art on other sentinels is another fingerprint', () async {
     final art = {'a': 1, 'b': 2, 'c': 3};
-    final abc = await computeGlyphArtFingerprint(
+    final abc = await GlyphArtFingerprint.compute(
       sentinels: ['a', 'b'],
       pixelsOf: renderer(art),
       nextFrame: noWait,
     );
-    final ba = await computeGlyphArtFingerprint(
+    final ba = await GlyphArtFingerprint.compute(
       sentinels: ['b', 'a'],
       pixelsOf: renderer(art),
       nextFrame: noWait,
@@ -76,7 +76,7 @@ void main() {
     final art = {'a': 1, 'b': 2, 'c': 3};
 
     Future<String> fingerprint({String? supplement}) =>
-        computeGlyphArtFingerprint(
+        GlyphArtFingerprint.compute(
           sentinels: sentinels,
           pixelsOf: renderer(art),
           nextFrame: noWait,
@@ -109,7 +109,7 @@ void main() {
     final rendered = <String>[];
     var frames = 0;
     final waiting = <Completer<void>>[];
-    final done = computeGlyphArtFingerprint(
+    final done = GlyphArtFingerprint.compute(
       sentinels: sentinels,
       pixelsOf: (glyph) async {
         rendered.add(glyph);
@@ -137,7 +137,7 @@ void main() {
   });
 
   test('a renderer that fails fails the fingerprint, not silently', () async {
-    final future = computeGlyphArtFingerprint(
+    final future = GlyphArtFingerprint.compute(
       sentinels: sentinels,
       pixelsOf: (_) async => throw StateError('no font'),
       nextFrame: noWait,
@@ -148,9 +148,9 @@ void main() {
 
   test('the default sentinels are distinct emoji of different eras', () {
     expect(
-      defaultArtSentinelGlyphs.toSet(),
-      hasLength(defaultArtSentinelGlyphs.length),
+      GlyphArtFingerprint.defaultSentinels.toSet(),
+      hasLength(GlyphArtFingerprint.defaultSentinels.length),
     );
-    expect(defaultArtSentinelGlyphs.length, inInclusiveRange(3, 6));
+    expect(GlyphArtFingerprint.defaultSentinels.length, inInclusiveRange(3, 6));
   });
 }

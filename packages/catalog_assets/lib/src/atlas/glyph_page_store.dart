@@ -9,7 +9,7 @@ import 'dart:ui';
 /// invalidates the stored page and a stored page is never mutated in place
 /// (static pages are immutable once composed).
 ///
-/// Contract (run [runGlyphPageStoreContract] against an implementation):
+/// Contract (run [GlyphPageStoreContract.run] against an implementation):
 ///
 /// - [read] after [write] returns a page with the same pixels, [read] of a page
 ///   never written (or after [clear]) returns null;
@@ -17,7 +17,7 @@ import 'dart:ui';
 /// - disposing a handle passed to [write] or returned by [read] leaves the
 ///   stored page readable.
 ///
-/// [runGlyphPageStoreContract]: package:catalog_assets/testing.dart
+/// [GlyphPageStoreContract.run]: package:catalog_assets/testing.dart
 abstract interface class GlyphPageStore {
   /// Stores [page] as page [pageIndex]. The caller keeps ownership of [page].
   Future<void> write(int pageIndex, Image page);

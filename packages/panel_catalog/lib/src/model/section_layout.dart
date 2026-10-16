@@ -118,8 +118,9 @@ final class SectionLayout$Grid extends SectionLayout {
   final double? cellHeightInset;
 
   /// The side of the box a glyph is drawn in, or null for
-  /// `kCatalogGlyphBoxFraction` of the cell's shorter side. Held to the cell's
-  /// shorter side. Content that fills its cell (a sticker) ignores it.
+  /// `CatalogContentBox.glyphBoxFraction` of the cell's shorter side. Held to
+  /// the cell's shorter side. Content that fills its cell (a sticker) ignores
+  /// it.
   final double? glyphExtent;
 
   /// Header band height, or null for the viewport default.

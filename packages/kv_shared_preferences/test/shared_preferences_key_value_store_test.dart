@@ -60,7 +60,7 @@ void main() {
 
     setUp(() async => store = await open());
 
-    runKeyValueStoreContract(() => store);
+    KeyValueStoreContract.run(() => store);
   });
 
   group('persistence', () {

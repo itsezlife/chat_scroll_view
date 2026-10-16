@@ -13,9 +13,9 @@
 /// ([CatalogLeaf], [CatalogLeafHit]) and the section models ([CatalogSection],
 /// [SectionLayout], [CatalogSectionState], [CatalogSectionAction]), the
 /// near-viewport event ([PanelCatalogSectionNearViewport]), and section
-/// landing helpers ([scrollOffsetForSectionHeader],
-/// [kFarPathDistanceGateFactor] flat-row near/far gate). Fakes live in
-/// `package:panel_catalog/testing.dart`.
+/// landing ([CatalogSectionNavigation.scrollOffsetForSectionHeader],
+/// [CatalogSectionNavigation.farPathDistanceGateFactor] flat-row near/far
+/// gate). Fakes live in `package:panel_catalog/testing.dart`.
 ///
 /// [PanelCatalogThemeData] / [PanelCatalogTheme] supply the viewport's own
 /// paint tokens (placeholders, press, section header); the viewport resolves
@@ -27,13 +27,7 @@
 library;
 
 export 'src/data/catalog_snapshot.dart';
-export 'src/model/catalog_glyph_box.dart'
-    show
-        CatalogContentBox,
-        catalogContentBoxExtent,
-        catalogGlyphBoxExtent,
-        kCatalogGlyphBoxFraction,
-        kCirclePlaceholderRadiusFactor;
+export 'src/model/catalog_glyph_box.dart' show CatalogContentBox;
 export 'src/model/catalog_leaf.dart';
 export 'src/model/catalog_leaf_hit.dart';
 export 'src/model/catalog_section.dart';
@@ -42,10 +36,9 @@ export 'src/model/catalog_section_state.dart';
 export 'src/model/section_layout.dart';
 export 'src/theme/panel_catalog_theme.dart';
 export 'src/viewport/catalog_focus.dart';
-export 'src/viewport/catalog_grid_metrics.dart' show largestCatalogGlyphBox;
 export 'src/viewport/catalog_scroll_position.dart';
 export 'src/viewport/catalog_section_navigation.dart'
-    show kFarPathDistanceGateFactor, scrollOffsetForSectionHeader;
+    show CatalogSectionNavigation;
 export 'src/viewport/panel_catalog_controller.dart';
 export 'src/viewport/panel_catalog_scroll_events.dart';
 export 'src/viewport/panel_catalog_viewport.dart';

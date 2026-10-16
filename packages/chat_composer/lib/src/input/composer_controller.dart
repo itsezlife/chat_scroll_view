@@ -64,6 +64,7 @@ final class ComposerController {
   final _extent = listen.ValueNotifier<double>(0);
   final _query = listen.ValueNotifier<ComposerInputQuery?>(null);
   final _keyboardRequests = _Signal();
+  final _caretReveals = _Signal();
   final _kinds = <ComposerQueryKind>[];
   Rect? _anchor;
   var _disposed = false;
@@ -90,6 +91,7 @@ final class ComposerController {
   void insertText(String value) {
     if (_disposed) return;
     text.insertText(value);
+    _caretReveals.signal();
   }
 
   /// Replaces the selection with [reference], an atomic inline content
@@ -97,6 +99,7 @@ final class ComposerController {
   void insertContent(InlineContentRef reference) {
     if (_disposed) return;
     text.insertContent(reference);
+    _caretReveals.signal();
   }
 
   /// Deletes the selection, or the unit behind the caret: a whole inline
@@ -104,6 +107,7 @@ final class ComposerController {
   void backspace() {
     if (_disposed) return;
     text.deleteBackward();
+    _caretReveals.signal();
   }
 
   /// Empties the field and drops every entity.
@@ -168,6 +172,15 @@ final class ComposerController {
 
   /// Signals each [requestKeyboard]; the field answers it. For the view.
   listen.Listenable get keyboardRequests => _keyboardRequests;
+
+  /// Signals each edit made through this controller ([insertText],
+  /// [insertContent], [backspace]); the field answers by scrolling its caret
+  /// into view. For the view.
+  ///
+  /// A field reveals its caret after the edits typed into it, but not after
+  /// the ones its controller makes: without this, a field past its maximum
+  /// lines would leave the line an inserted emoji lands on out of sight.
+  listen.Listenable get caretReveals => _caretReveals;
 
   // --- Field geometry ---
 
@@ -272,7 +285,7 @@ final class ComposerController {
     if (_disposed) return;
     final selection = text.selection;
     final detected = selection.isValid && selection.isCollapsed
-        ? detectQuery(
+        ? QueryDetector.detect(
             _kinds,
             text.text,
             selection.baseOffset,
@@ -296,6 +309,7 @@ final class ComposerController {
     text.removeListener(_detectQuery);
     _softKeyboard.dispose();
     _keyboardRequests.dispose();
+    _caretReveals.dispose();
     _fieldHeight.dispose();
     _extent.dispose();
     _query.dispose();
@@ -305,8 +319,9 @@ final class ComposerController {
   }
 }
 
-/// The signal behind [ComposerController.keyboardRequests]: `notifyListeners`
-/// is protected, so the controller reaches it through this subclass.
+/// The signal behind [ComposerController.keyboardRequests] and
+/// [ComposerController.caretReveals]: `notifyListeners` is protected, so the
+/// controller reaches it through this subclass.
 final class _Signal extends listen.ChangeNotifier {
   void signal() => notifyListeners();
 }

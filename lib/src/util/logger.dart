@@ -3,7 +3,7 @@ import 'dart:developer' as developer;
 import 'package:chat_scroll_view/src/util/constants.dart';
 import 'package:meta/meta.dart';
 
-/// Signature of [fine], [config] and [info].
+/// Signature of [Log.fine], [Log.config] and [Log.info].
 @internal
 typedef FieldsLogger =
     void Function(
@@ -12,37 +12,36 @@ typedef FieldsLogger =
       Map<String, Object?> fields,
     ]);
 
-/// Tracing information. [fields] with `null` values are dropped.
+/// Package log levels, each gated by its [LogCategory].
 @internal
-final FieldsLogger fine = _logFields(500);
+abstract final class Log {
+  /// Tracing information. `fields` with `null` values are dropped.
+  static final FieldsLogger fine = _logFields(500);
 
-/// Static configuration messages
-@internal
-final FieldsLogger config = _logFields(700);
+  /// Static configuration messages
+  static final FieldsLogger config = _logFields(700);
 
-/// Informational messages
-@internal
-final FieldsLogger info = _logFields(800);
+  /// Informational messages
+  static final FieldsLogger info = _logFields(800);
 
-/// Potential problems
-@internal
-final void Function(
-  LogCategory category,
-  Object exception, [
-  StackTrace? stackTrace,
-  String? reason,
-])
-warning = _logAll(900);
+  /// Potential problems
+  static final void Function(
+    LogCategory category,
+    Object exception, [
+    StackTrace? stackTrace,
+    String? reason,
+  ])
+  warning = _logAll(900);
 
-/// Serious failures
-@internal
-final void Function(
-  LogCategory category,
-  Object error, [
-  StackTrace stackTrace,
-  String? reason,
-])
-severe = _logAll(1000);
+  /// Serious failures
+  static final void Function(
+    LogCategory category,
+    Object error, [
+    StackTrace stackTrace,
+    String? reason,
+  ])
+  severe = _logAll(1000);
+}
 
 FieldsLogger _logFields(int level) => (category, message, [fields = const {}]) {
   // coverage:ignore-start

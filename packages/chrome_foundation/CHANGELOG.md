@@ -6,6 +6,11 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Source-breaking: `describeChromeStrings(strings)` in `testing.dart` is
+  `ChromeStringsSnapshot.of(strings)`.
+
 ### Added
 
 - `PanelStrings.colorAllTitle` (source-breaking for hosts that build

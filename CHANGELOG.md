@@ -34,6 +34,24 @@
   and `chat_composer`; the dependency direction is in
   [ADR 020](docs/adr/020-package-topology.md).
 
+### Library scope
+- **BREAKING**: `chat_scroll_view` exports no top-level functions, constants
+  or variables. Each one moved onto the type it serves:
+
+  | Before | After |
+  | --- | --- |
+  | `showChatMessageMenu(...)` | `ChatMessageMenu.show(...)` |
+  | `kChatMessageMenuEdgeInset` | `ChatMessageMenuPlacement.edgeInset` |
+  | `kChatMessageMenuMinWidth`, `kChatMessageMenuMaxWidth` | `ChatMessageMenuCard.defaultMinWidth`, `ChatMessageMenuCard.defaultMaxWidth` |
+  | `kChatMessageMenuReactionsPad`, `…PadVertical`, `…GapSlots`, `…Gap`, `…Height`, `…StartOverhang`, `…EndOverhang` | `ChatMessageMenuReactions.pad`, `.padVertical`, `.gapSlots`, `.gap`, `.height`, `.startOverhang`, `.endOverhang` |
+  | `kChatMessageMenuScrimOpacity`, `kChatMessageMenuScrimDuration` | `ChatMessageMenuScrim.opacity`, `ChatMessageMenuScrim.duration` |
+  | `visibleRowFillsBand(row.height, range.paintBandHeight)` | `range.rowFillsBand(row)` |
+  | `chatCodeBlockBuilder(...)` | `ChatCodeBlockPainter.builder(...)` |
+  | `kChatMessageChangeDuration`, `kChatMessageChangeCurve`, `kChatMessageChangeClipInset` | `ChatMessageChangeParams.duration`, `.curve`, `.clipInset` |
+  | `beginChatMessageChange(...)` | `ChatMessageChangeParams.begin(...)` |
+  | `chatMessageChangeAtProgress(params, p)` | `params.atProgress(p)` |
+  | `debugChatMessageChangeRecordPaints` | `RenderChatMessageChangeTransition.debugRecordPaints` |
+
 ### Day separators
 - **ADDED**: `ChatFloatingHeaderMarker`. The viewport now builds the
   floating header under this marker, and `ChatFloatingHeaderMarker.isInside`

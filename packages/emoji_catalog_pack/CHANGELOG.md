@@ -6,6 +6,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Source-breaking for `generator.dart`: `generateAssets(...)` is
+  `AssetGenerator.generate(...)`, `buildEmojiKeywordPack(...)` is
+  `EmojiKeywordPackBuilder.build(...)` and `buildStructure(file)` is
+  `StructureBuilder.build(file)`.
+
 ### Added
 
 - The emoji catalog as shipped data: `assets/structure.tsv` (groups,

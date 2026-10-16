@@ -84,7 +84,7 @@ final class GlyphAtlasHost implements BakeActivityPort {
   /// [glyphBoxExtent] logical pixels wide.
   ///
   /// [glyphBoxExtent] is the largest box any section draws a glyph in
-  /// (`catalogGlyphBoxExtent` of the cell), because there is **one** baked
+  /// (`CatalogContentBox.glyphBoxExtent` of the cell), because there is **one** baked
   /// size per atlas and every section scales it. [devicePixelRatio] sizes the
   /// baked glyph (capped at the atlas maximum) and can change later.
   /// [visible] and [opening] are the panel's presence. [pageRetention] is how
@@ -107,7 +107,7 @@ final class GlyphAtlasHost implements BakeActivityPort {
     GlyphAtlasPersistence? persistence,
     BakeClock? clock,
     GlyphBakeObserver? observer,
-    GlyphAtlasFactory atlasFactory = createGlyphAtlasForPlatform,
+    GlyphAtlasFactory atlasFactory = GlyphAtlas.forPlatform,
   }) : _frames = frames,
        _devicePixelRatio = devicePixelRatio,
        _glyphBoxExtent = glyphBoxExtent,

@@ -6,23 +6,6 @@ import 'package:chat_scroll_view/src/util/logger.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/rendering.dart';
 
-/// Legacy constant retained for tests/callers. Path selection no longer uses a
-/// pixel-distance gate: **built → close-path**, **not built → stitch**.
-const double kCloseAnimateDistance = 2400;
-
-/// Floor for travel-scaled [chatAnimateTravelDuration] (ms).
-const int kAnimateTravelDurationMinMs = 300;
-
-/// Cap for travel-scaled [chatAnimateTravelDuration] (ms).
-const int kAnimateTravelDurationMaxMs = 1300;
-
-/// Default solid hold after navigate-select settle (ms).
-/// Mapped to [ChatAnimator.highlightDuration].
-const int kHighlightHoldDurationMs = 1000;
-
-/// Fade length after navigate-select hold ends.
-const Duration kHighlightFadeDuration = Duration(milliseconds: 300);
-
 /// Stitch geometry captured when [ChatAnimator.cancelAnimate] aborts a far path.
 class StitchCancelSnapshot {
   /// Creates a snapshot of the stitch cancel state.
@@ -52,28 +35,6 @@ class StitchCancelSnapshot {
 
   /// Whether the stitch was toward newer.
   final bool towardNewer;
-}
-
-/// Travel-scaled animate duration for close-path and stitch.
-///
-/// Formula: `((|travel| / viewportHeight) + 1) * 200` ms, clamped to
-/// [[kAnimateTravelDurationMinMs], [kAnimateTravelDurationMaxMs]].
-/// Longer hops feel deliberate; short hops stay snappy. Same curve family as
-/// stitch so a tall on-screen close hop does not finish much faster than an
-/// equivalent stitch.
-Duration chatAnimateTravelDuration({
-  required double travelPx,
-  required double viewportHeight,
-}) {
-  final vh = viewportHeight <= 0 ? 1.0 : viewportHeight;
-  final raw = ((travelPx.abs() / vh) + 1.0) * 200.0;
-  final ms = raw
-      .clamp(
-        kAnimateTravelDurationMinMs.toDouble(),
-        kAnimateTravelDurationMaxMs.toDouble(),
-      )
-      .round();
-  return Duration(milliseconds: ms);
 }
 
 /// Phases of the navigate-select row wash.
@@ -106,13 +67,13 @@ enum ChatHighlightPhase {
 ///
 /// ## Timing
 ///
-/// Both paths use [chatAnimateTravelDuration] + [Curves.easeOutQuint]. Caller
+/// Both paths use [travelDuration] + [Curves.easeOutQuint]. Caller
 /// duration/curve are hints (`duration ≤ 0` ⇒ instant jump).
 ///
 /// ## Highlight
 ///
 /// When `highlight: true`: arm solid at navigate start; hold clock starts /
-/// restarts at settle; then [kHighlightFadeDuration] fade. Host
+/// restarts at settle; then [highlightFadeDuration] fade. Host
 /// [ChatScrollController.highlight] / [ChatScrollController.jumpTo] with
 /// `highlight: true` request the same wash via the controller slot; bind
 /// adopts it. Drag / [ChatScrollController.scrollBy] fade an armed wash and
@@ -179,7 +140,7 @@ class ChatAnimator implements ChatScrollAnimator {
     /// stitch completion. Render-owned.
     required void Function(StitchCancelSnapshot snapshot) onStitchComplete,
     Duration highlightDuration = const Duration(
-      milliseconds: kHighlightHoldDurationMs,
+      milliseconds: highlightHoldDurationMs,
     ),
     Color highlightColor = const Color(0x280A90F0),
   }) : _controller = controller,
@@ -206,6 +167,42 @@ class ChatAnimator implements ChatScrollAnimator {
        _onStitchComplete = onStitchComplete,
        _highlightDuration = highlightDuration,
        _highlightColor = highlightColor;
+
+  /// Legacy constant retained for tests/callers. Path selection no longer uses a
+  /// pixel-distance gate: **built → close-path**, **not built → stitch**.
+  static const double closeAnimateDistance = 2400;
+
+  /// Floor for travel-scaled [travelDuration] (ms).
+  static const int travelDurationMinMs = 300;
+
+  /// Cap for travel-scaled [travelDuration] (ms).
+  static const int travelDurationMaxMs = 1300;
+
+  /// Default solid hold after navigate-select settle (ms).
+  /// Mapped to [highlightDuration].
+  static const int highlightHoldDurationMs = 1000;
+
+  /// Fade length after navigate-select hold ends.
+  static const Duration highlightFadeDuration = Duration(milliseconds: 300);
+
+  /// Travel-scaled animate duration for close-path and stitch.
+  ///
+  /// Formula: `((|travel| / viewportHeight) + 1) * 200` ms, clamped to
+  /// [[travelDurationMinMs], [travelDurationMaxMs]].
+  /// Longer hops feel deliberate; short hops stay snappy. Same curve family as
+  /// stitch so a tall on-screen close hop does not finish much faster than an
+  /// equivalent stitch.
+  static Duration travelDuration({
+    required double travelPx,
+    required double viewportHeight,
+  }) {
+    final vh = viewportHeight <= 0 ? 1.0 : viewportHeight;
+    final raw = ((travelPx.abs() / vh) + 1.0) * 200.0;
+    final ms = raw
+        .clamp(travelDurationMinMs.toDouble(), travelDurationMaxMs.toDouble())
+        .round();
+    return Duration(milliseconds: ms);
+  }
 
   final ChatScrollController _controller;
   final double? Function(int id) _offsetToBuiltMessage;
@@ -356,7 +353,7 @@ class ChatAnimator implements ChatScrollAnimator {
   double highlightFactor = 0;
 
   /// Solid hold length after settle. Zero disables highlight entirely.
-  /// Fade is always [kHighlightFadeDuration].
+  /// Fade is always [highlightFadeDuration].
   Duration _highlightDuration;
 
   /// See [highlightDuration] setter.
@@ -415,7 +412,7 @@ class ChatAnimator implements ChatScrollAnimator {
           (animateAlignment - align).abs() < 0.001 &&
           (animatePixelOffset - pixelOffset).abs() < 0.001;
       if (sameTarget && duration > Duration.zero) {
-        fine(.animate, 'animate.coalesce', {
+        Log.fine(.animate, 'animate.coalesce', {
           'target': targetId,
           'far': farAnimateActive,
           'measured': stitchMeasured,
@@ -427,7 +424,7 @@ class ChatAnimator implements ChatScrollAnimator {
         return inFlight.future;
       }
       if (busyPolicy != AnimateToBusyPolicy.replace) {
-        fine(.animate, 'animate.ignored', {
+        Log.fine(.animate, 'animate.ignored', {
           'requested': targetId,
           'running': animateTargetId,
           'far': farAnimateActive,
@@ -438,7 +435,7 @@ class ChatAnimator implements ChatScrollAnimator {
         });
         return Future<AnimateToPath>.value(AnimateToPath.none);
       }
-      fine(.animate, 'animate.replace', {
+      Log.fine(.animate, 'animate.replace', {
         'requested': targetId,
         'running': animateTargetId,
         'far': farAnimateActive,
@@ -451,7 +448,7 @@ class ChatAnimator implements ChatScrollAnimator {
     // Already painted at the aligned seat — no teleport / scroll.
     if (duration > Duration.zero &&
         _isAlreadyAtAlignedTarget(targetId, align, pixelOffset)) {
-      fine(.animate, 'animate.alreadyThere', {
+      Log.fine(.animate, 'animate.alreadyThere', {
         'target': targetId,
         'align': LogFormat.ratio(align),
         'anchorId': _controller.anchorMessageId,
@@ -473,15 +470,11 @@ class ChatAnimator implements ChatScrollAnimator {
     _cancelOverscroll();
     if (duration <= Duration.zero) {
       // Zero duration is instant jumpTo — no animation phase and no highlight.
-      fine(.animate, 'animate.jumpInstant', {
+      Log.fine(.animate, 'animate.jumpInstant', {
         'target': targetId,
         'align': LogFormat.ratio(align),
       });
-      _controller.jumpTo(
-        targetId,
-        alignment: align,
-        pixelOffset: pixelOffset,
-      );
+      _controller.jumpTo(targetId, alignment: align, pixelOffset: pixelOffset);
       return Future<AnimateToPath>.value(AnimateToPath.instant);
     }
 
@@ -503,7 +496,7 @@ class ChatAnimator implements ChatScrollAnimator {
 
     final offsetNow = _offsetToBuiltMessage(targetId);
     final readyNow = _isDestinationReady(targetId);
-    fine(.animate, 'animate.start', {
+    Log.fine(.animate, 'animate.start', {
       'target': targetId,
       'align': LogFormat.ratio(animateAlignment),
       'durationMs': duration.inMilliseconds,
@@ -571,7 +564,7 @@ class ChatAnimator implements ChatScrollAnimator {
     }
 
     if (!_isDestinationReady(animateTargetId)) {
-      fine(.animate, 'path.loadGate.stillUnready', {
+      Log.fine(.animate, 'path.loadGate.stillUnready', {
         'target': animateTargetId,
         'vh': LogFormat.f(viewportHeight),
       });
@@ -583,7 +576,7 @@ class ChatAnimator implements ChatScrollAnimator {
 
     final offsetToTarget = _offsetToBuiltMessage(animateTargetId);
     if (_shouldUseClosePath(offsetToTarget)) {
-      fine(.animate, 'path.loadGate.readyClose', {
+      Log.fine(.animate, 'path.loadGate.readyClose', {
         'target': animateTargetId,
         'offset': LogFormat.f(offsetToTarget!),
         'vh': LogFormat.f(viewportHeight),
@@ -595,7 +588,7 @@ class ChatAnimator implements ChatScrollAnimator {
     }
 
     // Ready but far, or ready and not yet built → stitch (deferred).
-    fine(.animate, 'path.loadGate.readyStitch', {
+    Log.fine(.animate, 'path.loadGate.readyStitch', {
       'target': animateTargetId,
       'offset': offsetToTarget == null ? 'null' : LogFormat.f(offsetToTarget),
       'vh': LogFormat.f(viewportHeight),
@@ -628,7 +621,7 @@ class ChatAnimator implements ChatScrollAnimator {
     animateCurve = Curves.easeOutQuint;
     animateStartTime = elapsed;
     _lastProgressBucket = -1;
-    fine(.animate, 'stitch.measure', {
+    Log.fine(.animate, 'stitch.measure', {
       'target': animateTargetId,
       'scrollLen': LogFormat.f(stitchScrollLength),
       'towardNewer': towardNewer,
@@ -640,20 +633,14 @@ class ChatAnimator implements ChatScrollAnimator {
   }
 
   Duration _stitchDuration(double scrollLength, double viewportHeight) =>
-      chatAnimateTravelDuration(
-        travelPx: scrollLength,
-        viewportHeight: viewportHeight,
-      );
+      travelDuration(travelPx: scrollLength, viewportHeight: viewportHeight);
 
   /// Travel-scaled duration + [Curves.easeOutQuint] for close-path motion.
   /// Caller [animate] duration/curve are hints only (stitch overrides the same
   /// way after measure).
   void _applyCloseTravelTiming(double travelPx) {
     final vh = math.max<double>(_viewportHeight(), 1);
-    animateDuration = chatAnimateTravelDuration(
-      travelPx: travelPx,
-      viewportHeight: vh,
-    );
+    animateDuration = travelDuration(travelPx: travelPx, viewportHeight: vh);
     animateCurve = Curves.easeOutQuint;
   }
 
@@ -666,7 +653,7 @@ class ChatAnimator implements ChatScrollAnimator {
 
   void _tryBeginPath() {
     if (!_isDestinationReady(animateTargetId)) {
-      fine(.animate, 'path.loadGate.wait', {
+      Log.fine(.animate, 'path.loadGate.wait', {
         'target': animateTargetId,
         'loadPolicy': loadPolicy.name,
       });
@@ -676,7 +663,7 @@ class ChatAnimator implements ChatScrollAnimator {
 
     final offsetToTarget = _offsetToBuiltMessage(animateTargetId);
     if (_shouldUseClosePath(offsetToTarget)) {
-      fine(.animate, 'path.close', {
+      Log.fine(.animate, 'path.close', {
         'target': animateTargetId,
         'offset': LogFormat.f(offsetToTarget!),
         'bandHit': _messageIntersectsPaintBand(animateTargetId),
@@ -690,12 +677,12 @@ class ChatAnimator implements ChatScrollAnimator {
         offsetToTarget == null) {
       // Ready payload, row not yet in build range — one layout chance for
       // close-path (self-insert / follow-tail). Never timeout→force-stitch.
-      fine(.animate, 'path.preferBuilt.wait', {'target': animateTargetId});
+      Log.fine(.animate, 'path.preferBuilt.wait', {'target': animateTargetId});
       _enterLoadGateWait();
       return;
     }
 
-    fine(.animate, 'path.stitch', {
+    Log.fine(.animate, 'path.stitch', {
       'target': animateTargetId,
       'reason': 'notBuilt',
       'offset': 'null',
@@ -741,7 +728,7 @@ class ChatAnimator implements ChatScrollAnimator {
     _lastProgressBucket = -1;
     final travel = (animateEndOffset - animateStartOffset).abs();
     _applyCloseTravelTiming(travel);
-    fine(.animate, 'close.begin', {
+    Log.fine(.animate, 'close.begin', {
       'target': animateTargetId,
       'startY': LogFormat.f(animateStartOffset),
       'endY': LogFormat.f(animateEndOffset),
@@ -752,7 +739,7 @@ class ChatAnimator implements ChatScrollAnimator {
     });
     // Zero travel (already at end) — finish without a 300ms empty tween.
     if (travel < _settleEpsilon) {
-      fine(.animate, 'close.noop', {'target': animateTargetId});
+      Log.fine(.animate, 'close.noop', {'target': animateTargetId});
       _completeAnimate();
     }
   }
@@ -771,7 +758,7 @@ class ChatAnimator implements ChatScrollAnimator {
     stitchScrollLength = 0;
     _stitchMeasureLayoutAsked = false;
     _lastProgressBucket = -1;
-    fine(.animate, 'stitch.begin', {
+    Log.fine(.animate, 'stitch.begin', {
       'target': animateTargetId,
       'align': LogFormat.ratio(animateAlignment),
       'anchorBefore': _controller.anchorMessageId,
@@ -797,7 +784,7 @@ class ChatAnimator implements ChatScrollAnimator {
     if (animateHighlight && highlightDuration > Duration.zero) {
       _requestHighlight(animateTargetId, startHold: false);
     }
-    fine(.animate, 'stitch.jumped', {
+    Log.fine(.animate, 'stitch.jumped', {
       'target': animateTargetId,
       'anchorAfter': _controller.anchorMessageId,
       'anchorYAfter': LogFormat.f(_controller.anchorPixelOffset),
@@ -831,7 +818,7 @@ class ChatAnimator implements ChatScrollAnimator {
   void cancelAnimate({bool fadeHighlight = true}) {
     final completer = animateCompleter;
     if (completer == null) return;
-    fine(.animate, 'animate.cancel', {
+    Log.fine(.animate, 'animate.cancel', {
       'target': animateTargetId,
       'far': farAnimateActive,
       'measured': stitchMeasured,
@@ -888,7 +875,7 @@ class ChatAnimator implements ChatScrollAnimator {
       }
       final offsetToTarget = _offsetToBuiltMessage(animateTargetId);
       if (_shouldUseClosePath(offsetToTarget)) {
-        fine(.animate, 'path.loadGate.tickClose', {
+        Log.fine(.animate, 'path.loadGate.tickClose', {
           'target': animateTargetId,
           'offset': LogFormat.f(offsetToTarget!),
           'bandHit': _messageIntersectsPaintBand(animateTargetId),
@@ -896,7 +883,7 @@ class ChatAnimator implements ChatScrollAnimator {
         _beginClose(offsetToTarget);
         // Fall through to close-path tick below.
       } else if (offsetToTarget != null) {
-        fine(.animate, 'path.loadGate.tickStitch', {
+        Log.fine(.animate, 'path.loadGate.tickStitch', {
           'target': animateTargetId,
           'offset': LogFormat.f(offsetToTarget),
         });
@@ -916,10 +903,12 @@ class ChatAnimator implements ChatScrollAnimator {
         // (`stitchMeasured` already true).
         if (!_stitchMeasureLayoutAsked) {
           _stitchMeasureLayoutAsked = true;
-          fine(.animate, 'stitch.awaitMeasure', {'target': animateTargetId});
+          Log.fine(.animate, 'stitch.awaitMeasure', {
+            'target': animateTargetId,
+          });
           _markNeedsLayout();
         } else {
-          fine(.animate, 'stitch.awaitMeasure.pending', {
+          Log.fine(.animate, 'stitch.awaitMeasure.pending', {
             'target': animateTargetId,
           });
           _markNeedsLayout();
@@ -992,7 +981,7 @@ class ChatAnimator implements ChatScrollAnimator {
     // Log 0%, 20%, 40%, …, 100% (even buckets) to keep volume low.
     if (bucket != 0 && bucket != 10 && bucket.isOdd) return;
     _lastProgressBucket = bucket;
-    fine(.animate, 'tick.$path', {
+    Log.fine(.animate, 'tick.$path', {
       'target': animateTargetId,
       't': LogFormat.ratio(t),
       'progress': LogFormat.ratio(progress),
@@ -1025,7 +1014,7 @@ class ChatAnimator implements ChatScrollAnimator {
       animatePixelOffset,
     );
     if ((newEnd - animateEndOffset).abs() < 0.5) return;
-    fine(.animate, 'close.rebase', {
+    Log.fine(.animate, 'close.rebase', {
       'target': animateTargetId,
       'oldEnd': LogFormat.f(animateEndOffset),
       'newEnd': LogFormat.f(newEnd),
@@ -1072,7 +1061,7 @@ class ChatAnimator implements ChatScrollAnimator {
         towardNewer: stitchTowardNewer,
       );
     }
-    fine(.animate, 'animate.complete', {
+    Log.fine(.animate, 'animate.complete', {
       'target': targetId,
       'path': _flightPath.name,
       'anchorId': _controller.anchorMessageId,
@@ -1254,7 +1243,7 @@ class ChatAnimator implements ChatScrollAnimator {
 
     if (highlightPhase == ChatHighlightPhase.fading) {
       final fadeStart = highlightFadeStartTime ??= elapsed;
-      final fadeUs = kHighlightFadeDuration.inMicroseconds;
+      final fadeUs = highlightFadeDuration.inMicroseconds;
       if (fadeUs <= 0) {
         clearHighlight();
         return false;
@@ -1264,7 +1253,7 @@ class ChatAnimator implements ChatScrollAnimator {
         clearHighlight();
         return false;
       }
-      // Linear fade: factor 1 → 0 over [kHighlightFadeDuration].
+      // Linear fade: factor 1 → 0 over [highlightFadeDuration].
       highlightFactor = 1.0 - t;
       return true;
     }
@@ -1296,7 +1285,7 @@ class ChatAnimator implements ChatScrollAnimator {
 
   /// Paints a full-width wash **under** the highlight target row.
   ///
-  /// Soft solid during hold; fades over [kHighlightFadeDuration] after
+  /// Soft solid during hold; fades over [highlightFadeDuration] after
   /// unselect. Called from the render paint path **before** message children
   /// so text and bubbles stay crisp. Bubble selected-fill is host-owned.
   void paintHighlight({

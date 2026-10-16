@@ -24,14 +24,14 @@ Decisions: [ADR 021](../../docs/adr/021-content-identity-and-collections.md)
 | `EmojiCollectionSource` | `CollectionSource`: recents (from a `RecentsStore`, `SemanticKind.unicodeEmoji`) then one category per `EmojiSection` (the reference client's seven, `EmojiSection.reference`, folding Unicode's groups: smileys and people are one, the flags close the symbols; a group no section names keeps a section of its own). With a `KeywordSource` and `languages` every item carries its spoken name (the first word of its record, from the first language that names it). Shows the variant the user chose per base (`PreferenceStore`), hides what a `GlyphSupport` says is missing, optional paging. `chooseVariant`, `entryOf` and `shownKeyOf` are the picker path. |
 | `EmojiSearchSource` | `SearchSource` over an ordered language set: merged packs, rank exact > prefix > later-token prefix > recents frequency, de-duplicated by key, same variant and glyph rules as the grid. Re-runs when a pack arrives. |
 | `MissingGlyphProbe` | The `GlyphSupport`: cells in (`observe`), `supports` and `artVersion` out, one signal per step on `changes`. Flags a cell identical to a missing-glyph reference or empty. Keeps its verdicts through a `KeyValueStore`, under the art version they were taken for. Rasterising is the host's. |
-| `computeGlyphArtFingerprint`, `defaultArtSentinelGlyphs` | The system emoji art version signal: a pixel fingerprint of a few sentinel glyphs, one rendered per frame, plus an optional host `supplement` (such as the OS version). No native call. |
+| `GlyphArtFingerprint` | The system emoji art version signal: a pixel fingerprint of a few sentinel glyphs, one rendered per frame, plus an optional host `supplement` (such as the OS version). No native call. |
 | `PacedGlyphProbePass` | The probe's own pass for a host with no bake to share (web): a few cells per frame under a governor, paused while the panel opens or scrolls. |
-| `GlyphProbeSnapshot`, `hashGlyphPixels` | The persisted record (hashes, never pixels) and the cell comparison key. |
+| `GlyphProbeSnapshot`, `GlyphPixelHash` | The persisted record (hashes, never pixels) and the cell comparison key. |
 
 `package:emoji_data/testing.dart` holds `FakeEmojiAssetLoader`. The fakes and
 contract suites of the seams themselves are `content_model/testing.dart`; the
-tests of this package run `runCollectionSourceContract`,
-`runSearchSourceContract` and `runKeywordSourceContract` against the
+tests of this package run `CollectionSourceContract.run`,
+`SearchSourceContract.run` and `KeywordSourceContract.run` against the
 implementations.
 
 ## Wiring
@@ -86,8 +86,8 @@ final probe = MissingGlyphProbe(
   glyphs: catalogGlyphs,
   store: keyValueStore,
   // Rendered once; one sentinel per frame. `supplement` is optional.
-  artVersion: () => computeGlyphArtFingerprint(
-    sentinels: defaultArtSentinelGlyphs,
+  artVersion: () => GlyphArtFingerprint.compute(
+    sentinels: GlyphArtFingerprint.defaultSentinels,
     pixelsOf: systemRasteriserPixelsOf,
     nextFrame: nextFrame,
     supplement: operatingSystemVersion,
@@ -162,7 +162,7 @@ Known limits of the rule, kept as behaviour:
 
 ### Cost
 
-Measured on the development Mac (AOT build, `hashGlyphPixels`): 1759 cells of
+Measured on the development Mac (AOT build, `GlyphPixelHash.of`): 1759 cells of
 76 x 76 RGBA hash in about 60 ms in total, about 0.5 ms for a 16-glyph strip; the
 persisted record is about 53 KB. These are host-side costs of the probe on top
 of the bake and do not stand in for a mid-range Android measurement, which is

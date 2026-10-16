@@ -334,11 +334,11 @@ void main() {
   });
 
   group('contract', () {
-    runPresentationPolicyContract(
+    PresentationPolicyContract.run(
       r'PanelPresentationPolicy$Mobile',
       () => const PanelPresentationPolicy$Mobile(),
     );
-    runPresentationPolicyContract(
+    PresentationPolicyContract.run(
       r'PanelPresentationPolicy$Desktop',
       () => const PanelPresentationPolicy$Desktop(),
     );

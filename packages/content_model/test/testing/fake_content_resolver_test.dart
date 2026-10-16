@@ -15,7 +15,7 @@ const _sticker = ContentDescriptor(
 );
 
 void main() {
-  runContentResolverContract(
+  ContentResolverContract.run(
     () async => ContentResolverHarness(
       resolver: FakeContentResolver([_thumbs, _sticker]),
       known: const [_thumbs, _sticker],

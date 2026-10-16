@@ -18,7 +18,7 @@ FakeSearchSource _source() => FakeSearchSource({
 });
 
 void main() {
-  runSearchSourceContract(() async {
+  SearchSourceContract.run(() async {
     final source = _source();
     return SearchSourceHarness(
       source: source,

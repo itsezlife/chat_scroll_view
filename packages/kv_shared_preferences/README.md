@@ -33,7 +33,7 @@ changed nothing and `read` returns what the platform holds.
 | A namespace per package, chosen by that package (this adapter picks none) and passed on every call; a version on every value. | Share a namespace between packages, or expect the adapter to parse, migrate or version values. |
 | Handling of a failed future from `read`, `write` or `remove` (storage unreachable); the store left the value as it was. | Treat a missing value as an error: it reads as null. |
 | Its own preference keys, which stay untouched. The adapter writes only `namespace:key` entries. | Rely on the adapter to read or delete keys it did not write, or to find the older `flutter.`-prefixed keys. |
-| `runKeyValueStoreContract` (from `content_model/testing.dart`) in the test of any other platform adapter it writes. | Import this package from a logic package: depend on `KeyValueStore` instead. |
+| `KeyValueStoreContract.run` (from `content_model/testing.dart`) in the test of any other platform adapter it writes. | Import this package from a logic package: depend on `KeyValueStore` instead. |
 
 ### Migration policy
 
@@ -44,7 +44,7 @@ missing.
 
 ## Testing
 
-The adapter runs `runKeyValueStoreContract` from `content_model/testing.dart`
+The adapter runs `KeyValueStoreContract.run` from `content_model/testing.dart`
 against the real plugin's in-memory test double (`test/`). A different
 platform adapter does the same from its own test file.
 

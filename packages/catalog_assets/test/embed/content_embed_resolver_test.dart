@@ -18,7 +18,7 @@ void main() {
     addTearDown(scope.dispose);
   });
 
-  runInlineEmbedResolverContract(
+  InlineEmbedResolverContract.run(
     () => InlineEmbedResolverHarness(
       resolver: ContentEmbedResolver(scope: scope),
       known: const InlineEmbedTarget(scheme: 'document', id: '5', alt: 'x'),

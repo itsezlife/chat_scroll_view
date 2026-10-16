@@ -61,7 +61,7 @@ final class RichText {
       ? RichText._(plain, const [])
       : RichText._(
           plain,
-          List.unmodifiable(canonicalEntities(plain, entities)),
+          List.unmodifiable(CanonicalEntities.of(plain, entities)),
         );
 
   /// The text [json] describes, as written by [toJson].
@@ -106,6 +106,16 @@ final class RichText {
       return null;
     }
   }
+
+  /// Whether [index] falls between the two halves of a surrogate pair in
+  /// [text]: a place where no entity starts or ends and where [slice],
+  /// [replaceRange], [insert] and [delete] refuse a range edge, so an editor
+  /// can move an edge off it first.
+  static bool splitsSurrogatePair(String text, int index) =>
+      index > 0 &&
+      index < text.length &&
+      (text.codeUnitAt(index - 1) & 0xFC00) == 0xD800 &&
+      (text.codeUnitAt(index) & 0xFC00) == 0xDC00;
 
   /// The text without markup.
   final String plain;

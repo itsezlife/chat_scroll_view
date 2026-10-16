@@ -158,10 +158,8 @@ Widget _unreadAlt(BuildContext context) =>
 final class _PaintedSeparator {
   int paints = 0;
 
-  Widget call(BuildContext context) => CustomPaint(
-    painter: _CountingPainter(this),
-    child: _unread(context),
-  );
+  Widget call(BuildContext context) =>
+      CustomPaint(painter: _CountingPainter(this), child: _unread(context));
 }
 
 final class _CountingPainter extends CustomPainter {
@@ -266,7 +264,8 @@ const _frame = Duration(milliseconds: 10);
 
 double _sine(double t) => (1 - math.cos(math.pi * t.clamp(0.0, 1.0))) / 2;
 
-double _move(int ms) => kChatMessageChangeCurve.transform((ms / 250).clamp(0, 1));
+double _move(int ms) =>
+    ChatMessageChangeParams.curve.transform((ms / 250).clamp(0, 1));
 
 double _exitOpacity(int ms) => 1 - _sine(ms / 120);
 
@@ -1345,7 +1344,10 @@ void main() {
       );
 
       expect(tester.getBottomLeft(find.text('msg-20')).dy, bandBottom(tester));
-      expect(_top(tester, 'unread'), bandBottom(tester) - 60 - _separatorHeight);
+      expect(
+        _top(tester, 'unread'),
+        bandBottom(tester) - 60 - _separatorHeight,
+      );
     });
 
     testWidgets('a target that is not loaded resolves on the layout that '
@@ -1360,7 +1362,9 @@ void main() {
       await tester.pump();
       expect(outcomes, isEmpty);
 
-      source.upsertMessages(<IChatMessage>[for (var i = 0; i < 10; i++) _msg(i)]);
+      source.upsertMessages(<IChatMessage>[
+        for (var i = 0; i < 10; i++) _msg(i),
+      ]);
       await tester.pump();
 
       expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.tail]);
@@ -1389,7 +1393,9 @@ void main() {
       await tester.pump();
       expect(outcomes, isEmpty);
 
-      source.upsertMessages(<IChatMessage>[for (var i = 0; i < 10; i++) _msg(i)]);
+      source.upsertMessages(<IChatMessage>[
+        for (var i = 0; i < 10; i++) _msg(i),
+      ]);
       await tester.pump();
 
       expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.target]);
@@ -1416,7 +1422,9 @@ void main() {
       await tester.pump();
       expect(controller.isAtTail.value, isTrue);
 
-      source.upsertMessages(<IChatMessage>[for (var i = 0; i < 10; i++) _msg(i)]);
+      source.upsertMessages(<IChatMessage>[
+        for (var i = 0; i < 10; i++) _msg(i),
+      ]);
       await tester.pump();
 
       expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.target]);
@@ -1435,7 +1443,9 @@ void main() {
       await tester.pump();
       expect(outcomes, isEmpty);
 
-      source.upsertMessages(<IChatMessage>[for (var i = 0; i < 10; i++) _msg(i)]);
+      source.upsertMessages(<IChatMessage>[
+        for (var i = 0; i < 10; i++) _msg(i),
+      ]);
       await tester.pump();
 
       expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.tail]);
@@ -1455,7 +1465,9 @@ void main() {
       controller.scrollBy(10);
       await tester.pump();
 
-      source.upsertMessages(<IChatMessage>[for (var i = 0; i < 10; i++) _msg(i)]);
+      source.upsertMessages(<IChatMessage>[
+        for (var i = 0; i < 10; i++) _msg(i),
+      ]);
       await tester.pump();
 
       expect(outcomes, isEmpty);

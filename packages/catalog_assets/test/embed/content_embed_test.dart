@@ -45,7 +45,7 @@ void main() {
 
   Canvas canvas() => Canvas(PictureRecorder());
 
-  runInlineEmbedContract(() => embedOf(_sticker));
+  InlineEmbedContract.run(() => embedOf(_sticker));
 
   group('attach', () {
     test('attaches the key with the preset spec on creation', () {

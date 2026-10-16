@@ -55,7 +55,7 @@ void main() {
     pageSize: pageSize,
   );
 
-  runSearchSourceContract(
+  SearchSourceContract.run(
     () async => SearchSourceHarness(
       source: source(pageSize: 2),
       query: 'face',

@@ -27,7 +27,7 @@ typedef BakeFrameCallback = void Function(BakeFrame frame);
 /// The frame clock the bake is paced on: the only way the scheduler gets time
 /// to work in, injected so a test can step it.
 ///
-/// Contract (run [runBakeFrameSourceContract] against an implementation):
+/// Contract (run [BakeFrameSourceContract.run] against an implementation):
 ///
 /// - [requestFrame] makes the callback run once, on a later frame, never
 ///   inside the call;
@@ -37,7 +37,7 @@ typedef BakeFrameCallback = void Function(BakeFrame frame);
 /// - a source holds nothing once its requests are delivered or cancelled: an
 ///   idle app that pauses the bake asks for no further frames.
 ///
-/// [runBakeFrameSourceContract]: package:catalog_assets/testing.dart
+/// [BakeFrameSourceContract.run]: package:catalog_assets/testing.dart
 abstract interface class BakeFrameSource {
   /// Calls [onFrame] once at the next frame.
   BakeFrameCancel requestFrame(BakeFrameCallback onFrame);

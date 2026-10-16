@@ -38,7 +38,7 @@ void main() {
     });
   });
 
-  runKeywordSourceContract(
+  KeywordSourceContract.run(
     () async => KeywordSourceHarness(
       source: source(),
       language: 'en',

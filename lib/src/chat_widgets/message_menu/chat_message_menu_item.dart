@@ -67,7 +67,7 @@ final class ChatMessageMenuCustom extends ChatMessageMenuItem {
   final WidgetBuilder builder;
 }
 
-/// Outcome of [showChatMessageMenu].
+/// Outcome of [ChatMessageMenu.show].
 ///
 /// Dismiss and presence abort complete with `null` instead of a result.
 @immutable

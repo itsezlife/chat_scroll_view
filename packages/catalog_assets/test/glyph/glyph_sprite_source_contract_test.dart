@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('FakeGlyphSpriteSource', () {
-    runGlyphSpriteSourceContract(() {
+    GlyphSpriteSourceContract.run(() {
       final fake = FakeGlyphSpriteSource(['a', 'b', 'c']);
       addTearDown(fake.dispose);
       return GlyphSpriteSourceHarness(
@@ -19,7 +19,7 @@ void main() {
   });
 
   group('GlyphAtlas', () {
-    runGlyphSpriteSourceContract(() {
+    GlyphSpriteSourceContract.run(() {
       final frames = FakeBakeFrameSource();
       final visible = ValueNotifier<bool>(true);
       final opening = ValueNotifier<bool>(false);

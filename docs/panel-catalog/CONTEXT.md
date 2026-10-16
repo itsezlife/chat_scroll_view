@@ -31,7 +31,7 @@ When the target is not attached and farther than the distance gate (or animation
 _Avoid_: Naked `jumpTo` as the far-path UX, animateTo through the entire gap
 
 **Far-path distance gate**:
-Far path applies when the target view is not currently attached AND `|adapterPos − firstVisible| > spanCount * 9` in **per-cell** adapter space. In flat-row index (one slot per section header + one per leaf row, rows counted at each section's own column count) that is `|targetFlatIndex − firstVisibleFlatIndex| > [kFarPathDistanceGateFactor]` (= 9). Below that (or if the target header row is already visible), use near-path smooth scroll.
+Far path applies when the target view is not currently attached AND `|adapterPos − firstVisible| > spanCount * 9` in **per-cell** adapter space. In flat-row index (one slot per section header + one per leaf row, rows counted at each section's own column count) that is `|targetFlatIndex − firstVisibleFlatIndex| > [CatalogSectionNavigation.farPathDistanceGateFactor]` (= 9). Below that (or if the target header row is already visible), use near-path smooth scroll.
 _Avoid_: Multiplying the flat-row gate by spanCount again (over-widens near path), pixel-distance gates, treating “far” as synonymous with jumpTo, per-cell index for the gate when the catalog already uses flat rows
 
 **Section jump**:
@@ -115,7 +115,7 @@ Sealed per-section geometry. `Grid(spanCount, cell extent or cell aspect, header
 _Avoid_: One geometry for the whole viewport, per-leaf flex sizing, a lookup that walks sections or the catalogue
 
 **Largest glyph box**:
-The rule that sizes baked glyphs when sections have different cell sizes. A glyph is drawn in a box of 0.72 of its cell's shorter side; a host that bakes glyphs bakes **one** size per atlas, for the largest box any section it serves draws (`largestCatalogGlyphBox`, which uses the very formula the painter draws with), so a section with larger cells is not upscaled and one with smaller cells scales the same sprites down. The atlas layout still caps the baked size, which keeps the page count and the resident ceiling the same.
+The rule that sizes baked glyphs when sections have different cell sizes. A glyph is drawn in a box of 0.72 of its cell's shorter side; a host that bakes glyphs bakes **one** size per atlas, for the largest box any section it serves draws (`PanelCatalogViewport.largestGlyphBox`, which uses the very formula the painter draws with), so a section with larger cells is not upscaled and one with smaller cells scales the same sprites down. The atlas layout still caps the baked size, which keeps the page count and the resident ceiling the same.
 _Avoid_: A second atlas for a section with other cell sizes, sizing the bake for the smallest cell (blurs the larger ones), a size derived from the viewport default when a section overrides it
 
 **Catalog leaf**:

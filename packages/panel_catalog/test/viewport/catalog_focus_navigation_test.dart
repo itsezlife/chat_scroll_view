@@ -31,11 +31,11 @@ CatalogCell? _move(
   CatalogCell from,
   CatalogFocusMove move, {
   TextDirection direction = TextDirection.ltr,
-}) => moveCatalogFocus(
+}) => CatalogFocusNavigation.move(
   from: from,
   move: move,
   sections: sections,
-  bands: projectCatalogSectionBands(
+  bands: CatalogSectionBands.project(
     sections: sections,
     spanCount: 4,
     cellExtent: 100,
@@ -255,20 +255,23 @@ void main() {
     final sections = [_section('empty', 0), _a, _section('b', 3)];
 
     test('the first leaf skips sections with none', () {
-      expect(firstCatalogCell(sections), (section: 1, index: 0));
+      expect(CatalogFocusNavigation.firstCell(sections), (
+        section: 1,
+        index: 0,
+      ));
     });
 
     test('the last leaf is the last of the last section with any', () {
-      expect(lastCatalogCell(sections), (section: 2, index: 2));
-      expect(lastCatalogCell([_a, _section('empty', 0)]), (
+      expect(CatalogFocusNavigation.lastCell(sections), (section: 2, index: 2));
+      expect(CatalogFocusNavigation.lastCell([_a, _section('empty', 0)]), (
         section: 0,
         index: 9,
       ));
     });
 
     test('an empty catalogue has neither', () {
-      expect(firstCatalogCell([_section('empty', 0)]), isNull);
-      expect(lastCatalogCell(const []), isNull);
+      expect(CatalogFocusNavigation.firstCell([_section('empty', 0)]), isNull);
+      expect(CatalogFocusNavigation.lastCell(const []), isNull);
     });
 
     test('first and last moves go there from anywhere', () {

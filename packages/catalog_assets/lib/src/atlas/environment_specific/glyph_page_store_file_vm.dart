@@ -39,13 +39,13 @@ typedef PixelDecoder =
 /// Disk work uses the asynchronous `dart:io` API, so it runs off the UI
 /// thread; the Dart-side cost per page is the copy of the pixels in and out.
 /// The caller paces it (the atlas moves one page per frame).
-final class FileGlyphPageStore implements GlyphPageStore {
+final class GlyphPageStore$File$VM implements GlyphPageStore {
   /// Creates a store keeping its pages in [directory], created on first write.
   ///
   /// [decode] turns a page's raw pixels into an image; the default is the
   /// engine's `decodeImageFromPixels`, and a test replaces it to make decoding
   /// fail.
-  FileGlyphPageStore(
+  GlyphPageStore$File$VM(
     this.directory, {
     PixelDecoder decode = decodeImageFromPixels,
   }) : _decode = decode;
@@ -112,7 +112,7 @@ final class FileGlyphPageStore implements GlyphPageStore {
     } on Object catch (error, stack) {
       // Present but unreadable (permissions, a failing disk): still a miss,
       // but one the host must be able to see, or every launch re-bakes quietly.
-      reportGlyphAtlasError(
+      GlyphAtlasErrors.report(
         error,
         stack,
         'while reading glyph atlas page $pageIndex',
@@ -141,7 +141,7 @@ final class FileGlyphPageStore implements GlyphPageStore {
         done.complete,
       );
     } on Object catch (error, stack) {
-      reportGlyphAtlasError(
+      GlyphAtlasErrors.report(
         error,
         stack,
         'while decoding glyph atlas page $pageIndex',

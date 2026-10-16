@@ -8,6 +8,15 @@ is pre-1.0.
 
 ### Changed
 
+- Source-breaking: the glyph probe's free functions and defaults live on
+  types: `computeGlyphArtFingerprint(...)` is
+  `GlyphArtFingerprint.compute(...)`, `defaultArtSentinelGlyphs` is
+  `GlyphArtFingerprint.defaultSentinels`,
+  `hashGlyphPixels(pixels)` is `GlyphPixelHash.of(pixels)` and
+  `defaultMissingGlyphReferences` is `MissingGlyphProbe.defaultReferences`.
+
+### Changed
+
 - An emoji whose base the device cannot draw is hidden in every tone: its
   variants were never probed and read as drawable, so a tone for all showed
   them as missing-glyph boxes.

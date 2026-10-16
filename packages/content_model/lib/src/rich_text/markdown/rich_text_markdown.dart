@@ -68,11 +68,11 @@ import 'package:content_model/src/rich_text/rich_text.dart';
 ///   styles differently.
 abstract final class RichTextMarkdown {
   /// The markdown for [text].
-  static String encode(RichText text) => encodeMarkdown(text);
+  static String encode(RichText text) => MarkdownEncoder.encode(text);
 
   /// The rich text [markdown] describes.
   ///
   /// Never throws: markup that does not form a style, link or quote is kept as
   /// text.
-  static RichText decode(String markdown) => decodeMarkdown(markdown);
+  static RichText decode(String markdown) => MarkdownDecoder.decode(markdown);
 }

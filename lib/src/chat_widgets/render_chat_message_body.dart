@@ -119,7 +119,7 @@ class RenderChatMessageBody extends RenderBox
         ? Size.zero
         : _layoutChild(meta, childConstraints, dry: dry);
 
-    return layoutChatMessageBody(
+    return ChatMessageBodyLayout.measure(
       constraints: constraints,
       padding: padding,
       spacing: _spacing,
@@ -130,7 +130,10 @@ class RenderChatMessageBody extends RenderBox
       hasMeta: meta != null,
       lastLineWidth: () => dry
           ? contentSize.width
-          : lastLineWidthOf(content!, fallback: contentSize.width),
+          : ChatMessageBodyLayout.lastLineWidthOf(
+              content!,
+              fallback: contentSize.width,
+            ),
     );
   }
 

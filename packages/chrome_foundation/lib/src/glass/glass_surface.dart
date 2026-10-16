@@ -140,8 +140,8 @@ class _GlassSurfaceState extends State<GlassSurface> {
         shaderFilter: false,
       );
     }
-    final link = glassSourceLinkOf(context);
-    final strategy = selectGlassStrategy(
+    final link = GlassSourceLink.of(context);
+    final strategy = GlassStrategy.select(
       quality: quality,
       liteMode: policy?.liteMode ?? false,
       capabilities: capabilities,

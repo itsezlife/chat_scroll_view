@@ -131,7 +131,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
 
   /// The side of the box an emoji is drawn in: what a glyph atlas for this
   /// page is baked for.
-  static final double glyphBoxExtent = catalogGlyphBoxExtent(
+  static final double glyphBoxExtent = CatalogContentBox.glyphBoxExtent(
     cellPitch,
     cellPitch,
   );
@@ -437,7 +437,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
       try {
         return EmojiVariantSession.show(
           context: context,
-          options: emojiVariantOptions(entry),
+          options: EmojiVariantPicker.optionsOf(entry),
           initial: initial,
           // The options are the grid's cells, drawn the grid's size.
           // The grid's hover box under the pointer.
@@ -484,7 +484,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     // cell shows (the recents show what was picked).
     final saved = preferences.preferredVariant(entry.base) ?? initial;
     if (!compound) {
-      final options = emojiVariantOptions(entry);
+      final options = EmojiVariantPicker.optionsOf(entry);
       return EmojiToneSession.show(
         context: context,
         options: options,

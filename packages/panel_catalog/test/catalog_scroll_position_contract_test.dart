@@ -11,7 +11,7 @@ import 'support/asset_scopes.dart';
 
 void main() {
   group('FakeCatalogScrollPosition', () {
-    runCatalogScrollPositionContract((tester) async {
+    CatalogScrollPositionContract.run((tester) async {
       final fake = FakeCatalogScrollPosition(leafCounts: [4, 4, 4]);
       return CatalogScrollPositionHarness(
         position: fake,
@@ -24,7 +24,7 @@ void main() {
   });
 
   group('RenderPanelCatalog', () {
-    runCatalogScrollPositionContract((tester) async {
+    CatalogScrollPositionContract.run((tester) async {
       final snapshots = FakeCatalogSnapshotSource(
         sections: [
           for (var s = 0; s < 6; s++)

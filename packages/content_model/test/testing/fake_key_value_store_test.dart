@@ -3,7 +3,7 @@ import 'package:content_model/testing.dart';
 import 'package:test/test.dart';
 
 void main() {
-  runKeyValueStoreContract(FakeKeyValueStore.new);
+  KeyValueStoreContract.run(FakeKeyValueStore.new);
 
   group('FakeKeyValueStore failure', () {
     const stored = StoredValue('kept', version: 1);

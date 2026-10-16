@@ -1,10 +1,13 @@
 import 'dart:js_interop';
 
-/// Web — fetch on demand via HTTP (assets excluded from service worker).
-/// Assets are served as static files from web/comments/ symlink.
-Future<String> loadAsset(String path) async {
+/// The web hook: the text asset at [path], fetched on demand over HTTP.
+///
+/// The comment chunks are kept out of the bundle (and the service worker) and
+/// served as static files from the `web/comments/` link, so the browser loads
+/// only the chunks a chat reaches.
+Future<String> $loadAssetText(String path) async {
   final webPath = path.replaceFirst('assets/comments/', 'comments/');
-  final response = await _jsFetch(webPath.toJS).toDart;
+  final response = await _$fetch(webPath.toJS).toDart;
   if (!response.ok) {
     throw Exception(
       'Failed to load asset "$path": '
@@ -15,7 +18,7 @@ Future<String> loadAsset(String path) async {
 }
 
 @JS('fetch')
-external JSPromise<_Response> _jsFetch(JSString url);
+external JSPromise<_Response> _$fetch(JSString url);
 
 extension type _Response(JSObject _) implements JSObject {
   external bool get ok;

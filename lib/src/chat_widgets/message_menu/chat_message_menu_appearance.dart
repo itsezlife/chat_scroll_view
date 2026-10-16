@@ -1,17 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Enter duration.
-const Duration kChatMessageMenuEnterDuration = Duration(milliseconds: 180);
-
-/// Leave duration (~220ms).
-const Duration kChatMessageMenuLeaveDuration = Duration(milliseconds: 220);
-
-/// Leave slide distance.
-const double kChatMessageMenuLeaveSlide = 5;
-
-/// Enter scale start.
-const double kChatMessageMenuEnterScale = 0.95;
-
 /// Message-menu enter/leave around the reactions + actions column.
 class ChatMessageMenuAppearance extends StatefulWidget {
   /// Creates an appearance wrapper.
@@ -20,6 +8,18 @@ class ChatMessageMenuAppearance extends StatefulWidget {
     required this.child,
     super.key,
   });
+
+  /// Enter duration.
+  static const Duration enterDuration = Duration(milliseconds: 180);
+
+  /// Leave duration (~220ms).
+  static const Duration leaveDuration = Duration(milliseconds: 220);
+
+  /// Leave slide distance.
+  static const double leaveSlide = 5;
+
+  /// Enter scale start.
+  static const double enterScale = 0.95;
 
   /// Whether the menu sits above the message (leave slides up).
   final bool fitsAbove;
@@ -46,20 +46,21 @@ class ChatMessageMenuAppearanceState extends State<ChatMessageMenuAppearance>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: kChatMessageMenuEnterDuration,
+      duration: ChatMessageMenuAppearance.enterDuration,
     );
     _opacity = CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOut,
       reverseCurve: Curves.easeIn,
     );
-    _scale = Tween<double>(begin: kChatMessageMenuEnterScale, end: 1).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOutBack,
-        reverseCurve: Curves.easeIn,
-      ),
-    );
+    _scale = Tween<double>(begin: ChatMessageMenuAppearance.enterScale, end: 1)
+        .animate(
+          CurvedAnimation(
+            parent: _controller,
+            curve: Curves.easeOutBack,
+            reverseCurve: Curves.easeIn,
+          ),
+        );
     _controller.forward();
   }
 
@@ -73,17 +74,15 @@ class ChatMessageMenuAppearanceState extends State<ChatMessageMenuAppearance>
   Future<void> dismiss() async {
     if (_leaving || !mounted) return;
     _leaving = true;
-    _controller.duration = kChatMessageMenuLeaveDuration;
+    _controller.duration = ChatMessageMenuAppearance.leaveDuration;
     await _controller.reverse();
   }
 
   double get _leaveDy {
     if (!_leaving) return 0;
     final t = 1 - _controller.value;
-    return t *
-        (widget.fitsAbove
-            ? -kChatMessageMenuLeaveSlide
-            : kChatMessageMenuLeaveSlide);
+    const slide = ChatMessageMenuAppearance.leaveSlide;
+    return t * (widget.fitsAbove ? -slide : slide);
   }
 
   @override

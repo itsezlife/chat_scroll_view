@@ -8,6 +8,9 @@ is pre-1.0.
 
 ### Changed
 
+- Source-breaking: `emojiVariantOptions(entry)` is
+  `EmojiVariantPicker.optionsOf(entry)`, and `runBakeActivityPortContract(...)`
+  in `testing.dart` is `BakeActivityPortContract.run(...)`.
 - The two-person tone picker shows each tone as the emoji with both people
   in it (for two hands, the one-tone sequence), the other person greyed;
   choosing the same tone for both keeps that one-tone sequence. No blank cells.

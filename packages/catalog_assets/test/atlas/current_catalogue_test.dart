@@ -8,10 +8,10 @@ void main() {
   test('a catalogue of the current size bakes into three pages and 48 MiB', () {
     // Spec figures (baked emoji atlas): about 676 cells per page, three pages
     // for the current catalogue, about 48 MiB (64 MiB with mip levels).
-    final glyphs = sampleGlyphCatalogue();
+    final glyphs = SampleGlyphCatalogue.glyphs();
     final index = GlyphAtlasIndex(glyphs);
 
-    expect(glyphs, hasLength(sampleCatalogueSize));
+    expect(glyphs, hasLength(SampleGlyphCatalogue.size));
     expect(glyphs.toSet(), hasLength(glyphs.length), reason: 'all distinct');
     expect(index.pageCount, 3);
     expect(index.layout.residentBytesFor(glyphs.length), 48 * _mebibyte);
@@ -26,8 +26,8 @@ void main() {
     // Four pages of 676 cells are exactly 64 MiB at the 72 px glyph size; a
     // catalogue pack larger than this must raise windowed residency, not the
     // ceiling.
-    final atCeiling = GlyphAtlasIndex(sampleGlyphCatalogue(count: 2704));
-    final over = GlyphAtlasIndex(sampleGlyphCatalogue(count: 2705));
+    final atCeiling = GlyphAtlasIndex(SampleGlyphCatalogue.glyphs(count: 2704));
+    final over = GlyphAtlasIndex(SampleGlyphCatalogue.glyphs(count: 2705));
 
     expect(atCeiling.pageCount, 4);
     expect(

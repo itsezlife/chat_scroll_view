@@ -12,7 +12,7 @@ const _wave = ContentKey$Unicode('\u{1F44B}');
 const _waveMedium = ContentKey$Unicode('\u{1F44B}\u{1F3FD}');
 
 void main() {
-  runPreferenceStoreContract(
+  PreferenceStoreContract.run(
     () => KeyValuePreferenceStore.load(
       FakeKeyValueStore(),
       namespace: _namespace,

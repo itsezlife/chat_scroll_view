@@ -9,8 +9,8 @@ is pre-1.0.
 ### Added
 
 - `CatalogSectionAction.painter` (`CatalogActionIconPainter`,
-  `kCatalogActionIconExtent`): an icon drawn in a 24 px box in the header
-  colour, for an icon no font has.
+  `CatalogSectionAction.iconExtent`): an icon drawn in a 24 px box in the
+  header colour, for an icon no font has.
 - `PanelCatalogController.sectionActionBoundsOf(sectionId)` through
   `CatalogScrollPosition.sectionActionBounds` (source-breaking for
   implementers; the fake answers `sectionActionRects`).
@@ -19,8 +19,9 @@ is pre-1.0.
   `inkAndScale`, the default, or `none`, where a press draws nothing and the
   hover box stays on the pressed cell).
 - `SectionLayout.grid(glyphExtent:)`: a fixed side for the glyph box, held to
-  the cell's shorter side, instead of 0.72 of it. `catalogGlyphBoxExtent` and
-  `catalogContentBoxExtent` take it as `fixed:` / `glyphExtent:`.
+  the cell's shorter side, instead of 0.72 of it.
+  `CatalogContentBox.glyphBoxExtent` and `CatalogContentBox.extentIn` take it
+  as `fixed:` / `glyphExtent:`.
 - An adaptive grid: `SectionLayout.grid(desiredCellWidth:, cellHeightInset:)`
   fits as many columns of the desired width as the width allows, widens the
   cell to share the room and centres the remainder ([ADR 024](../../docs/adr/024-panel-catalog-seams.md)
@@ -28,6 +29,22 @@ is pre-1.0.
 
 ### Changed
 
+- **Breaking:** no public top-level functions or constants; each now lives on
+  the type it serves:
+  - `kCatalogGlyphBoxFraction` → `CatalogContentBox.glyphBoxFraction`
+  - `catalogGlyphBoxExtent(w, h)` → `CatalogContentBox.glyphBoxExtent(w, h)`
+  - `catalogContentBoxExtent(box, w, h)` → `box.extentIn(w, h)`
+  - `kCirclePlaceholderRadiusFactor` →
+    `CatalogPlaceholderStyle.circleRadiusFactor`
+  - `kCatalogActionMinHitWidth` → `CatalogSectionAction.minHitWidth`
+  - `kCatalogActionIconExtent` → `CatalogSectionAction.iconExtent`
+  - `largestCatalogGlyphBox(...)` → `PanelCatalogViewport.largestGlyphBox(...)`
+  - `scrollOffsetForSectionHeader(...)` →
+    `CatalogSectionNavigation.scrollOffsetForSectionHeader(...)`
+  - `kFarPathDistanceGateFactor` →
+    `CatalogSectionNavigation.farPathDistanceGateFactor`
+  - `runCatalogScrollPositionContract(create)` (`testing.dart`) →
+    `CatalogScrollPositionContract.run(create)`
 - A mouse no longer drags the catalogue; the wheel and the scrollbar scroll
   it.
 

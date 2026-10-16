@@ -3,31 +3,35 @@ import 'package:chat_composer/src/query/composer_query_kind.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/painting.dart' show TextRange;
 
-/// The query of the first of [kinds] whose token ends at [caret] in [text], or
-/// null.
-///
-/// The scan walks back from the caret over the characters the kind's rule
-/// accepts, then wants the kind's trigger right before them, at a position the
-/// rule allows to open. A token never reaches into an atomic entity of
-/// [entities]: its text is a unit the user did not type.
-ComposerInputQuery? detectQuery(
-  Iterable<ComposerQueryKind> kinds,
-  String text,
-  int caret,
-  List<Entity> entities,
-) {
-  if (caret < 0 || caret > text.length) return null;
-  for (final kind in kinds) {
-    final start = _tokenStart(kind, text, caret);
-    if (start == null) continue;
-    if (_touchesAtom(entities, start, caret)) continue;
-    return ComposerInputQuery(
-      kind: kind,
-      text: text.substring(start + kind.trigger.length, caret),
-      range: TextRange(start: start, end: caret),
-    );
+/// Finds the input query the caret is in, among the [ComposerQueryKind]s a
+/// host registered.
+abstract final class QueryDetector {
+  /// The query of the first of [kinds] whose token ends at [caret] in [text],
+  /// or null.
+  ///
+  /// The scan walks back from the caret over the characters the kind's rule
+  /// accepts, then wants the kind's trigger right before them, at a position
+  /// the rule allows to open. A token never reaches into an atomic entity of
+  /// [entities]: its text is a unit the user did not type.
+  static ComposerInputQuery? detect(
+    Iterable<ComposerQueryKind> kinds,
+    String text,
+    int caret,
+    List<Entity> entities,
+  ) {
+    if (caret < 0 || caret > text.length) return null;
+    for (final kind in kinds) {
+      final start = _tokenStart(kind, text, caret);
+      if (start == null) continue;
+      if (_touchesAtom(entities, start, caret)) continue;
+      return ComposerInputQuery(
+        kind: kind,
+        text: text.substring(start + kind.trigger.length, caret),
+        range: TextRange(start: start, end: caret),
+      );
+    }
+    return null;
   }
-  return null;
 }
 
 int? _tokenStart(ComposerQueryKind kind, String text, int caret) {

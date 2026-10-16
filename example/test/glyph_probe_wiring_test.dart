@@ -44,7 +44,8 @@ final class _System implements GlyphRasteriser {
     painted.add(glyph);
     _draw.paint(
       canvas,
-      lacking.contains(glyph) || glyph == defaultMissingGlyphReferences.first
+      lacking.contains(glyph) ||
+              glyph == MissingGlyphProbe.defaultReferences.first
           ? 'missing-glyph box'
           : glyph,
       cell,
@@ -173,7 +174,7 @@ void main() {
     expect(first.supports('🫩'), isFalse);
     expect(
       first.system.painted,
-      unorderedEquals([..._glyphs, ...defaultMissingGlyphReferences]),
+      unorderedEquals([..._glyphs, ...MissingGlyphProbe.defaultReferences]),
     );
     expect(first.probe.artVersion, isNotNull);
     expect(store.entries.keys, ['emoji_data:glyph_probe']);

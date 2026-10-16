@@ -1,4 +1,6 @@
 import 'package:catalog_assets/src/atlas/cache/glyph_cache_key.dart';
+import 'package:catalog_assets/src/atlas/environment_specific/glyph_cache_store.dart'
+    as environment_specific;
 import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
 
 /// A persisted set of baked pages and what it was baked for.
@@ -26,7 +28,7 @@ final class GlyphCacheGeneration {
 /// generation), so each page is durable as soon as it is written and a later
 /// launch restores the pages that made it.
 ///
-/// Contract (run [runGlyphCacheStoreContract] against an implementation):
+/// Contract (run [GlyphCacheStoreContract.run] against an implementation):
 ///
 /// - [openCommitted] returns null when nothing valid is committed, and also
 ///   for a record that cannot be read: damage is a miss, never a throw;
@@ -40,8 +42,21 @@ final class GlyphCacheGeneration {
 ///
 /// One atlas at a time uses a store (single writer).
 ///
-/// [runGlyphCacheStoreContract]: package:catalog_assets/testing.dart
+/// [GlyphCacheStoreContract.run]: package:catalog_assets/testing.dart
 abstract interface class GlyphCacheStore {
+  /// The store this platform keeps persisted pages in: files in the directory
+  /// at [directoryPath] where there is a file system (android, iOS, desktop),
+  /// memory that lives and dies with the page on the web, which ignores the
+  /// path.
+  ///
+  /// The host picks the directory (an application support or cache directory
+  /// from its own path lookup; this package adds no plugin for it) and gives
+  /// it to this store alone. The platform may clear a cache directory at any
+  /// time, which only costs a re-bake. Which store is decided by which file
+  /// the build picks, so `dart:io` never reaches a web build.
+  static GlyphCacheStore forPlatform(String directoryPath) =>
+      environment_specific.$createGlyphCacheStore(directoryPath);
+
   /// The committed generation, or null.
   Future<GlyphCacheGeneration?> openCommitted();
 

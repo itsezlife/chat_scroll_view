@@ -6,8 +6,21 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Source-breaking: `contentSpanBuilder(scope: ...)` is
+  `ContentViewSpans.builder(scope: ...)`, and the default
+  `alternativeTextSpan` is `ComposerTextController.alternativeTextSpan`.
+
 ### Fixed
 
+- An edit made through the controller (`insertText`, `insertContent`,
+  `backspace`: a panel's emoji or backspace) scrolls a field past its maximum
+  lines to show the whole line the caret is on, as typing does. Flutter
+  reveals the caret only after edits typed into the field, so an emoji
+  inserted from a panel could land on a line out of sight. The field answers
+  the controller's new `caretReveals` signal after the frame, at once, by the
+  line as laid out.
 - A mouse click on a composer button keeps the field focused on desktop
   platforms: the buttons are part of the field's tap region.
 

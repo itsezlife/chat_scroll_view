@@ -14,7 +14,14 @@ enum CatalogPlaceholderStyle {
   thumbFirst,
 
   /// A shaped wash: a sticker.
-  shapedWash,
+  shapedWash;
+
+  /// Circle placeholder radius as a fraction of the **glyph box** width.
+  ///
+  /// `radius = glyphBoxExtent * circleRadiusFactor`. It MUST NOT be applied
+  /// against the full cell pitch: that oversizes the circle relative to the
+  /// glyph that replaces it.
+  static const double circleRadiusFactor = 0.4;
 }
 
 /// One cell of a [CatalogSection], as a value.

@@ -8,8 +8,11 @@ import 'package:catalog_assets/src/atlas/bake_pause_signals.dart';
 import 'package:catalog_assets/src/atlas/cache/glyph_atlas_persistence.dart';
 import 'package:catalog_assets/src/atlas/cache/glyph_cache_key.dart';
 import 'package:catalog_assets/src/atlas/cache/glyph_cache_store.dart';
+import 'package:catalog_assets/src/atlas/environment_specific/glyph_atlas.dart'
+    as environment_specific;
 import 'package:catalog_assets/src/atlas/glyph_atlas_index.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_layout.dart';
+import 'package:catalog_assets/src/atlas/glyph_atlas_request.dart';
 import 'package:catalog_assets/src/atlas/glyph_bake_observer.dart';
 import 'package:catalog_assets/src/atlas/glyph_bake_scheduler.dart';
 import 'package:catalog_assets/src/atlas/glyph_baker.dart';
@@ -108,9 +111,8 @@ import 'package:flutter/foundation.dart';
 /// lets the successor wait for this atlas's disk work to finish
 /// ([RetiredGlyphArt.settled]), so two atlases never write one cache at once.
 ///
-/// Platforms that do not bake never build one (see
-/// `createGlyphAtlasForPlatform`): a surface without an atlas draws its glyphs
-/// as text.
+/// Platforms that do not bake never build one (see [forPlatform]): a surface
+/// without an atlas draws its glyphs as text.
 final class GlyphAtlas implements GlyphSpriteSource {
   /// Creates an atlas for the glyphs of [index]. Nothing runs until [start].
   ///
@@ -174,6 +176,16 @@ final class GlyphAtlas implements GlyphSpriteSource {
     if (predecessor != null) _stale = predecessor._claimFor(index);
     _onVisibleChanged();
   }
+
+  /// The atlas [request] describes on a platform that bakes glyphs (android,
+  /// iOS, desktop), or null on the web, which draws glyphs as text until it is
+  /// measured and must not start a bake.
+  ///
+  /// Decided by which file the build picks, not by a condition. Where an atlas
+  /// is built it owns the request's `residency` and `predecessor` from then
+  /// on; where none is, they stay the caller's to dispose.
+  static GlyphAtlas? forPlatform(GlyphAtlasRequest request) =>
+      environment_specific.$createGlyphAtlas(request);
 
   /// The plan being baked.
   final GlyphAtlasIndex index;
@@ -848,7 +860,7 @@ final class GlyphAtlas implements GlyphSpriteSource {
   /// nobody waits for any more is not news).
   void _fail(Object error, StackTrace stack, String doing) {
     if (_disposed) return;
-    reportGlyphAtlasError(error, stack, doing);
+    GlyphAtlasErrors.report(error, stack, doing);
   }
 }
 

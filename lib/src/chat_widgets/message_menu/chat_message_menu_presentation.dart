@@ -9,7 +9,7 @@ import 'package:flutter/foundation.dart';
 /// chrome. Session presence, dismiss, and result contracts are shared.
 ///
 /// Defaults from **selection policy** via [forPolicy] / [forPlatform];
-/// hosts may pass an explicit value to [showChatMessageMenu] for a single
+/// hosts may pass an explicit value to [ChatMessageMenu.show] for a single
 /// present.
 enum ChatMessageMenuPresentation {
   /// Scrim sheet: dimmed viewport, target slot left undimmed, column
@@ -32,7 +32,7 @@ enum ChatMessageMenuPresentation {
   /// Default from OS family — same matrix as [ChatSelectionPolicy.forPlatform].
   ///
   /// Convenience for hosts that want presentation without constructing a
-  /// policy; [showChatMessageMenu] itself resolves via [forPolicy] on an
+  /// policy; [ChatMessageMenu.show] itself resolves via [forPolicy] on an
   /// explicit or platform policy.
   factory ChatMessageMenuPresentation.forPlatform({
     TargetPlatform? platform,

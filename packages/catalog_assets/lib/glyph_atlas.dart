@@ -37,7 +37,5 @@ export 'src/atlas/glyph_pixel_reader.dart';
 export 'src/atlas/glyph_rasteriser.dart';
 export 'src/atlas/memory_glyph_page_store.dart';
 export 'src/atlas/paragraph_glyph_rasteriser.dart';
-export 'src/atlas/platform/glyph_atlas_platform.dart';
-export 'src/atlas/platform/glyph_cache_store_platform.dart';
 export 'src/atlas/scheduler_bake_frame_source.dart';
 export 'src/atlas/system_memory_pressure.dart';

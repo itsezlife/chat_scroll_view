@@ -74,7 +74,7 @@ void main() {
 
   // The rasteriser contract against the real system font, where it matters:
   // wide sequences must stay inside their cell.
-  runGlyphRasteriserContract(
+  GlyphRasteriserContract.run(
     'ParagraphGlyphRasteriser (system font)',
     ParagraphGlyphRasteriser.new,
     glyphs: _visualGlyphs,

@@ -32,7 +32,7 @@ under a host quality policy
 | `GlassSurface`, `GlassMaterial` | A **glass material** (`composerIsland`, `panelButton`, `topPanel`) drawn over what is behind it. Colours come from `GlassMaterialTokens` in the chrome theme scope; the shape of the effect and the backdrop strategy are internal. |
 | `GlassQuality`, `GlassQualityScope`, `GlassCapabilities` | The host's **glass quality** policy (`fullLiquid`, `frosted`, `flat`, `off`), a lite-mode flag, and the capabilities (shader filter, sampled backdrop, backdrop filter) that the strategy chain reads. `GlassCapabilities.detect()` is the default; a host or test can force a row of the matrix. |
 | `GlassSourceScope`, `GlassSource` | Marks the content that sampled glass reads. A scope above the content and the surfaces, a source around the content. |
-| `package:chrome_foundation/testing.dart` | `ChromeStringsPresets.english` / `.russian` and `describeChromeStrings` for completeness checks. Tests and demos only. |
+| `package:chrome_foundation/testing.dart` | `ChromeStringsPresets.english` / `.russian` and `ChromeStringsSnapshot.of` for completeness checks. Tests and demos only. |
 
 Geometry is not a token here: metrics taken from the reference client stay constants owned by
 the component that draws them. Labels are host strings, never tokens. Motion is
@@ -93,7 +93,7 @@ AnimatedChromeIcon(ChromeIconId.keyboard);       // morphs on id change
   `speed` it names. Overriding one role is `motion.copyWith(search: ...)`.
 - `ChromeStringsScope` is required and has no default language. Required
   constructor parameters make a missing string a compile error; run
-  `describeChromeStrings(strings)` in a host test to check none is empty.
+  `ChromeStringsSnapshot.of(strings)` in a host test to check none is empty.
 - `ChromeIconScope` adds painters to the enclosing registry (default
   `ChromeIconRegistry.stock`). Between two font glyphs the icon morphs through
   morphnext; any change involving a painted icon cross-fades over the `fade`

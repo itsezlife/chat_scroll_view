@@ -18,7 +18,7 @@ const _reference = 'REF';
 Uint8List _cell(int seed) => Uint8List.fromList(List.filled(16, seed));
 
 void main() {
-  runGlyphSupportContract(() async {
+  GlyphSupportContract.run(() async {
     final version = Completer<String>();
     final probe = MissingGlyphProbe(
       glyphs: const [

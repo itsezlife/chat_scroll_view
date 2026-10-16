@@ -12,7 +12,7 @@ export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_column.dart';
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_item.dart';
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_placement.dart'
-    show kChatMessageMenuEdgeInset;
+    show ChatMessageMenuPlacement;
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_presentation.dart';
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_reactions.dart';
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
@@ -20,95 +20,101 @@ export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_slots.dart';
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_theme.dart';
 
-/// Opens a message menu session over [messageRect].
-///
-/// Completes with a [ChatMessageMenuResult] when the user chooses an
-/// action or a reaction, or with `null` on dismiss / presence abort.
-/// Completes on the tap itself — leave animation does not delay the
-/// result. The overlay is removed after the animation.
-/// Empty [reactions] omits the reaction strip.
-///
-/// **Message menu presentation** defaults from [selectionPolicy] (or
-/// [ChatSelectionPolicy.forPlatform] when that is also omitted). Pass
-/// [presentation] to override for a single present. [sheet] dims the
-/// screen and leaves one hole undimmed; [popup] is a light pointer menu
-/// with no dim and no slot outline / lift. Presence, Escape / back,
-/// outside dismiss, and action / reaction results stay one session API.
-///
-/// The sheet hole frames [surfaceRect] in [surfaceShape] when a surface is
-/// given — pass [ChatMessageMenuRequest.surfaceGlobal] /
-/// [ChatMessageMenuRequest.surfaceShape] so only the bubble stays bright.
-/// Without [surfaceRect] it is [messageRect] rounded by
-/// [ChatMessageMenuThemeData.holeRadius], and a surface without a shape uses
-/// that radius too. [visibleRect] clips the hole, so a message partly under
-/// host chrome does not uncover the chrome; pass
-/// [ChatMessageMenuRequest.bandGlobal]. All rects are global and read once
-/// at present. They do not affect placement, and [popup] ignores them.
-///
-/// When [keepKeyboardVisible] is true, restores the previous [FocusNode]
-/// after the overlay so IME height does not change. Does not request
-/// focus if nothing was focused (IME stays hidden).
-///
-/// When both [presence] and [isPresent] are provided, the session
-/// dismisses with `null` once [isPresent] returns false. The presenter
-/// never reads the viewport.
-///
-/// Restyle chrome with [ChatMessageMenuThemeData] (or
-/// [ChatScrollThemeData.menu]). Replace rows or the floating column
-/// with [itemBuilder] / [reactionBuilder] / [menuBuilder] — session,
-/// presentation chrome, placement, and back stay package-owned.
-Future<ChatMessageMenuResult?> showChatMessageMenu({
-  required BuildContext context,
-  required Rect messageRect,
-  required List<ChatMessageMenuItem> items,
-  Offset? tapGlobal,
-  Rect? surfaceRect,
-  ShapeBorder? surfaceShape,
-  Rect? visibleRect,
-  List<String> reactions = const <String>[],
-  bool keepKeyboardVisible = true,
-  Listenable? presence,
-  bool Function()? isPresent,
-  ChatMessageMenuPresentation? presentation,
-  ChatSelectionPolicy? selectionPolicy,
-  ChatMessageMenuItemBuilder? itemBuilder,
-  ChatMessageMenuReactionBuilder? reactionBuilder,
-  ChatMessageMenuBuilder? menuBuilder,
-}) async {
-  final media = MediaQuery.of(context);
-  final resolvedPresentation =
-      presentation ??
-      ChatMessageMenuPresentation.forPolicy(
-        selectionPolicy ?? ChatSelectionPolicy.forPlatform(),
-      );
-  final config = ChatMessageMenuPresentConfig(
-    messageRect: messageRect,
-    tapGlobal: tapGlobal,
-    surfaceRect: surfaceRect,
-    surfaceShape: surfaceShape,
-    visibleRect: visibleRect,
-    items: items,
-    reactions: reactions,
-    keyboardHeight: media.viewInsets.bottom,
-    screenSize: media.size,
-    safePadding: media.viewPadding,
-    presentation: resolvedPresentation,
-    presence: presence,
-    isPresent: isPresent,
-    itemBuilder: itemBuilder,
-    reactionBuilder: reactionBuilder,
-    menuBuilder: menuBuilder,
-  );
+/// The message menu: one session over a message — reactions, actions,
+/// dismiss and back — presented as a dimmed sheet or a pointer popup.
+abstract final class ChatMessageMenu {
+  /// Opens a message menu session over [messageRect].
+  ///
+  /// Completes with a [ChatMessageMenuResult] when the user chooses an
+  /// action or a reaction, or with `null` on dismiss / presence abort.
+  /// Completes on the tap itself — leave animation does not delay the
+  /// result. The overlay is removed after the animation.
+  /// Empty [reactions] omits the reaction strip.
+  ///
+  /// **Message menu presentation** defaults from [selectionPolicy] (or
+  /// [ChatSelectionPolicy.forPlatform] when that is also omitted). Pass
+  /// [presentation] to override for a single present.
+  /// [ChatMessageMenuPresentation.sheet] dims the screen and leaves one hole
+  /// undimmed; [ChatMessageMenuPresentation.popup] is a light pointer menu
+  /// with no dim and no slot outline / lift. Presence, Escape / back,
+  /// outside dismiss, and action / reaction results stay one session API.
+  ///
+  /// The sheet hole frames [surfaceRect] in [surfaceShape] when a surface is
+  /// given — pass [ChatMessageMenuRequest.surfaceGlobal] /
+  /// [ChatMessageMenuRequest.surfaceShape] so only the bubble stays bright.
+  /// Without [surfaceRect] it is [messageRect] rounded by
+  /// [ChatMessageMenuThemeData.holeRadius], and a surface without a shape
+  /// uses that radius too. [visibleRect] clips the hole, so a message partly
+  /// under host chrome does not uncover the chrome; pass
+  /// [ChatMessageMenuRequest.bandGlobal]. All rects are global and read once
+  /// at present. They do not affect placement, and
+  /// [ChatMessageMenuPresentation.popup] ignores them.
+  ///
+  /// When [keepKeyboardVisible] is true, restores the previous [FocusNode]
+  /// after the overlay so IME height does not change. Does not request
+  /// focus if nothing was focused (IME stays hidden).
+  ///
+  /// When both [presence] and [isPresent] are provided, the session
+  /// dismisses with `null` once [isPresent] returns false. The presenter
+  /// never reads the viewport.
+  ///
+  /// Restyle chrome with [ChatMessageMenuThemeData] (or
+  /// [ChatScrollThemeData.menu]). Replace rows or the floating column
+  /// with [itemBuilder] / [reactionBuilder] / [menuBuilder] — session,
+  /// presentation chrome, placement, and back stay package-owned.
+  static Future<ChatMessageMenuResult?> show({
+    required BuildContext context,
+    required Rect messageRect,
+    required List<ChatMessageMenuItem> items,
+    Offset? tapGlobal,
+    Rect? surfaceRect,
+    ShapeBorder? surfaceShape,
+    Rect? visibleRect,
+    List<String> reactions = const <String>[],
+    bool keepKeyboardVisible = true,
+    Listenable? presence,
+    bool Function()? isPresent,
+    ChatMessageMenuPresentation? presentation,
+    ChatSelectionPolicy? selectionPolicy,
+    ChatMessageMenuItemBuilder? itemBuilder,
+    ChatMessageMenuReactionBuilder? reactionBuilder,
+    ChatMessageMenuBuilder? menuBuilder,
+  }) async {
+    final media = MediaQuery.of(context);
+    final resolvedPresentation =
+        presentation ??
+        ChatMessageMenuPresentation.forPolicy(
+          selectionPolicy ?? ChatSelectionPolicy.forPlatform(),
+        );
+    final config = ChatMessageMenuPresentConfig(
+      messageRect: messageRect,
+      tapGlobal: tapGlobal,
+      surfaceRect: surfaceRect,
+      surfaceShape: surfaceShape,
+      visibleRect: visibleRect,
+      items: items,
+      reactions: reactions,
+      keyboardHeight: media.viewInsets.bottom,
+      screenSize: media.size,
+      safePadding: media.viewPadding,
+      presentation: resolvedPresentation,
+      presence: presence,
+      isPresent: isPresent,
+      itemBuilder: itemBuilder,
+      reactionBuilder: reactionBuilder,
+      menuBuilder: menuBuilder,
+    );
 
-  final previousFocus = FocusManager.instance.primaryFocus;
-  final result = await _showChatMessageMenuOverlay(
-    context: context,
-    config: config,
-  );
-  if (keepKeyboardVisible) {
-    previousFocus?.requestFocus();
+    final previousFocus = FocusManager.instance.primaryFocus;
+    final result = await _showChatMessageMenuOverlay(
+      context: context,
+      config: config,
+    );
+    if (keepKeyboardVisible) {
+      previousFocus?.requestFocus();
+    }
+    return result;
   }
-  return result;
 }
 
 Future<ChatMessageMenuResult?> _showChatMessageMenuOverlay({
@@ -117,7 +123,7 @@ Future<ChatMessageMenuResult?> _showChatMessageMenuOverlay({
 }) {
   final navigator = Navigator.maybeOf(context, rootNavigator: true);
   if (navigator == null) {
-    assert(false, 'showChatMessageMenu requires a Navigator');
+    assert(false, 'ChatMessageMenu.show requires a Navigator');
     return Future<ChatMessageMenuResult?>.value();
   }
 

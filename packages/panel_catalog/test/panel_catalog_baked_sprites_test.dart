@@ -365,14 +365,14 @@ void main() {
         ),
       ];
       snapshots.replaceSections(sections);
-      final largest = largestCatalogGlyphBox(
+      final largest = PanelCatalogViewport.largestGlyphBox(
         layouts: [for (final section in sections) section.layout],
         spanCount: _span,
         cellExtent: 40,
         padding: EdgeInsets.zero,
         maxWidth: 320,
       );
-      expect(largest, 80 * kCatalogGlyphBoxFraction);
+      expect(largest, 80 * CatalogContentBox.glyphBoxFraction);
       final layout = GlyphAtlasLayout.forCell(
         logicalExtent: largest,
         devicePixelRatio: 1,

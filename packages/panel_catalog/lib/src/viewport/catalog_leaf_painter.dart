@@ -7,7 +7,7 @@ import 'package:flutter/painting.dart';
 import 'package:meta/meta.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_catalog/src/model/catalog_glyph_box.dart'
-    show kCirclePlaceholderRadiusFactor;
+    show CatalogContentBox;
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_section_action.dart';
 import 'package:panel_catalog/src/viewport/catalog_glyph_sprite_batch.dart';
@@ -20,7 +20,7 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// and layout width, so a resize adds a few per visible header per step (title,
 /// action label, action icon). Far above the headers of one screen (a
 /// handful).
-const int kHeaderParagraphCacheLimit = 64;
+const int _kHeaderParagraphCacheLimit = 64;
 
 /// Space between an action's label and its icon.
 const double _kActionPartGap = 4;
@@ -53,14 +53,16 @@ const double _kActionIconScale = 1.3;
 ///
 /// ## Glyph and placeholder geometry
 ///
-/// Leaf content bounds are a centred square of [kCatalogGlyphBoxFraction]
-/// (**72%**) of `min(cellWidth, cellHeight)`, taken from the slot's own cell:
-/// a section with larger cells draws larger content, and a baked sprite is
-/// scaled to the box, so one baked size serves every section (see
-/// [largestCatalogGlyphBox]). Placeholders use those bounds. The circle:
+/// Leaf content bounds are a centred square of
+/// [CatalogContentBox.glyphBoxFraction] (**72%**) of
+/// `min(cellWidth, cellHeight)`, taken from the slot's own cell: a section with
+/// larger cells draws larger content, and a baked sprite is scaled to the box,
+/// so one baked size serves every section (see
+/// `PanelCatalogViewport.largestGlyphBox`). Placeholders use those bounds. The
+/// circle:
 ///
 /// ```text
-/// radius = glyphBounds.width * kCirclePlaceholderRadiusFactor  // 0.4
+/// radius = glyphBounds.width * CatalogPlaceholderStyle.circleRadiusFactor  // 0.4
 /// ```
 ///
 /// MUST NOT size the circle against the full cell pitch: that oversizes it
@@ -130,7 +132,7 @@ final class CatalogLeafPainter {
   final Paint _highlightPaint = Paint();
 
   final CatalogParagraphCache<_TextPaintKey> _textParagraphs =
-      CatalogParagraphCache(limit: kHeaderParagraphCacheLimit);
+      CatalogParagraphCache(limit: _kHeaderParagraphCacheLimit);
   final CatalogGlyphSpriteBatch _glyphSprites = CatalogGlyphSpriteBatch();
 
   // State of the open pass.
@@ -251,11 +253,13 @@ final class CatalogLeafPainter {
       final box = Rect.fromLTWH(
         origin.dx +
             (ltr
-                ? action.hit.right - inset - kCatalogActionIconExtent
+                ? action.hit.right - inset - CatalogSectionAction.iconExtent
                 : action.hit.left + inset),
-        origin.dy + header.top + (header.height - kCatalogActionIconExtent) / 2,
-        kCatalogActionIconExtent,
-        kCatalogActionIconExtent,
+        origin.dy +
+            header.top +
+            (header.height - CatalogSectionAction.iconExtent) / 2,
+        CatalogSectionAction.iconExtent,
+        CatalogSectionAction.iconExtent,
       );
       paint(
         canvas,
@@ -264,7 +268,7 @@ final class CatalogLeafPainter {
       );
       // The parts start left of the whole action left to right; right to
       // left they start at the box, which comes first there.
-      if (!ltr) x += kCatalogActionIconExtent + _kActionPartGap;
+      if (!ltr) x += CatalogSectionAction.iconExtent + _kActionPartGap;
     }
     final parts = [?action.label, ?action.icon];
     for (final part in ltr ? parts : parts.reversed) {
@@ -284,7 +288,7 @@ final class CatalogLeafPainter {
   ///
   /// The whole band tall, from the action's own start (less the header start
   /// inset) to the band's end edge (the right edge, or the left edge in a
-  /// right-to-left header), and at least [kCatalogActionMinHitWidth] wide.
+  /// right-to-left header), and at least [CatalogSectionAction.minHitWidth] wide.
   Rect? sectionActionBounds(CatalogHeaderSlot header) =>
       _actionLayout(header)?.hit;
 
@@ -323,7 +327,9 @@ final class CatalogLeafPainter {
       ),
       null => null,
     };
-    final painted = action.painter == null ? 0.0 : kCatalogActionIconExtent;
+    final painted = action.painter == null
+        ? 0.0
+        : CatalogSectionAction.iconExtent;
     final width =
         (labelParagraph?.maxIntrinsicWidth ?? 0) +
         (iconParagraph?.maxIntrinsicWidth ?? 0) +
@@ -335,7 +341,7 @@ final class CatalogLeafPainter {
     final hitWidth = math.min(
       header.width,
       math.max(
-        kCatalogActionMinHitWidth,
+        CatalogSectionAction.minHitWidth,
         width + 2 * _theme.sectionHeaderStartInset,
       ),
     );
@@ -572,7 +578,7 @@ final class CatalogLeafPainter {
       case CatalogPlaceholderStyle.circle:
         canvas.drawCircle(
           box.center,
-          box.width * kCirclePlaceholderRadiusFactor,
+          box.width * CatalogPlaceholderStyle.circleRadiusFactor,
           _skeletonPaint,
         );
       case CatalogPlaceholderStyle.thumbFirst:
@@ -606,7 +612,7 @@ final class CatalogLeafPainter {
       case CatalogPlaceholderStyle.circle:
         canvas.drawCircle(
           glyphRect.center,
-          glyphRect.width * kCirclePlaceholderRadiusFactor,
+          glyphRect.width * CatalogPlaceholderStyle.circleRadiusFactor,
           alpha == 1 ? _circlePaint : _faded(theme.circleColor, alpha),
         );
       case CatalogPlaceholderStyle.thumbFirst:

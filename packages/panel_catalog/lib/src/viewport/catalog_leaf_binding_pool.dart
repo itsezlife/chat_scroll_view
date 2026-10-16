@@ -5,10 +5,6 @@ import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 
-/// How long content takes to fade in over its placeholder when it was not
-/// there at attach.
-const Duration kCatalogContentFade = Duration(milliseconds: 150);
-
 /// What a still leaf asks of the cache: one frame, shown at once.
 const AssetProfile _stillProfile = AssetProfile();
 
@@ -27,6 +23,10 @@ final class CatalogBoundLeaf {
   CatalogBoundLeaf._(this.binding, this.spec)
     : _instant = binding.readiness.stage.index >= AssetStage.firstFrame.index;
 
+  /// How long content takes to fade in over its placeholder when it was not
+  /// there at attach.
+  static const Duration contentFade = Duration(milliseconds: 150);
+
   /// The attach in the scope's cache.
   final AssetBinding binding;
 
@@ -43,24 +43,21 @@ final class CatalogBoundLeaf {
 
   /// Opacity to draw the content at on the frame at [frameTime]: `1` for
   /// content that was there at attach, otherwise rising from `0` over
-  /// [kCatalogContentFade] from the first frame the content is drawn.
+  /// [contentFade] from the first frame the content is drawn.
   ///
   /// Call it only for a leaf whose binding has content (stage `firstFrame` or
   /// `full`); the fade starts on the first call.
   double opacityAt(Duration frameTime) {
     if (_instant) return 1;
     final start = _fadeStart ??= frameTime;
-    final t =
-        (frameTime - start).inMicroseconds / kCatalogContentFade.inMicroseconds;
+    final t = (frameTime - start).inMicroseconds / contentFade.inMicroseconds;
     return t.clamp(0.0, 1.0);
   }
 
   /// Whether the fade is still running at [frameTime].
   bool isFadingAt(Duration frameTime) {
     final start = _fadeStart;
-    return !_instant &&
-        start != null &&
-        frameTime - start < kCatalogContentFade;
+    return !_instant && start != null && frameTime - start < contentFade;
   }
 }
 
@@ -222,7 +219,7 @@ final class CatalogLeafBindingPool {
           loading++;
         }
       }
-      fine(.binding, 'sync', {
+      Log.fine(.binding, 'sync', {
         'winTop': LogFormat.f(top),
         'winBot': LogFormat.f(bottom),
         'attached': _all.length,

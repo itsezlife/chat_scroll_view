@@ -1,5 +1,5 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_animator.dart'
-    show kHighlightFadeDuration, kHighlightHoldDurationMs;
+    show ChatAnimator;
 import 'package:chat_scroll_view/src/chat_widgets/chat_message_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_theme.dart';
@@ -34,9 +34,9 @@ class ChatScrollThemeData extends ThemeExtension<ChatScrollThemeData> {
   static const Color defaultHighlightColor = Color(0x280A90F0);
 
   /// Default solid hold after navigate settle (1000ms). Fade-out after hold
-  /// is fixed at [kHighlightFadeDuration].
+  /// is fixed at [ChatAnimator.highlightFadeDuration].
   static const Duration defaultHighlightDuration = Duration(
-    milliseconds: kHighlightHoldDurationMs,
+    milliseconds: ChatAnimator.highlightHoldDurationMs,
   );
 
   /// Jump-target row wash. Null → [defaultHighlightColor].
@@ -45,7 +45,7 @@ class ChatScrollThemeData extends ThemeExtension<ChatScrollThemeData> {
 
   /// Solid hold after navigate settle (and for already-there). Null →
   /// [defaultHighlightDuration]. [Duration.zero] disables the overlay.
-  /// Fade after hold is always ~300ms ([kHighlightFadeDuration]).
+  /// Fade after hold is always ~300ms ([ChatAnimator.highlightFadeDuration]).
   final Duration? highlightDuration;
 
   /// Message-column layout. Null → [ChatMessageThemeData.resolve].

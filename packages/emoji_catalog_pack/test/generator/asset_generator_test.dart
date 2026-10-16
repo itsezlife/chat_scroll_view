@@ -32,13 +32,14 @@ final Map<String, String> _inputs = {
   'cldr/annotationsDerived/de.xml': '',
 };
 
-Map<String, String> _generate([Map<String, String>? inputs]) => generateAssets(
-  lock: _lock,
-  readInput: (name) => (inputs ?? _inputs)[name]!,
-);
+Map<String, String> _generate([Map<String, String>? inputs]) =>
+    AssetGenerator.generate(
+      lock: _lock,
+      readInput: (name) => (inputs ?? _inputs)[name]!,
+    );
 
 void main() {
-  group('generateAssets', () {
+  group('AssetGenerator.generate', () {
     test('produces the structure, one pack per locale and the licence', () {
       expect(
         _generate().keys,

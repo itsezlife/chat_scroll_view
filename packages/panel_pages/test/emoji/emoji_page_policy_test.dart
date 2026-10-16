@@ -119,7 +119,7 @@ void main() {
         arrangement: PanelArrangement.pointer,
       );
       for (final width in [292.0, 345.0, 392.0]) {
-        final box = largestCatalogGlyphBox(
+        final box = PanelCatalogViewport.largestGlyphBox(
           layouts: [layout],
           spanCount: 8,
           cellExtent: EmojiPagePolicy.cellPitch,
@@ -137,7 +137,7 @@ void main() {
     test('bakes glyphs for the box the painter draws them in', () {
       expect(
         EmojiPagePolicy.glyphBoxExtent,
-        catalogGlyphBoxExtent(
+        CatalogContentBox.glyphBoxExtent(
           EmojiPagePolicy.cellPitch,
           EmojiPagePolicy.cellPitch,
         ),
@@ -455,7 +455,7 @@ void main() {
 
     test('offers the base and then exactly the variants of the entry', () {
       for (final entry in fixtures.catalogue) {
-        expect(emojiVariantOptions(entry), [
+        expect(EmojiVariantPicker.optionsOf(entry), [
           entry.base,
           for (final variant in entry.variants) variant.key,
         ]);

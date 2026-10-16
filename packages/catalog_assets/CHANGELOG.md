@@ -6,6 +6,26 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Source-breaking: the contract suites in `testing.dart` are statics on a type
+  per seam: `runGlyphCacheStoreContract(...)` is now
+  `GlyphCacheStoreContract.run(...)`, and likewise `GlyphPageStoreContract`,
+  `GlyphRasteriserContract`, `BakeFrameSourceContract`,
+  `GlyphSpriteSourceContract`, `PlaybackTickSourceContract`,
+  `AssetFetcherContract`, `DecoderContract`, `InlineEmbedContract` and
+  `InlineEmbedResolverContract`.
+- Source-breaking: `sampleGlyphCatalogue({count})` is
+  `SampleGlyphCatalogue.glyphs({count})` and `sampleCatalogueSize` is
+  `SampleGlyphCatalogue.size`.
+- Source-breaking: the platform forks are statics on the types they build.
+  `createGlyphCacheStoreForPlatform(path)` is `GlyphCacheStore.forPlatform(path)`
+  and `createGlyphAtlasForPlatform(request)` is `GlyphAtlas.forPlatform(request)`;
+  the free functions and their `platform/` exports are gone. The forks live in
+  `src/atlas/environment_specific/` (a hub plus `_vm` / `_js` files, each
+  defining a `$entry`), and the `dart:io` stores there are
+  `GlyphCacheStore$File$VM` and `GlyphPageStore$File$VM` (not exported).
+
 ### Fixed
 
 - `LayeredGlyphSource` gives each layer a block of page indices of its own

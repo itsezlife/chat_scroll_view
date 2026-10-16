@@ -261,7 +261,7 @@ void main() {
     testWidgets(
       'animateTo very tall newest uses close path (no stitch top then pin)',
       (tester) async {
-        // Repro: tall newest scrolled into body → |offset| > kCloseAnimateDistance
+        // Repro: tall newest scrolled into body → |offset| > ChatAnimator.closeAnimateDistance
         // used to pick stitch, jumpTo(align=0) snaps to top, then pinNewest
         // yanks to tail mid-flight.
         const count = 10;

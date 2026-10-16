@@ -70,7 +70,7 @@ final class KeyValueRecentsStore with ChangeNotifier implements RecentsStore {
     int capacity = defaultCapacity,
     DateTime Function() clock = DateTime.now,
   }) async {
-    checkStoreName(namespace, 'namespace');
+    StoreName.check(namespace, 'namespace');
     final ledger = RecentsLedger(capacity: capacity);
     const kinds = SemanticKind.values;
     final stored = await Future.wait([

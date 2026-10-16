@@ -1,6 +1,6 @@
-import 'dart:io';
-
 import 'package:catalog_assets/glyph_atlas.dart';
+import 'package:chat_scroll_view_example/src/common/environment_specific/host_environment.dart'
+    as environment_specific;
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
@@ -40,8 +40,8 @@ EmojiGlyphProbeWiring wireEmojiGlyphProbe({
   final probe = MissingGlyphProbe(
     glyphs: glyphs,
     store: store,
-    artVersion: () => computeGlyphArtFingerprint(
-      sentinels: defaultArtSentinelGlyphs,
+    artVersion: () => GlyphArtFingerprint.compute(
+      sentinels: GlyphArtFingerprint.defaultSentinels,
       pixelsOf: sentinelPixelsOf,
       nextFrame: nextFrame,
       supplement: osVersion,
@@ -71,6 +71,6 @@ EmojiGlyphProbeWiring wireSystemEmojiGlyphProbe({
     store: store,
     sentinelPixelsOf: reader.pixelsOf,
     nextFrame: () => SchedulerBinding.instance.endOfFrame,
-    osVersion: kIsWeb ? null : Platform.operatingSystemVersion,
+    osVersion: environment_specific.$operatingSystemVersion(),
   );
 }

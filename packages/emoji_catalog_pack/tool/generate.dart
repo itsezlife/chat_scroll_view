@@ -51,7 +51,7 @@ Future<Map<String, String>> _generate(File lockFile, Directory cache) async {
     // Strict UTF-8: an input that is not text must fail, not be mangled.
     texts[input.name] = utf8.decode(bytes);
   }
-  return generateAssets(lock: lock, readInput: (name) => texts[name]!);
+  return AssetGenerator.generate(lock: lock, readInput: (name) => texts[name]!);
 }
 
 Future<void> _write(Directory root, Map<String, String> assets) async {

@@ -364,7 +364,7 @@ final class MessageMenuActions {
 /// Wire once with data source, selection, and [MessageMenuActions]. Present
 /// each [ChatMessageMenuRequest] via [present] — no library-level present
 /// helper. Catalog and reactions default from the bound **selection policy**.
-/// Chrome stays on package [showChatMessageMenu].
+/// Chrome stays on package [ChatMessageMenu.show].
 final class MessageMenu {
   /// Creates a host message menu bound to [dataSource] and [actions].
   ///
@@ -430,7 +430,7 @@ final class MessageMenu {
       final reactions =
           _reactionsOverride ?? MessageMenuCatalog.reactionsFor(policy);
 
-      final result = await showChatMessageMenu(
+      final result = await ChatMessageMenu.show(
         context: context,
         messageRect: request.slotGlobal,
         tapGlobal: request.tapGlobal,

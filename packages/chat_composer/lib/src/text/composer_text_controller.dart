@@ -49,6 +49,13 @@ class ComposerTextController extends TextEditingController {
        _entityStyles = entityStyles,
        super(text: initial?.plain);
 
+  /// The default [InlineContentSpanBuilder]: the alternative text in [style].
+  static InlineSpan alternativeTextSpan(
+    BuildContext context,
+    InlineContentRef reference,
+    TextStyle style,
+  ) => TextSpan(text: reference.alternativeText, style: style);
+
   RichText _rich;
   RichText? _derived;
   bool _composing = false;
@@ -111,7 +118,7 @@ class ComposerTextController extends TextEditingController {
       );
       return;
     }
-    final replacement = diffText(
+    final replacement = TextReplacement.between(
       base.plain,
       newValue.text,
       caret: _caretOf(newValue.selection),
@@ -122,7 +129,7 @@ class ComposerTextController extends TextEditingController {
       replacement.oldEnd,
     );
     final widened = from != replacement.start || to != replacement.oldEnd;
-    final next = applyReplacement(base, replacement.widenedTo(from, to));
+    final next = replacement.widenedTo(from, to).applyTo(base);
     _commit(
       next,
       TextEditingValue(
@@ -141,12 +148,12 @@ class ComposerTextController extends TextEditingController {
   }
 
   RichText _deriveDuringComposition() {
-    final replacement = diffText(
+    final replacement = TextReplacement.between(
       _rich.plain,
       value.text,
       caret: _caretOf(value.selection),
     );
-    return applyReplacement(_rich, replacement);
+    return replacement.applyTo(_rich);
   }
 
   int _caretOf(TextSelection selection) =>
@@ -245,10 +252,11 @@ class ComposerTextController extends TextEditingController {
       // offers no way to ask first.
       // ignore: avoid_catching_errors
     } on ArgumentError {
-      next = applyReplacement(
-        current,
-        TextReplacement(start: from, oldEnd: to, inserted: inserted.plain),
-      );
+      next = TextReplacement(
+        start: from,
+        oldEnd: to,
+        inserted: inserted.plain,
+      ).applyTo(current);
     }
     _commit(
       next,
@@ -277,10 +285,10 @@ class ComposerTextController extends TextEditingController {
       }
     }
     final plain = rich.plain;
-    while (splitsSurrogatePair(plain, from)) {
+    while (RichText.splitsSurrogatePair(plain, from)) {
       from--;
     }
-    while (splitsSurrogatePair(plain, to)) {
+    while (RichText.splitsSurrogatePair(plain, to)) {
       to++;
     }
     return (from, to);

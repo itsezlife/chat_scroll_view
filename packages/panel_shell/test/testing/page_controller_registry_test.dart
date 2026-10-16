@@ -2,11 +2,11 @@ import 'package:panel_shell/panel_shell.dart';
 import 'package:panel_shell/testing.dart';
 
 void main() {
-  runPageControllerRegistryContract(
+  PageControllerRegistryContract.run(
     PanelPageControllers.new,
     (registry) => (registry as PanelPageControllers).dispose(),
   );
-  runPageControllerRegistryContract(
+  PageControllerRegistryContract.run(
     FakePageControllerRegistry.new,
     (registry) => (registry as FakePageControllerRegistry).disposeAll(),
   );

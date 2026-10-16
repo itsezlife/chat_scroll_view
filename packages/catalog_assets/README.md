@@ -210,7 +210,7 @@ Behaviour that matters to a host:
 | `AssetCacheScope.connectivityRestored()` when the network returns | Treat `lastError` as UI state |
 | `dispose()` on the pipeline after the scope | Dispose the fetcher, decoders or resolver through the pipeline: they stay the host's |
 
-Adapter authors run `runAssetFetcherContract` and `runDecoderContract` from
+Adapter authors run `AssetFetcherContract.run` and `DecoderContract.run` from
 `testing.dart` against their implementations; the package tests the pipeline
 with `FakeFetcher`, `FakeDecoder` and `ManualClock`.
 
@@ -315,11 +315,11 @@ Terms: [Panel Catalog glossary](../../docs/panel-catalog/CONTEXT.md)
 | `SystemMemoryPressure` | The platform's memory-pressure signal as a `Listenable` (the production `memoryPressure`) |
 | `MemoryGlyphPageStore` | In-memory page store, for an atlas that does not persist |
 | `GlyphAtlasPersistence` | `GlyphCacheStore` + `GlyphArtVersionSource` + density: an atlas given this instead of a store restores its pages on the next launch |
-| `GlyphCacheStore` (seam) | One committed generation (what the next launch finds) and at most one staged one; `createGlyphCacheStoreForPlatform(path)` is a `dart:io` file store, in memory on the web; `FakeGlyphCacheStore` in `testing.dart` |
+| `GlyphCacheStore` (seam) | One committed generation (what the next launch finds) and at most one staged one; `GlyphCacheStore.forPlatform(path)` is a `dart:io` file store, in memory on the web; `FakeGlyphCacheStore` in `testing.dart` |
 | `GlyphCacheKey` | Art version + density + glyph size + layout version + catalogue hash; decides hit, stale, discard or miss |
 | `GlyphArtVersionSource` (seam) | Says whether the system emoji art changed; `FixedGlyphArtVersion`, `ComputedGlyphArtVersion` (a pixel fingerprint computed once; `GlyphPixelReader` draws the sentinels); `FakeGlyphArtVersionSource` in `testing.dart` |
 | `GlyphBakeObserver` (seam) | Shown each glyph's baked cell (RGBA bytes) so a glyph-support probe shares the bake pass; `CallbackGlyphBakeObserver` builds one from three functions (the bridge to a consumer that must not depend on this package); `FakeGlyphBakeObserver` in `testing.dart` |
-| `createGlyphAtlasForPlatform` | The platform strategy, taking a `GlyphAtlasRequest` (the arguments of `GlyphAtlas` in one value): an atlas on Android, iOS and desktop, `null` on the web (draw text, start no bake) |
+| `GlyphAtlas.forPlatform` | The platform strategy, taking a `GlyphAtlasRequest` (the arguments of `GlyphAtlas` in one value): an atlas on Android, iOS and desktop, `null` on the web (draw text, start no bake) |
 
 ### Disk cache
 
@@ -361,20 +361,20 @@ depends on it, which the workspace dependency lint rejects as a cycle.
 and the pressure a test moves by hand), `FakeGlyphRasteriser` (predictable pixels, no emoji font;
 `onPaint` to model a slow or failing glyph), `FakeGlyphPageStore`,
 `FakeBakeFrameSource` and `ManualBakeClock` (frames and time a test steps),
-`ImagePixels`, `sampleGlyphCatalogue` (a catalogue of the current size without any emoji
-data), and the contract suites `runGlyphRasteriserContract`,
-`runGlyphPageStoreContract` and `runBakeFrameSourceContract` for adapter authors.
-For the pipeline: `FakeFetcher` (serves fixed content, goes offline, answers by itself or waits for the test), `FakeDecoder`, `ManualClock` (latency without waiting) and the contract suites `runAssetFetcherContract` and `runDecoderContract`.
+`ImagePixels`, `SampleGlyphCatalogue` (a catalogue of the current size without any emoji
+data), and the contract suites `GlyphRasteriserContract.run`,
+`GlyphPageStoreContract.run` and `BakeFrameSourceContract.run` for adapter authors.
+For the pipeline: `FakeFetcher` (serves fixed content, goes offline, answers by itself or waits for the test), `FakeDecoder`, `ManualClock` (latency without waiting) and the contract suites `AssetFetcherContract.run` and `DecoderContract.run`.
 For the cache core: `FakeAssetProducer` (every attempt waits for the test, which
 plays the producer through `FakeAssetAttempt`), `FakeAssetPaintable`,
 `FakeGlyphSpriteSource` (pages baked and released by hand, hold counts
 readable), `ManualPlaybackTickSource`, and the contract suites
-`runGlyphSpriteSourceContract` (the fake and `GlyphAtlas` both pass it) and
-`runPlaybackTickSourceContract` (the manual and the scheduler source both pass
+`GlyphSpriteSourceContract.run` (the fake and `GlyphAtlas` both pass it) and
+`PlaybackTickSourceContract.run` (the manual and the scheduler source both pass
 it).
 For the widget and embed seams: `FakeInlineEmbed`, `FakeInlineEmbedResolver` and the
-contract suites `runInlineEmbedContract` (`ContentEmbed` and the fake both pass
-it) and `runInlineEmbedResolverContract`.
+contract suites `InlineEmbedContract.run` (`ContentEmbed` and the fake both pass
+it) and `InlineEmbedResolverContract.run`.
 On-device checks: `example/integration_test/glyph_atlas_bake_test.dart` (bake
 and visual check) and `glyph_atlas_paced_bake_test.dart` (paced bake idle, while
 the panel opens, during a fling).

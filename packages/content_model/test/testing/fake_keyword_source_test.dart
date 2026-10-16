@@ -13,7 +13,7 @@ KeywordPack _pack(String language, {int version = 1}) => KeywordPack(
 );
 
 void main() {
-  runKeywordSourceContract(() async {
+  KeywordSourceContract.run(() async {
     final source = FakeKeywordSource([_pack('en'), _pack('de')]);
     return KeywordSourceHarness(
       source: source,

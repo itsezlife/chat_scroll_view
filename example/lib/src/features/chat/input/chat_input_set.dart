@@ -125,7 +125,9 @@ final class ChatInputSet {
       );
       final text = owned(
         ComposerTextController(
-          inlineContentBuilder: contentSpanBuilder(scope: services.assets),
+          inlineContentBuilder: ContentViewSpans.builder(
+            scope: services.assets,
+          ),
         ),
         (text) => text.dispose(),
       );

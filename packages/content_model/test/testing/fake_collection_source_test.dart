@@ -29,7 +29,7 @@ FakeCollectionSource _source() => FakeCollectionSource([
 ]);
 
 void main() {
-  runCollectionSourceContract(() async {
+  CollectionSourceContract.run(() async {
     final source = _source();
     return CollectionSourceHarness(
       source: source,

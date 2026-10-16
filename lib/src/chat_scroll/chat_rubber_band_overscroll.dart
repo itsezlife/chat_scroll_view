@@ -86,7 +86,7 @@ final class ChatRubberBandOverscroll implements ChatEdgeEffectState {
   void onDragStart() {
     _stopSpring();
     if (_displacement.abs() <= _restPx) _displacement = 0;
-    fine(.overscroll, 'band.drag.start', {
+    Log.fine(.overscroll, 'band.drag.start', {
       'offset': LogFormat.f(_displacement),
     });
   }
@@ -130,7 +130,7 @@ final class ChatRubberBandOverscroll implements ChatEdgeEffectState {
         unconsumedPx;
     _displacement =
         signedPull.sign * _displacementFor(signedPull.abs(), viewportHeight);
-    fine(.overscroll, 'band.pull', {
+    Log.fine(.overscroll, 'band.pull', {
       'unconsumed': LogFormat.f(unconsumedPx),
       'fits': fits,
       'vh': LogFormat.f(viewportHeight),
@@ -156,13 +156,13 @@ final class ChatRubberBandOverscroll implements ChatEdgeEffectState {
     if (_displacement.abs() <= _restPx) {
       _displacement = 0;
       _stopSpring();
-      fine(.overscroll, 'band.drag.end.idle', {'v': LogFormat.f(velocity)});
+      Log.fine(.overscroll, 'band.drag.end.idle', {'v': LogFormat.f(velocity)});
       return true;
     }
     if (velocity.abs() >= _minImpactVelocity &&
         velocity.sign != _displacement.sign) {
       _stopSpring();
-      fine(.overscroll, 'band.drag.end.carry', {
+      Log.fine(.overscroll, 'band.drag.end.carry', {
         'v': LogFormat.f(velocity),
         'from': LogFormat.f(_displacement),
       });
@@ -170,7 +170,7 @@ final class ChatRubberBandOverscroll implements ChatEdgeEffectState {
     }
     final layerVelocity = velocity * _slopeAt(_displacement.abs());
     _startSpring(layerVelocity);
-    fine(.overscroll, 'band.drag.end.spring', {
+    Log.fine(.overscroll, 'band.drag.end.spring', {
       'v': LogFormat.f(velocity),
       'layerV': LogFormat.f(layerVelocity),
       'from': LogFormat.f(_displacement),
@@ -183,7 +183,7 @@ final class ChatRubberBandOverscroll implements ChatEdgeEffectState {
   void absorbImpact(double velocity) {
     if (velocity.abs() < _minImpactVelocity) return;
     _startSpring(velocity);
-    fine(.overscroll, 'band.absorb', {
+    Log.fine(.overscroll, 'band.absorb', {
       'v': LogFormat.f(velocity),
       'from': LogFormat.f(_displacement),
     });
@@ -192,7 +192,7 @@ final class ChatRubberBandOverscroll implements ChatEdgeEffectState {
   @override
   void reset() {
     if (!isActive && _displacement == 0) return;
-    fine(.overscroll, 'band.reset', {'from': LogFormat.f(_displacement)});
+    Log.fine(.overscroll, 'band.reset', {'from': LogFormat.f(_displacement)});
     _displacement = 0;
     _stopSpring();
   }
@@ -207,14 +207,16 @@ final class ChatRubberBandOverscroll implements ChatEdgeEffectState {
     final seconds = _clock.secondsAt(elapsed);
     final x = simulation.x(seconds);
     if (simulation.isDone(seconds) || (seconds > 0 && x * _springSide <= 0)) {
-      fine(.overscroll, 'band.spring.done', {'t': LogFormat.ratio(seconds)});
+      Log.fine(.overscroll, 'band.spring.done', {
+        't': LogFormat.ratio(seconds),
+      });
       _displacement = 0;
       _stopSpring();
       return false;
     }
     _displacement = x;
     if (++_tickFrame % 8 == 1) {
-      fine(.overscroll, 'band.spring.tick', {
+      Log.fine(.overscroll, 'band.spring.tick', {
         't': LogFormat.ratio(seconds),
         'offset': LogFormat.f(_displacement),
       });

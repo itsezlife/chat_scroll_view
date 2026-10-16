@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:catalog_assets/glyph_atlas.dart';
-import 'package:flutter/foundation.dart';
+import 'package:chat_scroll_view_example/src/common/environment_specific/host_environment.dart'
+    as environment_specific;
 
 /// The demo's persistent home for baked emoji pages.
 ///
@@ -19,9 +18,8 @@ import 'package:flutter/foundation.dart';
 /// null and the probe's own version is used.
 ({GlyphCacheStore cache, GlyphArtVersionSource? artVersion})
 createExampleEmojiGlyphCache() => (
-  cache: createGlyphCacheStoreForPlatform(
-    // The web build ignores the path and keeps pages in memory.
-    kIsWeb ? '' : '${Directory.systemTemp.path}/emoji_glyph_atlas_cache',
+  cache: GlyphCacheStore.forPlatform(
+    environment_specific.$glyphCacheDirectoryPath(),
   ),
   artVersion: _fixedArtVersion.isEmpty
       ? null

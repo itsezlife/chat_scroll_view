@@ -30,10 +30,7 @@ extension on _ChatScrollToBottomButtonState {
     if (range.firstRow.id == baseline + 1) {
       return _rowCountsAsReadOnOpen(
         fraction: range.firstRow.visibleFraction,
-        fillsBand: visibleRowFillsBand(
-          range.firstRow.height,
-          range.paintBandHeight,
-        ),
+        fillsBand: range.rowFillsBand(range.firstRow),
         messageHeight: range.firstRow.height,
         paintBandHeight: range.paintBandHeight,
       );
@@ -42,10 +39,7 @@ extension on _ChatScrollToBottomButtonState {
       final anchorNext = range.anchorNextRow!;
       return _rowCountsAsReadOnOpen(
         fraction: anchorNext.visibleFraction,
-        fillsBand: visibleRowFillsBand(
-          anchorNext.height,
-          range.paintBandHeight,
-        ),
+        fillsBand: range.rowFillsBand(anchorNext),
         messageHeight: anchorNext.height,
         paintBandHeight: range.paintBandHeight,
       );
@@ -60,10 +54,7 @@ extension on _ChatScrollToBottomButtonState {
     }
     return _rowCountsAsReadOnOpen(
       fraction: range.lastRow.visibleFraction,
-      fillsBand: visibleRowFillsBand(
-        range.lastRow.height,
-        range.paintBandHeight,
-      ),
+      fillsBand: range.rowFillsBand(range.lastRow),
       messageHeight: range.lastRow.height,
       paintBandHeight: range.paintBandHeight,
     );
@@ -74,10 +65,7 @@ extension on _ChatScrollToBottomButtonState {
     if (range.firstRow.id == id) {
       return _rowCountsAsReadOnOpen(
         fraction: range.firstRow.visibleFraction,
-        fillsBand: visibleRowFillsBand(
-          range.firstRow.height,
-          range.paintBandHeight,
-        ),
+        fillsBand: range.rowFillsBand(range.firstRow),
         messageHeight: range.firstRow.height,
         paintBandHeight: range.paintBandHeight,
       );
@@ -89,10 +77,7 @@ extension on _ChatScrollToBottomButtonState {
     if (anchorNext?.id == id) {
       return _rowCountsAsReadOnOpen(
         fraction: anchorNext!.visibleFraction,
-        fillsBand: visibleRowFillsBand(
-          anchorNext.height,
-          range.paintBandHeight,
-        ),
+        fillsBand: range.rowFillsBand(anchorNext),
         messageHeight: anchorNext.height,
         paintBandHeight: range.paintBandHeight,
       );
@@ -123,10 +108,7 @@ extension on _ChatScrollToBottomButtonState {
     }
     return _rowCountsAsReadOnOpen(
       fraction: range.lastRow.visibleFraction,
-      fillsBand: visibleRowFillsBand(
-        range.lastRow.height,
-        range.paintBandHeight,
-      ),
+      fillsBand: range.rowFillsBand(range.lastRow),
       messageHeight: range.lastRow.height,
       paintBandHeight: range.paintBandHeight,
     );
@@ -138,8 +120,7 @@ extension on _ChatScrollToBottomButtonState {
     ChatVisibleRange range, {
     bool lenient = false,
   }) {
-    if (visibleRowFillsBand(range.lastRow.height, range.paintBandHeight) ||
-        range.paintBandHeight <= 0) {
+    if (range.rowFillsBand(range.lastRow) || range.paintBandHeight <= 0) {
       return false;
     }
     const shortRowBandFraction = 0.25;
@@ -282,8 +263,7 @@ extension on _ChatScrollToBottomButtonState {
       // A rejected open-layout band-fill snapshot must not consume the rising
       // edge — otherwise the first user scroll never advances the baseline.
       final rejectedOpenBandFill =
-          !_scrollReadingEnabled &&
-          visibleRowFillsBand(range.lastRow.height, range.paintBandHeight);
+          !_scrollReadingEnabled && range.rowFillsBand(range.lastRow);
       if (!rejectedOpenBandFill) {
         _prevLastVisibleId = readId;
         _prevLastVisibleFraction = fraction;

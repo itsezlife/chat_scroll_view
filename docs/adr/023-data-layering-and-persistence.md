@@ -117,8 +117,8 @@ the stream is closed: a later `listen` gets a done subscription.
 
 ## Amendment: more than one missing-glyph reference
 
-`defaultMissingGlyphReferences` holds U+10FFFF and U+F0000 (plane 15 private
-use). Some systems draw the noncharacter as nothing while an emoji their font
+`MissingGlyphProbe.defaultReferences` holds U+10FFFF and U+F0000 (plane 15
+private use). Some systems draw the noncharacter as nothing while an emoji their font
 lacks still gets the missing-glyph box; no system font covers the private use
 character, which is drawn as that box. The probe keeps a cell per reference,
 judges nothing until every reference is seen, and asks the bake for every

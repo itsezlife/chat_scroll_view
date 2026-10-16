@@ -62,31 +62,6 @@ class ChatCodeBlockLabelsScope extends InheritedWidget {
       labels != oldWidget.labels;
 }
 
-// --- Builder helper --------------------------------------------------------
-
-/// Custom block painter builder for fenced markdown code blocks.
-///
-/// Can be plugged into [MarkdownThemeData.builder] to render fenced code blocks
-/// with separated interactive header/bottom bars and offset text selection
-/// coordinates.
-BlockPainter? chatCodeBlockBuilder(
-  MD$Block block,
-  MarkdownThemeData theme, {
-  ChatSelectionPolicy? policy,
-  ChatCodeBlockLabels labels = ChatCodeBlockLabels.english,
-}) {
-  if (block case MD$Code(:final text, :final language)) {
-    return ChatCodeBlockPainter(
-      text: text,
-      language: language,
-      theme: theme,
-      policy: policy,
-      labels: labels,
-    );
-  }
-  return null;
-}
-
 // --- ChatCodeBlockPainter --------------------------------------------------
 
 /// A custom [BlockPainter] that separates interactive code block chrome
@@ -176,6 +151,29 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
          labels,
        ),
        _bottomBarPainter = _buildBottomBarPainter(text, theme, policy, labels);
+
+  /// Custom block painter builder for fenced markdown code blocks.
+  ///
+  /// Can be plugged into [MarkdownThemeData.builder] to render fenced code
+  /// blocks with separated interactive header/bottom bars and offset text
+  /// selection coordinates.
+  static BlockPainter? builder(
+    MD$Block block,
+    MarkdownThemeData theme, {
+    ChatSelectionPolicy? policy,
+    ChatCodeBlockLabels labels = ChatCodeBlockLabels.english,
+  }) {
+    if (block case MD$Code(:final text, :final language)) {
+      return ChatCodeBlockPainter(
+        text: text,
+        language: language,
+        theme: theme,
+        policy: policy,
+        labels: labels,
+      );
+    }
+    return null;
+  }
 
   /// Host chrome strings (copy bar / untitled language).
   final ChatCodeBlockLabels labels;

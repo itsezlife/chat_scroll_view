@@ -165,7 +165,7 @@ void main() {
 Future<PanelHarness> _mount(WidgetTester tester, Directory dir, String art) =>
     PanelHarness.start(
       tester,
-      glyphCache: createGlyphCacheStoreForPlatform(dir.path),
+      glyphCache: GlyphCacheStore.forPlatform(dir.path),
       // The fingerprint run uses the art version the probe computes (null
       // here: the services' own); the others a fixed text.
       glyphArtVersion: _fingerprint && !art.endsWith('-updated')
@@ -193,7 +193,7 @@ Future<void> _untilAllPages(WidgetTester tester) async {
 
 /// Pages a later launch would find, committed under [art], read from disk.
 Future<int> _persistedPages(Directory dir, String art) async {
-  final store = createGlyphCacheStoreForPlatform(dir.path);
+  final store = GlyphCacheStore.forPlatform(dir.path);
   final committed = await store.openCommitted();
   if (committed == null) return 0;
   final committedArt = committed.record.key.artVersion;

@@ -426,11 +426,7 @@ void main() {
           final before = position();
           await tester.tapAt(at(tester, x, 100), kind: PointerDeviceKind.mouse);
           await tester.pumpAndSettle();
-          expect(
-            position() != before,
-            grabs,
-            reason: '$grab x=$x',
-          );
+          expect(position() != before, grabs, reason: '$grab x=$x');
           expect(taps, grabs ? isEmpty : hasLength(1));
         }
       });
@@ -664,7 +660,7 @@ void main() {
           ChatMessageMenuResult? result;
           var done = false;
           unawaited(
-            showChatMessageMenu(
+            ChatMessageMenu.show(
               context: tester.element(find.byType(ChatScrollView)),
               messageRect: const Rect.fromLTWH(220, 120, 200, 48),
               tapGlobal: const Offset(300, 140),

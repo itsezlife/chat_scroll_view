@@ -130,8 +130,8 @@ void main() {
 
     test('the default references include a private-use character no font '
         'draws, besides the noncharacter some systems draw as nothing', () {
-      expect(defaultMissingGlyphReferences, contains('\u{10FFFF}'));
-      expect(defaultMissingGlyphReferences, contains('\u{F0000}'));
+      expect(MissingGlyphProbe.defaultReferences, contains('\u{10FFFF}'));
+      expect(MissingGlyphProbe.defaultReferences, contains('\u{F0000}'));
     });
 
     test('a glyph is not judged before the reference has been seen', () {

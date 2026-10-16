@@ -10,7 +10,7 @@ import 'package:panel_catalog/src/model/section_layout.dart';
 /// and the constraint width, so slot projection, section landing and the
 /// glyph-box rule cannot disagree about a section's cell.
 final class CatalogGridMetrics {
-  /// Creates resolved metrics. Use [resolveCatalogGrid].
+  /// Creates resolved metrics. Use [CatalogGridMetrics.resolve].
   const CatalogGridMetrics({
     required this.spanCount,
     required this.cellWidth,
@@ -22,6 +22,64 @@ final class CatalogGridMetrics {
     required this.textDirection,
     this.glyphExtent,
   });
+
+  /// Resolves [layout] (null = all defaults) against the viewport defaults;
+  /// [textDirection] is the direction of a layout that states none.
+  ///
+  /// A width with nothing left to divide (a degenerate constraint) makes the
+  /// cells square at the cell extent rather than zero wide.
+  factory CatalogGridMetrics.resolve(
+    SectionLayout? layout, {
+    required int spanCount,
+    required double cellExtent,
+    required double headerExtent,
+    required EdgeInsets padding,
+    required double maxWidth,
+    TextDirection textDirection = TextDirection.ltr,
+  }) {
+    final grid = switch (layout) {
+      final SectionLayout$Grid grid => grid,
+      null => const SectionLayout$Grid(),
+    };
+    final insets = grid.insets;
+    final usableWidth = math.max<double>(
+      0,
+      maxWidth - padding.horizontal - insets.horizontal,
+    );
+    final fixedHeight = grid.cellExtent ?? cellExtent;
+    final desired = grid.desiredCellWidth;
+    // Columns from the width: whole pixels, as the reference client counts
+    // them, the remainder split with the smaller half at the start.
+    final span = desired != null && usableWidth > 0
+        ? math.max(1, (usableWidth / desired).floor())
+        : grid.spanCount ?? spanCount;
+    final cellWidth = usableWidth <= 0
+        ? fixedHeight
+        : desired != null
+        ? (usableWidth / span).floorToDouble()
+        : usableWidth / span;
+    final slack = desired != null && usableWidth > 0
+        ? ((usableWidth - span * cellWidth) / 2).floorToDouble()
+        : 0.0;
+    final aspect = grid.cellAspect;
+    final heightInset = grid.cellHeightInset;
+    return CatalogGridMetrics(
+      spanCount: span,
+      cellWidth: cellWidth,
+      cellHeight: switch ((aspect, heightInset)) {
+        _ when usableWidth <= 0 => fixedHeight,
+        (final aspect?, _) => cellWidth / aspect,
+        (_, final inset?) => math.max<double>(1, cellWidth - inset),
+        _ => fixedHeight,
+      },
+      headerExtent: grid.headerExtent ?? headerExtent,
+      insets: insets,
+      left: padding.left + insets.left + slack,
+      usableWidth: usableWidth,
+      textDirection: grid.textDirection ?? textDirection,
+      glyphExtent: grid.glyphExtent,
+    );
+  }
 
   /// Columns.
   final int spanCount;
@@ -86,99 +144,9 @@ final class CatalogGridMetrics {
       leafCount == 0 ? 0 : (leafCount + spanCount - 1) ~/ spanCount;
 
   /// The side of the glyph box a cell of this grid draws in.
-  double get glyphBoxExtent =>
-      catalogGlyphBoxExtent(cellWidth, cellHeight, fixed: glyphExtent);
-}
-
-/// Resolves [layout] (null = all defaults) against the viewport defaults;
-/// [textDirection] is the direction of a layout that states none.
-///
-/// A width with nothing left to divide (a degenerate constraint) makes the
-/// cells square at the cell extent rather than zero wide.
-CatalogGridMetrics resolveCatalogGrid(
-  SectionLayout? layout, {
-  required int spanCount,
-  required double cellExtent,
-  required double headerExtent,
-  required EdgeInsets padding,
-  required double maxWidth,
-  TextDirection textDirection = TextDirection.ltr,
-}) {
-  final grid = switch (layout) {
-    final SectionLayout$Grid grid => grid,
-    null => const SectionLayout$Grid(),
-  };
-  final insets = grid.insets;
-  final usableWidth = math.max<double>(
-    0,
-    maxWidth - padding.horizontal - insets.horizontal,
+  double get glyphBoxExtent => CatalogContentBox.glyphBoxExtent(
+    cellWidth,
+    cellHeight,
+    fixed: glyphExtent,
   );
-  final fixedHeight = grid.cellExtent ?? cellExtent;
-  final desired = grid.desiredCellWidth;
-  // Columns from the width: whole pixels, as the reference client counts
-  // them, the remainder split with the smaller half at the start.
-  final span = desired != null && usableWidth > 0
-      ? math.max(1, (usableWidth / desired).floor())
-      : grid.spanCount ?? spanCount;
-  final cellWidth = usableWidth <= 0
-      ? fixedHeight
-      : desired != null
-      ? (usableWidth / span).floorToDouble()
-      : usableWidth / span;
-  final slack = desired != null && usableWidth > 0
-      ? ((usableWidth - span * cellWidth) / 2).floorToDouble()
-      : 0.0;
-  final aspect = grid.cellAspect;
-  final heightInset = grid.cellHeightInset;
-  return CatalogGridMetrics(
-    spanCount: span,
-    cellWidth: cellWidth,
-    cellHeight: switch ((aspect, heightInset)) {
-      _ when usableWidth <= 0 => fixedHeight,
-      (final aspect?, _) => cellWidth / aspect,
-      (_, final inset?) => math.max<double>(1, cellWidth - inset),
-      _ => fixedHeight,
-    },
-    headerExtent: grid.headerExtent ?? headerExtent,
-    insets: insets,
-    left: padding.left + insets.left + slack,
-    usableWidth: usableWidth,
-    textDirection: grid.textDirection ?? textDirection,
-    glyphExtent: grid.glyphExtent,
-  );
-}
-
-/// The largest glyph box any of [layouts] draws a glyph in, for a viewport of
-/// [maxWidth] with these defaults and [padding].
-///
-/// A host that bakes glyphs has **one** baked size per atlas, so it sizes it
-/// for the largest box and every section draws the same sprites scaled down:
-/// sizing for a smaller one would blur the sections with larger cells, and a
-/// second atlas for them would double the resident pages. Pass the layout of
-/// each section the atlas serves (`null` is the viewport default); with none,
-/// the default's box is returned. The box is [catalogGlyphBoxExtent] of the
-/// resolved cell, the very formula the painter draws with.
-double largestCatalogGlyphBox({
-  required Iterable<SectionLayout?> layouts,
-  required int spanCount,
-  required double cellExtent,
-  required EdgeInsets padding,
-  required double maxWidth,
-}) {
-  double boxOf(SectionLayout? layout) => resolveCatalogGrid(
-    layout,
-    spanCount: spanCount,
-    cellExtent: cellExtent,
-    headerExtent: 0,
-    padding: padding,
-    maxWidth: maxWidth,
-  ).glyphBoxExtent;
-
-  var largest = 0.0;
-  var any = false;
-  for (final layout in layouts) {
-    any = true;
-    largest = math.max(largest, boxOf(layout));
-  }
-  return any ? largest : boxOf(null);
 }

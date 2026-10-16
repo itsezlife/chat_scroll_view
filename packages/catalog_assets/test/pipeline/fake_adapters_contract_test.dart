@@ -16,7 +16,7 @@ void main() {
   final available = sticker(1, thumbnail: true);
   final missing = sticker(2, thumbnail: true);
 
-  runAssetFetcherContract(() {
+  AssetFetcherContract.run(() {
     final clock = ManualClock();
     final fetcher = FakeFetcher(
       contents: {available.key: bytes},
@@ -34,7 +34,7 @@ void main() {
     );
   });
 
-  runDecoderContract(
+  DecoderContract.run(
     () => DecoderHarness(
       decoder: FakeDecoder(reportFirstFrame: true),
       valid: (part, spec) => DecodeRequest(

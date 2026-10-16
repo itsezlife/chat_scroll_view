@@ -15,67 +15,68 @@ final class PlaybackTickHarness {
 }
 
 /// The contract every [PlaybackTickSource] meets; see its documentation.
-///
-/// [create] builds a fresh harness for each test.
-void runPlaybackTickSourceContract(PlaybackTickHarness Function() create) {
-  group('PlaybackTickSource contract', () {
-    late PlaybackTickHarness harness;
-    late List<Duration> ticks;
+abstract final class PlaybackTickSourceContract {
+  /// Runs it as a test group. [create] builds a fresh harness for each test.
+  static void run(PlaybackTickHarness Function() create) {
+    group('PlaybackTickSource contract', () {
+      late PlaybackTickHarness harness;
+      late List<Duration> ticks;
 
-    setUp(() {
-      harness = create();
-      ticks = <Duration>[];
+      setUp(() {
+        harness = create();
+        ticks = <Duration>[];
+      });
+      tearDown(() => harness.source.stop());
+
+      test('delivers one tick per frame, in order', () async {
+        harness.source.start(ticks.add);
+
+        await harness.pumpFrame();
+        await harness.pumpFrame();
+        await harness.pumpFrame();
+
+        expect(ticks, hasLength(3));
+        expect(ticks, orderedEquals([...ticks]..sort()));
+      });
+
+      test('delivers nothing before it is started', () async {
+        await harness.pumpFrame();
+
+        expect(ticks, isEmpty);
+      });
+
+      test('delivers nothing after it is stopped', () async {
+        harness.source.start(ticks.add);
+        await harness.pumpFrame();
+
+        harness.source.stop();
+        await harness.pumpFrame();
+        await harness.pumpFrame();
+
+        expect(ticks, hasLength(1));
+      });
+
+      test('starting while running keeps the first callback', () async {
+        final second = <Duration>[];
+        harness.source
+          ..start(ticks.add)
+          ..start(second.add);
+
+        await harness.pumpFrame();
+
+        expect(ticks, hasLength(1));
+        expect(second, isEmpty);
+      });
+
+      test('stopping while stopped does nothing, and it can restart', () async {
+        harness.source
+          ..stop()
+          ..start(ticks.add);
+
+        await harness.pumpFrame();
+
+        expect(ticks, hasLength(1));
+      });
     });
-    tearDown(() => harness.source.stop());
-
-    test('delivers one tick per frame, in order', () async {
-      harness.source.start(ticks.add);
-
-      await harness.pumpFrame();
-      await harness.pumpFrame();
-      await harness.pumpFrame();
-
-      expect(ticks, hasLength(3));
-      expect(ticks, orderedEquals([...ticks]..sort()));
-    });
-
-    test('delivers nothing before it is started', () async {
-      await harness.pumpFrame();
-
-      expect(ticks, isEmpty);
-    });
-
-    test('delivers nothing after it is stopped', () async {
-      harness.source.start(ticks.add);
-      await harness.pumpFrame();
-
-      harness.source.stop();
-      await harness.pumpFrame();
-      await harness.pumpFrame();
-
-      expect(ticks, hasLength(1));
-    });
-
-    test('starting while running keeps the first callback', () async {
-      final second = <Duration>[];
-      harness.source
-        ..start(ticks.add)
-        ..start(second.add);
-
-      await harness.pumpFrame();
-
-      expect(ticks, hasLength(1));
-      expect(second, isEmpty);
-    });
-
-    test('stopping while stopped does nothing, and it can restart', () async {
-      harness.source
-        ..stop()
-        ..start(ticks.add);
-
-      await harness.pumpFrame();
-
-      expect(ticks, hasLength(1));
-    });
-  });
+  }
 }

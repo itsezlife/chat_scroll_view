@@ -1,9 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:chat_composer/src/input/composer_controller.dart';
 import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
 import 'package:chat_composer/src/view/composer_metrics.dart';
 import 'package:chat_composer/src/view/listen_value_builder.dart';
 import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/foundation.dart' show clampDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -65,12 +68,14 @@ class ComposerField extends StatefulWidget {
 class _ComposerFieldState extends State<ComposerField> {
   final _textFieldKey = GlobalKey();
   var _anchorScheduled = false;
+  var _revealScheduled = false;
 
   @override
   void initState() {
     super.initState();
     widget.controller.text.addListener(_scheduleAnchor);
     widget.controller.keyboardRequests.addListener(_onKeyboardRequest);
+    widget.controller.caretReveals.addListener(_onCaretReveal);
     widget.controller.focusNode.addListener(_onFocus);
     _onFocus();
   }
@@ -81,9 +86,11 @@ class _ComposerFieldState extends State<ComposerField> {
     if (!identical(oldWidget.controller, widget.controller)) {
       oldWidget.controller.text.removeListener(_scheduleAnchor);
       oldWidget.controller.keyboardRequests.removeListener(_onKeyboardRequest);
+      oldWidget.controller.caretReveals.removeListener(_onCaretReveal);
       oldWidget.controller.focusNode.removeListener(_onFocus);
       widget.controller.text.addListener(_scheduleAnchor);
       widget.controller.keyboardRequests.addListener(_onKeyboardRequest);
+      widget.controller.caretReveals.addListener(_onCaretReveal);
       widget.controller.focusNode.addListener(_onFocus);
       _onFocus();
     }
@@ -93,6 +100,7 @@ class _ComposerFieldState extends State<ComposerField> {
   void dispose() {
     widget.controller.text.removeListener(_scheduleAnchor);
     widget.controller.keyboardRequests.removeListener(_onKeyboardRequest);
+    widget.controller.caretReveals.removeListener(_onCaretReveal);
     widget.controller.focusNode.removeListener(_onFocus);
     super.dispose();
   }
@@ -145,6 +153,54 @@ class _ComposerFieldState extends State<ComposerField> {
       if (!mounted || !widget.enabled) return;
       node.requestFocus();
     });
+  }
+
+  // After the frame that lays the edit out, so the line is measured where the
+  // caret landed. Edits in one frame reveal once.
+  void _onCaretReveal() {
+    if (_revealScheduled) return;
+    _revealScheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _revealScheduled = false;
+      if (mounted) _revealCaretLine();
+    });
+  }
+
+  // Scrolls the field, at once, by just enough to show the whole line the
+  // caret is on, as the reference clients' fields do. The stock
+  // `bringIntoView` reveals a box of the preferred line height around the
+  // caret, which can stop a fraction of a pixel short of the line as laid
+  // out; the line's own glyph boxes (the caret alone for an empty line) are
+  // the exact extent.
+  void _revealCaretLine() {
+    final selection = widget.controller.selection;
+    final scroll = widget.controller.fieldScroll;
+    final render = _editableTextState()?.renderEditable;
+    if (render == null || !selection.isValid || !scroll.hasClients) return;
+    final caret = render.getLocalRectForCaret(selection.extent);
+    final line = render.getLineAtOffset(selection.extent);
+    var top = caret.top;
+    var bottom = caret.bottom;
+    for (final box in render.getBoxesForSelection(
+      TextSelection(baseOffset: line.start, extentOffset: line.end),
+    )) {
+      top = math.min(top, box.top);
+      bottom = math.max(bottom, box.bottom);
+    }
+    final shift = switch (render.size.height) {
+      final height when bottom > height => bottom - height,
+      _ when top < 0 => top,
+      _ => 0.0,
+    };
+    if (shift == 0) return;
+    final position = scroll.position;
+    scroll.jumpTo(
+      clampDouble(
+        position.pixels + shift,
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      ),
+    );
   }
 
   void _onTap() {

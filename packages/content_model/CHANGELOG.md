@@ -6,8 +6,20 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Source-breaking: the contract suites in `testing.dart` are statics on a type
+  per seam: `runKeyValueStoreContract(...)` is now
+  `KeyValueStoreContract.run(...)`, and likewise `RecentsStoreContract`,
+  `PreferenceStoreContract`, `CollectionSourceContract`,
+  `SearchSourceContract`, `KeywordSourceContract`, `GlyphSupportContract` and
+  `ContentResolverContract`.
+
 ### Added
 
+- `RichText.splitsSurrogatePair(text, index)`: whether an offset falls inside
+  a surrogate pair, where no entity and no edit range may start or end, so an
+  editor can move an edge off it before calling `replaceRange`.
 - Source-breaking for implementers: `PreferenceStore.defaultVariant` and
   `setDefaultVariant(EmojiModifiers)`, a tone for every emoji that forgets the
   choices made per emoji; `KeyValuePreferenceStore` persists it as tone names,

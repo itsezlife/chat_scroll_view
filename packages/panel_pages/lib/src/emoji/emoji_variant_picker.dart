@@ -17,8 +17,8 @@ import 'package:panel_shell/panel_shell.dart';
 ///
 /// Every option is the **same cell the grid draws** ([cell], the pressed
 /// cell's own size) and its glyph the same box and font scale the grid uses
-/// (`catalogGlyphBoxExtent`, `TextGlyphProducer.defaultFontScale`), so an
-/// emoji looks the same in the picker as under the finger and cannot be
+/// (`CatalogContentBox.glyphBoxExtent`, `TextGlyphProducer.defaultFontScale`),
+/// so an emoji looks the same in the picker as under the finger and cannot be
 /// cropped by a container smaller than the ink it is drawn with.
 ///
 /// A picker of up to [maxColumns] options is one row with a separator after
@@ -187,17 +187,6 @@ final class EmojiVariantPickerLayout {
   }
 }
 
-/// The options of an entry's variant picker, in display order: the base, then
-/// each variant the catalogue holds for it.
-///
-/// The one rule for what the picker offers, so the grid, the picker and search
-/// agree with the catalogue: an entry without variants has none and a long
-/// press on it does nothing.
-List<ContentKey$Unicode> emojiVariantOptions(EmojiEntry entry) => [
-  entry.base,
-  for (final variant in entry.variants) variant.key,
-];
-
 /// The card of options a variant picker draws.
 ///
 /// Stateless: [selected] and the layout are given. [EmojiVariantSession] owns
@@ -221,6 +210,17 @@ class EmojiVariantPicker extends StatelessWidget {
     this.onHover,
     super.key,
   });
+
+  /// The options of an entry's variant picker, in display order: the base,
+  /// then each variant the catalogue holds for it.
+  ///
+  /// The one rule for what the picker offers, so the grid, the picker and
+  /// search agree with the catalogue: an entry without variants has none and a
+  /// long press on it does nothing.
+  static List<ContentKey$Unicode> optionsOf(EmojiEntry entry) => [
+    entry.base,
+    for (final variant in entry.variants) variant.key,
+  ];
 
   /// What is offered, in order.
   final List<ContentKey$Unicode> options;
@@ -261,7 +261,7 @@ class EmojiVariantPicker extends StatelessWidget {
       titleExtent: title == null ? 0 : EmojiVariantPickerLayout.titleBand,
     );
     final card = layout.card;
-    final glyphBox = catalogGlyphBoxExtent(
+    final glyphBox = CatalogContentBox.glyphBoxExtent(
       cell.width,
       cell.height,
       fixed: glyphExtent,

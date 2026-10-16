@@ -94,12 +94,12 @@ class _Sampler implements GlassSampler {
 }
 
 void main() {
-  group('mergeGlassRegions', () {
+  group('GlassSourceLink.mergeRegions', () {
     test('merges regions whose bounds stay cheap', () {
       const composer = Rect.fromLTWH(0, 700, 400, 100);
       const button = Rect.fromLTWH(340, 630, 60, 60);
 
-      expect(mergeGlassRegions([composer, button]), [
+      expect(GlassSourceLink.mergeRegions([composer, button]), [
         composer.expandToInclude(button),
       ]);
     });
@@ -108,7 +108,7 @@ void main() {
       const top = Rect.fromLTWH(0, 0, 400, 60);
       const bottom = Rect.fromLTWH(0, 740, 400, 60);
 
-      expect(mergeGlassRegions([top, bottom]), [top, bottom]);
+      expect(GlassSourceLink.mergeRegions([top, bottom]), [top, bottom]);
     });
   });
 
@@ -120,7 +120,7 @@ void main() {
         home: GlassSourceScope(
           child: Builder(
             builder: (context) {
-              link = glassSourceLinkOf(context)!;
+              link = GlassSourceLink.of(context)!;
               return const GlassSource(
                 child: ColoredBox(color: Color(0xFF3366FF)),
               );
@@ -231,7 +231,7 @@ void main() {
                           child: SizedBox.square(
                             dimension: 44,
                             child: SampledGlassBackdrop(
-                              link: glassSourceLinkOf(context)!,
+                              link: GlassSourceLink.of(context)!,
                               style: _style,
                               programs: null,
                               pixelRatio: 1,

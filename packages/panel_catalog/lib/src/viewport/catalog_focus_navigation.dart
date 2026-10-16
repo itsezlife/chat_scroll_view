@@ -9,55 +9,59 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// index in that section's leaves.
 typedef CatalogCell = ({int section, int index});
 
-/// The first leaf of the catalogue, or null when no section has any.
-CatalogCell? firstCatalogCell(List<CatalogSection> sections) {
-  for (var s = 0; s < sections.length; s++) {
-    if (sections[s].leaves.isNotEmpty) return (section: s, index: 0);
+/// Where roving focus goes in a catalogue: the ends, and the cell one move
+/// away from another.
+abstract final class CatalogFocusNavigation {
+  /// The first leaf of the catalogue, or null when no section has any.
+  static CatalogCell? firstCell(List<CatalogSection> sections) {
+    for (var s = 0; s < sections.length; s++) {
+      if (sections[s].leaves.isNotEmpty) return (section: s, index: 0);
+    }
+    return null;
   }
-  return null;
-}
 
-/// The last leaf of the catalogue, or null when no section has any.
-CatalogCell? lastCatalogCell(List<CatalogSection> sections) {
-  for (var s = sections.length - 1; s >= 0; s--) {
-    final count = sections[s].leaves.length;
-    if (count > 0) return (section: s, index: count - 1);
+  /// The last leaf of the catalogue, or null when no section has any.
+  static CatalogCell? lastCell(List<CatalogSection> sections) {
+    for (var s = sections.length - 1; s >= 0; s--) {
+      final count = sections[s].leaves.length;
+      if (count > 0) return (section: s, index: count - 1);
+    }
+    return null;
   }
-  return null;
-}
 
-/// The cell roving focus lands on when [move] is made from [from], or null when
-/// there is nowhere to go (the end of the catalogue, or a column with nothing
-/// under it).
-///
-/// A pure function of the sections and the [bands] they were projected into, so
-/// a column here is the column on screen: sections of different spans, cell
-/// widths and directions stack, and a vertical move keeps the cell's **screen**
-/// x. Sections without leaves (empty, loading, failed) hold no focus and are
-/// stepped over; skeleton cells are not cells.
-CatalogCell? moveCatalogFocus({
-  required CatalogCell from,
-  required CatalogFocusMove move,
-  required List<CatalogSection> sections,
-  required List<CatalogSectionBand> bands,
-}) {
-  switch (move) {
-    case CatalogFocusMove.first:
-      return firstCatalogCell(sections);
-    case CatalogFocusMove.last:
-      return lastCatalogCell(sections);
-    case CatalogFocusMove.next:
-      return _step(from, 1, sections);
-    case CatalogFocusMove.previous:
-      return _step(from, -1, sections);
-    case CatalogFocusMove.right || CatalogFocusMove.left:
-      final rtl = bands[from.section].grid.textDirection == TextDirection.rtl;
-      final toward = move == CatalogFocusMove.right ? 1 : -1;
-      return _step(from, rtl ? -toward : toward, sections);
-    case CatalogFocusMove.down:
-      return _vertical(from, 1, sections, bands);
-    case CatalogFocusMove.up:
-      return _vertical(from, -1, sections, bands);
+  /// The cell roving focus lands on when [move] is made from [from], or null
+  /// when there is nowhere to go (the end of the catalogue, or a column with
+  /// nothing under it).
+  ///
+  /// A pure function of the sections and the [bands] they were projected into,
+  /// so a column here is the column on screen: sections of different spans,
+  /// cell widths and directions stack, and a vertical move keeps the cell's
+  /// **screen** x. Sections without leaves (empty, loading, failed) hold no
+  /// focus and are stepped over; skeleton cells are not cells.
+  static CatalogCell? move({
+    required CatalogCell from,
+    required CatalogFocusMove move,
+    required List<CatalogSection> sections,
+    required List<CatalogSectionBand> bands,
+  }) {
+    switch (move) {
+      case CatalogFocusMove.first:
+        return firstCell(sections);
+      case CatalogFocusMove.last:
+        return lastCell(sections);
+      case CatalogFocusMove.next:
+        return _step(from, 1, sections);
+      case CatalogFocusMove.previous:
+        return _step(from, -1, sections);
+      case CatalogFocusMove.right || CatalogFocusMove.left:
+        final rtl = bands[from.section].grid.textDirection == TextDirection.rtl;
+        final toward = move == CatalogFocusMove.right ? 1 : -1;
+        return _step(from, rtl ? -toward : toward, sections);
+      case CatalogFocusMove.down:
+        return _vertical(from, 1, sections, bands);
+      case CatalogFocusMove.up:
+        return _vertical(from, -1, sections, bands);
+    }
   }
 }
 

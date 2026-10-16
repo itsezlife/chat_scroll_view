@@ -16,7 +16,7 @@ GlassStrategy _select(
   bool source = false,
   bool moving = false,
   bool lite = false,
-}) => selectGlassStrategy(
+}) => GlassStrategy.select(
   quality: quality,
   liteMode: lite,
   capabilities: capabilities,

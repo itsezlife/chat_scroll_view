@@ -20,8 +20,9 @@ enum DirectiveKind {
 /// re-export on whichever platform the condition selects.
 @immutable
 final class DartDirective {
-  /// Creates a directive of [kind] naming [uris].
-  const DartDirective(this.kind, this.uris);
+  /// Creates a directive of [kind] naming [uris], conditional on [condition]
+  /// when it has one.
+  const DartDirective(this.kind, this.uris, {this.condition});
 
   /// Import or export.
   final DirectiveKind kind;
@@ -29,6 +30,10 @@ final class DartDirective {
   /// Every quoted URI in the directive, in source order (the default URI
   /// first, then each configuration URI).
   final List<String> uris;
+
+  /// The first configuration condition (`dart.library.js_interop`), or null
+  /// for an unconditional directive.
+  final String? condition;
 
   // The directive must start its line: that is what rules out commented-out
   // directives (`// export ...`, `/// import ...`) without a comment parser.
@@ -39,6 +44,7 @@ final class DartDirective {
     multiLine: true,
   );
   static final RegExp _quoted = RegExp('''['"]([^'"]+)['"]''');
+  static final RegExp _condition = RegExp(r'\bif\s*\(\s*([\w.]+)');
 
   /// Directives of [source], in order. `part`, `library` and comments are not
   /// directives of interest and are skipped.
@@ -59,6 +65,7 @@ final class DartDirective {
         <String>[
           for (final uri in _quoted.allMatches(match.group(2)!)) uri.group(1)!,
         ],
+        condition: _condition.firstMatch(match.group(2)!)?.group(1),
       ),
   ];
 }
@@ -71,6 +78,7 @@ final class LibraryFile {
     required this.libPath,
     required this.repoPath,
     required this.directives,
+    this.source = '',
   });
 
   /// Reads every `.dart` file under `lib/` of [member], sorted by path.
@@ -88,11 +96,13 @@ final class LibraryFile {
           ..sort((a, b) => a.path.compareTo(b.path));
     return <LibraryFile>[
       for (final file in files)
-        LibraryFile(
-          libPath: p.relative(file.path, from: lib.path),
-          repoPath: p.relative(file.path, from: graph.root),
-          directives: DartDirective.scan(file.readAsStringSync()),
-        ),
+        if (file.readAsStringSync() case final source)
+          LibraryFile(
+            libPath: p.relative(file.path, from: lib.path),
+            repoPath: p.relative(file.path, from: graph.root),
+            directives: DartDirective.scan(source),
+            source: source,
+          ),
     ];
   }
 
@@ -107,4 +117,7 @@ final class LibraryFile {
 
   /// Imports and exports of the file.
   final List<DartDirective> directives;
+
+  /// The text of the file.
+  final String source;
 }

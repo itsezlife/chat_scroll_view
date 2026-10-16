@@ -40,114 +40,118 @@ final class AssetFetcherHarness {
 }
 
 /// The contract every [ContentFetcher] meets; see its documentation.
-///
-/// [create] builds a fresh harness for each test.
-void runAssetFetcherContract(AssetFetcherHarness Function() create) {
-  group('ContentFetcher contract', () {
-    late AssetFetcherHarness harness;
-    late CancellationToken token;
+abstract final class AssetFetcherContract {
+  /// Runs it as a test group. [create] builds a fresh harness for each test.
+  static void run(AssetFetcherHarness Function() create) {
+    group('ContentFetcher contract', () {
+      late AssetFetcherHarness harness;
+      late CancellationToken token;
 
-    setUp(() {
-      harness = create();
-      token = CancellationToken();
-    });
+      setUp(() {
+        harness = create();
+        token = CancellationToken();
+      });
 
-    FetchRequest request(
-      ContentDescriptor descriptor, [
-      FetchPart part = FetchPart.content,
-    ]) => FetchRequest(
-      descriptor: descriptor,
-      part: part,
-      priority: AssetPriority.visible,
-      cancellation: token,
-    );
-
-    Future<Object?> outcome(Future<FetchedContent> fetch) => fetch
-        .then<Object?>((content) => content, onError: (Object error) => error);
-
-    test('serves the content of available content', () async {
-      final result = harness.fetcher.fetch(request(harness.available));
-      harness.elapse();
-
-      expect(await result, isA<FetchedContent>());
-    });
-
-    test('serves the thumbnail of content that has one', () async {
-      if (harness.available.thumbnail == null) return;
-      final result = harness.fetcher.fetch(
-        request(harness.available, FetchPart.thumbnail),
+      FetchRequest request(
+        ContentDescriptor descriptor, [
+        FetchPart part = FetchPart.content,
+      ]) => FetchRequest(
+        descriptor: descriptor,
+        part: part,
+        priority: AssetPriority.visible,
+        cancellation: token,
       );
-      harness.elapse();
 
-      expect(await result, isA<FetchedContent>());
-    });
+      Future<Object?> outcome(Future<FetchedContent> fetch) =>
+          fetch.then<Object?>(
+            (content) => content,
+            onError: (Object error) => error,
+          );
 
-    test('fails permanently for content the host does not have', () async {
-      final result = outcome(harness.fetcher.fetch(request(harness.missing)));
-      harness.elapse();
+      test('serves the content of available content', () async {
+        final result = harness.fetcher.fetch(request(harness.available));
+        harness.elapse();
 
-      final error = await result;
+        expect(await result, isA<FetchedContent>());
+      });
 
-      expect(error, isA<FetchFailure>());
-      expect((error! as FetchFailure).kind, AssetFailureKind.permanent);
-    });
-
-    test('reports failure through the future, never by throwing', () {
-      expect(
-        () => outcome(harness.fetcher.fetch(request(harness.missing))),
-        returnsNormally,
-      );
-      harness.elapse();
-    });
-
-    test('fails transiently while offline, and recovers', () async {
-      final goOffline = harness.goOffline;
-      final goOnline = harness.goOnline;
-      if (goOffline == null || goOnline == null) return;
-
-      goOffline();
-      final lost = outcome(harness.fetcher.fetch(request(harness.available)));
-      harness.elapse();
-      final error = await lost;
-      expect(error, isA<FetchFailure>());
-      expect((error! as FetchFailure).kind, AssetFailureKind.transient);
-
-      goOnline();
-      final back = harness.fetcher.fetch(request(harness.available));
-      harness.elapse();
-      expect(await back, isA<FetchedContent>());
-    });
-
-    test(
-      'settles a fetch that is cancelled, never leaves it pending',
-      () async {
-        final result = outcome(
-          harness.fetcher.fetch(request(harness.available)),
+      test('serves the thumbnail of content that has one', () async {
+        if (harness.available.thumbnail == null) return;
+        final result = harness.fetcher.fetch(
+          request(harness.available, FetchPart.thumbnail),
         );
+        harness.elapse();
 
-        token.cancel();
+        expect(await result, isA<FetchedContent>());
+      });
 
-        await result.timeout(
-          const Duration(seconds: 5),
-          onTimeout: () => fail('a cancelled fetch must settle'),
+      test('fails permanently for content the host does not have', () async {
+        final result = outcome(harness.fetcher.fetch(request(harness.missing)));
+        harness.elapse();
+
+        final error = await result;
+
+        expect(error, isA<FetchFailure>());
+        expect((error! as FetchFailure).kind, AssetFailureKind.permanent);
+      });
+
+      test('reports failure through the future, never by throwing', () {
+        expect(
+          () => outcome(harness.fetcher.fetch(request(harness.missing))),
+          returnsNormally,
         );
-      },
-    );
+        harness.elapse();
+      });
 
-    test('runs fetches side by side without mixing them up', () async {
-      final first = harness.fetcher.fetch(request(harness.available));
-      final second = harness.fetcher.fetch(
-        FetchRequest(
-          descriptor: harness.missing,
-          part: FetchPart.content,
-          priority: AssetPriority.preload,
-          cancellation: CancellationToken(),
-        ),
+      test('fails transiently while offline, and recovers', () async {
+        final goOffline = harness.goOffline;
+        final goOnline = harness.goOnline;
+        if (goOffline == null || goOnline == null) return;
+
+        goOffline();
+        final lost = outcome(harness.fetcher.fetch(request(harness.available)));
+        harness.elapse();
+        final error = await lost;
+        expect(error, isA<FetchFailure>());
+        expect((error! as FetchFailure).kind, AssetFailureKind.transient);
+
+        goOnline();
+        final back = harness.fetcher.fetch(request(harness.available));
+        harness.elapse();
+        expect(await back, isA<FetchedContent>());
+      });
+
+      test(
+        'settles a fetch that is cancelled, never leaves it pending',
+        () async {
+          final result = outcome(
+            harness.fetcher.fetch(request(harness.available)),
+          );
+
+          token.cancel();
+
+          await result.timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => fail('a cancelled fetch must settle'),
+          );
+        },
       );
-      harness.elapse();
 
-      expect(await first, isA<FetchedContent>());
-      await expectLater(second, throwsA(isA<FetchFailure>()));
+      test('runs fetches side by side without mixing them up', () async {
+        final first = harness.fetcher.fetch(request(harness.available));
+        final second = harness.fetcher.fetch(
+          FetchRequest(
+            descriptor: harness.missing,
+            part: FetchPart.content,
+            priority: AssetPriority.preload,
+            cancellation: CancellationToken(),
+          ),
+        );
+        harness.elapse();
+
+        expect(await first, isA<FetchedContent>());
+        await expectLater(second, throwsA(isA<FetchFailure>()));
+      });
     });
-  });
+  }
 }

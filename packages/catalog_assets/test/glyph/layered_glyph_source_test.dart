@@ -25,7 +25,7 @@ void main() {
     });
   });
 
-  runGlyphSpriteSourceContract(() {
+  GlyphSpriteSourceContract.run(() {
     final source = FakeGlyphSpriteSource(['a']);
     final layers = LayeredGlyphSource(source);
     addTearDown(() {

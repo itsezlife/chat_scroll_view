@@ -35,14 +35,14 @@ it and `content_model.dart` never exports it (`scripts/check` enforces both).
 
 | Seam | Fake | Contract suite |
 | --- | --- | --- |
-| `KeyValueStore` | `FakeKeyValueStore` (in memory, `failure` switch) | `runKeyValueStoreContract` |
-| `RecentsStore` | `FakeRecentsStore` | `runRecentsStoreContract` |
-| `PreferenceStore` | `FakePreferenceStore` | `runPreferenceStoreContract` |
-| `CollectionSource` | `FakeCollectionSource` (scripted `FakePages`, pausable, failure switches) | `runCollectionSourceContract` |
-| `SearchSource` | `FakeSearchSource` | `runSearchSourceContract` |
-| `KeywordSource` | `FakeKeywordSource` | `runKeywordSourceContract` |
-| `GlyphSupport` | `FakeGlyphSupport` | `runGlyphSupportContract` |
-| `ContentResolver` | `FakeContentResolver` (records batches) | `runContentResolverContract` |
+| `KeyValueStore` | `FakeKeyValueStore` (in memory, `failure` switch) | `KeyValueStoreContract.run` |
+| `RecentsStore` | `FakeRecentsStore` | `RecentsStoreContract.run` |
+| `PreferenceStore` | `FakePreferenceStore` | `PreferenceStoreContract.run` |
+| `CollectionSource` | `FakeCollectionSource` (scripted `FakePages`, pausable, failure switches) | `CollectionSourceContract.run` |
+| `SearchSource` | `FakeSearchSource` | `SearchSourceContract.run` |
+| `KeywordSource` | `FakeKeywordSource` | `KeywordSourceContract.run` |
+| `GlyphSupport` | `FakeGlyphSupport` | `GlyphSupportContract.run` |
+| `ContentResolver` | `FakeContentResolver` (records batches) | `ContentResolverContract.run` |
 
 A contract suite takes a factory for the implementation under test. The
 suites for sources and resolvers also take a small harness that names facts
@@ -52,7 +52,7 @@ Run the suite from the implementation's own test file:
 
 ```dart
 void main() {
-  runKeyValueStoreContract(MyPlatformKeyValueStore.new);
+  KeyValueStoreContract.run(MyPlatformKeyValueStore.new);
 }
 ```
 
@@ -68,7 +68,7 @@ void main() {
 | Entries whose variant keys are the exact sequences it sends, and tags for each. | Compute a variant by appending a modifier to the base, or fold FE0F spellings into one key. Keys compare exactly. |
 | Implementations of the seams it needs: sources, a `ContentResolver`, a `KeyValueStore` adapter for its platform storage. Each seam's dartdoc states the contract to meet. | Reach a seam's implementation through a downcast, or let a seam throw for an expected condition. Missing data is null or an absent entry; a failed load is a `failed` state. |
 | Its stores from `KeyValueRecentsStore.load` and `KeyValuePreferenceStore.load` over its `KeyValueStore`, awaited once at startup. | Try to use a store before `load` completes (there is no such store), or wrap `load` in a second layer of caching. |
-| A test for every implementation of a seam: the matching `run...Contract` suite from `testing.dart`. | Ship a fake, or import `testing.dart`, from production code. |
+| A test for every implementation of a seam: the matching `...Contract.run` suite from `testing.dart`. | Ship a fake, or import `testing.dart`, from production code. |
 | The decision that a pick counts: it calls `RecentsStore.record` on insert or send, with the `PickSource` it came from. | Record from inside a page, or record a pick made from search results. |
 | One `KeyValueStore` namespace per package, and a version on every value it writes. | Share a namespace between packages, or expect the store to migrate or interpret a value. |
 | Disposal: whoever creates a notifier, source or store disposes it, once. A seam owner's `dispose` is idempotent; `ChangeNotifier.dispose` itself is not. | Signal from a consumer's side (only the owner type can), add a listener to a disposed owner (an assertion in debug builds), or dispose an owner from inside one of its own listeners. |

@@ -122,7 +122,10 @@ class _ChatMessageChangeTransitionState
   void initState() {
     super.initState();
     _controller =
-        AnimationController(vsync: this, duration: kChatMessageChangeDuration)
+        AnimationController(
+            vsync: this,
+            duration: ChatMessageChangeParams.duration,
+          )
           ..addListener(_onTick)
           ..addStatusListener(_onStatus);
   }
@@ -152,11 +155,11 @@ class _ChatMessageChangeTransitionState
   }
 
   void _onTick() {
-    final curved = kChatMessageChangeCurve.transform(
+    final curved = ChatMessageChangeParams.curve.transform(
       _controller.value.clamp(0.0, 1.0),
     );
     setState(() {
-      _params = chatMessageChangeAtProgress(_params, curved);
+      _params = _params.atProgress(curved);
     });
   }
 
@@ -233,7 +236,7 @@ class _ChatMessageChangeTransitionState
       final settledMeta = render.metaOffset;
 
       setState(() {
-        _params = beginChatMessageChange(
+        _params = ChatMessageChangeParams.begin(
           oldBackground: oldBg,
           newBackground: newBackground,
           textChanged: textChanged,
@@ -245,7 +248,7 @@ class _ChatMessageChangeTransitionState
         );
       });
       _controller
-        ..duration = kChatMessageChangeDuration
+        ..duration = ChatMessageChangeParams.duration
         ..forward(from: 0);
     });
   }

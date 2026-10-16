@@ -1,26 +1,6 @@
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 
-/// When true, change-transition paints append samples to
-/// [RenderChatMessageChangeTransition.debugPaintHistory].
-///
-/// Opt in from diagnostic tests. Keep false in production.
-bool debugChatMessageChangeRecordPaints = false;
-
-/// List-item change duration.
-const Duration kChatMessageChangeDuration = Duration(milliseconds: 250);
-
-/// List-item change curve.
-const Curve kChatMessageChangeCurve = Cubic(
-  0.19919472913616398,
-  0.010644531250000006,
-  0.27920937042459737,
-  0.91025390625,
-);
-
-/// Clip inset inside the painted bubble while crossfading text.
-const double kChatMessageChangeClipInset = 4;
-
 /// Edge deltas for background-bounds change animation.
 ///
 /// At animation start, [left]/[right]/[top]/[bottom] equal
@@ -113,6 +93,54 @@ class ChatMessageChangeParams {
     this.shouldAnimateMetaX = false,
   });
 
+  /// Builds the starting params when a change begins (`p = 0`).
+  factory ChatMessageChangeParams.begin({
+    required Rect oldBackground,
+    required Rect newBackground,
+    required bool textChanged,
+    required bool editedEnter,
+    required double editedWidthDiff,
+    Offset? animateFromMetaOffset,
+    double? animateFromMetaWidth,
+    Offset? settledMetaOffset,
+  }) {
+    final deltas = ChatMessageChangeDeltas.between(
+      oldRect: oldBackground,
+      newRect: newBackground,
+    );
+    final backgroundChanged = deltas != ChatMessageChangeDeltas.zero;
+    final from = animateFromMetaOffset;
+    final to = settledMetaOffset;
+    final shouldAnimateX =
+        editedEnter ||
+        (from != null && to != null && (from.dx - to.dx).abs() > 1);
+    return ChatMessageChangeParams(
+      progress: 0,
+      deltas: deltas,
+      animateMessageText: textChanged,
+      animateBackgroundBounds: backgroundChanged,
+      animateEditedEnter: editedEnter,
+      editedWidthDiff: editedEnter ? editedWidthDiff : 0,
+      animateFromMetaOffset: from,
+      animateFromMetaWidth: animateFromMetaWidth,
+      shouldAnimateMetaX: shouldAnimateX,
+    );
+  }
+
+  /// List-item change duration.
+  static const Duration duration = Duration(milliseconds: 250);
+
+  /// List-item change curve.
+  static const Curve curve = Cubic(
+    0.19919472913616398,
+    0.010644531250000006,
+    0.27920937042459737,
+    0.91025390625,
+  );
+
+  /// Clip inset inside the painted bubble while crossfading text.
+  static const double clipInset = 4;
+
   /// Settled / no animation.
   static const ChatMessageChangeParams settled = ChatMessageChangeParams(
     progress: 1,
@@ -195,16 +223,31 @@ class ChatMessageChangeParams {
   }
 
   /// Clip rect for text crossfade — painted background inset by
-  /// [kChatMessageChangeClipInset].
+  /// [clipInset].
   Rect textClipRect(Rect finalRect) {
     final bg = paintedBackground(finalRect);
     return Rect.fromLTRB(
-      bg.left + kChatMessageChangeClipInset,
-      bg.top + kChatMessageChangeClipInset,
-      bg.right - kChatMessageChangeClipInset,
-      bg.bottom - kChatMessageChangeClipInset,
+      bg.left + clipInset,
+      bg.top + clipInset,
+      bg.right - clipInset,
+      bg.bottom - clipInset,
     );
   }
+
+  /// Copies these params with an updated [progress] (same deltas / flags).
+  ChatMessageChangeParams atProgress(double progress) =>
+      ChatMessageChangeParams(
+        progress: progress.clamp(0.0, 1.0),
+        deltas: deltas,
+        animateMessageText: animateMessageText,
+        animateBackgroundBounds: animateBackgroundBounds,
+        animateEditedEnter: animateEditedEnter,
+        editedWidthDiff: editedWidthDiff,
+        holdPaintedBackground: holdPaintedBackground,
+        animateFromMetaOffset: animateFromMetaOffset,
+        animateFromMetaWidth: animateFromMetaWidth,
+        shouldAnimateMetaX: shouldAnimateMetaX,
+      );
 
   /// Outgoing text opacity (`1 − p`) while [animateMessageText].
   double get outgoingTextOpacity =>
@@ -291,54 +334,3 @@ class ChatMessageChangeParams {
     shouldAnimateMetaX,
   );
 }
-
-/// Builds the starting [ChatMessageChangeParams] when a change begins (`p = 0`).
-ChatMessageChangeParams beginChatMessageChange({
-  required Rect oldBackground,
-  required Rect newBackground,
-  required bool textChanged,
-  required bool editedEnter,
-  required double editedWidthDiff,
-  Offset? animateFromMetaOffset,
-  double? animateFromMetaWidth,
-  Offset? settledMetaOffset,
-}) {
-  final deltas = ChatMessageChangeDeltas.between(
-    oldRect: oldBackground,
-    newRect: newBackground,
-  );
-  final backgroundChanged = deltas != ChatMessageChangeDeltas.zero;
-  final from = animateFromMetaOffset;
-  final to = settledMetaOffset;
-  final shouldAnimateX =
-      editedEnter ||
-      (from != null && to != null && (from.dx - to.dx).abs() > 1);
-  return ChatMessageChangeParams(
-    progress: 0,
-    deltas: deltas,
-    animateMessageText: textChanged,
-    animateBackgroundBounds: backgroundChanged,
-    animateEditedEnter: editedEnter,
-    editedWidthDiff: editedEnter ? editedWidthDiff : 0,
-    animateFromMetaOffset: from,
-    animateFromMetaWidth: animateFromMetaWidth,
-    shouldAnimateMetaX: shouldAnimateX,
-  );
-}
-
-/// Copies [base] with an updated [progress] (same deltas / flags).
-ChatMessageChangeParams chatMessageChangeAtProgress(
-  ChatMessageChangeParams base,
-  double progress,
-) => ChatMessageChangeParams(
-  progress: progress.clamp(0.0, 1.0),
-  deltas: base.deltas,
-  animateMessageText: base.animateMessageText,
-  animateBackgroundBounds: base.animateBackgroundBounds,
-  animateEditedEnter: base.animateEditedEnter,
-  editedWidthDiff: base.editedWidthDiff,
-  holdPaintedBackground: base.holdPaintedBackground,
-  animateFromMetaOffset: base.animateFromMetaOffset,
-  animateFromMetaWidth: base.animateFromMetaWidth,
-  shouldAnimateMetaX: base.shouldAnimateMetaX,
-);

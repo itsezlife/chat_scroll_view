@@ -56,7 +56,7 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// ## Layout model
 ///
 /// Catalog geometry is a known content height ([contentExtent]), not an
-/// id-relative anchor. [projectCatalogSlots] flattens
+/// id-relative anchor. [CatalogSlotProjection.project] flattens
 /// [CatalogSnapshot.sections] into absolute header/leaf slots in content
 /// coordinates (y increases downward from the catalog top), each section by
 /// its own [CatalogSection.layout] resolved against the viewport defaults.
@@ -135,8 +135,10 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 ///
 /// [PanelCatalogController.jumpToSection] lands a section header under
 /// [padding.top] (strip inset band). Path selection uses
-/// [isNearPathSectionJump]: attached-header shortcut, else flat-row distance
-/// `≤ [kFarPathDistanceGateFactor]` (not multiplied by [spanCount]). Near
+/// [CatalogSectionNavigation.isNearPathSectionJump]: attached-header shortcut,
+/// else flat-row distance
+/// `≤ [CatalogSectionNavigation.farPathDistanceGateFactor]` (not multiplied by
+/// [spanCount]). Near
 /// targets animate via [CatalogNearScroll] (220ms decelerate curve). Far
 /// targets use [CatalogFarStitch] (capture outgoing strip → teleport →
 /// dual-translate).
@@ -826,7 +828,7 @@ class RenderPanelCatalog extends RenderBox
 
   void _onDataChanged() {
     if (LogCategory.layout.enabled) {
-      fine(.layout, 'data.notify', {
+      Log.fine(.layout, 'data.notify', {
         'sections': _snapshots.value.sections.length,
         'leaves': _snapshots.value.sections.fold<int>(
           0,
@@ -865,7 +867,7 @@ class RenderPanelCatalog extends RenderBox
     _cancelFling();
     _onNavigation();
     if (LogCategory.scroll.enabled) {
-      fine(.scroll, 'jump', {'offset': LogFormat.f(_pixels)});
+      Log.fine(.scroll, 'jump', {'offset': LogFormat.f(_pixels)});
     }
   }
 
@@ -882,7 +884,7 @@ class RenderPanelCatalog extends RenderBox
     _cancelSectionJumpMotion();
     _onNavigation();
     if (LogCategory.scroll.enabled) {
-      fine(.scroll, 'scrollBy', {
+      Log.fine(.scroll, 'scrollBy', {
         'delta': LogFormat.f(delta),
         'offset': LogFormat.f(_pixels),
       });
@@ -1040,7 +1042,7 @@ class RenderPanelCatalog extends RenderBox
 
     // From the live sections, not the last projection: a snapshot published
     // since the last layout is the catalog the jump is about.
-    final bands = projectCatalogSectionBands(
+    final bands = CatalogSectionBands.project(
       sections: sections,
       spanCount: _spanCount,
       cellExtent: _cellExtent,
@@ -1049,7 +1051,7 @@ class RenderPanelCatalog extends RenderBox
       maxWidth: size.width,
       textDirection: _textDirection,
     ).bands;
-    final targetOffset = scrollOffsetForBand(
+    final targetOffset = CatalogSectionNavigation.scrollOffsetForBand(
       bands[sectionIndex],
       landingInset: _headerLandingInset ?? _padding.top,
     ).clamp(0.0, maxOffset);
@@ -1063,7 +1065,7 @@ class RenderPanelCatalog extends RenderBox
       return;
     }
 
-    final near = isNearPathSectionJump(
+    final near = CatalogSectionNavigation.isNearPathSectionJump(
       targetSectionIndex: sectionIndex,
       bands: bands,
       scrollOffset: _pixels,
@@ -1071,7 +1073,7 @@ class RenderPanelCatalog extends RenderBox
     );
 
     if (LogCategory.scroll.enabled) {
-      fine(.scroll, 'sectionJump.begin', {
+      Log.fine(.scroll, 'sectionJump.begin', {
         'section': sectionIndex,
         'from': LogFormat.f(_pixels),
         'to': LogFormat.f(targetOffset),
@@ -1119,7 +1121,7 @@ class RenderPanelCatalog extends RenderBox
       _completePendingSectionJump(sectionIndex: sectionIndex);
       _controller.publish(PanelCatalogSectionJumpEnd(sectionIndex));
       if (LogCategory.scroll.enabled) {
-        fine(.scroll, 'sectionJump.end', {
+        Log.fine(.scroll, 'sectionJump.end', {
           'section': sectionIndex,
           'offset': LogFormat.f(_pixels),
           'path': 'near',
@@ -1189,12 +1191,12 @@ class RenderPanelCatalog extends RenderBox
     final fromOffset = _pixels;
     final towardNewer = targetOffset > fromOffset;
 
-    _stitchOutgoing = captureCatalogStitchOutgoing(
+    _stitchOutgoing = CatalogFarStitch.captureOutgoing(
       slots: _slots,
       scrollOffset: fromOffset,
       viewportHeight: size.height,
     );
-    _stitchPinnedKeys = catalogStitchOutgoingLeafKeys(_stitchOutgoing);
+    _stitchPinnedKeys = CatalogFarStitch.outgoingLeafKeys(_stitchOutgoing);
 
     final flight = Completer<void>();
     _stitchFlightCompleter = flight;
@@ -1227,7 +1229,7 @@ class RenderPanelCatalog extends RenderBox
         _stitchFlightCompleter = null;
       }
       if (LogCategory.scroll.enabled) {
-        fine(.scroll, 'sectionJump.end', {
+        Log.fine(.scroll, 'sectionJump.end', {
           'section': sectionIndex,
           'offset': LogFormat.f(_pixels),
           'path': 'far',
@@ -1262,7 +1264,7 @@ class RenderPanelCatalog extends RenderBox
       for (final slot in _slots)
         if (slot.bottom >= top && slot.top <= bottom) slot,
     ];
-    final travel = measureCatalogStitchTravel(
+    final travel = CatalogFarStitch.measureTravel(
       outgoing: _stitchOutgoing,
       incomingVisible: incomingVisible,
       towardNewer: farStitch.towardNewer,
@@ -1448,7 +1450,7 @@ class RenderPanelCatalog extends RenderBox
   /// Pure projection + store; does not touch the asset cache. Binding sync
   /// runs separately after size/offset are known.
   void _project(double maxWidth) {
-    final projection = projectCatalogSlots(
+    final projection = CatalogSlotProjection.project(
       sections: _snapshots.value.sections,
       spanCount: _spanCount,
       cellExtent: _cellExtent,
@@ -1505,7 +1507,7 @@ class RenderPanelCatalog extends RenderBox
   /// outside layout (a post-frame callback or an offset write).
   void _noteCurrentSection() {
     if (!attached || !hasSize) return;
-    final index = currentSectionIndex(
+    final index = CatalogSectionNavigation.currentSectionIndex(
       _bands,
       offset: _pixels,
       landingInset: _headerLandingInset ?? _padding.top,
@@ -1905,7 +1907,7 @@ class RenderPanelCatalog extends RenderBox
     _layoutLogLastSlotCount = slotCount;
     if (!changed && frame > 1 && frame % 30 != 0) return;
     final (winTop, winBottom) = _visibleWindow();
-    fine(.layout, 'layout.end', {
+    Log.fine(.layout, 'layout.end', {
       'frame': frame,
       'cw': LogFormat.f(constraints.maxWidth),
       'ch': LogFormat.f(constraints.maxHeight),
@@ -2157,7 +2159,7 @@ class RenderPanelCatalog extends RenderBox
       leaves++;
       if (_pool.boundFor(slot) != null) bound++;
     }
-    fine(.paint, 'paint.summary', {
+    Log.fine(.paint, 'paint.summary', {
       'frame': frame,
       'offset': LogFormat.f(_pixels),
       'leaves': leaves,
@@ -2230,7 +2232,7 @@ class RenderPanelCatalog extends RenderBox
     final provisionalTravel = size.height;
 
     for (final captured in _stitchOutgoing) {
-      final dy = catalogStitchOutgoingPaintDy(
+      final dy = CatalogFarStitch.outgoingPaintDy(
         towardNewer: towardNewer,
         travel: measured ? travel : provisionalTravel,
         progress: measured ? progress : 0,
@@ -2346,8 +2348,8 @@ class RenderPanelCatalog extends RenderBox
     for (var i = start; i < end; i++) {
       final slot = slots[i];
       if (slot.bottom < visibleTop || slot.top > visibleBottom) continue;
-      if (catalogStitchSlotIsOutgoing(slot, _stitchOutgoing)) continue;
-      final dy = catalogStitchIncomingPaintDy(
+      if (CatalogFarStitch.slotIsOutgoing(slot, _stitchOutgoing)) continue;
+      final dy = CatalogFarStitch.incomingPaintDy(
         towardNewer: towardNewer,
         travel: travel,
         progress: progress,
@@ -2582,7 +2584,7 @@ class RenderPanelCatalog extends RenderBox
     };
     final CatalogCell? target;
     if (current != null) {
-      target = moveCatalogFocus(
+      target = CatalogFocusNavigation.move(
         from: current,
         move: move,
         sections: sections,
@@ -2591,9 +2593,9 @@ class RenderPanelCatalog extends RenderBox
     } else {
       // Nothing holds focus: a move enters the grid rather than stepping.
       target = switch (move) {
-        CatalogFocusMove.first => firstCatalogCell(sections),
-        CatalogFocusMove.last => lastCatalogCell(sections),
-        _ => _firstCellInView() ?? firstCatalogCell(sections),
+        CatalogFocusMove.first => CatalogFocusNavigation.firstCell(sections),
+        CatalogFocusMove.last => CatalogFocusNavigation.lastCell(sections),
+        _ => _firstCellInView() ?? CatalogFocusNavigation.firstCell(sections),
       };
     }
     if (target == null) return false;
@@ -2733,7 +2735,7 @@ class RenderPanelCatalog extends RenderBox
           : cell.top;
       bottom = cell.bottom;
     }
-    final target = scrollOffsetToReveal(
+    final target = CatalogSectionNavigation.scrollOffsetToReveal(
       top: top,
       bottom: bottom,
       pixels: _pixels,

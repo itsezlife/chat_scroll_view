@@ -289,7 +289,7 @@ void main() {
     test(
       'the current catalogue stays within 64 MiB of resident pages',
       () async {
-        final atlas = await baked(sampleGlyphCatalogue());
+        final atlas = await baked(SampleGlyphCatalogue.glyphs());
         final layout = atlas.index.layout;
 
         final bytes = atlas.residency.residentBytes;

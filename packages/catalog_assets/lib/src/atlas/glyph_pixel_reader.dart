@@ -9,7 +9,7 @@ import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
 ///
 /// It draws the glyph filling a [size] px square on the root isolate and
 /// reads the image back as RGBA8888, so a caller paces it itself (one glyph
-/// per frame; see `computeGlyphArtFingerprint`). It is the same rasteriser the
+/// per frame; see `GlyphArtFingerprint.compute`). It is the same rasteriser the
 /// bake uses, so the fingerprint changes exactly when the baked art would.
 final class GlyphPixelReader {
   /// Creates a reader drawing with [rasteriser] into [size] px squares.

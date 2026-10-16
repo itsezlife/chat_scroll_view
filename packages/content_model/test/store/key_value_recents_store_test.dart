@@ -22,7 +22,7 @@ Map<String, Object> _entry(String key, int count, int lastUsed) => {
 };
 
 void main() {
-  runRecentsStoreContract(
+  RecentsStoreContract.run(
     ({required capacity}) => KeyValueRecentsStore.load(
       FakeKeyValueStore(),
       namespace: _namespace,

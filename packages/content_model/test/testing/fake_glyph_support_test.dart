@@ -3,7 +3,7 @@ import 'package:content_model/testing.dart';
 import 'package:test/test.dart';
 
 void main() {
-  runGlyphSupportContract(() async {
+  GlyphSupportContract.run(() async {
     final support = FakeGlyphSupport();
     return GlyphSupportHarness(
       support: support,

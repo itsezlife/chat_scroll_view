@@ -8,6 +8,11 @@ is pre-1.0.
 
 ### Changed
 
+- Source-breaking: `runPageControllerRegistryContract(...)` in `testing.dart`
+  is `PageControllerRegistryContract.run(...)`.
+
+### Changed
+
 - `PanelBackgroundScope`: the shell's background for a page's bands
   (transparent on glass).
 - `PanelShell.sectionTabsBar` (`PanelSectionTabsBar.label`, the default, or

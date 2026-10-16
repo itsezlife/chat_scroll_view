@@ -442,15 +442,16 @@ class RenderChatRowChrome extends RenderBox
     final pd = _pd(child);
     final opacity = _effect(child).opacity;
     final frame = _frameOf(child);
-    void faded(PaintingContext context, Offset offset) => paintChildWithOpacity(
-      context,
-      child,
-      offset + pd.offset,
-      opacity,
-      pd.opacityLayer,
-    );
+    void faded(PaintingContext context, Offset offset) =>
+        ChatOpacityPaint.paintChild(
+          context,
+          child,
+          offset + pd.offset,
+          opacity,
+          pd.opacityLayer,
+        );
 
-    if (frame == null || opacity <= kChatOpacityPaintSkip) {
+    if (frame == null || opacity <= ChatOpacityPaint.skip) {
       pd
         ..clipLayer.layer = null
         ..transformLayer.layer = null;

@@ -213,9 +213,10 @@ void main() {
 
       shell.updatePresence(visible: true, opening: false);
       await pumpShown();
-      shell.controllers.peek<CatalogPageController>('emoji')!.catalog.jumpTo(
-        300,
-      );
+      shell.controllers
+          .peek<CatalogPageController>('emoji')!
+          .catalog
+          .jumpTo(300);
       await tester.pumpAndSettle();
 
       shell.updatePresence(visible: false, opening: false);

@@ -27,6 +27,12 @@ class RenderChatMessageChangeTransition extends RenderBox
        _textDirection = textDirection,
        _boxShadow = boxShadow;
 
+  /// When true, change-transition paints append samples to
+  /// [debugPaintHistory].
+  ///
+  /// Opt in from diagnostic tests. Keep false in production.
+  static bool debugRecordPaints = false;
+
   ChatMessageChangeParams _params;
   Color _color;
   BorderRadiusGeometry _borderRadius;
@@ -39,7 +45,7 @@ class RenderChatMessageChangeTransition extends RenderBox
   /// transition's `oldBackground`.
   Rect lastPaintedBackground = Rect.zero;
 
-  /// Append-only paint samples while [debugChatMessageChangeRecordPaints] is on.
+  /// Append-only paint samples while [debugRecordPaints] is on.
   ///
   /// Cleared by diagnostic tests; each [paint] appends one sample so a
   /// one-frame flash is still observable after later paints overwrite
@@ -242,7 +248,7 @@ class RenderChatMessageChangeTransition extends RenderBox
         : _layoutChild(meta, childConstraints, dry: dry);
 
     // Body layout is relative to the padded origin; lift by padding.
-    final inner = layoutChatMessageBody(
+    final inner = ChatMessageBodyLayout.measure(
       constraints: BoxConstraints(maxWidth: availableWidth),
       padding: EdgeInsets.zero,
       spacing: _spacing,
@@ -254,7 +260,10 @@ class RenderChatMessageChangeTransition extends RenderBox
       lastLineWidth: () {
         if (content == null) return 0.0;
         if (dry) return contentSize.width;
-        return lastLineWidthOf(content, fallback: contentSize.width);
+        return ChatMessageBodyLayout.lastLineWidthOf(
+          content,
+          fallback: contentSize.width,
+        );
       },
     );
 
@@ -300,7 +309,7 @@ class RenderChatMessageChangeTransition extends RenderBox
         ? Size.zero
         : _layoutChild(outgoingMeta, childConstraints, dry: false);
 
-    final inner = layoutChatMessageBody(
+    final inner = ChatMessageBodyLayout.measure(
       constraints: BoxConstraints(maxWidth: availableWidth),
       padding: EdgeInsets.zero,
       spacing: _spacing,
@@ -311,7 +320,10 @@ class RenderChatMessageChangeTransition extends RenderBox
       hasMeta: outgoingMeta != null,
       lastLineWidth: () {
         if (outgoingContent == null) return 0.0;
-        return lastLineWidthOf(outgoingContent, fallback: contentSize.width);
+        return ChatMessageBodyLayout.lastLineWidthOf(
+          outgoingContent,
+          fallback: contentSize.width,
+        );
       },
     );
 
@@ -350,7 +362,7 @@ class RenderChatMessageChangeTransition extends RenderBox
     final finalRect = finalBackgroundRect;
     final paintedLocal = _params.paintedBackground(finalRect);
     lastPaintedBackground = paintedLocal;
-    if (debugChatMessageChangeRecordPaints) {
+    if (debugRecordPaints) {
       final metaW = _meta?.hasSize == true ? _meta!.size.width : 0.0;
       final metaPaint = _params.metaPaintOffset(
         settledMeta: _metaOffset,

@@ -8,6 +8,13 @@ this package is pre-1.0.
 
 ### Changed
 
+- Source-breaking: the contract suites in `testing.dart` are statics on a
+  type: `runPresentationPolicyContract(...)` is
+  `PresentationPolicyContract.run(...)` and `runImeInputPortContract(...)` is
+  `ImeInputPortContract.run(...)`.
+
+### Changed
+
 - The popup, the dock and the keyboard-replacement sheet put the shell on the
   composer's glass (`GlassSurface`, `GlassMaterial.composerIsland`) with a
   transparent shell background.

@@ -19,10 +19,3 @@ typedef InlineContentSpanBuilder =
       InlineContentRef reference,
       TextStyle style,
     );
-
-/// The default [InlineContentSpanBuilder]: the alternative text in [style].
-InlineSpan alternativeTextSpan(
-  BuildContext context,
-  InlineContentRef reference,
-  TextStyle style,
-) => TextSpan(text: reference.alternativeText, style: style);

@@ -6,19 +6,6 @@ import 'package:content_model/content_model.dart';
 import 'package:emoji_data/src/glyph_probe/glyph_pixel_hash.dart';
 import 'package:listen/listen.dart';
 
-/// Characters no system font draws, whose cells stand for "missing".
-///
-/// A noncharacter (U+10FFFF) is drawn by some systems as their missing-glyph
-/// box and by others as nothing at all, while an emoji their font lacks still
-/// gets the box: so a character of the plane 15 private use area, which no
-/// system font covers but which is drawn as the box, is a reference too. The
-/// probe compares every glyph against the cell of each; a glyph that draws
-/// nothing is caught by the blank-cell rule.
-const List<String> defaultMissingGlyphReferences = <String>[
-  '\u{10FFFF}',
-  '\u{F0000}',
-];
-
 // How many cells, all flagged, make the probe doubt the system and not the
 // glyphs: more than any one strip of the bake.
 const int _cellsToDoubtAll = 16;
@@ -51,7 +38,7 @@ const String _blank = 'blank';
 /// ## Art version and persistence
 ///
 /// [artVersion] comes from the producer the host passes (normally
-/// `computeGlyphArtFingerprint` over the system rasteriser; the host also
+/// `GlyphArtFingerprint.compute` over the system rasteriser; the host also
 /// hands the same value on as the atlas cache key, via [artVersionReady], so
 /// it is produced once). The first [observe] or [start] runs the producer.
 /// Once the version is known the probe reads the verdicts persisted under
@@ -75,11 +62,24 @@ final class MissingGlyphProbe with ChangeNotifier implements GlyphSupport {
     required Iterable<String> glyphs,
     required KeyValueStore store,
     required Future<String> Function() artVersion,
-    Iterable<String> references = defaultMissingGlyphReferences,
+    Iterable<String> references = defaultReferences,
   }) : _glyphs = Set<String>.of(glyphs),
        _store = store,
        _produceArtVersion = artVersion,
        _references = List<String>.unmodifiable(references);
+
+  /// Characters no system font draws, whose cells stand for "missing".
+  ///
+  /// A noncharacter (U+10FFFF) is drawn by some systems as their missing-glyph
+  /// box and by others as nothing at all, while an emoji their font lacks still
+  /// gets the box: so a character of the plane 15 private use area, which no
+  /// system font covers but which is drawn as the box, is a reference too. The
+  /// probe compares every glyph against the cell of each; a glyph that draws
+  /// nothing is caught by the blank-cell rule.
+  static const List<String> defaultReferences = <String>[
+    '\u{10FFFF}',
+    '\u{F0000}',
+  ];
 
   /// The [KeyValueStore] namespace the probe keeps its record in.
   static const String namespace = 'emoji_data';
@@ -356,7 +356,7 @@ final class MissingGlyphProbe with ChangeNotifier implements GlyphSupport {
   }
 
   static String _hashOf(Uint8List pixels) =>
-      pixels.every((byte) => byte == 0) ? _blank : hashGlyphPixels(pixels);
+      pixels.every((byte) => byte == 0) ? _blank : GlyphPixelHash.of(pixels);
 }
 
 /// What a [MissingGlyphProbe] knew at some point: the cell hashes of the

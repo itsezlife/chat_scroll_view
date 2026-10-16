@@ -62,7 +62,7 @@ final class KeyValuePreferenceStore
     KeyValueStore storage, {
     required String namespace,
   }) async {
-    checkStoreName(namespace, 'namespace');
+    StoreName.check(namespace, 'namespace');
     final store = KeyValuePreferenceStore._(storage, namespace);
     final stored = await storage.read(namespace, _recordKey);
     if (stored != null) store._restore(stored);

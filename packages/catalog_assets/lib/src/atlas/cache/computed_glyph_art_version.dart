@@ -2,7 +2,7 @@ import 'package:catalog_assets/src/atlas/cache/glyph_art_version_source.dart';
 
 /// A [GlyphArtVersionSource] whose answer is worked out once, by the host's
 /// own code, and then remembered: the pixel fingerprint of a few sentinel
-/// glyphs (`computeGlyphArtFingerprint` in `emoji_data`) is the intended
+/// glyphs (`GlyphArtFingerprint.compute` in `emoji_data`) is the intended
 /// [compute].
 ///
 /// "Once" matters: [GlyphAtlas] may read the version again, and a fingerprint

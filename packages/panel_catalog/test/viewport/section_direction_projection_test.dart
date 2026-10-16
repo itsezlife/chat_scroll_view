@@ -23,7 +23,7 @@ CatalogSlotProjection _project(
   List<CatalogSection> sections, {
   TextDirection direction = TextDirection.ltr,
   EdgeInsets padding = EdgeInsets.zero,
-}) => projectCatalogSlots(
+}) => CatalogSlotProjection.project(
   sections: sections,
   spanCount: 8,
   cellExtent: 48,

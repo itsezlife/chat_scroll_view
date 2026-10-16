@@ -549,7 +549,7 @@ void main() {
         final travel = (to - sc.offset).abs();
         // Same travel-scaled window as stitch — honest “smooth scroll the gap”
         // alternative that stitch replaces.
-        final duration = catalogStitchTravelDuration(
+        final duration = CatalogFarStitch.travelDuration(
           travelPx: travel,
           viewportHeight: kBenchViewportSize.height,
         );

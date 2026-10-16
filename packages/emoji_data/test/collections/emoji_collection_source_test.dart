@@ -25,7 +25,7 @@ void main() {
         pageSize: pageSize,
       );
 
-  runCollectionSourceContract(
+  CollectionSourceContract.run(
     () async => CollectionSourceHarness(
       source: source(pageSize: 2),
       pagedId: const CollectionId.category('faces'),
@@ -237,10 +237,7 @@ void main() {
         await preferences.setDefaultVariant(
           EmojiModifiers(tones: const [SkinTone.dark]),
         );
-        await preferences.setPreferredVariant(
-          key('1F44D'),
-          key('1F44D-1F3FB'),
-        );
+        await preferences.setPreferredVariant(key('1F44D'), key('1F44D-1F3FB'));
 
         await emoji.load(things);
 

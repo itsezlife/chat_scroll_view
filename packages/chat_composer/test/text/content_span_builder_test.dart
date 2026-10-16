@@ -22,7 +22,7 @@ void main() {
     );
     controller = ComposerController(
       text: ComposerTextController(
-        inlineContentBuilder: contentSpanBuilder(scope: scope),
+        inlineContentBuilder: ContentViewSpans.builder(scope: scope),
       ),
     );
   });

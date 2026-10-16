@@ -1,11 +1,11 @@
 import 'dart:io';
 
 import 'package:catalog_assets/glyph_atlas.dart';
-import 'package:catalog_assets/src/atlas/cache/file_glyph_cache_store.dart';
-import 'package:catalog_assets/src/atlas/platform/glyph_cache_store_platform_io.dart'
-    as io;
-import 'package:catalog_assets/src/atlas/platform/glyph_cache_store_platform_web.dart'
-    as web;
+import 'package:catalog_assets/src/atlas/environment_specific/glyph_cache_store_file_vm.dart';
+import 'package:catalog_assets/src/atlas/environment_specific/glyph_cache_store_js.dart'
+    as js;
+import 'package:catalog_assets/src/atlas/environment_specific/glyph_cache_store_vm.dart'
+    as vm;
 import 'package:flutter_test/flutter_test.dart';
 
 /// The platform fork is two files; a VM test can build only the default one,
@@ -15,19 +15,19 @@ void main() {
     final dir = Directory.systemTemp.createTempSync('glyph_platform_');
     addTearDown(() => dir.deleteSync(recursive: true));
 
-    final store = io.createGlyphCacheStoreForPlatform(dir.path);
+    final store = vm.$createGlyphCacheStore(dir.path);
 
-    expect(store, isA<FileGlyphCacheStore>());
-    expect((store as FileGlyphCacheStore).root.path, dir.path);
-    // The default build of this test is the io one.
+    expect(store, isA<GlyphCacheStore$File$VM>());
+    expect((store as GlyphCacheStore$File$VM).root.path, dir.path);
+    // The default build of this test is the VM one.
     expect(
-      createGlyphCacheStoreForPlatform(dir.path),
-      isA<FileGlyphCacheStore>(),
+      GlyphCacheStore.forPlatform(dir.path),
+      isA<GlyphCacheStore$File$VM>(),
     );
   });
 
   test('the web keeps pages in memory and touches no directory', () async {
-    final store = web.createGlyphCacheStoreForPlatform('/never/used');
+    final store = js.$createGlyphCacheStore('/never/used');
 
     expect(store, isA<MemoryGlyphCacheStore>());
     expect(await store.openCommitted(), isNull);

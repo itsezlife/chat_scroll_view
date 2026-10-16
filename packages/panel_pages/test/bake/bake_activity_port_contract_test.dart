@@ -7,14 +7,14 @@ import 'package:panel_pages/testing.dart';
 
 void main() {
   group('FakeBakeActivityPort', () {
-    runBakeActivityPortContract(() {
+    BakeActivityPortContract.run(() {
       final port = FakeBakeActivityPort();
       return (port: port, isHeldBack: () => port.isScrolling);
     });
   });
 
   group('GlyphAtlasBakePort', () {
-    runBakeActivityPortContract(() {
+    BakeActivityPortContract.run(() {
       final frames = FakeBakeFrameSource();
       final visible = ValueNotifier<bool>(true);
       final opening = ValueNotifier<bool>(false);

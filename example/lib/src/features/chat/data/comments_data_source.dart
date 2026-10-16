@@ -3,10 +3,9 @@ import 'dart:collection';
 import 'dart:convert';
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/common/environment_specific/asset_text.dart'
+    as environment_specific;
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
-import 'package:chat_scroll_view_example/src/common/utils/load_asset.dart'
-    if (dart.library.js_interop) 'package:chat_scroll_view_example/src/common/utils/platform/load_asset_web.dart'
-    if (dart.library.io) 'package:chat_scroll_view_example/src/common/utils/platform/load_asset_native.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_message_search.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
 
@@ -93,7 +92,8 @@ class CommentsDataSource extends ChatDataSource {
 
   /// On native — loads from bundled assets via rootBundle.
   /// On web — fetches on demand via HTTP (assets excluded from service worker).
-  static Future<String> _loadString(String assetPath) => loadAsset(assetPath);
+  static Future<String> _loadString(String assetPath) =>
+      environment_specific.$loadAssetText(assetPath);
 
   /// Parsed manifest describing chunk layout and metadata.
   final CommentsManifest manifest;

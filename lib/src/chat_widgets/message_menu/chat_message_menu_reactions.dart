@@ -5,27 +5,6 @@ import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_slots.dart';
 import 'package:flutter/material.dart';
 
-/// Horizontal padding inside the reactions pill.
-const double kChatMessageMenuReactionsPad = 4;
-
-/// Gap between emoji slots.
-const double kChatMessageMenuReactionsGapSlots = 2;
-
-/// Reactions strip height.
-const double kChatMessageMenuReactionsHeight = 44;
-
-/// Vertical padding inside the pill (`(height - slot) / 2`).
-const double kChatMessageMenuReactionsPadVertical = 4;
-
-/// Gap between the reactions pill and the action card.
-const double kChatMessageMenuReactionsGap = 12;
-
-/// How far the reactions pill can extend past the action card on the start.
-const double kChatMessageMenuReactionsStartOverhang = 24;
-
-/// How far the reactions pill can extend past the action card on the end.
-const double kChatMessageMenuReactionsEndOverhang = 48;
-
 /// Horizontal reactions strip above the action card.
 class ChatMessageMenuReactions extends StatelessWidget {
   /// Creates a reactions strip.
@@ -43,7 +22,7 @@ class ChatMessageMenuReactions extends StatelessWidget {
   /// Called when an emoji is tapped.
   final ValueChanged<String> onReaction;
 
-  /// Optional width cap. Defaults to [kChatMessageMenuMaxWidth].
+  /// Optional width cap. Defaults to [ChatMessageMenuCard.defaultMaxWidth].
   final double? maxWidth;
 
   /// Optional custom slot. Null uses the package emoji slot.
@@ -52,12 +31,31 @@ class ChatMessageMenuReactions extends StatelessWidget {
   /// Slot size.
   static const double slot = 36;
 
+  /// Horizontal padding inside the reactions pill.
+  static const double pad = 4;
+
+  /// Gap between emoji slots.
+  static const double gapSlots = 2;
+
+  /// Reactions strip height.
+  static const double height = 44;
+
+  /// Vertical padding inside the pill (`(height - slot) / 2`).
+  static const double padVertical = 4;
+
+  /// Gap between the reactions pill and the action card.
+  static const double gap = 12;
+
+  /// How far the reactions pill can extend past the action card on the start.
+  static const double startOverhang = 24;
+
+  /// How far the reactions pill can extend past the action card on the end.
+  static const double endOverhang = 48;
+
   /// Content width for [count] emoji slots including padding.
   static double contentWidthForCount(int count) {
     if (count <= 0) return 0;
-    return count * slot +
-        (count - 1) * kChatMessageMenuReactionsGapSlots +
-        kChatMessageMenuReactionsPad * 2;
+    return count * slot + (count - 1) * gapSlots + pad * 2;
   }
 
   @override
@@ -67,15 +65,13 @@ class ChatMessageMenuReactions extends StatelessWidget {
     final menuTheme = ChatScrollTheme.menuOf(context);
     final colorScheme = Theme.of(context).colorScheme;
     final radius = BorderRadius.all(
-      Radius.circular(
-        menuTheme.reactionsRadius ?? kChatMessageMenuReactionsHeight / 2,
-      ),
+      Radius.circular(menuTheme.reactionsRadius ?? height / 2),
     );
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final cap = math.min(
-          maxWidth ?? kChatMessageMenuMaxWidth,
+          maxWidth ?? ChatMessageMenuCard.defaultMaxWidth,
           MediaQuery.widthOf(context) - 12,
         );
         final maxAvailable = constraints.maxWidth.isFinite
@@ -91,8 +87,7 @@ class ChatMessageMenuReactions extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               for (var i = 0; i < reactions.length; i++) ...<Widget>[
-                if (i > 0)
-                  const SizedBox(width: kChatMessageMenuReactionsGapSlots),
+                if (i > 0) const SizedBox(width: gapSlots),
                 reactionBuilder?.call(
                       context,
                       reactions[i],
@@ -109,12 +104,11 @@ class ChatMessageMenuReactions extends StatelessWidget {
           slots = ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(
-              horizontal: kChatMessageMenuReactionsPad,
-              vertical: kChatMessageMenuReactionsPadVertical,
+              horizontal: pad,
+              vertical: padVertical,
             ),
             itemCount: reactions.length,
-            separatorBuilder: (_, _) =>
-                const SizedBox(width: kChatMessageMenuReactionsGapSlots),
+            separatorBuilder: (_, _) => const SizedBox(width: gapSlots),
             itemBuilder: (context, index) =>
                 reactionBuilder?.call(
                   context,
@@ -153,13 +147,13 @@ class ChatMessageMenuReactions extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: SizedBox(
               width: width,
-              height: kChatMessageMenuReactionsHeight,
+              height: ChatMessageMenuReactions.height,
               child: Padding(
                 padding: !fits
                     ? EdgeInsets.zero
                     : const EdgeInsets.symmetric(
-                        horizontal: kChatMessageMenuReactionsPad,
-                        vertical: kChatMessageMenuReactionsPadVertical,
+                        horizontal: pad,
+                        vertical: padVertical,
                       ),
                 child: slots,
               ),

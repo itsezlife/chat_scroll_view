@@ -643,10 +643,7 @@ void main() {
         final range = controller.visibleRange.value;
         expect(range, isNotNull);
         expect(range!.anchorNextRow?.id, lastRead + 1);
-        expect(
-          visibleRowFillsBand(range.lastRow.height, range.paintBandHeight),
-          isTrue,
-        );
+        expect(range.rowFillsBand(range.lastRow), isTrue);
         expect(range.lastRow.id, lessThanOrEqualTo(range.lastId));
         expect(lastSeen.value, lastRead);
         expect(_pillText(tester), '2 new messages');

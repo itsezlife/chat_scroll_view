@@ -4,38 +4,41 @@ import 'package:content_model/src/rich_text/markdown/markdown_syntax.dart';
 import 'package:content_model/src/rich_text/normalization.dart';
 import 'package:content_model/src/rich_text/rich_text.dart';
 
-/// The markdown form of [text]; see `RichTextMarkdown.encode`.
-String encodeMarkdown(RichText text) {
-  final plain = text.plain;
-  final quotes = <Entity>[];
-  final inline = <Entity>[];
-  for (final entity in text.entities) {
-    (entity.kind == EntityKind.quote ? quotes : inline).add(entity);
-  }
-  final escapes = _Escapes(plain, inline);
-  final out = _Out();
-
-  var start = 0;
-  Entity? previousQuote;
-  var first = true;
-  while (true) {
-    final lineBreak = plain.indexOf('\n', start);
-    final end = lineBreak == -1 ? plain.length : lineBreak;
-    final quote = _quoteOfLine(quotes, start);
-    if (!first) {
-      out.raw('\n');
-      // A blank line is what ends a quote; without it the next line would
-      // read as part of the quote.
-      if (previousQuote != null && previousQuote != quote) out.raw('\n');
+/// The writing half of `RichTextMarkdown`: rich text to markdown.
+abstract final class MarkdownEncoder {
+  /// The markdown form of [text]; see `RichTextMarkdown.encode`.
+  static String encode(RichText text) {
+    final plain = text.plain;
+    final quotes = <Entity>[];
+    final inline = <Entity>[];
+    for (final entity in text.entities) {
+      (entity.kind == EntityKind.quote ? quotes : inline).add(entity);
     }
-    if (quote != null) out.raw(start == end ? '>' : '> ');
-    _writeLine(out, plain, start, end, inline, escapes);
-    previousQuote = quote;
-    first = false;
-    if (lineBreak == -1) break;
-    start = lineBreak + 1;
+    final escapes = _Escapes(plain, inline);
+    final out = _Out();
+
+    var start = 0;
+    Entity? previousQuote;
+    var first = true;
+    while (true) {
+      final lineBreak = plain.indexOf('\n', start);
+      final end = lineBreak == -1 ? plain.length : lineBreak;
+      final quote = _quoteOfLine(quotes, start);
+      if (!first) {
+        out.raw('\n');
+        // A blank line is what ends a quote; without it the next line would
+        // read as part of the quote.
+        if (previousQuote != null && previousQuote != quote) out.raw('\n');
+      }
+      if (quote != null) out.raw(start == end ? '>' : '> ');
+      _writeLine(out, plain, start, end, inline, escapes);
+      previousQuote = quote;
+      first = false;
+      if (lineBreak == -1) break;
+      start = lineBreak + 1;
+    }
+    return out.finish();
   }
-  return out.finish();
 }
 
 /// A quote covers the lines that start within its span, its end included, so
@@ -152,7 +155,7 @@ String _atomMarkup(String plain, Entity atom, _Escapes escapes) {
     EntityKind$InlineContent(:final key) =>
       '![$label](${_destination(key.encoded)})',
     EntityKind$Mention(:final id) =>
-      '[$label](${_destination('$mentionScheme$id')})',
+      '[$label](${_destination('${MarkdownSyntax.mentionScheme}$id')})',
     _ => throw StateError('Not an atomic entity: $atom'),
   };
 }
@@ -162,7 +165,10 @@ String _atomMarkup(String plain, Entity atom, _Escapes escapes) {
 String _destination(String target) {
   final needsBrackets = target.codeUnits.any(
     (unit) =>
-        isWhitespaceUnit(unit) || unit < 0x20 || unit == 0x3C || unit == 0x3E,
+        CanonicalEntities.isWhitespaceUnit(unit) ||
+        unit < 0x20 ||
+        unit == 0x3C ||
+        unit == 0x3E,
   );
   return needsBrackets
       ? '<${_backslash(target, _inBrackets)}>'
@@ -328,8 +334,8 @@ final class _Escapes {
   bool _isSafeIntraword(String plain, int index, Set<int> boundaries) =>
       index > 0 &&
       index + 1 < plain.length &&
-      isWordUnit(plain.codeUnitAt(index - 1)) &&
-      isWordUnit(plain.codeUnitAt(index + 1)) &&
+      MarkdownSyntax.isWordUnit(plain.codeUnitAt(index - 1)) &&
+      MarkdownSyntax.isWordUnit(plain.codeUnitAt(index + 1)) &&
       !boundaries.contains(index) &&
       !boundaries.contains(index + 1);
 
@@ -349,9 +355,11 @@ final class _Escapes {
     if (touchesMarker) return true;
     if (end - start < 2) return false;
     final wallBefore =
-        start == 0 || isWhitespaceUnit(plain.codeUnitAt(start - 1));
+        start == 0 ||
+        CanonicalEntities.isWhitespaceUnit(plain.codeUnitAt(start - 1));
     final wallAfter =
-        end == plain.length || isWhitespaceUnit(plain.codeUnitAt(end));
+        end == plain.length ||
+        CanonicalEntities.isWhitespaceUnit(plain.codeUnitAt(end));
     return !(wallBefore && wallAfter);
   }
 }

@@ -6,7 +6,7 @@ import 'package:meta/meta.dart';
 ///
 /// The viewport paints it at the end of the header band, in the header text
 /// style, and owns its hit area: a tap anywhere in the band's trailing area
-/// the action occupies (at least [kCatalogActionMinHitWidth] wide, the whole
+/// the action occupies (at least [minHitWidth] wide, the whole
 /// band tall) reports `onSectionAction(sectionId, id)`. The viewport decides
 /// nothing about what the action does.
 @immutable
@@ -43,7 +43,14 @@ final class CatalogSectionAction {
   /// works.
   final IconData? icon;
 
-  /// Draws the icon in place of [icon]: called with a [kCatalogActionIconExtent]
+  /// Least width of an action's hit area, in logical pixels, so an icon-only
+  /// action is not a sliver to hit.
+  static const double minHitWidth = 48;
+
+  /// Side of the box a [painter] draws in, in logical pixels.
+  static const double iconExtent = 24;
+
+  /// Draws the icon in place of [icon]: called with an [iconExtent]
   /// square box and the header text colour, for an icon no font has. Compared
   /// by identity, so pass the same function across snapshots (a top-level or
   /// static one).
@@ -71,15 +78,7 @@ final class CatalogSectionAction {
   String toString() => 'CatalogSectionAction($id)';
 }
 
-/// Least width of an action's hit area, in logical pixels, so an icon-only
-/// action is not a sliver to hit.
-const double kCatalogActionMinHitWidth = 48;
-
 /// Draws a header action's icon in [box] in [color]; see
 /// [CatalogSectionAction.painter].
 typedef CatalogActionIconPainter =
     void Function(Canvas canvas, Rect box, Color color);
-
-/// Side of the box a [CatalogSectionAction.painter] draws in, in logical
-/// pixels.
-const double kCatalogActionIconExtent = 24;

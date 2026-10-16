@@ -15,7 +15,7 @@ void main() {
   group('completeness', () {
     for (final entry in presets.entries) {
       test('${entry.key}: every key has a non-empty value', () {
-        final snapshot = describeChromeStrings(entry.value);
+        final snapshot = ChromeStringsSnapshot.of(entry.value);
         expect(snapshot, isNotEmpty);
         for (final item in snapshot.entries) {
           expect(item.value.trim(), isNotEmpty, reason: item.key);
@@ -25,15 +25,15 @@ void main() {
 
     test('both presets define exactly the same keys', () {
       expect(
-        describeChromeStrings(ChromeStringsPresets.russian).keys,
-        describeChromeStrings(ChromeStringsPresets.english).keys,
+        ChromeStringsSnapshot.of(ChromeStringsPresets.russian).keys,
+        ChromeStringsSnapshot.of(ChromeStringsPresets.english).keys,
       );
     });
 
     test('the snapshot lists every member of every group', () {
-      // A member added to a group but not to describeChromeStrings would
+      // A member added to a group but not to ChromeStringsSnapshot.of would
       // escape the checks above, so compare against the declarations.
-      final keys = describeChromeStrings(ChromeStringsPresets.english).keys;
+      final keys = ChromeStringsSnapshot.of(ChromeStringsPresets.english).keys;
       final groups = {
         'panel': 'lib/src/strings/panel_strings.dart',
         'composer': 'lib/src/strings/composer_strings.dart',
@@ -55,8 +55,8 @@ void main() {
     });
 
     test('the russian preset is not the english one', () {
-      final english = describeChromeStrings(ChromeStringsPresets.english);
-      final russian = describeChromeStrings(ChromeStringsPresets.russian);
+      final english = ChromeStringsSnapshot.of(ChromeStringsPresets.english);
+      final russian = ChromeStringsSnapshot.of(ChromeStringsPresets.russian);
       for (final key in english.keys.where((k) => !_sameInBoth.contains(k))) {
         expect(russian[key], isNot(english[key]), reason: key);
       }

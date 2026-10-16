@@ -1,10 +1,6 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:flutter/rendering.dart';
 
-/// Floating-header height assumed for the header zone before the real header
-/// has been laid out (first frame only).
-const double kHeaderFallbackHeight = 32;
-
 /// Topmost visible day group visible in the viewport.
 typedef TopDayScan = ({Object? bucket, int? id});
 
@@ -21,6 +17,10 @@ typedef TopDayScan = ({Object? bucket, int? id});
 /// - [tickForDayChange] — Tier-1 scroll path; detects bucket change without
 ///   rebuilding; caller relayouts when `true`.
 class ChatFloatingHeaderController {
+  /// Floating-header height assumed for the header zone before the real header
+  /// has been laid out (first frame only).
+  static const double headerFallbackHeight = 32;
+
   /// Group bucket the floating header was last built for; `null` = none.
   /// The header is rebuilt only when the topmost visible group changes.
   Object? headerBucket;
@@ -51,12 +51,12 @@ class ChatFloatingHeaderController {
     headerDirty = false;
   }
 
-  /// Height of the floating header — its laid-out size, or [kHeaderFallbackHeight]
+  /// Height of the floating header — its laid-out size, or [headerFallbackHeight]
   /// before it has first laid out.
   double floatingHeaderHeight(RenderBox? header) =>
       (header != null && header.hasSize)
       ? header.size.height
-      : kHeaderFallbackHeight;
+      : headerFallbackHeight;
 
   /// The topmost visible group — the bucket + message id of the child whose
   /// top edge is closest to (and intersects) the viewport top. O(visible

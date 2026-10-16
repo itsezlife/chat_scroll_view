@@ -29,7 +29,7 @@ ChatAnimator _animator({
   void Function(int id)? requestDestinationWindow,
   VoidCallback? clearDestinationWindow,
   Duration highlightDuration = const Duration(
-    milliseconds: kHighlightHoldDurationMs,
+    milliseconds: ChatAnimator.highlightHoldDurationMs,
   ),
   Color highlightColor = const Color(0x280A90F0),
 }) => ChatAnimator(
@@ -72,7 +72,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('tickHighlight', () {
-    test('solid hold then fade over kHighlightFadeDuration', () {
+    test('solid hold then fade over ChatAnimator.highlightFadeDuration', () {
       final controller = ChatScrollController();
       final animator = _animator(
         controller: controller,
@@ -154,7 +154,10 @@ void main() {
       animator.beginHighlightFade();
       expect(animator.highlightPhase, ChatHighlightPhase.fading);
       expect(animator.tickHighlight(Duration.zero), isTrue);
-      expect(animator.tickHighlight(kHighlightFadeDuration), isFalse);
+      expect(
+        animator.tickHighlight(ChatAnimator.highlightFadeDuration),
+        isFalse,
+      );
       expect(animator.highlightTargetId, isNull);
     });
   });
@@ -218,7 +221,9 @@ void main() {
       animator.tickHighlight(t0 + const Duration(milliseconds: 200));
       expect(animator.highlightPhase, ChatHighlightPhase.fading);
       animator.tickHighlight(
-        t0 + const Duration(milliseconds: 200) + kHighlightFadeDuration,
+        t0 +
+            const Duration(milliseconds: 200) +
+            ChatAnimator.highlightFadeDuration,
       );
       expect(animator.highlightTargetId, isNull);
     });
@@ -490,30 +495,33 @@ void main() {
   });
 
   group('animate path selection', () {
-    test('close path when target offset is within kCloseAnimateDistance', () {
-      final controller = ChatScrollController();
-      final box = _sizedBox();
-      final animator = _animator(
-        controller: controller,
-        offsetToBuiltMessage: (_) => 120.0,
-        closePathEndOffsetFor: (_, _, alignment) => 40.0 * alignment,
-        childForId: (_) => box,
-        heightOfChild: (_) => box.size.height,
-      );
+    test(
+      'close path when target offset is within ChatAnimator.closeAnimateDistance',
+      () {
+        final controller = ChatScrollController();
+        final box = _sizedBox();
+        final animator = _animator(
+          controller: controller,
+          offsetToBuiltMessage: (_) => 120.0,
+          closePathEndOffsetFor: (_, _, alignment) => 40.0 * alignment,
+          childForId: (_) => box,
+          heightOfChild: (_) => box.size.height,
+        );
 
-      animator.animate(
-        5,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.linear,
-      );
+        animator.animate(
+          5,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.linear,
+        );
 
-      expect(animator.farAnimateActive, isFalse);
-      expect(animator.loadGateWaiting, isFalse);
-      expect(animator.animateStartOffset, 120.0);
-      expect(animator.animateEndOffset, 0.0);
-      expect(controller.anchorMessageId, 5);
-      expect(controller.anchorPixelOffset, 120.0);
-    });
+        expect(animator.farAnimateActive, isFalse);
+        expect(animator.loadGateWaiting, isFalse);
+        expect(animator.animateStartOffset, 120.0);
+        expect(animator.animateEndOffset, 0.0);
+        expect(controller.anchorMessageId, 5);
+        expect(controller.anchorPixelOffset, 120.0);
+      },
+    );
 
     test('preferBuilt waits when target is not built', () {
       final controller = ChatScrollController();
@@ -583,7 +591,7 @@ void main() {
     });
 
     test(
-      'close path when target is built even beyond kCloseAnimateDistance',
+      'close path when target is built even beyond ChatAnimator.closeAnimateDistance',
       () {
         // Target already built → smooth scroll; distance must not force a
         // stitch.
@@ -591,7 +599,7 @@ void main() {
         final box = _sizedBox();
         final animator = _animator(
           controller: controller,
-          offsetToBuiltMessage: (_) => kCloseAnimateDistance + 1,
+          offsetToBuiltMessage: (_) => ChatAnimator.closeAnimateDistance + 1,
           closePathEndOffsetFor: (_, _, alignment) => 40.0 * alignment,
           childForId: (_) => box,
           heightOfChild: (_) => box.size.height,
@@ -616,7 +624,7 @@ void main() {
         // Found among current children → smooth scroll, not stitch.
         final controller = ChatScrollController();
         final box = _sizedBox(height: 5000);
-        const startY = -(kCloseAnimateDistance + 2000);
+        const startY = -(ChatAnimator.closeAnimateDistance + 2000);
         const endY = 90.0;
         final animator = _animator(
           controller: controller,
@@ -640,14 +648,14 @@ void main() {
         // ~4.5k px travel → max travel duration, not caller 200ms.
         expect(
           animator.animateDuration,
-          chatAnimateTravelDuration(
+          ChatAnimator.travelDuration(
             travelPx: endY - startY,
             viewportHeight: 600,
           ),
         );
         expect(
           animator.animateDuration.inMilliseconds,
-          kAnimateTravelDurationMaxMs,
+          ChatAnimator.travelDurationMaxMs,
         );
         expect(animator.animateCurve, Curves.easeOutQuint);
       },
@@ -675,7 +683,7 @@ void main() {
       expect(animator.farAnimateActive, isFalse);
       expect(
         animator.animateDuration.inMilliseconds,
-        kAnimateTravelDurationMinMs,
+        ChatAnimator.travelDurationMinMs,
       );
       expect(animator.animateCurve, Curves.easeOutQuint);
     });
@@ -794,7 +802,7 @@ void main() {
       expect(animator.loadGateWaiting, isTrue);
 
       ready = true;
-      offset = kCloseAnimateDistance + 1;
+      offset = ChatAnimator.closeAnimateDistance + 1;
       animator.onLayoutOpportunity(viewportHeight: 600);
       await Future<void>.delayed(Duration.zero);
       expect(animator.loadGateWaiting, isFalse);

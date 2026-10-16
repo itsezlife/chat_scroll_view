@@ -107,7 +107,10 @@ void main() {
   group('floatingHeaderHeight', () {
     test('uses fallback when header has no size', () {
       final controller = ChatFloatingHeaderController();
-      expect(controller.floatingHeaderHeight(null), kHeaderFallbackHeight);
+      expect(
+        controller.floatingHeaderHeight(null),
+        ChatFloatingHeaderController.headerFallbackHeight,
+      );
     });
   });
 

@@ -3,8 +3,8 @@ import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_presentation/testing.dart';
 
 void main() {
-  runImeInputPortContract('ImeInput', ImeInput.new);
-  runImeInputPortContract('FakeImeInput', FakeImeInput.new);
+  ImeInputPortContract.run('ImeInput', ImeInput.new);
+  ImeInputPortContract.run('FakeImeInput', FakeImeInput.new);
 
   group('ImeSample', () {
     test('compares by every field', () {

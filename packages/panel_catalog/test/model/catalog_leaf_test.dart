@@ -226,12 +226,9 @@ void main() {
     test(
       'the extent is the glyph fraction or the shorter side of the cell',
       () {
-        expect(
-          catalogContentBoxExtent(CatalogContentBox.glyph, 80, 40),
-          closeTo(28.8, 1e-9),
-        );
-        expect(catalogContentBoxExtent(CatalogContentBox.cell, 80, 40), 40);
-        expect(catalogContentBoxExtent(CatalogContentBox.cell, 30, 40), 30);
+        expect(CatalogContentBox.glyph.extentIn(80, 40), closeTo(28.8, 1e-9));
+        expect(CatalogContentBox.cell.extentIn(80, 40), 40);
+        expect(CatalogContentBox.cell.extentIn(30, 40), 30);
       },
     );
   });

@@ -10,7 +10,7 @@ never on the atlas types: it sees an `AssetPaintable` and its optional sprite.
 Entry points: `panel_catalog.dart` (viewport, controller, snapshot, section and
 leaf values, theme), `panel_catalog_diagnostics.dart` (counters a perf harness
 reads) and `testing.dart` (`FakeCatalogSnapshotSource`,
-`FakeCatalogScrollPosition`, `runCatalogScrollPositionContract`). Constructor
+`FakeCatalogScrollPosition`, `CatalogScrollPositionContract.run`). Constructor
 requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
 `controller`; everything else is optional.
 
@@ -95,7 +95,8 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
   smooth scroll when the far-path distance gate passes (`≤ 9` flat rows, each
   section's rows counted at its own column count; `spanCount × 9` in per-cell
   adapter space); `isSectionJumpActive` for host strip-sync gating.
-  `scrollOffsetForSectionHeader` is the landing offset of a section as painted
+  `CatalogSectionNavigation.scrollOffsetForSectionHeader` is the landing
+  offset of a section as painted
 - **Section states** — `CatalogSection.state` (loading, failed, loaded)
   mirrors the collection: loading and failed paint skeleton leaves (a count
   after the section's leaves, in its placeholder style, no error UI, nothing
@@ -143,7 +144,8 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
   host; the viewport names no cache implementation, no atlas and no
   `cacheType`
 - **Content box** — a leaf is asked for, and drawn in, a centred square of its
-  cell: the glyph box (`kCatalogGlyphBoxFraction` of the shorter side) for
+  cell: the glyph box (`CatalogContentBox.glyphBoxFraction` of the shorter
+  side) for
   emoji, the whole cell for a sticker, mask or GIF (`CatalogLeaf.contentBox`).
   A `CatalogSection` may override it (`contentBox`) and the placeholder style
   (`placeholderStyle`) for all its leaves
@@ -159,9 +161,11 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
   an atlas page only through its binding (a count, never pixels) and never
   keeps a sprite beyond one paint. `panel_catalog_diagnostics.dart` counts
   glyphs drawn as text: `0` where emoji are baked
-- **Largest glyph box** — a glyph is drawn in `kCatalogGlyphBoxFraction` of
-  its cell's shorter side. An atlas bakes one size, so the host sizes it with
-  `largestCatalogGlyphBox` over the layouts it serves: larger cells are never
+- **Largest glyph box** — a glyph is drawn in
+  `CatalogContentBox.glyphBoxFraction` of its cell's shorter side. An atlas
+  bakes one size, so the host sizes it with
+  `PanelCatalogViewport.largestGlyphBox` over the layouts it serves: larger
+  cells are never
   upscaled, smaller ones scale the same sprites down, and there is no second
   atlas
 - **Placeholders** — derived from the leaf's facts (`placeholderStyle`): circle
@@ -177,7 +181,7 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
 | The three required inputs of `PanelCatalogViewport`: a `ValueListenable<CatalogSnapshot>` from `package:listen` (`snapshots`), an `AssetCacheScope` (`assets`) and a `PanelCatalogController`. | Mount two viewports on one controller: it holds one position and a second attach replaces the first without telling it. |
 | A `ValueListenable<CatalogSnapshot>` and a `PanelCatalogController` (the host creates and disposes both) | Mutate a published snapshot or notify once per leaf: publish a new snapshot per logical mutation |
 | Listeners on `controller.events` for chrome that follows scrolling, and `PanelCatalogCurrentSectionChanged` / `controller.currentSection` for a strip that shows the section the user is in | Call the controller's `attach` / `detach` / `publish`: they belong to the viewport |
-| An `AssetCacheScope` (host-created and disposed) whose `glyphSource` is an atlas planning every glyph the data source shows, baked at `largestCatalogGlyphBox` of the layouts it serves; on the web no source and a `TextGlyphProducer` | Expect a glyph outside the atlas to draw as text: it stays a placeholder; build a second atlas for a section with other cell sizes |
+| An `AssetCacheScope` (host-created and disposed) whose `glyphSource` is an atlas planning every glyph the data source shows, baked at `PanelCatalogViewport.largestGlyphBox` of the layouts it serves; on the web no source and a `TextGlyphProducer` | Expect a glyph outside the atlas to draw as text: it stays a placeholder; build a second atlas for a section with other cell sizes |
 | Listeners on `controller.events` that load a section (or the next page of it) on `PanelCatalogSectionNearViewport`, publish `loading` / `failed` / `loaded` section states and the empty message copy | Paint a loading or error state of its own over the viewport, or poll the controller's offset to decide what to load |
 | An `onSectionAction` callback for the header actions the sections carry, and the label / icon of each | Overlay widgets on the header to host an action |
 | The language of the labels: `CatalogLeaf.spokenName` from the descriptor, `CatalogSectionAction.semanticLabel` and section titles in the active language | Ship strings of its own, or expect a label for a leaf with no spoken name (a unicode emoji reads as its glyph, other content as nothing) |

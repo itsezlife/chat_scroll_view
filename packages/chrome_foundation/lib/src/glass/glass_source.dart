@@ -44,12 +44,6 @@ class _GlassSourceScopeMarker extends InheritedWidget {
       !identical(link, oldWidget.link);
 }
 
-/// The link of the nearest [GlassSourceScope] at [context], or null outside
-/// one. Depends on the scope. Not exported: surfaces reach the link, hosts
-/// only place the scope.
-GlassSourceLink? glassSourceLinkOf(BuildContext context) =>
-    context.dependOnInheritedWidgetOfExactType<_GlassSourceScopeMarker>()?.link;
-
 /// A surface drawn from the [GlassSource] of its [GlassSourceScope].
 abstract interface class GlassSampler {
   /// Region of [source] (its local logical px) this sampler reads in the
@@ -85,11 +79,45 @@ class GlassCapture {
 ///
 /// Captures once per frame for all samplers: the first [captureFor] of a
 /// frame collects every sampler's region, merges the ones close enough that
-/// one image is cheaper than several ([mergeGlassRegions]), and renders each
+/// one image is cheaper than several ([mergeRegions]), and renders each
 /// merged region once. Samplers with different resolution or blur never
 /// share an image.
 class GlassSourceLink {
   GlassSourceLink._();
+
+  /// The link of the nearest [GlassSourceScope] at [context], or null outside
+  /// one. Depends on the scope. Not exported: surfaces reach the link, hosts
+  /// only place the scope.
+  static GlassSourceLink? of(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<_GlassSourceScopeMarker>()
+      ?.link;
+
+  /// Merges [regions] whose common bounds cost at most [slack] times their
+  /// summed areas, so nearby surfaces share one capture and distant ones keep
+  /// their own.
+  ///
+  /// Every input region lies inside exactly one returned rect.
+  static List<Rect> mergeRegions(List<Rect> regions, {double slack = 2}) {
+    double area(Rect r) => r.width * r.height;
+    final merged = <Rect>[];
+    for (final region in regions) {
+      var current = region;
+      var absorbed = true;
+      while (absorbed) {
+        absorbed = false;
+        for (var i = 0; i < merged.length; i++) {
+          final union = current.expandToInclude(merged[i]);
+          if (area(union) > slack * (area(current) + area(merged[i]))) continue;
+          current = union;
+          merged.removeAt(i);
+          absorbed = true;
+          break;
+        }
+      }
+      merged.add(current);
+    }
+    return merged;
+  }
 
   RenderGlassSource? _source;
   final _samplers = <GlassSampler>{};
@@ -138,7 +166,7 @@ class GlassSourceLink {
     }
 
     for (final MapEntry(key: (ratio, blur), value: members) in groups.entries) {
-      final merged = mergeGlassRegions([for (final (_, r) in members) r]);
+      final merged = mergeRegions([for (final (_, r) in members) r]);
       final captures = <Rect, GlassCapture?>{};
       for (final (sampler, region) in members) {
         final union = merged.firstWhere((m) => m.expandToInclude(region) == m);
@@ -175,33 +203,6 @@ class GlassSourceLink {
   }
 }
 
-/// Merges [regions] whose common bounds cost at most [slack] times their
-/// summed areas, so nearby surfaces share one capture and distant ones keep
-/// their own.
-///
-/// Every input region lies inside exactly one returned rect.
-List<Rect> mergeGlassRegions(List<Rect> regions, {double slack = 2}) {
-  double area(Rect r) => r.width * r.height;
-  final merged = <Rect>[];
-  for (final region in regions) {
-    var current = region;
-    var absorbed = true;
-    while (absorbed) {
-      absorbed = false;
-      for (var i = 0; i < merged.length; i++) {
-        final union = current.expandToInclude(merged[i]);
-        if (area(union) > slack * (area(current) + area(merged[i]))) continue;
-        current = union;
-        merged.removeAt(i);
-        absorbed = true;
-        break;
-      }
-    }
-    merged.add(current);
-  }
-  return merged;
-}
-
 /// Marks the subtree that [GlassSampler]s in the same [GlassSourceScope]
 /// read.
 ///
@@ -229,7 +230,7 @@ class GlassSource extends SingleChildRenderObjectWidget {
   }
 
   static GlassSourceLink _linkOf(BuildContext context) {
-    final link = glassSourceLinkOf(context);
+    final link = GlassSourceLink.of(context);
     assert(link != null, 'GlassSource needs a GlassSourceScope ancestor.');
     return link!;
   }

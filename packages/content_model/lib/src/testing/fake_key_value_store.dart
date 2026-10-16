@@ -36,8 +36,8 @@ final class FakeKeyValueStore implements KeyValueStore {
   }
 
   String _address(String namespace, String key) {
-    checkStoreName(namespace, 'namespace');
-    checkStoreName(key, 'key');
+    StoreName.check(namespace, 'namespace');
+    StoreName.check(key, 'key');
     final failure = this.failure;
     if (failure != null) throw failure;
     return '$namespace:$key';

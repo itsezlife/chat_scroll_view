@@ -5,9 +5,9 @@ import 'package:catalog_assets/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  runInlineEmbedContract(FakeInlineEmbed.new);
+  InlineEmbedContract.run(FakeInlineEmbed.new);
 
-  runInlineEmbedResolverContract(
+  InlineEmbedResolverContract.run(
     () => InlineEmbedResolverHarness(
       resolver: FakeInlineEmbedResolver(),
       known: const InlineEmbedTarget(scheme: 'fake', id: '1', alt: 'x'),

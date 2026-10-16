@@ -22,7 +22,7 @@ ContentKey$Unicode _key(String hex) => ContentKey$Unicode(
 );
 
 EmojiCatalogStructure _build(List<String> lines) =>
-    buildStructure(_file(lines));
+    StructureBuilder.build(_file(lines));
 
 List<EmojiEntry> _entries(EmojiCatalogStructure structure) => [
   for (final group in structure.groups)
@@ -30,7 +30,7 @@ List<EmojiEntry> _entries(EmojiCatalogStructure structure) => [
 ];
 
 void main() {
-  group('buildStructure', () {
+  group('StructureBuilder.build', () {
     test('keeps an emoji without variants as a bare entry', () {
       final entries = _entries(_build(['1F600', '1F603']));
 
@@ -211,7 +211,7 @@ void main() {
         ].join('\n'),
       );
 
-      final structure = buildStructure(file);
+      final structure = StructureBuilder.build(file);
 
       expect(structure.groups.single.subgroups.map((s) => s.id), ['person']);
       expect(structure.groups.single.subgroups.single.entries, hasLength(1));

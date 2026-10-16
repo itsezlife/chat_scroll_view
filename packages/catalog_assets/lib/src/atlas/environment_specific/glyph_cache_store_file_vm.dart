@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'package:catalog_assets/src/atlas/cache/file_glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/cache/glyph_cache_key.dart';
 import 'package:catalog_assets/src/atlas/cache/glyph_cache_store.dart';
+import 'package:catalog_assets/src/atlas/environment_specific/glyph_page_store_file_vm.dart';
 import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/report_glyph_atlas_error.dart';
 
@@ -24,9 +24,9 @@ import 'package:catalog_assets/src/atlas/report_glyph_atlas_error.dart';
 /// committed (a miss). The host chooses [root]; it must be a directory this
 /// store owns, and the platform may clear a cache directory at any time, which
 /// is just a miss.
-final class FileGlyphCacheStore implements GlyphCacheStore {
+final class GlyphCacheStore$File$VM implements GlyphCacheStore {
   /// Creates a store under [root], created on first write.
-  FileGlyphCacheStore(this.root);
+  GlyphCacheStore$File$VM(this.root);
 
   /// Where the manifest and the generation directories are.
   final Directory root;
@@ -47,7 +47,7 @@ final class FileGlyphCacheStore implements GlyphCacheStore {
     if (manifest == null) return null;
     return GlyphCacheGeneration(
       record: manifest.record,
-      pages: FileGlyphPageStore(_generation(manifest.name)),
+      pages: GlyphPageStore$File$VM(_generation(manifest.name)),
     );
   }
 
@@ -72,7 +72,7 @@ final class FileGlyphCacheStore implements GlyphCacheStore {
     _stagedRecord = record;
     final directory = _generation(name);
     await directory.create(recursive: true);
-    return FileGlyphPageStore(directory);
+    return GlyphPageStore$File$VM(directory);
   }
 
   @override
@@ -123,7 +123,7 @@ final class FileGlyphCacheStore implements GlyphCacheStore {
     } on Object catch (error, stack) {
       // Unreadable or not text: nothing committed, but not silently, because
       // a fault that repeats every launch looks exactly like a first run.
-      reportGlyphAtlasError(
+      GlyphAtlasErrors.report(
         error,
         stack,
         'while reading the glyph atlas cache manifest',

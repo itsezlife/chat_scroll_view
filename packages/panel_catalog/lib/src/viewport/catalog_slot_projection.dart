@@ -155,12 +155,8 @@ final class CatalogSkeletonSlot extends CatalogLayoutSlot {
   final double? glyphExtent;
 
   /// Side of the square the skeleton is drawn in.
-  double get contentExtent => catalogContentBoxExtent(
-    contentBox,
-    width,
-    height,
-    glyphExtent: glyphExtent,
-  );
+  double get contentExtent =>
+      contentBox.extentIn(width, height, glyphExtent: glyphExtent);
 }
 
 /// The row that tells a loaded section has nothing to show.
@@ -237,12 +233,8 @@ final class CatalogLeafSlot extends CatalogLayoutSlot {
   final double? glyphExtent;
 
   /// Side of the square the content is asked for and drawn in.
-  double get contentExtent => catalogContentBoxExtent(
-    contentBox,
-    width,
-    height,
-    glyphExtent: glyphExtent,
-  );
+  double get contentExtent =>
+      contentBox.extentIn(width, height, glyphExtent: glyphExtent);
 
   /// The section override of [contentBox], to carry onto a copy of this slot.
   CatalogContentBox? get contentBoxOverride => _contentBox;
@@ -337,6 +329,47 @@ final class CatalogSectionBands {
   /// Creates the bands and the total [contentExtent].
   const CatalogSectionBands({required this.bands, required this.contentExtent});
 
+  /// Lays [sections] out as bands, each by its own layout resolved against the
+  /// viewport defaults.
+  ///
+  /// Pure transform; O(sections). [CatalogSlotProjection.project] places the
+  /// slots on these bands, so landing math on bands and the painted slots
+  /// cannot differ.
+  factory CatalogSectionBands.project({
+    required List<CatalogSection> sections,
+    required int spanCount,
+    required double cellExtent,
+    required double headerExtent,
+    required EdgeInsets padding,
+    required double maxWidth,
+    TextDirection textDirection = TextDirection.ltr,
+  }) {
+    final bands = <CatalogSectionBand>[];
+    var y = padding.top;
+    var flat = 0;
+    for (final section in sections) {
+      final grid = CatalogGridMetrics.resolve(
+        section.layout,
+        spanCount: spanCount,
+        cellExtent: cellExtent,
+        headerExtent: headerExtent,
+        padding: padding,
+        maxWidth: maxWidth,
+        textDirection: textDirection,
+      );
+      final band = CatalogSectionBand(
+        top: y,
+        grid: grid,
+        rowCount: _sectionRowCount(section, grid),
+        flatIndex: flat,
+      );
+      bands.add(band);
+      y = band.bottom;
+      flat += 1 + band.rowCount;
+    }
+    return CatalogSectionBands(bands: bands, contentExtent: y + padding.bottom);
+  }
+
   /// One band per section, in display order.
   final List<CatalogSectionBand> bands;
 
@@ -347,65 +380,23 @@ final class CatalogSectionBands {
 /// Skeleton cells [section] paints after its leaves: none unless it is
 /// loading or failed, else [CatalogSection.skeletonCount] or one row of its
 /// columns.
-int catalogSkeletonCount(CatalogSection section, CatalogGridMetrics grid) =>
+int _skeletonCount(CatalogSection section, CatalogGridMetrics grid) =>
     section.state == CatalogSectionState.loaded
     ? 0
     : section.skeletonCount ?? grid.spanCount;
 
 /// Whether [section] shows its empty message: loaded, no leaves, a message.
-bool catalogShowsEmptyMessage(CatalogSection section) =>
+bool _showsEmptyMessage(CatalogSection section) =>
     section.state == CatalogSectionState.loaded &&
     section.leaves.isEmpty &&
     section.emptyMessage != null;
 
 /// Rows [section] takes under its header: the rows of its leaves and skeleton
 /// cells, or the one row of its empty message.
-int catalogSectionRowCount(CatalogSection section, CatalogGridMetrics grid) =>
-    catalogShowsEmptyMessage(section)
+int _sectionRowCount(CatalogSection section, CatalogGridMetrics grid) =>
+    _showsEmptyMessage(section)
     ? 1
-    : grid.rowCountFor(
-        section.leaves.length + catalogSkeletonCount(section, grid),
-      );
-
-/// Lays [sections] out as bands, each by its own layout resolved against the
-/// viewport defaults.
-///
-/// Pure transform; O(sections). [projectCatalogSlots] places the slots on
-/// these bands, so landing math on bands and the painted slots cannot differ.
-CatalogSectionBands projectCatalogSectionBands({
-  required List<CatalogSection> sections,
-  required int spanCount,
-  required double cellExtent,
-  required double headerExtent,
-  required EdgeInsets padding,
-  required double maxWidth,
-  TextDirection textDirection = TextDirection.ltr,
-}) {
-  final bands = <CatalogSectionBand>[];
-  var y = padding.top;
-  var flat = 0;
-  for (final section in sections) {
-    final grid = resolveCatalogGrid(
-      section.layout,
-      spanCount: spanCount,
-      cellExtent: cellExtent,
-      headerExtent: headerExtent,
-      padding: padding,
-      maxWidth: maxWidth,
-      textDirection: textDirection,
-    );
-    final band = CatalogSectionBand(
-      top: y,
-      grid: grid,
-      rowCount: catalogSectionRowCount(section, grid),
-      flatIndex: flat,
-    );
-    bands.add(band);
-    y = band.bottom;
-    flat += 1 + band.rowCount;
-  }
-  return CatalogSectionBands(bands: bands, contentExtent: y + padding.bottom);
-}
+    : grid.rowCountFor(section.leaves.length + _skeletonCount(section, grid));
 
 /// Result of projecting catalog sections into absolute layout slots.
 final class CatalogSlotProjection {
@@ -417,6 +408,123 @@ final class CatalogSlotProjection {
     required this.contentExtent,
   });
 
+  /// Projects [sections] into absolute header/leaf slots for extent layout.
+  ///
+  /// Pure transform — no I/O, no asset binds, no listeners. Safe to call from
+  /// layout. Empty [sections] yields `contentExtent == padding.vertical` and
+  /// an empty [CatalogSlotProjection.slots] list.
+  ///
+  /// [spanCount], [cellExtent] and [headerExtent] are the **defaults** of a
+  /// section whose [CatalogSection.layout] leaves them unset.
+  ///
+  /// ## Geometry rules
+  ///
+  /// - Starts at `y = padding.top`.
+  /// - Each section: its top inset, a header of its header extent, then leaves
+  ///   in row-major order across its own columns, then its bottom inset.
+  ///   Sections with different spans, cell sizes and insets stack in one
+  ///   ascending list.
+  /// - Cells fill each row start to end: column `0` is at the left edge in a
+  ///   left-to-right grid and at the right edge in a right-to-left one. The
+  ///   direction is the section's own or [textDirection], and changes only x.
+  /// - Cell width = `(maxWidth − padding.horizontal − insets.horizontal) /
+  ///   spanCount` when usable width > 0; otherwise falls back to the cell
+  ///   extent (degenerate narrow constraint).
+  /// - Empty leaf lists still emit the header; they do **not** add a row,
+  ///   unless the section is loaded with an empty message (one message row) or
+  ///   is loading or failed (skeleton cells continuing the grid after the
+  ///   leaves).
+  /// - Ends with `y += padding.bottom` → [CatalogSlotProjection.contentExtent].
+  ///
+  /// The default [spanCount] MUST be ≥ 1 (division). Zero/negative extents
+  /// collapse bands but do not assert.
+  factory CatalogSlotProjection.project({
+    required List<CatalogSection> sections,
+    required int spanCount,
+    required double cellExtent,
+    required double headerExtent,
+    required EdgeInsets padding,
+    required double maxWidth,
+    TextDirection textDirection = TextDirection.ltr,
+  }) {
+    final projected = CatalogSectionBands.project(
+      sections: sections,
+      spanCount: spanCount,
+      cellExtent: cellExtent,
+      headerExtent: headerExtent,
+      padding: padding,
+      maxWidth: maxWidth,
+      textDirection: textDirection,
+    );
+    final slots = <CatalogLayoutSlot>[];
+    for (var s = 0; s < sections.length; s++) {
+      final section = sections[s];
+      final band = projected.bands[s];
+      final grid = band.grid;
+      slots.add(
+        CatalogLayoutSlot.header(
+          top: band.headerTop,
+          height: grid.headerExtent,
+          left: grid.left,
+          width: grid.usableWidth,
+          title: section.title,
+          sectionId: section.id,
+          action: section.action,
+          textDirection: grid.textDirection,
+        ),
+      );
+      final leaves = section.leaves;
+      final firstLeft = grid.startCellLeft;
+      final step = grid.columnStep;
+      for (var i = 0; i < leaves.length; i++) {
+        slots.add(
+          CatalogLayoutSlot.leaf(
+            top: band.rowsTop + (i ~/ grid.spanCount) * grid.cellHeight,
+            height: grid.cellHeight,
+            left: firstLeft + (i % grid.spanCount) * step,
+            width: grid.cellWidth,
+            sectionId: section.id,
+            index: i,
+            leaf: leaves[i],
+            contentBox: section.contentBox,
+            placeholderStyle: section.placeholderStyle,
+            glyphExtent: grid.glyphExtent,
+          ),
+        );
+      }
+      final skeletons = _skeletonCount(section, grid);
+      for (var i = leaves.length; i < leaves.length + skeletons; i++) {
+        slots.add(
+          CatalogLayoutSlot.skeleton(
+            top: band.rowsTop + (i ~/ grid.spanCount) * grid.cellHeight,
+            height: grid.cellHeight,
+            left: firstLeft + (i % grid.spanCount) * step,
+            width: grid.cellWidth,
+            contentBox: section.contentBox ?? CatalogContentBox.glyph,
+            style: section.placeholderStyle ?? CatalogPlaceholderStyle.circle,
+            glyphExtent: grid.glyphExtent,
+          ),
+        );
+      }
+      if (_showsEmptyMessage(section)) {
+        slots.add(
+          CatalogLayoutSlot.message(
+            top: band.rowsTop,
+            height: grid.cellHeight,
+            left: grid.left,
+            width: grid.usableWidth,
+            text: section.emptyMessage!,
+          ),
+        );
+      }
+    }
+    return CatalogSlotProjection(
+      slots: slots,
+      bands: projected.bands,
+      contentExtent: projected.contentExtent,
+    );
+  }
+
   /// Flattened header + leaf slots in paint / extent order (top → bottom).
   final List<CatalogLayoutSlot> slots;
 
@@ -427,119 +535,4 @@ final class CatalogSlotProjection {
   ///
   /// This is the scrollable content size — not the viewport height.
   final double contentExtent;
-}
-
-/// Projects [sections] into absolute header/leaf slots for extent layout.
-///
-/// Pure transform — no I/O, no asset binds, no listeners. Safe to call from
-/// layout. Empty [sections] yields `contentExtent == padding.vertical` and an
-/// empty [CatalogSlotProjection.slots] list.
-///
-/// [spanCount], [cellExtent] and [headerExtent] are the **defaults** of a
-/// section whose [CatalogSection.layout] leaves them unset.
-///
-/// ## Geometry rules
-///
-/// - Starts at `y = padding.top`.
-/// - Each section: its top inset, a header of its header extent, then leaves in
-///   row-major order across its own columns, then its bottom inset. Sections
-///   with different spans, cell sizes and insets stack in one ascending list.
-/// - Cells fill each row start to end: column `0` is at the left edge in a
-///   left-to-right grid and at the right edge in a right-to-left one. The
-///   direction is the section's own or [textDirection], and changes only x.
-/// - Cell width = `(maxWidth − padding.horizontal − insets.horizontal) /
-///   spanCount` when usable width > 0; otherwise falls back to the cell extent
-///   (degenerate narrow constraint).
-/// - Empty leaf lists still emit the header; they do **not** add a row, unless
-///   the section is loaded with an empty message (one message row) or is
-///   loading or failed (skeleton cells continuing the grid after the leaves).
-/// - Ends with `y += padding.bottom` → [CatalogSlotProjection.contentExtent].
-///
-/// The default [spanCount] MUST be ≥ 1 (division). Zero/negative extents
-/// collapse bands but do not assert.
-CatalogSlotProjection projectCatalogSlots({
-  required List<CatalogSection> sections,
-  required int spanCount,
-  required double cellExtent,
-  required double headerExtent,
-  required EdgeInsets padding,
-  required double maxWidth,
-  TextDirection textDirection = TextDirection.ltr,
-}) {
-  final projected = projectCatalogSectionBands(
-    sections: sections,
-    spanCount: spanCount,
-    cellExtent: cellExtent,
-    headerExtent: headerExtent,
-    padding: padding,
-    maxWidth: maxWidth,
-    textDirection: textDirection,
-  );
-  final slots = <CatalogLayoutSlot>[];
-  for (var s = 0; s < sections.length; s++) {
-    final section = sections[s];
-    final band = projected.bands[s];
-    final grid = band.grid;
-    slots.add(
-      CatalogLayoutSlot.header(
-        top: band.headerTop,
-        height: grid.headerExtent,
-        left: grid.left,
-        width: grid.usableWidth,
-        title: section.title,
-        sectionId: section.id,
-        action: section.action,
-        textDirection: grid.textDirection,
-      ),
-    );
-    final leaves = section.leaves;
-    final firstLeft = grid.startCellLeft;
-    final step = grid.columnStep;
-    for (var i = 0; i < leaves.length; i++) {
-      slots.add(
-        CatalogLayoutSlot.leaf(
-          top: band.rowsTop + (i ~/ grid.spanCount) * grid.cellHeight,
-          height: grid.cellHeight,
-          left: firstLeft + (i % grid.spanCount) * step,
-          width: grid.cellWidth,
-          sectionId: section.id,
-          index: i,
-          leaf: leaves[i],
-          contentBox: section.contentBox,
-          placeholderStyle: section.placeholderStyle,
-          glyphExtent: grid.glyphExtent,
-        ),
-      );
-    }
-    final skeletons = catalogSkeletonCount(section, grid);
-    for (var i = leaves.length; i < leaves.length + skeletons; i++) {
-      slots.add(
-        CatalogLayoutSlot.skeleton(
-          top: band.rowsTop + (i ~/ grid.spanCount) * grid.cellHeight,
-          height: grid.cellHeight,
-          left: firstLeft + (i % grid.spanCount) * step,
-          width: grid.cellWidth,
-          contentBox: section.contentBox ?? CatalogContentBox.glyph,
-          style: section.placeholderStyle ?? CatalogPlaceholderStyle.circle,
-          glyphExtent: grid.glyphExtent,
-        ),
-      );
-    }
-    if (catalogShowsEmptyMessage(section)) {
-      slots.add(
-        CatalogLayoutSlot.message(
-          top: band.rowsTop,
-          height: grid.cellHeight,
-          left: grid.left,
-          width: grid.usableWidth,
-          text: section.emptyMessage!,
-        ),
-      );
-    }
-  }
-  return CatalogSlotProjection(
-    slots: slots,
-    bands: projected.bands,
-    contentExtent: projected.contentExtent,
-  );
 }

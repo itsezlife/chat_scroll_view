@@ -7,7 +7,6 @@ library;
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
-import 'package:panel_catalog/src/viewport/catalog_section_navigation.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 
 CatalogSection _section(String id, int leaves, {SectionLayout? layout}) =>
@@ -22,7 +21,7 @@ CatalogSlotProjection _project(
   List<CatalogSection> sections, {
   EdgeInsets padding = EdgeInsets.zero,
   double maxWidth = 400,
-}) => projectCatalogSlots(
+}) => CatalogSlotProjection.project(
   sections: sections,
   spanCount: 8,
   cellExtent: 48,
@@ -32,7 +31,7 @@ CatalogSlotProjection _project(
 );
 
 List<CatalogSectionBand> _bands(List<CatalogSection> sections) =>
-    projectCatalogSectionBands(
+    CatalogSectionBands.project(
       sections: sections,
       spanCount: 8,
       cellExtent: 48,
@@ -175,16 +174,17 @@ void main() {
 
   group('section landing across sections with different spans', () {
     test('lands each header by the extents of the sections before it', () {
-      double landing(int i, {double? inset}) => scrollOffsetForSectionHeader(
-        sectionIndex: i,
-        sections: _mixed,
-        spanCount: 8,
-        cellExtent: 48,
-        headerExtent: 32,
-        padding: EdgeInsets.zero,
-        maxWidth: 400,
-        headerLandingInset: inset,
-      );
+      double landing(int i, {double? inset}) =>
+          CatalogSectionNavigation.scrollOffsetForSectionHeader(
+            sectionIndex: i,
+            sections: _mixed,
+            spanCount: 8,
+            cellExtent: 48,
+            headerExtent: 32,
+            padding: EdgeInsets.zero,
+            maxWidth: 400,
+            headerLandingInset: inset,
+          );
 
       expect(landing(0), 0);
       expect(landing(1), 176);
@@ -198,7 +198,7 @@ void main() {
 
       for (var i = 0; i < _mixed.length; i++) {
         expect(
-          scrollOffsetForSectionHeader(
+          CatalogSectionNavigation.scrollOffsetForSectionHeader(
             sectionIndex: i,
             sections: _mixed,
             spanCount: 8,
@@ -224,7 +224,7 @@ void main() {
       ];
 
       expect(
-        scrollOffsetForSectionHeader(
+        CatalogSectionNavigation.scrollOffsetForSectionHeader(
           sectionIndex: 1,
           sections: sections,
           spanCount: 8,
@@ -244,7 +244,7 @@ void main() {
       int target, {
       double scroll = 0,
       double viewport = 50,
-    }) => isNearPathSectionJump(
+    }) => CatalogSectionNavigation.isNearPathSectionJump(
       targetSectionIndex: target,
       bands: _bands(sections),
       scrollOffset: scroll,
@@ -280,7 +280,7 @@ void main() {
       ];
       // Scrolled to y's first rows: x is 20 rows (21 flat), y is 20 rows.
       // y header at 32 + 20 * 48 = 992; the viewport at 1100 shows its row 1.
-      final first = firstVisibleFlatIndex(
+      final first = CatalogSectionNavigation.firstVisibleFlatIndex(
         scrollOffset: 1100,
         viewportHeight: 100,
         bands: _bands(sections),
@@ -303,7 +303,7 @@ void main() {
             layout: i.isOdd ? const SectionLayout.grid(spanCount: 5) : null,
           ),
       ];
-      final projection = projectCatalogSlots(
+      final projection = CatalogSlotProjection.project(
         sections: sections,
         spanCount: 8,
         cellExtent: 48,
@@ -338,7 +338,7 @@ void main() {
         scroll += 7
       ) {
         expect(
-          firstVisibleFlatIndex(
+          CatalogSectionNavigation.firstVisibleFlatIndex(
             scrollOffset: scroll,
             viewportHeight: 100,
             bands: bands,
@@ -352,7 +352,7 @@ void main() {
 
   group('largest glyph box', () {
     double largest(Iterable<SectionLayout?> layouts, {double maxWidth = 400}) =>
-        largestCatalogGlyphBox(
+        PanelCatalogViewport.largestGlyphBox(
           layouts: layouts,
           spanCount: 8,
           cellExtent: 48,
@@ -362,10 +362,10 @@ void main() {
 
     test('is the biggest box any section draws a glyph in', () {
       // 8 columns: 50 x 48 cells → 48; 5 columns at 80: 80 x 80 → 80.
-      expect(largest([null]), 48 * kCatalogGlyphBoxFraction);
+      expect(largest([null]), 48 * CatalogContentBox.glyphBoxFraction);
       expect(
         largest([null, const SectionLayout.grid(spanCount: 5, cellExtent: 80)]),
-        80 * kCatalogGlyphBoxFraction,
+        80 * CatalogContentBox.glyphBoxFraction,
       );
     });
 
@@ -373,19 +373,19 @@ void main() {
       // 2 columns: 200 x 48 cells; the box follows the 48 side.
       expect(
         largest([const SectionLayout.grid(spanCount: 2)]),
-        48 * kCatalogGlyphBoxFraction,
+        48 * CatalogContentBox.glyphBoxFraction,
       );
     });
 
     test('with no section it is the viewport default', () {
-      expect(largest(const []), 48 * kCatalogGlyphBoxFraction);
+      expect(largest(const []), 48 * CatalogContentBox.glyphBoxFraction);
     });
 
     test('is the box the painter draws in', () {
       final slot = _leafSlots(_project(_mixed), 'b').first;
 
       expect(
-        catalogGlyphBoxExtent(slot.width, slot.height),
+        CatalogContentBox.glyphBoxExtent(slot.width, slot.height),
         largest(_mixed.map((s) => s.layout)),
       );
     });
@@ -398,7 +398,7 @@ void main() {
             insets: EdgeInsets.symmetric(horizontal: 80),
           ),
         ]),
-        30 * kCatalogGlyphBoxFraction,
+        30 * CatalogContentBox.glyphBoxFraction,
       );
     });
   });

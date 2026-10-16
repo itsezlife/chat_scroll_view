@@ -14,9 +14,9 @@ reproducibility; performance benchmarks report nightly and never block a merge.
 
 | Seam or area | Fake | Contract suite | Location |
 | ------------ | ---- | -------------- | -------- |
-| Asset fetcher, decoder, cache | `FakeFetcher`, `FakeDecoder`, manual clock | `runAssetFetcherContract`, `runDecoderContract`; cache invariants: pinned while attached, evict never touches live bindings, no visible failure plus retry on re-attach, connectivity-restored and `retry()`, dedupe, cancel on last detach, staged readiness, page hold counts | `catalog_assets` (`testing.dart`) |
-| `KeyValueStore`, `RecentsStore`, `PreferenceStore`, `CollectionSource`, `SearchSource`, `KeywordSource`, `GlyphSupport` | In-memory fakes | One `run...Contract` per seam | `content_model` (`testing.dart`) |
-| Presentation policy and strategies | Fake IME input port, manual clock | `runPresentationPolicyContract`; IME hand-off state-machine tests | `panel_presentation` (`testing.dart`) |
+| Asset fetcher, decoder, cache | `FakeFetcher`, `FakeDecoder`, manual clock | `AssetFetcherContract.run`, `DecoderContract.run`; cache invariants: pinned while attached, evict never touches live bindings, no visible failure plus retry on re-attach, connectivity-restored and `retry()`, dedupe, cancel on last detach, staged readiness, page hold counts | `catalog_assets` (`testing.dart`) |
+| `KeyValueStore`, `RecentsStore`, `PreferenceStore`, `CollectionSource`, `SearchSource`, `KeywordSource`, `GlyphSupport` | In-memory fakes | One `...Contract.run` per seam | `content_model` (`testing.dart`) |
+| Presentation policy and strategies | Fake IME input port, manual clock | `PresentationPolicyContract.run`; IME hand-off state-machine tests | `panel_presentation` (`testing.dart`) |
 | Shell, pages, composer | Fake page, fake `CollectionSource` | Widget tests; the `PanelPage` contract | Owning package |
 
 - Fakes and contracts live in each seam's package behind `testing.dart`. Production entry points never export fakes and production code never downcasts to a fake. Adapter authors and hosts run the same suites against their implementations.
