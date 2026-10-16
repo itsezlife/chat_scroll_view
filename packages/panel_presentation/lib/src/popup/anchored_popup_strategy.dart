@@ -519,15 +519,22 @@ class _PopupBodyState extends State<_PopupBody>
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(style.cornerRadius),
-            child: Shortcuts(
-              shortcuts: AnchoredPopupShortcuts.standard,
-              child: AnchoredPopupActions(
-                controller: _controller,
-                child: FocusScope(
-                  node: _scope,
-                  child: PanelShell(
-                    controller: _controller.shell,
-                    arrangement: PanelArrangement.pointer,
+            // The composer's glass, so the panel over the chat reads as the
+            // composer does.
+            child: GlassSurface(
+              material: GlassMaterial.composerIsland,
+              cornerRadius: style.cornerRadius,
+              child: Shortcuts(
+                shortcuts: AnchoredPopupShortcuts.standard,
+                child: AnchoredPopupActions(
+                  controller: _controller,
+                  child: FocusScope(
+                    node: _scope,
+                    child: PanelShell(
+                      controller: _controller.shell,
+                      arrangement: PanelArrangement.pointer,
+                      background: const Color(0x00000000),
+                    ),
                   ),
                 ),
               ),

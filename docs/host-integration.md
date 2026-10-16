@@ -372,8 +372,11 @@ owns the bottom band (null otherwise keeps the default pad).
 ### Popup anchor
 
 For an anchored popup, tell the controller where the composer is, in the
-coordinates of the box the presentation view fills, after layout and on every
-composer extent change:
+coordinates of the box the presentation view fills, whenever it moves: read it
+after every frame and report a change (an equal rectangle is ignored). A
+composer extent change and a rebuild are not enough: a dock that comes or goes
+moves a composer held at its greatest width without either, and a popup opened
+later would anchor where it had been.
 
 ```dart
 presentation.anchor(composerRect);

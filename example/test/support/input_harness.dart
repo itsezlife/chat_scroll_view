@@ -173,19 +173,21 @@ class _ScreenState extends State<_Screen> {
         key: _rig._space,
         children: [
           Positioned.fill(
-            // The chat gives a docked section its room, as the screen does.
+            // The chat gives a docked section its room, as the screen does:
+            // only the padding follows the inset, the chat is not rebuilt.
             child: ValueListenableBuilder<double>(
               valueListenable: input.insets.inlineEnd,
-              builder: (context, inlineEnd, _) => Padding(
+              builder: (context, inlineEnd, child) => Padding(
                 padding: EdgeInsetsDirectional.only(end: inlineEnd),
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: ChatBottomChrome(
-                    input: input,
-                    selection: _rig.selection,
-                    islandKey: _rig._island,
-                    anchorSpace: _rig._space,
-                  ),
+                child: child,
+              ),
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: ChatBottomChrome(
+                  input: input,
+                  selection: _rig.selection,
+                  islandKey: _rig._island,
+                  anchorSpace: _rig._space,
                 ),
               ),
             ),

@@ -64,3 +64,10 @@ remainder split as a margin.
 | Policy | `CatalogPagePolicy.layoutOf(collection, {arrangement})`: a page may lay a section out per arrangement. The emoji page asks for 37 px cells, 2 px shorter than wide, under `pointer`. |
 | Glyph size | `SectionLayout.grid(glyphExtent:)` fixes the side of the glyph box instead of 0.72 of the cell's shorter side (held to that side); the leaf asks the cache for that box and draws in it, sprite, paragraph or placeholder alike. Content that fills its cell ignores it. |
 | Drag | A mouse does not drag the catalogue; the wheel and the scrollbar scroll it. Touch, stylus and trackpad still drag. |
+
+## Amendment: a desktop list's ink
+
+| Area | Decision |
+| ---- | -------- |
+| Hover | `PanelCatalogThemeData.leafHoverHighlightSize` paints the hover wash as a box of that size centred in the cell (held to it) instead of the inset cell. The reference desktop client's is 34 x 32, radius 8, whatever the cell. |
+| Press | `leafPressFeedback`: `inkAndScale` (the default: the press wash and the 0.8 shrink, a touch grid) or `none` (a desktop list: no wash, no shrink, the hover box stays on the pressed cell until release, and the leaf is chosen on release). |

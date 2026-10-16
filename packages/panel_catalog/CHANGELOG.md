@@ -8,6 +8,10 @@ is pre-1.0.
 
 ### Added
 
+- `PanelCatalogThemeData.leafHoverHighlightSize` (a hover box of that size,
+  centred in the cell) and `leafPressFeedback` (`CatalogPressFeedback`:
+  `inkAndScale`, the default, or `none`, where a press draws nothing and the
+  hover box stays on the pressed cell).
 - `SectionLayout.grid(glyphExtent:)`: a fixed side for the glyph box, held to
   the cell's shorter side, instead of 0.72 of it. `catalogGlyphBoxExtent` and
   `catalogContentBoxExtent` take it as `fixed:` / `glyphExtent:`.

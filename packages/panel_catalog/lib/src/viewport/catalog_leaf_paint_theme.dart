@@ -40,6 +40,8 @@ class CatalogLeafPaintTheme {
     this.leafHoverHighlightColor,
     this.leafHoverHighlightRadius = 8,
     this.leafHoverHighlightInset = 2,
+    this.leafHoverHighlightSize,
+    this.leafPressFeedback = CatalogPressFeedback.inkAndScale,
   });
 
   /// Builds a paint snapshot from [data] and [devicePixelRatio].
@@ -66,6 +68,8 @@ class CatalogLeafPaintTheme {
     leafHoverHighlightColor: data.leafHoverHighlightColor,
     leafHoverHighlightRadius: data.leafHoverHighlightRadius,
     leafHoverHighlightInset: data.leafHoverHighlightInset,
+    leafHoverHighlightSize: data.leafHoverHighlightSize,
+    leafPressFeedback: data.leafPressFeedback,
     sectionHeaderStyle: data.sectionHeaderStyle,
     sectionHeaderStartInset: data.sectionHeaderStartInset,
   );
@@ -114,6 +118,12 @@ class CatalogLeafPaintTheme {
   /// Inset of the hover wash from the cell rect, in logical pixels.
   final double leafHoverHighlightInset;
 
+  /// Size of the hover wash centred in the cell, or null for the inset cell.
+  final Size? leafHoverHighlightSize;
+
+  /// What a press draws.
+  final CatalogPressFeedback leafPressFeedback;
+
   /// Section header title style.
   final TextStyle sectionHeaderStyle;
 
@@ -136,6 +146,8 @@ class CatalogLeafPaintTheme {
       other.leafHoverHighlightColor == leafHoverHighlightColor &&
       other.leafHoverHighlightRadius == leafHoverHighlightRadius &&
       other.leafHoverHighlightInset == leafHoverHighlightInset &&
+      other.leafHoverHighlightSize == leafHoverHighlightSize &&
+      other.leafPressFeedback == leafPressFeedback &&
       other.sectionHeaderStyle == sectionHeaderStyle &&
       other.sectionHeaderStartInset == sectionHeaderStartInset;
 
@@ -154,6 +166,8 @@ class CatalogLeafPaintTheme {
     leafHoverHighlightColor,
     leafHoverHighlightRadius,
     leafHoverHighlightInset,
+    leafHoverHighlightSize,
+    leafPressFeedback,
     sectionHeaderStyle,
     sectionHeaderStartInset,
   );

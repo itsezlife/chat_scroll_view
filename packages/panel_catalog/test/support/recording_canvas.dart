@@ -88,6 +88,12 @@ class RecordingCanvas implements Canvas {
   @override
   void save() => saves++;
 
+  /// The factors of every `scale` call, in order.
+  final List<double> scaleCalls = [];
+
+  @override
+  void scale(double sx, [double? sy]) => scaleCalls.add(sx);
+
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
 }

@@ -301,11 +301,17 @@ class _DockedBodyState extends State<_DockedBody>
                             null => null,
                           },
                         ),
-                        child: FocusScope(
-                          node: _scope,
-                          child: PanelShell(
-                            controller: _controller.shell,
-                            arrangement: PanelArrangement.pointer,
+                        // The composer's glass, square at the window's edge.
+                        child: GlassSurface(
+                          material: GlassMaterial.composerIsland,
+                          cornerRadius: 0,
+                          child: FocusScope(
+                            node: _scope,
+                            child: PanelShell(
+                              controller: _controller.shell,
+                              arrangement: PanelArrangement.pointer,
+                              background: const Color(0x00000000),
+                            ),
                           ),
                         ),
                       ),

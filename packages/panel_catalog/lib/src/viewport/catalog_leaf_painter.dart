@@ -432,9 +432,17 @@ final class CatalogLeafPainter {
     // the end of the pass, over everything painted here.
     final hover = theme.leafHoverHighlightColor;
     if (hovered && hover != null && hover.a > 0) {
+      final box = switch (theme.leafHoverHighlightSize) {
+        final size? => Rect.fromCenter(
+          center: cellRect.center,
+          width: math.min(size.width, cellRect.width),
+          height: math.min(size.height, cellRect.height),
+        ),
+        null => cellRect.deflate(theme.leafHoverHighlightInset),
+      };
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          cellRect.deflate(theme.leafHoverHighlightInset),
+          box,
           Radius.circular(theme.leafHoverHighlightRadius),
         ),
         _highlightPaint..color = hover,

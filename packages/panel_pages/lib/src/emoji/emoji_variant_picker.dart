@@ -44,7 +44,8 @@ final class EmojiVariantPickerLayout {
   /// Corner radius of the card and of an option's highlight.
   static const double radius = 8;
 
-  /// Inset of an option's highlight from its cell, the grid's hover inset.
+  /// Inset of an option's highlight from its cell, the grid's hover inset,
+  /// where the picker is given no highlight size.
   static const double highlightInset = 2;
 
   /// Distance between the picked cell and the card.
@@ -197,6 +198,7 @@ class EmojiVariantPicker extends StatelessWidget {
     required this.options,
     required this.cell,
     this.glyphExtent,
+    this.highlightSize,
     this.selected,
     this.onChoose,
     this.onHover,
@@ -211,6 +213,11 @@ class EmojiVariantPicker extends StatelessWidget {
 
   /// The grid's fixed glyph box side, or null for the fraction of [cell].
   final double? glyphExtent;
+
+  /// The size of the highlight of the option under the mouse, centred in its
+  /// cell (the grid's hover box), or null to inset the cell by
+  /// [EmojiVariantPickerLayout.highlightInset].
+  final Size? highlightSize;
 
   /// Index of the highlighted option, or null for none.
   final int? selected;
@@ -270,6 +277,7 @@ class EmojiVariantPicker extends StatelessWidget {
                     child: _Option(
                       glyph: options[i].sequence,
                       glyphBox: glyphBox,
+                      highlightSize: highlightSize,
                       selected: i == selected,
                       wash: wash,
                       color: palette.onSurface,
@@ -301,6 +309,7 @@ class _Option extends StatelessWidget {
   const _Option({
     required this.glyph,
     required this.glyphBox,
+    required this.highlightSize,
     required this.selected,
     required this.wash,
     required this.color,
@@ -310,11 +319,17 @@ class _Option extends StatelessWidget {
 
   final String glyph;
   final double glyphBox;
+  final Size? highlightSize;
   final bool selected;
   final Color wash;
   final Color color;
   final VoidCallback? onTap;
   final ValueChanged<bool>? onHover;
+
+  BoxDecoration get _highlight => BoxDecoration(
+    color: wash,
+    borderRadius: BorderRadius.circular(EmojiVariantPickerLayout.radius),
+  );
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -335,19 +350,20 @@ class _Option extends StatelessWidget {
             children: [
               if (selected)
                 Positioned.fill(
-                  child: Padding(
-                    padding: const EdgeInsets.all(
-                      EmojiVariantPickerLayout.highlightInset,
-                    ),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: wash,
-                        borderRadius: BorderRadius.circular(
-                          EmojiVariantPickerLayout.radius,
-                        ),
+                  child: switch (highlightSize) {
+                    final size? => Center(
+                      child: SizedBox.fromSize(
+                        size: size,
+                        child: DecoratedBox(decoration: _highlight),
                       ),
                     ),
-                  ),
+                    null => Padding(
+                      padding: const EdgeInsets.all(
+                        EmojiVariantPickerLayout.highlightInset,
+                      ),
+                      child: DecoratedBox(decoration: _highlight),
+                    ),
+                  },
                 ),
               // The grid's rule: a glyph is drawn at a fixed fraction of its
               // box and only a sequence that lays out wider than the box
@@ -423,6 +439,7 @@ final class EmojiVariantSession implements CatalogLongPressSession {
     required this.mode,
     required this.layout,
     required this.glyphExtent,
+    required this.highlightSize,
     required PanelPageHold hold,
     required int? selected,
     required Rect card,
@@ -447,6 +464,7 @@ final class EmojiVariantSession implements CatalogLongPressSession {
     required PanelPageHold hold,
     required ValueChanged<ContentKey$Unicode> onChosen,
     double? glyphExtent,
+    Size? highlightSize,
   }) {
     final overlay = Overlay.of(context);
     final scopes = ChromeOverlayScopes.capture(context);
@@ -462,6 +480,7 @@ final class EmojiVariantSession implements CatalogLongPressSession {
       mode: mode,
       layout: layout,
       glyphExtent: glyphExtent,
+      highlightSize: highlightSize,
       hold: hold,
       selected: mode == EmojiVariantPickerMode.touch
           ? math.max(0, options.indexOf(initial))
@@ -504,6 +523,9 @@ final class EmojiVariantSession implements CatalogLongPressSession {
 
   /// The grid's fixed glyph box side, or null for the fraction of the cell.
   final double? glyphExtent;
+
+  /// The highlight size of an option, or null for the inset cell.
+  final Size? highlightSize;
 
   final PanelPageHold _hold;
 
@@ -677,6 +699,7 @@ class _PickerOverlayState extends State<_PickerOverlay>
                   options: session.options,
                   cell: session.layout.cell,
                   glyphExtent: session.glyphExtent,
+                  highlightSize: session.highlightSize,
                   selected: session._selected,
                   onChoose: session._choose,
                   onHover: session.mode == EmojiVariantPickerMode.touch

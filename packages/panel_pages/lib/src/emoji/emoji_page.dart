@@ -7,6 +7,7 @@ import 'package:listen/listen.dart' as listen;
 import 'package:panel_pages/src/atlas/glyph_atlas_host.dart';
 import 'package:panel_pages/src/atlas/glyph_plan.dart';
 import 'package:panel_pages/src/bake/bake_activity_port.dart';
+import 'package:panel_pages/src/emoji/emoji_category_strip.dart';
 import 'package:panel_pages/src/emoji/emoji_page_policy.dart';
 import 'package:panel_pages/src/page/catalog_page.dart';
 import 'package:panel_pages/src/page/catalog_page_controller.dart';
@@ -164,6 +165,7 @@ class EmojiPage extends StatefulWidget {
     this.planner = GlyphPlan.of,
     this.deferChrome = false,
     this.searchDebounce = DebouncedSearch.defaultDebounce,
+    this.stripLayout = EmojiStripLayout.automatic,
     super.key,
   });
 
@@ -197,6 +199,11 @@ class EmojiPage extends StatefulWidget {
 
   /// How long typing pauses before a search runs.
   final Duration searchDebounce;
+
+  /// How the strip lays its icons out under the pointer arrangement: the
+  /// reference client's rule (plain with no pack, grouped with any) unless the
+  /// host fixes one.
+  final EmojiStripLayout stripLayout;
 
   /// Horizontal inset of the grid.
   static const double gridPadH = 5;
@@ -266,6 +273,7 @@ class _EmojiPageState extends State<EmojiPage> {
     preferences: widget.preferences,
     stripReady: _stripReady,
     assets: widget.assets,
+    stripLayout: widget.stripLayout,
   );
 
   @override
@@ -292,7 +300,8 @@ class _EmojiPageState extends State<EmojiPage> {
     }
     if (!identical(oldWidget.entryOf, widget.entryOf) ||
         !identical(oldWidget.preferences, widget.preferences) ||
-        !identical(oldWidget.assets, widget.assets)) {
+        !identical(oldWidget.assets, widget.assets) ||
+        oldWidget.stripLayout != widget.stripLayout) {
       _policy = _newPolicy();
     }
     if (!identical(oldWidget.assets, widget.assets)) {

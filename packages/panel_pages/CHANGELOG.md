@@ -8,6 +8,15 @@ is pre-1.0.
 
 ### Changed
 
+- `EmojiStripLayout` (`automatic`, `plain`, `grouped`) on
+  `EmojiCategoryStrip.layout`, `EmojiPagePolicy.stripLayout` and
+  `EmojiPage.stripLayout`: plain with no pack and grouped with any by default,
+  as the reference desktop client decides.
+- The strip's group opens linearly over 240 ms and the marker grows inside it
+  on an exact ease-out cubic.
+- Under `pointer` the catalogue's hover is a 34 x 32 box and a press draws
+  nothing (`ChromeCatalogTheme.pointerHoverSize`); the variant picker draws
+  the same box (`EmojiVariantPicker.highlightSize`).
 - Source-breaking: under `pointer` the emoji strip is the reference desktop
   client's footer with packs (`EmojiStripFooter`): no line over it, 30 px
   slots from 3 px in, the categories folded into one icon that opens into

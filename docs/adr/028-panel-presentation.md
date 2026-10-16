@@ -97,3 +97,10 @@ are each a `TextFieldTapRegion`: a press there belongs to the composer's region
 and leaves its focus and selection where they are, as in the reference client.
 The composer's own buttons (the panel toggle among them) are in that region
 too, so clicking one never takes the caret from the field.
+
+## Amendment: glass, and an anchor that follows the composer
+
+| Area | Decision |
+| ---- | -------- |
+| Glass | The popup, the dock and the keyboard-replacement sheet put the shell on a `GlassSurface` of the composer island's material (`GlassMaterial.composerIsland`), so the panel reads as the composer does; the shell paints no background of its own there (`PanelShell.background`). Over the chat (the popup) it blurs the messages; beside or under it (dock, sheet) it shows as the material's fill. The popup's glass takes the card's radius, the dock's is square, the sheet's clip rounds its top corners. The reference desktop client paints its panel solid: this is the product's choice. |
+| Anchor | The host reports the composer's rectangle whenever it moves, not only when the composer rebuilds: a dock that comes or goes moves a composer held at its greatest width without resizing or rebuilding it, and a popup opened later anchored to where it had been. The example reads it after every frame and reports a change (the controller ignores an equal one). |

@@ -17,6 +17,8 @@ import 'package:panel_catalog/src/data/catalog_snapshot.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 import 'package:panel_catalog/src/model/catalog_section.dart';
+import 'package:panel_catalog/src/theme/panel_catalog_theme_data.dart'
+    show CatalogPressFeedback;
 import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
 import 'package:panel_catalog/src/viewport/catalog_action_pointer.dart';
@@ -2179,18 +2181,23 @@ class RenderPanelCatalog extends RenderBox
       case final CatalogLeafSlot leaf:
         final isPressed = pressedSlotKey != null && leaf.key == pressedSlotKey;
         final focus = _focus;
+        // A press with no feedback of its own keeps the hover box on the
+        // pressed cell instead, until it is released.
+        final quiet =
+            _paintTheme.leafPressFeedback == CatalogPressFeedback.none;
+        final drawnPressed = isPressed && !quiet;
         _painter.paintLeaf(
           canvas: canvas,
           origin: origin,
           slot: leaf,
           bound: _pool.boundFor(leaf),
-          pressScale: isPressed ? pressScale : 1.0,
-          pressProgress: isPressed ? pressProgress : 0,
+          pressScale: drawnPressed ? pressScale : 1.0,
+          pressProgress: drawnPressed ? pressProgress : 0,
           focused:
               focus != null &&
               focus.index == leaf.index &&
               focus.sectionId == leaf.sectionId,
-          hovered: _isHovered(leaf),
+          hovered: (isPressed && quiet) || _isHovered(leaf),
         );
       case final CatalogSkeletonSlot skeleton:
         _painter.paintSkeleton(canvas: canvas, origin: origin, slot: skeleton);

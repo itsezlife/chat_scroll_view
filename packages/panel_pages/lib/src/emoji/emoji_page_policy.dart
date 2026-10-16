@@ -13,6 +13,7 @@ import 'package:panel_pages/src/emoji/emoji_tab_icons.dart';
 import 'package:panel_pages/src/emoji/emoji_variant_picker.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
+import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 /// What the emoji page knows about an emoji beyond its key: the entry the key
@@ -73,6 +74,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     required this.preferences,
     this.stripReady,
     this.assets,
+    this.stripLayout = EmojiStripLayout.automatic,
   });
 
   /// What the page declares to the shell: search, placed inline among the
@@ -153,6 +155,9 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
 
   /// Where the strip draws the covers of packs from; null draws none.
   final AssetCacheScope? assets;
+
+  /// How the strip lays its icons out under the pointer arrangement.
+  final EmojiStripLayout stripLayout;
 
   @override
   PageCapabilities get capabilities => pageCapabilities;
@@ -301,6 +306,11 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
           options: emojiVariantOptions(entry),
           initial: initial,
           // The options are the grid's cells, drawn the grid's size.
+          // The grid's hover box under the pointer.
+          highlightSize: switch (PanelArrangementScope.of(context)) {
+            PanelArrangement.pointer => ChromeCatalogTheme.pointerHoverSize,
+            PanelArrangement.touch => null,
+          },
           glyphExtent: switch (layoutOf(
             collection,
             arrangement: PanelArrangementScope.of(context),
@@ -382,7 +392,11 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   }
 
   Widget _strip(CatalogStripHandle strip) => EmojiTabIconScope(
-    child: EmojiCategoryStrip(handle: strip, assets: assets),
+    child: EmojiCategoryStrip(
+      handle: strip,
+      assets: assets,
+      layout: stripLayout,
+    ),
   );
 }
 

@@ -341,6 +341,23 @@ void main() {
       expect(controller.search.value.wantsFocus, isFalse);
     });
 
+    testWidgets('a press on a focused field that let go of the keyboard asks '
+        'for it again', (tester) async {
+      build();
+      await pump(tester);
+      controller.openSearch();
+      await tester.pumpAndSettle();
+      // The catalogue was dragged: the field keeps its focus, search lets go.
+      controller.releaseSearchFocus();
+      await tester.pump();
+      expect(FocusManager.instance.primaryFocus?.hasFocus, isTrue);
+
+      await tester.tap(find.byType(EditableText));
+      await tester.pump();
+
+      expect(controller.search.value.wantsFocus, isTrue);
+    });
+
     testWidgets('shows progress while the selected page reports a search '
         'in flight', (tester) async {
       build();

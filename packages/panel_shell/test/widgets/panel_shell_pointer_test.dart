@@ -13,6 +13,7 @@ import 'package:panel_shell/panel_shell.dart';
 import 'package:panel_shell/src/widgets/hold_repeat_button.dart';
 import 'package:panel_shell/src/widgets/panel_bottom_bar.dart';
 import 'package:panel_shell/src/widgets/panel_pager.dart';
+import 'package:panel_shell/src/widgets/panel_section_tabs.dart';
 import 'package:panel_shell/src/widgets/panel_type_tabs.dart';
 import 'package:panel_shell/testing.dart';
 
@@ -159,31 +160,116 @@ void main() {
     });
   });
 
-  group('type tabs', () {
-    testWidgets('sit above the search field, not in the bottom bar', (
+  group('the section tabs (the reference desktop client\'s)', () {
+    Rect bar(WidgetTester tester) =>
+        tester.getRect(find.byKey(PanelSectionTabs.barKey));
+
+    testWidgets('span the column above the search field, one equal section '
+        'per page, 53 px tall, with a line under them', (tester) async {
+      await pump(tester, arrangement: PanelArrangement.pointer);
+
+      final tabs = find.byType(PanelSectionTabs);
+      // The test surface is 800 wide: two sections of 400.
+      expect(tester.getRect(tabs), const Rect.fromLTWH(0, 0, 800, 53));
+      expect(find.byType(PanelTypeTabs), findsNothing);
+      expect(
+        top(tester, find.byType(PanelSearchField)),
+        greaterThanOrEqualTo(52),
+      );
+      expect(tester.getCenter(find.text('Emoji')).dx, 200);
+      expect(tester.getCenter(find.text('Stickers')).dx, 600);
+      final line = ChromeThemeScope.panelOf(tester.element(tabs)).hairline;
+      expect(
+        find.descendant(
+          of: tabs,
+          matching: find.byWidgetPredicate(
+            (w) => w is ColoredBox && w.color == line,
+          ),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('mark the active one with a 3 px bar across its section, in '
+        'the accent, and its label in the accent', (tester) async {
+      await pump(tester, arrangement: PanelArrangement.pointer);
+      final palette = ChromeThemeScope.paletteOf(
+        tester.element(find.byType(PanelSectionTabs)),
+      );
+      Color? colour(String label) =>
+          tester.widget<Text>(find.text(label)).style?.color;
+
+      expect(bar(tester), const Rect.fromLTWH(0, 50, 400, 3));
+      expect(colour('Emoji'), palette.accent);
+      expect(colour('Stickers'), palette.onSurfaceMuted);
+    });
+
+    testWidgets('slide the bar linearly over 150 ms to the section chosen on '
+        'release, the labels following it', (tester) async {
+      await pump(tester, arrangement: PanelArrangement.pointer);
+      final palette = ChromeThemeScope.paletteOf(
+        tester.element(find.byType(PanelSectionTabs)),
+      );
+
+      await tester.tap(find.text('Stickers'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 75));
+
+      expect(controller.selectedPageId.value, 'stickers');
+      expect(bar(tester).left, closeTo(200, 0.5));
+      expect(
+        tester.widget<Text>(find.text('Stickers')).style?.color,
+        Color.lerp(palette.onSurfaceMuted, palette.accent, 0.5),
+      );
+      await tester.pump(const Duration(milliseconds: 75));
+      expect(bar(tester).left, 400);
+    });
+
+    testWidgets('a press that leaves its section chooses nothing', (
       tester,
     ) async {
       await pump(tester, arrangement: PanelArrangement.pointer);
 
-      final tabs = find.byType(PanelTypeTabs);
-      expect(tabs, findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byType(PanelBottomBar),
-          matching: find.byType(PanelTypeTabs),
-        ),
-        findsNothing,
+      final press = await tester.startGesture(
+        tester.getCenter(find.text('Stickers')),
       );
-      expect(
-        bottom(tester, tabs),
-        lessThanOrEqualTo(top(tester, find.byType(PanelSearchField))),
-      );
-      expect(top(tester, tabs), lessThan(PanelTypeTabs.height + 16));
+      await press.moveTo(const Offset(200, 20));
+      await press.up();
+      await tester.pumpAndSettle();
+
+      expect(controller.selectedPageId.value, 'emoji');
     });
 
-    testWidgets('stay in the bottom bar under touch', (tester) async {
+    testWidgets('slide the content to the chosen page over 200 ms', (
+      tester,
+    ) async {
+      await pump(tester, arrangement: PanelArrangement.pointer);
+      final pager = find.byType(PageView);
+      double page() => tester.widget<PageView>(pager).controller!.page!;
+
+      await tester.tap(find.text('Stickers'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(page(), inExclusiveRange(0, 1));
+
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump();
+      expect(page(), 1);
+    });
+
+    testWidgets('are not drawn for one page', (tester) async {
+      await pump(tester, arrangement: PanelArrangement.pointer, pages: [emoji]);
+
+      expect(find.byType(PanelSectionTabs), findsNothing);
+      expect(top(tester, find.byType(PanelSearchField)), 0);
+    });
+
+    testWidgets('the type tabs stay in the bottom bar under touch', (
+      tester,
+    ) async {
       await pump(tester);
 
+      expect(find.byType(PanelSectionTabs), findsNothing);
       expect(
         find.descendant(
           of: find.byType(PanelBottomBar),
@@ -191,56 +277,6 @@ void main() {
         ),
         findsOneWidget,
       );
-    });
-
-    testWidgets('shrink to fit a narrow shell instead of overflowing it', (
-      tester,
-    ) async {
-      controller = PanelShellController(
-        pages: [emoji, stickers].map((p) => p.page).toList(),
-        preferences: FakePreferenceStore(),
-      );
-      addTearDown(controller.dispose);
-      await tester.pumpWidget(
-        PanelShellTestScope(
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: SizedBox(
-              width: 180,
-              height: 600,
-              child: PanelShell(
-                controller: controller,
-                announcer: FakePanelAnnouncer(),
-                arrangement: PanelArrangement.pointer,
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final tabs = tester.getRect(find.byType(PanelTypeTabs));
-      expect(
-        tabs.width,
-        lessThanOrEqualTo(180 - 2 * PanelBottomBar.padHorizontal),
-      );
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('are not drawn for one page', (tester) async {
-      await pump(tester, arrangement: PanelArrangement.pointer, pages: [emoji]);
-
-      expect(find.byType(PanelTypeTabs), findsNothing);
-      expect(top(tester, find.byType(PanelSearchField)), 0);
-    });
-
-    testWidgets('selecting one still selects the page', (tester) async {
-      await pump(tester, arrangement: PanelArrangement.pointer);
-
-      await tester.tap(find.text('Stickers'));
-      await tester.pumpAndSettle();
-
-      expect(controller.selectedPageId.value, 'stickers');
     });
   });
 

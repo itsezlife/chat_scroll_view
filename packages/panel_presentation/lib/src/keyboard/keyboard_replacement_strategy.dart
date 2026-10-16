@@ -137,6 +137,9 @@ class _KeyboardPanelState extends State<_KeyboardPanel>
   var _searchOpen = false;
   var _applying = false;
 
+  // The shell paints nothing behind itself: the sheet's glass shows through.
+  static const Color _clear = Color(0x00000000);
+
   KeyboardSlot get _slot => widget.slot;
   PanelShellController get _shell => widget.view.controller.shell;
 
@@ -148,6 +151,7 @@ class _KeyboardPanelState extends State<_KeyboardPanel>
     _shellView = PanelShell(
       controller: _shell,
       deferSearchField: !_slot.keyboardIsUp,
+      background: _clear,
     );
     _slot.animating.addListener(_onAnimating);
     _slot.state.addListener(_report);
@@ -162,7 +166,7 @@ class _KeyboardPanelState extends State<_KeyboardPanel>
     if (!identical(oldWidget.view.controller.shell, _shell)) {
       oldWidget.view.controller.shell.search.removeListener(_onSearch);
       _shell.search.addListener(_onSearch);
-      _shellView = PanelShell(controller: _shell);
+      _shellView = PanelShell(controller: _shell, background: _clear);
     }
     if (oldWidget.view.visibility != widget.view.visibility) _scheduleApply();
   }
@@ -298,8 +302,10 @@ class _KeyboardPanelState extends State<_KeyboardPanel>
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(_slot.tuning.sheetCornerRadius),
         ),
-        child: ColoredBox(
-          color: panel.background,
+        // The composer's glass; the clip above rounds its top corners.
+        child: GlassSurface(
+          material: GlassMaterial.composerIsland,
+          cornerRadius: 0,
           child: LayoutBuilder(
             builder: (context, box) {
               final height = box.hasBoundedHeight

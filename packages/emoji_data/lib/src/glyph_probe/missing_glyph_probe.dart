@@ -6,11 +6,18 @@ import 'package:content_model/content_model.dart';
 import 'package:emoji_data/src/glyph_probe/glyph_pixel_hash.dart';
 import 'package:listen/listen.dart';
 
-/// What systems tend to draw for a code point that is not a character: their
-/// missing-glyph cell (a box, a question mark) or nothing at all. The probe
-/// compares every glyph against this cell; a system that draws nothing is
-/// caught by the blank-cell rule instead.
-const List<String> defaultMissingGlyphReferences = <String>['\u{10FFFF}'];
+/// Characters no system font draws, whose cells stand for "missing".
+///
+/// A noncharacter (U+10FFFF) is drawn by some systems as their missing-glyph
+/// box and by others as nothing at all, while an emoji their font lacks still
+/// gets the box: so a character of the plane 15 private use area, which no
+/// system font covers but which is drawn as the box, is a reference too. The
+/// probe compares every glyph against the cell of each; a glyph that draws
+/// nothing is caught by the blank-cell rule.
+const List<String> defaultMissingGlyphReferences = <String>[
+  '\u{10FFFF}',
+  '\u{F0000}',
+];
 
 // How many cells, all flagged, make the probe doubt the system and not the
 // glyphs: more than any one strip of the bake.
@@ -81,13 +88,16 @@ final class MissingGlyphProbe with ChangeNotifier implements GlyphSupport {
   static const String recordKey = 'glyph_probe';
 
   /// The schema version of the record.
-  static const int recordVersion = 1;
+  static const int recordVersion = 2;
 
   final Set<String> _glyphs;
   final KeyValueStore _store;
   final Future<String> Function() _produceArtVersion;
   final List<String> _references;
-  final Set<String> _referenceHashes = <String>{};
+  // The cell hash of each reference observed.
+  final Map<String, String> _referenceHashes = <String, String>{};
+
+  bool get _referencesKnown => _references.every(_referenceHashes.containsKey);
   final Map<String, String> _cellHashes = <String, String>{};
   final Completer<void> _completed = Completer<void>();
   bool _isComplete = false;
@@ -193,7 +203,13 @@ final class MissingGlyphProbe with ChangeNotifier implements GlyphSupport {
       return;
     }
     if (snapshot.artVersion != version) return;
-    _referenceHashes.addAll(snapshot.referenceHashes);
+    // Verdicts taken against other references are not this probe's.
+    final restored = snapshot.referenceHashes;
+    if (restored.length != _references.length ||
+        !_references.every(restored.containsKey)) {
+      return;
+    }
+    _referenceHashes.addAll(restored);
     for (final MapEntry(:key, :value) in snapshot.cellHashes.entries) {
       if (_glyphs.contains(key)) _cellHashes.putIfAbsent(key, () => value);
     }
@@ -203,9 +219,9 @@ final class MissingGlyphProbe with ChangeNotifier implements GlyphSupport {
 
   /// Reference glyphs whose cell has not been observed, in the order given.
   /// Empty once the references are known: the caller need not render them.
-  List<String> get pendingReferences => _referenceHashes.isNotEmpty
-      ? const <String>[]
-      : List<String>.unmodifiable(_references);
+  List<String> get pendingReferences => List<String>.unmodifiable(
+    _references.where((reference) => !_referenceHashes.containsKey(reference)),
+  );
 
   /// Whether the probe still needs the cell of [glyph]: it is one of the
   /// probe's glyphs and has not been observed.
@@ -226,7 +242,7 @@ final class MissingGlyphProbe with ChangeNotifier implements GlyphSupport {
   void observe(String glyph, Uint8List pixels) {
     if (_disposed) return;
     if (_references.contains(glyph)) {
-      _referenceHashes.add(_hashOf(pixels));
+      _referenceHashes[glyph] = _hashOf(pixels);
     } else if (_glyphs.contains(glyph)) {
       _cellHashes[glyph] = _hashOf(pixels);
     } else {
@@ -247,8 +263,8 @@ final class MissingGlyphProbe with ChangeNotifier implements GlyphSupport {
     final hash = _cellHashes[glyph];
     if (hash == null) return null;
     if (hash == _blank) return false;
-    if (_referenceHashes.isEmpty) return null;
-    return !_referenceHashes.contains(hash);
+    if (!_referencesKnown) return null;
+    return !_referenceHashes.containsValue(hash);
   }
 
   /// The glyphs of the probe the system cannot draw (so far), as the evidence
@@ -272,7 +288,7 @@ final class MissingGlyphProbe with ChangeNotifier implements GlyphSupport {
   /// it is unknown).
   GlyphProbeSnapshot snapshot() => GlyphProbeSnapshot(
     artVersion: _artVersion ?? '',
-    referenceHashes: List<String>.of(_referenceHashes),
+    referenceHashes: Map<String, String>.of(_referenceHashes),
     cellHashes: Map<String, String>.of(_cellHashes),
   );
 
@@ -314,7 +330,7 @@ final class MissingGlyphProbe with ChangeNotifier implements GlyphSupport {
   void _settle() {
     if (_finishing ||
         !_publishing ||
-        _referenceHashes.isEmpty ||
+        !_referencesKnown ||
         !_glyphs.every(_cellHashes.containsKey)) {
       return;
     }
@@ -363,18 +379,18 @@ final class GlyphProbeSnapshot {
     final references = json['referenceHashes'];
     final cells = json['cellHashes'];
     if (artVersion is! String ||
-        references is! List<Object?> ||
+        references is! Map<String, Object?> ||
         cells is! Map<String, Object?>) {
       throw const FormatException('not a glyph probe snapshot');
     }
     return GlyphProbeSnapshot(
       artVersion: artVersion,
-      referenceHashes: [
-        for (final hash in references)
-          hash is String
-              ? hash
+      referenceHashes: {
+        for (final MapEntry(:key, :value) in references.entries)
+          key: value is String
+              ? value
               : throw const FormatException('reference hash is not a string'),
-      ],
+      },
       cellHashes: {
         for (final MapEntry(:key, :value) in cells.entries)
           key: value is String
@@ -387,8 +403,8 @@ final class GlyphProbeSnapshot {
   /// The system art version the cells were rendered under.
   final String artVersion;
 
-  /// Hashes of the missing-glyph reference cells.
-  final List<String> referenceHashes;
+  /// Hash of each missing-glyph reference's cell, by reference.
+  final Map<String, String> referenceHashes;
 
   /// Hash of each observed glyph's cell.
   final Map<String, String> cellHashes;

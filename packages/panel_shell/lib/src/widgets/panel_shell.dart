@@ -14,6 +14,7 @@ import 'package:panel_shell/src/widgets/panel_arrangement.dart';
 import 'package:panel_shell/src/widgets/panel_bottom_bar.dart';
 import 'package:panel_shell/src/widgets/panel_pager.dart';
 import 'package:panel_shell/src/widgets/panel_search_field.dart';
+import 'package:panel_shell/src/widgets/panel_section_tabs.dart';
 import 'package:panel_shell/src/widgets/panel_type_tabs.dart';
 
 /// The host-independent panel: the search field above a pager of pages, with
@@ -70,8 +71,14 @@ class PanelShell extends StatefulWidget {
     this.announcer = const SemanticsServiceAnnouncer(),
     this.searchContextMenuBuilder,
     this.deferSearchField = false,
+    this.background,
     super.key,
   });
+
+  /// What the shell paints behind its column, or null for the panel tokens'
+  /// background. A presentation that puts the shell on glass passes a
+  /// transparent colour so the glass shows through.
+  final Color? background;
 
   /// The controller this shell projects.
   final PanelShellController controller;
@@ -258,6 +265,8 @@ class _PanelShellState extends State<PanelShell> {
           controller: _shell,
           position: _position,
           dragging: _dragging,
+          // The reference desktop client slides its sections in.
+          selectSlide: pointer ? _sectionSlide : Duration.zero,
         ),
       ),
     );
@@ -333,10 +342,10 @@ class _PanelShellState extends State<PanelShell> {
             child: FocusTraversalGroup(
               policy: OrderedTraversalPolicy(),
               child: ColoredBox(
-                color: panel.background,
+                color: widget.background ?? panel.background,
                 child: Column(
                   children: [
-                    if (pointer) _tabsRow(),
+                    if (pointer) _sectionTabs(),
                     ListenValueBuilder<String>(
                       listenable: _shell.selectedPageId,
                       builder: (context, _) => _searchSlot(motion),
@@ -359,9 +368,11 @@ class _PanelShellState extends State<PanelShell> {
     );
   }
 
-  // The pointer arrangement's tabs: above the search field, the pill centred
-  // with the bar's own insets. One page has nothing to switch to.
-  Widget _tabsRow() => FocusTraversalOrder(
+  static const Duration _sectionSlide = Duration(milliseconds: 200);
+
+  // The pointer arrangement's tabs: the reference desktop client's sections
+  // above the search field. One page has nothing to switch to.
+  Widget _sectionTabs() => FocusTraversalOrder(
     order: const NumericFocusOrder(2),
     child: ListenValueBuilder<String>(
       listenable: _shell.selectedPageId,
@@ -369,29 +380,9 @@ class _PanelShellState extends State<PanelShell> {
         if (_shell.pages.length < 2) return const SizedBox.shrink();
         return MediaQuery.withClampedTextScaling(
           maxScaleFactor: PanelBottomBar.maxTextScale,
-          child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(
-              PanelBottomBar.padHorizontal,
-              PanelBottomBar.padHorizontal,
-              PanelBottomBar.padHorizontal,
-              PanelBottomBar.padBottom,
-            ),
-            // Scaled down as a whole when the column is narrower than the pill
-            // (a dock dragged to its narrowest, large text): the pill measures
-            // its own tabs against its own strip, so a scale above it moves
-            // nothing inside.
-            child: Center(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: PanelTypeTabs(
-                  pages: _shell.pages,
-                  position: _position,
-                  dragging: _dragging,
-                  selectedPageId: selectedId,
-                  display: widget.tabDisplay,
-                ),
-              ),
-            ),
+          child: PanelSectionTabs(
+            pages: _shell.pages,
+            selectedPageId: selectedId,
           ),
         );
       },

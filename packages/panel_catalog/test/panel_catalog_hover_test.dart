@@ -211,6 +211,67 @@ void main() {
     });
   });
 
+  group('the reference desktop client\'s ink', () {
+    const press = Color(0x0F000000);
+    PanelCatalogThemeData desktop() => withHover().copyWith(
+      leafHoverHighlightSize: const Size(34, 32),
+      leafPressHighlightColor: press,
+      leafPressFeedback: CatalogPressFeedback.none,
+    );
+
+    testWidgets('a hovered cell gets a 34 x 32 box of radius 8, centred, '
+        'whatever the cell', (tester) async {
+      await pumpViewport(tester, theme: desktop());
+      await mouseAt(tester, inCell);
+
+      final rects = hoverRects(paintOnce(tester));
+
+      expect(rects.single.outerRect, Rect.fromCenter(
+        center: cell.center,
+        width: 34,
+        height: 32,
+      ));
+      expect(rects.single.tlRadius, const Radius.circular(8));
+    });
+
+    testWidgets('a press paints no ink and does not shrink the glyph; the box '
+        'stays on the pressed cell', (tester) async {
+      await pumpViewport(tester, theme: desktop());
+      final mouse = await mouseAt(tester, inCell);
+
+      await mouse.down(inCell);
+      await tester.pump(const Duration(milliseconds: 100));
+      final canvas = paintOnce(tester);
+
+      expect(
+        canvas.rrects.where((r) => r.color.toARGB32() == press.toARGB32()),
+        isEmpty,
+      );
+      expect(canvas.scaleCalls.where((s) => s != 1), isEmpty);
+      expect(hoverRects(canvas), hasLength(1));
+      await mouse.up();
+    });
+
+    testWidgets('a finger keeps the ink and the shrink', (tester) async {
+      await pumpViewport(
+        tester,
+        theme: desktop().copyWith(
+          leafPressFeedback: CatalogPressFeedback.inkAndScale,
+        ),
+      );
+      final finger = await tester.startGesture(inCell);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        paintOnce(tester).rrects.where(
+          (r) => r.color.a > 0 && r.color.toARGB32() != _hover.toARGB32(),
+        ),
+        isNotEmpty,
+      );
+      await finger.up();
+    });
+  });
+
   group('without one', () {
     testWidgets('a mouse paints nothing', (tester) async {
       await pumpViewport(tester);

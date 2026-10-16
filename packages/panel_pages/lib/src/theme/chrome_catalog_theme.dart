@@ -27,6 +27,10 @@ class ChromeCatalogTheme extends StatelessWidget {
   static Color hoverWashOf(ChromePalette palette) =>
       palette.onSurface.withAlpha(0x12);
 
+  /// The hover box of a cell under the pointer arrangement, centred in it
+  /// whatever its size: the reference desktop client's emoji area.
+  static const Size pointerHoverSize = Size(34, 32);
+
   /// The catalogue theme the chrome theme [chrome] stands for.
   ///
   /// - Every stand-in (circle, thumbnail silhouette, sticker wash) and the
@@ -37,7 +41,10 @@ class ChromeCatalogTheme extends StatelessWidget {
   /// - Keyboard focus is drawn in the accent.
   /// - The section title is the panel tokens' `sectionTitle`.
   /// - Under [PanelArrangement.pointer] a mouse over a cell paints the text
-  ///   colour at alpha `0x12`; under touch nothing hovers.
+  ///   colour at alpha `0x12` in a [pointerHoverSize] box, and a press draws
+  ///   nothing (the box stays on the pressed cell), as the reference desktop
+  ///   client's list does; under touch nothing hovers, and a press draws the
+  ///   press wash and shrinks the cell.
   static PanelCatalogThemeData dataFor(
     ChromeThemeData chrome, {
     PanelArrangement arrangement = PanelArrangement.touch,
@@ -56,6 +63,14 @@ class ChromeCatalogTheme extends StatelessWidget {
       leafHoverHighlightColor: switch (arrangement) {
         PanelArrangement.pointer => hoverWashOf(palette),
         PanelArrangement.touch => null,
+      },
+      leafHoverHighlightSize: switch (arrangement) {
+        PanelArrangement.pointer => pointerHoverSize,
+        PanelArrangement.touch => null,
+      },
+      leafPressFeedback: switch (arrangement) {
+        PanelArrangement.pointer => CatalogPressFeedback.none,
+        PanelArrangement.touch => CatalogPressFeedback.inkAndScale,
       },
       sectionHeaderStyle: base.sectionHeaderStyle.copyWith(
         color: chrome.panel.sectionTitle,

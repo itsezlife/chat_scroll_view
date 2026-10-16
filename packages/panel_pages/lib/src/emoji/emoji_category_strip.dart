@@ -47,13 +47,21 @@ import 'package:panel_shell/panel_shell.dart';
 /// reads the arrangement from `PanelArrangementScope`.
 class EmojiCategoryStrip extends StatefulWidget {
   /// A strip over the sections of [handle].
-  const EmojiCategoryStrip({required this.handle, this.assets, super.key});
+  const EmojiCategoryStrip({
+    required this.handle,
+    this.assets,
+    this.layout = EmojiStripLayout.automatic,
+    super.key,
+  });
 
   /// What the page gives its strip.
   final CatalogStripHandle handle;
 
   /// Where the covers of packs are drawn from, or null to draw none.
   final AssetCacheScope? assets;
+
+  /// How the strip lays its icons out under the pointer arrangement.
+  final EmojiStripLayout layout;
 
   /// Height of the strip.
   static const double height = 36;
@@ -302,6 +310,7 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
         ],
         active: _active,
         assets: widget.assets,
+        layout: widget.layout,
         onChoose: (id) {
           for (final tab in _tabs) {
             if (tab.id == id) unawaited(_onTap(tab));
@@ -315,6 +324,24 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
     CollectionContents$Loaded(:final items) => items.firstOrNull?.key,
     _ => null,
   };
+}
+
+/// How the emoji strip lays its icons out under the pointer arrangement.
+///
+/// The reference desktop client decides by the data alone: with no pack of
+/// custom emoji its footer is plain, with any it is grouped. [automatic] does
+/// the same; a host can fix either.
+enum EmojiStripLayout {
+  /// Plain with no pack, grouped with any: the reference client's rule.
+  automatic,
+
+  /// Every icon in a slot of its own, spread over the width in whole pixels
+  /// (never narrower than a grouped slot, scrolling past that).
+  plain,
+
+  /// 30 px slots: the recents, the categories folded into one icon that opens
+  /// while one of them is active, then the packs.
+  grouped,
 }
 
 // A tab with the sections of the page it covers, in display order: a

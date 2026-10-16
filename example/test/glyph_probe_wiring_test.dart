@@ -173,7 +173,7 @@ void main() {
     expect(first.supports('🫩'), isFalse);
     expect(
       first.system.painted,
-      unorderedEquals([..._glyphs, defaultMissingGlyphReferences.first]),
+      unorderedEquals([..._glyphs, ...defaultMissingGlyphReferences]),
     );
     expect(first.probe.artVersion, isNotNull);
     expect(store.entries.keys, ['emoji_data:glyph_probe']);

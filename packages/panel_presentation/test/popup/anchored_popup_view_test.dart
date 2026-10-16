@@ -28,6 +28,42 @@ void main() {
     });
   });
 
+  testWidgets('is the composer\'s glass, rounded as the card', (tester) async {
+    final rig = PopupRig(
+      style: const AnchoredPopupStyle(width: 300, cornerRadius: 14),
+    );
+    await rig.pump(tester);
+
+    rig.controller.show();
+    await settleMotion(tester);
+
+      final glass = find.ancestor(
+        of: find.byType(PanelShell),
+        matching: find.byType(GlassSurface),
+      );
+      expect(glass, findsOneWidget);
+      expect(
+        tester.widget<GlassSurface>(glass).material,
+        GlassMaterial.composerIsland,
+      );
+      expect(
+        tester.widget<PanelShell>(find.byType(PanelShell)).background,
+        const Color(0x00000000),
+        reason: 'the glass shows through the shell',
+      );
+    expect(
+      tester
+          .widget<GlassSurface>(
+            find.ancestor(
+              of: find.byType(PanelShell),
+              matching: find.byType(GlassSurface),
+            ),
+          )
+          .cornerRadius,
+      14,
+    );
+  });
+
   group('geometry', () {
     testWidgets('sits on the composer top, end edges aligned (LTR)', (
       tester,

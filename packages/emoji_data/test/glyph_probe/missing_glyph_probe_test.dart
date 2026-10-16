@@ -82,6 +82,58 @@ void main() {
       },
     );
 
+    group('with several references (a system that draws one as nothing and '
+        'another as its box)', () {
+      MissingGlyphProbe twoReferences() {
+        final result = MissingGlyphProbe(
+          glyphs: const ['a', 'b'],
+          references: const ['NONE', 'BOX'],
+          store: store,
+          artVersion: () async => 'art-1',
+        );
+        addTearDown(result.dispose);
+        return result;
+      }
+
+      test('a glyph drawn like any of them is unsupported, once all are '
+          'seen', () {
+        final subject = twoReferences()
+          ..observe('NONE', _blank)
+          ..observe('a', _art(1))
+          ..observe('b', _tofu);
+        expect(subject.verdictOf('b'), isNull, reason: 'BOX not seen yet');
+        expect(subject.pendingReferences, ['BOX']);
+
+        subject.observe('BOX', _tofu);
+
+        expect(subject.verdictOf('a'), isTrue);
+        expect(subject.verdictOf('b'), isFalse);
+        expect(subject.pendingReferences, isEmpty);
+      });
+
+      test('a record taken against other references is not trusted', () async {
+        final first = probe(['a', 'b']);
+        await first.start();
+        first
+          ..observe(_reference, _blank)
+          ..observe('a', _art(1))
+          ..observe('b', _tofu);
+        await first.completed;
+
+        final second = twoReferences();
+        await second.start();
+
+        expect(second.verdictOf('b'), isNull);
+        expect(second.pendingReferences, ['NONE', 'BOX']);
+      });
+    });
+
+    test('the default references include a private-use character no font '
+        'draws, besides the noncharacter some systems draw as nothing', () {
+      expect(defaultMissingGlyphReferences, contains('\u{10FFFF}'));
+      expect(defaultMissingGlyphReferences, contains('\u{F0000}'));
+    });
+
     test('a glyph is not judged before the reference has been seen', () {
       final subject = probe(['a'])..observe('a', _tofu);
       expect(subject.verdictOf('a'), isNull);

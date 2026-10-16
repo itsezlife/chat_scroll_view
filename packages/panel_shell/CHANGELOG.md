@@ -8,6 +8,14 @@ is pre-1.0.
 
 ### Changed
 
+- Under `pointer` the page switcher is the reference desktop client's tabs
+  slider (equal sections, a sliding accent bar, labels following it, a ripple,
+  choice on release, a line under it), and choosing a page slides the pages
+  over 200 ms. The pill stays in the bottom bar under `touch`.
+- A press on a search field that kept its focus when search let go of it asks
+  for focus again (`requestSearchFocus`).
+- `PanelShell.background`: what the shell paints behind its column (null for
+  the panel tokens' background); a presentation on glass passes transparent.
 - Source-breaking: `PanelArrangement.narrowsEmptySearch` and `searchPlacementOf`
   are gone. An open search with no query keeps the whole catalogue under both
   arrangements, and a page's declared search placement is its placement: an

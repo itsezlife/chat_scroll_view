@@ -32,6 +32,29 @@ void main() {
     });
   });
 
+  testWidgets('is the composer\'s glass, square', (tester) async {
+    final rig = DockedRig();
+    await rig.pump(tester);
+
+    rig.controller.show(kind: const Docked());
+    await settleDock(tester);
+
+      final glass = find.ancestor(
+        of: find.byType(PanelShell),
+        matching: find.byType(GlassSurface),
+      );
+      expect(glass, findsOneWidget);
+      expect(
+        tester.widget<GlassSurface>(glass).material,
+        GlassMaterial.composerIsland,
+      );
+      expect(
+        tester.widget<PanelShell>(find.byType(PanelShell)).background,
+        const Color(0x00000000),
+        reason: 'the glass shows through the shell',
+      );
+  });
+
   group('layout', () {
     testWidgets('sits at the end edge, full height (LTR)', (tester) async {
       final rig = DockedRig();

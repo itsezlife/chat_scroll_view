@@ -86,6 +86,7 @@ void main() {
     ChromeMotionSpeed speed = ChromeMotionSpeed.normal,
     PanelArrangement arrangement = PanelArrangement.touch,
     bool disableAnimations = false,
+    EmojiStripLayout layout = EmojiStripLayout.automatic,
   }) => tester.pumpWidget(
     PanelShellTestScope(
       speed: speed,
@@ -97,7 +98,7 @@ void main() {
             alignment: Alignment.topLeft,
             child: SizedBox(
               width: width,
-              child: EmojiCategoryStrip(handle: handle),
+              child: EmojiCategoryStrip(handle: handle, layout: layout),
             ),
           ),
         ),
@@ -367,17 +368,21 @@ void main() {
       'Symbols',
     ];
 
+    // The grouped layout unless a test says otherwise: the reference client
+    // groups as soon as there is a pack, and these tests mostly have none.
     Future<void> pumpPinned(
       WidgetTester tester, {
       bool disableAnimations = false,
       double width = 345,
       ChromeMotionSpeed speed = ChromeMotionSpeed.normal,
+      EmojiStripLayout layout = EmojiStripLayout.grouped,
     }) => pump(
       tester,
       width: width,
       arrangement: PanelArrangement.pointer,
       disableAnimations: disableAnimations,
       speed: speed,
+      layout: layout,
     );
 
     Rect marker(WidgetTester tester) =>
@@ -401,6 +406,94 @@ void main() {
         ),
       ),
     );
+
+    group('with no pack (automatic)', () {
+      testWidgets('spreads the recents and every category over the width, '
+          'in whole pixels from 3 px in', (tester) async {
+        final semantics = tester.ensureSemantics();
+        handle.setIds(all);
+        await pumpPinned(tester, layout: EmojiStripLayout.automatic);
+
+        // (345 - 3 - 3) / 8 = 42 px each.
+        expect(
+          slot(tester, 'Recently used'),
+          const Rect.fromLTWH(3, 0, 42, 36),
+        );
+        for (var i = 0; i < categoryLabels.length; i++) {
+          expect(
+            slot(tester, categoryLabels[i]),
+            Rect.fromLTWH(3 + (i + 1) * 42, 0, 42, 36),
+            reason: categoryLabels[i],
+          );
+        }
+        expect(marker(tester), const Rect.fromLTWH(10, 4, 28, 28));
+        semantics.dispose();
+      });
+
+      testWidgets('moves the 28 px square to the active category', (
+        tester,
+      ) async {
+        handle.setIds(all);
+        await pumpPinned(tester, layout: EmojiStripLayout.automatic);
+
+        handle.enter('${all[3]}', 3);
+        await tester.pumpAndSettle();
+
+        expect(marker(tester), const Rect.fromLTWH(3 + 3 * 42 + 7, 4, 28, 28));
+        expect(markerRadius(tester), BorderRadius.circular(8));
+      });
+
+      testWidgets('groups as soon as there is a pack', (tester) async {
+        final semantics = tester.ensureSemantics();
+        handle.entries.value = [
+          ..._entries(all),
+          const CatalogStripEntry(
+            sectionId: 'pack-0',
+            collection: Collection(
+              id: CollectionId.set('p0'),
+              metadata: CollectionMetadata(title: 'Pack 0'),
+            ),
+          ),
+        ];
+        await pumpPinned(tester, layout: EmojiStripLayout.automatic);
+
+        expect(slot(tester, 'Recently used').width, 30);
+        expect(
+          find.bySemanticsLabel('Symbols'),
+          findsNothing,
+          reason: 'folded',
+        );
+        semantics.dispose();
+      });
+
+      testWidgets('a host can ask for the plain layout with packs too', (
+        tester,
+      ) async {
+        final semantics = tester.ensureSemantics();
+        handle.entries.value = [
+          ..._entries(all),
+          const CatalogStripEntry(
+            sectionId: 'pack-0',
+            collection: Collection(
+              id: CollectionId.set('p0'),
+              metadata: CollectionMetadata(title: 'Pack 0'),
+            ),
+          ),
+        ];
+        await pumpPinned(tester, layout: EmojiStripLayout.plain);
+
+        // (345 - 6) / 9 = 37 px each.
+        expect(
+          slot(tester, 'Symbols'),
+          const Rect.fromLTWH(3 + 7 * 37, 0, 37, 36),
+        );
+        expect(
+          slot(tester, 'Pack 0'),
+          const Rect.fromLTWH(3 + 8 * 37, 0, 37, 36),
+        );
+        semantics.dispose();
+      });
+    });
 
     testWidgets('is 36 px of icons on its own fill, with no line over it', (
       tester,
@@ -477,12 +570,15 @@ void main() {
 
       handle.enter('${all[1]}', 1);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 300));
 
-      // An ease-out cubic is 87.5% of the way at half the time: the width
-      // goes from the recents' 28 to the pill's 208.
-      expect(marker(tester).width, closeTo(28 + 180 * 0.875, 0.5));
-      await tester.pump(const Duration(milliseconds: 200));
+      // The group is open by 240 ms; at 300 ms an ease-out cubic is 98.4% of
+      // the way: the width goes from the recents' 28 to the pill's 208.
+      expect(
+        marker(tester).width,
+        closeTo(28 + 180 * (1 - 0.25 * 0.25 * 0.25), 0.5),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
       expect(marker(tester).width, 208);
     });
 
@@ -525,6 +621,31 @@ void main() {
         await _tapTab(tester, 'Pack 1');
         expect(handle.jumps, ['pack-1']);
         expect(selected(tester, 'Pack 1'), isTrue);
+        semantics.dispose();
+      });
+
+      testWidgets('opening the group slides what follows it linearly over '
+          '240 ms, and the marker grows inside the group, never past it', (
+        tester,
+      ) async {
+        final semantics = tester.ensureSemantics();
+        handle.entries.value = withPacks(1);
+        await pumpPinned(tester);
+        expect(slot(tester, 'Pack 0').left, 63);
+
+        handle.enter('${all[1]}', 1);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 60));
+
+        // A quarter of the way from 30 to 210.
+        const group = 30 + 180 * 0.25;
+        expect(slot(tester, 'Pack 0').left, closeTo(3 + 30 + group, 0.5));
+        expect(marker(tester).right, lessThanOrEqualTo(3 + 30 + group));
+
+        await tester.pump(const Duration(milliseconds: 180));
+        expect(slot(tester, 'Pack 0').left, closeTo(3 + 30 + 210, 0.01));
+        await tester.pumpAndSettle();
+        expect(marker(tester), const Rect.fromLTWH(34, 4, 208, 28));
         semantics.dispose();
       });
 

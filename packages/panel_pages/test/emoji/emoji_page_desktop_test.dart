@@ -14,6 +14,7 @@
 library;
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
@@ -387,6 +388,48 @@ void main() {
       await gesture.moveTo(origin(tester) + const Offset(300, 300));
       await tester.pump();
       expect(tester.widget<EmojiVariantPicker>(picker()).selected, isNull);
+      await gesture.up();
+    });
+
+    testWidgets('the option under the mouse gets the grid\'s 34 x 32 hover '
+        'box, centred', (tester) async {
+      // 345 px: cells of 37 x 35, which an inset of 2 would not make 34 x 32.
+      await pumpPage(tester, width: 345);
+      final gesture = await mouse(tester);
+      await gesture.down(cell(tester, top: people));
+      await tester.pump(_hold + _settle);
+      final option =
+          tester.getTopLeft(picker()) +
+          const Offset(
+            EmojiVariantPickerLayout.shadowMargin,
+            EmojiVariantPickerLayout.shadowMargin,
+          ) +
+          EmojiVariantPickerLayout(
+            count: 6,
+            cell: tester.widget<EmojiVariantPicker>(picker()).cell,
+          ).optionRect(2).center;
+      expect(
+        tester.widget<EmojiVariantPicker>(picker()).cell,
+        const Size(37, 35),
+      );
+
+      await gesture.moveTo(option);
+      await tester.pump();
+
+      final wash = ChromeCatalogTheme.hoverWashOf(
+        ChromeThemeScope.paletteOf(tester.element(picker())),
+      );
+      final box = find.descendant(
+        of: picker(),
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is DecoratedBox &&
+              w.decoration is BoxDecoration &&
+              (w.decoration as BoxDecoration).color == wash,
+        ),
+      );
+      expect(tester.getSize(box), const Size(34, 32));
+      expect(tester.getCenter(box), option);
       await gesture.up();
     });
 

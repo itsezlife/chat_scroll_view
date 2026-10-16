@@ -236,6 +236,13 @@ class _PanelSearchFieldState extends State<PanelSearchField>
     }
   }
 
+  void _onFieldPressed() {
+    final state = _shell.search.value;
+    if (state.isOpen && !state.wantsFocus && _focus.hasFocus) {
+      _shell.requestSearchFocus();
+    }
+  }
+
   void _clear() => _shell.setQuery('');
 
   PanelSearchIconState get _leading {
@@ -313,15 +320,21 @@ class _PanelSearchFieldState extends State<PanelSearchField>
                                     ),
                                   ),
                                 ),
-                              EditableText(
-                                controller: _text,
-                                focusNode: _focus,
-                                style: textStyle,
-                                cursorColor: palette.accent,
-                                backgroundCursorColor: panel.searchFill,
-                                textInputAction: TextInputAction.search,
-                                contextMenuBuilder: menu,
-                                maxLines: 1,
+                              // A press on a field that kept its focus
+                              // when search let go of the keyboard (the
+                              // catalogue was dragged) asks for it again.
+                              Listener(
+                                onPointerDown: (_) => _onFieldPressed(),
+                                child: EditableText(
+                                  controller: _text,
+                                  focusNode: _focus,
+                                  style: textStyle,
+                                  cursorColor: palette.accent,
+                                  backgroundCursorColor: panel.searchFill,
+                                  textInputAction: TextInputAction.search,
+                                  contextMenuBuilder: menu,
+                                  maxLines: 1,
+                                ),
                               ),
                             ],
                           ),

@@ -50,6 +50,20 @@ void main() {
       );
     });
 
+    test('under the pointer is the reference desktop client\'s ink: a 34 x 32 '
+        'hover box, and nothing on a press', () {
+      final pointer = ChromeCatalogTheme.dataFor(
+        ChromeThemeData.fromPalette(_palette),
+        arrangement: PanelArrangement.pointer,
+      );
+
+      expect(pointer.leafHoverHighlightSize, const Size(34, 32));
+      expect(pointer.leafHoverHighlightRadius, 8);
+      expect(pointer.leafPressFeedback, CatalogPressFeedback.none);
+      expect(data.leafPressFeedback, CatalogPressFeedback.inkAndScale);
+      expect(data.leafHoverHighlightSize, isNull);
+    });
+
     test('draws keyboard focus in the accent', () {
       expect(data.leafFocusHighlightColor, _palette.accent.withAlpha(0x40));
     });

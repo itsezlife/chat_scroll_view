@@ -45,9 +45,15 @@ import 'package:flutter/painting.dart';
 /// [leafHoverHighlightColor] is the wash a **mouse** hovering a leaf paints on
 /// the cell, as a rounded rect of [leafHoverHighlightRadius] logical pixels
 /// inset by [leafHoverHighlightInset] from the cell rect (the interactive area
-/// of a cell is a little smaller than its pitch). Instant: no fade, ripple or
-/// scale. Null (the default) paints no hover at all, which is what a touch
-/// arrangement wants; a page that arranges for a pointer sets it.
+/// of a cell is a little smaller than its pitch), or a box of
+/// [leafHoverHighlightSize] centred in the cell when that is set. Instant: no
+/// fade, ripple or scale. Null (the default) paints no hover at all, which is
+/// what a touch arrangement wants; a page that arranges for a pointer sets it.
+///
+/// [leafPressFeedback] says whether a press draws the press wash and shrinks
+/// the leaf ([CatalogPressFeedback.inkAndScale], the default) or neither
+/// ([CatalogPressFeedback.none]: a desktop list, where the hover box stays on
+/// the pressed cell until it is released).
 ///
 /// [sectionHeaderStyle] and [sectionHeaderStartInset] control section title
 /// paint inside the header band; they do not change content extent.
@@ -79,6 +85,8 @@ class PanelCatalogThemeData {
     this.leafHoverHighlightColor,
     this.leafHoverHighlightRadius = _defaultHoverRadius,
     this.leafHoverHighlightInset = _defaultHoverInset,
+    this.leafHoverHighlightSize,
+    this.leafPressFeedback = CatalogPressFeedback.inkAndScale,
     this.leafPressSelectorRadiusNominalDp = _defaultSelectorRadiusNominalDp,
     this.sectionHeaderStartInset = _defaultSectionHeaderStartInset,
   });
@@ -147,6 +155,12 @@ class PanelCatalogThemeData {
       b.leafHoverHighlightInset,
       t,
     )!,
+    leafHoverHighlightSize: Size.lerp(
+      a.leafHoverHighlightSize,
+      b.leafHoverHighlightSize,
+      t,
+    ),
+    leafPressFeedback: t < 0.5 ? a.leafPressFeedback : b.leafPressFeedback,
     leafPressSelectorRadiusNominalDp: lerpDouble(
       a.leafPressSelectorRadiusNominalDp,
       b.leafPressSelectorRadiusNominalDp,
@@ -263,6 +277,13 @@ class PanelCatalogThemeData {
   /// logical pixels.
   final double leafHoverHighlightInset;
 
+  /// The size of the hover wash, centred in the cell (held to it), or null to
+  /// inset the cell by [leafHoverHighlightInset].
+  final Size? leafHoverHighlightSize;
+
+  /// What a press draws.
+  final CatalogPressFeedback leafPressFeedback;
+
   /// Nominal corner radius in dp for [selectorRadiusLogicalPx].
   ///
   /// Some hosts apply density twice (nominal dp passed into a callee that
@@ -303,6 +324,8 @@ class PanelCatalogThemeData {
     Color? leafHoverHighlightColor,
     double? leafHoverHighlightRadius,
     double? leafHoverHighlightInset,
+    Size? leafHoverHighlightSize,
+    CatalogPressFeedback? leafPressFeedback,
     double? leafPressSelectorRadiusNominalDp,
     TextStyle? sectionHeaderStyle,
     double? sectionHeaderStartInset,
@@ -325,6 +348,9 @@ class PanelCatalogThemeData {
         leafHoverHighlightRadius ?? this.leafHoverHighlightRadius,
     leafHoverHighlightInset:
         leafHoverHighlightInset ?? this.leafHoverHighlightInset,
+    leafHoverHighlightSize:
+        leafHoverHighlightSize ?? this.leafHoverHighlightSize,
+    leafPressFeedback: leafPressFeedback ?? this.leafPressFeedback,
     leafPressSelectorRadiusNominalDp:
         leafPressSelectorRadiusNominalDp ??
         this.leafPressSelectorRadiusNominalDp,
@@ -348,6 +374,8 @@ class PanelCatalogThemeData {
       other.leafHoverHighlightColor == leafHoverHighlightColor &&
       other.leafHoverHighlightRadius == leafHoverHighlightRadius &&
       other.leafHoverHighlightInset == leafHoverHighlightInset &&
+      other.leafHoverHighlightSize == leafHoverHighlightSize &&
+      other.leafPressFeedback == leafPressFeedback &&
       other.leafPressSelectorRadiusNominalDp ==
           leafPressSelectorRadiusNominalDp &&
       other.sectionHeaderStyle == sectionHeaderStyle &&
@@ -367,8 +395,20 @@ class PanelCatalogThemeData {
     leafHoverHighlightColor,
     leafHoverHighlightRadius,
     leafHoverHighlightInset,
+    leafHoverHighlightSize,
+    leafPressFeedback,
     leafPressSelectorRadiusNominalDp,
     sectionHeaderStyle,
     sectionHeaderStartInset,
   );
+}
+
+/// What a press on a leaf draws.
+enum CatalogPressFeedback {
+  /// The press wash on the cell, and the leaf shrinking while held (a touch
+  /// grid).
+  inkAndScale,
+
+  /// Nothing: the leaf is chosen on release, as a desktop list does.
+  none,
 }

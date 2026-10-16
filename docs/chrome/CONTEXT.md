@@ -135,8 +135,12 @@ The context menu a right click opens on an emoji of the recents under the pointe
 _Avoid_: A header clear button, the page writing recents, a menu for a finger
 
 **Variant picker**:
-The card of an emoji's variants a press opens over the grid: the grid's own cell and glyph box for every option, one row with a separator after the first, above the pressed cell (below near the top edge), fading, modal on a barrier, holding auto-hide while open. A mouse opens it after a 500 ms hold, a click picks the emoji as shown; a finger after the platform's long press.
+The card of an emoji's variants a press opens over the grid: the grid's own cell and glyph box for every option, one row with a separator after the first, above the pressed cell (below near the top edge), fading, modal on a barrier, holding auto-hide while open. A mouse opens it after a 500 ms hold, a click picks the emoji as shown; a finger after the platform's long press. Under the mouse the option under it gets the grid's 34 x 32 hover box.
 _Avoid_: Options in a smaller container than the grid's cell, clipping the glyph, a picker that lets a press through
+
+**Section tabs**:
+The pointer arrangement's page switcher: one equal section per page across the column, the selected one marked by a sliding bar in the accent, the labels following it in colour, chosen on release; choosing slides the pages. Under touch the switcher is the pill in the bottom bar.
+_Avoid_: The pill above the column on a desktop kind, a hover paint
 
 **Anchored popup**:
 The desktop and web presentation kind: the panel floats above the composer, opens at once on mouse hover over the toggle or on a click, hides when the pointer leaves it (at the next event pass from the toggle, after a short grace from the popup), and takes no layout space. It never takes focus: the composer keeps the caret however it was opened, and a click inside it (or in the dock, a picker, a menu or on a composer button) counts as the composer's tap region.

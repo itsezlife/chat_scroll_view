@@ -454,6 +454,48 @@ void main() {
       expect(rig.keyboard.hideCount, hiddenBefore + 1);
       expect(rig.set.shell.search.value.isOpen, isTrue);
     });
+
+    testWidgets('a drag on the grid while searching lowers the keyboard and '
+        'keeps the field focused; a tap on the field raises it again', (
+      tester,
+    ) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      rig.set.shell.openSearch();
+      await rig.settle(tester);
+      rig.keyboard.rest(300);
+      await tester.pump();
+      final searchField = find.byWidgetPredicate(
+        (widget) =>
+            widget is EditableText &&
+            widget.focusNode != rig.set.composer.focusNode,
+      );
+      bool searchFocused() =>
+          tester.widget<EditableText>(searchField).focusNode.hasFocus;
+      expect(searchFocused(), isTrue);
+      final hiddenBefore = rig.keyboard.hideCount;
+
+      await tester.drag(
+        find.byType(PanelCatalogViewport),
+        const Offset(0, -80),
+      );
+      await tester.pump();
+
+      expect(rig.keyboard.hideCount, hiddenBefore + 1);
+      expect(searchFocused(), isTrue);
+      expect(rig.set.shell.search.value.isOpen, isTrue);
+
+      await tester.tap(searchField);
+      await tester.pump();
+      await tester.drag(
+        find.byType(PanelCatalogViewport),
+        const Offset(0, -80),
+      );
+      await tester.pump();
+
+      expect(rig.keyboard.hideCount, hiddenBefore + 2);
+      expect(searchFocused(), isTrue);
+    });
   });
 
   group('what the viewport reserves', () {
@@ -678,6 +720,28 @@ void main() {
         await _open(tester, second);
 
         expect(_state(second).kind, isA<Docked>());
+      });
+
+      testWidgets('the popup opens on the composer\'s end edge after the '
+          'window changed while docked and the dock went', (tester) async {
+        // Wide enough that the composer keeps its greatest width with the
+        // dock or without: the dock only moves it.
+        final rig = await desktop(tester, size: const Size(1600, 800));
+        Rect popup() => tester.getRect(find.byType(PanelShell));
+
+        await _open(tester, rig); // popup
+        await _open(tester, rig); // dock: the composer moves
+        tester.view.physicalSize = const Size(1500, 800);
+        await rig.settle(tester);
+        expect(_state(rig).kind, isA<Docked>());
+        await _open(tester, rig); // undock: it moves back, at the same size
+        await _open(tester, rig); // popup again
+        expect(_state(rig).kind, isA<AnchoredPopup>());
+
+        final island = tester.getRect(rig.island);
+        // The host's edge gap: 10 from the composer's top and end edges.
+        expect(popup().right, island.right - 10);
+        expect(popup().bottom, island.top - 10);
       });
 
       testWidgets('after an undock the next click opens a popup again', (

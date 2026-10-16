@@ -6,6 +6,8 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart' show clampDouble;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
+import 'package:panel_pages/src/emoji/emoji_category_strip.dart'
+    show EmojiStripLayout;
 
 /// One icon of the [EmojiStripFooter]: a chrome icon (the recents, a
 /// category) or a piece of content (a pack's cover).
@@ -41,8 +43,8 @@ final class EmojiFooterIcon {
 /// [height] px tall on the strip fill, no line over it. Every icon has a
 /// [slot] px slot, from [inset] px in, left-aligned: the recents, then the
 /// categories folded into one icon (the first category's), then a slot per
-/// pack. While a category is active the folded icon opens, over the `slide`
-/// motion role, into a group of the categories' icons, as wide as the footer
+/// pack. While a category is active the folded icon opens, linearly over
+/// [groupSlide], into a group of the categories' icons, as wide as the footer
 /// leaves it (at most every icon, at least five and a half; a narrower group
 /// scrolls its icons).
 ///
@@ -72,8 +74,12 @@ class EmojiStripFooter extends StatefulWidget {
     required this.active,
     required this.onChoose,
     this.assets,
+    this.layout = EmojiStripLayout.automatic,
     super.key,
   });
+
+  /// Plain or grouped; see [EmojiStripLayout].
+  final EmojiStripLayout layout;
 
   /// The recents icon, or null when the page shows no recents.
   final EmojiFooterIcon? recents;
@@ -117,6 +123,10 @@ class EmojiStripFooter extends StatefulWidget {
   /// How far a mouse moves before a press is a drag.
   static const double dragDistance = 10;
 
+  /// How long the group takes to open or close, linearly (the reference
+  /// client's slide duration).
+  static const Duration groupSlide = Duration(milliseconds: 240);
+
   /// Identifies the marker.
   static const Key markerKey = ValueKey<String>('emoji-strip-highlight');
 
@@ -145,7 +155,9 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
   final _selLeft = _Moving();
   final _selWidth = _Moving();
   final _groupOpen = _Moving();
-  Curve _selCurve = Curves.easeOutCubic;
+  // The reference client's ease-out cubic, exactly 1 - (1 - t)^3 (Flutter's
+  // `Curves.easeOutCubic` is a Bezier near it).
+  static const Curve _selCurve = _CubicOut();
   double _width = 0;
   bool _placed = false;
   // The press of a mouse, until it is a drag or lifts.
@@ -180,6 +192,31 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
   static const double _slot = EmojiStripFooter.slot;
   static const double _inset = EmojiStripFooter.inset;
 
+  // The reference client's plain footer: no pack, every icon spread over the
+  // width in whole pixels.
+  bool get _plain => switch (widget.layout) {
+    EmojiStripLayout.plain => true,
+    EmojiStripLayout.grouped => false,
+    EmojiStripLayout.automatic => widget.packs.isEmpty,
+  };
+
+  List<EmojiFooterIcon> get _plainIcons => [
+    ?widget.recents,
+    ...widget.categories,
+    ...widget.packs,
+  ];
+
+  // A plain slot: the width less the insets over the icons, whole pixels, never
+  // narrower than a grouped slot.
+  double get _plainSlot {
+    final count = _plainIcons.length;
+    if (count == 0) return _slot;
+    return math.max(_slot, ((_width - 2 * _inset) / count).floorToDouble());
+  }
+
+  // The slot of the layout in use: the marker sits in its middle.
+  double get _slotWidth => _plain ? _plainSlot : _slot;
+
   double get _groupLeft => widget.recents == null ? 0 : _slot;
 
   // Every category's icon side by side.
@@ -203,23 +240,28 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
   double _groupWidthAt(double open) =>
       widget.categories.isEmpty ? 0 : _slot + (_groupWidth - _slot) * open;
 
-  double _contentWidth(double open) =>
-      _inset +
-      _groupLeft +
-      _groupWidthAt(open) +
-      widget.packs.length * _slot +
-      _inset;
+  double _contentWidth(double open) => _plain
+      ? 2 * _inset + _plainIcons.length * _plainSlot
+      : _inset +
+            _groupLeft +
+            _groupWidthAt(open) +
+            widget.packs.length * _slot +
+            _inset;
 
   double _maxX(double open) => math.max(0, _contentWidth(open) - _width);
 
   double get _maxSubX => math.max(0, _groupFull - _groupWidth);
 
   bool get _activeIsCategory =>
-      widget.categories.any((icon) => icon.id == widget.active);
+      !_plain && widget.categories.any((icon) => icon.id == widget.active);
 
   // Where the active icon is (from the first slot) and how wide.
   (double, double)? _selectionOf(String? id) {
     if (id == null) return null;
+    if (_plain) {
+      final at = _plainIcons.indexWhere((icon) => icon.id == id);
+      return at < 0 ? null : (at * _plainSlot, _plainSlot);
+    }
     if (widget.recents?.id == id) return (0, _slot);
     if (widget.categories.any((icon) => icon.id == id)) {
       return (_groupLeft, _groupWidth);
@@ -265,7 +307,7 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
     final category = widget.categories.indexWhere(
       (icon) => icon.id == widget.active,
     );
-    if (category >= 0) {
+    if (category >= 0 && !_plain) {
       _subX.to = clampDouble(
         (2 * category * _slot + _slot - _groupWidth) / 2,
         0,
@@ -273,7 +315,6 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
       );
     }
     _groupOpen.to = open;
-    _selCurve = slide.curve;
     if (!moving) {
       // A placed value is the same at any point of the controllers, so they
       // are only stopped, which notifies no one (this runs during builds).
@@ -290,7 +331,7 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
       ..duration = slide.duration
       ..forward(from: 0);
     _open
-      ..duration = slide.duration
+      ..duration = EmojiStripFooter.groupSlide
       ..forward(from: 0);
   }
 
@@ -309,7 +350,7 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
 
   bool _overGroup(double dx) {
     final open = _groupOpen.at(_open.value);
-    if (open <= 0) return false;
+    if (_plain || open <= 0) return false;
     final left = _inset + _groupLeft - _x.at(_move.value);
     return dx >= left && dx < left + _groupWidthAt(open);
   }
@@ -422,10 +463,11 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
     final selection = _selectionOf(widget.active);
     final maxX = _maxX(open);
 
+    final slotWidth = _slotWidth;
     Widget icon(EmojiFooterIcon icon, double left) => Positioned(
       left: left,
       top: 0,
-      width: _slot,
+      width: slotWidth,
       height: EmojiStripFooter.height,
       child: _FooterButton(
         icon: icon,
@@ -436,9 +478,17 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
       ),
     );
 
-    final selWidth = _selWidth.at(selT);
+    // Over an opening group the marker grows towards the group's width as it
+    // is now, not as it will be, so it never reaches past the group.
+    final selWidth = _activeIsCategory
+        ? _selWidth.from + (groupWidth - _selWidth.from) * selT
+        : _selWidth.at(selT);
     final pill = math.max<double>(1, _groupWidth - _slot);
-    final round = clampDouble((selWidth - _slot) / pill, 0, 1);
+    final round = _plain ? 0.0 : clampDouble((selWidth - _slot) / pill, 0, 1);
+    // The marker is the slot less this on each side: a 28 px square in a
+    // single slot, the open group less as much in a pill.
+    final markerInset = ((slotWidth - EmojiStripFooter.markerSize) / 2)
+        .floorToDouble();
     final first = widget.categories.firstOrNull;
     // The open group's icons are clipped 3 px in from its ends.
     const groupInset = 3.0;
@@ -454,12 +504,12 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
                 if (selection != null)
                   Positioned(
                     key: EmojiStripFooter.markerKey,
-                    left: _selLeft.at(selT) - x + 1,
+                    left: _selLeft.at(selT) - x + markerInset,
                     top:
                         (EmojiStripFooter.height -
                             EmojiStripFooter.markerSize) /
                         2,
-                    width: selWidth - 2,
+                    width: selWidth - 2 * markerInset,
                     height: EmojiStripFooter.markerSize,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
@@ -468,30 +518,35 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
                       ),
                     ),
                   ),
-                if (widget.recents case final recents?) icon(recents, -x),
-                if (first != null && open <= 0)
-                  icon(first, groupLeft)
-                else if (first != null)
-                  Positioned(
-                    left: groupLeft + groupInset,
-                    top: 0,
-                    width: math.max(0, groupWidth - 2 * groupInset),
-                    height: EmojiStripFooter.height,
-                    child: ClipRect(
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          for (var i = 0; i < widget.categories.length; i++)
-                            icon(
-                              widget.categories[i],
-                              i * _slot - _subX.at(t) - groupInset,
-                            ),
-                        ],
+                if (_plain)
+                  for (final (i, each) in _plainIcons.indexed)
+                    icon(each, i * slotWidth - x)
+                else ...[
+                  if (widget.recents case final recents?) icon(recents, -x),
+                  if (first != null && open <= 0)
+                    icon(first, groupLeft)
+                  else if (first != null)
+                    Positioned(
+                      left: groupLeft + groupInset,
+                      top: 0,
+                      width: math.max(0, groupWidth - 2 * groupInset),
+                      height: EmojiStripFooter.height,
+                      child: ClipRect(
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            for (var i = 0; i < widget.categories.length; i++)
+                              icon(
+                                widget.categories[i],
+                                i * _slot - _subX.at(t) - groupInset,
+                              ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                for (var i = 0; i < widget.packs.length; i++)
-                  icon(widget.packs[i], groupLeft + groupWidth + i * _slot),
+                  for (var i = 0; i < widget.packs.length; i++)
+                    icon(widget.packs[i], groupLeft + groupWidth + i * _slot),
+                ],
               ],
             ),
           ),
@@ -593,5 +648,16 @@ class _FooterButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// 1 - (1 - t)^3.
+final class _CubicOut extends Curve {
+  const _CubicOut();
+
+  @override
+  double transformInternal(double t) {
+    final rest = 1 - t;
+    return 1 - rest * rest * rest;
   }
 }

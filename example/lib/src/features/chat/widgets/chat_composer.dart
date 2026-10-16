@@ -54,7 +54,7 @@ class ChatComposer extends StatefulWidget {
 
 class _ChatComposerState extends State<ChatComposer> {
   var _selectionMode = false;
-  var _anchorScheduled = false;
+  var _anchorWatched = false;
 
   ChatInputSet get _input => widget.input;
 
@@ -63,8 +63,7 @@ class _ChatComposerState extends State<ChatComposer> {
     super.initState();
     _selectionMode = widget.selection.isSelectionMode;
     widget.selection.addListener(_onSelectionChanged);
-    // The island's place changes with its extent, between rebuilds.
-    _input.composer.extent.addListener(_scheduleAnchor);
+    _watchAnchor();
   }
 
   @override
@@ -79,7 +78,6 @@ class _ChatComposerState extends State<ChatComposer> {
 
   @override
   void dispose() {
-    _input.composer.extent.removeListener(_scheduleAnchor);
     widget.selection.removeListener(_onSelectionChanged);
     super.dispose();
   }
@@ -97,13 +95,24 @@ class _ChatComposerState extends State<ChatComposer> {
 
   // --- Popup anchor ---------------------------------------------------------
 
-  void _scheduleAnchor() {
-    if (_anchorScheduled || widget.anchorSpace == null) return;
-    _anchorScheduled = true;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _anchorScheduled = false;
-      if (mounted) _reportAnchor();
-    });
+  // The island moves without this widget rebuilding: a dock that comes or
+  // goes pads the chat region around it, the window resizes, the composer
+  // grows. So its place is read after every frame and reported when it
+  // changed (the controller ignores an equal one). A post-frame callback
+  // schedules no frame, so an idle screen costs nothing.
+  void _watchAnchor() {
+    if (_anchorWatched) return;
+    _anchorWatched = true;
+    SchedulerBinding.instance.addPostFrameCallback(_onAnchorFrame);
+  }
+
+  void _onAnchorFrame(Duration _) {
+    if (!mounted) {
+      _anchorWatched = false;
+      return;
+    }
+    if (widget.anchorSpace != null && !_selectionMode) _reportAnchor();
+    SchedulerBinding.instance.addPostFrameCallback(_onAnchorFrame);
   }
 
   void _reportAnchor() {
@@ -127,7 +136,6 @@ class _ChatComposerState extends State<ChatComposer> {
     final strings = ChromeStringsScope.of(context);
     final composer = _input.composer;
     final inset = _input.composerSafeInset;
-    _scheduleAnchor();
     return ListenableBuilder(
       listenable: Listenable.merge([
         composer.text,

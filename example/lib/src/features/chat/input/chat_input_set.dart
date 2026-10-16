@@ -255,6 +255,7 @@ final class ChatInputSet {
       _panelEvents = panelEvents = shell.events.listen(_onPanelEvent);
       shell.autoHideHolds.addListener(_onPanelHolds);
       _onPanelHolds();
+      shell.search.addListener(_onSearchState);
       presentation.state.addListener(_onPresentationState);
       _onPresentationState();
     } on Object {
@@ -262,6 +263,7 @@ final class ChatInputSet {
       unawaited(heights?.cancel());
       unawaited(panelEvents?.cancel());
       shell.autoHideHolds.removeListener(_onPanelHolds);
+      shell.search.removeListener(_onSearchState);
       _autoHideHold?.release();
       presentation.state.removeListener(_onPresentationState);
       _editing.dispose();
@@ -340,6 +342,7 @@ final class ChatInputSet {
   var _wasVisible = false;
   var _wasReplacing = false;
   var _disposed = false;
+  var _searchWantedFocus = false;
 
   // --- State ----------------------------------------------------------------
 
@@ -677,6 +680,18 @@ final class ChatInputSet {
 
   // --- Wiring ---------------------------------------------------------------
 
+  // Search that lets go of its focus while it stays open (the catalogue was
+  // dragged) lowers the keyboard and leaves the field focused, as the
+  // reference mobile client does; a press on the field asks for it again.
+  void _onSearchState() {
+    final search = shell.search.value;
+    final released = _searchWantedFocus && !search.wantsFocus;
+    _searchWantedFocus = search.isOpen && search.wantsFocus;
+    if (released && search.isOpen && ime.samples.value.height > 1) {
+      unawaited(_keyboardPort.hide());
+    }
+  }
+
   void _onPanelEvent(PanelEvent event) {
     switch (event) {
       case ContentPicked(:final key, :final kind, :final source):
@@ -807,6 +822,7 @@ final class ChatInputSet {
     unawaited(_panelEvents.cancel());
     presentation.state.removeListener(_onPresentationState);
     shell.autoHideHolds.removeListener(_onPanelHolds);
+    shell.search.removeListener(_onSearchState);
     _autoHideHold?.release();
     _autoHideHold = null;
     insets.dispose();

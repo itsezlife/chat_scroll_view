@@ -114,3 +114,14 @@ the stream is closed: a later `listen` gets a done subscription.
 
 - Glossary: [Content and assets](../content/CONTEXT.md)
 - Atlas side of the shared bake pass: [ADR 022](022-asset-cache-and-media-pipeline.md), [ADR 006](006-panel-catalog-viewport.md)
+
+## Amendment: more than one missing-glyph reference
+
+`defaultMissingGlyphReferences` holds U+10FFFF and U+F0000 (plane 15 private
+use). Some systems draw the noncharacter as nothing while an emoji their font
+lacks still gets the missing-glyph box; no system font covers the private use
+character, which is drawn as that box. The probe keeps a cell per reference,
+judges nothing until every reference is seen, and asks the bake for every
+reference not seen yet. Its record (version 2) keeps the cell of each
+reference by name and is trusted only for the same references, so verdicts
+taken against one reference are taken again.

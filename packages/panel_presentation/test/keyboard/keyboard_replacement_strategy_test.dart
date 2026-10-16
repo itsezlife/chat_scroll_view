@@ -136,6 +136,28 @@ void main() {
     });
   });
 
+  testWidgets('the sheet is the composer\'s glass', (tester) async {
+    await mount(tester);
+    await startOpen(tester);
+    await finishMotion(tester);
+
+      final glass = find.ancestor(
+        of: find.byType(PanelShell),
+        matching: find.byType(GlassSurface),
+      );
+      expect(glass, findsOneWidget);
+      expect(
+        tester.widget<GlassSurface>(glass).material,
+        GlassMaterial.composerIsland,
+      );
+      expect(
+        tester.widget<PanelShell>(find.byType(PanelShell)).background,
+        const Color(0x00000000),
+        reason: 'the glass shows through the shell',
+      );
+    await tearDownTree(tester);
+  });
+
   group('cold open', () {
     testWidgets('grows the slot to the default height, then rests', (
       tester,

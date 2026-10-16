@@ -8,6 +8,9 @@ this package is pre-1.0.
 
 ### Changed
 
+- The popup, the dock and the keyboard-replacement sheet put the shell on the
+  composer's glass (`GlassSurface`, `GlassMaterial.composerIsland`) with a
+  transparent shell background.
 - The popup's hover area and the dock's body are part of the composer's tap
   region (`TextFieldTapRegion`): a click in the panel keeps the composer's
   focus on desktop platforms ([ADR 028](../../docs/adr/028-panel-presentation.md)
