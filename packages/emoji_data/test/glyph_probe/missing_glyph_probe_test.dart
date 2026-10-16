@@ -6,10 +6,11 @@
 /// Pixels are plain bytes, so nothing here needs a rasteriser or a font.
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:emoji_data/emoji_data.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 const _reference = 'REF';
 
@@ -86,7 +87,7 @@ void main() {
   test('completed fires once the references and every glyph are in', () async {
     final probe = _probe(['a', 'b']);
     var done = false;
-    probe.completed.then((_) => done = true);
+    unawaited(probe.completed.then((_) => done = true));
 
     probe.observe('a', _art(1));
     probe.observe('b', _art(2));

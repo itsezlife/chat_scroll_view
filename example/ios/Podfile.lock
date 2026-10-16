@@ -1,8 +1,6 @@
 PODS:
   - app_links (7.0.0):
     - Flutter
-  - emoji_data (0.0.1):
-    - Flutter
   - Flutter (1.0.0)
   - integration_test (0.0.1):
     - Flutter
@@ -16,7 +14,6 @@ PODS:
 
 DEPENDENCIES:
   - app_links (from `.symlinks/plugins/app_links/ios`)
-  - emoji_data (from `.symlinks/plugins/emoji_data/ios`)
   - Flutter (from `Flutter`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
   - keyboard_insets_mobile (from `.symlinks/plugins/keyboard_insets_mobile/ios`)
@@ -26,8 +23,6 @@ DEPENDENCIES:
 EXTERNAL SOURCES:
   app_links:
     :path: ".symlinks/plugins/app_links/ios"
-  emoji_data:
-    :path: ".symlinks/plugins/emoji_data/ios"
   Flutter:
     :path: Flutter
   integration_test:
@@ -41,7 +36,6 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   app_links: a754cbec3c255bd4bbb4d236ecc06f28cd9a7ce8
-  emoji_data: 398440cd4b975ca846ec5afeaa3d19b0b6acf8c6
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   keyboard_insets_mobile: 5647380b488cc18e5ffe6b8f333f9da6afa8558b

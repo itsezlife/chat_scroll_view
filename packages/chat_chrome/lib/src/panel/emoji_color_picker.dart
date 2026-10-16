@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:emoji_data/emoji_data.dart';
+import 'package:chat_chrome/src/legacy_emoji/legacy_emoji.dart';
 import 'package:chat_chrome/src/panel/emoji_glyph.dart';
 import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
 import 'package:flutter/material.dart';
