@@ -251,6 +251,48 @@ void main() {
       expect(host.picks, isEmpty);
     });
 
+    testWidgets('every tone of a row shows the emoji, the other person '
+        'greyed; both in one tone is the one-tone sequence', (tester) async {
+      await pumpPage(tester);
+      final hands = cell(tester, top: peopleTop, column: 3);
+      final finger = await longPress(tester, hands);
+      await finger.up();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final rows = tester.widget<EmojiTonePicker>(picker()).rowOptions!;
+      for (final row in rows) {
+        expect(row, [
+          for (final tone in [
+            '\u{1F3FB}',
+            '\u{1F3FC}',
+            '\u{1F3FD}',
+            '\u{1F3FE}',
+            '\u{1F3FF}',
+          ])
+            fixtures.key('🤝$tone'),
+        ]);
+      }
+      expect(
+        find.descendant(of: picker(), matching: find.byType(ColorFiltered)),
+        findsNWidgets(10),
+        reason: 'one greyed person per tone',
+      );
+
+      // Both in the same tone is the one-tone sequence.
+      await tester.tapAt(compound(tester, 0, 2));
+      await tester.pump();
+      expect(
+        preferences.preferredVariant(fixtures.handshake.base),
+        fixtures.key('🤝\u{1F3FD}'),
+      );
+      await tester.tapAt(compound(tester, 1, 4));
+      await tester.pump();
+      expect(
+        preferences.preferredVariant(fixtures.handshake.base),
+        fixtures.key('🫱\u{1F3FD}\u200D🫲\u{1F3FF}'),
+      );
+    });
+
     testWidgets('a tap on a row sets that person\'s tone and keeps the '
         'choice at once; a tone for one person alone is given to both', (
       tester,

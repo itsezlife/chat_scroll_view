@@ -8,6 +8,10 @@ is pre-1.0.
 
 ### Changed
 
+- The two-person tone picker shows each tone as the emoji with both people
+  in it (for two hands, the one-tone sequence), the other person greyed;
+  choosing the same tone for both keeps that one-tone sequence. No blank cells.
+- The tone-for-all button draws the reference desktop client's sliders icon.
 - The bands over the catalogue and the touch strip paint the shell's
   background, and the catalogue is clipped below them.
 - A header lands at the page's top padding plus an overlaying strip, never

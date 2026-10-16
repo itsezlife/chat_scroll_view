@@ -1,6 +1,7 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart' show SemanticsAction;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_pages/panel_pages.dart';
@@ -149,22 +150,18 @@ void main() {
     });
 
     testWidgets('the variant picker over the grid, $variant', (tester) async {
-      await pumpScene(
-        tester,
-        brightness: brightness,
-        direction: direction,
-        recents: ['👍'],
+      final semantics = tester.ensureSemantics();
+      await pumpScene(tester, brightness: brightness, direction: direction);
+      // A long press on a recent asks to clear them: the 👍 of a category,
+      // pressed as assistive technology does, opens the picker.
+      tester.semantics.performAction(
+        find.semantics.byLabel('👍'),
+        SemanticsAction.longPress,
       );
-      final cell =
-          tester.getTopLeft(find.byType(EmojiPage)) +
-          Offset(direction == TextDirection.ltr ? 27 : 360 - 27, 36 + 27 + 22);
-      final gesture = await tester.startGesture(cell);
-      await tester.pump(const Duration(milliseconds: 700));
       await tester.pumpAndSettle();
 
       await matches(tester, 'picker_$variant');
-      await gesture.up();
-      await tester.pump();
+      semantics.dispose();
     });
   }
 

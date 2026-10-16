@@ -401,6 +401,33 @@ void main() {
       expect(controller.sectionActionBoundsOf('missing'), isNull);
     });
 
+    testWidgets('a painted action draws its icon in a 24 px square at the '
+        'end of the header, in the header colour', (tester) async {
+      final calls = <(Rect, Color)>[];
+      void icon(Canvas canvas, Rect box, Color color) =>
+          calls.add((box, color));
+      snapshots.replaceSections([
+        CatalogSection(
+          id: 'a',
+          title: 'Title a',
+          action: CatalogSectionAction(
+            id: 'tone',
+            painter: icon,
+            semanticLabel: 'Tone',
+          ),
+          leaves: [for (var i = 0; i < 8; i++) CatalogLeaf.unicode(_glyph(i))],
+        ),
+      ]);
+      await pumpViewport(tester, onLeafTap: (_) {});
+
+      final (box, color) = calls.last;
+      final button = controller.sectionActionBoundsOf('a')!;
+      expect(box.size, const Size(24, 24));
+      expect(box.center.dy, button.center.dy);
+      expect(button.contains(box.center), isTrue);
+      expect(color, PanelCatalogThemeData.light.sectionHeaderStyle.color);
+    });
+
     testWidgets('is null while no viewport is attached', (tester) async {
       expect(controller.viewportBounds, isNull);
     });

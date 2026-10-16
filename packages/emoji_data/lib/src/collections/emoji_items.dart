@@ -32,8 +32,12 @@ final class EmojiItems {
   ///
   /// A choice that is not a variant of [entry] (the catalogue moved on) is
   /// ignored, and so is one the device cannot draw, so a missing tone never
-  /// hides an emoji whose base is fine. Null when even the base is missing.
+  /// hides an emoji whose base is fine. Null when the base is missing, in
+  /// every tone: only what the grid planned is probed, so a variant nobody
+  /// probed reads as drawable, and a device that lacks the emoji lacks its
+  /// tones too.
   ContentKey$Unicode? shownKey(EmojiEntry entry) {
+    if (!_supports(entry.base)) return null;
     final chosen =
         preferences.preferredVariant(entry.base) ?? _defaultOf(entry);
     if (chosen != null &&

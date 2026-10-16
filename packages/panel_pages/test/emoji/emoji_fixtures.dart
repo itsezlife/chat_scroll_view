@@ -54,6 +54,25 @@ final EmojiEntry couple = EmojiEntry(
   ],
 );
 
+/// Two hands of two people, as the data has them: both in one tone is a
+/// one-tone sequence (`🤝🏽`), two tones are two hands (`🫱🏻‍🫲🏼`).
+final EmojiEntry handshake = EmojiEntry(
+  base: key('🤝'),
+  variants: [
+    for (var a = 0; a < _tones.length; a++)
+      for (var b = 0; b < _tones.length; b++)
+        a == b
+            ? EmojiVariant(
+                key('🤝${_tones[a]}'),
+                EmojiModifiers(tones: [SkinTone.values[a]]),
+              )
+            : EmojiVariant(
+                key('🫱${_tones[a]}\u200D🫲${_tones[b]}'),
+                EmojiModifiers(tones: [SkinTone.values[a], SkinTone.values[b]]),
+              ),
+  ],
+);
+
 /// Entries without variants.
 final EmojiEntry heart = EmojiEntry(base: key('❤'));
 final EmojiEntry grin = EmojiEntry(base: key('😀'));
@@ -65,6 +84,7 @@ final List<EmojiEntry> catalogue = [
   thumbsUp,
   detective,
   couple,
+  handshake,
   heart,
   flagJapan,
 ];
@@ -100,7 +120,7 @@ List<String> glyphsOf(String category, {int count = 24}) {
     for (var i = 0; i < count; i++) String.fromCharCode(0x1F400 + base + i),
     ...switch (category) {
       'people' => ['😀', '❤'],
-      'food' => ['👍', '🕵', '💑'],
+      'food' => ['👍', '🕵', '💑', '🤝'],
       'symbols' => ['🇯🇵'],
       _ => const <String>[],
     },

@@ -265,6 +265,18 @@ void main() {
         expect(firstThing(), keyOf('1F44D'));
       });
 
+      test('an emoji the device cannot draw stays hidden in any tone: its '
+          'variants were never probed, so they read as drawable', () async {
+        glyphs.learn(missing: {key('1F44D')});
+        await preferences.setDefaultVariant(
+          EmojiModifiers(tones: const [SkinTone.dark]),
+        );
+
+        await emoji.load(things);
+
+        expect(firstThing(), keyOf('2764-FE0F'), reason: '👍 is hidden');
+      });
+
       test('leaves the recents as they were picked', () async {
         await recents.record(key('1F44D'), kind: SemanticKind.unicodeEmoji);
         await preferences.setDefaultVariant(

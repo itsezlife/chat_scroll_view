@@ -8,6 +8,9 @@ is pre-1.0.
 
 ### Changed
 
+- An emoji whose base the device cannot draw is hidden in every tone: its
+  variants were never probed and read as drawable, so a tone for all showed
+  them as missing-glyph boxes.
 - The sources show an emoji with no choice of its own in the default
   variant's tone (its variant whose people all have it), else its base; the
   recents are untouched.

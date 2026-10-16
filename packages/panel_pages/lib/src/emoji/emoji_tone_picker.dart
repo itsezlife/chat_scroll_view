@@ -248,7 +248,12 @@ class EmojiTonePicker extends StatelessWidget {
             for (var row = 0; row < rows.length; row++)
               for (var tone = 0; tone < rows[row].length; tone++)
                 if (rows[row][tone] case final key?)
-                  glyph(key, layout.toneRect(row, tone)),
+                  _person(
+                    key,
+                    layout.toneRect(row, tone),
+                    first: row == 0,
+                    glyph: glyph,
+                  ),
           ] else ...[
             markAt(_mark(selected), key: markKey),
             for (var i = 0; i < options.length; i++)
@@ -284,6 +289,48 @@ class EmojiTonePicker extends StatelessWidget {
     );
   }
 
+  // A tone of one person of a two-person emoji: the emoji in that tone, the
+  // half of the row's person in colour and the other half greyed, as the
+  // reference client draws its halves (the first person is on the left).
+  Widget _person(
+    ContentKey$Unicode key,
+    Rect rect, {
+    required bool first,
+    required Widget Function(ContentKey$Unicode key, Rect rect) glyph,
+  }) {
+    Widget half({required bool left, required Widget child}) => ClipRect(
+      clipper: _HalfClipper(left: left),
+      child: child,
+    );
+    final whole = glyph(key, Offset.zero & rect.size);
+    return Positioned.fromRect(
+      rect: rect,
+      child: Stack(
+        children: [
+          half(
+            left: first,
+            child: Stack(children: [whole]),
+          ),
+          half(
+            left: !first,
+            child: ColorFiltered(
+              colorFilter: const ColorFilter.matrix(_grey),
+              child: Stack(children: [whole]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Luminance, a little darker: the other person, out of play.
+  static const List<double> _grey = [
+    0.2126 * 0.6, 0.7152 * 0.6, 0.0722 * 0.6, 0, 0, //
+    0.2126 * 0.6, 0.7152 * 0.6, 0.0722 * 0.6, 0, 0, //
+    0.2126 * 0.6, 0.7152 * 0.6, 0.0722 * 0.6, 0, 0, //
+    0, 0, 0, 1, 0,
+  ];
+
   Rect _mark(double index) {
     final left =
         EmojiTonePickerLayout.emojiSize * index +
@@ -303,6 +350,20 @@ class EmojiTonePicker extends StatelessWidget {
     if (tone < 0) return layout.neutralRect.inflate(2);
     return layout.toneRect(row, tone.round()).inflate(2);
   }
+}
+
+class _HalfClipper extends CustomClipper<Rect> {
+  const _HalfClipper({required this.left});
+
+  final bool left;
+
+  @override
+  Rect getClip(Size size) => left
+      ? Rect.fromLTWH(0, 0, size.width / 2, size.height)
+      : Rect.fromLTWH(size.width / 2, 0, size.width / 2, size.height);
+
+  @override
+  bool shouldReclip(_HalfClipper old) => old.left != left;
 }
 
 class _ArrowPainter extends CustomPainter {

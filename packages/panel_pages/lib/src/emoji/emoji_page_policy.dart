@@ -6,7 +6,6 @@ import 'package:catalog_assets/catalog_assets.dart'
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
@@ -232,11 +231,31 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     (PanelArrangement.pointer, final id) when id == colorAllSection =>
       CatalogSectionAction(
         id: colorAllActionId,
-        icon: Icons.waving_hand_outlined,
+        painter: _paintToneIcon,
         semanticLabel: strings.colorAllTitle,
       ),
     _ => null,
   };
+
+  // The reference desktop client's tone button: two sliders, the upper one's
+  // knob at its right end, the lower one's at its left, stroked in [color].
+  static void _paintToneIcon(Canvas canvas, Rect box, Color color) {
+    final unit = box.width / 24;
+    final pen = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.7 * unit
+      ..strokeCap = StrokeCap.round;
+    Offset at(double x, double y) => box.topLeft + Offset(x, y) * unit;
+    const radius = 2.6;
+    // Upper slider: a line, then its knob at the right.
+    canvas
+      ..drawLine(at(5, 8.5), at(16.5 - radius, 8.5), pen)
+      ..drawCircle(at(16.5, 8.5), radius * unit, pen)
+      // Lower slider: its knob at the left, then a line.
+      ..drawCircle(at(7.5, 15.5), radius * unit, pen)
+      ..drawLine(at(7.5 + radius, 15.5), at(19, 15.5), pen);
+  }
 
   /// Opens the tone-for-all picker over the button: the waving hand as it is
   /// and in each tone, under its title. A choice is the default variant of
@@ -471,10 +490,19 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
         onChosen: (chosen) => _choose(entry, chosen, collection),
       );
     }
-    // Each person's row shows the emoji with both people in that tone.
-    ContentKey$Unicode? both(int tone) => entry.keyFor(
-      EmojiModifiers(tones: [SkinTone.values[tone], SkinTone.values[tone]]),
-    );
+    // Each person's row shows the emoji with both people in that tone: the
+    // variant whose people all have it (for two hands, a one-tone sequence).
+    ContentKey$Unicode? both(int tone) {
+      for (final variant in entry.variants) {
+        final tones = variant.modifiers.tones;
+        if (tones.isNotEmpty &&
+            tones.every((each) => each == SkinTone.values[tone])) {
+          return variant.key;
+        }
+      }
+      return null;
+    }
+
     final tones = entry.modifiersOf(saved)?.tones ?? const [];
     return EmojiToneSession.show(
       context: context,
@@ -497,6 +525,8 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
       onCompound: (rows) {
         final key = rows.every((tone) => tone < 0)
             ? entry.base
+            : rows[0] == rows[1]
+            ? both(rows[0])
             : entry.keyFor(
                 EmojiModifiers(
                   tones: [

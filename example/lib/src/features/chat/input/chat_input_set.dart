@@ -687,7 +687,14 @@ final class ChatInputSet {
     final search = shell.search.value;
     final released = _searchWantedFocus && !search.wantsFocus;
     _searchWantedFocus = search.isOpen && search.wantsFocus;
-    if (released && search.isOpen && ime.samples.value.height > 1) {
+    // Not when search let go because focus went to the composer (a tap on it,
+    // or the panel handing the keyboard over): the keyboard is the
+    // composer's then, and lowering it would only make it bounce back.
+    if (released &&
+        search.isOpen &&
+        ime.samples.value.height > 1 &&
+        !composer.hasFocus &&
+        !_leaving.value) {
       unawaited(_keyboardPort.hide());
     }
   }

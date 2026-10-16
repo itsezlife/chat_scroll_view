@@ -8,6 +8,9 @@ is pre-1.0.
 
 ### Added
 
+- `CatalogSectionAction.painter` (`CatalogActionIconPainter`,
+  `kCatalogActionIconExtent`): an icon drawn in a 24 px box in the header
+  colour, for an icon no font has.
 - `PanelCatalogController.sectionActionBoundsOf(sectionId)` through
   `CatalogScrollPosition.sectionActionBounds` (source-breaking for
   implementers; the fake answers `sectionActionRects`).

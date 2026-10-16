@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart' show IconData;
+import 'package:flutter/widgets.dart' show Canvas, Color, IconData, Rect;
 import 'package:meta/meta.dart';
 
 /// The trailing action of a section header: a label, an icon, or both, and the
@@ -19,11 +19,16 @@ final class CatalogSectionAction {
     required this.id,
     this.label,
     this.icon,
+    this.painter,
     this.semanticLabel,
   }) : assert(id != '', 'An action is reported by its id.'),
        assert(
-         label != null || icon != null,
+         label != null || icon != null || painter != null,
          'An action with neither label nor icon cannot be seen or tapped.',
+       ),
+       assert(
+         icon == null || painter == null,
+         'An action has one icon: a glyph or a painter.',
        );
 
   /// What `onSectionAction` reports. Stable for the same action across
@@ -38,6 +43,12 @@ final class CatalogSectionAction {
   /// works.
   final IconData? icon;
 
+  /// Draws the icon in place of [icon]: called with a [kCatalogActionIconExtent]
+  /// square box and the header text colour, for an icon no font has. Compared
+  /// by identity, so pass the same function across snapshots (a top-level or
+  /// static one).
+  final CatalogActionIconPainter? painter;
+
   /// What a screen reader says for the action, or null to read [label].
   ///
   /// An icon-only action has no [label] to fall back on: give it one, or it is
@@ -50,10 +61,11 @@ final class CatalogSectionAction {
       other.id == id &&
       other.label == label &&
       other.icon == icon &&
+      other.painter == painter &&
       other.semanticLabel == semanticLabel;
 
   @override
-  int get hashCode => Object.hash(id, label, icon, semanticLabel);
+  int get hashCode => Object.hash(id, label, icon, painter, semanticLabel);
 
   @override
   String toString() => 'CatalogSectionAction($id)';
@@ -62,3 +74,12 @@ final class CatalogSectionAction {
 /// Least width of an action's hit area, in logical pixels, so an icon-only
 /// action is not a sliver to hit.
 const double kCatalogActionMinHitWidth = 48;
+
+/// Draws a header action's icon in [box] in [color]; see
+/// [CatalogSectionAction.painter].
+typedef CatalogActionIconPainter =
+    void Function(Canvas canvas, Rect box, Color color);
+
+/// Side of the box a [CatalogSectionAction.painter] draws in, in logical
+/// pixels.
+const double kCatalogActionIconExtent = 24;

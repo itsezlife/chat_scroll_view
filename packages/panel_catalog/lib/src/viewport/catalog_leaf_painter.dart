@@ -246,6 +246,26 @@ final class CatalogLeafPainter {
     var x = ltr
         ? action.hit.right - inset - action.width
         : action.hit.left + inset;
+    // A painted icon has a box of its own, at the action's end edge.
+    if (header.action?.painter case final paint?) {
+      final box = Rect.fromLTWH(
+        origin.dx +
+            (ltr
+                ? action.hit.right - inset - kCatalogActionIconExtent
+                : action.hit.left + inset),
+        origin.dy + header.top + (header.height - kCatalogActionIconExtent) / 2,
+        kCatalogActionIconExtent,
+        kCatalogActionIconExtent,
+      );
+      paint(
+        canvas,
+        box,
+        theme.sectionHeaderStyle.color ?? const Color(0xFF000000),
+      );
+      // The parts start left of the whole action left to right; right to
+      // left they start at the box, which comes first there.
+      if (!ltr) x += kCatalogActionIconExtent + _kActionPartGap;
+    }
     final parts = [?action.label, ?action.icon];
     for (final part in ltr ? parts : parts.reversed) {
       canvas.drawParagraph(
@@ -303,10 +323,12 @@ final class CatalogLeafPainter {
       ),
       null => null,
     };
+    final painted = action.painter == null ? 0.0 : kCatalogActionIconExtent;
     final width =
         (labelParagraph?.maxIntrinsicWidth ?? 0) +
         (iconParagraph?.maxIntrinsicWidth ?? 0) +
-        switch ((labelParagraph, iconParagraph)) {
+        painted +
+        switch ((labelParagraph, iconParagraph ?? (painted > 0 ? 0 : null))) {
           (_?, _?) => _kActionPartGap,
           _ => 0,
         };

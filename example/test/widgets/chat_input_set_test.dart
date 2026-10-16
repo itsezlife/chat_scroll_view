@@ -455,6 +455,31 @@ void main() {
       expect(rig.set.shell.search.value.isOpen, isTrue);
     });
 
+    testWidgets('leaving search for the composer, by a tap on it or the panel '
+        'button, does not lower the keyboard on its way', (tester) async {
+      for (final leave in [
+        (InputRig rig) => tester.tap(rig.field),
+        (InputRig rig) => rig.tapAction(tester, ChatComposerActions.panel),
+      ]) {
+        final rig = await _mobileRig(tester);
+        await _open(tester, rig);
+        rig.set.shell.openSearch();
+        await rig.settle(tester);
+        rig.keyboard.rest(300);
+        await tester.pump();
+        final hiddenBefore = rig.keyboard.hideCount;
+
+        await leave(rig);
+        await tester.pump();
+
+        expect(rig.keyboard.hideCount, hiddenBefore);
+        await rig.settle(tester);
+        expect(rig.keyboard.hideCount, hiddenBefore);
+        expect(rig.set.composer.hasFocus, isTrue);
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
     testWidgets('a drag on the grid while searching lowers the keyboard and '
         'keeps the field focused; a tap on the field raises it again', (
       tester,
