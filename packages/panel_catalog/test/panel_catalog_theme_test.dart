@@ -120,6 +120,50 @@ void main() {
     expect(resolved.sectionHeaderStartInset, data.sectionHeaderStartInset);
   });
 
+  group('hover highlight', () {
+    test('is off in the presets and is a rounded 8 px wash inset by 2', () {
+      for (final data in [
+        PanelCatalogThemeData.light,
+        PanelCatalogThemeData.dark,
+      ]) {
+        expect(data.leafHoverHighlightColor, isNull);
+        expect(data.leafHoverHighlightRadius, 8);
+        expect(data.leafHoverHighlightInset, 2);
+      }
+    });
+
+    test('is resolved verbatim, and takes part in equality and copyWith', () {
+      final data = PanelCatalogThemeData.light.copyWith(
+        leafHoverHighlightColor: const Color(0x14000000),
+        leafHoverHighlightRadius: 6,
+        leafHoverHighlightInset: 3,
+      );
+      final resolved = CatalogLeafPaintTheme.resolve(data, devicePixelRatio: 2);
+
+      expect(resolved.leafHoverHighlightColor, const Color(0x14000000));
+      expect(resolved.leafHoverHighlightRadius, 6);
+      expect(resolved.leafHoverHighlightInset, 3);
+      expect(data, isNot(PanelCatalogThemeData.light));
+      expect(data.copyWith(), data);
+    });
+
+    test('lerp blends the colour and the geometry', () {
+      final a = PanelCatalogThemeData.light.copyWith(
+        leafHoverHighlightColor: const Color(0x00000000),
+        leafHoverHighlightRadius: 4,
+      );
+      final b = PanelCatalogThemeData.light.copyWith(
+        leafHoverHighlightColor: const Color(0x28000000),
+        leafHoverHighlightRadius: 8,
+      );
+
+      final mid = PanelCatalogThemeData.lerp(a, b, 0.5);
+
+      expect(mid.leafHoverHighlightColor, const Color(0x14000000));
+      expect(mid.leafHoverHighlightRadius, 6);
+    });
+  });
+
   group('focus highlight', () {
     test('follows the press highlight until a token says otherwise', () {
       const data = PanelCatalogThemeData.light;

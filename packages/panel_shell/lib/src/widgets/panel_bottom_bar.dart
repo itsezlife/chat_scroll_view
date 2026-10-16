@@ -9,7 +9,9 @@ import 'package:panel_shell/src/widgets/panel_type_tabs.dart';
 typedef PanelActionHandler = void Function(PanelPage page, PageAction action);
 
 /// The floating bottom chrome: the type tabs pill at the center and the
-/// action row of the selected page at the end side.
+/// action row of the selected page at the end side. Without [withTabs] (the
+/// pointer arrangement puts the tabs above the search field) the row is all
+/// there is.
 ///
 /// Layout is directional: the action row sits at the end side of the reading
 /// direction and the tabs are ordered start to end. Text is clamped to a
@@ -23,6 +25,7 @@ class PanelBottomBar extends StatelessWidget {
     required this.dragging,
     required this.display,
     required this.onAction,
+    this.withTabs = true,
     super.key,
   });
 
@@ -43,6 +46,10 @@ class PanelBottomBar extends StatelessWidget {
 
   /// Called when the user triggers an action.
   final PanelActionHandler onAction;
+
+  /// Whether the pill of type tabs is part of the bar (it still shows for more
+  /// than one page only).
+  final bool withTabs;
 
   /// Layout height of the bar (pill plus the space under it).
   static const double height = 48;
@@ -67,7 +74,7 @@ class PanelBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showTabs = pages.length > 1;
+    final showTabs = withTabs && pages.length > 1;
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: maxTextScale,
       child: SizedBox(

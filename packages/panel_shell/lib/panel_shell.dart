@@ -19,5 +19,6 @@ export 'src/page/panel_page_host.dart';
 export 'src/scroll/bottom_bar_visibility.dart';
 export 'src/scroll/page_scroll_activity.dart';
 export 'src/search/debounced_search.dart';
+export 'src/widgets/panel_arrangement.dart';
 export 'src/widgets/panel_shell.dart';
 export 'src/widgets/panel_type_tabs.dart' show PanelTabDisplay;

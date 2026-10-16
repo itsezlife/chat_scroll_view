@@ -69,11 +69,13 @@ void main() {
     CollectionSource? withSource,
     SearchSource? search,
     CatalogPagePolicy policy = const _Plain(),
+    PanelArrangement arrangement = PanelArrangement.touch,
   }) {
     final model = CatalogPageModel(
       source: withSource ?? source,
       searchSource: search,
       policy: policy,
+      arrangement: arrangement,
       strings: _strings,
       host: host,
       events: events.stream,
@@ -383,6 +385,33 @@ void main() {
       expect(sectionsOf(model).keys, [_facesSection, _animalsSection]);
 
       host.searchState = open('');
+
+      expect(sectionsOf(model).keys, [_facesSection]);
+    });
+
+    searchTest('does not let the policy narrow an empty search under the '
+        'pointer arrangement', (tester) async {
+      final model = build(
+        search: search,
+        policy: const _OnlyFacesWhileSearching(),
+        arrangement: PanelArrangement.pointer,
+      );
+
+      host.searchState = open('');
+
+      expect(sectionsOf(model).keys, [_facesSection, _animalsSection]);
+    });
+
+    searchTest('narrows again when the arrangement changes under an open '
+        'search', (tester) async {
+      final model = build(
+        search: search,
+        policy: const _OnlyFacesWhileSearching(),
+        arrangement: PanelArrangement.pointer,
+      );
+      host.searchState = open('');
+
+      model.arrangement = PanelArrangement.touch;
 
       expect(sectionsOf(model).keys, [_facesSection]);
     });

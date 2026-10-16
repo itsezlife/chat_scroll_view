@@ -37,6 +37,9 @@ class CatalogLeafPaintTheme {
     required this.leafPressSelectorRadius,
     required this.sectionHeaderStyle,
     required this.sectionHeaderStartInset,
+    this.leafHoverHighlightColor,
+    this.leafHoverHighlightRadius = 8,
+    this.leafHoverHighlightInset = 2,
   });
 
   /// Builds a paint snapshot from [data] and [devicePixelRatio].
@@ -60,6 +63,9 @@ class CatalogLeafPaintTheme {
     leafFocusHighlightColor:
         data.leafFocusHighlightColor ?? data.leafPressHighlightColor,
     leafPressSelectorRadius: data.selectorRadiusLogicalPx(devicePixelRatio),
+    leafHoverHighlightColor: data.leafHoverHighlightColor,
+    leafHoverHighlightRadius: data.leafHoverHighlightRadius,
+    leafHoverHighlightInset: data.leafHoverHighlightInset,
     sectionHeaderStyle: data.sectionHeaderStyle,
     sectionHeaderStartInset: data.sectionHeaderStartInset,
   );
@@ -99,6 +105,15 @@ class CatalogLeafPaintTheme {
   /// Press-highlight corner radius in logical pixels (density-resolved).
   final double leafPressSelectorRadius;
 
+  /// Wash under a hovering mouse, or null for none.
+  final Color? leafHoverHighlightColor;
+
+  /// Corner radius of the hover wash, in logical pixels.
+  final double leafHoverHighlightRadius;
+
+  /// Inset of the hover wash from the cell rect, in logical pixels.
+  final double leafHoverHighlightInset;
+
   /// Section header title style.
   final TextStyle sectionHeaderStyle;
 
@@ -118,6 +133,9 @@ class CatalogLeafPaintTheme {
       other.leafPressHighlightColor == leafPressHighlightColor &&
       other.leafFocusHighlightColor == leafFocusHighlightColor &&
       other.leafPressSelectorRadius == leafPressSelectorRadius &&
+      other.leafHoverHighlightColor == leafHoverHighlightColor &&
+      other.leafHoverHighlightRadius == leafHoverHighlightRadius &&
+      other.leafHoverHighlightInset == leafHoverHighlightInset &&
       other.sectionHeaderStyle == sectionHeaderStyle &&
       other.sectionHeaderStartInset == sectionHeaderStartInset;
 
@@ -133,6 +151,9 @@ class CatalogLeafPaintTheme {
     leafPressHighlightColor,
     leafFocusHighlightColor,
     leafPressSelectorRadius,
+    leafHoverHighlightColor,
+    leafHoverHighlightRadius,
+    leafHoverHighlightInset,
     sectionHeaderStyle,
     sectionHeaderStartInset,
   );

@@ -76,6 +76,11 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
   full alpha, under its content (a baked sprite is flushed after it).
   `PanelCatalogThemeData.leafFocusHighlightColor` styles it on its own (null
   follows the press highlight, which a host may have switched off)
+- **Hover highlight** — with `PanelCatalogThemeData.leafHoverHighlightColor`
+  set (null paints none), a mouse over a leaf paints a rounded wash on its cell
+  (`leafHoverHighlightRadius`, `leafHoverHighlightInset`), under the content,
+  instantly; the cell is found again at every paint, so a wheel step under a
+  still mouse moves it. A finger never hovers
 - **Cursor** — the viewport asks for the click cursor over a leaf the shell can
   tap or long-press and over a header action it listens to, and defers
   elsewhere

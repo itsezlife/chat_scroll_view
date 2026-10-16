@@ -122,6 +122,20 @@ void main() {
     ime.dispose();
   }
 
+  group('arrangement', () {
+    testWidgets('stays touch: the tabs float with the actions', (tester) async {
+      await mount(tester);
+      await startOpen(tester);
+      await finishMotion(tester);
+
+      expect(
+        tester.widget<PanelShell>(find.byType(PanelShell)).arrangement,
+        PanelArrangement.touch,
+      );
+      await tearDownTree(tester);
+    });
+  });
+
   group('cold open', () {
     testWidgets('grows the slot to the default height, then rests', (
       tester,

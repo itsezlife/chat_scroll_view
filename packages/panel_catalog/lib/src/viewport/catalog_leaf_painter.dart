@@ -401,6 +401,9 @@ final class CatalogLeafPainter {
   /// [pressProgress] drives the list-selector highlight on the **full cell
   /// rect** (unscaled). Skipped when the configured highlight colour is fully
   /// transparent or progress is `<= 0`.
+  ///
+  /// [hovered] paints the theme's hover wash (inset, rounded) under everything
+  /// else of the cell; nothing without a hover token.
   void paintLeaf({
     required Canvas canvas,
     required Offset origin,
@@ -409,6 +412,7 @@ final class CatalogLeafPainter {
     double pressScale = 1,
     double pressProgress = 0,
     bool focused = false,
+    bool hovered = false,
   }) {
     final theme = _theme;
     final cellRect = Rect.fromLTWH(
@@ -426,6 +430,16 @@ final class CatalogLeafPainter {
 
     // Under the content like the press wash: a sprite is queued and drawn at
     // the end of the pass, over everything painted here.
+    final hover = theme.leafHoverHighlightColor;
+    if (hovered && hover != null && hover.a > 0) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          cellRect.deflate(theme.leafHoverHighlightInset),
+          Radius.circular(theme.leafHoverHighlightRadius),
+        ),
+        _highlightPaint..color = hover,
+      );
+    }
     if (focused && theme.leafFocusHighlightColor.a > 0) {
       canvas.drawRRect(
         RRect.fromRectAndRadius(

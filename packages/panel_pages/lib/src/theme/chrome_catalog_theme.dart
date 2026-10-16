@@ -1,6 +1,7 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_catalog/panel_catalog.dart';
+import 'package:panel_shell/panel_shell.dart';
 
 /// Scopes the catalogue's paint tokens, mapped from the chrome theme above, for
 /// the viewport below.
@@ -29,7 +30,12 @@ class ChromeCatalogTheme extends StatelessWidget {
   ///   and dark themes use.
   /// - Keyboard focus is drawn in the accent.
   /// - The section title is the panel tokens' `sectionTitle`.
-  static PanelCatalogThemeData dataFor(ChromeThemeData chrome) {
+  /// - Under [PanelArrangement.pointer] a mouse over a cell paints the text
+  ///   colour at alpha `0x12`; under touch nothing hovers.
+  static PanelCatalogThemeData dataFor(
+    ChromeThemeData chrome, {
+    PanelArrangement arrangement = PanelArrangement.touch,
+  }) {
     final palette = chrome.palette;
     final base = PanelCatalogThemeData.forBrightness(palette.brightness);
     final skeleton = chrome.placeholder.skeleton;
@@ -41,6 +47,10 @@ class ChromeCatalogTheme extends StatelessWidget {
       skeletonColor: skeleton,
       leafPressHighlightColor: palette.onSurface.withAlpha(0x0F),
       leafFocusHighlightColor: palette.accent.withAlpha(0x40),
+      leafHoverHighlightColor: switch (arrangement) {
+        PanelArrangement.pointer => palette.onSurface.withAlpha(0x12),
+        PanelArrangement.touch => null,
+      },
       sectionHeaderStyle: base.sectionHeaderStyle.copyWith(
         color: chrome.panel.sectionTitle,
       ),
@@ -49,7 +59,10 @@ class ChromeCatalogTheme extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PanelCatalogTheme(
-    data: dataFor(ChromeThemeScope.of(context)),
+    data: dataFor(
+      ChromeThemeScope.of(context),
+      arrangement: PanelArrangementScope.of(context),
+    ),
     child: child,
   );
 }

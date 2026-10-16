@@ -229,7 +229,10 @@ class _DockedBodyState extends State<_DockedBody>
                 ),
                 child: FocusScope(
                   node: _scope,
-                  child: PanelShell(controller: widget.view.controller.shell),
+                  child: PanelShell(
+                    controller: widget.view.controller.shell,
+                    arrangement: PanelArrangement.pointer,
+                  ),
                 ),
               ),
             ),

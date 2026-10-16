@@ -110,6 +110,8 @@ final class PanelShellController {
   final _events = EventPublisher<PanelEvent>();
   final _scrollActivity = EventPublisher<PageScrollActivity>();
   final _searchResultCounts = EventPublisher<int>();
+  final _bottomExtent = ValueNotifier<double>(0);
+  final _bottomExtents = <String, double>{};
   final _hosts = <String, _PageHost>{};
   var _disposed = false;
 
@@ -134,6 +136,12 @@ final class PanelShellController {
 
   /// Result counts the selected page reported for settled searches.
   Stream<int> get searchResultCounts => _searchResultCounts.stream;
+
+  /// How tall the strip the selected page pins at the bottom of its own box
+  /// is, as the page reported it; 0 for none.
+  ///
+  /// The floating bar of the pointer arrangement rises by it.
+  ValueListenable<double> get bottomExtent => _bottomExtent;
 
   /// **Panel visible**: whether a presentation shows the panel on screen,
   /// including while it slides in or out. The pause signal of work that is
@@ -176,6 +184,7 @@ final class PanelShellController {
       return;
     }
     _selected.value = pageId;
+    _bottomExtent.value = _bottomExtents[pageId] ?? 0;
     if (_search.value.isOpen && !page.capabilities.search) closeSearch();
     unawaited(_persist(pageId));
     _events.publish(PageChanged(pageId));
@@ -292,6 +301,7 @@ final class PanelShellController {
     _events.dispose();
     _scrollActivity.dispose();
     _searchResultCounts.dispose();
+    _bottomExtent.dispose();
     for (final host in _hosts.values) {
       host.dispose();
     }
@@ -371,6 +381,16 @@ final class _PageHost with ChangeNotifier implements PanelPageHost {
   @override
   void reportSearchResultCount(int count) {
     if (_speaksForSelected) _shell._searchResultCounts.publish(count);
+  }
+
+  // Kept per page, unlike the other reports: the strip of a page that is not
+  // selected is still there when the page comes back, and the page does not
+  // report again for a layout that did not change.
+  @override
+  void reportBottomExtent(double extent) {
+    if (_shell._disposed) return;
+    _shell._bottomExtents[pageId] = extent;
+    if (_speaksForSelected) _shell._bottomExtent.value = extent;
   }
 
   void _reselect() => notifyListeners();

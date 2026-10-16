@@ -94,8 +94,10 @@ abstract class CatalogPagePolicy {
   /// publishes, in display order.
   ///
   /// [searchOpen] is true while the shell's search is open with an empty
-  /// query, when a page may show less (frequently used content only). The
-  /// default shows everything.
+  /// query, when a page may show less (frequently used content only). It is
+  /// never true under an arrangement that keeps the whole catalogue on screen
+  /// with the field (`PanelArrangement.narrowsEmptySearch`), so clearing the
+  /// text is all it takes to see the grid. The default shows everything.
   List<Collection> visibleCollections(
     List<Collection> all, {
     required bool searchOpen,
@@ -222,10 +224,18 @@ abstract class CatalogPagePolicy {
 
   // --- Chrome inside the page -----------------------------------------------
 
-  /// The top strip (a category or set strip) shown above the catalogue while
-  /// browsing, or null for none.
+  /// Whether the strip is pinned at the bottom of the page, below the
+  /// catalogue, rather than above it. Asked per [arrangement]: a page that
+  /// answers true for one reports the strip's extent to the shell
+  /// (`PanelPageHost.reportBottomExtent`), so floating chrome stays above it.
+  /// The default keeps the strip on top.
+  bool stripAtBottom(PanelArrangement arrangement) => false;
+
+  /// The strip (a category or set strip) shown with the catalogue while
+  /// browsing, or null for none; above it, or below it where [stripAtBottom].
   ///
   /// The page owns the strip: [strip] gives it the sections to show and the
-  /// jump to one. It is not shown while search results are.
+  /// jump to one. It reads the arrangement it is drawn for from
+  /// `PanelArrangementScope`. It is not shown while search results are.
   Widget? buildStrip(BuildContext context, CatalogStripHandle strip) => null;
 }

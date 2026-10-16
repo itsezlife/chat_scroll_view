@@ -39,6 +39,10 @@ enum MotionRole {
   /// Interpolating between two chrome themes.
   themeSwitch,
 
+  /// A selection marker moving from one control to the next (the highlight
+  /// under the active category of a strip).
+  selectionSlide,
+
   /// One turn of an indeterminate loop, such as a progress ring. Under an
   /// instant speed nothing loops: the component shows its resting frame.
   loop,
@@ -70,6 +74,7 @@ final class ChromeMotion {
     required this.popupHide,
     required this.presentationSwitch,
     required this.themeSwitch,
+    required this.selectionSlide,
     required this.loop,
   });
 
@@ -95,6 +100,10 @@ final class ChromeMotion {
       popupHide = const MotionSpec(Duration(milliseconds: 200), Curves.easeIn),
       presentationSwitch = const MotionSpec(_quarterSecond, androidListCurve),
       themeSwitch = const MotionSpec(_quarterSecond, Curves.linear),
+      selectionSlide = const MotionSpec(
+        Duration(milliseconds: 400),
+        Curves.easeOutCubic,
+      ),
       loop = const MotionSpec(Duration(milliseconds: 900), Curves.linear);
 
   static const Duration _quarterSecond = Duration(milliseconds: 250);
@@ -142,6 +151,9 @@ final class ChromeMotion {
   /// [MotionRole.themeSwitch].
   final MotionSpec themeSwitch;
 
+  /// [MotionRole.selectionSlide]: 400 ms ease-out cubic.
+  final MotionSpec selectionSlide;
+
   /// [MotionRole.loop].
   final MotionSpec loop;
 
@@ -158,6 +170,7 @@ final class ChromeMotion {
     MotionRole.popupHide => popupHide,
     MotionRole.presentationSwitch => presentationSwitch,
     MotionRole.themeSwitch => themeSwitch,
+    MotionRole.selectionSlide => selectionSlide,
     MotionRole.loop => loop,
   };
 
@@ -174,6 +187,7 @@ final class ChromeMotion {
     MotionSpec? popupHide,
     MotionSpec? presentationSwitch,
     MotionSpec? themeSwitch,
+    MotionSpec? selectionSlide,
     MotionSpec? loop,
   }) => ChromeMotion(
     listTransition: listTransition ?? this.listTransition,
@@ -187,6 +201,7 @@ final class ChromeMotion {
     popupHide: popupHide ?? this.popupHide,
     presentationSwitch: presentationSwitch ?? this.presentationSwitch,
     themeSwitch: themeSwitch ?? this.themeSwitch,
+    selectionSlide: selectionSlide ?? this.selectionSlide,
     loop: loop ?? this.loop,
   );
 

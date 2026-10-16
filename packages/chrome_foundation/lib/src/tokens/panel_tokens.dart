@@ -20,6 +20,7 @@ final class PanelTokens {
     required this.tabSelectorLine,
     required this.sectionTitle,
     required this.searchFill,
+    required this.stripFill,
     required this.searchIcon,
     required this.searchText,
   });
@@ -34,6 +35,7 @@ final class PanelTokens {
     tabSelectorLine: palette.accent,
     sectionTitle: palette.onSurfaceMuted,
     searchFill: palette.onSurface.withAlpha(0x0F),
+    stripFill: palette.onSurface.withAlpha(0x0A),
     searchIcon: palette.iconIdle,
     searchText: palette.onSurface,
   );
@@ -62,6 +64,12 @@ final class PanelTokens {
   /// Search pill fill, translucent over [background].
   final Color searchFill;
 
+  /// Fill of the category strip where a page pins it at the bottom, translucent
+  /// over [background]: one step off the grid above it in either brightness
+  /// (the strip is the one surface that is not the body, and [background] of
+  /// the dark palette is the same as its composer's).
+  final Color stripFill;
+
   /// Search and clear icons.
   final Color searchIcon;
 
@@ -78,6 +86,7 @@ final class PanelTokens {
     Color? tabSelectorLine,
     Color? sectionTitle,
     Color? searchFill,
+    Color? stripFill,
     Color? searchIcon,
     Color? searchText,
   }) => PanelTokens(
@@ -89,6 +98,7 @@ final class PanelTokens {
     tabSelectorLine: tabSelectorLine ?? this.tabSelectorLine,
     sectionTitle: sectionTitle ?? this.sectionTitle,
     searchFill: searchFill ?? this.searchFill,
+    stripFill: stripFill ?? this.stripFill,
     searchIcon: searchIcon ?? this.searchIcon,
     searchText: searchText ?? this.searchText,
   );
@@ -110,6 +120,7 @@ final class PanelTokens {
         tabSelectorLine: Color.lerp(a.tabSelectorLine, b.tabSelectorLine, t)!,
         sectionTitle: Color.lerp(a.sectionTitle, b.sectionTitle, t)!,
         searchFill: Color.lerp(a.searchFill, b.searchFill, t)!,
+        stripFill: Color.lerp(a.stripFill, b.stripFill, t)!,
         searchIcon: Color.lerp(a.searchIcon, b.searchIcon, t)!,
         searchText: Color.lerp(a.searchText, b.searchText, t)!,
       );
@@ -126,6 +137,7 @@ final class PanelTokens {
           tabSelectorLine == other.tabSelectorLine &&
           sectionTitle == other.sectionTitle &&
           searchFill == other.searchFill &&
+          stripFill == other.stripFill &&
           searchIcon == other.searchIcon &&
           searchText == other.searchText;
 
@@ -139,6 +151,7 @@ final class PanelTokens {
     tabSelectorLine,
     sectionTitle,
     searchFill,
+    stripFill,
     searchIcon,
     searchText,
   );

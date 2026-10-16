@@ -166,6 +166,10 @@ _Avoid_: A focus node per leaf, a focus the host mirrors in its own state, key b
 The press-highlight wash on the full cell of the focused leaf, at full alpha and under the content (a baked sprite is flushed after it). It follows the press highlight token unless the theme names a focus token.
 _Avoid_: A new colour scale, a highlight drawn over the sprite
 
+**Hover highlight**:
+The wash a mouse hovering a leaf paints on its cell: a rounded rect inset from the cell, under the content, instant (no fade, ripple or scale), for the mouse only. Off unless the theme carries a hover token, so a page sets it for a pointer arrangement and leaves it null for touch. The cell is found again at every paint, so content moving under a still mouse moves the wash with it.
+_Avoid_: A hover state the host mirrors, a hover animation, hover on a finger or stylus in contact
+
 **Scroll event**:
 The one typed controller event stream: drag, fling, section jump, near-viewport, focus and current-section changes, plus two derived activity facts. A scrolling-changed event fires at once when the catalogue starts moving and after one quiet frame when it stops; a settled event carries the visible leaf keys, top first.
 _Avoid_: Separate listener channels per concern

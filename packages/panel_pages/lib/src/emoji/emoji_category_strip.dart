@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/emoji/emoji_categories.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
+import 'package:panel_shell/panel_shell.dart';
 
 /// The category strip of the emoji page: one tab per category, the active one
 /// following the catalogue, a tap landing on the category.
@@ -27,8 +29,21 @@ import 'package:panel_pages/src/page/catalog_strip.dart';
 /// - Otherwise the active tab is the one of the section the user is in
 ///   (`PanelCatalogCurrentSectionChanged`).
 ///
+/// ## Arrangements
+///
+/// Under the touch arrangement the strip is a row of round tabs above the
+/// catalogue, scrolling sideways when they do not fit. Under the pointer
+/// arrangement it is pinned below the catalogue: a 1 px separator over
+/// [height] px of icons on [PanelTokens.stripFill], the icons spread over the
+/// width (scrolling only when each would get less than a tab's room), the
+/// active category marked by a [highlightSize] square that **slides** to the
+/// next icon over the `selectionSlide` motion role (and is simply there on the
+/// first selection, or when animations are off), no paint on hover, and the
+/// click cursor over an icon.
+///
 /// The strip is the page's own widget: its whole connection is the
-/// [CatalogStripHandle]. It requires the chrome theme and strings scopes.
+/// [CatalogStripHandle]. It requires the chrome theme and strings scopes, and
+/// reads the arrangement from `PanelArrangementScope`.
 class EmojiCategoryStrip extends StatefulWidget {
   /// A strip over the sections of [handle].
   const EmojiCategoryStrip({required this.handle, super.key});
@@ -51,6 +66,26 @@ class EmojiCategoryStrip extends StatefulWidget {
   /// Horizontal inset of the first tab.
   static const double padH = 11;
 
+  /// Height of the line over the strip where it is pinned at the bottom (the
+  /// pointer arrangement); it is not part of [height].
+  static const double separatorExtent = 1;
+
+  /// Side of the square that marks the active category (pointer).
+  static const double highlightSize = 28;
+
+  /// Corner radius of that square.
+  static const double highlightRadius = 8;
+
+  /// Horizontal inset of the first icon (pointer).
+  static const double pointerPadH = 3;
+
+  /// The least width an icon gets before the strip scrolls (pointer).
+  static const double pointerMinPitch = 33;
+
+  /// Identifies the sliding square of the pointer arrangement.
+  @visibleForTesting
+  static const Key highlightKey = ValueKey<String>('emoji-strip-highlight');
+
   @override
   State<EmojiCategoryStrip> createState() => _EmojiCategoryStripState();
 }
@@ -60,6 +95,9 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
   var _tabs = const <_StripTab>[];
   EmojiCategoryTab? _active;
   var _jumping = false;
+  // How wide the icon of a tab is under the pointer arrangement, as the last
+  // layout gave it; the reveal of an active tab needs it outside build.
+  var _pitch = EmojiCategoryStrip.pointerMinPitch;
   late StreamSubscription<PanelCatalogScrollEvent> _scrollEvents;
 
   CatalogStripHandle get _handle => widget.handle;
@@ -150,9 +188,16 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
     if (!mounted || !_scroll.hasClients) return;
     final index = _tabs.indexWhere((tab) => tab.tab == _active);
     if (index < 0) return;
-    const step = EmojiCategoryStrip.cell + EmojiCategoryStrip.gap;
-    final start = EmojiCategoryStrip.padH + index * step;
-    final end = start + EmojiCategoryStrip.cell;
+    final pointer =
+        PanelArrangementScope.of(context) == PanelArrangement.pointer;
+    final start = pointer
+        ? EmojiCategoryStrip.pointerPadH + index * _pitch
+        : EmojiCategoryStrip.padH +
+              index * (EmojiCategoryStrip.cell + EmojiCategoryStrip.gap);
+    final end = start + (pointer ? _pitch : EmojiCategoryStrip.cell);
+    final margin = pointer
+        ? EmojiCategoryStrip.pointerPadH
+        : EmojiCategoryStrip.padH;
     final view = _scroll.position.viewportDimension;
     final offset = _scroll.offset;
     // The strip slides on the fade role: under an instant speed (a zero duration, which
@@ -161,7 +206,7 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
     if (start < offset) {
       unawaited(
         _scroll.position.moveTo(
-          start - EmojiCategoryStrip.padH,
+          start - margin,
           duration: spec.duration,
           curve: spec.curve,
         ),
@@ -169,7 +214,7 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
     } else if (end > offset + view) {
       unawaited(
         _scroll.position.moveTo(
-          end - view + EmojiCategoryStrip.padH,
+          end - view + margin,
           duration: spec.duration,
           curve: spec.curve,
         ),
@@ -185,6 +230,9 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
     final panel = ChromeThemeScope.panelOf(context);
     final strings = ChromeStringsScope.of(context);
     final motion = ChromeMotionScope.of(context);
+    if (PanelArrangementScope.of(context) == PanelArrangement.pointer) {
+      return _buildPinned(context, panel, strings, motion);
+    }
     return Semantics(
       container: true,
       label: strings.semantics.categoryStripLabel,
@@ -225,6 +273,126 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
       ),
     );
   }
+
+  // The strip under the pointer arrangement. Kept apart from the touch build
+  // so that one stays as it was.
+  Widget _buildPinned(
+    BuildContext context,
+    PanelTokens panel,
+    ChromeStrings strings,
+    ChromeMotionData motion,
+  ) {
+    final slide = motion.specOf(MotionRole.selectionSlide);
+    final slideDuration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : slide.duration;
+    return Semantics(
+      container: true,
+      label: strings.semantics.categoryStripLabel,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: EmojiCategoryStrip.separatorExtent,
+            width: double.infinity,
+            child: ColoredBox(color: panel.hairline),
+          ),
+          ColoredBox(
+            color: panel.stripFill,
+            child: SizedBox(
+              height: EmojiCategoryStrip.height,
+              width: double.infinity,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final count = _tabs.length;
+                  const padH = EmojiCategoryStrip.pointerPadH;
+                  final pitch = math.max(
+                    EmojiCategoryStrip.pointerMinPitch,
+                    (constraints.maxWidth - 2 * padH) / count,
+                  );
+                  _pitch = pitch;
+                  final active = _tabs.indexWhere((t) => t.tab == _active);
+                  return SingleChildScrollView(
+                    controller: _scroll,
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: 2 * padH + count * pitch,
+                      height: EmojiCategoryStrip.height,
+                      child: Stack(
+                        children: [
+                          // Created when the first category becomes active, so
+                          // it is placed, not moved there.
+                          if (active >= 0)
+                            AnimatedPositionedDirectional(
+                              key: EmojiCategoryStrip.highlightKey,
+                              duration: slideDuration,
+                              curve: slide.curve,
+                              start:
+                                  padH +
+                                  active * pitch +
+                                  (pitch - EmojiCategoryStrip.highlightSize) /
+                                      2,
+                              top:
+                                  (EmojiCategoryStrip.height -
+                                      EmojiCategoryStrip.highlightSize) /
+                                  2,
+                              width: EmojiCategoryStrip.highlightSize,
+                              height: EmojiCategoryStrip.highlightSize,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: panel.tabSelector,
+                                  borderRadius: BorderRadius.circular(
+                                    EmojiCategoryStrip.highlightRadius,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          Padding(
+                            padding: const EdgeInsetsDirectional.symmetric(
+                              horizontal: padH,
+                            ),
+                            child: Row(
+                              children: [
+                                for (final tab in _tabs)
+                                  SizedBox(
+                                    width: pitch,
+                                    child: Center(
+                                      child: _TabButton(
+                                        tab: tab.tab,
+                                        label: switch (tab.tab.titleGroup) {
+                                          final group? =>
+                                            strings.panel.categoryTitle(group),
+                                          null =>
+                                            strings.panel.recentlyUsedTitle,
+                                        },
+                                        selected: tab.tab == _active,
+                                        tokens: panel,
+                                        duration: motion.durationOf(
+                                          MotionRole.fade,
+                                        ),
+                                        onTap: () => unawaited(_onTap(tab)),
+                                        marked: false,
+                                        extent:
+                                            EmojiCategoryStrip.highlightSize,
+                                        cursor: SystemMouseCursors.click,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // A tab with the sections of the page it covers, in display order.
@@ -251,6 +419,9 @@ class _TabButton extends StatelessWidget {
     required this.tokens,
     required this.duration,
     required this.onTap,
+    this.marked = true,
+    this.extent = EmojiCategoryStrip.cell,
+    this.cursor = MouseCursor.defer,
   });
 
   final EmojiCategoryTab tab;
@@ -260,6 +431,12 @@ class _TabButton extends StatelessWidget {
   final Duration duration;
   final VoidCallback onTap;
 
+  // Whether the selected tab is painted on a circle of its own (touch); the
+  // pinned strip marks it with the sliding square instead.
+  final bool marked;
+  final double extent;
+  final MouseCursor cursor;
+
   @override
   Widget build(BuildContext context) => Semantics(
     button: true,
@@ -268,6 +445,7 @@ class _TabButton extends StatelessWidget {
     onTap: onTap,
     child: ExcludeSemantics(
       child: FocusableActionDetector(
+        mouseCursor: cursor,
         actions: {
           ActivateIntent: CallbackAction<ActivateIntent>(
             onInvoke: (_) {
@@ -280,8 +458,8 @@ class _TabButton extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           onTap: onTap,
           child: SizedBox(
-            width: EmojiCategoryStrip.cell,
-            height: EmojiCategoryStrip.cell,
+            width: extent,
+            height: extent,
             child: TweenAnimationBuilder<double>(
               tween: Tween<double>(end: selected ? 1 : 0),
               duration: duration,
@@ -290,9 +468,11 @@ class _TabButton extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   // Alpha on the fill: no saveLayer.
-                  color: tokens.tabSelector.withValues(
-                    alpha: tokens.tabSelector.a * t,
-                  ),
+                  color: marked
+                      ? tokens.tabSelector.withValues(
+                          alpha: tokens.tabSelector.a * t,
+                        )
+                      : null,
                 ),
                 child: Center(
                   child: ChromeIcon(

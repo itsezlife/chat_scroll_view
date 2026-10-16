@@ -14,6 +14,21 @@ Rect _chatRect(WidgetTester tester) =>
     tester.getRect(find.byKey(DockedRig.chatKey));
 
 void main() {
+  group('arrangement', () {
+    testWidgets('is the pointer one', (tester) async {
+      final rig = DockedRig();
+      await rig.pump(tester);
+
+      rig.controller.show(kind: const Docked());
+      await settleDock(tester);
+
+      expect(
+        tester.widget<PanelShell>(find.byType(PanelShell)).arrangement,
+        PanelArrangement.pointer,
+      );
+    });
+  });
+
   group('layout', () {
     testWidgets('sits at the end edge, full height (LTR)', (tester) async {
       final rig = DockedRig();

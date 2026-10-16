@@ -6,6 +6,24 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `PanelArrangement` (`touch`, `pointer`), `PanelShell(arrangement:)` and
+  `PanelArrangementScope`, which hands the arrangement to the pages below the
+  shell (`touch` outside any shell). `touch` is what the shell always did.
+  Under `pointer` the type tabs sit above the search field, the floating bar
+  holds the page actions only and is hidden by an open search alone (a
+  scroll report, a wheel step included, never hides it), and it rises above
+  the strip a page pins at the bottom. The shell keeps the safe inset for
+  itself there and tells pages the bar's room only. Goldens for `pointer`
+  were generated on macOS.
+- `PanelPageHost.reportBottomExtent`, kept per page, and
+  `PanelShellController.bottomExtent` (the selected page's). Source-breaking
+  for a class that implements `PanelPageHost`; `FakePanelPageHost` records
+  the reports.
+- `BottomBarVisibility(hidesOnScroll:)`: a bar that scroll activity does not
+  hide.
+
 ### Changed
 
 - Change notification is `package:listen` (`listen: ^1.0.1`), not
@@ -22,6 +40,10 @@ is pre-1.0.
   input after `dispose`.
 
 ### Fixed
+
+- The pager's starting page is known to the type tabs before the pager mounts,
+  so tabs mounted ahead of the pager (the `pointer` arrangement) are not marked
+  dirty during the build.
 
 - The search field's progress ring turns on the `loop` motion role and stands
   still under an instant speed, instead of spinning at a literal 900 ms.

@@ -12,11 +12,14 @@ import 'dart:ui' show Tristate;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
+import 'package:panel_shell/panel_shell.dart';
 import 'package:panel_shell/testing.dart';
 
 final class _Handle implements CatalogStripHandle {
@@ -84,14 +87,22 @@ void main() {
     WidgetTester tester, {
     double width = 360,
     ChromeMotionSpeed speed = ChromeMotionSpeed.normal,
+    PanelArrangement arrangement = PanelArrangement.touch,
+    bool disableAnimations = false,
   }) => tester.pumpWidget(
     PanelShellTestScope(
       speed: speed,
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: SizedBox(
-          width: width,
-          child: EmojiCategoryStrip(handle: handle),
+      child: MediaQuery(
+        data: MediaQueryData(disableAnimations: disableAnimations),
+        child: PanelArrangementScope(
+          arrangement: arrangement,
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: width,
+              child: EmojiCategoryStrip(handle: handle),
+            ),
+          ),
         ),
       ),
     ),
@@ -343,6 +354,192 @@ void main() {
       await _tapTab(tester, 'Animals & nature');
 
       expect(handle.jumps, ['$_flags', '$_animals']);
+    });
+  });
+
+  group('pinned at the bottom (the pointer arrangement)', () {
+    // 4 tabs over 360 px: 3 px insets and 88.5 px for each icon.
+    const pitch = (360 - 6) / 4;
+    double highlightStart(WidgetTester tester) =>
+        tester.getTopLeft(find.byKey(EmojiCategoryStrip.highlightKey)).dx;
+    double expectedStart(int index) => 3 + index * pitch + (pitch - 28) / 2;
+
+    Future<void> pumpPinned(
+      WidgetTester tester, {
+      bool disableAnimations = false,
+      double width = 360,
+    }) => pump(
+      tester,
+      width: width,
+      arrangement: PanelArrangement.pointer,
+      disableAnimations: disableAnimations,
+    );
+
+    testWidgets('is a 1 px line over 36 px of icons on its own fill', (
+      tester,
+    ) async {
+      await pumpPinned(tester);
+
+      expect(tester.getSize(find.byType(EmojiCategoryStrip)).height, 37);
+      final panel = ChromeThemeScope.panelOf(
+        tester.element(find.byType(EmojiCategoryStrip)),
+      );
+      final fills = tester
+          .widgetList<ColoredBox>(
+            find.descendant(
+              of: find.byType(EmojiCategoryStrip),
+              matching: find.byType(ColoredBox),
+            ),
+          )
+          .map((box) => box.color);
+      expect(fills, containsAll([panel.hairline, panel.stripFill]));
+      expect(panel.stripFill, isNot(panel.background));
+    });
+
+    testWidgets('marks the active category with a 28 px square of radius 8', (
+      tester,
+    ) async {
+      await pumpPinned(tester);
+
+      final marker = find.byKey(EmojiCategoryStrip.highlightKey);
+      expect(tester.getSize(marker), const Size(28, 28));
+      final decoration =
+          tester
+                  .widget<DecoratedBox>(
+                    find.descendant(
+                      of: marker,
+                      matching: find.byType(DecoratedBox),
+                    ),
+                  )
+                  .decoration
+              as BoxDecoration;
+      expect(decoration.borderRadius, BorderRadius.circular(8));
+      expect(decoration.shape, BoxShape.rectangle);
+    });
+
+    testWidgets('puts the square on the first selection without moving it', (
+      tester,
+    ) async {
+      await pumpPinned(tester);
+
+      expect(highlightStart(tester), closeTo(expectedStart(0), 0.01));
+    });
+
+    testWidgets('slides the square to the next icon over 400 ms, easing '
+        'out', (tester) async {
+      await pumpPinned(tester);
+
+      handle.enter('$_flags', 4);
+      await tester.pump(); // the first frame of the slide
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final from = expectedStart(0);
+      final to = expectedStart(3);
+      // An ease-out cubic is 87.5% of the way at half the time.
+      expect(highlightStart(tester), closeTo(from + (to - from) * 0.875, 0.5));
+
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(highlightStart(tester), closeTo(to, 0.01));
+    });
+
+    testWidgets('moves the square at once when animations are disabled', (
+      tester,
+    ) async {
+      await pumpPinned(tester, disableAnimations: true);
+
+      handle.enter('$_flags', 4);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1));
+
+      expect(highlightStart(tester), closeTo(expectedStart(3), 0.01));
+    });
+
+    testWidgets('moves the square at once under instant motion', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        arrangement: PanelArrangement.pointer,
+        speed: ChromeMotionSpeed.instant,
+      );
+
+      handle.enter('$_flags', 4);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1));
+
+      expect(highlightStart(tester), closeTo(expectedStart(3), 0.01));
+    });
+
+    testWidgets('paints nothing under a hovering mouse', (tester) async {
+      await pumpPinned(tester);
+      List<Color?> fills() => [
+        for (final box in tester.widgetList<DecoratedBox>(
+          find.descendant(
+            of: find.byType(EmojiCategoryStrip),
+            matching: find.byType(DecoratedBox),
+          ),
+        ))
+          (box.decoration as BoxDecoration).color,
+      ];
+      final before = fills();
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(tester.getCenter(find.bySemanticsLabel('Flags')));
+      await tester.pump();
+
+      expect(fills(), before);
+    });
+
+    testWidgets('shows the click cursor over an icon, and none under touch', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      MouseCursor? cursorOver(WidgetTester tester, Offset position) =>
+          RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1);
+
+      await pumpPinned(tester);
+      final flags = tester.getCenter(find.bySemanticsLabel('Flags'));
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: flags);
+      addTearDown(mouse.removePointer);
+      await tester.pump();
+      expect(cursorOver(tester, flags), SystemMouseCursors.click);
+
+      await pump(tester);
+      await mouse.moveTo(flags + const Offset(0, 1));
+      await tester.pump();
+      expect(cursorOver(tester, flags), isNot(SystemMouseCursors.click));
+      semantics.dispose();
+    });
+
+    testWidgets('a tap still lands on the category', (tester) async {
+      await pumpPinned(tester);
+
+      await _tapTab(tester, 'Flags');
+
+      expect(handle.jumps, ['$_flags']);
+    });
+
+    testWidgets('scrolls only where the icons would get less than 33 px, and '
+        'reveals the active one', (tester) async {
+      await pumpPinned(tester, width: 100);
+
+      handle.enter('$_flags', 4);
+      await tester.pumpAndSettle();
+
+      // 4 icons of 33 px and 3 px insets: 138 px in a 100 px strip.
+      expect(stripOffset(tester), 38);
+    });
+
+    testWidgets('does not scroll when the icons fit', (tester) async {
+      await pumpPinned(tester);
+
+      handle.enter('$_flags', 4);
+      await tester.pumpAndSettle();
+
+      expect(stripOffset(tester), 0);
     });
   });
 }

@@ -6,6 +6,28 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- The pointer arrangement of `PanelShell` ([ADR 025](../../docs/adr/025-panel-shell-and-pages.md)
+  amendment). `CatalogPagePolicy.stripAtBottom(arrangement)` (default false;
+  the emoji policy answers true for `pointer`) puts the strip below the
+  catalogue and makes `CatalogPage` report its measured height through
+  `PanelPageHost.reportBottomExtent` (0 while results or a single category
+  show no strip, and when the arrangement moves it back). The emoji strip
+  pinned at the bottom is a 1 px separator over 36 px of icons on
+  `PanelTokens.stripFill`, the icons spread over the width (scrolling below
+  33 px each), the active category marked by a 28 px square of radius 8 that
+  slides over the `selectionSlide` motion role (placed on the first
+  selection, at once without animations), no hover paint, a click cursor.
+  `EmojiCategoryStrip.separatorExtent`, `highlightSize`, `highlightRadius`.
+- Under `pointer` an empty query with search open does not narrow the page: the
+  whole catalogue and the strip stay and one press of the clear control brings
+  the grid back. `CatalogPageModel.arrangement`; under `touch` the policy is
+  asked with `searchOpen` as before.
+- `ChromeCatalogTheme.dataFor(chrome, arrangement:)`: under `pointer` the
+  catalogue paints a hover wash (the text colour at alpha `0x12`).
+- `FakePanelPageHost.bottomExtents`.
+
 ### Changed
 
 - Change notification is `package:listen` (`listen: ^1.0.1`), not

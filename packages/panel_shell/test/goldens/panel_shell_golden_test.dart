@@ -24,56 +24,73 @@ void main() {
     'dark_rtl': (Brightness.dark, TextDirection.rtl),
   };
 
-  for (final searchOpen in [true, false]) {
-    for (final MapEntry(key: variant, value: (brightness, direction))
-        in variants.entries) {
-      final name = '${searchOpen ? 'search_open' : 'search_closed'}_$variant';
-      testWidgets('shell with two pages, $name', (tester) async {
-        final emoji = FakePanelPage(
-          'emoji',
-          search: true,
-          actions: const [PageAction.backspace()],
-          color: brightness == Brightness.light
-              ? const Color(0xFFE8F0F8)
-              : const Color(0xFF1E2A36),
-        );
-        final stickers = FakePanelPage('stickers');
-        final controller = PanelShellController(
-          pages: [emoji.page, stickers.page],
-          preferences: FakePreferenceStore(),
-        );
-        addTearDown(controller.dispose);
+  // The pointer arrangement is drawn in the variants a reader compares: both
+  // palettes and a mirrored layout.
+  const pointerVariants = {'light_ltr', 'dark_ltr', 'light_rtl'};
 
-        await tester.binding.setSurfaceSize(const Size(360, 400));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
-        await tester.pumpWidget(
-          PanelShellTestScope(
-            textDirection: direction,
-            brightness: brightness,
-            size: const Size(360, 400),
-            // The cursor blinks; a golden must not catch it mid-blink.
-            speed: ChromeMotionSpeed.instant,
-            child: RepaintBoundary(
-              key: const ValueKey('shell'),
-              child: PanelShell(
-                controller: controller,
-                announcer: FakePanelAnnouncer(),
+  for (final arrangement in PanelArrangement.values) {
+    for (final searchOpen in [true, false]) {
+      for (final MapEntry(key: variant, value: (brightness, direction))
+          in variants.entries) {
+        if (arrangement == PanelArrangement.pointer &&
+            !pointerVariants.contains(variant)) {
+          continue;
+        }
+        final name = '${searchOpen ? 'search_open' : 'search_closed'}_$variant';
+        final file = switch (arrangement) {
+          PanelArrangement.touch => 'panel_shell_$name',
+          PanelArrangement.pointer => 'panel_shell_pointer_$name',
+        };
+        testWidgets('shell with two pages, ${arrangement.name} $name', (
+          tester,
+        ) async {
+          final emoji = FakePanelPage(
+            'emoji',
+            search: true,
+            actions: const [PageAction.backspace()],
+            color: brightness == Brightness.light
+                ? const Color(0xFFE8F0F8)
+                : const Color(0xFF1E2A36),
+          );
+          final stickers = FakePanelPage('stickers');
+          final controller = PanelShellController(
+            pages: [emoji.page, stickers.page],
+            preferences: FakePreferenceStore(),
+          );
+          addTearDown(controller.dispose);
+
+          await tester.binding.setSurfaceSize(const Size(360, 400));
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          await tester.pumpWidget(
+            PanelShellTestScope(
+              textDirection: direction,
+              brightness: brightness,
+              size: const Size(360, 400),
+              // The cursor blinks; a golden must not catch it mid-blink.
+              speed: ChromeMotionSpeed.instant,
+              child: RepaintBoundary(
+                key: const ValueKey('shell'),
+                child: PanelShell(
+                  controller: controller,
+                  announcer: FakePanelAnnouncer(),
+                  arrangement: arrangement,
+                ),
               ),
             ),
-          ),
-        );
-        if (searchOpen) {
-          controller
-            ..openSearch(focus: false)
-            ..setQuery('cat');
-        }
-        await tester.pumpAndSettle();
+          );
+          if (searchOpen) {
+            controller
+              ..openSearch(focus: false)
+              ..setQuery('cat');
+          }
+          await tester.pumpAndSettle();
 
-        await expectLater(
-          find.byKey(const ValueKey('shell')),
-          matchesGoldenFile('../goldens/panel_shell_$name.png'),
-        );
-      });
+          await expectLater(
+            find.byKey(const ValueKey('shell')),
+            matchesGoldenFile('../goldens/$file.png'),
+          );
+        });
+      }
     }
   }
 }

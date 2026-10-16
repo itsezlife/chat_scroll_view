@@ -54,6 +54,12 @@ void main() {
       },
     );
 
+    test('a selection slides in 400 ms on an ease-out cubic', () {
+      final spec = motion[MotionRole.selectionSlide];
+      expect(spec.duration, const Duration(milliseconds: 400));
+      expect(spec.curve, Curves.easeOutCubic);
+    });
+
     test('release overshoots and press does not', () {
       expect(motion[MotionRole.release].curve, isA<OvershootCurve>());
       expect(motion[MotionRole.press].curve, Curves.linear);

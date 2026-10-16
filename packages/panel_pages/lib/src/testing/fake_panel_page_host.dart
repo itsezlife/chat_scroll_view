@@ -44,6 +44,9 @@ final class FakePanelPageHost with ChangeNotifier implements PanelPageHost {
   /// Every search result count the page reported, in order.
   final List<int> searchResultCounts = [];
 
+  /// Every bottom extent the page reported, in order.
+  final List<double> bottomExtents = [];
+
   @override
   ValueListenable<PanelSearchState> get search => _search;
 
@@ -98,6 +101,9 @@ final class FakePanelPageHost with ChangeNotifier implements PanelPageHost {
 
   @override
   void reportSearchResultCount(int count) => searchResultCounts.add(count);
+
+  @override
+  void reportBottomExtent(double extent) => bottomExtents.add(extent);
 
   /// Releases the listenables. Idempotent.
   @override
