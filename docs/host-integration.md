@@ -306,12 +306,13 @@ field then keeps focus and caret without raising the keyboard. To return to the
 keyboard call `presentation.hide(waitForIme: true)`, keep composer focus, close
 search, and ask the platform to show the keyboard once on the next frame.
 
-Changing the composer's soft keyboard mode while it has focus makes the field
-attach again (one frame later), with the input type the mode now declares:
-Android keeps the type a field attached with, so a field that attached
-suppressed would otherwise never raise the keyboard it is allowed again. That
-attach is what raises the keyboard on the way back from the panel; the host
-sends no show command.
+Android keeps the input type a field attached with, so a composer that took
+focus while suppressed holds a connection with no keyboard type. Changing the
+mode alone raises nothing: a panel closed with back leaves focus in the field
+and the keyboard down. To return to the keyboard, call
+`composer.requestKeyboard()` (after `presentation.hide(waitForIme: true)`): the
+field focuses, or attaches again with the current type, after the frame. A tap
+on the field does the same by itself.
 
 Declaring no soft keyboard does not lower one that is already showing. When the
 panel opens over a raised keyboard, ask the platform to hide it once after the

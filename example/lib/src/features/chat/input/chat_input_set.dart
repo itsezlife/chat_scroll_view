@@ -74,9 +74,9 @@ final class ChatEditTarget {
 ///   the composer; clearing recents asks [confirmClearRecents] first.
 /// - **Soft keyboard.** While a keyboard-replacement panel is on screen the
 ///   composer declares no soft keyboard; every other time it does. A raised
-///   keyboard is asked to lower when the panel takes its place, and the field
-///   raises it again by attaching with the new mode when the panel leaves for
-///   the keyboard ([handOffToKeyboard]).
+///   keyboard is asked to lower when the panel takes its place, and is asked
+///   for again only when the panel leaves for it ([handOffToKeyboard]): a
+///   panel closed with back leaves focus in the field and the keyboard down.
 /// - **Paced mount.** A panel that grows into a free slot mounts its page over
 ///   three frames (grid, search field, strip); one that replaces the keyboard
 ///   mounts at once.
@@ -465,11 +465,12 @@ final class ChatInputSet {
   void handOffToKeyboard() {
     if (_disposed || _handingOff) return;
     _handingOff = true;
-    composer.requestFocus();
     shell.closeSearch();
     presentation.hide(waitForIme: true);
-    // The field declares a soft keyboard again from the next frame and, having
-    // focus, attaches again with it, which is what raises the keyboard.
+    // Hiding lifts the suppression; the keyboard is asked for here and only
+    // here, so a panel closed any other way (back) leaves it down. The field
+    // answers after the frame, focusing or attaching again as it needs to.
+    composer.requestKeyboard();
     WidgetsBinding.instance.addPostFrameCallback((_) => _handingOff = false);
   }
 

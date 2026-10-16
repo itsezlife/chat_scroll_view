@@ -20,12 +20,14 @@ import 'package:flutter/scheduler.dart';
 /// focus, caret, selection and hardware keys work, and the platform keeps its
 /// on-screen keyboard down. No platform channel is used.
 ///
-/// The platform keeps the input type a field attached with, so a change of
-/// mode while the field has focus would not be seen by it (a field that
-/// attached suppressed would never raise the keyboard it is now allowed to).
-/// The field therefore **re-attaches**: one frame after the change, it drops
-/// focus and takes it back, with the new type. Focus, caret and selection are
-/// as they were; the hand-off with a panel is the host's presentation's job.
+/// The platform keeps the input type a field attached with, and a change of
+/// mode alone is meant to show nothing: a panel that closes lifts the
+/// suppression and the keyboard stays down. When the keyboard is wanted (the
+/// host calls `requestKeyboard`, or the user taps the field), a field that
+/// attached suppressed **re-attaches**: it drops focus and takes it back a
+/// frame later, with the type the mode declares now, which raises the
+/// keyboard. Caret and selection are as they were; the hand-off with a panel is
+/// the host's presentation's job.
 ///
 /// Needs a Material ancestor and Material localisations, which the text
 /// selection menu draws with.
@@ -60,7 +62,9 @@ class _ComposerFieldState extends State<ComposerField> {
   void initState() {
     super.initState();
     widget.controller.text.addListener(_scheduleAnchor);
-    widget.controller.softKeyboard.addListener(_onSoftKeyboardMode);
+    widget.controller.keyboardRequests.addListener(_onKeyboardRequest);
+    widget.controller.focusNode.addListener(_onFocus);
+    _onFocus();
   }
 
   @override
@@ -68,33 +72,76 @@ class _ComposerFieldState extends State<ComposerField> {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.controller, widget.controller)) {
       oldWidget.controller.text.removeListener(_scheduleAnchor);
-      oldWidget.controller.softKeyboard.removeListener(_onSoftKeyboardMode);
+      oldWidget.controller.keyboardRequests.removeListener(_onKeyboardRequest);
+      oldWidget.controller.focusNode.removeListener(_onFocus);
       widget.controller.text.addListener(_scheduleAnchor);
-      widget.controller.softKeyboard.addListener(_onSoftKeyboardMode);
+      widget.controller.keyboardRequests.addListener(_onKeyboardRequest);
+      widget.controller.focusNode.addListener(_onFocus);
+      _onFocus();
     }
   }
 
   @override
   void dispose() {
     widget.controller.text.removeListener(_scheduleAnchor);
-    widget.controller.softKeyboard.removeListener(_onSoftKeyboardMode);
+    widget.controller.keyboardRequests.removeListener(_onKeyboardRequest);
+    widget.controller.focusNode.removeListener(_onFocus);
     super.dispose();
   }
 
-  // The mode changed: once the frame has rebuilt the field with the new input
-  // type, a field that has focus attaches again with it. Waiting a frame also
-  // covers a host that asked for focus and changed the mode in one call, when
-  // focus has not landed yet.
-  void _onSoftKeyboardMode() {
+  // The mode the field was last built with, and the one it attached to the
+  // platform with when it took focus (null without focus).
+  SoftKeyboardMode? _builtMode;
+  SoftKeyboardMode? _attachedMode;
+  var _reattaching = false;
+
+  // The field attached while suppressed and the keyboard is allowed now: the
+  // platform still holds no keyboard type for it.
+  bool get _attachedStale =>
+      _attachedMode == SoftKeyboardMode.suppressed &&
+      widget.controller.softKeyboard.value == SoftKeyboardMode.auto;
+
+  void _onFocus() {
+    if (_reattaching) return;
+    _attachedMode = widget.controller.focusNode.hasFocus ? _builtMode : null;
+  }
+
+  // Answered after the frame, so the field is built with the option the host
+  // set together with the request.
+  void _onKeyboardRequest() {
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final node = widget.controller.focusNode;
-      if (!node.hasFocus) return;
-      node.unfocus();
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (mounted && widget.enabled) node.requestFocus();
-      });
+      if (mounted) _raiseKeyboard();
     });
+  }
+
+  void _raiseKeyboard() {
+    final controller = widget.controller;
+    if (!widget.enabled ||
+        _reattaching ||
+        controller.softKeyboard.value == SoftKeyboardMode.suppressed) {
+      return;
+    }
+    final node = controller.focusNode;
+    if (!node.hasFocus) {
+      node.requestFocus();
+      return;
+    }
+    if (!_attachedStale) {
+      _editableTextState()?.requestKeyboard();
+      return;
+    }
+    _reattaching = true;
+    node.unfocus();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _reattaching = false;
+      if (!mounted || !widget.enabled) return;
+      node.requestFocus();
+    });
+  }
+
+  void _onTap() {
+    widget.onTap?.call();
+    if (_attachedStale) _raiseKeyboard();
   }
 
   void _scheduleAnchor() {
@@ -162,35 +209,38 @@ class _ComposerFieldState extends State<ComposerField> {
           ),
           child: ListenValueBuilder<SoftKeyboardMode>(
             listenable: controller.softKeyboard,
-            builder: (context, mode) => TextField(
-              key: _textFieldKey,
-              controller: controller.text,
-              focusNode: controller.focusNode,
-              scrollController: controller.fieldScroll,
-              enabled: widget.enabled,
-              minLines: 1,
-              maxLines: ComposerMetrics.fieldMaxLines,
-              keyboardType: mode == SoftKeyboardMode.suppressed
-                  ? TextInputType.none
-                  : TextInputType.multiline,
-              textInputAction: TextInputAction.newline,
-              textCapitalization: TextCapitalization.sentences,
-              onTap: widget.onTap,
-              cursorColor: composer.cursor,
-              style: TextStyle(
-                color: composer.text,
-                fontSize: fontSize,
-                height: lineHeight,
-              ),
-              decoration: InputDecoration.collapsed(
-                hintText: strings.messageHint,
-                hintStyle: TextStyle(
-                  color: placeholder.fieldHint,
+            builder: (context, mode) {
+              _builtMode = mode;
+              return TextField(
+                key: _textFieldKey,
+                controller: controller.text,
+                focusNode: controller.focusNode,
+                scrollController: controller.fieldScroll,
+                enabled: widget.enabled,
+                minLines: 1,
+                maxLines: ComposerMetrics.fieldMaxLines,
+                keyboardType: mode == SoftKeyboardMode.suppressed
+                    ? TextInputType.none
+                    : TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
+                textCapitalization: TextCapitalization.sentences,
+                onTap: _onTap,
+                cursorColor: composer.cursor,
+                style: TextStyle(
+                  color: composer.text,
                   fontSize: fontSize,
                   height: lineHeight,
                 ),
-              ),
-            ),
+                decoration: InputDecoration.collapsed(
+                  hintText: strings.messageHint,
+                  hintStyle: TextStyle(
+                    color: placeholder.fieldHint,
+                    fontSize: fontSize,
+                    height: lineHeight,
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),

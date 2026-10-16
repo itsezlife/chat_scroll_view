@@ -17,7 +17,7 @@ import 'package:listen/listen.dart' as listen;
 /// belong to the host: the controller has no mode state and imports no panel,
 /// inset or presentation type. Neither does it touch the platform text input
 /// channel: showing and hiding the keyboard is the field's job, driven by
-/// [softKeyboard] and [focusNode].
+/// [softKeyboard], [focusNode] and [requestKeyboard].
 ///
 /// The creator disposes. A text controller, focus node or scroll controller
 /// passed in is the host's and is left alone by [dispose]; the ones the
@@ -63,6 +63,7 @@ final class ComposerController {
   final _fieldHeight = listen.ValueNotifier<double>(0);
   final _extent = listen.ValueNotifier<double>(0);
   final _query = listen.ValueNotifier<ComposerInputQuery?>(null);
+  final _keyboardRequests = _Signal();
   final _kinds = <ComposerQueryKind>[];
   Rect? _anchor;
   var _disposed = false;
@@ -142,10 +143,31 @@ final class ComposerController {
   listen.ValueListenable<SoftKeyboardMode> get softKeyboard => _softKeyboard;
 
   /// Sets the soft keyboard option.
+  ///
+  /// The option alone shows nothing: a field that has focus keeps the input
+  /// connection it has, so lifting the suppression (a panel closing) leaves the
+  /// keyboard down until the user taps the field or the host calls
+  /// [requestKeyboard].
   void setSoftKeyboard(SoftKeyboardMode mode) {
     if (_disposed) return;
     _softKeyboard.value = mode;
   }
+
+  /// Asks the field to raise the on-screen keyboard, after the frame that
+  /// applies the current [softKeyboard] option.
+  ///
+  /// The field takes focus if it has none. A field that took focus while the
+  /// keyboard was suppressed attached to the platform with no keyboard type,
+  /// which the platform keeps; it attaches again, with the current option, and
+  /// that raises the keyboard. Nothing shows while [softKeyboard] is
+  /// suppressed.
+  void requestKeyboard() {
+    if (_disposed) return;
+    _keyboardRequests.signal();
+  }
+
+  /// Signals each [requestKeyboard]; the field answers it. For the view.
+  listen.Listenable get keyboardRequests => _keyboardRequests;
 
   // --- Field geometry ---
 
@@ -273,6 +295,7 @@ final class ComposerController {
     _disposed = true;
     text.removeListener(_detectQuery);
     _softKeyboard.dispose();
+    _keyboardRequests.dispose();
     _fieldHeight.dispose();
     _extent.dispose();
     _query.dispose();
@@ -280,4 +303,10 @@ final class ComposerController {
     if (_ownsFocus) focusNode.dispose();
     if (_ownsScroll) fieldScroll.dispose();
   }
+}
+
+/// The signal behind [ComposerController.keyboardRequests]: `notifyListeners`
+/// is protected, so the controller reaches it through this subclass.
+final class _Signal extends listen.ChangeNotifier {
+  void signal() => notifyListeners();
 }

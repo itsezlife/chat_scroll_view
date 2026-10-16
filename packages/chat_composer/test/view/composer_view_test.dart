@@ -12,10 +12,16 @@ const _restricted = ComposerPanelId('restricted');
 // running animation never hides behind pumpAndSettle.
 const _reveal = Duration(milliseconds: 381);
 
-// The input type the platform's text input was last attached with.
+// The input type the platform's text input was last attached with: the type
+// of the latest `TextInput.setClient`. A configuration update does not count,
+// because the platform keeps the type a client attached with.
 String _attachedType(WidgetTester tester) {
-  final args = tester.testTextInput.setClientArgs;
-  final type = args!['inputType']! as Map<String, dynamic>;
+  final attach = tester.testTextInput.log.lastWhere(
+    (call) => call.method == 'TextInput.setClient',
+  );
+  final config =
+      (attach.arguments as List<Object?>)[1]! as Map<String, dynamic>;
+  final type = config['inputType']! as Map<String, dynamic>;
   return '${type['name']}';
 }
 
@@ -442,57 +448,90 @@ void main() {
         tester.widget<TextField>(find.byType(TextField)).keyboardType,
         TextInputType.none,
       );
-      // The field attaches again with the new type, a frame later.
-      await tester.pump();
-      await tester.pump();
       expect(controller.hasFocus, isTrue);
     });
 
-    testWidgets('a field that attached suppressed attaches again, with a '
-        'keyboard type, when the keyboard is allowed', (tester) async {
+    Future<void> focusSuppressed(WidgetTester tester) async {
       controller.setSoftKeyboard(SoftKeyboardMode.suppressed);
       await show(tester, ComposerSpec());
       controller.requestFocus();
       await tester.pump();
-      expect(tester.testTextInput.hasAnyClients, isTrue);
       expect(_attachedType(tester), 'TextInputType.none');
+    }
+
+    testWidgets('lifting the suppression alone raises no keyboard: a panel '
+        'that closes leaves focus and caret, and the keyboard down', (
+      tester,
+    ) async {
+      await focusSuppressed(tester);
 
       controller.setSoftKeyboard(SoftKeyboardMode.auto);
-      await tester.pump();
-      await tester.pump();
-      await tester.pump();
+      for (var i = 0; i < 4; i++) {
+        await tester.pump();
+      }
 
-      expect(controller.hasFocus, isTrue);
-      expect(tester.testTextInput.hasAnyClients, isTrue);
-      expect(_attachedType(tester), startsWith('TextInputType.multiline'));
-    });
-
-    testWidgets('and the other way: allowed, then suppressed', (tester) async {
-      await show(tester, ComposerSpec());
-      controller.requestFocus();
-      await tester.pump();
-      expect(_attachedType(tester), startsWith('TextInputType.multiline'));
-
-      controller.setSoftKeyboard(SoftKeyboardMode.suppressed);
-      await tester.pump();
-      await tester.pump();
-      await tester.pump();
-
+      // Still attached with no keyboard type: the platform shows none.
       expect(controller.hasFocus, isTrue);
       expect(_attachedType(tester), 'TextInputType.none');
     });
 
-    testWidgets('a field without focus is not touched by a change of mode', (
+    testWidgets('a requested keyboard re-attaches a field that attached '
+        'suppressed, with a keyboard type, and shows', (tester) async {
+      await focusSuppressed(tester);
+
+      controller
+        ..setSoftKeyboard(SoftKeyboardMode.auto)
+        ..requestKeyboard();
+      for (var i = 0; i < 4; i++) {
+        await tester.pump();
+      }
+
+      expect(controller.hasFocus, isTrue);
+      expect(_attachedType(tester), startsWith('TextInputType.multiline'));
+      expect(tester.testTextInput.isVisible, isTrue);
+    });
+
+    testWidgets('a requested keyboard focuses a field without focus', (
       tester,
     ) async {
       await show(tester, ComposerSpec());
 
-      controller.setSoftKeyboard(SoftKeyboardMode.suppressed);
+      controller.requestKeyboard();
       await tester.pump();
       await tester.pump();
 
-      expect(controller.hasFocus, isFalse);
-      expect(tester.testTextInput.hasAnyClients, isFalse);
+      expect(controller.hasFocus, isTrue);
+      expect(_attachedType(tester), startsWith('TextInputType.multiline'));
+      expect(tester.testTextInput.isVisible, isTrue);
+    });
+
+    testWidgets('a requested keyboard shows nothing while suppressed', (
+      tester,
+    ) async {
+      await focusSuppressed(tester);
+
+      controller.requestKeyboard();
+      for (var i = 0; i < 4; i++) {
+        await tester.pump();
+      }
+
+      expect(_attachedType(tester), 'TextInputType.none');
+    });
+
+    testWidgets('a tap on a field that attached suppressed, once the keyboard '
+        'is allowed, re-attaches it and shows', (tester) async {
+      await focusSuppressed(tester);
+      controller.setSoftKeyboard(SoftKeyboardMode.auto);
+      await tester.pump();
+
+      await tester.tap(find.byType(TextField));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump();
+      }
+
+      expect(controller.hasFocus, isTrue);
+      expect(_attachedType(tester), startsWith('TextInputType.multiline'));
+      expect(tester.testTextInput.isVisible, isTrue);
     });
 
     testWidgets('disabled spec disables the field', (tester) async {
