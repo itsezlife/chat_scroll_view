@@ -1,4 +1,3 @@
-import 'package:chat_chrome/src/motion/scale_pressable.dart';
 import 'package:chat_chrome/src/panel/backspace_action_button.dart';
 import 'package:chat_chrome/src/panel/keyboard_panel_allow.dart';
 import 'package:chat_chrome/src/panel/keyboard_panel_bottom_actions.dart';
@@ -6,6 +5,7 @@ import 'package:chat_chrome/src/panel/keyboard_panel_labels.dart';
 import 'package:chat_chrome/src/panel/emoji_tab_assets.dart';
 import 'package:chat_chrome/src/panel/keyboard_panel_type_tabs_pill.dart';
 import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
+import 'package:chrome_foundation/chrome_foundation.dart' show ScalePressable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

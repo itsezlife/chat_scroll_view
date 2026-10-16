@@ -1,9 +1,26 @@
 /// Leaf foundation for chat chrome: semantic palette, per-component token
-/// groups and the nestable, animatable theme scope.
+/// groups, the nestable theme scope, motion roles, strings scope and icon
+/// registry.
 library;
 
+export 'src/icons/chrome_icon.dart';
+export 'src/icons/chrome_icon_id.dart';
+export 'src/icons/chrome_icon_painter.dart';
+export 'src/icons/chrome_icon_registry.dart';
+export 'src/icons/chrome_icon_scope.dart';
+export 'src/motion/chrome_motion.dart';
+export 'src/motion/chrome_motion_scope.dart';
+export 'src/motion/chrome_motion_speed.dart';
+export 'src/motion/motion_spec.dart';
+export 'src/motion/overshoot_curve.dart';
+export 'src/motion/scale_pressable.dart';
 export 'src/palette/chrome_contrast.dart';
 export 'src/palette/chrome_palette.dart';
+export 'src/strings/chrome_strings.dart';
+export 'src/strings/chrome_strings_scope.dart';
+export 'src/strings/composer_strings.dart';
+export 'src/strings/panel_strings.dart';
+export 'src/strings/semantics_strings.dart';
 export 'src/theme/chrome_theme_data.dart';
 export 'src/theme/chrome_theme_scope.dart';
 export 'src/tokens/action_tokens.dart';
