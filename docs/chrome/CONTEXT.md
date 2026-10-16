@@ -115,12 +115,24 @@ The host-facing controller: sealed visibility state, show, hide, toggle, back, a
 _Avoid_: One controller class per presentation kind
 
 **Auto-hide guard**:
-True while the search field wants focus or any `holdAutoHide()` hold is unreleased (a variant picker, a drag). The presentation controller derives it from the shell's search focus and the counted holds; the shell reports no such flag. A popup stays open while it holds.
-_Avoid_: Timers that ignore the guard, a flag the shell sets
+True exactly while any `holdAutoHide()` hold is unreleased (a menu, a variant picker, a drag, a pointer button pressed inside the popup). The presentation controller counts the holds; the shell reports no such flag, and search focus is not a hold. A popup stays open while it holds, and hides 3 s after the last release if the pointer is away.
+_Avoid_: Timers that ignore the guard, a flag the shell sets, search focus as a hold
 
 **Anchored popup**:
-The desktop and web presentation kind: the panel floats above the composer, opens on mouse hover over the toggle or a click, hides after a leave or idle delay, and takes no layout space.
-_Avoid_: Tooltip, dropdown, a popup that steals composer focus on hover open
+The desktop and web presentation kind: the panel floats above the composer, opens at once on mouse hover over the toggle or on a click, hides when the pointer leaves it (at the next event pass from the toggle, after a short grace from the popup), and takes no layout space. It never takes focus: the composer keeps the caret however it was opened.
+_Avoid_: Tooltip, dropdown, a popup that takes composer focus on any open, an idle timeout
+
+**Popup hover area**:
+What counts as the popup to the pointer: its card, a transparent gutter around it for the shadow, and a bridge down to the toggle, so there is no gap between the two where the pointer is over neither. A press in it is not an outside press.
+_Avoid_: A gap between the toggle and the popup, hit-testing only the visible card
+
+**Exempt region**:
+A region of the host's screen, registered with the popup (the composer), where a press does not dismiss it. The toggle is exempt by itself.
+_Avoid_: Dismissing on the press that is the user returning to type
+
+**Panel toggle**:
+The composer's one button for the panel. On the mobile kind it opens the panel and, while it is up, shows the keyboard glyph to give the keyboard back; on a desktop kind it opens, docks or undocks (per state) with one glyph in every state, drawn active while docked.
+_Avoid_: A separate dock button, a second glyph for the open state on a desktop kind
 
 **Dock preference**:
 The user's choice to keep the panel docked at the inline end in a wide window. It lives in the `PreferenceStore`; the controller starts from it and writes every dock and undock to it.

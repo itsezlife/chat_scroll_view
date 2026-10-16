@@ -8,6 +8,39 @@ this package is pre-1.0.
 
 ### Changed
 
+- **The anchored popup never takes focus when it opens.** Before, a click-opened
+  popup moved the caret from the composer into the panel (a hover-opened one
+  did not). Now no open does: the composer keeps the caret, the search field is
+  focused only when the user clicks into it, and the panel is still reachable
+  by Tab. Closing hands focus to `composerFocus` only if the popup held it.
+  Code that relied on Escape working with no focus anywhere after opening by
+  click must now have focus in the composer (the host wraps it in
+  `AnchoredPopupActions`) or in the popup.
+- **The hover machine follows the reference client.** Leaving the toggle hides
+  at the next event pass (it used to wait 300 ms), cancelled by entering the
+  popup; the popup's hover area now includes a transparent gutter and a bridge
+  down to the toggle, so the pointer never crosses a gap. Leaving the popup
+  hides after 300 ms, or at the next pass while it is still appearing. Entering
+  the popup during the fade-out shows it again. After a hold is released with
+  the pointer away it hides after 3 s.
+- **There is no idle timer any more.** An interaction in the panel with the
+  pointer away used to hide the popup after 3 s; it arms nothing now, so a
+  popup opened by click or key and never hovered stays until dismissed.
+  `PanelDismissal.idle` is `PanelDismissal.afterHold` and
+  `PanelPresentationPolicy.idleDelay` is `afterHoldDelay`.
+- **Search focus is not a hold.** `autoHideGuard` is true exactly while a
+  `holdAutoHide()` is unreleased. A popup with search focused and the pointer
+  away now hides by the leave rule.
+- A pointer button pressed inside the popup holds auto-hide until it is
+  released, wherever the pointer goes meanwhile (a scrollbar drag, a
+  selection).
+- A press on the toggle, in the popup's own hover area or in a registered
+  exempt region no longer dismisses the popup.
+- Stale pointer flags are cleared: the touch flag when the popup is hidden, the
+  toggle flag when the toggle leaves the tree under the pointer. The hover
+  open no longer records which kind of open it was (nothing reads it).
+- `popupHide` is 200 ms (was 150) in `chrome_foundation`.
+
 - Change notification is `package:listen` (`listen: ^1.0.1`), not
   `content_model`'s removed `Observable` family: `occupancy`, `state`, `window`,
   `anchorRect`, `samples` and the like are `ValueListenable`s (the
@@ -19,6 +52,10 @@ this package is pre-1.0.
 
 ### Added
 
+- `AnchoredPopupExemptRegion`, `AnchoredPopupStyle.hoverGutter` (default 10)
+  and `AnchoredPopupLayout.outset`.
+- Tests for `holdAutoHide` reentrancy: independent holds in any release order,
+  idempotent release, a hold across a hide and show, inert after dispose.
 - Sealed `PanelPresentation` kinds (`KeyboardReplacement`, `AnchoredPopup`,
   `Docked`), the sealed `PanelVisibility` state and `PanelOccupancy`.
 - `PanelPresentationPolicy` with `$Mobile` and `$Desktop` variants, defaulting

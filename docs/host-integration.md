@@ -313,10 +313,32 @@ presentation.updateWindow(PanelWindow(width: size.width, height: size.height)); 
 
 Wrap the composer in `AnchoredPopupActions(controller: presentation, ...)` under
 `Shortcuts(shortcuts: AnchoredPopupShortcuts.standard)` so Escape and the toggle
-shortcut work while focus is in the composer, and the panel button in
-`AnchoredPopupToggleRegion` for mouse-hover open. A popup that holds the shell
+shortcut work while focus is in the composer. A popup that holds the shell
 must bind Escape itself (the shell forwards `DismissIntent` outward only after
 it has closed search).
+
+**The toggle and the composer.** Two wrappers connect the popup to the
+composer, neither of which the composer package knows about:
+
+1. The panel button in `AnchoredPopupToggleRegion(strategy:, controller:)`, put
+   there through `ActionDescriptor.wrap` (a widget the composer builds around
+   the rendered button). A mouse over it opens the popup at once; its press is
+   never an outside press; and the popup's hover area reaches down to its top
+   edge, so place the toggle under the popup (at the composer's end edge, where
+   the popup anchors) and the pointer crosses without leaving both.
+2. The composer in `AnchoredPopupExemptRegion(strategy:)`: a press inside it
+   does not dismiss the popup, so a click back into the input to keep typing
+   leaves it open. Every other outside press dismisses at once.
+
+The button's click is the host's: `popup` shown and the window can dock ->
+`presentation.dock()`; docked -> `undock()`; shown and cannot dock -> `hide()`;
+else `show()`. Give the descriptor `active: true` while docked and keep the one
+glyph in every state of a desktop kind.
+
+**Holds.** Anything that must keep the popup open while the pointer is
+elsewhere (an open context menu, a variant picker) takes
+`presentation.holdAutoHide()` and releases the hold when it closes. Search
+focus is not one.
 
 ### Back
 
