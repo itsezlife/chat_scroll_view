@@ -60,6 +60,18 @@ without a panel presentation, or with one that publishes zero, the host lifts
 the composer by that height and adds the same value into `bottomPadding`. The viewport then compensates the pad change (invariant 16).
 Do not implement keyboard follow by pinning the newest row.
 
+## Safe area
+
+The bottom safe band (navigation bar, home indicator) is covered once by
+whatever is taller: the composer's own pad, or the occupancy. A
+keyboard-replacement presentation therefore publishes, next to its
+occupancy, the part of the band the occupancy has not covered yet
+(`max(0, band - occupancy.bottom)`), and the host hands that to the composer
+as its bottom safe area. The bottom of the window is `max(band, occupancy)`
+at every frame of an open, a close or a keyboard hand-off: no step when the
+keyboard appears and no band counted twice. The presentation takes the band
+from the same readings as the keyboard height, never from a second observer.
+
 ## Measurement
 
 A one-shot or layout-driven measure of composer height is a **bootstrap and
