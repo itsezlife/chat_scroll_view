@@ -197,6 +197,12 @@ void main() {
   final memRestGrid = <(int, CatalogMemorySnapshot, CatalogMemorySnapshot)>[];
   final memScrollSsl = <(int, CatalogMemorySnapshot, CatalogMemorySnapshot)>[];
   final memScrollGrid = <(int, CatalogMemorySnapshot, CatalogMemorySnapshot)>[];
+  // Candidate only: the catalog with per-section layouts against the same
+  // catalog at one layout.
+  final mixedLayout = <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
+  final mixedPaint = <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
+  final mixedNear = <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
+  final mixedFar = <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
 
   for (final leafCount in kBenchLeafCounts) {
     testWidgets('forced layout — $leafCount leaves', (tester) async {
@@ -562,6 +568,140 @@ void main() {
       }
     });
 
+    testWidgets('mixed layouts (8 and 5 columns) — $leafCount leaves', (
+      tester,
+    ) async {
+      // Candidate only: the baselines lay every section out at one span, so
+      // the comparison is the same catalog with and without per-section
+      // layouts.
+      final uniform = generateCatalogSections(leafCount);
+      final mixed = generateMixedLayoutSections(leafCount);
+
+      Future<BenchmarkMetrics> layoutOf(List<CatalogSection> sections) async {
+        final snapshots = FakeCatalogSnapshotSource(sections: sections);
+        final assetCache = FakeCatalogAssetCache();
+        final controller = PanelCatalogController();
+        Future<void> pumpCand(double width) => tester.pumpWidget(
+          _candidateApp(
+            snapshots: snapshots,
+            assetCache: assetCache,
+            controller: controller,
+            width: width,
+          ),
+        );
+        await pumpCand(400);
+        await tester.pumpAndSettle();
+        for (var i = 0; i < 10; i++) {
+          await pumpCand(400 + (i.isEven ? 0 : 1));
+          await tester.pump();
+        }
+        final samples = <int>[];
+        for (var i = 0; i < 100; i++) {
+          await pumpCand(400 + (i.isEven ? 0 : 1));
+          await tester.pump();
+          samples.add(
+            _candidateRender(tester).debugLastLayoutDuration.inMicroseconds,
+          );
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+        snapshots.dispose();
+        controller.dispose();
+        return BenchmarkMetrics('PCV layout', samples);
+      }
+
+      Future<BenchmarkMetrics> paintOf(List<CatalogSection> sections) async {
+        final snapshots = FakeCatalogSnapshotSource(sections: sections);
+        final assetCache = FakeCatalogAssetCache();
+        final controller = PanelCatalogController();
+        await tester.pumpWidget(
+          _candidateApp(
+            snapshots: snapshots,
+            assetCache: assetCache,
+            controller: controller,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final ro = _candidateRender(tester);
+        for (var i = 0; i < 10; i++) {
+          controller.scrollBy(5);
+          await tester.pump();
+        }
+        final samples = <int>[];
+        for (var i = 0; i < 300; i++) {
+          controller.scrollBy(3);
+          await tester.pump();
+          samples.add(ro.debugLastPaintDuration.inMicroseconds);
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+        snapshots.dispose();
+        controller.dispose();
+        return BenchmarkMetrics('PCV paint', samples);
+      }
+
+      Future<BenchmarkMetrics> jumpOf(
+        List<CatalogSection> sections,
+        int target, {
+        required int maxFrames,
+      }) async {
+        final snapshots = FakeCatalogSnapshotSource(sections: sections);
+        final assetCache = FakeCatalogAssetCache();
+        final controller = PanelCatalogController();
+        await tester.pumpWidget(
+          _candidateApp(
+            snapshots: snapshots,
+            assetCache: assetCache,
+            controller: controller,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final samples = await _pumpUntilSettledSamples(
+          tester,
+          start: () => controller.jumpToSection(target),
+          maxFrames: maxFrames,
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+        snapshots.dispose();
+        controller.dispose();
+        return BenchmarkMetrics('PCV jump', samples);
+      }
+
+      final layout = (
+        leafCount,
+        await layoutOf(mixed),
+        await layoutOf(uniform),
+      );
+      mixedLayout.add(layout);
+      final paint = (leafCount, await paintOf(mixed), await paintOf(uniform));
+      mixedPaint.add(paint);
+      // ignore: avoid_print
+      print(
+        '\n$leafCount leaves — mixed vs uniform layout:\n'
+        '  layout mixed:   ${layout.$2}\n  layout uniform: ${layout.$3}\n'
+        '  paint mixed:    ${paint.$2}\n  paint uniform:  ${paint.$3}',
+      );
+
+      if (mixed.length >= 2) {
+        final near = (
+          leafCount,
+          await jumpOf(mixed, 1, maxFrames: 120),
+          await jumpOf(uniform, 1, maxFrames: 120),
+        );
+        mixedNear.add(near);
+        // ignore: avoid_print
+        print('  near mixed:     ${near.$2}\n  near uniform:   ${near.$3}');
+      }
+      if (mixed.length >= 6) {
+        final far = (
+          leafCount,
+          await jumpOf(mixed, mixed.length - 1, maxFrames: 180),
+          await jumpOf(uniform, uniform.length - 1, maxFrames: 180),
+        );
+        mixedFar.add(far);
+        // ignore: avoid_print
+        print('  far mixed:      ${far.$2}\n  far uniform:    ${far.$3}');
+      }
+    });
+
     testWidgets('memory at rest — $leafCount leaves', (tester) async {
       final sections = generateCatalogSections(leafCount);
 
@@ -724,6 +864,21 @@ void main() {
     dump('Fling frame time', flingSsl, flingGrid);
     dump('Near-path section jump', nearSsl, nearGrid);
     dump('Far-path stitch vs animateTo', farSsl, farGrid);
+    for (final (title, rows) in [
+      ('Mixed layouts: forced layout', mixedLayout),
+      ('Mixed layouts: scroll-only paint', mixedPaint),
+      ('Mixed layouts: near-path section jump', mixedNear),
+      ('Mixed layouts: far-path stitch', mixedFar),
+    ]) {
+      // ignore: avoid_print
+      print(
+        generateCatalogComparisonTable(
+          title: '$title — vs the same catalog at one layout',
+          rows: rows,
+          baselineLabel: 'Uniform layout',
+        ),
+      );
+    }
     // ignore: avoid_print
     print(
       generateCatalogMemoryTable(

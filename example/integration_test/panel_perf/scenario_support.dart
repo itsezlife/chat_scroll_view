@@ -2,6 +2,7 @@
 /// suite flings, records and judges the same way.
 library;
 
+import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -192,7 +193,7 @@ Map<String, Object?> atlasMeta(WidgetTester tester) {
     for (final section
         in tester.widget<PanelCatalogViewport>(finder).snapshots.value.sections)
       for (final leaf in section.leaves)
-        if (leaf is UnicodeCatalogLeaf) leaf.glyph,
+        if (leaf.key case ContentKey$Unicode(:final sequence)) sequence,
   };
   final cache = atlas.cacheReport;
   return {

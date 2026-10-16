@@ -10,11 +10,12 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
-import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
+import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
 import 'package:panel_catalog/src/viewport/catalog_atlas_bake_bridge.dart';
 import 'package:panel_catalog/src/viewport/catalog_bake_activity.dart';
+import 'package:panel_catalog/src/viewport/catalog_cell_paint.dart';
 import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
@@ -46,7 +47,11 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// Catalog geometry is a known content height ([contentExtent]), not an
 /// id-relative anchor. [projectCatalogSlots] flattens
 /// [CatalogSnapshot.sections] into absolute header/leaf slots in content
-/// coordinates (y increases downward from the catalog top). Scroll range is:
+/// coordinates (y increases downward from the catalog top), each section by
+/// its own [CatalogSection.layout] resolved against the viewport defaults.
+/// The slots of all sections stay in one ascending list, so the lookups below
+/// are one binary search whatever mix of layouts the catalog holds. Scroll
+/// range is:
 ///
 /// ```text
 /// maxOffset = max(0, contentExtent − size.height)
@@ -86,7 +91,7 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// Overscan is intentionally one cell row: enough that a short drag does not
 /// thrash attach/detach every frame, not a second viewport of prefetched
 /// bindings. Empty / short catalogs still project headers; unbound leaves
-/// paint as loading placeholders via [CatalogLeafPresentation].
+/// paint as loading placeholders via [CatalogCellPaint].
 ///
 /// ## Scroll input
 ///
@@ -143,13 +148,13 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 ///
 /// The entire viewport is the hit target ([hitTestSelf]). On pointer-down,
 /// [leafAt] maps viewport-local coordinates through scroll offset into a
-/// [CatalogLeaf] (or `null` on headers / padding). [CatalogLeafPointer]
+/// [CatalogLeafHit] (or `null` on headers / padding). [CatalogLeafPointer]
 /// registers tap / long-press for leaf downs when wired;
 /// [CatalogLeafPointer.leafLongPressEligible] skips the long-press recognizer
 /// on ineligible leaves. Drag always receives the pointer so scroll still wins
 /// the arena when the finger moves. Press scale starts on leaf-down via
 /// [CatalogLeafPress], keyed by [CatalogLeafSlotKey] (content position), not
-/// [CatalogLeaf.assetKey], so duplicate glyphs in different sections animate
+/// the leaf's content key, so duplicate glyphs in different sections animate
 /// independently. Painted as `0.8 + 0.2 * (1 − progress)`. Drag start and
 /// long-press cancel call press-out. Pointer move that leaves the pressed cell
 /// rect also releases.
@@ -222,14 +227,14 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     double? headerLandingInset,
     required CatalogAssetCacheType cacheType,
     required CatalogLeafPaintTheme paintTheme,
-    ValueChanged<CatalogLeaf>? onLeafTap,
-    void Function(CatalogLeaf leaf, LongPressStartDetails details)?
+    ValueChanged<CatalogLeafHit>? onLeafTap,
+    void Function(CatalogLeafHit hit, LongPressStartDetails details)?
     onLeafLongPressStart,
-    void Function(CatalogLeaf leaf, LongPressMoveUpdateDetails details)?
+    void Function(CatalogLeafHit hit, LongPressMoveUpdateDetails details)?
     onLeafLongPressMove,
-    void Function(CatalogLeaf leaf, LongPressEndDetails details)?
+    void Function(CatalogLeafHit hit, LongPressEndDetails details)?
     onLeafLongPressEnd,
-    bool Function(CatalogLeaf leaf)? leafLongPressEligible,
+    bool Function(CatalogLeafHit hit)? leafLongPressEligible,
   }) : _snapshots = snapshots,
        _controller = controller,
        _pixels = controller.offset,
@@ -382,18 +387,18 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   }
 
   /// Shell tap callback. Rebinding updates the leaf pointer while attached.
-  ValueChanged<CatalogLeaf>? _onLeafTap;
-  set onLeafTap(ValueChanged<CatalogLeaf>? value) {
+  ValueChanged<CatalogLeafHit>? _onLeafTap;
+  set onLeafTap(ValueChanged<CatalogLeafHit>? value) {
     if (_onLeafTap == value) return;
     _onLeafTap = value;
     _leafPointer.onLeafTap = value;
   }
 
   /// Shell long-press start. Null disables the long-press recognizer.
-  void Function(CatalogLeaf leaf, LongPressStartDetails details)?
+  void Function(CatalogLeafHit hit, LongPressStartDetails details)?
   _onLeafLongPressStart;
   set onLeafLongPressStart(
-    void Function(CatalogLeaf leaf, LongPressStartDetails details)? value,
+    void Function(CatalogLeafHit hit, LongPressStartDetails details)? value,
   ) {
     if (_onLeafLongPressStart == value) return;
     _onLeafLongPressStart = value;
@@ -401,10 +406,11 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   }
 
   /// Shell long-press move. Ignored when start is null.
-  void Function(CatalogLeaf leaf, LongPressMoveUpdateDetails details)?
+  void Function(CatalogLeafHit hit, LongPressMoveUpdateDetails details)?
   _onLeafLongPressMove;
   set onLeafLongPressMove(
-    void Function(CatalogLeaf leaf, LongPressMoveUpdateDetails details)? value,
+    void Function(CatalogLeafHit hit, LongPressMoveUpdateDetails details)?
+    value,
   ) {
     if (_onLeafLongPressMove == value) return;
     _onLeafLongPressMove = value;
@@ -412,10 +418,10 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   }
 
   /// Shell long-press end. Ignored when start is null.
-  void Function(CatalogLeaf leaf, LongPressEndDetails details)?
+  void Function(CatalogLeafHit hit, LongPressEndDetails details)?
   _onLeafLongPressEnd;
   set onLeafLongPressEnd(
-    void Function(CatalogLeaf leaf, LongPressEndDetails details)? value,
+    void Function(CatalogLeafHit hit, LongPressEndDetails details)? value,
   ) {
     if (_onLeafLongPressEnd == value) return;
     _onLeafLongPressEnd = value;
@@ -423,8 +429,8 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   }
 
   /// Per-leaf long-press registration gate. Null = all leaves eligible.
-  bool Function(CatalogLeaf leaf)? _leafLongPressEligible;
-  set leafLongPressEligible(bool Function(CatalogLeaf leaf)? value) {
+  bool Function(CatalogLeafHit hit)? _leafLongPressEligible;
+  set leafLongPressEligible(bool Function(CatalogLeafHit hit)? value) {
     if (_leafLongPressEligible == value) return;
     _leafLongPressEligible = value;
     _leafPointer.leafLongPressEligible = value;
@@ -545,23 +551,23 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   /// Equals `max(0, contentExtent − size.height)`.
   double get maxOffset => math.max(0.0, _contentExtent - size.height);
 
-  /// Flat leaf [CatalogAssetKey]s in projection order (headers omitted).
+  /// Flat leaves in projection order (headers omitted).
   ///
   /// Reflects the last project — empty before layout, or when every section
   /// has no leaves.
-  List<CatalogAssetKey> get projectedAssetKeys => [
+  List<CatalogLeaf> get projectedLeaves => [
     for (final slot in _slots)
-      if (slot case final CatalogLeafSlot leaf) leaf.leaf.assetKey,
+      if (slot case final CatalogLeafSlot leaf) leaf.leaf,
   ];
 
-  /// Presentation for [key], or `null` when no projected leaf matches.
+  /// What is drawn for [leaf], or `null` when no projected leaf equals it.
   ///
   /// Uses the binding pool (live bind or settled [CatalogAssetCache.readinessOf]).
-  /// `null` means the key is absent from the current projection entirely.
-  CatalogLeafPresentation? presentationOf(CatalogAssetKey key) {
+  /// `null` means the leaf is absent from the current projection entirely.
+  CatalogCellPaint? cellPaintOf(CatalogLeaf leaf) {
     for (final slot in _slots) {
-      if (slot case final CatalogLeafSlot leaf when leaf.leaf.assetKey == key) {
-        return _pool.presentationFor(leaf.leaf);
+      if (slot case final CatalogLeafSlot cell when cell.leaf == leaf) {
+        return _pool.paintFor(cell.leaf);
       }
     }
     return null;
@@ -576,7 +582,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   ///
   /// Models pager keep-alive leave (`detachAll` while the page [State] and
   /// [CatalogAssetCache] survive). Settled cache readiness MUST still drive
-  /// [presentationOf] so paint does not flash loading placeholders.
+  /// [cellPaintOf] so paint does not flash loading placeholders.
   @visibleForTesting
   void debugDetachBindings() => _pool.detachAll();
 
@@ -585,8 +591,8 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
 
   /// Cell currently receiving press-scale feedback, or `null` when idle.
   ///
-  /// Test / debug seam for paint press — keyed by content slot, not
-  /// [CatalogLeaf.assetKey], so duplicate glyphs animate independently.
+  /// Test / debug seam for paint press — keyed by content slot, not by the
+  /// leaf's content key, so duplicate glyphs animate independently.
   CatalogLeafSlotKey? get pressedSlotKey => _press?.pressedSlotKey;
 
   /// Press amount for [pressedSlotKey]: `0` idle … `1` fully pressed; may be
@@ -618,27 +624,32 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   @visibleForTesting
   Duration debugLastPaintDuration = Duration.zero;
 
-  /// Resolves the [CatalogLeaf] under [localPosition], or `null` when the
+  /// Resolves the [CatalogLeafHit] under [localPosition], or `null` when the
   /// point lies on a header, padding, or empty band.
   ///
   /// [localPosition] is viewport-local (post-hit-test). Content y adds the
   /// current scroll [PanelCatalogController.offset]. Requires [hasSize] and
   /// a prior project — returns `null` before the first layout.
-  CatalogLeaf? leafAt(Offset localPosition) => leafSlotAt(localPosition)?.leaf;
+  CatalogLeafHit? leafAt(Offset localPosition) =>
+      leafSlotAt(localPosition)?.hit;
 
   /// Resolves the leaf [CatalogLeafSlot] under [localPosition], or `null`.
   ///
-  /// Used for press feedback and pointer routing so duplicate [CatalogLeaf]
-  /// identities in different sections stay independent.
+  /// Used for press feedback and pointer routing so a leaf shown in several
+  /// cells stays one independent cell per hit. Binary search to the row under
+  /// the point, then a scan of that row: the cost follows the row, not the
+  /// catalogue, whatever layouts its sections use.
   CatalogLeafSlot? leafSlotAt(Offset localPosition) {
     if (!hasSize) return null;
     final contentX = localPosition.dx;
     final contentY = localPosition.dy + _pixels;
-    for (final slot in _slots) {
+    final slots = _slots;
+    for (var i = _firstSlotIndexAtOrBelow(contentY); i < slots.length; i++) {
+      final slot = slots[i];
+      if (slot.top > contentY) break;
       if (slot case final CatalogLeafSlot leaf) {
         if (contentX >= leaf.left &&
             contentX < leaf.left + leaf.width &&
-            contentY >= leaf.top &&
             contentY < leaf.bottom) {
           return leaf;
         }
@@ -871,14 +882,19 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     _cancelFling();
     _cancelSectionJumpMotion();
 
-    final targetOffset = scrollOffsetForSectionHeader(
-      sectionIndex: sectionIndex,
+    // From the live sections, not the last projection: a snapshot published
+    // since the last layout is the catalog the jump is about.
+    final bands = projectCatalogSectionBands(
       sections: sections,
       spanCount: _spanCount,
       cellExtent: _cellExtent,
       headerExtent: _headerExtent,
       padding: _padding,
-      headerLandingInset: _headerLandingInset,
+      maxWidth: size.width,
+    ).bands;
+    final targetOffset = scrollOffsetForBand(
+      bands[sectionIndex],
+      landingInset: _headerLandingInset ?? _padding.top,
     ).clamp(0.0, maxOffset);
 
     if ((targetOffset - _pixels).abs() < 1) {
@@ -892,11 +908,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
 
     final near = isNearPathSectionJump(
       targetSectionIndex: sectionIndex,
-      sections: sections,
-      spanCount: _spanCount,
-      cellExtent: _cellExtent,
-      headerExtent: _headerExtent,
-      padding: _padding,
+      bands: bands,
       scrollOffset: _pixels,
       viewportHeight: size.height,
     );
@@ -1275,8 +1287,7 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
       final slot = _slots[i];
       if (slot.bottom < top || slot.top > bottom) continue;
       if (slot case CatalogLeafSlot(:final leaf)) {
-        final key = leaf.contentKey;
-        if (key != null) keys.add(key);
+        keys.add(leaf.key);
       }
     }
     return keys;
@@ -1549,7 +1560,9 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
 
   // --- RenderBox layout -----------------------------------------------------
 
-  /// Preferred width: horizontal padding + [spanCount] × [cellExtent].
+  /// Preferred width: horizontal padding + the default [spanCount] ×
+  /// [cellExtent] (sections with a layout of their own divide the width they
+  /// are given).
   ///
   /// Used when the parent passes unbounded width. Height argument is ignored
   /// — pitch is square and independent of constraint height.
@@ -1612,11 +1625,6 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     _layoutLogLastSlotCount = slotCount;
     if (!changed && frame > 1 && frame % 30 != 0) return;
     final (winTop, winBottom) = _visibleWindow();
-    final usableW = (constraints.maxWidth - _padding.horizontal).clamp(
-      0.0,
-      double.infinity,
-    );
-    final cellW = usableW > 0 ? usableW / _spanCount : _cellExtent;
     fine(.layout, 'layout.end', {
       'frame': frame,
       'cw': LogFormat.f(constraints.maxWidth),
@@ -1625,7 +1633,6 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
       'vh': LogFormat.f(size.height),
       'span': _spanCount,
       'cell': LogFormat.f(_cellExtent),
-      'cellW': LogFormat.f(cellW),
       'header': LogFormat.f(_headerExtent),
       'padT': LogFormat.f(_padding.top),
       'padB': LogFormat.f(_padding.bottom),
@@ -1793,15 +1800,15 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
     for (final slot in _slots) {
       if (slot is! CatalogLeafSlot) continue;
       if (slot.bottom < visibleTop || slot.top > visibleBottom) continue;
-      switch (_pool.presentationFor(slot.leaf)) {
-        case CatalogLeafPresentation.content:
+      switch (_pool.paintFor(slot.leaf)) {
+        case CatalogCellPaint.content:
           content++;
-        case CatalogLeafPresentation.circlePlaceholder:
+        case CatalogCellPaint.circle:
           circle++;
-        case CatalogLeafPresentation.thumbFirstPlaceholder:
-        case CatalogLeafPresentation.shapedLoadingWash:
+        case CatalogCellPaint.thumb:
+        case CatalogCellPaint.wash:
           thumb++;
-        case CatalogLeafPresentation.failed:
+        case CatalogCellPaint.failed:
           failed++;
       }
     }
@@ -1827,20 +1834,14 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
   }) {
     switch (slot) {
       case final CatalogHeaderSlot header:
-        _painter.paintHeader(
-          canvas: canvas,
-          origin: origin,
-          header: header,
-          contentWidth: size.width,
-          padding: _padding,
-        );
+        _painter.paintHeader(canvas: canvas, origin: origin, header: header);
       case final CatalogLeafSlot leaf:
         final isPressed = pressedSlotKey != null && leaf.key == pressedSlotKey;
         _painter.paintLeaf(
           canvas: canvas,
           origin: origin,
           slot: leaf,
-          presentation: _pool.presentationFor(leaf.leaf),
+          presentation: _pool.paintFor(leaf.leaf),
           sprite: _pool.spriteFor(leaf.leaf),
           pressScale: isPressed ? pressScale : 1.0,
           pressProgress: isPressed ? pressProgress : 0,
@@ -1879,11 +1880,22 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
       );
       final bandOrigin = viewportOrigin.translate(0, captured.viewportTop + dy);
       switch (captured) {
-        case CatalogStitchCapturedHeader(:final title, :final height):
+        case CatalogStitchCapturedHeader(
+          :final title,
+          :final height,
+          :final left,
+          :final width,
+        ):
           _paintLayoutSlot(
             canvas: canvas,
             origin: bandOrigin,
-            slot: CatalogHeaderSlot(top: 0, height: height, title: title),
+            slot: CatalogHeaderSlot(
+              top: 0,
+              height: height,
+              left: left,
+              width: width,
+              title: title,
+            ),
             pressedSlotKey: pressedSlotKey,
             pressScale: pressScale,
             pressProgress: pressProgress,
@@ -1892,6 +1904,8 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
           :final left,
           :final width,
           :final height,
+          :final sectionId,
+          :final index,
           :final leaf,
         ):
           _paintLayoutSlot(
@@ -1902,6 +1916,8 @@ class RenderPanelCatalog extends RenderBox implements CatalogScrollPosition {
               height: height,
               left: left,
               width: width,
+              sectionId: sectionId,
+              index: index,
               leaf: leaf,
             ),
             pressedSlotKey: pressedSlotKey,

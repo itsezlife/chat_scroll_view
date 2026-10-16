@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:panel_catalog/src/model/catalog_leaf.dart';
+import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 
 /// Viewport-owned tap / long-press recognizers for paint-leaf catalogs.
 ///
-/// Maps a resolved [CatalogLeaf] under the pointer into shell callbacks.
+/// Maps the resolved [CatalogLeafHit] under the pointer into shell callbacks.
 /// Does **not** own hit-testing ([leafAt] is supplied by the render object),
 /// scroll drag, or press-scale animation.
 ///
@@ -27,32 +27,32 @@ final class CatalogLeafPointer {
   /// Gesture debug owner — the viewport render object.
   final Object debugOwner;
 
-  /// Resolves the leaf under a viewport-local position, or `null` when the
+  /// Resolves the cell under a viewport-local position, or `null` when the
   /// pointer is over a header / padding / empty band.
-  CatalogLeaf? Function(Offset localPosition)? leafAt;
+  CatalogLeafHit? Function(Offset localPosition)? leafAt;
 
   /// Shell tap (insert / pick). Null skips tap recognizer registration.
-  ValueChanged<CatalogLeaf>? onLeafTap;
+  ValueChanged<CatalogLeafHit>? onLeafTap;
 
   /// Shell long-press start. Null skips the long-press recognizer entirely —
   /// [onLeafLongPressMove] / [onLeafLongPressEnd] are ignored until start is
   /// non-null.
-  void Function(CatalogLeaf leaf, LongPressStartDetails details)?
+  void Function(CatalogLeafHit hit, LongPressStartDetails details)?
   onLeafLongPressStart;
 
   /// Shell long-press drag update while a long-press session is live.
-  void Function(CatalogLeaf leaf, LongPressMoveUpdateDetails details)?
+  void Function(CatalogLeafHit hit, LongPressMoveUpdateDetails details)?
   onLeafLongPressMove;
 
   /// Shell long-press end.
-  void Function(CatalogLeaf leaf, LongPressEndDetails details)?
+  void Function(CatalogLeafHit hit, LongPressEndDetails details)?
   onLeafLongPressEnd;
 
   /// Per-leaf gate for registering [LongPressGestureRecognizer] on pointer
   /// down. When null, every leaf is eligible while [onLeafLongPressStart] is
   /// wired. When non-null, returns false to leave tap-only recognition on
   /// that leaf (host policy for contextual long-press actions).
-  bool Function(CatalogLeaf leaf)? leafLongPressEligible;
+  bool Function(CatalogLeafHit hit)? leafLongPressEligible;
 
   /// Fired when long-press is cancelled (arena lost / pointer cancel) so the
   /// host can release press scale. Tap cancel MUST NOT use this path — when
@@ -66,10 +66,10 @@ final class CatalogLeafPointer {
 
   TapGestureRecognizer? _tap;
   LongPressGestureRecognizer? _longPress;
-  CatalogLeaf? _downLeaf;
+  CatalogLeafHit? _downHit;
 
-  /// Leaf captured at the last [addPointer], if any.
-  CatalogLeaf? get downLeaf => _downLeaf;
+  /// Hit captured at the last [addPointer], if any.
+  CatalogLeafHit? get downHit => _downHit;
 
   /// Forwards [event] to leaf recognizers when a leaf is under the pointer
   /// and at least one leaf callback is wired.
@@ -77,12 +77,12 @@ final class CatalogLeafPointer {
     final resolve = leafAt;
     if (resolve == null) return;
     if (onLeafTap == null && onLeafLongPressStart == null) return;
-    final leaf = resolve(event.localPosition);
-    _downLeaf = leaf;
-    if (leaf == null) return;
+    final hit = resolve(event.localPosition);
+    _downHit = hit;
+    if (hit == null) return;
     final longPressEligible =
         onLeafLongPressStart != null &&
-        (leafLongPressEligible?.call(leaf) ?? true);
+        (leafLongPressEligible?.call(hit) ?? true);
     if (onLeafTap == null && !longPressEligible) return;
     _ensureRecognizers();
     _tap?.addPointer(event);
@@ -105,7 +105,7 @@ final class CatalogLeafPointer {
     _tap = null;
     _longPress?.dispose();
     _longPress = null;
-    _downLeaf = null;
+    _downHit = null;
   }
 
   void _ensureRecognizers() {
@@ -130,32 +130,32 @@ final class CatalogLeafPointer {
 
   void _onTap() {
     if (flingCancelSuppresses?.call() ?? false) return;
-    final leaf = _downLeaf;
+    final hit = _downHit;
     final tap = onLeafTap;
-    if (leaf == null || tap == null) return;
-    tap(leaf);
+    if (hit == null || tap == null) return;
+    tap(hit);
   }
 
   void _onLongPressStart(LongPressStartDetails details) {
     if (flingCancelSuppresses?.call() ?? false) return;
-    final leaf = _downLeaf;
+    final hit = _downHit;
     final start = onLeafLongPressStart;
-    if (leaf == null || start == null) return;
-    start(leaf, details);
+    if (hit == null || start == null) return;
+    start(hit, details);
   }
 
   void _onLongPressMoveUpdate(LongPressMoveUpdateDetails details) {
-    final leaf = _downLeaf;
+    final hit = _downHit;
     final move = onLeafLongPressMove;
-    if (leaf == null || move == null) return;
-    move(leaf, details);
+    if (hit == null || move == null) return;
+    move(hit, details);
   }
 
   void _onLongPressEnd(LongPressEndDetails details) {
-    final leaf = _downLeaf;
+    final hit = _downHit;
     final end = onLeafLongPressEnd;
-    if (leaf == null || end == null) return;
-    end(leaf, details);
+    if (hit == null || end == null) return;
+    end(hit, details);
   }
 
   void _onCancel() => onGestureCancel?.call();

@@ -41,7 +41,7 @@ Widget _app({
   required ValueObservable<CatalogSnapshot> snapshots,
   required PanelCatalogController controller,
   CatalogAssetCache? assetCache,
-  void Function(CatalogLeaf)? onLeafTap,
+  void Function(CatalogLeafHit)? onLeafTap,
 }) => MaterialApp(
   home: PanelCatalogTheme(
     data: PanelCatalogThemeData.light,

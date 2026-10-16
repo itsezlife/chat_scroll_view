@@ -2,7 +2,7 @@ import 'package:catalog_assets/legacy_shim.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
-import 'package:panel_catalog/src/model/catalog_leaf.dart';
+import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 import 'package:panel_catalog/src/theme/panel_catalog_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
@@ -18,7 +18,9 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// Layout fills the parent's constraints ([RenderBox.size] is the viewport).
 /// Content taller than the viewport scrolls by absolute
 /// [PanelCatalogController.offset] against a known content extent produced by
-/// projecting [CatalogSnapshot.sections] into header + grid slots.
+/// projecting [CatalogSnapshot.sections] into header + grid slots, each
+/// section by its own [CatalogSection.layout] (the viewport's [spanCount],
+/// [cellExtent] and [headerExtent] are the defaults a section inherits).
 /// Intrinsic height is `0` (viewport-sized body, not content-sized).
 ///
 /// Does **not** own panel chrome (category strip, search, type tabs, pickers),
@@ -33,8 +35,8 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// range afterwards.
 /// [PanelCatalogController.jumpToSection] lands a section header under
 /// [padding.top] via near-path smooth scroll when [isNearPathSectionJump]
-/// passes ([kFarPathDistanceGateFactor] flat rows, not `spanCount ×` that
-/// value), or via far-path [CatalogFarStitch] when the gate fails. Re-entry
+/// passes ([kFarPathDistanceGateFactor] flat rows, counted at each section's
+/// own column count, not `spanCount ×` that value), or via far-path [CatalogFarStitch] when the gate fails. Re-entry
 /// while [PanelCatalogController.isSectionJumpActive] is ignored at the
 /// controller; hosts SHOULD gate category strip the same way. Drag-end with
 /// enough velocity starts a ballistic fling; pointer-down while flinging
@@ -43,16 +45,20 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// [PanelCatalogController.isSectionJumpActive] is `true` during programmatic
 /// section motion so hosts can suppress strip sync.
 /// Asset bindings attach only for leaves in the visible window plus
-/// one [cellExtent] of overscan; readiness flips mark paint dirty without a
-/// full catalog reproject.
+/// one default [cellExtent] of overscan; readiness flips mark paint dirty
+/// without a full catalog reproject. The window is found by binary search
+/// over one ascending slot list, so its cost follows the visible band whatever
+/// mix of section layouts the catalog holds.
 ///
 /// ## Hit-test and shell callbacks
 ///
-/// The viewport is the sole hit target. Pointers map to [CatalogLeaf] via
-/// content geometry (not per-cell [GestureDetector] / [InkWell]). Optional
-/// [onLeafTap] / long-press callbacks forward leaf identity to the catalog
-/// shell. [leafLongPressEligible] optionally limits which leaves register a
-/// long-press recognizer (ineligible leaves stay tap-only). Press feedback is
+/// The viewport is the sole hit target. Pointers map to a [CatalogLeafHit]
+/// via content geometry (not per-cell [GestureDetector] / [InkWell]); a hit is
+/// the cell, [CatalogLeafHit.sectionId] and [CatalogLeafHit.index], with the
+/// leaf it holds, so the same content key in two sections is two hits. Optional
+/// [onLeafTap] / long-press callbacks forward the hit to the catalog shell.
+/// [leafLongPressEligible] optionally limits which cells register a long-press
+/// recognizer (ineligible cells stay tap-only). Press feedback is
 /// painted from [PanelCatalogTheme] — scale on glyph content, list-selector
 /// highlight on the full cell rect. A fling-cancel tap does not insert a leaf.
 ///
@@ -117,8 +123,8 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// The viewport binds **visible** leaves only (plus overscan) via
   /// [CatalogAssetCache.attach] and detaches the rest. Hosts MUST NOT treat
   /// this widget as a fetch/decode owner — decode lives in the cache;
-  /// presentation is projected from readiness + leaf kind
-  /// (`CatalogLeafPresentation`).
+  /// what is drawn is projected from readiness + the leaf's descriptor
+  /// facts ([CatalogLeaf.placeholderStyle]).
   ///
   /// When the cache has a [CatalogAssetCache.glyphAtlas] the viewport draws
   /// unicode glyphs from its baked pages, batched into one draw per page,
@@ -139,26 +145,28 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// The viewport does **not** dispose this controller.
   final PanelCatalogController controller;
 
-  /// Leaf columns in the grid. MUST be ≥ 1.
+  /// Default leaf columns of a section whose layout leaves its span unset.
+  /// MUST be ≥ 1.
   ///
   /// Changing span reprojects every slot and may change content extent
   /// (fewer columns → taller content).
   final int spanCount;
 
-  /// Square cell pitch in content coordinates (row height and nominal width
-  /// unit before usable-width division).
+  /// Default cell pitch in content coordinates (row height and nominal width
+  /// unit before usable-width division) of a section whose layout sets none.
   ///
-  /// Also the visible-band **overscan** unit: bindings extend one
-  /// [cellExtent] above and below the viewport so short drags do not thrash
-  /// attach/detach every frame. Changing pitch reprojects and re-syncs the
-  /// bind window.
+  /// Also the visible-band **overscan** unit, whatever the sections' own
+  /// pitches: bindings extend one [cellExtent] above and below the viewport so
+  /// short drags do not thrash attach/detach every frame. Changing pitch
+  /// reprojects and re-syncs the bind window.
   final double cellExtent;
 
-  /// Section header band height in content coordinates.
+  /// Default section header band height in content coordinates.
   ///
-  /// Every [CatalogSection] emits a header band of this height even when its
-  /// leaf list is empty — empty sections still reserve header extent for
-  /// strip / jump landing. Changing this reprojects content extent.
+  /// Every [CatalogSection] emits a header band even when its leaf list is
+  /// empty — empty sections still reserve header extent for strip / jump
+  /// landing. A section's layout may set its own. Changing this reprojects
+  /// content extent.
   final double headerExtent;
 
   /// Insets included in content extent (top/bottom) and cell x (left/right).
@@ -182,30 +190,30 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// sync.
   final CatalogAssetCacheType cacheType;
 
-  /// Shell tap when the user selects a leaf.
+  /// Shell tap when the user selects a cell.
   ///
   /// Null disables tap recognition (scroll drag still works). Header and
-  /// padding taps are silent — no synthetic leaf.
-  final ValueChanged<CatalogLeaf>? onLeafTap;
+  /// padding taps are silent — no synthetic hit.
+  final ValueChanged<CatalogLeafHit>? onLeafTap;
 
   /// Shell long-press start (picker / contextual leaf actions).
   ///
   /// Null disables the long-press recognizer. When non-null, a long-press
   /// wins the arena after the timeout and cancels [onLeafTap] for that
   /// pointer on leaves where [leafLongPressEligible] allows registration.
-  final void Function(CatalogLeaf leaf, LongPressStartDetails details)?
+  final void Function(CatalogLeafHit hit, LongPressStartDetails details)?
   onLeafLongPressStart;
 
   /// Shell long-press drag update while a long-press session is live.
   ///
   /// Ignored when [onLeafLongPressStart] is null.
-  final void Function(CatalogLeaf leaf, LongPressMoveUpdateDetails details)?
+  final void Function(CatalogLeafHit hit, LongPressMoveUpdateDetails details)?
   onLeafLongPressMove;
 
   /// Shell long-press end.
   ///
   /// Ignored when [onLeafLongPressStart] is null.
-  final void Function(CatalogLeaf leaf, LongPressEndDetails details)?
+  final void Function(CatalogLeafHit hit, LongPressEndDetails details)?
   onLeafLongPressEnd;
 
   /// Host policy for which leaves register a long-press recognizer.
@@ -214,7 +222,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// Return false when the shell has no long-press action for that leaf so
   /// tap is not cancelled after the long-press timeout (e.g. plain unicode
   /// glyphs without variant picker, vs recents or tone-capable bases).
-  final bool Function(CatalogLeaf leaf)? leafLongPressEligible;
+  final bool Function(CatalogLeafHit hit)? leafLongPressEligible;
 
   @override
   RenderPanelCatalog createRenderObject(BuildContext context) {

@@ -4,7 +4,7 @@
 /// [FakeCatalogAssetCache] — chat-style preloaded DS, no device farm.
 ///
 /// **Observability:** [RenderPanelCatalog] getters used here
-/// (`contentExtent`, `presentationOf`, `isFlinging`, `isFarStitchActive`,
+/// (`contentExtent`, `cellPaintOf`, `isFlinging`, `isFarStitchActive`,
 /// `farStitchProgress`, press seams) are package-private test seams.
 /// Controller offset, jump futures, and shell callbacks are preferred when
 /// they already distinguish the behavior under test.
@@ -26,6 +26,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
+import 'package:panel_catalog/src/viewport/catalog_cell_paint.dart';
 import 'package:panel_catalog/src/viewport/catalog_section_navigation.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
@@ -41,14 +42,14 @@ Widget _harness({
   double cellExtent = 40,
   double headerExtent = 24,
   EdgeInsets padding = EdgeInsets.zero,
-  ValueChanged<CatalogLeaf>? onLeafTap,
-  void Function(CatalogLeaf leaf, LongPressStartDetails details)?
+  ValueChanged<CatalogLeafHit>? onLeafTap,
+  void Function(CatalogLeafHit hit, LongPressStartDetails details)?
   onLeafLongPressStart,
-  void Function(CatalogLeaf leaf, LongPressMoveUpdateDetails details)?
+  void Function(CatalogLeafHit hit, LongPressMoveUpdateDetails details)?
   onLeafLongPressMove,
-  void Function(CatalogLeaf leaf, LongPressEndDetails details)?
+  void Function(CatalogLeafHit hit, LongPressEndDetails details)?
   onLeafLongPressEnd,
-  bool Function(CatalogLeaf leaf)? leafLongPressEligible,
+  bool Function(CatalogLeafHit hit)? leafLongPressEligible,
 }) {
   return MaterialApp(
     home: PanelCatalogTheme(
@@ -204,7 +205,7 @@ void main() {
       tester,
     ) async {
       snapshots.replaceSections([
-        _section('a', [const CatalogLeaf.unicode('😀')]),
+        _section('a', [CatalogLeaf.unicode('😀')]),
       ]);
 
       await tester.pumpWidget(
@@ -216,22 +217,17 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(_render(tester).projectedAssetKeys, [
-        CatalogAssetKey.unicode('😀'),
-      ]);
+      expect(_render(tester).projectedLeaves, [CatalogLeaf.unicode('😀')]);
 
       snapshots.replaceSections([
-        _section('b', [
-          const CatalogLeaf.unicode('🎉'),
-          const CatalogLeaf.unicode('🚀'),
-        ]),
+        _section('b', [CatalogLeaf.unicode('🎉'), CatalogLeaf.unicode('🚀')]),
       ]);
       await tester.pump();
 
       final render = _render(tester);
-      expect(render.projectedAssetKeys, [
-        CatalogAssetKey.unicode('🎉'),
-        CatalogAssetKey.unicode('🚀'),
+      expect(render.projectedLeaves, [
+        CatalogLeaf.unicode('🎉'),
+        CatalogLeaf.unicode('🚀'),
       ]);
       expect(render.contentExtent, 64);
     });
@@ -241,7 +237,7 @@ void main() {
     testWidgets(
       'unicode leaves paint as content without waiting on cache ready',
       (tester) async {
-        const leaf = CatalogLeaf.unicode('😀');
+        final leaf = CatalogLeaf.unicode('😀');
         snapshots.replaceSections([
           _section('a', [leaf]),
         ]);
@@ -256,16 +252,13 @@ void main() {
         await tester.pumpAndSettle();
 
         // Unicode paints from paragraph cache — no circle while loading/unbound.
-        expect(
-          _render(tester).presentationOf(leaf.assetKey),
-          CatalogLeafPresentation.content,
-        );
+        expect(_render(tester).cellPaintOf(leaf), CatalogCellPaint.content);
         expect(kCirclePlaceholderRadiusFactor, 0.4);
       },
     );
 
     testWidgets('failed unicode leaf presents failed stand-in', (tester) async {
-      const leaf = CatalogLeaf.unicode('😀');
+      final leaf = CatalogLeaf.unicode('😀');
       snapshots.replaceSections([
         _section('a', [leaf]),
       ]);
@@ -285,16 +278,13 @@ void main() {
       );
       await tester.pump();
 
-      expect(
-        _render(tester).presentationOf(leaf.assetKey),
-        CatalogLeafPresentation.failed,
-      );
+      expect(_render(tester).cellPaintOf(leaf), CatalogCellPaint.failed);
     });
 
     testWidgets(
       'ready document stays content after binding detachAll (pager reattach)',
       (tester) async {
-        const leaf = CatalogLeaf.document('doc-42');
+        final leaf = CatalogLeaf.document('doc-42');
         snapshots.replaceSections([
           _section('a', [leaf]),
         ]);
@@ -313,25 +303,19 @@ void main() {
           CatalogAssetCacheType.keyboard,
         );
         await tester.pump();
-        expect(
-          _render(tester).presentationOf(leaf.assetKey),
-          CatalogLeafPresentation.content,
-        );
+        expect(_render(tester).cellPaintOf(leaf), CatalogCellPaint.content);
 
         // Simulate keep-alive leave: render detach drops pool binds; cache
         // must retain ready so paint before re-sync does not flash thumb.
         _render(tester).debugDetachBindings();
-        expect(
-          _render(tester).presentationOf(leaf.assetKey),
-          CatalogLeafPresentation.content,
-        );
+        expect(_render(tester).cellPaintOf(leaf), CatalogCellPaint.content);
       },
     );
 
     testWidgets(
       'document-backed leaf identity hooks exist with thumb-first placeholder',
       (tester) async {
-        const leaf = CatalogLeaf.document('doc-42');
+        final leaf = CatalogLeaf.document('doc-42');
         snapshots.replaceSections([
           _section('a', [leaf]),
         ]);
@@ -346,11 +330,8 @@ void main() {
         await tester.pumpAndSettle();
 
         final render = _render(tester);
-        expect(render.projectedAssetKeys, [CatalogAssetKey.document('doc-42')]);
-        expect(
-          render.presentationOf(leaf.assetKey),
-          CatalogLeafPresentation.thumbFirstPlaceholder,
-        );
+        expect(render.projectedLeaves, [leaf]);
+        expect(render.cellPaintOf(leaf), CatalogCellPaint.thumb);
       },
     );
   });
@@ -433,13 +414,13 @@ void main() {
     testWidgets('tap on a leaf fires onLeafTap with that leaf identity', (
       tester,
     ) async {
-      const first = CatalogLeaf.unicode('😀');
-      const second = CatalogLeaf.unicode('🎉');
+      final first = CatalogLeaf.unicode('😀');
+      final second = CatalogLeaf.unicode('🎉');
       snapshots.replaceSections([
         _section('a', [first, second]),
       ]);
 
-      CatalogLeaf? tapped;
+      CatalogLeafHit? tapped;
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
@@ -455,14 +436,15 @@ void main() {
       await tester.tapAt(Offset(box.left + 20, box.top + 24 + 20));
       await tester.pumpAndSettle();
 
-      expect(tapped?.assetKey, first.assetKey);
+      expect(tapped, CatalogLeafHit(sectionId: 'a', index: 0, leaf: first));
+      expect(tapped?.leaf, first);
     });
 
     testWidgets('tap on a section header does not fire onLeafTap', (
       tester,
     ) async {
       snapshots.replaceSections([
-        _section('a', [const CatalogLeaf.unicode('😀')]),
+        _section('a', [CatalogLeaf.unicode('😀')]),
       ]);
 
       var taps = 0;
@@ -486,14 +468,14 @@ void main() {
     testWidgets(
       'long-press on a leaf fires start/move/end with that leaf identity',
       (tester) async {
-        const leaf = CatalogLeaf.unicode('😀');
+        final leaf = CatalogLeaf.unicode('😀');
         snapshots.replaceSections([
           _section('a', [leaf]),
         ]);
 
-        CatalogLeaf? started;
-        CatalogLeaf? moved;
-        CatalogLeaf? ended;
+        CatalogLeafHit? started;
+        CatalogLeafHit? moved;
+        CatalogLeafHit? ended;
         await tester.pumpWidget(
           _harness(
             snapshots: snapshots,
@@ -510,35 +492,35 @@ void main() {
         final center = Offset(box.left + 20, box.top + 24 + 20);
         final gesture = await tester.startGesture(center);
         await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
-        expect(started?.assetKey, leaf.assetKey);
+        expect(started?.leaf, leaf);
 
         await gesture.moveBy(const Offset(12, 0));
         await tester.pump();
-        expect(moved?.assetKey, leaf.assetKey);
+        expect(moved?.leaf, leaf);
 
         await gesture.up();
         await tester.pumpAndSettle();
-        expect(ended?.assetKey, leaf.assetKey);
+        expect(ended?.leaf, leaf);
       },
     );
 
     testWidgets('leafLongPressEligible skips long-press on ineligible leaves', (
       tester,
     ) async {
-      const eligible = CatalogLeaf.unicode('👍');
-      const ineligible = CatalogLeaf.unicode('❤️');
+      final eligible = CatalogLeaf.unicode('👍');
+      final ineligible = CatalogLeaf.unicode('❤️');
       snapshots.replaceSections([
         _section('a', [ineligible, eligible]),
       ]);
 
-      CatalogLeaf? started;
+      CatalogLeafHit? started;
       var taps = 0;
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
           assetCache: assetCache,
           controller: controller,
-          leafLongPressEligible: (leaf) => leaf.assetKey == eligible.assetKey,
+          leafLongPressEligible: (hit) => hit.leaf == eligible,
           onLeafTap: (_) => taps += 1,
           onLeafLongPressStart: (l, _) => started = l,
           onLeafLongPressMove: (_, _) {},
@@ -560,19 +542,19 @@ void main() {
       final eligibleCenter = Offset(box.left + 100, box.top + 24 + 20);
       final eligibleGesture = await tester.startGesture(eligibleCenter);
       await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
-      expect(started?.assetKey, eligible.assetKey);
+      expect(started?.leaf, eligible);
       await eligibleGesture.up();
     });
 
     testWidgets('press scale stays live when long-press wins over tap', (
       tester,
     ) async {
-      const leaf = CatalogLeaf.unicode('😀');
+      final leaf = CatalogLeaf.unicode('😀');
       snapshots.replaceSections([
         _section('a', [leaf]),
       ]);
 
-      CatalogLeaf? started;
+      CatalogLeafHit? started;
       await tester.pumpWidget(
         _harness(
           snapshots: snapshots,
@@ -592,7 +574,7 @@ void main() {
       await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
 
       final render = _render(tester);
-      expect(started?.assetKey, leaf.assetKey);
+      expect(started?.leaf, leaf);
       expect(render.pressedSlotKey, isNotNull);
       expect(render.pressProgress, greaterThan(0));
 
@@ -604,7 +586,7 @@ void main() {
     testWidgets('press feedback is slot-specific for duplicate emoji glyphs', (
       tester,
     ) async {
-      const emoji = CatalogLeaf.unicode('😀');
+      final emoji = CatalogLeaf.unicode('😀');
       snapshots.replaceSections([
         _section('Recents', [emoji]),
         _section('Smiles', [emoji]),
@@ -656,7 +638,7 @@ void main() {
     testWidgets('pointer down on a leaf starts press scale feedback', (
       tester,
     ) async {
-      const leaf = CatalogLeaf.unicode('😀');
+      final leaf = CatalogLeaf.unicode('😀');
       snapshots.replaceSections([
         _section('a', [leaf]),
       ]);
@@ -791,6 +773,7 @@ void main() {
           cellExtent: 40,
           headerExtent: 24,
           padding: const EdgeInsets.only(top: stripInset),
+          maxWidth: 320,
         );
 
         final future = controller.jumpToSection(targetSection);
@@ -902,11 +885,14 @@ void main() {
       expect(
         isNearPathSectionJump(
           targetSectionIndex: 4,
-          sections: snapshots.value.sections,
-          spanCount: 4,
-          cellExtent: 40,
-          headerExtent: 24,
-          padding: EdgeInsets.zero,
+          bands: projectCatalogSectionBands(
+            sections: snapshots.value.sections,
+            spanCount: 4,
+            cellExtent: 40,
+            headerExtent: 24,
+            padding: EdgeInsets.zero,
+            maxWidth: 320,
+          ).bands,
           scrollOffset: 0,
           viewportHeight: 240,
         ),
@@ -966,16 +952,20 @@ void main() {
         cellExtent: cellExtent,
         headerExtent: headerExtent,
         padding: padding,
+        maxWidth: 320,
       ).clamp(0.0, projection.contentExtent - viewportHeight);
 
       expect(
         isNearPathSectionJump(
           targetSectionIndex: targetSection,
-          sections: snapshots.value.sections,
-          spanCount: spanCount,
-          cellExtent: cellExtent,
-          headerExtent: headerExtent,
-          padding: padding,
+          bands: projectCatalogSectionBands(
+            sections: snapshots.value.sections,
+            spanCount: spanCount,
+            cellExtent: cellExtent,
+            headerExtent: headerExtent,
+            padding: padding,
+            maxWidth: 320,
+          ).bands,
           scrollOffset: controller.offset,
           viewportHeight: viewportHeight,
         ),
@@ -1044,6 +1034,7 @@ void main() {
         cellExtent: cellExtent,
         headerExtent: headerExtent,
         padding: padding,
+        maxWidth: 320,
       ).clamp(0.0, projection.contentExtent - viewportHeight);
 
       final future = controller.jumpToSection(targetSection);

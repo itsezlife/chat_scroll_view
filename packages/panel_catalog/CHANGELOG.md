@@ -8,6 +8,22 @@ is pre-1.0.
 
 ### Changed
 
+- **BREAKING: leaf value and hit.** `CatalogLeaf` is a value (content key,
+  descriptor paint facts, opaque host `tag` excluded from equality) instead of
+  the sealed `UnicodeCatalogLeaf` / `DocumentCatalogLeaf` pair, and
+  `CatalogLeafPresentation` is deleted: the placeholder style is derived from
+  the leaf's facts (`CatalogLeaf.placeholderStyle`). `onLeafTap`, the
+  long-press callbacks and `leafLongPressEligible` take a
+  `CatalogLeafHit(sectionId, index, leaf)`; hit identity is the cell, so the
+  same key in two sections is two hits. A host keeps its per-cell metadata in
+  the leaf's `tag` instead of a map keyed by leaf instance.
+- **BREAKING: per-section layout.** `CatalogSection` takes an optional
+  `SectionLayout` (`SectionLayout.grid`); the viewport's `spanCount`,
+  `cellExtent` and `headerExtent` become defaults. Section landing, the near /
+  far gate and slot projection use each section's own geometry;
+  `scrollOffsetForSectionHeader` takes the `maxWidth` it is laid out at.
+  The stitch matches outgoing cells by (section, index) instead of by content
+  key.
 - **BREAKING: snapshot data source.** `CatalogDataSource` and its listener list
   are replaced by an immutable `CatalogSnapshot` published through a
   `ValueObservable<CatalogSnapshot>` (`content_model`); `PanelCatalogViewport`
@@ -29,6 +45,9 @@ is pre-1.0.
 
 ### Added
 
+- `SectionLayout`, `CatalogLeafHit`, `CatalogPlaceholderStyle`,
+  `catalogGlyphBoxExtent` and `largestCatalogGlyphBox`: the rule that sizes a
+  single baked glyph size for sections with different cell sizes.
 - `PanelCatalogUserDragCancel`, `PanelCatalogScrollingChanged`,
   `PanelCatalogScrollSettled` scroll events; `PanelCatalogController` extents
   (`viewportExtent`, `contentExtent`, `maxScrollExtent`, `hasPosition`).

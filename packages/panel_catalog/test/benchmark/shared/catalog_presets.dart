@@ -62,3 +62,26 @@ List<CatalogSection> generateCatalogSections(int leafCount) {
   }
   return sections;
 }
+
+/// The layout the odd sections of [generateMixedLayoutSections] use: 5
+/// columns, taller cells, as a sticker set next to an emoji grid.
+const SectionLayout kBenchMixedSectionLayout = SectionLayout.grid(
+  spanCount: 5,
+  cellExtent: 64,
+);
+
+/// Like [generateCatalogSections], but the odd sections carry
+/// [kBenchMixedSectionLayout] (5 columns of 64) while the even ones use the
+/// viewport defaults (8 columns of 48): the mixed-layout preset.
+///
+/// Same leaf total and section count as the uniform preset, so the two
+/// compare directly; only the geometry the viewport has to project differs.
+List<CatalogSection> generateMixedLayoutSections(int leafCount) => [
+  for (final (s, section) in generateCatalogSections(leafCount).indexed)
+    CatalogSection(
+      id: section.id,
+      title: section.title,
+      leaves: section.leaves,
+      layout: s.isOdd ? kBenchMixedSectionLayout : null,
+    ),
+];

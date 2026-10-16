@@ -8,8 +8,9 @@
 /// through a `ValueObservable` from `content_model`),
 /// [PanelCatalogController] ([jumpTo], [scrollBy],
 /// [PanelCatalogController.jumpToSection], [PanelCatalogController.events]),
-/// [PanelCatalogThemeData], [PanelCatalogTheme], leaf/section/presentation models,
-/// and section landing helpers ([scrollOffsetForSectionHeader],
+/// [PanelCatalogThemeData], [PanelCatalogTheme], the leaf value
+/// ([CatalogLeaf], [CatalogLeafHit]) and the section models ([CatalogSection],
+/// [SectionLayout]), and section landing helpers ([scrollOffsetForSectionHeader],
 /// [kFarPathDistanceGateFactor] flat-row near/far gate). Fakes live in
 /// `package:panel_catalog/testing.dart`.
 ///
@@ -22,10 +23,17 @@
 library;
 
 export 'src/data/catalog_snapshot.dart';
+export 'src/model/catalog_glyph_box.dart'
+    show
+        catalogGlyphBoxExtent,
+        kCatalogGlyphBoxFraction,
+        kCirclePlaceholderRadiusFactor;
 export 'src/model/catalog_leaf.dart';
-export 'src/model/catalog_leaf_presentation.dart';
+export 'src/model/catalog_leaf_hit.dart';
 export 'src/model/catalog_section.dart';
+export 'src/model/section_layout.dart';
 export 'src/theme/panel_catalog_theme.dart';
+export 'src/viewport/catalog_grid_metrics.dart' show largestCatalogGlyphBox;
 export 'src/viewport/catalog_scroll_position.dart';
 export 'src/viewport/panel_catalog_controller.dart';
 export 'src/viewport/panel_catalog_scroll_events.dart';

@@ -6,6 +6,7 @@
 /// SuperSliverList flat header+row baseline.
 library;
 
+import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 
@@ -14,7 +15,7 @@ import 'catalog_presets.dart';
 
 List<String> _glyphsOf(CatalogSection section) => [
   for (final leaf in section.leaves)
-    if (leaf case UnicodeCatalogLeaf(:final glyph)) glyph,
+    if (leaf.key case ContentKey$Unicode(:final sequence)) sequence,
 ];
 
 /// Content-y of section [sectionIndex] header for jump benches.

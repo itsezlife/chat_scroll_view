@@ -5,6 +5,7 @@
 /// the comparison is body-only against [PanelCatalogViewport].
 library;
 
+import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
@@ -42,7 +43,7 @@ List<_FlatItem> _flatten(
     flat.add(_FlatItem.header(section.title));
     final glyphs = [
       for (final leaf in section.leaves)
-        if (leaf case UnicodeCatalogLeaf(:final glyph)) glyph,
+        if (leaf.key case ContentKey$Unicode(:final sequence)) sequence,
     ];
     for (var i = 0; i < glyphs.length; i += spanCount) {
       final end = i + spanCount > glyphs.length ? glyphs.length : i + spanCount;

@@ -121,6 +121,32 @@ Object counts (flat, as the catalogue grows):
 Peak after a scroll-through at 4096 leaves: PCV 8 attached and 169
 `RenderObject`s; SliverGrid 613 and 8675; SuperSliverList 120 and 975.
 
+### Mixed layouts (per-section layout)
+
+The same catalogue shape with per-section layouts: even sections use the
+viewport defaults (8 columns of 48), odd ones a 5-column layout of 64
+(`generateMixedLayoutSections`; same leaf and section counts as the uniform
+preset). The baselines lay every section out at one span, so the comparison is
+the candidate against itself: ratio is mixed / uniform at the same leaf count,
+range over four runs and the 64 / 512 / 4096 presets.
+
+| Probe | Mixed / uniform (median) | Mixed / uniform (mean) | Notes |
+| ----- | ------------------------ | ---------------------- | ----- |
+| Forced relayout | 0.62–1.10x | 0.68–1.39x | Per-section grid resolution is O(sections) on top of O(slots) |
+| Scroll-only paint | 0.69–0.76x | 0.66–0.90x | Taller 5-column cells show fewer cells per screen |
+| Near-path section jump | 1.00–1.33x | 0.54–1.16x | Medians sit at the floor of a sampled frame (about 16 µs) |
+| Far-path stitch | 0.94–1.07x | 0.78–2.10x | The 2.1x mean is the 64-leaf preset, where one slow frame moves the mean |
+
+Against the pre-change viewport (the integration branch before the per-section
+seam, same machine, four alternating runs of the whole suite) the uniform
+probes move within run-to-run noise: forced relayout median 53 → 61 µs at 64
+leaves, 30 → 30 µs at 512, 75 → 77 µs at 4096; scroll-only paint median 46 →
+42, 37 → 36, 36 → 37 µs; near-path jump and far-path stitch medians at the
+floor (15–20 µs) before and after. The visible-window lookup is unchanged by
+construction (one binary search over one ascending slot list); the added
+guard is `scroll cost does not grow with catalogue size` and its per-section
+variant in `panel_catalog_scroll_hardening_test.dart`.
+
 **Reading the scroll-only paint row.** The viewport redraws the visible band on
 a canvas every scroll (clip, then one draw per visible leaf); there is no
 per-cell `RenderObject` or retained layer to slide. The widget baselines keep
@@ -216,9 +242,10 @@ unit-tested; these are not:
 
 **Architecture follow-through** (decided in
 [ADR 006](../../../../docs/adr/006-panel-catalog-viewport.md), marked pending
-there): scope-provided shared asset cache, per-section layout, snapshot data
-source, attach-and-position controller, and the paintable contract that
-replaces the sprite capability now carried on `CatalogAssetBinding`.
+there): scope-provided shared asset cache; per-section layout, snapshot data
+source and attach-and-position controller are built; the paintable contract
+that replaces the sprite capability now carried on `CatalogAssetBinding`
+remains.
 
 ## Follow-on: animated media
 
