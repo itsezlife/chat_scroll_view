@@ -1,0 +1,29 @@
+# Pinned generator inputs; rewrite with
+#   dart run tool/generate.dart lock
+emoji-version 18.0
+cldr-tag release-49-beta4
+locales en de es fr hi it ja nl pt ru zh
+input 8f3735cda1f92a779d78af67cf86066bb1f07143dc22f2ac29394d9bc57ab21a emoji-test.txt https://unicode.org/Public/18.0.0/emoji/emoji-test.txt
+input 65eb33419e22a297550a811b5b535f5e532f9a7e0114b516c0ea18afd53c3804 cldr/LICENSE https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/LICENSE
+input 514bc93ac647211d0f422f63978d1eeec6aa759d0cd8c3e8c5da6cf5a536784b cldr/annotations/en.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotations/en.xml
+input a4a6c1a4c341d94179cb116623c5f44c47400a5bc55da483423ef7430ecf622e cldr/annotationsDerived/en.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotationsDerived/en.xml
+input 12f8e63cb3e5982f149ba38f842e9798d365123e9cebe198ebab5dbb53955158 cldr/annotations/de.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotations/de.xml
+input d2b2d279c353cd2b0e29c908339b5536e665436c3fe362e38554ee3a2d15f7d8 cldr/annotationsDerived/de.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotationsDerived/de.xml
+input dd76e5caac690fa1407b867b69fb0d789ff385b1b9d8cb5bde4239797653f996 cldr/annotations/es.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotations/es.xml
+input f436e202a35e123c53afce849662bb6ac8b14bc4225a378394cc00502c5c4aa8 cldr/annotationsDerived/es.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotationsDerived/es.xml
+input c1860da940558146998af1bb1164b5edf4dbefacfe59203104e64dd45327e264 cldr/annotations/fr.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotations/fr.xml
+input 68162c5d006c308b1ed99c6dfc8cdebe611e55ccd0addddfe375dce2510d0fcc cldr/annotationsDerived/fr.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotationsDerived/fr.xml
+input 62c771f186eedabe13c346f7d90ca60964c3a07b48f6af8971e983a93b4b440f cldr/annotations/hi.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotations/hi.xml
+input 0efcaeca75876119d93cb09630ab6af55453a9281feff823a542b0688fe8fdd7 cldr/annotationsDerived/hi.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotationsDerived/hi.xml
+input e43c64ab64680e073f20d445fe9575330862a23dc1c8183f7c9f779be9432fa1 cldr/annotations/it.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotations/it.xml
+input 4da3e936bf05488b07139ba6f67703c53de2a53e5393c50a4f7b035a4689c5fd cldr/annotationsDerived/it.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotationsDerived/it.xml
+input 0f9e272a9e775dbf063d8735bbe44eb381e6176207330d28d2f134748801fa4d cldr/annotations/ja.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotations/ja.xml
+input 9e0c15fb0eeae7c7dd088cd082bcf55580a156a0e6b569f2ebc251b7b06c628f cldr/annotationsDerived/ja.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotationsDerived/ja.xml
+input 5a2bd406dbe31b87dc09c90a041f7b24198d1cab578bac2adf871f87d034bf6d cldr/annotations/nl.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotations/nl.xml
+input 0dfd098f7358030d96046bf005b90a1e7f146456934fb40a93e29ff1c9f712d2 cldr/annotationsDerived/nl.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotationsDerived/nl.xml
+input d601e44e278555e109fb1d50594d7622c4ffcf8d4c69ca53d2e69ecf2cb40be1 cldr/annotations/pt.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotations/pt.xml
+input 253bfeefb239a8b92d6987abc2c9ea29b254123679e30b98a4045dedd7e47ab0 cldr/annotationsDerived/pt.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotationsDerived/pt.xml
+input e8b2257e3139029b1c04dd15dcc50b818bf1830687cfd6fd40f0b5ad336aaa83 cldr/annotations/ru.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotations/ru.xml
+input 509fc079decc3ae19a0fbdd7426d5cdd8dfc3d3038dc473115882f052b23f5f3 cldr/annotationsDerived/ru.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotationsDerived/ru.xml
+input fc794ce6d7cefd119f4b867e3006b802385e85c15e088d0be2f00f2b98116455 cldr/annotations/zh.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotations/zh.xml
+input 4fff4592df54051e4b8ebe49f17e3b6bd9c951303f99abeb989446b80ef64a1f cldr/annotationsDerived/zh.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotationsDerived/zh.xml
