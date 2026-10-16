@@ -106,9 +106,18 @@ The view imports no inset type.
 | Disposal of every controller, focus node and scroll controller it passed in. | Dispose what the composer created, or use a controller after it. |
 | Import hygiene: `hide RichText` on the Flutter widgets import (or `as model` on this one). | Import both `RichText`s unqualified in one file. |
 
+Constructor requirements: `ComposerView` takes `controller` and `spec`;
+`ComposerController` takes nothing (it builds the text controller, focus node
+and scroll controller it is not handed, and disposes only those);
+`ComposerTextController` takes nothing, or an `inlineContentBuilder`.
+`contentSpanBuilder` takes the `AssetCacheScope` to draw through, or looks up
+the nearest `AssetCacheProvider`.
+
 Decisions: [ADR 026](../../docs/adr/026-composer-model.md) (model, queries),
 [ADR 031](../../docs/adr/031-localization-accessibility-and-input.md) (entity
-edits commit on finished IME composition).
+edits commit on finished IME composition),
+[ADR 029](../../docs/adr/029-host-integration.md) (host wiring). Glossary:
+[Chat chrome](../../docs/chrome/CONTEXT.md).
 
 ## Testing
 

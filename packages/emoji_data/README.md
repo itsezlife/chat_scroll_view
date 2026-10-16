@@ -9,7 +9,8 @@ its readers); persistence and the asset bundle are the host's.
 
 Decisions: [ADR 021](../../docs/adr/021-content-identity-and-collections.md)
 (variants, collections), [ADR 023](../../docs/adr/023-data-layering-and-persistence.md)
-(shipping, search, glyph support).
+(shipping, search, glyph support), [ADR 006](../../docs/adr/006-panel-catalog-viewport.md)
+(the probe shares the bake pass). Glossary: [Content and Assets](../../docs/content/CONTEXT.md).
 
 ## Types
 
@@ -130,7 +131,7 @@ final observer = CallbackGlyphBakeObserver(
 ### Validation by platform
 
 Result of the rasterise-and-compare rule (cell identical to the reference cell
-of U+10FFFD, on a transparent background) over all 1,923 base emoji of Emoji
+of U+10FFFF, on a transparent background) over all 1,923 base emoji of Emoji
 18.0, run with a prototype of this probe in debug builds. The shipped code
 (shared bake pass, persistence, pacing) is covered by tests against a fake
 system only; the rows below say nothing about it on a device.
@@ -167,6 +168,9 @@ open together with the zero-dropped-frames check on the reference device.
 
 ## Notes
 
+- The sources set no `spokenName` on the descriptors they publish. A screen
+  reader reads the glyph of a unicode emoji; the CLDR spoken names stay in the
+  keyword packs (`BundledKeywordSource` searches them).
 - Group ids are Unicode's, as `emoji_catalog_pack` writes them (`smileys-emotion`,
   `people-body`, ...). An emoji is in exactly one category.
 - Loading a collection is in memory but asynchronous: `loading` is published

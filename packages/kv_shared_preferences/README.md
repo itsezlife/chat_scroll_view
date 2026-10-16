@@ -42,6 +42,12 @@ step: a value written under an unknown version is the reader's to discard or
 migrate (the seam's rule), and an entry that is not `version:text` reads as
 missing.
 
+## Testing
+
+The adapter runs `runKeyValueStoreContract` from `content_model/testing.dart`
+against the real plugin's in-memory test double (`test/`). A different
+platform adapter does the same from its own test file.
+
 ## Decisions
 
 - [Data layering and persistence](../../docs/adr/023-data-layering-and-persistence.md)

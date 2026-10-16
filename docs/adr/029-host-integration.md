@@ -14,8 +14,8 @@ generic painter-based embed seam.
 
 | Area | Decision |
 | ---- | -------- |
-| Composition | Each package exposes plain constructors and a scope widget (`ChromeThemeScope`, `AssetCacheScope`, ...). The host builds one composition root creating long-lived services in dependency order: `KeyValueStore` adapter, stores (async factories that arrive loaded), asset cache (fetcher, decoders, spec and profile presets, budgets), data sources (collection, search, recents, keyword), content resolver. Per-chat controllers are created per chat screen. The reference host is the demo app under `example/`. Each package README has a Host contract table: what the host provides and what it must not do. |
-| Message bodies | A generic painter-based **inline embed** seam in the markdown library and root viewport, with no asset dependency. `InlineEmbedResolver` maps a link or image target (scheme, id, alt) to an `InlineEmbed` with a size hint, a `paint(canvas, rect, context)` callback and an invalidation listener. The alt text is the copy, selection and accessibility text. `catalog_assets` ships `ContentEmbed`, which attaches a key with the `messages` preset, paints the `AssetPaintable` and detaches on dispose. The host converts between the rich-text value and markdown (for example `![alt](emoji:12345)`) with a documented, tested helper. Bodies stay markdown ([ADR 017](017-body-linkify-host-invoked.md)); there are no parallel entity offsets. |
+| Composition | Each package exposes plain constructors and a scope widget (`ChromeThemeScope`, `ChromeStringsScope`, `AssetCacheProvider` around a host-created `AssetCacheScope`, ...). The host builds one composition root creating long-lived services in dependency order: `KeyValueStore` adapter, stores (async factories that arrive loaded), asset cache (fetcher, decoders, spec and profile presets, budgets), data sources (collection, search, recents, keyword), content resolver. Per-chat controllers are created per chat screen. The reference host is the demo app under `example/`. Each package README has a Host contract table: what the host provides and what it must not do. |
+| Message bodies | A generic painter-based **inline embed** seam in the markdown library and root viewport, with no asset dependency. `InlineEmbedResolver.resolve(target, metrics)` maps a link or image target (scheme, id, alt) and the text metrics (font size, density) to an `InlineEmbed` with a size hint, a `paint(canvas, rect, context)` callback and an invalidation listener. The alt text is the copy, selection and accessibility text. `catalog_assets` ships `ContentEmbed`, which attaches a key with the inline-message preset, paints the `AssetPaintable` and detaches on dispose, and `ContentEmbedResolver`, which reads targets spelled as `ContentKey.encoded`. The host converts between the rich-text value and markdown (for example `![alt](unicode:1F44D)`, the `ContentKey.encoded` spelling; `RichTextMarkdown` in `content_model` is that helper) with a documented, tested helper. Bodies stay markdown ([ADR 017](017-body-linkify-host-invoked.md)); there are no parallel entity offsets. |
 | Scope boundary | Implementing the embed seam in the markdown fork and the root viewport is outside this decision and tracked as follow-up work. The contract and `ContentEmbed` ship ready for it. |
 
 ### Ownership and lifetime
@@ -23,7 +23,7 @@ generic painter-based embed seam.
 | Object | Created by | Lifetime | Disposed by |
 | ------ | ---------- | -------- | ----------- |
 | `KeyValueStore` adapter, stores, content resolver, fetcher, decoder registration | Host | App or account | Host |
-| Asset cache (`AssetCacheScope`) | Host | App-wide | Host |
+| Asset cache (`AssetCacheScope`; widgets read it through `AssetCacheProvider`) | Host | App-wide | Host |
 | Pause layers, connectivity-restored signal | Host, fed into the cache | App | Host |
 | Emoji data sources (payload, keyword source); sticker and GIF sources | Host | Account | Host |
 | `ChromeThemeScope`, `GlassQuality`, speed scale | Host | App, plus per-chat nested scope | Host |
@@ -59,3 +59,4 @@ animated media adds fetcher and decoder adapters.
 ## Related
 
 - Host contract tables: each package README
+- Walkthrough of the composition order and the reference host: [Host integration guide](../host-integration.md)

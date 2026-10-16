@@ -115,8 +115,28 @@ The host-facing controller: sealed visibility state, show, hide, toggle, back, a
 _Avoid_: One controller class per presentation kind
 
 **Auto-hide guard**:
-A shell-reported condition (variant picker open, search focused, drag in progress) that keeps a popup open.
-_Avoid_: Timers that ignore the shell
+True while the search field wants focus or any `holdAutoHide()` hold is unreleased (a variant picker, a drag). The presentation controller derives it from the shell's search focus and the counted holds; the shell reports no such flag. A popup stays open while it holds.
+_Avoid_: Timers that ignore the guard, a flag the shell sets
+
+**Anchored popup**:
+The desktop and web presentation kind: the panel floats above the composer, opens on mouse hover over the toggle or a click, hides after a leave or idle delay, and takes no layout space.
+_Avoid_: Tooltip, dropdown, a popup that steals composer focus on hover open
+
+**Dock preference**:
+The user's choice to keep the panel docked at the inline end in a wide window. It lives in the `PreferenceStore`; the controller starts from it and writes every dock and undock to it.
+_Avoid_: A flag held only in the widget, persistence by the presentation package itself
+
+**Hand-off**:
+The phases by which the keyboard-replacement panel and the soft keyboard exchange the bottom slot: the panel keeps its emptied sheet until the keyboard reports a settled reading, or closes cold after a timeout.
+_Avoid_: Cross-fade between keyboard and panel, sample counters, wall-clock windows
+
+**Panel height**:
+The measured soft-keyboard height (content height without the safe area), remembered per orientation. The keyboard-replacement panel takes at least this height; a window-class default stands in until one is known.
+_Avoid_: A fixed panel height, a height that includes the safe area
+
+**Composer safe inset**:
+The part of the bottom safe band that the keyboard presentation's occupancy has not covered yet: `max(0, band - occupancy)`. The host hands it to the composer as its bottom safe-area pad so the bottom of the window never steps.
+_Avoid_: Adding the safe area to the occupancy a second time, peeling the safe area by platform
 
 ### Composer
 
@@ -135,6 +155,18 @@ _Avoid_: Button widgets passed in
 **Composer controller**:
 Input only: text, focus, selection, queries, field scroll and height, and insert, backspace and clear.
 _Avoid_: Reply or edit state, stored message ids
+
+**Composer extent**:
+The height the composer view takes in its parent, published as data while it animates: island, header, margins and its own bottom safe-area pad, without any panel or keyboard below. The host adds the presentation occupancy and feeds the sum to the viewport padding.
+_Avoid_: Reading the composer's render box from the host, a composer that knows insets
+
+**Primary action**:
+The one action of a composer spec that submit (Enter on a desktop policy) invokes. Flagged `primary` on its descriptor; submit does nothing when no primary action can be tapped.
+_Avoid_: Looking an action up by id to submit
+
+**Panel id**:
+A `ComposerPanelId`: the name of what occupies the input row (the text field by default, or a host-resolved panel such as recording or restricted). An open set.
+_Avoid_: A closed mode enum, the composer panel confused with the emoji panel
 
 **Input query**:
 The active token at the caret (kind, text, replace range, caret anchor) exposed for host-built suggestion panels.

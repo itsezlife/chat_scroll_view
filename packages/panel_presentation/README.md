@@ -13,7 +13,10 @@ Decisions: [ADR 028](../../docs/adr/028-panel-presentation.md) (presentation),
 [ADR 012](../../docs/adr/012-cross-platform-selection-policies.md) (the
 `$Mobile` / `$Desktop` policy shape),
 [ADR 031](../../docs/adr/031-localization-accessibility-and-input.md) (input).
-Glossary: [Chat chrome](../../docs/chrome/CONTEXT.md). Host layout:
+Glossary: [Chat chrome](../../docs/chrome/CONTEXT.md). Constructor
+requirements: `PanelPresentationController` takes the `shell` and optionally
+`policy`, `strategies`, `window` and `preferences`; `KeyboardReplacementStrategy`
+takes `ime`, `heights` and `window`. Host layout:
 [host chrome insets](../../docs/architecture/14-host-chrome-insets.md).
 
 ## Types
@@ -162,8 +165,10 @@ ime.report(ImeSample(
   not covered yet, so the bottom of the window is `max(safe band, occupancy)`
   with no step.
 - **Frame cost.** The shell widget is built once; a frame of the motion costs
-  the clip's layout and nothing under it. Measured on a device, see
-  [the QA notes](../../docs/panel-presentation/qa-keyboard-handoff.md).
+  the clip's layout and nothing under it (a headless test asserts it). Frame
+  budgets on a device are open: the table in
+  [the QA notes](../../docs/panel-presentation/qa-keyboard-handoff.md) holds
+  the numbers once someone measures them.
 
 ## Host contract
 
