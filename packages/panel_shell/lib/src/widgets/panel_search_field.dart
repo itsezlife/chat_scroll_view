@@ -13,6 +13,11 @@ import 'package:panel_shell/src/controller/panel_shell_controller.dart';
 /// node and the query therefore cannot disagree, and they survive page
 /// switches because the field sits outside the pager.
 ///
+/// What the page shows between the two presses (an emptied query with search
+/// still open) is the page's: under the touch arrangement it may narrow to its
+/// most used content, under the pointer arrangement it shows its whole
+/// catalogue, so one press is enough to see the grid again.
+///
 /// Built on `EditableText`, so no Material ancestor is required. Hosts that
 /// want a selection toolbar (paste on touch) pass [contextMenuBuilder].
 class PanelSearchField extends StatefulWidget {

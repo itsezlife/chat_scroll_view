@@ -137,4 +137,38 @@ void main() {
 
     expect(signals, 2);
   });
+
+  group('a bar that does not hide on scroll', () {
+    test('ignores every kind of scroll report', () {
+      final steady = BottomBarVisibility(hidesOnScroll: false);
+      addTearDown(steady.dispose);
+
+      steady
+        ..apply(const PageScrollDrag(500))
+        ..apply(const PageScrollFling(500))
+        ..apply(const PageScrollJump())
+        ..apply(const PageScrollIdle(atEdge: true));
+
+      expect(steady.visible.value, isTrue);
+    });
+
+    test('is still held down while something else pins it', () {
+      final steady = BottomBarVisibility(hidesOnScroll: false)
+        ..pinnedHidden = true;
+      addTearDown(steady.dispose);
+
+      expect(steady.visible.value, isFalse);
+    });
+
+    test('switching the rule on shows a bar the scroll had hidden', () {
+      visibility.apply(const PageScrollDrag(50));
+      expect(visibility.visible.value, isFalse);
+
+      visibility.hidesOnScroll = false;
+
+      expect(visibility.visible.value, isTrue);
+      visibility.apply(const PageScrollDrag(50));
+      expect(visibility.visible.value, isTrue);
+    });
+  });
 }

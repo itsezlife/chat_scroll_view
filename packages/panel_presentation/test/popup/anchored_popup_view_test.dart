@@ -11,6 +11,23 @@ Rect _popupRect(WidgetTester tester) =>
     tester.getRect(find.byType(PanelShell).first);
 
 void main() {
+  group('arrangement', () {
+    testWidgets('is the pointer one: the tabs are above the search field', (
+      tester,
+    ) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+
+      rig.controller.show();
+      await settleMotion(tester);
+
+      expect(
+        tester.widget<PanelShell>(find.byType(PanelShell)).arrangement,
+        PanelArrangement.pointer,
+      );
+    });
+  });
+
   group('geometry', () {
     testWidgets('sits on the composer top, end edges aligned (LTR)', (
       tester,

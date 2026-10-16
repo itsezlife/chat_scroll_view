@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
+import 'package:panel_shell/panel_shell.dart';
 
 const _palette = ChromePalette.light();
 
@@ -34,6 +35,20 @@ void main() {
         );
       },
     );
+
+    test('has no hover under touch, and the text colour at 0x12 under the '
+        'pointer arrangement', () {
+      final chrome = ChromeThemeData.fromPalette(_palette);
+
+      expect(data.leafHoverHighlightColor, isNull);
+      expect(
+        ChromeCatalogTheme.dataFor(
+          chrome,
+          arrangement: PanelArrangement.pointer,
+        ).leafHoverHighlightColor,
+        _palette.onSurface.withAlpha(0x12),
+      );
+    });
 
     test('draws keyboard focus in the accent', () {
       expect(data.leafFocusHighlightColor, _palette.accent.withAlpha(0x40));
@@ -103,6 +118,18 @@ void main() {
         seen,
         ChromeCatalogTheme.dataFor(ChromeThemeData.fromPalette(_palette)),
       );
+    });
+
+    testWidgets('reads the arrangement the shell provides', (tester) async {
+      late PanelCatalogThemeData seen;
+      await tester.pumpWidget(
+        PanelArrangementScope(
+          arrangement: PanelArrangement.pointer,
+          child: host(_palette, (data) => seen = data),
+        ),
+      );
+
+      expect(seen.leafHoverHighlightColor, isNotNull);
     });
 
     testWidgets('follows the chrome theme when it switches', (tester) async {

@@ -9,6 +9,7 @@ top strip. This supersedes the controller and widget-API parts of
 **Status**: Accepted  
 **Date**: 2026-10-16  
 **Amended**: 2026-10-16 — state is `package:listen`, typed events are synchronous `Stream`s ([ADR 023](023-data-layering-and-persistence.md) Amendment)  
+**Amended**: 2026-10-16 — the **panel arrangement** (`touch`, `pointer`) splits the bottom chrome and places a page's strip ([Amendment](#amendment-panel-arrangement))  
 **Relates to**: [ADR 007](007-keyboard-panel-controller.md) (superseded in part), [ADR 020](020-package-topology.md), [ADR 023](023-data-layering-and-persistence.md), [ADR 024](024-panel-catalog-seams.md), [ADR 028](028-panel-presentation.md)
 
 ## Decided
@@ -27,6 +28,27 @@ top strip. This supersedes the controller and widget-API parts of
 Boundary items handled by presentation: search growing the panel
 (`SearchOpened` and `SearchClosed` are the signal), IME hand-off on search
 focus, and visibility, open and close, and persisted height or popup size.
+
+## Amendment: panel arrangement
+
+The shell had one layout, the one a finger needs. A popup or a docked section
+under a mouse is a different arrangement of the same parts, not a different
+shell. This amends the *Strip and bottom chrome* and *Search* rows above.
+
+| Area | Decision |
+| ---- | -------- |
+| Vocabulary | `PanelArrangement { touch, pointer }`, defined in `panel_shell` beside `PanelShell`. A presentation chooses it and hands it to `PanelShell(arrangement:)`; the shell provides it to its pages through `PanelArrangementScope`, which answers `touch` where no shell is above. No package reads the platform for it: a presentation strategy decides. `KeyboardReplacement` and the fake presentation keep `touch`; `AnchoredPopup` and `Docked` pass `pointer`. |
+| `touch` | Unchanged: type tabs and the page's actions in one floating bottom bar that slides away as the content is read; the page's strip above its catalogue; an empty search narrows a page to its most used content. |
+| `pointer`, tabs | The type tabs pill moves to the top of the shell column, above the search field. One page has no tabs. |
+| `pointer`, bar | The floating bar keeps only the selected page's actions (backspace) at the end side. Scrolling never hides it (a wheel step is a drag report; hide-on-scroll is a touch idiom); an open search does, as under `touch`. It rises above the strip the page pins at the bottom: the page tells the shell that strip's measured height (`PanelPageHost.reportBottomExtent`, kept per page, read as `PanelShellController.bottomExtent`), so no height is repeated in the shell. The shell keeps the safe inset for itself under `pointer`, and tells pages the bar's room only. |
+| `pointer`, strip | A page that pins its strip at the bottom says so per arrangement (`CatalogPagePolicy.stripAtBottom`) and the strip stays page-owned: shell owns the bar, page owns the strip. The emoji strip is then a 1 px separator over 36 px of icons on its own fill, the active category marked by a 28 px square of radius 8 that slides to the next icon over the `selectionSlide` motion role (400 ms, ease-out cubic; placed, not moved, on the first selection and where animations are off), no paint on hover, the click cursor over an icon. |
+| `pointer`, search | An empty query with search open keeps the whole catalogue and the strip. The trailing control clears the text and the grid is back with the same press; on an empty field it closes search, as before. Under `touch` the narrowing stays. |
+| `pointer`, cells | A mouse hovering a cell paints the hover wash (rounded rect, inset from the cell, instant) through `PanelCatalogThemeData.leafHoverHighlightColor`, which the page maps from chrome tokens and sets only under `pointer`; the click cursor over a cell is the viewport's own. |
+
+The reference client has no backspace control; it is kept because the product
+asked for it, as the one action in a bar that stays out of the way. Dropping it
+is one declaration: remove `PageAction.backspace()` from the page's
+capabilities.
 
 ## Supersedes in ADR 007
 

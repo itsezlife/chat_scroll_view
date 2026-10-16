@@ -42,6 +42,13 @@ import 'package:flutter/painting.dart';
 /// colour, same radius), so one token styles both; set it when the press
 /// highlight is off or too faint to be the only sign of where focus is.
 ///
+/// [leafHoverHighlightColor] is the wash a **mouse** hovering a leaf paints on
+/// the cell, as a rounded rect of [leafHoverHighlightRadius] logical pixels
+/// inset by [leafHoverHighlightInset] from the cell rect (the interactive area
+/// of a cell is a little smaller than its pitch). Instant: no fade, ripple or
+/// scale. Null (the default) paints no hover at all, which is what a touch
+/// arrangement wants; a page that arranges for a pointer sets it.
+///
 /// [sectionHeaderStyle] and [sectionHeaderStartInset] control section title
 /// paint inside the header band; they do not change content extent.
 ///
@@ -69,6 +76,9 @@ class PanelCatalogThemeData {
     this.washPeriod = _defaultWashPeriod,
     this.placeholderCornerRadius = _defaultPlaceholderCornerRadius,
     this.leafFocusHighlightColor,
+    this.leafHoverHighlightColor,
+    this.leafHoverHighlightRadius = _defaultHoverRadius,
+    this.leafHoverHighlightInset = _defaultHoverInset,
     this.leafPressSelectorRadiusNominalDp = _defaultSelectorRadiusNominalDp,
     this.sectionHeaderStartInset = _defaultSectionHeaderStartInset,
   });
@@ -122,6 +132,21 @@ class PanelCatalogThemeData {
       b.leafFocusHighlightColor,
       t,
     ),
+    leafHoverHighlightColor: Color.lerp(
+      a.leafHoverHighlightColor,
+      b.leafHoverHighlightColor,
+      t,
+    ),
+    leafHoverHighlightRadius: lerpDouble(
+      a.leafHoverHighlightRadius,
+      b.leafHoverHighlightRadius,
+      t,
+    )!,
+    leafHoverHighlightInset: lerpDouble(
+      a.leafHoverHighlightInset,
+      b.leafHoverHighlightInset,
+      t,
+    )!,
     leafPressSelectorRadiusNominalDp: lerpDouble(
       a.leafPressSelectorRadiusNominalDp,
       b.leafPressSelectorRadiusNominalDp,
@@ -180,6 +205,12 @@ class PanelCatalogThemeData {
   /// Default nominal selector corner in dp before density scaling.
   static const double _defaultSelectorRadiusNominalDp = 2;
 
+  /// Default corner radius of the hover wash (logical px).
+  static const double _defaultHoverRadius = 8;
+
+  /// Default inset of the hover wash from the cell rect (logical px).
+  static const double _defaultHoverInset = 2;
+
   /// Default extra start inset after the viewport's left padding.
   static const double _defaultSectionHeaderStartInset = 8;
 
@@ -219,6 +250,19 @@ class PanelCatalogThemeData {
   /// cell shows it at full alpha. Fully transparent disables it.
   final Color? leafFocusHighlightColor;
 
+  /// Wash a mouse hovering a leaf paints on its cell, or null for none.
+  ///
+  /// Painted under the leaf, instantly, for the mouse only: a finger and a
+  /// stylus in contact never hover. Fully transparent disables it.
+  final Color? leafHoverHighlightColor;
+
+  /// Corner radius of the hover wash, in logical pixels.
+  final double leafHoverHighlightRadius;
+
+  /// How far the hover wash is inset from the cell rect on every side, in
+  /// logical pixels.
+  final double leafHoverHighlightInset;
+
   /// Nominal corner radius in dp for [selectorRadiusLogicalPx].
   ///
   /// Some hosts apply density twice (nominal dp passed into a callee that
@@ -256,6 +300,9 @@ class PanelCatalogThemeData {
     double? placeholderCornerRadius,
     Color? leafPressHighlightColor,
     Color? leafFocusHighlightColor,
+    Color? leafHoverHighlightColor,
+    double? leafHoverHighlightRadius,
+    double? leafHoverHighlightInset,
     double? leafPressSelectorRadiusNominalDp,
     TextStyle? sectionHeaderStyle,
     double? sectionHeaderStartInset,
@@ -272,6 +319,12 @@ class PanelCatalogThemeData {
         leafPressHighlightColor ?? this.leafPressHighlightColor,
     leafFocusHighlightColor:
         leafFocusHighlightColor ?? this.leafFocusHighlightColor,
+    leafHoverHighlightColor:
+        leafHoverHighlightColor ?? this.leafHoverHighlightColor,
+    leafHoverHighlightRadius:
+        leafHoverHighlightRadius ?? this.leafHoverHighlightRadius,
+    leafHoverHighlightInset:
+        leafHoverHighlightInset ?? this.leafHoverHighlightInset,
     leafPressSelectorRadiusNominalDp:
         leafPressSelectorRadiusNominalDp ??
         this.leafPressSelectorRadiusNominalDp,
@@ -292,6 +345,9 @@ class PanelCatalogThemeData {
       other.placeholderCornerRadius == placeholderCornerRadius &&
       other.leafPressHighlightColor == leafPressHighlightColor &&
       other.leafFocusHighlightColor == leafFocusHighlightColor &&
+      other.leafHoverHighlightColor == leafHoverHighlightColor &&
+      other.leafHoverHighlightRadius == leafHoverHighlightRadius &&
+      other.leafHoverHighlightInset == leafHoverHighlightInset &&
       other.leafPressSelectorRadiusNominalDp ==
           leafPressSelectorRadiusNominalDp &&
       other.sectionHeaderStyle == sectionHeaderStyle &&
@@ -308,6 +364,9 @@ class PanelCatalogThemeData {
     placeholderCornerRadius,
     leafPressHighlightColor,
     leafFocusHighlightColor,
+    leafHoverHighlightColor,
+    leafHoverHighlightRadius,
+    leafHoverHighlightInset,
     leafPressSelectorRadiusNominalDp,
     sectionHeaderStyle,
     sectionHeaderStartInset,

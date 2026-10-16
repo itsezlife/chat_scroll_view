@@ -9,6 +9,7 @@ import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/bake/bake_activity_port.dart';
 import 'package:panel_pages/src/bake/catalog_bake_forwarder.dart';
 import 'package:panel_pages/src/input/catalog_keyboard_focus.dart';
+import 'package:panel_pages/src/page/bottom_extent_reporter.dart';
 import 'package:panel_pages/src/page/catalog_page_controller.dart';
 import 'package:panel_pages/src/page/catalog_page_model.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
@@ -115,6 +116,7 @@ class _CatalogPageState extends State<CatalogPage> {
   CatalogLongPressSession? _longPress;
   var _showsResults = false;
   var _modelReady = false;
+  var _stripAtBottom = false;
 
   PanelPageHost get _host => widget.host;
   PanelCatalogController get _catalog => _controller.catalog;
@@ -144,6 +146,7 @@ class _CatalogPageState extends State<CatalogPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final strings = ChromeStringsScope.panelOf(context);
+    final arrangement = PanelArrangementScope.of(context);
     if (!_modelReady) {
       _modelReady = true;
       _model = CatalogPageModel(
@@ -153,14 +156,18 @@ class _CatalogPageState extends State<CatalogPage> {
         strings: strings,
         host: _host,
         events: _catalog.events,
+        arrangement: arrangement,
         searchDebounce: widget.searchDebounce,
       );
       _strip = _StripHandle(_model, _catalog);
       _showsResults = _model.showsResults.value;
       _model.showsResults.addListener(_onShowsResultsChanged);
     } else {
-      _model.strings = strings;
+      _model
+        ..strings = strings
+        ..arrangement = arrangement;
     }
+    _syncStripPlacement();
   }
 
   @override
@@ -175,10 +182,12 @@ class _CatalogPageState extends State<CatalogPage> {
       ..searchSource = widget.searchSource
       ..policy = widget.policy;
     _forwarder.port = widget.bake;
+    _syncStripPlacement();
   }
 
   @override
   void dispose() {
+    _releaseBottomExtent();
     unawaited(_catalogEvents.cancel());
     _host.isActive.removeListener(_onActiveChanged);
     _host.reselected.removeListener(_onReselected);
@@ -188,6 +197,26 @@ class _CatalogPageState extends State<CatalogPage> {
     _reporter.dispose();
     _model.dispose();
     super.dispose();
+  }
+
+  // --- The strip at the bottom -----------------------------------------------
+
+  // The extent the shell was told stays true only while the strip is pinned at
+  // the bottom: when the arrangement or the policy moves it, the clearance it
+  // asked of the shell goes with it. Told a microtask later, because this is
+  // reached from build and dispose, where the shell must not be asked to
+  // rebuild.
+  void _syncStripPlacement() {
+    final atBottom = widget.policy.stripAtBottom(_model.arrangement);
+    if (_stripAtBottom && !atBottom) _releaseBottomExtent();
+    _stripAtBottom = atBottom;
+  }
+
+  void _releaseBottomExtent() {
+    if (!_stripAtBottom) return;
+    _stripAtBottom = false;
+    final host = _host;
+    scheduleMicrotask(() => host.reportBottomExtent(0));
   }
 
   // --- Reacting to the shell ------------------------------------------------
@@ -292,10 +321,11 @@ class _CatalogPageState extends State<CatalogPage> {
     final strip = _showsResults
         ? null
         : widget.policy.buildStrip(context, _strip);
+    final atBottom = widget.policy.stripAtBottom(_model.arrangement);
     return ChromeCatalogTheme(
       child: Column(
         children: [
-          ?strip,
+          if (!atBottom) ?strip,
           Expanded(
             // Only the catalogue binds the arrows and Space: a strip above it
             // keeps the keys of its own controls.
@@ -316,6 +346,13 @@ class _CatalogPageState extends State<CatalogPage> {
               ),
             ),
           ),
+          // Measured, not assumed: no strip (results showing, a single
+          // category) is an extent of nothing.
+          if (atBottom)
+            BottomExtentReporter(
+              onExtent: _host.reportBottomExtent,
+              child: strip ?? const SizedBox.shrink(),
+            ),
         ],
       ),
     );

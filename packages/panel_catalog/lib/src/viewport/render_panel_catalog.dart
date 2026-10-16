@@ -1688,6 +1688,41 @@ class RenderPanelCatalog extends RenderBox
     }
   }
 
+  // --- Hover ----------------------------------------------------------------
+
+  /// Where the mouse is over the viewport (viewport-local), or null when it is
+  /// not. Only a mouse hovers: a stylus or finger in contact is a press.
+  Offset? _hoverPosition;
+
+  /// The cell the hover wash was last painted on, so a mouse move asks for a
+  /// repaint only when it changed cell.
+  CatalogLeafSlotKey? _hoveredKey;
+
+  // The cell is found again at every paint, not remembered: a wheel step or a
+  // fling moves the content under a mouse that never moves, and the wash must
+  // follow the cell that arrives under it.
+  CatalogLeafSlotKey? _hoverSlotKey() {
+    final position = _hoverPosition;
+    if (position == null || _paintTheme.leafHoverHighlightColor == null) {
+      return null;
+    }
+    return leafSlotAt(position)?.key;
+  }
+
+  void _hoverAt(Offset? position) {
+    if (_hoverPosition == position) return;
+    _hoverPosition = position;
+    if (_hoverSlotKey() != _hoveredKey) markNeedsPaint();
+  }
+
+  // A mouse that was already there when the viewport appeared (or came back
+  // under it) sends no hover until it moves; entering carries its position.
+  void _handleHoverEnter(PointerEnterEvent event) => _hoverAt(
+    event.kind == PointerDeviceKind.mouse ? event.localPosition : null,
+  );
+
+  void _handleHoverExit(PointerExitEvent event) => _hoverAt(null);
+
   // --- Press feedback -------------------------------------------------------
 
   /// Long-press arena loss releases press scale without waiting for pointer-up.
@@ -1873,10 +1908,10 @@ class RenderPanelCatalog extends RenderBox
   }
 
   @override
-  PointerEnterEventListener? get onEnter => null;
+  PointerEnterEventListener? get onEnter => _handleHoverEnter;
 
   @override
-  PointerExitEventListener? get onExit => null;
+  PointerExitEventListener? get onExit => _handleHoverExit;
 
   @override
   bool get validForMouseTracker => attached;
@@ -1931,6 +1966,11 @@ class RenderPanelCatalog extends RenderBox
       case PointerScrollEvent(:final scrollDelta):
         _cancelFling();
         scrollBy(scrollDelta.dy);
+      case PointerHoverEvent(
+        kind: PointerDeviceKind.mouse,
+        :final localPosition,
+      ):
+        _hoverAt(localPosition);
       default:
         break;
     }
@@ -1980,6 +2020,7 @@ class RenderPanelCatalog extends RenderBox
     final contentOrigin = offset.translate(0, -scroll);
     final (top, bottom) = _paintWindow();
     final pressedSlotKey = _press?.pressedSlotKey;
+    _hoveredKey = _hoverSlotKey();
     final pressScale = _press?.scale ?? 1.0;
     final pressProgress = _press?.progress ?? 0.0;
 
@@ -2090,6 +2131,7 @@ class RenderPanelCatalog extends RenderBox
               focus != null &&
               focus.index == leaf.index &&
               focus.sectionId == leaf.sectionId,
+          hovered: _hoveredKey != null && leaf.key == _hoveredKey,
         );
       case final CatalogSkeletonSlot skeleton:
         _painter.paintSkeleton(canvas: canvas, origin: origin, slot: skeleton);

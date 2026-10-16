@@ -373,7 +373,10 @@ class _PopupBodyState extends State<_PopupBody>
                 controller: _controller,
                 child: FocusScope(
                   node: _scope,
-                  child: PanelShell(controller: _controller.shell),
+                  child: PanelShell(
+                    controller: _controller.shell,
+                    arrangement: PanelArrangement.pointer,
+                  ),
                 ),
               ),
             ),

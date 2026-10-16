@@ -14,8 +14,12 @@ import 'package:panel_shell/src/scroll/page_scroll_activity.dart';
 /// A mutable accumulator by role (it holds a count between calls), unlike the
 /// immutable activities it consumes.
 final class BottomBarVisibility {
-  /// A visibility starting shown, toggling at [toggleOffset] pixels.
-  BottomBarVisibility({this.toggleOffset = defaultToggleOffset});
+  /// A visibility starting shown, toggling at [toggleOffset] pixels while
+  /// [hidesOnScroll].
+  BottomBarVisibility({
+    this.toggleOffset = defaultToggleOffset,
+    bool hidesOnScroll = true,
+  }) : _hidesOnScroll = hidesOnScroll;
 
   /// Pixels of one-direction scroll that toggle the bar.
   static const double defaultToggleOffset = 38;
@@ -26,10 +30,22 @@ final class BottomBarVisibility {
   final _visible = ValueNotifier<bool>(true);
   var _accumulated = 0.0;
   var _pinnedHidden = false;
+  bool _hidesOnScroll;
   var _disposed = false;
 
   /// Whether the bar is shown. Held down while [pinnedHidden].
   ValueListenable<bool> get visible => _visible;
+
+  /// Whether reading on hides the bar. False for a bar that only an open
+  /// search takes away (the pointer arrangement): scroll activity then changes
+  /// nothing.
+  bool get hidesOnScroll => _hidesOnScroll;
+
+  set hidesOnScroll(bool value) {
+    if (_disposed || _hidesOnScroll == value) return;
+    _hidesOnScroll = value;
+    show();
+  }
 
   /// Whether something else (an open search) keeps the bar hidden.
   ///
@@ -46,6 +62,7 @@ final class BottomBarVisibility {
 
   /// Takes one report of the active page's scroll into account.
   void apply(PageScrollActivity activity) {
+    if (!_hidesOnScroll) return;
     switch (activity) {
       case PageScrollDrag(:final delta):
       case PageScrollFling(:final delta):

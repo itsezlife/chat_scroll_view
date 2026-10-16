@@ -16,6 +16,17 @@ void main() {
       expect(tokens.searchFill, const Color(0x0FFFFFFF));
     });
 
+    test('the pinned strip is the ink at alpha 0x0A over the panel body', () {
+      expect(
+        PanelTokens.fromPalette(const ChromePalette.dark()).stripFill,
+        const Color(0x0AFFFFFF),
+      );
+      expect(
+        PanelTokens.fromPalette(const ChromePalette.light()).stripFill,
+        const Color(0x0A000000),
+      );
+    });
+
     test(
       'selected category icon follows iconActive, idle follows iconIdle',
       () {
@@ -53,6 +64,7 @@ void main() {
       final mid = PanelTokens.lerp(a, b, 0.5);
       expect(mid.background, Color.lerp(a.background, b.background, 0.5));
       expect(mid.searchFill, Color.lerp(a.searchFill, b.searchFill, 0.5));
+      expect(mid.stripFill, Color.lerp(a.stripFill, b.stripFill, 0.5));
     });
   });
 

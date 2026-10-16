@@ -198,6 +198,12 @@ class EmojiPage extends StatefulWidget {
 
   /// What the bottom bar and the safe area do not cover, kept clear below the
   /// last row.
+  ///
+  /// The bottom padding the shell passes down is the room of the floating bar
+  /// (and, under touch, the safe inset). Under the pointer arrangement the
+  /// catalogue ends above the strip, so the padding is still right: the bar
+  /// floats over the end of the catalogue's last rows, the strip is not under
+  /// it, and the safe inset belongs to the shell there.
   static const double gridPadBottom = 4;
 
   @override

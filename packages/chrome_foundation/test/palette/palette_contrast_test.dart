@@ -98,6 +98,20 @@ List<_Pair> _pairs(ChromeThemeData d) {
     ),
     on('panel idle category icon', d.panel.categoryIcon, panelBg, min: _icon),
     on(
+      'panel idle category icon on the pinned strip',
+      d.panel.categoryIcon,
+      d.panel.stripFill,
+      backdrop: panelBg,
+      min: _icon,
+    ),
+    on(
+      'panel selected category icon on its selector on the pinned strip',
+      d.panel.categoryIconSelected,
+      d.panel.tabSelector,
+      backdrop: Color.alphaBlend(d.panel.stripFill, panelBg),
+      min: _icon,
+    ),
+    on(
       'panel selected category icon',
       d.panel.categoryIconSelected,
       panelBg,

@@ -22,8 +22,9 @@ import 'package:panel_shell/panel_shell.dart';
 /// While browsing, the collections of the [source] (as the policy filters
 /// them), one section each. While search is open **and the query is not
 /// empty** and a [searchSource] exists, one section: the search results.
-/// Search open with an empty query still browses; the policy may narrow what
-/// it shows then.
+/// Search open with an empty query still browses; under the touch arrangement
+/// the policy may narrow what it shows then, under the pointer arrangement it
+/// shows what it always does.
 ///
 /// Results of an earlier query stay up while the next one is searched
 /// (typing does not flash skeletons); before any results exist for the first
@@ -51,7 +52,7 @@ import 'package:panel_shell/panel_shell.dart';
 ///
 /// ## Replacing inputs
 ///
-/// [source], [searchSource], [policy] and [strings] can change while the page
+/// [source], [searchSource], [policy], [strings] and [arrangement] can change while the page
 /// lives. Each takes effect at once; nothing is kept of the old source.
 final class CatalogPageModel {
   /// A model that shows [source], asks [policy] for the kind-specific
@@ -66,8 +67,10 @@ final class CatalogPageModel {
     required PanelPageHost host,
     required Stream<PanelCatalogScrollEvent> events,
     SearchSource? searchSource,
+    PanelArrangement arrangement = PanelArrangement.touch,
     Duration searchDebounce = DebouncedSearch.defaultDebounce,
   }) : _source = source,
+       _arrangement = arrangement,
        _searchSource = searchSource,
        _policy = policy,
        _strings = strings,
@@ -100,6 +103,7 @@ final class CatalogPageModel {
   SearchSource? _searchSource;
   CatalogPagePolicy _policy;
   PanelStrings _strings;
+  PanelArrangement _arrangement;
   var _searchOpen = false;
   var _query = '';
   CollectionId? _announced;
@@ -167,6 +171,15 @@ final class CatalogPageModel {
   set strings(PanelStrings next) {
     if (_disposed || identical(_strings, next)) return;
     _strings = next;
+    _republish();
+  }
+
+  /// How the page's chrome is arranged. Under an arrangement that does not
+  /// narrow an empty search the policy is never told search is open.
+  PanelArrangement get arrangement => _arrangement;
+  set arrangement(PanelArrangement next) {
+    if (_disposed || _arrangement == next) return;
+    _arrangement = next;
     _republish();
   }
 
@@ -269,7 +282,7 @@ final class CatalogPageModel {
         ? [_resultsFor(_query)]
         : _policy.visibleCollections(
             _source.collections.value,
-            searchOpen: _searchOpen,
+            searchOpen: _searchOpen && _arrangement.narrowsEmptySearch,
           );
     final snapshot = _builder.build(collections, strings: _strings);
     _entries.value = results

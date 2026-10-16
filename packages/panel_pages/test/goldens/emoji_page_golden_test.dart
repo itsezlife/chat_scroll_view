@@ -1,5 +1,6 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_pages/panel_pages.dart';
@@ -164,4 +165,124 @@ void main() {
       await tester.pump();
     });
   }
+
+  // The pointer arrangement is the shell's: tabs above the search field, the
+  // strip pinned at the bottom, the bar holding backspace above it. Two pages
+  // so the tabs show.
+  Future<PanelShellController> pumpPointerScene(
+    WidgetTester tester, {
+    required Brightness brightness,
+    required TextDirection direction,
+    bool searchOpen = false,
+  }) async {
+    final source = fixtures.source(recents: ['😀', '❤', '👍'], count: 8);
+    final searchSource = FakeSearchSource({});
+    final assets = PageAssets.createScope();
+    final preferences = FakePreferenceStore();
+    final shell = PanelShellController(
+      pages: [
+        PanelPage(
+          id: 'emoji',
+          tab: const PanelTab(icon: ChromeIconId.emoji, labelKey: 'emoji'),
+          capabilities: EmojiPagePolicy.pageCapabilities,
+          builder: (context, host) => EmojiPage(
+            host: host,
+            source: source,
+            searchSource: searchSource,
+            preferences: preferences,
+            entryOf: fixtures.entryOf,
+            assets: assets,
+            searchDebounce: Duration.zero,
+          ),
+        ),
+        FakePanelPage('stickers').page,
+      ],
+      preferences: preferences,
+    );
+    addTearDown(() {
+      shell.dispose();
+      source.dispose();
+      searchSource.dispose();
+      assets.dispose();
+    });
+    await tester.binding.setSurfaceSize(const Size(360, 480));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await precacheStripArt(tester);
+    await tester.pumpWidget(
+      PanelShellTestScope(
+        textDirection: direction,
+        brightness: brightness,
+        size: const Size(360, 480),
+        speed: ChromeMotionSpeed.instant,
+        child: RepaintBoundary(
+          key: const ValueKey('scene'),
+          child: Overlay(
+            initialEntries: [
+              OverlayEntry(
+                builder: (context) => PanelShell(
+                  controller: shell,
+                  announcer: FakePanelAnnouncer(),
+                  arrangement: PanelArrangement.pointer,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pumpAndSettle();
+    if (searchOpen) {
+      shell.openSearch(focus: false);
+      await tester.pumpAndSettle();
+    }
+    return shell;
+  }
+
+  for (final MapEntry(key: variant, value: (brightness, direction))
+      in variants.entries) {
+    testWidgets('the pointer arrangement in a shell, $variant', (tester) async {
+      await pumpPointerScene(
+        tester,
+        brightness: brightness,
+        direction: direction,
+      );
+
+      await matches(tester, 'pointer_grid_$variant');
+    });
+  }
+
+  testWidgets('the pointer arrangement with search open and no text, '
+      'light_ltr', (tester) async {
+    await pumpPointerScene(
+      tester,
+      brightness: Brightness.light,
+      direction: TextDirection.ltr,
+      searchOpen: true,
+    );
+
+    await matches(tester, 'pointer_search_empty_light_ltr');
+  });
+
+  testWidgets('the pointer arrangement with a mouse over a cell, light_ltr', (
+    tester,
+  ) async {
+    await pumpPointerScene(
+      tester,
+      brightness: Brightness.light,
+      direction: TextDirection.ltr,
+    );
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    // The second cell of the recents row.
+    await mouse.moveTo(
+      tester.getTopLeft(find.byType(EmojiPage)) + const Offset(70, 130),
+    );
+    await tester.pump();
+
+    await matches(tester, 'pointer_hover_light_ltr');
+  });
 }

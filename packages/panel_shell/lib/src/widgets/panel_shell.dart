@@ -10,6 +10,7 @@ import 'package:panel_shell/src/input/panel_intents.dart';
 import 'package:panel_shell/src/page/panel_page.dart';
 import 'package:panel_shell/src/scroll/bottom_bar_visibility.dart';
 import 'package:panel_shell/src/widgets/listen_value_builder.dart';
+import 'package:panel_shell/src/widgets/panel_arrangement.dart';
 import 'package:panel_shell/src/widgets/panel_bottom_bar.dart';
 import 'package:panel_shell/src/widgets/panel_pager.dart';
 import 'package:panel_shell/src/widgets/panel_search_field.dart';
@@ -18,6 +19,19 @@ import 'package:panel_shell/src/widgets/panel_type_tabs.dart';
 /// The host-independent panel: the search field above a pager of pages, with
 /// the bottom bar (type tabs and the selected page's actions) floating over
 /// it.
+///
+/// ## Arrangement
+///
+/// [arrangement] says how the chrome is laid out for the way the user points
+/// (see [PanelArrangement]) and is provided to the pages below through
+/// [PanelArrangementScope]. Under `touch` the column is the search field, then
+/// the pager, with the tabs and the actions in one bar floating over the
+/// pager's bottom edge and sliding away as the content is read. Under
+/// `pointer` the tabs move to the top of the column, above the search field;
+/// the bar keeps the selected page's actions at the end side, never slides away
+/// for scrolling, and rises by the extent of the strip the page pins at the
+/// bottom ([PanelPageHost.reportBottomExtent]) so it does not cover it. The
+/// bar is gone while search is open in both.
 ///
 /// A projection of [controller]; it keeps no selection or search state of its
 /// own, so unmounting it (a presentation switch) and mounting another shell
@@ -49,6 +63,7 @@ class PanelShell extends StatefulWidget {
   /// A shell showing the pages of [controller].
   const PanelShell({
     required this.controller,
+    this.arrangement = PanelArrangement.touch,
     this.tabDisplay = PanelTabDisplay.label,
     this.shortcuts = PanelShortcuts.standard,
     this.focusPolicy = PanelFocusPolicy.none,
@@ -60,6 +75,10 @@ class PanelShell extends StatefulWidget {
 
   /// The controller this shell projects.
   final PanelShellController controller;
+
+  /// How the chrome is arranged; chosen by the presentation that mounts the
+  /// shell.
+  final PanelArrangement arrangement;
 
   /// Whether the type tabs show names or icons.
   final PanelTabDisplay tabDisplay;
@@ -92,9 +111,19 @@ class PanelShell extends StatefulWidget {
 
 class _PanelShellState extends State<PanelShell> {
   final _scope = FocusScopeNode(debugLabel: 'PanelShell');
-  final _position = ValueNotifier<double>(0);
+  // Starts on the selected page, not on 0: the pager sets it in its own
+  // initState, and the type tabs that read it (above the pager under the
+  // pointer arrangement) are mounted before it, so a change there would mark
+  // them dirty during build.
+  late final _position = ValueNotifier<double>(
+    _shell.pages
+        .indexWhere((page) => page.id == _shell.selectedPageId.value)
+        .toDouble(),
+  );
   final _dragging = ValueNotifier<bool>(false);
-  final _barVisibility = BottomBarVisibility();
+  late final _barVisibility = BottomBarVisibility(
+    hidesOnScroll: widget.arrangement.barHidesOnScroll,
+  );
   final _subscriptions = <StreamSubscription<Object?>>[];
   late var _fieldMounted = !widget.deferSearchField;
 
@@ -114,6 +143,7 @@ class _PanelShellState extends State<PanelShell> {
   @override
   void didUpdateWidget(PanelShell oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _barVisibility.hidesOnScroll = widget.arrangement.barHidesOnScroll;
     if (!identical(oldWidget.controller, widget.controller)) {
       _unbind(oldWidget.controller);
       _bind(widget.controller);
@@ -205,73 +235,107 @@ class _PanelShellState extends State<PanelShell> {
     final motion = ChromeMotionScope.of(context);
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     final media = MediaQuery.of(context);
+    final pointer = widget.arrangement == PanelArrangement.pointer;
 
-    return Shortcuts(
-      shortcuts: widget.shortcuts,
-      child: Actions(
-        actions: <Type, Action<Intent>>{
-          PanelSelectPageIntent: CallbackAction<PanelSelectPageIntent>(
-            onInvoke: (intent) {
-              _shell.selectPage(intent.pageId);
-              return null;
-            },
+    // The bar floats over the pages, so they are told to leave room for it
+    // the way they leave room for a system bar. Under the pointer arrangement
+    // the safe inset is the shell's own (the pager area ends above it, so a
+    // strip a page pins at its bottom is not under it): the page is told the
+    // bar's room only.
+    final pages = MediaQuery(
+      data: media.copyWith(
+        padding: media.padding.copyWith(
+          bottom: pointer
+              ? PanelBottomBar.height
+              : safeBottom + PanelBottomBar.height,
+        ),
+      ),
+      child: PanelPager(
+        controller: _shell,
+        position: _position,
+        dragging: _dragging,
+      ),
+    );
+    final stack = Stack(
+      children: [
+        Positioned.fill(
+          child: FocusTraversalOrder(
+            order: const NumericFocusOrder(1),
+            child: pages,
           ),
-          PanelSearchIntent: CallbackAction<PanelSearchIntent>(
-            onInvoke: (_) {
-              _shell.openSearch();
-              return null;
-            },
+        ),
+        if (pointer)
+          ListenValueBuilder<double>(
+            listenable: _shell.bottomExtent,
+            builder: (context, extent) => Positioned(
+              left: 0,
+              right: 0,
+              bottom: extent,
+              child: FocusTraversalOrder(
+                order: const NumericFocusOrder(2),
+                child: _bar(slide: PanelBottomBar.hideSlide + extent, lift: 0),
+              ),
+            ),
+          )
+        else
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: FocusTraversalOrder(
+              order: const NumericFocusOrder(2),
+              child: _bar(
+                slide: PanelBottomBar.hideSlide + safeBottom,
+                lift: safeBottom,
+              ),
+            ),
           ),
-          DismissIntent: _ShellDismissAction(_shell, context),
-        },
-        child: FocusScope(
-          node: _scope,
-          child: FocusTraversalGroup(
-            policy: OrderedTraversalPolicy(),
-            child: ColoredBox(
-              color: panel.background,
-              child: Column(
-                children: [
-                  ListenValueBuilder<String>(
-                    listenable: _shell.selectedPageId,
-                    builder: (context, _) => _searchSlot(motion),
-                  ),
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: FocusTraversalOrder(
-                            order: const NumericFocusOrder(1),
-                            // The bar floats over the pages, so they are told
-                            // to leave room for it the way they leave room
-                            // for a system bar.
-                            child: MediaQuery(
-                              data: media.copyWith(
-                                padding: media.padding.copyWith(
-                                  bottom: safeBottom + PanelBottomBar.height,
-                                ),
-                              ),
-                              child: PanelPager(
-                                controller: _shell,
-                                position: _position,
-                                dragging: _dragging,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: FocusTraversalOrder(
-                            order: const NumericFocusOrder(2),
-                            child: _bar(safeBottom, motion),
-                          ),
-                        ),
-                      ],
+      ],
+    );
+
+    return PanelArrangementScope(
+      arrangement: widget.arrangement,
+      child: Shortcuts(
+        shortcuts: widget.shortcuts,
+        child: Actions(
+          actions: <Type, Action<Intent>>{
+            PanelSelectPageIntent: CallbackAction<PanelSelectPageIntent>(
+              onInvoke: (intent) {
+                _shell.selectPage(intent.pageId);
+                return null;
+              },
+            ),
+            PanelSearchIntent: CallbackAction<PanelSearchIntent>(
+              onInvoke: (_) {
+                _shell.openSearch();
+                return null;
+              },
+            ),
+            DismissIntent: _ShellDismissAction(_shell, context),
+          },
+          child: FocusScope(
+            node: _scope,
+            child: FocusTraversalGroup(
+              policy: OrderedTraversalPolicy(),
+              child: ColoredBox(
+                color: panel.background,
+                child: Column(
+                  children: [
+                    if (pointer) _tabsRow(),
+                    ListenValueBuilder<String>(
+                      listenable: _shell.selectedPageId,
+                      builder: (context, _) => _searchSlot(motion),
                     ),
-                  ),
-                ],
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          bottom: pointer ? safeBottom : 0,
+                        ),
+                        child: stack,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -279,6 +343,38 @@ class _PanelShellState extends State<PanelShell> {
       ),
     );
   }
+
+  // The pointer arrangement's tabs: above the search field, the pill centred
+  // with the bar's own insets. One page has nothing to switch to.
+  Widget _tabsRow() => FocusTraversalOrder(
+    order: const NumericFocusOrder(2),
+    child: ListenValueBuilder<String>(
+      listenable: _shell.selectedPageId,
+      builder: (context, selectedId) {
+        if (_shell.pages.length < 2) return const SizedBox.shrink();
+        return MediaQuery.withClampedTextScaling(
+          maxScaleFactor: PanelBottomBar.maxTextScale,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(
+              PanelBottomBar.padHorizontal,
+              PanelBottomBar.padHorizontal,
+              PanelBottomBar.padHorizontal,
+              PanelBottomBar.padBottom,
+            ),
+            child: Center(
+              child: PanelTypeTabs(
+                pages: _shell.pages,
+                position: _position,
+                dragging: _dragging,
+                selectedPageId: selectedId,
+                display: widget.tabDisplay,
+              ),
+            ),
+          ),
+        );
+      },
+    ),
+  );
 
   // The field comes and goes with the selected page. A zero duration (instant
   // motion speed) skips AnimatedSize: its render object re-dirties itself in
@@ -304,8 +400,12 @@ class _PanelShellState extends State<PanelShell> {
     );
   }
 
-  Widget _bar(double safeBottom, ChromeMotionData motion) {
-    final reveal = motion.specOf(MotionRole.headerReveal);
+  // [slide] is how far the bar goes down to hide, [lift] the room under it
+  // that the bar keeps for itself.
+  Widget _bar({required double slide, required double lift}) {
+    final reveal = ChromeMotionScope.of(
+      context,
+    ).specOf(MotionRole.headerReveal);
     return Focus(
       canRequestFocus: false,
       skipTraversal: true,
@@ -317,15 +417,13 @@ class _PanelShellState extends State<PanelShell> {
       child: ListenValueBuilder<bool>(
         listenable: _barVisibility.visible,
         builder: (context, visible) => TweenAnimationBuilder<double>(
-          tween: Tween<double>(
-            end: visible ? 0 : PanelBottomBar.hideSlide + safeBottom,
-          ),
+          tween: Tween<double>(end: visible ? 0 : slide),
           duration: reveal.duration,
           curve: reveal.curve,
           builder: (context, y, child) =>
               Transform.translate(offset: Offset(0, y), child: child),
           child: Padding(
-            padding: EdgeInsets.only(bottom: safeBottom),
+            padding: EdgeInsets.only(bottom: lift),
             child: ListenValueBuilder<String>(
               listenable: _shell.selectedPageId,
               builder: (context, _) => PanelBottomBar(
@@ -335,6 +433,7 @@ class _PanelShellState extends State<PanelShell> {
                 dragging: _dragging,
                 display: widget.tabDisplay,
                 onAction: _onAction,
+                withTabs: widget.arrangement == PanelArrangement.touch,
               ),
             ),
           ),

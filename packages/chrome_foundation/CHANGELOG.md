@@ -8,6 +8,13 @@ package is pre-1.0.
 
 ### Added
 
+- The `selectionSlide` motion role (a selection marker moving to the next
+  control, 400 ms ease-out cubic). `ChromeMotion` takes and copies it. A host
+  that builds `ChromeMotion(...)` field by field must pass it.
+- `PanelTokens.stripFill`: the fill of the category strip where a page pins it
+  at the bottom (the text colour at alpha `0x0A` over `background`), one step
+  off the grid in light and dark. Required in the `PanelTokens` constructor.
+
 - The `loop` motion role (one turn of an indeterminate loop, 900 ms linear).
   `ChromeMotion` takes and copies it like the other roles.
 - `PanelStrings.categoryTitle` (the title of a category section by id) and

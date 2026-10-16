@@ -69,6 +69,15 @@ abstract interface class PanelPageHost {
   /// field shows progress while [busy].
   void reportSearchProgress({required bool busy});
 
+  /// Reports how tall the strip the page pins at the bottom of its own box is,
+  /// or 0 when it pins none (also when the strip is not shown at the moment).
+  ///
+  /// Under the pointer arrangement the shell's floating bar rises by the
+  /// extent of the selected page, so it does not cover the strip. The shell
+  /// keeps the last extent of every page; a page reports a change, not every
+  /// frame.
+  void reportBottomExtent(double extent);
+
   /// Reports that a search settled on [count] results; the shell announces it.
   void reportSearchResultCount(int count);
 }

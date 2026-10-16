@@ -24,7 +24,8 @@ pages), [ADR 031](../../docs/adr/031-localization-accessibility-and-input.md)
 | `PanelEvent` (`ContentPicked`, `BackspaceRequested`, `ActionInvoked`, `ClearRecentsRequested`, `PageChanged`, `SearchOpened`, `SearchClosed`) | The one sealed outward effect type, delivered on `controller.events`. The panel inserts nothing and writes no recents. |
 | `PageScrollActivity` (`PageScrollDrag`, `PageScrollFling`, `PageScrollJump`, `PageScrollIdle`), `BottomBarVisibility` | The typed scroll report a page publishes and the rule that turns it into bottom-bar hide and show. No clock is read. |
 | `DebouncedSearch<R>` | The shared search helper: debounce, generation (a newer text invalidates anything in flight) and stale-result handling, with a delayed `busy` flag. |
-| `PanelShell`, `PanelTabDisplay` | The widget: search field above a pager, bottom bar floating over it. A projection of the controller; it keeps no state of its own. `deferSearchField` mounts the field one frame after the first, for a paced cold mount. |
+| `PanelArrangement`, `PanelArrangementScope` | How the chrome is laid out for the way the user points: `touch` (the default) or `pointer`. A presentation gives it to `PanelShell(arrangement:)`; pages read it with `PanelArrangementScope.of(context)`, which answers `touch` outside a shell. |
+| `PanelShell`, `PanelTabDisplay` | The widget: search field above a pager, bottom bar floating over it (under `pointer`, the type tabs above the search field and a bar of page actions only). A projection of the controller; it keeps no state of its own. `deferSearchField` mounts the field one frame after the first, for a paced cold mount. |
 | `PanelSelectPageIntent`, `PanelSearchIntent`, `PanelShortcuts`, `PanelFocusPolicy`, `PanelAnnouncer` | Intents and actions with a default shortcut map, focus on open and restore target, and the announcement seam. |
 | `package:panel_shell/testing.dart` | `FakePanelPage`, `FakePageControllerRegistry`, `FakePanelAnnouncer`, `PanelShellTestScope`, `runPageControllerRegistryContract` and `PanelSemanticsRule`. Tests only. |
 
@@ -53,6 +54,14 @@ PanelShell(controller: controller);
   rule), then reports `host.reportSearchProgress` and
   `host.reportSearchResultCount`. The query survives page switches. Closing
   search forgets the query.
+- **Arrangement.** Under `touch` the bar holds the type tabs and the selected
+  page's actions and slides away as the content is read. Under `pointer` the
+  tabs are above the search field, the bar holds the actions only, a scroll
+  report (a wheel step is one) never hides it, and it rises above the strip the
+  page pins at the bottom, whose height the page reports with
+  `host.reportBottomExtent` (`controller.bottomExtent` is the selected page's).
+  The shell keeps the safe inset under `pointer` and tells pages the bar's room
+  only.
 - **Bottom bar.** The shell owns the bar: type tabs plus the selected page's
   declared actions. A page reports `PageScrollDrag` / `PageScrollFling`
   deltas, `PageScrollJump` before a programmatic scroll and `PageScrollIdle`

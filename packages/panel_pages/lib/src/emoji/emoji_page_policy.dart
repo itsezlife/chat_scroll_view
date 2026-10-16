@@ -30,7 +30,9 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 /// - **Sections.** One per category with the title the panel strings give the
 ///   category; the recents first, only while there are some. While search is
 ///   open with no query the page narrows to the recents (frequently used
-///   emoji) when there are any.
+///   emoji) when there are any, under the touch arrangement; under the
+///   pointer arrangement the whole catalogue and the strip stay, so clearing
+///   the field is all it takes to see the grid again.
 /// - **Recents.** A header action asks the host to clear them
 ///   (`PanelPageHost.requestClearRecents`); the page never clears or records
 ///   anything itself.
@@ -38,8 +40,8 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 ///   opens the variant picker; releasing on an option picks it and remembers
 ///   it for the emoji's base through the `PreferenceStore`, so the grid shows
 ///   it from then on. An emoji with no variants has no long press.
-/// - **Strip.** The category strip above the catalogue ([stripReady] defers
-///   it).
+/// - **Strip.** The category strip above the catalogue, or pinned below it
+///   under the pointer arrangement ([stripReady] defers it).
 final class EmojiPagePolicy extends CatalogPagePolicy {
   /// The emoji policy of the page behind [host].
   ///
@@ -234,6 +236,10 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   }
 
   // --- Chrome ---------------------------------------------------------------
+
+  @override
+  bool stripAtBottom(PanelArrangement arrangement) =>
+      arrangement == PanelArrangement.pointer;
 
   @override
   Widget? buildStrip(BuildContext context, CatalogStripHandle strip) {

@@ -8,6 +8,12 @@ is pre-1.0.
 
 ### Added
 
+- Hover highlight: `PanelCatalogThemeData.leafHoverHighlightColor` (null, the
+  default, paints none), `leafHoverHighlightRadius` (8) and
+  `leafHoverHighlightInset` (2). A mouse over a leaf paints a rounded wash on its
+  cell, under the content, instantly; a finger or stylus in contact never
+  hovers, and content moving under a still mouse moves the wash with it.
+
 - `PanelCatalogCurrentSectionChanged` on `controller.events`, and
   `controller.currentSection`: which section the viewport is in (the last whose
   header reached the landing line; at the end of scrolling content the last
