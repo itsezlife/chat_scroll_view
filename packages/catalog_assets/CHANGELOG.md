@@ -32,6 +32,10 @@ is pre-1.0.
   repaint when the engine's fonts change (`PaintingBinding.systemFonts`). A
   browser fetches the font that draws an emoji only once it meets one, so a
   glyph laid out before it arrived kept drawing the missing-glyph box.
+- `TextGlyphProducer(fontsReady:)`: glyphs drawn as text wait, as the
+  scope's placeholder, until the fonts that draw them are there, so a grid
+  shows placeholders, not missing-glyph boxes, while a browser downloads the
+  emoji font.
 
 - A binding whose profile does not animate paints at the playback time of its
   first paint, so an animated paintable shows one frame there. It painted at

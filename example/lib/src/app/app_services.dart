@@ -73,19 +73,31 @@ final class AppServices {
     required this.glyphCache,
     required AppLifecycleListener lifecycle,
     required PacedGlyphProbePass? webProbePass,
-    required Future<void> Function() glyphFontsSettled,
+    required Future<bool> Function() glyphFontsSettled,
+    required ValueNotifier<bool> glyphFontsReady,
     required AssetPipeline pipeline,
   }) : _animatedEmoji = animatedEmoji,
        _pipeline = pipeline,
        _lifecycle = lifecycle,
-       _webProbePass = webProbePass {
-    if (webProbePass != null) {
-      unawaited(
-        glyphFontsSettled().then((_) {
-          if (!_disposed) unawaited(webProbePass.run());
-        }),
-      );
+       _webProbePass = webProbePass,
+       _glyphFontsReady = glyphFontsReady {
+    // The panel's collections, loaded now as the reference client loads its
+    // emoji at start: everything is in memory, so the first open lays every
+    // section out at its size, not a row of placeholders that then jumps.
+    for (final collection in emojiPageSource.collections.value) {
+      unawaited(emojiPageSource.load(collection.id));
     }
+    // Started now, the emoji font downloads while the app boots. Glyphs drawn
+    // as text show once it came, or once the wait gave up (text then, not
+    // placeholders for good). The web probe pass runs only over the font:
+    // without it there is nothing to judge the glyphs by.
+    unawaited(
+      glyphFontsSettled().then((arrived) {
+        if (_disposed) return;
+        _glyphFontsReady.value = true;
+        if (arrived && webProbePass != null) unawaited(webProbePass.run());
+      }),
+    );
   }
 
   /// The key-value namespace of the recents store.
@@ -157,11 +169,19 @@ final class AppServices {
         (pipeline) => pipeline.dispose(),
       );
       AnimatedEmojiPack.descriptors.forEach(pipeline.know);
+      // Whether the fonts that draw emoji as text are there: on the web the
+      // emoji font downloads, and the grid shows placeholders, not
+      // missing-glyph boxes, until it is (set once the probe's wait ends).
+      final glyphFontsReady = owned(
+        ValueNotifier<bool>(!kIsWeb),
+        (ready) => ready.dispose(),
+      );
       final assets = owned(
         PageAssets.createScope(
           producer: pipeline,
           memoryPressure: memoryPressure,
           systemFonts: PaintingBinding.instance.systemFonts,
+          textGlyphsReady: glyphFontsReady,
         ),
         (scope) => scope.dispose(),
       );
@@ -262,6 +282,7 @@ final class AppServices {
             ? _webPass(probe.probe, isPaused: () => hidden)
             : null,
         glyphFontsSettled: probe.fontsSettled,
+        glyphFontsReady: glyphFontsReady,
         pipeline: pipeline,
         clipboard: clipboard,
       );
@@ -344,6 +365,7 @@ final class AppServices {
   final AssetPipeline _pipeline;
   final AppLifecycleListener _lifecycle;
   final PacedGlyphProbePass? _webProbePass;
+  final ValueNotifier<bool> _glyphFontsReady;
   var _disposed = false;
 
   /// Whether [dispose] has run.
@@ -386,6 +408,7 @@ final class AppServices {
     glyphProbe.dispose();
     _lifecycle.dispose();
     assets.dispose();
+    _glyphFontsReady.dispose();
     _pipeline.dispose();
     memoryPressure.dispose();
     preferences.dispose();

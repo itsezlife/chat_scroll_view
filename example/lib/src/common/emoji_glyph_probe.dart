@@ -21,9 +21,10 @@ typedef EmojiGlyphProbeWiring = ({
   /// second time.
   GlyphBakeObserver bakeObserver,
 
-  /// Completes once the engine has the fonts that draw the glyphs; anything
-  /// that rasterises them for the probe (the web's own pass) waits for it.
-  Future<void> Function() fontsSettled,
+  /// Completes once the engine has the fonts that draw the glyphs, with
+  /// whether they came; anything that rasterises them for the probe (the
+  /// web's own pass) waits for it, and nothing does when they did not.
+  Future<bool> Function() fontsSettled,
 });
 
 /// Wires a [MissingGlyphProbe] over [glyphs] to the glyph atlas.
@@ -36,23 +37,27 @@ typedef EmojiGlyphProbeWiring = ({
 /// kept in [store], under the art version they were taken for.
 ///
 /// [fontsSettled] completes once the engine has the fonts that draw the
-/// glyphs (by default at once). The sentinels are rendered after it: a
-/// fingerprint of missing-glyph boxes would be an art version of its own,
-/// under which verdicts that every emoji is missing would be kept for good.
+/// glyphs, with whether they came (by default at once, with true). The
+/// sentinels are rendered after it: a fingerprint of missing-glyph boxes
+/// would be an art version of its own, under which verdicts that every emoji
+/// is missing would be kept for good. When the fonts did not come there is
+/// no art version this launch, so nothing the probe sees is kept.
 EmojiGlyphProbeWiring wireEmojiGlyphProbe({
   required Iterable<String> glyphs,
   required KeyValueStore store,
   required Future<Uint8List> Function(String glyph) sentinelPixelsOf,
   required Future<void> Function() nextFrame,
   String? osVersion,
-  Future<void> Function()? fontsSettled,
+  Future<bool> Function()? fontsSettled,
 }) {
-  final settled = fontsSettled ?? () async {};
+  final settled = fontsSettled ?? () async => true;
   final probe = MissingGlyphProbe(
     glyphs: glyphs,
     store: store,
     artVersion: () async {
-      await settled();
+      if (!await settled()) {
+        throw StateError('The fonts that draw the emoji did not arrive.');
+      }
       return GlyphArtFingerprint.compute(
         sentinels: GlyphArtFingerprint.defaultSentinels,
         pixelsOf: sentinelPixelsOf,
@@ -74,22 +79,34 @@ EmojiGlyphProbeWiring wireEmojiGlyphProbe({
 }
 
 /// [wireEmojiGlyphProbe] with the system rasteriser, the engine's frame clock,
-/// the operating system version as the supplementary signal (not on the web,
-/// where there is none to read) and the engine's fonts for [glyphs] (on the
-/// web, fetched when first met; waited for once, however often asked).
+/// the host's supplementary signal (the operating system version; on the web
+/// a mark of verdicts taken once the emoji font was there) and the engine's
+/// fonts for [glyphs] (on the web, fetched when first met, there once an
+/// emoji no longer draws as the missing-glyph box; waited for once, however
+/// often asked).
 EmojiGlyphProbeWiring wireSystemEmojiGlyphProbe({
   required Iterable<String> glyphs,
   required KeyValueStore store,
 }) {
   final reader = GlyphPixelReader(ParagraphGlyphRasteriser());
-  Future<void>? settled;
+  Future<bool>? settled;
+  // An emoji draws once it is neither blank nor the box a character no font
+  // has draws as.
+  Future<bool> emojiDrawn() async {
+    final emoji = await reader.pixelsOf('\u{1F600}');
+    final missing = await reader.pixelsOf('\u{10FFFF}');
+    return emoji.any((byte) => byte != 0) && !listEquals(emoji, missing);
+  }
+
   return wireEmojiGlyphProbe(
     glyphs: glyphs,
     store: store,
     sentinelPixelsOf: reader.pixelsOf,
     nextFrame: () => SchedulerBinding.instance.endOfFrame,
-    osVersion: environment_specific.$operatingSystemVersion(),
-    fontsSettled: () =>
-        settled ??= environment_specific.$glyphFontsSettled(glyphs),
+    osVersion: environment_specific.$glyphArtSupplement(),
+    fontsSettled: () => settled ??= environment_specific.$glyphFontsSettled(
+      glyphs,
+      emojiDrawn: emojiDrawn,
+    ),
   );
 }

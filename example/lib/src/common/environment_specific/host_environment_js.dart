@@ -9,44 +9,61 @@ import 'package:flutter/painting.dart';
 /// memory and ignores the path.
 String $glyphCacheDirectoryPath() => '';
 
-/// The web hook: no operating system version to read.
-String? $operatingSystemVersion() => null;
+/// The web hook: no operating system version to read. The emoji font is
+/// the browser's download, and this marks verdicts taken once it is there:
+/// verdicts taken while it was still downloading (missing-glyph boxes for
+/// emoji the font draws) had another art version, and are dropped.
+String? $glyphArtSupplement() => 'web: emoji font awaited';
 
-/// The web hook: completes once the engine has the fonts that draw [glyphs].
+/// The web hook: completes once the engine has the fonts that draw [glyphs],
+/// with whether they came.
 ///
-/// A browser fetches the font for a character only once it meets one, and
-/// draws the missing-glyph box until then; what is rasterised before (the
-/// glyph probe's cells, the art version's sentinels) is the box. The glyphs
-/// are laid out once here, which starts every fetch they need at once, and
-/// the engine's `systemFonts` signal tells when the fonts arrived: once it
-/// has been quiet for a moment after a change, or after a while with no
-/// change at all (nothing was missing, or the network never answered).
-Future<void> $glyphFontsSettled(Iterable<String> glyphs) async {
-  final settled = Completer<void>();
-  void settle() {
-    if (!settled.isCompleted) settled.complete();
+/// A browser fetches the font for a character only once it meets one (the
+/// emoji font is megabytes, in parts), and draws the missing-glyph box until
+/// then; what is rasterised before (the glyph probe's cells, the art
+/// version's sentinels) is the box. The glyphs are laid out once here, which
+/// starts every fetch they need at once. The fonts are there when
+/// [emojiDrawn] says an emoji draws (asked at each change of the engine's
+/// `systemFonts`, and every second) and the fonts have been quiet for a
+/// moment, as the parts arrive one by one. False after [_fontsDeadline]: the
+/// network never answered.
+Future<bool> $glyphFontsSettled(
+  Iterable<String> glyphs, {
+  required Future<bool> Function() emojiDrawn,
+}) async {
+  var changed = Completer<void>();
+  var lastChange = DateTime.now();
+  void onChange() {
+    lastChange = DateTime.now();
+    if (!changed.isCompleted) changed.complete();
   }
 
-  var quiet = Timer(const Duration(seconds: 10), settle);
-  void changed() {
-    quiet.cancel();
-    quiet = Timer(const Duration(milliseconds: 750), settle);
-  }
-
-  final fonts = PaintingBinding.instance.systemFonts..addListener(changed);
-  final giveUp = Timer(const Duration(seconds: 30), settle);
+  final fonts = PaintingBinding.instance.systemFonts..addListener(onChange);
   (ui.ParagraphBuilder(ui.ParagraphStyle())..addText(glyphs.join(' ')))
       .build()
     ..layout(const ui.ParagraphConstraints(width: double.infinity))
     ..dispose();
+  final deadline = DateTime.now().add(_fontsDeadline);
   try {
-    await settled.future;
+    var drawn = false;
+    while (DateTime.now().isBefore(deadline)) {
+      drawn = drawn || await emojiDrawn();
+      final quiet = DateTime.now().difference(lastChange) >= _fontsQuiet;
+      if (drawn && quiet) return true;
+      await Future.any([
+        changed.future,
+        Future<void>.delayed(const Duration(seconds: 1)),
+      ]);
+      if (changed.isCompleted) changed = Completer<void>();
+    }
+    return false;
   } finally {
-    fonts.removeListener(changed);
-    quiet.cancel();
-    giveUp.cancel();
+    fonts.removeListener(onChange);
   }
 }
+
+const Duration _fontsDeadline = Duration(seconds: 90);
+const Duration _fontsQuiet = Duration(milliseconds: 1500);
 
 /// The web hook: tells the page's loading widget how far the boot is.
 ///

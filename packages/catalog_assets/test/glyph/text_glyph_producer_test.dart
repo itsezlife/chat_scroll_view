@@ -100,6 +100,29 @@ void main() {
       expect(paragraphs.first, same(paragraphs.last));
     });
 
+    test('wait for the fonts that draw them, as placeholders', () {
+      // Laid out before the font is there, an emoji draws the missing-glyph
+      // box; the placeholder is what the grid shows while it waits.
+      final ready = ValueNotifier(false);
+      addTearDown(ready.dispose);
+      final scope = scopeOf(TextGlyphProducer(fontsReady: ready));
+      final binding = scope.attach(_glyph, _preset.spec, _preset.profile);
+      addTearDown(binding.detach);
+      var signals = 0;
+      binding.addListener(() => signals++);
+
+      expect(binding.readiness.stage, AssetStage.none);
+      expect(binding.paintable, same(scope.placeholder));
+
+      ready.value = true;
+
+      expect(
+        binding.readiness,
+        const AssetReadiness(AssetStage.full, isFinal: true),
+      );
+      expect(signals, greaterThan(0));
+    });
+
     test('lay out again and repaint when the system fonts change', () {
       // A browser fetches the font that draws an emoji only once it meets
       // one: what was laid out before drew the missing-glyph box.

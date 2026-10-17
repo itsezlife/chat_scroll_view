@@ -29,6 +29,10 @@ abstract final class PageAssets {
   /// it, since a browser fetches the font that draws an emoji only once it
   /// meets one. A host that draws glyphs as text passes it.
   ///
+  /// [textGlyphsReady] says whether the fonts that draw glyphs as text are
+  /// there: until it is true they are placeholders, not missing-glyph boxes
+  /// (see [TextGlyphProducer.fontsReady]).
+  ///
   /// The caller owns the scope and disposes it.
   static AssetCacheScope createScope({
     AssetProducer? producer,
@@ -37,8 +41,9 @@ abstract final class PageAssets {
     PlaybackClock? clock,
     Listenable? memoryPressure,
     Listenable? systemFonts,
+    ValueListenable<bool>? textGlyphsReady,
   }) => AssetCacheScope(
-    producer: TextGlyphProducer(next: producer),
+    producer: TextGlyphProducer(next: producer, fontsReady: textGlyphsReady),
     glyphSource: glyphSource,
     budgets: budgets,
     clock: clock,

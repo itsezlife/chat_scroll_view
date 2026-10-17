@@ -50,6 +50,35 @@ final class _FailingStore implements KeyValueStore {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('the panel\'s collections are loaded before it first opens', () async {
+    // Loaded on the first open, every section showed a row of placeholders
+    // and then jumped to its size.
+    final services = await createTestServices();
+    addTearDown(services.dispose);
+
+    final source = services.emojiPageSource;
+    expect(source.collections.value, isNotEmpty);
+    for (final collection in source.collections.value) {
+      expect(
+        collection.contents,
+        isNot(isA<CollectionContents$Idle>()),
+        reason: '${collection.id} waits for the panel',
+      );
+    }
+    // A load in flight answers with its own future.
+    await Future.wait([
+      for (final collection in source.collections.value)
+        source.load(collection.id),
+    ]);
+    for (final collection in source.collections.value) {
+      expect(
+        collection.contents,
+        isA<CollectionContents$Loaded>(),
+        reason: '${collection.id}',
+      );
+    }
+  });
+
   group('composition order', () {
     test('the key-value store is read before any data source reads the '
         'catalogue', () async {
