@@ -19,6 +19,13 @@ import 'package:listen/listen.dart' as listen;
 /// channel: showing and hiding the keyboard is the field's job, driven by
 /// [softKeyboard], [focusNode] and [requestKeyboard].
 ///
+/// ## Clipboard
+///
+/// Given a [clipboard], [copySelection], [cutSelection] and [paste] keep the
+/// text's entities across the system clipboard (ADR 032), and the field routes
+/// its copy, cut and paste there. Without one the field keeps the platform's
+/// plain-text clipboard.
+///
 /// The creator disposes. A text controller, focus node or scroll controller
 /// passed in is the host's and is left alone by [dispose]; the ones the
 /// controller makes for itself are disposed with it.
@@ -35,6 +42,7 @@ final class ComposerController {
     ScrollController? fieldScroll,
     Iterable<ComposerQueryKind> queryKinds = const [],
     SoftKeyboardMode softKeyboard = SoftKeyboardMode.auto,
+    this.clipboard,
   }) : text = text ?? ComposerTextController(),
        focusNode = focusNode ?? FocusNode(debugLabel: 'Composer'),
        fieldScroll = fieldScroll ?? ScrollController(),
@@ -55,6 +63,10 @@ final class ComposerController {
 
   /// Scroll of the field's content, for keeping the caret in view.
   final ScrollController fieldScroll;
+
+  /// The clipboard copy, cut and paste go through; null leaves the field on
+  /// the platform's plain-text clipboard.
+  final RichClipboard? clipboard;
 
   final bool _ownsText;
   final bool _ownsFocus;
@@ -121,6 +133,97 @@ final class ComposerController {
   void restore(RichText draft, {TextSelection? selection}) {
     if (_disposed) return;
     text.restore(draft, selection: selection);
+  }
+
+  // --- Clipboard ---
+
+  /// Puts the selection on the [clipboard] with its entities. False when there
+  /// is no clipboard, the selection is collapsed, or the clipboard failed
+  /// (reported to [FlutterError.reportError]).
+  Future<bool> copySelection() async {
+    final selection = text.selection;
+    if (_disposed || !selection.isValid || selection.isCollapsed) return false;
+    return _write(richText.slice(selection.start, selection.end));
+  }
+
+  /// Puts the selection on the [clipboard] and removes it from the text; see
+  /// [copySelection]. The text is left as it was when the copy fails.
+  Future<bool> cutSelection() async {
+    final selection = text.selection;
+    if (_disposed || !selection.isValid || selection.isCollapsed) return false;
+    final cut = richText.slice(selection.start, selection.end);
+    if (!await _write(cut) || _disposed) return false;
+    // Cut what was copied: the text may have moved on while the clipboard
+    // wrote.
+    if (text.richText.slice(selection.start, selection.end) == cut) {
+      text.replaceRange(selection.start, selection.end, RichText.empty);
+      _caretReveals.signal();
+    }
+    return true;
+  }
+
+  /// Replaces the selection with what the [clipboard] holds: its rich text
+  /// when it has one, its plain text otherwise or when [plain] is true.
+  ///
+  /// Pasted into a quote, the text's own quotes are unwrapped, so quotes never
+  /// nest; entities that cannot sit where the text lands are dropped and the
+  /// text still goes in. False when there is no clipboard, it holds no text,
+  /// or it failed (reported to [FlutterError.reportError]).
+  Future<bool> paste({bool plain = false}) async {
+    final source = clipboard;
+    if (_disposed || source == null) return false;
+    final ClipboardText? held;
+    try {
+      held = await source.read();
+    } on Object catch (error, stack) {
+      _report(error, stack, 'while reading the clipboard to paste');
+      return false;
+    }
+    if (_disposed || held == null) return false;
+    var pasted = plain ? RichText.plain(held.plain) : held.richOrPlain;
+    if (pasted.isEmpty) return false;
+    if (_insideQuote(text.selection)) {
+      pasted = RichText(pasted.plain, [
+        for (final entity in pasted.entities)
+          if (entity.kind != EntityKind.quote) entity,
+      ]);
+    }
+    text.insert(pasted);
+    _caretReveals.signal();
+    return true;
+  }
+
+  Future<bool> _write(RichText copied) async {
+    final target = clipboard;
+    if (target == null) return false;
+    try {
+      await target.write(copied);
+      return true;
+    } on Object catch (error, stack) {
+      _report(error, stack, 'while writing the clipboard');
+      return false;
+    }
+  }
+
+  bool _insideQuote(TextSelection selection) {
+    final at = selection.isValid ? selection.start : text.text.length;
+    return richText.entities.any(
+      (entity) =>
+          entity.kind == EntityKind.quote &&
+          entity.offset <= at &&
+          at <= entity.end,
+    );
+  }
+
+  static void _report(Object error, StackTrace stack, String doing) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stack,
+        library: 'chat_composer',
+        context: ErrorDescription(doing),
+      ),
+    );
   }
 
   // --- Focus ---

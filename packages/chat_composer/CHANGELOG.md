@@ -67,6 +67,15 @@ is pre-1.0.
 
 ### Added
 
+- Rich clipboard (ADR 032): `ComposerController(clipboard:)` takes a
+  `RichClipboard`, and `copySelection`, `cutSelection` and `paste({plain})`
+  keep the text's entities across the system clipboard. Pasting into a quote
+  unwraps the pasted quotes; a failing clipboard is reported and changes
+  nothing. With a clipboard the field routes its copy, cut and paste there
+  (key shortcuts, macOS menu selectors, the selection menu, which also offers
+  Paste as plain text); without one it keeps the platform's plain clipboard.
+- `PastePlainTextIntent`, bound to Shift+V with Command or Control in both
+  shortcut policies.
 - `ActionDescriptor.wrap` (`ActionWrap`): a widget the composer builds around
   the action's rendered button, so a host can put a hover region, a tooltip
   or a probe around one action without the composer knowing it. The button

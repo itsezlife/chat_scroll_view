@@ -9,6 +9,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'boundaries_test.dart' as boundaries_test;
+import 'input/composer_clipboard_test.dart' as input_composer_clipboard_test;
 import 'input/composer_controller_extent_test.dart'
     as composer_controller_extent_test;
 import 'input/composer_controller_test.dart' as composer_controller_test;
@@ -31,6 +32,7 @@ import 'text/content_span_builder_test.dart' as content_span_builder_test;
 import 'view/composer_actions_test.dart' as composer_actions_test;
 import 'view/composer_bottom_fade_test.dart' as composer_bottom_fade_test;
 import 'view/composer_caret_reveal_test.dart' as composer_caret_reveal_test;
+import 'view/composer_clipboard_test.dart' as view_composer_clipboard_test;
 import 'view/composer_golden_test.dart' as composer_golden_test;
 import 'view/composer_semantics_test.dart' as composer_semantics_test;
 import 'view/composer_send_flow_test.dart' as composer_send_flow_test;
@@ -39,6 +41,10 @@ import 'view/composer_view_test.dart' as composer_view_test;
 
 void main() {
   group('boundaries_test.dart', boundaries_test.main);
+  group(
+    'input/composer_clipboard_test.dart',
+    input_composer_clipboard_test.main,
+  );
   group(
     'input/composer_controller_extent_test.dart',
     composer_controller_extent_test.main,
@@ -78,6 +84,7 @@ void main() {
     'view/composer_caret_reveal_test.dart',
     composer_caret_reveal_test.main,
   );
+  group('view/composer_clipboard_test.dart', view_composer_clipboard_test.main);
   group('view/composer_golden_test.dart', composer_golden_test.main);
   group('view/composer_semantics_test.dart', composer_semantics_test.main);
   group('view/composer_send_flow_test.dart', composer_send_flow_test.main);

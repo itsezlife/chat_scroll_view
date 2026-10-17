@@ -44,6 +44,7 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     showPanelAction: 'Показать панель эмодзи',
     showKeyboardAction: 'Показать клавиатуру',
     dismissHeaderAction: 'Отмена',
+    pastePlainAction: 'Вставить без форматирования',
     replyTo: (name) => 'Ответ для $name',
     editingMessage: 'Редактирование сообщения',
   ),

@@ -19,6 +19,25 @@ class DismissComposerHeaderIntent extends Intent {
   const DismissComposerHeaderIntent();
 }
 
+/// Asks the composer to paste the clipboard's plain text, without its
+/// formatting.
+///
+/// Does nothing when the composer has no clipboard.
+class PastePlainTextIntent extends Intent {
+  /// Creates the intent.
+  const PastePlainTextIntent();
+}
+
+// Shift+V with the platform's shortcut key: Command on Apple platforms,
+// Control elsewhere. Both are bound, since a policy is per input family, not
+// per platform.
+const Map<ShortcutActivator, Intent> _pastePlain = {
+  SingleActivator(LogicalKeyboardKey.keyV, meta: true, shift: true):
+      PastePlainTextIntent(),
+  SingleActivator(LogicalKeyboardKey.keyV, control: true, shift: true):
+      PastePlainTextIntent(),
+};
+
 /// The default key bindings of the composer, chosen like the selection
 /// policies: one pure-Dart strategy per input family.
 ///
@@ -65,6 +84,7 @@ final class ComposerShortcutPolicy$Mobile extends ComposerShortcutPolicy {
   @override
   Map<ShortcutActivator, Intent> get shortcuts => const {
     SingleActivator(LogicalKeyboardKey.escape): DismissComposerHeaderIntent(),
+    ..._pastePlain,
   };
 }
 
@@ -79,5 +99,6 @@ final class ComposerShortcutPolicy$Desktop extends ComposerShortcutPolicy {
     SingleActivator(LogicalKeyboardKey.enter): SubmitComposerIntent(),
     SingleActivator(LogicalKeyboardKey.numpadEnter): SubmitComposerIntent(),
     SingleActivator(LogicalKeyboardKey.escape): DismissComposerHeaderIntent(),
+    ..._pastePlain,
   };
 }
