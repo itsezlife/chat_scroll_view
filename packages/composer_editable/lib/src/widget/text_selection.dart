@@ -21,7 +21,7 @@ import 'package:flutter/widgets.dart';
 
 import 'editable_text.dart';
 import 'finger_tracked_handle.dart';
-import 'selection_boxes.dart';
+import 'render_editable.dart';
 import 'selection_debug.dart';
 import 'selection_handle_motion.dart';
 
@@ -347,16 +347,6 @@ void _debugLogSelectionHandle(String message) {
   debugLogExtendedSelection(message);
 }
 
-String _debugExclusiveChrome(RenderEditable renderObject, TextSelection sel) {
-  final ExclusiveLineEndKind? kind = debugExclusiveEndKindAt(
-    offset: sel.end,
-    plainText: renderObject.plainText,
-    lineAtOffset: (int o) =>
-        renderObject.getLineAtOffset(TextPosition(offset: o)),
-  );
-  return debugExclusiveEndChromeSummary(selection: sel, endKind: kind);
-}
-
 /// An object that manages a pair of text selection handles for a
 /// [RenderEditable].
 ///
@@ -386,10 +376,13 @@ class TextSelectionOverlay {
   }) : _handlesVisible = handlesVisible,
        _value = value {
     assert(debugMaybeDispatchCreated('widgets', 'TextSelectionOverlay', this));
-    renderObject.selectionStartInViewport.addListener(
+    renderObject.startHandleInViewport.addListener(
       _updateTextSelectionOverlayVisibilities,
     );
-    renderObject.selectionEndInViewport.addListener(
+    renderObject.endHandleInViewport.addListener(
+      _updateTextSelectionOverlayVisibilities,
+    );
+    renderObject.selectionIntersectsViewport.addListener(
       _updateTextSelectionOverlayVisibilities,
     );
     _updateTextSelectionOverlayVisibilities();
@@ -443,7 +436,7 @@ class TextSelectionOverlay {
   // TODO(mpcomplete): what if the renderObject is removed or replaced, or
   // moves? Not sure what cases I need to handle, or how to handle them.
   /// The editable line in which the selected text is being displayed.
-  final RenderEditable renderObject;
+  final ExtendedRenderEditable renderObject;
 
   /// {@macro flutter.widgets.SelectionOverlay.selectionControls}
   final TextSelectionControls? selectionControls;
@@ -496,54 +489,12 @@ class TextSelectionOverlay {
 
   void _updateTextSelectionOverlayVisibilities() {
     _effectiveStartHandleVisibility.value =
-        _handlesVisible && renderObject.selectionStartInViewport.value;
+        _handlesVisible && renderObject.startHandleInViewport.value;
     _effectiveEndHandleVisibility.value =
-        _handlesVisible && renderObject.selectionEndInViewport.value;
+        _handlesVisible && renderObject.endHandleInViewport.value;
     _effectiveToolbarVisibility.value =
-        !_toolbarSuppressedForScroll && _selectionVisibleForToolbar();
-  }
-
-  /// True when any part of the selection is in the editable viewport.
-  ///
-  /// Endpoint-only checks fail after select-all on tall text: start and end can
-  /// both be off-screen while the middle is still visible.
-  bool _selectionVisibleForToolbar() {
-    if (renderObject.selectionStartInViewport.value ||
-        renderObject.selectionEndInViewport.value) {
-      return true;
-    }
-    final TextSelection selection = _selection;
-    if (!selection.isValid || selection.isCollapsed) {
-      return false;
-    }
-    final List<TextBox> boxes = renderObject.getBoxesForSelection(selection);
-    if (boxes.isEmpty) {
-      return false;
-    }
-    final Rect selectionRect = boxes
-        .map((TextBox box) => box.toRect())
-        .reduce((Rect a, Rect b) => a.expandToInclude(b));
-    // [RenderBox.size] asserts during selection-handle overlay layout.
-    final Size? editableSize = _tryEditableSize(renderObject);
-    if (editableSize == null) {
-      return !selectionRect.isEmpty;
-    }
-    return selectionRect.overlaps(Offset.zero & editableSize);
-  }
-
-  /// Best-effort size read; null when the pipeline forbids it.
-  static Size? _tryEditableSize(RenderEditable renderObject) {
-    if (!renderObject.hasSize) {
-      return null;
-    }
-    final RenderObject? active = RenderObject.debugActiveLayout;
-    if (active != null &&
-        !identical(active, renderObject) &&
-        !active.debugDoingThisLayoutWithCallback &&
-        !renderObject.debugDoingThisLayout) {
-      return null;
-    }
-    return renderObject.size;
+        !_toolbarSuppressedForScroll &&
+        renderObject.selectionIntersectsViewport.value;
   }
 
   /// Whether selection handles are visible.
@@ -762,10 +713,13 @@ class TextSelectionOverlay {
   void dispose() {
     assert(debugMaybeDispatchDisposed(this));
     _selectionOverlay.dispose();
-    renderObject.selectionStartInViewport.removeListener(
+    renderObject.startHandleInViewport.removeListener(
       _updateTextSelectionOverlayVisibilities,
     );
-    renderObject.selectionEndInViewport.removeListener(
+    renderObject.endHandleInViewport.removeListener(
+      _updateTextSelectionOverlayVisibilities,
+    );
+    renderObject.selectionIntersectsViewport.removeListener(
       _updateTextSelectionOverlayVisibilities,
     );
     _effectiveToolbarVisibility.dispose();
@@ -1142,7 +1096,6 @@ class TextSelectionOverlay {
 
     _debugLogSelectionHandle(
       'END dragStart: ${_debugSelectionSummary(_selection)} '
-      '${_debugExclusiveChrome(renderObject, _selection)} '
       'pos=${position.offset}/${position.affinity.name}',
     );
 
@@ -1231,57 +1184,6 @@ class TextSelectionOverlay {
     return nudged;
   }
 
-  /// Exclusive-end affinity for handle drag: preserve when the exclusive line
-  /// end at [selection.end] is the fixed base (`extent <= fixedBase`);
-  /// otherwise take hit-test affinity from the moving end.
-  ({
-    TextAffinity affinity,
-    ExclusiveLineEndKind? fixedExcl,
-    bool endFixed,
-    bool preserve,
-  })
-  _affinityForHandleDragUpdate({
-    required int fixedBase,
-    required int extent,
-    required TextAffinity hitTestAffinity,
-  }) {
-    // Exclusive-end chrome keys off selection.end (= max(base, extent)).
-    // Preserve only when that end is the fixed base and is an exclusive line end
-    // — not merely when fixedBase happens to sit at a visual line start.
-    final ExclusiveLineEndKind? fixedExcl = exclusiveLineEndKind(
-      offset: fixedBase,
-      plainText: renderObject.plainText,
-      lineAtOffset: (int o) =>
-          renderObject.getLineAtOffset(TextPosition(offset: o)),
-    );
-    final bool endFixed = extent <= fixedBase;
-    final bool preserve = preserveExclusiveEndAffinityOnHandleDrag(
-      fixedBaseIsExclusiveLineEnd: fixedExcl != null,
-      fixedBase: fixedBase,
-      extent: extent,
-    );
-    assert(
-      preserve == (fixedExcl != null && endFixed),
-      'preserve must be exclusiveLineEnd(fixedBase) && extent <= fixedBase',
-    );
-    final TextAffinity candidate = affinityForHandleDrag(
-      fixedBaseIsExclusiveEnd: preserve,
-      dragStartAffinity: _dragStartSelection!.affinity,
-      hitTestAffinity: hitTestAffinity,
-    );
-    return (
-      affinity: affinityForHandleDragStable(
-        extent: extent,
-        previousExtent: _selection.extentOffset,
-        previousAffinity: _selection.affinity,
-        candidateAffinity: candidate,
-      ),
-      fixedExcl: fixedExcl,
-      endFixed: endFixed,
-      preserve: preserve,
-    );
-  }
-
   void _handleSelectionEndHandleDragUpdate(DragUpdateDetails details) {
     if (!renderObject.attached) {
       return;
@@ -1359,34 +1261,17 @@ class TextSelectionOverlay {
       _updateFingerTrackedHandlePointer(details.globalPosition);
       return;
     }
-    // Exclusive-end affinity: preserve when fixed base is exclusive (START or
-    // END handle); otherwise take hit-test from the moving extent.
-    final (
-      :affinity,
-      :fixedExcl,
-      :endFixed,
-      :preserve,
-    ) = _affinityForHandleDragUpdate(
-      fixedBase: fixedBase,
-      extent: extent,
-      hitTestAffinity: position.affinity,
-    );
     final newSelection = TextSelection(
       baseOffset: fixedBase,
       extentOffset: extent,
-      affinity: affinity,
     );
 
     _debugLogSelectionHandle(
       'END dragUpdate: rawPos=$rawExtent/${position.affinity.name} '
-      'fixedBase=$fixedBase fixedExcl=${fixedExcl?.name ?? 'none'} '
-      'endFixed=$endFixed preserveAffinity=$preserve '
-      'hitAffinity=${position.affinity.name} chosenAffinity=${affinity.name} '
-      'normStart=$dragStartSelectionNormalized '
+      'fixedBase=$fixedBase normStart=$dragStartSelectionNormalized '
       'before=${_debugSelectionSummary(_selection)} '
       'dragStart=${_debugSelectionSummary(_dragStartSelection!)} '
-      '→ ${_debugSelectionSummary(newSelection)} '
-      '${_debugExclusiveChrome(renderObject, newSelection)}',
+      '→ ${_debugSelectionSummary(newSelection)}',
     );
 
     _handleSelectionHandleChanged(newSelection);
@@ -1473,7 +1358,6 @@ class TextSelectionOverlay {
 
     _debugLogSelectionHandle(
       'START dragStart: ${_debugSelectionSummary(_selection)} '
-      '${_debugExclusiveChrome(renderObject, _selection)} '
       'pos=${position.offset}/${position.affinity.name}',
     );
 
@@ -1563,34 +1447,17 @@ class TextSelectionOverlay {
       _updateFingerTrackedHandlePointer(details.globalPosition);
       return;
     }
-    // Exclusive-end affinity: preserve when fixed base is exclusive (START or
-    // END handle); otherwise take hit-test from the moving extent.
-    final (
-      :affinity,
-      :fixedExcl,
-      :endFixed,
-      :preserve,
-    ) = _affinityForHandleDragUpdate(
-      fixedBase: fixedBase,
-      extent: extent,
-      hitTestAffinity: position.affinity,
-    );
     final newSelection = TextSelection(
       baseOffset: fixedBase,
       extentOffset: extent,
-      affinity: affinity,
     );
 
     _debugLogSelectionHandle(
       'START dragUpdate: rawPos=$rawExtent/${position.affinity.name} '
-      'fixedBase=$fixedBase fixedExcl=${fixedExcl?.name ?? 'none'} '
-      'endFixed=$endFixed preserveAffinity=$preserve '
-      'hitAffinity=${position.affinity.name} chosenAffinity=${affinity.name} '
-      'normStart=$dragStartSelectionNormalized '
+      'fixedBase=$fixedBase normStart=$dragStartSelectionNormalized '
       'before=${_debugSelectionSummary(_selection)} '
       'dragStart=${_debugSelectionSummary(_dragStartSelection!)} '
-      '→ ${_debugSelectionSummary(newSelection)} '
-      '${_debugExclusiveChrome(renderObject, newSelection)}',
+      '→ ${_debugSelectionSummary(newSelection)}',
     );
 
     _handleSelectionHandleChanged(newSelection);
@@ -1615,7 +1482,6 @@ class TextSelectionOverlay {
     _endFingerTrackedHandleDrag();
     _debugLogSelectionHandle(
       'dragEnd: ${_debugSelectionSummary(_selection)} '
-      '${_debugExclusiveChrome(renderObject, _selection)} '
       'dragStart=${_dragStartSelection == null ? 'null' : _debugSelectionSummary(_dragStartSelection!)}',
     );
     _dragStartSelection = null;
@@ -1980,7 +1846,7 @@ class SelectionOverlay {
     _fingerTrackedFixedLeaderSnapshotScrollPixels = currentScroll;
     if (debugLogExtendedTextSelectionHandles) {
       debugLogExtendedSelection(
-        'fixedLeaderHybrid: scroll=$snapshotScroll→$currentScroll '
+        'fixedLeader: scroll=$snapshotScroll→$currentScroll '
         'leader=${liveLeader.dx.toStringAsFixed(1)},'
         '${liveLeader.dy.toStringAsFixed(1)} source=live',
       );
@@ -2000,7 +1866,7 @@ class SelectionOverlay {
         snapshotScroll == null) {
       return snapshot ?? liveLeader;
     }
-    return fingerTrackedFixedBaseLeaderHybrid(
+    return fingerTrackedFixedBaseLeader(
       snapshotLeader: snapshot,
       liveLeader: liveLeader,
       snapshotScrollPixels: snapshotScroll,
@@ -2154,17 +2020,6 @@ class SelectionOverlay {
       return false;
     }
     return _isFingerTrackedMovingOverlay(isStartHandle: isStartHandle);
-  }
-
-  /// Grabbed-handle drag scale on touch platforms (independent of finger-tracked
-  /// overlay delta).
-  bool _isGrabbedHandleDragging({required bool isStartHandle}) {
-    if (!usesFingerTrackedHandleDrag) {
-      return false;
-    }
-    return isStartHandle
-        ? _startHandleDragInProgress
-        : _endHandleDragInProgress;
   }
 
   final ValueNotifier<MagnifierInfo> _magnifierInfo =
@@ -2974,7 +2829,6 @@ class SelectionOverlay {
         isFingerTrackedMoving: _isFingerTrackedDraggingOverlay(
           isStartHandle: true,
         ),
-        isGrabbedHandleDragging: _isGrabbedHandleDragging(isStartHandle: true),
       );
     }
     return TapRegion(
@@ -3013,7 +2867,6 @@ class SelectionOverlay {
         isFingerTrackedMoving: _isFingerTrackedDraggingOverlay(
           isStartHandle: false,
         ),
-        isGrabbedHandleDragging: _isGrabbedHandleDragging(isStartHandle: false),
       );
     }
     return TapRegion(
@@ -3250,7 +3103,6 @@ class _SelectionHandleOverlay extends StatefulWidget {
     this.dragStartBehavior = DragStartBehavior.start,
     this.fingerTrackedDelta = Offset.zero,
     this.isFingerTrackedMoving = false,
-    this.isGrabbedHandleDragging = false,
   });
 
   final LayerLink handleLayerLink;
@@ -3267,7 +3119,6 @@ class _SelectionHandleOverlay extends StatefulWidget {
   final DragStartBehavior dragStartBehavior;
   final Offset fingerTrackedDelta;
   final bool isFingerTrackedMoving;
-  final bool isGrabbedHandleDragging;
 
   @override
   State<_SelectionHandleOverlay> createState() =>
@@ -3279,8 +3130,6 @@ class _SelectionHandleOverlayState extends State<_SelectionHandleOverlay>
   late AnimationController _controller;
   late Animation<double> _opacity;
   late Animation<double> _scale;
-  late AnimationController _dragScaleController;
-  late Animation<double> _dragScale;
   bool _panDragStarted = false;
 
   void _handlePointerDown(PointerDownEvent event) {
@@ -3318,31 +3167,8 @@ class _SelectionHandleOverlayState extends State<_SelectionHandleOverlay>
       curve: const OvershootCurve(),
       reverseCurve: Curves.easeIn,
     );
-    _dragScaleController = AnimationController(
-      duration: kTelegramHandleMotionDuration,
-      vsync: this,
-      value: 1.0,
-    );
-    _dragScale = Tween<double>(begin: 1.0, end: kComposerHandleDragScale)
-        .animate(
-          CurvedAnimation(
-            parent: _dragScaleController,
-            curve: Curves.easeOut,
-            reverseCurve: Curves.easeOut,
-          ),
-        );
-
     _handleVisibilityChanged();
     widget.visibility?.addListener(_handleVisibilityChanged);
-    _syncDragScale();
-  }
-
-  void _syncDragScale() {
-    if (widget.isGrabbedHandleDragging) {
-      _dragScaleController.forward();
-      return;
-    }
-    _dragScaleController.reverse();
   }
 
   void _handleVisibilityChanged() {
@@ -3394,16 +3220,12 @@ class _SelectionHandleOverlayState extends State<_SelectionHandleOverlay>
     oldWidget.visibility?.removeListener(_handleVisibilityChanged);
     _handleVisibilityChanged();
     widget.visibility?.addListener(_handleVisibilityChanged);
-    if (widget.isGrabbedHandleDragging != oldWidget.isGrabbedHandleDragging) {
-      _syncDragScale();
-    }
   }
 
   @override
   void dispose() {
     widget.visibility?.removeListener(_handleVisibilityChanged);
     _controller.dispose();
-    _dragScaleController.dispose();
     super.dispose();
   }
 
@@ -3491,15 +3313,11 @@ class _SelectionHandleOverlayState extends State<_SelectionHandleOverlay>
               child: ScaleTransition(
                 scale: _scale,
                 alignment: Alignment.center,
-                child: ScaleTransition(
-                  scale: _dragScale,
-                  alignment: dragScaleAlignmentForHandleType(widget.type),
-                  child: widget.selectionControls.buildHandle(
-                    context,
-                    widget.type,
-                    widget.preferredLineHeight,
-                    widget.onSelectionHandleTapped,
-                  ),
+                child: widget.selectionControls.buildHandle(
+                  context,
+                  widget.type,
+                  widget.preferredLineHeight,
+                  widget.onSelectionHandleTapped,
                 ),
               ),
             ),

@@ -1908,10 +1908,12 @@ class ExtendedEditableText extends StatefulWidget {
 
   /// The default value for [selectionWidthStyle].
   ///
-  /// Kept as [ui.BoxWidthStyle.tight] so stock handle geometry stays
-  /// glyph-accurate on the active edge. Multi-line chrome is painted by
-  /// [HybridSelectionHighlightPainter]: fully selected lines use
-  /// [ui.BoxWidthStyle.max] (Telegram-style), the extent line stays tight.
+  /// On native platforms, this defaults to [ui.BoxWidthStyle.max]: Telegram's
+  /// composer is a platform edit field, and its highlight spans the full width
+  /// of a completed line.
+  ///
+  /// On web, Safari and iOS web take [ui.BoxWidthStyle.max] too, and other
+  /// browsers [ui.BoxWidthStyle.tight], as their selection width differs.
   static ui.BoxWidthStyle get defaultSelectionWidthStyle {
     if (kIsWeb) {
       if (defaultTargetPlatform == TargetPlatform.iOS ||
@@ -1920,7 +1922,7 @@ class ExtendedEditableText extends StatefulWidget {
       }
       return ui.BoxWidthStyle.tight;
     }
-    return ui.BoxWidthStyle.tight;
+    return ui.BoxWidthStyle.max;
   }
 
   /// The default value for [stylusHandwritingEnabled].
@@ -3947,36 +3949,7 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
 
   TextEditingValue get _value => widget.controller.value;
   set _value(TextEditingValue value) {
-    final TextEditingValue current = widget.controller.value;
-    // [TextSelection.==] ignores affinity when non-collapsed, so
-    // [ValueNotifier] would drop upstream↔downstream flips at a wrap bound.
-    if (_isAffinityOnlySelectionChange(current, value)) {
-      widget.controller.value = value.copyWith(
-        selection: value.selection.copyWith(
-          isDirectional: !value.selection.isDirectional,
-        ),
-      );
-    }
     widget.controller.value = value;
-  }
-
-  /// Whether [next] differs from [current] only by non-collapsed selection
-  /// affinity (Flutter's [TextSelection.==] ignores that field).
-  static bool _isAffinityOnlySelectionChange(
-    TextEditingValue current,
-    TextEditingValue next,
-  ) {
-    if (current.text != next.text || current.composing != next.composing) {
-      return false;
-    }
-    final TextSelection a = current.selection;
-    final TextSelection b = next.selection;
-    if (!a.isValid || !b.isValid || a.isCollapsed || b.isCollapsed) {
-      return false;
-    }
-    return a.baseOffset == b.baseOffset &&
-        a.extentOffset == b.extentOffset &&
-        a.affinity != b.affinity;
   }
 
   bool get _hasFocus => widget.focusNode.hasFocus;
@@ -4677,11 +4650,7 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
     final textChanged = oldValue.text != value.text;
     final bool textCommitted =
         !oldValue.composing.isCollapsed && value.composing.isCollapsed;
-    // Affinity-only changes at exclusive wrap ends are invisible to
-    // [TextSelection.==] when non-collapsed.
-    final selectionChanged =
-        oldValue.selection != value.selection ||
-        _isAffinityOnlySelectionChange(oldValue, value);
+    final selectionChanged = oldValue.selection != value.selection;
 
     if (textChanged || textCommitted) {
       // Only apply input formatters if the text has changed (including uncommitted
@@ -5146,8 +5115,9 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
   ///
   /// This property is typically used to notify the renderer of input gestures
   /// when [RenderEditable.ignorePointer] is true.
-  late final RenderEditable renderEditable =
-      _editableKey.currentContext!.findRenderObject()! as RenderEditable;
+  late final ExtendedRenderEditable renderEditable =
+      _editableKey.currentContext!.findRenderObject()!
+          as ExtendedRenderEditable;
 
   @override
   TextEditingValue get textEditingValue => _value;
@@ -5161,10 +5131,9 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
   ) {
     // Compare the current TextEditingValue with the pre-format new
     // TextEditingValue value, in case the formatter would reject the change.
-    final bool affinityOnly = _isAffinityOnlySelectionChange(_value, value);
     final shouldShowCaret = widget.readOnly
-        ? _value.selection != value.selection || affinityOnly
-        : _value != value || affinityOnly;
+        ? _value.selection != value.selection
+        : _value != value;
     if (shouldShowCaret) {
       _scheduleShowCaretOnScreen(withAnimation: true);
     }
@@ -5172,11 +5141,7 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
     // Even if the value doesn't change, it may be necessary to focus and build
     // the selection overlay. For example, this happens when right clicking an
     // unfocused field that previously had a selection in the same spot.
-    //
-    // Flutter's [TextSelection.==] ignores affinity when non-collapsed, so an
-    // exclusive soft/hard wrap end that only flips upstream↔downstream would
-    // otherwise be dropped here.
-    if (value == textEditingValue && !affinityOnly) {
+    if (value == textEditingValue) {
       if (!widget.focusNode.hasFocus) {
         _flagInternalFocus();
         widget.focusNode.requestFocus();
@@ -6416,12 +6381,7 @@ class _Editable extends MultiChildRenderObjectWidget {
         minLines: minLines,
         expands: expands,
         strutStyle: strutStyle,
-        // Built-in highlight disabled — [HybridSelectionHighlightPainter] paints
-        // Telegram-style hybrid boxes instead.
-        selectionColor: null,
-        painter: HybridSelectionHighlightPainter(
-          highlightColor: selectionColor,
-        ),
+        selectionColor: selectionColor,
         textScaler: textScaler,
         textAlign: textAlign,
         textDirection: textDirection,
@@ -6457,14 +6417,6 @@ class _Editable extends MultiChildRenderObjectWidget {
     BuildContext context,
     covariant ExtendedRenderEditable renderObject,
   ) {
-    final RenderEditablePainter? existing = renderObject.painter;
-    if (existing is HybridSelectionHighlightPainter) {
-      existing.highlightColor = selectionColor;
-    } else {
-      renderObject.painter = HybridSelectionHighlightPainter(
-        highlightColor: selectionColor,
-      );
-    }
     renderObject
       ..text = inlineSpan
       ..cursorColor = cursorColor
@@ -6479,7 +6431,7 @@ class _Editable extends MultiChildRenderObjectWidget {
       ..minLines = minLines
       ..expands = expands
       ..strutStyle = strutStyle
-      ..selectionColor = null
+      ..selectionColor = selectionColor
       ..textScaler = textScaler
       ..textAlign = textAlign
       ..textDirection = textDirection

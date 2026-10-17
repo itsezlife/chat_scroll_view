@@ -5,12 +5,6 @@ import 'package:flutter/rendering.dart';
 /// Material selection handle diameter (22dp).
 const double kMaterialSelectionHandleSize = 22.0;
 
-/// Target scale for the grabbed handle while it is dragged (Telegram composer).
-const double kComposerHandleDragScale = 1.4;
-
-/// @nodoc Prefer [kComposerHandleDragScale].
-const double kFingerTrackedHandleDragScale = kComposerHandleDragScale;
-
 /// Touch platforms that use finger-tracked moving-handle overlay during drag.
 bool get usesFingerTrackedHandleDrag {
   return switch (defaultTargetPlatform) {
@@ -184,9 +178,10 @@ Offset fingerTrackedFixedHandleDelta({
   return fixedBaseLeaderLocal - physicalLeaderLocal;
 }
 
-/// Hybrid fixed-base leader: snapshot resists affinity-only jumps; live leader
-/// when scroll pixels change during drag (ticket 11).
-Offset fingerTrackedFixedBaseLeaderHybrid({
+/// Fixed-base leader during a drag: the snapshot taken at drag start, so the
+/// fixed handle does not jump with the selection's affinity, or the live leader
+/// once the scroll position changed (a scrolled snapshot would be stale).
+Offset fingerTrackedFixedBaseLeader({
   required Offset snapshotLeader,
   required Offset liveLeader,
   required double snapshotScrollPixels,
@@ -204,15 +199,6 @@ Offset fingerTrackedSettleTargetDelta({
   required Offset physicalLeaderLocal,
 }) {
   return extentLeaderLocal - physicalLeaderLocal;
-}
-
-/// Scale pivot for drag grab feedback — anchor corner grows toward the finger.
-Alignment dragScaleAlignmentForHandleType(TextSelectionHandleType type) {
-  return switch (type) {
-    TextSelectionHandleType.left => Alignment.topRight,
-    TextSelectionHandleType.right => Alignment.topLeft,
-    TextSelectionHandleType.collapsed => Alignment.topLeft,
-  };
 }
 
 /// Clamps the finger-tracked overlay anchor inside [fieldBounds].

@@ -11,7 +11,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'finger_tracked_handle_test.dart' as finger_tracked_handle_test;
 import 'nested_overscroll_handoff_test.dart' as nested_overscroll_handoff_test;
 import 'select_all_page_scroll_test.dart' as select_all_page_scroll_test;
-import 'selection_boxes_test.dart' as selection_boxes_test;
 import 'selection_drag_snap_test.dart' as selection_drag_snap_test;
 import 'selection_handle_motion_test.dart' as selection_handle_motion_test;
 import 'universal_field_gestures_test.dart' as universal_field_gestures_test;
@@ -23,7 +22,6 @@ void main() {
     nested_overscroll_handoff_test.main,
   );
   group('select_all_page_scroll_test.dart', select_all_page_scroll_test.main);
-  group('selection_boxes_test.dart', selection_boxes_test.main);
   group('selection_drag_snap_test.dart', selection_drag_snap_test.main);
   group(
     'selection_handle_motion_test.dart',

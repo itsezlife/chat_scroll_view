@@ -231,10 +231,6 @@ void main() {
     });
   });
 
-  test('composer handle drag scale matches Telegram eyeball parity (1.4)', () {
-    expect(kComposerHandleDragScale, 1.4);
-  });
-
   group('fingerTrackedExtentEndpointIndex', () {
     test('extent right of fixed base → extent at end', () {
       expect(
@@ -314,12 +310,12 @@ void main() {
     });
   });
 
-  group('fingerTrackedFixedBaseLeaderHybrid', () {
+  group('fingerTrackedFixedBaseLeader', () {
     test('unchanged scroll keeps snapshot leader', () {
       const snapshot = Offset(104.9, 121.4);
       const live = Offset(104.9, 145.4);
       expect(
-        fingerTrackedFixedBaseLeaderHybrid(
+        fingerTrackedFixedBaseLeader(
           snapshotLeader: snapshot,
           liveLeader: live,
           snapshotScrollPixels: 120.0,
@@ -333,7 +329,7 @@ void main() {
       const snapshot = Offset(104.9, 121.4);
       const live = Offset(104.9, 745.4);
       expect(
-        fingerTrackedFixedBaseLeaderHybrid(
+        fingerTrackedFixedBaseLeader(
           snapshotLeader: snapshot,
           liveLeader: live,
           snapshotScrollPixels: 120.0,
@@ -380,22 +376,6 @@ void main() {
           physicalLeaderLocal: physicalLeader,
         ),
         extentLeader - physicalLeader,
-      );
-    });
-  });
-
-  group('dragScaleAlignmentForHandleType', () {
-    test('material right handle scales from top-left anchor', () {
-      expect(
-        dragScaleAlignmentForHandleType(TextSelectionHandleType.right),
-        Alignment.topLeft,
-      );
-    });
-
-    test('material left handle scales from top-right anchor', () {
-      expect(
-        dragScaleAlignmentForHandleType(TextSelectionHandleType.left),
-        Alignment.topRight,
       );
     });
   });
