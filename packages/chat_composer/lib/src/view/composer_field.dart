@@ -67,6 +67,10 @@ class ComposerField extends StatefulWidget {
   final bool enabled;
 
   /// Whether the field takes focus when it is first built.
+  ///
+  /// On a touch platform that focus brings no soft keyboard: the field
+  /// attaches without a keyboard type, and the first tap on it or
+  /// `requestKeyboard` re-attaches it with one (see "Soft keyboard" above).
   final bool autofocus;
 
   /// Called when the field is tapped, also while it already has focus. A host
@@ -86,6 +90,19 @@ class ComposerField extends StatefulWidget {
 class _ComposerFieldState extends State<ComposerField> {
   final _textFieldKey = GlobalKey();
   var _anchorScheduled = false;
+
+  // The focus autofocus gives on a touch platform attaches as if suppressed,
+  // so the caret shows and the keyboard stays down until it is asked for.
+  late var _quietFocus =
+      widget.autofocus &&
+      switch (defaultTargetPlatform) {
+        TargetPlatform.android ||
+        TargetPlatform.iOS ||
+        TargetPlatform.fuchsia => true,
+        TargetPlatform.macOS ||
+        TargetPlatform.windows ||
+        TargetPlatform.linux => false,
+      };
   var _revealScheduled = false;
 
   @override
@@ -137,7 +154,15 @@ class _ComposerFieldState extends State<ComposerField> {
 
   void _onFocus() {
     if (_reattaching) return;
-    _attachedMode = widget.controller.focusNode.hasFocus ? _builtMode : null;
+    final focused = widget.controller.focusNode.hasFocus;
+    _attachedMode = focused ? _builtMode : null;
+    // Attached quietly: from now on the field is built with the mode the
+    // controller says, and a tap or a request re-attaches it with a keyboard.
+    if (focused && _quietFocus) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _quietFocus = false);
+      });
+    }
   }
 
   // Answered after the frame, so the field is built with the option the host
@@ -370,7 +395,10 @@ class _ComposerFieldState extends State<ComposerField> {
             ),
             child: ListenValueBuilder<SoftKeyboardMode>(
               listenable: controller.softKeyboard,
-              builder: (context, mode) {
+              builder: (context, controllerMode) {
+                final mode = _quietFocus
+                    ? SoftKeyboardMode.suppressed
+                    : controllerMode;
                 _builtMode = mode;
                 final field = TextField(
                   key: _textFieldKey,

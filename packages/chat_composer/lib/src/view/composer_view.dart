@@ -109,12 +109,15 @@ class ComposerView extends StatefulWidget {
 
   /// Whether the text field takes focus the first time it is built.
   ///
+  /// As in the reference clients, the caret is there when the chat opens on
+  /// every platform, and on a touch platform the soft keyboard is not: the
+  /// field attaches without a keyboard type, and the first tap on it (or
+  /// `requestKeyboard`) brings the keyboard, as for a field that attached
+  /// while [ComposerController.softKeyboard] was suppressed.
+  ///
   /// Once per view: a field that comes back after another panel held the row
-  /// (a restriction lifted, a recording ended) does not take focus again, so
-  /// it never raises a keyboard the user did not ask for. Read when the view
-  /// mounts; a later change has no effect. On a touch platform focus raises
-  /// the soft keyboard, so a host that wants the keyboard down at first
-  /// passes false.
+  /// (a restriction lifted, a recording ended) does not take focus again.
+  /// Read when the view mounts; a later change has no effect.
   final bool autofocus;
 
   @override
