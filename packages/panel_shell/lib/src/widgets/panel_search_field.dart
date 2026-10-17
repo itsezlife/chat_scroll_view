@@ -419,8 +419,12 @@ class PanelSearchFieldScope extends InheritedWidget {
       oldWidget.contextMenuBuilder != contextMenuBuilder;
 }
 
-// A square hit box that is a button when it has an action and a plain box
-// when it has none, so the leading icon only answers taps as a back chevron.
+// A square hit box that is a button when it has an action and inert when it
+// has none, so the leading icon only answers taps as a back chevron.
+//
+// The tree is the same with an action or without: the leading icon gains and
+// loses its action as it morphs, and a plain box swapped for a button would
+// remount the icon, which then jumps to its new shape instead of morphing.
 class _Control extends StatelessWidget {
   const _Control({
     required this.label,
@@ -439,24 +443,27 @@ class _Control extends StatelessWidget {
       child: Center(child: child),
     );
     final action = onPressed;
-    if (action == null) return ExcludeSemantics(child: box);
+    final enabled = action != null;
     return Semantics(
-      button: true,
-      label: label,
+      button: enabled,
+      label: enabled ? label : null,
       onTap: action,
       excludeSemantics: true,
       child: FocusableActionDetector(
-        mouseCursor: SystemMouseCursors.click,
+        enabled: enabled,
+        mouseCursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
         actions: <Type, Action<Intent>>{
           ActivateIntent: CallbackAction<ActivateIntent>(
             onInvoke: (_) {
-              action();
+              action?.call();
               return null;
             },
           ),
         },
         child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
+          behavior: enabled
+              ? HitTestBehavior.opaque
+              : HitTestBehavior.deferToChild,
           onTap: action,
           child: box,
         ),

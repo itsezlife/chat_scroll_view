@@ -454,6 +454,50 @@ void main() {
         expect(second!.shouldRepaint(first!), isTrue);
       });
 
+      // Whether the icon still moves: two frames apart, two paintings.
+      Future<bool> moving(WidgetTester tester) async {
+        final paint = find.descendant(
+          of: find.byType(PanelSearchStateIcon),
+          matching: find.byType(CustomPaint),
+        );
+        final first = tester.widget<CustomPaint>(paint).painter!;
+        await tester.pump(const Duration(milliseconds: 16));
+        final second = tester.widget<CustomPaint>(paint).painter!;
+        return second.shouldRepaint(first);
+      }
+
+      testWidgets('morphs from the ring to the back chevron when the search '
+          'settles, rather than jumping to it', (tester) async {
+        await open(tester);
+        controller.setQuery('cat');
+        emoji.host!.reportSearchProgress(busy: true);
+        await tester.pump(const Duration(milliseconds: 400));
+
+        emoji.host!.reportSearchProgress(busy: false);
+        await tester.pump();
+
+        expect(state(tester), PanelSearchIconState.back);
+        expect(await moving(tester), isTrue);
+        await tester.pumpAndSettle();
+        expect(await moving(tester), isFalse);
+      });
+
+      testWidgets('morphs from the back chevron to the magnifier when it '
+          'clears the query', (tester) async {
+        await open(tester);
+        controller.setQuery('cat');
+        emoji.host!.reportSearchProgress(busy: true);
+        await tester.pump();
+        emoji.host!.reportSearchProgress(busy: false);
+        await tester.pumpAndSettle();
+
+        await tester.tapAt(tester.getCenter(find.byType(PanelSearchStateIcon)));
+        await tester.pump();
+
+        expect(state(tester), PanelSearchIconState.search);
+        expect(await moving(tester), isTrue);
+      });
+
       testWidgets('stands still, and lets the frame settle, when motion is '
           'instant', (tester) async {
         await open(tester, speed: ChromeMotionSpeed.instant);
