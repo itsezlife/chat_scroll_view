@@ -240,24 +240,21 @@ class ComposerTextController extends TextEditingController {
   /// after it.
   ///
   /// The range widens to hold any atomic entity it touches whole. Entities of
-  /// [inserted] that cannot coexist with the ones around it are dropped; the
-  /// text still goes in. Ends any composition.
+  /// [inserted] that cannot coexist with the ones around it are dropped, the
+  /// broadest first, until the rest fit: code blocks and quotes (a code block
+  /// in a quote is its text), then styles, then links; mentions and inline
+  /// content go last, where nothing else fits (inside code). The text still
+  /// goes in. Ends any composition.
   void replaceRange(int start, int end, RichText inserted) {
     final current = richText;
     final (from, to) = _widenOverAtoms(current, start, end);
-    RichText next;
-    try {
-      next = current.replaceRange(from, to, inserted);
-      // RichText reports entities that cannot coexist as an ArgumentError and
-      // offers no way to ask first.
-      // ignore: avoid_catching_errors
-    } on ArgumentError {
-      next = TextReplacement(
-        start: from,
-        oldEnd: to,
-        inserted: inserted.plain,
-      ).applyTo(current);
-    }
+    final next =
+        _fitted(current, from, to, inserted) ??
+        TextReplacement(
+          start: from,
+          oldEnd: to,
+          inserted: inserted.plain,
+        ).applyTo(current);
     _commit(
       next,
       TextEditingValue(
@@ -265,6 +262,43 @@ class ComposerTextController extends TextEditingController {
         selection: TextSelection.collapsed(offset: from + inserted.length),
       ),
     );
+  }
+
+  // [current] with [inserted] over [from]..[to], keeping as many of the
+  // inserted entities as fit; null when not even its plain text fits.
+  static RichText? _fitted(
+    RichText current,
+    int from,
+    int to,
+    RichText inserted,
+  ) {
+    bool isBlock(Entity entity) =>
+        entity.kind is EntityKind$CodeBlock || entity.kind == EntityKind.quote;
+    int? tried;
+    for (final keep in <bool Function(Entity)>[
+      (_) => true,
+      (entity) => !isBlock(entity),
+      (entity) => !isBlock(entity) && entity.kind is! EntityKind$Style,
+      (entity) => entity.kind.isAtomic,
+      (_) => false,
+    ]) {
+      final kept = [
+        for (final entity in inserted.entities)
+          if (keep(entity)) entity,
+      ];
+      // A tier that drops nothing more than the last one fails as it did.
+      if (kept.length == tried) continue;
+      tried = kept.length;
+      try {
+        return current.replaceRange(from, to, RichText(inserted.plain, kept));
+        // RichText reports entities that cannot coexist as an ArgumentError
+        // and offers no way to ask first.
+        // ignore: avoid_catching_errors
+      } on ArgumentError {
+        continue;
+      }
+    }
+    return null;
   }
 
   // --- Atomic entities ---
@@ -446,6 +480,14 @@ class ComposerTextController extends TextEditingController {
           result = result.merge(TextStyle(color: _entityStyles.link));
         case EntityKind$Mention():
           result = result.merge(TextStyle(color: _entityStyles.mention));
+        // A block of code reads as inline code does, line by line.
+        case EntityKind$CodeBlock():
+          result = result.merge(
+            TextStyle(
+              fontFamily: 'monospace',
+              backgroundColor: _entityStyles.codeBackground,
+            ),
+          );
         case EntityKind$InlineContent():
           break;
       }

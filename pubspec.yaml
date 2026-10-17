@@ -19,6 +19,7 @@ workspace:
   - packages/panel_pages
   - packages/panel_presentation
   - packages/panel_shell
+  - packages/rich_clipboard
   - example
   - scripts
 

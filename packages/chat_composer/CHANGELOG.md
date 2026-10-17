@@ -67,6 +67,37 @@ is pre-1.0.
 
 ### Added
 
+- `ComposerController` attaches to its clipboard (`RichClipboard.attach`):
+  where the platform performs copy, cut and paste itself (a browser), the
+  composer's focused field takes them over and keeps its entities.
+
+- `ComposerController(onPastedMedia:)`: a paste while the clipboard holds
+  images or files hands them to the host instead of inserting text (a paste
+  as plain text leaves them), and an image a keyboard inserts
+  (`ContentInsertionConfiguration`, Android) goes there too;
+  `receiveMedia` hands media over directly. The host completes with whether
+  it sent them; a paste whose media was not sent pastes the text that came
+  with it, as the reference desktop client does. Text and media come from
+  one clipboard read.
+- A paste lands nowhere when the text changed while the clipboard was read
+  or the host looked at the media.
+- Inserted entities that cannot sit where the text lands are dropped the
+  broadest first (code blocks and quotes, then styles, then links), not all
+  at once: a code block pasted into a quote keeps the custom emoji next to
+  it.
+- `ComposerShortcutPolicy.desktop(inBrowser:)`: in a browser, which pastes
+  as plain text itself, Shift+V with Command or Control is left unbound;
+  `forPlatform(isWeb: true)` sets it.
+- A code block (`EntityKind.codeBlock`) is styled as inline code.
+- Rich clipboard (ADR 032): `ComposerController(clipboard:)` takes a
+  `RichClipboard`, and `copySelection`, `cutSelection` and `paste({plain})`
+  keep the text's entities across the system clipboard. Pasting into a quote
+  unwraps the pasted quotes; a failing clipboard is reported and changes
+  nothing. With a clipboard the field routes its copy, cut and paste there
+  (key shortcuts, macOS menu selectors, the selection menu, which also offers
+  Paste as plain text); without one it keeps the platform's plain clipboard.
+- `PastePlainTextIntent`, bound to Shift+V with Command or Control in both
+  shortcut policies.
 - `ActionDescriptor.wrap` (`ActionWrap`): a widget the composer builds around
   the action's rendered button, so a host can put a hover region, a tooltip
   or a probe around one action without the composer knowing it. The button

@@ -89,6 +89,18 @@ void main() {
     );
   });
 
+  testWidgets('a code block reads as code', (tester) async {
+    controller = ComposerTextController(
+      initial: RichText('a()\nb()', const [
+        Entity(0, 7, EntityKind.codeBlock(language: 'dart')),
+      ]),
+    );
+
+    final run = _leaves(await _span(tester, controller)).single;
+
+    expect(run.style!.fontFamily, 'monospace');
+  });
+
   testWidgets('links and mentions take the host colours', (tester) async {
     const accent = Color(0xFF123456);
     controller = ComposerTextController(

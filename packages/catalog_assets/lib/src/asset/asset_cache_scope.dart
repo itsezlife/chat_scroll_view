@@ -11,6 +11,7 @@ import 'package:catalog_assets/src/asset/asset_spec.dart';
 import 'package:catalog_assets/src/asset/circle_placeholder.dart';
 import 'package:catalog_assets/src/glyph/glyph_binding.dart';
 import 'package:catalog_assets/src/glyph/glyph_sprite_source.dart';
+import 'package:catalog_assets/src/glyph/text_glyph_paintable.dart';
 import 'package:catalog_assets/src/playback/playback_clock.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
@@ -62,14 +63,19 @@ final class AssetCacheScope {
   /// [AssetStage.none]. [glyphSource] is the atlas unicode keys bind to.
   /// [clock] is the playback clock (created, and disposed with the scope, if
   /// omitted). [memoryPressure] is a signal that empties the unpinned
-  /// entries when it fires. [placeholder] is what a binding paints before any
-  /// stage exists (a circle by default).
+  /// entries when it fires. [systemFonts] is the engine's signal that the
+  /// fonts it draws text with changed (`PaintingBinding.systemFonts`): glyphs
+  /// drawn as text lay out again and repaint when it fires, since a browser
+  /// fetches the font that draws an emoji only once it meets one, and what
+  /// was laid out before drew the missing-glyph box. [placeholder] is what a
+  /// binding paints before any stage exists (a circle by default).
   AssetCacheScope({
     AssetProducer? producer,
     GlyphSpriteSource? glyphSource,
     AssetCacheBudgets budgets = AssetCacheBudgets.defaults,
     PlaybackClock? clock,
     Listenable? memoryPressure,
+    Listenable? systemFonts,
     AssetPaintable? placeholder,
   }) : _producer = producer,
        _glyphSource = glyphSource,
@@ -77,8 +83,10 @@ final class AssetCacheScope {
        _clock = clock ?? PlaybackClock(),
        _ownsClock = clock == null,
        _memoryPressure = memoryPressure,
+       _systemFonts = systemFonts,
        placeholder = placeholder ?? const CirclePlaceholder() {
     memoryPressure?.addListener(clearAll);
+    systemFonts?.addListener(_onSystemFonts);
     glyphSource?.addPageListener(_onGlyphPage);
   }
 
@@ -86,6 +94,7 @@ final class AssetCacheScope {
   final PlaybackClock _clock;
   final bool _ownsClock;
   final Listenable? _memoryPressure;
+  final Listenable? _systemFonts;
   GlyphSpriteSource? _glyphSource;
   AssetCacheBudgets _budgets;
   bool _disposed = false;
@@ -141,6 +150,22 @@ final class AssetCacheScope {
     value?.addPageListener(_onGlyphPage);
     for (final binding in List<GlyphBinding>.of(_glyphBindings)) {
       binding.rebind(value);
+    }
+  }
+
+  // Glyphs drawn as text drop their layout, and what draws them repaints.
+  void _onSystemFonts() {
+    if (_disposed) return;
+    for (final entry in _entries.values) {
+      if (entry.paintable case final TextGlyphPaintable text) {
+        text.systemFontsChanged();
+        for (final binding in List<_EntryBinding>.of(entry.bindings)) {
+          binding.entryChanged();
+        }
+      }
+    }
+    for (final binding in List<GlyphBinding>.of(_glyphBindings)) {
+      binding.systemFontsChanged();
     }
   }
 
@@ -233,6 +258,7 @@ final class AssetCacheScope {
     if (_disposed) return;
     _disposed = true;
     _memoryPressure?.removeListener(clearAll);
+    _systemFonts?.removeListener(_onSystemFonts);
     _glyphSource?.removePageListener(_onGlyphPage);
     for (final entry in List<_Entry>.of(_entries.values)) {
       entry.attempt?.cancel();

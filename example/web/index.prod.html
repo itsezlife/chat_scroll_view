@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <!--
+    The release template: tool/build_web.sh puts it over the built
+    index.html, and `sw:generate` (sw.yaml) writes the bootstrap.js it loads:
+    the service worker, CanvasKit from the CDN with a local fallback, and a
+    loading widget the app finishes and removes. Not touched by
+    `flutter build`, so the base href is written out (it must end with "/").
+  -->
+  <base href="/">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Chat Scroll View</title>
+  <meta name="description" content="The chat_scroll_view example: an anchor-based chat viewport with selection, rich text and an emoji panel.">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#111418">
+  <meta name="apple-mobile-web-app-title" content="Chat Scroll View">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="manifest" href="manifest.json">
+  <!--
+    The app's own background from the first byte, and under and behind the
+    loading widget too: its dark theme has a colour of its own, which it
+    sets on html, body and the widget, and :root outranks those. No flash, no
+    jump when the first frame replaces it.
+  -->
+  <style>
+    :root,:root body{margin:0;background:#111418}
+    :root #sw-loading{background:#111418}
+  </style>
+</head>
+<body>
+  <!--
+    The WebAuthn bridge supabase_flutter → passkeys_web calls: served with the
+    app and not waited for (see vendor/passkeys/README.md).
+  -->
+  <script src="vendor/passkeys/bundle.js" async></script>
+  <script defer data-sw-bootstrap src="bootstrap.js"
+    data-config='{
+      "logo": "icons/Icon-192.png",
+      "title": "Chat Scroll View",
+      "theme": "dark",
+      "color": "#54a1db"
+    }'></script>
+</body>
+</html>

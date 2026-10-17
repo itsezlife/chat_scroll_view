@@ -14,9 +14,11 @@ import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_s
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' hide RichText;
+import 'package:content_model/content_model.dart' as model show RichText;
+import 'package:content_model/testing.dart';
+import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide RichText;
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_presentation/panel_presentation.dart';
@@ -1087,29 +1089,70 @@ void main() {
       tester,
     ) async {
       final rig = await _mobileRig(tester);
-      final copied = <String?>[];
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            copied.add((call.arguments as Map)['text'] as String?);
-          }
-          return null;
-        },
-      );
-      addTearDown(
-        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          SystemChannels.platform,
-          null,
-        ),
-      );
 
       rig.set.shell
           .hostFor('emoji')
           .requestCopy(emojiKey(_thumbsUp), kind: SemanticKind.unicodeEmoji);
       await tester.pump();
 
-      expect(copied, [_thumbsUp]);
+      final held = await (rig.services.clipboard as FakeRichClipboard).read();
+      expect(held!.richOrPlain, const model.RichText.plain(_thumbsUp));
+    });
+
+    testWidgets('a copy of an animated emoji keeps it as itself, over the '
+        'emoji it animates', (tester) async {
+      final rig = await _mobileRig(tester);
+      final rocket = AnimatedEmojiPack.emoji.last;
+
+      rig.set.shell
+          .hostFor('emoji')
+          .requestCopy(rocket.key, kind: SemanticKind.customEmoji);
+      await tester.pump();
+
+      final held = await (rig.services.clipboard as FakeRichClipboard).read();
+      expect(held!.plain, rocket.sequence);
+      expect(
+        held.rich,
+        model.RichText(rocket.sequence, [
+          Entity(
+            0,
+            rocket.sequence.length,
+            EntityKind.inlineContent(rocket.key),
+          ),
+        ]),
+      );
+    });
+
+    testWidgets('a pasted image goes to the screen to send, not into the '
+        'text', (tester) async {
+      final rig = await _mobileRig(tester);
+      final image = PastedMedia.bytes(
+        Uint8List.fromList(const [1, 2, 3]),
+        mimeType: 'image/png',
+      );
+      (rig.services.clipboard as FakeRichClipboard).putMedia([image]);
+
+      expect(await rig.set.composer.paste(), isTrue);
+
+      expect(rig.pastedMedia.single.single, same(image));
+      expect(rig.set.composer.richText.plain, isEmpty);
+    });
+
+    testWidgets('the composer copies through the app\'s clipboard', (
+      tester,
+    ) async {
+      final rig = await _mobileRig(tester);
+      final rocket = AnimatedEmojiPack.emoji.last;
+      rig.set.composer.insertContent(
+        InlineContentRef(key: rocket.key, alternativeText: rocket.sequence),
+      );
+      rig.set.composer.select(
+        TextSelection(baseOffset: 0, extentOffset: rocket.sequence.length),
+      );
+
+      expect(await rig.set.composer.copySelection(), isTrue);
+      final held = await (rig.services.clipboard as FakeRichClipboard).read();
+      expect(held!.rich, rig.set.composer.richText);
     });
 
     testWidgets('a removal forgets that emoji only', (tester) async {

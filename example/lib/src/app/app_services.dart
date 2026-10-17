@@ -16,6 +16,7 @@ import 'package:image_decoder/image_decoder.dart';
 import 'package:kv_shared_preferences/kv_shared_preferences.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_presentation/panel_presentation.dart';
+import 'package:rich_clipboard/rich_clipboard.dart';
 
 /// The app's long-lived services: the composition root of the reference host.
 ///
@@ -37,7 +38,9 @@ import 'package:panel_presentation/panel_presentation.dart';
 /// 4. the data sources: [catalog], [keywords], [emojiSource], [emojiSearch],
 ///    under the [glyphProbe] that hides what the system cannot draw, the
 ///    animated emoji pack, and [emojiPageSource], which lists the pack after
-///    the catalogue's categories.
+///    the catalogue's categories;
+/// 5. the [clipboard]: the `rich_clipboard` adapter every copy and paste
+///    goes through, so text keeps its entities (ADR 032).
 ///
 /// ## Ownership
 ///
@@ -48,6 +51,7 @@ import 'package:panel_presentation/panel_presentation.dart';
 /// usable.
 final class AppServices {
   AppServices._({
+    required this.clipboard,
     required this.keyValueStore,
     required this.recents,
     required this.recentsShown,
@@ -69,17 +73,31 @@ final class AppServices {
     required this.glyphCache,
     required AppLifecycleListener lifecycle,
     required PacedGlyphProbePass? webProbePass,
+    required Future<bool> Function() glyphFontsSettled,
+    required ValueNotifier<bool> glyphFontsReady,
     required AssetPipeline pipeline,
   }) : _animatedEmoji = animatedEmoji,
        _pipeline = pipeline,
        _lifecycle = lifecycle,
-       _webProbePass = webProbePass {
-    if (webProbePass != null) {
-      _webProbeStart = Timer(
-        _webProbeDelay,
-        () => unawaited(webProbePass.run()),
-      );
+       _webProbePass = webProbePass,
+       _glyphFontsReady = glyphFontsReady {
+    // The panel's collections, loaded now as the reference client loads its
+    // emoji at start: everything is in memory, so the first open lays every
+    // section out at its size, not a row of placeholders that then jumps.
+    for (final collection in emojiPageSource.collections.value) {
+      unawaited(emojiPageSource.load(collection.id));
     }
+    // Started now, the emoji font downloads while the app boots. Glyphs drawn
+    // as text show once it came, or once the wait gave up (text then, not
+    // placeholders for good). The web probe pass runs only over the font:
+    // without it there is nothing to judge the glyphs by.
+    unawaited(
+      glyphFontsSettled().then((arrived) {
+        if (_disposed) return;
+        _glyphFontsReady.value = true;
+        if (arrived && webProbePass != null) unawaited(webProbePass.run());
+      }),
+    );
   }
 
   /// The key-value namespace of the recents store.
@@ -103,6 +121,7 @@ final class AppServices {
     GlyphCacheStore? glyphCache,
     GlyphArtVersionSource? glyphArtVersion,
     List<String> languages = const <String>['ru', 'en'],
+    RichClipboard clipboard = const SystemRichClipboard(),
   }) async {
     // What each step made, to free in reverse if a later one fails: a failed
     // boot must not leave a lifecycle listener or a pressure signal behind.
@@ -150,10 +169,19 @@ final class AppServices {
         (pipeline) => pipeline.dispose(),
       );
       AnimatedEmojiPack.descriptors.forEach(pipeline.know);
+      // Whether the fonts that draw emoji as text are there: on the web the
+      // emoji font downloads, and the grid shows placeholders, not
+      // missing-glyph boxes, until it is (set once the probe's wait ends).
+      final glyphFontsReady = owned(
+        ValueNotifier<bool>(!kIsWeb),
+        (ready) => ready.dispose(),
+      );
       final assets = owned(
         PageAssets.createScope(
           producer: pipeline,
           memoryPressure: memoryPressure,
+          systemFonts: PaintingBinding.instance.systemFonts,
+          textGlyphsReady: glyphFontsReady,
         ),
         (scope) => scope.dispose(),
       );
@@ -253,7 +281,10 @@ final class AppServices {
         webProbePass: kIsWeb
             ? _webPass(probe.probe, isPaused: () => hidden)
             : null,
+        glyphFontsSettled: probe.fontsSettled,
+        glyphFontsReady: glyphFontsReady,
         pipeline: pipeline,
+        clipboard: clipboard,
       );
     } on Object {
       for (final undo in unwind.reversed) {
@@ -265,6 +296,11 @@ final class AppServices {
 
   /// The adapter every store writes through.
   final KeyValueStore keyValueStore;
+
+  /// The clipboard every copy and paste goes through: plain text for other
+  /// apps, and the text with its entities for this one. Not disposed: it
+  /// holds nothing.
+  final RichClipboard clipboard;
 
   /// What the user picked, per kind of content.
   final RecentsStore recents;
@@ -329,7 +365,7 @@ final class AppServices {
   final AssetPipeline _pipeline;
   final AppLifecycleListener _lifecycle;
   final PacedGlyphProbePass? _webProbePass;
-  Timer? _webProbeStart;
+  final ValueNotifier<bool> _glyphFontsReady;
   var _disposed = false;
 
   /// Whether [dispose] has run.
@@ -363,7 +399,6 @@ final class AppServices {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _webProbeStart?.cancel();
     _webProbePass?.cancel();
     emojiPageSource.dispose();
     _animatedEmoji.dispose();
@@ -373,6 +408,7 @@ final class AppServices {
     glyphProbe.dispose();
     _lifecycle.dispose();
     assets.dispose();
+    _glyphFontsReady.dispose();
     _pipeline.dispose();
     memoryPressure.dispose();
     preferences.dispose();
@@ -380,10 +416,8 @@ final class AppServices {
   }
 
   // The web bakes nothing, so the probe has no bake to share: it draws its
-  // own cells, a few a frame, once the page has had time to load its emoji
-  // font (there is no signal for that, hence the delay; the probe distrusts a
-  // pass in which every cell is flagged).
-  static const Duration _webProbeDelay = Duration(seconds: 3);
+  // own cells, a few a frame, once the engine has the fonts that draw them
+  // (the probe also distrusts a pass in which every cell is flagged).
 
   static PacedGlyphProbePass _webPass(
     MissingGlyphProbe probe, {

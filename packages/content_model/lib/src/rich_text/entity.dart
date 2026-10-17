@@ -30,9 +30,10 @@ final class Entity {
   /// This entity as JSON-encodable data; [fromJson] reads it back.
   ///
   /// The keys are `offset`, `length` and `kind`, plus the payload key of the
-  /// kind: `url` (link), `id` (mention) or `key` (inline content, the
-  /// [ContentKey.encoded] string). Styles use their enum name as `kind`;
-  /// the other kinds use `link`, `mention` and `inlineContent`.
+  /// kind: `url` (link), `id` (mention), `key` (inline content, the
+  /// [ContentKey.encoded] string) or `language` (a code block that names
+  /// one). Styles use their enum name as `kind`; the other kinds use `link`,
+  /// `mention`, `inlineContent` and `codeBlock`.
   Map<String, Object?> toJson() => {
     'offset': offset,
     'length': length,
@@ -43,6 +44,10 @@ final class Entity {
       EntityKind$InlineContent(:final key) => {
         'kind': _inlineContent,
         'key': key.encoded,
+      },
+      EntityKind$CodeBlock(:final language) => {
+        'kind': _codeBlock,
+        'language': ?language,
       },
     },
   };
@@ -73,6 +78,7 @@ final class Entity {
   static const String _link = 'link';
   static const String _mention = 'mention';
   static const String _inlineContent = 'inlineContent';
+  static const String _codeBlock = 'codeBlock';
 
   static EntityKind? _kindFromJson(Map<Object?, Object?> json) {
     final name = switch (json['kind']) {
@@ -90,6 +96,15 @@ final class Entity {
           throw FormatException('Not an encoded ContentKey.', json['key']);
         }
         return EntityKind.inlineContent(key);
+      case _codeBlock:
+        return switch (json['language']) {
+          null => const EntityKind.codeBlock(),
+          final String language => EntityKind.codeBlock(language: language),
+          final other => throw FormatException(
+            'A code block language must be a string.',
+            other,
+          ),
+        };
     }
     for (final style in EntityStyle.values) {
       if (style.name == name) return EntityKind.style(style);

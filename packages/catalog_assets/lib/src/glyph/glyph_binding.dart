@@ -104,6 +104,17 @@ final class GlyphBinding extends AssetBindingBase {
     signal();
   }
 
+  /// The fonts the engine draws text with changed: the glyph drawn as text
+  /// lays out again, and the surface repaints. An entry's text is the
+  /// scope's to refresh, and its binding signals this one.
+  void systemFontsChanged() {
+    if (isDetached) return;
+    final text = _text;
+    if (text == null) return;
+    text.systemFontsChanged();
+    signal();
+  }
+
   // Whether the binding draws the glyph as text while it has no sprite: the
   // source does not make it wait. Asked only once the sprite is known to be
   // missing, so a paint asks the source for the sprite once.

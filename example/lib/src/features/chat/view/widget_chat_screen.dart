@@ -16,6 +16,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_so
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
@@ -30,7 +31,8 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/selection_app
 import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls/chat_side_controls.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:content_model/content_model.dart' show SemanticKind;
+import 'package:content_model/content_model.dart'
+    show PastedMedia, SemanticKind;
 import 'package:control/control.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -132,8 +134,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   void initState() {
     super.initState();
     _controller = ChatScrollController();
-    _selection = ChatSelectionController(onInteraction: _onSelectionInteraction)
-      ..selectionCap = 100;
+    _selection = ChatSelectionController(
+      onInteraction: _onSelectionInteraction,
+      // Selections and code taps keep their formatting on the clipboard.
+      copyWriter: (copy) => widget.services.clipboard.write(ChatCopy.of(copy)),
+    )..selectionCap = 100;
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _lifecycle = AppLifecycleListener(onHide: _saveReadingPosition);
     _init();
@@ -151,6 +156,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       confirmClearRecents: _confirmClearRecents,
       keyboard: widget.softKeyboard,
       policy: widget.presentationPolicy,
+      onPastedMedia: _onPastedMedia,
     );
     if (fresh && kPanelTrace) _trace = PanelTrace(input);
     final safe = MediaQuery.viewPaddingOf(context);
@@ -327,6 +333,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
       _messageMenu = MessageMenu(
         dataSource: backend,
+        clipboard: widget.services.clipboard,
         selection: _selection,
         actions: MessageMenuActions(
           onDelete: (messageId) => _handleDeleteSelected([messageId]),
@@ -662,6 +669,22 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     return confirmed ?? false;
   }
 
+  // The demo sends no media: it shows what it would send, as the reference
+  // clients show pasted media before sending it. Cancelling pastes the text
+  // that came with the media, if any.
+  Future<bool> _onPastedMedia(List<PastedMedia> media) async {
+    if (!mounted) return false;
+    final send = await showPastedMediaSheet(context, media);
+    if (send) {
+      _showDemoSnack(
+        media.length == 1
+            ? 'Would send 1 item'
+            : 'Would send ${media.length} items',
+      );
+    }
+    return send;
+  }
+
   void _showDemoSnack(String text) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -681,19 +704,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       return;
     }
     final ids = _selection.selectedIds.toList()..sort();
-    final buffer = StringBuffer();
-    for (final id in ids) {
-      final message = _dataSource?.getMessage(id);
-      final text = message?.text;
-      if (text == null) continue;
-      if (buffer.isNotEmpty) buffer.writeln();
-      buffer.write(text);
-    }
-    final text = buffer.toString();
-    if (text.isEmpty) return;
-    Clipboard.setData(ClipboardData(text: text));
+    final copied = ChatCopy.messages([
+      for (final id in ids) ?_dataSource?.getMessage(id)?.text,
+    ]);
+    if (copied.isEmpty) return;
+    unawaited(widget.services.clipboard.write(copied));
     _selection.clear();
-    _showCopiedSnack(text);
+    _showCopiedSnack(copied.plain);
   }
 
   void _editSelectedFromBar() {

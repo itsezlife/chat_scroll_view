@@ -12,13 +12,13 @@ import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_p
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/stub_panel_pages.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
-import 'package:flutter/services.dart'
-    show Clipboard, ClipboardData, HapticFeedback;
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
@@ -75,6 +75,9 @@ final class ChatEditTarget {
 /// - **Insert and record.** A picked emoji, unicode or animated, becomes an
 ///   inline content reference in the composer and one `RecentsStore.record`; backspace edits
 ///   the composer; clearing recents asks [confirmClearRecents] first.
+/// - **Pasted media.** An image or file pasted into the composer, or an
+///   image a keyboard inserts, goes to `onPastedMedia` to send, and no text
+///   goes in; when it is not sent, the text that came with it does.
 /// - **Menu actions.** A right-click menu of the recents asks for a copy
 ///   (the emoji's text goes to the clipboard) and for one emoji to be
 ///   forgotten (`RecentsStore.remove`); its third item is the clear above.
@@ -106,6 +109,7 @@ final class ChatInputSet {
     required ClearRecentsConfirm confirmClearRecents,
     SoftKeyboardPort keyboard = const PlatformSoftKeyboard(),
     PanelPresentationPolicy? policy,
+    Future<bool> Function(List<PastedMedia> media)? onPastedMedia,
   }) {
     // What has been made so far, to free in reverse if a later step throws
     // (a constructor assertion, a keyboard that cannot be read): a half-built
@@ -133,7 +137,11 @@ final class ChatInputSet {
         (text) => text.dispose(),
       );
       final composer = owned(
-        ComposerController(text: text),
+        ComposerController(
+          text: text,
+          clipboard: services.clipboard,
+          onPastedMedia: onPastedMedia,
+        ),
         (composer) => composer.dispose(),
       );
       final keyboardStrategy = owned(
@@ -725,8 +733,10 @@ final class ChatInputSet {
         unawaited(HapticFeedback.mediumImpact());
         unawaited(_clearRecents(kind));
       case ContentCopyRequested(:final key):
+        // As itself, over the text other apps paste: pasted back into the
+        // composer it is the same custom emoji.
         if (_textOf(key) case final text?) {
-          unawaited(Clipboard.setData(ClipboardData(text: text)));
+          unawaited(services.clipboard.write(ChatCopy.content(key, text)));
         }
       case RecentRemoveRequested(:final key, :final kind):
         // Through the view the panel lists: the emoji leaves the list at once,

@@ -8,6 +8,9 @@ package is pre-1.0.
 
 ### Changed
 
+- Source-breaking: `ComposerStrings.pastePlainAction` (required), the
+  selection menu item that pastes the clipboard's plain text. The English and
+  Russian presets have it.
 - Source-breaking: `describeChromeStrings(strings)` in `testing.dart` is
   `ChromeStringsSnapshot.of(strings)`.
 

@@ -5,11 +5,23 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_text_selection.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_md/flutter_md.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  // A code tap's copy is notified once the clipboard answers; the platform
+  // answers here, inside the test's clock.
+  setUp(
+    () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (_) async => null),
+  );
+  tearDown(
+    () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null),
+  );
 
   group('ChatSpanFeedback — Lifecycle and Timing Invariants', () {
     test(
@@ -1057,6 +1069,7 @@ void main() {
         final hit = controller.resolveInlineHit(6, point);
         expect(hit, isA<ChatInlineHit$Code>());
         expect(controller.handleInlineHitLongPress(hit!), isTrue);
+        await tester.pump();
         expect(codeTaps, <(int, String)>[(6, 'main()')]);
         expect(
           controller.spanFeedback,

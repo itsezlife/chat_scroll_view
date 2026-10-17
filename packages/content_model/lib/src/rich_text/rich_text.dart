@@ -28,6 +28,8 @@ import 'package:meta/meta.dart';
 /// - Mentions and inline content are atomic: no other entity starts or ends
 ///   inside one, and two atomic entities never overlap.
 /// - Code holds no other entity; it may sit inside bold, a link, a quote.
+/// - A code block covers whole lines, holds no other entity and overlaps no
+///   quote.
 /// - Links never overlap each other or a mention.
 /// - Entities are ordered by offset, longer first, then by kind.
 ///

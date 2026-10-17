@@ -1,0 +1,71 @@
+name: Platform builds
+
+# Builds the example for Windows and Linux, which have native code (the
+# rich_clipboard plugin) that no local machine of the team runs, and runs the
+# RichClipboard contract against each one's real clipboard (Linux under a
+# virtual display). The other gates are in check.yml. Runs when the native
+# code or the example changes.
+on:
+  pull_request:
+    paths:
+      - 'packages/rich_clipboard/**'
+      - 'example/linux/**'
+      - 'example/windows/**'
+      - 'example/pubspec.yaml'
+      - '.github/workflows/platform-builds.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-builds-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: windows-latest
+            platform: windows
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      # The workspace root overrides flutter_md with `path: ../md`, so the
+      # fork is checked out as a sibling of the repo, as in check.yml.
+      - uses: actions/checkout@v4
+        with:
+          path: chat_scroll_view
+      - uses: actions/checkout@v4
+        with:
+          repository: itsezlife/md
+          ref: feat/selection-chrome
+          path: md
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.7
+          cache: true
+      - name: Linux toolchain
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev xvfb
+      - name: Resolve workspace
+        working-directory: chat_scroll_view
+        run: flutter pub get --enforce-lockfile
+      - name: Build
+        working-directory: chat_scroll_view/example
+        run: flutter build ${{ matrix.platform }} --debug
+      - name: Clipboard contract (Linux)
+        if: matrix.platform == 'linux'
+        working-directory: chat_scroll_view/example
+        run: xvfb-run -a flutter test integration_test/rich_clipboard_test.dart -d linux
+      - name: Clipboard contract (Windows)
+        if: matrix.platform == 'windows'
+        working-directory: chat_scroll_view/example
+        run: flutter test integration_test/rich_clipboard_test.dart -d windows

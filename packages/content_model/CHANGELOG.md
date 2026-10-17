@@ -17,6 +17,33 @@ package is pre-1.0.
 
 ### Added
 
+- `RichClipboard.attach(RichClipboardField)`: takes over the clipboard
+  commands a platform performs itself for a focused text field (a browser's
+  copy, cut and paste keys and menu), so they keep the rich form.
+  `FakeRichClipboard.performCopy({cut})` and `performPaste()` stand in for
+  them. Source-breaking for `RichClipboard` implementers.
+
+- `PastedMedia` (`.bytes` with a MIME type and name, `.file` with a path)
+  and `RichClipboard.readWithMedia()`: the clipboard's text and the images
+  and files it holds as `ClipboardContents`, in one read, so a platform that
+  asks before a paste asks once. Files a file manager copied come without
+  text. `FakeRichClipboard.putMedia(media, text:)` and the contract's
+  `putImage` harness hook; the contract takes an image as data or as a saved
+  file. Source-breaking for `RichClipboard` implementers.
+- Building a `RichText` takes time linear in its size: a text style's split
+  at line breaks looked through the rest of the text, and its trim through
+  every code and atomic entity, per entity.
+- `EntityKind.codeBlock({language})` (ADR 033): whole lines of code with an
+  optional language (letters, digits and `+ # . _ -`). It holds no other
+  entity and overlaps no quote. Markdown writes it as a backtick fence with
+  the language as the info string and reads fences back; JSON uses
+  `kind: codeBlock` with `language`. Source-breaking for exhaustive switches
+  over `EntityKind`.
+- `RichClipboard`, the seam to the system clipboard for text that keeps its
+  entities: `write(RichText)` puts its plain text and a rich form on the
+  clipboard, `read()` answers a `ClipboardText` (the plain text, plus the
+  `RichText` when the clipboard held a rich form). `FakeRichClipboard` and
+  `RichClipboardContract.run` are in `testing.dart`. See ADR 032.
 - `MediaForm.animatedImage` (`animated_image`): frames in an image format
   (animated WebP, GIF, APNG), decoded by image codecs. `MediaForm.video` is
   now video-coded media only: decoders are registered per form, and with one

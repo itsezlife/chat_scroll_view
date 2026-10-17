@@ -91,6 +91,13 @@ final class TextGlyphPaintable implements AssetPaintable {
     return _paragraph = laidOut;
   }
 
+  /// Drops the layout: the fonts the engine draws text with changed, so the
+  /// next paint lays the glyph out again with them.
+  void systemFontsChanged() {
+    _paragraph?.dispose();
+    _paragraph = null;
+  }
+
   @override
   void dispose() {
     _paragraph?.dispose();
