@@ -68,6 +68,11 @@ final class _DecodeTask implements AssetTask {
         FetchedBytes(:final bytes) => ui.ImmutableBuffer.fromUint8List(bytes),
         FetchedFile(:final path) => ui.ImmutableBuffer.fromFilePath(path),
       };
+      // Cancelled while the data was read: no codec, no decoded frame.
+      if (_cancelled) {
+        buffer.dispose();
+        return;
+      }
       // Takes the buffer over and disposes it.
       decoding = await ui.instantiateImageCodecWithSize(
         buffer,

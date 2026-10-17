@@ -31,7 +31,11 @@ is pre-1.0.
 - A binding whose profile does not animate paints at the playback time of its
   first paint, so an animated paintable shows one frame there. It painted at
   the clock's live time, which runs for the scope's other animations, so it
-  stepped in bursts whenever its surface repainted.
+  stepped in bursts whenever its surface repainted. It also passes
+  `AssetPaintContext.animate`, new and true by default, as false: a paintable
+  that keeps its own playback, shared by every surface of its entry, does not
+  step for such a paint. Sharing an entry with a playing surface, a still one
+  shows the frame that surface is at; `AssetVariant.firstFrame` holds one.
 
 - `ParagraphGlyphRasteriser` draws nothing for a sequence the font cannot
   form into one glyph (its layout wraps onto a second line). A joined emoji a

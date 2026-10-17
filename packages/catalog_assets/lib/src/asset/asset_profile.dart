@@ -17,9 +17,16 @@ final class AssetProfile {
   }) : assert(cornerRadius >= 0, 'A corner radius cannot be negative.');
 
   /// Whether the surface wants the asset to play when it is visible and no
-  /// pause layer is set. A surface that does not animate shows one frame: its
-  /// binding paints at the playback time of its first paint, however the
-  /// shared clock moves for the others.
+  /// pause layer is set.
+  ///
+  /// A surface that does not animate never moves the asset: its binding
+  /// paints at the playback time of its first paint, however the shared clock
+  /// moves for the others, and says it does not animate
+  /// (`AssetPaintContext.animate`). Alone on its entry it shows one frame.
+  /// Sharing the entry with a playing surface, it shows the frame that
+  /// surface is at whenever it repaints, because a decoded frame sequence is
+  /// one playback per entry; a surface that must hold the first frame asks
+  /// for `AssetVariant.firstFrame`, which is an entry of its own.
   final bool animate;
 
   /// Whether a playing asset starts again after its last frame.

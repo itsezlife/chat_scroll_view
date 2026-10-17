@@ -7,11 +7,12 @@ import 'package:meta/meta.dart';
 @immutable
 final class AssetPaintContext {
   /// Creates a context; the default paints in the asset's own colours, fully
-  /// opaque, at the first frame.
+  /// opaque, at the first frame, for a surface that animates.
   const AssetPaintContext({
     this.tint,
     this.opacity = 1,
     this.time = Duration.zero,
+    this.animate = true,
   }) : assert(opacity >= 0 && opacity <= 1, 'opacity must be within 0..1');
 
   /// Colour a template asset (`AssetDecodeMode.template`) is drawn in, and the
@@ -24,6 +25,14 @@ final class AssetPaintContext {
   /// Playback time of the shared clock. An animated paintable derives its frame
   /// from it, so every visible animation advances together; a still ignores it.
   final Duration time;
+
+  /// Whether the surface painting animates (`AssetProfile.animate`).
+  ///
+  /// A paintable whose frame follows [time] alone needs nothing more: a
+  /// surface that does not animate paints at one time. A paintable that keeps
+  /// its playback state, and is shared by every surface of its entry, does
+  /// not step for a paint that does not animate and shows the frame it is at.
+  final bool animate;
 }
 
 /// The thing a surface paints for an asset: the best stage the entry has

@@ -10,7 +10,7 @@ import 'package:panel_shell/panel_shell.dart';
 /// What a page reports when the user picks a cell.
 @immutable
 final class CatalogPick {
-  /// A pick of [key], whose semantic kind is [kind], made from [source].
+  /// A pick of [key], filed under the recents of [kind], made from [source].
   const CatalogPick({
     required this.key,
     required this.kind,
@@ -20,7 +20,10 @@ final class CatalogPick {
   /// Identity of the picked content.
   final ContentKey key;
 
-  /// The kind recents are filed under.
+  /// The kind recents are filed under. It is the page's choice, not
+  /// necessarily the content's own kind: a page with one recents list
+  /// files a custom emoji with the unicode ones. What the content is comes
+  /// from [key] and the descriptor it resolves to.
   final SemanticKind kind;
 
   /// Where in the page the pick was made.

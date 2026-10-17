@@ -68,7 +68,7 @@ sealed class PanelEvent {
 /// [PickSource.search] is ignored by the store by contract, so the host may
 /// pass every pick through.
 final class ContentPicked extends PanelEvent {
-  /// A pick of [key], whose semantic kind is [kind], made from [source].
+  /// A pick of [key], filed under the recents of [kind], made from [source].
   const ContentPicked({
     required this.key,
     required this.kind,
@@ -78,7 +78,10 @@ final class ContentPicked extends PanelEvent {
   /// Identity of the picked content.
   final ContentKey key;
 
-  /// The kind recents are filed under.
+  /// The kind recents are filed under. It is the page's choice, not
+  /// necessarily the content's own kind: a page with one recents list
+  /// files a custom emoji with the unicode ones. What the content is comes
+  /// from [key] and the descriptor it resolves to.
   final SemanticKind kind;
 
   /// Where in the page the pick was made: a browsable collection, the recents

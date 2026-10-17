@@ -73,7 +73,13 @@ final class StillImagePaintable implements AssetPaintable {
 /// (playback was paused and resumes at the live time), or a decode was late
 /// by more than a frame, the next frame is shown at once and timing restarts
 /// from there; frames are not skipped to catch up, because skipping means
-/// decoding each one anyway.
+/// decoding each one anyway. A clock that starts again behind the time the
+/// shown frame went up at restarts the timing the same way.
+///
+/// The image is one playback for every surface of its entry. A paint that
+/// does not animate (`AssetPaintContext.animate`) shows the frame on screen
+/// and changes nothing: it neither steps the image nor starts the first
+/// frame's duration, which begins at the first paint that animates.
 ///
 /// A frame of 10 ms or less is shown for 100 ms, as browsers do: GIF encoders
 /// write 0 for "as fast as possible", which no viewer honours.
@@ -107,8 +113,8 @@ final class PlayingImagePaintable implements AssetPaintable {
   final ui.Codec _codec;
   final bool _template;
   ui.Image _shown;
-  // Null until the first paint, so the first frame lasts its full duration
-  // from the moment it is seen.
+  // Null until the first paint that animates, so the first frame lasts its
+  // full duration from the moment it plays.
   Duration? _shownSince;
   Duration _shownFor;
   ui.FrameInfo? _ahead;
@@ -124,12 +130,17 @@ final class PlayingImagePaintable implements AssetPaintable {
 
   @override
   void paint(Canvas canvas, Rect rect, AssetPaintContext context) {
-    _advanceTo(context.time);
+    if (context.animate) _advanceTo(context.time);
     _ImagePainter.paint(canvas, rect, _shown, context, template: _template);
   }
 
   void _advanceTo(Duration now) {
-    final since = _shownSince ??= now;
+    // A clock started again is behind the time the frame went up at: the
+    // frame counts from now, rather than freezing until the clock catches up.
+    final since = _shownSince = switch (_shownSince) {
+      final since? when now >= since => since,
+      _ => now,
+    };
     final ahead = _ahead;
     if (ahead != null && now - since >= _shownFor) {
       _ahead = null;

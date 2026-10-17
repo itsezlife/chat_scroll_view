@@ -145,6 +145,27 @@ void main() {
       );
     });
 
+    test('a still surface and a playing one of the same entry say which '
+        'they are when they paint', () {
+      final playing = animated();
+      final still = scope.attach(_key, _large, const AssetProfile());
+      final paintable = playing.paintable as FakeAssetPaintable;
+      void paint(AssetBinding binding) {
+        final recorder = PictureRecorder();
+        binding.paint(Canvas(recorder), const Rect.fromLTWH(0, 0, 8, 8));
+        recorder.endRecording().dispose();
+      }
+
+      expect(still.paintable, same(paintable));
+      paint(playing);
+      paint(still);
+
+      expect([for (final paint in paintable.paints) paint.context.animate], [
+        true,
+        false,
+      ]);
+    });
+
     test('a small asset advances at 30 fps and a large one at 60', () {
       final small = animated(
         spec: _small,

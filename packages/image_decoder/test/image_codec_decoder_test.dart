@@ -110,13 +110,18 @@ Future<_Progress> _decode(DecodeRequest request) async {
   return progress;
 }
 
-/// The colour at the centre of [paintable] painted at [time].
-Future<ui.Color> _centreAt(AssetPaintable paintable, Duration time) async {
+/// The colour at the centre of [paintable] painted at [time], by a surface
+/// that animates unless [animate] is false.
+Future<ui.Color> _centreAt(
+  AssetPaintable paintable,
+  Duration time, {
+  bool animate = true,
+}) async {
   final recorder = ui.PictureRecorder();
   paintable.paint(
     ui.Canvas(recorder),
     const ui.Rect.fromLTWH(0, 0, 16, 16),
-    AssetPaintContext(time: time),
+    AssetPaintContext(time: time, animate: animate),
   );
   final image = await recorder.endRecording().toImage(16, 16);
   final pixels = (await image.toByteData())!;
@@ -132,10 +137,14 @@ Future<ui.Color> _centreAt(AssetPaintable paintable, Duration time) async {
 
 /// Paints [paintable] at [time] after giving its decode ahead a moment to
 /// land, and returns the centre colour.
-Future<ui.Color> _settledAt(AssetPaintable paintable, Duration time) async {
-  await _centreAt(paintable, time);
+Future<ui.Color> _settledAt(
+  AssetPaintable paintable,
+  Duration time, {
+  bool animate = true,
+}) async {
+  await _centreAt(paintable, time, animate: animate);
   await Future<void>.delayed(const Duration(milliseconds: 20));
-  return _centreAt(paintable, time);
+  return _centreAt(paintable, time, animate: animate);
 }
 
 const ui.Color _red = ui.Color(0xFFFF0000);
@@ -280,6 +289,48 @@ void main() {
             resumed + const Duration(milliseconds: 60),
           ),
           _green,
+        );
+      },
+    );
+
+    test('a surface that does not animate neither steps it nor starts its '
+        'first frame, sharing it with one that plays', () async {
+      // The still surface paints first, long before the playing one.
+      expect(await _settledAt(paintable, Duration.zero, animate: false), _red);
+      expect(
+        await _settledAt(paintable, const Duration(seconds: 5), animate: false),
+        _red,
+      );
+
+      // The first frame lasts its full 40 ms from when the playing surface
+      // first sees it.
+      const seen = Duration(seconds: 10);
+      expect(await _settledAt(paintable, seen), _red);
+      expect(
+        await _settledAt(paintable, seen + const Duration(milliseconds: 39)),
+        _red,
+      );
+      // A still paint at its own, older time leaves the timing alone.
+      expect(
+        await _settledAt(paintable, Duration.zero, animate: false),
+        _red,
+      );
+      expect(
+        await _settledAt(paintable, seen + const Duration(milliseconds: 40)),
+        _blue,
+      );
+    });
+
+    test(
+      'keeps playing when the clock starts again from an earlier time',
+      () async {
+        expect(await _settledAt(paintable, const Duration(seconds: 10)), _red);
+
+        // A new clock: its time is behind the one the frame went up at.
+        expect(await _settledAt(paintable, Duration.zero), _red);
+        expect(
+          await _settledAt(paintable, const Duration(milliseconds: 40)),
+          _blue,
         );
       },
     );

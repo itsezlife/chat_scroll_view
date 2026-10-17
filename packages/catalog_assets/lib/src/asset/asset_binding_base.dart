@@ -102,6 +102,7 @@ abstract base class AssetBindingBase
       tint: tint,
       opacity: opacity,
       time: profile.animate ? _clock.now : _stillTime ??= _clock.now,
+      animate: profile.animate,
     );
     final radius = profile.cornerRadius;
     if (radius <= 0) {

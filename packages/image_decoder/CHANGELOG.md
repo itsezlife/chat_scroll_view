@@ -11,4 +11,7 @@ package is pre-1.0.
 - `ImageCodecDecoder`: the `catalog_assets` decoder for engine-decodable
   images, stills and animated WebP / GIF, decoded at the spec's size. It meets
   `DecoderContract`. A frame sequence plays one frame ahead of the one shown,
-  by the shared playback clock, in the animated tier.
+  by the shared playback clock, in the animated tier. A paint that does not
+  animate (`AssetPaintContext.animate`) neither steps it nor starts its first
+  frame, and a clock that starts again behind the shown frame restarts the
+  timing instead of freezing the image.
