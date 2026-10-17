@@ -17,6 +17,13 @@ abstract interface class SoftKeyboardPort {
   /// is true is not a settled size.
   bool get isAnimating;
 
+  /// [isAnimating] each time it changes.
+  ///
+  /// A platform may end the motion with no height of its own: the last height
+  /// arrives while the keyboard still moves, and only this stream says it has
+  /// come to rest.
+  Stream<bool> get animatingChanges;
+
   /// The height of a keyboard that is up and at rest, or zero.
   double get restingHeight;
 
@@ -42,6 +49,12 @@ final class PlatformSoftKeyboard implements SoftKeyboardPort {
 
   @override
   Stream<double> get heights => KeyboardInsets.insets;
+
+  // Android sends a height only when it changed, and the final one of a
+  // motion often lands before the motion's end is reported.
+  @override
+  Stream<bool> get animatingChanges =>
+      KeyboardInsets.stateStream.map((state) => state.isAnimating).distinct();
 
   // iOS reports the distance from the keyboard's top edge to the bottom of
   // the screen, home indicator included. The Android plugin subtracts the

@@ -186,11 +186,13 @@ void main() {
       expect(rig.bottom, 320);
     });
 
-    test('uses the stored height when the keyboard is shorter', () async {
+    test('takes the height of a settled keyboard shorter than the stored one, '
+        'and remembers it', () async {
       await rig.heights.record(PanelOrientation.portrait, 340);
       rig.settled(310);
       rig.slot.open(_slide);
-      expect(rig.bottom, 340);
+      expect(rig.bottom, 310);
+      expect(rig.heights.heightFor(PanelOrientation.portrait), 310);
     });
 
     test('holds through the keyboard glitch 310, 0, 310, 200, 0', () {

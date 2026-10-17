@@ -258,11 +258,15 @@ final class ChatInputSet {
        _window = window,
        _text = text {
     StreamSubscription<double>? heights;
+    StreamSubscription<bool>? motion;
     StreamSubscription<PanelEvent>? panelEvents;
     try {
       // A screen opened with the keyboard already up has no stream event yet.
       _lastImeHeight = keyboardPort.restingHeight;
       _imeHeights = heights = keyboardPort.heights.listen(_onImeHeight);
+      _imeMotion = motion = keyboardPort.animatingChanges.listen(
+        (_) => _reportIme(),
+      );
       _panelEvents = panelEvents = shell.events.listen(_onPanelEvent);
       shell.autoHideHolds.addListener(_onPanelHolds);
       _onPanelHolds();
@@ -272,6 +276,7 @@ final class ChatInputSet {
     } on Object {
       // The factory frees what it passed in; the rest is this object's.
       unawaited(heights?.cancel());
+      unawaited(motion?.cancel());
       unawaited(panelEvents?.cancel());
       shell.autoHideHolds.removeListener(_onPanelHolds);
       shell.search.removeListener(_onSearchState);
@@ -343,6 +348,11 @@ final class ChatInputSet {
   final ValueNotifier<bool> _leaving = ValueNotifier<bool>(false);
 
   late StreamSubscription<double> _imeHeights;
+  // The end of the keyboard's motion, which can come with no height of its
+  // own: without it, the last reading stays "animating" and the slot never
+  // sees the keyboard at rest, so it neither confirms a hand-off nor
+  // remembers the height a cold open needs.
+  late StreamSubscription<bool> _imeMotion;
   late StreamSubscription<PanelEvent> _panelEvents;
   double _lastImeHeight = 0;
   double _safeBottom = 0;
@@ -853,6 +863,7 @@ final class ChatInputSet {
     _backClaim?.pop();
     _backClaim = null;
     unawaited(_imeHeights.cancel());
+    unawaited(_imeMotion.cancel());
     unawaited(_panelEvents.cancel());
     presentation.state.removeListener(_onPresentationState);
     shell.autoHideHolds.removeListener(_onPanelHolds);

@@ -31,9 +31,11 @@ enum PanelOrientation {
 /// middle of an animation, never a keyboard, and is neither stored nor
 /// trusted when read back.
 ///
-/// A reading replaces the stored height only when it is taller. A shorter one
-/// does not: a single sample from a hiding animation must not shrink the
-/// panel.
+/// The latest reading replaces the stored height, taller or shorter, as the
+/// reference client keeps the last keyboard it measured: a keyboard that got
+/// shorter (another layout, a suggestion bar turned off) must not leave the
+/// panel taller than it for good. A sample from a hiding animation never gets
+/// here: the slot records only settled readings of a raised keyboard.
 ///
 /// ## Loading
 ///
@@ -74,11 +76,10 @@ final class KeyboardHeightStore {
   /// qualifies, and completes once it is persisted.
   ///
   /// Does nothing for a height that is not finite, below [minSaneHeight] or
-  /// not taller than the stored one.
+  /// equal to the stored one.
   Future<void> record(PanelOrientation orientation, double height) async {
     if (!height.isFinite || height < minSaneHeight) return;
-    final current = _heights[orientation];
-    if (current != null && height <= current) return;
+    if (_heights[orientation] == height) return;
     _heights[orientation] = height;
     try {
       await _store.write(

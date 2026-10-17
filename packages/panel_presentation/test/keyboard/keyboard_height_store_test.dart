@@ -67,18 +67,21 @@ void main() {
       expect(store.heightFor(PanelOrientation.portrait), 340);
     });
 
-    test('one shorter sample does not lower a sane height', () async {
+    test('a shorter keyboard replaces the stored height, and the next '
+        'store opened knows it', () async {
       final store = await open();
+      await store.record(PanelOrientation.portrait, 350);
       await store.record(PanelOrientation.portrait, 310);
-      await store.record(PanelOrientation.portrait, 250);
       expect(store.heightFor(PanelOrientation.portrait), 310);
+
+      final reopened = await open();
+      expect(reopened.heightFor(PanelOrientation.portrait), 310);
     });
 
-    test('a sample that is not taller is not a change', () async {
+    test('the same height again is not a change', () async {
       final store = await open();
       await store.record(PanelOrientation.portrait, 310);
       final writes = kv.writeCount;
-      await store.record(PanelOrientation.portrait, 309.5);
       await store.record(PanelOrientation.portrait, 310);
       await store.record(PanelOrientation.portrait, 310);
       expect(store.heightFor(PanelOrientation.portrait), 310);

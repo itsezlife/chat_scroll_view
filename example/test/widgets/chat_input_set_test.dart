@@ -63,6 +63,9 @@ final class _BrokenKeyboard implements SoftKeyboardPort {
   Stream<double> get heights => const Stream<double>.empty();
 
   @override
+  Stream<bool> get animatingChanges => const Stream<bool>.empty();
+
+  @override
   bool get isAnimating => false;
 
   @override
@@ -113,6 +116,26 @@ void main() {
       rig.keyboard.rest(344);
 
       expect(rig.set.ime.samples.value.height, 344);
+    });
+
+    testWidgets('a keyboard that stops moving with no new height is fed as '
+        'settled, and its height is remembered for a cold open', (
+      tester,
+    ) async {
+      final rig = await rigWithSafeArea(tester, includesSafeArea: true);
+
+      // The last height arrives while the system still reports motion; the
+      // end of the motion brings no height of its own.
+      rig.keyboard.move(344, animating: true);
+      expect(rig.set.ime.samples.value.animating, isTrue);
+      rig.keyboard.stopMoving();
+
+      expect(rig.set.ime.samples.value.height, 344);
+      expect(rig.set.ime.samples.value.animating, isFalse);
+      expect(
+        rig.services.keyboardHeights.heightFor(PanelOrientation.portrait),
+        310,
+      );
     });
 
     testWidgets('no keyboard stays no keyboard however the platform counts '
