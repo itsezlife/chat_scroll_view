@@ -1,0 +1,20 @@
+name: composer_editable
+resolution: workspace
+description: >
+  The composer's editable: Flutter's EditableText and TextField with Telegram
+  composer selection parity (handles, magnifier, touch gestures, toolbar fade,
+  overscroll handoff). A leaf; chat_composer is its only dependent.
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  characters: ^1.4.0
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
