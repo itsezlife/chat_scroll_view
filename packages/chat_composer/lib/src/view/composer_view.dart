@@ -64,6 +64,7 @@ class ComposerView extends StatefulWidget {
     this.shortcuts,
     this.safeAreaBottom,
     this.maxWidth = ComposerMetrics.maxWidth,
+    this.autofocus = true,
     super.key,
   });
 
@@ -106,6 +107,19 @@ class ComposerView extends StatefulWidget {
   /// Widest the island grows.
   final double maxWidth;
 
+  /// Whether the text field takes focus the first time it is built.
+  ///
+  /// As in the reference clients, the caret is there when the chat opens on
+  /// every platform, and on a touch platform the soft keyboard is not: the
+  /// field attaches without a keyboard type, and the first tap on it (or
+  /// `requestKeyboard`) brings the keyboard, as for a field that attached
+  /// while [ComposerController.softKeyboard] was suppressed.
+  ///
+  /// Once per view: a field that comes back after another panel held the row
+  /// (a restriction lifted, a recording ended) does not take focus again.
+  /// Read when the view mounts; a later change has no effect.
+  final bool autofocus;
+
   @override
   State<ComposerView> createState() => _ComposerViewState();
 }
@@ -120,6 +134,9 @@ class _ComposerViewState extends State<ComposerView>
 
   // Kept while the strip hides, after the spec has dropped it.
   ComposerHeader? _shownHeader;
+
+  // Whether the next field built takes focus: true until the first one is.
+  late var _autofocusPending = widget.autofocus;
 
   double _rowFrom = ComposerMetrics.islandHeight;
   double _rowTo = ComposerMetrics.islandHeight;
@@ -252,9 +269,12 @@ class _ComposerViewState extends State<ComposerView>
   Widget _panel(BuildContext context) {
     final panel = _spec.panel;
     if (panel == ComposerPanelId.text) {
+      final autofocus = _autofocusPending;
+      _autofocusPending = false;
       return ComposerField(
         controller: widget.controller,
         enabled: _spec.enabled,
+        autofocus: autofocus,
         onTap: widget.onFieldTap,
         onPointerDown: widget.onFieldPointerDown,
         onPointerEnd: widget.onFieldPointerEnd,

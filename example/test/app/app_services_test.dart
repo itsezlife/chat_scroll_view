@@ -3,6 +3,7 @@ library;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/services.dart';
@@ -48,6 +49,35 @@ final class _FailingStore implements KeyValueStore {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('the panel\'s collections are loaded before it first opens', () async {
+    // Loaded on the first open, every section showed a row of placeholders
+    // and then jumped to its size.
+    final services = await createTestServices();
+    addTearDown(services.dispose);
+
+    final source = services.emojiPageSource;
+    expect(source.collections.value, isNotEmpty);
+    for (final collection in source.collections.value) {
+      expect(
+        collection.contents,
+        isNot(isA<CollectionContents$Idle>()),
+        reason: '${collection.id} waits for the panel',
+      );
+    }
+    // A load in flight answers with its own future.
+    await Future.wait([
+      for (final collection in source.collections.value)
+        source.load(collection.id),
+    ]);
+    for (final collection in source.collections.value) {
+      expect(
+        collection.contents,
+        isA<CollectionContents$Loaded>(),
+        reason: '${collection.id}',
+      );
+    }
+  });
 
   group('composition order', () {
     test('the key-value store is read before any data source reads the '
@@ -209,6 +239,51 @@ void main() {
         services.planGlyphs(services.emojiSource.collections.value),
         isNull,
       );
+    });
+  });
+
+  group('the emoji page source', () {
+    test(
+      'lists the animated emoji pack after the catalogue\'s categories',
+      () async {
+        final services = await createTestServices();
+        addTearDown(services.dispose);
+
+        final ids = [
+          for (final collection in services.emojiPageSource.collections.value)
+            collection.id,
+        ];
+        expect(ids.first, CollectionId.recent);
+        expect(ids.last, AnimatedEmojiPack.id);
+        expect(ids.whereType<CollectionId$Category>(), isNotEmpty);
+      },
+    );
+
+    test('lists an animated emoji in the recents, described, beside the '
+        'unicode ones', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      final rocket = AnimatedEmojiPack.emoji.last;
+      await services.recents.record(
+        const ContentKey.unicode('😀'),
+        kind: SemanticKind.unicodeEmoji,
+      );
+      await services.recents.record(
+        rocket.key,
+        kind: SemanticKind.unicodeEmoji,
+      );
+      services.recentsShown.commit();
+
+      await services.emojiPageSource.load(CollectionId.recent);
+      await Future<void>.delayed(Duration.zero);
+
+      final recents = services.emojiPageSource.collections.value.first;
+      final items = (recents.contents as CollectionContents$Loaded).items;
+      expect(items.map((item) => item.key), [
+        rocket.key,
+        const ContentKey.unicode('😀'),
+      ]);
+      expect(items.first.descriptor, rocket.descriptor);
     });
   });
 

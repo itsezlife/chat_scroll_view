@@ -252,6 +252,7 @@ class RenderPanelCatalog extends RenderBox
     ValueChanged<CatalogLeafHit>? onLeafTap,
     void Function(CatalogLeafHit hit, Offset globalPosition)?
     onLeafSecondaryTap,
+    void Function(CatalogLeafHit? hit, Offset globalPosition)? onLeafHover,
     void Function(CatalogLeafHit hit, LongPressStartDetails details)?
     onLeafLongPressStart,
     void Function(CatalogLeafHit hit, LongPressMoveUpdateDetails details)?
@@ -275,6 +276,7 @@ class RenderPanelCatalog extends RenderBox
        _headerLandingInset = headerLandingInset,
        _onLeafTap = onLeafTap,
        _onLeafSecondaryTap = onLeafSecondaryTap,
+       _onLeafHover = onLeafHover,
        _pinnedLeaf = pinnedLeaf,
        _onLeafLongPressStart = onLeafLongPressStart,
        _onLeafLongPressMove = onLeafLongPressMove,
@@ -462,6 +464,12 @@ class RenderPanelCatalog extends RenderBox
     _onLeafSecondaryTap = value;
     _leafPointer.onLeafSecondaryTap = value;
   }
+
+  /// Shell hover report; see `PanelCatalogViewport.onLeafHover`.
+  void Function(CatalogLeafHit? hit, Offset globalPosition)? _onLeafHover;
+  set onLeafHover(
+    void Function(CatalogLeafHit? hit, Offset globalPosition)? value,
+  ) => _onLeafHover = value;
 
   /// Per-cell, per-pointer-kind long-press delay. Null = the platform's.
   set leafLongPressDelay(
@@ -851,6 +859,7 @@ class RenderPanelCatalog extends RenderBox
     _syncVisibleBindings();
     markNeedsPaint();
     _noteSections();
+    _reportHover(moved: false);
   }
 
   /// Moves to [pixels] at once: publishes the jump, cancels programmatic
@@ -871,17 +880,29 @@ class RenderPanelCatalog extends RenderBox
     }
   }
 
-  /// Moves by [delta]: publishes the scroll, cancels programmatic motion, then
-  /// clamps, recycles bindings and paints. Drag, fling ticks and the wheel
-  /// take this path.
+  /// Moves by [delta] within `[0, maxOffset]`: publishes the part that moved,
+  /// cancels programmatic motion, then recycles bindings and paints. Drag,
+  /// fling ticks and the wheel take this path.
+  ///
+  /// The step is clamped before it is published, not after: a finger pulling
+  /// past an end moves nothing, and a delta reported for it would read as
+  /// scrolling to whoever listens (the bottom bar hides after a few such
+  /// steps, the sticky strip slides). A step that moves nothing publishes
+  /// nothing, and still stops programmatic motion: the user took over.
   @override
   void scrollBy(double delta) {
     if (delta == 0) return;
-    _pixels += delta;
-    _controller
-      ..publish(PanelCatalogViewportScrolled(delta))
-      ..publish(PanelCatalogOffsetChanged(_pixels, delta));
+    final moved = hasSize
+        ? (_pixels + delta).clamp(0.0, maxOffset) - _pixels
+        : delta;
+    if (moved != 0) {
+      _pixels += moved;
+      _controller
+        ..publish(PanelCatalogViewportScrolled(moved))
+        ..publish(PanelCatalogOffsetChanged(_pixels, moved));
+    }
     _cancelSectionJumpMotion();
+    if (moved == 0) return;
     _onNavigation();
     if (LogCategory.scroll.enabled) {
       Log.fine(.scroll, 'scrollBy', {
@@ -1773,6 +1794,31 @@ class RenderPanelCatalog extends RenderBox
     _hoverPosition = position;
     // A pinned cell holds the wash wherever the mouse goes.
     if (_pinnedLeaf == null && _hoverSlotKey() != _hoveredKey) markNeedsPaint();
+    _reportHover(moved: true);
+  }
+
+  /// The cell last reported to [_onLeafHover], and where the cursor was.
+  CatalogLeafSlotKey? _reportedHoverKey;
+  Offset _reportedHoverGlobal = Offset.zero;
+
+  // Every move of the mouse is reported, so the host can measure how far the
+  // cursor went; a scroll is reported only when it brings another cell under
+  // the cursor, not at every offset tick of a fling.
+  void _reportHover({required bool moved}) {
+    final report = _onLeafHover;
+    if (report == null || !attached || !hasSize) return;
+    final position = _hoverPosition;
+    if (position == null) {
+      if (!moved) return;
+      _reportedHoverKey = null;
+      report(null, _reportedHoverGlobal);
+      return;
+    }
+    final slot = leafSlotAt(position);
+    if (!moved && slot?.key == _reportedHoverKey) return;
+    _reportedHoverKey = slot?.key;
+    _reportedHoverGlobal = localToGlobal(position);
+    report(slot?.hit, _reportedHoverGlobal);
   }
 
   // A mouse that was already there when the viewport appeared (or came back

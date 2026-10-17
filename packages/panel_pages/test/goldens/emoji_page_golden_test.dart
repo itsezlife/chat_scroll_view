@@ -24,6 +24,12 @@ import '../emoji/emoji_fixtures.dart' as fixtures;
 // anti-aliasing of the rounded shapes differs there, regenerate on the pinned
 // platform or add a tolerance comparator.
 void main() {
+  // Goldens sit next to this file, also when test/unit_test.dart runs it.
+  setUpAll(
+    () => goldenFileComparator = LocalFileComparator(
+      Uri.file('test/goldens/emoji_page_golden_test.dart'),
+    ),
+  );
   Future<void> precacheStripArt(WidgetTester tester) =>
       tester.runAsync(() async {
             for (final id in EmojiTabIcons.assets.keys) {

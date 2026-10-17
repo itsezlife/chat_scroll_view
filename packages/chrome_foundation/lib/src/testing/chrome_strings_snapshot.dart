@@ -37,6 +37,7 @@ abstract final class ChromeStringsSnapshot {
       'composer.showPanelAction': composer.showPanelAction,
       'composer.showKeyboardAction': composer.showKeyboardAction,
       'composer.dismissHeaderAction': composer.dismissHeaderAction,
+      'composer.pastePlainAction': composer.pastePlainAction,
       'composer.replyTo[name]': composer.replyTo('name'),
       'composer.editingMessage': composer.editingMessage,
       'semantics.panelOpened': semantics.panelOpened,

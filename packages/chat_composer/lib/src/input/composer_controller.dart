@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
 import 'package:chat_composer/src/query/composer_input_query.dart';
 import 'package:chat_composer/src/query/composer_query_kind.dart';
@@ -19,6 +21,15 @@ import 'package:listen/listen.dart' as listen;
 /// channel: showing and hiding the keyboard is the field's job, driven by
 /// [softKeyboard], [focusNode] and [requestKeyboard].
 ///
+/// ## Clipboard
+///
+/// Given a [clipboard], [copySelection], [cutSelection] and [paste] keep the
+/// text's entities across the system clipboard (ADR 032), and the field routes
+/// its copy, cut and paste there. Where the platform performs those commands
+/// itself (a browser's keys and menu), the controller takes them over through
+/// [RichClipboard.attach] while its field has focus. Without a clipboard the
+/// field keeps the platform's plain-text clipboard.
+///
 /// The creator disposes. A text controller, focus node or scroll controller
 /// passed in is the host's and is left alone by [dispose]; the ones the
 /// controller makes for itself are disposed with it.
@@ -35,6 +46,8 @@ final class ComposerController {
     ScrollController? fieldScroll,
     Iterable<ComposerQueryKind> queryKinds = const [],
     SoftKeyboardMode softKeyboard = SoftKeyboardMode.auto,
+    this.clipboard,
+    this.onPastedMedia,
   }) : text = text ?? ComposerTextController(),
        focusNode = focusNode ?? FocusNode(debugLabel: 'Composer'),
        fieldScroll = fieldScroll ?? ScrollController(),
@@ -45,6 +58,7 @@ final class ComposerController {
     queryKinds.forEach(registerQueryKind);
     this.text.addListener(_detectQuery);
     _detectQuery();
+    _detachClipboard = clipboard?.attach(_ClipboardField(this));
   }
 
   /// The entity-aware text of the field.
@@ -55,6 +69,19 @@ final class ComposerController {
 
   /// Scroll of the field's content, for keeping the caret in view.
   final ScrollController fieldScroll;
+
+  /// The clipboard copy, cut and paste go through; null leaves the field on
+  /// the platform's plain-text clipboard.
+  final RichClipboard? clipboard;
+
+  /// Takes the images and files the user puts into the field: a paste while
+  /// the [clipboard] holds media, and an image a keyboard inserts. The host
+  /// sends them, as the reference clients send pasted media, and completes
+  /// with whether it did: a paste whose media the host did not send (the user
+  /// cancelled) pastes the text that came with it, as the reference desktop
+  /// client does. Null leaves pastes text only and keyboards without image
+  /// insertion.
+  final Future<bool> Function(List<PastedMedia> media)? onPastedMedia;
 
   final bool _ownsText;
   final bool _ownsFocus;
@@ -67,6 +94,7 @@ final class ComposerController {
   final _caretReveals = _Signal();
   final _kinds = <ComposerQueryKind>[];
   Rect? _anchor;
+  void Function()? _detachClipboard;
   var _disposed = false;
 
   /// Whether [dispose] has been called.
@@ -121,6 +149,153 @@ final class ComposerController {
   void restore(RichText draft, {TextSelection? selection}) {
     if (_disposed) return;
     text.restore(draft, selection: selection);
+  }
+
+  // --- Clipboard ---
+
+  /// Puts the selection on the [clipboard] with its entities. False when there
+  /// is no clipboard, the selection is collapsed, or the clipboard failed
+  /// (reported to [FlutterError.reportError]).
+  Future<bool> copySelection() async {
+    final selection = text.selection;
+    if (_disposed || !selection.isValid || selection.isCollapsed) return false;
+    return _write(richText.slice(selection.start, selection.end));
+  }
+
+  /// Puts the selection on the [clipboard] and removes it from the text; see
+  /// [copySelection]. The text is left as it was when the copy fails.
+  Future<bool> cutSelection() async {
+    final selection = text.selection;
+    if (_disposed || !selection.isValid || selection.isCollapsed) return false;
+    final cut = richText.slice(selection.start, selection.end);
+    if (!await _write(cut) || _disposed) return false;
+    // Cut what was copied: the text may have moved on while the clipboard
+    // wrote.
+    if (text.richText.slice(selection.start, selection.end) == cut) {
+      text.replaceRange(selection.start, selection.end, RichText.empty);
+      _caretReveals.signal();
+    }
+    return true;
+  }
+
+  /// Replaces the selection with what the [clipboard] holds: its rich text
+  /// when it has one, its plain text otherwise or when [plain] is true.
+  ///
+  /// When the clipboard holds images or files and there is an
+  /// [onPastedMedia] host, a paste (not one as [plain] text) hands them to it
+  /// and inserts no text: what was copied was the media. When the host does
+  /// not send them, the text that came with them goes in (an office app's
+  /// copied range comes with a picture of it).
+  ///
+  /// Pasted into a quote, the text's own quotes are unwrapped, so quotes never
+  /// nest; entities that cannot sit where the text lands are dropped and the
+  /// text still goes in (see [ComposerTextController.replaceRange]). A paste
+  /// whose text changed while the clipboard was read (a platform that asks
+  /// the user first) or the host looked at the media lands nowhere; one whose
+  /// selection was lost meanwhile lands where the selection was.
+  ///
+  /// True when media went to the host or text went in; false when there is
+  /// no clipboard, it holds nothing to paste, the text moved on, or the
+  /// clipboard failed (reported to [FlutterError.reportError]).
+  Future<bool> paste({bool plain = false}) async {
+    final source = clipboard;
+    if (_disposed || source == null) return false;
+    final before = (rich: richText, selection: text.selection);
+    final withMedia = !plain && onPastedMedia != null;
+    final ClipboardContents contents;
+    try {
+      // One read for text and media: one paste prompt where the platform
+      // asks.
+      contents = withMedia
+          ? await source.readWithMedia()
+          : ClipboardContents(text: await source.read());
+    } on Object catch (error, stack) {
+      _report(error, stack, 'while reading the clipboard to paste');
+      return false;
+    }
+    return _insertPasted(contents, before: before, plain: plain);
+  }
+
+  // What [paste] does once it has the clipboard's [contents], the platform's
+  // own paste too; [before] is the text and selection the paste began on.
+  Future<bool> _insertPasted(
+    ClipboardContents contents, {
+    required ({RichText rich, TextSelection selection}) before,
+    required bool plain,
+  }) async {
+    if (_disposed) return false;
+    final withMedia = !plain && onPastedMedia != null;
+    if (withMedia && contents.media.isNotEmpty) {
+      if (await _handOver(contents.media) || _disposed) return true;
+    }
+    final held = contents.text;
+    if (held == null) return false;
+    if (richText != before.rich) return false;
+    if (!text.selection.isValid) text.selection = before.selection;
+    var pasted = plain ? RichText.plain(held.plain) : held.richOrPlain;
+    if (pasted.isEmpty) return false;
+    if (_insideQuote(text.selection)) {
+      pasted = RichText(pasted.plain, [
+        for (final entity in pasted.entities)
+          if (entity.kind != EntityKind.quote) entity,
+      ]);
+    }
+    text.insert(pasted);
+    _caretReveals.signal();
+    return true;
+  }
+
+  /// Hands [media] the user put into the field (a keyboard's inserted image,
+  /// a paste) to [onPastedMedia]. Does nothing without one, after [dispose]
+  /// or for no media.
+  void receiveMedia(List<PastedMedia> media) {
+    if (_disposed || media.isEmpty) return;
+    unawaited(_handOver(media));
+  }
+
+  // Whether the host sent [media]; a host that fails did not (reported).
+  Future<bool> _handOver(List<PastedMedia> media) async {
+    final host = onPastedMedia;
+    if (host == null) return false;
+    try {
+      return await host(List.unmodifiable(media));
+    } on Object catch (error, stack) {
+      _report(error, stack, 'while handing pasted media to the host');
+      return false;
+    }
+  }
+
+  Future<bool> _write(RichText copied) async {
+    final target = clipboard;
+    if (target == null) return false;
+    try {
+      await target.write(copied);
+      return true;
+    } on Object catch (error, stack) {
+      _report(error, stack, 'while writing the clipboard');
+      return false;
+    }
+  }
+
+  bool _insideQuote(TextSelection selection) {
+    final at = selection.isValid ? selection.start : text.text.length;
+    return richText.entities.any(
+      (entity) =>
+          entity.kind == EntityKind.quote &&
+          entity.offset <= at &&
+          at <= entity.end,
+    );
+  }
+
+  static void _report(Object error, StackTrace stack, String doing) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stack,
+        library: 'chat_composer',
+        context: ErrorDescription(doing),
+      ),
+    );
   }
 
   // --- Focus ---
@@ -306,6 +481,7 @@ final class ComposerController {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _detachClipboard?.call();
     text.removeListener(_detectQuery);
     _softKeyboard.dispose();
     _keyboardRequests.dispose();
@@ -316,6 +492,46 @@ final class ComposerController {
     if (_ownsText) text.dispose();
     if (_ownsFocus) focusNode.dispose();
     if (_ownsScroll) fieldScroll.dispose();
+  }
+}
+
+/// The composer as the field whose clipboard commands a platform performs
+/// itself (a browser's): see [RichClipboard.attach].
+final class _ClipboardField implements RichClipboardField {
+  _ClipboardField(this._composer);
+
+  final ComposerController _composer;
+
+  @override
+  bool get hasFocus => !_composer.isDisposed && _composer.hasFocus;
+
+  @override
+  RichText? copySelection() {
+    final selection = _composer.selection;
+    if (!selection.isValid || selection.isCollapsed) return null;
+    return _composer.richText.slice(selection.start, selection.end);
+  }
+
+  @override
+  RichText? cutSelection() {
+    final copied = copySelection();
+    if (copied == null) return null;
+    final selection = _composer.selection;
+    _composer.text.replaceRange(selection.start, selection.end, RichText.empty);
+    _composer._caretReveals.signal();
+    return copied;
+  }
+
+  @override
+  void paste(ClipboardContents contents) {
+    final composer = _composer;
+    unawaited(
+      composer._insertPasted(
+        contents,
+        before: (rich: composer.richText, selection: composer.selection),
+        plain: false,
+      ),
+    );
   }
 }
 

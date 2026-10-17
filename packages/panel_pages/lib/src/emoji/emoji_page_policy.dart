@@ -43,7 +43,10 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 ///   category; the recents first, only while there are some. Search open with
 ///   no query changes none of it: the reference clients keep the whole
 ///   catalogue on screen until there is something to look for.
-/// - **Recents.** The header is a title, with no button. A finger's long press
+/// - **Recents.** One list for the page, filed under [recentsKind]: every
+///   pick is recorded there, custom emoji (document keys) among the unicode
+///   ones, as the reference clients keep one list. The header is a title,
+///   with no button. A finger's long press
 ///   on an emoji of the recents asks the host to clear them
 ///   (`PanelPageHost.requestClearRecents`), instead of the variant picker.
 ///   Under a pointer a right click on one opens a menu (copy, remove from
@@ -97,6 +100,12 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
 
   /// Height of a section header.
   static const double headerExtent = 27;
+
+  /// The kind every pick of the page is filed under: the page's one recents
+  /// list, custom emoji included. It names the list, in a pick's
+  /// `recentsKind` and in requests to remove from or clear it; a pick's
+  /// `kind` and a request to copy carry the content's own kind.
+  static const SemanticKind recentsKind = SemanticKind.unicodeEmoji;
 
   /// The id of the context menu item that copies the emoji.
   static const String copyItemId = 'copy';
@@ -317,6 +326,37 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     }
   }
 
+  // --- Picks ----------------------------------------------------------------
+
+  /// Files every pick under [recentsKind], whatever the cell's own kind, so a
+  /// custom emoji lands in the page's recents with the unicode ones; the pick
+  /// still says what it is.
+  @override
+  CatalogPick? pickOf(
+    CatalogLeafHit hit,
+    Collection collection, {
+    required bool searching,
+  }) => switch (super.pickOf(hit, collection, searching: searching)) {
+    final pick? => CatalogPick(
+      key: pick.key,
+      kind: pick.kind,
+      recentsKind: recentsKind,
+      source: pick.source,
+    ),
+    null => null,
+  };
+
+  // --- Tooltip --------------------------------------------------------------
+
+  // The reference desktop client's: the code of a unicode emoji (its toneless
+  // form's, which the data already resolved), never one for a custom emoji.
+  @override
+  String? tooltipOf(CatalogLeafHit hit, Collection collection) =>
+      switch (hit.leaf.key) {
+        ContentKey$Unicode() => hit.leaf.shortcode,
+        _ => null,
+      };
+
   // --- Context menu ---------------------------------------------------------
 
   @override
@@ -326,9 +366,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     PanelStrings strings, {
     required PanelArrangement arrangement,
   }) {
-    if (!arrangement.usesContextMenu ||
-        collection.id != CollectionId.recent ||
-        hit.leaf.key is! ContentKey$Unicode) {
+    if (!arrangement.usesContextMenu || collection.id != CollectionId.recent) {
       return const [];
     }
     return [
@@ -354,10 +392,12 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     PanelPageHost host,
   ) {
     if (collection.id != CollectionId.recent) return;
-    const kind = SemanticKind.unicodeEmoji;
+    const kind = recentsKind;
     switch (itemId) {
+      // A copy is of the content, so under its own kind (a custom emoji is
+      // not text); removing and clearing name the one list.
       case copyItemId:
-        host.requestCopy(hit.leaf.key, kind: kind);
+        host.requestCopy(hit.leaf.key, kind: hit.leaf.semanticKind);
       case removeRecentItemId:
         host.requestRemoveRecent(hit.leaf.key, kind: kind);
       case clearRecentItemId:
@@ -374,8 +414,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
       _isRecentEmoji(hit, collection) || _variantsOf(hit.leaf.key) != null;
 
   static bool _isRecentEmoji(CatalogLeafHit hit, Collection collection) =>
-      collection.id == CollectionId.recent &&
-      hit.leaf.key is ContentKey$Unicode;
+      collection.id == CollectionId.recent;
 
   EmojiEntry? _variantsOf(ContentKey key) => switch (entryOf(key)) {
     final entry? when entry.variants.isNotEmpty => entry,
@@ -406,7 +445,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     // A finger on a recent asks to clear them. The pointer keeps the picker
     // (its menu has the clear item), and a cell with no variants has none.
     if (kind != PointerDeviceKind.mouse && _isRecentEmoji(hit, collection)) {
-      host.requestClearRecents(SemanticKind.unicodeEmoji);
+      host.requestClearRecents(recentsKind);
       return null;
     }
     if ((_variantsOf(key), key) case (
@@ -558,6 +597,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     host.pick(
       chosen,
       kind: SemanticKind.unicodeEmoji,
+      recentsKind: recentsKind,
       source: switch (collection.id) {
         CollectionId$Query() => PickSource.search,
         _ when collection.id == CollectionId.recent => PickSource.recents,

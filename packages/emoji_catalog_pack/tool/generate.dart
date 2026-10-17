@@ -3,9 +3,11 @@
 //   dart run tool/generate.dart            write assets/ from tool/inputs.lock
 //   dart run tool/generate.dart check      fail unless assets/ is what that
 //                                          would write (the CI gate)
-//   dart run tool/generate.dart lock <emoji-version> <cldr-tag> [locale...]
+//   dart run tool/generate.dart lock <emoji-version> <cldr-tag>
+//       [--shortcodes-ref=<tag>] [locale...]
 //                                          re-pin to other versions (and
-//                                          locales; default: the current ones)
+//                                          emoji-toolkit tag and locales;
+//                                          default: the current ones)
 //
 // Inputs are downloaded once into tool/.cache (untracked) and verified
 // against the SHA-256 in tool/inputs.lock on every run. Nothing downloaded is
@@ -102,20 +104,33 @@ Iterable<String> _existing(Directory root) {
 Never _noLocales() =>
     throw ArgumentError('No inputs.lock to take the locales from; list them.');
 
-Future<void> _lock(File lockFile, Directory cache, List<String> args) async {
+Never _noShortcodesRef() => throw ArgumentError(
+  'No inputs.lock to take the emoji-toolkit tag from; '
+  'pass --shortcodes-ref=<tag>.',
+);
+
+const String _shortcodesFlag = '--shortcodes-ref=';
+
+Future<void> _lock(File lockFile, Directory cache, List<String> all) async {
   final current = lockFile.existsSync()
       ? InputsLock.parse(await lockFile.readAsString())
       : null;
+  final flags = all.where((arg) => arg.startsWith(_shortcodesFlag));
+  final args = all.where((arg) => !arg.startsWith(_shortcodesFlag)).toList();
   final plan = args.length >= 2
       ? InputsPlan(
           emojiVersion: args[0],
           cldrTag: args[1],
+          shortcodesRef: flags.isNotEmpty
+              ? flags.last.substring(_shortcodesFlag.length)
+              : current?.shortcodesRef ?? _noShortcodesRef(),
           locales: args.length > 2
               ? args.sublist(2)
               : current?.locales ?? _noLocales(),
         )
       : throw ArgumentError(
-          'lock needs <emoji-version> <cldr-tag> [locale...]',
+          'lock needs <emoji-version> <cldr-tag> '
+          '[--shortcodes-ref=<tag>] [locale...]',
         );
   final hashes = <String, String>{};
   for (final source in plan.sources) {

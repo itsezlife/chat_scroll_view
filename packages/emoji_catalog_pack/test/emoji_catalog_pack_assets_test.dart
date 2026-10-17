@@ -13,6 +13,13 @@ void main() {
       );
     });
 
+    test('keys the shortcodes by their package asset path', () {
+      expect(
+        EmojiCatalogPackAssets.shortcodes,
+        'packages/emoji_catalog_pack/assets/shortcodes.tsv',
+      );
+    });
+
     test('keys a keyword pack by its locale', () {
       expect(
         EmojiCatalogPackAssets.keywordPack('de'),

@@ -1,5 +1,6 @@
 import 'package:emoji_catalog_pack/src/generator/cldr_annotations.dart';
 import 'package:emoji_catalog_pack/src/generator/emoji_keyword_pack_builder.dart';
+import 'package:emoji_catalog_pack/src/generator/emoji_shortcodes_builder.dart';
 import 'package:emoji_catalog_pack/src/generator/emoji_test_file.dart';
 import 'package:emoji_catalog_pack/src/generator/inputs_lock.dart';
 import 'package:emoji_catalog_pack/src/generator/structure_builder.dart';
@@ -28,8 +29,14 @@ abstract final class AssetGenerator {
     }
     final structure = StructureBuilder.build(emojiTest);
     final cldrVersion = lock.plan.cldrVersion;
+    final toolkit = 'emoji-toolkit ${lock.shortcodesRef}';
     return {
       'assets/structure.tsv': structure.encode(),
+      'assets/shortcodes.tsv': EmojiShortcodesBuilder.build(
+        structure: structure,
+        toolkitJson: readInput('emoji-toolkit/emoji.json'),
+        source: toolkit,
+      ).encode(),
       for (final locale in lock.locales)
         'assets/keywords/$locale.tsv': EmojiKeywordPackBuilder.build(
           structure: structure,
@@ -47,6 +54,10 @@ abstract final class AssetGenerator {
         cldrVersion,
         readInput('cldr/LICENSE'),
       ),
+      'assets/LICENSE-JOYPIXELS.txt': _toolkitLicence(
+        toolkit,
+        readInput('emoji-toolkit/LICENSE.md'),
+      ),
     };
   }
 }
@@ -55,5 +66,15 @@ String _licence(String emojiVersion, String cldrVersion, String text) =>
     'The structure and keyword assets in this directory are generated from\n'
     'Unicode Emoji $emojiVersion (emoji-test.txt) and CLDR $cldrVersion\n'
     '(annotations), which are licensed as follows.\n'
+    '\n'
+    '${text.trim()}\n';
+
+// The toolkit licence covers artwork and code alike; only its JSON is used,
+// which the "Non-Artwork" part licenses under MIT.
+String _toolkitLicence(String toolkit, String text) =>
+    'The shortcodes asset in this directory (shortcodes.tsv) is generated from\n'
+    'the shortnames in emoji.json of JoyPixels $toolkit.\n'
+    'No JoyPixels artwork is used or shipped: the JSON is covered by the\n'
+    '"JoyPixels Non-Artwork" part of the licence below, MIT.\n'
     '\n'
     '${text.trim()}\n';

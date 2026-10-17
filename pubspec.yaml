@@ -13,11 +13,13 @@ workspace:
   - packages/content_model
   - packages/emoji_catalog_pack
   - packages/emoji_data
+  - packages/image_decoder
   - packages/kv_shared_preferences
   - packages/panel_catalog
   - packages/panel_pages
   - packages/panel_presentation
   - packages/panel_shell
+  - packages/rich_clipboard
   - example
   - scripts
 

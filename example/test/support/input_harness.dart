@@ -40,6 +40,9 @@ final class InputRig {
   /// Kinds the user was asked to clear and agreed to.
   final List<SemanticKind> clearAsked = <SemanticKind>[];
 
+  /// Media the composer handed over: pasted, or inserted by a keyboard.
+  final List<List<PastedMedia>> pastedMedia = <List<PastedMedia>>[];
+
   /// The set under test, once the first frame is built.
   late ChatInputSet set;
 
@@ -143,6 +146,10 @@ class _ScreenState extends State<_Screen> {
       edit: (id, body) async => _rig.edited.add('$id:$body'),
       confirmClearRecents: (kind) async {
         _rig.clearAsked.add(kind);
+        return true;
+      },
+      onPastedMedia: (media) async {
+        _rig.pastedMedia.add(media);
         return true;
       },
       keyboard: _rig.keyboard,

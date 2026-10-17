@@ -20,8 +20,11 @@ import 'package:content_model/src/identity/content_key.dart';
 ///
 /// The future fails when the batch as a whole could not be attempted, for
 /// example with no connection; keys left out of a successful result were
-/// attempted and are unknown. There is no cancellation: a caller that no
-/// longer wants the result ignores it. Resolving again is always allowed.
+/// attempted and are unknown. A caller may remember that answer, so a
+/// resolver that cannot answer for a key yet (content still syncing, a pack
+/// not installed yet) fails the batch rather than leaving the key out. There
+/// is no cancellation: a caller that no longer wants the result ignores it.
+/// Resolving again is always allowed.
 abstract interface class ContentResolver {
   /// The descriptors of those [keys] that resolve.
   Future<Map<ContentKey, ContentDescriptor>> resolve(Iterable<ContentKey> keys);

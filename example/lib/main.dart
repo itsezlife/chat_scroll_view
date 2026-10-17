@@ -6,13 +6,17 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/boot.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
+import 'package:chat_scroll_view_example/src/common/environment_specific/host_environment.dart'
+    as environment_specific;
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show BrowserContextMenu;
 import 'package:l/l.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -22,6 +26,10 @@ void main() => l.capture<void>(
   () => runZonedGuarded<void>(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      // In a browser a right-click opens the browser's own menu over the
+      // app's (message menus, the composer's, the panel's) unless the app
+      // takes it over.
+      if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
       bindExamplePreImeBack();
       await bootApp(
         createServices: _createServices,
@@ -44,7 +52,11 @@ void main() => l.capture<void>(
 // Backend, stores and the emoji catalogue before the first frame, so the
 // panel's last page and the recents are there when it first paints. When one
 // of the two fails the other, if it got as far as existing, is freed.
+//
+// On the web the page's loading widget shows the boot's last steps (the
+// page loaded the code up to 90%); it goes with the first frame.
 Future<AppServices> _createServices() async {
+  environment_specific.$reportBootProgress(92, 'Preparing chats and emoji');
   final glyphCache = createExampleEmojiGlyphCache();
   final services = AppServices.create(
     glyphCache: glyphCache.cache,
@@ -53,6 +65,7 @@ Future<AppServices> _createServices() async {
   // Its own failure is awaited below; until then it is not an unhandled one.
   services.ignore();
   try {
+    environment_specific.$reportBootProgress(95, 'Connecting');
     await Supabase.initialize(
       url: DemoConfig.supabaseUrl,
       publishableKey: DemoConfig.supabasePublishableKey,
@@ -61,7 +74,9 @@ Future<AppServices> _createServices() async {
     unawaited(services.then((made) => made.dispose(), onError: (_) {}));
     rethrow;
   }
-  return services;
+  final made = await services;
+  environment_specific.$reportBootProgress(100, 'Opening');
+  return made;
 }
 
 /// {@template chat_demo_app}

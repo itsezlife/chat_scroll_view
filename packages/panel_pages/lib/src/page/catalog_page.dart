@@ -13,6 +13,7 @@ import 'package:panel_pages/src/bake/bake_activity_port.dart';
 import 'package:panel_pages/src/bake/catalog_bake_forwarder.dart';
 import 'package:panel_pages/src/input/catalog_keyboard_focus.dart';
 import 'package:panel_pages/src/menu/catalog_context_menu.dart';
+import 'package:panel_pages/src/overlay/catalog_leaf_tooltip.dart';
 import 'package:panel_pages/src/page/bottom_extent_reporter.dart';
 import 'package:panel_pages/src/page/catalog_page_controller.dart';
 import 'package:panel_pages/src/page/catalog_page_model.dart';
@@ -179,6 +180,7 @@ class _CatalogPageState extends State<CatalogPage>
   late final StreamSubscription<PanelCatalogScrollEvent> _catalogEvents;
   late final _StripHandle _strip;
   final _menu = CatalogContextMenuController();
+  late final _tooltip = CatalogLeafTooltip(textOf: _tooltipTextOf);
   late CatalogStickyHeader _header;
   late final _CatalogMetrics _metrics;
   late bool _inlineSearch;
@@ -313,6 +315,7 @@ class _CatalogPageState extends State<CatalogPage>
       ..removeListener(_onRevealTick)
       ..dispose();
     _cancelLongPress(unpin: false);
+    _tooltip.dispose();
     _menu.dispose();
     _forwarder.dispose();
     _reporter.dispose();
@@ -463,6 +466,7 @@ class _CatalogPageState extends State<CatalogPage>
   void _onActiveChanged() {
     if (_host.isActive.value) return;
     _cancelLongPress();
+    _tooltip.hide();
     _menu.close();
   }
 
@@ -535,7 +539,12 @@ class _CatalogPageState extends State<CatalogPage>
       searching: _showsResults,
     );
     if (pick == null) return;
-    _host.pick(pick.key, kind: pick.kind, source: pick.source);
+    _host.pick(
+      pick.key,
+      kind: pick.kind,
+      recentsKind: pick.recentsKind,
+      source: pick.source,
+    );
   }
 
   bool _longPressEligible(CatalogLeafHit hit) {
@@ -552,6 +561,7 @@ class _CatalogPageState extends State<CatalogPage>
 
   void _onLongPressStart(CatalogLeafHit hit, LongPressStartDetails details) {
     _cancelLongPress();
+    _tooltip.hide();
     final collection = _model.collectionOf(hit.sectionId);
     final cell = _catalog.leafBoundsOf(hit);
     final viewport = _catalog.viewportBounds;
@@ -599,6 +609,7 @@ class _CatalogPageState extends State<CatalogPage>
   }
 
   void _onSecondaryTap(CatalogLeafHit hit, Offset globalPosition) {
+    _tooltip.hide();
     final collection = _model.collectionOf(hit.sectionId);
     if (collection == null) return;
     final entries = widget.policy.menuOf(
@@ -616,6 +627,15 @@ class _CatalogPageState extends State<CatalogPage>
           widget.policy.onMenuAction(hit, collection, id, _host),
     );
   }
+
+  void _onLeafHover(CatalogLeafHit? hit, Offset globalPosition) =>
+      _tooltip.hover(hit, globalPosition, context);
+
+  String? _tooltipTextOf(CatalogLeafHit hit) =>
+      switch (_model.collectionOf(hit.sectionId)) {
+        final collection? => widget.policy.tooltipOf(hit, collection),
+        null => null,
+      };
 
   void _onSectionAction(String sectionId, String actionId) {
     final collection = _model.collectionOf(sectionId);
@@ -673,28 +693,35 @@ class _CatalogPageState extends State<CatalogPage>
                         : 0,
                     child: CatalogKeyboardFocus(
                       controller: _catalog,
-                      child: Listener(
-                        behavior: HitTestBehavior.translucent,
-                        onPointerDown: (event) => _lastKind = event.kind,
-                        child: PanelCatalogViewport(
-                          snapshots: _model.snapshots,
-                          assets: widget.assets,
-                          controller: _catalog,
-                          padding: padding,
-                          // A header lands under the strip that overlays the
-                          // catalogue, never under the field's band, which
-                          // scrolls away (or, pinned, keeps a band of its own).
-                          headerLandingInset: widget.padding.top + stripBand,
-                          sectionNearExtent: widget.sectionNearExtent,
-                          onLeafTap: _onTap,
-                          onLeafSecondaryTap: _onSecondaryTap,
-                          leafLongPressEligible: _longPressEligible,
-                          leafLongPressDelay: _longPressDelay,
-                          onLeafLongPressStart: _onLongPressStart,
-                          onLeafLongPressMove: _onLongPressMove,
-                          onLeafLongPressEnd: _onLongPressEnd,
-                          pinnedLeaf: _pinned,
-                          onSectionAction: _onSectionAction,
+                      // The viewport says which cell the mouse is over; that
+                      // it left the cells at all is said here.
+                      child: MouseRegion(
+                        opaque: false,
+                        onExit: (_) => _tooltip.leave(),
+                        child: Listener(
+                          behavior: HitTestBehavior.translucent,
+                          onPointerDown: (event) => _lastKind = event.kind,
+                          child: PanelCatalogViewport(
+                            snapshots: _model.snapshots,
+                            assets: widget.assets,
+                            controller: _catalog,
+                            padding: padding,
+                            // A header lands under the strip that overlays the
+                            // catalogue, never under the field's band, which
+                            // scrolls away (or, pinned, keeps a band of its own).
+                            headerLandingInset: widget.padding.top + stripBand,
+                            sectionNearExtent: widget.sectionNearExtent,
+                            onLeafTap: _onTap,
+                            onLeafSecondaryTap: _onSecondaryTap,
+                            onLeafHover: _onLeafHover,
+                            leafLongPressEligible: _longPressEligible,
+                            leafLongPressDelay: _longPressDelay,
+                            onLeafLongPressStart: _onLongPressStart,
+                            onLeafLongPressMove: _onLongPressMove,
+                            onLeafLongPressEnd: _onLongPressEnd,
+                            pinnedLeaf: _pinned,
+                            onSectionAction: _onSectionAction,
+                          ),
                         ),
                       ),
                     ),

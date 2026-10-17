@@ -133,6 +133,28 @@ void main() {
   });
 
   group('normalisation', () {
+    test('takes time linear in the size of a long text with many entities', () {
+      const word = 'word ';
+      final plain = word * 50000;
+      final entities = [
+        for (var i = 0; i < 50000; i++)
+          Entity(
+            i * word.length,
+            i.isEven ? 5 : 4,
+            i.isEven ? EntityKind.bold : EntityKind.code,
+          ),
+      ];
+      final timer = Stopwatch()..start();
+
+      final text = RichText(plain, entities);
+
+      timer.stop();
+      // Each bold word gives up the space after it.
+      expect(text.entities, hasLength(50000));
+      expect(text.entities.first, const Entity(0, 4, EntityKind.bold));
+      expect(timer.elapsed, lessThan(const Duration(seconds: 2)));
+    });
+
     test('merges touching and overlapping runs of the same style', () {
       expect(
         RichText('abcdef', [bold(0, 2), bold(2, 2), bold(3, 3)]).entities,

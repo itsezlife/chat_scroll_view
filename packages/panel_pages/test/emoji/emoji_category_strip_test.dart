@@ -375,6 +375,173 @@ void main() {
     });
   });
 
+  group('with packs under touch: the reference mobile client\'s strip', () {
+    const categories = [
+      CollectionId.category('people'),
+      CollectionId.category('nature'),
+      CollectionId.category('food'),
+      CollectionId.category('activity'),
+      CollectionId.category('travel'),
+      CollectionId.category('objects'),
+      CollectionId.category('symbols'),
+    ];
+    // Seven categories: an open group is 32 px a category, at most 5.7 of
+    // them, before it scrolls.
+    const openWidth = 32 * 5.7;
+
+    void withPack() => handle.entries.value = [
+      ..._entries([_recents, ...categories]),
+      const CatalogStripEntry(
+        sectionId: 'pack',
+        collection: Collection(
+          id: CollectionId.set('pack'),
+          metadata: CollectionMetadata(title: 'Pack'),
+        ),
+      ),
+    ];
+
+    double groupWidth(WidgetTester tester) =>
+        tester.getSize(find.byKey(EmojiCategoryStrip.groupKey)).width;
+
+    testWidgets('folds the categories into one group between the recents and '
+        'a tab per pack', (tester) async {
+      final semantics = tester.ensureSemantics();
+      withPack();
+      await pump(tester);
+
+      expect(find.byKey(EmojiCategoryStrip.groupKey), findsOneWidget);
+      final recents = tester.getRect(find.bySemanticsLabel('Recently used'));
+      final group = tester.getRect(find.byKey(EmojiCategoryStrip.groupKey));
+      final pack = tester.getRect(find.bySemanticsLabel('Pack'));
+      expect(recents, const Rect.fromLTWH(11, 3, 30, 30));
+      // 3 px apart, the group closed while the recents are active.
+      expect(group, const Rect.fromLTWH(44, 3, 30, 30));
+      expect(pack, const Rect.fromLTWH(77, 3, 30, 30));
+      semantics.dispose();
+    });
+
+    testWidgets('opens the group while a category is active, over 475 ms '
+        'easing out, and closes it in a pack', (tester) async {
+      withPack();
+      await pump(tester);
+
+      handle.enter('${categories.first}', 1);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        groupWidth(tester),
+        moreOrLessEquals(
+          30 + (openWidth - 30) * Curves.easeOutQuint.transform(100 / 475),
+          epsilon: .5,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(groupWidth(tester), moreOrLessEquals(openWidth));
+
+      handle.enter('pack', 8);
+      await tester.pumpAndSettle();
+      expect(groupWidth(tester), moreOrLessEquals(30));
+    });
+
+    testWidgets('closes the group easing out over 475 ms, as it opens, with '
+        'the pack beside it moving with it', (tester) async {
+      final semantics = tester.ensureSemantics();
+      withPack();
+      await pump(tester);
+      handle.enter('${categories.first}', 1);
+      await tester.pumpAndSettle();
+
+      handle.enter('pack', 8);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final eased = Curves.easeOutQuint.transform(100 / 475);
+      expect(
+        groupWidth(tester),
+        moreOrLessEquals(openWidth + (30 - openWidth) * eased, epsilon: .5),
+      );
+      final group = tester.getRect(find.byKey(EmojiCategoryStrip.groupKey));
+      final pack = tester.getRect(find.bySemanticsLabel('Pack'));
+      expect(pack.left - group.right, moreOrLessEquals(3));
+      semantics.dispose();
+    });
+
+    testWidgets('keeps the pill on the open group, unstretched, as the '
+        'category inside it changes', (tester) async {
+      withPack();
+      await pump(tester);
+      handle.enter('${categories.first}', 1);
+      await tester.pumpAndSettle();
+      final group = tester.getRect(find.byKey(EmojiCategoryStrip.groupKey));
+
+      handle.enter('${categories[2]}', 3);
+      await tester.pump();
+      // Half-way through a slide, where a moving pill is widest.
+      await tester.pump(const Duration(milliseconds: 60));
+
+      final strip = tester.getTopLeft(find.byType(EmojiCategoryStrip));
+      expect(
+        find.byType(EmojiCategoryStrip),
+        paints..rrect(
+          rrect: RRect.fromRectAndRadius(
+            group.shift(-strip),
+            const Radius.circular(15),
+          ),
+        ),
+      );
+    });
+
+    testWidgets('a tap on a pack lands on it and makes it active', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      withPack();
+      await pump(tester);
+
+      await _tapTab(tester, 'Pack');
+
+      expect(handle.jumps, ['pack']);
+      expect(selected(tester, 'Pack'), isTrue);
+      semantics.dispose();
+    });
+
+    testWidgets('a closed group shows its first category, and a tap on it '
+        'lands there and opens the group', (tester) async {
+      final semantics = tester.ensureSemantics();
+      withPack();
+      await pump(tester);
+
+      await _tapTab(tester, 'Smileys & People');
+      await tester.pumpAndSettle();
+
+      expect(handle.jumps, ['${categories.first}']);
+      expect(groupWidth(tester), moreOrLessEquals(openWidth));
+      semantics.dispose();
+    });
+
+    testWidgets('opens at once when animations are disabled', (tester) async {
+      withPack();
+      await pump(tester, disableAnimations: true);
+
+      handle.enter('${categories.first}', 1);
+      await tester.pump();
+      await tester.pump();
+
+      expect(groupWidth(tester), moreOrLessEquals(openWidth));
+    });
+
+    testWidgets('stays the plain row without a pack, or when the host asks '
+        'for it', (tester) async {
+      handle.entries.value = _entries([_recents, ...categories]);
+      await pump(tester);
+      expect(find.byKey(EmojiCategoryStrip.groupKey), findsNothing);
+
+      withPack();
+      await pump(tester, layout: EmojiStripLayout.plain);
+      expect(find.byKey(EmojiCategoryStrip.groupKey), findsNothing);
+    });
+  });
+
   group('pinned at the bottom (the pointer arrangement): the reference '
       'desktop client\'s footer', () {
     final all = [

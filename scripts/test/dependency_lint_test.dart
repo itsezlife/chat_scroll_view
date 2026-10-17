@@ -283,6 +283,61 @@ void main() {
       });
     });
 
+    group('rich_clipboard', () {
+      WorkspaceGraph withHost(
+        Set<String> hostDependencies, {
+        Map<String, Set<String>> others = const {},
+      }) => WorkspaceGraph(
+        root: '.',
+        members: [
+          const WorkspaceMember(
+            name: 'content_model',
+            path: 'packages/content_model',
+          ),
+          const WorkspaceMember(
+            name: 'rich_clipboard',
+            path: 'packages/rich_clipboard',
+            dependencies: {'content_model'},
+          ),
+          for (final MapEntry(:key, :value) in others.entries)
+            WorkspaceMember(
+              name: key,
+              path: 'packages/$key',
+              dependencies: value,
+            ),
+          WorkspaceMember(
+            name: 'chat_scroll_view_example',
+            path: 'example',
+            dependencies: hostDependencies,
+          ),
+        ],
+      );
+
+      test('is wired by the example host', () {
+        expect(
+          DependencyLint.check(withHost({'rich_clipboard', 'content_model'})),
+          isEmpty,
+        );
+      });
+
+      test('is reported in any package, which takes the RichClipboard seam '
+          'instead', () {
+        final violations = DependencyLint.check(
+          withHost(
+            {'rich_clipboard'},
+            others: {
+              'chat_composer': {'content_model', 'rich_clipboard'},
+            },
+          ),
+        );
+
+        expect(violations.map((v) => v.rule), [
+          LintRule.hostAdapterOutsideHost,
+        ]);
+        expect(violations.single.subject, 'chat_composer -> rich_clipboard');
+      });
+    });
+
     test('reports every kind of violation in one pass, in a stable order', () {
       expect(
         rulesOf({

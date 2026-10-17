@@ -310,21 +310,24 @@ void main() {
       expect(menu(recents, arrangement: PanelArrangement.touch), isEmpty);
     });
 
-    test('is for emoji only', () {
-      const sticker = CatalogLeafHit(
+    test('is for a custom emoji of the recents too: they share the list', () {
+      const custom = CatalogLeafHit(
         sectionId: 's',
         index: 0,
-        leaf: CatalogLeaf(key: ContentKey.document('5368')),
+        leaf: CatalogLeaf(
+          key: ContentKey.document('5368'),
+          semanticKind: SemanticKind.customEmoji,
+        ),
       );
 
       expect(
         policy.menuOf(
-          sticker,
+          custom,
           recents,
           _strings,
           arrangement: PanelArrangement.pointer,
         ),
-        isEmpty,
+        hasLength(4),
       );
     });
 
@@ -345,6 +348,40 @@ void main() {
       expect(host.clearRecentsRequests, [SemanticKind.unicodeEmoji]);
     });
 
+    test('asks to copy a custom emoji as what it is, and to remove it from '
+        'the one list', () {
+      const custom = CatalogLeafHit(
+        sectionId: 's',
+        index: 0,
+        leaf: CatalogLeaf(
+          key: ContentKey.document('5368'),
+          semanticKind: SemanticKind.customEmoji,
+        ),
+      );
+
+      policy
+        ..onMenuAction(custom, recents, EmojiPagePolicy.copyItemId, host)
+        ..onMenuAction(
+          custom,
+          recents,
+          EmojiPagePolicy.removeRecentItemId,
+          host,
+        );
+
+      expect(host.copyRequests, [
+        (
+          key: const ContentKey.document('5368'),
+          kind: SemanticKind.customEmoji,
+        ),
+      ]);
+      expect(host.removeRecentRequests, [
+        (
+          key: const ContentKey.document('5368'),
+          kind: SemanticKind.unicodeEmoji,
+        ),
+      ]);
+    });
+
     test('ignores an unknown item and an item of another section', () {
       final hit = _hit('😀');
 
@@ -355,6 +392,38 @@ void main() {
       expect(host.copyRequests, isEmpty);
       expect(host.removeRecentRequests, isEmpty);
       expect(host.clearRecentsRequests, isEmpty);
+    });
+  });
+
+  group('the tooltip under a resting mouse', () {
+    final people = _loaded(const CollectionId.category('people'), ['😀']);
+
+    test('is the code of a unicode emoji', () {
+      final hit = CatalogLeafHit(
+        sectionId: 's',
+        index: 0,
+        leaf: CatalogLeaf.unicode('😀', shortcode: ':grinning:'),
+      );
+
+      expect(policy.tooltipOf(hit, people), ':grinning:');
+    });
+
+    test('is none for an emoji the data gives no code', () {
+      expect(policy.tooltipOf(_hit('😀'), people), isNull);
+    });
+
+    test('is none for a custom emoji, whatever its data says', () {
+      const custom = CatalogLeafHit(
+        sectionId: 's',
+        index: 0,
+        leaf: CatalogLeaf(
+          key: ContentKey.document('5368'),
+          semanticKind: SemanticKind.customEmoji,
+          shortcode: ':party:',
+        ),
+      );
+
+      expect(policy.tooltipOf(custom, people), isNull);
     });
   });
 
@@ -509,6 +578,32 @@ void main() {
             )!
             .source,
         PickSource.search,
+      );
+    });
+
+    test('of a custom emoji say what it is, and are filed in the page\'s one '
+        'recents list', () {
+      const custom = CatalogLeafHit(
+        sectionId: 'pack',
+        index: 0,
+        leaf: CatalogLeaf(
+          key: ContentKey.document('5368'),
+          semanticKind: SemanticKind.customEmoji,
+        ),
+      );
+
+      expect(
+        policy.pickOf(
+          custom,
+          const Collection(id: CollectionId.set('pack')),
+          searching: false,
+        ),
+        const CatalogPick(
+          key: ContentKey.document('5368'),
+          kind: SemanticKind.customEmoji,
+          recentsKind: EmojiPagePolicy.recentsKind,
+          source: PickSource.collection,
+        ),
       );
     });
   });

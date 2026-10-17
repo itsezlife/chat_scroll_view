@@ -28,6 +28,24 @@ is pre-1.0.
 
 ### Fixed
 
+- `AssetCacheScope(systemFonts:)`: glyphs drawn as text lay out again and
+  repaint when the engine's fonts change (`PaintingBinding.systemFonts`). A
+  browser fetches the font that draws an emoji only once it meets one, so a
+  glyph laid out before it arrived kept drawing the missing-glyph box.
+- `TextGlyphProducer(fontsReady:)`: glyphs drawn as text wait, as the
+  scope's placeholder, until the fonts that draw them are there, so a grid
+  shows placeholders, not missing-glyph boxes, while a browser downloads the
+  emoji font.
+
+- A binding whose profile does not animate paints at the playback time of its
+  first paint, so an animated paintable shows one frame there. It painted at
+  the clock's live time, which runs for the scope's other animations, so it
+  stepped in bursts whenever its surface repainted. It also passes
+  `AssetPaintContext.animate`, new and true by default, as false: a paintable
+  that keeps its own playback, shared by every surface of its entry, does not
+  step for such a paint. Sharing an entry with a playing surface, a still one
+  shows the frame that surface is at; `AssetVariant.firstFrame` holds one.
+
 - `ParagraphGlyphRasteriser` draws nothing for a sequence the font cannot
   form into one glyph (its layout wraps onto a second line). A joined emoji a
   font lacks, such as 👁️‍🗨️ on some Android fonts, used to be drawn as its

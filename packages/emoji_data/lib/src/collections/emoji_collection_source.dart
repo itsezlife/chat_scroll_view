@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:content_model/content_model.dart';
+import 'package:emoji_catalog_pack/emoji_catalog_pack.dart';
 import 'package:emoji_data/src/catalog/emoji_catalog.dart';
 import 'package:emoji_data/src/collections/emoji_items.dart';
 import 'package:emoji_data/src/collections/emoji_section.dart';
@@ -22,20 +23,41 @@ import 'package:listen/listen.dart';
 /// each described as a unicode emoji drawn as a glyph. The item is the entry's
 /// base key, or the variant the user chose for it (see [chooseVariant]).
 /// Recents hold what the [RecentsStore] holds for `SemanticKind.unicodeEmoji`,
-/// best first, as it was picked.
+/// best first, as it was picked: the emoji page's one list, so custom emoji
+/// picked on the page are in it too (see *Custom emoji in the recents*).
 ///
 /// ## Loading
 ///
 /// Everything is in memory, but the commands are asynchronous like every
 /// source's: [load] publishes `loading` and publishes `loaded` after a
-/// microtask (and, with spoken names, after the packs are read), never in the
-/// same call. A loaded collection stays current: the
+/// microtask (and, with spoken names or shortcodes, after they are read),
+/// never in the same call. A loaded collection stays current: the
 /// recents follow their store, and a category follows the variant choices
 /// and the [GlyphSupport], each change one publication for all collections it
 /// touches. [pageSize] splits a category into pages (default: one page); the
 /// pages already loaded stay loaded when emoji are hidden or shown.
 ///
 /// Nothing fails, so no collection ever reaches `failed`.
+///
+/// ## Custom emoji in the recents
+///
+/// The recents list holds every emoji picked on the emoji page, custom emoji
+/// (document keys) among the unicode ones, as the reference clients keep one
+/// list. The catalogue describes only unicode keys; the others are described
+/// by the host's [ContentResolver], asked in one batch for the keys it has
+/// not answered yet whenever the recents are derived:
+///
+/// - until the resolver answers, a key is listed bare, in its place;
+/// - a key it resolves is listed with its descriptor from then on;
+/// - a key it leaves out (unknown or deleted content) leaves the list, so the
+///   page never draws a stand-in for content that will not come, and is not
+///   asked about again for the life of the source: the resolver contract
+///   says a key left out was attempted and is unknown;
+/// - a batch that fails (no connection) is the state "not described yet", not
+///   an error: its keys stay bare and are asked again the next time the
+///   recents change.
+///
+/// Without a resolver every key outside the catalogue is listed bare.
 ///
 /// ## Glyph support
 ///
@@ -53,6 +75,16 @@ import 'package:listen/listen.dart';
 /// cannot be read is reported to the zone and leaves the items unnamed; it
 /// never fails a collection. Without a keyword source the items have no
 /// spoken name.
+///
+/// ## Shortcodes
+///
+/// Given `shortcodes` (in a host, `EmojiCatalogLoader.shortcodes`), each item
+/// carries the code of its emoji (`:grinning:`) as its `shortcode`; a tone
+/// variant carries its entry's, a gender form its own. The codes are the same
+/// in every language, so they are read once, alongside the packs, before the
+/// first collection is published as loaded. Shortcodes that cannot be read
+/// are reported to the zone and leave the items without codes; they never
+/// fail a collection.
 final class EmojiCollectionSource implements CollectionSource {
   /// Creates the source over [catalog].
   ///
@@ -63,6 +95,8 @@ final class EmojiCollectionSource implements CollectionSource {
     required PreferenceStore preferences,
     GlyphSupport? glyphSupport,
     KeywordSource? keywords,
+    Future<EmojiShortcodes> Function()? shortcodes,
+    ContentResolver? resolver,
     List<String> languages = const [],
     int? pageSize,
     List<EmojiSection> sections = EmojiSection.reference,
@@ -80,6 +114,8 @@ final class EmojiCollectionSource implements CollectionSource {
        ),
        _glyphSupport = glyphSupport,
        _keywords = keywords,
+       _shortcodes = shortcodes,
+       _resolver = resolver,
        _languages = List<String>.unmodifiable(languages),
        _pageSize = pageSize,
        _sections = _withUnnamedGroups(catalog, sections) {
@@ -96,6 +132,8 @@ final class EmojiCollectionSource implements CollectionSource {
   final GlyphSupport? _glyphSupport;
   final EmojiItems _items;
   final KeywordSource? _keywords;
+  final Future<EmojiShortcodes> Function()? _shortcodes;
+  final ContentResolver? _resolver;
   final List<String> _languages;
   final int? _pageSize;
   final List<EmojiSection> _sections;
@@ -104,12 +142,17 @@ final class EmojiCollectionSource implements CollectionSource {
     for (final section in _sections) CollectionId.category(section.id),
   ];
   Future<void>? _namesRead;
+  Future<void>? _shortcodesRead;
 
   late final ValueNotifier<List<Collection>> _collections;
   final Map<CollectionId, CollectionContents> _states = {};
   final Map<CollectionId, int> _pages = {};
   final Map<CollectionId, Future<void>> _loading = {};
   final Set<CollectionId> _loadingMore = {};
+  // What the resolver said about recents outside the catalogue: a descriptor,
+  // or null for content it does not know.
+  final Map<ContentKey, ContentDescriptor?> _resolved = {};
+  final Set<ContentKey> _resolving = {};
   bool _disposed = false;
 
   @override
@@ -157,10 +200,14 @@ final class EmojiCollectionSource implements CollectionSource {
 
   Future<void> _finishLoad(CollectionId id) async {
     await Future<void>.value();
-    await (_namesRead ??= _readNames());
+    await Future.wait([
+      _namesRead ??= _readNames(),
+      _shortcodesRead ??= _readShortcodes(),
+    ]);
     _loading.removeWhere((loadingId, _) => loadingId == id);
     if (_disposed) return;
     _pages[id] = 1;
+    if (id == CollectionId.recent) _describeRecents();
     _states[id] = _contentsOf(id);
     _publish();
   }
@@ -210,6 +257,20 @@ final class EmojiCollectionSource implements CollectionSource {
     }
   }
 
+  // The shortcodes, read once: no language change or new pack moves them.
+  // Ones that cannot be read are reported and cost only the codes.
+  Future<void> _readShortcodes() async {
+    final read = _shortcodes;
+    if (read == null) return;
+    try {
+      final table = await read();
+      if (_disposed) return;
+      _items.shortcodes = table;
+    } on Object catch (error, stackTrace) {
+      Zone.current.handleUncaughtError(error, stackTrace);
+    }
+  }
+
   // A pack was added or replaced: read the names again, and re-derive what is
   // loaded once they are in.
   void _onKeywords() {
@@ -225,6 +286,9 @@ final class EmojiCollectionSource implements CollectionSource {
   // it differs.
   void _refresh() {
     if (_disposed) return;
+    if (_states[CollectionId.recent] case CollectionContents$Loaded()) {
+      _describeRecents();
+    }
     for (final id in _states.keys.toList()) {
       if (_states[id] case CollectionContents$Loaded()) {
         _states[id] = _contentsOf(id);
@@ -237,7 +301,7 @@ final class EmojiCollectionSource implements CollectionSource {
     if (id == CollectionId.recent) {
       return CollectionContents.loaded([
         for (final key in _recents.recents(SemanticKind.unicodeEmoji))
-          ?_items.itemForKey(key),
+          ?_recentItemOf(key),
       ]);
     }
     final section = _sections.firstWhere(
@@ -255,6 +319,53 @@ final class EmojiCollectionSource implements CollectionSource {
     return CollectionContents.loaded(
       visible.sublist(0, shown),
       nextPageToken: shown < visible.length ? PageToken('$shown') : null,
+    );
+  }
+
+  CollectionItem? _recentItemOf(ContentKey key) {
+    if (key case ContentKey$Unicode()) return _items.itemForKey(key);
+    if (!_resolved.containsKey(key)) return CollectionItem.bare(key);
+    return switch (_resolved[key]) {
+      final descriptor? => CollectionItem.described(descriptor),
+      null => null,
+    };
+  }
+
+  // Asks the resolver, in one batch, about the recents outside the catalogue
+  // it has not answered and is not answering now. A step of its own, taken
+  // before the recents are derived, so that deriving ([_contentsOf]) only
+  // reads: its answer lands later and derives them again.
+  void _describeRecents() =>
+      _resolveUnknown(_recents.recents(SemanticKind.unicodeEmoji));
+
+  void _resolveUnknown(List<ContentKey> keys) {
+    final resolver = _resolver;
+    if (resolver == null) return;
+    final unknown = [
+      for (final key in keys)
+        if (key is! ContentKey$Unicode &&
+            !_resolved.containsKey(key) &&
+            !_resolving.contains(key))
+          key,
+    ];
+    if (unknown.isEmpty) return;
+    _resolving.addAll(unknown);
+    // Through Future.sync: a resolver that throws instead of failing its
+    // future is a failed batch too, not an error out of deriving the recents.
+    unawaited(
+      Future.sync(() => resolver.resolve(unknown)).then(
+        (found) {
+          _resolving.removeAll(unknown);
+          for (final key in unknown) {
+            _resolved[key] = found[key];
+          }
+          _refresh();
+        },
+        // Not described yet: the keys stay bare and are asked again at the
+        // next change (see the class documentation). Reporting it would
+        // report every recents change made offline.
+        onError: (Object _) => _resolving.removeAll(unknown),
+      ),
     );
   }
 

@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/emoji/emoji_categories.dart';
 import 'package:panel_pages/src/emoji/emoji_strip_footer.dart';
+import 'package:panel_pages/src/emoji/emoji_strip_tabs.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -34,8 +35,11 @@ import 'package:panel_shell/panel_shell.dart';
 /// ## Arrangements
 ///
 /// Under the touch arrangement the strip is a row of round tabs above the
-/// catalogue, scrolling sideways when they do not fit; packs have no tab
-/// there. Under the pointer arrangement it is pinned below the catalogue as
+/// catalogue, scrolling sideways when they do not fit. Laid out grouped (see
+/// [EmojiStripLayout]) it is the reference mobile client's strip with packs
+/// ([EmojiStripTabs]): the recents, the categories folded into one tab that
+/// opens while one of them is active, then a tab per pack drawn by its cover,
+/// or its first item, from [assets]. Under the pointer arrangement it is pinned below the catalogue as
 /// the reference desktop client's footer ([EmojiStripFooter]): the recents,
 /// the categories folded into one icon that opens into theirs while one of
 /// them is active, then a slot per pack (a section of a `CollectionId.set`,
@@ -60,7 +64,7 @@ class EmojiCategoryStrip extends StatefulWidget {
   /// Where the covers of packs are drawn from, or null to draw none.
   final AssetCacheScope? assets;
 
-  /// How the strip lays its icons out under the pointer arrangement.
+  /// How the strip lays its icons out.
   final EmojiStripLayout layout;
 
   /// Height of the strip.
@@ -81,6 +85,11 @@ class EmojiCategoryStrip extends StatefulWidget {
   /// Identifies the marker of the active icon under the pointer arrangement.
   @visibleForTesting
   static const Key highlightKey = EmojiStripFooter.markerKey;
+
+  /// Identifies the group of the categories under the touch arrangement, laid
+  /// out grouped.
+  @visibleForTesting
+  static const Key groupKey = EmojiStripTabs.groupKey;
 
   @override
   State<EmojiCategoryStrip> createState() => _EmojiCategoryStripState();
@@ -229,6 +238,10 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
       if (_tabs.length < 2) return const SizedBox.shrink();
       return _buildPinned(strings);
     }
+    if (_grouped) {
+      if (_tabs.length < 2) return const SizedBox.shrink();
+      return _buildGroupedTouch(strings);
+    }
     final tabs = _categoryTabs;
     if (tabs.length < 2) return const SizedBox.shrink();
     final panel = ChromeThemeScope.panelOf(context);
@@ -276,22 +289,75 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
         null => strings.panel.recentlyUsedTitle,
       };
 
+  // Grouped under the layout's rule: plain with no pack, grouped with any,
+  // unless the host fixed one.
+  bool get _grouped => switch (widget.layout) {
+    EmojiStripLayout.plain => false,
+    EmojiStripLayout.grouped => true,
+    EmojiStripLayout.automatic => _tabs.any((tab) => tab.pack != null),
+  };
+
+  EmojiFooterIcon _iconOf(_StripTab tab, ChromeStrings strings) =>
+      switch (tab) {
+        _StripTab(tab: final category?) => EmojiFooterIcon(
+          id: tab.id,
+          label: _labelOf(category, strings),
+          icon: category.icon,
+        ),
+        _StripTab(:final pack?) => EmojiFooterIcon(
+          id: tab.id,
+          label: pack.metadata.title ?? '',
+          cover: pack.metadata.cover ?? _firstItemOf(pack),
+        ),
+        _ => EmojiFooterIcon(id: tab.id, label: ''),
+      };
+
+  void _choose(String id) {
+    for (final tab in _tabs) {
+      if (tab.id == id) unawaited(_onTap(tab));
+    }
+  }
+
+  // The strip under the touch arrangement with packs: the reference mobile
+  // client's.
+  Widget _buildGroupedTouch(ChromeStrings strings) => Semantics(
+    container: true,
+    label: strings.semantics.categoryStripLabel,
+    // The shell's background: see-through on glass.
+    child: ColoredBox(
+      color: PanelBackgroundScope.of(context),
+      child: SizedBox(
+        height: EmojiCategoryStrip.height,
+        width: double.infinity,
+        child: EmojiStripTabs(
+          recents: switch (_tabs.where((tab) => tab.tab?.recents ?? false)) {
+            final recents when recents.isNotEmpty => _iconOf(
+              recents.first,
+              strings,
+            ),
+            _ => null,
+          },
+          categories: [
+            for (final tab in _tabs)
+              if (tab.tab case final category? when !category.recents)
+                _iconOf(tab, strings),
+          ],
+          packs: [
+            for (final tab in _tabs)
+              if (tab.pack != null) _iconOf(tab, strings),
+          ],
+          active: _active,
+          assets: widget.assets,
+          onChoose: _choose,
+        ),
+      ),
+    ),
+  );
+
   // The strip under the pointer arrangement: the reference desktop client's
   // footer.
   Widget _buildPinned(ChromeStrings strings) {
-    EmojiFooterIcon iconOf(_StripTab tab) => switch (tab) {
-      _StripTab(tab: final category?) => EmojiFooterIcon(
-        id: tab.id,
-        label: _labelOf(category, strings),
-        icon: category.icon,
-      ),
-      _StripTab(:final pack?) => EmojiFooterIcon(
-        id: tab.id,
-        label: pack.metadata.title ?? '',
-        cover: pack.metadata.cover ?? _firstItemOf(pack),
-      ),
-      _ => EmojiFooterIcon(id: tab.id, label: ''),
-    };
+    EmojiFooterIcon iconOf(_StripTab tab) => _iconOf(tab, strings);
     return Semantics(
       container: true,
       label: strings.semantics.categoryStripLabel,
@@ -312,11 +378,7 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
         active: _active,
         assets: widget.assets,
         layout: widget.layout,
-        onChoose: (id) {
-          for (final tab in _tabs) {
-            if (tab.id == id) unawaited(_onTap(tab));
-          }
-        },
+        onChoose: _choose,
       ),
     );
   }
@@ -327,21 +389,24 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
   };
 }
 
-/// How the emoji strip lays its icons out under the pointer arrangement.
+/// How the emoji strip lays its icons out, under either arrangement.
 ///
 /// Grouped as soon as there is a pack of custom emoji, as the reference
-/// desktop client groups; plain otherwise. [automatic] does that; a host can
-/// fix either.
+/// clients group; plain otherwise. [automatic] does that; a host can fix
+/// either. Under the touch arrangement plain is the row of category tabs and
+/// grouped is [EmojiStripTabs].
 enum EmojiStripLayout {
   /// Plain with no pack, grouped with any: the reference client's rule.
   automatic,
 
-  /// Every icon in a 30 px slot of its own, as the grouped layout lays them,
-  /// with nothing folded (scrolling when they overflow).
+  /// Under the pointer, every icon in a 30 px slot of its own, as the
+  /// grouped layout lays them, with nothing folded (scrolling when they
+  /// overflow); under touch, the row of category tabs, with no pack tab.
   plain,
 
-  /// 30 px slots: the recents, the categories folded into one icon that opens
-  /// while one of them is active, then the packs.
+  /// Under the pointer, 30 px slots: the recents, the categories folded into
+  /// one icon that opens while one of them is active, then the packs; under
+  /// touch, [EmojiStripTabs].
   grouped,
 }
 

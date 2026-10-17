@@ -9,17 +9,26 @@ portable libs under `packages/`. Example app is `example/` only.
 ## Commands
 
 ```shell
-# Every gate CI runs: workspace lints, then analyze + tests per package in
-# dependency order (resolves the workspace first)
+# Every gate CI runs: workspace lints, then analyze + tests per package,
+# packages side by side, reported in dependency order (resolves the workspace
+# first). --jobs N caps how many packages run at once.
 scripts/check
 
-# Root package (viewport) — message + text selection live here
-flutter test
+# One package's whole suite: its single test entrypoint (dart test for the
+# pure-Dart packages)
+flutter test test/unit_test.dart
 dart analyze --fatal-infos
 ```
 
 Prefer package-local tests for the package you changed. Full-repo suites are
 for integration claims, not every edit.
+
+Each package's `test/unit_test.dart` imports every `*_test.dart` and runs each
+`main` in a group of its own, in one process; `scripts/check` runs only that
+file. A new test file is imported and grouped there (`TestEntrypointLint` fails
+otherwise). The files share the process, so a test restores any global state
+it changes, and a golden test pins `goldenFileComparator` to its own file.
+Details: [scripts/README.md](scripts/README.md).
 
 The repo is one **pub workspace** (one `pubspec.lock`, at the root); package-local
 `flutter test` / `dart analyze` still work. Append a new package to the root
@@ -37,6 +46,7 @@ Lint rules, the fake / adapter naming conventions they read, the per-package
 | `packages/content_model`                 | Pure-Dart leaf: content key / descriptor / collection, data seams, fakes + contracts; change signals are `package:listen` (see [ADR 023](docs/adr/023-data-layering-and-persistence.md)) | content identity, sources, stores, rich text                    |
 | `packages/chrome_foundation`             | Leaf: palette, token groups, theme scope, motion, strings, icons, glass   | theme, glass, motion, strings                                                    |
 | `packages/catalog_assets`                | Asset cache, media pipeline seams, baked glyph atlas                      | paintables, readiness, budgets, atlas / bake                                     |
+| `packages/image_decoder`                 | Decoder adapter: engine image codecs, stills and animated WebP / GIF      | decoding fetched images, frame-sequence playback                                 |
 | `packages/panel_catalog`                 | Panel catalog viewport                                                    | emoji/sticker/GIF grid, section layout, leaf hit, snapshot                       |
 | `packages/emoji_data` / `emoji_catalog_pack` | Emoji logic and glyph probe / generated catalog and keyword packs     | emoji search, variants, probe, generator                                         |
 | `packages/kv_shared_preferences`         | `shared_preferences`-backed `KeyValueStore`                               | persistence adapter only                                                         |

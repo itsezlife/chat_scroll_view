@@ -39,6 +39,26 @@ void main() {
       );
     });
 
+    test('in a browser, paste as plain text is the browser\'s', () {
+      const pastePlain = SingleActivator(
+        LogicalKeyboardKey.keyV,
+        control: true,
+        shift: true,
+      );
+
+      expect(
+        const ComposerShortcutPolicy.desktop().shortcuts[pastePlain],
+        isA<PastePlainTextIntent>(),
+      );
+      expect(
+        ComposerShortcutPolicy.forPlatform(
+          TargetPlatform.windows,
+          isWeb: true,
+        ).shortcuts.containsKey(pastePlain),
+        isFalse,
+      );
+    });
+
     test('only the desktop policy binds Enter', () {
       const enter = SingleActivator(LogicalKeyboardKey.enter);
 

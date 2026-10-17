@@ -27,6 +27,15 @@ void main() {
       );
     });
 
+    test('a tooltip is muted text on the raised fill, edged by the '
+        'separator', () {
+      const palette = ChromePalette.light();
+      final tokens = PanelTokens.fromPalette(palette);
+      expect(tokens.tooltipFill, palette.surfaceRaised);
+      expect(tokens.tooltipText, palette.onSurfaceMuted);
+      expect(tokens.tooltipBorder, palette.separator);
+    });
+
     test(
       'selected category icon follows iconActive, idle follows iconIdle',
       () {

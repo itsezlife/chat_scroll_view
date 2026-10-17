@@ -43,8 +43,15 @@ final class FakePanelPageHost with ChangeNotifier implements PanelPageHost {
   final FakePageControllerRegistry controllers = FakePageControllerRegistry();
 
   /// Every pick the page reported, in order.
-  final List<({ContentKey key, SemanticKind kind, PickSource source})> picks =
-      [];
+  final List<
+    ({
+      ContentKey key,
+      SemanticKind kind,
+      SemanticKind recentsKind,
+      PickSource source,
+    })
+  >
+  picks = [];
 
   /// Every clear-recents request, in order.
   final List<SemanticKind> clearRecentsRequests = [];
@@ -113,8 +120,14 @@ final class FakePanelPageHost with ChangeNotifier implements PanelPageHost {
   void pick(
     ContentKey key, {
     required SemanticKind kind,
+    SemanticKind? recentsKind,
     PickSource source = PickSource.collection,
-  }) => picks.add((key: key, kind: kind, source: source));
+  }) => picks.add((
+    key: key,
+    kind: kind,
+    recentsKind: recentsKind ?? kind,
+    source: source,
+  ));
 
   @override
   void requestClearRecents(SemanticKind kind) => clearRecentsRequests.add(kind);

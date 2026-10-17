@@ -10,6 +10,7 @@ of this repository.
 **Status**: Accepted  
 **Date**: 2026-10-16  
 **Amended**: 2026-10-16 — change notification is [`package:listen`](https://pub.dev/packages/listen), see [Amendment](#amendment-change-notification-is-packagelisten)  
+**Amended**: 2026-10-17 — a recents list belongs to the page that files into it, see [Amendment](#amendment-one-recents-list-per-page)  
 **Relates to**: [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 022](022-asset-cache-and-media-pipeline.md)
 
 ## Decided
@@ -19,7 +20,7 @@ of this repository.
 | Sourcing | A pinned, reproducible generator in the repo: Unicode `emoji-test.txt` (structure, order, groups, variants) plus CLDR annotations (keywords and spoken names per locale). Inputs are pinned by version and the Unicode-3.0 licence notices are kept. The copied picker tables and the Dart `const` locale files are deleted. |
 | Shipping | One locale-independent **catalog structure** asset and one **keyword pack** asset per locale (JSON or TSV), loaded lazily, about 26 to 41 KB gzip per locale. Assets and generator live in `emoji_catalog_pack`. |
 | Keyword seam | `KeywordSource`: bundled packs are the offline baseline; a host may supply server packs (per language, versioned). |
-| Seams | In `content_model`: `CollectionSource` (ordered collections, per-collection contents with state and paging), `SearchSource` (query to a paged results collection), `RecentsStore`, `PreferenceStore`, `KeywordSource`, `GlyphSupport`, `KeyValueStore`, `ContentResolver`. No facade interface. Pages compose only what they need (emoji page: all; GIF page: collection, search and recents). |
+| Seams | In `content_model`: `CollectionSource` (ordered collections, per-collection contents with state and paging), `SearchSource` (query to a paged results collection), `RecentsStore`, `PreferenceStore`, `KeywordSource`, `GlyphSupport`, `KeyValueStore`, `ContentResolver`, and `RichClipboard` ([ADR 032](032-rich-clipboard.md)). No facade interface. Pages compose only what they need (emoji page: all; GIF page: collection, search and recents). |
 | Reactivity | `package:listen`'s `Listenable` and `ValueListenable` on the read side, `ChangeNotifier` and `ValueNotifier` on the owner side; synchronous, snapshot dispatch, one notification per assigned value. The repository owns no notification type (see the [Amendment](#amendment-change-notification-is-packagelisten) for the contract differences). Flutter's widgets read it through one small builder per package that needs one. |
 | Glyph support | `GlyphSupport` seam with one cross-platform pure-Dart rasterise-and-compare probe in `emoji_data`. No native directory and no method channel anywhere. The system emoji art version signal that invalidates the probe result and the baked atlas cache key is a pixel fingerprint of a few sentinel glyphs rendered once per launch and compared with the stored value. An operating-system version string is at most a supplementary signal. The signal is produced once and shared by every consumer. The probe is paced like the bake: a few glyphs per frame under a frame-time governor, paused during the panel open animation and scrolling, and sharing the bake's rasterisation pass where one exists. Validation on Android, Windows and Linux is an acceptance criterion; the fallback is a thin Android-only native adapter behind the same seam, supplying glyph support and never the version signal. Without an adapter, everything shows. |
 | Persistence | Logic packages depend only on `KeyValueStore`: async get, set and remove, namespaced keys, versioned values. The `shared_preferences` adapter lives in `kv_shared_preferences`; the in-memory fake lives in `content_model`. Async factories return loaded stores, so there is no unloaded state and no silent drop before load. One namespace per package, structured versioned records, no legacy dual-read. |
@@ -135,3 +136,31 @@ emoji sources show, for an emoji with no choice of its own, its variant whose
 people all have the default's tone, else its base; recents are untouched. The
 key-value store persists it as `"defaultVariant": [tone names]` (empty for
 the emoji as it is).
+
+## Amendment: one recents list per page
+
+The kind a pick is recorded under names a **recents list**, and the list
+belongs to the page that files into it, not to the semantic kind of each key
+in it. The store is unchanged: still one list per `SemanticKind` value, ranked
+by frequency, then recency.
+
+| Area | Decision |
+| ---- | -------- |
+| Emoji page | Files every pick under `SemanticKind.unicodeEmoji` (`EmojiPagePolicy.recentsKind`): unicode emoji and custom emoji (document keys) in one list, as both reference clients keep one list for the emoji tab. Remove, clear and the recents menu act on that list whatever the key. |
+| Content kind | Stays in the descriptor. A consumer that needs to know what a recent is reads its key or descriptor, never the list's kind; the host inserts and copies by key. |
+| Describing | `EmojiCollectionSource` describes the keys outside its catalogue through an optional host `ContentResolver`, batched, once per key. A key is bare until answered, described once resolved, and leaves the list when the resolver does not know it; a failed batch keeps the keys bare and is asked again at the next change. |
+
+### Why
+
+- Telegram Android keeps one `recentEmoji` list of unicode and custom emoji
+  ids; Telegram-iOS one ordered list for the emoji tab. A list per content
+  kind would split what the user sees as one row, and merging two lists has
+  no shared order: each ranks only against itself.
+
+### Rejected
+
+| Alternative | Why not |
+| ----------- | ------- |
+| A store query that ranks several kinds together | A seam change across every store and fake for the same result; the kind would still have to say which lists a page merges |
+| Custom emoji recents under `customEmoji`, shown after the unicode ones | Two blocks in one row, in no order the user made |
+

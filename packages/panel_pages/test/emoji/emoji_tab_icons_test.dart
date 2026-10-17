@@ -22,6 +22,10 @@ void main() {
 
   late ChromeIconRegistry seen;
 
+  // The art cache lives for the process, and other files' widget tests may
+  // have left decodes in it that never complete.
+  setUpAll(EmojiTabIcons.clearCache);
+
   Widget probe() => Builder(
     builder: (context) {
       seen = ChromeIconScope.of(context);

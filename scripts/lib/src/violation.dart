@@ -32,6 +32,13 @@ enum LintRule {
     'packages depend on KeyValueStore and one adapter owns the plugin.',
   ),
 
+  /// A package depends on an adapter that only a host wires.
+  hostAdapterOutsideHost(
+    'rich_clipboard holds platform code and is wired by the host: packages '
+    'take the RichClipboard seam from content_model instead, so no package '
+    'but the host reaches a platform channel (ADR 031, ADR 032).',
+  ),
+
   /// A library re-exports another workspace package.
   crossPackageReexport(
     'No package re-exports another workspace package; hosts import what they '
@@ -57,6 +64,14 @@ enum LintRule {
     'because it runs without an engine and takes bytes and strings from the '
     'host), so they must not depend on the Flutter SDK or import '
     'package:flutter, a Flutter library or dart:ui.',
+  ),
+
+  /// A test file the member's test entrypoint does not run.
+  testOutsideEntrypoint(
+    'scripts/check runs each member\'s tests through test/unit_test.dart '
+    '(one process per member), so every *_test.dart under test/ is imported '
+    'there and its main called in a group of its own; one left out never '
+    'runs in CI.',
   ),
 
   /// A [LegacyException] no longer matches any violation.

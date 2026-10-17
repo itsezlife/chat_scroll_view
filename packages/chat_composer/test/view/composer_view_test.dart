@@ -31,8 +31,14 @@ void main() {
   setUp(() => controller = ComposerController());
   tearDown(() => controller.dispose());
 
+  // Focus is the test's to give: autofocus has a group of its own.
   Widget view(ComposerSpec spec, {ComposerPanelResolver? resolver}) =>
-      ComposerView(controller: controller, spec: spec, panelResolver: resolver);
+      ComposerView(
+        controller: controller,
+        spec: spec,
+        panelResolver: resolver,
+        autofocus: false,
+      );
 
   Future<void> show(
     WidgetTester tester,
@@ -271,6 +277,106 @@ void main() {
       final grown = tester.getSize(find.byType(GlassSurface)).height;
       expect(grown, greaterThan(mid));
       expect(controller.fieldHeight.value, greaterThan(idle - 1));
+    });
+  });
+
+  group('autofocus', () {
+    Future<void> showFocusing(WidgetTester tester, {bool autofocus = true}) =>
+        tester.pumpWidget(
+          composerHarness(
+            ComposerView(
+              controller: controller,
+              spec: ComposerSpec(),
+              autofocus: autofocus,
+            ),
+          ),
+        );
+
+    testWidgets(
+      'by default the field takes focus when the view mounts, with the '
+      'keyboard on a desktop',
+      (tester) async {
+        await showFocusing(tester);
+        await tester.pump();
+
+        expect(controller.hasFocus, isTrue);
+        expect(_attachedType(tester), startsWith('TextInputType.multiline'));
+      },
+      variant: TargetPlatformVariant.desktop(),
+    );
+
+    testWidgets(
+      'on a touch platform the field takes focus with the keyboard down, '
+      'and a tap on it raises the keyboard',
+      (tester) async {
+        await showFocusing(tester);
+        await tester.pump();
+
+        expect(controller.hasFocus, isTrue);
+        expect(_attachedType(tester), 'TextInputType.none');
+
+        await tester.tap(find.byType(TextField));
+        for (var i = 0; i < 4; i++) {
+          await tester.pump();
+        }
+
+        expect(controller.hasFocus, isTrue);
+        expect(_attachedType(tester), startsWith('TextInputType.multiline'));
+        expect(tester.testTextInput.isVisible, isTrue);
+      },
+      variant: TargetPlatformVariant.mobile(),
+    );
+
+    testWidgets(
+      'on a touch platform a keyboard the host asks for comes up',
+      (tester) async {
+        await showFocusing(tester);
+        await tester.pump();
+
+        controller.requestKeyboard();
+        for (var i = 0; i < 4; i++) {
+          await tester.pump();
+        }
+
+        expect(_attachedType(tester), startsWith('TextInputType.multiline'));
+        expect(tester.testTextInput.isVisible, isTrue);
+      },
+      variant: TargetPlatformVariant.mobile(),
+    );
+
+    testWidgets(
+      'turned off, the field waits to be focused',
+      (tester) async {
+        await showFocusing(tester, autofocus: false);
+        await tester.pump();
+
+        expect(controller.hasFocus, isFalse);
+      },
+      variant: TargetPlatformVariant.all(),
+    );
+
+    testWidgets('a field that comes back with the text panel does not take '
+        'focus again', (tester) async {
+      Widget view(ComposerSpec spec) => composerHarness(
+        ComposerView(
+          controller: controller,
+          spec: spec,
+          autofocus: true,
+          panelResolver: (context, panel) =>
+              const SizedBox(height: 44, child: Text('Join to write')),
+        ),
+      );
+      await tester.pumpWidget(view(ComposerSpec()));
+      await tester.pump();
+      controller.focusNode.unfocus();
+      await tester.pumpWidget(view(ComposerSpec(panel: _restricted)));
+      await tester.pump();
+
+      await tester.pumpWidget(view(ComposerSpec()));
+      await tester.pump();
+
+      expect(find.byType(TextField), findsOneWidget);
+      expect(controller.hasFocus, isFalse);
     });
   });
 

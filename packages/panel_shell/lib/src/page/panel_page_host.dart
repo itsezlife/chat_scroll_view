@@ -50,11 +50,13 @@ abstract interface class PanelPageHost {
   /// The pause signal of work that would drop frames during the motion.
   ValueListenable<bool> get panelOpening;
 
-  /// Reports that the user picked [key] of [kind]; the shell publishes
+  /// Reports that the user picked [key], content of [kind], to be filed under
+  /// the recents of [recentsKind] ([kind] when omitted); the shell publishes
   /// [ContentPicked] with [source].
   void pick(
     ContentKey key, {
     required SemanticKind kind,
+    SemanticKind? recentsKind,
     PickSource source = PickSource.collection,
   });
 

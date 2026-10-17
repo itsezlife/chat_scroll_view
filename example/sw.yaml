@@ -1,0 +1,13 @@
+# `dart pub global run sw:generate` (package `sw`, pinned in tool/build_web.sh):
+# the service worker and the bootstrap that replace Flutter's own.
+input: build/web
+output: sw.js
+bootstrap-output: bootstrap.js
+prefix: chat-scroll-view
+# What the worker precaches and serves: the app and its assets.
+glob: "*.{html,js,mjs,wasm,json}; assets/**; canvaskit/**; icons/**; vendor/**; favicon.*"
+no-glob: "sw.js; bootstrap.js; version.json; **/*.map; **/*.symbols; assets/NOTICES"
+title: Chat Scroll View
+logo: icons/Icon-192.png
+theme: dark
+color: "#54a1db"

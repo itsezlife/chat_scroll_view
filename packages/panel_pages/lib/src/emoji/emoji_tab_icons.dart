@@ -45,6 +45,15 @@ abstract final class EmojiTabIcons {
   static Future<ui.Image> imageFor(String key) =>
       _cache.putIfAbsent(key, () => _fromBundle(key));
 
+  /// Forgets every decoded image, so the next [imageFor] reads the bundle
+  /// again.
+  ///
+  /// For tests that share a process: a widget test that opened a scope under
+  /// fake async leaves a decode that never completes in the cache, which a
+  /// later test awaiting [imageFor] would wait on for good.
+  @visibleForTesting
+  static void clearCache() => _cache.clear();
+
   static Future<ui.Image> _fromBundle(String key) async {
     try {
       return await _decode(rootBundle.load(key));

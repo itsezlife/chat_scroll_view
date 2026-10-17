@@ -121,6 +121,51 @@ void main() {
       expect(paintable.paints.single.context.time, _ms(48));
     });
 
+    test('a profile that does not animate paints at one time, however the '
+        'clock moves, so it shows one frame', () {
+      // Something else keeps the clock running.
+      animated(key: const ContentKey.document('playing'));
+      final still = animated(profile: const AssetProfile());
+      final paintable = still.paintable as FakeAssetPaintable;
+      void paint() {
+        final recorder = PictureRecorder();
+        still.paint(Canvas(recorder), const Rect.fromLTWH(0, 0, 8, 8));
+        recorder.endRecording().dispose();
+      }
+
+      ticks.tick(_ms(16));
+      paint();
+      ticks.tick(_ms(480));
+      paint();
+
+      expect(paintable.paints, hasLength(2));
+      expect(
+        paintable.paints.last.context.time,
+        paintable.paints.first.context.time,
+      );
+    });
+
+    test('a still surface and a playing one of the same entry say which '
+        'they are when they paint', () {
+      final playing = animated();
+      final still = scope.attach(_key, _large, const AssetProfile());
+      final paintable = playing.paintable as FakeAssetPaintable;
+      void paint(AssetBinding binding) {
+        final recorder = PictureRecorder();
+        binding.paint(Canvas(recorder), const Rect.fromLTWH(0, 0, 8, 8));
+        recorder.endRecording().dispose();
+      }
+
+      expect(still.paintable, same(paintable));
+      paint(playing);
+      paint(still);
+
+      expect([for (final paint in paintable.paints) paint.context.animate], [
+        true,
+        false,
+      ]);
+    });
+
     test('a small asset advances at 30 fps and a large one at 60', () {
       final small = animated(
         spec: _small,

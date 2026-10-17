@@ -92,6 +92,18 @@ void main() {
         ),
         reason: 'spoken name',
       );
+      expect(
+        base,
+        isNot(
+          const CatalogLeaf(
+            key: ContentKey.document('7'),
+            semanticKind: SemanticKind.sticker,
+            mediaForm: MediaForm.still,
+            shortcode: ':thumbsup:',
+          ),
+        ),
+        reason: 'shortcode',
+      );
     });
 
     test('the host tag is excluded from equality', () {
@@ -137,6 +149,7 @@ void main() {
         tintable: true,
         size: ContentSize(100, 100),
         spokenName: 'wave',
+        shortcode: ':wave:',
       );
 
       final leaf = CatalogLeaf.fromDescriptor(descriptor, tag: 'x');
@@ -148,6 +161,7 @@ void main() {
       expect(leaf.tintable, isTrue);
       expect(leaf.sizeHint, const ContentSize(100, 100));
       expect(leaf.spokenName, 'wave');
+      expect(leaf.shortcode, ':wave:');
       expect(leaf.tag, 'x');
     });
   });

@@ -3,16 +3,20 @@ import 'dart:async';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_probe.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_center_band_store.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/joined_collection_source.dart';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:image_decoder/image_decoder.dart';
 import 'package:kv_shared_preferences/kv_shared_preferences.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_presentation/panel_presentation.dart';
+import 'package:rich_clipboard/rich_clipboard.dart';
 
 /// The app's long-lived services: the composition root of the reference host.
 ///
@@ -26,13 +30,17 @@ import 'package:panel_presentation/panel_presentation.dart';
 /// 1. the [KeyValueStore] adapter (`kv_shared_preferences`);
 /// 2. the stores, which arrive loaded: [recents], [preferences],
 ///    [keyboardHeights], [dockWidths] and [centerBands];
-/// 3. the asset cache [assets] with its pause layer and memory pressure
-///    (this host has no fetcher or decoder: its content is emoji glyphs, so
-///    the cache has no producer behind the glyph path and the content
-///    resolver has no consumer);
-/// 4. the emoji data sources: [catalog], [keywords], [emojiSource],
-///    [emojiSearch], under the [glyphProbe] that hides what the system cannot
-///    draw.
+/// 3. the asset cache [assets] with its pause layer and memory pressure, and
+///    behind the glyph path an `AssetPipeline` for the [animatedEmoji] pack:
+///    the pack's bundle fetcher and an `ImageCodecDecoder` for its animated
+///    WebP. The pipeline is told every descriptor of the pack up front, so it
+///    needs no content resolver;
+/// 4. the data sources: [catalog], [keywords], [emojiSource], [emojiSearch],
+///    under the [glyphProbe] that hides what the system cannot draw, the
+///    animated emoji pack, and [emojiPageSource], which lists the pack after
+///    the catalogue's categories;
+/// 5. the [clipboard]: the `rich_clipboard` adapter every copy and paste
+///    goes through, so text keeps its entities (ADR 032).
 ///
 /// ## Ownership
 ///
@@ -43,6 +51,7 @@ import 'package:panel_presentation/panel_presentation.dart';
 /// usable.
 final class AppServices {
   AppServices._({
+    required this.clipboard,
     required this.keyValueStore,
     required this.recents,
     required this.recentsShown,
@@ -56,20 +65,39 @@ final class AppServices {
     required this.keywords,
     required this.emojiSource,
     required this.emojiSearch,
+    required this.emojiPageSource,
+    required CollectionSource animatedEmoji,
     required this.glyphProbe,
     required this.glyphArtVersion,
     required this.glyphBakeObserver,
     required this.glyphCache,
     required AppLifecycleListener lifecycle,
     required PacedGlyphProbePass? webProbePass,
-  }) : _lifecycle = lifecycle,
-       _webProbePass = webProbePass {
-    if (webProbePass != null) {
-      _webProbeStart = Timer(
-        _webProbeDelay,
-        () => unawaited(webProbePass.run()),
-      );
+    required Future<bool> Function() glyphFontsSettled,
+    required ValueNotifier<bool> glyphFontsReady,
+    required AssetPipeline pipeline,
+  }) : _animatedEmoji = animatedEmoji,
+       _pipeline = pipeline,
+       _lifecycle = lifecycle,
+       _webProbePass = webProbePass,
+       _glyphFontsReady = glyphFontsReady {
+    // The panel's collections, loaded now as the reference client loads its
+    // emoji at start: everything is in memory, so the first open lays every
+    // section out at its size, not a row of placeholders that then jumps.
+    for (final collection in emojiPageSource.collections.value) {
+      unawaited(emojiPageSource.load(collection.id));
     }
+    // Started now, the emoji font downloads while the app boots. Glyphs drawn
+    // as text show once it came, or once the wait gave up (text then, not
+    // placeholders for good). The web probe pass runs only over the font:
+    // without it there is nothing to judge the glyphs by.
+    unawaited(
+      glyphFontsSettled().then((arrived) {
+        if (_disposed) return;
+        _glyphFontsReady.value = true;
+        if (arrived && webProbePass != null) unawaited(webProbePass.run());
+      }),
+    );
   }
 
   /// The key-value namespace of the recents store.
@@ -93,6 +121,7 @@ final class AppServices {
     GlyphCacheStore? glyphCache,
     GlyphArtVersionSource? glyphArtVersion,
     List<String> languages = const <String>['ru', 'en'],
+    RichClipboard clipboard = const SystemRichClipboard(),
   }) async {
     // What each step made, to free in reverse if a later one fails: a failed
     // boot must not leave a lifecycle listener or a pressure signal behind.
@@ -129,8 +158,31 @@ final class AppServices {
         SystemMemoryPressure(),
         (pressure) => pressure.dispose(),
       );
+      // The pack is animated WebP, which the engine's image codecs decode.
+      final decoders = DecoderRegistry()
+        ..register(MediaForm.animatedImage, const ImageCodecDecoder());
+      final pipeline = owned(
+        AssetPipeline(
+          fetcher: AnimatedEmojiPack.fetcher(rootBundle),
+          decoders: decoders,
+        ),
+        (pipeline) => pipeline.dispose(),
+      );
+      AnimatedEmojiPack.descriptors.forEach(pipeline.know);
+      // Whether the fonts that draw emoji as text are there: on the web the
+      // emoji font downloads, and the grid shows placeholders, not
+      // missing-glyph boxes, until it is (set once the probe's wait ends).
+      final glyphFontsReady = owned(
+        ValueNotifier<bool>(!kIsWeb),
+        (ready) => ready.dispose(),
+      );
       final assets = owned(
-        PageAssets.createScope(memoryPressure: memoryPressure),
+        PageAssets.createScope(
+          producer: pipeline,
+          memoryPressure: memoryPressure,
+          systemFonts: PaintingBinding.instance.systemFonts,
+          textGlyphsReady: glyphFontsReady,
+        ),
         (scope) => scope.dispose(),
       );
       var hidden = false;
@@ -179,6 +231,10 @@ final class AppServices {
           preferences: preferences,
           glyphSupport: probe.probe,
           keywords: keywords,
+          // The codes the pointer arrangement's tooltip shows.
+          shortcodes: loader.shortcodes,
+          // The recents hold the pack's emoji too, picked on the same page.
+          resolver: AnimatedEmojiPack.resolver(),
           languages: languages,
         ),
         (source) => source.dispose(),
@@ -191,7 +247,16 @@ final class AppServices {
           recents: recentsShown,
           preferences: preferences,
           glyphSupport: probe.probe,
+          shortcodes: loader.shortcodes,
         ),
+        (source) => source.dispose(),
+      );
+      final animatedEmoji = owned(
+        AnimatedEmojiPack.source(),
+        (source) => source.dispose(),
+      );
+      final emojiPageSource = owned(
+        JoinedCollectionSource([emojiSource, animatedEmoji]),
         (source) => source.dispose(),
       );
 
@@ -209,6 +274,8 @@ final class AppServices {
         keywords: keywords,
         emojiSource: emojiSource,
         emojiSearch: emojiSearch,
+        emojiPageSource: emojiPageSource,
+        animatedEmoji: animatedEmoji,
         glyphProbe: probe.probe,
         glyphArtVersion: glyphArtVersion ?? probe.artVersion,
         glyphBakeObserver: probe.bakeObserver,
@@ -217,6 +284,10 @@ final class AppServices {
         webProbePass: kIsWeb
             ? _webPass(probe.probe, isPaused: () => hidden)
             : null,
+        glyphFontsSettled: probe.fontsSettled,
+        glyphFontsReady: glyphFontsReady,
+        pipeline: pipeline,
+        clipboard: clipboard,
       );
     } on Object {
       for (final undo in unwind.reversed) {
@@ -228,6 +299,11 @@ final class AppServices {
 
   /// The adapter every store writes through.
   final KeyValueStore keyValueStore;
+
+  /// The clipboard every copy and paste goes through: plain text for other
+  /// apps, and the text with its entities for this one. Not disposed: it
+  /// holds nothing.
+  final RichClipboard clipboard;
 
   /// What the user picked, per kind of content.
   final RecentsStore recents;
@@ -271,6 +347,10 @@ final class AppServices {
   /// Emoji search.
   final EmojiSearchSource emojiSearch;
 
+  /// What the emoji page lists: the collections of [emojiSource], then the
+  /// pack of animated emoji. It owns neither.
+  final CollectionSource emojiPageSource;
+
   /// Which glyphs the system cannot draw.
   final MissingGlyphProbe glyphProbe;
 
@@ -284,9 +364,11 @@ final class AppServices {
   /// Where baked pages persist, or null to bake in memory every launch.
   final GlyphCacheStore? glyphCache;
 
+  final CollectionSource _animatedEmoji;
+  final AssetPipeline _pipeline;
   final AppLifecycleListener _lifecycle;
   final PacedGlyphProbePass? _webProbePass;
-  Timer? _webProbeStart;
+  final ValueNotifier<bool> _glyphFontsReady;
   var _disposed = false;
 
   /// Whether [dispose] has run.
@@ -320,24 +402,25 @@ final class AppServices {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _webProbeStart?.cancel();
     _webProbePass?.cancel();
+    emojiPageSource.dispose();
+    _animatedEmoji.dispose();
     emojiSearch.dispose();
     emojiSource.dispose();
     recentsShown.dispose();
     glyphProbe.dispose();
     _lifecycle.dispose();
     assets.dispose();
+    _glyphFontsReady.dispose();
+    _pipeline.dispose();
     memoryPressure.dispose();
     preferences.dispose();
     recents.dispose();
   }
 
   // The web bakes nothing, so the probe has no bake to share: it draws its
-  // own cells, a few a frame, once the page has had time to load its emoji
-  // font (there is no signal for that, hence the delay; the probe distrusts a
-  // pass in which every cell is flagged).
-  static const Duration _webProbeDelay = Duration(seconds: 3);
+  // own cells, a few a frame, once the engine has the fonts that draw them
+  // (the probe also distrusts a pass in which every cell is flagged).
 
   static PacedGlyphProbePass _webPass(
     MissingGlyphProbe probe, {

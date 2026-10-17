@@ -33,6 +33,14 @@ _Avoid_: Semantic kind, file type, cache type
 Host-implemented, batched, async seam that resolves bare content keys (message text, recents, deep links) to descriptors.
 _Avoid_: Eager descriptor lookup on every list, resolver inside the viewport
 
+**Rich clipboard**:
+The system clipboard holding two forms of one rich text: plain text any app pastes, and a rich form (HTML) a paste into the app reads back with every entity.
+_Avoid_: Clipboard service, copy manager
+
+**Clipboard text**:
+What a paste reads: the clipboard's plain text, plus its rich text when the clipboard held a rich form.
+_Avoid_: Clipboard data, paste payload
+
 **Collection**:
 The uniform container: id (set id, well-known list such as recent, faved or saved, or query or category), metadata and contents with explicit state (`idle`, `loading`, `loaded`, `failed`) and a page token. Sets, recents, faved, saved, search results and trending are all collections.
 _Avoid_: Set, pack, list type per source, search-result type
@@ -110,7 +118,7 @@ Seams producing collections and paged search-result collections.
 _Avoid_: A single content data source, facades per kind
 
 **Recents store**:
-Host-driven `record(key, {source})`. Keeps count and last-used time, orders by frequency then recency, separate per semantic kind, default cap 48. Search picks do not record.
+Host-driven `record(key, {source})`. Keeps count and last-used time, orders by frequency then recency, default cap 48. Search picks do not record. One list per kind recorded under; the kind names the page's list, not each key's content (the emoji page files unicode and custom emoji in one list).
 _Avoid_: Pure most-recently-used, recording inside the page on tap
 
 **Preference store**:

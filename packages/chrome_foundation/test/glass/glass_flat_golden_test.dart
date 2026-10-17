@@ -58,9 +58,9 @@ class _Stripes extends StatelessWidget {
 
 void main() {
   setUpAll(() {
-    final base = goldenFileComparator as LocalFileComparator;
+    // Goldens sit next to this file, also when test/unit_test.dart runs it.
     goldenFileComparator = TolerantGoldenComparator(
-      base.basedir.resolve('glass_flat_golden_test.dart'),
+      Uri.file('test/glass/glass_flat_golden_test.dart'),
       tolerance: _tolerance,
     );
   });

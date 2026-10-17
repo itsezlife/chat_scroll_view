@@ -1,12 +1,16 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:chat_composer/src/input/composer_controller.dart';
 import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
+import 'package:chat_composer/src/shortcuts/composer_intents.dart';
 import 'package:chat_composer/src/view/composer_metrics.dart';
 import 'package:chat_composer/src/view/listen_value_builder.dart';
 import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:flutter/foundation.dart' show clampDouble;
+import 'package:content_model/content_model.dart' show PastedMedia;
+import 'package:flutter/foundation.dart'
+    show clampDouble, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -32,6 +36,16 @@ import 'package:flutter/scheduler.dart';
 /// keyboard. Caret and selection are as they were; the hand-off with a panel is
 /// the host's presentation's job.
 ///
+/// **Media.** When the controller has an `onPastedMedia` host, an image a
+/// keyboard inserts goes there (`ContentInsertionConfiguration`), as a pasted
+/// image does.
+///
+/// **Clipboard.** When the controller has a `clipboard`, copy, cut and paste
+/// go through it, from key shortcuts (and the macOS menu) and from the
+/// selection menu, which also offers pasting as plain text; the text keeps its
+/// entities across the clipboard. Without one the field keeps the platform's
+/// plain-text clipboard and the stock menu.
+///
 /// Needs a Material ancestor and Material localisations, which the text
 /// selection menu draws with.
 class ComposerField extends StatefulWidget {
@@ -39,6 +53,7 @@ class ComposerField extends StatefulWidget {
   const ComposerField({
     required this.controller,
     required this.enabled,
+    this.autofocus = false,
     this.onTap,
     this.onPointerDown,
     this.onPointerEnd,
@@ -50,6 +65,13 @@ class ComposerField extends StatefulWidget {
 
   /// Whether the field takes input.
   final bool enabled;
+
+  /// Whether the field takes focus when it is first built.
+  ///
+  /// On a touch platform that focus brings no soft keyboard: the field
+  /// attaches without a keyboard type, and the first tap on it or
+  /// `requestKeyboard` re-attaches it with one (see "Soft keyboard" above).
+  final bool autofocus;
 
   /// Called when the field is tapped, also while it already has focus. A host
   /// uses it to leave a panel for the keyboard.
@@ -68,6 +90,19 @@ class ComposerField extends StatefulWidget {
 class _ComposerFieldState extends State<ComposerField> {
   final _textFieldKey = GlobalKey();
   var _anchorScheduled = false;
+
+  // The focus autofocus gives on a touch platform attaches as if suppressed,
+  // so the caret shows and the keyboard stays down until it is asked for.
+  late var _quietFocus =
+      widget.autofocus &&
+      switch (defaultTargetPlatform) {
+        TargetPlatform.android ||
+        TargetPlatform.iOS ||
+        TargetPlatform.fuchsia => true,
+        TargetPlatform.macOS ||
+        TargetPlatform.windows ||
+        TargetPlatform.linux => false,
+      };
   var _revealScheduled = false;
 
   @override
@@ -119,7 +154,15 @@ class _ComposerFieldState extends State<ComposerField> {
 
   void _onFocus() {
     if (_reattaching) return;
-    _attachedMode = widget.controller.focusNode.hasFocus ? _builtMode : null;
+    final focused = widget.controller.focusNode.hasFocus;
+    _attachedMode = focused ? _builtMode : null;
+    // Attached quietly: from now on the field is built with the mode the
+    // controller says, and a tap or a request re-attaches it with a keyboard.
+    if (focused && _quietFocus) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _quietFocus = false);
+      });
+    }
   }
 
   // Answered after the frame, so the field is built with the option the host
@@ -181,11 +224,15 @@ class _ComposerFieldState extends State<ComposerField> {
     final line = render.getLineAtOffset(selection.extent);
     var top = caret.top;
     var bottom = caret.bottom;
-    for (final box in render.getBoxesForSelection(
-      TextSelection(baseOffset: line.start, extentOffset: line.end),
-    )) {
-      top = math.min(top, box.top);
-      bottom = math.max(bottom, box.bottom);
+    // An empty field has no line (the range is -1..-1, which the painter
+    // asserts on): the caret is all there is to show.
+    if (line.isValid) {
+      for (final box in render.getBoxesForSelection(
+        TextSelection(baseOffset: line.start, extentOffset: line.end),
+      )) {
+        top = math.min(top, box.top);
+        bottom = math.max(bottom, box.bottom);
+      }
     }
     final shift = switch (render.size.height) {
       final height when bottom > height => bottom - height,
@@ -233,6 +280,76 @@ class _ComposerFieldState extends State<ComposerField> {
     controller.reportCaretAnchor(topLeft & caret.size);
   }
 
+  void _onContentInserted(KeyboardInsertedContent content) {
+    final data = content.data;
+    if (data == null || data.isEmpty) return;
+    widget.controller.receiveMedia([
+      PastedMedia.bytes(data, mimeType: content.mimeType),
+    ]);
+  }
+
+  // --- Selection menu ---
+
+  static Widget _stockMenu(BuildContext context, EditableTextState editable) =>
+      AdaptiveTextSelectionToolbar.editableText(editableTextState: editable);
+
+  // The stock menu, its Copy, Cut and Paste routed through the clipboard,
+  // and Paste as plain text after Paste.
+  Widget _clipboardMenu(EditableTextState editable, String pastePlainLabel) {
+    final controller = widget.controller;
+    final items = <ContextMenuButtonItem>[];
+    for (final item in editable.contextMenuButtonItems) {
+      switch (item.type) {
+        case ContextMenuButtonType.copy:
+          items.add(item.copyWith(onPressed: () => _menuCopy(editable)));
+        case ContextMenuButtonType.cut:
+          items.add(
+            item.copyWith(
+              onPressed: () => _menuDone(editable, controller.cutSelection()),
+            ),
+          );
+        case ContextMenuButtonType.paste:
+          items
+            ..add(
+              item.copyWith(
+                onPressed: () => _menuDone(editable, controller.paste()),
+              ),
+            )
+            ..add(
+              ContextMenuButtonItem(
+                label: pastePlainLabel,
+                onPressed: () =>
+                    _menuDone(editable, controller.paste(plain: true)),
+              ),
+            );
+        case _:
+          items.add(item);
+      }
+    }
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: editable.contextMenuAnchors,
+      buttonItems: items,
+    );
+  }
+
+  // As the field's own Copy: the menu closes, and on Android the selection
+  // collapses to its end.
+  Future<void> _menuCopy(EditableTextState editable) async {
+    final controller = widget.controller;
+    final end = controller.selection.end;
+    editable.hideToolbar(false);
+    await controller.copySelection();
+    if (!mounted || controller.isDisposed) return;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      controller.select(TextSelection.collapsed(offset: end));
+    }
+  }
+
+  static void _menuDone(EditableTextState editable, Future<bool> done) {
+    editable.hideToolbar();
+    unawaited(done);
+  }
+
   // The stock TextField does not expose its EditableText; the caret rectangle
   // is only available from the render object the text lays out in.
   EditableTextState? _editableTextState() {
@@ -278,14 +395,18 @@ class _ComposerFieldState extends State<ComposerField> {
             ),
             child: ListenValueBuilder<SoftKeyboardMode>(
               listenable: controller.softKeyboard,
-              builder: (context, mode) {
+              builder: (context, controllerMode) {
+                final mode = _quietFocus
+                    ? SoftKeyboardMode.suppressed
+                    : controllerMode;
                 _builtMode = mode;
-                return TextField(
+                final field = TextField(
                   key: _textFieldKey,
                   controller: controller.text,
                   focusNode: controller.focusNode,
                   scrollController: controller.fieldScroll,
                   enabled: widget.enabled,
+                  autofocus: widget.autofocus,
                   minLines: 1,
                   maxLines: ComposerMetrics.fieldMaxLines,
                   keyboardType: mode == SoftKeyboardMode.suppressed
@@ -308,6 +429,29 @@ class _ComposerFieldState extends State<ComposerField> {
                       height: lineHeight,
                     ),
                   ),
+                  // An image a keyboard inserts (Android) is media the host
+                  // sends, as a pasted image is.
+                  contentInsertionConfiguration:
+                      controller.onPastedMedia == null
+                      ? null
+                      : ContentInsertionConfiguration(
+                          onContentInserted: _onContentInserted,
+                        ),
+                  contextMenuBuilder: controller.clipboard == null
+                      ? _stockMenu
+                      : (context, editable) =>
+                            _clipboardMenu(editable, strings.pastePlainAction),
+                );
+                if (controller.clipboard == null) return field;
+                // Above the field's own: an overridable action finds these
+                // first, so shortcuts and the macOS menu selectors land here.
+                return Actions(
+                  actions: {
+                    CopySelectionTextIntent: _CopyAction(controller),
+                    PasteTextIntent: _PasteAction(controller),
+                    PastePlainTextIntent: _PastePlainAction(controller),
+                  },
+                  child: field,
                 );
               },
             ),
@@ -315,5 +459,54 @@ class _ComposerFieldState extends State<ComposerField> {
         ),
       ),
     );
+  }
+}
+
+// --- Clipboard actions ---
+
+class _CopyAction extends Action<CopySelectionTextIntent> {
+  _CopyAction(this._controller);
+
+  final ComposerController _controller;
+
+  @override
+  bool isEnabled(CopySelectionTextIntent intent) {
+    final selection = _controller.selection;
+    return selection.isValid && !selection.isCollapsed;
+  }
+
+  @override
+  Object? invoke(CopySelectionTextIntent intent) {
+    // Cut is the copy intent that collapses the selection.
+    unawaited(
+      intent.collapseSelection
+          ? _controller.cutSelection()
+          : _controller.copySelection(),
+    );
+    return null;
+  }
+}
+
+class _PasteAction extends Action<PasteTextIntent> {
+  _PasteAction(this._controller);
+
+  final ComposerController _controller;
+
+  @override
+  Object? invoke(PasteTextIntent intent) {
+    unawaited(_controller.paste());
+    return null;
+  }
+}
+
+class _PastePlainAction extends Action<PastePlainTextIntent> {
+  _PastePlainAction(this._controller);
+
+  final ComposerController _controller;
+
+  @override
+  Object? invoke(PastePlainTextIntent intent) {
+    unawaited(_controller.paste(plain: true));
+    return null;
   }
 }

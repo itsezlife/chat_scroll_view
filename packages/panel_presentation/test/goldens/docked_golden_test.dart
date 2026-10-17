@@ -20,6 +20,12 @@ import 'package:panel_shell/testing.dart';
 // there, regenerate on the pinned platform or add a tolerance comparator, and
 // record it here.
 void main() {
+  // Goldens sit next to this file, also when test/unit_test.dart runs it.
+  setUpAll(
+    () => goldenFileComparator = LocalFileComparator(
+      Uri.file('test/goldens/docked_golden_test.dart'),
+    ),
+  );
   const size = Size(900, 520);
 
   for (final direction in TextDirection.values) {

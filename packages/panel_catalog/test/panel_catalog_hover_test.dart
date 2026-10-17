@@ -51,6 +51,7 @@ void main() {
   Future<void> pumpViewport(
     WidgetTester tester, {
     PanelCatalogThemeData theme = PanelCatalogThemeData.light,
+    void Function(CatalogLeafHit? hit, Offset globalPosition)? onLeafHover,
   }) => tester.pumpWidget(
     MaterialApp(
       home: PanelCatalogTheme(
@@ -68,6 +69,7 @@ void main() {
               cellExtent: 40,
               headerExtent: 24,
               onLeafTap: (hit) {},
+              onLeafHover: onLeafHover,
             ),
           ),
         ),
@@ -208,6 +210,70 @@ void main() {
 
       expect(hoverRects(paintOnce(tester)), isEmpty);
       await touch.up();
+    });
+  });
+
+  group('the leaf under the mouse, as the host hears it', () {
+    late List<(int?, Offset)> reports;
+
+    Future<void> pumpReporting(WidgetTester tester) {
+      reports = [];
+      return pumpViewport(
+        tester,
+        onLeafHover: (hit, position) => reports.add((hit?.index, position)),
+      );
+    }
+
+    testWidgets('is reported with the cursor as the mouse moves, with no '
+        'hover token in the theme', (tester) async {
+      await pumpReporting(tester);
+      final mouse = await mouseAt(tester, inCell);
+      expect(reports.last, (1, inCell));
+
+      await mouse.moveTo(const Offset(125, 50));
+      await tester.pump();
+      expect(reports.last, (1, const Offset(125, 50)));
+    });
+
+    testWidgets('is no leaf over a header, and none once the mouse leaves', (
+      tester,
+    ) async {
+      await pumpReporting(tester);
+      final mouse = await mouseAt(tester, inCell);
+
+      await mouse.moveTo(const Offset(120, 10));
+      await tester.pump();
+      expect(reports.last.$1, isNull);
+
+      await mouse.moveTo(inCell);
+      await tester.pump();
+      await mouse.moveTo(const Offset(600, 300));
+      await tester.pump();
+      expect(reports.last.$1, isNull);
+    });
+
+    testWidgets('follows the content that scrolls under a still mouse', (
+      tester,
+    ) async {
+      await pumpReporting(tester);
+      await mouseAt(tester, inCell);
+
+      controller.jumpTo(20);
+      await tester.pump();
+
+      // Content y 64: the second row, column 1.
+      expect(reports.last, (5, inCell));
+    });
+
+    testWidgets('is never reported for a finger', (tester) async {
+      await pumpReporting(tester);
+
+      final touch = await tester.startGesture(inCell);
+      await tester.pump();
+      await touch.up();
+      await tester.pump();
+
+      expect(reports, isEmpty);
     });
   });
 

@@ -10,18 +10,24 @@ import 'package:panel_shell/panel_shell.dart';
 /// What a page reports when the user picks a cell.
 @immutable
 final class CatalogPick {
-  /// A pick of [key], whose semantic kind is [kind], made from [source].
+  /// A pick of [key], content of [kind], made from [source] and filed under
+  /// the recents of [recentsKind] ([kind] when omitted).
   const CatalogPick({
     required this.key,
     required this.kind,
     required this.source,
-  });
+    SemanticKind? recentsKind,
+  }) : recentsKind = recentsKind ?? kind;
 
   /// Identity of the picked content.
   final ContentKey key;
 
-  /// The kind recents are filed under.
+  /// What the content is: the cell's own kind.
   final SemanticKind kind;
+
+  /// The recents list the pick is filed under: [kind], unless the page keeps
+  /// one list for several kinds (`ContentPicked.recentsKind`).
+  final SemanticKind recentsKind;
 
   /// Where in the page the pick was made.
   final PickSource source;
@@ -31,13 +37,14 @@ final class CatalogPick {
       other is CatalogPick &&
       other.key == key &&
       other.kind == kind &&
+      other.recentsKind == recentsKind &&
       other.source == source;
 
   @override
-  int get hashCode => Object.hash(key, kind, source);
+  int get hashCode => Object.hash(key, kind, recentsKind, source);
 
   @override
-  String toString() => 'CatalogPick($key, $kind, $source)';
+  String toString() => 'CatalogPick($key, $kind, $recentsKind, $source)';
 }
 
 /// One entry of a context menu a policy offers for a cell.
@@ -278,6 +285,13 @@ abstract class CatalogPagePolicy {
         ? PickSource.recents
         : PickSource.collection,
   );
+
+  /// The text of the tooltip a mouse resting on [hit], a cell of
+  /// [collection], shows; null for none, the default.
+  ///
+  /// Asked when the rest has lasted (see `CatalogLeafTooltip`), not when the
+  /// mouse arrives, and only for a mouse: a finger has no hover.
+  String? tooltipOf(CatalogLeafHit hit, Collection collection) => null;
 
   /// The entries of the context menu a secondary click on [hit], a cell of
   /// [collection], opens, in the language of [strings]; empty for no menu (the

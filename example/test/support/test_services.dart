@@ -7,11 +7,13 @@ import 'package:flutter/services.dart';
 /// for host-integration tests.
 ///
 /// [storage] is the key-value store a test may pre-fill and read back;
-/// [loader] replaces the bundle read (to observe it).
+/// [loader] replaces the bundle read (to observe it). The clipboard is a
+/// `FakeRichClipboard`, which a test reads back.
 Future<AppServices> createTestServices({
   FakeKeyValueStore? storage,
   EmojiAssetLoader? loader,
 }) => AppServices.create(
   keyValueStore: storage ?? FakeKeyValueStore(),
   assetLoader: loader ?? rootBundle.loadString,
+  clipboard: FakeRichClipboard(),
 );

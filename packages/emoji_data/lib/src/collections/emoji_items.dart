@@ -1,4 +1,5 @@
 import 'package:content_model/content_model.dart';
+import 'package:emoji_catalog_pack/emoji_catalog_pack.dart';
 import 'package:emoji_data/src/catalog/emoji_catalog.dart';
 import 'package:emoji_data/src/collections/emoji_spoken_names.dart';
 
@@ -25,6 +26,10 @@ final class EmojiItems {
   /// What a screen reader says for an emoji, once the packs of the active
   /// languages are known; null leaves the items unnamed.
   EmojiSpokenNames? spokenNames;
+
+  /// The codes shown as a hint for an emoji, once read; null leaves the items
+  /// without one.
+  EmojiShortcodes? shortcodes;
 
   /// The key the grid shows for [entry]: the variant chosen for it, else the
   /// one in the tone chosen for all ([PreferenceStore.defaultVariant]: the
@@ -83,8 +88,23 @@ final class EmojiItems {
       semanticKind: SemanticKind.unicodeEmoji,
       mediaForm: MediaForm.glyph,
       spokenName: spokenNames?.of(key),
+      shortcode: _shortcodeOf(key),
     ),
   );
+
+  // A tone variant has no code of its own and shows its entry's, as the
+  // reference client shows the code of the toneless emoji. The entry of a
+  // gender form is that form (see `EmojiCatalog`), so a toned woman
+  // technologist shows the woman technologist's code, not the person's.
+  String? _shortcodeOf(ContentKey$Unicode key) {
+    final table = shortcodes;
+    if (table == null) return null;
+    return table[key] ??
+        switch (catalog.entryOf(key)?.base) {
+          final base? => table[base],
+          null => null,
+        };
+  }
 
   bool _supports(ContentKey$Unicode key) => glyphSupport?.supports(key) ?? true;
 }

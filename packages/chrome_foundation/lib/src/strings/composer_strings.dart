@@ -15,6 +15,7 @@ final class ComposerStrings {
     required this.showPanelAction,
     required this.showKeyboardAction,
     required this.dismissHeaderAction,
+    required this.pastePlainAction,
     required this.replyTo,
     required this.editingMessage,
   });
@@ -42,6 +43,10 @@ final class ComposerStrings {
 
   /// Label of the control that dismisses the reply or edit header.
   final String dismissHeaderAction;
+
+  /// Label of the selection menu item that pastes the clipboard's plain text,
+  /// without its formatting.
+  final String pastePlainAction;
 
   /// Header line naming who a reply goes to: `replyTo('Alice')`.
   final String Function(String name) replyTo;

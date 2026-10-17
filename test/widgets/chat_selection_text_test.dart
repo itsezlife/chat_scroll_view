@@ -57,6 +57,17 @@ class _LoadedSource extends ChatDataSource {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  // A code tap's copy is notified once the clipboard answers; the platform
+  // answers here, inside the test's clock.
+  setUp(
+    () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (_) async => null),
+  );
+  tearDown(
+    () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null),
+  );
+
   group(r'Seam S — $Mobile policy wiring', () {
     test('enter sets subject, range, and preserves membership', () {
       final selection = ChatSelectionController(
@@ -2680,7 +2691,7 @@ void main() {
 
     test(
       'handleInlineHit matrix: idle fires; mobile message/text suppress all; desktop message keeps live',
-      () {
+      () async {
         // Locked matrix (mobile): idle → link+code fire; message selected OR
         // text selected → link+code+COPY chrome all suppress. Desktop message
         // selection keeps link+code live. One table so we stop flip-flopping
@@ -2776,6 +2787,7 @@ void main() {
 
         // 1. Mobile idle
         expectMobileAllFire();
+        await pumpEventQueue();
         expect(mobileTaps, hasLength(1));
         expect(mobileCodeTaps, hasLength(2));
 
@@ -2800,6 +2812,7 @@ void main() {
         expect(desktop.handleInlineHit(linkHit1), isTrue);
         expect(desktopTaps, hasLength(1));
         expect(desktop.handleInlineHit(codeHit1), isTrue);
+        await pumpEventQueue();
         expect(desktopCodeTaps, hasLength(1));
 
         // 5. Desktop arm-for-entry (no live range) must not suppress —
@@ -2845,6 +2858,7 @@ void main() {
         );
 
         expect(selection.handleInlineHit(codeHit), isTrue);
+        await pumpEventQueue();
         expect(interactions, [
           const ChatSelectionInteraction.copied(
             text: 'flutter run',
@@ -2868,6 +2882,7 @@ void main() {
 
         clipboard.clear();
         expect(noCopySelection.handleInlineHit(codeHit), isTrue);
+        await pumpEventQueue();
         expect(noCopyInteractions, [
           const ChatSelectionInteraction.codeActivated(
             messageId: 42,
@@ -2910,6 +2925,7 @@ void main() {
         );
 
         expect(selection.handleInlineHitLongPress(codeHit), isTrue);
+        await pumpEventQueue();
         expect(interactions, [
           const ChatSelectionInteraction.copied(
             text: 'flutter run',
@@ -2934,42 +2950,47 @@ void main() {
       },
     );
 
-    test('listener removal cleanly unregisters interaction observers', () {
-      final selection = ChatSelectionController(
-        policy: const ChatSelectionPolicy.mobile(),
-      );
-      addTearDown(selection.dispose);
+    test(
+      'listener removal cleanly unregisters interaction observers',
+      () async {
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        addTearDown(selection.dispose);
 
-      var linkCalls = 0;
-      var codeCalls = 0;
-      void interactionListener(ChatSelectionInteraction i) {
-        switch (i) {
-          case ChatLinkActivated(gesture: ChatInlineGesture.tap):
-            linkCalls++;
-          case ChatCopied(origin: ChatCopyOrigin.codeTap):
-            codeCalls++;
-          case _:
-            break;
+        var linkCalls = 0;
+        var codeCalls = 0;
+        void interactionListener(ChatSelectionInteraction i) {
+          switch (i) {
+            case ChatLinkActivated(gesture: ChatInlineGesture.tap):
+              linkCalls++;
+            case ChatCopied(origin: ChatCopyOrigin.codeTap):
+              codeCalls++;
+            case _:
+              break;
+          }
         }
-      }
 
-      selection.addInteractionListener(interactionListener);
+        selection.addInteractionListener(interactionListener);
 
-      const linkHit = ChatInlineHit.link(messageId: 1, title: 'T', url: 'U');
-      const codeHit = ChatInlineHit.code(messageId: 1, code: 'C');
+        const linkHit = ChatInlineHit.link(messageId: 1, title: 'T', url: 'U');
+        const codeHit = ChatInlineHit.code(messageId: 1, code: 'C');
 
-      expect(selection.handleInlineHit(linkHit), isTrue);
-      expect(selection.handleInlineHit(codeHit), isTrue);
-      expect(linkCalls, 1);
-      expect(codeCalls, 1);
+        expect(selection.handleInlineHit(linkHit), isTrue);
+        expect(selection.handleInlineHit(codeHit), isTrue);
+        await pumpEventQueue();
+        expect(linkCalls, 1);
+        expect(codeCalls, 1);
 
-      selection.removeInteractionListener(interactionListener);
+        selection.removeInteractionListener(interactionListener);
 
-      expect(selection.handleInlineHit(linkHit), isTrue);
-      expect(selection.handleInlineHit(codeHit), isTrue);
-      expect(linkCalls, 1);
-      expect(codeCalls, 1);
-    });
+        expect(selection.handleInlineHit(linkHit), isTrue);
+        expect(selection.handleInlineHit(codeHit), isTrue);
+        await pumpEventQueue();
+        expect(linkCalls, 1);
+        expect(codeCalls, 1);
+      },
+    );
 
     testWidgets(
       'harness: tap on link with live text selection is suppressed (keeps or dismisses per idle-tap)',

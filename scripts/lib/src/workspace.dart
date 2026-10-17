@@ -37,7 +37,7 @@ final class WorkspaceMember {
     this.dependencies = const <String>{},
     this.usesFlutter = false,
     this.analysisTargets = const <String>[],
-    this.hasTests = false,
+    this.testFiles = const <String>[],
     this.hasCheckHook = false,
   });
 
@@ -80,10 +80,14 @@ final class WorkspaceMember {
   /// Subset of [layoutDirectories] that exist in this member.
   final List<String> analysisTargets;
 
+  /// Every `*_test.dart` under `test/`, relative to it with `/` separators,
+  /// sorted: what the member's test entrypoint runs (`TestEntrypoint`).
+  final List<String> testFiles;
+
   /// Whether `test/` holds at least one `*_test.dart`. `dart test` exits
   /// non-zero on a package with no test files, so a member without any is
   /// skipped rather than failed.
-  final bool hasTests;
+  bool get hasTests => testFiles.isNotEmpty;
 
   /// Whether the member ships `tool/check`: a per-member gate (for example the
   /// generator reproducibility check) that [CheckPlan] runs after the member's
@@ -266,17 +270,18 @@ final class WorkspaceGraph {
         for (final layout in WorkspaceMember.layoutDirectories)
           if (Directory(p.join(directory, layout)).existsSync()) layout,
       ],
-      hasTests: _hasTestFiles(p.join(directory, 'test')),
+      testFiles: _testFilesIn(p.join(directory, 'test')),
       hasCheckHook: File(p.join(directory, 'tool', 'check')).existsSync(),
     );
   }
 
-  static bool _hasTestFiles(String directory) {
+  static List<String> _testFilesIn(String directory) {
     final tests = Directory(directory);
-    return tests.existsSync() &&
-        tests
-            .listSync(recursive: true)
-            .whereType<File>()
-            .any((file) => file.path.endsWith('_test.dart'));
+    if (!tests.existsSync()) return const <String>[];
+    return [
+      for (final file in tests.listSync(recursive: true).whereType<File>())
+        if (file.path.endsWith('_test.dart'))
+          p.posix.joinAll(p.split(p.relative(file.path, from: directory))),
+    ]..sort();
   }
 }

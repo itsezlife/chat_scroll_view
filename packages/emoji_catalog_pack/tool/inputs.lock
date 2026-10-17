@@ -2,6 +2,7 @@
 #   dart run tool/generate.dart lock
 emoji-version 18.0
 cldr-tag release-49-beta4
+shortcodes-ref 11.0.0
 locales en de es fr hi it ja nl pt ru zh
 input 8f3735cda1f92a779d78af67cf86066bb1f07143dc22f2ac29394d9bc57ab21a emoji-test.txt https://unicode.org/Public/18.0.0/emoji/emoji-test.txt
 input 65eb33419e22a297550a811b5b535f5e532f9a7e0114b516c0ea18afd53c3804 cldr/LICENSE https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/LICENSE
@@ -27,3 +28,5 @@ input e8b2257e3139029b1c04dd15dcc50b818bf1830687cfd6fd40f0b5ad336aaa83 cldr/anno
 input 509fc079decc3ae19a0fbdd7426d5cdd8dfc3d3038dc473115882f052b23f5f3 cldr/annotationsDerived/ru.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotationsDerived/ru.xml
 input fc794ce6d7cefd119f4b867e3006b802385e85c15e088d0be2f00f2b98116455 cldr/annotations/zh.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotations/zh.xml
 input 4fff4592df54051e4b8ebe49f17e3b6bd9c951303f99abeb989446b80ef64a1f cldr/annotationsDerived/zh.xml https://raw.githubusercontent.com/unicode-org/cldr/release-49-beta4/common/annotationsDerived/zh.xml
+input 39a0f3e48f1984246ed574f0ca1b1b453ae270cbaa611bcd3a7195e07cff0585 emoji-toolkit/emoji.json https://raw.githubusercontent.com/joypixels/emoji-toolkit/11.0.0/emoji.json
+input cac82d09fbc768b5bc70bf944b77570de5fb082f2f8ef932ecc7e02c27c92aca emoji-toolkit/LICENSE.md https://raw.githubusercontent.com/joypixels/emoji-toolkit/11.0.0/LICENSE.md

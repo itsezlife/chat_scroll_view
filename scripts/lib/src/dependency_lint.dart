@@ -25,6 +25,11 @@ import 'package:workspace_check/src/workspace.dart';
 ///   `member -> package`, only for direct declarations: the plugin's own
 ///   transitive packages are not the member's choice.
 ///
+/// - **Host-wired adapters stay with the host.** Only the example host
+///   (members under `example/`) depends on `rich_clipboard`, the adapter with
+///   platform code; packages take the `RichClipboard` seam instead. Reported
+///   as `member -> rich_clipboard`.
+///
 /// Adapter packages are recognised by name, since nothing else marks them: a
 /// package is an adapter when a `_`-delimited word of its name is `codec`,
 /// `decoder` or `fetcher` (or the plural): `lottie_codec`, `disk_fetchers`. An
@@ -58,15 +63,32 @@ abstract final class DependencyLint {
   static const String _preferencesPlugin = 'shared_preferences';
   static const String _preferencesAdapter = 'kv_shared_preferences';
 
+  // Adapters only a host wires, because they hold platform code.
+  static const Set<String> _hostAdapters = <String>{'rich_clipboard'};
+
   /// All violations in [graph]: cycles first, then leaf breaches, then the
   /// remaining forbidden edges, then plugin declarations outside their
-  /// adapter, each group in member order.
+  /// adapter, then host adapters outside the host, each group in member
+  /// order.
   static List<Violation> check(WorkspaceGraph graph) => <Violation>[
     ..._cycles(graph),
     ..._leafBreaches(graph),
     ..._forbiddenBreaches(graph),
     ..._pluginBreaches(graph),
+    ..._hostAdapterBreaches(graph),
   ];
+
+  static Iterable<Violation> _hostAdapterBreaches(WorkspaceGraph graph) =>
+      <Violation>[
+        for (final member in graph.members)
+          if (member.path != 'example' && !member.path.startsWith('example/'))
+            for (final name in member.dependencies.toList()..sort())
+              if (_hostAdapters.contains(name))
+                Violation(
+                  LintRule.hostAdapterOutsideHost,
+                  '${member.name} -> $name',
+                ),
+      ];
 
   static Iterable<Violation> _cycles(WorkspaceGraph graph) {
     final found = <String>{};

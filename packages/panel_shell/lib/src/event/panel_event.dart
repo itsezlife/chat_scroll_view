@@ -61,25 +61,35 @@ sealed class PanelEvent {
   const factory PanelEvent.searchClosed() = SearchClosed;
 }
 
-/// The user picked [key] of [kind] from [source].
+/// The user picked [key], content of [kind], from [source].
 ///
-/// The host decides whether the pick counts and reports it to a
-/// `RecentsStore` with the same [kind] and [source]; a pick from
-/// [PickSource.search] is ignored by the store by contract, so the host may
-/// pass every pick through.
+/// The host decides what the pick does by [kind] (a custom emoji is not
+/// text), and whether it counts: it reports it to a `RecentsStore` under
+/// [recentsKind] with [source]; a pick from [PickSource.search] is ignored by
+/// the store by contract, so the host may pass every pick through.
 final class ContentPicked extends PanelEvent {
-  /// A pick of [key], whose semantic kind is [kind], made from [source].
+  /// A pick of [key], content of [kind], made from [source] and filed under
+  /// the recents of [recentsKind] ([kind] when omitted).
   const ContentPicked({
     required this.key,
     required this.kind,
+    SemanticKind? recentsKind,
     this.source = PickSource.collection,
-  });
+  }) : recentsKind = recentsKind ?? kind;
 
   /// Identity of the picked content.
   final ContentKey key;
 
-  /// The kind recents are filed under.
+  /// What the content is, as in every other event about content
+  /// ([ContentCopyRequested.kind]).
   final SemanticKind kind;
+
+  /// The recents list the pick is filed under, which the page chooses: its
+  /// content's own [kind], or one list for several kinds, as the emoji page
+  /// files custom emoji with the unicode ones. Recents events
+  /// ([RecentRemoveRequested], [ClearRecentsRequested]) name the list the same
+  /// way.
+  final SemanticKind recentsKind;
 
   /// Where in the page the pick was made: a browsable collection, the recents
   /// list or search results.
@@ -90,13 +100,14 @@ final class ContentPicked extends PanelEvent {
       other is ContentPicked &&
       other.key == key &&
       other.kind == kind &&
+      other.recentsKind == recentsKind &&
       other.source == source;
 
   @override
-  int get hashCode => Object.hash(key, kind, source);
+  int get hashCode => Object.hash(key, kind, recentsKind, source);
 
   @override
-  String toString() => 'ContentPicked($key, $kind, $source)';
+  String toString() => 'ContentPicked($key, $kind, $recentsKind, $source)';
 }
 
 /// The user asked to delete the previous character of the host's input.

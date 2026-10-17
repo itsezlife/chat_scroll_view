@@ -142,6 +142,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     this.headerLandingInset,
     this.onLeafTap,
     this.onLeafSecondaryTap,
+    this.onLeafHover,
     this.onLeafLongPressStart,
     this.onLeafLongPressMove,
     this.onLeafLongPressEnd,
@@ -287,6 +288,17 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   final void Function(CatalogLeafHit hit, Offset globalPosition)?
   onLeafSecondaryTap;
 
+  /// Shell hover: the cell under the mouse and the cursor's global position.
+  ///
+  /// Called at every move of a mouse over the viewport, with null for the cell
+  /// over a header, padding or empty band; when content scrolls a different
+  /// cell under a mouse that does not move; and once with null when the mouse
+  /// leaves. Only a mouse hovers, and the report does not depend on the
+  /// theme's hover wash. Null reports nothing. What the hover shows (a
+  /// tooltip) is the host's.
+  final void Function(CatalogLeafHit? hit, Offset globalPosition)?
+  onLeafHover;
+
   /// Shell long-press start (picker / contextual leaf actions).
   ///
   /// Null disables the long-press recognizer. When non-null, a long-press
@@ -370,6 +382,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       paintTheme: CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr),
       onLeafTap: onLeafTap,
       onLeafSecondaryTap: onLeafSecondaryTap,
+      onLeafHover: onLeafHover,
       onLeafLongPressStart: onLeafLongPressStart,
       onLeafLongPressMove: onLeafLongPressMove,
       onLeafLongPressEnd: onLeafLongPressEnd,
@@ -402,6 +415,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..paintTheme = CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr)
       ..onLeafTap = onLeafTap
       ..onLeafSecondaryTap = onLeafSecondaryTap
+      ..onLeafHover = onLeafHover
       ..onLeafLongPressStart = onLeafLongPressStart
       ..onLeafLongPressMove = onLeafLongPressMove
       ..onLeafLongPressEnd = onLeafLongPressEnd

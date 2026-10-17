@@ -6,9 +6,12 @@
 
 1. **Workspace lints** (`lib/src/*_lint.dart`), reported with the legacy
    baseline applied.
-2. For each member, dependencies first: `dart analyze --fatal-infos` over its
-   layout directories, its tests (`flutter test` if it needs the Flutter SDK,
-   `dart test` otherwise), then its `tool/check` hook if present.
+2. For each member: `dart analyze --fatal-infos` over its layout
+   directories, its tests through `test/unit_test.dart` (`flutter test` if it
+   needs the Flutter SDK, `dart test` otherwise), then its `tool/check` hook
+   if present. Members run side by side, up to one per processor (at most 8;
+   `scripts/check --jobs N` sets it), the largest suites first; each step's
+   output is printed whole, in dependency order, with its time.
 
 Every step runs even after a failure; the exit code is 1 if any failed, 2 if
 the repository is not a workspace the gates understand (including a package
@@ -23,9 +26,10 @@ nightly workflow calls it; usage, tolerance and re-baselining are in
 
 | Lint | Fails when |
 | --- | --- |
-| `DependencyLint` | members form a cycle; `content_model` / `chrome_foundation` depend on a member; `panel_shell` / `panel_pages` / `panel_presentation` reach `emoji_catalog_pack` or an adapter package; `panel_catalog` reaches `chrome_foundation`; any member but `kv_shared_preferences` declares `shared_preferences` (or a `shared_preferences_*` package) |
+| `DependencyLint` | members form a cycle; `content_model` / `chrome_foundation` depend on a member; `panel_shell` / `panel_pages` / `panel_presentation` reach `emoji_catalog_pack` or an adapter package; `panel_catalog` reaches `chrome_foundation`; any member but `kv_shared_preferences` declares `shared_preferences` (or a `shared_preferences_*` package); any member outside `example/` depends on `rich_clipboard` |
 | `ReexportLint` | a `lib/` file exports another workspace package |
 | `FakesLint` | production code under `lib/` exports or imports a fake source |
+| `TestEntrypointLint` | a member with test files has no `test/unit_test.dart`, or it does not import one of them |
 | `PureDartLint` | `content_model`, `emoji_data` or `emoji_catalog_pack` declares a Flutter SDK dependency, or a file under its `lib/` imports or exports `package:flutter*` or `dart:ui` |
 
 Conventions the lints read:
@@ -38,6 +42,15 @@ Conventions the lints read:
   package name is `codec`, `decoder` or `fetcher` (or the plural).
 - **`tool/check`**: an executable in a member, run from the member directory
   after its tests; non-zero exit fails the gate.
+- **`test/unit_test.dart`**: the member's one test entrypoint. It imports every
+  `*_test.dart` under `test/` and calls each `main` in a `group` of its own
+  (named by the file's path), so a file's `setUp` / `tearDown` stay with its
+  tests. One compile and one process run the whole suite, where `flutter
+  test` on the directory starts both per file. The files share the process: a
+  test that changes global state (`FlutterError.onError`, a static cache, a
+  process-wide handler) restores it, and a golden test points
+  `goldenFileComparator` at its own file, since goldens otherwise resolve
+  next to the entrypoint.
 
 ## Legacy baseline
 

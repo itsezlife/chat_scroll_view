@@ -3,7 +3,8 @@ import 'dart:ui' show Color;
 import 'package:chrome_foundation/src/palette/chrome_palette.dart';
 import 'package:meta/meta.dart';
 
-/// Colours of the catalog panel: body, category strip and search field.
+/// Colours of the catalog panel: body, category strip, search field and the
+/// tooltip over a cell.
 ///
 /// Derived from a [ChromePalette] by [PanelTokens.fromPalette]; a host
 /// overrides single fields with [copyWith] or supplies the whole group to a
@@ -23,6 +24,9 @@ final class PanelTokens {
     required this.stripFill,
     required this.searchIcon,
     required this.searchText,
+    required this.tooltipFill,
+    required this.tooltipText,
+    required this.tooltipBorder,
   });
 
   /// The default mapping of [palette] roles onto panel fields.
@@ -38,6 +42,9 @@ final class PanelTokens {
     stripFill: palette.onSurface.withAlpha(0x0A),
     searchIcon: palette.iconIdle,
     searchText: palette.onSurface,
+    tooltipFill: palette.surfaceRaised,
+    tooltipText: palette.onSurfaceMuted,
+    tooltipBorder: palette.separator,
   );
 
   /// Panel body fill.
@@ -76,6 +83,16 @@ final class PanelTokens {
   /// Search input text.
   final Color searchText;
 
+  /// Tooltip box fill: one step off [background], as the reference desktop
+  /// client's tooltip is one step off its window.
+  final Color tooltipFill;
+
+  /// Tooltip text, on [tooltipFill].
+  final Color tooltipText;
+
+  /// The 1 px edge of the tooltip box.
+  final Color tooltipBorder;
+
   /// A copy with the named fields replaced.
   PanelTokens copyWith({
     Color? background,
@@ -89,6 +106,9 @@ final class PanelTokens {
     Color? stripFill,
     Color? searchIcon,
     Color? searchText,
+    Color? tooltipFill,
+    Color? tooltipText,
+    Color? tooltipBorder,
   }) => PanelTokens(
     background: background ?? this.background,
     categoryIcon: categoryIcon ?? this.categoryIcon,
@@ -101,6 +121,9 @@ final class PanelTokens {
     stripFill: stripFill ?? this.stripFill,
     searchIcon: searchIcon ?? this.searchIcon,
     searchText: searchText ?? this.searchText,
+    tooltipFill: tooltipFill ?? this.tooltipFill,
+    tooltipText: tooltipText ?? this.tooltipText,
+    tooltipBorder: tooltipBorder ?? this.tooltipBorder,
   );
 
   /// Interpolates every field between [a] and [b].
@@ -123,6 +146,9 @@ final class PanelTokens {
         stripFill: Color.lerp(a.stripFill, b.stripFill, t)!,
         searchIcon: Color.lerp(a.searchIcon, b.searchIcon, t)!,
         searchText: Color.lerp(a.searchText, b.searchText, t)!,
+        tooltipFill: Color.lerp(a.tooltipFill, b.tooltipFill, t)!,
+        tooltipText: Color.lerp(a.tooltipText, b.tooltipText, t)!,
+        tooltipBorder: Color.lerp(a.tooltipBorder, b.tooltipBorder, t)!,
       );
 
   @override
@@ -139,7 +165,10 @@ final class PanelTokens {
           searchFill == other.searchFill &&
           stripFill == other.stripFill &&
           searchIcon == other.searchIcon &&
-          searchText == other.searchText;
+          searchText == other.searchText &&
+          tooltipFill == other.tooltipFill &&
+          tooltipText == other.tooltipText &&
+          tooltipBorder == other.tooltipBorder;
 
   @override
   int get hashCode => Object.hash(
@@ -154,6 +183,9 @@ final class PanelTokens {
     stripFill,
     searchIcon,
     searchText,
+    tooltipFill,
+    tooltipText,
+    tooltipBorder,
   );
 
   @override

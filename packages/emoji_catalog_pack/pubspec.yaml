@@ -1,8 +1,8 @@
 name: emoji_catalog_pack
 description: >
-  Emoji catalog payload: one locale-independent structure asset, one keyword
-  pack per locale and the pinned generator that produces them from Unicode and
-  CLDR data.
+  Emoji catalog payload: one locale-independent structure asset, the emoji
+  shortcodes, one keyword pack per locale and the pinned generator that
+  produces them from Unicode, CLDR and emoji-toolkit data.
 version: 0.1.0
 publish_to: none
 resolution: workspace
@@ -23,5 +23,7 @@ dev_dependencies:
 flutter:
   assets:
     - assets/structure.tsv
+    - assets/shortcodes.tsv
     - assets/keywords/
     - assets/LICENSE-UNICODE.txt
+    - assets/LICENSE-JOYPIXELS.txt

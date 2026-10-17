@@ -21,6 +21,12 @@ import 'package:panel_catalog/testing.dart';
 // rounded shapes differs there, regenerate on the pinned platform or add a
 // tolerance comparator, and record it here.
 void main() {
+  // Goldens sit next to this file, also when test/unit_test.dart runs it.
+  setUpAll(
+    () => goldenFileComparator = LocalFileComparator(
+      Uri.file('test/goldens/placeholders_golden_test.dart'),
+    ),
+  );
   final variants = {
     'light': PanelCatalogThemeData.light,
     'dark': PanelCatalogThemeData.dark,

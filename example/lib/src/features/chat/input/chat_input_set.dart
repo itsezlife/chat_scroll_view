@@ -8,16 +8,17 @@ import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatPreImeBackClaim;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/stub_panel_pages.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
-import 'package:flutter/services.dart'
-    show Clipboard, ClipboardData, HapticFeedback;
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
@@ -59,7 +60,7 @@ final class ChatEditTarget {
 /// | Created here | Role |
 /// | --- | --- |
 /// | [composer] | the input: text, focus, extent, soft-keyboard option |
-/// | [shell] | the panel's pages, search and events (one emoji page) |
+/// | [shell] | the panel's pages, search and events (one emoji page, with the animated emoji pack after its categories) |
 /// | [presentation] | where the panel appears and how much space it takes |
 /// | the three strategies | keyboard replacement, anchored popup, docked |
 /// | [insets] | the aggregation into what the viewport reserves |
@@ -71,9 +72,12 @@ final class ChatEditTarget {
 ///
 /// What the set decides, in one place each:
 ///
-/// - **Insert and record.** A picked emoji becomes an inline content
-///   reference in the composer and one `RecentsStore.record`; backspace edits
+/// - **Insert and record.** A picked emoji, unicode or animated, becomes an
+///   inline content reference in the composer and one `RecentsStore.record`; backspace edits
 ///   the composer; clearing recents asks [confirmClearRecents] first.
+/// - **Pasted media.** An image or file pasted into the composer, or an
+///   image a keyboard inserts, goes to `onPastedMedia` to send, and no text
+///   goes in; when it is not sent, the text that came with it does.
 /// - **Menu actions.** A right-click menu of the recents asks for a copy
 ///   (the emoji's text goes to the clipboard) and for one emoji to be
 ///   forgotten (`RecentsStore.remove`); its third item is the clear above.
@@ -105,6 +109,7 @@ final class ChatInputSet {
     required ClearRecentsConfirm confirmClearRecents,
     SoftKeyboardPort keyboard = const PlatformSoftKeyboard(),
     PanelPresentationPolicy? policy,
+    Future<bool> Function(List<PastedMedia> media)? onPastedMedia,
   }) {
     // What has been made so far, to free in reverse if a later step throws
     // (a constructor assertion, a keyboard that cannot be read): a half-built
@@ -132,7 +137,11 @@ final class ChatInputSet {
         (text) => text.dispose(),
       );
       final composer = owned(
-        ComposerController(text: text),
+        ComposerController(
+          text: text,
+          clipboard: services.clipboard,
+          onPastedMedia: onPastedMedia,
+        ),
         (composer) => composer.dispose(),
       );
       final keyboardStrategy = owned(
@@ -249,11 +258,15 @@ final class ChatInputSet {
        _window = window,
        _text = text {
     StreamSubscription<double>? heights;
+    StreamSubscription<bool>? motion;
     StreamSubscription<PanelEvent>? panelEvents;
     try {
       // A screen opened with the keyboard already up has no stream event yet.
       _lastImeHeight = keyboardPort.restingHeight;
       _imeHeights = heights = keyboardPort.heights.listen(_onImeHeight);
+      _imeMotion = motion = keyboardPort.animatingChanges.listen(
+        (_) => _reportIme(),
+      );
       _panelEvents = panelEvents = shell.events.listen(_onPanelEvent);
       shell.autoHideHolds.addListener(_onPanelHolds);
       _onPanelHolds();
@@ -263,6 +276,7 @@ final class ChatInputSet {
     } on Object {
       // The factory frees what it passed in; the rest is this object's.
       unawaited(heights?.cancel());
+      unawaited(motion?.cancel());
       unawaited(panelEvents?.cancel());
       shell.autoHideHolds.removeListener(_onPanelHolds);
       shell.search.removeListener(_onSearchState);
@@ -334,6 +348,11 @@ final class ChatInputSet {
   final ValueNotifier<bool> _leaving = ValueNotifier<bool>(false);
 
   late StreamSubscription<double> _imeHeights;
+  // The end of the keyboard's motion, which can come with no height of its
+  // own: without it, the last reading stays "animating" and the slot never
+  // sees the keyboard at rest, so it neither confirms a hand-off nor
+  // remembers the height a cold open needs.
+  late StreamSubscription<bool> _imeMotion;
   late StreamSubscription<PanelEvent> _panelEvents;
   double _lastImeHeight = 0;
   double _safeBottom = 0;
@@ -703,14 +722,20 @@ final class ChatInputSet {
 
   void _onPanelEvent(PanelEvent event) {
     switch (event) {
-      case ContentPicked(:final key, :final kind, :final source):
+      case ContentPicked(:final key, :final recentsKind, :final source):
         unawaited(HapticFeedback.selectionClick());
-        if (key is ContentKey$Unicode && kind == SemanticKind.unicodeEmoji) {
+        // By the content: this host inserts what it can read as text, a
+        // unicode emoji or an animated emoji of its pack.
+        if (_textOf(key) case final alternativeText?) {
           composer.insertContent(
-            InlineContentRef(key: key, alternativeText: key.sequence),
+            InlineContentRef(key: key, alternativeText: alternativeText),
           );
         }
-        unawaited(services.recents.record(key, kind: kind, source: source));
+        // In the list the page chose: the emoji page files unicode and
+        // animated emoji in one.
+        unawaited(
+          services.recents.record(key, kind: recentsKind, source: source),
+        );
       case BackspaceRequested():
         unawaited(HapticFeedback.selectionClick());
         composer.backspace();
@@ -718,8 +743,10 @@ final class ChatInputSet {
         unawaited(HapticFeedback.mediumImpact());
         unawaited(_clearRecents(kind));
       case ContentCopyRequested(:final key):
-        if (key case ContentKey$Unicode(:final sequence)) {
-          unawaited(Clipboard.setData(ClipboardData(text: sequence)));
+        // As itself, over the text other apps paste: pasted back into the
+        // composer it is the same custom emoji.
+        if (_textOf(key) case final text?) {
+          unawaited(services.clipboard.write(ChatCopy.content(key, text)));
         }
       case RecentRemoveRequested(:final key, :final kind):
         // Through the view the panel lists: the emoji leaves the list at once,
@@ -735,6 +762,14 @@ final class ChatInputSet {
         break;
     }
   }
+
+  // The text [key] reads as where it cannot be drawn: a unicode emoji itself,
+  // an animated emoji the emoji it animates; null for content this host does
+  // not insert.
+  static String? _textOf(ContentKey key) => switch (key) {
+    ContentKey$Unicode(:final sequence) => sequence,
+    _ => AnimatedEmojiPack.of(key)?.sequence,
+  };
 
   // One hold on the presentation for any number of the pages' holds: it goes
   // up with the first and down with the last.
@@ -828,6 +863,7 @@ final class ChatInputSet {
     _backClaim?.pop();
     _backClaim = null;
     unawaited(_imeHeights.cancel());
+    unawaited(_imeMotion.cancel());
     unawaited(_panelEvents.cancel());
     presentation.state.removeListener(_onPresentationState);
     shell.autoHideHolds.removeListener(_onPanelHolds);

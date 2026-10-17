@@ -9,13 +9,16 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' hide RichText;
+import 'package:content_model/content_model.dart' as model show RichText;
+import 'package:content_model/testing.dart';
+import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide RichText;
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_presentation/panel_presentation.dart';
@@ -58,6 +61,9 @@ Future<void> _open(WidgetTester tester, InputRig rig) async {
 final class _BrokenKeyboard implements SoftKeyboardPort {
   @override
   Stream<double> get heights => const Stream<double>.empty();
+
+  @override
+  Stream<bool> get animatingChanges => const Stream<bool>.empty();
 
   @override
   bool get isAnimating => false;
@@ -110,6 +116,26 @@ void main() {
       rig.keyboard.rest(344);
 
       expect(rig.set.ime.samples.value.height, 344);
+    });
+
+    testWidgets('a keyboard that stops moving with no new height is fed as '
+        'settled, and its height is remembered for a cold open', (
+      tester,
+    ) async {
+      final rig = await rigWithSafeArea(tester, includesSafeArea: true);
+
+      // The last height arrives while the system still reports motion; the
+      // end of the motion brings no height of its own.
+      rig.keyboard.move(344, animating: true);
+      expect(rig.set.ime.samples.value.animating, isTrue);
+      rig.keyboard.stopMoving();
+
+      expect(rig.set.ime.samples.value.height, 344);
+      expect(rig.set.ime.samples.value.animating, isFalse);
+      expect(
+        rig.services.keyboardHeights.heightFor(PanelOrientation.portrait),
+        310,
+      );
     });
 
     testWidgets('no keyboard stays no keyboard however the platform counts '
@@ -1007,6 +1033,31 @@ void main() {
       expect(rig.sent, [_thumbsUp]);
     });
 
+    testWidgets('of an animated emoji puts it in the composer as itself, '
+        'reading as the emoji it animates', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      final rocket = AnimatedEmojiPack.emoji.last;
+
+      // As the emoji page picks it: a custom emoji, filed in its one recents
+      // list.
+      rig.set.shell
+          .hostFor('emoji')
+          .pick(
+            rocket.key,
+            kind: SemanticKind.customEmoji,
+            recentsKind: SemanticKind.unicodeEmoji,
+          );
+      await tester.pump();
+
+      final text = rig.set.composer.richText;
+      expect(text.plain, '🚀');
+      expect(text.entities.single.kind, EntityKind.inlineContent(rocket.key));
+      expect(rig.services.recents.recents(SemanticKind.unicodeEmoji), [
+        rocket.key,
+      ]);
+    });
+
     testWidgets('from search results is not recorded', (tester) async {
       final rig = await _mobileRig(tester);
       await _open(tester, rig);
@@ -1061,29 +1112,70 @@ void main() {
       tester,
     ) async {
       final rig = await _mobileRig(tester);
-      final copied = <String?>[];
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            copied.add((call.arguments as Map)['text'] as String?);
-          }
-          return null;
-        },
-      );
-      addTearDown(
-        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          SystemChannels.platform,
-          null,
-        ),
-      );
 
       rig.set.shell
           .hostFor('emoji')
           .requestCopy(emojiKey(_thumbsUp), kind: SemanticKind.unicodeEmoji);
       await tester.pump();
 
-      expect(copied, [_thumbsUp]);
+      final held = await (rig.services.clipboard as FakeRichClipboard).read();
+      expect(held!.richOrPlain, const model.RichText.plain(_thumbsUp));
+    });
+
+    testWidgets('a copy of an animated emoji keeps it as itself, over the '
+        'emoji it animates', (tester) async {
+      final rig = await _mobileRig(tester);
+      final rocket = AnimatedEmojiPack.emoji.last;
+
+      rig.set.shell
+          .hostFor('emoji')
+          .requestCopy(rocket.key, kind: SemanticKind.customEmoji);
+      await tester.pump();
+
+      final held = await (rig.services.clipboard as FakeRichClipboard).read();
+      expect(held!.plain, rocket.sequence);
+      expect(
+        held.rich,
+        model.RichText(rocket.sequence, [
+          Entity(
+            0,
+            rocket.sequence.length,
+            EntityKind.inlineContent(rocket.key),
+          ),
+        ]),
+      );
+    });
+
+    testWidgets('a pasted image goes to the screen to send, not into the '
+        'text', (tester) async {
+      final rig = await _mobileRig(tester);
+      final image = PastedMedia.bytes(
+        Uint8List.fromList(const [1, 2, 3]),
+        mimeType: 'image/png',
+      );
+      (rig.services.clipboard as FakeRichClipboard).putMedia([image]);
+
+      expect(await rig.set.composer.paste(), isTrue);
+
+      expect(rig.pastedMedia.single.single, same(image));
+      expect(rig.set.composer.richText.plain, isEmpty);
+    });
+
+    testWidgets('the composer copies through the app\'s clipboard', (
+      tester,
+    ) async {
+      final rig = await _mobileRig(tester);
+      final rocket = AnimatedEmojiPack.emoji.last;
+      rig.set.composer.insertContent(
+        InlineContentRef(key: rocket.key, alternativeText: rocket.sequence),
+      );
+      rig.set.composer.select(
+        TextSelection(baseOffset: 0, extentOffset: rocket.sequence.length),
+      );
+
+      expect(await rig.set.composer.copySelection(), isTrue);
+      final held = await (rig.services.clipboard as FakeRichClipboard).read();
+      expect(held!.rich, rig.set.composer.richText);
     });
 
     testWidgets('a removal forgets that emoji only', (tester) async {

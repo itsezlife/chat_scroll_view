@@ -2,12 +2,16 @@
 /// (`rootBundle.loadString` in Flutter).
 ///
 /// The pack does not load anything itself: reading an asset is the host's
-/// platform, decoding the text is [EmojiCatalogStructure.decode] and
-/// [EmojiKeywordPack.decode].
+/// platform, decoding the text is [EmojiCatalogStructure.decode],
+/// [EmojiShortcodes.decode] and [EmojiKeywordPack.decode].
 abstract final class EmojiCatalogPackAssets {
   /// The asset key of the locale-independent structure.
   static const String structure =
       'packages/emoji_catalog_pack/assets/structure.tsv';
+
+  /// The asset key of the locale-independent shortcodes.
+  static const String shortcodes =
+      'packages/emoji_catalog_pack/assets/shortcodes.tsv';
 
   /// The locale ids that have a shipped keyword pack, in the order of the
   /// generator's lock. A host asking for another locale gets no bundled pack.

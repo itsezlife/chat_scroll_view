@@ -83,6 +83,13 @@ List<_Pair> _pairs(ChromeThemeData d) {
     on('composer reply line', d.composer.replyLine, composerBg, min: _icon),
     on('panel section title', d.panel.sectionTitle, panelBg, min: _text),
     on(
+      'panel tooltip text on its fill',
+      d.panel.tooltipText,
+      d.panel.tooltipFill,
+      backdrop: panelBg,
+      min: _text,
+    ),
+    on(
       'panel search text on its pill',
       d.panel.searchText,
       d.panel.searchFill,

@@ -8,6 +8,27 @@ is pre-1.0.
 
 ### Changed
 
+- Under the touch arrangement, `EmojiCategoryStrip` follows `EmojiStripLayout`
+  too: with a pack (by default) it is the reference mobile client's strip with
+  custom emoji: the recents, the categories folded into a group that opens
+  while one of them is active, then a tab per pack drawn by its cover. Without
+  a pack, or with `EmojiStripLayout.plain`, it is the row of category tabs as
+  before. Hosts that relied on the touch strip never showing packs pass
+  `EmojiStripLayout.plain`.
+  A pack's tab is its cover's first frame, a still, as the reference client
+  draws it; the pill stays still on the open group while the category inside
+  it changes.
+- `EmojiPagePolicy` files every pick under `EmojiPagePolicy.recentsKind`
+  (`SemanticKind.unicodeEmoji`), custom emoji included: the page has one
+  recents list, as the reference clients do. The list is the pick's new
+  `recentsKind`; its `kind` stays the content's own, so a custom emoji pick
+  is still `SemanticKind.customEmoji`. A host that recorded recents under
+  `kind` records them under `recentsKind`. The recents menu and the finger's
+  clear-on-long-press answer on a custom emoji of the recents too; the menu's
+  copy asks under the content's own kind (`ContentCopyRequested.kind`).
+- Source-breaking: `CatalogPick` has `recentsKind` (its `kind` when omitted),
+  passed on to `PanelPageHost.pick`, and `FakePanelPageHost.picks` records
+  carry it: a test that compares whole records names it.
 - Source-breaking: `emojiVariantOptions(entry)` is
   `EmojiVariantPicker.optionsOf(entry)`, and `runBakeActivityPortContract(...)`
   in `testing.dart` is `BakeActivityPortContract.run(...)`.
@@ -79,6 +100,16 @@ is pre-1.0.
 
 ### Added
 
+- `PageAssets.createScope(systemFonts:)`, passed to the scope: a host that
+  draws glyphs as text (the web) passes the engine's signal so glyphs laid out
+  before the emoji font arrived are laid out again.
+- `PageAssets.createScope(textGlyphsReady:)`, handed to
+  `TextGlyphProducer.fontsReady`: placeholders until the fonts that draw the
+  glyphs are there.
+
+- `EmojiTabIcons.clearCache()` (`@visibleForTesting`): forgets the decoded
+  tab art, for tests sharing one process (`test/unit_test.dart`), where a
+  scope opened under fake async leaves a decode that never completes.
 - `CatalogPage.keepsScrollOnReopen` and `EmojiPage.keepsScrollOnReopen`:
   whether the catalogue is where it was left when the panel is shown again.
   By default it goes back to its start under `touch` and keeps its place

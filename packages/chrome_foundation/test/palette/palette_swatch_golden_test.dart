@@ -8,6 +8,12 @@ import '../support/palette_swatch.dart';
 // solid rectangles on whole pixels with no text, so the pinned platform
 // (macOS and Linux CI render it identically) needs no tolerance.
 void main() {
+  // Goldens sit next to this file, also when test/unit_test.dart runs it.
+  setUpAll(
+    () => goldenFileComparator = LocalFileComparator(
+      Uri.file('test/palette/palette_swatch_golden_test.dart'),
+    ),
+  );
   final palettes = {
     'light': const ChromePalette.light(),
     'dark': const ChromePalette.dark(),
