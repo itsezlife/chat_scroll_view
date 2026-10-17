@@ -17,6 +17,11 @@ package is pre-1.0.
 
 ### Added
 
+- `RichClipboard`, the seam to the system clipboard for text that keeps its
+  entities: `write(RichText)` puts its plain text and a rich form on the
+  clipboard, `read()` answers a `ClipboardText` (the plain text, plus the
+  `RichText` when the clipboard held a rich form). `FakeRichClipboard` and
+  `RichClipboardContract.run` are in `testing.dart`. See ADR 032.
 - `MediaForm.animatedImage` (`animated_image`): frames in an image format
   (animated WebP, GIF, APNG), decoded by image codecs. `MediaForm.video` is
   now video-coded media only: decoders are registered per form, and with one

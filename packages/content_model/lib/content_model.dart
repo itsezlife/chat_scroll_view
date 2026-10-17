@@ -13,6 +13,7 @@ export 'src/data/key_value_store.dart';
 export 'src/data/keyword_source.dart';
 export 'src/data/preference_store.dart';
 export 'src/data/recents_store.dart';
+export 'src/data/rich_clipboard.dart';
 export 'src/data/search_source.dart';
 export 'src/emoji/emoji_entry.dart';
 export 'src/identity/content_descriptor.dart';

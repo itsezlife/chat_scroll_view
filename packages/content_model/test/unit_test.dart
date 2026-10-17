@@ -35,6 +35,7 @@ import 'testing/fake_key_value_store_test.dart' as fake_key_value_store_test;
 import 'testing/fake_keyword_source_test.dart' as fake_keyword_source_test;
 import 'testing/fake_preference_store_test.dart' as fake_preference_store_test;
 import 'testing/fake_recents_store_test.dart' as fake_recents_store_test;
+import 'testing/fake_rich_clipboard_test.dart' as fake_rich_clipboard_test;
 import 'testing/fake_search_source_test.dart' as fake_search_source_test;
 
 void main() {
@@ -86,5 +87,6 @@ void main() {
     fake_preference_store_test.main,
   );
   group('testing/fake_recents_store_test.dart', fake_recents_store_test.main);
+  group('testing/fake_rich_clipboard_test.dart', fake_rich_clipboard_test.main);
   group('testing/fake_search_source_test.dart', fake_search_source_test.main);
 }

@@ -33,6 +33,14 @@ _Avoid_: Semantic kind, file type, cache type
 Host-implemented, batched, async seam that resolves bare content keys (message text, recents, deep links) to descriptors.
 _Avoid_: Eager descriptor lookup on every list, resolver inside the viewport
 
+**Rich clipboard**:
+The system clipboard holding two forms of one rich text: plain text any app pastes, and a rich form (HTML) a paste into the app reads back with every entity.
+_Avoid_: Clipboard service, copy manager
+
+**Clipboard text**:
+What a paste reads: the clipboard's plain text, plus its rich text when the clipboard held a rich form.
+_Avoid_: Clipboard data, paste payload
+
 **Collection**:
 The uniform container: id (set id, well-known list such as recent, faved or saved, or query or category), metadata and contents with explicit state (`idle`, `loading`, `loaded`, `failed`) and a page token. Sets, recents, faved, saved, search results and trending are all collections.
 _Avoid_: Set, pack, list type per source, search-result type
