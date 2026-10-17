@@ -22,7 +22,9 @@ is pre-1.0.
   (`SemanticKind.unicodeEmoji`), custom emoji included: the page has one
   recents list, as the reference clients do. A custom emoji pick reached the
   host as `SemanticKind.customEmoji` before. The recents menu and the finger's
-  clear-on-long-press answer on a custom emoji of the recents too.
+  clear-on-long-press answer on a custom emoji of the recents too; the menu's
+  copy asks under the content's own kind (`ContentCopyRequested.kind`), since
+  a copy is of the content, not of the list.
 - Source-breaking: `emojiVariantOptions(entry)` is
   `EmojiVariantPicker.optionsOf(entry)`, and `runBakeActivityPortContract(...)`
   in `testing.dart` is `BakeActivityPortContract.run(...)`.

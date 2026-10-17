@@ -76,6 +76,10 @@ final class StillImagePaintable implements AssetPaintable {
 /// decoding each one anyway. A clock that starts again behind the time the
 /// shown frame went up at restarts the timing the same way.
 ///
+/// Every paint of the image reads one clock: an entry belongs to one cache
+/// scope, and the scope has one playback clock. Times from another clock
+/// would read as jumps and restarts.
+///
 /// The image is one playback for every surface of its entry. A paint that
 /// does not animate (`AssetPaintContext.animate`) shows the frame on screen
 /// and changes nothing: it neither steps the image nor starts the first

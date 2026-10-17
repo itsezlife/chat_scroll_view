@@ -348,6 +348,40 @@ void main() {
       expect(host.clearRecentsRequests, [SemanticKind.unicodeEmoji]);
     });
 
+    test('asks to copy a custom emoji as what it is, and to remove it from '
+        'the one list', () {
+      const custom = CatalogLeafHit(
+        sectionId: 's',
+        index: 0,
+        leaf: CatalogLeaf(
+          key: ContentKey.document('5368'),
+          semanticKind: SemanticKind.customEmoji,
+        ),
+      );
+
+      policy
+        ..onMenuAction(custom, recents, EmojiPagePolicy.copyItemId, host)
+        ..onMenuAction(
+          custom,
+          recents,
+          EmojiPagePolicy.removeRecentItemId,
+          host,
+        );
+
+      expect(host.copyRequests, [
+        (
+          key: const ContentKey.document('5368'),
+          kind: SemanticKind.customEmoji,
+        ),
+      ]);
+      expect(host.removeRecentRequests, [
+        (
+          key: const ContentKey.document('5368'),
+          kind: SemanticKind.unicodeEmoji,
+        ),
+      ]);
+    });
+
     test('ignores an unknown item and an item of another section', () {
       final hit = _hit('😀');
 

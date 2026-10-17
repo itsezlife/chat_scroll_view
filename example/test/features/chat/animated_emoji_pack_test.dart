@@ -5,16 +5,28 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_decoder/image_decoder.dart';
+
+/// A bundle whose every read fails with [error].
+final class _BrokenBundle extends CachingAssetBundle {
+  _BrokenBundle(this.error);
+
+  final Error error;
+
+  @override
+  Future<ByteData> load(String key) async => throw error;
+}
 
 /// The app bundle as the files under `assets/` on disk.
 final class _DiskBundle extends CachingAssetBundle {
   @override
   Future<ByteData> load(String key) async {
     final file = File(key);
-    if (!file.existsSync()) throw StateError('no asset $key');
+    // What the platform bundle throws for a file it lacks.
+    if (!file.existsSync()) throw FlutterError('Unable to load asset: $key');
     return ByteData.sublistView(await file.readAsBytes());
   }
 }
@@ -85,6 +97,30 @@ void main() {
       expect(
         (content as FetchedBytes).bytes,
         File('assets/animated_emoji/${item.code}.webp').readAsBytesSync(),
+      );
+    });
+
+    test('fails a file the bundle lacks for good, and lets a bundle that '
+        'breaks report its own error', () async {
+      final heart = AnimatedEmojiPack.emoji.first.descriptor;
+
+      await expectLater(
+        AnimatedEmojiPack.fetcher(
+          _BrokenBundle(FlutterError('Unable to load asset')),
+        ).fetch(_request(heart)),
+        throwsA(
+          isA<FetchFailure>().having(
+            (failure) => failure.kind,
+            'kind',
+            AssetFailureKind.permanent,
+          ),
+        ),
+      );
+      await expectLater(
+        AnimatedEmojiPack.fetcher(
+          _BrokenBundle(StateError('a bug')),
+        ).fetch(_request(heart)),
+        throwsA(isA<StateError>()),
       );
     });
 

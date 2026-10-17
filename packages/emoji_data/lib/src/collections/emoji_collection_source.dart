@@ -49,7 +49,9 @@ import 'package:listen/listen.dart';
 /// - until the resolver answers, a key is listed bare, in its place;
 /// - a key it resolves is listed with its descriptor from then on;
 /// - a key it leaves out (unknown or deleted content) leaves the list, so the
-///   page never draws a stand-in for content that will not come;
+///   page never draws a stand-in for content that will not come, and is not
+///   asked about again for the life of the source: the resolver contract
+///   says a key left out was attempted and is unknown;
 /// - a batch that fails (no connection) is the state "not described yet", not
 ///   an error: its keys stay bare and are asked again the next time the
 ///   recents change.
@@ -308,8 +310,10 @@ final class EmojiCollectionSource implements CollectionSource {
     ];
     if (unknown.isEmpty) return;
     _resolving.addAll(unknown);
+    // Through Future.sync: a resolver that throws instead of failing its
+    // future is a failed batch too, not an error out of deriving the recents.
     unawaited(
-      resolver.resolve(unknown).then(
+      Future.sync(() => resolver.resolve(unknown)).then(
         (found) {
           _resolving.removeAll(unknown);
           for (final key in unknown) {

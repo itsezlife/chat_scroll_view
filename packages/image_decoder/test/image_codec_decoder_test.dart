@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_decoder/image_decoder.dart';
 
@@ -168,8 +168,9 @@ void main() {
       expect(advance.stage, AssetStage.full);
       expect(advance.tier, AssetTier.animated);
       expect(advance.paintable.isAnimated, isTrue);
-      // The frame shown and the one decoded ahead, at 16 x 16.
-      expect(advance.bytes, 2 * 16 * 16 * 4);
+      // The frame shown and the one decoded ahead, at 16 x 16, and the
+      // encoded data the codec keeps to decode them from.
+      expect(advance.bytes, 2 * 16 * 16 * 4 + _threeFrames.length);
       advance.paintable.dispose();
     });
 
@@ -319,6 +320,23 @@ void main() {
         await _settledAt(paintable, seen + const Duration(milliseconds: 40)),
         _blue,
       );
+    });
+
+    test('drops a frame that lands after it is disposed', () async {
+      final own = (await _decode(
+        _request(_threeFrames),
+      )).advances.single.paintable;
+      final errors = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = errors.add;
+      addTearDown(() => FlutterError.onError = previous);
+
+      // The paint starts decoding the next frame; dispose does not wait.
+      await _centreAt(own, Duration.zero);
+      own.dispose();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(errors, isEmpty);
     });
 
     test(

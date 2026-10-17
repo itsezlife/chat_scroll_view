@@ -506,6 +506,28 @@ void main() {
       );
     });
 
+    test('keeps keys bare when the resolver throws instead of failing its '
+        'future', () async {
+      final throwing = EmojiCollectionSource(
+        catalog: sampleCatalog(),
+        recents: recents,
+        preferences: preferences,
+        resolver: _ThrowingResolver(),
+      );
+      addTearDown(throwing.dispose);
+      await recents.record(party, kind: SemanticKind.unicodeEmoji);
+
+      await throwing.load(CollectionId.recent);
+      await settle();
+
+      expect(
+        (throwing.collections.value.first.contents
+                as CollectionContents$Loaded)
+            .items,
+        [const CollectionItem.bare(party)],
+      );
+    });
+
     test('lists them bare without a resolver', () async {
       final bare = EmojiCollectionSource(
         catalog: sampleCatalog(),
@@ -629,4 +651,13 @@ void main() {
       expect(publications, 0);
     });
   });
+}
+
+/// A resolver that breaks its contract by throwing before it returns a
+/// future.
+final class _ThrowingResolver implements ContentResolver {
+  @override
+  Future<Map<ContentKey, ContentDescriptor>> resolve(
+    Iterable<ContentKey> keys,
+  ) => throw StateError('the resolver broke');
 }

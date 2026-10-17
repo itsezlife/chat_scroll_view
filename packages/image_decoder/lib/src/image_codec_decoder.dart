@@ -3,13 +3,16 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_decoder/src/image_paintable.dart';
 
 /// Decodes images with the engine's codecs, at the size of the spec.
 ///
 /// The image is decoded to fit inside the spec's pixels, keeping its aspect
 /// ratio and never larger than it is encoded, and painted centred in the
-/// surface's rectangle. What it reports:
+/// surface's rectangle. An image smaller than its surface is scaled up at
+/// paint, so a pack meant to look sharp is encoded at its largest surface's
+/// pixels. What it reports:
 ///
 /// | Request | Reports |
 /// | --- | --- |
@@ -26,7 +29,9 @@ import 'package:image_decoder/src/image_paintable.dart';
 /// is 3.6 MB that way and about 80 KB this way, and a screenful of them would
 /// not fit the animated budget. The price is a decode per shown frame, which
 /// the engine does off the UI thread, as the reference clients do for
-/// animated WebP and GIF.
+/// animated WebP and GIF. The codec keeps the encoded data to decode from, so
+/// a playing image is counted as its two frames plus that data (about 110 KB
+/// for such an emoji).
 ///
 /// There is no frame report before the full stage: the first frame and the
 /// playing image exist at the same moment.
@@ -35,7 +40,8 @@ import 'package:image_decoder/src/image_paintable.dart';
 ///
 /// Vector animations and video codecs are other media forms with adapters of
 /// their own. Content in a file is read with `ImmutableBuffer.fromFilePath`,
-/// which the web does not support; a fetcher for the web hands bytes.
+/// which the web does not support: there a file is a permanent failure that
+/// says so, and a fetcher for the web hands bytes.
 final class ImageCodecDecoder implements Decoder {
   /// Creates a decoder. It keeps no state between requests.
   const ImageCodecDecoder();
@@ -62,12 +68,18 @@ final class _DecodeTask implements AssetTask {
   Future<void> run() async {
     final ui.Codec codec;
     final ui.FrameInfo first;
+    final int encodedBytes;
     ui.Codec? decoding;
     try {
       final buffer = await switch (_request.content) {
         FetchedBytes(:final bytes) => ui.ImmutableBuffer.fromUint8List(bytes),
+        FetchedFile() when kIsWeb => throw UnsupportedError(
+          'ImageCodecDecoder reads no file on the web: the fetcher must hand '
+          'bytes (FetchedContent.bytes).',
+        ),
         FetchedFile(:final path) => ui.ImmutableBuffer.fromFilePath(path),
       };
+      encodedBytes = buffer.length;
       // Cancelled while the data was read: no codec, no decoded frame.
       if (_cancelled) {
         buffer.dispose();
@@ -101,10 +113,10 @@ final class _DecodeTask implements AssetTask {
     // paintable handed over, and an error the progress throws is not a
     // decode failure. Caught above, it would dispose what the cache now
     // owns, and the cache would dispose it again.
-    _report(codec, first);
+    _report(codec, first, encodedBytes);
   }
 
-  void _report(ui.Codec codec, ui.FrameInfo first) {
+  void _report(ui.Codec codec, ui.FrameInfo first, int encodedBytes) {
     final spec = _request.spec;
     final template = spec.decodeMode == AssetDecodeMode.template;
     final frameBytes = first.image.width * first.image.height * 4;
@@ -117,8 +129,10 @@ final class _DecodeTask implements AssetTask {
       _progress.advance(
         stage,
         PlayingImagePaintable(codec, first, template: template),
-        // The frame shown and the one decoded ahead.
-        bytes: frameBytes * 2,
+        // The frame shown, the one decoded ahead and the encoded data the
+        // codec keeps to decode the next from. Whatever else the engine's
+        // codec holds (a frame kept for blending) is not visible here.
+        bytes: frameBytes * 2 + encodedBytes,
         tier: AssetTier.animated,
       );
       return;

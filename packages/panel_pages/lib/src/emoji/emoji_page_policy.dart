@@ -103,7 +103,9 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
 
   /// The kind every pick of the page is filed under: the page's one recents
   /// list, custom emoji included. The pick's own content keeps its kind in
-  /// its descriptor; this only names the list.
+  /// its descriptor; this only names the list, in picks and in requests to
+  /// remove from or clear it. A request to copy carries the content's own
+  /// kind.
   static const SemanticKind recentsKind = SemanticKind.unicodeEmoji;
 
   /// The id of the context menu item that copies the emoji.
@@ -380,8 +382,10 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     if (collection.id != CollectionId.recent) return;
     const kind = recentsKind;
     switch (itemId) {
+      // A copy is of the content, so under its own kind (a custom emoji is
+      // not text); removing and clearing name the one list.
       case copyItemId:
-        host.requestCopy(hit.leaf.key, kind: kind);
+        host.requestCopy(hit.leaf.key, kind: hit.leaf.semanticKind);
       case removeRecentItemId:
         host.requestRemoveRecent(hit.leaf.key, kind: kind);
       case clearRecentItemId:

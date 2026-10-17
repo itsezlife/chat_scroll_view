@@ -1,8 +1,8 @@
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:listen/listen.dart' as listen;
-import 'package:meta/meta.dart';
 
 /// One emoji of the [AnimatedEmojiPack]: an animated WebP in the app bundle.
 @immutable
@@ -189,8 +189,12 @@ final class _BundleFetcher implements ContentFetcher {
     final ByteData data;
     try {
       data = await _bundle.load(item._assetPath);
-    } on Object catch (error) {
-      // A bundle does not gain files at run time: retrying will not help.
+      // A bundle reports a file it lacks as a FlutterError and offers no way
+      // to ask first.
+      // ignore: avoid_catching_errors
+    } on FlutterError catch (error) {
+      // A bundle does not gain files at run time, so retrying will not help.
+      // Anything else is a bug, and stays one.
       throw FetchFailure.permanent('missing ${item._assetPath}', error);
     }
     return FetchedContent.bytes(
