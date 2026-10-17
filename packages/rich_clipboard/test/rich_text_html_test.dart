@@ -174,6 +174,18 @@ void main() {
     });
   });
 
+  test('reads its own HTML out of the document a platform wraps it in', () {
+    // Windows' HTML Format wraps a copy in a document of its own, with line
+    // breaks around the fragment.
+    final text = _text('bold\nline', [('bold', EntityKind.bold)]);
+    final wrapped =
+        '<html><body>\r\n<!--StartFragment-->'
+        '${RichTextHtml.encode(text)}'
+        '<!--EndFragment-->\r\n</body></html>';
+
+    expect(RichTextHtml.decode(wrapped), text);
+  });
+
   group('encode', () {
     test('writes a long text with many entities in time linear in its '
         'size', () {

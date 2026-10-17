@@ -11,3 +11,6 @@ String? $operatingSystemVersion() => Platform.operatingSystemVersion;
 /// The VM hook: the engine has every font it draws glyphs with from the
 /// start.
 Future<void> $glyphFontsSettled(Iterable<String> glyphs) async {}
+
+/// The VM hook: no page around the app to tell how far its boot is.
+void $reportBootProgress(int percent, String status) {}

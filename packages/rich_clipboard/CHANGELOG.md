@@ -47,6 +47,10 @@ package is pre-1.0.
   name. This app's own links keep any scheme, or none; no link keeps
   `javascript`, `vbscript`, `data`, `file` or `blob`.
 - Encoding and decoding take time linear in the size of the text.
+- This app's own HTML is read from its marked element alone: Windows' HTML
+  Format wraps a copy in a document with line breaks around the fragment,
+  which came back as an empty line before and after the text (found by the
+  contract run on Windows in CI).
 - On the web, a browser without `ClipboardItem` or `read` falls back to plain
   text; a browser that refuses a write or a read fails it, rather than
   falling back silently.

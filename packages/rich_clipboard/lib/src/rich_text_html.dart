@@ -270,12 +270,16 @@ final class _Context {
 
 final class _Decoder {
   _Decoder(this._document)
-    : _own = _document.querySelector('[${RichTextHtml.ownMarker}]') != null;
+    : _ownRoot = _document.querySelector('[${RichTextHtml.ownMarker}]');
 
   final dom.Document _document;
 
-  // HTML [RichTextHtml.encode] wrote: kept exactly.
-  final bool _own;
+  // The element [RichTextHtml.encode] wrote, when the HTML is its own: read
+  // exactly, and alone, as a platform may wrap it in a document of its own
+  // (Windows' HTML Format puts line breaks around the fragment).
+  final dom.Element? _ownRoot;
+
+  bool get _own => _ownRoot != null;
 
   final _text = _DecodedText();
   final _entities = <Entity>[];
@@ -307,8 +311,8 @@ final class _Decoder {
   static final RegExp _ignoredInScheme = RegExp(r'[\x00-\x20]');
 
   RichText run() {
-    final body = _document.body;
-    if (body != null) _walkChildren(body, const _Context());
+    final root = _ownRoot ?? _document.body;
+    if (root != null) _walkChildren(root, const _Context());
     _trimTrailingSpace();
     final plain = _text.toString();
     final runs = _joinedRuns();

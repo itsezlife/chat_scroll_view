@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
@@ -44,4 +46,19 @@ Future<void> $glyphFontsSettled(Iterable<String> glyphs) async {
     quiet.cancel();
     giveUp.cancel();
   }
+}
+
+/// The web hook: tells the page's loading widget how far the boot is.
+///
+/// The release bootstrap (`sw`) shows the page loading up to 90% and leaves
+/// the rest to the app; it removes the widget on the first frame. The
+/// development page defines the same hook as a no-op, and a page without it
+/// is left alone.
+void $reportBootProgress(int percent, String status) {
+  if (!globalContext.has('updateLoadingProgress')) return;
+  globalContext.callMethod<JSAny?>(
+    'updateLoadingProgress'.toJS,
+    percent.toJS,
+    status.toJS,
+  );
 }
