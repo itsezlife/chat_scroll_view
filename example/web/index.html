@@ -3,8 +3,9 @@
 <head>
   <!--
     The development template: what `flutter run` serves, with Flutter's own
-    bootstrap. A release is built by tool/build_web.sh, which ships
-    index.prod.html instead (the `sw` bootstrap with its loading widget).
+    bootstrap (web/flutter_bootstrap.js, which shows the loading screen). A
+    release is built by tool/build_web.sh, which ships index.prod.html
+    instead (the `sw` bootstrap with the same loading screen).
   -->
   <base href="$FLUTTER_BASE_HREF">
   <meta charset="utf-8">
@@ -23,14 +24,6 @@
   <style>html,body{margin:0;background:#111418}</style>
 </head>
 <body>
-  <!--
-    The loading hooks the release bootstrap defines, as no-ops: the app
-    reports its last steps through them whichever bootstrap loaded it.
-  -->
-  <script>
-    window.updateLoadingProgress = function (progress, text) {};
-    window.removeLoadingIndicator = function () {};
-  </script>
   <!--
     The WebAuthn bridge supabase_flutter → passkeys_web calls: served with the
     app and not waited for (see vendor/passkeys/README.md).
