@@ -1,9 +1,16 @@
+import 'dart:ui';
+
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _metrics = InlineEmbedMetrics(fontSize: 10, devicePixelRatio: 2);
+const _metrics = InlineEmbedMetrics(
+  fontSize: 10,
+  ascent: 8,
+  descent: 2,
+  devicePixelRatio: 2,
+);
 
 void main() {
   late FakeAssetProducer producer;
@@ -39,7 +46,8 @@ void main() {
       addTearDown(embed.dispose);
 
       final preset = AssetPresets.inlineMessage(
-        fontSize: 10,
+        ascent: 8,
+        descent: 2,
         devicePixelRatio: 2,
       );
       expect(
@@ -47,6 +55,24 @@ void main() {
         AssetRequest(const ContentKey.unicode('\u{1F44D}'), preset.spec),
       );
       expect(embed.sizeHint, preset.size);
+    });
+
+    test('sizes the embed to the inline square of the metrics', () {
+      const metrics = InlineEmbedMetrics(
+        fontSize: 16,
+        ascent: 15,
+        descent: 4,
+        devicePixelRatio: 3,
+      );
+      final embed = ContentEmbedResolver(scope: scope).resolve(
+        const InlineEmbedTarget(scheme: 'document', id: '5', alt: 'x'),
+        metrics,
+      )!;
+      addTearDown(embed.dispose);
+
+      // 1.2 * (15 + 4) = 22.8 logical px = 68.4 device px, 68 rounded.
+      expect(embed.sizeHint, const Size.square(68 / 3));
+      expect(producer.last.request.spec.pixelWidth, 68);
     });
 
     test('has no embed for a scheme that is not a content key', () {

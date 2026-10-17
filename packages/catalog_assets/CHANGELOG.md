@@ -6,6 +6,24 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (embed metrics and explicit-extent presets)
+
+- `InlineEmbedMetrics.ascent` and `descent`: the line's vertical metrics in
+  logical pixels, so an embed is sized from the line it sits in.
+- `AssetPresets.square` (any explicit extent and profile), `emojiOnly` (one
+  item of an emoji-only message, from a font-size step) and `emojiSticker`
+  (the single-emoji sticker; plays once, `autoplay` decided by the host).
+
+### Changed (embed metrics)
+
+- Source-breaking: `InlineEmbedMetrics` requires `ascent` and `descent`, and
+  `AssetPresets.inlineMessage` takes `ascent:` and `descent:` instead of
+  `fontSize:`. Its extent is now `1.2 * (ascent + descent)` rounded to whole
+  device pixels (Telegram Android's rule), so every embed of a paragraph
+  shares one spec per key. `extentPerFontSize` is gone. The old font-size form
+  remains for text with no metrics as `AssetPresets.inlineFontSize`.
+  `ContentEmbedResolver` and `FakeInlineEmbedResolver` size embeds with the new
+  rule.
 ### Changed
 
 - Source-breaking: the contract suites in `testing.dart` are statics on a type

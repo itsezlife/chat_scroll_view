@@ -15,7 +15,7 @@ abstract final class ContentViewSpans {
   /// selection and caret by text offsets. They have no width and no glyph, and
   /// forbid a line break inside the reference.
   ///
-  /// The content's size follows the text: `AssetPresets.inlineMessage` at the
+  /// The content's size follows the text: `AssetPresets.inlineFontSize` at the
   /// style's font size (the field's size when the style has none) and the
   /// display density. [scope] is the cache to attach to; null looks up the
   /// closest `AssetCacheProvider` above the field and throws a [FlutterError]
@@ -25,7 +25,7 @@ abstract final class ContentViewSpans {
     double fallbackFontSize = _defaultFontSize,
   }) => (context, reference, style) {
     final padding = reference.alternativeText.length - 1;
-    final preset = AssetPresets.inlineMessage(
+    final preset = AssetPresets.inlineFontSize(
       fontSize: style.fontSize ?? fallbackFontSize,
       devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
     );

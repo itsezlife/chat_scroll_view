@@ -50,6 +50,7 @@ import 'embed/content_embed_resolver_test.dart' as content_embed_resolver_test;
 import 'embed/content_embed_test.dart' as content_embed_test;
 import 'embed/fake_inline_embed_contract_test.dart'
     as fake_inline_embed_contract_test;
+import 'embed/inline_embed_metrics_test.dart' as inline_embed_metrics_test;
 import 'glyph/glyph_binding_test.dart' as glyph_binding_test;
 import 'glyph/glyph_sprite_source_contract_test.dart'
     as glyph_sprite_source_contract_test;
@@ -144,6 +145,7 @@ void main() {
     'embed/fake_inline_embed_contract_test.dart',
     fake_inline_embed_contract_test.main,
   );
+  group('embed/inline_embed_metrics_test.dart', inline_embed_metrics_test.main);
   group('glyph/glyph_binding_test.dart', glyph_binding_test.main);
   group(
     'glyph/glyph_sprite_source_contract_test.dart',
