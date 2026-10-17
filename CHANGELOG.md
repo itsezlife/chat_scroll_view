@@ -1,5 +1,15 @@
 ## Unreleased
 
+### Selection copy
+- `ChatSelectionController(copyWriter:)`: a host that writes the clipboard
+  itself (rich text, ADR 032) is handed each copy as a `ChatTextCopy`: the
+  plain text, the origin, the message id, the selected
+  `MarkdownSelectedContent` for a text selection, and the language of a
+  tapped code block. Without a writer the viewport writes plain text, as
+  before; `ChatCopied` follows a copy either way.
+- `ChatSelectionController.textSelectionContent()`: the live selection as
+  `MarkdownSelectedContent`, for a host menu that copies the selection.
+
 ### Package architecture
 - **BREAKING**: `packages/chat_chrome` is deleted and has no successor: no
   package re-exports another package's API, so a host imports what it uses.

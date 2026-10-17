@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
+  rich_clipboard
   url_launcher_windows
 )
 

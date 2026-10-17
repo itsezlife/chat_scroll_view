@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   gtk
+  rich_clipboard
   url_launcher_linux
 )
 

@@ -6,6 +6,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_interaction.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_text_copy.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_text_selection.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_span_feedback.dart';
 import 'package:flutter/foundation.dart'
@@ -26,6 +27,7 @@ export 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
 export 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 export 'package:chat_scroll_view/src/chat_scroll/chat_selection_interaction.dart';
 export 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
+export 'package:chat_scroll_view/src/chat_scroll/chat_text_copy.dart';
 export 'package:chat_scroll_view/src/chat_widgets/chat_span_feedback.dart';
 
 /// Signature for observing active span feedback animation state.
@@ -145,6 +147,7 @@ class ChatSelectionController implements Listenable {
     ChatSelectionPolicy? policy,
     this.onInteraction,
     this.copyCodeOnClick = true,
+    this.copyWriter,
   }) : selectionPolicy = policy ?? ChatSelectionPolicy.forPlatform(),
        _text = ChatTextSelection(
          policy: policy ?? ChatSelectionPolicy.forPlatform(),
@@ -168,6 +171,15 @@ class ChatSelectionController implements Listenable {
   /// Defaults to `true`. When `false`, [ChatCodeActivated] is emitted instead
   /// — the host owns copy (and any toast).
   final bool copyCodeOnClick;
+
+  /// Where a copy goes when the host writes the clipboard itself: the text
+  /// selection's Copy and a code tap ([copyCodeOnClick]) hand it a
+  /// [ChatTextCopy] instead of writing plain text to the platform clipboard.
+  ///
+  /// A host that keeps formatting on the clipboard builds the rich form from
+  /// [ChatTextCopy.content]. Feedback is unchanged: [ChatCopied] still
+  /// follows a copy. Null writes plain text, as before.
+  final ChatTextCopyWriter? copyWriter;
 
   final ChatTextSelection _text;
   final _interactionListeners = <ValueChanged<ChatSelectionInteraction>>[];
@@ -503,6 +515,18 @@ class ChatSelectionController implements Listenable {
     return _text.textSelectionContainsGlobal(messageId, globalOffset);
   }
 
+  /// The live **text selection** as structured content (the selected blocks,
+  /// their spans and the selected range of each), or `null` when disposed,
+  /// inactive, collapsed or empty. What [copyWriter] is handed on Copy, for a
+  /// host menu that copies the selection itself.
+  MarkdownSelectedContent? textSelectionContent() {
+    if (_disposed || !_text.isActive) return null;
+    final range = _text.range;
+    if (range == null || range.isCollapsed) return null;
+    final content = _text.markdownSelection.selectedContent();
+    return content.isEmpty ? null : content;
+  }
+
   /// Plain text of the live **text selection** range, or `null` when
   /// disposed, inactive, collapsed, or empty.
   String? textSelectionPlainText() {
@@ -771,9 +795,15 @@ class ChatSelectionController implements Listenable {
     final text = _text.getText();
     if (text.isEmpty) return false;
     final currentSubject = _text.subjectId;
+    final copy = ChatTextCopy(
+      plainText: text,
+      origin: ChatCopyOrigin.textSelection,
+      messageId: currentSubject,
+      content: _text.markdownSelection.selectedContent(),
+    );
     _isCopying = true;
     try {
-      await Clipboard.setData(ClipboardData(text: text));
+      await _write(copy);
     } finally {
       _isCopying = false;
     }
@@ -792,6 +822,11 @@ class ChatSelectionController implements Listenable {
     );
     return true;
   }
+
+  Future<void> _write(ChatTextCopy copy) => switch (copyWriter) {
+    final write? => write(copy),
+    null => Clipboard.setData(ClipboardData(text: copy.plainText)),
+  };
 
   /// Registers [listener] for [ChatSelectionInteraction] outcomes.
   ///
@@ -887,10 +922,17 @@ class ChatSelectionController implements Listenable {
         );
         return true;
 
-      case ChatInlineHit$Code(:final messageId, :final code):
+      case ChatInlineHit$Code(:final messageId, :final code, :final language):
         if (copyCodeOnClick) {
           unawaited(
-            Clipboard.setData(ClipboardData(text: code)).catchError((_) {}),
+            _write(
+              ChatTextCopy(
+                plainText: code,
+                origin: ChatCopyOrigin.codeTap,
+                messageId: messageId,
+                codeLanguage: language,
+              ),
+            ).catchError((_) {}),
           );
           _notifyInteraction(
             ChatSelectionInteraction.copied(

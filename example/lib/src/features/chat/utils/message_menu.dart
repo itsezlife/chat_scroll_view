@@ -491,7 +491,12 @@ final class MessageMenu {
           case MessageMenuActionId.copySelected:
             final text = request.selectedTextSnapshot;
             if (text == null || text.isEmpty) return;
-            await clipboard.write(model.RichText.plain(text));
+            // The live selection with its spans; its plain snapshot when the
+            // selection has gone since the menu opened.
+            await clipboard.write(switch (selection?.textSelectionContent()) {
+              final content? => ChatCopy.selection(content),
+              null => model.RichText.plain(text),
+            });
             actions.onCopySelected?.call(text);
           case MessageMenuActionId.copyLink:
             final hit = request.inlineHit;

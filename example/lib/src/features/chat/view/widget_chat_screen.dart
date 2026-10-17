@@ -133,8 +133,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   void initState() {
     super.initState();
     _controller = ChatScrollController();
-    _selection = ChatSelectionController(onInteraction: _onSelectionInteraction)
-      ..selectionCap = 100;
+    _selection = ChatSelectionController(
+      onInteraction: _onSelectionInteraction,
+      // Selections and code taps keep their formatting on the clipboard.
+      copyWriter: (copy) => widget.services.clipboard.write(ChatCopy.of(copy)),
+    )..selectionCap = 100;
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _lifecycle = AppLifecycleListener(onHide: _saveReadingPosition);
     _init();
