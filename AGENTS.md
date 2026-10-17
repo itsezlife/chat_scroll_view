@@ -9,17 +9,26 @@ portable libs under `packages/`. Example app is `example/` only.
 ## Commands
 
 ```shell
-# Every gate CI runs: workspace lints, then analyze + tests per package in
-# dependency order (resolves the workspace first)
+# Every gate CI runs: workspace lints, then analyze + tests per package,
+# packages side by side, reported in dependency order (resolves the workspace
+# first). --jobs N caps how many packages run at once.
 scripts/check
 
-# Root package (viewport) — message + text selection live here
-flutter test
+# One package's whole suite: its single test entrypoint (dart test for the
+# pure-Dart packages)
+flutter test test/unit_test.dart
 dart analyze --fatal-infos
 ```
 
 Prefer package-local tests for the package you changed. Full-repo suites are
 for integration claims, not every edit.
+
+Each package's `test/unit_test.dart` imports every `*_test.dart` and runs each
+`main` in a group of its own, in one process; `scripts/check` runs only that
+file. A new test file is imported and grouped there (`TestEntrypointLint` fails
+otherwise). The files share the process, so a test restores any global state
+it changes, and a golden test pins `goldenFileComparator` to its own file.
+Details: [scripts/README.md](scripts/README.md).
 
 The repo is one **pub workspace** (one `pubspec.lock`, at the root); package-local
 `flutter test` / `dart analyze` still work. Append a new package to the root

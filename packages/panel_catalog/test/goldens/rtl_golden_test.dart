@@ -79,6 +79,12 @@ final _scenarios =
     };
 
 void main() {
+  // Goldens sit next to this file, also when test/unit_test.dart runs it.
+  setUpAll(
+    () => goldenFileComparator = LocalFileComparator(
+      Uri.file('test/goldens/rtl_golden_test.dart'),
+    ),
+  );
   final variants = {
     'light': PanelCatalogThemeData.light,
     'dark': PanelCatalogThemeData.dark,

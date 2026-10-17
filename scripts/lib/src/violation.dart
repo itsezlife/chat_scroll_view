@@ -59,6 +59,14 @@ enum LintRule {
     'package:flutter, a Flutter library or dart:ui.',
   ),
 
+  /// A test file the member's test entrypoint does not run.
+  testOutsideEntrypoint(
+    'scripts/check runs each member\'s tests through test/unit_test.dart '
+    '(one process per member), so every *_test.dart under test/ is imported '
+    'there and its main called in a group of its own; one left out never '
+    'runs in CI.',
+  ),
+
   /// A [LegacyException] no longer matches any violation.
   staleLegacyException(
     'The legacy exception no longer matches a violation; delete it from '

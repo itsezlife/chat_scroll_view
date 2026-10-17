@@ -96,6 +96,9 @@ is pre-1.0.
 
 ### Added
 
+- `EmojiTabIcons.clearCache()` (`@visibleForTesting`): forgets the decoded
+  tab art, for tests sharing one process (`test/unit_test.dart`), where a
+  scope opened under fake async leaves a decode that never completes.
 - `CatalogPage.keepsScrollOnReopen` and `EmojiPage.keepsScrollOnReopen`:
   whether the catalogue is where it was left when the panel is shown again.
   By default it goes back to its start under `touch` and keeps its place

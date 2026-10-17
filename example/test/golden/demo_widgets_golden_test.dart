@@ -55,6 +55,12 @@ Widget _box({required Widget child, double width = 400, double height = 120}) =>
     );
 
 void main() {
+  // Goldens sit next to this file, also when test/unit_test.dart runs it.
+  setUpAll(
+    () => goldenFileComparator = LocalFileComparator(
+      Uri.file('test/golden/demo_widgets_golden_test.dart'),
+    ),
+  );
   group('demo widget goldens', skip: _platformSkip, () {
     testWidgets('incoming message bubble', (tester) async {
       await tester.pumpWidget(

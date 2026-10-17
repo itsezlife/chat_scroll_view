@@ -19,6 +19,12 @@ import 'package:panel_shell/testing.dart';
 // rounded corners or the shadow differs there, regenerate on the pinned
 // platform or add a tolerance comparator, and record it here.
 void main() {
+  // Goldens sit next to this file, also when test/unit_test.dart runs it.
+  setUpAll(
+    () => goldenFileComparator = LocalFileComparator(
+      Uri.file('test/goldens/anchored_popup_golden_test.dart'),
+    ),
+  );
   const windowWidth = 640.0;
   const composerHeight = 56.0;
   const sizes = {'min_clamp': 300.0, 'ratio': 600.0, 'max_clamp': 1000.0};

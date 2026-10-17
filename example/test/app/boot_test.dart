@@ -4,10 +4,17 @@ library;
 import 'package:chat_scroll_view_example/src/app/boot.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 
 import '../support/test_services.dart';
 
 void main() {
+  // Booting installs the process-wide listener error handler; the other test
+  // files of the package run in this process after these.
+  late listen.ErrorCallback previousOnError;
+  setUp(() => previousOnError = listen.Listenable.onError);
+  tearDown(() => listen.Listenable.onError = previousOnError);
+
   testWidgets('a failed boot runs the failure screen with the error, not a '
       'blank app', (tester) async {
     final ran = <Widget>[];
