@@ -102,10 +102,9 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   static const double headerExtent = 27;
 
   /// The kind every pick of the page is filed under: the page's one recents
-  /// list, custom emoji included. The pick's own content keeps its kind in
-  /// its descriptor; this only names the list, in picks and in requests to
-  /// remove from or clear it. A request to copy carries the content's own
-  /// kind.
+  /// list, custom emoji included. It names the list, in a pick's
+  /// `recentsKind` and in requests to remove from or clear it; a pick's
+  /// `kind` and a request to copy carry the content's own kind.
   static const SemanticKind recentsKind = SemanticKind.unicodeEmoji;
 
   /// The id of the context menu item that copies the emoji.
@@ -330,7 +329,8 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   // --- Picks ----------------------------------------------------------------
 
   /// Files every pick under [recentsKind], whatever the cell's own kind, so a
-  /// custom emoji lands in the page's recents with the unicode ones.
+  /// custom emoji lands in the page's recents with the unicode ones; the pick
+  /// still says what it is.
   @override
   CatalogPick? pickOf(
     CatalogLeafHit hit,
@@ -339,7 +339,8 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   }) => switch (super.pickOf(hit, collection, searching: searching)) {
     final pick? => CatalogPick(
       key: pick.key,
-      kind: recentsKind,
+      kind: pick.kind,
+      recentsKind: recentsKind,
       source: pick.source,
     ),
     null => null,
@@ -584,7 +585,8 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     }
     host.pick(
       chosen,
-      kind: recentsKind,
+      kind: SemanticKind.unicodeEmoji,
+      recentsKind: recentsKind,
       source: switch (collection.id) {
         CollectionId$Query() => PickSource.search,
         _ when collection.id == CollectionId.recent => PickSource.recents,

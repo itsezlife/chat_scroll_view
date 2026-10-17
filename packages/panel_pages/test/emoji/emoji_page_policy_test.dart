@@ -549,7 +549,8 @@ void main() {
       );
     });
 
-    test('of a custom emoji are filed in the page\'s one recents list', () {
+    test('of a custom emoji say what it is, and are filed in the page\'s one '
+        'recents list', () {
       const custom = CatalogLeafHit(
         sectionId: 'pack',
         index: 0,
@@ -567,7 +568,8 @@ void main() {
         ),
         const CatalogPick(
           key: ContentKey.document('5368'),
-          kind: EmojiPagePolicy.recentsKind,
+          kind: SemanticKind.customEmoji,
+          recentsKind: EmojiPagePolicy.recentsKind,
           source: PickSource.collection,
         ),
       );

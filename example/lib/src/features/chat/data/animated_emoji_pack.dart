@@ -30,8 +30,7 @@ final class AnimatedEmoji {
   ContentDescriptor get descriptor => ContentDescriptor(
     key: key,
     semanticKind: SemanticKind.customEmoji,
-    // Frame-sequence media: an animated image (see `MediaForm.video`).
-    mediaForm: MediaForm.video,
+    mediaForm: MediaForm.animatedImage,
     animated: true,
     size: const ContentSize(
       AnimatedEmojiPack._pixelSize,

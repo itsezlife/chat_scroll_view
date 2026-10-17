@@ -139,9 +139,9 @@ final class AppServices {
         SystemMemoryPressure(),
         (pressure) => pressure.dispose(),
       );
-      // Animated WebP is a frame sequence; the engine's codecs decode it.
+      // The pack is animated WebP, which the engine's image codecs decode.
       final decoders = DecoderRegistry()
-        ..register(MediaForm.video, const ImageCodecDecoder());
+        ..register(MediaForm.animatedImage, const ImageCodecDecoder());
       final pipeline = owned(
         AssetPipeline(
           fetcher: AnimatedEmojiPack.fetcher(rootBundle),

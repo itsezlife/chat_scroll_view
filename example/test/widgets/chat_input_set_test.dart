@@ -1014,10 +1014,15 @@ void main() {
       await _open(tester, rig);
       final rocket = AnimatedEmojiPack.emoji.last;
 
-      // As the emoji page files it: in its one recents list.
+      // As the emoji page picks it: a custom emoji, filed in its one recents
+      // list.
       rig.set.shell
           .hostFor('emoji')
-          .pick(rocket.key, kind: SemanticKind.unicodeEmoji);
+          .pick(
+            rocket.key,
+            kind: SemanticKind.customEmoji,
+            recentsKind: SemanticKind.unicodeEmoji,
+          );
       await tester.pump();
 
       final text = rig.set.composer.richText;

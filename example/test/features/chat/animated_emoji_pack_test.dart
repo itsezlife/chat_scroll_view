@@ -144,7 +144,7 @@ void main() {
     final pipeline = AssetPipeline(
       fetcher: AnimatedEmojiPack.fetcher(_DiskBundle()),
       decoders: DecoderRegistry()
-        ..register(MediaForm.video, const ImageCodecDecoder()),
+        ..register(MediaForm.animatedImage, const ImageCodecDecoder()),
     );
     AnimatedEmojiPack.descriptors.forEach(pipeline.know);
     // No scheduler in a plain test: the clock ticks by hand.

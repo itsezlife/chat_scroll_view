@@ -17,6 +17,11 @@ package is pre-1.0.
 
 ### Added
 
+- `MediaForm.animatedImage` (`animated_image`): frames in an image format
+  (animated WebP, GIF, APNG), decoded by image codecs. `MediaForm.video` is
+  now video-coded media only: decoders are registered per form, and with one
+  form for both, an animated-image decoder and a video decoder could not be
+  registered side by side.
 - `RichText.splitsSurrogatePair(text, index)`: whether an offset falls inside
   a surrogate pair, where no entity and no edit range may start or end, so an
   editor can move an edge off it before calling `replaceRange`.

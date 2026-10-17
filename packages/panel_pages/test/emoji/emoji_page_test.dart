@@ -170,6 +170,7 @@ void main() {
         (
           key: fixtures.key('😀'),
           kind: SemanticKind.unicodeEmoji,
+          recentsKind: SemanticKind.unicodeEmoji,
           source: PickSource.collection,
         ),
       ]);

@@ -8,6 +8,16 @@ is pre-1.0.
 
 ### Changed
 
+- `ContentPicked` says what the content is and which recents list it is
+  filed in apart: `kind` is the content's own kind, as in every other event
+  about content (`ContentCopyRequested.kind`), and the new `recentsKind`
+  (`kind` when omitted) names the list, as `RecentRemoveRequested` and
+  `ClearRecentsRequested` do. A host records a pick under `recentsKind`, so a
+  page with one list for several kinds (the emoji page's custom emoji among
+  the unicode ones) needs no inference from the key.
+- Source-breaking: `PanelPageHost.pick` takes `recentsKind`; an
+  implementation of the host adds the parameter.
+
 - Source-breaking: `runPageControllerRegistryContract(...)` in `testing.dart`
   is `PageControllerRegistryContract.run(...)`.
 

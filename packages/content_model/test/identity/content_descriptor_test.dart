@@ -50,6 +50,7 @@ void main() {
       expect(MediaForm.glyph.value, 'glyph');
       expect(MediaForm.still.value, 'still');
       expect(MediaForm.vectorAnimation.value, 'vector_animation');
+      expect(MediaForm.animatedImage.value, 'animated_image');
       expect(MediaForm.video.value, 'video');
       expect(MediaForm.unknown.value, 'unknown');
     });

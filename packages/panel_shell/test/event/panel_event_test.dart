@@ -38,6 +38,26 @@ void main() {
     );
   });
 
+  test('a pick is filed under the recents of its own kind unless told '
+      'otherwise', () {
+    const custom = ContentKey.document('5368');
+    expect(
+      const ContentPicked(
+        key: thumbs,
+        kind: SemanticKind.unicodeEmoji,
+      ).recentsKind,
+      SemanticKind.unicodeEmoji,
+    );
+    expect(
+      const ContentPicked(
+        key: custom,
+        kind: SemanticKind.customEmoji,
+        recentsKind: SemanticKind.unicodeEmoji,
+      ),
+      isNot(const ContentPicked(key: custom, kind: SemanticKind.customEmoji)),
+    );
+  });
+
   test('events that differ in a part are not equal', () {
     expect(
       const ContentPicked(key: thumbs, kind: SemanticKind.unicodeEmoji),

@@ -189,6 +189,7 @@ final class EmojiCollectionSource implements CollectionSource {
     _loading.removeWhere((loadingId, _) => loadingId == id);
     if (_disposed) return;
     _pages[id] = 1;
+    if (id == CollectionId.recent) _describeRecents();
     _states[id] = _contentsOf(id);
     _publish();
   }
@@ -253,6 +254,9 @@ final class EmojiCollectionSource implements CollectionSource {
   // it differs.
   void _refresh() {
     if (_disposed) return;
+    if (_states[CollectionId.recent] case CollectionContents$Loaded()) {
+      _describeRecents();
+    }
     for (final id in _states.keys.toList()) {
       if (_states[id] case CollectionContents$Loaded()) {
         _states[id] = _contentsOf(id);
@@ -263,10 +267,9 @@ final class EmojiCollectionSource implements CollectionSource {
 
   CollectionContents _contentsOf(CollectionId id) {
     if (id == CollectionId.recent) {
-      final keys = _recents.recents(SemanticKind.unicodeEmoji);
-      _resolveUnknown(keys);
       return CollectionContents.loaded([
-        for (final key in keys) ?_recentItemOf(key),
+        for (final key in _recents.recents(SemanticKind.unicodeEmoji))
+          ?_recentItemOf(key),
       ]);
     }
     final section = _sections.firstWhere(
@@ -297,7 +300,12 @@ final class EmojiCollectionSource implements CollectionSource {
   }
 
   // Asks the resolver, in one batch, about the recents outside the catalogue
-  // it has not answered and is not answering now.
+  // it has not answered and is not answering now. A step of its own, taken
+  // before the recents are derived, so that deriving ([_contentsOf]) only
+  // reads: its answer lands later and derives them again.
+  void _describeRecents() =>
+      _resolveUnknown(_recents.recents(SemanticKind.unicodeEmoji));
+
   void _resolveUnknown(List<ContentKey> keys) {
     final resolver = _resolver;
     if (resolver == null) return;

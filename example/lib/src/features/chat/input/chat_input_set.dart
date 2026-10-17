@@ -704,16 +704,20 @@ final class ChatInputSet {
 
   void _onPanelEvent(PanelEvent event) {
     switch (event) {
-      case ContentPicked(:final key, :final kind, :final source):
+      case ContentPicked(:final key, :final recentsKind, :final source):
         unawaited(HapticFeedback.selectionClick());
-        // By the content, not the kind: the emoji page files unicode and
-        // animated emoji in one recents list, under one kind.
+        // By the content: this host inserts what it can read as text, a
+        // unicode emoji or an animated emoji of its pack.
         if (_textOf(key) case final alternativeText?) {
           composer.insertContent(
             InlineContentRef(key: key, alternativeText: alternativeText),
           );
         }
-        unawaited(services.recents.record(key, kind: kind, source: source));
+        // In the list the page chose: the emoji page files unicode and
+        // animated emoji in one.
+        unawaited(
+          services.recents.record(key, kind: recentsKind, source: source),
+        );
       case BackspaceRequested():
         unawaited(HapticFeedback.selectionClick());
         composer.backspace();

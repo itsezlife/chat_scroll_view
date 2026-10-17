@@ -253,6 +253,7 @@ void main() {
         (
           key: ContentKey.unicode(_glyph(1)),
           kind: SemanticKind.unicodeEmoji,
+          recentsKind: SemanticKind.unicodeEmoji,
           source: PickSource.collection,
         ),
       ]);

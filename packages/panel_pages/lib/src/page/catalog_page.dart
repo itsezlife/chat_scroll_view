@@ -535,7 +535,12 @@ class _CatalogPageState extends State<CatalogPage>
       searching: _showsResults,
     );
     if (pick == null) return;
-    _host.pick(pick.key, kind: pick.kind, source: pick.source);
+    _host.pick(
+      pick.key,
+      kind: pick.kind,
+      recentsKind: pick.recentsKind,
+      source: pick.source,
+    );
   }
 
   bool _longPressEligible(CatalogLeafHit hit) {

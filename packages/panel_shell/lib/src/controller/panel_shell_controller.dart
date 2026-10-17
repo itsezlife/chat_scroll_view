@@ -353,10 +353,18 @@ final class _PageHost with ChangeNotifier implements PanelPageHost {
   void pick(
     ContentKey key, {
     required SemanticKind kind,
+    SemanticKind? recentsKind,
     PickSource source = PickSource.collection,
   }) {
     if (_shell._disposed) return;
-    _shell._events.publish(ContentPicked(key: key, kind: kind, source: source));
+    _shell._events.publish(
+      ContentPicked(
+        key: key,
+        kind: kind,
+        recentsKind: recentsKind,
+        source: source,
+      ),
+    );
   }
 
   @override

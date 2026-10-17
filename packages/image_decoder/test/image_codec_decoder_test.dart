@@ -20,7 +20,7 @@ final Uint8List _still = File('test/fixtures/still.png').readAsBytesSync();
 const ContentDescriptor _descriptor = ContentDescriptor(
   key: ContentKey.document('fixture'),
   semanticKind: SemanticKind.customEmoji,
-  mediaForm: MediaForm.video,
+  mediaForm: MediaForm.animatedImage,
   animated: true,
 );
 
