@@ -146,9 +146,10 @@ void main() {
     testWidgets('an overlay repaint does not repaint the viewport', (
       tester,
     ) async {
+      // Taller than the viewport, so the scroll below moves the content.
       snapshots.replaceSections([
         _section('a', [
-          for (var i = 0; i < 40; i++)
+          for (var i = 0; i < 400; i++)
             CatalogLeaf.unicode(String.fromCharCode(0x1F600 + i)),
         ]),
       ]);

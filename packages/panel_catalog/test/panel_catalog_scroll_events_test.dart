@@ -296,6 +296,63 @@ void main() {
       expect(activity().sublist(0, 2), [true, false]);
     });
 
+    testWidgets('past either end, a drag or the wheel moves nothing and '
+        'reports no step', (tester) async {
+      snapshots.replaceSections([_section('a', 300)]);
+      await pumpViewport(tester);
+      final end = controller.maxScrollExtent;
+      controller.jumpTo(end);
+      await tester.pumpAndSettle();
+      events.clear();
+
+      // At the end: a finger pulling the content up, then the wheel.
+      final drag = await tester.startGesture(center(tester));
+      for (var i = 0; i < 5; i++) {
+        await drag.moveBy(const Offset(0, -30));
+        await tester.pump();
+      }
+      await drag.up();
+      final pointer = TestPointer(1, PointerDeviceKind.mouse)
+        ..hover(center(tester));
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, 120)));
+      await tester.pumpAndSettle();
+
+      expect(controller.offset, end);
+      expect(events.whereType<PanelCatalogViewportScrolled>(), isEmpty);
+
+      // At the start: the wheel the other way.
+      controller.jumpTo(0);
+      await tester.pumpAndSettle();
+      events.clear();
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, -120)));
+      await tester.pumpAndSettle();
+
+      expect(controller.offset, 0);
+      expect(events.whereType<PanelCatalogViewportScrolled>(), isEmpty);
+    });
+
+    testWidgets('a step that reaches an end reports only the part it moved', (
+      tester,
+    ) async {
+      snapshots.replaceSections([_section('a', 300)]);
+      await pumpViewport(tester);
+      final end = controller.maxScrollExtent;
+      controller.jumpTo(end - 40);
+      await tester.pumpAndSettle();
+      events.clear();
+
+      final pointer = TestPointer(1, PointerDeviceKind.mouse)
+        ..hover(center(tester));
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, 120)));
+      await tester.pump();
+
+      expect(controller.offset, end);
+      expect(
+        events.whereType<PanelCatalogViewportScrolled>().single.delta,
+        40,
+      );
+    });
+
     testWidgets('animateTo and a section jump keep scrolling until they end', (
       tester,
     ) async {
