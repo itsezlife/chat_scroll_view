@@ -26,3 +26,14 @@ $readClipboard({required bool media}) async {
     ],
   );
 }
+
+/// Flutter delivers a text field's copy, cut and paste to it as intents on
+/// every platform but the web: there is nothing to take over.
+void Function() $listenClipboardEvents({
+  required ({String plain, String html})? Function({required bool cut}) onCopy,
+  required bool Function() takesPaste,
+  required void Function(
+    ({String? plain, String? html, List<Map<Object?, Object?>> media}) held,
+  )
+  onPaste,
+}) => () {};

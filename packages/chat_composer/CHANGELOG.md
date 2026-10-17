@@ -67,6 +67,10 @@ is pre-1.0.
 
 ### Added
 
+- `ComposerController` attaches to its clipboard (`RichClipboard.attach`):
+  where the platform performs copy, cut and paste itself (a browser), the
+  composer's focused field takes them over and keeps its entities.
+
 - `ComposerController(onPastedMedia:)`: a paste while the clipboard holds
   images or files hands them to the host instead of inserting text (a paste
   as plain text leaves them), and an image a keyboard inserts

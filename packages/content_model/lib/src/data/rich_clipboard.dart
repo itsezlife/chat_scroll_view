@@ -158,4 +158,31 @@ abstract interface class RichClipboard {
   /// Files a file manager copied come without text: its text is their names,
   /// not what was copied.
   Future<ClipboardContents> readWithMedia();
+
+  /// Takes over the clipboard commands the platform performs itself for
+  /// [field] while it has focus, so they keep the rich form; returns the
+  /// call that hands them back.
+  ///
+  /// In a browser a text field's copy, cut and paste (its keys, its own
+  /// menu) are the browser's: they reach the app only as events, whose data
+  /// needs no permission, and without this they carry plain text. Elsewhere
+  /// Flutter delivers them to the field as intents, and this does nothing.
+  void Function() attach(RichClipboardField field);
+}
+
+/// A text field whose clipboard commands the platform performs itself, as
+/// [RichClipboard.attach] takes them over.
+abstract interface class RichClipboardField {
+  /// Whether the field has focus: the commands are its own only then.
+  bool get hasFocus;
+
+  /// What a copy puts on the clipboard: the selection with its entities, or
+  /// null when nothing is selected (the platform's copy then goes ahead).
+  RichText? copySelection();
+
+  /// [copySelection], removed from the field.
+  RichText? cutSelection();
+
+  /// Inserts what a paste found, as the field's own paste does.
+  void paste(ClipboardContents contents);
 }

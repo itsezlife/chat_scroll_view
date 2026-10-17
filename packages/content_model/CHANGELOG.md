@@ -17,6 +17,12 @@ package is pre-1.0.
 
 ### Added
 
+- `RichClipboard.attach(RichClipboardField)`: takes over the clipboard
+  commands a platform performs itself for a focused text field (a browser's
+  copy, cut and paste keys and menu), so they keep the rich form.
+  `FakeRichClipboard.performCopy({cut})` and `performPaste()` stand in for
+  them. Source-breaking for `RichClipboard` implementers.
+
 - `PastedMedia` (`.bytes` with a MIME type and name, `.file` with a path)
   and `RichClipboard.readWithMedia()`: the clipboard's text and the images
   and files it holds as `ClipboardContents`, in one read, so a platform that

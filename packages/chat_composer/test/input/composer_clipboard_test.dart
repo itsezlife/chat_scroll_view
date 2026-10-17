@@ -51,6 +51,9 @@ final class _HeldClipboard implements RichClipboard {
     await _gate.future;
     return _inner.readWithMedia();
   }
+
+  @override
+  void Function() attach(RichClipboardField field) => _inner.attach(field);
 }
 
 void main() {
@@ -284,6 +287,70 @@ void main() {
       expect(composer.richText, RichText.empty);
       expect(reported, hasLength(1));
       expect(reported.single.library, 'chat_composer');
+    });
+  });
+
+  group('the platform\'s own commands (a browser\'s)', () {
+    Future<void> focus(WidgetTester tester) async {
+      await tester.pumpWidget(
+        Focus(focusNode: composer.focusNode, child: const SizedBox()),
+      );
+      composer.requestFocus();
+      await tester.pump();
+    }
+
+    testWidgets('a copy puts the selection on with its entities', (
+      tester,
+    ) async {
+      await focus(tester);
+      show(boldRocket, const TextSelection(baseOffset: 5, extentOffset: 11));
+
+      expect(clipboard.performCopy(), isTrue);
+
+      expect(
+        (await clipboard.read())!.rich,
+        _text('old \u{1F680}', [
+          ('old', EntityKind.bold),
+          ('\u{1F680}', const EntityKind.inlineContent(_rocket)),
+        ]),
+      );
+      expect(composer.richText, boldRocket);
+    });
+
+    testWidgets('a cut also removes the selection', (tester) async {
+      await focus(tester);
+      show(boldRocket, const TextSelection(baseOffset: 4, extentOffset: 9));
+
+      expect(clipboard.performCopy(cut: true), isTrue);
+
+      expect(
+        (await clipboard.read())!.rich,
+        _text('bold ', [('bold', EntityKind.bold)]),
+      );
+      expect(composer.richText.plain, 'say \u{1F680} now');
+    });
+
+    testWidgets('a paste inserts the rich text', (tester) async {
+      await focus(tester);
+      await clipboard.write(boldRocket);
+      show(RichText.empty, const TextSelection.collapsed(offset: 0));
+
+      expect(clipboard.performPaste(), isTrue);
+      await tester.pump();
+
+      expect(composer.richText, boldRocket);
+    });
+
+    testWidgets('are not the composer\'s without focus, nor once disposed', (
+      tester,
+    ) async {
+      show(boldRocket, const TextSelection(baseOffset: 0, extentOffset: 3));
+
+      expect(clipboard.performCopy(), isFalse);
+
+      await focus(tester);
+      composer.dispose();
+      expect(clipboard.performCopy(), isFalse);
     });
   });
 

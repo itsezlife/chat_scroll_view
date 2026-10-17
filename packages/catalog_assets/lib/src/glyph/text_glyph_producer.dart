@@ -21,7 +21,8 @@ import 'package:content_model/content_model.dart';
 /// [paragraphBytes], an estimate of the engine memory its paragraph holds, so
 /// the byte-budgeted LRU bounds how many paragraphs stay alive. The
 /// paragraph is laid out when the glyph is first painted and again only when
-/// the rectangle's size changes; drawing it afterwards is one
+/// the rectangle's size changes or the system fonts do (a scope given the
+/// engine's `systemFonts` signal); drawing it afterwards is one
 /// `Canvas.drawParagraph`, inside a clip only for a sequence wider than the
 /// rectangle. A glyph keeps its own colours: a tint does not apply.
 final class TextGlyphProducer implements AssetProducer {

@@ -3,8 +3,9 @@ import 'package:content_model/content_model.dart';
 /// An in-memory [RichClipboard] for tests.
 ///
 /// Honours the whole seam contract. [putPlainText] stands in for another app
-/// copying plain text; set [failure] to simulate a clipboard that cannot be
-/// reached: every call then fails with it and changes nothing.
+/// copying plain text, [performCopy] and [performPaste] for a browser's own
+/// commands on an attached field; set [failure] to simulate a clipboard that
+/// cannot be reached: every call then fails with it and changes nothing.
 final class FakeRichClipboard implements RichClipboard {
   ClipboardText? _held;
   List<PastedMedia> _media = const [];
@@ -28,6 +29,41 @@ final class FakeRichClipboard implements RichClipboard {
   void putMedia(List<PastedMedia> media, {String? text}) {
     _held = text == null ? null : ClipboardText(text);
     _media = List.unmodifiable(media);
+  }
+
+  final List<RichClipboardField> _fields = [];
+
+  /// Performs a copy, or a cut, as a browser does for the focused text field
+  /// it was [attach]ed for: the field's selection goes on the clipboard.
+  /// False when no attached field has focus or its selection is empty.
+  bool performCopy({bool cut = false}) {
+    for (final field in _fields) {
+      if (!field.hasFocus) continue;
+      final text = cut ? field.cutSelection() : field.copySelection();
+      if (text == null) return false;
+      _held = ClipboardText(text.plain, rich: text);
+      _media = const [];
+      return true;
+    }
+    return false;
+  }
+
+  /// Performs a paste, as a browser does for the focused text field it was
+  /// [attach]ed for: the field is handed what the clipboard holds. False when
+  /// no attached field has focus.
+  bool performPaste() {
+    for (final field in _fields) {
+      if (!field.hasFocus) continue;
+      field.paste(ClipboardContents(text: _held, media: _media));
+      return true;
+    }
+    return false;
+  }
+
+  @override
+  void Function() attach(RichClipboardField field) {
+    _fields.add(field);
+    return () => _fields.remove(field);
   }
 
   @override

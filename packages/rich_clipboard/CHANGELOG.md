@@ -8,6 +8,13 @@ package is pre-1.0.
 
 ### Added
 
+- `SystemRichClipboard.attach`: on the web the browser's own copy, cut and
+  paste of a focused text field (its keys and its menu) are taken over through
+  their DOM events, whose data needs no permission: a copy puts the HTML next
+  to the plain text, a paste reads it (and pasted files) back. Before, they
+  carried plain text only, so custom emoji copied in the composer came back
+  as plain emoji.
+
 - `RichTextHtml`: the conversion between `RichText` and the HTML the
   clipboard carries (ADR 032). `encode` is lossless for every entity: the
   standard elements for styles, quotes and links, `<tg-spoiler>` for

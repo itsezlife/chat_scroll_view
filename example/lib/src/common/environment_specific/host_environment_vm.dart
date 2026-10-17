@@ -7,3 +7,7 @@ String $glyphCacheDirectoryPath() =>
 
 /// The VM hook: the operating system's version string.
 String? $operatingSystemVersion() => Platform.operatingSystemVersion;
+
+/// The VM hook: the engine has every font it draws glyphs with from the
+/// start.
+Future<void> $glyphFontsSettled(Iterable<String> glyphs) async {}

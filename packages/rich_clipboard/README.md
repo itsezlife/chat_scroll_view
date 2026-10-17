@@ -35,9 +35,13 @@ Windows `CF_HDROP`, `PNG` or `CF_DIB` (as BMP); Linux URI lists or the GTK
 image (as PNG); web `ClipboardItem` images. Saved files live in the system's
 temporary or cache directory, which the system clears.
 
-On the web, Flutter leaves a text field's clipboard keys to the browser, so
-Ctrl/Cmd+V is the browser's plain paste; the menu's Paste reads through
-`navigator.clipboard`, which the browser may ask permission for.
+On the web, Flutter leaves a text field's clipboard keys to the browser.
+`attach` takes the browser's copy, cut and paste over through their DOM
+events (no permission needed), so they carry the HTML too; the app's own
+menu reads through `navigator.clipboard`, which the browser may ask
+permission for. A web host disables the browser's context menu
+(`BrowserContextMenu.disableContextMenu`) so its own menus answer a
+right-click.
 
 The contract runs on a device from the example:
 `flutter test integration_test/rich_clipboard_test.dart -d <device>`. On

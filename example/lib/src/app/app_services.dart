@@ -73,15 +73,17 @@ final class AppServices {
     required this.glyphCache,
     required AppLifecycleListener lifecycle,
     required PacedGlyphProbePass? webProbePass,
+    required Future<void> Function() glyphFontsSettled,
     required AssetPipeline pipeline,
   }) : _animatedEmoji = animatedEmoji,
        _pipeline = pipeline,
        _lifecycle = lifecycle,
        _webProbePass = webProbePass {
     if (webProbePass != null) {
-      _webProbeStart = Timer(
-        _webProbeDelay,
-        () => unawaited(webProbePass.run()),
+      unawaited(
+        glyphFontsSettled().then((_) {
+          if (!_disposed) unawaited(webProbePass.run());
+        }),
       );
     }
   }
@@ -159,6 +161,7 @@ final class AppServices {
         PageAssets.createScope(
           producer: pipeline,
           memoryPressure: memoryPressure,
+          systemFonts: PaintingBinding.instance.systemFonts,
         ),
         (scope) => scope.dispose(),
       );
@@ -258,6 +261,7 @@ final class AppServices {
         webProbePass: kIsWeb
             ? _webPass(probe.probe, isPaused: () => hidden)
             : null,
+        glyphFontsSettled: probe.fontsSettled,
         pipeline: pipeline,
         clipboard: clipboard,
       );
@@ -340,7 +344,6 @@ final class AppServices {
   final AssetPipeline _pipeline;
   final AppLifecycleListener _lifecycle;
   final PacedGlyphProbePass? _webProbePass;
-  Timer? _webProbeStart;
   var _disposed = false;
 
   /// Whether [dispose] has run.
@@ -374,7 +377,6 @@ final class AppServices {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _webProbeStart?.cancel();
     _webProbePass?.cancel();
     emojiPageSource.dispose();
     _animatedEmoji.dispose();
@@ -391,10 +393,8 @@ final class AppServices {
   }
 
   // The web bakes nothing, so the probe has no bake to share: it draws its
-  // own cells, a few a frame, once the page has had time to load its emoji
-  // font (there is no signal for that, hence the delay; the probe distrusts a
-  // pass in which every cell is flagged).
-  static const Duration _webProbeDelay = Duration(seconds: 3);
+  // own cells, a few a frame, once the engine has the fonts that draw them
+  // (the probe also distrusts a pass in which every cell is flagged).
 
   static PacedGlyphProbePass _webPass(
     MissingGlyphProbe probe, {

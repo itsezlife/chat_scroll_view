@@ -100,6 +100,10 @@ is pre-1.0.
 
 ### Added
 
+- `PageAssets.createScope(systemFonts:)`, passed to the scope: a host that
+  draws glyphs as text (the web) passes the engine's signal so glyphs laid out
+  before the emoji font arrived are laid out again.
+
 - `EmojiTabIcons.clearCache()` (`@visibleForTesting`): forgets the decoded
   tab art, for tests sharing one process (`test/unit_test.dart`), where a
   scope opened under fake async leaves a decode that never completes.

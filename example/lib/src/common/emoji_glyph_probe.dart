@@ -20,6 +20,10 @@ typedef EmojiGlyphProbeWiring = ({
   /// Shows the probe each cell the bake draws, so no glyph is rasterised a
   /// second time.
   GlyphBakeObserver bakeObserver,
+
+  /// Completes once the engine has the fonts that draw the glyphs; anything
+  /// that rasterises them for the probe (the web's own pass) waits for it.
+  Future<void> Function() fontsSettled,
 });
 
 /// Wires a [MissingGlyphProbe] over [glyphs] to the glyph atlas.
@@ -30,22 +34,32 @@ typedef EmojiGlyphProbeWiring = ({
 /// system rasteriser, at a fixed size) and [nextFrame] paces the sentinels one
 /// per frame; [osVersion] is the optional supplementary signal. Verdicts are
 /// kept in [store], under the art version they were taken for.
+///
+/// [fontsSettled] completes once the engine has the fonts that draw the
+/// glyphs (by default at once). The sentinels are rendered after it: a
+/// fingerprint of missing-glyph boxes would be an art version of its own,
+/// under which verdicts that every emoji is missing would be kept for good.
 EmojiGlyphProbeWiring wireEmojiGlyphProbe({
   required Iterable<String> glyphs,
   required KeyValueStore store,
   required Future<Uint8List> Function(String glyph) sentinelPixelsOf,
   required Future<void> Function() nextFrame,
   String? osVersion,
+  Future<void> Function()? fontsSettled,
 }) {
+  final settled = fontsSettled ?? () async {};
   final probe = MissingGlyphProbe(
     glyphs: glyphs,
     store: store,
-    artVersion: () => GlyphArtFingerprint.compute(
-      sentinels: GlyphArtFingerprint.defaultSentinels,
-      pixelsOf: sentinelPixelsOf,
-      nextFrame: nextFrame,
-      supplement: osVersion,
-    ),
+    artVersion: () async {
+      await settled();
+      return GlyphArtFingerprint.compute(
+        sentinels: GlyphArtFingerprint.defaultSentinels,
+        pixelsOf: sentinelPixelsOf,
+        nextFrame: nextFrame,
+        supplement: osVersion,
+      );
+    },
   );
   return (
     probe: probe,
@@ -55,22 +69,27 @@ EmojiGlyphProbeWiring wireEmojiGlyphProbe({
       wants: probe.wants,
       observe: probe.observe,
     ),
+    fontsSettled: settled,
   );
 }
 
-/// [wireEmojiGlyphProbe] with the system rasteriser, the engine's frame clock
-/// and the operating system version as the supplementary signal (not on the
-/// web, where there is none to read).
+/// [wireEmojiGlyphProbe] with the system rasteriser, the engine's frame clock,
+/// the operating system version as the supplementary signal (not on the web,
+/// where there is none to read) and the engine's fonts for [glyphs] (on the
+/// web, fetched when first met; waited for once, however often asked).
 EmojiGlyphProbeWiring wireSystemEmojiGlyphProbe({
   required Iterable<String> glyphs,
   required KeyValueStore store,
 }) {
   final reader = GlyphPixelReader(ParagraphGlyphRasteriser());
+  Future<void>? settled;
   return wireEmojiGlyphProbe(
     glyphs: glyphs,
     store: store,
     sentinelPixelsOf: reader.pixelsOf,
     nextFrame: () => SchedulerBinding.instance.endOfFrame,
     osVersion: environment_specific.$operatingSystemVersion(),
+    fontsSettled: () =>
+        settled ??= environment_specific.$glyphFontsSettled(glyphs),
   );
 }

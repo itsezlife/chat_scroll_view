@@ -28,6 +28,11 @@ is pre-1.0.
 
 ### Fixed
 
+- `AssetCacheScope(systemFonts:)`: glyphs drawn as text lay out again and
+  repaint when the engine's fonts change (`PaintingBinding.systemFonts`). A
+  browser fetches the font that draws an emoji only once it meets one, so a
+  glyph laid out before it arrived kept drawing the missing-glyph box.
+
 - A binding whose profile does not animate paints at the playback time of its
   first paint, so an animated paintable shows one frame there. It painted at
   the clock's live time, which runs for the scope's other animations, so it

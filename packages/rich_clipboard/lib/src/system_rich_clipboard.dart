@@ -39,9 +39,29 @@ final class SystemRichClipboard implements RichClipboard {
   @override
   Future<ClipboardContents> readWithMedia() => _read(media: true);
 
+  @override
+  void Function() attach(RichClipboardField field) =>
+      environment_specific.$listenClipboardEvents(
+        onCopy: ({required cut}) {
+          if (!field.hasFocus) return null;
+          final text = cut ? field.cutSelection() : field.copySelection();
+          if (text == null) return null;
+          return (plain: text.plain, html: RichTextHtml.encode(text));
+        },
+        takesPaste: () => field.hasFocus,
+        onPaste: (held) => field.paste(_contentsOf(held)),
+      );
+
   Future<ClipboardContents> _read({required bool media}) async {
     final held = await environment_specific.$readClipboard(media: media);
     if (held == null) return ClipboardContents.empty;
+    return _contentsOf(held);
+  }
+
+  // What the platform held, as the seam says it.
+  static ClipboardContents _contentsOf(
+    ({String? plain, String? html, List<Map<Object?, Object?>> media}) held,
+  ) {
     final rich = switch (held.html) {
       final html? when html.trim().isNotEmpty => RichTextHtml.decode(html),
       _ => null,

@@ -12,7 +12,9 @@ import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_scre
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show BrowserContextMenu;
 import 'package:l/l.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -22,6 +24,10 @@ void main() => l.capture<void>(
   () => runZonedGuarded<void>(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      // In a browser a right-click opens the browser's own menu over the
+      // app's (message menus, the composer's, the panel's) unless the app
+      // takes it over.
+      if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
       bindExamplePreImeBack();
       await bootApp(
         createServices: _createServices,

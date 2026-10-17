@@ -25,8 +25,10 @@ import 'package:listen/listen.dart' as listen;
 ///
 /// Given a [clipboard], [copySelection], [cutSelection] and [paste] keep the
 /// text's entities across the system clipboard (ADR 032), and the field routes
-/// its copy, cut and paste there. Without one the field keeps the platform's
-/// plain-text clipboard.
+/// its copy, cut and paste there. Where the platform performs those commands
+/// itself (a browser's keys and menu), the controller takes them over through
+/// [RichClipboard.attach] while its field has focus. Without a clipboard the
+/// field keeps the platform's plain-text clipboard.
 ///
 /// The creator disposes. A text controller, focus node or scroll controller
 /// passed in is the host's and is left alone by [dispose]; the ones the
@@ -56,6 +58,7 @@ final class ComposerController {
     queryKinds.forEach(registerQueryKind);
     this.text.addListener(_detectQuery);
     _detectQuery();
+    _detachClipboard = clipboard?.attach(_ClipboardField(this));
   }
 
   /// The entity-aware text of the field.
@@ -91,6 +94,7 @@ final class ComposerController {
   final _caretReveals = _Signal();
   final _kinds = <ComposerQueryKind>[];
   Rect? _anchor;
+  void Function()? _detachClipboard;
   var _disposed = false;
 
   /// Whether [dispose] has been called.
@@ -209,7 +213,18 @@ final class ComposerController {
       _report(error, stack, 'while reading the clipboard to paste');
       return false;
     }
+    return _insertPasted(contents, before: before, plain: plain);
+  }
+
+  // What [paste] does once it has the clipboard's [contents], the platform's
+  // own paste too; [before] is the text and selection the paste began on.
+  Future<bool> _insertPasted(
+    ClipboardContents contents, {
+    required ({RichText rich, TextSelection selection}) before,
+    required bool plain,
+  }) async {
     if (_disposed) return false;
+    final withMedia = !plain && onPastedMedia != null;
     if (withMedia && contents.media.isNotEmpty) {
       if (await _handOver(contents.media) || _disposed) return true;
     }
@@ -466,6 +481,7 @@ final class ComposerController {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _detachClipboard?.call();
     text.removeListener(_detectQuery);
     _softKeyboard.dispose();
     _keyboardRequests.dispose();
@@ -476,6 +492,46 @@ final class ComposerController {
     if (_ownsText) text.dispose();
     if (_ownsFocus) focusNode.dispose();
     if (_ownsScroll) fieldScroll.dispose();
+  }
+}
+
+/// The composer as the field whose clipboard commands a platform performs
+/// itself (a browser's): see [RichClipboard.attach].
+final class _ClipboardField implements RichClipboardField {
+  _ClipboardField(this._composer);
+
+  final ComposerController _composer;
+
+  @override
+  bool get hasFocus => !_composer.isDisposed && _composer.hasFocus;
+
+  @override
+  RichText? copySelection() {
+    final selection = _composer.selection;
+    if (!selection.isValid || selection.isCollapsed) return null;
+    return _composer.richText.slice(selection.start, selection.end);
+  }
+
+  @override
+  RichText? cutSelection() {
+    final copied = copySelection();
+    if (copied == null) return null;
+    final selection = _composer.selection;
+    _composer.text.replaceRange(selection.start, selection.end, RichText.empty);
+    _composer._caretReveals.signal();
+    return copied;
+  }
+
+  @override
+  void paste(ClipboardContents contents) {
+    final composer = _composer;
+    unawaited(
+      composer._insertPasted(
+        contents,
+        before: (rich: composer.richText, selection: composer.selection),
+        plain: false,
+      ),
+    );
   }
 }
 

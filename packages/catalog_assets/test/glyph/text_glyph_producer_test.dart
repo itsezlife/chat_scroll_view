@@ -16,11 +16,13 @@ void main() {
   AssetCacheScope scopeOf(
     TextGlyphProducer producer, {
     AssetCacheBudgets budgets = AssetCacheBudgets.defaults,
+    Listenable? systemFonts,
   }) {
     final scope = AssetCacheScope(
       producer: producer,
       budgets: budgets,
       clock: PlaybackClock(ticks: ManualPlaybackTickSource()),
+      systemFonts: systemFonts,
     );
     addTearDown(scope.dispose);
     return scope;
@@ -96,6 +98,34 @@ void main() {
       ];
       expect(paragraphs, hasLength(2));
       expect(paragraphs.first, same(paragraphs.last));
+    });
+
+    test('lay out again and repaint when the system fonts change', () {
+      // A browser fetches the font that draws an emoji only once it meets
+      // one: what was laid out before drew the missing-glyph box.
+      final fonts = ChangeNotifier();
+      addTearDown(fonts.dispose);
+      final scope = scopeOf(const TextGlyphProducer(), systemFonts: fonts);
+      final binding = scope.attach(_glyph, _preset.spec, _preset.profile);
+      addTearDown(binding.detach);
+      var signals = 0;
+      binding.addListener(() => signals++);
+      final canvas = TestRecordingCanvas();
+      const box = Rect.fromLTWH(0, 0, 20, 20);
+
+      binding.paint(canvas, box);
+      // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+      fonts.notifyListeners();
+      binding.paint(canvas, box);
+
+      final paragraphs = [
+        for (final call in canvas.invocations)
+          if (call.invocation.memberName == #drawParagraph)
+            call.invocation.positionalArguments.first,
+      ];
+      expect(signals, 1);
+      expect(paragraphs, hasLength(2));
+      expect(paragraphs.first, isNot(same(paragraphs.last)));
     });
 
     test('clip only a glyph wider than the box', () {
