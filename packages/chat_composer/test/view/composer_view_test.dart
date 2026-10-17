@@ -274,6 +274,47 @@ void main() {
     });
   });
 
+  group('autofocus', () {
+    testWidgets('the field takes focus when the view mounts', (tester) async {
+      await show(tester, ComposerSpec());
+      await tester.pump();
+
+      expect(controller.hasFocus, isTrue);
+    });
+
+    testWidgets('turned off, the field waits to be focused', (tester) async {
+      await tester.pumpWidget(
+        composerHarness(
+          ComposerView(
+            controller: controller,
+            spec: ComposerSpec(),
+            autofocus: false,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(controller.hasFocus, isFalse);
+    });
+
+    testWidgets('a field that comes back with the text panel does not take '
+        'focus again', (tester) async {
+      Widget resolver(BuildContext context, ComposerPanelId panel) =>
+          const SizedBox(height: 44, child: Text('Join to write'));
+      await show(tester, ComposerSpec(), resolver: resolver);
+      await tester.pump();
+      controller.focusNode.unfocus();
+      await show(tester, ComposerSpec(panel: _restricted), resolver: resolver);
+      await tester.pump();
+
+      await show(tester, ComposerSpec(), resolver: resolver);
+      await tester.pump();
+
+      expect(find.byType(TextField), findsOneWidget);
+      expect(controller.hasFocus, isFalse);
+    });
+  });
+
   group('panel', () {
     testWidgets('a restricted panel replaces the field through the resolver', (
       tester,

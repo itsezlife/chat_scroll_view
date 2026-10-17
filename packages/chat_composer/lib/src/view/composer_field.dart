@@ -53,6 +53,7 @@ class ComposerField extends StatefulWidget {
   const ComposerField({
     required this.controller,
     required this.enabled,
+    this.autofocus = false,
     this.onTap,
     this.onPointerDown,
     this.onPointerEnd,
@@ -64,6 +65,9 @@ class ComposerField extends StatefulWidget {
 
   /// Whether the field takes input.
   final bool enabled;
+
+  /// Whether the field takes focus when it is first built.
+  final bool autofocus;
 
   /// Called when the field is tapped, also while it already has focus. A host
   /// uses it to leave a panel for the keyboard.
@@ -374,6 +378,7 @@ class _ComposerFieldState extends State<ComposerField> {
                   focusNode: controller.focusNode,
                   scrollController: controller.fieldScroll,
                   enabled: widget.enabled,
+                  autofocus: widget.autofocus,
                   minLines: 1,
                   maxLines: ComposerMetrics.fieldMaxLines,
                   keyboardType: mode == SoftKeyboardMode.suppressed

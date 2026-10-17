@@ -87,6 +87,8 @@ class _CellState extends State<_Cell> {
                   controller: controller,
                   spec: widget.spec,
                   safeAreaBottom: 0,
+                  // The pinned islands are unfocused: no caret.
+                  autofocus: false,
                   panelResolver: (context, panel) => Center(
                     child: Text(
                       'Join channel',
