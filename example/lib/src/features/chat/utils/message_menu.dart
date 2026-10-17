@@ -1,7 +1,9 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
+import 'package:content_model/content_model.dart' as model show RichText;
+import 'package:content_model/content_model.dart' show RichClipboard;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 /// Builds rows for a [ChatMessageMenuRequest] under a **selection policy**.
 typedef MessageMenuItemsBuilder =
@@ -378,6 +380,7 @@ final class MessageMenu {
   MessageMenu({
     required this.dataSource,
     required this.actions,
+    required this.clipboard,
     this.selection,
     MessageMenuItemsBuilder? itemsFor,
     List<String>? reactions,
@@ -390,6 +393,10 @@ final class MessageMenu {
 
   /// Outcome handlers for chosen rows / reactions.
   final MessageMenuActions actions;
+
+  /// Where the copy rows write: messages and code as rich text, so a paste
+  /// into the composer brings back their entities (ADR 032).
+  final RichClipboard clipboard;
 
   /// Optional selection facade for Select / Clear / bulk membership and
   /// **selection policy** (catalog + presentation).
@@ -484,38 +491,29 @@ final class MessageMenu {
           case MessageMenuActionId.copySelected:
             final text = request.selectedTextSnapshot;
             if (text == null || text.isEmpty) return;
-            await Clipboard.setData(ClipboardData(text: text));
+            await clipboard.write(model.RichText.plain(text));
             actions.onCopySelected?.call(text);
           case MessageMenuActionId.copyLink:
             final hit = request.inlineHit;
             if (hit is! ChatInlineHit$Link) return;
-            await Clipboard.setData(ClipboardData(text: hit.url));
+            await clipboard.write(model.RichText.plain(hit.url));
             actions.onCopyLink?.call(hit.url);
           case MessageMenuActionId.copyCode:
             final hit = request.inlineHit;
             if (hit is! ChatInlineHit$Code) return;
-            await Clipboard.setData(ClipboardData(text: hit.code));
+            await clipboard.write(ChatCopy.code(hit.code));
             actions.onCopyCode?.call(hit.code);
           case MessageMenuActionId.copy:
-            if (request.overSelection) {
-              final buffer = StringBuffer();
-              for (final id in selectedSnapshot) {
-                final text = dataSource.getMessage(id)?.text;
-                if (text == null || text.isEmpty) continue;
-                if (buffer.isNotEmpty) buffer.writeln();
-                buffer.write(text);
-              }
-              final text = buffer.toString();
-              if (text.isEmpty) return;
-              await Clipboard.setData(ClipboardData(text: text));
-              selection?.clear();
-              actions.onCopy?.call(text);
-              return;
-            }
-            final text = dataSource.getMessage(request.messageId)?.text;
-            if (text == null || text.isEmpty) return;
-            await Clipboard.setData(ClipboardData(text: text));
-            actions.onCopy?.call(text);
+            final ids = request.overSelection
+                ? selectedSnapshot
+                : [request.messageId];
+            final copied = ChatCopy.messages([
+              for (final id in ids) ?dataSource.getMessage(id)?.text,
+            ]);
+            if (copied.isEmpty) return;
+            await clipboard.write(copied);
+            if (request.overSelection) selection?.clear();
+            actions.onCopy?.call(copied.plain);
           case MessageMenuActionId.delete:
             if (request.overSelection) {
               if (actions.onDeleteSelected case final deleteSelected?) {

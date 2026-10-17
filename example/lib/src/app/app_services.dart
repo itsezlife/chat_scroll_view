@@ -16,6 +16,7 @@ import 'package:image_decoder/image_decoder.dart';
 import 'package:kv_shared_preferences/kv_shared_preferences.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_presentation/panel_presentation.dart';
+import 'package:rich_clipboard/rich_clipboard.dart';
 
 /// The app's long-lived services: the composition root of the reference host.
 ///
@@ -37,7 +38,9 @@ import 'package:panel_presentation/panel_presentation.dart';
 /// 4. the data sources: [catalog], [keywords], [emojiSource], [emojiSearch],
 ///    under the [glyphProbe] that hides what the system cannot draw, the
 ///    animated emoji pack, and [emojiPageSource], which lists the pack after
-///    the catalogue's categories.
+///    the catalogue's categories;
+/// 5. the [clipboard]: the `rich_clipboard` adapter every copy and paste
+///    goes through, so text keeps its entities (ADR 032).
 ///
 /// ## Ownership
 ///
@@ -48,6 +51,7 @@ import 'package:panel_presentation/panel_presentation.dart';
 /// usable.
 final class AppServices {
   AppServices._({
+    required this.clipboard,
     required this.keyValueStore,
     required this.recents,
     required this.recentsShown,
@@ -103,6 +107,7 @@ final class AppServices {
     GlyphCacheStore? glyphCache,
     GlyphArtVersionSource? glyphArtVersion,
     List<String> languages = const <String>['ru', 'en'],
+    RichClipboard clipboard = const SystemRichClipboard(),
   }) async {
     // What each step made, to free in reverse if a later one fails: a failed
     // boot must not leave a lifecycle listener or a pressure signal behind.
@@ -254,6 +259,7 @@ final class AppServices {
             ? _webPass(probe.probe, isPaused: () => hidden)
             : null,
         pipeline: pipeline,
+        clipboard: clipboard,
       );
     } on Object {
       for (final undo in unwind.reversed) {
@@ -265,6 +271,11 @@ final class AppServices {
 
   /// The adapter every store writes through.
   final KeyValueStore keyValueStore;
+
+  /// The clipboard every copy and paste goes through: plain text for other
+  /// apps, and the text with its entities for this one. Not disposed: it
+  /// holds nothing.
+  final RichClipboard clipboard;
 
   /// What the user picked, per kind of content.
   final RecentsStore recents;

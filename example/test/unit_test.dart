@@ -23,6 +23,7 @@ import 'features/chat/chat_body_linkify_util_test.dart'
     as chat_body_linkify_util_test;
 import 'features/chat/chat_body_markdown_test.dart' as chat_body_markdown_test;
 import 'features/chat/chat_composer_spec_test.dart' as chat_composer_spec_test;
+import 'features/chat/chat_copy_test.dart' as chat_copy_test;
 import 'features/chat/joined_collection_source_test.dart'
     as joined_collection_source_test;
 import 'glyph_probe_wiring_test.dart' as glyph_probe_wiring_test;
@@ -92,6 +93,7 @@ void main() {
     'features/chat/chat_composer_spec_test.dart',
     chat_composer_spec_test.main,
   );
+  group('features/chat/chat_copy_test.dart', chat_copy_test.main);
   group(
     'features/chat/joined_collection_source_test.dart',
     joined_collection_source_test.main,

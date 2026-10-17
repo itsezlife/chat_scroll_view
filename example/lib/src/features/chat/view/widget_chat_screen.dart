@@ -16,6 +16,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_so
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
@@ -327,6 +328,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
       _messageMenu = MessageMenu(
         dataSource: backend,
+        clipboard: widget.services.clipboard,
         selection: _selection,
         actions: MessageMenuActions(
           onDelete: (messageId) => _handleDeleteSelected([messageId]),
@@ -681,19 +683,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       return;
     }
     final ids = _selection.selectedIds.toList()..sort();
-    final buffer = StringBuffer();
-    for (final id in ids) {
-      final message = _dataSource?.getMessage(id);
-      final text = message?.text;
-      if (text == null) continue;
-      if (buffer.isNotEmpty) buffer.writeln();
-      buffer.write(text);
-    }
-    final text = buffer.toString();
-    if (text.isEmpty) return;
-    Clipboard.setData(ClipboardData(text: text));
+    final copied = ChatCopy.messages([
+      for (final id in ids) ?_dataSource?.getMessage(id)?.text,
+    ]);
+    if (copied.isEmpty) return;
+    unawaited(widget.services.clipboard.write(copied));
     _selection.clear();
-    _showCopiedSnack(text);
+    _showCopiedSnack(copied.plain);
   }
 
   void _editSelectedFromBar() {
