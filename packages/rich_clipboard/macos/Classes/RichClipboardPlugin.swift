@@ -31,41 +31,46 @@ public class RichClipboardPlugin: NSObject, FlutterPlugin {
       pasteboard.writeObjects([item])
       result(nil)
     case "read":
-      let plain = pasteboard.string(forType: .string)
-      let html = pasteboard.string(forType: .html)
-      if plain == nil && html == nil {
-        result(nil)
-        return
-      }
+      let withMedia = (call.arguments as? [String: Any])?["media"] as? Bool ?? false
+      let files = withMedia ? RichClipboardPlugin.files(on: pasteboard) : []
+      // A file manager's copy carries the files' names as text, which is not
+      // what was copied.
+      let plain = files.isEmpty ? pasteboard.string(forType: .string) : nil
+      let html = files.isEmpty ? pasteboard.string(forType: .html) : nil
+      let media = !withMedia ? [] : files.isEmpty ? RichClipboardPlugin.image(on: pasteboard) : files
       // A type the clipboard does not hold is left out.
-      var held: [String: String] = [:]
+      var held: [String: Any] = [:]
       held["plain"] = plain
       held["html"] = html
-      result(held)
-    case "readMedia":
-      result(RichClipboardPlugin.media(on: pasteboard))
+      if !media.isEmpty {
+        held["media"] = media
+      }
+      result(held.isEmpty ? nil : held)
     default:
       result(FlutterMethodNotImplemented)
     }
   }
 
-  // Files a file manager copied, else the image data: a Finder copy also
-  // carries the file's icon as an image, which is not what was copied.
-  private static func media(on pasteboard: NSPasteboard) -> [[String: Any]] {
+  // Files a file manager copied, as paths.
+  private static func files(on pasteboard: NSPasteboard) -> [[String: Any]] {
     let urls =
       pasteboard.readObjects(
         forClasses: [NSURL.self],
         options: [.urlReadingFileURLsOnly: true]
       ) as? [URL] ?? []
-    if !urls.isEmpty {
-      return urls.map { url in
-        var file: [String: Any] = ["path": url.path, "name": url.lastPathComponent]
-        if let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType {
-          file["mimeType"] = mime
-        }
-        return file
+    return urls.map { url in
+      var file: [String: Any] = ["path": url.path]
+      if let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType {
+        file["mimeType"] = mime
       }
+      return file
     }
+  }
+
+  // The image data, in the first form the pasteboard has. Asked for only
+  // when there are no files: a Finder copy also carries the file's icon as
+  // an image, which is not what was copied.
+  private static func image(on pasteboard: NSPasteboard) -> [[String: Any]] {
     let gif = NSPasteboard.PasteboardType("com.compuserve.gif")
     let jpeg = NSPasteboard.PasteboardType("public.jpeg")
     if let data = pasteboard.data(forType: gif) {

@@ -18,9 +18,15 @@ package is pre-1.0.
 ### Added
 
 - `PastedMedia` (`.bytes` with a MIME type and name, `.file` with a path)
-  and `RichClipboard.readMedia()`: the images and files the clipboard holds.
-  `FakeRichClipboard.putMedia` and the contract's `putImage` harness hook.
-  Source-breaking for `RichClipboard` implementers.
+  and `RichClipboard.readWithMedia()`: the clipboard's text and the images
+  and files it holds as `ClipboardContents`, in one read, so a platform that
+  asks before a paste asks once. Files a file manager copied come without
+  text. `FakeRichClipboard.putMedia(media, text:)` and the contract's
+  `putImage` harness hook; the contract takes an image as data or as a saved
+  file. Source-breaking for `RichClipboard` implementers.
+- Building a `RichText` takes time linear in its size: a text style's split
+  at line breaks looked through the rest of the text, and its trim through
+  every code and atomic entity, per entity.
 - `EntityKind.codeBlock({language})` (ADR 033): whole lines of code with an
   optional language (letters, digits and `+ # . _ -`). It holds no other
   entity and overlaps no quote. Markdown writes it as a backtick fence with

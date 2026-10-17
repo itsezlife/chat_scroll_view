@@ -19,18 +19,25 @@ the `RichClipboard` seam (`scripts/check` enforces this).
 
 | Platform | Plain text | HTML | Verified |
 | --- | --- | --- | --- |
-| Android | the clip's text | `ClipData.newHtmlText` | contract on a device |
-| iOS | `public.utf8-plain-text` | `public.html` (one `items` read, one paste prompt) | contract on the simulator |
+| Android | the clip's text | `ClipData.newHtmlText` (read off the main thread) | contract on a device |
+| iOS | `public.utf8-plain-text` | `public.html` (one `items` read per paste, one paste prompt) | contract on the simulator |
 | macOS | `.string` | `.html` | contract on the real pasteboard |
-| web | `text/plain` | `text/html` through `ClipboardItem`; plain where the browser refuses | not yet run |
+| web | `text/plain` | `text/html` through `ClipboardItem`; plain where the browser has no `ClipboardItem` or `read` | not yet run |
 | Windows | `CF_UNICODETEXT` | `HTML Format` (CF_HTML) | built in CI, not run on a device |
 | Linux | GTK text targets | `text/html` (UTF-16 HTML read too) | built in CI, not run on a device |
 
-Media (`readMedia`): files a file manager copied, else image data. macOS
+Media (`readWithMedia`, one read with the text): files a file manager
+copied, with no text (their text is their names), else image data. macOS
 file URLs or GIF / PNG / JPEG / TIFF (as PNG), checked on the real
-pasteboard; iOS item images; Android content URIs; Windows `CF_HDROP`, `PNG`
-or `CF_DIB` (as BMP); Linux URI lists or the GTK image (as PNG); web
-`ClipboardItem` images.
+pasteboard; iOS item images saved to temporary files; Android content URIs
+copied into the app cache, as the reference client copies a pasted image;
+Windows `CF_HDROP`, `PNG` or `CF_DIB` (as BMP); Linux URI lists or the GTK
+image (as PNG); web `ClipboardItem` images. Saved files live in the system's
+temporary or cache directory, which the system clears.
+
+On the web, Flutter leaves a text field's clipboard keys to the browser, so
+Ctrl/Cmd+V is the browser's plain paste; the menu's Paste reads through
+`navigator.clipboard`, which the browser may ask permission for.
 
 The contract runs on a device from the example:
 `flutter test integration_test/rich_clipboard_test.dart -d <device>`. On
@@ -45,9 +52,9 @@ Android that uninstalls the example afterwards, data included.
 | code | `<code>` | `tt kbd samp` |
 | code block | `<pre>`, `<pre lang>` | `pre` with `lang`, `language`, `lng`, `data-language` or a `language-` class on its `code` |
 | quote | `<blockquote>` | `<details>` |
-| link | `<a href>` | `http https mailto tel tg ftp` links only |
-| mention | `<span data-mention-id>` | |
-| inline content | `<span data-content-key>` over the alternative text | `<animated-emoji data-document-id>` as a document key |
+| link | `<a href>` | its own: any scheme; other apps': `http https mailto tel tg ftp` only; never `javascript vbscript data file blob` |
+| mention | `<span data-mention-id>` | in its own HTML only |
+| inline content | `<span data-content-key>` over the alternative text | in its own HTML only; `<animated-emoji data-document-id>` as a document key from anyone |
 
 Line breaks are `<br>`; other apps' block elements start and end lines and
 their whitespace collapses as a browser collapses it. A style that covers all
@@ -59,3 +66,4 @@ of another app's text is dropped. Decoding never throws.
 | --- | --- |
 | Wires one adapter and hands the `RichClipboard` seam to the composer and its own copy actions | [032](../../docs/adr/032-rich-clipboard.md), [031](../../docs/adr/031-localization-accessibility-and-input.md) |
 | Resolves inline content keys a paste brings in that it cannot describe | [032](../../docs/adr/032-rich-clipboard.md), [023](../../docs/adr/023-data-layering-and-persistence.md) |
+| Checks a pasted mention's id against who can be mentioned before sending: any page can mark its HTML as this app's own | [032](../../docs/adr/032-rich-clipboard.md) |

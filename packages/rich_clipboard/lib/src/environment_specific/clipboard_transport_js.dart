@@ -1,77 +1,76 @@
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
 import 'package:web/web.dart' as web;
 
 /// Puts [plain] and [html] on the clipboard as one item, replacing what was
-/// there. A browser without `ClipboardItem` gets the plain text alone.
+/// there. A browser without `ClipboardItem` gets the plain text alone; a
+/// browser that refuses the write (no user gesture, no focus) fails it.
 Future<void> $writeClipboard({
   required String plain,
   required String html,
 }) async {
   final clipboard = web.window.navigator.clipboard;
-  try {
-    final item = web.ClipboardItem(
-      {
-            'text/plain': web.Blob(
-              [plain.toJS].toJS,
-              web.BlobPropertyBag(type: 'text/plain'),
-            ),
-            'text/html': web.Blob(
-              [html.toJS].toJS,
-              web.BlobPropertyBag(type: 'text/html'),
-            ),
-          }.jsify()!
-          as JSObject,
-    );
-    await clipboard.write([item].toJS).toDart;
-  } on Object {
+  if (!globalContext.has('ClipboardItem')) {
     await clipboard.writeText(plain).toDart;
+    return;
   }
+  final item = web.ClipboardItem(
+    {
+          'text/plain': web.Blob(
+            [plain.toJS].toJS,
+            web.BlobPropertyBag(type: 'text/plain'),
+          ),
+          'text/html': web.Blob(
+            [html.toJS].toJS,
+            web.BlobPropertyBag(type: 'text/html'),
+          ),
+        }.jsify()!
+        as JSObject,
+  );
+  await clipboard.write([item].toJS).toDart;
 }
 
-/// The clipboard's plain text and HTML, either null when absent; null when it
-/// holds neither. A browser that refuses the rich read (a permission it was
-/// not given, no `read`) gives the plain text alone.
-Future<({String? plain, String? html})?> $readClipboard() async {
+/// The clipboard's plain text and HTML, either null when absent, and with
+/// [media] its images, each as `bytes` with its `mimeType` (a browser has no
+/// files on the clipboard to give); null when it holds none of them.
+///
+/// A browser without `read` gives the plain text alone; a browser that
+/// refuses the read (a permission the user did not give) fails it.
+Future<({String? plain, String? html, List<Map<Object?, Object?>> media})?>
+$readClipboard({required bool media}) async {
   final clipboard = web.window.navigator.clipboard;
-  try {
-    final items = (await clipboard.read().toDart).toDart;
-    if (items.isEmpty) return null;
-    final item = items.first;
-    final types = item.types.toDart.map((type) => type.toDart).toSet();
-    Future<String?> textOf(String type) async {
-      if (!types.contains(type)) return null;
-      final blob = await item.getType(type).toDart;
-      return (await blob.text().toDart).toDart;
-    }
-
-    final plain = await textOf('text/plain');
-    final html = await textOf('text/html');
-    if (plain == null && html == null) return null;
-    return (plain: plain, html: html);
-  } on Object {
+  if (!(clipboard as JSObject).has('read')) {
     final plain = (await clipboard.readText().toDart).toDart;
-    return plain.isEmpty ? null : (plain: plain, html: null);
+    return plain.isEmpty
+        ? null
+        : (plain: plain, html: null, media: const <Map<Object?, Object?>>[]);
   }
-}
+  final items = (await clipboard.read().toDart).toDart;
+  if (items.isEmpty) return null;
+  Future<web.Blob?> blobOf(web.ClipboardItem item, String type) async =>
+      item.types.toDart.any((held) => held.toDart == type)
+      ? await item.getType(type).toDart
+      : null;
+  Future<String?> textOf(String type) async =>
+      switch (await blobOf(items.first, type)) {
+        final blob? => (await blob.text().toDart).toDart,
+        null => null,
+      };
 
-/// The images on the clipboard, each as `bytes` with its `mimeType`. A
-/// browser has no files on the clipboard to give, and one that refuses the
-/// rich read gives nothing.
-Future<List<Map<Object?, Object?>>> $readClipboardMedia() async {
-  try {
-    final items = (await web.window.navigator.clipboard.read().toDart).toDart;
-    final media = <Map<Object?, Object?>>[];
+  final plain = await textOf('text/plain');
+  final html = await textOf('text/html');
+  final images = <Map<Object?, Object?>>[];
+  if (media) {
     for (final item in items) {
       for (final type in item.types.toDart.map((type) => type.toDart)) {
         if (!type.startsWith('image/')) continue;
         final blob = await item.getType(type).toDart;
         final buffer = await blob.arrayBuffer().toDart;
-        media.add({'bytes': buffer.toDart.asUint8List(), 'mimeType': type});
+        images.add({'bytes': buffer.toDart.asUint8List(), 'mimeType': type});
       }
     }
-    return media;
-  } on Object {
-    return const [];
   }
+  if (plain == null && html == null && images.isEmpty) return null;
+  return (plain: plain, html: html, media: images);
 }

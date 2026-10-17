@@ -55,10 +55,10 @@ abstract final class CanonicalEntities {
     }
     // Trimming must leave the whitespace that sits inside code or an atomic
     // entity, or the style would end inside it.
-    final guarded = [
+    final guarded = _Guarded([
       for (final entity in shaped)
         if (entity.kind.isAtomic || entity.kind == EntityKind.code) entity,
-    ];
+    ]);
     for (final entity in textStyles) {
       _splitAtLineBreaks(plain, entity, shaped, guarded: guarded);
     }
@@ -188,18 +188,23 @@ void _splitAtLineBreaks(
   String plain,
   Entity entity,
   List<Entity> out, {
-  List<Entity>? guarded,
+  _Guarded? guarded,
 }) {
   var start = entity.offset;
   while (true) {
-    final lineBreak = plain.indexOf('\n', start);
-    final last = lineBreak == -1 || lineBreak >= entity.end;
+    // Looked for within the entity only: the text may be long, and hold many
+    // entities.
+    var lineBreak = start;
+    while (lineBreak < entity.end && plain.codeUnitAt(lineBreak) != _newline) {
+      lineBreak++;
+    }
+    final last = lineBreak >= entity.end;
     var end = last ? entity.end : lineBreak;
     var from = start;
     if (guarded != null) {
       bool trimmable(int index) =>
           CanonicalEntities.isWhitespaceUnit(plain.codeUnitAt(index)) &&
-          !guarded.any((g) => g.offset <= index && index < g.end);
+          !guarded.contains(index);
       while (from < end && trimmable(from)) {
         from++;
       }
@@ -210,6 +215,32 @@ void _splitAtLineBreaks(
     if (end > from) out.add(Entity(from, end - from, entity.kind));
     if (last) return;
     start = lineBreak + 1;
+  }
+}
+
+/// Code and atomic entities, whose whitespace a text style keeps. They do not
+/// overlap one another (a list where they do fails its combination check
+/// after trimming), so whether an index is inside one is a binary search.
+final class _Guarded {
+  _Guarded(List<Entity> entities)
+    : _sorted = entities..sort((a, b) => a.offset.compareTo(b.offset));
+
+  final List<Entity> _sorted;
+
+  bool contains(int index) {
+    // The last entity that starts at or before [index].
+    var low = 0;
+    var high = _sorted.length;
+    while (low < high) {
+      final middle = (low + high) >> 1;
+      if (_sorted[middle].offset <= index) {
+        low = middle + 1;
+      } else {
+        high = middle;
+      }
+    }
+    // Only the nearest can hold [index], as they do not overlap.
+    return low > 0 && index < _sorted[low - 1].end;
   }
 }
 

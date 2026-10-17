@@ -148,7 +148,10 @@ class _ScreenState extends State<_Screen> {
         _rig.clearAsked.add(kind);
         return true;
       },
-      onPastedMedia: _rig.pastedMedia.add,
+      onPastedMedia: (media) async {
+        _rig.pastedMedia.add(media);
+        return true;
+      },
       keyboard: _rig.keyboard,
       policy: widget.policy,
     );

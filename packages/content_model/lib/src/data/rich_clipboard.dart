@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:content_model/src/rich_text/rich_text.dart';
+import 'package:content_model/src/value_equality.dart';
 import 'package:meta/meta.dart';
 
 /// What a clipboard holds as text: the plain text any app reads, and the
@@ -30,6 +31,34 @@ final class ClipboardText {
 
   @override
   String toString() => 'ClipboardText(${rich == null ? 'plain' : 'rich'})';
+}
+
+/// What a paste finds on the clipboard: its [text], and the [media] it holds.
+@immutable
+final class ClipboardContents {
+  /// Creates contents of [text] and [media], either of which may be absent.
+  const ClipboardContents({this.text, this.media = const []});
+
+  /// Nothing: no text and no media.
+  static const ClipboardContents empty = ClipboardContents();
+
+  /// The clipboard's text, or null when it holds none.
+  final ClipboardText? text;
+
+  /// The images and files, in order; empty when it holds none.
+  final List<PastedMedia> media;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ClipboardContents &&
+      other.text == text &&
+      ValueEquality.lists(other.media, media);
+
+  @override
+  int get hashCode => Object.hash(text, Object.hashAll(media));
+
+  @override
+  String toString() => 'ClipboardContents($text, $media)';
 }
 
 /// An image or a file the user put into an input: from the clipboard, or
@@ -121,8 +150,12 @@ abstract interface class RichClipboard {
   /// What the clipboard holds as text, or null when it holds no text.
   Future<ClipboardText?> read();
 
-  /// The images and files the clipboard holds, in order; empty when it holds
-  /// none. A paste that finds media hands it to the host to send, as the
-  /// reference clients do.
-  Future<List<PastedMedia>> readMedia();
+  /// The clipboard's text and the images and files it holds, read at once:
+  /// where reading the clipboard asks the user (iOS), one paste asks once.
+  ///
+  /// A paste that finds media hands it to the host to send, as the reference
+  /// clients do, and keeps the text for when the host does not send it.
+  /// Files a file manager copied come without text: its text is their names,
+  /// not what was copied.
+  Future<ClipboardContents> readWithMedia();
 }

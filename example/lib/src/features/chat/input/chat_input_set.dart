@@ -77,7 +77,7 @@ final class ChatEditTarget {
 ///   the composer; clearing recents asks [confirmClearRecents] first.
 /// - **Pasted media.** An image or file pasted into the composer, or an
 ///   image a keyboard inserts, goes to `onPastedMedia` to send, and no text
-///   goes in.
+///   goes in; when it is not sent, the text that came with it does.
 /// - **Menu actions.** A right-click menu of the recents asks for a copy
 ///   (the emoji's text goes to the clipboard) and for one emoji to be
 ///   forgotten (`RecentsStore.remove`); its third item is the clear above.
@@ -109,7 +109,7 @@ final class ChatInputSet {
     required ClearRecentsConfirm confirmClearRecents,
     SoftKeyboardPort keyboard = const PlatformSoftKeyboard(),
     PanelPresentationPolicy? policy,
-    ValueChanged<List<PastedMedia>>? onPastedMedia,
+    Future<bool> Function(List<PastedMedia> media)? onPastedMedia,
   }) {
     // What has been made so far, to free in reverse if a later step throws
     // (a constructor assertion, a keyboard that cannot be read): a half-built

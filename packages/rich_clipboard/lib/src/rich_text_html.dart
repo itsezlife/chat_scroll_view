@@ -51,8 +51,15 @@ import 'package:html/parser.dart' as html;
 /// - **Lines:** `br` breaks a line, block elements (paragraphs, list items,
 ///   headings, quotes) start and end one, whitespace collapses as a browser
 ///   collapses it, except in `pre` and `white-space: pre*`.
-/// - **Links:** kept only with a scheme a user can follow (`http`, `https`,
-///   `mailto`, `tel`, `tg`, `ftp`); others keep their text.
+/// - **Links:** another app's kept only with a scheme a user can follow
+///   (`http`, `https`, `mailto`, `tel`, `tg`, `ftp`), this app's own with any
+///   scheme or none; none with a scheme that runs code or carries a document
+///   (`javascript`, `vbscript`, `data`, `file`, `blob`). The rest keep their
+///   text.
+/// - **Trust:** mention ids and content keys are read from this app's own
+///   HTML only, since a page could put them over any text. Any page can mark
+///   its HTML as this app's own, so a host checks a pasted mention's id
+///   before sending it.
 /// - **Whole-text styles:** a style that covers all of another app's text is
 ///   dropped, as the reference desktop client drops it: pasting a bold
 ///   paragraph from a web page should not make the message bold.
@@ -105,42 +112,63 @@ final class _Encoder {
       plain.length,
       for (final entity in _text.entities) ...[entity.offset, entity.end],
     }.toList()..sort();
+    // The entities in the order they start; the ones covering the current
+    // run are kept as the runs advance.
+    final starting = [..._text.entities]
+      ..sort((a, b) => a.offset.compareTo(b.offset));
+    final active = <Entity>[];
+    var next = 0;
     for (var i = 0; i + 1 < cuts.length; i++) {
       final start = cuts[i];
-      final end = cuts[i + 1];
-      _openOnly(_activeAt(start));
-      for (var at = start; at < end; at++) {
-        final unit = plain.codeUnitAt(at);
-        if (unit == 0x0A) {
-          _out.write('<br>');
-        } else {
-          _out.write(_escape(String.fromCharCode(unit)));
-        }
+      active.removeWhere((entity) => entity.end <= start);
+      while (next < starting.length && starting[next].offset <= start) {
+        if (starting[next].end > start) active.add(starting[next]);
+        next++;
       }
+      _openOnly([...active]..sort(_nesting));
+      _writeText(plain, start, cuts[i + 1]);
     }
     _openOnly(const []);
     _out.write('</span>');
     return _out.toString();
   }
 
-  // The entities that cover [at], in the order their elements nest: a quote
-  // outermost, then the one that started first, a longer one before a
+  // [plain] from [start] to [end], escaped, every line break a `<br>`.
+  void _writeText(String plain, int start, int end) {
+    var run = start;
+    for (var at = start; at < end; at++) {
+      final replacement = switch (plain.codeUnitAt(at)) {
+        0x0A => '<br>',
+        0x26 => '&amp;',
+        0x3C => '&lt;',
+        0x3E => '&gt;',
+        _ => null,
+      };
+      if (replacement == null) continue;
+      _out
+        ..write(plain.substring(run, at))
+        ..write(replacement);
+      run = at + 1;
+    }
+    _out.write(plain.substring(run, end));
+  }
+
+  // The order elements over one run nest in, outermost first: a quote or a
+  // code block, then the one that started first, a longer one before a
   // shorter one; over one range, a link outside styles, styles outside code,
-  // code outside an atom, because the decoder reads nothing inside code
-  // or an atom.
-  List<Entity> _activeAt(int at) =>
-      [
-        for (final entity in _text.entities)
-          if (entity.offset <= at && at < entity.end) entity,
-      ]..sort((a, b) {
-        final quote = _depthOf(a).compareTo(_depthOf(b));
-        if (quote != 0 && (_depthOf(a) == 0 || _depthOf(b) == 0)) return quote;
-        final start = a.offset.compareTo(b.offset);
-        if (start != 0) return start;
-        final end = b.end.compareTo(a.end);
-        if (end != 0) return end;
-        return quote;
-      });
+  // code outside an atom, because the decoder reads nothing inside code or an
+  // atom.
+  static int _nesting(Entity a, Entity b) {
+    final block = _isBlock(b).compareTo(_isBlock(a));
+    if (block != 0) return block;
+    final start = a.offset.compareTo(b.offset);
+    if (start != 0) return start;
+    final end = b.end.compareTo(a.end);
+    if (end != 0) return end;
+    return _depthOf(a).compareTo(_depthOf(b));
+  }
+
+  static int _isBlock(Entity entity) => _depthOf(entity) == 0 ? 1 : 0;
 
   // How deep an element sits among elements over one range.
   static int _depthOf(Entity entity) => switch (entity.kind) {
@@ -196,13 +224,6 @@ final class _Encoder {
     EntityKind$CodeBlock() || EntityKind$Style() => '<${_tagOf(entity)}>',
   };
 
-  static String _escape(String char) => switch (char) {
-    '&' => '&amp;',
-    '<' => '&lt;',
-    '>' => '&gt;',
-    _ => char,
-  };
-
   static String _escapeAttribute(String value) => value
       .replaceAll('&', '&amp;')
       .replaceAll('"', '&quot;')
@@ -256,7 +277,7 @@ final class _Decoder {
   // HTML [RichTextHtml.encode] wrote: kept exactly.
   final bool _own;
 
-  final _text = StringBuffer();
+  final _text = _DecodedText();
   final _entities = <Entity>[];
 
   // A block ended or began: a line break goes in before the next text, if
@@ -272,7 +293,18 @@ final class _Decoder {
   static const _skipped = {
     'head', 'script', 'style', 'template', 'noscript', 'title', 'img', //
   };
-  static const _schemes = {'http', 'https', 'mailto', 'tel', 'tg', 'ftp'};
+  // The schemes another app's link keeps: ones a user can follow.
+  static const _followable = {'http', 'https', 'mailto', 'tel', 'tg', 'ftp'};
+
+  // The schemes no link keeps, not even in HTML marked as this app's own,
+  // which any page can mark: they run code or carry a document.
+  static const _unsafe = {'javascript', 'vbscript', 'data', 'file', 'blob'};
+
+  static final RegExp _collapsible = RegExp(r'[ \t\n\r\f]+');
+  static final RegExp _classSeparator = RegExp(r'\s+');
+
+  // What a browser ignores in a scheme: `java\tscript:` is `javascript:`.
+  static final RegExp _ignoredInScheme = RegExp(r'[\x00-\x20]');
 
   RichText run() {
     final body = _document.body;
@@ -384,16 +416,22 @@ final class _Decoder {
     return _text.length;
   }
 
+  // Mention ids and content keys are trusted only in this app's own HTML:
+  // a page could put them over any text, a mention that shows one name and
+  // notifies another. The reference clients' custom emoji tag is read from
+  // anyone, as they read it.
   EntityKind? _atomOf(dom.Element element) {
     final attributes = element.attributes;
-    if (attributes[RichTextHtml.contentKeyAttribute] case final encoded?) {
-      if (ContentKey.tryParse(encoded) case final key?) {
-        return EntityKind.inlineContent(key);
+    if (_own) {
+      if (attributes[RichTextHtml.contentKeyAttribute] case final encoded?) {
+        if (ContentKey.tryParse(encoded) case final key?) {
+          return EntityKind.inlineContent(key);
+        }
       }
-    }
-    if (attributes[RichTextHtml.mentionAttribute] case final id?
-        when id.isNotEmpty) {
-      return EntityKind.mention(id);
+      if (attributes[RichTextHtml.mentionAttribute] case final id?
+          when id.isNotEmpty) {
+        return EntityKind.mention(id);
+      }
     }
     if (element.localName == 'animated-emoji') {
       if (attributes['data-document-id'] case final id? when id.isNotEmpty) {
@@ -463,7 +501,9 @@ final class _Decoder {
       case 'spoiler' || 'tg-spoiler':
         styles.add(EntityStyle.spoiler);
     }
-    if ((element.attributes['class'] ?? '').split(' ').contains('tg-spoiler') ||
+    if ((element.attributes['class'] ?? '')
+            .split(_classSeparator)
+            .contains('tg-spoiler') ||
         element.attributes['data-entity-type'] == 'MessageEntitySpoiler') {
       styles.add(EntityStyle.spoiler);
     }
@@ -505,14 +545,20 @@ final class _Decoder {
               .toLowerCase(),
   };
 
-  static String? _linkOf(dom.Element element) {
-    final href = element.attributes['href']?.trim();
+  // This app's own links come back as they were written, whatever their
+  // scheme, or none; another app's only with a scheme a user can follow. No
+  // link with an unsafe scheme is kept.
+  String? _linkOf(dom.Element element) {
+    final href = element.attributes['href'];
     if (href == null) return null;
-    final colon = href.indexOf(':');
-    if (colon <= 0) return null;
-    return _schemes.contains(href.substring(0, colon).toLowerCase())
-        ? href
+    final normalized = href.replaceAll(_ignoredInScheme, '');
+    final colon = normalized.indexOf(':');
+    final scheme = colon > 0
+        ? normalized.substring(0, colon).toLowerCase()
         : null;
+    if (_unsafe.contains(scheme)) return null;
+    if (_own) return href.isEmpty ? null : href;
+    return _followable.contains(scheme) ? href.trim() : null;
   }
 
   void _breakLine() {
@@ -525,8 +571,7 @@ final class _Decoder {
   void _flushBreak() {
     if (!_pendingBreak) return;
     _pendingBreak = false;
-    final text = _text.toString();
-    if (text.isEmpty || text.endsWith('\n')) return;
+    if (_text.isEmpty || _text.endsWithUnit(0x0A)) return;
     _trimTrailingSpace();
     _text.write('\n');
   }
@@ -534,20 +579,16 @@ final class _Decoder {
   // Collapsed whitespace does not end a line (not in our own HTML, which
   // keeps every space).
   void _trimTrailingSpace() {
-    if (_own) return;
-    final text = _text.toString();
-    final trimmed = text.replaceFirst(RegExp(r' +$'), '');
-    if (trimmed.length == text.length) return;
-    _text
-      ..clear()
-      ..write(trimmed);
-    _clipEntitiesTo(trimmed.length);
+    if (_own || !_text.trimTrailingSpaces()) return;
+    _clipEntitiesTo(_text.length);
   }
 
+  // Each entity ends where the text ended when it was added, so the ones
+  // past [length] are the last ones added.
   void _clipEntitiesTo(int length) {
     for (var i = _entities.length - 1; i >= 0; i--) {
       final entity = _entities[i];
-      if (entity.end <= length) continue;
+      if (entity.end <= length) break;
       if (entity.offset >= length) {
         _entities.removeAt(i);
       } else {
@@ -563,11 +604,10 @@ final class _Decoder {
   void _appendText(String data, _Context context) {
     var text = data;
     if (!_own && !context.preserveSpace) {
-      text = text.replaceAll(RegExp(r'[ \t\n\r\f]+'), ' ');
-      final current = _text.toString();
+      text = text.replaceAll(_collapsible, ' ');
       final lineStart =
-          current.isEmpty || current.endsWith('\n') || _pendingBreak;
-      if (lineStart || current.endsWith(' ')) text = text.trimLeft();
+          _text.isEmpty || _text.endsWithUnit(0x0A) || _pendingBreak;
+      if (lineStart || _text.endsWithUnit(0x20)) text = text.trimLeft();
       text = text.replaceAll(' ', ' ');
     }
     if (text.isEmpty) return;
@@ -651,4 +691,52 @@ final class _Decoder {
     }
     return RichText.plain(plain);
   }
+}
+
+/// The decoded text so far. It grows at its end and loses spaces off its
+/// end, and the decoder asks for its last character per text node and line
+/// break, which a [StringBuffer] could answer only by copying all of it.
+final class _DecodedText {
+  // Never holds an empty string.
+  final _chunks = <String>[];
+
+  int get length => _length;
+  int _length = 0;
+
+  bool get isEmpty => _length == 0;
+  bool get isNotEmpty => _length != 0;
+
+  void write(String text) {
+    if (text.isEmpty) return;
+    _chunks.add(text);
+    _length += text.length;
+  }
+
+  bool endsWithUnit(int unit) =>
+      _chunks.isNotEmpty &&
+      _chunks.last.codeUnitAt(_chunks.last.length - 1) == unit;
+
+  /// Drops the spaces at the end; whether there were any.
+  bool trimTrailingSpaces() {
+    var trimmed = false;
+    while (_chunks.isNotEmpty) {
+      final last = _chunks.last;
+      var end = last.length;
+      while (end > 0 && last.codeUnitAt(end - 1) == 0x20) {
+        end--;
+      }
+      if (end == last.length) break;
+      trimmed = true;
+      _length -= last.length - end;
+      if (end > 0) {
+        _chunks.last = last.substring(0, end);
+        break;
+      }
+      _chunks.removeLast();
+    }
+    return trimmed;
+  }
+
+  @override
+  String toString() => _chunks.join();
 }

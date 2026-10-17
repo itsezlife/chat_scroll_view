@@ -16,6 +16,9 @@ final class _PlatformClipboard {
   String? html;
   List<Map<String, Object?>> media = [];
 
+  /// The `media` flag of each read, in order.
+  final reads = <bool>[];
+
   Future<Object?> handle(MethodCall call) async {
     switch (call.method) {
       case 'write':
@@ -24,11 +27,16 @@ final class _PlatformClipboard {
         html = arguments['html'] as String?;
         media = [];
         return null;
-      case 'readMedia':
-        return media;
       case 'read':
-        if (plain == null && html == null) return null;
-        return <String, Object?>{'plain': plain, 'html': html};
+        final withMedia =
+            (call.arguments as Map<Object?, Object?>)['media']! as bool;
+        reads.add(withMedia);
+        final held = <String, Object?>{
+          'plain': ?plain,
+          'html': ?html,
+          if (withMedia && media.isNotEmpty) 'media': media,
+        };
+        return held.isEmpty ? null : held;
     }
     throw MissingPluginException(call.method);
   }
@@ -116,7 +124,7 @@ void main() {
       {'path': '/tmp/unknown'},
     ];
 
-    final media = await const SystemRichClipboard().readMedia();
+    final media = (await const SystemRichClipboard().readWithMedia()).media;
 
     expect(media, hasLength(3));
     expect(
@@ -125,12 +133,29 @@ void main() {
           .having((m) => m.mimeType, 'mimeType', 'image/gif')
           .having((m) => m.name, 'name', 'a.gif'),
     );
-    expect(
-      media.sublist(1),
-      const [
-        PastedMedia.file('/tmp/report.pdf', mimeType: 'application/pdf'),
-        PastedMedia.file('/tmp/unknown'),
-      ],
-    );
+    expect(media.sublist(1), const [
+      PastedMedia.file('/tmp/report.pdf', mimeType: 'application/pdf'),
+      PastedMedia.file('/tmp/unknown'),
+    ]);
+  });
+
+  test('reads text and media in one platform read, and media only when '
+      'asked', () async {
+    platform
+      ..plain = 'a range'
+      ..media = [
+        {
+          'bytes': Uint8List.fromList([1]),
+          'mimeType': 'image/png',
+        },
+      ];
+
+    final contents = await const SystemRichClipboard().readWithMedia();
+    final text = await const SystemRichClipboard().read();
+
+    expect(contents.text, const ClipboardText('a range'));
+    expect(contents.media, hasLength(1));
+    expect(text, const ClipboardText('a range'));
+    expect(platform.reads, [true, false]);
   });
 }

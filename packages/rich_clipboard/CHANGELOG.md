@@ -25,9 +25,21 @@ package is pre-1.0.
 - Code blocks: written as `<pre>` / `<pre lang>`, read from `pre` with
   `lang`, `language`, `lng`, `data-language` or a `language-` class on its
   `code`. A `pre` is no longer read as inline code.
-- `SystemRichClipboard.readMedia`: files a file manager copied, else image
-  data. macOS: file URLs, else GIF, PNG, JPEG or TIFF as PNG. iOS: item
-  images (GIF, PNG, JPEG, HEIC, WebP, or a `UIImage` as PNG) in one access.
-  Android: content URIs of the clip's items, with their type and name.
-  Windows: `CF_HDROP` paths, else the `PNG` format or `CF_DIB` as BMP. Linux:
-  the URI list as paths, else the image as PNG. Web: `ClipboardItem` images.
+- `SystemRichClipboard.readWithMedia`: the text and the media in one
+  platform read (one paste prompt on iOS); files a file manager copied, with
+  no text, else image data. macOS: file URLs, else GIF, PNG, JPEG or TIFF as
+  PNG. iOS: item images (GIF, PNG, JPEG, HEIC, WebP, or a `UIImage` as PNG)
+  saved to temporary files off the main thread. Android: the clip's content
+  URIs copied into the app cache under their names, off the main thread, as
+  the reference client copies a pasted image; an image item's URI is not
+  read as text. Windows: `CF_HDROP` paths, else the `PNG` format or `CF_DIB`
+  as BMP. Linux: the URI list as paths, else the image as PNG. Web:
+  `ClipboardItem` images.
+- Decoding trusts `data-mention-id` and `data-content-key` only in HTML
+  marked as this app's own: a page could otherwise put a mention over any
+  name. This app's own links keep any scheme, or none; no link keeps
+  `javascript`, `vbscript`, `data`, `file` or `blob`.
+- Encoding and decoding take time linear in the size of the text.
+- On the web, a browser without `ClipboardItem` or `read` falls back to plain
+  text; a browser that refuses a write or a read fails it, rather than
+  falling back silently.

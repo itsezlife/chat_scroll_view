@@ -22,10 +22,11 @@ final class FakeRichClipboard implements RichClipboard {
     _media = const [];
   }
 
-  /// Puts [media] on the clipboard, and no text, as copying an image or a
-  /// file in another app does.
-  void putMedia(List<PastedMedia> media) {
-    _held = null;
+  /// Puts [media] on the clipboard, as copying an image or a file in another
+  /// app does, with the plain [text] some apps put next to it (an office
+  /// app's copied range comes with a picture of it).
+  void putMedia(List<PastedMedia> media, {String? text}) {
+    _held = text == null ? null : ClipboardText(text);
     _media = List.unmodifiable(media);
   }
 
@@ -44,8 +45,8 @@ final class FakeRichClipboard implements RichClipboard {
   }
 
   @override
-  Future<List<PastedMedia>> readMedia() async {
+  Future<ClipboardContents> readWithMedia() async {
     if (failure case final failure?) throw failure;
-    return _media;
+    return ClipboardContents(text: _held, media: _media);
   }
 }

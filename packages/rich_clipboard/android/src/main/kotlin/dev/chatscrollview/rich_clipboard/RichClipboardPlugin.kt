@@ -4,12 +4,19 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.provider.OpenableColumns
+import android.webkit.MimeTypeMap
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
+import java.io.File
+import java.util.UUID
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /**
  * The Android side of rich_clipboard: one clip with the plain text and the
@@ -20,6 +27,12 @@ class RichClipboardPlugin : FlutterPlugin, MethodCallHandler {
     private lateinit var channel: MethodChannel
     private lateinit var context: Context
 
+    // Reads run here, one at a time: an item's text may be read from a
+    // content provider, and media is copied out of one, neither of which the
+    // main thread can wait for.
+    private val reader: ExecutorService = Executors.newSingleThreadExecutor()
+    private val main = Handler(Looper.getMainLooper())
+
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
         channel = MethodChannel(binding.binaryMessenger, "rich_clipboard")
@@ -28,6 +41,7 @@ class RichClipboardPlugin : FlutterPlugin, MethodCallHandler {
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
+        reader.shutdown()
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {
@@ -45,59 +59,103 @@ class RichClipboardPlugin : FlutterPlugin, MethodCallHandler {
                 result.success(null)
             }
             "read" -> {
-                val clip = clipboard.primaryClip
-                if (clip == null || clip.itemCount == 0) {
-                    result.success(null)
-                    return
+                val withMedia = call.argument<Boolean>("media") == true
+                reader.execute {
+                    try {
+                        val held = contents(clipboard.primaryClip, withMedia)
+                        main.post { result.success(held) }
+                    } catch (error: Exception) {
+                        main.post { result.error("unavailable", error.message, null) }
+                    }
                 }
-                val item = clip.getItemAt(0)
-                val html = item.htmlText
-                // An item may hold only a URI or an intent; its text form is
-                // what a plain paste would insert.
-                val plain = item.text?.toString() ?: item.coerceToText(context)?.toString()
-                val held = HashMap<String, String>()
-                if (!plain.isNullOrEmpty()) held["plain"] = plain
-                if (!html.isNullOrEmpty()) held["html"] = html
-                result.success(if (held.isEmpty()) null else held)
             }
-            "readMedia" -> result.success(media(clipboard))
             else -> result.notImplemented()
         }
     }
 
+    // The first item's plain text and HTML, and with [withMedia] the clip's
+    // media; a type the clip does not hold is left out, and null for none.
+    private fun contents(clip: ClipData?, withMedia: Boolean): Map<String, Any>? {
+        if (clip == null || clip.itemCount == 0) return null
+        val held = HashMap<String, Any>()
+        val item = clip.getItemAt(0)
+        val html = item.htmlText
+        // An item that points at content (an image another app copied) has
+        // no text: the text form of its URI is not what was copied. An item
+        // that holds only an intent, or a URI to text, gives the text a plain
+        // paste would insert.
+        val plain = item.text?.toString()
+            ?: if (item.uri?.let { mediaType(it, clip) } != null) {
+                null
+            } else {
+                item.coerceToText(context)?.toString()
+            }
+        if (!plain.isNullOrEmpty()) held["plain"] = plain
+        if (!html.isNullOrEmpty()) held["html"] = html
+        if (withMedia) {
+            val media = media(clip)
+            if (media.isNotEmpty()) held["media"] = media
+        }
+        return if (held.isEmpty()) null else held
+    }
+
     // The clip's items that point at content (an image or a file another app
-    // copied), as data with its type and name. Text items are not media.
-    private fun media(clipboard: ClipboardManager): List<Map<String, Any>> {
-        val clip = clipboard.primaryClip ?: return emptyList()
-        val resolver = context.contentResolver
+    // copied), each copied into the app's cache, as the reference client does
+    // with a pasted image: the content may be large, and the provider's grant
+    // may not outlive the paste.
+    private fun media(clip: ClipData): List<Map<String, Any>> {
         val found = ArrayList<Map<String, Any>>()
         for (index in 0 until clip.itemCount) {
             val uri = clip.getItemAt(index).uri ?: continue
-            val mime = resolver.getType(uri)
-                ?: clip.description.takeIf { it.mimeTypeCount > 0 }?.getMimeType(0)
-                ?: continue
-            if (mime.startsWith("text/")) continue
-            val bytes = try {
-                resolver.openInputStream(uri)?.use { it.readBytes() }
-            } catch (_: Exception) {
-                null
-            } ?: continue
-            val item = HashMap<String, Any>()
-            item["bytes"] = bytes
-            item["mimeType"] = mime
-            nameOf(uri)?.let { item["name"] = it }
-            found.add(item)
+            val mime = mediaType(uri, clip) ?: continue
+            val file = copied(uri, nameOf(uri, mime)) ?: continue
+            found.add(hashMapOf("path" to file.path, "mimeType" to mime))
         }
         return found
     }
 
-    private fun nameOf(uri: Uri): String? = try {
-        context.contentResolver.query(
-            uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null,
-        )?.use { cursor ->
-            if (cursor.moveToFirst()) cursor.getString(0) else null
+    // The type of the content [uri] points at, null when it is text.
+    private fun mediaType(uri: Uri, clip: ClipData): String? {
+        val mime = try {
+            context.contentResolver.getType(uri)
+        } catch (_: Exception) {
+            null
+        } ?: clip.description.takeIf { it.mimeTypeCount > 0 }?.getMimeType(0)
+            ?: return null
+        return if (mime.startsWith("text/")) null else mime
+    }
+
+    // [uri]'s content in a folder of its own in the cache, under [name]. The
+    // system clears the cache; the host reads the file from there.
+    private fun copied(uri: Uri, name: String): File? = try {
+        val folder = File(context.cacheDir, "rich_clipboard/${UUID.randomUUID()}")
+        folder.mkdirs()
+        val file = File(folder, name)
+        val input = context.contentResolver.openInputStream(uri)
+        if (input == null) {
+            null
+        } else {
+            input.use { source -> file.outputStream().use { source.copyTo(it) } }
+            file
         }
     } catch (_: Exception) {
         null
+    }
+
+    // The name the provider gives [uri], else one with [mime]'s extension.
+    private fun nameOf(uri: Uri, mime: String): String {
+        val given = try {
+            context.contentResolver.query(
+                uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null,
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+        } catch (_: Exception) {
+            null
+        }
+        val safe = given?.replace('/', '_')?.takeIf { it.isNotBlank() }
+        if (safe != null) return safe
+        val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
+        return if (extension == null) "pasted" else "pasted.$extension"
     }
 }

@@ -90,11 +90,16 @@ static FlMethodResponse* write_clipboard(FlValue* args) {
 
 // --- Reading ---
 
-// A read in flight: the HTML is asked for first, then the text, and the call
-// is answered when both are in.
+// A read in flight. With media, the files a file manager copied are asked
+// for first, and answer alone: their text is their names, not what was
+// copied. Otherwise the HTML, then the text, then (with media) an image; the
+// call is answered when all are in.
 typedef struct {
   FlMethodCall* call;
+  gboolean with_media;
   gchar* html;
+  gchar* plain;
+  FlValue* media;
 } Read;
 
 // Clipboard HTML from some apps (Firefox) is UTF-16 with a byte order mark.
@@ -109,58 +114,37 @@ static gchar* html_text(GtkSelectionData* selection) {
   return g_strndup(reinterpret_cast<const gchar*>(data), length);
 }
 
-static void text_received(GtkClipboard* clipboard, const gchar* text,
-                          gpointer data) {
-  Read* read = static_cast<Read*>(data);
+static void read_answer(Read* read) {
   g_autoptr(FlMethodResponse) response = nullptr;
-  if (text == nullptr && read->html == nullptr) {
+  const gboolean has_media = fl_value_get_length(read->media) > 0;
+  if (read->plain == nullptr && read->html == nullptr && !has_media) {
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
   } else {
     // A type the clipboard does not hold is left out.
     g_autoptr(FlValue) held = fl_value_new_map();
-    if (text != nullptr) {
-      fl_value_set_string_take(held, "plain", fl_value_new_string(text));
+    if (read->plain != nullptr) {
+      fl_value_set_string_take(held, "plain", fl_value_new_string(read->plain));
     }
     if (read->html != nullptr) {
       fl_value_set_string_take(held, "html", fl_value_new_string(read->html));
+    }
+    if (has_media) {
+      fl_value_set_string(held, "media", read->media);
     }
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(held));
   }
   fl_method_call_respond(read->call, response, nullptr);
   g_object_unref(read->call);
   g_free(read->html);
+  g_free(read->plain);
+  fl_value_unref(read->media);
   g_free(read);
 }
 
-static void html_received(GtkClipboard* clipboard, GtkSelectionData* selection,
-                          gpointer data) {
-  Read* read = static_cast<Read*>(data);
-  read->html = selection != nullptr ? html_text(selection) : nullptr;
-  gtk_clipboard_request_text(clipboard, text_received, read);
-}
-
-static void read_clipboard(FlMethodCall* method_call) {
-  Read* read = g_new0(Read, 1);
-  read->call = FL_METHOD_CALL(g_object_ref(method_call));
-  gtk_clipboard_request_contents(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD),
-                                 gdk_atom_intern_static_string(kHtmlTarget),
-                                 html_received, read);
-}
-
-// --- Media ---
-
-// Files a file manager copied (its URI list), else an image, saved as PNG.
-
-static void answer_media(FlMethodCall* call, FlValue* media) {
-  g_autoptr(FlMethodResponse) response =
-      FL_METHOD_RESPONSE(fl_method_success_response_new(media));
-  fl_method_call_respond(call, response, nullptr);
-}
-
+// An image, saved as PNG.
 static void image_received(GtkClipboard* clipboard, GdkPixbuf* pixbuf,
                            gpointer data) {
-  g_autoptr(FlMethodCall) call = FL_METHOD_CALL(data);
-  g_autoptr(FlValue) media = fl_value_new_list();
+  Read* read = static_cast<Read*>(data);
   gchar* png = nullptr;
   gsize size = 0;
   if (pixbuf != nullptr &&
@@ -170,35 +154,71 @@ static void image_received(GtkClipboard* clipboard, GdkPixbuf* pixbuf,
         image, "bytes",
         fl_value_new_uint8_list(reinterpret_cast<const uint8_t*>(png), size));
     fl_value_set_string_take(image, "mimeType", fl_value_new_string("image/png"));
-    fl_value_append(media, image);
+    fl_value_append(read->media, image);
     g_free(png);
   }
-  answer_media(call, media);
+  read_answer(read);
 }
 
+static void text_received(GtkClipboard* clipboard, const gchar* text,
+                          gpointer data) {
+  Read* read = static_cast<Read*>(data);
+  read->plain = text != nullptr ? g_strdup(text) : nullptr;
+  if (read->with_media) {
+    gtk_clipboard_request_image(clipboard, image_received, read);
+  } else {
+    read_answer(read);
+  }
+}
+
+static void html_received(GtkClipboard* clipboard, GtkSelectionData* selection,
+                          gpointer data) {
+  Read* read = static_cast<Read*>(data);
+  read->html = selection != nullptr ? html_text(selection) : nullptr;
+  gtk_clipboard_request_text(clipboard, text_received, read);
+}
+
+static void request_html(GtkClipboard* clipboard, Read* read) {
+  gtk_clipboard_request_contents(clipboard,
+                                 gdk_atom_intern_static_string(kHtmlTarget),
+                                 html_received, read);
+}
+
+// Files a file manager copied (its URI list), as paths.
 static void uris_received(GtkClipboard* clipboard, gchar** uris,
                           gpointer data) {
-  FlMethodCall* call = FL_METHOD_CALL(data);
-  g_autoptr(FlValue) media = fl_value_new_list();
+  Read* read = static_cast<Read*>(data);
   for (gchar** uri = uris; uri != nullptr && *uri != nullptr; uri++) {
     g_autofree gchar* path = g_filename_from_uri(*uri, nullptr, nullptr);
     if (path == nullptr) continue;
     g_autoptr(FlValue) file = fl_value_new_map();
     fl_value_set_string_take(file, "path", fl_value_new_string(path));
-    fl_value_append(media, file);
+    fl_value_append(read->media, file);
   }
-  if (fl_value_get_length(media) > 0) {
-    answer_media(call, media);
-    g_object_unref(call);
-    return;
+  if (fl_value_get_length(read->media) > 0) {
+    read_answer(read);
+  } else {
+    request_html(clipboard, read);
   }
-  // The reference passes on to the image request, which drops it.
-  gtk_clipboard_request_image(clipboard, image_received, call);
 }
 
-static void read_media(FlMethodCall* method_call) {
-  gtk_clipboard_request_uris(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD),
-                             uris_received, g_object_ref(method_call));
+static void read_clipboard(FlMethodCall* method_call) {
+  FlValue* args = fl_method_call_get_args(method_call);
+  FlValue* media = args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_MAP
+                       ? fl_value_lookup_string(args, "media")
+                       : nullptr;
+  Read* read = g_new0(Read, 1);
+  read->call = FL_METHOD_CALL(g_object_ref(method_call));
+  read->with_media = media != nullptr &&
+                     fl_value_get_type(media) == FL_VALUE_TYPE_BOOL &&
+                     fl_value_get_bool(media);
+  read->media = fl_value_new_list();
+  GtkClipboard* clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+  if (read->with_media) {
+    gtk_clipboard_request_uris(clipboard, uris_received, read);
+  } else {
+    request_html(clipboard, read);
+  }
 }
 
 // --- Plugin ---
@@ -208,10 +228,6 @@ static void rich_clipboard_plugin_handle_method_call(
   const gchar* method = fl_method_call_get_name(method_call);
   if (strcmp(method, "read") == 0) {
     read_clipboard(method_call);
-    return;
-  }
-  if (strcmp(method, "readMedia") == 0) {
-    read_media(method_call);
     return;
   }
   g_autoptr(FlMethodResponse) response = nullptr;

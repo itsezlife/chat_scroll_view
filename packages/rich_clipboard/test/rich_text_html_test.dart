@@ -94,6 +94,22 @@ void main() {
       ]),
     );
     roundTrips(
+      'links of any scheme, and without one',
+      _text('app site chat', [
+        ('app', const EntityKind.link('myapp://open?id=1')),
+        ('site', const EntityKind.link('example.com/page')),
+        ('chat', const EntityKind.link('tg://resolve?domain=chat')),
+      ]),
+    );
+    roundTrips(
+      'a quote, a link and a style over one range',
+      _text('all three', [
+        ('all three', EntityKind.quote),
+        ('all three', const EntityKind.link('https://example.com')),
+        ('all three', EntityKind.bold),
+      ]),
+    );
+    roundTrips(
       'whitespace, markup characters and scripts kept exactly',
       const RichText.plain(
         '  two  spaces\ttab  nbsp\n\n< & > " \' ф 中 '
@@ -112,6 +128,8 @@ void main() {
         EntityKind.code,
         EntityKind.quote,
         EntityKind.link('https://example.com'),
+        EntityKind.link('myapp://open'),
+        EntityKind.link('example.com/a'),
         EntityKind.mention('bob'),
         EntityKind.inlineContent(_rocket),
         EntityKind.codeBlock(language: 'dart'),
@@ -157,6 +175,27 @@ void main() {
   });
 
   group('encode', () {
+    test('writes a long text with many entities in time linear in its '
+        'size', () {
+      const word = 'word ';
+      final plain = word * 50000;
+      final text = RichText(plain, [
+        for (var i = 0; i < 50000; i++)
+          Entity(
+            i * word.length,
+            4,
+            i.isEven ? EntityKind.bold : EntityKind.code,
+          ),
+      ]);
+      final timer = Stopwatch()..start();
+
+      final html = RichTextHtml.encode(text);
+
+      timer.stop();
+      expect(RichTextHtml.decode(html), text);
+      expect(timer.elapsed, lessThan(const Duration(seconds: 2)));
+    });
+
     test('writes the elements other apps know', () {
       final html = RichTextHtml.encode(
         _text('b i u s spoiler code link', [
@@ -280,6 +319,51 @@ void main() {
           ('mail', const EntityKind.link('mailto:a@b.c')),
         ]),
       );
+    });
+
+    test('reads mention ids and content keys from its own HTML only', () {
+      // A page can carry the attributes over any text: a mention that shows
+      // one name and notifies another.
+      expect(
+        RichTextHtml.decode(
+          '<p>hi <span data-mention-id="victim">@alice</span> '
+          '<span data-content-key="document:rocket">\u{1F680}</span></p>',
+        ),
+        const RichText.plain('hi @alice \u{1F680}'),
+      );
+    });
+
+    test('keeps no unsafe link, even in HTML marked as its own', () {
+      expect(
+        RichTextHtml.decode(
+          '<span data-rich-text="1"><a href="javascript:alert(1)">a</a> '
+          '<a href=" JavaScript:alert(1)">b</a> '
+          '<a href="data:text/html,x">c</a> <a href="myapp://x">d</a></span>',
+        ),
+        _text('a b c d', [('d', const EntityKind.link('myapp://x'))]),
+      );
+    });
+
+    test('reads a class among others, whatever whitespace parts them', () {
+      expect(
+        RichTextHtml.decode('x <span class="a\ttg-spoiler\nb">y</span>'),
+        _text('x y', [('y', EntityKind.spoiler)]),
+      );
+    });
+
+    test('reads a large document in time linear in its size', () {
+      final page = StringBuffer('<div>');
+      for (var i = 0; i < 20000; i++) {
+        page.write('<p>line <b>$i</b> of <i>many</i> </p>');
+      }
+      page.write('</div>');
+      final timer = Stopwatch()..start();
+
+      final text = RichTextHtml.decode(page.toString());
+
+      timer.stop();
+      expect(text.plain.split('\n'), hasLength(20000));
+      expect(timer.elapsed, lessThan(const Duration(seconds: 5)));
     });
 
     test('reads the reference Android client\'s tags', () {

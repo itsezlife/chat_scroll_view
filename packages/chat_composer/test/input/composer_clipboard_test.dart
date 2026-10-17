@@ -4,6 +4,8 @@
 /// through the controller's rich text and what the clipboard holds.
 library;
 
+import 'dart:async';
+
 import 'package:chat_composer/chat_composer.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
@@ -24,6 +26,32 @@ RichText _text(String plain, List<(String, EntityKind)> parts) {
 }
 
 const _rocket = ContentKey.document('rocket');
+
+/// A clipboard whose reads finish when the test says: what a platform that
+/// asks the user before a paste looks like.
+final class _HeldClipboard implements RichClipboard {
+  _HeldClipboard(this._inner);
+
+  final FakeRichClipboard _inner;
+  final _gate = Completer<void>();
+
+  void release() => _gate.complete();
+
+  @override
+  Future<void> write(RichText text) => _inner.write(text);
+
+  @override
+  Future<ClipboardText?> read() async {
+    await _gate.future;
+    return _inner.read();
+  }
+
+  @override
+  Future<ClipboardContents> readWithMedia() async {
+    await _gate.future;
+    return _inner.readWithMedia();
+  }
+}
 
 void main() {
   late FakeRichClipboard clipboard;
@@ -151,6 +179,88 @@ void main() {
       );
     });
 
+    test('lands nowhere when the text changed while the clipboard was '
+        'read', () async {
+      final held = _HeldClipboard(clipboard);
+      final slow = ComposerController(clipboard: held);
+      addTearDown(slow.dispose);
+      clipboard.putPlainText('pasted');
+      slow
+        ..restore(const RichText.plain('ab'))
+        ..select(const TextSelection.collapsed(offset: 1));
+
+      final pasting = slow.paste();
+      slow.insertText('typed');
+      held.release();
+
+      expect(await pasting, isFalse);
+      expect(slow.richText, const RichText.plain('atypedb'));
+    });
+
+    group('keeps what fits where it lands', () {
+      final codeAndRocket = _text('main()\nsee \u{1F680}', [
+        ('main()', const EntityKind.codeBlock(language: 'dart')),
+        ('\u{1F680}', const EntityKind.inlineContent(_rocket)),
+      ]);
+
+      test('a code block in a quote is its text, the rest kept', () async {
+        await clipboard.write(codeAndRocket);
+        show(
+          _text('quote', [('quote', EntityKind.quote)]),
+          const TextSelection.collapsed(offset: 2),
+        );
+
+        await composer.paste();
+
+        expect(
+          composer.richText,
+          _text('qumain()\nsee \u{1F680}ote', [
+            ('qumain()\nsee \u{1F680}ote', EntityKind.quote),
+            ('\u{1F680}', const EntityKind.inlineContent(_rocket)),
+          ]),
+        );
+      });
+
+      test('a code block in bold text is its text, the rest kept', () async {
+        await clipboard.write(codeAndRocket);
+        show(
+          _text('bold', [('bold', EntityKind.bold)]),
+          const TextSelection.collapsed(offset: 2),
+        );
+
+        await composer.paste();
+
+        expect(
+          composer.richText,
+          _text('bomain()\nsee \u{1F680}ld', [
+            ('bomain()', EntityKind.bold),
+            ('see \u{1F680}ld', EntityKind.bold),
+            ('\u{1F680}', const EntityKind.inlineContent(_rocket)),
+          ]),
+        );
+      });
+
+      test('anything in a code block is plain code', () async {
+        await clipboard.write(
+          _text('bold \u{1F680}', [
+            ('bold', EntityKind.bold),
+            ('\u{1F680}', const EntityKind.inlineContent(_rocket)),
+          ]),
+        );
+        final block = _text('ab', [('ab', const EntityKind.codeBlock())]);
+        show(block, const TextSelection.collapsed(offset: 1));
+
+        await composer.paste();
+
+        expect(
+          composer.richText,
+          _text('abold \u{1F680}b', [
+            ('abold \u{1F680}b', const EntityKind.codeBlock()),
+          ]),
+        );
+      });
+    });
+
     test('changes nothing when the clipboard holds no text', () async {
       show(boldRocket, const TextSelection.collapsed(offset: 0));
 
@@ -183,32 +293,53 @@ void main() {
       mimeType: 'image/png',
     );
 
+    /// A composer whose host takes pasted media when [sends] says so.
+    ComposerController withHost(
+      List<List<PastedMedia>> received, {
+      bool sends = true,
+    }) {
+      final composer = ComposerController(
+        clipboard: clipboard,
+        onPastedMedia: (media) async {
+          received.add(media);
+          return sends;
+        },
+      );
+      addTearDown(composer.dispose);
+      return composer;
+    }
+
     test('a paste of media goes to the host, and no text goes in', () async {
       final received = <List<PastedMedia>>[];
-      final withHost = ComposerController(
-        clipboard: clipboard,
-        onPastedMedia: received.add,
-      );
-      addTearDown(withHost.dispose);
-      clipboard.putMedia([png]);
+      final composer = withHost(received);
+      clipboard.putMedia([png], text: 'a range');
 
-      expect(await withHost.paste(), isTrue);
+      expect(await composer.paste(), isTrue);
 
       expect(received.single.single, same(png));
-      expect(withHost.richText, RichText.empty);
+      expect(composer.richText, RichText.empty);
+    });
+
+    test('media the host does not send leaves the text that came with it, '
+        'pasted', () async {
+      final received = <List<PastedMedia>>[];
+      final composer = withHost(received, sends: false);
+      clipboard.putMedia([png], text: 'a range');
+
+      expect(await composer.paste(), isTrue);
+
+      expect(received, hasLength(1));
+      expect(composer.richText, const RichText.plain('a range'));
     });
 
     test('a paste as plain text leaves media alone', () async {
       final received = <List<PastedMedia>>[];
-      final withHost = ComposerController(
-        clipboard: clipboard,
-        onPastedMedia: received.add,
-      );
-      addTearDown(withHost.dispose);
-      clipboard.putMedia([png]);
+      final composer = withHost(received);
+      clipboard.putMedia([png], text: 'a range');
 
-      expect(await withHost.paste(plain: true), isFalse);
+      expect(await composer.paste(plain: true), isTrue);
       expect(received, isEmpty);
+      expect(composer.richText, const RichText.plain('a range'));
     });
 
     test('without a host for media, a paste is text only', () async {
@@ -220,10 +351,8 @@ void main() {
 
     test('media a keyboard inserts goes to the host', () {
       final received = <List<PastedMedia>>[];
-      final withHost = ComposerController(onPastedMedia: received.add);
-      addTearDown(withHost.dispose);
 
-      withHost.receiveMedia([png]);
+      withHost(received).receiveMedia([png]);
 
       expect(received.single.single, same(png));
     });

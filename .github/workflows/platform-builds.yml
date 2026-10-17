@@ -1,9 +1,10 @@
 name: Platform builds
 
 # Builds the example for Windows and Linux, which have native code (the
-# rich_clipboard plugin) that no local machine of the team runs. Build only:
-# the gates are in check.yml. Runs when the native code or the example
-# changes.
+# rich_clipboard plugin) that no local machine of the team runs, and runs the
+# RichClipboard contract against each one's real clipboard (Linux under a
+# virtual display). The other gates are in check.yml. Runs when the native
+# code or the example changes.
 on:
   pull_request:
     paths:
@@ -53,10 +54,18 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev xvfb
       - name: Resolve workspace
         working-directory: chat_scroll_view
         run: flutter pub get --enforce-lockfile
       - name: Build
         working-directory: chat_scroll_view/example
         run: flutter build ${{ matrix.platform }} --debug
+      - name: Clipboard contract (Linux)
+        if: matrix.platform == 'linux'
+        working-directory: chat_scroll_view/example
+        run: xvfb-run -a flutter test integration_test/rich_clipboard_test.dart -d linux
+      - name: Clipboard contract (Windows)
+        if: matrix.platform == 'windows'
+        working-directory: chat_scroll_view/example
+        run: flutter test integration_test/rich_clipboard_test.dart -d windows

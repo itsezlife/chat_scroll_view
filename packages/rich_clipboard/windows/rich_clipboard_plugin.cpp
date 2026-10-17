@@ -275,14 +275,37 @@ void RichClipboardPlugin::HandleMethodCall(
     }
     result->Success();
   } else if (method == "read") {
+    bool with_media = false;
+    if (const auto *arguments =
+            std::get_if<flutter::EncodableMap>(method_call.arguments())) {
+      auto media_entry = arguments->find(flutter::EncodableValue("media"));
+      if (media_entry != arguments->end()) {
+        if (const bool *media = std::get_if<bool>(&media_entry->second)) {
+          with_media = *media;
+        }
+      }
+    }
     if (!OpenClipboardFor(Owner())) {
       result->Error("unavailable", "the clipboard could not be opened");
       return;
     }
-    const std::optional<std::string> html = HeldHtml();
-    const std::optional<std::string> plain = HeldText();
+    // Files first: a file copied in Explorer may carry a preview image too,
+    // and its names as text, which is not what was copied.
+    flutter::EncodableList media;
+    if (with_media) {
+      media = HeldFiles();
+      if (media.empty()) {
+        if (auto image = HeldImage()) media.push_back(flutter::EncodableValue(*image));
+      }
+    }
+    const bool files = with_media && !media.empty() &&
+                       ::IsClipboardFormatAvailable(CF_HDROP);
+    const std::optional<std::string> html =
+        files ? std::nullopt : HeldHtml();
+    const std::optional<std::string> plain =
+        files ? std::nullopt : HeldText();
     ::CloseClipboard();
-    if (!html && !plain) {
+    if (!html && !plain && media.empty()) {
       result->Success();
       return;
     }
@@ -294,19 +317,10 @@ void RichClipboardPlugin::HandleMethodCall(
     if (html) {
       held[flutter::EncodableValue("html")] = flutter::EncodableValue(*html);
     }
+    if (!media.empty()) {
+      held[flutter::EncodableValue("media")] = flutter::EncodableValue(media);
+    }
     result->Success(flutter::EncodableValue(held));
-  } else if (method == "readMedia") {
-    if (!OpenClipboardFor(Owner())) {
-      result->Error("unavailable", "the clipboard could not be opened");
-      return;
-    }
-    // Files first: a file copied in Explorer may carry a preview image too.
-    flutter::EncodableList media = HeldFiles();
-    if (media.empty()) {
-      if (auto image = HeldImage()) media.push_back(flutter::EncodableValue(*image));
-    }
-    ::CloseClipboard();
-    result->Success(flutter::EncodableValue(media));
   } else {
     result->NotImplemented();
   }

@@ -179,7 +179,12 @@ void main() {
 
   testWidgets('an image a keyboard inserts goes to the host', (tester) async {
     final received = <List<PastedMedia>>[];
-    final withHost = ComposerController(onPastedMedia: received.add);
+    final withHost = ComposerController(
+      onPastedMedia: (media) async {
+        received.add(media);
+        return true;
+      },
+    );
     addTearDown(withHost.dispose);
     await show(tester, controller: withHost);
 

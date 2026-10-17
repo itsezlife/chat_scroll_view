@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
 import 'package:chat_composer/src/query/composer_input_query.dart';
 import 'package:chat_composer/src/query/composer_query_kind.dart';
@@ -71,9 +73,12 @@ final class ComposerController {
 
   /// Takes the images and files the user puts into the field: a paste while
   /// the [clipboard] holds media, and an image a keyboard inserts. The host
-  /// sends them, as the reference clients send pasted media. Null leaves
-  /// pastes text only and keyboards without image insertion.
-  final ValueChanged<List<PastedMedia>>? onPastedMedia;
+  /// sends them, as the reference clients send pasted media, and completes
+  /// with whether it did: a paste whose media the host did not send (the user
+  /// cancelled) pastes the text that came with it, as the reference desktop
+  /// client does. Null leaves pastes text only and keyboards without image
+  /// insertion.
+  final Future<bool> Function(List<PastedMedia> media)? onPastedMedia;
 
   final bool _ownsText;
   final bool _ownsFocus;
@@ -174,37 +179,44 @@ final class ComposerController {
   ///
   /// When the clipboard holds images or files and there is an
   /// [onPastedMedia] host, a paste (not one as [plain] text) hands them to it
-  /// and inserts no text: what was copied was the media.
+  /// and inserts no text: what was copied was the media. When the host does
+  /// not send them, the text that came with them goes in (an office app's
+  /// copied range comes with a picture of it).
   ///
   /// Pasted into a quote, the text's own quotes are unwrapped, so quotes never
   /// nest; entities that cannot sit where the text lands are dropped and the
-  /// text still goes in. False when there is no clipboard, it holds no text,
-  /// or it failed (reported to [FlutterError.reportError]).
+  /// text still goes in (see [ComposerTextController.replaceRange]). A paste
+  /// whose text changed while the clipboard was read (a platform that asks
+  /// the user first) or the host looked at the media lands nowhere; one whose
+  /// selection was lost meanwhile lands where the selection was.
+  ///
+  /// True when media went to the host or text went in; false when there is
+  /// no clipboard, it holds nothing to paste, the text moved on, or the
+  /// clipboard failed (reported to [FlutterError.reportError]).
   Future<bool> paste({bool plain = false}) async {
     final source = clipboard;
     if (_disposed || source == null) return false;
-    if (!plain && onPastedMedia != null) {
-      final List<PastedMedia> media;
-      try {
-        media = await source.readMedia();
-      } on Object catch (error, stack) {
-        _report(error, stack, 'while reading the clipboard for media');
-        return false;
-      }
-      if (_disposed) return false;
-      if (media.isNotEmpty) {
-        receiveMedia(media);
-        return true;
-      }
-    }
-    final ClipboardText? held;
+    final before = (rich: richText, selection: text.selection);
+    final withMedia = !plain && onPastedMedia != null;
+    final ClipboardContents contents;
     try {
-      held = await source.read();
+      // One read for text and media: one paste prompt where the platform
+      // asks.
+      contents = withMedia
+          ? await source.readWithMedia()
+          : ClipboardContents(text: await source.read());
     } on Object catch (error, stack) {
       _report(error, stack, 'while reading the clipboard to paste');
       return false;
     }
-    if (_disposed || held == null) return false;
+    if (_disposed) return false;
+    if (withMedia && contents.media.isNotEmpty) {
+      if (await _handOver(contents.media) || _disposed) return true;
+    }
+    final held = contents.text;
+    if (held == null) return false;
+    if (richText != before.rich) return false;
+    if (!text.selection.isValid) text.selection = before.selection;
     var pasted = plain ? RichText.plain(held.plain) : held.richOrPlain;
     if (pasted.isEmpty) return false;
     if (_insideQuote(text.selection)) {
@@ -223,7 +235,19 @@ final class ComposerController {
   /// or for no media.
   void receiveMedia(List<PastedMedia> media) {
     if (_disposed || media.isEmpty) return;
-    onPastedMedia?.call(List.unmodifiable(media));
+    unawaited(_handOver(media));
+  }
+
+  // Whether the host sent [media]; a host that fails did not (reported).
+  Future<bool> _handOver(List<PastedMedia> media) async {
+    final host = onPastedMedia;
+    if (host == null) return false;
+    try {
+      return await host(List.unmodifiable(media));
+    } on Object catch (error, stack) {
+      _report(error, stack, 'while handing pasted media to the host');
+      return false;
+    }
   }
 
   Future<bool> _write(RichText copied) async {

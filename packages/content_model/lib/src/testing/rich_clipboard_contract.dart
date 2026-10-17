@@ -87,10 +87,14 @@ abstract final class RichClipboardContract {
         expect((await clipboard.read())!.plain, 'second');
       });
 
-      test('holds no media after text was written', () async {
-        await clipboard.write(const RichText.plain('words'));
+      test('reads the text with no media after text was written', () async {
+        const text = RichText.plain('words');
+        await clipboard.write(text);
 
-        expect(await clipboard.readMedia(), isEmpty);
+        final contents = await clipboard.readWithMedia();
+
+        expect(contents.text!.richOrPlain, text);
+        expect(contents.media, isEmpty);
       });
 
       test('reads an image another app copied as media', () async {
@@ -101,14 +105,21 @@ abstract final class RichClipboardContract {
         }
         await putImage(_onePixelPng);
 
-        final media = await clipboard.readMedia();
+        final media = (await clipboard.readWithMedia()).media;
 
+        // Data, or a file the adapter saved it to: what a mobile adapter does
+        // rather than send the data whole through the platform channel.
         expect(media, hasLength(1));
         expect(
           media.single,
-          isA<PastedMedia$Bytes>()
-              .having((m) => m.mimeType, 'mimeType', startsWith('image/'))
-              .having((m) => m.bytes, 'bytes', isNotEmpty),
+          anyOf(
+            isA<PastedMedia$Bytes>()
+                .having((m) => m.mimeType, 'mimeType', startsWith('image/'))
+                .having((m) => m.bytes, 'bytes', isNotEmpty),
+            isA<PastedMedia$File>()
+                .having((m) => m.mimeType, 'mimeType', startsWith('image/'))
+                .having((m) => m.path, 'path', isNotEmpty),
+          ),
         );
       });
 

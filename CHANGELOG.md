@@ -7,6 +7,11 @@
   `MarkdownSelectedContent` for a text selection, and the language of a
   tapped code block. Without a writer the viewport writes plain text, as
   before; `ChatCopied` follows a copy either way.
+- `ChatCopied` follows a copy once it is written, a code tap's included (it
+  used to come at once, before the clipboard answered). A write that fails
+  is reported to `FlutterError.reportError` and is no copy: nothing is
+  notified and the selection stays. The structured content is built only
+  for a host writer.
 - `ChatSelectionController.textSelectionContent()`: the live selection as
   `MarkdownSelectedContent`, for a host menu that copies the selection.
 

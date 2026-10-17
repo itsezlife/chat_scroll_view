@@ -34,23 +34,24 @@ final class SystemRichClipboard implements RichClipboard {
   );
 
   @override
-  Future<ClipboardText?> read() async {
-    final held = await environment_specific.$readClipboard();
-    if (held == null) return null;
+  Future<ClipboardText?> read() async => (await _read(media: false)).text;
+
+  @override
+  Future<ClipboardContents> readWithMedia() => _read(media: true);
+
+  Future<ClipboardContents> _read({required bool media}) async {
+    final held = await environment_specific.$readClipboard(media: media);
+    if (held == null) return ClipboardContents.empty;
     final rich = switch (held.html) {
       final html? when html.trim().isNotEmpty => RichTextHtml.decode(html),
       _ => null,
     };
     final plain = held.plain ?? rich?.plain;
-    if (plain == null) return null;
-    return ClipboardText(plain, rich: rich);
+    return ClipboardContents(
+      text: plain == null ? null : ClipboardText(plain, rich: rich),
+      media: [for (final item in held.media) ?_mediaOf(item)],
+    );
   }
-
-  @override
-  Future<List<PastedMedia>> readMedia() async => [
-    for (final item in await environment_specific.$readClipboardMedia())
-      ?_mediaOf(item),
-  ];
 
   // A platform's description of one image or file.
   static PastedMedia? _mediaOf(Map<Object?, Object?> item) =>

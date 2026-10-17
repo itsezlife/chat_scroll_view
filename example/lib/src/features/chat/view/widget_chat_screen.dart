@@ -670,9 +670,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   }
 
   // The demo sends no media: it shows what it would send, as the reference
-  // clients show pasted media before sending it.
-  Future<void> _onPastedMedia(List<PastedMedia> media) async {
-    if (!mounted) return;
+  // clients show pasted media before sending it. Cancelling pastes the text
+  // that came with the media, if any.
+  Future<bool> _onPastedMedia(List<PastedMedia> media) async {
+    if (!mounted) return false;
     final send = await showPastedMediaSheet(context, media);
     if (send) {
       _showDemoSnack(
@@ -681,6 +682,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             : 'Would send ${media.length} items',
       );
     }
+    return send;
   }
 
   void _showDemoSnack(String text) {

@@ -71,7 +71,19 @@ is pre-1.0.
   images or files hands them to the host instead of inserting text (a paste
   as plain text leaves them), and an image a keyboard inserts
   (`ContentInsertionConfiguration`, Android) goes there too;
-  `receiveMedia` hands media over directly.
+  `receiveMedia` hands media over directly. The host completes with whether
+  it sent them; a paste whose media was not sent pastes the text that came
+  with it, as the reference desktop client does. Text and media come from
+  one clipboard read.
+- A paste lands nowhere when the text changed while the clipboard was read
+  or the host looked at the media.
+- Inserted entities that cannot sit where the text lands are dropped the
+  broadest first (code blocks and quotes, then styles, then links), not all
+  at once: a code block pasted into a quote keeps the custom emoji next to
+  it.
+- `ComposerShortcutPolicy.desktop(inBrowser:)`: in a browser, which pastes
+  as plain text itself, Shift+V with Command or Control is left unbound;
+  `forPlatform(isWeb: true)` sets it.
 - A code block (`EntityKind.codeBlock`) is styled as inline code.
 - Rich clipboard (ADR 032): `ComposerController(clipboard:)` takes a
   `RichClipboard`, and `copySelection`, `cutSelection` and `paste({plain})`

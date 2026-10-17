@@ -53,15 +53,19 @@ sealed class ComposerShortcutPolicy {
 
   /// Keyboard-first platforms: Enter submits, Shift+Enter inserts a newline,
   /// Escape dismisses the header.
-  const factory ComposerShortcutPolicy.desktop() =
+  ///
+  /// [inBrowser] leaves paste as plain text to the browser: Flutter leaves the
+  /// clipboard keys of a text field to it, and it pastes as plain text with
+  /// Shift itself, with no permission to ask for.
+  const factory ComposerShortcutPolicy.desktop({bool inBrowser}) =
       ComposerShortcutPolicy$Desktop;
 
-  /// The policy for [platform]; the web counts as desktop.
+  /// The policy for [platform]; the web counts as desktop, in a browser.
   factory ComposerShortcutPolicy.forPlatform(
     TargetPlatform platform, {
     bool isWeb = false,
   }) {
-    if (isWeb) return const ComposerShortcutPolicy.desktop();
+    if (isWeb) return const ComposerShortcutPolicy.desktop(inBrowser: true);
     return switch (platform) {
       TargetPlatform.android ||
       TargetPlatform.iOS ||
@@ -92,13 +96,20 @@ final class ComposerShortcutPolicy$Mobile extends ComposerShortcutPolicy {
 /// [ComposerShortcutPolicy.desktop].
 final class ComposerShortcutPolicy$Desktop extends ComposerShortcutPolicy {
   /// Creates the policy.
-  const ComposerShortcutPolicy$Desktop();
+  const ComposerShortcutPolicy$Desktop({this.inBrowser = false});
+
+  /// Whether the composer runs in a browser, which pastes as plain text
+  /// itself; see [ComposerShortcutPolicy.desktop].
+  final bool inBrowser;
 
   @override
-  Map<ShortcutActivator, Intent> get shortcuts => const {
-    SingleActivator(LogicalKeyboardKey.enter): SubmitComposerIntent(),
-    SingleActivator(LogicalKeyboardKey.numpadEnter): SubmitComposerIntent(),
-    SingleActivator(LogicalKeyboardKey.escape): DismissComposerHeaderIntent(),
-    ..._pastePlain,
+  Map<ShortcutActivator, Intent> get shortcuts => {
+    const SingleActivator(LogicalKeyboardKey.enter):
+        const SubmitComposerIntent(),
+    const SingleActivator(LogicalKeyboardKey.numpadEnter):
+        const SubmitComposerIntent(),
+    const SingleActivator(LogicalKeyboardKey.escape):
+        const DismissComposerHeaderIntent(),
+    if (!inBrowser) ..._pastePlain,
   };
 }

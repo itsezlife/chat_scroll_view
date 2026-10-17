@@ -11,6 +11,9 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_text_selection.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_span_feedback.dart';
 import 'package:flutter/foundation.dart'
     show
+        ErrorDescription,
+        FlutterError,
+        FlutterErrorDetails,
         Listenable,
         ValueChanged,
         ValueListenable,
@@ -128,7 +131,7 @@ enum ChatDragSelectAction {
 /// membership does not suppress inline activation.
 ///
 /// Code taps **and idle long-presses** with [copyCodeOnClick] write the
-/// clipboard and emit a single [ChatCopied] (`origin: codeTap`) — not a
+/// clipboard and, once written, emit a single [ChatCopied] (`origin: codeTap`) — not a
 /// separate [ChatCodeActivated]. When [copyCodeOnClick] is `false`, only
 /// [ChatCodeActivated] fires and the host owns clipboard / toast. Prefer
 /// handling [ChatCopied] alone for “Copied” chrome. Under suppression
@@ -177,8 +180,10 @@ class ChatSelectionController implements Listenable {
   /// [ChatTextCopy] instead of writing plain text to the platform clipboard.
   ///
   /// A host that keeps formatting on the clipboard builds the rich form from
-  /// [ChatTextCopy.content]. Feedback is unchanged: [ChatCopied] still
-  /// follows a copy. Null writes plain text, as before.
+  /// [ChatTextCopy.content]. Feedback is unchanged: [ChatCopied] follows a
+  /// copy once it is written. A write that fails is reported to
+  /// [FlutterError.reportError] and is no copy: nothing is notified and the
+  /// selection stays. Null writes plain text.
   final ChatTextCopyWriter? copyWriter;
 
   final ChatTextSelection _text;
@@ -788,8 +793,10 @@ class ChatSelectionController implements Listenable {
   /// Copies the active plain-text range, then applies [selectionPolicy]
   /// Copy-success effects and notifies via [ChatCopied].
   ///
-  /// Returns `false` when disposed, text selection is inactive, or there is
-  /// no non-empty range (state unchanged; no interaction notify).
+  /// Returns `false` when disposed, text selection is inactive, there is no
+  /// non-empty range, or the write failed (reported to
+  /// [FlutterError.reportError]); the state is then unchanged and nothing is
+  /// notified.
   Future<bool> copyTextSelection() async {
     if (_disposed || !_text.isActive || _isCopying) return false;
     final text = _text.getText();
@@ -799,15 +806,22 @@ class ChatSelectionController implements Listenable {
       plainText: text,
       origin: ChatCopyOrigin.textSelection,
       messageId: currentSubject,
-      content: _text.markdownSelection.selectedContent(),
+      // Only a host writer reads the structure.
+      content: copyWriter == null
+          ? null
+          : _text.markdownSelection.selectedContent(),
     );
     _isCopying = true;
+    final bool written;
     try {
-      await _write(copy);
+      written = await _write(copy);
     } finally {
       _isCopying = false;
     }
-    if (_disposed || !_text.isActive || _text.subjectId != currentSubject) {
+    if (!written ||
+        _disposed ||
+        !_text.isActive ||
+        _text.subjectId != currentSubject) {
       return false;
     }
     selectionPolicy.applyCopySuccess(
@@ -823,10 +837,26 @@ class ChatSelectionController implements Listenable {
     return true;
   }
 
-  Future<void> _write(ChatTextCopy copy) => switch (copyWriter) {
-    final write? => write(copy),
-    null => Clipboard.setData(ClipboardData(text: copy.plainText)),
-  };
+  // Whether [copy] was written; a failure is reported.
+  Future<bool> _write(ChatTextCopy copy) async {
+    try {
+      await switch (copyWriter) {
+        final write? => write(copy),
+        null => Clipboard.setData(ClipboardData(text: copy.plainText)),
+      };
+      return true;
+    } on Object catch (error, stack) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'chat_scroll_view',
+          context: ErrorDescription('while copying ${copy.origin.name}'),
+        ),
+      );
+      return false;
+    }
+  }
 
   /// Registers [listener] for [ChatSelectionInteraction] outcomes.
   ///
@@ -924,24 +954,7 @@ class ChatSelectionController implements Listenable {
 
       case ChatInlineHit$Code(:final messageId, :final code, :final language):
         if (copyCodeOnClick) {
-          unawaited(
-            _write(
-              ChatTextCopy(
-                plainText: code,
-                origin: ChatCopyOrigin.codeTap,
-                messageId: messageId,
-                codeLanguage: language,
-              ),
-            ).catchError((_) {}),
-          );
-          _notifyInteraction(
-            ChatSelectionInteraction.copied(
-              text: code,
-              origin: ChatCopyOrigin.codeTap,
-              messageId: messageId,
-              gesture: gesture,
-            ),
-          );
+          unawaited(_copyCode(messageId, code, language, gesture));
         } else {
           _notifyInteraction(
             ChatSelectionInteraction.codeActivated(
@@ -953,6 +966,32 @@ class ChatSelectionController implements Listenable {
         }
         return true;
     }
+  }
+
+  // A code tap's copy, notified once written.
+  Future<void> _copyCode(
+    int messageId,
+    String code,
+    String? language,
+    ChatInlineGesture gesture,
+  ) async {
+    final written = await _write(
+      ChatTextCopy(
+        plainText: code,
+        origin: ChatCopyOrigin.codeTap,
+        messageId: messageId,
+        codeLanguage: language,
+      ),
+    );
+    if (!written || _disposed) return;
+    _notifyInteraction(
+      ChatSelectionInteraction.copied(
+        text: code,
+        origin: ChatCopyOrigin.codeTap,
+        messageId: messageId,
+        gesture: gesture,
+      ),
+    );
   }
 
   /// Whether link / inline-code / fenced COPY chrome taps must not activate.
