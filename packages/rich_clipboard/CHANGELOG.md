@@ -17,3 +17,8 @@ package is pre-1.0.
   collapsed whitespace, followable links only), and the reference clients'
   `animated-emoji`, `spoiler`, `tg-spoiler` and `details`. A style over all of
   another app's text is dropped. It never throws.
+- `SystemRichClipboard`: the `RichClipboard` over the system clipboard, one
+  item with the plain text and the HTML. Native code for Android, iOS, macOS,
+  Windows and Linux behind the `rich_clipboard` method channel; the web goes
+  through `navigator.clipboard`. Windows and Linux are built in CI and not yet
+  run on a device.

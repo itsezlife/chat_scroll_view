@@ -37,3 +37,7 @@ flutter:
         pluginClass: RichClipboardPlugin
       macos:
         pluginClass: RichClipboardPlugin
+      linux:
+        pluginClass: RichClipboardPlugin
+      windows:
+        pluginClass: RichClipboardPluginCApi

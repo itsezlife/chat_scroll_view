@@ -12,7 +12,23 @@ the `RichClipboard` seam (`scripts/check` enforces this).
 
 | Type | Role |
 | --- | --- |
+| `SystemRichClipboard` | The adapter: one clipboard item with the text's plain text and its HTML. |
 | `RichTextHtml` | The HTML codec: `encode` a `RichText` losslessly, `decode` this app's HTML and other apps'. |
+
+## Platforms
+
+| Platform | Plain text | HTML | Verified |
+| --- | --- | --- | --- |
+| Android | the clip's text | `ClipData.newHtmlText` | contract on a device |
+| iOS | `public.utf8-plain-text` | `public.html` (one `items` read, one paste prompt) | contract on the simulator |
+| macOS | `.string` | `.html` | contract on the real pasteboard |
+| web | `text/plain` | `text/html` through `ClipboardItem`; plain where the browser refuses | not yet run |
+| Windows | `CF_UNICODETEXT` | `HTML Format` (CF_HTML) | built in CI, not run on a device |
+| Linux | GTK text targets | `text/html` (UTF-16 HTML read too) | built in CI, not run on a device |
+
+The contract runs on a device from the example:
+`flutter test integration_test/rich_clipboard_test.dart -d <device>`. On
+Android that uninstalls the example afterwards, data included.
 
 ## HTML
 
