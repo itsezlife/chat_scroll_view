@@ -31,7 +31,8 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/selection_app
 import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls/chat_side_controls.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:content_model/content_model.dart' show SemanticKind;
+import 'package:content_model/content_model.dart'
+    show PastedMedia, SemanticKind;
 import 'package:control/control.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -155,6 +156,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       confirmClearRecents: _confirmClearRecents,
       keyboard: widget.softKeyboard,
       policy: widget.presentationPolicy,
+      onPastedMedia: _onPastedMedia,
     );
     if (fresh && kPanelTrace) _trace = PanelTrace(input);
     final safe = MediaQuery.viewPaddingOf(context);
@@ -665,6 +667,20 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       ),
     );
     return confirmed ?? false;
+  }
+
+  // The demo sends no media: it shows what it would send, as the reference
+  // clients show pasted media before sending it.
+  Future<void> _onPastedMedia(List<PastedMedia> media) async {
+    if (!mounted) return;
+    final send = await showPastedMediaSheet(context, media);
+    if (send) {
+      _showDemoSnack(
+        media.length == 1
+            ? 'Would send 1 item'
+            : 'Would send ${media.length} items',
+      );
+    }
   }
 
   void _showDemoSnack(String text) {

@@ -8,6 +8,7 @@ import 'package:chat_composer/src/view/composer_metrics.dart';
 import 'package:chat_composer/src/view/listen_value_builder.dart';
 import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_model/content_model.dart' show PastedMedia;
 import 'package:flutter/foundation.dart'
     show clampDouble, defaultTargetPlatform;
 import 'package:flutter/material.dart';
@@ -34,6 +35,10 @@ import 'package:flutter/scheduler.dart';
 /// frame later, with the type the mode declares now, which raises the
 /// keyboard. Caret and selection are as they were; the hand-off with a panel is
 /// the host's presentation's job.
+///
+/// **Media.** When the controller has an `onPastedMedia` host, an image a
+/// keyboard inserts goes there (`ContentInsertionConfiguration`), as a pasted
+/// image does.
 ///
 /// **Clipboard.** When the controller has a `clipboard`, copy, cut and paste
 /// go through it, from key shortcuts (and the macOS menu) and from the
@@ -246,6 +251,14 @@ class _ComposerFieldState extends State<ComposerField> {
     controller.reportCaretAnchor(topLeft & caret.size);
   }
 
+  void _onContentInserted(KeyboardInsertedContent content) {
+    final data = content.data;
+    if (data == null || data.isEmpty) return;
+    widget.controller.receiveMedia([
+      PastedMedia.bytes(data, mimeType: content.mimeType),
+    ]);
+  }
+
   // --- Selection menu ---
 
   static Widget _stockMenu(BuildContext context, EditableTextState editable) =>
@@ -383,6 +396,14 @@ class _ComposerFieldState extends State<ComposerField> {
                       height: lineHeight,
                     ),
                   ),
+                  // An image a keyboard inserts (Android) is media the host
+                  // sends, as a pasted image is.
+                  contentInsertionConfiguration:
+                      controller.onPastedMedia == null
+                      ? null
+                      : ContentInsertionConfiguration(
+                          onContentInserted: _onContentInserted,
+                        ),
                   contextMenuBuilder: controller.clipboard == null
                       ? _stockMenu
                       : (context, editable) =>

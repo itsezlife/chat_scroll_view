@@ -15,3 +15,12 @@ Future<({String? plain, String? html})?> $readClipboard() async {
   if (held == null) return null;
   return (plain: held['plain'] as String?, html: held['html'] as String?);
 }
+
+/// The images and files on the clipboard, each as `bytes` (with a
+/// `mimeType`, and a `name` when known) or as a file `path`.
+Future<List<Map<Object?, Object?>>> $readClipboardMedia() async {
+  final media = await _channel.invokeListMethod<Map<Object?, Object?>>(
+    'readMedia',
+  );
+  return media ?? const [];
+}

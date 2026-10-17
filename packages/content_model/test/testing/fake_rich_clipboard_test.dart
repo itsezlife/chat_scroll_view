@@ -8,6 +8,8 @@ void main() {
     return RichClipboardHarness(
       clipboard: clipboard,
       putPlainText: (text) async => clipboard.putPlainText(text),
+      putImage: (png) async =>
+          clipboard.putMedia([PastedMedia.bytes(png, mimeType: 'image/png')]),
     );
   });
 

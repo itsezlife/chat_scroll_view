@@ -277,8 +277,8 @@ void _checkCombinations(List<Entity> sorted) {
 void _checkOverlap(Entity a, Entity b) {
   final aKind = a.kind;
   final bKind = b.kind;
-  if ((aKind, bKind) case (EntityKind$CodeBlock(), _) ||
-      (_, EntityKind$CodeBlock())) {
+  if ((aKind, bKind)
+      case (EntityKind$CodeBlock(), _) || (_, EntityKind$CodeBlock())) {
     throw EntityFitException('A code block holds nothing else: $a and $b.');
   }
   if (aKind.isAtomic || bKind.isAtomic) {

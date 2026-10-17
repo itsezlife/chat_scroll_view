@@ -43,6 +43,7 @@ final class ComposerController {
     Iterable<ComposerQueryKind> queryKinds = const [],
     SoftKeyboardMode softKeyboard = SoftKeyboardMode.auto,
     this.clipboard,
+    this.onPastedMedia,
   }) : text = text ?? ComposerTextController(),
        focusNode = focusNode ?? FocusNode(debugLabel: 'Composer'),
        fieldScroll = fieldScroll ?? ScrollController(),
@@ -67,6 +68,12 @@ final class ComposerController {
   /// The clipboard copy, cut and paste go through; null leaves the field on
   /// the platform's plain-text clipboard.
   final RichClipboard? clipboard;
+
+  /// Takes the images and files the user puts into the field: a paste while
+  /// the [clipboard] holds media, and an image a keyboard inserts. The host
+  /// sends them, as the reference clients send pasted media. Null leaves
+  /// pastes text only and keyboards without image insertion.
+  final ValueChanged<List<PastedMedia>>? onPastedMedia;
 
   final bool _ownsText;
   final bool _ownsFocus;
@@ -165,6 +172,10 @@ final class ComposerController {
   /// Replaces the selection with what the [clipboard] holds: its rich text
   /// when it has one, its plain text otherwise or when [plain] is true.
   ///
+  /// When the clipboard holds images or files and there is an
+  /// [onPastedMedia] host, a paste (not one as [plain] text) hands them to it
+  /// and inserts no text: what was copied was the media.
+  ///
   /// Pasted into a quote, the text's own quotes are unwrapped, so quotes never
   /// nest; entities that cannot sit where the text lands are dropped and the
   /// text still goes in. False when there is no clipboard, it holds no text,
@@ -172,6 +183,20 @@ final class ComposerController {
   Future<bool> paste({bool plain = false}) async {
     final source = clipboard;
     if (_disposed || source == null) return false;
+    if (!plain && onPastedMedia != null) {
+      final List<PastedMedia> media;
+      try {
+        media = await source.readMedia();
+      } on Object catch (error, stack) {
+        _report(error, stack, 'while reading the clipboard for media');
+        return false;
+      }
+      if (_disposed) return false;
+      if (media.isNotEmpty) {
+        receiveMedia(media);
+        return true;
+      }
+    }
     final ClipboardText? held;
     try {
       held = await source.read();
@@ -191,6 +216,14 @@ final class ComposerController {
     text.insert(pasted);
     _caretReveals.signal();
     return true;
+  }
+
+  /// Hands [media] the user put into the field (a keyboard's inserted image,
+  /// a paste) to [onPastedMedia]. Does nothing without one, after [dispose]
+  /// or for no media.
+  void receiveMedia(List<PastedMedia> media) {
+    if (_disposed || media.isEmpty) return;
+    onPastedMedia?.call(List.unmodifiable(media));
   }
 
   Future<bool> _write(RichText copied) async {

@@ -176,4 +176,35 @@ void main() {
       expect(find.text(_pastePlain), findsNothing);
     });
   });
+
+  testWidgets('an image a keyboard inserts goes to the host', (tester) async {
+    final received = <List<PastedMedia>>[];
+    final withHost = ComposerController(onPastedMedia: received.add);
+    addTearDown(withHost.dispose);
+    await show(tester, controller: withHost);
+
+    // What the platform sends when a keyboard commits a GIF (Android).
+    final message = const JSONMessageCodec().encodeMessage(<String, Object?>{
+      'args': <Object?>[
+        -1,
+        'TextInputAction.commitContent',
+        <String, Object?>{
+          'mimeType': 'image/gif',
+          'data': <int>[0, 1, 0, 1],
+          'uri': 'content://keyboard/a.gif',
+        },
+      ],
+      'method': 'TextInputClient.performAction',
+    });
+    await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+      'flutter/textinput',
+      message,
+      (_) {},
+    );
+    await tester.pump();
+
+    final media = received.single.single as PastedMedia$Bytes;
+    expect(media.mimeType, 'image/gif');
+    expect(media.bytes, [0, 1, 0, 1]);
+  });
 }

@@ -14,6 +14,7 @@ import 'package:rich_clipboard/rich_clipboard.dart';
 final class _PlatformClipboard {
   String? plain;
   String? html;
+  List<Map<String, Object?>> media = [];
 
   Future<Object?> handle(MethodCall call) async {
     switch (call.method) {
@@ -21,7 +22,10 @@ final class _PlatformClipboard {
         final arguments = call.arguments as Map<Object?, Object?>;
         plain = arguments['plain'] as String?;
         html = arguments['html'] as String?;
+        media = [];
         return null;
+      case 'readMedia':
+        return media;
       case 'read':
         if (plain == null && html == null) return null;
         return <String, Object?>{'plain': plain, 'html': html};
@@ -51,7 +55,16 @@ void main() {
       putPlainText: (text) async {
         platform
           ..plain = text
-          ..html = null;
+          ..html = null
+          ..media = [];
+      },
+      putImage: (png) async {
+        platform
+          ..plain = null
+          ..html = null
+          ..media = [
+            {'bytes': png, 'mimeType': 'image/png'},
+          ];
       },
     ),
   );
@@ -91,4 +104,33 @@ void main() {
       expect((await const SystemRichClipboard().read())!.plain, 'only html');
     },
   );
+
+  test('reads images as data and copied files as paths', () async {
+    platform.media = [
+      {
+        'bytes': Uint8List.fromList([1, 2]),
+        'mimeType': 'image/gif',
+        'name': 'a.gif',
+      },
+      {'path': '/tmp/report.pdf', 'mimeType': 'application/pdf'},
+      {'path': '/tmp/unknown'},
+    ];
+
+    final media = await const SystemRichClipboard().readMedia();
+
+    expect(media, hasLength(3));
+    expect(
+      media[0],
+      isA<PastedMedia$Bytes>()
+          .having((m) => m.mimeType, 'mimeType', 'image/gif')
+          .having((m) => m.name, 'name', 'a.gif'),
+    );
+    expect(
+      media.sublist(1),
+      const [
+        PastedMedia.file('/tmp/report.pdf', mimeType: 'application/pdf'),
+        PastedMedia.file('/tmp/unknown'),
+      ],
+    );
+  });
 }

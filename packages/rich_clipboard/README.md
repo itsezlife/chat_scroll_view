@@ -26,6 +26,12 @@ the `RichClipboard` seam (`scripts/check` enforces this).
 | Windows | `CF_UNICODETEXT` | `HTML Format` (CF_HTML) | built in CI, not run on a device |
 | Linux | GTK text targets | `text/html` (UTF-16 HTML read too) | built in CI, not run on a device |
 
+Media (`readMedia`): files a file manager copied, else image data. macOS
+file URLs or GIF / PNG / JPEG / TIFF (as PNG), checked on the real
+pasteboard; iOS item images; Android content URIs; Windows `CF_HDROP`, `PNG`
+or `CF_DIB` (as BMP); Linux URI lists or the GTK image (as PNG); web
+`ClipboardItem` images.
+
 The contract runs on a device from the example:
 `flutter test integration_test/rich_clipboard_test.dart -d <device>`. On
 Android that uninstalls the example afterwards, data included.

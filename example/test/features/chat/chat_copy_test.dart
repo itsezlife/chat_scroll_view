@@ -122,10 +122,7 @@ void main() {
     test('quotes a quote and codes a code block, a line apart', () {
       final content = MarkdownSelectedContent(
         documents: [
-          document(1, '> quoted\n\n```dart\ncode()\n```', [
-            (0, 6),
-            (0, 6),
-          ]),
+          document(1, '> quoted\n\n```dart\ncode()\n```', [(0, 6), (0, 6)]),
         ],
       );
 

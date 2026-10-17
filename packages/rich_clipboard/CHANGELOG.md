@@ -25,3 +25,9 @@ package is pre-1.0.
 - Code blocks: written as `<pre>` / `<pre lang>`, read from `pre` with
   `lang`, `language`, `lng`, `data-language` or a `language-` class on its
   `code`. A `pre` is no longer read as inline code.
+- `SystemRichClipboard.readMedia`: files a file manager copied, else image
+  data. macOS: file URLs, else GIF, PNG, JPEG or TIFF as PNG. iOS: item
+  images (GIF, PNG, JPEG, HEIC, WebP, or a `UIImage` as PNG) in one access.
+  Android: content URIs of the clip's items, with their type and name.
+  Windows: `CF_HDROP` paths, else the `PNG` format or `CF_DIB` as BMP. Linux:
+  the URI list as paths, else the image as PNG. Web: `ClipboardItem` images.

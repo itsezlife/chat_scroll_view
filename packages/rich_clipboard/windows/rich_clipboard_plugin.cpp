@@ -3,6 +3,8 @@
 // This must be included before many other Windows headers.
 #include <windows.h>
 
+#include <shellapi.h>
+
 #include <flutter/method_channel.h>
 #include <flutter/plugin_registrar_windows.h>
 #include <flutter/standard_method_codec.h>
@@ -14,6 +16,7 @@
 #include <optional>
 #include <string>
 #include <variant>
+#include <vector>
 
 namespace rich_clipboard {
 
@@ -131,6 +134,75 @@ std::optional<std::string> HeldText() {
   return text;
 }
 
+// Files a file manager copied (CF_HDROP), as paths.
+flutter::EncodableList HeldFiles() {
+  flutter::EncodableList files;
+  if (!::IsClipboardFormatAvailable(CF_HDROP)) return files;
+  // The handle itself is the HDROP the query functions take.
+  HDROP drop = static_cast<HDROP>(::GetClipboardData(CF_HDROP));
+  if (drop == nullptr) return files;
+  const UINT count = ::DragQueryFileW(drop, 0xFFFFFFFF, nullptr, 0);
+  for (UINT i = 0; i < count; i++) {
+    const UINT length = ::DragQueryFileW(drop, i, nullptr, 0);
+    std::wstring path(length + 1, L'\0');
+    ::DragQueryFileW(drop, i, path.data(), length + 1);
+    path.resize(length);
+    flutter::EncodableMap file;
+    file[flutter::EncodableValue("path")] =
+        flutter::EncodableValue(Utf8(path.c_str()));
+    files.push_back(flutter::EncodableValue(file));
+  }
+  return files;
+}
+
+flutter::EncodableMap ImageMedia(std::vector<uint8_t> bytes,
+                                 const char *mime_type) {
+  flutter::EncodableMap image;
+  image[flutter::EncodableValue("bytes")] = flutter::EncodableValue(bytes);
+  image[flutter::EncodableValue("mimeType")] =
+      flutter::EncodableValue(std::string(mime_type));
+  return image;
+}
+
+// An image: the "PNG" format browsers and editors put, else the bitmap
+// (CF_DIB) as a BMP file.
+std::optional<flutter::EncodableMap> HeldImage() {
+  static const UINT png_format = ::RegisterClipboardFormatW(L"PNG");
+  if (::IsClipboardFormatAvailable(png_format)) {
+    HANDLE handle = ::GetClipboardData(png_format);
+    if (handle != nullptr) {
+      const auto *bytes = static_cast<const uint8_t *>(::GlobalLock(handle));
+      if (bytes != nullptr) {
+        std::vector<uint8_t> png(bytes, bytes + ::GlobalSize(handle));
+        ::GlobalUnlock(handle);
+        return ImageMedia(std::move(png), "image/png");
+      }
+    }
+  }
+  if (!::IsClipboardFormatAvailable(CF_DIB)) return std::nullopt;
+  HANDLE handle = ::GetClipboardData(CF_DIB);
+  if (handle == nullptr) return std::nullopt;
+  const auto *dib = static_cast<const uint8_t *>(::GlobalLock(handle));
+  if (dib == nullptr) return std::nullopt;
+  const SIZE_T dib_size = ::GlobalSize(handle);
+  const auto *info = reinterpret_cast<const BITMAPINFOHEADER *>(dib);
+  // Where the pixels start: after the header and any colour table or masks.
+  DWORD colors = info->biClrUsed;
+  if (colors == 0 && info->biBitCount <= 8) colors = 1u << info->biBitCount;
+  DWORD masks = info->biCompression == BI_BITFIELDS ? 3 * sizeof(DWORD) : 0;
+  const DWORD pixels =
+      info->biSize + masks + colors * static_cast<DWORD>(sizeof(RGBQUAD));
+  BITMAPFILEHEADER header = {};
+  header.bfType = 0x4D42;  // "BM"
+  header.bfSize = static_cast<DWORD>(sizeof(header) + dib_size);
+  header.bfOffBits = static_cast<DWORD>(sizeof(header) + pixels);
+  std::vector<uint8_t> bmp(sizeof(header) + dib_size);
+  std::memcpy(bmp.data(), &header, sizeof(header));
+  std::memcpy(bmp.data() + sizeof(header), dib, dib_size);
+  ::GlobalUnlock(handle);
+  return ImageMedia(std::move(bmp), "image/bmp");
+}
+
 }  // namespace
 
 // static
@@ -223,6 +295,18 @@ void RichClipboardPlugin::HandleMethodCall(
       held[flutter::EncodableValue("html")] = flutter::EncodableValue(*html);
     }
     result->Success(flutter::EncodableValue(held));
+  } else if (method == "readMedia") {
+    if (!OpenClipboardFor(Owner())) {
+      result->Error("unavailable", "the clipboard could not be opened");
+      return;
+    }
+    // Files first: a file copied in Explorer may carry a preview image too.
+    flutter::EncodableList media = HeldFiles();
+    if (media.empty()) {
+      if (auto image = HeldImage()) media.push_back(flutter::EncodableValue(*image));
+    }
+    ::CloseClipboard();
+    result->Success(flutter::EncodableValue(media));
   } else {
     result->NotImplemented();
   }

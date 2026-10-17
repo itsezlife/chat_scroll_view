@@ -1,4 +1,5 @@
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:rich_clipboard/src/environment_specific/clipboard_transport.dart'
     as environment_specific;
 import 'package:rich_clipboard/src/rich_text_html.dart';
@@ -44,4 +45,25 @@ final class SystemRichClipboard implements RichClipboard {
     if (plain == null) return null;
     return ClipboardText(plain, rich: rich);
   }
+
+  @override
+  Future<List<PastedMedia>> readMedia() async => [
+    for (final item in await environment_specific.$readClipboardMedia())
+      ?_mediaOf(item),
+  ];
+
+  // A platform's description of one image or file.
+  static PastedMedia? _mediaOf(Map<Object?, Object?> item) =>
+      switch ((item['bytes'], item['path'], item['mimeType'])) {
+        (final Uint8List bytes, _, final String mimeType)
+            when bytes.isNotEmpty =>
+          PastedMedia.bytes(
+            bytes,
+            mimeType: mimeType,
+            name: item['name'] as String?,
+          ),
+        (_, final String path, final mimeType) when path.isNotEmpty =>
+          PastedMedia.file(path, mimeType: mimeType as String?),
+        _ => null,
+      };
 }

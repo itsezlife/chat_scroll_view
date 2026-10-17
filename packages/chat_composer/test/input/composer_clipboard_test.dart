@@ -7,6 +7,7 @@ library;
 import 'package:chat_composer/chat_composer.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -173,6 +174,58 @@ void main() {
       expect(composer.richText, RichText.empty);
       expect(reported, hasLength(1));
       expect(reported.single.library, 'chat_composer');
+    });
+  });
+
+  group('media', () {
+    final png = PastedMedia.bytes(
+      Uint8List.fromList(const [1, 2, 3]),
+      mimeType: 'image/png',
+    );
+
+    test('a paste of media goes to the host, and no text goes in', () async {
+      final received = <List<PastedMedia>>[];
+      final withHost = ComposerController(
+        clipboard: clipboard,
+        onPastedMedia: received.add,
+      );
+      addTearDown(withHost.dispose);
+      clipboard.putMedia([png]);
+
+      expect(await withHost.paste(), isTrue);
+
+      expect(received.single.single, same(png));
+      expect(withHost.richText, RichText.empty);
+    });
+
+    test('a paste as plain text leaves media alone', () async {
+      final received = <List<PastedMedia>>[];
+      final withHost = ComposerController(
+        clipboard: clipboard,
+        onPastedMedia: received.add,
+      );
+      addTearDown(withHost.dispose);
+      clipboard.putMedia([png]);
+
+      expect(await withHost.paste(plain: true), isFalse);
+      expect(received, isEmpty);
+    });
+
+    test('without a host for media, a paste is text only', () async {
+      clipboard.putMedia([png]);
+
+      expect(await composer.paste(), isFalse);
+      expect(composer.richText, RichText.empty);
+    });
+
+    test('media a keyboard inserts goes to the host', () {
+      final received = <List<PastedMedia>>[];
+      final withHost = ComposerController(onPastedMedia: received.add);
+      addTearDown(withHost.dispose);
+
+      withHost.receiveMedia([png]);
+
+      expect(received.single.single, same(png));
     });
   });
 

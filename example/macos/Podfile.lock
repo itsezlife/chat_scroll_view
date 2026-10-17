@@ -32,7 +32,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   app_links: 05a6ec2341985eb05e9f97dc63f5837c39895c3f
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
-  rich_clipboard: d59f6d975a9fb9768e496ed6a88b995101512207
+  rich_clipboard: c490dc6e8dbb8f4813d8f80ff592c6add6b19d3a
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
   url_launcher_macos: f87a979182d112f911de6820aefddaf56ee9fbfd
 

@@ -54,3 +54,24 @@ Future<({String? plain, String? html})?> $readClipboard() async {
     return plain.isEmpty ? null : (plain: plain, html: null);
   }
 }
+
+/// The images on the clipboard, each as `bytes` with its `mimeType`. A
+/// browser has no files on the clipboard to give, and one that refuses the
+/// rich read gives nothing.
+Future<List<Map<Object?, Object?>>> $readClipboardMedia() async {
+  try {
+    final items = (await web.window.navigator.clipboard.read().toDart).toDart;
+    final media = <Map<Object?, Object?>>[];
+    for (final item in items) {
+      for (final type in item.types.toDart.map((type) => type.toDart)) {
+        if (!type.startsWith('image/')) continue;
+        final blob = await item.getType(type).toDart;
+        final buffer = await blob.arrayBuffer().toDart;
+        media.add({'bytes': buffer.toDart.asUint8List(), 'mimeType': type});
+      }
+    }
+    return media;
+  } on Object {
+    return const [];
+  }
+}

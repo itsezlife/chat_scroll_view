@@ -67,6 +67,11 @@ is pre-1.0.
 
 ### Added
 
+- `ComposerController(onPastedMedia:)`: a paste while the clipboard holds
+  images or files hands them to the host instead of inserting text (a paste
+  as plain text leaves them), and an image a keyboard inserts
+  (`ContentInsertionConfiguration`, Android) goes there too;
+  `receiveMedia` hands media over directly.
 - A code block (`EntityKind.codeBlock`) is styled as inline code.
 - Rich clipboard (ADR 032): `ComposerController(clipboard:)` takes a
   `RichClipboard`, and `copySelection`, `cutSelection` and `paste({plain})`

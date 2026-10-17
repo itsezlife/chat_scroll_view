@@ -17,6 +17,10 @@ package is pre-1.0.
 
 ### Added
 
+- `PastedMedia` (`.bytes` with a MIME type and name, `.file` with a path)
+  and `RichClipboard.readMedia()`: the images and files the clipboard holds.
+  `FakeRichClipboard.putMedia` and the contract's `putImage` harness hook.
+  Source-breaking for `RichClipboard` implementers.
 - `EntityKind.codeBlock({language})` (ADR 033): whole lines of code with an
   optional language (letters, digits and `+ # . _ -`). It holds no other
   entity and overlaps no quote. Markdown writes it as a backtick fence with

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:content_model/src/rich_text/rich_text.dart';
 import 'package:meta/meta.dart';
 
@@ -30,6 +32,71 @@ final class ClipboardText {
   String toString() => 'ClipboardText(${rich == null ? 'plain' : 'rich'})';
 }
 
+/// An image or a file the user put into an input: from the clipboard, or
+/// from a keyboard that inserts images.
+///
+/// Image data arrives as [PastedMedia.bytes]; a file copied in a file
+/// manager arrives as [PastedMedia.file], read from where it is rather than
+/// loaded whole.
+@immutable
+sealed class PastedMedia {
+  const PastedMedia();
+
+  /// Image or file data of [mimeType] (`image/png`), named [name] when the
+  /// source gave one.
+  const factory PastedMedia.bytes(
+    Uint8List bytes, {
+    required String mimeType,
+    String? name,
+  }) = PastedMedia$Bytes;
+
+  /// The file at [path], of [mimeType] when known.
+  const factory PastedMedia.file(String path, {String? mimeType}) =
+      PastedMedia$File;
+}
+
+/// Media as data; see [PastedMedia.bytes].
+final class PastedMedia$Bytes extends PastedMedia {
+  /// Creates media of [bytes].
+  const PastedMedia$Bytes(this.bytes, {required this.mimeType, this.name});
+
+  /// The data.
+  final Uint8List bytes;
+
+  /// Its type, `image/png` for example.
+  final String mimeType;
+
+  /// A name the source gave it, if any.
+  final String? name;
+
+  @override
+  String toString() => 'PastedMedia.bytes($mimeType, ${bytes.length} bytes)';
+}
+
+/// Media as a file on disk; see [PastedMedia.file].
+final class PastedMedia$File extends PastedMedia {
+  /// Creates media at [path].
+  const PastedMedia$File(this.path, {this.mimeType});
+
+  /// Where the file is.
+  final String path;
+
+  /// Its type when known.
+  final String? mimeType;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PastedMedia$File &&
+      other.path == path &&
+      other.mimeType == mimeType;
+
+  @override
+  int get hashCode => Object.hash(path, mimeType);
+
+  @override
+  String toString() => 'PastedMedia.file($path)';
+}
+
 /// The system clipboard, for text that keeps its entities.
 ///
 /// A copy puts two forms of one [RichText] on the clipboard: its plain text,
@@ -53,4 +120,9 @@ abstract interface class RichClipboard {
 
   /// What the clipboard holds as text, or null when it holds no text.
   Future<ClipboardText?> read();
+
+  /// The images and files the clipboard holds, in order; empty when it holds
+  /// none. A paste that finds media hands it to the host to send, as the
+  /// reference clients do.
+  Future<List<PastedMedia>> readMedia();
 }

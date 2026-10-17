@@ -7,6 +7,7 @@ import 'package:content_model/content_model.dart';
 /// reached: every call then fails with it and changes nothing.
 final class FakeRichClipboard implements RichClipboard {
   ClipboardText? _held;
+  List<PastedMedia> _media = const [];
 
   /// When non-null, every call fails with this exception and changes nothing.
   Exception? failure;
@@ -16,12 +17,23 @@ final class FakeRichClipboard implements RichClipboard {
 
   /// Puts [text] on the clipboard as plain text only, as an app with no rich
   /// form would.
-  void putPlainText(String text) => _held = ClipboardText(text);
+  void putPlainText(String text) {
+    _held = ClipboardText(text);
+    _media = const [];
+  }
+
+  /// Puts [media] on the clipboard, and no text, as copying an image or a
+  /// file in another app does.
+  void putMedia(List<PastedMedia> media) {
+    _held = null;
+    _media = List.unmodifiable(media);
+  }
 
   @override
   Future<void> write(RichText text) async {
     if (failure case final failure?) throw failure;
     _held = ClipboardText(text.plain, rich: text);
+    _media = const [];
     writeCount++;
   }
 
@@ -29,5 +41,11 @@ final class FakeRichClipboard implements RichClipboard {
   Future<ClipboardText?> read() async {
     if (failure case final failure?) throw failure;
     return _held;
+  }
+
+  @override
+  Future<List<PastedMedia>> readMedia() async {
+    if (failure case final failure?) throw failure;
+    return _media;
   }
 }

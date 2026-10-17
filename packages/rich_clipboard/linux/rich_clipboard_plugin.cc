@@ -147,6 +147,60 @@ static void read_clipboard(FlMethodCall* method_call) {
                                  html_received, read);
 }
 
+// --- Media ---
+
+// Files a file manager copied (its URI list), else an image, saved as PNG.
+
+static void answer_media(FlMethodCall* call, FlValue* media) {
+  g_autoptr(FlMethodResponse) response =
+      FL_METHOD_RESPONSE(fl_method_success_response_new(media));
+  fl_method_call_respond(call, response, nullptr);
+}
+
+static void image_received(GtkClipboard* clipboard, GdkPixbuf* pixbuf,
+                           gpointer data) {
+  g_autoptr(FlMethodCall) call = FL_METHOD_CALL(data);
+  g_autoptr(FlValue) media = fl_value_new_list();
+  gchar* png = nullptr;
+  gsize size = 0;
+  if (pixbuf != nullptr &&
+      gdk_pixbuf_save_to_buffer(pixbuf, &png, &size, "png", nullptr, nullptr)) {
+    g_autoptr(FlValue) image = fl_value_new_map();
+    fl_value_set_string_take(
+        image, "bytes",
+        fl_value_new_uint8_list(reinterpret_cast<const uint8_t*>(png), size));
+    fl_value_set_string_take(image, "mimeType", fl_value_new_string("image/png"));
+    fl_value_append(media, image);
+    g_free(png);
+  }
+  answer_media(call, media);
+}
+
+static void uris_received(GtkClipboard* clipboard, gchar** uris,
+                          gpointer data) {
+  FlMethodCall* call = FL_METHOD_CALL(data);
+  g_autoptr(FlValue) media = fl_value_new_list();
+  for (gchar** uri = uris; uri != nullptr && *uri != nullptr; uri++) {
+    g_autofree gchar* path = g_filename_from_uri(*uri, nullptr, nullptr);
+    if (path == nullptr) continue;
+    g_autoptr(FlValue) file = fl_value_new_map();
+    fl_value_set_string_take(file, "path", fl_value_new_string(path));
+    fl_value_append(media, file);
+  }
+  if (fl_value_get_length(media) > 0) {
+    answer_media(call, media);
+    g_object_unref(call);
+    return;
+  }
+  // The reference passes on to the image request, which drops it.
+  gtk_clipboard_request_image(clipboard, image_received, call);
+}
+
+static void read_media(FlMethodCall* method_call) {
+  gtk_clipboard_request_uris(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD),
+                             uris_received, g_object_ref(method_call));
+}
+
 // --- Plugin ---
 
 static void rich_clipboard_plugin_handle_method_call(
@@ -154,6 +208,10 @@ static void rich_clipboard_plugin_handle_method_call(
   const gchar* method = fl_method_call_get_name(method_call);
   if (strcmp(method, "read") == 0) {
     read_clipboard(method_call);
+    return;
+  }
+  if (strcmp(method, "readMedia") == 0) {
+    read_media(method_call);
     return;
   }
   g_autoptr(FlMethodResponse) response = nullptr;

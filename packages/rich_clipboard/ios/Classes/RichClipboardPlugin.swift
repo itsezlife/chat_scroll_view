@@ -52,9 +52,36 @@ public class RichClipboardPlugin: NSObject, FlutterPlugin {
       held["plain"] = plain
       held["html"] = html
       result(held)
+    case "readMedia":
+      // One access to the items, as for text: one paste prompt.
+      result(pasteboard.items.compactMap(RichClipboardPlugin.image(in:)))
     default:
       result(FlutterMethodNotImplemented)
     }
+  }
+
+  // The image an item holds, in the first form it has, as data with its type.
+  private static let imageTypes: [(String, String)] = [
+    ("com.compuserve.gif", "image/gif"),
+    ("public.png", "image/png"),
+    ("public.jpeg", "image/jpeg"),
+    ("public.heic", "image/heic"),
+    ("org.webmproject.webp", "image/webp"),
+  ]
+
+  private static func image(in item: [String: Any]) -> [String: Any]? {
+    for (type, mime) in imageTypes {
+      switch item[type] {
+      case let data as Data:
+        return ["bytes": FlutterStandardTypedData(bytes: data), "mimeType": mime]
+      case let image as UIImage:
+        guard let png = image.pngData() else { continue }
+        return ["bytes": FlutterStandardTypedData(bytes: png), "mimeType": "image/png"]
+      default:
+        continue
+      }
+    }
+    return nil
   }
 
   // A pasteboard value as text: other apps hand HTML over as data.

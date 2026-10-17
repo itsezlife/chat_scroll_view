@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:content_model/content_model.dart';
 import 'package:test/test.dart';
@@ -10,6 +11,7 @@ final class RichClipboardHarness {
   const RichClipboardHarness({
     required this.clipboard,
     required this.putPlainText,
+    this.putImage,
   });
 
   /// The clipboard under test.
@@ -18,6 +20,11 @@ final class RichClipboardHarness {
   /// Puts plain text on the same clipboard the way an app with no rich form
   /// does (for a platform adapter, through the platform's plain text API).
   final Future<void> Function(String text) putPlainText;
+
+  /// Puts a PNG image on the same clipboard as another app copying one does,
+  /// or null when the test cannot (a platform adapter whose test has no way
+  /// to place an image); the media tests are then skipped.
+  final Future<void> Function(Uint8List png)? putImage;
 }
 
 /// The behaviour every [RichClipboard] must have, as a test suite to run
@@ -80,6 +87,31 @@ abstract final class RichClipboardContract {
         expect((await clipboard.read())!.plain, 'second');
       });
 
+      test('holds no media after text was written', () async {
+        await clipboard.write(const RichText.plain('words'));
+
+        expect(await clipboard.readMedia(), isEmpty);
+      });
+
+      test('reads an image another app copied as media', () async {
+        final putImage = harness.putImage;
+        if (putImage == null) {
+          markTestSkipped('The harness cannot put an image on the clipboard.');
+          return;
+        }
+        await putImage(_onePixelPng);
+
+        final media = await clipboard.readMedia();
+
+        expect(media, hasLength(1));
+        expect(
+          media.single,
+          isA<PastedMedia$Bytes>()
+              .having((m) => m.mimeType, 'mimeType', startsWith('image/'))
+              .having((m) => m.bytes, 'bytes', isNotEmpty),
+        );
+      });
+
       test('reads plain text another app copied as plain text, with no rich '
           'form', () async {
         await clipboard.write(_everyEntity());
@@ -117,3 +149,13 @@ abstract final class RichClipboardContract {
     ]);
   }
 }
+
+/// A one-pixel PNG, for harnesses that put an image on the clipboard.
+final Uint8List _onePixelPng = Uint8List.fromList(const [
+  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, //
+  0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00,
+  0x0D, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0xF8, 0xCF, 0xC0, 0xF0,
+  0x1F, 0x00, 0x05, 0x00, 0x01, 0xFF, 0x89, 0x99, 0x3D, 0x1D, 0x00, 0x00,
+  0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+]);

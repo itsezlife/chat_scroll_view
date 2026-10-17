@@ -16,6 +16,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' hide RichText;
 import 'package:content_model/content_model.dart' as model show RichText;
 import 'package:content_model/testing.dart';
+import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide RichText;
 import 'package:flutter_test/flutter_test.dart';
@@ -1120,6 +1121,21 @@ void main() {
           ),
         ]),
       );
+    });
+
+    testWidgets('a pasted image goes to the screen to send, not into the '
+        'text', (tester) async {
+      final rig = await _mobileRig(tester);
+      final image = PastedMedia.bytes(
+        Uint8List.fromList(const [1, 2, 3]),
+        mimeType: 'image/png',
+      );
+      (rig.services.clipboard as FakeRichClipboard).putMedia([image]);
+
+      expect(await rig.set.composer.paste(), isTrue);
+
+      expect(rig.pastedMedia.single.single, same(image));
+      expect(rig.set.composer.richText.plain, isEmpty);
     });
 
     testWidgets('the composer copies through the app\'s clipboard', (
