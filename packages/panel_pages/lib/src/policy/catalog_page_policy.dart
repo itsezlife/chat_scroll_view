@@ -286,6 +286,13 @@ abstract class CatalogPagePolicy {
         : PickSource.collection,
   );
 
+  /// The text of the tooltip a mouse resting on [hit], a cell of
+  /// [collection], shows; null for none, the default.
+  ///
+  /// Asked when the rest has lasted (see `CatalogLeafTooltip`), not when the
+  /// mouse arrives, and only for a mouse: a finger has no hover.
+  String? tooltipOf(CatalogLeafHit hit, Collection collection) => null;
+
   /// The entries of the context menu a secondary click on [hit], a cell of
   /// [collection], opens, in the language of [strings]; empty for no menu (the
   /// click then does nothing at all).

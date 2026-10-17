@@ -29,13 +29,13 @@ enum CatalogPlaceholderStyle {
 /// A leaf is the identity of the content ([key]), the descriptor facts the
 /// viewport needs to ask the asset cache for it and to paint a stand-in before
 /// it arrives ([semanticKind], [mediaForm], [animated], [tintable], [sizeHint]),
-/// the name a screen reader speaks for it ([spokenName]), and an opaque host
-/// [tag]. It carries no readiness, no paint mode and no atlas or sprite state:
+/// the name a screen reader speaks for it ([spokenName]), the text code that
+/// stands for it ([shortcode]), and an opaque host [tag]. It carries no readiness, no paint mode and no atlas or sprite state:
 /// those are projected at paint time from the asset binding, and storing them
 /// here would make a second write model that goes stale when readiness flips.
 ///
-/// Equality covers [key], the facts and the [spokenName] (a republished
-/// snapshot in another language is a different catalog). The [tag] is excluded from equality and
+/// Equality covers [key], the facts, the [spokenName] (a republished
+/// snapshot in another language is a different catalog) and the [shortcode]. The [tag] is excluded from equality and
 /// is never painted: it lets the host that built a leaf recognise it again in a
 /// hit ([CatalogLeafHit.leaf]) without a side map keyed by leaf instance, and a
 /// republished snapshot whose leaves differ only by tag is the same catalog.
@@ -57,6 +57,7 @@ final class CatalogLeaf {
     this.tintable = false,
     this.sizeHint,
     this.spokenName,
+    this.shortcode,
     this.tag,
   });
 
@@ -66,7 +67,12 @@ final class CatalogLeaf {
   /// empty. The leaf is a [MediaForm.glyph] of kind
   /// [SemanticKind.unicodeEmoji]: its stand-in is a circle. [spokenName] is the
   /// name in the active language, when the host has one.
-  CatalogLeaf.unicode(String glyph, {this.spokenName, this.tag})
+  CatalogLeaf.unicode(
+    String glyph, {
+    this.spokenName,
+    this.shortcode,
+    this.tag,
+  })
     : key = ContentKey.unicode(glyph),
       semanticKind = SemanticKind.unicodeEmoji,
       mediaForm = MediaForm.glyph,
@@ -84,11 +90,12 @@ final class CatalogLeaf {
     this.tintable = false,
     this.sizeHint,
     this.spokenName,
+    this.shortcode,
     this.tag,
   }) : key = ContentKey.document(documentId);
 
-  /// Creates the leaf of [descriptor]: its key, paint facts and spoken name.
-  /// The rest of the descriptor (thumbnail, flags) is the host's to use
+  /// Creates the leaf of [descriptor]: its key, paint facts, spoken name and
+  /// shortcode. The rest of the descriptor (thumbnail, flags) is the host's to use
   /// elsewhere.
   CatalogLeaf.fromDescriptor(ContentDescriptor descriptor, {this.tag})
     : key = descriptor.key,
@@ -97,7 +104,8 @@ final class CatalogLeaf {
       animated = descriptor.animated,
       tintable = descriptor.tintable,
       sizeHint = descriptor.size,
-      spokenName = descriptor.spokenName;
+      spokenName = descriptor.spokenName,
+      shortcode = descriptor.shortcode;
 
   /// The identity of the content.
   final ContentKey key;
@@ -122,6 +130,10 @@ final class CatalogLeaf {
   /// The name read aloud for this content in the active language, or null when
   /// the data has none (see [semanticLabel] for what is read then).
   final String? spokenName;
+
+  /// The text code that stands for this content in typed text (`:grinning:`),
+  /// or null when the data has none. Never painted; a host shows it as a hint.
+  final String? shortcode;
 
   /// Opaque host data, excluded from equality and never painted.
   final Object? tag;
@@ -170,7 +182,8 @@ final class CatalogLeaf {
       other.animated == animated &&
       other.tintable == tintable &&
       other.sizeHint == sizeHint &&
-      other.spokenName == spokenName;
+      other.spokenName == spokenName &&
+      other.shortcode == shortcode;
 
   @override
   int get hashCode => Object.hash(
@@ -181,6 +194,7 @@ final class CatalogLeaf {
     tintable,
     sizeHint,
     spokenName,
+    shortcode,
   );
 
   @override

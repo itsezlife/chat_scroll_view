@@ -8,6 +8,8 @@ package is pre-1.0.
 
 ### Changed
 
+- Source-breaking for `generator.dart`: `InputsPlan` and `InputsLock` require
+  `shortcodesRef`, and a lock without a `shortcodes-ref` line no longer parses.
 - Source-breaking for `generator.dart`: `generateAssets(...)` is
   `AssetGenerator.generate(...)`, `buildEmojiKeywordPack(...)` is
   `EmojiKeywordPackBuilder.build(...)` and `buildStructure(file)` is
@@ -15,6 +17,12 @@ package is pre-1.0.
 
 ### Added
 
+- `assets/shortcodes.tsv`: the alpha code of every entry and gender variant
+  (`:grinning:`; 1914 records) from the JSON of JoyPixels emoji-toolkit
+  11.0.0 (MIT, `assets/LICENSE-JOYPIXELS.txt`), read by the strict
+  `EmojiShortcodes` and keyed by `EmojiCatalogPackAssets.shortcodes`. The
+  generator gains `EmojiShortcodesBuilder`; `InputsPlan` and `InputsLock` take
+  a `shortcodesRef` (lock line `shortcodes-ref`, `lock --shortcodes-ref=<tag>`).
 - The emoji catalog as shipped data: `assets/structure.tsv` (groups,
   subgroups, 1759 entries and their variants with skin-tone and gender tags)
   and one keyword pack per locale under `assets/keywords/` (de, en, es, fr, hi,

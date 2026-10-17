@@ -152,6 +152,7 @@ final class ContentDescriptor {
     this.size,
     this.thumbnail,
     this.spokenName,
+    this.shortcode,
   });
 
   /// The content this descriptor describes.
@@ -185,6 +186,11 @@ final class ContentDescriptor {
   /// plain-text alternative or to no label, never to a guessed name.
   final String? spokenName;
 
+  /// The short text code that stands for this content in typed text, such as
+  /// `:grinning:`, when the data provides one. It is the same in every
+  /// language, unlike [spokenName]; a panel shows it as a hint for the item.
+  final String? shortcode;
+
   @override
   bool operator ==(Object other) =>
       other is ContentDescriptor &&
@@ -196,7 +202,8 @@ final class ContentDescriptor {
       other.locked == locked &&
       other.size == size &&
       other.thumbnail == thumbnail &&
-      other.spokenName == spokenName;
+      other.spokenName == spokenName &&
+      other.shortcode == shortcode;
 
   @override
   int get hashCode => Object.hash(
@@ -209,6 +216,7 @@ final class ContentDescriptor {
     size,
     thumbnail,
     spokenName,
+    shortcode,
   );
 
   @override

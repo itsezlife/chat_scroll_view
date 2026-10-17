@@ -12,6 +12,7 @@ import 'audit/shipped_catalog_test.dart' as shipped_catalog_test;
 import 'catalog/emoji_catalog_test.dart' as emoji_catalog_test;
 import 'collections/emoji_collection_source_test.dart'
     as emoji_collection_source_test;
+import 'collections/shortcodes_test.dart' as shortcodes_test;
 import 'collections/spoken_names_test.dart' as spoken_names_test;
 import 'glyph_probe/glyph_art_fingerprint_test.dart'
     as glyph_art_fingerprint_test;
@@ -36,6 +37,7 @@ void main() {
     'collections/emoji_collection_source_test.dart',
     emoji_collection_source_test.main,
   );
+  group('collections/shortcodes_test.dart', shortcodes_test.main);
   group('collections/spoken_names_test.dart', spoken_names_test.main);
   group(
     'glyph_probe/glyph_art_fingerprint_test.dart',

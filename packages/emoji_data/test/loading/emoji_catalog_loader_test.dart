@@ -12,6 +12,11 @@ const _structureText =
     '@subgroup\tface-smiling\n'
     '1F600\n';
 
+const _shortcodesText =
+    '@emoji-catalog-shortcodes\t1\n'
+    '@source\temoji-toolkit 11.0.0\n'
+    '1F600\t:grinning:\n';
+
 const _packText =
     '@emoji-catalog-keywords\t1\n'
     '@locale\tde\n'
@@ -25,6 +30,7 @@ void main() {
   setUp(() {
     assets = FakeEmojiAssetLoader({
       EmojiCatalogPackAssets.structure: _structureText,
+      EmojiCatalogPackAssets.shortcodes: _shortcodesText,
       EmojiCatalogPackAssets.keywordPack('de'): _packText,
     });
     loader = EmojiCatalogLoader(assets.load);
@@ -73,6 +79,46 @@ void main() {
     });
   });
 
+  group('shortcodes', () {
+    test('reads and decodes the shortcodes asset', () async {
+      final shortcodes = await loader.shortcodes();
+
+      expect(shortcodes.source, 'emoji-toolkit 11.0.0');
+      expect(shortcodes.codes.values.single, ':grinning:');
+      expect(assets.requested, [EmojiCatalogPackAssets.shortcodes]);
+    });
+
+    test('reads the asset once however often it is asked for', () async {
+      final both = await Future.wait([
+        loader.shortcodes(),
+        loader.shortcodes(),
+      ]);
+      final again = await loader.shortcodes();
+
+      expect(both.first, same(both.last));
+      expect(again, same(both.first));
+      expect(assets.requested, hasLength(1));
+    });
+
+    test(
+      'fails when the asset cannot be read, and reads it again later',
+      () async {
+        assets.failure = Exception('offline');
+        await expectLater(loader.shortcodes(), throwsException);
+
+        assets.failure = null;
+
+        expect((await loader.shortcodes()).codes, hasLength(1));
+      },
+    );
+
+    test('fails with a FormatException on a damaged asset', () async {
+      assets.put(EmojiCatalogPackAssets.shortcodes, 'not shortcodes');
+
+      await expectLater(loader.shortcodes(), throwsFormatException);
+    });
+  });
+
   group('keywordPack', () {
     test('reads only the pack of the locale asked for', () async {
       final pack = await loader.keywordPack('de');
@@ -108,8 +154,10 @@ void main() {
 
     final structure = await real.structure();
     final pack = await real.keywordPack('en');
+    final shortcodes = await real.shortcodes();
 
     expect(structure.entries, isNotEmpty);
     expect(pack.records, isNotEmpty);
+    expect(shortcodes.codes, isNotEmpty);
   });
 }

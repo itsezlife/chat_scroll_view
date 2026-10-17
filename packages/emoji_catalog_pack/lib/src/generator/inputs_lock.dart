@@ -19,10 +19,12 @@ final class InputSource {
 @immutable
 final class InputsPlan {
   /// Plans the inputs for the Unicode [emojiVersion], the CLDR release
-  /// [cldrTag] and one keyword pack per entry of [locales].
+  /// [cldrTag], the emoji-toolkit tag [shortcodesRef] and one keyword pack
+  /// per entry of [locales].
   InputsPlan({
     required this.emojiVersion,
     required this.cldrTag,
+    required this.shortcodesRef,
     required List<String> locales,
   }) : locales = List.unmodifiable(locales);
 
@@ -32,16 +34,23 @@ final class InputsPlan {
   /// The CLDR release tag (`release-49-beta4`).
   final String cldrTag;
 
+  /// The tag of JoyPixels' emoji-toolkit the shortcodes come from (`11.0.0`).
+  final String shortcodesRef;
+
   /// The locales that get a keyword pack, in pack order. Unmodifiable.
   final List<String> locales;
 
   /// The CLDR release as a label (`49-beta4`).
   String get cldrVersion => cldrTag.replaceFirst('release-', '');
 
-  /// The inputs: `emoji-test.txt`, the CLDR licence and, per locale, the
-  /// annotation file and the derived annotation file.
+  /// The inputs: `emoji-test.txt`, the CLDR licence, per locale the
+  /// annotation file and the derived annotation file, then the toolkit's
+  /// `emoji.json` and its licence.
   List<InputSource> get sources {
     final cldr = 'https://raw.githubusercontent.com/unicode-org/cldr/$cldrTag';
+    final toolkit =
+        'https://raw.githubusercontent.com/joypixels/emoji-toolkit/'
+        '$shortcodesRef';
     return [
       InputSource(
         name: 'emoji-test.txt',
@@ -54,12 +63,14 @@ final class InputsPlan {
             name: 'cldr/$kind/$locale.xml',
             url: '$cldr/common/$kind/$locale.xml',
           ),
+      for (final file in const ['emoji.json', 'LICENSE.md'])
+        InputSource(name: 'emoji-toolkit/$file', url: '$toolkit/$file'),
     ];
   }
 }
 
-/// `tool/inputs.lock`: the Unicode and CLDR versions the shipped assets are
-/// built from, with a SHA-256 per input file.
+/// `tool/inputs.lock`: the Unicode, CLDR and emoji-toolkit versions the
+/// shipped assets are built from, with a SHA-256 per input file.
 ///
 /// Versions alone would not pin the data (a URL can start serving other
 /// bytes); the checksums do. A version changed without regenerated assets
@@ -74,6 +85,7 @@ final class InputsPlan {
 /// | --- | --- |
 /// | `emoji-version 18.0` | The Unicode Emoji version. |
 /// | `cldr-tag release-49-beta4` | The CLDR release tag. |
+/// | `shortcodes-ref 11.0.0` | The emoji-toolkit tag of the shortcodes. |
 /// | `locales en de ...` | The locales that get a keyword pack. |
 /// | `input <sha256> <name> <url>` | One pinned input. |
 @immutable
@@ -82,6 +94,7 @@ final class InputsLock {
   InputsLock({
     required this.emojiVersion,
     required this.cldrTag,
+    required this.shortcodesRef,
     required List<String> locales,
     required List<LockedInput> inputs,
   }) : locales = List.unmodifiable(locales),
@@ -94,6 +107,7 @@ final class InputsLock {
   ) => InputsLock(
     emojiVersion: plan.emojiVersion,
     cldrTag: plan.cldrTag,
+    shortcodesRef: plan.shortcodesRef,
     locales: plan.locales,
     inputs: [
       for (final source in plan.sources)
@@ -109,6 +123,7 @@ final class InputsLock {
   factory InputsLock.parse(String text) {
     String? emoji;
     String? tag;
+    String? shortcodes;
     List<String>? locales;
     final inputs = <LockedInput>[];
     for (final line in text.split('\n')) {
@@ -120,6 +135,8 @@ final class InputsLock {
           emoji = fields[1];
         case 'cldr-tag' when fields.length == 2:
           tag = fields[1];
+        case 'shortcodes-ref' when fields.length == 2:
+          shortcodes = fields[1];
         case 'locales' when fields.length > 1:
           locales = fields.sublist(1);
         case 'input' when fields.length == 4:
@@ -136,14 +153,15 @@ final class InputsLock {
           throw FormatException('Unreadable lock line.', line);
       }
     }
-    if (emoji == null || tag == null || locales == null) {
+    if (emoji == null || tag == null || shortcodes == null || locales == null) {
       throw const FormatException(
-        'The lock needs emoji-version, cldr-tag and locales.',
+        'The lock needs emoji-version, cldr-tag, shortcodes-ref and locales.',
       );
     }
     final lock = InputsLock(
       emojiVersion: emoji,
       cldrTag: tag,
+      shortcodesRef: shortcodes,
       locales: locales,
       inputs: inputs,
     );
@@ -168,6 +186,9 @@ final class InputsLock {
   /// The CLDR release tag (`release-49-beta4`).
   final String cldrTag;
 
+  /// The tag of JoyPixels' emoji-toolkit the shortcodes come from (`11.0.0`).
+  final String shortcodesRef;
+
   /// The locales that get a keyword pack, in pack order. Unmodifiable.
   final List<String> locales;
 
@@ -178,6 +199,7 @@ final class InputsLock {
   InputsPlan get plan => InputsPlan(
     emojiVersion: emojiVersion,
     cldrTag: cldrTag,
+    shortcodesRef: shortcodesRef,
     locales: locales,
   );
 
@@ -194,6 +216,7 @@ final class InputsLock {
       ..writeln('#   dart run tool/generate.dart lock')
       ..writeln('emoji-version $emojiVersion')
       ..writeln('cldr-tag $cldrTag')
+      ..writeln('shortcodes-ref $shortcodesRef')
       ..writeln('locales ${locales.join(' ')}');
     for (final input in inputs) {
       out.writeln('input ${input.sha256} ${input.name} ${input.url}');

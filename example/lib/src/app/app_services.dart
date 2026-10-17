@@ -231,6 +231,8 @@ final class AppServices {
           preferences: preferences,
           glyphSupport: probe.probe,
           keywords: keywords,
+          // The codes the pointer arrangement's tooltip shows.
+          shortcodes: loader.shortcodes,
           // The recents hold the pack's emoji too, picked on the same page.
           resolver: AnimatedEmojiPack.resolver(),
           languages: languages,
@@ -245,6 +247,7 @@ final class AppServices {
           recents: recentsShown,
           preferences: preferences,
           glyphSupport: probe.probe,
+          shortcodes: loader.shortcodes,
         ),
         (source) => source.dispose(),
       );

@@ -8,6 +8,12 @@ is pre-1.0.
 
 ### Added
 
+- `EmojiCatalogLoader.shortcodes()` reads the shipped shortcodes once, and
+  `EmojiCollectionSource(shortcodes:)` / `EmojiSearchSource(shortcodes:)`
+  give each item's descriptor its `shortcode` (`:grinning:`): a tone variant
+  its entry's toneless code, a gender form its own. Read once with the first
+  load or query; a failed read is reported to the zone and leaves the items
+  without codes, never failing a collection or a query.
 - `EmojiCollectionSource(resolver:)`: the recents describe keys outside the
   catalogue (custom emoji) through the host's `ContentResolver`, batched and
   once per key. Bare until answered; a key the resolver does not know leaves

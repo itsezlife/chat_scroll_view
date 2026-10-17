@@ -395,6 +395,38 @@ void main() {
     });
   });
 
+  group('the tooltip under a resting mouse', () {
+    final people = _loaded(const CollectionId.category('people'), ['😀']);
+
+    test('is the code of a unicode emoji', () {
+      final hit = CatalogLeafHit(
+        sectionId: 's',
+        index: 0,
+        leaf: CatalogLeaf.unicode('😀', shortcode: ':grinning:'),
+      );
+
+      expect(policy.tooltipOf(hit, people), ':grinning:');
+    });
+
+    test('is none for an emoji the data gives no code', () {
+      expect(policy.tooltipOf(_hit('😀'), people), isNull);
+    });
+
+    test('is none for a custom emoji, whatever its data says', () {
+      const custom = CatalogLeafHit(
+        sectionId: 's',
+        index: 0,
+        leaf: CatalogLeaf(
+          key: ContentKey.document('5368'),
+          semanticKind: SemanticKind.customEmoji,
+          shortcode: ':party:',
+        ),
+      );
+
+      expect(policy.tooltipOf(custom, people), isNull);
+    });
+  });
+
   group('the long press delay', () {
     const flags = Collection(id: CollectionId.category('symbols'));
     const recents = Collection(id: CollectionId.recent);

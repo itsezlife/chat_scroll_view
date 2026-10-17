@@ -21,6 +21,7 @@ import 'emoji/emoji_page_in_shell_test.dart' as emoji_page_in_shell_test;
 import 'emoji/emoji_page_pointer_test.dart' as emoji_page_pointer_test;
 import 'emoji/emoji_page_policy_test.dart' as emoji_page_policy_test;
 import 'emoji/emoji_page_test.dart' as emoji_page_test;
+import 'emoji/emoji_page_tooltip_test.dart' as emoji_page_tooltip_test;
 import 'emoji/emoji_tab_icons_test.dart' as emoji_tab_icons_test;
 import 'emoji/emoji_tone_picker_touch_test.dart'
     as emoji_tone_picker_touch_test;
@@ -63,6 +64,7 @@ void main() {
   group('emoji/emoji_page_in_shell_test.dart', emoji_page_in_shell_test.main);
   group('emoji/emoji_page_pointer_test.dart', emoji_page_pointer_test.main);
   group('emoji/emoji_page_policy_test.dart', emoji_page_policy_test.main);
+  group('emoji/emoji_page_tooltip_test.dart', emoji_page_tooltip_test.main);
   group('emoji/emoji_page_test.dart', emoji_page_test.main);
   group('emoji/emoji_tab_icons_test.dart', emoji_tab_icons_test.main);
   group(

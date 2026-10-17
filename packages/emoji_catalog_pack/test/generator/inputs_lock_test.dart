@@ -7,6 +7,7 @@ InputsLock _lock({List<String> locales = const ['en', 'de']}) => InputsLock.pin(
   InputsPlan(
     emojiVersion: '18.0',
     cldrTag: 'release-49-beta4',
+    shortcodesRef: '11.0.0',
     locales: locales,
   ),
   (source) => _sha,
@@ -17,6 +18,7 @@ void main() {
     final plan = InputsPlan(
       emojiVersion: '18.0',
       cldrTag: 'release-49-beta4',
+      shortcodesRef: '11.0.0',
       locales: const ['en', 'de'],
     );
     String urlOf(String name) =>
@@ -47,7 +49,22 @@ void main() {
           'cldr/annotationsDerived/en.xml',
           'cldr/annotations/de.xml',
           'cldr/annotationsDerived/de.xml',
+          'emoji-toolkit/emoji.json',
+          'emoji-toolkit/LICENSE.md',
         ]),
+      );
+    });
+
+    test('pins the shortcode data and its licence by toolkit tag', () {
+      expect(
+        urlOf('emoji-toolkit/emoji.json'),
+        'https://raw.githubusercontent.com/joypixels/emoji-toolkit/'
+        '11.0.0/emoji.json',
+      );
+      expect(
+        urlOf('emoji-toolkit/LICENSE.md'),
+        'https://raw.githubusercontent.com/joypixels/emoji-toolkit/'
+        '11.0.0/LICENSE.md',
       );
     });
 
@@ -65,6 +82,7 @@ void main() {
       expect(parsed.encode(), lock.encode());
       expect(parsed.locales, ['en', 'de']);
       expect(parsed.emojiVersion, '18.0');
+      expect(parsed.shortcodesRef, '11.0.0');
       expect(parsed.input('emoji-test.txt').sha256, _sha);
     });
 
@@ -89,6 +107,25 @@ void main() {
       final text = _lock().encode().replaceAll(
         'release-49-beta4/',
         'release-48/',
+      );
+
+      expect(() => InputsLock.parse(text), throwsFormatException);
+    });
+
+    test('rejects a lock without the shortcodes ref', () {
+      final text = _lock()
+          .encode()
+          .split('\n')
+          .where((line) => !line.startsWith('shortcodes-ref '))
+          .join('\n');
+
+      expect(() => InputsLock.parse(text), throwsFormatException);
+    });
+
+    test('rejects shortcode data pinned to another toolkit tag', () {
+      final text = _lock().encode().replaceFirst(
+        'shortcodes-ref 11.0.0',
+        'shortcodes-ref 10.0.0',
       );
 
       expect(() => InputsLock.parse(text), throwsFormatException);

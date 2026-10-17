@@ -25,9 +25,10 @@ const List<String> _locales = [
 ];
 
 // Gzip budgets in bytes: the largest pack measured with headroom for the next
-// Emoji version, and the structure.
+// Emoji version, the structure and the shortcodes.
 const int _packBudget = 52 * 1024;
 const int _structureBudget = 16 * 1024;
+const int _shortcodesBudget = 16 * 1024;
 
 // Counts of fully-qualified sequences in the pinned Emoji 18.0 emoji-test.txt
 // (`grep -c 'fully-qualified'` and the same restricted to lines without a
@@ -38,6 +39,7 @@ const int _toned = 2040;
 late final Directory _root;
 late final EmojiCatalogStructure _structure;
 late final Map<String, EmojiKeywordPack> _packs;
+late final EmojiShortcodes _shortcodes;
 
 String _read(String path) => File('${_root.path}/$path').readAsStringSync();
 
@@ -61,6 +63,7 @@ void main() {
       for (final locale in _locales)
         locale: EmojiKeywordPack.decode(_read('assets/keywords/$locale.tsv')),
     };
+    _shortcodes = EmojiShortcodes.decode(_read('assets/shortcodes.tsv'));
   });
 
   group('structure asset', () {
@@ -286,6 +289,47 @@ void main() {
     });
   });
 
+  group('shortcodes asset', () {
+    test('comes from the toolkit tag the lock pins', () {
+      final lock = InputsLock.parse(_read('tool/inputs.lock'));
+
+      expect(_shortcodes.source, 'emoji-toolkit ${lock.shortcodesRef}');
+    });
+
+    test('codes nearly every emoji with a keyword record', () {
+      // The toolkit lags Unicode: its newest sequences have no code yet.
+      expect(_shortcodes.codes, hasLength(greaterThanOrEqualTo(1900)));
+    });
+
+    test('codes only emoji that have a keyword record', () {
+      final pack = _packs['en']!;
+
+      for (final key in _shortcodes.codes.keys) {
+        expect(pack[key], isNotNull, reason: '$key');
+      }
+    });
+
+    test('gives an emoji and its gender forms the codes people type', () {
+      expect(_shortcodes[_key('1F600')], ':grinning:');
+      expect(_shortcodes[_key('1F9D1-200D-1F4BB')], ':technologist:');
+      expect(_shortcodes[_key('1F469-200D-1F4BB')], ':woman_technologist:');
+    });
+
+    test('gives no two emoji one code', () {
+      expect(
+        _shortcodes.codes.values.toSet(),
+        hasLength(_shortcodes.codes.length),
+      );
+    });
+
+    test('stays within its size budget', () {
+      expect(
+        _gzipSize(_read('assets/shortcodes.tsv')),
+        lessThan(_shortcodesBudget),
+      );
+    });
+  });
+
   group('package', () {
     test('declares every asset directory to Flutter', () {
       final pubspec = _read('pubspec.yaml');
@@ -293,6 +337,8 @@ void main() {
       expect(pubspec, contains('- assets/structure.tsv'));
       expect(pubspec, contains('- assets/keywords/'));
       expect(pubspec, contains('- assets/LICENSE-UNICODE.txt'));
+      expect(pubspec, contains('- assets/shortcodes.tsv'));
+      expect(pubspec, contains('- assets/LICENSE-JOYPIXELS.txt'));
     });
 
     test('ships the Unicode licence next to the assets', () {
@@ -300,6 +346,13 @@ void main() {
         _read('assets/LICENSE-UNICODE.txt'),
         contains('UNICODE LICENSE V3'),
       );
+    });
+
+    test('ships the toolkit licence next to the shortcodes', () {
+      final licence = _read('assets/LICENSE-JOYPIXELS.txt');
+
+      expect(licence, contains('JoyPixels Non-Artwork'));
+      expect(licence, contains('License: MIT'));
     });
 
     test('reads no other catalog source than the pinned inputs', () {

@@ -14,10 +14,13 @@ import 'generator/asset_generator_test.dart' as asset_generator_test;
 import 'generator/cldr_annotations_test.dart' as cldr_annotations_test;
 import 'generator/emoji_keyword_pack_builder_test.dart'
     as emoji_keyword_pack_builder_test;
+import 'generator/emoji_shortcodes_builder_test.dart'
+    as emoji_shortcodes_builder_test;
 import 'generator/emoji_test_file_test.dart' as emoji_test_file_test;
 import 'generator/inputs_lock_test.dart' as inputs_lock_test;
 import 'generator/structure_builder_test.dart' as structure_builder_test;
 import 'keywords/emoji_keyword_pack_test.dart' as emoji_keyword_pack_test;
+import 'shortcodes/emoji_shortcodes_test.dart' as emoji_shortcodes_test;
 import 'structure/emoji_catalog_structure_test.dart'
     as emoji_catalog_structure_test;
 
@@ -33,10 +36,15 @@ void main() {
     'generator/emoji_keyword_pack_builder_test.dart',
     emoji_keyword_pack_builder_test.main,
   );
+  group(
+    'generator/emoji_shortcodes_builder_test.dart',
+    emoji_shortcodes_builder_test.main,
+  );
   group('generator/emoji_test_file_test.dart', emoji_test_file_test.main);
   group('generator/inputs_lock_test.dart', inputs_lock_test.main);
   group('generator/structure_builder_test.dart', structure_builder_test.main);
   group('keywords/emoji_keyword_pack_test.dart', emoji_keyword_pack_test.main);
+  group('shortcodes/emoji_shortcodes_test.dart', emoji_shortcodes_test.main);
   group(
     'structure/emoji_catalog_structure_test.dart',
     emoji_catalog_structure_test.main,

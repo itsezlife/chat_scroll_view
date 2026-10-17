@@ -8,6 +8,7 @@ final InputsLock _lock = InputsLock.pin(
   InputsPlan(
     emojiVersion: '18.0',
     cldrTag: 'release-49',
+    shortcodesRef: '11.0.0',
     locales: const ['en', 'de'],
   ),
   (source) => _sha,
@@ -30,6 +31,10 @@ final Map<String, String> _inputs = {
   'cldr/annotationsDerived/en.xml': '',
   'cldr/annotations/de.xml': _annotations('grinsendes Gesicht'),
   'cldr/annotationsDerived/de.xml': '',
+  'emoji-toolkit/emoji.json':
+      '{"1f600": {"shortname": ":grinning:", '
+      '"code_points": {"fully_qualified": "1f600"}}}',
+  'emoji-toolkit/LICENSE.md': 'JoyPixels Non-Artwork\n* License: MIT\n',
 };
 
 Map<String, String> _generate([Map<String, String>? inputs]) =>
@@ -40,14 +45,17 @@ Map<String, String> _generate([Map<String, String>? inputs]) =>
 
 void main() {
   group('AssetGenerator.generate', () {
-    test('produces the structure, one pack per locale and the licence', () {
+    test('produces the structure, one pack per locale, the shortcodes and '
+        'the licences', () {
       expect(
         _generate().keys,
         unorderedEquals([
           'assets/structure.tsv',
           'assets/keywords/en.tsv',
           'assets/keywords/de.tsv',
+          'assets/shortcodes.tsv',
           'assets/LICENSE-UNICODE.txt',
+          'assets/LICENSE-JOYPIXELS.txt',
         ]),
       );
     });
@@ -77,6 +85,23 @@ void main() {
       expect(licence, contains('Emoji 18.0'));
       expect(licence, contains('CLDR 49'));
       expect(licence, endsWith('UNICODE LICENSE V3\n'));
+    });
+
+    test('writes shortcodes the reader accepts, stamped with the toolkit', () {
+      final shortcodes = EmojiShortcodes.decode(
+        _generate()['assets/shortcodes.tsv']!,
+      );
+
+      expect(shortcodes.source, 'emoji-toolkit 11.0.0');
+      expect(shortcodes.codes.values.single, ':grinning:');
+    });
+
+    test('ships the toolkit licence text after the provenance', () {
+      final licence = _generate()['assets/LICENSE-JOYPIXELS.txt']!;
+
+      expect(licence, contains('emoji-toolkit 11.0.0'));
+      expect(licence, contains('emoji.json'));
+      expect(licence, endsWith('* License: MIT\n'));
     });
 
     test('is deterministic', () {

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:content_model/content_model.dart';
+import 'package:emoji_catalog_pack/emoji_catalog_pack.dart';
 import 'package:emoji_data/src/catalog/emoji_catalog.dart';
 import 'package:emoji_data/src/collections/emoji_items.dart';
 import 'package:emoji_data/src/collections/emoji_spoken_names.dart';
@@ -33,8 +34,12 @@ import 'package:listen/listen.dart';
 /// A hit on any key of an entry (its base or one of its variants) is one
 /// result, shown as the variant the user chose for the entry, like the grid.
 /// Emoji the [GlyphSupport] says the device cannot draw are left out. Each item carries the spoken name of its emoji from the first
-/// of [languages] whose pack names it. Searching is not use: nothing is
-/// recorded.
+/// of [languages] whose pack names it and, given `shortcodes`, its code as
+/// the grid's item does. Searching is not use: nothing is recorded.
+///
+/// The shortcodes are read once, with the first query. Ones that cannot be
+/// read are reported to the zone and leave the items without codes; they
+/// never fail a query.
 ///
 /// ## Lifecycle
 ///
@@ -56,6 +61,7 @@ final class EmojiSearchSource implements SearchSource {
     required RecentsStore recents,
     required PreferenceStore preferences,
     GlyphSupport? glyphSupport,
+    Future<EmojiShortcodes> Function()? shortcodes,
     int? pageSize,
   }) : assert(
          pageSize == null || pageSize > 0,
@@ -67,6 +73,7 @@ final class EmojiSearchSource implements SearchSource {
        _recents = recents,
        _preferences = preferences,
        _glyphSupport = glyphSupport,
+       _shortcodes = shortcodes,
        _pageSize = pageSize,
        _items = EmojiItems(
          catalog: catalog,
@@ -84,6 +91,7 @@ final class EmojiSearchSource implements SearchSource {
   final RecentsStore _recents;
   final PreferenceStore _preferences;
   final GlyphSupport? _glyphSupport;
+  final Future<EmojiShortcodes> Function()? _shortcodes;
   final int? _pageSize;
   final EmojiItems _items;
 
@@ -96,6 +104,7 @@ final class EmojiSearchSource implements SearchSource {
   // Each new query supersedes the one before: work for an older generation is
   // dropped when it lands.
   int _generation = 0;
+  Future<void>? _shortcodesRead;
   List<ContentKey> _ranked = const [];
   int _pages = 0;
   bool _loadingMore = false;
@@ -156,6 +165,7 @@ final class EmojiSearchSource implements SearchSource {
   // Ranks the current query over the packs and publishes the first page, or
   // the failure. Dropped when a newer query started meanwhile.
   Future<void> _run(int generation, CollectionId id) async {
+    final shortcodesRead = _shortcodesRead ??= _readShortcodes();
     final List<KeywordPack> packs;
     try {
       packs = await _packs();
@@ -167,11 +177,26 @@ final class EmojiSearchSource implements SearchSource {
       );
       return;
     }
+    await shortcodesRead;
     if (_disposed || generation != _generation) return;
     _items.spokenNames = EmojiSpokenNames(_catalog, packs);
     _ranked = _rank(_folded(_query), packs);
     _pages = 1;
     _publishLoaded();
+  }
+
+  // The shortcodes, read once: no query or new pack moves them. Ones that
+  // cannot be read are reported and cost only the codes.
+  Future<void> _readShortcodes() async {
+    final read = _shortcodes;
+    if (read == null) return;
+    try {
+      final table = await read();
+      if (_disposed) return;
+      _items.shortcodes = table;
+    } on Object catch (error, stackTrace) {
+      Zone.current.handleUncaughtError(error, stackTrace);
+    }
   }
 
   // A pack arriving: run the current query again over the new keywords, with

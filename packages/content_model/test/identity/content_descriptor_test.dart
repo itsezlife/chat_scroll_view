@@ -106,6 +106,7 @@ void main() {
       expect(descriptor.size, isNull);
       expect(descriptor.thumbnail, isNull);
       expect(descriptor.spokenName, isNull);
+      expect(descriptor.shortcode, isNull);
     });
 
     test('is a value of all its fields', () {
@@ -119,6 +120,7 @@ void main() {
         size: ContentSize(512, 512),
         thumbnail: ThumbnailRef('thumb-1'),
         spokenName: 'waving hand',
+        shortcode: ':wave:',
       );
       const same = ContentDescriptor(
         key: key,
@@ -130,6 +132,7 @@ void main() {
         size: ContentSize(512, 512),
         thumbnail: ThumbnailRef('thumb-1'),
         spokenName: 'waving hand',
+        shortcode: ':wave:',
       );
 
       expect(full, same);
@@ -220,6 +223,15 @@ void main() {
           size: ContentSize(1, 1),
           thumbnail: ThumbnailRef('t'),
           spokenName: 'm',
+        ),
+        ContentDescriptor(
+          key: key,
+          semanticKind: SemanticKind.sticker,
+          mediaForm: MediaForm.still,
+          size: ContentSize(1, 1),
+          thumbnail: ThumbnailRef('t'),
+          spokenName: 'n',
+          shortcode: ':n:',
         ),
       ];
 

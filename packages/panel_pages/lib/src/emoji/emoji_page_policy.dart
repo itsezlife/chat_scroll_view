@@ -346,6 +346,17 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     null => null,
   };
 
+  // --- Tooltip --------------------------------------------------------------
+
+  // The reference desktop client's: the code of a unicode emoji (its toneless
+  // form's, which the data already resolved), never one for a custom emoji.
+  @override
+  String? tooltipOf(CatalogLeafHit hit, Collection collection) =>
+      switch (hit.leaf.key) {
+        ContentKey$Unicode() => hit.leaf.shortcode,
+        _ => null,
+      };
+
   // --- Context menu ---------------------------------------------------------
 
   @override
