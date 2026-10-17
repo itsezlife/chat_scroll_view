@@ -22,3 +22,6 @@ package is pre-1.0.
   Windows and Linux behind the `rich_clipboard` method channel; the web goes
   through `navigator.clipboard`. Windows and Linux are built in CI and not yet
   run on a device.
+- Code blocks: written as `<pre>` / `<pre lang>`, read from `pre` with
+  `lang`, `language`, `lng`, `data-language` or a `language-` class on its
+  `code`. A `pre` is no longer read as inline code.

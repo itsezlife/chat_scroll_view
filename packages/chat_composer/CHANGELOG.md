@@ -67,6 +67,7 @@ is pre-1.0.
 
 ### Added
 
+- A code block (`EntityKind.codeBlock`) is styled as inline code.
 - Rich clipboard (ADR 032): `ComposerController(clipboard:)` takes a
   `RichClipboard`, and `copySelection`, `cutSelection` and `paste({plain})`
   keep the text's entities across the system clipboard. Pasting into a quote

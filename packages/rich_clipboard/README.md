@@ -36,7 +36,8 @@ Android that uninstalls the example afterwards, data included.
 | --- | --- | --- |
 | bold, italic, underline, strike | `<b> <i> <u> <s>` | `strong h1-h6`, `em`, `ins`, `strike del`; CSS `font-weight`, `font-style`, `text-decoration` (also switching a style off) |
 | spoiler | `<tg-spoiler>` | `<spoiler>`, `class="tg-spoiler"` |
-| code | `<code>` | `tt kbd samp pre` |
+| code | `<code>` | `tt kbd samp` |
+| code block | `<pre>`, `<pre lang>` | `pre` with `lang`, `language`, `lng`, `data-language` or a `language-` class on its `code` |
 | quote | `<blockquote>` | `<details>` |
 | link | `<a href>` | `http https mailto tel tg ftp` links only |
 | mention | `<span data-mention-id>` | |

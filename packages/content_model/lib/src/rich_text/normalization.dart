@@ -33,8 +33,9 @@ abstract final class CanonicalEntities {
   ///
   /// 1. Each entity is checked against the text (range, surrogate pairs,
   ///    payload, line breaks in atomic spans).
-  /// 2. A quote widens to whole lines; every other non-atomic entity splits at
-  ///    line breaks, because markup cannot carry a span across one.
+  /// 2. A quote or a code block widens to whole lines; every other non-atomic
+  ///    entity splits at line breaks, because markup cannot carry a span
+  ///    across one.
   /// 3. A text style (bold, italic, underline, strike, spoiler) gives up the
   ///    whitespace at its edges, because markup cannot open or close next to
   ///    whitespace; one over whitespace only disappears.
@@ -121,6 +122,14 @@ void _check(String plain, Entity entity) {
           entity,
         );
       }
+    case EntityKind$CodeBlock(:final language?)
+        when !_language.hasMatch(language):
+      throw EntityFitException(
+        'A code block language is letters, digits and + # . _ -.',
+        entity,
+      );
+    case EntityKind$CodeBlock():
+      break;
   }
   if (entity.kind.isAtomic &&
       plain.substring(entity.offset, entity.end).contains('\n')) {
@@ -131,6 +140,9 @@ void _check(String plain, Entity entity) {
   }
 }
 
+/// What a code block's language may be: a name a fence's info string holds.
+final RegExp _language = RegExp(r'^[A-Za-z0-9+#._-]+$');
+
 /// The scheme [EntityKind.mention] uses in markup and links may not.
 const String _mentionScheme = 'mention:';
 
@@ -139,7 +151,7 @@ void _shape(String plain, Entity entity, List<Entity> out) {
   switch (kind) {
     case EntityKind$Mention() || EntityKind$InlineContent():
       out.add(entity);
-    case EntityKind$Style(style: EntityStyle.quote):
+    case EntityKind$Style(style: EntityStyle.quote) || EntityKind$CodeBlock():
       out.add(_widenToLines(plain, entity));
     case EntityKind$Style(style: EntityStyle.code) || EntityKind$Link():
       _splitAtLineBreaks(plain, entity, out);
@@ -153,7 +165,8 @@ bool _isTextStyle(EntityKind kind) => switch (kind) {
     style != EntityStyle.code && style != EntityStyle.quote,
   EntityKind$Link() ||
   EntityKind$Mention() ||
-  EntityKind$InlineContent() => false,
+  EntityKind$InlineContent() ||
+  EntityKind$CodeBlock() => false,
 };
 
 Entity _widenToLines(String plain, Entity entity) {
@@ -241,6 +254,7 @@ int _rank(EntityKind kind) => switch (kind) {
   EntityKind$Link() => 1,
   EntityKind$Mention() => 2,
   EntityKind$InlineContent() => 3,
+  EntityKind$CodeBlock() => 4,
   EntityKind$Style(:final style) => 10 + style.index,
 };
 
@@ -263,6 +277,10 @@ void _checkCombinations(List<Entity> sorted) {
 void _checkOverlap(Entity a, Entity b) {
   final aKind = a.kind;
   final bKind = b.kind;
+  if ((aKind, bKind) case (EntityKind$CodeBlock(), _) ||
+      (_, EntityKind$CodeBlock())) {
+    throw EntityFitException('A code block holds nothing else: $a and $b.');
+  }
   if (aKind.isAtomic || bKind.isAtomic) {
     if (aKind.isAtomic && bKind.isAtomic) {
       throw EntityFitException('Atomic entities cannot overlap: $a and $b.');

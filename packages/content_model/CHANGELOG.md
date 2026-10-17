@@ -17,6 +17,12 @@ package is pre-1.0.
 
 ### Added
 
+- `EntityKind.codeBlock({language})` (ADR 033): whole lines of code with an
+  optional language (letters, digits and `+ # . _ -`). It holds no other
+  entity and overlaps no quote. Markdown writes it as a backtick fence with
+  the language as the info string and reads fences back; JSON uses
+  `kind: codeBlock` with `language`. Source-breaking for exhaustive switches
+  over `EntityKind`.
 - `RichClipboard`, the seam to the system clipboard for text that keeps its
   entities: `write(RichText)` puts its plain text and a rich form on the
   clipboard, `read()` answers a `ClipboardText` (the plain text, plus the

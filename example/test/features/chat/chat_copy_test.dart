@@ -35,10 +35,21 @@ void main() {
     );
   });
 
-  test('code is code', () {
+  test('a snippet is code; a block of code, with its language, is a code '
+      'block', () {
     expect(
       ChatCopy.code('a()'),
       RichText('a()', const [Entity(0, 3, EntityKind.code)]),
+    );
+    expect(
+      ChatCopy.code('a()', language: 'dart'),
+      RichText('a()', const [
+        Entity(0, 3, EntityKind.codeBlock(language: 'dart')),
+      ]),
+    );
+    expect(
+      ChatCopy.code('a()\nb()'),
+      RichText('a()\nb()', const [Entity(0, 7, EntityKind.codeBlock())]),
     );
     expect(ChatCopy.code(''), RichText.empty);
   });
@@ -111,7 +122,10 @@ void main() {
     test('quotes a quote and codes a code block, a line apart', () {
       final content = MarkdownSelectedContent(
         documents: [
-          document(1, '> quoted\n\n```\ncode()\n```', [(0, 6), (0, 6)]),
+          document(1, '> quoted\n\n```dart\ncode()\n```', [
+            (0, 6),
+            (0, 6),
+          ]),
         ],
       );
 
@@ -119,7 +133,7 @@ void main() {
         ChatCopy.selection(content),
         RichText('quoted\ncode()', const [
           Entity(0, 6, EntityKind.quote),
-          Entity(7, 6, EntityKind.code),
+          Entity(7, 6, EntityKind.codeBlock(language: 'dart')),
         ]),
       );
     });

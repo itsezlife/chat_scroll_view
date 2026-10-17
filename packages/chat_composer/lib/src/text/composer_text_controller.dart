@@ -446,6 +446,14 @@ class ComposerTextController extends TextEditingController {
           result = result.merge(TextStyle(color: _entityStyles.link));
         case EntityKind$Mention():
           result = result.merge(TextStyle(color: _entityStyles.mention));
+        // A block of code reads as inline code does, line by line.
+        case EntityKind$CodeBlock():
+          result = result.merge(
+            TextStyle(
+              fontFamily: 'monospace',
+              backgroundColor: _entityStyles.codeBackground,
+            ),
+          );
         case EntityKind$InlineContent():
           break;
       }

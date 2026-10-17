@@ -88,6 +88,12 @@ void main() {
       ]),
     );
     roundTrips(
+      'a code block with its language between lines of text',
+      _text('see\nmain() {\n  <b>\n}\nend', [
+        ('main() {\n  <b>\n}', const EntityKind.codeBlock(language: 'dart')),
+      ]),
+    );
+    roundTrips(
       'whitespace, markup characters and scripts kept exactly',
       const RichText.plain(
         '  two  spaces\ttab  nbsp\n\n< & > " \' ф 中 '
@@ -108,6 +114,8 @@ void main() {
         EntityKind.link('https://example.com'),
         EntityKind.mention('bob'),
         EntityKind.inlineContent(_rocket),
+        EntityKind.codeBlock(language: 'dart'),
+        EntityKind.codeBlock(),
       ];
       const pieces = ['a', 'b c', ' ', '\n', '  ', '\u{1F680}', '<', '&', 'é'];
       var checked = 0;
@@ -289,9 +297,27 @@ void main() {
             ),
           ),
           ('hidden', EntityKind.spoiler),
-          ('code', EntityKind.code),
+          ('code', const EntityKind.codeBlock(language: 'dart')),
           ('quoted', EntityKind.quote),
         ]),
+      );
+    });
+
+    test('reads a code block\'s language as code sites write it', () {
+      for (final html in [
+        '<pre language="go">x</pre>',
+        '<pre data-language="go">x</pre>',
+        '<pre><code class="hljs language-go">x</code></pre>',
+      ]) {
+        expect(
+          RichTextHtml.decode(html),
+          _text('x', [('x', const EntityKind.codeBlock(language: 'go'))]),
+          reason: html,
+        );
+      }
+      expect(
+        RichTextHtml.decode('<pre>a  <b>b</b>\n c</pre>'),
+        _text('a  b\n c', [('a  b\n c', const EntityKind.codeBlock())]),
       );
     });
 

@@ -10,9 +10,17 @@ abstract final class MarkdownEncoder {
   static String encode(RichText text) {
     final plain = text.plain;
     final quotes = <Entity>[];
+    final blocks = <Entity>[];
     final inline = <Entity>[];
     for (final entity in text.entities) {
-      (entity.kind == EntityKind.quote ? quotes : inline).add(entity);
+      switch (entity.kind) {
+        case EntityKind$Style(style: EntityStyle.quote):
+          quotes.add(entity);
+        case EntityKind$CodeBlock():
+          blocks.add(entity);
+        case _:
+          inline.add(entity);
+      }
     }
     final escapes = _Escapes(plain, inline);
     final out = _Out();
@@ -30,6 +38,15 @@ abstract final class MarkdownEncoder {
         // read as part of the quote.
         if (previousQuote != null && previousQuote != quote) out.raw('\n');
       }
+      // A code block starts a line and is written whole, as a fence.
+      if (_blockAt(blocks, start) case final block?) {
+        _writeFence(out, plain.substring(block.offset, block.end), block.kind);
+        previousQuote = null;
+        first = false;
+        if (block.end >= plain.length) break;
+        start = block.end + 1;
+        continue;
+      }
       if (quote != null) out.raw(start == end ? '>' : '> ');
       _writeLine(out, plain, start, end, inline, escapes);
       previousQuote = quote;
@@ -39,6 +56,31 @@ abstract final class MarkdownEncoder {
     }
     return out.finish();
   }
+}
+
+Entity? _blockAt(List<Entity> blocks, int lineStart) {
+  for (final block in blocks) {
+    if (block.offset == lineStart) return block;
+  }
+  return null;
+}
+
+/// [code] between fences one backtick longer than any run of backticks it
+/// holds (three at least), the language as the info string. The code is
+/// written as it is: nothing inside a fence is markup.
+void _writeFence(_Out out, String code, EntityKind kind) {
+  var longest = 0;
+  var run = 0;
+  for (final unit in code.codeUnits) {
+    run = unit == 0x60 ? run + 1 : 0;
+    if (run > longest) longest = run;
+  }
+  final fence = '`' * (longest < 3 ? 3 : longest + 1);
+  final language = switch (kind) {
+    EntityKind$CodeBlock(:final language?) => language,
+    _ => '',
+  };
+  out.raw('$fence$language\n$code\n$fence');
 }
 
 /// A quote covers the lines that start within its span, its end included, so
@@ -94,7 +136,8 @@ void _writeLine(
           isCode = true;
         case final EntityKind$Link kind:
           link = kind;
-        case EntityKind$Style():
+        // Written as fences by the line loop, never inline.
+        case EntityKind$Style() || EntityKind$CodeBlock():
           break;
       }
     }

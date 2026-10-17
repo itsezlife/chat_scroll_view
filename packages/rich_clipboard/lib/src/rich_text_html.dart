@@ -18,6 +18,7 @@ import 'package:html/parser.dart' as html;
 /// | bold, italic, underline, strike | `<b>`, `<i>`, `<u>`, `<s>` |
 /// | spoiler | `<tg-spoiler>` (the reference desktop client's element) |
 /// | code | `<code>` |
+/// | code block | `<pre>`, `<pre lang>` with a language |
 /// | quote | `<blockquote>` |
 /// | link | `<a href>` |
 /// | mention | `<span data-mention-id>` over its text |
@@ -38,7 +39,10 @@ import 'package:html/parser.dart' as html;
 /// entities can say it:
 ///
 /// - **Elements:** `b strong h1-h6`, `i em`, `u ins`, `s strike del`, `code tt
-///   kbd samp pre`, `blockquote details`, `a href`, the reference clients'
+///   kbd samp`, `blockquote details`, `a href`, `pre` as a code block (its
+///   language from `lang`, `language`, `lng`, `data-language` or a
+///   `language-` class of its `code`, as code sites write it), the reference
+///   clients'
 ///   `spoiler`, `tg-spoiler`, `class="tg-spoiler"` and
 ///   `<animated-emoji data-document-id>` (inline content of a document key).
 /// - **CSS:** `font-weight`, `font-style` and `text-decoration`, which also
@@ -140,7 +144,7 @@ final class _Encoder {
 
   // How deep an element sits among elements over one range.
   static int _depthOf(Entity entity) => switch (entity.kind) {
-    EntityKind$Style(style: EntityStyle.quote) => 0,
+    EntityKind$Style(style: EntityStyle.quote) || EntityKind$CodeBlock() => 0,
     EntityKind$Link() => 1,
     EntityKind$Style(style: EntityStyle.code) => 3,
     EntityKind$Style() => 2,
@@ -177,6 +181,7 @@ final class _Encoder {
     },
     EntityKind$Link() => 'a',
     EntityKind$Mention() || EntityKind$InlineContent() => 'span',
+    EntityKind$CodeBlock() => 'pre',
   };
 
   static String _openTagOf(Entity entity) => switch (entity.kind) {
@@ -185,7 +190,10 @@ final class _Encoder {
       '<span ${RichTextHtml.mentionAttribute}="${_escapeAttribute(id)}">',
     EntityKind$InlineContent(:final key) =>
       '<span ${RichTextHtml.contentKeyAttribute}="${_escapeAttribute(key.encoded)}">',
-    EntityKind$Style() => '<${_tagOf(entity)}>',
+    // `lang` is the attribute the reference Android client reads.
+    EntityKind$CodeBlock(:final language?) =>
+      '<pre lang="${_escapeAttribute(language)}">',
+    EntityKind$CodeBlock() || EntityKind$Style() => '<${_tagOf(entity)}>',
   };
 
   static String _escape(String char) => switch (char) {
@@ -342,6 +350,24 @@ final class _Decoder {
       return;
     }
 
+    // A code block is its element's whole range, with nothing else inside:
+    // the formatting of its markup is not the code's.
+    if (tag == 'pre' && !context.inAtom && !context.inCode) {
+      final start = _flushedLength();
+      _walkChildren(element, const _Context(preserveSpace: true, inCode: true));
+      if (_text.length > start) {
+        _entities.add(
+          Entity(
+            start,
+            _text.length - start,
+            EntityKind.codeBlock(language: _languageOf(element)),
+          ),
+        );
+      }
+      if (block) _pendingBreak = true;
+      return;
+    }
+
     final quote = !context.inAtom && (tag == 'blockquote' || tag == 'details');
     final start = quote ? _flushedLength() : 0;
     _walkChildren(element, _contextOf(element, tag, context));
@@ -377,6 +403,37 @@ final class _Decoder {
     return null;
   }
 
+  static final RegExp _languageName = RegExp(r'^[A-Za-z0-9+#._-]+$');
+
+  // A code block's language as code sites write it: an attribute of the
+  // `pre`, or a `language-` / `lang-` class of the `code` inside it.
+  static String? _languageOf(dom.Element pre) {
+    String? valid(String? name) =>
+        name != null && _languageName.hasMatch(name) ? name : null;
+    for (final attribute in const [
+      'lang',
+      'language',
+      'lng',
+      'data-language',
+    ]) {
+      if (valid(pre.attributes[attribute]) case final language?) {
+        return language;
+      }
+    }
+    final classes = (pre.querySelector('code')?.attributes['class'] ?? '')
+        .split(RegExp(r'\s+'));
+    for (final name in classes) {
+      for (final prefix in const ['language-', 'lang-']) {
+        if (name.startsWith(prefix)) {
+          if (valid(name.substring(prefix.length)) case final language?) {
+            return language;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   _Context _contextOf(dom.Element element, String tag, _Context context) {
     if (context.inAtom) return context;
     final css = _declarations(element.attributes['style']);
@@ -386,7 +443,7 @@ final class _Decoder {
         (whiteSpace != null && whiteSpace.startsWith('pre')) ||
         context.preserveSpace;
     if (context.inCode) return context.copyWith(preserveSpace: preserveSpace);
-    if (const {'code', 'tt', 'kbd', 'samp', 'pre'}.contains(tag)) {
+    if (const {'code', 'tt', 'kbd', 'samp'}.contains(tag)) {
       return context.copyWith(
         styles: {...context.styles, EntityStyle.code},
         preserveSpace: preserveSpace,
@@ -570,12 +627,14 @@ final class _Decoder {
   }
 
   // The rich text, dropping entities until they fit: first the styles, then
-  // links, then everything.
+  // code blocks, then everything but mentions and inline content.
   static RichText _build(String plain, List<Entity> entities) {
+    bool styleless(Entity entity) =>
+        entity.kind is! EntityKind$Style || entity.kind == EntityKind.quote;
     for (final keep in <bool Function(Entity)>[
       (_) => true,
-      (entity) =>
-          entity.kind is! EntityKind$Style || entity.kind == EntityKind.quote,
+      styleless,
+      (entity) => styleless(entity) && entity.kind is! EntityKind$CodeBlock,
       (entity) => entity.kind.isAtomic,
     ]) {
       try {

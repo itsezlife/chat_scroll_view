@@ -9,7 +9,9 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'rich_text_html_test.dart' as rich_text_html_test;
+import 'system_rich_clipboard_test.dart' as system_rich_clipboard_test;
 
 void main() {
   group('rich_text_html_test.dart', rich_text_html_test.main);
+  group('system_rich_clipboard_test.dart', system_rich_clipboard_test.main);
 }

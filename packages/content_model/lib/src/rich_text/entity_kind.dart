@@ -35,7 +35,8 @@ enum EntityStyle {
 /// - [EntityKind.link] carries the target `url`;
 /// - [EntityKind.mention] carries the opaque `id` of the mentioned party;
 /// - [EntityKind.inlineContent] carries the [ContentKey] of content embedded in
-///   the text. The span is its plain-text alternative.
+///   the text. The span is its plain-text alternative;
+/// - [EntityKind.codeBlock] carries the code's optional `language`.
 ///
 /// Mentions and inline content are **atomic**: the span stands for one thing,
 /// so editing inside it removes the entity rather than splitting it.
@@ -55,6 +56,11 @@ sealed class EntityKind {
   /// Content embedded in the text, identified by [key].
   const factory EntityKind.inlineContent(ContentKey key) =
       EntityKind$InlineContent;
+
+  /// A block of code: whole lines, holding no other entity and overlapping
+  /// no quote. [language] names the code (`dart`, `c++`); when given it is
+  /// letters, digits and `+ # . _ -`.
+  const factory EntityKind.codeBlock({String? language}) = EntityKind$CodeBlock;
 
   const EntityKind._();
 
@@ -85,7 +91,7 @@ sealed class EntityKind {
   /// resizing it.
   bool get isAtomic => switch (this) {
     EntityKind$Mention() || EntityKind$InlineContent() => true,
-    EntityKind$Style() || EntityKind$Link() => false,
+    EntityKind$Style() || EntityKind$Link() || EntityKind$CodeBlock() => false,
   };
 }
 
@@ -163,4 +169,23 @@ final class EntityKind$InlineContent extends EntityKind {
 
   @override
   String toString() => 'EntityKind.inlineContent($key)';
+}
+
+/// An [EntityKind] for a block of code; see [EntityKind.codeBlock].
+final class EntityKind$CodeBlock extends EntityKind {
+  /// Creates a code block kind, in [language] when given.
+  const EntityKind$CodeBlock({this.language}) : super._();
+
+  /// The language of the code, or null when it names none.
+  final String? language;
+
+  @override
+  bool operator ==(Object other) =>
+      other is EntityKind$CodeBlock && other.language == language;
+
+  @override
+  int get hashCode => Object.hash(EntityKind$CodeBlock, language);
+
+  @override
+  String toString() => 'EntityKind.codeBlock(${language ?? ''})';
 }

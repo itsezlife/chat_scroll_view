@@ -43,19 +43,39 @@ abstract final class ChatCopy {
   /// spans say ([selection]), a tapped code block as code ([code]).
   static model.RichText of(ChatTextCopy copy) => switch (copy) {
     ChatTextCopy(:final content?) => selection(content),
-    ChatTextCopy(origin: ChatCopyOrigin.codeTap) => code(copy.plainText),
+    ChatTextCopy(origin: ChatCopyOrigin.codeTap) => code(
+      copy.plainText,
+      language: copy.codeLanguage,
+    ),
     _ => model.RichText.plain(copy.plainText),
   };
 
-  /// [code] as code, as a code block's Copy gives it.
-  static model.RichText code(String code) => code.isEmpty
-      ? model.RichText.empty
-      : model.RichText(code, [Entity(0, code.length, EntityKind.code)]);
+  /// Tapped [code]: a block of code (it names a [language] or spans lines)
+  /// as a code block, a snippet as inline code.
+  static model.RichText code(String code, {String? language}) {
+    if (code.isEmpty) return model.RichText.empty;
+    final block = language != null || code.contains('\n');
+    return model.RichText(code, [
+      Entity(
+        0,
+        code.length,
+        block
+            ? EntityKind.codeBlock(language: _language(language))
+            : EntityKind.code,
+      ),
+    ]);
+  }
+
+  // A language a code block can carry, or none.
+  static String? _language(String? name) =>
+      name != null && RegExp(r'^[A-Za-z0-9+#._-]+$').hasMatch(name)
+      ? name
+      : null;
 
   /// The text a text selection covers, with what the selected spans say:
   /// their styles, links, and custom emoji selected whole. Messages are a
   /// blank line apart and blocks a line apart, as the plain copy is; a quote
-  /// is quoted and a code block is code.
+  /// is quoted and a fenced block is a code block in its language.
   ///
   /// A custom emoji cut through by the selection keeps only the text it
   /// covers, and what entities cannot hold together falls back to the text.
@@ -85,10 +105,10 @@ abstract final class ChatCopy {
           out.text(_slice(markdownBlockRenderedText(block), range));
         }
         out.entity(start, EntityKind.quote);
-      case MD$Code(:final text):
+      case MD$Code(:final text, :final language):
         final start = out.length;
         out.text(_slice(text, range));
-        out.entity(start, EntityKind.code);
+        out.entity(start, EntityKind.codeBlock(language: _language(language)));
       case _:
         out.text(_slice(markdownBlockRenderedText(block), range));
     }

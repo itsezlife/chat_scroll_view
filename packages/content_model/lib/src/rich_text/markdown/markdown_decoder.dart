@@ -32,6 +32,31 @@ abstract final class MarkdownDecoder {
 
     var i = 0;
     while (i < lines.length) {
+      if (_fenceOpen.firstMatch(lines[i]) case final open?) {
+        final ticks = open.group(1)!.length;
+        final language = open.group(2)!;
+        final code = <String>[];
+        // An unclosed fence runs to the end, as CommonMark reads it.
+        for (i++; i < lines.length && !_closes(lines[i], ticks); i++) {
+          code.add(lines[i]);
+        }
+        i++;
+        startUnit();
+        final offset = plain.length;
+        plain.write(code.join('\n'));
+        if (plain.length > offset) {
+          entities.add(
+            Entity(
+              offset,
+              plain.length - offset,
+              EntityKind.codeBlock(
+                language: _languageName.hasMatch(language) ? language : null,
+              ),
+            ),
+          );
+        }
+        continue;
+      }
       if (!lines[i].startsWith('>')) {
         startUnit();
         writeInline(lines[i]);
@@ -55,6 +80,17 @@ abstract final class MarkdownDecoder {
     }
     return RichText(plain.toString(), entities);
   }
+}
+
+// A backtick fence and the first word of its info string.
+final RegExp _fenceOpen = RegExp(r'^(`{3,})\s*([^`\s]*)[^`]*$');
+
+final RegExp _languageName = RegExp(r'^[A-Za-z0-9+#._-]+$');
+
+bool _closes(String line, int ticks) {
+  final trimmed = line.trimRight();
+  return trimmed.length >= ticks &&
+      trimmed.codeUnits.every((unit) => unit == 0x60);
 }
 
 String _withoutQuoteMarker(String line) =>
