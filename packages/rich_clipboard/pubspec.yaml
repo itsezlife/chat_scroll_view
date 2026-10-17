@@ -1,0 +1,39 @@
+name: rich_clipboard
+description: >
+  RichClipboard adapter: puts rich text on the system clipboard as plain text
+  and HTML, and reads it back, with the platform code for every Flutter
+  platform.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: ">=3.27.0"
+
+dependencies:
+  content_model:
+    path: ../content_model
+  flutter:
+    sdk: flutter
+  # Tolerant parsing of the HTML other apps put on the clipboard (browsers,
+  # editors) is a domain of its own; the codec reads its DOM (ADR 032).
+  html: ^0.15.6
+  meta: ^1.17.0
+  web: ^1.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: dev.chatscrollview.rich_clipboard
+        pluginClass: RichClipboardPlugin
+      ios:
+        pluginClass: RichClipboardPlugin
+      macos:
+        pluginClass: RichClipboardPlugin

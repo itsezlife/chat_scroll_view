@@ -40,6 +40,8 @@ dependencies:
     path: ../packages/panel_presentation
   panel_shell:
     path: ../packages/panel_shell
+  rich_clipboard:
+    path: ../packages/rich_clipboard
   flutter_md:
     git:
       url: https://github.com/itsezlife/md.git
