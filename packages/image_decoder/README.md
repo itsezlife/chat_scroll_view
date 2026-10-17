@@ -14,7 +14,7 @@ ratio and never scaled up, and painted centred in the surface's rectangle.
 ```dart
 final decoders = DecoderRegistry()
   ..register(MediaForm.still, const ImageCodecDecoder())
-  ..register(MediaForm.video, const ImageCodecDecoder()); // animated images
+  ..register(MediaForm.animatedImage, const ImageCodecDecoder());
 final pipeline = AssetPipeline(fetcher: myFetcher, decoders: decoders);
 ```
 
