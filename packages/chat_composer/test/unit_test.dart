@@ -15,11 +15,16 @@ import 'input/composer_controller_extent_test.dart'
 import 'input/composer_controller_test.dart' as composer_controller_test;
 import 'input/composer_draft_contract_test.dart'
     as composer_draft_contract_test;
+import 'input/composer_edit_state_test.dart' as composer_edit_state_test;
 import 'input/composer_field_integration_test.dart'
     as composer_field_integration_test;
 import 'input/composer_lists_paste_test.dart' as composer_lists_paste_test;
 import 'input/composer_mentions_test.dart' as composer_mentions_test;
 import 'input/composer_paste_report_test.dart' as composer_paste_report_test;
+import 'menu/composer_menu_hints_test.dart' as composer_menu_hints_test;
+import 'menu/composer_menu_policy_test.dart' as composer_menu_policy_test;
+import 'menu/composer_pointer_menu_items_test.dart'
+    as composer_pointer_menu_items_test;
 import 'menu/selection_menu_appearance_test.dart'
     as selection_menu_appearance_test;
 import 'menu/selection_menu_items_test.dart' as selection_menu_items_test;
@@ -41,6 +46,8 @@ import 'text/composer_text_controller_edit_test.dart'
     as composer_text_controller_edit_test;
 import 'text/composer_text_controller_formatting_test.dart'
     as composer_text_controller_formatting_test;
+import 'text/composer_text_controller_link_range_test.dart'
+    as composer_text_controller_link_range_test;
 import 'text/composer_text_controller_lists_test.dart'
     as composer_text_controller_lists_test;
 import 'text/composer_text_controller_paint_test.dart'
@@ -58,6 +65,7 @@ import 'view/composer_length_budget_test.dart' as composer_length_budget_test;
 import 'view/composer_list_gutter_golden_test.dart'
     as composer_list_gutter_golden_test;
 import 'view/composer_lists_field_test.dart' as composer_lists_field_test;
+import 'view/composer_pointer_menu_test.dart' as composer_pointer_menu_test;
 import 'view/composer_selection_highlight_golden_test.dart'
     as composer_selection_highlight_golden_test;
 import 'view/composer_selection_menu_golden_test.dart'
@@ -83,6 +91,7 @@ void main() {
     'input/composer_draft_contract_test.dart',
     composer_draft_contract_test.main,
   );
+  group('input/composer_edit_state_test.dart', composer_edit_state_test.main);
   group(
     'input/composer_field_integration_test.dart',
     composer_field_integration_test.main,
@@ -92,6 +101,12 @@ void main() {
   group(
     'input/composer_paste_report_test.dart',
     composer_paste_report_test.main,
+  );
+  group('menu/composer_menu_hints_test.dart', composer_menu_hints_test.main);
+  group('menu/composer_menu_policy_test.dart', composer_menu_policy_test.main);
+  group(
+    'menu/composer_pointer_menu_items_test.dart',
+    composer_pointer_menu_items_test.main,
   );
   group(
     'menu/selection_menu_appearance_test.dart',
@@ -135,6 +150,10 @@ void main() {
     composer_text_controller_formatting_test.main,
   );
   group(
+    'text/composer_text_controller_link_range_test.dart',
+    composer_text_controller_link_range_test.main,
+  );
+  group(
     'text/composer_text_controller_lists_test.dart',
     composer_text_controller_lists_test.main,
   );
@@ -171,6 +190,10 @@ void main() {
   group(
     'view/composer_selection_highlight_golden_test.dart',
     composer_selection_highlight_golden_test.main,
+  );
+  group(
+    'view/composer_pointer_menu_test.dart',
+    composer_pointer_menu_test.main,
   );
   group(
     'view/composer_selection_menu_golden_test.dart',

@@ -19,11 +19,21 @@ class EaseOutCirc extends Curve {
 /// Timings of the pointer menu that are not role durations.
 ///
 /// The open and close fades are the `pointerMenuShow` and `pointerMenuHide`
-/// roles of [ChromeMotion], so reduce-motion reaches them. These three are a
-/// hold and a ripple, not menu motion: a speed multiplier would only make a
+/// roles of [ChromeMotion], so reduce-motion reaches them. These are holds,
+/// a ripple and a timeout, not menu motion: a speed multiplier would only make a
 /// submenu harder to reach, so they stay literal and live with the other
 /// literal durations in this directory.
 abstract final class PointerMenuTiming {
+  /// How long a menu waits for a clipboard probe (is there anything to paste?)
+  /// before it opens with Paste enabled.
+  ///
+  /// The probe may ask the user (a browser, a platform that prompts) and must
+  /// not hold a menu back: the paste itself reads the clipboard again and does
+  /// nothing if it is empty. **UNVERIFIED**: the value is a choice, not a
+  /// measurement; the reference menu waits for its own async hooks without
+  /// a bound.
+  static const Duration clipboardProbe = Duration(milliseconds: 300);
+
   /// How long a submenu holds the highlighted row while the pointer travels
   /// toward it, after the pointer last moved inside the aim triangle
   /// (`kSubmenuAimDelay`, 300 ms).

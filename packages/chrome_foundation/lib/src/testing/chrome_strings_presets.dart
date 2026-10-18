@@ -99,6 +99,10 @@ abstract final class ChromeStringsPresets {
       removeLinkAction: 'Remove link',
       bulletListAction: 'Bullet list',
       numberedListAction: 'Numbered list',
+      spellingMenu: 'Spelling',
+      addToDictionaryAction: 'Add to Dictionary',
+      ignoreWordAction: 'Ignore word',
+      removeFromDictionaryAction: 'Remove from Dictionary',
     ),
     semantics: SemanticsStrings(
       panelOpened: 'Panel opened',
@@ -205,6 +209,10 @@ abstract final class ChromeStringsPresets {
       removeLinkAction: 'Удалить ссылку',
       bulletListAction: 'Маркированный список',
       numberedListAction: 'Нумерованный список',
+      spellingMenu: 'Проверка орфографии',
+      addToDictionaryAction: 'Добавить в словарь',
+      ignoreWordAction: 'Пропустить слово',
+      removeFromDictionaryAction: 'Удалить из словаря',
     ),
     semantics: SemanticsStrings(
       panelOpened: 'Панель открыта',

@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Hosts [child] bottom-anchored the way a chat screen does, inside every
-/// scope the composer requires.
+/// scope the composer requires; [anchoredTop] pins it to the top instead, for
+/// a test of what opens below it.
 Widget composerHarness(
   Widget child, {
   Brightness brightness = Brightness.light,
@@ -13,6 +14,7 @@ Widget composerHarness(
   ChromeStrings? strings,
   EdgeInsets viewPadding = EdgeInsets.zero,
   ChromeMotionSpeed? motionSpeed,
+  bool anchoredTop = false,
 }) {
   final palette = ChromePalette.forBrightness(brightness);
   return MaterialApp(
@@ -36,7 +38,15 @@ Widget composerHarness(
     home: Scaffold(
       backgroundColor: palette.surfaceDim,
       body: Stack(
-        children: [Positioned(left: 0, right: 0, bottom: 0, child: child)],
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            top: anchoredTop ? 0 : null,
+            bottom: anchoredTop ? null : 0,
+            child: child,
+          ),
+        ],
       ),
     ),
   );

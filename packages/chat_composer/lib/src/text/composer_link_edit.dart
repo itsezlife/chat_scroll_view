@@ -12,7 +12,9 @@ import 'package:flutter/widgets.dart' hide RichText;
 /// prompt is modal and takes time: a text that changed under it is another
 /// text, so the answer is dropped, and so it is when the view has gone.
 final class ComposerLinkEdit {
-  /// An ask over the selection of [text] now, through [prompt] on [context].
+  /// An ask over the selection of [text] now, through [prompt] on [context];
+  /// with a [target], over the link at that extent instead, and the selection
+  /// is not touched.
   ///
   /// [isAlive] says whether the view is still there when the prompt completes.
   ComposerLinkEdit({
@@ -20,13 +22,17 @@ final class ComposerLinkEdit {
     required ComposerLinkPrompt prompt,
     required BuildContext context,
     required bool Function() isAlive,
+    TextRange? target,
   }) : _text = text,
        _prompt = prompt,
        _context = context,
        _isAlive = isAlive,
        _asked = text.richText,
        _selection = text.selection,
-       currentUrl = text.selectedLinkUrl;
+       _target = target,
+       currentUrl = target == null
+           ? text.selectedLinkUrl
+           : text.linkAt(target.start)?.url;
 
   final ComposerTextController _text;
   final ComposerLinkPrompt _prompt;
@@ -34,6 +40,7 @@ final class ComposerLinkEdit {
   final bool Function() _isAlive;
   final RichText _asked;
   final TextSelection _selection;
+  final TextRange? _target;
 
   /// The target of the link the selection touched when the ask was made, or
   /// null when it touched none.
@@ -46,6 +53,12 @@ final class ComposerLinkEdit {
     if (!_isAlive()) return;
     final url = await _prompt(_context, currentUrl);
     if (url == null || !_isAlive() || _text.richText != _asked) return;
+    if (_target case final target?) {
+      // The link under the pointer: edited where it is, the selection left
+      // as it was.
+      _text.applyLinkTo(target, url);
+      return;
+    }
     _text.selection = _selection;
     _text.applyLink(url);
   }

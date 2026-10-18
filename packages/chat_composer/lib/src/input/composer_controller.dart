@@ -7,8 +7,11 @@ import 'package:chat_composer/src/query/composer_query_kind.dart';
 import 'package:chat_composer/src/query/query_detector.dart';
 import 'package:chat_composer/src/text/composer_text_controller.dart';
 import 'package:chat_composer/src/text/mention_downgrade.dart';
+import 'package:chrome_foundation/chrome_foundation.dart'
+    show PointerMenuTiming;
 import 'package:content_model/content_model.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart' show Clipboard;
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:listen/listen.dart' as listen;
 
@@ -214,6 +217,81 @@ final class ComposerController {
     for (final entity in value.entities)
       if (entity.kind case EntityKind$Mention(:final id)) id,
   ];
+
+  // --- Edit menu state ---
+
+  /// The field's undo history, which `ComposerField` hands to its editable.
+  ///
+  /// Owned here so the edit menu can ask whether there is anything to undo
+  /// or redo, and do it, without reaching into the editable (whose own history
+  /// is internal). The history records the text value, which is what the
+  /// undo and redo keys step through too, so the menu and the keys agree.
+  final UndoHistoryController undoHistory = UndoHistoryController();
+
+  /// Whether [undo] would change anything now.
+  bool get canUndo => !_disposed && undoHistory.value.canUndo;
+
+  /// Whether [redo] would change anything now.
+  bool get canRedo => !_disposed && undoHistory.value.canRedo;
+
+  /// Steps the field's history back, as the undo key does.
+  void undo() {
+    if (_disposed) return;
+    undoHistory.undo();
+  }
+
+  /// Steps the field's history forward, as the redo key does.
+  void redo() {
+    if (_disposed) return;
+    undoHistory.redo();
+  }
+
+  /// Removes the selected text, leaving a caret where it was, without touching
+  /// the clipboard. Does nothing at a caret.
+  void deleteSelection() {
+    final selection = text.selection;
+    if (_disposed || !selection.isValid || selection.isCollapsed) return;
+    text.replaceRange(selection.start, selection.end, RichText.empty);
+    _caretReveals.signal();
+  }
+
+  /// Selects the whole text.
+  void selectAll() {
+    if (_disposed) return;
+    text.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: text.text.length,
+    );
+  }
+
+  /// Whether a paste would put anything in: the [clipboard] holds text, or
+  /// media an [onPastedMedia] host takes; without a [clipboard], whether the
+  /// platform's holds text.
+  ///
+  /// Reads the clipboard, so it is asked once when a menu opens, not on every
+  /// frame. A clipboard that cannot be read is reported to
+  /// [FlutterError.reportError] and counts as empty; one that does not answer
+  /// within `PointerMenuTiming.clipboardProbe` counts as holding something.
+  Future<bool> canPaste() async {
+    if (_disposed) return false;
+    final source = clipboard;
+    try {
+      return await _holdsPastable(
+        source,
+      ).timeout(PointerMenuTiming.clipboardProbe, onTimeout: () => true);
+    } on Object catch (error, stack) {
+      _report(error, stack, 'while reading the clipboard to enable Paste');
+      return false;
+    }
+  }
+
+  Future<bool> _holdsPastable(RichClipboard? source) async {
+    if (source == null) return Clipboard.hasStrings();
+    final contents = await source.readWithMedia();
+    final held = contents.text;
+    if (held != null && held.plain.isNotEmpty) return true;
+    return onPastedMedia != null && contents.media.isNotEmpty;
+  }
 
   // --- Clipboard ---
 
@@ -584,6 +662,7 @@ final class ComposerController {
     _fieldHeight.dispose();
     _extent.dispose();
     _query.dispose();
+    undoHistory.dispose();
     if (_ownsText) text.dispose();
     if (_ownsFocus) focusNode.dispose();
     if (_ownsScroll) fieldScroll.dispose();

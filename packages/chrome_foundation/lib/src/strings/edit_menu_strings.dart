@@ -38,6 +38,10 @@ final class EditMenuStrings {
     required this.removeLinkAction,
     required this.bulletListAction,
     required this.numberedListAction,
+    required this.spellingMenu,
+    required this.addToDictionaryAction,
+    required this.ignoreWordAction,
+    required this.removeFromDictionaryAction,
   });
 
   /// Row that undoes the last edit.
@@ -109,4 +113,16 @@ final class EditMenuStrings {
 
   /// Addition: formatting row that makes the selected lines a numbered list.
   final String numberedListAction;
+
+  /// Row that opens the spelling submenu of the word under the pointer.
+  final String spellingMenu;
+
+  /// Spelling row that adds the misspelled word to the user dictionary.
+  final String addToDictionaryAction;
+
+  /// Spelling row that stops flagging the word.
+  final String ignoreWordAction;
+
+  /// Spelling row that takes the word out of the user dictionary.
+  final String removeFromDictionaryAction;
 }

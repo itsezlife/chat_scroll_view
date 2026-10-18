@@ -92,6 +92,10 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     removeLinkAction: 'Удалить ссылку',
     bulletListAction: 'Маркированный список',
     numberedListAction: 'Нумерованный список',
+    spellingMenu: 'Проверка орфографии',
+    addToDictionaryAction: 'Добавить в словарь',
+    ignoreWordAction: 'Пропустить слово',
+    removeFromDictionaryAction: 'Удалить из словаря',
   ),
   semantics: SemanticsStrings(
     panelOpened: 'Панель открыта',

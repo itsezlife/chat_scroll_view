@@ -1173,7 +1173,7 @@ void main() {
       return render.localToGlobal(local.center);
     }
 
-    testWidgets('a right click on a word opens the menu at the selection', (
+    testWidgets('a right click opens the pointer menu, not the card', (
       tester,
     ) async {
       await pumpField(tester);
@@ -1187,7 +1187,43 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
+      expect(MenuRig.card, findsNothing);
+      expect(find.byKey(const PointerMenuPanelKey(0)), findsOneWidget);
+    }, variant: desktop);
+
+    testWidgets('under the mobile menu policy a right click still opens the '
+        'card at the selection', (tester) async {
+      tester.view
+        ..physicalSize = const Size(800, 900)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final composer = ComposerController();
+      addTearDown(composer.dispose);
+      await tester.pumpWidget(
+        composerHarness(
+          ComposerView(
+            controller: composer,
+            spec: ComposerSpec(),
+            menuPolicy: const ComposerMenuPolicy.mobile(),
+            shortcuts: const ComposerShortcutPolicy.desktop().shortcuts,
+          ),
+        ),
+      );
+      composer
+        ..requestFocus()
+        ..restore(long, selection: const TextSelection.collapsed(offset: 0));
+      await tester.pump();
+
+      final gesture = await tester.startGesture(
+        pointOnWord(tester, 5),
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+
       expect(MenuRig.card, findsOneWidget);
+      expect(find.byKey(const PointerMenuPanelKey(0)), findsNothing);
     }, variant: desktop);
 
     testWidgets('a left click does not open it', (tester) async {

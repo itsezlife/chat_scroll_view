@@ -31,6 +31,15 @@ class PastePlainTextIntent extends Intent {
   const PastePlainTextIntent();
 }
 
+/// Asks the composer to open its pointer menu from the keyboard, at the caret.
+///
+/// Bound to the Menu key and Shift+F10 by the desktop policy; answered only
+/// where the composer's menu policy has a pointer menu.
+class ShowComposerMenuIntent extends Intent {
+  /// Creates the intent.
+  const ShowComposerMenuIntent();
+}
+
 // Shift+V with the platform's shortcut key: Command on Apple platforms,
 // Control elsewhere. Both are bound, since a policy is per input family, not
 // per platform.
@@ -188,6 +197,10 @@ final class ComposerShortcutPolicy$Desktop extends ComposerShortcutPolicy {
         const SubmitComposerIntent(),
     const SingleActivator(LogicalKeyboardKey.escape):
         const DismissComposerHeaderIntent(),
+    const SingleActivator(LogicalKeyboardKey.contextMenu):
+        const ShowComposerMenuIntent(),
+    const SingleActivator(LogicalKeyboardKey.f10, shift: true):
+        const ShowComposerMenuIntent(),
     if (!inBrowser) ..._pastePlain,
     ..._formatting,
     ..._listEditing,
