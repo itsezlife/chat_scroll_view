@@ -3,6 +3,7 @@
 /// message's media that gate it (research 05, section 2).
 library;
 
+import 'package:chat_scroll_view/chat_scroll_view.dart' show ChatEmojiPolicy;
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/large_emoji_setting.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
@@ -122,6 +123,60 @@ void main() {
 
       expect(closed.emojiOnlyOf(emoji), isNull);
       expect(admin.emojiOnlyOf(emoji), isNotNull);
+    });
+
+    group('by platform family (04 section 4, rows 1 and 2)', () {
+      const closed = LargeEmojiPolicy(enabled: true, stickersAllowed: false);
+      final four = _message('\u{1F44D}\u{1F680}\u{1F525}\u{1F600}');
+
+      test('Android keeps the sticker permission as a gate', () {
+        expect(
+          closed.emojiOnlyOf(emoji, platform: const ChatEmojiPolicy.android()),
+          isNull,
+        );
+      });
+
+      test('iOS and desktop do not gate on it', () {
+        expect(
+          closed.emojiOnlyOf(emoji, platform: const ChatEmojiPolicy.ios()),
+          isNotNull,
+        );
+        expect(
+          closed.emojiOnlyOf(emoji, platform: const ChatEmojiPolicy.desktop()),
+          isNotNull,
+        );
+      });
+
+      test('desktop shows at most 3 regular emoji large; the others show '
+          'any number', () {
+        const policy = LargeEmojiPolicy(enabled: true);
+
+        expect(
+          policy.emojiOnlyOf(emoji, platform: const ChatEmojiPolicy.desktop()),
+          isNotNull,
+        );
+        expect(
+          policy.emojiOnlyOf(four, platform: const ChatEmojiPolicy.desktop()),
+          isNull,
+        );
+        expect(
+          policy.emojiOnlyOf(four, platform: const ChatEmojiPolicy.android()),
+          isNotNull,
+        );
+        expect(
+          policy.emojiOnlyOf(four, platform: const ChatEmojiPolicy.ios()),
+          isNotNull,
+        );
+      });
+
+      test('the setting and media still gate every platform', () {
+        const off = LargeEmojiPolicy(enabled: false);
+
+        expect(
+          off.emojiOnlyOf(emoji, platform: const ChatEmojiPolicy.desktop()),
+          isNull,
+        );
+      });
     });
 
     test('a different policy is a different value', () {

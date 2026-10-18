@@ -29,7 +29,8 @@ class DemoMessageMeta extends StatelessWidget {
   /// Opacity of the “edited” prefix (0→1 during edited-enter).
   final double editedOpacity;
 
-  static String _formatTime(DateTime dt) {
+  /// `HH:mm` of [dt] in local time.
+  static String formatTime(DateTime dt) {
     final local = dt.toLocal();
     final h = local.hour.toString().padLeft(2, '0');
     final m = local.minute.toString().padLeft(2, '0');
@@ -38,7 +39,7 @@ class DemoMessageMeta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final time = _formatTime(createdAt);
+    final time = formatTime(createdAt);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[

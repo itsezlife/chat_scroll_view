@@ -5,7 +5,7 @@ present it: no bubble, enlarged, a single emoji as a sticker-sized animation.
 The host classifies the body with a pure function in `content_model` and passes
 the viewport a body kind; the viewport never re-detects.
 
-**Status**: Accepted, amended for sticker playback and the tap-interaction seams  
+**Status**: Accepted, amended for sticker playback and the tap-interaction seams, and for per-platform presentation  
 **Date**: 2026-10-18  
 **Relates to**: [ADR 012](012-cross-platform-selection-policies.md), [ADR 021](021-content-identity-and-collections.md), [ADR 022](022-asset-cache-and-media-pipeline.md), [ADR 029](029-host-integration.md)
 
@@ -16,7 +16,11 @@ of emoji and whitespace only, no entities except custom emoji, gated by a
 default-on setting. A single emoji becomes a sticker-sized item (animated
 pack emoji or custom emoji); several become enlarged text from fixed per-count
 size tables, independent of the user's text size. There is no bubble; the time
-and reactions sit on the body.
+and reactions sit on the body. Beyond that the three differ almost completely:
+sizes, inset, count cap, where the time and the reply sit, what the time's
+container looks like, what a right-to-left chat mirrors and how selection
+shows. They are not two families (mobile and desktop) but three (Android, iOS,
+desktop), so the platform is a strategy, not a flag; see the amendment below.
 
 ## Decided
 
@@ -25,9 +29,10 @@ and reactions sit on the body.
 | Classification | `EmojiOnlyText.of(RichText)` in `content_model` returns the ordered items (unicode sequence or document key) and line breaks, or null. The rule is Android's permissive one: emoji graphemes, whitespace and newlines only; the only entity allowed is inline content with a document key; any style, link, mention, quote or code block disqualifies; no count cap. The grapheme grammar is one scanner in `content_model`, not a second regular expression. Its one table is the set of basic-plane code points that start an emoji, carried as a constant inside `content_model`: see the exception below. |
 | Who calls | The host, when it builds the message model. It adds the two facts only it has (the message carries no media, a link preview counting as media; the large-emoji setting and the chat's permission) and passes the result as a body kind. The viewport never classifies. |
 | Body | One viewport body widget, `ChatEmojiBody`, with two layouts. **Sticker** when there is exactly one item and the host resolved it to a document (a host-owned unicode-to-document map for the animated pack, or the custom emoji's own document). **Text** otherwise. No bubble. |
-| Sizes | Android's tables, as a value the host may override. Text layout: font steps of 81.6, 55.2, 40.8, 33.6, 26.4, 22.8 dp by item count, one step larger when every item is a custom emoji; item box is the font plus 4 dp; text scale is ignored; newlines are honoured; with a header above, wrap width is capped at 65 % of the row's maximum. Sticker layout: `min(viewport width, height) × 0.5 × 0.625` (about 112 dp) with a 10 dp inset. Both use explicit-extent asset presets that decode at the drawn size at device pixel ratio, one cache entry per step. |
+| Platform | `ChatEmojiPolicy` (`$Android`, `$Ios`, `$Desktop`; web follows desktop), a pure-Dart strategy the host picks once from the platform (`ChatEmojiPolicy.forPlatform`). It owns the font tables, the sticker extent and inset, the count cap, the sticker-permission gate, the wrap under a header, where a header goes and whether a right-to-left chat mirrors. See the amendment below. |
+| Sizes | Per platform, from the policy. Android's, as a value the host may override (`ChatEmojiSizes`): text layout font steps of 81.6, 55.2, 40.8, 33.6, 26.4, 22.8 dp by item count, one step larger when every item is a custom emoji; item box is the font plus 4 dp; text scale is ignored; newlines are honoured; sticker layout `min(viewport width, height) × 0.5 × 0.625` (112.5 dp on a 360 dp phone) with **no** inset. iOS: a 94 pt font scaled and floored by the longer of the longest line and the line count, a fixed 112 pt sticker in a 10 pt inset. Desktop: 38 px images 2 px apart, a fixed 112 px sticker, custom emoji lines of 112, 78 and 58 px by their larger dimension. All use explicit-extent asset presets that decode at the drawn size at device pixel ratio, one cache entry per step. |
 | Playback | A host policy, `ChatStickerPlayback`, not a rule of the body: loop, play once then rest on the first or the last frame, or still. The reference default plays the single unicode sticker once and loops a custom emoji. A sticker that plays once does so the first time the open chat shows it, decided by a host-held `ChatStickerPlayLedger` (per chat controller, [ADR 029](029-host-integration.md)), not by the cache. Unicode items in the text layout are glyphs at the step font; a host with the animated pack may opt in through the same resolver. See the amendment below. |
-| Chrome | Stays host-side as for every body: time pill over the body's bottom-right, reactions below, reply or forward header beside the sticker layout and above the text layout. |
+| Chrome | Stays host-side as for every body, and is per platform: the host reads the body's geometry (`ChatEmojiBody.geometryFor`: the box, the text rectangle and trailing edge, the last line, the sticker's art rectangle, the strip the host reserved under the items) and places the time pill, reply or forward header and reactions by the platform's rules. Where each goes is in the amendment below; the reply is **above** the text and **beside** the sticker on Android only. |
 | Selection and taps | No text selection: `ChatEmojiBody` registers with the selection controller as a non-text body, so a long-press is message selection or the menu under the selection policy ([ADR 012](012-cross-platform-selection-policies.md)). Copy is the message's `RichText` through the existing message Copy. A custom emoji tap is `ChatInlineHit.embed`; the single sticker's tap is `ChatInlineHit.sticker` on the drawn sticker only, the body replays the animation itself under a platform tap policy, and the host gets the tap as `ChatStickerActivated`. See the amendment below. |
 | Composer | Unchanged, with no preview. An emoji-only draft is not trimmed on send, so a multi-line arrangement survives. |
 | Seam | `ChatEmojiBody` is a second viewport-provided body beside the markdown body; both register with the selection controller, one as a text body and one not. That registration kind is the whole seam for later media bodies: no new abstraction. |
@@ -47,6 +52,87 @@ every catalogue key and every basic-plane symbol in the window through
 `EmojiOnlyText.of` and fails when the set and the catalogue disagree in either
 direction. A change of the
 catalogue's Unicode version re-runs that test; the constant is updated with it.
+
+## Amendment: per-platform presentation and chrome
+
+The first decision treated the three clients as one, with Android's numbers.
+They are not one, and two of its statements were Android's alone: the reply is
+above the text layout and beside the sticker layout **on Android only** (iOS
+puts it beside both, at the screen edge away from the message; desktop puts it
+beside when the row holds both and above otherwise), and an enlarged run has no
+count cap **except on desktop**, where more than three regular emoji is an
+ordinary bubble (custom emoji lines are not capped). The decision is replaced
+by the following.
+
+### The body's surface
+
+`ChatEmojiBody` takes a `ChatEmojiPolicy` (Android's by default), a
+`parentWidth` (the share a header's wrap is of; the viewport's width by
+default) and a `bottomReserve`. `ChatEmojiBody.geometryFor` returns the same
+`ChatEmojiGeometry` the widget lays out to, so a host places chrome before the
+body is built and the two cannot disagree. The sticker's inset is the policy's,
+not a constant of the sizes: none on Android and desktop, 10 pt on iOS. The
+wrap under a header is the policy's rule too: Android caps it at 65 % of the
+**parent** width (not of the row's maximum), iOS takes 45 pt off the row's
+width, desktop narrows nothing. A platform that does not mirror (Android, iOS)
+lays the lines out left to right in a right-to-left chat; desktop mirrors.
+
+### What each platform does
+
+| Concern | Android | iOS | Desktop |
+| ------- | ------- | --- | ------- |
+| Large emoji gated by the chat's sticker permission | yes: the whole feature is off in a chat that bans stickers | no | no |
+| Count cap | none | none | 3 regular emoji; more is a bubble |
+| Time pill, text layout | in a strip under the emoji (3 dp below them, 17 dp high, 3 dp under it), 1 dp (incoming) or 4 dp (outgoing) inside the text's end | in a strip under the text, 4 pt inside its end and bottom (20 pt strip) | beside the content, bottom-aligned (incoming); under it (outgoing) |
+| Time pill, sticker layout | over the art, `[-7, +10]` of its bottom edge, 5 dp inside its end | 4 pt inside the frame, so 6 pt outside the art | beside the sticker (incoming); over its bottom-end corner (outgoing) |
+| Time pill shown | always | always | on hover, as the last own message, while sending or failed; an outgoing large emoji always |
+| Pill shape | 17 dp, radius 12, 6 dp padding, 12 dp text, 60 % of the service alpha | fully rounded, 17 pt, 7 pt padding, 11 pt text | radius about 6, 8 x 2 padding, 13 px text |
+| Ticks | 12 x 12 checks 4.8 dp apart, clock, error square | 11 x 9 vector checks 6 pt apart, clock | Android's glyphs in a 24 px status space |
+| Edited | one string, `edited 09:05`, part of the pill's width | the same | the same |
+| Reply or forward | above the text, left-aligned to its box for either sender; beside the sticker, an incoming one 18 dp from it, an outgoing one pinned 16 dp from the row's left edge | beside both layouts, pinned to the edge away from the message | beside when the row holds both, else above |
+| Header panel | service colour at full alpha, radius 4 (6 for a forward with a reply), 14 dp text, a 3 dp bar | the same fill, radius 4, 14 pt, a 3 pt bar | service colour, radius about 6, 13 px |
+| Reactions | 26 dp chips under the pill, outgoing right-aligned | under the frame, 4 pt gap | under the element |
+| Mirrors in a right-to-left chat | no | no | yes, wholly |
+| Selection | the viewport's whole-row tint; nothing of the body's own | a checkbox only | the glyphs are recoloured |
+
+The service colour behind pill and panels derives from the chat's wallpaper
+(Android: the wallpaper darkened in HSV at alpha `0x66`, the pill at 60 % of it;
+iOS: black at 0.2 over a wallpaper, `#748391` at 0.45 over none; desktop's
+palette is not known, so Android's derivation). The host supplies the wallpaper
+colour; a host without one gets a documented default (`#748391`), so the colour
+is a platform derivation of a plausible wallpaper, never a fixed black.
+
+### Divergences from the reference, with their reasons
+
+Every value the sources at hand did not give is a single named constant that
+takes the nearest verified platform's value. None is silently chosen.
+
+| Divergence | Value taken | Why |
+| ---------- | ----------- | --- |
+| Android clock size (`EmojiChrome$Android.unverifiedClockSize`) | 12 dp | the clock drawable's intrinsic size was not traced; the check's size |
+| Android check and eye glyphs | paths traced by eye from the 3x bitmaps | the app ships no bitmap; a path at the bitmap's size and stroke |
+| iOS pill height (`unverifiedPillHeight`) | 17 pt | the date line's height is a font metric; 11 pt text plus 2 + 2 |
+| iOS reply and forward panel height (`unverifiedHeaderHeight`, `unverifiedForwardHeight`) | 40 and 44 pt | the nodes' line heights are font metrics |
+| iOS views icon and its text gap (`unverifiedViewsIconHeight`, `unverifiedViewsSpace`) | 9 pt high, 4 pt | the bundle icon was not read |
+| iOS item box | font + 4 | the glyph line's height is a font metric; the preset's box padding |
+| iOS clock position | centred in the pill | the sources give an offset in a frame not traced |
+| Desktop pill radius (`unverifiedRadius`) | 6 px | `roundRadiusLarge` is in a library absent from the sources |
+| Desktop tick size, gap, inset (`unverifiedTickSize`, `unverifiedTickGap`, `unverifiedStatusInset`) | 12 px, 4.8, 8 | the sprites' sizes are absent; Android's |
+| Desktop views icon and gap | 12 px wide, 8 | the icon is part of a 20 px block; its split is not given |
+| Desktop 6-7 and 8+ custom emoji (`unverifiedLargeCustomBox`, `unverifiedNormalCustomBox`) | 38 and 26.8 px | the emoji-size table is absent; the isolated size, and Android's smallest box |
+| Desktop reactions gap (`unverifiedReactionsGap`) | 4 px | the message widget's own spacing is not in the sources; iOS's |
+| Desktop palette | Android's derivation | `msgServiceBg`, `msgServiceFg` and the selection overlay are in resources that are absent |
+| Desktop image box | font 34 in a 38 px box | the reference draws pre-rendered 36 px images with a 1 px outline; this draws a glyph or an asset in the box |
+| Reaction chip internals | 8 padding, 16 emoji, 4 gap | only the chip's height (26) and gap (4) were traced |
+| Wallpaper default | `#748391` | the demo has no wallpaper; the iOS built-in wallpaper's tint is the one neutral colour the sources give |
+| Row margins | the host's list padding | the clients' 9 dp / 9 pt / 16 px outer margins are the list's, not the chrome's; a pinned header is placed in the row frame |
+| Time text position | centred in the pill | the reference derives it from a font's line height |
+| Jump highlight | the viewport's | each client highlights differently; it is not the body's |
+| Reply preview width | what the row leaves less the panel's padding | the reference's per-layout formulas depend on the screen's displayed size |
+
+Not modelled: the share button and the avatar column's offsets (the host's
+row), a tablet's size rule, desktop's wide-chat mode (outgoing on the left),
+and a failed message's error beside the node on iOS.
 
 ## Amendment: sticker playback, replay and the interaction seams
 
@@ -115,5 +201,8 @@ iOS and Desktop where they differ).
 
 - A host that never calls the classifier shows every emoji-only message as an
   ordinary markdown body, which is correct but not parity.
-- The size tables are Android's values traced from its source; a change in the
-  reference is a change here, recorded with its reason.
+- The size tables are the platforms' values traced from their sources; a change
+  in the reference is a change here, recorded with its reason.
+- A host picks one `ChatEmojiPolicy` for the platform it runs and passes it to
+  the body and to its chrome; mixing a policy of one platform with the chrome of
+  another is a host error the types do not catch.

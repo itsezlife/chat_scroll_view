@@ -188,6 +188,11 @@ void main() {
                       playback: playback,
                       tapPolicy: tapPolicy,
                       isActive: isActive,
+                      // A sticker takes the policy with an inset around the
+                      // art, so a tap beside it is still inside the cell.
+                      policy: sticker == null
+                          ? const ChatEmojiPolicy.android()
+                          : const ChatEmojiPolicy.ios(),
                       embedFactory: factory,
                     ),
                   ),
@@ -200,10 +205,10 @@ void main() {
     await tester.pump();
   }
 
-  // The sticker is 125 dp square, 10 dp inside the body's box.
+  // The sticker is 112 pt square, 10 pt inside the body's box (iOS).
   Rect drawn(WidgetTester tester) =>
       (tester.getTopLeft(find.byType(ChatEmojiBody)) + const Offset(10, 10)) &
-      const Size.square(125);
+      const Size.square(112);
 
   final threeCustom = EmojiOnly([
     for (var i = 0; i < 3; i++) EmojiOnlyItem(ContentKey.document('d$i')),
@@ -509,8 +514,8 @@ void main() {
 
       await pump(tester, selection, oneThumb, sticker: _pack);
 
-      // 400 x 800 viewport: 400 x 0.5 x 0.625 = 125 dp at 1x.
-      expect(producer.attempts.single.request.spec.pixelWidth, 125);
+      // iOS: a fixed 112 pt, at 1x.
+      expect(producer.attempts.single.request.spec.pixelWidth, 112);
     });
   });
 

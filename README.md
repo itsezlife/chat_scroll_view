@@ -63,15 +63,17 @@ row and reveals nothing, and a press held longer than 500 ms reveals nothing
 ## Emoji-only bodies
 
 `ChatEmojiBody` is the second body the viewport ships: a bubble-less message
-of nothing but emoji, laid out as Telegram Android does. The host classifies
+of nothing but emoji, laid out by the platform's `ChatEmojiPolicy` (`$Android`,
+`$Ios`, `$Desktop`: three families that differ in sizes, inset, count cap, wrap
+and mirroring, picked once with `ChatEmojiPolicy.forPlatform`). The host classifies
 the text once, when it builds the message (`EmojiOnlyText.of` in
 `content_model`), and shows this body instead of `ChatMarkdownBody`; the
 viewport never re-detects.
 
 | Layout | When | Paints |
 | --- | --- | --- |
-| Sticker | One item and the host resolved it to a document (`sticker:`) | A square of `min(screen width, height) x 0.5 x 0.625` (112.5 dp on a phone) in a 10 dp inset; a custom emoji's sticker loops, a unicode emoji's plays once |
-| Text | Anything else | Squares of the font step the count gives (`ChatEmojiSizes`: 81.6 down to 22.8 dp, a custom-only message one step larger, box = font + 4 dp), a unicode emoji as a glyph; the text scale plays no part |
+| Sticker | One item and the host resolved it to a document (`sticker:`) | A square the policy sizes (Android `min(screen width, height) x 0.5 x 0.625`, 112.5 dp on a phone, no inset; iOS 112 pt in a 10 pt inset; desktop 112 px); a custom emoji's sticker loops, a unicode emoji's plays once |
+| Text | Anything else | Squares of the font step the policy gives (Android `ChatEmojiSizes`: 81.6 down to 22.8 dp, a custom-only message one step larger, box = font + 4 dp; iOS 94 pt down to 19; desktop 38 px images), a unicode emoji as a glyph; the text scale plays no part |
 
 The body registers with the facade as a **non-text body**
 (`ChatSelectionController.putNonTextBody`): there is nothing to select, a long
@@ -94,7 +96,7 @@ body.
 | `isActive:` (row visibility, app lifecycle, route focus, power policy combined) | Expect the body to read them: an inactive row costs no ticks, shows no sticker rectangle and drops a remote interaction |
 | `tapPolicy:` only to change the replay tap slop (zero on both strategies) or the mobile long press | Widen the slop without confirming the claim that a tap near the sticker replays: no reference client does |
 | A listener for `ChatStickerActivated` (the emoji, message id, `stickerRect`, monotonic `tapTime`) to build an interaction effect and a peer broadcast on, and `ChatSelectionController.playRemoteInteraction(messageId)` for one that arrives (null: drop it, send no acknowledgement) | Expect the viewport to draw the effect or send anything; it ships the seams |
-| The time pill, reactions, reply and forward header, placed by `ChatEmojiBody.layoutKindFor` (beside a sticker, above text) and `hasHeader` (text wraps at 65 % of the row's width under a header) | Expect the body to draw chrome, or to be wrapped in a bubble |
+| The time pill, reactions, reply and forward header, placed per platform from `ChatEmojiBody.geometryFor` (the box, text rectangle and trailing edge, last line, art rectangle, the strip of `bottomReserve`) and `ChatEmojiPolicy.headerPlacementFor`; `hasHeader` when a header narrows the text's wrap by the policy's rule | Expect the body to draw chrome, to be wrapped in a bubble, or put Android's chrome on every platform |
 | `semanticsLabel` with the message's plain text when it has it | Rely on the default label for a custom emoji: `EmojiOnly` keeps no text for one |
 
 ## Example

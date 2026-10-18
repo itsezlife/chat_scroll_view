@@ -61,6 +61,8 @@ export 'src/chat_scroll/chat_sticker_tap_policy.dart';
 export 'src/chat_widgets/chat_bubble_metrics.dart';
 export 'src/chat_widgets/chat_code_block_painter.dart';
 export 'src/chat_widgets/chat_emoji_body.dart';
+export 'src/chat_widgets/chat_emoji_geometry.dart' show ChatEmojiGeometry;
+export 'src/chat_widgets/chat_emoji_policy.dart';
 export 'src/chat_widgets/chat_emoji_sizes.dart';
 export 'src/chat_widgets/chat_floating_header_marker.dart';
 export 'src/chat_widgets/chat_keyboard_shortcuts.dart';

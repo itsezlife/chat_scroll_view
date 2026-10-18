@@ -654,12 +654,20 @@ A message of nothing but emoji is shown without a bubble, large
    line breaks between them, or null. The viewport never re-detects, and a body
    is not classified in a build method. Unicode emoji travel as characters, not
    as `unicode:` inline content, which would disqualify the message.
-2. **Weigh the host's facts**: the **large-emoji setting** (on until the user
-   turns it off, kept in the `KeyValueStore`), the chat's permission (stickers
-   allowed in the chat, or the user is an admin) and the message having no
-   media (a link preview counts as media). Fold them into one decision and
-   listen to it, so the setting applies while a chat is open.
-3. **Mount `ChatEmojiBody`** instead of the bubble with:
+2. **Pick the platform's policy once**, `ChatEmojiPolicy.forPlatform()`
+   (`$Android`, `$Ios`, `$Desktop`; web is desktop), and use that one policy for
+   the body and for the chrome around it. The three differ almost completely
+   (sizes, inset, where the time and the reply sit, what a right-to-left chat
+   mirrors), so the platform is a strategy, not a flag.
+3. **Weigh the host's facts**: the **large-emoji setting** (on until the user
+   turns it off, kept in the `KeyValueStore`), the message having no media (a
+   link preview counts as media), and what the policy says: on Android the
+   chat's permission gates the feature (stickers allowed in the chat, or the
+   user is an admin; `gatesOnStickerPermission`), on desktop an enlarged run
+   holds at most three regular emoji (`admits`; more is an ordinary bubble). Fold
+   them into one decision and listen to it, so the setting applies while a chat
+   is open.
+4. **Mount `ChatEmojiBody`** instead of the bubble with:
    - `embedFactory: (content, preset) => ContentEmbed(scope: assets, content:
      content, preset: preset)`, stable for the screen. It is not an
      `InlineEmbedResolver`: the body sizes by count with presets of its own;
@@ -679,14 +687,37 @@ A message of nothing but emoji is shown without a bubble, large
      lifecycle, route focus and the power policy;
    - `tapPolicy`: only to change the replay tap slop (zero: a tap must land on
      the drawn sticker) or the mobile long press;
-   - `hasHeader` when a reply or forward header sits above the text layout.
-4. **Place the chrome**: the time pill over the body's bottom trailing corner
-   (radius 4 for text, 12 for a sticker, a 0.6-alpha service colour), reactions
-   below, the header **beside** a sticker and **above** enlarged text.
-5. **Do not trim on send** a draft that is emoji-only (`EmojiOnlyText.of` over
+   - `policy`: the one picked above;
+   - `hasHeader` when a reply or forward header is shown with the text layout:
+     the text then wraps by the policy's rule (Android 65 % of the parent width,
+     iOS 45 pt less, desktop unchanged);
+   - `parentWidth` when the chat is not the whole window (the width that share is
+     of; the viewport's by default);
+   - `bottomReserve`: the strip the chrome needs under the items.
+5. **Place the chrome** from the body's geometry, per platform. Ask
+   `ChatEmojiBody.geometryFor` (the same code the body lays out with, so a host
+   places chrome before the body is built) for the box, the text rectangle and
+   its trailing edge, the last line, the sticker's art rectangle (inside the
+   policy's inset: none on Android and desktop, 10 pt on iOS) and the reserved
+   strip. The pill, header and reactions then go where the platform puts them:
+
+   | | Android | iOS | Desktop |
+   | --- | --- | --- | --- |
+   | Time | always; a strip under the text (3 dp gap, 17 dp pill, 3 dp), over the sticker's bottom | always; 4 pt inside the frame's end and bottom | beside the content (incoming) or under or over it (outgoing); on hover, last own, sending, failed; an outgoing large emoji always |
+   | Pill | 17 dp, radius 12, 6 dp padding, 12 dp text | fully rounded, 11 pt | radius about 6, 8 x 2 padding, 13 px |
+   | Ticks and edited | 12 dp checks 4.8 dp apart, clock, error; `edited 09:05` is one string | 11 x 9 pt vector checks 6 pt apart; one string | Android's glyphs; one string |
+   | Reply | above the text, beside the sticker | beside both, at the screen edge away from the message | beside when it fits, else above |
+   | RTL | no mirror | no mirror | mirrors wholly |
+   | Selection | the viewport's row tint | checkbox only | glyphs recoloured |
+
+   The service colour behind pill and headers is derived from the chat's
+   wallpaper, a **host input** (its average colour; none gives a documented
+   default). The example's `EmojiChrome` is a working, tested implementation; it
+   is host code, not a package, and its divergences are the table in the ADR.
+6. **Do not trim on send** a draft that is emoji-only (`EmojiOnlyText.of` over
    the text once unicode inline content is dropped to characters): the blank
    lines and spaces around the emoji are the sender's arrangement.
-6. **Taps** are `ChatEmbedActivated` for a custom emoji and `ChatStickerActivated`
+7. **Taps** are `ChatEmbedActivated` for a custom emoji and `ChatStickerActivated`
    for the lone sticker; what they mean is the host's.
 
 #### Sticker interaction seams
@@ -864,7 +895,7 @@ not use the hover-open toggle region.
 | Embed seams, sticker lookup, playback policy, played-once ledger | `example/lib/src/features/chat/utils/chat_body_host.dart`, `sticker_play_memory.dart` |
 | Stand-in for the peer broadcast of a sticker tap | `example/lib/src/features/chat/utils/sticker_interaction_stub.dart` |
 | Large-emoji setting and gate | `example/lib/src/features/chat/data/large_emoji_setting.dart`, `utils/large_emoji_policy.dart` |
-| Emoji-only message chrome | `example/lib/src/features/chat/widgets/demo_emoji_message.dart` |
+| Emoji-only message chrome | `example/lib/src/features/chat/widgets/demo_emoji_message.dart` and `emoji_message/` (placement per platform: `emoji_chrome.dart`) |
 | Message bodies, interaction handlers | `example/lib/src/features/chat/widgets/demo_message.dart`, `view/widget_chat_screen.dart` |
 | Showcase conversation (`--dart-define=CHAT_SOURCE=showcase`) | `example/lib/src/features/chat/data/showcase_bodies.dart` |
 | Popup anchor, composer view, apply-formatting toast | `example/lib/src/features/chat/widgets/chat_composer.dart` |

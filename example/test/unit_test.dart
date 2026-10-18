@@ -26,6 +26,9 @@ import 'features/chat/chat_copy_test.dart' as chat_copy_test;
 import 'features/chat/chat_data_source_bodies_test.dart'
     as chat_data_source_bodies_test;
 import 'features/chat/chat_draft_store_test.dart' as chat_draft_store_test;
+import 'features/chat/emoji_chrome_test.dart' as emoji_chrome_test;
+import 'features/chat/emoji_service_colors_test.dart'
+    as emoji_service_colors_test;
 import 'features/chat/joined_collection_source_test.dart'
     as joined_collection_source_test;
 import 'features/chat/large_emoji_test.dart' as large_emoji_test;
@@ -121,6 +124,11 @@ void main() {
   group(
     'features/chat/joined_collection_source_test.dart',
     joined_collection_source_test.main,
+  );
+  group('features/chat/emoji_chrome_test.dart', emoji_chrome_test.main);
+  group(
+    'features/chat/emoji_service_colors_test.dart',
+    emoji_service_colors_test.main,
   );
   group('features/chat/large_emoji_test.dart', large_emoji_test.main);
   group('features/chat/link_activation_test.dart', link_activation_test.main);

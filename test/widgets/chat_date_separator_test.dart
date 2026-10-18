@@ -261,15 +261,12 @@ void main() {
         );
         await tester.pump();
         final ro = _render(tester);
-        final viewportTop = tester
-            .getTopLeft(find.byType(ChatScrollView))
-            .dy;
+        final viewportTop = tester.getTopLeft(find.byType(ChatScrollView)).dy;
         // Row 0 opens day 1 with a 24 px inline separator above its body.
         double oldestSeparatorTop() =>
             tester.getTopLeft(find.text('msg-0')).dy - viewportTop - 24;
         bool headerPainted() =>
-            ro.debugFloatingHeaderVisible &&
-            ro.debugFloatingHeaderOpacity > 0;
+            ro.debugFloatingHeaderVisible && ro.debugFloatingHeaderOpacity > 0;
         void expectOneChip(String frame) {
           final separatorTop = oldestSeparatorTop();
           final inlinePainted = ro.debugDividerOpacity(0)! > 0;

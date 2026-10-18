@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:catalog_assets/catalog_assets.dart'
     show InlineEmbed, InlineEmbedPaintContext;
-import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_flow.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_geometry.dart';
 import 'package:flutter/rendering.dart';
 import 'package:meta/meta.dart';
 
@@ -77,38 +77,27 @@ final class ChatEmojiEmptyLeaf extends ChatEmojiLeaf {
   void paint(Canvas canvas, Rect rect, Color? tint) {}
 }
 
-/// Lays out and paints the items of an emoji-only body in squares of one
-/// side, by [ChatEmojiFlow].
+/// Lays out and paints the items of an emoji-only body by its
+/// [ChatEmojiLayoutSpec].
 ///
-/// It wraps at [wrapFraction] of the incoming maximum width and shrinks to
-/// the widest line. The text scale plays no part: sizes come from the box.
+/// It wraps at the spec's limit of the incoming maximum width and shrinks to
+/// the widest line, then adds the strip the host reserved. The text scale
+/// plays no part: sizes come from the spec.
 @internal
 final class RenderChatEmojiBody extends RenderBox {
   /// Creates the render object.
   RenderChatEmojiBody({
     required List<ChatEmojiLeaf> leaves,
-    required List<int> lineBreaksBefore,
-    required double box,
-    required double inset,
-    required double wrapFraction,
-    required TextDirection textDirection,
+    required ChatEmojiLayoutSpec spec,
     Color? tint,
   }) : _leaves = leaves,
-       _lineBreaksBefore = lineBreaksBefore,
-       _box = box,
-       _inset = inset,
-       _wrapFraction = wrapFraction,
-       _textDirection = textDirection,
+       _spec = spec,
        _tint = tint;
 
   List<ChatEmojiLeaf> _leaves;
-  List<int> _lineBreaksBefore;
-  double _box;
-  double _inset;
-  double _wrapFraction;
-  TextDirection _textDirection;
+  ChatEmojiLayoutSpec _spec;
   Color? _tint;
-  ChatEmojiFlow? _flow;
+  ChatEmojiGeometry? _geometry;
 
   /// The items, in order. Another list repaints and lays out again.
   List<ChatEmojiLeaf> get leaves => _leaves;
@@ -120,43 +109,11 @@ final class RenderChatEmojiBody extends RenderBox {
     markNeedsPaint();
   }
 
-  /// The line breaks before each item.
-  List<int> get lineBreaksBefore => _lineBreaksBefore;
-  set lineBreaksBefore(List<int> value) {
-    if (identical(_lineBreaksBefore, value)) return;
-    _lineBreaksBefore = value;
-    markNeedsLayout();
-  }
-
-  /// The side of an item's square.
-  double get box => _box;
-  set box(double value) {
-    if (_box == value) return;
-    _box = value;
-    markNeedsLayout();
-  }
-
-  /// The margin around the items.
-  double get inset => _inset;
-  set inset(double value) {
-    if (_inset == value) return;
-    _inset = value;
-    markNeedsLayout();
-  }
-
-  /// The share of the maximum width the items wrap at.
-  double get wrapFraction => _wrapFraction;
-  set wrapFraction(double value) {
-    if (_wrapFraction == value) return;
-    _wrapFraction = value;
-    markNeedsLayout();
-  }
-
-  /// The reading direction lines start from.
-  TextDirection get textDirection => _textDirection;
-  set textDirection(TextDirection value) {
-    if (_textDirection == value) return;
-    _textDirection = value;
+  /// What lays the items out.
+  ChatEmojiLayoutSpec get spec => _spec;
+  set spec(ChatEmojiLayoutSpec value) {
+    if (_spec == value) return;
+    _spec = value;
     markNeedsLayout();
   }
 
@@ -169,24 +126,23 @@ final class RenderChatEmojiBody extends RenderBox {
   }
 
   /// The index of the item at [local], or null.
-  int? itemAt(Offset local) => _flow?.itemAt(local);
+  int? itemAt(Offset local) {
+    final items = _geometry?.items;
+    if (items == null) return null;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].contains(local)) return i;
+    }
+    return null;
+  }
 
   /// The square of the item at [index], in this box's coordinates, or null
   /// before layout or for an index there is no item at.
   Rect? itemRect(int index) {
-    final rects = _flow?.rects;
+    final rects = _geometry?.items;
     return rects != null && index >= 0 && index < rects.length
         ? rects[index]
         : null;
   }
-
-  ChatEmojiFlow _flowFor(double maxWidth) => ChatEmojiFlow.of(
-    lineBreaksBefore: _lineBreaksBefore,
-    box: _box,
-    maxWidth: maxWidth.isFinite ? maxWidth * _wrapFraction : maxWidth,
-    direction: _textDirection,
-    inset: _inset,
-  );
 
   @override
   void attach(PipelineOwner owner) {
@@ -212,40 +168,45 @@ final class RenderChatEmojiBody extends RenderBox {
     }
   }
 
+  ChatEmojiGeometry _geometryFor(double maxWidth) =>
+      ChatEmojiGeometry.of(_spec, maxWidth: maxWidth);
+
   @override
   void performLayout() {
-    final flow = _flow = _flowFor(constraints.maxWidth);
-    size = constraints.constrain(flow.size);
+    final geometry = _geometry = _geometryFor(constraints.maxWidth);
+    size = constraints.constrain(geometry.size);
   }
 
   @override
   Size computeDryLayout(BoxConstraints constraints) =>
-      constraints.constrain(_flowFor(constraints.maxWidth).size);
+      constraints.constrain(_geometryFor(constraints.maxWidth).size);
 
   @override
-  double computeMinIntrinsicWidth(double height) => _box + 2 * _inset;
+  double computeMinIntrinsicWidth(double height) => _spec.box + 2 * _spec.inset;
 
   @override
   double computeMaxIntrinsicWidth(double height) =>
-      _flowFor(double.infinity).size.width;
+      _geometryFor(double.infinity).size.width;
 
   @override
-  double computeMinIntrinsicHeight(double width) => _flowFor(width).size.height;
+  double computeMinIntrinsicHeight(double width) =>
+      _geometryFor(width).size.height;
 
   @override
-  double computeMaxIntrinsicHeight(double width) => _flowFor(width).size.height;
+  double computeMaxIntrinsicHeight(double width) =>
+      _geometryFor(width).size.height;
 
   @override
   bool hitTestSelf(Offset position) => true;
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    final flow = _flow;
-    if (flow == null) return;
+    final geometry = _geometry;
+    if (geometry == null) return;
     final canvas = context.canvas;
-    final count = math.min(_leaves.length, flow.rects.length);
+    final count = math.min(_leaves.length, geometry.items.length);
     for (var i = 0; i < count; i++) {
-      _leaves[i].paint(canvas, flow.rects[i].shift(offset), _tint);
+      _leaves[i].paint(canvas, geometry.items[i].shift(offset), _tint);
     }
   }
 }

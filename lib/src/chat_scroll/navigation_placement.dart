@@ -190,13 +190,8 @@ final class AlignmentPlacement extends NavigationPlacement {
   }
 
   @override
-  int get hashCode => Object.hash(
-    messageId,
-    alignment,
-    tailFitFraction,
-    pixelOffset,
-    isHeld,
-  );
+  int get hashCode =>
+      Object.hash(messageId, alignment, tailFitFraction, pixelOffset, isHeld);
 
   @override
   String toString() =>

@@ -93,15 +93,18 @@ void main() {
 
   // The platform override is a foundation debug variable: it has to be unset
   // before the test body ends, so it cannot live in a tearDown.
-  void bodyTest(String name, Future<void> Function(WidgetTester) body) =>
-      testWidgets(name, (tester) async {
-        debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-        try {
-          await body(tester);
-        } finally {
-          debugDefaultTargetPlatformOverride = null;
-        }
-      });
+  void bodyTest(
+    String name,
+    Future<void> Function(WidgetTester) body, {
+    TargetPlatform platform = TargetPlatform.iOS,
+  }) => testWidgets(name, (tester) async {
+    debugDefaultTargetPlatformOverride = platform;
+    try {
+      await body(tester);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 
   ChatSelectionController newSelection() {
     final selection = ChatSelectionController(
@@ -273,23 +276,29 @@ void main() {
       expect(find.byType(ChatMarkdownBody), findsNothing);
     });
 
-    bodyTest('a chat that does not allow stickers keeps the markdown body '
-        'for a member, not for an admin', (tester) async {
-      policy.value = const LargeEmojiPolicy(
-        enabled: true,
-        stickersAllowed: false,
-      );
-      await pump(tester, newSelection(), [_message(1, three)]);
-      expect(find.byType(ChatEmojiBody), findsNothing);
+    // Android is the platform family that gates on the sticker permission;
+    // iOS and desktop do not (04 section 4, row 1).
+    bodyTest(
+      'a chat that does not allow stickers keeps the markdown body '
+      'for a member, not for an admin',
+      platform: TargetPlatform.android,
+      (tester) async {
+        policy.value = const LargeEmojiPolicy(
+          enabled: true,
+          stickersAllowed: false,
+        );
+        await pump(tester, newSelection(), [_message(1, three)]);
+        expect(find.byType(ChatEmojiBody), findsNothing);
 
-      policy.value = const LargeEmojiPolicy(
-        enabled: true,
-        stickersAllowed: false,
-        isAdmin: true,
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(ChatEmojiBody), findsOneWidget);
-    });
+        policy.value = const LargeEmojiPolicy(
+          enabled: true,
+          stickersAllowed: false,
+          isAdmin: true,
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(ChatEmojiBody), findsOneWidget);
+      },
+    );
 
     bodyTest('a message with a link preview stays markdown', (tester) async {
       await pump(tester, newSelection(), [_message(1, three, hasMedia: true)]);
@@ -345,7 +354,8 @@ void main() {
       final paintable = attempt.paintables.single;
       await tester.pump();
       expect(host.plays.hasPlayed(1), isTrue);
-      expect(attempt.request.spec.pixelWidth, 125);
+      // iOS: a fixed 112 pt sticker.
+      expect(attempt.request.spec.pixelWidth, 112);
       expect(paintable.paints.last.context.animate, isTrue);
 
       // Leaving the screen's view of the row and coming back: the cache keeps

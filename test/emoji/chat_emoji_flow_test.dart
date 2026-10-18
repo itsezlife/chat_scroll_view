@@ -9,12 +9,14 @@ void main() {
     double maxWidth = 1000,
     TextDirection direction = TextDirection.ltr,
     double inset = 0,
+    double skip = 0,
   }) => ChatEmojiFlow.of(
     lineBreaksBefore: breaks,
     box: box,
     maxWidth: maxWidth,
     direction: direction,
     inset: inset,
+    skip: skip,
   );
 
   test('items sit side by side and the box shrinks to them', () {
@@ -77,5 +79,59 @@ void main() {
     expect(result.itemAt(const Offset(15, 5)), 1);
     expect(result.itemAt(const Offset(5, 15)), 2);
     expect(result.itemAt(const Offset(25, 15)), isNull);
+  });
+
+  group('the gap between items', () {
+    test('a skip sits between the items of a line, not at its ends', () {
+      final result = flow([0, 0, 0], skip: 2);
+
+      expect(result.size, const Size(34, 10));
+      expect(result.rects[1], const Rect.fromLTWH(12, 0, 10, 10));
+      expect(result.rects[2], const Rect.fromLTWH(24, 0, 10, 10));
+    });
+
+    test('it counts toward the wrap', () {
+      // 10 + 2 + 10 = 22 fits in 22; a third item would need 34.
+      final result = flow([0, 0, 0], skip: 2, maxWidth: 22);
+
+      expect(result.size, const Size(22, 20));
+    });
+
+    test('right to left keeps the gap between items', () {
+      final result = flow([0, 0], skip: 2, direction: TextDirection.rtl);
+
+      expect(result.rects[0], const Rect.fromLTWH(12, 0, 10, 10));
+      expect(result.rects[1], const Rect.fromLTWH(0, 0, 10, 10));
+    });
+  });
+
+  group('where the items are, for a host that places chrome', () {
+    test('content is the items without the inset', () {
+      final result = flow([0, 0, 1], inset: 10);
+
+      expect(result.content, const Rect.fromLTWH(10, 10, 20, 20));
+    });
+
+    test('the last line is the items of the last line', () {
+      final result = flow([0, 0, 1]);
+
+      expect(result.lastLine, const Rect.fromLTWH(0, 10, 10, 10));
+    });
+
+    test('the last line of one line is the line', () {
+      expect(flow([0, 0, 0]).lastLine, const Rect.fromLTWH(0, 0, 30, 10));
+    });
+
+    test('right to left, the last line hangs at the right edge', () {
+      final result = flow([0, 0, 0, 1], direction: TextDirection.rtl);
+
+      expect(result.lastLine, const Rect.fromLTWH(20, 10, 10, 10));
+    });
+
+    test('a blank last line is not a thing: breaks precede an item', () {
+      final result = flow([0, 2]);
+
+      expect(result.lastLine, const Rect.fromLTWH(0, 20, 10, 10));
+    });
   });
 }

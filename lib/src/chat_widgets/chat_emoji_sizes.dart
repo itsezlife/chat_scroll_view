@@ -5,8 +5,8 @@ import 'package:catalog_assets/catalog_assets.dart' show AssetPresets;
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:meta/meta.dart';
 
-/// The sizes of an emoji-only body: the reference client's tables as a value
-/// the host may override.
+/// The Android family's sizes of an emoji-only body, as a value the host may
+/// override through `ChatEmojiPolicy.android`.
 ///
 /// ## Text layout
 ///
@@ -33,15 +33,13 @@ import 'package:meta/meta.dart';
 ///
 /// A lone emoji is a sticker of `min(viewport width, height) ×
 /// [stickerViewportFraction] × [stickerZoom]` (112.5 dp on a 360 dp phone;
-/// the zoom is the server's animated-emoji zoom), set in a [stickerInset]
-/// margin. The reference client's phone
+/// the zoom is the server's animated-emoji zoom). The reference client's phone
 /// rule is kept as it is: on a wide window the same rule gives a larger
 /// sticker, and a host that wants a cap passes its own fractions.
 ///
-/// ## Wrap
-///
-/// With a reply or forward header above, the text wraps at
-/// [headerWrapFraction] of the row's width.
+/// The margin around a sticker and the wrap under a header are not sizes but
+/// the platform's policy (`ChatEmojiPolicy`): they differ by platform, where
+/// these tables are one platform's.
 @immutable
 final class ChatEmojiSizes {
   /// Creates the sizes; the defaults are the reference client's.
@@ -52,16 +50,10 @@ final class ChatEmojiSizes {
     this.fontSteps = androidFontSteps,
     this.allCustomSteps = _androidAllCustomSteps,
     this.mixedSteps = _androidMixedSteps,
-    this.headerWrapFraction = 0.65,
     this.stickerViewportFraction = 0.5,
     this.stickerZoom = 0.625,
-    this.stickerInset = 10,
   }) : assert(
-         headerWrapFraction > 0 && headerWrapFraction <= 1,
-         'The wrap fraction is within (0, 1].',
-       ),
-       assert(
-         stickerViewportFraction > 0 && stickerZoom > 0 && stickerInset >= 0,
+         stickerViewportFraction > 0 && stickerZoom > 0,
          'The sticker rule takes positive fractions.',
        );
 
@@ -90,17 +82,11 @@ final class ChatEmojiSizes {
   /// The same for a message with at least one unicode emoji.
   final List<int> mixedSteps;
 
-  /// The share of the row's width the text wraps at under a header.
-  final double headerWrapFraction;
-
   /// The share of the viewport's short side a sticker starts from.
   final double stickerViewportFraction;
 
   /// The factor applied to that share.
   final double stickerZoom;
-
-  /// The margin around a sticker, logical pixels.
-  final double stickerInset;
 
   /// What an item's box adds to its font size.
   double get boxPadding => AssetPresets.emojiOnlyBoxPadding;
@@ -131,19 +117,15 @@ final class ChatEmojiSizes {
       listEquals(other.fontSteps, fontSteps) &&
       listEquals(other.allCustomSteps, allCustomSteps) &&
       listEquals(other.mixedSteps, mixedSteps) &&
-      other.headerWrapFraction == headerWrapFraction &&
       other.stickerViewportFraction == stickerViewportFraction &&
-      other.stickerZoom == stickerZoom &&
-      other.stickerInset == stickerInset;
+      other.stickerZoom == stickerZoom;
 
   @override
   int get hashCode => Object.hash(
     Object.hashAll(fontSteps),
     Object.hashAll(allCustomSteps),
     Object.hashAll(mixedSteps),
-    headerWrapFraction,
     stickerViewportFraction,
     stickerZoom,
-    stickerInset,
   );
 }

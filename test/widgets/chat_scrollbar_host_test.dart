@@ -143,8 +143,10 @@ void main() {
       taps = <ChatMessageMenuRequest>[];
     });
 
-    ChatScrollbar autoHiding() =>
-        ChatScrollbar(painter: _RecordingPainter(frames), visibility: _autoHide);
+    ChatScrollbar autoHiding() => ChatScrollbar(
+      painter: _RecordingPainter(frames),
+      visibility: _autoHide,
+    );
 
     ChatScrollbar always() => ChatScrollbar(painter: _RecordingPainter(frames));
 
