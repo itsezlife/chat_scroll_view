@@ -12,6 +12,7 @@ Widget composerHarness(
   TextDirection textDirection = TextDirection.ltr,
   ChromeStrings? strings,
   EdgeInsets viewPadding = EdgeInsets.zero,
+  ChromeMotionSpeed? motionSpeed,
 }) {
   final palette = ChromePalette.forBrightness(brightness);
   return MaterialApp(
@@ -24,7 +25,10 @@ Widget composerHarness(
           palette: palette,
           child: ChromeStringsScope(
             strings: strings ?? ChromeStringsPresets.english,
-            child: GlassQualityScope(quality: GlassQuality.flat, child: app!),
+            child: ChromeMotionScope(
+              speed: motionSpeed,
+              child: GlassQualityScope(quality: GlassQuality.flat, child: app!),
+            ),
           ),
         ),
       ),

@@ -1,12 +1,17 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' show FlutterView;
 
 import 'package:chat_composer/src/menu/composer_formatting_option.dart';
 import 'package:chat_composer/src/menu/overlay_back_button_listener.dart';
-import 'package:chat_composer/src/menu/selection_menu_card.dart';
+import 'package:chat_composer/src/menu/selection_menu_appearance.dart';
 import 'package:chat_composer/src/menu/selection_menu_items.dart';
-import 'package:chat_composer/src/menu/selection_menu_layout.dart';
 import 'package:chat_composer/src/menu/selection_menu_metrics.dart';
+import 'package:chat_composer/src/menu/selection_menu_overflow.dart';
+import 'package:chat_composer/src/menu/selection_menu_pages.dart';
+import 'package:chat_composer/src/menu/selection_menu_position.dart';
+import 'package:chat_composer/src/menu/selection_menu_shell.dart';
+import 'package:chat_composer/src/menu/selection_menu_swipe_back.dart';
 import 'package:chat_composer/src/shortcuts/composer_formatting_intents.dart';
 import 'package:chat_composer/src/spec/composer_spec.dart';
 import 'package:chat_composer/src/text/composer_link_edit.dart';
@@ -14,45 +19,45 @@ import 'package:chat_composer/src/text/composer_text_controller.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:composer_editable/composer_editable.dart';
 import 'package:content_model/content_model.dart' show EntityListKind;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
-/// The composer's selection menu: the reference client's floating toolbar.
+/// The composer's selection menu: a card over the selection with the clipboard
+/// actions on one row and the formatting actions on a second page.
 ///
 /// It replaces the platform's menu on every platform and is mounted by the
-/// field's `contextMenuBuilder`. What it offers is the clipboard actions the
-/// field gives it and the formatting items of `ComposerSpec.formatting` that
-/// the selection allows; how it looks and moves is the reference's, row by row
-/// (see [SelectionMenuMetrics] and `chrome_foundation`'s menu roles).
+/// field's `contextMenuBuilder`. The main row holds Cut, Copy, Paste and Select
+/// all, whichever the field offers, and a More button; the clipboard actions
+/// that do not fit the row go to the top of the More page, above the
+/// formatting actions of `ComposerSpec.formatting`. The More page slides in
+/// from the right over 300 ms, with a Back tile at the end nearer the
+/// selection, and can be swiped shut. A formatting action whose command cannot
+/// apply to the selection stays on the page, greyed.
 ///
-/// **Visibility.** The menu animates itself (it is returned inside
-/// `ExtendedSelfFadingToolbar`, so the editable applies no fade of its own).
-/// It enters over 150 ms; it hides over 100 ms while the editable says the
-/// selection is scrolled or out of view and while the selection moves; and it
-/// dismisses after an item with a 150 ms hold and a 100 ms fade. A moving
-/// selection hides it only once it has been shown for 500 ms, and brings it
-/// back 50 ms after the last move. The overflow page, if open, stays open
-/// through a hide and a show: the widget stays mounted.
+/// **Appearance.** The card fades in over 150 ms. After an action, Escape or
+/// Back it fades out over 220 ms while drifting 5 dp away from the selection,
+/// the content frozen as it was so the collapsing selection does not change
+/// the rows mid-fade. The editable's toolbar wrapper fades the whole menu while
+/// a scroll hides it or the selection is out of view; the open page stays
+/// through that, because the card stays mounted.
 ///
-/// **Selection and keyboard.** An item runs its command, then the platform
-/// action mode's finish: the menu closes and the selection collapses to a
-/// caret (select all stays open; a link prompt keeps the selection until it is
-/// answered). Escape closes it, and Tab moves focus into it, where the
-/// traversal keys and Enter reach every item.
+/// **Selection and keyboard.** An action runs its command, then the menu
+/// closes and the selection collapses to a caret at its extent (select all
+/// stays open; a link prompt keeps the selection until it is answered). Escape
+/// closes it, and so does Back, from either page. Tab moves focus into the
+/// menu, where the traversal keys and Enter reach every action.
 class ComposerSelectionMenu extends StatefulWidget {
   /// A menu over the selection of [editable], editing [text].
   const ComposerSelectionMenu({
     required this.editable,
     required this.text,
     required this.clipboard,
-    required this.visibility,
     required this.options,
     required this.tokens,
     required this.strings,
     required this.motion,
-    required this.metrics,
     this.linkPrompt,
     this.backPriority,
     super.key,
@@ -67,11 +72,7 @@ class ComposerSelectionMenu extends StatefulWidget {
   /// The clipboard actions, in order, ready to run.
   final List<SelectionMenuClipboardItem> clipboard;
 
-  /// False while the editable has the toolbar hidden (a scroll in progress, the
-  /// selection out of the viewport).
-  final ValueListenable<bool> visibility;
-
-  /// Which formatting items to offer (`ComposerSpec.formatting`).
+  /// Which formatting actions to offer (`ComposerSpec.formatting`).
   final Set<ComposerFormattingOption> options;
 
   /// Colours.
@@ -83,10 +84,7 @@ class ComposerSelectionMenu extends StatefulWidget {
   /// Motion roles and speed.
   final ChromeMotionData motion;
 
-  /// Geometry for the platform.
-  final SelectionMenuMetrics metrics;
-
-  /// Asks for a link's URL; without it the menu offers no link item.
+  /// Asks for a link's URL; without it the menu offers no link action.
   final ComposerLinkPrompt? linkPrompt;
 
   /// Takes Back ahead of the soft keyboard while the menu is open.
@@ -97,57 +95,40 @@ class ComposerSelectionMenu extends StatefulWidget {
 }
 
 class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
-  late final AnimationController _fade = AnimationController(vsync: this);
+    with WidgetsBindingObserver {
   final _scope = FocusScopeNode(debugLabel: 'ComposerSelectionMenu');
+  final _pages = SelectionMenuPageController();
+  final _appearance = GlobalKey<SelectionMenuAppearanceState>();
 
-  // --- Visibility inputs ---
-  late var _hostVisible = widget.visibility.value;
-  var _moving = false;
-  var _outOfBounds = false;
-  var _dismissing = false;
-  // An item is running (a paste waiting for the clipboard); taps are ignored.
+  var _closing = false;
+  // An action is running (a paste waiting for the clipboard); taps are ignored.
   var _running = false;
   // Focus has just moved into the menu on a Tab that is still being
   // dispatched.
   var _justEntered = false;
 
-  // Whether the menu has been shown long enough for a moving selection to hide
-  // it.
-  var _graceElapsed = false;
-  Timer? _graceTimer;
-  Timer? _settleTimer;
-  Timer? _dismissTimer;
-
-  // The selection's rectangle, in global coordinates, as last measured.
-  Rect? _content;
-  var _checkScheduled = false;
+  // What the last build laid out, kept so that a closing menu goes on showing
+  // it while the selection beneath it collapses.
+  Widget? _frozen;
 
   // Run once the menu is gone: the link prompt.
-  Future<void> Function()? _afterDismiss;
+  Future<void> Function()? _afterClose;
   VoidCallback? _releaseBack;
-  _Built? _built;
-  _Built? _frozen;
 
-  final _cardKey = GlobalKey<SelectionMenuCardState>();
+  // The editable's scroll position, which moves the selection under the menu.
+  ViewportOffset? _scrollOffset;
+  var _refreshScheduled = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     HardwareKeyboard.instance.addHandler(_onKey);
-    widget.visibility.addListener(_onHostVisibility);
-    widget.text.addListener(_scheduleCheck);
-    widget.editable.renderEditable.offset.addListener(_scheduleCheck);
-    // The editable is laid out already when its toolbar is shown, so the first
-    // build has the selection's rectangle and the card enters on the first
-    // frame, not the second.
-    _content = _contentRect();
-    _outOfBounds = _content == null;
+    widget.text.addListener(_scheduleRefresh);
+    _scrollOffset = widget.editable.renderEditable.offset
+      ..addListener(_scheduleRefresh);
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _measure();
-      _updateFade();
       // After the frame, so the platform callback is added after the soft
       // keyboard's and wins priority.
       _releaseBack = widget.backPriority?.call(_onBack);
@@ -157,185 +138,82 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
   @override
   void didUpdateWidget(ComposerSelectionMenu oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.visibility, widget.visibility)) {
-      oldWidget.visibility.removeListener(_onHostVisibility);
-      widget.visibility.addListener(_onHostVisibility);
-      _onHostVisibility();
+    if (oldWidget.editable.mounted) {
+      final next = widget.editable.renderEditable.offset;
+      if (!identical(next, _scrollOffset)) {
+        _scrollOffset?.removeListener(_scheduleRefresh);
+        _scrollOffset = next..addListener(_scheduleRefresh);
+      }
     }
-    _scheduleCheck();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     HardwareKeyboard.instance.removeHandler(_onKey);
-    widget.visibility.removeListener(_onHostVisibility);
-    widget.text.removeListener(_scheduleCheck);
-    if (widget.editable.mounted) {
-      widget.editable.renderEditable.offset.removeListener(_scheduleCheck);
-    }
-    _graceTimer?.cancel();
-    _settleTimer?.cancel();
-    _dismissTimer?.cancel();
+    widget.text.removeListener(_scheduleRefresh);
+    _scrollOffset?.removeListener(_scheduleRefresh);
     _releaseBack?.call();
     _scope.dispose();
-    _fade.dispose();
+    _pages.dispose();
     super.dispose();
   }
 
   @override
-  void didChangeMetrics() => _scheduleCheck();
+  void didChangeMetrics() => _scheduleRefresh();
 
-  // --- Visibility ---
+  // --- Following the selection ---
 
-  void _onHostVisibility() {
-    _hostVisible = widget.visibility.value;
-    _updateFade();
-  }
-
-  bool get _shouldShow =>
-      _hostVisible && !_moving && !_outOfBounds && !_dismissing;
-
-  void _updateFade() {
-    if (!mounted || _dismissing) return;
-    if (_shouldShow) {
-      if (_fade.status == AnimationStatus.forward || _fade.value == 1) return;
-      final enter = widget.motion.specOf(MotionRole.menuEnter);
-      _fade.animateTo(1, duration: enter.duration, curve: enter.curve);
-      // Shown again: a move may hide it only after it has stayed 500 ms.
-      _graceElapsed = false;
-      _graceTimer?.cancel();
-      _graceTimer = Timer(SelectionMenuTiming.movingGrace, () {
-        _graceElapsed = true;
-      });
-    } else {
-      final exit = widget.motion.specOf(MotionRole.menuExit);
-      _fade.animateBack(0, duration: exit.duration, curve: exit.curve);
-    }
-  }
-
-  // The selection's rectangle moved: hide while it keeps moving, but only once
-  // the menu has been up for the grace period.
-  void _onContentMoved() {
-    if (!_graceElapsed && !_moving) return;
-    _moving = true;
-    _settleTimer?.cancel();
-    _settleTimer = Timer(SelectionMenuTiming.settleDebounce, () {
-      _moving = false;
-      _updateFade();
-    });
-    _updateFade();
-  }
-
-  // --- Geometry ---
-
-  void _scheduleCheck() {
-    if (_checkScheduled || !mounted || _dismissing) return;
-    _checkScheduled = true;
+  // The card follows the selection: a scroll or a metrics change rebuilds it
+  // with fresh anchors. Two frames, because the editable lays out after the
+  // frame the scroll happened in, and its endpoints are those of the next.
+  void _scheduleRefresh() {
+    if (_refreshScheduled || !mounted || _closing) return;
+    _refreshScheduled = true;
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      _checkScheduled = false;
-      if (mounted && !_dismissing) _measure();
+      _refreshScheduled = false;
+      if (!mounted || _closing) return;
+      setState(() {});
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_closing) setState(() {});
+      });
     });
   }
 
-  void _measure() {
-    final next = _contentRect();
-    final previous = _content;
-    final outOfBounds = next == null;
-    final moved =
-        next != null && previous != null && !_sameRect(next, previous);
-    final first = previous == null && next != null;
-    if (outOfBounds == _outOfBounds && !moved && !first) return;
-    setState(() {
-      _content = next ?? previous;
-      _outOfBounds = outOfBounds;
-    });
-    if (moved) _onContentMoved();
-    _updateFade();
+  // --- Closing ---
+
+  void _collapseSelection() {
+    final selection = widget.text.selection;
+    if (!selection.isValid || selection.isCollapsed) return;
+    widget.text.selection = TextSelection.collapsed(
+      offset: selection.extentOffset,
+    );
   }
 
-  static bool _sameRect(Rect a, Rect b) =>
-      (a.left - b.left).abs() < 0.5 &&
-      (a.top - b.top).abs() < 0.5 &&
-      (a.right - b.right).abs() < 0.5 &&
-      (a.bottom - b.bottom).abs() < 0.5;
-
-  // The selection's bounds in global coordinates, clipped to the field's own
-  // box (with the reference's 20 dp allowance below it); null when none of it
-  // is in view.
-  Rect? _contentRect() {
+  // Leaves the card and goes: the content stays as it was while it fades, the
+  // selection collapses to a caret at its extent in parallel, and the toolbar
+  // is hidden when the fade is over. [collapse] false keeps the selection and
+  // its handles for an action that still needs them.
+  Future<void> _close({bool collapse = true}) async {
+    if (_closing) return;
+    _closing = true;
+    final leave = _appearance.currentState?.dismiss() ?? Future<void>.value();
+    if (collapse) _collapseSelection();
+    await leave;
     final editable = widget.editable;
-    if (!editable.mounted) return null;
-    final render = editable.renderEditable;
-    final selection = editable.textEditingValue.selection;
-    if (!render.attached || !render.hasSize || !selection.isValid) return null;
-    final Rect local;
-    if (selection.isCollapsed) {
-      local = render.getLocalRectForCaret(selection.extent);
-    } else {
-      final boxes = render.getBoxesForSelection(selection);
-      if (boxes.isEmpty) return null;
-      local = boxes
-          .map((box) => box.toRect())
-          .reduce((a, b) => a.expandToInclude(b));
-    }
-    final toGlobal = render.getTransformTo(null);
-    final content = MatrixUtils.transformRect(toGlobal, local);
-    final view = MatrixUtils.transformRect(toGlobal, Offset.zero & render.size);
-    const allowance = 20.0;
-    final left = math.max(content.left, view.left);
-    final top = math.max(content.top, view.top);
-    final right = math.min(content.right, view.right);
-    final bottom = math.min(content.bottom, view.bottom + allowance);
-    if (left > right || top > bottom) return null;
-    return Rect.fromLTRB(left, top, right, bottom);
-  }
-
-  // --- Dismissal ---
-
-  Future<void> _dismiss({required SelectionMenuAfter after}) async {
-    if (_dismissing) return;
-    _frozen = _built;
-    _dismissing = true;
-    _graceTimer?.cancel();
-    _settleTimer?.cancel();
-    final editable = widget.editable;
-    final text = widget.text;
-    final exit = widget.motion.specOf(MotionRole.menuExit);
-    final delay = widget.motion.speed.scale(SelectionMenuTiming.dismissDelay);
-    final completer = Completer<void>();
-    // The reference holds the card for 150 ms, then fades it over 100 ms
-    // with no slide.
-    _dismissTimer = Timer(delay, () {
-      if (!mounted) {
-        completer.complete();
-        return;
-      }
-      _fade
-          .animateBack(0, duration: exit.duration, curve: exit.curve)
-          .whenCompleteOrCancel(completer.complete);
-    });
-    if (after == SelectionMenuAfter.dismiss) {
-      final selection = text.selection;
-      if (selection.isValid && !selection.isCollapsed) {
-        text.selection = TextSelection.collapsed(offset: selection.end);
-      }
-    }
-    setState(() {});
-    await completer.future;
-    final run = _afterDismiss;
-    _afterDismiss = null;
     if (editable.mounted) {
       // Focus in the menu goes back to the field's own node, which would
       // otherwise be left to the nearest scope.
       if (_scope.hasFocus) editable.widget.focusNode.requestFocus();
-      editable.hideToolbar(after == SelectionMenuAfter.dismiss);
+      editable.hideToolbar(collapse);
     }
+    final run = _afterClose;
+    _afterClose = null;
     if (run != null) unawaited(run());
   }
 
   Future<void> _select(SelectionMenuItem item) async {
-    if (_dismissing || _running) return;
+    if (_closing || _running) return;
     _running = true;
     try {
       await item.onSelected();
@@ -346,20 +224,22 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
     switch (item.after) {
       case SelectionMenuAfter.stay:
         setState(() {});
-        _scheduleCheck();
+        _scheduleRefresh();
       case SelectionMenuAfter.dismiss:
+        await _close();
       case SelectionMenuAfter.dismissKeepingSelection:
-        await _dismiss(after: item.after);
+        await _close(collapse: false);
     }
   }
 
-  // The link item: asks for the URL once the menu is gone, so the dialog does
-  // not open under a fading card, and applies it to the selection as it was.
+  // The link action: asks for the URL once the menu is gone, so the dialog
+  // does not open under a fading card, and applies it to the selection as it
+  // was.
   void _beginLink() {
     final prompt = widget.linkPrompt;
     if (prompt == null) return;
     final context = widget.editable.context;
-    _afterDismiss = ComposerLinkEdit(
+    _afterClose = ComposerLinkEdit(
       text: widget.text,
       prompt: prompt,
       context: context,
@@ -367,29 +247,24 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
     ).ask;
   }
 
+  // The command that makes the selected lines items of [kind]; null while the
+  // composer has no list editing, which the registered action tells.
   VoidCallback? _toggleList(EntityListKind kind) {
     final context = widget.editable.context;
+    if (Actions.maybeFind<ToggleListIntent>(context) == null) return null;
     final intent = ToggleListIntent(kind);
-    final action = Actions.maybeFind<ToggleListIntent>(context);
-    if (action == null ||
-        !action.isActionEnabled ||
-        !action.isEnabled(intent)) {
-      return null;
-    }
     return () => Actions.maybeInvoke(context, intent);
   }
 
   // --- Keyboard and Back ---
 
   bool _onKey(KeyEvent event) {
-    if (event is! KeyDownEvent || _dismissing) return false;
+    if (event is! KeyDownEvent || _closing) return false;
     if (event.logicalKey == LogicalKeyboardKey.escape) {
-      unawaited(_dismiss(after: SelectionMenuAfter.dismiss));
+      unawaited(_close());
       return true;
     }
-    if (event.logicalKey == LogicalKeyboardKey.tab &&
-        !_scope.hasFocus &&
-        _fade.value > 0.5) {
+    if (event.logicalKey == LogicalKeyboardKey.tab && !_scope.hasFocus) {
       // Tab from the field enters the menu. The focus change is applied at
       // once so that this very key press, which goes on to the focus tree,
       // lands on the menu and is told it only entered.
@@ -407,7 +282,7 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
   }
 
   // The menu's own keys, once focus is in it: Tab and Shift+Tab, and the
-  // arrows, move between the items; Escape closes it.
+  // arrows, move between the actions.
   KeyEventResult _onScopeKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
@@ -441,18 +316,13 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
     return KeyEventResult.ignored;
   }
 
+  // Back closes the whole menu from either page, and keeps the keyboard.
   Future<bool> _onBack() async {
     if (!mounted) return false;
-    // Back out of the overflow page before out of the menu, as the page's own
-    // Back row does.
-    final card = _cardKey.currentState;
-    if (card != null && card.isOpen) {
-      card.close();
-      return true;
-    }
     final editable = widget.editable;
-    // Not awaited: the leave animation outlives the back event.
-    unawaited(_dismiss(after: SelectionMenuAfter.dismiss));
+    // Not awaited: the leave outlives the back event, and waiting for it would
+    // hold the pop.
+    unawaited(_close());
     // Closing the toolbar can drop the input connection; the field stays
     // focused and its keyboard should stay up.
     SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -466,11 +336,14 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
   @override
   Widget build(BuildContext context) {
     final frozen = _frozen;
-    if (_dismissing && frozen != null) return _card(frozen);
-    final content = _content;
-    if (content == null) return const SizedBox.shrink();
+    if (_closing && frozen != null) return frozen;
+    final editable = widget.editable;
+    if (!editable.mounted || !editable.renderEditable.hasSize) {
+      return const SizedBox.shrink();
+    }
 
     final media = MediaQuery.of(context);
+    final view = View.of(context);
     final scaler = media.textScaler.clamp(
       maxScaleFactor: SelectionMenuMetrics.maxTextScale,
     );
@@ -486,161 +359,132 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
     );
     if (items.isEmpty) return const SizedBox.shrink();
 
-    final padding = EdgeInsets.fromLTRB(
-      math.max(media.padding.left, media.viewPadding.left),
-      math.max(media.padding.top, media.viewPadding.top),
-      math.max(media.padding.right, media.viewPadding.right),
-      math.max(
-        media.viewInsets.bottom,
-        math.max(media.padding.bottom, media.viewPadding.bottom),
-      ),
-    );
-    final viewport = Rect.fromLTRB(
-      padding.left,
-      padding.top,
-      media.size.width - padding.right,
-      media.size.height - padding.bottom,
-    );
-    final style = TextStyle(
-      inherit: false,
-      color: widget.tokens.text,
-      fontSize: SelectionMenuMetrics.itemTextSize,
-      fontWeight: FontWeight.w500,
-      height: 1.2,
-      fontFamily: Theme.of(context).textTheme.bodyMedium?.fontFamily,
-      fontFamilyFallback: Theme.of(
-        context,
-      ).textTheme.bodyMedium?.fontFamilyFallback,
-    );
-
-    final widths = [
-      for (final item in items)
-        _textWidth(
-          item.label,
-          selectionMenuLabelStyle(style, item.labelStyle),
-          scaler,
-          direction,
-        ),
+    final theme = Theme.of(context);
+    final tokens = widget.tokens;
+    final label = selectionMenuLabelStyle(theme, tokens);
+    final placement = _placement(media, view, editable);
+    final clipboard = [
+      for (final i in items)
+        if (i.kind.isClipboard) i,
     ];
-    final budget = SelectionMenuLayout.budget(viewport.width);
-    final row = SelectionMenuLayout.mainRow(textWidths: widths, budget: budget);
-    final mainItems = items.sublist(0, row.count);
-    final overflowItems = items.sublist(row.count);
-    final mainWidths = [
-      for (var i = 0; i < row.count; i++)
-        math.min(
-          SelectionMenuLayout.mainItemWidth(
-            widths[i],
-            first: i == 0,
-            last: i == items.length - 1,
-          ),
-          budget,
-        ),
+    final formatting = [
+      for (final i in items)
+        if (!i.kind.isClipboard) i,
     ];
-    final overflowWidth = SelectionMenuLayout.overflowWidth(
-      widths.sublist(row.count),
-      budget: budget,
-    );
-    final below = widget.metrics.belowClearance;
-    final placement = SelectionMenuLayout.place(
-      viewport: viewport,
-      content: Rect.fromLTRB(
-        content.left,
-        content.top,
-        content.right,
-        content.bottom + below,
-      ),
-      main: Size(row.width, SelectionMenuMetrics.rowHeight),
-      overflowWidth: overflowWidth,
-      overflowCount: overflowItems.length,
-      rtl: direction == TextDirection.rtl,
-    );
-    final built = _Built(
-      placement: placement,
-      mainItems: mainItems,
-      mainWidths: mainWidths,
-      overflowItems: overflowItems,
-      style: style,
-      scaler: scaler,
-    );
-    _built = built;
-    return _card(built);
-  }
-
-  static double _textWidth(
-    String label,
-    TextStyle style,
-    TextScaler scaler,
-    TextDirection direction,
-  ) {
-    final painter = TextPainter(
-      text: TextSpan(text: label, style: style),
-      textDirection: direction,
+    final split = splitSelectionMenuRow(
+      labels: [for (final item in clipboard) item.label],
+      style: label,
+      maxWidth: placement.maxWidth,
       textScaler: scaler,
-      maxLines: 1,
-    )..layout();
-    final width = painter.width;
-    painter.dispose();
-    return width;
-  }
+      textDirection: direction,
+    );
+    final pageItems = [...clipboard.skip(split.count), ...formatting];
+    final hasMore = pageItems.isNotEmpty;
+    final maxHeight = placement.maxHeight > 0 ? placement.maxHeight : null;
+    final page = widget.motion.specOf(MotionRole.menuPage);
 
-  Widget _card(_Built built) {
-    // The dispatcher is the field's: the overlay this is built in is not under
-    // the Router.
-    final dispatcher = Router.maybeOf(
-      widget.editable.context,
-    )?.backButtonDispatcher;
-    return OverlayBackButtonListener(
-      parentDispatcher: dispatcher,
+    final menu = OverlayBackButtonListener(
+      // The dispatcher is the field's: the overlay this is built in is not
+      // under the Router.
+      parentDispatcher: Router.maybeOf(editable.context)?.backButtonDispatcher,
       onBackButtonPressed: _onBack,
       child: MediaQuery(
-        data: MediaQuery.of(context).copyWith(textScaler: built.scaler),
+        data: media.copyWith(textScaler: scaler),
         // A child of the field's own focus node, so that focus in the menu is
         // still focus in the field: the editable closes its toolbar when it
         // loses focus.
         child: FocusScope(
           node: _scope,
-          parentNode: widget.editable.widget.focusNode,
+          parentNode: editable.widget.focusNode,
           onKeyEvent: _onScopeKey,
-          child: Stack(
-            children: [
-              SelectionMenuCard(
-                key: _cardKey,
-                placement: built.placement,
-                mainItems: built.mainItems,
-                mainWidths: built.mainWidths,
-                overflowItems: built.overflowItems,
-                itemStyle: built.style,
-                tokens: widget.tokens,
-                strings: widget.strings,
-                motion: widget.motion,
-                opacity: _fade,
-                onSelected: (item) => unawaited(_select(item)),
+          child: SelectionMenuPositioned(
+            placement: placement,
+            // The page narrows the card; centring it as the row keeps one edge
+            // still as it opens.
+            referenceWidth:
+                split.width +
+                (hasMore ? SelectionMenuMetrics.moreButtonWidth : 0),
+            child: SelectionMenuAppearance(
+              key: _appearance,
+              fitsAbove: placement.fitsAbove,
+              motion: widget.motion,
+              child: SelectionMenuCard(
+                tokens: tokens,
+                maxWidth: placement.maxWidth,
+                maxHeight: maxHeight,
+                child: SelectionMenuSwipeBack(
+                  controller: _pages,
+                  pageColor: tokens.background,
+                  dim: tokens.pageDim,
+                  duration: page.duration,
+                  curve: page.curve,
+                  borderRadius: SelectionMenuTokens.cornerRadius,
+                  root: SelectionMenuRootPage(
+                    items: clipboard.sublist(0, split.count),
+                    tokens: tokens,
+                    labelStyle: label,
+                    moreLabel: widget.strings.moreAction,
+                    onSelected: (item) => unawaited(_select(item)),
+                    onOpenMore: hasMore ? _pages.openForeground : null,
+                  ),
+                  foreground: hasMore
+                      ? SizedBox(
+                          width: SelectionMenuMetrics.pageWidth,
+                          child: SelectionMenuMorePage(
+                            items: pageItems,
+                            tokens: tokens,
+                            labelStyle: label,
+                            backLabel: widget.strings.backAction,
+                            // Next to the text the menu points at.
+                            backPlacement: placement.fitsAbove
+                                ? SelectionMenuBackPlacement.bottom
+                                : SelectionMenuBackPlacement.top,
+                            maxHeight: maxHeight,
+                            onSelected: (item) => unawaited(_select(item)),
+                            onBack: _pages.closeForeground,
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
+    _frozen = menu;
+    return menu;
   }
-}
 
-// What the last build laid out, kept so that a dismissal can go on showing it
-// while the selection beneath it collapses.
-class _Built {
-  const _Built({
-    required this.placement,
-    required this.mainItems,
-    required this.mainWidths,
-    required this.overflowItems,
-    required this.style,
-    required this.scaler,
-  });
-
-  final SelectionMenuPlacement placement;
-  final List<SelectionMenuItem> mainItems;
-  final List<double> mainWidths;
-  final List<SelectionMenuItem> overflowItems;
-  final TextStyle style;
-  final TextScaler scaler;
+  SelectionMenuPlacement _placement(
+    MediaQueryData media,
+    FlutterView view,
+    ExtendedEditableTextState editable,
+  ) {
+    // The platform's own insets as well as the app's: an ancestor may have
+    // consumed the app's.
+    final raw = EdgeInsets.fromViewPadding(
+      view.viewPadding,
+      view.devicePixelRatio,
+    );
+    final keyboard = EdgeInsets.fromViewPadding(
+      view.viewInsets,
+      view.devicePixelRatio,
+    ).bottom;
+    return computeSelectionMenuPlacement(
+      screen: media.size,
+      safe: EdgeInsets.only(
+        top: math.max(
+          raw.top,
+          math.max(media.viewPadding.top, media.padding.top),
+        ),
+        bottom: math.max(
+          raw.bottom,
+          math.max(media.viewPadding.bottom, media.padding.bottom),
+        ),
+      ),
+      keyboardInset: math.max(keyboard, media.viewInsets.bottom),
+      anchors: selectionMenuAnchors(editable),
+    );
+  }
 }

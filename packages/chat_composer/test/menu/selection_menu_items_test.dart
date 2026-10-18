@@ -1,12 +1,13 @@
-import 'package:chat_composer/chat_composer.dart';
+import 'package:chat_composer/src/menu/composer_formatting_option.dart';
 import 'package:chat_composer/src/menu/selection_menu_items.dart';
+import 'package:chat_composer/src/text/composer_text_controller.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:flutter_test/flutter_test.dart';
 
 /// Which items the selection menu offers for which selection, in which order,
-/// and what each one does.
+/// which of them can be chosen, and what each one does.
 ///
 /// **Seam:** `SelectionMenuItems.of` over a `ComposerTextController`, read as
 /// the list it returns.
@@ -67,22 +68,46 @@ void main() {
   group('over a plain selection', () {
     setUp(() => select(plain, 4, 7));
 
-    test('the reference\'s items in its order, then ours, then the link', () {
+    test('the styles, then the line kinds, the link, and Regular', () {
       expect(kinds(), [
-        SelectionMenuItemKind.quote,
-        SelectionMenuItemKind.spoiler,
         SelectionMenuItemKind.bold,
         SelectionMenuItemKind.italic,
-        SelectionMenuItemKind.mono,
-        SelectionMenuItemKind.strikethrough,
         SelectionMenuItemKind.underline,
+        SelectionMenuItemKind.strikethrough,
+        SelectionMenuItemKind.mono,
+        SelectionMenuItemKind.spoiler,
+        SelectionMenuItemKind.quote,
         SelectionMenuItemKind.codeBlock,
         SelectionMenuItemKind.createLink,
+        SelectionMenuItemKind.clearFormatting,
       ]);
     });
 
-    test('Regular is left out: there is no formatting to clear', () {
-      expect(kinds(), isNot(contains(SelectionMenuItemKind.clearFormatting)));
+    test('with lists on, Link comes before the lists', () {
+      expect(
+        kinds(options: ComposerFormattingOption.all, lists: true),
+        containsAllInOrder([
+          SelectionMenuItemKind.codeBlock,
+          SelectionMenuItemKind.createLink,
+          SelectionMenuItemKind.bulletList,
+          SelectionMenuItemKind.numberedList,
+          SelectionMenuItemKind.clearFormatting,
+        ]),
+      );
+    });
+
+    test('Regular is there but cannot be chosen: nothing to clear', () {
+      expect(item(SelectionMenuItemKind.clearFormatting).enabled, isFalse);
+    });
+
+    test('every other formatting item can be chosen', () {
+      for (final item in items().where(
+        (item) =>
+            !item.kind.isClipboard &&
+            item.kind != SelectionMenuItemKind.clearFormatting,
+      )) {
+        expect(item.enabled, isTrue, reason: '${item.kind}');
+      }
     });
 
     test('the labels are the host\'s strings', () {
@@ -97,27 +122,56 @@ void main() {
       );
     });
 
-    test('Italic, Mono, Strikethrough and Underline show their own style', () {
+    test(
+      'Bold, Italic, Mono, Strikethrough and Underline show their own style',
+      () {
+        expect(
+          item(SelectionMenuItemKind.italic).labelStyle,
+          SelectionMenuLabelStyle.italic,
+        );
+        expect(
+          item(SelectionMenuItemKind.mono).labelStyle,
+          SelectionMenuLabelStyle.mono,
+        );
+        expect(
+          item(SelectionMenuItemKind.strikethrough).labelStyle,
+          SelectionMenuLabelStyle.strike,
+        );
+        expect(
+          item(SelectionMenuItemKind.underline).labelStyle,
+          SelectionMenuLabelStyle.underline,
+        );
+        expect(
+          item(SelectionMenuItemKind.bold).labelStyle,
+          SelectionMenuLabelStyle.bold,
+        );
+        expect(
+          item(SelectionMenuItemKind.spoiler).labelStyle,
+          SelectionMenuLabelStyle.plain,
+        );
+      },
+    );
+
+    test('a label shows its effect on the base style', () {
+      const base = TextStyle(fontSize: 16);
       expect(
-        item(SelectionMenuItemKind.italic).labelStyle,
-        SelectionMenuLabelStyle.italic,
+        SelectionMenuLabelStyle.bold.apply(base).fontWeight,
+        FontWeight.bold,
       );
       expect(
-        item(SelectionMenuItemKind.mono).labelStyle,
-        SelectionMenuLabelStyle.mono,
+        SelectionMenuLabelStyle.italic.apply(base).fontStyle,
+        FontStyle.italic,
       );
       expect(
-        item(SelectionMenuItemKind.strikethrough).labelStyle,
-        SelectionMenuLabelStyle.strike,
+        SelectionMenuLabelStyle.underline.apply(base).decoration,
+        TextDecoration.underline,
       );
       expect(
-        item(SelectionMenuItemKind.underline).labelStyle,
-        SelectionMenuLabelStyle.underline,
+        SelectionMenuLabelStyle.strike.apply(base).decoration,
+        TextDecoration.lineThrough,
       );
-      expect(
-        item(SelectionMenuItemKind.bold).labelStyle,
-        SelectionMenuLabelStyle.plain,
-      );
+      expect(SelectionMenuLabelStyle.mono.apply(base).fontFamily, 'monospace');
+      expect(SelectionMenuLabelStyle.plain.apply(base), base);
     });
 
     test('no item is marked as applied', () {
@@ -144,7 +198,7 @@ void main() {
       expect(listed.first.kind, SelectionMenuItemKind.copy);
       expect(listed[1].kind, SelectionMenuItemKind.selectAll);
       expect(listed[1].after, SelectionMenuAfter.stay);
-      expect(listed[2].kind, SelectionMenuItemKind.quote);
+      expect(listed[2].kind, SelectionMenuItemKind.bold);
     });
   });
 
@@ -161,7 +215,7 @@ void main() {
       expect(kinds(), contains(SelectionMenuItemKind.clearFormatting));
     });
 
-    test('a selection in code leaves out the styles code cannot hold', () {
+    test('a selection in code greys the styles code cannot hold', () {
       // Inside the code, not over all of it.
       select(
         RichText('some code', const [Entity(5, 4, EntityKind.code)]),
@@ -169,9 +223,8 @@ void main() {
         8,
       );
 
-      final listed = kinds();
-      expect(listed, contains(SelectionMenuItemKind.mono));
       expect(item(SelectionMenuItemKind.mono).selected, isTrue);
+      expect(item(SelectionMenuItemKind.mono).enabled, isTrue);
       for (final kind in [
         SelectionMenuItemKind.bold,
         SelectionMenuItemKind.italic,
@@ -180,7 +233,8 @@ void main() {
         SelectionMenuItemKind.spoiler,
         SelectionMenuItemKind.createLink,
       ]) {
-        expect(listed, isNot(contains(kind)), reason: '$kind');
+        expect(kinds(), contains(kind), reason: '$kind is listed');
+        expect(item(kind).enabled, isFalse, reason: '$kind is greyed');
       }
     });
 
@@ -188,7 +242,7 @@ void main() {
       select(RichText('quoted', const [Entity(0, 6, EntityKind.quote)]), 0, 6);
 
       expect(kinds(), isNot(contains(SelectionMenuItemKind.quote)));
-      expect(kinds(), contains(SelectionMenuItemKind.clearFormatting));
+      expect(item(SelectionMenuItemKind.clearFormatting).enabled, isTrue);
     });
 
     test('a selection in a code block marks Code block as applied', () {
@@ -201,10 +255,23 @@ void main() {
       expect(item(SelectionMenuItemKind.codeBlock).selected, isTrue);
     });
 
-    test('a collapsed caret gets the clipboard items and no formatting', () {
+    test('a collapsed caret lists the formatting; only the line kinds and '
+        'Link can be chosen', () {
       text.restore(plain, selection: const TextSelection.collapsed(offset: 3));
 
-      expect(kinds(), isEmpty);
+      expect(kinds(), hasLength(10));
+      final enabled = {
+        for (final item in items().where((item) => item.enabled)) item.kind,
+      };
+      expect(enabled, {
+        SelectionMenuItemKind.quote,
+        SelectionMenuItemKind.codeBlock,
+        SelectionMenuItemKind.createLink,
+      });
+    });
+
+    test('a collapsed caret keeps the clipboard items first', () {
+      text.restore(plain, selection: const TextSelection.collapsed(offset: 3));
       final listed = items(
         clipboard: [
           SelectionMenuClipboardItem(
@@ -214,10 +281,16 @@ void main() {
           ),
         ],
       );
-      expect(
-        [for (final item in listed) item.kind],
-        [SelectionMenuItemKind.paste],
-      );
+
+      expect(listed.first.kind, SelectionMenuItemKind.paste);
+      expect(listed.first.enabled, isTrue);
+    });
+
+    test('with no selection at all there is only the clipboard', () {
+      text.restore(plain);
+      text.selection = const TextSelection.collapsed(offset: -1);
+
+      expect(kinds(), isEmpty);
     });
   });
 
@@ -229,21 +302,24 @@ void main() {
       expect(kinds(), isNot(contains(SelectionMenuItemKind.editLink)));
     });
 
-    test('offer Edit and Remove over a link, and no Create', () {
-      select(link, 4, 8);
+    test(
+      'are one Link row: Create, or Edit over a link, and Remove with it',
+      () {
+        select(link, 4, 8);
 
-      expect(kinds(), contains(SelectionMenuItemKind.editLink));
-      expect(kinds(), contains(SelectionMenuItemKind.removeLink));
-      expect(kinds(), isNot(contains(SelectionMenuItemKind.createLink)));
-      expect(
-        item(SelectionMenuItemKind.editLink).label,
-        strings.editLinkAction,
-      );
-      expect(
-        item(SelectionMenuItemKind.removeLink).label,
-        strings.removeLinkAction,
-      );
-    });
+        expect(kinds(), contains(SelectionMenuItemKind.editLink));
+        expect(kinds(), contains(SelectionMenuItemKind.removeLink));
+        expect(kinds(), isNot(contains(SelectionMenuItemKind.createLink)));
+        expect(
+          item(SelectionMenuItemKind.editLink).label,
+          strings.editLinkAction,
+        );
+        expect(
+          item(SelectionMenuItemKind.removeLink).label,
+          strings.removeLinkAction,
+        );
+      },
+    );
 
     test('Create ask for the URL, and keeps the selection for it', () {
       select(plain, 4, 7);
@@ -270,14 +346,30 @@ void main() {
       ], isNot(contains(SelectionMenuItemKind.createLink)));
     });
 
-    test('are left out over a selection that cannot hold one', () {
+    test('are greyed over a selection that cannot hold one', () {
       select(
         RichText('some code', const [Entity(5, 4, EntityKind.code)]),
         5,
         9,
       );
 
-      expect(kinds(), isNot(contains(SelectionMenuItemKind.createLink)));
+      expect(item(SelectionMenuItemKind.createLink).enabled, isFalse);
+    });
+
+    test('Remove is offered only while the selection touches a link', () {
+      select(plain, 4, 7);
+      expect(kinds(), isNot(contains(SelectionMenuItemKind.removeLink)));
+
+      select(link, 4, 8);
+      expect(item(SelectionMenuItemKind.removeLink).enabled, isTrue);
+      expect(
+        [for (final item in items()) item.kind].where(
+          (kind) =>
+              kind == SelectionMenuItemKind.createLink ||
+              kind == SelectionMenuItemKind.editLink,
+        ),
+        [SelectionMenuItemKind.editLink],
+      );
     });
   });
 
@@ -309,9 +401,9 @@ void main() {
         kinds(options: ComposerFormattingOption.all, lists: true),
         containsAllInOrder([
           SelectionMenuItemKind.codeBlock,
+          SelectionMenuItemKind.createLink,
           SelectionMenuItemKind.bulletList,
           SelectionMenuItemKind.numberedList,
-          SelectionMenuItemKind.createLink,
         ]),
       );
       expect(
@@ -398,6 +490,12 @@ void main() {
       ).onSelected();
 
       expect(text.richText.plain, contains('list:bullet'));
+    });
+
+    test('list items are marked with a bullet and a number', () {
+      expect(SelectionMenuItemKind.bulletList.listMarker, '\u2022');
+      expect(SelectionMenuItemKind.numberedList.listMarker, '1.');
+      expect(SelectionMenuItemKind.bold.listMarker, isNull);
     });
 
     test('every formatting item dismisses to a caret', () {

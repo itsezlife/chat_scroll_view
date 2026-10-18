@@ -6,7 +6,6 @@ import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
 import 'package:chat_composer/src/menu/composer_formatting_option.dart';
 import 'package:chat_composer/src/menu/composer_selection_menu.dart';
 import 'package:chat_composer/src/menu/selection_menu_items.dart';
-import 'package:chat_composer/src/menu/selection_menu_metrics.dart';
 import 'package:chat_composer/src/shortcuts/composer_intents.dart';
 import 'package:chat_composer/src/spec/composer_spec.dart';
 import 'package:chat_composer/src/view/composer_metrics.dart';
@@ -18,7 +17,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:composer_editable/composer_editable.dart';
 import 'package:content_model/content_model.dart' show PastedMedia;
 import 'package:flutter/foundation.dart'
-    show clampDouble, defaultTargetPlatform, kIsWeb;
+    show clampDouble, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -362,8 +361,9 @@ class _ComposerFieldState extends State<ComposerField> {
 
   // The clipboard actions the platform offers for this selection, in its order,
   // routed through the composer's clipboard when it has one, and Paste as plain
-  // text after Paste. The menu hides itself and moves the selection after
-  // them, so none of these does.
+  // text after Paste. The menu closes itself and collapses the selection after
+  // them, so none of these does. The labels are Material's on every platform,
+  // so the menu reads the same wherever it runs.
   List<SelectionMenuClipboardItem> _clipboardItems(
     BuildContext context,
     ExtendedEditableTextState editable,
@@ -371,14 +371,7 @@ class _ComposerFieldState extends State<ComposerField> {
   ) {
     final controller = widget.controller;
     final rich = controller.clipboard != null;
-    // Copy collapses the selection on Android, as the stock field's does.
-    final collapsesOnCopy = switch (defaultTargetPlatform) {
-      TargetPlatform.android || TargetPlatform.fuchsia => true,
-      TargetPlatform.iOS ||
-      TargetPlatform.macOS ||
-      TargetPlatform.linux ||
-      TargetPlatform.windows => false,
-    };
+    final labels = MaterialLocalizations.of(context);
     final items = <SelectionMenuClipboardItem>[];
     for (final item in editable.contextMenuButtonItems) {
       switch (item.type) {
@@ -386,21 +379,18 @@ class _ComposerFieldState extends State<ComposerField> {
           items.add(
             SelectionMenuClipboardItem(
               kind: SelectionMenuItemKind.copy,
-              label: AdaptiveTextSelectionToolbar.getButtonLabel(context, item),
+              label: labels.copyButtonLabel,
               onSelected: rich
                   ? controller.copySelection
                   : () =>
                         editable.copySelection(SelectionChangedCause.keyboard),
-              after: collapsesOnCopy
-                  ? SelectionMenuAfter.dismiss
-                  : SelectionMenuAfter.dismissKeepingSelection,
             ),
           );
         case ContextMenuButtonType.cut:
           items.add(
             SelectionMenuClipboardItem(
               kind: SelectionMenuItemKind.cut,
-              label: AdaptiveTextSelectionToolbar.getButtonLabel(context, item),
+              label: labels.cutButtonLabel,
               onSelected: rich
                   ? controller.cutSelection
                   : () => editable.cutSelection(SelectionChangedCause.keyboard),
@@ -410,7 +400,7 @@ class _ComposerFieldState extends State<ComposerField> {
           items.add(
             SelectionMenuClipboardItem(
               kind: SelectionMenuItemKind.paste,
-              label: AdaptiveTextSelectionToolbar.getButtonLabel(context, item),
+              label: labels.pasteButtonLabel,
               onSelected: rich
                   ? controller.paste
                   : () => editable.pasteText(SelectionChangedCause.keyboard),
@@ -429,7 +419,7 @@ class _ComposerFieldState extends State<ComposerField> {
           items.add(
             SelectionMenuClipboardItem(
               kind: SelectionMenuItemKind.selectAll,
-              label: AdaptiveTextSelectionToolbar.getButtonLabel(context, item),
+              label: labels.selectAllButtonLabel,
               onSelected: () => _selectAllKeepMenu(editable),
               after: SelectionMenuAfter.stay,
             ),
@@ -476,27 +466,17 @@ class _ComposerFieldState extends State<ComposerField> {
   Widget _selectionMenu(
     BuildContext menuContext,
     ExtendedEditableTextState editable,
-  ) {
-    final clipboard = _clipboardItems(context, editable, _pastePlainLabel);
-    return ExtendedSelfFadingToolbar(
-      builder: (context, visibility) => ComposerSelectionMenu(
-        editable: editable,
-        text: widget.controller.text,
-        clipboard: clipboard,
-        visibility: visibility,
-        options: widget.formatting,
-        tokens: _menuTokens,
-        strings: _menuStrings,
-        motion: _menuMotion,
-        metrics: SelectionMenuMetrics.forPlatform(
-          defaultTargetPlatform,
-          isWeb: kIsWeb,
-        ),
-        linkPrompt: widget.linkPrompt,
-        backPriority: widget.backPriority,
-      ),
-    );
-  }
+  ) => ComposerSelectionMenu(
+    editable: editable,
+    text: widget.controller.text,
+    clipboard: _clipboardItems(context, editable, _pastePlainLabel),
+    options: widget.formatting,
+    tokens: _menuTokens,
+    strings: _menuStrings,
+    motion: _menuMotion,
+    linkPrompt: widget.linkPrompt,
+    backPriority: widget.backPriority,
+  );
 
   // The field does not expose its editable; the caret rectangle is only
   // available from the render object the text lays out in.

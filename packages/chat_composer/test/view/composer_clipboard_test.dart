@@ -166,7 +166,7 @@ void main() {
       // The long label does not fit the row beside Paste: it is on the
       // overflow page.
       await tester.tap(
-        find.byKey(const ValueKey<String>('selection_menu_back')),
+        find.byKey(const ValueKey<String>('selection_menu_more')),
       );
       await tester.pumpAndSettle();
       await tester.tap(find.text(_pastePlain));

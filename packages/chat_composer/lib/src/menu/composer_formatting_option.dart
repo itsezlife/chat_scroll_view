@@ -2,35 +2,39 @@
 /// the selection.
 ///
 /// The host chooses the set in `ComposerSpec.formatting`; the menu decides
-/// per selection which of them show (an item whose command cannot apply is
-/// left out, as the reference client's floating toolbar leaves out a disabled
-/// item). The order here is the menu's order: the reference client's own, then
-/// the additions it has no item for, then the link, then clear formatting.
+/// per selection which of them can be chosen (an item whose command cannot
+/// apply is drawn disabled, and Quote is left out over a selection that is
+/// quoted already). The order here is the More page's order: the inline styles,
+/// then the line kinds, then the link, the lists and clear formatting.
 enum ComposerFormattingOption {
-  /// Turns the selected lines into a quote. Left out when the selection is
-  /// quoted already.
-  quote,
-
-  /// Hides the selection behind a spoiler.
-  spoiler,
-
   /// Bold.
   bold,
 
   /// Italic.
   italic,
 
-  /// Monospace (inline code).
-  mono,
+  /// Underline.
+  underline,
 
   /// Strikethrough.
   strikethrough,
 
-  /// Underline.
-  underline,
+  /// Monospace (inline code).
+  mono,
+
+  /// Hides the selection behind a spoiler.
+  spoiler,
+
+  /// Turns the selected lines into a quote. Left out when the selection is
+  /// quoted already.
+  quote,
 
   /// A fenced code block over the selected lines.
   codeBlock,
+
+  /// One Link item, to create the link or, while the selection touches one, to
+  /// edit it, and Remove link while it does. Needs `ComposerSpec.linkPrompt`.
+  link,
 
   /// The selected lines as bullet list items. Offered only while lists are on.
   bulletList,
@@ -39,24 +43,20 @@ enum ComposerFormattingOption {
   /// on.
   numberedList,
 
-  /// Create link, or Edit link and Remove link while the selection touches
-  /// one. Needs `ComposerSpec.linkPrompt`.
-  link,
-
   /// Takes every style, link, quote, code block and list item off the
-  /// selection (the reference client's "Regular").
+  /// selection.
   clearFormatting;
 
   /// Everything the composer offers without a switch: the list items wait for
   /// the lists to be on.
   static const Set<ComposerFormattingOption> standard = {
-    quote,
-    spoiler,
     bold,
     italic,
-    mono,
-    strikethrough,
     underline,
+    strikethrough,
+    mono,
+    spoiler,
+    quote,
     codeBlock,
     link,
     clearFormatting,
@@ -65,17 +65,17 @@ enum ComposerFormattingOption {
   /// Every option, the list items included. They still show only while lists
   /// are on.
   static const Set<ComposerFormattingOption> all = {
-    quote,
-    spoiler,
     bold,
     italic,
-    mono,
-    strikethrough,
     underline,
+    strikethrough,
+    mono,
+    spoiler,
+    quote,
     codeBlock,
+    link,
     bulletList,
     numberedList,
-    link,
     clearFormatting,
   };
 }
