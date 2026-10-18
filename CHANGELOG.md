@@ -1,5 +1,35 @@
 ## Unreleased
 
+### Inline layer: embeds, mentions, hashtags, spoilers
+- `ChatMarkdownBody(embedResolver:)` takes a `catalog_assets`
+  `InlineEmbedResolver`; an image `![alt](scheme:id)` it resolves is painted in
+  the text, and the alt text is what copy and selection use. The root package
+  now depends on `catalog_assets` and `content_model` (ADR 020).
+- **BREAKING for hosts that switch exhaustively**: `ChatInlineHit` gains
+  `.embed`, `.mention` and `.hashtag`, and `ChatSelectionInteraction` gains
+  `ChatEmbedActivated`, `ChatMentionActivated` and `ChatHashtagActivated`. A
+  mention-class span (`[@x](mention:id)`, `username:`, `hashtag:`) is no
+  longer reported as a link, and an image span is no longer reported as a
+  link: a host that opened `ChatLinkActivated` urls for mentions or embeds
+  handles the new kinds instead. A `switch` over either sealed type needs the
+  new cases.
+- `ChatSelectionController(handlesEmbedHits:)`: an embed tap is reported (and
+  shows the click cursor and press highlight) only when the host opts in;
+  default off.
+- `ChatSelectionController.spoilers`: the `MarkdownSpoilerController` of the
+  viewport, keyed by message id, so a revealed message stays revealed when its
+  row is mounted again. A tap on a spoiler reveals the message; a tap on a
+  link, mention or embed inside a hidden spoiler reveals and reports no hit;
+  a text selection that enters a hidden spoiler reveals it.
+  `ChatSelectionController(spoilerClock:)` feeds the dust from the asset
+  cache's `PlaybackClock`; without it the dust stands still.
+- A text selection's `plainText` stays plain text (the engine now copies
+  markdown by default; the viewport asks it for plain).
+- `ChatMarkdownBody` without a `MarkdownTheme` above it keeps one fallback
+  theme while its inputs hold, where it used to build a new one per build (the
+  engine rebuilds its painter, and resolves every embed again, for each new
+  theme).
+
 ### Body linkify removed
 - **BREAKING**: `ChatBodyLinkify` and `ChatLinkifyPolicy` are deleted. The
   markdown-string rewrite of bare URLs and mentions is replaced by

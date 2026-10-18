@@ -153,7 +153,7 @@ void main() {
         ),
         (
           _Rich('hi @alice', const [Entity(3, 6, EntityKind.mention('alice'))]),
-          [('hi ', ''), ('@alice', 'link')],
+          [('hi ', ''), ('@alice', 'mention')],
         ),
       ];
 
@@ -166,7 +166,8 @@ void main() {
       }
     });
 
-    test('a link carries its target and a mention its scheme', () {
+    test('a link carries its target and a mention its scheme, as a mention and '
+        'not a link', () {
       final body = ChatBodyMarkdown.encode(
         _Rich('hi @alice and site', const [
           Entity(3, 6, EntityKind.mention('alice')),
@@ -183,8 +184,14 @@ void main() {
           if (span.style.contains(MD$Style.link))
             span.text: span.extra!['href'],
       };
+      final mentions = {
+        for (final span in spans)
+          if (span.style.contains(MD$Style.mention))
+            span.text: (span.extra!['scheme'], span.extra!['id']),
+      };
 
-      expect(links, {'@alice': 'mention:alice', 'site': 'https://a.b/c'});
+      expect(links, {'site': 'https://a.b/c'});
+      expect(mentions, {'@alice': ('mention', 'alice')});
     });
 
     test('a reference to other content reads as one image span with its '

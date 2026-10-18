@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:flutter_md/flutter_md.dart' show MarkdownSpoilerController;
 import 'package:flutter_test/flutter_test.dart';
 
 /// A text selection that enters a hidden spoiler reveals its message, as the
@@ -108,5 +109,17 @@ void main() {
     selection.clearTextSelection();
 
     expect(selection.spoilers.isRevealed(1), isTrue);
+  });
+
+  test('a spoiler controller handed in is the facade\'s and survives it', () {
+    final mine = MarkdownSpoilerController(animate: false);
+    addTearDown(mine.dispose);
+    final other = ChatSelectionController(spoilers: mine);
+
+    expect(other.spoilers, same(mine));
+    other.dispose();
+
+    // Disposed twice would assert; a live one still answers.
+    expect(mine.isRevealed(1), isFalse);
   });
 }

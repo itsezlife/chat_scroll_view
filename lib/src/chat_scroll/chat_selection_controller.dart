@@ -118,16 +118,18 @@ enum ChatDragSelectAction {
 /// does not notify — chrome wrap may stay stale until the next natural
 /// layout that re-evaluates selection-allowed.
 ///
-/// ### Inline hits (links and code)
+/// ### Inline hits (links, mentions, hashtags, embeds and code)
 ///
-/// Inline body hits (hyperlinks and fenced code / monospace snippets) participate
-/// in engine gesture arbitration. Tapping a link or code snippet is a first-class
-/// interaction: it is not swallowed as an idle-tap selection dismiss or idle message
-/// tap.
+/// Inline body hits (hyperlinks, mentions, hashtags, inline embeds and fenced
+/// code / monospace snippets) participate in engine gesture arbitration.
+/// Tapping one is a first-class interaction: it is not swallowed as an idle-tap
+/// selection dismiss or idle message tap. An embed is the exception until the
+/// host opts in with [handlesEmbedHits]. Anything inside a hidden spoiler is no
+/// hit: the tap reveals the message ([spoilers]).
 ///
 /// Under [$Mobile], **message selection** or a live **character-range text
-/// selection** suppresses *all* inline activations (links, inline code, fenced
-/// COPY chrome) so row toggles / range ownership win. Idle (no message
+/// selection** suppresses *all* inline activations (links, mentions, embeds,
+/// inline code, fenced COPY chrome) so row toggles / range ownership win. Idle (no message
 /// membership and no live range) keeps link and code/COPY first-class. Mere
 /// desktop arm-for-entry does not suppress. Under [$Desktop], message
 /// membership does not suppress inline activation.
@@ -148,6 +150,13 @@ class ChatSelectionController implements Listenable {
   /// Creates a selection facade.
   ///
   /// [policy] defaults to [ChatSelectionPolicy.forPlatform].
+  ///
+  /// [spoilers] is the reveal state of the bodies; a host passes its own to
+  /// start with motion off (`MarkdownSpoilerController(animate: false)`) and
+  /// owns it then (it is not disposed here). [spoilerClock] is the asset
+  /// cache's playback clock (`AssetCacheScope.clock`): while a hidden spoiler
+  /// is on screen the dust moves on its frames and pause layers, and without
+  /// one it stands still.
   ChatSelectionController({
     ChatSelectionPolicy? policy,
     this.onInteraction,
@@ -922,8 +931,9 @@ class ChatSelectionController implements Listenable {
 
   // --- Inline hits (links & code) ---
 
-  /// Resolves whether [globalOffset] hits an inline element (hyperlink or
-  /// code block / monospace snippet) in the registered body of [messageId].
+  /// Resolves whether [globalOffset] hits an inline element (hyperlink,
+  /// mention, hashtag, embed, or code block / monospace snippet) in the
+  /// registered body of [messageId].
   ///
   /// Returns a [ChatInlineHit] descriptor when an inline element is hit,
   /// or `null` when the point lands on unformatted plain text, padding,
