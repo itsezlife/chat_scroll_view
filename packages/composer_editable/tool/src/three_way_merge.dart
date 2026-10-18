@@ -15,11 +15,14 @@ class MergeResult {
 }
 
 /// Merges the three texts. [label] names the file in the conflict markers.
+/// With [favorFork] a conflicting hunk takes the fork's side and no markers
+/// remain; [MergeResult.conflicts] still counts them.
 MergeResult threeWayMerge({
   required String fork,
   required String oldBase,
   required String newBase,
   required String label,
+  bool favorFork = false,
 }) {
   final dir = Directory.systemTemp.createTempSync('revendor_merge_');
   try {
@@ -29,6 +32,7 @@ MergeResult threeWayMerge({
     final result = Process.runSync('git', [
       'merge-file',
       '-p',
+      if (favorFork) '--ours',
       '-L',
       'fork $label',
       '-L',

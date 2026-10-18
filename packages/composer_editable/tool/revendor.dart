@@ -48,6 +48,11 @@ class Revendor {
   late final bool _skipSuite = _args.contains('--skip-suite');
   final StringBuffer _report = StringBuffer();
 
+  /// For each conflicted file, its text with every conflict taken from the
+  /// fork's side: markers stop the compiler at the first hunk and hide what
+  /// else the new SDK breaks, so the suite runs on this.
+  final Map<File, String> _forkSideOfConflicts = {};
+
   String get _dart => '${_sdk.path}/bin/dart';
   String get _flutter => '${_sdk.path}/bin/flutter';
   Directory get _baselines => Directory('${packageRoot.path}/tool/baseline');
@@ -83,9 +88,6 @@ class Revendor {
     _keepBaseline(staging, origin, oldVersion);
     _writeDivergences(origin);
 
-    var suiteOk = true;
-    if (!_baselineOnly && !_skipSuite) suiteOk = await _runSuite();
-
     if (_baselineOnly) {
       _report.writeln(
         '- Baseline for ${origin.version} rebuilt; lib/ untouched.',
@@ -97,6 +99,8 @@ class Revendor {
             : '- Merge: **$conflicts conflict(s)**, markers left in lib/.',
       );
     }
+    var suiteOk = true;
+    if (!_baselineOnly && !_skipSuite) suiteOk = await _runSuite();
     stdout.write(_report);
     final summary = Platform.environment['GITHUB_STEP_SUMMARY'];
     if (summary != null) {
@@ -229,14 +233,24 @@ class Revendor {
         continue;
       }
       final target = File('${packageRoot.path}/${file.fork}');
+      final fork = target.readAsStringSync();
       final merged = threeWayMerge(
-        fork: target.readAsStringSync(),
+        fork: fork,
         oldBase: oldBase,
         newBase: newBase,
         label: file.fork,
       );
       target.writeAsStringSync(merged.text);
       total += merged.conflicts;
+      if (merged.conflicts > 0) {
+        _forkSideOfConflicts[target] = threeWayMerge(
+          fork: fork,
+          oldBase: oldBase,
+          newBase: newBase,
+          label: file.fork,
+          favorFork: true,
+        ).text;
+      }
       _report.writeln(
         merged.conflicts == 0
             ? '- `${file.fork}`: merged cleanly.'
@@ -262,27 +276,45 @@ class Revendor {
     );
   }
 
+  /// Runs the package suite. While files conflict, their fork side stands in
+  /// for the marked text (restored afterwards), and the report says so.
   Future<bool> _runSuite() async {
-    final result = await Process.run(_flutter, [
-      'test',
-      'test/unit_test.dart',
-    ], workingDirectory: packageRoot.path);
+    final marked = {
+      for (final file in _forkSideOfConflicts.keys)
+        file: file.readAsStringSync(),
+    };
+    final ProcessResult result;
+    try {
+      _forkSideOfConflicts.forEach(
+        (file, text) => file.writeAsStringSync(text),
+      );
+      result = await Process.run(_flutter, [
+        'test',
+        'test/unit_test.dart',
+      ], workingDirectory: packageRoot.path);
+    } finally {
+      marked.forEach((file, text) => file.writeAsStringSync(text));
+    }
     final output = '${result.stdout}${result.stderr}';
     final errors = output
         .split('\n')
-        .where((line) => line.contains('Error:') || line.contains('error:'))
-        .take(20)
-        .toList();
-    final tail = output.trimRight().split('\n').last;
+        .where((line) => RegExp(r'\.dart:\d+:\d+: Error:').hasMatch(line))
+        .map((line) => line.substring(line.indexOf('lib/')))
+        .toSet()
+        .take(20);
+    final tail = output.trimRight().split('\n').last.trim();
+    final onForkSide = _forkSideOfConflicts.isEmpty
+        ? ''
+        : ' (conflicts taken from the fork side)';
     _report
       ..writeln(
         result.exitCode == 0
-            ? '- Suite: passed.'
-            : '- Suite: **failed** (exit ${result.exitCode}).',
+            ? '- Suite$onForkSide: passed.'
+            : '- Suite$onForkSide: **failed** (exit ${result.exitCode}).',
       )
-      ..writeln('  - ${tail.trim()}');
+      ..writeln('  - $tail');
     for (final line in errors) {
-      _report.writeln('  - `${line.trim()}`');
+      _report.writeln('  - `$line`');
     }
     return result.exitCode == 0;
   }
