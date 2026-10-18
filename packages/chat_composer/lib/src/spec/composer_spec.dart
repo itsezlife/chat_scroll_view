@@ -2,6 +2,13 @@ import 'package:chat_composer/src/spec/action_descriptor.dart';
 import 'package:chat_composer/src/spec/composer_header.dart';
 import 'package:chat_composer/src/spec/composer_panel.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show BuildContext;
+
+/// The host's dialog that asks for a link's URL: completes with the URL the
+/// user entered, or null when they cancelled.
+///
+/// [context] is the composer's, so a dialog can be pushed on its navigator.
+typedef ComposerLinkPrompt = Future<String?> Function(BuildContext context);
 
 /// The host's declarative description of the composer for one moment: which
 /// header, which panel, which actions, and whether it accepts input.
@@ -20,6 +27,7 @@ final class ComposerSpec {
     this.actions = const [],
     this.enabled = true,
     this.busy = false,
+    this.linkPrompt,
   }) : assert(_uniqueIds(actions), 'two actions of a ComposerSpec share an id');
 
   /// What sits above the field, or null for no strip.
@@ -38,6 +46,11 @@ final class ComposerSpec {
   /// Whether a submit is in flight: the primary action is inert so it cannot
   /// fire twice, while the field stays editable.
   final bool busy;
+
+  /// Asks the user for a link's URL when a command wants one (the link
+  /// shortcut). Null leaves those commands inert: the composer owns no dialog,
+  /// the host does.
+  final ComposerLinkPrompt? linkPrompt;
 
   /// The visible actions at [placement], in spec order.
   List<ActionDescriptor> visibleActions(ActionPlacement placement) => [

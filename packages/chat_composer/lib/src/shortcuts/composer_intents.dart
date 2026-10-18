@@ -1,3 +1,5 @@
+import 'package:chat_composer/src/shortcuts/composer_formatting_intents.dart';
+import 'package:content_model/content_model.dart' show EntityListKind, EntityStyle;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -38,6 +40,61 @@ const Map<ShortcutActivator, Intent> _pastePlain = {
       PastePlainTextIntent(),
 };
 
+// Telegram Desktop's formatting keys, with the platform's shortcut key: Command
+// on Apple platforms, Control elsewhere. Both are bound, since a policy is per
+// input family, not per platform. The digit keys are the vendored list
+// editor's: 7 is numbered, 8 is bullets.
+const Map<ShortcutActivator, Intent> _formatting = {
+  SingleActivator(LogicalKeyboardKey.keyB, meta: true): ToggleStyleIntent(
+    EntityStyle.bold,
+  ),
+  SingleActivator(LogicalKeyboardKey.keyB, control: true): ToggleStyleIntent(
+    EntityStyle.bold,
+  ),
+  SingleActivator(LogicalKeyboardKey.keyI, meta: true): ToggleStyleIntent(
+    EntityStyle.italic,
+  ),
+  SingleActivator(LogicalKeyboardKey.keyI, control: true): ToggleStyleIntent(
+    EntityStyle.italic,
+  ),
+  SingleActivator(LogicalKeyboardKey.keyU, meta: true): ToggleStyleIntent(
+    EntityStyle.underline,
+  ),
+  SingleActivator(LogicalKeyboardKey.keyU, control: true): ToggleStyleIntent(
+    EntityStyle.underline,
+  ),
+  SingleActivator(LogicalKeyboardKey.keyX, meta: true, shift: true):
+      ToggleStyleIntent(EntityStyle.strike),
+  SingleActivator(LogicalKeyboardKey.keyX, control: true, shift: true):
+      ToggleStyleIntent(EntityStyle.strike),
+  SingleActivator(LogicalKeyboardKey.keyM, meta: true, shift: true):
+      ToggleStyleIntent(EntityStyle.code),
+  SingleActivator(LogicalKeyboardKey.keyM, control: true, shift: true):
+      ToggleStyleIntent(EntityStyle.code),
+  SingleActivator(LogicalKeyboardKey.keyP, meta: true, shift: true):
+      ToggleStyleIntent(EntityStyle.spoiler),
+  SingleActivator(LogicalKeyboardKey.keyP, control: true, shift: true):
+      ToggleStyleIntent(EntityStyle.spoiler),
+  SingleActivator(LogicalKeyboardKey.period, meta: true, shift: true):
+      ToggleStyleIntent(EntityStyle.quote),
+  SingleActivator(LogicalKeyboardKey.period, control: true, shift: true):
+      ToggleStyleIntent(EntityStyle.quote),
+  SingleActivator(LogicalKeyboardKey.keyK, meta: true): ApplyLinkIntent(),
+  SingleActivator(LogicalKeyboardKey.keyK, control: true): ApplyLinkIntent(),
+  SingleActivator(LogicalKeyboardKey.keyN, meta: true, shift: true):
+      ClearFormattingIntent(),
+  SingleActivator(LogicalKeyboardKey.keyN, control: true, shift: true):
+      ClearFormattingIntent(),
+  SingleActivator(LogicalKeyboardKey.digit7, meta: true, shift: true):
+      ToggleListIntent(EntityListKind.ordered),
+  SingleActivator(LogicalKeyboardKey.digit7, control: true, shift: true):
+      ToggleListIntent(EntityListKind.ordered),
+  SingleActivator(LogicalKeyboardKey.digit8, meta: true, shift: true):
+      ToggleListIntent(EntityListKind.bullet),
+  SingleActivator(LogicalKeyboardKey.digit8, control: true, shift: true):
+      ToggleListIntent(EntityListKind.bullet),
+};
+
 /// The default key bindings of the composer, chosen like the selection
 /// policies: one pure-Dart strategy per input family.
 ///
@@ -47,12 +104,15 @@ sealed class ComposerShortcutPolicy {
   const ComposerShortcutPolicy();
 
   /// Touch-first platforms: no key submits, because Enter belongs to the
-  /// on-screen keyboard's newline; Escape dismisses the header for attached
-  /// keyboards.
+  /// on-screen keyboard's newline; Escape dismisses the header and the
+  /// formatting keys format, for attached keyboards.
   const factory ComposerShortcutPolicy.mobile() = ComposerShortcutPolicy$Mobile;
 
   /// Keyboard-first platforms: Enter submits, Shift+Enter inserts a newline,
-  /// Escape dismisses the header.
+  /// Escape dismisses the header, and Telegram Desktop's formatting keys
+  /// apply (Ctrl or Cmd with B, I, U, K; with Shift also X strikethrough,
+  /// M monospace, P spoiler, `.` quote, N clear formatting, 7 numbered list,
+  /// 8 bullet list). The code block has no key.
   ///
   /// [inBrowser] leaves paste as plain text to the browser: Flutter leaves the
   /// clipboard keys of a text field to it, and it pastes as plain text with
@@ -89,6 +149,7 @@ final class ComposerShortcutPolicy$Mobile extends ComposerShortcutPolicy {
   Map<ShortcutActivator, Intent> get shortcuts => const {
     SingleActivator(LogicalKeyboardKey.escape): DismissComposerHeaderIntent(),
     ..._pastePlain,
+    ..._formatting,
   };
 }
 
@@ -111,5 +172,6 @@ final class ComposerShortcutPolicy$Desktop extends ComposerShortcutPolicy {
     const SingleActivator(LogicalKeyboardKey.escape):
         const DismissComposerHeaderIntent(),
     if (!inBrowser) ..._pastePlain,
+    ..._formatting,
   };
 }
