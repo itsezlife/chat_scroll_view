@@ -146,6 +146,12 @@ List<_Pair> _pairs(ChromeThemeData d) {
       backdrop: panelBg,
       min: _text,
     ),
+    on(
+      'selection menu text on its card',
+      d.selectionMenu.text,
+      d.selectionMenu.background,
+      min: _text,
+    ),
     on('composer action icon', d.action.icon, composerBg, min: _icon),
     on('backspace on panel', d.action.backspace, panelBg, min: _icon),
     on(

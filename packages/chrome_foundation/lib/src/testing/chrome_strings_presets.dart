@@ -1,5 +1,6 @@
 import 'package:chrome_foundation/src/strings/chrome_strings.dart';
 import 'package:chrome_foundation/src/strings/composer_strings.dart';
+import 'package:chrome_foundation/src/strings/formatting_strings.dart';
 import 'package:chrome_foundation/src/strings/panel_strings.dart';
 import 'package:chrome_foundation/src/strings/semantics_strings.dart';
 
@@ -52,6 +53,26 @@ abstract final class ChromeStringsPresets {
       pastePlainAction: 'Paste as plain text',
       replyTo: (name) => 'Reply to $name',
       editingMessage: 'Editing message',
+    ),
+    formatting: FormattingStrings(
+      quoteAction: 'Quote',
+      spoilerAction: 'Spoiler',
+      boldAction: 'Bold',
+      italicAction: 'Italic',
+      monoAction: 'Mono',
+      strikethroughAction: 'Strikethrough',
+      underlineAction: 'Underline',
+      createLinkAction: 'Create Link',
+      editLinkAction: 'Edit Link',
+      removeLinkAction: 'Remove Link',
+      codeBlockAction: 'Code block',
+      bulletListAction: 'Bullet list',
+      numberedListAction: 'Numbered list',
+      clearFormattingAction: 'Regular',
+      moreAction: 'More',
+      backAction: 'Back',
+      bulletListItem: 'Bullet list item',
+      numberedListItem: (number) => 'Numbered list item $number',
     ),
     semantics: SemanticsStrings(
       panelOpened: 'Panel opened',
@@ -113,6 +134,26 @@ abstract final class ChromeStringsPresets {
       pastePlainAction: 'Вставить без форматирования',
       replyTo: (name) => 'Ответ для $name',
       editingMessage: 'Редактирование сообщения',
+    ),
+    formatting: FormattingStrings(
+      quoteAction: 'Цитата',
+      spoilerAction: 'Спойлер',
+      boldAction: 'Жирный',
+      italicAction: 'Курсив',
+      monoAction: 'Моноширинный',
+      strikethroughAction: 'Зачёркнутый',
+      underlineAction: 'Подчёркнутый',
+      createLinkAction: 'Создать ссылку',
+      editLinkAction: 'Изменить ссылку',
+      removeLinkAction: 'Удалить ссылку',
+      codeBlockAction: 'Блок кода',
+      bulletListAction: 'Маркированный список',
+      numberedListAction: 'Нумерованный список',
+      clearFormattingAction: 'Обычный',
+      moreAction: 'Ещё',
+      backAction: 'Назад',
+      bulletListItem: 'Пункт маркированного списка',
+      numberedListItem: (number) => 'Пункт нумерованного списка $number',
     ),
     semantics: SemanticsStrings(
       panelOpened: 'Панель открыта',

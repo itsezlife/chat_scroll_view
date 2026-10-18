@@ -12,6 +12,7 @@ abstract final class ChromeStringsSnapshot {
   static Map<String, String> of(ChromeStrings strings) {
     final panel = strings.panel;
     final composer = strings.composer;
+    final formatting = strings.formatting;
     final semantics = strings.semantics;
     return {
       for (final id in _knownPageIds) 'panel.tabLabel[$id]': panel.tabLabel(id),
@@ -40,6 +41,24 @@ abstract final class ChromeStringsSnapshot {
       'composer.pastePlainAction': composer.pastePlainAction,
       'composer.replyTo[name]': composer.replyTo('name'),
       'composer.editingMessage': composer.editingMessage,
+      'formatting.quoteAction': formatting.quoteAction,
+      'formatting.spoilerAction': formatting.spoilerAction,
+      'formatting.boldAction': formatting.boldAction,
+      'formatting.italicAction': formatting.italicAction,
+      'formatting.monoAction': formatting.monoAction,
+      'formatting.strikethroughAction': formatting.strikethroughAction,
+      'formatting.underlineAction': formatting.underlineAction,
+      'formatting.createLinkAction': formatting.createLinkAction,
+      'formatting.editLinkAction': formatting.editLinkAction,
+      'formatting.removeLinkAction': formatting.removeLinkAction,
+      'formatting.codeBlockAction': formatting.codeBlockAction,
+      'formatting.bulletListAction': formatting.bulletListAction,
+      'formatting.numberedListAction': formatting.numberedListAction,
+      'formatting.clearFormattingAction': formatting.clearFormattingAction,
+      'formatting.moreAction': formatting.moreAction,
+      'formatting.backAction': formatting.backAction,
+      'formatting.bulletListItem': formatting.bulletListItem,
+      'formatting.numberedListItem[3]': formatting.numberedListItem(3),
       'semantics.panelOpened': semantics.panelOpened,
       'semantics.panelClosed': semantics.panelClosed,
       'semantics.pageSelected[label]': semantics.pageSelected('label'),

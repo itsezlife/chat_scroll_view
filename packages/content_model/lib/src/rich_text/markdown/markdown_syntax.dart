@@ -9,6 +9,19 @@ abstract final class MarkdownSyntax {
   /// The scheme a mention's link target uses; see ADR 017.
   static const String mentionScheme = 'mention:';
 
+  /// The scheme a detected username's link target uses.
+  static const String usernameScheme = 'username:';
+
+  /// The scheme a detected hashtag's link target uses.
+  static const String hashtagScheme = 'hashtag:';
+
+  /// The spaces that end a list item's line when the item goes on in the
+  /// next one (the soft break of CommonMark).
+  static const String softBreak = '  ';
+
+  /// The deepest indentation a list marker may have; two spaces are a level.
+  static const int maxListIndent = 8;
+
   /// Whether [unit] is an ASCII punctuation code unit, the characters a
   /// backslash can escape.
   static bool isAsciiPunctuation(int unit) =>

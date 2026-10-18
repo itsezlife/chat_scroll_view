@@ -1,3 +1,4 @@
+import 'package:chrome_foundation/src/motion/menu_curves.dart';
 import 'package:chrome_foundation/src/motion/motion_spec.dart';
 import 'package:chrome_foundation/src/motion/overshoot_curve.dart';
 import 'package:flutter/animation.dart';
@@ -54,6 +55,30 @@ enum MotionRole {
   /// One turn of an indeterminate loop, such as a progress ring. Under an
   /// instant speed nothing loops: the component shows its resting frame.
   loop,
+
+  /// The selection menu appearing, whole, after it was dismissed or hidden.
+  menuEnter,
+
+  /// The selection menu fading out: the fade after a dismiss delay, and a hide while the selection moves.
+  menuExit,
+
+  /// One dimension of the selection menu's overflow morph that eases both ways: the height when the overflow page opens, the width when it closes, and the back row's slide.
+  menuSizeEase,
+
+  /// The other dimension of the overflow morph, which starts slowly and ends fast: the width when the overflow page opens, the height when it closes.
+  menuSizeAccelerate,
+
+  /// The main row fading out while the overflow page opens.
+  menuMainFadeOut,
+
+  /// The main row fading back in while the overflow page closes.
+  menuMainFadeIn,
+
+  /// The overflow page fading out while it closes. It appears at once when it opens.
+  menuOverflowFadeOut,
+
+  /// The circular reveal of a spoiler from the tap point.
+  spoilerReveal,
 }
 
 /// The **motion role** table: one [MotionSpec] per [MotionRole].
@@ -67,6 +92,9 @@ enum MotionRole {
 /// chrome shipped, except `headerReveal`, a chosen default not yet checked
 /// against the reference client, and `popupShow` / `popupHide`, whose 200 ms
 /// durations are the reference client's (its curves are not measured here).
+/// The `menu*` roles are the reference client's selection toolbar, and
+/// `spoilerReveal` is its spoiler ripple; the non-animation timings of the
+/// menu are `SelectionMenuTiming`.
 @immutable
 final class ChromeMotion {
   /// A motion table with every role given.
@@ -86,6 +114,14 @@ final class ChromeMotion {
     required this.themeSwitch,
     required this.selectionSlide,
     required this.loop,
+    required this.menuEnter,
+    required this.menuExit,
+    required this.menuSizeEase,
+    required this.menuSizeAccelerate,
+    required this.menuMainFadeOut,
+    required this.menuMainFadeIn,
+    required this.menuOverflowFadeOut,
+    required this.spoilerReveal,
   });
 
   /// The shipped defaults.
@@ -122,7 +158,33 @@ final class ChromeMotion {
         Duration(milliseconds: 400),
         Curves.easeOutCubic,
       ),
-      loop = const MotionSpec(Duration(milliseconds: 900), Curves.linear);
+      loop = const MotionSpec(Duration(milliseconds: 900), Curves.linear),
+      menuEnter = const MotionSpec(
+        Duration(milliseconds: 150),
+        AccelerateDecelerateCurve(),
+      ),
+      menuExit = const MotionSpec(
+        Duration(milliseconds: 100),
+        AccelerateDecelerateCurve(),
+      ),
+      menuSizeEase = const MotionSpec(_quarterSecond, Curves.fastOutSlowIn),
+      menuSizeAccelerate = const MotionSpec(
+        _quarterSecond,
+        LogAccelerateCurve(),
+      ),
+      menuMainFadeOut = const MotionSpec(_quarterSecond, linearOutSlowIn),
+      menuMainFadeIn = const MotionSpec(
+        Duration(milliseconds: 100),
+        fastOutLinearIn,
+      ),
+      menuOverflowFadeOut = const MotionSpec(
+        Duration(milliseconds: 150),
+        linearOutSlowIn,
+      ),
+      spoilerReveal = const MotionSpec(
+        Duration(milliseconds: 300),
+        Curves.linear,
+      );
 
   static const Duration _quarterSecond = Duration(milliseconds: 250);
 
@@ -135,6 +197,14 @@ final class ChromeMotion {
     0.27920937042459737,
     0.91025390625,
   );
+
+  /// The reference client's `linear_out_slow_in` interpolator: a fade that
+  /// leaves at once and settles gently.
+  static const Cubic linearOutSlowIn = Cubic(0, 0, 0.2, 1);
+
+  /// The reference client's `fast_out_linear_in` interpolator: a fade that
+  /// speeds up and ends abruptly.
+  static const Cubic fastOutLinearIn = Cubic(0.4, 0, 1, 1);
 
   /// [MotionRole.listTransition]: 250 ms on [androidListCurve].
   final MotionSpec listTransition;
@@ -181,6 +251,30 @@ final class ChromeMotion {
   /// [MotionRole.loop].
   final MotionSpec loop;
 
+  /// [MotionRole.menuEnter].
+  final MotionSpec menuEnter;
+
+  /// [MotionRole.menuExit].
+  final MotionSpec menuExit;
+
+  /// [MotionRole.menuSizeEase].
+  final MotionSpec menuSizeEase;
+
+  /// [MotionRole.menuSizeAccelerate].
+  final MotionSpec menuSizeAccelerate;
+
+  /// [MotionRole.menuMainFadeOut].
+  final MotionSpec menuMainFadeOut;
+
+  /// [MotionRole.menuMainFadeIn].
+  final MotionSpec menuMainFadeIn;
+
+  /// [MotionRole.menuOverflowFadeOut].
+  final MotionSpec menuOverflowFadeOut;
+
+  /// [MotionRole.spoilerReveal].
+  final MotionSpec spoilerReveal;
+
   /// The spec playing [role].
   MotionSpec operator [](MotionRole role) => switch (role) {
     MotionRole.listTransition => listTransition,
@@ -198,6 +292,14 @@ final class ChromeMotion {
     MotionRole.themeSwitch => themeSwitch,
     MotionRole.selectionSlide => selectionSlide,
     MotionRole.loop => loop,
+    MotionRole.menuEnter => menuEnter,
+    MotionRole.menuExit => menuExit,
+    MotionRole.menuSizeEase => menuSizeEase,
+    MotionRole.menuSizeAccelerate => menuSizeAccelerate,
+    MotionRole.menuMainFadeOut => menuMainFadeOut,
+    MotionRole.menuMainFadeIn => menuMainFadeIn,
+    MotionRole.menuOverflowFadeOut => menuOverflowFadeOut,
+    MotionRole.spoilerReveal => spoilerReveal,
   };
 
   /// A copy with the named roles replaced.
@@ -217,6 +319,14 @@ final class ChromeMotion {
     MotionSpec? themeSwitch,
     MotionSpec? selectionSlide,
     MotionSpec? loop,
+    MotionSpec? menuEnter,
+    MotionSpec? menuExit,
+    MotionSpec? menuSizeEase,
+    MotionSpec? menuSizeAccelerate,
+    MotionSpec? menuMainFadeOut,
+    MotionSpec? menuMainFadeIn,
+    MotionSpec? menuOverflowFadeOut,
+    MotionSpec? spoilerReveal,
   }) => ChromeMotion(
     listTransition: listTransition ?? this.listTransition,
     panelSlide: panelSlide ?? this.panelSlide,
@@ -233,6 +343,14 @@ final class ChromeMotion {
     themeSwitch: themeSwitch ?? this.themeSwitch,
     selectionSlide: selectionSlide ?? this.selectionSlide,
     loop: loop ?? this.loop,
+    menuEnter: menuEnter ?? this.menuEnter,
+    menuExit: menuExit ?? this.menuExit,
+    menuSizeEase: menuSizeEase ?? this.menuSizeEase,
+    menuSizeAccelerate: menuSizeAccelerate ?? this.menuSizeAccelerate,
+    menuMainFadeOut: menuMainFadeOut ?? this.menuMainFadeOut,
+    menuMainFadeIn: menuMainFadeIn ?? this.menuMainFadeIn,
+    menuOverflowFadeOut: menuOverflowFadeOut ?? this.menuOverflowFadeOut,
+    spoilerReveal: spoilerReveal ?? this.spoilerReveal,
   );
 
   @override

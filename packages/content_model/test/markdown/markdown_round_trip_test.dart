@@ -242,7 +242,7 @@ void main() {
       for (var i = random.nextInt(5); i > 0 && source.isNotEmpty; i--) {
         final offset = random.nextInt(source.length);
         final span = 1 + random.nextInt(source.length - offset);
-        final kind = switch (random.nextInt(11)) {
+        final kind = switch (random.nextInt(17)) {
           0 => EntityKind.bold,
           1 => EntityKind.italic,
           2 => EntityKind.underline,
@@ -254,6 +254,14 @@ void main() {
           8 => EntityKind.mention('m${random.nextInt(2)}'),
           9 => EntityKind.inlineContent(
             ContentKey.document('${random.nextInt(9)}'),
+          ),
+          10 => EntityKind.username('u${random.nextInt(2)}'),
+          11 => EntityKind.hashtag('h${random.nextInt(2)}'),
+          12 || 13 => EntityKind.list(
+            listKind: random.nextBool()
+                ? EntityListKind.bullet
+                : EntityListKind.ordered,
+            depth: random.nextInt(4),
           ),
           _ => EntityKind.bold,
         };
@@ -304,6 +312,13 @@ void main() {
         '](',
         '![',
         'mention:',
+        'username:',
+        'hashtag:',
+        '- ',
+        '1. ',
+        '  ',
+        '  \n',
+        '-',
         'unicode:1F44D',
         '\n',
         '> ',
