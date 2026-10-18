@@ -197,6 +197,13 @@ void main() {
       );
     });
 
+    test('a stored body that begins with a bare #tag shows a hashtag', () {
+      expect(
+        ChatBodyMarkdown.received('#design #travel'),
+        '[#design](hashtag:design) [#travel](hashtag:travel)',
+      );
+    });
+
     test('a body with a link is trusted: a second bare URL stays text', () {
       const stored = '[docs](https://flutter.dev) and https://example.com';
 
@@ -343,6 +350,20 @@ void main() {
         Entity(15, 4, EntityKind.hashtag('tag')),
         Entity(20, 5, EntityKind.inlineContent(ContentKey.document('5368'))),
       ]),
+      // A label first on the line: the writer must not escape a block marker
+      // there, because the parser keeps the backslashes of a label.
+      _Rich('#design #travel', const [
+        Entity(0, 7, EntityKind.hashtag('design')),
+        Entity(8, 7, EntityKind.hashtag('travel')),
+      ]),
+      _Rich('#tasks', const [Entity(0, 6, EntityKind.hashtag('tasks'))]),
+      _Rich('@user hi', const [Entity(0, 5, EntityKind.username('user'))]),
+      _Rich('1. x', const [Entity(0, 2, EntityKind.link('https://a.b'))]),
+      _Rich('> x', const [Entity(0, 1, EntityKind.link('https://a.b'))]),
+      _Rich('#a', const [
+        Entity(0, 2, EntityKind.hashtag('a')),
+        Entity(0, 2, EntityKind.bold),
+      ]),
       // Styles that overlap partially and a style around a link.
       _Rich('a bold and italic b', const [
         Entity(2, 8, EntityKind.bold),
@@ -397,6 +418,16 @@ void main() {
         }
       });
     }
+
+    test('block markers typed as plain text are shown as typed', () {
+      for (final typed in ['# x', '#x', '- x', '+ x', '> x', '1. x', '2) x']) {
+        final spans = Markdown.fromString(
+          RichTextMarkdown.encode(_Rich.plain(typed)),
+        ).blocks.whereType<MD$Paragraph>().single.spans;
+
+        expect(spans.map((span) => span.text).join(), typed, reason: typed);
+      }
+    });
 
     test('text that looks like markup is shown as typed', () {
       const typed = _Rich.plain('2 * 3 * 4 and `tick` and [not](a link)');
