@@ -1,6 +1,7 @@
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_composer/src/view/composer_header_strip.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:composer_editable/composer_editable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -55,7 +56,7 @@ void main() {
     ) async {
       await show(tester, ComposerSpec());
 
-      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byType(ExtendedTextField), findsOneWidget);
       expect(find.text('Message'), findsOneWidget);
       expect(find.byType(ComposerHeaderStrip), findsNothing);
     });
@@ -185,7 +186,7 @@ void main() {
     ) async {
       await show(tester, ComposerSpec());
       await tester.pump();
-      final bottom = tester.getBottomLeft(find.byType(TextField)).dy;
+      final bottom = tester.getBottomLeft(find.byType(ExtendedTextField)).dy;
 
       await show(
         tester,
@@ -194,7 +195,7 @@ void main() {
       for (var i = 0; i < 6; i++) {
         await tester.pump(_reveal * 0.15);
         expect(
-          tester.getBottomLeft(find.byType(TextField)).dy,
+          tester.getBottomLeft(find.byType(ExtendedTextField)).dy,
           moreOrLessEquals(bottom, epsilon: 1),
           reason: 'row drifted at sample $i',
         );
@@ -315,7 +316,7 @@ void main() {
         expect(controller.hasFocus, isTrue);
         expect(_attachedType(tester), 'TextInputType.none');
 
-        await tester.tap(find.byType(TextField));
+        await tester.tap(find.byType(ExtendedTextField));
         for (var i = 0; i < 4; i++) {
           await tester.pump();
         }
@@ -375,7 +376,7 @@ void main() {
       await tester.pumpWidget(view(ComposerSpec()));
       await tester.pump();
 
-      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byType(ExtendedTextField), findsOneWidget);
       expect(controller.hasFocus, isFalse);
     });
   });
@@ -394,7 +395,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('Join to write'), findsOneWidget);
-      expect(find.byType(TextField), findsNothing);
+      expect(find.byType(ExtendedTextField), findsNothing);
     });
 
     testWidgets('moving back to the text panel mounts the field again', (
@@ -406,7 +407,7 @@ void main() {
       await show(tester, ComposerSpec(), resolver: resolver);
       await tester.pump();
 
-      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byType(ExtendedTextField), findsOneWidget);
       expect(find.text('Join to write'), findsNothing);
     });
 
@@ -543,7 +544,9 @@ void main() {
       controller.requestFocus();
       await tester.pump();
       expect(
-        tester.widget<TextField>(find.byType(TextField)).keyboardType,
+        tester
+            .widget<ExtendedTextField>(find.byType(ExtendedTextField))
+            .keyboardType,
         TextInputType.multiline,
       );
 
@@ -551,7 +554,9 @@ void main() {
       await tester.pump();
 
       expect(
-        tester.widget<TextField>(find.byType(TextField)).keyboardType,
+        tester
+            .widget<ExtendedTextField>(find.byType(ExtendedTextField))
+            .keyboardType,
         TextInputType.none,
       );
       expect(controller.hasFocus, isTrue);
@@ -630,7 +635,7 @@ void main() {
       controller.setSoftKeyboard(SoftKeyboardMode.auto);
       await tester.pump();
 
-      await tester.tap(find.byType(TextField));
+      await tester.tap(find.byType(ExtendedTextField));
       for (var i = 0; i < 4; i++) {
         await tester.pump();
       }
@@ -643,7 +648,12 @@ void main() {
     testWidgets('disabled spec disables the field', (tester) async {
       await show(tester, ComposerSpec(enabled: false));
 
-      expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
+      expect(
+        tester
+            .widget<ExtendedTextField>(find.byType(ExtendedTextField))
+            .enabled,
+        isFalse,
+      );
     });
 
     testWidgets('reports the field tap to the host', (tester) async {
@@ -658,7 +668,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byType(TextField));
+      await tester.tap(find.byType(ExtendedTextField));
       await tester.pump();
 
       expect(taps, 1);
@@ -681,7 +691,7 @@ void main() {
       );
 
       final press = await tester.startGesture(
-        tester.getCenter(find.byType(TextField)),
+        tester.getCenter(find.byType(ExtendedTextField)),
       );
       await tester.pump();
       expect(events, ['down']);
@@ -691,7 +701,7 @@ void main() {
       expect(events, ['down', 'end', 'tap']);
 
       final drag = await tester.startGesture(
-        tester.getCenter(find.byType(TextField)),
+        tester.getCenter(find.byType(ExtendedTextField)),
       );
       await drag.cancel();
       await tester.pump();

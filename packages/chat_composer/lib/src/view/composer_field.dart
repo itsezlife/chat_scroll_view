@@ -8,6 +8,7 @@ import 'package:chat_composer/src/view/composer_metrics.dart';
 import 'package:chat_composer/src/view/listen_value_builder.dart';
 import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:composer_editable/composer_editable.dart';
 import 'package:content_model/content_model.dart' show PastedMedia;
 import 'package:flutter/foundation.dart'
     show clampDouble, defaultTargetPlatform;
@@ -290,12 +291,23 @@ class _ComposerFieldState extends State<ComposerField> {
 
   // --- Selection menu ---
 
-  static Widget _stockMenu(BuildContext context, EditableTextState editable) =>
-      AdaptiveTextSelectionToolbar.editableText(editableTextState: editable);
+  // `AdaptiveTextSelectionToolbar.editableText` takes Flutter's own editable
+  // state, which the leaf editable's state is not: the menu is built from the
+  // state's anchors and button items instead.
+  static Widget _stockMenu(
+    BuildContext context,
+    ExtendedEditableTextState editable,
+  ) => AdaptiveTextSelectionToolbar.buttonItems(
+    anchors: editable.contextMenuAnchors,
+    buttonItems: editable.contextMenuButtonItems,
+  );
 
   // The stock menu, its Copy, Cut and Paste routed through the clipboard,
   // and Paste as plain text after Paste.
-  Widget _clipboardMenu(EditableTextState editable, String pastePlainLabel) {
+  Widget _clipboardMenu(
+    ExtendedEditableTextState editable,
+    String pastePlainLabel,
+  ) {
     final controller = widget.controller;
     final items = <ContextMenuButtonItem>[];
     for (final item in editable.contextMenuButtonItems) {
@@ -334,7 +346,7 @@ class _ComposerFieldState extends State<ComposerField> {
 
   // As the field's own Copy: the menu closes, and on Android the selection
   // collapses to its end.
-  Future<void> _menuCopy(EditableTextState editable) async {
+  Future<void> _menuCopy(ExtendedEditableTextState editable) async {
     final controller = widget.controller;
     final end = controller.selection.end;
     editable.hideToolbar(false);
@@ -345,18 +357,20 @@ class _ComposerFieldState extends State<ComposerField> {
     }
   }
 
-  static void _menuDone(EditableTextState editable, Future<bool> done) {
+  static void _menuDone(ExtendedEditableTextState editable, Future<bool> done) {
     editable.hideToolbar();
     unawaited(done);
   }
 
-  // The stock TextField does not expose its EditableText; the caret rectangle
-  // is only available from the render object the text lays out in.
-  EditableTextState? _editableTextState() {
-    EditableTextState? found;
+  // The field does not expose its editable; the caret rectangle is only
+  // available from the render object the text lays out in.
+  ExtendedEditableTextState? _editableTextState() {
+    ExtendedEditableTextState? found;
     void visit(Element element) {
       if (found != null) return;
-      if (element case StatefulElement(state: final EditableTextState state)) {
+      if (element case StatefulElement(
+        state: final ExtendedEditableTextState state,
+      )) {
         found = state;
         return;
       }
@@ -400,11 +414,20 @@ class _ComposerFieldState extends State<ComposerField> {
                     ? SoftKeyboardMode.suppressed
                     : controllerMode;
                 _builtMode = mode;
-                final field = TextField(
+                final field = ExtendedTextField(
                   key: _textFieldKey,
                   controller: controller.text,
                   focusNode: controller.focusNode,
                   scrollController: controller.fieldScroll,
+                  // The tap region the stock field and every host widget that
+                  // stays "inside" it (a button, a popup) join by default.
+                  // The leaf editable's own default group is its own type,
+                  // which those widgets would not find.
+                  groupId: EditableText,
+                  // Telegram's handles are drawn by the composer, not the
+                  // platform's: Material on every platform.
+                  selectionControls:
+                      extendedMaterialTextSelectionHandleControls,
                   enabled: widget.enabled,
                   autofocus: widget.autofocus,
                   minLines: 1,

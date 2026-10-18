@@ -27,8 +27,13 @@ final class ComposerSpec {
     this.actions = const [],
     this.enabled = true,
     this.busy = false,
+    this.messageLengthLimit,
     this.linkPrompt,
-  }) : assert(_uniqueIds(actions), 'two actions of a ComposerSpec share an id');
+  }) : assert(_uniqueIds(actions), 'two actions of a ComposerSpec share an id'),
+       assert(
+         messageLengthLimit == null || messageLengthLimit > 0,
+         'a message length limit is positive; null means none',
+       );
 
   /// What sits above the field, or null for no strip.
   final ComposerHeader? header;
@@ -46,6 +51,21 @@ final class ComposerSpec {
   /// Whether a submit is in flight: the primary action is inert so it cannot
   /// fire twice, while the field stays editable.
   final bool busy;
+
+  /// The most code points the plain text of a message may have, or null for
+  /// no limit.
+  ///
+  /// The host sets it from its server configuration (Telegram's
+  /// `message_length_max` is 4096). The unit is code points of
+  /// `RichText.plain` (`ComposerController.length`): a surrogate pair counts
+  /// once, nothing counts markdown delimiters, and formatting costs nothing.
+  ///
+  /// With a limit, the view shows the count remaining once it is
+  /// [ComposerLengthCounter.visibleFrom] or fewer, and the primary action
+  /// refuses (the counter shakes, `onTap` is not called) while it is negative.
+  /// Another way of sending, a scheduled send say, checks
+  /// `ComposerController.length` itself.
+  final int? messageLengthLimit;
 
   /// Asks the user for a link's URL when a command wants one (the link
   /// shortcut). Null leaves those commands inert: the composer owns no dialog,

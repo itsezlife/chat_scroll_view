@@ -95,7 +95,7 @@ void main() {
     String? sent;
     await pumpHost(tester, (text) async => sent = text);
 
-    await tester.enterText(find.byType(TextField), '  hello world  ');
+    await enterFieldText(tester, '  hello world  ');
     await tester.pump();
     await tapPrimary(tester);
 
@@ -107,7 +107,7 @@ void main() {
     var invoked = false;
     await pumpHost(tester, (_) async => invoked = true);
 
-    await tester.enterText(find.byType(TextField), '   \n  ');
+    await enterFieldText(tester, '   \n  ');
     await tester.pump();
     await tapPrimary(tester);
 
@@ -125,7 +125,7 @@ void main() {
         if (attempts == 1) throw Exception('network');
       });
 
-      await tester.enterText(find.byType(TextField), 'retry me');
+      await enterFieldText(tester, 'retry me');
       await tester.pump();
       await tapPrimary(tester);
 
@@ -151,7 +151,7 @@ void main() {
       return gate.future;
     });
 
-    await tester.enterText(find.byType(TextField), 'once');
+    await enterFieldText(tester, 'once');
     await tester.pump();
     await tapPrimary(tester);
     await tapPrimary(tester);

@@ -13,6 +13,7 @@ void main() {
       'catalog_assets',
       'chat_composer',
       'chrome_foundation',
+      'composer_editable',
       'content_model',
       'characters',
       'flutter',

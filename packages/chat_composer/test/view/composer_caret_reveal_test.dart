@@ -8,6 +8,7 @@
 library;
 
 import 'package:chat_composer/chat_composer.dart';
+import 'package:composer_editable/composer_editable.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart' hide RichText;
 import 'package:flutter_test/flutter_test.dart';
@@ -28,7 +29,7 @@ void main() {
   // Whether the glyphs of the last line lie inside the field's box.
   bool lastLineShown(WidgetTester tester) {
     final render = tester
-        .state<EditableTextState>(find.byType(EditableText))
+        .state<ExtendedEditableTextState>(find.byType(ExtendedEditableText))
         .renderEditable;
     final text = controller.text.text;
     final boxes = render.getBoxesForSelection(

@@ -2,6 +2,7 @@ import 'dart:ui' show Tristate;
 
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:composer_editable/composer_editable.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -232,7 +233,7 @@ void main() {
       );
 
       final lead = tester.getCenter(button('lead')).dx;
-      final field = tester.getCenter(find.byType(TextField)).dx;
+      final field = tester.getCenter(find.byType(ExtendedTextField)).dx;
       final trail = tester.getCenter(button('trail')).dx;
       expect(lead, lessThan(field));
       expect(trail, greaterThan(field));
@@ -251,7 +252,7 @@ void main() {
       );
 
       final lead = tester.getCenter(button('lead')).dx;
-      final field = tester.getCenter(find.byType(TextField)).dx;
+      final field = tester.getCenter(find.byType(ExtendedTextField)).dx;
       final trail = tester.getCenter(button('trail')).dx;
       expect(lead, greaterThan(field));
       expect(trail, lessThan(field));

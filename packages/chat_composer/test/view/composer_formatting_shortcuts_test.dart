@@ -12,11 +12,7 @@ import '../support/composer_harness.dart';
 /// Intent it binds.
 final _bindings = <(LogicalKeyboardKey, bool, Intent)>[
   (LogicalKeyboardKey.keyB, false, const ToggleStyleIntent(EntityStyle.bold)),
-  (
-    LogicalKeyboardKey.keyI,
-    false,
-    const ToggleStyleIntent(EntityStyle.italic),
-  ),
+  (LogicalKeyboardKey.keyI, false, const ToggleStyleIntent(EntityStyle.italic)),
   (
     LogicalKeyboardKey.keyU,
     false,
@@ -24,17 +20,9 @@ final _bindings = <(LogicalKeyboardKey, bool, Intent)>[
   ),
   (LogicalKeyboardKey.keyX, true, const ToggleStyleIntent(EntityStyle.strike)),
   (LogicalKeyboardKey.keyM, true, const ToggleStyleIntent(EntityStyle.code)),
-  (
-    LogicalKeyboardKey.keyP,
-    true,
-    const ToggleStyleIntent(EntityStyle.spoiler),
-  ),
+  (LogicalKeyboardKey.keyP, true, const ToggleStyleIntent(EntityStyle.spoiler)),
   (LogicalKeyboardKey.keyK, false, const ApplyLinkIntent()),
-  (
-    LogicalKeyboardKey.period,
-    true,
-    const ToggleStyleIntent(EntityStyle.quote),
-  ),
+  (LogicalKeyboardKey.period, true, const ToggleStyleIntent(EntityStyle.quote)),
   (
     LogicalKeyboardKey.digit7,
     true,
@@ -103,9 +91,11 @@ void main() {
                   : LogicalKeyboardKey.metaLeft;
 
               await tester.sendKeyDownEvent(modifierKey);
-              if (shift) await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+              if (shift)
+                await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
               await tester.sendKeyEvent(key);
-              if (shift) await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+              if (shift)
+                await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
               await tester.sendKeyUpEvent(modifierKey);
 
               expect(seen, hasLength(1));
@@ -414,9 +404,7 @@ void main() {
     testWidgets('a host map that rebinds bold wins over the default', (
       tester,
     ) async {
-      final map = {
-        ...const ComposerShortcutPolicy.desktop().shortcuts,
-      };
+      final map = {...const ComposerShortcutPolicy.desktop().shortcuts};
       map
         ..remove(const SingleActivator(LogicalKeyboardKey.keyB, control: true))
         ..[const SingleActivator(LogicalKeyboardKey.keyJ, control: true)] =
@@ -437,38 +425,47 @@ void main() {
     });
 
     group('the shortcut and the command give one RichText', () {
-      final cases = <String, (Intent, LogicalKeyboardKey, bool, void Function(ComposerTextController))>{
-        'bold': (
-          const ToggleStyleIntent(EntityStyle.bold),
-          LogicalKeyboardKey.keyB,
-          false,
-          (c) => c.toggleStyle(EntityStyle.bold),
-        ),
-        'quote': (
-          const ToggleStyleIntent(EntityStyle.quote),
-          LogicalKeyboardKey.period,
-          true,
-          (c) => c.toggleStyle(EntityStyle.quote),
-        ),
-        'clear formatting': (
-          const ClearFormattingIntent(),
-          LogicalKeyboardKey.keyN,
-          true,
-          (c) => c.clearFormatting(),
-        ),
-        'code block': (
-          const ToggleCodeBlockIntent(),
-          LogicalKeyboardKey.keyE,
-          false,
-          (c) => c.toggleCodeBlock(),
-        ),
-        'link': (
-          const ApplyLinkIntent(),
-          LogicalKeyboardKey.keyK,
-          false,
-          (c) => c.applyLink('https://a.b'),
-        ),
-      };
+      final cases =
+          <
+            String,
+            (
+              Intent,
+              LogicalKeyboardKey,
+              bool,
+              void Function(ComposerTextController),
+            )
+          >{
+            'bold': (
+              const ToggleStyleIntent(EntityStyle.bold),
+              LogicalKeyboardKey.keyB,
+              false,
+              (c) => c.toggleStyle(EntityStyle.bold),
+            ),
+            'quote': (
+              const ToggleStyleIntent(EntityStyle.quote),
+              LogicalKeyboardKey.period,
+              true,
+              (c) => c.toggleStyle(EntityStyle.quote),
+            ),
+            'clear formatting': (
+              const ClearFormattingIntent(),
+              LogicalKeyboardKey.keyN,
+              true,
+              (c) => c.clearFormatting(),
+            ),
+            'code block': (
+              const ToggleCodeBlockIntent(),
+              LogicalKeyboardKey.keyE,
+              false,
+              (c) => c.toggleCodeBlock(),
+            ),
+            'link': (
+              const ApplyLinkIntent(),
+              LogicalKeyboardKey.keyK,
+              false,
+              (c) => c.applyLink('https://a.b'),
+            ),
+          };
 
       for (final entry in cases.entries) {
         testWidgets(entry.key, (tester) async {
