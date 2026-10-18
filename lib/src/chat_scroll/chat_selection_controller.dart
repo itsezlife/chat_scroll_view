@@ -4,6 +4,7 @@ import 'dart:ui' show Offset, Path, Rect;
 
 import 'package:catalog_assets/catalog_assets.dart' show PlaybackClock;
 import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_non_text_body.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_interaction.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
@@ -29,6 +30,7 @@ import 'package:flutter_md/flutter_md.dart';
 import 'package:meta/meta.dart' show internal;
 
 export 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
+export 'package:chat_scroll_view/src/chat_scroll/chat_non_text_body.dart';
 export 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 export 'package:chat_scroll_view/src/chat_scroll/chat_selection_interaction.dart';
 export 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
@@ -528,6 +530,21 @@ class ChatSelectionController implements Listenable {
     int? order,
     Object? token,
   }) => putBody(messageId, model, order: order, token: token);
+
+  /// Registers a body of [messageId] that paints no text (an emoji-only body,
+  /// later a media body), the way [putBody] registers a text one.
+  ///
+  /// The message has nothing to select then: no text surface, no character
+  /// range, and a long press on it is message selection. The facade asks the
+  /// body only for its activatable parts ([resolveInlineHit]) and its bounds.
+  /// Returns the token to pass to [removeNonTextBody]; several mounts may
+  /// share one [messageId] and the last answers. Null after [dispose].
+  Object? putNonTextBody(int messageId, ChatNonTextBody body) =>
+      _text.putNonTextBody(messageId, body);
+
+  /// Removes the body that [putNonTextBody] returned [token] for.
+  void removeNonTextBody(int messageId, {required Object? token}) =>
+      _text.removeNonTextBody(messageId, token: token);
 
   /// Returns the mounted [MarkdownSelectionSurface] for [messageId], if any.
   MarkdownSelectionSurface? surfaceFor(int messageId) =>
@@ -1039,6 +1056,18 @@ class ChatSelectionController implements Listenable {
         );
         return true;
 
+      case ChatInlineHit$Sticker(:final messageId, :final content):
+        // The body replays the animation on this notification, so it is not
+        // gated like an embed: a sticker is meant to be tapped.
+        _notifyInteraction(
+          ChatSelectionInteraction.stickerActivated(
+            messageId: messageId,
+            content: content,
+            gesture: gesture,
+          ),
+        );
+        return true;
+
       case ChatInlineHit$Code(:final messageId, :final code, :final language):
         if (copyCodeOnClick) {
           unawaited(_copyCode(messageId, code, language, gesture));
@@ -1165,6 +1194,9 @@ class ChatSelectionController implements Listenable {
           ),
         );
         return hasHandlers;
+      case ChatInlineHit$Sticker():
+        // A long press on a sticker is message selection, not an activation.
+        return false;
       case ChatInlineHit$Code():
         // Same action as tap, tagged long-press. Drop press ink immediately —
         // the gesture already completed (unlike link long-press, which keeps

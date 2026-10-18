@@ -1,9 +1,10 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart'
     show ChatMentionKind;
+import 'package:content_model/content_model.dart' show ContentKey;
 import 'package:flutter/foundation.dart';
 
 /// Host-observable outcome from the selection facade (Copy, link, code,
-/// mention, hashtag, embed).
+/// mention, hashtag, embed, sticker).
 ///
 /// One sealed channel replaces parallel typed hooks so hosts switch once for
 /// feedback UI and side effects. Message-menu entry
@@ -56,6 +57,15 @@ sealed class ChatSelectionInteraction {
     required String alt,
     required ChatInlineGesture gesture,
   }) = ChatEmbedActivated;
+
+  /// The sticker of an emoji-only body tapped. Always emitted: the body
+  /// replays the animation on its own, and what else a tap means (an effect,
+  /// a pack sheet for a custom emoji) is the host's.
+  const factory ChatSelectionInteraction.stickerActivated({
+    required int messageId,
+    required ContentKey content,
+    required ChatInlineGesture gesture,
+  }) = ChatStickerActivated;
 
   /// Code / monospace activation when the facade does **not** auto-copy.
   const factory ChatSelectionInteraction.codeActivated({
@@ -348,4 +358,42 @@ final class ChatEmbedActivated extends ChatSelectionInteraction {
   String toString() =>
       'ChatEmbedActivated(messageId: $messageId, target: $target, '
       'alt: $alt, gesture: $gesture)';
+}
+
+/// The sticker of an emoji-only body tapped.
+///
+/// Construct via [ChatSelectionInteraction.stickerActivated].
+@immutable
+final class ChatStickerActivated extends ChatSelectionInteraction {
+  /// Creates a sticker-activation interaction.
+  const ChatStickerActivated({
+    required this.messageId,
+    required this.content,
+    required this.gesture,
+  });
+
+  /// Message whose body shows the sticker.
+  final int messageId;
+
+  /// The emoji of the message: a unicode key, or a custom emoji's document.
+  final ContentKey content;
+
+  /// Tap vs long-press.
+  final ChatInlineGesture gesture;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatStickerActivated &&
+          messageId == other.messageId &&
+          content == other.content &&
+          gesture == other.gesture;
+
+  @override
+  int get hashCode => Object.hash(messageId, content, gesture);
+
+  @override
+  String toString() =>
+      'ChatStickerActivated(messageId: $messageId, content: $content, '
+      'gesture: $gesture)';
 }

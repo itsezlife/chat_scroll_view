@@ -28,6 +28,14 @@ import 'chat_scroll_motion_test.dart' as chat_scroll_motion_test;
 import 'chat_scroll_physics_test.dart' as chat_scroll_physics_test;
 import 'chat_sender_run_layout_test.dart' as chat_sender_run_layout_test;
 import 'chat_stretch_overscroll_test.dart' as chat_stretch_overscroll_test;
+import 'emoji/chat_emoji_body_test.dart' as chat_emoji_body_test;
+import 'emoji/chat_emoji_body_viewport_test.dart'
+    as chat_emoji_body_viewport_test;
+import 'emoji/chat_emoji_flow_test.dart' as chat_emoji_flow_test;
+import 'emoji/chat_emoji_sizes_test.dart' as chat_emoji_sizes_test;
+import 'emoji/chat_non_text_body_test.dart' as chat_non_text_body_test;
+import 'goldens/chat_emoji_body_golden_test.dart'
+    as chat_emoji_body_golden_test;
 import 'goldens/inline_layer_golden_test.dart' as inline_layer_golden_test;
 import 'viewport_never_detects_test.dart' as viewport_never_detects_test;
 import 'widgets/chat_absent_build_test.dart' as chat_absent_build_test;
@@ -158,6 +166,18 @@ void main() {
   group('chat_scroll_physics_test.dart', chat_scroll_physics_test.main);
   group('chat_sender_run_layout_test.dart', chat_sender_run_layout_test.main);
   group('chat_stretch_overscroll_test.dart', chat_stretch_overscroll_test.main);
+  group('emoji/chat_emoji_body_test.dart', chat_emoji_body_test.main);
+  group(
+    'emoji/chat_emoji_body_viewport_test.dart',
+    chat_emoji_body_viewport_test.main,
+  );
+  group('emoji/chat_emoji_flow_test.dart', chat_emoji_flow_test.main);
+  group('emoji/chat_emoji_sizes_test.dart', chat_emoji_sizes_test.main);
+  group('emoji/chat_non_text_body_test.dart', chat_non_text_body_test.main);
+  group(
+    'goldens/chat_emoji_body_golden_test.dart',
+    chat_emoji_body_golden_test.main,
+  );
   group('goldens/inline_layer_golden_test.dart', inline_layer_golden_test.main);
   group('viewport_never_detects_test.dart', viewport_never_detects_test.main);
   group('widgets/chat_absent_build_test.dart', chat_absent_build_test.main);

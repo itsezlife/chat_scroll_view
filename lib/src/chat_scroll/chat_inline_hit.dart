@@ -1,10 +1,11 @@
 import 'dart:ui' show Offset, Path;
 
+import 'package:content_model/content_model.dart' show ContentKey;
 import 'package:flutter/foundation.dart';
 
-/// Semantic inline hit on a markdown body element: a hyperlink, a code block,
-/// or one of the three things the markdown engine paints as a style of its own
-/// (an embed, a mention, a hashtag).
+/// Semantic inline hit on a message body element: a hyperlink, a code block,
+/// one of the three things the markdown engine paints as a style of its own
+/// (an embed, a mention, a hashtag), or the sticker of an emoji-only body.
 ///
 /// A hit is read from the span's style bits, never from its URL: a mention is
 /// not a link and an image is not a link. A span inside a hidden spoiler is no
@@ -72,6 +73,18 @@ sealed class ChatInlineHit {
     Path? contourPath,
     Offset? touchOrigin,
   }) = ChatInlineHit$Hashtag;
+
+  /// Creates a hit on the sticker of an emoji-only body: the lone emoji of the
+  /// message, shown large (`ChatEmojiBody`).
+  ///
+  /// [content] is the emoji the sender wrote: a `ContentKey.unicode` for an
+  /// emoji with an animated sticker, a `ContentKey.document` for a custom
+  /// emoji. The body replays the animation itself; what else a tap means (a
+  /// pack sheet, an effect) is the host's.
+  const factory ChatInlineHit.sticker({
+    required int messageId,
+    required ContentKey content,
+  }) = ChatInlineHit$Sticker;
 
   /// The message ID whose body contains the hit element.
   abstract final int messageId;
@@ -351,4 +364,41 @@ final class ChatInlineHit$Hashtag extends ChatInlineHit {
       r'ChatInlineHit$Hashtag(messageId: '
       '$messageId, tag: $tag, '
       'contourPath: $contourPath, touchOrigin: $touchOrigin)';
+}
+
+/// A hit on the sticker of an emoji-only body.
+///
+/// It has no text contour: the sticker is an image, so a tap gives no
+/// highlight of the kind a link does.
+@immutable
+final class ChatInlineHit$Sticker extends ChatInlineHit {
+  /// Creates a sticker hit descriptor.
+  const ChatInlineHit$Sticker({required this.messageId, required this.content});
+
+  @override
+  final int messageId;
+
+  /// The emoji of the message.
+  final ContentKey content;
+
+  @override
+  Path? get contourPath => null;
+
+  @override
+  Offset? get touchOrigin => null;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatInlineHit$Sticker &&
+          other.messageId == messageId &&
+          other.content == content;
+
+  @override
+  int get hashCode => Object.hash(messageId, content);
+
+  @override
+  String toString() =>
+      r'ChatInlineHit$Sticker(messageId: '
+      '$messageId, content: $content)';
 }
