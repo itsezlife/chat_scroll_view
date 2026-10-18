@@ -114,6 +114,9 @@ final class MenuRig {
     TextDirection textDirection = TextDirection.ltr,
     Brightness brightness = Brightness.light,
     ChromeMotionSpeed? motionSpeed,
+    ChromeStrings? strings,
+    Locale? locale,
+    Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
     Size? size,
     bool enter = true,
   }) async {
@@ -135,6 +138,9 @@ final class MenuRig {
         textDirection: textDirection,
         brightness: brightness,
         motionSpeed: motionSpeed,
+        strings: strings,
+        locale: locale,
+        localizationsDelegates: localizationsDelegates,
       ),
     );
     composer

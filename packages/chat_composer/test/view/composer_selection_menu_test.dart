@@ -8,6 +8,7 @@ library;
 
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_composer/src/menu/selection_menu_items.dart';
+import 'package:chat_composer/src/menu/selection_menu_shell.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:composer_editable/composer_editable.dart';
@@ -16,6 +17,7 @@ import 'package:content_model/testing.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide RichText;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -62,17 +64,17 @@ void main() {
       // The card hugs the trailing edge of a row as wide as the page-opened
       // one, so it is not exactly centred; it is over the selection.
       expect(card.center.dx, closeTo(box.center.dx, card.width));
-      expect(card.left, greaterThanOrEqualTo(12));
+      expect(card.left, greaterThanOrEqualTo(16));
     });
 
-    testWidgets('the card keeps 12 dp from the screen and fits a narrow one', (
+    testWidgets('the card keeps 16 dp from the screen and fits a narrow one', (
       tester,
     ) async {
       await MenuRig.show(tester, size: const Size(260, 700));
 
       final card = tester.getRect(MenuRig.card);
-      expect(card.left, greaterThanOrEqualTo(12));
-      expect(card.right, lessThanOrEqualTo(260 - 12));
+      expect(card.left, greaterThanOrEqualTo(16));
+      expect(card.right, lessThanOrEqualTo(260 - 16));
     });
 
     testWidgets('on a wide screen the row is no wider than 400 dp', (
@@ -184,15 +186,14 @@ void main() {
       );
       await rig.openMore();
 
-      // Nine rows, then Clear formatting, scrolling under 320 dp.
+      // Ten rows, four and a half in view: the list is read in order as it
+      // scrolls under the Back row.
       final order = [
         SelectionMenuItemKind.bold,
         SelectionMenuItemKind.italic,
         SelectionMenuItemKind.underline,
         SelectionMenuItemKind.strikethrough,
         SelectionMenuItemKind.mono,
-        SelectionMenuItemKind.spoiler,
-        SelectionMenuItemKind.quote,
       ];
       var previous = double.negativeInfinity;
       for (final kind in order) {
@@ -204,6 +205,25 @@ void main() {
         tester.getRect(MenuRig.back).top,
         greaterThan(tester.getRect(MenuRig.item(order.first)).top),
       );
+
+      final list = find
+          .descendant(of: MenuRig.card, matching: find.byType(Scrollable))
+          .first;
+      await tester.drag(list, const Offset(0, -2000));
+      await tester.pumpAndSettle();
+      final rest = [
+        SelectionMenuItemKind.spoiler,
+        SelectionMenuItemKind.quote,
+        SelectionMenuItemKind.codeBlock,
+        SelectionMenuItemKind.createLink,
+        SelectionMenuItemKind.clearFormatting,
+      ];
+      previous = double.negativeInfinity;
+      for (final kind in rest) {
+        final top = tester.getTopLeft(MenuRig.item(kind)).dy;
+        expect(top, greaterThan(previous), reason: '$kind');
+        previous = top;
+      }
     });
 
     testWidgets('every formatting item calls its command', (tester) async {
@@ -361,7 +381,6 @@ void main() {
       expect(MenuRig.item(SelectionMenuItemKind.cut), findsNothing);
       expect(MenuRig.more, findsOneWidget);
       await rig.openMore();
-
       Color? colorOf(SelectionMenuItemKind kind) => tester
           .widget<Text>(
             find.descendant(
@@ -372,7 +391,22 @@ void main() {
           .style!
           .color;
       expect(colorOf(SelectionMenuItemKind.bold)!.a, closeTo(0.38, 0.01));
+      // The Quote row is under the four and a half in view.
+      await tester.scrollUntilVisible(
+        MenuRig.item(SelectionMenuItemKind.quote),
+        42,
+        scrollable: find
+            .descendant(of: MenuRig.card, matching: find.byType(Scrollable))
+            .first,
+      );
       expect(colorOf(SelectionMenuItemKind.quote)!.a, 1);
+      await tester.drag(
+        find
+            .descendant(of: MenuRig.card, matching: find.byType(Scrollable))
+            .first,
+        const Offset(0, 2000),
+      );
+      await tester.pumpAndSettle();
 
       await tester.tap(MenuRig.item(SelectionMenuItemKind.bold));
       await tester.pumpAndSettle();
@@ -498,17 +532,23 @@ void main() {
   });
 
   group('clipboard labels', () {
-    testWidgets('are Material\'s on every platform', (tester) async {
-      await MenuRig.show(tester, size: const Size(800, 900));
+    // The host's ChromeStrings, as on every platform; the English preset's
+    // edit-menu wording is "Select All", and its access marks (Cu&t) are not
+    // drawn on a touch card.
+    testWidgets(
+      'are the host\'s strings on every platform',
+      (tester) async {
+        await MenuRig.show(tester, size: const Size(800, 900));
 
-      expect(find.text('Cut'), findsOneWidget);
-      expect(find.text('Copy'), findsOneWidget);
-      // The Cupertino wording is not used where the platform has it.
-      expect(find.text('Select All'), findsNothing);
-    }, variant: TargetPlatformVariant.all());
+        expect(find.text('Cut'), findsOneWidget);
+        expect(find.text('Copy'), findsOneWidget);
+        expect(find.text('Cu&t'), findsNothing);
+      },
+      variant: TargetPlatformVariant.all(),
+    );
 
     testWidgets(
-      'Select all reads as Material\'s over a caret',
+      'Select all is the host\'s wording over a caret',
       (tester) async {
         await MenuRig.show(
           tester,
@@ -516,10 +556,11 @@ void main() {
           selection: const TextSelection.collapsed(offset: 4),
         );
 
-        expect(find.text('Select All'), findsNothing);
+        // Not Material's "Select all": the platform's own wording is not used.
+        expect(find.text('Select all'), findsNothing);
         // Offered everywhere but on macOS.
         expect(
-          find.text('Select all'),
+          find.text('Select All'),
           defaultTargetPlatform == TargetPlatform.macOS
               ? findsNothing
               : findsOneWidget,
@@ -786,18 +827,32 @@ void main() {
       expect(rig.cardSize, open);
     });
 
-    testWidgets(
-      'the More page is 150 wide and the card is the page\'s height',
-      (tester) async {
-        final rig = await MenuRig.show(tester, size: const Size(800, 900));
-        await rig.openMore();
+    testWidgets('the More page is as wide as its widest label and 264 tall', (
+      tester,
+    ) async {
+      final rig = await MenuRig.show(tester, size: const Size(800, 900));
+      await rig.openMore();
 
-        expect(rig.cardSize.width, 150);
-        // Eight formatting rows under the 320 dp cap: 43 + 8 * 42 = 379 > 313.
-        expect(rig.cardSize.height, lessThanOrEqualTo(320));
-        expect(rig.cardSize.height, greaterThan(200));
-      },
-    );
+      var widest = 0.0;
+      for (final tile in tester.widgetList<SelectionMenuTile>(
+        find.byType(SelectionMenuTile),
+      )) {
+        final text = find.descendant(
+          of: find.byWidget(tile),
+          matching: find.byType(Text),
+        );
+        if (text.evaluate().isEmpty || tile.leading != null) continue;
+        widest = [
+          widest,
+          tester
+              .renderObject<RenderParagraph>(text.first)
+              .getMaxIntrinsicWidth(double.infinity),
+        ].reduce((a, b) => a > b ? a : b);
+      }
+      expect(rig.cardSize.width, inInclusiveRange(widest + 36, widest + 37));
+      // Ten formatting rows: four and the peek of a fifth, and Back.
+      expect(rig.cardSize.height, 264);
+    });
 
     testWidgets('Back on the page turns it back over 300 ms', (tester) async {
       final rig = await MenuRig.show(tester, size: const Size(800, 900));
@@ -884,7 +939,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 1));
       expect(rig.isOpen, isTrue);
-      expect(rig.cardSize.width, 150);
+      expect(rig.cardSize.height, 264);
 
       await tester.tap(MenuRig.item(SelectionMenuItemKind.bold));
       await tester.pump();
@@ -907,10 +962,18 @@ void main() {
         _strings.boldAction,
         _strings.italicAction,
         _strings.monoAction,
-        _strings.quoteAction,
       ]) {
         expect(find.bySemanticsLabel(label), findsWidgets, reason: label);
       }
+      // Quote is under the four and a half rows in view.
+      await tester.scrollUntilVisible(
+        MenuRig.item(SelectionMenuItemKind.quote),
+        42,
+        scrollable: find
+            .descendant(of: MenuRig.card, matching: find.byType(Scrollable))
+            .first,
+      );
+      expect(find.bySemanticsLabel(_strings.quoteAction), findsWidgets);
       expect(find.bySemanticsLabel(_strings.backAction), findsWidgets);
       handle.dispose();
     });
@@ -971,7 +1034,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       await tester.pump();
       // Back past Cut to the More button.
-      expect(focused(), tester.getRect(find.byType(IconButton)));
+      expect(focused(), tester.getRect(MenuRig.more));
     });
 
     testWidgets('the arrow keys move between the items', (tester) async {
@@ -1112,8 +1175,8 @@ void main() {
 
       final card = tester.getRect(MenuRig.card);
       expect(tester.getRect(MenuRig.more).left, card.left);
-      // Its 4 dp of padding are at the card's end, which is the left here.
-      expect(tester.getRect(find.byType(IconButton)).left, card.left + 4);
+      // It is flush with the card's end, which is the left here.
+      expect(tester.getSize(MenuRig.more), const Size(56, 48));
       expect(
         tester.getRect(MenuRig.item(SelectionMenuItemKind.cut)).right,
         card.right,
@@ -1121,9 +1184,9 @@ void main() {
 
       await rig.openMore();
       final back = tester.getRect(MenuRig.back);
-      // The label starts 54 dp from the row's start, which is its right edge.
+      // The label starts 56 dp from the row's start, which is its right edge.
       final label = tester.getRect(find.text(_strings.backAction));
-      expect(back.right - label.right, 54);
+      expect(back.right - label.right, 56);
     });
 
     testWidgets('the page opens from the same edge it closes to', (

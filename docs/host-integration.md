@@ -167,9 +167,11 @@ ChromeThemeScope(
 The chat screen adds `GlassSourceScope` over its content and glass surfaces,
 with a `GlassSource` around the message list, when sampled glass is wanted.
 
-Material localisations must be available above the composer (its selection
-menu uses them). `PanelShell` builds on `EditableText` and needs no Material
-ancestor.
+Material localisations must be available above the composer (its text field
+reads them); the composer's menus do not: every label of the selection menu and
+of the pointer menu comes from `ChromeStrings`, so an app that has no Material
+delegate for its own language still shows its language in them. `PanelShell`
+builds on `EditableText` and needs no Material ancestor.
 
 ## 4. Per-chat controller set
 
@@ -411,7 +413,11 @@ supplies the rest through `ComposerSpec`:
   one; the list items still wait for `ComposerTextController(lists: true)`, and
   an item whose command cannot apply to the selection is greyed on the More
   page, not hidden; Quote is left out over a selection that is quoted).
-  Labels come from `ChromeStrings.formatting`.
+  Labels come from `ChromeStrings.formatting`, and the clipboard rows (Cut,
+  Copy, Paste, Select all) from `ChromeStrings.editMenu`, the pointer menu's
+  group, with its `&` access marks removed. The page is as wide as its widest
+  label, so a long translation widens it instead of being cut; only a label
+  wider than the screen less 32 dp is ellipsized.
 - `linkPrompt` is your dialog for Create and Edit Link. It gets the composer's
   `BuildContext` and the current target (null when creating) and completes with
   the URL, or null to cancel. The shortcut for links asks the same prompt.

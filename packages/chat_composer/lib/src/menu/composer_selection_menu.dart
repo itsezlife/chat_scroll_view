@@ -362,6 +362,7 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
     final theme = Theme.of(context);
     final tokens = widget.tokens;
     final label = selectionMenuLabelStyle(theme, tokens);
+    final backStyle = selectionMenuBackStyle(theme, tokens);
     final placement = _placement(media, view, editable);
     final clipboard = [
       for (final i in items)
@@ -375,12 +376,22 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
       labels: [for (final item in clipboard) item.label],
       style: label,
       maxWidth: placement.maxWidth,
+      moreFollows: formatting.isNotEmpty,
       textScaler: scaler,
       textDirection: direction,
     );
     final pageItems = [...clipboard.skip(split.count), ...formatting];
-    final hasMore = pageItems.isNotEmpty;
-    final maxHeight = placement.maxHeight > 0 ? placement.maxHeight : null;
+    final hasMore = split.hasMore;
+    final pageSize = sizeSelectionMenuPage(
+      items: pageItems,
+      style: label,
+      backLabel: widget.strings.backAction,
+      backStyle: backStyle,
+      maxWidth: placement.pageMaxWidth,
+      maxHeight: placement.maxHeight,
+      textScaler: scaler,
+      textDirection: direction,
+    );
     final page = widget.motion.specOf(MotionRole.menuPage);
 
     final menu = OverlayBackButtonListener(
@@ -399,19 +410,20 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
           onKeyEvent: _onScopeKey,
           child: SelectionMenuPositioned(
             placement: placement,
-            // The page narrows the card; centring it as the row keeps one edge
-            // still as it opens.
-            referenceWidth:
-                split.width +
-                (hasMore ? SelectionMenuMetrics.moreButtonWidth : 0),
+            // The card is centred as wide as the wider of its pages, and hugs
+            // that width's trailing edge: opening the page keeps the card's
+            // end where it was, as the reference's popup does.
+            referenceWidth: math.max(
+              split.rowWidth,
+              hasMore ? pageSize.width : 0,
+            ),
             child: SelectionMenuAppearance(
               key: _appearance,
               fitsAbove: placement.fitsAbove,
               motion: widget.motion,
               child: SelectionMenuCard(
                 tokens: tokens,
-                maxWidth: placement.maxWidth,
-                maxHeight: maxHeight,
+                maxWidth: placement.pageMaxWidth,
                 child: SelectionMenuSwipeBack(
                   controller: _pages,
                   pageColor: tokens.background,
@@ -424,25 +436,24 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
                     tokens: tokens,
                     labelStyle: label,
                     moreLabel: widget.strings.moreAction,
+                    maxWidth: placement.maxWidth,
                     onSelected: (item) => unawaited(_select(item)),
                     onOpenMore: hasMore ? _pages.openForeground : null,
                   ),
                   foreground: hasMore
-                      ? SizedBox(
-                          width: SelectionMenuMetrics.pageWidth,
-                          child: SelectionMenuMorePage(
-                            items: pageItems,
-                            tokens: tokens,
-                            labelStyle: label,
-                            backLabel: widget.strings.backAction,
-                            // Next to the text the menu points at.
-                            backPlacement: placement.fitsAbove
-                                ? SelectionMenuBackPlacement.bottom
-                                : SelectionMenuBackPlacement.top,
-                            maxHeight: maxHeight,
-                            onSelected: (item) => unawaited(_select(item)),
-                            onBack: _pages.closeForeground,
-                          ),
+                      ? SelectionMenuMorePage(
+                          items: pageItems,
+                          tokens: tokens,
+                          labelStyle: label,
+                          backStyle: backStyle,
+                          backLabel: widget.strings.backAction,
+                          // Next to the text the menu points at.
+                          backPlacement: placement.fitsAbove
+                              ? SelectionMenuBackPlacement.bottom
+                              : SelectionMenuBackPlacement.top,
+                          size: pageSize,
+                          onSelected: (item) => unawaited(_select(item)),
+                          onBack: _pages.closeForeground,
                         )
                       : const SizedBox.shrink(),
                 ),
