@@ -166,7 +166,7 @@ void main() {
     await shoot(
       tester,
       'link',
-      text: const RichText('go to site now', [
+      text: RichText('go to site now', const [
         Entity(6, 4, EntityKind.link('https://a.example')),
       ]),
       click: 7,
