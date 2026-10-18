@@ -521,6 +521,11 @@ final class ChatInputSet {
   ///
   /// What detection made (a link to its own URL, a username, a hashtag) loads
   /// as the text it was typed as; saving detects it again.
+  ///
+  /// The composer takes focus with the caret at the end of the text, and on a
+  /// touch platform the soft keyboard rises (see [_raiseKeyboardForEdit]).
+  /// Only a user's own edit does this: a draft that restores into edit mode
+  /// ([bindDrafts]) leaves focus and the keyboard as they are.
   void beginEdit(int id, String body) {
     if (_disposed) return;
     final text = ChatBodyMarkdown.decodeForEdit(body);
@@ -530,6 +535,32 @@ final class ChatInputSet {
     );
     _editing.value = ChatEditTarget(id: id, preview: text.plain);
     composer.requestFocus();
+    _raiseKeyboardForEdit();
+  }
+
+  // Focus alone is not the keyboard. A composer that took focus when the chat
+  // opened, or while a panel held the keyboard's place, attached with no
+  // keyboard type and stays that way until the keyboard is asked for; so an
+  // edit asks, as the references do (Android `openKeyboard`, iOS input mode
+  // text, Desktop `setInnerFocus`).
+  //
+  // The ask waits for the frame that follows. An edit begun from the selection
+  // bar clears the selection in the same breath, and the composer is not in
+  // the tree until that frame builds it: a request made now would reach a
+  // field that is not there and be lost.
+  //
+  // A panel that replaces the keyboard gives the slot back to it (the hand-off
+  // a tap on the field makes), where a bare request would show nothing while
+  // the keyboard is suppressed for the panel.
+  void _raiseKeyboardForEdit() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_disposed) return;
+      if (panelReplacesKeyboard) {
+        handOffToKeyboard();
+      } else {
+        composer.requestKeyboard();
+      }
+    });
   }
 
   /// Keeps the composer's unsent text in [store] under [chatKey], and puts the

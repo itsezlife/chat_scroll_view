@@ -704,6 +704,14 @@ ids. What the host wires:
    time on the desktop client, so the host supplies its own formatter. The
    demo's `ChatMessagesCopyFormat` is one implementation; the rich form
    (entities) of each body is kept behind the headers.
+4. **Confirmation and selection after the copy.** Per policy, whatever made the
+   copy ([ADR 012](adr/012-cross-platform-selection-policies.md#copy-confirmation-and-what-a-copy-leaves-selected-both-strategies)):
+   a mobile copy toasts and ends the selection, a desktop copy of text or
+   messages is silent and keeps it (only code toasts). The viewport applies this
+   to its own copy; after the host's own clipboard write it calls
+   `selectionPolicy.applyCopySuccess(clearTextSelection: …, clearMessageSelection: …)`
+   and decides the toast from `ChatCopied.origin` or its own call site. The
+   demo's `ChatCopyFeedback` is one implementation.
 
 ### Emoji-only messages
 
@@ -765,7 +773,7 @@ A message of nothing but emoji is shown without a bubble, large
 
    | | Android | iOS | Desktop |
    | --- | --- | --- | --- |
-   | Time | always; a strip under the text (3 dp gap, 17 dp pill, 3 dp), over the sticker's bottom | always; 4 pt inside the frame's end and bottom | beside the content (incoming) or under or over it (outgoing); on hover, last own, sending, failed; an outgoing large emoji always |
+   | Time | always; a strip under the text (3 dp gap, 17 dp pill, 3 dp), over the sticker's bottom | always; 4 pt inside the frame's end and bottom | beside the content (incoming) or under or over it (outgoing); while the pointer is on the message's row, last own, sending, failed; an outgoing large emoji always |
    | Pill | 17 dp, radius 12, 6 dp padding, 12 dp text | fully rounded, 11 pt | radius about 6, 8 x 2 padding, 13 px |
    | Ticks and edited | 12 dp checks 4.8 dp apart, clock, error; `edited 09:05` is one string | 11 x 9 pt vector checks 6 pt apart; one string | Android's glyphs; one string |
    | Reply | above the text, beside the sticker | beside both, at the screen edge away from the message | beside when it fits, else above |

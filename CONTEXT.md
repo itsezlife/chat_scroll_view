@@ -419,7 +419,7 @@ The exclusive lifetime of a **message menu** for one **message menu request** (i
 _Avoid_: Overlay entry, popup lifetime, live tracking, context-menu route
 
 **Message menu presentation**:
-How a **message menu session** is drawn: mobile uses a dimmed scrim that leaves only the target's **message surface** undimmed, in the outline the host reported and clipped to the **scroll band** (the whole slot when no surface is reported), with the action column anchored to that slot; desktop/web uses a light popup at the pointer with no viewport dim and no message outline lift. Defaults from **selection policy** (`$Mobile` → scrim sheet, `$Desktop` → pointer popup); the host may override for a given present. Same session contract; not a second product concept.
+How a **message menu session** is drawn: mobile uses a dimmed scrim that leaves only the target's **message surface** undimmed, in the outline the host reported (one outline for a bubble; for a message without a bubble, the union of its painted parts, `ChatMessageSurfaceParts`, so the gaps between them stay dimmed) and clipped to the **scroll band** (the whole slot when no surface is reported), with the action column anchored to that slot; desktop/web uses a light popup at the pointer with no viewport dim and no message outline lift. Defaults from **selection policy** (`$Mobile` → scrim sheet, `$Desktop` → pointer popup); the host may override for a given present. Same session contract; not a second product concept.
 _Avoid_: Two menu products, ContextMenu vs ActionSheet split, host-only desktop shell
 
 **Message menu dismiss**:

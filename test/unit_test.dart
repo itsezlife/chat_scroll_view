@@ -93,6 +93,8 @@ import 'widgets/chat_message_change_transition_test.dart'
 import 'widgets/chat_message_menu_request_test.dart'
     as chat_message_menu_request_test;
 import 'widgets/chat_message_menu_test.dart' as chat_message_menu_test;
+import 'widgets/chat_message_surface_parts_test.dart'
+    as chat_message_surface_parts_test;
 import 'widgets/chat_message_tap_barrier_test.dart'
     as chat_message_tap_barrier_test;
 import 'widgets/chat_message_theme_test.dart' as chat_message_theme_test;
@@ -290,6 +292,10 @@ void main() {
     chat_message_menu_request_test.main,
   );
   group('widgets/chat_message_menu_test.dart', chat_message_menu_test.main);
+  group(
+    'widgets/chat_message_surface_parts_test.dart',
+    chat_message_surface_parts_test.main,
+  );
   group(
     'widgets/chat_message_tap_barrier_test.dart',
     chat_message_tap_barrier_test.main,

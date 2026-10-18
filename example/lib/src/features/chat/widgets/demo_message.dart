@@ -6,6 +6,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_pol
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_emoji_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_row_hover.dart';
 import 'package:content_model/content_model.dart' show EmojiOnly;
 import 'package:flutter/material.dart';
 import 'package:flutter_md/flutter_md.dart';
@@ -180,24 +181,31 @@ class DemoMessageBubble extends StatelessWidget {
           // The family carries the user's cap on enlarged emoji (desktop's).
           final platform = policy.family();
           final emojiOnly = policy.emojiOnlyOf(message, platform: platform);
-          final row = _row(context, emojiOnly: emojiOnly);
+          if (emojiOnly == null) return _row(context);
           // A platform whose emoji-only layout does not mirror keeps its
           // sides in a right-to-left chat: the row stays left to right.
-          return emojiOnly == null
-              ? row
-              : Directionality(
-                  textDirection: platform.textDirectionFor(
-                    Directionality.of(context),
-                  ),
-                  child: row,
-                );
+          return Directionality(
+            textDirection: platform.textDirectionFor(
+              Directionality.of(context),
+            ),
+            // The time of an emoji-only message follows the pointer over the
+            // whole row, so the region is the row's, outside its padding.
+            child: EmojiRowHover(
+              builder: (context, {required hovered}) =>
+                  _row(context, emojiOnly: emojiOnly, hovered: hovered),
+            ),
+          );
         },
       );
     }
     return _row(context);
   }
 
-  Widget _row(BuildContext context, {EmojiOnly? emojiOnly}) {
+  Widget _row(
+    BuildContext context, {
+    EmojiOnly? emojiOnly,
+    bool hovered = false,
+  }) {
     final content = message.text ?? 'Message #${message.id}';
     // Prefer the host pre-parsed AST — parsing belongs at ingest, not mount.
     final markdown = message.markdownBody;
@@ -225,6 +233,7 @@ class DemoMessageBubble extends StatelessWidget {
               createdAt: message.createdAt,
               isOutgoing: outgoing,
               edited: edited,
+              hovered: hovered,
             ),
           ),
           _ => _Bubble(
