@@ -6,6 +6,18 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- Formatting shortcuts: `ToggleStyleIntent`, `ToggleCodeBlockIntent`,
+  `ApplyLinkIntent`, `ClearFormattingIntent` and `ToggleListIntent`, bound in
+  both default maps to Telegram Desktop's keys (Ctrl or Cmd with B, I, U, K;
+  with Shift also X, M, P, `.`, N, 7, 8). Each Action calls the
+  `ComposerTextController` command the selection menu calls, and is enabled
+  by `canApply`, so a key that would change nothing reaches the field. The
+  code block has no key. The list Intent has no Action yet.
+- `ComposerSpec.linkPrompt` (`ComposerLinkPrompt`): the host's dialog that
+  asks for a link's URL; the link shortcut is inert without it.
+
 ### Changed
 
 - Source-breaking: `contentSpanBuilder(scope: ...)` is
