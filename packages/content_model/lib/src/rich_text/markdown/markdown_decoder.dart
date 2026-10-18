@@ -57,6 +57,35 @@ abstract final class MarkdownDecoder {
         }
         continue;
       }
+      if (_listLine(lines[i]) case final marker?) {
+        startUnit();
+        final itemStart = plain.length;
+        // The line with the marker, then each line the item goes on in.
+        for (var inItem = 0; ; inItem++) {
+          final goesOn = _goesOn(lines, i);
+          final line = goesOn
+              ? lines[i].substring(
+                  0,
+                  lines[i].length - MarkdownSyntax.softBreak.length,
+                )
+              : _withoutLineEndEscape(lines[i]);
+          if (inItem > 0) plain.write('\n');
+          writeInline(inItem == 0 ? _listLine(line)!.text : line);
+          i++;
+          if (!goesOn) break;
+        }
+        // An item with no text holds nothing to mark: it is an empty line.
+        if (plain.length > itemStart) {
+          entities.add(
+            Entity(
+              itemStart,
+              plain.length - itemStart,
+              EntityKind.list(listKind: marker.kind, depth: marker.depth),
+            ),
+          );
+        }
+        continue;
+      }
       if (!lines[i].startsWith('>')) {
         startUnit();
         writeInline(lines[i]);
@@ -91,6 +120,77 @@ bool _closes(String line, int ticks) {
   final trimmed = line.trimRight();
   return trimmed.length >= ticks &&
       trimmed.codeUnits.every((unit) => unit == 0x60);
+}
+
+// --- Lists ---
+
+/// A line that opens a list item, read the way the viewport's markdown library
+/// reads one: up to eight columns of indent (two a level, a tab two), a bullet
+/// (`-`, `*`, `+`) or a number of up to nine digits with `.` or `)`, then
+/// whitespace or the end of the line. The number is not kept. [text] is what
+/// follows the one whitespace character after the marker.
+({EntityListKind kind, int depth, String text})? _listLine(String line) {
+  var i = 0;
+  var columns = 0;
+  while (i < line.length &&
+      (line.codeUnitAt(i) == 0x20 || line.codeUnitAt(i) == 0x09)) {
+    columns += line.codeUnitAt(i) == 0x09 ? 2 : 1;
+    i++;
+  }
+  if (columns > MarkdownSyntax.maxListIndent || i >= line.length) return null;
+  final unit = line.codeUnitAt(i);
+  final EntityListKind kind;
+  var after = i + 1;
+  if (unit == 0x2D || unit == 0x2A || unit == 0x2B) {
+    kind = EntityListKind.bullet;
+  } else if (unit >= 0x30 && unit <= 0x39) {
+    while (after < line.length &&
+        after - i < 9 &&
+        line.codeUnitAt(after) >= 0x30 &&
+        line.codeUnitAt(after) <= 0x39) {
+      after++;
+    }
+    if (after >= line.length ||
+        (line.codeUnitAt(after) != 0x2E && line.codeUnitAt(after) != 0x29)) {
+      return null;
+    }
+    after++;
+    kind = EntityListKind.ordered;
+  } else {
+    return null;
+  }
+  if (after < line.length &&
+      line.codeUnitAt(after) != 0x20 &&
+      line.codeUnitAt(after) != 0x09) {
+    return null;
+  }
+  return (
+    kind: kind,
+    depth: (columns ~/ 2).clamp(0, EntityKind$List.maxDepth),
+    text: after < line.length ? line.substring(after + 1) : '',
+  );
+}
+
+/// Whether the item whose line is `lines[index]` goes on in the next line: it
+/// ends with a soft break, and the next line is not the start of another
+/// block, which ends the item as CommonMark ends one.
+bool _goesOn(List<String> lines, int index) =>
+    index + 1 < lines.length &&
+    lines[index].endsWith(MarkdownSyntax.softBreak) &&
+    _listLine(lines[index + 1]) == null &&
+    !lines[index + 1].startsWith('>') &&
+    !_fenceOpen.hasMatch(lines[index + 1]);
+
+/// [line], the last of an item, without the backslash that keeps its final
+/// space from reading as half of a soft break.
+String _withoutLineEndEscape(String line) {
+  if (!line.endsWith(r'\ ')) return line;
+  var backslashes = 0;
+  for (var i = line.length - 2; i >= 0 && line.codeUnitAt(i) == 0x5C; i--) {
+    backslashes++;
+  }
+  // An escaped backslash before the space is text, not an escape of it.
+  return backslashes.isOdd ? '${line.substring(0, line.length - 2)} ' : line;
 }
 
 String _withoutQuoteMarker(String line) =>
@@ -244,7 +344,7 @@ final class _InlineParser {
   }
 
   /// Reads `[label](target)` at [start]: a mention for the mention scheme, a
-  /// link otherwise.
+  /// username or a hashtag for theirs, a link otherwise.
   _SourceAtom? _readLink(int start) {
     final reference = _readReference(start);
     if (reference == null) return null;
@@ -257,12 +357,27 @@ final class _InlineParser {
         Entity(0, text.length, EntityKind.mention(id)),
       ]);
     }
+    final named =
+        target.startsWith(MarkdownSyntax.usernameScheme) ||
+        target.startsWith(MarkdownSyntax.hashtagScheme);
+    final kind = named ? _namedKind(target) : EntityKind.link(target);
+    // A username or hashtag with no name is not one: it stays text.
+    if (kind == null) return null;
     final inner = _InlineParser(label, inLink: true).parse();
     if (inner.text.isEmpty) return null;
     return _SourceAtom(start, end, inner.text, [
-      Entity(0, inner.text.length, EntityKind.link(target)),
+      Entity(0, inner.text.length, kind),
       ...inner.entities,
     ]);
+  }
+
+  EntityKind? _namedKind(String target) {
+    if (target.startsWith(MarkdownSyntax.usernameScheme)) {
+      final name = target.substring(MarkdownSyntax.usernameScheme.length);
+      return name.isEmpty ? null : EntityKind.username(name);
+    }
+    final tag = target.substring(MarkdownSyntax.hashtagScheme.length);
+    return tag.isEmpty ? null : EntityKind.hashtag(tag);
   }
 
   /// Reads `![alt](target)` at [start]. An image whose target is not a content

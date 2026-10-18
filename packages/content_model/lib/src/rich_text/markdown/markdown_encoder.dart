@@ -11,6 +11,7 @@ abstract final class MarkdownEncoder {
     final plain = text.plain;
     final quotes = <Entity>[];
     final blocks = <Entity>[];
+    final items = <Entity>[];
     final inline = <Entity>[];
     for (final entity in text.entities) {
       switch (entity.kind) {
@@ -18,6 +19,8 @@ abstract final class MarkdownEncoder {
           quotes.add(entity);
         case EntityKind$CodeBlock():
           blocks.add(entity);
+        case EntityKind$List():
+          items.add(entity);
         case _:
           inline.add(entity);
       }
@@ -28,6 +31,7 @@ abstract final class MarkdownEncoder {
     var start = 0;
     Entity? previousQuote;
     var first = true;
+    final numbers = _ListNumbers();
     while (true) {
       final lineBreak = plain.indexOf('\n', start);
       final end = lineBreak == -1 ? plain.length : lineBreak;
@@ -41,12 +45,36 @@ abstract final class MarkdownEncoder {
       // A code block starts a line and is written whole, as a fence.
       if (_blockAt(blocks, start) case final block?) {
         _writeFence(out, plain.substring(block.offset, block.end), block.kind);
+        numbers.endRun();
         previousQuote = null;
         first = false;
         if (block.end >= plain.length) break;
         start = block.end + 1;
         continue;
       }
+      if (_itemOfLine(items, start) case final item?) {
+        // The break a line that goes on ends with is written with the line;
+        // here the next line is known to exist unless this is the last.
+        final lastOfItem = end >= item.end;
+        final line = _Out();
+        _writeLine(line, plain, start, end, inline, escapes);
+        if (start == item.offset) {
+          out.raw(numbers.marker(item.kind as EntityKind$List));
+        }
+        out.raw(
+          _itemLine(
+            line.finish(),
+            lastOfItem: lastOfItem,
+            hasNext: lineBreak != -1,
+          ),
+        );
+        previousQuote = null;
+        first = false;
+        if (lineBreak == -1) break;
+        start = lineBreak + 1;
+        continue;
+      }
+      numbers.endRun();
       if (quote != null) out.raw(start == end ? '>' : '> ');
       _writeLine(out, plain, start, end, inline, escapes);
       previousQuote = quote;
@@ -56,6 +84,61 @@ abstract final class MarkdownEncoder {
     }
     return out.finish();
   }
+}
+
+/// An item covers the lines that start within its span, its end included, as
+/// a quote does: the empty line an item ends on belongs to it.
+Entity? _itemOfLine(List<Entity> items, int lineStart) {
+  for (final item in items) {
+    if (item.offset <= lineStart && lineStart <= item.end) return item;
+  }
+  return null;
+}
+
+/// [written] as a line of a list item.
+///
+/// A line the item goes on after ends with two spaces (a soft break). The
+/// last line of an item must not read as one that goes on, so when it ends
+/// with two spaces of its own and another line follows, the last of them is
+/// backslash-escaped, which the decoder takes back.
+String _itemLine(
+  String written, {
+  required bool lastOfItem,
+  required bool hasNext,
+}) {
+  if (!lastOfItem) return '$written${MarkdownSyntax.softBreak}';
+  if (hasNext && written.endsWith(MarkdownSyntax.softBreak)) {
+    return '${written.substring(0, written.length - 1)}\\ ';
+  }
+  return written;
+}
+
+/// The markers of the items of a document, numbered the way a reader counts
+/// them: an ordered item continues the run of ordered items at its depth that
+/// the lines before it left open, and starts at 1 otherwise. A shallower item
+/// ends the deeper runs; a bullet ends the ordered run at its depth; a line
+/// that is not an item ends all of them.
+final class _ListNumbers {
+  // For each depth, the number the next ordered item takes, or null while the
+  // run at that depth is a bullet one.
+  final Map<int, int?> _next = {};
+
+  String marker(EntityKind$List item) {
+    final depth = item.depth;
+    _next.removeWhere((deeper, _) => deeper > depth);
+    final indent = '  ' * depth;
+    switch (item.listKind) {
+      case EntityListKind.bullet:
+        _next[depth] = null;
+        return '$indent- ';
+      case EntityListKind.ordered:
+        final number = _next[depth] ?? 1;
+        _next[depth] = number + 1;
+        return '$indent$number. ';
+    }
+  }
+
+  void endRun() => _next.clear();
 }
 
 Entity? _blockAt(List<Entity> blocks, int lineStart) {
@@ -125,7 +208,7 @@ void _writeLine(
     if (i + 1 == sorted.length) break;
     final to = sorted[i + 1];
     Entity? atom;
-    EntityKind$Link? link;
+    String? target;
     var isCode = false;
     for (final entity in inLine) {
       if (entity.offset > from || entity.end < to) continue;
@@ -134,23 +217,28 @@ void _writeLine(
           atom = entity;
         case EntityKind$Style(style: EntityStyle.code):
           isCode = true;
-        case final EntityKind$Link kind:
-          link = kind;
-        // Written as fences by the line loop, never inline.
-        case EntityKind$Style() || EntityKind$CodeBlock():
+        case EntityKind$Link(:final url):
+          target = url;
+        case EntityKind$Username(:final name):
+          target = '${MarkdownSyntax.usernameScheme}$name';
+        case EntityKind$Hashtag(:final tag):
+          target = '${MarkdownSyntax.hashtagScheme}$tag';
+        // Written as fences, and as the markers of the line loop, never
+        // inline.
+        case EntityKind$Style() || EntityKind$CodeBlock() || EntityKind$List():
           break;
       }
     }
     if (atom != null) {
       final markup = _atomMarkup(plain, atom, escapes);
-      out.structural(switch (link) {
-        final link? => _linkPiece(markup, link.url),
+      out.structural(switch (target) {
+        final target? => _linkPiece(markup, target),
         null => markup,
       });
     } else if (isCode) {
       out.structural(_codeSpan(plain.substring(from, to)));
-    } else if (link != null) {
-      out.structural(_linkPiece(escapes.apply(plain, from, to), link.url));
+    } else if (target != null) {
+      out.structural(_linkPiece(escapes.apply(plain, from, to), target));
     } else {
       out.text(escapes.apply(plain, from, to));
     }

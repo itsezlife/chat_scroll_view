@@ -17,11 +17,16 @@ import 'identity/content_key_test.dart' as content_key_test;
 import 'identity/inline_content_ref_test.dart' as inline_content_ref_test;
 import 'markdown/markdown_decode_test.dart' as markdown_decode_test;
 import 'markdown/markdown_encode_test.dart' as markdown_encode_test;
+import 'markdown/markdown_list_test.dart' as markdown_list_test;
 import 'markdown/markdown_round_trip_test.dart' as markdown_round_trip_test;
+import 'markdown/markdown_username_hashtag_test.dart'
+    as markdown_username_hashtag_test;
 import 'rich_text/code_block_test.dart' as code_block_test;
+import 'rich_text/list_test.dart' as list_test;
 import 'rich_text/rich_text_edit_test.dart' as rich_text_edit_test;
 import 'rich_text/rich_text_json_test.dart' as rich_text_json_test;
 import 'rich_text/rich_text_test.dart' as rich_text_test;
+import 'rich_text/username_hashtag_test.dart' as username_hashtag_test;
 import 'store/deferred_recents_store_test.dart' as deferred_recents_store_test;
 import 'store/key_value_preference_store_test.dart'
     as key_value_preference_store_test;
@@ -49,14 +54,21 @@ void main() {
   group('identity/inline_content_ref_test.dart', inline_content_ref_test.main);
   group('markdown/markdown_decode_test.dart', markdown_decode_test.main);
   group('markdown/markdown_encode_test.dart', markdown_encode_test.main);
+  group('markdown/markdown_list_test.dart', markdown_list_test.main);
   group(
     'markdown/markdown_round_trip_test.dart',
     markdown_round_trip_test.main,
   );
+  group(
+    'markdown/markdown_username_hashtag_test.dart',
+    markdown_username_hashtag_test.main,
+  );
   group('rich_text/code_block_test.dart', code_block_test.main);
+  group('rich_text/list_test.dart', list_test.main);
   group('rich_text/rich_text_edit_test.dart', rich_text_edit_test.main);
   group('rich_text/rich_text_json_test.dart', rich_text_json_test.main);
   group('rich_text/rich_text_test.dart', rich_text_test.main);
+  group('rich_text/username_hashtag_test.dart', username_hashtag_test.main);
   group(
     'store/deferred_recents_store_test.dart',
     deferred_recents_store_test.main,

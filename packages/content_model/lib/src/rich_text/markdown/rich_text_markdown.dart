@@ -21,12 +21,31 @@ import 'package:content_model/src/rich_text/rich_text.dart';
 /// | quote | `> ` before each line, then a blank line when text follows |
 /// | link | `[x](url)`; a target with whitespace goes in `<...>` |
 /// | mention | `[@alice](mention:alice)` |
+/// | username | `[@alice](username:alice)` |
+/// | hashtag | `[#dart](hashtag:dart)` |
+/// | list item | `- ` or `1. ` before its first line, two spaces of indent a level |
 /// | inline content | `![alt](unicode:1F44D)`, `document:` or `external:` |
 ///
 /// The target of inline content is [ContentKey.encoded], so a key round-trips
 /// through `unicode:`, `document:` and `external:`, and the alternative text
 /// is the label. An image whose target is not a content key keeps its label as
 /// plain text.
+///
+/// ## Lists
+///
+/// One entity is one item. An ordered item is numbered from its place among the
+/// items before it (a run at one depth counts up from 1; a bullet, a shallower
+/// item or a plain line ends the run), so removing an item renumbers the rest
+/// and [decode] ignores the numbers it reads. A line break inside an item is
+/// written as two spaces and the break, with the next line unindented; the item
+/// goes on while a line ends so and the next line is not itself a marker, a
+/// quote or a fence. A marker is `-`, `*` or `+`, or up to nine digits and `.`
+/// or `)`, then a space; up to eight columns of indent are read, two a level,
+/// and a level deeper than three is three. An item with no text is an empty
+/// line. This is the shape job_solution's vendored encoder stored, so stored
+/// lists read back as items. The one addition: when the last line of an item
+/// ends with two spaces of its own and another line follows, the last space is
+/// backslash-escaped, so it does not read as a soft break.
 ///
 /// ## Behaviour to rely on
 ///
