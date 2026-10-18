@@ -254,9 +254,9 @@ void main() {
       frameAt:
           (
             time, {
-            bool animate = true,
-            bool loop = false,
-            AssetRestFrame rest = AssetRestFrame.first,
+            animate = true,
+            loop = false,
+            rest = AssetRestFrame.first,
           }) async {
             final colour = await _settledAt(
               paintable,
