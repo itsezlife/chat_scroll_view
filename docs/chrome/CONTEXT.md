@@ -3,7 +3,7 @@
 The chrome around a chat's message list: the theme and glass it paints with,
 the panel shell and its pages, how the panel is presented, and the composer.
 Covers `chrome_foundation`, `panel_shell`, `panel_pages`, `panel_presentation`
-and `chat_composer`. Does not cover the catalog viewport (see the
+`chat_composer` and `composer_editable`. Does not cover the catalog viewport (see the
 [Panel Catalog glossary](../panel-catalog/CONTEXT.md)) or content and asset
 terms (see the [Content and Assets glossary](../content/CONTEXT.md)).
 
@@ -12,7 +12,8 @@ Decisions: [ADR 025](../adr/025-panel-shell-and-pages.md),
 [ADR 027](../adr/027-foundation-theme-glass-motion.md),
 [ADR 028](../adr/028-panel-presentation.md),
 [ADR 029](../adr/029-host-integration.md),
-[ADR 031](../adr/031-localization-accessibility-and-input.md).
+[ADR 031](../adr/031-localization-accessibility-and-input.md),
+[ADR 038](../adr/038-composer-editable-fork.md).
 
 ## Language
 
@@ -212,6 +213,22 @@ _Avoid_: A closed mode enum, the composer panel confused with the emoji panel
 The active token at the caret (kind, text, replace range, caret anchor) exposed for host-built suggestion panels.
 _Avoid_: Suggestion panels inside the composer
 
+**Formatting command**:
+One of the closed set of operations on the composer's text controller that change the selection's entities: toggle a style, toggle a code block, apply or remove a link, clear formatting, with `isActive` / `canApply` queries. Selection-only (a collapsed caret disables them, except applying a link and the line-widening kinds); there is no typing style. The **selection menu** and the keyboard shortcuts call the same commands.
+_Avoid_: Toolbar action, a command on the composer controller, typing style, formatting mode
+
+**List item**:
+An opt-in entity (bullet or ordered, depth 0 to 3), one per item, widening to its lines like a quote but never merging with its neighbours. Numbers are derived when written as markdown, not stored. Editing behaviour (typed markers, Enter, Backspace, Tab, list paste, gutter) exists only when the text controller is built with lists on.
+_Avoid_: A composer-local list attribute, stored numbers, a list node, list-specific undo
+
+**Selection menu**:
+The composer's floating toolbar on a text selection (`ComposerSelectionMenu`): Telegram Android's own floating toolbar, mounted through the **composer editable**'s menu builder on every platform. Clipboard items and formatting items share a row when there is room; a "More" page reshapes the card for the rest. Its options, link prompt, labels and back priority are host contract.
+_Avoid_: The platform selection menu extended, the message menu (swipe-back card), context menu (alone)
+
+**Composer editable**:
+The composer's one editable: the package `composer_editable`, a patched copy of the framework's text field kept as a patch series over a baseline of the pinned SDK. It supplies the touch gesture matrix, the handle and magnifier motion and the toolbar fade; a host reaches it only through the composer view.
+_Avoid_: Extended text, a stock text field fallback, a second editable beside it
+
 ### Host integration
 
 **Composition root**:
@@ -223,8 +240,8 @@ The README table of each package: what the host provides and what it must not do
 _Avoid_: Prose-only integration notes
 
 **Inline embed**:
-The generic painter-based seam in markdown bodies. A resolver maps scheme, id and alt to a size hint and a paint callback; the alt text is the copy, selection and accessibility text.
-_Avoid_: `WidgetSpan` embeds, `ImageProvider` embeds
+The generic painter-based seam in markdown bodies. A resolver maps scheme, id and alt to a size hint and a paint callback. Size: a square of `1.2 × (ascent + descent)` of the paragraph font, shared by every embed of the paragraph, centred on the line without changing line height. The alt text is the embed's rendered text for copy, selection and accessibility, and is atomic for selection (a boundary inside it snaps outward to cover it). A tap is an **inline hit**. An unresolved target paints its alt text; a bare emoji character is a glyph, never an embed ([ADR 029](../adr/029-host-integration.md)).
+_Avoid_: `WidgetSpan` embeds, `ImageProvider` embeds, a broken mark for an unresolved target
 
 ### Localization, accessibility and input
 
