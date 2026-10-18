@@ -39,12 +39,13 @@ What a body can hold besides text:
 | `[@name](mention:id)`, `[@name](username:name)` | Mention colour, no underline | `ChatInlineHit.resolvedMention` / `ChatResolvedMentionActivated` (with the user's `id`), `ChatInlineHit.usernameMention` / `ChatUsernameMentionActivated` (no id); both are a `ChatMentionActivated` |
 | `[#tag](hashtag:tag)` | Mention colour, no underline | `ChatInlineHit.hashtag` / `ChatHashtagActivated` |
 | `[text](https://...)` | Link colour, underline | `ChatInlineHit.link` / `ChatLinkActivated` |
-| `\|\|text\|\|` | Hidden under moving dust until the message is revealed | A tap reveals the whole message and reports no hit |
+| `\|\|text\|\|` | Hidden under moving dust until the message is revealed | A tap reveals the whole message and is nothing else: no hit, no `onIdleMessageTap` |
 
 A hit is read from the span's style bit, never from its URL: a mention is not
 a link and an image is not a link. Anything inside a hidden spoiler reveals
 instead of activating, and a text selection that enters a hidden spoiler
-reveals the message ([ADR 037](docs/adr/037-spoiler-and-mention-inline-styles.md)).
+reveals the message. The tap that reveals is absorbed; a long press, a drag and a
+secondary click are not ([ADR 037](docs/adr/037-spoiler-and-mention-inline-styles.md)).
 
 ### Host contract
 

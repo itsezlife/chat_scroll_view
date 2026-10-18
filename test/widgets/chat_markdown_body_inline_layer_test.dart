@@ -2,7 +2,8 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart' show PointerDeviceKind;
+import 'package:flutter/gestures.dart'
+    show PointerDeviceKind, kPrimaryMouseButton, kSecondaryMouseButton;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RendererBinding;
 import 'package:flutter_md/flutter_md.dart' show MD$Paragraph, MarkdownWidget;
@@ -60,6 +61,7 @@ void main() {
   late FakeInlineEmbedResolver embeds;
   final interactions = <ChatSelectionInteraction>[];
   final idleTaps = <int>[];
+  final secondaryTaps = <int>[];
 
   // The platform override is a foundation debug variable: it has to be unset
   // before the test body ends, so it cannot live in a tearDown.
@@ -81,6 +83,7 @@ void main() {
     embeds = FakeInlineEmbedResolver();
     interactions.clear();
     idleTaps.clear();
+    secondaryTaps.clear();
   });
   tearDown(() => controller.dispose());
 
@@ -105,6 +108,7 @@ void main() {
     Map<int, String> bodies, {
     InlineEmbedResolver? resolver,
     TextDirection direction = TextDirection.ltr,
+    bool secondaryMenu = false,
   }) async {
     dataSource = _LoadedSource([for (final id in bodies.keys) _msg(id)]);
     addTearDown(dataSource.dispose);
@@ -125,6 +129,9 @@ void main() {
                 controller: controller,
                 selectionController: selection,
                 onIdleMessageTap: (request) => idleTaps.add(request.messageId),
+                onSecondaryMessageTap: secondaryMenu
+                    ? (request) => secondaryTaps.add(request.messageId)
+                    : null,
                 messageBuilder: (context, id, message, status, runLayout) =>
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -272,6 +279,108 @@ void main() {
       expect(selection.spoilers.isRevealed(2), isFalse);
     });
 
+    inlineTest('a tap on a hidden spoiler is the reveal and no message tap', (
+      tester,
+    ) async {
+      final selection = newSelection();
+      await pump(tester, selection, {1: 'x ||secret|| y'});
+
+      await tester.tapAt(_pointOn(selection, 1, 2, 8));
+      await tester.pumpAndSettle();
+
+      expect(selection.spoilers.isRevealed(1), isTrue);
+      expect(idleTaps, isEmpty);
+      expect(interactions, isEmpty);
+      expect(selection.isSelectionMode, isFalse);
+    });
+
+    inlineTest('the next tap on the revealed text is a message tap', (
+      tester,
+    ) async {
+      final selection = newSelection();
+      await pump(tester, selection, {1: 'x ||secret|| y'});
+      await tester.tapAt(_pointOn(selection, 1, 2, 8));
+      await tester.pumpAndSettle();
+
+      await tester.tapAt(_pointOn(selection, 1, 2, 8));
+      await tester.pumpAndSettle();
+
+      expect(idleTaps, [1]);
+    });
+
+    inlineTest(
+      'a tap beside the spoiler in the same message is a message tap',
+      (tester) async {
+        final selection = newSelection();
+        await pump(tester, selection, {1: 'x ||secret|| y'});
+
+        await tester.tapAt(_pointOn(selection, 1, 0, 1));
+        await tester.pumpAndSettle();
+
+        expect(selection.spoilers.isRevealed(1), isFalse);
+        expect(idleTaps, [1]);
+      },
+    );
+
+    inlineTest('revealing one message leaves another hidden spoiler tappable', (
+      tester,
+    ) async {
+      final selection = newSelection();
+      await pump(tester, selection, {1: 'x ||secret|| y', 2: 'x ||other|| y'});
+      await tester.tapAt(_pointOn(selection, 1, 2, 8));
+      await tester.pumpAndSettle();
+
+      await tester.tapAt(_pointOn(selection, 2, 2, 7));
+      await tester.pumpAndSettle();
+
+      expect(selection.spoilers.isRevealed(2), isTrue);
+      expect(idleTaps, isEmpty);
+    });
+
+    inlineTest('a long press on a hidden spoiler selects the message', (
+      tester,
+    ) async {
+      final selection = newSelection();
+      await pump(tester, selection, {1: 'x ||secret|| y'});
+
+      await tester.longPressAt(_pointOn(selection, 1, 2, 8));
+      await tester.pumpAndSettle();
+
+      expect(selection.isSelected(1), isTrue);
+      expect(idleTaps, isEmpty);
+      expect(selection.spoilers.isRevealed(1), isFalse);
+    });
+
+    inlineTest('a drag starting on a hidden spoiler neither reveals nor taps', (
+      tester,
+    ) async {
+      final selection = newSelection();
+      await pump(tester, selection, {1: 'x ||secret|| y'});
+
+      await tester.dragFrom(_pointOn(selection, 1, 2, 8), const Offset(0, 80));
+      await tester.pumpAndSettle();
+
+      expect(selection.spoilers.isRevealed(1), isFalse);
+      expect(idleTaps, isEmpty);
+      expect(selection.isSelectionMode, isFalse);
+    });
+
+    inlineTest('a tap on a hidden spoiler in message selection toggles', (
+      tester,
+    ) async {
+      final selection = newSelection();
+      await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
+      final spoiler = _pointOn(selection, 1, 2, 8);
+      selection.startSelection(2);
+      await tester.pumpAndSettle();
+
+      await tester.tapAt(spoiler);
+      await tester.pumpAndSettle();
+
+      expect(selection.isSelected(1), isTrue);
+      expect(idleTaps, isEmpty);
+    });
+
     inlineTest('revealed state survives the row leaving and coming back', (
       tester,
     ) async {
@@ -358,6 +467,84 @@ void main() {
         reason: 'the hidden spoiler is still on screen and still moves',
       );
     });
+  });
+
+  group('spoilers under the desktop policy', () {
+    Future<void> click(
+      WidgetTester tester,
+      Offset at, {
+      int buttons = kPrimaryMouseButton,
+    }) async {
+      final mouse = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: buttons,
+      );
+      await mouse.down(at);
+      await mouse.up();
+      await mouse.removePointer();
+      await tester.pumpAndSettle();
+    }
+
+    ChatSelectionController desktop() =>
+        newSelection(policy: const ChatSelectionPolicy.desktop());
+
+    inlineTest(
+      'a click on a hidden spoiler is the reveal only',
+      (tester) async {
+        final selection = desktop();
+        await pump(tester, selection, {1: 'x ||secret|| y'});
+
+        await click(tester, _pointOn(selection, 1, 2, 8));
+
+        expect(selection.spoilers.isRevealed(1), isTrue);
+        expect(interactions, isEmpty);
+        expect(selection.isSelectionMode, isFalse);
+        // The click arms the body as any click on text does; it selects nothing.
+        expect(
+          selection.markdownSelection.selection?.isCollapsed ?? true,
+          isTrue,
+        );
+      },
+      platform: TargetPlatform.macOS,
+    );
+
+    inlineTest(
+      'a secondary click on a hidden spoiler opens the menu only',
+      (tester) async {
+        final selection = desktop();
+        await pump(tester, selection, {
+          1: 'x ||secret|| y',
+        }, secondaryMenu: true);
+
+        await click(
+          tester,
+          _pointOn(selection, 1, 2, 8),
+          buttons: kSecondaryMouseButton,
+        );
+
+        expect(secondaryTaps, [1]);
+        expect(selection.spoilers.isRevealed(1), isFalse);
+      },
+      platform: TargetPlatform.macOS,
+    );
+
+    inlineTest(
+      'a drag from a hidden spoiler selects text and reveals',
+      (tester) async {
+        final selection = desktop();
+        await pump(tester, selection, {1: 'x ||secret|| y'});
+        final start = _pointOn(selection, 1, 2, 3);
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        await mouse.down(start);
+        await mouse.moveBy(const Offset(40, 0));
+        await mouse.up();
+        await tester.pumpAndSettle();
+
+        expect(selection.isTextSelectionActive, isTrue);
+        expect(selection.spoilers.isRevealed(1), isTrue);
+      },
+      platform: TargetPlatform.macOS,
+    );
   });
 
   group('the cursor over a body', () {
