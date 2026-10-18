@@ -57,7 +57,10 @@ abstract final class TypedMarkdown {
     (text) => _pairs(text, _strike, EntityKind.strike),
   ];
 
-  static final RegExp _fence = RegExp(r'```([\s\S]+?)```');
+  // Exactly three backticks: a longer run is not a fence.
+  static final RegExp _fence = RegExp(
+    r'(?<!`)```(?!`)([\s\S]+?)(?<!`)```(?!`)',
+  );
   static final RegExp _languageName = RegExp(r'^[A-Za-z0-9+#._-]+$');
   // Not next to another backtick: an unconverted fence is not code.
   static final RegExp _code = RegExp(r'(?<!`)`([^`\n]+)`(?!`)');

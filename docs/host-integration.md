@@ -650,6 +650,13 @@ so a URL typed inside code stays code. Markers inside code, a code block, a
 link, a mention, a username, a hashtag or inline content stay text. Underline
 and quote have no typed form.
 
+It reads the markers as the reference client does, so there is no word boundary:
+`foo__bar__baz` has an italic `bar`, `2**3 * 4**5` a bold `3 * 4`, and
+`a || b || c` hides ` b `. There is no escape either: a user who wants the
+characters types them inside code. A host that would rather leave a pair alone
+filters on the text before calling it. What the transform made survives
+`RichTextMarkdown.encode` and `decode`, so a draft restores as it was sent.
+
 ### Inline embeds, spoilers and mentions
 
 What the host wires so a markdown body paints and reports the inline layer

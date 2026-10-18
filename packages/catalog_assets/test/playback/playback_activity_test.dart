@@ -248,6 +248,20 @@ void main() {
       expect(clock.pausedLayers, {PlaybackPauseLayer.appInactive});
     });
 
+    test('losing visibility while the grace runs does not wait for it', () {
+      activity(policy: grace);
+      lifecycle.emit(AppLifecycleState.resumed);
+
+      lifecycle.emit(AppLifecycleState.inactive);
+      lifecycle.emit(AppLifecycleState.hidden);
+
+      expect(clock.pausedLayers, {
+        PlaybackPauseLayer.appInactive,
+        PlaybackPauseLayer.surfaceHidden,
+      });
+      expect(timers.pending, 0);
+    });
+
     test('focus back within the grace never pauses', () {
       activity(policy: grace);
       lifecycle.emit(AppLifecycleState.resumed);

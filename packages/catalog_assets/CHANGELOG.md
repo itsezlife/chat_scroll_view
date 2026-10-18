@@ -24,6 +24,9 @@ is pre-1.0.
 
 ### Changed (pause policies)
 
+- **Fixed**: `hidden`, `paused` or `detached` while a grace period for focus loss
+  was already running no longer waits for it: `appInactive` is set at once, as
+  the doc says (`surfaceHidden` was, but the focus layer waited out the timer).
 - **Breaking (source)**: `PlaybackPauseLayer` has three more values, so an
   exhaustive `switch` over it stops compiling until it handles them.
 - **Behaviour**: `PlaybackPolicy.pausingLayers` defaults to

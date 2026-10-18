@@ -200,7 +200,9 @@ final class PlaybackActivity {
       _cancelGrace();
       return;
     }
-    if (_graceTarget == inactive) return;
+    // A grace already running for this target is left alone, unless the change
+    // may not wait: then it is cut short.
+    if (_graceTarget == inactive && !immediately) return;
     _cancelGrace();
     final grace = immediately
         ? Duration.zero

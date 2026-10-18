@@ -6,6 +6,7 @@
 library;
 
 import 'package:content_model/content_model.dart';
+import 'package:content_model/markdown.dart';
 import 'package:test/test.dart';
 
 RichText _apply(String text, [List<Entity> entities = const []]) =>
@@ -191,6 +192,54 @@ void main() {
         _apply('```a b```', const [Entity(5, 1, EntityKind.bold)]),
         RichText('```a b```', const [Entity(5, 1, EntityKind.bold)]),
       );
+    });
+  });
+
+  group('edges', () {
+    // Pinned as the reference client reads them: no word boundary.
+    test('identifiers and arithmetic convert as Android does', () {
+      expect(
+        _apply('foo__bar__baz'),
+        RichText('foobarbaz', const [Entity(3, 3, EntityKind.italic)]),
+      );
+      expect(
+        _apply('2**3 * 4**5'),
+        RichText('23 * 45', const [Entity(1, 5, EntityKind.bold)]),
+      );
+    });
+
+    test('four backticks are not a fence', () {
+      expect(_apply('````a````'), const RichText.plain('````a````'));
+    });
+
+    test('a fence right after a bold entity keeps both', () {
+      final result = _apply('bold ```c```', const [
+        Entity(0, 4, EntityKind.bold),
+      ]);
+
+      expect(result.plain, 'bold\nc');
+      expect(result.entities.map((e) => e.kind), [
+        EntityKind.bold,
+        const EntityKind.codeBlock(),
+      ]);
+    });
+
+    test('pairs that overlap without nesting both convert', () {
+      expect(
+        _apply('**a __b** c__'),
+        RichText('a b c', const [
+          Entity(0, 3, EntityKind.bold),
+          Entity(2, 3, EntityKind.italic),
+        ]),
+      );
+    });
+
+    test('what it made survives the markdown a draft goes through', () {
+      final made = _apply('**a** `b` __c__');
+      final again = RichTextMarkdown.decode(RichTextMarkdown.encode(made));
+
+      expect(again, made);
+      expect(TypedMarkdown.apply(again), again);
     });
   });
 

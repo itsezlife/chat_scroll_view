@@ -318,6 +318,8 @@ void main() {
       ('a trade mark', 'a™b'),
       ('a digit', 'a1b'),
       ('a hash', 'a#b'),
+      ('a digit with a presentation selector but no keycap mark', 'a1\uFE0Fb'),
+      ('a hash with a presentation selector but no keycap mark', 'a#\uFE0Fb'),
       ('a star that is not an emoji', 'a★b'),
       ('a stray presentation selector', 'a\uFE0Fb'),
       ('a lone ZWJ', 'a\u200Db'),

@@ -19,6 +19,9 @@ package is pre-1.0.
 
 ### Fixed
 
+- `TypedMarkdown`: a run of four or more backticks is not a code fence (it
+  used to convert into a block with a stray backtick); `RichTextMarkdown`
+  round trips what it made, pinned by a test.
 - `RichTextMarkdown.decode` threw on `[`a`](u)`, a link whose label holds code:
   a `RichText` never lets the two overlap, and the decode contract is that it
   never throws. The link is kept and the label's code reads as text; one such
