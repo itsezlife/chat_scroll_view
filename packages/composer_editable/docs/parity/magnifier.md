@@ -3,9 +3,9 @@ type: Composer Selection Concept
 title: Pointer-line magnifier
 description: >-
   Composer loupe during handle drag: focal X clamped to current line, focal Y at
-  line center, AOSP ~100ms unified smoothing, moving handle hidden when loupe
-  overlaps. Suppressed during one-touch long-press phase.
-tags: [telegram, composer, magnifier, extended_text]
+  line center, AOSP ~100ms unified smoothing. Suppressed during one-touch
+  long-press phase.
+tags: [telegram, composer, magnifier, composer_editable]
 timestamp: 2026-07-21T12:00:00.000Z
 content_hash: composer-magnifier-v1
 ---
@@ -13,8 +13,7 @@ content_hash: composer-magnifier-v1
 # Magnifier
 
 Glossary: **Pointer-line magnifier** — see
-[extended-text](../../packages/extended-text.md)
-(`packages/extended_text/CONTEXT.md`).
+[CONTEXT.md](../../CONTEXT.md).
 
 ## When shown
 
@@ -43,26 +42,20 @@ composer.
 Clock: `currentSystemFrameTimeStamp` (not frame timestamp) — see
 `smoothMagnifierInfo`.
 
-## Hide handle under loupe
+## Handle under the loupe
 
-While loupe bounds overlap the **moving** handle during drag, hide that handle
-(AOSP `handleOverlapsMagnifier`). Fixed handle stays visible.
+The moving handle stays visible under the loupe. AOSP hides it
+(`handleOverlapsMagnifier`); that is not implemented here.
 
 ## Direction settling
 
 When `_extentForHandleDrag` returns `null` (offsets frozen inside initial word),
 magnifier (and moving overlay) **still** follow the pointer.
 
-## Ephemeral geometry
-
-Magnifier line probes must use **ephemeral hybrid boxes** — never overwrite
-**paint selection cache** on `ExtendedRenderEditable`. See
-[highlight.md](highlight.md).
-
 ## Code map
 
 | File | Role |
 | ---- | ---- |
-| `handle_drag_chrome.dart` | Focal target + overlap hide + settle lerp seam |
+| `handle_drag_chrome.dart` | Focal target + settle lerp seam (exercised by tests; the overlay runs its own settle) |
 | `selection_handle_motion.dart` | `smoothMagnifierInfo`, settle constants |
 | `text_selection.dart` | `showMagnifier`, smooth tick, drag updates |

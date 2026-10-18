@@ -36,10 +36,12 @@ void main() {
               'chrome_foundation',
             },
             'panel_presentation': {'panel_shell', 'chrome_foundation'},
+            'composer_editable': {},
             'chat_composer': {
               'chrome_foundation',
               'content_model',
               'catalog_assets',
+              'composer_editable',
             },
             'example': {
               'panel_pages',
@@ -109,7 +111,11 @@ void main() {
     });
 
     group('leaves', () {
-      for (final leaf in ['content_model', 'chrome_foundation']) {
+      for (final leaf in [
+        'content_model',
+        'chrome_foundation',
+        'composer_editable',
+      ]) {
         test('$leaf depending on a workspace package is reported', () {
           final violations = DependencyLint.check(
             graphOf({
@@ -335,6 +341,48 @@ void main() {
           LintRule.hostAdapterOutsideHost,
         ]);
         expect(violations.single.subject, 'chat_composer -> rich_clipboard');
+      });
+    });
+
+    group('composer_editable', () {
+      test('is depended on by chat_composer', () {
+        expect(
+          rulesOf({
+            'composer_editable': {},
+            'content_model': {},
+            'chat_composer': {'composer_editable', 'content_model'},
+          }),
+          isEmpty,
+        );
+      });
+
+      for (final other in ['panel_pages', 'chat_scroll_view', 'example']) {
+        test('a second package ($other) depending on it is reported', () {
+          final violations = DependencyLint.check(
+            graphOf({
+              'composer_editable': {},
+              'chat_composer': {'composer_editable'},
+              other: {'composer_editable'},
+            }),
+          );
+
+          expect(violations.map((v) => v.rule), [
+            LintRule.composerEditableOutsideComposer,
+          ]);
+          expect(violations.single.subject, '$other -> composer_editable');
+        });
+      }
+
+      test('depending on any workspace package is reported', () {
+        final violations = DependencyLint.check(
+          graphOf({
+            'composer_editable': {'content_model'},
+            'content_model': {},
+          }),
+        );
+
+        expect(violations.map((v) => v.rule), [LintRule.leafDependsOnPackage]);
+        expect(violations.single.subject, 'composer_editable -> content_model');
       });
     });
 

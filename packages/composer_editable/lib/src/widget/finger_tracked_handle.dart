@@ -133,7 +133,7 @@ int fingerTrackedFixedBaseEndpointIndex({
 }
 
 /// Safe [TextSelectionPoint] for [endpointIndex] when [getEndpointsForSelection]
-/// may return a single point (exclusive end / collapsed-adjacent chrome).
+/// may return a single point (a collapsed selection).
 TextSelectionPoint fingerTrackedEndpointAtIndex({
   required List<TextSelectionPoint> endpoints,
   required int endpointIndex,

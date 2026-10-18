@@ -4,7 +4,7 @@ title: Reference stack — composer vs bubble
 description: >-
   Telegram chat composer uses stock AOSP Editor handle/magnifier physics;
   message bubbles use custom TextSelectionHelper. Agents must not port bubble
-  code when fixing MarkdownTextField / ExtendedTextField.
+  code when fixing ExtendedTextField.
 tags: [telegram, composer, aosp, architecture]
 timestamp: 2026-07-21T12:00:00.000Z
 content_hash: composer-arch-v1
@@ -28,8 +28,8 @@ The “Telegram feel” is **composite AOSP behavior**: decoupled popup position
 ~100ms magnifier smooth, handle hidden under loupe, scale on grab, orientation
 refresh after motion settles.
 
-Flutter implementation: **`extended_text`** `SelectionOverlay` on touch
-`ExtendedTextField` only.
+Flutter implementation: **`composer_editable`** `ExtendedSelectionOverlay` on
+touch `ExtendedTextField` only.
 
 ## Bubble (out of scope)
 
@@ -42,10 +42,7 @@ Telegram message / article text
         └── drawSelection (caret-anchored handle *draw*)
 ```
 
-Bubble helper is documented separately under
-[bubble-selection/overview.md](../bubble-selection/overview.md) and
-[flutter/ui/l10n-rich-text.md](../../flutter/ui/l10n-rich-text.md) (`flutter_md`
-read-only selection).
+Bubble selection is the chat viewport's own text selection, not this package.
 
 ## Platform split (Flutter)
 
@@ -57,6 +54,6 @@ read-only selection).
 ## Common mistake
 
 Porting **`TextSelectionHelper`** rules (100/200ms magnifier split, bubble draw
-loop, instant reversed handle-type swap from `_MarkdownSelectable`) into the
+loop, instant reversed handle-type swap from the bubble helper) into the
 composer. Composer parity follows **AOSP Editor** + locked grilling decisions in
 [handles.md](handles.md) and [flutter-parity.md](flutter-parity.md).

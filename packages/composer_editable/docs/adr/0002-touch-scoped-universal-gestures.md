@@ -23,3 +23,13 @@ enter matrix (option C) remains in force for touch consumers.
   split matches Flutter’s existing editable forks and is enough for now.
 - **Touch universal + desktop stock (chosen)** — restore stock long-press and
   triple-tap on desktop; leave touch enter/dismiss as in ADR-0001.
+
+## Amendment: iOS keeps two stock paths
+
+The touch matrix drops two behaviors an iOS text view has, and they are kept:
+a long-press on a **focused, editable** field moves the caret with the
+floating cursor (an unfocused or read-only field takes the word path), and a
+finger tap on the **collapsed caret** of a focused, editable field toggles the
+toolbar so the Paste menu is reachable. Every other iOS tap and long-press
+follows the touch matrix. The default context menu on iOS is the system menu
+where the platform supports it.

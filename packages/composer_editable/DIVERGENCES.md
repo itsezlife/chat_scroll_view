@@ -1,216 +1,210 @@
 # Divergences from Flutter SDK
 
+What `composer_editable` changes against stock Flutter, by purpose. The
+letters are stable names other docs and tests cite.
+
 ## Vendored from
 
 ```
 Flutter 3.41.7 • channel stable
-Framework revision 90673a4eef (2026-02-18)
+Framework revision cc0734ac71
 ```
 
-## Intentional changes (vs stock)
+The vendored files are `widgets/editable_text.dart`, `widgets/text_selection.dart`,
+`material/text_field.dart` and the two web-browser detection files. They are
+byte-identical to the 3.41.2 sources (`90673a4eef`, tagged `3.41.2`) the copy
+started from: nothing under those paths changed between 3.41.2 and 3.41.7.
+`ExtendedRenderEditable` subclasses stock `RenderEditable`; `rendering/editable.dart`
+is not copied.
 
-- Class renames: `TextField` → `ExtendedTextField`, `EditableText` →
-  `ExtendedEditableText`, `EditableTextState` → `ExtendedEditableTextState`,
-  `EditableTextContextMenuBuilder` → `ExtendedEditableTextContextMenuBuilder`.
-- Selection gesture builder renamed to
-  `ExtendedTextSelectionGestureDetectorBuilder` (+ Delegate) to avoid clashing
-  with `package:flutter/widgets.dart` when both are imported.
-- Imports rewritten to `package:flutter/src/...` for private Flutter pieces;
-  local copies of `editable_text.dart`, `text_selection.dart`, and web-browser
-  detection helpers.
-- `TextEditingController` / `ToolbarOptions` /
-  `ContentInsertionConfiguration` / `kDefaultContentInsertionMimeTypes` are
-  **imported from stock** Flutter `editable_text.dart` (not duplicated), so
-  they stay compatible with `RestorableTextEditingController` and the rest of
-  the framework.
-- Default context menu / spell-check suggestion chrome uses
-  `AdaptiveTextSelectionToolbar.buttonItems` instead of
-  `*.editableText(editableTextState: …)` APIs that require stock
-  `EditableTextState`.
-- Platform selection handle controls are **vendored locally**:
-  - `lib/src/material/text_selection.dart`
-  - `lib/src/material/desktop_text_selection.dart`
-  - `lib/src/cupertino/text_selection.dart`
-  - `lib/src/cupertino/desktop_text_selection.dart`  
-    so `materialTextSelectionHandleControls` / Cupertino equivalents extend the
-    local `TextSelectionControls` + `TextSelectionHandleControls` mixin.
+## Renames and plumbing
 
-## Bugfixes / behavior changes
+- `TextField` → `ExtendedTextField`, `EditableText` → `ExtendedEditableText`,
+  `EditableTextState` → `ExtendedEditableTextState`,
+  `EditableTextContextMenuBuilder` → `ExtendedEditableTextContextMenuBuilder`,
+  `TextSelectionGestureDetectorBuilder` (+ Delegate) →
+  `ExtendedTextSelectionGestureDetectorBuilder` (+ Delegate).
+- **The copied selection types carry the `Extended` prefix and are exported:**
+  `ExtendedTextSelectionControls`, `ExtendedTextSelectionHandleControls`,
+  `ExtendedSelectionOverlay`, `ExtendedTextSelectionOverlay`,
+  `ExtendedClipboardStatusNotifier`, `ExtendedTextSelectionGestureDetector`,
+  `extendedEmptyTextSelectionControls` and the handle-control classes and
+  instances (`ExtendedMaterialTextSelectionControls`,
+  `extendedMaterialTextSelectionHandleControls`, the desktop and Cupertino
+  ones). A copy under Flutter's own name would shadow it in every host that
+  imports both, and a stock `TextSelectionControls` does not type-check against
+  the copy; the prefix shows both at the import. No exported name equals a
+  Flutter widgets, material or cupertino name.
+- Types that were identical copies of public Flutter ones are Flutter's own:
+  `TextEditingController`, `ToolbarOptions`, `ContentInsertionConfiguration`,
+  `kDefaultContentInsertionMimeTypes`, `ClipboardStatus`,
+  `LiveTextInputStatus(Notifier)`, `SelectionChangedCallback`,
+  `AppPrivateCommandCallback`, `InputCounterWidgetBuilder`. Host controllers
+  stay compatible with `RestorableTextEditingController` and the rest of the
+  framework.
+- The context menu builder receives an `ExtendedEditableTextState`. Stock
+  `AdaptiveTextSelectionToolbar.editableText`, `SystemContextMenu.editableText`
+  and the stock spell-check toolbars take a stock `EditableTextState` and can
+  not be used; the default builder uses
+  `AdaptiveTextSelectionToolbar.buttonItems(anchors: contextMenuAnchors,
+  buttonItems: contextMenuButtonItems)`, and `ExtendedSystemContextMenu` on iOS.
+- `package:flutter/src/...` imports are used where a Flutter library does not
+  export the piece (`kMinInteractiveDimension`, the Material and Cupertino
+  toolbar parts).
 
-### Scroll hide/show toolbar lifecycle (`ExtendedEditableText`)
+## Kept divergences
 
-Stock Flutter remounts the selection toolbar on scroll (`hideToolbar` on
-`ScrollStart`, `showToolbar` on `ScrollEnd` via a post-frame callback). That
-causes:
+### A. Toolbar fade during scroll
 
-1. **flutter/flutter#185052** — post-frame show often never runs after a
-   non-fling scroll (no frame scheduled when semantics are off).
-2. **Custom menu state loss** — remounting drops swipe-back page / local
-   controller state in app context menus.
-3. **`scheduleFrame()` during an active frame** — naive workarounds throw
-   `FlutterError: Build scheduled during frame`.
+Stock remounts the selection toolbar on scroll (`hideToolbar` on
+`ScrollStart`, `showToolbar` on `ScrollEnd` from a post-frame callback), which
 
-`ExtendedEditableText` instead **fades** the still-mounted toolbar via
-`TextSelectionOverlay.suppressToolbarForScroll` (drives the existing
-`toolbarVisible` opacity animation). On `ScrollEnd` it unsuppresses and calls
-`updateForScroll()` so viewport flags restore visibility when the selection is
-on-screen. No remount, no post-frame show, no `scheduleFrame`.
+1. never runs the post-frame show after a non-fling scroll when no frame is
+   scheduled (flutter/flutter#185052),
+2. drops a custom menu's state on every remount,
+3. throws `Build scheduled during frame` under the obvious `scheduleFrame()`
+   workaround.
 
-Toolbar visibility also treats a selection as on-screen when **any** selection
-box overlaps the editable (not only when a selection endpoint is in view), so
-select-all on tall text does not fade the menu out.
+`ExtendedEditableText` fades the still-mounted toolbar instead
+(`ExtendedTextSelectionOverlay.suppressToolbarForScroll`), and unsuppresses on
+`ScrollEnd`. No remount, no post-frame show.
 
-Because the faded toolbar stays mounted, and `Opacity` keeps its hit-test box at
-any alpha, the wrapper drops the toolbar out of hit testing while the fade reads
-zero — otherwise an invisible menu keeps swallowing gestures (scrolls included)
-aimed at the content under it. The test reads the animation at hit-test time:
-the visibility that drives the fade can change during paint, so the subtree must
-not rebuild for it.
+- **Overlap visibility.** The toolbar counts a selection as on screen when any
+  selection box overlaps the text area, not only when an endpoint is in view,
+  so select-all over text taller than the field keeps the menu.
+- **Not hit-testable while faded.** `Opacity` keeps its hit-test box at any
+  alpha, so the wrapper drops the toolbar out of hit testing while the fade
+  reads zero; otherwise an invisible menu swallows gestures aimed at the
+  content under it.
+- Handle and toolbar visibility are published by `ExtendedRenderEditable`
+  (`startHandleInViewport`, `endHandleInViewport`, `selectionIntersectsViewport`)
+  at the end of paint. Handle visibility is wider than stock's: a handle stays
+  while any part of its caret is in the text area, where stock asks only about
+  the caret's top edge.
 
-### Caret reveal (`ExtendedEditableText`)
+### B. `contentScrollPadding` (opt-in)
 
-`contentScrollPadding` insets the scrolled text inside the editable instead of
-around it, so revealing a caret targets the line **plus** the inset band — an
-edge line otherwise settles flush against the bounds. The band is dropped when
-it and the line together outgrow the text area.
+An inset that belongs to the scrolled content instead of the box: the first and
+last line stay off the bounds while every other line scrolls through the inset.
+**Default `EdgeInsets.zero`**; a host opts in per field. With an inset, caret
+reveal targets the line plus the inset band (dropped when band and line outgrow
+the text area), and ancestor scrollables are asked to reveal a rect clipped to
+the editable's own box (stock hands them the selection edge, which for
+select-all over long text is thousands of pixels away). The placeholder follows
+the inset in both forms: `InputDecoration.hintText` by baseline, an
+`InputDecoration.hint` widget through padding. Keep vertical
+`InputDecoration.contentPadding` at zero or the insets stack. Applies to
+multiline fields only.
 
-Ancestor scrollables are asked to reveal a rect clipped to the editable's own
-box. Stock hands them the selection edge in editable coordinates, which for a
-selection that reaches far outside the visible text (select-all over long text)
-is thousands of pixels away — a page scrollable then scrolls to that point,
-far past the field. The editable scrolls to the edge itself; ancestors only
-have to keep the resulting line on screen.
-
-### Nested overscroll handoff (`ExtendedEditableText`)
+### C. Nested overscroll handoff
 
 A multiline field inside a page `Scrollable` claims the vertical drag once it
-can scroll. Outward motion at `0` / `maxScrollExtent` would otherwise be
-discarded as empty overscroll (this fork also keeps `overscroll: false`, so
-there is no glow).
+can scroll; stock discards outward motion at the bounds. With
+`delegateOverscrollToParent` (**default on**), the field's
+`OverscrollHandoffScrollPosition` hands unused edge `applyUserOffset` and
+`goBallistic` to the nearest same-axis ancestor, so the page keeps both drag
+delta and fling velocity. Multiline fields force `ClampingScrollPhysics` while
+it is on. A `ScrollController` passed as `scrollController` is attached as the
+handoff controller's mirror, so `jumpTo` and `position` keep working.
 
-With `delegateOverscrollToParent` (default on), the field uses an
-`OverscrollHandoffScrollPosition`: unused edge `applyUserOffset` and
-`goBallistic` go to the nearest same-axis ancestor, so the page keeps both
-drag delta and fling velocity. Multiline fields force `ClampingScrollPhysics`
-while this is on so bounce cannot move past the bound before handoff. Opt out
-per field when nested page scroll is wrong for the surface.
+### E. Crossing handles on every platform
 
-### Selection width: hybrid
+Stock Android and desktop refuse to let a handle cross the other
+(`Don't allow order swapping`); Apple platforms invert. The invert model runs
+on **all** platforms: the dragged handle becomes the extent and the opposite end
+is anchored from the drag-start selection. While resizing a non-collapsed
+selection, the moving extent is nudged off the fixed base when they would
+coincide (`_avoidCollapseExtent`), bouncing back to the side it came from, so a
+drag never collapses to a caret.
 
-Stock `EditableText.defaultSelectionWidthStyle` is `BoxWidthStyle.max` on
-non-web platforms, which extends the content end line to the full layout width.
-Hybrid selection highlight instead uses full-width rects only on completed lines
-and a glyph-tight rect on the content end line (see `CONTEXT.md`).
+### F. Telegram-Android handle motion (without a drag scale)
 
-`ExtendedEditableText` disables the built-in highlight (`selectionColor: null`)
-and paints via [HybridSelectionHighlightPainter] /
-[computeHybridSelectionBoxes]:
+Parity target: the Telegram Android **composer** (AOSP `Editor`), not the
+message-bubble helper and not the iOS system loupe.
 
-- Completed lines: `BoxWidthStyle.max` (including empty newline gaps).
-- Content end line (`selection.end - 1`): `BoxWidthStyle.tight`, unless an
-  exclusive end uses empty-edge (below).
+- Appear: 250 ms fade and scale with `OvershootCurve` (tension 2.0), on every
+  platform. Hide: **instant**.
+- Moving handle: finger-tracked on touch (and Android mouse, for scrcpy), with
+  the grab offset (finger → handle) frozen at pointer DOWN. The fixed handle is
+  anchored to the fixed base.
+- Frozen chrome: from DOWN until the settle ends, the grabbed physical handle
+  stays the moving overlay and the handles' left/right types stay as at DOWN, so
+  crossing handles never face inward. One refresh follows the settle.
+- Release: 250 ms `easeOut` settle of the moving overlay to the extent caret;
+  selection offsets are already final.
+- **No drag scale.** The grabbed handle keeps its size.
 
-Soft-wrap and hard-break exclusive ends (`selection.end` at the start of the
-next visual line) branch on **exclusive-end affinity** (must be plumbed through
-handle drag — stock `TextSelection(...)` defaults to `downstream`). Flutter’s
-`TextSelection.==` ignores affinity when non-collapsed, so affinity-only updates
-are forced through the controller, `userUpdateTextEditingValue`, and
-`ExtendedRenderEditable.selection`.
+### G. Magnifier
 
-- `TextAffinity.upstream`: content end line **tight**; end handle at the last
-  glyph on that line (empty trailing space does not pull the handle down).
-- `TextAffinity.downstream`: content end line **max**; end handle empty-edge on
-  the following line (`downstream` caret at `selection.end`). Soft-wrap max is
-  expanded to layout width (engine `BoxWidthStyle.max` alone does not fill soft
-  wraps the way hard breaks do).
+- Focal X is the finger clamped to the current line; focal Y is that line's
+  centre.
+- Always tracks the dragged end; suppressed during the one-touch phase; keeps
+  following the finger while selection offsets are frozen by direction settling.
+- Time-smoothed toward the latest target at one rate for both axes
+  (`kAospMagnifierSettleMs = 100`), on `currentSystemFrameTimeStamp`.
+- The moving handle stays visible under the loupe (AOSP hides it; not
+  implemented).
 
-When either handle drag leaves the exclusive end (`selection.end`) as the
-**fixed base** (`extent <= fixedBase` and that offset is an exclusive line end),
-affinity is **preserved** from drag-start (not overwritten by the moving
-finger’s hit-test, and not forced to empty-edge merely because the selection is
-reversed). A fixed start that merely sits at a visual line start does **not**
-freeze affinity (`fixedExcl != null` alone is insufficient — that was the
-false-preserve bug when dragging past a hard/soft line start toward a soft-wrap
-exclusive end). When the exclusive end is the **moving extent**, hit-test
-affinity updates exclusive-end mode (or a new enter does).
+### H. Touch gesture matrix
 
-**Content-less exclusive end** (selection paints no glyphs on the content end
-line — typically hard-break covering only the omitted `\n`): synthesize a
-trailing box on that line (upstream tight at last glyph; downstream max to
-layout width). Never leave hybrid boxes empty for a non-collapsed exclusive end.
+On touch platforms (`android`, `iOS`, `fuchsia`), defined once for every field
+([ADR 0001](docs/adr/0001-universal-field-gestures.md),
+[ADR 0002](docs/adr/0002-touch-scoped-universal-gestures.md)):
 
-Hard breaks omit the `\n` from the painted range so the engine does not emit a
-leading box on the following line. Prior completed lines stay `max`.
+- long-press → word (or atomic span) + one-touch phase;
+- double-tap → the same word, finished at once (no one-touch);
+- no triple-tap paragraph;
+- tap in selection mode dismisses to a caret at the tap; an idle tap places the
+  caret at the tap;
+- after word enter, **direction settling** ignores handle extents strictly
+  inside the word until the finger exits it;
+- letter / digit / `_` run snapping exists in `selection_drag_snap.dart` but is
+  not applied during live drag (it oscillates against character-precise
+  tracking).
 
-Hybrid boxes are taken from the live `RenderEditable` layout by temporarily
-swapping `selectionWidthStyle` outside paint. The **paint selection cache**
-stores hybrid results only for the editable’s current `selection` (offsets +
-affinity). Other `getBoxesForSelection` ranges (magnifier, line probes) compute
-**ephemeral hybrid boxes** and must not overwrite that cache. Content-less
-synthesize is scoped to the range being computed. Style must not be mutated
-during paint (`debugDoingPaint`).
+Desktop platforms keep stock long-press and triple-tap.
 
-### Bidirectional selection handles
+**iOS keeps two stock paths** (amendment to ADR 0002): a long-press on a focused,
+editable field moves the caret with the floating cursor, and a finger tap on the
+collapsed caret of a focused, editable field toggles the Paste menu. Android's
+stock tap-up no longer shows the spell-check suggestions toolbar (suggestions
+stay off).
 
-Stock Flutter on Android/desktop refuses to let a selection handle cross the
-other (`Don't allow order swapping` in `TextSelectionGestureDetectorBuilder`).
-Dragging is therefore unidirectional: you can only extend in the direction you
-started.
+### I. Handle controls
 
-Apple platforms already invert: the dragged handle becomes the extent and the
-opposite end is anchored from `_dragStartSelection`.
+The four platform handle-control files (Material, Material desktop, Cupertino,
+Cupertino desktop) differ from stock only in imports, so the controls extend
+`ExtendedTextSelectionControls`. Painting, geometry and toolbar code are stock.
+A composer passes the Material controls on every platform; the Cupertino ones
+stay available to an overriding host.
 
-`extended_text` uses that invert model on **all** platforms so both handles can
-grow the selection either way (same idea as `MarkdownSelectable`).
+### Seams not in stock
 
-While resizing a non-collapsed selection, the moving extent is nudged away from
-the fixed base when they would coincide (`_avoidCollapseExtent`, same idea as
-`_MarkdownSelectable._avoidCollapse`) so the selection never collapses to a
-caret mid-drag. The nudge **bounces back** to the side the extent came from;
-crossing past the other handle still works when the pointer moves beyond the
-fixed offset (not while resting exactly on it).
+- `clipboardTextBuilder` / `pasteTextTransformer` (`ExtendedClipboardTextBuilder`,
+  `ExtendedPasteTextTransformer`): the text copy and cut put on the clipboard,
+  and a transform of the clipboard text before paste replaces the selection.
+- `gutterPainter` / `gutterExtent` / `gutterInset`: chrome painted beside the
+  text, outside the text clip. `gutterInset` pads the field and stays in the
+  tree so the IME connection survives.
 
-### Handle + magnifier motion
+## Platform behavior
 
-Parity target: Telegram Android **composer** (AOSP Editor) — see
-`.okf/telegram/composer-selection/`, not bubble `TextSelectionHelper` and not
-stock Flutter / iOS system loupe.
+- **Android spell check.** `inferAndroidSpellCheckConfiguration` copies an
+  enabled configuration with a builder shaped for the stock slot (a function
+  over `Object`, since the editable calls it with its own state). A cast to
+  `dynamic` compiles and throws a `TypeError` at the copy. Suggestions stay
+  off: the field never shows the suggestions toolbar.
+- **iOS system context menu.** `ExtendedSystemContextMenu` is the default menu
+  where the platform supports it, over the public
+  `SystemContextMenuController`.
+- **Release-mode parity.** No code branches on `debugActiveLayout`,
+  `debugDoingPaint` or the other pipeline flags that only asserts set; the
+  paths they guarded take the same branch in every build mode.
 
-**Handles**
+## Stock on purpose
 
-- Appear: ~250ms fade + scale with Android `OvershootInterpolator` (tension
-  2.0) around the handle center (`handleViewProgress`).
-- Hide: **instant** (`_controller.value = 0` on clear — no reverse animation).
-- Move: finger-tracked overlay on touch (fixed handle caret-anchored); ~250ms
-  easeOut settle on release.
-- Drag scale: **~1.2** on grabbed handle while drag in progress (Telegram
-  composer); ~250ms easeOut; independent of finger-tracked delta.
-- Geometry: Material circle+stem at 22dp. Editor (`MarkdownTextField`) forces
-  `materialTextSelectionHandleControls` on all platforms so iOS does not use
-  Cupertino bars.
-
-**Magnifier**
-
-- Shown while a handle is dragged. **Suppressed during one-touch long-press**
-  (`_isOneTouchSelection`) until pointer up.
-- Always tracks the **dragged** end (`selection.extent` under the invert model).
-- Material `TextMagnifier` clamps loupe X to the current line.
-- Focal X = finger X clamped to line bounds; focal Y =
-  `lineTop + 0.5 * lineHeight`.
-- During direction settling (selection frozen), magnifier still updates with the
-  gesture so the loupe keeps following the finger.
-- `MagnifierInfo` is time-smoothed toward the latest target (X settle ~100ms,
-  Y ~200ms). Clock: `currentSystemFrameTimeStamp` (not `currentFrameTimeStamp`).
-
-**Gestures**
-
-- After long-press word select, **direction settling** ignores handle extents
-  inside the initial word until the pointer exits
-  (`beginDirectionSettling` / `_extentForHandleDrag`). Settling is cleared when
-  the user explicitly grabs a start/end handle.
-- Letter/digit/`_` **run snap is not applied during live handle drag** — it
-  oscillates against character-precise finger tracking and `_avoidCollapseExtent`.
-  Helpers remain in `selection_drag_snap.dart` for tests / future use.
-
-See `selection_handle_motion.dart`, `selection_drag_snap.dart`, and
-`.okf/telegram/composer-selection/`.
+- **Selection highlight and endpoints.** `defaultSelectionWidthStyle` is
+  `BoxWidthStyle.max` on native platforms, `selectionColor` paints, affinity is
+  not special-cased, and `RenderEditable.painter` is free for a host. See
+  [docs/parity/highlight.md](docs/parity/highlight.md).
+- **Grabbed handle size** (see F).

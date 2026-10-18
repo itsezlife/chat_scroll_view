@@ -5,7 +5,7 @@ description: >-
   Touch-platform enter and dismiss for every ExtendedTextField: long-press and
   double-tap word enter, one-touch phase, direction settling, tap dismiss,
   bidirectional handle invert. Desktop keeps stock Flutter defaults.
-tags: [telegram, composer, gestures, extended_text]
+tags: [telegram, composer, gestures, composer_editable]
 timestamp: 2026-07-21T12:00:00.000Z
 content_hash: composer-gestures-v1
 ---
@@ -13,14 +13,13 @@ content_hash: composer-gestures-v1
 # Gestures
 
 Glossary: **Universal field gestures**, **Direction settling**, **One-touch
-phase**, **Tap dismiss** — see
-[extended-text](../../packages/extended-text.md)
-(`packages/extended_text/CONTEXT.md`).
+phase**, **Tap dismiss** — see [CONTEXT.md](../../CONTEXT.md). Decisions:
+[ADR 0001](../adr/0001-universal-field-gestures.md),
+[ADR 0002](../adr/0002-touch-scoped-universal-gestures.md).
 
 ## Scope
 
-Defined once in **`extended_text`** for all `ExtendedTextField` consumers
-(chat composer, forms). Touch = `android` | `iOS` | `fuchsia`. Desktop =
+Defined once in **`composer_editable`** for every `ExtendedTextField`. Touch = `android` | `iOS` | `fuchsia`. Desktop =
 `linux` | `macOS` | `windows` — stock Flutter matrix, not forced through touch
 rules.
 
@@ -33,6 +32,16 @@ rules.
 | **Capture** | Pre-select tracking; slop cancel; double-tap short-circuits |
 
 No triple-tap → paragraph on touch (desktop may use stock triple-tap).
+
+### iOS keeps two stock paths
+
+| Gesture | iOS behavior |
+| ------- | ------------ |
+| **Long-press on a focused, editable field** | Moves the caret with the floating cursor (`updateFloatingCursor`), no word selection. Unfocused or read-only: the word-and-one-touch path above. |
+| **Tap on the collapsed caret of a focused, editable field** | Toggles the toolbar (the Paste menu) instead of moving the caret. A tap elsewhere places the caret and hides the toolbar. |
+
+Both are the platform's text-view behavior, and the default context menu there
+is the system menu where `SystemContextMenu` is supported.
 
 ## Direction settling
 
@@ -51,8 +60,6 @@ caret at tap.
 
 - Invert model: dragged handle = extent (all platforms).
 - `_avoidCollapseExtent`: never collapse to caret mid-drag.
-- Exclusive-end affinity preserve when fixed base is exclusive line end — see
-  [highlight.md](highlight.md).
 - Letter/`_` run snap **not** applied during live drag (oscillates with
   character-precise tracking).
 

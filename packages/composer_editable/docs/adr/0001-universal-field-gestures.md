@@ -1,6 +1,6 @@
-# Universal field gestures in extended_text
+# Universal field gestures in composer_editable
 
-Selection enter/dismiss is owned once by `extended_text` and applies to every
+Selection enter/dismiss is owned once by `composer_editable` and applies to every
 `ExtendedTextField` consumer. The enter matrix is long-press → one-touch,
 double-tap enter → immediate finish (no one-touch), no triple-tap paragraph,
 idle caret tap vs tap dismiss. Unnamed edges follow ordinary editable-field
@@ -24,5 +24,5 @@ and triple-tap). Option C for touch consumers remains accepted.
 - **B — Rich-editor-only gestures**: keep a special matrix for markdown / rich
   hosts. Rejected: splits the product and reintroduces per-screen forks.
 - **C — Universal field gestures (chosen)**: bake the rich-style enter/dismiss
-  matrix into `extended_text` for all consumers; defer remaining edges to
+  matrix into `composer_editable` for all consumers; defer remaining edges to
   editable-field defaults.

@@ -3,9 +3,9 @@ type: Composer Selection Concept
 title: Selection handles — appear, drag, freeze, settle
 description: >-
   Composer handle lifecycle on touch ExtendedTextField: overshoot appear,
-  scale on grab, finger-tracked moving overlay, frozen orientation until settle,
-  easeOut settle to caret. Logical selection updates live throughout.
-tags: [telegram, composer, handles, extended_text]
+  finger-tracked moving overlay, frozen orientation until settle, easeOut
+  settle to caret. Logical selection updates live throughout.
+tags: [telegram, composer, handles, composer_editable]
 timestamp: 2026-07-21T12:00:00.000Z
 content_hash: composer-handles-v2
 ---
@@ -13,9 +13,7 @@ content_hash: composer-handles-v2
 # Handles
 
 Glossary: **Composer selection chrome**, **Finger-tracked handle**, **Frozen
-handle chrome**, **Handle settle** — see
-[extended-text](../../packages/extended-text.md)
-(`packages/extended_text/CONTEXT.md`).
+handle chrome**, **Handle settle** — see [CONTEXT.md](../../CONTEXT.md).
 
 ## Appear / hide (AOSP + bubble parity)
 
@@ -24,21 +22,16 @@ handle chrome**, **Handle settle** — see
 | Appear | ~250ms fade + scale, `OvershootInterpolator` tension 2.0 | `_SelectionHandleOverlay` `_scale` |
 | Hide | **Instant** (`progress = 0`, no reverse) | Telegram `clear()` / `handleViewProgress` |
 
-## Scale on grab (Telegram composer)
+## Grab (pointer DOWN)
 
-When the user captures a handle, the **grabbed** handle scales to **~1.5**
-(`kComposerHandleDragScale`, ~250ms easeOut). Scale and finger-tracked overlay
-start on **pointer DOWN** (not after touch slop). Driven by
-**`isGrabbedHandleDragging`** — independent of finger-tracked overlay delta
-(scrcpy mouse gets scale before pan slop via `Listener.onPointerDown`).
+Finger-tracking starts on **pointer DOWN** (not after touch slop), through
+`Listener.onPointerDown` on the handle, so an Android `PointerDeviceKind.mouse`
+(scrcpy) takes the same path. The grabbed handle is **not scaled**: three
+documented values disagreed (1.2, 1.4, 1.5) and no Telegram source states one.
 
 Extent hit-test during drag uses **caret-equivalent X**
-(`pointer + grabOffset` on X; Y keeps line-jump logic) so highlight stays aligned
-with the moving handle.
-
-**Locked grilling 2026-07-21:** A + C — scale on any touch-platform handle drag;
-Android `PointerDeviceKind.mouse` also enables finger-tracked overlay (scrcpy).
-**Locked grilling 2026-07-21 (06):** grab-on-DOWN, compensated hit-test X, scale 1.5.
+(`pointer + grabOffset` on X; Y keeps line-jump logic) so the highlight stays
+aligned with the moving handle.
 
 ## Drag — moving vs fixed
 
@@ -64,10 +57,6 @@ From DOWN until settle **completes**:
 handles point **inward** and overlap. Telegram keeps pre-cross orientations until
 motion settles, then flips both if needed.
 
-**Anti-pattern in current code (partial):** `fingerTrackedMovingHandleIsStart()`
-switches moving overlay on invert; `_applySelectionOverlayMetrics()` updates
-types every `update()`.
-
 ## Invert model
 
 All platforms: dragged handle becomes **extent**; opposite end is **fixed base**
@@ -77,8 +66,9 @@ Distinct from stock Android (“don’t allow order swapping”).
 
 ## Geometry
 
-Material circle+stem, 22dp — `materialTextSelectionHandleControls` on all
-composer consumers (including iOS) via `MarkdownTextField`.
+Material circle+stem, 22dp — `extendedMaterialTextSelectionHandleControls` on
+every platform for the composer (Telegram's handles are Telegram-drawn, not the
+iOS bars); the Cupertino controls stay available to a host that passes them.
 
 ## Code seams
 
@@ -86,13 +76,13 @@ composer consumers (including iOS) via `MarkdownTextField`.
 | ------- | ------ |
 | Grab offset, moving-handle identity | `finger_tracked_handle.dart` |
 | Settle duration, appear overshoot | `selection_handle_motion.dart` |
-| Overlay wiring, freeze (target) | `text_selection.dart` `SelectionOverlay` |
+| Overlay wiring, freeze | `text_selection.dart` `ExtendedSelectionOverlay` |
 
 ## Acceptance (manual)
 
 scrcpy vs Telegram Android **composer** (not bubble):
 
-1. Grab handle — visible scale-up.
+1. Grab handle — it follows the finger from the grab point.
 2. Drag far from line — handle follows finger; fixed handle stays on text.
 3. Drag past other handle — no inward overlap; orientations unchanged until UP.
 4. Release — settle to caret; then orientations match final selection.

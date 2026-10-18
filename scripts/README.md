@@ -26,7 +26,7 @@ nightly workflow calls it; usage, tolerance and re-baselining are in
 
 | Lint | Fails when |
 | --- | --- |
-| `DependencyLint` | members form a cycle; `content_model` / `chrome_foundation` depend on a member; `panel_shell` / `panel_pages` / `panel_presentation` reach `emoji_catalog_pack` or an adapter package; `panel_catalog` reaches `chrome_foundation`; any member but `kv_shared_preferences` declares `shared_preferences` (or a `shared_preferences_*` package); any member outside `example/` depends on `rich_clipboard` |
+| `DependencyLint` | members form a cycle; `content_model` / `chrome_foundation` / `composer_editable` depend on a member; any member but `chat_composer` depends on `composer_editable`; `panel_shell` / `panel_pages` / `panel_presentation` reach `emoji_catalog_pack` or an adapter package; `panel_catalog` reaches `chrome_foundation`; any member but `kv_shared_preferences` declares `shared_preferences` (or a `shared_preferences_*` package); any member outside `example/` depends on `rich_clipboard` |
 | `ReexportLint` | a `lib/` file exports another workspace package |
 | `FakesLint` | production code under `lib/` exports or imports a fake source |
 | `TestEntrypointLint` | a member with test files has no `test/unit_test.dart`, or it does not import one of them |

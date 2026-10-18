@@ -2,43 +2,43 @@
 type: Composer Selection Parity
 title: Flutter parity — composer vs Telegram Android
 description: >-
-  Gap table for extended_text composer selection vs Telegram Android AOSP
-  Editor stack. Status as of 2026-07-21 grilling. Bubble TextSelectionHelper
-  is a separate track.
-tags: [telegram, composer, parity, extended_text, roadmap]
-timestamp: 2026-07-21T12:00:00.000Z
-content_hash: composer-parity-v2
+  Status of composer_editable's composer selection against the Telegram Android
+  AOSP Editor stack. Message-bubble selection is a separate track.
+tags: [telegram, composer, parity, composer_editable]
+timestamp: 2026-10-18T12:00:00.000Z
+content_hash: composer-parity-v3
 ---
 
 # Flutter parity (composer)
 
 Reference: [architecture.md](architecture.md). Implementation:
-`packages/extended_text/`. Spec: `.scratch/composer-handle-motion/`.
+`packages/composer_editable/`. What differs from stock Flutter, and why:
+[DIVERGENCES.md](../../DIVERGENCES.md).
 
-Status key: **Done** | **Partial** | **Missing**
+Status key: **Done** | **Not implemented** | **Dropped**
 
 ## Handles & motion
 
 | Behavior | Telegram / AOSP | Status | Notes |
-| -------- | ----------------- | ------ | ----- |
-| Appear overshoot ~250ms | ✓ | **Done** | `_SelectionHandleOverlay` |
+| -------- | --------------- | ------ | ----- |
+| Appear overshoot ~250ms | ✓ | **Done** | `_SelectionHandleOverlay`, `OvershootCurve` tension 2.0 |
 | Hide instant | ✓ | **Done** | `_controller.value = 0` |
-| Scale on grab (~1.2) | ✓ | **Done** | `isGrabbedHandleDragging`; decoupled from finger-tracked |
-| Finger-tracked moving overlay (X+Y) | ✓ | **Partial** | Android mouse (scrcpy) included via `pointerKindUsesFingerTrackedHandle` |
+| Finger-tracked moving overlay (X+Y) | ✓ | **Done** | Android mouse (scrcpy) included via `pointerKindUsesFingerTrackedHandle` |
 | Grab offset at DOWN | ✓ | **Done** | `computeHandleGrabOffset` |
-| Settle ~250ms easeOut on UP | ✓ | **Partial** | `endFingerTrackedHandleDrag`; needs polish with freeze |
-| **Frozen handle chrome** until settle | ✓ | **Missing** | Locked grilling 2026-07-21; overlap bug when invert |
-| Grabbed handle stays moving on invert | ✓ | **Missing** | `fingerTrackedMovingHandleIsStart` swaps overlay |
+| Settle ~250ms easeOut on UP | ✓ | **Done** | `endFingerTrackedHandleDrag` |
+| Frozen handle chrome until settle | ✓ | **Done** | Grabbed overlay and handle types held until the settle ends |
+| Grabbed handle stays the moving one on invert | ✓ | **Done** | `isFingerTrackedMovingStartHandle` |
 | Fixed handle caret-anchored | ✓ | **Done** | |
+| Scale on grab | ✗ | **Dropped** | Three documented values (1.2, 1.4, 1.5), no Telegram source |
 | Desktop unchanged | n/a | **Done** | `usesFingerTrackedHandleDrag` |
 
 ## Magnifier
 
 | Behavior | Status | Notes |
 | -------- | ------ | ----- |
-| Pointer-line focal (X clamp, Y line center) | **Partial** | Helpers exist; wiring mixed with legacy builder |
-| AOSP ~100ms unified smooth | **Partial** | `smoothMagnifierInfo`; DIVERGENCES still mentions 100/200 |
-| Hide moving handle under loupe | **Missing** | `computeHandleDragChrome` seam; not fully wired |
+| Pointer-line focal (X clamp, Y line center) | **Done** | `pointerLineMagnifierTarget`, `ExtendedSelectionOverlay` |
+| AOSP ~100ms unified smooth | **Done** | `smoothMagnifierInfo`, `kAospMagnifierSettleMs` |
+| Hide the moving handle under the loupe | **Not implemented** | AOSP `handleOverlapsMagnifier`; the handle stays visible |
 | Suppress during one-touch | **Done** | |
 | Direction settling: loupe follows finger | **Done** | |
 
@@ -46,29 +46,19 @@ Status key: **Done** | **Partial** | **Missing**
 
 | Behavior | Status | Notes |
 | -------- | ------ | ----- |
-| Universal enter (long-press, double-tap) | **Done** | |
+| Universal enter (long-press, double-tap) | **Done** | Touch platforms |
+| iOS: floating cursor on a focused long-press | **Done** | Stock path kept |
+| iOS: caret tap toggles the Paste menu | **Done** | Stock path kept |
 | Direction settling | **Done** | |
 | Bidirectional invert | **Done** | |
 | `_avoidCollapseExtent` | **Done** | |
-| Hybrid highlight + exclusive-end affinity | **Done** | Recent affinity preserve work |
-| Paint vs ephemeral cache isolation | **Done** | |
+| Highlight | stock | [highlight.md](highlight.md) |
 
-## Next implementation (priority)
+## Out of scope
 
-1. **Frozen handle chrome** — snapshot types + grabbed overlay identity until
-   settle completes ([handles.md](handles.md)).
-2. **Decouple drag scale** from finger-tracked gate; optional Android mouse for
-   scrcpy overlay. **Done (2026-07-21):** scale 1.2 via `isGrabbedHandleDragging`;
-   Android mouse in finger-tracked path.
-3. Wire **hide-under-loupe** + pointer-line magnifier through one overlay path.
-4. Update **DIVERGENCES.md** handle/magnifier section to composer AOSP target.
-5. Manual scrcpy acceptance per `.scratch/composer-handle-motion/spec.md`.
-
-## Explicitly out of scope (this track)
-
-- Bubble `TextSelectionHelper` overlay ([bubble-selection/overview.md](../bubble-selection/overview.md))
-- Read-only `flutter_md` `SelectionArea`
-- Desktop / pointer-primary platforms
+- Message-bubble selection (a separate Telegram helper)
+- Read-only selectable text
+- Desktop / pointer-primary platforms (stock handles)
 
 ## Tests
 
@@ -76,8 +66,11 @@ Status key: **Done** | **Partial** | **Missing**
 | ---- | ---- |
 | Grab offset, moving-handle identity | `finger_tracked_handle_test.dart` |
 | Magnifier smooth, settle T | `selection_handle_motion_test.dart` |
-| Drag chrome outputs | `handle_drag_chrome` (via `selection_handle_motion_test` / future) |
-| Hybrid boxes | `selection_boxes_test.dart` |
+| Drag chrome outputs | `selection_handle_motion_test.dart` |
+| Touch gesture matrix | `universal_field_gestures_test.dart` |
+| iOS paths, system menu | `ios_restored_paths_test.dart` |
+| Visibility without debug-only flags, stock highlight | `release_parity_test.dart` |
+| Overscroll handoff, select-all scroll | `nested_overscroll_handoff_test.dart`, `select_all_page_scroll_test.dart` |
 
-Widget-level `ExtendedTextField` drag tests: not required for first land; scrcpy
-vs Telegram composer is acceptance for feel.
+Handle motion and magnifier feel are checked on a device (ADR 030), not in
+widget tests.
