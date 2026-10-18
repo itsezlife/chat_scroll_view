@@ -112,6 +112,7 @@ void main() {
     String name,
     EmojiOnly emojiOnly, {
     ContentKey? sticker,
+    ChatEmojiPolicy policy = const ChatEmojiPolicy.android(),
     TextDirection direction = TextDirection.ltr,
     Size view = const Size(360, 640),
     double width = 320,
@@ -149,6 +150,7 @@ void main() {
                           messageId: 1,
                           emojiOnly: emojiOnly,
                           sticker: sticker,
+                          policy: policy,
                           embedFactory: (content, preset) => _ColorEmbed(
                             _palette[made++ % _palette.length],
                             preset.size,
@@ -185,36 +187,86 @@ void main() {
     }
   }
 
-  for (final count in [3, 10]) {
-    for (final allCustom in [true, false]) {
-      final kind = allCustom ? 'custom' : 'mixed';
-      testWidgets('$count items, $kind, right to left', (tester) async {
-        await shoot(
+  const policies = <String, ChatEmojiPolicy>{
+    'android': ChatEmojiPolicy.android(),
+    'desktop': ChatEmojiPolicy.desktop(),
+  };
+
+  // Right to left: Android keeps every line starting at the left, desktop
+  // mirrors.
+  for (final MapEntry(key: platform, value: policy) in policies.entries) {
+    for (final count in [3, 10]) {
+      for (final allCustom in [true, false]) {
+        final kind = allCustom ? 'custom' : 'mixed';
+        testWidgets('$platform, $count items, $kind, right to left', (
           tester,
-          '${kind}_${count}_rtl',
-          _items(count, allCustom: allCustom),
-          direction: TextDirection.rtl,
-        );
-      });
+        ) async {
+          await shoot(
+            tester,
+            '${platform}_${kind}_${count}_rtl',
+            _items(count, allCustom: allCustom),
+            policy: policy,
+            direction: TextDirection.rtl,
+          );
+        });
+      }
     }
   }
 
-  testWidgets('the sticker layout', (tester) async {
-    await shoot(
-      tester,
-      'sticker',
-      EmojiOnly(const [EmojiOnlyItem(ContentKey.unicode('\u{1F44D}'))]),
-      sticker: const ContentKey.document('pack'),
-    );
-  });
+  // Desktop caps regular emoji at 3 images, 2 px apart.
+  for (final count in [1, 3]) {
+    testWidgets('desktop, $count items, mixed', (tester) async {
+      await shoot(
+        tester,
+        'desktop_mixed_$count',
+        _items(count, allCustom: false),
+        policy: const ChatEmojiPolicy.desktop(),
+      );
+    });
+  }
 
-  testWidgets('the sticker layout, right to left', (tester) async {
-    await shoot(
-      tester,
-      'sticker_rtl',
-      EmojiOnly(const [EmojiOnlyItem(ContentKey.unicode('\u{1F44D}'))]),
-      sticker: const ContentKey.document('pack'),
-      direction: TextDirection.rtl,
-    );
-  });
+  // iOS: a glyph table by line length, 94 pt for one.
+  for (final count in [1, 3, 10]) {
+    testWidgets('ios, $count items, mixed', (tester) async {
+      await shoot(
+        tester,
+        'ios_mixed_$count',
+        _items(count, allCustom: false),
+        policy: const ChatEmojiPolicy.ios(),
+      );
+    });
+  }
+
+  const sticker = ContentKey.document('pack');
+  final lone = EmojiOnly(const [
+    EmojiOnlyItem(ContentKey.unicode('\u{1F44D}')),
+  ]);
+
+  // The sticker's art and the inset around it: none on Android and desktop,
+  // 10 pt on iOS.
+  for (final MapEntry(key: platform, value: policy) in {
+    ...policies,
+    'ios': const ChatEmojiPolicy.ios(),
+  }.entries) {
+    testWidgets('$platform, the sticker layout', (tester) async {
+      await shoot(
+        tester,
+        '${platform}_sticker',
+        lone,
+        sticker: sticker,
+        policy: policy,
+      );
+    });
+
+    testWidgets('$platform, the sticker layout, right to left', (tester) async {
+      await shoot(
+        tester,
+        '${platform}_sticker_rtl',
+        lone,
+        sticker: sticker,
+        policy: policy,
+        direction: TextDirection.rtl,
+      );
+    });
+  }
 }

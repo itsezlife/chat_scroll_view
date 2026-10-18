@@ -31,8 +31,7 @@ final class ChatFloatingHeaderMarker extends InheritedWidget {
   ///
   /// Non-dependent lookup: calling it never schedules a rebuild.
   static bool isInside(BuildContext context) =>
-      context.getInheritedWidgetOfExactType<ChatFloatingHeaderMarker>() !=
-      null;
+      context.getInheritedWidgetOfExactType<ChatFloatingHeaderMarker>() != null;
 
   @override
   bool updateShouldNotify(covariant ChatFloatingHeaderMarker oldWidget) =>

@@ -32,6 +32,8 @@ import 'emoji/chat_emoji_body_test.dart' as chat_emoji_body_test;
 import 'emoji/chat_emoji_body_viewport_test.dart'
     as chat_emoji_body_viewport_test;
 import 'emoji/chat_emoji_flow_test.dart' as chat_emoji_flow_test;
+import 'emoji/chat_emoji_geometry_test.dart' as chat_emoji_geometry_test;
+import 'emoji/chat_emoji_policy_test.dart' as chat_emoji_policy_test;
 import 'emoji/chat_emoji_sizes_test.dart' as chat_emoji_sizes_test;
 import 'emoji/chat_non_text_body_test.dart' as chat_non_text_body_test;
 import 'goldens/chat_emoji_body_golden_test.dart'
@@ -172,6 +174,8 @@ void main() {
     chat_emoji_body_viewport_test.main,
   );
   group('emoji/chat_emoji_flow_test.dart', chat_emoji_flow_test.main);
+  group('emoji/chat_emoji_geometry_test.dart', chat_emoji_geometry_test.main);
+  group('emoji/chat_emoji_policy_test.dart', chat_emoji_policy_test.main);
   group('emoji/chat_emoji_sizes_test.dart', chat_emoji_sizes_test.main);
   group('emoji/chat_non_text_body_test.dart', chat_non_text_body_test.main);
   group(

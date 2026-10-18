@@ -69,9 +69,13 @@ void main() {
       expect(sizes.stickerExtentFor(const Size(640, 360)), 112.5);
     });
 
-    test('the inset is 10 dp and the header caps the wrap at 65 %', () {
-      expect(sizes.stickerInset, 10);
-      expect(sizes.headerWrapFraction, 0.65);
+    test('a zoom of 0.5 shrinks it to 90 dp', () {
+      expect(
+        const ChatEmojiSizes(
+          stickerZoom: 0.5,
+        ).stickerExtentFor(const Size(360, 640)),
+        90,
+      );
     });
   });
 

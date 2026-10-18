@@ -1,7 +1,8 @@
 import 'package:catalog_assets/catalog_assets.dart'
     show AssetPreset, AssetPresets, AssetProfile, InlineEmbed;
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
-import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_sizes.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_geometry.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_policy.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_body.dart'
     show ChatMarkdownBodyRegistration;
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_emoji_body.dart';
@@ -22,16 +23,6 @@ import 'package:flutter/widgets.dart';
 typedef ChatEmojiEmbedFactory =
     InlineEmbed? Function(ContentKey content, AssetPreset preset);
 
-/// Which of the two layouts of [ChatEmojiBody] a message gets.
-enum ChatEmojiLayoutKind {
-  /// One emoji shown as a sticker, in a margin, with the reply header beside
-  /// it.
-  sticker,
-
-  /// Emoji set as enlarged text, with the reply header above it.
-  text,
-}
-
 /// A bubble-less message of nothing but emoji, laid out the way the
 /// reference client does.
 ///
@@ -44,11 +35,15 @@ enum ChatEmojiLayoutKind {
 /// ## Layouts
 ///
 /// - **Sticker**: [sticker] is given and there is exactly one item. The
-///   sticker is a square of [ChatEmojiSizes.stickerExtentFor] of the screen in
-///   a [ChatEmojiSizes.stickerInset] margin.
-/// - **Text**: otherwise. The items are squares of the font step their count
-///   gives, in lines that wrap and honour the message's line breaks; the text
-///   scale plays no part.
+///   sticker is a square of [ChatEmojiPolicy.stickerExtentFor] of the screen in
+///   the policy's [ChatEmojiPolicy.stickerInset] margin.
+/// - **Text**: otherwise. The items are squares of the font step the policy
+///   gives the message, in lines that wrap and honour the message's line
+///   breaks; the text scale plays no part.
+///
+/// The numbers are the platform's: [policy] is one of the three
+/// [ChatEmojiPolicy] strategies, chosen by the host from the platform it runs
+/// as (`ChatEmojiPolicy.forPlatform`).
 ///
 /// A custom emoji is drawn through [embedFactory] and animates and loops. A
 /// unicode emoji in the text layout is a glyph at the step's font size (some
@@ -68,12 +63,14 @@ enum ChatEmojiLayoutKind {
 ///
 /// ## Chrome
 ///
-/// The time pill, reactions, reply and forward headers are the host's. The
-/// body's box is its geometry: the text layout shrinks to its widest line and
-/// the sticker layout is the sticker plus its inset. Over the box's bottom
-/// trailing corner goes the pill; the reply goes beside a [sticker] layout
-/// and above a text layout ([layoutKindFor] says which), and [hasHeader]
-/// tells the text layout to wrap narrower for it.
+/// The time pill, reactions, reply and forward headers are the host's, and
+/// their placement is the platform's ([ChatEmojiPolicy.headerPlacementFor];
+/// the pill's metrics are the host's chrome). What the host needs to place them
+/// is [geometryFor]: the box (the text layout shrinks to its widest line, the
+/// sticker layout is the art plus the policy's inset), the text's rectangle and
+/// trailing edge, the last line, and the strip of [bottomReserve] the body
+/// keeps free under the items. [hasHeader] tells the text layout to wrap
+/// narrower for a header, by the policy's rule.
 class ChatEmojiBody extends StatefulWidget {
   /// Creates the body of [messageId] for [emojiOnly].
   const ChatEmojiBody({
@@ -84,7 +81,9 @@ class ChatEmojiBody extends StatefulWidget {
     this.sticker,
     this.autoplay = true,
     this.hasHeader = false,
-    this.sizes = const ChatEmojiSizes(),
+    this.policy = const ChatEmojiPolicy.android(),
+    this.parentWidth,
+    this.bottomReserve = 0,
     this.semanticsLabel,
     super.key,
   });
@@ -96,6 +95,67 @@ class ChatEmojiBody extends StatefulWidget {
   }) => sticker != null && emojiOnly.items.length == 1
       ? ChatEmojiLayoutKind.sticker
       : ChatEmojiLayoutKind.text;
+
+  /// The geometry of the body [emojiOnly] gets in a row [maxWidth] wide, for a
+  /// host that places chrome around it before the body is laid out.
+  ///
+  /// It is the geometry the widget lays out to (the same code), given the
+  /// same inputs: [viewport] is the screen's size (`MediaQuery.sizeOf`),
+  /// [direction] the ambient reading direction, [parentWidth] the width a
+  /// header's wrap share is of (the viewport's width when null).
+  static ChatEmojiGeometry geometryFor({
+    required EmojiOnly emojiOnly,
+    required ChatEmojiPolicy policy,
+    required Size viewport,
+    required double maxWidth,
+    required TextDirection direction,
+    ContentKey? sticker,
+    bool hasHeader = false,
+    double? parentWidth,
+    double bottomReserve = 0,
+  }) => ChatEmojiGeometry.of(
+    _specFor(
+      emojiOnly: emojiOnly,
+      policy: policy,
+      sticker: sticker,
+      viewport: viewport,
+      parentWidth: parentWidth,
+      direction: direction,
+      hasHeader: hasHeader,
+      bottomReserve: bottomReserve,
+    ),
+    maxWidth: maxWidth,
+  );
+
+  static ChatEmojiLayoutSpec _specFor({
+    required EmojiOnly emojiOnly,
+    required ChatEmojiPolicy policy,
+    required ContentKey? sticker,
+    required Size viewport,
+    required double? parentWidth,
+    required TextDirection direction,
+    required bool hasHeader,
+    required double bottomReserve,
+  }) {
+    final kind = layoutKindFor(emojiOnly, sticker: sticker);
+    final isSticker = kind == ChatEmojiLayoutKind.sticker;
+    return ChatEmojiLayoutSpec(
+      kind: kind,
+      lineBreaksBefore: [
+        for (final item in emojiOnly.items) item.lineBreaksBefore,
+      ],
+      box: isSticker
+          ? policy.stickerExtentFor(viewport)
+          : policy.itemBoxFor(emojiOnly),
+      skip: isSticker ? 0 : policy.itemSkipFor(emojiOnly),
+      inset: isSticker ? policy.stickerInset : 0,
+      wrap: !isSticker && hasHeader
+          ? policy.wrapLimitUnderHeader(parentWidth ?? viewport.width)
+          : ChatEmojiWrapLimit.none,
+      reserve: bottomReserve,
+      direction: policy.textDirectionFor(direction),
+    );
+  }
 
   /// The facade the body registers with.
   final ChatSelectionController controller;
@@ -122,12 +182,23 @@ class ChatEmojiBody extends StatefulWidget {
   /// plays on a tap.
   final bool autoplay;
 
-  /// Whether a reply or forward header sits above the text layout, which then
-  /// wraps at [ChatEmojiSizes.headerWrapFraction] of the row's width.
+  /// Whether a reply or forward header narrows the text layout's wrap, by the
+  /// policy's rule ([ChatEmojiPolicy.wrapLimitUnderHeader]). A header the
+  /// policy puts beside the body does not.
   final bool hasHeader;
 
-  /// The sizes; the reference client's by default.
-  final ChatEmojiSizes sizes;
+  /// The platform's sizes, inset, wrap and direction rules. Android's by
+  /// default.
+  final ChatEmojiPolicy policy;
+
+  /// The width the policy's header wrap is a share of: the screen's, or the
+  /// chat column's when the chat is not the whole window. The viewport's
+  /// width when null.
+  final double? parentWidth;
+
+  /// The height of the strip the body keeps free under its items, for the
+  /// host's time and ticks. Zero by default.
+  final double bottomReserve;
 
   /// What a screen reader says, the plain text of the message. The default is
   /// made from the unicode emoji alone: a custom emoji has no text in
@@ -160,15 +231,9 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
       ChatEmojiBody.layoutKindFor(widget.emojiOnly, sticker: widget.sticker) ==
       ChatEmojiLayoutKind.sticker;
 
-  bool get _allCustom =>
-      widget.emojiOnly.items.every((item) => item.key is ContentKey$Document);
+  double get _font => widget.policy.fontSizeFor(widget.emojiOnly);
 
-  double get _font => widget.sizes.fontSizeFor(
-    widget.emojiOnly.items.length,
-    allCustom: _allCustom,
-  );
-
-  double get _extent => widget.sizes.stickerExtentFor(_viewport);
+  double get _extent => widget.policy.stickerExtentFor(_viewport);
 
   @override
   void initState() {
@@ -389,73 +454,55 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
       ].join();
 
   @override
-  Widget build(BuildContext context) {
-    final sticker = _isSticker;
-    final sizes = widget.sizes;
-    final items = widget.emojiOnly.items;
-    return Semantics(
-      label: _label,
-      textDirection: Directionality.of(context),
-      excludeSemantics: true,
-      child: MouseRegion(
-        cursor: _cursor,
-        onHover: _onHover,
-        onExit: (_) {
-          if (_cursor != MouseCursor.defer) {
-            setState(() => _cursor = MouseCursor.defer);
-          }
-        },
-        // Animated frames repaint this box, not the row around it.
-        child: RepaintBoundary(
-          child: _ChatEmojiLeafWidget(
-            key: _leafKey,
-            leaves: _leaves,
-            lineBreaksBefore: [for (final item in items) item.lineBreaksBefore],
-            box: sticker ? _extent : _font + sizes.boxPadding,
-            inset: sticker ? sizes.stickerInset : 0,
-            wrapFraction: !sticker && widget.hasHeader
-                ? sizes.headerWrapFraction
-                : 1,
-            textDirection: Directionality.of(context),
-            tint: _style.color,
+  Widget build(BuildContext context) => Semantics(
+    label: _label,
+    textDirection: Directionality.of(context),
+    excludeSemantics: true,
+    child: MouseRegion(
+      cursor: _cursor,
+      onHover: _onHover,
+      onExit: (_) {
+        if (_cursor != MouseCursor.defer) {
+          setState(() => _cursor = MouseCursor.defer);
+        }
+      },
+      // Animated frames repaint this box, not the row around it.
+      child: RepaintBoundary(
+        child: _ChatEmojiLeafWidget(
+          key: _leafKey,
+          leaves: _leaves,
+          spec: ChatEmojiBody._specFor(
+            emojiOnly: widget.emojiOnly,
+            policy: widget.policy,
+            sticker: widget.sticker,
+            viewport: _viewport,
+            parentWidth: widget.parentWidth,
+            direction: Directionality.of(context),
+            hasHeader: widget.hasHeader,
+            bottomReserve: widget.bottomReserve,
           ),
+          tint: _style.color,
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _ChatEmojiLeafWidget extends LeafRenderObjectWidget {
   const _ChatEmojiLeafWidget({
     required this.leaves,
-    required this.lineBreaksBefore,
-    required this.box,
-    required this.inset,
-    required this.wrapFraction,
-    required this.textDirection,
+    required this.spec,
     required this.tint,
     super.key,
   });
 
   final List<ChatEmojiLeaf> leaves;
-  final List<int> lineBreaksBefore;
-  final double box;
-  final double inset;
-  final double wrapFraction;
-  final TextDirection textDirection;
+  final ChatEmojiLayoutSpec spec;
   final Color? tint;
 
   @override
   RenderChatEmojiBody createRenderObject(BuildContext context) =>
-      RenderChatEmojiBody(
-        leaves: leaves,
-        lineBreaksBefore: lineBreaksBefore,
-        box: box,
-        inset: inset,
-        wrapFraction: wrapFraction,
-        textDirection: textDirection,
-        tint: tint,
-      );
+      RenderChatEmojiBody(leaves: leaves, spec: spec, tint: tint);
 
   @override
   void updateRenderObject(
@@ -464,11 +511,7 @@ class _ChatEmojiLeafWidget extends LeafRenderObjectWidget {
   ) {
     renderObject
       ..leaves = leaves
-      ..lineBreaksBefore = lineBreaksBefore
-      ..box = box
-      ..inset = inset
-      ..wrapFraction = wrapFraction
-      ..textDirection = textDirection
+      ..spec = spec
       ..tint = tint;
   }
 }

@@ -91,7 +91,8 @@ void main() {
     TextDirection direction = TextDirection.ltr,
     double textScale = 1,
     ChatEmojiEmbedFactory? factory,
-    ChatEmojiSizes sizes = const ChatEmojiSizes(),
+    ChatEmojiPolicy policy = const ChatEmojiPolicy.android(),
+    double bottomReserve = 0,
   }) => tester.pumpWidget(
     MediaQuery(
       data: MediaQueryData.fromView(
@@ -112,7 +113,8 @@ void main() {
                 sticker: sticker,
                 autoplay: autoplay,
                 hasHeader: hasHeader,
-                sizes: sizes,
+                policy: policy,
+                bottomReserve: bottomReserve,
                 embedFactory: factory ?? embeds.call,
               ),
             ),
@@ -173,12 +175,15 @@ void main() {
       expect(bodySize(tester).height, closeTo(2 * 59.2, 1e-6));
     });
 
-    testWidgets('right to left starts at the right edge', (tester) async {
+    testWidgets('right to left starts at the right edge on desktop', (
+      tester,
+    ) async {
       view(tester, const Size(400, 300));
       await pumpBody(
         tester,
         _items(2, allCustom: true),
         direction: TextDirection.rtl,
+        policy: const ChatEmojiPolicy.desktop(),
       );
 
       expect(
@@ -189,6 +194,49 @@ void main() {
       final rect = first.paints.last.rect;
       // The first item is at the right end of the box.
       expect(rect.left, greaterThan(embeds.made.last.paints.last.rect.left));
+    });
+
+    testWidgets('right to left does not mirror on Android', (tester) async {
+      view(tester, const Size(400, 300));
+      await pumpBody(
+        tester,
+        _items(2, allCustom: true),
+        direction: TextDirection.rtl,
+      );
+
+      final first = embeds.made.first.paints.last.rect;
+      final last = embeds.made.last.paints.last.rect;
+      expect(
+        first.left,
+        lessThan(last.left),
+        reason: 'lines start at the left',
+      );
+    });
+
+    testWidgets('a bottom reserve is room under the items, not a resize of '
+        'them', (tester) async {
+      view(tester, const Size(3000, 1000));
+
+      await pumpBody(tester, _items(3, allCustom: false), bottomReserve: 23);
+
+      expect(bodySize(tester).height, closeTo(33.6 + 4 + 23, 1e-6));
+      expect(
+        embeds.made,
+        hasLength(2),
+        reason: 'a rebuild with room does not re-make the embeds',
+      );
+    });
+
+    testWidgets('desktop images are 38 px, 2 px apart', (tester) async {
+      view(tester, const Size(3000, 1000));
+
+      await pumpBody(
+        tester,
+        _items(3, allCustom: false),
+        policy: const ChatEmojiPolicy.desktop(),
+      );
+
+      expect(bodySize(tester), const Size(118, 38));
     });
   });
 
@@ -208,8 +256,10 @@ void main() {
       expect(bodySize(tester).height, closeTo(3 * 26.8, 1e-6));
     });
 
-    testWidgets('with a header it wraps at 65 % of the width', (tester) async {
-      view(tester, const Size(1000, 1000));
+    testWidgets('with a header it wraps at 65 % of the parent width', (
+      tester,
+    ) async {
+      view(tester, const Size(400, 1000));
 
       await pumpBody(tester, run, maxWidth: 400, hasHeader: true);
 
@@ -217,13 +267,53 @@ void main() {
       expect(bodySize(tester).width, closeTo(9 * 26.8, 1e-6));
       expect(bodySize(tester).height, closeTo(4 * 26.8, 1e-6));
     });
+
+    testWidgets('the share is of the parent, not of the row: a narrow row '
+        'under a wide screen wraps at the row', (tester) async {
+      view(tester, const Size(1000, 1000));
+
+      await pumpBody(tester, run, maxWidth: 400, hasHeader: true);
+
+      // 65 % of 1000 is 650: the row's 400 is the limit, 14 to a line.
+      expect(bodySize(tester).width, closeTo(14 * 26.8, 1e-6));
+    });
+
+    testWidgets('a host that knows its column gives the parent width', (
+      tester,
+    ) async {
+      view(tester, const Size(1000, 1000));
+      await tester.pumpWidget(
+        MediaQuery(
+          data: MediaQueryData.fromView(tester.view),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: ChatEmojiBody(
+                  controller: selection,
+                  messageId: 1,
+                  emojiOnly: run,
+                  embedFactory: embeds.call,
+                  hasHeader: true,
+                  parentWidth: 400,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(bodySize(tester).width, closeTo(9 * 26.8, 1e-6));
+    });
   });
 
   group('sticker layout', () {
     const pack = ContentKey.document('pack-thumb');
 
-    testWidgets('a 360 x 640 viewport gives a 112.5 dp sticker in a 10 dp '
-        'inset', (tester) async {
+    testWidgets('a 360 x 640 viewport gives a 112.5 dp sticker with no inset '
+        'on Android', (tester) async {
       view(tester, const Size(360, 640));
 
       await pumpBody(
@@ -232,7 +322,7 @@ void main() {
         sticker: pack,
       );
 
-      expect(bodySize(tester), const Size(132.5, 132.5));
+      expect(bodySize(tester), const Size(112.5, 112.5));
       final (content, preset) = embeds.asked.single;
       expect(content, pack);
       expect(preset.size, const Size.square(112.5));
@@ -242,7 +332,24 @@ void main() {
       );
       expect(
         embeds.made.single.paints.last.rect,
-        const Rect.fromLTWH(10, 10, 112.5, 112.5),
+        const Rect.fromLTWH(0, 0, 112.5, 112.5),
+      );
+    });
+
+    testWidgets('iOS sets a 112 pt sticker in a 10 pt inset', (tester) async {
+      view(tester, const Size(360, 640));
+
+      await pumpBody(
+        tester,
+        EmojiOnly(const [EmojiOnlyItem(_thumb)]),
+        sticker: pack,
+        policy: const ChatEmojiPolicy.ios(),
+      );
+
+      expect(bodySize(tester), const Size(132, 132));
+      expect(
+        embeds.made.single.paints.last.rect,
+        const Rect.fromLTWH(10, 10, 112, 112),
       );
     });
 
@@ -355,6 +462,68 @@ void main() {
 
       expect(bodySize(tester).width, closeTo(2 * 85.6, 1e-6));
     });
+  });
+
+  group('geometry', () {
+    // The host places chrome from `geometryFor` before the body is laid out:
+    // the two must give the same box, whatever the platform or the layout.
+    final cases = <String, (EmojiOnly, ContentKey?, ChatEmojiPolicy)>{
+      'android text': (
+        _items(7, allCustom: false),
+        null,
+        const ChatEmojiPolicy.android(),
+      ),
+      'android sticker': (
+        EmojiOnly(const [EmojiOnlyItem(_thumb)]),
+        const ContentKey.document('pack'),
+        const ChatEmojiPolicy.android(),
+      ),
+      'ios sticker': (
+        EmojiOnly(const [EmojiOnlyItem(_thumb)]),
+        const ContentKey.document('pack'),
+        const ChatEmojiPolicy.ios(),
+      ),
+      'ios text': (
+        _items(12, allCustom: true),
+        null,
+        const ChatEmojiPolicy.ios(),
+      ),
+      'desktop text': (
+        _items(3, allCustom: false),
+        null,
+        const ChatEmojiPolicy.desktop(),
+      ),
+    };
+    for (final MapEntry(key: name, value: (emoji, sticker, policy))
+        in cases.entries) {
+      for (final header in [false, true]) {
+        testWidgets('$name${header ? ' under a header' : ''}', (tester) async {
+          view(tester, const Size(360, 640));
+
+          await pumpBody(
+            tester,
+            emoji,
+            sticker: sticker,
+            policy: policy,
+            hasHeader: header,
+            maxWidth: 300,
+            bottomReserve: 23,
+          );
+
+          final geometry = ChatEmojiBody.geometryFor(
+            emojiOnly: emoji,
+            policy: policy,
+            sticker: sticker,
+            viewport: const Size(360, 640),
+            maxWidth: 300,
+            direction: TextDirection.ltr,
+            hasHeader: header,
+            bottomReserve: 23,
+          );
+          expect(bodySize(tester), geometry.size);
+        });
+      }
+    }
   });
 
   group('registration', () {
