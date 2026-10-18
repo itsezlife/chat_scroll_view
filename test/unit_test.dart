@@ -124,6 +124,8 @@ import 'widgets/chat_selection_allowed_test.dart'
     as chat_selection_allowed_test;
 import 'widgets/chat_selection_cap_test.dart' as chat_selection_cap_test;
 import 'widgets/chat_selection_chrome_test.dart' as chat_selection_chrome_test;
+import 'widgets/chat_selection_highlight_test.dart'
+    as chat_selection_highlight_test;
 import 'widgets/chat_selection_pointer_test.dart'
     as chat_selection_pointer_test;
 import 'widgets/chat_selection_text_test.dart' as chat_selection_text_test;
@@ -267,6 +269,10 @@ void main() {
   group(
     'widgets/chat_markdown_body_inline_layer_test.dart',
     chat_markdown_body_inline_layer_test.main,
+  );
+  group(
+    'widgets/chat_selection_highlight_test.dart',
+    chat_selection_highlight_test.main,
   );
   group(
     'widgets/chat_message_body_layout_test.dart',
