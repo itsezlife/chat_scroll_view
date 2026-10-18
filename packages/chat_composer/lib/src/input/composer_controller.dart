@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:chat_composer/src/input/composer_paste.dart';
 import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
 import 'package:chat_composer/src/query/composer_input_query.dart';
 import 'package:chat_composer/src/query/composer_query_kind.dart';
 import 'package:chat_composer/src/query/query_detector.dart';
 import 'package:chat_composer/src/text/composer_text_controller.dart';
+import 'package:chat_composer/src/text/mention_downgrade.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart' hide RichText;
@@ -48,6 +50,8 @@ final class ComposerController {
     SoftKeyboardMode softKeyboard = SoftKeyboardMode.auto,
     this.clipboard,
     this.onPastedMedia,
+    this.onPaste,
+    this.confirmMention,
   }) : text = text ?? ComposerTextController(),
        focusNode = focusNode ?? FocusNode(debugLabel: 'Composer'),
        fieldScroll = fieldScroll ?? ScrollController(),
@@ -83,6 +87,24 @@ final class ComposerController {
   /// insertion.
   final Future<bool> Function(List<PastedMedia> media)? onPastedMedia;
 
+  /// Told of each paste that put text into the field, after it did: its range,
+  /// its plain text and whether it was rich. Paste itself is unchanged by it
+  /// (plain stays plain, rich is the clipboard's payload; nothing parses
+  /// markdown), so the host that offers to apply formatting does so from here.
+  ///
+  /// Only pastes through the [clipboard] are reported. Without one the field
+  /// keeps the platform's paste, which reaches the controller as an edit and
+  /// is not told apart from typing. A host that throws is reported to
+  /// [FlutterError.reportError] and the paste stands.
+  final void Function(ComposerPaste paste)? onPaste;
+
+  /// Whether the host knows the party with this mention id, asked at send time
+  /// ([sendableText]) for a mention the draft did not resolve itself: one
+  /// that came in with a paste. The host answers from its own users (the chat's
+  /// members, say), never from the clipboard's claim (ADR 032). Null confirms
+  /// none, so every pasted mention is sent as its `@name`.
+  final bool Function(String id)? confirmMention;
+
   final bool _ownsText;
   final bool _ownsFocus;
   final bool _ownsScroll;
@@ -93,6 +115,7 @@ final class ComposerController {
   final _keyboardRequests = _Signal();
   final _caretReveals = _Signal();
   final _kinds = <ComposerQueryKind>[];
+  final _resolvedMentions = <String>{};
   Rect? _anchor;
   void Function()? _detachClipboard;
   var _disposed = false;
@@ -105,6 +128,38 @@ final class ComposerController {
   /// The text with its entities: what a host stores as a draft, sends, or
   /// compares.
   RichText get richText => text.richText;
+
+  /// [richText] as it may be sent: every mention the host did not resolve in
+  /// this draft is rewritten to the `@name` it displays
+  /// ([downgradeUnresolvedMentions]), so the host encodes this, not
+  /// [richText], with `RichTextMarkdown.encode`. ADR 034.
+  ///
+  /// A mention is resolved here when the host picked it ([replaceQuery]),
+  /// loaded it ([restore]), marked it ([trustMention]) or [confirmMention]
+  /// accepts it. A mention a paste brought in is none of those until the
+  /// host confirms it. Nothing is trimmed or otherwise changed: skipping the
+  /// trim of an emoji-only message stays the host's.
+  RichText get sendableText => downgradeUnresolvedMentions(
+    richText,
+    (id) =>
+        _resolvedMentions.contains(id) || (confirmMention?.call(id) ?? false),
+  );
+
+  /// Marks the mention [id] as resolved in this draft, for a host that puts a
+  /// mention in through `text.insert` rather than [replaceQuery]. Forgotten
+  /// by [clear] and [restore], with the rest of the draft.
+  void trustMention(String id) {
+    if (_disposed) return;
+    _resolvedMentions.add(id);
+  }
+
+  /// The length of the text in code points, the unit of
+  /// `ComposerSpec.messageLengthLimit`.
+  ///
+  /// Not UTF-16 units (a surrogate pair is one) and not the length of any
+  /// markdown the host will encode. Current also while the input method
+  /// composes.
+  int get length => text.text.runes.length;
 
   /// The field's selection.
   TextSelection get selection => text.selection;
@@ -141,6 +196,7 @@ final class ComposerController {
   /// Empties the field and drops every entity.
   void clear() {
     if (_disposed) return;
+    _resolvedMentions.clear();
     text.clear();
   }
 
@@ -148,8 +204,16 @@ final class ComposerController {
   /// loaded for editing.
   void restore(RichText draft, {TextSelection? selection}) {
     if (_disposed) return;
+    _resolvedMentions
+      ..clear()
+      ..addAll(_mentionIds(draft));
     text.restore(draft, selection: selection);
   }
+
+  static Iterable<String> _mentionIds(RichText value) => [
+    for (final entity in value.entities)
+      if (entity.kind case EntityKind$Mention(:final id)) id,
+  ];
 
   // --- Clipboard ---
 
@@ -250,7 +314,27 @@ final class ComposerController {
     }
     text.insert(pasted);
     _caretReveals.signal();
+    _reportPaste(pasted.plain, wasRich: !plain && held.rich != null);
     return true;
+  }
+
+  // The insert leaves the caret after the text, wherever the selection
+  // widened to, so the landed range ends there.
+  void _reportPaste(String pasted, {required bool wasRich}) {
+    final host = onPaste;
+    if (host == null) return;
+    final end = text.selection.end;
+    try {
+      host(
+        ComposerPaste(
+          range: TextRange(start: end - pasted.length, end: end),
+          text: pasted,
+          wasRich: wasRich,
+        ),
+      );
+    } on Object catch (error, stack) {
+      _report(error, stack, 'while telling the host of a paste');
+    }
   }
 
   /// Hands [media] the user put into the field (a keyboard's inserted image,
@@ -455,11 +539,14 @@ final class ComposerController {
   /// A query that no longer matches the current one (the user kept typing
   /// while the host looked up suggestions) is refused with `false` and
   /// nothing changes. The replacement carries its own entities, such as a
-  /// mention or an inline reference, and its own trailing space if wanted.
+  /// mention or an inline reference, and its own trailing space if wanted. A
+  /// mention in it is one the host resolved (it picked it), and [sendableText]
+  /// keeps it.
   bool replaceQuery(ComposerInputQuery query, RichText replacement) {
     if (_disposed) return false;
     final current = _query.value;
     if (current == null || !current.isSameToken(query)) return false;
+    _resolvedMentions.addAll(_mentionIds(replacement));
     text.replaceRange(current.range.start, current.range.end, replacement);
     return true;
   }

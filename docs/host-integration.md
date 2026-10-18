@@ -369,6 +369,17 @@ submits `primary`. Pass the spec to `ComposerView`, and pass
 `safeAreaBottom: keyboard.composerSafeInset.value` while a keyboard presentation
 owns the bottom band (null otherwise keeps the default pad).
 
+Set `ComposerSpec.messageLengthLimit` from the server's `message_length_max`
+(4096 until it publishes one): the composer counts code points of the plain
+text, shows the remaining count at 100 or fewer and refuses the `primary`
+action while it is negative. To send, apply the host's own trim (skip it for an
+emoji-only text), encode `composer.sendableText` (not `richText`: it downgrades
+the mentions this draft did not resolve; pass `confirmMention` to confirm
+pasted ones against your users) with `RichTextMarkdown.encode`, and `clear()`.
+A draft is the markdown of `richText`, written to the `KeyValueStore` under the
+chat id (and the edited message's id) debounced on change, removed on send, and
+loaded with `restore(RichTextMarkdown.decode(...))`.
+
 ### Popup anchor
 
 For an anchored popup, tell the controller where the composer is, in the
