@@ -50,6 +50,7 @@ import 'package:flutter/src/material/theme.dart';
 import '../cupertino/desktop_text_selection.dart';
 import '../cupertino/text_selection.dart';
 import '../widget/editable_text.dart';
+import '../widget/system_context_menu.dart';
 import '../widget/text_selection.dart';
 import 'desktop_text_selection.dart';
 import 'text_selection.dart';
@@ -749,10 +750,11 @@ class ExtendedTextField extends StatefulWidget {
 
   /// Inset the scrolled text keeps from the text area's own bounds.
   ///
-  /// See [ExtendedEditableText.contentScrollPadding]. Keep the matching
-  /// vertical [InputDecoration.contentPadding] at zero, or the insets stack,
-  /// and pass the placeholder as [InputDecoration.hint] so it can follow the
-  /// inset.
+  /// Off by default ([EdgeInsets.zero]); a field that opts in sees
+  /// [ExtendedEditableText.contentScrollPadding]. Keep the matching vertical
+  /// [InputDecoration.contentPadding] at zero, or the insets stack, and pass
+  /// the placeholder as either [InputDecoration.hintText] or
+  /// [InputDecoration.hint]; both sit on the first line.
   final EdgeInsets contentScrollPadding;
 
   /// {@macro flutter.widgets.editableText.enableInteractiveSelection}
@@ -976,6 +978,11 @@ class ExtendedTextField extends StatefulWidget {
     BuildContext context,
     ExtendedEditableTextState editableTextState,
   ) {
+    if (ExtendedSystemContextMenu.isSupportedByField(editableTextState)) {
+      return ExtendedSystemContextMenu.editableText(
+        editableTextState: editableTextState,
+      );
+    }
     return AdaptiveTextSelectionToolbar.buttonItems(
       anchors: editableTextState.contextMenuAnchors,
       buttonItems: editableTextState.contextMenuButtonItems,
@@ -1041,10 +1048,26 @@ class ExtendedTextField extends StatefulWidget {
           ExtendedTextField.materialMisspelledTextStyle,
       spellCheckSuggestionsToolbarBuilder:
           configuration.spellCheckSuggestionsToolbarBuilder ??
-          (ExtendedTextField.defaultSpellCheckSuggestionsToolbarBuilder
-              as dynamic),
+          _spellCheckSuggestionsToolbarForConfiguration,
     );
   }
+
+  /// [defaultSpellCheckSuggestionsToolbarBuilder] in the shape
+  /// [SpellCheckConfiguration] stores.
+  ///
+  /// The configuration is a stock type and types its builder over
+  /// [EditableTextState], while [ExtendedEditableTextState] calls it with its
+  /// own state, which is not one. A parameter typed [Object] fits the stock
+  /// slot (a function accepting more is assignable) and takes that call. A
+  /// cast of the typed default to `dynamic` compiles but throws a [TypeError]
+  /// as soon as the configuration is copied.
+  static Widget _spellCheckSuggestionsToolbarForConfiguration(
+    BuildContext context,
+    Object editableTextState,
+  ) => defaultSpellCheckSuggestionsToolbarBuilder(
+    context,
+    editableTextState as ExtendedEditableTextState,
+  );
 
   @override
   State<ExtendedTextField> createState() => _TextFieldState();
@@ -1382,19 +1405,16 @@ class _TextFieldState extends State<ExtendedTextField>
 
   /// Puts the hint on the first text line while the content is inset.
   ///
-  /// A decoration aligns its hint with the top of the text area, and the inset
-  /// moves the first line off that edge. Only a hint widget can follow it, so
-  /// an inset field takes [InputDecoration.hint] rather than
-  /// [InputDecoration.hintText].
+  /// A decoration aligns a hint widget with the top of the text area, and the
+  /// inset moves the first line off that edge, so [InputDecoration.hint] is
+  /// padded by the inset. [InputDecoration.hintText] needs nothing: the
+  /// decoration lines it up by baseline, and the editable's baseline already
+  /// counts the inset. Either form therefore sits on the first line, and a
+  /// field that opts into the inset is not made to give up `hintText`.
   InputDecoration _alignHintToContentInset(InputDecoration decoration) {
     final double inset = _contentScrollPadding.top;
     final Widget? hint = decoration.hint;
     if (inset == 0.0 || hint == null) {
-      assert(
-        inset == 0.0 || decoration.hintText == null,
-        'contentScrollPadding cannot move InputDecoration.hintText off the '
-        'text area edge. Pass InputDecoration.hint instead.',
-      );
       return decoration;
     }
     return decoration.copyWith(

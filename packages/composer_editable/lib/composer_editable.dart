@@ -18,6 +18,7 @@ export 'src/widget/editable_text.dart'
         SelectionChangedCallback,
         AppPrivateCommandCallback;
 export 'src/widget/padded_viewport_offset.dart' show PaddedViewportOffset;
+export 'src/widget/system_context_menu.dart' show ExtendedSystemContextMenu;
 export 'src/widget/render_editable.dart'
     show ExtendedRenderEditable, gutterClipRect;
 export 'src/widget/text_selection.dart'

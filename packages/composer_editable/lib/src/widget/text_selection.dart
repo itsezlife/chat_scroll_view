@@ -3172,9 +3172,10 @@ class _SelectionHandleOverlayState extends State<_SelectionHandleOverlay>
   }
 
   void _handleVisibilityChanged() {
-    // RenderEditable updates handle visibility during paint. Mutating an
-    // AnimationController here (→ RenderAnimatedOpacity) asserts
-    // `!owner.debugDoingPaint`. Defer until after the frame.
+    // ExtendedRenderEditable updates handle visibility during paint, and
+    // moving an AnimationController here (→ RenderAnimatedOpacity) is not
+    // allowed mid-paint. Defer until after the frame; the scheduler phase is
+    // the same in every build mode, unlike the framework's debug-only flags.
     final SchedulerBinding scheduler = SchedulerBinding.instance;
     if (scheduler.schedulerPhase == SchedulerPhase.persistentCallbacks ||
         scheduler.schedulerPhase == SchedulerPhase.midFrameMicrotasks) {
@@ -3599,6 +3600,20 @@ class ExtendedTextSelectionGestureDetectorBuilder {
   /// Desktop macOS: long-press began before the field had focus (stock path).
   bool _longPressStartedWithoutFocus = false;
 
+  /// A long-press on a focused, editable field is driving the floating cursor.
+  ///
+  /// iOS and macOS only: it is how the platform moves the caret, and the stock
+  /// path the touch matrix leaves alone there. An unfocused or read-only
+  /// field has no caret to move, so it takes the word-selecting path.
+  bool _floatingCursorLongPress = false;
+
+  /// Whether a long-press that starts now moves the caret with the floating
+  /// cursor rather than selecting a word.
+  bool get _longPressMovesCaret =>
+      defaultTargetPlatform == TargetPlatform.iOS &&
+      renderEditable.hasFocus &&
+      !renderEditable.readOnly;
+
   /// Touch platforms use the universal enter matrix; desktop keeps stock.
   bool get _usesTouchUniversalGestures => switch (defaultTargetPlatform) {
     TargetPlatform.android ||
@@ -3859,13 +3874,49 @@ class ExtendedTextSelectionGestureDetectorBuilder {
       case TargetPlatform.windows:
         // Desktop: selection is set on tap down.
         break;
+      case TargetPlatform.iOS:
+        if (_tapIsOnFocusedCaret(details)) {
+          // iOS: tapping the caret of a focused field brings up the Paste menu
+          // (and the next tap on it puts it away) instead of moving the caret.
+          editableText.toggleToolbar(false);
+          break;
+        }
+        editableText.hideToolbar(false);
+        renderEditable.selectPosition(cause: SelectionChangedCause.tap);
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
-      case TargetPlatform.iOS:
         editableText.hideToolbar(false);
         renderEditable.selectPosition(cause: SelectionChangedCause.tap);
     }
     editableText.requestKeyboard();
+  }
+
+  /// Whether a finger tap lands on the collapsed caret of a focused, editable
+  /// field.
+  ///
+  /// Precise pointers (mouse, trackpad, stylus) place the caret instead, as on
+  /// stock iOS. The affinity must match, or a tap at a line wrap's boundary
+  /// that means the next line would toggle the menu instead of moving there.
+  bool _tapIsOnFocusedCaret(TapDragUpDetails details) {
+    final PointerDeviceKind? kind = details.kind;
+    if (kind != null &&
+        kind != PointerDeviceKind.touch &&
+        kind != PointerDeviceKind.unknown) {
+      return false;
+    }
+    final TextSelection previous =
+        renderEditable.selection ?? editableText.textEditingValue.selection;
+    if (!previous.isValid ||
+        !previous.isCollapsed ||
+        !renderEditable.hasFocus ||
+        renderEditable.readOnly) {
+      return false;
+    }
+    final TextPosition tapped = renderEditable.getPositionForPoint(
+      details.globalPosition,
+    );
+    return tapped.offset == previous.baseOffset &&
+        tapped.affinity == previous.affinity;
   }
 
   /// Handler for [TextSelectionGestureDetector.onSingleTapCancel].
@@ -3895,7 +3946,7 @@ class ExtendedTextSelectionGestureDetectorBuilder {
     if (!delegate.selectionEnabled) {
       return;
     }
-    if (_usesTouchUniversalGestures) {
+    if (_usesTouchUniversalGestures && !_longPressMovesCaret) {
       renderEditable.selectWord(cause: SelectionChangedCause.longPress);
       if (editableText.context.mounted) {
         Feedback.forLongPress(editableText.context);
@@ -3913,7 +3964,8 @@ class ExtendedTextSelectionGestureDetectorBuilder {
   void _onDesktopLongPressStart(LongPressStartDetails details) {
     switch (defaultTargetPlatform) {
       case TargetPlatform.macOS:
-        _onMacOSLongPressStart(details);
+      case TargetPlatform.iOS:
+        _onFloatingCursorLongPressStart(details);
       case TargetPlatform.linux:
       case TargetPlatform.windows:
         renderEditable.selectWord(cause: SelectionChangedCause.longPress);
@@ -3921,13 +3973,12 @@ class ExtendedTextSelectionGestureDetectorBuilder {
           Feedback.forLongPress(editableText.context);
         }
       case TargetPlatform.android:
-      case TargetPlatform.iOS:
       case TargetPlatform.fuchsia:
         break;
     }
   }
 
-  void _onMacOSLongPressStart(LongPressStartDetails details) {
+  void _onFloatingCursorLongPressStart(LongPressStartDetails details) {
     if (!renderEditable.hasFocus) {
       _longPressStartedWithoutFocus = true;
       renderEditable.selectWord(cause: SelectionChangedCause.longPress);
@@ -3940,6 +3991,7 @@ class ExtendedTextSelectionGestureDetectorBuilder {
       }
       return;
     }
+    _floatingCursorLongPress = true;
     renderEditable.selectPositionAt(
       from: details.globalPosition,
       cause: SelectionChangedCause.longPress,
@@ -3982,7 +4034,7 @@ class ExtendedTextSelectionGestureDetectorBuilder {
       Axis.vertical => Offset(0.0, _scrollPosition - _dragStartScrollOffset),
     };
 
-    if (_usesTouchUniversalGestures) {
+    if (_usesTouchUniversalGestures && !_floatingCursorLongPress) {
       renderEditable.selectWordsInRange(
         from:
             details.globalPosition -
@@ -3999,6 +4051,7 @@ class ExtendedTextSelectionGestureDetectorBuilder {
 
     switch (defaultTargetPlatform) {
       case TargetPlatform.macOS:
+      case TargetPlatform.iOS:
         if (_longPressStartedWithoutFocus || renderEditable.readOnly) {
           renderEditable.selectWordsInRange(
             from:
@@ -4032,7 +4085,6 @@ class ExtendedTextSelectionGestureDetectorBuilder {
           cause: SelectionChangedCause.longPress,
         );
       case TargetPlatform.android:
-      case TargetPlatform.iOS:
       case TargetPlatform.fuchsia:
         break;
     }
@@ -4149,11 +4201,13 @@ class ExtendedTextSelectionGestureDetectorBuilder {
     _hideMagnifierIfSupportedByPlatform();
     _isOneTouchSelection = false;
     _longPressStartedWithoutFocus = false;
+    final bool floatingCursorStarted = _floatingCursorLongPress;
+    _floatingCursorLongPress = false;
     _dragStartViewportOffset = 0.0;
     _dragStartScrollOffset = 0.0;
-    // Desktop macOS may have started a floating cursor on focused long-press.
+    // A focused long-press on iOS / macOS started a floating cursor.
     if (_isEditableTextMounted &&
-        defaultTargetPlatform == TargetPlatform.macOS &&
+        floatingCursorStarted &&
         delegate.selectionEnabled &&
         editableText.textEditingValue.selection.isCollapsed) {
       final cursorPoint = RawFloatingCursorPoint(

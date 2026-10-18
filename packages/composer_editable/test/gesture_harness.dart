@@ -29,10 +29,16 @@ final class GestureFieldHarness {
     );
   }
 
-  Future<void> pump(WidgetTester tester) async {
+  /// Pumps the field. [builder] wraps the app's content, for tests that need
+  /// an ancestor (a [MediaQuery] override, say).
+  Future<void> pump(
+    WidgetTester tester, {
+    TransitionBuilder? builder,
+  }) async {
     _tester = tester;
     await tester.pumpWidget(
       MaterialApp(
+        builder: builder,
         home: Scaffold(
           body: Center(
             child: SizedBox(
