@@ -89,6 +89,12 @@ final class ChatEditTarget {
 ///   panel, so the pointer moving onto it would read as leaving a popup. The
 ///   shell counts the holds its pages take; while any is up the set holds
 ///   the presentation's auto-hide with one hold of its own.
+/// - **Send and edit.** A send downgrades the mentions the host did not
+///   resolve, detects URLs, names and tags, and encodes ([submit]); an edit
+///   loads with the detected entities stripped ([beginEdit]); a text over
+///   [messageLengthLimit] is refused, never cut.
+/// - **Drafts.** [bindDrafts] restores the chat's unsent text, edit mode
+///   included, and keeps it saved while the user types.
 /// - **Soft keyboard.** While a keyboard-replacement panel is on screen the
 ///   composer declares no soft keyboard; every other time it does. A raised
 ///   keyboard is asked to lower when the panel takes its place, and is asked
