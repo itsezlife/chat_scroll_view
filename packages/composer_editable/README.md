@@ -53,7 +53,9 @@ What the host passes to `ExtendedTextField`, and what happens when it does not.
   toggle on a caret tap.
 - **The toolbar is never remounted by a scroll.** It fades and drops out of hit
   testing while faded, so a menu's local state survives a scroll.
-- **`RenderEditable.painter` is free.** The package paints the stock highlight.
+- **`RenderEditable.painter` is free.** The editable paints the selection
+  highlight itself, as one shape without seams between lines, under the text
+  and under a host's `painter`.
 - **No debug-only branches.** Nothing reads the framework's pipeline-phase
   flags, so debug and release take the same path.
 

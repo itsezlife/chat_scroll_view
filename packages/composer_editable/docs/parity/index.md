@@ -21,7 +21,7 @@ hosts.
 | Handles | [handles.md](handles.md) | Appear, drag scale, finger-tracked overlay, frozen chrome, settle |
 | Magnifier | [magnifier.md](magnifier.md) | Pointer-line focal, AOSP ~100ms smooth, hide-under-loupe |
 | Gestures | [gestures.md](gestures.md) | Universal enter/dismiss, direction settling, invert model |
-| Highlight | [highlight.md](highlight.md) | Stock paint; handle and toolbar visibility notifiers |
+| Highlight | [highlight.md](highlight.md) | Stock boxes, one gapless shape; handle and toolbar visibility notifiers |
 | Flutter gap list | [flutter-parity.md](flutter-parity.md) | Done / partial / missing in `composer_editable` |
 
 ## Code map

@@ -19,6 +19,10 @@ import 'revendor_test.dart' as revendor_test;
 import 'select_all_page_scroll_test.dart' as select_all_page_scroll_test;
 import 'selection_drag_snap_test.dart' as selection_drag_snap_test;
 import 'selection_handle_motion_test.dart' as selection_handle_motion_test;
+import 'selection_highlight_gapless_test.dart'
+    as selection_highlight_gapless_test;
+import 'selection_highlight_golden_test.dart'
+    as selection_highlight_golden_test;
 import 'self_fading_toolbar_test.dart' as self_fading_toolbar_test;
 import 'universal_field_gestures_test.dart' as universal_field_gestures_test;
 
@@ -37,6 +41,14 @@ void main() {
   group('select_all_page_scroll_test.dart', select_all_page_scroll_test.main);
   group('selection_drag_snap_test.dart', selection_drag_snap_test.main);
   group('selection_handle_motion_test.dart', selection_handle_motion_test.main);
+  group(
+    'selection_highlight_gapless_test.dart',
+    selection_highlight_gapless_test.main,
+  );
+  group(
+    'selection_highlight_golden_test.dart',
+    selection_highlight_golden_test.main,
+  );
   group('self_fading_toolbar_test.dart', self_fading_toolbar_test.main);
   group(
     'universal_field_gestures_test.dart',
