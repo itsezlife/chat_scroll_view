@@ -10,6 +10,7 @@ export 'src/input/composer_paste.dart';
 export 'src/input/soft_keyboard_mode.dart';
 export 'src/query/composer_input_query.dart';
 export 'src/query/composer_query_kind.dart';
+export 'src/shortcuts/composer_formatting_intents.dart';
 export 'src/shortcuts/composer_intents.dart';
 export 'src/spec/action_descriptor.dart';
 export 'src/spec/composer_header.dart';

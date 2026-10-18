@@ -1,6 +1,7 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:chat_composer/src/input/composer_controller.dart';
+import 'package:chat_composer/src/shortcuts/composer_formatting_actions.dart';
 import 'package:chat_composer/src/shortcuts/composer_intents.dart';
 import 'package:chat_composer/src/spec/action_descriptor.dart';
 import 'package:chat_composer/src/spec/composer_header.dart';
@@ -149,6 +150,12 @@ class _ComposerViewState extends State<ComposerView>
   late final Map<Type, Action<Intent>> _intentActions = {
     SubmitComposerIntent: _SubmitAction(this),
     DismissComposerHeaderIntent: _DismissHeaderAction(this),
+    ...ComposerFormattingActions.of(
+      text: widget.controller.text,
+      linkPrompt: () => _spec.linkPrompt,
+      context: () => context,
+      isAlive: () => mounted,
+    ),
   };
 
   ComposerSpec get _spec => widget.spec;
