@@ -61,18 +61,29 @@ final class InlineEmbedTarget {
 /// size it.
 @immutable
 final class InlineEmbedMetrics {
-  /// Creates metrics for text of [fontSize] logical pixels at
-  /// [devicePixelRatio].
+  /// Creates metrics for text of [fontSize] logical pixels whose line has
+  /// [ascent] above and [descent] below the baseline, at [devicePixelRatio].
   const InlineEmbedMetrics({
     required this.fontSize,
+    required this.ascent,
+    required this.descent,
     required this.devicePixelRatio,
   }) : assert(
-         fontSize > 0 && devicePixelRatio > 0,
-         'metrics need a positive font size and density',
+         fontSize > 0 && ascent > 0 && descent > 0 && devicePixelRatio > 0,
+         'metrics need a positive font size, ascent, descent and density',
        );
 
   /// Font size of the text around the embed, logical pixels.
   final double fontSize;
+
+  /// Distance from the baseline up to the top of the line, logical pixels,
+  /// positive. With [descent] it sizes an embed the way Telegram Android
+  /// sizes an inline custom emoji (`AssetPresets.inlineMessage`).
+  final double ascent;
+
+  /// Distance from the baseline down to the bottom of the line, logical
+  /// pixels, positive.
+  final double descent;
 
   /// Pixels per logical pixel of the display the body is shown on.
   final double devicePixelRatio;
@@ -81,13 +92,17 @@ final class InlineEmbedMetrics {
   bool operator ==(Object other) =>
       other is InlineEmbedMetrics &&
       other.fontSize == fontSize &&
+      other.ascent == ascent &&
+      other.descent == descent &&
       other.devicePixelRatio == devicePixelRatio;
 
   @override
-  int get hashCode => Object.hash(fontSize, devicePixelRatio);
+  int get hashCode => Object.hash(fontSize, ascent, descent, devicePixelRatio);
 
   @override
-  String toString() => 'InlineEmbedMetrics($fontSize, x$devicePixelRatio)';
+  String toString() =>
+      'InlineEmbedMetrics($fontSize, ascent: $ascent, descent: $descent, '
+      'x$devicePixelRatio)';
 }
 
 /// A painter-based thing set inside text: it has a size, paints itself into a

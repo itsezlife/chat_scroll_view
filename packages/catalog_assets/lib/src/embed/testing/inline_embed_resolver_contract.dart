@@ -26,7 +26,12 @@ abstract final class InlineEmbedResolverContract {
   static void run(InlineEmbedResolverHarness Function() create) {
     group('InlineEmbedResolver contract', () {
       late InlineEmbedResolverHarness harness;
-      const metrics = InlineEmbedMetrics(fontSize: 15, devicePixelRatio: 2);
+      const metrics = InlineEmbedMetrics(
+        fontSize: 15,
+        ascent: 14,
+        descent: 4,
+        devicePixelRatio: 2,
+      );
 
       setUp(() => harness = create());
 
