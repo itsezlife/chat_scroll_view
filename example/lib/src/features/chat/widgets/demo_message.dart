@@ -1,7 +1,12 @@
+import 'package:catalog_assets/catalog_assets.dart' show InlineEmbedResolver;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_emoji_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
+import 'package:content_model/content_model.dart' show EmojiOnly;
 import 'package:flutter/material.dart';
 import 'package:flutter_md/flutter_md.dart';
 
@@ -20,6 +25,9 @@ import 'package:flutter_md/flutter_md.dart';
 ///
 /// When [selection] is set, the body registers with [ChatSelectionController]
 /// and mounts [MarkdownWidget] with engine-owned markdown text selection.
+/// [host] connects the bodies to the chat screen's asset cache: with it the
+/// markdown body paints inline embeds and an emoji-only message gets
+/// [DemoEmojiMessage]; without it every image shows its alt text.
 Widget buildDemoMessage(
   BuildContext context,
   int id,
@@ -27,6 +35,7 @@ Widget buildDemoMessage(
   ChatMessageStatus status,
   MessageRunLayout runLayout, {
   ChatSelectionController? selection,
+  ChatBodyHost? host,
   void Function(String sender)? onAvatarTap,
   void Function(String sender)? onSenderTap,
 }) {
@@ -35,6 +44,7 @@ Widget buildDemoMessage(
     message: message,
     runLayout: runLayout,
     selection: selection,
+    host: host,
     onAvatarTap: onAvatarTap,
     onSenderTap: onSenderTap,
   );
@@ -134,6 +144,7 @@ class DemoMessageBubble extends StatelessWidget {
       isLastInSenderRun: true,
     ),
     this.selection,
+    this.host,
     this.onAvatarTap,
     this.onSenderTap,
     super.key,
@@ -148,6 +159,10 @@ class DemoMessageBubble extends StatelessWidget {
   /// Optional engine selection controller for markdown text selection and inline hits.
   final ChatSelectionController? selection;
 
+  /// The chat screen's seams to the asset cache and its emoji decisions; null
+  /// shows no embed and no emoji-only body.
+  final ChatBodyHost? host;
+
   /// Optional tap callback for the sender avatar.
   final void Function(String sender)? onAvatarTap;
 
@@ -156,6 +171,19 @@ class DemoMessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final host = this.host;
+    // Only a message whose text is emoji-only follows the setting, live.
+    if (host != null && selection != null && message.emojiOnly != null) {
+      return ValueListenableBuilder<LargeEmojiPolicy>(
+        valueListenable: host.policy,
+        builder: (context, policy, _) =>
+            _row(context, emojiOnly: policy.emojiOnlyOf(message)),
+      );
+    }
+    return _row(context);
+  }
+
+  Widget _row(BuildContext context, {EmojiOnly? emojiOnly}) {
     final content = message.text ?? 'Message #${message.id}';
     // Prefer the host pre-parsed AST — parsing belongs at ingest, not mount.
     final markdown = message.markdownBody;
@@ -167,20 +195,40 @@ class DemoMessageBubble extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final viewportWidth = constraints.maxWidth;
-        final bubble = _Bubble(
-          messageId: message.id,
-          sender: isFirstInRun ? message.sender : null,
-          content: content,
-          markdown: markdown,
-          createdAt: message.createdAt,
-          edited: message.updatedAt != message.createdAt,
-          isOutgoing: outgoing,
-          runLayout: runLayout,
-          theme: layout,
-          maxWidth: layout.bubbleCap(viewportWidth, hasAvatarGutter: !outgoing),
-          selection: selection,
-          onSenderTap: onSenderTap,
+        final maxWidth = layout.bubbleCap(
+          viewportWidth,
+          hasAvatarGutter: !outgoing,
         );
+        final edited = message.updatedAt != message.createdAt;
+        final bubble = switch ((emojiOnly, selection, host)) {
+          (final emoji?, final controller?, final host?) => ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: DemoEmojiMessage(
+              messageId: message.id,
+              emojiOnly: emoji,
+              selection: controller,
+              host: host,
+              createdAt: message.createdAt,
+              isOutgoing: outgoing,
+              edited: edited,
+            ),
+          ),
+          _ => _Bubble(
+            messageId: message.id,
+            sender: isFirstInRun ? message.sender : null,
+            content: content,
+            markdown: markdown,
+            createdAt: message.createdAt,
+            edited: edited,
+            isOutgoing: outgoing,
+            runLayout: runLayout,
+            theme: layout,
+            maxWidth: maxWidth,
+            selection: selection,
+            embedResolver: host?.embedResolver,
+            onSenderTap: onSenderTap,
+          ),
+        };
         final Widget row;
         if (outgoing) {
           row = Align(alignment: AlignmentDirectional.centerEnd, child: bubble);
@@ -290,6 +338,7 @@ class _Bubble extends StatelessWidget {
     required this.maxWidth,
     this.markdown,
     this.selection,
+    this.embedResolver,
     this.onSenderTap,
   });
 
@@ -326,6 +375,10 @@ class _Bubble extends StatelessWidget {
   /// When set, content is [_RegisteredChatMdBody]; otherwise plain [Text].
   final ChatSelectionController? selection;
 
+  /// Where the body's inline embeds come from; null shows every image as its
+  /// alt text.
+  final InlineEmbedResolver? embedResolver;
+
   /// Optional tap callback for the sender name header.
   final void Function(String sender)? onSenderTap;
 
@@ -350,6 +403,7 @@ class _Bubble extends StatelessWidget {
         markdown: md,
         textStyle: textStyle,
         isOutgoing: isOutgoing,
+        embedResolver: embedResolver,
       ),
       _ => Text(content, style: textStyle),
     };
@@ -442,6 +496,7 @@ class _RegisteredChatMdBody extends StatefulWidget {
     required this.markdown,
     required this.textStyle,
     required this.isOutgoing,
+    this.embedResolver,
   });
 
   final ChatSelectionController selection;
@@ -449,6 +504,7 @@ class _RegisteredChatMdBody extends StatefulWidget {
   final Markdown markdown;
   final TextStyle textStyle;
   final bool isOutgoing;
+  final InlineEmbedResolver? embedResolver;
 
   @override
   State<_RegisteredChatMdBody> createState() => _RegisteredChatMdBodyState();
@@ -504,7 +560,9 @@ class _RegisteredChatMdBodyState extends State<_RegisteredChatMdBody> {
     final bubbleMarkdownTheme =
         (baseMarkdownTheme ?? demoDarkMarkdownTheme(context)).copyWith(
           textStyle: widget.textStyle,
+          // On the outgoing bubble the blue of a link would vanish.
           linkColor: widget.isOutgoing ? const Color(0xFFBBDEFB) : null,
+          mentionColor: widget.isOutgoing ? const Color(0xFFBBDEFB) : null,
         );
 
     return MarkdownTheme(
@@ -515,6 +573,7 @@ class _RegisteredChatMdBodyState extends State<_RegisteredChatMdBody> {
           controller: widget.selection,
           messageId: widget.messageId,
           markdown: widget.markdown,
+          embedResolver: widget.embedResolver,
         ),
       ),
     );

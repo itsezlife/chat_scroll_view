@@ -7,6 +7,7 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/panel_trace.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
+import 'package:chat_scroll_view_example/src/common/utils/mapped_value_listenable.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_state.dart';
@@ -15,8 +16,10 @@ import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_dat
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/link_activation.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
@@ -37,6 +40,7 @@ import 'package:control/control.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_md/flutter_md.dart' show MarkdownSpoilerController;
 import 'package:panel_presentation/panel_presentation.dart';
 
 /// Supplies the message source of a [WidgetChatScreen].
@@ -82,6 +86,21 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   ChatDataSource? _dataSource;
   late final ChatScrollController _controller;
   late final ChatSelectionController _selection;
+
+  /// Which messages have their spoilers revealed. The screen owns it (the
+  /// facade is only given it) to turn the dust's motion off with the
+  /// chrome's motion speed.
+  final MarkdownSpoilerController _spoilers = MarkdownSpoilerController();
+
+  /// What the message bodies take from this screen: the embeds over the
+  /// app's asset cache, the sticker lookup and the stickers already played.
+  late final ChatBodyHost _bodies;
+  late final MappedValueListenable<bool, LargeEmojiPolicy> _emojiPolicy;
+
+  /// Demo chat facts that gate the large emoji (research 05, section 2): a
+  /// chat that allows stickers, in which the user is no admin.
+  static const bool _chatAllowsStickers = true;
+  static const bool _isChatAdmin = false;
   final GlobalKey _composerGlassKey = GlobalKey(debugLabel: 'ComposerGlass');
   final GlobalKey _presentationSpace = GlobalKey(debugLabel: 'PanelSpace');
 
@@ -138,7 +157,23 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       onInteraction: _onSelectionInteraction,
       // Selections and code taps keep their formatting on the clipboard.
       copyWriter: (copy) => widget.services.clipboard.write(ChatCopy.of(copy)),
+      // A tap on an embed means something here (a pack stub).
+      handlesEmbedHits: true,
+      spoilers: _spoilers,
+      // The dust moves on the asset cache's frames and pause layers.
+      spoilerClock: widget.services.assets.clock,
     )..selectionCap = 100;
+    _emojiPolicy = widget.services.largeEmoji.enabled.map(
+      (enabled) => LargeEmojiPolicy(
+        enabled: enabled,
+        stickersAllowed: _chatAllowsStickers,
+        isAdmin: _isChatAdmin,
+      ),
+    );
+    _bodies = ChatBodyHost(
+      assets: widget.services.assets,
+      policy: _emojiPolicy,
+    );
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _lifecycle = AppLifecycleListener(
       onHide: () {
@@ -164,6 +199,14 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       onPastedMedia: _onPastedMedia,
     );
     if (fresh && kPanelTrace) _trace = PanelTrace(input);
+    // The spoiler token's particles: no tick (reduce motion, lite mode) leaves
+    // the dust still. The particle colour follows the hidden text; the
+    // engine takes no other.
+    _spoilers.animate =
+        ChromeThemeScope.spoilerOf(
+          context,
+        ).particles.tickAt(ChromeMotionScope.of(context).speed) !=
+        null;
     final safe = MediaQuery.viewPaddingOf(context);
     input
       ..updateEnvironment(
@@ -193,12 +236,14 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           case ChatInlineGesture.longPress:
             _onLinkLongPress(messageId, title, url);
         }
-      case ChatMentionActivated() ||
-          ChatHashtagActivated() ||
-          ChatEmbedActivated() ||
-          ChatStickerActivated():
-        // The example opens none of these yet.
-        break;
+      case ChatMentionActivated(:final kind, :final id, :final name):
+        _onMentionTap(kind, id, name);
+      case ChatHashtagActivated(:final tag):
+        _showDemoSnack('Search: #$tag');
+      case ChatEmbedActivated(:final target, :final alt):
+        _showDemoSnack('Emoji pack of $target ($alt)');
+      case ChatStickerActivated(:final content):
+        _showDemoSnack('Sticker pack of ${content.encoded}');
       case ChatCodeActivated(:final gesture):
         // Host-owned copy path only when [copyCodeOnClick] is false.
         if (gesture == ChatInlineGesture.longPress) {
@@ -221,6 +266,17 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           duration: Duration(seconds: 1),
         ),
       );
+  }
+
+  /// The host decides what a mention means: a resolved one opens the user it
+  /// names; a username was only typed, so it is looked up by name first.
+  void _onMentionTap(ChatMentionKind kind, String? id, String name) {
+    switch (kind) {
+      case ChatMentionKind.resolved:
+        _showDemoSnack('User Profile: $name (id $id)');
+      case ChatMentionKind.username:
+        _showDemoSnack('Resolving username: $name');
+    }
   }
 
   void _onLinkTap(int messageId, String title, String url) {
@@ -282,6 +338,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _search?.dispose();
     _controller.dispose();
     _selection.dispose();
+    _spoilers.dispose();
+    _emojiPolicy.dispose();
     _trace?.dispose();
     _inputSet?.dispose();
     if (_dataSource case final BackendChatDataSource source) {
@@ -631,6 +689,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     status,
     runLayout,
     selection: _selection,
+    host: _bodies,
     onAvatarTap: _onAvatarTap,
     onSenderTap: _onAvatarTap,
   );
@@ -980,6 +1039,27 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const ChatSearchToggleButton(),
+                    const SizedBox(width: 4),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: widget.services.largeEmoji.enabled,
+                      builder: (context, enabled, _) => IconButton.filledTonal(
+                        tooltip: enabled
+                            ? 'Large emoji: on'
+                            : 'Large emoji: off',
+                        isSelected: enabled,
+                        onPressed: () => unawaited(
+                          widget.services.largeEmoji.set(enabled: !enabled),
+                        ),
+                        icon: const Icon(
+                          Icons.emoji_emotions_outlined,
+                          size: 20,
+                        ),
+                        selectedIcon: const Icon(
+                          Icons.emoji_emotions,
+                          size: 20,
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 4),
                     IconButton.filledTonal(
                       tooltip: 'Message corners',

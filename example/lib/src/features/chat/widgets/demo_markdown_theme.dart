@@ -41,7 +41,9 @@ MarkdownThemeData demoDarkMarkdownTheme(BuildContext context) {
     linkStyle: _underlineLinksOnPlatform
         ? const TextStyle(decoration: TextDecoration.underline)
         : null,
-    spanFilter: (span) => !span.style.contains(MD$Style.image),
+    // Mentions, usernames and hashtags are not links to the engine; they
+    // follow the link colour unless the host says otherwise.
+    mentionColor: const Color(0xFF58A6FF),
   );
 }
 

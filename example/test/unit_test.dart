@@ -19,6 +19,7 @@ import 'chat_viewport_insets_test.dart' as chat_viewport_insets_test;
 import 'common/chat_message_markdown_test.dart' as chat_message_markdown_test;
 import 'features/chat/animated_emoji_pack_test.dart'
     as animated_emoji_pack_test;
+import 'features/chat/chat_body_host_test.dart' as chat_body_host_test;
 import 'features/chat/chat_body_markdown_test.dart' as chat_body_markdown_test;
 import 'features/chat/chat_composer_spec_test.dart' as chat_composer_spec_test;
 import 'features/chat/chat_copy_test.dart' as chat_copy_test;
@@ -27,8 +28,11 @@ import 'features/chat/chat_data_source_bodies_test.dart'
 import 'features/chat/chat_draft_store_test.dart' as chat_draft_store_test;
 import 'features/chat/joined_collection_source_test.dart'
     as joined_collection_source_test;
+import 'features/chat/large_emoji_test.dart' as large_emoji_test;
 import 'features/chat/link_activation_test.dart' as link_activation_test;
 import 'glyph_probe_wiring_test.dart' as glyph_probe_wiring_test;
+import 'golden/demo_emoji_message_golden_test.dart'
+    as demo_emoji_message_golden_test;
 import 'golden/demo_widgets_golden_test.dart' as demo_widgets_golden_test;
 import 'mapped_value_listenable_test.dart' as mapped_value_listenable_test;
 import 'panel_perf/acceptance_runner_test.dart' as acceptance_runner_test;
@@ -48,6 +52,8 @@ import 'widgets/chat_open_at_last_read_test.dart'
 import 'widgets/chat_scroll_to_bottom_button_test.dart'
     as chat_scroll_to_bottom_button_test;
 import 'widgets/chat_selection_test.dart' as chat_selection_test;
+import 'widgets/demo_emoji_message_test.dart' as demo_emoji_message_test;
+import 'widgets/demo_message_bodies_test.dart' as demo_message_bodies_test;
 import 'widgets/demo_message_edit_transition_test.dart'
     as demo_message_edit_transition_test;
 import 'widgets/demo_message_markdown_registration_test.dart'
@@ -60,6 +66,8 @@ import 'widgets/panel_menu_holds_popup_test.dart'
 import 'widgets/unread_boundary_background_test.dart'
     as unread_boundary_background_test;
 import 'widgets/unread_separator_test.dart' as unread_separator_test;
+import 'widgets/widget_chat_screen_bodies_test.dart'
+    as widget_chat_screen_bodies_test;
 import 'widgets/widget_chat_screen_source_test.dart'
     as widget_chat_screen_source_test;
 
@@ -85,6 +93,7 @@ void main() {
     'features/chat/animated_emoji_pack_test.dart',
     animated_emoji_pack_test.main,
   );
+  group('features/chat/chat_body_host_test.dart', chat_body_host_test.main);
   group(
     'features/chat/chat_body_markdown_test.dart',
     chat_body_markdown_test.main,
@@ -103,8 +112,13 @@ void main() {
     'features/chat/joined_collection_source_test.dart',
     joined_collection_source_test.main,
   );
+  group('features/chat/large_emoji_test.dart', large_emoji_test.main);
   group('features/chat/link_activation_test.dart', link_activation_test.main);
   group('glyph_probe_wiring_test.dart', glyph_probe_wiring_test.main);
+  group(
+    'golden/demo_emoji_message_golden_test.dart',
+    demo_emoji_message_golden_test.main,
+  );
   group('golden/demo_widgets_golden_test.dart', demo_widgets_golden_test.main);
   group('mapped_value_listenable_test.dart', mapped_value_listenable_test.main);
   group('panel_perf/acceptance_runner_test.dart', acceptance_runner_test.main);
@@ -131,6 +145,8 @@ void main() {
     chat_scroll_to_bottom_button_test.main,
   );
   group('widgets/chat_selection_test.dart', chat_selection_test.main);
+  group('widgets/demo_emoji_message_test.dart', demo_emoji_message_test.main);
+  group('widgets/demo_message_bodies_test.dart', demo_message_bodies_test.main);
   group(
     'widgets/demo_message_edit_transition_test.dart',
     demo_message_edit_transition_test.main,
@@ -153,6 +169,10 @@ void main() {
     unread_boundary_background_test.main,
   );
   group('widgets/unread_separator_test.dart', unread_separator_test.main);
+  group(
+    'widgets/widget_chat_screen_bodies_test.dart',
+    widget_chat_screen_bodies_test.main,
+  );
   group(
     'widgets/widget_chat_screen_source_test.dart',
     widget_chat_screen_source_test.main,
