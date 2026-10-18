@@ -76,3 +76,6 @@ config/development.supabase.json
 **/build/
 **/.kotlin
 packages/composer_editable/tool/staging/
+
+# flutter_test golden comparator failure output
+**/failures/

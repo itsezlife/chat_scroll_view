@@ -431,9 +431,11 @@ void main() {
       rig.set.presentation.show();
       await tester.pump();
       // The grid is there, the search field a frame later.
-      expect(find.byType(EditableText), findsOneWidget, reason: 'the composer');
+      expect(rig.field, findsOneWidget, reason: 'the composer');
+      expect(find.byType(EditableText), findsNothing);
       await tester.pump();
-      expect(find.byType(EditableText), findsNWidgets(2));
+      // The composer's editable is not Flutter's: this is the search field.
+      expect(find.byType(EditableText), findsOneWidget);
       rig.set.presentation.hide();
       await rig.settle(tester);
       await tester.pumpWidget(const SizedBox.shrink());
@@ -444,7 +446,8 @@ void main() {
       warm.set.presentation.show();
       await tester.pump();
 
-      expect(find.byType(EditableText), findsNWidgets(2));
+      expect(warm.field, findsOneWidget);
+      expect(find.byType(EditableText), findsOneWidget, reason: 'the search');
     });
 
     testWidgets('back closes search, then the panel', (tester) async {

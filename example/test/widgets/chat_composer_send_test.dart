@@ -14,8 +14,7 @@ Future<AppServices> _services(WidgetTester tester) async {
 }
 
 Future<void> _type(WidgetTester tester, InputRig rig, String text) async {
-  await tester.enterText(rig.field, text);
-  await tester.pump();
+  await rig.typeInField(tester, text);
 }
 
 Future<void> _pumpAsync(WidgetTester tester) async {

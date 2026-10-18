@@ -221,6 +221,18 @@ _Avoid_: Toolbar action, a command on the composer controller, typing style, for
 An opt-in entity (bullet or ordered, depth 0 to 3), one per item, widening to its lines like a quote but never merging with its neighbours. Numbers are derived when written as markdown, not stored. Editing behaviour (typed markers, Enter, Backspace, Tab, list paste, gutter) exists only when the text controller is built with lists on.
 _Avoid_: A composer-local list attribute, stored numbers, a list node, list-specific undo
 
+**Message length budget**:
+`ComposerSpec.messageLengthLimit`: a count of code points of the plain text (`ComposerController.length`), set by the host from its server configuration. The view shows the remaining count once 100 or fewer remain and refuses the primary action, with a shake, while it is negative. Formatting and markdown delimiters cost nothing.
+_Avoid_: Counting markdown source or UTF-16 units or graphemes, truncating, a limit the composer picks
+
+**Paste report**:
+`ComposerPaste(range, text, wasRich)`, handed to `ComposerController.onPaste` after a paste put text into the field. The offer to apply formatting to a plain paste is the host's.
+_Avoid_: Parsing markdown on paste, a composer-owned toast
+
+**Sendable text**:
+`ComposerController.sendableText`: the rich text with every mention the host did not resolve in this draft downgraded to a username (picked, restored, trusted or confirmed mentions stay). What the host encodes to send.
+_Avoid_: Encoding `richText` straight to the wire, rejecting a message over an unresolved mention
+
 **Selection menu**:
 The composer's floating toolbar on a text selection (`ComposerSelectionMenu`): Telegram Android's own floating toolbar, mounted through the **composer editable**'s menu builder on every platform. Clipboard items and formatting items share a row when there is room; a "More" page reshapes the card for the rest. Its options, link prompt, labels and back priority are host contract.
 _Avoid_: The platform selection menu extended, the message menu (swipe-back card), context menu (alone)

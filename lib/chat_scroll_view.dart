@@ -7,9 +7,12 @@
 /// Host-facing helpers include [ChatRowChrome] (ordered row chrome such as
 /// the inline date separator, stacked above the message body),
 /// [ChatMessageBody] (in-bubble content + meta last-line packing),
-/// [ChatMessageChangeTransition] (edit morph: layout-final + paint deltas),
-/// [ChatBubbleMetrics] (theme + run → corner / padding resolvers), and
-/// [ChatBodyLinkify] (host-invoked bare URL / mention → markdown; never paint).
+/// [ChatMessageChangeTransition] (edit morph: layout-final + paint deltas), and
+/// [ChatBubbleMetrics] (theme + run → corner / padding resolvers).
+///
+/// The viewport paints and activates the links, mentions and hashtags a body
+/// already carries; it never detects them. Detection is the host's step
+/// (`EntityDetection` and `DetectionPolicy` in `content_model`).
 library;
 
 export 'package:flutter_md/flutter_md.dart'
@@ -18,7 +21,6 @@ export 'package:flutter_md/flutter_md.dart'
 export 'src/chat_scroll/animate_to_busy_policy.dart';
 export 'src/chat_scroll/animate_to_disposition.dart';
 export 'src/chat_scroll/animate_to_load_policy.dart';
-export 'src/chat_scroll/chat_body_linkify.dart';
 export 'src/chat_scroll/chat_data_source.dart';
 export 'src/chat_scroll/chat_day_header_delegate.dart';
 export 'src/chat_scroll/chat_mutations.dart';

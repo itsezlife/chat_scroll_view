@@ -1,6 +1,7 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:chat_composer/src/input/composer_controller.dart';
+import 'package:chat_composer/src/shortcuts/composer_formatting_actions.dart';
 import 'package:chat_composer/src/shortcuts/composer_intents.dart';
 import 'package:chat_composer/src/spec/action_descriptor.dart';
 import 'package:chat_composer/src/spec/composer_header.dart';
@@ -9,6 +10,7 @@ import 'package:chat_composer/src/spec/composer_spec.dart';
 import 'package:chat_composer/src/view/composer_button.dart';
 import 'package:chat_composer/src/view/composer_field.dart';
 import 'package:chat_composer/src/view/composer_header_strip.dart';
+import 'package:chat_composer/src/view/composer_length_counter.dart';
 import 'package:chat_composer/src/view/composer_metrics.dart';
 import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -132,6 +134,9 @@ class _ComposerViewState extends State<ComposerView>
   // Progress of the current row height tween, 0 to 1, already curved.
   late final AnimationController _rowProgress;
 
+  // The refusal of an over-budget send, 0 at rest.
+  late final AnimationController _shake;
+
   // Kept while the strip hides, after the spec has dropped it.
   ComposerHeader? _shownHeader;
 
@@ -145,6 +150,12 @@ class _ComposerViewState extends State<ComposerView>
   late final Map<Type, Action<Intent>> _intentActions = {
     SubmitComposerIntent: _SubmitAction(this),
     DismissComposerHeaderIntent: _DismissHeaderAction(this),
+    ...ComposerFormattingActions.of(
+      text: widget.controller.text,
+      linkPrompt: () => _spec.linkPrompt,
+      context: () => context,
+      isAlive: () => mounted,
+    ),
   };
 
   ComposerSpec get _spec => widget.spec;
@@ -161,6 +172,7 @@ class _ComposerViewState extends State<ComposerView>
       },
     )..addStatusListener(_onRevealStatus);
     _rowProgress = AnimationController(vsync: this, value: 1);
+    _shake = AnimationController(vsync: this);
   }
 
   @override
@@ -175,6 +187,7 @@ class _ComposerViewState extends State<ComposerView>
       ..removeStatusListener(_onRevealStatus)
       ..dispose();
     _rowProgress.dispose();
+    _shake.dispose();
     super.dispose();
   }
 
@@ -245,12 +258,37 @@ class _ComposerViewState extends State<ComposerView>
   bool _usable(ActionDescriptor action) =>
       _spec.enabled && action.isTappable && !(_spec.busy && action.primary);
 
+  bool get _overBudget {
+    final limit = _spec.messageLengthLimit;
+    return limit != null && widget.controller.length > limit;
+  }
+
+  // The primary action is the send: over the budget it is refused, with the
+  // counter shaking, and the host's handler is not called. Under an instant
+  // motion speed nothing shakes (the refusal is the unsent text).
+  void _activate(ActionDescriptor action) {
+    if (action.primary && _overBudget) {
+      final duration = ChromeMotionScope.of(
+        context,
+      ).durationOf(MotionRole.release);
+      if (duration > Duration.zero) {
+        _shake
+          ..duration = duration
+          ..forward(from: 0);
+      }
+      return;
+    }
+    action.onTap?.call();
+  }
+
   Widget _button(ActionDescriptor action) {
     final button = ComposerButton(
       key: ValueKey<String>(action.id),
       icon: action.icon,
       semanticLabel: action.semanticLabel,
-      onTap: action.onTap,
+      onTap: action.primary && action.onTap != null
+          ? () => _activate(action)
+          : action.onTap,
       enabled: _usable(action),
       primary: action.primary,
       active: action.active,
@@ -370,6 +408,12 @@ class _ComposerViewState extends State<ComposerView>
                               child: row,
                             ),
                           ),
+                          if (_spec.messageLengthLimit case final limit?)
+                            ComposerLengthCounter(
+                              controller: widget.controller,
+                              limit: limit,
+                              shake: _shake,
+                            ),
                         ],
                       ),
                     ),
@@ -403,7 +447,7 @@ class _SubmitAction extends Action<SubmitComposerIntent> {
 
   @override
   Object? invoke(SubmitComposerIntent intent) {
-    _target?.onTap?.call();
+    if (_target case final target?) _state._activate(target);
     return null;
   }
 }

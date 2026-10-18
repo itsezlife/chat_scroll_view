@@ -6,9 +6,9 @@ library;
 
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/testing.dart';
+import 'package:composer_editable/composer_editable.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
-import 'package:flutter/material.dart' hide RichText;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -126,7 +126,9 @@ void main() {
     });
 
     Future<void> openToolbar(WidgetTester tester) async {
-      tester.state<EditableTextState>(find.byType(EditableText)).showToolbar();
+      tester
+          .state<ExtendedEditableTextState>(find.byType(ExtendedEditableText))
+          .showToolbar();
       await tester.pumpAndSettle();
     }
 
