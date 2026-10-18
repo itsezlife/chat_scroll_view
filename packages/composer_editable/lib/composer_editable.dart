@@ -48,6 +48,7 @@ export 'src/widget/text_selection.dart'
         ExtendedClipboardStatusNotifier,
         ExtendedEmptyTextSelectionControls,
         ExtendedSelectionOverlay,
+        ExtendedSelfFadingToolbar,
         ExtendedTextSelectionControls,
         ExtendedTextSelectionGestureDetector,
         ExtendedTextSelectionGestureDetectorBuilder,
