@@ -40,6 +40,8 @@ import 'emoji/chat_sticker_tap_policy_test.dart'
     as chat_sticker_tap_policy_test;
 import 'goldens/chat_emoji_body_golden_test.dart'
     as chat_emoji_body_golden_test;
+import 'goldens/chat_markdown_emoji_golden_test.dart'
+    as chat_markdown_emoji_golden_test;
 import 'goldens/inline_layer_golden_test.dart' as inline_layer_golden_test;
 import 'viewport_never_detects_test.dart' as viewport_never_detects_test;
 import 'widgets/chat_absent_build_test.dart' as chat_absent_build_test;
@@ -53,6 +55,8 @@ import 'widgets/chat_code_block_painter_test.dart'
     as chat_code_block_painter_test;
 import 'widgets/chat_controller_test.dart' as chat_controller_test;
 import 'widgets/chat_date_separator_test.dart' as chat_date_separator_test;
+import 'widgets/chat_desktop_stuck_pointer_test.dart'
+    as chat_desktop_stuck_pointer_test;
 import 'widgets/chat_dispose_during_animate_test.dart'
     as chat_dispose_during_animate_test;
 import 'widgets/chat_follow_tail_test.dart' as chat_follow_tail_test;
@@ -71,6 +75,8 @@ import 'widgets/chat_lazy_pagination_test.dart' as chat_lazy_pagination_test;
 import 'widgets/chat_lifecycle_test.dart' as chat_lifecycle_test;
 import 'widgets/chat_markdown_autoscroll_test.dart'
     as chat_markdown_autoscroll_test;
+import 'widgets/chat_markdown_body_emoji_size_test.dart'
+    as chat_markdown_body_emoji_size_test;
 import 'widgets/chat_markdown_body_inline_hit_test.dart'
     as chat_markdown_body_inline_hit_test;
 import 'widgets/chat_markdown_body_inline_layer_test.dart'
@@ -87,6 +93,8 @@ import 'widgets/chat_message_change_transition_test.dart'
 import 'widgets/chat_message_menu_request_test.dart'
     as chat_message_menu_request_test;
 import 'widgets/chat_message_menu_test.dart' as chat_message_menu_test;
+import 'widgets/chat_message_tap_barrier_test.dart'
+    as chat_message_tap_barrier_test;
 import 'widgets/chat_message_theme_test.dart' as chat_message_theme_test;
 import 'widgets/chat_mobile_text_chrome_test.dart'
     as chat_mobile_text_chrome_test;
@@ -188,6 +196,10 @@ void main() {
     'goldens/chat_emoji_body_golden_test.dart',
     chat_emoji_body_golden_test.main,
   );
+  group(
+    'goldens/chat_markdown_emoji_golden_test.dart',
+    chat_markdown_emoji_golden_test.main,
+  );
   group('goldens/inline_layer_golden_test.dart', inline_layer_golden_test.main);
   group('viewport_never_detects_test.dart', viewport_never_detects_test.main);
   group('widgets/chat_absent_build_test.dart', chat_absent_build_test.main);
@@ -205,6 +217,10 @@ void main() {
   );
   group('widgets/chat_controller_test.dart', chat_controller_test.main);
   group('widgets/chat_date_separator_test.dart', chat_date_separator_test.main);
+  group(
+    'widgets/chat_desktop_stuck_pointer_test.dart',
+    chat_desktop_stuck_pointer_test.main,
+  );
   group(
     'widgets/chat_dispose_during_animate_test.dart',
     chat_dispose_during_animate_test.main,
@@ -245,6 +261,10 @@ void main() {
     chat_markdown_body_inline_hit_test.main,
   );
   group(
+    'widgets/chat_markdown_body_emoji_size_test.dart',
+    chat_markdown_body_emoji_size_test.main,
+  );
+  group(
     'widgets/chat_markdown_body_inline_layer_test.dart',
     chat_markdown_body_inline_layer_test.main,
   );
@@ -270,6 +290,10 @@ void main() {
     chat_message_menu_request_test.main,
   );
   group('widgets/chat_message_menu_test.dart', chat_message_menu_test.main);
+  group(
+    'widgets/chat_message_tap_barrier_test.dart',
+    chat_message_tap_barrier_test.main,
+  );
   group('widgets/chat_message_theme_test.dart', chat_message_theme_test.main);
   group(
     'widgets/chat_mobile_text_chrome_test.dart',

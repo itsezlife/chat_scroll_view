@@ -414,8 +414,7 @@ final class ChatTextSelection {
   ///
   /// The offsets are the engine's: a list item's text is followed by one
   /// newline before its children, a table cell by a tab and a row by a
-  /// newline. Hit-testing and the reveal of a selected spoiler read them
-  /// through this one walk.
+  /// newline. Hit-testing reads them through this one walk.
   void _forEachSpan(MD$Block block, bool Function(_SpanRun run) visit) {
     switch (block) {
       case MD$Paragraph(:final spans) ||
@@ -571,50 +570,6 @@ final class ChatTextSelection {
       );
     }
     return null;
-  }
-
-  /// Reveals the spoilers of [messageId] when the live [range] on it covers
-  /// any hidden spoiler text, as every client does when a selection enters a
-  /// spoiler (the selection would otherwise copy what the screen hides).
-  ///
-  /// Returns whether it revealed. The range is one message
-  /// ([MarkdownSelection.base] and [MarkdownSelection.extent] share a
-  /// document); a range over another message reveals nothing here.
-  bool revealSpoilersCoveredBy(MarkdownSelection range) {
-    final id = range.base.documentId;
-    if (_disposed ||
-        id is! int ||
-        id != range.extent.documentId ||
-        spoilers.isRevealed(id)) {
-      return false;
-    }
-    final model = bodyOf(id);
-    if (model == null) return false;
-    final base = range.base;
-    final extent = range.extent;
-    final startFirst =
-        base.blockIndex < extent.blockIndex ||
-        (base.blockIndex == extent.blockIndex && base.offset <= extent.offset);
-    final (start, end) = startFirst ? (base, extent) : (extent, base);
-    for (
-      var i = start.blockIndex;
-      i <= end.blockIndex && i < model.blocks.length;
-      i++
-    ) {
-      // The part of block `i` the range covers; whole blocks in between.
-      final from = i == start.blockIndex ? start.offset : 0;
-      final to = i == end.blockIndex ? end.offset : null;
-      var covers = false;
-      _forEachSpan(
-        model.blocks[i],
-        (run) => covers =
-            run.span.style.contains(MD$Style.spoiler) &&
-            run.start < (to ?? run.end) &&
-            run.end > from,
-      );
-      if (covers) return spoilers.reveal(id);
-    }
-    return false;
   }
 
   /// Inserts or updates the markdown body for [messageId].

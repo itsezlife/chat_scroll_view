@@ -71,6 +71,7 @@ export 'src/chat_widgets/chat_markdown_body.dart';
 export 'src/chat_widgets/chat_message_body.dart';
 export 'src/chat_widgets/chat_message_change_transition.dart';
 export 'src/chat_widgets/chat_message_surface_bounds.dart';
+export 'src/chat_widgets/chat_message_tap_barrier.dart';
 export 'src/chat_widgets/chat_message_theme.dart';
 export 'src/chat_widgets/chat_row_chrome.dart';
 export 'src/chat_widgets/chat_scroll_theme.dart';

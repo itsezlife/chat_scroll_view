@@ -33,7 +33,9 @@ final class ChatSelectionChromeState {
   ///
   /// Frozen at its last value while [isSelectionMode] is false so `clear()`
   /// and last-item toggle do not play an unselect animation — the check
-  /// rides the mode collapse instead.
+  /// rides the mode collapse instead. A paint that must be gone once
+  /// selection ends (a tint, a recolour) reads [overlayProgress], which the
+  /// mode collapse takes to 0; this value alone leaves it on.
   final double selectProgress;
 
   /// Live controller flag (not frozen).

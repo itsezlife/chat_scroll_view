@@ -9,6 +9,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/large_emoji_sett
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/foundation.dart' show TargetPlatform;
 import 'package:flutter_test/flutter_test.dart';
 
 UserChatMessage _message(String content, {bool hasMedia = false}) =>
@@ -82,6 +83,98 @@ void main() {
       addTearDown(setting.dispose);
 
       expect(setting.enabled.value, isTrue);
+    });
+  });
+
+  group('LargeEmojiSetting: the desktop cap', () {
+    late FakeKeyValueStore storage;
+
+    setUp(() => storage = FakeKeyValueStore());
+
+    test('is the reference client\'s 3 until the user moves it', () async {
+      final setting = await LargeEmojiSetting.load(storage);
+      addTearDown(setting.dispose);
+
+      expect(setting.desktopLimit.value, 3);
+    });
+
+    test('a choice is seen at once, notified once and kept', () async {
+      final setting = await LargeEmojiSetting.load(storage);
+      addTearDown(setting.dispose);
+      var notified = 0;
+      setting.desktopLimit.addListener(() => notified++);
+
+      final saved = setting.setDesktopLimit(7);
+
+      expect(setting.desktopLimit.value, 7);
+      expect(notified, 1);
+      await saved;
+      final reopened = await LargeEmojiSetting.load(storage);
+      addTearDown(reopened.dispose);
+      expect(reopened.desktopLimit.value, 7);
+    });
+
+    test(
+      'choosing what is already chosen changes and writes nothing',
+      () async {
+        final setting = await LargeEmojiSetting.load(storage);
+        addTearDown(setting.dispose);
+
+        await setting.setDesktopLimit(3);
+
+        expect(storage.writeCount, 0);
+      },
+    );
+
+    test(
+      'is a record of its own: the on/off choice does not touch it',
+      () async {
+        final setting = await LargeEmojiSetting.load(storage);
+        addTearDown(setting.dispose);
+        await setting.setDesktopLimit(5);
+
+        await setting.set(enabled: false);
+
+        final reopened = await LargeEmojiSetting.load(storage);
+        addTearDown(reopened.dispose);
+        expect(reopened.desktopLimit.value, 5);
+        expect(reopened.enabled.value, isFalse);
+      },
+    );
+
+    test(
+      'a value out of range, unreadable or of another version is 3',
+      () async {
+        for (final stored in [
+          const StoredValue('0', version: LargeEmojiSetting.version),
+          const StoredValue('1000', version: LargeEmojiSetting.version),
+          const StoredValue('many', version: LargeEmojiSetting.version),
+          const StoredValue('5', version: 99),
+        ]) {
+          final store = FakeKeyValueStore();
+          await store.write(
+            LargeEmojiSetting.namespace,
+            LargeEmojiSetting.desktopLimitKey,
+            stored,
+          );
+
+          final setting = await LargeEmojiSetting.load(store);
+          addTearDown(setting.dispose);
+
+          expect(setting.desktopLimit.value, 3, reason: stored.value);
+        }
+      },
+    );
+
+    test('a limit outside the choices is refused', () async {
+      final setting = await LargeEmojiSetting.load(storage);
+      addTearDown(setting.dispose);
+
+      expect(() => setting.setDesktopLimit(0), throwsArgumentError);
+      expect(
+        () => setting.setDesktopLimit(LargeEmojiSetting.maxDesktopLimit + 1),
+        throwsArgumentError,
+      );
     });
   });
 
@@ -175,6 +268,65 @@ void main() {
         expect(
           off.emojiOnlyOf(emoji, platform: const ChatEmojiPolicy.desktop()),
           isNull,
+        );
+      });
+    });
+
+    group('the desktop cap', () {
+      final six = _message('\u{1F44D}' * 6);
+      const macOS = TargetPlatform.macOS;
+
+      test('moves the boundary of the desktop family', () {
+        const policy = LargeEmojiPolicy(enabled: true, desktopRegularLimit: 6);
+
+        expect(
+          policy.emojiOnlyOf(six, platform: policy.family(platform: macOS)),
+          isNotNull,
+        );
+        expect(
+          policy.emojiOnlyOf(
+            _message('\u{1F44D}' * 7),
+            platform: policy.family(platform: macOS),
+          ),
+          isNull,
+        );
+      });
+
+      test('is 3 unless said otherwise', () {
+        const policy = LargeEmojiPolicy(enabled: true);
+
+        expect(
+          policy.emojiOnlyOf(six, platform: policy.family(platform: macOS)),
+          isNull,
+        );
+        expect(
+          policy.emojiOnlyOf(
+            _message('\u{1F44D}' * 3),
+            platform: policy.family(platform: macOS),
+          ),
+          isNotNull,
+        );
+      });
+
+      test('is ignored by the families that have no cap', () {
+        const policy = LargeEmojiPolicy(enabled: true, desktopRegularLimit: 1);
+
+        for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+          expect(
+            policy.emojiOnlyOf(
+              six,
+              platform: policy.family(platform: platform),
+            ),
+            isNotNull,
+            reason: '$platform',
+          );
+        }
+      });
+
+      test('is part of the value', () {
+        expect(
+          const LargeEmojiPolicy(enabled: true, desktopRegularLimit: 5),
+          isNot(const LargeEmojiPolicy(enabled: true)),
         );
       });
     });

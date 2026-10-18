@@ -177,7 +177,8 @@ class DemoMessageBubble extends StatelessWidget {
       return ValueListenableBuilder<LargeEmojiPolicy>(
         valueListenable: host.policy,
         builder: (context, policy, _) {
-          final platform = ChatEmojiPolicy.forPlatform();
+          // The family carries the user's cap on enlarged emoji (desktop's).
+          final platform = policy.family();
           final emojiOnly = policy.emojiOnlyOf(message, platform: platform);
           final row = _row(context, emojiOnly: emojiOnly);
           // A platform whose emoji-only layout does not mirror keeps its
@@ -488,12 +489,16 @@ class _Bubble extends StatelessWidget {
       _ => null,
     },
     content: body,
-    metaBuilder: (context, editedOpacity) => DemoMessageMeta(
-      createdAt: createdAt,
-      color: metaColor,
-      showStatus: isOutgoing,
-      edited: edited,
-      editedOpacity: editedOpacity,
+    // The time is status chrome, not the message: a mouse click on it is
+    // neither a toggle of the row nor a message tap.
+    metaBuilder: (context, editedOpacity) => ChatMessageTapBarrier(
+      child: DemoMessageMeta(
+        createdAt: createdAt,
+        color: metaColor,
+        showStatus: isOutgoing,
+        edited: edited,
+        editedOpacity: editedOpacity,
+      ),
     ),
   );
 }

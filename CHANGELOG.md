@@ -1,5 +1,29 @@
 ## Unreleased
 
+### Emoji in a bubble: set at the font's height; the desktop cap is configurable
+- **Fixed**: a unicode emoji in an ordinary markdown body was drawn at the font
+  size (15 px text, 15 px emoji), while Android draws it at the font's height
+  (ascent plus descent, about 1.18 times the size for SF) and a custom emoji
+  in the same text at 1.2 times that. Beside a custom emoji it was 40 % smaller,
+  and on desktop the whole line read as undersized. `ChatMarkdownBody` now sets
+  each colour emoji sequence (a skin tone, a ZWJ family, a flag, a keycap, a
+  presentation-selector emoji) as a run of its own at the font's height times
+  `MarkdownThemeData.emojiScale`, with the line height of the text around it.
+  A text glyph (`©`, a bare `❤`, a digit) stays at the font size. A
+  theme that sets `emojiRuns` itself is left alone (`(_) => const []` turns the
+  enlargement off). Needs `flutter_md` with `MarkdownThemeData.emojiRuns`.
+- **ADDED**: `ChatEmojiPolicy.inTextEmojiScale` (1 on Android and iOS, 1.2 on
+  desktop, for the host's `MarkdownThemeData.emojiScale`);
+  `ChatEmojiPolicy.desktop(regularLimit:)` and
+  `ChatEmojiPolicy.forPlatform(desktopRegularLimit:)`, the maximum number of
+  enlarged regular emoji on desktop and the web (3, the reference client's, by
+  default; Android and iOS have no cap and ignore it).
+- **BREAKING for a host that read the constant**: `ChatEmojiPolicy$Desktop.regularLimit`
+  is now the instance's cap; the reference's 3 is
+  `ChatEmojiPolicy$Desktop.defaultRegularLimit`.
+- **ADDED** (`content_model`): `EmojiRuns.of(text)`, the ranges of the emoji a
+  text draws in colour, for a renderer that enlarges them.
+
 ### Emoji-only body: one policy per platform family
 - `ChatEmojiPolicy` (`$Android`, `$Ios`, `$Desktop`, chosen with
   `ChatEmojiPolicy.forPlatform`) owns what was one Android table: font steps,
@@ -54,10 +78,18 @@
 - `ChatSelectionController.spoilers`: the `MarkdownSpoilerController` of the
   viewport, keyed by message id, so a revealed message stays revealed when its
   row is mounted again. A tap on a spoiler reveals the message; a tap on a
-  link, mention or embed inside a hidden spoiler reveals and reports no hit;
-  a text selection that enters a hidden spoiler reveals it.
+  link, mention or embed inside a hidden spoiler reveals and reports no hit.
   `ChatSelectionController(spoilerClock:)` feeds the dust from the asset
   cache's `PlaybackClock`; without it the dust stands still.
+- **BREAKING**: a text selection over a hidden spoiler no longer reveals it,
+  and `ChatTextSelection.revealSpoilersCoveredBy` is gone. The selection is
+  made and painted with the spoiler still hidden (the tint under the
+  particles), as on Android and Desktop; the copy carries the spoiler style
+  (`ChatTextCopy.content`), so a host that writes `EntityKind.spoiler` to the
+  rich clipboard pastes a spoiler into the composer, and `plainText` carries
+  the characters under it. A host that followed iOS (select to reveal) calls
+  `spoilers.reveal(messageId)` from its own `onInteraction`. Existing tests
+  that asserted `isRevealed` after a selection will see `false`. ADR 037.
 - While a message selection is live (committed, or a drag-selection preview) a
   tap on a hidden spoiler toggles the row and leaves the spoiler hidden, as on
   Android; the facade writes `spoilers.tapReveals` from `isSelectionMode`.

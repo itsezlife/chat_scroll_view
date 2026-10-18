@@ -78,9 +78,10 @@ final class ChatEmojiWrapLimit {
 /// - [$Ios]: a font table by the longer of the longest line and the line count,
 ///   a fixed sticker in an inset, the header beside both layouts and taking a
 ///   fixed width off the wrap;
-/// - [$Desktop]: fixed image boxes, at most three regular emoji (more is an
-///   ordinary bubble), a fixed sticker, the header beside when it fits, and a
-///   layout that mirrors in a right-to-left chat.
+/// - [$Desktop]: fixed image boxes, at most three regular emoji by default
+///   (more is an ordinary bubble; the host may move the cap), a fixed sticker,
+///   the header beside when it fits, and a layout that mirrors in a
+///   right-to-left chat.
 ///
 /// Web follows desktop. The policy is pure Dart: it holds the numbers the
 /// body lays out with and the host's chrome reads; it paints nothing. Hosts
@@ -100,20 +101,33 @@ sealed class ChatEmojiPolicy {
   /// The iOS family's policy.
   const factory ChatEmojiPolicy.ios() = ChatEmojiPolicy$Ios;
 
-  /// The desktop family's policy (also the web's).
-  const factory ChatEmojiPolicy.desktop() = ChatEmojiPolicy$Desktop;
+  /// The desktop family's policy (also the web's). [regularLimit] is how many
+  /// regular emoji an emoji-only message may hold and still be enlarged, 3 in
+  /// the reference client; the other families have no cap, so only this one
+  /// takes it.
+  const factory ChatEmojiPolicy.desktop({int regularLimit}) =
+      ChatEmojiPolicy$Desktop;
 
   /// The policy of the platform the app runs on. Pass [platform] / [isWeb]
   /// to pin it in tests.
-  factory ChatEmojiPolicy.forPlatform({TargetPlatform? platform, bool? isWeb}) {
-    if (isWeb ?? kIsWeb) return const ChatEmojiPolicy.desktop();
+  ///
+  /// [desktopRegularLimit] is the desktop family's cap on enlarged regular
+  /// emoji ([ChatEmojiPolicy.desktop]'s `regularLimit`); Android and iOS have
+  /// no cap and ignore it.
+  factory ChatEmojiPolicy.forPlatform({
+    TargetPlatform? platform,
+    bool? isWeb,
+    int desktopRegularLimit = ChatEmojiPolicy$Desktop.defaultRegularLimit,
+  }) {
+    if (isWeb ?? kIsWeb) {
+      return ChatEmojiPolicy.desktop(regularLimit: desktopRegularLimit);
+    }
     return switch (platform ?? defaultTargetPlatform) {
       TargetPlatform.android ||
       TargetPlatform.fuchsia => const ChatEmojiPolicy.android(),
       TargetPlatform.iOS => const ChatEmojiPolicy.ios(),
-      TargetPlatform.macOS ||
-      TargetPlatform.windows ||
-      TargetPlatform.linux => const ChatEmojiPolicy.desktop(),
+      TargetPlatform.macOS || TargetPlatform.windows || TargetPlatform.linux =>
+        ChatEmojiPolicy.desktop(regularLimit: desktopRegularLimit),
     };
   }
 
@@ -151,6 +165,17 @@ sealed class ChatEmojiPolicy {
 
   /// Where a header goes next to a body of [kind].
   ChatEmojiHeaderPlacement headerPlacementFor(ChatEmojiLayoutKind kind);
+
+  /// How many times the text font's height a unicode emoji is drawn at inside
+  /// ordinary text (a bubble), for `MarkdownThemeData.emojiScale`: the host
+  /// puts it on the theme of the markdown body, which sets the emoji in its
+  /// text at that size instead of the font's.
+  ///
+  /// Not part of an emoji-only message (those are sized by the tables above):
+  /// the rule of a sentence that has an emoji in it, so that the glyph sits
+  /// beside a custom emoji, which is 1.2 times the font's height, as the
+  /// platform has them.
+  double get inTextEmojiScale;
 
   /// Whether the layout mirrors in a right-to-left chat. A platform that does
   /// not keeps every side as in a left-to-right chat: an outgoing message
@@ -209,6 +234,10 @@ final class ChatEmojiPolicy$Android extends ChatEmojiPolicy {
         ChatEmojiLayoutKind.text => ChatEmojiHeaderPlacement.above,
       };
 
+  // `Emoji.EmojiSpan`: the glyph is the font's ascent plus descent square.
+  @override
+  double get inTextEmojiScale => 1;
+
   @override
   bool get mirrorsInRtl => false;
 
@@ -264,6 +293,10 @@ final class ChatEmojiPolicy$Ios extends ChatEmojiPolicy {
   ChatEmojiHeaderPlacement headerPlacementFor(ChatEmojiLayoutKind kind) =>
       ChatEmojiHeaderPlacement.beside;
 
+  // Not traced for iOS: Android's rule, the authority where iOS is silent.
+  @override
+  double get inTextEmojiScale => 1;
+
   @override
   bool get mirrorsInRtl => false;
 
@@ -276,8 +309,9 @@ final class ChatEmojiPolicy$Ios extends ChatEmojiPolicy {
 
 /// The desktop family's [ChatEmojiPolicy].
 final class ChatEmojiPolicy$Desktop extends ChatEmojiPolicy {
-  /// Creates the policy.
-  const ChatEmojiPolicy$Desktop();
+  /// Creates the policy, enlarging up to [regularLimit] regular emoji.
+  const ChatEmojiPolicy$Desktop({this.regularLimit = defaultRegularLimit})
+    : assert(regularLimit >= 1, 'A cap below 1 would enlarge nothing.');
 
   /// A regular emoji's image: 36 px and a 1 px outline on each side.
   static const double imageBox = 38;
@@ -285,8 +319,14 @@ final class ChatEmojiPolicy$Desktop extends ChatEmojiPolicy {
   /// The gap between two images of a line.
   static const double imageSkip = 2;
 
-  /// The most regular emoji an emoji-only message holds.
-  static const int regularLimit = 3;
+  /// The reference client's cap on enlarged regular emoji.
+  static const int defaultRegularLimit = 3;
+
+  /// The most regular emoji an emoji-only message holds and is still
+  /// enlarged, counted over every item of a message that is not all custom
+  /// emoji; a message of custom emoji alone is never capped. More is an
+  /// ordinary bubble.
+  final int regularLimit;
 
   /// The sticker's side.
   static const double stickerExtent = 112;
@@ -347,14 +387,22 @@ final class ChatEmojiPolicy$Desktop extends ChatEmojiPolicy {
   ChatEmojiHeaderPlacement headerPlacementFor(ChatEmojiLayoutKind kind) =>
       ChatEmojiHeaderPlacement.besideWhenFits;
 
+  // Unverified: the reference draws a regular emoji of a sentence as an image
+  // of the font's line, not of its glyph (the sizes are in `lib_ui`, absent
+  // from the checkout). The same box as a custom emoji in text (1.2 times the
+  // font's height), so that one message does not mix two sizes.
+  @override
+  double get inTextEmojiScale => 1.2;
+
   @override
   bool get mirrorsInRtl => true;
 
   @override
-  bool operator ==(Object other) => other is ChatEmojiPolicy$Desktop;
+  bool operator ==(Object other) =>
+      other is ChatEmojiPolicy$Desktop && other.regularLimit == regularLimit;
 
   @override
-  int get hashCode => (ChatEmojiPolicy$Desktop).hashCode;
+  int get hashCode => Object.hash(ChatEmojiPolicy$Desktop, regularLimit);
 }
 
 /// What the policies read from an emoji-only message.

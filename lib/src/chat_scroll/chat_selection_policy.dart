@@ -99,9 +99,20 @@ sealed class ChatSelectionPolicy {
   /// message membership alone.
   ///
   /// Independently, a live **character-range text selection** (non-collapsed)
-  /// always suppresses inline activation on the facade under both policies.
-  /// Mere arm-for-entry (desktop pointer-down) does not.
+  /// suppresses inline activation on the facade; [scopesTextRangeSuppressionToSubject]
+  /// says where. Mere arm-for-entry (desktop pointer-down) does not.
   bool get suppressesLinkTapInMessageSelection;
+
+  /// Whether a live **character-range text selection** suppresses inline
+  /// activation only inside its own **text selection subject**.
+  ///
+  /// Under [$Mobile] (`false`), the range owns every tap in the viewport: a
+  /// tap on any link dismisses the range instead of opening it.
+  /// Under [$Desktop] (`true`), the range owns only its own message (a click
+  /// inside it positions or dismisses); a click on a link or code chrome of
+  /// another message activates it, since a pointer is never confined to the
+  /// message it last selected in.
+  bool get scopesTextRangeSuppressionToSubject;
 
   /// Whether a wired [ChatScrollView.onSecondaryMessageTap] claims the full
   /// message **slot** for secondary (including glyphs), so per-body Flutter
@@ -201,6 +212,9 @@ final class ChatSelectionPolicy$Mobile implements ChatSelectionPolicy {
   bool get suppressesLinkTapInMessageSelection => true;
 
   @override
+  bool get scopesTextRangeSuppressionToSubject => false;
+
+  @override
   bool get secondaryMessageTapOwnsFullSlot => false;
 
   @override
@@ -270,6 +284,9 @@ final class ChatSelectionPolicy$Desktop implements ChatSelectionPolicy {
 
   @override
   bool get suppressesLinkTapInMessageSelection => false;
+
+  @override
+  bool get scopesTextRangeSuppressionToSubject => true;
 
   @override
   bool get secondaryMessageTapOwnsFullSlot => true;

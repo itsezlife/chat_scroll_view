@@ -26,6 +26,8 @@ import 'features/chat/chat_copy_test.dart' as chat_copy_test;
 import 'features/chat/chat_data_source_bodies_test.dart'
     as chat_data_source_bodies_test;
 import 'features/chat/chat_draft_store_test.dart' as chat_draft_store_test;
+import 'features/chat/chat_messages_copy_format_test.dart'
+    as chat_messages_copy_format_test;
 import 'features/chat/emoji_chrome_test.dart' as emoji_chrome_test;
 import 'features/chat/emoji_service_colors_test.dart'
     as emoji_service_colors_test;
@@ -33,6 +35,7 @@ import 'features/chat/joined_collection_source_test.dart'
     as joined_collection_source_test;
 import 'features/chat/large_emoji_test.dart' as large_emoji_test;
 import 'features/chat/link_activation_test.dart' as link_activation_test;
+import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
 import 'features/chat/sticker_interaction_stub_test.dart'
     as sticker_interaction_stub_test;
 import 'glyph_probe_wiring_test.dart' as glyph_probe_wiring_test;
@@ -70,12 +73,17 @@ import 'widgets/demo_message_edit_transition_test.dart'
     as demo_message_edit_transition_test;
 import 'widgets/demo_message_markdown_registration_test.dart'
     as demo_message_markdown_registration_test;
+import 'widgets/desktop_copy_shortcut_test.dart' as desktop_copy_shortcut_test;
+import 'widgets/emoji_selection_clear_test.dart' as emoji_selection_clear_test;
+import 'widgets/large_emoji_limit_button_test.dart'
+    as large_emoji_limit_button_test;
 import 'widgets/message_menu_test.dart' as message_menu_test;
 import 'widgets/notes_dialog_test.dart' as notes_dialog_test;
 import 'widgets/panel_keeps_composer_focus_test.dart'
     as panel_keeps_composer_focus_test;
 import 'widgets/panel_menu_holds_popup_test.dart'
     as panel_menu_holds_popup_test;
+import 'widgets/status_click_test.dart' as status_click_test;
 import 'widgets/unread_boundary_background_test.dart'
     as unread_boundary_background_test;
 import 'widgets/unread_separator_test.dart' as unread_separator_test;
@@ -125,6 +133,10 @@ void main() {
     'features/chat/joined_collection_source_test.dart',
     joined_collection_source_test.main,
   );
+  group(
+    'features/chat/chat_messages_copy_format_test.dart',
+    chat_messages_copy_format_test.main,
+  );
   group('features/chat/emoji_chrome_test.dart', emoji_chrome_test.main);
   group(
     'features/chat/emoji_service_colors_test.dart',
@@ -132,6 +144,10 @@ void main() {
   );
   group('features/chat/large_emoji_test.dart', large_emoji_test.main);
   group('features/chat/link_activation_test.dart', link_activation_test.main);
+  group(
+    'features/chat/spoiler_round_trip_test.dart',
+    spoiler_round_trip_test.main,
+  );
   group(
     'features/chat/sticker_interaction_stub_test.dart',
     sticker_interaction_stub_test.main,
@@ -191,6 +207,18 @@ void main() {
     'widgets/demo_message_markdown_registration_test.dart',
     demo_message_markdown_registration_test.main,
   );
+  group(
+    'widgets/desktop_copy_shortcut_test.dart',
+    desktop_copy_shortcut_test.main,
+  );
+  group(
+    'widgets/emoji_selection_clear_test.dart',
+    emoji_selection_clear_test.main,
+  );
+  group(
+    'widgets/large_emoji_limit_button_test.dart',
+    large_emoji_limit_button_test.main,
+  );
   group('widgets/message_menu_test.dart', message_menu_test.main);
   group('widgets/notes_dialog_test.dart', notes_dialog_test.main);
   group(
@@ -201,6 +229,7 @@ void main() {
     'widgets/panel_menu_holds_popup_test.dart',
     panel_menu_holds_popup_test.main,
   );
+  group('widgets/status_click_test.dart', status_click_test.main);
   group(
     'widgets/unread_boundary_background_test.dart',
     unread_boundary_background_test.main,

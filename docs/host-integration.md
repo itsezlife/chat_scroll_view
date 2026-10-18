@@ -634,7 +634,11 @@ What the host wires so a markdown body paints and reports the inline layer
    While a message selection is live a tap toggles the row and the spoiler
    stays hidden (the facade drives `spoilers.tapReveals`; do not write it). A
    press held past `spoilers.tapTimeout` (500 ms) is a long press and reveals
-   nothing; a desktop host with a mouse sets `tapTimeout = null`.
+   nothing; a desktop host with a mouse sets `tapTimeout = null`. A text
+   selection over a hidden spoiler leaves it hidden; its copy hands the
+   `copyWriter` the `spoiler` style bit, which the host puts on the rich
+   clipboard so a paste into the composer is a spoiler again. The plain text
+   carries the characters (ADR 037).
 4. **Mentions, usernames and hashtags.** Colour them with
    `MarkdownThemeData.mentionColor` (they follow the link colour otherwise).
    Taps are `ChatResolvedMentionActivated` (with the user's `id`) or
@@ -642,6 +646,35 @@ What the host wires so a markdown body paints and reports the inline layer
    and `ChatHashtagActivated`; a link inside a hidden spoiler reveals it and
    reports nothing, and a tap that reveals a spoiler is not an idle message tap
    (`onIdleMessageTap` stays silent for it; the next tap is).
+
+### Copying selected messages
+
+Copy of a **message selection** is the host's: the viewport hands a host that
+sets `copyWriter` the text selection's copy, and gives the host the selected
+ids. What the host wires:
+
+1. **The copy key.** The platform's copy shortcut (Cmd+C on macOS and iOS,
+   Ctrl+C elsewhere) is a `CopySelectionTextIntent`. The viewport answers it for
+   a **text selection** (it binds the key in each body to
+   `ChatSelectionController.copyTextSelection`, so the copy goes through
+   `copyWriter`, the rich clipboard and `ChatCopied`). For a message selection
+   the host binds the intent in an `Actions` above the viewport *and* the
+   composer, enabled only while `isSelectionMode`: a focused composer with a
+   selection of its own answers first (its action is enabled), and with none
+   its action is disabled and the intent reaches the host's.
+2. **Focus.** `ChatKeyboardShortcuts` takes the focus when a message selection
+   starts, also when the host lets go of its composer's focus in a listener of
+   its own. A host without that wrapper must hold the focus somewhere inside
+   the `Actions` above, or the key reaches no one.
+3. **Format.** Per selection policy, as the reference clients write it: under
+   `$Desktop` one message is its text and several are `[time] Name: text` lines
+   a newline apart (Telegram Desktop, `HistorySelectedItemsText`); under
+   `$Mobile` messages are a blank line apart with a `Name:` line before the
+   first and wherever the sender changes (Telegram Android); a single message
+   is its text alone in both. The time is the system locale's short date and
+   time on the desktop client, so the host supplies its own formatter. The
+   demo's `ChatMessagesCopyFormat` is one implementation; the rich form
+   (entities) of each body is kept behind the headers.
 
 ### Emoji-only messages
 
