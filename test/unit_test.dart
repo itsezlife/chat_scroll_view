@@ -28,6 +28,7 @@ import 'chat_scroll_motion_test.dart' as chat_scroll_motion_test;
 import 'chat_scroll_physics_test.dart' as chat_scroll_physics_test;
 import 'chat_sender_run_layout_test.dart' as chat_sender_run_layout_test;
 import 'chat_stretch_overscroll_test.dart' as chat_stretch_overscroll_test;
+import 'goldens/inline_layer_golden_test.dart' as inline_layer_golden_test;
 import 'viewport_never_detects_test.dart' as viewport_never_detects_test;
 import 'widgets/chat_absent_build_test.dart' as chat_absent_build_test;
 import 'widgets/chat_animate_path_test.dart' as chat_animate_path_test;
@@ -157,6 +158,7 @@ void main() {
   group('chat_scroll_physics_test.dart', chat_scroll_physics_test.main);
   group('chat_sender_run_layout_test.dart', chat_sender_run_layout_test.main);
   group('chat_stretch_overscroll_test.dart', chat_stretch_overscroll_test.main);
+  group('goldens/inline_layer_golden_test.dart', inline_layer_golden_test.main);
   group('viewport_never_detects_test.dart', viewport_never_detects_test.main);
   group('widgets/chat_absent_build_test.dart', chat_absent_build_test.main);
   group('widgets/chat_animate_path_test.dart', chat_animate_path_test.main);

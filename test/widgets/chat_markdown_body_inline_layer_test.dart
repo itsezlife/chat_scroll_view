@@ -2,8 +2,10 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
-import 'package:flutter_md/flutter_md.dart' show MarkdownWidget;
+import 'package:flutter/rendering.dart' show RendererBinding;
+import 'package:flutter_md/flutter_md.dart' show MD$Paragraph, MarkdownWidget;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../chat_message.dart';
@@ -61,15 +63,18 @@ void main() {
 
   // The platform override is a foundation debug variable: it has to be unset
   // before the test body ends, so it cannot live in a tearDown.
-  void inlineTest(String name, Future<void> Function(WidgetTester) body) =>
-      testWidgets(name, (tester) async {
-        debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-        try {
-          await body(tester);
-        } finally {
-          debugDefaultTargetPlatformOverride = null;
-        }
-      });
+  void inlineTest(
+    String name,
+    Future<void> Function(WidgetTester) body, {
+    TargetPlatform platform = TargetPlatform.iOS,
+  }) => testWidgets(name, (tester) async {
+    debugDefaultTargetPlatformOverride = platform;
+    try {
+      await body(tester);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 
   setUp(() {
     controller = ChatScrollController();
@@ -82,9 +87,10 @@ void main() {
   ChatSelectionController newSelection({
     bool handlesEmbedHits = false,
     PlaybackClock? spoilerClock,
+    ChatSelectionPolicy policy = const ChatSelectionPolicy.mobile(),
   }) {
     final selection = ChatSelectionController(
-      policy: const ChatSelectionPolicy.mobile(),
+      policy: policy,
       onInteraction: interactions.add,
       handlesEmbedHits: handlesEmbedHits,
       spoilerClock: spoilerClock,
@@ -352,6 +358,135 @@ void main() {
         selection.spoilers.wantsTicks.value,
         isTrue,
         reason: 'the hidden spoiler is still on screen and still moves',
+      );
+    });
+  });
+
+  group('the cursor over a body', () {
+    TestGesture? mouse;
+    setUp(() => mouse = null);
+
+    Future<MouseCursor> hover(
+      WidgetTester tester,
+      ChatSelectionController selection,
+      int from,
+      int to,
+    ) async {
+      var pointer = mouse;
+      if (pointer == null) {
+        pointer = mouse = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+        );
+        await pointer.addPointer(location: const Offset(1, 1));
+        addTearDown(pointer.removePointer);
+      }
+      await pointer.moveTo(_pointOn(selection, 1, from, to));
+      await tester.pump();
+      // The first mouse a test creates is device 1.
+      return RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1)!;
+    }
+
+    inlineTest(
+      'is a click over a mention, a username and a hashtag',
+      (tester) async {
+        final selection = newSelection(
+          policy: const ChatSelectionPolicy.desktop(),
+        );
+        await pump(tester, selection, {
+          1: 'a [@Ann](mention:42) b [@bob](username:bob) c [#tag](hashtag:tag)',
+        });
+
+        expect(await hover(tester, selection, 2, 6), SystemMouseCursors.click);
+        expect(await hover(tester, selection, 9, 13), SystemMouseCursors.click);
+        expect(
+          await hover(tester, selection, 16, 20),
+          SystemMouseCursors.click,
+        );
+        expect(await hover(tester, selection, 0, 1), SystemMouseCursors.text);
+      },
+      platform: TargetPlatform.macOS,
+    );
+
+    inlineTest(
+      'is a click over an embed only when the host handles them',
+      (tester) async {
+        final inert = newSelection(policy: const ChatSelectionPolicy.desktop());
+        await pump(tester, inert, {
+          1: 'hi ![:wave:](fake:1) there',
+        }, resolver: embeds);
+        expect(await hover(tester, inert, 3, 9), SystemMouseCursors.text);
+
+        final live = newSelection(
+          policy: const ChatSelectionPolicy.desktop(),
+          handlesEmbedHits: true,
+        );
+        await pump(tester, live, {
+          1: 'hi ![:wave:](fake:1) there',
+        }, resolver: embeds);
+        expect(await hover(tester, live, 3, 9), SystemMouseCursors.click);
+      },
+      platform: TargetPlatform.macOS,
+    );
+
+    inlineTest('is a click over a hidden spoiler', (tester) async {
+      final selection = newSelection(
+        policy: const ChatSelectionPolicy.desktop(),
+      );
+      await pump(tester, selection, {1: 'x ||secret|| y'});
+
+      expect(await hover(tester, selection, 2, 8), SystemMouseCursors.click);
+    }, platform: TargetPlatform.macOS);
+  });
+
+  group('copy', () {
+    inlineTest('the plain text is the revealed text with the embed\'s alt', (
+      tester,
+    ) async {
+      final selection = newSelection();
+      await pump(tester, selection, {
+        1: 'hi [@Ann](mention:42) ![:wave:](fake:1) ||secret|| **end**',
+      }, resolver: embeds);
+      selection.startSelection(1);
+      await tester.pumpAndSettle();
+
+      expect(selection.enterTextSelection(1), isTrue);
+      await tester.pumpAndSettle();
+
+      expect(selection.textSelectionPlainText(), 'hi @Ann :wave: secret end');
+      expect(selection.spoilers.isRevealed(1), isTrue);
+    });
+
+    inlineTest('hands a host writer the structure, spoiler and embed spans', (
+      tester,
+    ) async {
+      ChatTextCopy? copied;
+      final selection = ChatSelectionController(
+        policy: const ChatSelectionPolicy.mobile(),
+        copyWriter: (copy) async => copied = copy,
+      );
+      addTearDown(selection.dispose);
+      await pump(tester, selection, {
+        1: '[@Ann](mention:42) ![:wave:](fake:1) ||secret||',
+      }, resolver: embeds);
+      selection
+        ..startSelection(1)
+        ..enterTextSelection(1);
+      await tester.pumpAndSettle();
+
+      await selection.copyTextSelection();
+
+      expect(copied!.plainText, '@Ann :wave: secret');
+      final spans = [
+        for (final block in copied!.content!.documents.single.blocks)
+          if (block.block case MD$Paragraph(:final spans)) ...spans,
+      ];
+      expect(
+        [for (final span in spans) span.style.styles],
+        containsAll(<Set<String>>[
+          {'mention'},
+          {'image'},
+          {'spoiler'},
+        ]),
       );
     });
   });

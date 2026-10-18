@@ -132,13 +132,21 @@ abstract final class ChatCopy {
       out.text(span.text.substring(cut - from, end - from));
       final style = span.style;
       final url = span.extra?['url'];
+      final whole = cut == from && end == to;
       if (style.contains(MD$Style.image)) {
-        // A custom emoji is one thing: only a whole one is itself.
+        // A custom emoji is one thing: only a whole one is itself. What is
+        // copied is its alt text (the span's text), also when it is not.
         final key = url is String ? ContentKey.tryParse(url) : null;
-        if (key != null && cut == from && end == to) {
+        if (key != null && whole) {
           out.entity(start, EntityKind.inlineContent(key));
         }
         continue;
+      }
+      if (style.contains(MD$Style.mention)) {
+        // The engine marks mentions with a style bit of their own and gives
+        // them no URL. Like an emoji, a mention is whole or it is its text:
+        // half of a name does not point at the user.
+        if (whole) _mention(out, start, span.extra);
       }
       if (style.contains(MD$Style.bold)) out.entity(start, EntityKind.bold);
       if (style.contains(MD$Style.italic)) out.entity(start, EntityKind.italic);
@@ -158,6 +166,25 @@ abstract final class ChatCopy {
         out.entity(start, EntityKind.link(url));
       }
     }
+  }
+
+  // The entity a mention-class span's `extra` names: `mention:id`,
+  // `username:name` or `hashtag:tag`.
+  static void _mention(
+    _RichTextBuilder out,
+    int start,
+    Map<String, Object?>? extra,
+  ) {
+    final name = extra?['name'];
+    final kind = switch (extra?['scheme']) {
+      'mention' when extra?['id'] is String => EntityKind.mention(
+        extra!['id']! as String,
+      ),
+      'username' when name is String => EntityKind.username(name),
+      'hashtag' when name is String => EntityKind.hashtag(name),
+      _ => null,
+    };
+    if (kind != null) out.entity(start, kind);
   }
 
   static String _slice(String text, TextRange range) => text.substring(
