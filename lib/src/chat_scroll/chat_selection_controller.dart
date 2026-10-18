@@ -555,12 +555,15 @@ class ChatSelectionController implements Listenable {
     Object? token,
   }) => putBody(messageId, model, order: order, token: token);
 
-  /// Registers a body of [messageId] that paints no text (an emoji-only body,
-  /// later a media body), the way [putBody] registers a text one.
+  /// Registers a body of [messageId] that has activatable parts to arbitrate
+  /// taps for (a sticker, later a media body), the way [putBody] registers a
+  /// text one.
   ///
-  /// The message has nothing to select then: no text surface, no character
-  /// range, and a long press on it is message selection. The facade asks the
-  /// body only for its activatable parts ([resolveInlineHit]) and its bounds.
+  /// Alone it is a message with nothing to select: no text surface, no
+  /// character range, and a long press on it is message selection. The facade
+  /// asks the body for its activatable parts ([resolveInlineHit], before the
+  /// text model's own) and its bounds. A body that is also text (the text
+  /// layout of an emoji-only message) registers [putBody] as well.
   /// Returns the token to pass to [removeNonTextBody]; several mounts may
   /// share one [messageId] and the last answers. Null after [dispose].
   Object? putNonTextBody(int messageId, ChatNonTextBody body) =>

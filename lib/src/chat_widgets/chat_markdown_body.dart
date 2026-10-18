@@ -1,21 +1,11 @@
-import 'dart:async';
-
 import 'package:catalog_assets/catalog_assets.dart' show InlineEmbedResolver;
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_body_selection_scope.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_code_block_painter.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_inline_embed_adapter.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_autoscroll.dart';
-import 'package:chat_scroll_view/src/chat_widgets/chat_secondary_message_tap_scope.dart';
 import 'package:content_model/content_model.dart' show EmojiRuns;
-import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart'
-    show
-        AdaptiveTextSelectionToolbar,
-        ContextMenuButtonItem,
-        ContextMenuButtonType;
-import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_md/flutter_md.dart';
 
@@ -176,13 +166,6 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   bool? _cachedTablePanEnabled;
   MarkdownThemeData? _resolvedTheme;
 
-  /// Default when [ChatMarkdownBody.autoscroll] is null — rebuilt only when
-  /// options / policy / display Hz change so mid-drag list rebuilds keep the
-  /// scope’s cached target (resolver identity is part of config equality).
-  MarkdownSelectionAutoscrollConfig? _scopeAutoscroll;
-  ChatMarkdownAutoscrollOptions? _scopeAutoscrollOptions;
-  ChatSelectionPolicy? _scopeAutoscrollPolicy;
-  double? _scopeAutoscrollHz;
   AnimationController? _pressController;
   AnimationController? _releaseController;
   final _feedbackNotifier = ValueNotifier<ChatSpanFeedback?>(null);
@@ -338,26 +321,6 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
       _feedbackNotifier.value = null;
       widget.controller.setSpanFeedback(null);
     }
-  }
-
-  MarkdownSelectionAutoscrollConfig _resolvedAutoscroll() {
-    final options = widget.autoscroll ?? const ChatMarkdownAutoscrollOptions();
-    final policy = widget.controller.selectionPolicy;
-    final hz = ChatMarkdownAutoscroll.readDisplayRefreshHz();
-    if (_scopeAutoscroll case final cached?
-        when options == _scopeAutoscrollOptions &&
-            identical(policy, _scopeAutoscrollPolicy) &&
-            hz == _scopeAutoscrollHz) {
-      return cached;
-    }
-    _scopeAutoscrollOptions = options;
-    _scopeAutoscrollPolicy = policy;
-    _scopeAutoscrollHz = hz;
-    return _scopeAutoscroll = ChatMarkdownAutoscroll.config(
-      options: options,
-      policy: policy,
-      displayRefreshHz: hz,
-    );
   }
 
   /// Whether a hit is something a tap does here: every kind, except an embed
@@ -569,110 +532,6 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     return _mountsSurface ? null : MouseCursor.defer;
   }
 
-  bool _isScopeEnabled(bool mountSurface) {
-    if (!mountSurface) return false;
-    final isSubject =
-        widget.controller.textSelectionSubject == widget.messageId;
-    if (isSubject) return true;
-    final policy = widget.controller.selectionPolicy;
-    // Mobile message-then-text: selected bodies stay armed for continuous
-    // text entry and retarget, including while text is live on another subject
-    // (ADR 015). Unselected rows stay off so message-selection long-press wins.
-    if (policy.nestsTextSubjectInMessageSelection &&
-        widget.controller.isSelected(widget.messageId)) {
-      return true;
-    }
-    // Desktop/web: direct entry only while message membership is empty —
-    // settled message selection and text selection are exclusive under
-    // [$Desktop]. Surfaces may still mount for inline hit-testing; the
-    // scope stays off.
-    if (policy.allowsTextEntryWithoutMessageSelection) {
-      return !widget.controller.isSelectionMode &&
-          !widget.controller.hasDragSelection;
-    }
-    return false;
-  }
-
-  /// Whether the scope should arm touch long-press for continuous text entry.
-  ///
-  /// Mobile: only when this body is message-selected or the text subject.
-  /// Desktop: false — mouse recognizers cover direct entry; touch multi-tap
-  /// must not steal viewport taps.
-  bool _enableTouchGestures(bool scopeEnabled) {
-    if (!scopeEnabled) return false;
-    final policy = widget.controller.selectionPolicy;
-    if (!policy.usesTimerBasedLongPress) return false;
-    return widget.controller.isSelected(widget.messageId) ||
-        widget.controller.textSelectionSubject == widget.messageId;
-  }
-
-  /// Whether the per-body scope may begin a character-range at [global].
-  ///
-  /// Plain body text always may. Fenced copy chrome never may (not text).
-  /// Under mobile message-then-text (selected body / active subject), link and
-  /// inline-code spans may — long-press enters text selection there. Idle and
-  /// desktop keep the scope off those hits so tap activation / copy win.
-  bool _canStartTextSelectionAt(Offset global) {
-    final hit = widget.controller.resolveInlineHit(widget.messageId, global);
-    if (hit == null) {
-      // Painter reports fenced copy chrome even when resolveInlineHit missed
-      // (e.g. position clamp edge). Never arm text over COPY CODE / header.
-      final surface = widget.controller.surfaceFor(widget.messageId);
-      if (surface != null && surface.isLinkAtGlobal(global)) return false;
-      return true;
-    }
-    // Fenced copy chrome: no text-contour geometry — not a selection start.
-    if (hit case ChatInlineHit$Code(
-      :final contourPath,
-      :final touchOrigin,
-    ) when contourPath == null && touchOrigin == null) {
-      return false;
-    }
-    final policy = widget.controller.selectionPolicy;
-    if (policy.usesTimerBasedLongPress &&
-        (widget.controller.isSelected(widget.messageId) ||
-            widget.controller.textSelectionSubject == widget.messageId)) {
-      return true;
-    }
-    return false;
-  }
-
-  Widget _buildContextMenu(
-    BuildContext context,
-    MarkdownSelectionScopeState state,
-  ) {
-    final items = <ContextMenuButtonItem>[];
-    if (widget.controller.textSelection case final sel? when !sel.isCollapsed) {
-      items.add(
-        ContextMenuButtonItem(
-          type: ContextMenuButtonType.copy,
-          onPressed: () async {
-            await widget.controller.copyTextSelection();
-            state.hideToolbar();
-          },
-        ),
-      );
-    }
-    if (widget.controller.hasBody(widget.messageId)) {
-      items.add(
-        ContextMenuButtonItem(
-          type: ContextMenuButtonType.selectAll,
-          onPressed: () {
-            widget.controller.selectAllText();
-            state.showToolbar();
-          },
-        ),
-      );
-    }
-    if (items.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return AdaptiveTextSelectionToolbar.buttonItems(
-      buttonItems: items,
-      anchors: state.contextMenuAnchors,
-    );
-  }
-
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: widget.controller,
@@ -683,30 +542,13 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
       final mountSurface =
           register &&
           widget.controller.exposesSelectionSurface(widget.messageId);
-      final scopeEnabled = _isScopeEnabled(mountSurface);
       _mountsSurface = mountSurface;
       _reportPaintBounds();
       return switch (model) {
         null => const SizedBox.shrink(),
         final md => Listener(
           behavior: HitTestBehavior.translucent,
-          onPointerDown: (event) {
-            _tryBeginInlinePress(event);
-            if (event.kind == PointerDeviceKind.mouse) {
-              final policy = widget.controller.selectionPolicy;
-              if (policy.allowsTextEntryWithoutMessageSelection &&
-                  !widget.controller.isSelectionMode) {
-                if (widget.controller.resolveInlineHit(
-                      widget.messageId,
-                      event.position,
-                    ) !=
-                    null) {
-                  return;
-                }
-                widget.controller.armTextSelection(widget.messageId);
-              }
-            }
-          },
+          onPointerDown: _tryBeginInlinePress,
           onPointerMove: _onInlinePressMove,
           onPointerUp: (event) {
             if (!_armedInlinePress || event.pointer != _inlinePressPointer) {
@@ -737,83 +579,23 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
                   : null,
               child: child,
             ),
-            // The scope answers [CopySelectionTextIntent] itself, nearer to
-            // its focus than the actions below, and writes plain text to the
-            // platform clipboard: no host writer, no rich form, no copy
-            // feedback. The copy key is therefore routed to an intent of the
-            // facade's own, which no scope knows.
-            child: Shortcuts(
-              shortcuts: _copyShortcuts,
-              child: Actions(
-                actions: <Type, Action<Intent>>{
-                  _CopyTextSelectionIntent: _CopyTextSelectionAction(
-                    widget.controller,
-                  ),
-                  CopySelectionTextIntent:
-                      CallbackAction<CopySelectionTextIntent>(
-                        onInvoke: (_) {
-                          widget.controller.copyTextSelection();
-                          return null;
-                        },
-                      ),
-                  SelectAllTextIntent: CallbackAction<SelectAllTextIntent>(
-                    onInvoke: (_) {
-                      widget.controller.selectAllText();
-                      return null;
-                    },
-                  ),
-                  DismissIntent: CallbackAction<DismissIntent>(
-                    onInvoke: (_) {
-                      widget.controller.clearTextSelection();
-                      return null;
-                    },
-                  ),
-                },
-                child: MarkdownSelectionScope(
-                  controller: widget.controller.markdownSelection,
-                  enabled: scopeEnabled,
-                  // Drive the anchor viewport.
-                  autoscroll: _resolvedAutoscroll(),
-                  // Continuous text: touch long-press → word → drag-extend
-                  // (ADR 015). Consecutive taps stay off so the viewport owns
-                  // toggle / dismiss taps; mouse multi-click remains desktop.
-                  enableTouchGestures: _enableTouchGestures(scopeEnabled),
-                  enableTouchConsecutiveTaps: false,
-                  canStartSelectionAt: _canStartTextSelectionAt,
-                  // Subject-only chrome: siblings share the controller under
-                  // mobile multi-select but must not paint this body's handles
-                  // or toolbar until they are the text selection subject.
-                  ownsSelectionChrome: (documentId) =>
-                      documentId == widget.messageId &&
-                      widget.controller.textSelectionSubject ==
-                          widget.messageId,
-                  // Desktop + host secondary → yield right-click to the full-slot
-                  // message menu. Mobile keeps adaptive text chrome even when
-                  // secondary is also wired (menu entry is idle primary).
-                  contextMenuBuilder:
-                      ChatSecondaryMessageTapScope.hostOwnsSecondaryOf(
-                            context,
-                          ) &&
-                          widget
-                              .controller
-                              .selectionPolicy
-                              .secondaryMessageTapOwnsFullSlot
-                      ? null
-                      : _buildContextMenu,
-                  child: MarkdownWidget(
-                    markdown: md,
-                    theme: _resolveTheme(context),
-                    // The message id keys the spoiler state whether or not the
-                    // selection surface is mounted (a spoiler must not show its
-                    // text because another message is selected).
-                    documentId: widget.messageId,
-                    controller: mountSurface
-                        ? widget.controller.markdownSelection
-                        : _inertSelection ??= MarkdownSelectionController(),
-                    spoilerController: widget.controller.spoilers,
-                    embedResolver: _adaptedEmbedResolver(),
-                  ),
-                ),
+            child: ChatBodySelectionScope(
+              controller: widget.controller,
+              messageId: widget.messageId,
+              mountSurface: mountSurface,
+              autoscroll: widget.autoscroll,
+              child: MarkdownWidget(
+                markdown: md,
+                theme: _resolveTheme(context),
+                // The message id keys the spoiler state whether or not the
+                // selection surface is mounted (a spoiler must not show its
+                // text because another message is selected).
+                documentId: widget.messageId,
+                controller: mountSurface
+                    ? widget.controller.markdownSelection
+                    : _inertSelection ??= MarkdownSelectionController(),
+                spoilerController: widget.controller.spoilers,
+                embedResolver: _adaptedEmbedResolver(),
               ),
             ),
           ),
@@ -821,43 +603,4 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
       };
     },
   );
-}
-
-/// The copy key of the platform (Cmd+C on Apple platforms, Ctrl+C elsewhere)
-/// over a body's text selection, as the platform's own text fields bind it.
-final Map<ShortcutActivator, Intent> _copyShortcuts =
-    <ShortcutActivator, Intent>{
-      SingleActivator(
-        LogicalKeyboardKey.keyC,
-        meta: _isApple,
-        control: !_isApple,
-      ): const _CopyTextSelectionIntent(),
-    };
-
-bool get _isApple => switch (defaultTargetPlatform) {
-  TargetPlatform.macOS || TargetPlatform.iOS => true,
-  _ => false,
-};
-
-/// Copy of the facade's text selection, apart from [CopySelectionTextIntent]
-/// (see the comment where the shortcut is bound).
-class _CopyTextSelectionIntent extends Intent {
-  const _CopyTextSelectionIntent();
-}
-
-class _CopyTextSelectionAction extends Action<_CopyTextSelectionIntent> {
-  _CopyTextSelectionAction(this._controller);
-
-  final ChatSelectionController _controller;
-
-  // Off with no text selected, so the key goes on to the message copy.
-  @override
-  bool isEnabled(_CopyTextSelectionIntent intent) =>
-      _controller.isTextSelectionActive;
-
-  @override
-  Object? invoke(_CopyTextSelectionIntent intent) {
-    unawaited(_controller.copyTextSelection());
-    return null;
-  }
 }

@@ -19,6 +19,7 @@
   request is unchanged. See ADR 016 and ADR 036.
 - **EXAMPLE**: `EmojiReactionsRow.chipRects` (the row's chips), and
   `emojiSurfaceParts` in `emoji_message/`.
+
 ### Selection highlight: one look for text, emoji and embeds
 - **Fixed**: a text selection painted a box for every run at the run's own
   height (a drawn-larger emoji, a text run and an inline embed were three
@@ -32,6 +33,32 @@
   link or inline code reads the same rectangles, so its contour is the line's
   height too. Needs the `flutter_md` change that makes `boxesForRange` per line
   (not released yet).
+
+### Emoji-only text messages are text-selectable
+- **BREAKING (behaviour)**: the text layout of `ChatEmojiBody` is no longer "no
+  text selection". It registers its text with the facade and its render object
+  is a `MarkdownSelectionSurface`, so drag, double click (one emoji), long
+  press on mobile, select-all, shift-select, handles, the toolbar and Copy work
+  on it as on a markdown body, under the host's selection policy. A host or
+  test that relied on a long press on a selected emoji-only message doing
+  nothing, or on `hasBody(id)` being false for it, sees text selection instead:
+  pass `selectableText: false` for the previous behaviour (also the Desktop and
+  iOS reference clients' rule; only Android selects its large emoji, see
+  ADR 036). The sticker layout (one emoji resolved to a document) is unchanged
+  and never text.
+- Copy of a selection is the emoji and the line breaks, plain, and structured
+  through `ChatTextCopy.content` (a custom emoji is an image span with its
+  document in `extra['src']`). The spaces and tabs `EmojiOnly` drops are not in
+  it.
+- **ADDED** (`content_model`): `EmojiOnlyItem.alt`, the text under a custom
+  emoji's entity (what a copy writes); empty for a unicode item and for a host
+  that builds the value by hand, which then copies as U+FFFC.
+- **ADDED**: `ChatEmojiBody(selectableText:, autoscroll:)`. The per-item boxes
+  of a selection are `RenderChatEmojiBody.selectedItemBoxes`; the highlight is
+  one box per line under the items, never over an embed.
+- **Fixed**: a press on an inline embed the host does not handle
+  (`handlesEmbedHits` off) no longer blocks a text selection from starting
+  there, in the markdown body too: it is part of the text.
 
 ### Status chrome of an emoji-only message: hover is the row's, a click selects (docs and example)
 - **Changed (host contract, no API change)**: the reference desktop client shows an

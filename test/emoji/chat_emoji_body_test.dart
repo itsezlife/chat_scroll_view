@@ -120,6 +120,7 @@ void main() {
     ChatEmojiEmbedFactory? factory,
     ChatEmojiPolicy policy = const ChatEmojiPolicy.android(),
     double bottomReserve = 0,
+    bool selectableText = true,
   }) => tester.pumpWidget(
     MediaQuery(
       data: MediaQueryData.fromView(
@@ -145,6 +146,7 @@ void main() {
                 hasHeader: hasHeader,
                 policy: policy,
                 bottomReserve: bottomReserve,
+                selectableText: selectableText,
                 embedFactory: factory ?? embeds.call,
               ),
             ),
@@ -942,13 +944,15 @@ void main() {
   });
 
   group('registration', () {
-    testWidgets('it registers as a non-text body, and leaves on removal', (
+    testWidgets('it registers its text and its hits, and leaves on removal', (
       tester,
     ) async {
       view(tester, const Size(3000, 1000));
       await pumpBody(tester, _items(2, allCustom: true));
 
-      expect(selection.hasBody(1), isFalse);
+      // The text layout is a text body (ticket 03 of chat-polish-3)...
+      expect(selection.hasBody(1), isTrue);
+      // ...and also the non-text body that answers its taps.
       final box = tester.getRect(find.byType(ChatEmojiBody));
       expect(
         selection.resolveInlineHit(1, box.centerLeft + const Offset(5, 0)),
@@ -958,6 +962,29 @@ void main() {
       await tester.pumpWidget(const SizedBox());
 
       expect(selection.resolveInlineHit(1, box.centerLeft), isNull);
+      expect(selection.hasBody(1), isFalse);
+    });
+
+    testWidgets('the layout changing in place registers and drops the text', (
+      tester,
+    ) async {
+      view(tester, const Size(3000, 1000));
+      final one = _items(1, allCustom: true);
+      await pumpBody(tester, one);
+      expect(selection.hasBody(1), isTrue);
+
+      await pumpBody(tester, one, sticker: const ContentKey.document('pack'));
+      expect(selection.hasBody(1), isFalse);
+
+      await pumpBody(tester, one);
+      expect(selection.hasBody(1), isTrue);
+    });
+
+    testWidgets('selectableText: false registers no text', (tester) async {
+      view(tester, const Size(3000, 1000));
+      await pumpBody(tester, _items(2, allCustom: true), selectableText: false);
+
+      expect(selection.hasBody(1), isFalse);
     });
 
     testWidgets('a twin that must not register leaves the live entry alone', (
