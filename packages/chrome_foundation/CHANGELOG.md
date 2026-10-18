@@ -6,6 +6,30 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (pointer menu)
+
+- `PointerMenu`, the reference desktop client's popup list opened at the
+  pointer: rows with a mnemonic label and a shortcut hint, greyed rows,
+  separators, submenus that open on hover with a 300 ms aim hold, the
+  arrow-key model, the grow-from-the-corner open animation and the linear
+  fade out, a modal overlay that swallows the dismissing press, and focus kept
+  as a child of a given node. With `PointerMenuEntry`, `PointerMenuItem`,
+  `PointerMenuSeparator`, `PointerMenuMetrics` (every number marked verified,
+  derived or unverified), `PointerMenuPlacements`, `PointerMenuReveal`,
+  `PointerMenuAim`, `PointerMenuNavigation`, `PointerMenuTiming`,
+  `EaseOutCirc` and the row and panel keys.
+- `PointerMenuTokens` as a theme group (`ChromeThemeData.pointerMenu`,
+  `ChromeThemeScope.pointerMenuOf`, `ChromeThemeAspect.pointerMenu`), derived
+  from the palette, with the reference's day and night colours as
+  `referenceDay` and `referenceNight`. Source-breaking for hosts that build
+  `ChromeThemeData` field by field or switch over `ChromeThemeAspect`.
+- Motion roles `pointerMenuShow` (200 ms) and `pointerMenuHide` (150 ms).
+- `EditMenuStrings` (`ChromeStrings.editMenu`, `ChromeStringsScope.editMenuOf`):
+  the labels of the composer's pointer menu, in the reference client's wording
+  with Qt `&` mnemonics. Source-breaking for hosts that build
+  `ChromeStrings`: the group is required; the English and Russian presets have
+  it.
+
 ### Added
 
 - `FormattingStrings` (`ChromeStrings.formatting`, `ChromeStringsScope.formattingOf`):

@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('the reference client presets', () {
     test('day is the default theme\'s popup colours', () {
-      const day = PointerMenuTokens.telegramDay;
+      const day = PointerMenuTokens.referenceDay;
       expect(day.background, const Color(0xFFFFFFFF));
       expect(day.backgroundOver, const Color(0xFFF1F1F1));
       expect(day.text, const Color(0xFF000000));
@@ -19,7 +19,7 @@ void main() {
     });
 
     test('night is the night theme\'s popup colours', () {
-      const night = PointerMenuTokens.telegramNight;
+      const night = PointerMenuTokens.referenceNight;
       expect(night.background, const Color(0xFF17212B));
       expect(night.backgroundOver, const Color(0xFF232E3C));
       expect(night.text, const Color(0xFFF5F5F5));
@@ -65,15 +65,15 @@ void main() {
 
   group('copyWith, lerp and equality', () {
     test('copyWith replaces only the named field', () {
-      const base = PointerMenuTokens.telegramDay;
+      const base = PointerMenuTokens.referenceDay;
       final next = base.copyWith(text: const Color(0xFF123456));
       expect(next.text, const Color(0xFF123456));
       expect(next.background, base.background);
     });
 
     test('lerp returns the endpoints and blends the middle', () {
-      const a = PointerMenuTokens.telegramDay;
-      const b = PointerMenuTokens.telegramNight;
+      const a = PointerMenuTokens.referenceDay;
+      const b = PointerMenuTokens.referenceNight;
       expect(PointerMenuTokens.lerp(a, b, 0), a);
       expect(PointerMenuTokens.lerp(a, b, 1), b);
       expect(
@@ -88,8 +88,8 @@ void main() {
         PointerMenuTokens.fromPalette(const ChromePalette.light()),
       );
       expect(
-        PointerMenuTokens.telegramDay,
-        isNot(PointerMenuTokens.telegramNight),
+        PointerMenuTokens.referenceDay,
+        isNot(PointerMenuTokens.referenceNight),
       );
     });
   });

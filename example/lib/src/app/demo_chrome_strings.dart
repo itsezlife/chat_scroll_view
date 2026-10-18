@@ -68,7 +68,7 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     bulletListItem: 'Пункт маркированного списка',
     numberedListItem: (number) => 'Пункт нумерованного списка $number',
   ),
-  editMenu: EditMenuStrings(
+  editMenu: const EditMenuStrings(
     undoAction: 'Отменить',
     redoAction: 'Повторить',
     cutAction: 'Вырезать',
