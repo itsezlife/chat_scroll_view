@@ -43,15 +43,34 @@ ComposerSpec buildChatComposerSpec({
   required VoidCallback onAttach,
   required VoidCallback onVoice,
   required VoidCallback onCancelEdit,
+  ComposerHeader? suggestions,
+  ComposerHeader? linkPreview,
+  ComposerLinkPrompt? linkPrompt,
+  ComposerBackPriority? backPriority,
 }) {
   final composer = strings.composer;
   final isEditing = editing != null;
   return ComposerSpec(
-    header: isEditing
-        ? ComposerHeader.edit(preview: editing.preview, onDismiss: onCancelEdit)
-        : null,
+    // A suggestion panel is open only while a token is, so it takes the strip
+    // from an edit or a preview for that while; otherwise the edit outranks
+    // the preview.
+    header:
+        suggestions ??
+        ComposerHeader.prioritised([
+          if (isEditing)
+            ComposerHeader.edit(
+              preview: editing.preview,
+              onDismiss: onCancelEdit,
+            ),
+          linkPreview,
+        ]),
     busy: busy,
     messageLengthLimit: messageLengthLimit,
+    // The demo offers every item; lists are the second field's (the chat's
+    // text controller keeps them off, and the menu leaves them out then).
+    formatting: ComposerFormattingOption.all,
+    linkPrompt: linkPrompt,
+    backPriority: backPriority,
     actions: [
       ActionDescriptor(
         id: ChatComposerActions.panel,

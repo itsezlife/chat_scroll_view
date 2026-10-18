@@ -12,12 +12,16 @@ import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_directory.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_draft_sync.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_format_offer.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_link_preview.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/stub_panel_pages.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/link_url_dialog.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
@@ -132,6 +136,7 @@ final class ChatInputSet {
     }
 
     try {
+      late final ChatInputSet set;
       final ime = owned(ImeInput(), (ime) => ime.dispose());
       final window = owned(
         listen.ValueNotifier<PanelWindow>(
@@ -152,6 +157,9 @@ final class ChatInputSet {
           text: text,
           clipboard: services.clipboard,
           onPastedMedia: onPastedMedia,
+          queryKinds: ChatDirectory.queryKinds,
+          onPaste: (paste) => set._onPaste(paste),
+          confirmMention: ChatDirectory.knowsUser,
         ),
         (composer) => composer.dispose(),
       );
@@ -174,7 +182,6 @@ final class ChatInputSet {
         DockedStrategy(style: _dockedStyle, composerFocus: composer.focusNode),
         (strategy) => strategy.dispose(),
       );
-      late final ChatInputSet set;
       final frames = owned(
         SchedulerBakeFrameSource(view: view),
         (frames) => frames.dispose(),
@@ -269,7 +276,8 @@ final class ChatInputSet {
        _edit = edit,
        _confirmClearRecents = confirmClearRecents,
        _window = window,
-       _text = text {
+       _text = text,
+       linkPreview = ChatLinkPreview(text: text) {
     StreamSubscription<double>? heights;
     StreamSubscription<bool>? motion;
     StreamSubscription<PanelEvent>? panelEvents;
@@ -286,6 +294,7 @@ final class ChatInputSet {
       shell.search.addListener(_onSearchState);
       presentation.state.addListener(_onPresentationState);
       _onPresentationState();
+      composer.text.addListener(_onComposerText);
     } on Object {
       // The factory frees what it passed in; the rest is this object's.
       unawaited(heights?.cancel());
@@ -295,9 +304,12 @@ final class ChatInputSet {
       shell.search.removeListener(_onSearchState);
       _autoHideHold?.release();
       presentation.state.removeListener(_onPresentationState);
+      composer.text.removeListener(_onComposerText);
       _editing.dispose();
       _busy.dispose();
       _leaving.dispose();
+      _formatOffer.dispose();
+      linkPreview.dispose();
       rethrow;
     }
   }
@@ -334,6 +346,10 @@ final class ChatInputSet {
   /// The input.
   final ComposerController composer;
 
+  /// The link the composer's header offers a preview of, read from the typed
+  /// text.
+  final ChatLinkPreview linkPreview;
+
   /// The keyboard-replacement strategy (mobile).
   final KeyboardReplacementStrategy keyboardStrategy;
 
@@ -364,6 +380,8 @@ final class ChatInputSet {
       ValueNotifier<ChatEditTarget?>(null);
   final ValueNotifier<bool> _busy = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _leaving = ValueNotifier<bool>(false);
+  final ValueNotifier<ChatFormatOffer?> _formatOffer =
+      ValueNotifier<ChatFormatOffer?>(null);
 
   late StreamSubscription<double> _imeHeights;
   // The end of the keyboard's motion, which can come with no height of its
@@ -383,6 +401,7 @@ final class ChatInputSet {
   var _disposed = false;
   var _searchWantedFocus = false;
   ChatDraftSync? _draftSync;
+  Timer? _offerTimer;
   var _bindingDrafts = false;
 
   // --- State ----------------------------------------------------------------
@@ -606,6 +625,67 @@ final class ChatInputSet {
       if (!_disposed) _busy.value = false;
     }
   }
+
+  // --- Formatting menu ------------------------------------------------------
+
+  /// The standing offer to apply formatting to what was just pasted as plain
+  /// text, or null. The screen shows it as a toast; any edit, [lifetime] or an
+  /// answer ends it. It never holds the paste back.
+  ValueListenable<ChatFormatOffer?> get formatOffer => _formatOffer;
+
+  void _onPaste(ComposerPaste paste) {
+    if (_disposed) return;
+    _setOffer(ChatFormatOffer.of(paste, composer.richText));
+  }
+
+  void _setOffer(ChatFormatOffer? offer) {
+    _offerTimer?.cancel();
+    _offerTimer = null;
+    _formatOffer.value = offer;
+    if (offer == null) return;
+    _offerTimer = Timer(ChatFormatOffer.lifetime, () => _setOffer(null));
+  }
+
+  void _onComposerText() {
+    final offer = _formatOffer.value;
+    if (offer != null && composer.richText != offer.after) _setOffer(null);
+  }
+
+  /// Replaces the pasted text with what it reads as in markdown. Does nothing
+  /// when no offer stands.
+  void applyFormatOffer() {
+    final offer = _formatOffer.value;
+    if (_disposed || offer == null) return;
+    _setOffer(null);
+    composer.text.replaceRange(
+      offer.range.start,
+      offer.range.end,
+      offer.formatted,
+    );
+  }
+
+  /// Withdraws the offer, as when the user swipes the toast away.
+  void dismissFormatOffer() => _setOffer(null);
+
+  /// The dialog the composer asks for a link's URL with (`ComposerSpec.linkPrompt`):
+  /// the Create / Edit Link shape of the reference client, with the clipboard's
+  /// text offered.
+  ComposerLinkPrompt get linkPrompt => linkPromptOver(services.clipboard);
+
+  /// [linkPrompt] over [clipboard], for a field that has no input set.
+  static ComposerLinkPrompt linkPromptOver(RichClipboard clipboard) =>
+      (context, currentUrl) => showLinkUrlDialog(
+        context,
+        currentUrl: currentUrl,
+        clipboardText: () async => (await clipboard.read())?.plain,
+      );
+
+  /// Takes the system back ahead of the soft keyboard while the selection menu
+  /// is open (`ComposerSpec.backPriority`): the menu's claim stacks over the
+  /// panel's, so back closes the overflow page, then the menu, and only then
+  /// the panel.
+  static VoidCallback claimBack(ValueGetter<Future<bool>> onBack) =>
+      ChatPreImeBackClaim.push(onBack).pop;
 
   // --- Panel ----------------------------------------------------------------
 
@@ -956,6 +1036,8 @@ final class ChatInputSet {
     unawaited(_imeMotion.cancel());
     unawaited(_panelEvents.cancel());
     presentation.state.removeListener(_onPresentationState);
+    composer.text.removeListener(_onComposerText);
+    _offerTimer?.cancel();
     shell.autoHideHolds.removeListener(_onPanelHolds);
     shell.search.removeListener(_onSearchState);
     _autoHideHold?.release();
@@ -974,5 +1056,7 @@ final class ChatInputSet {
     _editing.dispose();
     _busy.dispose();
     _leaving.dispose();
+    _formatOffer.dispose();
+    linkPreview.dispose();
   }
 }

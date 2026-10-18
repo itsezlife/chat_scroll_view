@@ -1,11 +1,22 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/listen_value_builder.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_suggestion_bar.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/material.dart'
+    show
+        InkWell,
+        ScaffoldFeatureController,
+        ScaffoldMessenger,
+        ScaffoldMessengerState,
+        SnackBar,
+        SnackBarBehavior,
+        SnackBarClosedReason;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart' hide RichText;
 
@@ -55,6 +66,8 @@ class ChatComposer extends StatefulWidget {
 class _ChatComposerState extends State<ChatComposer> {
   var _selectionMode = false;
   var _anchorWatched = false;
+  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _toast;
+  ScaffoldMessengerState? _messenger;
 
   ChatInputSet get _input => widget.input;
 
@@ -63,6 +76,7 @@ class _ChatComposerState extends State<ChatComposer> {
     super.initState();
     _selectionMode = widget.selection.isSelectionMode;
     widget.selection.addListener(_onSelectionChanged);
+    widget.input.formatOffer.addListener(_onFormatOffer);
     _watchAnchor();
   }
 
@@ -79,8 +93,76 @@ class _ChatComposerState extends State<ChatComposer> {
   @override
   void dispose() {
     widget.selection.removeListener(_onSelectionChanged);
+    widget.input.formatOffer.removeListener(_onFormatOffer);
+    _closeToastAfterTeardown();
     super.dispose();
   }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _messenger = ScaffoldMessenger.maybeOf(context);
+  }
+
+  // --- Apply-formatting toast -------------------------------------------------
+
+  // The input set owns the offer (its lifetime and its end on any edit); this
+  // only draws it. The toast has no timeout of its own, so that the set's is
+  // the one that ends it.
+  void _onFormatOffer() {
+    if (widget.input.formatOffer.value == null) {
+      _closeToast();
+      return;
+    }
+    final messenger = _messenger;
+    if (messenger == null) return;
+    _closeToast();
+    final bottom = widget.input.insets.bottomPadding.value;
+    final width = MediaQuery.sizeOf(context).width;
+    final side = math.max<double>(16, (width - _toastMaxWidth) / 2);
+    final toast = messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        persist: true,
+        margin: EdgeInsets.fromLTRB(side, 0, side, bottom + _toastGap),
+        content: InkWell(
+          onTap: widget.input.applyFormatOffer,
+          child: const Text('Apply formatting'),
+        ),
+      ),
+    );
+    _toast = toast;
+    unawaited(
+      toast.closed.then((_) {
+        // Closed by the user (swiped away), not by the set ending the offer.
+        if (!identical(_toast, toast)) return;
+        _toast = null;
+        widget.input.dismissFormatOffer();
+      }),
+    );
+  }
+
+  void _closeToast() {
+    final toast = _toast;
+    _toast = null;
+    toast?.close();
+  }
+
+  // The messenger and the tree below it are being torn down when the screen
+  // goes: a close then looks up a deactivated ancestor. A frame later the
+  // messenger either lives on (the toast is closed) or is gone with the toast.
+  void _closeToastAfterTeardown() {
+    final toast = _toast;
+    final messenger = _messenger;
+    _toast = null;
+    if (toast == null || messenger == null) return;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (messenger.mounted) toast.close();
+    });
+  }
+
+  static const double _toastMaxWidth = 400;
+  static const double _toastGap = 8;
 
   void _onSelectionChanged() {
     final mode = widget.selection.isSelectionMode;
@@ -144,6 +226,8 @@ class _ChatComposerState extends State<ChatComposer> {
         _input.leavingForKeyboard,
         ListenableBridge(_input.presentation.state),
         ListenableBridge(_input.shell.selectedPageId),
+        ListenableBridge(composer.query),
+        ListenableBridge(_input.linkPreview.card),
       ]),
       builder: (context, _) {
         final spec = buildChatComposerSpec(
@@ -162,6 +246,20 @@ class _ChatComposerState extends State<ChatComposer> {
           onAttach: widget.onAttachPressed ?? () {},
           onVoice: widget.onVoicePressed ?? () {},
           onCancelEdit: _input.cancelEdit,
+          suggestions: ChatSuggestions.header(
+            composer.query.value,
+            onPick: composer.replaceQuery,
+          ),
+          linkPreview: switch (_input.linkPreview.card.value) {
+            final card? => ComposerHeader.linkPreview(
+              title: card.title,
+              preview: card.url,
+              onDismiss: _input.linkPreview.dismiss,
+            ),
+            null => null,
+          },
+          linkPrompt: _input.linkPrompt,
+          backPriority: ChatInputSet.claimBack,
         );
         Widget view(double? safeAreaBottom) => _input.keepPopupOpenOver(
           ComposerView(
