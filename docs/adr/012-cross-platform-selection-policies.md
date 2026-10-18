@@ -3,7 +3,9 @@
 **Status**: Accepted  
 **Date**: 2026-09-12  
 **Updated**: 2026-09-12 (engine-owned mobile routing; membership/retarget as
-this policy; inline hits; deferred desktop drag-out promotion)  
+this policy; inline hits; deferred desktop drag-out promotion); 2026-10-18
+(desktop: every body stays live while text is active; the range suppresses
+inline activation only in its own message)  
 **Supersedes**: [ADR 010](010-message-then-text-selection.md)
 
 Chat-list **message selection** and **text selection** are two modes under one
@@ -50,7 +52,13 @@ message selection / span gesture.
 
 Direct character-range entry: press+drag (letter / word / paragraph by click
 count) on bubble text, with no prior **message selection**. Text-active and
-message membership are **mutually exclusive**. Settled **message selection**
+message membership are **mutually exclusive**.
+Pressing a body arms it as the **text selection subject** on pointer-down, so
+text is active almost permanently: every other body therefore keeps its
+selection surface while text is active (text cursor, inline hits, the scope's
+mouse recognizers). A surface only on the subject would leave every other
+message dead until the subject was dismissed (a click elsewhere or Esc), which
+is the stuck-pointer defect this clause closes. Settled **message selection**
 does not allow starting character-range text selection;
 inline link/code activation may still fire without clearing membership.
 
@@ -75,6 +83,32 @@ commits message selection (`applyDragSelection`), locking out further text
 selection until message mode is dismissed. Omission from the foundation cut is
 not a policy rejection.
 
+## Status chrome (tap barrier)
+
+A mouse click on a message's status chrome (the time and delivery state, which
+desktop shows on hover for some bodies) is not a message tap. The host wraps
+the chrome in `ChatMessageTapBarrier`; the selection pointer then treats a
+primary press that starts on it as no press on the message: no toggle, no span
+or drag-select, no text-selection arming, no idle tap, no inline hit under it (a
+pill over a sticker's corner is not the sticker).
+
+Left unchanged on purpose: a **secondary** click still reaches
+`onSecondaryMessageTap` (the context menu is the message's wherever it opens),
+a tap still dismisses live **text selection**, and **touch is never barred**
+(Android routes a time tap in message selection to the row like any other tap).
+
+**Divergence from Telegram Desktop, recorded.** Its list widget makes a click
+on the date / time area (`CursorState::Date`, `BottomInfo::textState`) select
+the message when nothing is selected (`SelectAction::Select` in
+`ListWidget::mouseActionFinish`, `HistoryInner::mouseActionFinish`), toggles it
+in message selection like any other click, and starts a forward drag, not a
+text selection, from a press-and-drag there; a right-click opens the message's
+menu. Here the chosen behaviour is the host's: this repository's desktop
+policy does not select on a plain click, so a click on the pill does nothing,
+and the example wraps its pills in the barrier. A host that wants the
+reference's select-on-time-click does not wrap its status chrome and handles
+the click itself.
+
 ## Inline hits (both strategies)
 
 Link activation and code/pre click-to-copy (or host callbacks for those) are
@@ -83,7 +117,9 @@ selection** or a live **character-range text selection** suppresses *all*
 inline activations (links, inline code, fenced COPY chrome) so row toggles /
 range ownership win. Under desktop/web policy, inline activation stays live
 during **message selection** alone and during arm-for-entry; a live
-character-range still suppresses inline activation. Idle link and code taps
+character-range suppresses inline activation only inside its own message (the
+**text selection subject**). A link or code chrome in another message
+activates, and dismisses the range as any click away from it does. Idle link and code taps
 still activate.
 
 ## Considered options

@@ -53,6 +53,8 @@ import 'widgets/chat_code_block_painter_test.dart'
     as chat_code_block_painter_test;
 import 'widgets/chat_controller_test.dart' as chat_controller_test;
 import 'widgets/chat_date_separator_test.dart' as chat_date_separator_test;
+import 'widgets/chat_desktop_stuck_pointer_test.dart'
+    as chat_desktop_stuck_pointer_test;
 import 'widgets/chat_dispose_during_animate_test.dart'
     as chat_dispose_during_animate_test;
 import 'widgets/chat_follow_tail_test.dart' as chat_follow_tail_test;
@@ -87,6 +89,8 @@ import 'widgets/chat_message_change_transition_test.dart'
 import 'widgets/chat_message_menu_request_test.dart'
     as chat_message_menu_request_test;
 import 'widgets/chat_message_menu_test.dart' as chat_message_menu_test;
+import 'widgets/chat_message_tap_barrier_test.dart'
+    as chat_message_tap_barrier_test;
 import 'widgets/chat_message_theme_test.dart' as chat_message_theme_test;
 import 'widgets/chat_mobile_text_chrome_test.dart'
     as chat_mobile_text_chrome_test;
@@ -206,6 +210,10 @@ void main() {
   group('widgets/chat_controller_test.dart', chat_controller_test.main);
   group('widgets/chat_date_separator_test.dart', chat_date_separator_test.main);
   group(
+    'widgets/chat_desktop_stuck_pointer_test.dart',
+    chat_desktop_stuck_pointer_test.main,
+  );
+  group(
     'widgets/chat_dispose_during_animate_test.dart',
     chat_dispose_during_animate_test.main,
   );
@@ -270,6 +278,10 @@ void main() {
     chat_message_menu_request_test.main,
   );
   group('widgets/chat_message_menu_test.dart', chat_message_menu_test.main);
+  group(
+    'widgets/chat_message_tap_barrier_test.dart',
+    chat_message_tap_barrier_test.main,
+  );
   group('widgets/chat_message_theme_test.dart', chat_message_theme_test.main);
   group(
     'widgets/chat_mobile_text_chrome_test.dart',

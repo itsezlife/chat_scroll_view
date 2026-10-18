@@ -1,3 +1,5 @@
+import 'package:chat_scroll_view/chat_scroll_view.dart'
+    show ChatMessageTapBarrier;
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_chrome.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_glyphs.dart';
@@ -66,6 +68,10 @@ EmojiMetaMetrics measureEmojiMeta({
 
 /// The pill: a translucent service-coloured shape holding the views, the time
 /// and the delivery state, laid out by [layout] (the platform's).
+///
+/// A mouse click on it is not a message tap ([ChatMessageTapBarrier]): the
+/// pill is the status of the message, not the message. Desktop reveals it on
+/// hover, so the pointer that reveals it is the one most likely to press it.
 class EmojiMetaPill extends StatelessWidget {
   /// Draws [time] (and [views]) in a pill shaped by [layout].
   const EmojiMetaPill({
@@ -99,58 +105,60 @@ class EmojiMetaPill extends StatelessWidget {
     final status = layout.status;
     final icon = layout.viewsIcon;
     final count = layout.viewsCountOrigin;
-    return SizedBox.fromSize(
-      size: size,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.pill,
-          borderRadius: BorderRadius.circular(chrome.pillRadius(size.height)),
-        ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: <Widget>[
-            if (icon != null)
-              Positioned.fromRect(
-                rect: icon,
-                child: CustomPaint(
-                  painter: EmojiViewsIconPainter(color: colors.text),
+    return ChatMessageTapBarrier(
+      child: SizedBox.fromSize(
+        size: size,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: colors.pill,
+            borderRadius: BorderRadius.circular(chrome.pillRadius(size.height)),
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              if (icon != null)
+                Positioned.fromRect(
+                  rect: icon,
+                  child: CustomPaint(
+                    painter: EmojiViewsIconPainter(color: colors.text),
+                  ),
                 ),
-              ),
-            if (count != null && views != null)
+              if (count != null && views != null)
+                Positioned(
+                  left: count.dx,
+                  top: count.dy,
+                  child: Text(
+                    emojiViewsLabel(views!),
+                    style: style,
+                    maxLines: 1,
+                    softWrap: false,
+                    textScaler: TextScaler.noScaling,
+                  ),
+                ),
               Positioned(
-                left: count.dx,
-                top: count.dy,
+                left: layout.timeOrigin.dx,
+                top: layout.timeOrigin.dy,
                 child: Text(
-                  emojiViewsLabel(views!),
+                  time,
                   style: style,
                   maxLines: 1,
                   softWrap: false,
                   textScaler: TextScaler.noScaling,
                 ),
               ),
-            Positioned(
-              left: layout.timeOrigin.dx,
-              top: layout.timeOrigin.dy,
-              child: Text(
-                time,
-                style: style,
-                maxLines: 1,
-                softWrap: false,
-                textScaler: TextScaler.noScaling,
-              ),
-            ),
-            if (status != null)
-              Positioned.fromRect(
-                rect: status,
-                child: CustomPaint(
-                  painter: EmojiTicksPainter(
-                    state: layout.state,
-                    color: colors.text,
-                    vector: chrome.usesVectorTicks,
+              if (status != null)
+                Positioned.fromRect(
+                  rect: status,
+                  child: CustomPaint(
+                    painter: EmojiTicksPainter(
+                      state: layout.state,
+                      color: colors.text,
+                      vector: chrome.usesVectorTicks,
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
