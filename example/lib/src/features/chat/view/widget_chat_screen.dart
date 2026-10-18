@@ -195,7 +195,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         }
       case ChatMentionActivated() ||
           ChatHashtagActivated() ||
-          ChatEmbedActivated():
+          ChatEmbedActivated() ||
+          ChatStickerActivated():
         // The example opens none of these yet.
         break;
       case ChatCodeActivated(:final gesture):
