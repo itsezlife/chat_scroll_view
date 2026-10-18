@@ -56,6 +56,36 @@ reveals the message ([ADR 037](docs/adr/037-spoiler-and-mention-inline-styles.md
 | `ChatSelectionController(spoilerClock: scope.clock)`, the asset cache's `PlaybackClock`, so the dust moves on the shared clock and its pause layers | Run a ticker of its own for the dust (without the clock the dust stands still), or persist what `ChatSelectionController.spoilers` holds: reveal state is in memory |
 | `copyWriter` reading `ChatTextCopy.content` by style bit (`MD$Style.mention`, `image`, `spoiler`) when it keeps formatting on the clipboard | Detect a mention by its URL, or expect `plainText` to carry markdown: it is the revealed text with an embed's alt |
 
+## Emoji-only bodies
+
+`ChatEmojiBody` is the second body the viewport ships: a bubble-less message
+of nothing but emoji, laid out as Telegram Android does. The host classifies
+the text once, when it builds the message (`EmojiOnlyText.of` in
+`content_model`), and shows this body instead of `ChatMarkdownBody`; the
+viewport never re-detects.
+
+| Layout | When | Paints |
+| --- | --- | --- |
+| Sticker | One item and the host resolved it to a document (`sticker:`) | A square of `min(screen width, height) x 0.5 x 0.625` (112.5 dp on a phone) in a 10 dp inset; a custom emoji's sticker loops, a unicode emoji's plays once |
+| Text | Anything else | Squares of the font step the count gives (`ChatEmojiSizes`: 81.6 down to 22.8 dp, a custom-only message one step larger, box = font + 4 dp), a unicode emoji as a glyph; the text scale plays no part |
+
+The body registers with the facade as a **non-text body**
+(`ChatSelectionController.putNonTextBody`): there is nothing to select, a long
+press is message selection, and Copy is the message's own. A tap on the
+sticker is `ChatInlineHit.sticker` / `ChatStickerActivated`, always, and the
+body plays the sticker again; a tap on a custom emoji is `ChatInlineHit.embed`
+with `handlesEmbedHits`, as in a markdown body.
+
+### Host contract
+
+| The host provides | The host must not |
+| --- | --- |
+| `EmojiOnlyText.of(richText)` once per message, plus the facts only it has: no media (a link preview counts as media), the large-emoji setting and the chat's permission | Ask the body to classify, or show it for a message that has media |
+| `embedFactory`, one stable function over its cache (`(content, preset) => ContentEmbed(scope: scope, content: content, preset: preset)`) | Pass `InlineEmbedResolver`: it sizes from text metrics, and this body sizes by count with `AssetPresets.emojiOnly` / `emojiSticker` |
+| `sticker:` (the animated-emoji pack's document for a unicode emoji, the custom emoji's own document) and `autoplay` from its own played-once memory per chat screen | Keep that memory in the cache: it is per screen, not per entry |
+| The time pill, reactions, reply and forward header, placed by `ChatEmojiBody.layoutKindFor` (beside a sticker, above text) and `hasHeader` (text wraps at 65 % of the row's width under a header) | Expect the body to draw chrome, or to be wrapped in a bubble |
+| `semanticsLabel` with the message's plain text when it has it | Rely on the default label for a custom emoji: `EmojiOnly` keeps no text for one |
+
 ## Example
 
 ```sh

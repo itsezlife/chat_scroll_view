@@ -20,6 +20,11 @@
 /// or an embed is its own [ChatInlineHit] kind and [ChatSelectionInteraction];
 /// an embed's tap is reported only when
 /// [ChatSelectionController.handlesEmbedHits] is on.
+///
+/// [ChatEmojiBody] is the second body: a bubble-less message of nothing but
+/// emoji, a sticker or enlarged text, registered with
+/// [ChatSelectionController.putNonTextBody] so a long press is message
+/// selection. The sticker's tap is `ChatInlineHit.sticker`.
 library;
 
 export 'package:flutter_md/flutter_md.dart'
@@ -54,6 +59,8 @@ export 'src/chat_scroll/chat_selection_policy.dart';
 export 'src/chat_scroll/chat_sender_run_layout.dart';
 export 'src/chat_widgets/chat_bubble_metrics.dart';
 export 'src/chat_widgets/chat_code_block_painter.dart';
+export 'src/chat_widgets/chat_emoji_body.dart';
+export 'src/chat_widgets/chat_emoji_sizes.dart';
 export 'src/chat_widgets/chat_floating_header_marker.dart';
 export 'src/chat_widgets/chat_keyboard_shortcuts.dart';
 export 'src/chat_widgets/chat_markdown_autoscroll.dart';

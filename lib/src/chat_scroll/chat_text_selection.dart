@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_non_text_body.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_code_block_painter.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_smooth_contour.dart';
@@ -55,6 +56,11 @@ final class ChatTextSelection {
   final bool _disposeSpoilers;
 
   final Map<int, _BodyEntry> _bodies = <int, _BodyEntry>{};
+
+  /// Bodies that paint no text (`ChatNonTextBody`), per message, in mount
+  /// order: the last is the one a query asks.
+  final Map<int, LinkedHashMap<Object, ChatNonTextBody>> _nonTextBodies =
+      <int, LinkedHashMap<Object, ChatNonTextBody>>{};
 
   /// Mounted body paint boxes — resolved to global rects at hit time so
   /// scroll does not stale a cached [Rect].
@@ -145,6 +151,10 @@ final class ChatTextSelection {
     );
     if (surface != null) {
       return surface.contains(globalOffset);
+    }
+    if (_nonTextBodies[messageId]?.values.last.globalBounds case final bounds?
+        when bounds.contains(globalOffset)) {
+      return true;
     }
     return containsGlobal(messageId, globalOffset);
   }
@@ -240,6 +250,9 @@ final class ChatTextSelection {
   /// code body (which delegates to text selection).
   ChatInlineHit? resolveInlineHit(int messageId, Offset globalOffset) {
     if (_disposed) return null;
+    if (_nonTextBodies[messageId]?.values.last case final body?) {
+      return body.inlineHitAt(globalOffset);
+    }
     if (!_bodies.containsKey(messageId)) return null;
     final hit = markdownSelection.positionForGlobal(
       globalOffset,
@@ -689,6 +702,26 @@ final class ChatTextSelection {
     return cleared;
   }
 
+  /// Registers a body of [messageId] that paints no text, returning the token
+  /// to pass to [removeNonTextBody]. Several mounts of one message may
+  /// overlap (a morph); the last one answers. Silent after [dispose].
+  Object? putNonTextBody(int messageId, ChatNonTextBody body) {
+    if (_disposed) return null;
+    final token = Object();
+    (_nonTextBodies[messageId] ??=
+            LinkedHashMap<Object, ChatNonTextBody>.identity())[token] =
+        body;
+    return token;
+  }
+
+  /// Removes the body registered under [token].
+  void removeNonTextBody(int messageId, {required Object? token}) {
+    final owners = _nonTextBodies[messageId];
+    if (owners == null) return;
+    owners.remove(token);
+    if (owners.isEmpty) _nonTextBodies.remove(messageId);
+  }
+
   /// Arms [messageId] as the sole document. Returns `false` when disposed
   /// or no body is registered. Pre-arm failures leave prior state unchanged.
   ///
@@ -810,6 +843,7 @@ final class ChatTextSelection {
     _active = false;
     _subjectId = null;
     _bodies.clear();
+    _nonTextBodies.clear();
     _bodyPaintBoxes.clear();
     _messageSurfaceBoxes.clear();
     _messageSurfaceShapes.clear();
