@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (More button press)
+
+- The More button showed nothing when pressed: it was a bare `InkResponse`,
+  which takes the theme's splash and highlight, transparent under Material 3.
+  It is an `IconButton` again, 56 by 48, whose pressed state layer is the
+  Material one.
+
 ### Changed (selection menu fit and language)
 
 - The selection menu's sizes and fit are Telegram's floating toolbar

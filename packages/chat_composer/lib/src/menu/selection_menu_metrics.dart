@@ -33,8 +33,9 @@ abstract final class SelectionMenuMetrics {
   /// padding (1045).
   static const double moreButtonWidth = 56;
 
-  /// Radius of the More button's ripple: `RIPPLE_MASK_CIRCLE_20DP` (464).
-  static const double moreButtonRippleRadius = 20;
+  /// Diameter of the disc the More button lights when pressed:
+  /// `RIPPLE_MASK_CIRCLE_20DP`, a 20 dp radius.
+  static const double moreButtonInkDiameter = 40;
 
   /// Widest the main row may be: the toolbar's default `dp(400)` (952) before
   /// the screen's own limit.

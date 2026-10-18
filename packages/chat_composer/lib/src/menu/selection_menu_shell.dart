@@ -147,7 +147,8 @@ class SelectionMenuButton extends StatelessWidget {
 }
 
 /// The More button that ends the main row: the vertical dots in a 56 by 48
-/// frame, flush with the card's end, with a 20 dp ripple.
+/// frame, flush with the card's end, lit by a 40 dp disc
+/// (`RIPPLE_MASK_CIRCLE_20DP`).
 ///
 /// It has no tooltip. The menu is hosted under a `CompositedTransformFollower`,
 /// and a `Tooltip` there asserts in `localToGlobal`
@@ -176,17 +177,31 @@ class SelectionMenuMoreButton extends StatelessWidget {
     label: label,
     onTap: onPressed,
     excludeSemantics: true,
-    child: InkResponse(
+    // The frame takes the tap; the IconButton inside is only the 40 dp disc
+    // that lights up, since an IconButton's ink fills its whole box.
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onPressed,
-      radius: SelectionMenuMetrics.moreButtonRippleRadius,
       child: SizedBox(
         width: SelectionMenuMetrics.moreButtonWidth,
         height: SelectionMenuMetrics.rowHeight,
         child: Center(
-          child: Icon(
-            Icons.more_vert,
-            size: SelectionMenuMetrics.iconSize,
+          child: IconButton(
+            onPressed: onPressed,
+            tooltip: null,
+            icon: const Icon(
+              Icons.more_vert,
+              size: SelectionMenuMetrics.iconSize,
+            ),
             color: color,
+            padding: EdgeInsets.zero,
+            style: IconButton.styleFrom(
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            constraints: const BoxConstraints.tightFor(
+              width: SelectionMenuMetrics.moreButtonInkDiameter,
+              height: SelectionMenuMetrics.moreButtonInkDiameter,
+            ),
           ),
         ),
       ),

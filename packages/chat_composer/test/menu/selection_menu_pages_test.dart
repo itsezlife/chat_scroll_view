@@ -216,7 +216,7 @@ void main() {
     });
 
     testWidgets('the More button is 56 by 48, flush, with a 24 dp more_vert, a '
-        '20 dp ripple and no tooltip', (tester) async {
+        'no tooltip', (tester) async {
       await pumpPage(tester, (c) => root(c, [cut]));
 
       final button = find.byKey(SelectionMenuRootPage.moreKey);
@@ -228,11 +228,48 @@ void main() {
         tester.getCenter(find.byIcon(Icons.more_vert)),
         tester.getCenter(button),
       );
-      final ripple = tester.widget<InkResponse>(
-        find.descendant(of: button, matching: find.byType(InkResponse)),
-      );
-      expect(ripple.radius, 20);
       expect(find.byType(Tooltip), findsNothing);
+    });
+
+    testWidgets('pressing the More button washes it in the icon colour at the '
+        'Material pressed opacity', (tester) async {
+      await pumpPage(tester, (c) => root(c, [cut, copy]));
+      final ink = find
+          .ancestor(
+            of: find.byKey(SelectionMenuRootPage.moreKey),
+            matching: find.byWidgetPredicate(
+              (widget) => widget.runtimeType.toString() == '_InkFeatures',
+            ),
+          )
+          .first;
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(SelectionMenuRootPage.moreKey)),
+      );
+      // The press shows after the tap-down delay, then fades in over the next
+      // frames.
+      await tester.pump(const Duration(milliseconds: 150));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // M3's pressed state layer is 10% of the foreground; a theme's own
+      // splash and highlight are transparent, which left the button dead.
+      expect(
+        tester.renderObject(ink),
+        paints..something((method, arguments) {
+          final paint = arguments.whereType<Paint>().firstOrNull;
+          if (paint == null) return false;
+          // Ink quantizes the alpha to a byte.
+          final drawn = paint.color;
+          final wash = tokens.text.withValues(alpha: 0.1);
+          return (drawn.a - wash.a).abs() < 1 / 255 &&
+              drawn.r == wash.r &&
+              drawn.g == wash.g &&
+              drawn.b == wash.b;
+        }),
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
     });
 
     testWidgets('there is no More button without a page to open', (
