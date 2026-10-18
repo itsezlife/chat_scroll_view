@@ -377,4 +377,30 @@ void main() {
       },
     );
   });
+
+  group('EntityKind.isTextStyle', () {
+    test('is true for the styles that wrap text and no other kind', () {
+      for (final kind in [
+        EntityKind.bold,
+        EntityKind.italic,
+        EntityKind.underline,
+        EntityKind.strike,
+        EntityKind.spoiler,
+      ]) {
+        expect(kind.isTextStyle, isTrue, reason: '$kind');
+      }
+      for (final kind in [
+        EntityKind.code,
+        EntityKind.quote,
+        const EntityKind.link('https://a.b'),
+        const EntityKind.mention('1'),
+        const EntityKind.codeBlock(),
+        const EntityKind.username('a'),
+        const EntityKind.hashtag('t'),
+        const EntityKind.list(listKind: EntityListKind.bullet),
+      ]) {
+        expect(kind.isTextStyle, isFalse, reason: '$kind');
+      }
+    });
+  });
 }

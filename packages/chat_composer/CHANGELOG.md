@@ -33,6 +33,13 @@ is pre-1.0.
   code block has no key. The list Intent has no Action yet.
 - `ComposerSpec.linkPrompt` (`ComposerLinkPrompt`): the host's dialog that
   asks for a link's URL; the link shortcut is inert without it.
+- `ComposerTextController.canLink`: whether a link can be put on the
+  selection, whichever the URL (true over a link already, for the URL it
+  has). The menu's link item and the link shortcut share one ask-and-apply
+  protocol and this one applicability check.
+- The list gutter has semantics: each marker is a node labelled from
+  `FormattingStrings.bulletListItem` / `numberedListItem`, at its item's first
+  line, so a screen reader speaks the list.
 
 ### Changed
 

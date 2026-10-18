@@ -1,5 +1,6 @@
 import 'package:chat_composer/src/shortcuts/composer_formatting_intents.dart';
 import 'package:chat_composer/src/spec/composer_spec.dart';
+import 'package:chat_composer/src/text/composer_link_edit.dart';
 import 'package:chat_composer/src/text/composer_text_controller.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart' hide RichText;
@@ -141,37 +142,24 @@ class _ApplyLinkAction extends Action<ApplyLinkIntent> {
   // The dialog is modal, but a second key press can arrive before it shows.
   var _asking = false;
 
-  // `canApply` for a link wants a URL to judge it and reports no change for the
-  // one the selection is linked to already. The refusals it reports (code, a
-  // mention, a composition) do not depend on which, so the probe differs from
-  // the current one.
-  EntityKind get _probe {
-    final current = _text.selectedLinkUrl;
-    return EntityKind.link(
-      current == null ? 'https://example.com' : '$current#',
-    );
-  }
-
   @override
   bool isEnabled(ApplyLinkIntent intent) =>
-      !_asking && _prompt() != null && _text.canApply(_probe);
+      !_asking && _prompt() != null && _text.canLink;
 
   @override
   Future<void> invoke(ApplyLinkIntent intent) async {
     final prompt = _prompt();
     if (prompt == null) return;
-    final asked = _text.richText;
-    final selection = _text.selection;
     _asking = true;
-    final String? url;
     try {
-      url = await prompt(_context(), _text.selectedLinkUrl);
+      await ComposerLinkEdit(
+        text: _text,
+        prompt: prompt,
+        context: _context(),
+        isAlive: _isAlive,
+      ).ask();
     } finally {
       _asking = false;
     }
-    // The prompt took time; a text that changed under it is another text.
-    if (url == null || !_isAlive() || _text.richText != asked) return;
-    _text.selection = selection;
-    _text.applyLink(url);
   }
 }

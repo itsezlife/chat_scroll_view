@@ -11,6 +11,7 @@ import 'package:chat_composer/src/shortcuts/composer_intents.dart';
 import 'package:chat_composer/src/spec/composer_spec.dart';
 import 'package:chat_composer/src/view/composer_metrics.dart';
 import 'package:chat_composer/src/view/list_gutter_painter.dart';
+import 'package:chat_composer/src/view/list_gutter_semantics.dart';
 import 'package:chat_composer/src/view/listen_value_builder.dart';
 import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -116,6 +117,7 @@ class ComposerField extends StatefulWidget {
 
 class _ComposerFieldState extends State<ComposerField> {
   final _textFieldKey = GlobalKey();
+  final _gutterSemanticsKey = GlobalKey();
   var _anchorScheduled = false;
 
   // The focus autofocus gives on a touch platform attaches as if suppressed,
@@ -569,7 +571,7 @@ class _ComposerFieldState extends State<ComposerField> {
                   // The leaf editable's own default group is its own type,
                   // which those widgets would not find.
                   groupId: EditableText,
-                  // Telegram's handles are drawn by the composer, not the
+                  // The reference's handles are drawn by the composer, not the
                   // platform's: Material on every platform.
                   selectionControls:
                       extendedMaterialTextSelectionHandleControls,
@@ -608,7 +610,21 @@ class _ComposerFieldState extends State<ComposerField> {
                         ),
                   contextMenuBuilder: _selectionMenu,
                 );
-                if (controller.clipboard == null) return field;
+                final spoken = gutter == null
+                    ? field
+                    : ComposerListGutterSemantics(
+                        key: _gutterSemanticsKey,
+                        text: controller.text,
+                        gutter: gutter,
+                        strings: _menuStrings,
+                        editable: () => _editableTextState()?.renderEditable,
+                        field: () =>
+                            _gutterSemanticsKey.currentContext
+                                    ?.findRenderObject()
+                                as RenderBox?,
+                        child: field,
+                      );
+                if (controller.clipboard == null) return spoken;
                 // Above the field's own: an overridable action finds these
                 // first, so shortcuts and the macOS menu selectors land here.
                 return Actions(
@@ -617,7 +633,7 @@ class _ComposerFieldState extends State<ComposerField> {
                     PasteTextIntent: _PasteAction(controller),
                     PastePlainTextIntent: _PastePlainAction(controller),
                   },
-                  child: field,
+                  child: spoken,
                 );
               },
             ),

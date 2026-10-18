@@ -170,10 +170,9 @@ final class SelectionMenuClipboardItem {
 /// then the formatting items.
 ///
 /// An item whose command cannot apply is left out, as the reference's floating
-/// toolbar lays out only items that are visible and enabled
-/// (`getVisibleAndEnabledMenuItems`, :272); a collapsed caret gets no
-/// formatting at all, as the reference extends its menu only over a selection
-/// (`ChatActivity.extendActionMode`, :27406).
+/// toolbar lays out only items that are visible and enabled; a collapsed caret
+/// gets no formatting at all, as the reference extends its menu only over a
+/// selection.
 abstract final class SelectionMenuItems {
   /// The entries for the selection in [text].
   ///
@@ -345,15 +344,8 @@ abstract final class SelectionMenuItems {
     FormattingStrings strings,
     VoidCallback onLink,
   ) {
-    // `canApply` for a link wants a URL to judge it, and reports no change
-    // when the URL is the one the selection is linked to already. The refusals
-    // it is asked about (code, a mention, a composition) do not depend on which
-    // URL, so a probe that differs from the current one asks exactly those.
     final current = text.selectedLinkUrl;
-    final probe = EntityKind.link(
-      current == null ? 'https://example.com' : '$current#',
-    );
-    final applicable = text.canApply(probe);
+    final applicable = text.canLink;
     final touched = current != null;
     return [
       if (applicable)

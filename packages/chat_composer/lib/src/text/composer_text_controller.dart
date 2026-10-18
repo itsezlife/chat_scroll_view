@@ -550,6 +550,13 @@ class ComposerTextController extends TextEditingController {
     );
   }
 
+  /// Whether a link can be put on the selection now, whichever the URL: false
+  /// over code or a mention, at a caret inside either, and while the input
+  /// method's composition is in the way. True over a link already, for the URL
+  /// it has too, so a menu can offer to edit it ([canApply] for a link asks
+  /// about one URL and says no when it would change nothing).
+  bool get canLink => _linkEdit(_anyUrl, requireChange: false) != null;
+
   /// Takes the links off the selection and keeps the text. Does nothing at a
   /// caret.
   void removeLink() {
@@ -643,16 +650,23 @@ class ComposerTextController extends TextEditingController {
     return next == null || next == target.rich ? null : next;
   }
 
+  // A URL no refusal depends on, which [canLink] asks the refusals with.
+  static const _anyUrl = 'https://example.com';
+
   // The text after linking the selection to [url] and, when the URL went in as
   // text, the caret after it; null when refused.
-  (RichText, int?)? _linkEdit(String url) {
+  // [requireChange] false accepts a link that leaves the text as it is, for
+  // [canLink].
+  (RichText, int?)? _linkEdit(String url, {bool requireChange = true}) {
     if (url.isEmpty) return null;
     final target = _target();
     if (target == null) return null;
     final (:rich, :from, :to) = target;
     if (from != to) {
       final next = TextFormatting.applied(rich, from, to, EntityKind.link(url));
-      return next == null || next == rich ? null : (next, null);
+      return next == null || (requireChange && next == rich)
+          ? null
+          : (next, null);
     }
     // The text changes, which an IME composition cannot take under it.
     if (_composing) return null;
