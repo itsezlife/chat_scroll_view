@@ -5,6 +5,7 @@ import 'package:chat_composer/src/input/composer_controller.dart';
 import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
 import 'package:chat_composer/src/shortcuts/composer_intents.dart';
 import 'package:chat_composer/src/view/composer_metrics.dart';
+import 'package:chat_composer/src/view/list_gutter_painter.dart';
 import 'package:chat_composer/src/view/listen_value_builder.dart';
 import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -106,10 +107,16 @@ class _ComposerFieldState extends State<ComposerField> {
       };
   var _revealScheduled = false;
 
+  // The markers of a list, painted beside the text; null for a text that does
+  // not edit lists. The room it takes follows the markers the text holds.
+  ComposerListGutterPainter? _gutter;
+  var _gutterExtent = 0.0;
+
   @override
   void initState() {
     super.initState();
     widget.controller.text.addListener(_scheduleAnchor);
+    widget.controller.text.addListener(_onGutterText);
     widget.controller.keyboardRequests.addListener(_onKeyboardRequest);
     widget.controller.caretReveals.addListener(_onCaretReveal);
     widget.controller.focusNode.addListener(_onFocus);
@@ -121,10 +128,14 @@ class _ComposerFieldState extends State<ComposerField> {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.controller, widget.controller)) {
       oldWidget.controller.text.removeListener(_scheduleAnchor);
+      oldWidget.controller.text.removeListener(_onGutterText);
+      _gutter?.dispose();
+      _gutter = null;
       oldWidget.controller.keyboardRequests.removeListener(_onKeyboardRequest);
       oldWidget.controller.caretReveals.removeListener(_onCaretReveal);
       oldWidget.controller.focusNode.removeListener(_onFocus);
       widget.controller.text.addListener(_scheduleAnchor);
+      widget.controller.text.addListener(_onGutterText);
       widget.controller.keyboardRequests.addListener(_onKeyboardRequest);
       widget.controller.caretReveals.addListener(_onCaretReveal);
       widget.controller.focusNode.addListener(_onFocus);
@@ -135,9 +146,11 @@ class _ComposerFieldState extends State<ComposerField> {
   @override
   void dispose() {
     widget.controller.text.removeListener(_scheduleAnchor);
+    widget.controller.text.removeListener(_onGutterText);
     widget.controller.keyboardRequests.removeListener(_onKeyboardRequest);
     widget.controller.caretReveals.removeListener(_onCaretReveal);
     widget.controller.focusNode.removeListener(_onFocus);
+    _gutter?.dispose();
     super.dispose();
   }
 
@@ -249,6 +262,35 @@ class _ComposerFieldState extends State<ComposerField> {
         position.maxScrollExtent,
       ),
     );
+  }
+
+  // The text gained or lost its first or widest marker: the field makes room.
+  void _onGutterText() {
+    final gutter = _gutter;
+    if (gutter == null || gutter.extent == _gutterExtent) return;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+      return;
+    }
+    setState(() {});
+  }
+
+  // The gutter painter in the field's text style, made on the first build of a
+  // text that edits lists.
+  ComposerListGutterPainter? _gutterFor(TextStyle style, TextScaler scaler) {
+    if (!widget.controller.text.lists) return null;
+    final gutter = _gutter ??= ComposerListGutterPainter(
+      text: widget.controller.text,
+      style: style,
+      textScaler: scaler,
+    );
+    gutter
+      ..style = style
+      ..textScaler = scaler;
+    return gutter;
   }
 
   void _onTap() {
@@ -389,6 +431,13 @@ class _ComposerFieldState extends State<ComposerField> {
     final strings = ChromeStringsScope.composerOf(context);
     const lineHeight = ComposerMetrics.fieldLineHeight;
     const fontSize = ComposerMetrics.fieldFontSize;
+    final fieldStyle = TextStyle(
+      color: composer.text,
+      fontSize: fontSize,
+      height: lineHeight,
+    );
+    final gutter = _gutterFor(fieldStyle, MediaQuery.textScalerOf(context));
+    _gutterExtent = gutter?.extent ?? 0;
 
     return HeightReporter(
       onHeight: controller.reportFieldHeight,
@@ -439,11 +488,12 @@ class _ComposerFieldState extends State<ComposerField> {
                   textCapitalization: TextCapitalization.sentences,
                   onTap: _onTap,
                   cursorColor: composer.cursor,
-                  style: TextStyle(
-                    color: composer.text,
-                    fontSize: fontSize,
-                    height: lineHeight,
-                  ),
+                  style: fieldStyle,
+                  // The markers of list items sit beside the text, in room
+                  // the field makes only while there is a marker.
+                  gutterPainter: gutter,
+                  gutterExtent: _gutterExtent,
+                  gutterInset: _gutterExtent,
                   decoration: InputDecoration.collapsed(
                     hintText: strings.messageHint,
                     hintStyle: TextStyle(

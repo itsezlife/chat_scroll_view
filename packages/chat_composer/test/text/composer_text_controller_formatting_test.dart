@@ -949,11 +949,24 @@ void main() {
         EntityKind.quote,
         const EntityKind.codeBlock(),
         const EntityKind.link('u'),
-        const EntityKind.list(listKind: EntityListKind.bullet),
-        const EntityKind.list(listKind: EntityListKind.ordered),
       ]) {
         expect(controller.canApply(kind), isTrue, reason: '$kind');
       }
+    });
+
+    test('is false for a list kind unless the controller edits lists', () {
+      load(const RichText.plain('one two'), 0, 7);
+      const bullet = EntityKind.list(listKind: EntityListKind.bullet);
+
+      expect(controller.canApply(bullet), isFalse);
+
+      final listing = ComposerTextController(
+        initial: const RichText.plain('one two'),
+        lists: true,
+      )..selection = const TextSelection(baseOffset: 0, extentOffset: 7);
+      addTearDown(listing.dispose);
+
+      expect(listing.canApply(bullet), isTrue);
     });
 
     test('is false for the kinds that are not formatting', () {

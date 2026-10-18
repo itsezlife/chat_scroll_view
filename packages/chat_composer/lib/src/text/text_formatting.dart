@@ -90,7 +90,9 @@ abstract final class TextFormatting {
   /// - A quote, a code block and a list item widen to the lines the range
   ///   touches. A quote is refused where it would drop a list item; a code
   ///   block takes the line away from every other entity but atoms, which it
-  ///   refuses.
+  ///   refuses. A list item takes over the items the lines touch (their
+  ///   extent and depth stay, the kind changes) and makes one item of every
+  ///   other non-empty line.
   static RichText? applied(RichText text, int from, int to, EntityKind kind) {
     switch (kind) {
       case EntityKind$Style(style: EntityStyle.quote):
@@ -139,20 +141,33 @@ abstract final class TextFormatting {
               ..._cutInline(entity, start, end),
           Entity(start, end - start, kind),
         ]);
-      case EntityKind$List():
+      case EntityKind$List(:final listKind):
         final (start, end) = linesOf(text.plain, from, to);
         if (start == end) return null;
+        // An item the lines touch keeps its extent and depth and takes the
+        // kind: a soft break inside it is not a reason to split it. A line
+        // that is no item yet becomes one.
+        bool inItem(int lineStart) => text.entities.any(
+          (entity) =>
+              entity.kind is EntityKind$List &&
+              entity.offset <= lineStart &&
+              lineStart <= entity.end,
+        );
         return _rebuild(text, [
           for (final entity in text.entities)
-            if (entity.kind is EntityKind$List)
-              ..._cutLines(entity, start, end)
+            if (entity.kind case EntityKind$List(
+              :final depth,
+            ) when entity.offset <= end && entity.end >= start)
+              Entity(
+                entity.offset,
+                entity.length,
+                EntityKind.list(listKind: listKind, depth: depth),
+              )
             else
               entity,
-          ..._lines(
-            text.plain,
-            start,
-            end,
-          ).map((line) => Entity(line.$1, line.$2 - line.$1, kind)),
+          for (final (lineStart, lineEnd) in _lines(text.plain, start, end))
+            if (!inItem(lineStart))
+              Entity(lineStart, lineEnd - lineStart, kind),
         ]);
       default:
         return null;

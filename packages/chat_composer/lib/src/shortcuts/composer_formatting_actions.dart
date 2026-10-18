@@ -10,8 +10,9 @@ import 'package:flutter/widgets.dart' hide RichText;
 /// calls, so a shortcut and a menu item give the same [RichText]; `isEnabled`
 /// follows `canApply`, so a key that would change nothing is left to the field.
 ///
-/// The list Intent has no Action yet: it waits for the list commands, and
-/// until then the key it is bound to is left to the field.
+/// The list Intents are answered only by a controller with `lists` on (and
+/// where the command would change something), so a text with lists off leaves
+/// Tab, Backspace and Shift+Enter to the field.
 abstract final class ComposerFormattingActions {
   /// The Actions over [text], keyed by the Intent they answer.
   ///
@@ -28,6 +29,23 @@ abstract final class ComposerFormattingActions {
     ToggleCodeBlockIntent: _ToggleCodeBlockAction(text),
     ClearFormattingIntent: _ClearFormattingAction(text),
     ApplyLinkIntent: _ApplyLinkAction(text, linkPrompt, context, isAlive),
+    ToggleListIntent: _ToggleListAction(text),
+    IndentListItemsIntent: _ListAction<IndentListItemsIntent>(
+      enabled: () => text.canIndentListItems,
+      run: text.indentListItems,
+    ),
+    OutdentListItemsIntent: _ListAction<OutdentListItemsIntent>(
+      enabled: () => text.canOutdentListItems,
+      run: text.outdentListItems,
+    ),
+    InsertSoftBreakIntent: _ListAction<InsertSoftBreakIntent>(
+      enabled: () => text.canInsertSoftBreak,
+      run: text.insertSoftBreak,
+    ),
+    OutdentOrExitListItemIntent: _ListAction<OutdentOrExitListItemIntent>(
+      enabled: () => text.canOutdentOrExitListItem,
+      run: text.outdentOrExitListItem,
+    ),
   };
 }
 
@@ -59,6 +77,40 @@ class _ToggleCodeBlockAction extends Action<ToggleCodeBlockIntent> {
   @override
   Object? invoke(ToggleCodeBlockIntent intent) {
     _text.toggleCodeBlock();
+    return null;
+  }
+}
+
+class _ToggleListAction extends Action<ToggleListIntent> {
+  _ToggleListAction(this._text);
+
+  final ComposerTextController _text;
+
+  @override
+  bool isEnabled(ToggleListIntent intent) =>
+      _text.canApply(EntityKind.list(listKind: intent.listKind));
+
+  @override
+  Object? invoke(ToggleListIntent intent) {
+    _text.toggleList(intent.listKind);
+    return null;
+  }
+}
+
+// A list key: enabled only where the controller says it would do something,
+// so the key is the field's everywhere else.
+class _ListAction<T extends Intent> extends Action<T> {
+  _ListAction({required this.enabled, required this.run});
+
+  final bool Function() enabled;
+  final void Function() run;
+
+  @override
+  bool isEnabled(T intent) => enabled();
+
+  @override
+  Object? invoke(T intent) {
+    run();
     return null;
   }
 }

@@ -1,9 +1,11 @@
 import 'package:chat_composer/src/text/composer_entity_styles.dart';
 import 'package:chat_composer/src/text/inline_content_span_builder.dart';
+import 'package:chat_composer/src/text/list_editing.dart';
 import 'package:chat_composer/src/text/text_formatting.dart';
 import 'package:chat_composer/src/text/text_replacement.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart' hide RichText;
+import 'package:meta/meta.dart';
 
 /// A [TextEditingController] whose text carries entities: it keeps the plain
 /// text and the [Entity] spans of a [RichText] in step with every edit.
@@ -53,6 +55,33 @@ import 'package:flutter/widgets.dart' hide RichText;
 /// - A command that touches the IME composition does nothing; one that does not
 ///   leaves the composition alone.
 ///
+/// ## Lists
+///
+/// Off unless [lists] is set, and then nothing about lists changes: a list
+/// item that comes in with a restored or pasted text stays in it as it was,
+/// unedited and without a gutter, and no key or command below does anything.
+///
+/// With [lists] on, an item is one [EntityKind.list] over its lines (see
+/// there), and the editor behaves as a list editor does:
+///
+/// - Typing `- `, `* ` or `1. ` at the start of a line makes the line an item
+///   and takes the marker out of the text. Elsewhere in a line it stays text.
+/// - [toggleList] makes the lines under the selection items of a kind, or
+///   takes them out when they all are.
+/// - Enter continues the item with one of the same kind and depth, and an
+///   empty item leaves the list (one level out first). Backspace at the start
+///   of an item does the same instead of joining it to the line before.
+///   [indentListItems] and [outdentListItems] move items between depths 0
+///   and 3; [insertSoftBreak] goes on a new line inside the item.
+///   Enter-to-send keys of the view stand aside while the caret is in an item
+///   ([isInListItem]), as the Enter of any editor with lists does.
+/// - Two or more marker lines in text inserted at once (a keyboard's paste,
+///   autofill, [withPastedLists]) become items.
+///
+/// An item with no text yet is not representable in a [RichText]: the caret
+/// rests on an empty line the controller remembers is an item (see
+/// [PendingListItem]) until text lands on it or the caret leaves.
+///
 /// ## Not here
 ///
 /// The selection menu and the shortcuts that call the commands, link and
@@ -63,10 +92,12 @@ class ComposerTextController extends TextEditingController {
   ///
   /// [inlineContentBuilder] shows inline content references; the default shows
   /// their alternative text. [entityStyles] paints the other entities.
+  /// [lists] turns on list editing; see "Lists" above.
   ComposerTextController({
     RichText? initial,
     InlineContentSpanBuilder inlineContentBuilder = alternativeTextSpan,
     ComposerEntityStyles entityStyles = const ComposerEntityStyles(),
+    this.lists = false,
   }) : _rich = initial ?? RichText.empty,
        _inlineContentBuilder = inlineContentBuilder,
        _entityStyles = entityStyles,
@@ -79,8 +110,12 @@ class ComposerTextController extends TextEditingController {
     TextStyle style,
   ) => TextSpan(text: reference.alternativeText, style: style);
 
+  /// Whether the field edits lists; see "Lists" above.
+  final bool lists;
+
   RichText _rich;
   RichText? _derived;
+  PendingListItem? _pending;
   bool _composing = false;
   InlineContentSpanBuilder _inlineContentBuilder;
   ComposerEntityStyles _entityStyles;
@@ -130,16 +165,29 @@ class ComposerTextController extends TextEditingController {
       _composing = false;
       _derived = null;
       final textUnchanged = previous.text == newValue.text;
-      super.value = newValue.copyWith(
-        selection: _snap(
-          newValue.selection,
-          base,
-          textUnchanged
-              ? previous.selection
-              : const TextSelection.collapsed(offset: -1),
-        ),
+      final snapped = _snap(
+        newValue.selection,
+        base,
+        textUnchanged
+            ? previous.selection
+            : const TextSelection.collapsed(offset: -1),
       );
+      // The empty item is the caret's line: the caret leaving it ends it.
+      if (_pending case final pending?
+          when !(snapped.isValid &&
+              snapped.isCollapsed &&
+              snapped.baseOffset == pending.offset)) {
+        _pending = null;
+      }
+      super.value = newValue.copyWith(selection: snapped);
       return;
+    }
+    if (lists) {
+      final edit = _listKeystroke(previous, newValue, base);
+      if (edit != null) {
+        _commitListEdit(edit);
+        return;
+      }
     }
     final replacement = TextReplacement.between(
       base.plain,
@@ -152,7 +200,39 @@ class ComposerTextController extends TextEditingController {
       replacement.oldEnd,
     );
     final widened = from != replacement.start || to != replacement.oldEnd;
-    final next = replacement.widenedTo(from, to).applyTo(base);
+    final absorbed = lists
+        ? _absorbedInsertion(base, previous, replacement)
+        : null;
+    if (absorbed != null) {
+      final next = _fitted(base, from, to, absorbed);
+      if (next != null) {
+        _commit(
+          next,
+          TextEditingValue(
+            text: next.plain,
+            selection: TextSelection.collapsed(offset: from + absorbed.length),
+          ),
+        );
+        return;
+      }
+    }
+    var next = replacement.widenedTo(from, to).applyTo(base);
+    // Text landing on the empty item is what makes it an item.
+    final pending = lists && !widened ? _pending : null;
+    if (pending != null &&
+        replacement.start == pending.offset &&
+        replacement.oldEnd == pending.offset &&
+        replacement.inserted.isNotEmpty &&
+        !replacement.inserted.startsWith('\n')) {
+      next =
+          TextFormatting.applied(
+            next,
+            pending.offset,
+            pending.offset,
+            pending.entityKind,
+          ) ??
+          next;
+    }
     _commit(
       next,
       TextEditingValue(
@@ -170,6 +250,98 @@ class ComposerTextController extends TextEditingController {
     );
   }
 
+  // --- List keystrokes ---
+
+  // The list edit the platform's [newValue] amounts to, or null when it is an
+  // edit like any other. Only a single keystroke at a caret counts: a marker's
+  // space, Enter, or Backspace over the line break before an item's start.
+  ListEdit? _listKeystroke(
+    TextEditingValue previous,
+    TextEditingValue newValue,
+    RichText base,
+  ) {
+    final selection = previous.selection;
+    if (!selection.isValid ||
+        !selection.isCollapsed ||
+        previous.text != base.plain ||
+        (previous.composing.isValid && !previous.composing.isCollapsed)) {
+      return null;
+    }
+    final caret = selection.baseOffset;
+    final old = previous.text;
+    final text = newValue.text;
+    if (text.length == old.length + 1 &&
+        text.startsWith(old.substring(0, caret)) &&
+        text.endsWith(old.substring(caret))) {
+      return switch (text[caret]) {
+        ' ' => ListEditing.typedMarker(base, caret),
+        '\n' => ListEditing.enter(base, caret, _pending),
+        _ => null,
+      };
+    }
+    if (caret > 0 &&
+        old.codeUnitAt(caret - 1) == 0x0A &&
+        text == old.replaceRange(caret - 1, caret, '')) {
+      return ListEditing.backspaceAtStart(base, caret, _pending);
+    }
+    return null;
+  }
+
+  // The items that text inserted in one go stands for, when it holds marker
+  // lines (a keyboard's paste or autofill; the clipboard's own go through
+  // [withPastedLists]).
+  RichText? _absorbedInsertion(
+    RichText base,
+    TextEditingValue previous,
+    TextReplacement replacement,
+  ) {
+    if (replacement.inserted.length < 2 ||
+        previous.text != base.plain ||
+        (previous.composing.isValid && !previous.composing.isCollapsed)) {
+      return null;
+    }
+    return _itemsFrom(base, replacement.start, replacement.inserted);
+  }
+
+  RichText? _itemsFrom(RichText base, int at, String inserted) {
+    if (ListEditing.holdsLine(base, at)) return null;
+    return ListEditing.itemsFromPlain(
+      inserted,
+      atLineStart: at == 0 || base.plain.codeUnitAt(at - 1) == 0x0A,
+    );
+  }
+
+  /// [pasted] with its marker lines made list items, when the field edits
+  /// lists, [pasted] is plain text, it lands where an item may start, and two
+  /// or more of its lines are markers (`- `, `* `, `+ `, `1. `); else
+  /// [pasted] itself.
+  ///
+  /// A single marker line is likelier the text itself, so it stays text. A
+  /// text that carries entities is the clipboard's own rich payload and keeps
+  /// the items it has.
+  RichText withPastedLists(RichText pasted) {
+    if (!lists || pasted.entities.isNotEmpty || pasted.length < 2) {
+      return pasted;
+    }
+    final selection = value.selection;
+    final at = selection.isValid ? selection.start : richText.length;
+    return _itemsFrom(richText, at, pasted.plain) ?? pasted;
+  }
+
+  void _commitListEdit(ListEdit edit) {
+    final caret = edit.caret;
+    _commit(
+      edit.text,
+      TextEditingValue(
+        text: edit.text.plain,
+        selection: caret == null
+            ? super.value.selection
+            : TextSelection.collapsed(offset: caret),
+      ),
+      pending: edit.pending,
+    );
+  }
+
   RichText _deriveDuringComposition() {
     final replacement = TextReplacement.between(
       _rich.plain,
@@ -182,10 +354,17 @@ class ComposerTextController extends TextEditingController {
   int _caretOf(TextSelection selection) =>
       selection.isValid && selection.isCollapsed ? selection.baseOffset : -1;
 
-  void _commit(RichText next, TextEditingValue newValue) {
-    final entitiesChanged = next != _rich;
+  // [pending] is the empty item the caret rests on after the edit; an edit
+  // that does not say so ends it.
+  void _commit(
+    RichText next,
+    TextEditingValue newValue, {
+    PendingListItem? pending,
+  }) {
+    final entitiesChanged = next != _rich || pending != _pending;
     final before = super.value;
     _rich = next;
+    _pending = pending;
     _composing = false;
     _derived = null;
     super.value = newValue;
@@ -397,12 +576,19 @@ class ComposerTextController extends TextEditingController {
   /// - A style, a code block or a list kind: all of it is (a quote and the
   ///   other line kinds are judged on the lines the selection touches, and a
   ///   caret counts). A code block of no language is any block, a list kind
-  ///   ignores depth.
+  ///   ignores depth, and the caret on an empty item is in that item's kind.
   /// - A link: the selection touches one, whatever its target (so a menu can
   ///   offer to edit or remove it rather than create it).
   /// - Any other kind is not formatting: false.
   bool isActive(EntityKind kind) {
     final (from, to) = _selectedRange(richText);
+    final pending = _pending;
+    if (kind is EntityKind$List &&
+        pending != null &&
+        from == to &&
+        from == pending.offset) {
+      return pending.kind == kind.listKind;
+    }
     return TextFormatting.isActive(richText, from, to, kind);
   }
 
@@ -412,9 +598,15 @@ class ComposerTextController extends TextEditingController {
   /// False for a caret (except a link, whose URL then goes in as text, and the
   /// line kinds), for a selection [RichText] could not hold [kind] over (bold
   /// inside code, code over a mention), for a selection that touches the IME
-  /// composition, and for the kinds that are not formatting.
+  /// composition, for a list kind unless [lists] is on, and for the kinds
+  /// that are not formatting.
   bool canApply(EntityKind kind) => switch (kind) {
     EntityKind$Link(:final url) => _linkEdit(url) != null,
+    EntityKind$List(:final listKind) =>
+      lists &&
+          (_onEmptyLine
+              ? _toggledEmpty(listKind) != null
+              : _toggled(kind) != null),
     _ when TextFormatting.isToggled(kind) => _toggled(kind) != null,
     _ => false,
   };
@@ -504,7 +696,146 @@ class ComposerTextController extends TextEditingController {
       notifyListeners();
       return;
     }
-    _commit(next, super.value);
+    _commit(next, super.value, pending: _pending);
+  }
+
+  // --- Lists ---
+
+  /// Turns the lines the selection touches into list items of [listKind], or
+  /// back into plain lines when they all are items of it already.
+  ///
+  /// An item the lines touch keeps its extent and depth and takes the kind. At
+  /// a caret on an empty line it makes (or ends) an empty item there. Does
+  /// nothing unless [lists] is on, or where a quote or a code block holds a
+  /// line.
+  void toggleList(EntityListKind listKind) {
+    if (!lists || _composing) return;
+    if (_onEmptyLine) {
+      if (_toggledEmpty(listKind) case final edit?) _commitListEdit(edit);
+      return;
+    }
+    _toggle(EntityKind.list(listKind: listKind));
+  }
+
+  /// Whether [indentListItems] would move an item.
+  bool get canIndentListItems => _shifted(1) != null;
+
+  /// Moves the items the selection touches one level deeper, up to
+  /// [EntityKind$List.maxDepth].
+  void indentListItems() {
+    if (_shifted(1) case final edit?) _commitListEdit(edit);
+  }
+
+  /// Whether [outdentListItems] would move an item.
+  bool get canOutdentListItems => _shifted(-1) != null;
+
+  /// Moves the items the selection touches one level out, down to depth 0
+  /// (they stay items; Backspace at an item's start is what leaves the list).
+  void outdentListItems() {
+    if (_shifted(-1) case final edit?) _commitListEdit(edit);
+  }
+
+  /// Whether the caret is in a list item (an empty one included): Enter there
+  /// continues or leaves the list, so a host's Enter-to-send leaves the key to
+  /// the field.
+  bool get isInListItem {
+    final caret = _caret;
+    if (!lists || caret == null) return false;
+    return _pending?.offset == caret ||
+        ListEditing.itemAt(_rich, caret) != null;
+  }
+
+  /// Whether the caret is in an item, so [insertSoftBreak] has one to go on.
+  bool get canInsertSoftBreak => _softBreak() != null;
+
+  /// Inserts a line break the item covers: the item goes on after it, instead
+  /// of the break opening the next item. The markdown spells it `"  \n"`.
+  void insertSoftBreak() {
+    if (_softBreak() case final edit?) _commitListEdit(edit);
+  }
+
+  /// Whether the caret is at the start of an item, where
+  /// [outdentOrExitListItem] acts.
+  bool get canOutdentOrExitListItem => _atItemStart() != null;
+
+  /// With the caret at the start of an item (or on an empty one), moves it
+  /// one level out, and takes it out of the list when it has none left.
+  void outdentOrExitListItem() {
+    if (_atItemStart() case final edit?) _commitListEdit(edit);
+  }
+
+  /// The marker the gutter paints for each item, with the numbers derived.
+  /// Empty unless [lists] is on. For the field.
+  @internal
+  List<ListMarker> get listMarkers {
+    if (!lists) return const [];
+    final rich = richText;
+    final cached = _markers;
+    if (cached != null &&
+        identical(cached.rich, rich) &&
+        cached.pending == _pending) {
+      return cached.markers;
+    }
+    final markers = ListEditing.markers(rich, _pending);
+    _markers = (rich: rich, pending: _pending, markers: markers);
+    return markers;
+  }
+
+  ({RichText rich, PendingListItem? pending, List<ListMarker> markers})?
+  _markers;
+
+  // Whether the selection is a caret on an empty line.
+  bool get _onEmptyLine {
+    final rich = richText;
+    final (from, to) = _selectedRange(rich);
+    if (from != to) return false;
+    final (start, end) = TextFormatting.linesOf(rich.plain, from, to);
+    return start == end;
+  }
+
+  // The empty item a toggle of [kind] leaves on the caret's empty line; null
+  // where the line cannot hold one.
+  ListEdit? _toggledEmpty(EntityListKind kind) {
+    if (!lists || _composing) return null;
+    final rich = richText;
+    final (caret, _) = _selectedRange(rich);
+    final pending = _pending;
+    if (pending != null && pending.offset == caret) {
+      return (
+        text: rich,
+        caret: null,
+        pending: pending.kind == kind ? null : pending.withKind(kind),
+      );
+    }
+    final item = ListEditing.emptyItem(rich, caret, kind);
+    return item == null ? null : (text: rich, caret: null, pending: item);
+  }
+
+  ListEdit? _shifted(int delta) {
+    if (!lists || _composing) return null;
+    final rich = richText;
+    final (from, to) = _selectedRange(rich);
+    return ListEditing.shifted(rich, from, to, _pending, delta);
+  }
+
+  // The collapsed caret, or null.
+  int? get _caret {
+    final selection = value.selection;
+    return selection.isValid && selection.isCollapsed
+        ? selection.baseOffset
+        : null;
+  }
+
+  ListEdit? _softBreak() {
+    final caret = _caret;
+    if (!lists || _composing || caret == null) return null;
+    return ListEditing.softBreak(_rich, caret);
+  }
+
+  ListEdit? _atItemStart() {
+    final caret = _caret;
+    if (!lists || _composing || caret == null) return null;
+    return ListEditing.backspaceAtStart(_rich, caret, _pending);
   }
 
   // --- Atomic entities ---
@@ -697,7 +1028,7 @@ class ComposerTextController extends TextEditingController {
               backgroundColor: _entityStyles.codeBackground,
             ),
           );
-        // The marker of a list item is not text; the field paints no gutter yet.
+        // The marker of a list item is not text: the field's gutter paints it.
         case EntityKind$InlineContent() || EntityKind$List():
           break;
       }

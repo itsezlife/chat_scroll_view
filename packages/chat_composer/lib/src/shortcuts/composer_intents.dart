@@ -1,5 +1,6 @@
 import 'package:chat_composer/src/shortcuts/composer_formatting_intents.dart';
-import 'package:content_model/content_model.dart' show EntityListKind, EntityStyle;
+import 'package:content_model/content_model.dart'
+    show EntityListKind, EntityStyle;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -95,6 +96,19 @@ const Map<ShortcutActivator, Intent> _formatting = {
       ToggleListIntent(EntityListKind.bullet),
 };
 
+// The keys of list editing. Each is answered only where the text controller
+// has lists on and the command would do something, so everywhere else the key
+// reaches the field (Tab moves focus, Backspace deletes, Shift+Enter breaks
+// the line).
+const Map<ShortcutActivator, Intent> _listEditing = {
+  SingleActivator(LogicalKeyboardKey.tab): IndentListItemsIntent(),
+  SingleActivator(LogicalKeyboardKey.tab, shift: true):
+      OutdentListItemsIntent(),
+  SingleActivator(LogicalKeyboardKey.enter, shift: true):
+      InsertSoftBreakIntent(),
+  SingleActivator(LogicalKeyboardKey.backspace): OutdentOrExitListItemIntent(),
+};
+
 /// The default key bindings of the composer, chosen like the selection
 /// policies: one pure-Dart strategy per input family.
 ///
@@ -112,7 +126,9 @@ sealed class ComposerShortcutPolicy {
   /// Escape dismisses the header, and Telegram Desktop's formatting keys
   /// apply (Ctrl or Cmd with B, I, U, K; with Shift also X strikethrough,
   /// M monospace, P spoiler, `.` quote, N clear formatting, 7 numbered list,
-  /// 8 bullet list). The code block has no key.
+  /// 8 bullet list). The code block has no key. The list editing keys (Tab,
+  /// Shift+Tab, Shift+Enter, Backspace) are bound too and answered only by a
+  /// text with lists on.
   ///
   /// [inBrowser] leaves paste as plain text to the browser: Flutter leaves the
   /// clipboard keys of a text field to it, and it pastes as plain text with
@@ -150,6 +166,7 @@ final class ComposerShortcutPolicy$Mobile extends ComposerShortcutPolicy {
     SingleActivator(LogicalKeyboardKey.escape): DismissComposerHeaderIntent(),
     ..._pastePlain,
     ..._formatting,
+    ..._listEditing,
   };
 }
 
@@ -173,5 +190,6 @@ final class ComposerShortcutPolicy$Desktop extends ComposerShortcutPolicy {
         const DismissComposerHeaderIntent(),
     if (!inBrowser) ..._pastePlain,
     ..._formatting,
+    ..._listEditing,
   };
 }
