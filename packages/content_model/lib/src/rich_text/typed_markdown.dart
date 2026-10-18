@@ -19,12 +19,12 @@ import 'package:content_model/src/rich_text/rich_text.dart';
 /// | ```` ```a``` ```` or ```` ```lang\na\n``` ```` | [EntityKind.codeBlock], with the language when the first line is one |
 /// | `**a**` | [EntityKind.bold] |
 /// | `__a__` | [EntityKind.italic] |
-/// | `~~a~~` | [EntityKind.strike] |
 /// | `||a||` | [EntityKind.spoiler] |
+/// | `~~a~~` | [EntityKind.strike] |
 ///
 /// The markers are read in that order, so a marker inside code is text. A pair
-/// holds at least one character and never crosses a line break, except for a
-/// code block.
+/// holds at least one character that is not a blank and never crosses a line
+/// break, except for a code block.
 ///
 /// ## What it leaves alone
 ///
@@ -169,6 +169,9 @@ abstract final class TypedMarkdown {
     final made = <(int, int)>[];
     var removed = 0;
     for (final match in pattern.allMatches(text.plain)) {
+      // A pair around blanks has nothing to style, and a style over blanks
+      // does not survive a RichText: the markers would vanish with it.
+      if (match[1]!.trim().isEmpty) continue;
       if (_touchesAny(blocked, match.start, match.end)) continue;
       final markerLength = (match.end - match.start - match[1]!.length) ~/ 2;
       if (holdsNothing &&

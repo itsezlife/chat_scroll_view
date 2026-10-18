@@ -63,7 +63,7 @@ void main() {
     });
 
     test('an empty pair and a lone marker stay text', () {
-      for (final text in const ['**** a', '**a', '~~ x']) {
+      for (final text in const ['**** a', '**a', '~~ x', '** **', '|| ||']) {
         expect(_apply(text), RichText.plain(text), reason: text);
       }
     });
@@ -86,6 +86,20 @@ void main() {
           Entity(0, 5, EntityKind.code),
           Entity(10, 1, EntityKind.bold),
         ]),
+      );
+    });
+  });
+
+  group('as the reference client reads prose', () {
+    // Pinned on purpose: Android has no word boundary, so these convert.
+    test('__init__ is italic and a || b || c holds a spoiler', () {
+      expect(
+        _apply('call __init__ here'),
+        RichText('call init here', const [Entity(5, 4, EntityKind.italic)]),
+      );
+      expect(
+        _apply('a || b || c'),
+        RichText('a  b  c', const [Entity(2, 3, EntityKind.spoiler)]),
       );
     });
   });

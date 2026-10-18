@@ -35,24 +35,31 @@ void main() {
     return layer ? RepaintBoundary(child: box) : box;
   }
 
-  Widget harness(String identity, {required bool layer}) => MaterialApp(
+  Widget harness(
+    String identity, {
+    required bool layer,
+    Offset inset = Offset.zero,
+  }) => MaterialApp(
     home: RepaintBoundary(
       key: shot,
       child: Scaffold(
         body: Align(
           alignment: Alignment.topLeft,
-          child: ChatMessageChangeTransition(
-            contentIdentity: identity,
-            content: identity == 'old'
-                ? bar(Colors.white, 120, 14, layer: layer)
-                : bar(Colors.redAccent, 40, 44, layer: layer),
-            edited: false,
-            outgoing: false,
-            color: const Color(0xFF2B5278),
-            borderRadius: BorderRadius.circular(12),
-            padding: const EdgeInsets.all(10),
-            metaBuilder: (context, editedOpacity) =>
-                const SizedBox(width: 30, height: 10),
+          child: Padding(
+            padding: EdgeInsets.only(left: inset.dx, top: inset.dy),
+            child: ChatMessageChangeTransition(
+              contentIdentity: identity,
+              content: identity == 'old'
+                  ? bar(Colors.white, 120, 14, layer: layer)
+                  : bar(Colors.redAccent, 40, 44, layer: layer),
+              edited: false,
+              outgoing: false,
+              color: const Color(0xFF2B5278),
+              borderRadius: BorderRadius.circular(12),
+              padding: const EdgeInsets.all(10),
+              metaBuilder: (context, editedOpacity) =>
+                  const SizedBox(width: 30, height: 10),
+            ),
           ),
         ),
       ),
@@ -64,10 +71,11 @@ void main() {
     WidgetTester tester, {
     required bool layer,
     Duration elapsed = const Duration(milliseconds: 90),
+    Offset inset = Offset.zero,
   }) async {
-    await tester.pumpWidget(harness('old', layer: layer));
+    await tester.pumpWidget(harness('old', layer: layer, inset: inset));
     await tester.pumpAndSettle();
-    await tester.pumpWidget(harness('new', layer: layer));
+    await tester.pumpWidget(harness('new', layer: layer, inset: inset));
     await tester.pump();
     await tester.pump(elapsed);
     final progress = tester
@@ -97,25 +105,37 @@ void main() {
     expect(composited.pixels, plain.pixels);
   });
 
-  testWidgets('the old content fades out as 1 - p and the new in as p', (
-    tester,
-  ) async {
-    for (final layer in [false, true]) {
-      final shot = await midway(tester, layer: layer);
-      // The red channel: the bubble is 0x2B, the old bar white, the new bar
-      // 0xFF too, so a bar at opacity a shows 0x2B + (0xFF - 0x2B) * a. Over
-      // both bars, the opacities compose as 1 - (1 - a)(1 - b).
-      int red(int x, int y) => shot.pixels[(y * shot.width + x) * 4];
-      int shown(double opacity) => (0x2B + (0xFF - 0x2B) * opacity).round();
-      final p = shot.progress;
+  testWidgets('the old content fades out as 1 - p and the new in as p, '
+      'wherever the bubble sits', (tester) async {
+    // A bubble below and to the right of the origin: the fade layer paints at
+    // absolute positions, so a parent offset must not move the content off it.
+    for (final inset in const [Offset.zero, Offset(37, 23)]) {
+      for (final layer in [false, true]) {
+        final shot = await midway(tester, layer: layer, inset: inset);
+        // The red channel: the bubble is 0x2B, the old bar white, the new bar
+        // 0xFF too, so a bar at opacity a shows 0x2B + (0xFF - 0x2B) * a. Over
+        // both bars, the opacities compose as 1 - (1 - a)(1 - b).
+        int red(int x, int y) =>
+            shot.pixels[((y + inset.dy.toInt()) * shot.width +
+                    x +
+                    inset.dx.toInt()) *
+                4];
+        int shown(double opacity) => (0x2B + (0xFF - 0x2B) * opacity).round();
+        final p = shot.progress;
+        final reason = 'inset $inset, layer $layer';
 
-      expect(red(100, 15), closeTo(shown(1 - p), 1), reason: 'old only');
-      expect(red(20, 30), closeTo(shown(p), 1), reason: 'new only');
-      expect(
-        red(12, 12),
-        closeTo(shown(1 - (1 - (1 - p)) * (1 - p)), 1),
-        reason: 'both',
-      );
+        expect(
+          red(100, 15),
+          closeTo(shown(1 - p), 1),
+          reason: 'old only, $reason',
+        );
+        expect(red(20, 30), closeTo(shown(p), 1), reason: 'new only, $reason');
+        expect(
+          red(12, 12),
+          closeTo(shown(1 - (1 - (1 - p)) * (1 - p)), 1),
+          reason: 'both, $reason',
+        );
+      }
     }
   });
 
