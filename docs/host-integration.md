@@ -662,10 +662,19 @@ A message of nothing but emoji is shown without a bubble, large
    - `sticker`: for a lone emoji, the document it is shown as, from the host's
      own `unicode` to `document` map (an animated-emoji pack's) or the custom
      emoji's own document; none gives the text layout;
-   - `autoplay`: whether a lone unicode emoji plays now. Keep a played-once
-     memory **per chat screen** (not in the cache) and ask it **once, when the
-     body mounts**, keeping the answer for that mount: asking on every build
-     holds a sticker that is still playing. A tap replays through the body;
+   - `playback` (`ChatStickerPlayback`): how the sticker plays, from the asset
+     kind and the user's animation settings. Null is the reference default (a
+     lone unicode emoji plays once and rests on the first frame, a custom emoji
+     loops). The body reads no setting;
+   - `playLedger` (`ChatStickerPlayLedger`): the played-once memory, **per open
+     chat** (not in the cache or the body, not persisted). The body asks it
+     when it mounts, keeps the answer for that mount and records the play when
+     the animation is playing, so a recycled row mounts again and rests. A
+     tap replays through the body;
+   - `isActive`: the one visibility input, row visibility combined with app
+     lifecycle, route focus and the power policy;
+   - `tapPolicy`: only to change the replay tap slop (zero: a tap must land on
+     the drawn sticker) or the mobile long press;
    - `hasHeader` when a reply or forward header sits above the text layout.
 4. **Place the chrome**: the time pill over the body's bottom trailing corner
    (radius 4 for text, 12 for a sticker, a 0.6-alpha service colour), reactions
@@ -676,10 +685,35 @@ A message of nothing but emoji is shown without a bubble, large
 6. **Taps** are `ChatEmbedActivated` for a custom emoji and `ChatStickerActivated`
    for the lone sticker; what they mean is the host's.
 
-Known gap: `AssetProfile.loop` is not consumed by the cache and a binding has no
-restart, so a play-once sticker loops and a replay re-attaches it rather than
-rewinding it. The host wiring is complete; a `catalog_assets` ticket makes
-play-once real.
+#### Sticker interaction seams
+
+A tap on the sticker is a replay (the body's, never rewinding a running pass)
+and an interaction (the host's). The viewport ships the seams, not the effect:
+
+- **The event**: `ChatStickerActivated` carries the emoji (`content`,
+  `isCustomEmoji`), the message id, the drawn `stickerRect` in global
+  coordinates and `tapTime` on the facade's injected `monotonicClock`, for every
+  tap on a hit, playing or not. A long press is told too and carries no effect.
+  Whether the message is the user's, the chat kind and the gates (a private
+  chat, not Saved Messages, not secret, sent) are the host's facts.
+- **Where to draw**: `ChatSelectionController.stickerRectOf(messageId)` is the
+  live rectangle, null for a row that shows no sticker; read it while the
+  effect plays, since the row scrolls. The effect is three times the sticker
+  and crosses neighbouring rows, so the host draws it above the list.
+- **A peer's interaction**: `playRemoteInteraction(messageId)` restarts the
+  sticker and returns the rectangle, or null (not mounted, scrolled out,
+  inactive) so the host drops it and sends no acknowledgement.
+- **Batching and the wire** are the host's: a debounce after the last tap
+  (500 ms) bounded by a window from the first (1.0 s), offsets in seconds from
+  the first tap, a random effect index from an injected source, and the JSON
+  `{"v":1,"a":[{"i":n,"t":seconds}]}` carried with the emoji and message id.
+  Keep the window at 1.0 s so every offset is within `[0, 1]` and increasing,
+  which the strictest receiving client requires. The example's
+  `StickerInteractionStub` shows the batch it would send and sends nothing.
+
+Surfaces that share one cache entry (the same content at the same size) share
+one playback and replay together; two identical emoji-only messages visible at
+once play in step.
 
 ### Drafts
 
@@ -823,7 +857,8 @@ not use the hover-open toggle region.
 | IME readings and keyboard commands | `example/lib/src/common/soft_keyboard_port.dart` |
 | Glyph probe and atlas wiring | `example/lib/src/common/emoji_glyph_probe.dart` |
 | `RichText`, markdown and detection | `example/lib/src/features/chat/utils/chat_body_markdown.dart` |
-| Embed seams, sticker lookup, played-once memory | `example/lib/src/features/chat/utils/chat_body_host.dart`, `sticker_play_memory.dart` |
+| Embed seams, sticker lookup, playback policy, played-once ledger | `example/lib/src/features/chat/utils/chat_body_host.dart`, `sticker_play_memory.dart` |
+| Stand-in for the peer broadcast of a sticker tap | `example/lib/src/features/chat/utils/sticker_interaction_stub.dart` |
 | Large-emoji setting and gate | `example/lib/src/features/chat/data/large_emoji_setting.dart`, `utils/large_emoji_policy.dart` |
 | Emoji-only message chrome | `example/lib/src/features/chat/widgets/demo_emoji_message.dart` |
 | Message bodies, interaction handlers | `example/lib/src/features/chat/widgets/demo_message.dart`, `view/widget_chat_screen.dart` |

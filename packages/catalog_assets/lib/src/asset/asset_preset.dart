@@ -153,7 +153,7 @@ abstract final class AssetPresets {
   /// at that size at [devicePixelRatio].
   ///
   /// It plays once and does not loop, then rests on [restFrame] (the first
-  /// frame by default, as Android and Desktop do) until the host replays it
+  /// frame by default, as the reference client does) until the host replays it
   /// (`AssetBinding.replay`). [autoplay] says whether it starts when it
   /// attaches; the host decides it (a memory of what already played, per
   /// chat), never the cache. With [autoplay] false the sticker holds its

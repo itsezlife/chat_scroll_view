@@ -2,9 +2,8 @@ import 'package:meta/meta.dart';
 
 /// The frame a playback that does not loop rests on once its pass is over.
 ///
-/// The reference clients differ: Android and Desktop go back to the first
-/// frame, iOS is read to stay on the last (its player is not in the checked
-/// source, so that is unverified). It is a per-attach value so a host can
+/// The reference clients differ: two go back to the first frame, one is read
+/// to stay on the last (unverified). It is a per-attach value so a host can
 /// follow either.
 enum AssetRestFrame {
   /// The pass ends back on the first frame.

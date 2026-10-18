@@ -9,8 +9,8 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
 ///
 /// A pure strategy of the `$Mobile` / `$Desktop` shape, like
 /// [ChatSelectionPolicy]; [ChatStickerTapPolicy.of] follows a selection policy.
-/// The reference clients agree on the table below (read from Android, iOS and
-/// Desktop source), so the two strategies differ only in the long press.
+/// The reference clients agree on the table below, so the two strategies
+/// differ only in the long press.
 ///
 /// | Gesture | Mobile | Desktop |
 /// | --- | --- | --- |

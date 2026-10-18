@@ -12,8 +12,8 @@ import 'package:content_model/content_model.dart'
 /// | Mode | Reference behaviour |
 /// | --- | --- |
 /// | [loop] | a custom emoji and an ordinary animated sticker, while the user's autoplay setting allows it |
-/// | [onceThenFirstFrame] | the single unicode emoji on Android and Desktop |
-/// | [onceThenLastFrame] | the single unicode emoji on iOS (its player is not in the checked source: unverified) |
+/// | [onceThenFirstFrame] | the single unicode emoji in two of the three reference clients |
+/// | [onceThenLastFrame] | the single unicode emoji in the third (unverified) |
 /// | [still] | any of them with autoplay off (power saving) |
 ///
 /// A sticker that is not looping plays once, the first time the open chat
@@ -34,8 +34,7 @@ enum ChatStickerPlayback {
   still;
 
   /// The reference client's mode for the single emoji [emoji]: a unicode emoji
-  /// plays once and rests on the first frame (Android and Desktop), a custom
-  /// emoji loops.
+  /// plays once and rests on the first frame, a custom emoji loops.
   static ChatStickerPlayback defaultFor(ContentKey emoji) => switch (emoji) {
     ContentKey$Unicode() => onceThenFirstFrame,
     _ => loop,
@@ -57,9 +56,9 @@ enum ChatStickerPlayback {
 /// The host's memory of which stickers already played in the open chat.
 ///
 /// Per message id and per open chat: a new chat controller starts empty, so a
-/// reopened chat plays them again, as the reference clients do (Android keeps
-/// a map on the chat screen, iOS a set on the chat's interaction object,
-/// Desktop a set on the chat widget). The body keeps none of it, so it
+/// reopened chat plays them again, as the reference clients do (each keeps the
+/// set on the open chat, not on the message or the account). The body keeps
+/// none of it, so it
 /// survives a row being recycled and mounted again; it is not persisted.
 ///
 /// The body asks [hasPlayed] when a body mounts and keeps the answer for that

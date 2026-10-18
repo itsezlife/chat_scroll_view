@@ -51,14 +51,14 @@ final class StickerBroadcast {
 ///
 /// Both numbers are the host's, not the viewport's:
 ///
-/// - [debounce], 500 ms: a batch is sent this long after its last tap (the
-///   Android client re-arms a timer on each tap; iOS sends once, 1.0 s after
-///   the first tap).
+/// - [debounce], 500 ms: a batch is sent this long after its last tap (one
+///   reference client re-arms a timer on each tap; another sends once, 1.0 s
+///   after the first tap).
 /// - [window], 1.0 s: a batch is sent no later than this after its first tap.
-///   Desktop discards an incoming entry whose offset is outside `[0, 1]` s or
-///   not greater than the one before, so an open-ended Android debounce can
-///   emit what Desktop drops; closing the batch at the window keeps every
-///   offset within it. A tap after the window starts the next batch.
+///   A receiving client may discard an entry whose offset is outside
+///   `[0, 1]` s or not greater than the one before, so an open-ended debounce
+///   can emit what such a peer drops; closing the batch at the window keeps
+///   every offset within it. A tap after the window starts the next batch.
 ///
 /// A tap on another message sends the pending batch at once. Offsets come
 /// from the taps' own monotonic `tapTime`, never from a clock read here, so
