@@ -8,6 +8,7 @@ library;
 
 import 'package:test/test.dart';
 
+import 'audit/emoji_only_agreement_test.dart' as emoji_only_agreement_test;
 import 'audit/shipped_catalog_test.dart' as shipped_catalog_test;
 import 'catalog/emoji_catalog_test.dart' as emoji_catalog_test;
 import 'collections/emoji_collection_source_test.dart'
@@ -31,6 +32,7 @@ import 'search/emoji_search_source_test.dart' as emoji_search_source_test;
 import 'search/keyword_index_test.dart' as keyword_index_test;
 
 void main() {
+  group('audit/emoji_only_agreement_test.dart', emoji_only_agreement_test.main);
   group('audit/shipped_catalog_test.dart', shipped_catalog_test.main);
   group('catalog/emoji_catalog_test.dart', emoji_catalog_test.main);
   group(

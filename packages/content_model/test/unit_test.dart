@@ -12,6 +12,7 @@ import 'collection/collection_id_test.dart' as collection_id_test;
 import 'collection/collection_test.dart' as collection_test;
 import 'data/seams_test.dart' as seams_test;
 import 'emoji/emoji_entry_test.dart' as emoji_entry_test;
+import 'emoji/emoji_only_text_test.dart' as emoji_only_text_test;
 import 'identity/content_descriptor_test.dart' as content_descriptor_test;
 import 'identity/content_key_test.dart' as content_key_test;
 import 'identity/inline_content_ref_test.dart' as inline_content_ref_test;
@@ -49,6 +50,7 @@ void main() {
   group('collection/collection_test.dart', collection_test.main);
   group('data/seams_test.dart', seams_test.main);
   group('emoji/emoji_entry_test.dart', emoji_entry_test.main);
+  group('emoji/emoji_only_text_test.dart', emoji_only_text_test.main);
   group('identity/content_descriptor_test.dart', content_descriptor_test.main);
   group('identity/content_key_test.dart', content_key_test.main);
   group('identity/inline_content_ref_test.dart', inline_content_ref_test.main);

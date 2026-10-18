@@ -13,8 +13,10 @@ enum LintRule {
 
   /// A leaf package ([DependencyLint]) depends on another workspace member.
   leafDependsOnPackage(
-    'content_model and chrome_foundation are leaves: every other package may '
-    'depend on them, so they depend on no workspace package.',
+    'content_model, chrome_foundation and composer_editable are leaves: '
+    'every other package may depend on the first two, and the editable fork '
+    'is a copy of Flutter sources that must stay free of workspace code, so '
+    'they depend on no workspace package.',
   ),
 
   /// An edge the package topology forbids outright.
@@ -37,6 +39,13 @@ enum LintRule {
     'rich_clipboard holds platform code and is wired by the host: packages '
     'take the RichClipboard seam from content_model instead, so no package '
     'but the host reaches a platform channel (ADR 031, ADR 032).',
+  ),
+
+  /// A member other than the composer depends on the editable fork.
+  composerEditableOutsideComposer(
+    'composer_editable is the composer\'s editable and chat_composer is its '
+    'only dependent: hosts reach the field through the composer view, so the '
+    'fork\'s selection types and defaults stay behind one seam.',
   ),
 
   /// A library re-exports another workspace package.

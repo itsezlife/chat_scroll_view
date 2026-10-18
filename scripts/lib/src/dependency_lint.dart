@@ -8,8 +8,8 @@ import 'package:workspace_check/src/workspace.dart';
 ///
 /// - **No cycles.** Reported once per cycle, as `a -> b -> a` starting from the
 ///   alphabetically smallest member.
-/// - **Leaves stay leaves.** `content_model` and `chrome_foundation` depend on
-///   no workspace package.
+/// - **Leaves stay leaves.** `content_model`, `chrome_foundation` and
+///   `composer_editable` depend on no workspace package.
 /// - **Panel hosts stay payload-free.** `panel_shell`, `panel_pages` and
 ///   `panel_presentation` never depend on `emoji_catalog_pack` or on a codec /
 ///   decoder / fetcher adapter package, directly or through other members
@@ -30,6 +30,11 @@ import 'package:workspace_check/src/workspace.dart';
 ///   platform code; packages take the `RichClipboard` seam instead. Reported
 ///   as `member -> rich_clipboard`.
 ///
+/// - **The composer owns its editable.** `chat_composer` is the only member
+///   that depends on `composer_editable`; hosts reach the field through the
+///   composer view and never take the raw editable. Reported as
+///   `member -> composer_editable`.
+///
 /// Adapter packages are recognised by name, since nothing else marks them: a
 /// package is an adapter when a `_`-delimited word of its name is `codec`,
 /// `decoder` or `fetcher` (or the plural): `lottie_codec`, `disk_fetchers`. An
@@ -41,6 +46,7 @@ abstract final class DependencyLint {
   static const Set<String> _leaves = <String>{
     'content_model',
     'chrome_foundation',
+    'composer_editable',
   };
 
   static const Set<String> _payloadFreeHosts = <String>{
@@ -66,17 +72,33 @@ abstract final class DependencyLint {
   // Adapters only a host wires, because they hold platform code.
   static const Set<String> _hostAdapters = <String>{'rich_clipboard'};
 
+  // The editable fork and the one member allowed to depend on it.
+  static const String _composerEditable = 'composer_editable';
+  static const String _composerEditableDependent = 'chat_composer';
+
   /// All violations in [graph]: cycles first, then leaf breaches, then the
   /// remaining forbidden edges, then plugin declarations outside their
-  /// adapter, then host adapters outside the host, each group in member
-  /// order.
+  /// adapter, then host adapters outside the host, then dependents of
+  /// `composer_editable` other than the composer, each group in member order.
   static List<Violation> check(WorkspaceGraph graph) => <Violation>[
     ..._cycles(graph),
     ..._leafBreaches(graph),
     ..._forbiddenBreaches(graph),
     ..._pluginBreaches(graph),
     ..._hostAdapterBreaches(graph),
+    ..._composerEditableBreaches(graph),
   ];
+
+  static Iterable<Violation> _composerEditableBreaches(WorkspaceGraph graph) =>
+      <Violation>[
+        for (final member in graph.members)
+          if (member.name != _composerEditableDependent &&
+              member.dependencies.contains(_composerEditable))
+            Violation(
+              LintRule.composerEditableOutsideComposer,
+              '${member.name} -> $_composerEditable',
+            ),
+      ];
 
   static Iterable<Violation> _hostAdapterBreaches(WorkspaceGraph graph) =>
       <Violation>[
