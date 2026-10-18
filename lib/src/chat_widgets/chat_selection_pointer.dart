@@ -107,6 +107,15 @@ class ChatSelectionPointer {
   /// link inside the spoiler would otherwise look like a hit by then. The tap
   /// that revealed the spoiler is the reveal, not the link.
   ChatInlineHit? _pointerDownInlineHit;
+
+  /// Whether the message under the pointer had no revealed spoiler when the
+  /// pointer went down.
+  ///
+  /// Compared with the state when the tap lands, it tells whether this very tap
+  /// revealed one. The markdown body decides that (slop, button, the spoiler's
+  /// own boxes) and reveals on pointer up, before the tap fires; asking the
+  /// state rather than the geometry keeps the viewport from re-deciding it.
+  bool _pointerDownSpoilersHidden = false;
   int? _spanOriginId;
   int? _panOriginId;
   Offset? _panStartLocal;
@@ -138,6 +147,10 @@ class ChatSelectionPointer {
     _pointerDownInlineHit = switch (_pointerDownId) {
       final id? => selection?.resolveInlineHit(id, event.position),
       null => null,
+    };
+    _pointerDownSpoilersHidden = switch (_pointerDownId) {
+      final id? => !(selection?.spoilers.isRevealed(id) ?? true),
+      null => false,
     };
     _spanPointerLocal = event.localPosition;
     if (_pointerDownId == null) {
@@ -200,6 +213,7 @@ class ChatSelectionPointer {
     _pointerDownId = null;
     _pointerDownLocal = null;
     _pointerDownInlineHit = null;
+    _pointerDownSpoilersHidden = false;
     _panOriginId = null;
     _clearSpan();
   }
@@ -543,6 +557,14 @@ class ChatSelectionPointer {
     if (selection case final sel? when sel.isSelectionMode) {
       if (!sel.isSelectable(id)) return;
       sel.toggle(id);
+      return;
+    }
+    // The tap that revealed a spoiler is the reveal and no message tap. Message
+    // selection and text-selection dismiss above are not message taps: a row
+    // being toggled or a selection being dismissed stays that, wherever the
+    // pointer lands.
+    if (_pointerDownSpoilersHidden &&
+        (selection?.spoilers.isRevealed(id) ?? false)) {
       return;
     }
     final local = _pointerDownLocal;

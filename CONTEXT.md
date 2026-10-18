@@ -353,7 +353,7 @@ _Avoid_: overflow, limit error
 ### Message bodies
 
 **Spoiler state**:
-Per message, whether its spoilers are revealed, held by a controller owned by the markdown engine and keyed by message id. Reveal is for the whole message at once, in memory only, and survives remounts. A text selection that enters a hidden spoiler reveals it; dismissing the selection does not hide it again. While hidden, the glyphs are not drawn and a particle fill is, static when motion is off ([ADR 037](docs/adr/037-spoiler-and-mention-inline-styles.md)).
+Per message, whether its spoilers are revealed, held by a controller owned by the markdown engine and keyed by message id. Reveal is for the whole message at once, in memory only, and survives remounts. The tap that reveals is absorbed: it is not a message tap, an **inline hit** or a link activation, and the next tap on the revealed text is an ordinary one. A long press, a drag and a secondary click on a hidden spoiler are not taps and keep their own meaning; while **message selection** is live a tap toggles the row as everywhere else. A text selection that enters a hidden spoiler reveals it; dismissing the selection does not hide it again. While hidden, the glyphs are not drawn and a particle fill is, static when motion is off ([ADR 037](docs/adr/037-spoiler-and-mention-inline-styles.md)).
 _Avoid_: Per-spoiler reveal, persisted reveal, widget-local reveal flag, re-hide on selection dismiss
 
 **Emoji-only body**:

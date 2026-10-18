@@ -636,7 +636,8 @@ What the host wires so a markdown body paints and reports the inline layer
    Taps are `ChatResolvedMentionActivated` (with the user's `id`) or
    `ChatUsernameMentionActivated` (no id), both a `ChatMentionActivated`,
    and `ChatHashtagActivated`; a link inside a hidden spoiler reveals it and
-   reports nothing.
+   reports nothing, and a tap that reveals a spoiler is not an idle message tap
+   (`onIdleMessageTap` stays silent for it; the next tap is).
 
 ### Emoji-only messages
 
