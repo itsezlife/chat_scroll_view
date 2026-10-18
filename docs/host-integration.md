@@ -380,6 +380,62 @@ A draft is the markdown of `richText`, written to the `KeyValueStore` under the
 chat id (and the edited message's id) debounced on change, removed on send, and
 loaded with `restore(RichTextMarkdown.decode(...))`.
 
+### Formatting menu, shortcuts and suggestions
+
+The selection menu is the composer's own; the host chooses what it offers and
+supplies the rest through `ComposerSpec`:
+
+- `formatting` is the set of items (`ComposerFormattingOption.all` offers every
+  one; the list items still wait for `ComposerTextController(lists: true)`, and
+  an item whose command cannot apply to the selection is left out, not greyed).
+  Labels come from `ChromeStrings.formatting`.
+- `linkPrompt` is your dialog for Create and Edit Link. It gets the composer's
+  `BuildContext` and the current target (null when creating) and completes with
+  the URL, or null to cancel. The shortcut for links asks the same prompt.
+- `backPriority` takes the system Back ahead of the soft keyboard while the menu
+  is open. Back then closes the overflow page, then the menu, and only after
+  that anything below. Route it into the host's own back-claim stack and return
+  the function that gives the claim back.
+
+The default key map follows the platform (`ComposerShortcutPolicy`); Ctrl or
+Cmd with B, I, U and K format, with Shift also X, M, P, `.`, N, 7 and 8. A host
+that wants other keys passes a map to `ComposerView.shortcuts`; there is no
+merging, so start from the policy's map and change what differs:
+
+```dart
+final defaults = ComposerShortcutPolicy.forPlatform(defaultTargetPlatform);
+final shortcuts = {
+  for (final MapEntry(:key, :value) in defaults.shortcuts.entries)
+    // Bold on Ctrl+Shift+B instead of Ctrl/Cmd+B.
+    if (value is! ToggleStyleIntent || value.style != EntityStyle.bold)
+      key: value,
+  const SingleActivator(LogicalKeyboardKey.keyB, control: true, shift: true):
+      const ToggleStyleIntent(EntityStyle.bold),
+};
+```
+
+A chat leaves lists off; a form field that wants them builds its controller
+with `lists: true` (the reference host's notes field does).
+
+Three things stay the host's, because they are feedback or data:
+
+- **Apply formatting.** `ComposerController.onPaste` reports each paste. For a
+  plain paste (`wasRich` false) whose `RichTextMarkdown.decode(text)` differs
+  from `RichText.plain(text)`, offer to apply it (the reference desktop
+  client's toast, nine seconds): applying replaces the reported range with the
+  decoded text through `ComposerTextController.replaceRange`. Any edit
+  withdraws the offer, and it never holds the paste back.
+- **Suggestions.** Register `ComposerQueryKind`s (`@`, `#`), build the panel from
+  `composer.query` (the reference host puts it in the header strip with
+  `ComposerHeader.suggestion`), and on a pick call `replaceQuery` with a real
+  mention atom or hashtag. Answer `confirmMention` from your own members so a
+  pasted mention survives the send.
+- **Link preview.** Listen to the composer's text, wait one second after the
+  last keystroke (none when the text jumped by more than two characters or the
+  caret follows a space), detect with `DetectionPolicy.urlsOnly` on a copy and
+  show the first URL in the header strip. The listener writes nothing into the
+  composer.
+
 ### Popup anchor
 
 For an anchored popup, tell the controller where the composer is, in the
@@ -696,5 +752,7 @@ toggle region.
 | IME readings and keyboard commands | `example/lib/src/common/soft_keyboard_port.dart` |
 | Glyph probe and atlas wiring | `example/lib/src/common/emoji_glyph_probe.dart` |
 | `RichText`, markdown and detection | `example/lib/src/features/chat/utils/chat_body_markdown.dart` |
-| Popup anchor, composer view | `example/lib/src/features/chat/widgets/chat_composer.dart` |
+| Popup anchor, composer view, apply-formatting toast | `example/lib/src/features/chat/widgets/chat_composer.dart` |
+| Link prompt dialog, notes field with lists | `example/lib/src/features/chat/widgets/link_url_dialog.dart`, `example/lib/src/features/chat/widgets/notes_dialog.dart` |
+| Suggestion panels, link preview, apply-formatting offer | `example/lib/src/features/chat/widgets/chat_suggestion_bar.dart`, `example/lib/src/features/chat/input/chat_link_preview.dart`, `example/lib/src/features/chat/input/chat_format_offer.dart` |
 | Panel box and shortcuts | `example/lib/src/features/chat/widgets/chat_bottom_chrome.dart` |

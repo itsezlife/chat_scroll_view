@@ -26,6 +26,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_search_b
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_backend_error.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/notes_dialog.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/scroll_to_bottom_button.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/selection_app_bar.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls/chat_side_controls.dart';
@@ -604,6 +605,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     await menu.present(context, request);
   }
 
+  /// The notes field: the one composer of the demo with lists on.
+  Future<void> _openNotes() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    return showNotesDialog(context, clipboard: widget.services.clipboard);
+  }
+
   Future<void> _openBubbleRadiusSettings() async {
     FocusManager.instance.primaryFocus?.unfocus();
     final selected = await showBubbleRadiusDialog(
@@ -982,6 +989,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                     const ChatSearchToggleButton(),
                     const SizedBox(width: 4),
                     IconButton.filledTonal(
+                      tooltip: 'Notes (lists)',
+                      onPressed: _openNotes,
+                      icon: const Icon(Icons.checklist, size: 20),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton.filledTonal(
                       tooltip: 'Message corners',
                       onPressed: _openBubbleRadiusSettings,
                       icon: const Icon(Icons.rounded_corner, size: 20),
@@ -995,7 +1008,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         Positioned(
           top: 0,
           left: 12,
-          right: 118,
+          right: 162,
           child: ValueListenableBuilder<double>(
             valueListenable: insets.chromeTop,
             builder: (context, chromeTop, _) => ValueListenableBuilder<bool>(

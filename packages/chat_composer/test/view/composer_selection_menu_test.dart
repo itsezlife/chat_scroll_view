@@ -845,6 +845,24 @@ void main() {
       expect(rig.composer.hasFocus, isTrue);
     });
 
+    testWidgets('with the overflow page open Back closes the page first, then '
+        'the menu', (tester) async {
+      final rig = await MenuRig.show(tester);
+      await rig.openMore();
+      expect(rig.cardState.isOpen, isTrue);
+
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await rig.settle();
+
+      expect(MenuRig.card, findsOneWidget);
+      expect(rig.cardState.isOpen, isFalse);
+
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await rig.settle();
+
+      expect(MenuRig.card, findsNothing);
+    });
+
     testWidgets('the host\'s hook takes Back while the menu is up', (
       tester,
     ) async {
