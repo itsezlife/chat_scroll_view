@@ -20,6 +20,7 @@ import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/link_activation.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
@@ -804,10 +805,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       unawaited(_selection.copyTextSelection());
       return;
     }
-    final ids = _selection.selectedIds.toList()..sort();
-    final copied = ChatCopy.messages([
-      for (final id in ids) ?_dataSource?.getMessage(id)?.text,
-    ]);
+    final source = _dataSource;
+    if (source == null) return;
+    final copied = ChatMessagesCopyFormat.forPolicy(
+      _selection.selectionPolicy,
+    ).compose(ChatCopiedMessage.of(_selection.selectedIds, source));
     if (copied.isEmpty) return;
     unawaited(widget.services.clipboard.write(copied));
     _selection.clear();

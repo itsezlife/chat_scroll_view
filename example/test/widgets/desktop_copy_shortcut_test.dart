@@ -13,9 +13,8 @@ import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_d
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
-import 'package:flutter/rendering.dart' show RenderBox;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -96,8 +95,16 @@ void main() {
       await copyShortcut(tester);
 
       final copied = await clipboard().read();
-      expect(copied?.plain, contains('Thanks @Ann and @bob'));
-      expect(copied?.plain, contains('A plain link too: flutter.dev'));
+      // The desktop client's lines: [time] Name: text, a newline apart.
+      expect(
+        copied?.plain,
+        matches(
+          RegExp(
+            r'^\[[^\]]+\] [^:\n]+: Thanks @Ann and @bob, see #release for notes\n'
+            r'\[[^\]]+\] [^:\n]+: A plain link too: flutter\.dev$',
+          ),
+        ),
+      );
       expect(selection.isSelectionMode, isFalse);
     });
 
@@ -113,9 +120,37 @@ void main() {
           platform: 'windows',
         );
 
-        expect((await clipboard().read())?.plain, contains('Thanks @Ann'));
+        // One message on the desktop is its text alone.
+        expect(
+          (await clipboard().read())?.plain,
+          'Thanks @Ann and @bob, see #release for notes',
+        );
       },
       platform: TargetPlatform.windows,
+    );
+
+    desktopTest(
+      'Cmd+C copies several in the mobile format on a mobile platform',
+      (tester, selection) async {
+        selection
+          ..startSelection(8)
+          ..toggle(9);
+        await tester.pump(const Duration(milliseconds: 100));
+
+        await copyShortcut(tester, platform: 'ios');
+
+        // The Android client's: a Name: line, a blank line between messages.
+        expect(
+          (await clipboard().read())?.plain,
+          matches(
+            RegExp(
+              r'^[^:\n]+:\nThanks @Ann and @bob, see #release for notes\n\n'
+              r'([^:\n]+:\n)?A plain link too: flutter\.dev$',
+            ),
+          ),
+        );
+      },
+      platform: TargetPlatform.iOS,
     );
   });
 
