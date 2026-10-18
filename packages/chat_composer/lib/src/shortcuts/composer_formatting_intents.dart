@@ -44,14 +44,51 @@ class ClearFormattingIntent extends Intent {
 }
 
 /// Asks the composer to toggle the lines the selection touches into list
-/// items of [listKind].
+/// items of [listKind]; see `ComposerTextController.toggleList`.
 ///
-/// The composer answers it once lists are on; until then the key it is bound
-/// to is left to the field.
+/// The composer answers it only for a text controller with `lists` on;
+/// otherwise the key it is bound to is left to the field.
 class ToggleListIntent extends Intent {
   /// Creates the intent for [listKind].
   const ToggleListIntent(this.listKind);
 
   /// Bullet or numbered.
   final EntityListKind listKind;
+}
+
+/// Asks the composer to move the list items the selection touches one level
+/// deeper; see `ComposerTextController.indentListItems`. Tab by default.
+///
+/// Answered only where the selection touches an item that can move, so Tab
+/// keeps moving focus everywhere else.
+class IndentListItemsIntent extends Intent {
+  /// Creates the intent.
+  const IndentListItemsIntent();
+}
+
+/// Asks the composer to move the list items the selection touches one level
+/// out; see `ComposerTextController.outdentListItems`. Shift+Tab by default.
+class OutdentListItemsIntent extends Intent {
+  /// Creates the intent.
+  const OutdentListItemsIntent();
+}
+
+/// Asks the composer for a soft break: a line break inside the list item at
+/// the caret; see `ComposerTextController.insertSoftBreak`. Shift+Enter by
+/// default.
+class InsertSoftBreakIntent extends Intent {
+  /// Creates the intent.
+  const InsertSoftBreakIntent();
+}
+
+/// Asks the composer to outdent the list item the caret is at the start of,
+/// and to take it out of the list when it has no level left; see
+/// `ComposerTextController.outdentOrExitListItem`. Backspace by default.
+///
+/// The soft keyboard's Backspace arrives as an edit of the text and the
+/// controller recognises it there; this intent is for the key that changes
+/// nothing when the item is the first line, and for hardware keys.
+class OutdentOrExitListItemIntent extends Intent {
+  /// Creates the intent.
+  const OutdentOrExitListItemIntent();
 }

@@ -440,10 +440,13 @@ class _SubmitAction extends Action<SubmitComposerIntent> {
   }
 
   // A composing IME uses Enter to confirm the composition; the shortcut must
-  // let it through.
+  // let it through. So must a caret in a list item, where Enter is the list's
+  // (a new item, or out of the list), as in any editor that has lists.
   @override
-  bool isEnabled(SubmitComposerIntent intent) =>
-      !_state.widget.controller.text.isComposing && _target != null;
+  bool isEnabled(SubmitComposerIntent intent) {
+    final text = _state.widget.controller.text;
+    return !text.isComposing && !text.isInListItem && _target != null;
+  }
 
   @override
   Object? invoke(SubmitComposerIntent intent) {

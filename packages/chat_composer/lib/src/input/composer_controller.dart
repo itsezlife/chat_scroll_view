@@ -251,6 +251,11 @@ final class ComposerController {
   /// not send them, the text that came with them goes in (an office app's
   /// copied range comes with a picture of it).
   ///
+  /// Plain text with two or more marker lines (`- a`, `1. b`) becomes list
+  /// items when the text controller edits lists (see
+  /// `ComposerTextController.withPastedLists`); a paste as [plain] text does
+  /// not.
+  ///
   /// Pasted into a quote, the text's own quotes are unwrapped, so quotes never
   /// nest; entities that cannot sit where the text lands are dropped and the
   /// text still goes in (see [ComposerTextController.replaceRange]). A paste
@@ -298,6 +303,9 @@ final class ComposerController {
     if (!text.selection.isValid) text.selection = before.selection;
     var pasted = plain ? RichText.plain(held.plain) : held.richOrPlain;
     if (pasted.isEmpty) return false;
+    // Plain text with marker lines is a list pasted, for a field that edits
+    // lists; "as plain text" asks for the text as it is.
+    if (!plain) pasted = text.withPastedLists(pasted);
     if (_insideQuote(text.selection)) {
       pasted = RichText(pasted.plain, [
         for (final entity in pasted.entities)

@@ -17,6 +17,7 @@ import 'input/composer_draft_contract_test.dart'
     as composer_draft_contract_test;
 import 'input/composer_field_integration_test.dart'
     as composer_field_integration_test;
+import 'input/composer_lists_paste_test.dart' as composer_lists_paste_test;
 import 'input/composer_mentions_test.dart' as composer_mentions_test;
 import 'input/composer_paste_report_test.dart' as composer_paste_report_test;
 import 'query/composer_query_test.dart' as composer_query_test;
@@ -32,6 +33,8 @@ import 'text/composer_text_controller_edit_test.dart'
     as composer_text_controller_edit_test;
 import 'text/composer_text_controller_formatting_test.dart'
     as composer_text_controller_formatting_test;
+import 'text/composer_text_controller_lists_test.dart'
+    as composer_text_controller_lists_test;
 import 'text/composer_text_controller_paint_test.dart'
     as composer_text_controller_paint_test;
 import 'text/content_span_builder_test.dart' as content_span_builder_test;
@@ -44,6 +47,9 @@ import 'view/composer_formatting_shortcuts_test.dart'
     as composer_formatting_shortcuts_test;
 import 'view/composer_golden_test.dart' as composer_golden_test;
 import 'view/composer_length_budget_test.dart' as composer_length_budget_test;
+import 'view/composer_list_gutter_golden_test.dart'
+    as composer_list_gutter_golden_test;
+import 'view/composer_lists_field_test.dart' as composer_lists_field_test;
 import 'view/composer_semantics_test.dart' as composer_semantics_test;
 import 'view/composer_send_flow_test.dart' as composer_send_flow_test;
 import 'view/composer_shortcuts_test.dart' as composer_shortcuts_test;
@@ -68,6 +74,7 @@ void main() {
     'input/composer_field_integration_test.dart',
     composer_field_integration_test.main,
   );
+  group('input/composer_lists_paste_test.dart', composer_lists_paste_test.main);
   group('input/composer_mentions_test.dart', composer_mentions_test.main);
   group(
     'input/composer_paste_report_test.dart',
@@ -97,6 +104,10 @@ void main() {
     composer_text_controller_formatting_test.main,
   );
   group(
+    'text/composer_text_controller_lists_test.dart',
+    composer_text_controller_lists_test.main,
+  );
+  group(
     'text/composer_text_controller_paint_test.dart',
     composer_text_controller_paint_test.main,
   );
@@ -121,6 +132,11 @@ void main() {
     'view/composer_length_budget_test.dart',
     composer_length_budget_test.main,
   );
+  group(
+    'view/composer_list_gutter_golden_test.dart',
+    composer_list_gutter_golden_test.main,
+  );
+  group('view/composer_lists_field_test.dart', composer_lists_field_test.main);
   group('view/composer_semantics_test.dart', composer_semantics_test.main);
   group('view/composer_send_flow_test.dart', composer_send_flow_test.main);
   group('view/composer_shortcuts_test.dart', composer_shortcuts_test.main);
