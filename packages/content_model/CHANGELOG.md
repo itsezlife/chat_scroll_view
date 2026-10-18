@@ -17,6 +17,19 @@ package is pre-1.0.
 
 ### Added
 
+- `EntityDetection.apply(RichText, DetectionPolicy)` and
+  `EntityDetection.strip`: bare URLs (`https://a.b/c`, `a.com`, `www.a.com`),
+  emails (a `mailto:` link), `@name` ([EntityKind.username]) and `#tag`
+  ([EntityKind.hashtag]) become entities with Telegram Android's rules, never
+  inside code, a code block, a link, a mention, a username, a hashtag or inline
+  content. At most `EntityDetection.maxMatches` (100) per text; a text over
+  `EntityDetection.maxLength` (20 480) is returned unchanged. A scheme-less
+  host must end in a TLD from the shipped IANA list
+  (`tool/generate_tlds.dart` regenerates it) or in punycode. `strip` is the
+  edit-load inverse. `DetectionPolicy({urls, usernames, hashtags, schemes})`
+  replaces the root package's `ChatLinkifyPolicy`; `DetectionPolicy.urlsOnly`
+  is the web-URL-only policy.
+
 - `RichClipboard.attach(RichClipboardField)`: takes over the clipboard
   commands a platform performs itself for a focused text field (a browser's
   copy, cut and paste keys and menu), so they keep the rich form.
