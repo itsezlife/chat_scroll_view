@@ -19,6 +19,19 @@
   request is unchanged. See ADR 016 and ADR 036.
 - **EXAMPLE**: `EmojiReactionsRow.chipRects` (the row's chips), and
   `emojiSurfaceParts` in `emoji_message/`.
+### Selection highlight: one look for text, emoji and embeds
+- **Fixed**: a text selection painted a box for every run at the run's own
+  height (a drawn-larger emoji, a text run and an inline embed were three
+  heights, with gaps on a stretched line), tinted an embed it covered a second
+  time over the embed, and over a hidden spoiler drew a patch at the emoji's
+  positions that differed from the text's, showing where they were. It is now
+  one rectangle per line, the line's height, behind glyphs, emoji and embeds,
+  with no tint over an embed and the same rectangle at every position of a
+  hidden spoiler, as Telegram draws it (Android, iOS, Desktop; the rules and
+  divergences are in the fork's `docs/rendering.md`). The tap highlight of a
+  link or inline code reads the same rectangles, so its contour is the line's
+  height too. Needs the `flutter_md` change that makes `boxesForRange` per line
+  (not released yet).
 
 ### Status chrome of an emoji-only message: hover is the row's, a click selects (docs and example)
 - **Changed (host contract, no API change)**: the reference desktop client shows an
