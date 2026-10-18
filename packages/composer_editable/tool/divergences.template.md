@@ -203,6 +203,29 @@ the text and under any host `painter`. Plain rects, no rounded joins: the
 reference composer is a platform edit field, whose highlight is a path of one
 rect per line.
 
+### K. Secondary click seam (no selection change)
+
+Stock treats a secondary mouse click as a selection gesture: on Apple platforms
+it selects the word under the pointer, elsewhere it selects a position when the
+field is unfocused, and it then shows the field's own toolbar on the
+release. A host that draws a context menu of its own at the pointer needs the
+click to leave the caret and the selection alone, as the reference desktop
+client's text field does (its toolkit ignores the right button in the text
+control), so `ExtendedEditableText.onSecondaryClick` (and the same parameter on
+`ExtendedTextField`) is a seam:
+
+- **Null** keeps stock behaviour on every platform.
+- **Set**, the field reports both edges of the click
+  (`ExtendedSecondaryClick`: phase `down` or `up`, the global position, the
+  text position under the pointer) and does nothing else: no selection change,
+  no toolbar, no handles. The host picks the edge that opens its menu; which
+  edge the reference toolkit uses per operating system is not verifiable from
+  source.
+- **macOS divergence from stock, on purpose.** Stock selects the word on a
+  secondary click; with the seam set it does not.
+- The press is recorded in `lastSecondaryTapDownPosition` as stock does, so the
+  anchors of a menu built from it still work.
+
 ### Seams not in stock
 
 - `clipboardTextBuilder` / `pasteTextTransformer` (`ExtendedClipboardTextBuilder`,

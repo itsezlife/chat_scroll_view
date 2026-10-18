@@ -18,6 +18,7 @@ import 'package:composer_editable/src/cupertino/text_selection.dart';
 import 'package:composer_editable/src/material/desktop_text_selection.dart';
 import 'package:composer_editable/src/material/text_selection.dart';
 import 'package:composer_editable/src/widget/editable_text.dart';
+import 'package:composer_editable/src/widget/secondary_click.dart';
 import 'package:composer_editable/src/widget/system_context_menu.dart';
 import 'package:composer_editable/src/widget/text_selection.dart';
 import 'package:flutter/cupertino.dart';
@@ -248,6 +249,7 @@ class ExtendedTextField extends StatefulWidget {
     this.controller,
     this.focusNode,
     this.undoController,
+    this.onSecondaryClick,
     this.decoration = const InputDecoration(),
     TextInputType? keyboardType,
     this.textInputAction,
@@ -945,6 +947,10 @@ class ExtendedTextField extends StatefulWidget {
 
   /// {@macro flutter.widgets.undoHistory.controller}
   final UndoHistoryController? undoController;
+
+  /// Hears the secondary mouse button; see
+  /// [ExtendedEditableText.onSecondaryClick].
+  final ValueChanged<ExtendedSecondaryClick>? onSecondaryClick;
 
   /// {@macro flutter.services.TextInputConfiguration.hintLocales}
   final List<Locale>? hintLocales;
@@ -1960,6 +1966,7 @@ class _TextFieldState extends State<ExtendedTextField>
           controller: controller,
           focusNode: focusNode,
           undoController: widget.undoController,
+          onSecondaryClick: widget.onSecondaryClick,
           keyboardType: widget.keyboardType,
           textInputAction: widget.textInputAction,
           textCapitalization: widget.textCapitalization,
