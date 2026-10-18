@@ -1,3 +1,4 @@
+import 'package:chat_composer/src/menu/composer_formatting_option.dart';
 import 'package:chat_composer/src/spec/action_descriptor.dart';
 import 'package:chat_composer/src/spec/composer_header.dart';
 import 'package:chat_composer/src/spec/composer_panel.dart';
@@ -8,7 +9,22 @@ import 'package:flutter/widgets.dart' show BuildContext;
 /// user entered, or null when they cancelled.
 ///
 /// [context] is the composer's, so a dialog can be pushed on its navigator.
-typedef ComposerLinkPrompt = Future<String?> Function(BuildContext context);
+/// [currentUrl] is the target of the link the selection already touches (the
+/// dialog edits it), or null when the selection holds none (the dialog
+/// creates one).
+typedef ComposerLinkPrompt =
+    Future<String?> Function(BuildContext context, String? currentUrl);
+
+/// Takes the system back button ahead of the soft keyboard and returns the
+/// function that gives it back.
+///
+/// The soft keyboard consumes Back before Flutter's own dispatch sees it, so a
+/// menu that wants Back to close it (and the keyboard to stay) needs the
+/// host's platform hook. The composer calls this when the selection menu opens
+/// and calls the returned function when it closes; [onBack] closes the menu
+/// and completes with true.
+typedef ComposerBackPriority =
+    VoidCallback Function(ValueGetter<Future<bool>> onBack);
 
 /// The host's declarative description of the composer for one moment: which
 /// header, which panel, which actions, and whether it accepts input.
@@ -29,6 +45,8 @@ final class ComposerSpec {
     this.busy = false,
     this.messageLengthLimit,
     this.linkPrompt,
+    this.formatting = ComposerFormattingOption.standard,
+    this.backPriority,
   }) : assert(_uniqueIds(actions), 'two actions of a ComposerSpec share an id'),
        assert(
          messageLengthLimit == null || messageLengthLimit > 0,
@@ -71,6 +89,18 @@ final class ComposerSpec {
   /// shortcut). Null leaves those commands inert: the composer owns no dialog,
   /// the host does.
   final ComposerLinkPrompt? linkPrompt;
+
+  /// Which formatting items the selection menu may offer, in menu order
+  /// whatever the order here. An empty set makes it a clipboard menu.
+  ///
+  /// An item is still left out where its command cannot apply (see
+  /// `ComposerTextController.canApply`), and the link items where there is no
+  /// [linkPrompt].
+  final Set<ComposerFormattingOption> formatting;
+
+  /// The host's hook for taking Back ahead of the soft keyboard while the
+  /// selection menu is open; null leaves Back to Flutter's own dispatch.
+  final ComposerBackPriority? backPriority;
 
   /// The visible actions at [placement], in spec order.
   List<ActionDescriptor> visibleActions(ActionPlacement placement) => [

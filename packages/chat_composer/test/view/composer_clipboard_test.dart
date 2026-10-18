@@ -9,6 +9,7 @@ import 'package:chrome_foundation/testing.dart';
 import 'package:composer_editable/composer_editable.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/material.dart' show ValueKey;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -162,6 +163,12 @@ void main() {
 
       composer.select(const TextSelection.collapsed(offset: 9));
       await openToolbar(tester);
+      // The long label does not fit the row beside Paste: it is on the
+      // overflow page.
+      await tester.tap(
+        find.byKey(const ValueKey<String>('selection_menu_back')),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.text(_pastePlain));
       await tester.pumpAndSettle();
       expect(composer.richText.plain, 'bold wordbold word');

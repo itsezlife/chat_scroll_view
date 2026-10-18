@@ -8,6 +8,7 @@ library;
 export 'src/input/composer_controller.dart';
 export 'src/input/composer_paste.dart';
 export 'src/input/soft_keyboard_mode.dart';
+export 'src/menu/composer_formatting_option.dart';
 export 'src/query/composer_input_query.dart';
 export 'src/query/composer_query_kind.dart';
 export 'src/shortcuts/composer_formatting_intents.dart';

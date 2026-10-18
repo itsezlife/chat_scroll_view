@@ -141,13 +141,20 @@ class _ApplyLinkAction extends Action<ApplyLinkIntent> {
   // The dialog is modal, but a second key press can arrive before it shows.
   var _asking = false;
 
-  // `canApply` for a link wants the URL to judge it; the refusals it reports
-  // (code, a mention, a composition) do not depend on which.
-  static const EntityKind _anyLink = EntityKind.link('https://example.com');
+  // `canApply` for a link wants a URL to judge it and reports no change for the
+  // one the selection is linked to already. The refusals it reports (code, a
+  // mention, a composition) do not depend on which, so the probe differs from
+  // the current one.
+  EntityKind get _probe {
+    final current = _text.selectedLinkUrl;
+    return EntityKind.link(
+      current == null ? 'https://example.com' : '$current#',
+    );
+  }
 
   @override
   bool isEnabled(ApplyLinkIntent intent) =>
-      !_asking && _prompt() != null && _text.canApply(_anyLink);
+      !_asking && _prompt() != null && _text.canApply(_probe);
 
   @override
   Future<void> invoke(ApplyLinkIntent intent) async {
@@ -158,7 +165,7 @@ class _ApplyLinkAction extends Action<ApplyLinkIntent> {
     _asking = true;
     final String? url;
     try {
-      url = await prompt(_context());
+      url = await prompt(_context(), _text.selectedLinkUrl);
     } finally {
       _asking = false;
     }

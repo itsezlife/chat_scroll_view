@@ -73,6 +73,12 @@ Stock remounts the selection toolbar on scroll (`hideToolbar` on
   alpha, so the wrapper drops the toolbar out of hit testing while the fade
   reads zero; otherwise an invisible menu swallows gestures aimed at the
   content under it.
+- **A toolbar may fade itself.** The wrapper's one linear 150 ms fade suits a
+  stock menu, not one with its own enter, hide and dismiss timings. A context
+  menu returned inside `ExtendedSelfFadingToolbar` gets no wrapper fade and is
+  handed the visibility the fade would have followed (`ValueListenable<bool>`:
+  false while a scroll hides it or the selection leaves the viewport). Any
+  other menu keeps the fade.
 - Handle and toolbar visibility are published by `ExtendedRenderEditable`
   (`startHandleInViewport`, `endHandleInViewport`, `selectionIntersectsViewport`)
   at the end of paint. Handle visibility is wider than stock's: a handle stays

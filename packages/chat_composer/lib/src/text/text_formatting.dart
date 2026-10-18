@@ -79,6 +79,20 @@ abstract final class TextFormatting {
     }
   }
 
+  /// The target of the first link the range touches, or null when it touches
+  /// none.
+  static String? linkUrl(RichText text, int from, int to) {
+    if (from >= to) return null;
+    for (final entity in text.entities) {
+      if (entity.kind case EntityKind$Link(
+        :final url,
+      ) when entity.offset < to && entity.end > from) {
+        return url;
+      }
+    }
+    return null;
+  }
+
   /// [text] with [kind] over the range, or null when it cannot hold it.
   ///
   /// - A text style is added as it is: [RichText] trims its edges and splits it

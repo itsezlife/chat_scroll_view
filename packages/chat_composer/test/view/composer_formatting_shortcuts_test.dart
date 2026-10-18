@@ -306,7 +306,7 @@ void main() {
         var asked = 0;
         await show(
           tester,
-          linkPrompt: (context) async {
+          linkPrompt: (context, _) async {
             asked++;
             return 'https://example.com';
           },
@@ -326,7 +326,7 @@ void main() {
       });
 
       testWidgets('a cancelled prompt changes nothing', (tester) async {
-        await show(tester, linkPrompt: (context) async => null);
+        await show(tester, linkPrompt: (context, _) async => null);
         load(const RichText.plain('hello world'), 0, 5);
 
         await chord(tester, LogicalKeyboardKey.keyK);
@@ -336,7 +336,7 @@ void main() {
       });
 
       testWidgets('at a caret the URL goes in as linked text', (tester) async {
-        await show(tester, linkPrompt: (context) async => 'https://a.b');
+        await show(tester, linkPrompt: (context, _) async => 'https://a.b');
         load(const RichText.plain('hi '), 3);
 
         await chord(tester, LogicalKeyboardKey.keyK);
@@ -364,7 +364,7 @@ void main() {
         var asked = 0;
         await show(
           tester,
-          linkPrompt: (context) async {
+          linkPrompt: (context, _) async {
             asked++;
             return 'https://a.b';
           },
@@ -385,7 +385,7 @@ void main() {
         late Completer<String?> answer;
         await show(
           tester,
-          linkPrompt: (context) {
+          linkPrompt: (context, _) {
             answer = Completer<String?>();
             return answer.future;
           },
@@ -477,7 +477,7 @@ void main() {
               const SingleActivator(LogicalKeyboardKey.keyE, control: true):
                   const ToggleCodeBlockIntent(),
             },
-            linkPrompt: (context) async => 'https://a.b',
+            linkPrompt: (context, _) async => 'https://a.b',
           );
           final start = RichText('one two\nthree', const [
             Entity(0, 3, EntityKind.bold),
