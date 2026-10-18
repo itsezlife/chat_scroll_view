@@ -27,14 +27,17 @@ void main() {
         motion[MotionRole.menuPage].duration,
         const Duration(milliseconds: 300),
       );
-      expect(motion[MotionRole.menuPage].curve, const Cubic(0.25, 0.1, 0.25, 1));
+      expect(
+        motion[MotionRole.menuPage].curve,
+        const Cubic(0.25, 0.1, 0.25, 1),
+      );
     });
 
     test('there are exactly three menu roles', () {
       expect(
-        MotionRole.values.where((role) => role.name.startsWith('menu')).map(
-          (role) => role.name,
-        ),
+        MotionRole.values
+            .where((role) => role.name.startsWith('menu'))
+            .map((role) => role.name),
         ['menuEnter', 'menuLeave', 'menuPage'],
       );
     });

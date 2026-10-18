@@ -4,18 +4,21 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('fromPalette', () {
-    test('the card is the palette\'s raised surface, the text its on-surface', () {
-      for (final palette in [
-        const ChromePalette.light(),
-        const ChromePalette.dark(),
-        const ChromePalette.highContrastLight(),
-        const ChromePalette.highContrastDark(),
-      ]) {
-        final tokens = SelectionMenuTokens.fromPalette(palette);
-        expect(tokens.background, palette.surfaceRaised);
-        expect(tokens.text, palette.onSurface);
-      }
-    });
+    test(
+      'the card is the palette\'s raised surface, the text its on-surface',
+      () {
+        for (final palette in [
+          const ChromePalette.light(),
+          const ChromePalette.dark(),
+          const ChromePalette.highContrastLight(),
+          const ChromePalette.highContrastDark(),
+        ]) {
+          final tokens = SelectionMenuTokens.fromPalette(palette);
+          expect(tokens.background, palette.surfaceRaised);
+          expect(tokens.text, palette.onSurface);
+        }
+      },
+    );
 
     test('a custom palette\'s roles are followed', () {
       final palette = const ChromePalette.dark().copyWith(
@@ -50,16 +53,19 @@ void main() {
       expect(tokens.shadow, const Color(0xFF000000).withValues(alpha: 0.45));
     });
 
-    test('the page dim is black, 0x18 on a light palette, 0x40 on a dark one', () {
-      expect(
-        SelectionMenuTokens.fromPalette(const ChromePalette.light()).pageDim,
-        const Color(0x18000000),
-      );
-      expect(
-        SelectionMenuTokens.fromPalette(const ChromePalette.dark()).pageDim,
-        const Color(0x40000000),
-      );
-    });
+    test(
+      'the page dim is black, 0x18 on a light palette, 0x40 on a dark one',
+      () {
+        expect(
+          SelectionMenuTokens.fromPalette(const ChromePalette.light()).pageDim,
+          const Color(0x18000000),
+        );
+        expect(
+          SelectionMenuTokens.fromPalette(const ChromePalette.dark()).pageDim,
+          const Color(0x40000000),
+        );
+      },
+    );
   });
 
   test('the card metrics are an elevation of 3 and a corner radius of 12', () {

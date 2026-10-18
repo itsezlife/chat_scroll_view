@@ -28,6 +28,7 @@ ChromeStrings stringsWith({
     ),
     composer: base.composer,
     formatting: base.formatting,
+    editMenu: base.editMenu,
     semantics: SemanticsStrings(
       panelOpened: base.semantics.panelOpened,
       panelClosed: base.semantics.panelClosed,

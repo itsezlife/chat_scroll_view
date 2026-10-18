@@ -14,6 +14,7 @@ void main() {
       expect(data.placeholder, PlaceholderTokens.fromPalette(palette));
       expect(data.glass, GlassMaterialTokens.fromPalette(palette));
       expect(data.selectionMenu, SelectionMenuTokens.fromPalette(palette));
+      expect(data.pointerMenu, PointerMenuTokens.fromPalette(palette));
       expect(data.spoiler, SpoilerTokens.fromPalette(palette));
     });
 

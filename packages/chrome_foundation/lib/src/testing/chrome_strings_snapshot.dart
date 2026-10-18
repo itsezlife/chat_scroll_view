@@ -13,6 +13,7 @@ abstract final class ChromeStringsSnapshot {
     final panel = strings.panel;
     final composer = strings.composer;
     final formatting = strings.formatting;
+    final edit = strings.editMenu;
     final semantics = strings.semantics;
     return {
       for (final id in _knownPageIds) 'panel.tabLabel[$id]': panel.tabLabel(id),
@@ -59,6 +60,29 @@ abstract final class ChromeStringsSnapshot {
       'formatting.backAction': formatting.backAction,
       'formatting.bulletListItem': formatting.bulletListItem,
       'formatting.numberedListItem[3]': formatting.numberedListItem(3),
+      'editMenu.undoAction': edit.undoAction,
+      'editMenu.redoAction': edit.redoAction,
+      'editMenu.cutAction': edit.cutAction,
+      'editMenu.copyAction': edit.copyAction,
+      'editMenu.pasteAction': edit.pasteAction,
+      'editMenu.deleteAction': edit.deleteAction,
+      'editMenu.selectAllAction': edit.selectAllAction,
+      'editMenu.formattingMenu': edit.formattingMenu,
+      'editMenu.boldAction': edit.boldAction,
+      'editMenu.italicAction': edit.italicAction,
+      'editMenu.underlineAction': edit.underlineAction,
+      'editMenu.strikethroughAction': edit.strikethroughAction,
+      'editMenu.quoteAction': edit.quoteAction,
+      'editMenu.monospaceAction': edit.monospaceAction,
+      'editMenu.spoilerAction': edit.spoilerAction,
+      'editMenu.createLinkAction': edit.createLinkAction,
+      'editMenu.editLinkAction': edit.editLinkAction,
+      'editMenu.clearFormattingAction': edit.clearFormattingAction,
+      'editMenu.pastePlainAction': edit.pastePlainAction,
+      'editMenu.codeBlockAction': edit.codeBlockAction,
+      'editMenu.removeLinkAction': edit.removeLinkAction,
+      'editMenu.bulletListAction': edit.bulletListAction,
+      'editMenu.numberedListAction': edit.numberedListAction,
       'semantics.panelOpened': semantics.panelOpened,
       'semantics.panelClosed': semantics.panelClosed,
       'semantics.pageSelected[label]': semantics.pageSelected('label'),
