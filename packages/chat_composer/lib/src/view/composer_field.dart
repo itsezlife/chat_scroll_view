@@ -4,9 +4,12 @@ import 'dart:math' as math;
 import 'package:chat_composer/src/input/composer_controller.dart';
 import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
 import 'package:chat_composer/src/menu/composer_formatting_option.dart';
+import 'package:chat_composer/src/menu/composer_menu_hints.dart';
+import 'package:chat_composer/src/menu/composer_menu_policy.dart';
+import 'package:chat_composer/src/menu/composer_pointer_menu.dart';
 import 'package:chat_composer/src/menu/composer_selection_menu.dart';
+import 'package:chat_composer/src/menu/composer_spell_checker.dart';
 import 'package:chat_composer/src/menu/selection_menu_items.dart';
-import 'package:chat_composer/src/menu/selection_menu_metrics.dart';
 import 'package:chat_composer/src/shortcuts/composer_intents.dart';
 import 'package:chat_composer/src/spec/composer_spec.dart';
 import 'package:chat_composer/src/view/composer_metrics.dart';
@@ -59,8 +62,15 @@ import 'package:flutter/scheduler.dart';
 /// the formatting items of [formatting] that the selection allows, with the
 /// host's [linkPrompt] for the link items.
 ///
-/// Needs a Material ancestor and Material localisations, which the selection
-/// menu's clipboard labels come from.
+/// **Pointer menu.** Where the [menuPolicy] has one (desktop and the web), a
+/// secondary click opens the reference desktop client's context menu at the
+/// pointer instead, and leaves the caret and the selection as they are; the
+/// Menu key and Shift+F10 open it at the caret. The floating toolbar stays for
+/// touch.
+///
+/// Needs a Material ancestor and Material localisations, which the text field
+/// itself reads. The menus' labels do not come from them: every row of the
+/// selection menu and of the pointer menu is a `ChromeStrings` string.
 class ComposerField extends StatefulWidget {
   /// A field for [controller].
   const ComposerField({
@@ -70,6 +80,8 @@ class ComposerField extends StatefulWidget {
     this.formatting = ComposerFormattingOption.standard,
     this.linkPrompt,
     this.backPriority,
+    this.spellChecker,
+    this.menuPolicy,
     this.onTap,
     this.onPointerDown,
     this.onPointerEnd,
@@ -100,6 +112,13 @@ class ComposerField extends StatefulWidget {
   /// The host's hook for taking Back ahead of the soft keyboard while the menu
   /// is open (`ComposerSpec.backPriority`).
   final ComposerBackPriority? backPriority;
+
+  /// The host's spell checker for the pointer menu's Spelling row
+  /// (`ComposerSpec.spellChecker`).
+  final ComposerSpellChecker? spellChecker;
+
+  /// How the field presents its menu; null follows the platform.
+  final ComposerMenuPolicy? menuPolicy;
 
   /// Called when the field is tapped, also while it already has focus. A host
   /// uses it to leave a panel for the keyboard.
@@ -362,23 +381,20 @@ class _ComposerFieldState extends State<ComposerField> {
 
   // The clipboard actions the platform offers for this selection, in its order,
   // routed through the composer's clipboard when it has one, and Paste as plain
-  // text after Paste. The menu hides itself and moves the selection after
-  // them, so none of these does.
+  // text after Paste. The menu closes itself and collapses the selection after
+  // them, so none of these does. The labels are the host's `ChromeStrings`, the
+  // pointer menu's group, so both menus speak the app's language: the host's
+  // Material localisations may be another one (an app without a delegate for
+  // its own language gets English from them). The pointer menu's access marks
+  // (`Cu&t`) are not drawn on a touch card, so they are taken out.
   List<SelectionMenuClipboardItem> _clipboardItems(
-    BuildContext context,
     ExtendedEditableTextState editable,
+    EditMenuStrings strings,
     String pastePlainLabel,
   ) {
     final controller = widget.controller;
     final rich = controller.clipboard != null;
-    // Copy collapses the selection on Android, as the stock field's does.
-    final collapsesOnCopy = switch (defaultTargetPlatform) {
-      TargetPlatform.android || TargetPlatform.fuchsia => true,
-      TargetPlatform.iOS ||
-      TargetPlatform.macOS ||
-      TargetPlatform.linux ||
-      TargetPlatform.windows => false,
-    };
+    String label(String raw) => PointerMenuLabel.parse(raw).text;
     final items = <SelectionMenuClipboardItem>[];
     for (final item in editable.contextMenuButtonItems) {
       switch (item.type) {
@@ -386,21 +402,18 @@ class _ComposerFieldState extends State<ComposerField> {
           items.add(
             SelectionMenuClipboardItem(
               kind: SelectionMenuItemKind.copy,
-              label: AdaptiveTextSelectionToolbar.getButtonLabel(context, item),
+              label: label(strings.copyAction),
               onSelected: rich
                   ? controller.copySelection
                   : () =>
                         editable.copySelection(SelectionChangedCause.keyboard),
-              after: collapsesOnCopy
-                  ? SelectionMenuAfter.dismiss
-                  : SelectionMenuAfter.dismissKeepingSelection,
             ),
           );
         case ContextMenuButtonType.cut:
           items.add(
             SelectionMenuClipboardItem(
               kind: SelectionMenuItemKind.cut,
-              label: AdaptiveTextSelectionToolbar.getButtonLabel(context, item),
+              label: label(strings.cutAction),
               onSelected: rich
                   ? controller.cutSelection
                   : () => editable.cutSelection(SelectionChangedCause.keyboard),
@@ -410,7 +423,7 @@ class _ComposerFieldState extends State<ComposerField> {
           items.add(
             SelectionMenuClipboardItem(
               kind: SelectionMenuItemKind.paste,
-              label: AdaptiveTextSelectionToolbar.getButtonLabel(context, item),
+              label: label(strings.pasteAction),
               onSelected: rich
                   ? controller.paste
                   : () => editable.pasteText(SelectionChangedCause.keyboard),
@@ -429,7 +442,7 @@ class _ComposerFieldState extends State<ComposerField> {
           items.add(
             SelectionMenuClipboardItem(
               kind: SelectionMenuItemKind.selectAll,
-              label: AdaptiveTextSelectionToolbar.getButtonLabel(context, item),
+              label: label(strings.selectAllAction),
               onSelected: () => _selectAllKeepMenu(editable),
               after: SelectionMenuAfter.stay,
             ),
@@ -467,6 +480,92 @@ class _ComposerFieldState extends State<ComposerField> {
   late ChromeMotionData _menuMotion;
   late String _pastePlainLabel;
 
+  // --- Pointer menu ---
+
+  late final ComposerPointerMenu _pointerMenu = ComposerPointerMenu(
+    controller: widget.controller,
+    editable: _editableTextState,
+    isAlive: () => mounted,
+  );
+
+  ComposerMenuPolicy get _menuPolicy =>
+      widget.menuPolicy ??
+      ComposerMenuPolicy.forPlatform(defaultTargetPlatform, isWeb: kIsWeb);
+
+  // Resolved by the last build, like the toolbar's: the overlay the menu is
+  // built in does not see a scope mounted around the field alone.
+  PointerMenuTokens? _pointerTokens;
+  late EditMenuStrings _editStrings;
+
+  // The secondary click, from the editable. The field takes focus on the
+  // press, as the reference field does for any button, and the menu opens on
+  // the edge the policy names; the caret and the selection are not touched.
+  void _onSecondaryClick(ExtendedSecondaryClick click) {
+    final policy = _menuPolicy;
+    if (policy is! ComposerMenuPolicy$Desktop || !widget.enabled) return;
+    if (click.phase == ExtendedSecondaryClickPhase.down &&
+        !widget.controller.hasFocus) {
+      widget.controller.requestFocus();
+    }
+    final edge = switch (click.phase) {
+      ExtendedSecondaryClickPhase.down => ComposerMenuOpensOn.press,
+      ExtendedSecondaryClickPhase.up => ComposerMenuOpensOn.release,
+    };
+    if (edge != policy.opensOn) return;
+    unawaited(
+      _openPointerMenu(
+        click.globalPosition,
+        click.textPosition,
+        policy.platform,
+      ),
+    );
+  }
+
+  // Menu key and Shift+F10: at the caret's bottom edge, because the toolkit's
+  // own position for a keyboard-opened menu is not in any source the port can
+  // read (UNVERIFIED); there is no pointer, so no link or word is picked.
+  Object? _openFromKeyboard(ShowComposerMenuIntent intent) {
+    final policy = _menuPolicy;
+    final render = _editableTextState()?.renderEditable;
+    final selection = widget.controller.selection;
+    if (policy is! ComposerMenuPolicy$Desktop ||
+        !widget.enabled ||
+        render == null ||
+        !selection.isValid) {
+      return null;
+    }
+    final caret = render.getLocalRectForCaret(selection.extent);
+    unawaited(
+      _openPointerMenu(
+        render.localToGlobal(caret.bottomLeft),
+        null,
+        policy.platform,
+      ),
+    );
+    return null;
+  }
+
+  Future<void> _openPointerMenu(
+    Offset globalPosition,
+    TextPosition? textPosition,
+    TargetPlatform platform,
+  ) async {
+    final tokens = _pointerTokens;
+    if (tokens == null) return;
+    await _pointerMenu.open(
+      context,
+      globalPosition: globalPosition,
+      textPosition: textPosition,
+      hints: ComposerMenuHints.forPlatform(platform),
+      options: widget.formatting,
+      linkPrompt: widget.linkPrompt,
+      spellChecker: widget.spellChecker,
+      strings: _editStrings,
+      tokens: tokens,
+      motion: _menuMotion,
+    );
+  }
+
   // The menu the editable shows over the selection.
   //
   // A tear-off, not a closure built per build: the editable compares builders
@@ -476,27 +575,17 @@ class _ComposerFieldState extends State<ComposerField> {
   Widget _selectionMenu(
     BuildContext menuContext,
     ExtendedEditableTextState editable,
-  ) {
-    final clipboard = _clipboardItems(context, editable, _pastePlainLabel);
-    return ExtendedSelfFadingToolbar(
-      builder: (context, visibility) => ComposerSelectionMenu(
-        editable: editable,
-        text: widget.controller.text,
-        clipboard: clipboard,
-        visibility: visibility,
-        options: widget.formatting,
-        tokens: _menuTokens,
-        strings: _menuStrings,
-        motion: _menuMotion,
-        metrics: SelectionMenuMetrics.forPlatform(
-          defaultTargetPlatform,
-          isWeb: kIsWeb,
-        ),
-        linkPrompt: widget.linkPrompt,
-        backPriority: widget.backPriority,
-      ),
-    );
-  }
+  ) => ComposerSelectionMenu(
+    editable: editable,
+    text: widget.controller.text,
+    clipboard: _clipboardItems(editable, _editStrings, _pastePlainLabel),
+    options: widget.formatting,
+    tokens: _menuTokens,
+    strings: _menuStrings,
+    motion: _menuMotion,
+    linkPrompt: widget.linkPrompt,
+    backPriority: widget.backPriority,
+  );
 
   // The field does not expose its editable; the caret rectangle is only
   // available from the render object the text lays out in.
@@ -527,6 +616,11 @@ class _ComposerFieldState extends State<ComposerField> {
     _menuStrings = ChromeStringsScope.formattingOf(context);
     _menuMotion = ChromeMotionScope.of(context);
     _pastePlainLabel = strings.pastePlainAction;
+    final pointerMenu = _menuPolicy.usesPointerMenu;
+    _pointerTokens = pointerMenu
+        ? ChromeThemeScope.pointerMenuOf(context)
+        : null;
+    _editStrings = ChromeStringsScope.editMenuOf(context);
     const lineHeight = ComposerMetrics.fieldLineHeight;
     const fontSize = ComposerMetrics.fieldFontSize;
     final fieldStyle = TextStyle(
@@ -566,6 +660,7 @@ class _ComposerFieldState extends State<ComposerField> {
                   controller: controller.text,
                   focusNode: controller.focusNode,
                   scrollController: controller.fieldScroll,
+                  undoController: controller.undoHistory,
                   // The tap region the stock field and every host widget that
                   // stays "inside" it (a button, a popup) join by default.
                   // The leaf editable's own default group is its own type,
@@ -609,6 +704,7 @@ class _ComposerFieldState extends State<ComposerField> {
                           onContentInserted: _onContentInserted,
                         ),
                   contextMenuBuilder: _selectionMenu,
+                  onSecondaryClick: pointerMenu ? _onSecondaryClick : null,
                 );
                 final spoken = gutter == null
                     ? field
@@ -624,7 +720,18 @@ class _ComposerFieldState extends State<ComposerField> {
                                 as RenderBox?,
                         child: field,
                       );
-                if (controller.clipboard == null) return spoken;
+                final menuKey = pointerMenu
+                    ? Actions(
+                        actions: {
+                          ShowComposerMenuIntent:
+                              CallbackAction<ShowComposerMenuIntent>(
+                                onInvoke: _openFromKeyboard,
+                              ),
+                        },
+                        child: spoken,
+                      )
+                    : spoken;
+                if (controller.clipboard == null) return menuKey;
                 // Above the field's own: an overridable action finds these
                 // first, so shortcuts and the macOS menu selectors land here.
                 return Actions(
@@ -633,7 +740,7 @@ class _ComposerFieldState extends State<ComposerField> {
                     PasteTextIntent: _PasteAction(controller),
                     PastePlainTextIntent: _PastePlainAction(controller),
                   },
-                  child: spoken,
+                  child: menuKey,
                 );
               },
             ),

@@ -14,6 +14,7 @@ import 'dart:math' as math;
 import 'package:composer_editable/src/widget/editable_text.dart';
 import 'package:composer_editable/src/widget/finger_tracked_handle.dart';
 import 'package:composer_editable/src/widget/render_editable.dart';
+import 'package:composer_editable/src/widget/secondary_click.dart';
 import 'package:composer_editable/src/widget/selection_debug.dart';
 import 'package:composer_editable/src/widget/selection_handle_motion.dart';
 import 'package:flutter/foundation.dart';
@@ -3011,71 +3012,16 @@ class _SelectionToolbarWrapperState extends State<_SelectionToolbarWrapper>
       child: TextFieldTapRegion(
         child: Directionality(
           textDirection: Directionality.of(this.context),
-          child: _ToolbarVisibilityScope(
-            visibility: widget.visibility ?? _alwaysVisible,
-            // A toolbar that fades itself gets the visibility and none of the
-            // wrapper's fade: two fades would multiply into one nobody tuned.
-            child: widget.child is ExtendedSelfFadingToolbar
-                ? follower
-                : FadeTransition(
-                    opacity: _opacity,
-                    child: _IgnorePointerWhileTransparent(
-                      opacity: _opacity,
-                      child: follower,
-                    ),
-                  ),
+          child: FadeTransition(
+            opacity: _opacity,
+            child: _IgnorePointerWhileTransparent(
+              opacity: _opacity,
+              child: follower,
+            ),
           ),
         ),
       ),
     );
-  }
-}
-
-final ValueListenable<bool> _alwaysVisible = ValueNotifier<bool>(true);
-
-class _ToolbarVisibilityScope extends InheritedWidget {
-  const _ToolbarVisibilityScope({
-    required this.visibility,
-    required super.child,
-  });
-
-  final ValueListenable<bool> visibility;
-
-  @override
-  bool updateShouldNotify(_ToolbarVisibilityScope oldWidget) =>
-      !identical(visibility, oldWidget.visibility);
-}
-
-/// A context menu that animates its own appearance.
-///
-/// The toolbar wrapper fades a menu in when the selection is shown and out
-/// while a scroll hides it or the selection leaves the viewport, with one
-/// linear 150 ms fade. A menu with its own motion (the composer's selection
-/// menu has enter, hide and dismiss timings of its own) returns its content
-/// inside this widget instead: the wrapper then applies no fade, and
-/// [builder] gets the visibility the fade would have followed, to animate to.
-///
-/// The widget must be the one [ExtendedEditableText.contextMenuBuilder]
-/// returns, not nested deeper: the wrapper looks for it at the top.
-class ExtendedSelfFadingToolbar extends StatelessWidget {
-  /// A menu built by [builder].
-  const ExtendedSelfFadingToolbar({required this.builder, super.key});
-
-  /// Builds the menu. [visibility] is false while the toolbar should be
-  /// hidden (scrolling, selection out of the viewport) and true otherwise;
-  /// it changes without rebuilding the wrapper.
-  final Widget Function(BuildContext context, ValueListenable<bool> visibility)
-  builder;
-
-  @override
-  Widget build(BuildContext context) {
-    final scope = context
-        .dependOnInheritedWidgetOfExactType<_ToolbarVisibilityScope>();
-    assert(
-      scope != null,
-      'ExtendedSelfFadingToolbar must be returned by a contextMenuBuilder.',
-    );
-    return builder(context, scope?.visibility ?? _alwaysVisible);
   }
 }
 
@@ -4154,12 +4100,30 @@ class ExtendedTextSelectionGestureDetectorBuilder {
     _onSingleLongTapEndOrCancel();
   }
 
+  // Reports one edge of a secondary click to the host that asked for it. The
+  // selection, the toolbar and the handles are left as they are.
+  void _reportSecondaryClick(ExtendedSecondaryClickPhase phase, Offset at) {
+    editableText.widget.onSecondaryClick?.call(
+      ExtendedSecondaryClick(
+        phase: phase,
+        globalPosition: at,
+        textPosition: renderEditable.getPositionForPoint(at),
+      ),
+    );
+  }
+
   /// Handler for [ExtendedTextSelectionGestureDetector.onSecondaryTap].
   ///
   /// By default, selects the word if possible and shows the toolbar.
   @protected
   void onSecondaryTap() {
     if (!delegate.selectionEnabled) {
+      return;
+    }
+    final listener = editableText.widget.onSecondaryClick;
+    if (listener != null) {
+      final at = renderEditable.lastSecondaryTapDownPosition;
+      if (at != null) _reportSecondaryClick(ExtendedSecondaryClickPhase.up, at);
       return;
     }
     switch (defaultTargetPlatform) {
@@ -4192,6 +4156,17 @@ class ExtendedTextSelectionGestureDetectorBuilder {
   ///  * [onSecondaryTap], which is typically called after this.
   @protected
   void onSecondaryTapDown(TapDownDetails details) {
+    if (editableText.widget.onSecondaryClick != null) {
+      if (!delegate.selectionEnabled) return;
+      renderEditable.handleSecondaryTapDown(
+        TapDownDetails(globalPosition: details.globalPosition),
+      );
+      _reportSecondaryClick(
+        ExtendedSecondaryClickPhase.down,
+        details.globalPosition,
+      );
+      return;
+    }
     // TODO(Renzo-Olivares): Migrate text selection gestures away from saving state
     // in renderEditable. The gesture callbacks can use the details objects directly
     // in callbacks variants that provide them [TapGestureRecognizer.onSecondaryTap]

@@ -1,161 +1,150 @@
-import 'package:flutter/foundation.dart';
-
-/// Geometry of the composer's selection menu, in logical pixels.
+/// The selection menu's geometry, in logical pixels.
 ///
-/// The numbers are the reference client's floating toolbar, traced from where
-/// it measures and draws, not from the call sites that name them. Each is a
-/// dp value there and a single conversion, so N dp is N logical pixels at any
-/// density. They
-/// are component constants, not theme tokens ([ADR 027]: geometry is not
-/// themed, ADR 027); the colours and the card's elevation and radius are
-/// `SelectionMenuTokens`.
+/// Row sizes, paddings, label sizes and the page's sizing rule are Telegram
+/// Android's floating toolbar (`ui/ActionBar/FloatingToolbar.java`), traced to
+/// the site that lays each one out; `dp(N)` there is a final single conversion,
+/// so N dp is N logical pixels. The line numbers are the local checkout's.
+/// What the port keeps from elsewhere (the swipe-back page turn, the 150 ms /
+/// 220 ms motion, the card's elevation) is not here and is recorded in ADR 026.
 ///
-/// What differs between touch and pointer is [belowClearance], so the shape is
-/// the same pure-Dart strategy pair the shortcut policy uses.
-sealed class SelectionMenuMetrics {
-  const SelectionMenuMetrics();
+/// One set of constants: nothing differs between platforms, and the colours and
+/// durations are tokens and motion roles (ADR 027).
+abstract final class SelectionMenuMetrics {
+  // --- Main row ---
 
-  /// Touch platforms: the selection hangs its handles under the text.
-  const factory SelectionMenuMetrics.mobile() = SelectionMenuMetrics$Mobile;
-
-  /// Pointer platforms: no handles under the selection.
-  const factory SelectionMenuMetrics.desktop() = SelectionMenuMetrics$Desktop;
-
-  /// The metrics for [platform]; the web counts as desktop.
-  factory SelectionMenuMetrics.forPlatform(
-    TargetPlatform platform, {
-    bool isWeb = false,
-  }) {
-    if (isWeb) return const SelectionMenuMetrics.desktop();
-    return switch (platform) {
-      TargetPlatform.android ||
-      TargetPlatform.iOS ||
-      TargetPlatform.fuchsia => const SelectionMenuMetrics.mobile(),
-      TargetPlatform.macOS ||
-      TargetPlatform.windows ||
-      TargetPlatform.linux => const SelectionMenuMetrics.desktop(),
-    };
-  }
-
-  /// How far below the selection's bottom edge the menu starts when it is
-  /// placed under the selection.
-  ///
-  /// The reference's content rect is the selection plus the handle that hangs
-  /// under it (an inference from its behaviour); a menu below a selection has to clear the handle. A pointer
-  /// platform draws none.
-  double get belowClearance;
-
-  // --- Rows ---
-
-  /// Height of a main-row item and of the back row; the item's minimum height
-  /// is the same 48 dp.
+  /// Height of a main-row button: `mLineHeight = dp(48)` (`FloatingToolbar`
+  /// 415), the button's minimum height (1417) and its text view's (1448).
   static const double rowHeight = 48;
 
-  /// Height of an overflow-page item.
-  static const double overflowRowHeight = 42;
+  /// Padding each side of a main-row button: `setPaddingRelative(dp(16), 0,
+  /// dp(16), 0)` (1418).
+  static const double buttonPadding = 16;
 
-  /// Horizontal padding of an item, each side.
-  static const double itemPadding = 16;
+  /// The factor the first button's start padding and the last button's end
+  /// padding take: `1.5 * getPaddingStart()` (1025).
+  static const double outerPaddingFactor = 1.5;
 
-  /// Padding at the outer end of the first and the last item: 1.5 times
-  /// [itemPadding]. The text view's own start padding is reset to zero.
-  static const double outerItemPadding = 24;
+  /// Narrowest a main-row button is: `setMinimumWidth(dp(48))` (1416).
+  static const double buttonMinWidth = 48;
 
-  /// Narrowest an item gets.
-  static const double itemMinWidth = 48;
+  /// Width of the More button, which the row keeps free at its end while
+  /// anything is left for the page: `ImageButton` 56 by 48 (442),
+  /// `setPaddingRelative(16, 12, 16, 12)` (443), reserved as the panel's end
+  /// padding (1045).
+  static const double moreButtonWidth = 56;
 
-  /// Horizontal padding of an overflow-page item.
-  static const double overflowPadding = 18;
+  /// Diameter of the disc the More button lights when pressed:
+  /// `RIPPLE_MASK_CIRCLE_20DP`, a 20 dp radius.
+  static const double moreButtonInkDiameter = 40;
 
-  /// Text size of every item. The weight is 500. The unit is dip, which the
-  /// system font scale does not touch; the composer's labels follow the
-  /// platform text scale up to [maxTextScale] instead (ADR 026).
-  static const double itemTextSize = 14;
+  /// Widest the main row may be: the toolbar's default `dp(400)` (952) before
+  /// the screen's own limit.
+  static const double rowMaxWidth = 400;
 
-  /// Text size of the back row's label: 16 regular.
-  static const double backTextSize = 16;
+  // --- More page ---
 
-  /// Largest text scale the menu follows. The rows are fixed-height and the
-  /// card is sized to its items, so an unbounded scale would only widen the
-  /// card past the screen; the shell's fixed-height controls clamp at the same
-  /// 1.3 (ADR 031).
-  static const double maxTextScale = 1.3;
+  /// Height of a More-page row: the same item at `overflow == true`, 42 (1417,
+  /// 1448).
+  static const double tileHeight = 42;
 
-  // --- More button and back row ---
+  /// Padding each side of a More-page row: `mSidePadding = dp(18)` (1384,
+  /// 1406), which replaces the main row's 16.
+  static const double tilePadding = 18;
 
-  /// Width of the More button, flush at the card's end.
-  static const double moreWidth = 56;
+  /// What the page counts a row as when it sizes its list: `mLineHeight`
+  /// (1144-1150). The rows are [tileHeight] tall; the 6 dp apiece is slack.
+  static const double pageLineHeight = 48;
 
-  /// Height of the More button and of the back row.
-  static const double moreHeight = 48;
+  /// The list's padding above its first row: `setPadding(0, dp(4), 0, dp(2))`
+  /// (1205).
+  static const double listPaddingTop = 4;
 
-  /// Side of the icon in the More button and the back row: the 24 dp vector
-  /// in a 56 by 48 frame padded 16 / 12.
-  static const double iconSize = 24;
+  /// The list's padding under its last row (1205).
+  static const double listPaddingBottom = 2;
 
-  /// Radius of the More button's splash.
-  static const double splashRadius = 20;
+  /// Fewest rows the page shows before it scrolls: `MIN_OVERFLOW_SIZE`
+  /// (329), kept even where the room is short.
+  static const int pageMinRows = 2;
 
-  /// Distance of the back row's arrow from its start edge: the frame's
-  /// 16 dp padding.
+  /// Most rows the page shows before it scrolls: `MAX_OVERFLOW_SIZE` (330).
+  static const int pageMaxRows = 4;
+
+  /// How much of the next row shows past a full page, to say it scrolls: half
+  /// a [pageLineHeight] (1147).
+  static const double pagePeek = pageLineHeight / 2;
+
+  /// Height of the Back row: the More button's frame (477).
+  static const double backHeight = 48;
+
+  /// Where the Back row's icon starts: the button's 16 dp padding (443).
   static const double backIconInset = 16;
 
-  /// Distance of the back row's label from its start edge: the label's start
-  /// margin.
+  /// Where the Back row's label starts: `createFrame(..., 56, 0, 0, 0)` (475).
   static const double backLabelInset = 56;
 
-  // --- Overflow page ---
+  /// Size of the More and Back icons: the 16 dp padding leaves 24 of the 56
+  /// by 48 button (443).
+  static const double iconSize = 24;
 
-  /// Fewest item rows the overflow page is sized to.
-  static const int minOverflowRows = 2;
+  /// Width of the leading column of a list tile, so a bullet and a number keep
+  /// their labels aligned. The port's own addition: Telegram has no list items.
+  static const double listMarkerWidth = 16;
 
-  /// Most item rows the overflow page is sized to.
-  static const int maxOverflowRows = 4;
+  /// Space between a list marker and its label.
+  static const double listMarkerGap = 8;
 
-  /// Extra height that shows half a row when the page scrolls.
-  static const double overflowPeek = 24;
+  /// How far the list's edges fade where a row runs under them: `fadeH = 16`
+  /// (1295).
+  static const double listFadeHeight = 16;
 
-  /// Space above the first overflow row.
-  static const double overflowListPaddingTop = 4;
+  /// The tallest the whole menu asks to be: [pageMaxRows] rows, the Back row
+  /// and the peek of the next one. It takes less where the room is short.
+  static const double maxHeight =
+      pageMaxRows * pageLineHeight + backHeight + pagePeek;
 
-  /// Space below the last overflow row.
-  static const double overflowListPaddingBottom = 2;
+  // --- Labels ---
 
-  /// Height of the gradient that fades the overflow rows at the page's top and
-  /// bottom edges.
-  static const double edgeFade = 16;
+  /// Font size of a row's label: `setTextSize(COMPLEX_UNIT_DIP, 14)` (1425),
+  /// the same builder for both pages. DIP, so Android does not scale it by the
+  /// system font size; the menu follows the app's text scale up to
+  /// [maxTextScale] instead (ADR 031).
+  static const double labelFontSize = 14;
+
+  /// Font size of the Back row's label: `setTextSize(COMPLEX_UNIT_DIP, 16)`
+  /// (448), in the regular weight.
+  static const double backFontSize = 16;
+
+  /// The text scale the menu follows. Its rows are fixed-height, so past this
+  /// the glyphs would clip; a deliberate deviation from an unclamped scale.
+  static const double maxTextScale = 1.3;
 
   // --- Placement ---
 
-  /// Gap between the card and the screen edge. The window clamps so the card keeps it.
-  static const double screenMargin = 16;
+  /// Room kept between the card and the screen's left and right edges: the
+  /// popup's `mMarginHorizontal = dp(16)` (413), which also takes the width
+  /// the toolbar may have (952).
+  static const double edgeMargin = 16;
 
-  /// Widest the card is allowed when no width is suggested.
-  static const double maxWidth = 400;
+  /// Room kept between the menu and the safe area's top and the keyboard or
+  /// bottom inset.
+  static const double regionMargin = 12;
 
-  /// Gap between the card and the selection.
-  static const double verticalMargin = 8;
+  /// Space between the card and the selection when it sits above it.
+  static const double gapAbove = 8;
 
-  /// Height of the card's hairline above the back row, in physical pixels: one
-  /// (a `1 / density` dp line).
-  static const double dividerPhysicalPixels = 1;
-}
+  /// Space between the card and the selection when it sits below it: the
+  /// platform toolbar's content distance, which leaves room for a handle.
+  static const double gapBelow = 20;
 
-/// The metrics of touch platforms; see [SelectionMenuMetrics.mobile].
-final class SelectionMenuMetrics$Mobile extends SelectionMenuMetrics {
-  /// Creates the metrics.
-  const SelectionMenuMetrics$Mobile();
+  /// Room under which a side is "cramped": the menu goes to the other side if
+  /// that has more.
+  static const double minUsableHeight = 96;
 
-  /// The size of Material's selection handle.
-  @override
-  double get belowClearance => 22;
-}
+  /// How far the card drifts, in the direction away from the selection, while
+  /// it leaves.
+  static const double leaveDrift = 5;
 
-/// The metrics of pointer platforms; see [SelectionMenuMetrics.desktop].
-final class SelectionMenuMetrics$Desktop extends SelectionMenuMetrics {
-  /// Creates the metrics.
-  const SelectionMenuMetrics$Desktop();
-
-  @override
-  double get belowClearance => 0;
+  /// The swipe speed, in logical pixels per second, from which a drag across
+  /// the More page closes it whatever its position.
+  static const double flingVelocity = 600;
 }

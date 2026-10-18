@@ -1,3 +1,4 @@
+import 'package:catalog_assets/catalog_assets.dart' show PlaybackPauseLayer;
 import 'package:chat_composer/chat_composer.dart' show ComposerView;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/main.dart';
@@ -63,6 +64,25 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.byType(ChatScrollView), findsOneWidget);
     expect(find.byType(DemoMessageBubble), findsWidgets);
+  });
+
+  testWidgets('a dialog opened over the chat holds the shared clock until it '
+      'closes', (tester) async {
+    await pumpApp(tester);
+    final clock = services.assets.clock;
+    expect(clock.pausedLayers, isEmpty);
+
+    final shown = showDialog<void>(
+      context: tester.element(find.byType(ChatScrollView)),
+      builder: (_) => const AlertDialog(content: Text('over the chat')),
+    );
+    await tester.pumpAndSettle();
+    expect(clock.pausedLayers, {PlaybackPauseLayer.overlayShown});
+
+    Navigator.of(tester.element(find.text('over the chat'))).pop();
+    await shown;
+    await tester.pumpAndSettle();
+    expect(clock.pausedLayers, isEmpty);
   });
 
   testWidgets('the composer panel button opens the catalogue panel', (

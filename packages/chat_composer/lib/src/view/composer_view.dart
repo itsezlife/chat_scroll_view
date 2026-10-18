@@ -1,6 +1,7 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:chat_composer/src/input/composer_controller.dart';
+import 'package:chat_composer/src/menu/composer_menu_policy.dart';
 import 'package:chat_composer/src/shortcuts/composer_formatting_actions.dart';
 import 'package:chat_composer/src/shortcuts/composer_intents.dart';
 import 'package:chat_composer/src/spec/action_descriptor.dart';
@@ -64,6 +65,7 @@ class ComposerView extends StatefulWidget {
     this.onFieldPointerDown,
     this.onFieldPointerEnd,
     this.shortcuts,
+    this.menuPolicy,
     this.safeAreaBottom,
     this.maxWidth = ComposerMetrics.maxWidth,
     this.autofocus = true,
@@ -99,6 +101,12 @@ class ComposerView extends StatefulWidget {
 
   /// Key bindings; defaults to the [ComposerShortcutPolicy] of the platform.
   final Map<ShortcutActivator, Intent>? shortcuts;
+
+  /// How the field presents its menu; defaults to the [ComposerMenuPolicy] of
+  /// the platform: the floating toolbar on a touch platform, and on desktop
+  /// (and the web) the pointer menu for a secondary click, with the toolbar
+  /// kept for touch.
+  final ComposerMenuPolicy? menuPolicy;
 
   /// Bottom safe-area pad inside the view, which does not count in the
   /// extent. Defaults to the bottom view padding of the `MediaQuery`; a host
@@ -316,6 +324,8 @@ class _ComposerViewState extends State<ComposerView>
         formatting: _spec.formatting,
         linkPrompt: _spec.linkPrompt,
         backPriority: _spec.backPriority,
+        spellChecker: _spec.spellChecker,
+        menuPolicy: widget.menuPolicy,
         onTap: widget.onFieldTap,
         onPointerDown: widget.onFieldPointerDown,
         onPointerEnd: widget.onFieldPointerEnd,

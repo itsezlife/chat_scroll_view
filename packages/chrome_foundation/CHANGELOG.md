@@ -6,6 +6,41 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (menu language)
+
+- `EditMenuStrings` is now also the touch selection menu's source for Cut,
+  Copy, Paste and Select all (it was the pointer menu's only): the composer no
+  longer reads `MaterialLocalizations` for them. No API change. A host that put
+  English there while its formatting rows were in its own language will see
+  the touch menu's clipboard rows change to the `editMenu` strings; a `&`
+  access mark in one is removed on the touch card (`Cu&t` reads "Cut"). The
+  English preset's "Select All" now shows on the touch card where Material's
+  "Select all" did.
+
+### Added (pointer menu)
+
+- `PointerMenu`, the reference desktop client's popup list opened at the
+  pointer: rows with a mnemonic label and a shortcut hint, greyed rows,
+  separators, submenus that open on hover with a 300 ms aim hold, the
+  arrow-key model, the grow-from-the-corner open animation and the linear
+  fade out, a modal overlay that swallows the dismissing press, and focus kept
+  as a child of a given node. With `PointerMenuEntry`, `PointerMenuItem`,
+  `PointerMenuSeparator`, `PointerMenuMetrics` (every number marked verified,
+  derived or unverified), `PointerMenuPlacements`, `PointerMenuReveal`,
+  `PointerMenuAim`, `PointerMenuNavigation`, `PointerMenuTiming`,
+  `EaseOutCirc` and the row and panel keys.
+- `PointerMenuTokens` as a theme group (`ChromeThemeData.pointerMenu`,
+  `ChromeThemeScope.pointerMenuOf`, `ChromeThemeAspect.pointerMenu`), derived
+  from the palette, with the reference's day and night colours as
+  `referenceDay` and `referenceNight`. Source-breaking for hosts that build
+  `ChromeThemeData` field by field or switch over `ChromeThemeAspect`.
+- Motion roles `pointerMenuShow` (200 ms) and `pointerMenuHide` (150 ms).
+- `EditMenuStrings` (`ChromeStrings.editMenu`, `ChromeStringsScope.editMenuOf`):
+  the labels of the composer's pointer menu, in the reference client's wording
+  with Qt `&` mnemonics. Source-breaking for hosts that build
+  `ChromeStrings`: the group is required; the English and Russian presets have
+  it.
+
 ### Added
 
 - `FormattingStrings` (`ChromeStrings.formatting`, `ChromeStringsScope.formattingOf`):
@@ -13,22 +48,35 @@ package is pre-1.0.
   semantics labels of a bullet and a numbered list item. Source-breaking for
   hosts that build `ChromeStrings`: the group is required and has no English
   fallback; the English and Russian presets have it.
-- `SelectionMenuTokens` (card, text, press highlight, divider; elevation 1 and
-  corner radius 12 as constants) and `SpoilerTokens` (particle colour, null
-  follows the text; `SpoilerParticleMotion`) as theme groups. Source-breaking
-  for hosts that build `ChromeThemeData` field by field or switch over
+- `SelectionMenuTokens` (card, text, divider, shadow and page dim; elevation 3
+  and corner radius 12 as constants) and `SpoilerTokens` (particle colour, null
+  follows the text; `SpoilerParticleMotion`) as theme groups. The card is the
+  palette's raised surface, the text its on-surface colour, the divider its
+  separator at half opacity, the shadow black at 0.45, the page dim black at
+  `0x18` on a light palette and `0x40` on a dark one. Source-breaking for
+  hosts that build `ChromeThemeData` field by field or switch over
   `ChromeThemeAspect`; `ChromeThemeScope`, `AnimatedChromeThemeScope` and
   `ChromeThemeData.fromPalette` derive them like the other groups.
-- Motion roles `menuEnter`, `menuExit`, `menuSizeEase`, `menuSizeAccelerate`,
-  `menuMainFadeOut`, `menuMainFadeIn`, `menuOverflowFadeOut` and
+- Motion roles `menuEnter` (150 ms, ease out), `menuLeave` (220 ms, ease in),
+  `menuPage` (300 ms on the CSS ease cubic `(0.25, 0.1, 0.25, 1)`) and
   `spoilerReveal`. Source-breaking for a host that builds `ChromeMotion(...)`
   field by field.
-- `AccelerateDecelerateCurve`, `LogAccelerateCurve`,
-  `ChromeMotion.linearOutSlowIn` / `fastOutLinearIn`, `SelectionMenuTiming`
-  and `SpoilerParticleMotion`.
+- `SpoilerParticleMotion`.
 
 ### Changed
 
+- Source-breaking: the seven menu roles `menuEnter`, `menuExit`,
+  `menuSizeEase`, `menuSizeAccelerate`, `menuMainFadeOut`, `menuMainFadeIn`
+  and `menuOverflowFadeOut` are now three: `menuEnter` (150 ms, ease out),
+  `menuLeave` (220 ms, ease in) and `menuPage` (300 ms, the CSS ease cubic).
+  `ChromeMotion(...)`, `copyWith` and `MotionRole` switches change with them.
+  `AccelerateDecelerateCurve`, `LogAccelerateCurve`,
+  `ChromeMotion.linearOutSlowIn`, `ChromeMotion.fastOutLinearIn` and
+  `SelectionMenuTiming` are removed.
+- Source-breaking: `SelectionMenuTokens` drops `pressHighlight` (the menu uses
+  the Material widgets' own press, hover and focus washes) and gains `shadow`
+  and `pageDim`; `fromPalette` follows the palette's roles on both
+  brightnesses, so the light card is the raised surface, not white.
 - Source-breaking: `ComposerStrings.pastePlainAction` (required), the
   selection menu item that pastes the clipboard's plain text. The English and
   Russian presets have it.

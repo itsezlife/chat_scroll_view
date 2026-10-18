@@ -258,6 +258,19 @@ void main() {
     });
   });
 
+  group('a link label holding code', () {
+    test('keeps the link and reads the code as text', () {
+      expect(
+        decode('[`a`](https://u)'),
+        RichText('a', const [Entity(0, 1, EntityKind.link('https://u'))]),
+      );
+      expect(
+        decode('[x `a` y](https://u)'),
+        RichText('x a y', const [Entity(0, 5, EntityKind.link('https://u'))]),
+      );
+    });
+  });
+
   group('never throws', () {
     test('on markup that would break the entity rules', () {
       for (final input in const [
@@ -273,6 +286,8 @@ void main() {
         '> > a',
         '>',
         '\n>\n',
+        '[`a`](u)',
+        '[x `a` y](u)',
       ]) {
         expect(() => decode(input), returnsNormally, reason: input);
       }

@@ -6,6 +6,27 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `RichTextMarkdown.codec`: `encode` and `decode` as a `dart:convert` `Codec`,
+  so a host can `fuse(utf8)` a body into bytes or `inverted` it. The static
+  functions stay.
+- `TypedMarkdown.apply`: the markers a user typed become entities at send,
+  with Telegram Android's rules: `` `code` ``, a triple-backtick code block
+  (with a language first line), `**bold**`, `__italic__`, `~~strike~~` and
+  `||spoiler||`. A pair that touches code, a code block, a link or an atom
+  stays text. Call it before `EntityDetection.apply`.
+
+### Fixed
+
+- `TypedMarkdown`: a run of four or more backticks is not a code fence (it
+  used to convert into a block with a stray backtick); `RichTextMarkdown`
+  round trips what it made, pinned by a test.
+- `RichTextMarkdown.decode` threw on `[`a`](u)`, a link whose label holds code:
+  a `RichText` never lets the two overlap, and the decode contract is that it
+  never throws. The link is kept and the label's code reads as text; one such
+  message failed a whole fetched range.
+
 ### Changed
 
 - Source-breaking: the contract suites in `testing.dart` are statics on a type

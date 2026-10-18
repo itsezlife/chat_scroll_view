@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatCopyOrigin, ChatTextCopy;
-import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:content_model/content_model.dart' as model;
 import 'package:content_model/content_model.dart' hide RichText;
 import 'package:flutter/services.dart' show TextRange;
@@ -11,24 +10,6 @@ import 'package:flutter_md/flutter_md.dart';
 /// What the chat puts on the clipboard for each thing a user copies, as rich
 /// text, so a paste into the composer brings back what was copied (ADR 032).
 abstract final class ChatCopy {
-  /// The messages whose markdown bodies are [bodies], in order, a blank line
-  /// apart, as the reference mobile client joins a copy of several.
-  static model.RichText messages(Iterable<String> bodies) {
-    var joined = model.RichText.empty;
-    for (final body in bodies) {
-      if (body.isEmpty) continue;
-      final text = ChatBodyMarkdown.decode(body);
-      if (!joined.isEmpty) {
-        joined = joined.insert(
-          joined.length,
-          const model.RichText.plain('\n\n'),
-        );
-      }
-      joined = joined.insert(joined.length, text);
-    }
-    return joined;
-  }
-
   /// Inline content [key] over [alternativeText], the text other apps
   /// paste; a unicode emoji is its own text.
   static model.RichText content(ContentKey key, String alternativeText) =>
@@ -133,14 +114,17 @@ abstract final class ChatCopy {
       final style = span.style;
       final url = span.extra?['url'];
       final whole = cut == from && end == to;
-      if (style.contains(MD$Style.image)) {
+      final isEmoji = style.contains(MD$Style.image);
+      if (isEmoji) {
         // A custom emoji is one thing: only a whole one is itself. What is
         // copied is its alt text (the span's text), also when it is not.
         final key = url is String ? ContentKey.tryParse(url) : null;
         if (key != null && whole) {
           out.entity(start, EntityKind.inlineContent(key));
         }
-        continue;
+        // The emoji still takes the styles around it. Skipping them here
+        // (as this once did, with a `continue`) cut a spoiler in two around
+        // its emoji, which then pasted unhidden.
       }
       if (style.contains(MD$Style.mention)) {
         // The engine marks mentions with a style bit of their own and gives
@@ -159,6 +143,9 @@ abstract final class ChatCopy {
       if (style.contains(MD$Style.spoiler)) {
         out.entity(start, EntityKind.spoiler);
       }
+      // Code and a link cannot hold the emoji's atom (a link's `url` is the
+      // emoji's key here), so an emoji takes neither.
+      if (isEmoji) continue;
       if (style.contains(MD$Style.monospace)) {
         out.entity(start, EntityKind.code);
       }
@@ -204,11 +191,26 @@ final class _RichTextBuilder {
 
   void text(String text) => _text.write(text);
 
-  // An entity from [start] to what has been written since.
+  // An entity from [start] to what has been written since. A text style that
+  // continues the previous one (the same style on the next span) extends it:
+  // left as two, each would give up the whitespace at its edges and the
+  // style would lose the space between the spans (`||b ` + emoji + ` c||`
+  // would hide `b`, the emoji and `c`, but not the spaces).
   void entity(int start, EntityKind kind) {
-    if (_text.length > start) {
-      _entities.add(Entity(start, _text.length - start, kind));
+    if (_text.length <= start) return;
+    if (kind.isTextStyle) {
+      final at = _entities.lastIndexWhere((e) => e.kind == kind);
+      if (at >= 0 && _entities[at].end == start) {
+        final joined = _entities[at];
+        _entities[at] = Entity(
+          joined.offset,
+          _text.length - joined.offset,
+          kind,
+        );
+        return;
+      }
     }
+    _entities.add(Entity(start, _text.length - start, kind));
   }
 
   // The text with its entities; entities that cannot coexist are dropped,

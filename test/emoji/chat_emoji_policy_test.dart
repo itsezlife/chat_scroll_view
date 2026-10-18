@@ -263,6 +263,122 @@ void main() {
     });
   });
 
+  group('the Desktop cap on enlarged regular emoji', () {
+    // The reference's cap is 3; a host may move it. The cap counts items of a
+    // message that is not all custom emoji (custom lines are never capped).
+
+    test('the default is the reference client\'s 3', () {
+      expect(const ChatEmojiPolicy.desktop(), const ChatEmojiPolicy.desktop());
+      expect(
+        const ChatEmojiPolicy.desktop().admits(_line(3, allCustom: false)),
+        isTrue,
+      );
+      expect(
+        const ChatEmojiPolicy.desktop().admits(_line(4, allCustom: false)),
+        isFalse,
+      );
+    });
+
+    for (final limit in [1, 2, 3, 5, 10]) {
+      test('a cap of $limit admits $limit regular emoji and not one more', () {
+        final policy = ChatEmojiPolicy.desktop(regularLimit: limit);
+
+        expect(policy.admits(_line(limit, allCustom: false)), isTrue);
+        expect(policy.admits(_line(limit + 1, allCustom: false)), isFalse);
+      });
+    }
+
+    test(
+      'a message with a custom emoji among regular ones counts them all',
+      () {
+        // `_line(n, allCustom: false)` is one unicode glyph and n - 1 custom.
+        const policy = ChatEmojiPolicy.desktop(regularLimit: 2);
+
+        expect(policy.admits(_line(2, allCustom: false)), isTrue);
+        expect(policy.admits(_line(3, allCustom: false)), isFalse);
+      },
+    );
+
+    test('custom emoji lines are not capped, whatever the cap', () {
+      const policy = ChatEmojiPolicy.desktop(regularLimit: 1);
+
+      expect(policy.admits(_line(9, allCustom: true)), isTrue);
+    });
+
+    test('the cap does not change the sizes', () {
+      const raised = ChatEmojiPolicy.desktop(regularLimit: 10);
+      final emoji = _line(7, allCustom: false);
+
+      expect(raised.itemBoxFor(emoji), closeTo(38, 1e-9));
+      expect(raised.itemSkipFor(emoji), 2);
+    });
+
+    test('policies of different caps are different values', () {
+      expect(
+        const ChatEmojiPolicy.desktop(regularLimit: 5),
+        isNot(const ChatEmojiPolicy.desktop()),
+      );
+      expect(
+        const ChatEmojiPolicy.desktop(regularLimit: 5),
+        const ChatEmojiPolicy.desktop(regularLimit: 5),
+      );
+      expect(
+        const ChatEmojiPolicy.desktop(regularLimit: 5).hashCode,
+        const ChatEmojiPolicy.desktop(regularLimit: 5).hashCode,
+      );
+    });
+
+    test('a cap below 1 is refused', () {
+      expect(
+        () => ChatEmojiPolicy.desktop(regularLimit: 0),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('forPlatform hands the cap to the desktop family and web only', () {
+      for (final (platform, isWeb) in <(TargetPlatform, bool)>[
+        (TargetPlatform.macOS, false),
+        (TargetPlatform.windows, false),
+        (TargetPlatform.linux, false),
+        (TargetPlatform.android, true),
+      ]) {
+        expect(
+          ChatEmojiPolicy.forPlatform(
+            platform: platform,
+            isWeb: isWeb,
+            desktopRegularLimit: 6,
+          ),
+          const ChatEmojiPolicy.desktop(regularLimit: 6),
+          reason: '$platform web $isWeb',
+        );
+      }
+    });
+
+    test('Android and iOS have no cap and ignore the one given', () {
+      for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+        final policy = ChatEmojiPolicy.forPlatform(
+          platform: platform,
+          isWeb: false,
+          desktopRegularLimit: 1,
+        );
+
+        expect(policy.admits(_line(12, allCustom: false)), isTrue);
+        expect(policy.admits(_line(40, allCustom: false)), isTrue);
+      }
+    });
+  });
+
+  group('the size of a unicode emoji inside ordinary text', () {
+    // Android: `Emoji.EmojiSpan` is the font's ascent plus descent, a scale
+    // of 1; a custom emoji (`AnimatedEmojiSpan`) is 1.2 times that. Desktop
+    // takes the custom emoji's box, so that one message holds one size.
+    test('Android and iOS follow the font height, desktop the custom box', () {
+      expect(const ChatEmojiPolicy.android().inTextEmojiScale, 1);
+      expect(const ChatEmojiPolicy.ios().inTextEmojiScale, 1);
+      expect(const ChatEmojiPolicy.desktop().inTextEmojiScale, 1.2);
+    });
+  });
+
   group('the unverified Desktop sizes', () {
     // Named constants, each recorded in ADR 036's divergence table.
     test('6 and 7 custom emoji and 8 and more take their named values', () {

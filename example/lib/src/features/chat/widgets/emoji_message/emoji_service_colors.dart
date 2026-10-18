@@ -92,6 +92,15 @@ final class EmojiServiceColors {
 
   static const Color _white = Color(0xFFFFFFFF);
 
+  /// These colours with [tint] laid over their fills: the selected variant of
+  /// the service colour (`msgServiceBgSelected`), which the reference paints
+  /// under the time pill of a selected message. The text stays as it is.
+  EmojiServiceColors tinted(Color tint) => EmojiServiceColors._(
+    panel: Color.alphaBlend(tint, panel),
+    pill: Color.alphaBlend(tint, pill),
+    text: text,
+  );
+
   static Color _darkened(Color wallpaper) {
     final hsv = HSVColor.fromColor(wallpaper);
     return HSVColor.fromAHSV(

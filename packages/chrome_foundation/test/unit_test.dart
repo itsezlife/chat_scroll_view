@@ -17,11 +17,18 @@ import 'glass/glass_surface_route_test.dart' as glass_surface_route_test;
 import 'glass/glass_surface_test.dart' as glass_surface_test;
 import 'icons/chrome_icon_registry_test.dart' as chrome_icon_registry_test;
 import 'icons/chrome_icon_test.dart' as chrome_icon_test;
+import 'menu/pointer_menu_aim_test.dart' as pointer_menu_aim_test;
+import 'menu/pointer_menu_entry_test.dart' as pointer_menu_entry_test;
+import 'menu/pointer_menu_golden_test.dart' as pointer_menu_golden_test;
+import 'menu/pointer_menu_placement_test.dart' as pointer_menu_placement_test;
+import 'menu/pointer_menu_reveal_test.dart' as pointer_menu_reveal_test;
+import 'menu/pointer_menu_test.dart' as pointer_menu_test;
 import 'motion/chrome_motion_scope_test.dart' as chrome_motion_scope_test;
 import 'motion/chrome_motion_speed_test.dart' as chrome_motion_speed_test;
 import 'motion/chrome_motion_test.dart' as chrome_motion_test;
 import 'motion/no_literal_durations_test.dart' as no_literal_durations_test;
 import 'motion/overshoot_curve_test.dart' as overshoot_curve_test;
+import 'motion/pointer_menu_motion_test.dart' as pointer_menu_motion_test;
 import 'motion/scale_pressable_test.dart' as scale_pressable_test;
 import 'motion/selection_menu_motion_test.dart' as selection_menu_motion_test;
 import 'motion/spoiler_motion_test.dart' as spoiler_motion_test;
@@ -39,6 +46,7 @@ import 'tokens/composer_tokens_test.dart' as composer_tokens_test;
 import 'tokens/glass_material_tokens_test.dart' as glass_material_tokens_test;
 import 'tokens/panel_tokens_test.dart' as panel_tokens_test;
 import 'tokens/placeholder_tokens_test.dart' as placeholder_tokens_test;
+import 'tokens/pointer_menu_tokens_test.dart' as pointer_menu_tokens_test;
 import 'tokens/selection_menu_tokens_test.dart' as selection_menu_tokens_test;
 import 'tokens/spoiler_tokens_test.dart' as spoiler_tokens_test;
 
@@ -52,6 +60,15 @@ void main() {
   group('glass/glass_surface_test.dart', glass_surface_test.main);
   group('icons/chrome_icon_registry_test.dart', chrome_icon_registry_test.main);
   group('icons/chrome_icon_test.dart', chrome_icon_test.main);
+  group('menu/pointer_menu_aim_test.dart', pointer_menu_aim_test.main);
+  group('menu/pointer_menu_test.dart', pointer_menu_test.main);
+  group('menu/pointer_menu_golden_test.dart', pointer_menu_golden_test.main);
+  group('menu/pointer_menu_entry_test.dart', pointer_menu_entry_test.main);
+  group(
+    'menu/pointer_menu_placement_test.dart',
+    pointer_menu_placement_test.main,
+  );
+  group('menu/pointer_menu_reveal_test.dart', pointer_menu_reveal_test.main);
   group('motion/chrome_motion_scope_test.dart', chrome_motion_scope_test.main);
   group('motion/chrome_motion_speed_test.dart', chrome_motion_speed_test.main);
   group('motion/chrome_motion_test.dart', chrome_motion_test.main);
@@ -60,6 +77,7 @@ void main() {
     no_literal_durations_test.main,
   );
   group('motion/overshoot_curve_test.dart', overshoot_curve_test.main);
+  group('motion/pointer_menu_motion_test.dart', pointer_menu_motion_test.main);
   group('motion/scale_pressable_test.dart', scale_pressable_test.main);
   group(
     'motion/selection_menu_motion_test.dart',
@@ -90,6 +108,7 @@ void main() {
     glass_material_tokens_test.main,
   );
   group('tokens/panel_tokens_test.dart', panel_tokens_test.main);
+  group('tokens/pointer_menu_tokens_test.dart', pointer_menu_tokens_test.main);
   group('tokens/placeholder_tokens_test.dart', placeholder_tokens_test.main);
   group(
     'tokens/selection_menu_tokens_test.dart',

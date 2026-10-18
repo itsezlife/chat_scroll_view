@@ -34,3 +34,17 @@ path for this surface.
   **selection policy** and bubble-aware rendering.
 - **Core owns markdown + text selection; reuse the library model, own
   authority** — accepted.
+
+## Amendment: the surface contract has two implementers
+
+The selection model is the markdown library's `MarkdownSelectionController`
+over a registry of models, with mounted geometry bridged through
+`MarkdownSelectionSurface`. That interface is the whole contract a body meets:
+the library's `MarkdownRenderObject` is one implementer and the text layout of
+`ChatEmojiBody` is the other ([ADR 036](036-emoji-only-message-presentation.md)).
+A body that paints selectable text, whatever it paints, registers a model
+(`putBody`), mounts a surface on `markdownSelection`, and sits under the one
+per-body scope (`ChatBodySelectionScope`, ADR 015). It does not implement a
+range, gestures, handles or copy. A body that paints no text stays a non-text
+body, and may be both: the emoji layout is a text body and a non-text body (for
+its taps).

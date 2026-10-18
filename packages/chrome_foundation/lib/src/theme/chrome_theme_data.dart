@@ -4,6 +4,7 @@ import 'package:chrome_foundation/src/tokens/composer_tokens.dart';
 import 'package:chrome_foundation/src/tokens/glass_material_tokens.dart';
 import 'package:chrome_foundation/src/tokens/panel_tokens.dart';
 import 'package:chrome_foundation/src/tokens/placeholder_tokens.dart';
+import 'package:chrome_foundation/src/tokens/pointer_menu_tokens.dart';
 import 'package:chrome_foundation/src/tokens/selection_menu_tokens.dart';
 import 'package:chrome_foundation/src/tokens/spoiler_tokens.dart';
 import 'package:meta/meta.dart';
@@ -25,6 +26,7 @@ final class ChromeThemeData {
     required this.placeholder,
     required this.glass,
     required this.selectionMenu,
+    required this.pointerMenu,
     required this.spoiler,
   });
 
@@ -38,6 +40,7 @@ final class ChromeThemeData {
     PlaceholderTokens? placeholder,
     GlassMaterialTokens? glass,
     SelectionMenuTokens? selectionMenu,
+    PointerMenuTokens? pointerMenu,
     SpoilerTokens? spoiler,
   }) => ChromeThemeData(
     palette: palette,
@@ -47,6 +50,7 @@ final class ChromeThemeData {
     placeholder: placeholder ?? PlaceholderTokens.fromPalette(palette),
     glass: glass ?? GlassMaterialTokens.fromPalette(palette),
     selectionMenu: selectionMenu ?? SelectionMenuTokens.fromPalette(palette),
+    pointerMenu: pointerMenu ?? PointerMenuTokens.fromPalette(palette),
     spoiler: spoiler ?? SpoilerTokens.fromPalette(palette),
   );
 
@@ -71,6 +75,9 @@ final class ChromeThemeData {
   /// Selection menu colours.
   final SelectionMenuTokens selectionMenu;
 
+  /// Pointer menu colours.
+  final PointerMenuTokens pointerMenu;
+
   /// Spoiler colour and particle motion.
   final SpoilerTokens spoiler;
 
@@ -87,6 +94,7 @@ final class ChromeThemeData {
     PlaceholderTokens? placeholder,
     GlassMaterialTokens? glass,
     SelectionMenuTokens? selectionMenu,
+    PointerMenuTokens? pointerMenu,
     SpoilerTokens? spoiler,
   }) => ChromeThemeData(
     palette: palette ?? this.palette,
@@ -96,6 +104,7 @@ final class ChromeThemeData {
     placeholder: placeholder ?? this.placeholder,
     glass: glass ?? this.glass,
     selectionMenu: selectionMenu ?? this.selectionMenu,
+    pointerMenu: pointerMenu ?? this.pointerMenu,
     spoiler: spoiler ?? this.spoiler,
   );
 
@@ -115,6 +124,7 @@ final class ChromeThemeData {
           b.selectionMenu,
           t,
         ),
+        pointerMenu: PointerMenuTokens.lerp(a.pointerMenu, b.pointerMenu, t),
         spoiler: SpoilerTokens.lerp(a.spoiler, b.spoiler, t),
       );
 
@@ -129,6 +139,7 @@ final class ChromeThemeData {
           placeholder == other.placeholder &&
           glass == other.glass &&
           selectionMenu == other.selectionMenu &&
+          pointerMenu == other.pointerMenu &&
           spoiler == other.spoiler;
 
   @override
@@ -140,6 +151,7 @@ final class ChromeThemeData {
     placeholder,
     glass,
     selectionMenu,
+    pointerMenu,
     spoiler,
   );
 

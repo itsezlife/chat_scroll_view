@@ -8,7 +8,7 @@ import 'package:meta/meta.dart';
 @immutable
 final class EmojiOnlyItem {
   /// Creates the item for [key] that follows [lineBreaksBefore] line breaks.
-  const EmojiOnlyItem(this.key, {this.lineBreaksBefore = 0})
+  const EmojiOnlyItem(this.key, {this.lineBreaksBefore = 0, this.alt = ''})
     : assert(lineBreaksBefore >= 0, 'A count of line breaks is not negative.');
 
   /// What the item is: a [ContentKey.unicode] with the exact sequence written
@@ -20,14 +20,20 @@ final class EmojiOnlyItem {
   /// first item, whatever came before it.
   final int lineBreaksBefore;
 
+  /// The text the item stands for when it is copied: the characters under a
+  /// custom emoji's entity (the emoji it replaces), empty for a unicode item,
+  /// whose [key] is its text, and for a host that did not keep it.
+  final String alt;
+
   @override
   bool operator ==(Object other) =>
       other is EmojiOnlyItem &&
       other.key == key &&
-      other.lineBreaksBefore == lineBreaksBefore;
+      other.lineBreaksBefore == lineBreaksBefore &&
+      other.alt == alt;
 
   @override
-  int get hashCode => Object.hash(key, lineBreaksBefore);
+  int get hashCode => Object.hash(key, lineBreaksBefore, alt);
 
   @override
   String toString() => lineBreaksBefore == 0
@@ -114,7 +120,7 @@ abstract final class EmojiOnlyText {
         :final key,
       ) when key is ContentKey$Document) {
         if (!scan.scan(cursor, entity.offset)) return null;
-        scan.add(key);
+        scan.add(key, alt: text.plain.substring(entity.offset, entity.end));
         cursor = entity.end;
       } else {
         return null;
@@ -122,6 +128,41 @@ abstract final class EmojiOnlyText {
     }
     if (!scan.scan(cursor, text.plain.length)) return null;
     return scan.items.isEmpty ? null : EmojiOnly(scan.items);
+  }
+}
+
+/// Where the emoji are in a text that is not only emoji, for a renderer that
+/// draws them larger than the letters around them.
+///
+/// The grammar is [EmojiOnlyText]'s, with one difference that comes from what
+/// is drawn, not from what is meant. [EmojiOnlyText] counts every character the
+/// catalogue lists as an emoji, because a message of them is shown as a row of
+/// emoji whatever the font does. Here a run is a sequence the font draws as a
+/// colour picture, because only that picture is enlarged: a heart, a copyright
+/// sign or a digit with no presentation selector is a text glyph in the text's
+/// font, and scaling it would make a letter of the sentence larger.
+///
+/// So a sequence is a run when it holds a code point of `U+1F000` or above (a
+/// flag too), a keycap, a presentation selector (`U+FE0F`) or a ZWJ, or when its
+/// base is one of the BMP code points the standard draws as an emoji by default
+/// (`Emoji_Presentation`: a watch, a lightning bolt, a check mark, a star).
+abstract final class EmojiRuns {
+  /// The runs of [text] as `[start, end)` ranges of UTF-16 code units, in
+  /// order and not overlapping; empty when [text] draws no colour emoji.
+  static List<({int start, int end})> of(String text) {
+    final scan = _Scan(text);
+    final runs = <({int start, int end})>[];
+    var index = 0;
+    while (index < text.length) {
+      final end = scan._sequenceEnd(index, text.length);
+      if (end > index && scan._drawsInColour(index, end)) {
+        runs.add((start: index, end: end));
+        index = end;
+      } else {
+        index++;
+      }
+    }
+    return runs;
   }
 }
 
@@ -140,9 +181,13 @@ class _Scan {
   final List<EmojiOnlyItem> items = [];
   int _breaks = 0;
 
-  void add(ContentKey key) {
+  void add(ContentKey key, {String alt = ''}) {
     items.add(
-      EmojiOnlyItem(key, lineBreaksBefore: items.isEmpty ? 0 : _breaks),
+      EmojiOnlyItem(
+        key,
+        lineBreaksBefore: items.isEmpty ? 0 : _breaks,
+        alt: alt,
+      ),
     );
     _breaks = 0;
   }
@@ -166,6 +211,18 @@ class _Scan {
       }
     }
     return true;
+  }
+
+  /// Whether the sequence `[start, end)` is drawn as a colour picture: see
+  /// [EmojiRuns].
+  bool _drawsInColour(int start, int end) {
+    final base = _codePointAt(start);
+    if (base >= 0x1F000 || base < 0x80) return true; // a keycap is `< 0x80`
+    for (var i = start; i < end; i++) {
+      final unit = _text.codeUnitAt(i);
+      if (unit == _variationSelector16 || unit == _zwj) return true;
+    }
+    return _isDefaultColour(base);
   }
 
   /// The end of the sequence that starts at [start], or -1 when none does.
@@ -259,6 +316,41 @@ bool _isBmpEmoji(int codePoint) {
   }
   return false;
 }
+
+/// Whether [codePoint] is a BMP code point the standard draws as an emoji
+/// without a presentation selector (`Emoji_Presentation`), found by binary
+/// search over [_bmpColourRanges].
+bool _isDefaultColour(int codePoint) {
+  var low = 0;
+  var high = _bmpColourRanges.length ~/ 2 - 1;
+  while (low <= high) {
+    final middle = (low + high) ~/ 2;
+    if (codePoint < _bmpColourRanges[2 * middle]) {
+      high = middle - 1;
+    } else if (codePoint > _bmpColourRanges[2 * middle + 1]) {
+      low = middle + 1;
+    } else {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// Inclusive `start, end` pairs, ascending: the BMP code points with the
+/// `Emoji_Presentation` property (Unicode 15, unchanged since), which a font draws in colour
+/// with no `U+FE0F`. Every other BMP emoji is a text glyph until a selector
+/// asks for the picture.
+const List<int> _bmpColourRanges = [
+  0x231A, 0x231B, 0x23E9, 0x23EC, 0x23F0, 0x23F0, 0x23F3, 0x23F3, //
+  0x25FD, 0x25FE, 0x2614, 0x2615, 0x2648, 0x2653, 0x267F, 0x267F, //
+  0x2693, 0x2693, 0x26A1, 0x26A1, 0x26AA, 0x26AB, 0x26BD, 0x26BE, //
+  0x26C4, 0x26C5, 0x26CE, 0x26CE, 0x26D4, 0x26D4, 0x26EA, 0x26EA, //
+  0x26F2, 0x26F3, 0x26F5, 0x26F5, 0x26FA, 0x26FA, 0x26FD, 0x26FD, //
+  0x2705, 0x2705, 0x270A, 0x270B, 0x2728, 0x2728, 0x274C, 0x274C, //
+  0x274E, 0x274E, 0x2753, 0x2755, 0x2757, 0x2757, 0x2795, 0x2797, //
+  0x27B0, 0x27B0, 0x27BF, 0x27BF, 0x2B1B, 0x2B1C, 0x2B50, 0x2B50, //
+  0x2B55, 0x2B55, 0x3297, 0x3297, 0x3299, 0x3299, //
+];
 
 /// Inclusive `start, end` pairs, ascending: the first BMP code point of every
 /// key of the emoji catalogue (Unicode Emoji 18.0) in the reference client's window, `©`,

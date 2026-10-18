@@ -19,6 +19,7 @@ package). A host reaches the field through `ComposerView`, never through
 | --- | --- |
 | `ExtendedTextField` | The Material text field. |
 | `ExtendedEditableText`, `ExtendedEditableTextState` | The editor behind it and its state (menu anchors and button items, toolbar and magnifier control). |
+| `ExtendedSecondaryClick`, `ExtendedSecondaryClickPhase` | One edge of a secondary mouse click, as `onSecondaryClick` reports it. |
 | `ExtendedEditableTextContextMenuBuilder` | `Widget Function(BuildContext, ExtendedEditableTextState)`: the menu a host mounts. |
 | `ExtendedSystemContextMenu` | The iOS system context menu for an `ExtendedEditableTextState`; the default menu where the platform supports it. |
 | `ExtendedClipboardTextBuilder`, `ExtendedPasteTextTransformer` | The text a copy or cut writes, and the transform a paste applies. |
@@ -40,6 +41,7 @@ What the host passes to `ExtendedTextField`, and what happens when it does not.
 | `contentScrollPadding` | `EdgeInsets.zero` (off) | Multiline only. Vertical `InputDecoration.contentPadding` stays zero or the insets stack. The placeholder follows the inset as `hintText` or as `hint`. |
 | `selectionControls` | the platform's controls | Pass `extendedMaterialTextSelectionHandleControls` for Material handles on every platform. A Flutter `TextSelectionControls` does not type-check. |
 | `contextMenuBuilder` | the system menu on iOS where `SystemContextMenu.isSupported`, else `AdaptiveTextSelectionToolbar.buttonItems` | Receives an `ExtendedEditableTextState`; build from `contextMenuAnchors` and `contextMenuButtonItems`. Stock `*.editableText` constructors can not be used. |
+| `onSecondaryClick` | none (stock) | Hears both edges of a secondary mouse click (`ExtendedSecondaryClick`: phase, global position, text position) and, while set, leaves the caret, the selection and the toolbar alone; a host draws its own menu at the pointer. See [DIVERGENCES.md](DIVERGENCES.md) K. |
 | `spellCheckConfiguration` | none (disabled) | An enabled one gets Material defaults on Android. A builder the host passes is called with the extended state (declare its parameter as `Object`). Suggestions stay off. |
 | `clipboardTextBuilder`, `pasteTextTransformer` | none (plain text) | Copy and cut write `clipboardTextBuilder(value)`; paste replaces the selection with `pasteTextTransformer(value, clipboardText)`. |
 | `gutterPainter`, `gutterExtent`, `gutterInset` | none, `0`, `0` | Chrome in the leading gutter, outside the text clip. Pair `gutterExtent` with `gutterInset` so the field leaves room. |
@@ -53,7 +55,9 @@ What the host passes to `ExtendedTextField`, and what happens when it does not.
   toggle on a caret tap.
 - **The toolbar is never remounted by a scroll.** It fades and drops out of hit
   testing while faded, so a menu's local state survives a scroll.
-- **`RenderEditable.painter` is free.** The package paints the stock highlight.
+- **`RenderEditable.painter` is free.** The editable paints the selection
+  highlight itself, as one shape without seams between lines, under the text
+  and under a host's `painter`.
 - **No debug-only branches.** Nothing reads the framework's pipeline-phase
   flags, so debug and release take the same path.
 

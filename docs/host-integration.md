@@ -167,9 +167,11 @@ ChromeThemeScope(
 The chat screen adds `GlassSourceScope` over its content and glass surfaces,
 with a `GlassSource` around the message list, when sampled glass is wanted.
 
-Material localisations must be available above the composer (its selection
-menu uses them). `PanelShell` builds on `EditableText` and needs no Material
-ancestor.
+Material localisations must be available above the composer (its text field
+reads them); the composer's menus do not: every label of the selection menu and
+of the pointer menu comes from `ChromeStrings`, so an app that has no Material
+delegate for its own language still shows its language in them. `PanelShell`
+builds on `EditableText` and needs no Material ancestor.
 
 ## 4. Per-chat controller set
 
@@ -380,6 +382,28 @@ A draft is the markdown of `richText`, written to the `KeyValueStore` under the
 chat id (and the edited message's id) debounced on change, removed on send, and
 loaded with `restore(RichTextMarkdown.decode(...))`.
 
+### Pointer menu (desktop)
+
+On macOS, Windows, Linux and the web a secondary click in the composer field
+opens the reference desktop client's context menu at the pointer instead of the
+floating card (`ComposerMenuPolicy`, chosen by platform; pass
+`ComposerView.menuPolicy` to override; touch keeps the card). Nothing needs
+wiring beyond what the selection menu already has, plus:
+
+- `ChromeStrings.editMenu` (`EditMenuStrings`): the row labels. A label may
+  carry a Qt-style `&` mnemonic, which the menu underlines.
+- A `ChromeThemeScope` (it supplies `PointerMenuTokens`, derived from the
+  palette; pass `PointerMenuTokens.referenceDay` or `referenceNight` to the
+  scope's `pointerMenu` for the reference's exact colours).
+- Optionally `ComposerSpec.spellChecker`: a `ComposerSpellChecker` over the
+  platform's checker (the composer ships none). Without one there is no
+  Spelling row.
+
+The menu opens through the root overlay, so it needs an `Overlay` above the
+field, and it closes when the window loses focus or its metrics change. In a
+browser the host turns the browser's own context menu off for the page
+(`BrowserContextMenu.disableContextMenu`), or both menus show.
+
 ### Formatting menu, shortcuts and suggestions
 
 The selection menu is the composer's own; the host chooses what it offers and
@@ -387,8 +411,13 @@ supplies the rest through `ComposerSpec`:
 
 - `formatting` is the set of items (`ComposerFormattingOption.all` offers every
   one; the list items still wait for `ComposerTextController(lists: true)`, and
-  an item whose command cannot apply to the selection is left out, not greyed).
-  Labels come from `ChromeStrings.formatting`.
+  an item whose command cannot apply to the selection is greyed on the More
+  page, not hidden; Quote is left out over a selection that is quoted).
+  Labels come from `ChromeStrings.formatting`, and the clipboard rows (Cut,
+  Copy, Paste, Select all) from `ChromeStrings.editMenu`, the pointer menu's
+  group, with its `&` access marks removed. The page is as wide as its widest
+  label, so a long translation widens it instead of being cut; only a label
+  wider than the screen less 32 dp is ellipsized.
 - `linkPrompt` is your dialog for Create and Edit Link. It gets the composer's
   `BuildContext` and the current target (null when creating) and completes with
   the URL, or null to cancel. The shortcut for links asks the same prompt.
@@ -505,8 +534,11 @@ hide the keyboard before calling it.
 **Reduce motion.** No chrome package reads the platform flag. Map
 `MediaQuery.disableAnimationsOf(context)` to `ChromeMotionSpeed.instant` in
 `ChromeMotionScope`; every role then runs at zero duration. Also pass your
-low-power flag to `GlassQualityScope(liteMode:)` and set the clock's
-`PlaybackPauseLayer.lowPower`.
+low-power flag to `GlassQualityScope(liteMode:)` and to the `PlaybackActivity`
+(section 8, "Pause layers"), which sets the clock's
+`PlaybackPauseLayer.lowPower`. The same flag, as the activity's
+`reducedMotion` input, sets `PlaybackPauseLayer.reducedMotion`: reported, and
+not stopping playback unless the clock's policy adds the layer.
 
 **Text scale.** The shell's search field and bottom bar clamp the platform text
 scale at 1.3x (their pill heights are fixed). The composer field and the
@@ -594,7 +626,7 @@ and the viewport never calls:
 
 | Moment | Step |
 | ------ | ---- |
-| Send | Rewrite unresolved mentions, **detect**, then encode. The stored body carries the links every other viewer receives. |
+| Send | Rewrite unresolved mentions, **convert typed markers** (`TypedMarkdown.apply`, below), **detect**, then encode. The stored body carries the links every other viewer receives. |
 | Receive | When you build the message model, decode the body. If it has no link-class entity (link, mention, username, hashtag), detect once and keep the result with the model. A body that has any such entity is trusted and not detected again. Never detect in a build or paint method. |
 | Edit | Decode, strip the detected entities back to text (the inverse operation in `content_model`), restore into the composer. Saving detects again, so a stored body round-trips. |
 | Link preview | Optional. Listen to the composer text, debounce, detect with `urls` only to pick the URL to preview, and show the result in the composer's header slot. Fetching and caching the preview is yours. |
@@ -609,6 +641,21 @@ input queries and insert a real mention or hashtag on pick.
 
 If your server detects on ingest, nothing changes in the client: it already
 reconciles with the stored body.
+
+**Typed markers.** A user who types `` `a` ``, ```` ```a``` ````, `**a**`,
+`__a__`, `~~a~~` or `||a||` gets code, a code block, bold, italic, strike or a
+spoiler, as in the reference client. `TypedMarkdown.apply(richText)` is the
+same kind of pure, host-invoked transform: call it on send before detection,
+so a URL typed inside code stays code. Markers inside code, a code block, a
+link, a mention, a username, a hashtag or inline content stay text. Underline
+and quote have no typed form.
+
+It reads the markers as the reference client does, so there is no word boundary:
+`foo__bar__baz` has an italic `bar`, `2**3 * 4**5` a bold `3 * 4`, and
+`a || b || c` hides ` b `. There is no escape either: a user who wants the
+characters types them inside code. A host that would rather leave a pair alone
+filters on the text before calling it. What the transform made survives
+`RichTextMarkdown.encode` and `decode`, so a draft restores as it was sent.
 
 ### Inline embeds, spoilers and mentions
 
@@ -634,7 +681,11 @@ What the host wires so a markdown body paints and reports the inline layer
    While a message selection is live a tap toggles the row and the spoiler
    stays hidden (the facade drives `spoilers.tapReveals`; do not write it). A
    press held past `spoilers.tapTimeout` (500 ms) is a long press and reveals
-   nothing; a desktop host with a mouse sets `tapTimeout = null`.
+   nothing; a desktop host with a mouse sets `tapTimeout = null`. A text
+   selection over a hidden spoiler leaves it hidden; its copy hands the
+   `copyWriter` the `spoiler` style bit, which the host puts on the rich
+   clipboard so a paste into the composer is a spoiler again. The plain text
+   carries the characters (ADR 037).
 4. **Mentions, usernames and hashtags.** Colour them with
    `MarkdownThemeData.mentionColor` (they follow the link colour otherwise).
    Taps are `ChatResolvedMentionActivated` (with the user's `id`) or
@@ -642,6 +693,43 @@ What the host wires so a markdown body paints and reports the inline layer
    and `ChatHashtagActivated`; a link inside a hidden spoiler reveals it and
    reports nothing, and a tap that reveals a spoiler is not an idle message tap
    (`onIdleMessageTap` stays silent for it; the next tap is).
+
+### Copying selected messages
+
+Copy of a **message selection** is the host's: the viewport hands a host that
+sets `copyWriter` the text selection's copy, and gives the host the selected
+ids. What the host wires:
+
+1. **The copy key.** The platform's copy shortcut (Cmd+C on macOS and iOS,
+   Ctrl+C elsewhere) is a `CopySelectionTextIntent`. The viewport answers it for
+   a **text selection** (it binds the key in each body to
+   `ChatSelectionController.copyTextSelection`, so the copy goes through
+   `copyWriter`, the rich clipboard and `ChatCopied`). For a message selection
+   the host binds the intent in an `Actions` above the viewport *and* the
+   composer, enabled only while `isSelectionMode`: a focused composer with a
+   selection of its own answers first (its action is enabled), and with none
+   its action is disabled and the intent reaches the host's.
+2. **Focus.** `ChatKeyboardShortcuts` takes the focus when a message selection
+   starts, also when the host lets go of its composer's focus in a listener of
+   its own. A host without that wrapper must hold the focus somewhere inside
+   the `Actions` above, or the key reaches no one.
+3. **Format.** Per selection policy, as the reference clients write it: under
+   `$Desktop` one message is its text and several are `[time] Name: text` lines
+   a newline apart (Telegram Desktop, `HistorySelectedItemsText`); under
+   `$Mobile` messages are a blank line apart with a `Name:` line before the
+   first and wherever the sender changes (Telegram Android); a single message
+   is its text alone in both. The time is the system locale's short date and
+   time on the desktop client, so the host supplies its own formatter. The
+   demo's `ChatMessagesCopyFormat` is one implementation; the rich form
+   (entities) of each body is kept behind the headers.
+4. **Confirmation and selection after the copy.** Per policy, whatever made the
+   copy ([ADR 012](adr/012-cross-platform-selection-policies.md#copy-confirmation-and-what-a-copy-leaves-selected-both-strategies)):
+   a mobile copy toasts and ends the selection, a desktop copy of text or
+   messages is silent and keeps it (only code toasts). The viewport applies this
+   to its own copy; after the host's own clipboard write it calls
+   `selectionPolicy.applyCopySuccess(clearTextSelection: …, clearMessageSelection: …)`
+   and decides the toast from `ChatCopied.origin` or its own call site. The
+   demo's `ChatCopyFeedback` is one implementation.
 
 ### Emoji-only messages
 
@@ -703,7 +791,7 @@ A message of nothing but emoji is shown without a bubble, large
 
    | | Android | iOS | Desktop |
    | --- | --- | --- | --- |
-   | Time | always; a strip under the text (3 dp gap, 17 dp pill, 3 dp), over the sticker's bottom | always; 4 pt inside the frame's end and bottom | beside the content (incoming) or under or over it (outgoing); on hover, last own, sending, failed; an outgoing large emoji always |
+   | Time | always; a strip under the text (3 dp gap, 17 dp pill, 3 dp), over the sticker's bottom | always; 4 pt inside the frame's end and bottom | beside the content (incoming) or under or over it (outgoing); while the pointer is on the message's row, last own, sending, failed; an outgoing large emoji always |
    | Pill | 17 dp, radius 12, 6 dp padding, 12 dp text | fully rounded, 11 pt | radius about 6, 8 x 2 padding, 13 px |
    | Ticks and edited | 12 dp checks 4.8 dp apart, clock, error; `edited 09:05` is one string | 11 x 9 pt vector checks 6 pt apart; one string | Android's glyphs; one string |
    | Reply | above the text, beside the sticker | beside both, at the screen edge away from the message | beside when it fits, else above |
@@ -776,10 +864,51 @@ with no fetcher (unicode glyphs only) has nothing to retry.
 
 ### Pause layers
 
-Set host-owned layers on `assets.clock.setPaused(layer, paused: ...)`:
-`routeMoving` while a route transition runs, `fastScroll` during a fling,
-`lowPower` from the battery saver, `surfaceHidden` when the app is hidden.
-Animated content stops playing while any layer is set.
+Create one `PlaybackActivity` per asset cache scope and dispose it with the
+shell. It is the one seam through which the app's state reaches the clock the
+chat's animated emoji, the panel and the spoiler dust all share; no widget
+takes a pause flag of its own.
+
+```dart
+final lifecycle = WidgetsPlaybackLifecycleSource();   // the platform's state
+final activity = PlaybackActivity(
+  clock: assets.clock,
+  lifecycle: lifecycle,
+  lowPower: lowPower,           // your ValueListenable<bool>, or null
+  reducedMotion: reducedMotion, // your ValueListenable<bool>, or null
+);
+// A dialog, a sheet or a full-screen route over the chat:
+final hold = activity.holdOverlay();   // ... hold.release() when it closes
+```
+
+| Input | Layer | Notes |
+| --- | --- | --- |
+| Lifecycle `inactive` | `appInactive` | Window or app lost focus: another app took it (macOS, Windows, Linux), a call or system sheet (phones), a blurred tab (web). Pauses at once; `PlaybackActivityPolicy` adds a grace if you want one |
+| Lifecycle `hidden`, `paused`, `detached` | `appInactive` and `surfaceHidden` | Minimised, hidden, on another desktop; on macOS also fully covered. The framework stops frames itself on these; the layers also freeze the clock's `now` |
+| `lowPower` | `lowPower` | **Yours to detect.** The SDK reports no battery state. The reference desktop client turns everything off on macOS Low Power Mode (or a critical thermal state, or a low charge on battery), Windows Battery Saver and the Linux power-saver profile, with a user override. `battery_plus` documents `isInBatterySaveMode` for Android, iOS, macOS and Windows (no Linux); no package here depends on it |
+| `reducedMotion` | `reducedMotion` | Not in the default pausing set. The engine reports `PlatformDispatcher.accessibilityFeatures.disableAnimations` on Linux and the phones; on macOS and Windows it reports nothing at this Flutter revision, so a host that wants the setting reads it over a platform channel and feeds the same notifier. Chrome motion and the spoiler stillness follow `MediaQuery.disableAnimations` regardless. Add the layer to `PlaybackPolicy.pausingLayers` to stop playback on it |
+| `holdOverlay()` | `overlayShown` | One hold per overlay; the layer stays set until every hold is released. Flutter's `TickerMode` does not reach a non-opaque route, so a dialog leaves the chat animating unless you hold. The example does it from a `NavigatorObserver` for every modal route above the first |
+
+What an unknown lifecycle state does: nothing (a `null` state, or a first
+`detached`, pauses nothing). `routeMoving` and `fastScroll` stay yours: set them
+directly with `assets.clock.setPaused(layer, paused: ...)`; `dispose` on the
+activity clears only the five layers it owns.
+
+Resuming continues; it never rewinds and never jumps to the live position. The
+clock's `now` stands still while paused and jumps once on the first frame
+after; the frame-sequence paintable shows its next frame at once and restarts
+its timing, a pass is never ended early, and the spoiler dust cuts the pause
+out of the time it is told. A custom `AssetPaintable` that derives its frame
+from the time alone must do the same. Revealed spoilers are not touched by any
+pause.
+
+Not replicated from the reference desktop client ([ADR 022](adr/022-asset-cache-and-media-pipeline.md),
+amendment *pause policies*): the six-level reason hierarchy (an open emoji panel
+does not pause the chat behind it; feed `ChatEmojiBody.isActive` per row if you
+want that), the round-video exemption, the per-feature power flags, and the
+re-hide of spoilers on a jump within a chat. Real-desktop focus behaviour is
+covered by tests that drive fake lifecycle sources; it has not been run on a
+desktop.
 
 ## 9. Ownership and lifetime
 
@@ -787,7 +916,8 @@ Animated content stops playing while any layer is set.
 | --- | --- | --- | --- |
 | `KeyValueStore` adapter, stores, fetcher, decoders, resolver | Host | App or account | Host |
 | `AssetCacheScope` | Host | App-wide | Host (scopes and `AssetCacheProvider` never dispose it) |
-| Pause layers, connectivity signal | Host, fed into the cache | App | Host |
+| `PlaybackActivity` and its lifecycle source; the `lowPower` and `reducedMotion` notifiers it follows | Host | App | Host (dispose the activity first: it clears the layers it set) |
+| `routeMoving` / `fastScroll` layers, connectivity signal | Host, fed into the cache | App | Host |
 | Emoji and other data sources | Host | Account | Host |
 | `ChromeThemeScope`, strings, motion, glass quality | Host | App, plus nested per-chat scopes | Host |
 | `GlassSourceScope` | Chat screen | Chat screen | Chat screen |

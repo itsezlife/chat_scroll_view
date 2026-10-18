@@ -7,6 +7,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_p
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/disposal_watch.dart';
@@ -165,6 +166,99 @@ void main() {
         expect(watch.undisposed, isEmpty);
       },
     );
+  });
+
+  group('the pause policies', () {
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+
+    // The binding's lifecycle is process-wide state, and `hidden` turns its
+    // frames off: give it back as found.
+    tearDown(() {
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    });
+
+    Set<PlaybackPauseLayer> layers(AppServices services) =>
+        services.assets.clock.pausedLayers;
+
+    test('the window losing focus pauses the shared clock and getting it '
+        'back resumes', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      expect(layers(services), isEmpty);
+
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      expect(layers(services), {PlaybackPauseLayer.appInactive});
+      expect(services.assets.clock.isPaused, isTrue);
+
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      expect(layers(services), isEmpty);
+    });
+
+    test(
+      'minimising pauses it twice over, and restoring clears both',
+      () async {
+        final services = await createTestServices();
+        addTearDown(services.dispose);
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+
+        binding
+          ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+          ..handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        expect(layers(services), {
+          PlaybackPauseLayer.appInactive,
+          PlaybackPauseLayer.surfaceHidden,
+        });
+
+        binding
+          ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+          ..handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+        expect(layers(services), isEmpty);
+      },
+    );
+
+    test('the low power switch drives its layer: nothing in the example '
+        'detects battery saving', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      expect(services.lowPower.value, isFalse);
+
+      services.lowPower.value = true;
+      expect(layers(services), {PlaybackPauseLayer.lowPower});
+
+      services.lowPower.value = false;
+      expect(layers(services), isEmpty);
+    });
+
+    test('the system reduced-motion setting is reported on its layer but '
+        'does not stop playback', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      addTearDown(
+        binding.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+
+      binding.platformDispatcher.accessibilityFeaturesTestValue =
+          FakeAccessibilityFeatures.allOn;
+      expect(layers(services), {PlaybackPauseLayer.reducedMotion});
+      expect(services.assets.clock.isPaused, isFalse);
+
+      binding.platformDispatcher.clearAccessibilityFeaturesTestValue();
+      expect(layers(services), isEmpty);
+    });
+
+    test('disposing the services gives the clock back running', () async {
+      final services = await createTestServices();
+      final clock = services.assets.clock;
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      services.lowPower.value = true;
+      services.activity.holdOverlay();
+      expect(clock.pausedLayers, hasLength(3));
+
+      services.dispose();
+
+      expect(clock.pausedLayers, isEmpty);
+    });
   });
 
   group('what a screen reader says', () {

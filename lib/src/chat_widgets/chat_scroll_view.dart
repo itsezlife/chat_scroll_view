@@ -273,7 +273,8 @@ class ChatScrollView extends RenderObjectWidget {
   /// The viewport owns the selection pointer and freeze-on-exit; this
   /// builder only paints. Use [ChatSelectionChromeState.selectProgress]
   /// (frozen on `clear`) rather than [ChatSelectionChromeState.isSelected]
-  /// for visuals.
+  /// for the check, and [ChatSelectionChromeState.overlayProgress] for a tint
+  /// that must be gone when selection ends.
   /// Pass a stable tear-off, like [messageBuilder].
   ///
   /// Defaults to [DefaultSelectionChrome.wrap]. Restyle that chrome with

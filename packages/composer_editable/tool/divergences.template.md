@@ -73,12 +73,6 @@ Stock remounts the selection toolbar on scroll (`hideToolbar` on
   alpha, so the wrapper drops the toolbar out of hit testing while the fade
   reads zero; otherwise an invisible menu swallows gestures aimed at the
   content under it.
-- **A toolbar may fade itself.** The wrapper's one linear 150 ms fade suits a
-  stock menu, not one with its own enter, hide and dismiss timings. A context
-  menu returned inside `ExtendedSelfFadingToolbar` gets no wrapper fade and is
-  handed the visibility the fade would have followed (`ValueListenable<bool>`:
-  false while a scroll hides it or the selection leaves the viewport). Any
-  other menu keeps the fade.
 - Handle and toolbar visibility are published by `ExtendedRenderEditable`
   (`startHandleInViewport`, `endHandleInViewport`, `selectionIntersectsViewport`)
   at the end of paint. Handle visibility is wider than stock's: a handle stays
@@ -181,6 +175,57 @@ Cupertino desktop) differ from stock only in imports, so the controls extend
 A composer passes the Material controls on every platform; the Cupertino ones
 stay available to an overriding host.
 
+### J. Selection highlight without seams
+
+Stock draws the highlight as one rect per selection box, in a separate painter
+child of the editable. A translucent highlight then shows a seam between every
+two lines, for two reasons that no stock setting removes:
+
+1. The engine rounds each line's height, so a line's boxes end a fraction of a
+   pixel short of the next line's top (0.2 logical pixels for 16 px text at a
+   line height of 1.3) under **every** `BoxHeightStyle`, `strut` and
+   `includeLineSpacing*` included. That is a gap in the shape.
+2. Rects that share an edge rarely share it on a device pixel; each covers part
+   of the edge pixel and the partial coverages composite to less than the colour
+   anywhere else.
+
+`ExtendedRenderEditable` paints the highlight itself, as one `Path` (a path is
+filled as one coverage), with a bridge over each gap narrower than half a line
+between a box and the box under it, over the width the two share
+(`selectionHighlightPath`). A shorter last line keeps its step; a break of half
+a line or more stays a break. The shape stops at the editable's box.
+
+Everything else about the highlight is stock: the boxes come from
+`getBoxesForSelection` with the field's `selectionHeightStyle` and
+`selectionWidthStyle`, `selectionColor` is the colour (null without focus), and
+the `painter` slot is free for a host. The paint sits where stock's does, under
+the text and under any host `painter`. Plain rects, no rounded joins: the
+reference composer is a platform edit field, whose highlight is a path of one
+rect per line.
+
+### K. Secondary click seam (no selection change)
+
+Stock treats a secondary mouse click as a selection gesture: on Apple platforms
+it selects the word under the pointer, elsewhere it selects a position when the
+field is unfocused, and it then shows the field's own toolbar on the
+release. A host that draws a context menu of its own at the pointer needs the
+click to leave the caret and the selection alone, as the reference desktop
+client's text field does (its toolkit ignores the right button in the text
+control), so `ExtendedEditableText.onSecondaryClick` (and the same parameter on
+`ExtendedTextField`) is a seam:
+
+- **Null** keeps stock behaviour on every platform.
+- **Set**, the field reports both edges of the click
+  (`ExtendedSecondaryClick`: phase `down` or `up`, the global position, the
+  text position under the pointer) and does nothing else: no selection change,
+  no toolbar, no handles. The host picks the edge that opens its menu; which
+  edge the reference toolkit uses per operating system is not verifiable from
+  source.
+- **macOS divergence from stock, on purpose.** Stock selects the word on a
+  secondary click; with the seam set it does not.
+- The press is recorded in `lastSecondaryTapDownPosition` as stock does, so the
+  anchors of a menu built from it still work.
+
 ### Seams not in stock
 
 - `clipboardTextBuilder` / `pasteTextTransformer` (`ExtendedClipboardTextBuilder`,
@@ -206,8 +251,8 @@ stay available to an overriding host.
 
 ## Stock on purpose
 
-- **Selection highlight and endpoints.** `defaultSelectionWidthStyle` is
-  `BoxWidthStyle.max` on native platforms, `selectionColor` paints, affinity is
-  not special-cased, and `RenderEditable.painter` is free for a host. See
-  [docs/parity/highlight.md](docs/parity/highlight.md).
+- **Selection boxes and endpoints.** `defaultSelectionWidthStyle` is
+  `BoxWidthStyle.max` on native platforms, affinity is not special-cased, and
+  `RenderEditable.painter` is free for a host; only the highlight's paint is the
+  package's (J). See [docs/parity/highlight.md](docs/parity/highlight.md).
 - **Grabbed handle size** (see F).

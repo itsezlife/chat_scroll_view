@@ -27,6 +27,7 @@ import 'package:composer_editable/src/widget/_web_browser_detection_io.dart'
 import 'package:composer_editable/src/widget/overscroll_handoff_scroll_position.dart';
 import 'package:composer_editable/src/widget/padded_viewport_offset.dart';
 import 'package:composer_editable/src/widget/render_editable.dart';
+import 'package:composer_editable/src/widget/secondary_click.dart';
 import 'package:composer_editable/src/widget/text_selection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -699,6 +700,7 @@ class ExtendedEditableText extends StatefulWidget {
     this.magnifierConfiguration = TextMagnifierConfiguration.disabled,
     this.undoController,
     this.hintLocales,
+    this.onSecondaryClick,
   }) : assert(
          obscuringCharacter.length == 1,
          'obscuringCharacter must be a single character.',
@@ -889,6 +891,16 @@ class ExtendedEditableText extends StatefulWidget {
   ///
   /// If null, this widget will create its own [UndoHistoryController].
   final UndoHistoryController? undoController;
+
+  /// Hears the secondary mouse button, instead of the field acting on it.
+  ///
+  /// When set, a secondary click neither moves the caret or the selection nor
+  /// shows the field's own toolbar: stock selects the word under the pointer
+  /// on Apple platforms and shows the toolbar, which a host drawing a context
+  /// menu of its own at the pointer does not want. Both edges of the click are
+  /// reported (see [ExtendedSecondaryClick]); the host picks the one that
+  /// opens its menu. Null keeps stock behaviour.
+  final ValueChanged<ExtendedSecondaryClick>? onSecondaryClick;
 
   /// {@template flutter.widgets.editableText.strutStyle}
   /// The strut style used for the vertical layout.

@@ -193,14 +193,31 @@ class _ChatKeyboardShortcutsState extends State<ChatKeyboardShortcuts> {
   }
 
   void _onSelectionChanged() {
-    final selection = widget.selectionController;
-    if (selection != null &&
-        selection.isSelectionMode &&
-        !selection.isTextSelectionActive) {
-      if (!_focusNode.hasFocus) {
+    if (!_wantsFocusForSelection || _focusNode.hasFocus) return;
+    _focusNode.requestFocus();
+    // A host that lets go of its composer's focus when the selection starts
+    // does so from its own listener, after this one, and `unfocus` hands the
+    // focus to the enclosing scope: the request above is lost and the copy
+    // and escape keys have no chat to reach. Asking again once the listeners
+    // and the frame are done keeps the focus on the selection.
+    if (_focusRetryScheduled) return;
+    _focusRetryScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusRetryScheduled = false;
+      if (mounted && _wantsFocusForSelection && !_focusNode.hasFocus) {
         _focusNode.requestFocus();
       }
-    }
+    });
+  }
+
+  bool _focusRetryScheduled = false;
+
+  // Message selection without a text range: the keys act on the messages.
+  bool get _wantsFocusForSelection {
+    final selection = widget.selectionController;
+    return selection != null &&
+        selection.isSelectionMode &&
+        !selection.isTextSelectionActive;
   }
 
   bool _handleHardwareKey(KeyEvent event) {

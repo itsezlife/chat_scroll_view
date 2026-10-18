@@ -15,13 +15,24 @@ import 'input/composer_controller_extent_test.dart'
 import 'input/composer_controller_test.dart' as composer_controller_test;
 import 'input/composer_draft_contract_test.dart'
     as composer_draft_contract_test;
+import 'input/composer_edit_state_test.dart' as composer_edit_state_test;
 import 'input/composer_field_integration_test.dart'
     as composer_field_integration_test;
 import 'input/composer_lists_paste_test.dart' as composer_lists_paste_test;
 import 'input/composer_mentions_test.dart' as composer_mentions_test;
 import 'input/composer_paste_report_test.dart' as composer_paste_report_test;
+import 'menu/composer_menu_hints_test.dart' as composer_menu_hints_test;
+import 'menu/composer_menu_policy_test.dart' as composer_menu_policy_test;
+import 'menu/composer_pointer_menu_items_test.dart'
+    as composer_pointer_menu_items_test;
+import 'menu/selection_menu_appearance_test.dart'
+    as selection_menu_appearance_test;
 import 'menu/selection_menu_items_test.dart' as selection_menu_items_test;
-import 'menu/selection_menu_layout_test.dart' as selection_menu_layout_test;
+import 'menu/selection_menu_overflow_test.dart' as selection_menu_overflow_test;
+import 'menu/selection_menu_pages_test.dart' as selection_menu_pages_test;
+import 'menu/selection_menu_position_test.dart' as selection_menu_position_test;
+import 'menu/selection_menu_swipe_back_test.dart'
+    as selection_menu_swipe_back_test;
 import 'query/composer_query_test.dart' as composer_query_test;
 import 'spec/action_descriptor_test.dart' as action_descriptor_test;
 import 'spec/composer_header_test.dart' as composer_header_test;
@@ -35,6 +46,8 @@ import 'text/composer_text_controller_edit_test.dart'
     as composer_text_controller_edit_test;
 import 'text/composer_text_controller_formatting_test.dart'
     as composer_text_controller_formatting_test;
+import 'text/composer_text_controller_link_range_test.dart'
+    as composer_text_controller_link_range_test;
 import 'text/composer_text_controller_lists_test.dart'
     as composer_text_controller_lists_test;
 import 'text/composer_text_controller_paint_test.dart'
@@ -52,6 +65,14 @@ import 'view/composer_length_budget_test.dart' as composer_length_budget_test;
 import 'view/composer_list_gutter_golden_test.dart'
     as composer_list_gutter_golden_test;
 import 'view/composer_lists_field_test.dart' as composer_lists_field_test;
+import 'view/composer_menu_labels_test.dart' as composer_menu_labels_test;
+import 'view/composer_pointer_menu_golden_test.dart'
+    as composer_pointer_menu_golden_test;
+import 'view/composer_pointer_menu_test.dart' as composer_pointer_menu_test;
+import 'view/composer_selection_highlight_golden_test.dart'
+    as composer_selection_highlight_golden_test;
+import 'view/composer_selection_menu_fit_test.dart'
+    as composer_selection_menu_fit_test;
 import 'view/composer_selection_menu_golden_test.dart'
     as composer_selection_menu_golden_test;
 import 'view/composer_selection_menu_test.dart' as composer_selection_menu_test;
@@ -59,7 +80,6 @@ import 'view/composer_semantics_test.dart' as composer_semantics_test;
 import 'view/composer_send_flow_test.dart' as composer_send_flow_test;
 import 'view/composer_shortcuts_test.dart' as composer_shortcuts_test;
 import 'view/composer_view_test.dart' as composer_view_test;
-import 'view/selection_menu_card_test.dart' as selection_menu_card_test;
 
 void main() {
   group('boundaries_test.dart', boundaries_test.main);
@@ -76,6 +96,7 @@ void main() {
     'input/composer_draft_contract_test.dart',
     composer_draft_contract_test.main,
   );
+  group('input/composer_edit_state_test.dart', composer_edit_state_test.main);
   group(
     'input/composer_field_integration_test.dart',
     composer_field_integration_test.main,
@@ -86,10 +107,29 @@ void main() {
     'input/composer_paste_report_test.dart',
     composer_paste_report_test.main,
   );
+  group('menu/composer_menu_hints_test.dart', composer_menu_hints_test.main);
+  group('menu/composer_menu_policy_test.dart', composer_menu_policy_test.main);
+  group(
+    'menu/composer_pointer_menu_items_test.dart',
+    composer_pointer_menu_items_test.main,
+  );
+  group(
+    'menu/selection_menu_appearance_test.dart',
+    selection_menu_appearance_test.main,
+  );
   group('menu/selection_menu_items_test.dart', selection_menu_items_test.main);
   group(
-    'menu/selection_menu_layout_test.dart',
-    selection_menu_layout_test.main,
+    'menu/selection_menu_overflow_test.dart',
+    selection_menu_overflow_test.main,
+  );
+  group('menu/selection_menu_pages_test.dart', selection_menu_pages_test.main);
+  group(
+    'menu/selection_menu_position_test.dart',
+    selection_menu_position_test.main,
+  );
+  group(
+    'menu/selection_menu_swipe_back_test.dart',
+    selection_menu_swipe_back_test.main,
   );
   group('query/composer_query_test.dart', composer_query_test.main);
   group('spec/action_descriptor_test.dart', action_descriptor_test.main);
@@ -113,6 +153,10 @@ void main() {
   group(
     'text/composer_text_controller_formatting_test.dart',
     composer_text_controller_formatting_test.main,
+  );
+  group(
+    'text/composer_text_controller_link_range_test.dart',
+    composer_text_controller_link_range_test.main,
   );
   group(
     'text/composer_text_controller_lists_test.dart',
@@ -148,6 +192,23 @@ void main() {
     composer_list_gutter_golden_test.main,
   );
   group('view/composer_lists_field_test.dart', composer_lists_field_test.main);
+  group('view/composer_menu_labels_test.dart', composer_menu_labels_test.main);
+  group(
+    'view/composer_selection_highlight_golden_test.dart',
+    composer_selection_highlight_golden_test.main,
+  );
+  group(
+    'view/composer_pointer_menu_golden_test.dart',
+    composer_pointer_menu_golden_test.main,
+  );
+  group(
+    'view/composer_pointer_menu_test.dart',
+    composer_pointer_menu_test.main,
+  );
+  group(
+    'view/composer_selection_menu_fit_test.dart',
+    composer_selection_menu_fit_test.main,
+  );
   group(
     'view/composer_selection_menu_golden_test.dart',
     composer_selection_menu_golden_test.main,
@@ -160,5 +221,4 @@ void main() {
   group('view/composer_send_flow_test.dart', composer_send_flow_test.main);
   group('view/composer_shortcuts_test.dart', composer_shortcuts_test.main);
   group('view/composer_view_test.dart', composer_view_test.main);
-  group('view/selection_menu_card_test.dart', selection_menu_card_test.main);
 }

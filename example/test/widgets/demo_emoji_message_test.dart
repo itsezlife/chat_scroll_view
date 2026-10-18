@@ -20,7 +20,6 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_meta_pill.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_reactions_row.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -73,6 +72,7 @@ void main() {
     EmojiSendState? sendState,
     Color? wallpaper,
     bool isLastOwn = false,
+    bool hovered = false,
     double width = 340,
     bool physicalSides = true,
     double selected = 0,
@@ -126,6 +126,7 @@ void main() {
                       policy: platform,
                       wallpaper: wallpaper,
                       isLastOwn: isLastOwn,
+                      hovered: hovered,
                     ),
                   ),
                 ),
@@ -578,15 +579,11 @@ void main() {
 
   group('Desktop', () {
     testWidgets('shows no time on an incoming message until the pointer is '
-        'on it', (tester) async {
+        'on its row', (tester) async {
       await pump(tester, _threeGlyphs, platform: _desktop);
       expect(find.byType(EmojiMetaPill), findsNothing);
 
-      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      addTearDown(mouse.removePointer);
-      await mouse.addPointer(location: const Offset(500, 500));
-      await mouse.moveTo(tester.getCenter(find.byType(ChatEmojiBody)));
-      await tester.pump();
+      await pump(tester, _threeGlyphs, platform: _desktop, hovered: true);
 
       // 38 px images, 2 apart: 118 wide, a 65 + 16 = 81 pill 6 px after.
       expect(body(tester).size, const Size(118, 38));

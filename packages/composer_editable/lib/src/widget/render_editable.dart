@@ -1,15 +1,19 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:composer_editable/src/widget/selection_highlight.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
 /// [RenderEditable] for the composer's editable: a gutter beside the text, a
-/// content inset that scrolls with the text, and handle / toolbar visibility
-/// that follows the selection's visible part rather than its endpoints.
+/// content inset that scrolls with the text, a selection highlight without
+/// seams between its lines, and handle / toolbar visibility that follows the
+/// selection's visible part rather than its endpoints.
 ///
-/// Selection paint and endpoint geometry are stock: the highlight is the
-/// engine's [BoxWidthStyle], and the `painter` slot stays free for callers.
+/// Selection boxes and endpoint geometry are stock, and so are the engine's
+/// [BoxHeightStyle] and [BoxWidthStyle] that size them. Only the paint of the
+/// boxes is the editable's own ([selectionHighlightPath]); the `painter` slot
+/// stays free for callers.
 class ExtendedRenderEditable extends RenderEditable {
   /// Creates an extended render editable.
   ExtendedRenderEditable({
@@ -28,7 +32,7 @@ class ExtendedRenderEditable extends RenderEditable {
     super.minLines,
     super.expands,
     super.strutStyle,
-    super.selectionColor,
+    Color? selectionColor,
     super.textScaler,
     super.locale,
     super.selection,
@@ -53,7 +57,65 @@ class ExtendedRenderEditable extends RenderEditable {
     super.ignorePointer,
     super.painter,
     super.foregroundPainter,
-  });
+  }) : _selectionColor = selectionColor;
+
+  // --- Selection highlight ---
+
+  /// The colour of the selection highlight; null paints none.
+  ///
+  /// Held here and not handed to the stock highlight painter, which is left
+  /// colourless: it draws a rect per box (see [selectionHighlightPath]).
+  @override
+  Color? get selectionColor => _selectionColor;
+  Color? _selectionColor;
+  @override
+  set selectionColor(Color? value) {
+    if (_selectionColor == value) {
+      return;
+    }
+    _selectionColor = value;
+    markNeedsPaint();
+  }
+
+  // The stock setters notify the stock highlight painter, which has no colour
+  // and repaints nothing. This paint reads both styles, so it repaints itself.
+  @override
+  set selectionHeightStyle(BoxHeightStyle value) {
+    super.selectionHeightStyle = value;
+    markNeedsPaint();
+  }
+
+  @override
+  set selectionWidthStyle(BoxWidthStyle value) {
+    super.selectionWidthStyle = value;
+    markNeedsPaint();
+  }
+
+  final Paint _highlightPaint = Paint();
+
+  /// Paints the highlight under everything the editable paints, where stock's
+  /// own highlight painter sits.
+  void _paintSelectionHighlight(Canvas canvas, Offset offset) {
+    final color = _selectionColor;
+    final current = selection;
+    if (color == null ||
+        current == null ||
+        !current.isValid ||
+        current.isCollapsed) {
+      return;
+    }
+    final shape = selectionHighlightPath(
+      <Rect>[for (final box in getBoxesForSelection(current)) box.toRect()],
+      // Anything under half a line is the engine's rounding, not a break.
+      maxLineGap: preferredLineHeight / 2,
+      // Boxes are viewport-relative, so the box clips them: a scrolled
+      // selection stops at its bounds.
+      clip: Offset.zero & size,
+    );
+    canvas.drawPath(shape.shift(offset), _highlightPaint..color = color);
+  }
+
+  // --- Gutter ---
 
   /// Room kept on the leading side of the text area for [gutterPainter].
   ///
@@ -175,6 +237,7 @@ class ExtendedRenderEditable extends RenderEditable {
     final gutterPainter = _gutterPainter;
     if (_gutterExtent <= 0.0 || gutterPainter == null) {
       _gutterClipLayer.layer = null;
+      _paintSelectionHighlight(context.canvas, offset);
       super.paint(context, offset);
       _publishSelectionVisibility();
       return;
@@ -185,6 +248,7 @@ class ExtendedRenderEditable extends RenderEditable {
       offset,
       gutterClipRect(size: size, gutterExtent: _gutterExtent, ltr: _isLtr),
       (innerContext, innerOffset) {
+        _paintSelectionHighlight(innerContext.canvas, innerOffset);
         super.paint(innerContext, innerOffset);
         _publishSelectionVisibility();
         // Editable painters draw in the editable's own coordinates.

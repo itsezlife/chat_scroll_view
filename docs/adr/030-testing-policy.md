@@ -8,6 +8,7 @@ reproducibility; performance benchmarks report nightly and never block a merge.
 **Status**: Accepted  
 **Date**: 2026-10-16  
 **Amended**: 2026-10-16 — change notification is `package:listen`, which brings its own tests: there is no `Observable` fake or contract suite, and the seams' suites keep requiring an idempotent `dispose` of their owner ([ADR 023](023-data-layering-and-persistence.md) Amendment). A test that makes a listener throw sets `Listenable.onError` in `setUp` and restores it in `tearDown`; the packages never set it  
+**Amended**: 2026-10-18 (chat-polish-3, ticket 10): the playback lifecycle source joins the table; process-wide binding state a contract run moves (the lifecycle) is restored by the run's own tear-down  
 **Relates to**: [ADR 020](020-package-topology.md), [ADR 022](022-asset-cache-and-media-pipeline.md), [ADR 023](023-data-layering-and-persistence.md)
 
 ## Decided
@@ -16,6 +17,7 @@ reproducibility; performance benchmarks report nightly and never block a merge.
 | ------------ | ---- | -------------- | -------- |
 | Asset fetcher, decoder, cache | `FakeFetcher`, `FakeDecoder`, manual clock | `AssetFetcherContract.run`, `DecoderContract.run`; cache invariants: pinned while attached, evict never touches live bindings, no visible failure plus retry on re-attach, connectivity-restored and `retry()`, dedupe, cancel on last detach, staged readiness, page hold counts | `catalog_assets` (`testing.dart`) |
 | `KeyValueStore`, `RecentsStore`, `PreferenceStore`, `CollectionSource`, `SearchSource`, `KeywordSource`, `GlyphSupport` | In-memory fakes | One `...Contract.run` per seam | `content_model` (`testing.dart`) |
+| Playback tick source, lifecycle source | `ManualPlaybackTickSource`, `ManualPlaybackLifecycleSource` (with `ManualRetentionTimers` for grace periods) | `PlaybackTickSourceContract.run`, `PlaybackLifecycleSourceContract.run` (each distinct change notifies once, a repeated state nothing, a disposed source says nothing, dispose is idempotent) over the production adapter and the fake; `PlaybackActivity` is concrete and tested by behaviour over the fakes and a real clock | `catalog_assets` (`testing.dart`) |
 | Presentation policy and strategies | Fake IME input port, manual clock | `PresentationPolicyContract.run`; IME hand-off state-machine tests | `panel_presentation` (`testing.dart`) |
 | Shell, pages, composer | Fake page, fake `CollectionSource` | Widget tests; the `PanelPage` contract | Owning package |
 

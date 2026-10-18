@@ -73,6 +73,12 @@ Conventions the lints read:
   process-wide handler) restores it, and a golden test points
   `goldenFileComparator` at its own file, since goldens otherwise resolve
   next to the entrypoint.
+- **Golden baselines are the CI runner's** (`ubuntu-latest`, the pinned Flutter).
+  Rendering differs by platform, so a golden test can fail on another one: a
+  macOS or Windows checkout shows failures the runner does not. Regenerate
+  baselines on the runner, not locally (`flutter test --update-goldens` from a
+  one-off workflow that commits the PNGs), and commit only the images that
+  changed.
 
 ## Legacy baseline
 

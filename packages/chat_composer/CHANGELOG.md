@@ -6,18 +6,98 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (More button press)
+
+- The More button showed nothing when pressed: it was a bare `InkResponse`,
+  which takes the theme's splash and highlight, transparent under Material 3.
+  It is an `IconButton` again, 56 by 48, whose pressed state layer is the
+  Material one.
+
+### Changed (selection menu fit and language)
+
+- The selection menu's sizes and fit are Telegram's floating toolbar
+  (`FloatingToolbar.java`), traced value by value, instead of the fixed sizes
+  the previous port took from the message menu. The main row's buttons are 48
+  dp tall (were 42) with 16 dp padding (were 12; 24 at the row's first start
+  and, with no More button, its last end), 48 dp wide at least, the More
+  button is 56 by 48 flush with the card's end (was 46 by 42), and a button
+  stays on the row while it fits beside the More button, the last item of the
+  whole menu taking that room if nothing follows. Labels are 14 dp medium with
+  no letter spacing (were the theme's body-large at 16), the Back label 16 dp
+  regular. The More page is as wide as its widest row (was a fixed 150 dp that
+  ellipsized any translation longer than about a dozen characters),
+  never narrower than its Back row, never wider than the screen less 32 dp;
+  it is four rows and half of a fifth tall at most (rows counted at 48 dp,
+  two at least where the room is short) and scrolls under a 16 dp fade at
+  both edges; its Back row is 48 dp (arrow at 16, label at 56) with a
+  one-device-pixel hairline at its top edge, which is the card's edge when
+  Back is above the list. The card is at most 264 dp tall (was 320), sits 16
+  dp from the screen's sides (was 12) and its row is at most `min(400, width -
+  32)` wide. Source-breaking only for code that imports `src/menu` internals.
+  The page turn, the enter and leave motion, the elevation and the greyed
+  formatting rows are unchanged and recorded as deviations in ADR 026.
+- Every label of the selection menu, the clipboard rows included, is a
+  `ChromeStrings` string: Cut, Copy, Paste and Select all come from
+  `ChromeStrings.editMenu` (the pointer menu's group, its `&` marks removed),
+  no longer from `MaterialLocalizations`. An app without a Material delegate
+  for its language used to get English clipboard rows beside its own
+  formatting rows. Existing tests that looked for Material's "Select all" will
+  find the host's wording ("Select All" in the English preset). The field no
+  longer needs Material localisations for the menu, only for its text field.
+
+### Added (desktop pointer menu)
+
+- The desktop presentation of the field's menu: a secondary click opens the
+  reference desktop client's context menu at the pointer (Undo, Redo, Cut,
+  Copy, Paste, Paste as plain text, Delete, Formatting, Select All, and a
+  Spelling submenu when a checker is given), drawn by `chrome_foundation`'s
+  `PointerMenu`, with shortcut hints per platform (`ComposerMenuHints`), greyed
+  rows instead of hidden ones, the Formatting submenu (Bold ... Spoiler, Code
+  block, lists, Create or Edit link, Remove link, Clear formatting) and Edit
+  link for the link under the pointer. Chosen by `ComposerMenuPolicy`
+  (`ComposerView.menuPolicy`, default by platform): on macOS, Windows, Linux
+  and the web a right click no longer selects the word and shows the floating
+  toolbar, it opens this menu and leaves the selection alone; the toolbar stays
+  for touch and under `ComposerMenuPolicy.mobile()`. Existing code that
+  asserted the floating card after a desktop right click will now see the
+  pointer menu.
+- `ShowComposerMenuIntent`, bound to the Menu key and Shift+F10 by the desktop
+  shortcut policy, opens the menu at the caret.
+- `ComposerController`: `undoHistory`, `canUndo`, `canRedo`, `undo`, `redo`,
+  `deleteSelection`, `selectAll` and `canPaste` (a paste probe that gives up
+  after 300 ms and says yes). `ComposerField` hands `undoHistory` to the
+  editable.
+- `ComposerTextController`: `linkAt`, `applyLinkTo` and `removeLinkFrom`, links
+  addressed by position instead of by selection.
+- `ComposerSpellChecker` and `ComposerSpec.spellChecker`: the host's spell
+  checker seam. No implementation ships.
+
 ### Added
 
-- `ComposerSelectionMenu`, the field's selection menu on every platform:
-  Telegram Android's floating toolbar (48 dp rows, a 56 by 48 More button, an
-  overflow page that reshapes the card over 250 ms and is sized to its items up
-  to 264 dp with an edge fade, enter 150 ms, dismiss 150 ms plus 100 ms, a hide
-  while the selection moves after 500 ms and back 50 ms after). The platform
-  menu is no longer used. Items: the clipboard actions, then Quote, Spoiler,
-  Bold, Italic, Mono, Strikethrough, Underline, Code block, the list items
-  (while lists are on), Create or Edit and Remove link, and Regular. An item
-  that cannot apply to the selection is left out. Tab from the field moves
-  focus into the menu; Escape closes it.
+- `ComposerSelectionMenu`, the field's selection menu on every platform: a
+  two-page swipe-back card. The main row holds the clipboard actions and a More
+  button (46 by 42); the More page (150 dp wide, 42 dp tiles, a Back tile at the
+  end nearer the selection, a 1 dp divider, scrolling inside 320 dp) slides in
+  from the right over 300 ms and closes with a swipe right or a fling of 600
+  dp/s; clipboard actions that do not fit the row (at most `min(400, width -
+  24)` wide) go to the top of the page. Labels are the theme's body-large at
+  16, the card is Material elevation 3 at radius 12, with Material icons. The
+  card fades in over 150 ms and out over 220 ms with a 5 dp drift away from the
+  selection; scroll and out-of-view fades are the editable's toolbar wrapper's.
+  It sits above the selection when 320 dp fit there, else below, 8 dp over and
+  20 dp under the selection, 12 dp from the screen's edges. The platform menu is
+  no longer used. Items: the clipboard actions (with Paste as plain text while
+  the composer has a rich clipboard), then Bold, Italic, Underline,
+  Strikethrough, Monospace, Spoiler, Quote, Code block, Link (Create or Edit by
+  state, and Remove link while the selection touches a link), the list items
+  (while lists are on) and Clear formatting, each previewing its own effect. An
+  item that cannot apply to the selection is greyed on the page, not hidden
+  (Quote is left out over a quoted selection), and a collapsed caret gets the
+  page with only the line kinds and Link enabled. After an item, and on Escape
+  or Back, the menu closes and the selection collapses to a caret at its
+  extent, on every platform; Back closes the whole menu from either page. Tab
+  from the field moves focus into the menu (only the page that shows is
+  traversed). The text scale is clamped to 1.3.
 - `ComposerFormattingOption` and `ComposerSpec.formatting`: which items the
   menu may offer (default `ComposerFormattingOption.standard`).
 - `ComposerSpec.backPriority` (`ComposerBackPriority`): the host's hook for
@@ -42,6 +122,14 @@ is pre-1.0.
   line, so a screen reader speaks the list.
 
 ### Changed
+
+- Source-breaking: `ComposerFormattingOption` is in the page's order (Bold,
+  Italic, Underline, Strikethrough, Monospace, Spoiler, Quote, Code block,
+  Link, Bullet list, Numbered list, Clear formatting); code that relied on
+  `values` order sees the new one.
+- Source-breaking: the clipboard actions of the menu take Material's labels on
+  every platform (Cupertino's wording on iOS and macOS is gone), and Copy
+  collapses the selection on every platform, not on Android alone.
 
 - Source-breaking: `ComposerLinkPrompt` takes the current URL,
   `(BuildContext, String? currentUrl)`, null when the selection holds no link;

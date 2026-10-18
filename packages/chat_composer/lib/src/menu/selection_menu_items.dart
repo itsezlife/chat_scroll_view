@@ -24,35 +24,29 @@ enum SelectionMenuItemKind {
   /// Select the whole text.
   selectAll,
 
-  /// Quote the selected lines.
-  quote,
-
-  /// Spoiler.
-  spoiler,
-
   /// Bold.
   bold,
 
   /// Italic.
   italic,
 
-  /// Monospace.
-  mono,
+  /// Underline.
+  underline,
 
   /// Strikethrough.
   strikethrough,
 
-  /// Underline.
-  underline,
+  /// Monospace.
+  mono,
+
+  /// Spoiler.
+  spoiler,
+
+  /// Quote the selected lines.
+  quote,
 
   /// Fenced code block.
   codeBlock,
-
-  /// Bullet list.
-  bulletList,
-
-  /// Numbered list.
-  numberedList,
 
   /// Create a link.
   createLink,
@@ -63,15 +57,36 @@ enum SelectionMenuItemKind {
   /// Remove the links the selection touches.
   removeLink,
 
+  /// Bullet list.
+  bulletList,
+
+  /// Numbered list.
+  numberedList,
+
   /// Clear formatting ("Regular").
-  clearFormatting,
+  clearFormatting;
+
+  /// Whether the item is a clipboard action: it goes on the main row, or at
+  /// the top of the More page when the row has no room.
+  bool get isClipboard => index <= selectAll.index;
+
+  /// The marker a list item's row shows before its label, or null for any
+  /// other item.
+  String? get listMarker => switch (this) {
+    bulletList => '\u2022',
+    numberedList => '1.',
+    _ => null,
+  };
 }
 
-/// How an item's label shows its own effect: "Italic" in italic, "Mono" in a
-/// monospaced face, as the reference client sets its labels.
+/// How an item's label shows its own effect: "Italic" in italic, "Monospace"
+/// in a monospaced face.
 enum SelectionMenuLabelStyle {
   /// The shared item style.
   plain,
+
+  /// Bold.
+  bold,
 
   /// Slanted.
   italic,
@@ -83,19 +98,27 @@ enum SelectionMenuLabelStyle {
   strike,
 
   /// Underlined.
-  underline,
+  underline;
+
+  /// [base] with this effect applied.
+  TextStyle apply(TextStyle base) => switch (this) {
+    plain => base,
+    bold => base.copyWith(fontWeight: FontWeight.bold),
+    italic => base.copyWith(fontStyle: FontStyle.italic),
+    mono => base.copyWith(fontFamily: 'monospace'),
+    strike => base.copyWith(decoration: TextDecoration.lineThrough),
+    underline => base.copyWith(decoration: TextDecoration.underline),
+  };
 }
 
 /// What the menu does once an item has run.
 enum SelectionMenuAfter {
   /// Close the menu, hiding the handles and leaving the selection a caret at
-  /// its end: the platform action mode's `finish`, which the reference runs
-  /// after every item.
+  /// its extent.
   dismiss,
 
   /// Close the menu and leave the selection and its handles as they are,
-  /// because the action still needs the selection (a link prompt) or the
-  /// platform keeps it (a copy on iOS and desktop).
+  /// because the action still needs the selection (a link prompt).
   dismissKeepingSelection,
 
   /// Leave the menu open: select all grows the selection under the same menu.
@@ -112,6 +135,7 @@ final class SelectionMenuItem {
     required this.onSelected,
     this.after = SelectionMenuAfter.dismiss,
     this.selected = false,
+    this.enabled = true,
     this.labelStyle = SelectionMenuLabelStyle.plain,
   });
 
@@ -130,8 +154,13 @@ final class SelectionMenuItem {
   final SelectionMenuAfter after;
 
   /// Whether the selection is in what the item applies (bold over bold text):
-  /// spoken as selected, not drawn differently, as in the reference.
+  /// spoken as selected, not drawn differently.
   final bool selected;
+
+  /// Whether the item can be chosen. An item whose command cannot apply to the
+  /// selection stays in the menu, drawn at the disabled tile's 0.38 and
+  /// without a tap.
+  final bool enabled;
 
   /// How the label is set.
   final SelectionMenuLabelStyle labelStyle;
@@ -169,10 +198,11 @@ final class SelectionMenuClipboardItem {
 /// The menu's entries for one selection, in menu order: the clipboard actions,
 /// then the formatting items.
 ///
-/// An item whose command cannot apply is left out, as the reference's floating
-/// toolbar lays out only items that are visible and enabled; a collapsed caret
-/// gets no formatting at all, as the reference extends its menu only over a
-/// selection.
+/// A formatting item whose command cannot apply to the selection stays in the
+/// list and is [SelectionMenuItem.enabled] false, so the More page keeps its
+/// shape from one selection to the next; Quote alone is left out, over a
+/// selection that is quoted already. A collapsed caret gets the same list: what
+/// acts on a caret (the line kinds, the link) is enabled, the rest is not.
 abstract final class SelectionMenuItems {
   /// The entries for the selection in [text].
   ///
@@ -198,8 +228,7 @@ abstract final class SelectionMenuItems {
           after: item.after,
         ),
     ];
-    final selection = text.selection;
-    if (!selection.isValid || selection.isCollapsed) return items;
+    if (!text.selection.isValid) return items;
 
     bool offered(ComposerFormattingOption option) => options.contains(option);
 
@@ -210,13 +239,14 @@ abstract final class SelectionMenuItems {
       String label, {
       SelectionMenuLabelStyle labelStyle = SelectionMenuLabelStyle.plain,
     }) {
+      if (!offered(option)) return null;
       final entity = EntityKind.style(style);
-      if (!offered(option) || !text.canApply(entity)) return null;
       return SelectionMenuItem(
         kind: kind,
         label: label,
         labelStyle: labelStyle,
         selected: text.isActive(entity),
+        enabled: text.canApply(entity),
         onSelected: () => text.toggleStyle(style),
       );
     }
@@ -228,67 +258,59 @@ abstract final class SelectionMenuItems {
       String label,
     ) {
       final toggle = toggleList(listKind);
+      if (!offered(option) || toggle == null || !text.lists) return null;
       final entity = EntityKind.list(listKind: listKind);
-      if (!offered(option) || toggle == null || !text.canApply(entity)) {
-        return null;
-      }
       return SelectionMenuItem(
         kind: kind,
         label: label,
         selected: text.isActive(entity),
+        enabled: text.canApply(entity),
         onSelected: toggle,
       );
     }
 
-    final quoted = text.isActive(EntityKind.quote);
-    final quote = style(
-      ComposerFormattingOption.quote,
-      SelectionMenuItemKind.quote,
-      EntityStyle.quote,
-      strings.quoteAction,
-    );
+    // Quote has no way back from the menu, so over a quoted selection it has
+    // nothing to offer.
+    final quote = text.isActive(EntityKind.quote)
+        ? null
+        : style(
+            ComposerFormattingOption.quote,
+            SelectionMenuItemKind.quote,
+            EntityStyle.quote,
+            strings.quoteAction,
+          );
+
+    final code = offered(ComposerFormattingOption.codeBlock)
+        ? SelectionMenuItem(
+            kind: SelectionMenuItemKind.codeBlock,
+            label: strings.codeBlockAction,
+            selected: text.isActive(const EntityKind.codeBlock()),
+            enabled: text.canApply(const EntityKind.codeBlock()),
+            onSelected: text.toggleCodeBlock,
+          )
+        : null;
 
     final link = offered(ComposerFormattingOption.link) && canLink
         ? _link(text, strings, onLink)
         : const <SelectionMenuItem>[];
 
-    final clear =
-        offered(ComposerFormattingOption.clearFormatting) &&
-            text.canClearFormatting
+    final clear = offered(ComposerFormattingOption.clearFormatting)
         ? SelectionMenuItem(
             kind: SelectionMenuItemKind.clearFormatting,
             label: strings.clearFormattingAction,
+            enabled: text.canClearFormatting,
             onSelected: text.clearFormatting,
-          )
-        : null;
-
-    final code =
-        offered(ComposerFormattingOption.codeBlock) &&
-            text.canApply(const EntityKind.codeBlock())
-        ? SelectionMenuItem(
-            kind: SelectionMenuItemKind.codeBlock,
-            label: strings.codeBlockAction,
-            selected: text.isActive(const EntityKind.codeBlock()),
-            onSelected: text.toggleCodeBlock,
           )
         : null;
 
     return [
       ...items,
-      // The reference hides Quote over a selection that is quoted already, and
-      // offers no way to unquote from the menu.
-      if (!quoted && quote != null) quote,
-      ?style(
-        ComposerFormattingOption.spoiler,
-        SelectionMenuItemKind.spoiler,
-        EntityStyle.spoiler,
-        strings.spoilerAction,
-      ),
       ?style(
         ComposerFormattingOption.bold,
         SelectionMenuItemKind.bold,
         EntityStyle.bold,
         strings.boldAction,
+        labelStyle: SelectionMenuLabelStyle.bold,
       ),
       ?style(
         ComposerFormattingOption.italic,
@@ -298,11 +320,11 @@ abstract final class SelectionMenuItems {
         labelStyle: SelectionMenuLabelStyle.italic,
       ),
       ?style(
-        ComposerFormattingOption.mono,
-        SelectionMenuItemKind.mono,
-        EntityStyle.code,
-        strings.monoAction,
-        labelStyle: SelectionMenuLabelStyle.mono,
+        ComposerFormattingOption.underline,
+        SelectionMenuItemKind.underline,
+        EntityStyle.underline,
+        strings.underlineAction,
+        labelStyle: SelectionMenuLabelStyle.underline,
       ),
       ?style(
         ComposerFormattingOption.strikethrough,
@@ -312,15 +334,21 @@ abstract final class SelectionMenuItems {
         labelStyle: SelectionMenuLabelStyle.strike,
       ),
       ?style(
-        ComposerFormattingOption.underline,
-        SelectionMenuItemKind.underline,
-        EntityStyle.underline,
-        strings.underlineAction,
-        labelStyle: SelectionMenuLabelStyle.underline,
+        ComposerFormattingOption.mono,
+        SelectionMenuItemKind.mono,
+        EntityStyle.code,
+        strings.monoAction,
+        labelStyle: SelectionMenuLabelStyle.mono,
       ),
-      // Our additions sit after Underline so that Link keeps its place before
-      // Regular, as in the reference.
+      ?style(
+        ComposerFormattingOption.spoiler,
+        SelectionMenuItemKind.spoiler,
+        EntityStyle.spoiler,
+        strings.spoilerAction,
+      ),
+      ?quote,
       ?code,
+      ...link,
       ?list(
         ComposerFormattingOption.bulletList,
         SelectionMenuItemKind.bulletList,
@@ -333,30 +361,28 @@ abstract final class SelectionMenuItems {
         EntityListKind.ordered,
         strings.numberedListAction,
       ),
-      ...link,
       ?clear,
     ];
   }
 
-  // Create, or Edit and Remove while the selection touches a link.
+  // One Link row, Create or Edit by whether the selection touches a link, and
+  // Remove while it does.
   static List<SelectionMenuItem> _link(
     ComposerTextController text,
     FormattingStrings strings,
     VoidCallback onLink,
   ) {
-    final current = text.selectedLinkUrl;
-    final applicable = text.canLink;
-    final touched = current != null;
+    final touched = text.selectedLinkUrl != null;
     return [
-      if (applicable)
-        SelectionMenuItem(
-          kind: touched
-              ? SelectionMenuItemKind.editLink
-              : SelectionMenuItemKind.createLink,
-          label: touched ? strings.editLinkAction : strings.createLinkAction,
-          after: SelectionMenuAfter.dismissKeepingSelection,
-          onSelected: onLink,
-        ),
+      SelectionMenuItem(
+        kind: touched
+            ? SelectionMenuItemKind.editLink
+            : SelectionMenuItemKind.createLink,
+        label: touched ? strings.editLinkAction : strings.createLinkAction,
+        after: SelectionMenuAfter.dismissKeepingSelection,
+        enabled: text.canLink,
+        onSelected: onLink,
+      ),
       if (touched)
         SelectionMenuItem(
           kind: SelectionMenuItemKind.removeLink,

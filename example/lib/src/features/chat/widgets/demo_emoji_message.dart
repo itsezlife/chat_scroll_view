@@ -5,6 +5,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_meta_pill.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_reactions_row.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_service_colors.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_surface_parts.dart';
 import 'package:content_model/content_model.dart' show EmojiOnly;
 import 'package:flutter/material.dart';
 
@@ -48,6 +49,7 @@ class DemoEmojiMessage extends StatefulWidget {
     this.views,
     this.sendState,
     this.isLastOwn = false,
+    this.hovered = false,
     this.policy,
     this.wallpaper,
     super.key,
@@ -91,6 +93,11 @@ class DemoEmojiMessage extends StatefulWidget {
   /// Whether this is the user's last message: desktop shows its time then.
   final bool isLastOwn;
 
+  /// Whether a mouse is on the message's row (`EmojiRowHover`): desktop shows
+  /// the time then. The row, not this widget, knows it: the pointer is as much
+  /// on the message on the empty side of its row as over the emoji box.
+  final bool hovered;
+
   /// The platform family's emoji policy; the running platform's when null.
   final ChatEmojiPolicy? policy;
 
@@ -104,7 +111,13 @@ class DemoEmojiMessage extends StatefulWidget {
 }
 
 class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
-  bool _hovered = false;
+  /// A primary mouse click on the pill, which the pill's tap barrier keeps from
+  /// the viewport: what Telegram Desktop does for a click on the date
+  /// (`CursorState::Date` in `ListWidget::mouseActionFinish`): select the
+  /// message when nothing is selected, toggle it in message selection. The
+  /// facade's toggle does both, and drops a live text selection as a click on
+  /// the row would.
+  void _selectFromStatus() => widget.selection.toggle(widget.messageId);
 
   @override
   Widget build(BuildContext context) {
@@ -114,8 +127,12 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
     final sticker = widget.host.stickerOf(widget.emojiOnly);
     final direction = Directionality.of(context);
     final viewport = MediaQuery.sizeOf(context);
+    // `overlayProgress`, not `selectProgress`: the viewport freezes the latter
+    // when selection mode closes (the check rides the mode collapse), so a
+    // tint read from it alone would stay on the last message unselected and on
+    // every message a clear or Esc leaves behind.
     final selected =
-        ChatSelectionStateScope.maybeOf(context)?.selectProgress ?? 0;
+        ChatSelectionStateScope.maybeOf(context)?.overlayProgress ?? 0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -209,7 +226,7 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
           outgoing: outgoing,
           kind: kind,
           emojiOnly: widget.emojiOnly,
-          hovered: _hovered,
+          hovered: widget.hovered,
           isLastOwn: widget.isLastOwn,
           state: state,
         );
@@ -232,18 +249,26 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
             bottomReserve: reserve,
           ),
         );
+        var pillColors = colors;
         if (chrome.selection == EmojiSelectionStyle.glyphRecolour &&
             selected > 0) {
+          final tint = _kSelectedOverlay.withValues(
+            alpha: _kSelectedOverlayAlpha * selected,
+          );
           emojiBody = ColorFiltered(
-            colorFilter: ColorFilter.mode(
-              _kSelectedOverlay.withValues(
-                alpha: _kSelectedOverlayAlpha * selected,
-              ),
-              BlendMode.srcATop,
-            ),
+            colorFilter: ColorFilter.mode(tint, BlendMode.srcATop),
             child: emojiBody,
           );
+          // The pill is the message's status and selects with it: the
+          // reference paints its selected service colour there too.
+          pillColors = colors.tinted(tint);
         }
+
+        // Telegram Desktop's click on the date selects the message. A mobile
+        // selection policy has no such click: a tap on the row is the idle
+        // chrome, and the viewport already toggles it in message selection.
+        final selectsOnStatusClick =
+            !widget.selection.selectionPolicy.routesPrimaryTapToIdleMessage;
 
         final bodyRect = inBox(layout.body);
         final pillRect = layout.pill == null ? null : inBox(layout.pill!);
@@ -255,53 +280,63 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
         return ChatMessageSurfaceBounds(
           controller: widget.selection,
           messageId: widget.messageId,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+          // The menu's scrim lights what the message paints, part by part,
+          // not a bubble around the lot.
+          shape: emojiSurfaceParts(
+            chrome: chrome,
+            art: body.content.shift(bodyRect.topLeft),
+            pill: showsMeta ? pillRect : null,
+            header: headerRect,
+            reactions: [
+              if (reactionsRect != null)
+                for (final chip in EmojiReactionsRow.chipRects(
+                  widget.reactions,
+                  direction,
+                ))
+                  chip.shift(reactionsRect.topLeft),
+            ],
           ),
-          child: MouseRegion(
-            onEnter: (_) => setState(() => _hovered = true),
-            onExit: (_) => setState(() => _hovered = false),
-            child: SizedBox.fromSize(
-              size: bounds.size,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: <Widget>[
-                  if (headerRect != null && headerMeasure != null)
-                    Positioned.fromRect(
-                      rect: headerRect,
-                      child: EmojiHeaderPanel(
-                        chrome: chrome,
-                        colors: colors,
-                        measure: headerMeasure,
-                      ),
+          child: SizedBox.fromSize(
+            size: bounds.size,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                if (headerRect != null && headerMeasure != null)
+                  Positioned.fromRect(
+                    rect: headerRect,
+                    child: EmojiHeaderPanel(
+                      chrome: chrome,
+                      colors: colors,
+                      measure: headerMeasure,
                     ),
-                  Positioned(
-                    left: bodyRect.left,
-                    top: bodyRect.top,
-                    child: emojiBody,
                   ),
-                  if (pillRect != null && showsMeta)
-                    Positioned.fromRect(
-                      rect: pillRect,
-                      child: EmojiMetaPill(
-                        chrome: chrome,
-                        layout: pill,
-                        colors: colors,
-                        time: time,
-                        views: widget.views,
-                      ),
+                Positioned(
+                  left: bodyRect.left,
+                  top: bodyRect.top,
+                  child: emojiBody,
+                ),
+                if (pillRect != null && showsMeta)
+                  Positioned.fromRect(
+                    rect: pillRect,
+                    child: EmojiMetaPill(
+                      chrome: chrome,
+                      layout: pill,
+                      colors: pillColors,
+                      time: time,
+                      views: widget.views,
+                      onClick: selectsOnStatusClick ? _selectFromStatus : null,
                     ),
-                  if (reactionsRect != null)
-                    Positioned.fromRect(
-                      rect: reactionsRect,
-                      child: EmojiReactionsRow(
-                        chrome: chrome,
-                        colors: colors,
-                        reactions: widget.reactions,
-                      ),
+                  ),
+                if (reactionsRect != null)
+                  Positioned.fromRect(
+                    rect: reactionsRect,
+                    child: EmojiReactionsRow(
+                      chrome: chrome,
+                      colors: colors,
+                      reactions: widget.reactions,
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
         );

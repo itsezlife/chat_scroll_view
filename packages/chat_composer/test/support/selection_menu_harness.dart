@@ -1,6 +1,8 @@
 import 'package:chat_composer/chat_composer.dart';
-import 'package:chat_composer/src/menu/selection_menu_card.dart';
 import 'package:chat_composer/src/menu/selection_menu_items.dart';
+import 'package:chat_composer/src/menu/selection_menu_pages.dart';
+import 'package:chat_composer/src/menu/selection_menu_shell.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:composer_editable/composer_editable.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
@@ -28,35 +30,45 @@ final class MenuRig {
   /// The menu's card, or nothing while none is up.
   static Finder get card => find.byType(SelectionMenuCard);
 
-  /// The state of the card.
-  SelectionMenuCardState get cardState =>
-      tester.state<SelectionMenuCardState>(card);
-
   /// The item of [kind], wherever it is built.
   static Finder item(SelectionMenuItemKind kind) =>
       find.byKey(ValueKey<SelectionMenuItemKind>(kind));
 
-  /// The More button, which is the back row once the page is open.
-  static Finder get more =>
-      find.byKey(const ValueKey<String>('selection_menu_back'));
+  /// The More button of the main row.
+  static Finder get more => find.byKey(SelectionMenuRootPage.moreKey);
+
+  /// The Back tile of the More page.
+  static Finder get back => find.byKey(SelectionMenuMorePage.backKey);
 
   /// The card's size.
   Size get cardSize => tester.getSize(card);
 
-  /// The card's opacity as the user sees it: the card's own fade over the
-  /// menu's visibility.
-  double get opacity => tester
-      .widget<FadeTransition>(
-        find.descendant(of: card, matching: find.byType(FadeTransition)).first,
-      )
-      .opacity
-      .value;
+  /// Whether the More page is the one showing.
+  bool get isOpen => back.hitTestable().evaluate().isNotEmpty;
 
-  /// Scrolls the overflow page until [kind] shows and taps it.
+  /// The opacity the editable's toolbar wrapper gives the menu: its fade for
+  /// a scroll or a selection out of view.
+  double get wrapperOpacity => tester
+      .widgetList<FadeTransition>(
+        find.ancestor(of: card, matching: find.byType(FadeTransition)),
+      )
+      .fold(1, (product, fade) => product * fade.opacity.value);
+
+  /// The opacity of the menu's own enter and leave.
+  double get cardOpacity => tester
+      .widgetList<Opacity>(
+        find.ancestor(of: card, matching: find.byType(Opacity)),
+      )
+      .fold(1, (product, opacity) => product * opacity.opacity);
+
+  /// The card's opacity as the user sees it: both fades multiplied.
+  double get opacity => wrapperOpacity * cardOpacity;
+
+  /// Scrolls the More page until [kind] shows and taps it.
   Future<void> tapItem(SelectionMenuItemKind kind) async {
     var finder = item(kind);
     if (finder.hitTestable().evaluate().isEmpty && more.evaluate().isNotEmpty) {
-      if (!cardState.isOpen) await openMore();
+      if (!isOpen) await openMore();
     }
     if (finder.hitTestable().evaluate().isEmpty) {
       await tester.scrollUntilVisible(
@@ -74,15 +86,14 @@ final class MenuRig {
     await settle();
   }
 
-  /// Lets everything the menu does after a choice run out: the dismissal's
-  /// delay is a timer, which settling frames alone do not advance.
+  /// Lets everything the menu does after a choice run out.
   Future<void> settle() async {
     await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 160));
     await tester.pumpAndSettle();
   }
 
-  /// Opens the overflow page and lets it settle.
+  /// Opens the More page and lets it settle.
   Future<void> openMore() async {
     await tester.tap(more);
     await tester.pumpAndSettle();
@@ -102,6 +113,10 @@ final class MenuRig {
     FakeRichClipboard? clipboard,
     TextDirection textDirection = TextDirection.ltr,
     Brightness brightness = Brightness.light,
+    ChromeMotionSpeed? motionSpeed,
+    ChromeStrings? strings,
+    Locale? locale,
+    Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
     Size? size,
     bool enter = true,
   }) async {
@@ -122,6 +137,10 @@ final class MenuRig {
         ),
         textDirection: textDirection,
         brightness: brightness,
+        motionSpeed: motionSpeed,
+        strings: strings,
+        locale: locale,
+        localizationsDelegates: localizationsDelegates,
       ),
     );
     composer

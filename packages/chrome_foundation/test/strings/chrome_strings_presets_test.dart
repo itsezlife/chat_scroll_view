@@ -39,6 +39,7 @@ void main() {
         'composer': 'lib/src/strings/composer_strings.dart',
         'semantics': 'lib/src/strings/semantics_strings.dart',
         'formatting': 'lib/src/strings/formatting_strings.dart',
+        'editMenu': 'lib/src/strings/edit_menu_strings.dart',
       };
       final field = RegExp(r'^  final .+ (\w+);$', multiLine: true);
       for (final group in groups.entries) {
@@ -116,6 +117,23 @@ void main() {
         ChromeStringsPresets.english.panel.categoryTitle('custom-set'),
         'custom-set',
       );
+    });
+
+    test('the desktop menu keeps the reference client\'s Qt mnemonics', () {
+      final e = ChromeStringsPresets.english.editMenu;
+      expect(
+        [e.undoAction, e.redoAction, e.cutAction, e.copyAction, e.pasteAction],
+        ['&Undo', '&Redo', 'Cu&t', '&Copy', '&Paste'],
+      );
+      expect(e.deleteAction, 'Delete');
+      expect(e.selectAllAction, 'Select All');
+    });
+
+    test('the desktop formatting rows use the desktop wording', () {
+      final e = ChromeStringsPresets.english.editMenu;
+      expect(e.monospaceAction, 'Monospace');
+      expect(e.createLinkAction, 'Create link');
+      expect(e.clearFormattingAction, 'Clear formatting');
     });
 
     test('the menu labels are the reference client\'s English wording', () {

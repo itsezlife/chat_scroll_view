@@ -317,9 +317,8 @@ void main() {
       expect(selection.isTextSelectionActive, isFalse);
     });
 
-    viewportTest('a long press again does not start text selection', (
-      tester,
-    ) async {
+    viewportTest('a long press again enters text selection (message, then '
+        'text), on one emoji', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, threeCustom);
       await tester.longPressAt(itemCenter(tester, 0));
@@ -328,7 +327,11 @@ void main() {
       await tester.longPressAt(itemCenter(tester, 2));
       await tester.pumpAndSettle();
 
-      expect(selection.isTextSelectionActive, isFalse);
+      expect(selection.isTextSelectionActive, isTrue);
+      expect(selection.textSelectionSubject, 1);
+      // The third emoji: one atomic item (a custom emoji with no text copies
+      // as the object replacement character).
+      expect(selection.markdownSelection.getText(), '\u{FFFC}');
     });
 
     viewportTest(

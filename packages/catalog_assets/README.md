@@ -28,7 +28,9 @@ the content.
 | `AssetStage` / `AssetReadiness` | `none`, `placeholder`, `firstFrame`, `full` and `isFinal`. There is no failed stage |
 | `AssetProducer` (seam) | Makes the paintables of entries: `produce(request, progress, demand)` returns an `AssetTask`; reports stages, failures and cancellation through `AssetProgress`. `AssetPipeline` is the fetching and decoding implementation |
 | `AssetCacheBudgets` | Byte budgets of the unattached entries per tier (`still`, `animated`); documented defaults |
-| `PlaybackClock` / `PlaybackPolicy` | One shared animation clock, per-binding gating, host-set pause layers (`PlaybackPauseLayer`), fps caps derived from the spec size; `follow` lends the frames to a follower that is not a binding (`PlaybackSubscription.cancel`) |
+| `PlaybackClock` / `PlaybackPolicy` | One shared animation clock, per-binding gating, pause layers (`PlaybackPauseLayer`: `routeMoving`, `fastScroll`, `lowPower`, `surfaceHidden`, `appInactive`, `reducedMotion`, `overlayShown`), fps caps derived from the spec size; `follow` lends the frames to a follower that is not a binding (`PlaybackSubscription.cancel`). `PlaybackPolicy.standardPausingLayers` is every layer but `reducedMotion` |
+| `PlaybackActivity` / `PlaybackActivityPolicy` | The one host-facing pause seam: follows a `PlaybackLifecycleSource`, a `lowPower` and a `reducedMotion` `ValueListenable<bool>`, and holds from `holdOverlay()`, and sets the five layers it owns on the clock. Zero grace by default; `dispose` clears what it set |
+| `PlaybackLifecycleSource` (seam) | The app's `AppLifecycleState` (or `null`: unknown); `WidgetsPlaybackLifecycleSource` in an app, `ManualPlaybackLifecycleSource` in tests |
 | `PlaybackTickSource` (seam) | The clock's per-frame callback; `SchedulerPlaybackTickSource` in an app, `ManualPlaybackTickSource` in tests |
 | `GlyphSpriteSource` (seam) | The one narrow seam to baked glyphs: `spriteOf`, `holdPageOf`, page listeners. `GlyphAtlas` implements it |
 | `AtlasSprite` | Page image + source rectangle; the sprite capability of an `AssetPaintable` |
@@ -55,7 +57,18 @@ Behaviour that matters to a surface:
   animates, it is `visible`, its paintable `isAnimated` and no pause layer is
   set. The clock asks the engine for frames only while something plays.
   Paintables never schedule timers; they derive their frame from the context
-  time.
+  time. A pause freezes and a resume continues (never a rewind, never a jump
+  to the live position): `now` stands still while paused and jumps once on the
+  first frame after, and a paintable must go on from where it stopped, as the
+  frame-sequence one does.
+- **Pause policies.** `PlaybackActivity` maps the app's lifecycle onto the
+  clock: `inactive` (focus lost) sets `appInactive`; `hidden`, `paused`,
+  `detached` set it and `surfaceHidden`; an unknown state sets nothing. The
+  host feeds `lowPower` (the SDK reports no battery state and the package takes
+  no battery plugin) and `reducedMotion` (which does not stop playback unless
+  the policy adds the layer), and holds `overlayShown` per overlay.
+  [ADR 022](../../docs/adr/022-asset-cache-and-media-pipeline.md) lists what the
+  reference desktop client does that is not replicated.
 - **Threading.** Single-threaded on the UI isolate: calls, producer reports,
   listeners and painting. Decoding may happen elsewhere; its results are
   reported here from the UI isolate.
@@ -129,7 +142,8 @@ nightly job tracks against committed baselines; see
 | A `glyphSource` (the atlas) on platforms that bake glyphs, set by the host or by the page that owns the atlas; no source where glyphs are drawn as text | Pass a `GlyphAtlas` to anything but `glyphSource`, or read atlas types through the cache |
 | Budgets for its device class (`budgets`) and the memory-pressure signal (`memoryPressure:` or `clearAll()`) | Evict by hand to "free" a bound entry: bound entries are pinned |
 | `connectivityRestored()` when the network returns | Make the cache touch the network |
-| Pause layers on the clock (`routeMoving`, `fastScroll`, `lowPower`, `surfaceHidden`) | Run a timer per animation, or call a paintable's `paint` outside a paint |
+| One `PlaybackActivity` per scope, fed a `WidgetsPlaybackLifecycleSource`, its own `lowPower` detection (and `reducedMotion` where the engine does not report it), and a `holdOverlay()` per dialog, sheet or route over the chat; `routeMoving` and `fastScroll` set directly on the clock | Set `appInactive`, `surfaceHidden`, `lowPower`, `reducedMotion` or `overlayShown` by hand next to an activity (it owns them), run a timer per animation, or call a paintable's `paint` outside a paint |
+| A custom `AssetPaintable` that goes on from where it stopped after a pause | Derive its frame from `clock.now` alone: `now` jumps by the whole pause on the first frame after |
 | `detach()` for every binding it attached, `visible` set to what it shows | Keep a `paintable` or a `sprite` across frames: a better stage replaces one, a page release can end the other |
 
 Decisions: [ADR 022](../../docs/adr/022-asset-cache-and-media-pipeline.md)
@@ -376,10 +390,12 @@ For the cache core: `FakeAssetProducer` (every attempt waits for the test, which
 plays the producer through `FakeAssetAttempt`), `FakeAssetPaintable` (given
 `frameDurations` it plays a sequence, holds its rest frame and restarts),
 `FakeGlyphSpriteSource` (pages baked and released by hand, hold counts
-readable), `ManualPlaybackTickSource`, and the contract suites
+readable), `ManualPlaybackTickSource`, `ManualPlaybackLifecycleSource`, and the contract suites
 `GlyphSpriteSourceContract.run` (the fake and `GlyphAtlas` both pass it),
 `PlaybackTickSourceContract.run` (the manual and the scheduler source both pass
-it) and `AssetPlaybackContract.run` (one pass, the rest frame, restart; the
+it), `PlaybackLifecycleSourceContract.run` (the manual and the widgets source
+both pass it; it moves the process-wide lifecycle, so pass `tearDownHarness`
+to restore it) and `AssetPlaybackContract.run` (one pass, the rest frame, restart; the
 fake and `PlayingImagePaintable` both pass it).
 For the widget and embed seams: `FakeInlineEmbed`, `FakePlayableEmbed`,
 `FakeInlineEmbedResolver` and the contract suites `InlineEmbedContract.run`

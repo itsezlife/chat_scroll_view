@@ -7,21 +7,6 @@ import 'package:flutter_md/flutter_md.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('several messages are one text, a blank line apart, with their '
-      'entities', () {
-    expect(
-      ChatCopy.messages([
-        '**bold** first',
-        '',
-        'second ![\u{1F680}](document:rocket)',
-      ]),
-      RichText('bold first\n\nsecond \u{1F680}', const [
-        Entity(0, 4, EntityKind.bold),
-        Entity(19, 2, EntityKind.inlineContent(ContentKey.document('rocket'))),
-      ]),
-    );
-  });
-
   test('a custom emoji is itself over its text; a unicode emoji is text', () {
     expect(
       ChatCopy.content(const ContentKey.document('rocket'), '\u{1F680}'),
@@ -173,6 +158,162 @@ void main() {
       );
 
       expect(ChatCopy.selection(content), const RichText.plain('a'));
+    });
+
+    group('a spoiler that holds an emoji', () {
+      // A spoiler's entity runs over the emoji it holds, whichever way the
+      // emoji is written, and over the selected part only.
+      RichText copy(String markdown, int start, int end) => ChatCopy.selection(
+        MarkdownSelectedContent(
+          documents: [
+            document(1, markdown, [(start, end)]),
+          ],
+        ),
+      );
+
+      // The unicode emoji of every shape the picker sends, as plain text.
+      const thumb = '\u{1F44D}\u{1F3FD}'; // skin tone
+      const family = '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}'; // ZWJ
+      const flag = '\u{1F1FA}\u{1F1F8}'; // regional indicators
+      for (final (name, emoji) in [
+        ('a plain emoji', '\u{1F600}'),
+        ('a skin tone emoji', thumb),
+        ('a ZWJ sequence', family),
+        ('a flag', flag),
+      ]) {
+        test('keeps $name at the start, the middle and the end', () {
+          for (final inside in ['$emoji b c', 'b $emoji c', 'b c $emoji']) {
+            final length = inside.length;
+            expect(
+              copy('a ||$inside|| d', 0, 4 + length),
+              RichText('a $inside d', [Entity(2, length, EntityKind.spoiler)]),
+              reason: inside,
+            );
+          }
+        });
+      }
+
+      test('keeps a custom emoji embed in it, the spoiler over the embed', () {
+        // Rendered: "a b 🚀 c d"; the embed is 2 units, 4..6.
+        expect(
+          copy('a ||b ![\u{1F680}](document:rocket) c|| d', 0, 11),
+          RichText('a b \u{1F680} c d', const [
+            Entity(2, 6, EntityKind.spoiler),
+            Entity(
+              4,
+              2,
+              EntityKind.inlineContent(ContentKey.document('rocket')),
+            ),
+          ]),
+        );
+        // At the edges of the spoiler.
+        expect(
+          copy('||![\u{1F680}](document:rocket) c||', 0, 4),
+          RichText('\u{1F680} c', const [
+            Entity(0, 4, EntityKind.spoiler),
+            Entity(
+              0,
+              2,
+              EntityKind.inlineContent(ContentKey.document('rocket')),
+            ),
+          ]),
+        );
+        expect(
+          copy('||c ![\u{1F680}](document:rocket)||', 0, 4),
+          RichText('c \u{1F680}', const [
+            Entity(0, 4, EntityKind.spoiler),
+            Entity(
+              2,
+              2,
+              EntityKind.inlineContent(ContentKey.document('rocket')),
+            ),
+          ]),
+        );
+      });
+
+      test('keeps a spoiler over an embed that is all of it', () {
+        expect(
+          copy('||![\u{1F680}](document:rocket)||', 0, 2),
+          RichText('\u{1F680}', const [
+            Entity(0, 2, EntityKind.spoiler),
+            Entity(
+              0,
+              2,
+              EntityKind.inlineContent(ContentKey.document('rocket')),
+            ),
+          ]),
+        );
+      });
+
+      test('keeps a spoiler over the text of an embed the selection cuts', () {
+        // Rendered "b 🚀 c": the selection stops after the first unit of the
+        // embed's two, so only its text is copied, still hidden.
+        expect(
+          copy('||b ![\u{1F680}](document:rocket) c||', 0, 3),
+          RichText('b \u{1F680}'.substring(0, 3), const [
+            Entity(0, 3, EntityKind.spoiler),
+          ]),
+        );
+      });
+
+      test('keeps only the selected part of the spoiler', () {
+        // Rendered "a b 😀 c d": the selection is "😀 c".
+        expect(
+          copy('a ||b \u{1F600} c|| d', 4, 8),
+          RichText('\u{1F600} c', const [Entity(0, 4, EntityKind.spoiler)]),
+        );
+      });
+
+      test('keeps each of several spoilers', () {
+        // Rendered "||x 😀|| and ||😀 y||".
+        expect(
+          copy('||x \u{1F600}|| and ||\u{1F600} y||', 0, 16),
+          RichText('x \u{1F600} and \u{1F600} y', const [
+            Entity(0, 4, EntityKind.spoiler),
+            Entity(9, 4, EntityKind.spoiler),
+          ]),
+        );
+      });
+
+      test('keeps bold and the spoiler over an emoji, both kinds', () {
+        expect(
+          copy('**||b \u{1F600} c||** d', 0, 8),
+          RichText('b \u{1F600} c d', const [
+            Entity(0, 6, EntityKind.bold),
+            Entity(0, 6, EntityKind.spoiler),
+          ]),
+        );
+        expect(
+          copy('||**b** ![\u{1F680}](document:rocket) c||', 0, 8),
+          RichText('b \u{1F680} c', const [
+            Entity(0, 1, EntityKind.bold),
+            Entity(0, 6, EntityKind.spoiler),
+            Entity(
+              2,
+              2,
+              EntityKind.inlineContent(ContentKey.document('rocket')),
+            ),
+          ]),
+        );
+      });
+    });
+
+    test('keeps a style over the spaces between its spans', () {
+      // `a `, bold `b` and ` c` are three spans of one spoiler; each gives
+      // up its edge whitespace if copied as its own entity.
+      expect(
+        ChatCopy.selection(
+          MarkdownSelectedContent(
+            documents: [
+              document(1, '||a **b** c||', [(0, 5)]),
+            ],
+          ),
+        ),
+        RichText('a b c', const [
+          Entity(0, 5, EntityKind.spoiler),
+          Entity(2, 1, EntityKind.bold),
+        ]),
+      );
     });
 
     test('quotes a quote and codes a code block, a line apart', () {

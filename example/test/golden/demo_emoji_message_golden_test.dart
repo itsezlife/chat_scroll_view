@@ -8,7 +8,6 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_reactions_row.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -148,6 +147,10 @@ void main() {
                           createdAt: DateTime(2026, 1, 1, 9, 5),
                           isOutgoing: outgoing,
                           policy: platform,
+                          // Desktop shows an incoming time while the pointer
+                          // is on the row.
+                          hovered:
+                              platform is ChatEmojiPolicy$Desktop && !outgoing,
                           header: decorated ? _reply : null,
                           reactions: decorated ? _reactions : const [],
                         ),
@@ -162,15 +165,6 @@ void main() {
       ),
     );
     await tester.pump();
-
-    // Desktop shows an incoming time under the pointer only.
-    if (platform is ChatEmojiPolicy$Desktop && !outgoing) {
-      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      addTearDown(mouse.removePointer);
-      await mouse.addPointer(location: const Offset(350, 630));
-      await mouse.moveTo(tester.getCenter(find.byType(ChatEmojiBody)));
-      await tester.pump();
-    }
 
     await expectLater(
       find.byKey(const ValueKey('shot')),

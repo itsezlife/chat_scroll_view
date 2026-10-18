@@ -1,21 +1,29 @@
-/// The composer's selection menu: the reference client's floating toolbar,
-/// mounted by the field on every platform.
+/// The composer's selection menu: a card over the selection with the clipboard
+/// actions on a row and the formatting actions on a More page.
 ///
 /// **Seam:** a `ComposerView` over a `ComposerController`, its toolbar shown
 /// with `showToolbar` as the platform does, read through the laid-out sizes,
-/// the semantics tree, the key events and a fake clock.
+/// the semantics tree, the key events, real pointer events and a fake clock.
 library;
 
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_composer/src/menu/selection_menu_items.dart';
+import 'package:chat_composer/src/menu/selection_menu_shell.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
+import 'package:composer_editable/composer_editable.dart';
 import 'package:content_model/content_model.dart';
+import 'package:content_model/testing.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide RichText;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/composer_harness.dart';
 import '../support/selection_menu_harness.dart';
+import '../support/spoken_labels.dart';
 
 final _strings = ChromeStringsPresets.english.formatting;
 
@@ -26,234 +34,106 @@ void main() {
   Future<void> pump(WidgetTester tester, int milliseconds) =>
       tester.pump(Duration(milliseconds: milliseconds));
 
-  group('geometry', () {
-    testWidgets('the row is 48 dp tall and its items sit flush', (
-      tester,
-    ) async {
-      final rig = await MenuRig.show(tester);
+  // A ticker's first frame is its start: an animation begun in a callback
+  // reads zero at the next frame, and progresses from there.
+  Future<void> start(WidgetTester tester) => tester.pump();
 
-      expect(rig.cardSize.height, 48);
-      final copy = tester.getRect(MenuRig.item(SelectionMenuItemKind.copy));
-      final cut = tester.getRect(MenuRig.item(SelectionMenuItemKind.cut));
-      expect(copy.height, 48);
-      expect(cut.height, 48);
-      expect(cut.right, copy.left);
+  group('placement', () {
+    testWidgets('the card sits 8 dp over the selection', (tester) async {
+      final rig = await MenuRig.show(tester, size: const Size(800, 900));
+
+      final box = rig.editable.renderEditable
+          .getBoxesForSelection(select)
+          .first
+          .toRect();
+      final top = MatrixUtils.transformRect(
+        rig.editable.renderEditable.getTransformTo(null),
+        box,
+      ).top;
+      expect(tester.getRect(MenuRig.card).bottom, closeTo(top - 8, 1));
     });
 
-    testWidgets('an item is its label and 16 dp each side, 24 at the end', (
-      tester,
-    ) async {
-      await MenuRig.show(tester);
+    testWidgets('the card is centred on the selection', (tester) async {
+      final rig = await MenuRig.show(tester, size: const Size(800, 900));
 
-      // Ahem draws a 14 dp square per character; Cut is the first item.
-      final cut = tester.getSize(MenuRig.item(SelectionMenuItemKind.cut));
-      final copy = tester.getSize(MenuRig.item(SelectionMenuItemKind.copy));
-      expect(cut.width, 24 + 3 * 14 + 16);
-      expect(copy.width, 16 + 4 * 14 + 16);
-    });
-
-    testWidgets('the label is 14 dp, weight 500', (tester) async {
-      await MenuRig.show(tester);
-
-      final text = tester.widget<Text>(find.text('Copy'));
-      expect(text.style!.fontSize, 14);
-      expect(text.style!.fontWeight, FontWeight.w500);
-    });
-
-    testWidgets('the More button is 56 by 48 and flush with the card end', (
-      tester,
-    ) async {
-      final rig = await MenuRig.show(tester);
-
-      expect(tester.getSize(MenuRig.more), const Size(56, 48));
-      expect(
-        tester.getRect(MenuRig.more).right,
-        tester.getRect(MenuRig.card).right,
+      final box = MatrixUtils.transformRect(
+        rig.editable.renderEditable.getTransformTo(null),
+        rig.editable.renderEditable.getBoxesForSelection(select).first.toRect(),
       );
-      expect(rig.cardSize.width, greaterThan(56));
-    });
-
-    testWidgets('the card has a 12 dp radius, elevation 1 and the token fill', (
-      tester,
-    ) async {
-      await MenuRig.show(tester);
-
-      final material = tester.widget<Material>(
-        find
-            .descendant(of: MenuRig.card, matching: find.byType(Material))
-            .first,
-      );
-      expect(material.elevation, 1);
-      expect(material.color, const Color(0xFFFFFFFF));
-      expect(
-        material.shape,
-        const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-        ),
-      );
-      expect(material.clipBehavior, Clip.antiAlias);
-    });
-
-    testWidgets('the dark theme takes its fill and text from the tokens', (
-      tester,
-    ) async {
-      await MenuRig.show(tester, brightness: Brightness.dark);
-
-      final tokens = SelectionMenuTokens.fromPalette(
-        ChromePalette.forBrightness(Brightness.dark),
-      );
-      final material = tester.widget<Material>(
-        find
-            .descendant(of: MenuRig.card, matching: find.byType(Material))
-            .first,
-      );
-      expect(material.color, tokens.background);
-      expect(tester.widget<Text>(find.text('Copy')).style!.color, tokens.text);
-    });
-
-    testWidgets('the page is sized to its items up to 264 dp with a peek', (
-      tester,
-    ) async {
-      final rig = await MenuRig.show(tester);
-      await rig.openMore();
-
-      // Five or more overflow items: four rows, the back row, half a row.
-      expect(rig.cardSize.height, 264);
-      expect(rig.cardSize.width, greaterThanOrEqualTo(56));
-    });
-
-    testWidgets('a short page is as tall as its rows and the back row', (
-      tester,
-    ) async {
-      final rig = await MenuRig.show(
-        tester,
-        spec: ComposerSpec(
-          formatting: const {
-            ComposerFormattingOption.bold,
-            ComposerFormattingOption.italic,
-          },
-        ),
-      );
-      // Cut, Copy and Select all fill the row; Bold and Italic are the page.
-      expect(MenuRig.more, findsOneWidget);
-      await rig.openMore();
-
-      expect(rig.cardSize.height, 2 * 48 + 48);
-      expect(
-        find.descendant(of: MenuRig.card, matching: find.byType(ShaderMask)),
-        findsNothing,
-      );
-    });
-
-    testWidgets('overflow rows are 42 dp tall with 18 dp of padding', (
-      tester,
-    ) async {
-      final rig = await MenuRig.show(tester);
-      await rig.openMore();
-
-      final bold = tester.getRect(MenuRig.item(SelectionMenuItemKind.bold));
-      expect(bold.height, 42);
-      final label = tester.getRect(find.text('Bold'));
-      expect(label.left - bold.left, 18);
-    });
-
-    testWidgets(
-      'the back row is 48 tall, its label 16 dp at 56 from the start',
-      (tester) async {
-        final rig = await MenuRig.show(tester);
-        await rig.openMore();
-
-        final row = tester.getRect(MenuRig.more);
-        expect(row.height, 48);
-        expect(row.left, tester.getRect(MenuRig.card).left);
-        final label = tester.getRect(find.text(_strings.backAction));
-        expect(label.left - row.left, 56);
-        final style = tester
-            .widget<Text>(find.text(_strings.backAction))
-            .style!;
-        expect(style.fontSize, 16);
-        expect(style.fontWeight, FontWeight.w400);
-      },
-    );
-
-    testWidgets('the hairline above the back row is one physical pixel', (
-      tester,
-    ) async {
-      tester.view.devicePixelRatio = 2;
-      addTearDown(tester.view.resetDevicePixelRatio);
-      final rig = await MenuRig.show(tester);
-      await rig.openMore();
-
-      final hairline = find.descendant(
-        of: find.byKey(const ValueKey<String>('back')),
-        matching: find.byType(ColoredBox),
-      );
-      expect(tester.getSize(hairline).height, 0.5);
-    });
-
-    testWidgets('the page fades its rows at the edges when it scrolls', (
-      tester,
-    ) async {
-      final rig = await MenuRig.show(tester);
-      expect(
-        find.descendant(of: MenuRig.card, matching: find.byType(ShaderMask)),
-        findsNothing,
-      );
-
-      await rig.openMore();
-
-      expect(
-        find.descendant(of: MenuRig.card, matching: find.byType(ShaderMask)),
-        findsOneWidget,
-      );
+      final card = tester.getRect(MenuRig.card);
+      // The card hugs the trailing edge of a row as wide as the page-opened
+      // one, so it is not exactly centred; it is over the selection.
+      expect(card.center.dx, closeTo(box.center.dx, card.width));
+      expect(card.left, greaterThanOrEqualTo(16));
     });
 
     testWidgets('the card keeps 16 dp from the screen and fits a narrow one', (
       tester,
     ) async {
-      final rig = await MenuRig.show(tester, size: const Size(300, 600));
+      await MenuRig.show(tester, size: const Size(260, 700));
 
-      final rect = tester.getRect(MenuRig.card);
-      expect(rect.left, greaterThanOrEqualTo(16));
-      expect(rect.right, lessThanOrEqualTo(300 - 16));
-      expect(rig.cardSize.width, lessThanOrEqualTo(300 - 32));
+      final card = tester.getRect(MenuRig.card);
+      expect(card.left, greaterThanOrEqualTo(16));
+      expect(card.right, lessThanOrEqualTo(260 - 16));
     });
 
-    testWidgets('on a wide screen the card is no wider than 400 dp', (
+    testWidgets('on a wide screen the row is no wider than 400 dp', (
       tester,
     ) async {
-      final rig = await MenuRig.show(tester, size: const Size(1400, 600));
+      await MenuRig.show(tester, size: const Size(1000, 800));
 
-      expect(rig.cardSize.width, lessThanOrEqualTo(400));
+      expect(tester.getSize(MenuRig.card).width, lessThanOrEqualTo(400));
     });
 
-    testWidgets('the card sits above the selection with 8 dp between', (
+    testWidgets('a long row moves what does not fit to the page', (
       tester,
     ) async {
-      final rig = await MenuRig.show(tester);
+      // 160 dp is a row of about two buttons.
+      final rig = await MenuRig.show(tester, size: const Size(220, 700));
+      expect(MenuRig.item(SelectionMenuItemKind.cut), findsOneWidget);
+      expect(
+        MenuRig.item(SelectionMenuItemKind.selectAll).hitTestable(),
+        findsNothing,
+      );
 
-      final render = rig.editable.renderEditable;
-      final selection = render.getBoxesForSelection(select);
-      final top = render.localToGlobal(selection.first.toRect().topLeft).dy;
-      expect(tester.getRect(MenuRig.card).bottom, closeTo(top - 8, 1));
+      await rig.openMore();
+
+      // Cut, Copy and Select all are the page's first rows, above Bold.
+      final all = tester.getRect(MenuRig.item(SelectionMenuItemKind.selectAll));
+      final bold = tester.getRect(MenuRig.item(SelectionMenuItemKind.bold));
+      expect(all.top, lessThan(bold.top));
+    });
+
+    testWidgets('the card follows the selection when it moves', (tester) async {
+      final rig = await MenuRig.show(
+        tester,
+        text: long,
+        size: const Size(800, 900),
+      );
+      final before = tester.getRect(MenuRig.card);
+
+      rig.composer.select(
+        const TextSelection(baseOffset: 18, extentOffset: 22),
+      );
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      expect(tester.getRect(MenuRig.card).left, isNot(before.left));
+      expect(rig.opacity, 1);
     });
 
     testWidgets('the label follows the text scale up to 1.3', (tester) async {
-      tester.platformDispatcher.textScaleFactorTestValue = 1.15;
-      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      await MenuRig.show(tester);
-
-      final cut = tester.getSize(find.text('Cut'));
-      expect(cut.width, closeTo(3 * 14 * 1.15, 0.5));
+      tester.platformDispatcher.textScaleFactorTestValue = 1;
+      addTearDown(tester.platformDispatcher.clearAllTestValues);
+      await MenuRig.show(tester, size: const Size(800, 900));
+      final base = tester.getSize(find.text('Copy')).width;
 
       tester.platformDispatcher.textScaleFactorTestValue = 2;
-      await tester.pump();
-      await tester.pump();
-      // A larger scale is clamped: the rows are fixed-height.
-      expect(
-        tester.getSize(find.text('Cut')).width,
-        closeTo(3 * 14 * 1.3, 0.5),
-      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await MenuRig.show(tester, size: const Size(800, 900));
+
+      expect(tester.getSize(find.text('Copy')).width, closeTo(base * 1.3, 1));
     });
   });
 
@@ -270,6 +150,81 @@ void main() {
       spec: spec,
       size: const Size(800, 900),
     );
+
+    testWidgets('the main row is the clipboard actions and the More button', (
+      tester,
+    ) async {
+      await showWith(tester);
+
+      for (final kind in [
+        SelectionMenuItemKind.cut,
+        SelectionMenuItemKind.copy,
+        SelectionMenuItemKind.selectAll,
+      ]) {
+        expect(
+          MenuRig.item(kind).hitTestable(),
+          findsOneWidget,
+          reason: '$kind',
+        );
+      }
+      expect(
+        MenuRig.item(SelectionMenuItemKind.bold).hitTestable(),
+        findsNothing,
+      );
+      expect(MenuRig.more, findsOneWidget);
+    });
+
+    testWidgets('the page lists the formatting in order, Back at the bottom', (
+      tester,
+    ) async {
+      final rig = await showWith(
+        tester,
+        spec: ComposerSpec(
+          formatting: ComposerFormattingOption.standard,
+          linkPrompt: (context, _) async => null,
+        ),
+      );
+      await rig.openMore();
+
+      // Ten rows, four and a half in view: the list is read in order as it
+      // scrolls under the Back row.
+      final order = [
+        SelectionMenuItemKind.bold,
+        SelectionMenuItemKind.italic,
+        SelectionMenuItemKind.underline,
+        SelectionMenuItemKind.strikethrough,
+        SelectionMenuItemKind.mono,
+      ];
+      var previous = double.negativeInfinity;
+      for (final kind in order) {
+        final top = tester.getTopLeft(MenuRig.item(kind)).dy;
+        expect(top, greaterThan(previous), reason: '$kind');
+        previous = top;
+      }
+      expect(
+        tester.getRect(MenuRig.back).top,
+        greaterThan(tester.getRect(MenuRig.item(order.first)).top),
+      );
+
+      final list = find
+          .descendant(of: MenuRig.card, matching: find.byType(Scrollable))
+          .first;
+      await tester.drag(list, const Offset(0, -2000));
+      await tester.pumpAndSettle();
+      final rest = [
+        SelectionMenuItemKind.spoiler,
+        SelectionMenuItemKind.quote,
+        SelectionMenuItemKind.codeBlock,
+        SelectionMenuItemKind.createLink,
+        SelectionMenuItemKind.clearFormatting,
+      ];
+      previous = double.negativeInfinity;
+      for (final kind in rest) {
+        final top = tester.getTopLeft(MenuRig.item(kind)).dy;
+        expect(top, greaterThan(previous), reason: '$kind');
+        previous = top;
+      }
+    });
 
     testWidgets('every formatting item calls its command', (tester) async {
       for (final (kind, entity) in [
@@ -306,7 +261,7 @@ void main() {
       ]);
     });
 
-    testWidgets('Regular clears the formatting', (tester) async {
+    testWidgets('Clear formatting clears the formatting', (tester) async {
       final rig = await showWith(
         tester,
         text: RichText('bold word', const [Entity(0, 4, EntityKind.bold)]),
@@ -318,7 +273,7 @@ void main() {
       expect(rig.composer.richText, const RichText.plain('bold word'));
     });
 
-    testWidgets('an item closes the menu and leaves a caret at the end', (
+    testWidgets('an item closes the menu and leaves a caret at the extent', (
       tester,
     ) async {
       final rig = await showWith(tester);
@@ -327,6 +282,19 @@ void main() {
 
       expect(MenuRig.card, findsNothing);
       expect(rig.composer.selection, const TextSelection.collapsed(offset: 7));
+    });
+
+    testWidgets('a backwards selection collapses to its extent', (
+      tester,
+    ) async {
+      final rig = await showWith(
+        tester,
+        selection: const TextSelection(baseOffset: 7, extentOffset: 4),
+      );
+
+      await rig.tapItem(SelectionMenuItemKind.bold);
+
+      expect(rig.composer.selection, const TextSelection.collapsed(offset: 4));
     });
 
     testWidgets('a bold selection is spoken as selected on Bold', (
@@ -346,6 +314,9 @@ void main() {
           label: _strings.boldAction,
           isButton: true,
           isSelected: true,
+          isEnabled: true,
+          hasEnabledState: true,
+          hasSelectedState: true,
           hasTapAction: true,
         ),
       );
@@ -364,7 +335,7 @@ void main() {
       expect(MenuRig.item(SelectionMenuItemKind.bold), findsOneWidget);
     });
 
-    testWidgets('a selection in code has no item code cannot take', (
+    testWidgets('a selection in code greys what code cannot take', (
       tester,
     ) async {
       final rig = await showWith(
@@ -374,20 +345,77 @@ void main() {
       );
       await rig.openMore();
 
-      expect(MenuRig.item(SelectionMenuItemKind.bold), findsNothing);
-      expect(MenuRig.item(SelectionMenuItemKind.italic), findsNothing);
-      expect(MenuRig.item(SelectionMenuItemKind.mono), findsOneWidget);
+      final bold = tester.widget<Text>(
+        find.descendant(
+          of: MenuRig.item(SelectionMenuItemKind.bold),
+          matching: find.byType(Text),
+        ),
+      );
+      final mono = tester.widget<Text>(
+        find.descendant(
+          of: MenuRig.item(SelectionMenuItemKind.mono),
+          matching: find.byType(Text),
+        ),
+      );
+      expect(bold.style!.color!.a, closeTo(0.38, 0.01));
+      expect(mono.style!.color!.a, 1);
+
+      // Tapping a greyed row does nothing and keeps the menu.
+      await tester.tap(MenuRig.item(SelectionMenuItemKind.bold));
+      await tester.pumpAndSettle();
+      expect(MenuRig.card, findsOneWidget);
+      expect(rig.composer.richText.entities, [
+        const Entity(5, 4, EntityKind.code),
+      ]);
     });
 
-    testWidgets('a collapsed caret gets no formatting', (tester) async {
+    testWidgets('a collapsed caret gets the page, with only line kinds and '
+        'Link on', (tester) async {
       final rig = await showWith(
         tester,
         selection: const TextSelection.collapsed(offset: 4),
       );
 
-      expect(MenuRig.item(SelectionMenuItemKind.bold), findsNothing);
+      // Select all and More, and nothing to cut or copy.
       expect(MenuRig.item(SelectionMenuItemKind.selectAll), findsOneWidget);
-      expect(rig.cardSize.height, 48);
+      expect(MenuRig.item(SelectionMenuItemKind.cut), findsNothing);
+      expect(MenuRig.more, findsOneWidget);
+      await rig.openMore();
+      Color? colorOf(SelectionMenuItemKind kind) => tester
+          .widget<Text>(
+            find.descendant(
+              of: MenuRig.item(kind),
+              matching: find.byType(Text),
+            ),
+          )
+          .style!
+          .color;
+      expect(colorOf(SelectionMenuItemKind.bold)!.a, closeTo(0.38, 0.01));
+      // The Quote row is under the four and a half in view.
+      await tester.scrollUntilVisible(
+        MenuRig.item(SelectionMenuItemKind.quote),
+        42,
+        scrollable: find
+            .descendant(of: MenuRig.card, matching: find.byType(Scrollable))
+            .first,
+      );
+      expect(colorOf(SelectionMenuItemKind.quote)!.a, 1);
+      await tester.drag(
+        find
+            .descendant(of: MenuRig.card, matching: find.byType(Scrollable))
+            .first,
+        const Offset(0, 2000),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(MenuRig.item(SelectionMenuItemKind.bold));
+      await tester.pumpAndSettle();
+      expect(rig.composer.richText, long);
+
+      await rig.tapItem(SelectionMenuItemKind.quote);
+      expect(rig.composer.richText.entities, [
+        const Entity(0, 33, EntityKind.quote),
+      ]);
     });
 
     testWidgets('the spec\'s options choose the items', (tester) async {
@@ -427,6 +455,8 @@ void main() {
       expect(MenuRig.item(SelectionMenuItemKind.numberedList), findsOneWidget);
       expect(find.text(_strings.bulletListAction), findsOneWidget);
       expect(find.text(_strings.numberedListAction), findsOneWidget);
+      expect(find.text('•'), findsOneWidget);
+      expect(find.text('1.'), findsOneWidget);
     });
 
     testWidgets('a composer with lists off shows no list item', (tester) async {
@@ -436,16 +466,18 @@ void main() {
         spec: ComposerSpec(formatting: ComposerFormattingOption.all),
       );
       if (MenuRig.more.evaluate().isNotEmpty) await rig.openMore();
-      // Scrolled to Code block, after which the list items would sit.
       await tester.scrollUntilVisible(
-        MenuRig.item(SelectionMenuItemKind.codeBlock),
+        MenuRig.item(SelectionMenuItemKind.clearFormatting),
         42,
         scrollable: find
             .descendant(of: MenuRig.card, matching: find.byType(Scrollable))
             .first,
       );
 
-      expect(MenuRig.item(SelectionMenuItemKind.codeBlock), findsOneWidget);
+      expect(
+        MenuRig.item(SelectionMenuItemKind.clearFormatting),
+        findsOneWidget,
+      );
       expect(MenuRig.item(SelectionMenuItemKind.bulletList), findsNothing);
       expect(MenuRig.item(SelectionMenuItemKind.numberedList), findsNothing);
     });
@@ -462,6 +494,113 @@ void main() {
         rig.composer.selection,
         const TextSelection(baseOffset: 0, extentOffset: 33),
       );
+    });
+
+    testWidgets('Paste as plain text follows Paste, on the page when the row '
+        'is full', (tester) async {
+      // The toolbar offers Paste while the platform says it has text.
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            SystemChannels.platform,
+            (call) async => call.method == 'Clipboard.hasStrings'
+                ? <String, Object?>{'value': true}
+                : null,
+          );
+      addTearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+      final rig = await MenuRig.show(
+        tester,
+        size: const Size(800, 900),
+        clipboard: FakeRichClipboard(),
+        selection: const TextSelection.collapsed(offset: 4),
+      );
+      await rig.openMore();
+
+      final paste = tester.getTopLeft(
+        MenuRig.item(SelectionMenuItemKind.paste),
+      );
+      final plain = tester.getTopLeft(
+        MenuRig.item(SelectionMenuItemKind.pastePlain),
+      );
+      final bold = tester.getTopLeft(MenuRig.item(SelectionMenuItemKind.bold));
+      expect(plain.dy, lessThan(bold.dy));
+      // Paste is on the page too, or on the row before it.
+      expect(paste.dy, lessThanOrEqualTo(plain.dy));
+    });
+  });
+
+  group('clipboard labels', () {
+    // The host's ChromeStrings, as on every platform; the English preset's
+    // edit-menu wording is "Select All", and its access marks (Cu&t) are not
+    // drawn on a touch card.
+    testWidgets(
+      'are the host\'s strings on every platform',
+      (tester) async {
+        await MenuRig.show(tester, size: const Size(800, 900));
+
+        expect(find.text('Cut'), findsOneWidget);
+        expect(find.text('Copy'), findsOneWidget);
+        expect(find.text('Cu&t'), findsNothing);
+      },
+      variant: TargetPlatformVariant.all(),
+    );
+
+    testWidgets(
+      'Select all is the host\'s wording over a caret',
+      (tester) async {
+        await MenuRig.show(
+          tester,
+          size: const Size(800, 900),
+          selection: const TextSelection.collapsed(offset: 4),
+        );
+
+        // Not Material's "Select all": the platform's own wording is not used.
+        expect(find.text('Select all'), findsNothing);
+        // Offered everywhere but on macOS.
+        expect(
+          find.text('Select All'),
+          defaultTargetPlatform == TargetPlatform.macOS
+              ? findsNothing
+              : findsOneWidget,
+        );
+      },
+      variant: TargetPlatformVariant.all(),
+    );
+  });
+
+  group('after a clipboard action', () {
+    testWidgets(
+      'Copy closes the menu and leaves a caret on every platform',
+      (tester) async {
+        final rig = await MenuRig.show(tester, size: const Size(800, 900));
+
+        await tester.tap(MenuRig.item(SelectionMenuItemKind.copy));
+        await rig.settle();
+
+        expect(MenuRig.card, findsNothing);
+        expect(
+          rig.composer.selection,
+          const TextSelection.collapsed(offset: 7),
+        );
+        expect(
+          rig.composer.richText,
+          const RichText.plain('one two three four'),
+        );
+      },
+      variant: TargetPlatformVariant.all(),
+    );
+
+    testWidgets('Cut removes the selection and closes', (tester) async {
+      final rig = await MenuRig.show(tester, size: const Size(800, 900));
+
+      await tester.tap(MenuRig.item(SelectionMenuItemKind.cut));
+      await rig.settle();
+
+      expect(MenuRig.card, findsNothing);
+      expect(rig.composer.richText.plain, 'one  three four');
+      expect(rig.composer.selection.isCollapsed, isTrue);
     });
   });
 
@@ -485,9 +624,7 @@ void main() {
       ),
     );
 
-    testWidgets('Create asks the prompt and links the selection', (
-      tester,
-    ) async {
+    testWidgets('Link asks the prompt and links the selection', (tester) async {
       final asked = <String?>[];
       final rig = await showLink(tester, asked);
 
@@ -499,7 +636,7 @@ void main() {
       ]);
     });
 
-    testWidgets('Edit hands the prompt the current URL and replaces it', (
+    testWidgets('over a link it edits: the prompt gets the current URL', (
       tester,
     ) async {
       final asked = <String?>[];
@@ -520,6 +657,26 @@ void main() {
       ]);
     });
 
+    testWidgets('the selection is kept for the prompt', (tester) async {
+      TextSelection? during;
+      late ComposerController composer;
+      final rig = await MenuRig.show(
+        tester,
+        size: const Size(800, 900),
+        spec: ComposerSpec(
+          linkPrompt: (context, current) async {
+            during = composer.selection;
+            return 'https://x.y';
+          },
+        ),
+      );
+      composer = rig.composer;
+
+      await rig.tapItem(SelectionMenuItemKind.createLink);
+
+      expect(during, select);
+    });
+
     testWidgets('a prompt that is cancelled changes nothing', (tester) async {
       final asked = <String?>[];
       final rig = await showLink(tester, asked, answer: null);
@@ -530,7 +687,9 @@ void main() {
       expect(rig.composer.richText, long);
     });
 
-    testWidgets('Remove takes the link off and keeps the text', (tester) async {
+    testWidgets('Remove link takes the link off and keeps the text', (
+      tester,
+    ) async {
       final asked = <String?>[];
       final rig = await showLink(
         tester,
@@ -547,6 +706,21 @@ void main() {
       expect(rig.composer.richText, const RichText.plain('see link'));
     });
 
+    testWidgets('there is no Remove link away from a link', (tester) async {
+      final rig = await showLink(tester, []);
+      await rig.openMore();
+      await tester.scrollUntilVisible(
+        MenuRig.item(SelectionMenuItemKind.createLink),
+        42,
+        scrollable: find
+            .descendant(of: MenuRig.card, matching: find.byType(Scrollable))
+            .first,
+      );
+
+      expect(MenuRig.item(SelectionMenuItemKind.removeLink), findsNothing);
+      expect(MenuRig.item(SelectionMenuItemKind.createLink), findsOneWidget);
+    });
+
     testWidgets('without a prompt there is no link item', (tester) async {
       final rig = await MenuRig.show(
         tester,
@@ -561,133 +735,150 @@ void main() {
   });
 
   group('motion', () {
-    // A ticker's first frame is its start: an animation begun in a callback
-    // reads zero at the next frame, and progresses from there. `start` is that
-    // frame.
-    Future<void> start(WidgetTester tester) => tester.pump();
-
-    testWidgets('the card comes in over 150 ms', (tester) async {
+    testWidgets('the card comes in over 150 ms: the wrapper\'s linear fade '
+        'times its own ease out', (tester) async {
       final rig = await MenuRig.show(tester, enter: false);
 
       expect(rig.opacity, 0);
       await start(tester);
       await pump(tester, 75);
-      // The curve is symmetric: half way through, half way up.
-      expect(rig.opacity, closeTo(0.5, 0.01));
-      await pump(tester, 74);
-      expect(rig.opacity, lessThan(1));
-      await pump(tester, 2);
+      expect(rig.wrapperOpacity, closeTo(0.5, 0.01));
+      expect(rig.cardOpacity, closeTo(Curves.easeOut.transform(0.5), 0.01));
+      expect(MenuRig.card.evaluate(), isNotEmpty);
+      await pump(tester, 76);
       expect(rig.opacity, 1);
     });
 
-    testWidgets('an item holds the card 150 ms, then fades it over 100', (
-      tester,
-    ) async {
-      final rig = await MenuRig.show(tester);
-
-      await tester.tap(MenuRig.item(SelectionMenuItemKind.copy));
-      await tester.pump();
-      await pump(tester, 140);
-      expect(rig.opacity, 1);
-      // The delay ends at 150 ms; the fade begins on the frame after.
-      await pump(tester, 15);
-      await pump(tester, 50);
-      expect(rig.opacity, closeTo(0.5, 0.01));
-      expect(MenuRig.card, findsOneWidget);
-      await pump(tester, 60);
-      await tester.pump();
-      expect(MenuRig.card, findsNothing);
-    });
-
-    testWidgets('the page unfolds over 250 ms: the height leads the width', (
-      tester,
-    ) async {
-      final rig = await MenuRig.show(tester);
-      final closed = rig.cardSize;
-      await tester.tap(MenuRig.more);
+    testWidgets('the card enters without moving', (tester) async {
+      final rig = await MenuRig.show(tester, enter: false);
       await start(tester);
-
-      await pump(tester, 80);
-      final early = rig.cardSize;
-      // The height eases out of the start; the width starts slowly.
-      final heightDone = (early.height - closed.height) / (264 - closed.height);
-      final widthDone = (closed.width - early.width) / (closed.width - 218);
-      expect(heightDone, greaterThan(0.2));
-      expect(widthDone, lessThan(0.1));
-      expect(rig.cardState.isAnimating, isTrue);
-
-      await pump(tester, 160);
-      expect(rig.cardState.isAnimating, isTrue);
       await pump(tester, 20);
-      expect(rig.cardState.isAnimating, isFalse);
-      expect(rig.cardSize, const Size(218, 264));
-    });
+      final early = tester.getTopLeft(MenuRig.card);
 
-    testWidgets('closing runs it back: the width leads the height', (
-      tester,
-    ) async {
-      final rig = await MenuRig.show(tester);
-      await rig.openMore();
-      final open = rig.cardSize;
-      await tester.tap(MenuRig.more);
-      await start(tester);
-
-      await pump(tester, 80);
-      final early = rig.cardSize;
-      final widthDone = (early.width - open.width) / (398 - open.width);
-      final heightDone = (open.height - early.height) / (open.height - 48);
-      expect(widthDone, greaterThan(0.2));
-      expect(heightDone, lessThan(0.1));
-
-      await pump(tester, 300);
-      expect(rig.cardSize, const Size(398, 48));
-    });
-
-    testWidgets('the row fades out over 250 ms as the page opens', (
-      tester,
-    ) async {
-      await MenuRig.show(tester);
-      await tester.tap(MenuRig.more);
-      await start(tester);
-
-      FadeTransition fadeOf(String key) => tester.widget<FadeTransition>(
-        find.descendant(
-          of: find.byKey(ValueKey<String>(key)),
-          matching: find.byType(FadeTransition),
-        ),
-      );
-      await pump(tester, 100);
-      expect(fadeOf('main').opacity.value, inExclusiveRange(0, 1));
-      expect(fadeOf('overflow').opacity.value, 1);
-      await pump(tester, 160);
-      expect(find.byKey(const ValueKey<String>('main')), findsNothing);
-    });
-
-    testWidgets('pointers are absorbed while the page unfolds', (tester) async {
-      final rig = await MenuRig.show(tester);
-      await tester.tap(MenuRig.more);
-      await start(tester);
-      await pump(tester, 60);
-
-      expect(rig.cardState.isAnimating, isTrue);
-      await tester.tap(MenuRig.more, warnIfMissed: false);
       await tester.pumpAndSettle();
 
-      // The second tap would have closed the page again.
-      expect(rig.cardState.isOpen, isTrue);
+      expect(tester.getTopLeft(MenuRig.card), early);
+      expect(rig.opacity, 1);
     });
 
-    testWidgets('a scroll hides the card over 100 ms and it comes back', (
+    testWidgets(
+      'an item fades the card out over 220 ms and drifts it up 5 dp',
+      (tester) async {
+        final rig = await MenuRig.show(tester, size: const Size(800, 900));
+        final top = tester.getTopLeft(MenuRig.card).dy;
+
+        await tester.tap(MenuRig.item(SelectionMenuItemKind.copy));
+        await start(tester);
+        await pump(tester, 110);
+
+        // Half way down the controller, ease-in applied; the wrapper stays up.
+        expect(rig.wrapperOpacity, 1);
+        expect(rig.cardOpacity, closeTo(Curves.easeIn.transform(0.5), 0.02));
+        expect(tester.getTopLeft(MenuRig.card).dy - top, closeTo(-2.5, 0.2));
+        expect(MenuRig.card, findsOneWidget);
+
+        await pump(tester, 112);
+        await tester.pump();
+        expect(MenuRig.card, findsNothing);
+      },
+    );
+
+    testWidgets('the rows are frozen while the card leaves', (tester) async {
+      final rig = await MenuRig.show(tester, size: const Size(800, 900));
+
+      await tester.tap(MenuRig.item(SelectionMenuItemKind.copy));
+      await start(tester);
+      await pump(tester, 100);
+
+      // The selection is a caret by now; Cut and Copy would be gone from a
+      // live build.
+      expect(rig.composer.selection.isCollapsed, isTrue);
+      expect(MenuRig.item(SelectionMenuItemKind.cut), findsOneWidget);
+      expect(MenuRig.item(SelectionMenuItemKind.copy), findsOneWidget);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('the page opens over 300 ms on the CSS ease cubic', (
       tester,
     ) async {
+      final rig = await MenuRig.show(tester, size: const Size(800, 900));
+      final closed = rig.cardSize;
+      await rig.openMore();
+      final open = rig.cardSize;
+      await tester.tap(MenuRig.back);
+      await tester.pumpAndSettle();
+      expect(rig.cardSize, closed);
+
+      await tester.tap(MenuRig.more);
+      await start(tester);
+      await pump(tester, 150);
+
+      final progress = const Cubic(0.25, 0.1, 0.25, 1).transform(0.5);
+      final size = rig.cardSize;
+      expect(
+        size.width,
+        closeTo(closed.width + (open.width - closed.width) * progress, 1),
+      );
+      expect(
+        size.height,
+        closeTo(closed.height + (open.height - closed.height) * progress, 1),
+      );
+      await pump(tester, 151);
+      expect(rig.cardSize, open);
+    });
+
+    testWidgets('the More page is as wide as its widest label and 264 tall', (
+      tester,
+    ) async {
+      final rig = await MenuRig.show(tester, size: const Size(800, 900));
+      await rig.openMore();
+
+      var widest = 0.0;
+      for (final tile in tester.widgetList<SelectionMenuTile>(
+        find.byType(SelectionMenuTile),
+      )) {
+        final text = find.descendant(
+          of: find.byWidget(tile),
+          matching: find.byType(Text),
+        );
+        if (text.evaluate().isEmpty || tile.leading != null) continue;
+        widest = [
+          widest,
+          tester
+              .renderObject<RenderParagraph>(text.first)
+              .getMaxIntrinsicWidth(double.infinity),
+        ].reduce((a, b) => a > b ? a : b);
+      }
+      expect(rig.cardSize.width, inInclusiveRange(widest + 36, widest + 37));
+      // Ten formatting rows: four and the peek of a fifth, and Back.
+      expect(rig.cardSize.height, 264);
+    });
+
+    testWidgets('Back on the page turns it back over 300 ms', (tester) async {
+      final rig = await MenuRig.show(tester, size: const Size(800, 900));
+      final closed = rig.cardSize;
+      await rig.openMore();
+
+      await tester.tap(MenuRig.back);
+      await start(tester);
+      await pump(tester, 299);
+      expect(rig.cardSize, isNot(closed));
+      await pump(tester, 3);
+
+      expect(rig.cardSize, closed);
+      expect(rig.isOpen, isFalse);
+    });
+
+    testWidgets('a scroll hides the card over 150 ms linear and it comes '
+        'back', (tester) async {
       final rig = await MenuRig.show(tester);
       final overlay = rig.editable.selectionOverlay!;
 
       overlay.suppressToolbarForScroll(true);
       await start(tester);
-      await pump(tester, 50);
+      await pump(tester, 75);
       expect(rig.opacity, closeTo(0.5, 0.01));
-      await pump(tester, 60);
+      await pump(tester, 76);
       expect(rig.opacity, 0);
 
       overlay.suppressToolbarForScroll(false);
@@ -696,11 +887,23 @@ void main() {
       expect(rig.opacity, 1);
     });
 
+    testWidgets('a hidden card takes no pointer', (tester) async {
+      final rig = await MenuRig.show(tester);
+      rig.editable.selectionOverlay!.suppressToolbarForScroll(true);
+      await tester.pumpAndSettle();
+
+      expect(
+        MenuRig.item(SelectionMenuItemKind.copy).hitTestable(),
+        findsNothing,
+      );
+    });
+
     testWidgets('the page stays open through a hide and a show', (
       tester,
     ) async {
-      final rig = await MenuRig.show(tester);
+      final rig = await MenuRig.show(tester, size: const Size(800, 900));
       await rig.openMore();
+      final size = rig.cardSize;
       final overlay = rig.editable.selectionOverlay!;
 
       overlay.suppressToolbarForScroll(true);
@@ -710,60 +913,44 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(rig.opacity, 1);
-      expect(rig.cardState.isOpen, isTrue);
-      expect(rig.cardSize.height, 264);
+      expect(rig.isOpen, isTrue);
+      expect(rig.cardSize, size);
     });
 
-    testWidgets('a moving selection does not hide a card shown under 500 ms', (
-      tester,
-    ) async {
-      final rig = await MenuRig.show(tester, enter: false);
-      await start(tester);
-      await pump(tester, 200);
+    testWidgets('a moving selection does not hide the card', (tester) async {
+      final rig = await MenuRig.show(tester, size: const Size(800, 900));
+      await pump(tester, 600);
 
       rig.composer.select(const TextSelection(baseOffset: 8, extentOffset: 11));
       await tester.pump();
-      await pump(tester, 1);
       await pump(tester, 60);
 
       expect(rig.opacity, 1);
     });
 
-    testWidgets(
-      'after 500 ms a moving selection hides it, and it returns 50 ms after the move stops',
-      (tester) async {
-        final rig = await MenuRig.show(tester);
-        await pump(tester, 600);
+    testWidgets('under reduce-motion everything is at once', (tester) async {
+      final rig = await MenuRig.show(
+        tester,
+        size: const Size(800, 900),
+        motionSpeed: ChromeMotionSpeed.instant,
+      );
 
-        rig.composer.select(
-          const TextSelection(baseOffset: 8, extentOffset: 11),
-        );
-        await tester.pump();
-        await start(tester);
-        await pump(tester, 110);
-        expect(rig.opacity, 0);
+      await tester.tap(MenuRig.more);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(rig.isOpen, isTrue);
+      expect(rig.cardSize.height, 264);
 
-        // Still moving: it stays away while the selection keeps changing.
-        rig.composer.select(
-          const TextSelection(baseOffset: 0, extentOffset: 3),
-        );
-        await tester.pump();
-        await pump(tester, 30);
-        expect(rig.opacity, 0);
-
-        // 50 ms after the last move it comes back, over 150 ms.
-        await pump(tester, 40);
-        await start(tester);
-        await pump(tester, 75);
-        expect(rig.opacity, closeTo(0.5, 0.05));
-        await pump(tester, 80);
-        expect(rig.opacity, 1);
-      },
-    );
+      await tester.tap(MenuRig.item(SelectionMenuItemKind.bold));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump();
+      expect(MenuRig.card, findsNothing);
+    });
   });
 
   group('semantics', () {
-    testWidgets('every item has its label from the strings', (tester) async {
+    testWidgets('every item has its label', (tester) async {
       final handle = tester.ensureSemantics();
       final rig = await MenuRig.show(tester, size: const Size(800, 900));
 
@@ -772,25 +959,33 @@ void main() {
       }
       await rig.openMore();
       for (final label in [
-        _strings.quoteAction,
-        _strings.spoilerAction,
         _strings.boldAction,
         _strings.italicAction,
         _strings.monoAction,
       ]) {
         expect(find.bySemanticsLabel(label), findsWidgets, reason: label);
       }
+      // Quote is under the four and a half rows in view.
+      await tester.scrollUntilVisible(
+        MenuRig.item(SelectionMenuItemKind.quote),
+        42,
+        scrollable: find
+            .descendant(of: MenuRig.card, matching: find.byType(Scrollable))
+            .first,
+      );
+      expect(find.bySemanticsLabel(_strings.quoteAction), findsWidgets);
       expect(find.bySemanticsLabel(_strings.backAction), findsWidgets);
       handle.dispose();
     });
 
-    testWidgets('a row out of sight is not spoken', (tester) async {
+    testWidgets('a page out of sight is not spoken', (tester) async {
       final handle = tester.ensureSemantics();
       final rig = await MenuRig.show(tester, size: const Size(800, 900));
 
-      expect(find.bySemanticsLabel(_strings.boldAction), findsNothing);
+      expect(spokenLabels(tester), isNot(contains(_strings.boldAction)));
       await rig.openMore();
-      expect(find.bySemanticsLabel('Cut'), findsNothing);
+      expect(spokenLabels(tester), isNot(contains('Cut')));
+      expect(spokenLabels(tester), contains(_strings.boldAction));
       handle.dispose();
     });
   });
@@ -816,7 +1011,7 @@ void main() {
 
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await rig.settle();
-      expect(rig.composer.richText.plain.length, lessThan(33));
+      expect(rig.composer.richText.plain.length, lessThan(18));
       expect(MenuRig.card, findsNothing);
       expect(rig.composer.focusNode.hasPrimaryFocus, isTrue);
     });
@@ -839,7 +1034,13 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       await tester.pump();
       // Back past Cut to the More button.
-      expect(focused(), tester.getRect(MenuRig.more));
+      // The focus ring is the 40 dp disc of the More button, not its frame.
+      expect(
+        focused(),
+        tester.getRect(
+          find.descendant(of: MenuRig.more, matching: find.byType(IconButton)),
+        ),
+      );
     });
 
     testWidgets('the arrow keys move between the items', (tester) async {
@@ -866,7 +1067,23 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
 
-      expect(rig.cardState.isOpen, isTrue);
+      expect(rig.isOpen, isTrue);
+    });
+
+    testWidgets('on the open page Tab walks the page, not the hidden row', (
+      tester,
+    ) async {
+      final rig = await MenuRig.show(tester, size: const Size(800, 900));
+      await rig.openMore();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+
+      expect(focused().overlaps(tester.getRect(MenuRig.card)), isTrue);
+      expect(
+        focused(),
+        isNot(tester.getRect(MenuRig.item(SelectionMenuItemKind.copy))),
+      );
     });
 
     testWidgets('Escape closes the menu and leaves a caret', (tester) async {
@@ -894,22 +1111,18 @@ void main() {
       expect(rig.composer.hasFocus, isTrue);
     });
 
-    testWidgets('with the overflow page open Back closes the page first, then '
-        'the menu', (tester) async {
+    testWidgets('with the More page open Back closes the whole menu', (
+      tester,
+    ) async {
       final rig = await MenuRig.show(tester);
       await rig.openMore();
-      expect(rig.cardState.isOpen, isTrue);
-
-      expect(await tester.binding.handlePopRoute(), isTrue);
-      await rig.settle();
-
-      expect(MenuRig.card, findsOneWidget);
-      expect(rig.cardState.isOpen, isFalse);
+      expect(rig.isOpen, isTrue);
 
       expect(await tester.binding.handlePopRoute(), isTrue);
       await rig.settle();
 
       expect(MenuRig.card, findsNothing);
+      expect(rig.composer.hasFocus, isTrue);
     });
 
     testWidgets('the host\'s hook takes Back while the menu is up', (
@@ -937,25 +1150,47 @@ void main() {
       expect(calls, ['acquire', 'release']);
       expect(rig.composer.hasFocus, isTrue);
     });
+
+    testWidgets('the hook closes the whole menu from the More page', (
+      tester,
+    ) async {
+      ValueGetter<Future<bool>>? onBack;
+      final rig = await MenuRig.show(
+        tester,
+        spec: ComposerSpec(
+          backPriority: (callback) {
+            onBack = callback;
+            return () {};
+          },
+        ),
+      );
+      await rig.openMore();
+
+      expect(await onBack!(), isTrue);
+      await rig.settle();
+
+      expect(MenuRig.card, findsNothing);
+    });
   });
 
   group('right to left', () {
-    testWidgets('the card keeps its start edge and the More button is first', (
+    testWidgets('the More button is first and the row keeps its start edge', (
       tester,
     ) async {
       final rig = await MenuRig.show(tester, textDirection: TextDirection.rtl);
 
       final card = tester.getRect(MenuRig.card);
       expect(tester.getRect(MenuRig.more).left, card.left);
+      // It is flush with the card's end, which is the left here.
+      expect(tester.getSize(MenuRig.more), const Size(56, 48));
       expect(
         tester.getRect(MenuRig.item(SelectionMenuItemKind.cut)).right,
         card.right,
       );
 
       await rig.openMore();
-      final back = tester.getRect(MenuRig.more);
-      expect(back.left, tester.getRect(MenuRig.card).left);
-      // The label starts at the right edge of the row.
+      final back = tester.getRect(MenuRig.back);
+      // The label starts 56 dp from the row's start, which is its right edge.
       final label = tester.getRect(find.text(_strings.backAction));
       expect(back.right - label.right, 56);
     });
@@ -970,6 +1205,129 @@ void main() {
 
       expect(tester.getRect(MenuRig.card).left, left);
     });
+  });
+
+  group('with a mouse on a desktop', () {
+    final desktop = TargetPlatformVariant.only(TargetPlatform.macOS);
+
+    Future<ComposerController> pumpField(WidgetTester tester) async {
+      tester.view
+        ..physicalSize = const Size(800, 900)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final composer = ComposerController();
+      addTearDown(composer.dispose);
+      await tester.pumpWidget(
+        composerHarness(
+          ComposerView(
+            controller: composer,
+            spec: ComposerSpec(),
+            shortcuts: const ComposerShortcutPolicy.desktop().shortcuts,
+          ),
+        ),
+      );
+      composer
+        ..requestFocus()
+        ..restore(long, selection: const TextSelection.collapsed(offset: 0));
+      await tester.pump();
+      return composer;
+    }
+
+    Offset pointOnWord(WidgetTester tester, int offset) {
+      final editable = tester.state<ExtendedEditableTextState>(
+        find.byType(ExtendedEditableText),
+      );
+      final render = editable.renderEditable;
+      final local = render.getLocalRectForCaret(TextPosition(offset: offset));
+      return render.localToGlobal(local.center);
+    }
+
+    testWidgets('a right click opens the pointer menu, not the card', (
+      tester,
+    ) async {
+      await pumpField(tester);
+      final at = pointOnWord(tester, 5);
+
+      final gesture = await tester.startGesture(
+        at,
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(MenuRig.card, findsNothing);
+      expect(find.byKey(const PointerMenuPanelKey(0)), findsOneWidget);
+    }, variant: desktop);
+
+    testWidgets('under the mobile menu policy a right click still opens the '
+        'card at the selection', (tester) async {
+      tester.view
+        ..physicalSize = const Size(800, 900)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final composer = ComposerController();
+      addTearDown(composer.dispose);
+      await tester.pumpWidget(
+        composerHarness(
+          ComposerView(
+            controller: composer,
+            spec: ComposerSpec(),
+            menuPolicy: const ComposerMenuPolicy.mobile(),
+            shortcuts: const ComposerShortcutPolicy.desktop().shortcuts,
+          ),
+        ),
+      );
+      composer
+        ..requestFocus()
+        ..restore(long, selection: const TextSelection.collapsed(offset: 0));
+      await tester.pump();
+
+      final gesture = await tester.startGesture(
+        pointOnWord(tester, 5),
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(MenuRig.card, findsOneWidget);
+      expect(find.byKey(const PointerMenuPanelKey(0)), findsNothing);
+    }, variant: desktop);
+
+    testWidgets('a left click does not open it', (tester) async {
+      await pumpField(tester);
+      final at = pointOnWord(tester, 5);
+
+      final gesture = await tester.startGesture(
+        at,
+        kind: PointerDeviceKind.mouse,
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(MenuRig.card, findsNothing);
+    }, variant: desktop);
+
+    testWidgets('a mouse double-click selects the word and shows no menu', (
+      tester,
+    ) async {
+      final composer = await pumpField(tester);
+      final at = pointOnWord(tester, 5);
+
+      for (var i = 0; i < 2; i++) {
+        final gesture = await tester.startGesture(
+          at,
+          kind: PointerDeviceKind.mouse,
+        );
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pumpAndSettle();
+
+      expect(composer.selection.isCollapsed, isFalse);
+      expect(MenuRig.card, findsNothing);
+    }, variant: desktop);
   });
 
   testWidgets(

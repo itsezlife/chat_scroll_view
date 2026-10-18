@@ -2,6 +2,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/widgets.dart';
 import 'package:panel_pages/panel_pages.dart';
 
@@ -27,6 +28,15 @@ class AppChrome extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ChromeThemeScope(
     palette: const ChromePalette.dark(),
+    // The selection menu is a Material card: it takes its fill, text and
+    // divider from the app's colour scheme. The dark palette's separator is a
+    // 12% black, which is invisible on a dark card.
+    selectionMenu: SelectionMenuTokens.fromPalette(
+      ChromePalette.fromColorScheme(Theme.of(context).colorScheme),
+    ),
+    // The desktop pointer menu of the composer's field is drawn in the
+    // reference client's own night colours, for a 1:1 look.
+    pointerMenu: PointerMenuTokens.referenceNight,
     child: ChromeStringsScope(
       strings: demoChromeStrings,
       child: ChromeMotionScope(

@@ -1,4 +1,5 @@
 import 'package:chat_composer/src/menu/composer_formatting_option.dart';
+import 'package:chat_composer/src/menu/composer_spell_checker.dart';
 import 'package:chat_composer/src/spec/action_descriptor.dart';
 import 'package:chat_composer/src/spec/composer_header.dart';
 import 'package:chat_composer/src/spec/composer_panel.dart';
@@ -47,6 +48,7 @@ final class ComposerSpec {
     this.linkPrompt,
     this.formatting = ComposerFormattingOption.standard,
     this.backPriority,
+    this.spellChecker,
   }) : assert(_uniqueIds(actions), 'two actions of a ComposerSpec share an id'),
        assert(
          messageLengthLimit == null || messageLengthLimit > 0,
@@ -100,6 +102,11 @@ final class ComposerSpec {
   /// The host's hook for taking Back ahead of the soft keyboard while the
   /// selection menu is open; null leaves Back to Flutter's own dispatch.
   final ComposerBackPriority? backPriority;
+
+  /// The host's spell checker, which the desktop pointer menu asks about the
+  /// word under the pointer; null shows no Spelling row. A seam only: the
+  /// composer ships no checker (see [ComposerSpellChecker]).
+  final ComposerSpellChecker? spellChecker;
 
   /// The visible actions at [placement], in spec order.
   List<ActionDescriptor> visibleActions(ActionPlacement placement) => [

@@ -7,7 +7,6 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/panel_trace.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
-import 'package:chat_scroll_view_example/src/common/utils/mapped_value_listenable.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_state.dart';
@@ -19,7 +18,9 @@ import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_d
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/link_activation.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
@@ -31,6 +32,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_search_b
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_backend_error.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/large_emoji_limit_button.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/notes_dialog.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/scroll_to_bottom_button.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/selection_app_bar.dart';
@@ -102,7 +104,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// Where a tap on an emoji sticker goes: the stand-in for the peer
   /// broadcast. It sends nothing; the screen shows what it would send.
   late final StickerInteractionStub _stickerInteractions;
-  late final MappedValueListenable<bool, LargeEmojiPolicy> _emojiPolicy;
+  late final ValueNotifier<LargeEmojiPolicy> _emojiPolicy;
 
   /// Demo chat facts that gate the large emoji: a
   /// chat that allows stickers, in which the user is no admin.
@@ -171,13 +173,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       // The dust moves on the asset cache's frames and pause layers.
       spoilerClock: widget.services.assets.clock,
     )..selectionCap = 100;
-    _emojiPolicy = widget.services.largeEmoji.enabled.map(
-      (enabled) => LargeEmojiPolicy(
-        enabled: enabled,
-        stickersAllowed: _chatAllowsStickers,
-        isAdmin: _isChatAdmin,
-      ),
-    );
+    _emojiPolicy = ValueNotifier(_currentEmojiPolicy());
+    widget.services.largeEmoji.enabled.addListener(_refreshEmojiPolicy);
+    widget.services.largeEmoji.desktopLimit.addListener(_refreshEmojiPolicy);
     _bodies = ChatBodyHost(
       assets: widget.services.assets,
       policy: _emojiPolicy,
@@ -200,6 +198,18 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     );
     _init();
   }
+
+  /// The chat's emoji decision now: the setting's two choices and the chat's
+  /// own facts.
+  LargeEmojiPolicy _currentEmojiPolicy() => LargeEmojiPolicy(
+    enabled: widget.services.largeEmoji.enabled.value,
+    stickersAllowed: _chatAllowsStickers,
+    isAdmin: _isChatAdmin,
+    desktopRegularLimit: widget.services.largeEmoji.desktopLimit.value,
+  );
+
+  // A `ValueNotifier` tells only when the policy (a value) really changed.
+  void _refreshEmojiPolicy() => _emojiPolicy.value = _currentEmojiPolicy();
 
   @override
   void didChangeDependencies() {
@@ -236,11 +246,15 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   void _onSelectionInteraction(ChatSelectionInteraction interaction) {
     switch (interaction) {
-      case ChatCopied(:final text, :final gesture):
+      case ChatCopied(:final text, :final origin, :final gesture):
         if (gesture == ChatInlineGesture.longPress) {
           HapticFeedback.lightImpact();
         }
-        _showCopiedSnack(text);
+        _showCopiedSnack(switch (origin) {
+          ChatCopyOrigin.textSelection => ChatCopyKind.textSelection,
+          ChatCopyOrigin.messageSelection => ChatCopyKind.messages,
+          ChatCopyOrigin.codeTap => ChatCopyKind.code,
+        }, text);
       case ChatLinkActivated(
         :final messageId,
         :final title,
@@ -279,11 +293,16 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     }
   }
 
-  void _showCopiedSnack(String text) {
+  // Whether a copy is confirmed is the platform family's (the selection
+  // policy's), not the trigger's: see [ChatCopyFeedback].
+  void _showCopiedSnack(ChatCopyKind kind, String text) {
     if (!mounted || text.isEmpty) return;
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return; // Do not show the snackbar on Android
-    }
+    final feedback = ChatCopyFeedback.forPolicy(
+      _selection.selectionPolicy,
+      // The Android system shows its own clipboard toast.
+      systemConfirms: defaultTargetPlatform == TargetPlatform.android,
+    );
+    if (!feedback.showsToast(kind)) return;
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(
@@ -324,7 +343,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         title: title,
         url: url,
         onOpen: () => _onLinkTap(messageId, title, url),
-        onCopied: _showCopiedSnack,
+        onCopied: (text) => _showCopiedSnack(ChatCopyKind.link, text),
       ),
     );
   }
@@ -355,6 +374,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _controller.dispose();
     _selection.dispose();
     _spoilers.dispose();
+    widget.services.largeEmoji.enabled.removeListener(_refreshEmojiPolicy);
+    widget.services.largeEmoji.desktopLimit.removeListener(_refreshEmojiPolicy);
     _emojiPolicy.dispose();
     _stickerInteractions.dispose();
     _trace?.dispose();
@@ -432,10 +453,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           onDelete: (messageId) => _handleDeleteSelected([messageId]),
           onDeleteSelected: _handleDeleteSelected,
           onEdit: _beginEdit,
-          onCopy: _showCopiedSnack,
-          onCopySelected: _showCopiedSnack,
-          onCopyLink: _showCopiedSnack,
-          onCopyCode: _showCopiedSnack,
+          onCopy: (text) => _showCopiedSnack(ChatCopyKind.messages, text),
+          onCopySelected: (text) =>
+              _showCopiedSnack(ChatCopyKind.textSelection, text),
+          onCopyLink: (text) => _showCopiedSnack(ChatCopyKind.link, text),
+          onCopyCode: (text) => _showCopiedSnack(ChatCopyKind.code, text),
         ),
       );
       _search?.dispose();
@@ -804,14 +826,15 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       unawaited(_selection.copyTextSelection());
       return;
     }
-    final ids = _selection.selectedIds.toList()..sort();
-    final copied = ChatCopy.messages([
-      for (final id in ids) ?_dataSource?.getMessage(id)?.text,
-    ]);
+    final source = _dataSource;
+    if (source == null) return;
+    final copied = ChatMessagesCopyFormat.forPolicy(
+      _selection.selectionPolicy,
+    ).compose(ChatCopiedMessage.of(_selection.selectedIds, source));
     if (copied.isEmpty) return;
     unawaited(widget.services.clipboard.write(copied));
-    _selection.clear();
-    _showCopiedSnack(copied.plain);
+    ChatCopyFeedback.endSelection(_selection);
+    _showCopiedSnack(ChatCopyKind.messages, copied.plain);
   }
 
   void _editSelectedFromBar() {
@@ -895,9 +918,22 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                             padding: EdgeInsetsDirectional.only(end: inlineEnd),
                             child: child,
                           ),
-                          child: _buildChatRegion(
-                            search: search,
-                            mobilePanel: mobilePanel,
+                          // Above the chat and the composer both: the copy
+                          // shortcut reaches here from either one's focus.
+                          // The composer's own copy sits below and wins when
+                          // it has a selection; otherwise its action is
+                          // disabled and the intent comes up to this one.
+                          child: Actions(
+                            actions: <Type, Action<Intent>>{
+                              CopySelectionTextIntent: _CopySelectedAction(
+                                selection: _selection,
+                                onCopy: _copySelected,
+                              ),
+                            },
+                            child: _buildChatRegion(
+                              search: search,
+                              mobilePanel: mobilePanel,
+                            ),
                           ),
                         ),
                       ),
@@ -1083,6 +1119,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                         ),
                       ),
                     ),
+                    // Desktop only: the other families have no cap.
+                    LargeEmojiLimitButton(setting: widget.services.largeEmoji),
                     const SizedBox(width: 4),
                     IconButton.filledTonal(
                       tooltip: 'Notes (lists)',
@@ -1231,5 +1269,30 @@ class _ChatSideControlsHost extends StatelessWidget {
         pageDown: pageDown,
       ),
     );
+  }
+}
+
+/// The copy shortcut ([CopySelectionTextIntent]) over the chat: it copies
+/// what is selected, the messages or the text range, through the same path as
+/// the selection bar's Copy.
+///
+/// Disabled with nothing selected, so a focused field's own copy (or the
+/// platform's) is left alone, and for a cut, which copies nothing out of a
+/// chat.
+class _CopySelectedAction extends Action<CopySelectionTextIntent> {
+  _CopySelectedAction({required this.selection, required this.onCopy});
+
+  final ChatSelectionController selection;
+  final VoidCallback onCopy;
+
+  @override
+  bool isEnabled(CopySelectionTextIntent intent) =>
+      !intent.collapseSelection &&
+      (selection.isSelectionMode || selection.isTextSelectionActive);
+
+  @override
+  Object? invoke(CopySelectionTextIntent intent) {
+    onCopy();
+    return null;
   }
 }

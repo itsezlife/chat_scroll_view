@@ -606,6 +606,53 @@ class ComposerTextController extends TextEditingController {
     return TextFormatting.linkUrl(richText, from, to);
   }
 
+  /// The link that covers the character at [index], with its extent, or null
+  /// when that character is in none (or [index] is outside the text).
+  ///
+  /// For a link addressed by position, as the edit menu does for the link
+  /// under the pointer, where the selection is somewhere else.
+  ({TextRange range, String url})? linkAt(int index) {
+    if (index < 0 || index >= richText.length) return null;
+    for (final entity in richText.entities) {
+      if (entity.kind case EntityKind$Link(
+        :final url,
+      ) when entity.offset <= index && index < entity.end) {
+        return (
+          range: TextRange(start: entity.offset, end: entity.end),
+          url: url,
+        );
+      }
+    }
+    return null;
+  }
+
+  /// Links [range] to [url], replacing the links in it, and leaves the
+  /// selection where it was.
+  ///
+  /// Refused for the reasons [applyLink] gives (an empty or unlinkable URL,
+  /// code or a mention in the range) and while the input method composes over
+  /// the range.
+  void applyLinkTo(TextRange range, String url) {
+    if (url.isEmpty || range.isCollapsed || _composing) return;
+    final rich = richText;
+    final next = TextFormatting.applied(
+      rich,
+      range.start,
+      range.end,
+      EntityKind.link(url),
+    );
+    if (next != null && next != rich) _commitFormatted(next);
+  }
+
+  /// Takes the links off [range], keeping its text, and leaves the selection
+  /// where it was.
+  void removeLinkFrom(TextRange range) {
+    if (range.isCollapsed || _composing) return;
+    final rich = richText;
+    final next = TextFormatting.unlinked(rich, range.start, range.end);
+    if (next != null && next != rich) _commitFormatted(next);
+  }
+
   /// Whether the command for [kind] would change anything now: toggling it
   /// either way, or for a link, applying it.
   ///

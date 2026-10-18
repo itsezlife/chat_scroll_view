@@ -212,6 +212,38 @@ void main() {
       expect(binding.isPlaying, isTrue);
     });
 
+    test('a window that loses focus holds a binding and its first frame back '
+        'carries that frame\'s time, a single step after ten seconds', () {
+      final lifecycle = ManualPlaybackLifecycleSource(
+        initial: AppLifecycleState.resumed,
+      );
+      addTearDown(lifecycle.dispose);
+      final activity = PlaybackActivity(
+        clock: scope.clock,
+        lifecycle: lifecycle,
+      );
+      addTearDown(activity.dispose);
+      final binding = animated();
+      final paintable = binding.paintable as FakeAssetPaintable;
+      var signals = 0;
+      binding.addListener(() => signals++);
+      ticks.tick(_ms(16));
+
+      lifecycle.emit(AppLifecycleState.inactive);
+      expect(binding.isPlaying, isFalse);
+      expect(ticks.isRunning, isFalse);
+      lifecycle.emit(AppLifecycleState.resumed);
+      expect(binding.isPlaying, isTrue);
+      ticks.tick(_ms(10016));
+      final recorder = PictureRecorder();
+      binding.paint(Canvas(recorder), const Rect.fromLTWH(0, 0, 8, 8));
+      recorder.endRecording().dispose();
+
+      expect(signals, 2, reason: 'one tick before the pause, one after');
+      expect(paintable.paints.single.context.time, _ms(10016));
+      expect(scope.isAttached(_key, _large), isTrue);
+    });
+
     test('pausing does not detach or unpin anything', () {
       animated();
 

@@ -159,6 +159,13 @@ void main() {
       expect(result!.items.single.key, customKey);
     });
 
+    test('a custom emoji keeps the text under it, the others have none', () {
+      const text = '$_thumbs$_heart$_thumbs';
+      final result = _of(text, const [Entity(2, 2, custom)]);
+
+      expect(result!.items.map((item) => item.alt), ['', _heart, '']);
+    });
+
     test('mixed custom and unicode emoji keep their order', () {
       const text = '$_thumbs$_heart$_thumbs';
       final result = _of(text, const [Entity(2, 2, custom)]);
@@ -261,6 +268,72 @@ void main() {
         () => items.add(const EmojiOnlyItem(ContentKey.unicode(_thumbs))),
         throwsUnsupportedError,
       );
+    });
+  });
+
+  group('EmojiRuns.of: the emoji a text draws in colour', () {
+    // The runs as the text they cover, so a test reads as the text does.
+    List<String> runs(String text) => [
+      for (final (:start, :end) in EmojiRuns.of(text))
+        text.substring(start, end),
+    ];
+
+    test('finds each sequence among text, with its offsets', () {
+      const text = 'ab $_thumbs cd $_flag!';
+
+      expect(EmojiRuns.of(text), [(start: 3, end: 5), (start: 9, end: 13)]);
+    });
+
+    for (final (name, sequence) in const [
+      ('a surrogate-pair emoji', _thumbs),
+      ('a skin tone', _toned),
+      ('a ZWJ family', _family),
+      ('a flag', _flag),
+      ('a subdivision flag', _scotland),
+      ('a keycap', _keyOne),
+      ('a keycap without a variation selector', _keyHash),
+      ('a BMP emoji with a variation selector', _heart),
+      ('a copyright sign with a variation selector', _copyright),
+      ('an emoji that is drawn in colour by default', '⭐'),
+      ('a gender sign after a ZWJ', '\u{1F937}‍♀️'),
+    ]) {
+      test('$name is one run', () {
+        expect(runs('a${sequence}b'), [sequence]);
+      });
+    }
+
+    test('adjacent emoji are runs of their own', () {
+      expect(runs('$_thumbs$_toned$_flag$_flag'), [
+        _thumbs,
+        _toned,
+        _flag,
+        _flag,
+      ]);
+    });
+
+    for (final (name, text) in const [
+      ('a heart without a presentation selector', 'a❤b'),
+      ('a copyright sign', 'a©b'),
+      ('a registered sign', 'a®b'),
+      ('a trade mark', 'a™b'),
+      ('a digit', 'a1b'),
+      ('a hash', 'a#b'),
+      ('a digit with a presentation selector but no keycap mark', 'a1\uFE0Fb'),
+      ('a hash with a presentation selector but no keycap mark', 'a#\uFE0Fb'),
+      ('a star that is not an emoji', 'a★b'),
+      ('a stray presentation selector', 'a\uFE0Fb'),
+      ('a lone ZWJ', 'a\u200Db'),
+      ('a lone regional indicator', 'a\u{1F1FA}b'),
+      ('text alone', 'hello, world'),
+      ('nothing', ''),
+    ]) {
+      test('$name is no run: a text glyph stays at the font size', () {
+        expect(EmojiRuns.of(text), isEmpty);
+      });
+    }
+
+    test('a run does not reach across a line break or a space', () {
+      expect(runs('$_thumbs\n$_thumbs $_thumbs'), [_thumbs, _thumbs, _thumbs]);
     });
   });
 }

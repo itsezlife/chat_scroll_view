@@ -115,16 +115,58 @@ The view imports no inset type.
   ends are lossless for every entity kind (a contract test pins it), keep
   newlines and a trailing space, and `RichText.toJson` is not a draft format.
   The composer ships no store helper.
-- **The selection menu** is the composer's own (`ComposerSelectionMenu`, the
-  reference client's floating toolbar), on every platform, not the platform's.
-  `ComposerSpec.formatting` says which items it may offer; an item whose
-  command cannot apply to the selection is left out, not greyed, and a
-  collapsed caret gets the clipboard items alone. The link items need
+- **The selection menu** is the composer's own (`ComposerSelectionMenu`), on
+  every platform, not the platform's: a two-page card. The main row holds the
+  clipboard actions and a More button; the More page slides in from the right
+  (300 ms, swipe right to close) and holds the clipboard actions that did not
+  fit the row, then the formatting actions, with a Back row. Sizes and fit are
+  Telegram's floating toolbar: main-row buttons 48 dp tall with 16 dp padding,
+  the 56 by 48 More button, labels 14 dp medium, page tiles 42 dp, and a page
+  as wide as its widest label (no label is ellipsized where the screen has the
+  room) showing four rows and half of a fifth before it scrolls; the card is
+  Material elevation 3. Every label is the host's `ChromeStrings`: Cut, Copy,
+  Paste and Select all from `editMenu`, the rest from `formatting`, never from
+  `MaterialLocalizations`.
+  `ComposerSpec.formatting` says which items it may offer, listed in the order
+  of `ComposerFormattingOption`; an item whose command cannot apply to the
+  selection is greyed, not hidden (Quote is left out over a quoted selection),
+  and a collapsed caret gets the page too, with only the line kinds and Link
+  enabled. Link is one item, Create or Edit, and needs
   `ComposerSpec.linkPrompt`, which receives the current URL when the selection
-  already holds a link. `ComposerSpec.backPriority` is the host's hook for
-  taking Back ahead of the soft keyboard while the menu is open. The overflow
-  page ("More") reshapes the card; Tab from the field enters the menu, and
-  Escape closes it. The clipboard labels are Material's.
+  already holds a link; Remove link shows while it does.
+  `ComposerSpec.backPriority` is the host's hook for taking Back ahead of the
+  soft keyboard while the menu is open; Back closes the whole menu from either
+  page. After an item the menu closes and the selection collapses to a caret at
+  its extent. Tab from the field enters the menu, and Escape closes it. The
+  clipboard labels are Material's, and the colours are `SelectionMenuTokens`
+  (build the chrome palette from a colour scheme with
+  `ChromePalette.fromColorScheme` for Material's own look).
+- **The pointer menu** is the desktop presentation of the field's menu, chosen
+  by `ComposerMenuPolicy` (`$Desktop` on macOS, Windows, Linux and the web;
+  `$Mobile`, no pointer menu, on touch platforms; pass `ComposerView.menuPolicy`
+  to choose). A secondary click in the field opens the reference desktop
+  client's context menu at the pointer, a pointer-anchored popup drawn by
+  `chrome_foundation`'s `PointerMenu`, and leaves the caret and selection
+  where they were (the press opens it on macOS and Linux, the release on
+  Windows; `ComposerMenuPolicy$Desktop.platformsOpeningOnPress` is the one
+  place that is written). The Menu key and Shift+F10 open it at the caret.
+  Rows, top to bottom: Undo, Redo, Cut, Copy, Paste (and Paste as plain text
+  while there is a rich clipboard), Delete, Formatting (Bold, Italic,
+  Underline, Strikethrough, Quote, Monospace, Spoiler, Code block, the list
+  rows while lists are on, Create link or Edit link and Remove link, Clear
+  formatting) and Select All, each with its shortcut hint in the platform's
+  native form. A row that cannot apply is greyed, never hidden; at a caret
+  every style row is greyed. Right-clicking a link with nothing selected
+  offers Edit link and edits that link. The Formatting submenu opens on hover
+  or Right; arrows, Enter, Space and Escape drive the menu, and the field
+  keeps focus and its painted selection throughout. Labels are
+  `ChromeStrings.editMenu` (Qt-style `&` mnemonics are drawn underlined), the
+  colours `ChromeThemeScope`'s pointer menu tokens. **Spelling** is a seam
+  only: give `ComposerSpec.spellChecker` a `ComposerSpellChecker` and the menu
+  shows a Spelling submenu for the word under the pointer; there is no
+  built-in checker. The floating toolbar stays for touch. Every value the
+  reference does not give is a named constant listed in
+  [ADR 026](../../docs/adr/026-composer-model.md)'s divergence table.
 - **IME composition.** While the composing range is non-empty the entities are
   not touched. When composition ends the whole composition is applied as one
   replacement against the text before it began. `richText` stays consistent
@@ -150,7 +192,7 @@ The view imports no inset type.
 | The host provides | The host must not |
 | --- | --- |
 | A `ComposerSpec` rebuilt from chat state, every action's `semanticLabel` (from `ChromeStrings.composer` or its own language), and for any panel other than the text field a `panelResolver`. | Mutate a spec, give two actions one id, or look for mode state in the composer. |
-| Above the view: `ChromeThemeScope`, `ChromeStringsScope`, a `Directionality`, a `MediaQuery` and Material localisations (the text selection menu). Optional: `GlassSourceScope`, `GlassQualityScope`, `ChromeMotionScope` (map `MediaQuery.disableAnimations` to instant speed), `ChromeIconScope` and an `AssetCacheProvider` when inline content is drawn. | Expect a default language, a silent light theme or reduce-motion read from the platform. |
+| Above the view: `ChromeThemeScope`, `ChromeStringsScope`, a `Directionality`, a `MediaQuery` and Material localisations (the text field reads them; the menus' labels do not). Optional: `GlassSourceScope`, `GlassQualityScope`, `ChromeMotionScope` (map `MediaQuery.disableAnimations` to instant speed), `ChromeIconScope` and an `AssetCacheProvider` when inline content is drawn. | Expect a default language, a silent light theme or reduce-motion read from the platform. |
 | The extent: `ComposerController.extent` plus `max(safe area, presentation occupancy)` into the chat's bottom padding, and as `safeAreaBottom` what a keyboard or panel has left of the safe area. | Expect the composer to know insets, the panel or the keyboard height. |
 | Icons for header kinds without a stock id (`forward`, `link`) through `ChromeIconScope`; any custom action icon the same way. | Expect an unregistered id to draw more than the neutral glyph. |
 | Query kinds (`registerQueryKind`) and the suggestion panels for them; the replacement `RichText` (with its mention or inline reference entity and any trailing space) passed to `replaceQuery`. | Expect the composer to look anything up, detect bare URLs or `@names` (entity detection is host-invoked, not viewport paint, [ADR 017](../../docs/adr/017-body-linkify-host-invoked.md)), or draw a suggestion panel. |
@@ -158,7 +200,8 @@ The view imports no inset type.
 | `entityStyles` (usually `ComposerEntityStyles.fromTokens` of the chrome theme) and an `inlineContentBuilder` whose span lays out as exactly the reference's alternative text length. | Return a span of another length: the field maps selection by text offsets (a debug assertion checks it). |
 | Mode state: reply or edit ids, banners, the busy flag. It loads an edited message with `restore(RichText)` and reads `sendableText` to send and `richText` to store a draft, both through `RichTextMarkdown`. | Look for reply, edit or enabled state on the controller, or store a draft as `toJson`. |
 | `messageLengthLimit` from its server configuration, a `confirmMention` over its own users when pastes may carry mentions, an `onPaste` when it offers to apply formatting, and the draft store with its debounce. Any trim (an emoji-only message skips it) before the send. | Count markdown source as the length, encode `richText` when it means to send, or expect the composer to trim. |
-| For the selection menu: `ComposerSpec.formatting` (which items; the default is every item but the list items), `ComposerSpec.linkPrompt` (the link dialog, given the current URL when the selection is linked; without it there is no link item), `ComposerSpec.backPriority` (the hook that takes Back ahead of the soft keyboard; the soft keyboard consumes Back before Flutter sees it, so without it Back closes the menu only where Flutter's own dispatch gets it), the labels in `ChromeStrings.formatting`, and the menu's tokens (`SelectionMenuTokens`) and motion roles from `chrome_foundation`. | Mount a `ComposerSelectionMenu` itself, expect a greyed item (an item that cannot apply is left out), or expect the platform's menu on any platform. |
+| For the pointer menu: `ChromeStrings.editMenu`, a `ChromeThemeScope` (it supplies the pointer menu tokens; `PointerMenuTokens.referenceDay` and `referenceNight` are the reference's own), optionally `ComposerView.menuPolicy` and `ComposerSpec.spellChecker`. | Expect a built-in spell checker, or the pointer menu on a touch platform. |
+| For the selection menu: `ComposerSpec.formatting` (which items; the default is every item but the list items), `ComposerSpec.linkPrompt` (the link dialog, given the current URL when the selection is linked; without it there is no link item), `ComposerSpec.backPriority` (the hook that takes Back ahead of the soft keyboard; the soft keyboard consumes Back before Flutter sees it, so without it Back closes the menu only where Flutter's own dispatch gets it), the labels in `ChromeStrings.formatting`, and the menu's tokens (`SelectionMenuTokens`) and its `menuEnter`, `menuLeave` and `menuPage` motion roles from `chrome_foundation`. | Mount a `ComposerSelectionMenu` itself, expect an item that cannot apply to vanish (it is greyed), or expect the platform's menu on any platform. |
 | The `softKeyboard` option, set while another surface stands in for the keyboard, and the focus commands. | Expect the controller to show or hide the keyboard or touch a platform channel; the field declares its input type from these inputs. |
 | Nothing for the field's reports: the view calls `reportFieldHeight`, `reportExtent` and `reportCaretAnchor` itself. | Call the `report...` methods, or read the anchor as exact: it may lag the text by a frame, and is `null` before the first report. |
 | Disposal of every controller, focus node and scroll controller it passed in. | Dispose what the composer created, or use a controller after it. |

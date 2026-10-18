@@ -1,6 +1,7 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
 import 'package:content_model/content_model.dart' as model show RichText;
 import 'package:content_model/content_model.dart' show RichClipboard;
 import 'package:flutter/material.dart';
@@ -503,6 +504,7 @@ final class MessageMenu {
               final content? => ChatCopy.selection(content),
               null => model.RichText.plain(text),
             });
+            ChatCopyFeedback.endSelection(selection);
             actions.onCopySelected?.call(text);
           case MessageMenuActionId.copyLink:
             final hit = request.inlineHit;
@@ -518,12 +520,12 @@ final class MessageMenu {
             final ids = request.overSelection
                 ? selectedSnapshot
                 : [request.messageId];
-            final copied = ChatCopy.messages([
-              for (final id in ids) ?dataSource.getMessage(id)?.text,
-            ]);
+            final copied = ChatMessagesCopyFormat.forPolicy(
+              selectionPolicy,
+            ).compose(ChatCopiedMessage.of(ids, dataSource));
             if (copied.isEmpty) return;
             await clipboard.write(copied);
-            if (request.overSelection) selection?.clear();
+            if (request.overSelection) ChatCopyFeedback.endSelection(selection);
             actions.onCopy?.call(copied.plain);
           case MessageMenuActionId.delete:
             if (request.overSelection) {

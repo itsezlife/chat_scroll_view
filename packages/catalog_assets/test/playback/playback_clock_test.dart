@@ -57,6 +57,56 @@ void main() {
     });
   });
 
+  group('the default pausing set', () {
+    test('every layer pauses but reducedMotion, which a host opts into', () {
+      const policy = PlaybackPolicy();
+
+      expect(
+        policy.pausingLayers,
+        PlaybackPauseLayer.values.toSet()
+          ..remove(PlaybackPauseLayer.reducedMotion),
+      );
+      expect(policy.pausingLayers, PlaybackPolicy.standardPausingLayers);
+    });
+
+    test('reduced motion alone leaves playback running', () {
+      clock
+        ..register(_Target(_ms(16)))
+        ..setPaused(PlaybackPauseLayer.reducedMotion, paused: true);
+
+      expect(clock.isPaused, isFalse);
+      expect(source.isRunning, isTrue);
+    });
+
+    test('a host that adds reducedMotion to the set pauses on it', () {
+      final strict = PlaybackClock(
+        ticks: ManualPlaybackTickSource(),
+        policy: const PlaybackPolicy(
+          pausingLayers: {
+            ...PlaybackPolicy.standardPausingLayers,
+            PlaybackPauseLayer.reducedMotion,
+          },
+        ),
+      )..setPaused(PlaybackPauseLayer.reducedMotion, paused: true);
+      addTearDown(strict.dispose);
+
+      expect(strict.isPaused, isTrue);
+    });
+
+    test('focus loss and an overlay pause by default', () {
+      for (final layer in [
+        PlaybackPauseLayer.appInactive,
+        PlaybackPauseLayer.overlayShown,
+      ]) {
+        final probe = PlaybackClock(ticks: ManualPlaybackTickSource())
+          ..setPaused(layer, paused: true);
+        addTearDown(probe.dispose);
+
+        expect(probe.isPaused, isTrue, reason: '$layer');
+      }
+    });
+  });
+
   group('the clock', () {
     test('asks the engine for frames only while something plays', () {
       expect(source.isRunning, isFalse);
@@ -88,6 +138,25 @@ void main() {
 
       expect(a.ticks, [_ms(16)]);
       expect(b.ticks, [_ms(16)]);
+    });
+
+    test('a pause of seconds costs one tick per target, on the first frame '
+        'after it, stamped with that frame', () {
+      final a = _Target(_ms(16));
+      final b = _Target(const Duration(microseconds: 33333));
+      clock
+        ..register(a)
+        ..register(b);
+      source.tick(_ms(16));
+
+      clock.setPaused(PlaybackPauseLayer.appInactive, paused: true);
+      source.tick(_ms(5000)); // not delivered: the source is stopped
+      clock.setPaused(PlaybackPauseLayer.appInactive, paused: false);
+      source.tick(_ms(10016));
+
+      expect(a.ticks, [_ms(16), _ms(10016)]);
+      expect(b.ticks, [_ms(16), _ms(10016)]);
+      expect(clock.now, _ms(10016));
     });
 
     test('a 30 fps target skips frames of a 60 fps display', () {

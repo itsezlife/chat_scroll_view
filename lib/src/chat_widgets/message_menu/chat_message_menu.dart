@@ -23,6 +23,14 @@ export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu
 /// The message menu: one session over a message — reactions, actions,
 /// dismiss and back — presented as a dimmed sheet or a pointer popup.
 abstract final class ChatMessageMenu {
+  /// The `RouteSettings.name` of the route a session is presented on.
+  ///
+  /// The session sits on the navigator stack, so a `NavigatorObserver` sees it
+  /// as any other modal route. A host that treats modal routes as covering the
+  /// chat (pausing its animations under them) tells this one apart by the
+  /// name: the menu leaves the message in view.
+  static const String routeName = 'chat_message_menu';
+
   /// Opens a message menu session over [messageRect].
   ///
   /// Completes with a [ChatMessageMenuResult] when the user chooses an
@@ -137,6 +145,7 @@ Future<ChatMessageMenuResult?> _showChatMessageMenuOverlay({
   // completes on tap so host work is not blocked by leave animation.
   late final RawDialogRoute<void> route;
   route = RawDialogRoute<void>(
+    settings: const RouteSettings(name: ChatMessageMenu.routeName),
     requestFocus: false,
     barrierDismissible: false,
     barrierColor: const Color(0x00000000),

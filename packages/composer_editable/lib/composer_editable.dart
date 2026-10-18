@@ -42,13 +42,14 @@ export 'src/widget/editable_text.dart'
 export 'src/widget/padded_viewport_offset.dart' show PaddedViewportOffset;
 export 'src/widget/render_editable.dart'
     show ExtendedRenderEditable, gutterClipRect;
+export 'src/widget/secondary_click.dart'
+    show ExtendedSecondaryClick, ExtendedSecondaryClickPhase;
 export 'src/widget/system_context_menu.dart' show ExtendedSystemContextMenu;
 export 'src/widget/text_selection.dart'
     show
         ExtendedClipboardStatusNotifier,
         ExtendedEmptyTextSelectionControls,
         ExtendedSelectionOverlay,
-        ExtendedSelfFadingToolbar,
         ExtendedTextSelectionControls,
         ExtendedTextSelectionGestureDetector,
         ExtendedTextSelectionGestureDetectorBuilder,
