@@ -137,6 +137,21 @@ sealed class EntityKind {
   /// [EntityStyle.quote].
   static const EntityKind$Style quote = EntityKind$Style(EntityStyle.quote);
 
+  /// Whether this is a style that wraps text and holds any other entity
+  /// beside it: every [EntityStyle] but [EntityStyle.code], which holds nothing
+  /// else, and [EntityStyle.quote], which takes whole lines.
+  bool get isTextStyle => switch (this) {
+    EntityKind$Style(:final style) =>
+      style != EntityStyle.code && style != EntityStyle.quote,
+    EntityKind$Link() ||
+    EntityKind$Mention() ||
+    EntityKind$InlineContent() ||
+    EntityKind$CodeBlock() ||
+    EntityKind$Username() ||
+    EntityKind$Hashtag() ||
+    EntityKind$List() => false,
+  };
+
   /// Whether editing inside a span of this kind removes the entity instead of
   /// resizing it.
   bool get isAtomic => switch (this) {

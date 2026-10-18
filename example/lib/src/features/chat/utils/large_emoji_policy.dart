@@ -8,7 +8,7 @@ import 'package:meta/meta.dart';
 /// made when the model was.
 ///
 /// The viewport never decides this: it lays out the body it is given. The host
-/// decides, as Telegram Android does (research 05, section 2):
+/// decides, as the reference client does:
 ///
 /// - the user keeps the large-emoji setting on ([enabled]);
 /// - the chat allows stickers ([stickersAllowed]), or the user is an admin of

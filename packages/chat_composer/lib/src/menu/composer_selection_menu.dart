@@ -9,6 +9,7 @@ import 'package:chat_composer/src/menu/selection_menu_layout.dart';
 import 'package:chat_composer/src/menu/selection_menu_metrics.dart';
 import 'package:chat_composer/src/shortcuts/composer_formatting_intents.dart';
 import 'package:chat_composer/src/spec/composer_spec.dart';
+import 'package:chat_composer/src/text/composer_link_edit.dart';
 import 'package:chat_composer/src/text/composer_text_controller.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:composer_editable/composer_editable.dart';
@@ -214,7 +215,7 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
   }
 
   // The selection's rectangle moved: hide while it keeps moving, but only once
-  // the menu has been up for the grace period (FloatingActionMode.java:300).
+  // the menu has been up for the grace period.
   void _onContentMoved() {
     if (!_graceElapsed && !_moving) return;
     _moving = true;
@@ -261,7 +262,7 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
 
   // The selection's bounds in global coordinates, clipped to the field's own
   // box (with the reference's 20 dp allowance below it); null when none of it
-  // is in view (FloatingActionMode.java:104, :175-195).
+  // is in view.
   Rect? _contentRect() {
     final editable = widget.editable;
     if (!editable.mounted) return null;
@@ -304,7 +305,7 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
     final delay = widget.motion.speed.scale(SelectionMenuTiming.dismissDelay);
     final completer = Completer<void>();
     // The reference holds the card for 150 ms, then fades it over 100 ms
-    // (FloatingToolbar.java:488-496), with no slide.
+    // with no slide.
     _dismissTimer = Timer(delay, () {
       if (!mounted) {
         completer.complete();
@@ -357,19 +358,13 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
   void _beginLink() {
     final prompt = widget.linkPrompt;
     if (prompt == null) return;
-    final text = widget.text;
-    final asked = text.richText;
-    final selection = text.selection;
-    final current = text.selectedLinkUrl;
     final context = widget.editable.context;
-    _afterDismiss = () async {
-      if (!context.mounted) return;
-      final url = await prompt(context, current);
-      // The prompt took time; a text that changed under it is another text.
-      if (url == null || !context.mounted || text.richText != asked) return;
-      text.selection = selection;
-      text.applyLink(url);
-    };
+    _afterDismiss = ComposerLinkEdit(
+      text: widget.text,
+      prompt: prompt,
+      context: context,
+      isAlive: () => context.mounted,
+    ).ask;
   }
 
   VoidCallback? _toggleList(EntityListKind kind) {

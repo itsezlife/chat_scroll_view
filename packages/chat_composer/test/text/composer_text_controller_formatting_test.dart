@@ -627,6 +627,34 @@ void main() {
       expect(controller.richText, code);
     });
 
+    group('canLink, whichever the URL', () {
+      test('is true over a plain selection and at a caret', () {
+        load(const RichText.plain(text), 0, 5);
+        expect(controller.canLink, isTrue);
+
+        load(const RichText.plain(text), 5);
+        expect(controller.canLink, isTrue);
+      });
+
+      test('is true over a link, even for the URL it already has', () {
+        load(RichText(text, const [Entity(0, 11, EntityKind.link('u'))]), 0, 5);
+
+        expect(controller.canLink, isTrue);
+        expect(controller.canApply(const EntityKind.link('u')), isFalse);
+      });
+
+      test('is false where a link is refused', () {
+        load(RichText(text, const [Entity(0, 5, EntityKind.code)]), 0, 5);
+        expect(controller.canLink, isFalse);
+
+        load(RichText('hi @al', const [Entity(3, 3, _mention)]), 0, 6);
+        expect(controller.canLink, isFalse);
+
+        load(RichText(text, const [Entity(0, 11, EntityKind.code)]), 5);
+        expect(controller.canLink, isFalse);
+      });
+    });
+
     test('is refused for a URL a link cannot have', () {
       load(const RichText.plain(text), 0, 5);
 

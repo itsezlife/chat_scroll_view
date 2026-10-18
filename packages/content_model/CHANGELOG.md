@@ -17,6 +17,8 @@ package is pre-1.0.
 
 ### Added
 
+- `EntityKind.isTextStyle`: whether a kind is a style that wraps text and
+  holds other entities beside it (every `EntityStyle` but code and quote).
 - `EntityDetection.apply(RichText, DetectionPolicy)` and
   `EntityDetection.strip`: bare URLs (`https://a.b/c`, `a.com`, `www.a.com`),
   emails (a `mailto:` link), `@name` (`EntityKind.username`) and `#tag`

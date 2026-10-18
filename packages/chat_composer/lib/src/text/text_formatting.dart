@@ -120,7 +120,7 @@ abstract final class TextFormatting {
         if (from == to) return null;
         return _rebuild(text, [
           for (final entity in text.entities)
-            if (_isTextStyle(entity.kind) || entity.kind is EntityKind$Link)
+            if (entity.kind.isTextStyle || entity.kind is EntityKind$Link)
               ..._cutInline(entity, from, to)
             else
               entity,
@@ -257,12 +257,6 @@ abstract final class TextFormatting {
       };
 
   static const int _newline = 0x0A;
-
-  static bool _isTextStyle(EntityKind kind) => switch (kind) {
-    EntityKind$Style(:final style) =>
-      style != EntityStyle.code && style != EntityStyle.quote,
-    _ => false,
-  };
 
   static bool _overlapsItems(RichText text, int start, int end) =>
       text.entities.any(

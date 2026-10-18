@@ -1727,7 +1727,7 @@ class ExtendedSelectionOverlay {
     );
   }
 
-  /// Ends finger-tracked drag; starts ~250ms easeOut settle (ticket 04 core).
+  /// Ends finger-tracked drag; starts ~250ms easeOut settle.
   void endFingerTrackedHandleDrag() {
     if (_fingerTrackedGrabbedHandle == null) {
       return;
@@ -1811,7 +1811,7 @@ class ExtendedSelectionOverlay {
     );
   }
 
-  /// Refreshes fixed-base snapshot when autoscroll moves content (ticket 11).
+  /// Refreshes fixed-base snapshot when autoscroll moves content.
   void _refreshFingerTrackedFixedLeaderSnapshotIfScrolled() {
     if (_fingerTrackedGrabbedHandle == null || _fingerTrackedSettling) {
       return;

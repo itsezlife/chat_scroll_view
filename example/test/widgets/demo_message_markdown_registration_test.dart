@@ -1,6 +1,7 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -22,6 +23,10 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          builder: (context, child) => ChromeThemeScope(
+            palette: const ChromePalette.dark(),
+            child: child!,
+          ),
           home: Scaffold(
             body: Center(
               child: SizedBox(

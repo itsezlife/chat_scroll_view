@@ -53,7 +53,7 @@ abstract final class CanonicalEntities {
     final items = <Entity>[];
     for (final entity in input) {
       _check(plain, entity);
-      if (_isTextStyle(entity.kind)) {
+      if (entity.kind.isTextStyle) {
         textStyles.add(entity);
       } else if (entity.kind is EntityKind$List) {
         items.add(entity);
@@ -199,18 +199,6 @@ void _shape(String plain, Entity entity, List<Entity> out) {
       throw StateError('Shaped separately: $entity');
   }
 }
-
-bool _isTextStyle(EntityKind kind) => switch (kind) {
-  EntityKind$Style(:final style) =>
-    style != EntityStyle.code && style != EntityStyle.quote,
-  EntityKind$Link() ||
-  EntityKind$Mention() ||
-  EntityKind$InlineContent() ||
-  EntityKind$CodeBlock() ||
-  EntityKind$Username() ||
-  EntityKind$Hashtag() ||
-  EntityKind$List() => false,
-};
 
 Entity _widenToLines(String plain, Entity entity) {
   var start = entity.offset;

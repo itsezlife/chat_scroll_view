@@ -42,8 +42,8 @@ import 'package:content_model/src/rich_text/rich_text.dart';
 /// quote or a fence. A marker is `-`, `*` or `+`, or up to nine digits and `.`
 /// or `)`, then a space; up to eight columns of indent are read, two a level,
 /// and a level deeper than three is three. An item with no text is an empty
-/// line. This is the shape job_solution's vendored encoder stored, so stored
-/// lists read back as items. The one addition: when the last line of an item
+/// line. This is the shape earlier stored lists were written in, so they read
+/// back as items. The one addition: when the last line of an item
 /// ends with two spaces of its own and another line follows, the last space is
 /// backslash-escaped, so it does not read as a soft break.
 ///

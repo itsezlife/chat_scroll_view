@@ -56,8 +56,7 @@ abstract final class ChatBodyMarkdown {
   /// other inline content keeps its `![alt](scheme:id)` form, with the alt text
   /// as the label.
   ///
-  /// An emoji-only text is not trimmed, as on Telegram Android (research 05,
-  /// the composer): the blank lines and spaces around its emoji are an
+  /// An emoji-only text is not trimmed, as in the reference client: the blank lines and spaces around its emoji are an
   /// arrangement the sender chose, and the receiver's layout honours them.
   static String encode(model.RichText text) {
     final kept = model.RichText(text.plain, [

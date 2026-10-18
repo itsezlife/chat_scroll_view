@@ -32,8 +32,8 @@ enum ChatEmojiLayoutKind {
   text,
 }
 
-/// A bubble-less message of nothing but emoji, laid out the way Telegram
-/// Android does.
+/// A bubble-less message of nothing but emoji, laid out the way the
+/// reference client does.
 ///
 /// The host classifies the text (`EmojiOnlyText.of`, once, when it
 /// materialises the message) and adds the facts only it has: that the message
@@ -51,9 +51,9 @@ enum ChatEmojiLayoutKind {
 ///   scale plays no part.
 ///
 /// A custom emoji is drawn through [embedFactory] and animates and loops. A
-/// unicode emoji in the text layout is a glyph at the step's font size (iOS
-/// and Desktop do this; Android draws the first frame of the animated
-/// sticker). The sticker of a unicode emoji plays when [autoplay] says so; a
+/// unicode emoji in the text layout is a glyph at the step's font size (some
+/// clients do this; the reference client draws the first frame of the
+/// animated sticker). The sticker of a unicode emoji plays when [autoplay] says so; a
 /// custom emoji's sticker always plays.
 ///
 /// ## Selection and taps
@@ -117,7 +117,7 @@ class ChatEmojiBody extends StatefulWidget {
   final ContentKey? sticker;
 
   /// Whether the sticker of a unicode emoji starts playing when it appears.
-  /// The host remembers what already played on this screen (Android plays it
+  /// The host remembers what already played on this screen (the reference client plays it
   /// the first time a chat shows it); a sticker held at its first frame
   /// plays on a tap.
   final bool autoplay;
@@ -126,7 +126,7 @@ class ChatEmojiBody extends StatefulWidget {
   /// wraps at [ChatEmojiSizes.headerWrapFraction] of the row's width.
   final bool hasHeader;
 
-  /// The sizes; Android's by default.
+  /// The sizes; the reference client's by default.
   final ChatEmojiSizes sizes;
 
   /// What a screen reader says, the plain text of the message. The default is
@@ -337,7 +337,7 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
         style: _style.copyWith(fontSize: _font, height: 1),
       ),
       textDirection: TextDirection.ltr,
-      // Android's sizes ignore the reader's text scale.
+      // The reference sizes ignore the reader's text scale.
       textScaler: TextScaler.noScaling,
     )..layout(),
   );
@@ -358,7 +358,7 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
     ) when messageId == widget.messageId && _isSticker) {
       // A held sticker plays, and a playing one is attached again. The cache
       // keeps one playback per entry and loops it, so this cannot rewind a
-      // sticker that is mid-way (see the report of ticket 14).
+      // sticker that is mid-way.
       setState(() {
         _replayed = true;
         _replays++;

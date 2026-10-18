@@ -75,8 +75,8 @@ The view imports no inset type.
   selection widens to hold it whole, and a delete that touches it removes all
   of it. `backspace` removes a whole reference, then one grapheme cluster.
 - **Formatting commands** (`toggleStyle`, `toggleCodeBlock`, `applyLink`,
-  `removeLink`, `clearFormatting`, with `isActive` / `canApply` for a menu's
-  state) change the entities of the selection and never the text, except
+  `removeLink`, `clearFormatting`, with `isActive` / `canApply` / `canLink`
+  for a menu's state) change the entities of the selection and never the text, except
   `applyLink` at a caret, which inserts the URL as linked text. A caret turns
   the others off, except the quote and code block, which act on the caret's
   line; there is no typing style, so text typed after a command is plain. What

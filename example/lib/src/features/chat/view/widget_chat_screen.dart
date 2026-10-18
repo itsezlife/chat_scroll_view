@@ -98,7 +98,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   late final ChatBodyHost _bodies;
   late final MappedValueListenable<bool, LargeEmojiPolicy> _emojiPolicy;
 
-  /// Demo chat facts that gate the large emoji (research 05, section 2): a
+  /// Demo chat facts that gate the large emoji: a
   /// chat that allows stickers, in which the user is no admin.
   static const bool _chatAllowsStickers = true;
   static const bool _isChatAdmin = false;
@@ -237,8 +237,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           case ChatInlineGesture.longPress:
             _onLinkLongPress(messageId, title, url);
         }
-      case ChatMentionActivated(:final kind, :final id, :final name):
-        _onMentionTap(kind, id, name);
+      // The host decides what a mention means: a resolved one opens the user it
+      // names; a username was only typed, so it is looked up by name first.
+      case ChatResolvedMentionActivated(:final id, :final name):
+        _showDemoSnack('User Profile: $name (id $id)');
+      case ChatUsernameMentionActivated(:final name):
+        _showDemoSnack('Resolving username: $name');
       case ChatHashtagActivated(:final tag):
         _showDemoSnack('Search: #$tag');
       case ChatEmbedActivated(:final target, :final alt):
@@ -267,17 +271,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           duration: Duration(seconds: 1),
         ),
       );
-  }
-
-  /// The host decides what a mention means: a resolved one opens the user it
-  /// names; a username was only typed, so it is looked up by name first.
-  void _onMentionTap(ChatMentionKind kind, String? id, String name) {
-    switch (kind) {
-      case ChatMentionKind.resolved:
-        _showDemoSnack('User Profile: $name (id $id)');
-      case ChatMentionKind.username:
-        _showDemoSnack('Resolving username: $name');
-    }
   }
 
   void _onLinkTap(int messageId, String title, String url) {

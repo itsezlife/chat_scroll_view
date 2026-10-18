@@ -55,16 +55,24 @@ sealed class ChatInlineHit {
     Offset? touchOrigin,
   }) = ChatInlineHit$Embed;
 
-  /// Creates a hit on a mention: `[@name](mention:id)` or
-  /// `[@name](username:name)`.
-  const factory ChatInlineHit.mention({
+  /// Creates a hit on a resolved mention, `[@name](mention:id)`: a user the
+  /// sender's app resolved, carrying the user's [id].
+  const factory ChatInlineHit.resolvedMention({
     required int messageId,
-    required ChatMentionKind kind,
     required String name,
-    String? id,
+    required String id,
     Path? contourPath,
     Offset? touchOrigin,
-  }) = ChatInlineHit$Mention;
+  }) = ChatInlineHit$Mention$Resolved;
+
+  /// Creates a hit on a typed username, `[@name](username:name)`: a name that
+  /// was not resolved to anyone, so it carries no id.
+  const factory ChatInlineHit.usernameMention({
+    required int messageId,
+    required String name,
+    Path? contourPath,
+    Offset? touchOrigin,
+  }) = ChatInlineHit$Mention$Username;
 
   /// Creates a hit on a hashtag: `[#tag](hashtag:tag)`.
   const factory ChatInlineHit.hashtag({
@@ -199,17 +207,6 @@ final class ChatInlineHit$Code extends ChatInlineHit {
       'contourPath: $contourPath, touchOrigin: $touchOrigin)';
 }
 
-/// Which of the two mention spellings a [ChatInlineHit.mention] came from.
-enum ChatMentionKind {
-  /// `[@name](mention:id)`: a user the sender's app resolved, carrying the
-  /// user's id.
-  resolved,
-
-  /// `[@name](username:name)`: a username typed in the text, not resolved to
-  /// anyone; it carries no id.
-  username,
-}
-
 /// An inline embed hit in a markdown message body.
 ///
 /// Carries the embed's [target] as the markup spells it (`unicode:1F44D`,
@@ -263,37 +260,27 @@ final class ChatInlineHit$Embed extends ChatInlineHit {
       'contourPath: $contourPath, touchOrigin: $touchOrigin)';
 }
 
-/// An inline mention hit in a markdown message body.
+/// An inline mention hit in a markdown message body: either a
+/// [ChatInlineHit$Mention$Resolved] or a [ChatInlineHit$Mention$Username].
+///
+/// The two spellings are separate variants because only one of them has an
+/// id: a switch over the pair is exhaustive and the id of a resolved mention
+/// is never null.
 @immutable
-final class ChatInlineHit$Mention extends ChatInlineHit {
-  /// Creates a mention hit descriptor.
-  ///
-  /// A [ChatMentionKind.resolved] mention has an [id]; a
-  /// [ChatMentionKind.username] has none.
+sealed class ChatInlineHit$Mention extends ChatInlineHit {
+  /// Base constructor for the mention variants.
   const ChatInlineHit$Mention({
     required this.messageId,
-    required this.kind,
     required this.name,
-    this.id,
     this.contourPath,
     this.touchOrigin,
-  }) : assert(
-         (kind == ChatMentionKind.resolved) == (id != null),
-         'a resolved mention has an id and a username has none',
-       );
+  });
 
   @override
   final int messageId;
 
-  /// Whether the mention is a resolved user or a typed username.
-  final ChatMentionKind kind;
-
-  /// The user's id of a [ChatMentionKind.resolved] mention; null for a
-  /// username.
-  final String? id;
-
   /// The label of a resolved mention as the text shows it (`@Ann`); the
-  /// username of a [ChatMentionKind.username] one.
+  /// username of a typed one.
   final String name;
 
   @override
@@ -301,13 +288,28 @@ final class ChatInlineHit$Mention extends ChatInlineHit {
 
   @override
   final Offset? touchOrigin;
+}
+
+/// A hit on a resolved mention, `[@name](mention:id)`.
+@immutable
+final class ChatInlineHit$Mention$Resolved extends ChatInlineHit$Mention {
+  /// Creates a resolved-mention hit descriptor.
+  const ChatInlineHit$Mention$Resolved({
+    required super.messageId,
+    required super.name,
+    required this.id,
+    super.contourPath,
+    super.touchOrigin,
+  });
+
+  /// The id of the user the sender's app resolved the mention to.
+  final String id;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ChatInlineHit$Mention &&
+      other is ChatInlineHit$Mention$Resolved &&
           other.messageId == messageId &&
-          other.kind == kind &&
           other.id == id &&
           other.name == name &&
           other.contourPath == contourPath &&
@@ -315,12 +317,43 @@ final class ChatInlineHit$Mention extends ChatInlineHit {
 
   @override
   int get hashCode =>
-      Object.hash(messageId, kind, id, name, contourPath, touchOrigin);
+      Object.hash(messageId, id, name, contourPath, touchOrigin);
 
   @override
   String toString() =>
-      r'ChatInlineHit$Mention(messageId: '
-      '$messageId, kind: $kind, id: $id, name: $name, '
+      r'ChatInlineHit$Mention$Resolved(messageId: '
+      '$messageId, id: $id, name: $name, '
+      'contourPath: $contourPath, touchOrigin: $touchOrigin)';
+}
+
+/// A hit on a typed username, `[@name](username:name)`: not resolved to
+/// anyone, so it carries only the name.
+@immutable
+final class ChatInlineHit$Mention$Username extends ChatInlineHit$Mention {
+  /// Creates a username-mention hit descriptor.
+  const ChatInlineHit$Mention$Username({
+    required super.messageId,
+    required super.name,
+    super.contourPath,
+    super.touchOrigin,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatInlineHit$Mention$Username &&
+          other.messageId == messageId &&
+          other.name == name &&
+          other.contourPath == contourPath &&
+          other.touchOrigin == touchOrigin;
+
+  @override
+  int get hashCode => Object.hash(messageId, name, contourPath, touchOrigin);
+
+  @override
+  String toString() =>
+      r'ChatInlineHit$Mention$Username(messageId: '
+      '$messageId, name: $name, '
       'contourPath: $contourPath, touchOrigin: $touchOrigin)';
 }
 

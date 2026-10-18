@@ -633,7 +633,8 @@ What the host wires so a markdown body paints and reports the inline layer
    the particle colour follows the hidden text, and the engine takes no other.
 4. **Mentions, usernames and hashtags.** Colour them with
    `MarkdownThemeData.mentionColor` (they follow the link colour otherwise).
-   Taps are `ChatMentionActivated` (resolved or username, told apart by `kind`)
+   Taps are `ChatResolvedMentionActivated` (with the user's `id`) or
+   `ChatUsernameMentionActivated` (no id), both a `ChatMentionActivated`,
    and `ChatHashtagActivated`; a link inside a hidden spoiler reveals it and
    reports nothing.
 

@@ -16,7 +16,10 @@ void main() {
   var linkAsked = 0;
 
   setUp(() {
-    text = ComposerTextController();
+    // The field's list editing is on, as in a composer built with lists: the
+    // menu's list items follow the host's command (`toggleList`) and, below,
+    // the controller's own switch.
+    text = ComposerTextController(lists: true);
     linkAsked = 0;
   });
   tearDown(() => text.dispose());
@@ -313,6 +316,17 @@ void main() {
       );
       expect(
         kinds(lists: true),
+        isNot(contains(SelectionMenuItemKind.bulletList)),
+      );
+    });
+
+    test('a controller with list editing off offers no list item', () {
+      text.dispose();
+      text = ComposerTextController();
+      select(plain, 4, 7);
+
+      expect(
+        kinds(options: ComposerFormattingOption.all, lists: true),
         isNot(contains(SelectionMenuItemKind.bulletList)),
       );
     });

@@ -9,7 +9,7 @@ import 'package:content_model/src/rich_text/entity_kind.dart';
 /// Internal to [EntityDetection]: it reports candidates, and the caller
 /// decides which survive (exclusions, overlaps, the budget).
 ///
-/// The shape is Telegram Android's `LinkifyPort.WEB_URL`, written as a scanner
+/// The shape is the reference client's web-URL pattern, written as a scanner
 /// instead of a regular expression so the cost stays linear whatever the text
 /// holds (a backtracking engine is quadratic on a long run of dotted labels):
 ///
@@ -306,7 +306,7 @@ class _Scan {
     return IanaTopLevelDomains.contains(label);
   }
 
-  /// Android's `xn\-\-[\w\-]{0,58}\w`: the rest of a punycode label.
+  /// The reference client's `xn\-\-[\w\-]{0,58}\w`: the rest of a punycode label.
   static bool _isPunycodeTail(String label) {
     if (label.length > 63) return false;
     for (var k = 4; k < label.length; k++) {
@@ -423,7 +423,7 @@ class _Scan {
       unit == 0x22;
 
   /// Letters and digits of every script, as a host label or a path takes
-  /// them (Android's `UCS_CHAR`), minus the punctuation, symbol and emoji
+  /// them (the reference client's character class), minus the punctuation, symbol and emoji
   /// blocks that class lets through.
   static bool _isLabelCodePoint(int cp) {
     if (cp < 0x80) return _isAsciiAlnum(cp);

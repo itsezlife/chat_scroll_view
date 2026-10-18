@@ -62,7 +62,7 @@ final class EmojiOnly {
   String toString() => 'EmojiOnly($items)';
 }
 
-/// Telegram Android's rule for a message that is nothing but emoji, over a
+/// The reference client's rule for a message that is nothing but emoji, over a
 /// [RichText].
 ///
 /// A host calls [of] when it materialises a message and passes the result on
@@ -72,7 +72,7 @@ final class EmojiOnly {
 ///
 /// ## The rule
 ///
-/// This is the permissive superset of Android's `Emoji.parseEmojis`, with no
+/// This is the permissive superset of the reference client's emoji parse, with no
 /// cap on the count:
 ///
 /// - Every character belongs to an emoji sequence, or is a space, `\n`, `\t`
@@ -91,16 +91,16 @@ final class EmojiOnly {
 ///   code block or list item disqualifies, and so does inline content of
 ///   another key.
 ///
-/// ## Where it differs from Android
+/// ## Where it differs from the reference client
 ///
-/// - Android gets the BMP set from its emoji table (`EmojiData.dataCharsMap`).
+/// - The reference client gets the BMP set from its emoji table.
 ///   `content_model` depends on no workspace package, so the set is a constant
 ///   here, taken from the emoji catalogue; `emoji_data` has a test that fails
 ///   when the two disagree.
 /// - A code point of `U+1F000` to `U+1FFFF` counts without a table lookup, as
-///   it does on Android. So does a Fitzpatrick modifier with no emoji before
+///   it does there. So does a Fitzpatrick modifier with no emoji before
 ///   it. Whether a glyph exists for it is a drawing fact, not this rule's.
-/// - Android lets a ZWJ followed by a non-emoji character through without
+/// - The reference client lets a ZWJ followed by a non-emoji character through without
 ///   counting the character; here the character disqualifies, since it is not
 ///   part of a sequence.
 abstract final class EmojiOnlyText {
@@ -261,7 +261,7 @@ bool _isBmpEmoji(int codePoint) {
 }
 
 /// Inclusive `start, end` pairs, ascending: the first BMP code point of every
-/// key of the emoji catalogue (Unicode Emoji 18.0) in Android's window, `©`,
+/// key of the emoji catalogue (Unicode Emoji 18.0) in the reference client's window, `©`,
 /// `®` and `U+203C` to `U+3299`.
 ///
 /// A digit, `#` and `*` are not here; they are emoji only inside a keycap.

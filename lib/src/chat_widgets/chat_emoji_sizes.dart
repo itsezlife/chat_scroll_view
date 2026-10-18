@@ -5,16 +5,16 @@ import 'package:catalog_assets/catalog_assets.dart' show AssetPresets;
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:meta/meta.dart';
 
-/// The sizes of an emoji-only body: Telegram Android's tables as a value the
-/// host may override.
+/// The sizes of an emoji-only body: the reference client's tables as a value
+/// the host may override.
 ///
 /// ## Text layout
 ///
 /// A font step is chosen by how many items the message has and by whether
-/// every one of them is a custom emoji (`MessageObject.java:2114-2148`): a
+/// every one of them is a custom emoji: a
 /// custom emoji is drawn from an image, so a message of them takes one step
 /// larger than one that holds a unicode glyph. The default tables are
-/// Android's, read from `Theme.java:8602-8606` (`emojiSizePercents × 120`):
+/// the reference client's (its size percentages of 120 dp):
 ///
 /// | Items | All custom | Otherwise |
 /// | --- | --- | --- |
@@ -27,24 +27,24 @@ import 'package:meta/meta.dart';
 ///
 /// An item takes a square of its font size plus [boxPadding] (4 dp). The
 /// steps do not depend on the text scale: a reader who enlarged the text
-/// still sees the emoji at Android's size.
+/// still sees the emoji at the reference size.
 ///
 /// ## Sticker layout
 ///
 /// A lone emoji is a sticker of `min(viewport width, height) ×
 /// [stickerViewportFraction] × [stickerZoom]` (112.5 dp on a 360 dp phone;
-/// `ChatMessageCell.java:9627-9638`, zoom from the server's
-/// `emojies_animated_zoom`), set in a [stickerInset] margin. Android's phone
+/// the zoom is the server's animated-emoji zoom), set in a [stickerInset]
+/// margin. The reference client's phone
 /// rule is kept as it is: on a wide window the same rule gives a larger
 /// sticker, and a host that wants a cap passes its own fractions.
 ///
 /// ## Wrap
 ///
 /// With a reply or forward header above, the text wraps at
-/// [headerWrapFraction] of the row's width (`MessageObject.java:8455-8457`).
+/// [headerWrapFraction] of the row's width.
 @immutable
 final class ChatEmojiSizes {
-  /// Creates the sizes; the defaults are Android's.
+  /// Creates the sizes; the defaults are the reference client's.
   ///
   /// [allCustomSteps] and [mixedSteps] hold, for the counts 1 to 6 and then
   /// 7 and more, an index into [fontSteps].
@@ -65,7 +65,7 @@ final class ChatEmojiSizes {
          'The sticker rule takes positive fractions.',
        );
 
-  /// Android's six font steps in dp, largest first.
+  /// The reference client's six font steps in dp, largest first.
   static const List<double> androidFontSteps = [
     81.6,
     55.2,

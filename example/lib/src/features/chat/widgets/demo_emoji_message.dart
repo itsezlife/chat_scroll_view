@@ -12,7 +12,7 @@ const Color _kServiceText = Color(0xFFFFFFFF);
 const Color _kSelectedTint = Color(0xFF2B5278);
 
 /// An emoji-only message: the viewport's [ChatEmojiBody] without a bubble,
-/// with the chrome the host places around it (research 05, section 3.3):
+/// with the chrome the host places around it:
 ///
 /// - the **time pill** over the body's bottom trailing corner, on the service
 ///   colour, with a corner radius of 4 for the text layout and 12 for a

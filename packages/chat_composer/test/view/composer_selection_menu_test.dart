@@ -401,6 +401,55 @@ void main() {
       expect(MenuRig.item(SelectionMenuItemKind.italic), findsNothing);
     });
 
+    testWidgets('a composer with lists on offers Bullet and Numbered', (
+      tester,
+    ) async {
+      final rig = await MenuRig.show(
+        tester,
+        size: const Size(800, 900),
+        controller: ComposerController(
+          text: ComposerTextController(lists: true),
+        ),
+        spec: ComposerSpec(formatting: ComposerFormattingOption.all),
+      );
+      addTearDown(rig.composer.dispose);
+      if (MenuRig.more.evaluate().isNotEmpty) await rig.openMore();
+      // The page builds its rows lazily: scroll to the last of the three.
+      await tester.scrollUntilVisible(
+        MenuRig.item(SelectionMenuItemKind.numberedList),
+        42,
+        scrollable: find
+            .descendant(of: MenuRig.card, matching: find.byType(Scrollable))
+            .first,
+      );
+
+      expect(MenuRig.item(SelectionMenuItemKind.bulletList), findsOneWidget);
+      expect(MenuRig.item(SelectionMenuItemKind.numberedList), findsOneWidget);
+      expect(find.text(_strings.bulletListAction), findsOneWidget);
+      expect(find.text(_strings.numberedListAction), findsOneWidget);
+    });
+
+    testWidgets('a composer with lists off shows no list item', (tester) async {
+      final rig = await MenuRig.show(
+        tester,
+        size: const Size(800, 900),
+        spec: ComposerSpec(formatting: ComposerFormattingOption.all),
+      );
+      if (MenuRig.more.evaluate().isNotEmpty) await rig.openMore();
+      // Scrolled to Code block, after which the list items would sit.
+      await tester.scrollUntilVisible(
+        MenuRig.item(SelectionMenuItemKind.codeBlock),
+        42,
+        scrollable: find
+            .descendant(of: MenuRig.card, matching: find.byType(Scrollable))
+            .first,
+      );
+
+      expect(MenuRig.item(SelectionMenuItemKind.codeBlock), findsOneWidget);
+      expect(MenuRig.item(SelectionMenuItemKind.bulletList), findsNothing);
+      expect(MenuRig.item(SelectionMenuItemKind.numberedList), findsNothing);
+    });
+
     testWidgets('select all keeps the menu up over the whole text', (
       tester,
     ) async {

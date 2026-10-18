@@ -67,7 +67,7 @@ class SystemChatMessage extends ChatMessage {
 /// Parses [content] into [body] at construction so markdown work stays off the
 /// widget mount / recycle path, and classifies it as emoji-only
 /// ([emojiOnly]) in the same place for the same reason: the viewport never
-/// re-detects (ticket 08, `ChatEmojiBody`).
+/// re-detects (`ChatEmojiBody`).
 class UserChatMessage extends ChatMessage {
   /// Creates a user-authored row and parses [content] into [body] once.
   UserChatMessage({
@@ -99,7 +99,7 @@ class UserChatMessage extends ChatMessage {
   final EmojiOnly? emojiOnly;
 
   /// Whether the message carries media, a link preview included: a media
-  /// message is never shown as the emoji-only body (research 05, section 1).
+  /// message is never shown as the emoji-only body.
   final bool hasMedia;
 
   /// Original markdown source (same as [Markdown.markdown]).

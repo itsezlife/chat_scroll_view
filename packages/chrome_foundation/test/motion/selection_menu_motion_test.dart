@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   const motion = ChromeMotion.standard();
 
-  group('menu roles (research 17 #26-#33)', () {
+  group('menu roles', () {
     test('the whole toolbar enters in 150 ms and leaves in 100 ms', () {
       expect(
         motion[MotionRole.menuEnter].duration,

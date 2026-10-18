@@ -36,7 +36,7 @@ What a body can hold besides text:
 | In the text | Painted as | A tap reaches the host as |
 | --- | --- | --- |
 | `![alt](scheme:id)` | An inline embed from the body's `embedResolver`; the alt text where nothing resolves | `ChatInlineHit.embed` / `ChatEmbedActivated`, only with `handlesEmbedHits` |
-| `[@name](mention:id)`, `[@name](username:name)` | Mention colour, no underline | `ChatInlineHit.mention` / `ChatMentionActivated` (`kind` says which; a username has no id) |
+| `[@name](mention:id)`, `[@name](username:name)` | Mention colour, no underline | `ChatInlineHit.resolvedMention` / `ChatResolvedMentionActivated` (with the user's `id`), `ChatInlineHit.usernameMention` / `ChatUsernameMentionActivated` (no id); both are a `ChatMentionActivated` |
 | `[#tag](hashtag:tag)` | Mention colour, no underline | `ChatInlineHit.hashtag` / `ChatHashtagActivated` |
 | `[text](https://...)` | Link colour, underline | `ChatInlineHit.link` / `ChatLinkActivated` |
 | `\|\|text\|\|` | Hidden under moving dust until the message is revealed | A tap reveals the whole message and reports no hit |
@@ -52,7 +52,7 @@ reveals the message ([ADR 037](docs/adr/037-spoiler-and-mention-inline-styles.md
 | --- | --- |
 | One stable `InlineEmbedResolver` per body setup (`ContentEmbedResolver` over its `AssetCacheScope`, or its own composition by scheme) as `ChatMarkdownBody.embedResolver` | Build a new resolver per build (the engine resolves every embed again), or send a bare emoji character expecting an embed: only `![alt](scheme:id)` is one |
 | `ChatSelectionController(handlesEmbedHits: true)` when `ChatEmbedActivated` means something (a sticker preview, a pack sheet) | Expect an embed to be tappable by default: without it an embed is text, with the text cursor and no press highlight, and a tap on it is a tap on the message |
-| A reaction to `ChatMentionActivated` and `ChatHashtagActivated` (through `onInteraction` or a listener), using `id` to open a user | Read a mention's label as who it is, or look for mentions among `ChatLinkActivated` |
+| A reaction to `ChatMentionActivated` and `ChatHashtagActivated` (through `onInteraction` or a listener), using the `id` of a `ChatResolvedMentionActivated` to open a user | Read a mention's label as who it is, or look for mentions among `ChatLinkActivated` |
 | `ChatSelectionController(spoilerClock: scope.clock)`, the asset cache's `PlaybackClock`, so the dust moves on the shared clock and its pause layers | Run a ticker of its own for the dust (without the clock the dust stands still), or persist what `ChatSelectionController.spoilers` holds: reveal state is in memory |
 | `copyWriter` reading `ChatTextCopy.content` by style bit (`MD$Style.mention`, `image`, `spoiler`) when it keeps formatting on the clipboard | Detect a mention by its URL, or expect `plainText` to carry markdown: it is the revealed text with an embed's alt |
 

@@ -71,7 +71,7 @@ abstract final class AssetPresets {
   /// square of 1.2 times that, rounded to whole device pixels at
   /// [devicePixelRatio].
   ///
-  /// This is the rule of Telegram Android's inline custom emoji: the box
+  /// This is the reference client's rule for inline custom emoji: the box
   /// follows the font's vertical metrics, not its em, because an emoji is
   /// wider than the em of the font it sits in. Every embed of a paragraph
   /// takes the same metrics, so they share one spec and one cache entry per
@@ -116,7 +116,7 @@ abstract final class AssetPresets {
   ///
   /// For a surface that knows only the font size of its text. A body that
   /// lays text out has the ascent and descent and uses [inlineMessage]
-  /// instead, which is the rule that matches Telegram. Plays and loops while
+  /// instead, which is the reference client's rule. Plays and loops while
   /// visible unless [animate] is false.
   static AssetPreset inlineFontSize({
     required double fontSize,
@@ -136,7 +136,7 @@ abstract final class AssetPresets {
   ///
   /// A step is a font size in logical pixels, so this package does not know
   /// the viewport's table of steps. Each step is its own size and so its own
-  /// cache entry, as Android's cache types are; the same step at the same
+  /// cache entry, as the reference client's cache types are; the same step at the same
   /// density is one. Custom emoji animate and loop; pass [animate] false for
   /// an item that is a still.
   static AssetPreset emojiOnly({
@@ -187,8 +187,8 @@ abstract final class AssetPresets {
     profile: profile,
   );
 
-  /// Logical pixels an emoji-only item's box adds to its font size (Telegram
-  /// Android's `font + 4 dp`).
+  /// Logical pixels an emoji-only item's box adds to its font size (the
+  /// reference client's `font + 4 dp`).
   static const double emojiOnlyBoxPadding = 4;
 
   static const double _inlineExtentPerLine = 1.2;

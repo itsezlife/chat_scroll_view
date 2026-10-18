@@ -4,6 +4,8 @@ import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:composer_editable/composer_editable.dart';
+import 'package:content_model/content_model.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/composer_harness.dart';
@@ -165,5 +167,89 @@ void main() {
     expect(data.flagsCollection.isMultiline, isTrue);
     expect(data.label, 'Message');
     handle.dispose();
+  });
+
+  group('the list gutter', () {
+    final items = RichText('Apple\nPear\nPlain', const [
+      Entity(0, 5, EntityKind.list(listKind: EntityListKind.bullet)),
+      Entity(6, 4, EntityKind.list(listKind: EntityListKind.ordered)),
+    ]);
+    final formatting = ChromeStringsPresets.english.formatting;
+
+    Future<void> showList(WidgetTester tester, {bool lists = true}) async {
+      final listed = ComposerController(
+        text: ComposerTextController(initial: items, lists: lists),
+      );
+      addTearDown(listed.dispose);
+      controller = listed;
+      await show(tester, ComposerSpec());
+    }
+
+    // The markers are nodes of their own, which belong to no widget, so they
+    // are found in the semantics tree rather than by a finder.
+    Map<String, SemanticsNode> spoken(WidgetTester tester) {
+      final found = <String, SemanticsNode>{};
+      void visit(SemanticsNode node) {
+        final label = node.getSemanticsData().label;
+        if (label.isNotEmpty) found[label] = node;
+        node.visitChildren((child) {
+          visit(child);
+          return true;
+        });
+      }
+
+      visit(tester.binding.renderViews.first.debugSemantics!);
+      return found;
+    }
+
+    testWidgets('speaks each marker from the strings', (tester) async {
+      final handle = tester.ensureSemantics();
+      await showList(tester);
+
+      expect(
+        spoken(tester).keys,
+        containsAll([
+          formatting.bulletListItem,
+          formatting.numberedListItem(1),
+        ]),
+      );
+      handle.dispose();
+    });
+
+    testWidgets('puts each label beside its own line, in the gutter', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await showList(tester);
+
+      final nodes = spoken(tester);
+      final bullet = nodes[formatting.bulletListItem]!;
+      final numbered = nodes[formatting.numberedListItem(1)]!;
+      expect(numbered.rect.top, greaterThan(bullet.rect.top));
+      expect(numbered.rect.height, bullet.rect.height);
+      expect(bullet.rect.width, greaterThan(0));
+      handle.dispose();
+    });
+
+    testWidgets('follows the text: a removed item is not spoken', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await showList(tester);
+
+      controller.restore(const RichText.plain('none'));
+      await tester.pump();
+
+      expect(spoken(tester).keys, isNot(contains(formatting.bulletListItem)));
+      handle.dispose();
+    });
+
+    testWidgets('a text with lists off has no marker to speak', (tester) async {
+      final handle = tester.ensureSemantics();
+      await showList(tester, lists: false);
+
+      expect(spoken(tester).keys, isNot(contains(formatting.bulletListItem)));
+      handle.dispose();
+    });
   });
 }

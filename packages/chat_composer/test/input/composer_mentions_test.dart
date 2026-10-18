@@ -8,6 +8,7 @@ library;
 
 import 'package:chat_composer/chat_composer.dart';
 import 'package:content_model/content_model.dart';
+import 'package:content_model/markdown.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:flutter_test/flutter_test.dart';
@@ -105,6 +106,17 @@ void main() {
 
     test('keeps a mention restored for editing', () {
       composer.restore(_hiAlice('u1'));
+
+      expect(composer.sendableText, _hiAlice('u1'));
+    });
+
+    test('keeps the mentions of a draft decoded from its stored markdown', () {
+      // A restored draft is the host's own earlier state, whichever session
+      // wrote it, so restore trusts its mentions: the ones to doubt are those
+      // a paste brings in.
+      final stored = RichTextMarkdown.encode(_hiAlice('u1'));
+
+      composer.restore(RichTextMarkdown.decode(stored));
 
       expect(composer.sendableText, _hiAlice('u1'));
     });
