@@ -63,7 +63,7 @@ final class FakeInlineEmbedResolver implements InlineEmbedResolver {
     asked.add(target);
     if (!schemes.contains(target.scheme)) return null;
     final embed = FakeInlineEmbed(
-      sizeHint: Size.square(metrics.fontSize * 1.2),
+      sizeHint: Size.square(1.2 * (metrics.ascent + metrics.descent)),
     );
     made.add(embed);
     return embed;
