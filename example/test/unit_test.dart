@@ -33,6 +33,7 @@ import 'features/chat/joined_collection_source_test.dart'
     as joined_collection_source_test;
 import 'features/chat/large_emoji_test.dart' as large_emoji_test;
 import 'features/chat/link_activation_test.dart' as link_activation_test;
+import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
 import 'features/chat/sticker_interaction_stub_test.dart'
     as sticker_interaction_stub_test;
 import 'glyph_probe_wiring_test.dart' as glyph_probe_wiring_test;
@@ -132,6 +133,10 @@ void main() {
   );
   group('features/chat/large_emoji_test.dart', large_emoji_test.main);
   group('features/chat/link_activation_test.dart', link_activation_test.main);
+  group(
+    'features/chat/spoiler_round_trip_test.dart',
+    spoiler_round_trip_test.main,
+  );
   group(
     'features/chat/sticker_interaction_stub_test.dart',
     sticker_interaction_stub_test.main,

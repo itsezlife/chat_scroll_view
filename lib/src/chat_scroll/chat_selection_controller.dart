@@ -237,8 +237,10 @@ class ChatSelectionController implements Listenable {
   /// It lives with the facade, not in a widget, so a revealed message stays
   /// revealed when its row is virtualised away and mounted again, and an
   /// edit-morph twin shows the state of the live body. In memory only. A text
-  /// selection that enters a hidden spoiler reveals the message; a host that
-  /// wants another rule reads and writes the controller directly.
+  /// selection over a hidden spoiler leaves it hidden (the selection is
+  /// painted under the particles and its copy carries the spoiler style, as on
+  /// Android and Desktop); a host that wants iOS's rule, reveal on selection,
+  /// calls [MarkdownSpoilerController.reveal] from its own listener.
   ///
   /// The facade owns the controller's `tapReveals`: it is false exactly while
   /// [isSelectionMode] is, so a tap that toggles a row never also reveals the
@@ -789,9 +791,6 @@ class ChatSelectionController implements Listenable {
       } else {
         _hasEstablishedTextRange = true;
         _lastSameDocTextSelection = sel;
-        // A word under a hidden spoiler: the range listener skipped this
-        // commit (it is pending), so reveal here.
-        _text.revealSpoilersCoveredBy(sel);
         selectionPolicy.applyEnterMembership(
           replaceSelectedIds: replaceSelectedIds,
           clearMessageSelection: _clearMessageIds,
@@ -1450,7 +1449,6 @@ class ChatSelectionController implements Listenable {
           }
           _hasEstablishedTextRange = true;
           _lastSameDocTextSelection = sel;
-          _text.revealSpoilersCoveredBy(sel);
         }
       case _ when _text.isActive && _hasEstablishedTextRange:
         clearTextSelection();

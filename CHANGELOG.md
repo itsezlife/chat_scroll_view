@@ -54,10 +54,18 @@
 - `ChatSelectionController.spoilers`: the `MarkdownSpoilerController` of the
   viewport, keyed by message id, so a revealed message stays revealed when its
   row is mounted again. A tap on a spoiler reveals the message; a tap on a
-  link, mention or embed inside a hidden spoiler reveals and reports no hit;
-  a text selection that enters a hidden spoiler reveals it.
+  link, mention or embed inside a hidden spoiler reveals and reports no hit.
   `ChatSelectionController(spoilerClock:)` feeds the dust from the asset
   cache's `PlaybackClock`; without it the dust stands still.
+- **BREAKING**: a text selection over a hidden spoiler no longer reveals it,
+  and `ChatTextSelection.revealSpoilersCoveredBy` is gone. The selection is
+  made and painted with the spoiler still hidden (the tint under the
+  particles), as on Android and Desktop; the copy carries the spoiler style
+  (`ChatTextCopy.content`), so a host that writes `EntityKind.spoiler` to the
+  rich clipboard pastes a spoiler into the composer, and `plainText` carries
+  the characters under it. A host that followed iOS (select to reveal) calls
+  `spoilers.reveal(messageId)` from its own `onInteraction`. Existing tests
+  that asserted `isRevealed` after a selection will see `false`. ADR 037.
 - While a message selection is live (committed, or a drag-selection preview) a
   tap on a hidden spoiler toggles the row and leaves the spoiler hidden, as on
   Android; the facade writes `spoilers.tapReveals` from `isSelectionMode`.
