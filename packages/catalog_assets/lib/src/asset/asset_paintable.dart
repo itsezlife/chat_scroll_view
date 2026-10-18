@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:catalog_assets/src/asset/asset_profile.dart';
 import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
 import 'package:meta/meta.dart';
 
@@ -13,6 +14,8 @@ final class AssetPaintContext {
     this.opacity = 1,
     this.time = Duration.zero,
     this.animate = true,
+    this.loop = true,
+    this.restFrame = AssetRestFrame.first,
   }) : assert(opacity >= 0 && opacity <= 1, 'opacity must be within 0..1');
 
   /// Colour a template asset (`AssetDecodeMode.template`) is drawn in, and the
@@ -33,6 +36,14 @@ final class AssetPaintContext {
   /// its playback state, and is shared by every surface of its entry, does
   /// not step for a paint that does not animate and shows the frame it is at.
   final bool animate;
+
+  /// Whether the surface wants another pass after the last frame
+  /// (`AssetProfile.loop`). A paintable that plays a frame sequence holds its
+  /// rest frame at the end of a pass instead of wrapping when this is false.
+  final bool loop;
+
+  /// The frame a pass rests on when [loop] is false (`AssetProfile.restFrame`).
+  final AssetRestFrame restFrame;
 }
 
 /// The thing a surface paints for an asset: the best stage the entry has
@@ -69,6 +80,18 @@ abstract interface class AssetPaintable {
   /// Whether the picture changes with [AssetPaintContext.time]. A still is
   /// never registered with the playback clock, so it costs no ticks.
   bool get isAnimated;
+
+  /// Whether a pass that was painted with `AssetPaintContext.loop` false has
+  /// played its last frame and the paintable now holds its rest frame.
+  ///
+  /// A holding paintable changes nothing on later paints that do not loop.
+  /// Always false for a paintable that does not animate.
+  bool get isHolding;
+
+  /// Plays another pass from the first frame if the paintable is holding, and
+  /// says whether it did. Does nothing, returning false, while a pass is
+  /// running: a pass in progress is never rewound.
+  bool restart();
 
   /// Paints into [rect] of [canvas].
   void paint(Canvas canvas, Rect rect, AssetPaintContext context);

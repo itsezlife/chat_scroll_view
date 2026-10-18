@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:catalog_assets/src/asset/asset_paintable.dart';
+import 'package:catalog_assets/src/asset/asset_playback.dart';
 import 'package:catalog_assets/src/asset/asset_profile.dart';
 import 'package:catalog_assets/src/asset/asset_readiness.dart';
 import 'package:catalog_assets/src/asset/asset_spec.dart';
@@ -59,6 +60,28 @@ abstract interface class AssetBinding implements Listenable {
   /// animates, it is [visible], its paintable animates and no pause layer is
   /// set.
   bool get isPlaying;
+
+  /// Where this binding's playback stands: advancing, held at its rest frame
+  /// after a pass that did not loop, or not moving. Signalled to the
+  /// listeners when it changes.
+  ///
+  /// The end of a pass is heard on the first playback tick after the paint
+  /// that held the rest frame, so up to one frame late; a binding that has
+  /// ended no longer costs ticks.
+  AssetPlayback get playback;
+
+  /// Plays another pass and says whether it started.
+  ///
+  /// It starts when the pass of a profile that does not loop has ended
+  /// ([AssetPlayback.ended]), or when a profile that does not animate holds
+  /// its first frame and has not been asked to play. It does nothing, returning
+  /// false, while a pass is running or looping (a pass is never rewound), for a
+  /// hidden or detached binding, and for an entry that has no animation yet.
+  ///
+  /// The decoded asset is one playback for every binding of its entry
+  /// (`AssetProfile.animate`), so surfaces that share an entry replay
+  /// together.
+  bool replay();
 
   /// Whether the surface shows this binding. Defaults to true. An invisible
   /// binding stays attached and pinned but is not advanced, so a leaf

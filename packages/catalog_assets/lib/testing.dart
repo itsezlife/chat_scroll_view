@@ -4,6 +4,7 @@
 /// never imports them.
 library;
 
+export 'src/asset/testing/asset_playback_contract.dart';
 export 'src/asset/testing/fake_asset_paintable.dart';
 export 'src/asset/testing/fake_asset_producer.dart';
 export 'src/atlas/testing/bake_frame_source_contract.dart';

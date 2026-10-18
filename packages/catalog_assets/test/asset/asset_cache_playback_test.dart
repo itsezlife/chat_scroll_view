@@ -160,10 +160,10 @@ void main() {
       paint(playing);
       paint(still);
 
-      expect([for (final paint in paintable.paints) paint.context.animate], [
-        true,
-        false,
-      ]);
+      expect(
+        [for (final paint in paintable.paints) paint.context.animate],
+        [true, false],
+      );
     });
 
     test('a small asset advances at 30 fps and a large one at 60', () {
@@ -218,6 +218,233 @@ void main() {
       scope.clock.setPaused(PlaybackPauseLayer.surfaceHidden, paused: true);
 
       expect(scope.isAttached(_key, _large), isTrue);
+    });
+  });
+
+  group('one pass, a rest frame and a replay', () {
+    final frames = [_ms(40), _ms(60), _ms(80)]; // a pass of 180 ms
+    const once = AssetProfile(animate: true, loop: false);
+
+    AssetBinding playing({AssetProfile profile = once, ContentKey key = _key}) {
+      final binding = scope.attach(key, _large, profile);
+      producer.last.advance(
+        AssetStage.full,
+        tier: AssetTier.animated,
+        frames: frames,
+      );
+      return binding;
+    }
+
+    void paint(AssetBinding binding) {
+      final recorder = PictureRecorder();
+      binding.paint(Canvas(recorder), const Rect.fromLTWH(0, 0, 8, 8));
+      recorder.endRecording().dispose();
+    }
+
+    // The engine's frame at [ms]: the clock ticks, the surface repaints.
+    void frame(AssetBinding binding, int ms) {
+      ticks.tick(_ms(ms));
+      paint(binding);
+    }
+
+    // Plays a whole pass; the binding hears it has ended one frame later.
+    void playPass(AssetBinding binding, {int from = 1000}) {
+      frame(binding, from);
+      frame(binding, from + 40);
+      frame(binding, from + 100);
+      frame(binding, from + 180);
+      ticks.tick(_ms(from + 196));
+    }
+
+    test(
+      'a binding that plays is playing, and idle while nothing animates',
+      () {
+        expect(playing().playback, AssetPlayback.playing);
+        expect(
+          animated(
+            profile: const AssetProfile(),
+            key: const ContentKey.document('b'),
+          ).playback,
+          AssetPlayback.idle,
+        );
+      },
+    );
+
+    test('the pass ends: the binding says so, signals once more and stops '
+        'costing ticks', () {
+      final binding = playing();
+      var heard = 0;
+      binding.addListener(() => heard++);
+      frame(binding, 1000);
+      frame(binding, 1040);
+      frame(binding, 1100);
+      expect(binding.playback, AssetPlayback.playing);
+
+      frame(binding, 1180);
+      expect(
+        binding.playback,
+        AssetPlayback.playing,
+        reason: 'the paint held the frame; the next tick hears it',
+      );
+      heard = 0;
+      ticks.tick(_ms(1196));
+
+      expect(binding.playback, AssetPlayback.ended);
+      expect(heard, greaterThan(0));
+      expect(ticks.isRunning, isFalse);
+      expect(binding.isPlaying, isFalse);
+    });
+
+    test('a profile that loops never ends', () {
+      final binding = playing(profile: const AssetProfile(animate: true));
+
+      playPass(binding);
+      playPass(binding, from: 2000);
+
+      expect(binding.playback, AssetPlayback.playing);
+      expect(ticks.isRunning, isTrue);
+    });
+
+    test('it paints with the profile\'s loop and rest frame', () {
+      final binding = playing(
+        profile: const AssetProfile(
+          animate: true,
+          loop: false,
+          restFrame: AssetRestFrame.last,
+        ),
+      );
+      final paintable = binding.paintable as FakeAssetPaintable;
+
+      frame(binding, 1000);
+
+      final context = paintable.paints.single.context;
+      expect(context.loop, isFalse);
+      expect(context.restFrame, AssetRestFrame.last);
+    });
+
+    test('replay refuses while a pass runs, then plays another once it '
+        'ended', () {
+      final binding = playing();
+      final paintable = binding.paintable as FakeAssetPaintable;
+      frame(binding, 1000);
+      frame(binding, 1040);
+
+      expect(binding.replay(), isFalse);
+      expect(paintable.restarts, 0);
+
+      frame(binding, 1100);
+      frame(binding, 1180);
+      ticks.tick(_ms(1196));
+      expect(binding.playback, AssetPlayback.ended);
+
+      expect(binding.replay(), isTrue);
+      expect(paintable.restarts, 1);
+      expect(binding.playback, AssetPlayback.playing);
+      expect(ticks.isRunning, isTrue);
+      expect(binding.replay(), isFalse, reason: 'it is running again');
+
+      // The new pass counts from its first paint and ends like the first.
+      playPass(binding, from: 3000);
+      expect(binding.playback, AssetPlayback.ended);
+    });
+
+    test('a replay signals the surface so it repaints', () {
+      final binding = playing();
+      playPass(binding);
+      var heard = 0;
+      binding.addListener(() => heard++);
+
+      binding.replay();
+
+      expect(heard, 1);
+    });
+
+    test('a profile that does not animate holds its first frame until a '
+        'replay plays it', () {
+      final binding = animated(
+        profile: const AssetProfile(loop: false),
+        key: const ContentKey.document('held'),
+      );
+      expect(binding.playback, AssetPlayback.idle);
+      expect(ticks.isRunning, isFalse);
+
+      expect(binding.replay(), isTrue);
+
+      expect(binding.playback, AssetPlayback.playing);
+      expect(ticks.isRunning, isTrue);
+      expect(binding.replay(), isFalse);
+    });
+
+    test('a replay paints at the clock again, not at the time it held', () {
+      final binding = animated(
+        profile: const AssetProfile(loop: false),
+        key: const ContentKey.document('held'),
+      );
+      final paintable = binding.paintable as FakeAssetPaintable;
+      paint(binding);
+      expect(paintable.paints.single.context.animate, isFalse);
+
+      binding.replay();
+      ticks.tick(_ms(500));
+      paint(binding);
+
+      expect(paintable.paints.last.context.animate, isTrue);
+      expect(paintable.paints.last.context.time, _ms(500));
+    });
+
+    test('replay refuses a binding that is hidden, detached, still or '
+        'short of the animated stage', () {
+      final hidden = playing()..visible = false;
+      expect(hidden.replay(), isFalse);
+
+      final still = scope.attach(
+        const ContentKey.document('still'),
+        _large,
+        const AssetProfile(loop: false),
+      );
+      producer.last.advance(AssetStage.full);
+      expect(still.replay(), isFalse);
+
+      final early = scope.attach(
+        const ContentKey.document('early'),
+        _large,
+        const AssetProfile(loop: false),
+      );
+      producer.last.advance(AssetStage.placeholder);
+      expect(early.replay(), isFalse);
+
+      final gone = playing(key: const ContentKey.document('gone'))..detach();
+      expect(gone.replay(), isFalse);
+    });
+
+    test('a paused clock holds the pass where it is, and the pass ends '
+        'after it resumes', () {
+      final binding = playing();
+      frame(binding, 1000);
+      scope.clock.setPaused(PlaybackPauseLayer.lowPower, paused: true);
+      expect(ticks.isRunning, isFalse);
+      expect(binding.playback, AssetPlayback.playing);
+
+      scope.clock.setPaused(PlaybackPauseLayer.lowPower, paused: false);
+      frame(binding, 1040);
+      frame(binding, 1100);
+      frame(binding, 1180);
+      ticks.tick(_ms(1196));
+
+      expect(binding.playback, AssetPlayback.ended);
+    });
+
+    test('a binding that starts playing wakes a playback another binding '
+        'left holding', () {
+      final first = playing();
+      playPass(first);
+      expect(first.playback, AssetPlayback.ended);
+      final paintable = first.paintable as FakeAssetPaintable;
+
+      final second = scope.attach(_key, _large, once);
+
+      expect(second.playback, AssetPlayback.playing);
+      expect(paintable.restarts, 1);
     });
   });
 }

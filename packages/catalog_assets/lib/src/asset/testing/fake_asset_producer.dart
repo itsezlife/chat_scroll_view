@@ -22,16 +22,19 @@ final class FakeAssetAttempt implements AssetTask {
   /// Paintables handed to the cache by this attempt.
   final List<FakeAssetPaintable> paintables = [];
 
-  /// Reports [stage] with a fresh paintable and returns it.
+  /// Reports [stage] with a fresh paintable and returns it. [frames] gives
+  /// the paintable a sequence to play (and makes it animated).
   FakeAssetPaintable advance(
     AssetStage stage, {
     int bytes = 100,
     AssetTier tier = AssetTier.still,
     bool animated = false,
+    List<Duration> frames = const [],
   }) {
     final paintable = FakeAssetPaintable(
       label: '${request.key}@${stage.name}',
-      isAnimated: animated,
+      isAnimated: animated || frames.isNotEmpty,
+      frameDurations: frames,
     );
     paintables.add(paintable);
     _progress.advance(stage, paintable, bytes: bytes, tier: tier);

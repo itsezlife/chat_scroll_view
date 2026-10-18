@@ -1,5 +1,19 @@
 import 'package:meta/meta.dart';
 
+/// The frame a playback that does not loop rests on once its pass is over.
+///
+/// The reference clients differ: Android and Desktop go back to the first
+/// frame, iOS is read to stay on the last (its player is not in the checked
+/// source, so that is unverified). It is a per-attach value so a host can
+/// follow either.
+enum AssetRestFrame {
+  /// The pass ends back on the first frame.
+  first,
+
+  /// The pass ends on the last frame.
+  last,
+}
+
 /// How one surface behaves with an asset it attached: whether it plays, loops,
 /// shows the first frame early and rounds its corners.
 ///
@@ -12,6 +26,7 @@ final class AssetProfile {
   const AssetProfile({
     this.animate = false,
     this.loop = true,
+    this.restFrame = AssetRestFrame.first,
     this.autoplayFirstFrame = true,
     this.cornerRadius = 0,
   }) : assert(cornerRadius >= 0, 'A corner radius cannot be negative.');
@@ -30,7 +45,14 @@ final class AssetProfile {
   final bool animate;
 
   /// Whether a playing asset starts again after its last frame.
+  ///
+  /// When false the binding plays one pass, holds the [restFrame] and says it
+  /// ended (`AssetBinding.playback`); `AssetBinding.replay` plays another.
   final bool loop;
+
+  /// The frame a pass that does not [loop] rests on. Read only when [loop] is
+  /// false; a loop never rests.
+  final AssetRestFrame restFrame;
 
   /// Whether the surface shows the first frame as soon as it exists, before
   /// the full asset is ready or while it is not playing. When false the
@@ -45,15 +67,16 @@ final class AssetProfile {
       other is AssetProfile &&
       other.animate == animate &&
       other.loop == loop &&
+      other.restFrame == restFrame &&
       other.autoplayFirstFrame == autoplayFirstFrame &&
       other.cornerRadius == cornerRadius;
 
   @override
   int get hashCode =>
-      Object.hash(animate, loop, autoplayFirstFrame, cornerRadius);
+      Object.hash(animate, loop, restFrame, autoplayFirstFrame, cornerRadius);
 
   @override
   String toString() =>
       'AssetProfile(animate: $animate, loop: $loop, '
-      'autoplayFirstFrame: $autoplayFirstFrame, cornerRadius: $cornerRadius)';
+      'restFrame: ${restFrame.name}, autoplayFirstFrame: $autoplayFirstFrame, cornerRadius: $cornerRadius)';
 }
