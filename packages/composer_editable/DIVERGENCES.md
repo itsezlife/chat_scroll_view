@@ -240,6 +240,34 @@ Cupertino desktop) differ from stock only in imports, so the controls extend
 A composer passes the Material controls on every platform; the Cupertino ones
 stay available to an overriding host.
 
+### J. Selection highlight without seams
+
+Stock draws the highlight as one rect per selection box, in a separate painter
+child of the editable. A translucent highlight then shows a seam between every
+two lines, for two reasons that no stock setting removes:
+
+1. The engine rounds each line's height, so a line's boxes end a fraction of a
+   pixel short of the next line's top (0.2 logical pixels for 16 px text at a
+   line height of 1.3) under **every** `BoxHeightStyle`, `strut` and
+   `includeLineSpacing*` included. That is a gap in the shape.
+2. Rects that share an edge rarely share it on a device pixel; each covers part
+   of the edge pixel and the partial coverages composite to less than the colour
+   anywhere else.
+
+`ExtendedRenderEditable` paints the highlight itself, as one `Path` (a path is
+filled as one coverage), with a bridge over each gap narrower than half a line
+between a box and the box under it, over the width the two share
+(`selectionHighlightPath`). A shorter last line keeps its step; a break of half
+a line or more stays a break. The shape stops at the editable's box.
+
+Everything else about the highlight is stock: the boxes come from
+`getBoxesForSelection` with the field's `selectionHeightStyle` and
+`selectionWidthStyle`, `selectionColor` is the colour (null without focus), and
+the `painter` slot is free for a host. The paint sits where stock's does, under
+the text and under any host `painter`. Plain rects, no rounded joins: the
+reference composer is a platform edit field, whose highlight is a path of one
+rect per line.
+
 ### Seams not in stock
 
 - `clipboardTextBuilder` / `pasteTextTransformer` (`ExtendedClipboardTextBuilder`,
@@ -265,8 +293,8 @@ stay available to an overriding host.
 
 ## Stock on purpose
 
-- **Selection highlight and endpoints.** `defaultSelectionWidthStyle` is
-  `BoxWidthStyle.max` on native platforms, `selectionColor` paints, affinity is
-  not special-cased, and `RenderEditable.painter` is free for a host. See
-  [docs/parity/highlight.md](docs/parity/highlight.md).
+- **Selection boxes and endpoints.** `defaultSelectionWidthStyle` is
+  `BoxWidthStyle.max` on native platforms, affinity is not special-cased, and
+  `RenderEditable.painter` is free for a host; only the highlight's paint is the
+  package's (J). See [docs/parity/highlight.md](docs/parity/highlight.md).
 - **Grabbed handle size** (see F).
