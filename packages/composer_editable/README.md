@@ -57,12 +57,47 @@ What the host passes to `ExtendedTextField`, and what happens when it does not.
 - **No debug-only branches.** Nothing reads the framework's pipeline-phase
   flags, so debug and release take the same path.
 
-## Flutter pin
+## Flutter pin and re-vendor
 
-The sources are copies of Flutter 3.41.7's text input files. Upgrading the SDK
-means re-vendoring them and re-applying the divergences; see
-[DIVERGENCES.md](DIVERGENCES.md) for what differs from stock and why,
-[CONTEXT.md](CONTEXT.md) for the terms, [docs/parity/index.md](docs/parity/index.md)
+The sources are copies of Flutter's text input files (`EditableText`,
+`TextField`, the selection overlay and the four handle controls), pinned to one
+SDK **exactly**: `flutter: 3.41.7` in this package's `pubspec.yaml`, the same in
+the root `pubspec.yaml`, `.fvmrc` and CI. `flutter pub get` under another
+Flutter fails resolution instead of compiling stale copies.
+
+The package is a patch series over a **baseline**: the SDK's files, renamed
+(`Extended*`), fixed with this package's analysis options and formatted, kept in
+`tool/baseline/<version>/`. [DIVERGENCES.md](DIVERGENCES.md) is generated from
+that baseline and the sources; do not edit it, edit
+`tool/divergences.template.md`.
+
+**Every workspace SDK upgrade includes the re-vendor.** On a branch:
+
+```shell
+dart packages/composer_editable/tool/revendor.dart --sdk=<new flutter root>
+```
+
+(`dart tool/revendor.dart` from this directory; not `dart run`, which resolves
+the workspace first. Without `--sdk` it uses `FLUTTER_ROOT` or the `flutter` on
+`PATH`.) It then
+
+1. raises every SDK pin and runs `flutter pub get`;
+2. builds the new baseline from the SDK and three-way merges each file, old
+   baseline to new baseline, into `lib/` (`git merge-file`);
+3. regenerates `DIVERGENCES.md` and runs `flutter test test/unit_test.dart`;
+4. prints which files merged cleanly, which conflict and what the suite said
+   (exit 0 clean, 1 conflicts or a failing suite, 2 refused).
+
+Resolve the `<<<<<<<` hunks it leaves in `lib/`, make the suite pass, commit.
+`--baseline-only` rebuilds just the baseline and `DIVERGENCES.md` (after a
+change to the rename table or the template); `--skip-suite` skips step 3's
+tests. The tool refuses to run when a vendored path or the old baseline is
+missing, and never creates a directory. A clean textual merge is not a semantic
+guarantee: the suite and the device checklist (ADR 030) decide. The
+`sdk-lookahead` workflow rehearses this against the newest stable every week
+([scripts/README.md](../../scripts/README.md)).
+
+See [CONTEXT.md](CONTEXT.md) for the terms, [docs/parity/index.md](docs/parity/index.md)
 for the Telegram reference and the gaps, and the gesture decisions in
 [docs/adr/](docs/adr/).
 

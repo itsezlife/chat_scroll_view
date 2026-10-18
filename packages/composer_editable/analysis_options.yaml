@@ -1,2 +1,9 @@
 # Strict modes and lint set come from the repo root.
 include: ../../analysis_options.yaml
+
+analyzer:
+  exclude:
+    # Stock Flutter sources, renamed and fixed: the merge base of the re-vendor,
+    # kept as text. They are not part of the package and need not pass its
+    # lints (the fixes are applied to them in tool/staging, which is analyzed).
+    - tool/baseline/**

@@ -22,6 +22,28 @@ headless benchmarks and sets their ratios against the committed baselines. The
 nightly workflow calls it; usage, tolerance and re-baselining are in
 [benchmarks/README.md](../benchmarks/README.md).
 
+## Chore: raising the Flutter SDK
+
+The SDK is pinned exactly in `.fvmrc`, the root `pubspec.yaml` (`environment:
+flutter:`), `packages/composer_editable/pubspec.yaml` and the `flutter-version:`
+of `check.yml`, `platform-builds.yml` and `benchmarks.yml`; `flutter pub get`
+under any other Flutter fails. `composer_editable` is a patch series over
+copies of that SDK's text input files, so an upgrade is one command:
+
+```shell
+dart packages/composer_editable/tool/revendor.dart --sdk=<new flutter root>
+```
+
+It raises every pin together, re-vendors the package by a three-way merge and
+regenerates `DIVERGENCES.md`; run it on a branch and resolve the conflicts it
+reports. A test of the package fails when the pins disagree. How it works:
+[composer_editable README](../packages/composer_editable/README.md#flutter-pin-and-re-vendor).
+
+`sdk-lookahead.yml` rehearses that command every Monday against the newest
+stable Flutter and writes the conflicts and the suite result to the job
+summary. It is not a gate: conflicts do not turn it red; only a run that cannot
+start does.
+
 ## Lints
 
 | Lint | Fails when |

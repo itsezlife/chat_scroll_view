@@ -1,0 +1,66 @@
+name: SDK look-ahead
+
+# Weekly dry run of `composer_editable`'s re-vendor against the newest stable
+# Flutter, before anyone upgrades. It REPORTS: the job summary lists which
+# vendored files merge cleanly, which conflict, and what the package's suite
+# says on the new SDK. Conflicts and a failing suite do not turn the workflow
+# red, because they are information about a future upgrade, not a defect of
+# this commit. Only a run that cannot start (the tool refuses, `pub get`
+# fails, the checkout breaks) is red.
+#
+# Nothing is committed or pushed: the checkout is thrown away. To do the
+# upgrade for real, run `dart packages/composer_editable/tool/revendor.dart`
+# locally on a branch (packages/composer_editable/README.md).
+on:
+  schedule:
+    # Schedules only run on the default branch.
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdk-lookahead
+  cancel-in-progress: true
+
+jobs:
+  revendor-dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # The workspace root overrides flutter_md with `path: ../md`, so the fork
+      # is checked out as a sibling of the repo, at the ref the pubspecs name.
+      - uses: actions/checkout@v4
+        with:
+          path: chat_scroll_view
+      - uses: actions/checkout@v4
+        with:
+          repository: itsezlife/md
+          ref: v0.3.0
+          path: md
+
+      # No flutter-version: the newest stable, which is the SDK the next
+      # upgrade would pin. The pin in the repo is deliberately not used here.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Re-vendor onto the newest stable (report only)
+        working-directory: chat_scroll_view
+        run: |
+          flutter --version
+          # Exit 1 is a finding (conflicts or a failing suite), exit 2 is a
+          # refusal and stays red.
+          dart packages/composer_editable/tool/revendor.dart || [ $? -eq 1 ]
+
+      - name: What the re-vendor changed
+        if: always()
+        working-directory: chat_scroll_view
+        run: |
+          {
+            echo '### Changed files'
+            echo '```'
+            git diff --stat
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

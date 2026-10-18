@@ -9,6 +9,9 @@ publish_to: none
 
 environment:
   sdk: ^3.11.0
+  # Exact, not a range: the sources are copies of this Flutter's text input
+  # files. `tool/revendor.dart` raises it, with the root pin, .fvmrc and CI.
+  flutter: 3.41.7
 
 dependencies:
   characters: ^1.4.0
