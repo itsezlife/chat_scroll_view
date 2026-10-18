@@ -88,6 +88,8 @@ import 'widgets/chat_markdown_body_inline_layer_test.dart'
 import 'widgets/chat_message_body_layout_test.dart'
     as chat_message_body_layout_test;
 import 'widgets/chat_message_body_test.dart' as chat_message_body_test;
+import 'widgets/chat_message_change_composited_content_test.dart'
+    as chat_message_change_composited_content_test;
 import 'widgets/chat_message_change_diag_test.dart'
     as chat_message_change_diag_test;
 import 'widgets/chat_message_change_params_test.dart'
@@ -294,6 +296,10 @@ void main() {
     chat_message_body_layout_test.main,
   );
   group('widgets/chat_message_body_test.dart', chat_message_body_test.main);
+  group(
+    'widgets/chat_message_change_composited_content_test.dart',
+    chat_message_change_composited_content_test.main,
+  );
   group(
     'widgets/chat_message_change_diag_test.dart',
     chat_message_change_diag_test.main,

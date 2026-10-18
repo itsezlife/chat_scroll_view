@@ -1,5 +1,15 @@
 ## Unreleased
 
+### Edit crossfade of a body that paints on a layer of its own
+- **Fixed**: the old and new text of an edited message crossfaded with a canvas
+  `saveLayer` and `clipRect`, which do not reach a body that is a repaint
+  boundary. The markdown body became one for every message when it got a
+  selection controller to key spoilers on, so the old text lost its fade and
+  clip and the new text showed at full opacity, which read as a broken
+  animation. The transition now fades on opacity layers and clips on a clip
+  layer while the text crossfade runs, and asks for compositing only then, so a
+  settled bubble costs nothing more.
+
 ### Message menu keeps the chat playing; the status of a selected emoji-only message
 - **ADDED**: `ChatMessageMenu.routeName`, the `RouteSettings.name` of the route
   a menu session is presented on. A `NavigatorObserver` that treats modal
