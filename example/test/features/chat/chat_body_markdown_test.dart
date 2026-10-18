@@ -350,8 +350,6 @@ void main() {
         Entity(15, 4, EntityKind.hashtag('tag')),
         Entity(20, 5, EntityKind.inlineContent(ContentKey.document('5368'))),
       ]),
-      // A label first on the line: the writer must not escape a block marker
-      // there, because the parser keeps the backslashes of a label.
       _Rich('#design #travel', const [
         Entity(0, 7, EntityKind.hashtag('design')),
         Entity(8, 7, EntityKind.hashtag('travel')),
