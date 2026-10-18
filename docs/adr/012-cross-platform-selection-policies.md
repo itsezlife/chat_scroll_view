@@ -6,7 +6,9 @@
 this policy; inline hits; deferred desktop drag-out promotion); 2026-10-18
 (desktop: every body stays live while text is active; the range suppresses
 inline activation only in its own message); 2026-10-18 (every text body is
-under the policy, the emoji-only text layout included)  
+under the policy, the emoji-only text layout included); 2026-10-19 (status
+chrome: the desktop click on an emoji-only message's time selects it, as the
+reference does)  
 **Supersedes**: [ADR 010](010-message-then-text-selection.md)
 
 Chat-list **message selection** and **text selection** are two modes under one
@@ -111,17 +113,41 @@ Left unchanged on purpose: a **secondary** click still reaches
 a tap still dismisses live **text selection**, and **touch is never barred**
 (Android routes a time tap in message selection to the row like any other tap).
 
-**Divergence from Telegram Desktop, recorded.** Its list widget makes a click
-on the date / time area (`CursorState::Date`, `BottomInfo::textState`) select
-the message when nothing is selected (`SelectAction::Select` in
-`ListWidget::mouseActionFinish`, `HistoryInner::mouseActionFinish`), toggles it
-in message selection like any other click, and starts a forward drag, not a
-text selection, from a press-and-drag there; a right-click opens the message's
-menu. Here the chosen behaviour is the host's: this repository's desktop
-policy does not select on a plain click, so a click on the pill does nothing,
-and the example wraps its pills in the barrier. A host that wants the
-reference's select-on-time-click does not wrap its status chrome and handles
-the click itself.
+**What the reference does, and what this repository does.** The barrier is the
+mechanism; what a click on the status then does is the host's, and the two
+hosts in this repository answer differently on purpose.
+
+| Question | Reference | Here |
+| -------- | --------- | ---- |
+| Click on the date / time, nothing selected | Selects the message (`ListWidget::mouseActionFinish`: `simpleSelectionChange && _mouseCursorState == CursorState::Date && !hasSelectRestriction()` -> `SelectAction::Select`, after `clearTextSelection()`; `history_view_list_widget.cpp:4946-4961`) | Emoji-only message: selects it. Ordinary bubble: nothing |
+| Click on the date in message selection | Toggles it like any click (`needItemSelectionToggle` -> `SelectAction::Invert`, `:4911-4944`) | Emoji-only message: toggles it. Ordinary bubble: nothing |
+| Drag that starts on the date | A forward drag, not a text selection (`requiredToStartDragging`, `:1905`; `Date` -> `itemOrItsGroup`, `:5372`) | Nothing starts: no drag-select, no text arming (the barrier). The forward drag is not implemented |
+| Right click | The message's context menu | The same: `onSecondaryMessageTap` |
+| Where `Date` is hit | `BottomInfo::textState`, the time, ticks and views of the info block (`history_view_bottom_info.cpp:213`) | The whole pill |
+| Touch (Android) | Time tap acts only for an imported forward (`ChatMessageCell.checkDateMotionEvent`, `delegate.didPressTime` -> `ChatActivity` undo hint); in action mode any tap on the row, time included, selects it | A touch is never barred: in message selection it toggles the row, otherwise it is the idle tap |
+
+The select-on-click is a **desktop-policy** behaviour: the example's emoji-only
+pill answers a mouse or trackpad click with `ChatSelectionController.toggle`
+(it selects, unselects, clears a live text selection and respects the cap and
+`isSelectable`) and only when the selection policy does not route a primary tap
+to the idle message. The click handler is a detector **inside** the barrier,
+limited to mouse and trackpad: the barrier keeps the press from the viewport's
+tap, so without the handler a click on the pill does nothing, and a touch must
+not reach it so that the viewport's own tap keeps the mobile behaviour. A
+secondary click is not that detector's, so the menu still opens.
+
+**Ordinary bubbles stay as they were**: their time is inside the barrier and a
+click on it does nothing, although the reference selects there too. The
+inconsistency is recorded, not resolved: a host that wants the reference's
+behaviour for bubbles gives the bubble's time the same detector.
+
+**Hover is the row's, not the box's.** The reference shows an emoji-only
+message's time while the pointer is anywhere on the message's row:
+`ListWidget::mouseActionUpdate` clamps `x` to the list and finds the element by
+`y` alone (`:5020-5065`), and `UnwrappedMedia::needInfoDisplay` shows the info
+while `_parent->isUnderCursor()` (`history_view_media_unwrapped.cpp:727-732`). The
+host's hover region is therefore the viewport's cell of the row (the example's
+`EmojiRowHover`, outside the row's padding and alignment), not the emoji box.
 
 ## Copy by keyboard (both strategies)
 
