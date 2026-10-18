@@ -698,6 +698,14 @@ ids. What the host wires:
    time on the desktop client, so the host supplies its own formatter. The
    demo's `ChatMessagesCopyFormat` is one implementation; the rich form
    (entities) of each body is kept behind the headers.
+4. **Confirmation and selection after the copy.** Per policy, whatever made the
+   copy ([ADR 012](adr/012-cross-platform-selection-policies.md#copy-confirmation-and-what-a-copy-leaves-selected-both-strategies)):
+   a mobile copy toasts and ends the selection, a desktop copy of text or
+   messages is silent and keeps it (only code toasts). The viewport applies this
+   to its own copy; after the host's own clipboard write it calls
+   `selectionPolicy.applyCopySuccess(clearTextSelection: …, clearMessageSelection: …)`
+   and decides the toast from `ChatCopied.origin` or its own call site. The
+   demo's `ChatCopyFeedback` is one implementation.
 
 ### Emoji-only messages
 
