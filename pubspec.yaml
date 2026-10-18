@@ -44,7 +44,7 @@ dependencies:
   flutter_md:
     git:
       url: https://github.com/itsezlife/md.git
-      ref: v0.3.0
+      ref: v0.4.0
 
 dev_dependencies:
   flutter_test:
@@ -55,7 +55,7 @@ dev_dependencies:
   fake_async: ^1.3.3
 
 # Overrides are honoured only here, never in members. Members and CI pin the
-# fork by release tag (v0.3.0, itsezlife/md) so the lockfile is reproducible;
+# fork by release tag (v0.4.0, itsezlife/md) so the lockfile is reproducible;
 # this override points the root at the sibling checkout so fork work lands
 # without a push-and-repin loop. CI checks the same tag out next to this repo,
 # so the override and the pin resolve to the same source there. Move the tag in
