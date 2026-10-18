@@ -35,6 +35,8 @@ import 'view/composer_actions_test.dart' as composer_actions_test;
 import 'view/composer_bottom_fade_test.dart' as composer_bottom_fade_test;
 import 'view/composer_caret_reveal_test.dart' as composer_caret_reveal_test;
 import 'view/composer_clipboard_test.dart' as view_composer_clipboard_test;
+import 'view/composer_formatting_shortcuts_test.dart'
+    as composer_formatting_shortcuts_test;
 import 'view/composer_golden_test.dart' as composer_golden_test;
 import 'view/composer_semantics_test.dart' as composer_semantics_test;
 import 'view/composer_send_flow_test.dart' as composer_send_flow_test;
@@ -91,6 +93,10 @@ void main() {
     composer_caret_reveal_test.main,
   );
   group('view/composer_clipboard_test.dart', view_composer_clipboard_test.main);
+  group(
+    'view/composer_formatting_shortcuts_test.dart',
+    composer_formatting_shortcuts_test.main,
+  );
   group('view/composer_golden_test.dart', composer_golden_test.main);
   group('view/composer_semantics_test.dart', composer_semantics_test.main);
   group('view/composer_send_flow_test.dart', composer_send_flow_test.main);
