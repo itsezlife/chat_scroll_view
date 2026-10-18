@@ -72,9 +72,9 @@ import 'widgets/chat_open_at_last_read_test.dart'
 import 'widgets/chat_scroll_to_bottom_button_test.dart'
     as chat_scroll_to_bottom_button_test;
 import 'widgets/chat_selection_test.dart' as chat_selection_test;
+import 'widgets/copy_feedback_test.dart' as copy_feedback_test;
 import 'widgets/demo_emoji_message_menu_test.dart'
     as demo_emoji_message_menu_test;
-import 'widgets/copy_feedback_test.dart' as copy_feedback_test;
 import 'widgets/demo_emoji_message_test.dart' as demo_emoji_message_test;
 import 'widgets/demo_message_bodies_test.dart' as demo_message_bodies_test;
 import 'widgets/demo_message_edit_transition_test.dart'
