@@ -35,6 +35,10 @@ import 'emoji/chat_emoji_flow_test.dart' as chat_emoji_flow_test;
 import 'emoji/chat_emoji_geometry_test.dart' as chat_emoji_geometry_test;
 import 'emoji/chat_emoji_policy_test.dart' as chat_emoji_policy_test;
 import 'emoji/chat_emoji_sizes_test.dart' as chat_emoji_sizes_test;
+import 'emoji/chat_emoji_text_layout_test.dart' as chat_emoji_text_layout_test;
+import 'emoji/chat_emoji_text_selection_test.dart'
+    as chat_emoji_text_selection_test;
+import 'emoji/chat_emoji_text_test.dart' as chat_emoji_text_test;
 import 'emoji/chat_non_text_body_test.dart' as chat_non_text_body_test;
 import 'emoji/chat_sticker_tap_policy_test.dart'
     as chat_sticker_tap_policy_test;
@@ -126,6 +130,8 @@ import 'widgets/chat_selection_allowed_test.dart'
     as chat_selection_allowed_test;
 import 'widgets/chat_selection_cap_test.dart' as chat_selection_cap_test;
 import 'widgets/chat_selection_chrome_test.dart' as chat_selection_chrome_test;
+import 'widgets/chat_selection_highlight_test.dart'
+    as chat_selection_highlight_test;
 import 'widgets/chat_selection_pointer_test.dart'
     as chat_selection_pointer_test;
 import 'widgets/chat_selection_text_test.dart' as chat_selection_text_test;
@@ -189,6 +195,15 @@ void main() {
   group('emoji/chat_emoji_geometry_test.dart', chat_emoji_geometry_test.main);
   group('emoji/chat_emoji_policy_test.dart', chat_emoji_policy_test.main);
   group('emoji/chat_emoji_sizes_test.dart', chat_emoji_sizes_test.main);
+  group(
+    'emoji/chat_emoji_text_layout_test.dart',
+    chat_emoji_text_layout_test.main,
+  );
+  group(
+    'emoji/chat_emoji_text_selection_test.dart',
+    chat_emoji_text_selection_test.main,
+  );
+  group('emoji/chat_emoji_text_test.dart', chat_emoji_text_test.main);
   group('emoji/chat_non_text_body_test.dart', chat_non_text_body_test.main);
   group(
     'emoji/chat_sticker_tap_policy_test.dart',
@@ -269,6 +284,10 @@ void main() {
   group(
     'widgets/chat_markdown_body_inline_layer_test.dart',
     chat_markdown_body_inline_layer_test.main,
+  );
+  group(
+    'widgets/chat_selection_highlight_test.dart',
+    chat_selection_highlight_test.main,
   );
   group(
     'widgets/chat_message_body_layout_test.dart',
