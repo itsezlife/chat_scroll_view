@@ -40,7 +40,7 @@ Future<void> _selectAndShowMenu(
   await tester.pumpAndSettle();
 }
 
-/// Taps the overflow page's item labelled [label], scrolling it into view.
+/// Taps the More page's item labelled [label], scrolling it into view.
 Future<void> _tapPageItem(WidgetTester tester, String label) async {
   await _openMore(tester);
   final item = find.text(label);
@@ -50,7 +50,7 @@ Future<void> _tapPageItem(WidgetTester tester, String label) async {
       42,
       scrollable: find.byType(Scrollable).last,
     );
-    // Partly under the edge fade is visible but not yet tappable.
+    // Partly under the page's edge is visible but not yet tappable.
     await tester.ensureVisible(item);
     await tester.pumpAndSettle();
   }
@@ -58,9 +58,9 @@ Future<void> _tapPageItem(WidgetTester tester, String label) async {
   await tester.pumpAndSettle();
 }
 
-/// Opens the menu's overflow page, where the formatting items are.
+/// Opens the menu's More page, where the formatting items are.
 Future<void> _openMore(WidgetTester tester) async {
-  await tester.tap(find.byKey(const ValueKey<String>('selection_menu_back')));
+  await tester.tap(find.byKey(const ValueKey<String>('selection_menu_more')));
   await tester.pumpAndSettle();
 }
 
@@ -147,26 +147,18 @@ void main() {
         await tester.pumpAndSettle();
       }
 
-      testWidgets('closes the overflow page, then the menu', (tester) async {
+      testWidgets('closes the whole menu from the More page', (tester) async {
         await openOverflow(tester);
 
         await back(tester);
 
-        expect(find.text('Copy'), findsOneWidget);
-        expect(find.text(_strings.boldAction), findsNothing);
-
-        await back(tester);
-
         expect(find.text('Copy'), findsNothing);
+        expect(find.text(_strings.boldAction), findsNothing);
       });
 
       testWidgets('is claimed ahead of the soft keyboard while the menu is up '
           'and given back with it', (tester) async {
         await openOverflow(tester);
-
-        expect(await ChatPreImeBackClaim.handleNativeBack(), isTrue);
-        await tester.pumpAndSettle();
-        expect(find.text('Copy'), findsOneWidget);
 
         expect(await ChatPreImeBackClaim.handleNativeBack(), isTrue);
         await tester.pump(const Duration(milliseconds: 400));

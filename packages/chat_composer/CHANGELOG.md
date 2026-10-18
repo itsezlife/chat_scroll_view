@@ -8,16 +8,30 @@ is pre-1.0.
 
 ### Added
 
-- `ComposerSelectionMenu`, the field's selection menu on every platform:
-  Telegram Android's floating toolbar (48 dp rows, a 56 by 48 More button, an
-  overflow page that reshapes the card over 250 ms and is sized to its items up
-  to 264 dp with an edge fade, enter 150 ms, dismiss 150 ms plus 100 ms, a hide
-  while the selection moves after 500 ms and back 50 ms after). The platform
-  menu is no longer used. Items: the clipboard actions, then Quote, Spoiler,
-  Bold, Italic, Mono, Strikethrough, Underline, Code block, the list items
-  (while lists are on), Create or Edit and Remove link, and Regular. An item
-  that cannot apply to the selection is left out. Tab from the field moves
-  focus into the menu; Escape closes it.
+- `ComposerSelectionMenu`, the field's selection menu on every platform: a
+  two-page swipe-back card. The main row holds the clipboard actions and a More
+  button (46 by 42); the More page (150 dp wide, 42 dp tiles, a Back tile at the
+  end nearer the selection, a 1 dp divider, scrolling inside 320 dp) slides in
+  from the right over 300 ms and closes with a swipe right or a fling of 600
+  dp/s; clipboard actions that do not fit the row (at most `min(400, width -
+  24)` wide) go to the top of the page. Labels are the theme's body-large at
+  16, the card is Material elevation 3 at radius 12, with Material icons. The
+  card fades in over 150 ms and out over 220 ms with a 5 dp drift away from the
+  selection; scroll and out-of-view fades are the editable's toolbar wrapper's.
+  It sits above the selection when 320 dp fit there, else below, 8 dp over and
+  20 dp under the selection, 12 dp from the screen's edges. The platform menu is
+  no longer used. Items: the clipboard actions (with Paste as plain text while
+  the composer has a rich clipboard), then Bold, Italic, Underline,
+  Strikethrough, Monospace, Spoiler, Quote, Code block, Link (Create or Edit by
+  state, and Remove link while the selection touches a link), the list items
+  (while lists are on) and Clear formatting, each previewing its own effect. An
+  item that cannot apply to the selection is greyed on the page, not hidden
+  (Quote is left out over a quoted selection), and a collapsed caret gets the
+  page with only the line kinds and Link enabled. After an item, and on Escape
+  or Back, the menu closes and the selection collapses to a caret at its
+  extent, on every platform; Back closes the whole menu from either page. Tab
+  from the field moves focus into the menu (only the page that shows is
+  traversed). The text scale is clamped to 1.3.
 - `ComposerFormattingOption` and `ComposerSpec.formatting`: which items the
   menu may offer (default `ComposerFormattingOption.standard`).
 - `ComposerSpec.backPriority` (`ComposerBackPriority`): the host's hook for
@@ -42,6 +56,14 @@ is pre-1.0.
   line, so a screen reader speaks the list.
 
 ### Changed
+
+- Source-breaking: `ComposerFormattingOption` is in the page's order (Bold,
+  Italic, Underline, Strikethrough, Monospace, Spoiler, Quote, Code block,
+  Link, Bullet list, Numbered list, Clear formatting); code that relied on
+  `values` order sees the new one.
+- Source-breaking: the clipboard actions of the menu take Material's labels on
+  every platform (Cupertino's wording on iOS and macOS is gone), and Copy
+  collapses the selection on every platform, not on Android alone.
 
 - Source-breaking: `ComposerLinkPrompt` takes the current URL,
   `(BuildContext, String? currentUrl)`, null when the selection holds no link;

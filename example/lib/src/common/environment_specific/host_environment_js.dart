@@ -39,8 +39,7 @@ Future<bool> $glyphFontsSettled(
   }
 
   final fonts = PaintingBinding.instance.systemFonts..addListener(onChange);
-  (ui.ParagraphBuilder(ui.ParagraphStyle())..addText(glyphs.join(' ')))
-      .build()
+  (ui.ParagraphBuilder(ui.ParagraphStyle())..addText(glyphs.join(' '))).build()
     ..layout(const ui.ParagraphConstraints(width: double.infinity))
     ..dispose();
   final deadline = DateTime.now().add(_fontsDeadline);

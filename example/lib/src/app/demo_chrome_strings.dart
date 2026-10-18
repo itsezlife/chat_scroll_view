@@ -62,7 +62,7 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     codeBlockAction: 'Блок кода',
     bulletListAction: 'Маркированный список',
     numberedListAction: 'Нумерованный список',
-    clearFormattingAction: 'Обычный',
+    clearFormattingAction: 'Очистить форматирование',
     moreAction: 'Ещё',
     backAction: 'Назад',
     bulletListItem: 'Пункт маркированного списка',
