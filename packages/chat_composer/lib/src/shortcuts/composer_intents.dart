@@ -31,6 +31,15 @@ class PastePlainTextIntent extends Intent {
   const PastePlainTextIntent();
 }
 
+/// Asks the composer to open its pointer menu from the keyboard, at the caret.
+///
+/// Bound to the Menu key and Shift+F10 by the desktop policy; answered only
+/// where the composer's menu policy has a pointer menu.
+class ShowComposerMenuIntent extends Intent {
+  /// Creates the intent.
+  const ShowComposerMenuIntent();
+}
+
 // Shift+V with the platform's shortcut key: Command on Apple platforms,
 // Control elsewhere. Both are bound, since a policy is per input family, not
 // per platform.
@@ -128,7 +137,9 @@ sealed class ComposerShortcutPolicy {
   /// M monospace, P spoiler, `.` quote, N clear formatting, 7 numbered list,
   /// 8 bullet list). The code block has no key. The list editing keys (Tab,
   /// Shift+Tab, Shift+Enter, Backspace) are bound too and answered only by a
-  /// text with lists on.
+  /// text with lists on. The Menu key and Shift+F10 are bound to
+  /// [ShowComposerMenuIntent], which the field answers where its menu policy
+  /// has a pointer menu.
   ///
   /// [inBrowser] leaves paste as plain text to the browser: Flutter leaves the
   /// clipboard keys of a text field to it, and it pastes as plain text with
@@ -188,6 +199,10 @@ final class ComposerShortcutPolicy$Desktop extends ComposerShortcutPolicy {
         const SubmitComposerIntent(),
     const SingleActivator(LogicalKeyboardKey.escape):
         const DismissComposerHeaderIntent(),
+    const SingleActivator(LogicalKeyboardKey.contextMenu):
+        const ShowComposerMenuIntent(),
+    const SingleActivator(LogicalKeyboardKey.f10, shift: true):
+        const ShowComposerMenuIntent(),
     if (!inBrowser) ..._pastePlain,
     ..._formatting,
     ..._listEditing,

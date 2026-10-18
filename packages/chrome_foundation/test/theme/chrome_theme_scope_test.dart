@@ -17,6 +17,7 @@ void main() {
         'placeholderOf': ChromeThemeScope.placeholderOf,
         'glassOf': ChromeThemeScope.glassOf,
         'selectionMenuOf': ChromeThemeScope.selectionMenuOf,
+        'pointerMenuOf': ChromeThemeScope.pointerMenuOf,
         'spoilerOf': ChromeThemeScope.spoilerOf,
       };
       for (final entry in lookups.entries) {
@@ -394,6 +395,7 @@ void main() {
         placeholder: data.placeholder,
         glass: data.glass,
         selectionMenu: data.selectionMenu,
+        pointerMenu: data.pointerMenu,
         spoiler: data.spoiler,
         duration: const Duration(milliseconds: 200),
         child: Builder(

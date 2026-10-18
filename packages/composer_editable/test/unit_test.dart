@@ -16,6 +16,7 @@ import 'ios_restored_paths_test.dart' as ios_restored_paths_test;
 import 'nested_overscroll_handoff_test.dart' as nested_overscroll_handoff_test;
 import 'release_parity_test.dart' as release_parity_test;
 import 'revendor_test.dart' as revendor_test;
+import 'secondary_click_test.dart' as secondary_click_test;
 import 'select_all_page_scroll_test.dart' as select_all_page_scroll_test;
 import 'selection_drag_snap_test.dart' as selection_drag_snap_test;
 import 'selection_handle_motion_test.dart' as selection_handle_motion_test;
@@ -38,6 +39,7 @@ void main() {
   );
   group('release_parity_test.dart', release_parity_test.main);
   group('revendor_test.dart', revendor_test.main);
+  group('secondary_click_test.dart', secondary_click_test.main);
   group('select_all_page_scroll_test.dart', select_all_page_scroll_test.main);
   group('selection_drag_snap_test.dart', selection_drag_snap_test.main);
   group('selection_handle_motion_test.dart', selection_handle_motion_test.main);

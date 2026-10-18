@@ -34,6 +34,9 @@ class AppChrome extends StatelessWidget {
     selectionMenu: SelectionMenuTokens.fromPalette(
       ChromePalette.fromColorScheme(Theme.of(context).colorScheme),
     ),
+    // The desktop pointer menu of the composer's field is drawn in the
+    // reference client's own night colours, for a 1:1 look.
+    pointerMenu: PointerMenuTokens.referenceNight,
     child: ChromeStringsScope(
       strings: demoChromeStrings,
       child: ChromeMotionScope(

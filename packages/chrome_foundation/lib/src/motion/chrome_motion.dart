@@ -69,6 +69,15 @@ enum MotionRole {
 
   /// The circular reveal of a spoiler from the tap point.
   spoilerReveal,
+
+  /// A pointer menu growing from the corner at the pointer. The duration is
+  /// the whole grow; width, height and opacity each run on `EaseOutCirc` over
+  /// their own fraction of it (`PointerMenuReveal`), so the role's own curve is
+  /// linear.
+  pointerMenuShow,
+
+  /// A pointer menu fading out: a linear fade of the whole menu, no scale.
+  pointerMenuHide,
 }
 
 /// The **motion role** table: one [MotionSpec] per [MotionRole].
@@ -107,6 +116,8 @@ final class ChromeMotion {
     required this.menuLeave,
     required this.menuPage,
     required this.spoilerReveal,
+    required this.pointerMenuShow,
+    required this.pointerMenuHide,
   });
 
   /// The shipped defaults.
@@ -144,20 +155,22 @@ final class ChromeMotion {
         Curves.easeOutCubic,
       ),
       loop = const MotionSpec(Duration(milliseconds: 900), Curves.linear),
-      menuEnter = const MotionSpec(
-        Duration(milliseconds: 150),
-        Curves.easeOut,
-      ),
-      menuLeave = const MotionSpec(
-        Duration(milliseconds: 220),
-        Curves.easeIn,
-      ),
+      menuEnter = const MotionSpec(Duration(milliseconds: 150), Curves.easeOut),
+      menuLeave = const MotionSpec(Duration(milliseconds: 220), Curves.easeIn),
       menuPage = const MotionSpec(
         Duration(milliseconds: 300),
         Cubic(0.25, 0.1, 0.25, 1),
       ),
       spoilerReveal = const MotionSpec(
         Duration(milliseconds: 300),
+        Curves.linear,
+      ),
+      pointerMenuShow = const MotionSpec(
+        Duration(milliseconds: 200),
+        Curves.linear,
+      ),
+      pointerMenuHide = const MotionSpec(
+        Duration(milliseconds: 150),
         Curves.linear,
       );
 
@@ -230,6 +243,12 @@ final class ChromeMotion {
   /// [MotionRole.spoilerReveal].
   final MotionSpec spoilerReveal;
 
+  /// [MotionRole.pointerMenuShow]: 200 ms, linear clock.
+  final MotionSpec pointerMenuShow;
+
+  /// [MotionRole.pointerMenuHide]: 150 ms, linear.
+  final MotionSpec pointerMenuHide;
+
   /// The spec playing [role].
   MotionSpec operator [](MotionRole role) => switch (role) {
     MotionRole.listTransition => listTransition,
@@ -251,6 +270,8 @@ final class ChromeMotion {
     MotionRole.menuLeave => menuLeave,
     MotionRole.menuPage => menuPage,
     MotionRole.spoilerReveal => spoilerReveal,
+    MotionRole.pointerMenuShow => pointerMenuShow,
+    MotionRole.pointerMenuHide => pointerMenuHide,
   };
 
   /// A copy with the named roles replaced.
@@ -274,6 +295,8 @@ final class ChromeMotion {
     MotionSpec? menuLeave,
     MotionSpec? menuPage,
     MotionSpec? spoilerReveal,
+    MotionSpec? pointerMenuShow,
+    MotionSpec? pointerMenuHide,
   }) => ChromeMotion(
     listTransition: listTransition ?? this.listTransition,
     panelSlide: panelSlide ?? this.panelSlide,
@@ -294,6 +317,8 @@ final class ChromeMotion {
     menuLeave: menuLeave ?? this.menuLeave,
     menuPage: menuPage ?? this.menuPage,
     spoilerReveal: spoilerReveal ?? this.spoilerReveal,
+    pointerMenuShow: pointerMenuShow ?? this.pointerMenuShow,
+    pointerMenuHide: pointerMenuHide ?? this.pointerMenuHide,
   );
 
   @override

@@ -380,6 +380,28 @@ A draft is the markdown of `richText`, written to the `KeyValueStore` under the
 chat id (and the edited message's id) debounced on change, removed on send, and
 loaded with `restore(RichTextMarkdown.decode(...))`.
 
+### Pointer menu (desktop)
+
+On macOS, Windows, Linux and the web a secondary click in the composer field
+opens the reference desktop client's context menu at the pointer instead of the
+floating card (`ComposerMenuPolicy`, chosen by platform; pass
+`ComposerView.menuPolicy` to override; touch keeps the card). Nothing needs
+wiring beyond what the selection menu already has, plus:
+
+- `ChromeStrings.editMenu` (`EditMenuStrings`): the row labels. A label may
+  carry a Qt-style `&` mnemonic, which the menu underlines.
+- A `ChromeThemeScope` (it supplies `PointerMenuTokens`, derived from the
+  palette; pass `PointerMenuTokens.referenceDay` or `referenceNight` to the
+  scope's `pointerMenu` for the reference's exact colours).
+- Optionally `ComposerSpec.spellChecker`: a `ComposerSpellChecker` over the
+  platform's checker (the composer ships none). Without one there is no
+  Spelling row.
+
+The menu opens through the root overlay, so it needs an `Overlay` above the
+field, and it closes when the window loses focus or its metrics change. In a
+browser the host turns the browser's own context menu off for the page
+(`BrowserContextMenu.disableContextMenu`), or both menus show.
+
 ### Formatting menu, shortcuts and suggestions
 
 The selection menu is the composer's own; the host chooses what it offers and

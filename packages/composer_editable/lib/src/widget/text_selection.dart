@@ -14,6 +14,7 @@ import 'dart:math' as math;
 import 'package:composer_editable/src/widget/editable_text.dart';
 import 'package:composer_editable/src/widget/finger_tracked_handle.dart';
 import 'package:composer_editable/src/widget/render_editable.dart';
+import 'package:composer_editable/src/widget/secondary_click.dart';
 import 'package:composer_editable/src/widget/selection_debug.dart';
 import 'package:composer_editable/src/widget/selection_handle_motion.dart';
 import 'package:flutter/foundation.dart';
@@ -4099,12 +4100,30 @@ class ExtendedTextSelectionGestureDetectorBuilder {
     _onSingleLongTapEndOrCancel();
   }
 
+  // Reports one edge of a secondary click to the host that asked for it. The
+  // selection, the toolbar and the handles are left as they are.
+  void _reportSecondaryClick(ExtendedSecondaryClickPhase phase, Offset at) {
+    editableText.widget.onSecondaryClick?.call(
+      ExtendedSecondaryClick(
+        phase: phase,
+        globalPosition: at,
+        textPosition: renderEditable.getPositionForPoint(at),
+      ),
+    );
+  }
+
   /// Handler for [ExtendedTextSelectionGestureDetector.onSecondaryTap].
   ///
   /// By default, selects the word if possible and shows the toolbar.
   @protected
   void onSecondaryTap() {
     if (!delegate.selectionEnabled) {
+      return;
+    }
+    final listener = editableText.widget.onSecondaryClick;
+    if (listener != null) {
+      final at = renderEditable.lastSecondaryTapDownPosition;
+      if (at != null) _reportSecondaryClick(ExtendedSecondaryClickPhase.up, at);
       return;
     }
     switch (defaultTargetPlatform) {
@@ -4137,6 +4156,17 @@ class ExtendedTextSelectionGestureDetectorBuilder {
   ///  * [onSecondaryTap], which is typically called after this.
   @protected
   void onSecondaryTapDown(TapDownDetails details) {
+    if (editableText.widget.onSecondaryClick != null) {
+      if (!delegate.selectionEnabled) return;
+      renderEditable.handleSecondaryTapDown(
+        TapDownDetails(globalPosition: details.globalPosition),
+      );
+      _reportSecondaryClick(
+        ExtendedSecondaryClickPhase.down,
+        details.globalPosition,
+      );
+      return;
+    }
     // TODO(Renzo-Olivares): Migrate text selection gestures away from saving state
     // in renderEditable. The gesture callbacks can use the details objects directly
     // in callbacks variants that provide them [TapGestureRecognizer.onSecondaryTap]

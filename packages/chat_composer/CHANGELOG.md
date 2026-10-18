@@ -6,6 +6,33 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (desktop pointer menu)
+
+- The desktop presentation of the field's menu: a secondary click opens the
+  reference desktop client's context menu at the pointer (Undo, Redo, Cut,
+  Copy, Paste, Paste as plain text, Delete, Formatting, Select All, and a
+  Spelling submenu when a checker is given), drawn by `chrome_foundation`'s
+  `PointerMenu`, with shortcut hints per platform (`ComposerMenuHints`), greyed
+  rows instead of hidden ones, the Formatting submenu (Bold ... Spoiler, Code
+  block, lists, Create or Edit link, Remove link, Clear formatting) and Edit
+  link for the link under the pointer. Chosen by `ComposerMenuPolicy`
+  (`ComposerView.menuPolicy`, default by platform): on macOS, Windows, Linux
+  and the web a right click no longer selects the word and shows the floating
+  toolbar, it opens this menu and leaves the selection alone; the toolbar stays
+  for touch and under `ComposerMenuPolicy.mobile()`. Existing code that
+  asserted the floating card after a desktop right click will now see the
+  pointer menu.
+- `ShowComposerMenuIntent`, bound to the Menu key and Shift+F10 by the desktop
+  shortcut policy, opens the menu at the caret.
+- `ComposerController`: `undoHistory`, `canUndo`, `canRedo`, `undo`, `redo`,
+  `deleteSelection`, `selectAll` and `canPaste` (a paste probe that gives up
+  after 300 ms and says yes). `ComposerField` hands `undoHistory` to the
+  editable.
+- `ComposerTextController`: `linkAt`, `applyLinkTo` and `removeLinkFrom`, links
+  addressed by position instead of by selection.
+- `ComposerSpellChecker` and `ComposerSpec.spellChecker`: the host's spell
+  checker seam. No implementation ships.
+
 ### Added
 
 - `ComposerSelectionMenu`, the field's selection menu on every platform: a

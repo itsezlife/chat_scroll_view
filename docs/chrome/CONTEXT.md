@@ -234,8 +234,12 @@ _Avoid_: Parsing markdown on paste, a composer-owned toast
 _Avoid_: Encoding `richText` straight to the wire, rejecting a message over an unresolved mention
 
 **Selection menu**:
-The composer's floating card on a text selection (`ComposerSelectionMenu`), mounted through the **composer editable**'s menu builder on every platform. A two-page swipe-back card: the main row holds the clipboard actions and a More button, and the More page, which slides in from the right, holds the actions that did not fit the row and the formatting actions, with a Back tile. A formatting action that cannot apply is greyed. Its options, link prompt, labels and back priority are host contract.
+The composer's floating card on a text selection (`ComposerSelectionMenu`), the touch presentation (desktop's is the **pointer menu**), mounted through the **composer editable**'s menu builder on every platform. A two-page swipe-back card: the main row holds the clipboard actions and a More button, and the More page, which slides in from the right, holds the actions that did not fit the row and the formatting actions, with a Back tile. A formatting action that cannot apply is greyed. Its options, link prompt, labels and back priority are host contract.
 _Avoid_: The platform selection menu extended, context menu (alone)
+
+**Pointer menu**:
+The desktop presentation of the composer field's context menu: the reference desktop client's popup list (`PointerMenu` in `chrome_foundation`) opened at the pointer by a secondary click, with Undo, Redo, Cut, Copy, Paste, Delete, a Formatting submenu and Select All, each with a shortcut hint, greyed when it cannot apply and never hidden. It leaves the caret and selection alone, takes focus as a child of the field's node, and is chosen by the composer menu policy (`$Desktop`); the **selection menu** stays for touch.
+_Avoid_: Context menu (alone), popup (alone), right-click menu
 
 **Composer editable**:
 The composer's one editable: the package `composer_editable`, a patched copy of the framework's text field kept as a patch series over a baseline of the pinned SDK. It supplies the touch gesture matrix, the handle and magnifier motion and the toolbar fade; a host reaches it only through the composer view.

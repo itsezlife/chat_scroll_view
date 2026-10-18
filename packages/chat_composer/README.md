@@ -135,6 +135,32 @@ The view imports no inset type.
   clipboard labels are Material's, and the colours are `SelectionMenuTokens`
   (build the chrome palette from a colour scheme with
   `ChromePalette.fromColorScheme` for Material's own look).
+- **The pointer menu** is the desktop presentation of the field's menu, chosen
+  by `ComposerMenuPolicy` (`$Desktop` on macOS, Windows, Linux and the web;
+  `$Mobile`, no pointer menu, on touch platforms; pass `ComposerView.menuPolicy`
+  to choose). A secondary click in the field opens the reference desktop
+  client's context menu at the pointer, a pointer-anchored popup drawn by
+  `chrome_foundation`'s `PointerMenu`, and leaves the caret and selection
+  where they were (the press opens it on macOS and Linux, the release on
+  Windows; `ComposerMenuPolicy$Desktop.platformsOpeningOnPress` is the one
+  place that is written). The Menu key and Shift+F10 open it at the caret.
+  Rows, top to bottom: Undo, Redo, Cut, Copy, Paste (and Paste as plain text
+  while there is a rich clipboard), Delete, Formatting (Bold, Italic,
+  Underline, Strikethrough, Quote, Monospace, Spoiler, Code block, the list
+  rows while lists are on, Create link or Edit link and Remove link, Clear
+  formatting) and Select All, each with its shortcut hint in the platform's
+  native form. A row that cannot apply is greyed, never hidden; at a caret
+  every style row is greyed. Right-clicking a link with nothing selected
+  offers Edit link and edits that link. The Formatting submenu opens on hover
+  or Right; arrows, Enter, Space and Escape drive the menu, and the field
+  keeps focus and its painted selection throughout. Labels are
+  `ChromeStrings.editMenu` (Qt-style `&` mnemonics are drawn underlined), the
+  colours `ChromeThemeScope`'s pointer menu tokens. **Spelling** is a seam
+  only: give `ComposerSpec.spellChecker` a `ComposerSpellChecker` and the menu
+  shows a Spelling submenu for the word under the pointer; there is no
+  built-in checker. The floating toolbar stays for touch. Every value the
+  reference does not give is a named constant listed in
+  [ADR 026](../../docs/adr/026-composer-model.md)'s divergence table.
 - **IME composition.** While the composing range is non-empty the entities are
   not touched. When composition ends the whole composition is applied as one
   replacement against the text before it began. `richText` stays consistent
@@ -168,6 +194,7 @@ The view imports no inset type.
 | `entityStyles` (usually `ComposerEntityStyles.fromTokens` of the chrome theme) and an `inlineContentBuilder` whose span lays out as exactly the reference's alternative text length. | Return a span of another length: the field maps selection by text offsets (a debug assertion checks it). |
 | Mode state: reply or edit ids, banners, the busy flag. It loads an edited message with `restore(RichText)` and reads `sendableText` to send and `richText` to store a draft, both through `RichTextMarkdown`. | Look for reply, edit or enabled state on the controller, or store a draft as `toJson`. |
 | `messageLengthLimit` from its server configuration, a `confirmMention` over its own users when pastes may carry mentions, an `onPaste` when it offers to apply formatting, and the draft store with its debounce. Any trim (an emoji-only message skips it) before the send. | Count markdown source as the length, encode `richText` when it means to send, or expect the composer to trim. |
+| For the pointer menu: `ChromeStrings.editMenu`, a `ChromeThemeScope` (it supplies the pointer menu tokens; `PointerMenuTokens.referenceDay` and `referenceNight` are the reference's own), optionally `ComposerView.menuPolicy` and `ComposerSpec.spellChecker`. | Expect a built-in spell checker, or the pointer menu on a touch platform. |
 | For the selection menu: `ComposerSpec.formatting` (which items; the default is every item but the list items), `ComposerSpec.linkPrompt` (the link dialog, given the current URL when the selection is linked; without it there is no link item), `ComposerSpec.backPriority` (the hook that takes Back ahead of the soft keyboard; the soft keyboard consumes Back before Flutter sees it, so without it Back closes the menu only where Flutter's own dispatch gets it), the labels in `ChromeStrings.formatting`, and the menu's tokens (`SelectionMenuTokens`) and its `menuEnter`, `menuLeave` and `menuPage` motion roles from `chrome_foundation`. | Mount a `ComposerSelectionMenu` itself, expect an item that cannot apply to vanish (it is greyed), or expect the platform's menu on any platform. |
 | The `softKeyboard` option, set while another surface stands in for the keyboard, and the focus commands. | Expect the controller to show or hide the keyboard or touch a platform channel; the field declares its input type from these inputs. |
 | Nothing for the field's reports: the view calls `reportFieldHeight`, `reportExtent` and `reportCaretAnchor` itself. | Call the `report...` methods, or read the anchor as exact: it may lag the text by a frame, and is `null` before the first report. |
