@@ -114,8 +114,12 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
     final sticker = widget.host.stickerOf(widget.emojiOnly);
     final direction = Directionality.of(context);
     final viewport = MediaQuery.sizeOf(context);
+    // `overlayProgress`, not `selectProgress`: the viewport freezes the latter
+    // when selection mode closes (the check rides the mode collapse), so a
+    // tint read from it alone would stay on the last message unselected and on
+    // every message a clear or Esc leaves behind.
     final selected =
-        ChatSelectionStateScope.maybeOf(context)?.selectProgress ?? 0;
+        ChatSelectionStateScope.maybeOf(context)?.overlayProgress ?? 0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
