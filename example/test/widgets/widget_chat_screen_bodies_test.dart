@@ -7,6 +7,7 @@ import 'package:chat_scroll_view_example/main.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -119,7 +120,33 @@ void main() {
       expect(sticker, findsOneWidget);
       await tapAndRead(tester, tester.getCenter(sticker));
 
-      expect(find.text('Sticker pack of unicode:1F44D'), findsOneWidget);
+      // The tap is a direct interaction: the stub batches it and, after the
+      // debounce, shows what would be broadcast (nothing is sent).
+      expect(find.textContaining('Would broadcast'), findsNothing);
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(find.textContaining('Would broadcast'), findsOneWidget);
+      expect(find.textContaining('msg_id: 10'), findsOneWidget);
+      expect(find.textContaining('"v":1'), findsOneWidget);
+      expect(find.textContaining('Sticker pack'), findsNothing);
+    });
+
+    screenTest('the sticker of a custom emoji has no effect: its pack', (
+      tester,
+    ) async {
+      await openChat(tester);
+
+      // Message 11 is a lone custom emoji.
+      final sticker = find.byWidgetPredicate(
+        (widget) =>
+            widget is ChatEmojiBody &&
+            widget.messageId == 11 &&
+            widget.emojiOnly.items.single.key is ContentKey$Document,
+      );
+      expect(sticker, findsOneWidget);
+      await tapAndRead(tester, tester.getCenter(sticker));
+
+      expect(find.textContaining('Sticker pack of document:'), findsOneWidget);
     });
 
     screenTest('a spoiler: a tap reveals it, with no host action', (
