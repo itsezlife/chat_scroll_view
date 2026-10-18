@@ -159,6 +159,13 @@ void main() {
       expect(result!.items.single.key, customKey);
     });
 
+    test('a custom emoji keeps the text under it, the others have none', () {
+      const text = '$_thumbs$_heart$_thumbs';
+      final result = _of(text, const [Entity(2, 2, custom)]);
+
+      expect(result!.items.map((item) => item.alt), ['', _heart, '']);
+    });
+
     test('mixed custom and unicode emoji keep their order', () {
       const text = '$_thumbs$_heart$_thumbs';
       final result = _of(text, const [Entity(2, 2, custom)]);

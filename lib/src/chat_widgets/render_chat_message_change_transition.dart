@@ -68,10 +68,19 @@ class RenderChatMessageChangeTransition extends RenderBox
         value.animateBackgroundBounds ||
         _params.progress != value.progress ||
         _params.holdPaintedBackground != value.holdPaintedBackground;
+    final fadedBefore = _fadesText;
     _params = value;
+    if (_fadesText != fadedBefore) markNeedsCompositingBitsUpdate();
     markNeedsPaint();
     if (relayout) markNeedsLayout();
   }
+
+  // Whether the text crossfade runs: it fades on opacity layers, so the clip
+  // around it has to be a layer too.
+  bool get _fadesText => _params.animateMessageText && _outgoingContent != null;
+
+  @override
+  bool get alwaysNeedsCompositing => _fadesText;
 
   /// Bubble fill.
   Color get color => _color;
@@ -396,11 +405,20 @@ class RenderChatMessageChangeTransition extends RenderBox
     }
     context.canvas.drawRRect(rrect, Paint()..color = _color);
 
-    final clipLocal = _params.textClipRect(finalRect);
-    final clip = clipLocal.shift(offset);
-    context.canvas.save();
-    context.canvas.clipRect(clip);
+    // Clip and fade through layers, not the canvas: a body that is a repaint
+    // boundary (the markdown body is one) is composited apart from this
+    // canvas, so a canvas `clipRect` or `saveLayer` never reaches it and its
+    // old text would show unfaded and unclipped.
+    context.pushClipRect(
+      needsCompositing,
+      offset,
+      _params.textClipRect(finalRect),
+      (context, offset) => _paintBody(context, offset, finalRect),
+      clipBehavior: Clip.antiAlias,
+    );
+  }
 
+  void _paintBody(PaintingContext context, Offset offset, Rect finalRect) {
     // Header is shared chrome — paint once above the text crossfade.
     final header = _header;
     if (header != null) {
@@ -427,26 +445,22 @@ class RenderChatMessageChangeTransition extends RenderBox
 
       // Body text only — dual meta was painting two timestamps in the clip.
       if (outOpacity > 0) {
-        _paintLayer(
+        _paintFaded(
           context,
-          bounds: clip,
           opacity: outOpacity,
-          paintChildren: () {
-            context.paintChild(outgoingContent, outContentPaint);
-          },
+          paintChild: (layer) =>
+              layer.paintChild(outgoingContent, outContentPaint),
         );
       }
 
       if (inOpacity > 0) {
         final content = _content;
         if (content != null) {
-          _paintLayer(
+          _paintFaded(
             context,
-            bounds: clip,
             opacity: inOpacity,
-            paintChildren: () {
-              context.paintChild(content, offset + _contentOffset);
-            },
+            paintChild: (layer) =>
+                layer.paintChild(content, offset + _contentOffset),
           );
         }
       }
@@ -467,29 +481,26 @@ class RenderChatMessageChangeTransition extends RenderBox
       );
       context.paintChild(meta, offset + paintMeta);
     }
-
-    context.canvas.restore();
   }
 
-  void _paintLayer(
+  // [paintChild] at [opacity], on an opacity layer: it paints through the
+  // layer's own context, at absolute positions, so the layer sits at the
+  // origin.
+  void _paintFaded(
     PaintingContext context, {
-    required Rect bounds,
     required double opacity,
-    required VoidCallback paintChildren,
+    required void Function(PaintingContext layer) paintChild,
   }) {
     if (opacity >= 0.999) {
-      paintChildren();
+      paintChild(context);
       return;
     }
     if (opacity <= 0.001) return;
-    // Bound the layer to the text clip — unbounded saveLayer composited two
-    // full-bubble text stacks and looked like stacked ghosts.
-    context.canvas.saveLayer(
-      bounds,
-      Paint()..color = Color.fromRGBO(0, 0, 0, opacity),
+    context.pushOpacity(
+      Offset.zero,
+      (opacity * 255).round().clamp(0, 255),
+      (layer, _) => paintChild(layer),
     );
-    paintChildren();
-    context.canvas.restore();
   }
 
   @override

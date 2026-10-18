@@ -392,14 +392,13 @@ void main() {
       expect(body.sticker, const ContentKey.document('5368'));
     });
 
-    bodyTest('is bubble-less and registers as a message, not as text', (
-      tester,
-    ) async {
+    bodyTest('is bubble-less and its text layout registers as selectable '
+        'text', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, [_message(1, three)]);
 
-      expect(selection.bodyOf(1), isNull);
-      expect(selection.surfaceFor(1), isNull);
+      expect(selection.bodyOf(1), isNotNull);
+      expect(selection.surfaceFor(1), isNotNull);
       expect(find.byType(ChatMessageChangeTransition), findsNothing);
     });
   });

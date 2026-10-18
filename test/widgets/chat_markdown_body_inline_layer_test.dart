@@ -907,8 +907,9 @@ void main() {
       expect(ticks.isRunning, isTrue);
       ticks.tick(const Duration(seconds: 1));
       expect(selection.spoilers.fillFrame, 30);
-      ticks.tick(const Duration(seconds: 2));
-      expect(selection.spoilers.fillFrame, 60);
+      // The next frame, a little over two dust frames later.
+      ticks.tick(const Duration(milliseconds: 1067));
+      expect(selection.spoilers.fillFrame, 32);
     });
 
     inlineTest('sleeps once nothing hidden is on screen', (tester) async {
@@ -929,6 +930,42 @@ void main() {
       clock.setPaused(PlaybackPauseLayer.fastScroll, paused: true);
 
       expect(ticks.isRunning, isFalse);
+    });
+
+    inlineTest('stands still while the window has no focus and goes on from '
+        'where it stopped, not from the live time', (tester) async {
+      final lifecycle = ManualPlaybackLifecycleSource(
+        initial: AppLifecycleState.resumed,
+      );
+      addTearDown(lifecycle.dispose);
+      final activity = PlaybackActivity(clock: clock, lifecycle: lifecycle);
+      addTearDown(activity.dispose);
+      final selection = newSelection(spoilerClock: clock);
+      await pump(tester, selection, {1: 'x ||secret|| y'});
+      ticks.tick(const Duration(seconds: 1));
+      expect(selection.spoilers.fillFrame, 30);
+
+      lifecycle.emit(AppLifecycleState.inactive);
+      expect(ticks.isRunning, isFalse);
+      lifecycle.emit(AppLifecycleState.resumed);
+      expect(ticks.isRunning, isTrue);
+      // Ten seconds later: at most one dust frame further, not frame 330.
+      ticks.tick(const Duration(seconds: 11));
+      expect(selection.spoilers.fillFrame, inInclusiveRange(30, 31));
+
+      // And from there it moves at its own pace again.
+      ticks.tick(const Duration(milliseconds: 11034));
+      expect(selection.spoilers.fillFrame, 32);
+    });
+
+    inlineTest('a hitch inside the tolerance is not swallowed', (tester) async {
+      final selection = newSelection(spoilerClock: clock);
+      await pump(tester, selection, {1: 'x ||secret|| y'});
+      ticks.tick(const Duration(seconds: 1));
+
+      ticks.tick(const Duration(milliseconds: 1090));
+
+      expect(selection.spoilers.fillFrame, 32);
     });
 
     inlineTest('a controller with no clock leaves the dust still', (

@@ -6,6 +6,45 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (More button press)
+
+- The More button showed nothing when pressed: it was a bare `InkResponse`,
+  which takes the theme's splash and highlight, transparent under Material 3.
+  It is an `IconButton` again, 56 by 48, whose pressed state layer is the
+  Material one.
+
+### Changed (selection menu fit and language)
+
+- The selection menu's sizes and fit are Telegram's floating toolbar
+  (`FloatingToolbar.java`), traced value by value, instead of the fixed sizes
+  the previous port took from the message menu. The main row's buttons are 48
+  dp tall (were 42) with 16 dp padding (were 12; 24 at the row's first start
+  and, with no More button, its last end), 48 dp wide at least, the More
+  button is 56 by 48 flush with the card's end (was 46 by 42), and a button
+  stays on the row while it fits beside the More button, the last item of the
+  whole menu taking that room if nothing follows. Labels are 14 dp medium with
+  no letter spacing (were the theme's body-large at 16), the Back label 16 dp
+  regular. The More page is as wide as its widest row (was a fixed 150 dp that
+  ellipsized any translation longer than about a dozen characters),
+  never narrower than its Back row, never wider than the screen less 32 dp;
+  it is four rows and half of a fifth tall at most (rows counted at 48 dp,
+  two at least where the room is short) and scrolls under a 16 dp fade at
+  both edges; its Back row is 48 dp (arrow at 16, label at 56) with a
+  one-device-pixel hairline at its top edge, which is the card's edge when
+  Back is above the list. The card is at most 264 dp tall (was 320), sits 16
+  dp from the screen's sides (was 12) and its row is at most `min(400, width -
+  32)` wide. Source-breaking only for code that imports `src/menu` internals.
+  The page turn, the enter and leave motion, the elevation and the greyed
+  formatting rows are unchanged and recorded as deviations in ADR 026.
+- Every label of the selection menu, the clipboard rows included, is a
+  `ChromeStrings` string: Cut, Copy, Paste and Select all come from
+  `ChromeStrings.editMenu` (the pointer menu's group, its `&` marks removed),
+  no longer from `MaterialLocalizations`. An app without a Material delegate
+  for its language used to get English clipboard rows beside its own
+  formatting rows. Existing tests that looked for Material's "Select all" will
+  find the host's wording ("Select All" in the English preset). The field no
+  longer needs Material localisations for the menu, only for its text field.
+
 ### Added (desktop pointer menu)
 
 - The desktop presentation of the field's menu: a secondary click opens the

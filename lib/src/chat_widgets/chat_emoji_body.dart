@@ -8,8 +8,12 @@ import 'package:catalog_assets/catalog_assets.dart'
         PlayableEmbed;
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sticker_tap_policy.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_body_selection_scope.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_geometry.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_policy.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_text.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_autoscroll.dart'
+    show ChatMarkdownAutoscrollOptions;
 import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_body.dart'
     show ChatMarkdownBodyRegistration;
 import 'package:chat_scroll_view/src/chat_widgets/chat_sticker_playback.dart';
@@ -77,9 +81,28 @@ typedef ChatEmojiEmbedFactory =
 ///
 /// ## Selection and taps
 ///
-/// The body registers with the facade as a non-text body
-/// (`ChatSelectionController.putNonTextBody`): there is no text to select, a
-/// long press is message selection, and Copy is the message's own. The
+/// **Text layout.** The body is selectable text, as a markdown body is. It
+/// registers its text with the facade (`ChatSelectionController.putBody`, one
+/// markdown paragraph made by `ChatEmojiText`) and its render object is the
+/// selection surface (`MarkdownSelectionSurface`) of that model, so the
+/// facade's range, the per-body scope's mouse and touch gestures, handles,
+/// toolbar, select-all and Copy (plain, and structured through
+/// `ChatTextCopy.content`) are the markdown body's own, under the same
+/// selection policy (ADR 012, ADR 013, ADR 015). An emoji is one atomic item:
+/// a press lands on an item edge, a double click or a long press selects the
+/// one emoji under it (as a long press on an emoji span does on Android), and
+/// the highlight is a box per line under the items
+/// ([RenderChatEmojiBody.selectedItemBoxes] are the per-item boxes, for a
+/// host that styles them apart). [selectableText] turns it off for a host
+/// that keeps the reference clients' rule: only Android selects text here,
+/// Desktop and iOS draw the large emoji as media (ADR 036).
+///
+/// **Sticker layout.** One emoji drawn as a sticker is not text: it registers
+/// no text, so nothing starts a range on it, a long press is message
+/// selection and Copy is the message's own.
+///
+/// Both layouts register as a non-text body
+/// (`ChatSelectionController.putNonTextBody`) for the activatable parts. The
 /// viewport arbitrates taps: a custom emoji of the text layout reports
 /// `ChatInlineHit.embed` (when `handlesEmbedHits`), and the sticker reports
 /// `ChatInlineHit.sticker`, always, when the tap lands on the drawn sticker
@@ -116,6 +139,8 @@ class ChatEmojiBody extends StatefulWidget {
     this.parentWidth,
     this.bottomReserve = 0,
     this.semanticsLabel,
+    this.selectableText = true,
+    this.autoscroll,
     super.key,
   });
 
@@ -245,9 +270,19 @@ class ChatEmojiBody extends StatefulWidget {
   final double bottomReserve;
 
   /// What a screen reader says, the plain text of the message. The default is
-  /// made from the unicode emoji alone: a custom emoji has no text in
-  /// [emojiOnly].
+  /// made from the unicode emoji and the text of each custom emoji
+  /// (`EmojiOnlyItem.alt`, empty when the host did not keep it).
   final String? semanticsLabel;
+
+  /// Whether the text layout is selectable text. On by default; off, the body
+  /// registers as a non-text body only, as it did before text selection: a
+  /// long press is message selection and Copy is the message's own. The
+  /// sticker layout is never text.
+  final bool selectableText;
+
+  /// Edge autoscroll knobs while dragging a text selection; null is enabled
+  /// with the policy's defaults. See `ChatMarkdownBody.autoscroll`.
+  final ChatMarkdownAutoscrollOptions? autoscroll;
 
   @override
   State<ChatEmojiBody> createState() => _ChatEmojiBodyState();
@@ -255,7 +290,11 @@ class ChatEmojiBody extends StatefulWidget {
 
 class _ChatEmojiBodyState extends State<ChatEmojiBody>
     implements ChatStickerBody {
-  final _leafKey = GlobalKey();
+  // The render object the leaf widget made. A GlobalKey would find it, but
+  // the layout changing between text and sticker moves the leaf in the tree,
+  // and a reparented render object reattaches with leaves this state has
+  // already given back; made again in place, it takes the new ones.
+  RenderChatEmojiBody? _renderBox;
 
   List<ChatEmojiLeaf> _leaves = const [];
   Object? _plan;
@@ -274,7 +313,17 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
   ChatSelectionController? _registeredWith;
   int? _registeredId;
   Object? _token;
+  // The text model the facade holds for this message (the text layout of a
+  // selectable body only), and the ownership token it gave back.
+  ChatEmojiText? _text;
+  EmojiOnly? _textFor;
+  Object? _textToken;
   MouseCursor _cursor = MouseCursor.defer;
+  bool _mountsSurface = false;
+
+  /// Whether this body is selectable text now: the text layout, with the
+  /// host's say-so.
+  bool get _isText => widget.selectableText && !_isSticker;
 
   bool get _isSticker =>
       ChatEmojiBody.layoutKindFor(widget.emojiOnly, sticker: widget.sticker) ==
@@ -333,33 +382,83 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
   // replace its entry (see [ChatMarkdownBodyRegistration]).
   void _syncRegistration() {
     final wants = ChatMarkdownBodyRegistration.allows(context);
-    if (wants &&
+    final same =
+        wants &&
         _token != null &&
         identical(_registeredWith, widget.controller) &&
-        _registeredId == widget.messageId) {
+        _registeredId == widget.messageId;
+    if (!same) {
+      _unregister();
+      if (!wants) return;
+      _registeredWith = widget.controller;
+      _registeredId = widget.messageId;
+      _token = widget.controller.putNonTextBody(widget.messageId, this);
+    }
+    _syncText();
+  }
+
+  // The text the facade selects from: put while this body is selectable text,
+  // updated when the emoji change, removed when it stops being (a sticker, or
+  // the host turned it off).
+  void _syncText() {
+    final controller = _registeredWith;
+    final id = _registeredId;
+    if (controller == null || id == null || !_isText) {
+      _removeText();
       return;
     }
-    _unregister();
-    if (!wants) return;
-    _registeredWith = widget.controller;
-    _registeredId = widget.messageId;
-    _token = widget.controller.putNonTextBody(widget.messageId, this);
+    if (_textToken != null && _textFor == widget.emojiOnly) return;
+    final text = _text = ChatEmojiText.of(widget.emojiOnly);
+    _textFor = widget.emojiOnly;
+    _textToken = controller.putBody(
+      id,
+      text.markdown,
+      order: id,
+      token: _textToken,
+    );
+  }
+
+  void _removeText() {
+    if (_textToken case final token?) {
+      _registeredWith?.removeBody(_registeredId!, token: token);
+    }
+    _textToken = null;
+    _text = null;
+    _textFor = null;
   }
 
   void _unregister() {
+    _removeText();
     if (_token case final token?) {
       _registeredWith?.removeNonTextBody(_registeredId!, token: token);
+    }
+    if (_registeredId case final id?) {
+      _registeredWith?.reportBodyPaintBounds(id, null);
     }
     _token = null;
     _registeredWith = null;
     _registeredId = null;
   }
 
-  RenderChatEmojiBody? get _render =>
-      switch (_leafKey.currentContext?.findRenderObject()) {
-        final RenderChatEmojiBody box when box.attached && box.hasSize => box,
-        _ => null,
-      };
+  // Where the body is, for the facade's gesture routing while its surface is
+  // not mounted (the markdown body reports the same).
+  void _reportPaintBounds() {
+    if (!_isText) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _registeredId == null) return;
+      switch (_render) {
+        case final RenderBox box:
+          _registeredWith?.reportBodyPaintBounds(_registeredId!, box);
+        case _:
+          _registeredWith?.reportBodyPaintBounds(_registeredId!, null);
+      }
+    });
+  }
+
+  RenderChatEmojiBody? get _render => switch (_renderBox) {
+    final RenderChatEmojiBody box when box.attached && box.hasSize => box,
+    _ => null,
+  };
 
   @override
   Rect? get globalBounds {
@@ -416,8 +515,7 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
       ContentKey$Document() => ChatInlineHit.embed(
         messageId: widget.messageId,
         target: key.encoded,
-        // `EmojiOnly` keeps no alternative text for a custom emoji.
-        alt: '',
+        alt: widget.emojiOnly.items[index].alt,
       ),
       _ => null,
     };
@@ -591,9 +689,16 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
       (hit is ChatInlineHit$Embed && widget.controller.handlesEmbedHits);
 
   void _onHover(PointerHoverEvent event) {
-    final next = _actionable(inlineHitAt(event.position))
-        ? SystemMouseCursors.click
-        : MouseCursor.defer;
+    final MouseCursor next;
+    if (_actionable(inlineHitAt(event.position))) {
+      next = SystemMouseCursors.click;
+    } else if (_mountsSurface &&
+        (_render?.hitsSelectableGlyphs(event.position) ?? false)) {
+      // The I-beam over an emoji, as over the glyphs of a markdown body.
+      next = SystemMouseCursors.text;
+    } else {
+      next = MouseCursor.defer;
+    }
     if (next != _cursor) setState(() => _cursor = next);
   }
 
@@ -603,43 +708,80 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
       widget.semanticsLabel ??
       [
         for (final item in widget.emojiOnly.items)
-          if (item.key case ContentKey$Unicode(:final sequence))
-            '${'\n' * item.lineBreaksBefore}$sequence',
+          '${'\n' * item.lineBreaksBefore}${switch (item.key) {
+            ContentKey$Unicode(:final sequence) => sequence,
+            _ => item.alt,
+          }}',
       ].join();
 
+  Widget _leafBox(ChatEmojiSelectionBinding? selection) => _ChatEmojiLeafWidget(
+    onCreated: (box) => _renderBox = box,
+    leaves: _leaves,
+    spec: ChatEmojiBody._specFor(
+      emojiOnly: widget.emojiOnly,
+      policy: widget.policy,
+      sticker: widget.sticker,
+      viewport: _viewport,
+      parentWidth: widget.parentWidth,
+      direction: Directionality.of(context),
+      hasHeader: widget.hasHeader,
+      bottomReserve: widget.bottomReserve,
+    ),
+    tint: _style.color,
+    selection: selection,
+  );
+
+  // The text layout is under the per-body selection scope and rebuilds with
+  // the facade, whose membership and subject the scope's gates read.
+  Widget _selectableBox() => ListenableBuilder(
+    listenable: widget.controller,
+    builder: (context, _) {
+      final mounts =
+          _text != null &&
+          ChatMarkdownBodyRegistration.allows(context) &&
+          widget.controller.exposesSelectionSurface(widget.messageId);
+      _mountsSurface = mounts;
+      _reportPaintBounds();
+      return ChatBodySelectionScope(
+        controller: widget.controller,
+        messageId: widget.messageId,
+        mountSurface: mounts,
+        autoscroll: widget.autoscroll,
+        child: _leafBox(
+          mounts
+              ? ChatEmojiSelectionBinding(
+                  controller: widget.controller.markdownSelection,
+                  documentId: widget.messageId,
+                  text: _text!,
+                )
+              : null,
+        ),
+      );
+    },
+  );
+
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: _label,
-    textDirection: Directionality.of(context),
-    excludeSemantics: true,
-    child: MouseRegion(
-      cursor: _cursor,
-      onHover: _onHover,
-      onExit: (_) {
-        if (_cursor != MouseCursor.defer) {
-          setState(() => _cursor = MouseCursor.defer);
-        }
-      },
-      // Animated frames repaint this box, not the row around it.
-      child: RepaintBoundary(
-        child: _ChatEmojiLeafWidget(
-          key: _leafKey,
-          leaves: _leaves,
-          spec: ChatEmojiBody._specFor(
-            emojiOnly: widget.emojiOnly,
-            policy: widget.policy,
-            sticker: widget.sticker,
-            viewport: _viewport,
-            parentWidth: widget.parentWidth,
-            direction: Directionality.of(context),
-            hasHeader: widget.hasHeader,
-            bottomReserve: widget.bottomReserve,
-          ),
-          tint: _style.color,
+  Widget build(BuildContext context) {
+    if (!_isText) _mountsSurface = false;
+    return Semantics(
+      label: _label,
+      textDirection: Directionality.of(context),
+      excludeSemantics: true,
+      child: MouseRegion(
+        cursor: _cursor,
+        onHover: _onHover,
+        onExit: (_) {
+          if (_cursor != MouseCursor.defer) {
+            setState(() => _cursor = MouseCursor.defer);
+          }
+        },
+        // Animated frames repaint this box, not the row around it.
+        child: RepaintBoundary(
+          child: _isText ? _selectableBox() : _leafBox(null),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _ChatEmojiLeafWidget extends LeafRenderObjectWidget {
@@ -647,16 +789,28 @@ class _ChatEmojiLeafWidget extends LeafRenderObjectWidget {
     required this.leaves,
     required this.spec,
     required this.tint,
-    super.key,
+    required this.selection,
+    required this.onCreated,
   });
+
+  final ValueChanged<RenderChatEmojiBody> onCreated;
 
   final List<ChatEmojiLeaf> leaves;
   final ChatEmojiLayoutSpec spec;
   final Color? tint;
+  final ChatEmojiSelectionBinding? selection;
 
   @override
-  RenderChatEmojiBody createRenderObject(BuildContext context) =>
-      RenderChatEmojiBody(leaves: leaves, spec: spec, tint: tint);
+  RenderChatEmojiBody createRenderObject(BuildContext context) {
+    final box = RenderChatEmojiBody(
+      leaves: leaves,
+      spec: spec,
+      tint: tint,
+      selection: selection,
+    );
+    onCreated(box);
+    return box;
+  }
 
   @override
   void updateRenderObject(
@@ -666,6 +820,7 @@ class _ChatEmojiLeafWidget extends LeafRenderObjectWidget {
     renderObject
       ..leaves = leaves
       ..spec = spec
-      ..tint = tint;
+      ..tint = tint
+      ..selection = selection;
   }
 }

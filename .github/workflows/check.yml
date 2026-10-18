@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: itsezlife/md
-          ref: v0.4.2
+          ref: v0.4.3
           path: md
 
       # Same SDK the lockfile was resolved with; bump deliberately.

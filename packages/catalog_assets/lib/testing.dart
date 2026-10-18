@@ -34,5 +34,7 @@ export 'src/pipeline/testing/decoder_contract.dart';
 export 'src/pipeline/testing/fake_decoder.dart';
 export 'src/pipeline/testing/fake_fetcher.dart';
 export 'src/pipeline/testing/manual_clock.dart';
+export 'src/playback/testing/manual_playback_lifecycle_source.dart';
 export 'src/playback/testing/manual_playback_tick_source.dart';
+export 'src/playback/testing/playback_lifecycle_source_contract.dart';
 export 'src/playback/testing/playback_tick_source_contract.dart';

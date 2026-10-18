@@ -1,5 +1,110 @@
 ## Unreleased
 
+### Edit crossfade of a body that paints on a layer of its own
+- **Fixed**: the old and new text of an edited message crossfaded with a canvas
+  `saveLayer` and `clipRect`, which do not reach a body that is a repaint
+  boundary. The markdown body became one for every message when it got a
+  selection controller to key spoilers on, so the old text lost its fade and
+  clip and the new text showed at full opacity, which read as a broken
+  animation. The transition now fades on opacity layers and clips on a clip
+  layer while the text crossfade runs, and asks for compositing only then, so a
+  settled bubble costs nothing more.
+
+### Message menu keeps the chat playing; the status of a selected emoji-only message
+- **ADDED**: `ChatMessageMenu.routeName`, the `RouteSettings.name` of the route
+  a menu session is presented on. A `NavigatorObserver` that treats modal
+  routes as covering the chat tells the menu apart by it: the menu leaves the
+  message in view, so the chat's animations go on under it. The example's
+  overlay observer skips it; before, the menu held the pause of a dialog.
+- **Fixed**: on desktop the status pill of a selected emoji-only message kept
+  its resting service colour while the glyphs took the selection tint. The
+  pill now takes the same tint (the reference paints `msgServiceBgSelected`
+  there), and gives it up with the selection.
+
+### Pause policies: focus lost, a dialog over the chat, low power; the spoiler dust keeps its phase
+- **Changed (behaviour)**: the spoiler dust (`ChatSelectionController(spoilerClock:)`)
+  is told the time it ran, not the time that passed. A gap of more than three
+  dust frames between two clock frames is a pause, and all of it beyond one
+  frame is cut out, so after a pause the dust goes on from where it stopped;
+  before, it jumped by the whole pause. A hitch of a few frames is not a
+  pause. Nothing else changed in the viewport: the layers that pause the dust
+  are the shared clock's (ADR 022, amendment *pause policies*).
+- **Host contract**: the clock now pauses on focus lost, a window minimised,
+  overlays held by the host and low power through one `PlaybackActivity` in
+  `catalog_assets`; a host that fed `ChatEmojiBody.isActive` from the app
+  lifecycle stops doing so (the row's visibility stays the input). See the
+  `catalog_assets` changelog for the breaking change in the layer enum.
+
+### Message menu scrim on a message without a bubble
+- **Fixed**: the mobile sheet opened on an emoji-only message dimmed the chat
+  around one rounded rectangle over the whole chrome box (reply panel, items,
+  pill, reactions): a bubble outline the message does not have, with the gaps
+  between its parts lit. The reference clients draw the message again above a
+  flat dim, so only what it paints stays bright. The example now reports each
+  painted part: the glyph run's or the sticker's art (square, from
+  `ChatEmojiGeometry.content`, without the strip the chrome reserves), the
+  pill, the reply panel and each reaction chip, in the placement of the
+  Android and iOS emoji chrome, left-to-right and right-to-left. A bubble's
+  menu is unchanged.
+- **ADDED**: `ChatMessageSurfaceParts` and `ChatMessageSurfacePart`, a
+  `ShapeBorder` that is the union of rectangles, each in an outline of its
+  own, in the coordinates of the reported box. Pass it as
+  `ChatMessageSurfaceBounds.shape` for a body without one outline (a sticker,
+  an enlarged emoji run, a round video); the scrim hole follows it and the
+  request is unchanged. See ADR 016 and ADR 036.
+- **EXAMPLE**: `EmojiReactionsRow.chipRects` (the row's chips), and
+  `emojiSurfaceParts` in `emoji_message/`.
+
+### Selection highlight: one look for text, emoji and embeds
+- **Fixed**: a text selection painted a box for every run at the run's own
+  height (a drawn-larger emoji, a text run and an inline embed were three
+  heights, with gaps on a stretched line), tinted an embed it covered a second
+  time over the embed, and over a hidden spoiler drew a patch at the emoji's
+  positions that differed from the text's, showing where they were. It is now
+  one rectangle per line, the line's height, behind glyphs, emoji and embeds,
+  with no tint over an embed and the same rectangle at every position of a
+  hidden spoiler, as Telegram draws it (Android, iOS, Desktop; the rules and
+  divergences are in the fork's `docs/rendering.md`). The tap highlight of a
+  link or inline code reads the same rectangles, so its contour is the line's
+  height too. Needs the `flutter_md` change that makes `boxesForRange` per line
+  (not released yet).
+
+### Emoji-only text messages are text-selectable
+- **BREAKING (behaviour)**: the text layout of `ChatEmojiBody` is no longer "no
+  text selection". It registers its text with the facade and its render object
+  is a `MarkdownSelectionSurface`, so drag, double click (one emoji), long
+  press on mobile, select-all, shift-select, handles, the toolbar and Copy work
+  on it as on a markdown body, under the host's selection policy. A host or
+  test that relied on a long press on a selected emoji-only message doing
+  nothing, or on `hasBody(id)` being false for it, sees text selection instead:
+  pass `selectableText: false` for the previous behaviour (also the Desktop and
+  iOS reference clients' rule; only Android selects its large emoji, see
+  ADR 036). The sticker layout (one emoji resolved to a document) is unchanged
+  and never text.
+- Copy of a selection is the emoji and the line breaks, plain, and structured
+  through `ChatTextCopy.content` (a custom emoji is an image span with its
+  document in `extra['src']`). The spaces and tabs `EmojiOnly` drops are not in
+  it.
+- **ADDED** (`content_model`): `EmojiOnlyItem.alt`, the text under a custom
+  emoji's entity (what a copy writes); empty for a unicode item and for a host
+  that builds the value by hand, which then copies as U+FFFC.
+- **ADDED**: `ChatEmojiBody(selectableText:, autoscroll:)`. The per-item boxes
+  of a selection are `RenderChatEmojiBody.selectedItemBoxes`; the highlight is
+  one box per line under the items, never over an embed.
+- **Fixed**: a press on an inline embed the host does not handle
+  (`handlesEmbedHits` off) no longer blocks a text selection from starting
+  there, in the markdown body too: it is part of the text.
+
+### Status chrome of an emoji-only message: hover is the row's, a click selects (docs and example)
+- **Changed (host contract, no API change)**: the reference desktop client shows an
+  emoji-only message's time while the pointer is anywhere on its row and selects
+  the message on a click on the time (ADR 012, Status chrome, with the
+  citations). `ChatMessageTapBarrier` is unchanged and still keeps the press
+  from the viewport; the example's emoji-only pill now answers a mouse click
+  itself with `ChatSelectionController.toggle` and its hover region is the
+  whole row. Existing hosts that wrap their pill in the barrier see no change
+  until they add a handler; ordinary bubbles' time still does nothing on click.
+
 ### Emoji in a bubble: set at the font's height; the desktop cap is configurable
 - **Fixed**: a unicode emoji in an ordinary markdown body was drawn at the font
   size (15 px text, 15 px emoji), while Android draws it at the font's height

@@ -367,7 +367,11 @@ final class _InlineParser {
     if (inner.text.isEmpty) return null;
     return _SourceAtom(start, end, inner.text, [
       Entity(0, inner.text.length, kind),
-      ...inner.entities,
+      // A link and code never overlap in a RichText. Written as `[`a`](u)` the
+      // target is what the writer meant to keep, so the label's code reads as
+      // text; dropping the link instead would lose the target.
+      for (final entity in inner.entities)
+        if (kind is! EntityKind$Link || entity.kind != EntityKind.code) entity,
     ]);
   }
 

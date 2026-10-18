@@ -56,7 +56,7 @@ row and reveals nothing, and a press held longer than 500 ms reveals nothing
 | One stable `InlineEmbedResolver` per body setup (`ContentEmbedResolver` over its `AssetCacheScope`, or its own composition by scheme) as `ChatMarkdownBody.embedResolver` | Build a new resolver per build (the engine resolves every embed again), or send a bare emoji character expecting an embed: only `![alt](scheme:id)` is one |
 | `ChatSelectionController(handlesEmbedHits: true)` when `ChatEmbedActivated` means something (a sticker preview, a pack sheet) | Expect an embed to be tappable by default: without it an embed is text, with the text cursor and no press highlight, and a tap on it is a tap on the message |
 | A reaction to `ChatMentionActivated` and `ChatHashtagActivated` (through `onInteraction` or a listener), using the `id` of a `ChatResolvedMentionActivated` to open a user | Read a mention's label as who it is, or look for mentions among `ChatLinkActivated` |
-| `ChatSelectionController(spoilerClock: scope.clock)`, the asset cache's `PlaybackClock`, so the dust moves on the shared clock and its pause layers | Run a ticker of its own for the dust (without the clock the dust stands still), or persist what `ChatSelectionController.spoilers` holds: reveal state is in memory |
+| `ChatSelectionController(spoilerClock: scope.clock)`, the asset cache's `PlaybackClock`, so the dust moves on the shared clock and its pause layers (focus lost, minimised, an overlay, low power: one `PlaybackActivity` from `catalog_assets`) | Run a ticker of its own for the dust (without the clock the dust stands still), or persist what `ChatSelectionController.spoilers` holds: reveal state is in memory |
 | `ChatSelectionController.spoilers.tapTimeout = null` on a desktop or web host whose pointer is a mouse (a click has no hold limit) | Set `spoilers.tapReveals` yourself: the facade writes it from `isSelectionMode`, and your value would not survive the next selection change |
 | `copyWriter` reading `ChatTextCopy.content` by style bit (`MD$Style.mention`, `image`, `spoiler`) when it keeps formatting on the clipboard: a selected hidden spoiler arrives with its `spoiler` bit, and the rich clipboard pastes it back as a spoiler | Detect a mention by its URL, or expect `plainText` to carry markdown: it is the characters (a spoiler's included) with an embed's alt |
 | A call to `spoilers.reveal(messageId)` from `onInteraction` only if the product follows iOS and reveals on selection | Expect a text selection over a hidden spoiler to reveal it: the facade selects it hidden and paints the selection under the particles |
@@ -77,9 +77,16 @@ viewport never re-detects.
 | Sticker | One item and the host resolved it to a document (`sticker:`) | A square the policy sizes (Android `min(screen width, height) x 0.5 x 0.625`, 112.5 dp on a phone, no inset; iOS 112 pt in a 10 pt inset; desktop 112 px); a custom emoji's sticker loops, a unicode emoji's plays once |
 | Text | Anything else | Squares of the font step the policy gives (Android `ChatEmojiSizes`: 81.6 down to 22.8 dp, a custom-only message one step larger, box = font + 4 dp; iOS 94 pt down to 19; desktop 38 px images), a unicode emoji as a glyph; the text scale plays no part |
 
-The body registers with the facade as a **non-text body**
-(`ChatSelectionController.putNonTextBody`): there is nothing to select, a long
-press is message selection, and Copy is the message's own. A tap on the
+The **text layout is selectable text**, as a markdown body is: it registers a
+text model with the facade (`putBody`, one paragraph made from the items) and
+its render object is the selection surface of that model, so drag, double click
+or long press (one emoji), select-all, shift-select, handles, the toolbar and
+Copy (plain, and structured through `ChatTextCopy.content`, a custom emoji
+being an image span that names its document) are the markdown body's own,
+under the same selection policy. The **sticker layout is not text**: a long
+press is message selection and Copy is the message's own. Both register as a
+**non-text body** (`ChatSelectionController.putNonTextBody`) for the
+activatable parts. A tap on the
 sticker is `ChatInlineHit.sticker` / `ChatStickerActivated`, always, when it
 lands on the drawn sticker (and nowhere beside it, unless the host sets
 `ChatStickerTapPolicy.replayTapSlop`); the body then plays the sticker again
@@ -100,8 +107,9 @@ body.
 | `tapPolicy:` only to change the replay tap slop (zero on both strategies) or the mobile long press | Widen the slop without confirming the claim that a tap near the sticker replays: no reference client does |
 | A listener for `ChatStickerActivated` (the emoji, message id, `stickerRect`, monotonic `tapTime`) to build an interaction effect and a peer broadcast on, and `ChatSelectionController.playRemoteInteraction(messageId)` for one that arrives (null: drop it, send no acknowledgement) | Expect the viewport to draw the effect or send anything; it ships the seams |
 | The time pill, reactions, reply and forward header, placed per platform from `ChatEmojiBody.geometryFor` (the box, text rectangle and trailing edge, last line, art rectangle, the strip of `bottomReserve`) and `ChatEmojiPolicy.headerPlacementFor`; `hasHeader` when a header narrows the text's wrap by the policy's rule | Expect the body to draw chrome, to be wrapped in a bubble, or put Android's chrome on every platform |
-| The time pill (and any status chrome) wrapped in `ChatMessageTapBarrier`, so a mouse click on it is not a message tap: no selection toggle, no drag-select, no idle tap, no sticker tap under it. A secondary click still reaches `onSecondaryMessageTap`, a tap still dismisses text selection, touch is never barred | Put a detector in the row to stop the viewport (its selection pointer listens above the gesture arena), or bar the body itself |
-| `semanticsLabel` with the message's plain text when it has it | Rely on the default label for a custom emoji: `EmojiOnly` keeps no text for one |
+| The time pill (and any status chrome) wrapped in `ChatMessageTapBarrier`, so a mouse click on it is not a message tap: no selection toggle, no drag-select, no idle tap, no sticker tap under it. A secondary click still reaches `onSecondaryMessageTap`, a tap still dismisses text selection, touch is never barred. The click then does nothing, unless the host puts a mouse-only detector inside the barrier: the reference desktop client selects the message on a click on its time, which `ChatSelectionController.toggle` does (ADR 012, Status chrome). A desktop host shows the pill of an emoji-only message while the pointer is on the whole row (the viewport's cell), not the emoji box | Put a detector in the row to stop the viewport (its selection pointer listens above the gesture arena), bar the body itself, or hover-reveal the pill from a region as small as the emoji box |
+| `semanticsLabel` with the message's plain text when it has it | Rely on the default label for a custom emoji built by hand: its text is `EmojiOnlyItem.alt`, empty unless `EmojiOnlyText.of` read it |
+| Nothing more for text selection: the body registers its own text and the facade's gestures, handles and Copy apply. `selectableText: false` only when the product keeps the iOS and Desktop reference rule (their large emoji are not text; only Android selects them) | Register a markdown body for the same message id as well, or expect a selection to hold the spaces and tabs between emoji (`EmojiOnly` drops them): it holds the emoji and the line breaks |
 
 ## Example
 

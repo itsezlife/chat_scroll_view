@@ -4,8 +4,12 @@
 /// Supplied by the host as part of `ChromeStrings`; this package ships no
 /// translation. The wording is the reference desktop client's (Monospace,
 /// Create link, Clear formatting), which is not the touch menu's (Mono, Create
-/// Link, Regular), so the two menus read their own group
-/// ([FormattingStrings] is the touch menu's).
+/// Link, Regular), so the formatting rows of the two menus read their own group
+/// ([FormattingStrings] is the touch menu's). The clipboard rows are shared:
+/// the touch menu's Cut, Copy, Paste and Select all are [cutAction],
+/// [copyAction], [pasteAction] and [selectAllAction], with the marks below
+/// removed, so both menus speak the app's language whatever the Material
+/// localisations are.
 ///
 /// **Mnemonics.** The reference toolkit marks an access letter with `&` in the
 /// label (`&Undo`, `Cu&t`), and its menu draws that letter underlined; `&&` is

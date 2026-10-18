@@ -67,12 +67,26 @@ class EmojiReactionsRow extends StatelessWidget {
 
   /// The row's size.
   static Size measure(List<EmojiReaction> reactions, TextDirection direction) {
-    var width = 0.0;
-    for (final reaction in reactions) {
-      width += _chipWidth(reaction, direction);
-    }
-    width += gap * (reactions.length - 1);
-    return Size(width, chipHeight);
+    final chips = chipRects(reactions, direction);
+    return Size(chips.isEmpty ? 0 : chips.last.right, chipHeight);
+  }
+
+  /// Where each chip is, in the row's own coordinates. The row lays its chips
+  /// out left to right in either direction.
+  static List<Rect> chipRects(
+    List<EmojiReaction> reactions,
+    TextDirection direction,
+  ) {
+    var left = 0.0;
+    return <Rect>[
+      for (final reaction in reactions)
+        () {
+          final width = _chipWidth(reaction, direction);
+          final chip = Rect.fromLTWH(left, 0, width, chipHeight);
+          left += width + gap;
+          return chip;
+        }(),
+    ];
   }
 
   // One extra logical pixel: a laid-out count can come out a fraction wider

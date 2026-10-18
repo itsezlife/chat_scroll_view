@@ -8,7 +8,7 @@ import 'package:meta/meta.dart';
 @immutable
 final class EmojiOnlyItem {
   /// Creates the item for [key] that follows [lineBreaksBefore] line breaks.
-  const EmojiOnlyItem(this.key, {this.lineBreaksBefore = 0})
+  const EmojiOnlyItem(this.key, {this.lineBreaksBefore = 0, this.alt = ''})
     : assert(lineBreaksBefore >= 0, 'A count of line breaks is not negative.');
 
   /// What the item is: a [ContentKey.unicode] with the exact sequence written
@@ -20,14 +20,20 @@ final class EmojiOnlyItem {
   /// first item, whatever came before it.
   final int lineBreaksBefore;
 
+  /// The text the item stands for when it is copied: the characters under a
+  /// custom emoji's entity (the emoji it replaces), empty for a unicode item,
+  /// whose [key] is its text, and for a host that did not keep it.
+  final String alt;
+
   @override
   bool operator ==(Object other) =>
       other is EmojiOnlyItem &&
       other.key == key &&
-      other.lineBreaksBefore == lineBreaksBefore;
+      other.lineBreaksBefore == lineBreaksBefore &&
+      other.alt == alt;
 
   @override
-  int get hashCode => Object.hash(key, lineBreaksBefore);
+  int get hashCode => Object.hash(key, lineBreaksBefore, alt);
 
   @override
   String toString() => lineBreaksBefore == 0
@@ -114,7 +120,7 @@ abstract final class EmojiOnlyText {
         :final key,
       ) when key is ContentKey$Document) {
         if (!scan.scan(cursor, entity.offset)) return null;
-        scan.add(key);
+        scan.add(key, alt: text.plain.substring(entity.offset, entity.end));
         cursor = entity.end;
       } else {
         return null;
@@ -175,9 +181,13 @@ class _Scan {
   final List<EmojiOnlyItem> items = [];
   int _breaks = 0;
 
-  void add(ContentKey key) {
+  void add(ContentKey key, {String alt = ''}) {
     items.add(
-      EmojiOnlyItem(key, lineBreaksBefore: items.isEmpty ? 0 : _breaks),
+      EmojiOnlyItem(
+        key,
+        lineBreaksBefore: items.isEmpty ? 0 : _breaks,
+        alt: alt,
+      ),
     );
     _breaks = 0;
   }

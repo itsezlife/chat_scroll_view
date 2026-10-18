@@ -66,7 +66,10 @@ import 'pipeline/pipeline_offline_test.dart' as pipeline_offline_test;
 import 'pipeline/pipeline_orchestration_test.dart'
     as pipeline_orchestration_test;
 import 'pipeline/pipeline_resolver_test.dart' as pipeline_resolver_test;
+import 'playback/playback_activity_test.dart' as playback_activity_test;
 import 'playback/playback_clock_test.dart' as playback_clock_test;
+import 'playback/playback_lifecycle_source_contract_test.dart'
+    as playback_lifecycle_source_contract_test;
 import 'playback/playback_tick_source_contract_test.dart'
     as playback_tick_source_contract_test;
 import 'preset/asset_presets_test.dart' as asset_presets_test;
@@ -168,7 +171,12 @@ void main() {
     pipeline_orchestration_test.main,
   );
   group('pipeline/pipeline_resolver_test.dart', pipeline_resolver_test.main);
+  group('playback/playback_activity_test.dart', playback_activity_test.main);
   group('playback/playback_clock_test.dart', playback_clock_test.main);
+  group(
+    'playback/playback_lifecycle_source_contract_test.dart',
+    playback_lifecycle_source_contract_test.main,
+  );
   group(
     'playback/playback_tick_source_contract_test.dart',
     playback_tick_source_contract_test.main,

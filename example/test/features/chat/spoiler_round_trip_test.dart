@@ -6,6 +6,7 @@
 /// next composer holds after it pastes.
 library;
 
+import 'package:catalog_assets/testing.dart' show FakeInlineEmbedResolver;
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
@@ -133,4 +134,152 @@ void main() {
       }
     },
   );
+
+  // The emoji inside a spoiler stays inside it through a text selection copy
+  // (the message copy is built from the model, not from the selection's
+  // spans, which is why only this path ever lost it).
+  group('the emoji inside a spoiler', () {
+    const rocket = ContentKey.document('rocket');
+
+    // Pumps a [ChatScrollView] showing [body], drags a mouse across the
+    // rendered text `from`..`to`, copies, and returns what the clipboard holds.
+    Future<FakeRichClipboard> dragCopy(
+      WidgetTester tester,
+      String body, {
+      required int from,
+      required int to,
+    }) async {
+      final clipboard = FakeRichClipboard();
+      final source = GeneratedChatDataSource(messageCount: 0);
+      addTearDown(source.dispose);
+      final message = source.sendMessage(sender: 'Alice', content: body);
+      final controller = ChatScrollController()..jumpTo(message.id);
+      addTearDown(controller.dispose);
+      final selection = ChatSelectionController(
+        policy: const ChatSelectionPolicy.desktop(),
+        copyWriter: (copy) => clipboard.write(ChatCopy.of(copy)),
+      );
+      addTearDown(selection.dispose);
+      selection.putBody(
+        message.id,
+        Markdown.fromString(ChatBodyMarkdown.received(message.content)),
+      );
+      final resolver = FakeInlineEmbedResolver();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.macOS),
+          home: Scaffold(
+            body: SizedBox(
+              width: 400,
+              height: 600,
+              child: ChatScrollView(
+                dataSource: source,
+                controller: controller,
+                selectionController: selection,
+                messageBuilder: (context, id, message, status, runLayout) =>
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: ChatMarkdownBody(
+                        controller: selection,
+                        messageId: id,
+                        embedResolver: resolver,
+                      ),
+                    ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final surface = selection.surfaceFor(message.id)!;
+      final origin = (surface as RenderBox).localToGlobal(Offset.zero);
+      Rect box(int start, int end) => surface
+          .localBoxesForRange(0, start, end)
+          .reduce((a, b) => a.expandToInclude(b))
+          .shift(origin);
+      final start = box(from, from + 1).centerLeft + const Offset(1, 0);
+      // Past the end of the line when the selection runs to the text's end.
+      final end = box(to - 1, to).centerRight - const Offset(1, 0);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: start);
+      await tester.pump();
+      await mouse.down(start);
+      await mouse.moveTo(end);
+      await tester.pump();
+      await mouse.up();
+      await tester.pumpAndSettle();
+      expect(selection.spoilers.isRevealed(message.id), isFalse);
+      expect(await selection.copyTextSelection(), isTrue);
+      return clipboard;
+    }
+
+    Future<void> underPlatform(Future<void> Function() body) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      try {
+        await body();
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    }
+
+    testWidgets(
+      'a custom emoji in a copied spoiler pastes inside the spoiler',
+      (tester) async {
+        await underPlatform(() async {
+          // Rendered "a b 🚀 c d": the spoiler is 2..8, the embed 4..6.
+          final clipboard = await dragCopy(
+            tester,
+            'a ||b ![\u{1F680}](document:rocket) c|| d',
+            from: 0,
+            to: 10,
+          );
+          final copied = (await clipboard.read())!.rich!;
+          expect(
+            copied,
+            RichText('a b \u{1F680} c d', const [
+              Entity(2, 6, EntityKind.spoiler),
+              Entity(4, 2, EntityKind.inlineContent(rocket)),
+            ]),
+          );
+
+          final receiver = ComposerController(clipboard: clipboard);
+          addTearDown(receiver.dispose);
+          expect(await receiver.paste(), isTrue);
+          expect(receiver.richText, copied);
+          expect(
+            ChatBodyMarkdown.send(receiver.sendableText),
+            'a ||b ![\u{1F680}](document:rocket) c|| d',
+          );
+        });
+      },
+    );
+
+    testWidgets('a unicode emoji in a copied spoiler pastes inside it', (
+      tester,
+    ) async {
+      await underPlatform(() async {
+        // Rendered "a b 😀 c d"; the selection is "b 😀 c".
+        final clipboard = await dragCopy(
+          tester,
+          'a ||b \u{1F600} c|| d',
+          from: 2,
+          to: 8,
+        );
+        final copied = (await clipboard.read())!.rich!;
+        expect(
+          copied,
+          RichText('b \u{1F600} c', const [Entity(0, 6, EntityKind.spoiler)]),
+        );
+
+        final receiver = ComposerController(clipboard: clipboard);
+        addTearDown(receiver.dispose);
+        expect(await receiver.paste(), isTrue);
+        expect(
+          ChatBodyMarkdown.send(receiver.sendableText),
+          '||b \u{1F600} c||',
+        );
+      });
+    });
+  });
 }

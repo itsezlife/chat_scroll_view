@@ -3,6 +3,11 @@ import 'package:meta/meta.dart';
 
 /// A reason the host can give for pausing every animation at once. Layers are
 /// independent: playback runs only while none of the policy's layers is set.
+///
+/// Every layer is a plain on/off signal. The ones a `PlaybackActivity` drives
+/// ([appInactive], [surfaceHidden], [lowPower], [reducedMotion],
+/// [overlayShown]) are set by it from its inputs; [routeMoving] and
+/// [fastScroll] belong to the host (a route transition, the scroll physics).
 enum PlaybackPauseLayer {
   /// A route or sheet is moving; the frames are better spent on the motion.
   routeMoving,
@@ -13,16 +18,36 @@ enum PlaybackPauseLayer {
   /// The device is saving power.
   lowPower,
 
-  /// The surface the animations are on is not visible (hidden, covered,
+  /// The surface the animations are on is not visible (hidden, minimised,
   /// backgrounded).
   surfaceHidden,
+
+  /// The app is visible but is not the one the user is working in: its window
+  /// lost focus (on desktop another app took it; on a phone a call or a
+  /// system sheet is on top). The reference desktop client freezes stickers,
+  /// emoji and spoiler dust the same moment its window deactivates.
+  appInactive,
+
+  /// The user asked the system for less motion. Not in the standard pausing
+  /// set ([PlaybackPolicy.standardPausingLayers]): the reference desktop
+  /// client does not read the setting at all, and animated emoji are content
+  /// rather than interface motion. A host that wants it to stop playback adds
+  /// it to [PlaybackPolicy.pausingLayers].
+  reducedMotion,
+
+  /// Something sits over the chat that is not part of it: a dialog, a sheet, a
+  /// full-screen route. The reference desktop client pauses the chat under
+  /// any box layer. Raised by holds (`PlaybackActivity.holdOverlay`) so that
+  /// nested overlays do not clear each other.
+  overlayShown,
 }
 
 /// Which layers pause playback and how fast a playing asset advances.
 ///
 /// ## Defaults and where they come from
 ///
-/// Every layer pauses. A small asset runs at 30 fps and a large one at 60:
+/// Every layer pauses except [PlaybackPauseLayer.reducedMotion] (see
+/// [standardPausingLayers]). A small asset runs at 30 fps and a large one at 60:
 /// the reference client caps emoji up to 90 dp at about 30 fps on mobile and
 /// repaints no faster than every 33 ms on desktop, because a small animation
 /// is not visibly smoother at 60 and costs a repaint of its surface each
@@ -36,12 +61,26 @@ enum PlaybackPauseLayer {
 final class PlaybackPolicy {
   /// Creates a policy.
   const PlaybackPolicy({
-    this.pausingLayers = const {...PlaybackPauseLayer.values},
+    this.pausingLayers = standardPausingLayers,
     this.smallEdgePixels = 270,
     this.smallFps = 30,
     this.largeFps = 60,
     this.cadenceSlack = const Duration(milliseconds: 2),
   }) : assert(smallFps > 0 && largeFps > 0, 'fps caps are positive');
+
+  /// The layers that pause playback unless a host says otherwise: all of
+  /// them but [PlaybackPauseLayer.reducedMotion].
+  ///
+  /// Spelled out rather than `{...PlaybackPauseLayer.values}` so that a layer
+  /// added later pauses only after someone decided it should.
+  static const Set<PlaybackPauseLayer> standardPausingLayers = {
+    PlaybackPauseLayer.routeMoving,
+    PlaybackPauseLayer.fastScroll,
+    PlaybackPauseLayer.lowPower,
+    PlaybackPauseLayer.surfaceHidden,
+    PlaybackPauseLayer.appInactive,
+    PlaybackPauseLayer.overlayShown,
+  };
 
   /// The layers that pause playback when set.
   final Set<PlaybackPauseLayer> pausingLayers;

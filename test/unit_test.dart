@@ -35,6 +35,10 @@ import 'emoji/chat_emoji_flow_test.dart' as chat_emoji_flow_test;
 import 'emoji/chat_emoji_geometry_test.dart' as chat_emoji_geometry_test;
 import 'emoji/chat_emoji_policy_test.dart' as chat_emoji_policy_test;
 import 'emoji/chat_emoji_sizes_test.dart' as chat_emoji_sizes_test;
+import 'emoji/chat_emoji_text_layout_test.dart' as chat_emoji_text_layout_test;
+import 'emoji/chat_emoji_text_selection_test.dart'
+    as chat_emoji_text_selection_test;
+import 'emoji/chat_emoji_text_test.dart' as chat_emoji_text_test;
 import 'emoji/chat_non_text_body_test.dart' as chat_non_text_body_test;
 import 'emoji/chat_sticker_tap_policy_test.dart'
     as chat_sticker_tap_policy_test;
@@ -84,6 +88,8 @@ import 'widgets/chat_markdown_body_inline_layer_test.dart'
 import 'widgets/chat_message_body_layout_test.dart'
     as chat_message_body_layout_test;
 import 'widgets/chat_message_body_test.dart' as chat_message_body_test;
+import 'widgets/chat_message_change_composited_content_test.dart'
+    as chat_message_change_composited_content_test;
 import 'widgets/chat_message_change_diag_test.dart'
     as chat_message_change_diag_test;
 import 'widgets/chat_message_change_params_test.dart'
@@ -93,6 +99,8 @@ import 'widgets/chat_message_change_transition_test.dart'
 import 'widgets/chat_message_menu_request_test.dart'
     as chat_message_menu_request_test;
 import 'widgets/chat_message_menu_test.dart' as chat_message_menu_test;
+import 'widgets/chat_message_surface_parts_test.dart'
+    as chat_message_surface_parts_test;
 import 'widgets/chat_message_tap_barrier_test.dart'
     as chat_message_tap_barrier_test;
 import 'widgets/chat_message_theme_test.dart' as chat_message_theme_test;
@@ -124,6 +132,8 @@ import 'widgets/chat_selection_allowed_test.dart'
     as chat_selection_allowed_test;
 import 'widgets/chat_selection_cap_test.dart' as chat_selection_cap_test;
 import 'widgets/chat_selection_chrome_test.dart' as chat_selection_chrome_test;
+import 'widgets/chat_selection_highlight_test.dart'
+    as chat_selection_highlight_test;
 import 'widgets/chat_selection_pointer_test.dart'
     as chat_selection_pointer_test;
 import 'widgets/chat_selection_text_test.dart' as chat_selection_text_test;
@@ -187,6 +197,15 @@ void main() {
   group('emoji/chat_emoji_geometry_test.dart', chat_emoji_geometry_test.main);
   group('emoji/chat_emoji_policy_test.dart', chat_emoji_policy_test.main);
   group('emoji/chat_emoji_sizes_test.dart', chat_emoji_sizes_test.main);
+  group(
+    'emoji/chat_emoji_text_layout_test.dart',
+    chat_emoji_text_layout_test.main,
+  );
+  group(
+    'emoji/chat_emoji_text_selection_test.dart',
+    chat_emoji_text_selection_test.main,
+  );
+  group('emoji/chat_emoji_text_test.dart', chat_emoji_text_test.main);
   group('emoji/chat_non_text_body_test.dart', chat_non_text_body_test.main);
   group(
     'emoji/chat_sticker_tap_policy_test.dart',
@@ -269,10 +288,18 @@ void main() {
     chat_markdown_body_inline_layer_test.main,
   );
   group(
+    'widgets/chat_selection_highlight_test.dart',
+    chat_selection_highlight_test.main,
+  );
+  group(
     'widgets/chat_message_body_layout_test.dart',
     chat_message_body_layout_test.main,
   );
   group('widgets/chat_message_body_test.dart', chat_message_body_test.main);
+  group(
+    'widgets/chat_message_change_composited_content_test.dart',
+    chat_message_change_composited_content_test.main,
+  );
   group(
     'widgets/chat_message_change_diag_test.dart',
     chat_message_change_diag_test.main,
@@ -290,6 +317,10 @@ void main() {
     chat_message_menu_request_test.main,
   );
   group('widgets/chat_message_menu_test.dart', chat_message_menu_test.main);
+  group(
+    'widgets/chat_message_surface_parts_test.dart',
+    chat_message_surface_parts_test.main,
+  );
   group(
     'widgets/chat_message_tap_barrier_test.dart',
     chat_message_tap_barrier_test.main,

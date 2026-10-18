@@ -105,7 +105,8 @@ void main() {
           ),
         ),
       );
-      expect(selection.isSelectionMode, isFalse);
+      // As the desktop client does, a copy leaves the selection standing.
+      expect(selection.isSelectionMode, isTrue);
     });
 
     desktopTest(
