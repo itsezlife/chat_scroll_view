@@ -547,6 +547,11 @@ class ChatSelectionPointer {
     final id = _pointerDownId;
     final hit = _pointerDownInlineHit;
     if (selection != null && hit != null && selection.handleInlineHit(hit)) {
+      // Activating another message's link is a click away from the text
+      // selection: dismiss it, as a click on the other message's text would.
+      if (hit.messageId != selection.textSelectionSubject) {
+        selection.clearTextSelection();
+      }
       return;
     }
     if (selection case final sel? when sel.isTextSelectionActive) {

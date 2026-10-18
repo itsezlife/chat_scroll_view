@@ -53,6 +53,8 @@ import 'widgets/chat_code_block_painter_test.dart'
     as chat_code_block_painter_test;
 import 'widgets/chat_controller_test.dart' as chat_controller_test;
 import 'widgets/chat_date_separator_test.dart' as chat_date_separator_test;
+import 'widgets/chat_desktop_stuck_pointer_test.dart'
+    as chat_desktop_stuck_pointer_test;
 import 'widgets/chat_dispose_during_animate_test.dart'
     as chat_dispose_during_animate_test;
 import 'widgets/chat_follow_tail_test.dart' as chat_follow_tail_test;
@@ -205,6 +207,10 @@ void main() {
   );
   group('widgets/chat_controller_test.dart', chat_controller_test.main);
   group('widgets/chat_date_separator_test.dart', chat_date_separator_test.main);
+  group(
+    'widgets/chat_desktop_stuck_pointer_test.dart',
+    chat_desktop_stuck_pointer_test.main,
+  );
   group(
     'widgets/chat_dispose_during_animate_test.dart',
     chat_dispose_during_animate_test.main,
