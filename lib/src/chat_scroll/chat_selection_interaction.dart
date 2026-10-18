@@ -1,6 +1,9 @@
+import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart'
+    show ChatMentionKind;
 import 'package:flutter/foundation.dart';
 
-/// Host-observable outcome from the selection facade (Copy, link, code).
+/// Host-observable outcome from the selection facade (Copy, link, code,
+/// mention, hashtag, embed).
 ///
 /// One sealed channel replaces parallel typed hooks so hosts switch once for
 /// feedback UI and side effects. Message-menu entry
@@ -27,6 +30,33 @@ sealed class ChatSelectionInteraction {
     required ChatInlineGesture gesture,
   }) = ChatLinkActivated;
 
+  /// A mention (`[@name](mention:id)` or `[@name](username:name)`) activated in
+  /// a markdown body. Never a [ChatLinkActivated]: the engine paints and
+  /// reports a mention as a style of its own.
+  const factory ChatSelectionInteraction.mentionActivated({
+    required int messageId,
+    required ChatMentionKind kind,
+    required String name,
+    required ChatInlineGesture gesture,
+    String? id,
+  }) = ChatMentionActivated;
+
+  /// A hashtag (`[#tag](hashtag:tag)`) activated in a markdown body.
+  const factory ChatSelectionInteraction.hashtagActivated({
+    required int messageId,
+    required String tag,
+    required ChatInlineGesture gesture,
+  }) = ChatHashtagActivated;
+
+  /// An inline embed activated in a markdown body. Emitted only when the host
+  /// opted in with `ChatSelectionController.handlesEmbedHits`.
+  const factory ChatSelectionInteraction.embedActivated({
+    required int messageId,
+    required String target,
+    required String alt,
+    required ChatInlineGesture gesture,
+  }) = ChatEmbedActivated;
+
   /// Code / monospace activation when the facade does **not** auto-copy.
   const factory ChatSelectionInteraction.codeActivated({
     required int messageId,
@@ -48,7 +78,8 @@ enum ChatCopyOrigin {
   codeTap,
 }
 
-/// Pointer gesture that activated an inline body hit (link or code).
+/// Pointer gesture that activated an inline body hit (link, mention, hashtag,
+/// embed or code).
 enum ChatInlineGesture {
   /// Primary tap.
   tap,
@@ -188,4 +219,133 @@ final class ChatCodeActivated extends ChatSelectionInteraction {
   String toString() =>
       'ChatCodeActivated(messageId: $messageId, code: ${code.length} chars, '
       'gesture: $gesture)';
+}
+
+/// A mention activated in a markdown body.
+///
+/// Construct via [ChatSelectionInteraction.mentionActivated].
+@immutable
+final class ChatMentionActivated extends ChatSelectionInteraction {
+  /// Creates a mention-activation interaction.
+  const ChatMentionActivated({
+    required this.messageId,
+    required this.kind,
+    required this.name,
+    required this.gesture,
+    this.id,
+  });
+
+  /// Message whose body contains the mention.
+  final int messageId;
+
+  /// A resolved user or a typed username.
+  final ChatMentionKind kind;
+
+  /// The user id of a [ChatMentionKind.resolved] mention; null for a username.
+  final String? id;
+
+  /// The label of a resolved mention, or the username.
+  final String name;
+
+  /// Tap vs long-press.
+  final ChatInlineGesture gesture;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatMentionActivated &&
+          messageId == other.messageId &&
+          kind == other.kind &&
+          id == other.id &&
+          name == other.name &&
+          gesture == other.gesture;
+
+  @override
+  int get hashCode => Object.hash(messageId, kind, id, name, gesture);
+
+  @override
+  String toString() =>
+      'ChatMentionActivated(messageId: $messageId, kind: $kind, id: $id, '
+      'name: $name, gesture: $gesture)';
+}
+
+/// A hashtag activated in a markdown body.
+///
+/// Construct via [ChatSelectionInteraction.hashtagActivated].
+@immutable
+final class ChatHashtagActivated extends ChatSelectionInteraction {
+  /// Creates a hashtag-activation interaction.
+  const ChatHashtagActivated({
+    required this.messageId,
+    required this.tag,
+    required this.gesture,
+  });
+
+  /// Message whose body contains the hashtag.
+  final int messageId;
+
+  /// The tag, without the `#`.
+  final String tag;
+
+  /// Tap vs long-press.
+  final ChatInlineGesture gesture;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatHashtagActivated &&
+          messageId == other.messageId &&
+          tag == other.tag &&
+          gesture == other.gesture;
+
+  @override
+  int get hashCode => Object.hash(messageId, tag, gesture);
+
+  @override
+  String toString() =>
+      'ChatHashtagActivated(messageId: $messageId, tag: $tag, '
+      'gesture: $gesture)';
+}
+
+/// An inline embed activated in a markdown body.
+///
+/// Construct via [ChatSelectionInteraction.embedActivated].
+@immutable
+final class ChatEmbedActivated extends ChatSelectionInteraction {
+  /// Creates an embed-activation interaction.
+  const ChatEmbedActivated({
+    required this.messageId,
+    required this.target,
+    required this.alt,
+    required this.gesture,
+  });
+
+  /// Message whose body contains the embed.
+  final int messageId;
+
+  /// The destination of the embed as the markup spells it: `scheme:id`.
+  final String target;
+
+  /// The embed's alternative text.
+  final String alt;
+
+  /// Tap vs long-press.
+  final ChatInlineGesture gesture;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatEmbedActivated &&
+          messageId == other.messageId &&
+          target == other.target &&
+          alt == other.alt &&
+          gesture == other.gesture;
+
+  @override
+  int get hashCode => Object.hash(messageId, target, alt, gesture);
+
+  @override
+  String toString() =>
+      'ChatEmbedActivated(messageId: $messageId, target: $target, '
+      'alt: $alt, gesture: $gesture)';
 }

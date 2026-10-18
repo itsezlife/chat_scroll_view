@@ -2,10 +2,12 @@ import 'dart:async' show unawaited;
 import 'dart:collection';
 import 'dart:ui' show Offset, Path, Rect;
 
+import 'package:catalog_assets/catalog_assets.dart' show PlaybackClock;
 import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_interaction.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_spoiler_dust.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_text_copy.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_text_selection.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_span_feedback.dart';
@@ -151,11 +153,21 @@ class ChatSelectionController implements Listenable {
     this.onInteraction,
     this.copyCodeOnClick = true,
     this.copyWriter,
+    this.handlesEmbedHits = false,
+    MarkdownSpoilerController? spoilers,
+    PlaybackClock? spoilerClock,
   }) : selectionPolicy = policy ?? ChatSelectionPolicy.forPlatform(),
        _text = ChatTextSelection(
          policy: policy ?? ChatSelectionPolicy.forPlatform(),
+         spoilers: spoilers,
        ) {
     _text.markdownSelection.addListener(_onTextRangeChanged);
+    if (spoilerClock != null) {
+      _spoilerDust = ChatSpoilerDust(
+        spoilers: _text.spoilers,
+        clock: spoilerClock,
+      );
+    }
   }
 
   /// Active **selection policy** (entry, nesting, Copy).
@@ -185,6 +197,27 @@ class ChatSelectionController implements Listenable {
   /// [FlutterError.reportError] and is no copy: nothing is notified and the
   /// selection stays. Null writes plain text.
   final ChatTextCopyWriter? copyWriter;
+
+  /// Whether the host acts on a tap on an inline embed.
+  ///
+  /// Off by default: an embed is then only part of the text, with the text
+  /// cursor over it and no press highlight, and a tap on it is an ordinary tap
+  /// on the message (a custom emoji in a bubble does nothing on its own). Turn
+  /// it on when [ChatEmbedActivated] means something to the host (a sticker
+  /// preview, a pack sheet).
+  final bool handlesEmbedHits;
+
+  /// Which messages have their `||spoilers||` revealed (keyed by message id),
+  /// the controller the bodies of this viewport are given.
+  ///
+  /// It lives with the facade, not in a widget, so a revealed message stays
+  /// revealed when its row is virtualised away and mounted again, and an
+  /// edit-morph twin shows the state of the live body. In memory only. A text
+  /// selection that enters a hidden spoiler reveals the message; a host that
+  /// wants another rule reads and writes the controller directly.
+  MarkdownSpoilerController get spoilers => _text.spoilers;
+
+  ChatSpoilerDust? _spoilerDust;
 
   final ChatTextSelection _text;
   final _interactionListeners = <ValueChanged<ChatSelectionInteraction>>[];
@@ -671,6 +704,9 @@ class ChatSelectionController implements Listenable {
       } else {
         _hasEstablishedTextRange = true;
         _lastSameDocTextSelection = sel;
+        // A word under a hidden spoiler: the range listener skipped this
+        // commit (it is pending), so reveal here.
+        _text.revealSpoilersCoveredBy(sel);
         selectionPolicy.applyEnterMembership(
           replaceSelectedIds: replaceSelectedIds,
           clearMessageSelection: _clearMessageIds,
@@ -952,6 +988,47 @@ class ChatSelectionController implements Listenable {
         );
         return true;
 
+      case ChatInlineHit$Mention(
+        :final messageId,
+        :final kind,
+        :final id,
+        :final name,
+      ):
+        _notifyInteraction(
+          ChatSelectionInteraction.mentionActivated(
+            messageId: messageId,
+            kind: kind,
+            id: id,
+            name: name,
+            gesture: gesture,
+          ),
+        );
+        return true;
+
+      case ChatInlineHit$Hashtag(:final messageId, :final tag):
+        _notifyInteraction(
+          ChatSelectionInteraction.hashtagActivated(
+            messageId: messageId,
+            tag: tag,
+            gesture: gesture,
+          ),
+        );
+        return true;
+
+      case ChatInlineHit$Embed(:final messageId, :final target, :final alt):
+        // An embed the host does not act on is part of the text: the tap goes
+        // on to the message.
+        if (!handlesEmbedHits) return false;
+        _notifyInteraction(
+          ChatSelectionInteraction.embedActivated(
+            messageId: messageId,
+            target: target,
+            alt: alt,
+            gesture: gesture,
+          ),
+        );
+        return true;
+
       case ChatInlineHit$Code(:final messageId, :final code, :final language):
         if (copyCodeOnClick) {
           unawaited(_copyCode(messageId, code, language, gesture));
@@ -1032,6 +1109,48 @@ class ChatSelectionController implements Listenable {
             messageId: messageId,
             title: title,
             url: url,
+            gesture: ChatInlineGesture.longPress,
+          ),
+        );
+        return hasHandlers;
+      case ChatInlineHit$Mention(
+        :final messageId,
+        :final kind,
+        :final id,
+        :final name,
+      ):
+        final hasHandlers =
+            onInteraction != null || _interactionListeners.isNotEmpty;
+        _notifyInteraction(
+          ChatSelectionInteraction.mentionActivated(
+            messageId: messageId,
+            kind: kind,
+            id: id,
+            name: name,
+            gesture: ChatInlineGesture.longPress,
+          ),
+        );
+        return hasHandlers;
+      case ChatInlineHit$Hashtag(:final messageId, :final tag):
+        final hasHandlers =
+            onInteraction != null || _interactionListeners.isNotEmpty;
+        _notifyInteraction(
+          ChatSelectionInteraction.hashtagActivated(
+            messageId: messageId,
+            tag: tag,
+            gesture: ChatInlineGesture.longPress,
+          ),
+        );
+        return hasHandlers;
+      case ChatInlineHit$Embed(:final messageId, :final target, :final alt):
+        if (!handlesEmbedHits) return false;
+        final hasHandlers =
+            onInteraction != null || _interactionListeners.isNotEmpty;
+        _notifyInteraction(
+          ChatSelectionInteraction.embedActivated(
+            messageId: messageId,
+            target: target,
+            alt: alt,
             gesture: ChatInlineGesture.longPress,
           ),
         );
@@ -1269,6 +1388,7 @@ class ChatSelectionController implements Listenable {
           }
           _hasEstablishedTextRange = true;
           _lastSameDocTextSelection = sel;
+          _text.revealSpoilersCoveredBy(sel);
         }
       case _ when _text.isActive && _hasEstablishedTextRange:
         clearTextSelection();
@@ -1514,6 +1634,8 @@ class ChatSelectionController implements Listenable {
     _pendingWordSelect = false;
     _lastSameDocTextSelection = null;
     _text.markdownSelection.removeListener(_onTextRangeChanged);
+    _spoilerDust?.dispose();
+    _spoilerDust = null;
     _listeners.clear();
     _selectionAllowedListeners.clear();
     _interactionListeners.clear();

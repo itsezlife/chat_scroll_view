@@ -1,5 +1,7 @@
+import 'package:catalog_assets/catalog_assets.dart' show InlineEmbedResolver;
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_code_block_painter.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_inline_embed_adapter.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_autoscroll.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_secondary_message_tap_scope.dart';
 import 'package:flutter/gestures.dart';
@@ -92,6 +94,23 @@ class ChatMarkdownBodyRegistration extends InheritedWidget {
 /// not a competing body [GestureDetector] — a local tap recognizer would win
 /// the arena on selected body text and block toggle / text-dismiss.
 ///
+/// ### Inline layer
+///
+/// - **Embeds.** [embedResolver] turns an image `![alt](scheme:id)` into an
+///   embed painted in the text (a custom emoji, a sticker). Keep it stable
+///   (one per host, not one per build): a different instance resolves every
+///   embed of the body again. Null shows every image as its alt text.
+/// - **Spoilers.** `||x||` stays hidden until revealed through
+///   [ChatSelectionController.spoilers], keyed by [messageId]; that state is
+///   the facade's, so it survives this widget leaving the tree and an
+///   edit-morph twin shows the live body's state. A body whose selection
+///   surface is not mounted still hides its spoilers (it registers with a
+///   private selection controller that nothing reads, which also makes it a
+///   repaint boundary, so the live embed and dust frames never repaint the
+///   row around it).
+/// - **Mentions, hashtags, embeds.** Their taps reach the host as their own
+///   [ChatInlineHit] kinds through the facade, never as links.
+///
 /// ### Edge autoscroll
 ///
 /// Defaults to [ChatMarkdownAutoscroll] (anchor viewport writer, host-union
@@ -106,6 +125,7 @@ class ChatMarkdownBody extends StatefulWidget {
     this.markdown,
     this.theme,
     this.autoscroll,
+    this.embedResolver,
     super.key,
   });
 
@@ -126,6 +146,13 @@ class ChatMarkdownBody extends StatefulWidget {
   /// Null → enabled with policy defaults. Prefer a long-lived instance when
   /// overriding so mid-drag rebuilds keep a stable scope config.
   final ChatMarkdownAutoscrollOptions? autoscroll;
+
+  /// Where the inline embeds of the body come from (the host's resolver over
+  /// its asset cache, for instance `ContentEmbedResolver`).
+  ///
+  /// Keep it stable: a different instance disposes every embed and resolves
+  /// them again. Null shows every image as its alt text.
+  final InlineEmbedResolver? embedResolver;
 
   @override
   State<ChatMarkdownBody> createState() => _ChatMarkdownBodyState();
@@ -153,6 +180,15 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   AnimationController? _pressController;
   AnimationController? _releaseController;
   final _feedbackNotifier = ValueNotifier<ChatSpanFeedback?>(null);
+  ChatInlineEmbedAdapter? _embedAdapter;
+  MarkdownThemeData? _fallback;
+
+  /// What a body without a mounted selection surface registers with: the
+  /// engine keys spoilers and the repaint boundary on a selection controller
+  /// and a document id, and the facade's controller must not see a body it
+  /// has not exposed. Lazy: most bodies never need it.
+  MarkdownSelectionController? _inertSelection;
+  bool _mountsSurface = false;
   bool _armedInlinePress = false;
   int? _inlinePressPointer;
   Offset? _inlinePressDownGlobal;
@@ -190,6 +226,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     widget.controller.reportBodyPaintBounds(widget.messageId, null);
     _clearFeedback();
     _feedbackNotifier.dispose();
+    _inertSelection?.dispose();
     super.dispose();
   }
 
@@ -317,6 +354,13 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     );
   }
 
+  /// Whether a hit is something a tap does here: every kind, except an embed
+  /// the host does not act on (it is part of the text, with no highlight and
+  /// no click cursor).
+  bool _isActionable(ChatInlineHit? hit) =>
+      hit != null &&
+      (hit is! ChatInlineHit$Embed || widget.controller.handlesEmbedHits);
+
   void _tryBeginInlinePress(PointerDownEvent event) {
     if (!widget.controller.allowsInlineTapHighlight) {
       _disarmInlinePress();
@@ -326,7 +370,8 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
       widget.messageId,
       event.position,
     );
-    if (hit?.contourPath case final contour? when hit!.touchOrigin != null) {
+    final contour = _isActionable(hit) ? hit?.contourPath : null;
+    if (contour != null && hit!.touchOrigin != null) {
       widget.controller.beginSpanFeedback(
         messageId: widget.messageId,
         contourPath: contour,
@@ -353,16 +398,45 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     }
   }
 
+  // One adapter per resolver: the engine disposes every embed and resolves
+  // them again when it sees another instance.
+  MarkdownInlineEmbedResolver? _adaptedEmbedResolver() {
+    final resolver = widget.embedResolver;
+    if (resolver == null) return _embedAdapter = null;
+    if (_embedAdapter case final adapter?
+        when identical(adapter.resolver, resolver)) {
+      return adapter;
+    }
+    return _embedAdapter = ChatInlineEmbedAdapter(resolver);
+  }
+
+  // The theme of a body with no [MarkdownTheme] above it, kept while its
+  // inputs hold: the engine rebuilds its painter (and resolves every embed
+  // again) whenever the theme is another instance, and a new one per build
+  // would do that on every selection change.
+  MarkdownThemeData _fallbackTheme(BuildContext context) {
+    final style = DefaultTextStyle.of(context).style;
+    final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
+    final scaler =
+        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    if (_fallback case final cached?
+        when cached.textStyle == style &&
+            cached.textDirection == direction &&
+            cached.textScaler == scaler) {
+      return cached;
+    }
+    return _fallback = MarkdownThemeData(
+      textStyle: style,
+      textDirection: direction,
+      textScaler: scaler,
+    );
+  }
+
   MarkdownThemeData _resolveTheme(BuildContext context) {
     final ambient =
         widget.theme ??
         MarkdownTheme.maybeOf(context) ??
-        MarkdownThemeData(
-          textStyle: DefaultTextStyle.of(context).style,
-          textDirection: Directionality.maybeOf(context) ?? TextDirection.ltr,
-          textScaler:
-              MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling,
-        );
+        _fallbackTheme(context);
 
     final policy = widget.controller.selectionPolicy;
     final codeBlockLabels = ChatCodeBlockLabelsScope.of(context);
@@ -468,12 +542,15 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
         widget.messageId,
         globalPoint,
       );
-      if (inlineHit != null) {
+      if (_isActionable(inlineHit)) {
         return SystemMouseCursors.click;
       }
     }
 
-    return null;
+    // A body without a mounted surface is not selectable: the engine's text
+    // cursor, for a document that has a (private) selection controller, would
+    // promise what the facade does not offer.
+    return _mountsSurface ? null : MouseCursor.defer;
   }
 
   bool _isScopeEnabled(bool mountSurface) {
@@ -591,6 +668,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
           register &&
           widget.controller.exposesSelectionSurface(widget.messageId);
       final scopeEnabled = _isScopeEnabled(mountSurface);
+      _mountsSurface = mountSurface;
       _reportPaintBounds();
       return switch (model) {
         null => const SizedBox.shrink(),
@@ -696,10 +774,15 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
                 child: MarkdownWidget(
                   markdown: md,
                   theme: _resolveTheme(context),
-                  documentId: mountSurface ? widget.messageId : null,
+                  // The message id keys the spoiler state whether or not the
+                  // selection surface is mounted (a spoiler must not show its
+                  // text because another message is selected).
+                  documentId: widget.messageId,
                   controller: mountSurface
                       ? widget.controller.markdownSelection
-                      : null,
+                      : _inertSelection ??= MarkdownSelectionController(),
+                  spoilerController: widget.controller.spoilers,
+                  embedResolver: _adaptedEmbedResolver(),
                 ),
               ),
             ),

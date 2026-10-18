@@ -48,6 +48,9 @@ import 'widgets/chat_ghost_selected_color_test.dart'
     as chat_ghost_selected_color_test;
 import 'widgets/chat_highlight_test.dart' as chat_highlight_test;
 import 'widgets/chat_idle_message_tap_test.dart' as chat_idle_message_tap_test;
+import 'widgets/chat_inline_embed_adapter_test.dart'
+    as chat_inline_embed_adapter_test;
+import 'widgets/chat_inline_hit_kinds_test.dart' as chat_inline_hit_kinds_test;
 import 'widgets/chat_invalidate_test.dart' as chat_invalidate_test;
 import 'widgets/chat_jump_to_tail_test.dart' as chat_jump_to_tail_test;
 import 'widgets/chat_keyboard_test.dart' as chat_keyboard_test;
@@ -57,6 +60,8 @@ import 'widgets/chat_markdown_autoscroll_test.dart'
     as chat_markdown_autoscroll_test;
 import 'widgets/chat_markdown_body_inline_hit_test.dart'
     as chat_markdown_body_inline_hit_test;
+import 'widgets/chat_markdown_body_inline_layer_test.dart'
+    as chat_markdown_body_inline_layer_test;
 import 'widgets/chat_message_body_layout_test.dart'
     as chat_message_body_layout_test;
 import 'widgets/chat_message_body_test.dart' as chat_message_body_test;
@@ -106,6 +111,8 @@ import 'widgets/chat_sender_run_test.dart' as chat_sender_run_test;
 import 'widgets/chat_smooth_contour_test.dart' as chat_smooth_contour_test;
 import 'widgets/chat_span_auto_scroll_test.dart' as chat_span_auto_scroll_test;
 import 'widgets/chat_span_feedback_test.dart' as chat_span_feedback_test;
+import 'widgets/chat_spoiler_selection_test.dart'
+    as chat_spoiler_selection_test;
 import 'widgets/chat_stitch_animate_test.dart' as chat_stitch_animate_test;
 import 'widgets/chat_tap_dismiss_toggle_regression_test.dart'
     as chat_tap_dismiss_toggle_regression_test;
@@ -181,6 +188,14 @@ void main() {
     'widgets/chat_idle_message_tap_test.dart',
     chat_idle_message_tap_test.main,
   );
+  group(
+    'widgets/chat_inline_embed_adapter_test.dart',
+    chat_inline_embed_adapter_test.main,
+  );
+  group(
+    'widgets/chat_inline_hit_kinds_test.dart',
+    chat_inline_hit_kinds_test.main,
+  );
   group('widgets/chat_invalidate_test.dart', chat_invalidate_test.main);
   group('widgets/chat_jump_to_tail_test.dart', chat_jump_to_tail_test.main);
   group('widgets/chat_keyboard_test.dart', chat_keyboard_test.main);
@@ -196,6 +211,10 @@ void main() {
   group(
     'widgets/chat_markdown_body_inline_hit_test.dart',
     chat_markdown_body_inline_hit_test.main,
+  );
+  group(
+    'widgets/chat_markdown_body_inline_layer_test.dart',
+    chat_markdown_body_inline_layer_test.main,
   );
   group(
     'widgets/chat_message_body_layout_test.dart',
@@ -286,6 +305,10 @@ void main() {
     chat_span_auto_scroll_test.main,
   );
   group('widgets/chat_span_feedback_test.dart', chat_span_feedback_test.main);
+  group(
+    'widgets/chat_spoiler_selection_test.dart',
+    chat_spoiler_selection_test.main,
+  );
   group('widgets/chat_stitch_animate_test.dart', chat_stitch_animate_test.main);
   group(
     'widgets/chat_tap_dismiss_toggle_regression_test.dart',

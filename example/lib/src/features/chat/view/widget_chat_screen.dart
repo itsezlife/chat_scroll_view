@@ -188,6 +188,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           case ChatInlineGesture.longPress:
             _onLinkLongPress(messageId, title, url);
         }
+      case ChatMentionActivated() ||
+          ChatHashtagActivated() ||
+          ChatEmbedActivated():
+        // The example opens none of these yet.
+        break;
       case ChatCodeActivated(:final gesture):
         // Host-owned copy path only when [copyCodeOnClick] is false.
         if (gesture == ChatInlineGesture.longPress) {
