@@ -40,6 +40,8 @@ import 'emoji/chat_sticker_tap_policy_test.dart'
     as chat_sticker_tap_policy_test;
 import 'goldens/chat_emoji_body_golden_test.dart'
     as chat_emoji_body_golden_test;
+import 'goldens/chat_markdown_emoji_golden_test.dart'
+    as chat_markdown_emoji_golden_test;
 import 'goldens/inline_layer_golden_test.dart' as inline_layer_golden_test;
 import 'viewport_never_detects_test.dart' as viewport_never_detects_test;
 import 'widgets/chat_absent_build_test.dart' as chat_absent_build_test;
@@ -73,6 +75,8 @@ import 'widgets/chat_lazy_pagination_test.dart' as chat_lazy_pagination_test;
 import 'widgets/chat_lifecycle_test.dart' as chat_lifecycle_test;
 import 'widgets/chat_markdown_autoscroll_test.dart'
     as chat_markdown_autoscroll_test;
+import 'widgets/chat_markdown_body_emoji_size_test.dart'
+    as chat_markdown_body_emoji_size_test;
 import 'widgets/chat_markdown_body_inline_hit_test.dart'
     as chat_markdown_body_inline_hit_test;
 import 'widgets/chat_markdown_body_inline_layer_test.dart'
@@ -192,6 +196,10 @@ void main() {
     'goldens/chat_emoji_body_golden_test.dart',
     chat_emoji_body_golden_test.main,
   );
+  group(
+    'goldens/chat_markdown_emoji_golden_test.dart',
+    chat_markdown_emoji_golden_test.main,
+  );
   group('goldens/inline_layer_golden_test.dart', inline_layer_golden_test.main);
   group('viewport_never_detects_test.dart', viewport_never_detects_test.main);
   group('widgets/chat_absent_build_test.dart', chat_absent_build_test.main);
@@ -251,6 +259,10 @@ void main() {
   group(
     'widgets/chat_markdown_body_inline_hit_test.dart',
     chat_markdown_body_inline_hit_test.main,
+  );
+  group(
+    'widgets/chat_markdown_body_emoji_size_test.dart',
+    chat_markdown_body_emoji_size_test.main,
   );
   group(
     'widgets/chat_markdown_body_inline_layer_test.dart',

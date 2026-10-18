@@ -1,5 +1,29 @@
 ## Unreleased
 
+### Emoji in a bubble: set at the font's height; the desktop cap is configurable
+- **Fixed**: a unicode emoji in an ordinary markdown body was drawn at the font
+  size (15 px text, 15 px emoji), while Android draws it at the font's height
+  (ascent plus descent, about 1.18 times the size for SF) and a custom emoji
+  in the same text at 1.2 times that. Beside a custom emoji it was 40 % smaller,
+  and on desktop the whole line read as undersized. `ChatMarkdownBody` now sets
+  each colour emoji sequence (a skin tone, a ZWJ family, a flag, a keycap, a
+  presentation-selector emoji) as a run of its own at the font's height times
+  `MarkdownThemeData.emojiScale`, with the line height of the text around it.
+  A text glyph (`©`, a bare `❤`, a digit) stays at the font size. A
+  theme that sets `emojiRuns` itself is left alone (`(_) => const []` turns the
+  enlargement off). Needs `flutter_md` with `MarkdownThemeData.emojiRuns`.
+- **ADDED**: `ChatEmojiPolicy.inTextEmojiScale` (1 on Android and iOS, 1.2 on
+  desktop, for the host's `MarkdownThemeData.emojiScale`);
+  `ChatEmojiPolicy.desktop(regularLimit:)` and
+  `ChatEmojiPolicy.forPlatform(desktopRegularLimit:)`, the maximum number of
+  enlarged regular emoji on desktop and the web (3, the reference client's, by
+  default; Android and iOS have no cap and ignore it).
+- **BREAKING for a host that read the constant**: `ChatEmojiPolicy$Desktop.regularLimit`
+  is now the instance's cap; the reference's 3 is
+  `ChatEmojiPolicy$Desktop.defaultRegularLimit`.
+- **ADDED** (`content_model`): `EmojiRuns.of(text)`, the ranges of the emoji a
+  text draws in colour, for a renderer that enlarges them.
+
 ### Emoji-only body: one policy per platform family
 - `ChatEmojiPolicy` (`$Android`, `$Ios`, `$Desktop`, chosen with
   `ChatEmojiPolicy.forPlatform`) owns what was one Android table: font steps,

@@ -6,6 +6,7 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_code_block_painter.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_inline_embed_adapter.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_autoscroll.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_secondary_message_tap_scope.dart';
+import 'package:content_model/content_model.dart' show EmojiRuns;
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/gestures.dart';
@@ -437,6 +438,15 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     );
   }
 
+  /// The emoji of a text the platform draws in colour, for
+  /// [MarkdownThemeData.emojiRuns]: they are set at the font's height, as the
+  /// reference clients do, instead of at its size. A theme with its own
+  /// `emojiRuns` (`(_) => const []` turns it off) is left as it is.
+  static Iterable<TextRange> _colourEmojiRuns(String text) => [
+    for (final (:start, :end) in EmojiRuns.of(text))
+      TextRange(start: start, end: end),
+  ];
+
   MarkdownThemeData _resolveTheme(BuildContext context) {
     final ambient =
         widget.theme ??
@@ -466,6 +476,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     final userCursorResolver = ambient.cursorResolver;
 
     return _resolvedTheme = ambient.copyWith(
+      emojiRuns: ambient.emojiRuns ?? _colourEmojiRuns,
       builder: (block, themeData) {
         if (userBuilder case final b?) {
           if (b(block, themeData) case final custom?) return custom;

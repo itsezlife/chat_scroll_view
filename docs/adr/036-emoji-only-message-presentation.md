@@ -5,7 +5,7 @@ present it: no bubble, enlarged, a single emoji as a sticker-sized animation.
 The host classifies the body with a pure function in `content_model` and passes
 the viewport a body kind; the viewport never re-detects.
 
-**Status**: Accepted, amended for sticker playback and the tap-interaction seams, and for per-platform presentation  
+**Status**: Accepted, amended for sticker playback and the tap-interaction seams, for per-platform presentation, and for the size of a unicode emoji in a bubble and the configurable desktop cap  
 **Date**: 2026-10-18  
 **Relates to**: [ADR 012](012-cross-platform-selection-policies.md), [ADR 021](021-content-identity-and-collections.md), [ADR 022](022-asset-cache-and-media-pipeline.md), [ADR 029](029-host-integration.md)
 
@@ -82,7 +82,7 @@ lays the lines out left to right in a right-to-left chat; desktop mirrors.
 | Concern | Android | iOS | Desktop |
 | ------- | ------- | --- | ------- |
 | Large emoji gated by the chat's sticker permission | yes: the whole feature is off in a chat that bans stickers | no | no |
-| Count cap | none | none | 3 regular emoji; more is a bubble |
+| Count cap | none | none | 3 regular emoji by default, the host's to move (see the amendment below); more is a bubble |
 | Time pill, text layout | in a strip under the emoji (3 dp below them, 17 dp high, 3 dp under it), 1 dp (incoming) or 4 dp (outgoing) inside the text's end | in a strip under the text, 4 pt inside its end and bottom (20 pt strip) | beside the content, bottom-aligned (incoming); under it (outgoing) |
 | Time pill, sticker layout | over the art, `[-7, +10]` of its bottom edge, 5 dp inside its end | 4 pt inside the frame, so 6 pt outside the art | beside the sticker (incoming); over its bottom-end corner (outgoing) |
 | Time pill shown | always | always | on hover, as the last own message, while sending or failed; an outgoing large emoji always |
@@ -133,6 +133,48 @@ takes the nearest verified platform's value. None is silently chosen.
 Not modelled: the share button and the avatar column's offsets (the host's
 row), a tablet's size rule, desktop's wide-chat mode (outgoing on the left),
 and a failed message's error beside the node on iOS.
+
+## Amendment: a unicode emoji in a bubble, and the desktop cap
+
+Reported on desktop: in an ordinary bubble (the five-emoji message, the
+eleven-emoji message with a word) regular emoji look "weirdly small", and the
+sizes differ inside one message.
+
+### Root cause
+
+A unicode emoji in a markdown body is text, and a colour emoji font draws its
+glyph into a square of the **font size**: 15 px text, 15 px emoji (the picture
+inside it is about 0.93 of that). The references do not. Android sets an emoji
+span to the font's **height**, `ascent + descent` (`Emoji.EmojiSpan`, about 1.18
+times the size for SF), and a custom emoji to 1.2 times that
+(`AnimatedEmojiSpan`); the fork's inline embeds already followed the second rule
+(`MarkdownInlineEmbedMetrics.extentScale`). So a unicode emoji was 0.85 of the
+height Android gives it and 0.71 of the custom emoji beside it: the "small",
+and the two sizes of one message (the unicode glyphs of the screenshot beside
+the custom emoji of the showcase message). The layer that owns it is the span
+builder of the fork, which turns text into `TextSpan`s; the font size cannot
+be corrected from outside it.
+
+### Decided
+
+| Concern | Decision |
+| ------- | -------- |
+| Where | The fork's `MarkdownThemeData.emojiRuns` (a host scanner) and `emojiScale`: each range is a child span whose font size makes the glyph `emojiScale` times the font's height, with the text's line height. The text, its offsets, selection, spoiler ranges and recognizers are unchanged; with no scanner nothing changes. The fork knows no emoji table. |
+| The scanner | `EmojiRuns.of(text)` in `content_model`: the grammar of `EmojiOnlyText` (one scanner, no second regular expression), restricted to what the platform draws in colour: a code point of `U+1F000` or above, a keycap, a presentation selector, a ZWJ, or a BMP base the standard draws as an emoji by default (`Emoji_Presentation`, a constant in `content_model` beside the other table). A heart, a copyright sign or a digit with no selector is a text glyph and stays at the font size. |
+| Who applies it | `ChatMarkdownBody` sets it on the theme it resolves unless the host's theme has its own `emojiRuns` (`(_) => const []` turns it off). The classification of a message (emoji-only) stays the host's; this is paint. |
+| The scale | `ChatEmojiPolicy.inTextEmojiScale`, read by the host into `MarkdownThemeData.emojiScale`: 1 on Android (the verified rule), 1 on iOS (not traced; Android's, the authority where iOS is silent), 1.2 on desktop (the same box as a custom emoji, so one message holds one size). |
+| Line height | Pinned to the text's: the run's `height` is the text's line over the glyph's size. What is left is what an emoji at the font size always did: the emoji font splits the line with a deeper descent than the text's, so a line that holds one is up to a pixel taller than a line of text alone. |
+| The desktop cap | `ChatEmojiPolicy.desktop(regularLimit:)`, default 3 (the reference's), asserted at least 1; `ChatEmojiPolicy.forPlatform(desktopRegularLimit:)` hands it to the desktop family and the web, and Android and iOS, which have no cap, ignore it. The cap counts every item of a message that is not all custom emoji, as before; custom-only lines are never capped. The example keeps it in `LargeEmojiSetting.desktopLimit`, a record of its own, and offers steps of it in a menu next to the large-emoji toggle on desktop only. `ChatEmojiPolicy$Desktop.regularLimit` is now the instance's cap and the 3 is `defaultRegularLimit`. |
+| Mixed rows | Four or more regular emoji on desktop are an ordinary text bubble (the reference's rule above the cap), and their emoji are the in-text rule of this amendment, not the emoji-only tables. A row of unicode and custom emoji counts as regular (it is not all custom). |
+
+### Divergences from the reference, with their reasons
+
+| Divergence | Value taken | Why |
+| ---------- | ----------- | --- |
+| Desktop's in-text emoji size | 1.2 times the font's height, the custom emoji's box | `lib_ui` (its `emojiSize`, `AdjustCustomEmojiSize` and the text emoji padding) is absent from the checkout; 18 px at the 13 px message font is the remembered figure (1.38 times), and 1.2 times the 15 px bubble font is 1.41, so the choice is consistent with it, unverified |
+| iOS in-text emoji size | Android's | not traced |
+| The gap between two emoji of a line | The platform font's advance | Apple Color Emoji advances about 1.25 em on the platform's text system, with the picture about 0.93 em inside it; `flutter test` lays the same font out at 1.0 em, so a test cannot pin the gap and none does. The pictures are enlarged; the gap grows with them and is not tightened |
+| Sizes in `flutter test` | Measured with the real macOS fonts | Ahem draws every glyph as a square of the font size, which is exactly what hid the bug; the measurement test and the goldens load Apple Color Emoji and SF and are skipped where the files are missing |
 
 ## Amendment: sticker playback, replay and the interaction seams
 

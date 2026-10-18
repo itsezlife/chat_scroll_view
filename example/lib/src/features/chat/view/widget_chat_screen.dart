@@ -7,7 +7,6 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/panel_trace.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
-import 'package:chat_scroll_view_example/src/common/utils/mapped_value_listenable.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_state.dart';
@@ -32,6 +31,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_search_b
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_backend_error.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/large_emoji_limit_button.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/notes_dialog.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/scroll_to_bottom_button.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/selection_app_bar.dart';
@@ -103,7 +103,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// Where a tap on an emoji sticker goes: the stand-in for the peer
   /// broadcast. It sends nothing; the screen shows what it would send.
   late final StickerInteractionStub _stickerInteractions;
-  late final MappedValueListenable<bool, LargeEmojiPolicy> _emojiPolicy;
+  late final ValueNotifier<LargeEmojiPolicy> _emojiPolicy;
 
   /// Demo chat facts that gate the large emoji: a
   /// chat that allows stickers, in which the user is no admin.
@@ -172,13 +172,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       // The dust moves on the asset cache's frames and pause layers.
       spoilerClock: widget.services.assets.clock,
     )..selectionCap = 100;
-    _emojiPolicy = widget.services.largeEmoji.enabled.map(
-      (enabled) => LargeEmojiPolicy(
-        enabled: enabled,
-        stickersAllowed: _chatAllowsStickers,
-        isAdmin: _isChatAdmin,
-      ),
-    );
+    _emojiPolicy = ValueNotifier(_currentEmojiPolicy());
+    widget.services.largeEmoji.enabled.addListener(_refreshEmojiPolicy);
+    widget.services.largeEmoji.desktopLimit.addListener(_refreshEmojiPolicy);
     _bodies = ChatBodyHost(
       assets: widget.services.assets,
       policy: _emojiPolicy,
@@ -201,6 +197,18 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     );
     _init();
   }
+
+  /// The chat's emoji decision now: the setting's two choices and the chat's
+  /// own facts.
+  LargeEmojiPolicy _currentEmojiPolicy() => LargeEmojiPolicy(
+    enabled: widget.services.largeEmoji.enabled.value,
+    stickersAllowed: _chatAllowsStickers,
+    isAdmin: _isChatAdmin,
+    desktopRegularLimit: widget.services.largeEmoji.desktopLimit.value,
+  );
+
+  // A `ValueNotifier` tells only when the policy (a value) really changed.
+  void _refreshEmojiPolicy() => _emojiPolicy.value = _currentEmojiPolicy();
 
   @override
   void didChangeDependencies() {
@@ -356,6 +364,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _controller.dispose();
     _selection.dispose();
     _spoilers.dispose();
+    widget.services.largeEmoji.enabled.removeListener(_refreshEmojiPolicy);
+    widget.services.largeEmoji.desktopLimit.removeListener(_refreshEmojiPolicy);
     _emojiPolicy.dispose();
     _stickerInteractions.dispose();
     _trace?.dispose();
@@ -1098,6 +1108,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                         ),
                       ),
                     ),
+                    // Desktop only: the other families have no cap.
+                    LargeEmojiLimitButton(setting: widget.services.largeEmoji),
                     const SizedBox(width: 4),
                     IconButton.filledTonal(
                       tooltip: 'Notes (lists)',

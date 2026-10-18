@@ -60,6 +60,7 @@ row and reveals nothing, and a press held longer than 500 ms reveals nothing
 | `ChatSelectionController.spoilers.tapTimeout = null` on a desktop or web host whose pointer is a mouse (a click has no hold limit) | Set `spoilers.tapReveals` yourself: the facade writes it from `isSelectionMode`, and your value would not survive the next selection change |
 | `copyWriter` reading `ChatTextCopy.content` by style bit (`MD$Style.mention`, `image`, `spoiler`) when it keeps formatting on the clipboard: a selected hidden spoiler arrives with its `spoiler` bit, and the rich clipboard pastes it back as a spoiler | Detect a mention by its URL, or expect `plainText` to carry markdown: it is the characters (a spoiler's included) with an embed's alt |
 | A call to `spoilers.reveal(messageId)` from `onInteraction` only if the product follows iOS and reveals on selection | Expect a text selection over a hidden spoiler to reveal it: the facade selects it hidden and paints the selection under the particles |
+| `MarkdownThemeData.emojiScale` from `ChatEmojiPolicy.inTextEmojiScale` (1 on Android and iOS, 1.2 on desktop) so a unicode emoji in a bubble sits beside a custom emoji at one size; `emojiRuns: (_) => const []` on the theme to turn the enlargement off | Expect a unicode emoji in a sentence to be drawn at the font size: the body sets each colour emoji at the font's height (ascent plus descent) times the scale, and leaves a text glyph (`©`, a bare `❤`, a digit) alone |
 
 ## Emoji-only bodies
 
@@ -91,6 +92,7 @@ body.
 | The host provides | The host must not |
 | --- | --- |
 | `EmojiOnlyText.of(richText)` once per message, plus the facts only it has: no media (a link preview counts as media), the large-emoji setting and the chat's permission | Ask the body to classify, or show it for a message that has media |
+| `ChatEmojiPolicy.forPlatform(desktopRegularLimit: n)` (or `ChatEmojiPolicy.desktop(regularLimit: n)`) when the user may move the desktop cap on enlarged regular emoji, 3 by default and counted over every item of a message that is not all custom emoji; the same policy goes to the body and to the host's own `admits` check | Pass a cap to Android or iOS (they have no cap and ignore it), or cap custom-emoji-only lines (they never are) |
 | `embedFactory`, one stable function over its cache (`(content, preset) => ContentEmbed(scope: scope, content: content, preset: preset)`) | Pass `InlineEmbedResolver`: it sizes from text metrics, and this body sizes by count with `AssetPresets.emojiOnly` / `emojiSticker` |
 | `sticker:` (the animated-emoji pack's document for a unicode emoji, the custom emoji's own document) | Pass a document for more than one item |
 | `playback:` (`ChatStickerPlayback`: loop, once then the first or the last frame, still; null is the reference default per emoji) from its animation settings, and `playLedger:` (`ChatStickerPlayLedger`), its played-once memory per open chat | Keep that memory in the cache or the body: it is per chat screen, not per entry or per mount |

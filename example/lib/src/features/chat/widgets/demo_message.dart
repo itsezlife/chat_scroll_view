@@ -177,7 +177,8 @@ class DemoMessageBubble extends StatelessWidget {
       return ValueListenableBuilder<LargeEmojiPolicy>(
         valueListenable: host.policy,
         builder: (context, policy, _) {
-          final platform = ChatEmojiPolicy.forPlatform();
+          // The family carries the user's cap on enlarged emoji (desktop's).
+          final platform = policy.family();
           final emojiOnly = policy.emojiOnlyOf(message, platform: platform);
           final row = _row(context, emojiOnly: emojiOnly);
           // A platform whose emoji-only layout does not mirror keeps its
