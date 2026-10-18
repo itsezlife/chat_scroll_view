@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:content_model/src/rich_text/markdown/markdown_decoder.dart';
 import 'package:content_model/src/rich_text/markdown/markdown_encoder.dart';
 import 'package:content_model/src/rich_text/rich_text.dart';
@@ -94,4 +96,35 @@ abstract final class RichTextMarkdown {
   /// Never throws: markup that does not form a style, link or quote is kept as
   /// text.
   static RichText decode(String markdown) => MarkdownDecoder.decode(markdown);
+
+  /// [encode] and [decode] as a `dart:convert` [Codec], for a host that
+  /// composes it: `codec.fuse(utf8)` is a body as the bytes a file or a socket
+  /// carries, and `codec.inverted` the codec the other way. The same
+  /// functions, with the same contract, so a host that only calls one of them
+  /// has no reason to prefer this.
+  static const Codec<RichText, String> codec = _RichTextMarkdownCodec();
+}
+
+final class _RichTextMarkdownCodec extends Codec<RichText, String> {
+  const _RichTextMarkdownCodec();
+
+  @override
+  Converter<RichText, String> get encoder => const _MarkdownEncoder();
+
+  @override
+  Converter<String, RichText> get decoder => const _MarkdownDecoder();
+}
+
+final class _MarkdownEncoder extends Converter<RichText, String> {
+  const _MarkdownEncoder();
+
+  @override
+  String convert(RichText input) => RichTextMarkdown.encode(input);
+}
+
+final class _MarkdownDecoder extends Converter<String, RichText> {
+  const _MarkdownDecoder();
+
+  @override
+  RichText convert(String input) => RichTextMarkdown.decode(input);
 }

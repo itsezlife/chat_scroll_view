@@ -8,6 +8,9 @@ package is pre-1.0.
 
 ### Added
 
+- `RichTextMarkdown.codec`: `encode` and `decode` as a `dart:convert` `Codec`,
+  so a host can `fuse(utf8)` a body into bytes or `inverted` it. The static
+  functions stay.
 - `TypedMarkdown.apply`: the markers a user typed become entities at send,
   with Telegram Android's rules: `` `code` ``, a triple-backtick code block
   (with a language first line), `**bold**`, `__italic__`, `~~strike~~` and
