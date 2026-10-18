@@ -7,7 +7,10 @@ panel chrome or the catalog viewport.
 
 Decisions: [ADR 021](../adr/021-content-identity-and-collections.md),
 [ADR 022](../adr/022-asset-cache-and-media-pipeline.md),
-[ADR 023](../adr/023-data-layering-and-persistence.md).
+[ADR 023](../adr/023-data-layering-and-persistence.md),
+[ADR 017](../adr/017-body-linkify-host-invoked.md) (entity detection),
+[ADR 034](../adr/034-rich-text-wire-and-persistence.md),
+[ADR 036](../adr/036-emoji-only-message-presentation.md).
 
 ## Language
 
@@ -54,8 +57,32 @@ A content key plus a mandatory plain-text alternative, embedded in message text 
 _Avoid_: Key-only ref, placeholder character
 
 **Rich text**:
-A neutral value: plain text plus entities (offset, length, kind). Entity kinds include inline content ref, formatting runs, link and mention. Hosts map it to their body model.
-_Avoid_: Parallel offsets beside a markdown body, a text model owned by the composer package
+A neutral value: plain text plus entities (offset, length, kind). Entity kinds include inline content ref, formatting runs, link, **mention**, **username**, **hashtag**, quote, code block and, opt-in, list item. Flat text with ranged entities is the permanent model: line-widening kinds are entities, not nodes. Its markdown spelling is the one wire and storage form ([ADR 034](../adr/034-rich-text-wire-and-persistence.md)). Hosts map it to their body model.
+_Avoid_: Parallel offsets beside a markdown body, a text model owned by the composer package, a document tree
+
+**Mention**:
+An entity naming a user the host has resolved: carries the user id, is atomic for editing, and is verified by the host before send. Spelled `[@name](mention:id)`. Detection never produces one.
+_Avoid_: A typed `@name` (that is a **username**), an unverified id
+
+**Username**:
+An entity for a detected or typed `@name` with no id: plain, non-atomic text the host resolves on tap. Spelled `[@name](username:name)`. Distinct from a **mention** because atomicity and trust differ.
+_Avoid_: Mention with a resolved flag, `mention:<name>`
+
+**Hashtag**:
+An entity for a `#tag` (a hash plus a non-digit plus word characters). Spelled `[#tag](hashtag:tag)`, painted like a mention, with its own inline hit.
+_Avoid_: Cashtag, a tag with an id
+
+**Entity detection**:
+A pure transform over rich text that adds link, **username** and **hashtag** entities where text has the shape of one (`EntityDetection.apply`). Host-invoked at send and as a cached receive-time fallback for bodies with no link-class entity; never on paint and never in the composer while typing. One implementation serves the composer's send path, the host's receive path and any server port. Replaces the former body linkify.
+_Avoid_: Autolink on paint, a markdown-string rewrite, detection inside the viewport, bot-command or phone detection as kinds
+
+**Detection policy**:
+The caller-owned choice of which families **entity detection** applies (urls, usernames, hashtags) and which URL schemes count. The exclusion zones (code, code blocks, existing links and mentions, inline content, atoms) are fixed rules, not policy.
+_Avoid_: A universal URL definition in the package, sealed presets when families must combine
+
+**Emoji-only text**:
+The result of classifying rich text as only emoji: the ordered items (a unicode sequence or a document key) and line breaks, or nothing. The rule: emoji graphemes, whitespace and newlines, with only inline content with a document key allowed as an entity. The host calls it and adds the facts it alone has before choosing an **emoji-only body** ([ADR 036](../adr/036-emoji-only-message-presentation.md)).
+_Avoid_: A regular expression in the viewport, a count cap, classification per mount
 
 **Presentation split**:
 Collections carry a semantic id, an optional data-provided title and an optional cover key. Icons and localized titles of built-in categories belong to pages and host presentation.

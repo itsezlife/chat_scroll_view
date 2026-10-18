@@ -29,7 +29,8 @@ final class ContentEmbedResolver implements InlineEmbedResolver {
 
   static AssetPreset _inlineMessage(InlineEmbedMetrics metrics) =>
       AssetPresets.inlineMessage(
-        fontSize: metrics.fontSize,
+        ascent: metrics.ascent,
+        descent: metrics.descent,
         devicePixelRatio: metrics.devicePixelRatio,
       );
 

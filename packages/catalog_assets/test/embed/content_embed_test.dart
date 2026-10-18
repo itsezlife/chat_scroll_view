@@ -6,7 +6,11 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _sticker = ContentKey.document('42');
-final _preset = AssetPresets.inlineMessage(fontSize: 10, devicePixelRatio: 2);
+final _preset = AssetPresets.inlineMessage(
+  ascent: 8,
+  descent: 2,
+  devicePixelRatio: 2,
+);
 const _rect = Rect.fromLTWH(4, 6, 12, 12);
 
 List<String> _drawn(TestRecordingCanvas canvas) => [
@@ -201,7 +205,8 @@ void main() {
 
   group('playback', () {
     final animated = AssetPresets.inlineMessage(
-      fontSize: 10,
+      ascent: 8,
+      descent: 2,
       devicePixelRatio: 2,
     );
 
@@ -218,6 +223,38 @@ void main() {
       ticks.tick(const Duration(milliseconds: 200));
       expect(heard, 1);
       expect(embed.visible, isFalse);
+    });
+
+    test('a sticker preset that does not autoplay stays still on attach', () {
+      final held = embedOf(
+        _sticker,
+        preset: AssetPresets.emojiSticker(
+          extent: 112,
+          devicePixelRatio: 2,
+          autoplay: false,
+        ),
+      );
+      producer.last.advance(AssetStage.full, animated: true);
+      var heard = 0;
+      held.addListener(() => heard++);
+
+      ticks.tick(const Duration(milliseconds: 100));
+
+      expect(heard, 0);
+    });
+
+    test('a custom emoji item plays on attach', () {
+      final item = embedOf(
+        _sticker,
+        preset: AssetPresets.emojiOnly(step: 40, devicePixelRatio: 2),
+      );
+      producer.last.advance(AssetStage.full, animated: true);
+      var heard = 0;
+      item.addListener(() => heard++);
+
+      ticks.tick(const Duration(milliseconds: 100));
+
+      expect(heard, 1);
     });
 
     test('stops while the host pauses the clock', () {

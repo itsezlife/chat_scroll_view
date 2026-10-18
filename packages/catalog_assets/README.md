@@ -240,11 +240,11 @@ AssetCacheProvider(
 | --- | --- |
 | `AssetCacheProvider` | `InheritedWidget` handing the host's `AssetCacheScope` down; `of` throws without one, `maybeOf` is null. Never disposes the scope |
 | `ContentView` | Attaches on first build, again only when content, preset or scope change (new attach first, old one given back after, so a shared entry or glyph page is never left unheld), detaches on dispose. Sized by the preset; repaints on the binding's signal, never rebuilds for it. Follows `TickerMode` for `visible` |
-| `AssetPreset` / `AssetPresets` | Size (logical), `AssetSpec` and `AssetProfile` in one value. `keyboardCell(extent:, devicePixelRatio:)` and `inlineMessage(fontSize:, devicePixelRatio:)` (an extent of 1.2 times the font size by default); hosts build their own |
+| `AssetPreset` / `AssetPresets` | Size (logical), `AssetSpec` and `AssetProfile` in one value. `keyboardCell(extent:, devicePixelRatio:)`; `inlineMessage(ascent:, descent:, devicePixelRatio:)` (a square of 1.2 times the line height, rounded to device pixels, the Telegram Android rule) and `inlineFontSize(fontSize:, ...)` for text with no font metrics; `emojiOnly(step:, ...)` (one item of an emoji-only message, a font-size step plus a 4 px box) and `emojiSticker(extent:, autoplay:, ...)` (the single-emoji sticker, plays once); `square(extent:, profile:, ...)` for any other explicit extent; hosts build their own |
 | `InlineEmbed` (seam) | What a body lays out and paints: `sizeHint`, `paint(canvas, rect, context)`, a `Listenable` invalidation signal, `visible`, `dispose`. No widget, no asset type |
-| `InlineEmbedResolver` (seam) | Maps an `InlineEmbedTarget` (scheme, id, alt) and `InlineEmbedMetrics` (font size, density) to a new `InlineEmbed`, or null |
+| `InlineEmbedResolver` (seam) | Maps an `InlineEmbedTarget` (scheme, id, alt) and `InlineEmbedMetrics` (font size, ascent, descent, density) to a new `InlineEmbed`, or null |
 | `ContentEmbed` | The `InlineEmbed` over an `AssetBinding`: attaches at construction with a preset, paints the paintable at the shared clock's time, detaches in `dispose` |
-| `ContentEmbedResolver` | Resolves targets spelled as `ContentKey.encoded` (`unicode:1F44D`, `document:5368`, `external:...`) to `ContentEmbed`s, with `AssetPresets.inlineMessage` unless the host passes `presetFor` |
+| `ContentEmbedResolver` | Resolves targets spelled as `ContentKey.encoded` (`unicode:1F44D`, `document:5368`, `external:...`) to `ContentEmbed`s, with `AssetPresets.inlineMessage` over the metrics' ascent and descent unless the host passes `presetFor` |
 | `TextGlyphProducer` | Paragraph strategy of the glyph form for a platform with no atlas (the web): unicode keys are final on attach and paint a cached paragraph in the system font; other keys go to the producer it wraps. Compose it as the scope's producer only where no `glyphSource` is registered |
 
 Behaviour that matters to a host:

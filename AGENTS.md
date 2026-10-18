@@ -51,7 +51,8 @@ Lint rules, the fake / adapter naming conventions they read, the per-package
 | `packages/emoji_data` / `emoji_catalog_pack` | Emoji logic and glyph probe / generated catalog and keyword packs     | emoji search, variants, probe, generator                                         |
 | `packages/kv_shared_preferences`         | `shared_preferences`-backed `KeyValueStore`                               | persistence adapter only                                                         |
 | `packages/panel_shell` / `panel_pages` / `panel_presentation` | Panel shell + page registry / catalog pages / presentation kinds and policy | panel tabs, search, pages, popup / docked / keyboard replacement, occupancy |
-| `packages/chat_composer`                 | Slot-based composer, input controller, entity text                        | composer slots, input, queries                                                   |
+| `packages/chat_composer`                 | Slot-based composer, input controller, entity text, formatting commands, selection menu | composer slots, input, queries, formatting                          |
+| `packages/composer_editable`             | Leaf: the composer's one editable (patched Flutter text field)            | field gestures, handles, magnifier, re-vendor                                    |
 | `example/`                               | Demo host only — not the portable contract                                | wiring demos                                                                     |
 | `scripts/`                               | `scripts/check` entry + the workspace lints (`workspace_check` package)   | CI gates, dependency direction, re-export / fakes rules                          |
 | `tdesktop/`                              | Read-only Telegram Desktop reference checkout                             | desktop selection parity analysis                                                |
@@ -65,11 +66,13 @@ Copy — not a universal “message-then-text” law. The viewport owns markdown
 
 | Branch                                                                                                                     | Doc                                                                 |
 | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Glossary (_Message selection_, _Text selection_, _Text selection subject_, _Selection policy_, _Selection interaction_, _Span yield_, _Inline hit_, _Body linkify_, _Linkify policy_, _Link preview_, _Tap highlight_, _Smooth text contour_, _Fenced code block header_) | [CONTEXT.md](CONTEXT.md)                                            |
+| Glossary (_Message selection_, _Text selection_, _Text selection subject_, _Selection policy_, _Selection interaction_, _Span yield_, _Inline hit_, _Link preview_, _Spoiler state_, _Emoji-only body_, _Tap highlight_, _Smooth text contour_, _Fenced code block header_; _Body linkify_ and _Linkify policy_ are retired, see _Entity detection_ in the Content glossary) | [CONTEXT.md](CONTEXT.md)                                            |
 | Fenced code blocks, cursors & press / tap highlight                                        | [ADR 014](docs/adr/014-fenced-code-interaction-and-smooth-contour-highlight.md)    |
 | Engine-owned markdown text selection (supersedes optional bridge)                                                          | [ADR 013](docs/adr/013-viewport-owns-markdown-text-selection.md)    |
 | Per-body scope owns continuous text gestures (yield after gate)                                                            | [ADR 015](docs/adr/015-per-body-scope-owns-continuous-text-gestures.md) |
-| Body linkify host-invoked (not viewport paint)                                                                             | [ADR 017](docs/adr/017-body-linkify-host-invoked.md)                |
+| Entity detection host-invoked (not viewport paint); mention / hashtag inline hits                                           | [ADR 017](docs/adr/017-body-linkify-host-invoked.md)                |
+| Spoiler and mention inline styles                                                                                          | [ADR 037](docs/adr/037-spoiler-and-mention-inline-styles.md)        |
+| Emoji-only message presentation                                                                                            | [ADR 036](docs/adr/036-emoji-only-message-presentation.md)          |
 | Cross-platform policy (supersedes mobile-only ADR 010)                                                                     | [ADR 012](docs/adr/012-cross-platform-selection-policies.md)        |
 | Mobile message-then-text path (historical; mobile strategy)                                                                | [ADR 010](docs/adr/010-message-then-text-selection.md)              |
 | Span gesture (viewport-owned long-press)                                                                                   | [ADR 003](docs/adr/003-viewport-owned-span-gesture.md)              |
@@ -91,7 +94,10 @@ from `packages/` has not landed yet. `scripts/check` enforces the rules.
 | Data seams, catalog shipping, persistence                                                | [ADR 023](docs/adr/023-data-layering-and-persistence.md)              |
 | Panel catalog public seams (amends ADR 006)                                              | [ADR 024](docs/adr/024-panel-catalog-seams.md)                        |
 | Panel shell, pages, state ownership (supersedes parts of ADR 007)                        | [ADR 025](docs/adr/025-panel-shell-and-pages.md)                      |
-| Composer                                                                                 | [ADR 026](docs/adr/026-composer-model.md)                             |
+| Composer (commands, selection menu, lists)                                               | [ADR 026](docs/adr/026-composer-model.md)                             |
+| Composer editable: the Flutter fork, divergences, re-vendor                              | [ADR 038](docs/adr/038-composer-editable-fork.md)                     |
+| Rich-text wire, length budget, mention trust, drafts                                     | [ADR 034](docs/adr/034-rich-text-wire-and-persistence.md)             |
+| Markdown engine fork (`itsezlife/md`), git ref, conformance                              | [ADR 035](docs/adr/035-markdown-engine-fork.md)                       |
 | Theme tokens, glass, motion                                                              | [ADR 027](docs/adr/027-foundation-theme-glass-motion.md)              |
 | Panel presentation, occupancy, IME (supersedes the inset parts of ADR 007)               | [ADR 028](docs/adr/028-panel-presentation.md)                         |
 | Host composition root, inline embeds                                                     | [ADR 029](docs/adr/029-host-integration.md)                           |
@@ -101,7 +107,8 @@ from `packages/` has not landed yet. `scripts/check` enforces the rules.
 **Package invariants**
 
 - No package re-exports another package's API; hosts import what they use.
-- `content_model` and `chrome_foundation` depend on no workspace package.
+- `content_model`, `chrome_foundation` and `composer_editable` depend on no
+  workspace package; `chat_composer` is `composer_editable`'s only dependent.
 - `panel_shell`, `panel_pages` and `panel_presentation` never depend on data
   payloads, codecs or fetchers; `panel_catalog` never depends on
   `chrome_foundation` and never imports atlas types.
@@ -120,8 +127,9 @@ from `packages/` has not landed yet. `scripts/check` enforces the rules.
 - Copy **feedback UI** is app-side; the facade exposes **selection
   interactions** (`ChatSelectionInteraction` via `onInteraction` /
   listeners), not Material toasts.
-- **Body linkify** is host-invoked (send / materialize); the viewport never
-  auto-detects bare URLs or mentions on paint ([ADR 017](docs/adr/017-body-linkify-host-invoked.md)).
+- **Entity detection** (the former body linkify) is host-invoked at send and as
+  a receive-time fallback; the viewport never auto-detects bare URLs, usernames
+  or hashtags on paint ([ADR 017](docs/adr/017-body-linkify-host-invoked.md)).
 
 ## Domain and architecture
 

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:catalog_assets/src/asset/asset_profile.dart';
@@ -48,7 +49,8 @@ final class AssetPreset {
 }
 
 /// The presets of the surfaces that draw content: a cell of a content grid,
-/// and a piece of content set inside message text.
+/// a piece of content set inside message text, and the items of an emoji-only
+/// message.
 abstract final class AssetPresets {
   /// A cell of a content grid or strip: a square of [extent] logical pixels,
   /// decoded at [devicePixelRatio].
@@ -59,33 +61,117 @@ abstract final class AssetPresets {
     required double extent,
     required double devicePixelRatio,
     bool animate = true,
-  }) => _square(
+  }) => square(
     extent: extent,
     devicePixelRatio: devicePixelRatio,
     profile: AssetProfile(animate: animate),
   );
 
-  /// Content set inline in text of [fontSize]: a square [extentPerFontSize]
-  /// times the font size, because an emoji is wider than the em of the font
-  /// it sits in.
+  /// Content set inline in text whose line is [ascent] + [descent] tall: a
+  /// square of 1.2 times that, rounded to whole device pixels at
+  /// [devicePixelRatio].
+  ///
+  /// This is the rule of Telegram Android's inline custom emoji: the box
+  /// follows the font's vertical metrics, not its em, because an emoji is
+  /// wider than the em of the font it sits in. Every embed of a paragraph
+  /// takes the same metrics, so they share one spec and one cache entry per
+  /// key. [ascent] and [descent] are positive logical pixels, as
+  /// `InlineEmbedMetrics` carries them.
+  ///
+  /// The pixel size is rounded, not rounded up like `AssetSpec.atDensity`,
+  /// and the logical [AssetPreset.size] is that pixel count over the density,
+  /// so the decode is exactly the box the body reserves.
   ///
   /// Plays and loops while visible unless [animate] is false. Pass
   /// [AssetDecodeMode.template] for content the surrounding text colour
   /// tints.
   static AssetPreset inlineMessage({
-    required double fontSize,
+    required double ascent,
+    required double descent,
     required double devicePixelRatio,
-    double extentPerFontSize = 1.2,
     AssetDecodeMode decodeMode = AssetDecodeMode.original,
     bool animate = true,
-  }) => _square(
-    extent: fontSize * extentPerFontSize,
+  }) {
+    assert(
+      ascent > 0 && descent > 0 && devicePixelRatio > 0,
+      'An inline preset needs positive metrics and density.',
+    );
+    final pixels = math.max(
+      1,
+      (_inlineExtentPerLine * (ascent + descent) * devicePixelRatio).round(),
+    );
+    return AssetPreset(
+      size: Size.square(pixels / devicePixelRatio),
+      spec: AssetSpec(
+        pixelWidth: pixels,
+        pixelHeight: pixels,
+        decodeMode: decodeMode,
+      ),
+      profile: AssetProfile(animate: animate),
+    );
+  }
+
+  /// Content set in text that has no font metrics to ask: a square of 1.2
+  /// times [fontSize], decoded at [devicePixelRatio].
+  ///
+  /// For a surface that knows only the font size of its text. A body that
+  /// lays text out has the ascent and descent and uses [inlineMessage]
+  /// instead, which is the rule that matches Telegram. Plays and loops while
+  /// visible unless [animate] is false.
+  static AssetPreset inlineFontSize({
+    required double fontSize,
+    required double devicePixelRatio,
+    AssetDecodeMode decodeMode = AssetDecodeMode.original,
+    bool animate = true,
+  }) => square(
+    extent: fontSize * _inlineExtentPerLine,
     devicePixelRatio: devicePixelRatio,
     decodeMode: decodeMode,
     profile: AssetProfile(animate: animate),
   );
 
-  static AssetPreset _square({
+  /// One item of an emoji-only message laid out as text, at the font size
+  /// [step] its count gives: a square of [step] plus [emojiOnlyBoxPadding],
+  /// decoded at [devicePixelRatio].
+  ///
+  /// A step is a font size in logical pixels, so this package does not know
+  /// the viewport's table of steps. Each step is its own size and so its own
+  /// cache entry, as Android's cache types are; the same step at the same
+  /// density is one. Custom emoji animate and loop; pass [animate] false for
+  /// an item that is a still.
+  static AssetPreset emojiOnly({
+    required double step,
+    required double devicePixelRatio,
+    bool animate = true,
+  }) => square(
+    extent: step + emojiOnlyBoxPadding,
+    devicePixelRatio: devicePixelRatio,
+    profile: AssetProfile(animate: animate),
+  );
+
+  /// The single-emoji sticker: a square of [extent] logical pixels, decoded
+  /// at that size at [devicePixelRatio].
+  ///
+  /// It plays once and does not loop. [autoplay] says whether it starts when
+  /// it attaches; the host decides it (a memory of what already played, per
+  /// chat), never the cache. With [autoplay] false the sticker holds its
+  /// first frame until the host replays it.
+  static AssetPreset emojiSticker({
+    required double extent,
+    required double devicePixelRatio,
+    bool autoplay = true,
+  }) => square(
+    extent: extent,
+    devicePixelRatio: devicePixelRatio,
+    profile: AssetProfile(animate: autoplay, loop: false),
+  );
+
+  /// A square of [extent] logical pixels decoded at [devicePixelRatio], used
+  /// as [profile] says.
+  ///
+  /// The way to a preset no named recipe covers: the pixel size is the extent
+  /// at the density, rounded up so the decode is never smaller than the box.
+  static AssetPreset square({
     required double extent,
     required double devicePixelRatio,
     required AssetProfile profile,
@@ -100,4 +186,10 @@ abstract final class AssetPresets {
     ),
     profile: profile,
   );
+
+  /// Logical pixels an emoji-only item's box adds to its font size (Telegram
+  /// Android's `font + 4 dp`).
+  static const double emojiOnlyBoxPadding = 4;
+
+  static const double _inlineExtentPerLine = 1.2;
 }
