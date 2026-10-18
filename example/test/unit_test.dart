@@ -78,6 +78,7 @@ import 'widgets/panel_keeps_composer_focus_test.dart'
     as panel_keeps_composer_focus_test;
 import 'widgets/panel_menu_holds_popup_test.dart'
     as panel_menu_holds_popup_test;
+import 'widgets/status_click_test.dart' as status_click_test;
 import 'widgets/unread_boundary_background_test.dart'
     as unread_boundary_background_test;
 import 'widgets/unread_separator_test.dart' as unread_separator_test;
@@ -207,6 +208,7 @@ void main() {
     'widgets/panel_menu_holds_popup_test.dart',
     panel_menu_holds_popup_test.main,
   );
+  group('widgets/status_click_test.dart', status_click_test.main);
   group(
     'widgets/unread_boundary_background_test.dart',
     unread_boundary_background_test.main,

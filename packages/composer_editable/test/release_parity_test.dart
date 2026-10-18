@@ -148,27 +148,28 @@ void main() {
       expect(render.startHandleInViewport.value, isTrue);
     });
 
-    testWidgets('paints the stock highlight, as wide as the widest line', (
-      tester,
-    ) async {
-      final render = await pumpTallField(tester);
-      controller.text = 'ab\nabcdefghijklmnop';
-      controller.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: controller.text.length,
-      );
-      await tester.pump();
+    testWidgets(
+      'sizes the highlight by the stock boxes, as wide as the widest line',
+      (tester) async {
+        final render = await pumpTallField(tester);
+        controller.text = 'ab\nabcdefghijklmnop';
+        controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: controller.text.length,
+        );
+        await tester.pump();
 
-      expect(render.painter, isNull);
-      expect(render.selectionColor, isNotNull);
-      expect(render.selectionWidthStyle, ui.BoxWidthStyle.max);
-      final boxes = render.getBoxesForSelection(controller.selection);
-      expect(
-        boxes[1].right,
-        closeTo(boxes.last.right, 0.5),
-        reason: 'a tight highlight would stop at the end of "ab"',
-      );
-    });
+        expect(render.painter, isNull);
+        expect(render.selectionColor, isNotNull);
+        expect(render.selectionWidthStyle, ui.BoxWidthStyle.max);
+        final boxes = render.getBoxesForSelection(controller.selection);
+        expect(
+          boxes[1].right,
+          closeTo(boxes.last.right, 0.5),
+          reason: 'a tight highlight would stop at the end of "ab"',
+        );
+      },
+    );
 
     testWidgets(
       'a selection change under a scrolled field settles in a frame',

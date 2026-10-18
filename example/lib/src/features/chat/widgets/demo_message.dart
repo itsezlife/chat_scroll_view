@@ -489,12 +489,16 @@ class _Bubble extends StatelessWidget {
       _ => null,
     },
     content: body,
-    metaBuilder: (context, editedOpacity) => DemoMessageMeta(
-      createdAt: createdAt,
-      color: metaColor,
-      showStatus: isOutgoing,
-      edited: edited,
-      editedOpacity: editedOpacity,
+    // The time is status chrome, not the message: a mouse click on it is
+    // neither a toggle of the row nor a message tap.
+    metaBuilder: (context, editedOpacity) => ChatMessageTapBarrier(
+      child: DemoMessageMeta(
+        createdAt: createdAt,
+        color: metaColor,
+        showStatus: isOutgoing,
+        edited: edited,
+        editedOpacity: editedOpacity,
+      ),
     ),
   );
 }

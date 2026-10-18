@@ -832,10 +832,11 @@ class ChatSelectionController implements Listenable {
   /// `putDocument` may briefly re-expand the shared registry; [adopt] /
   /// [selectAllText] prune back to the subject (one-message ranges).
   ///
-  /// Under desktop direct-entry: every registered body while idle **and** while
-  /// **message selection** is active (inline link/code/chrome activation must
-  /// keep working without unmounting hit targets). While text-active on
-  /// desktop: only the active [textSelectionSubject].
+  /// Under desktop direct-entry: every registered body, whatever is active
+  /// (idle, **message selection**, **text selection**): inline link/code/chrome
+  /// activation, the text cursor and a press that retargets the **text
+  /// selection subject** must keep working on every other message without a
+  /// dismiss first.
   bool exposesSelectionSurface(int messageId) {
     if (_disposed) return false;
     if (!_text.hasBody(messageId)) return false;
@@ -845,12 +846,15 @@ class ChatSelectionController implements Listenable {
       }
       return isSelected(messageId) || _selectedIds.isEmpty;
     }
-    if (_text.isActive) return _text.subjectId == messageId;
     if (selectionPolicy.allowsTextEntryWithoutMessageSelection) {
-      // Idle direct entry and message-selection inline hits both need mounts.
-      // Live drag-preview alone does not unmount — hit-testing stays live.
+      // Direct entry arms the pressed body on pointer down, so text is active
+      // almost permanently. A surface only on the subject would leave every
+      // other message without a text cursor, inline hit or scope until the
+      // subject was dismissed. Idle, message-selection inline hits, live
+      // drag-preview and an active subject all keep every mount.
       return true;
     }
+    if (_text.isActive) return _text.subjectId == messageId;
     return false;
   }
 
@@ -1057,7 +1061,7 @@ class ChatSelectionController implements Listenable {
     if (_disposed) return false;
     // One gate for every [ChatInlineHit] variant — do not special-case link
     // vs code/COPY chrome (that flip-flops idle vs selected behavior).
-    if (_suppressesInlineActivation()) {
+    if (_suppressesInlineActivation(hit.messageId)) {
       return false;
     }
     // A tapped code snippet copies itself when the facade owns the clipboard;
@@ -1171,9 +1175,15 @@ class ChatSelectionController implements Listenable {
   /// Whether link / inline-code / fenced COPY chrome taps must not activate.
   ///
   /// Suppresses when a **non-collapsed** character-range is live (not merely
-  /// desktop arm-for-entry), or under mobile **message selection** mode.
-  bool _suppressesInlineActivation() {
-    if (_hasLiveTextRange) return true;
+  /// desktop arm-for-entry) — everywhere, or only in the range's own message
+  /// under [ChatSelectionPolicy.scopesTextRangeSuppressionToSubject] — or
+  /// under mobile **message selection** mode.
+  bool _suppressesInlineActivation(int messageId) {
+    if (_hasLiveTextRange &&
+        (!selectionPolicy.scopesTextRangeSuppressionToSubject ||
+            _text.subjectId == messageId)) {
+      return true;
+    }
     return selectionPolicy.suppressesLinkTapInMessageSelection &&
         isSelectionMode;
   }
@@ -1201,7 +1211,7 @@ class ChatSelectionController implements Listenable {
       case ChatInlineHit$Sticker():
         // A long press on a sticker is message selection, not an activation:
         // it is told (the body restarts under its tap policy) and not claimed.
-        if (!_suppressesInlineActivation()) {
+        if (!_suppressesInlineActivation(hit.messageId)) {
           _notifyInteraction(_activationOf(hit, ChatInlineGesture.longPress)!);
         }
         return false;
