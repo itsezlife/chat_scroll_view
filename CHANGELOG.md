@@ -13,6 +13,17 @@
   link or inline code reads the same rectangles, so its contour is the line's
   height too. Needs the `flutter_md` change that makes `boxesForRange` per line
   (not released yet).
+
+### Status chrome of an emoji-only message: hover is the row's, a click selects (docs and example)
+- **Changed (host contract, no API change)**: the reference desktop client shows an
+  emoji-only message's time while the pointer is anywhere on its row and selects
+  the message on a click on the time (ADR 012, Status chrome, with the
+  citations). `ChatMessageTapBarrier` is unchanged and still keeps the press
+  from the viewport; the example's emoji-only pill now answers a mouse click
+  itself with `ChatSelectionController.toggle` and its hover region is the
+  whole row. Existing hosts that wrap their pill in the barrier see no change
+  until they add a handler; ordinary bubbles' time still does nothing on click.
+
 ### Emoji in a bubble: set at the font's height; the desktop cap is configurable
 - **Fixed**: a unicode emoji in an ordinary markdown body was drawn at the font
   size (15 px text, 15 px emoji), while Android draws it at the font's height
