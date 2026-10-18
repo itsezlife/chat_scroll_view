@@ -75,6 +75,7 @@ void main() {
     bool isLastOwn = false,
     double width = 340,
     bool physicalSides = true,
+    double selected = 0,
   }) async {
     tester.view
       ..physicalSize = const Size(360, 640)
@@ -99,21 +100,33 @@ void main() {
                       : (outgoing
                             ? AlignmentDirectional.centerEnd
                             : AlignmentDirectional.centerStart),
-                  child: DemoEmojiMessage(
-                    messageId: 1,
-                    emojiOnly: emojiOnly,
-                    selection: selection,
-                    host: host,
-                    createdAt: DateTime(2026, 1, 1, 9, 5),
-                    isOutgoing: outgoing,
-                    edited: edited,
-                    views: views,
-                    header: header,
-                    reactions: reactions,
-                    sendState: sendState,
-                    policy: platform,
-                    wallpaper: wallpaper,
-                    isLastOwn: isLastOwn,
+                  child: ChatSelectionStateScope(
+                    state: ChatSelectionChromeState(
+                      id: 1,
+                      modeProgress: selected,
+                      selectProgress: selected,
+                      isSelectionMode: selected > 0,
+                      isSelected: selected > 0,
+                      showsCheck: true,
+                      onTap: () {},
+                      onLongPress: () {},
+                    ),
+                    child: DemoEmojiMessage(
+                      messageId: 1,
+                      emojiOnly: emojiOnly,
+                      selection: selection,
+                      host: host,
+                      createdAt: DateTime(2026, 1, 1, 9, 5),
+                      isOutgoing: outgoing,
+                      edited: edited,
+                      views: views,
+                      header: header,
+                      reactions: reactions,
+                      sendState: sendState,
+                      policy: platform,
+                      wallpaper: wallpaper,
+                      isLastOwn: isLastOwn,
+                    ),
                   ),
                 ),
               ),
@@ -472,7 +485,7 @@ void main() {
 
     testWidgets('selection paints nothing of its own: the viewport tints the '
         'row', (tester) async {
-      await pump(tester, _three, platform: _android);
+      await pump(tester, _three, platform: _android, selected: 1);
 
       expect(find.byType(ColorFiltered), findsNothing);
     });
@@ -557,7 +570,7 @@ void main() {
     });
 
     testWidgets('selection paints nothing of its own', (tester) async {
-      await pump(tester, _three, platform: _ios);
+      await pump(tester, _three, platform: _ios, selected: 1);
 
       expect(find.byType(ColorFiltered), findsNothing);
     });
@@ -615,6 +628,17 @@ void main() {
       // 3 custom emoji: 58 px boxes, 174 wide; 174 + 86 passes a 250 row.
       await pump(tester, _three, platform: _desktop, header: reply, width: 250);
       expect(header(tester).bottom, lessThanOrEqualTo(body(tester).top));
+    });
+
+    testWidgets('selection recolours the glyphs, in proportion to its '
+        'progress', (tester) async {
+      await pump(tester, _threeGlyphs, platform: _desktop);
+      expect(find.byType(ColorFiltered), findsNothing);
+
+      await pump(tester, _threeGlyphs, platform: _desktop, selected: 1);
+
+      final filter = tester.widget<ColorFiltered>(find.byType(ColorFiltered));
+      expect(filter.colorFilter, isNotNull);
     });
 
     testWidgets('mirrors in a right-to-left chat', (tester) async {

@@ -360,6 +360,10 @@ _Avoid_: Per-spoiler reveal, persisted reveal, widget-local reveal flag, re-hide
 The body kind the host passes for a message whose text is only emoji: no bubble, enlarged from per-count size tables, or sticker-sized when it is a single item with an animation. Classified by the host (it alone knows the message has no media and whether the setting is on); the viewport never re-detects. Not a text selection subject ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
 _Avoid_: Big emoji bubble, emoji message type, sticker message (a single-item emoji body only borrows the sticker layout)
 
+**Emoji-only policy**:
+The pure-Dart strategy of a platform family (Android, iOS, desktop; web follows desktop) holding what an **emoji-only body** lays out with and what the host's chrome reads: font tables, the sticker's extent and inset, the count cap, the wrap under a header, where a header goes, and whether a right-to-left chat mirrors. The host picks it once from the platform ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
+_Avoid_: Emoji theme, emoji mode, mobile/desktop flag
+
 **Sticker playback**:
 The host's policy for how the sticker of an **emoji-only body** plays: loop, play once then rest on the first or the last frame, or stay still. The body reads no animation setting; the host maps its settings and power policy to a mode. A sticker that plays once does so the first time the open chat shows it, which the **play ledger** remembers ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
 _Avoid_: Autoplay flag, GIF mode, loop setting (in the body)

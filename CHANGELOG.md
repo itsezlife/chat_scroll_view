@@ -1,5 +1,29 @@
 ## Unreleased
 
+### Emoji-only body: one policy per platform family
+- `ChatEmojiPolicy` (`$Android`, `$Ios`, `$Desktop`, chosen with
+  `ChatEmojiPolicy.forPlatform`) owns what was one Android table: font steps,
+  the sticker's extent and **inset**, the count cap, the sticker-permission
+  gate, the wrap under a header, where a header goes and whether a
+  right-to-left chat mirrors. `ChatEmojiBody(policy:)` takes it (Android's by
+  default).
+- **BREAKING**: `ChatEmojiSizes.stickerInset` and `headerWrapFraction` are gone;
+  the inset is the policy's (none on Android and desktop, 10 pt on iOS) and the
+  wrap under a header is `ChatEmojiPolicy.wrapLimitUnderHeader` (Android: 65 %
+  of the **parent** width, not of the row's maximum). A host that relied on the
+  old 10 dp inset around an Android-sized sticker passes `ChatEmojiPolicy.ios()`
+  or sets its chrome around the art. `ChatEmojiBody(sizes:)` is
+  `policy: ChatEmojiPolicy.android(sizes: ...)`. `ChatEmojiLayoutKind` moved
+  files; the import is unchanged.
+- **ADDED**: `ChatEmojiBody.geometryFor` and `ChatEmojiGeometry`: the box, the
+  text rectangle and trailing edge, the last line, the sticker's art rectangle
+  and a reservable `bottomReserve` strip, so a host places the time, header
+  and reactions before the body is built. `parentWidth` names the width a
+  header's wrap is a share of.
+- Corrected: the reply is above the text layout and beside the sticker on
+  Android only; and an enlarged run is capped at three regular emoji on desktop
+  only (ADR 036).
+
 ### Inline layer: embeds, mentions, hashtags, spoilers
 - `ChatMarkdownBody(embedResolver:)` takes a `catalog_assets`
   `InlineEmbedResolver`; an image `![alt](scheme:id)` it resolves is painted in
