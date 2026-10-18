@@ -27,6 +27,7 @@ ChromeStrings stringsWith({
       colorAllTitle: base.panel.colorAllTitle,
     ),
     composer: base.composer,
+    formatting: base.formatting,
     semantics: SemanticsStrings(
       panelOpened: base.semantics.panelOpened,
       panelClosed: base.semantics.panelClosed,

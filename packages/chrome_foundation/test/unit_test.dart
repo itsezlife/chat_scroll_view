@@ -23,6 +23,8 @@ import 'motion/chrome_motion_test.dart' as chrome_motion_test;
 import 'motion/no_literal_durations_test.dart' as no_literal_durations_test;
 import 'motion/overshoot_curve_test.dart' as overshoot_curve_test;
 import 'motion/scale_pressable_test.dart' as scale_pressable_test;
+import 'motion/selection_menu_motion_test.dart' as selection_menu_motion_test;
+import 'motion/spoiler_motion_test.dart' as spoiler_motion_test;
 import 'palette/chrome_contrast_test.dart' as chrome_contrast_test;
 import 'palette/chrome_palette_test.dart' as chrome_palette_test;
 import 'palette/palette_contrast_test.dart' as palette_contrast_test;
@@ -37,6 +39,8 @@ import 'tokens/composer_tokens_test.dart' as composer_tokens_test;
 import 'tokens/glass_material_tokens_test.dart' as glass_material_tokens_test;
 import 'tokens/panel_tokens_test.dart' as panel_tokens_test;
 import 'tokens/placeholder_tokens_test.dart' as placeholder_tokens_test;
+import 'tokens/selection_menu_tokens_test.dart' as selection_menu_tokens_test;
+import 'tokens/spoiler_tokens_test.dart' as spoiler_tokens_test;
 
 void main() {
   group('glass/glass_flat_golden_test.dart', glass_flat_golden_test.main);
@@ -57,6 +61,11 @@ void main() {
   );
   group('motion/overshoot_curve_test.dart', overshoot_curve_test.main);
   group('motion/scale_pressable_test.dart', scale_pressable_test.main);
+  group(
+    'motion/selection_menu_motion_test.dart',
+    selection_menu_motion_test.main,
+  );
+  group('motion/spoiler_motion_test.dart', spoiler_motion_test.main);
   group('palette/chrome_contrast_test.dart', chrome_contrast_test.main);
   group('palette/chrome_palette_test.dart', chrome_palette_test.main);
   group('palette/palette_contrast_test.dart', palette_contrast_test.main);
@@ -82,4 +91,9 @@ void main() {
   );
   group('tokens/panel_tokens_test.dart', panel_tokens_test.main);
   group('tokens/placeholder_tokens_test.dart', placeholder_tokens_test.main);
+  group(
+    'tokens/selection_menu_tokens_test.dart',
+    selection_menu_tokens_test.main,
+  );
+  group('tokens/spoiler_tokens_test.dart', spoiler_tokens_test.main);
 }

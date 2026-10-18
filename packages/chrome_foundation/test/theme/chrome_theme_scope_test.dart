@@ -16,6 +16,8 @@ void main() {
         'actionOf': ChromeThemeScope.actionOf,
         'placeholderOf': ChromeThemeScope.placeholderOf,
         'glassOf': ChromeThemeScope.glassOf,
+        'selectionMenuOf': ChromeThemeScope.selectionMenuOf,
+        'spoilerOf': ChromeThemeScope.spoilerOf,
       };
       for (final entry in lookups.entries) {
         late BuildContext context;
@@ -296,6 +298,89 @@ void main() {
     });
   });
 
+  group('selection menu and spoiler groups', () {
+    testWidgets('an inner scope overrides only the menu', (tester) async {
+      final menu = SelectionMenuTokens.fromPalette(
+        _light,
+      ).copyWith(text: const Color(0xFF123456));
+      late SelectionMenuTokens seenMenu;
+      late SpoilerTokens seenSpoiler;
+      await tester.pumpWidget(
+        ChromeThemeScope(
+          palette: _dark,
+          child: ChromeThemeScope(
+            selectionMenu: menu,
+            child: Builder(
+              builder: (c) {
+                seenMenu = ChromeThemeScope.selectionMenuOf(c);
+                seenSpoiler = ChromeThemeScope.spoilerOf(c);
+                return const SizedBox();
+              },
+            ),
+          ),
+        ),
+      );
+      expect(seenMenu, menu);
+      expect(seenSpoiler, SpoilerTokens.fromPalette(_dark));
+    });
+
+    testWidgets('a spoiler override reaches its dependents only', (
+      tester,
+    ) async {
+      var spoilerBuilds = 0;
+      var menuBuilds = 0;
+      final spoiler = Builder(
+        builder: (c) {
+          ChromeThemeScope.spoilerOf(c);
+          spoilerBuilds++;
+          return const SizedBox();
+        },
+      );
+      final menu = Builder(
+        builder: (c) {
+          ChromeThemeScope.selectionMenuOf(c);
+          menuBuilds++;
+          return const SizedBox();
+        },
+      );
+      Widget app(SpoilerTokens tokens) => ChromeThemeScope(
+        palette: _light,
+        spoiler: tokens,
+        child: Column(children: [spoiler, menu]),
+      );
+      await tester.pumpWidget(app(SpoilerTokens.fromPalette(_light)));
+      await tester.pumpWidget(
+        app(const SpoilerTokens(color: Color(0xFFFF0000))),
+      );
+      expect(spoilerBuilds, 2);
+      expect(menuBuilds, 1);
+    });
+
+    testWidgets('an animated scope interpolates the menu colours', (
+      tester,
+    ) async {
+      late SelectionMenuTokens seen;
+      Widget app(ChromePalette palette) => AnimatedChromeThemeScope(
+        palette: palette,
+        duration: const Duration(milliseconds: 100),
+        child: Builder(
+          builder: (c) {
+            seen = ChromeThemeScope.selectionMenuOf(c);
+            return const SizedBox();
+          },
+        ),
+      );
+      await tester.pumpWidget(app(_light));
+      await tester.pumpWidget(app(_dark));
+      await tester.pump(const Duration(milliseconds: 50));
+      final light = SelectionMenuTokens.fromPalette(_light);
+      final dark = SelectionMenuTokens.fromPalette(_dark);
+      expect(seen.background, isNot(anyOf(light.background, dark.background)));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(seen, dark);
+    });
+  });
+
   group('animated', () {
     testWidgets('interpolates between two themes', (tester) async {
       final light = ChromeThemeData.fromPalette(_light);
@@ -308,6 +393,8 @@ void main() {
         action: data.action,
         placeholder: data.placeholder,
         glass: data.glass,
+        selectionMenu: data.selectionMenu,
+        spoiler: data.spoiler,
         duration: const Duration(milliseconds: 200),
         child: Builder(
           builder: (c) {

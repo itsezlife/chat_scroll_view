@@ -13,6 +13,8 @@ void main() {
       expect(data.action, ActionTokens.fromPalette(palette));
       expect(data.placeholder, PlaceholderTokens.fromPalette(palette));
       expect(data.glass, GlassMaterialTokens.fromPalette(palette));
+      expect(data.selectionMenu, SelectionMenuTokens.fromPalette(palette));
+      expect(data.spoiler, SpoilerTokens.fromPalette(palette));
     });
 
     test('an override replaces only its group', () {
@@ -34,6 +36,18 @@ void main() {
       expect(next.composer, composer);
       expect(next.panel, base.panel);
       expect(next.copyWith(composer: base.composer), base);
+    });
+
+    test('replaces the menu and spoiler groups', () {
+      final base = ChromeThemeData.fromPalette(const ChromePalette.light());
+      final menu = base.selectionMenu.copyWith(
+        divider: const Color(0xFF010203),
+      );
+      final spoiler = base.spoiler.copyWith(color: const Color(0xFF040506));
+      final next = base.copyWith(selectionMenu: menu, spoiler: spoiler);
+      expect(next.selectionMenu, menu);
+      expect(next.spoiler, spoiler);
+      expect(next.composer, base.composer);
     });
 
     test('replacing the palette does not re-derive the groups', () {
@@ -59,6 +73,10 @@ void main() {
       expect(mid.palette, ChromePalette.lerp(a.palette, b.palette, 0.5));
       expect(mid.composer, ComposerTokens.lerp(a.composer, b.composer, 0.5));
       expect(mid.glass, GlassMaterialTokens.lerp(a.glass, b.glass, 0.5));
+      expect(
+        mid.selectionMenu,
+        SelectionMenuTokens.lerp(a.selectionMenu, b.selectionMenu, 0.5),
+      );
     });
   });
 
