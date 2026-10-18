@@ -45,7 +45,9 @@ A hit is read from the span's style bit, never from its URL: a mention is not
 a link and an image is not a link. Anything inside a hidden spoiler reveals
 instead of activating, and a text selection that enters a hidden spoiler
 reveals the message. The tap that reveals is absorbed; a long press, a drag and a
-secondary click are not ([ADR 037](docs/adr/037-spoiler-and-mention-inline-styles.md)).
+secondary click are not. While a message selection is live a tap toggles the
+row and reveals nothing, and a press held longer than 500 ms reveals nothing
+([ADR 037](docs/adr/037-spoiler-and-mention-inline-styles.md)).
 
 ### Host contract
 
@@ -55,6 +57,7 @@ secondary click are not ([ADR 037](docs/adr/037-spoiler-and-mention-inline-style
 | `ChatSelectionController(handlesEmbedHits: true)` when `ChatEmbedActivated` means something (a sticker preview, a pack sheet) | Expect an embed to be tappable by default: without it an embed is text, with the text cursor and no press highlight, and a tap on it is a tap on the message |
 | A reaction to `ChatMentionActivated` and `ChatHashtagActivated` (through `onInteraction` or a listener), using the `id` of a `ChatResolvedMentionActivated` to open a user | Read a mention's label as who it is, or look for mentions among `ChatLinkActivated` |
 | `ChatSelectionController(spoilerClock: scope.clock)`, the asset cache's `PlaybackClock`, so the dust moves on the shared clock and its pause layers | Run a ticker of its own for the dust (without the clock the dust stands still), or persist what `ChatSelectionController.spoilers` holds: reveal state is in memory |
+| `ChatSelectionController.spoilers.tapTimeout = null` on a desktop or web host whose pointer is a mouse (a click has no hold limit) | Set `spoilers.tapReveals` yourself: the facade writes it from `isSelectionMode`, and your value would not survive the next selection change |
 | `copyWriter` reading `ChatTextCopy.content` by style bit (`MD$Style.mention`, `image`, `spoiler`) when it keeps formatting on the clipboard | Detect a mention by its URL, or expect `plainText` to carry markdown: it is the revealed text with an embed's alt |
 
 ## Emoji-only bodies

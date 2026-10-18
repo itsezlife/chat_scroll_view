@@ -239,6 +239,15 @@ class ChatSelectionController implements Listenable {
   /// edit-morph twin shows the state of the live body. In memory only. A text
   /// selection that enters a hidden spoiler reveals the message; a host that
   /// wants another rule reads and writes the controller directly.
+  ///
+  /// The facade owns the controller's `tapReveals`: it is false exactly while
+  /// [isSelectionMode] is, so a tap that toggles a row never also reveals the
+  /// spoiler under it. Do not set it from the host; it would be overwritten at
+  /// the next membership change. The hold limit is the host's:
+  /// `spoilers.tapTimeout` is 500 ms (a longer press is a long press and
+  /// reveals nothing), and a desktop host whose pointer is a mouse sets it to
+  /// null, because a click has no limit. Touch needs no change; Telegram iOS
+  /// starts a long press at 0.3 s, which a host that follows it sets here.
   MarkdownSpoilerController get spoilers => _text.spoilers;
 
   ChatSpoilerDust? _spoilerDust;
@@ -1647,6 +1656,10 @@ class ChatSelectionController implements Listenable {
   bool _notifyScheduled = false;
 
   void _notify() {
+    // Before the trampoline below, not in it: the engine reads the flag on the
+    // pointer up, and a deferred listener round would let one tap through the
+    // other side of a mode change.
+    _syncSpoilerTaps();
     // Span auto-scroll applies from performLayout. Listeners (composer,
     // chrome) call setState — illegal during persistentCallbacks. Same
     // trampoline as ChatScrollController.isAtTail.
@@ -1663,6 +1676,16 @@ class ChatSelectionController implements Listenable {
       return;
     }
     _notifyNow();
+  }
+
+  /// A tap on a hidden spoiler reveals it only outside a selection mode. In
+  /// one a tap toggles the row and the spoiler stays hidden, as on Android
+  /// (`ChatMessageCell` takes no spoiler touch while the chat is selecting).
+  /// Every membership change, committed or drag preview, ends in [_notify], so
+  /// this one place keeps the engine's flag equal to [isSelectionMode].
+  void _syncSpoilerTaps() {
+    if (_disposed) return;
+    _text.spoilers.tapReveals = !isSelectionMode;
   }
 
   void _notifyNow() {

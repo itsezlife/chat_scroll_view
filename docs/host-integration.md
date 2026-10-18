@@ -631,6 +631,10 @@ What the host wires so a markdown body paints and reports the inline layer
    follows reduce-motion creates the `MarkdownSpoilerController` itself
    (`spoilers:`) and sets `animate` from `SpoilerTokens.particles.tickAt(speed)`;
    the particle colour follows the hidden text, and the engine takes no other.
+   While a message selection is live a tap toggles the row and the spoiler
+   stays hidden (the facade drives `spoilers.tapReveals`; do not write it). A
+   press held past `spoilers.tapTimeout` (500 ms) is a long press and reveals
+   nothing; a desktop host with a mouse sets `tapTimeout = null`.
 4. **Mentions, usernames and hashtags.** Colour them with
    `MarkdownThemeData.mentionColor` (they follow the link colour otherwise).
    Taps are `ChatResolvedMentionActivated` (with the user's `id`) or
