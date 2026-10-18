@@ -1,4 +1,4 @@
-import 'dart:ui' show Offset, Path;
+import 'dart:ui' show Offset, Path, Rect;
 
 import 'package:content_model/content_model.dart' show ContentKey;
 import 'package:flutter/foundation.dart';
@@ -87,11 +87,13 @@ sealed class ChatInlineHit {
   ///
   /// [content] is the emoji the sender wrote: a `ContentKey.unicode` for an
   /// emoji with an animated sticker, a `ContentKey.document` for a custom
-  /// emoji. The body replays the animation itself; what else a tap means (a
-  /// pack sheet, an effect) is the host's.
+  /// emoji. [stickerRect] is where the sticker is drawn, in global
+  /// coordinates, when the hit was read. The body replays the animation
+  /// itself; what else a tap means (a pack sheet, an effect) is the host's.
   const factory ChatInlineHit.sticker({
     required int messageId,
     required ContentKey content,
+    required Rect stickerRect,
   }) = ChatInlineHit$Sticker;
 
   /// The message ID whose body contains the hit element.
@@ -406,13 +408,21 @@ final class ChatInlineHit$Hashtag extends ChatInlineHit {
 @immutable
 final class ChatInlineHit$Sticker extends ChatInlineHit {
   /// Creates a sticker hit descriptor.
-  const ChatInlineHit$Sticker({required this.messageId, required this.content});
+  const ChatInlineHit$Sticker({
+    required this.messageId,
+    required this.content,
+    required this.stickerRect,
+  });
 
   @override
   final int messageId;
 
   /// The emoji of the message.
   final ContentKey content;
+
+  /// Where the sticker is drawn, in global coordinates: the rectangle an
+  /// effect over it is anchored to.
+  final Rect stickerRect;
 
   @override
   Path? get contourPath => null;
@@ -425,13 +435,14 @@ final class ChatInlineHit$Sticker extends ChatInlineHit {
       identical(this, other) ||
       other is ChatInlineHit$Sticker &&
           other.messageId == messageId &&
-          other.content == content;
+          other.content == content &&
+          other.stickerRect == stickerRect;
 
   @override
-  int get hashCode => Object.hash(messageId, content);
+  int get hashCode => Object.hash(messageId, content, stickerRect);
 
   @override
   String toString() =>
       r'ChatInlineHit$Sticker(messageId: '
-      '$messageId, content: $content)';
+      '$messageId, content: $content, stickerRect: $stickerRect)';
 }

@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:catalog_assets/src/asset/asset_binding.dart';
 import 'package:catalog_assets/src/asset/asset_paintable.dart';
+import 'package:catalog_assets/src/asset/asset_playback.dart';
 import 'package:catalog_assets/src/asset/asset_profile.dart';
 import 'package:catalog_assets/src/asset/asset_readiness.dart';
 import 'package:catalog_assets/src/asset/asset_spec.dart';
@@ -62,6 +63,17 @@ abstract base class AssetBindingBase
   @protected
   void releaseResources();
 
+  /// Whether this binding advances now: the profile animates, or a replay
+  /// asked it to.
+  @protected
+  bool get animates => profile.animate;
+
+  @override
+  AssetPlayback get playback => AssetPlayback.idle;
+
+  @override
+  bool replay() => false;
+
   /// Called after [visible] changed while attached.
   @protected
   void onVisibleChanged() {}
@@ -101,8 +113,10 @@ abstract base class AssetBindingBase
     final context = AssetPaintContext(
       tint: tint,
       opacity: opacity,
-      time: profile.animate ? _clock.now : _stillTime ??= _clock.now,
-      animate: profile.animate,
+      time: animates ? _clock.now : _stillTime ??= _clock.now,
+      animate: animates,
+      loop: profile.loop,
+      restFrame: profile.restFrame,
     );
     final radius = profile.cornerRadius;
     if (radius <= 0) {

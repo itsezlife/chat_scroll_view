@@ -1,6 +1,6 @@
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
-    show ChatEmojiEmbedFactory;
+    show ChatEmojiEmbedFactory, ChatStickerPlayback;
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_play_memory.dart';
@@ -19,13 +19,17 @@ final class ChatBodyHost {
   ///
   /// [stickerFor] is the host's `unicode` to `document` map for a lone emoji;
   /// by default the animated pack's. [plays] is the memory of what already
-  /// played on this screen.
+  /// played on this screen. [playbackFor] is the host's choice of how the
+  /// sticker of an emoji plays, from the kind of asset and the user's
+  /// animation settings; by default the reference client's (a unicode emoji
+  /// plays once and rests on the first frame, a custom emoji loops).
   ChatBodyHost({
     required AssetCacheScope assets,
     required this.policy,
     ContentKey? Function(ContentKey key) stickerFor =
         AnimatedEmojiPack.stickerFor,
     StickerPlayMemory? plays,
+    this.playbackFor = ChatStickerPlayback.defaultFor,
   }) : embedResolver = ContentEmbedResolver(scope: assets),
        embedFactory = ((content, preset) =>
            ContentEmbed(scope: assets, content: content, preset: preset)),
@@ -50,6 +54,9 @@ final class ChatBodyHost {
   final StickerPlayMemory plays;
 
   final ContentKey? Function(ContentKey key) _stickerFor;
+
+  /// How the sticker of the lone emoji [emoji] plays.
+  final ChatStickerPlayback Function(ContentKey emoji) playbackFor;
 
   /// The document a lone emoji of [emojiOnly] is shown as, or null for the
   /// text layout: the pack's animation for a unicode emoji it has, the custom

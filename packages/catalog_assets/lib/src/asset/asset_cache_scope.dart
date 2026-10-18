@@ -4,6 +4,7 @@ import 'package:catalog_assets/src/asset/asset_binding.dart';
 import 'package:catalog_assets/src/asset/asset_binding_base.dart';
 import 'package:catalog_assets/src/asset/asset_cache_budgets.dart';
 import 'package:catalog_assets/src/asset/asset_paintable.dart';
+import 'package:catalog_assets/src/asset/asset_playback.dart';
 import 'package:catalog_assets/src/asset/asset_producer.dart';
 import 'package:catalog_assets/src/asset/asset_profile.dart';
 import 'package:catalog_assets/src/asset/asset_readiness.dart';
@@ -485,15 +486,61 @@ final class _EntryBinding extends AssetBindingBase {
   final AssetCacheScope _scope;
   final _Entry entry;
   bool _registered = false;
+  // A replay turns a profile that does not animate into one that does, for
+  // this binding.
+  bool _replayed = false;
+  // The pass of a profile that does not loop is over. The animated stage is
+  // the entry's final one, so the paintable never changes under it.
+  bool _ended = false;
   late final _PlaybackTarget _target = _PlaybackTarget(
     clock.policy.frameIntervalFor(spec),
-    signal,
+    _onTick,
   );
 
   /// Called by the scope when the entry gained a stage.
   void entryChanged() {
     syncPlayback();
     signal();
+  }
+
+  // The paint that follows a tick is what steps the paintable, so a pass that
+  // ended is seen on the tick after: here, the frame after the one that held.
+  void _onTick() {
+    if (!profile.loop && !_ended && (entry.paintable?.isHolding ?? false)) {
+      _ended = true;
+      syncPlayback();
+    }
+    signal();
+  }
+
+  @override
+  bool get animates => profile.animate || _replayed;
+
+  @override
+  AssetPlayback get playback {
+    if (isDetached) return AssetPlayback.idle;
+    if (_ended) return AssetPlayback.ended;
+    return _registered ? AssetPlayback.playing : AssetPlayback.idle;
+  }
+
+  @override
+  bool replay() {
+    if (isDetached || !visible) return false;
+    final paintable = entry.paintable;
+    if (paintable == null ||
+        !paintable.isAnimated ||
+        _effectiveStage != entry.stage) {
+      return false;
+    }
+    if (_ended) {
+      _ended = false;
+    } else if (animates) {
+      return false;
+    }
+    _replayed = true;
+    syncPlayback();
+    signal();
+    return true;
   }
 
   @override
@@ -547,11 +594,15 @@ final class _EntryBinding extends AssetBindingBase {
     final wanted =
         !isDetached &&
         visible &&
-        profile.animate &&
+        animates &&
+        !_ended &&
         (entry.paintable?.isAnimated ?? false);
     if (wanted == _registered) return;
     _registered = wanted;
     if (wanted) {
+      // A binding that starts to play wakes a playback another binding of
+      // the entry left holding its rest frame; a running one is left alone.
+      entry.paintable?.restart();
       clock.register(_target);
     } else {
       clock.unregister(_target);

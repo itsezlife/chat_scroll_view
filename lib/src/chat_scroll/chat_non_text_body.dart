@@ -23,3 +23,24 @@ abstract interface class ChatNonTextBody {
   /// click counts as being on the message when the host reported no surface.
   Rect? get globalBounds;
 }
+
+/// A [ChatNonTextBody] whose part is a sticker the host can command and place
+/// an effect over: what `ChatEmojiBody` registers in its sticker layout.
+///
+/// The facade finds it by message id (`ChatSelectionController.replaySticker`,
+/// `stickerRectOf`, `playRemoteInteraction`), so a host that draws over the
+/// list or applies a peer's interaction needs no handle on the widget, and a
+/// row that is recycled and mounted again is found again.
+abstract interface class ChatStickerBody implements ChatNonTextBody {
+  /// The rectangle the sticker is drawn in, in global coordinates, or null
+  /// while it is not shown: not laid out, detached, or the host says the row
+  /// is inactive. The host reads it again when it needs it; a row scrolls
+  /// without rebuilding.
+  Rect? get stickerGlobalRect;
+
+  /// Plays the sticker's animation again and says whether it started.
+  ///
+  /// False while a pass is running (a pass is never rewound), when the sticker
+  /// does not play on its own end, or while it is not shown.
+  bool replay();
+}

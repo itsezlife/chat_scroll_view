@@ -135,6 +135,15 @@ final class RenderChatEmojiBody extends RenderBox {
     return null;
   }
 
+  /// The square of the item at [index], in this box's coordinates, or null
+  /// before layout or for an index there is no item at.
+  Rect? itemRect(int index) {
+    final rects = _geometry?.items;
+    return rects != null && index >= 0 && index < rects.length
+        ? rects[index]
+        : null;
+  }
+
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);

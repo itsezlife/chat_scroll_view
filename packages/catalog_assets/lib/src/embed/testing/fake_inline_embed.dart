@@ -1,11 +1,12 @@
 import 'dart:ui' hide VoidCallback;
 
+import 'package:catalog_assets/src/asset/asset_playback.dart';
 import 'package:catalog_assets/src/embed/inline_embed.dart';
 import 'package:listen/listen.dart';
 
 /// An [InlineEmbed] that records what is done to it and signals when a test
 /// calls [invalidate].
-final class FakeInlineEmbed with ChangeNotifier implements InlineEmbed {
+base class FakeInlineEmbed with ChangeNotifier implements InlineEmbed {
   /// Creates an embed reserving [sizeHint].
   FakeInlineEmbed({this.sizeHint = const Size(18, 18)});
 
@@ -40,6 +41,46 @@ final class FakeInlineEmbed with ChangeNotifier implements InlineEmbed {
     if (isDisposed) return;
     disposals++;
     super.dispose();
+  }
+}
+
+/// A [FakeInlineEmbed] that plays: a test sets [playback] and [startsReplays],
+/// and reads how often it was asked to [replay].
+final class FakePlayableEmbed extends FakeInlineEmbed implements PlayableEmbed {
+  /// Creates a playable embed that starts [AssetPlayback.playing].
+  FakePlayableEmbed({
+    super.sizeHint,
+    AssetPlayback playback = AssetPlayback.playing,
+  }) : _playback = playback;
+
+  AssetPlayback _playback;
+
+  /// Whether [replay] starts a pass when the pass is not running.
+  bool startsReplays = true;
+
+  /// How many times [replay] was called.
+  int replays = 0;
+
+  @override
+  AssetPlayback get playback => switch (_playback) {
+    _ when isDisposed => AssetPlayback.idle,
+    AssetPlayback.playing when !visible => AssetPlayback.idle,
+    final playback => playback,
+  };
+
+  /// Moves the playback and signals the listeners, as a binding would.
+  set playback(AssetPlayback value) {
+    _playback = value;
+    invalidate();
+  }
+
+  @override
+  bool replay() {
+    replays++;
+    if (isDisposed || !visible || !startsReplays) return false;
+    if (_playback == AssetPlayback.playing) return false;
+    playback = AssetPlayback.playing;
+    return true;
   }
 }
 

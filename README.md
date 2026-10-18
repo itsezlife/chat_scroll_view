@@ -45,7 +45,9 @@ A hit is read from the span's style bit, never from its URL: a mention is not
 a link and an image is not a link. Anything inside a hidden spoiler reveals
 instead of activating, and a text selection that enters a hidden spoiler
 reveals the message. The tap that reveals is absorbed; a long press, a drag and a
-secondary click are not ([ADR 037](docs/adr/037-spoiler-and-mention-inline-styles.md)).
+secondary click are not. While a message selection is live a tap toggles the
+row and reveals nothing, and a press held longer than 500 ms reveals nothing
+([ADR 037](docs/adr/037-spoiler-and-mention-inline-styles.md)).
 
 ### Host contract
 
@@ -55,6 +57,7 @@ secondary click are not ([ADR 037](docs/adr/037-spoiler-and-mention-inline-style
 | `ChatSelectionController(handlesEmbedHits: true)` when `ChatEmbedActivated` means something (a sticker preview, a pack sheet) | Expect an embed to be tappable by default: without it an embed is text, with the text cursor and no press highlight, and a tap on it is a tap on the message |
 | A reaction to `ChatMentionActivated` and `ChatHashtagActivated` (through `onInteraction` or a listener), using the `id` of a `ChatResolvedMentionActivated` to open a user | Read a mention's label as who it is, or look for mentions among `ChatLinkActivated` |
 | `ChatSelectionController(spoilerClock: scope.clock)`, the asset cache's `PlaybackClock`, so the dust moves on the shared clock and its pause layers | Run a ticker of its own for the dust (without the clock the dust stands still), or persist what `ChatSelectionController.spoilers` holds: reveal state is in memory |
+| `ChatSelectionController.spoilers.tapTimeout = null` on a desktop or web host whose pointer is a mouse (a click has no hold limit) | Set `spoilers.tapReveals` yourself: the facade writes it from `isSelectionMode`, and your value would not survive the next selection change |
 | `copyWriter` reading `ChatTextCopy.content` by style bit (`MD$Style.mention`, `image`, `spoiler`) when it keeps formatting on the clipboard | Detect a mention by its URL, or expect `plainText` to carry markdown: it is the revealed text with an embed's alt |
 
 ## Emoji-only bodies
@@ -73,9 +76,12 @@ viewport never re-detects.
 The body registers with the facade as a **non-text body**
 (`ChatSelectionController.putNonTextBody`): there is nothing to select, a long
 press is message selection, and Copy is the message's own. A tap on the
-sticker is `ChatInlineHit.sticker` / `ChatStickerActivated`, always, and the
-body plays the sticker again; a tap on a custom emoji is `ChatInlineHit.embed`
-with `handlesEmbedHits`, as in a markdown body.
+sticker is `ChatInlineHit.sticker` / `ChatStickerActivated`, always, when it
+lands on the drawn sticker (and nowhere beside it, unless the host sets
+`ChatStickerTapPolicy.replayTapSlop`); the body then plays the sticker again
+under its tap policy, never rewinding a pass that is running. A tap on a
+custom emoji is `ChatInlineHit.embed` with `handlesEmbedHits`, as in a markdown
+body.
 
 ### Host contract
 
@@ -83,7 +89,11 @@ with `handlesEmbedHits`, as in a markdown body.
 | --- | --- |
 | `EmojiOnlyText.of(richText)` once per message, plus the facts only it has: no media (a link preview counts as media), the large-emoji setting and the chat's permission | Ask the body to classify, or show it for a message that has media |
 | `embedFactory`, one stable function over its cache (`(content, preset) => ContentEmbed(scope: scope, content: content, preset: preset)`) | Pass `InlineEmbedResolver`: it sizes from text metrics, and this body sizes by count with `AssetPresets.emojiOnly` / `emojiSticker` |
-| `sticker:` (the animated-emoji pack's document for a unicode emoji, the custom emoji's own document) and `autoplay` from its own played-once memory per chat screen | Keep that memory in the cache: it is per screen, not per entry |
+| `sticker:` (the animated-emoji pack's document for a unicode emoji, the custom emoji's own document) | Pass a document for more than one item |
+| `playback:` (`ChatStickerPlayback`: loop, once then the first or the last frame, still; null is the reference default per emoji) from its animation settings, and `playLedger:` (`ChatStickerPlayLedger`), its played-once memory per open chat | Keep that memory in the cache or the body: it is per chat screen, not per entry or per mount |
+| `isActive:` (row visibility, app lifecycle, route focus, power policy combined) | Expect the body to read them: an inactive row costs no ticks, shows no sticker rectangle and drops a remote interaction |
+| `tapPolicy:` only to change the replay tap slop (zero on both strategies) or the mobile long press | Widen the slop without confirming the claim that a tap near the sticker replays: no reference client does |
+| A listener for `ChatStickerActivated` (the emoji, message id, `stickerRect`, monotonic `tapTime`) to build an interaction effect and a peer broadcast on, and `ChatSelectionController.playRemoteInteraction(messageId)` for one that arrives (null: drop it, send no acknowledgement) | Expect the viewport to draw the effect or send anything; it ships the seams |
 | The time pill, reactions, reply and forward header, placed by `ChatEmojiBody.layoutKindFor` (beside a sticker, above text) and `hasHeader` (text wraps at 65 % of the row's width under a header) | Expect the body to draw chrome, or to be wrapped in a bubble |
 | `semanticsLabel` with the message's plain text when it has it | Rely on the default label for a custom emoji: `EmojiOnly` keeps no text for one |
 

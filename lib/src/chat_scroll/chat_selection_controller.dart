@@ -27,7 +27,7 @@ import 'package:flutter/rendering.dart' show RenderBox, ShapeBorder;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_md/flutter_md.dart';
-import 'package:meta/meta.dart' show internal;
+import 'package:meta/meta.dart' show immutable, internal;
 
 export 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
 export 'package:chat_scroll_view/src/chat_scroll/chat_non_text_body.dart';
@@ -167,7 +167,9 @@ class ChatSelectionController implements Listenable {
     this.handlesEmbedHits = false,
     MarkdownSpoilerController? spoilers,
     PlaybackClock? spoilerClock,
-  }) : selectionPolicy = policy ?? ChatSelectionPolicy.forPlatform(),
+    ChatMonotonicClock? monotonicClock,
+  }) : monotonicClock = monotonicClock ?? _stopwatchClock(),
+       selectionPolicy = policy ?? ChatSelectionPolicy.forPlatform(),
        _text = ChatTextSelection(
          policy: policy ?? ChatSelectionPolicy.forPlatform(),
          spoilers: spoilers,
@@ -183,6 +185,17 @@ class ChatSelectionController implements Listenable {
 
   /// Active **selection policy** (entry, nesting, Copy).
   final ChatSelectionPolicy selectionPolicy;
+
+  /// The monotonic clock that stamps a sticker gesture
+  /// (`ChatStickerActivated.tapTime`). Injected so a host's batching and a
+  /// test see the same time; by default time since this facade was created.
+  /// Only differences between two readings mean anything.
+  final ChatMonotonicClock monotonicClock;
+
+  static ChatMonotonicClock _stopwatchClock() {
+    final watch = Stopwatch()..start();
+    return () => watch.elapsed;
+  }
 
   /// Optional host hook for [ChatSelectionInteraction] outcomes.
   ///
@@ -226,6 +239,15 @@ class ChatSelectionController implements Listenable {
   /// edit-morph twin shows the state of the live body. In memory only. A text
   /// selection that enters a hidden spoiler reveals the message; a host that
   /// wants another rule reads and writes the controller directly.
+  ///
+  /// The facade owns the controller's `tapReveals`: it is false exactly while
+  /// [isSelectionMode] is, so a tap that toggles a row never also reveals the
+  /// spoiler under it. Do not set it from the host; it would be overwritten at
+  /// the next membership change. The hold limit is the host's:
+  /// `spoilers.tapTimeout` is 500 ms (a longer press is a long press and
+  /// reveals nothing), and a desktop host whose pointer is a mouse sets it to
+  /// null, because a click has no limit. Touch needs no change; Telegram iOS
+  /// starts a long press at 0.3 s, which a host that follows it sets here.
   MarkdownSpoilerController get spoilers => _text.spoilers;
 
   ChatSpoilerDust? _spoilerDust;
@@ -545,6 +567,43 @@ class ChatSelectionController implements Listenable {
   /// Removes the body that [putNonTextBody] returned [token] for.
   void removeNonTextBody(int messageId, {required Object? token}) =>
       _text.removeNonTextBody(messageId, token: token);
+
+  // --- Stickers -------------------------------------------------------------
+
+  /// Where the sticker of [messageId] is drawn now, in global coordinates, or
+  /// null when that message shows no sticker: not mounted, not laid out, or
+  /// its host marked the row inactive. Read it when it is needed: a row
+  /// scrolls without rebuilding.
+  Rect? stickerRectOf(int messageId) =>
+      _stickerBodyOf(messageId)?.stickerGlobalRect;
+
+  /// Plays the sticker of [messageId] again and says whether it started.
+  /// False for a message without a shown sticker and while its pass runs.
+  bool replaySticker(int messageId) =>
+      _stickerBodyOf(messageId)?.replay() ?? false;
+
+  /// The entry point for an interaction that came from the peer: restarts the
+  /// sticker of [messageId] and tells the host where to draw the effect.
+  ///
+  /// Returns null when the message shows no sticker now (not mounted, scrolled
+  /// out of the list, or inactive): the host then drops the interaction and
+  /// sends no acknowledgement, as the reference clients do. Otherwise the
+  /// result carries the sticker's current rectangle and whether it restarted
+  /// (it does not while a pass is running; the effect plays either way). What
+  /// else belongs to receiving (which animation, how many at once, the
+  /// acknowledgement, haptics) is the host's.
+  ChatRemoteStickerPlay? playRemoteInteraction(int messageId) {
+    final body = _stickerBodyOf(messageId);
+    final rect = body?.stickerGlobalRect;
+    if (body == null || rect == null) return null;
+    return ChatRemoteStickerPlay(stickerRect: rect, restarted: body.replay());
+  }
+
+  ChatStickerBody? _stickerBodyOf(int messageId) =>
+      switch (_text.nonTextBodyOf(messageId)) {
+        final ChatStickerBody body => body,
+        _ => null,
+      };
 
   /// Returns the mounted [MarkdownSelectionSurface] for [messageId], if any.
   MarkdownSelectionSurface? surfaceFor(int messageId) =>
@@ -1063,11 +1122,17 @@ class ChatSelectionController implements Listenable {
               gesture: gesture,
             )
           : null,
-    ChatInlineHit$Sticker(:final messageId, :final content) =>
+    ChatInlineHit$Sticker(
+      :final messageId,
+      :final content,
+      :final stickerRect,
+    ) =>
       ChatSelectionInteraction.stickerActivated(
         messageId: messageId,
         content: content,
         gesture: gesture,
+        stickerRect: stickerRect,
+        tapTime: monotonicClock(),
       ),
     ChatInlineHit$Code(:final messageId, :final code) =>
       ChatSelectionInteraction.codeActivated(
@@ -1134,7 +1199,11 @@ class ChatSelectionController implements Listenable {
     if (_disposed) return false;
     switch (hit) {
       case ChatInlineHit$Sticker():
-        // A long press on a sticker is message selection, not an activation.
+        // A long press on a sticker is message selection, not an activation:
+        // it is told (the body restarts under its tap policy) and not claimed.
+        if (!_suppressesInlineActivation()) {
+          _notifyInteraction(_activationOf(hit, ChatInlineGesture.longPress)!);
+        }
         return false;
       case ChatInlineHit$Code():
         // Same action as tap, tagged long-press. Drop press ink immediately —
@@ -1587,6 +1656,10 @@ class ChatSelectionController implements Listenable {
   bool _notifyScheduled = false;
 
   void _notify() {
+    // Before the trampoline below, not in it: the engine reads the flag on the
+    // pointer up, and a deferred listener round would let one tap through the
+    // other side of a mode change.
+    _syncSpoilerTaps();
     // Span auto-scroll applies from performLayout. Listeners (composer,
     // chrome) call setState — illegal during persistentCallbacks. Same
     // trampoline as ChatScrollController.isAtTail.
@@ -1603,6 +1676,16 @@ class ChatSelectionController implements Listenable {
       return;
     }
     _notifyNow();
+  }
+
+  /// A tap on a hidden spoiler reveals it only outside a selection mode. In
+  /// one a tap toggles the row and the spoiler stays hidden, as on Android
+  /// (`ChatMessageCell` takes no spoiler touch while the chat is selecting).
+  /// Every membership change, committed or drag preview, ends in [_notify], so
+  /// this one place keeps the engine's flag equal to [isSelectionMode].
+  void _syncSpoilerTaps() {
+    if (_disposed) return;
+    _text.spoilers.tapReveals = !isSelectionMode;
   }
 
   void _notifyNow() {
@@ -1644,4 +1727,38 @@ class ChatSelectionController implements Listenable {
     // conversation that happens to reuse the same numeric range.
     _selectedIds.clear();
   }
+}
+
+/// A monotonic reading of time as a [Duration] since some fixed start: it
+/// never goes back, and only differences between two readings mean anything.
+typedef ChatMonotonicClock = Duration Function();
+
+/// What `ChatSelectionController.playRemoteInteraction` hands a host that
+/// applies a peer's interaction to a shown sticker.
+@immutable
+final class ChatRemoteStickerPlay {
+  /// Creates the result.
+  const ChatRemoteStickerPlay({
+    required this.stickerRect,
+    required this.restarted,
+  });
+
+  /// Where the sticker is drawn now, in global coordinates.
+  final Rect stickerRect;
+
+  /// Whether the sticker's animation restarted for this interaction.
+  final bool restarted;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatRemoteStickerPlay &&
+      other.stickerRect == stickerRect &&
+      other.restarted == restarted;
+
+  @override
+  int get hashCode => Object.hash(stickerRect, restarted);
+
+  @override
+  String toString() =>
+      'ChatRemoteStickerPlay(stickerRect: $stickerRect, restarted: $restarted)';
 }

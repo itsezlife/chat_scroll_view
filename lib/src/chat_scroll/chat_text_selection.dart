@@ -712,6 +712,11 @@ final class ChatTextSelection {
     return token;
   }
 
+  /// The non-text body of [messageId] that answers (the last mounted), or
+  /// null.
+  ChatNonTextBody? nonTextBodyOf(int messageId) =>
+      _disposed ? null : _nonTextBodies[messageId]?.values.last;
+
   /// Removes the body registered under [token].
   void removeNonTextBody(int messageId, {required Object? token}) {
     final owners = _nonTextBodies[messageId];

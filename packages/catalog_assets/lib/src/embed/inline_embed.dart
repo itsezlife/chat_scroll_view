@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:catalog_assets/src/asset/asset_playback.dart';
 import 'package:listen/listen.dart';
 import 'package:meta/meta.dart';
 
@@ -154,4 +155,27 @@ abstract interface class InlineEmbedResolver {
   /// text). Each call returns an embed of its own: disposing one never
   /// affects another made for the same target.
   InlineEmbed? resolve(InlineEmbedTarget target, InlineEmbedMetrics metrics);
+}
+
+/// An [InlineEmbed] whose picture plays, and that can play again.
+///
+/// A body that wants to replay an animation (a tap on a sticker) asks for this
+/// capability instead of reaching the asset binding: it checks `embed is
+/// PlayableEmbed` and treats an embed that is not as one that cannot replay.
+/// The signal of the [Listenable] also covers a change of [playback].
+///
+/// ## Contract
+///
+/// - [playback] is [AssetPlayback.idle] after `dispose`, while nothing
+///   animates and while the embed is hidden mid-pass; [AssetPlayback.ended]
+///   only for a pass that did not loop, and it stays so while hidden.
+/// - [replay] returns true exactly when it started another pass. It returns
+///   false while a pass runs or loops (a pass is never rewound), when hidden
+///   or disposed, and when there is nothing animated to play.
+abstract interface class PlayableEmbed implements InlineEmbed {
+  /// Where the playback stands.
+  AssetPlayback get playback;
+
+  /// Plays another pass and says whether it started.
+  bool replay();
 }

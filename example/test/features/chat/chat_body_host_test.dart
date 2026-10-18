@@ -5,6 +5,7 @@ library;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
+import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
@@ -18,24 +19,31 @@ EmojiOnly _only(List<ContentKey> keys) =>
 
 void main() {
   group('StickerPlayMemory', () {
-    test('lets a message play the first time it is shown, then holds it', () {
-      final memory = StickerPlayMemory();
-
-      expect(memory.claimFirstPlay(7), isTrue);
-      expect(memory.claimFirstPlay(7), isFalse);
-      expect(memory.claimFirstPlay(7), isFalse);
+    test('is the ledger of the viewport\'s sticker body', () {
+      expect(StickerPlayMemory(), isA<ChatStickerPlayLedger>());
     });
 
-    test('keeps a memory per message', () {
+    test('has played nothing until a play is recorded', () {
       final memory = StickerPlayMemory();
 
-      expect(memory.claimFirstPlay(1), isTrue);
-      expect(memory.claimFirstPlay(2), isTrue);
+      expect(memory.hasPlayed(7), isFalse);
+      memory.markPlayed(7);
+      expect(memory.hasPlayed(7), isTrue);
+      expect(memory.hasPlayed(8), isFalse);
     });
 
-    test('a new screen has a new memory', () {
-      expect(StickerPlayMemory().claimFirstPlay(1), isTrue);
-      expect(StickerPlayMemory().claimFirstPlay(1), isTrue);
+    test('recording twice is the same as once', () {
+      final memory = StickerPlayMemory()
+        ..markPlayed(7)
+        ..markPlayed(7);
+
+      expect(memory.hasPlayed(7), isTrue);
+    });
+
+    test('a new screen has a new memory: its stickers play again', () {
+      StickerPlayMemory().markPlayed(1);
+
+      expect(StickerPlayMemory().hasPlayed(1), isFalse);
     });
   });
 
@@ -123,6 +131,37 @@ void main() {
       expect(
         host.stickerOf(_only([const ContentKey.document('5368')])),
         const ContentKey.document('5368'),
+      );
+    });
+
+    test('plays a lone unicode emoji once and a custom emoji in a loop, by '
+        'default', () {
+      expect(
+        host.playbackFor(const ContentKey.unicode('\u{1F44D}')),
+        ChatStickerPlayback.onceThenFirstFrame,
+      );
+      expect(
+        host.playbackFor(const ContentKey.document('5368')),
+        ChatStickerPlayback.loop,
+      );
+    });
+
+    test('lets the host choose the playback: the rest frame, or still', () {
+      final own = ChatBodyHost(
+        assets: scope,
+        policy: policy,
+        playbackFor: (emoji) => emoji is ContentKey$Unicode
+            ? ChatStickerPlayback.onceThenLastFrame
+            : ChatStickerPlayback.still,
+      );
+
+      expect(
+        own.playbackFor(const ContentKey.unicode('\u{1F44D}')),
+        ChatStickerPlayback.onceThenLastFrame,
+      );
+      expect(
+        own.playbackFor(const ContentKey.document('5368')),
+        ChatStickerPlayback.still,
       );
     });
 

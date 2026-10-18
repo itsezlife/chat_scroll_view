@@ -50,6 +50,12 @@ final class StillImagePaintable implements AssetPaintable {
   bool get isAnimated => false;
 
   @override
+  bool get isHolding => false;
+
+  @override
+  bool restart() => false;
+
+  @override
   void paint(Canvas canvas, Rect rect, AssetPaintContext context) =>
       _ImagePainter.paint(canvas, rect, _image, context, template: _template);
 
@@ -88,8 +94,18 @@ final class StillImagePaintable implements AssetPaintable {
 /// A frame of 10 ms or less is shown for 100 ms, as browsers do: GIF encoders
 /// write 0 for "as fast as possible", which no viewer honours.
 ///
-/// The sequence loops for good. `AssetProfile.loop` is not visible to a
-/// paintable; a surface that wants one pass stops attaching as it ends.
+/// ## One pass, then a rest frame
+///
+/// A paint that does not loop (`AssetPaintContext.loop`) plays the sequence
+/// once. When the last frame's time is over, the image holds its rest frame
+/// (`AssetPaintContext.restFrame`), stops decoding and says so ([isHolding]);
+/// later paints that do not loop change nothing. [restart] plays another pass
+/// from the first frame; a paint that loops does the same, since the image is
+/// one playback for every surface of its entry and a looping one wants it
+/// moving. A pass is never ended early: the image holds only after the last
+/// frame has been shown for its whole duration, and only once the frame after
+/// it (the first, the codec wraps) is decoded, so resting on it or restarting
+/// from it costs no wait. A pass in progress is never rewound.
 ///
 /// ## Failure
 ///
@@ -125,6 +141,11 @@ final class PlayingImagePaintable implements AssetPaintable {
   bool _decoding = false;
   bool _stopped = false;
   bool _disposed = false;
+  // Index of the shown frame within the sequence, and whether a pass that did
+  // not loop is over; see the class documentation.
+  int _index = 0;
+  bool _holding = false;
+  bool _heldOnLast = false;
 
   @override
   AtlasSprite? get sprite => null;
@@ -133,12 +154,44 @@ final class PlayingImagePaintable implements AssetPaintable {
   bool get isAnimated => true;
 
   @override
+  bool get isHolding => _holding;
+
+  @override
+  bool restart() {
+    if (!_holding) return false;
+    _resume();
+    return true;
+  }
+
+  // Plays another pass: from the held first frame, or from the first frame
+  // that was kept decoded behind the held last one. The first frame lasts
+  // its duration from the next paint that animates.
+  void _resume() {
+    _holding = false;
+    if (_heldOnLast) {
+      final first = _ahead!;
+      _ahead = null;
+      _shown.dispose();
+      _shown = first.image;
+      _shownFor = _durationOf(first);
+      _index = 0;
+    }
+    _shownSince = null;
+    _decodeAhead();
+  }
+
+  @override
   void paint(Canvas canvas, Rect rect, AssetPaintContext context) {
-    if (context.animate) _advanceTo(context.time);
+    if (context.animate) _advanceTo(context);
     _ImagePainter.paint(canvas, rect, _shown, context, template: _template);
   }
 
-  void _advanceTo(Duration now) {
+  void _advanceTo(AssetPaintContext context) {
+    if (_holding) {
+      if (!context.loop) return;
+      _resume();
+    }
+    final now = context.time;
     // A clock started again is behind the time the frame went up at: the
     // frame counts from now, rather than freezing until the clock catches up.
     final since = _shownSince = switch (_shownSince) {
@@ -147,9 +200,15 @@ final class PlayingImagePaintable implements AssetPaintable {
     };
     final ahead = _ahead;
     if (ahead != null && now - since >= _shownFor) {
+      final passOver = _index == _codec.frameCount - 1;
+      if (passOver && !context.loop) {
+        _hold(ahead, context.restFrame);
+        return;
+      }
       _ahead = null;
       _shown.dispose();
       _shown = ahead.image;
+      _index = passOver ? 0 : _index + 1;
       final due = since + _shownFor;
       _shownFor = _durationOf(ahead);
       _shownSince = now - due < _shownFor ? due : now;
@@ -157,8 +216,22 @@ final class PlayingImagePaintable implements AssetPaintable {
     _decodeAhead();
   }
 
+  // Ends the pass: [first] is the decoded frame after the last, the first.
+  void _hold(ui.FrameInfo first, AssetRestFrame rest) {
+    _holding = true;
+    _heldOnLast = rest == AssetRestFrame.last;
+    if (_heldOnLast) return;
+    _ahead = null;
+    _shown.dispose();
+    _shown = first.image;
+    _shownFor = _durationOf(first);
+    _index = 0;
+  }
+
   void _decodeAhead() {
-    if (_disposed || _stopped || _decoding || _ahead != null) return;
+    if (_disposed || _stopped || _holding || _decoding || _ahead != null) {
+      return;
+    }
     _decoding = true;
     _codec.getNextFrame().then(
       (frame) {

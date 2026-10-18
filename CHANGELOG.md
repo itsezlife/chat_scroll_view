@@ -34,6 +34,19 @@
   a text selection that enters a hidden spoiler reveals it.
   `ChatSelectionController(spoilerClock:)` feeds the dust from the asset
   cache's `PlaybackClock`; without it the dust stands still.
+- While a message selection is live (committed, or a drag-selection preview) a
+  tap on a hidden spoiler toggles the row and leaves the spoiler hidden, as on
+  Android; the facade writes `spoilers.tapReveals` from `isSelectionMode`.
+  A host that wrote `tapReveals` itself will see its value replaced at the next
+  membership change. A press held longer than `spoilers.tapTimeout` (500 ms)
+  no longer reveals on release: a user who held a spoiler and let go must tap,
+  and a desktop host with a mouse sets `spoilers.tapTimeout = null` to keep the
+  click behaviour. Needs `flutter_md` v0.4.1.
+- Link labels and destinations take their backslash escapes back (`flutter_md`
+  v0.4.1), so the encoder's line-start workaround for a label (it leaves a
+  block-marker escape out when a line starts in a label,
+  `_startsInLabel` in `content_model`) is no longer needed once every consumer
+  is on v0.4.1 or later; it is harmless until then and stays.
 - A text selection's `plainText` stays plain text (the engine now copies
   markdown by default; the viewport asks it for plain).
 - `ChatMarkdownBody` without a `MarkdownTheme` above it keeps one fallback

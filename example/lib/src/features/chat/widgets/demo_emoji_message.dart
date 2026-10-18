@@ -1,8 +1,7 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
-import 'package:content_model/content_model.dart'
-    show ContentKey$Unicode, EmojiOnly;
+import 'package:content_model/content_model.dart' show EmojiOnly;
 import 'package:flutter/material.dart';
 
 /// The translucent dark pill behind the time of a message without a bubble
@@ -23,10 +22,11 @@ const Color _kSelectedTint = Color(0xFF2B5278);
 /// - reactions would go below, as a sibling under this widget; the demo has
 ///   none.
 ///
-/// The widget decides what the viewport does not: whether a lone unicode
-/// emoji plays now. That is asked once, when this mounts, of the screen's
-/// memory (`ChatBodyHost.plays`), and kept for the life of the mount.
-class DemoEmojiMessage extends StatefulWidget {
+/// The host decides what the viewport does not: how the sticker plays
+/// (`ChatBodyHost.playbackFor`) and what the open chat already played
+/// (`ChatBodyHost.plays`, the body's ledger), and whether the row is shown to
+/// the user (the ticker mode of the subtree: a covered route turns it off).
+class DemoEmojiMessage extends StatelessWidget {
   /// Shows [emojiOnly] as the body of message [messageId].
   const DemoEmojiMessage({
     required this.messageId,
@@ -66,46 +66,25 @@ class DemoEmojiMessage extends StatefulWidget {
   final Widget? header;
 
   @override
-  State<DemoEmojiMessage> createState() => _DemoEmojiMessageState();
-}
-
-class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
-  /// Whether a lone unicode emoji plays on this mount.
-  ///
-  /// The memory is asked at mount and not on each build: a build while the
-  /// sticker plays would see the claim spent and hold it. An edit-morph twin
-  /// does not register with the viewport and does not claim.
-  late final bool _autoplay;
-
-  @override
-  void initState() {
-    super.initState();
-    _autoplay =
-        ChatMarkdownBodyRegistration.allows(context) &&
-        widget.emojiOnly.items.length == 1 &&
-        widget.emojiOnly.items.single.key is ContentKey$Unicode &&
-        widget.host.plays.claimFirstPlay(widget.messageId);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final sticker = widget.host.stickerOf(widget.emojiOnly);
-    final kind = ChatEmojiBody.layoutKindFor(
-      widget.emojiOnly,
-      sticker: sticker,
-    );
+    final sticker = host.stickerOf(emojiOnly);
+    final kind = ChatEmojiBody.layoutKindFor(emojiOnly, sticker: sticker);
     final isSticker = kind == ChatEmojiLayoutKind.sticker;
-    final header = widget.header;
+    final header = this.header;
     final body = _surface(
       context,
       isSticker: isSticker,
       child: ChatEmojiBody(
-        controller: widget.selection,
-        messageId: widget.messageId,
-        emojiOnly: widget.emojiOnly,
-        embedFactory: widget.host.embedFactory,
+        controller: selection,
+        messageId: messageId,
+        emojiOnly: emojiOnly,
+        embedFactory: host.embedFactory,
         sticker: sticker,
-        autoplay: _autoplay,
+        playback: isSticker
+            ? host.playbackFor(emojiOnly.items.single.key)
+            : null,
+        playLedger: host.plays,
+        isActive: TickerMode.valuesOf(context).enabled,
         hasHeader: header != null && !isSticker,
       ),
     );
@@ -115,14 +94,14 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          if (widget.isOutgoing) Flexible(child: header),
+          if (isOutgoing) Flexible(child: header),
           body,
-          if (!widget.isOutgoing) Flexible(child: header),
+          if (!isOutgoing) Flexible(child: header),
         ],
       ),
       (false, final header?) => Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: widget.isOutgoing
+        crossAxisAlignment: isOutgoing
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: <Widget>[
@@ -146,8 +125,8 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
     final selected =
         ChatSelectionStateScope.maybeOf(context)?.selectProgress ?? 0;
     return ChatMessageSurfaceBounds(
-      controller: widget.selection,
-      messageId: widget.messageId,
+      controller: selection,
+      messageId: messageId,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: DecoratedBox(
         decoration: BoxDecoration(
@@ -171,10 +150,10 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
                     vertical: 2,
                   ),
                   child: DemoMessageMeta(
-                    createdAt: widget.createdAt,
+                    createdAt: createdAt,
                     color: _kServiceText,
-                    showStatus: widget.isOutgoing,
-                    edited: widget.edited,
+                    showStatus: isOutgoing,
+                    edited: edited,
                   ),
                 ),
               ),
