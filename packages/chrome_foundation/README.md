@@ -17,15 +17,16 @@ under a host quality policy
 | Type | Role |
 | --- | --- |
 | `ChromePalette` | The **chrome palette**: 15 semantic colour roles (surfaces, text, icons, accent, separator, ...) plus a brightness. Constructors: custom (every role), `light`, `dark`, `highContrastLight`, `highContrastDark`, `forBrightness`, `fromColorScheme`. |
-| `ComposerTokens`, `PanelTokens`, `ActionTokens`, `PlaceholderTokens`, `GlassMaterialTokens` | **Token groups**: immutable colours per component, each derived from a palette by `fromPalette`, with `copyWith` and `lerp`. `GlassMaterialTokens.colorsOf(material)` is what `GlassSurface` reads. |
+| `ComposerTokens`, `PanelTokens`, `ActionTokens`, `PlaceholderTokens`, `GlassMaterialTokens`, `SelectionMenuTokens`, `SpoilerTokens` | **Token groups**: immutable colours per component, each derived from a palette by `fromPalette`, with `copyWith` and `lerp`. `GlassMaterialTokens.colorsOf(material)` is what `GlassSurface` reads. `SelectionMenuTokens` is the formatting menu's card, text, press highlight and divider (the light palette gives the reference client's `0xFFFFFFFF` / `0xFF1A1D21` / `0x0F000000` / `0xFFD9D9D9`; elevation 1 and radius 12 are constants on the class). `SpoilerTokens` is the spoiler particle colour (null follows the text colour; `colorOver(text)` resolves it) and its `SpoilerParticleMotion`. |
 | `ChromeThemeData` | A palette plus one value of every group: what a root scope carries and what two themes are interpolated between. |
 | `ChromeThemeScope` | The **chrome theme scope** (`InheritedModel`). Required: a lookup with no supplier fails. Nested scopes override only the parts they supply. `of`, `paletteOf`, `composerOf`, ... |
 | `AnimatedChromeThemeScope` | A scope that interpolates to new tokens with each part's `lerp`. |
 | `ChromeContrast` | WCAG contrast ratio and the AA thresholds, for palette tests. |
-| `MotionRole`, `MotionSpec`, `ChromeMotion` | The **motion role** table: one duration and curve per named thing chrome animates (list transition 250 ms on the Android cubic, panel slide, search, header reveal, press, release, fade, popup show / hide, presentation switch, theme switch, the 400 ms `selectionSlide` of a selection marker, and the 900 ms `loop` of an indeterminate ring, which stands still under an instant speed). Immutable, overridable with `copyWith`. |
+| `MotionRole`, `MotionSpec`, `ChromeMotion` | The **motion role** table: one duration and curve per named thing chrome animates (list transition 250 ms on the Android cubic, panel slide, search, header reveal, press, release, fade, popup show / hide, presentation switch, theme switch, the 400 ms `selectionSlide` of a selection marker, the 900 ms `loop` of an indeterminate ring, which stands still under an instant speed, the `menu*` roles of the selection menu (enter 150 ms, exit 100 ms, the 250 ms overflow morph on two curves, panel fades of 250 / 100 / 150 ms) and the 300 ms `spoilerReveal`). Immutable, overridable with `copyWith`. |
+| `SelectionMenuTiming`, `SpoilerParticleMotion`, `AccelerateDecelerateCurve`, `LogAccelerateCurve` | Motion that is not a role: the menu's dismiss delay (150 ms), moving grace (500 ms), settle debounce (50 ms) and `morphDuration` (0.8 / 1 / 1.2 of the role by morph diagonal); the spoiler particles' speed (4-10 dp/s), life (1-3 s) and 30 fps tick (`tickAt(speed)` is null under an instant speed: static particles); and the two reference-client curves. |
 | `ChromeMotionSpeed`, `ChromeMotionScope`, `ChromeMotionData` | The speed scale (`normal`, `times(n)`, `instant`) and the nestable scope that supplies roles and speed. Components call `ChromeMotionScope.of(context).specOf(role)`. |
 | `ScalePressable`, `OvershootCurve` | Press-scale hit target driven by the `press` / `release` roles, and the overshoot easing (Android's `OvershootInterpolator`). |
-| `ChromeStrings` (`PanelStrings`, `ComposerStrings`, `SemanticsStrings`) | The **chrome strings**: grouped, host-provided text, with functions for plural and data-dependent wording. |
+| `ChromeStrings` (`PanelStrings`, `ComposerStrings`, `FormattingStrings`, `SemanticsStrings`) | The **chrome strings**: grouped, host-provided text, with functions for plural and data-dependent wording. `FormattingStrings` holds the selection menu's item labels (Quote, Spoiler, Bold, Italic, Mono, Strikethrough, Underline, Create / Edit / Remove Link, Code block, Bullet / Numbered list, Regular), the "More" and "Back" labels and the semantics labels of a bullet and a numbered list item. |
 | `ChromeStringsScope` | Required scope supplying `ChromeStrings`; a lookup with no scope fails in debug builds. |
 | `ChromeIconId`, `ChromeIconPainter`, `ChromeIconRegistry` | A **chrome icon** is a semantic id; the registry maps ids to painters (font glyph or paint callback). `ChromeIconRegistry.stock` paints the chrome's own ids; an unknown id draws a neutral fallback glyph. |
 | `ChromeIconScope`, `ChromeIcon`, `AnimatedChromeIcon` | Scope adding host painters, the widget that draws an id, and the variant that morphs (font to font) or cross-fades (custom painter) when the id changes. |
@@ -107,10 +108,11 @@ AnimatedChromeIcon(ChromeIconId.keyboard);       // morphs on id change
 | A palette that keeps the contrast of the pairings it draws (text 4.5:1, icons 3:1, WCAG AA). The presets do; `ChromeContrast.ratio` measures a custom one. | Assume a custom palette or `fromColorScheme` is accessible: only the presets are tested. |
 | Brightness changes by supplying another palette, or by `AnimatedChromeThemeScope` for a cross-fade. | Mutate tokens or keep its own light/dark flag in a chrome widget. |
 | Per-surface variation (a per-conversation look) as a nested scope naming only the groups that differ. | Wrap a group in a second theme mechanism (a `ThemeData` extension, a per-widget colour parameter). |
+| Spoiler colour and particle motion through `SpoilerTokens`, passed on to whatever renders the spoiler: the markdown fork does not depend on this package and reads none of it. | Expect the fork to read `SpoilerTokens`; `example` copies the resolved values into the fork's theme. |
 | Wallpaper-dependent colours through the groups (for example `ComposerTokens.contentFade`). | Expect tokens to read the wallpaper. |
 | High-contrast mode by choosing `highContrastLight` / `highContrastDark` (the package does not read `MediaQuery.highContrast`). | Expect geometry here: it stays with the component that draws it. |
-| A `ChromeStringsScope` above every chrome widget, filled from its own localisation or server language packs, including plural rules for `searchResultCount`. | Expect a default language, or import `testing.dart` from production code. Packages ship no translation. |
-| A `ChromeMotionScope` with `ChromeMotionSpeed.instant` when `MediaQuery.disableAnimations` or its lite mode is on. | Assume the package honours the platform reduce-motion flag by itself: only the host maps it. |
+| A `ChromeStringsScope` above every chrome widget, filled from its own localisation or server language packs, including plural rules for `searchResultCount` and every `FormattingStrings` member (all required: a missing one is a compile error, and there is no English fallback). | Expect a default language, or import `testing.dart` from production code. Packages ship no translation. |
+| A `ChromeMotionScope` with `ChromeMotionSpeed.instant` when `MediaQuery.disableAnimations` or its lite mode is on. Under it the menu roles and `spoilerReveal` are zero and `SpoilerParticleMotion.tickAt` is null; the host scales `SelectionMenuTiming.dismissDelay` with `speed.scale`. | Assume the package honours the platform reduce-motion flag by itself: only the host maps it. |
 | A `GlassSourceScope` over the content and the glass surfaces when sampled glass is wanted, and a `GlassQualityScope` to cap quality (low-power flag mapped by the host). | Import or name a strategy; the chain is not API. Put a fade or wash inside the `GlassSource` it should not frost. |
 | Painters for its own icon ids through `ChromeIconScope` (or `ChromeIconRegistry.withPainters`). | Name an icon by glyph in a descriptor, or import morphnext to animate chrome icons. |
 
@@ -195,6 +197,10 @@ this package.
 - Strings: scope missing-scope assert and nesting, preset completeness (every
   key non-empty in each preset, same keys in both, snapshot lists every
   declared member) and plural wording.
+- Menu and spoiler: the light menu colours and role durations against the
+  reference client's literal values, the two curves against worked values, the
+  morph-duration ratios, the static spoiler tick under an instant speed, and the
+  menu text on its card at AA in all four presets.
 - Icons: registry lookup, custom registration, fallback, scope nesting and
   morph between two ids (same state morphs; instant skips it; painted icons
   cross-fade over the `fade` role).

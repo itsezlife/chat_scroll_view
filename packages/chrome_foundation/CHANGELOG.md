@@ -6,6 +6,27 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `FormattingStrings` (`ChromeStrings.formatting`, `ChromeStringsScope.formattingOf`):
+  the selection menu's item labels, the "More" and "Back" labels and the
+  semantics labels of a bullet and a numbered list item. Source-breaking for
+  hosts that build `ChromeStrings`: the group is required and has no English
+  fallback; the English and Russian presets have it.
+- `SelectionMenuTokens` (card, text, press highlight, divider; elevation 1 and
+  corner radius 12 as constants) and `SpoilerTokens` (particle colour, null
+  follows the text; `SpoilerParticleMotion`) as theme groups. Source-breaking
+  for hosts that build `ChromeThemeData` field by field or switch over
+  `ChromeThemeAspect`; `ChromeThemeScope`, `AnimatedChromeThemeScope` and
+  `ChromeThemeData.fromPalette` derive them like the other groups.
+- Motion roles `menuEnter`, `menuExit`, `menuSizeEase`, `menuSizeAccelerate`,
+  `menuMainFadeOut`, `menuMainFadeIn`, `menuOverflowFadeOut` and
+  `spoilerReveal`. Source-breaking for a host that builds `ChromeMotion(...)`
+  field by field.
+- `AccelerateDecelerateCurve`, `LogAccelerateCurve`,
+  `ChromeMotion.linearOutSlowIn` / `fastOutLinearIn`, `SelectionMenuTiming`
+  and `SpoilerParticleMotion`.
+
 ### Changed
 
 - Source-breaking: `ComposerStrings.pastePlainAction` (required), the

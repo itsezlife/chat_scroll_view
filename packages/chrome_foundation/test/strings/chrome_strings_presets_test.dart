@@ -38,6 +38,7 @@ void main() {
         'panel': 'lib/src/strings/panel_strings.dart',
         'composer': 'lib/src/strings/composer_strings.dart',
         'semantics': 'lib/src/strings/semantics_strings.dart',
+        'formatting': 'lib/src/strings/formatting_strings.dart',
       };
       final field = RegExp(r'^  final .+ (\w+);$', multiLine: true);
       for (final group in groups.entries) {
@@ -114,6 +115,59 @@ void main() {
       expect(
         ChromeStringsPresets.english.panel.categoryTitle('custom-set'),
         'custom-set',
+      );
+    });
+
+    test('the menu labels are the reference client\'s English wording', () {
+      final f = ChromeStringsPresets.english.formatting;
+      expect(
+        [
+          f.quoteAction,
+          f.spoilerAction,
+          f.boldAction,
+          f.italicAction,
+          f.monoAction,
+          f.strikethroughAction,
+          f.underlineAction,
+          f.createLinkAction,
+          f.editLinkAction,
+          f.removeLinkAction,
+          f.codeBlockAction,
+          f.bulletListAction,
+          f.numberedListAction,
+          f.clearFormattingAction,
+          f.moreAction,
+          f.backAction,
+        ],
+        [
+          'Quote',
+          'Spoiler',
+          'Bold',
+          'Italic',
+          'Mono',
+          'Strikethrough',
+          'Underline',
+          'Create Link',
+          'Edit Link',
+          'Remove Link',
+          'Code block',
+          'Bullet list',
+          'Numbered list',
+          'Regular',
+          'More',
+          'Back',
+        ],
+      );
+    });
+
+    test('a numbered list item label carries its number', () {
+      expect(
+        ChromeStringsPresets.english.formatting.numberedListItem(3),
+        contains('3'),
+      );
+      expect(
+        ChromeStringsPresets.russian.formatting.numberedListItem(3),
+        contains('3'),
       );
     });
 

@@ -4,6 +4,8 @@ import 'package:chrome_foundation/src/tokens/composer_tokens.dart';
 import 'package:chrome_foundation/src/tokens/glass_material_tokens.dart';
 import 'package:chrome_foundation/src/tokens/panel_tokens.dart';
 import 'package:chrome_foundation/src/tokens/placeholder_tokens.dart';
+import 'package:chrome_foundation/src/tokens/selection_menu_tokens.dart';
+import 'package:chrome_foundation/src/tokens/spoiler_tokens.dart';
 import 'package:meta/meta.dart';
 
 /// A complete chrome theme: one [ChromePalette] and one value of every **token
@@ -22,6 +24,8 @@ final class ChromeThemeData {
     required this.action,
     required this.placeholder,
     required this.glass,
+    required this.selectionMenu,
+    required this.spoiler,
   });
 
   /// The theme where each group is derived from [palette], except those the
@@ -33,6 +37,8 @@ final class ChromeThemeData {
     ActionTokens? action,
     PlaceholderTokens? placeholder,
     GlassMaterialTokens? glass,
+    SelectionMenuTokens? selectionMenu,
+    SpoilerTokens? spoiler,
   }) => ChromeThemeData(
     palette: palette,
     composer: composer ?? ComposerTokens.fromPalette(palette),
@@ -40,6 +46,8 @@ final class ChromeThemeData {
     action: action ?? ActionTokens.fromPalette(palette),
     placeholder: placeholder ?? PlaceholderTokens.fromPalette(palette),
     glass: glass ?? GlassMaterialTokens.fromPalette(palette),
+    selectionMenu: selectionMenu ?? SelectionMenuTokens.fromPalette(palette),
+    spoiler: spoiler ?? SpoilerTokens.fromPalette(palette),
   );
 
   /// The semantic roles the groups were derived from.
@@ -60,6 +68,12 @@ final class ChromeThemeData {
   /// Glass material colours.
   final GlassMaterialTokens glass;
 
+  /// Selection menu colours.
+  final SelectionMenuTokens selectionMenu;
+
+  /// Spoiler colour and particle motion.
+  final SpoilerTokens spoiler;
+
   /// A copy with the named parts replaced.
   ///
   /// Replacing [palette] does not re-derive the groups: a group that was
@@ -72,6 +86,8 @@ final class ChromeThemeData {
     ActionTokens? action,
     PlaceholderTokens? placeholder,
     GlassMaterialTokens? glass,
+    SelectionMenuTokens? selectionMenu,
+    SpoilerTokens? spoiler,
   }) => ChromeThemeData(
     palette: palette ?? this.palette,
     composer: composer ?? this.composer,
@@ -79,6 +95,8 @@ final class ChromeThemeData {
     action: action ?? this.action,
     placeholder: placeholder ?? this.placeholder,
     glass: glass ?? this.glass,
+    selectionMenu: selectionMenu ?? this.selectionMenu,
+    spoiler: spoiler ?? this.spoiler,
   );
 
   /// Interpolates the palette and every group between [a] and [b].
@@ -92,6 +110,12 @@ final class ChromeThemeData {
         action: ActionTokens.lerp(a.action, b.action, t),
         placeholder: PlaceholderTokens.lerp(a.placeholder, b.placeholder, t),
         glass: GlassMaterialTokens.lerp(a.glass, b.glass, t),
+        selectionMenu: SelectionMenuTokens.lerp(
+          a.selectionMenu,
+          b.selectionMenu,
+          t,
+        ),
+        spoiler: SpoilerTokens.lerp(a.spoiler, b.spoiler, t),
       );
 
   @override
@@ -103,11 +127,21 @@ final class ChromeThemeData {
           panel == other.panel &&
           action == other.action &&
           placeholder == other.placeholder &&
-          glass == other.glass;
+          glass == other.glass &&
+          selectionMenu == other.selectionMenu &&
+          spoiler == other.spoiler;
 
   @override
-  int get hashCode =>
-      Object.hash(palette, composer, panel, action, placeholder, glass);
+  int get hashCode => Object.hash(
+    palette,
+    composer,
+    panel,
+    action,
+    placeholder,
+    glass,
+    selectionMenu,
+    spoiler,
+  );
 
   @override
   String toString() => 'ChromeThemeData($palette)';

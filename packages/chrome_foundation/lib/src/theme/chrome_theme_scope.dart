@@ -7,6 +7,8 @@ import 'package:chrome_foundation/src/tokens/composer_tokens.dart';
 import 'package:chrome_foundation/src/tokens/glass_material_tokens.dart';
 import 'package:chrome_foundation/src/tokens/panel_tokens.dart';
 import 'package:chrome_foundation/src/tokens/placeholder_tokens.dart';
+import 'package:chrome_foundation/src/tokens/selection_menu_tokens.dart';
+import 'package:chrome_foundation/src/tokens/spoiler_tokens.dart';
 import 'package:flutter/widgets.dart';
 
 /// The parts of a chrome theme a dependent can subscribe to.
@@ -31,6 +33,12 @@ enum ChromeThemeAspect {
 
   /// [GlassMaterialTokens].
   glass,
+
+  /// [SelectionMenuTokens].
+  selectionMenu,
+
+  /// [SpoilerTokens].
+  spoiler,
 }
 
 /// The **chrome theme scope**: provides the palette and token groups to the
@@ -61,6 +69,8 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
     ActionTokens? action,
     PlaceholderTokens? placeholder,
     GlassMaterialTokens? glass,
+    SelectionMenuTokens? selectionMenu,
+    SpoilerTokens? spoiler,
     super.key,
   }) : _palette = palette,
        _composer =
@@ -92,6 +102,18 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
            switch (palette) {
              final palette? => GlassMaterialTokens.fromPalette(palette),
              null => null,
+           },
+       _selectionMenu =
+           selectionMenu ??
+           switch (palette) {
+             final palette? => SelectionMenuTokens.fromPalette(palette),
+             null => null,
+           },
+       _spoiler =
+           spoiler ??
+           switch (palette) {
+             final palette? => SpoilerTokens.fromPalette(palette),
+             null => null,
            };
 
   /// A scope supplying every part of [data] verbatim.
@@ -106,6 +128,8 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
          action: data.action,
          placeholder: data.placeholder,
          glass: data.glass,
+         selectionMenu: data.selectionMenu,
+         spoiler: data.spoiler,
          key: key,
          child: child,
        );
@@ -116,6 +140,8 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
   final ActionTokens? _action;
   final PlaceholderTokens? _placeholder;
   final GlassMaterialTokens? _glass;
+  final SelectionMenuTokens? _selectionMenu;
+  final SpoilerTokens? _spoiler;
 
   Object? _part(ChromeThemeAspect aspect) => switch (aspect) {
     ChromeThemeAspect.palette => _palette,
@@ -124,6 +150,8 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
     ChromeThemeAspect.action => _action,
     ChromeThemeAspect.placeholder => _placeholder,
     ChromeThemeAspect.glass => _glass,
+    ChromeThemeAspect.selectionMenu => _selectionMenu,
+    ChromeThemeAspect.spoiler => _spoiler,
   };
 
   /// The whole theme at [context]; depends on every part.
@@ -136,6 +164,8 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
     action: actionOf(context),
     placeholder: placeholderOf(context),
     glass: glassOf(context),
+    selectionMenu: selectionMenuOf(context),
+    spoiler: spoilerOf(context),
   );
 
   /// The semantic palette at [context].
@@ -164,6 +194,14 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
   /// The glass material tokens at [context].
   static GlassMaterialTokens glassOf(BuildContext context) =>
       _lookup(context, ChromeThemeAspect.glass)._glass!;
+
+  /// The selection menu tokens at [context].
+  static SelectionMenuTokens selectionMenuOf(BuildContext context) =>
+      _lookup(context, ChromeThemeAspect.selectionMenu)._selectionMenu!;
+
+  /// The spoiler tokens at [context].
+  static SpoilerTokens spoilerOf(BuildContext context) =>
+      _lookup(context, ChromeThemeAspect.spoiler)._spoiler!;
 
   static ChromeThemeScope _lookup(
     BuildContext context,
@@ -235,6 +273,8 @@ class AnimatedChromeThemeScope extends StatelessWidget {
     this.action,
     this.placeholder,
     this.glass,
+    this.selectionMenu,
+    this.spoiler,
     this.duration,
     this.curve,
     this.onEnd,
@@ -258,6 +298,12 @@ class AnimatedChromeThemeScope extends StatelessWidget {
 
   /// The target glass material tokens.
   final GlassMaterialTokens? glass;
+
+  /// The target selection menu tokens.
+  final SelectionMenuTokens? selectionMenu;
+
+  /// The target spoiler tokens.
+  final SpoilerTokens? spoiler;
 
   /// How long a change takes at normal speed; null uses the `themeSwitch`
   /// role.
@@ -283,6 +329,8 @@ class AnimatedChromeThemeScope extends StatelessWidget {
       action: action,
       placeholder: placeholder,
       glass: glass,
+      selectionMenu: selectionMenu,
+      spoiler: spoiler,
       duration: motion.speed.scale(duration ?? role.duration),
       curve: curve ?? role.curve,
       onEnd: onEnd,
@@ -300,6 +348,8 @@ class _AnimatedChromeThemeScope extends ImplicitlyAnimatedWidget {
     required this.action,
     required this.placeholder,
     required this.glass,
+    required this.selectionMenu,
+    required this.spoiler,
     required super.duration,
     required super.curve,
     required super.onEnd,
@@ -311,6 +361,8 @@ class _AnimatedChromeThemeScope extends ImplicitlyAnimatedWidget {
   final ActionTokens? action;
   final PlaceholderTokens? placeholder;
   final GlassMaterialTokens? glass;
+  final SelectionMenuTokens? selectionMenu;
+  final SpoilerTokens? spoiler;
   final Widget child;
 
   @override
@@ -326,6 +378,8 @@ class _AnimatedChromeThemeScopeState
   _PartTween<ActionTokens>? _action;
   _PartTween<PlaceholderTokens>? _placeholder;
   _PartTween<GlassMaterialTokens>? _glass;
+  _PartTween<SelectionMenuTokens>? _selectionMenu;
+  _PartTween<SpoilerTokens>? _spoiler;
 
   @override
   void forEachTween(TweenVisitor<dynamic> visitor) {
@@ -387,6 +441,26 @@ class _AnimatedChromeThemeScopeState
               ),
             )
             as _PartTween<GlassMaterialTokens>?;
+    _selectionMenu =
+        visitor(
+              _selectionMenu,
+              widget.selectionMenu,
+              (v) => _PartTween<SelectionMenuTokens>(
+                SelectionMenuTokens.lerp,
+                v as SelectionMenuTokens,
+              ),
+            )
+            as _PartTween<SelectionMenuTokens>?;
+    _spoiler =
+        visitor(
+              _spoiler,
+              widget.spoiler,
+              (v) => _PartTween<SpoilerTokens>(
+                SpoilerTokens.lerp,
+                v as SpoilerTokens,
+              ),
+            )
+            as _PartTween<SpoilerTokens>?;
   }
 
   @override
@@ -397,6 +471,8 @@ class _AnimatedChromeThemeScopeState
     action: _action?.evaluate(animation),
     placeholder: _placeholder?.evaluate(animation),
     glass: _glass?.evaluate(animation),
+    selectionMenu: _selectionMenu?.evaluate(animation),
+    spoiler: _spoiler?.evaluate(animation),
     child: widget.child,
   );
 }

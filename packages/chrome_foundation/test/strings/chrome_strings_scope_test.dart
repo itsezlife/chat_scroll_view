@@ -20,6 +20,7 @@ void main() {
         'of': ChromeStringsScope.of,
         'panelOf': ChromeStringsScope.panelOf,
         'composerOf': ChromeStringsScope.composerOf,
+        'formattingOf': ChromeStringsScope.formattingOf,
         'semanticsOf': ChromeStringsScope.semanticsOf,
       };
       for (final entry in lookups.entries) {
@@ -60,6 +61,7 @@ void main() {
       late ChromeStrings seen;
       late PanelStrings panel;
       late ComposerStrings composer;
+      late FormattingStrings formatting;
       late SemanticsStrings semantics;
       await tester.pumpWidget(
         ChromeStringsScope(
@@ -69,6 +71,7 @@ void main() {
               seen = ChromeStringsScope.of(c);
               panel = ChromeStringsScope.panelOf(c);
               composer = ChromeStringsScope.composerOf(c);
+              formatting = ChromeStringsScope.formattingOf(c);
               semantics = ChromeStringsScope.semanticsOf(c);
               return const SizedBox();
             },
@@ -78,6 +81,7 @@ void main() {
       expect(seen, same(ChromeStringsPresets.english));
       expect(panel, same(seen.panel));
       expect(composer, same(seen.composer));
+      expect(formatting, same(seen.formatting));
       expect(semantics, same(seen.semantics));
     });
 
