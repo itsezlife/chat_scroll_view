@@ -1034,7 +1034,13 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       await tester.pump();
       // Back past Cut to the More button.
-      expect(focused(), tester.getRect(MenuRig.more));
+      // The focus ring is the 40 dp disc of the More button, not its frame.
+      expect(
+        focused(),
+        tester.getRect(
+          find.descendant(of: MenuRig.more, matching: find.byType(IconButton)),
+        ),
+      );
     });
 
     testWidgets('the arrow keys move between the items', (tester) async {

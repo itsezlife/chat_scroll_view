@@ -73,7 +73,12 @@ void main() {
     });
 
     testWidgets('widens with the text scale', (tester) async {
-      expect(button('Copy', scaler: const TextScaler.linear(1.5)), 4 * 15 + 32);
+      // A label is measured up to the next whole pixel, and a float step at
+      // 1.5 times can tip an exact 60 to 61: one pixel is the tolerance.
+      expect(
+        button('Copy', scaler: const TextScaler.linear(1.5)),
+        inInclusiveRange(4 * 15 + 32, 4 * 15 + 32 + 1),
+      );
     });
   });
 
@@ -262,7 +267,11 @@ void main() {
         scaler: const TextScaler.linear(1.5),
       );
 
-      expect(result.width, 18 + 3 * 15 + 18);
+      // Whole-pixel measuring, as above.
+      expect(
+        result.width,
+        inInclusiveRange(18 + 3 * 15 + 18, 18 + 3 * 15 + 18 + 1),
+      );
     });
 
     testWidgets('is cut to the room across', (tester) async {
