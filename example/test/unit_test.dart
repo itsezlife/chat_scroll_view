@@ -59,6 +59,9 @@ import 'widgets/chat_composer_send_test.dart' as chat_composer_send_test;
 import 'widgets/chat_composer_shortcuts_test.dart'
     as chat_composer_shortcuts_test;
 import 'widgets/chat_drafts_test.dart' as chat_drafts_test;
+import 'widgets/chat_edit_focus_screen_test.dart'
+    as chat_edit_focus_screen_test;
+import 'widgets/chat_edit_focus_test.dart' as chat_edit_focus_test;
 import 'widgets/chat_input_set_test.dart' as chat_input_set_test;
 import 'widgets/chat_input_wire_test.dart' as chat_input_wire_test;
 import 'widgets/chat_link_preview_test.dart' as chat_link_preview_test;
@@ -186,6 +189,11 @@ void main() {
     chat_composer_shortcuts_test.main,
   );
   group('widgets/chat_drafts_test.dart', chat_drafts_test.main);
+  group(
+    'widgets/chat_edit_focus_screen_test.dart',
+    chat_edit_focus_screen_test.main,
+  );
+  group('widgets/chat_edit_focus_test.dart', chat_edit_focus_test.main);
   group('widgets/chat_input_set_test.dart', chat_input_set_test.main);
   group('widgets/chat_input_wire_test.dart', chat_input_wire_test.main);
   group('widgets/chat_link_preview_test.dart', chat_link_preview_test.main);

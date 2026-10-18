@@ -85,7 +85,7 @@ lays the lines out left to right in a right-to-left chat; desktop mirrors.
 | Count cap | none | none | 3 regular emoji by default, the host's to move (see the amendment below); more is a bubble |
 | Time pill, text layout | in a strip under the emoji (3 dp below them, 17 dp high, 3 dp under it), 1 dp (incoming) or 4 dp (outgoing) inside the text's end | in a strip under the text, 4 pt inside its end and bottom (20 pt strip) | beside the content, bottom-aligned (incoming); under it (outgoing) |
 | Time pill, sticker layout | over the art, `[-7, +10]` of its bottom edge, 5 dp inside its end | 4 pt inside the frame, so 6 pt outside the art | beside the sticker (incoming); over its bottom-end corner (outgoing) |
-| Time pill shown | always | always | on hover, as the last own message, while sending or failed; an outgoing large emoji always |
+| Time pill shown | always | always | while the pointer is anywhere on the message's row (not only over the emoji), as the last own message, while sending or failed; an outgoing large emoji always |
 | Pill shape | 17 dp, radius 12, 6 dp padding, 12 dp text, 60 % of the service alpha | fully rounded, 17 pt, 7 pt padding, 11 pt text | radius about 6, 8 x 2 padding, 13 px text |
 | Ticks | 12 x 12 checks 4.8 dp apart, clock, error square | 11 x 9 vector checks 6 pt apart, clock | Android's glyphs in a 24 px status space |
 | Edited | one string, `edited 09:05`, part of the pill's width | the same | the same |

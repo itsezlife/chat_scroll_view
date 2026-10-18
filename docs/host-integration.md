@@ -767,7 +767,7 @@ A message of nothing but emoji is shown without a bubble, large
 
    | | Android | iOS | Desktop |
    | --- | --- | --- | --- |
-   | Time | always; a strip under the text (3 dp gap, 17 dp pill, 3 dp), over the sticker's bottom | always; 4 pt inside the frame's end and bottom | beside the content (incoming) or under or over it (outgoing); on hover, last own, sending, failed; an outgoing large emoji always |
+   | Time | always; a strip under the text (3 dp gap, 17 dp pill, 3 dp), over the sticker's bottom | always; 4 pt inside the frame's end and bottom | beside the content (incoming) or under or over it (outgoing); while the pointer is on the message's row, last own, sending, failed; an outgoing large emoji always |
    | Pill | 17 dp, radius 12, 6 dp padding, 12 dp text | fully rounded, 11 pt | radius about 6, 8 x 2 padding, 13 px |
    | Ticks and edited | 12 dp checks 4.8 dp apart, clock, error; `edited 09:05` is one string | 11 x 9 pt vector checks 6 pt apart; one string | Android's glyphs; one string |
    | Reply | above the text, beside the sticker | beside both, at the screen edge away from the message | beside when it fits, else above |

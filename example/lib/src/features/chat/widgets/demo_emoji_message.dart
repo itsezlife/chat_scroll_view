@@ -48,6 +48,7 @@ class DemoEmojiMessage extends StatefulWidget {
     this.views,
     this.sendState,
     this.isLastOwn = false,
+    this.hovered = false,
     this.policy,
     this.wallpaper,
     super.key,
@@ -91,6 +92,11 @@ class DemoEmojiMessage extends StatefulWidget {
   /// Whether this is the user's last message: desktop shows its time then.
   final bool isLastOwn;
 
+  /// Whether a mouse is on the message's row (`EmojiRowHover`): desktop shows
+  /// the time then. The row, not this widget, knows it: the pointer is as much
+  /// on the message on the empty side of its row as over the emoji box.
+  final bool hovered;
+
   /// The platform family's emoji policy; the running platform's when null.
   final ChatEmojiPolicy? policy;
 
@@ -104,7 +110,13 @@ class DemoEmojiMessage extends StatefulWidget {
 }
 
 class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
-  bool _hovered = false;
+  /// A primary mouse click on the pill, which the pill's tap barrier keeps from
+  /// the viewport: what Telegram Desktop does for a click on the date
+  /// (`CursorState::Date` in `ListWidget::mouseActionFinish`): select the
+  /// message when nothing is selected, toggle it in message selection. The
+  /// facade's toggle does both, and drops a live text selection as a click on
+  /// the row would.
+  void _selectFromStatus() => widget.selection.toggle(widget.messageId);
 
   @override
   Widget build(BuildContext context) {
@@ -213,7 +225,7 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
           outgoing: outgoing,
           kind: kind,
           emojiOnly: widget.emojiOnly,
-          hovered: _hovered,
+          hovered: widget.hovered,
           isLastOwn: widget.isLastOwn,
           state: state,
         );
@@ -249,6 +261,12 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
           );
         }
 
+        // Telegram Desktop's click on the date selects the message. A mobile
+        // selection policy has no such click: a tap on the row is the idle
+        // chrome, and the viewport already toggles it in message selection.
+        final selectsOnStatusClick =
+            !widget.selection.selectionPolicy.routesPrimaryTapToIdleMessage;
+
         final bodyRect = inBox(layout.body);
         final pillRect = layout.pill == null ? null : inBox(layout.pill!);
         final headerRect = layout.header == null ? null : inBox(layout.header!);
@@ -262,50 +280,47 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          child: MouseRegion(
-            onEnter: (_) => setState(() => _hovered = true),
-            onExit: (_) => setState(() => _hovered = false),
-            child: SizedBox.fromSize(
-              size: bounds.size,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: <Widget>[
-                  if (headerRect != null && headerMeasure != null)
-                    Positioned.fromRect(
-                      rect: headerRect,
-                      child: EmojiHeaderPanel(
-                        chrome: chrome,
-                        colors: colors,
-                        measure: headerMeasure,
-                      ),
+          child: SizedBox.fromSize(
+            size: bounds.size,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                if (headerRect != null && headerMeasure != null)
+                  Positioned.fromRect(
+                    rect: headerRect,
+                    child: EmojiHeaderPanel(
+                      chrome: chrome,
+                      colors: colors,
+                      measure: headerMeasure,
                     ),
-                  Positioned(
-                    left: bodyRect.left,
-                    top: bodyRect.top,
-                    child: emojiBody,
                   ),
-                  if (pillRect != null && showsMeta)
-                    Positioned.fromRect(
-                      rect: pillRect,
-                      child: EmojiMetaPill(
-                        chrome: chrome,
-                        layout: pill,
-                        colors: colors,
-                        time: time,
-                        views: widget.views,
-                      ),
+                Positioned(
+                  left: bodyRect.left,
+                  top: bodyRect.top,
+                  child: emojiBody,
+                ),
+                if (pillRect != null && showsMeta)
+                  Positioned.fromRect(
+                    rect: pillRect,
+                    child: EmojiMetaPill(
+                      chrome: chrome,
+                      layout: pill,
+                      colors: colors,
+                      time: time,
+                      views: widget.views,
+                      onClick: selectsOnStatusClick ? _selectFromStatus : null,
                     ),
-                  if (reactionsRect != null)
-                    Positioned.fromRect(
-                      rect: reactionsRect,
-                      child: EmojiReactionsRow(
-                        chrome: chrome,
-                        colors: colors,
-                        reactions: widget.reactions,
-                      ),
+                  ),
+                if (reactionsRect != null)
+                  Positioned.fromRect(
+                    rect: reactionsRect,
+                    child: EmojiReactionsRow(
+                      chrome: chrome,
+                      colors: colors,
+                      reactions: widget.reactions,
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
         );
