@@ -43,10 +43,17 @@ import 'pre_ime_back_native_test.dart' as pre_ime_back_native_test;
 import 'supabase_chat_data_source_test.dart' as supabase_chat_data_source_test;
 import 'theme/demo_chat_theme_test.dart' as demo_chat_theme_test;
 import 'theme/demo_markdown_theme_test.dart' as demo_markdown_theme_test;
+import 'widgets/chat_composer_menu_test.dart' as chat_composer_menu_test;
+import 'widgets/chat_composer_paste_toast_test.dart'
+    as chat_composer_paste_toast_test;
+import 'widgets/chat_composer_queries_test.dart' as chat_composer_queries_test;
 import 'widgets/chat_composer_send_test.dart' as chat_composer_send_test;
+import 'widgets/chat_composer_shortcuts_test.dart'
+    as chat_composer_shortcuts_test;
 import 'widgets/chat_drafts_test.dart' as chat_drafts_test;
 import 'widgets/chat_input_set_test.dart' as chat_input_set_test;
 import 'widgets/chat_input_wire_test.dart' as chat_input_wire_test;
+import 'widgets/chat_link_preview_test.dart' as chat_link_preview_test;
 import 'widgets/chat_open_at_last_read_test.dart'
     as chat_open_at_last_read_test;
 import 'widgets/chat_scroll_to_bottom_button_test.dart'
@@ -59,6 +66,7 @@ import 'widgets/demo_message_edit_transition_test.dart'
 import 'widgets/demo_message_markdown_registration_test.dart'
     as demo_message_markdown_registration_test;
 import 'widgets/message_menu_test.dart' as message_menu_test;
+import 'widgets/notes_dialog_test.dart' as notes_dialog_test;
 import 'widgets/panel_keeps_composer_focus_test.dart'
     as panel_keeps_composer_focus_test;
 import 'widgets/panel_menu_holds_popup_test.dart'
@@ -132,10 +140,24 @@ void main() {
   );
   group('theme/demo_chat_theme_test.dart', demo_chat_theme_test.main);
   group('theme/demo_markdown_theme_test.dart', demo_markdown_theme_test.main);
+  group('widgets/chat_composer_menu_test.dart', chat_composer_menu_test.main);
+  group(
+    'widgets/chat_composer_paste_toast_test.dart',
+    chat_composer_paste_toast_test.main,
+  );
+  group(
+    'widgets/chat_composer_queries_test.dart',
+    chat_composer_queries_test.main,
+  );
   group('widgets/chat_composer_send_test.dart', chat_composer_send_test.main);
+  group(
+    'widgets/chat_composer_shortcuts_test.dart',
+    chat_composer_shortcuts_test.main,
+  );
   group('widgets/chat_drafts_test.dart', chat_drafts_test.main);
   group('widgets/chat_input_set_test.dart', chat_input_set_test.main);
   group('widgets/chat_input_wire_test.dart', chat_input_wire_test.main);
+  group('widgets/chat_link_preview_test.dart', chat_link_preview_test.main);
   group(
     'widgets/chat_open_at_last_read_test.dart',
     chat_open_at_last_read_test.main,
@@ -156,6 +178,7 @@ void main() {
     demo_message_markdown_registration_test.main,
   );
   group('widgets/message_menu_test.dart', message_menu_test.main);
+  group('widgets/notes_dialog_test.dart', notes_dialog_test.main);
   group(
     'widgets/panel_keeps_composer_focus_test.dart',
     panel_keeps_composer_focus_test.main,
