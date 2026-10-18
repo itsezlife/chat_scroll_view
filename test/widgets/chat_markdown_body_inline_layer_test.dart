@@ -672,7 +672,7 @@ void main() {
     );
 
     inlineTest(
-      'a drag from a hidden spoiler selects text and reveals',
+      'a drag from a hidden spoiler selects text and leaves it hidden',
       (tester) async {
         final selection = desktop();
         await pump(tester, selection, {1: 'x ||secret|| y'});
@@ -684,7 +684,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(selection.isTextSelectionActive, isTrue);
-        expect(selection.spoilers.isRevealed(1), isTrue);
+        expect(selection.spoilers.isRevealed(1), isFalse);
       },
       platform: TargetPlatform.macOS,
     );
@@ -837,9 +837,8 @@ void main() {
   });
 
   group('copy', () {
-    inlineTest('the plain text is the revealed text with the embed\'s alt', (
-      tester,
-    ) async {
+    inlineTest('the plain text is the characters, a spoiler\'s too, with the '
+        'embed\'s alt', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {
         1: 'hi [@Ann](mention:42) ![:wave:](fake:1) ||secret|| **end**',
@@ -851,7 +850,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(selection.textSelectionPlainText(), 'hi @Ann :wave: secret end');
-      expect(selection.spoilers.isRevealed(1), isTrue);
+      expect(selection.spoilers.isRevealed(1), isFalse);
     });
 
     inlineTest('hands a host writer the structure, spoiler and embed spans', (
