@@ -75,3 +75,5 @@ config/development.supabase.json
 # Build folders
 **/build/
 **/.kotlin
+# flutter_test golden comparator failure output
+**/failures/

@@ -1,4 +1,5 @@
-import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:content_model/content_model.dart';
+import 'package:content_model/markdown.dart';
 
 /// Host routing for an activated markdown link URL.
 ///
@@ -66,24 +67,30 @@ final class OtherLinkActivation extends LinkActivation {
 
 /// Host-owned **body linkify** policy and link-activation entry points.
 ///
-/// Owns this app's [ChatLinkifyPolicy] and the scheme split after link
+/// Owns this app's [DetectionPolicy] and the scheme split after link
 /// activation. Call [materialize] on send and on receive/materialize — never
 /// from the chat viewport paint or rebuild path (ADR 017). Change [policy]
 /// here when product allowlists change; do not scatter policy bits at call
 /// sites.
 ///
-/// Thin host wrapper around package [ChatBodyLinkify] — keep policy and
-/// activation routing in one place.
+/// Thin host wrapper around `content_model`'s [EntityDetection] — keep policy
+/// and activation routing in one place. Issue 26 replaces it with
+/// detect-then-encode in `ChatBodyMarkdown`.
 abstract final class ChatBodyLinkifyUtil {
-  /// Allowlist for this host — web URLs.
-  static const ChatLinkifyPolicy policy = ChatLinkifyPolicy.webUrls;
+  /// Detection for this host — web URLs.
+  static const DetectionPolicy policy = DetectionPolicy.urlsOnly;
 
-  /// Rewrites bare tokens into markdown links for storage and display.
+  /// Decodes [text], detects bare URLs and encodes it back, for storage and
+  /// display.
   ///
-  /// Idempotent under package exclusions (fenced / inline code, existing
-  /// `[…](…)`).
-  static String materialize(String text) =>
-      ChatBodyLinkify.apply(text, policy: policy);
+  /// Idempotent: detection leaves code and existing links alone.
+  static String materialize(String text) {
+    if (text.isEmpty) {
+      return text;
+    }
+    final body = RichTextMarkdown.decode(text);
+    return RichTextMarkdown.encode(EntityDetection.apply(body, policy));
+  }
 
   /// Classifies an activated link URL for host routing.
   static LinkActivation activation(String url) => LinkActivation.fromUrl(url);

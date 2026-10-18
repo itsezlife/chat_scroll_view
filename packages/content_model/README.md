@@ -75,7 +75,8 @@ void main() {
 | Disposal: whoever creates a notifier, source or store disposes it, once. A seam owner's `dispose` is idempotent; `ChangeNotifier.dispose` itself is not. | Signal from a consumer's side (only the owner type can), add a listener to a disposed owner (an assertion in debug builds), or dispose an owner from inside one of its own listeners. |
 | Listeners that tolerate being called synchronously, inside the call that changed the state, and that read the owner for the new state. | Add the same function twice and expect one call (`package:listen` does not deduplicate: it is called twice and must be removed twice), or assume a signal carries a payload (a `Listenable` has none). |
 | `Listenable.onError` set once, at startup, to report listener errors and not rethrow. This package never sets it. | Expect one throwing listener not to stop the rest: with the default `onError` (rethrow) the notification pass is aborted. |
-| Links and mentions as entities, made where the user or the host decides what is a link (a pasted URL, a picked mention). | Expect `RichText` or the markdown helper to detect a bare URL or `@name`. Body linkify is host-invoked (ADR 017); the helper writes and reads only what is already an entity or a markdown link. |
+| Links and mentions as entities, made where the user or the host decides what is a link (a pasted URL, a picked mention). | Expect `RichText` or the markdown helper to detect a bare URL or `@name`. Entity detection is host-invoked, not viewport paint (ADR 017); the helper writes and reads only what is already an entity or a markdown link. |
+| Bare URLs, emails, `@name` and `#tag` made into entities by `EntityDetection.apply(text, policy)` when a message is sent or materialised, and taken back with `EntityDetection.strip` when it is loaded for edit. | Call it from a paint, a rebuild or a keystroke, or detect with one policy and strip with another. |
 | The emoji-only decision: `EmojiOnlyText.of` when it materialises a message, plus the facts only it has (no media, the large-emoji setting, the chat permission). | Expect the viewport to re-detect, or the result to know about media or settings. There is no count cap and no dependency on `emoji_data`: the BMP emoji set is a constant checked against `emoji_data`'s catalogue by a test there. |
 | Imports of `RichText` that avoid the Flutter widget of the same name: `hide RichText` on the widgets import, or `as model` here. | Import both unqualified in one file. |
 | The `mention:` scheme read as a mention when it decodes a body, and its own targets for links. | Make a link whose target starts with `mention:`; the model rejects it. |
@@ -102,4 +103,4 @@ here is called from a scroll or paint path.
 - [Testing policy](../../docs/adr/030-testing-policy.md)
 - [Composer model](../../docs/adr/026-composer-model.md) (rich-text value and its home)
 - [Host integration](../../docs/adr/029-host-integration.md) (the markdown helper)
-- [Body linkify is host-invoked](../../docs/adr/017-body-linkify-host-invoked.md)
+- [Entity detection is host-invoked, not viewport paint](../../docs/adr/017-body-linkify-host-invoked.md)
