@@ -634,7 +634,11 @@ What the host wires so a markdown body paints and reports the inline layer
    While a message selection is live a tap toggles the row and the spoiler
    stays hidden (the facade drives `spoilers.tapReveals`; do not write it). A
    press held past `spoilers.tapTimeout` (500 ms) is a long press and reveals
-   nothing; a desktop host with a mouse sets `tapTimeout = null`.
+   nothing; a desktop host with a mouse sets `tapTimeout = null`. A text
+   selection over a hidden spoiler leaves it hidden; its copy hands the
+   `copyWriter` the `spoiler` style bit, which the host puts on the rich
+   clipboard so a paste into the composer is a spoiler again. The plain text
+   carries the characters (ADR 037).
 4. **Mentions, usernames and hashtags.** Colour them with
    `MarkdownThemeData.mentionColor` (they follow the link colour otherwise).
    Taps are `ChatResolvedMentionActivated` (with the user's `id`) or

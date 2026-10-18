@@ -58,7 +58,8 @@ row and reveals nothing, and a press held longer than 500 ms reveals nothing
 | A reaction to `ChatMentionActivated` and `ChatHashtagActivated` (through `onInteraction` or a listener), using the `id` of a `ChatResolvedMentionActivated` to open a user | Read a mention's label as who it is, or look for mentions among `ChatLinkActivated` |
 | `ChatSelectionController(spoilerClock: scope.clock)`, the asset cache's `PlaybackClock`, so the dust moves on the shared clock and its pause layers | Run a ticker of its own for the dust (without the clock the dust stands still), or persist what `ChatSelectionController.spoilers` holds: reveal state is in memory |
 | `ChatSelectionController.spoilers.tapTimeout = null` on a desktop or web host whose pointer is a mouse (a click has no hold limit) | Set `spoilers.tapReveals` yourself: the facade writes it from `isSelectionMode`, and your value would not survive the next selection change |
-| `copyWriter` reading `ChatTextCopy.content` by style bit (`MD$Style.mention`, `image`, `spoiler`) when it keeps formatting on the clipboard | Detect a mention by its URL, or expect `plainText` to carry markdown: it is the revealed text with an embed's alt |
+| `copyWriter` reading `ChatTextCopy.content` by style bit (`MD$Style.mention`, `image`, `spoiler`) when it keeps formatting on the clipboard: a selected hidden spoiler arrives with its `spoiler` bit, and the rich clipboard pastes it back as a spoiler | Detect a mention by its URL, or expect `plainText` to carry markdown: it is the characters (a spoiler's included) with an embed's alt |
+| A call to `spoilers.reveal(messageId)` from `onInteraction` only if the product follows iOS and reveals on selection | Expect a text selection over a hidden spoiler to reveal it: the facade selects it hidden and paints the selection under the particles |
 
 ## Emoji-only bodies
 
