@@ -26,6 +26,8 @@ import 'text/composer_text_controller_draft_test.dart'
     as composer_text_controller_draft_test;
 import 'text/composer_text_controller_edit_test.dart'
     as composer_text_controller_edit_test;
+import 'text/composer_text_controller_formatting_test.dart'
+    as composer_text_controller_formatting_test;
 import 'text/composer_text_controller_paint_test.dart'
     as composer_text_controller_paint_test;
 import 'text/content_span_builder_test.dart' as content_span_builder_test;
@@ -73,6 +75,10 @@ void main() {
   group(
     'text/composer_text_controller_edit_test.dart',
     composer_text_controller_edit_test.main,
+  );
+  group(
+    'text/composer_text_controller_formatting_test.dart',
+    composer_text_controller_formatting_test.main,
   );
   group(
     'text/composer_text_controller_paint_test.dart',

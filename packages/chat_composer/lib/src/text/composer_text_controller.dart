@@ -1,5 +1,6 @@
 import 'package:chat_composer/src/text/composer_entity_styles.dart';
 import 'package:chat_composer/src/text/inline_content_span_builder.dart';
+import 'package:chat_composer/src/text/text_formatting.dart';
 import 'package:chat_composer/src/text/text_replacement.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart' hide RichText;
@@ -31,10 +32,32 @@ import 'package:flutter/widgets.dart' hide RichText;
 /// [richText] is derived from the current text and does not change what the
 /// controller keeps, and no selection snapping or atom widening happens.
 ///
+/// ## Formatting commands
+///
+/// [toggleStyle], [toggleCodeBlock], [applyLink], [removeLink] and
+/// [clearFormatting] map one to one onto the [EntityKind]s, and [isActive] and
+/// [canApply] tell a menu or a shortcut map which are on and which would do
+/// anything. They act on the selection and change only the entities, never the
+/// text, except that [applyLink] at a caret inserts the URL. What may coexist
+/// (code excludes other styles, a quote widens to whole lines) is [RichText]'s
+/// to decide; a command it would make impossible does nothing, and [canApply]
+/// says so beforehand.
+///
+/// - A caret turns off every command but [applyLink] and the kinds that cover
+///   whole lines (quote, code block), which act on the caret's line. There is
+///   no typing style: text typed after a command is plain, because no
+///   reference client has one and it makes entity edits on an IME commit
+///   ambiguous.
+/// - A selection edge inside an atomic entity widens to hold it whole, so a
+///   command never splits one.
+/// - A command that touches the IME composition does nothing; one that does not
+///   leaves the composition alone.
+///
 /// ## Not here
 ///
-/// Formatting commands and the selection menu, link and mention detection
-/// (the host makes those entities), and the content painting.
+/// The selection menu and the shortcuts that call the commands, link and
+/// mention detection (the host makes those entities), undo, and the content
+/// painting.
 class ComposerTextController extends TextEditingController {
   /// Creates a controller holding [initial], or empty text.
   ///
@@ -301,6 +324,187 @@ class ComposerTextController extends TextEditingController {
       }
     }
     return null;
+  }
+
+  // --- Formatting ---
+
+  /// Turns [style] on over the selection, or off when it is all in [style]
+  /// already.
+  ///
+  /// Bold, italic, underline, strike and spoiler give up the whitespace at the
+  /// edges of the selection and each line break; code takes the other styles
+  /// and links out of the selection and is refused over an atom; a quote
+  /// widens to the lines the selection touches, a caret's line included.
+  void toggleStyle(EntityStyle style) => _toggle(EntityKind.style(style));
+
+  /// Turns a code block on over the lines the selection touches (a caret's
+  /// line included), or off when they all are one already.
+  ///
+  /// A block of [language] over lines that are a block of another language
+  /// changes the language; with no [language] it is off when they are any
+  /// block. The block takes the lines away from every other style, link, quote
+  /// and list item, and is refused over an atom. A [language] a fence could not
+  /// carry (letters, digits and `+ # . _ -` only) is refused.
+  void toggleCodeBlock({String? language}) =>
+      _toggle(EntityKind.codeBlock(language: language));
+
+  /// Links the selection to [url], replacing any link in it; at a caret,
+  /// inserts [url] as linked text.
+  ///
+  /// Refused over code or a mention, for an empty [url] or one that has a line
+  /// break or spells a mention, username or hashtag (`mention:`, `username:`,
+  /// `hashtag:`).
+  void applyLink(String url) {
+    final edit = _linkEdit(url);
+    if (edit == null) return;
+    final (next, caret) = edit;
+    if (caret == null) {
+      _commitFormatted(next);
+      return;
+    }
+    _commit(
+      next,
+      TextEditingValue(
+        text: next.plain,
+        selection: TextSelection.collapsed(offset: caret),
+      ),
+    );
+  }
+
+  /// Takes the links off the selection and keeps the text. Does nothing at a
+  /// caret.
+  void removeLink() {
+    final target = _target();
+    if (target == null || target.from == target.to) return;
+    final next = TextFormatting.unlinked(target.rich, target.from, target.to);
+    if (next != null && next != target.rich) _commitFormatted(next);
+  }
+
+  /// Takes every style, link, quote, code block and list item off the
+  /// selection (off the lines it touches, for the last three). Mentions and
+  /// inline content are content and stay, and so do detected usernames and
+  /// hashtags. Does nothing at a caret.
+  void clearFormatting() {
+    final next = _cleared();
+    if (next != null) _commitFormatted(next);
+  }
+
+  /// Whether the selection holds anything [clearFormatting] would take off.
+  bool get canClearFormatting => _cleared() != null;
+
+  /// Whether the selection is in [kind].
+  ///
+  /// - A style, a code block or a list kind: all of it is (a quote and the
+  ///   other line kinds are judged on the lines the selection touches, and a
+  ///   caret counts). A code block of no language is any block, a list kind
+  ///   ignores depth.
+  /// - A link: the selection touches one, whatever its target (so a menu can
+  ///   offer to edit or remove it rather than create it).
+  /// - Any other kind is not formatting: false.
+  bool isActive(EntityKind kind) {
+    final (from, to) = _selectedRange(richText);
+    return TextFormatting.isActive(richText, from, to, kind);
+  }
+
+  /// Whether the command for [kind] would change anything now: toggling it
+  /// either way, or for a link, applying it.
+  ///
+  /// False for a caret (except a link, whose URL then goes in as text, and the
+  /// line kinds), for a selection [RichText] could not hold [kind] over (bold
+  /// inside code, code over a mention), for a selection that touches the IME
+  /// composition, and for the kinds that are not formatting.
+  bool canApply(EntityKind kind) => switch (kind) {
+    EntityKind$Link(:final url) => _linkEdit(url) != null,
+    _ when TextFormatting.isToggled(kind) => _toggled(kind) != null,
+    _ => false,
+  };
+
+  void _toggle(EntityKind kind) {
+    final next = _toggled(kind);
+    if (next != null) _commitFormatted(next);
+  }
+
+  // The text after toggling [kind] over the selection; null when that would
+  // do nothing or cannot be done.
+  RichText? _toggled(EntityKind kind) {
+    final target = _target(lines: TextFormatting.isLineKind(kind));
+    if (target == null) return null;
+    final (:rich, :from, :to) = target;
+    if (from == to && !TextFormatting.isLineKind(kind)) return null;
+    final next = TextFormatting.isActive(rich, from, to, kind)
+        ? TextFormatting.removed(rich, from, to, kind)
+        : TextFormatting.applied(rich, from, to, kind);
+    return next == null || next == rich ? null : next;
+  }
+
+  RichText? _cleared() {
+    final target = _target(lines: true);
+    if (target == null || target.from == target.to) return null;
+    final next = TextFormatting.cleared(target.rich, target.from, target.to);
+    return next == null || next == target.rich ? null : next;
+  }
+
+  // The text after linking the selection to [url] and, when the URL went in as
+  // text, the caret after it; null when refused.
+  (RichText, int?)? _linkEdit(String url) {
+    if (url.isEmpty) return null;
+    final target = _target();
+    if (target == null) return null;
+    final (:rich, :from, :to) = target;
+    if (from != to) {
+      final next = TextFormatting.applied(rich, from, to, EntityKind.link(url));
+      return next == null || next == rich ? null : (next, null);
+    }
+    // The text changes, which an IME composition cannot take under it.
+    if (_composing) return null;
+    try {
+      final linked = RichText(url, [
+        Entity(0, url.length, EntityKind.link(url)),
+      ]);
+      return (rich.replaceRange(from, from, linked), from + url.length);
+      // RichText reports entities that cannot coexist as an ArgumentError and
+      // offers no way to ask first.
+      // ignore: avoid_catching_errors
+    } on ArgumentError {
+      return null;
+    }
+  }
+
+  // The selection and the text it is in, or null when a command there would
+  // touch the IME composition. [lines]: the command acts on whole lines.
+  ({RichText rich, int from, int to})? _target({bool lines = false}) {
+    final rich = richText;
+    final (from, to) = _selectedRange(rich);
+    if (_composing && value.composing.isValid && !value.composing.isCollapsed) {
+      final (start, end) = lines
+          ? TextFormatting.linesOf(rich.plain, from, to)
+          : (from, to);
+      final composing = value.composing;
+      if (composing.start < end && start < composing.end) return null;
+    }
+    return (rich: rich, from: from, to: to);
+  }
+
+  // The selection (a caret at the end when there is none), widened over the
+  // atomic entities it cuts into; a caret is never widened.
+  (int, int) _selectedRange(RichText rich) {
+    final selection = value.selection;
+    final end = rich.length;
+    final from = selection.isValid ? selection.start : end;
+    final to = selection.isValid ? selection.end : end;
+    return from == to ? (from, to) : _widenOverAtoms(rich, from, to);
+  }
+
+  // Commits entities that describe the same text, the selection and the
+  // composition left as they are.
+  void _commitFormatted(RichText next) {
+    if (_composing) {
+      _rich = next;
+      _derived = null;
+      notifyListeners();
+      return;
+    }
+    _commit(next, super.value);
   }
 
   // --- Atomic entities ---
