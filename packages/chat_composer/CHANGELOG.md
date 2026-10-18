@@ -8,6 +8,10 @@ is pre-1.0.
 
 ### Changed
 
+- The field renders `ExtendedTextField` from `composer_editable`, with Material
+  selection handles on every platform and overscroll handed to a parent
+  scrollable; it is no longer a stock `TextField` (a test finding `TextField`
+  or `EditableText` finds `ExtendedTextField` / `ExtendedEditableText`).
 - Source-breaking: `contentSpanBuilder(scope: ...)` is
   `ContentViewSpans.builder(scope: ...)`, and the default
   `alternativeTextSpan` is `ComposerTextController.alternativeTextSpan`.
