@@ -6,6 +6,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- `RichTextMarkdown.decode` threw on `[`a`](u)`, a link whose label holds code:
+  a `RichText` never lets the two overlap, and the decode contract is that it
+  never throws. The link is kept and the label's code reads as text; one such
+  message failed a whole fetched range.
+
 ### Changed
 
 - Source-breaking: the contract suites in `testing.dart` are statics on a type
