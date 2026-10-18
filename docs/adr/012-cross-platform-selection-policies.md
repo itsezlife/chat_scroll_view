@@ -5,7 +5,8 @@
 **Updated**: 2026-09-12 (engine-owned mobile routing; membership/retarget as
 this policy; inline hits; deferred desktop drag-out promotion); 2026-10-18
 (desktop: every body stays live while text is active; the range suppresses
-inline activation only in its own message)  
+inline activation only in its own message); 2026-10-18 (every text body is
+under the policy, the emoji-only text layout included)  
 **Supersedes**: [ADR 010](010-message-then-text-selection.md)
 
 Chat-list **message selection** and **text selection** are two modes under one
@@ -82,6 +83,19 @@ the same hold restores text selection (`clearDragSelection`). Releasing outside
 commits message selection (`applyDragSelection`), locking out further text
 selection until message mode is dismissed. Omission from the foundation cut is
 not a policy rejection.
+
+## Every text body is under the policy
+
+The strategies above apply to every body that registers a text model, not to
+the markdown body alone: the text layout of an emoji-only message
+([ADR 036](036-emoji-only-message-presentation.md)) enters, nests, retargets and
+dismisses by the same rules (mobile message-then-text with one emoji selected
+by a long press, as Android's emoji span rule; desktop direct press and drag),
+and the desktop stuck-pointer clause covers it: pressing it arms it and leaves
+every other body live. A body that is not text (the single-emoji sticker) never
+enters text selection under either strategy. Desktop and iOS Telegram do not
+select their large emoji; the viewport does, as the product asks, and
+`ChatEmojiBody(selectableText: false)` restores their rule.
 
 ## Status chrome (tap barrier)
 

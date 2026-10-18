@@ -77,9 +77,16 @@ viewport never re-detects.
 | Sticker | One item and the host resolved it to a document (`sticker:`) | A square the policy sizes (Android `min(screen width, height) x 0.5 x 0.625`, 112.5 dp on a phone, no inset; iOS 112 pt in a 10 pt inset; desktop 112 px); a custom emoji's sticker loops, a unicode emoji's plays once |
 | Text | Anything else | Squares of the font step the policy gives (Android `ChatEmojiSizes`: 81.6 down to 22.8 dp, a custom-only message one step larger, box = font + 4 dp; iOS 94 pt down to 19; desktop 38 px images), a unicode emoji as a glyph; the text scale plays no part |
 
-The body registers with the facade as a **non-text body**
-(`ChatSelectionController.putNonTextBody`): there is nothing to select, a long
-press is message selection, and Copy is the message's own. A tap on the
+The **text layout is selectable text**, as a markdown body is: it registers a
+text model with the facade (`putBody`, one paragraph made from the items) and
+its render object is the selection surface of that model, so drag, double click
+or long press (one emoji), select-all, shift-select, handles, the toolbar and
+Copy (plain, and structured through `ChatTextCopy.content`, a custom emoji
+being an image span that names its document) are the markdown body's own,
+under the same selection policy. The **sticker layout is not text**: a long
+press is message selection and Copy is the message's own. Both register as a
+**non-text body** (`ChatSelectionController.putNonTextBody`) for the
+activatable parts. A tap on the
 sticker is `ChatInlineHit.sticker` / `ChatStickerActivated`, always, when it
 lands on the drawn sticker (and nowhere beside it, unless the host sets
 `ChatStickerTapPolicy.replayTapSlop`); the body then plays the sticker again
@@ -101,7 +108,8 @@ body.
 | A listener for `ChatStickerActivated` (the emoji, message id, `stickerRect`, monotonic `tapTime`) to build an interaction effect and a peer broadcast on, and `ChatSelectionController.playRemoteInteraction(messageId)` for one that arrives (null: drop it, send no acknowledgement) | Expect the viewport to draw the effect or send anything; it ships the seams |
 | The time pill, reactions, reply and forward header, placed per platform from `ChatEmojiBody.geometryFor` (the box, text rectangle and trailing edge, last line, art rectangle, the strip of `bottomReserve`) and `ChatEmojiPolicy.headerPlacementFor`; `hasHeader` when a header narrows the text's wrap by the policy's rule | Expect the body to draw chrome, to be wrapped in a bubble, or put Android's chrome on every platform |
 | The time pill (and any status chrome) wrapped in `ChatMessageTapBarrier`, so a mouse click on it is not a message tap: no selection toggle, no drag-select, no idle tap, no sticker tap under it. A secondary click still reaches `onSecondaryMessageTap`, a tap still dismisses text selection, touch is never barred | Put a detector in the row to stop the viewport (its selection pointer listens above the gesture arena), or bar the body itself |
-| `semanticsLabel` with the message's plain text when it has it | Rely on the default label for a custom emoji: `EmojiOnly` keeps no text for one |
+| `semanticsLabel` with the message's plain text when it has it | Rely on the default label for a custom emoji built by hand: its text is `EmojiOnlyItem.alt`, empty unless `EmojiOnlyText.of` read it |
+| Nothing more for text selection: the body registers its own text and the facade's gestures, handles and Copy apply. `selectableText: false` only when the product keeps the iOS and Desktop reference rule (their large emoji are not text; only Android selects them) | Register a markdown body for the same message id as well, or expect a selection to hold the spaces and tabs between emoji (`EmojiOnly` drops them): it holds the emoji and the line breaks |
 
 ## Example
 

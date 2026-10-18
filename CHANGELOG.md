@@ -1,5 +1,31 @@
 ## Unreleased
 
+### Emoji-only text messages are text-selectable
+- **BREAKING (behaviour)**: the text layout of `ChatEmojiBody` is no longer "no
+  text selection". It registers its text with the facade and its render object
+  is a `MarkdownSelectionSurface`, so drag, double click (one emoji), long
+  press on mobile, select-all, shift-select, handles, the toolbar and Copy work
+  on it as on a markdown body, under the host's selection policy. A host or
+  test that relied on a long press on a selected emoji-only message doing
+  nothing, or on `hasBody(id)` being false for it, sees text selection instead:
+  pass `selectableText: false` for the previous behaviour (also the Desktop and
+  iOS reference clients' rule; only Android selects its large emoji, see
+  ADR 036). The sticker layout (one emoji resolved to a document) is unchanged
+  and never text.
+- Copy of a selection is the emoji and the line breaks, plain, and structured
+  through `ChatTextCopy.content` (a custom emoji is an image span with its
+  document in `extra['src']`). The spaces and tabs `EmojiOnly` drops are not in
+  it.
+- **ADDED** (`content_model`): `EmojiOnlyItem.alt`, the text under a custom
+  emoji's entity (what a copy writes); empty for a unicode item and for a host
+  that builds the value by hand, which then copies as U+FFFC.
+- **ADDED**: `ChatEmojiBody(selectableText:, autoscroll:)`. The per-item boxes
+  of a selection are `RenderChatEmojiBody.selectedItemBoxes`; the highlight is
+  one box per line under the items, never over an embed.
+- **Fixed**: a press on an inline embed the host does not handle
+  (`handlesEmbedHits` off) no longer blocks a text selection from starting
+  there, in the markdown body too: it is part of the text.
+
 ### Emoji in a bubble: set at the font's height; the desktop cap is configurable
 - **Fixed**: a unicode emoji in an ordinary markdown body was drawn at the font
   size (15 px text, 15 px emoji), while Android draws it at the font's height

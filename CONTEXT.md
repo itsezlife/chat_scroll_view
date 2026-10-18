@@ -361,7 +361,7 @@ Per message, whether its spoilers are revealed, held by a controller owned by th
 _Avoid_: Per-spoiler reveal, persisted reveal, widget-local reveal flag, re-hide on selection dismiss, reveal on selection
 
 **Emoji-only body**:
-The body kind the host passes for a message whose text is only emoji: no bubble, enlarged from per-count size tables, or sticker-sized when it is a single item with an animation. Classified by the host (it alone knows the message has no media and whether the setting is on); the viewport never re-detects. Not a text selection subject ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
+The body kind the host passes for a message whose text is only emoji: no bubble, enlarged from per-count size tables, or sticker-sized when it is a single item with an animation. Classified by the host (it alone knows the message has no media and whether the setting is on); the viewport never re-detects. Its text layout is a **text selection subject** like any body (one emoji is a word); the single-emoji sticker layout is not ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
 _Avoid_: Big emoji bubble, emoji message type, sticker message (a single-item emoji body only borrows the sticker layout)
 
 **Emoji-only policy**:
