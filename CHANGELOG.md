@@ -1,5 +1,16 @@
 ## Unreleased
 
+### Message menu keeps the chat playing; the status of a selected emoji-only message
+- **ADDED**: `ChatMessageMenu.routeName`, the `RouteSettings.name` of the route
+  a menu session is presented on. A `NavigatorObserver` that treats modal
+  routes as covering the chat tells the menu apart by it: the menu leaves the
+  message in view, so the chat's animations go on under it. The example's
+  overlay observer skips it; before, the menu held the pause of a dialog.
+- **Fixed**: on desktop the status pill of a selected emoji-only message kept
+  its resting service colour while the glyphs took the selection tint. The
+  pill now takes the same tint (the reference paints `msgServiceBgSelected`
+  there), and gives it up with the selection.
+
 ### Pause policies: focus lost, a dialog over the chat, low power; the spoiler dust keeps its phase
 - **Changed (behaviour)**: the spoiler dust (`ChatSelectionController(spoilerClock:)`)
   is told the time it ran, not the time that passed. A gap of more than three

@@ -306,6 +306,37 @@ void main() {
       expect(rig.selection.isSelectionMode, isFalse);
     });
 
+    chatTest('is tinted with the selection while its message is selected, as '
+        'Telegram Desktop paints the selected service colour', (tester) async {
+      final rig = await mount(tester, [
+        for (var i = 0; i < 3; i++)
+          _message(i, content: _glyphs, sender: _outgoing),
+      ]);
+      Color? fillOf(int id) =>
+          ((tester
+                      .widget<DecoratedBox>(
+                        find
+                            .descendant(
+                              of: inRow(id, find.byType(EmojiMetaPill)),
+                              matching: find.byType(DecoratedBox),
+                            )
+                            .first,
+                      )
+                      .decoration)
+                  as BoxDecoration)
+              .color;
+      final resting = fillOf(1);
+
+      rig.selection.startSelection(1);
+      await tester.pumpAndSettle();
+      expect(fillOf(1), isNot(resting));
+      expect(fillOf(2), resting, reason: 'an unselected message keeps it');
+
+      rig.selection.clear();
+      await tester.pumpAndSettle();
+      expect(fillOf(1), resting);
+    });
+
     chatTest('a click on it in message selection toggles that message', (
       tester,
     ) async {

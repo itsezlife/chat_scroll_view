@@ -249,17 +249,19 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
             bottomReserve: reserve,
           ),
         );
+        var pillColors = colors;
         if (chrome.selection == EmojiSelectionStyle.glyphRecolour &&
             selected > 0) {
+          final tint = _kSelectedOverlay.withValues(
+            alpha: _kSelectedOverlayAlpha * selected,
+          );
           emojiBody = ColorFiltered(
-            colorFilter: ColorFilter.mode(
-              _kSelectedOverlay.withValues(
-                alpha: _kSelectedOverlayAlpha * selected,
-              ),
-              BlendMode.srcATop,
-            ),
+            colorFilter: ColorFilter.mode(tint, BlendMode.srcATop),
             child: emojiBody,
           );
+          // The pill is the message's status and selects with it: the
+          // reference paints its selected service colour there too.
+          pillColors = colors.tinted(tint);
         }
 
         // Telegram Desktop's click on the date selects the message. A mobile
@@ -319,7 +321,7 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
                     child: EmojiMetaPill(
                       chrome: chrome,
                       layout: pill,
-                      colors: colors,
+                      colors: pillColors,
                       time: time,
                       views: widget.views,
                       onClick: selectsOnStatusClick ? _selectFromStatus : null,

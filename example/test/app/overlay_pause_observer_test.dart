@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
+import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/overlay_pause_observer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -105,6 +106,31 @@ void main() {
     await tester.pumpAndSettle();
     expect(layers(), isEmpty);
   });
+
+  for (final presentation in ChatMessageMenuPresentation.values) {
+    testWidgets('a ${presentation.name} message menu leaves the chat playing', (
+      tester,
+    ) async {
+      await pumpHome(tester);
+      unawaited(
+        ChatMessageMenu.show(
+          context: tester.element(find.text('open')),
+          messageRect: const Rect.fromLTWH(20, 100, 200, 60),
+          presentation: presentation,
+          items: const [
+            ChatMessageMenuItem(id: 'reply', label: 'Reply', icon: Icons.reply),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Reply'), findsOneWidget);
+      expect(layers(), isEmpty);
+
+      await tester.tap(find.text('Reply'));
+      await tester.pumpAndSettle();
+      expect(layers(), isEmpty);
+    });
+  }
 
   testWidgets('a route removed without a pop gives its claim back', (
     tester,

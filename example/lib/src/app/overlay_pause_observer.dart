@@ -1,4 +1,5 @@
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/widgets.dart';
 
 /// Holds the chat's animations still while a route is open over it.
@@ -11,9 +12,10 @@ import 'package:flutter/widgets.dart';
 /// leaves, however it leaves. Holds count, so a sheet over a dialog keeps the
 /// pause until both are gone.
 ///
-/// It treats every `ModalRoute` the same, menus and pickers included. The
-/// example opens only dialogs and sheets; a host whose popup menus should not
-/// pause the chat filters on the route type before holding.
+/// It treats every `ModalRoute` the same, pickers included, except the message
+/// menu: that one keeps the message it opens on in view, so the chat goes on
+/// playing under it. The example opens no other menu as a route; a host with
+/// more filters on the route before holding.
 final class PlaybackOverlayPauseObserver extends NavigatorObserver {
   /// Creates an observer that holds overlays on [activity].
   PlaybackOverlayPauseObserver(this._activity);
@@ -24,6 +26,7 @@ final class PlaybackOverlayPauseObserver extends NavigatorObserver {
 
   void _hold(Route<dynamic> route) {
     if (route is! ModalRoute<dynamic> || route.isFirst) return;
+    if (route.settings.name == ChatMessageMenu.routeName) return;
     _holds.putIfAbsent(route, _activity.holdOverlay);
   }
 
