@@ -5,6 +5,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart' show ChatDataSource;
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/boot.dart';
+import 'package:chat_scroll_view_example/src/app/overlay_pause_observer.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
 import 'package:chat_scroll_view_example/src/common/environment_specific/host_environment.dart'
@@ -100,7 +101,7 @@ Future<AppServices> _createServices() async {
 /// The app owns nothing: [services] are created by the caller (`main`, or a
 /// test) and disposed by it.
 /// {@endtemplate}
-class ChatDemoApp extends StatelessWidget {
+class ChatDemoApp extends StatefulWidget {
   /// {@macro chat_demo_app}
   const ChatDemoApp({
     required this.services,
@@ -124,6 +125,23 @@ class ChatDemoApp extends StatelessWidget {
   final PanelPresentationPolicy? presentationPolicy;
 
   @override
+  State<ChatDemoApp> createState() => _ChatDemoAppState();
+}
+
+class _ChatDemoAppState extends State<ChatDemoApp> {
+  // Holds the animations still under every dialog, sheet and page opened over
+  // the chat. One per app, so the navigator keeps the same observer across
+  // rebuilds.
+  late final PlaybackOverlayPauseObserver _overlays =
+      PlaybackOverlayPauseObserver(widget.services.activity);
+
+  @override
+  void dispose() {
+    _overlays.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Chat Scroll View',
     theme: ThemeData(
@@ -134,16 +152,17 @@ class ChatDemoApp extends StatelessWidget {
       extensions: const <ThemeExtension<dynamic>>[UnreadSeparatorColors.dark],
     ),
     builder: (context, child) => AppChrome(
-      services: services,
+      services: widget.services,
       child: DemoMarkdownTheme(child: DemoChatTheme(child: child!)),
     ),
+    navigatorObservers: [_overlays],
     debugShowCheckedModeBanner: false,
     showPerformanceOverlay: false,
     home: WidgetChatScreen(
-      services: services,
-      dataSourceLoader: chatDataSourceLoader,
-      softKeyboard: softKeyboard,
-      presentationPolicy: presentationPolicy,
+      services: widget.services,
+      dataSourceLoader: widget.chatDataSourceLoader,
+      softKeyboard: widget.softKeyboard,
+      presentationPolicy: widget.presentationPolicy,
     ),
   );
 }

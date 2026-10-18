@@ -6,6 +6,36 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (pause policies of the reference desktop client)
+
+- `PlaybackActivity` and `PlaybackActivityPolicy`: the one seam that turns the
+  app's lifecycle (`PlaybackLifecycleSource`, `WidgetsPlaybackLifecycleSource`
+  in an app), a host-fed `lowPower` and `reducedMotion` and `holdOverlay()`
+  holds into the clock's pause layers. Focus lost (`inactive`) sets
+  `appInactive`; `hidden`, `paused` and `detached` also set `surfaceHidden`;
+  an unknown state, or a first `detached`, sets nothing. Grace periods default
+  to zero, as the reference client's pause is immediate. `dispose` clears only
+  the five layers it owns and disposes none of its inputs.
+- `PlaybackPauseLayer.appInactive`, `reducedMotion` and `overlayShown`.
+- `PlaybackPolicy.standardPausingLayers`.
+- Testing: `ManualPlaybackLifecycleSource` and
+  `PlaybackLifecycleSourceContract` (run against the manual and the widgets
+  source).
+
+### Changed (pause policies)
+
+- **Breaking (source)**: `PlaybackPauseLayer` has three more values, so an
+  exhaustive `switch` over it stops compiling until it handles them.
+- **Behaviour**: `PlaybackPolicy.pausingLayers` defaults to
+  `standardPausingLayers`, every layer but `reducedMotion`, where it was
+  `{...PlaybackPauseLayer.values}`. A clock whose host sets `appInactive` or
+  `overlayShown` pauses on them; `reducedMotion` alone does not stop playback.
+  A host that passed the old default explicitly gets `reducedMotion` too, and
+  one that wants it adds it.
+- **Docs**: `PlaybackClock.now` stands still while paused and jumps once on
+  the first frame after; the old text said it kept counting. Resuming where
+  the animation stopped is the paintable's job (the frame-sequence one does).
+
 ### Added (one pass, a rest frame and a replay)
 
 - `AssetProfile.loop` is honoured and gains `restFrame` (`AssetRestFrame`):

@@ -1,5 +1,19 @@
 ## Unreleased
 
+### Pause policies: focus lost, a dialog over the chat, low power; the spoiler dust keeps its phase
+- **Changed (behaviour)**: the spoiler dust (`ChatSelectionController(spoilerClock:)`)
+  is told the time it ran, not the time that passed. A gap of more than three
+  dust frames between two clock frames is a pause, and all of it beyond one
+  frame is cut out, so after a pause the dust goes on from where it stopped;
+  before, it jumped by the whole pause. A hitch of a few frames is not a
+  pause. Nothing else changed in the viewport: the layers that pause the dust
+  are the shared clock's (ADR 022, amendment *pause policies*).
+- **Host contract**: the clock now pauses on focus lost, a window minimised,
+  overlays held by the host and low power through one `PlaybackActivity` in
+  `catalog_assets`; a host that fed `ChatEmojiBody.isActive` from the app
+  lifecycle stops doing so (the row's visibility stays the input). See the
+  `catalog_assets` changelog for the breaking change in the layer enum.
+
 ### Status chrome of an emoji-only message: hover is the row's, a click selects (docs and example)
 - **Changed (host contract, no API change)**: the reference desktop client shows an
   emoji-only message's time while the pointer is anywhere on its row and selects

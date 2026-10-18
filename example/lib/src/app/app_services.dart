@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/glyph_atlas.dart';
+import 'package:chat_scroll_view_example/src/app/system_reduced_motion.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_probe.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_center_band_store.dart';
@@ -33,7 +34,9 @@ import 'package:rich_clipboard/rich_clipboard.dart';
 /// 2. the stores, which arrive loaded: [recents], [preferences],
 ///    [keyboardHeights], [dockWidths], [centerBands], [drafts] and
 ///    [largeEmoji];
-/// 3. the asset cache [assets] with its pause layer and memory pressure, and
+/// 3. the asset cache [assets] with its pause policies ([activity]: the app's
+///    focus and visibility, the [lowPower] switch, the system's reduced-motion
+///    setting and the overlays over the chat) and memory pressure, and
 ///    behind the glyph path an `AssetPipeline` for the [animatedEmoji] pack:
 ///    the pack's bundle fetcher and an `ImageCodecDecoder` for its animated
 ///    WebP. The pipeline is told every descriptor of the pack up front, so it
@@ -66,6 +69,8 @@ final class AppServices {
     required this.largeEmoji,
     required this.memoryPressure,
     required this.assets,
+    required this.activity,
+    required this.lowPower,
     required this.catalog,
     required this.keywords,
     required this.emojiSource,
@@ -76,14 +81,16 @@ final class AppServices {
     required this.glyphArtVersion,
     required this.glyphBakeObserver,
     required this.glyphCache,
-    required AppLifecycleListener lifecycle,
+    required WidgetsPlaybackLifecycleSource lifecycleSource,
+    required ValueNotifier<bool> reducedMotion,
     required PacedGlyphProbePass? webProbePass,
     required Future<bool> Function() glyphFontsSettled,
     required ValueNotifier<bool> glyphFontsReady,
     required AssetPipeline pipeline,
   }) : _animatedEmoji = animatedEmoji,
        _pipeline = pipeline,
-       _lifecycle = lifecycle,
+       _lifecycleSource = lifecycleSource,
+       _reducedMotion = reducedMotion,
        _webProbePass = webProbePass,
        _glyphFontsReady = glyphFontsReady {
     // The panel's collections, loaded now as the reference client loads its
@@ -200,25 +207,33 @@ final class AppServices {
         ),
         (scope) => scope.dispose(),
       );
-      var hidden = false;
-      final lifecycle = owned(
-        AppLifecycleListener(
-          onHide: () {
-            hidden = true;
-            assets.clock.setPaused(
-              PlaybackPauseLayer.surfaceHidden,
-              paused: true,
-            );
-          },
-          onShow: () {
-            hidden = false;
-            assets.clock.setPaused(
-              PlaybackPauseLayer.surfaceHidden,
-              paused: false,
-            );
-          },
+      // The pause policies (ADR 022): one object turns what the app and the
+      // platform report into layers of the clock the chat and the panel share.
+      // Dust and emoji alike stop when the window loses focus, is minimised,
+      // is covered by a dialog, or the switch below says power is short.
+      final lifecycleSource = owned(
+        WidgetsPlaybackLifecycleSource(),
+        (source) => source.dispose(),
+      );
+      // A stub: nothing here detects the system's battery saver (the packages
+      // take no battery plugin). A host feeds this from its own detection;
+      // here it is a switch a test or a debug panel flips.
+      final lowPower = owned(
+        ValueNotifier<bool>(false),
+        (switchValue) => switchValue.dispose(),
+      );
+      final reducedMotion = owned(
+        SystemReducedMotion(),
+        (setting) => setting.dispose(),
+      );
+      final activity = owned(
+        PlaybackActivity(
+          clock: assets.clock,
+          lifecycle: lifecycleSource,
+          lowPower: lowPower,
+          reducedMotion: reducedMotion,
         ),
-        (listener) => listener.dispose(),
+        (activity) => activity.dispose(),
       );
 
       // 4. Data sources over the stores.
@@ -287,6 +302,8 @@ final class AppServices {
         largeEmoji: largeEmoji,
         memoryPressure: memoryPressure,
         assets: assets,
+        activity: activity,
+        lowPower: lowPower,
         catalog: catalog,
         keywords: keywords,
         emojiSource: emojiSource,
@@ -297,9 +314,15 @@ final class AppServices {
         glyphArtVersion: glyphArtVersion ?? probe.artVersion,
         glyphBakeObserver: probe.bakeObserver,
         glyphCache: glyphCache,
-        lifecycle: lifecycle,
+        lifecycleSource: lifecycleSource,
+        reducedMotion: reducedMotion,
         webProbePass: kIsWeb
-            ? _webPass(probe.probe, isPaused: () => hidden)
+            ? _webPass(
+                probe.probe,
+                isPaused: () => assets.clock.pausedLayers.contains(
+                  PlaybackPauseLayer.surfaceHidden,
+                ),
+              )
             : null,
         glyphFontsSettled: probe.fontsSettled,
         glyphFontsReady: glyphFontsReady,
@@ -358,6 +381,18 @@ final class AppServices {
   /// and text where none is.
   final AssetCacheScope assets;
 
+  /// Turns the app's focus and visibility, [lowPower], the system's
+  /// reduced-motion setting and the overlays over the chat into pause layers
+  /// of [assets]'s clock. `holdOverlay` is what the navigator observer calls.
+  final PlaybackActivity activity;
+
+  /// Whether the device is saving power; the clock pauses while it is true.
+  ///
+  /// A stub switch: the example detects nothing. A host sets it from the
+  /// battery saver (macOS and Windows: Low Power Mode and Battery Saver; see
+  /// docs/host-integration.md) and may combine several signals.
+  final ValueNotifier<bool> lowPower;
+
   /// The emoji structure.
   final EmojiCatalog catalog;
 
@@ -389,7 +424,8 @@ final class AppServices {
 
   final CollectionSource _animatedEmoji;
   final AssetPipeline _pipeline;
-  final AppLifecycleListener _lifecycle;
+  final WidgetsPlaybackLifecycleSource _lifecycleSource;
+  final ValueNotifier<bool> _reducedMotion;
   final PacedGlyphProbePass? _webProbePass;
   final ValueNotifier<bool> _glyphFontsReady;
   var _disposed = false;
@@ -432,7 +468,11 @@ final class AppServices {
     emojiSource.dispose();
     recentsShown.dispose();
     glyphProbe.dispose();
-    _lifecycle.dispose();
+    // The activity first: it clears the layers it set on the clock.
+    activity.dispose();
+    _reducedMotion.dispose();
+    lowPower.dispose();
+    _lifecycleSource.dispose();
     assets.dispose();
     _glyphFontsReady.dispose();
     _pipeline.dispose();
