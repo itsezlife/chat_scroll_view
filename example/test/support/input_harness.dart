@@ -1,6 +1,7 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_bottom_chrome.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -58,6 +59,7 @@ final class InputRig {
     Size size = const Size(400, 800),
     FakeSoftKeyboard? keyboard,
     bool Function()? failSends,
+    int? messageLengthLimit = DemoConfig.messageLengthMax,
   }) async {
     final rig = InputRig._(
       services,
@@ -77,7 +79,11 @@ final class InputRig {
         debugShowCheckedModeBanner: false,
         builder: (context, child) =>
             AppChrome(services: services, child: child!),
-        home: _Screen(rig: rig, policy: policy),
+        home: _Screen(
+          rig: rig,
+          policy: policy,
+          messageLengthLimit: messageLengthLimit,
+        ),
       ),
     );
     return rig;
@@ -133,10 +139,15 @@ final class InputRig {
 }
 
 class _Screen extends StatefulWidget {
-  const _Screen({required this.rig, required this.policy});
+  const _Screen({
+    required this.rig,
+    required this.policy,
+    required this.messageLengthLimit,
+  });
 
   final InputRig rig;
   final PanelPresentationPolicy? policy;
+  final int? messageLengthLimit;
 
   @override
   State<_Screen> createState() => _ScreenState();
@@ -168,6 +179,7 @@ class _ScreenState extends State<_Screen> {
       },
       keyboard: _rig.keyboard,
       policy: widget.policy,
+      messageLengthLimit: widget.messageLengthLimit,
     );
     final safe = MediaQuery.viewPaddingOf(context);
     input

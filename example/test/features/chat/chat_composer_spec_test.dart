@@ -16,6 +16,7 @@ ComposerSpec _spec({required ActionPlacement panelPlacement}) =>
       editing: null,
       hasText: false,
       busy: false,
+      messageLengthLimit: 4096,
       panelReplacesKeyboard: false,
       panelDocked: false,
       panelPlacement: panelPlacement,
@@ -32,6 +33,13 @@ ActionPlacement _placementOf(ComposerSpec spec, String id) =>
     spec.actions.firstWhere((action) => action.id == id).placement;
 
 void main() {
+  test('the spec carries the host\'s message length limit', () {
+    expect(
+      _spec(panelPlacement: ActionPlacement.leading).messageLengthLimit,
+      4096,
+    );
+  });
+
   group('where the panel is a popup or a dock (a desktop)', () {
     final spec = _spec(panelPlacement: ActionPlacement.trailing);
 

@@ -151,6 +151,7 @@ class _ChatComposerState extends State<ChatComposer> {
           editing: _input.editing.value,
           hasText: composer.text.text.trim().isNotEmpty,
           busy: _input.busy.value,
+          messageLengthLimit: _input.messageLengthLimit,
           panelReplacesKeyboard: _input.panelReplacesKeyboard,
           panelDocked: _input.isPanelDocked,
           panelPlacement: _input.panelPlacement,

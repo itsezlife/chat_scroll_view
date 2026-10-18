@@ -6,7 +6,7 @@ import 'dart:math' as math;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
-import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:flutter/foundation.dart'
     show Listenable, ValueChanged, VoidCallback;
 import 'package:meta/meta.dart';
@@ -436,15 +436,19 @@ class BackendChatDataSource extends ChatDataSource {
 
   /// Sends a text message via the `send_message` Edge Function.
   ///
-  /// Linkifies [content] before the network call so the stored body matches
-  /// host materialize (ADR 017).
+  /// [content] is the markdown body the composer sent, already detected and
+  /// encoded ([ChatBodyMarkdown.send]); it goes to the server as given.
+  ///
+  /// The message inserted is the one the server returns, not [content]: the
+  /// body the backend stored (it trims the body, and a stricter ingest could
+  /// rewrite it further) replaces whatever the sender had, so every client
+  /// shows the same text. The demo backend returns what it stored.
   Future<UserChatMessage> sendMessage(String content) async {
-    final linkified = ChatBodyLinkifyUtil.materialize(content);
     final body = await _invokeJson(
       'send_message',
       body: <String, dynamic>{
         'chat_id': chatId,
-        'content': linkified,
+        'content': content,
         'sender_id': userId,
       },
     );
@@ -618,8 +622,9 @@ class BackendChatDataSource extends ChatDataSource {
       sender: legacySender ?? 'user$senderId',
       createdAt: createdAt,
       updatedAt: updatedAt,
-      // Host materialize — plain or already-linked bodies from the protocol.
-      content: ChatBodyLinkifyUtil.materialize(json['content']! as String),
+      // Receive fallback — a stored body with no link-class entity is
+      // detected here, once, when the message model is made.
+      content: ChatBodyMarkdown.received(json['content']! as String),
     );
   }
 

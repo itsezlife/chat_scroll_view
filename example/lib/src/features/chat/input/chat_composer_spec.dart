@@ -32,6 +32,7 @@ ComposerSpec buildChatComposerSpec({
   required ChatEditTarget? editing,
   required bool hasText,
   required bool busy,
+  required int? messageLengthLimit,
   required bool panelReplacesKeyboard,
   required bool panelDocked,
   required ActionPlacement panelPlacement,
@@ -50,6 +51,7 @@ ComposerSpec buildChatComposerSpec({
         ? ComposerHeader.edit(preview: editing.preview, onDismiss: onCancelEdit)
         : null,
     busy: busy,
+    messageLengthLimit: messageLengthLimit,
     actions: [
       ActionDescriptor(
         id: ChatComposerActions.panel,

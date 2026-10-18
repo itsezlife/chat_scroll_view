@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'dart:ui' show FlutterView;
 
@@ -7,8 +8,11 @@ import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatPreImeBackClaim;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_draft_sync.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/stub_panel_pages.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
@@ -85,6 +89,12 @@ final class ChatEditTarget {
 ///   panel, so the pointer moving onto it would read as leaving a popup. The
 ///   shell counts the holds its pages take; while any is up the set holds
 ///   the presentation's auto-hide with one hold of its own.
+/// - **Send and edit.** A send downgrades the mentions the host did not
+///   resolve, detects URLs, names and tags, and encodes ([submit]); an edit
+///   loads with the detected entities stripped ([beginEdit]); a text over
+///   [messageLengthLimit] is refused, never cut.
+/// - **Drafts.** [bindDrafts] restores the chat's unsent text, edit mode
+///   included, and keeps it saved while the user types.
 /// - **Soft keyboard.** While a keyboard-replacement panel is on screen the
 ///   composer declares no soft keyboard; every other time it does. A raised
 ///   keyboard is asked to lower when the panel takes its place, and is asked
@@ -110,6 +120,7 @@ final class ChatInputSet {
     SoftKeyboardPort keyboard = const PlatformSoftKeyboard(),
     PanelPresentationPolicy? policy,
     Future<bool> Function(List<PastedMedia> media)? onPastedMedia,
+    int? messageLengthLimit = DemoConfig.messageLengthMax,
   }) {
     // What has been made so far, to free in reverse if a later step throws
     // (a constructor assertion, a keyboard that cannot be read): a half-built
@@ -214,6 +225,7 @@ final class ChatInputSet {
         send: send,
         edit: edit,
         confirmClearRecents: confirmClearRecents,
+        messageLengthLimit: messageLengthLimit,
         ime: ime,
         window: window,
         text: text,
@@ -240,6 +252,7 @@ final class ChatInputSet {
     required ChatBodySender send,
     required ChatBodyEditor edit,
     required ClearRecentsConfirm confirmClearRecents,
+    required this.messageLengthLimit,
     required this.ime,
     required listen.ValueNotifier<PanelWindow> window,
     required ComposerTextController text,
@@ -310,6 +323,11 @@ final class ChatInputSet {
   /// The app's services this set is wired to.
   final AppServices services;
 
+  /// The most code points of plain text a message may have, or null for no
+  /// limit (`ComposerSpec.messageLengthLimit`). Unit and rules: see
+  /// [DemoConfig.messageLengthMax].
+  final int? messageLengthLimit;
+
   /// The single port the soft keyboard's readings enter the presentation by.
   final ImeInput ime;
 
@@ -364,6 +382,8 @@ final class ChatInputSet {
   var _wasReplacing = false;
   var _disposed = false;
   var _searchWantedFocus = false;
+  ChatDraftSync? _draftSync;
+  var _bindingDrafts = false;
 
   // --- State ----------------------------------------------------------------
 
@@ -479,15 +499,71 @@ final class ChatInputSet {
 
   /// Loads the message [id] with the markdown body [body] into the composer
   /// for editing.
+  ///
+  /// What detection made (a link to its own URL, a username, a hashtag) loads
+  /// as the text it was typed as; saving detects it again.
   void beginEdit(int id, String body) {
     if (_disposed) return;
-    final text = ChatBodyMarkdown.decode(body);
+    final text = ChatBodyMarkdown.decodeForEdit(body);
     composer.restore(
       text,
       selection: TextSelection.collapsed(offset: text.length),
     );
     _editing.value = ChatEditTarget(id: id, preview: text.plain);
     composer.requestFocus();
+  }
+
+  /// Keeps the composer's unsent text in [store] under [chatKey], and puts the
+  /// draft stored there back in the composer.
+  ///
+  /// The draft is restored only if the composer is still empty and not
+  /// editing by the time it is read: text the user typed meanwhile wins and
+  /// replaces the stored draft. A draft that was an edit restores into edit
+  /// mode for the same message. From here on every change is saved after a
+  /// pause (see [ChatDraftSync]), a send clears the record, and [dispose]
+  /// saves what is pending. Call it once, when the chat is known.
+  Future<void> bindDrafts(ChatDraftStore store, String chatKey) async {
+    if (_disposed || _bindingDrafts) return;
+    _bindingDrafts = true;
+    ChatDraft? stored;
+    try {
+      stored = await store.read(chatKey);
+    } on Object catch (error, stackTrace) {
+      // No draft is better than no composer: carry on empty.
+      dev.log(
+        'Reading the draft failed',
+        name: 'chat_draft',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+    if (_disposed) return;
+    if (stored != null && composer.richText.isEmpty && _editing.value == null) {
+      _restoreDraft(stored);
+    }
+    _draftSync = ChatDraftSync(
+      store: store,
+      chatKey: chatKey,
+      composer: composer,
+      editing: _editing,
+      editingId: () => _editing.value?.id,
+      saved: stored,
+    );
+  }
+
+  /// Writes the draft now, for the moments the user may not return from (the
+  /// app hiding).
+  void flushDraft() => _draftSync?.flush();
+
+  void _restoreDraft(ChatDraft draft) {
+    final text = ChatBodyMarkdown.decodeDraft(draft.markdown);
+    composer.restore(
+      text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+    if (draft.editing case final id?) {
+      _editing.value = ChatEditTarget(id: id, preview: text.plain);
+    }
   }
 
   /// Leaves edit mode and empties the composer.
@@ -498,12 +574,20 @@ final class ChatInputSet {
   }
 
   /// Sends what the composer holds, or saves the edit; keeps the text when
-  /// that fails. Does nothing for a blank composer or while one is in flight.
+  /// that fails. Does nothing for a blank composer, one over the
+  /// [messageLengthLimit] (nothing is cut to fit) or while a send is in
+  /// flight.
+  ///
+  /// The body is the composer's text with the mentions the host did not
+  /// resolve downgraded to usernames, then detected and encoded
+  /// ([ChatBodyMarkdown.send]).
   Future<void> submit() async {
     if (_disposed || _busy.value) return;
-    final rich = composer.richText;
+    final rich = composer.sendableText;
     if (rich.plain.trim().isEmpty) return;
-    final body = ChatBodyMarkdown.encode(rich);
+    final limit = messageLengthLimit;
+    if (limit != null && composer.length > limit) return;
+    final body = ChatBodyMarkdown.send(rich);
     final target = _editing.value;
     _busy.value = true;
     try {
@@ -513,6 +597,9 @@ final class ChatInputSet {
         await _send(body);
       }
       if (_disposed) return;
+      // The draft is a message now: drop its record before the emptied
+      // composer would be written as one.
+      _draftSync?.discard();
       composer.clear();
       _editing.value = null;
     } finally {
@@ -859,6 +946,9 @@ final class ChatInputSet {
   /// it. Idempotent. [AppServices] is left as it was.
   void dispose() {
     if (_disposed) return;
+    // Before the flag: it saves what the user typed last.
+    _draftSync?.dispose();
+    _draftSync = null;
     _disposed = true;
     _backClaim?.pop();
     _backClaim = null;

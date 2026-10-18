@@ -15,9 +15,9 @@ import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_dat
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
-import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/link_activation.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_bottom_chrome.dart';
@@ -140,7 +140,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       copyWriter: (copy) => widget.services.clipboard.write(ChatCopy.of(copy)),
     )..selectionCap = 100;
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
-    _lifecycle = AppLifecycleListener(onHide: _saveReadingPosition);
+    _lifecycle = AppLifecycleListener(
+      onHide: () {
+        _saveReadingPosition();
+        _inputSet?.flushDraft();
+      },
+    );
     _init();
   }
 
@@ -219,9 +224,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   void _onLinkTap(int messageId, String title, String url) {
     if (!mounted) return;
-    final label = switch (ChatBodyLinkifyUtil.activation(url)) {
+    final label = switch (LinkActivation.fromUrl(url)) {
       WebLinkActivation(:final uri) => 'Opening: $uri',
-      MentionLinkActivation(:final username) => 'Mention: $username',
+      MentionLinkActivation(:final id) => 'Mention: $id',
+      UsernameLinkActivation(:final name) => 'Username: $name',
+      HashtagLinkActivation(:final tag) => 'Hashtag: $tag',
       OtherLinkActivation(:final url) => 'Link: $url',
     };
     ScaffoldMessenger.of(context)
@@ -315,6 +322,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       }
       // Owned from here on: `dispose()` and the catch below free it.
       _dataSource = backend;
+      // The composer keeps this chat's unsent text; a chat that does not
+      // outlive a relaunch keeps none.
+      if (_chatKey(backend) case final key?) {
+        unawaited(_input.bindDrafts(widget.services.drafts, key));
+      }
 
       // Only the server-backed source persists read state; the bundled
       // sources open without a stored last-read.
@@ -328,7 +340,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       final openPosition = await backend.resolveOpenPosition(
         storedLastRead: lastRead,
         isSelfMessage: _isSelfMessage,
-        savedCenterBand: switch (_readingPositionKey(backend)) {
+        savedCenterBand: switch (_chatKey(backend)) {
           final key? => await centerBands.read(key),
           null => null,
         },
@@ -451,9 +463,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     unawaited(backend.updateLastReadMessageId(baseline));
   }
 
-  /// Key of [source]'s chat in the center-band store (a key-value name), or
-  /// `null` for a chat whose history does not survive a relaunch.
-  static String? _readingPositionKey(ChatDataSource source) => switch (source) {
+  /// Key of [source]'s chat in the per-chat stores, the center-band and the
+  /// draft store (a key-value name), or `null` for a chat whose history does
+  /// not survive a relaunch.
+  static String? _chatKey(ChatDataSource source) => switch (source) {
     BackendChatDataSource(:final chatId) => 'backend.$chatId',
     CommentsDataSource() => 'comments',
     _ => null,
@@ -466,7 +479,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   void _saveReadingPosition() {
     final source = _dataSource;
     if (!_readingPositionKnown || source == null) return;
-    final key = _readingPositionKey(source);
+    final key = _chatKey(source);
     final range = _controller.visibleRange.value;
     if (key == null || range == null) return;
     final centerBand = source.resolveLeavePosition(
@@ -576,7 +589,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           sender: message.sender,
           createdAt: message.createdAt,
           updatedAt: DateTime.now(),
-          content: ChatBodyLinkifyUtil.materialize(text),
+          content: text,
         ),
       );
     }

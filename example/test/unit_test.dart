@@ -19,13 +19,15 @@ import 'chat_viewport_insets_test.dart' as chat_viewport_insets_test;
 import 'common/chat_message_markdown_test.dart' as chat_message_markdown_test;
 import 'features/chat/animated_emoji_pack_test.dart'
     as animated_emoji_pack_test;
-import 'features/chat/chat_body_linkify_util_test.dart'
-    as chat_body_linkify_util_test;
 import 'features/chat/chat_body_markdown_test.dart' as chat_body_markdown_test;
 import 'features/chat/chat_composer_spec_test.dart' as chat_composer_spec_test;
 import 'features/chat/chat_copy_test.dart' as chat_copy_test;
+import 'features/chat/chat_data_source_bodies_test.dart'
+    as chat_data_source_bodies_test;
+import 'features/chat/chat_draft_store_test.dart' as chat_draft_store_test;
 import 'features/chat/joined_collection_source_test.dart'
     as joined_collection_source_test;
+import 'features/chat/link_activation_test.dart' as link_activation_test;
 import 'glyph_probe_wiring_test.dart' as glyph_probe_wiring_test;
 import 'golden/demo_widgets_golden_test.dart' as demo_widgets_golden_test;
 import 'mapped_value_listenable_test.dart' as mapped_value_listenable_test;
@@ -38,7 +40,9 @@ import 'supabase_chat_data_source_test.dart' as supabase_chat_data_source_test;
 import 'theme/demo_chat_theme_test.dart' as demo_chat_theme_test;
 import 'theme/demo_markdown_theme_test.dart' as demo_markdown_theme_test;
 import 'widgets/chat_composer_send_test.dart' as chat_composer_send_test;
+import 'widgets/chat_drafts_test.dart' as chat_drafts_test;
 import 'widgets/chat_input_set_test.dart' as chat_input_set_test;
+import 'widgets/chat_input_wire_test.dart' as chat_input_wire_test;
 import 'widgets/chat_open_at_last_read_test.dart'
     as chat_open_at_last_read_test;
 import 'widgets/chat_scroll_to_bottom_button_test.dart'
@@ -82,10 +86,6 @@ void main() {
     animated_emoji_pack_test.main,
   );
   group(
-    'features/chat/chat_body_linkify_util_test.dart',
-    chat_body_linkify_util_test.main,
-  );
-  group(
     'features/chat/chat_body_markdown_test.dart',
     chat_body_markdown_test.main,
   );
@@ -95,9 +95,15 @@ void main() {
   );
   group('features/chat/chat_copy_test.dart', chat_copy_test.main);
   group(
+    'features/chat/chat_data_source_bodies_test.dart',
+    chat_data_source_bodies_test.main,
+  );
+  group('features/chat/chat_draft_store_test.dart', chat_draft_store_test.main);
+  group(
     'features/chat/joined_collection_source_test.dart',
     joined_collection_source_test.main,
   );
+  group('features/chat/link_activation_test.dart', link_activation_test.main);
   group('glyph_probe_wiring_test.dart', glyph_probe_wiring_test.main);
   group('golden/demo_widgets_golden_test.dart', demo_widgets_golden_test.main);
   group('mapped_value_listenable_test.dart', mapped_value_listenable_test.main);
@@ -113,7 +119,9 @@ void main() {
   group('theme/demo_chat_theme_test.dart', demo_chat_theme_test.main);
   group('theme/demo_markdown_theme_test.dart', demo_markdown_theme_test.main);
   group('widgets/chat_composer_send_test.dart', chat_composer_send_test.main);
+  group('widgets/chat_drafts_test.dart', chat_drafts_test.main);
   group('widgets/chat_input_set_test.dart', chat_input_set_test.main);
+  group('widgets/chat_input_wire_test.dart', chat_input_wire_test.main);
   group(
     'widgets/chat_open_at_last_read_test.dart',
     chat_open_at_last_read_test.main,

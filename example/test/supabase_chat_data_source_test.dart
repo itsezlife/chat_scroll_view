@@ -437,6 +437,67 @@ void main() {
       source.dispose();
     });
 
+    test('sendMessage replaces what was sent with the body the backend '
+        'stored', () async {
+      const sent = '[a.com](https://a.com)  ';
+      final source = BackendChatDataSource.forTest(
+        invoke: (name, body) async {
+          expect(body['content'], sent, reason: 'sent as given, not rewritten');
+          return {
+            'message': {
+              'id': 10005,
+              'chat_id': 1,
+              'sender_id': 1,
+              'created_at': 1583108356,
+              'updated_at': 1583108356,
+              'kind': 0,
+              'flags': 0,
+              'reply_to_id': null,
+              // What an ingest rule kept: trimmed, and one more link-class
+              // entity than was sent.
+              'content': '[a.com](https://a.com) [@bob](username:bob)',
+              'rich_content': null,
+              'extra': {'legacy_sender': 'alice'},
+            },
+          };
+        },
+      )..seedBoundaries(newestKnownId: 10004, reachedNewest: true);
+
+      final message = await source.sendMessage(sent);
+
+      expect(message.content, '[a.com](https://a.com) [@bob](username:bob)');
+      expect(_userContent(source.getMessage(10005)), message.content);
+
+      source.dispose();
+    });
+
+    test('a body the backend returns with no entity is detected once, as it '
+        'is materialised', () async {
+      final source = BackendChatDataSource.forTest(
+        invoke: (name, body) async => {
+          'message': {
+            'id': 10005,
+            'chat_id': 1,
+            'sender_id': 1,
+            'created_at': 1583108356,
+            'updated_at': 1583108356,
+            'kind': 0,
+            'flags': 0,
+            'reply_to_id': null,
+            'content': 'see https://example.com',
+            'rich_content': null,
+            'extra': {'legacy_sender': 'alice'},
+          },
+        },
+      )..seedBoundaries(newestKnownId: 10004, reachedNewest: true);
+
+      final message = await source.sendMessage('see https://example.com');
+
+      expect(message.content, 'see [https://example.com](https://example.com)');
+
+      source.dispose();
+    });
+
     test('sendMessage error throws without advancing boundary', () async {
       final source = BackendChatDataSource.forTest(
         invoke: (name, _) async {
