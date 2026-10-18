@@ -72,8 +72,9 @@ class SelectionMenuCard extends StatefulWidget {
   State<SelectionMenuCard> createState() => SelectionMenuCardState();
 }
 
-/// The state of [SelectionMenuCard]; exposes whether the overflow page is open
-/// so the menu can keep it across a hide and a show.
+/// The state of [SelectionMenuCard]: which page it is on and whether it is
+/// between them. The page stays open through a hide and a show because the card
+/// stays mounted, not because anything remembers it.
 class SelectionMenuCardState extends State<SelectionMenuCard>
     with TickerProviderStateMixin {
   late final AnimationController _morph = AnimationController(vsync: this);
