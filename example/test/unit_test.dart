@@ -70,6 +70,8 @@ import 'widgets/demo_message_edit_transition_test.dart'
     as demo_message_edit_transition_test;
 import 'widgets/demo_message_markdown_registration_test.dart'
     as demo_message_markdown_registration_test;
+import 'widgets/large_emoji_limit_button_test.dart'
+    as large_emoji_limit_button_test;
 import 'widgets/message_menu_test.dart' as message_menu_test;
 import 'widgets/notes_dialog_test.dart' as notes_dialog_test;
 import 'widgets/panel_keeps_composer_focus_test.dart'
@@ -190,6 +192,10 @@ void main() {
   group(
     'widgets/demo_message_markdown_registration_test.dart',
     demo_message_markdown_registration_test.main,
+  );
+  group(
+    'widgets/large_emoji_limit_button_test.dart',
+    large_emoji_limit_button_test.main,
   );
   group('widgets/message_menu_test.dart', message_menu_test.main);
   group('widgets/notes_dialog_test.dart', notes_dialog_test.main);
