@@ -6,6 +6,7 @@
 
 import 'dart:math' as math;
 
+import 'package:composer_editable/src/widget/text_selection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/src/material/debug.dart';
 import 'package:flutter/src/material/material_localizations.dart';
@@ -15,13 +16,11 @@ import 'package:flutter/src/material/text_selection_toolbar_text_button.dart';
 import 'package:flutter/src/material/theme.dart';
 import 'package:flutter/widgets.dart';
 
-import '../widget/text_selection.dart';
-
-const double _kHandleSize = 22.0;
+const double _kHandleSize = 22;
 
 // Padding between the toolbar and the anchor.
 const double _kToolbarContentDistanceBelow = _kHandleSize - 2.0;
-const double _kToolbarContentDistance = 8.0;
+const double _kToolbarContentDistance = 8;
 
 /// Android Material styled text selection handle controls.
 ///
@@ -31,14 +30,16 @@ const double _kToolbarContentDistance = 8.0;
   'Use `ExtendedMaterialTextSelectionControls`. '
   'This feature was deprecated after v3.3.0-0.5.pre.',
 )
-class ExtendedMaterialTextSelectionHandleControls extends ExtendedMaterialTextSelectionControls
+class ExtendedMaterialTextSelectionHandleControls
+    extends ExtendedMaterialTextSelectionControls
     with ExtendedTextSelectionHandleControls {}
 
 /// Android Material styled text selection controls.
 ///
 /// The [extendedMaterialTextSelectionControls] global variable has a
 /// suitable instance of this class.
-class ExtendedMaterialTextSelectionControls extends ExtendedTextSelectionControls {
+class ExtendedMaterialTextSelectionControls
+    extends ExtendedTextSelectionControls {
   /// Returns the size of the Material handle.
   @override
   Size getHandleSize(double textLineHeight) =>
@@ -59,22 +60,20 @@ class ExtendedMaterialTextSelectionControls extends ExtendedTextSelectionControl
     TextSelectionDelegate delegate,
     ValueListenable<ClipboardStatus>? clipboardStatus,
     Offset? lastSecondaryTapDownPosition,
-  ) {
-    return _TextSelectionControlsToolbar(
-      globalEditableRegion: globalEditableRegion,
-      textLineHeight: textLineHeight,
-      selectionMidpoint: selectionMidpoint,
-      endpoints: endpoints,
-      delegate: delegate,
-      clipboardStatus: clipboardStatus,
-      handleCut: canCut(delegate) ? () => handleCut(delegate) : null,
-      handleCopy: canCopy(delegate) ? () => handleCopy(delegate) : null,
-      handlePaste: canPaste(delegate) ? () => handlePaste(delegate) : null,
-      handleSelectAll: canSelectAll(delegate)
-          ? () => handleSelectAll(delegate)
-          : null,
-    );
-  }
+  ) => _TextSelectionControlsToolbar(
+    globalEditableRegion: globalEditableRegion,
+    textLineHeight: textLineHeight,
+    selectionMidpoint: selectionMidpoint,
+    endpoints: endpoints,
+    delegate: delegate,
+    clipboardStatus: clipboardStatus,
+    handleCut: canCut(delegate) ? () => handleCut(delegate) : null,
+    handleCopy: canCopy(delegate) ? () => handleCopy(delegate) : null,
+    handlePaste: canPaste(delegate) ? () => handlePaste(delegate) : null,
+    handleSelectAll: canSelectAll(delegate)
+        ? () => handleSelectAll(delegate)
+        : null,
+  );
 
   /// Builder for material-style text selection handles.
   @override
@@ -84,8 +83,8 @@ class ExtendedMaterialTextSelectionControls extends ExtendedTextSelectionControl
     double textHeight, [
     VoidCallback? onTap,
   ]) {
-    final ThemeData theme = Theme.of(context);
-    final Color handleColor =
+    final theme = Theme.of(context);
+    final handleColor =
         TextSelectionTheme.of(context).selectionHandleColor ??
         theme.colorScheme.primary;
     final Widget handle = SizedBox(
@@ -120,13 +119,12 @@ class ExtendedMaterialTextSelectionControls extends ExtendedTextSelectionControl
   ///
   /// See [ExtendedTextSelectionControls.getHandleAnchor].
   @override
-  Offset getHandleAnchor(TextSelectionHandleType type, double textLineHeight) {
-    return switch (type) {
-      TextSelectionHandleType.collapsed => const Offset(_kHandleSize / 2, -4),
-      TextSelectionHandleType.left => const Offset(_kHandleSize, 0),
-      TextSelectionHandleType.right => Offset.zero,
-    };
-  }
+  Offset getHandleAnchor(TextSelectionHandleType type, double textLineHeight) =>
+      switch (type) {
+        TextSelectionHandleType.collapsed => const Offset(_kHandleSize / 2, -4),
+        TextSelectionHandleType.left => const Offset(_kHandleSize, 0),
+        TextSelectionHandleType.right => Offset.zero,
+      };
 
   @Deprecated(
     'Use `contextMenuBuilder` instead. '
@@ -136,7 +134,7 @@ class ExtendedMaterialTextSelectionControls extends ExtendedTextSelectionControl
   bool canSelectAll(TextSelectionDelegate delegate) {
     // Android allows SelectAll when selection is not collapsed, unless
     // everything has already been selected.
-    final TextEditingValue value = delegate.textEditingValue;
+    final value = delegate.textEditingValue;
     return delegate.selectAllEnabled &&
         value.text.isNotEmpty &&
         !(value.selection.start == 0 &&
@@ -234,13 +232,13 @@ class _TextSelectionControlsToolbarState
 
     // Calculate the positioning of the menu. It is placed above the selection
     // if there is enough room, or otherwise below.
-    final TextSelectionPoint startTextSelectionPoint = widget.endpoints[0];
-    final TextSelectionPoint endTextSelectionPoint = widget.endpoints.length > 1
+    final startTextSelectionPoint = widget.endpoints[0];
+    final endTextSelectionPoint = widget.endpoints.length > 1
         ? widget.endpoints[1]
         : widget.endpoints[0];
-    final double topAmountInEditableRegion =
+    final topAmountInEditableRegion =
         startTextSelectionPoint.point.dy - widget.textLineHeight;
-    final double anchorTop =
+    final anchorTop =
         math.max(topAmountInEditableRegion, 0) +
         widget.globalEditableRegion.top -
         _kToolbarContentDistance;
@@ -259,10 +257,11 @@ class _TextSelectionControlsToolbarState
     // Determine which buttons will appear so that the order and total number is
     // known. A button's position in the menu can slightly affect its
     // appearance.
-    assert(debugCheckHasMaterialLocalizations(context));
-    final MaterialLocalizations localizations = MaterialLocalizations.of(
-      context,
+    assert(
+      debugCheckHasMaterialLocalizations(context),
+      'MaterialLocalizations are required.',
     );
+    final localizations = MaterialLocalizations.of(context);
     final itemDatas = <_TextSelectionToolbarItemData>[
       if (widget.handleCut != null)
         _TextSelectionToolbarItemData(
@@ -295,19 +294,21 @@ class _TextSelectionControlsToolbarState
     return TextSelectionToolbar(
       anchorAbove: anchorAbove,
       anchorBelow: anchorBelow,
-      children: itemDatas.asMap().entries.map((
-        MapEntry<int, _TextSelectionToolbarItemData> entry,
-      ) {
-        return TextSelectionToolbarTextButton(
-          padding: TextSelectionToolbarTextButton.getPadding(
-            entry.key,
-            itemDatas.length,
-          ),
-          alignment: AlignmentDirectional.centerStart,
-          onPressed: entry.value.onPressed,
-          child: Text(entry.value.label),
-        );
-      }).toList(),
+      children: itemDatas
+          .asMap()
+          .entries
+          .map(
+            (entry) => TextSelectionToolbarTextButton(
+              padding: TextSelectionToolbarTextButton.getPadding(
+                entry.key,
+                itemDatas.length,
+              ),
+              alignment: AlignmentDirectional.centerStart,
+              onPressed: entry.value.onPressed,
+              child: Text(entry.value.label),
+            ),
+          )
+          .toList(),
     );
   }
 }
@@ -321,12 +322,12 @@ class _TextSelectionHandlePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color;
-    final double radius = size.width / 2.0;
+    final radius = size.width / 2.0;
     final circle = Rect.fromCircle(
       center: Offset(radius, radius),
       radius: radius,
     );
-    final point = Rect.fromLTWH(0.0, 0.0, radius, radius);
+    final point = Rect.fromLTWH(0, 0, radius, radius);
     final path = Path()
       ..addOval(circle)
       ..addRect(point);
@@ -334,16 +335,16 @@ class _TextSelectionHandlePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_TextSelectionHandlePainter oldPainter) {
-    return color != oldPainter.color;
-  }
+  bool shouldRepaint(_TextSelectionHandlePainter oldPainter) =>
+      color != oldPainter.color;
 }
 
 // TODO(justinmc): Deprecate this after ExtendedTextSelectionControls.buildToolbar is
 // deleted, when users should migrate back to extendedMaterialTextSelectionControls.
 // See https://github.com/flutter/flutter/pull/124262
 /// Text selection handle controls that follow the Material Design specification.
-final ExtendedTextSelectionControls extendedMaterialTextSelectionHandleControls =
+final ExtendedTextSelectionControls
+extendedMaterialTextSelectionHandleControls =
     ExtendedMaterialTextSelectionHandleControls();
 
 /// Text selection controls that follow the Material Design specification.

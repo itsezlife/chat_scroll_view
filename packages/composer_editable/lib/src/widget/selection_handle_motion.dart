@@ -18,8 +18,8 @@ class OvershootCurve extends Curve {
 
   @override
   double transformInternal(double t) {
-    t -= 1.0;
-    return t * t * ((tension + 1.0) * t + tension) + 1.0;
+    final shifted = t - 1.0;
+    return shifted * shifted * ((tension + 1.0) * shifted + tension) + 1.0;
   }
 }
 
@@ -53,14 +53,14 @@ MagnifierInfo smoothMagnifierInfo({
     return target;
   }
 
-  final double ms = elapsed.inMicroseconds / 1000.0;
+  final ms = elapsed.inMicroseconds / 1000.0;
   if (ms <= 0) {
     return previous;
   }
 
-  final double alpha = (ms / kAospMagnifierSettleMs).clamp(0.0, 1.0);
+  final alpha = (ms / kAospMagnifierSettleMs).clamp(0.0, 1.0);
 
-  final Offset gesture = Offset(
+  final gesture = Offset(
     lerpDouble(
       previous.globalGesturePosition.dx,
       target.globalGesturePosition.dx,
@@ -73,14 +73,14 @@ MagnifierInfo smoothMagnifierInfo({
     )!,
   );
 
-  final Rect caret = Rect.fromLTRB(
+  final caret = Rect.fromLTRB(
     lerpDouble(previous.caretRect.left, target.caretRect.left, alpha)!,
     lerpDouble(previous.caretRect.top, target.caretRect.top, alpha)!,
     lerpDouble(previous.caretRect.right, target.caretRect.right, alpha)!,
     lerpDouble(previous.caretRect.bottom, target.caretRect.bottom, alpha)!,
   );
 
-  final Rect line = Rect.fromLTRB(
+  final line = Rect.fromLTRB(
     lerpDouble(
       previous.currentLineBoundaries.left,
       target.currentLineBoundaries.left,

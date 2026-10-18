@@ -14,11 +14,11 @@ void main() {
     WidgetTester tester, {
     bool delegateOverscrollToParent = true,
   }) async {
-    final TextEditingController controller = TextEditingController(
-      text: List<String>.generate(40, (int i) => 'line $i').join('\n'),
+    final controller = TextEditingController(
+      text: List<String>.generate(40, (i) => 'line $i').join('\n'),
     );
     addTearDown(controller.dispose);
-    final ScrollController page = ScrollController();
+    final page = ScrollController();
     addTearDown(page.dispose);
 
     await tester.pumpWidget(
@@ -60,7 +60,7 @@ void main() {
   }
 
   testWidgets('overscroll at the bottom scrolls the page further down', (
-    WidgetTester tester,
+    tester,
   ) async {
     final field = await pumpNestedField(tester);
 
@@ -70,7 +70,7 @@ void main() {
       field.fieldScrollable.position.maxScrollExtent,
     );
     await tester.pumpAndSettle();
-    final double pageBefore = field.page.offset;
+    final pageBefore = field.page.offset;
 
     // Finger up → field would overscroll past max → page should take it.
     await tester.drag(find.byType(ExtendedTextField), const Offset(0, -240));
@@ -79,9 +79,7 @@ void main() {
     expect(field.page.offset, greaterThan(pageBefore));
   });
 
-  testWidgets('overscroll at the top scrolls the page back up', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('overscroll at the top scrolls the page back up', (tester) async {
     final field = await pumpNestedField(tester);
 
     // Field stays visible (top at ~200) while the page can still scroll up.
@@ -97,7 +95,7 @@ void main() {
   });
 
   testWidgets('a fling at the bottom ballistically scrolls the page', (
-    WidgetTester tester,
+    tester,
   ) async {
     final field = await pumpNestedField(tester);
 
@@ -106,7 +104,7 @@ void main() {
       field.fieldScrollable.position.maxScrollExtent,
     );
     await tester.pumpAndSettle();
-    final double pageBefore = field.page.offset;
+    final pageBefore = field.page.offset;
 
     // Strong upward fling must become parent goBallistic.
     await tester.fling(
@@ -120,15 +118,15 @@ void main() {
   });
 
   testWidgets('a mid-content drag still scrolls the field, not the page', (
-    WidgetTester tester,
+    tester,
   ) async {
     final field = await pumpNestedField(tester);
 
     field.page.jumpTo(200);
-    final double mid = field.fieldScrollable.position.maxScrollExtent / 2;
+    final mid = field.fieldScrollable.position.maxScrollExtent / 2;
     field.fieldScrollable.position.jumpTo(mid);
     await tester.pumpAndSettle();
-    final double pageBefore = field.page.offset;
+    final pageBefore = field.page.offset;
 
     await tester.drag(find.byType(ExtendedTextField), const Offset(0, -80));
     await tester.pumpAndSettle();
@@ -137,9 +135,7 @@ void main() {
     expect(field.fieldScrollable.position.pixels, greaterThan(mid));
   });
 
-  testWidgets('opt-out keeps edge overscroll inside the field', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('opt-out keeps edge overscroll inside the field', (tester) async {
     final field = await pumpNestedField(
       tester,
       delegateOverscrollToParent: false,
@@ -150,7 +146,7 @@ void main() {
       field.fieldScrollable.position.maxScrollExtent,
     );
     await tester.pumpAndSettle();
-    final double pageBefore = field.page.offset;
+    final pageBefore = field.page.offset;
 
     await tester.drag(find.byType(ExtendedTextField), const Offset(0, -240));
     await tester.pumpAndSettle();

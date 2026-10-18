@@ -3,8 +3,6 @@ import 'dart:ui' show Rect, TextDirection;
 import 'package:composer_editable/src/widget/finger_tracked_handle.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart' show TextSelectionHandleType;
-import 'package:flutter/painting.dart' show Alignment;
 import 'package:flutter/rendering.dart' show TextSelectionPoint;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -318,8 +316,8 @@ void main() {
         fingerTrackedFixedBaseLeader(
           snapshotLeader: snapshot,
           liveLeader: live,
-          snapshotScrollPixels: 120.0,
-          currentScrollPixels: 120.0,
+          snapshotScrollPixels: 120,
+          currentScrollPixels: 120,
         ),
         snapshot,
       );
@@ -332,8 +330,8 @@ void main() {
         fingerTrackedFixedBaseLeader(
           snapshotLeader: snapshot,
           liveLeader: live,
-          snapshotScrollPixels: 120.0,
-          currentScrollPixels: 480.0,
+          snapshotScrollPixels: 120,
+          currentScrollPixels: 480,
         ),
         live,
       );

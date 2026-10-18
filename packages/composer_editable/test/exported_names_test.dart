@@ -70,9 +70,9 @@ void main() {
       for (final show in RegExp(
         r'\bshow\b([^;]*);',
       ).allMatches(File('lib/composer_editable.dart').readAsStringSync()))
-        ...RegExp(r'[A-Za-z_]\w*').allMatches(show.group(1)!).map(
-          (m) => m.group(0)!,
-        ),
+        ...RegExp(
+          r'[A-Za-z_]\w*',
+        ).allMatches(show.group(1)!).map((m) => m.group(0)!),
     };
 
     // Top-level names Flutter's widgets, material and cupertino libraries

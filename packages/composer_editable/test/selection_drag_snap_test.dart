@@ -1,5 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:composer_editable/src/widget/selection_drag_snap.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('isInterruptedCharacter', () {

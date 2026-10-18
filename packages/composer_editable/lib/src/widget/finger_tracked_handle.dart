@@ -3,22 +3,26 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 
 /// Material selection handle diameter (22dp).
-const double kMaterialSelectionHandleSize = 22.0;
+const double kMaterialSelectionHandleSize = 22;
 
 /// Touch platforms that use finger-tracked moving-handle overlay during drag.
-bool get usesFingerTrackedHandleDrag {
-  return switch (defaultTargetPlatform) {
-    TargetPlatform.android ||
-    TargetPlatform.iOS ||
-    TargetPlatform.fuchsia => true,
-    TargetPlatform.linux ||
-    TargetPlatform.macOS ||
-    TargetPlatform.windows => false,
-  };
-}
+bool get usesFingerTrackedHandleDrag => switch (defaultTargetPlatform) {
+  TargetPlatform.android ||
+  TargetPlatform.iOS ||
+  TargetPlatform.fuchsia => true,
+  TargetPlatform.linux ||
+  TargetPlatform.macOS ||
+  TargetPlatform.windows => false,
+};
 
 /// Which selection handle is being finger-tracked during drag.
-enum FingerTrackedMovingHandle { start, end }
+enum FingerTrackedMovingHandle {
+  /// The handle at the start of the selection.
+  start,
+
+  /// The handle at the end of the selection.
+  end,
+}
 
 /// Whether [kind] should use finger-tracked handle motion.
 ///
@@ -40,9 +44,7 @@ bool pointerKindUsesFingerTrackedHandle(PointerDeviceKind kind) {
 Offset computeHandleGrabOffset({
   required Offset pointerGlobal,
   required Offset caretAnchorGlobal,
-}) {
-  return caretAnchorGlobal - pointerGlobal;
-}
+}) => caretAnchorGlobal - pointerGlobal;
 
 /// Caret-equivalent X for extent hit-test during finger-tracked handle drag.
 ///
@@ -51,9 +53,7 @@ Offset computeHandleGrabOffset({
 double compensatedHandleHitTestDx({
   required Offset pointerGlobal,
   required Offset grabOffset,
-}) {
-  return (pointerGlobal + grabOffset).dx;
-}
+}) => (pointerGlobal + grabOffset).dx;
 
 /// Whether the **moving extent** is at the selection start (extent-based).
 ///
@@ -76,7 +76,7 @@ bool fingerTrackedMovingHandleIsStart({
 
 /// Vector from the Material handle anchor to the visual bulb center.
 Offset materialHandleBulbOffsetFromAnchor(Offset handleAnchor) {
-  const Offset bulbCenter = Offset(
+  const bulbCenter = Offset(
     kMaterialSelectionHandleSize / 2,
     kMaterialSelectionHandleSize / 2,
   );
@@ -87,10 +87,9 @@ Offset materialHandleBulbOffsetFromAnchor(Offset handleAnchor) {
 Offset compensateFollowerDeltaForHandleAnchorChange({
   required Offset fromAnchor,
   required Offset toAnchor,
-}) {
-  return materialHandleBulbOffsetFromAnchor(fromAnchor) -
-      materialHandleBulbOffsetFromAnchor(toAnchor);
-}
+}) =>
+    materialHandleBulbOffsetFromAnchor(fromAnchor) -
+    materialHandleBulbOffsetFromAnchor(toAnchor);
 
 /// Endpoint index (`0` = selection start, `1` = end) for the moving extent.
 ///
@@ -156,16 +155,14 @@ Offset fingerTrackedMovingHandleDelta({
   required RenderBox renderEditable,
   required Rect fieldBoundsLocal,
   Offset anchorCompensation = Offset.zero,
-}) {
-  return fingerTrackedHandleFollowerDelta(
-    pointerGlobal: pointerGlobal,
-    grabOffset: grabOffset,
-    leaderLocal: physicalLeaderLocal,
-    renderEditable: renderEditable,
-    fieldBoundsLocal: fieldBoundsLocal,
-    anchorCompensation: anchorCompensation,
-  );
-}
+}) => fingerTrackedHandleFollowerDelta(
+  pointerGlobal: pointerGlobal,
+  grabOffset: grabOffset,
+  leaderLocal: physicalLeaderLocal,
+  renderEditable: renderEditable,
+  fieldBoundsLocal: fieldBoundsLocal,
+  anchorCompensation: anchorCompensation,
+);
 
 /// Follower delta for the **fixed** handle during frozen chrome.
 ///
@@ -174,9 +171,7 @@ Offset fingerTrackedMovingHandleDelta({
 Offset fingerTrackedFixedHandleDelta({
   required Offset fixedBaseLeaderLocal,
   required Offset physicalLeaderLocal,
-}) {
-  return fixedBaseLeaderLocal - physicalLeaderLocal;
-}
+}) => fixedBaseLeaderLocal - physicalLeaderLocal;
 
 /// Fixed-base leader during a drag: the snapshot taken at drag start, so the
 /// fixed handle does not jump with the selection's affinity, or the live leader
@@ -197,32 +192,27 @@ Offset fingerTrackedFixedBaseLeader({
 Offset fingerTrackedSettleTargetDelta({
   required Offset extentLeaderLocal,
   required Offset physicalLeaderLocal,
-}) {
-  return extentLeaderLocal - physicalLeaderLocal;
-}
+}) => extentLeaderLocal - physicalLeaderLocal;
 
 /// Clamps the finger-tracked overlay anchor inside [fieldBounds].
 Offset clampFingerTrackedOverlayLocal({
   required Offset overlayLocal,
   required Rect fieldBounds,
-}) {
-  return Offset(
-    overlayLocal.dx.clamp(fieldBounds.left, fieldBounds.right),
-    overlayLocal.dy.clamp(fieldBounds.top, fieldBounds.bottom),
-  );
-}
+}) => Offset(
+  overlayLocal.dx.clamp(fieldBounds.left, fieldBounds.right),
+  overlayLocal.dy.clamp(fieldBounds.top, fieldBounds.bottom),
+);
 
 /// Whether [overlayLocal] would be clamped inside [fieldBounds].
 bool fingerTrackedOverlayWouldClamp({
   required Offset overlayLocal,
   required Rect fieldBounds,
-}) {
-  return clampFingerTrackedOverlayLocal(
-        overlayLocal: overlayLocal,
-        fieldBounds: fieldBounds,
-      ) !=
-      overlayLocal;
-}
+}) =>
+    clampFingerTrackedOverlayLocal(
+      overlayLocal: overlayLocal,
+      fieldBounds: fieldBounds,
+    ) !=
+    overlayLocal;
 
 /// Extra [CompositedTransformFollower] delta in [renderEditable] local space.
 ///
@@ -237,10 +227,10 @@ Offset fingerTrackedHandleFollowerDelta({
   required Rect fieldBoundsLocal,
   Offset anchorCompensation = Offset.zero,
 }) {
-  final Offset rawOverlayLocal = renderEditable.globalToLocal(
+  final rawOverlayLocal = renderEditable.globalToLocal(
     pointerGlobal + grabOffset,
   );
-  final Offset overlayLocal = clampFingerTrackedOverlayLocal(
+  final overlayLocal = clampFingerTrackedOverlayLocal(
     overlayLocal: rawOverlayLocal,
     fieldBounds: fieldBoundsLocal,
   );

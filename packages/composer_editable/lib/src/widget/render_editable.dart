@@ -60,9 +60,9 @@ class ExtendedRenderEditable extends RenderEditable {
   /// Only the gutter band opens up: the text keeps its own clip, so overflow
   /// cannot escape the field.
   double get gutterExtent => _gutterExtent;
-  double _gutterExtent = 0.0;
+  double _gutterExtent = 0;
   set gutterExtent(double value) {
-    final double next = value < 0.0 ? 0.0 : value;
+    final next = value < 0.0 ? 0.0 : value;
     if (_gutterExtent == next) {
       return;
     }
@@ -121,19 +121,19 @@ class ExtendedRenderEditable extends RenderEditable {
   void performLayout() {
     super.performLayout();
 
-    final double inset = _contentScrollExtent;
+    final inset = _contentScrollExtent;
     if (inset == 0.0) {
       return;
     }
     // Super sized the box to the text alone and published extents against it;
     // both have to account for the inset the content now carries.
-    final double contentExtent = maxScrollExtent + size.height;
+    final contentExtent = maxScrollExtent + size.height;
     size = Size(size.width, constraints.constrainHeight(size.height + inset));
     offset
       ..applyViewportDimension(size.height)
       ..applyContentDimensions(
-        0.0,
-        math.max(0.0, contentExtent + inset - size.height),
+        0,
+        math.max(0, contentExtent + inset - size.height),
       );
   }
 
@@ -147,7 +147,7 @@ class ExtendedRenderEditable extends RenderEditable {
 
   @override
   Size computeDryLayout(covariant BoxConstraints constraints) {
-    final Size size = super.computeDryLayout(constraints);
+    final size = super.computeDryLayout(constraints);
     if (_contentScrollExtent == 0.0) {
       return size;
     }
@@ -172,7 +172,7 @@ class ExtendedRenderEditable extends RenderEditable {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    final RenderEditablePainter? gutterPainter = _gutterPainter;
+    final gutterPainter = _gutterPainter;
     if (_gutterExtent <= 0.0 || gutterPainter == null) {
       _gutterClipLayer.layer = null;
       super.paint(context, offset);
@@ -184,11 +184,11 @@ class ExtendedRenderEditable extends RenderEditable {
       needsCompositing,
       offset,
       gutterClipRect(size: size, gutterExtent: _gutterExtent, ltr: _isLtr),
-      (PaintingContext innerContext, Offset innerOffset) {
+      (innerContext, innerOffset) {
         super.paint(innerContext, innerOffset);
         _publishSelectionVisibility();
         // Editable painters draw in the editable's own coordinates.
-        final Canvas canvas = innerContext.canvas;
+        final canvas = innerContext.canvas;
         canvas
           ..save()
           ..translate(innerOffset.dx, innerOffset.dy);
@@ -239,14 +239,14 @@ class ExtendedRenderEditable extends RenderEditable {
   /// mode: the overlay that consumes the answer lays out in a pass of its own,
   /// where reading this box's size is not.
   void _publishSelectionVisibility() {
-    final TextSelection? current = selection;
+    final current = selection;
     if (current == null) {
       return;
     }
-    final bool startVisible =
+    final startVisible =
         selectionStartInViewport.value ||
         _caretOverlapsViewport(current, current.start);
-    final bool endVisible =
+    final endVisible =
         selectionEndInViewport.value ||
         _caretOverlapsViewport(current, current.end);
     _startHandleInViewport.value = startVisible;
@@ -259,7 +259,7 @@ class ExtendedRenderEditable extends RenderEditable {
     if (!current.isValid) {
       return false;
     }
-    final Rect region = (Offset.zero & size).inflate(0.5);
+    final region = (Offset.zero & size).inflate(0.5);
     return region.overlaps(
       getLocalRectForCaret(
         TextPosition(offset: offset, affinity: current.affinity),
@@ -271,13 +271,13 @@ class ExtendedRenderEditable extends RenderEditable {
     if (!current.isValid || current.isCollapsed) {
       return false;
     }
-    final List<TextBox> boxes = getBoxesForSelection(current);
+    final boxes = getBoxesForSelection(current);
     if (boxes.isEmpty) {
       return false;
     }
-    final Rect selectionRect = boxes
-        .map((TextBox box) => box.toRect())
-        .reduce((Rect a, Rect b) => a.expandToInclude(b));
+    final selectionRect = boxes
+        .map((box) => box.toRect())
+        .reduce((a, b) => a.expandToInclude(b));
     return selectionRect.overlaps(Offset.zero & size);
   }
 
@@ -302,7 +302,7 @@ Rect gutterClipRect({
   required bool ltr,
 }) => Rect.fromLTWH(
   ltr ? -gutterExtent : 0.0,
-  0.0,
+  0,
   size.width + gutterExtent,
   size.height,
 );

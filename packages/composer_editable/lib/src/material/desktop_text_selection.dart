@@ -4,6 +4,7 @@
 
 // ignore_for_file: implementation_imports
 
+import 'package:composer_editable/src/widget/text_selection.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, clampDouble;
 import 'package:flutter/src/material/debug.dart';
 import 'package:flutter/src/material/desktop_text_selection_toolbar.dart';
@@ -11,25 +12,23 @@ import 'package:flutter/src/material/desktop_text_selection_toolbar_button.dart'
 import 'package:flutter/src/material/material_localizations.dart';
 import 'package:flutter/widgets.dart';
 
-import '../widget/text_selection.dart';
-
 /// Desktop Material styled text selection handle controls.
 ///
 /// Specifically does not manage the toolbar, which is left to
 /// [ExtendedEditableText.contextMenuBuilder].
-class _DesktopTextSelectionHandleControls extends ExtendedDesktopTextSelectionControls
+class _DesktopTextSelectionHandleControls
+    extends ExtendedDesktopTextSelectionControls
     with ExtendedTextSelectionHandleControls {}
 
 /// Desktop Material styled text selection controls.
 ///
 /// The [extendedDesktopTextSelectionControls] global variable has a
 /// suitable instance of this class.
-class ExtendedDesktopTextSelectionControls extends ExtendedTextSelectionControls {
+class ExtendedDesktopTextSelectionControls
+    extends ExtendedTextSelectionControls {
   /// Desktop has no text selection handles.
   @override
-  Size getHandleSize(double textLineHeight) {
-    return Size.zero;
-  }
+  Size getHandleSize(double textLineHeight) => Size.zero;
 
   /// Builder for the Material-style desktop copy/paste text selection toolbar.
   @Deprecated(
@@ -46,22 +45,20 @@ class ExtendedDesktopTextSelectionControls extends ExtendedTextSelectionControls
     TextSelectionDelegate delegate,
     ValueListenable<ClipboardStatus>? clipboardStatus,
     Offset? lastSecondaryTapDownPosition,
-  ) {
-    return _DesktopTextSelectionControlsToolbar(
-      clipboardStatus: clipboardStatus,
-      endpoints: endpoints,
-      globalEditableRegion: globalEditableRegion,
-      handleCut: canCut(delegate) ? () => handleCut(delegate) : null,
-      handleCopy: canCopy(delegate) ? () => handleCopy(delegate) : null,
-      handlePaste: canPaste(delegate) ? () => handlePaste(delegate) : null,
-      handleSelectAll: canSelectAll(delegate)
-          ? () => handleSelectAll(delegate)
-          : null,
-      selectionMidpoint: selectionMidpoint,
-      lastSecondaryTapDownPosition: lastSecondaryTapDownPosition,
-      textLineHeight: textLineHeight,
-    );
-  }
+  ) => _DesktopTextSelectionControlsToolbar(
+    clipboardStatus: clipboardStatus,
+    endpoints: endpoints,
+    globalEditableRegion: globalEditableRegion,
+    handleCut: canCut(delegate) ? () => handleCut(delegate) : null,
+    handleCopy: canCopy(delegate) ? () => handleCopy(delegate) : null,
+    handlePaste: canPaste(delegate) ? () => handlePaste(delegate) : null,
+    handleSelectAll: canSelectAll(delegate)
+        ? () => handleSelectAll(delegate)
+        : null,
+    selectionMidpoint: selectionMidpoint,
+    lastSecondaryTapDownPosition: lastSecondaryTapDownPosition,
+    textLineHeight: textLineHeight,
+  );
 
   /// Builds the text selection handles, but desktop has none.
   @override
@@ -70,15 +67,12 @@ class ExtendedDesktopTextSelectionControls extends ExtendedTextSelectionControls
     TextSelectionHandleType type,
     double textLineHeight, [
     VoidCallback? onTap,
-  ]) {
-    return const SizedBox.shrink();
-  }
+  ]) => const SizedBox.shrink();
 
   /// Gets the position for the text selection handles, but desktop has none.
   @override
-  Offset getHandleAnchor(TextSelectionHandleType type, double textLineHeight) {
-    return Offset.zero;
-  }
+  Offset getHandleAnchor(TextSelectionHandleType type, double textLineHeight) =>
+      Offset.zero;
 
   @Deprecated(
     'Use `contextMenuBuilder` instead. '
@@ -88,7 +82,7 @@ class ExtendedDesktopTextSelectionControls extends ExtendedTextSelectionControls
   bool canSelectAll(TextSelectionDelegate delegate) {
     // Allow SelectAll when selection is not collapsed, unless everything has
     // already been selected. Same behavior as Android.
-    final TextEditingValue value = delegate.textEditingValue;
+    final value = delegate.textEditingValue;
     return delegate.selectAllEnabled &&
         value.text.isNotEmpty &&
         !(value.selection.start == 0 &&
@@ -181,8 +175,14 @@ class _DesktopTextSelectionControlsToolbarState
 
   @override
   Widget build(BuildContext context) {
-    assert(debugCheckHasMaterialLocalizations(context));
-    assert(debugCheckHasMediaQuery(context));
+    assert(
+      debugCheckHasMaterialLocalizations(context),
+      'MaterialLocalizations are required.',
+    );
+    assert(
+      debugCheckHasMediaQuery(context),
+      'A MediaQuery ancestor is required.',
+    );
 
     // Don't render the menu until the state of the clipboard is known.
     if (widget.handlePaste != null &&
@@ -190,7 +190,7 @@ class _DesktopTextSelectionControlsToolbarState
       return const SizedBox.shrink();
     }
 
-    final EdgeInsets mediaQueryPadding = MediaQuery.paddingOf(context);
+    final mediaQueryPadding = MediaQuery.paddingOf(context);
     final midpointAnchor = Offset(
       clampDouble(
         widget.selectionMidpoint.dx - widget.globalEditableRegion.left,
@@ -200,9 +200,7 @@ class _DesktopTextSelectionControlsToolbarState
       widget.selectionMidpoint.dy - widget.globalEditableRegion.top,
     );
 
-    final MaterialLocalizations localizations = MaterialLocalizations.of(
-      context,
-    );
+    final localizations = MaterialLocalizations.of(context);
     final items = <Widget>[];
 
     void addToolbarButton(String text, VoidCallback onPressed) {

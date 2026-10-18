@@ -21,8 +21,8 @@ void main() {
 
     test('does not branch on a debug-only pipeline flag', () {
       final flags = RegExp(
-        r'debugActiveLayout|debugDoingThisLayout|debugDoingThisResize|'
-        r'debugDoingPaint|debugDoingThisLayoutWithCallback',
+        'debugActiveLayout|debugDoingThisLayout|debugDoingThisResize|'
+        'debugDoingPaint|debugDoingThisLayoutWithCallback',
       );
 
       final offenders = <String>[
@@ -34,7 +34,7 @@ void main() {
     });
 
     test('does not write to the framework\'s visibility notifiers', () {
-      final downcast = RegExp(r'is!? ValueNotifier');
+      final downcast = RegExp('is!? ValueNotifier');
 
       final offenders = <String>[
         for (final file in sources)
@@ -170,20 +170,21 @@ void main() {
       );
     });
 
-    testWidgets('a selection change under a scrolled field settles in a frame', (
-      tester,
-    ) async {
-      final render = await pumpTallField(tester);
+    testWidgets(
+      'a selection change under a scrolled field settles in a frame',
+      (tester) async {
+        final render = await pumpTallField(tester);
 
-      await scrollTo(tester, render.preferredLineHeight * 10);
-      controller.selection = const TextSelection(
-        baseOffset: 70,
-        extentOffset: 77,
-      );
-      await tester.pump();
+        await scrollTo(tester, render.preferredLineHeight * 10);
+        controller.selection = const TextSelection(
+          baseOffset: 70,
+          extentOffset: 77,
+        );
+        await tester.pump();
 
-      expect(tester.takeException(), isNull);
-      expect(render.selectionIntersectsViewport.value, isTrue);
-    });
+        expect(tester.takeException(), isNull);
+        expect(render.selectionIntersectsViewport.value, isTrue);
+      },
+    );
   });
 }

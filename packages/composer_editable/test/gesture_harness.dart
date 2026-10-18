@@ -31,10 +31,7 @@ final class GestureFieldHarness {
 
   /// Pumps the field. [builder] wraps the app's content, for tests that need
   /// an ancestor (a [MediaQuery] override, say).
-  Future<void> pump(
-    WidgetTester tester, {
-    TransitionBuilder? builder,
-  }) async {
+  Future<void> pump(WidgetTester tester, {TransitionBuilder? builder}) async {
     _tester = tester;
     await tester.pumpWidget(
       MaterialApp(
@@ -165,9 +162,8 @@ final class GestureFieldHarness {
   }
 
   /// Text position under a global point (for asserting tap → caret mapping).
-  TextPosition positionForGlobal(Offset globalPosition) {
-    return editableState.renderEditable.getPositionForPoint(globalPosition);
-  }
+  TextPosition positionForGlobal(Offset globalPosition) =>
+      editableState.renderEditable.getPositionForPoint(globalPosition);
 
   void dispose() {
     controller.dispose();

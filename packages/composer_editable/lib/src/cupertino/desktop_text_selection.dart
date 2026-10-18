@@ -4,13 +4,12 @@
 
 // ignore_for_file: implementation_imports
 
+import 'package:composer_editable/src/widget/text_selection.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, clampDouble;
 import 'package:flutter/src/cupertino/desktop_text_selection_toolbar.dart';
 import 'package:flutter/src/cupertino/desktop_text_selection_toolbar_button.dart';
 import 'package:flutter/src/cupertino/localizations.dart';
 import 'package:flutter/widgets.dart';
-
-import '../widget/text_selection.dart';
 
 /// MacOS Cupertino styled text selection handle controls.
 ///
@@ -24,12 +23,11 @@ class _CupertinoDesktopTextSelectionHandleControls
 ///
 /// The [extendedCupertinoDesktopTextSelectionControls] global variable has a
 /// suitable instance of this class.
-class ExtendedCupertinoDesktopTextSelectionControls extends ExtendedTextSelectionControls {
+class ExtendedCupertinoDesktopTextSelectionControls
+    extends ExtendedTextSelectionControls {
   /// Desktop has no text selection handles.
   @override
-  Size getHandleSize(double textLineHeight) {
-    return Size.zero;
-  }
+  Size getHandleSize(double textLineHeight) => Size.zero;
 
   /// Builder for the MacOS-style copy/paste text selection toolbar.
   @Deprecated(
@@ -46,22 +44,20 @@ class ExtendedCupertinoDesktopTextSelectionControls extends ExtendedTextSelectio
     TextSelectionDelegate delegate,
     ValueListenable<ClipboardStatus>? clipboardStatus,
     Offset? lastSecondaryTapDownPosition,
-  ) {
-    return _CupertinoDesktopTextSelectionControlsToolbar(
-      clipboardStatus: clipboardStatus,
-      endpoints: endpoints,
-      globalEditableRegion: globalEditableRegion,
-      handleCut: canCut(delegate) ? () => handleCut(delegate) : null,
-      handleCopy: canCopy(delegate) ? () => handleCopy(delegate) : null,
-      handlePaste: canPaste(delegate) ? () => handlePaste(delegate) : null,
-      handleSelectAll: canSelectAll(delegate)
-          ? () => handleSelectAll(delegate)
-          : null,
-      selectionMidpoint: selectionMidpoint,
-      lastSecondaryTapDownPosition: lastSecondaryTapDownPosition,
-      textLineHeight: textLineHeight,
-    );
-  }
+  ) => _CupertinoDesktopTextSelectionControlsToolbar(
+    clipboardStatus: clipboardStatus,
+    endpoints: endpoints,
+    globalEditableRegion: globalEditableRegion,
+    handleCut: canCut(delegate) ? () => handleCut(delegate) : null,
+    handleCopy: canCopy(delegate) ? () => handleCopy(delegate) : null,
+    handlePaste: canPaste(delegate) ? () => handlePaste(delegate) : null,
+    handleSelectAll: canSelectAll(delegate)
+        ? () => handleSelectAll(delegate)
+        : null,
+    selectionMidpoint: selectionMidpoint,
+    lastSecondaryTapDownPosition: lastSecondaryTapDownPosition,
+    textLineHeight: textLineHeight,
+  );
 
   /// Builds the text selection handles, but desktop has none.
   @override
@@ -70,15 +66,12 @@ class ExtendedCupertinoDesktopTextSelectionControls extends ExtendedTextSelectio
     TextSelectionHandleType type,
     double textLineHeight, [
     VoidCallback? onTap,
-  ]) {
-    return const SizedBox.shrink();
-  }
+  ]) => const SizedBox.shrink();
 
   /// Gets the position for the text selection handles, but desktop has none.
   @override
-  Offset getHandleAnchor(TextSelectionHandleType type, double textLineHeight) {
-    return Offset.zero;
-  }
+  Offset getHandleAnchor(TextSelectionHandleType type, double textLineHeight) =>
+      Offset.zero;
 
   @Deprecated(
     'Use `contextMenuBuilder` instead. '
@@ -96,11 +89,13 @@ class ExtendedCupertinoDesktopTextSelectionControls extends ExtendedTextSelectio
 // extendedCupertinoDesktopTextSelectionControls.
 // See https://github.com/flutter/flutter/pull/124262
 /// Text selection handle controls that follow MacOS design conventions.
-final ExtendedTextSelectionControls extendedCupertinoDesktopTextSelectionHandleControls =
+final ExtendedTextSelectionControls
+extendedCupertinoDesktopTextSelectionHandleControls =
     _CupertinoDesktopTextSelectionHandleControls();
 
 /// Text selection controls that follows MacOS design conventions.
-final ExtendedTextSelectionControls extendedCupertinoDesktopTextSelectionControls =
+final ExtendedTextSelectionControls
+extendedCupertinoDesktopTextSelectionControls =
     ExtendedCupertinoDesktopTextSelectionControls();
 
 // Generates the child that's passed into CupertinoDesktopTextSelectionToolbar.
@@ -173,8 +168,11 @@ class _CupertinoDesktopTextSelectionControlsToolbarState
       return const SizedBox.shrink();
     }
 
-    assert(debugCheckHasMediaQuery(context));
-    final EdgeInsets mediaQueryPadding = MediaQuery.paddingOf(context);
+    assert(
+      debugCheckHasMediaQuery(context),
+      'A MediaQuery ancestor is required.',
+    );
+    final mediaQueryPadding = MediaQuery.paddingOf(context);
 
     final midpointAnchor = Offset(
       clampDouble(
@@ -186,9 +184,7 @@ class _CupertinoDesktopTextSelectionControlsToolbarState
     );
 
     final items = <Widget>[];
-    final CupertinoLocalizations localizations = CupertinoLocalizations.of(
-      context,
-    );
+    final localizations = CupertinoLocalizations.of(context);
     final Widget onePhysicalPixelVerticalDivider = SizedBox(
       width: 1.0 / MediaQuery.devicePixelRatioOf(context),
     );

@@ -6,8 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   Future<void> pumpField(
     WidgetTester tester, {
-    EdgeInsets? inset,
     required InputDecoration decoration,
+    EdgeInsets? inset,
   }) => tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
@@ -52,9 +52,7 @@ void main() {
     expect(find.text('Message'), findsOneWidget);
   });
 
-  testWidgets('both hint forms follow the inset', (
-    tester,
-  ) async {
+  testWidgets('both hint forms follow the inset', (tester) async {
     const inset = 8.0;
     await pumpField(
       tester,

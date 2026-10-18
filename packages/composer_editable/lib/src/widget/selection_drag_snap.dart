@@ -3,7 +3,7 @@ bool isInterruptedCharacter(String text, int index) {
   if (index < 0 || index >= text.length) {
     return false;
   }
-  final int cu = text.codeUnitAt(index);
+  final cu = text.codeUnitAt(index);
   if (cu == 0x5F) {
     return true; // '_'
   }
@@ -15,7 +15,7 @@ bool isInterruptedCharacter(String text, int index) {
   }
   // BMP letter/digit via Unicode categories (no surrogate pairing for snap).
   if (cu >= 0x80 && cu <= 0xFFFF) {
-    final String ch = String.fromCharCode(cu);
+    final ch = String.fromCharCode(cu);
     return RegExp(r'[\p{L}\p{N}]', unicode: true).hasMatch(ch);
   }
   return false;
@@ -27,7 +27,7 @@ int interruptedRunStart(String text, int index) {
   if (!isInterruptedCharacter(text, index)) {
     return index;
   }
-  int i = index;
+  var i = index;
   while (i > 0 && isInterruptedCharacter(text, i - 1)) {
     i--;
   }
@@ -46,7 +46,7 @@ int interruptedRunEnd(String text, int index) {
   if (!isInterruptedCharacter(text, index)) {
     return index;
   }
-  int i = index + 1;
+  var i = index + 1;
   while (i < text.length && isInterruptedCharacter(text, i)) {
     i++;
   }
@@ -85,7 +85,7 @@ int snapExtentForHandleDrag({
   if (text.isEmpty) {
     return 0;
   }
-  final int extent = rawExtent.clamp(0, text.length);
+  final extent = rawExtent.clamp(0, text.length);
   if (extent == fixedBase) {
     return extent;
   }
@@ -98,19 +98,17 @@ int snapExtentForHandleDrag({
     return extent;
   }
 
-  final int probe = extent < text.length
-      ? extent
-      : (extent > 0 ? extent - 1 : 0);
+  final probe = extent < text.length ? extent : (extent > 0 ? extent - 1 : 0);
 
   if (!isInterruptedCharacter(text, probe) &&
       !(extent > 0 && isInterruptedCharacter(text, extent - 1))) {
     return extent;
   }
 
-  final int runStart = isInterruptedCharacter(text, probe)
+  final runStart = isInterruptedCharacter(text, probe)
       ? interruptedRunStart(text, probe)
       : interruptedRunStart(text, extent - 1);
-  final int runEnd = isInterruptedCharacter(text, probe)
+  final runEnd = isInterruptedCharacter(text, probe)
       ? interruptedRunEnd(text, probe)
       : interruptedRunEnd(text, extent - 1);
 

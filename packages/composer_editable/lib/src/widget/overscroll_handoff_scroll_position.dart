@@ -29,17 +29,12 @@ class OverscrollHandoffScrollController extends ScrollController {
     if (identical(_mirror, next)) {
       return;
     }
-    final ScrollController? previous = _mirror;
-    if (previous != null) {
-      for (final ScrollPosition position in positions) {
-        previous.detach(position);
-      }
+    if (_mirror case final previous?) {
+      positions.forEach(previous.detach);
     }
     _mirror = next;
     if (next != null) {
-      for (final ScrollPosition position in positions) {
-        next.attach(position);
-      }
+      positions.forEach(next.attach);
     }
   }
 
@@ -48,16 +43,14 @@ class OverscrollHandoffScrollController extends ScrollController {
     ScrollPhysics physics,
     ScrollContext context,
     ScrollPosition? oldPosition,
-  ) {
-    return OverscrollHandoffScrollPosition(
-      physics: physics,
-      context: context,
-      oldPosition: oldPosition,
-      initialPixels: initialScrollOffset,
-      keepScrollOffset: keepScrollOffset,
-      debugLabel: debugLabel,
-    );
-  }
+  ) => OverscrollHandoffScrollPosition(
+    physics: physics,
+    context: context,
+    oldPosition: oldPosition,
+    initialPixels: initialScrollOffset,
+    keepScrollOffset: keepScrollOffset,
+    debugLabel: debugLabel,
+  );
 
   @override
   void attach(ScrollPosition position) {
@@ -73,10 +66,8 @@ class OverscrollHandoffScrollController extends ScrollController {
 
   @override
   void dispose() {
-    if (_mirror != null) {
-      for (final ScrollPosition position in positions.toList()) {
-        _mirror!.detach(position);
-      }
+    if (_mirror case final mirror?) {
+      positions.toList().forEach(mirror.detach);
     }
     super.dispose();
   }
@@ -104,21 +95,21 @@ class OverscrollHandoffScrollPosition extends ScrollPositionWithSingleContext {
   });
 
   ScrollPositionWithSingleContext? get _parentPosition {
-    final BuildContext? notificationContext = context.notificationContext;
+    final notificationContext = context.notificationContext;
     if (notificationContext == null) {
       return null;
     }
 
     // [ScrollContext.notificationContext] is the gesture detector under this
     // Scrollable, so the first ancestor is usually this position's own host.
-    ScrollableState? scrollable = notificationContext
+    var scrollable = notificationContext
         .findAncestorStateOfType<ScrollableState>();
     if (scrollable != null && identical(scrollable.position, this)) {
       scrollable = scrollable.context
           .findAncestorStateOfType<ScrollableState>();
     }
 
-    final ScrollPosition? position = scrollable?.position;
+    final position = scrollable?.position;
     if (position is! ScrollPositionWithSingleContext ||
         position.axis != axis ||
         identical(position, this)) {
@@ -155,7 +146,7 @@ class OverscrollHandoffScrollPosition extends ScrollPositionWithSingleContext {
 
   @override
   void applyUserOffset(double delta) {
-    final ScrollPositionWithSingleContext? parent = _parentPosition;
+    final parent = _parentPosition;
     if (parent == null || axis != Axis.vertical) {
       super.applyUserOffset(delta);
       return;
@@ -168,10 +159,10 @@ class OverscrollHandoffScrollPosition extends ScrollPositionWithSingleContext {
 
     // Crossing an edge in one update: consume up to the bound, hand off the
     // remainder.
-    final double applied = physics.applyPhysicsToUserOffset(this, delta);
-    final double target = pixels - applied;
+    final applied = physics.applyPhysicsToUserOffset(this, delta);
+    final target = pixels - applied;
     if (target < minScrollExtent) {
-      final double deltaToMin = pixels - minScrollExtent;
+      final deltaToMin = pixels - minScrollExtent;
       if (deltaToMin.abs() > precisionErrorTolerance) {
         super.applyUserOffset(deltaToMin);
       } else if (!_atMin) {
@@ -181,7 +172,7 @@ class OverscrollHandoffScrollPosition extends ScrollPositionWithSingleContext {
       return;
     }
     if (target > maxScrollExtent) {
-      final double deltaToMax = pixels - maxScrollExtent;
+      final deltaToMax = pixels - maxScrollExtent;
       if (deltaToMax.abs() > precisionErrorTolerance) {
         super.applyUserOffset(deltaToMax);
       } else if (!_atMax) {
@@ -196,7 +187,7 @@ class OverscrollHandoffScrollPosition extends ScrollPositionWithSingleContext {
 
   @override
   void goBallistic(double velocity) {
-    final ScrollPositionWithSingleContext? parent = _parentPosition;
+    final parent = _parentPosition;
     if (parent != null &&
         axis == Axis.vertical &&
         _shouldHandoffBallistic(velocity)) {

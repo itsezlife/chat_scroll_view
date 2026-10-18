@@ -11,11 +11,11 @@ void main() {
     })
   >
   pumpFieldInPage(WidgetTester tester) async {
-    final TextEditingController controller = TextEditingController(
-      text: List<String>.generate(200, (int i) => 'line $i').join('\n'),
+    final controller = TextEditingController(
+      text: List<String>.generate(200, (i) => 'line $i').join('\n'),
     );
     addTearDown(controller.dispose);
-    final ScrollController page = ScrollController();
+    final page = ScrollController();
     addTearDown(page.dispose);
 
     await tester.pumpWidget(
@@ -46,9 +46,7 @@ void main() {
     );
   }
 
-  testWidgets('selecting all scrolls the field, not the page', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('selecting all scrolls the field, not the page', (tester) async {
     final field = await pumpFieldInPage(tester);
 
     field.editable.userUpdateTextEditingValue(
@@ -69,9 +67,7 @@ void main() {
     expect(field.page.offset, 0);
   });
 
-  testWidgets('a caret below the fold still pulls the page', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('a caret below the fold still pulls the page', (tester) async {
     final field = await pumpFieldInPage(tester);
 
     field.page.jumpTo(field.page.position.maxScrollExtent);

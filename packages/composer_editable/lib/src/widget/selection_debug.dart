@@ -17,7 +17,7 @@ void debugLogExtendedSelection(String message) {
 
 /// Compact selection dump for logs.
 String debugSelectionSummary(TextSelection selection) {
-  final bool reversed = selection.extentOffset < selection.baseOffset;
+  final reversed = selection.extentOffset < selection.baseOffset;
   return 'base=${selection.baseOffset} extent=${selection.extentOffset} '
       'start=${selection.start} end=${selection.end} '
       'affinity=${selection.affinity.name} '
@@ -35,7 +35,7 @@ String debugFingerTrackedDeltaSummary({
 }) {
   String xy(Offset o) =>
       '(${o.dx.toStringAsFixed(1)},${o.dy.toStringAsFixed(1)})';
-  final String scroll = scrollPixels?.toStringAsFixed(1) ?? 'n/a';
+  final scroll = scrollPixels?.toStringAsFixed(1) ?? 'n/a';
   return 'fingerTracked: pointer=${xy(pointerGlobal)} '
       'overlay=${xy(overlayLocal)} leader=${xy(leaderLocal)} '
       'delta=${xy(delta)} wouldClamp=$wouldClamp scroll=$scroll';

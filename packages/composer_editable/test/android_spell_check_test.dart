@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:composer_editable/composer_editable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -34,18 +32,21 @@ void main() {
       );
     });
 
-    test('fills the Material defaults of an enabled one without a TypeError', () {
-      final inferred = ExtendedTextField.inferAndroidSpellCheckConfiguration(
-        enabled,
-      );
+    test(
+      'fills the Material defaults of an enabled one without a TypeError',
+      () {
+        final inferred = ExtendedTextField.inferAndroidSpellCheckConfiguration(
+          enabled,
+        );
 
-      expect(inferred.spellCheckEnabled, isTrue);
-      expect(
-        inferred.misspelledTextStyle,
-        ExtendedTextField.materialMisspelledTextStyle,
-      );
-      expect(inferred.spellCheckSuggestionsToolbarBuilder, isNotNull);
-    });
+        expect(inferred.spellCheckEnabled, isTrue);
+        expect(
+          inferred.misspelledTextStyle,
+          ExtendedTextField.materialMisspelledTextStyle,
+        );
+        expect(inferred.spellCheckSuggestionsToolbarBuilder, isNotNull);
+      },
+    );
 
     test('keeps a builder the host supplied', () {
       Widget hostBuilder(BuildContext context, EditableTextState state) =>

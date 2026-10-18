@@ -6,14 +6,13 @@
 
 import 'dart:math' as math;
 
+import 'package:composer_editable/src/widget/text_selection.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, clampDouble;
 import 'package:flutter/src/cupertino/localizations.dart';
 import 'package:flutter/src/cupertino/text_selection_toolbar.dart';
 import 'package:flutter/src/cupertino/text_selection_toolbar_button.dart';
 import 'package:flutter/src/cupertino/theme.dart';
 import 'package:flutter/widgets.dart';
-
-import '../widget/text_selection.dart';
 
 // Read off from the output on iOS 12. This color does not vary with the
 // application's theme color.
@@ -23,7 +22,7 @@ const double _kSelectionHandleRadius = 6;
 
 // Minimal padding from tip of the selection toolbar arrow to horizontal edges of the
 // screen. Eyeballed value.
-const double _kArrowScreenPadding = 26.0;
+const double _kArrowScreenPadding = 26;
 
 /// Draws a single text selection handle with a bar and a ball.
 class _CupertinoTextSelectionHandlePainter extends CustomPainter {
@@ -74,15 +73,14 @@ class ExtendedCupertinoTextSelectionHandleControls
 ///
 /// The [extendedCupertinoTextSelectionControls] global variable has a
 /// suitable instance of this class.
-class ExtendedCupertinoTextSelectionControls extends ExtendedTextSelectionControls {
+class ExtendedCupertinoTextSelectionControls
+    extends ExtendedTextSelectionControls {
   /// Returns the size of the Cupertino handle.
   @override
-  Size getHandleSize(double textLineHeight) {
-    return Size(
-      _kSelectionHandleRadius * 2,
-      textLineHeight + _kSelectionHandleRadius * 2 - _kSelectionHandleOverlap,
-    );
-  }
+  Size getHandleSize(double textLineHeight) => Size(
+    _kSelectionHandleRadius * 2,
+    textLineHeight + _kSelectionHandleRadius * 2 - _kSelectionHandleOverlap,
+  );
 
   /// Builder for iOS-style copy/paste text selection toolbar.
   @Deprecated(
@@ -99,21 +97,19 @@ class ExtendedCupertinoTextSelectionControls extends ExtendedTextSelectionContro
     TextSelectionDelegate delegate,
     ValueListenable<ClipboardStatus>? clipboardStatus,
     Offset? lastSecondaryTapDownPosition,
-  ) {
-    return _CupertinoTextSelectionControlsToolbar(
-      clipboardStatus: clipboardStatus,
-      endpoints: endpoints,
-      globalEditableRegion: globalEditableRegion,
-      handleCut: canCut(delegate) ? () => handleCut(delegate) : null,
-      handleCopy: canCopy(delegate) ? () => handleCopy(delegate) : null,
-      handlePaste: canPaste(delegate) ? () => handlePaste(delegate) : null,
-      handleSelectAll: canSelectAll(delegate)
-          ? () => handleSelectAll(delegate)
-          : null,
-      selectionMidpoint: selectionMidpoint,
-      textLineHeight: textLineHeight,
-    );
-  }
+  ) => _CupertinoTextSelectionControlsToolbar(
+    clipboardStatus: clipboardStatus,
+    endpoints: endpoints,
+    globalEditableRegion: globalEditableRegion,
+    handleCut: canCut(delegate) ? () => handleCut(delegate) : null,
+    handleCopy: canCopy(delegate) ? () => handleCopy(delegate) : null,
+    handlePaste: canPaste(delegate) ? () => handlePaste(delegate) : null,
+    handleSelectAll: canSelectAll(delegate)
+        ? () => handleSelectAll(delegate)
+        : null,
+    selectionMidpoint: selectionMidpoint,
+    textLineHeight: textLineHeight,
+  );
 
   /// Builder for iOS text selection edges.
   @override
@@ -173,7 +169,7 @@ class ExtendedCupertinoTextSelectionControls extends ExtendedTextSelectionContro
   /// See [ExtendedTextSelectionControls.getHandleAnchor].
   @override
   Offset getHandleAnchor(TextSelectionHandleType type, double textLineHeight) {
-    final Size handleSize = getHandleSize(textLineHeight);
+    final handleSize = getHandleSize(textLineHeight);
 
     switch (type) {
       // The circle is at the top for the left handle, and the anchor point is
@@ -203,7 +199,8 @@ class ExtendedCupertinoTextSelectionControls extends ExtendedTextSelectionContro
 // deleted, when users should migrate back to extendedCupertinoTextSelectionControls.
 // See https://github.com/flutter/flutter/pull/124262
 /// Text selection handle controls that follow iOS design conventions.
-final ExtendedTextSelectionControls extendedCupertinoTextSelectionHandleControls =
+final ExtendedTextSelectionControls
+extendedCupertinoTextSelectionHandleControls =
     ExtendedCupertinoTextSelectionHandleControls();
 
 /// Text selection controls that follow iOS design conventions.
@@ -276,13 +273,16 @@ class _CupertinoTextSelectionControlsToolbarState
       return const SizedBox.shrink();
     }
 
-    assert(debugCheckHasMediaQuery(context));
-    final EdgeInsets mediaQueryPadding = MediaQuery.paddingOf(context);
+    assert(
+      debugCheckHasMediaQuery(context),
+      'A MediaQuery ancestor is required.',
+    );
+    final mediaQueryPadding = MediaQuery.paddingOf(context);
 
     // The toolbar should appear below the TextField when there is not enough
     // space above the TextField to show it, assuming there's always enough
     // space at the bottom in this case.
-    final double anchorX = clampDouble(
+    final anchorX = clampDouble(
       widget.selectionMidpoint.dx + widget.globalEditableRegion.left,
       _kArrowScreenPadding + mediaQueryPadding.left,
       MediaQuery.widthOf(context) -
@@ -290,9 +290,9 @@ class _CupertinoTextSelectionControlsToolbarState
           _kArrowScreenPadding,
     );
 
-    final double topAmountInEditableRegion =
+    final topAmountInEditableRegion =
         widget.endpoints.first.point.dy - widget.textLineHeight;
-    final double anchorTop =
+    final anchorTop =
         math.max(topAmountInEditableRegion, 0) +
         widget.globalEditableRegion.top;
 
@@ -307,9 +307,7 @@ class _CupertinoTextSelectionControlsToolbarState
     );
 
     final items = <Widget>[];
-    final CupertinoLocalizations localizations = CupertinoLocalizations.of(
-      context,
-    );
+    final localizations = CupertinoLocalizations.of(context);
     final Widget onePhysicalPixelVerticalDivider = SizedBox(
       width: 1.0 / MediaQuery.devicePixelRatioOf(context),
     );

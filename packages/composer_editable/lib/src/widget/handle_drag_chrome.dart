@@ -1,7 +1,7 @@
+import 'package:composer_editable/src/widget/selection_handle_motion.dart'
+    show smoothMagnifierInfo;
 import 'package:flutter/animation.dart';
 import 'package:flutter/widgets.dart' show MagnifierInfo, Offset, Rect, Size;
-
-import 'selection_handle_motion.dart' show smoothMagnifierInfo;
 
 /// Phase of moving-handle chrome during / after a handle drag.
 enum HandleDragChromePhase {
@@ -43,9 +43,9 @@ MagnifierInfo pointerLineMagnifierTarget({
   required Rect fieldBounds,
   required Size caretSize,
 }) {
-  final double focalX = pointer.dx.clamp(lineBounds.left, lineBounds.right);
-  final double focalY = lineBounds.center.dy;
-  final Offset focal = Offset(focalX, focalY);
+  final focalX = pointer.dx.clamp(lineBounds.left, lineBounds.right);
+  final focalY = lineBounds.center.dy;
+  final focal = Offset(focalX, focalY);
   return MagnifierInfo(
     globalGesturePosition: focal,
     caretRect: Rect.fromCenter(
@@ -78,8 +78,8 @@ HandleDragChrome computeHandleDragChrome({
   required Duration magnifierElapsed,
   double settleT = 0,
 }) {
-  final Offset rawDragOverlay = pointer + grabOffset;
-  final Offset dragOverlay = Offset(
+  final rawDragOverlay = pointer + grabOffset;
+  final dragOverlay = Offset(
     rawDragOverlay.dx.clamp(fieldBounds.left, fieldBounds.right),
     rawDragOverlay.dy.clamp(fieldBounds.top, fieldBounds.bottom),
   );
@@ -94,18 +94,18 @@ HandleDragChrome computeHandleDragChrome({
       handleOverlay = dragOverlay;
       settleProgress = 0;
     case HandleDragChromePhase.settling:
-      final double t = settleT.clamp(0.0, 1.0);
+      final t = settleT.clamp(0.0, 1.0);
       settleProgress = Curves.easeOut.transform(t);
       handleOverlay = Offset.lerp(dragOverlay, caretAnchor, settleProgress)!;
   }
 
-  final MagnifierInfo target = pointerLineMagnifierTarget(
+  final target = pointerLineMagnifierTarget(
     pointer: pointer,
     lineBounds: lineBounds,
     fieldBounds: fieldBounds,
     caretSize: caretSize,
   );
-  final MagnifierInfo magnifierInfo = smoothMagnifierInfo(
+  final magnifierInfo = smoothMagnifierInfo(
     previous: previousMagnifier,
     target: target,
     elapsed: magnifierElapsed,

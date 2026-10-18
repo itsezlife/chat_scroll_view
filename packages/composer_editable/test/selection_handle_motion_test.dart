@@ -20,7 +20,7 @@ void main() {
 
   group('smoothMagnifierInfo', () {
     const previous = MagnifierInfo(
-      globalGesturePosition: Offset(0, 0),
+      globalGesturePosition: Offset.zero,
       caretRect: Rect.fromLTWH(0, 0, 10, 20),
       currentLineBoundaries: Rect.fromLTWH(0, 0, 100, 20),
       fieldBounds: Rect.fromLTWH(0, 0, 200, 200),
@@ -77,12 +77,7 @@ void main() {
     });
 
     test('false when gesture X differs', () {
-      const a = MagnifierInfo(
-        globalGesturePosition: Offset(0, 0),
-        caretRect: Rect.zero,
-        currentLineBoundaries: Rect.zero,
-        fieldBounds: Rect.zero,
-      );
+      const a = MagnifierInfo.empty;
       const b = MagnifierInfo(
         globalGesturePosition: Offset(10, 0),
         caretRect: Rect.zero,
@@ -106,20 +101,18 @@ void main() {
       MagnifierInfo? previousMagnifier,
       Duration magnifierElapsed = const Duration(milliseconds: 16),
       double settleT = 0,
-    }) {
-      return computeHandleDragChrome(
-        phase: phase,
-        pointer: pointer,
-        grabOffset: grabOffset,
-        caretAnchor: caretAnchor,
-        lineBounds: line,
-        fieldBounds: field,
-        caretSize: caretSize,
-        previousMagnifier: previousMagnifier,
-        magnifierElapsed: magnifierElapsed,
-        settleT: settleT,
-      );
-    }
+    }) => computeHandleDragChrome(
+      phase: phase,
+      pointer: pointer,
+      grabOffset: grabOffset,
+      caretAnchor: caretAnchor,
+      lineBounds: line,
+      fieldBounds: field,
+      caretSize: caretSize,
+      previousMagnifier: previousMagnifier,
+      magnifierElapsed: magnifierElapsed,
+      settleT: settleT,
+    );
 
     test('dragging: overlay is pointer + grabOffset', () {
       final result = chrome(
@@ -154,7 +147,7 @@ void main() {
           pointer: const Offset(250, 300), // X past line.right, Y far below
           previousMagnifier: null,
         );
-        final MagnifierInfo info = result.magnifierInfo;
+        final info = result.magnifierInfo;
         expect(info.globalGesturePosition.dx, line.right);
         expect(info.globalGesturePosition.dy, line.center.dy);
         expect(info.caretRect.center.dx, line.right);
@@ -174,7 +167,7 @@ void main() {
 
     test('settling: easeOut progress lerps overlay toward caret', () {
       const pointer = Offset(100, 200);
-      const grab = Offset(0, 0);
+      const grab = Offset.zero;
       final start = pointer + grab;
 
       final mid = chrome(

@@ -1,8 +1,6 @@
-import 'package:flutter/rendering.dart';
+import 'package:composer_editable/src/widget/editable_text.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-
-import 'editable_text.dart';
 
 /// The iOS system context menu for an [ExtendedEditableTextState].
 ///
@@ -18,9 +16,9 @@ import 'editable_text.dart';
 /// [isSupportedByField] holds.
 class ExtendedSystemContextMenu extends StatefulWidget {
   const ExtendedSystemContextMenu._({
-    super.key,
     required this.anchor,
     required this.items,
+    super.key,
     this.onSystemHide,
   });
 
@@ -28,8 +26,8 @@ class ExtendedSystemContextMenu extends StatefulWidget {
   ///
   /// [items] defaults to [getDefaultItems].
   factory ExtendedSystemContextMenu.editableText({
-    Key? key,
     required ExtendedEditableTextState editableTextState,
+    Key? key,
     List<IOSSystemContextMenuItem>? items,
   }) {
     final (:startGlyphHeight, :endGlyphHeight) = editableTextState
@@ -124,9 +122,7 @@ class _ExtendedSystemContextMenuState extends State<ExtendedSystemContextMenu> {
       'check ExtendedSystemContextMenu.isSupportedByField first.',
     );
     if (widget.items.isNotEmpty) {
-      final WidgetsLocalizations localizations = WidgetsLocalizations.of(
-        context,
-      );
+      final localizations = WidgetsLocalizations.of(context);
       _controller.showWithItems(widget.anchor, <IOSSystemContextMenuItemData>[
         for (final IOSSystemContextMenuItem item in widget.items)
           item.getData(localizations),

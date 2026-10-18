@@ -22,10 +22,7 @@ import 'universal_field_gestures_test.dart' as universal_field_gestures_test;
 
 void main() {
   group('android_spell_check_test.dart', android_spell_check_test.main);
-  group(
-    'content_scroll_padding_test.dart',
-    content_scroll_padding_test.main,
-  );
+  group('content_scroll_padding_test.dart', content_scroll_padding_test.main);
   group('exported_names_test.dart', exported_names_test.main);
   group('finger_tracked_handle_test.dart', finger_tracked_handle_test.main);
   group('ios_restored_paths_test.dart', ios_restored_paths_test.main);
@@ -36,10 +33,7 @@ void main() {
   group('release_parity_test.dart', release_parity_test.main);
   group('select_all_page_scroll_test.dart', select_all_page_scroll_test.main);
   group('selection_drag_snap_test.dart', selection_drag_snap_test.main);
-  group(
-    'selection_handle_motion_test.dart',
-    selection_handle_motion_test.main,
-  );
+  group('selection_handle_motion_test.dart', selection_handle_motion_test.main);
   group(
     'universal_field_gestures_test.dart',
     universal_field_gestures_test.main,
