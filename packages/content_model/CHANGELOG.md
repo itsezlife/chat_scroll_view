@@ -17,6 +17,12 @@ package is pre-1.0.
 
 ### Added
 
+- `EmojiOnlyText.of(RichText)` returns the `EmojiOnly` items (`EmojiOnlyItem`:
+  a unicode or document `ContentKey` and the line breaks before it) of a text
+  that is nothing but emoji, spaces, tabs and line breaks, with inline content
+  of a document key as the only entity; null for any other text. It follows
+  Telegram Android's `Emoji.parseEmojis` with no count cap.
+
 - `RichClipboard.attach(RichClipboardField)`: takes over the clipboard
   commands a platform performs itself for a focused text field (a browser's
   copy, cut and paste keys and menu), so they keep the rich form.
