@@ -1,4 +1,5 @@
-import 'package:chat_scroll_view/chat_scroll_view.dart' show IChatMessage;
+import 'package:chat_scroll_view/chat_scroll_view.dart'
+    show ChatEmojiPolicy, IChatMessage;
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:content_model/content_model.dart' show EmojiOnly;
 import 'package:meta/meta.dart';
@@ -11,9 +12,11 @@ import 'package:meta/meta.dart';
 /// decides, as the reference client does:
 ///
 /// - the user keeps the large-emoji setting on ([enabled]);
-/// - the chat allows stickers ([stickersAllowed]), or the user is an admin of
-///   it ([isAdmin]);
-/// - the message has no media, a link preview included.
+/// - on a platform that gates on it (Android), the chat allows stickers
+///   ([stickersAllowed]), or the user is an admin of it ([isAdmin]);
+/// - the message has no media, a link preview included;
+/// - the platform admits the emoji (`ChatEmojiPolicy.admits`: desktop shows at
+///   most three regular emoji large).
 @immutable
 final class LargeEmojiPolicy {
   /// A policy for a chat. A chat allows stickers, and its user is no admin,
@@ -34,12 +37,16 @@ final class LargeEmojiPolicy {
   /// not allow stickers.
   final bool isAdmin;
 
-  /// The emoji of [message] to show as the emoji-only body, or null for the
-  /// markdown body.
-  EmojiOnly? emojiOnlyOf(IChatMessage message) =>
-      enabled && (stickersAllowed || isAdmin) && !message.hasMedia
-      ? message.emojiOnly
-      : null;
+  /// The emoji of [message] to show as the emoji-only body under [platform]
+  /// (the Android family's when null), or null for the markdown body.
+  EmojiOnly? emojiOnlyOf(IChatMessage message, {ChatEmojiPolicy? platform}) {
+    final family = platform ?? const ChatEmojiPolicy.android();
+    final allowed =
+        !family.gatesOnStickerPermission || stickersAllowed || isAdmin;
+    if (!enabled || !allowed || message.hasMedia) return null;
+    final emoji = message.emojiOnly;
+    return emoji != null && family.admits(emoji) ? emoji : null;
+  }
 
   @override
   bool operator ==(Object other) =>

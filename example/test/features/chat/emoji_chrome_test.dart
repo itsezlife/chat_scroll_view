@@ -131,28 +131,30 @@ void main() {
         );
       });
 
-      test('views add the icon, a 10 dp gap and the count to the time width',
-          () {
-        const withViews = EmojiMetaMetrics(
-          timeWidth: 30,
-          timeHeight: 14,
-          viewsWidth: 20,
-        );
-        final pill = EmojiChrome.of(policy).pill(
-          metrics: withViews,
-          outgoing: false,
-          kind: ChatEmojiLayoutKind.text,
-        );
+      test(
+        'views add the icon, a 10 dp gap and the count to the time width',
+        () {
+          const withViews = EmojiMetaMetrics(
+            timeWidth: 30,
+            timeHeight: 14,
+            viewsWidth: 20,
+          );
+          final pill = EmojiChrome.of(policy).pill(
+            metrics: withViews,
+            outgoing: false,
+            kind: ChatEmojiLayoutKind.text,
+          );
 
-        // 20 (count) + 14.17 (a 17 x 12 icon scaled to 10 high) + 10 + 30.
-        expect(pill.metaWidth, closeTo(74.17, 0.01));
-        expect(pill.size.width, closeTo(86.17, 0.01));
-        expect(pill.viewsIcon!.left, 6);
-        expect(pill.viewsIcon!.width, closeTo(14.17, 0.01));
-        expect(pill.viewsIcon!.height, 10);
-        expect(pill.viewsCountOrigin!.dx, closeTo(6 + 14.17 + 3, 0.01));
-        expect(pill.timeOrigin.dx, closeTo(6 + 20 + 14.17 + 10, 0.01));
-      });
+          // 20 (count) + 14.17 (a 17 x 12 icon scaled to 10 high) + 10 + 30.
+          expect(pill.metaWidth, closeTo(74.17, 0.01));
+          expect(pill.size.width, closeTo(86.17, 0.01));
+          expect(pill.viewsIcon!.left, 6);
+          expect(pill.viewsIcon!.width, closeTo(14.17, 0.01));
+          expect(pill.viewsIcon!.height, 10);
+          expect(pill.viewsCountOrigin!.dx, closeTo(6 + 14.17 + 3, 0.01));
+          expect(pill.timeOrigin.dx, closeTo(6 + 20 + 14.17 + 10, 0.01));
+        },
+      );
 
       test('the radius is 12 dp for the text and the sticker layout', () {
         final chrome = EmojiChrome.of(policy);
@@ -235,18 +237,19 @@ void main() {
         );
       });
 
-      test('an incoming pill ends 1 dp inside the text and is 3 dp below it',
-          () {
-        final p = _place(policy, _glyphs(3));
+      test(
+        'an incoming pill ends 1 dp inside the text and is 3 dp below it',
+        () {
+          final p = _place(policy, _glyphs(3));
 
-        expect(p.body.size.height, closeTo(60.6, 1e-9));
-        expect(p.layout.body, _rect(0, 0, 112.8, 60.6));
-        expect(p.layout.pill, _rect(69.8, 40.6, 42, 17));
-        expect(p.layout.bounds, _rect(0, 0, 112.8, 60.6));
-      });
+          expect(p.body.size.height, closeTo(60.6, 1e-9));
+          expect(p.layout.body, _rect(0, 0, 112.8, 60.6));
+          expect(p.layout.pill, _rect(69.8, 40.6, 42, 17));
+          expect(p.layout.bounds, _rect(0, 0, 112.8, 60.6));
+        },
+      );
 
-      test('an outgoing pill ends 4 dp inside the text, at the right edge',
-          () {
+      test('an outgoing pill ends 4 dp inside the text, at the right edge', () {
         final p = _place(
           policy,
           _glyphs(3),
@@ -337,10 +340,7 @@ void main() {
         final chrome = EmojiChrome.of(policy);
 
         expect(
-          chrome.headerSize(
-            shape: EmojiHeaderShape.forwardedReply,
-            text: text,
-          ),
+          chrome.headerSize(shape: EmojiHeaderShape.forwardedReply, text: text),
           const Size(104, 84),
         );
       });
@@ -383,7 +383,11 @@ void main() {
           header: const Size(200, 43),
         );
 
-        expect(p.layout.header!.right, 282, reason: 'a reply\'s end is 18 dp in');
+        expect(
+          p.layout.header!.right,
+          282,
+          reason: 'a reply\'s end is 18 dp in',
+        );
       });
 
       test('above the text: a forward starts 4 dp inside an incoming box and '
@@ -447,28 +451,26 @@ void main() {
         expect(p.layout.header, _rect(16, 4.66, 85, 43));
       });
 
-      test('beside the sticker: a forward starts 1 dp below the art\'s top',
-          () {
-        final p = _place(
-          policy,
-          _glyphs(1),
-          sticker: _pack,
-          headerShape: EmojiHeaderShape.forward,
-          header: const Size(104, 44),
-        );
+      test(
+        'beside the sticker: a forward starts 1 dp below the art\'s top',
+        () {
+          final p = _place(
+            policy,
+            _glyphs(1),
+            sticker: _pack,
+            headerShape: EmojiHeaderShape.forward,
+            header: const Size(104, 44),
+          );
 
-        expect(p.layout.header!.top, closeTo(1, 1e-9));
-      });
+          expect(p.layout.header!.top, closeTo(1, 1e-9));
+        },
+      );
     });
 
     group('reactions (1.7)', () {
       test('under a text layout: the row\'s top is 29 dp under the text, its '
           'start at the text\'s start', () {
-        final p = _place(
-          policy,
-          _glyphs(3),
-          reactions: const Size(90, 26),
-        );
+        final p = _place(policy, _glyphs(3), reactions: const Size(90, 26));
 
         expect(p.layout.reactions, _rect(0, 37.6 + 29, 90, 26));
         expect(p.layout.pill!.bottom, lessThan(p.layout.reactions!.top));
@@ -584,10 +586,7 @@ void main() {
         final wide = _place(
           policy,
           _glyphs(1),
-          metrics: const EmojiMetaMetrics(
-            timeWidth: 120,
-            timeHeight: 14,
-          ),
+          metrics: const EmojiMetaMetrics(timeWidth: 120, timeHeight: 14),
         );
 
         // 98 wide box; the pill is 134 wide: its left is max(-6, 98 - 4 - 134).
@@ -645,8 +644,7 @@ void main() {
       });
 
       test('its top is 8 pt under the frame\'s top: 8 pt over a text layout '
-          '(the frame starts 16 pt above the text), 8 pt in for a sticker',
-          () {
+          '(the frame starts 16 pt above the text), 8 pt in for a sticker', () {
         final text = _place(
           policy,
           _glyphs(3),
@@ -777,20 +775,22 @@ void main() {
         expect(p.layout.pill, _rect(230, 40, 70, 21));
       });
 
-      test('outgoing sticker: the pill overlaps the art\'s bottom-end corner',
-          () {
-        final p = _place(
-          policy,
-          _glyphs(1),
-          sticker: _pack,
-          outgoing: true,
-          state: EmojiSendState.sent,
-          metrics: desktopMetrics,
-        );
+      test(
+        'outgoing sticker: the pill overlaps the art\'s bottom-end corner',
+        () {
+          final p = _place(
+            policy,
+            _glyphs(1),
+            sticker: _pack,
+            outgoing: true,
+            state: EmojiSendState.sent,
+            metrics: desktopMetrics,
+          );
 
-        expect(p.layout.body, _rect(188, 0, 112, 112));
-        expect(p.layout.pill, _rect(230, 91, 70, 21));
-      });
+          expect(p.layout.body, _rect(188, 0, 112, 112));
+          expect(p.layout.pill, _rect(230, 91, 70, 21));
+        },
+      );
 
       test('an incoming pill is pulled back inside the row\'s right margin '
           'of 22 px', () {
@@ -919,7 +919,8 @@ void main() {
         // element, 30 px above the content.
         expect(p.layout.header!.top, closeTo(3 - 30, 1e-9));
         expect(p.layout.pill!.top, closeTo(17, 1e-9));
-        expect(p.layout.bounds.height, closeTo(68, 1e-9));
+        // The union starts at the header, 3 px into the element.
+        expect(p.layout.bounds.height, closeTo(65, 1e-9));
       });
 
       test('beside, outgoing: hugging the content, 6 px before it', () {

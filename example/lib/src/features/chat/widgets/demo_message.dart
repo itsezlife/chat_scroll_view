@@ -176,8 +176,21 @@ class DemoMessageBubble extends StatelessWidget {
     if (host != null && selection != null && message.emojiOnly != null) {
       return ValueListenableBuilder<LargeEmojiPolicy>(
         valueListenable: host.policy,
-        builder: (context, policy, _) =>
-            _row(context, emojiOnly: policy.emojiOnlyOf(message)),
+        builder: (context, policy, _) {
+          final platform = ChatEmojiPolicy.forPlatform();
+          final emojiOnly = policy.emojiOnlyOf(message, platform: platform);
+          final row = _row(context, emojiOnly: emojiOnly);
+          // A platform whose emoji-only layout does not mirror keeps its
+          // sides in a right-to-left chat: the row stays left to right.
+          return emojiOnly == null
+              ? row
+              : Directionality(
+                  textDirection: platform.textDirectionFor(
+                    Directionality.of(context),
+                  ),
+                  child: row,
+                );
+        },
       );
     }
     return _row(context);

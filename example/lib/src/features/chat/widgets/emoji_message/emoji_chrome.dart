@@ -29,7 +29,13 @@ import 'dart:math' as math;
 import 'dart:ui' show Offset, Rect, Size;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart'
-    show ChatEmojiGeometry, ChatEmojiLayoutKind, ChatEmojiPolicy;
+    show
+        ChatEmojiGeometry,
+        ChatEmojiLayoutKind,
+        ChatEmojiPolicy,
+        ChatEmojiPolicy$Android,
+        ChatEmojiPolicy$Desktop,
+        ChatEmojiPolicy$Ios;
 import 'package:content_model/content_model.dart'
     show ContentKey$Document, EmojiOnly;
 import 'package:flutter/foundation.dart' show immutable;
@@ -239,7 +245,12 @@ final class EmojiChromeLayout {
   EmojiChromeLayout mirrored(double width) {
     Rect? flip(Rect? rect) => rect == null
         ? null
-        : Rect.fromLTRB(width - rect.right, rect.top, width - rect.left, rect.bottom);
+        : Rect.fromLTRB(
+            width - rect.right,
+            rect.top,
+            width - rect.left,
+            rect.bottom,
+          );
     return EmojiChromeLayout(
       body: flip(body)!,
       pill: flip(pill),
@@ -436,10 +447,9 @@ final class EmojiChrome$Android extends EmojiChrome {
   }) {
     final text = kind == ChatEmojiLayoutKind.text;
     final views = metrics.viewsWidth;
-    final iconWidth = viewsIconHeight * EmojiChrome._viewsAspect;
+    const iconWidth = viewsIconHeight * EmojiChrome._viewsAspect;
     final tw =
-        metrics.timeWidth +
-        (views == null ? 0 : views + iconWidth + viewsGap);
+        metrics.timeWidth + (views == null ? 0 : views + iconWidth + viewsGap);
     final room = !outgoing
         ? 0.0
         : text
@@ -481,12 +491,7 @@ final class EmojiChrome$Android extends EmojiChrome {
       state: state,
       viewsIcon: views == null
           ? null
-          : Rect.fromLTWH(
-              padding,
-              textTop + 1.5,
-              iconWidth,
-              viewsIconHeight,
-            ),
+          : Rect.fromLTWH(padding, textTop + 1.5, iconWidth, viewsIconHeight),
       viewsCountOrigin: views == null
           ? null
           : Offset(padding + iconWidth + viewsIconGap, textTop),
@@ -568,13 +573,7 @@ final class EmojiChrome$Android extends EmojiChrome {
     if (headerSize != null && shape != null) {
       header = isSticker
           ? _besideSticker(shape, headerSize, content, outgoing)
-          : _aboveText(
-              shape,
-              headerSize,
-              bodyLeft,
-              outgoing,
-              input.rowWidth,
-            );
+          : _aboveText(shape, headerSize, bodyLeft, outgoing, input.rowWidth);
     }
 
     Rect? reactions;
@@ -746,14 +745,13 @@ final class EmojiChrome$Ios extends EmojiChrome {
     EmojiSendState state = EmojiSendState.none,
   }) {
     final views = metrics.viewsWidth;
-    final iconWidth = unverifiedViewsIconHeight * EmojiChrome._viewsAspect;
+    const iconWidth = unverifiedViewsIconHeight * EmojiChrome._viewsAspect;
     final impression = views == null ? 0.0 : iconWidth + viewsIconGap;
     // The count is part of the date text: `count + " " + date`.
     final date =
-        metrics.timeWidth +
-        (views == null ? 0 : views + unverifiedViewsSpace);
+        metrics.timeWidth + (views == null ? 0 : views + unverifiedViewsSpace);
     final width = impression + date + (outgoing ? statusWidth : 0) + 2 * inset;
-    final height = unverifiedPillHeight;
+    const height = unverifiedPillHeight;
     final textTop = (height - metrics.timeHeight) / 2;
 
     Rect? status;
@@ -797,7 +795,7 @@ final class EmojiChrome$Ios extends EmojiChrome {
       state: state,
       viewsIcon: views == null
           ? null
-          : Rect.fromLTWH(
+          : const Rect.fromLTWH(
               inset,
               (height - unverifiedViewsIconHeight) / 2,
               iconWidth,
@@ -1046,7 +1044,9 @@ final class EmojiChrome$Desktop extends EmojiChrome {
               unverifiedViewsIconWidth,
               unverifiedViewsIconWidth / EmojiChrome._viewsAspect,
             ),
-      viewsCountOrigin: views == null ? null : Offset(paddingX + viewsBlock, paddingY),
+      viewsCountOrigin: views == null
+          ? null
+          : const Offset(paddingX + viewsBlock, paddingY),
       status: status,
     );
   }
@@ -1162,7 +1162,10 @@ final class EmojiChrome$Desktop extends EmojiChrome {
     // bottom.
     final pillRight = outgoing
         ? contentRight
-        : math.min(contentRight + besideGap + pillSize.width, rowWidth - rightSkip);
+        : math.min(
+            contentRight + besideGap + pillSize.width,
+            rowWidth - rightSkip,
+          );
     final pill = Rect.fromLTWH(
       pillRight - pillSize.width,
       elementHeight - pillSize.height,
@@ -1199,12 +1202,7 @@ final class EmojiChrome$Desktop extends EmojiChrome {
 
     final shift = Offset(0, -bodyTop);
     return EmojiChromeLayout(
-      body: Rect.fromLTWH(
-        bodyLeft,
-        0,
-        body.size.width,
-        body.size.height,
-      ),
+      body: Rect.fromLTWH(bodyLeft, 0, body.size.width, body.size.height),
       pill: pill.shift(shift),
       header: header?.shift(shift),
       reactions: reactions?.shift(shift),
