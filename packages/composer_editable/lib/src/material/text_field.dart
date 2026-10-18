@@ -13,27 +13,10 @@ library;
 
 import 'dart:ui' as ui show BoxHeightStyle, BoxWidthStyle;
 
-import 'package:flutter/cupertino.dart'
-    hide
-        AppPrivateCommandCallback,
-        ContentInsertionConfiguration,
-        EditableText,
-        EditableTextContextMenuBuilder,
-        EditableTextState,
-        TextEditingController,
-        TextSelectionControls,
-        TextSelectionGestureDetectorBuilder,
-        TextSelectionGestureDetectorBuilderDelegate,
-        TextSelectionOverlay,
-        ToolbarOptions,
-        kDefaultContentInsertionMimeTypes,
-        emptyTextSelectionControls,
-        cupertinoTextSelectionHandleControls,
-        cupertinoTextSelectionControls,
-        cupertinoDesktopTextSelectionHandleControls,
-        cupertinoDesktopTextSelectionControls;
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart' show InputCounterWidgetBuilder;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/src/material/adaptive_text_selection_toolbar.dart';
@@ -66,23 +49,6 @@ export 'package:flutter/services.dart'
 // Examples can assume:
 // late BuildContext context;
 // late FocusNode myFocusNode;
-
-/// Signature for the [ExtendedTextField.buildCounter] callback.
-typedef InputCounterWidgetBuilder =
-    Widget? Function(
-      /// The build context for the ExtendedTextField.
-      BuildContext context, {
-
-      /// The length of the string currently in the input.
-      required int currentLength,
-
-      /// The maximum string length that can be entered into the ExtendedTextField.
-      required int? maxLength,
-
-      /// Whether or not the ExtendedTextField is currently focused. Mainly provided for
-      /// the [liveRegion] parameter in the [Semantics] widget for accessibility.
-      required bool isFocused,
-    });
 
 class _TextFieldSelectionGestureDetectorBuilder
     extends ExtendedTextSelectionGestureDetectorBuilder {
@@ -207,7 +173,7 @@ class _TextFieldSelectionGestureDetectorBuilder
 /// within a [Scrollable] or nested [Scrollable]s, consider placing a
 /// [ScrollNotificationObserver] above the root [Scrollable] that contains this
 /// [ExtendedTextField] to ensure proper scroll coordination for [ExtendedTextField] and its
-/// components like [TextSelectionOverlay].
+/// components like [ExtendedTextSelectionOverlay].
 ///
 /// {@tool dartpad}
 /// This sample demonstrates how to use the [Shortcuts] and [Actions] widgets
@@ -764,7 +730,7 @@ class ExtendedTextField extends StatefulWidget {
   final bool? selectAllOnFocus;
 
   /// {@macro flutter.widgets.editableText.selectionControls}
-  final TextSelectionControls? selectionControls;
+  final ExtendedTextSelectionControls? selectionControls;
 
   /// {@macro flutter.widgets.scrollable.dragStartBehavior}
   final DragStartBehavior dragStartBehavior;
@@ -1258,7 +1224,7 @@ class ExtendedTextField extends StatefulWidget {
       ),
     );
     properties.add(
-      DiagnosticsProperty<TextSelectionControls>(
+      DiagnosticsProperty<ExtendedTextSelectionControls>(
         'selectionControls',
         selectionControls,
         defaultValue: null,
@@ -1844,7 +1810,7 @@ class _TextFieldState extends State<ExtendedTextField>
             );
     }
 
-    TextSelectionControls? textSelectionControls = widget.selectionControls;
+    ExtendedTextSelectionControls? textSelectionControls = widget.selectionControls;
     final bool paintCursorAboveText;
     bool? cursorOpacityAnimates = widget.cursorOpacityAnimates;
     Offset? cursorOffset;
@@ -1859,7 +1825,7 @@ class _TextFieldState extends State<ExtendedTextField>
       case TargetPlatform.iOS:
         final CupertinoThemeData cupertinoTheme = CupertinoTheme.of(context);
         forcePressEnabled = true;
-        textSelectionControls ??= cupertinoTextSelectionHandleControls;
+        textSelectionControls ??= extendedCupertinoTextSelectionHandleControls;
         paintCursorAboveText = true;
         cursorOpacityAnimates ??= true;
         cursorColor = _hasError
@@ -1880,7 +1846,7 @@ class _TextFieldState extends State<ExtendedTextField>
       case TargetPlatform.macOS:
         final CupertinoThemeData cupertinoTheme = CupertinoTheme.of(context);
         forcePressEnabled = false;
-        textSelectionControls ??= cupertinoDesktopTextSelectionHandleControls;
+        textSelectionControls ??= extendedCupertinoDesktopTextSelectionHandleControls;
         paintCursorAboveText = true;
         cursorOpacityAnimates ??= false;
         cursorColor = _hasError
@@ -1910,7 +1876,7 @@ class _TextFieldState extends State<ExtendedTextField>
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
         forcePressEnabled = false;
-        textSelectionControls ??= materialTextSelectionHandleControls;
+        textSelectionControls ??= extendedMaterialTextSelectionHandleControls;
         paintCursorAboveText = false;
         cursorOpacityAnimates ??= false;
         cursorColor = _hasError
@@ -1924,7 +1890,7 @@ class _TextFieldState extends State<ExtendedTextField>
 
       case TargetPlatform.linux:
         forcePressEnabled = false;
-        textSelectionControls ??= desktopTextSelectionHandleControls;
+        textSelectionControls ??= extendedDesktopTextSelectionHandleControls;
         paintCursorAboveText = false;
         cursorOpacityAnimates ??= false;
         cursorColor = _hasError
@@ -1948,7 +1914,7 @@ class _TextFieldState extends State<ExtendedTextField>
 
       case TargetPlatform.windows:
         forcePressEnabled = false;
-        textSelectionControls ??= desktopTextSelectionHandleControls;
+        textSelectionControls ??= extendedDesktopTextSelectionHandleControls;
         paintCursorAboveText = false;
         cursorOpacityAnimates ??= false;
         cursorColor = _hasError

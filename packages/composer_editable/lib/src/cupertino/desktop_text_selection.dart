@@ -8,13 +8,7 @@ import 'package:flutter/foundation.dart' show ValueListenable, clampDouble;
 import 'package:flutter/src/cupertino/desktop_text_selection_toolbar.dart';
 import 'package:flutter/src/cupertino/desktop_text_selection_toolbar_button.dart';
 import 'package:flutter/src/cupertino/localizations.dart';
-import 'package:flutter/widgets.dart'
-    hide
-        ClipboardStatus,
-        ClipboardStatusNotifier,
-        TextSelectionControls,
-        TextSelectionHandleControls,
-        emptyTextSelectionControls;
+import 'package:flutter/widgets.dart';
 
 import '../widget/text_selection.dart';
 
@@ -23,14 +17,14 @@ import '../widget/text_selection.dart';
 /// Specifically does not manage the toolbar, which is left to
 /// [ExtendedEditableText.contextMenuBuilder].
 class _CupertinoDesktopTextSelectionHandleControls
-    extends CupertinoDesktopTextSelectionControls
-    with TextSelectionHandleControls {}
+    extends ExtendedCupertinoDesktopTextSelectionControls
+    with ExtendedTextSelectionHandleControls {}
 
 /// Desktop Cupertino styled text selection controls.
 ///
-/// The [cupertinoDesktopTextSelectionControls] global variable has a
+/// The [extendedCupertinoDesktopTextSelectionControls] global variable has a
 /// suitable instance of this class.
-class CupertinoDesktopTextSelectionControls extends TextSelectionControls {
+class ExtendedCupertinoDesktopTextSelectionControls extends ExtendedTextSelectionControls {
   /// Desktop has no text selection handles.
   @override
   Size getHandleSize(double textLineHeight) {
@@ -97,17 +91,17 @@ class CupertinoDesktopTextSelectionControls extends TextSelectionControls {
   }
 }
 
-// TODO(justinmc): Deprecate this after TextSelectionControls.buildToolbar is
+// TODO(justinmc): Deprecate this after ExtendedTextSelectionControls.buildToolbar is
 // deleted, when users should migrate back to
-// cupertinoDesktopTextSelectionControls.
+// extendedCupertinoDesktopTextSelectionControls.
 // See https://github.com/flutter/flutter/pull/124262
 /// Text selection handle controls that follow MacOS design conventions.
-final TextSelectionControls cupertinoDesktopTextSelectionHandleControls =
+final ExtendedTextSelectionControls extendedCupertinoDesktopTextSelectionHandleControls =
     _CupertinoDesktopTextSelectionHandleControls();
 
 /// Text selection controls that follows MacOS design conventions.
-final TextSelectionControls cupertinoDesktopTextSelectionControls =
-    CupertinoDesktopTextSelectionControls();
+final ExtendedTextSelectionControls extendedCupertinoDesktopTextSelectionControls =
+    ExtendedCupertinoDesktopTextSelectionControls();
 
 // Generates the child that's passed into CupertinoDesktopTextSelectionToolbar.
 class _CupertinoDesktopTextSelectionControlsToolbar extends StatefulWidget {

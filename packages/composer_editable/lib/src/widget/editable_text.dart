@@ -38,9 +38,14 @@ import 'package:flutter/src/widgets/context_menu_button_item.dart';
 import 'package:flutter/src/widgets/debug.dart';
 import 'package:flutter/src/widgets/default_selection_style.dart';
 import 'package:flutter/src/widgets/default_text_editing_shortcuts.dart';
-import 'package:flutter/src/widgets/editable_text.dart'
+import 'package:flutter/widgets.dart'
     show
+        AppPrivateCommandCallback,
+        ClipboardStatus,
         ContentInsertionConfiguration,
+        LiveTextInputStatus,
+        LiveTextInputStatusNotifier,
+        SelectionChangedCallback,
         TextEditingController,
         ToolbarOptions,
         kDefaultContentInsertionMimeTypes;
@@ -88,7 +93,7 @@ export 'package:flutter/services.dart'
         TextEditingValue,
         TextInputType,
         TextSelection;
-export 'package:flutter/src/widgets/editable_text.dart'
+export 'package:flutter/widgets.dart'
     show
         ContentInsertionConfiguration,
         TextEditingController,
@@ -98,15 +103,6 @@ export 'package:flutter/src/widgets/editable_text.dart'
 // Examples can assume:
 // late BuildContext context;
 // late WidgetTester tester;
-
-/// Signature for the callback that reports when the user changes the selection
-/// (including the cursor location).
-typedef SelectionChangedCallback =
-    void Function(TextSelection selection, SelectionChangedCause? cause);
-
-/// Signature for the callback that reports the app private command results.
-typedef AppPrivateCommandCallback =
-    void Function(String action, Map<String, dynamic> data);
 
 /// Builds the plain-text clipboard payload for the current editing value.
 typedef ExtendedClipboardTextBuilder = String Function(TextEditingValue value);
@@ -539,7 +535,7 @@ class _DiscreteKeyFrameSimulation extends Simulation {
 /// within a [Scrollable] or nested [Scrollable]s, consider placing a
 /// [ScrollNotificationObserver] above the root [Scrollable] that contains this
 /// [ExtendedEditableText] to ensure proper scroll coordination for [ExtendedEditableText] and
-/// its components like [TextSelectionOverlay].
+/// its components like [ExtendedTextSelectionOverlay].
 ///
 /// {@template flutter.widgets.editableText.accessibility}
 /// ## Troubleshooting Common Accessibility Issues
@@ -711,7 +707,7 @@ class ExtendedEditableText extends StatefulWidget {
            enableInteractiveSelection ?? (!readOnly || !obscureText),
        selectAllOnFocus = selectAllOnFocus ?? _defaultSelectAllOnFocus,
        toolbarOptions =
-           selectionControls is TextSelectionHandleControls &&
+           selectionControls is ExtendedTextSelectionHandleControls &&
                toolbarOptions == null
            ? ToolbarOptions.empty
            : toolbarOptions ??
@@ -1158,8 +1154,8 @@ class ExtendedEditableText extends StatefulWidget {
   /// Historically, this field also controlled the toolbar. This is now handled
   /// by [contextMenuBuilder] instead. However, for backwards compatibility, when
   /// [selectionControls] is set to an object that does not mix in
-  /// [TextSelectionHandleControls], [contextMenuBuilder] is ignored and the
-  /// [TextSelectionControls.buildToolbar] method is used instead.
+  /// [ExtendedTextSelectionHandleControls], [contextMenuBuilder] is ignored and the
+  /// [ExtendedTextSelectionControls.buildToolbar] method is used instead.
   /// {@endtemplate}
   ///
   /// See also:
@@ -1170,7 +1166,7 @@ class ExtendedEditableText extends StatefulWidget {
   ///  * [TextField], a Material Design themed wrapper of [ExtendedEditableText], which
   ///    shows the selection toolbar upon appropriate user events based on the
   ///    user's platform set in [ThemeData.platform].
-  final TextSelectionControls? selectionControls;
+  final ExtendedTextSelectionControls? selectionControls;
 
   /// {@template flutter.widgets.editableText.keyboardType}
   /// The type of keyboard to use for editing the text.
@@ -1840,9 +1836,9 @@ class ExtendedEditableText extends StatefulWidget {
   /// in honoring the preferred anchor positions.
   ///
   /// For backwards compatibility, when [ExtendedEditableText.selectionControls] is set
-  /// to an object that does not mix in [TextSelectionHandleControls],
+  /// to an object that does not mix in [ExtendedTextSelectionHandleControls],
   /// [contextMenuBuilder] is ignored and the
-  /// [TextSelectionControls.buildToolbar] method is used instead.
+  /// [ExtendedTextSelectionControls.buildToolbar] method is used instead.
   ///
   /// {@tool dartpad}
   /// This example shows how to customize the menu, in this case by keeping the
@@ -2426,13 +2422,13 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
   final GlobalKey _editableKey = GlobalKey();
 
   /// Detects whether the clipboard can paste.
-  final ClipboardStatusNotifier clipboardStatus = kIsWeb
+  final ExtendedClipboardStatusNotifier clipboardStatus = kIsWeb
       // Web browsers will show a permission dialog when Clipboard.hasStrings is
       // called. In an ExtendedEditableText, this will happen before the paste button is
       // clicked, often before the context menu is even shown. To avoid this
       // poor user experience, always show the paste button on web.
       ? _WebClipboardStatusNotifier()
-      : ClipboardStatusNotifier();
+      : ExtendedClipboardStatusNotifier();
 
   /// Detects whether the Live Text input is enabled.
   ///
@@ -2445,7 +2441,7 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
   TextInputConnection? _textInputConnection;
   bool get _hasInputConnection => _textInputConnection?.attached ?? false;
 
-  TextSelectionOverlay? _selectionOverlay;
+  ExtendedTextSelectionOverlay? _selectionOverlay;
   ScrollNotificationObserverState? _scrollNotificationObserver;
   bool _listeningToScrollNotificationObserver = false;
   bool _scrollToolbarSuppressed = false;
@@ -2574,7 +2570,7 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
 
   @override
   bool get cutEnabled {
-    if (widget.selectionControls is! TextSelectionHandleControls) {
+    if (widget.selectionControls is! ExtendedTextSelectionHandleControls) {
       return widget.toolbarOptions.cut &&
           !widget.readOnly &&
           !widget.obscureText;
@@ -2586,7 +2582,7 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
 
   @override
   bool get copyEnabled {
-    if (widget.selectionControls is! TextSelectionHandleControls) {
+    if (widget.selectionControls is! ExtendedTextSelectionHandleControls) {
       return widget.toolbarOptions.copy && !widget.obscureText;
     }
     return !widget.obscureText && !textEditingValue.selection.isCollapsed;
@@ -2594,7 +2590,7 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
 
   @override
   bool get pasteEnabled {
-    if (widget.selectionControls is! TextSelectionHandleControls) {
+    if (widget.selectionControls is! ExtendedTextSelectionHandleControls) {
       return widget.toolbarOptions.paste && !widget.readOnly;
     }
     return !widget.readOnly &&
@@ -2603,7 +2599,7 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
 
   @override
   bool get selectAllEnabled {
-    if (widget.selectionControls is! TextSelectionHandleControls) {
+    if (widget.selectionControls is! ExtendedTextSelectionHandleControls) {
       return widget.toolbarOptions.selectAll &&
           (!widget.readOnly || !widget.obscureText) &&
           widget.enableInteractiveSelection;
@@ -3453,7 +3449,7 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
       _startOrStopCursorTimerIfNeeded();
     }
     final bool canPaste =
-        widget.selectionControls is TextSelectionHandleControls
+        widget.selectionControls is ExtendedTextSelectionHandleControls
         ? pasteEnabled
         : widget.selectionControls?.canPaste(this) ?? false;
     if (widget.selectionEnabled && pasteEnabled && canPaste) {
@@ -4365,10 +4361,10 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
     }
   }
 
-  TextSelectionOverlay _createSelectionOverlay() {
+  ExtendedTextSelectionOverlay _createSelectionOverlay() {
     final ExtendedEditableTextContextMenuBuilder? contextMenuBuilder =
         widget.contextMenuBuilder;
-    final selectionOverlay = TextSelectionOverlay(
+    final selectionOverlay = ExtendedTextSelectionOverlay(
       clipboardStatus: clipboardStatus,
       context: context,
       value: _value,
@@ -4782,7 +4778,7 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
 
   /// The current status of the text selection handles.
   @visibleForTesting
-  TextSelectionOverlay? get selectionOverlay => _selectionOverlay;
+  ExtendedTextSelectionOverlay? get selectionOverlay => _selectionOverlay;
 
   int _obscureShowCharTicksPending = 0;
   int? _obscureLatestCharIndex;
@@ -5217,7 +5213,7 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
 
   /// Toggles the visibility of the toolbar.
   void toggleToolbar([bool hideHandles = true]) {
-    final TextSelectionOverlay selectionOverlay = _selectionOverlay ??=
+    final ExtendedTextSelectionOverlay selectionOverlay = _selectionOverlay ??=
         _createSelectionOverlay();
     if (selectionOverlay.toolbarIsVisible) {
       hideToolbar(hideHandles);
@@ -5395,10 +5391,10 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
     });
   }
 
-  VoidCallback? _semanticsOnCopy(TextSelectionControls? controls) {
+  VoidCallback? _semanticsOnCopy(ExtendedTextSelectionControls? controls) {
     return widget.selectionEnabled &&
             _hasFocus &&
-            (widget.selectionControls is TextSelectionHandleControls
+            (widget.selectionControls is ExtendedTextSelectionHandleControls
                 ? copyEnabled
                 : copyEnabled &&
                       (widget.selectionControls?.canCopy(this) ?? false))
@@ -5409,10 +5405,10 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
         : null;
   }
 
-  VoidCallback? _semanticsOnCut(TextSelectionControls? controls) {
+  VoidCallback? _semanticsOnCut(ExtendedTextSelectionControls? controls) {
     return widget.selectionEnabled &&
             _hasFocus &&
-            (widget.selectionControls is TextSelectionHandleControls
+            (widget.selectionControls is ExtendedTextSelectionHandleControls
                 ? cutEnabled
                 : cutEnabled &&
                       (widget.selectionControls?.canCut(this) ?? false))
@@ -5423,10 +5419,10 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
         : null;
   }
 
-  VoidCallback? _semanticsOnPaste(TextSelectionControls? controls) {
+  VoidCallback? _semanticsOnPaste(ExtendedTextSelectionControls? controls) {
     return widget.selectionEnabled &&
             _hasFocus &&
-            (widget.selectionControls is TextSelectionHandleControls
+            (widget.selectionControls is ExtendedTextSelectionHandleControls
                 ? pasteEnabled
                 : pasteEnabled &&
                       (widget.selectionControls?.canPaste(this) ?? false)) &&
@@ -5940,7 +5936,7 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
     assert(debugCheckHasMediaQuery(context));
     super.build(context); // See AutomaticKeepAliveClientMixin.
 
-    final TextSelectionControls? controls = widget.selectionControls;
+    final ExtendedTextSelectionControls? controls = widget.selectionControls;
     final TextScaler effectiveTextScaler = switch ((
       widget.textScaler,
       widget.textScaleFactor,
@@ -7111,12 +7107,12 @@ class _PasteSelectionAction extends ContextAction<PasteTextIntent> {
   }
 }
 
-/// A [ClipboardStatusNotifier] whose [value] is hardcoded to
+/// A [ExtendedClipboardStatusNotifier] whose [value] is hardcoded to
 /// [ClipboardStatus.pasteable].
 ///
 /// Useful to avoid showing a permission dialog on web, which happens when
 /// [Clipboard.hasStrings] is called.
-class _WebClipboardStatusNotifier extends ClipboardStatusNotifier {
+class _WebClipboardStatusNotifier extends ExtendedClipboardStatusNotifier {
   @override
   ClipboardStatus value = ClipboardStatus.pasteable;
 

@@ -59,7 +59,7 @@ double compensatedHandleHitTestDx({
 ///
 /// Used for extent/highlight logic when selection inverts. **Frozen handle
 /// chrome** keeps the grabbed physical widget as the moving overlay instead —
-/// see [SelectionOverlay.isFingerTrackedMovingStartHandle] in `text_selection.dart`.
+/// see [ExtendedSelectionOverlay.isFingerTrackedMovingStartHandle] in `text_selection.dart`.
 bool fingerTrackedMovingHandleIsStart({
   required int fixedBase,
   required int extentOffset,

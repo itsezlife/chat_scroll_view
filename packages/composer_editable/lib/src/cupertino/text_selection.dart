@@ -11,13 +11,7 @@ import 'package:flutter/src/cupertino/localizations.dart';
 import 'package:flutter/src/cupertino/text_selection_toolbar.dart';
 import 'package:flutter/src/cupertino/text_selection_toolbar_button.dart';
 import 'package:flutter/src/cupertino/theme.dart';
-import 'package:flutter/widgets.dart'
-    hide
-        ClipboardStatus,
-        ClipboardStatusNotifier,
-        TextSelectionControls,
-        TextSelectionHandleControls,
-        emptyTextSelectionControls;
+import 'package:flutter/widgets.dart';
 
 import '../widget/text_selection.dart';
 
@@ -69,18 +63,18 @@ class _CupertinoTextSelectionHandlePainter extends CustomPainter {
 /// Specifically does not manage the toolbar, which is left to
 /// [ExtendedEditableText.contextMenuBuilder].
 @Deprecated(
-  'Use `CupertinoTextSelectionControls`. '
+  'Use `ExtendedCupertinoTextSelectionControls`. '
   'This feature was deprecated after v3.3.0-0.5.pre.',
 )
-class CupertinoTextSelectionHandleControls
-    extends CupertinoTextSelectionControls
-    with TextSelectionHandleControls {}
+class ExtendedCupertinoTextSelectionHandleControls
+    extends ExtendedCupertinoTextSelectionControls
+    with ExtendedTextSelectionHandleControls {}
 
 /// iOS Cupertino styled text selection controls.
 ///
-/// The [cupertinoTextSelectionControls] global variable has a
+/// The [extendedCupertinoTextSelectionControls] global variable has a
 /// suitable instance of this class.
-class CupertinoTextSelectionControls extends TextSelectionControls {
+class ExtendedCupertinoTextSelectionControls extends ExtendedTextSelectionControls {
   /// Returns the size of the Cupertino handle.
   @override
   Size getHandleSize(double textLineHeight) {
@@ -176,7 +170,7 @@ class CupertinoTextSelectionControls extends TextSelectionControls {
 
   /// Gets anchor for cupertino-style text selection handles.
   ///
-  /// See [TextSelectionControls.getHandleAnchor].
+  /// See [ExtendedTextSelectionControls.getHandleAnchor].
   @override
   Offset getHandleAnchor(TextSelectionHandleType type, double textLineHeight) {
     final Size handleSize = getHandleSize(textLineHeight);
@@ -205,16 +199,16 @@ class CupertinoTextSelectionControls extends TextSelectionControls {
   }
 }
 
-// TODO(justinmc): Deprecate this after TextSelectionControls.buildToolbar is
-// deleted, when users should migrate back to cupertinoTextSelectionControls.
+// TODO(justinmc): Deprecate this after ExtendedTextSelectionControls.buildToolbar is
+// deleted, when users should migrate back to extendedCupertinoTextSelectionControls.
 // See https://github.com/flutter/flutter/pull/124262
 /// Text selection handle controls that follow iOS design conventions.
-final TextSelectionControls cupertinoTextSelectionHandleControls =
-    CupertinoTextSelectionHandleControls();
+final ExtendedTextSelectionControls extendedCupertinoTextSelectionHandleControls =
+    ExtendedCupertinoTextSelectionHandleControls();
 
 /// Text selection controls that follow iOS design conventions.
-final TextSelectionControls cupertinoTextSelectionControls =
-    CupertinoTextSelectionControls();
+final ExtendedTextSelectionControls extendedCupertinoTextSelectionControls =
+    ExtendedCupertinoTextSelectionControls();
 
 // Generates the child that's passed into CupertinoTextSelectionToolbar.
 class _CupertinoTextSelectionControlsToolbar extends StatefulWidget {
@@ -304,7 +298,7 @@ class _CupertinoTextSelectionControlsToolbarState
 
     // The y-coordinate has to be calculated instead of directly quoting
     // selectionMidpoint.dy, since the caller
-    // (TextSelectionOverlay._buildToolbar) does not know whether the toolbar is
+    // (ExtendedTextSelectionOverlay._buildToolbar) does not know whether the toolbar is
     // going to be facing up or down.
     final anchorAbove = Offset(anchorX, anchorTop);
     final anchorBelow = Offset(

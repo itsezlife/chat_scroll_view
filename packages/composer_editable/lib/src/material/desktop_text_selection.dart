@@ -9,13 +9,7 @@ import 'package:flutter/src/material/debug.dart';
 import 'package:flutter/src/material/desktop_text_selection_toolbar.dart';
 import 'package:flutter/src/material/desktop_text_selection_toolbar_button.dart';
 import 'package:flutter/src/material/material_localizations.dart';
-import 'package:flutter/widgets.dart'
-    hide
-        ClipboardStatus,
-        ClipboardStatusNotifier,
-        TextSelectionControls,
-        TextSelectionHandleControls,
-        emptyTextSelectionControls;
+import 'package:flutter/widgets.dart';
 
 import '../widget/text_selection.dart';
 
@@ -23,14 +17,14 @@ import '../widget/text_selection.dart';
 ///
 /// Specifically does not manage the toolbar, which is left to
 /// [ExtendedEditableText.contextMenuBuilder].
-class _DesktopTextSelectionHandleControls extends DesktopTextSelectionControls
-    with TextSelectionHandleControls {}
+class _DesktopTextSelectionHandleControls extends ExtendedDesktopTextSelectionControls
+    with ExtendedTextSelectionHandleControls {}
 
 /// Desktop Material styled text selection controls.
 ///
-/// The [desktopTextSelectionControls] global variable has a
+/// The [extendedDesktopTextSelectionControls] global variable has a
 /// suitable instance of this class.
-class DesktopTextSelectionControls extends TextSelectionControls {
+class ExtendedDesktopTextSelectionControls extends ExtendedTextSelectionControls {
   /// Desktop has no text selection handles.
   @override
   Size getHandleSize(double textLineHeight) {
@@ -112,18 +106,18 @@ class DesktopTextSelectionControls extends TextSelectionControls {
   }
 }
 
-// TODO(justinmc): Deprecate this after TextSelectionControls.buildToolbar is
-// deleted, when users should migrate back to desktopTextSelectionControls.
+// TODO(justinmc): Deprecate this after ExtendedTextSelectionControls.buildToolbar is
+// deleted, when users should migrate back to extendedDesktopTextSelectionControls.
 // See https://github.com/flutter/flutter/pull/124262
 /// Desktop text selection handle controls that loosely follow Material design
 /// conventions.
-final TextSelectionControls desktopTextSelectionHandleControls =
+final ExtendedTextSelectionControls extendedDesktopTextSelectionHandleControls =
     _DesktopTextSelectionHandleControls();
 
 /// Desktop text selection controls that loosely follow Material design
 /// conventions.
-final TextSelectionControls desktopTextSelectionControls =
-    DesktopTextSelectionControls();
+final ExtendedTextSelectionControls extendedDesktopTextSelectionControls =
+    ExtendedDesktopTextSelectionControls();
 
 // Generates the child that's passed into DesktopTextSelectionToolbar.
 class _DesktopTextSelectionControlsToolbar extends StatefulWidget {

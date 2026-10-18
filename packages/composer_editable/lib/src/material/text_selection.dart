@@ -13,13 +13,7 @@ import 'package:flutter/src/material/text_selection_theme.dart';
 import 'package:flutter/src/material/text_selection_toolbar.dart';
 import 'package:flutter/src/material/text_selection_toolbar_text_button.dart';
 import 'package:flutter/src/material/theme.dart';
-import 'package:flutter/widgets.dart'
-    hide
-        ClipboardStatus,
-        ClipboardStatusNotifier,
-        TextSelectionControls,
-        TextSelectionHandleControls,
-        emptyTextSelectionControls;
+import 'package:flutter/widgets.dart';
 
 import '../widget/text_selection.dart';
 
@@ -34,17 +28,17 @@ const double _kToolbarContentDistance = 8.0;
 /// Specifically does not manage the toolbar, which is left to
 /// [ExtendedEditableText.contextMenuBuilder].
 @Deprecated(
-  'Use `MaterialTextSelectionControls`. '
+  'Use `ExtendedMaterialTextSelectionControls`. '
   'This feature was deprecated after v3.3.0-0.5.pre.',
 )
-class MaterialTextSelectionHandleControls extends MaterialTextSelectionControls
-    with TextSelectionHandleControls {}
+class ExtendedMaterialTextSelectionHandleControls extends ExtendedMaterialTextSelectionControls
+    with ExtendedTextSelectionHandleControls {}
 
 /// Android Material styled text selection controls.
 ///
-/// The [materialTextSelectionControls] global variable has a
+/// The [extendedMaterialTextSelectionControls] global variable has a
 /// suitable instance of this class.
-class MaterialTextSelectionControls extends TextSelectionControls {
+class ExtendedMaterialTextSelectionControls extends ExtendedTextSelectionControls {
   /// Returns the size of the Material handle.
   @override
   Size getHandleSize(double textLineHeight) =>
@@ -124,7 +118,7 @@ class MaterialTextSelectionControls extends TextSelectionControls {
 
   /// Gets anchor for material-style text selection handles.
   ///
-  /// See [TextSelectionControls.getHandleAnchor].
+  /// See [ExtendedTextSelectionControls.getHandleAnchor].
   @override
   Offset getHandleAnchor(TextSelectionHandleType type, double textLineHeight) {
     return switch (type) {
@@ -345,13 +339,13 @@ class _TextSelectionHandlePainter extends CustomPainter {
   }
 }
 
-// TODO(justinmc): Deprecate this after TextSelectionControls.buildToolbar is
-// deleted, when users should migrate back to materialTextSelectionControls.
+// TODO(justinmc): Deprecate this after ExtendedTextSelectionControls.buildToolbar is
+// deleted, when users should migrate back to extendedMaterialTextSelectionControls.
 // See https://github.com/flutter/flutter/pull/124262
 /// Text selection handle controls that follow the Material Design specification.
-final TextSelectionControls materialTextSelectionHandleControls =
-    MaterialTextSelectionHandleControls();
+final ExtendedTextSelectionControls extendedMaterialTextSelectionHandleControls =
+    ExtendedMaterialTextSelectionHandleControls();
 
 /// Text selection controls that follow the Material Design specification.
-final TextSelectionControls materialTextSelectionControls =
-    MaterialTextSelectionControls();
+final ExtendedTextSelectionControls extendedMaterialTextSelectionControls =
+    ExtendedMaterialTextSelectionControls();
