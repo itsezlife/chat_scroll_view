@@ -448,6 +448,13 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
 
   Future<bool> _onBack() async {
     if (!mounted) return false;
+    // Back out of the overflow page before out of the menu, as the page's own
+    // Back row does.
+    final card = _cardKey.currentState;
+    if (card != null && card.isOpen) {
+      card.close();
+      return true;
+    }
     final editable = widget.editable;
     // Not awaited: the leave animation outlives the back event.
     unawaited(_dismiss(after: SelectionMenuAfter.dismiss));
