@@ -71,6 +71,16 @@ The view imports no inset type.
   one (a caret moving forward lands after it, back lands before it), a range
   selection widens to hold it whole, and a delete that touches it removes all
   of it. `backspace` removes a whole reference, then one grapheme cluster.
+- **Formatting commands** (`toggleStyle`, `toggleCodeBlock`, `applyLink`,
+  `removeLink`, `clearFormatting`, with `isActive` / `canApply` for a menu's
+  state) change the entities of the selection and never the text, except
+  `applyLink` at a caret, which inserts the URL as linked text. A caret turns
+  the others off, except the quote and code block, which act on the caret's
+  line; there is no typing style, so text typed after a command is plain. What
+  may coexist is `RichText`'s rule: code takes the other styles and links out
+  of its range, a quote and a code block widen to whole lines, and a command it
+  cannot hold (bold inside code, code over a mention) does nothing and
+  `canApply` is false. A command that touches the IME composition does nothing.
 - **IME composition.** While the composing range is non-empty the entities are
   not touched. When composition ends the whole composition is applied as one
   replacement against the text before it began. `richText` stays consistent
@@ -99,7 +109,7 @@ The view imports no inset type.
 | Above the view: `ChromeThemeScope`, `ChromeStringsScope`, a `Directionality`, a `MediaQuery` and Material localisations (the text selection menu). Optional: `GlassSourceScope`, `GlassQualityScope`, `ChromeMotionScope` (map `MediaQuery.disableAnimations` to instant speed), `ChromeIconScope` and an `AssetCacheProvider` when inline content is drawn. | Expect a default language, a silent light theme or reduce-motion read from the platform. |
 | The extent: `ComposerController.extent` plus `max(safe area, presentation occupancy)` into the chat's bottom padding, and as `safeAreaBottom` what a keyboard or panel has left of the safe area. | Expect the composer to know insets, the panel or the keyboard height. |
 | Icons for header kinds without a stock id (`forward`, `link`) through `ChromeIconScope`; any custom action icon the same way. | Expect an unregistered id to draw more than the neutral glyph. |
-| Query kinds (`registerQueryKind`) and the suggestion panels for them; the replacement `RichText` (with its mention or inline reference entity and any trailing space) passed to `replaceQuery`. | Expect the composer to look anything up, detect bare URLs or `@names` (body linkify is host-invoked, [ADR 017](../../docs/adr/017-body-linkify-host-invoked.md)), or draw a suggestion panel. |
+| Query kinds (`registerQueryKind`) and the suggestion panels for them; the replacement `RichText` (with its mention or inline reference entity and any trailing space) passed to `replaceQuery`. | Expect the composer to look anything up, detect bare URLs or `@names` (entity detection is host-invoked, not viewport paint, [ADR 017](../../docs/adr/017-body-linkify-host-invoked.md)), or draw a suggestion panel. |
 | Entities that are links and mentions, made where the user or the host decides what they are, inserted with `text.insert` or `replaceQuery`. | Rely on the controller to turn typed text into an entity. |
 | `entityStyles` (usually `ComposerEntityStyles.fromTokens` of the chrome theme) and an `inlineContentBuilder` whose span lays out as exactly the reference's alternative text length. | Return a span of another length: the field maps selection by text offsets (a debug assertion checks it). |
 | Mode state: reply or edit ids, banners, the busy flag. It loads an edited message with `restore(RichText)` and reads `richText` to send or store a draft (`toJson`, or `RichTextMarkdown` for a body). | Look for reply, edit or enabled state on the controller. |
