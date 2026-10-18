@@ -23,7 +23,7 @@ import 'selection_highlight_gapless_test.dart'
     as selection_highlight_gapless_test;
 import 'selection_highlight_golden_test.dart'
     as selection_highlight_golden_test;
-import 'self_fading_toolbar_test.dart' as self_fading_toolbar_test;
+import 'toolbar_fade_test.dart' as toolbar_fade_test;
 import 'universal_field_gestures_test.dart' as universal_field_gestures_test;
 
 void main() {
@@ -49,7 +49,7 @@ void main() {
     'selection_highlight_golden_test.dart',
     selection_highlight_golden_test.main,
   );
-  group('self_fading_toolbar_test.dart', self_fading_toolbar_test.main);
+  group('toolbar_fade_test.dart', toolbar_fade_test.main);
   group(
     'universal_field_gestures_test.dart',
     universal_field_gestures_test.main,

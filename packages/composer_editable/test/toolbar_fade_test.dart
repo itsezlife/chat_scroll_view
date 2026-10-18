@@ -1,13 +1,12 @@
 import 'package:composer_editable/composer_editable.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// A context menu returned inside `ExtendedSelfFadingToolbar` is not faded by
-/// the toolbar wrapper; any other menu is.
+/// The toolbar wrapper fades a context menu in over 150 ms and owns that fade:
+/// a menu that animates its own enter multiplies with it.
 ///
 /// **Seam:** an `ExtendedTextField` whose menu builder returns a probe, with
-/// the selection shown and then hidden by a scroll in the field.
+/// the selection shown.
 void main() {
   const text = 'one two three four';
 
@@ -70,26 +69,5 @@ void main() {
     expect(fadeOf(tester), inExclusiveRange(0, 1));
     await tester.pump(const Duration(milliseconds: 100));
     expect(fadeOf(tester), 1);
-  });
-
-  testWidgets('a self-fading menu gets no wrapper fade and the visibility', (
-    tester,
-  ) async {
-    ValueListenable<bool>? seen;
-    await pumpField(
-      tester,
-      (context, editable) => ExtendedSelfFadingToolbar(
-        builder: (context, visibility) {
-          seen = visibility;
-          return const SizedBox(key: Key('probe'), width: 40, height: 40);
-        },
-      ),
-    );
-    await tester.pump();
-
-    expect(find.byKey(const Key('probe')), findsOneWidget);
-    expect(fadeOf(tester), 1);
-    expect(seen, isNotNull);
-    expect(seen!.value, isTrue);
   });
 }
