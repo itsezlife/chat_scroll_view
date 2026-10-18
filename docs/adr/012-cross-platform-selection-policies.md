@@ -3,7 +3,9 @@
 **Status**: Accepted  
 **Date**: 2026-09-12  
 **Updated**: 2026-09-12 (engine-owned mobile routing; membership/retarget as
-this policy; inline hits; deferred desktop drag-out promotion)  
+this policy; inline hits; deferred desktop drag-out promotion); 2026-10-18
+(desktop: every body stays live while text is active; the range suppresses
+inline activation only in its own message)  
 **Supersedes**: [ADR 010](010-message-then-text-selection.md)
 
 Chat-list **message selection** and **text selection** are two modes under one
@@ -50,7 +52,13 @@ message selection / span gesture.
 
 Direct character-range entry: press+drag (letter / word / paragraph by click
 count) on bubble text, with no prior **message selection**. Text-active and
-message membership are **mutually exclusive**. Settled **message selection**
+message membership are **mutually exclusive**.
+Pressing a body arms it as the **text selection subject** on pointer-down, so
+text is active almost permanently: every other body therefore keeps its
+selection surface while text is active (text cursor, inline hits, the scope's
+mouse recognizers). A surface only on the subject would leave every other
+message dead until the subject was dismissed (a click elsewhere or Esc), which
+is the stuck-pointer defect this clause closes. Settled **message selection**
 does not allow starting character-range text selection;
 inline link/code activation may still fire without clearing membership.
 
@@ -83,7 +91,9 @@ selection** or a live **character-range text selection** suppresses *all*
 inline activations (links, inline code, fenced COPY chrome) so row toggles /
 range ownership win. Under desktop/web policy, inline activation stays live
 during **message selection** alone and during arm-for-entry; a live
-character-range still suppresses inline activation. Idle link and code taps
+character-range suppresses inline activation only inside its own message (the
+**text selection subject**). A link or code chrome in another message
+activates, and dismisses the range as any click away from it does. Idle link and code taps
 still activate.
 
 ## Considered options

@@ -1393,7 +1393,7 @@ void main() {
       },
     );
 
-    test('exposesSelectionSurface follows desktop exclusive policy', () {
+    test('exposesSelectionSurface keeps every desktop body mounted', () {
       final selection = ChatSelectionController(
         policy: const ChatSelectionPolicy.desktop(),
       );
@@ -1407,10 +1407,13 @@ void main() {
       expect(selection.exposesSelectionSurface(2), isTrue);
       expect(selection.exposesSelectionSurface(3), isFalse); // not registered
 
-      // 2. Active text selection on message 1: only subject 1 exposes surface
+      // 2. Active text selection on message 1: every body keeps its surface,
+      // or hover, inline hits and a press-to-retarget on message 2 would die
+      // until the subject was dismissed.
       expect(selection.enterTextSelection(1), isTrue);
       expect(selection.exposesSelectionSurface(1), isTrue);
-      expect(selection.exposesSelectionSurface(2), isFalse);
+      expect(selection.exposesSelectionSurface(2), isTrue);
+      expect(selection.exposesSelectionSurface(3), isFalse); // not registered
 
       // 3. Clear text, enter message selection: surfaces stay mounted so
       // inline link/code/chrome hits remain resolvable (desktop/web).
