@@ -83,6 +83,32 @@ commits message selection (`applyDragSelection`), locking out further text
 selection until message mode is dismissed. Omission from the foundation cut is
 not a policy rejection.
 
+## Status chrome (tap barrier)
+
+A mouse click on a message's status chrome (the time and delivery state, which
+desktop shows on hover for some bodies) is not a message tap. The host wraps
+the chrome in `ChatMessageTapBarrier`; the selection pointer then treats a
+primary press that starts on it as no press on the message: no toggle, no span
+or drag-select, no text-selection arming, no idle tap, no inline hit under it (a
+pill over a sticker's corner is not the sticker).
+
+Left unchanged on purpose: a **secondary** click still reaches
+`onSecondaryMessageTap` (the context menu is the message's wherever it opens),
+a tap still dismisses live **text selection**, and **touch is never barred**
+(Android routes a time tap in message selection to the row like any other tap).
+
+**Divergence from Telegram Desktop, recorded.** Its list widget makes a click
+on the date / time area (`CursorState::Date`, `BottomInfo::textState`) select
+the message when nothing is selected (`SelectAction::Select` in
+`ListWidget::mouseActionFinish`, `HistoryInner::mouseActionFinish`), toggles it
+in message selection like any other click, and starts a forward drag, not a
+text selection, from a press-and-drag there; a right-click opens the message's
+menu. Here the chosen behaviour is the host's: this repository's desktop
+policy does not select on a plain click, so a click on the pill does nothing,
+and the example wraps its pills in the barrier. A host that wants the
+reference's select-on-time-click does not wrap its status chrome and handles
+the click itself.
+
 ## Inline hits (both strategies)
 
 Link activation and code/pre click-to-copy (or host callbacks for those) are
