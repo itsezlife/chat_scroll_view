@@ -2,14 +2,17 @@
 /// what a message carries (a markdown body), at the two moments a body crosses
 /// it: sending, and loading a message back into the composer to edit it.
 ///
-/// The conformance group parses the helper's output with the real `flutter_md`
-/// parser the viewport renders with, so a dialect drift between the two shows
-/// here and not on a screen.
+/// The conformance group is the seam between the two repositories: what
+/// `RichTextMarkdown` writes, the pinned `flutter_md` parser the viewport
+/// renders with reads back as the entity it came from. The fork pins each
+/// spelling in its own suite; this group holds no list of spans of its own, so
+/// a drift shows here and not on a screen.
 library;
 
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:content_model/content_model.dart' hide RichText;
 import 'package:content_model/content_model.dart' as model show RichText;
+import 'package:content_model/markdown.dart';
 import 'package:flutter_md/flutter_md.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -37,14 +40,35 @@ _Rich _withEmoji(String before, String glyph, String after) =>
       ),
     ]);
 
-/// What the viewport sees of [body]: its paragraph spans as text and styles
-/// (`''` for plain text).
-List<(String, String)> _spans(String body) => [
-  for (final block in Markdown.fromString(body).blocks)
-    if (block is MD$Paragraph)
-      for (final span in block.spans)
-        (span.text, (span.style.styles.toList()..sort()).join('+')),
-];
+/// The span style a kind must read back as, or null for a kind that is not an
+/// inline span (a quote, a code block, a list item).
+MD$Style? _styleOf(EntityKind kind) => switch (kind) {
+  EntityKind$Style(:final style) => switch (style) {
+    EntityStyle.bold => MD$Style.bold,
+    EntityStyle.italic => MD$Style.italic,
+    EntityStyle.underline => MD$Style.underline,
+    EntityStyle.strike => MD$Style.strikethrough,
+    EntityStyle.spoiler => MD$Style.spoiler,
+    EntityStyle.code => MD$Style.monospace,
+    EntityStyle.quote => null,
+  },
+  EntityKind$Link() => MD$Style.link,
+  EntityKind$Mention() ||
+  EntityKind$Username() ||
+  EntityKind$Hashtag() => MD$Style.mention,
+  EntityKind$InlineContent() => MD$Style.image,
+  EntityKind$CodeBlock() || EntityKind$List() => null,
+};
+
+/// The `extra` entries a kind's span must carry.
+Map<String, Object?> _extraOf(EntityKind kind) => switch (kind) {
+  EntityKind$Link(:final url) => {'href': url},
+  EntityKind$Mention(:final id) => {'scheme': 'mention', 'id': id},
+  EntityKind$Username(:final name) => {'scheme': 'username', 'name': name},
+  EntityKind$Hashtag(:final tag) => {'scheme': 'hashtag', 'name': tag},
+  EntityKind$InlineContent(:final key) => {'src': key.encoded},
+  _ => const {},
+};
 
 void main() {
   group('sending', () {
@@ -85,6 +109,39 @@ void main() {
       expect(
         ChatBodyMarkdown.encode(typed),
         'see https://example.com and @alice',
+      );
+    });
+  });
+
+  group('an emoji-only draft is sent as typed', () {
+    // Telegram Android skips the trim for it (research 05 section 3.6), so a
+    // multi-line arrangement of emoji survives.
+    test('its blank lines and trailing space are not trimmed', () {
+      expect(
+        ChatBodyMarkdown.send(const _Rich.plain('$_thumbsUp\n\n$_thumbsUp ')),
+        '$_thumbsUp\n\n$_thumbsUp ',
+      );
+    });
+
+    test('also when the picker made the emoji entities', () {
+      final picked = _withEmoji('', _thumbsUp, ' ');
+
+      expect(ChatBodyMarkdown.send(picked), '$_thumbsUp ');
+    });
+
+    test('a custom emoji is emoji, too', () {
+      final text = _Rich('\n\u{1F680} ', const [
+        Entity(1, 2, EntityKind.inlineContent(ContentKey.document('rocket'))),
+      ]);
+
+      expect(ChatBodyMarkdown.send(text), '\n![\u{1F680}](document:rocket) ');
+    });
+
+    test('any other text is trimmed as before', () {
+      expect(ChatBodyMarkdown.send(const _Rich.plain(' hi ')), 'hi');
+      expect(
+        ChatBodyMarkdown.send(const _Rich.plain(' $_thumbsUp hi ')),
+        '$_thumbsUp hi',
       );
     });
   });
@@ -265,93 +322,91 @@ void main() {
   });
 
   group('conformance with the viewport\'s markdown parser', () {
-    test('every style the composer can write reads back as that style', () {
-      final cases = <(_Rich, List<(String, String)>)>[
-        (
-          _Rich('a bold b', const [Entity(2, 4, EntityKind.bold)]),
-          [('a ', ''), ('bold', 'bold'), (' b', '')],
-        ),
-        (
-          _Rich('an italic', const [Entity(3, 6, EntityKind.italic)]),
-          [('an ', ''), ('italic', 'italic')],
-        ),
-        (
-          _Rich('x gone', const [Entity(2, 4, EntityKind.strike)]),
-          [('x ', ''), ('gone', 'strikethrough')],
-        ),
-        (
-          _Rich('c code d', const [Entity(2, 4, EntityKind.code)]),
-          [('c ', ''), ('code', 'monospace'), (' d', '')],
-        ),
-        (
-          _Rich('go there', const [
-            Entity(0, 2, EntityKind.link('https://a.b')),
-          ]),
-          [('go', 'link'), (' there', '')],
-        ),
-        (
-          _Rich('hi @alice', const [Entity(3, 6, EntityKind.mention('alice'))]),
-          [('hi ', ''), ('@alice', 'mention')],
-        ),
-      ];
+    // The fork pins how each spelling parses (its dialect conformance suite).
+    // This group pins only the seam between the two repositories: what
+    // RichTextMarkdown writes, the viewport's parser reads back as the entity
+    // it came from. The expectation is computed from each entity, so there is
+    // no second list of spans to keep in step with the fork's.
+    final corpus = <_Rich>[
+      _Rich('bold italic under strike spoil code', const [
+        Entity(0, 4, EntityKind.bold),
+        Entity(5, 6, EntityKind.italic),
+        Entity(12, 5, EntityKind.underline),
+        Entity(18, 6, EntityKind.strike),
+        Entity(25, 5, EntityKind.spoiler),
+        Entity(31, 4, EntityKind.code),
+      ]),
+      _Rich('go @alice @bob #tag party x', const [
+        Entity(0, 2, EntityKind.link('https://a.b/c?d=1')),
+        Entity(3, 6, EntityKind.mention('alice')),
+        Entity(10, 4, EntityKind.username('bob')),
+        Entity(15, 4, EntityKind.hashtag('tag')),
+        Entity(20, 5, EntityKind.inlineContent(ContentKey.document('5368'))),
+      ]),
+      // Styles that overlap partially and a style around a link.
+      _Rich('a bold and italic b', const [
+        Entity(2, 8, EntityKind.bold),
+        Entity(7, 8, EntityKind.italic),
+      ]),
+      _Rich('see this one', const [
+        Entity(0, 12, EntityKind.bold),
+        Entity(4, 4, EntityKind.link('https://a.b')),
+      ]),
+    ];
 
-      for (final (text, expected) in cases) {
-        expect(
-          _spans(ChatBodyMarkdown.encode(text)),
-          expected,
-          reason: text.plain,
-        );
-      }
-    });
+    for (final text in corpus) {
+      test(text.plain, () {
+        final blocks = Markdown.fromString(
+          RichTextMarkdown.encode(text),
+        ).blocks;
+        final spans = [
+          for (final block in blocks)
+            if (block is MD$Paragraph) ...block.spans,
+        ];
 
-    test('a link carries its target and a mention its scheme, as a mention and '
-        'not a link', () {
-      final body = ChatBodyMarkdown.encode(
-        _Rich('hi @alice and site', const [
-          Entity(3, 6, EntityKind.mention('alice')),
-          Entity(14, 4, EntityKind.link('https://a.b/c')),
-        ]),
-      );
+        expect(spans.map((span) => span.text).join(), text.plain);
 
-      final spans = [
-        for (final block in Markdown.fromString(body).blocks)
-          if (block is MD$Paragraph) ...block.spans,
-      ];
-      final links = {
-        for (final span in spans)
-          if (span.style.contains(MD$Style.link))
-            span.text: span.extra!['href'],
-      };
-      final mentions = {
-        for (final span in spans)
-          if (span.style.contains(MD$Style.mention))
-            span.text: (span.extra!['scheme'], span.extra!['id']),
-      };
+        // Visible offset of each span: the text before it.
+        var at = 0;
+        final starts = <MD$Span, int>{};
+        for (final span in spans) {
+          starts[span] = at;
+          at += span.text.length;
+        }
+        for (final entity in text.entities) {
+          final style = _styleOf(entity.kind)!;
+          final covered = spans.where(
+            (span) =>
+                starts[span]! < entity.end &&
+                starts[span]! + span.text.length > entity.offset,
+          );
 
-      expect(links, {'site': 'https://a.b/c'});
-      expect(mentions, {'@alice': ('mention', 'alice')});
-    });
-
-    test('a reference to other content reads as one image span with its '
-        'target', () {
-      final body = ChatBodyMarkdown.encode(_Rich('party', const [_party]));
-
-      final span = Markdown.fromString(
-        body,
-      ).blocks.whereType<MD$Paragraph>().single.spans.single;
-
-      expect(span.text, 'party');
-      expect(span.style.styles, {'image'});
-      expect(span.extra!['src'], 'document:5368');
-    });
+          expect(covered, isNotEmpty, reason: '$entity');
+          for (final span in covered) {
+            expect(span.style.contains(style), isTrue, reason: '$entity');
+            // A mention-class span is never also a link.
+            if (style == MD$Style.mention) {
+              expect(span.style.contains(MD$Style.link), isFalse);
+            }
+            for (final MapEntry(:key, :value) in _extraOf(
+              entity.kind,
+            ).entries) {
+              expect(span.extra?[key], value, reason: '$entity');
+            }
+          }
+        }
+      });
+    }
 
     test('text that looks like markup is shown as typed', () {
       const typed = _Rich.plain('2 * 3 * 4 and `tick` and [not](a link)');
 
-      final spans = _spans(ChatBodyMarkdown.encode(typed));
+      final spans = Markdown.fromString(
+        RichTextMarkdown.encode(typed),
+      ).blocks.whereType<MD$Paragraph>().single.spans;
 
-      expect(spans.map((span) => span.$1).join(), typed.plain);
-      expect(spans.every((span) => span.$2.isEmpty), isTrue);
+      expect(spans.map((span) => span.text).join(), typed.plain);
+      expect(spans.every((span) => span.style == MD$Style.none), isTrue);
     });
   });
 }

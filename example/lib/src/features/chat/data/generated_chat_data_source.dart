@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 
 /// How [GeneratedChatDataSource] builds message body text.
@@ -12,6 +13,10 @@ enum GeneratedMessageStyle {
 
   /// Short, medium, and long conversational phrases (~30/50/20 mix).
   varied,
+
+  /// The bodies of [ShowcaseBodies] in turn: custom emoji in the text,
+  /// spoilers, mentions, hashtags and the emoji-only layouts.
+  showcase,
 }
 
 /// In-memory [ChatDataSource] that synthesizes messages on demand.
@@ -192,6 +197,8 @@ class GeneratedChatDataSource extends ChatDataSource {
     final plain = switch (style) {
       GeneratedMessageStyle.lorem => _loremContent(rng, id),
       GeneratedMessageStyle.varied => _variedContent(rng),
+      GeneratedMessageStyle.showcase =>
+        ShowcaseBodies.all[id % ShowcaseBodies.all.length],
     };
     return UserChatMessage(
       id: id,

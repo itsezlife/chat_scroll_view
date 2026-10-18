@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 
+import 'package:chat_scroll_view/chat_scroll_view.dart' show ChatDataSource;
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/boot.dart';
@@ -10,6 +11,8 @@ import 'package:chat_scroll_view_example/src/common/environment_specific/host_en
     as environment_specific;
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
@@ -33,7 +36,12 @@ void main() => l.capture<void>(
       bindExamplePreImeBack();
       await bootApp(
         createServices: _createServices,
-        appOf: (services) => ChatDemoApp(services: services),
+        appOf: (services) => ChatDemoApp(
+          services: services,
+          chatDataSourceLoader: DemoConfig.chatSource == 'showcase'
+              ? _loadShowcase
+              : null,
+        ),
       );
     },
     (error, stackTrace) =>
@@ -47,6 +55,13 @@ void main() => l.capture<void>(
     output: LogOutput.print,
     outputInRelease: true,
   ),
+);
+
+// Four rounds of the showcase bodies: custom emoji in the text, spoilers,
+// mentions and the emoji-only layouts.
+Future<ChatDataSource> _loadShowcase() async => GeneratedChatDataSource(
+  messageCount: ShowcaseBodies.all.length * 4,
+  style: GeneratedMessageStyle.showcase,
 );
 
 // Backend, stores and the emoji catalogue before the first frame, so the

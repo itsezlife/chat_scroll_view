@@ -96,6 +96,36 @@ void main() {
     });
   });
 
+  group('an emoji-only draft', () {
+    testWidgets('is sent as typed, blank lines and trailing space kept', (
+      tester,
+    ) async {
+      final rig = await InputRig.pump(
+        tester,
+        services: await _services(tester),
+      );
+      rig.set.composer.restore(const RichText.plain('\u{1F44D}\n\n\u{1F44D} '));
+
+      await rig.set.submit();
+      await _settle(tester);
+
+      expect(rig.sent, ['\u{1F44D}\n\n\u{1F44D} ']);
+    });
+
+    testWidgets('and any other text is trimmed as before', (tester) async {
+      final rig = await InputRig.pump(
+        tester,
+        services: await _services(tester),
+      );
+      rig.set.composer.restore(const RichText.plain(' hi '));
+
+      await rig.set.submit();
+      await _settle(tester);
+
+      expect(rig.sent, ['hi']);
+    });
+  });
+
   group('the length budget', () {
     // The field of a full message grows past the window, so these send through
     // `submit`, which the button calls.

@@ -51,6 +51,45 @@ void main() {
     expect(File('assets/animated_emoji/LICENSE.md').existsSync(), isTrue);
   });
 
+  group('the sticker of a unicode emoji', () {
+    test('is its animated document', () {
+      final thumbsUp = AnimatedEmojiPack.emoji.singleWhere(
+        (item) => item.code == '1f44d',
+      );
+
+      expect(
+        AnimatedEmojiPack.stickerFor(const ContentKey.unicode('\u{1F44D}')),
+        thumbsUp.key,
+      );
+    });
+
+    test('is found with or without the variation selector', () {
+      final heart = AnimatedEmojiPack.emoji.singleWhere(
+        (item) => item.code == '2764_fe0f',
+      );
+
+      expect(
+        AnimatedEmojiPack.stickerFor(const ContentKey.unicode('\u2764')),
+        heart.key,
+      );
+      expect(
+        AnimatedEmojiPack.stickerFor(const ContentKey.unicode('\u2764\uFE0F')),
+        heart.key,
+      );
+    });
+
+    test('is none for an emoji the pack lacks, and for other content', () {
+      expect(
+        AnimatedEmojiPack.stickerFor(const ContentKey.unicode('\u{1F9A5}')),
+        isNull,
+      );
+      expect(
+        AnimatedEmojiPack.stickerFor(const ContentKey.document('5368')),
+        isNull,
+      );
+    });
+  });
+
   test('every emoji is its own content and reads as its unicode emoji', () {
     final keys = {for (final item in AnimatedEmojiPack.emoji) item.key};
     expect(keys, hasLength(AnimatedEmojiPack.emoji.length));

@@ -40,4 +40,32 @@ void main() {
       }
     });
   });
+
+  group('demoDarkMarkdownTheme inline layer', () {
+    testWidgets('hides no image span: an embed or its alt text shows', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+
+      final theme = demoDarkMarkdownTheme(
+        tester.element(find.byType(SizedBox)),
+      );
+
+      expect(theme.spanFilter, isNull);
+    });
+
+    testWidgets('colours a mention, a username and a hashtag', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+
+      final theme = demoDarkMarkdownTheme(
+        tester.element(find.byType(SizedBox)),
+      );
+
+      expect(theme.mentionColor, const Color(0xFF58A6FF));
+      expect(
+        theme.textStyleFor(MD$Style.mention).color,
+        const Color(0xFF58A6FF),
+      );
+    });
+  });
 }

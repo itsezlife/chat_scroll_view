@@ -106,6 +106,24 @@ abstract final class AnimatedEmojiPack {
   /// The emoji of [key], or null for content that is not the pack's.
   static AnimatedEmoji? of(ContentKey key) => _byKey[key];
 
+  // Without the variation selector: a message typed on a keyboard that omits
+  // it ("\u2764") and one that adds it ("\u2764\uFE0F") are the same emoji.
+  static final Map<String, ContentKey> _stickerBySequence = {
+    for (final item in emoji) _withoutSelector(item.sequence): item.key,
+  };
+
+  static String _withoutSelector(String sequence) =>
+      sequence.replaceAll('\uFE0F', '');
+
+  /// The animated document a lone unicode emoji [key] is shown as (the host's
+  /// `unicode` to `document` map for `ChatEmojiBody.sticker`), or null when the
+  /// pack has none for it, and for content that is not a unicode emoji.
+  static ContentKey? stickerFor(ContentKey key) => switch (key) {
+    ContentKey$Unicode(:final sequence) =>
+      _stickerBySequence[_withoutSelector(sequence)],
+    _ => null,
+  };
+
   /// The descriptor of every emoji, for the host's asset pipeline.
   static Iterable<ContentDescriptor> get descriptors =>
       emoji.map((item) => item.descriptor);

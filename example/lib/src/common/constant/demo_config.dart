@@ -39,6 +39,14 @@ abstract final class DemoConfig {
     defaultValue: 4096,
   );
 
+  /// Which messages the app opens: `comments` (the bundled issue comments,
+  /// the default) or `showcase` (generated rows of the inline layer and the
+  /// emoji-only bodies), from `--dart-define=CHAT_SOURCE=showcase`.
+  static const String chatSource = String.fromEnvironment(
+    'CHAT_SOURCE',
+    defaultValue: 'comments',
+  );
+
   /// Whether the Supabase publishable key is set.
   static bool get hasSupabasePublishableKey =>
       supabasePublishableKey.isNotEmpty;
