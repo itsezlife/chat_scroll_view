@@ -406,6 +406,13 @@ class ComposerTextController extends TextEditingController {
     return TextFormatting.isActive(richText, from, to, kind);
   }
 
+  /// The target of the first link the selection touches, or null when it
+  /// touches none; what an edit-link prompt starts from.
+  String? get selectedLinkUrl {
+    final (from, to) = _selectedRange(richText);
+    return TextFormatting.linkUrl(richText, from, to);
+  }
+
   /// Whether the command for [kind] would change anything now: toggling it
   /// either way, or for a link, applying it.
   ///

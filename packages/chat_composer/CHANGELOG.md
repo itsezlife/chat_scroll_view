@@ -8,6 +8,22 @@ is pre-1.0.
 
 ### Added
 
+- `ComposerSelectionMenu`, the field's selection menu on every platform:
+  Telegram Android's floating toolbar (48 dp rows, a 56 by 48 More button, an
+  overflow page that reshapes the card over 250 ms and is sized to its items up
+  to 264 dp with an edge fade, enter 150 ms, dismiss 150 ms plus 100 ms, a hide
+  while the selection moves after 500 ms and back 50 ms after). The platform
+  menu is no longer used. Items: the clipboard actions, then Quote, Spoiler,
+  Bold, Italic, Mono, Strikethrough, Underline, Code block, the list items
+  (while lists are on), Create or Edit and Remove link, and Regular. An item
+  that cannot apply to the selection is left out. Tab from the field moves
+  focus into the menu; Escape closes it.
+- `ComposerFormattingOption` and `ComposerSpec.formatting`: which items the
+  menu may offer (default `ComposerFormattingOption.standard`).
+- `ComposerSpec.backPriority` (`ComposerBackPriority`): the host's hook for
+  taking Back ahead of the soft keyboard while the menu is open.
+- `ComposerTextController.selectedLinkUrl`: the target of the link the
+  selection touches.
 - Formatting shortcuts: `ToggleStyleIntent`, `ToggleCodeBlockIntent`,
   `ApplyLinkIntent`, `ClearFormattingIntent` and `ToggleListIntent`, bound in
   both default maps to Telegram Desktop's keys (Ctrl or Cmd with B, I, U, K;
@@ -20,6 +36,15 @@ is pre-1.0.
 
 ### Changed
 
+- Source-breaking: `ComposerLinkPrompt` takes the current URL,
+  `(BuildContext, String? currentUrl)`, null when the selection holds no link;
+  the dialog edits it when there is one.
+- The selection menu's "Paste as plain text" is on the overflow page unless the
+  row has room for it, and the clipboard labels are Material's.
+- The link shortcut is enabled over a selection already linked to the probe
+  URL it used to compare against (`https://example.com`).
+- The field's `contextMenuBuilder` is one stable tear-off, so a rebuild of the
+  field no longer recreates the editable's toolbar.
 - The field renders `ExtendedTextField` from `composer_editable`, with Material
   selection handles on every platform and overscroll handed to a parent
   scrollable; it is no longer a stock `TextField` (a test finding `TextField`

@@ -3,7 +3,12 @@ import 'dart:math' as math;
 
 import 'package:chat_composer/src/input/composer_controller.dart';
 import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
+import 'package:chat_composer/src/menu/composer_formatting_option.dart';
+import 'package:chat_composer/src/menu/composer_selection_menu.dart';
+import 'package:chat_composer/src/menu/selection_menu_items.dart';
+import 'package:chat_composer/src/menu/selection_menu_metrics.dart';
 import 'package:chat_composer/src/shortcuts/composer_intents.dart';
+import 'package:chat_composer/src/spec/composer_spec.dart';
 import 'package:chat_composer/src/view/composer_metrics.dart';
 import 'package:chat_composer/src/view/listen_value_builder.dart';
 import 'package:chat_composer/src/view/slot_boxes.dart';
@@ -11,7 +16,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:composer_editable/composer_editable.dart';
 import 'package:content_model/content_model.dart' show PastedMedia;
 import 'package:flutter/foundation.dart'
-    show clampDouble, defaultTargetPlatform;
+    show clampDouble, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -45,16 +50,24 @@ import 'package:flutter/scheduler.dart';
 /// go through it, from key shortcuts (and the macOS menu) and from the
 /// selection menu, which also offers pasting as plain text; the text keeps its
 /// entities across the clipboard. Without one the field keeps the platform's
-/// plain-text clipboard and the stock menu.
+/// plain-text clipboard.
 ///
-/// Needs a Material ancestor and Material localisations, which the text
-/// selection menu draws with.
+/// **Selection menu.** On every platform the field's menu is the composer's
+/// own `ComposerSelectionMenu`, not the platform's: the clipboard actions, then
+/// the formatting items of [formatting] that the selection allows, with the
+/// host's [linkPrompt] for the link items.
+///
+/// Needs a Material ancestor and Material localisations, which the selection
+/// menu's clipboard labels come from.
 class ComposerField extends StatefulWidget {
   /// A field for [controller].
   const ComposerField({
     required this.controller,
     required this.enabled,
     this.autofocus = false,
+    this.formatting = ComposerFormattingOption.standard,
+    this.linkPrompt,
+    this.backPriority,
     this.onTap,
     this.onPointerDown,
     this.onPointerEnd,
@@ -73,6 +86,18 @@ class ComposerField extends StatefulWidget {
   /// attaches without a keyboard type, and the first tap on it or
   /// `requestKeyboard` re-attaches it with one (see "Soft keyboard" above).
   final bool autofocus;
+
+  /// Which formatting items the selection menu may offer
+  /// (`ComposerSpec.formatting`).
+  final Set<ComposerFormattingOption> formatting;
+
+  /// The host's link dialog (`ComposerSpec.linkPrompt`); without it the menu
+  /// offers no link item.
+  final ComposerLinkPrompt? linkPrompt;
+
+  /// The host's hook for taking Back ahead of the soft keyboard while the menu
+  /// is open (`ComposerSpec.backPriority`).
+  final ComposerBackPriority? backPriority;
 
   /// Called when the field is tapped, also while it already has focus. A host
   /// uses it to leave a panel for the keyboard.
@@ -291,75 +316,142 @@ class _ComposerFieldState extends State<ComposerField> {
 
   // --- Selection menu ---
 
-  // `AdaptiveTextSelectionToolbar.editableText` takes Flutter's own editable
-  // state, which the leaf editable's state is not: the menu is built from the
-  // state's anchors and button items instead.
-  static Widget _stockMenu(
+  // The clipboard actions the platform offers for this selection, in its order,
+  // routed through the composer's clipboard when it has one, and Paste as plain
+  // text after Paste. The menu hides itself and moves the selection after
+  // them, so none of these does.
+  List<SelectionMenuClipboardItem> _clipboardItems(
     BuildContext context,
-    ExtendedEditableTextState editable,
-  ) => AdaptiveTextSelectionToolbar.buttonItems(
-    anchors: editable.contextMenuAnchors,
-    buttonItems: editable.contextMenuButtonItems,
-  );
-
-  // The stock menu, its Copy, Cut and Paste routed through the clipboard,
-  // and Paste as plain text after Paste.
-  Widget _clipboardMenu(
     ExtendedEditableTextState editable,
     String pastePlainLabel,
   ) {
     final controller = widget.controller;
-    final items = <ContextMenuButtonItem>[];
+    final rich = controller.clipboard != null;
+    // Copy collapses the selection on Android, as the stock field's does.
+    final collapsesOnCopy = switch (defaultTargetPlatform) {
+      TargetPlatform.android || TargetPlatform.fuchsia => true,
+      TargetPlatform.iOS ||
+      TargetPlatform.macOS ||
+      TargetPlatform.linux ||
+      TargetPlatform.windows => false,
+    };
+    final items = <SelectionMenuClipboardItem>[];
     for (final item in editable.contextMenuButtonItems) {
       switch (item.type) {
         case ContextMenuButtonType.copy:
-          items.add(item.copyWith(onPressed: () => _menuCopy(editable)));
+          items.add(
+            SelectionMenuClipboardItem(
+              kind: SelectionMenuItemKind.copy,
+              label: AdaptiveTextSelectionToolbar.getButtonLabel(context, item),
+              onSelected: rich
+                  ? controller.copySelection
+                  : () =>
+                        editable.copySelection(SelectionChangedCause.keyboard),
+              after: collapsesOnCopy
+                  ? SelectionMenuAfter.dismiss
+                  : SelectionMenuAfter.dismissKeepingSelection,
+            ),
+          );
         case ContextMenuButtonType.cut:
           items.add(
-            item.copyWith(
-              onPressed: () => _menuDone(editable, controller.cutSelection()),
+            SelectionMenuClipboardItem(
+              kind: SelectionMenuItemKind.cut,
+              label: AdaptiveTextSelectionToolbar.getButtonLabel(context, item),
+              onSelected: rich
+                  ? controller.cutSelection
+                  : () => editable.cutSelection(SelectionChangedCause.keyboard),
             ),
           );
         case ContextMenuButtonType.paste:
-          items
-            ..add(
-              item.copyWith(
-                onPressed: () => _menuDone(editable, controller.paste()),
-              ),
-            )
-            ..add(
-              ContextMenuButtonItem(
+          items.add(
+            SelectionMenuClipboardItem(
+              kind: SelectionMenuItemKind.paste,
+              label: AdaptiveTextSelectionToolbar.getButtonLabel(context, item),
+              onSelected: rich
+                  ? controller.paste
+                  : () => editable.pasteText(SelectionChangedCause.keyboard),
+            ),
+          );
+          if (rich) {
+            items.add(
+              SelectionMenuClipboardItem(
+                kind: SelectionMenuItemKind.pastePlain,
                 label: pastePlainLabel,
-                onPressed: () =>
-                    _menuDone(editable, controller.paste(plain: true)),
+                onSelected: () => controller.paste(plain: true),
               ),
             );
+          }
+        case ContextMenuButtonType.selectAll:
+          items.add(
+            SelectionMenuClipboardItem(
+              kind: SelectionMenuItemKind.selectAll,
+              label: AdaptiveTextSelectionToolbar.getButtonLabel(context, item),
+              onSelected: () => _selectAllKeepMenu(editable),
+              after: SelectionMenuAfter.stay,
+            ),
+          );
         case _:
-          items.add(item);
+          // Whatever else the platform injects (look up, share, live text) is
+          // not the composer's menu.
+          break;
       }
     }
-    return AdaptiveTextSelectionToolbar.buttonItems(
-      anchors: editable.contextMenuAnchors,
-      buttonItems: items,
+    return items;
+  }
+
+  // Selects the whole text and leaves the menu up. The stock select-all hides
+  // the toolbar on desktop, which would leave a full selection with no menu;
+  // another cause keeps it.
+  static void _selectAllKeepMenu(ExtendedEditableTextState editable) {
+    final value = editable.textEditingValue;
+    if (value.text.isEmpty) return;
+    editable.userUpdateTextEditingValue(
+      value.copyWith(
+        selection: TextSelection(
+          baseOffset: 0,
+          extentOffset: value.text.length,
+        ),
+      ),
+      SelectionChangedCause.doubleTap,
     );
   }
 
-  // As the field's own Copy: the menu closes, and on Android the selection
-  // collapses to its end.
-  Future<void> _menuCopy(ExtendedEditableTextState editable) async {
-    final controller = widget.controller;
-    final end = controller.selection.end;
-    editable.hideToolbar(false);
-    await controller.copySelection();
-    if (!mounted || controller.isDisposed) return;
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      controller.select(TextSelection.collapsed(offset: end));
-    }
-  }
+  // What the menu is drawn with, resolved by the last build: the overlay the
+  // menu is built in does not see a scope mounted around the field alone.
+  late SelectionMenuTokens _menuTokens;
+  late FormattingStrings _menuStrings;
+  late ChromeMotionData _menuMotion;
+  late String _pastePlainLabel;
 
-  static void _menuDone(ExtendedEditableTextState editable, Future<bool> done) {
-    editable.hideToolbar();
-    unawaited(done);
+  // The menu the editable shows over the selection.
+  //
+  // A tear-off, not a closure built per build: the editable compares builders
+  // and, on a change, recreates its selection overlay and shows the toolbar
+  // again, which would remount the menu (and close its overflow page) on every
+  // rebuild of the field.
+  Widget _selectionMenu(
+    BuildContext menuContext,
+    ExtendedEditableTextState editable,
+  ) {
+    final clipboard = _clipboardItems(context, editable, _pastePlainLabel);
+    return ExtendedSelfFadingToolbar(
+      builder: (context, visibility) => ComposerSelectionMenu(
+        editable: editable,
+        text: widget.controller.text,
+        clipboard: clipboard,
+        visibility: visibility,
+        options: widget.formatting,
+        tokens: _menuTokens,
+        strings: _menuStrings,
+        motion: _menuMotion,
+        metrics: SelectionMenuMetrics.forPlatform(
+          defaultTargetPlatform,
+          isWeb: kIsWeb,
+        ),
+        linkPrompt: widget.linkPrompt,
+        backPriority: widget.backPriority,
+      ),
+    );
   }
 
   // The field does not expose its editable; the caret rectangle is only
@@ -387,6 +479,10 @@ class _ComposerFieldState extends State<ComposerField> {
     final composer = ChromeThemeScope.composerOf(context);
     final placeholder = ChromeThemeScope.placeholderOf(context);
     final strings = ChromeStringsScope.composerOf(context);
+    _menuTokens = ChromeThemeScope.selectionMenuOf(context);
+    _menuStrings = ChromeStringsScope.formattingOf(context);
+    _menuMotion = ChromeMotionScope.of(context);
+    _pastePlainLabel = strings.pastePlainAction;
     const lineHeight = ComposerMetrics.fieldLineHeight;
     const fontSize = ComposerMetrics.fieldFontSize;
 
@@ -460,10 +556,7 @@ class _ComposerFieldState extends State<ComposerField> {
                       : ContentInsertionConfiguration(
                           onContentInserted: _onContentInserted,
                         ),
-                  contextMenuBuilder: controller.clipboard == null
-                      ? _stockMenu
-                      : (context, editable) =>
-                            _clipboardMenu(editable, strings.pastePlainAction),
+                  contextMenuBuilder: _selectionMenu,
                 );
                 if (controller.clipboard == null) return field;
                 // Above the field's own: an overridable action finds these

@@ -81,6 +81,16 @@ The view imports no inset type.
   of its range, a quote and a code block widen to whole lines, and a command it
   cannot hold (bold inside code, code over a mention) does nothing and
   `canApply` is false. A command that touches the IME composition does nothing.
+- **The selection menu** is the composer's own (`ComposerSelectionMenu`, the
+  reference client's floating toolbar), on every platform, not the platform's.
+  `ComposerSpec.formatting` says which items it may offer; an item whose
+  command cannot apply to the selection is left out, not greyed, and a
+  collapsed caret gets the clipboard items alone. The link items need
+  `ComposerSpec.linkPrompt`, which receives the current URL when the selection
+  already holds a link. `ComposerSpec.backPriority` is the host's hook for
+  taking Back ahead of the soft keyboard while the menu is open. The overflow
+  page ("More") reshapes the card; Tab from the field enters the menu, and
+  Escape closes it. The clipboard labels are Material's.
 - **IME composition.** While the composing range is non-empty the entities are
   not touched. When composition ends the whole composition is applied as one
   replacement against the text before it began. `richText` stays consistent
@@ -113,6 +123,7 @@ The view imports no inset type.
 | Entities that are links and mentions, made where the user or the host decides what they are, inserted with `text.insert` or `replaceQuery`. | Rely on the controller to turn typed text into an entity. |
 | `entityStyles` (usually `ComposerEntityStyles.fromTokens` of the chrome theme) and an `inlineContentBuilder` whose span lays out as exactly the reference's alternative text length. | Return a span of another length: the field maps selection by text offsets (a debug assertion checks it). |
 | Mode state: reply or edit ids, banners, the busy flag. It loads an edited message with `restore(RichText)` and reads `richText` to send or store a draft (`toJson`, or `RichTextMarkdown` for a body). | Look for reply, edit or enabled state on the controller. |
+| For the selection menu: `ComposerSpec.formatting` (which items; the default is every item but the list items), `ComposerSpec.linkPrompt` (the link dialog, given the current URL when the selection is linked; without it there is no link item), `ComposerSpec.backPriority` (the hook that takes Back ahead of the soft keyboard; the soft keyboard consumes Back before Flutter sees it, so without it Back closes the menu only where Flutter's own dispatch gets it), the labels in `ChromeStrings.formatting`, and the menu's tokens (`SelectionMenuTokens`) and motion roles from `chrome_foundation`. | Mount a `ComposerSelectionMenu` itself, expect a greyed item (an item that cannot apply is left out), or expect the platform's menu on any platform. |
 | The `softKeyboard` option, set while another surface stands in for the keyboard, and the focus commands. | Expect the controller to show or hide the keyboard or touch a platform channel; the field declares its input type from these inputs. |
 | Nothing for the field's reports: the view calls `reportFieldHeight`, `reportExtent` and `reportCaretAnchor` itself. | Call the `report...` methods, or read the anchor as exact: it may lag the text by a frame, and is `null` before the first report. |
 | Disposal of every controller, focus node and scroll controller it passed in. | Dispose what the composer created, or use a controller after it. |
