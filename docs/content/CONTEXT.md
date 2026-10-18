@@ -76,6 +76,10 @@ _Avoid_: Cashtag, a tag with an id
 A pure transform over rich text that adds link, **username** and **hashtag** entities where text has the shape of one (`EntityDetection.apply`). Host-invoked at send and as a cached receive-time fallback for bodies with no link-class entity; never on paint and never in the composer while typing. One implementation serves the composer's send path, the host's receive path and any server port. Replaces the former body linkify.
 _Avoid_: Autolink on paint, a markdown-string rewrite, detection inside the viewport, bot-command or phone detection as kinds
 
+**Typed markdown**:
+A pure transform over rich text that turns the markers a user typed (`` `code` ``, a triple-backtick block, `**bold**`, `__italic__`, `~~strike~~`, `||spoiler||`) into the matching entities and drops the markers (`TypedMarkdown.apply`). Host-invoked at send, before **entity detection**, never on paint or per keystroke; the reference client's rules.
+_Avoid_: Live markdown conversion in the composer, a markdown-string rewrite, an underline or quote marker
+
 **Detection policy**:
 The caller-owned choice of which families **entity detection** applies (urls, usernames, hashtags) and which URL schemes count. The exclusion zones (code, code blocks, existing links and mentions, inline content, atoms) are fixed rules, not policy.
 _Avoid_: A universal URL definition in the package, sealed presets when families must combine

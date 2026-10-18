@@ -626,7 +626,7 @@ and the viewport never calls:
 
 | Moment | Step |
 | ------ | ---- |
-| Send | Rewrite unresolved mentions, **detect**, then encode. The stored body carries the links every other viewer receives. |
+| Send | Rewrite unresolved mentions, **convert typed markers** (`TypedMarkdown.apply`, below), **detect**, then encode. The stored body carries the links every other viewer receives. |
 | Receive | When you build the message model, decode the body. If it has no link-class entity (link, mention, username, hashtag), detect once and keep the result with the model. A body that has any such entity is trusted and not detected again. Never detect in a build or paint method. |
 | Edit | Decode, strip the detected entities back to text (the inverse operation in `content_model`), restore into the composer. Saving detects again, so a stored body round-trips. |
 | Link preview | Optional. Listen to the composer text, debounce, detect with `urls` only to pick the URL to preview, and show the result in the composer's header slot. Fetching and caching the preview is yours. |
@@ -641,6 +641,14 @@ input queries and insert a real mention or hashtag on pick.
 
 If your server detects on ingest, nothing changes in the client: it already
 reconciles with the stored body.
+
+**Typed markers.** A user who types `` `a` ``, ```` ```a``` ````, `**a**`,
+`__a__`, `~~a~~` or `||a||` gets code, a code block, bold, italic, strike or a
+spoiler, as in the reference client. `TypedMarkdown.apply(richText)` is the
+same kind of pure, host-invoked transform: call it on send before detection,
+so a URL typed inside code stays code. Markers inside code, a code block, a
+link, a mention, a username, a hashtag or inline content stay text. Underline
+and quote have no typed form.
 
 ### Inline embeds, spoilers and mentions
 

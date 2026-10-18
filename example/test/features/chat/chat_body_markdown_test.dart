@@ -146,6 +146,32 @@ void main() {
     });
   });
 
+  group('send converts what the user typed, then detects', () {
+    List<(String, EntityKind)> sent(String typed) {
+      final text = ChatBodyMarkdown.decode(
+        ChatBodyMarkdown.send(_Rich.plain(typed)),
+      );
+      return [for (final e in text.entities) (text.textOf(e), e.kind)];
+    }
+
+    test('typed code, a code block and styles go out as the entities', () {
+      expect(sent('a `b` **c** __d__ ~~e~~ ||f||\n```dart\nx\n```'), [
+        ('b', EntityKind.code),
+        ('c', EntityKind.bold),
+        ('d', EntityKind.italic),
+        ('e', EntityKind.strike),
+        ('f', EntityKind.spoiler),
+        ('x', const EntityKind.codeBlock(language: 'dart')),
+      ]);
+    });
+
+    test('a URL typed inside code stays code and is not linked', () {
+      expect(sent('`https://example.com`'), [
+        ('https://example.com', EntityKind.code),
+      ]);
+    });
+  });
+
   group('send detects, then encodes', () {
     test('a bare URL, @name and #tag go out as links the wire reads back', () {
       const typed = _Rich.plain('see https://example.com @alice #news');

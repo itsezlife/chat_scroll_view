@@ -9,7 +9,12 @@ import 'package:content_model/content_model.dart'
         EntityKind$Username,
         RichText;
 import 'package:content_model/content_model.dart'
-    show ContentKey$Unicode, DetectionPolicy, EmojiOnlyText, EntityDetection;
+    show
+        ContentKey$Unicode,
+        DetectionPolicy,
+        EmojiOnlyText,
+        EntityDetection,
+        TypedMarkdown;
 import 'package:content_model/markdown.dart';
 import 'package:meta/meta.dart';
 
@@ -19,7 +24,7 @@ import 'package:meta/meta.dart';
 ///
 /// | Moment | Step | Detects |
 /// | --- | --- | --- |
-/// | a message is sent or an edit saved | [send] | yes, then encodes |
+/// | a message is sent or an edit saved | [send] | converts typed markers, then detects, then encodes |
 /// | a message is materialised from a stored body | [received] | once, only for a body with no link-class entity |
 /// | a message is loaded into the composer to edit | [decodeForEdit] | no: it strips what detection made |
 /// | a draft is stored or restored | [encodeDraft], [decodeDraft] | no: the composer's text as it is |
@@ -41,10 +46,12 @@ abstract final class ChatBodyMarkdown {
   static int detectionRuns = 0;
 
   /// The markdown body to send for [text] (which the composer already
-  /// downgraded for unresolved mentions): bare URLs, `@name` and `#tag` made
-  /// into entities under [policy], then [encode].
+  /// downgraded for unresolved mentions): typed markers (`` `code` ``,
+  /// `**bold**`, ...) made into entities, then bare URLs, `@name` and `#tag`
+  /// under [policy], then [encode]. Markers go first so a URL typed inside
+  /// code is seen as code.
   static String send(model.RichText text) =>
-      encode(EntityDetection.apply(text, policy));
+      encode(EntityDetection.apply(TypedMarkdown.apply(text), policy));
 
   /// The markdown body to send for [text], without surrounding blanks (unless
   /// it is nothing but emoji) and without detecting anything ([send] detects
