@@ -137,7 +137,9 @@ sealed class ComposerShortcutPolicy {
   /// M monospace, P spoiler, `.` quote, N clear formatting, 7 numbered list,
   /// 8 bullet list). The code block has no key. The list editing keys (Tab,
   /// Shift+Tab, Shift+Enter, Backspace) are bound too and answered only by a
-  /// text with lists on.
+  /// text with lists on. The Menu key and Shift+F10 are bound to
+  /// [ShowComposerMenuIntent], which the field answers where its menu policy
+  /// has a pointer menu.
   ///
   /// [inBrowser] leaves paste as plain text to the browser: Flutter leaves the
   /// clipboard keys of a text field to it, and it pastes as plain text with

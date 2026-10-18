@@ -398,7 +398,9 @@ wiring beyond what the selection menu already has, plus:
   Spelling row.
 
 The menu opens through the root overlay, so it needs an `Overlay` above the
-field, and it closes when the window loses focus or its metrics change.
+field, and it closes when the window loses focus or its metrics change. In a
+browser the host turns the browser's own context menu off for the page
+(`BrowserContextMenu.disableContextMenu`), or both menus show.
 
 ### Formatting menu, shortcuts and suggestions
 
