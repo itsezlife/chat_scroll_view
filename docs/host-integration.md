@@ -511,16 +511,16 @@ composer produces a `RichText`; the host converts it at two moments with
 - **Load a message into the composer:** `composer.restore(RichTextMarkdown.decode(body))`,
   after stripping detected entities.
 
-Inline content travels as `![alt](unicode:1F44D)` (`ContentKey.encoded`
-spelling); mentions as `[@name](mention:id)`, usernames as
+Inline content travels as `![alt](document:5368)` (`ContentKey.encoded`
+spelling; `unicode:1F44D` is legal, but a host sends a unicode emoji as its
+characters, [Emoji-only messages](#emoji-only-messages)); mentions as `[@name](mention:id)`, usernames as
 `[@name](username:name)`, hashtags as `[#tag](hashtag:tag)`. `RichText` shares
 its name with Flutter's widget: `import 'package:flutter/widgets.dart' hide RichText;`.
 
-The viewport paints inline embeds ([ADR 029](adr/029-host-integration.md)):
-register an embed resolver per scheme on the body widget and an unresolved
-target paints its alt text. A host with no resolver for a scheme needs nothing
-else. Neither `RichTextMarkdown` nor the viewport detects bare URLs, names or
-tags; detection is a separate host step.
+The viewport paints inline embeds ([ADR 029](adr/029-host-integration.md)),
+spoilers and mentions ([Inline embeds, spoilers and mentions](#inline-embeds-spoilers-and-mentions)).
+Neither `RichTextMarkdown` nor the viewport detects bare URLs, names or tags;
+detection is a separate host step.
 
 The length budget is a code-point count of `RichText.plain`, not of the
 markdown source: set `ComposerSpec.messageLengthLimit` from the server
@@ -553,6 +553,75 @@ input queries and insert a real mention or hashtag on pick.
 
 If your server detects on ingest, nothing changes in the client: it already
 reconciles with the stored body.
+
+### Inline embeds, spoilers and mentions
+
+What the host wires so a markdown body paints and reports the inline layer
+([ADR 029](adr/029-host-integration.md), [ADR 037](adr/037-spoiler-and-mention-inline-styles.md)):
+
+1. **Embeds.** Create one `ContentEmbedResolver(scope: assets)` per chat screen
+   and pass it as `ChatMarkdownBody.embedResolver`. Keep the instance: a
+   different one disposes and re-resolves every embed of the body. A `document:`
+   key the cache cannot produce keeps its placeholder (no failed stage is ever
+   shown); a target no resolver knows (a scheme that is not content) paints its
+   alt text. Do not filter image spans out of the markdown theme: that hid them
+   before the viewport painted embeds.
+2. **Embed taps.** Pass `ChatSelectionController(handlesEmbedHits: true)` when
+   `ChatEmbedActivated` means something to the host (a pack sheet). Without it
+   an embed is only part of the text.
+3. **Spoilers.** The facade holds which messages are revealed, so it survives a
+   row leaving and re-entering the viewport. Pass `spoilerClock: assets.clock`
+   so the dust moves on the cache's frames and pause layers. A host that
+   follows reduce-motion creates the `MarkdownSpoilerController` itself
+   (`spoilers:`) and sets `animate` from `SpoilerTokens.particles.tickAt(speed)`;
+   the particle colour follows the hidden text, and the engine takes no other.
+4. **Mentions, usernames and hashtags.** Colour them with
+   `MarkdownThemeData.mentionColor` (they follow the link colour otherwise).
+   Taps are `ChatMentionActivated` (resolved or username, told apart by `kind`)
+   and `ChatHashtagActivated`; a link inside a hidden spoiler reveals it and
+   reports nothing.
+
+### Emoji-only messages
+
+A message of nothing but emoji is shown without a bubble, large
+([ADR 038](adr/036-emoji-only-message-presentation.md)). The viewport lays out
+`ChatEmojiBody`; the host decides when:
+
+1. **Classify once**, when the message model is made:
+   `EmojiOnlyText.of(RichTextMarkdown.decode(body))` gives the emoji and the
+   line breaks between them, or null. The viewport never re-detects, and a body
+   is not classified in a build method. Unicode emoji travel as characters, not
+   as `unicode:` inline content, which would disqualify the message.
+2. **Weigh the host's facts**: the **large-emoji setting** (on until the user
+   turns it off, kept in the `KeyValueStore`), the chat's permission (stickers
+   allowed in the chat, or the user is an admin) and the message having no
+   media (a link preview counts as media). Fold them into one decision and
+   listen to it, so the setting applies while a chat is open.
+3. **Mount `ChatEmojiBody`** instead of the bubble with:
+   - `embedFactory: (content, preset) => ContentEmbed(scope: assets, content:
+     content, preset: preset)`, stable for the screen. It is not an
+     `InlineEmbedResolver`: the body sizes by count with presets of its own;
+   - `sticker`: for a lone emoji, the document it is shown as, from the host's
+     own `unicode` to `document` map (an animated-emoji pack's) or the custom
+     emoji's own document; none gives the text layout;
+   - `autoplay`: whether a lone unicode emoji plays now. Keep a played-once
+     memory **per chat screen** (not in the cache) and ask it **once, when the
+     body mounts**, keeping the answer for that mount: asking on every build
+     holds a sticker that is still playing. A tap replays through the body;
+   - `hasHeader` when a reply or forward header sits above the text layout.
+4. **Place the chrome**: the time pill over the body's bottom trailing corner
+   (radius 4 for text, 12 for a sticker, a 0.6-alpha service colour), reactions
+   below, the header **beside** a sticker and **above** enlarged text.
+5. **Do not trim on send** a draft that is emoji-only (`EmojiOnlyText.of` over
+   the text once unicode inline content is dropped to characters): the blank
+   lines and spaces around the emoji are the sender's arrangement.
+6. **Taps** are `ChatEmbedActivated` for a custom emoji and `ChatStickerActivated`
+   for the lone sticker; what they mean is the host's.
+
+Known gap: `AssetProfile.loop` is not consumed by the cache and a binding has no
+restart, so a play-once sticker loops and a replay re-attaches it rather than
+rewinding it. The host wiring is complete; a `catalog_assets` ticket makes
+play-once real.
 
 ### Drafts
 
@@ -681,8 +750,8 @@ Decisions a migrating host makes once:
 ## 13. Reference host map
 
 The demo app under `example/` is the reference. It registers the emoji page
-only, has no fetcher, decoder or resolver, and does not use the hover-open
-toggle region.
+only, fetches nothing from a network (its animated emoji are bundled), and does
+not use the hover-open toggle region.
 
 | Step | File |
 | --- | --- |
@@ -696,5 +765,10 @@ toggle region.
 | IME readings and keyboard commands | `example/lib/src/common/soft_keyboard_port.dart` |
 | Glyph probe and atlas wiring | `example/lib/src/common/emoji_glyph_probe.dart` |
 | `RichText`, markdown and detection | `example/lib/src/features/chat/utils/chat_body_markdown.dart` |
+| Embed seams, sticker lookup, played-once memory | `example/lib/src/features/chat/utils/chat_body_host.dart`, `sticker_play_memory.dart` |
+| Large-emoji setting and gate | `example/lib/src/features/chat/data/large_emoji_setting.dart`, `utils/large_emoji_policy.dart` |
+| Emoji-only message chrome | `example/lib/src/features/chat/widgets/demo_emoji_message.dart` |
+| Message bodies, interaction handlers | `example/lib/src/features/chat/widgets/demo_message.dart`, `view/widget_chat_screen.dart` |
+| Showcase conversation (`--dart-define=CHAT_SOURCE=showcase`) | `example/lib/src/features/chat/data/showcase_bodies.dart` |
 | Popup anchor, composer view | `example/lib/src/features/chat/widgets/chat_composer.dart` |
 | Panel box and shortcuts | `example/lib/src/features/chat/widgets/chat_bottom_chrome.dart` |
