@@ -228,6 +228,19 @@ void main() {
       expect(preset.profile.autoplayFirstFrame, isTrue);
     });
 
+    test('rests on the first frame, or on the last when the host says so', () {
+      final first = AssetPresets.emojiSticker(extent: 112, devicePixelRatio: 3);
+      final last = AssetPresets.emojiSticker(
+        extent: 112,
+        devicePixelRatio: 3,
+        restFrame: AssetRestFrame.last,
+      );
+
+      expect(first.profile.restFrame, AssetRestFrame.first);
+      expect(last.profile.restFrame, AssetRestFrame.last);
+      expect(first.spec, last.spec);
+    });
+
     test('is the same decode whether or not it autoplays', () {
       final playing = AssetPresets.emojiSticker(
         extent: 112,

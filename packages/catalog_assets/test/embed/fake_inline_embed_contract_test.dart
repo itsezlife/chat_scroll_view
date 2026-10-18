@@ -7,6 +7,16 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   InlineEmbedContract.run(FakeInlineEmbed.new);
 
+  InlineEmbedContract.run(FakePlayableEmbed.new);
+
+  PlayableEmbedContract.run(() {
+    final embed = FakePlayableEmbed();
+    return PlayableEmbedHarness(
+      embed: embed,
+      endPass: () => embed.playback = AssetPlayback.ended,
+    );
+  });
+
   InlineEmbedResolverContract.run(
     () => InlineEmbedResolverHarness(
       resolver: FakeInlineEmbedResolver(),
