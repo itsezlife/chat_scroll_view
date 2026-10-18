@@ -13,6 +13,7 @@ final class SelectionMenuPlacement {
     required this.fitsAbove,
     required this.maxHeight,
     required this.maxWidth,
+    required this.pageMaxWidth,
     required this.padding,
     required this.localAdjustment,
     required this.anchorAbove,
@@ -25,8 +26,13 @@ final class SelectionMenuPlacement {
   /// The tallest the card may be on the chosen side.
   final double maxHeight;
 
-  /// The widest the card may be.
+  /// The widest the main row may be: the reference's 400, or the screen less
+  /// its margins.
   final double maxWidth;
+
+  /// The widest the More page may be: the screen less its margins. The
+  /// reference does not cap the page at 400, so a long label widens it.
+  final double pageMaxWidth;
 
   /// The region the card is laid out in, inside the screen.
   final EdgeInsets padding;
@@ -46,7 +52,8 @@ final class SelectionMenuPlacement {
 /// keyboard.
 ///
 /// It prefers the side above the selection. It goes below when the room above
-/// is under [maxHeight] and the room below is not, and to whichever side has
+/// is under [maxHeight], the tallest the menu asks to be, and the room below is
+/// not, and to whichever side has
 /// more when neither is enough; the room it takes is capped to that side. When
 /// part of the selection has scrolled off screen the anchors are pulled into
 /// the visible band, so the menu stays by the end that can be seen.
@@ -63,6 +70,7 @@ SelectionMenuPlacement computeSelectionMenuPlacement({
   double maxWidth = SelectionMenuMetrics.rowMaxWidth,
 }) {
   const margin = SelectionMenuMetrics.regionMargin;
+  const edge = SelectionMenuMetrics.edgeMargin;
   const gapAbove = SelectionMenuMetrics.gapAbove;
   const gapBelow = SelectionMenuMetrics.gapBelow;
 
@@ -99,20 +107,15 @@ SelectionMenuPlacement computeSelectionMenuPlacement({
     above = !above;
   }
 
+  final pageMaxWidth = math.max<double>(0, screen.width - edge * 2);
+
   return SelectionMenuPlacement(
     fitsAbove: above,
     maxHeight: math.min(maxHeight, above ? spaceAbove : spaceBelow),
-    maxWidth: math.min(
-      maxWidth,
-      math.max<double>(0, screen.width - margin * 2),
-    ),
-    padding: EdgeInsets.fromLTRB(
-      margin,
-      safe.top + margin,
-      margin,
-      bottomInset,
-    ),
-    localAdjustment: Offset(margin, safe.top + margin),
+    maxWidth: math.min(maxWidth, pageMaxWidth),
+    pageMaxWidth: pageMaxWidth,
+    padding: EdgeInsets.fromLTRB(edge, safe.top + margin, edge, bottomInset),
+    localAdjustment: Offset(edge, safe.top + margin),
     anchorAbove: primary - const Offset(0, gapAbove),
     anchorBelow: secondary + const Offset(0, gapBelow),
   );

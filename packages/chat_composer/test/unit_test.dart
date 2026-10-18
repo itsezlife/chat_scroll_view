@@ -65,11 +65,14 @@ import 'view/composer_length_budget_test.dart' as composer_length_budget_test;
 import 'view/composer_list_gutter_golden_test.dart'
     as composer_list_gutter_golden_test;
 import 'view/composer_lists_field_test.dart' as composer_lists_field_test;
+import 'view/composer_menu_labels_test.dart' as composer_menu_labels_test;
 import 'view/composer_pointer_menu_golden_test.dart'
     as composer_pointer_menu_golden_test;
 import 'view/composer_pointer_menu_test.dart' as composer_pointer_menu_test;
 import 'view/composer_selection_highlight_golden_test.dart'
     as composer_selection_highlight_golden_test;
+import 'view/composer_selection_menu_fit_test.dart'
+    as composer_selection_menu_fit_test;
 import 'view/composer_selection_menu_golden_test.dart'
     as composer_selection_menu_golden_test;
 import 'view/composer_selection_menu_test.dart' as composer_selection_menu_test;
@@ -189,6 +192,7 @@ void main() {
     composer_list_gutter_golden_test.main,
   );
   group('view/composer_lists_field_test.dart', composer_lists_field_test.main);
+  group('view/composer_menu_labels_test.dart', composer_menu_labels_test.main);
   group(
     'view/composer_selection_highlight_golden_test.dart',
     composer_selection_highlight_golden_test.main,
@@ -200,6 +204,10 @@ void main() {
   group(
     'view/composer_pointer_menu_test.dart',
     composer_pointer_menu_test.main,
+  );
+  group(
+    'view/composer_selection_menu_fit_test.dart',
+    composer_selection_menu_fit_test.main,
   );
   group(
     'view/composer_selection_menu_golden_test.dart',

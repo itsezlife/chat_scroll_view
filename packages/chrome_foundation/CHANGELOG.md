@@ -6,6 +6,17 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (menu language)
+
+- `EditMenuStrings` is now also the touch selection menu's source for Cut,
+  Copy, Paste and Select all (it was the pointer menu's only): the composer no
+  longer reads `MaterialLocalizations` for them. No API change. A host that put
+  English there while its formatting rows were in its own language will see
+  the touch menu's clipboard rows change to the `editMenu` strings; a `&`
+  access mark in one is removed on the touch card (`Cu&t` reads "Cut"). The
+  English preset's "Select All" now shows on the touch card where Material's
+  "Select all" did.
+
 ### Added (pointer menu)
 
 - `PointerMenu`, the reference desktop client's popup list opened at the
