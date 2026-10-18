@@ -3,80 +3,88 @@ import 'dart:ui' show Brightness, Color;
 import 'package:chrome_foundation/src/palette/chrome_palette.dart';
 import 'package:meta/meta.dart';
 
-/// Colours of the selection menu: the floating card that offers formatting
-/// over a text selection.
+/// Colours of the selection menu: the floating card that offers the clipboard
+/// and formatting actions over a text selection.
 ///
 /// Derived from a [ChromePalette] by [SelectionMenuTokens.fromPalette]; a host
 /// overrides single fields with [copyWith] or supplies the whole group to a
 /// `ChromeThemeScope`. The card's elevation and corner radius are the
 /// component's metrics, kept here as constants so the menu and its hosts read
-/// one number (ADR 027: geometry is
-/// not themed, so they are constants, not fields).
+/// one number (ADR 027: geometry is not themed, so they are constants, not
+/// fields).
+///
+/// Press, hover and focus washes are the Material widgets' own for the host's
+/// theme, so the group has no field for them.
 @immutable
 final class SelectionMenuTokens {
   /// A selection menu token group with every colour given.
   const SelectionMenuTokens({
     required this.background,
     required this.text,
-    required this.pressHighlight,
     required this.divider,
+    required this.shadow,
+    required this.pageDim,
   });
 
   /// The default mapping of [palette] onto menu fields.
   ///
-  /// A light palette gets the reference client's default theme verbatim
-  /// (`windowBackgroundWhite`, `windowBackgroundWhiteBlackText`,
-  /// `listSelector`, `divider`): its text and divider are not palette roles,
-  /// so no mapping of roles reproduces them. A dark palette derives from its
-  /// roles instead, since the reference values for a dark card were not
-  /// measured: the raised surface, the primary text colour, and that colour
-  /// at the same low alphas the light press highlight and a visible divider
-  /// use.
+  /// The card is the palette's raised surface and the text its on-surface
+  /// colour: for a palette built from a colour scheme these are
+  /// `surfaceContainerHigh` and `onSurface`, which is how a Material menu is
+  /// coloured. The divider is the separator at half its own opacity (the
+  /// scheme's `outlineVariant` at 0.5), so a palette whose separator is
+  /// already translucent gets a fainter line; a host that wants the Material
+  /// look builds its palette from its colour scheme. The shadow is black at
+  /// 0.45. The page dim, the scrim over the main row while the More page
+  /// slides in, is black at `0x18` on a light palette and `0x40` on a dark
+  /// one.
   factory SelectionMenuTokens.fromPalette(ChromePalette palette) =>
-      switch (palette.brightness) {
-        Brightness.light => const SelectionMenuTokens(
-          background: Color(0xFFFFFFFF),
-          text: Color(0xFF1A1D21),
-          pressHighlight: Color(0x0F000000),
-          divider: Color(0xFFD9D9D9),
-        ),
-        Brightness.dark => SelectionMenuTokens(
-          background: palette.surfaceRaised,
-          text: palette.onSurface,
-          pressHighlight: palette.onSurface.withAlpha(0x0F),
-          divider: palette.onSurface.withAlpha(0x26),
-        ),
-      };
+      SelectionMenuTokens(
+        background: palette.surfaceRaised,
+        text: palette.onSurface,
+        divider: palette.separator.withValues(alpha: palette.separator.a * 0.5),
+        shadow: const Color(0xFF000000).withValues(alpha: 0.45),
+        pageDim: switch (palette.brightness) {
+          Brightness.light => const Color(0x18000000),
+          Brightness.dark => const Color(0x40000000),
+        },
+      );
 
-  /// Elevation of the card, in logical pixels (the reference client's 1 dp).
-  static const double elevation = 1;
+  /// Elevation of the card, in logical pixels.
+  static const double elevation = 3;
 
   /// Corner radius of the card, in logical pixels.
   static const double cornerRadius = 12;
 
-  /// Card fill, and the fill of the overflow page.
+  /// Card fill, and the fill of each page.
   final Color background;
 
-  /// Item and back-row text.
+  /// Item and back-row text, and the icons.
   final Color text;
 
-  /// Wash over an item while it is pressed.
-  final Color pressHighlight;
-
-  /// Hairline above the back row.
+  /// Hairline between the More page's list and its back row.
   final Color divider;
+
+  /// Shadow colour of the card.
+  final Color shadow;
+
+  /// The scrim over the main row at the end of a page turn; its alpha is the
+  /// maximum, reached when the More page is fully open.
+  final Color pageDim;
 
   /// A copy with the named fields replaced.
   SelectionMenuTokens copyWith({
     Color? background,
     Color? text,
-    Color? pressHighlight,
     Color? divider,
+    Color? shadow,
+    Color? pageDim,
   }) => SelectionMenuTokens(
     background: background ?? this.background,
     text: text ?? this.text,
-    pressHighlight: pressHighlight ?? this.pressHighlight,
     divider: divider ?? this.divider,
+    shadow: shadow ?? this.shadow,
+    pageDim: pageDim ?? this.pageDim,
   );
 
   /// Interpolates every field between [a] and [b].
@@ -89,8 +97,9 @@ final class SelectionMenuTokens {
   ) => SelectionMenuTokens(
     background: Color.lerp(a.background, b.background, t)!,
     text: Color.lerp(a.text, b.text, t)!,
-    pressHighlight: Color.lerp(a.pressHighlight, b.pressHighlight, t)!,
     divider: Color.lerp(a.divider, b.divider, t)!,
+    shadow: Color.lerp(a.shadow, b.shadow, t)!,
+    pageDim: Color.lerp(a.pageDim, b.pageDim, t)!,
   );
 
   @override
@@ -99,11 +108,12 @@ final class SelectionMenuTokens {
       other is SelectionMenuTokens &&
           background == other.background &&
           text == other.text &&
-          pressHighlight == other.pressHighlight &&
-          divider == other.divider;
+          divider == other.divider &&
+          shadow == other.shadow &&
+          pageDim == other.pageDim;
 
   @override
-  int get hashCode => Object.hash(background, text, pressHighlight, divider);
+  int get hashCode => Object.hash(background, text, divider, shadow, pageDim);
 
   @override
   String toString() => 'SelectionMenuTokens(background: $background)';

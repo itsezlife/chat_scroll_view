@@ -1,4 +1,3 @@
-import 'package:chrome_foundation/src/motion/menu_curves.dart';
 import 'package:chrome_foundation/src/motion/motion_spec.dart';
 import 'package:chrome_foundation/src/motion/overshoot_curve.dart';
 import 'package:flutter/animation.dart';
@@ -56,26 +55,17 @@ enum MotionRole {
   /// instant speed nothing loops: the component shows its resting frame.
   loop,
 
-  /// The selection menu appearing, whole, after it was dismissed or hidden.
+  /// The selection menu appearing: the fade in.
   menuEnter,
 
-  /// The selection menu fading out: the fade after a dismiss delay, and a hide while the selection moves.
-  menuExit,
+  /// The selection menu leaving after an action, Escape or Back: the fade out
+  /// and the short drift away from the selection.
+  menuLeave,
 
-  /// One dimension of the selection menu's overflow morph that eases both ways: the height when the overflow page opens, the width when it closes, and the back row's slide.
-  menuSizeEase,
-
-  /// The other dimension of the overflow morph, which starts slowly and ends fast: the width when the overflow page opens, the height when it closes.
-  menuSizeAccelerate,
-
-  /// The main row fading out while the overflow page opens.
-  menuMainFadeOut,
-
-  /// The main row fading back in while the overflow page closes.
-  menuMainFadeIn,
-
-  /// The overflow page fading out while it closes. It appears at once when it opens.
-  menuOverflowFadeOut,
+  /// The selection menu turning between its row and its More page. Its
+  /// duration is for a full turn; a turn that starts part way, or is thrown
+  /// closed by a swipe, takes proportionally less (never under half).
+  menuPage,
 
   /// The circular reveal of a spoiler from the tap point.
   spoilerReveal,
@@ -92,9 +82,8 @@ enum MotionRole {
 /// chrome shipped, except `headerReveal`, a chosen default not yet checked
 /// against the reference client, and `popupShow` / `popupHide`, whose 200 ms
 /// durations are the reference client's (its curves are not measured here).
-/// The `menu*` roles are the reference client's selection toolbar, and
-/// `spoilerReveal` is its spoiler ripple; the non-animation timings of the
-/// menu are `SelectionMenuTiming`.
+/// The `menu*` roles are the composer selection menu's three motions, and
+/// `spoilerReveal` is the reference client's spoiler ripple.
 @immutable
 final class ChromeMotion {
   /// A motion table with every role given.
@@ -115,12 +104,8 @@ final class ChromeMotion {
     required this.selectionSlide,
     required this.loop,
     required this.menuEnter,
-    required this.menuExit,
-    required this.menuSizeEase,
-    required this.menuSizeAccelerate,
-    required this.menuMainFadeOut,
-    required this.menuMainFadeIn,
-    required this.menuOverflowFadeOut,
+    required this.menuLeave,
+    required this.menuPage,
     required this.spoilerReveal,
   });
 
@@ -161,25 +146,15 @@ final class ChromeMotion {
       loop = const MotionSpec(Duration(milliseconds: 900), Curves.linear),
       menuEnter = const MotionSpec(
         Duration(milliseconds: 150),
-        AccelerateDecelerateCurve(),
+        Curves.easeOut,
       ),
-      menuExit = const MotionSpec(
-        Duration(milliseconds: 100),
-        AccelerateDecelerateCurve(),
+      menuLeave = const MotionSpec(
+        Duration(milliseconds: 220),
+        Curves.easeIn,
       ),
-      menuSizeEase = const MotionSpec(_quarterSecond, Curves.fastOutSlowIn),
-      menuSizeAccelerate = const MotionSpec(
-        _quarterSecond,
-        LogAccelerateCurve(),
-      ),
-      menuMainFadeOut = const MotionSpec(_quarterSecond, linearOutSlowIn),
-      menuMainFadeIn = const MotionSpec(
-        Duration(milliseconds: 100),
-        fastOutLinearIn,
-      ),
-      menuOverflowFadeOut = const MotionSpec(
-        Duration(milliseconds: 150),
-        linearOutSlowIn,
+      menuPage = const MotionSpec(
+        Duration(milliseconds: 300),
+        Cubic(0.25, 0.1, 0.25, 1),
       ),
       spoilerReveal = const MotionSpec(
         Duration(milliseconds: 300),
@@ -197,14 +172,6 @@ final class ChromeMotion {
     0.27920937042459737,
     0.91025390625,
   );
-
-  /// The reference client's `linear_out_slow_in` interpolator: a fade that
-  /// leaves at once and settles gently.
-  static const Cubic linearOutSlowIn = Cubic(0, 0, 0.2, 1);
-
-  /// The reference client's `fast_out_linear_in` interpolator: a fade that
-  /// speeds up and ends abruptly.
-  static const Cubic fastOutLinearIn = Cubic(0.4, 0, 1, 1);
 
   /// [MotionRole.listTransition]: 250 ms on [androidListCurve].
   final MotionSpec listTransition;
@@ -251,26 +218,14 @@ final class ChromeMotion {
   /// [MotionRole.loop].
   final MotionSpec loop;
 
-  /// [MotionRole.menuEnter].
+  /// [MotionRole.menuEnter]: 150 ms ease out.
   final MotionSpec menuEnter;
 
-  /// [MotionRole.menuExit].
-  final MotionSpec menuExit;
+  /// [MotionRole.menuLeave]: 220 ms ease in.
+  final MotionSpec menuLeave;
 
-  /// [MotionRole.menuSizeEase].
-  final MotionSpec menuSizeEase;
-
-  /// [MotionRole.menuSizeAccelerate].
-  final MotionSpec menuSizeAccelerate;
-
-  /// [MotionRole.menuMainFadeOut].
-  final MotionSpec menuMainFadeOut;
-
-  /// [MotionRole.menuMainFadeIn].
-  final MotionSpec menuMainFadeIn;
-
-  /// [MotionRole.menuOverflowFadeOut].
-  final MotionSpec menuOverflowFadeOut;
+  /// [MotionRole.menuPage]: 300 ms on the CSS ease cubic.
+  final MotionSpec menuPage;
 
   /// [MotionRole.spoilerReveal].
   final MotionSpec spoilerReveal;
@@ -293,12 +248,8 @@ final class ChromeMotion {
     MotionRole.selectionSlide => selectionSlide,
     MotionRole.loop => loop,
     MotionRole.menuEnter => menuEnter,
-    MotionRole.menuExit => menuExit,
-    MotionRole.menuSizeEase => menuSizeEase,
-    MotionRole.menuSizeAccelerate => menuSizeAccelerate,
-    MotionRole.menuMainFadeOut => menuMainFadeOut,
-    MotionRole.menuMainFadeIn => menuMainFadeIn,
-    MotionRole.menuOverflowFadeOut => menuOverflowFadeOut,
+    MotionRole.menuLeave => menuLeave,
+    MotionRole.menuPage => menuPage,
     MotionRole.spoilerReveal => spoilerReveal,
   };
 
@@ -320,12 +271,8 @@ final class ChromeMotion {
     MotionSpec? selectionSlide,
     MotionSpec? loop,
     MotionSpec? menuEnter,
-    MotionSpec? menuExit,
-    MotionSpec? menuSizeEase,
-    MotionSpec? menuSizeAccelerate,
-    MotionSpec? menuMainFadeOut,
-    MotionSpec? menuMainFadeIn,
-    MotionSpec? menuOverflowFadeOut,
+    MotionSpec? menuLeave,
+    MotionSpec? menuPage,
     MotionSpec? spoilerReveal,
   }) => ChromeMotion(
     listTransition: listTransition ?? this.listTransition,
@@ -344,12 +291,8 @@ final class ChromeMotion {
     selectionSlide: selectionSlide ?? this.selectionSlide,
     loop: loop ?? this.loop,
     menuEnter: menuEnter ?? this.menuEnter,
-    menuExit: menuExit ?? this.menuExit,
-    menuSizeEase: menuSizeEase ?? this.menuSizeEase,
-    menuSizeAccelerate: menuSizeAccelerate ?? this.menuSizeAccelerate,
-    menuMainFadeOut: menuMainFadeOut ?? this.menuMainFadeOut,
-    menuMainFadeIn: menuMainFadeIn ?? this.menuMainFadeIn,
-    menuOverflowFadeOut: menuOverflowFadeOut ?? this.menuOverflowFadeOut,
+    menuLeave: menuLeave ?? this.menuLeave,
+    menuPage: menuPage ?? this.menuPage,
     spoilerReveal: spoilerReveal ?? this.spoilerReveal,
   );
 
