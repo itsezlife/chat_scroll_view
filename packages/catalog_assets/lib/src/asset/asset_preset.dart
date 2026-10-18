@@ -152,18 +152,21 @@ abstract final class AssetPresets {
   /// The single-emoji sticker: a square of [extent] logical pixels, decoded
   /// at that size at [devicePixelRatio].
   ///
-  /// It plays once and does not loop. [autoplay] says whether it starts when
-  /// it attaches; the host decides it (a memory of what already played, per
+  /// It plays once and does not loop, then rests on [restFrame] (the first
+  /// frame by default, as the reference client does) until the host replays it
+  /// (`AssetBinding.replay`). [autoplay] says whether it starts when it
+  /// attaches; the host decides it (a memory of what already played, per
   /// chat), never the cache. With [autoplay] false the sticker holds its
   /// first frame until the host replays it.
   static AssetPreset emojiSticker({
     required double extent,
     required double devicePixelRatio,
     bool autoplay = true,
+    AssetRestFrame restFrame = AssetRestFrame.first,
   }) => square(
     extent: extent,
     devicePixelRatio: devicePixelRatio,
-    profile: AssetProfile(animate: autoplay, loop: false),
+    profile: AssetProfile(animate: autoplay, loop: false, restFrame: restFrame),
   );
 
   /// A square of [extent] logical pixels decoded at [devicePixelRatio], used

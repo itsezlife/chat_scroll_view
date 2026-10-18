@@ -6,6 +6,25 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (one pass, a rest frame and a replay)
+
+- `AssetProfile.loop` is honoured and gains `restFrame` (`AssetRestFrame`):
+  a profile that does not loop plays one pass and holds the first or the last
+  frame. `AssetBinding.playback` (`AssetPlayback`: idle, playing, ended) says
+  where it stands, signalled on the binding's listeners, and an ended binding
+  costs no ticks. `AssetBinding.replay()` plays another pass and returns false
+  while one runs or loops (a pass is never rewound), when hidden or detached,
+  and for an entry with no animation yet.
+- `AssetPaintable.isHolding` and `restart()`, and `loop` / `restFrame` on
+  `AssetPaintContext`. Source-breaking for an implementer of `AssetPaintable`
+  or `AssetBinding`: a still returns false from both.
+- `PlayableEmbed` (`ContentEmbed` implements it): `playback` and `replay()` for
+  a body that replays an embed without reaching the binding.
+- `AssetPresets.emojiSticker(restFrame:)`.
+- Testing: `FakeAssetPaintable(frameDurations:)` plays a sequence;
+  `AssetPlaybackContract` (run against the fake and `PlayingImagePaintable`),
+  `FakePlayableEmbed` and `PlayableEmbedContract`.
+
 ### Added (embed metrics and explicit-extent presets)
 
 - `InlineEmbedMetrics.ascent` and `descent`: the line's vertical metrics in

@@ -2,6 +2,7 @@ import 'dart:ui' hide VoidCallback;
 
 import 'package:catalog_assets/src/asset/asset_binding.dart';
 import 'package:catalog_assets/src/asset/asset_cache_scope.dart';
+import 'package:catalog_assets/src/asset/asset_playback.dart';
 import 'package:catalog_assets/src/asset/asset_preset.dart';
 import 'package:catalog_assets/src/embed/inline_embed.dart';
 import 'package:content_model/content_model.dart';
@@ -18,9 +19,12 @@ import 'package:listen/listen.dart';
 /// the baked sprite scaled to the rectangle; a platform that draws text
 /// plugs a producer that does (`TextGlyphProducer`).
 ///
+/// It is a [PlayableEmbed]: [replay] asks the binding for another pass of a
+/// profile that does not loop.
+///
 /// The embed does not own the scope. Its signal is the binding's: a better
 /// stage, a baked page that landed, an animation frame.
-final class ContentEmbed implements InlineEmbed {
+final class ContentEmbed implements PlayableEmbed {
   /// Attaches [content] to [scope] as [preset] says.
   ContentEmbed({
     required AssetCacheScope scope,
@@ -40,6 +44,13 @@ final class ContentEmbed implements InlineEmbed {
 
   @override
   set visible(bool value) => _binding.visible = value;
+
+  @override
+  AssetPlayback get playback =>
+      _disposed ? AssetPlayback.idle : _binding.playback;
+
+  @override
+  bool replay() => !_disposed && _binding.replay();
 
   @override
   void addListener(VoidCallback listener) => _binding.addListener(listener);

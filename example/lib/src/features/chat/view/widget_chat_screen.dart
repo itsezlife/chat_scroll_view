@@ -12,6 +12,7 @@ import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_state.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/unread_boundary_controller.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
@@ -22,6 +23,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_sourc
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/link_activation.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_interaction_stub.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_bottom_chrome.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_dialogs.dart';
@@ -96,12 +98,17 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// What the message bodies take from this screen: the embeds over the
   /// app's asset cache, the sticker lookup and the stickers already played.
   late final ChatBodyHost _bodies;
+
+  /// Where a tap on an emoji sticker goes: the stand-in for the peer
+  /// broadcast. It sends nothing; the screen shows what it would send.
+  late final StickerInteractionStub _stickerInteractions;
   late final MappedValueListenable<bool, LargeEmojiPolicy> _emojiPolicy;
 
   /// Demo chat facts that gate the large emoji: a
   /// chat that allows stickers, in which the user is no admin.
   static const bool _chatAllowsStickers = true;
   static const bool _isChatAdmin = false;
+  static const int _demoEffectCount = 3;
   final GlobalKey _composerGlassKey = GlobalKey(debugLabel: 'ComposerGlass');
   final GlobalKey _presentationSpace = GlobalKey(debugLabel: 'PanelSpace');
 
@@ -175,6 +182,15 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       assets: widget.services.assets,
       policy: _emojiPolicy,
     );
+    _stickerInteractions = StickerInteractionStub(
+      onBroadcast: (broadcast) => _showDemoSnack('Would broadcast $broadcast'),
+      // A real host counts the effects the animated-emoji set holds for the
+      // emoji; the demo gives every emoji of the pack the same number.
+      animationCount: (emoji) =>
+          AnimatedEmojiPack.stickerFor(emoji) == null ? 0 : _demoEffectCount,
+      // The demo chat stands for a private chat with another user.
+      canInteract: () => true,
+    );
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _lifecycle = AppLifecycleListener(
       onHide: () {
@@ -247,8 +263,14 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         _showDemoSnack('Search: #$tag');
       case ChatEmbedActivated(:final target, :final alt):
         _showDemoSnack('Emoji pack of $target ($alt)');
-      case ChatStickerActivated(:final content):
-        _showDemoSnack('Sticker pack of ${content.encoded}');
+      case ChatStickerActivated(:final content, :final gesture):
+        // A tap on an emoji with an effect is a direct interaction. Otherwise
+        // (a custom emoji with none) a tap opens its pack. A long press is
+        // message selection and the body's own.
+        if (!_stickerInteractions.onActivated(interaction) &&
+            gesture == ChatInlineGesture.tap) {
+          _showDemoSnack('Sticker pack of ${content.encoded}');
+        }
       case ChatCodeActivated(:final gesture):
         // Host-owned copy path only when [copyCodeOnClick] is false.
         if (gesture == ChatInlineGesture.longPress) {
@@ -334,6 +356,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _selection.dispose();
     _spoilers.dispose();
     _emojiPolicy.dispose();
+    _stickerInteractions.dispose();
     _trace?.dispose();
     _inputSet?.dispose();
     if (_dataSource case final BackendChatDataSource source) {

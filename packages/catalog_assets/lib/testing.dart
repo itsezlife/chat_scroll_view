@@ -4,6 +4,7 @@
 /// never imports them.
 library;
 
+export 'src/asset/testing/asset_playback_contract.dart';
 export 'src/asset/testing/fake_asset_paintable.dart';
 export 'src/asset/testing/fake_asset_producer.dart';
 export 'src/atlas/testing/bake_frame_source_contract.dart';
@@ -25,6 +26,7 @@ export 'src/atlas/testing/sample_glyph_catalogue.dart';
 export 'src/embed/testing/fake_inline_embed.dart';
 export 'src/embed/testing/inline_embed_contract.dart';
 export 'src/embed/testing/inline_embed_resolver_contract.dart';
+export 'src/embed/testing/playable_embed_contract.dart';
 export 'src/glyph/testing/fake_glyph_sprite_source.dart';
 export 'src/glyph/testing/glyph_sprite_source_contract.dart';
 export 'src/pipeline/testing/asset_fetcher_contract.dart';

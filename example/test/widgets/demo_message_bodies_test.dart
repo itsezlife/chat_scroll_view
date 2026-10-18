@@ -330,14 +330,36 @@ void main() {
         ChatEmojiBody.layoutKindFor(body.emojiOnly, sticker: body.sticker),
         ChatEmojiLayoutKind.sticker,
       );
-      expect(body.autoplay, isTrue);
+      // The host's policy and the screen's memory are the body's.
+      expect(body.playback, ChatStickerPlayback.onceThenFirstFrame);
+      expect(identical(body.playLedger, host.plays), isTrue);
+      expect(host.plays.hasPlayed(1), isFalse, reason: 'not playing yet');
 
-      // Leaving the screen's view of the row and coming back: held.
+      // The animation arrives and plays: the screen remembers.
+      final attempt = producer.attempts.single
+        ..advance(
+          AssetStage.full,
+          tier: AssetTier.animated,
+          frames: [const Duration(milliseconds: 40)],
+        );
+      final paintable = attempt.paintables.single;
+      await tester.pump();
+      expect(host.plays.hasPlayed(1), isTrue);
+      expect(attempt.request.spec.pixelWidth, 125);
+      expect(paintable.paints.last.context.animate, isTrue);
+
+      // Leaving the screen's view of the row and coming back: the cache keeps
+      // the animation, the screen remembers it played, so it rests; a tap
+      // plays it.
       await tester.pumpWidget(const SizedBox());
       await pump(tester, selection, [_message(1, '\u{1F44D}')]);
+      await tester.pump();
+      expect(paintable.paints.last.context.animate, isFalse);
 
-      body = tester.widget<ChatEmojiBody>(find.byType(ChatEmojiBody));
-      expect(body.autoplay, isFalse);
+      await tester.tapAt(tester.getCenter(find.byType(ChatEmojiBody)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(paintable.paints.last.context.animate, isTrue);
     });
 
     bodyTest('a lone unicode emoji the pack lacks is text, not a sticker', (

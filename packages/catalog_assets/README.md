@@ -22,9 +22,9 @@ the content.
 | --- | --- |
 | `AssetCacheScope` | Host-created instance (no static singleton); owns entries, the default clock and placeholder, and nothing it was handed. `attach`, `clearAll`, `connectivityRestored`, `dispose`; `glyphSource`, `budgets` |
 | `AssetSpec` | What is decoded: pixel size at density, decode mode (`original` / `template`), variant (`full` / `firstFrame`). With the `ContentKey` it is the entry identity |
-| `AssetProfile` | Per-attach behaviour: animate, loop, autoplay first frame, corner radius. Never splits an entry |
-| `AssetBinding` | One surface's live attach: `readiness`, `paintable`, `lastError`, `isPlaying`, `visible`, `paint`, `retry`, `detach`; a `listen` `Listenable` |
-| `AssetPaintable` | What a binding yields: `paint(canvas, rect, context)`, `isAnimated`, and an optional `sprite` (atlas page + source rectangle) for surfaces that batch |
+| `AssetProfile` | Per-attach behaviour: animate, loop, rest frame (`AssetRestFrame`, first or last, read when it does not loop), autoplay first frame, corner radius. Never splits an entry |
+| `AssetBinding` | One surface's live attach: `readiness`, `paintable`, `lastError`, `isPlaying`, `playback` (`AssetPlayback`: idle, playing, ended), `replay()`, `visible`, `paint`, `retry`, `detach`; a `listen` `Listenable`. A profile that does not loop plays one pass, holds its rest frame and costs no ticks; `replay()` plays another and returns false while a pass runs. Surfaces of one entry share one playback |
+| `AssetPaintable` | What a binding yields: `paint(canvas, rect, context)`, `isAnimated`, `isHolding` / `restart()` for a playback that stopped on its rest frame, and an optional `sprite` (atlas page + source rectangle) for surfaces that batch |
 | `AssetStage` / `AssetReadiness` | `none`, `placeholder`, `firstFrame`, `full` and `isFinal`. There is no failed stage |
 | `AssetProducer` (seam) | Makes the paintables of entries: `produce(request, progress, demand)` returns an `AssetTask`; reports stages, failures and cancellation through `AssetProgress`. `AssetPipeline` is the fetching and decoding implementation |
 | `AssetCacheBudgets` | Byte budgets of the unattached entries per tier (`still`, `animated`); documented defaults |
@@ -240,8 +240,9 @@ AssetCacheProvider(
 | --- | --- |
 | `AssetCacheProvider` | `InheritedWidget` handing the host's `AssetCacheScope` down; `of` throws without one, `maybeOf` is null. Never disposes the scope |
 | `ContentView` | Attaches on first build, again only when content, preset or scope change (new attach first, old one given back after, so a shared entry or glyph page is never left unheld), detaches on dispose. Sized by the preset; repaints on the binding's signal, never rebuilds for it. Follows `TickerMode` for `visible` |
-| `AssetPreset` / `AssetPresets` | Size (logical), `AssetSpec` and `AssetProfile` in one value. `keyboardCell(extent:, devicePixelRatio:)`; `inlineMessage(ascent:, descent:, devicePixelRatio:)` (a square of 1.2 times the line height, rounded to device pixels, the Telegram Android rule) and `inlineFontSize(fontSize:, ...)` for text with no font metrics; `emojiOnly(step:, ...)` (one item of an emoji-only message, a font-size step plus a 4 px box) and `emojiSticker(extent:, autoplay:, ...)` (the single-emoji sticker, plays once); `square(extent:, profile:, ...)` for any other explicit extent; hosts build their own |
+| `AssetPreset` / `AssetPresets` | Size (logical), `AssetSpec` and `AssetProfile` in one value. `keyboardCell(extent:, devicePixelRatio:)`; `inlineMessage(ascent:, descent:, devicePixelRatio:)` (a square of 1.2 times the line height, rounded to device pixels, the Telegram Android rule) and `inlineFontSize(fontSize:, ...)` for text with no font metrics; `emojiOnly(step:, ...)` (one item of an emoji-only message, a font-size step plus a 4 px box) and `emojiSticker(extent:, autoplay:, restFrame:, ...)` (the single-emoji sticker, plays once then rests); `square(extent:, profile:, ...)` for any other explicit extent; hosts build their own |
 | `InlineEmbed` (seam) | What a body lays out and paints: `sizeHint`, `paint(canvas, rect, context)`, a `Listenable` invalidation signal, `visible`, `dispose`. No widget, no asset type |
+| `PlayableEmbed` (seam) | An `InlineEmbed` that plays and can play again: `playback`, `replay()` (false while a pass runs). `ContentEmbed` is one; a body checks `embed is PlayableEmbed` |
 | `InlineEmbedResolver` (seam) | Maps an `InlineEmbedTarget` (scheme, id, alt) and `InlineEmbedMetrics` (font size, ascent, descent, density) to a new `InlineEmbed`, or null |
 | `ContentEmbed` | The `InlineEmbed` over an `AssetBinding`: attaches at construction with a preset, paints the paintable at the shared clock's time, detaches in `dispose` |
 | `ContentEmbedResolver` | Resolves targets spelled as `ContentKey.encoded` (`unicode:1F44D`, `document:5368`, `external:...`) to `ContentEmbed`s, with `AssetPresets.inlineMessage` over the metrics' ascent and descent unless the host passes `presetFor` |
@@ -372,15 +373,18 @@ data), and the contract suites `GlyphRasteriserContract.run`,
 `GlyphPageStoreContract.run` and `BakeFrameSourceContract.run` for adapter authors.
 For the pipeline: `FakeFetcher` (serves fixed content, goes offline, answers by itself or waits for the test), `FakeDecoder`, `ManualClock` (latency without waiting) and the contract suites `AssetFetcherContract.run` and `DecoderContract.run`.
 For the cache core: `FakeAssetProducer` (every attempt waits for the test, which
-plays the producer through `FakeAssetAttempt`), `FakeAssetPaintable`,
+plays the producer through `FakeAssetAttempt`), `FakeAssetPaintable` (given
+`frameDurations` it plays a sequence, holds its rest frame and restarts),
 `FakeGlyphSpriteSource` (pages baked and released by hand, hold counts
 readable), `ManualPlaybackTickSource`, and the contract suites
-`GlyphSpriteSourceContract.run` (the fake and `GlyphAtlas` both pass it) and
+`GlyphSpriteSourceContract.run` (the fake and `GlyphAtlas` both pass it),
 `PlaybackTickSourceContract.run` (the manual and the scheduler source both pass
-it).
-For the widget and embed seams: `FakeInlineEmbed`, `FakeInlineEmbedResolver` and the
-contract suites `InlineEmbedContract.run` (`ContentEmbed` and the fake both pass
-it) and `InlineEmbedResolverContract.run`.
+it) and `AssetPlaybackContract.run` (one pass, the rest frame, restart; the
+fake and `PlayingImagePaintable` both pass it).
+For the widget and embed seams: `FakeInlineEmbed`, `FakePlayableEmbed`,
+`FakeInlineEmbedResolver` and the contract suites `InlineEmbedContract.run`
+(`ContentEmbed` and the fakes both pass it), `PlayableEmbedContract.run` (the
+same) and `InlineEmbedResolverContract.run`.
 On-device checks: `example/integration_test/glyph_atlas_bake_test.dart` (bake
 and visual check) and `glyph_atlas_paced_bake_test.dart` (paced bake idle, while
 the panel opens, during a fling).

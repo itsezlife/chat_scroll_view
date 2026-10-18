@@ -360,6 +360,22 @@ _Avoid_: Per-spoiler reveal, persisted reveal, widget-local reveal flag, re-hide
 The body kind the host passes for a message whose text is only emoji: no bubble, enlarged from per-count size tables, or sticker-sized when it is a single item with an animation. Classified by the host (it alone knows the message has no media and whether the setting is on); the viewport never re-detects. Not a text selection subject ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
 _Avoid_: Big emoji bubble, emoji message type, sticker message (a single-item emoji body only borrows the sticker layout)
 
+**Sticker playback**:
+The host's policy for how the sticker of an **emoji-only body** plays: loop, play once then rest on the first or the last frame, or stay still. The body reads no animation setting; the host maps its settings and power policy to a mode. A sticker that plays once does so the first time the open chat shows it, which the **play ledger** remembers ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
+_Avoid_: Autoplay flag, GIF mode, loop setting (in the body)
+
+**Play ledger**:
+The host-owned memory of which stickers already played in the open chat, by message id: not persisted, not in the body or the asset cache, so a recycled row mounts again and rests. A play is recorded when the animation is playing, not when it ends.
+_Avoid_: Played flag on the message, played-once cache
+
+**Sticker tap policy**:
+The pure `$Mobile` / `$Desktop` strategy of where a tap on a sticker counts (the drawn sticker, outset by an explicit replay tap slop that is zero by default) and which gestures replay it. A replay never rewinds a pass that is running. Distinct from the **sticker interaction** a tap also is.
+_Avoid_: Near-sticker tap, sticker hitbox
+
+**Sticker interaction**:
+The event a tap on a sticker is for the host (`ChatStickerActivated`): the emoji, the message, the drawn rectangle in global coordinates and a monotonic time, emitted for every tap whether or not the sticker replayed. The viewport draws no effect and sends nothing; the host builds the larger effect, the peer broadcast and their acknowledgement on it, and applies a peer's interaction through the facade's incoming-side entry point.
+_Avoid_: Sticker effect (the effect is the host's drawing), tap animation
+
 ### Message menu
 
 **Message menu**:

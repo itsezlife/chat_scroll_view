@@ -1,9 +1,17 @@
 import 'package:catalog_assets/catalog_assets.dart'
-    show AssetPreset, AssetPresets, AssetProfile, InlineEmbed;
+    show
+        AssetPlayback,
+        AssetPreset,
+        AssetPresets,
+        AssetProfile,
+        InlineEmbed,
+        PlayableEmbed;
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_sticker_tap_policy.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_sizes.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_body.dart'
     show ChatMarkdownBodyRegistration;
+import 'package:chat_scroll_view/src/chat_widgets/chat_sticker_playback.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_emoji_body.dart';
 import 'package:content_model/content_model.dart'
     show ContentKey, ContentKey$Document, ContentKey$Unicode, EmojiOnly;
@@ -53,8 +61,24 @@ enum ChatEmojiLayoutKind {
 /// A custom emoji is drawn through [embedFactory] and animates and loops. A
 /// unicode emoji in the text layout is a glyph at the step's font size (some
 /// clients do this; the reference client draws the first frame of the
-/// animated sticker). The sticker of a unicode emoji plays when [autoplay] says so; a
-/// custom emoji's sticker always plays.
+/// animated sticker).
+///
+/// ## Sticker playback
+///
+/// How the sticker plays is the host's policy ([playback]), not the body's:
+/// loop, play once and rest on the first or the last frame, or stay still.
+/// The reference default plays the single unicode emoji once and loops a
+/// custom emoji ([ChatStickerPlayback.defaultFor]). A sticker that plays once
+/// does so the first time the open chat shows it, which the host's
+/// [playLedger] remembers per message (so a recycled row does not play it
+/// again). The body records the play when the animation is playing, not when
+/// it ends, as the reference clients do. A replay (a tap, under
+/// [tapPolicy]) plays one more pass and never rewinds one that is running.
+/// [isActive] is the host's one visibility input: an inactive row costs no
+/// animation ticks and shows no sticker to the facade.
+///
+/// The embed must be a `PlayableEmbed` (`ContentEmbed` is) to replay; any
+/// other draws its picture and cannot be replayed.
 ///
 /// ## Selection and taps
 ///
@@ -63,8 +87,12 @@ enum ChatEmojiLayoutKind {
 /// long press is message selection, and Copy is the message's own. The
 /// viewport arbitrates taps: a custom emoji of the text layout reports
 /// `ChatInlineHit.embed` (when `handlesEmbedHits`), and the sticker reports
-/// `ChatInlineHit.sticker`, always; on that tap the body plays the sticker
-/// again.
+/// `ChatInlineHit.sticker`, always, when the tap lands on the drawn sticker
+/// (grown by [tapPolicy]'s replay tap slop, none by default): the body then
+/// replays the sticker under that policy, and the host gets the tap as
+/// `ChatStickerActivated` to build an interaction effect on. The sticker
+/// layout also registers as a `ChatStickerBody`, so the host finds the
+/// sticker's rectangle and replays it by message id.
 ///
 /// ## Chrome
 ///
@@ -82,7 +110,10 @@ class ChatEmojiBody extends StatefulWidget {
     required this.emojiOnly,
     required this.embedFactory,
     this.sticker,
-    this.autoplay = true,
+    this.playback,
+    this.playLedger,
+    this.tapPolicy,
+    this.isActive = true,
     this.hasHeader = false,
     this.sizes = const ChatEmojiSizes(),
     this.semanticsLabel,
@@ -116,11 +147,24 @@ class ChatEmojiBody extends StatefulWidget {
   /// layout.
   final ContentKey? sticker;
 
-  /// Whether the sticker of a unicode emoji starts playing when it appears.
-  /// The host remembers what already played on this screen (the reference client plays it
-  /// the first time a chat shows it); a sticker held at its first frame
-  /// plays on a tap.
-  final bool autoplay;
+  /// How the sticker plays, or null for the reference default for the emoji
+  /// ([ChatStickerPlayback.defaultFor]). Ignored by the text layout.
+  final ChatStickerPlayback? playback;
+
+  /// What the open chat already played, to decide whether a sticker that
+  /// plays once plays now, and to record it. Null remembers nothing: such a
+  /// sticker plays whenever it is mounted.
+  final ChatStickerPlayLedger? playLedger;
+
+  /// Where a tap on the sticker counts and which gestures replay it, or null
+  /// for the strategy that goes with the controller's selection policy.
+  final ChatStickerTapPolicy? tapPolicy;
+
+  /// Whether the row is shown to the user: the host combines row visibility,
+  /// app lifecycle, route focus and its power policy. An inactive row's
+  /// embeds are hidden (they cost no ticks), it exposes no sticker rectangle
+  /// and cannot replay.
+  final bool isActive;
 
   /// Whether a reply or forward header sits above the text layout, which then
   /// wraps at [ChatEmojiSizes.headerWrapFraction] of the row's width.
@@ -139,13 +183,18 @@ class ChatEmojiBody extends StatefulWidget {
 }
 
 class _ChatEmojiBodyState extends State<ChatEmojiBody>
-    implements ChatNonTextBody {
+    implements ChatStickerBody {
   final _leafKey = GlobalKey();
 
   List<ChatEmojiLeaf> _leaves = const [];
   Object? _plan;
-  int _replays = 0;
-  bool _replayed = false;
+
+  // Whether the sticker plays now, asked of the ledger once for what this
+  // state shows: asking on each build would hold a sticker that is playing,
+  // once the first frame recorded it. Null until the first dependencies.
+  bool? _autoplay;
+  Object? _autoplayFor;
+  PlayableEmbed? _watched;
 
   late double _dpr;
   late Size _viewport;
@@ -170,6 +219,14 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
 
   double get _extent => widget.sizes.stickerExtentFor(_viewport);
 
+  ChatStickerPlayback get _playback =>
+      widget.playback ??
+      ChatStickerPlayback.defaultFor(widget.emojiOnly.items.first.key);
+
+  ChatStickerTapPolicy get _tapPolicy =>
+      widget.tapPolicy ??
+      ChatStickerTapPolicy.of(widget.controller.selectionPolicy);
+
   @override
   void initState() {
     super.initState();
@@ -192,10 +249,6 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeInteractionListener(_onInteraction);
       widget.controller.addInteractionListener(_onInteraction);
-    }
-    if (oldWidget.emojiOnly != widget.emojiOnly ||
-        oldWidget.sticker != widget.sticker) {
-      _replayed = false;
     }
     _syncRegistration();
     _syncLeaves();
@@ -252,15 +305,47 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
   }
 
   @override
+  Rect? get stickerGlobalRect {
+    final render = _render;
+    final rect = _isSticker && widget.isActive ? render?.itemRect(0) : null;
+    return rect == null
+        ? null
+        : render!.localToGlobal(rect.topLeft) & rect.size;
+  }
+
+  @override
+  bool replay() =>
+      _isSticker &&
+      widget.isActive &&
+      switch (_playable) {
+        final embed? => embed.replay(),
+        null => false,
+      };
+
+  // The sticker's embed when it can play, or null.
+  PlayableEmbed? get _playable => switch (_leaves) {
+    [ChatEmojiEmbedLeaf(:final PlayableEmbed embed)] when _isSticker => embed,
+    _ => null,
+  };
+
+  @override
   ChatInlineHit? inlineHitAt(Offset globalOffset) {
     final render = _render;
     if (render == null) return null;
-    final index = render.itemAt(render.globalToLocal(globalOffset));
+    final local = render.globalToLocal(globalOffset);
+    if (_isSticker) {
+      // The drawn sticker, not the box around it, grown by the policy's slop.
+      final rect = render.itemRect(0);
+      if (rect == null || !_tapPolicy.hits(rect, local)) return null;
+      return ChatInlineHit.sticker(
+        messageId: widget.messageId,
+        content: widget.emojiOnly.items.single.key,
+        stickerRect: render.localToGlobal(rect.topLeft) & rect.size,
+      );
+    }
+    final index = render.itemAt(local);
     if (index == null) return null;
     final key = widget.emojiOnly.items[index].key;
-    if (_isSticker) {
-      return ChatInlineHit.sticker(messageId: widget.messageId, content: key);
-    }
     // A unicode glyph is text, not an embed: only a custom emoji is a hit.
     return switch (key) {
       ContentKey$Document() => ChatInlineHit.embed(
@@ -279,6 +364,7 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
   // (and so every embed attached to the cache).
   void _syncLeaves() {
     final sticker = _isSticker;
+    _decideAutoplay();
     final plan = (
       widget.emojiOnly,
       widget.sticker,
@@ -286,31 +372,62 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
       sticker,
       sticker ? _extent : _font,
       _dpr,
-      widget.autoplay || _replayed,
+      sticker ? (_playback, _autoplay) : null,
       _style,
-      _replays,
     );
-    if (plan == _plan) return;
+    if (plan == _plan) {
+      _applyActive();
+      return;
+    }
     _plan = plan;
     _disposeLeaves();
     _leaves = [
       for (final item in widget.emojiOnly.items) _leafFor(item.key, sticker),
     ];
+    _applyActive();
+    _watchSticker();
+  }
+
+  // Asks the ledger once for what this state shows. A twin that must not
+  // register (an edit morph's outgoing copy) shares the message id of the live
+  // body and must neither start the play nor use it up.
+  void _decideAutoplay() {
+    final source = (
+      widget.messageId,
+      widget.emojiOnly,
+      widget.sticker,
+      widget.playback,
+      widget.playLedger,
+    );
+    if (_autoplay != null && source == _autoplayFor) return;
+    _autoplayFor = source;
+    _autoplay =
+        _isSticker &&
+        switch (_playback) {
+          ChatStickerPlayback.loop => true,
+          ChatStickerPlayback.still => false,
+          ChatStickerPlayback.onceThenFirstFrame ||
+          ChatStickerPlayback.onceThenLastFrame =>
+            ChatMarkdownBodyRegistration.allows(context) &&
+                !(widget.playLedger?.hasPlayed(widget.messageId) ?? false),
+        };
   }
 
   ChatEmojiLeaf _leafFor(ContentKey key, bool sticker) {
     if (sticker) {
       final extent = _extent;
-      final preset = key is ContentKey$Unicode
-          ? AssetPresets.emojiSticker(
-              extent: extent,
-              devicePixelRatio: _dpr,
-              autoplay: widget.autoplay || _replayed,
-            )
-          : AssetPresets.square(
+      final playback = _playback;
+      final preset = playback.loops
+          ? AssetPresets.square(
               extent: extent,
               devicePixelRatio: _dpr,
               profile: const AssetProfile(animate: true),
+            )
+          : AssetPresets.emojiSticker(
+              extent: extent,
+              devicePixelRatio: _dpr,
+              autoplay: _autoplay!,
+              restFrame: playback.restFrame,
             );
       return _embedLeaf(widget.sticker!, preset);
     }
@@ -322,6 +439,47 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
       ),
       _ => const ChatEmojiEmptyLeaf(),
     };
+  }
+
+  // The host's visibility input reaches every embed; a flag is no reason to
+  // make them again.
+  void _applyActive() {
+    for (final leaf in _leaves) {
+      if (leaf case ChatEmojiEmbedLeaf(:final embed)) {
+        embed.visible = widget.isActive;
+      }
+    }
+  }
+
+  // --- Play once, recorded -------------------------------------------------
+
+  // A sticker that plays once is recorded as played when its animation is
+  // playing (the reference marks at the first drawn frame), watched on the
+  // embed's own signal until then.
+  void _watchSticker() {
+    _unwatchSticker();
+    if (!_isSticker ||
+        _autoplay != true ||
+        !_playback.playsOnFirstShow ||
+        widget.playLedger == null) {
+      return;
+    }
+    final embed = _playable;
+    if (embed == null) return;
+    _watched = embed..addListener(_onStickerSignal);
+    _onStickerSignal();
+  }
+
+  void _unwatchSticker() {
+    _watched?.removeListener(_onStickerSignal);
+    _watched = null;
+  }
+
+  void _onStickerSignal() {
+    final embed = _watched;
+    if (embed == null || embed.playback != AssetPlayback.playing) return;
+    _unwatchSticker();
+    widget.playLedger?.markPlayed(widget.messageId);
   }
 
   ChatEmojiLeaf _embedLeaf(ContentKey key, AssetPreset preset) =>
@@ -343,6 +501,7 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
   );
 
   void _disposeLeaves() {
+    _unwatchSticker();
     for (final leaf in _leaves) {
       leaf.dispose();
     }
@@ -354,16 +513,11 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
   void _onInteraction(ChatSelectionInteraction interaction) {
     if (interaction case ChatStickerActivated(
       :final messageId,
-      gesture: ChatInlineGesture.tap,
+      :final gesture,
     ) when messageId == widget.messageId && _isSticker) {
-      // A held sticker plays, and a playing one is attached again. The cache
-      // keeps one playback per entry and loops it, so this cannot rewind a
-      // sticker that is mid-way.
-      setState(() {
-        _replayed = true;
-        _replays++;
-        _syncLeaves();
-      });
+      // A pass that is running is not rewound: the embed refuses, and the
+      // tap is still the host's interaction.
+      if (_tapPolicy.replaysOn(gesture)) replay();
     }
   }
 

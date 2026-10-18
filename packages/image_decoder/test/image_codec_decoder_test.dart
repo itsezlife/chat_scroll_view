@@ -116,12 +116,19 @@ Future<ui.Color> _centreAt(
   AssetPaintable paintable,
   Duration time, {
   bool animate = true,
+  bool loop = true,
+  AssetRestFrame rest = AssetRestFrame.first,
 }) async {
   final recorder = ui.PictureRecorder();
   paintable.paint(
     ui.Canvas(recorder),
     const ui.Rect.fromLTWH(0, 0, 16, 16),
-    AssetPaintContext(time: time, animate: animate),
+    AssetPaintContext(
+      time: time,
+      animate: animate,
+      loop: loop,
+      restFrame: rest,
+    ),
   );
   final image = await recorder.endRecording().toImage(16, 16);
   final pixels = (await image.toByteData())!;
@@ -141,10 +148,12 @@ Future<ui.Color> _settledAt(
   AssetPaintable paintable,
   Duration time, {
   bool animate = true,
+  bool loop = true,
+  AssetRestFrame rest = AssetRestFrame.first,
 }) async {
-  await _centreAt(paintable, time, animate: animate);
+  await _centreAt(paintable, time, animate: animate, loop: loop, rest: rest);
   await Future<void>.delayed(const Duration(milliseconds: 20));
-  return _centreAt(paintable, time, animate: animate);
+  return _centreAt(paintable, time, animate: animate, loop: loop, rest: rest);
 }
 
 const ui.Color _red = ui.Color(0xFFFF0000);
@@ -231,6 +240,36 @@ void main() {
     });
   });
 
+  AssetPlaybackContract.run(() async {
+    final paintable = (await _decode(
+      _request(_threeFrames),
+    )).advances.single.paintable;
+    return AssetPlaybackHarness(
+      paintable: paintable,
+      frameDurations: const [
+        Duration(milliseconds: 40),
+        Duration(milliseconds: 60),
+        Duration(milliseconds: 80),
+      ],
+      frameAt:
+          (
+            time, {
+            animate = true,
+            loop = false,
+            rest = AssetRestFrame.first,
+          }) async {
+            final colour = await _settledAt(
+              paintable,
+              time,
+              animate: animate,
+              loop: loop,
+              rest: rest,
+            );
+            return [_red, _blue, _green].indexOf(colour);
+          },
+    );
+  });
+
   group('PlayingImagePaintable', () {
     late AssetPaintable paintable;
 
@@ -312,10 +351,7 @@ void main() {
         _red,
       );
       // A still paint at its own, older time leaves the timing alone.
-      expect(
-        await _settledAt(paintable, Duration.zero, animate: false),
-        _red,
-      );
+      expect(await _settledAt(paintable, Duration.zero, animate: false), _red);
       expect(
         await _settledAt(paintable, seen + const Duration(milliseconds: 40)),
         _blue,

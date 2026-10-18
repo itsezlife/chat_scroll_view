@@ -1,4 +1,7 @@
-import 'package:content_model/content_model.dart' show ContentKey;
+import 'dart:ui' show Rect;
+
+import 'package:content_model/content_model.dart'
+    show ContentKey, ContentKey$Document;
 import 'package:flutter/foundation.dart';
 
 /// Host-observable outcome from the selection facade (Copy, link, code,
@@ -63,13 +66,16 @@ sealed class ChatSelectionInteraction {
     required ChatInlineGesture gesture,
   }) = ChatEmbedActivated;
 
-  /// The sticker of an emoji-only body tapped. Always emitted: the body
-  /// replays the animation on its own, and what else a tap means (an effect,
-  /// a pack sheet for a custom emoji) is the host's.
+  /// The sticker of an emoji-only body tapped, or held. Always emitted for a
+  /// tap: the body replays the animation on its own under its tap policy, and
+  /// what else a tap means (an interaction effect, a pack sheet for a custom
+  /// emoji) is the host's. See [ChatStickerActivated] for the payload.
   const factory ChatSelectionInteraction.stickerActivated({
     required int messageId,
     required ContentKey content,
     required ChatInlineGesture gesture,
+    required Rect stickerRect,
+    required Duration tapTime,
   }) = ChatStickerActivated;
 
   /// Code / monospace activation when the facade does **not** auto-copy.
@@ -404,7 +410,20 @@ final class ChatEmbedActivated extends ChatSelectionInteraction {
       'alt: $alt, gesture: $gesture)';
 }
 
-/// The sticker of an emoji-only body tapped.
+/// The sticker of an emoji-only body tapped, or held.
+///
+/// This is the one event a host needs to build a direct-tap interaction on:
+/// a larger effect over the list, a haptic, a batch sent to the peer. It
+/// carries everything the viewport knows and nothing it would have to decide:
+/// which emoji ([content], [isCustomEmoji]), which message, where the sticker
+/// is drawn ([stickerRect], global coordinates, read when the tap landed) and
+/// when ([tapTime], monotonic). Whether the sticker also replayed is not part
+/// of it; the host never has to wait for the body.
+///
+/// A tap is the interaction. A long press ([gesture]) carries no effect: it
+/// opens the message menu or selects the message, and is told so the body can
+/// follow its tap policy (`ChatStickerTapPolicy.replaysOn`). It is not told
+/// while message selection suppresses inline activations.
 ///
 /// Construct via [ChatSelectionInteraction.stickerActivated].
 @immutable
@@ -414,16 +433,34 @@ final class ChatStickerActivated extends ChatSelectionInteraction {
     required this.messageId,
     required this.content,
     required this.gesture,
+    required this.stickerRect,
+    required this.tapTime,
   });
 
   /// Message whose body shows the sticker.
   final int messageId;
 
-  /// The emoji of the message: a unicode key, or a custom emoji's document.
+  /// The emoji of the message: a unicode key as the sender wrote it (a host
+  /// normalises it, skin tone and selector, before it looks an effect up), or
+  /// a custom emoji's document.
   final ContentKey content;
+
+  /// Whether [content] is a custom emoji.
+  bool get isCustomEmoji => content is ContentKey$Document;
 
   /// Tap vs long-press.
   final ChatInlineGesture gesture;
+
+  /// Where the sticker was drawn when the gesture landed, in global
+  /// coordinates. A host converts it to its overlay's space, and reads
+  /// `ChatSelectionController.stickerRectOf` for its place later, since the
+  /// row scrolls.
+  final Rect stickerRect;
+
+  /// When the gesture was activated, on the facade's monotonic clock
+  /// (`ChatSelectionController.monotonicClock`): only differences between two
+  /// of these mean anything, like the offsets of a batch.
+  final Duration tapTime;
 
   @override
   bool operator ==(Object other) =>
@@ -431,13 +468,16 @@ final class ChatStickerActivated extends ChatSelectionInteraction {
       other is ChatStickerActivated &&
           messageId == other.messageId &&
           content == other.content &&
-          gesture == other.gesture;
+          gesture == other.gesture &&
+          stickerRect == other.stickerRect &&
+          tapTime == other.tapTime;
 
   @override
-  int get hashCode => Object.hash(messageId, content, gesture);
+  int get hashCode =>
+      Object.hash(messageId, content, gesture, stickerRect, tapTime);
 
   @override
   String toString() =>
       'ChatStickerActivated(messageId: $messageId, content: $content, '
-      'gesture: $gesture)';
+      'gesture: $gesture, stickerRect: $stickerRect, tapTime: $tapTime)';
 }

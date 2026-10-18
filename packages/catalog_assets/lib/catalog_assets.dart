@@ -24,6 +24,7 @@ export 'src/asset/asset_binding.dart';
 export 'src/asset/asset_cache_budgets.dart';
 export 'src/asset/asset_cache_scope.dart';
 export 'src/asset/asset_paintable.dart';
+export 'src/asset/asset_playback.dart';
 export 'src/asset/asset_preset.dart';
 export 'src/asset/asset_producer.dart';
 export 'src/asset/asset_profile.dart';

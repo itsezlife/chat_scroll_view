@@ -26,6 +26,12 @@ final class CirclePlaceholder implements AssetPaintable {
   bool get isAnimated => false;
 
   @override
+  bool get isHolding => false;
+
+  @override
+  bool restart() => false;
+
+  @override
   void paint(Canvas canvas, Rect rect, AssetPaintContext context) {
     final base = context.tint ?? _fallback;
     _paint.color = base.withValues(alpha: _alpha * context.opacity);

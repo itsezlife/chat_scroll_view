@@ -52,11 +52,34 @@ final class _Embeds {
   final asked = <(ContentKey, AssetPreset)>[];
   final made = <FakeInlineEmbed>[];
 
+  /// Whether the embeds can play (replay), and how they start.
+  bool playable = false;
+  AssetPlayback startsAs = AssetPlayback.playing;
+
   InlineEmbed? call(ContentKey content, AssetPreset preset) {
     asked.add((content, preset));
-    final embed = FakeInlineEmbed(sizeHint: preset.size);
+    final embed = playable
+        ? FakePlayableEmbed(sizeHint: preset.size, playback: startsAs)
+        : FakeInlineEmbed(sizeHint: preset.size);
     made.add(embed);
     return embed;
+  }
+
+  FakePlayableEmbed get sticker => made.last as FakePlayableEmbed;
+}
+
+/// A ledger the test can read.
+final class _Ledger implements ChatStickerPlayLedger {
+  final played = <int>{};
+  final marks = <int>[];
+
+  @override
+  bool hasPlayed(int messageId) => played.contains(messageId);
+
+  @override
+  void markPlayed(int messageId) {
+    marks.add(messageId);
+    played.add(messageId);
   }
 }
 
@@ -85,7 +108,11 @@ void main() {
     WidgetTester tester,
     EmojiOnly emojiOnly, {
     ContentKey? sticker,
-    bool autoplay = true,
+    ChatStickerPlayback? playback,
+    ChatStickerPlayLedger? ledger,
+    ChatStickerTapPolicy? tapPolicy,
+    bool isActive = true,
+    int messageId = 1,
     bool hasHeader = false,
     double maxWidth = 3000,
     TextDirection direction = TextDirection.ltr,
@@ -107,10 +134,13 @@ void main() {
               constraints: BoxConstraints(maxWidth: maxWidth),
               child: ChatEmojiBody(
                 controller: selection,
-                messageId: 1,
+                messageId: messageId,
                 emojiOnly: emojiOnly,
                 sticker: sticker,
-                autoplay: autoplay,
+                playback: playback,
+                playLedger: ledger,
+                tapPolicy: tapPolicy,
+                isActive: isActive,
                 hasHeader: hasHeader,
                 sizes: sizes,
                 embedFactory: factory ?? embeds.call,
@@ -291,17 +321,394 @@ void main() {
       expect(embeds.asked.single.$2.profile.animate, isTrue);
     });
 
-    testWidgets('autoplay false holds the first frame', (tester) async {
+    testWidgets('a sticker the ledger says played holds its first frame', (
+      tester,
+    ) async {
       view(tester, const Size(360, 640));
 
       await pumpBody(
         tester,
         EmojiOnly(const [EmojiOnlyItem(_thumb)]),
         sticker: pack,
-        autoplay: false,
+        ledger: _Ledger()..played.add(1),
       );
 
       expect(embeds.asked.single.$2.profile.animate, isFalse);
+      expect(embeds.asked.single.$2.profile.loop, isFalse);
+    });
+  });
+
+  group('sticker playback policy', () {
+    const pack = ContentKey.document('pack-thumb');
+    final thumb = EmojiOnly(const [EmojiOnlyItem(_thumb)]);
+
+    Future<void> pump(
+      WidgetTester tester, {
+      ChatStickerPlayback? playback,
+      _Ledger? ledger,
+      EmojiOnly? emojiOnly,
+      ContentKey sticker = pack,
+      int messageId = 1,
+    }) async {
+      view(tester, const Size(360, 640));
+      embeds.playable = true;
+      await pumpBody(
+        tester,
+        emojiOnly ?? thumb,
+        sticker: sticker,
+        playback: playback,
+        ledger: ledger,
+        messageId: messageId,
+      );
+    }
+
+    AssetProfile profile() => embeds.asked.last.$2.profile;
+
+    testWidgets('the default for a unicode emoji plays once and rests on the '
+        'first frame', (tester) async {
+      await pump(tester);
+
+      expect(profile().animate, isTrue);
+      expect(profile().loop, isFalse);
+      expect(profile().restFrame, AssetRestFrame.first);
+    });
+
+    testWidgets('the default for a custom emoji loops', (tester) async {
+      const own = ContentKey.document('own');
+      await pump(
+        tester,
+        emojiOnly: EmojiOnly(const [EmojiOnlyItem(own)]),
+        sticker: own,
+      );
+
+      expect(profile().loop, isTrue);
+    });
+
+    testWidgets('the host can make the unicode sticker loop', (tester) async {
+      await pump(tester, playback: ChatStickerPlayback.loop);
+
+      expect(profile().animate, isTrue);
+      expect(profile().loop, isTrue);
+    });
+
+    testWidgets('the host can ask for the last frame as the rest frame', (
+      tester,
+    ) async {
+      await pump(tester, playback: ChatStickerPlayback.onceThenLastFrame);
+
+      expect(profile().restFrame, AssetRestFrame.last);
+      expect(profile().animate, isTrue);
+    });
+
+    testWidgets('still never plays on its own, whatever the ledger says', (
+      tester,
+    ) async {
+      await pump(tester, playback: ChatStickerPlayback.still);
+
+      expect(profile().animate, isFalse);
+    });
+
+    testWidgets('a loop is not held by a ledger that says it played', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        playback: ChatStickerPlayback.loop,
+        ledger: _Ledger()..played.add(1),
+      );
+
+      expect(profile().animate, isTrue);
+    });
+
+    testWidgets('the ledger is asked per message', (tester) async {
+      await pump(tester, ledger: _Ledger()..played.add(2), messageId: 1);
+
+      expect(profile().animate, isTrue);
+    });
+
+    testWidgets('it records the play once the animation is playing, and only '
+        'once', (tester) async {
+      final ledger = _Ledger();
+      embeds.startsAs = AssetPlayback.idle;
+      await pump(tester, ledger: ledger);
+      embeds.startsAs = AssetPlayback.playing;
+      expect(ledger.marks, isEmpty, reason: 'nothing is playing yet');
+
+      embeds.sticker.playback = AssetPlayback.playing;
+      embeds.sticker.invalidate();
+      embeds.sticker.playback = AssetPlayback.ended;
+      embeds.sticker.playback = AssetPlayback.playing;
+
+      expect(ledger.marks, [1]);
+    });
+
+    testWidgets('an embed that is already playing is recorded at once', (
+      tester,
+    ) async {
+      final ledger = _Ledger();
+
+      await pump(tester, ledger: ledger);
+
+      expect(ledger.marks, [1]);
+    });
+
+    testWidgets('a sticker held at its first frame records nothing', (
+      tester,
+    ) async {
+      final ledger = _Ledger()..played.add(1);
+
+      await pump(tester, ledger: ledger);
+
+      expect(ledger.marks, isEmpty);
+    });
+
+    testWidgets('a loop records nothing: it has no memory', (tester) async {
+      final ledger = _Ledger();
+
+      await pump(tester, playback: ChatStickerPlayback.loop, ledger: ledger);
+
+      expect(ledger.marks, isEmpty);
+    });
+
+    testWidgets('mounted again after recycling, the sticker rests', (
+      tester,
+    ) async {
+      final ledger = _Ledger();
+      await pump(tester, ledger: ledger);
+      await tester.pumpWidget(const SizedBox());
+
+      await pump(tester, ledger: ledger);
+
+      expect(profile().animate, isFalse);
+    });
+
+    testWidgets('a twin that must not register neither plays nor records', (
+      tester,
+    ) async {
+      view(tester, const Size(360, 640));
+      embeds.playable = true;
+      final ledger = _Ledger();
+      await tester.pumpWidget(
+        MediaQuery(
+          data: MediaQueryData.fromView(tester.view),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: ChatMarkdownBodyRegistration(
+              registers: false,
+              child: ChatEmojiBody(
+                controller: selection,
+                messageId: 1,
+                emojiOnly: thumb,
+                sticker: pack,
+                playLedger: ledger,
+                embedFactory: embeds.call,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(profile().animate, isFalse);
+      expect(ledger.marks, isEmpty);
+    });
+
+    testWidgets('another message in the same body widget decides afresh', (
+      tester,
+    ) async {
+      final ledger = _Ledger()..played.add(1);
+      await pump(tester, ledger: ledger, messageId: 1);
+      expect(profile().animate, isFalse);
+
+      await pumpBody(
+        tester,
+        thumb,
+        sticker: pack,
+        ledger: ledger,
+        messageId: 2,
+      );
+
+      expect(profile().animate, isTrue);
+      expect(ledger.marks, [2]);
+    });
+  });
+
+  group('sticker commands', () {
+    const pack = ContentKey.document('pack-thumb');
+    final thumb = EmojiOnly(const [EmojiOnlyItem(_thumb)]);
+
+    Future<void> pump(
+      WidgetTester tester, {
+      ChatSelectionController? facade,
+      ChatStickerTapPolicy? tapPolicy,
+      bool isActive = true,
+    }) async {
+      view(tester, const Size(360, 640));
+      embeds.playable = true;
+      if (facade != null) {
+        selection = facade;
+        addTearDown(facade.dispose);
+      }
+      await pumpBody(
+        tester,
+        thumb,
+        sticker: pack,
+        tapPolicy: tapPolicy,
+        isActive: isActive,
+      );
+    }
+
+    // The sticker is 112.5 square at (10, 10) in the body's box.
+    Rect drawn(WidgetTester tester) =>
+        (tester.getTopLeft(find.byType(ChatEmojiBody)) + const Offset(10, 10)) &
+        const Size.square(112.5);
+
+    testWidgets('the sticker hit carries the drawn rectangle, not the '
+        'inset', (tester) async {
+      await pump(tester);
+      final rect = drawn(tester);
+
+      final hit = selection.resolveInlineHit(1, rect.center);
+
+      expect(
+        hit,
+        ChatInlineHit.sticker(messageId: 1, content: _thumb, stickerRect: rect),
+      );
+    });
+
+    testWidgets('a tap in the inset beside the sticker is not a hit', (
+      tester,
+    ) async {
+      await pump(tester);
+      final rect = drawn(tester);
+
+      expect(
+        selection.resolveInlineHit(1, rect.topLeft - const Offset(5, 5)),
+        isNull,
+      );
+    });
+
+    testWidgets('a replay tap slop turns that tap into a hit', (tester) async {
+      await pump(
+        tester,
+        tapPolicy: const ChatStickerTapPolicy.mobile(replayTapSlop: 8),
+      );
+      final rect = drawn(tester);
+
+      expect(
+        selection.resolveInlineHit(1, rect.topLeft - const Offset(5, 5)),
+        isA<ChatInlineHit$Sticker>(),
+      );
+      expect(
+        selection.resolveInlineHit(1, rect.topLeft - const Offset(9, 9)),
+        isNull,
+      );
+    });
+
+    testWidgets('a tap replays the sticker; the pass it refuses is its '
+        'embed\'s to say', (tester) async {
+      await pump(tester);
+      final rect = drawn(tester);
+
+      selection.handleInlineHit(selection.resolveInlineHit(1, rect.center)!);
+
+      expect(embeds.sticker.replays, 1);
+    });
+
+    testWidgets('a long press replays under the mobile policy only', (
+      tester,
+    ) async {
+      await pump(tester);
+      var hit = selection.resolveInlineHit(1, drawn(tester).center)!;
+      selection.handleInlineHitLongPress(hit);
+      expect(embeds.sticker.replays, 1);
+
+      await tester.pumpWidget(const SizedBox());
+      embeds = _Embeds();
+      await pump(
+        tester,
+        facade: ChatSelectionController(
+          policy: const ChatSelectionPolicy.desktop(),
+        ),
+      );
+      hit = selection.resolveInlineHit(1, drawn(tester).center)!;
+      selection.handleInlineHitLongPress(hit);
+
+      expect(embeds.sticker.replays, 0);
+    });
+
+    testWidgets('another message\'s sticker is not replayed', (tester) async {
+      await pump(tester);
+
+      selection.handleInlineHit(
+        ChatInlineHit.sticker(
+          messageId: 2,
+          content: _thumb,
+          stickerRect: drawn(tester),
+        ),
+      );
+
+      expect(embeds.sticker.replays, 0);
+    });
+
+    testWidgets('the facade finds the sticker: its rectangle, a replay, a '
+        'remote interaction', (tester) async {
+      await pump(tester);
+      final rect = drawn(tester);
+
+      embeds.sticker.playback = AssetPlayback.ended;
+
+      expect(selection.stickerRectOf(1), rect);
+      expect(selection.replaySticker(1), isTrue);
+      embeds.sticker.playback = AssetPlayback.ended;
+      final play = selection.playRemoteInteraction(1);
+      expect(play, ChatRemoteStickerPlay(stickerRect: rect, restarted: true));
+      expect(embeds.sticker.replays, 2);
+    });
+
+    testWidgets('a sticker that is playing is not restarted by a remote '
+        'interaction, which still has a place to draw', (tester) async {
+      await pump(tester);
+
+      final play = selection.playRemoteInteraction(1);
+
+      expect(play!.restarted, isFalse);
+      expect(play.stickerRect, drawn(tester));
+    });
+
+    testWidgets('an inactive row shows no sticker: no rectangle, no replay, '
+        'a remote interaction is dropped', (tester) async {
+      await pump(tester, isActive: false);
+
+      expect(selection.stickerRectOf(1), isNull);
+      expect(selection.replaySticker(1), isFalse);
+      expect(selection.playRemoteInteraction(1), isNull);
+      expect(embeds.sticker.replays, 0);
+    });
+
+    testWidgets('isActive is the embeds\' visibility, and follows the '
+        'host', (tester) async {
+      await pump(tester, isActive: false);
+      expect(embeds.sticker.visible, isFalse);
+
+      await pumpBody(tester, thumb, sticker: pack, isActive: true);
+
+      expect(embeds.sticker.visible, isTrue);
+      expect(embeds.made, hasLength(1), reason: 'no new embed for a flag');
+    });
+
+    testWidgets('an embed that cannot play never replays', (tester) async {
+      view(tester, const Size(360, 640));
+      await pumpBody(tester, thumb, sticker: pack);
+
+      expect(selection.replaySticker(1), isFalse);
+      expect(selection.playRemoteInteraction(1)!.restarted, isFalse);
+    });
+
+    testWidgets('a text layout has no sticker', (tester) async {
+      view(tester, const Size(360, 640));
+      await pumpBody(tester, _items(2, allCustom: true));
+
+      expect(selection.stickerRectOf(1), isNull);
     });
   });
 

@@ -171,6 +171,15 @@ final class RenderChatEmojiBody extends RenderBox {
   /// The index of the item at [local], or null.
   int? itemAt(Offset local) => _flow?.itemAt(local);
 
+  /// The square of the item at [index], in this box's coordinates, or null
+  /// before layout or for an index there is no item at.
+  Rect? itemRect(int index) {
+    final rects = _flow?.rects;
+    return rects != null && index >= 0 && index < rects.length
+        ? rects[index]
+        : null;
+  }
+
   ChatEmojiFlow _flowFor(double maxWidth) => ChatEmojiFlow.of(
     lineBreaksBefore: _lineBreaksBefore,
     box: _box,

@@ -13,6 +13,7 @@ import 'asset/asset_cache_demand_test.dart' as asset_cache_demand_test;
 import 'asset/asset_cache_failure_test.dart' as asset_cache_failure_test;
 import 'asset/asset_cache_playback_test.dart' as asset_cache_playback_test;
 import 'asset/asset_cache_scope_test.dart' as asset_cache_scope_test;
+import 'asset/asset_playback_test.dart' as asset_playback_test;
 import 'asset/asset_spec_test.dart' as asset_spec_test;
 import 'atlas/bake_governor_test.dart' as bake_governor_test;
 import 'atlas/cache/computed_glyph_art_version_test.dart'
@@ -78,6 +79,7 @@ void main() {
   group('asset/asset_cache_failure_test.dart', asset_cache_failure_test.main);
   group('asset/asset_cache_playback_test.dart', asset_cache_playback_test.main);
   group('asset/asset_cache_scope_test.dart', asset_cache_scope_test.main);
+  group('asset/asset_playback_test.dart', asset_playback_test.main);
   group('asset/asset_spec_test.dart', asset_spec_test.main);
   group('atlas/bake_governor_test.dart', bake_governor_test.main);
   group(

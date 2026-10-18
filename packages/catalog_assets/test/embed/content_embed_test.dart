@@ -318,4 +318,76 @@ void main() {
       expect(_drawn(recording), ['drawCircle']);
     });
   });
+
+  group('playback', () {
+    final once = AssetPresets.emojiSticker(extent: 100, devicePixelRatio: 1);
+    final frames = [
+      const Duration(milliseconds: 40),
+      const Duration(milliseconds: 60),
+    ];
+
+    PlayableEmbed play() {
+      final embed = embedOf(_sticker, preset: once) as PlayableEmbed;
+      producer.last.advance(
+        AssetStage.full,
+        tier: AssetTier.animated,
+        frames: frames,
+      );
+      return embed;
+    }
+
+    PlayableEmbedContract.run(() {
+      final embed = play();
+      return PlayableEmbedHarness(
+        embed: embed,
+        endPass: () {
+          void frame(int ms) {
+            ticks.tick(Duration(milliseconds: ms));
+            embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+          }
+
+          frame(1000);
+          frame(1040);
+          frame(1100);
+          ticks.tick(const Duration(milliseconds: 1140));
+        },
+      );
+    });
+
+    test('is a playable embed, reporting the binding\'s playback', () {
+      final embed = play();
+
+      expect(embed.playback, AssetPlayback.playing);
+    });
+
+    test('replay asks the binding, which refuses while the pass runs', () {
+      final embed = play();
+
+      expect(embed.replay(), isFalse);
+    });
+
+    test('a pass that ended is replayed through the embed', () {
+      final embed = play();
+      void frame(int ms) {
+        ticks.tick(Duration(milliseconds: ms));
+        embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+      }
+
+      frame(1000);
+      frame(1040);
+      frame(1100);
+      ticks.tick(const Duration(milliseconds: 1140));
+      expect(embed.playback, AssetPlayback.ended);
+
+      expect(embed.replay(), isTrue);
+      expect(embed.playback, AssetPlayback.playing);
+    });
+
+    test('a disposed embed neither plays nor replays', () {
+      final embed = play()..dispose();
+
+      expect(embed.playback, AssetPlayback.idle);
+      expect(embed.replay(), isFalse);
+    });
+  });
 }
