@@ -490,22 +490,75 @@ the panel replaces a keyboard already on screen (`KeyboardReplacementStrategy.ke
 
 ### `RichText` and markdown
 
-Bodies stay markdown ([ADR 017](adr/017-body-linkify-host-invoked.md)). The
+Bodies stay markdown ([ADR 034](adr/034-rich-text-wire-and-persistence.md)). The
 composer produces a `RichText`; the host converts it at two moments with
 `RichTextMarkdown` from `package:content_model/markdown.dart`:
 
-- **Send or save an edit:** `RichTextMarkdown.encode(composer.richText)`.
-- **Load a message into the composer:** `composer.restore(RichTextMarkdown.decode(body))`.
+- **Send or save an edit:** `RichTextMarkdown.encode(composer.richText)`, after
+  detection (next section) and after rewriting every mention the host did not
+  resolve in this draft to a `Username`.
+- **Load a message into the composer:** `composer.restore(RichTextMarkdown.decode(body))`,
+  after stripping detected entities.
 
 Inline content travels as `![alt](unicode:1F44D)` (`ContentKey.encoded`
-spelling); mentions as `[@name](mention:id)`. `RichText` shares its name with
-Flutter's widget: `import 'package:flutter/widgets.dart' hide RichText;`.
+spelling); mentions as `[@name](mention:id)`, usernames as
+`[@name](username:name)`, hashtags as `[#tag](hashtag:tag)`. `RichText` shares
+its name with Flutter's widget: `import 'package:flutter/widgets.dart' hide RichText;`.
 
-The viewport does not paint inline embeds yet (a follow-up recorded in ADR 029),
-so a host that wants emoji visible in bodies today strips unicode inline content
-to its characters before `encode` and keeps the `![alt](scheme:id)` form only for
-other content. Neither helper detects bare URLs or names; linkify is a separate
-host step.
+The viewport paints inline embeds ([ADR 029](adr/029-host-integration.md)):
+register an embed resolver per scheme on the body widget and an unresolved
+target paints its alt text. A host with no resolver for a scheme needs nothing
+else. Neither `RichTextMarkdown` nor the viewport detects bare URLs, names or
+tags; detection is a separate host step.
+
+The length budget is a code-point count of `RichText.plain`, not of the
+markdown source: set `ComposerSpec.messageLengthLimit` from the server
+configuration and let the composer count. A server guard on raw source and its
+scheme and mention checks are described in the wire ADR; after every send or
+edit, replace the optimistic message with the body the server returns.
+
+### Detection
+
+Detection ([ADR 017](adr/017-body-linkify-host-invoked.md)) turns bare URLs,
+emails, `@name` and `#tag` in a `RichText` into link, `Username` and `Hashtag`
+entities. It is a pure `content_model` transform,
+`EntityDetection.apply(richText, policy)`, that the host calls at four moments
+and the viewport never calls:
+
+| Moment | Step |
+| ------ | ---- |
+| Send | Rewrite unresolved mentions, **detect**, then encode. The stored body carries the links every other viewer receives. |
+| Receive | When you build the message model, decode the body. If it has no link-class entity (link, mention, username, hashtag), detect once and keep the result with the model. A body that has any such entity is trusted and not detected again. Never detect in a build or paint method. |
+| Edit | Decode, strip the detected entities back to text (the inverse operation in `content_model`), restore into the composer. Saving detects again, so a stored body round-trips. |
+| Link preview | Optional. Listen to the composer text, debounce, detect with `urls` only to pick the URL to preview, and show the result in the composer's header slot. Fetching and caching the preview is yours. |
+
+Policy is yours: a `DetectionPolicy` chooses the families (urls, usernames,
+hashtags) and the URL schemes. A host that resolves usernames only on its own
+terms leaves `usernames` off and gets plain text for `@name`. Taps arrive as
+inline hits (`mention`, `hashtag`, `link`); the hit says whether a mention is a
+resolved user or a typed username, and what a tap means is the host's. The
+composer does not detect while typing; offer `@` and `#` suggestions through
+input queries and insert a real mention or hashtag on pick.
+
+If your server detects on ingest, nothing changes in the client: it already
+reconciles with the stored body.
+
+### Drafts
+
+A draft is markdown in the wire's dialect, kept in the host's
+`KeyValueStore`:
+
+- **Key:** derived from the chat id, with the id of the message being edited
+  stored beside it when an edit is in progress.
+- **Write:** debounced on composer change, from
+  `RichTextMarkdown.encode(composer.richText)` (no detection: a draft is what
+  the user typed).
+- **Restore:** when the chat opens, `composer.restore(RichTextMarkdown.decode(draft))`;
+  restore into edit mode when an edited message id is stored.
+- **Clear:** on send, and when an edit is cancelled or saved.
+
+Do not store `RichText.toJson` as a draft; it is the rich clipboard's payload.
+A later server draft sync carries the same string.
 
 ### Connectivity
 
@@ -583,7 +636,38 @@ fetch and decode path and never touch it.
   [qa-glyph-cache](panel-catalog/qa-glyph-cache.md); none has a measured result
   yet.
 
-## 12. Reference host map
+## 12. Migrating a host from a pre-ADR 020 pin
+
+A host that pins a commit from before the package split ([ADR 020](adr/020-package-topology.md):
+one chrome package plus the root package) usually also vendors a markdown
+renderer, a markdown text editor and a forked editable. Move in four steps, each
+shippable alone. Do not combine them: the riskiest round trip (lists in stored
+text) must not ride with the chat send path.
+
+| Step | Lands | Gate |
+| ---- | ----- | ---- |
+| 0. Chrome | The host moves off the old chrome package onto the packages of sections 1 to 11 (composition root, scopes, composer spec, panel presentation, theme tokens). The composer renders its stock field and sends plain text. | The chat renders and sends |
+| 1. Dependencies | The markdown engine comes from its fork by git ref ([ADR 035](adr/035-markdown-engine-fork.md)); the vendored renderer is deleted. The vendored markdown editor and the forked editable are frozen into one legacy package of the host's own, because a form field still uses them. The composer, `composer_editable` and `content_model` come by git ref. No `dependency_overrides` outside this repository's workspace root. | Analyze is clean; existing markdown renders unchanged (goldens) |
+| 2. Chat rich text | The chat composer runs on `ComposerTextController`. Send is detect then encode; edit-load is decode, strip detected entities, restore; the budget counts plain code points ([ADR 034](adr/034-rich-text-wire-and-persistence.md)); every raw-length cut on the send and edit paths and the host's bare-URL rewrite helper are deleted; bodies decode their links and entity-less bodies get the receive-time fallback ([Detection](#detection)); the selection menu is on; drafts, if adopted, are markdown in the `KeyValueStore`. | Send round trip; edit-load (stored `[url](url)` decodes, strips and re-detects to the same body); receive fallback on a stored bare-URL body; length (the budget sends with heavy formatting, one over is refused, nothing truncates) |
+| 3. Form fields | A form field that formats text moves to `ComposerTextController(lists: true)` with the selection menu; its limit counts plain code points; the legacy package is deleted. Stored text in the old editor's dialect is repaired on edit-load by a client-side, idempotent step run before `decode` (it splits styles that cross line breaks, re-pairs overlapping-style sequences, drops marks the dialect has no spelling for); the repaired string is stored on the next save, and rows nobody edits keep their bytes. Remove the repair one release later. | Round trip over every shape the old encoder stored, lists and repair cases included; a device row for the menu and handles |
+
+Steps 2 and 3 are independent. Doing step 2 first lets a server contract change
+([ADR 034](adr/034-rich-text-wire-and-persistence.md)) ship with it.
+
+Decisions a migrating host makes once:
+
+- **Custom emoji by configuration.** A host with no custom emoji registers no
+  `document` resolver and offers no custom emoji page. A `document:` key can then
+  arrive only from foreign HTML, which the rich clipboard's trust rule strips
+  ([ADR 032](adr/032-rich-clipboard.md)), and an escaped key paints its alt text.
+- **No rewrite of stored chat bodies.** The receive-time fallback is the
+  migration; bodies with raw URLs and bodies with edited `[url](url)` links both
+  decode.
+- **Copy in non-chat surfaces.** Selection hosts built on the markdown engine
+  alone get its default copy formatter, which writes the codec's dialect back;
+  they change nothing.
+
+## 13. Reference host map
 
 The demo app under `example/` is the reference. It registers the emoji page
 only, has no fetcher, decoder or resolver, and does not use the hover-open
@@ -600,6 +684,6 @@ toggle region.
 | Inset aggregation | `example/lib/src/features/chat/utils/chat_viewport_insets.dart` |
 | IME readings and keyboard commands | `example/lib/src/common/soft_keyboard_port.dart` |
 | Glyph probe and atlas wiring | `example/lib/src/common/emoji_glyph_probe.dart` |
-| `RichText` and markdown | `example/lib/src/features/chat/utils/chat_body_markdown.dart` |
+| `RichText`, markdown and detection | `example/lib/src/features/chat/utils/chat_body_markdown.dart` |
 | Popup anchor, composer view | `example/lib/src/features/chat/widgets/chat_composer.dart` |
 | Panel box and shortcuts | `example/lib/src/features/chat/widgets/chat_bottom_chrome.dart` |

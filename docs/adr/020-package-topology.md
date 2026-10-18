@@ -2,13 +2,15 @@
 
 The catalog, panel and composer code is split into a directed graph of small
 packages. Two pure leaves (`content_model`, `chrome_foundation`) depend on
-nothing. The asset cache, data layer, panel shell, pages, presentation and
-composer sit above them. `chat_chrome` is dissolved and no package re-exports
-another package's API.
+nothing; a third leaf, `composer_editable`, depends on the SDK only. The asset
+cache, data layer, panel shell, pages, presentation and composer sit above
+them. `chat_chrome` is dissolved and no package re-exports another package's
+API.
 
 **Status**: Accepted  
 **Date**: 2026-10-16  
 **Amended**: 2026-10-16 — change notification is `package:listen`, an external package every package that names its types declares for itself; it is not a workspace edge and is never re-exported ([ADR 023](023-data-layering-and-persistence.md) Amendment)  
+**Amended**: 2026-10-18 — a `composer_editable` leaf (the composer's editable, [ADR 038](038-composer-editable-fork.md)), depended on by `chat_composer` only; the root `chat_scroll_view` package depends on `catalog_assets` and `content_model` (rows added and changed below; rule 6 added)  
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (package list in its Decided table is replaced by this one), [ADR 007](007-keyboard-panel-controller.md), [ADR 012](012-cross-platform-selection-policies.md)
 
 ## Decided
@@ -26,7 +28,9 @@ another package's API.
 | `panel_shell` | Host-independent panel: page registry, shell controller, pager, type tabs, bottom bar, search field, panel events, page scroll activity, focus and shortcuts | `chrome_foundation`, `content_model` |
 | `panel_pages` | Catalog page scaffold and per-kind policies. Emoji page now; sticker and GIF pages later | `panel_shell`, `panel_catalog`, `catalog_assets`, `content_model`, `chrome_foundation` |
 | `panel_presentation` | Sealed presentation kinds, the `$Mobile` / `$Desktop` policy, the presentation controller, occupancy, IME arbitration | `panel_shell`, `chrome_foundation` |
-| `chat_composer` | Slot-based composer, input-only controller, entity-aware text controller, input query | `chrome_foundation`, `content_model`, `catalog_assets` |
+| `composer_editable` | Leaf. The composer's one editable: a renamed, patched copy of the Flutter framework's text field, editable text and selection overlay, with the touch gesture matrix, handle and magnifier motion and the toolbar fade ([ADR 038](038-composer-editable-fork.md)). Nothing chat-specific | none (`flutter` and `characters` only) |
+| `chat_composer` | Slot-based composer, input-only controller, entity-aware text controller with formatting commands, selection menu, input query; renders through `composer_editable` | `chrome_foundation`, `content_model`, `catalog_assets`, `composer_editable` |
+| `chat_scroll_view` (repo root) | The anchor viewport and its markdown bodies: message and text selection, inline hits, the embed adapter, spoiler wiring, `ChatEmojiBody`. Consumes the markdown engine fork by git ref ([ADR 035](035-markdown-engine-fork.md)), which is not a workspace package | `catalog_assets`, `content_model` |
 
 Codec and fetcher adapters (Lottie, WebM, WebP, network, disk) are separate
 packages created when needed. They depend on `catalog_assets`; the host wires
@@ -35,11 +39,12 @@ WebP / GIF).
 
 Rules, enforced by the dependency lint in `scripts/check` ([ADR 030](030-testing-policy.md)):
 
-1. The graph is a DAG. `content_model` and `chrome_foundation` depend on no workspace package.
+1. The graph is a DAG. `content_model`, `chrome_foundation` and `composer_editable` depend on no workspace package.
 2. No package re-exports another package's API. A host imports what it uses.
 3. `panel_shell`, `panel_pages` and `panel_presentation` never depend on data payloads (`emoji_catalog_pack`), codecs or fetchers.
 4. Fakes are exported only from a package's `testing.dart` and never used by production code.
 5. `panel_catalog` does not depend on `chrome_foundation`. Pages adapt tokens.
+6. `composer_editable` is a leaf with `chat_composer` as its only dependent. A host reaches the field through the composer view, never the raw editable.
 
 `chat_chrome` has no successor and there is no umbrella package. The inset
 arbiter is not a shared leaf: it is a property of the keyboard-replacement
@@ -51,6 +56,7 @@ presentation ([ADR 028](028-panel-presentation.md)).
 - The old `chat_chrome` fused content and the mobile host, bundled six separable layers, re-exported `emoji_data`, and had a composer and panel file cycle.
 - Glass, theme and motion import nothing from composer, panel or data code, so they stand alone as a leaf.
 - Message bodies that show inline custom emoji need identity and an asset binding only. `content_model` keeps them off the panel and data packages.
+- A forked framework editable (about 15 000 lines with its own tests and an SDK re-vendor chore) needs its own boundary; folding it into the composer would put framework internals in a package whose job is slots and entities.
 - Heavy payload and native dependencies (catalog assets, codecs) must not reach consumers that only need seams.
 
 ## Rejected

@@ -290,23 +290,18 @@ Former transitional host claim on a long-press at a global point that prevented 
 _Avoid_: Arena win, text selection (as the name of this seam), current host API
 
 **Inline hit**:
-A pointer on a markdown body that is not idle selection-dismiss: link activation or code/pre click-to-copy (or a host callback for those). Mentions and other host-typed tokens that arrive as markdown links are still link activations — not a separate hit kind. First-class against idle-tap dismiss. Under mobile **selection policy**, **message selection** or a live **character-range text selection** suppresses *all* inline activations (links, inline code, fenced COPY chrome). Under desktop/web, message membership alone does not suppress; a live character-range still does. Mere arm-for-entry does not suppress.
-_Avoid_: Idle message tap (as the name of this path), toolbar dismiss, text selection (as the name of this path), mention hit (as a peer of link)
+A pointer on a markdown body that is not idle selection-dismiss: link activation, **mention** or **hashtag** activation, **inline embed** activation, a sticker body tap, or code/pre click-to-copy (or a host callback for those). Each is its own `ChatInlineHit` variant with the same press chrome and policy gates as a link. First-class against idle-tap dismiss. Under mobile **selection policy**, **message selection** or a live **character-range text selection** suppresses *all* inline activations (links, mentions, embeds, inline code, fenced COPY chrome). Under desktop/web, message membership alone does not suppress; a live character-range still does. Mere arm-for-entry does not suppress. A tap on a link or embed inside a hidden spoiler reveals it instead of activating.
+_Avoid_: Idle message tap (as the name of this path), toolbar dismiss, text selection (as the name of this path), mention hit as a link activation
 
-**Body linkify**:
-A host-invoked rewrite of bare URLs and mention tokens in message text into markdown links before the body is shown. Runs at send and at receive/materialize, never as a viewport paint or rebuild step. The viewport only paints and activates already-marked links.
-_Avoid_: Autolink on paint, URL detection in layout, entity overlay (when meaning this rewrite), package-owned “what is a URL”
-
-**Linkify policy**:
-Caller-owned allowlist bitmask for **body linkify**: which token families count (`webUrls`, `mentions`, …) and how they combine. Shipped bits also skip fenced code, inline code, and existing markdown links (fixed exclusion zones, not a separate host knob). A package may ship convenience combinations (e.g. `webAndMentions`); the policy is still a host choice, not viewport behavior.
-_Avoid_: Hardcoded universal URL definition, product-branded rule names, linkify inside the scroll viewport, sealed one-of presets when flags must combine
+**Body linkify** / **Linkify policy** (retired terms):
+Replaced by **entity detection** and **detection policy** ([Content and Assets](docs/content/CONTEXT.md)). The viewport still only paints and activates entities a body already carries, and never detects on paint ([ADR 017](docs/adr/017-body-linkify-host-invoked.md)).
 
 **Link preview**:
-Host- or backend-owned rich card for a URL (title, image, favicon, and so on). Outside this context: not an **inline hit**, not **body linkify**, and not viewport chrome.
+Host- or backend-owned rich card for a URL (title, image, favicon, and so on). Outside this context: not an **inline hit**, not **entity detection**, and not viewport chrome.
 _Avoid_: OG fetch in the viewport, preview slot as markdown, conflating styled links with webpage cards
 
 **Tap highlight** (press highlight):
-A transient visual plate under a pressable surface — markdown inline hits (links including mention-scheme URLs, inline code, fenced copy chrome) or host chrome such as a sender name via `ChatTapHighlight`. **Press-lifecycle:** expand on pointer down, hold while pressed, fade on up; abort / cancel clears immediately. Body ink aborts if the pointer is claimed by a **span gesture** or **text selection**, and under mobile **selection policy** does not arm while **message selection** or **text selection** is already active (desktop keeps press ink). `ChatTapHighlight` is selection-facade-free: under `ChatSelectionStateScope` it follows `canPerformActions`; padding expands paint/hit only (no layout shift). Null `onLongPress` on touch lets viewport **message selection** claim the press (sender-name chrome); mouse presses exclude viewport message pan. Same paint for short tap and long-press (host action is separate). Composed of a vector-smoothed contour path with an expanding touch-origin ripple. Not persistent **text selection**, and not a whole-row **Message highlight**.
+A transient visual plate under a pressable surface — markdown inline hits (links, mentions, hashtags, inline code, fenced copy chrome) or host chrome such as a sender name via `ChatTapHighlight`. **Press-lifecycle:** expand on pointer down, hold while pressed, fade on up; abort / cancel clears immediately. Body ink aborts if the pointer is claimed by a **span gesture** or **text selection**, and under mobile **selection policy** does not arm while **message selection** or **text selection** is already active (desktop keeps press ink). `ChatTapHighlight` is selection-facade-free: under `ChatSelectionStateScope` it follows `canPerformActions`; padding expands paint/hit only (no layout shift). Null `onLongPress` on touch lets viewport **message selection** claim the press (sender-name chrome); mouse presses exclude viewport message pan. Same paint for short tap and long-press (host action is separate). Composed of a vector-smoothed contour path with an expanding touch-origin ripple. Not persistent **text selection**, and not a whole-row **Message highlight**.
 _Avoid_: RippleDrawable, InkWell, selection highlight, active selection, one-shot long-press flash
 
 **Smooth text contour**:
@@ -354,6 +349,16 @@ A refused add because the selected set is already at the selection cap.
 Membership does not change; a dedicated listenable still fires so chrome
 can shake or play an error haptic.
 _Avoid_: overflow, limit error
+
+### Message bodies
+
+**Spoiler state**:
+Per message, whether its spoilers are revealed, held by a controller owned by the markdown engine and keyed by message id. Reveal is for the whole message at once, in memory only, and survives remounts. A text selection that enters a hidden spoiler reveals it; dismissing the selection does not hide it again. While hidden, the glyphs are not drawn and a particle fill is, static when motion is off ([ADR 037](docs/adr/037-spoiler-and-mention-inline-styles.md)).
+_Avoid_: Per-spoiler reveal, persisted reveal, widget-local reveal flag, re-hide on selection dismiss
+
+**Emoji-only body**:
+The body kind the host passes for a message whose text is only emoji: no bubble, enlarged from per-count size tables, or sticker-sized when it is a single item with an animation. Classified by the host (it alone knows the message has no media and whether the setting is on); the viewport never re-detects. Not a text selection subject ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
+_Avoid_: Big emoji bubble, emoji message type, sticker message (a single-item emoji body only borrows the sticker layout)
 
 ### Message menu
 
