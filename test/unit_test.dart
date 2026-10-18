@@ -28,6 +28,7 @@ import 'chat_scroll_motion_test.dart' as chat_scroll_motion_test;
 import 'chat_scroll_physics_test.dart' as chat_scroll_physics_test;
 import 'chat_sender_run_layout_test.dart' as chat_sender_run_layout_test;
 import 'chat_stretch_overscroll_test.dart' as chat_stretch_overscroll_test;
+import 'goldens/inline_layer_golden_test.dart' as inline_layer_golden_test;
 import 'viewport_never_detects_test.dart' as viewport_never_detects_test;
 import 'widgets/chat_absent_build_test.dart' as chat_absent_build_test;
 import 'widgets/chat_animate_path_test.dart' as chat_animate_path_test;
@@ -48,6 +49,9 @@ import 'widgets/chat_ghost_selected_color_test.dart'
     as chat_ghost_selected_color_test;
 import 'widgets/chat_highlight_test.dart' as chat_highlight_test;
 import 'widgets/chat_idle_message_tap_test.dart' as chat_idle_message_tap_test;
+import 'widgets/chat_inline_embed_adapter_test.dart'
+    as chat_inline_embed_adapter_test;
+import 'widgets/chat_inline_hit_kinds_test.dart' as chat_inline_hit_kinds_test;
 import 'widgets/chat_invalidate_test.dart' as chat_invalidate_test;
 import 'widgets/chat_jump_to_tail_test.dart' as chat_jump_to_tail_test;
 import 'widgets/chat_keyboard_test.dart' as chat_keyboard_test;
@@ -57,6 +61,8 @@ import 'widgets/chat_markdown_autoscroll_test.dart'
     as chat_markdown_autoscroll_test;
 import 'widgets/chat_markdown_body_inline_hit_test.dart'
     as chat_markdown_body_inline_hit_test;
+import 'widgets/chat_markdown_body_inline_layer_test.dart'
+    as chat_markdown_body_inline_layer_test;
 import 'widgets/chat_message_body_layout_test.dart'
     as chat_message_body_layout_test;
 import 'widgets/chat_message_body_test.dart' as chat_message_body_test;
@@ -106,6 +112,8 @@ import 'widgets/chat_sender_run_test.dart' as chat_sender_run_test;
 import 'widgets/chat_smooth_contour_test.dart' as chat_smooth_contour_test;
 import 'widgets/chat_span_auto_scroll_test.dart' as chat_span_auto_scroll_test;
 import 'widgets/chat_span_feedback_test.dart' as chat_span_feedback_test;
+import 'widgets/chat_spoiler_selection_test.dart'
+    as chat_spoiler_selection_test;
 import 'widgets/chat_stitch_animate_test.dart' as chat_stitch_animate_test;
 import 'widgets/chat_tap_dismiss_toggle_regression_test.dart'
     as chat_tap_dismiss_toggle_regression_test;
@@ -150,6 +158,7 @@ void main() {
   group('chat_scroll_physics_test.dart', chat_scroll_physics_test.main);
   group('chat_sender_run_layout_test.dart', chat_sender_run_layout_test.main);
   group('chat_stretch_overscroll_test.dart', chat_stretch_overscroll_test.main);
+  group('goldens/inline_layer_golden_test.dart', inline_layer_golden_test.main);
   group('viewport_never_detects_test.dart', viewport_never_detects_test.main);
   group('widgets/chat_absent_build_test.dart', chat_absent_build_test.main);
   group('widgets/chat_animate_path_test.dart', chat_animate_path_test.main);
@@ -181,6 +190,14 @@ void main() {
     'widgets/chat_idle_message_tap_test.dart',
     chat_idle_message_tap_test.main,
   );
+  group(
+    'widgets/chat_inline_embed_adapter_test.dart',
+    chat_inline_embed_adapter_test.main,
+  );
+  group(
+    'widgets/chat_inline_hit_kinds_test.dart',
+    chat_inline_hit_kinds_test.main,
+  );
   group('widgets/chat_invalidate_test.dart', chat_invalidate_test.main);
   group('widgets/chat_jump_to_tail_test.dart', chat_jump_to_tail_test.main);
   group('widgets/chat_keyboard_test.dart', chat_keyboard_test.main);
@@ -196,6 +213,10 @@ void main() {
   group(
     'widgets/chat_markdown_body_inline_hit_test.dart',
     chat_markdown_body_inline_hit_test.main,
+  );
+  group(
+    'widgets/chat_markdown_body_inline_layer_test.dart',
+    chat_markdown_body_inline_layer_test.main,
   );
   group(
     'widgets/chat_message_body_layout_test.dart',
@@ -286,6 +307,10 @@ void main() {
     chat_span_auto_scroll_test.main,
   );
   group('widgets/chat_span_feedback_test.dart', chat_span_feedback_test.main);
+  group(
+    'widgets/chat_spoiler_selection_test.dart',
+    chat_spoiler_selection_test.main,
+  );
   group('widgets/chat_stitch_animate_test.dart', chat_stitch_animate_test.main);
   group(
     'widgets/chat_tap_dismiss_toggle_regression_test.dart',

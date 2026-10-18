@@ -136,6 +136,67 @@ void main() {
     });
   });
 
+  group('follow', () {
+    test(
+      'delivers the frames of the clock to a listener that is not a binding',
+      () {
+        final ticks = <Duration>[];
+        clock.follow(ticks.add, frameInterval: _ms(16));
+
+        source.tick(_ms(16));
+        source.tick(_ms(32));
+
+        expect(ticks, [_ms(16), _ms(32)]);
+      },
+    );
+
+    test('asks the engine for frames only while a subscription is live', () {
+      final subscription = clock.follow((_) {}, frameInterval: _ms(16));
+      expect(source.isRunning, isTrue);
+
+      subscription.cancel();
+
+      expect(source.isRunning, isFalse);
+    });
+
+    test('is paused by the same layers as a binding', () {
+      final ticks = <Duration>[];
+      clock.follow(ticks.add, frameInterval: _ms(16));
+
+      clock.setPaused(PlaybackPauseLayer.lowPower, paused: true);
+      source.tick(_ms(16));
+
+      expect(ticks, isEmpty);
+    });
+
+    test('keeps to its frame interval on a faster display', () {
+      final ticks = <Duration>[];
+      clock.follow(
+        ticks.add,
+        frameInterval: const Duration(microseconds: 33333),
+      );
+
+      for (var frame = 1; frame <= 6; frame++) {
+        source.tick(Duration(microseconds: frame * 16667));
+      }
+
+      expect(ticks, hasLength(3));
+    });
+
+    test('cancel is idempotent and a cancelled subscription gets no frame', () {
+      final ticks = <Duration>[];
+      final subscription = clock.follow(ticks.add, frameInterval: _ms(16));
+      clock.follow((_) {}, frameInterval: _ms(16));
+
+      subscription
+        ..cancel()
+        ..cancel();
+      source.tick(_ms(16));
+
+      expect(ticks, isEmpty);
+    });
+  });
+
   group('pause layers', () {
     test('any set layer stops the frames and clearing all resumes them', () {
       final target = _Target(_ms(16));

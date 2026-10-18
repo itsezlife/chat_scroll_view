@@ -99,7 +99,14 @@ class ChatSelectionPointer {
   TapGestureRecognizer? _tap;
   int? _pointerDownId;
   Offset? _pointerDownLocal;
-  Offset? _pointerDownGlobal;
+
+  /// The inline hit under the pointer at the moment it went down.
+  ///
+  /// Resolved then, not when the tap lands: the markdown body reveals a hidden
+  /// spoiler on pointer up, which is before this recognizer's tap fires, and a
+  /// link inside the spoiler would otherwise look like a hit by then. The tap
+  /// that revealed the spoiler is the reveal, not the link.
+  ChatInlineHit? _pointerDownInlineHit;
   int? _spanOriginId;
   int? _panOriginId;
   Offset? _panStartLocal;
@@ -128,7 +135,10 @@ class ChatSelectionPointer {
     }
     _pointerDownId = messageIdAt?.call(event.localPosition);
     _pointerDownLocal = event.localPosition;
-    _pointerDownGlobal = event.position;
+    _pointerDownInlineHit = switch (_pointerDownId) {
+      final id? => selection?.resolveInlineHit(id, event.position),
+      null => null,
+    };
     _spanPointerLocal = event.localPosition;
     if (_pointerDownId == null) {
       if (selection case final sel? when sel.isTextSelectionActive) {
@@ -189,7 +199,7 @@ class ChatSelectionPointer {
     _tap = null;
     _pointerDownId = null;
     _pointerDownLocal = null;
-    _pointerDownGlobal = null;
+    _pointerDownInlineHit = null;
     _panOriginId = null;
     _clearSpan();
   }
@@ -521,12 +531,9 @@ class ChatSelectionPointer {
     if (flingCancelSuppresses?.call() ?? false) return;
     final selection = this.selection;
     final id = _pointerDownId;
-    final global = _pointerDownGlobal;
-    if (selection != null && id != null && global != null) {
-      final hit = selection.resolveInlineHit(id, global);
-      if (hit != null && selection.handleInlineHit(hit)) {
-        return;
-      }
+    final hit = _pointerDownInlineHit;
+    if (selection != null && hit != null && selection.handleInlineHit(hit)) {
+      return;
     }
     if (selection case final sel? when sel.isTextSelectionActive) {
       sel.clearTextSelection();

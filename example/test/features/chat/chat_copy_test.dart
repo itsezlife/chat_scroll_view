@@ -109,6 +109,62 @@ void main() {
       );
     });
 
+    test('reads the mention bit, not the link, for mentions and hashtags, and '
+        'keeps embeds and spoilers', () {
+      // Rendered: "hi @Ann @bob #tag 🚀 secret".
+      final content = MarkdownSelectedContent(
+        documents: [
+          document(
+            1,
+            'hi [@Ann](mention:42) [@bob](username:bob) [#tag](hashtag:tag) '
+            '![\u{1F680}](document:rocket) ||secret||',
+            [(0, 27)],
+          ),
+        ],
+      );
+
+      expect(
+        ChatCopy.selection(content),
+        RichText('hi @Ann @bob #tag \u{1F680} secret', const [
+          Entity(3, 4, EntityKind.mention('42')),
+          Entity(8, 4, EntityKind.username('bob')),
+          Entity(13, 4, EntityKind.hashtag('tag')),
+          Entity(
+            18,
+            2,
+            EntityKind.inlineContent(ContentKey.document('rocket')),
+          ),
+          Entity(21, 6, EntityKind.spoiler),
+        ]),
+      );
+    });
+
+    test('keeps the styles of a mention, a spoiler\'s included', () {
+      final content = MarkdownSelectedContent(
+        documents: [
+          document(1, '||[@Ann](mention:42)||', [(0, 4)]),
+        ],
+      );
+
+      expect(
+        ChatCopy.selection(content),
+        RichText('@Ann', const [
+          Entity(0, 4, EntityKind.mention('42')),
+          Entity(0, 4, EntityKind.spoiler),
+        ]),
+      );
+    });
+
+    test('keeps a mention only whole: a cut one is its text', () {
+      final content = MarkdownSelectedContent(
+        documents: [
+          document(1, '[@Ann](mention:42) [#tag](hashtag:tag)', [(1, 6)]),
+        ],
+      );
+
+      expect(ChatCopy.selection(content), const RichText.plain('Ann #'));
+    });
+
     test('is plain text where it cuts through a custom emoji\'s text', () {
       final content = MarkdownSelectedContent(
         documents: [

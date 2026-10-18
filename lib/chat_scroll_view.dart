@@ -13,6 +13,13 @@
 /// The viewport paints and activates the links, mentions and hashtags a body
 /// already carries; it never detects them. Detection is the host's step
 /// (`EntityDetection` and `DetectionPolicy` in `content_model`).
+///
+/// A body also holds inline embeds (`ChatMarkdownBody.embedResolver`) and
+/// `||spoilers||` (revealed per message through
+/// [ChatSelectionController.spoilers]). A tap on a link, a mention, a hashtag
+/// or an embed is its own [ChatInlineHit] kind and [ChatSelectionInteraction];
+/// an embed's tap is reported only when
+/// [ChatSelectionController.handlesEmbedHits] is on.
 library;
 
 export 'package:flutter_md/flutter_md.dart'

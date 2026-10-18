@@ -216,6 +216,10 @@ abstract final class MessageMenuCatalog {
   ) => switch (request.inlineHit) {
     ChatInlineHit$Link() => const <ChatMessageMenuItem>[_copyLink],
     ChatInlineHit$Code() => const <ChatMessageMenuItem>[_copyCode],
+    // Nothing to copy from a mention, a hashtag or an embed by itself.
+    ChatInlineHit$Mention() ||
+    ChatInlineHit$Hashtag() ||
+    ChatInlineHit$Embed() ||
     null => const <ChatMessageMenuItem>[],
   };
 
