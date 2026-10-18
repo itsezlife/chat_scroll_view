@@ -39,16 +39,24 @@ abstract final class CanonicalEntities {
   /// 3. A text style (bold, italic, underline, strike, spoiler) gives up the
   ///    whitespace at its edges, because markup cannot open or close next to
   ///    whitespace; one over whitespace only disappears.
-  /// 4. Equal kinds that touch or overlap merge into one entity.
-  /// 5. The list is ordered by offset, longer first, then by kind.
-  /// 6. The combination is checked: see [RichText] for the exclusivity rules.
+  /// 4. Equal kinds that touch or overlap merge into one entity. A list item
+  ///    is the exception: items are never merged.
+  /// 5. What yields is dropped, never reported: a detected username or
+  ///    hashtag where it overlaps a link, a mention, inline content, code, a
+  ///    code block or an earlier username or hashtag; a list item where it
+  ///    shares a line with a quote, a code block or an item written before it.
+  /// 6. The list is ordered by offset, longer first, then by kind.
+  /// 7. The combination is checked: see [RichText] for the exclusivity rules.
   static List<Entity> of(String plain, Iterable<Entity> input) {
     final shaped = <Entity>[];
     final textStyles = <Entity>[];
+    final items = <Entity>[];
     for (final entity in input) {
       _check(plain, entity);
       if (_isTextStyle(entity.kind)) {
         textStyles.add(entity);
+      } else if (entity.kind is EntityKind$List) {
+        items.add(entity);
       } else {
         _shape(plain, entity, shaped);
       }
@@ -62,9 +70,11 @@ abstract final class CanonicalEntities {
     for (final entity in textStyles) {
       _splitAtLineBreaks(plain, entity, shaped, guarded: guarded);
     }
-    final merged = _merge(shaped)..sort(_compare);
-    _checkCombinations(merged);
-    return merged;
+    final merged = _withoutYieldingDetected(_merge(shaped));
+    final result = [...merged, ..._listItems(plain, items, merged)]
+      ..sort(_compare);
+    _checkCombinations(result);
+    return result;
   }
 
   /// Whether [unit] is a Unicode whitespace code unit as markup flanking rules
@@ -102,9 +112,12 @@ void _check(String plain, Entity entity) {
     case EntityKind$Style():
       break;
     case EntityKind$Link(:final url):
-      if (url.isEmpty || _hasLineBreak(url) || url.startsWith(_mentionScheme)) {
+      if (url.isEmpty ||
+          _hasLineBreak(url) ||
+          _kindSchemes.any(url.startsWith)) {
         throw EntityFitException(
-          'A link needs a url without line breaks that is not a mention.',
+          'A link needs a url without line breaks that is not a mention, '
+          'username or hashtag.',
           entity,
         );
       }
@@ -115,6 +128,28 @@ void _check(String plain, Entity entity) {
           entity,
         );
       }
+    case EntityKind$Username(:final name):
+      if (name.isEmpty || _hasLineBreak(name)) {
+        throw EntityFitException(
+          'A username needs a name without line breaks.',
+          entity,
+        );
+      }
+    case EntityKind$Hashtag(:final tag):
+      if (tag.isEmpty || _hasLineBreak(tag)) {
+        throw EntityFitException(
+          'A hashtag needs a tag without line breaks.',
+          entity,
+        );
+      }
+    case EntityKind$List(:final depth)
+        when depth < 0 || depth > EntityKind$List.maxDepth:
+      throw EntityFitException(
+        'A list item is nested 0 to ${EntityKind$List.maxDepth} levels.',
+        entity,
+      );
+    case EntityKind$List():
+      break;
     case EntityKind$InlineContent(:final key):
       if (_hasLineBreak(key.encoded)) {
         throw EntityFitException(
@@ -143,8 +178,10 @@ void _check(String plain, Entity entity) {
 /// What a code block's language may be: a name a fence's info string holds.
 final RegExp _language = RegExp(r'^[A-Za-z0-9+#._-]+$');
 
-/// The scheme [EntityKind.mention] uses in markup and links may not.
-const String _mentionScheme = 'mention:';
+/// The schemes [EntityKind.mention], [EntityKind.username] and
+/// [EntityKind.hashtag] use in markup and links may not: markup that read
+/// them back would make the other kind.
+const List<String> _kindSchemes = ['mention:', 'username:', 'hashtag:'];
 
 void _shape(String plain, Entity entity, List<Entity> out) {
   final kind = entity.kind;
@@ -153,10 +190,13 @@ void _shape(String plain, Entity entity, List<Entity> out) {
       out.add(entity);
     case EntityKind$Style(style: EntityStyle.quote) || EntityKind$CodeBlock():
       out.add(_widenToLines(plain, entity));
-    case EntityKind$Style(style: EntityStyle.code) || EntityKind$Link():
+    case EntityKind$Style(style: EntityStyle.code) ||
+        EntityKind$Link() ||
+        EntityKind$Username() ||
+        EntityKind$Hashtag():
       _splitAtLineBreaks(plain, entity, out);
-    case EntityKind$Style():
-      throw StateError('Text styles are shaped separately: $entity');
+    case EntityKind$Style() || EntityKind$List():
+      throw StateError('Shaped separately: $entity');
   }
 }
 
@@ -166,7 +206,10 @@ bool _isTextStyle(EntityKind kind) => switch (kind) {
   EntityKind$Link() ||
   EntityKind$Mention() ||
   EntityKind$InlineContent() ||
-  EntityKind$CodeBlock() => false,
+  EntityKind$CodeBlock() ||
+  EntityKind$Username() ||
+  EntityKind$Hashtag() ||
+  EntityKind$List() => false,
 };
 
 Entity _widenToLines(String plain, Entity entity) {
@@ -282,12 +325,135 @@ int _compare(Entity a, Entity b) {
 
 int _rank(EntityKind kind) => switch (kind) {
   EntityKind$Style(style: EntityStyle.quote) => 0,
-  EntityKind$Link() => 1,
-  EntityKind$Mention() => 2,
-  EntityKind$InlineContent() => 3,
-  EntityKind$CodeBlock() => 4,
-  EntityKind$Style(:final style) => 10 + style.index,
+  EntityKind$List(:final listKind, :final depth) =>
+    1 + listKind.index * (EntityKind$List.maxDepth + 1) + depth,
+  EntityKind$Link() => 10,
+  EntityKind$Username() => 11,
+  EntityKind$Hashtag() => 12,
+  EntityKind$Mention() => 13,
+  EntityKind$InlineContent() => 14,
+  EntityKind$CodeBlock() => 15,
+  EntityKind$Style(:final style) => 20 + style.index,
 };
+
+/// The entities of [merged] without the detected usernames and hashtags that
+/// overlap something that outranks them.
+///
+/// A username or hashtag is a guess a detector made over text; a link, a
+/// mention, inline content, code and a code block are not. Where they
+/// overlap, keeping the guess would make the value unrepresentable (markup
+/// cannot put a link inside a mention) or silently change what the author
+/// wrote, so the guess goes. Of two overlapping guesses the earlier stays: a
+/// longer one at the same start wins, so a re-detection is stable.
+List<Entity> _withoutYieldingDetected(List<Entity> merged) {
+  final detected = <Entity>[];
+  final others = <Entity>[];
+  for (final entity in merged) {
+    (_isDetected(entity.kind) ? detected : others).add(entity);
+  }
+  if (detected.isEmpty) return merged;
+  final outranking = _Spans([
+    for (final entity in others)
+      if (_outranksDetected(entity.kind)) entity,
+  ]);
+  detected.sort(_compare);
+  var keptEnd = -1;
+  for (final entity in detected) {
+    if (entity.offset < keptEnd ||
+        outranking.overlaps(entity.offset, entity.end)) {
+      continue;
+    }
+    others.add(entity);
+    keptEnd = entity.end;
+  }
+  return others;
+}
+
+bool _isDetected(EntityKind kind) =>
+    kind is EntityKind$Username || kind is EntityKind$Hashtag;
+
+bool _outranksDetected(EntityKind kind) => switch (kind) {
+  EntityKind$Link() ||
+  EntityKind$Mention() ||
+  EntityKind$InlineContent() ||
+  EntityKind$CodeBlock() => true,
+  EntityKind$Style(:final style) => style == EntityStyle.code,
+  EntityKind$Username() || EntityKind$Hashtag() || EntityKind$List() => false,
+};
+
+/// The list [items] widened to whole lines, minus those that yield: first the
+/// ones that share a line with a quote or a code block in [others], then the
+/// ones that share a line with an item before them.
+///
+/// Items are whole lines, so two share a line exactly when their ranges
+/// overlap or touch (the empty last line of one is where the next starts).
+/// "Before" is the order the items were written in, not the order of their
+/// widened ranges: two items that a deleted line break joined onto one line
+/// are one range, and the first of them is the one whose kind the line keeps.
+List<Entity> _listItems(String plain, List<Entity> items, List<Entity> others) {
+  if (items.isEmpty) return const [];
+  final blocks = _Spans([
+    for (final entity in others)
+      if (entity.kind == EntityKind.quote ||
+          entity.kind is EntityKind$CodeBlock)
+        entity,
+  ], touching: true);
+  final ordered =
+      [
+        for (final item in items)
+          (written: item, widened: _widenToLines(plain, item)),
+      ]..sort((a, b) {
+        final byStart = a.written.offset.compareTo(b.written.offset);
+        return byStart != 0 ? byStart : _compare(a.widened, b.widened);
+      });
+  final kept = <Entity>[];
+  var keptEnd = -1;
+  for (final (:widened, written: _) in ordered) {
+    if (widened.offset <= keptEnd ||
+        blocks.overlaps(widened.offset, widened.end)) {
+      continue;
+    }
+    kept.add(widened);
+    keptEnd = widened.end;
+  }
+  return kept;
+}
+
+/// A set of spans that answers whether a range overlaps any of them, in
+/// logarithmic time. The spans may overlap one another.
+final class _Spans {
+  /// [touching]: ranges that share only an edge count as overlapping.
+  _Spans(List<Entity> entities, {bool touching = false})
+    : _pad = touching ? 1 : 0,
+      _sorted = [...entities]..sort((a, b) => a.offset.compareTo(b.offset)) {
+    var furthest = 0;
+    for (final entity in _sorted) {
+      if (entity.end + _pad > furthest) furthest = entity.end + _pad;
+      _furthestEnd.add(furthest);
+    }
+  }
+
+  final int _pad;
+  final List<Entity> _sorted;
+
+  // For each span, the furthest end of it and every span before it.
+  final List<int> _furthestEnd = [];
+
+  bool overlaps(int from, int to) {
+    // The last span that starts before the range ends.
+    var low = 0;
+    var high = _sorted.length;
+    while (low < high) {
+      final middle = (low + high) >> 1;
+      if (_sorted[middle].offset < to + _pad) {
+        low = middle + 1;
+      } else {
+        high = middle;
+      }
+    }
+    return low > 0 && _furthestEnd[low - 1] > from;
+  }
+}
 
 bool _covers(Entity outer, Entity inner) =>
     outer.offset <= inner.offset && outer.end >= inner.end;

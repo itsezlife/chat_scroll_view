@@ -21,11 +21,17 @@ import 'package:html/parser.dart' as html;
 /// | code block | `<pre>`, `<pre lang>` with a language |
 /// | quote | `<blockquote>` |
 /// | link | `<a href>` |
+/// | username, hashtag | `<a href="username:name">`, `<a href="hashtag:tag">` |
+/// | list item | `<li>` in a `<ul>` or `<ol>`, nested a level per depth |
 /// | mention | `<span data-mention-id>` over its text |
 /// | inline content | `<span data-content-key>` over its alternative text |
 ///
 /// Mentions and inline content have no HTML element, so other apps read
-/// their text; the attributes are for this app. Every line break is a
+/// their text; the attributes are for this app. A username or hashtag is a
+/// link to a scheme no other app follows. The line break between two
+/// consecutive items is the `</li><li>` itself, not a `<br>`: a `<br>` inside
+/// a list shows as an empty line in other apps. Lists are the one place a block
+/// gives the decoder a line break in this app's own HTML. Every line break is a
 /// `<br>`, quotes' included: a block's implied break cannot say an empty line
 /// at the end of the text, so the decoder takes no breaks from blocks in this
 /// HTML (another app may show an empty line after a quote). The whole is a
@@ -39,7 +45,9 @@ import 'package:html/parser.dart' as html;
 /// entities can say it:
 ///
 /// - **Elements:** `b strong h1-h6`, `i em`, `u ins`, `s strike del`, `code tt
-///   kbd samp`, `blockquote details`, `a href`, `pre` as a code block (its
+///   kbd samp`, `blockquote details`, `a href`, `ul ol li` as list items (an
+///   item is the text of one `li` up to a list nested in it, and its depth is
+///   how many lists enclose it, at most three), `pre` as a code block (its
 ///   language from `lang`, `language`, `lng`, `data-language` or a
 ///   `language-` class of its `code`, as code sites write it), the reference
 ///   clients'
@@ -56,8 +64,9 @@ import 'package:html/parser.dart' as html;
 ///   scheme or none; none with a scheme that runs code or carries a document
 ///   (`javascript`, `vbscript`, `data`, `file`, `blob`). The rest keep their
 ///   text.
-/// - **Trust:** mention ids and content keys are read from this app's own
-///   HTML only, since a page could put them over any text. Any page can mark
+/// - **Trust:** mention ids, content keys, usernames and hashtags are read
+///   from this app's own HTML only, since a page could put them over any
+///   text; another app's `username:` or `hashtag:` link keeps its text. Any page can mark
 ///   its HTML as this app's own, so a host checks a pasted mention's id
 ///   before sending it.
 /// - **Whole-text styles:** a style that covers all of another app's text is
@@ -65,7 +74,9 @@ import 'package:html/parser.dart' as html;
 ///   paragraph from a web page should not make the message bold.
 ///
 /// [decode] never throws: what cannot be read keeps its text, and entities
-/// that cannot coexist are dropped, styles first.
+/// that cannot coexist are dropped, styles first, then code blocks and lists.
+/// A list item that shares a line with a quote or a code block is dropped as
+/// the value drops it.
 abstract final class RichTextHtml {
   /// The attribute that marks HTML [encode] wrote.
   static const String ownMarker = 'data-rich-text';
@@ -75,6 +86,12 @@ abstract final class RichTextHtml {
 
   /// The attribute that carries inline content's [ContentKey.encoded].
   static const String contentKeyAttribute = 'data-content-key';
+
+  /// The scheme of the link a username is written as.
+  static const String usernameScheme = 'username:';
+
+  /// The scheme of the link a hashtag is written as.
+  static const String hashtagScheme = 'hashtag:';
 
   /// [text] as HTML; see [RichTextHtml].
   static String encode(RichText text) => _Encoder(text).run();
@@ -102,20 +119,36 @@ final class _Encoder {
   // The entities whose elements are open, outermost first.
   final _open = <Entity>[];
 
+  final _lists = _OpenLists();
+
   String run() {
     _out.write(
       '<span ${RichTextHtml.ownMarker}="1" style="white-space:pre-wrap">',
     );
     final plain = _text.plain;
+    final items = [
+      for (final entity in _text.entities)
+        if (entity.kind is EntityKind$List) entity,
+    ];
+    final itemAt = {for (final item in items) item.offset: item};
+    // The line break between two consecutive items is the end of one `li` and
+    // the start of the next, not a `br`.
+    final separators = <int>{
+      for (var i = 0; i + 1 < items.length; i++)
+        if (items[i + 1].offset == items[i].end + 1) items[i].end,
+    };
     final cuts = <int>{
       0,
       plain.length,
       for (final entity in _text.entities) ...[entity.offset, entity.end],
     }.toList()..sort();
     // The entities in the order they start; the ones covering the current
-    // run are kept as the runs advance.
-    final starting = [..._text.entities]
-      ..sort((a, b) => a.offset.compareTo(b.offset));
+    // run are kept as the runs advance. Items are elements of the lists, not
+    // of the runs.
+    final starting = [
+      for (final entity in _text.entities)
+        if (entity.kind is! EntityKind$List) entity,
+    ]..sort((a, b) => a.offset.compareTo(b.offset));
     final active = <Entity>[];
     var next = 0;
     for (var i = 0; i + 1 < cuts.length; i++) {
@@ -125,10 +158,29 @@ final class _Encoder {
         if (starting[next].end > start) active.add(starting[next]);
         next++;
       }
+      final isSeparator = separators.contains(start);
+      // An item adjacent to the one before it continues the lists; any other
+      // run ends them.
+      if (_lists.isOpen &&
+          start >= _lists.end &&
+          !isSeparator &&
+          !itemAt.containsKey(start)) {
+        _openOnly(const []);
+        _lists.closeAll(_out);
+      }
+      if (isSeparator) {
+        _openOnly(const []);
+        continue;
+      }
+      if (itemAt[start] case final item?) {
+        _openOnly(const []);
+        _lists.enter(_out, item);
+      }
       _openOnly([...active]..sort(_nesting));
       _writeText(plain, start, cuts[i + 1]);
     }
     _openOnly(const []);
+    _lists.closeAll(_out);
     _out.write('</span>');
     return _out.toString();
   }
@@ -173,10 +225,11 @@ final class _Encoder {
   // How deep an element sits among elements over one range.
   static int _depthOf(Entity entity) => switch (entity.kind) {
     EntityKind$Style(style: EntityStyle.quote) || EntityKind$CodeBlock() => 0,
-    EntityKind$Link() => 1,
+    EntityKind$Link() || EntityKind$Username() || EntityKind$Hashtag() => 1,
     EntityKind$Style(style: EntityStyle.code) => 3,
     EntityKind$Style() => 2,
     EntityKind$Mention() || EntityKind$InlineContent() => 4,
+    EntityKind$List() => throw StateError('Lists are written by _OpenLists.'),
   };
 
   // Closes open elements down to the longest prefix [wanted] shares with
@@ -207,13 +260,18 @@ final class _Encoder {
       EntityStyle.code => 'code',
       EntityStyle.quote => 'blockquote',
     },
-    EntityKind$Link() => 'a',
+    EntityKind$Link() || EntityKind$Username() || EntityKind$Hashtag() => 'a',
     EntityKind$Mention() || EntityKind$InlineContent() => 'span',
     EntityKind$CodeBlock() => 'pre',
+    EntityKind$List() => throw StateError('Lists are written by _OpenLists.'),
   };
 
   static String _openTagOf(Entity entity) => switch (entity.kind) {
     EntityKind$Link(:final url) => '<a href="${_escapeAttribute(url)}">',
+    EntityKind$Username(:final name) =>
+      '<a href="${RichTextHtml.usernameScheme}${_escapeAttribute(name)}">',
+    EntityKind$Hashtag(:final tag) =>
+      '<a href="${RichTextHtml.hashtagScheme}${_escapeAttribute(tag)}">',
     EntityKind$Mention(:final id) =>
       '<span ${RichTextHtml.mentionAttribute}="${_escapeAttribute(id)}">',
     EntityKind$InlineContent(:final key) =>
@@ -221,7 +279,9 @@ final class _Encoder {
     // `lang` is the attribute the reference Android client reads.
     EntityKind$CodeBlock(:final language?) =>
       '<pre lang="${_escapeAttribute(language)}">',
-    EntityKind$CodeBlock() || EntityKind$Style() => '<${_tagOf(entity)}>',
+    EntityKind$CodeBlock() ||
+    EntityKind$Style() ||
+    EntityKind$List() => '<${_tagOf(entity)}>',
   };
 
   static String _escapeAttribute(String value) => value
@@ -231,21 +291,87 @@ final class _Encoder {
       .replaceAll('>', '&gt;');
 }
 
+/// The `ul` / `ol` and `li` elements open while items are written.
+///
+/// Every level up to the depth of the current item has a list and an item open:
+/// a nested list lives inside the `li` of the item before it. An item that
+/// jumps more than one level gets empty items to nest under, which other apps
+/// show as empty bullets and the decoder reads as nothing.
+final class _OpenLists {
+  // The kind of the list open at each depth.
+  final _stack = <EntityListKind>[];
+
+  // Where the item written last ends.
+  int end = 0;
+
+  bool get isOpen => _stack.isNotEmpty;
+
+  void enter(StringBuffer out, Entity item) {
+    final EntityKind$List(:listKind, :depth) = item.kind as EntityKind$List;
+    if (_stack.isNotEmpty && item.offset != end + 1) closeAll(out);
+    end = item.end;
+    if (_stack.isNotEmpty && depth <= _stack.length - 1) {
+      while (_stack.length - 1 > depth) {
+        out.write('</li></${_tag(_stack.removeLast())}>');
+      }
+      out.write('</li>');
+      if (_stack.last != listKind) {
+        out.write('</${_tag(_stack.removeLast())}>');
+        _open(out, listKind);
+      }
+      out.write('<li>');
+      return;
+    }
+    while (_stack.length < depth) {
+      _open(out, EntityListKind.bullet);
+      out.write('<li>');
+    }
+    _open(out, listKind);
+    out.write('<li>');
+  }
+
+  void closeAll(StringBuffer out) {
+    while (_stack.isNotEmpty) {
+      out.write('</li></${_tag(_stack.removeLast())}>');
+    }
+  }
+
+  void _open(StringBuffer out, EntityListKind kind) {
+    _stack.add(kind);
+    out.write('<${_tag(kind)}>');
+  }
+
+  static String _tag(EntityListKind kind) => switch (kind) {
+    EntityListKind.bullet => 'ul',
+    EntityListKind.ordered => 'ol',
+  };
+}
+
 // --- Reading ---------------------------------------------------------------
 
 /// The formatting a text node inherits from its ancestors.
 final class _Context {
   const _Context({
     this.styles = const {},
-    this.link,
+    this.target,
     this.preserveSpace = false,
     this.inAtom = false,
     this.inCode = false,
+    this.listKind = EntityListKind.bullet,
+    this.listDepth = -1,
   });
 
   final Set<EntityStyle> styles;
-  final String? link;
+
+  // What an enclosing `a` makes of the text: a link, or in this app's own HTML
+  // a username or hashtag.
+  final EntityKind? target;
   final bool preserveSpace;
+
+  // The kind of the nearest enclosing list, and how many lists enclose the
+  // text less one (-1 outside any).
+  final EntityListKind listKind;
+  final int listDepth;
 
   // Inside a mention or inline content: nothing starts or ends inside one.
   final bool inAtom;
@@ -255,16 +381,20 @@ final class _Context {
 
   _Context copyWith({
     Set<EntityStyle>? styles,
-    String? link,
+    EntityKind? target,
     bool? preserveSpace,
     bool? inAtom,
     bool? inCode,
+    EntityListKind? listKind,
+    int? listDepth,
   }) => _Context(
     styles: styles ?? this.styles,
-    link: link ?? this.link,
+    target: target ?? this.target,
     preserveSpace: preserveSpace ?? this.preserveSpace,
     inAtom: inAtom ?? this.inAtom,
     inCode: inCode ?? this.inCode,
+    listKind: listKind ?? this.listKind,
+    listDepth: listDepth ?? this.listDepth,
   );
 }
 
@@ -283,6 +413,15 @@ final class _Decoder {
 
   final _text = _DecodedText();
   final _entities = <Entity>[];
+
+  // The items open, innermost last. An item's text is cut where a list nested
+  // in it begins, so each frame holds where the text of its current part
+  // starts, or null before any.
+  final _items = <_ItemFrame>[];
+
+  // Where the last item part ended. In this app's own HTML the next `li` that
+  // starts right there follows it without a `br`, and takes a line break.
+  int _lastItemEnd = -1;
 
   // A block ended or began: a line break goes in before the next text, if
   // any text follows and the last line is not already ended.
@@ -323,14 +462,16 @@ final class _Decoder {
   // Text runs of one style or link that touch, as one entity. The value
   // trims a style to non-whitespace before it joins touching ones, so runs
   // split at a space (`<b>one <i>two</i></b>`) would otherwise stay apart.
-  // Atoms and quotes are an element's whole range already.
+  // Atoms, quotes and list items are an element's whole range already.
   List<Entity> _joinedRuns() {
     final joined = <Entity>[];
     final open = <EntityKind, int>{};
     final sorted = [..._entities]..sort((a, b) => a.offset.compareTo(b.offset));
     for (final entity in sorted) {
       final kind = entity.kind;
-      if (kind.isAtomic || kind == EntityKind.quote) {
+      if (kind.isAtomic ||
+          kind == EntityKind.quote ||
+          kind is EntityKind$List) {
         joined.add(entity);
         continue;
       }
@@ -370,9 +511,10 @@ final class _Decoder {
       _breakLine();
       return;
     }
-    // Our own HTML spells out every line break.
+    // Our own HTML spells out every line break, except the one between items.
     final block = !_own && _blocks.contains(tag);
     if (block) _pendingBreak = _text.isNotEmpty;
+    if (tag == 'ul' || tag == 'ol') _endItemPart();
 
     // An atom keeps its element's range: two equal custom emoji side by side
     // stay two.
@@ -406,11 +548,50 @@ final class _Decoder {
 
     final quote = !context.inAtom && (tag == 'blockquote' || tag == 'details');
     final start = quote ? _flushedLength() : 0;
+    final item = tag == 'li' && !context.inAtom && !context.inCode;
+    if (item) _beginItem(context);
     _walkChildren(element, _contextOf(element, tag, context));
+    if (item) _endItem();
     if (quote && _text.length > start) {
       _entities.add(Entity(start, _text.length - start, EntityKind.quote));
     }
     if (block) _pendingBreak = true;
+  }
+
+  void _beginItem(_Context context) {
+    // The break the encoder leaves out between consecutive items.
+    if (_own && _lastItemEnd == _text.length && _text.isNotEmpty) {
+      _text.write('\n');
+    }
+    _items.add(
+      _ItemFrame(
+        context.listKind,
+        context.listDepth.clamp(0, EntityKind$List.maxDepth),
+      ),
+    );
+  }
+
+  void _endItem() {
+    _endItemPart();
+    _items.removeLast();
+  }
+
+  // The text the current item has so far is an item of its own: what comes
+  // after a list nested in it is another.
+  void _endItemPart() {
+    if (_items.isEmpty) return;
+    final frame = _items.last;
+    if (frame.start case final start? when _text.length > start) {
+      _entities.add(
+        Entity(
+          start,
+          _text.length - start,
+          EntityKind.list(listKind: frame.kind, depth: frame.depth),
+        ),
+      );
+      _lastItemEnd = _text.length;
+    }
+    frame.start = null;
   }
 
   // The text length once a pending line break is written: where the next
@@ -512,10 +693,17 @@ final class _Decoder {
       styles.add(EntityStyle.spoiler);
     }
     _applyCss(css, styles);
+    final isList = tag == 'ul' || tag == 'ol';
     return context.copyWith(
       styles: styles,
-      link: tag == 'a' ? _linkOf(element) ?? context.link : context.link,
+      target: tag == 'a'
+          ? _targetOf(element) ?? context.target
+          : context.target,
       preserveSpace: preserveSpace,
+      listKind: isList
+          ? (tag == 'ol' ? EntityListKind.ordered : EntityListKind.bullet)
+          : context.listKind,
+      listDepth: isList ? context.listDepth + 1 : context.listDepth,
     );
   }
 
@@ -551,8 +739,11 @@ final class _Decoder {
 
   // This app's own links come back as they were written, whatever their
   // scheme, or none; another app's only with a scheme a user can follow. No
-  // link with an unsafe scheme is kept.
-  String? _linkOf(dom.Element element) {
+  // link with an unsafe scheme is kept. A username or hashtag is this app's
+  // own link to a scheme of its own; elsewhere it is not a followable one, so
+  // it keeps its text. A link cannot hold the schemes of mentions, usernames
+  // and hashtags either, since markup would read them back as those.
+  EntityKind? _targetOf(dom.Element element) {
     final href = element.attributes['href'];
     if (href == null) return null;
     final normalized = href.replaceAll(_ignoredInScheme, '');
@@ -561,13 +752,24 @@ final class _Decoder {
         ? normalized.substring(0, colon).toLowerCase()
         : null;
     if (_unsafe.contains(scheme)) return null;
-    if (_own) return href.isEmpty ? null : href;
-    return _followable.contains(scheme) ? href.trim() : null;
+    if (!_own)
+      return _followable.contains(scheme) ? EntityKind.link(href.trim()) : null;
+    if (href.isEmpty || href.contains('\n') || href.contains('\r')) return null;
+    if (href.startsWith(RichTextHtml.usernameScheme)) {
+      final name = href.substring(RichTextHtml.usernameScheme.length);
+      return name.isEmpty ? null : EntityKind.username(name);
+    }
+    if (href.startsWith(RichTextHtml.hashtagScheme)) {
+      final tag = href.substring(RichTextHtml.hashtagScheme.length);
+      return tag.isEmpty ? null : EntityKind.hashtag(tag);
+    }
+    return href.startsWith('mention:') ? null : EntityKind.link(href);
   }
 
   void _breakLine() {
     _flushBreak();
     _trimTrailingSpace();
+    if (_items.isNotEmpty) _items.last.start ??= _text.length;
     _text.write('\n');
   }
 
@@ -617,6 +819,7 @@ final class _Decoder {
     if (text.isEmpty) return;
     _flushBreak();
     final start = _text.length;
+    if (_items.isNotEmpty) _items.last.start ??= start;
     _text.write(text);
     final end = _text.length;
     // Inside an atom the context is the atom's own: styles around it cover
@@ -624,8 +827,8 @@ final class _Decoder {
     for (final style in context.styles) {
       _entities.add(Entity(start, end - start, EntityKind.style(style)));
     }
-    if (context.link case final url?) {
-      _entities.add(Entity(start, end - start, EntityKind.link(url)));
+    if (context.target case final kind?) {
+      _entities.add(Entity(start, end - start, kind));
     }
   }
 
@@ -671,14 +874,18 @@ final class _Decoder {
   }
 
   // The rich text, dropping entities until they fit: first the styles, then
-  // code blocks, then everything but mentions and inline content.
+  // code blocks and list items, then everything but mentions and inline
+  // content.
   static RichText _build(String plain, List<Entity> entities) {
     bool styleless(Entity entity) =>
         entity.kind is! EntityKind$Style || entity.kind == EntityKind.quote;
     for (final keep in <bool Function(Entity)>[
       (_) => true,
       styleless,
-      (entity) => styleless(entity) && entity.kind is! EntityKind$CodeBlock,
+      (entity) =>
+          styleless(entity) &&
+          entity.kind is! EntityKind$CodeBlock &&
+          entity.kind is! EntityKind$List,
       (entity) => entity.kind.isAtomic,
     ]) {
       try {
@@ -695,6 +902,16 @@ final class _Decoder {
     }
     return RichText.plain(plain);
   }
+}
+
+/// An item being read: its list's kind, its depth, and where its current part
+/// of text starts.
+final class _ItemFrame {
+  _ItemFrame(this.kind, this.depth);
+
+  final EntityListKind kind;
+  final int depth;
+  int? start;
 }
 
 /// The decoded text so far. It grows at its end and loses spaces off its

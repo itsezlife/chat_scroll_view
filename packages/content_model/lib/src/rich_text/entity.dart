@@ -31,9 +31,11 @@ final class Entity {
   ///
   /// The keys are `offset`, `length` and `kind`, plus the payload key of the
   /// kind: `url` (link), `id` (mention), `key` (inline content, the
-  /// [ContentKey.encoded] string) or `language` (a code block that names
-  /// one). Styles use their enum name as `kind`; the other kinds use `link`,
-  /// `mention`, `inlineContent` and `codeBlock`.
+  /// [ContentKey.encoded] string), `language` (a code block that names
+  /// one), `name` (username), `tag` (hashtag) or `listKind` (`bullet` or
+  /// `ordered`) with `depth` (list item). Styles use their enum name as
+  /// `kind`; the other kinds use `link`, `mention`, `inlineContent`,
+  /// `codeBlock`, `username`, `hashtag` and `list`.
   Map<String, Object?> toJson() => {
     'offset': offset,
     'length': length,
@@ -48,6 +50,13 @@ final class Entity {
       EntityKind$CodeBlock(:final language) => {
         'kind': _codeBlock,
         'language': ?language,
+      },
+      EntityKind$Username(:final name) => {'kind': _username, 'name': name},
+      EntityKind$Hashtag(:final tag) => {'kind': _hashtag, 'tag': tag},
+      EntityKind$List(:final listKind, :final depth) => {
+        'kind': _list,
+        'listKind': listKind.name,
+        'depth': depth,
       },
     },
   };
@@ -79,6 +88,9 @@ final class Entity {
   static const String _mention = 'mention';
   static const String _inlineContent = 'inlineContent';
   static const String _codeBlock = 'codeBlock';
+  static const String _username = 'username';
+  static const String _hashtag = 'hashtag';
+  static const String _list = 'list';
 
   static EntityKind? _kindFromJson(Map<Object?, Object?> json) {
     final name = switch (json['kind']) {
@@ -102,6 +114,28 @@ final class Entity {
           final String language => EntityKind.codeBlock(language: language),
           final other => throw FormatException(
             'A code block language must be a string.',
+            other,
+          ),
+        };
+      case _username:
+        return EntityKind.username(_requireString(json, 'name'));
+      case _hashtag:
+        return EntityKind.hashtag(_requireString(json, 'tag'));
+      case _list:
+        final listKind = switch (json['listKind']) {
+          'bullet' => EntityListKind.bullet,
+          'ordered' => EntityListKind.ordered,
+          final other => throw FormatException(
+            'A list item is "bullet" or "ordered".',
+            other,
+          ),
+        };
+        return switch (json['depth']) {
+          final int depth
+              when depth >= 0 && depth <= EntityKind$List.maxDepth =>
+            EntityKind.list(listKind: listKind, depth: depth),
+          final other => throw FormatException(
+            'A list item is nested 0 to ${EntityKind$List.maxDepth} levels.',
             other,
           ),
         };

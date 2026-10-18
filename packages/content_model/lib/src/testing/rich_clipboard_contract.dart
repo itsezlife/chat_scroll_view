@@ -133,12 +133,14 @@ abstract final class RichClipboardContract {
     });
   }
 
-  // One line of styles, one quoted line, one line of atoms and a link.
+  // One line of styles, one quoted line, one line of atoms and a link, one of
+  // a detected username and hashtag, and two list items.
   static RichText _everyEntity() {
     const styles = 'bold italic under strike hidden code';
     const quoted = 'a quoted line';
     const atoms = 'see docs, @alice and \u{1F680}';
-    const plain = '$styles\n$quoted\n$atoms';
+    const names = 'ask @bob about #dart';
+    const plain = '$styles\n$quoted\n$atoms\n$names\nfirst item\nsecond item';
     Entity over(String part, EntityKind kind, {int from = 0}) =>
         Entity(plain.indexOf(part, from), part.length, kind);
     final atomsAt = plain.indexOf(atoms);
@@ -156,6 +158,16 @@ abstract final class RichClipboardContract {
         '\u{1F680}',
         const EntityKind.inlineContent(ContentKey.document('rocket')),
         from: atomsAt,
+      ),
+      over('@bob', const EntityKind.username('bob')),
+      over('#dart', const EntityKind.hashtag('dart')),
+      over(
+        'first item',
+        const EntityKind.list(listKind: EntityListKind.bullet),
+      ),
+      over(
+        'second item',
+        const EntityKind.list(listKind: EntityListKind.ordered, depth: 1),
       ),
     ]);
   }

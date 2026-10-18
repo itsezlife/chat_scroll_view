@@ -273,7 +273,9 @@ class ComposerTextController extends TextEditingController {
     RichText inserted,
   ) {
     bool isBlock(Entity entity) =>
-        entity.kind is EntityKind$CodeBlock || entity.kind == EntityKind.quote;
+        entity.kind is EntityKind$CodeBlock ||
+        entity.kind is EntityKind$List ||
+        entity.kind == EntityKind.quote;
     int? tried;
     for (final keep in <bool Function(Entity)>[
       (_) => true,
@@ -478,7 +480,10 @@ class ComposerTextController extends TextEditingController {
         case EntityKind$Link():
           decorations.add(TextDecoration.underline);
           result = result.merge(TextStyle(color: _entityStyles.link));
-        case EntityKind$Mention():
+        // A detected username or hashtag is painted as a mention is.
+        case EntityKind$Mention() ||
+            EntityKind$Username() ||
+            EntityKind$Hashtag():
           result = result.merge(TextStyle(color: _entityStyles.mention));
         // A block of code reads as inline code does, line by line.
         case EntityKind$CodeBlock():
@@ -488,7 +493,8 @@ class ComposerTextController extends TextEditingController {
               backgroundColor: _entityStyles.codeBackground,
             ),
           );
-        case EntityKind$InlineContent():
+        // The marker of a list item is not text; the field paints no gutter yet.
+        case EntityKind$InlineContent() || EntityKind$List():
           break;
       }
     }

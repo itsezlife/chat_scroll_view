@@ -31,6 +31,14 @@ import 'package:meta/meta.dart';
 /// - A code block covers whole lines, holds no other entity and overlaps no
 ///   quote.
 /// - Links never overlap each other or a mention.
+/// - A username or hashtag (text a detector found) yields: it never overlaps a
+///   link, a mention, inline content, code, a code block or an earlier
+///   username or hashtag, and construction drops the one that would. It may
+///   carry styles, lies within one line, and is not atomic.
+/// - A list item covers whole lines, like a quote, but items never merge: one
+///   entity is one item, and the number of an ordered item is derived when
+///   written, never stored. An item shares no line with a quote or a code
+///   block (the item is dropped) or with an item written before it.
 /// - Entities are ordered by offset, longer first, then by kind.
 ///
 /// Construction throws an [ArgumentError] when the entities cannot describe
