@@ -1,6 +1,8 @@
-/// Where the selection menu goes: above the selection when 320 dp fit, else
-/// below, else the roomier side; 12 dp from the screen's edges; 8 dp above the
-/// selection and 20 dp below it.
+/// Where the selection menu goes: above the selection when the tallest menu
+/// (264 dp: four rows, the Back row and the peek of a fifth) fits, else below,
+/// else the roomier side; 16 dp from the screen's left and right edges and 12
+/// from the safe area and the keyboard; 8 dp above the selection and 20 dp
+/// below it.
 ///
 /// **Seam:** `computeSelectionMenuPlacement` over anchors and insets, and the
 /// layout delegate that turns a placement into an offset.
@@ -19,7 +21,7 @@ void main() {
     double keyboard = 0,
     Offset primary = const Offset(200, 400),
     Offset? secondary,
-    double maxHeight = 320,
+    double maxHeight = 264,
     double maxWidth = 400,
   }) => computeSelectionMenuPlacement(
     screen: size,
@@ -34,20 +36,20 @@ void main() {
   );
 
   group('above or below', () {
-    test('above when 320 dp fit over the selection', () {
+    test('above when 264 dp fit over the selection', () {
       final placement = place();
       expect(placement.fitsAbove, isTrue);
-      expect(placement.maxHeight, 320);
+      expect(placement.maxHeight, 264);
     });
 
     test('below when they do not fit above but do below', () {
       final placement = place(primary: const Offset(200, 100));
       expect(placement.fitsAbove, isFalse);
-      expect(placement.maxHeight, 320);
+      expect(placement.maxHeight, 264);
     });
 
     test('the roomier side when neither fits, capped to its room', () {
-      // A short screen, so neither side reaches 320.
+      // A short screen, so neither side reaches 264.
       final placement = place(
         size: const Size(400, 500),
         primary: const Offset(200, 200),
@@ -58,19 +60,17 @@ void main() {
       expect(placement.maxHeight, 248);
     });
 
-    test(
-      'stays above when the selection is low and above is tight but below is less',
-      () {
-        final placement = place(
-          size: const Size(400, 400),
-          primary: const Offset(200, 330),
-          secondary: const Offset(200, 350),
-        );
-        // Above 310 >= ... still 310 < 320; below: 400 - 12 - 350 - 20 = 18.
-        expect(placement.fitsAbove, isTrue);
-        expect(placement.maxHeight, 310);
-      },
-    );
+    test('stays above, with its room, when neither side fits and above has '
+        'more', () {
+      final placement = place(
+        size: const Size(400, 300),
+        primary: const Offset(200, 230),
+        secondary: const Offset(200, 250),
+      );
+      // Above: 230 - 8 - 12 = 210. Below: 300 - 12 - 250 - 20 = 18.
+      expect(placement.fitsAbove, isTrue);
+      expect(placement.maxHeight, 210);
+    });
   });
 
   group('gaps and margins', () {
@@ -83,10 +83,10 @@ void main() {
       },
     );
 
-    test('the region keeps 12 dp from every edge and the safe area', () {
+    test('the region keeps 16 dp from the sides and 12 from the safe area', () {
       final placement = place(safe: const EdgeInsets.only(top: 30, bottom: 20));
-      expect(placement.padding, const EdgeInsets.fromLTRB(12, 42, 12, 32));
-      expect(placement.localAdjustment, const Offset(12, 42));
+      expect(placement.padding, const EdgeInsets.fromLTRB(16, 42, 16, 32));
+      expect(placement.localAdjustment, const Offset(16, 42));
     });
 
     test('an open keyboard replaces the bottom safe area', () {
@@ -97,9 +97,14 @@ void main() {
       expect(placement.padding.bottom, 312);
     });
 
-    test('the width is the row cap, or the screen less 24', () {
-      expect(place().maxWidth, 376);
+    test('the row is 400 wide at most, or the screen less 32', () {
+      expect(place().maxWidth, 368);
       expect(place(size: const Size(500, 800)).maxWidth, 400);
+    });
+
+    test('the page is as wide as the screen less 32, with no cap of 400', () {
+      expect(place().pageMaxWidth, 368);
+      expect(place(size: const Size(500, 800)).pageMaxWidth, 468);
     });
   });
 

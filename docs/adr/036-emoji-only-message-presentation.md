@@ -5,7 +5,7 @@ present it: no bubble, enlarged, a single emoji as a sticker-sized animation.
 The host classifies the body with a pure function in `content_model` and passes
 the viewport a body kind; the viewport never re-detects.
 
-**Status**: Accepted (visibility row amended 2026-10-18, chat-polish-3 ticket 10), amended for sticker playback and the tap-interaction seams, for per-platform presentation, and for the size of a unicode emoji in a bubble and the configurable desktop cap  
+**Status**: Accepted, amended for sticker playback and the tap-interaction seams, for per-platform presentation, for the size of a unicode emoji in a bubble and the configurable desktop cap, for the message menu's scrim on a message without a bubble, for text selection of the text layout, and (2026-10-18, chat-polish-3 ticket 10) for the visibility row  
 **Date**: 2026-10-18  
 **Relates to**: [ADR 012](012-cross-platform-selection-policies.md), [ADR 021](021-content-identity-and-collections.md), [ADR 022](022-asset-cache-and-media-pipeline.md), [ADR 029](029-host-integration.md)
 
@@ -33,9 +33,9 @@ desktop), so the platform is a strategy, not a flag; see the amendment below.
 | Sizes | Per platform, from the policy. Android's, as a value the host may override (`ChatEmojiSizes`): text layout font steps of 81.6, 55.2, 40.8, 33.6, 26.4, 22.8 dp by item count, one step larger when every item is a custom emoji; item box is the font plus 4 dp; text scale is ignored; newlines are honoured; sticker layout `min(viewport width, height) × 0.5 × 0.625` (112.5 dp on a 360 dp phone) with **no** inset. iOS: a 94 pt font scaled and floored by the longer of the longest line and the line count, a fixed 112 pt sticker in a 10 pt inset. Desktop: 38 px images 2 px apart, a fixed 112 px sticker, custom emoji lines of 112, 78 and 58 px by their larger dimension. All use explicit-extent asset presets that decode at the drawn size at device pixel ratio, one cache entry per step. |
 | Playback | A host policy, `ChatStickerPlayback`, not a rule of the body: loop, play once then rest on the first or the last frame, or still. The reference default plays the single unicode sticker once and loops a custom emoji. A sticker that plays once does so the first time the open chat shows it, decided by a host-held `ChatStickerPlayLedger` (per chat controller, [ADR 029](029-host-integration.md)), not by the cache. Unicode items in the text layout are glyphs at the step font; a host with the animated pack may opt in through the same resolver. See the amendment below. |
 | Chrome | Stays host-side as for every body, and is per platform: the host reads the body's geometry (`ChatEmojiBody.geometryFor`: the box, the text rectangle and trailing edge, the last line, the sticker's art rectangle, the strip the host reserved under the items) and places the time pill, reply or forward header and reactions by the platform's rules. Where each goes is in the amendment below; the reply is **above** the text and **beside** the sticker on Android only. |
-| Selection and taps | No text selection: `ChatEmojiBody` registers with the selection controller as a non-text body, so a long-press is message selection or the menu under the selection policy ([ADR 012](012-cross-platform-selection-policies.md)). Copy is the message's `RichText` through the existing message Copy. A custom emoji tap is `ChatInlineHit.embed`; the single sticker's tap is `ChatInlineHit.sticker` on the drawn sticker only, the body replays the animation itself under a platform tap policy, and the host gets the tap as `ChatStickerActivated`. See the amendment below. |
+| Selection and taps | The text layout is selectable text and the sticker layout is not: see the amendment on text selection below (this row said "no text selection" before it). A custom emoji tap is `ChatInlineHit.embed`; the single sticker's tap is `ChatInlineHit.sticker` on the drawn sticker only, the body replays the animation itself under a platform tap policy, and the host gets the tap as `ChatStickerActivated`. See the amendment below. |
 | Composer | Unchanged, with no preview. An emoji-only draft is not trimmed on send, so a multi-line arrangement survives. |
-| Seam | `ChatEmojiBody` is a second viewport-provided body beside the markdown body; both register with the selection controller, one as a text body and one not. That registration kind is the whole seam for later media bodies: no new abstraction. |
+| Seam | `ChatEmojiBody` is a second viewport-provided body beside the markdown body; both register with the selection controller, the markdown body and the text layout as text bodies, the sticker layout as a non-text one (and every layout as a non-text body for its taps). That registration kind is the whole seam for later media bodies: no new abstraction. |
 | Out of scope | The tap overlay effect (larger animation, peer interaction, haptics) is a host feature over `ChatInlineHit.sticker`; the seams it needs ship (amendment below), the effect does not. Sticker and GIF message bodies are not designed here; the sticker layout of `ChatEmojiBody` seeds the sticker body, which it delegates to when that lands. |
 
 ### Exception: the basic-plane emoji set lives in `content_model`
@@ -93,7 +93,7 @@ lays the lines out left to right in a right-to-left chat; desktop mirrors.
 | Header panel | service colour at full alpha, radius 4 (6 for a forward with a reply), 14 dp text, a 3 dp bar | the same fill, radius 4, 14 pt, a 3 pt bar | service colour, radius about 6, 13 px |
 | Reactions | 26 dp chips under the pill, outgoing right-aligned | under the frame, 4 pt gap | under the element |
 | Mirrors in a right-to-left chat | no | no | yes, wholly |
-| Selection | the viewport's whole-row tint; nothing of the body's own | a checkbox only | the glyphs are recoloured |
+| Message selection | the viewport's whole-row tint; nothing of the body's own | a checkbox only | the glyphs are recoloured |
 
 The service colour behind pill and panels derives from the chat's wallpaper
 (Android: the wallpaper darkened in HSV at alpha `0x66`, the pill at 60 % of it;
@@ -226,10 +226,93 @@ iOS and Desktop where they differ).
 - Desktop double click on a sticker and the exact reasons behind its paused state; Desktop's self-chat handling of an outgoing interaction.
 - Whether a tap near the sticker replays on a real phone (the open question above).
 
+## Amendment: the message menu's scrim on a message without a bubble
+
+An emoji-only message has no bubble, so the mobile **message menu** sheet
+([ADR 016](016-cross-platform-message-menu.md)) had no bubble outline to leave
+undimmed. The example reported one rounded rectangle (radius 12) around the
+whole chrome box (reply panel, items, pill, reactions), which lit the gaps
+between the parts and read as a bubble that is not there. Decided from the
+two mobile clients (Android is the authority); Desktop's menu is a popup with
+no dim.
+
+| Concern | Android | iOS | Here |
+| ------- | ------- | --- | ---- |
+| Dim colour and level | `scrimPaint` is a plain `new Paint()` (black), alpha `0.2` at most (`dimBehindView(view, true)` asks `0.2f`), `ChatActivity.java:4509`, `10578-10590`, `10633-10684` | `contextMenu.dimColor`: black at `0.6` (dark), `#000a26` at `0.2` (day), `DefaultDarkPresentationTheme.swift:767`, `DefaultDayPresentationTheme.swift:1044`; over a zoom blur of the chat (`ContextControllerImpl.swift:132-137`, `1266-1285`) | Android's: black, `0.2` on a dark scheme (the presenter's `scrimColor`); not changed |
+| Fade | 320 ms, `EASE_OUT_QUINT`, `ChatActivity.java:10690-10691` | 0.2 s alpha (`ContextControllerImpl.swift:534`) | the presenter's linear 320 ms; not changed |
+| Lifted or a hole | **Lifted**: the scrim rect covers the whole view, then the scrim cell is drawn again over it, clipped to the cell's own box and to the list's visible area, `ChatActivity.java:17649-17651`, `17805-17822` | **Lifted**: the message's node is taken out of the list above the blur (`ChatMessageContextControllerContentSource.swift:76-105`) | a hole in the dim over the live message; the pixels are the same, the dim is not repainted on the message |
+| What stays bright | whatever the cell paints: no bubble is drawn for an emoji or a sticker (`MessageObject.java:11078`, `shouldDrawWithoutBackground`), so the art, the time pill, the reply panel and the reactions, each in its own shape; transparent pixels of the cell stay dimmed | the node's whole content (art, date and status, reply info, forward info), the same | the parts, each in its own shape, with square art |
+| Time pill | part of the cell, so lifted | `dateAndStatusNode` is a subnode of the lifted node, so lifted | lifted when it is shown (Desktop's hidden pill is not) |
+| Geometry of the lift | the cell's drawn pixels; no outline is added | `contextContentFrame` is the art frame, plus 20 pt under it for the text layout (`ChatMessageAnimatedStickerItemNode.swift:1568-1590`); it places the menu, the node itself is lifted whole | `ChatEmojiGeometry.content` (the items' area or the sticker's art, without the iOS inset and without the strip reserved for the pill) |
+| Sticker restarts on open | `restartSticker(cell)` when the dim starts, `ChatActivity.java:10639`, `32916` | not found | not done: playback is the host's (see the playback amendment) |
+
+`ChatMessageSurfaceParts` (a `ShapeBorder`, a union of rectangles each in an
+outline of its own) is the seam: a body that has no outline passes it as the
+`shape` of `ChatMessageSurfaceBounds`, and the presenter's hole follows it with
+no new request field. It is root, not example, because every bubble-less body
+(a sticker, a round video, an enlarged emoji run) needs the same thing. The
+example's `emojiSurfaceParts` builds it from the chrome placement it already
+has: the body's `content`, the header panel (the platform's radius), the pill
+(its fully rounded or radius-12 shape) and each reaction chip.
+
+| Divergence | Value taken | Why |
+| ---------- | ----------- | --- |
+| Square art | the art's rect has no corner radius | the clients draw the art's pixels; a glyph run or a sticker has no outline to round |
+| Hole instead of lift | the dim is cut where the message is, not painted under a copy | the viewport paints under the route; the transparent pixels inside the art's rect are therefore lit, which the clients keep dimmed |
+| Light scheme dim | `0.08` (the presenter's softening) | Android's `0.2` is a dark-chat value; unchanged by this amendment |
+| No blur (iOS) | none | the sheet has no backdrop filter; Android's is a flat dim |
+
+Not verified: Android's `ChatMessageCell` pill and reply paint for a
+sticker-layout cell at scrim time were read as part of `child.draw`, not stepped
+through; the iOS lift of the reply node was read from the subnode list, not from
+a device; the exact day-theme dim is `#000a26` at 0.2 per the source above and
+was not compared with a screenshot. Nothing was run on a device.
+
+## Amendment: the text layout is selectable text
+
+Reported on desktop and a phone: an emoji-only message must be selectable like
+a regular message, except the single-emoji sticker. Until now `ChatEmojiBody`
+registered as a non-text body only, so there was no character range and a long
+press was message selection.
+
+### What the references do
+
+| Client | Large emoji text (several, or a custom run) | Single animated emoji | Source |
+| ------ | --------------------------------------------- | --------------------- | ------ |
+| Android (authority) | **Selectable.** `TYPE_EMOJIS` goes through the same text path as a text message: `checkTextBlockMotionEvent` and `checkTextSelection` treat it as text (`ChatMessageCell`), the `ChatListTextSelectionHelper` selects over its layout blocks, and the entry is the mobile one (the message must already be selected: `drawSelectionBackground`). A long press **on an emoji** selects exactly that emoji (the `Emoji.EmojiSpan` or `AnimatedEmojiSpan` under the offset), not a word; handles then extend over the layout | Not text: a document, no layout blocks | `Telegram/TMessagesProj/.../Cells/ChatMessageCell.java` (`checkTextSelection`, `checkTextBlockMotionEvent`), `Cells/TextSelectionHelper.java` (`startSelectionRunnable`, the `EmojiSpan` / `AnimatedEmojiSpan` branch) |
+| Desktop | **Not selectable.** `HistoryView::LargeEmoji` is an `UnwrappedMedia::Content`: it has no selection or cursor state (`UnwrappedMedia::textState` returns no `CursorState::Text`), only `hasTextForCopy() == true`, so Copy of the message gives its text. The glyphs are recoloured when the message is selected | Same content | `tdesktop/Telegram/SourceFiles/history/view/media/history_view_large_emoji.h`, `history_view_media_unwrapped.cpp` (`textState`, `hasTextForCopy`) |
+| iOS | **Not selectable.** An emoji-only message (`messageIsEligibleForLargeEmoji`) is `contentTypeHint = .animatedEmoji`, shown by `ChatMessageAnimatedStickerItemNode`, which has a `TextNodeWithEntities` for the large text but no `TextSelectionNode`; the text bubble node that has one is not used | Same node | `telegram-ios/submodules/TelegramUI/Sources/ChatHistoryEntriesForView.swift`, `Components/Chat/ChatMessageAnimatedStickerItemNode`, `ChatMessageTextBubbleContentNode` (`TextSelectionNode`) |
+
+### Decided
+
+| Concern | Decision |
+| ------- | -------- |
+| Rule | The text layout is selectable on every platform, as the product asks and as Android does; the sticker layout never is. Desktop and iOS do not select their large emoji; that divergence is recorded below and a host that wants parity passes `ChatEmojiBody(selectableText: false)`, which gives the previous non-text behaviour. The selection **policy** (ADR 012) still chooses entry, nesting and dismiss: on `$Mobile` a long press selects the message first and a second one enters text, on `$Desktop` a press and drag arms the body directly |
+| One engine | There is no second selection engine. The text layout joins the contract ADR 013 already defines: `ChatEmojiText` turns `EmojiOnly` into one markdown paragraph and the facade holds it (`putBody`, ordered by message id) like any body's model; `RenderChatEmojiBody` implements `MarkdownSelectionSurface` over the item squares and attaches to `markdownSelection`; the per-body `MarkdownSelectionScope` (ADR 015) is the one the markdown body mounts, extracted as `ChatBodySelectionScope` so the entry gates, retarget, copy and dismiss actions, the desktop arming press and the toolbar have a single home. Range, select-all, shift-select, handles, the magnifier, autoscroll, `copyTextSelection`, `ChatTextCopy` and the stuck-pointer rule of ADR 012 are the markdown body's code |
+| Units | An emoji is one atomic item: a unicode sequence (a ZWJ family included) or a custom emoji, never split. A press resolves to the nearer **edge** of an item (the half of its square, counted from the side the line starts from, so right to left mirrors), a double click or long press selects the item under the point (Android's emoji span rule: an emoji is a word of its own), a triple click and select-all take the paragraph. Every position the surface answers is an item edge, so the markdown engine's atomic ranges, which the fork reports from a painter, are not needed |
+| Text | The rendered text is the unicode sequences, the custom emoji's `alt` (`EmojiOnlyItem.alt`, the characters under its entity; U+FFFC when a host built the item with none, so a lone custom emoji is still a character) and the `\n` of each line break. The spaces and tabs between emoji are not in it: `EmojiOnly` drops them and the body does not draw them. A custom emoji is an image span with `src` = its document, so a structured copy names it |
+| Highlight | Under the items, never over an embed or a glyph, one box per line over the selected items. The per-item boxes are `RenderChatEmojiBody.selectedItemBoxes` and the surface's `localBoxesForRange`. The look (tint, shape, the joined line box) is ticket 09's; this change paints the engine's default colour in the shape ticket 09 targets, in one private place (`RenderChatEmojiBody.paint`) |
+| Taps | Unchanged: the body stays a non-text body for its hits. A press on a custom emoji the host does not handle (`handlesEmbedHits` off) may begin a selection, in this body and now in the markdown body too: the scope's gate asks whether the hit is actionable, as the cursor already did. One the host handles keeps the tap |
+| Cursor | The I-beam over an item's square (glyph ink), the hand over an actionable hit; the gap and the empty end of a line defer |
+| Sticker layout | Registers no text, so `exposesSelectionSurface` is false, nothing arms, and a long press is message selection |
+| Message selection | The whole-row tint and the desktop glyph recolour are the host's and unchanged; text and message selection nest as ADR 012 says for the policy |
+
+### Divergences from the reference, with their reasons
+
+| Divergence | Value taken | Why |
+| ---------- | ----------- | --- |
+| Desktop and iOS select the large emoji text | Selectable by default on every platform; `selectableText: false` restores the reference | The product asks for it; Android, the authority, does it, and the policy keeps entry and dismiss per platform |
+| Android's mobile entry needs the message selected first | Kept on `$Mobile` | It is ADR 012's message-then-text path, the same for every body |
+| Android selects over spaces between emoji | Spaces and tabs are not in the text | `EmojiOnly` drops them before the body sees them; a copy holds the emoji and the line breaks |
+| Android's word selection on a non-emoji falls back to word breaks | Not applicable | Every item is an emoji |
+| A selection inside a custom emoji's alt text | Never made | The surface answers item edges only |
+
 ## Rejected
 
 | Alternative | Why not |
 | ----------- | ------- |
+| A second selection engine for the emoji layout (own range, handles, copy) | One contract already exists (ADR 013): the surface interface of the markdown library. The body gives it geometry and a model and gets every gesture and the copy path |
+| Painting the emoji layout through a markdown paragraph to inherit selection | The layout is the policy's fixed squares, which the host's chrome reads through `geometryFor`; a text flow would disagree with it |
 | Classifying in the markdown body over the parsed document | The body has neither the no-media fact nor the permission; it would classify per mount instead of per message |
 | Two body widgets now (sticker, text) | The sticker body's owner is the media effort; one widget with two layouts seeds it |
 | Android's first-frame stills for unicode in the text layout | iOS and Desktop draw glyphs; glyphs need no decode |

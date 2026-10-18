@@ -234,7 +234,7 @@ _Avoid_: Parsing markdown on paste, a composer-owned toast
 _Avoid_: Encoding `richText` straight to the wire, rejecting a message over an unresolved mention
 
 **Selection menu**:
-The composer's floating card on a text selection (`ComposerSelectionMenu`), the touch presentation (desktop's is the **pointer menu**), mounted through the **composer editable**'s menu builder on every platform. A two-page swipe-back card: the main row holds the clipboard actions and a More button, and the More page, which slides in from the right, holds the actions that did not fit the row and the formatting actions, with a Back tile. A formatting action that cannot apply is greyed. Its options, link prompt, labels and back priority are host contract.
+The composer's floating card on a text selection (`ComposerSelectionMenu`), the touch presentation (desktop's is the **pointer menu**), mounted through the **composer editable**'s menu builder on every platform. A two-page swipe-back card: the main row holds the clipboard actions and a More button, and the More page, which slides in from the right, holds the actions that did not fit the row and the formatting actions, with a Back row. Its sizes and fit are Telegram's floating toolbar (a page as wide as its widest label, four rows and half of a fifth before it scrolls). A formatting action that cannot apply is greyed. Its options, link prompt, labels (all `ChromeStrings`, the clipboard rows from `editMenu`) and back priority are host contract.
 _Avoid_: The platform selection menu extended, context menu (alone)
 
 **Pointer menu**:

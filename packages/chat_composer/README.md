@@ -119,8 +119,14 @@ The view imports no inset type.
   every platform, not the platform's: a two-page card. The main row holds the
   clipboard actions and a More button; the More page slides in from the right
   (300 ms, swipe right to close) and holds the clipboard actions that did not
-  fit the row, then the formatting actions, with a Back tile. Rows are 42 dp,
-  labels 16 sp from the theme, the card Material elevation 3.
+  fit the row, then the formatting actions, with a Back row. Sizes and fit are
+  Telegram's floating toolbar: main-row buttons 48 dp tall with 16 dp padding,
+  the 56 by 48 More button, labels 14 dp medium, page tiles 42 dp, and a page
+  as wide as its widest label (no label is ellipsized where the screen has the
+  room) showing four rows and half of a fifth before it scrolls; the card is
+  Material elevation 3. Every label is the host's `ChromeStrings`: Cut, Copy,
+  Paste and Select all from `editMenu`, the rest from `formatting`, never from
+  `MaterialLocalizations`.
   `ComposerSpec.formatting` says which items it may offer, listed in the order
   of `ComposerFormattingOption`; an item whose command cannot apply to the
   selection is greyed, not hidden (Quote is left out over a quoted selection),
@@ -186,7 +192,7 @@ The view imports no inset type.
 | The host provides | The host must not |
 | --- | --- |
 | A `ComposerSpec` rebuilt from chat state, every action's `semanticLabel` (from `ChromeStrings.composer` or its own language), and for any panel other than the text field a `panelResolver`. | Mutate a spec, give two actions one id, or look for mode state in the composer. |
-| Above the view: `ChromeThemeScope`, `ChromeStringsScope`, a `Directionality`, a `MediaQuery` and Material localisations (the text selection menu). Optional: `GlassSourceScope`, `GlassQualityScope`, `ChromeMotionScope` (map `MediaQuery.disableAnimations` to instant speed), `ChromeIconScope` and an `AssetCacheProvider` when inline content is drawn. | Expect a default language, a silent light theme or reduce-motion read from the platform. |
+| Above the view: `ChromeThemeScope`, `ChromeStringsScope`, a `Directionality`, a `MediaQuery` and Material localisations (the text field reads them; the menus' labels do not). Optional: `GlassSourceScope`, `GlassQualityScope`, `ChromeMotionScope` (map `MediaQuery.disableAnimations` to instant speed), `ChromeIconScope` and an `AssetCacheProvider` when inline content is drawn. | Expect a default language, a silent light theme or reduce-motion read from the platform. |
 | The extent: `ComposerController.extent` plus `max(safe area, presentation occupancy)` into the chat's bottom padding, and as `safeAreaBottom` what a keyboard or panel has left of the safe area. | Expect the composer to know insets, the panel or the keyboard height. |
 | Icons for header kinds without a stock id (`forward`, `link`) through `ChromeIconScope`; any custom action icon the same way. | Expect an unregistered id to draw more than the neutral glyph. |
 | Query kinds (`registerQueryKind`) and the suggestion panels for them; the replacement `RichText` (with its mention or inline reference entity and any trailing space) passed to `replaceQuery`. | Expect the composer to look anything up, detect bare URLs or `@names` (entity detection is host-invoked, not viewport paint, [ADR 017](../../docs/adr/017-body-linkify-host-invoked.md)), or draw a suggestion panel. |

@@ -18,6 +18,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_d
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
@@ -245,11 +246,15 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   void _onSelectionInteraction(ChatSelectionInteraction interaction) {
     switch (interaction) {
-      case ChatCopied(:final text, :final gesture):
+      case ChatCopied(:final text, :final origin, :final gesture):
         if (gesture == ChatInlineGesture.longPress) {
           HapticFeedback.lightImpact();
         }
-        _showCopiedSnack(text);
+        _showCopiedSnack(switch (origin) {
+          ChatCopyOrigin.textSelection => ChatCopyKind.textSelection,
+          ChatCopyOrigin.messageSelection => ChatCopyKind.messages,
+          ChatCopyOrigin.codeTap => ChatCopyKind.code,
+        }, text);
       case ChatLinkActivated(
         :final messageId,
         :final title,
@@ -288,11 +293,16 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     }
   }
 
-  void _showCopiedSnack(String text) {
+  // Whether a copy is confirmed is the platform family's (the selection
+  // policy's), not the trigger's: see [ChatCopyFeedback].
+  void _showCopiedSnack(ChatCopyKind kind, String text) {
     if (!mounted || text.isEmpty) return;
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return; // Do not show the snackbar on Android
-    }
+    final feedback = ChatCopyFeedback.forPolicy(
+      _selection.selectionPolicy,
+      // The Android system shows its own clipboard toast.
+      systemConfirms: defaultTargetPlatform == TargetPlatform.android,
+    );
+    if (!feedback.showsToast(kind)) return;
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(
@@ -333,7 +343,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         title: title,
         url: url,
         onOpen: () => _onLinkTap(messageId, title, url),
-        onCopied: _showCopiedSnack,
+        onCopied: (text) => _showCopiedSnack(ChatCopyKind.link, text),
       ),
     );
   }
@@ -443,10 +453,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           onDelete: (messageId) => _handleDeleteSelected([messageId]),
           onDeleteSelected: _handleDeleteSelected,
           onEdit: _beginEdit,
-          onCopy: _showCopiedSnack,
-          onCopySelected: _showCopiedSnack,
-          onCopyLink: _showCopiedSnack,
-          onCopyCode: _showCopiedSnack,
+          onCopy: (text) => _showCopiedSnack(ChatCopyKind.messages, text),
+          onCopySelected: (text) =>
+              _showCopiedSnack(ChatCopyKind.textSelection, text),
+          onCopyLink: (text) => _showCopiedSnack(ChatCopyKind.link, text),
+          onCopyCode: (text) => _showCopiedSnack(ChatCopyKind.code, text),
         ),
       );
       _search?.dispose();
@@ -822,8 +833,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     ).compose(ChatCopiedMessage.of(_selection.selectedIds, source));
     if (copied.isEmpty) return;
     unawaited(widget.services.clipboard.write(copied));
-    _selection.clear();
-    _showCopiedSnack(copied.plain);
+    ChatCopyFeedback.endSelection(_selection);
+    _showCopiedSnack(ChatCopyKind.messages, copied.plain);
   }
 
   void _editSelectedFromBar() {

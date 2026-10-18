@@ -6,7 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// Hosts [child] bottom-anchored the way a chat screen does, inside every
 /// scope the composer requires; [anchoredTop] pins it to the top instead, for
-/// a test of what opens below it.
+/// a test of what opens below it. [locale], [localizationsDelegates] and
+/// [supportedLocales] are the host's own localisation, which a test of the
+/// chrome's language sets to a locale the Material delegates do not speak.
 Widget composerHarness(
   Widget child, {
   Brightness brightness = Brightness.light,
@@ -15,10 +17,16 @@ Widget composerHarness(
   EdgeInsets viewPadding = EdgeInsets.zero,
   ChromeMotionSpeed? motionSpeed,
   bool anchoredTop = false,
+  Locale? locale,
+  Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
+  Iterable<Locale>? supportedLocales,
 }) {
   final palette = ChromePalette.forBrightness(brightness);
   return MaterialApp(
     debugShowCheckedModeBanner: false,
+    locale: locale,
+    localizationsDelegates: localizationsDelegates,
+    supportedLocales: supportedLocales ?? const [Locale('en', 'US')],
     builder: (context, app) => Directionality(
       textDirection: textDirection,
       child: MediaQuery(

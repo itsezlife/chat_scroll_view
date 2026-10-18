@@ -361,7 +361,7 @@ Per message, whether its spoilers are revealed, held by a controller owned by th
 _Avoid_: Per-spoiler reveal, persisted reveal, widget-local reveal flag, re-hide on selection dismiss, reveal on selection
 
 **Emoji-only body**:
-The body kind the host passes for a message whose text is only emoji: no bubble, enlarged from per-count size tables, or sticker-sized when it is a single item with an animation. Classified by the host (it alone knows the message has no media and whether the setting is on); the viewport never re-detects. Not a text selection subject ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
+The body kind the host passes for a message whose text is only emoji: no bubble, enlarged from per-count size tables, or sticker-sized when it is a single item with an animation. Classified by the host (it alone knows the message has no media and whether the setting is on); the viewport never re-detects. Its text layout is a **text selection subject** like any body (one emoji is a word); the single-emoji sticker layout is not ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
 _Avoid_: Big emoji bubble, emoji message type, sticker message (a single-item emoji body only borrows the sticker layout)
 
 **Emoji-only policy**:
@@ -419,7 +419,7 @@ The exclusive lifetime of a **message menu** for one **message menu request** (i
 _Avoid_: Overlay entry, popup lifetime, live tracking, context-menu route
 
 **Message menu presentation**:
-How a **message menu session** is drawn: mobile uses a dimmed scrim that leaves only the target's **message surface** undimmed, in the outline the host reported and clipped to the **scroll band** (the whole slot when no surface is reported), with the action column anchored to that slot; desktop/web uses a light popup at the pointer with no viewport dim and no message outline lift. Defaults from **selection policy** (`$Mobile` → scrim sheet, `$Desktop` → pointer popup); the host may override for a given present. Same session contract; not a second product concept.
+How a **message menu session** is drawn: mobile uses a dimmed scrim that leaves only the target's **message surface** undimmed, in the outline the host reported (one outline for a bubble; for a message without a bubble, the union of its painted parts, `ChatMessageSurfaceParts`, so the gaps between them stay dimmed) and clipped to the **scroll band** (the whole slot when no surface is reported), with the action column anchored to that slot; desktop/web uses a light popup at the pointer with no viewport dim and no message outline lift. Defaults from **selection policy** (`$Mobile` → scrim sheet, `$Desktop` → pointer popup); the host may override for a given present. Same session contract; not a second product concept.
 _Avoid_: Two menu products, ContextMenu vs ActionSheet split, host-only desktop shell
 
 **Message menu dismiss**:

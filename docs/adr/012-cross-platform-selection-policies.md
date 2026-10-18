@@ -5,9 +5,10 @@
 **Updated**: 2026-09-12 (engine-owned mobile routing; membership/retarget as
 this policy; inline hits; deferred desktop drag-out promotion); 2026-10-18
 (desktop: every body stays live while text is active; the range suppresses
-inline activation only in its own message); 2026-10-19 (status chrome: the
-desktop click on an emoji-only message's time selects it, as the reference
-does)  
+inline activation only in its own message); 2026-10-18 (every text body is
+under the policy, the emoji-only text layout included); 2026-10-19 (status
+chrome: the desktop click on an emoji-only message's time selects it, as the
+reference does)  
 **Supersedes**: [ADR 010](010-message-then-text-selection.md)
 
 Chat-list **message selection** and **text selection** are two modes under one
@@ -85,6 +86,19 @@ commits message selection (`applyDragSelection`), locking out further text
 selection until message mode is dismissed. Omission from the foundation cut is
 not a policy rejection.
 
+## Every text body is under the policy
+
+The strategies above apply to every body that registers a text model, not to
+the markdown body alone: the text layout of an emoji-only message
+([ADR 036](036-emoji-only-message-presentation.md)) enters, nests, retargets and
+dismisses by the same rules (mobile message-then-text with one emoji selected
+by a long press, as Android's emoji span rule; desktop direct press and drag),
+and the desktop stuck-pointer clause covers it: pressing it arms it and leaves
+every other body live. A body that is not text (the single-emoji sticker) never
+enters text selection under either strategy. Desktop and iOS Telegram do not
+select their large emoji; the viewport does, as the product asks, and
+`ChatEmojiBody(selectableText: false)` restores their rule.
+
 ## Status chrome (tap barrier)
 
 A mouse click on a message's status chrome (the time and delivery state, which
@@ -159,6 +173,41 @@ for one (Telegram Desktop, `HistorySelectedItemsText`); `$Mobile` writes
 messages a blank line apart with a `Name:` line where the sender changes
 (Telegram Android, `ChatActivity` copy and `getMessageContent`). Telegram iOS
 has no Copy for a selection of several messages.
+
+## Copy confirmation and what a copy leaves selected (both strategies)
+
+Neither is the trigger's: the shortcut, the selection bar, the message menu and
+the text selection's own Copy end the same way within a policy, as in the
+reference clients. The viewport reports a copy (`ChatCopied`, whose `origin`
+tells a text selection from code) and owns what its own copy leaves selected
+(`applyCopySuccess`). A host that writes the clipboard itself (a message
+selection, a menu row) ends the selection the same way by calling
+`selectionPolicy.applyCopySuccess`, so the two never disagree. Whether the host
+confirms with a toast is the host's: the example's `ChatCopyFeedback` is one
+implementation.
+
+| Copy of            | `$Mobile` toast / selection after          | `$Desktop` toast / selection after |
+| ------------------ | ------------------------------------------ | ---------------------------------- |
+| selected messages  | toast / message selection ends             | none / kept                        |
+| selected text      | toast / text and message selection end     | none / range kept                  |
+| a link             | toast / unchanged                          | none / unchanged                   |
+| code (tap)         | toast / unchanged                          | toast / unchanged                  |
+
+Android: `ChatActivity` action-mode Copy toasts and always ends the selection
+(`:3722-3724`); selected text ends the text and the message selection and toasts
+(`TextSelectionHelper.copyText`, `onTextCopied`); the menu's Copy, a link and
+code toast. The Android system shows its own clipboard toast from API 32 on
+(`AndroidUtilities.shouldShowClipboardToast`), and the app then adds none. iOS
+copies selected text silently and cancels the selection
+(`ChatController.swift:4318`, `TextSelectionNode.swift:773-774`), a divergence
+from Android recorded here, not followed; its menu Copy toasts. Telegram
+Desktop writes the clipboard and shows nothing for every text and message copy,
+keeping the selection (`HistoryInner::copySelectedText`,
+`ListWidget::copySelectedText`, `copyContextText`, `AddCopyLinkAction`); only a
+click on code toasts (`MonospaceClickHandler::onClick`, `copyPreOnClick`).
+The selection bar's Copy and the menu's Copy code have no desktop counterpart
+(unverified): they follow the nearest row, "Copy selected items" and the click
+on code.
 
 ## Inline hits (both strategies)
 

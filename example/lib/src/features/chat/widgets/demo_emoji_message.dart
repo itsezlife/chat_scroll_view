@@ -5,6 +5,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_meta_pill.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_reactions_row.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_service_colors.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_surface_parts.dart';
 import 'package:content_model/content_model.dart' show EmojiOnly;
 import 'package:flutter/material.dart';
 
@@ -277,8 +278,21 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
         return ChatMessageSurfaceBounds(
           controller: widget.selection,
           messageId: widget.messageId,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+          // The menu's scrim lights what the message paints, part by part,
+          // not a bubble around the lot.
+          shape: emojiSurfaceParts(
+            chrome: chrome,
+            art: body.content.shift(bodyRect.topLeft),
+            pill: showsMeta ? pillRect : null,
+            header: headerRect,
+            reactions: [
+              if (reactionsRect != null)
+                for (final chip in EmojiReactionsRow.chipRects(
+                  widget.reactions,
+                  direction,
+                ))
+                  chip.shift(reactionsRect.topLeft),
+            ],
           ),
           child: SizedBox.fromSize(
             size: bounds.size,
