@@ -7,6 +7,7 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 
 **Status**: Accepted  
 **Date**: 2026-10-16  
+**Amended**: 2026-10-18 (chat-polish-3, ticket 10): the pause policies of the reference desktop client reach the shared clock through one lifecycle seam (section *Amendment: pause policies*); `PlaybackPauseLayer` gains three values and the default pausing set is spelled out  
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (replaces its process-wide cache wording; the atlas amendment there is the panel-side view of this ADR), [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 024](024-panel-catalog-seams.md)
 
 ## Decided
@@ -26,7 +27,7 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 | Readiness | Staged `none`, `placeholder`, `firstFrame`, `full`, each with `isFinal`. There is no visible failed stage. A failed fetch or decode clears the in-flight record and leaves readiness where it was, so the cell keeps its placeholder, including offline, until it detaches. Retry happens on the next attach, on the host's connectivity-restored signal for still-attached bindings, and through explicit `retry()`. The fetcher reports a failure class (transient or permanent) so the core knows whether connectivity-restored is relevant; neither class is shown as failed. Cancellation is not a failure. The last error is exposed for logging only. The paintable draws the best stage available; painters use the stage only for crossfade, and an instant memory hit has none. |
 | Orchestration | The core owns in-flight dedupe by entry identity, cancel when the last binding leaves, priority classes (placeholder, visible, preload) and concurrency caps. |
 | Seams | A host `ContentFetcher` (descriptor to bytes or file) owns network, provenance refresh and the disk tier. Decoders are registered per media form (still, animated image, vector animation, video, glyph) from adapter packages: fetched data plus spec to paintable with stages. |
-| Playback | One shared clock in the core. Per-binding animate gating combines with host-set global pause layers (route moving, fast scroll, low power, panel hidden) under a default policy; the fps cap derives from spec size. The host feeds a connectivity-restored signal; the core never touches the network. Paintables never schedule timers. |
+| Playback | One shared clock in the core. Per-binding animate gating combines with global pause layers (route moving, fast scroll, low power, surface hidden, app inactive, reduced motion, overlay shown) under a default policy; the fps cap derives from spec size. The app-level layers come from one `PlaybackActivity` (amendment below), not from per-widget flags. The host feeds a connectivity-restored signal; the core never touches the network. Paintables never schedule timers. |
 | Budgets | Byte-accounted tiered LRU with host-configurable budgets and defaults. Entries with live bindings are pinned. Unattached ready entries stay until pressure. `clearAll` and a memory-pressure hook exist. Eviction never invalidates a live binding. Releasing by distance is the surface's job, through detach. |
 | Scope | One host-created instance provided through a widget scope and by explicit injection. No static singleton. |
 | Threading | Decoders may use isolates or native threads. The core is single-threaded on the UI isolate; listener callbacks and painting happen there. |
@@ -76,3 +77,41 @@ reference clients draw a new emoji at once and never unload one in use.
 | Page indices | A sprite's page index names one page image across the whole source, because a surface batches its draws by it. Every layer numbers its pages from 0, so the layered source gives each layer a block of indices of its own (the first layer's starts at 0) and moves its sprites and page signals into it. Without the blocks a glyph of a later layer was cut from the first layer's page of the same index: a new tone showed the first glyph of the catalogue. |
 | Growth | The page's atlas host keeps the first atlas and, for a plan with glyphs no atlas holds, plans an atlas of just those glyphs (an in-memory store of its own, never the persistent cache) and adds it as a layer. Nothing baked is baked again, the persisted pages keep their key, and no glyph ever leaves the source while the host lives. Only a density change plans the first atlas again, for every glyph of every layer. |
 | Activity | Motion and the visible band reach every layer, including one added while the motion lasts. |
+
+## Amendment: pause policies
+
+The reference desktop client has no single pause switch: one ambient bit
+("any pause reason is set, or the main window is not active") reaches every
+sticker, custom emoji, spoiler and streamed GIF; eleven power-saving flags are
+forced on together by the OS battery saver; and nothing animates that is not
+painted. The workspace had the sink (the shared clock and its layers) but only
+`hidden` was fed into it. Research: `.scratch/chat-polish-3/research/07`.
+
+| Area | Decision |
+| ---- | -------- |
+| Seam | `PlaybackLifecycleSource` (`state`, a `Listenable`) is the one platform input; `WidgetsPlaybackLifecycleSource` is the adapter over the widgets binding, `ManualPlaybackLifecycleSource` the fake, `PlaybackLifecycleSourceContract.run` the suite ([ADR 030](030-testing-policy.md)). `PlaybackActivity(clock:, lifecycle:, lowPower:, reducedMotion:)` maps the inputs onto the clock's layers. A host creates one per scope and disposes it; no widget takes a pause flag. |
+| Lifecycle mapping | `resumed` and an unknown state (`null`, or a first `detached`): nothing. `inactive` (window or app lost focus; on the web a blurred tab): `appInactive`. `hidden`, `paused`, `detached` (minimised, hidden, another desktop): `appInactive` and `surfaceHidden`, at once. The platform delivers `resumed -> hidden` as `inactive`, `hidden`; the clock stops its frames once. |
+| Grace | `PlaybackActivityPolicy.unfocusedGrace` and `focusedGrace`, both zero: the reference client recomputes its window state one event-loop turn after the window event; its 1 s and 5 s timers only back that up and feed the "online" status. A host may debounce; the opposite change cancels a pending one; hiding never waits. |
+| Layers | New: `appInactive`, `reducedMotion`, `overlayShown`. `PlaybackPolicy.standardPausingLayers` is spelled out (every layer but `reducedMotion`); a layer added later pauses only once someone decided it should. Reduced motion is reported and does not stop playback: the reference client does not read the setting, animated emoji are content, and chrome motion and the spoiler stillness already follow `MediaQuery.disableAnimations`. A host adds it to `pausingLayers` to make it stop playback. |
+| Low power | Host-fed `ValueListenable<bool>`. The SDK reports no battery state, `battery_plus` documents battery-saver detection for Android, iOS, macOS and Windows only, and a library that chose a plugin would impose it on every host. The reference client's rule (macOS Low Power Mode or a critical/low battery, Windows Battery Saver, Linux power-saver profile, a user override) is the host's to implement. |
+| Overlays | `PlaybackActivity.holdOverlay()` returns a hold; `overlayShown` is set while any hold is open, so nested overlays do not clear each other. The reference client pauses the chat under any box layer; `TickerMode` does not reach a non-opaque route. The host calls it per route (the example does, from a `NavigatorObserver`). |
+| Resume | Freeze and continue, never rewind and never jump to the live position. `PlaybackClock.now` stands still while paused and jumps once on the first frame after; the frame-sequence paintable shows its next frame at once and restarts its timing, without skipping or ending a pass early, and a custom paintable must do the same. The spoiler dust adds up the time it is told and cuts out a pause, so its phase goes on; the fork derives the dust frame from the time alone. Pausing never touches the reveal state of a spoiler. |
+| Ownership | `PlaybackActivity` owns `appInactive`, `surfaceHidden`, `lowPower`, `reducedMotion` and `overlayShown`; `routeMoving` and `fastScroll` stay the host's. `dispose` clears what it set and nothing else, and disposes none of its inputs. |
+
+### What the reference client does that is not replicated
+
+| Reference behaviour | Here | Why |
+| ------------------- | ---- | --- |
+| Six-level reason hierarchy (`Any`, `InlineResults`, `TabbedPanel`, `Layer`, `RoundPlaying`, `MediaPreview`): a surface pauses under a reason above its own, so the open panel keeps playing while the chat behind it stops | Only the `Any` and `Layer` equivalents: app inactive/hidden, and a host overlay. An open emoji panel, a sticker preview or a playing round video do not pause the chat | Chat and panel share one clock, so a global layer cannot say "the chat but not the panel"; a host that wants it feeds `ChatEmojiBody.isActive` |
+| Round video message exempt from the window-inactive pause | None | No round video in the library |
+| Eleven `PowerSaving` flags, the "Power usage" screen, per-feature autoplay and loop settings | One `lowPower` layer; the host maps its settings to `AssetProfile`, `ChatStickerPlayback`, `MarkdownSpoilerController.animate` and `ChromeMotionSpeed` | Product settings, not a contract |
+| Spoiler reveal hidden again by a jump to a message in the same section (`hideShownSpoilers`) | Not replicated; a chat switch still re-hides, because the controller lives with the chat screen | An explicit re-hide rule is a product choice; nothing here reveals or hides on a pause |
+| Unload of heavy parts beyond two pages of the viewport; unpainted spoiler stop after 1 s, unpainted clip stop after 200 ms | Already structural: a binding leaves the clock when not visible, and the clock asks for frames only while a target is registered | Pull ticking |
+| Read-tracking gates (window exposed, user idle 30 s) for effects on read | None | Not an animation rule |
+| Occlusion by another window | `hidden` on macOS only (the embedder reports full occlusion there); a covered window is otherwise only `inactive` when focus moved | The embedder's report is the signal; the reference client's active bit has the same blind spot |
+| Screen lock and sleep | Fall out of `inactive` and `hidden`; no hook | The reference client has none either |
+| Stories, calls, media viewer rules | None | Not in the library |
+
+Not verified on a device: the pause behaviour on a real desktop (the tests use
+fake lifecycle sources and a manual frame source), including whether the
+embedder delivers `inactive` and `hidden` as the engine sources say.

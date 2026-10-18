@@ -119,8 +119,12 @@ Adapter per media form: fetched data plus spec to paintable with stages.
 _Avoid_: Fetching inside a decoder
 
 **Playback clock**:
-The core's single shared animation ticker, with per-binding gating and global pause layers set by the host.
+The core's single shared animation ticker, with per-binding gating and global pause layers. A pause freezes and a resume continues where the animation stopped.
 _Avoid_: Per-surface ticker, self-scheduling paintable
+
+**Playback activity**:
+The one host-facing seam that turns the app's lifecycle, the host's low-power and reduced-motion signals and the overlays over the chat into pause layers of the playback clock. It owns those layers; the host owns `routeMoving` and `fastScroll`.
+_Avoid_: A pause flag on a widget, feeding app lifecycle into a row's `isActive`
 
 **Glyph sprite source**:
 The one narrow seam through which the asset cache reaches a glyph atlas: the sprite of a glyph, a hold on its page, a page listener, and whether a sprite is on its way (`waitsForSprite`; a glyph nothing waits for is drawn as text). Several atlases are one source through a layered source: the background bake first, glyphs that joined later after it. The atlas implements it and the host registers it with the scope. Bindings hold the page from attach to detach.

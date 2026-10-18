@@ -534,8 +534,11 @@ hide the keyboard before calling it.
 **Reduce motion.** No chrome package reads the platform flag. Map
 `MediaQuery.disableAnimationsOf(context)` to `ChromeMotionSpeed.instant` in
 `ChromeMotionScope`; every role then runs at zero duration. Also pass your
-low-power flag to `GlassQualityScope(liteMode:)` and set the clock's
-`PlaybackPauseLayer.lowPower`.
+low-power flag to `GlassQualityScope(liteMode:)` and to the `PlaybackActivity`
+(section 8, "Pause layers"), which sets the clock's
+`PlaybackPauseLayer.lowPower`. The same flag, as the activity's
+`reducedMotion` input, sets `PlaybackPauseLayer.reducedMotion`: reported, and
+not stopping playback unless the clock's policy adds the layer.
 
 **Text scale.** The shell's search field and bottom bar clamp the platform text
 scale at 1.3x (their pill heights are fixed). The composer field and the
@@ -846,10 +849,51 @@ with no fetcher (unicode glyphs only) has nothing to retry.
 
 ### Pause layers
 
-Set host-owned layers on `assets.clock.setPaused(layer, paused: ...)`:
-`routeMoving` while a route transition runs, `fastScroll` during a fling,
-`lowPower` from the battery saver, `surfaceHidden` when the app is hidden.
-Animated content stops playing while any layer is set.
+Create one `PlaybackActivity` per asset cache scope and dispose it with the
+shell. It is the one seam through which the app's state reaches the clock the
+chat's animated emoji, the panel and the spoiler dust all share; no widget
+takes a pause flag of its own.
+
+```dart
+final lifecycle = WidgetsPlaybackLifecycleSource();   // the platform's state
+final activity = PlaybackActivity(
+  clock: assets.clock,
+  lifecycle: lifecycle,
+  lowPower: lowPower,           // your ValueListenable<bool>, or null
+  reducedMotion: reducedMotion, // your ValueListenable<bool>, or null
+);
+// A dialog, a sheet or a full-screen route over the chat:
+final hold = activity.holdOverlay();   // ... hold.release() when it closes
+```
+
+| Input | Layer | Notes |
+| --- | --- | --- |
+| Lifecycle `inactive` | `appInactive` | Window or app lost focus: another app took it (macOS, Windows, Linux), a call or system sheet (phones), a blurred tab (web). Pauses at once; `PlaybackActivityPolicy` adds a grace if you want one |
+| Lifecycle `hidden`, `paused`, `detached` | `appInactive` and `surfaceHidden` | Minimised, hidden, on another desktop; on macOS also fully covered. The framework stops frames itself on these; the layers also freeze the clock's `now` |
+| `lowPower` | `lowPower` | **Yours to detect.** The SDK reports no battery state. The reference desktop client turns everything off on macOS Low Power Mode (or a critical thermal state, or a low charge on battery), Windows Battery Saver and the Linux power-saver profile, with a user override. `battery_plus` documents `isInBatterySaveMode` for Android, iOS, macOS and Windows (no Linux); no package here depends on it |
+| `reducedMotion` | `reducedMotion` | Not in the default pausing set. The engine reports `PlatformDispatcher.accessibilityFeatures.disableAnimations` on Linux and the phones; on macOS and Windows it reports nothing at this Flutter revision, so a host that wants the setting reads it over a platform channel and feeds the same notifier. Chrome motion and the spoiler stillness follow `MediaQuery.disableAnimations` regardless. Add the layer to `PlaybackPolicy.pausingLayers` to stop playback on it |
+| `holdOverlay()` | `overlayShown` | One hold per overlay; the layer stays set until every hold is released. Flutter's `TickerMode` does not reach a non-opaque route, so a dialog leaves the chat animating unless you hold. The example does it from a `NavigatorObserver` for every modal route above the first |
+
+What an unknown lifecycle state does: nothing (a `null` state, or a first
+`detached`, pauses nothing). `routeMoving` and `fastScroll` stay yours: set them
+directly with `assets.clock.setPaused(layer, paused: ...)`; `dispose` on the
+activity clears only the five layers it owns.
+
+Resuming continues; it never rewinds and never jumps to the live position. The
+clock's `now` stands still while paused and jumps once on the first frame
+after; the frame-sequence paintable shows its next frame at once and restarts
+its timing, a pass is never ended early, and the spoiler dust cuts the pause
+out of the time it is told. A custom `AssetPaintable` that derives its frame
+from the time alone must do the same. Revealed spoilers are not touched by any
+pause.
+
+Not replicated from the reference desktop client ([ADR 022](adr/022-asset-cache-and-media-pipeline.md),
+amendment *pause policies*): the six-level reason hierarchy (an open emoji panel
+does not pause the chat behind it; feed `ChatEmojiBody.isActive` per row if you
+want that), the round-video exemption, the per-feature power flags, and the
+re-hide of spoilers on a jump within a chat. Real-desktop focus behaviour is
+covered by tests that drive fake lifecycle sources; it has not been run on a
+desktop.
 
 ## 9. Ownership and lifetime
 
@@ -857,7 +901,8 @@ Animated content stops playing while any layer is set.
 | --- | --- | --- | --- |
 | `KeyValueStore` adapter, stores, fetcher, decoders, resolver | Host | App or account | Host |
 | `AssetCacheScope` | Host | App-wide | Host (scopes and `AssetCacheProvider` never dispose it) |
-| Pause layers, connectivity signal | Host, fed into the cache | App | Host |
+| `PlaybackActivity` and its lifecycle source; the `lowPower` and `reducedMotion` notifiers it follows | Host | App | Host (dispose the activity first: it clears the layers it set) |
+| `routeMoving` / `fastScroll` layers, connectivity signal | Host, fed into the cache | App | Host |
 | Emoji and other data sources | Host | Account | Host |
 | `ChromeThemeScope`, strings, motion, glass quality | Host | App, plus nested per-chat scopes | Host |
 | `GlassSourceScope` | Chat screen | Chat screen | Chat screen |

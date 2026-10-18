@@ -22,15 +22,23 @@ abstract interface class PlaybackTarget {
 ///
 /// The clock asks the engine for frames only while at least one target is
 /// registered and no pause layer is set, so idle it keeps the engine asleep.
-/// [now] is the timestamp of the last frame delivered; it does not stop
-/// counting while paused, so animations resume at the live position rather
-/// than where they stopped.
+/// [now] is the timestamp of the last frame delivered. While paused no frame
+/// is delivered, so [now] stands still, and the first frame after the pause
+/// carries the live timestamp: [now] jumps by the length of the pause, once.
+/// The clock does not hide that jump; resuming where the animation stopped
+/// ("freeze and continue", never a rewind and never a jump to the live
+/// position) is each paintable's business. The frame-sequence paintable shows
+/// its next frame at once and restarts its timing from there; one that derives
+/// its frame from [now] alone would skip the paused time.
 ///
 /// ## Pause layers
 ///
 /// The host sets and clears named [PlaybackPauseLayer]s (a route moving, a
-/// fast scroll, low power, a hidden surface). Playback stops while any layer
-/// the [policy] pauses on is set, whatever the bindings' own wishes.
+/// fast scroll, low power, a hidden surface, a window without focus, an
+/// overlay over the chat). Playback stops while any layer the [policy] pauses
+/// on is set, whatever the bindings' own wishes. A `PlaybackActivity` drives
+/// the ones that follow the app and the platform, so a host does not call
+/// [setPaused] for them by hand.
 ///
 /// Single-threaded: every call and every tick is on the UI isolate.
 final class PlaybackClock {
