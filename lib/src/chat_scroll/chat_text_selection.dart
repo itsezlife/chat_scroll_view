@@ -524,9 +524,8 @@ final class ChatTextSelection {
       switch (extra?['scheme']) {
         case 'mention':
           return switch (extra?['id']) {
-            final String id => ChatInlineHit.mention(
+            final String id => ChatInlineHit.resolvedMention(
               messageId: messageId,
-              kind: ChatMentionKind.resolved,
               id: id,
               name: name,
               contourPath: contourPath,
@@ -535,9 +534,8 @@ final class ChatTextSelection {
             _ => null,
           };
         case 'username':
-          return ChatInlineHit.mention(
+          return ChatInlineHit.usernameMention(
             messageId: messageId,
-            kind: ChatMentionKind.username,
             name: name,
             contourPath: contourPath,
             touchOrigin: touchOrigin,

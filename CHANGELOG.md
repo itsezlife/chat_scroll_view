@@ -6,13 +6,24 @@
   the text, and the alt text is what copy and selection use. The root package
   now depends on `catalog_assets` and `content_model` (ADR 020).
 - **BREAKING for hosts that switch exhaustively**: `ChatInlineHit` gains
-  `.embed`, `.mention` and `.hashtag`, and `ChatSelectionInteraction` gains
-  `ChatEmbedActivated`, `ChatMentionActivated` and `ChatHashtagActivated`. A
+  `.embed`, `.hashtag` and the mention pair `.resolvedMention` and
+  `.usernameMention`, and `ChatSelectionInteraction` gains
+  `ChatEmbedActivated`, `ChatHashtagActivated` and the mention pair
+  `ChatResolvedMentionActivated` and `ChatUsernameMentionActivated` (both
+  under the sealed `ChatMentionActivated`). A
   mention-class span (`[@x](mention:id)`, `username:`, `hashtag:`) is no
   longer reported as a link, and an image span is no longer reported as a
   link: a host that opened `ChatLinkActivated` urls for mentions or embeds
   handles the new kinds instead. A `switch` over either sealed type needs the
   new cases.
+- The mention hit and interaction are two variants, not a kind plus a
+  nullable id: a resolved mention (`ChatInlineHit$Mention$Resolved`,
+  `ChatResolvedMentionActivated`) always has its `id`, and a typed username
+  (`ChatInlineHit$Mention$Username`, `ChatUsernameMentionActivated`) has none,
+  so the combination of a username with an id cannot be built. This is a
+  breaking change to a hierarchy that is not yet released: there is no
+  `ChatMentionKind` and no `ChatInlineHit.mention`. A host matches
+  `ChatMentionActivated` for both, or the pair to tell them apart.
 - `ChatSelectionController(handlesEmbedHits:)`: an embed tap is reported (and
   shows the click cursor and press highlight) only when the host opts in;
   default off.

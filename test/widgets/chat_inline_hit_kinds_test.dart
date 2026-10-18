@@ -56,13 +56,18 @@ void main() {
 
       expect(
         hit,
-        const ChatInlineHit.mention(
+        const ChatInlineHit.resolvedMention(
           messageId: 1,
-          kind: ChatMentionKind.resolved,
           id: '42',
           name: '@Ann',
         ),
       );
+      // The id is not nullable on the resolved variant: no null check needed.
+      final id = switch (hit) {
+        ChatInlineHit$Mention$Resolved(:final id) => id,
+        _ => fail('expected a resolved mention'),
+      };
+      expect(id.length, 2);
     });
 
     test('a username carries its name and no id', () {
@@ -70,12 +75,22 @@ void main() {
 
       expect(
         hit,
-        const ChatInlineHit.mention(
-          messageId: 1,
-          kind: ChatMentionKind.username,
-          name: 'ann',
-        ),
+        const ChatInlineHit.usernameMention(messageId: 1, name: 'ann'),
       );
+      expect(hit, isA<ChatInlineHit$Mention$Username>());
+    });
+
+    test('both spellings are mentions, and different ones', () {
+      const resolved = ChatInlineHit.resolvedMention(
+        messageId: 1,
+        id: 'ann',
+        name: 'ann',
+      );
+      const username = ChatInlineHit.usernameMention(messageId: 1, name: 'ann');
+
+      expect(resolved, isA<ChatInlineHit$Mention>());
+      expect(username, isA<ChatInlineHit$Mention>());
+      expect(resolved, isNot(username));
     });
 
     test('a hashtag carries its tag', () {

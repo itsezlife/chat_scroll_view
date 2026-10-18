@@ -16,6 +16,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_p
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -127,6 +128,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData(platform: TargetPlatform.iOS),
+        builder: (context, child) => ChromeThemeScope(
+          palette: const ChromePalette.dark(),
+          child: child!,
+        ),
         home: Directionality(
           textDirection: direction,
           child: Scaffold(
@@ -220,9 +225,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(interactions, const [
-        ChatMentionActivated(
+        ChatResolvedMentionActivated(
           messageId: 1,
-          kind: ChatMentionKind.resolved,
           id: '42',
           name: '@Ann',
           gesture: ChatInlineGesture.tap,

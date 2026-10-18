@@ -1001,88 +1001,81 @@ class ChatSelectionController implements Listenable {
     if (_suppressesInlineActivation()) {
       return false;
     }
-    switch (hit) {
-      case ChatInlineHit$Link(:final messageId, :final title, :final url):
-        // Press ink arms on pointer down via [beginSpanFeedback]; do not
-        // one-shot flash again on action.
-        _notifyInteraction(
-          ChatSelectionInteraction.linkActivated(
-            messageId: messageId,
-            title: title,
-            url: url,
-            gesture: gesture,
-          ),
-        );
-        return true;
-
-      case ChatInlineHit$Mention(
-        :final messageId,
-        :final kind,
-        :final id,
-        :final name,
-      ):
-        _notifyInteraction(
-          ChatSelectionInteraction.mentionActivated(
-            messageId: messageId,
-            kind: kind,
-            id: id,
-            name: name,
-            gesture: gesture,
-          ),
-        );
-        return true;
-
-      case ChatInlineHit$Hashtag(:final messageId, :final tag):
-        _notifyInteraction(
-          ChatSelectionInteraction.hashtagActivated(
-            messageId: messageId,
-            tag: tag,
-            gesture: gesture,
-          ),
-        );
-        return true;
-
-      case ChatInlineHit$Embed(:final messageId, :final target, :final alt):
-        // An embed the host does not act on is part of the text: the tap goes
-        // on to the message.
-        if (!handlesEmbedHits) return false;
-        _notifyInteraction(
-          ChatSelectionInteraction.embedActivated(
-            messageId: messageId,
-            target: target,
-            alt: alt,
-            gesture: gesture,
-          ),
-        );
-        return true;
-
-      case ChatInlineHit$Sticker(:final messageId, :final content):
-        // The body replays the animation on this notification, so it is not
-        // gated like an embed: a sticker is meant to be tapped.
-        _notifyInteraction(
-          ChatSelectionInteraction.stickerActivated(
-            messageId: messageId,
-            content: content,
-            gesture: gesture,
-          ),
-        );
-        return true;
-
-      case ChatInlineHit$Code(:final messageId, :final code, :final language):
-        if (copyCodeOnClick) {
-          unawaited(_copyCode(messageId, code, language, gesture));
-        } else {
-          _notifyInteraction(
-            ChatSelectionInteraction.codeActivated(
-              messageId: messageId,
-              code: code,
-              gesture: gesture,
-            ),
-          );
-        }
-        return true;
+    // A tapped code snippet copies itself when the facade owns the clipboard;
+    // every other hit is one interaction for the host.
+    if (hit case ChatInlineHit$Code(
+      :final messageId,
+      :final code,
+      :final language,
+    ) when copyCodeOnClick) {
+      unawaited(_copyCode(messageId, code, language, gesture));
+      return true;
     }
+    // Press ink for a link arms on pointer down via [beginSpanFeedback]; the
+    // action does not flash again.
+    final interaction = _activationOf(hit, gesture);
+    if (interaction == null) return false;
+    _notifyInteraction(interaction);
+    return true;
   }
+
+  // The interaction a hit reports to the host, the one mapping both gestures
+  // share; null for a hit the host is not told about. An embed the host does
+  // not act on is part of the text, so its tap goes on to the message. A
+  // sticker is not gated like an embed: it is meant to be tapped, and the body
+  // replays the animation on this notification.
+  ChatSelectionInteraction? _activationOf(
+    ChatInlineHit hit,
+    ChatInlineGesture gesture,
+  ) => switch (hit) {
+    ChatInlineHit$Link(:final messageId, :final title, :final url) =>
+      ChatSelectionInteraction.linkActivated(
+        messageId: messageId,
+        title: title,
+        url: url,
+        gesture: gesture,
+      ),
+    ChatInlineHit$Mention$Resolved(:final messageId, :final id, :final name) =>
+      ChatSelectionInteraction.resolvedMentionActivated(
+        messageId: messageId,
+        id: id,
+        name: name,
+        gesture: gesture,
+      ),
+    ChatInlineHit$Mention$Username(:final messageId, :final name) =>
+      ChatSelectionInteraction.usernameMentionActivated(
+        messageId: messageId,
+        name: name,
+        gesture: gesture,
+      ),
+    ChatInlineHit$Hashtag(:final messageId, :final tag) =>
+      ChatSelectionInteraction.hashtagActivated(
+        messageId: messageId,
+        tag: tag,
+        gesture: gesture,
+      ),
+    ChatInlineHit$Embed(:final messageId, :final target, :final alt) =>
+      handlesEmbedHits
+          ? ChatSelectionInteraction.embedActivated(
+              messageId: messageId,
+              target: target,
+              alt: alt,
+              gesture: gesture,
+            )
+          : null,
+    ChatInlineHit$Sticker(:final messageId, :final content) =>
+      ChatSelectionInteraction.stickerActivated(
+        messageId: messageId,
+        content: content,
+        gesture: gesture,
+      ),
+    ChatInlineHit$Code(:final messageId, :final code) =>
+      ChatSelectionInteraction.codeActivated(
+        messageId: messageId,
+        code: code,
+        gesture: gesture,
+      ),
+  };
 
   // A code tap's copy, notified once written.
   Future<void> _copyCode(
@@ -1140,60 +1133,6 @@ class ChatSelectionController implements Listenable {
   bool handleInlineHitLongPress(ChatInlineHit hit) {
     if (_disposed) return false;
     switch (hit) {
-      case ChatInlineHit$Link(:final messageId, :final title, :final url):
-        final hasHandlers =
-            onInteraction != null || _interactionListeners.isNotEmpty;
-        _notifyInteraction(
-          ChatSelectionInteraction.linkActivated(
-            messageId: messageId,
-            title: title,
-            url: url,
-            gesture: ChatInlineGesture.longPress,
-          ),
-        );
-        return hasHandlers;
-      case ChatInlineHit$Mention(
-        :final messageId,
-        :final kind,
-        :final id,
-        :final name,
-      ):
-        final hasHandlers =
-            onInteraction != null || _interactionListeners.isNotEmpty;
-        _notifyInteraction(
-          ChatSelectionInteraction.mentionActivated(
-            messageId: messageId,
-            kind: kind,
-            id: id,
-            name: name,
-            gesture: ChatInlineGesture.longPress,
-          ),
-        );
-        return hasHandlers;
-      case ChatInlineHit$Hashtag(:final messageId, :final tag):
-        final hasHandlers =
-            onInteraction != null || _interactionListeners.isNotEmpty;
-        _notifyInteraction(
-          ChatSelectionInteraction.hashtagActivated(
-            messageId: messageId,
-            tag: tag,
-            gesture: ChatInlineGesture.longPress,
-          ),
-        );
-        return hasHandlers;
-      case ChatInlineHit$Embed(:final messageId, :final target, :final alt):
-        if (!handlesEmbedHits) return false;
-        final hasHandlers =
-            onInteraction != null || _interactionListeners.isNotEmpty;
-        _notifyInteraction(
-          ChatSelectionInteraction.embedActivated(
-            messageId: messageId,
-            target: target,
-            alt: alt,
-            gesture: ChatInlineGesture.longPress,
-          ),
-        );
-        return hasHandlers;
       case ChatInlineHit$Sticker():
         // A long press on a sticker is message selection, not an activation.
         return false;
@@ -1207,6 +1146,18 @@ class ChatSelectionController implements Listenable {
         );
         if (handled) abortSpanFeedback();
         return handled;
+      case ChatInlineHit$Link() ||
+          ChatInlineHit$Mention() ||
+          ChatInlineHit$Hashtag() ||
+          ChatInlineHit$Embed():
+        final interaction = _activationOf(hit, ChatInlineGesture.longPress);
+        if (interaction == null) return false;
+        // Read before the notification: a handler may add listeners, and the
+        // press is handled only if someone was listening for it.
+        final hasHandlers =
+            onInteraction != null || _interactionListeners.isNotEmpty;
+        _notifyInteraction(interaction);
+        return hasHandlers;
     }
   }
 

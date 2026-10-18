@@ -1,5 +1,3 @@
-import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart'
-    show ChatMentionKind;
 import 'package:content_model/content_model.dart' show ContentKey;
 import 'package:flutter/foundation.dart';
 
@@ -31,16 +29,23 @@ sealed class ChatSelectionInteraction {
     required ChatInlineGesture gesture,
   }) = ChatLinkActivated;
 
-  /// A mention (`[@name](mention:id)` or `[@name](username:name)`) activated in
-  /// a markdown body. Never a [ChatLinkActivated]: the engine paints and
-  /// reports a mention as a style of its own.
-  const factory ChatSelectionInteraction.mentionActivated({
+  /// A resolved mention (`[@name](mention:id)`) activated in a markdown body.
+  /// Never a [ChatLinkActivated]: the engine paints and reports a mention as a
+  /// style of its own.
+  const factory ChatSelectionInteraction.resolvedMentionActivated({
     required int messageId,
-    required ChatMentionKind kind,
+    required String name,
+    required String id,
+    required ChatInlineGesture gesture,
+  }) = ChatResolvedMentionActivated;
+
+  /// A typed username (`[@name](username:name)`) activated in a markdown
+  /// body. Not resolved to anyone, so it carries no id.
+  const factory ChatSelectionInteraction.usernameMentionActivated({
+    required int messageId,
     required String name,
     required ChatInlineGesture gesture,
-    String? id,
-  }) = ChatMentionActivated;
+  }) = ChatUsernameMentionActivated;
 
   /// A hashtag (`[#tag](hashtag:tag)`) activated in a markdown body.
   const factory ChatSelectionInteraction.hashtagActivated({
@@ -231,51 +236,90 @@ final class ChatCodeActivated extends ChatSelectionInteraction {
       'gesture: $gesture)';
 }
 
-/// A mention activated in a markdown body.
+/// A mention activated in a markdown body: a [ChatResolvedMentionActivated]
+/// or a [ChatUsernameMentionActivated].
 ///
-/// Construct via [ChatSelectionInteraction.mentionActivated].
+/// A host that treats both alike matches this type; one that opens a user for
+/// a resolved mention matches the pair. Only the resolved variant has an id.
 @immutable
-final class ChatMentionActivated extends ChatSelectionInteraction {
-  /// Creates a mention-activation interaction.
+sealed class ChatMentionActivated extends ChatSelectionInteraction {
+  /// Base constructor for the mention variants.
   const ChatMentionActivated({
     required this.messageId,
-    required this.kind,
     required this.name,
     required this.gesture,
-    this.id,
   });
 
   /// Message whose body contains the mention.
   final int messageId;
-
-  /// A resolved user or a typed username.
-  final ChatMentionKind kind;
-
-  /// The user id of a [ChatMentionKind.resolved] mention; null for a username.
-  final String? id;
 
   /// The label of a resolved mention, or the username.
   final String name;
 
   /// Tap vs long-press.
   final ChatInlineGesture gesture;
+}
+
+/// A resolved mention activated in a markdown body.
+///
+/// Construct via [ChatSelectionInteraction.resolvedMentionActivated].
+@immutable
+final class ChatResolvedMentionActivated extends ChatMentionActivated {
+  /// Creates a resolved-mention activation interaction.
+  const ChatResolvedMentionActivated({
+    required super.messageId,
+    required super.name,
+    required this.id,
+    required super.gesture,
+  });
+
+  /// The id of the user the sender's app resolved the mention to.
+  final String id;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ChatMentionActivated &&
+      other is ChatResolvedMentionActivated &&
           messageId == other.messageId &&
-          kind == other.kind &&
           id == other.id &&
           name == other.name &&
           gesture == other.gesture;
 
   @override
-  int get hashCode => Object.hash(messageId, kind, id, name, gesture);
+  int get hashCode => Object.hash(messageId, id, name, gesture);
 
   @override
   String toString() =>
-      'ChatMentionActivated(messageId: $messageId, kind: $kind, id: $id, '
+      'ChatResolvedMentionActivated(messageId: $messageId, id: $id, '
+      'name: $name, gesture: $gesture)';
+}
+
+/// A typed username activated in a markdown body.
+///
+/// Construct via [ChatSelectionInteraction.usernameMentionActivated].
+@immutable
+final class ChatUsernameMentionActivated extends ChatMentionActivated {
+  /// Creates a username-mention activation interaction.
+  const ChatUsernameMentionActivated({
+    required super.messageId,
+    required super.name,
+    required super.gesture,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatUsernameMentionActivated &&
+          messageId == other.messageId &&
+          name == other.name &&
+          gesture == other.gesture;
+
+  @override
+  int get hashCode => Object.hash(messageId, name, gesture);
+
+  @override
+  String toString() =>
+      'ChatUsernameMentionActivated(messageId: $messageId, '
       'name: $name, gesture: $gesture)';
 }
 

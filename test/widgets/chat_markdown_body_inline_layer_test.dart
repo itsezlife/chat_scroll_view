@@ -237,16 +237,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(interactions, const [
-        ChatMentionActivated(
+        ChatResolvedMentionActivated(
           messageId: 1,
-          kind: ChatMentionKind.resolved,
           id: '42',
           name: '@Ann',
           gesture: ChatInlineGesture.tap,
         ),
-        ChatMentionActivated(
+        ChatUsernameMentionActivated(
           messageId: 1,
-          kind: ChatMentionKind.username,
           name: 'bob',
           gesture: ChatInlineGesture.tap,
         ),
