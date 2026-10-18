@@ -51,6 +51,16 @@ final _overflow = _items([
   (SelectionMenuItemKind.underline, 'Underline'),
 ]);
 
+// The page of a composer with lists on: the additions after Underline, the two
+// list items among them.
+final _lists = _items([
+  (SelectionMenuItemKind.selectAll, 'Select all'),
+  (SelectionMenuItemKind.codeBlock, 'Code block'),
+  (SelectionMenuItemKind.bulletList, 'Bullet list'),
+  (SelectionMenuItemKind.numberedList, 'Numbered list'),
+  (SelectionMenuItemKind.createLink, 'Create link'),
+]);
+
 // One cell: the card at rest on its row, or with the page open, placed by the
 // same arithmetic the menu uses over a selection at [selection].
 class _Cell extends StatefulWidget {
@@ -59,8 +69,10 @@ class _Cell extends StatefulWidget {
     required this.direction,
     required this.open,
     required this.selection,
+    required this.overflow,
   });
 
+  final List<SelectionMenuItem> overflow;
   final Brightness brightness;
   final TextDirection direction;
   final bool open;
@@ -101,7 +113,7 @@ class _CellState extends State<_Cell> {
       text: TextSpan(text: label, style: style),
       textDirection: direction,
     )..layout()).width;
-    final all = [..._main, ..._overflow];
+    final all = [..._main, ...widget.overflow];
     final widths = [for (final item in all) width(item.label)];
     final row = SelectionMenuLayout.mainRow(
       textWidths: widths,
@@ -172,6 +184,7 @@ void main() {
     String name, {
     required bool open,
     required Rect selection,
+    List<SelectionMenuItem>? overflow,
   }) async {
     await tester.binding.setSurfaceSize(
       Size(_cell.width * 2, _cell.height * 2),
@@ -193,6 +206,7 @@ void main() {
                         direction: direction,
                         open: open,
                         selection: selection,
+                        overflow: overflow ?? _overflow,
                       ),
                   ],
                 ),
@@ -239,4 +253,17 @@ void main() {
       selection: const Rect.fromLTWH(140, 20, 80, 20),
     );
   });
+
+  testWidgets(
+    'the page of a composer with lists on, light and dark, LTR and RTL',
+    (tester) async {
+      await check(
+        tester,
+        'page_lists',
+        open: true,
+        selection: const Rect.fromLTWH(140, 280, 80, 20),
+        overflow: _lists,
+      );
+    },
+  );
 }
