@@ -26,6 +26,10 @@ workspace:
 
 environment:
   sdk: ^3.11.0
+  # The SDK CI and .fvmrc pin; composer_editable vendors its sources and holds
+  # the same exact version. Raise all of them with
+  # `dart packages/composer_editable/tool/revendor.dart`.
+  flutter: 3.41.7
 
 dependencies:
   flutter:
