@@ -1,5 +1,14 @@
 ## Unreleased
 
+### Body linkify removed
+- **BREAKING**: `ChatBodyLinkify` and `ChatLinkifyPolicy` are deleted. The
+  markdown-string rewrite of bare URLs and mentions is replaced by
+  `EntityDetection` and `DetectionPolicy` in `content_model`, which work on
+  `RichText` and are invoked by the host (ADR 017, amended). The viewport
+  still never detects on paint. No data migration: a stored `[url](url)` body
+  decodes as a link, and the receive-time fallback detects in a body that has
+  none. A host that used `strip` must pass `strip` the same policy as `apply`.
+
 ### Selection copy
 - `ChatSelectionController(copyWriter:)`: a host that writes the clipboard
   itself (rich text, ADR 032) is handed each copy as a `ChatTextCopy`: the
