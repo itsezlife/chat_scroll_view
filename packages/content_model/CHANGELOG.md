@@ -19,8 +19,8 @@ package is pre-1.0.
 
 - `EntityDetection.apply(RichText, DetectionPolicy)` and
   `EntityDetection.strip`: bare URLs (`https://a.b/c`, `a.com`, `www.a.com`),
-  emails (a `mailto:` link), `@name` ([EntityKind.username]) and `#tag`
-  ([EntityKind.hashtag]) become entities with Telegram Android's rules, never
+  emails (a `mailto:` link), `@name` (`EntityKind.username`) and `#tag`
+  (`EntityKind.hashtag`) become entities with Telegram Android's rules, never
   inside code, a code block, a link, a mention, a username, a hashtag or inline
   content. At most `EntityDetection.maxMatches` (100) per text; a text over
   `EntityDetection.maxLength` (20 480) is returned unchanged. A scheme-less
@@ -29,6 +29,12 @@ package is pre-1.0.
   edit-load inverse. `DetectionPolicy({urls, usernames, hashtags, schemes})`
   replaces the root package's `ChatLinkifyPolicy`; `DetectionPolicy.urlsOnly`
   is the web-URL-only policy.
+
+- `EmojiOnlyText.of(RichText)` returns the `EmojiOnly` items (`EmojiOnlyItem`:
+  a unicode or document `ContentKey` and the line breaks before it) of a text
+  that is nothing but emoji, spaces, tabs and line breaks, with inline content
+  of a document key as the only entity; null for any other text. It follows
+  Telegram Android's `Emoji.parseEmojis` with no count cap.
 
 - `RichClipboard.attach(RichClipboardField)`: takes over the clipboard
   commands a platform performs itself for a focused text field (a browser's

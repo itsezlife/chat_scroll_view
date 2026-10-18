@@ -10,6 +10,7 @@ workspace:
   - packages/catalog_assets
   - packages/chat_composer
   - packages/chrome_foundation
+  - packages/composer_editable
   - packages/content_model
   - packages/emoji_catalog_pack
   - packages/emoji_data

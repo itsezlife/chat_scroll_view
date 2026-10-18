@@ -16,6 +16,7 @@ export 'src/data/recents_store.dart';
 export 'src/data/rich_clipboard.dart';
 export 'src/data/search_source.dart';
 export 'src/emoji/emoji_entry.dart';
+export 'src/emoji/emoji_only_text.dart';
 export 'src/identity/content_descriptor.dart';
 export 'src/identity/content_key.dart';
 export 'src/identity/inline_content_ref.dart';
