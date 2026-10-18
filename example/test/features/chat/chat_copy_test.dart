@@ -7,21 +7,6 @@ import 'package:flutter_md/flutter_md.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('several messages are one text, a blank line apart, with their '
-      'entities', () {
-    expect(
-      ChatCopy.messages([
-        '**bold** first',
-        '',
-        'second ![\u{1F680}](document:rocket)',
-      ]),
-      RichText('bold first\n\nsecond \u{1F680}', const [
-        Entity(0, 4, EntityKind.bold),
-        Entity(19, 2, EntityKind.inlineContent(ContentKey.document('rocket'))),
-      ]),
-    );
-  });
-
   test('a custom emoji is itself over its text; a unicode emoji is text', () {
     expect(
       ChatCopy.content(const ContentKey.document('rocket'), '\u{1F680}'),

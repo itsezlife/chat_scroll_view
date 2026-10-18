@@ -26,6 +26,8 @@ import 'features/chat/chat_copy_test.dart' as chat_copy_test;
 import 'features/chat/chat_data_source_bodies_test.dart'
     as chat_data_source_bodies_test;
 import 'features/chat/chat_draft_store_test.dart' as chat_draft_store_test;
+import 'features/chat/chat_messages_copy_format_test.dart'
+    as chat_messages_copy_format_test;
 import 'features/chat/emoji_chrome_test.dart' as emoji_chrome_test;
 import 'features/chat/emoji_service_colors_test.dart'
     as emoji_service_colors_test;
@@ -70,6 +72,7 @@ import 'widgets/demo_message_edit_transition_test.dart'
     as demo_message_edit_transition_test;
 import 'widgets/demo_message_markdown_registration_test.dart'
     as demo_message_markdown_registration_test;
+import 'widgets/desktop_copy_shortcut_test.dart' as desktop_copy_shortcut_test;
 import 'widgets/message_menu_test.dart' as message_menu_test;
 import 'widgets/notes_dialog_test.dart' as notes_dialog_test;
 import 'widgets/panel_keeps_composer_focus_test.dart'
@@ -125,6 +128,10 @@ void main() {
   group(
     'features/chat/joined_collection_source_test.dart',
     joined_collection_source_test.main,
+  );
+  group(
+    'features/chat/chat_messages_copy_format_test.dart',
+    chat_messages_copy_format_test.main,
   );
   group('features/chat/emoji_chrome_test.dart', emoji_chrome_test.main);
   group(
@@ -191,6 +198,10 @@ void main() {
   group(
     'widgets/demo_message_markdown_registration_test.dart',
     demo_message_markdown_registration_test.main,
+  );
+  group(
+    'widgets/desktop_copy_shortcut_test.dart',
+    desktop_copy_shortcut_test.main,
   );
   group('widgets/message_menu_test.dart', message_menu_test.main);
   group('widgets/notes_dialog_test.dart', notes_dialog_test.main);

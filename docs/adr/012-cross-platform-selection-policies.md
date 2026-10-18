@@ -109,6 +109,31 @@ and the example wraps its pills in the barrier. A host that wants the
 reference's select-on-time-click does not wrap its status chrome and handles
 the click itself.
 
+## Copy by keyboard (both strategies)
+
+The platform copy shortcut (`CopySelectionTextIntent`) copies what is selected,
+under either policy:
+
+- A **text selection** is copied by the viewport through the same path as the
+  selection's Copy (`copyTextSelection`: `copyWriter`, the policy's Copy
+  effects, `ChatCopied`). The markdown scope answers the intent itself with a
+  plain-text write, nearer to the focus than any facade action, so each body
+  binds the copy key to an intent of the facade's own.
+- A **message selection** is copied by the host (ADR 032), which binds the
+  intent above the viewport and the composer. The viewport keeps the focus on
+  a live message selection (`ChatKeyboardShortcuts`), re-asking after the
+  frame because a host may release its composer's focus after the wrapper's
+  listener ran.
+- A focused composer with a selection answers first; with none, its copy is
+  disabled and the intent goes on to the host.
+
+The format of a copy of several messages is the host's, per policy: `$Desktop`
+writes `[time] Name: text` lines a newline apart for several and the text alone
+for one (Telegram Desktop, `HistorySelectedItemsText`); `$Mobile` writes
+messages a blank line apart with a `Name:` line where the sender changes
+(Telegram Android, `ChatActivity` copy and `getMessageContent`). Telegram iOS
+has no Copy for a selection of several messages.
+
 ## Inline hits (both strategies)
 
 Link activation and code/pre click-to-copy (or host callbacks for those) are
