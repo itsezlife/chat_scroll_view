@@ -56,6 +56,68 @@ void main() {
     test('does not escape markers in the middle of a line', () {
       expect(encode('a # b - c > d 1. e'), 'a # b - c > d 1. e');
     });
+
+    test('does not escape a marker a link label starts the line with', () {
+      // The line is written `[#x](..)`, so it starts with `[`, not the
+      // marker. A label's escapes are not undone by the viewport's parser,
+      // so an escape here would show as a backslash.
+      expect(
+        encode('#design #travel', [
+          const Entity(0, 7, EntityKind.hashtag('design')),
+          const Entity(8, 7, EntityKind.hashtag('travel')),
+        ]),
+        '[#design](hashtag:design) [#travel](hashtag:travel)',
+      );
+      expect(
+        encode('#tasks', [const Entity(0, 6, EntityKind.hashtag('tasks'))]),
+        '[#tasks](hashtag:tasks)',
+      );
+      expect(
+        encode('1. a\n- b', [const Entity(0, 2, EntityKind.link('u'))]),
+        '[1.](u) a\n\\- b',
+      );
+    });
+
+    test('still escapes a marker that a label does not cover', () {
+      expect(
+        encode('# #tag', [const Entity(2, 4, EntityKind.hashtag('tag'))]),
+        r'\# [#tag](hashtag:tag)',
+      );
+      expect(
+        encode('#a', [const Entity(1, 1, EntityKind.link('u'))]),
+        r'\#[a](u)',
+      );
+    });
+
+    test(
+      'a label on a later line, in a quote or in an item is covered too',
+      () {
+        const tag = EntityKind.hashtag('t');
+
+        expect(
+          encode('a\n#t', [const Entity(2, 2, tag)]),
+          'a\n[#t](hashtag:t)',
+        );
+        expect(
+          encode('#t', [
+            const Entity(0, 2, tag),
+            const Entity(0, 2, EntityKind.quote),
+          ]),
+          '> [#t](hashtag:t)',
+        );
+        expect(
+          encode('#t', [
+            const Entity(0, 2, tag),
+            const Entity(
+              0,
+              2,
+              EntityKind.list(listKind: EntityListKind.bullet),
+            ),
+          ]),
+          '- [#t](hashtag:t)',
+        );
+      },
+    );
   });
 
   group('styles', () {

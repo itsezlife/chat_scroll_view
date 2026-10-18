@@ -361,7 +361,7 @@ final class _Escapes {
         ..add(entity.offset)
         ..add(entity.end);
     }
-    _flagLineStarts(plain);
+    _flagLineStarts(plain, entities);
     _flagMarkers(plain, boundaries);
   }
 
@@ -383,24 +383,30 @@ final class _Escapes {
   }
 
   // A block marker only means something as the first thing on a line.
-  void _flagLineStarts(String plain) {
+  void _flagLineStarts(String plain, List<Entity> entities) {
     var lineStart = 0;
     while (lineStart <= plain.length) {
       final lineBreak = plain.indexOf('\n', lineStart);
       final end = lineBreak == -1 ? plain.length : lineBreak;
-      _flagLineStart(plain, lineStart, end);
+      _flagLineStart(plain, lineStart, end, entities);
       if (lineBreak == -1) break;
       lineStart = lineBreak + 1;
     }
   }
 
-  void _flagLineStart(String plain, int start, int end) {
+  void _flagLineStart(String plain, int start, int end, List<Entity> entities) {
     var first = start;
     while (first < end &&
         (plain.codeUnitAt(first) == 0x20 || plain.codeUnitAt(first) == 0x09)) {
       first++;
     }
     if (first >= end) return;
+    // A line whose first text sits in a label is written `[..](..)`: it starts
+    // with a bracket, so nothing there can open a block. An escape would be
+    // wrong as well as needless, because the viewport's parser keeps the
+    // backslashes of a label (a message that began with a hashtag read
+    // `\#tag`).
+    if (_startsInLabel(entities, first)) return;
     final unit = plain.codeUnitAt(first);
     if (_isBlockMarker(unit)) {
       _flags[first] = true;
@@ -427,6 +433,25 @@ final class _Escapes {
         }
       }
     }
+  }
+
+  bool _startsInLabel(List<Entity> entities, int index) {
+    for (final entity in entities) {
+      if (entity.offset > index || entity.end <= index) continue;
+      switch (entity.kind) {
+        case EntityKind$Link() ||
+            EntityKind$Username() ||
+            EntityKind$Hashtag() ||
+            EntityKind$Mention() ||
+            EntityKind$InlineContent():
+          return true;
+        // A code span is written raw, with no escapes to begin with; the other
+        // kinds are never in the inline list or write no bracket.
+        case EntityKind$Style() || EntityKind$CodeBlock() || EntityKind$List():
+          break;
+      }
+    }
+    return false;
   }
 
   bool _isBlockMarker(int unit) =>
