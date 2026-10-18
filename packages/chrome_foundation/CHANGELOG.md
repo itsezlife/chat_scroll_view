@@ -13,22 +13,35 @@ package is pre-1.0.
   semantics labels of a bullet and a numbered list item. Source-breaking for
   hosts that build `ChromeStrings`: the group is required and has no English
   fallback; the English and Russian presets have it.
-- `SelectionMenuTokens` (card, text, press highlight, divider; elevation 1 and
-  corner radius 12 as constants) and `SpoilerTokens` (particle colour, null
-  follows the text; `SpoilerParticleMotion`) as theme groups. Source-breaking
-  for hosts that build `ChromeThemeData` field by field or switch over
+- `SelectionMenuTokens` (card, text, divider, shadow and page dim; elevation 3
+  and corner radius 12 as constants) and `SpoilerTokens` (particle colour, null
+  follows the text; `SpoilerParticleMotion`) as theme groups. The card is the
+  palette's raised surface, the text its on-surface colour, the divider its
+  separator at half opacity, the shadow black at 0.45, the page dim black at
+  `0x18` on a light palette and `0x40` on a dark one. Source-breaking for
+  hosts that build `ChromeThemeData` field by field or switch over
   `ChromeThemeAspect`; `ChromeThemeScope`, `AnimatedChromeThemeScope` and
   `ChromeThemeData.fromPalette` derive them like the other groups.
-- Motion roles `menuEnter`, `menuExit`, `menuSizeEase`, `menuSizeAccelerate`,
-  `menuMainFadeOut`, `menuMainFadeIn`, `menuOverflowFadeOut` and
+- Motion roles `menuEnter` (150 ms, ease out), `menuLeave` (220 ms, ease in),
+  `menuPage` (300 ms on the CSS ease cubic `(0.25, 0.1, 0.25, 1)`) and
   `spoilerReveal`. Source-breaking for a host that builds `ChromeMotion(...)`
   field by field.
-- `AccelerateDecelerateCurve`, `LogAccelerateCurve`,
-  `ChromeMotion.linearOutSlowIn` / `fastOutLinearIn`, `SelectionMenuTiming`
-  and `SpoilerParticleMotion`.
+- `SpoilerParticleMotion`.
 
 ### Changed
 
+- Source-breaking: the seven menu roles `menuEnter`, `menuExit`,
+  `menuSizeEase`, `menuSizeAccelerate`, `menuMainFadeOut`, `menuMainFadeIn`
+  and `menuOverflowFadeOut` are now three: `menuEnter` (150 ms, ease out),
+  `menuLeave` (220 ms, ease in) and `menuPage` (300 ms, the CSS ease cubic).
+  `ChromeMotion(...)`, `copyWith` and `MotionRole` switches change with them.
+  `AccelerateDecelerateCurve`, `LogAccelerateCurve`,
+  `ChromeMotion.linearOutSlowIn`, `ChromeMotion.fastOutLinearIn` and
+  `SelectionMenuTiming` are removed.
+- Source-breaking: `SelectionMenuTokens` drops `pressHighlight` (the menu uses
+  the Material widgets' own press, hover and focus washes) and gains `shadow`
+  and `pageDim`; `fromPalette` follows the palette's roles on both
+  brightnesses, so the light card is the raised surface, not white.
 - Source-breaking: `ComposerStrings.pastePlainAction` (required), the
   selection menu item that pastes the clipboard's plain text. The English and
   Russian presets have it.

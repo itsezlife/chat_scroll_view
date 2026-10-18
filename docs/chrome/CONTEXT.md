@@ -234,8 +234,8 @@ _Avoid_: Parsing markdown on paste, a composer-owned toast
 _Avoid_: Encoding `richText` straight to the wire, rejecting a message over an unresolved mention
 
 **Selection menu**:
-The composer's floating toolbar on a text selection (`ComposerSelectionMenu`): Telegram Android's own floating toolbar, mounted through the **composer editable**'s menu builder on every platform. Clipboard items and formatting items share a row when there is room; a "More" page reshapes the card for the rest. Its options, link prompt, labels and back priority are host contract.
-_Avoid_: The platform selection menu extended, the message menu (swipe-back card), context menu (alone)
+The composer's floating card on a text selection (`ComposerSelectionMenu`), mounted through the **composer editable**'s menu builder on every platform. A two-page swipe-back card: the main row holds the clipboard actions and a More button, and the More page, which slides in from the right, holds the actions that did not fit the row and the formatting actions, with a Back tile. A formatting action that cannot apply is greyed. Its options, link prompt, labels and back priority are host contract.
+_Avoid_: The platform selection menu extended, context menu (alone)
 
 **Composer editable**:
 The composer's one editable: the package `composer_editable`, a patched copy of the framework's text field kept as a patch series over a baseline of the pinned SDK. It supplies the touch gesture matrix, the handle and magnifier motion and the toolbar fade; a host reaches it only through the composer view.

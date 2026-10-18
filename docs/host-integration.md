@@ -387,7 +387,8 @@ supplies the rest through `ComposerSpec`:
 
 - `formatting` is the set of items (`ComposerFormattingOption.all` offers every
   one; the list items still wait for `ComposerTextController(lists: true)`, and
-  an item whose command cannot apply to the selection is left out, not greyed).
+  an item whose command cannot apply to the selection is greyed on the More
+  page, not hidden; Quote is left out over a selection that is quoted).
   Labels come from `ChromeStrings.formatting`.
 - `linkPrompt` is your dialog for Create and Edit Link. It gets the composer's
   `BuildContext` and the current target (null when creating) and completes with
