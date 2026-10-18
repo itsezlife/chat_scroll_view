@@ -28,7 +28,7 @@ the content.
 | `AssetStage` / `AssetReadiness` | `none`, `placeholder`, `firstFrame`, `full` and `isFinal`. There is no failed stage |
 | `AssetProducer` (seam) | Makes the paintables of entries: `produce(request, progress, demand)` returns an `AssetTask`; reports stages, failures and cancellation through `AssetProgress`. `AssetPipeline` is the fetching and decoding implementation |
 | `AssetCacheBudgets` | Byte budgets of the unattached entries per tier (`still`, `animated`); documented defaults |
-| `PlaybackClock` / `PlaybackPolicy` | One shared animation clock, per-binding gating, host-set pause layers (`PlaybackPauseLayer`), fps caps derived from the spec size |
+| `PlaybackClock` / `PlaybackPolicy` | One shared animation clock, per-binding gating, host-set pause layers (`PlaybackPauseLayer`), fps caps derived from the spec size; `follow` lends the frames to a follower that is not a binding (`PlaybackSubscription.cancel`) |
 | `PlaybackTickSource` (seam) | The clock's per-frame callback; `SchedulerPlaybackTickSource` in an app, `ManualPlaybackTickSource` in tests |
 | `GlyphSpriteSource` (seam) | The one narrow seam to baked glyphs: `spriteOf`, `holdPageOf`, page listeners. `GlyphAtlas` implements it |
 | `AtlasSprite` | Page image + source rectangle; the sprite capability of an `AssetPaintable` |
@@ -261,19 +261,25 @@ Behaviour that matters to a host:
   so message-sized content reuses the one atlas size; there is never a second
   atlas. A glyph the atlas does not know stays a circle placeholder (the glyph
   form never falls back to text where an atlas is registered).
-- **Inline embeds in message bodies are a follow-up.** `InlineEmbed` and
-  `ContentEmbed` are the ready contract and adapter. Nothing lays them out or
-  paints them inside the markdown library and the root viewport body yet
-  (placeholder layout, alt text for copy, selection and accessibility,
-  scheme-based resolver registration), so a host sends a unicode emoji as its
-  own characters and keeps `![alt](scheme:id)` for other content. The
-  composer's `InlineContentSpanBuilder` hook (the span must be as long as the
-  alternative text) is wired by the composer's field widget, outside this
-  package.
+- **Inline embeds in message bodies.** The markdown library lays an embed out
+  as a placeholder in its paragraph, paints it in a live pass after the glyph
+  picture, and keeps the alternative text for copy, selection and
+  accessibility; the root `chat_scroll_view` package adapts this package's
+  `InlineEmbedResolver` to the library's own contract (`ChatMarkdownBody.embedResolver`).
+  A host hands the body one resolver (compose by scheme on its side). A bare
+  emoji character in a body stays a glyph; `![alt](scheme:id)` is the embed
+  spelling. The composer's `InlineContentSpanBuilder` hook (the span must be as
+  long as the alternative text) is wired by the composer's field widget,
+  outside this package.
+- **Other things that animate with the cache.** `PlaybackClock.follow` lends
+  the shared clock to a follower that is not a binding, with the same frame
+  cadence and pause layers (the viewport feeds the dust over hidden spoilers
+  from it); cancel the `PlaybackSubscription` and the clock sleeps again.
 
 Decisions: [ADR 022](../../docs/adr/022-asset-cache-and-media-pipeline.md)
 (paintable, glyph form, bindings) and
-[ADR 029](../../docs/adr/029-host-integration.md) (embed seam, scope boundary).
+[ADR 029](../../docs/adr/029-host-integration.md) (embed seam, the root viewport's dependency on this package) and
+[ADR 037](../../docs/adr/037-spoiler-and-mention-inline-styles.md) (the shared clock drives the spoiler fill).
 
 ### Host contract
 

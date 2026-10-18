@@ -83,6 +83,23 @@ final class PlaybackClock {
     _sync();
   }
 
+  /// Calls [onTick] on the frames of this clock, at most every
+  /// [frameInterval], for something that animates but is not an asset binding
+  /// (the dust over a hidden spoiler in a markdown body).
+  ///
+  /// It runs on the same frames as the bindings and is gated by the same
+  /// pause layers, so a host that pauses the clock pauses it too, and an idle
+  /// clock stays asleep once it is [PlaybackSubscription.cancel]led. [onTick]
+  /// receives the time of the frame, which only grows.
+  PlaybackSubscription follow(
+    void Function(Duration now) onTick, {
+    required Duration frameInterval,
+  }) {
+    final target = _FollowingTarget(frameInterval, onTick);
+    register(target);
+    return PlaybackSubscription._(this, target);
+  }
+
   /// Stops the frames and forgets every target. Idempotent.
   void dispose() {
     if (_disposed) return;
@@ -116,4 +133,28 @@ final class PlaybackClock {
       target.tick(timestamp);
     }
   }
+}
+
+/// A live [PlaybackClock.follow]: cancel it when the follower stops needing
+/// frames.
+final class PlaybackSubscription {
+  PlaybackSubscription._(this._clock, this._target);
+
+  final PlaybackClock _clock;
+  final PlaybackTarget _target;
+
+  /// Stops the frames for this subscription. Idempotent.
+  void cancel() => _clock.unregister(_target);
+}
+
+final class _FollowingTarget implements PlaybackTarget {
+  _FollowingTarget(this.frameInterval, this._onTick);
+
+  @override
+  final Duration frameInterval;
+
+  final void Function(Duration now) _onTick;
+
+  @override
+  void tick(Duration now) => _onTick(now);
 }

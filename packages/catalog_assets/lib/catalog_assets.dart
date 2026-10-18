@@ -40,7 +40,8 @@ export 'src/pipeline/asset_pipeline.dart';
 export 'src/pipeline/cancellation_token.dart';
 export 'src/pipeline/content_fetcher.dart';
 export 'src/pipeline/decoder.dart';
-export 'src/playback/playback_clock.dart' show PlaybackClock;
+export 'src/playback/playback_clock.dart'
+    show PlaybackClock, PlaybackSubscription;
 export 'src/playback/playback_policy.dart';
 export 'src/playback/playback_tick_source.dart';
 export 'src/playback/scheduler_playback_tick_source.dart';
