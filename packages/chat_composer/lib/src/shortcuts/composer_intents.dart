@@ -1,5 +1,6 @@
 import 'package:chat_composer/src/shortcuts/composer_formatting_intents.dart';
-import 'package:content_model/content_model.dart' show EntityListKind, EntityStyle;
+import 'package:content_model/content_model.dart'
+    show EntityListKind, EntityStyle;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
