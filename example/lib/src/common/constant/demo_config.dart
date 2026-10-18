@@ -27,6 +27,18 @@ abstract final class DemoConfig {
     defaultValue: 1,
   );
 
+  /// The most code points of plain text a message may have: the demo
+  /// backend's `message_length_max` (Telegram's default is 4096), from
+  /// `--dart-define=MESSAGE_LENGTH_MAX`.
+  ///
+  /// The unit is the plain text, not the markdown body: delimiters and
+  /// formatting cost nothing, and nothing is truncated to fit. The composer
+  /// shows what remains and refuses a send over it.
+  static const int messageLengthMax = int.fromEnvironment(
+    'MESSAGE_LENGTH_MAX',
+    defaultValue: 4096,
+  );
+
   /// Whether the Supabase publishable key is set.
   static bool get hasSupabasePublishableKey =>
       supabasePublishableKey.isNotEmpty;

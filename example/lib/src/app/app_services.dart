@@ -5,6 +5,7 @@ import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_probe.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_center_band_store.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/joined_collection_source.dart';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/emoji_data.dart';
@@ -29,7 +30,7 @@ import 'package:rich_clipboard/rich_clipboard.dart';
 ///
 /// 1. the [KeyValueStore] adapter (`kv_shared_preferences`);
 /// 2. the stores, which arrive loaded: [recents], [preferences],
-///    [keyboardHeights], [dockWidths] and [centerBands];
+///    [keyboardHeights], [dockWidths], [centerBands] and [drafts];
 /// 3. the asset cache [assets] with its pause layer and memory pressure, and
 ///    behind the glyph path an `AssetPipeline` for the [animatedEmoji] pack:
 ///    the pack's bundle fetcher and an `ImageCodecDecoder` for its animated
@@ -59,6 +60,7 @@ final class AppServices {
     required this.keyboardHeights,
     required this.dockWidths,
     required this.centerBands,
+    required this.drafts,
     required this.memoryPressure,
     required this.assets,
     required this.catalog,
@@ -151,6 +153,7 @@ final class AppServices {
         DockWidthStore.open(storage),
       ).wait;
       final centerBands = ChatCenterBandStore(storage);
+      final drafts = ChatDraftStore(storage);
 
       // 3. The asset cache. Its memory pressure is shared with the glyph
       // atlas.
@@ -268,6 +271,7 @@ final class AppServices {
         keyboardHeights: keyboardHeights,
         dockWidths: dockWidths,
         centerBands: centerBands,
+        drafts: drafts,
         memoryPressure: memoryPressure,
         assets: assets,
         catalog: catalog,
@@ -326,6 +330,9 @@ final class AppServices {
 
   /// The saved reading position of each chat.
   final ChatCenterBandStore centerBands;
+
+  /// The unsent text of each chat's composer.
+  final ChatDraftStore drafts;
 
   /// Fires when the system asks for memory; the glyph atlas shares it.
   final SystemMemoryPressure memoryPressure;

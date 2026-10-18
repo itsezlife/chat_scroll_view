@@ -79,12 +79,150 @@ void main() {
       expect(ChatBodyMarkdown.encode(const _Rich.plain('  hello \n')), 'hello');
     });
 
-    test('bare URLs and names are not detected', () {
+    test('encode alone does not detect: that is send\'s step', () {
       const typed = _Rich.plain('see https://example.com and @alice');
 
       expect(
         ChatBodyMarkdown.encode(typed),
         'see https://example.com and @alice',
+      );
+    });
+  });
+
+  group('send detects, then encodes', () {
+    test('a bare URL, @name and #tag go out as links the wire reads back', () {
+      const typed = _Rich.plain('see https://example.com @alice #news');
+
+      final body = ChatBodyMarkdown.send(typed);
+
+      expect(
+        body,
+        'see [https://example.com](https://example.com) '
+        '[@alice](username:alice) [#news](hashtag:news)',
+      );
+      expect(ChatBodyMarkdown.decode(body).entities.map((e) => e.kind), [
+        const EntityKind.link('https://example.com'),
+        const EntityKind.username('alice'),
+        const EntityKind.hashtag('news'),
+      ]);
+    });
+
+    test('a link the user made is kept, not detected again inside', () {
+      final typed = _Rich('docs a.com', const [
+        Entity(0, 4, EntityKind.link('https://flutter.dev')),
+      ]);
+
+      expect(
+        ChatBodyMarkdown.send(typed),
+        '[docs](https://flutter.dev) [a.com](https://a.com)',
+      );
+    });
+
+    test('a mention stays a mention, a name beside it is detected', () {
+      final typed = _Rich('@Ann and @bob', const [
+        Entity(0, 4, EntityKind.mention('7')),
+      ]);
+
+      expect(
+        ChatBodyMarkdown.send(typed),
+        '[@Ann](mention:7) and [@bob](username:bob)',
+      );
+    });
+  });
+
+  group('receive is a fallback for a body with no entity', () {
+    test('a stored bare URL shows a link', () {
+      final body = ChatBodyMarkdown.received('see https://example.com now');
+
+      expect(
+        ChatBodyMarkdown.decode(body).entities.single.kind,
+        const EntityKind.link('https://example.com'),
+      );
+    });
+
+    test('a body with a link is trusted: a second bare URL stays text', () {
+      const stored = '[docs](https://flutter.dev) and https://example.com';
+
+      final body = ChatBodyMarkdown.received(stored);
+
+      expect(body, stored);
+      expect(ChatBodyMarkdown.decode(body).entities, hasLength(1));
+    });
+
+    test('a mention, a username or a hashtag also trusts the body', () {
+      for (final stored in [
+        '[@Ann](mention:7) https://example.com',
+        '[@bob](username:bob) https://example.com',
+        '[#dart](hashtag:dart) https://example.com',
+      ]) {
+        expect(ChatBodyMarkdown.received(stored), stored, reason: stored);
+      }
+    });
+
+    test('a body with a style only is still detected', () {
+      final body = ChatBodyMarkdown.received('**loud** a.com');
+
+      expect(
+        ChatBodyMarkdown.decode(body).entities.map((e) => e.kind),
+        containsAll([EntityKind.bold, const EntityKind.link('https://a.com')]),
+      );
+    });
+
+    test('a body with nothing to detect comes back as it was stored', () {
+      const stored = 'plain *text*, nothing to link';
+
+      expect(ChatBodyMarkdown.received(stored), stored);
+    });
+
+    test('the detector runs once for a body and never for a trusted one', () {
+      final before = ChatBodyMarkdown.detectionRuns;
+
+      ChatBodyMarkdown.received('see https://example.com');
+      expect(ChatBodyMarkdown.detectionRuns, before + 1);
+
+      ChatBodyMarkdown.received('[a](https://a.com) https://b.com');
+      expect(ChatBodyMarkdown.detectionRuns, before + 1);
+    });
+  });
+
+  group('edit-load strips what detection made and send makes it again', () {
+    test('a stored link to its own URL loads as a link, edits as text', () {
+      const stored = 'go [https://example.com](https://example.com)';
+
+      expect(
+        ChatBodyMarkdown.decode(stored).entities.single.kind,
+        const EntityKind.link('https://example.com'),
+      );
+      final editable = ChatBodyMarkdown.decodeForEdit(stored);
+      expect(editable.plain, 'go https://example.com');
+      expect(editable.entities, isEmpty);
+      expect(ChatBodyMarkdown.send(editable), stored);
+    });
+
+    test('a username and a hashtag edit as text and come back on save', () {
+      const stored = '[@alice](username:alice) [#news](hashtag:news)';
+
+      final editable = ChatBodyMarkdown.decodeForEdit(stored);
+
+      expect(editable.plain, '@alice #news');
+      expect(editable.entities, isEmpty);
+      expect(ChatBodyMarkdown.send(editable), stored);
+    });
+
+    test('an explicit link, a mention and the styles stay', () {
+      const stored =
+          '**[docs](https://flutter.dev)** and [@Ann](mention:7) a.com';
+
+      final editable = ChatBodyMarkdown.decodeForEdit(stored);
+
+      expect(editable.plain, 'docs and @Ann a.com');
+      expect(
+        editable.entities.map((e) => e.kind),
+        unorderedEquals([
+          EntityKind.bold,
+          const EntityKind.link('https://flutter.dev'),
+          const EntityKind.mention('7'),
+        ]),
       );
     });
   });

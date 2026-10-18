@@ -1,4 +1,4 @@
-import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/link_activation.dart';
 import 'package:content_model/content_model.dart'
     show PastedMedia, PastedMedia$Bytes, PastedMedia$File;
 import 'package:flutter/material.dart';
@@ -14,10 +14,11 @@ Future<void> showLinkActionsSheet(
   required VoidCallback onOpen,
   required ValueChanged<String> onCopied,
 }) {
-  final activation = ChatBodyLinkifyUtil.activation(url);
+  final activation = LinkActivation.fromUrl(url);
   final openLabel = switch (activation) {
     WebLinkActivation() => 'Open link',
-    MentionLinkActivation() => 'Open mention',
+    MentionLinkActivation() || UsernameLinkActivation() => 'Open profile',
+    HashtagLinkActivation() => 'Search hashtag',
     OtherLinkActivation() => 'Open',
   };
   return showModalBottomSheet<void>(
@@ -53,7 +54,9 @@ Future<void> showLinkActionsSheet(
           const Divider(),
           ListTile(
             leading: Icon(switch (activation) {
-              MentionLinkActivation() => Icons.person_outline,
+              MentionLinkActivation() ||
+              UsernameLinkActivation() => Icons.person_outline,
+              HashtagLinkActivation() => Icons.tag,
               WebLinkActivation() ||
               OtherLinkActivation() => Icons.open_in_browser,
             }),
@@ -66,7 +69,9 @@ Future<void> showLinkActionsSheet(
           ListTile(
             leading: const Icon(Icons.copy),
             title: Text(switch (activation) {
-              MentionLinkActivation() => 'Copy mention',
+              MentionLinkActivation() ||
+              UsernameLinkActivation() => 'Copy mention',
+              HashtagLinkActivation() => 'Copy hashtag',
               WebLinkActivation() || OtherLinkActivation() => 'Copy link URL',
             }),
             onTap: () {
