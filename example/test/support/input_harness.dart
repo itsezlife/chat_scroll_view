@@ -84,10 +84,24 @@ final class InputRig {
   }
 
   /// The composer's text field (the panel's search field is another).
+  ///
+  /// Found by the focus node it holds: the composer's editable is a leaf
+  /// package's type, which a host does not name (and which is not Flutter's
+  /// `EditableText`).
   Finder get field => find.byWidgetPredicate(
-    (widget) =>
-        widget is EditableText && widget.focusNode == set.composer.focusNode,
+    (widget) => widget is Focus && widget.focusNode == set.composer.focusNode,
   );
+
+  /// Types [text] into the composer's field as the platform keyboard does.
+  ///
+  /// `WidgetTester.enterText` needs Flutter's own `EditableText`, which the
+  /// composer's field is not.
+  Future<void> typeInField(WidgetTester tester, String text) async {
+    set.composer.requestFocus();
+    await tester.pump();
+    tester.testTextInput.enterText(text);
+    await tester.pump();
+  }
 
   /// The composer's glass island.
   Finder get island => find.byKey(_island);

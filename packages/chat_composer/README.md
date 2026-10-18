@@ -117,6 +117,7 @@ The view imports no inset type.
 | Nothing for the field's reports: the view calls `reportFieldHeight`, `reportExtent` and `reportCaretAnchor` itself. | Call the `report...` methods, or read the anchor as exact: it may lag the text by a frame, and is `null` before the first report. |
 | Disposal of every controller, focus node and scroll controller it passed in. | Dispose what the composer created, or use a controller after it. |
 | Import hygiene: `hide RichText` on the Flutter widgets import (or `as model` on this one). | Import both `RichText`s unqualified in one file. |
+| The field through `ComposerView` only. It renders `ExtendedTextField` from `composer_editable` (Material handles on every platform, overscroll handed to the chat); `ComposerController.fieldScroll` is the mirror of its scroll position. | Use `ExtendedTextField` directly, or expect a stock `TextField` or `EditableText` in the tree. |
 
 Constructor requirements: `ComposerView` takes `controller` and `spec`;
 `ComposerController` takes nothing (it builds the text controller, focus node

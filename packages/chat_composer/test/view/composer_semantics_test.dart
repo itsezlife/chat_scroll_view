@@ -3,7 +3,7 @@ import 'dart:ui' show Tristate;
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
-import 'package:flutter/material.dart';
+import 'package:composer_editable/composer_editable.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/composer_harness.dart';
@@ -158,7 +158,9 @@ void main() {
     final handle = tester.ensureSemantics();
     await show(tester, ComposerSpec());
 
-    final data = tester.getSemantics(find.byType(TextField)).getSemanticsData();
+    final data = tester
+        .getSemantics(find.byType(ExtendedTextField))
+        .getSemanticsData();
     expect(data.flagsCollection.isTextField, isTrue);
     expect(data.flagsCollection.isMultiline, isTrue);
     expect(data.label, 'Message');
