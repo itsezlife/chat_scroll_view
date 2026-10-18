@@ -23,6 +23,11 @@ RichText _text(String plain, List<(String, EntityKind)> parts) {
 }
 
 const _rocket = ContentKey.document('rocket');
+const _bullet = EntityKind.list(listKind: EntityListKind.bullet);
+const _ordered = EntityKind.list(listKind: EntityListKind.ordered);
+const _nested = EntityKind.list(listKind: EntityListKind.bullet, depth: 1);
+const _alice = EntityKind.username('alice');
+const _dart = EntityKind.hashtag('dart');
 
 void main() {
   group('round trip', () {
@@ -117,6 +122,68 @@ void main() {
       ),
     );
 
+    roundTrips(
+      'a username and a hashtag, with a style across one',
+      _text('hi @alice and #dart now', [
+        ('hi @al', EntityKind.bold),
+        ('@alice', _alice),
+        ('#dart', _dart),
+      ]),
+    );
+    roundTrips(
+      'a username next to a link and a mention',
+      _text('@alice[l]@bob', [
+        ('@alice', _alice),
+        ('[l]', const EntityKind.link('https://example.com')),
+        ('@bob', const EntityKind.mention('bob')),
+      ]),
+    );
+    roundTrips(
+      'two list items, a bullet and an ordered one',
+      _text('one\ntwo', [('one', _bullet), ('two', _ordered)]),
+    );
+    roundTrips(
+      'nested items, a jump of two levels, and a return',
+      _text('a\nb\nc\nd\ne', [
+        ('a', _bullet),
+        ('b', _nested),
+        (
+          'c',
+          const EntityKind.list(listKind: EntityListKind.ordered, depth: 3),
+        ),
+        ('d', _ordered),
+        (
+          'e',
+          const EntityKind.list(listKind: EntityListKind.ordered, depth: 2),
+        ),
+      ]),
+    );
+    roundTrips(
+      'items with styles, a link and a soft break, beside plain lines',
+      _text('intro\nan item\ncontinued\nnext one\nafter', [
+        ('an item\ncontinued', _bullet),
+        ('item', EntityKind.bold),
+        ('next one', _bullet),
+        ('next', const EntityKind.link('https://example.com')),
+      ]),
+    );
+    roundTrips(
+      'items with empty lines inside and at the end',
+      _text('one\n\ntwo\nthree\n', [
+        ('one\n', _bullet),
+        ('two', _bullet),
+        ('three\n', _ordered),
+      ]),
+    );
+    roundTrips(
+      'items between a quote and a code block',
+      _text('quote\nitem\nitem\ncode', [
+        ('quote', EntityKind.quote),
+        ('item\nitem', _ordered),
+        ('code', const EntityKind.codeBlock()),
+      ]),
+    );
+
     test('holds for random texts', () {
       final random = Random(7);
       const kinds = [
@@ -134,6 +201,12 @@ void main() {
         EntityKind.inlineContent(_rocket),
         EntityKind.codeBlock(language: 'dart'),
         EntityKind.codeBlock(),
+        _alice,
+        _dart,
+        _bullet,
+        _ordered,
+        _nested,
+        EntityKind.list(listKind: EntityListKind.ordered, depth: 3),
       ];
       const pieces = ['a', 'b c', ' ', '\n', '  ', '\u{1F680}', '<', '&', 'é'];
       var checked = 0;
@@ -170,7 +243,7 @@ void main() {
         );
         checked++;
       }
-      expect(checked, greaterThan(1000));
+      expect(checked, greaterThan(800));
     });
   });
 
@@ -289,8 +362,8 @@ void main() {
       );
     });
 
-    test('reads paragraphs, breaks and list items as lines, collapsing '
-        'whitespace', () {
+    test('reads paragraphs and breaks as lines, and list items as items, '
+        'collapsing whitespace', () {
       expect(
         RichTextHtml.decode(
           '<html><head><title>t</title><style>p{}</style></head><body>\n'
@@ -298,9 +371,10 @@ void main() {
           '<ul><li>one</li><li>two</li></ul>a<br>b<br><br>c'
           '<script>ignored()</script>\n</body></html>',
         ),
-        const RichText.plain(
-          'first paragraph line\nsecond\none\ntwo\na\nb\n\nc',
-        ),
+        _text('first paragraph line\nsecond\none\ntwo\na\nb\n\nc', [
+          ('one', _bullet),
+          ('two', _bullet),
+        ]),
       );
     });
 
@@ -445,6 +519,178 @@ void main() {
         expect(() => RichTextHtml.decode(html), returnsNormally, reason: html);
       }
       expect(RichTextHtml.decode('<b><i>unclosed').plain, 'unclosed');
+    });
+  });
+
+  group('encode of the new kinds', () {
+    test('writes a username and a hashtag as links to their scheme', () {
+      final html = RichTextHtml.encode(
+        _text('@alice #dart', [('@alice', _alice), ('#dart', _dart)]),
+      );
+
+      expect(html, contains('<a href="username:alice">@alice</a>'));
+      expect(html, contains('<a href="hashtag:dart">#dart</a>'));
+    });
+
+    test('writes items as one list, without a br between consecutive ones', () {
+      final html = RichTextHtml.encode(
+        _text('one\ntwo\nthree', [
+          ('one', _bullet),
+          ('two', _bullet),
+          ('three', _ordered),
+        ]),
+      );
+
+      expect(
+        html,
+        contains('<ul><li>one</li><li>two</li></ul><ol><li>three</li></ol>'),
+      );
+      expect(html, isNot(contains('<br>')));
+    });
+
+    test('nests a deeper item inside the item before it', () {
+      final html = RichTextHtml.encode(
+        _text('a\nb\nc', [('a', _bullet), ('b', _nested), ('c', _bullet)]),
+      );
+
+      expect(
+        html,
+        contains('<ul><li>a<ul><li>b</li></ul></li><li>c</li></ul>'),
+      );
+    });
+
+    test('keeps a br where a line break is not between two items', () {
+      final html = RichTextHtml.encode(
+        _text('one\nplain\ntwo', [('one', _bullet), ('two', _bullet)]),
+      );
+
+      expect(html, contains('<ul><li>one</li></ul><br>plain<br><ul><li>two'));
+    });
+  });
+
+  group('decode of lists', () {
+    test('reads a web list into items', () {
+      expect(
+        RichTextHtml.decode('<ul><li>one</li><li>two</li></ul>'),
+        _text('one\ntwo', [('one', _bullet), ('two', _bullet)]),
+      );
+      expect(
+        RichTextHtml.decode('<ol><li>one</li><li>two</li></ol>'),
+        _text('one\ntwo', [('one', _ordered), ('two', _ordered)]),
+      );
+    });
+
+    test('reads nesting as depth, an item as its text up to a nested list', () {
+      expect(
+        RichTextHtml.decode(
+          '<ul>\n  <li>a\n    <ol><li>b</li><li>c <b>bold</b></li></ol>\n'
+          '  </li>\n  <li>z</li>\n</ul>',
+        ),
+        _text('a\nb\nc bold\nz', [
+          ('a', _bullet),
+          (
+            'b',
+            const EntityKind.list(listKind: EntityListKind.ordered, depth: 1),
+          ),
+          (
+            'c bold',
+            const EntityKind.list(listKind: EntityListKind.ordered, depth: 1),
+          ),
+          ('bold', EntityKind.bold),
+          ('z', _bullet),
+        ]),
+      );
+    });
+
+    test('an item holding paragraphs is one item of several lines', () {
+      expect(
+        RichTextHtml.decode(
+          '<ul><li><p>one</p><p>two</p></li><li>three</li></ul>',
+        ),
+        _text('one\ntwo\nthree', [('one\ntwo', _bullet), ('three', _bullet)]),
+      );
+    });
+
+    test('a depth beyond three is three', () {
+      expect(
+        RichTextHtml.decode(
+          '<ul><li><ul><li><ul><li><ul><li><ul><li>deep</li></ul></li></ul>'
+          '</li></ul></li></ul></li></ul>',
+        ).entities,
+        [
+          const Entity(
+            0,
+            4,
+            EntityKind.list(listKind: EntityListKind.bullet, depth: 3),
+          ),
+        ],
+      );
+    });
+
+    test('an item with no text is no item, and a stray li is a bullet', () {
+      expect(
+        RichTextHtml.decode('<ul><li></li><li>x</li></ul>a<li>y</li>'),
+        _text('x\na\ny', [('x', _bullet), ('y', _bullet)]),
+      );
+    });
+
+    test('an item next to a quote or a code block yields to it', () {
+      expect(
+        RichTextHtml.decode('<ul><li><blockquote>q</blockquote></li></ul>'),
+        _text('q', [('q', EntityKind.quote)]),
+      );
+      expect(
+        RichTextHtml.decode('<ul><li><pre>code</pre></li></ul>'),
+        _text('code', [('code', const EntityKind.codeBlock())]),
+      );
+    });
+
+    test('never throws on lists in odd places', () {
+      for (final html in [
+        '<ul><ul><li>x</li></ul></ul>',
+        '<li>a<li>b',
+        '<ul><li><code><li>x</li></code></li></ul>',
+        '<span data-rich-text="1"><ul><li>a</li></span>',
+        '<span data-rich-text="1"><li><li>a</li></li></span>',
+        '<ol><li><span data-mention-id="x"><li>z</li></span></li></ol>',
+      ]) {
+        expect(() => RichTextHtml.decode(html), returnsNormally, reason: html);
+      }
+    });
+  });
+
+  group('usernames and hashtags in HTML', () {
+    test('are read from this app\'s own HTML', () {
+      final text = _text('@alice', [('@alice', _alice)]);
+
+      expect(RichTextHtml.decode(RichTextHtml.encode(text)), text);
+    });
+
+    test('are only a link, or text, in another app\'s HTML', () {
+      expect(
+        RichTextHtml.decode(
+          '<a href="username:alice">@alice</a> '
+          '<a href="hashtag:dart">#dart</a> '
+          '<a href="https://example.com/u/alice">@alice</a>',
+        ),
+        RichText('@alice #dart @alice', const [
+          Entity(13, 6, EntityKind.link('https://example.com/u/alice')),
+        ]),
+      );
+    });
+
+    test('an own href with no name, or a link in their scheme, is text', () {
+      final own = RichTextHtml.encode(const RichText.plain('x'));
+
+      for (final href in ['username:', 'hashtag:', 'mention:x']) {
+        expect(
+          RichTextHtml.decode(
+            own.replaceFirst('>x<', '><a href="$href">x</a><'),
+          ),
+          const RichText.plain('x'),
+          reason: href,
+        );
+      }
     });
   });
 }
