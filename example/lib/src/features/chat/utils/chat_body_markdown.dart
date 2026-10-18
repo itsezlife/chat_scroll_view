@@ -9,7 +9,7 @@ import 'package:content_model/content_model.dart'
         EntityKind$Username,
         RichText;
 import 'package:content_model/content_model.dart'
-    show ContentKey$Unicode, DetectionPolicy, EntityDetection;
+    show ContentKey$Unicode, DetectionPolicy, EmojiOnlyText, EntityDetection;
 import 'package:content_model/markdown.dart';
 import 'package:meta/meta.dart';
 
@@ -46,19 +46,26 @@ abstract final class ChatBodyMarkdown {
   static String send(model.RichText text) =>
       encode(EntityDetection.apply(text, policy));
 
-  /// The markdown body to send for [text], without surrounding blanks and
-  /// without detecting anything ([send] detects first).
+  /// The markdown body to send for [text], without surrounding blanks (unless
+  /// it is nothing but emoji) and without detecting anything ([send] detects
+  /// first).
   ///
-  /// A unicode emoji travels as its own characters: the viewport paints no
-  /// inline embed yet, and every viewer draws the characters. Any other
-  /// inline content keeps its `![alt](scheme:id)` form, with the alt text as
-  /// the label.
+  /// A unicode emoji travels as its own characters: every viewer draws the
+  /// characters, and a receiver finds an emoji-only message from them
+  /// (`EmojiOnlyText.of`, which allows only document-keyed inline content). Any
+  /// other inline content keeps its `![alt](scheme:id)` form, with the alt text
+  /// as the label.
+  ///
+  /// An emoji-only text is not trimmed, as on Telegram Android (research 05,
+  /// the composer): the blank lines and spaces around its emoji are an
+  /// arrangement the sender chose, and the receiver's layout honours them.
   static String encode(model.RichText text) {
-    final kept = [
+    final kept = model.RichText(text.plain, [
       for (final entity in text.entities)
         if (!_isUnicodeEmoji(entity)) entity,
-    ];
-    return RichTextMarkdown.encode(model.RichText(text.plain, kept)).trim();
+    ]);
+    final body = RichTextMarkdown.encode(kept);
+    return EmojiOnlyText.of(kept) == null ? body.trim() : body;
   }
 
   /// The body to materialise a message from, given the [body] a source

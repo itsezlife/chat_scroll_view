@@ -7,6 +7,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_p
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_center_band_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/joined_collection_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/large_emoji_setting.dart';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
@@ -30,7 +31,8 @@ import 'package:rich_clipboard/rich_clipboard.dart';
 ///
 /// 1. the [KeyValueStore] adapter (`kv_shared_preferences`);
 /// 2. the stores, which arrive loaded: [recents], [preferences],
-///    [keyboardHeights], [dockWidths], [centerBands] and [drafts];
+///    [keyboardHeights], [dockWidths], [centerBands], [drafts] and
+///    [largeEmoji];
 /// 3. the asset cache [assets] with its pause layer and memory pressure, and
 ///    behind the glyph path an `AssetPipeline` for the [animatedEmoji] pack:
 ///    the pack's bundle fetcher and an `ImageCodecDecoder` for its animated
@@ -61,6 +63,7 @@ final class AppServices {
     required this.dockWidths,
     required this.centerBands,
     required this.drafts,
+    required this.largeEmoji,
     required this.memoryPressure,
     required this.assets,
     required this.catalog,
@@ -140,7 +143,13 @@ final class AppServices {
 
       // 2. Stores, loaded. Each registers as it arrives, so one that loaded
       // beside a sibling that failed is still freed.
-      final (recents, preferences, keyboardHeights, dockWidths) = await (
+      final (
+        recents,
+        preferences,
+        keyboardHeights,
+        dockWidths,
+        largeEmoji,
+      ) = await (
         KeyValueRecentsStore.load(
           storage,
           namespace: recentsNamespace,
@@ -151,6 +160,9 @@ final class AppServices {
         ).then((store) => owned(store, (store) => store.dispose())),
         KeyboardHeightStore.open(storage),
         DockWidthStore.open(storage),
+        LargeEmojiSetting.load(
+          storage,
+        ).then((setting) => owned(setting, (setting) => setting.dispose())),
       ).wait;
       final centerBands = ChatCenterBandStore(storage);
       final drafts = ChatDraftStore(storage);
@@ -272,6 +284,7 @@ final class AppServices {
         dockWidths: dockWidths,
         centerBands: centerBands,
         drafts: drafts,
+        largeEmoji: largeEmoji,
         memoryPressure: memoryPressure,
         assets: assets,
         catalog: catalog,
@@ -333,6 +346,9 @@ final class AppServices {
 
   /// The unsent text of each chat's composer.
   final ChatDraftStore drafts;
+
+  /// Whether an emoji-only message is shown large and without a bubble.
+  final LargeEmojiSetting largeEmoji;
 
   /// Fires when the system asks for memory; the glyph atlas shares it.
   final SystemMemoryPressure memoryPressure;
@@ -421,6 +437,7 @@ final class AppServices {
     _glyphFontsReady.dispose();
     _pipeline.dispose();
     memoryPressure.dispose();
+    largeEmoji.dispose();
     preferences.dispose();
     recents.dispose();
   }
