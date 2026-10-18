@@ -28,6 +28,7 @@ import 'rich_text/list_test.dart' as list_test;
 import 'rich_text/rich_text_edit_test.dart' as rich_text_edit_test;
 import 'rich_text/rich_text_json_test.dart' as rich_text_json_test;
 import 'rich_text/rich_text_test.dart' as rich_text_test;
+import 'rich_text/typed_markdown_test.dart' as typed_markdown_test;
 import 'rich_text/username_hashtag_test.dart' as username_hashtag_test;
 import 'store/deferred_recents_store_test.dart' as deferred_recents_store_test;
 import 'store/key_value_preference_store_test.dart'
@@ -72,6 +73,7 @@ void main() {
   group('rich_text/rich_text_edit_test.dart', rich_text_edit_test.main);
   group('rich_text/rich_text_json_test.dart', rich_text_json_test.main);
   group('rich_text/rich_text_test.dart', rich_text_test.main);
+  group('rich_text/typed_markdown_test.dart', typed_markdown_test.main);
   group('rich_text/username_hashtag_test.dart', username_hashtag_test.main);
   group(
     'store/deferred_recents_store_test.dart',

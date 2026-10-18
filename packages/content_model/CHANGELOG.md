@@ -6,6 +6,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `TypedMarkdown.apply`: the markers a user typed become entities at send,
+  with Telegram Android's rules: `` `code` ``, a triple-backtick code block
+  (with a language first line), `**bold**`, `__italic__`, `~~strike~~` and
+  `||spoiler||`. A pair that touches code, a code block, a link or an atom
+  stays text. Call it before `EntityDetection.apply`.
+
 ### Fixed
 
 - `RichTextMarkdown.decode` threw on `[`a`](u)`, a link whose label holds code:
