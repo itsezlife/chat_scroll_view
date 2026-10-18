@@ -5,11 +5,13 @@
 /// by decoding it back, so a dialect drift shows here.
 library;
 
+import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter_md/flutter_md.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/input_harness.dart';
@@ -94,6 +96,73 @@ void main() {
         ],
       );
     });
+  });
+
+  group('a message that begins with a marker character', () {
+    // What the viewport paints is what the fork's parser reads from the sent
+    // body: no backslash may reach it, and a hashtag must be a hashtag hit.
+    Future<(String, List<String>, ChatInlineHit?)> sendAndRead(
+      WidgetTester tester,
+      String typed,
+    ) async {
+      final rig = await InputRig.pump(
+        tester,
+        services: await _services(tester),
+      );
+      await rig.typeInField(tester, typed);
+      await rig.tapAction(tester, ChatComposerActions.primary);
+      await _settle(tester);
+
+      final body = rig.sent.single;
+      final markdown = Markdown.fromString(body);
+      final lines = [
+        for (final block in markdown.blocks)
+          if (block is MD$Paragraph)
+            block.spans.map((span) => span.text).join(),
+      ];
+      final selection = ChatSelectionController();
+      addTearDown(selection.dispose);
+      selection.putBody(1, markdown);
+      final hit = selection.inlineHitAt(messageId: 1, blockIndex: 0, offset: 1);
+      return (body, lines, hit);
+    }
+
+    testWidgets(
+      'a hashtag first is painted without a backslash, as a hashtag',
+      (tester) async {
+        final (body, lines, hit) = await sendAndRead(tester, '#design #travel');
+
+        expect(body, '[#design](hashtag:design) [#travel](hashtag:travel)');
+        expect(lines, ['#design #travel']);
+        expect(hit, isA<ChatInlineHit$Hashtag>());
+        expect((hit! as ChatInlineHit$Hashtag).tag, 'design');
+      },
+    );
+
+    testWidgets('a message that is only a hashtag', (tester) async {
+      final (_, lines, hit) = await sendAndRead(tester, '#tasks');
+
+      expect(lines, ['#tasks']);
+      expect((hit! as ChatInlineHit$Hashtag).tag, 'tasks');
+    });
+
+    testWidgets('an @name first is a mention hit with no backslash', (
+      tester,
+    ) async {
+      final (_, lines, hit) = await sendAndRead(tester, '@user hi');
+
+      expect(lines, ['@user hi']);
+      expect(hit, isA<ChatInlineHit$Mention$Username>());
+    });
+
+    for (final typed in ['1. x', '- x', '> x', '# x']) {
+      testWidgets('"$typed" typed as text stays text', (tester) async {
+        final (_, lines, hit) = await sendAndRead(tester, typed);
+
+        expect(lines, [typed]);
+        expect(hit, isNull);
+      });
+    }
   });
 
   group('an emoji-only draft', () {
