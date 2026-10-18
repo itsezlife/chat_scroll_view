@@ -11,7 +11,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'animate_to_disposition_test.dart' as animate_to_disposition_test;
 import 'benchmark/listview_bench_test.dart' as listview_bench_test;
 import 'chat_animator_test.dart' as chat_animator_test;
-import 'chat_body_linkify_test.dart' as chat_body_linkify_test;
 import 'chat_chrome_delegate_test.dart' as chat_chrome_delegate_test;
 import 'chat_chunk_fetch_scheduler_test.dart'
     as chat_chunk_fetch_scheduler_test;
@@ -29,6 +28,7 @@ import 'chat_scroll_motion_test.dart' as chat_scroll_motion_test;
 import 'chat_scroll_physics_test.dart' as chat_scroll_physics_test;
 import 'chat_sender_run_layout_test.dart' as chat_sender_run_layout_test;
 import 'chat_stretch_overscroll_test.dart' as chat_stretch_overscroll_test;
+import 'viewport_never_detects_test.dart' as viewport_never_detects_test;
 import 'widgets/chat_absent_build_test.dart' as chat_absent_build_test;
 import 'widgets/chat_animate_path_test.dart' as chat_animate_path_test;
 import 'widgets/chat_api_test.dart' as chat_api_test;
@@ -125,7 +125,6 @@ void main() {
   group('animate_to_disposition_test.dart', animate_to_disposition_test.main);
   group('benchmark/listview_bench_test.dart', listview_bench_test.main);
   group('chat_animator_test.dart', chat_animator_test.main);
-  group('chat_body_linkify_test.dart', chat_body_linkify_test.main);
   group('chat_chrome_delegate_test.dart', chat_chrome_delegate_test.main);
   group(
     'chat_chunk_fetch_scheduler_test.dart',
@@ -151,6 +150,7 @@ void main() {
   group('chat_scroll_physics_test.dart', chat_scroll_physics_test.main);
   group('chat_sender_run_layout_test.dart', chat_sender_run_layout_test.main);
   group('chat_stretch_overscroll_test.dart', chat_stretch_overscroll_test.main);
+  group('viewport_never_detects_test.dart', viewport_never_detects_test.main);
   group('widgets/chat_absent_build_test.dart', chat_absent_build_test.main);
   group('widgets/chat_animate_path_test.dart', chat_animate_path_test.main);
   group('widgets/chat_api_test.dart', chat_api_test.main);
