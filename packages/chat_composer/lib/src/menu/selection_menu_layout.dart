@@ -7,12 +7,11 @@ import 'package:chat_composer/src/menu/selection_menu_metrics.dart';
 /// floating toolbar's layout arithmetic as pure functions, so the numbers are
 /// testable without a widget.
 ///
-/// Sizes are logical pixels; `FloatingToolbar.java` line numbers name the
-/// reference.
+/// Sizes are logical pixels.
 abstract final class SelectionMenuLayout {
   /// Width of a main-row item whose label is [textWidth] wide: the label and
   /// its padding, at least 48, with 24 at the outer end of the first and the
-  /// last item (`layoutMainPanelItems`, :1004-1049).
+  /// last item.
   static double mainItemWidth(
     double textWidth, {
     required bool first,
@@ -33,7 +32,7 @@ abstract final class SelectionMenuLayout {
   /// An item stays while it fits next to the More button; the last item of the
   /// whole list may take the button's room when everything else already fits.
   /// The first one that does not fit ends the row, and it and every item after
-  /// it go to the overflow page (:1027-1041). [budget] is the toolbar's width.
+  /// it go to the overflow page. [budget] is the toolbar's width.
   static ({int count, double width}) mainRow({
     required List<double> textWidths,
     required double budget,
@@ -64,7 +63,7 @@ abstract final class SelectionMenuLayout {
   }
 
   /// The toolbar's width budget on a [viewportWidth] wide screen:
-  /// `min(400, width - 2 * 16)` (:949-957).
+  /// `min(400, width - 2 * 16)`.
   static double budget(double viewportWidth) => math.min(
     SelectionMenuMetrics.maxWidth,
     viewportWidth - 2 * SelectionMenuMetrics.screenMargin,
@@ -72,7 +71,7 @@ abstract final class SelectionMenuLayout {
 
   /// Width of the overflow page for items whose labels are [textWidths] wide:
   /// the widest item (label and 18 dp each side, at least 48), and at least
-  /// the More button's 56 (:1088, :1133-1141). Capped at [budget], where the
+  /// the More button's 56. Capped at [budget], where the
   /// labels ellipsize.
   static double overflowWidth(List<double> textWidths, {double? budget}) {
     var width = SelectionMenuMetrics.moreWidth;
@@ -90,7 +89,7 @@ abstract final class SelectionMenuLayout {
 
   /// Height of the overflow page for [count] items when [rows] item rows fit
   /// above the back row: `rows` clamped to 2..4 and to [count], times 48, plus
-  /// the back row, plus half a row of peek when it scrolls (:1143-1150).
+  /// the back row, plus half a row of peek when it scrolls.
   static double overflowHeight(int count, {int rows = 4}) {
     final shown = math.min(
       SelectionMenuMetrics.maxOverflowRows,
@@ -102,15 +101,14 @@ abstract final class SelectionMenuLayout {
         peek;
   }
 
-  /// How many item rows fit in [suggestedHeight] of overflow page (:909).
+  /// How many item rows fit in [suggestedHeight] of overflow page.
   static int rowsIn(double suggestedHeight) =>
       ((suggestedHeight - SelectionMenuMetrics.moreHeight) /
               SelectionMenuMetrics.rowHeight)
           .floor();
 
   /// Where the card goes for a selection occupying [content] on a screen
-  /// whose usable area is [viewport] (`refreshCoordinatesAndOverflowDirection`,
-  /// :608-662).
+  /// whose usable area is [viewport].
   ///
   /// [main] is the main row's size; [overflowWidth] and [overflowCount] size
   /// the overflow page, none when [overflowCount] is zero. The card is
@@ -255,7 +253,7 @@ final class SelectionMenuPlacement {
 /// The card keeps its end edge (and its bottom edge when it grows upwards)
 /// while its size changes; the main row, the overflow list and the back row
 /// each keep to that edge too, which is what makes the page appear to unfold
-/// from the row instead of sliding in (:689-829).
+/// from the row instead of sliding in.
 final class SelectionMenuMorph {
   /// The morph between [main] and [overflow] for a card that grows
   /// [upwards], mirrored when [rtl].
@@ -279,7 +277,7 @@ final class SelectionMenuMorph {
   final bool rtl;
 
   /// The diagonal the card's size changes along, which sets the morph's
-  /// duration (:1166-1172).
+  /// duration.
   double get diagonal => math.sqrt(
     math.pow(main.width - overflow.width, 2) +
         math.pow(overflow.height - main.height, 2),

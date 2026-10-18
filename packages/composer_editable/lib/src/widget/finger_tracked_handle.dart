@@ -145,9 +145,9 @@ TextSelectionPoint fingerTrackedEndpointAtIndex({
 /// Follower delta for the **moving** handle (`overlay − physicalLeader`).
 ///
 /// Overlay follows `pointer + grabOffset`, then clamps into
-/// [fieldBoundsLocal] so the teardrop stays inside the text field (product
-/// override of ticket 09 unclamp — leaving the field clipped the handle on
-/// reverse/autoscroll). Hit-test still uses unclamped `pointer + grab`.
+/// [fieldBoundsLocal] so the teardrop stays inside the text field (an unclamped
+/// handle was clipped by the field on reverse drag and autoscroll). Hit-test
+/// still uses unclamped `pointer + grab`.
 Offset fingerTrackedMovingHandleDelta({
   required Offset pointerGlobal,
   required Offset grabOffset,

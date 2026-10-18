@@ -268,7 +268,7 @@ void main() {
       );
     });
 
-    // Ticket 12: post-reverse END DOWN — fixedBase == extentOffset.
+    // Post-reverse END DOWN — fixedBase == extentOffset.
     test('equal offsets + grab end → moving at end, fixed at start', () {
       expect(
         fingerTrackedExtentEndpointIndex(

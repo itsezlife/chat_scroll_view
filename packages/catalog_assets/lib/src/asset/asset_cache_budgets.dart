@@ -29,7 +29,7 @@ enum AssetTier {
 /// misses one sticker in twelve and 12 MiB one in three; 12 MiB of animations
 /// keeps the one screen of 256 px animated stickers (12 cells, 512 KiB each)
 /// just scrolled past, and half of the screen before it. The figures stay
-/// under the Android client's own (a 15 to 30 MB bitmap cache and a 10 MiB
+/// under the reference client's own (a 15 to 30 MB bitmap cache and a 10 MiB
 /// animation cache). Pinned bytes come out of the budget first, so a surface
 /// that shows more than a tier's budget leaves nothing for keep-alive; a host
 /// with a different device class sets its own.

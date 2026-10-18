@@ -8,11 +8,11 @@ import 'package:content_model/src/rich_text/normalization.dart';
 /// Internal to [EntityDetection]: it reports candidates, and the caller
 /// decides which survive (exclusions, overlaps, the budget).
 ///
-/// - **Username** (Android `MessageObject.urlPattern`): `@` after the start of
+/// - **Username** (the reference client's pattern): `@` after the start of
 ///   the text, whitespace or `(`, then 1 to 32 characters of `[A-Za-z0-9_]`.
 ///   The pattern would take the first 32 characters of a longer name; a name
 ///   is a whole word here, so a longer one is not a username.
-/// - **Hashtag** (the pattern, with iOS's Unicode letters): `#` after the same
+/// - **Hashtag** (the pattern, with Unicode letters): `#` after the same
 ///   boundary, then a letter or `_` and at least one more letter, mark, digit,
 ///   `_` or `.`. A sentence's closing dots are not part of the tag, and the
 ///   `#tag@name` form does not exist: the tag ends at the `@`.

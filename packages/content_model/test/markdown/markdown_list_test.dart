@@ -144,7 +144,7 @@ void main() {
   });
 
   group('decode: what the vendored encoder stored', () {
-    // Research 03 section 3.1: the shapes job_solution's composer wrote.
+    // The shapes earlier stored lists were written in.
     test('"- one" and "1. one"', () {
       expect(decode('- one'), RichText('one', const [Entity(0, 3, _bullet)]));
       expect(decode('1. one'), RichText('one', const [Entity(0, 3, _ordered)]));

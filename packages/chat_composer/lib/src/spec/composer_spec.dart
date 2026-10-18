@@ -73,8 +73,7 @@ final class ComposerSpec {
   /// The most code points the plain text of a message may have, or null for
   /// no limit.
   ///
-  /// The host sets it from its server configuration (Telegram's
-  /// `message_length_max` is 4096). The unit is code points of
+  /// The host sets it from its server configuration (a limit such as 4096). The unit is code points of
   /// `RichText.plain` (`ComposerController.length`): a surrogate pair counts
   /// once, nothing counts markdown delimiters, and formatting costs nothing.
   ///

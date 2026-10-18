@@ -149,7 +149,7 @@ class Revendor {
   // --- Refusals --------------------------------------------------------------
 
   /// The tool writes only to paths that exist; it never creates a vendored
-  /// directory, so a path drift (research 04's `widgets/` vs `widget/`) stops
+  /// directory, so a path drift (`widgets/` vs `widget/`) stops
   /// the run instead of growing a second tree.
   void _preflight(String oldVersion, String newVersion) {
     final missing = <String>[];

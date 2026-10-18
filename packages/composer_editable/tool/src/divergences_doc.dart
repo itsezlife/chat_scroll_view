@@ -1,6 +1,6 @@
 // Renders DIVERGENCES.md: the hand-written purposes (the template) plus the
 // facts the tool measures, so the origin label and the size of each divergence
-// cannot drift from the sources (research 04 found a label that had).
+// cannot drift from the sources (a hand-kept label once had).
 
 import 'dart:convert';
 import 'dart:io';

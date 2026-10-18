@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('fromPalette', () {
     test('the light palette gives the reference client\'s default theme', () {
-      // research 17 #9, #18, #19, #22.
       final tokens = SelectionMenuTokens.fromPalette(
         const ChromePalette.light(),
       );

@@ -6,7 +6,7 @@ import 'package:content_model/src/rich_text/entity_kind.dart';
 import 'package:content_model/src/rich_text/rich_text.dart';
 
 /// Turns bare URLs, emails, `@name` and `#tag` in a [RichText] into entities,
-/// with Telegram Android's rules, under a host's [DetectionPolicy].
+/// with the reference client's rules, under a host's [DetectionPolicy].
 ///
 /// One pure function for every caller: the composer's send path runs it on the
 /// text before encoding, the receive path runs it once on a body that carries
@@ -41,8 +41,7 @@ import 'package:content_model/src/rich_text/rich_text.dart';
 /// ## Budget
 ///
 /// At most [maxMatches] entities are made per text, and a text over
-/// [maxLength] characters is returned as it came (Android's caps in
-/// `MessageObject`). The entities earlier detection already left count
+/// [maxLength] characters is returned as it came (the reference client's caps). The entities earlier detection already left count
 /// against the [maxMatches]: that is what makes [apply] idempotent when a text
 /// has more matches than the cap.
 ///
@@ -51,12 +50,12 @@ import 'package:content_model/src/rich_text/rich_text.dart';
 /// [strip] is the inverse for loading a message into an editor: it takes back
 /// what [apply] made, so saving can detect again over what the user left.
 abstract final class EntityDetection {
-  /// The most entities one text gets (Android: `MessageObject.java:7666`).
+  /// The most entities one text gets (the reference client's cap).
   static const int maxMatches = 100;
 
   /// The longest text detection looks at, in UTF-16 code units; a longer one
-  /// is returned unchanged (Android skips texts of 20 480 characters or
-  /// more).
+  /// is returned unchanged (the reference client skips texts of 20 480
+  /// characters or more).
   static const int maxLength = 20480;
 
   /// [text] with the URLs, emails, usernames and hashtags [policy] asks for
@@ -172,7 +171,7 @@ abstract final class EntityDetection {
   }
 
   /// Of overlapping candidates (sorted by start, longer first) the longest
-  /// stays (Android `pruneOverlaps`).
+  /// stays (as the reference client prunes).
   static List<Entity> _longestWins(List<Entity> candidates) {
     final kept = <Entity>[];
     for (final candidate in candidates) {

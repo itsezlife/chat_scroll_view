@@ -8,7 +8,7 @@ import 'package:meta/meta.dart';
 /// the message's own line breaks.
 ///
 /// Pure geometry, so the sizes and the wrap are testable without a render
-/// tree. It is what Android's layout of a text made of equal boxes comes to
+/// tree. It is what the reference client's layout of a text made of equal boxes comes to
 /// (each emoji span reserves one square, and the line is as tall as the
 /// square).
 @immutable

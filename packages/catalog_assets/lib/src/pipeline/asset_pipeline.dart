@@ -28,7 +28,7 @@ final class AssetPipelineLimits {
          'every limit is at least one',
        );
 
-  /// Fetches running at once. The Android client runs 5 small and 2 large
+  /// Fetches running at once. The reference client runs 5 small and 2 large
   /// file loads; one lane of 6 serves both, because the size of a download
   /// is not known before it starts.
   final int maxConcurrentFetches;
