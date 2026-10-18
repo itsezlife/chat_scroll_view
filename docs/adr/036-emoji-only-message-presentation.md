@@ -5,7 +5,7 @@ present it: no bubble, enlarged, a single emoji as a sticker-sized animation.
 The host classifies the body with a pure function in `content_model` and passes
 the viewport a body kind; the viewport never re-detects.
 
-**Status**: Accepted, amended for sticker playback and the tap-interaction seams, for per-platform presentation, and for the size of a unicode emoji in a bubble and the configurable desktop cap  
+**Status**: Accepted, amended for sticker playback and the tap-interaction seams, for per-platform presentation, for the size of a unicode emoji in a bubble and the configurable desktop cap, and for the message menu's scrim on a message without a bubble  
 **Date**: 2026-10-18  
 **Relates to**: [ADR 012](012-cross-platform-selection-policies.md), [ADR 021](021-content-identity-and-collections.md), [ADR 022](022-asset-cache-and-media-pipeline.md), [ADR 029](029-host-integration.md)
 
@@ -225,6 +225,48 @@ iOS and Desktop where they differ).
 - Android per-layer pauses beyond the activity and low-end scrolling; how the power-saver level is loaded.
 - Desktop double click on a sticker and the exact reasons behind its paused state; Desktop's self-chat handling of an outgoing interaction.
 - Whether a tap near the sticker replays on a real phone (the open question above).
+
+## Amendment: the message menu's scrim on a message without a bubble
+
+An emoji-only message has no bubble, so the mobile **message menu** sheet
+([ADR 016](016-cross-platform-message-menu.md)) had no bubble outline to leave
+undimmed. The example reported one rounded rectangle (radius 12) around the
+whole chrome box (reply panel, items, pill, reactions), which lit the gaps
+between the parts and read as a bubble that is not there. Decided from the
+two mobile clients (Android is the authority); Desktop's menu is a popup with
+no dim.
+
+| Concern | Android | iOS | Here |
+| ------- | ------- | --- | ---- |
+| Dim colour and level | `scrimPaint` is a plain `new Paint()` (black), alpha `0.2` at most (`dimBehindView(view, true)` asks `0.2f`), `ChatActivity.java:4509`, `10578-10590`, `10633-10684` | `contextMenu.dimColor`: black at `0.6` (dark), `#000a26` at `0.2` (day), `DefaultDarkPresentationTheme.swift:767`, `DefaultDayPresentationTheme.swift:1044`; over a zoom blur of the chat (`ContextControllerImpl.swift:132-137`, `1266-1285`) | Android's: black, `0.2` on a dark scheme (the presenter's `scrimColor`); not changed |
+| Fade | 320 ms, `EASE_OUT_QUINT`, `ChatActivity.java:10690-10691` | 0.2 s alpha (`ContextControllerImpl.swift:534`) | the presenter's linear 320 ms; not changed |
+| Lifted or a hole | **Lifted**: the scrim rect covers the whole view, then the scrim cell is drawn again over it, clipped to the cell's own box and to the list's visible area, `ChatActivity.java:17649-17651`, `17805-17822` | **Lifted**: the message's node is taken out of the list above the blur (`ChatMessageContextControllerContentSource.swift:76-105`) | a hole in the dim over the live message; the pixels are the same, the dim is not repainted on the message |
+| What stays bright | whatever the cell paints: no bubble is drawn for an emoji or a sticker (`MessageObject.java:11078`, `shouldDrawWithoutBackground`), so the art, the time pill, the reply panel and the reactions, each in its own shape; transparent pixels of the cell stay dimmed | the node's whole content (art, date and status, reply info, forward info), the same | the parts, each in its own shape, with square art |
+| Time pill | part of the cell, so lifted | `dateAndStatusNode` is a subnode of the lifted node, so lifted | lifted when it is shown (Desktop's hidden pill is not) |
+| Geometry of the lift | the cell's drawn pixels; no outline is added | `contextContentFrame` is the art frame, plus 20 pt under it for the text layout (`ChatMessageAnimatedStickerItemNode.swift:1568-1590`); it places the menu, the node itself is lifted whole | `ChatEmojiGeometry.content` (the items' area or the sticker's art, without the iOS inset and without the strip reserved for the pill) |
+| Sticker restarts on open | `restartSticker(cell)` when the dim starts, `ChatActivity.java:10639`, `32916` | not found | not done: playback is the host's (see the playback amendment) |
+
+`ChatMessageSurfaceParts` (a `ShapeBorder`, a union of rectangles each in an
+outline of its own) is the seam: a body that has no outline passes it as the
+`shape` of `ChatMessageSurfaceBounds`, and the presenter's hole follows it with
+no new request field. It is root, not example, because every bubble-less body
+(a sticker, a round video, an enlarged emoji run) needs the same thing. The
+example's `emojiSurfaceParts` builds it from the chrome placement it already
+has: the body's `content`, the header panel (the platform's radius), the pill
+(its fully rounded or radius-12 shape) and each reaction chip.
+
+| Divergence | Value taken | Why |
+| ---------- | ----------- | --- |
+| Square art | the art's rect has no corner radius | the clients draw the art's pixels; a glyph run or a sticker has no outline to round |
+| Hole instead of lift | the dim is cut where the message is, not painted under a copy | the viewport paints under the route; the transparent pixels inside the art's rect are therefore lit, which the clients keep dimmed |
+| Light scheme dim | `0.08` (the presenter's softening) | Android's `0.2` is a dark-chat value; unchanged by this amendment |
+| No blur (iOS) | none | the sheet has no backdrop filter; Android's is a flat dim |
+
+Not verified: Android's `ChatMessageCell` pill and reply paint for a
+sticker-layout cell at scrim time were read as part of `child.draw`, not stepped
+through; the iOS lift of the reply node was read from the subnode list, not from
+a device; the exact day-theme dim is `#000a26` at 0.2 per the source above and
+was not compared with a screenshot. Nothing was run on a device.
 
 ## Rejected
 

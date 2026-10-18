@@ -1,5 +1,25 @@
 ## Unreleased
 
+### Message menu scrim on a message without a bubble
+- **Fixed**: the mobile sheet opened on an emoji-only message dimmed the chat
+  around one rounded rectangle over the whole chrome box (reply panel, items,
+  pill, reactions): a bubble outline the message does not have, with the gaps
+  between its parts lit. The reference clients draw the message again above a
+  flat dim, so only what it paints stays bright. The example now reports each
+  painted part: the glyph run's or the sticker's art (square, from
+  `ChatEmojiGeometry.content`, without the strip the chrome reserves), the
+  pill, the reply panel and each reaction chip, in the placement of the
+  Android and iOS emoji chrome, left-to-right and right-to-left. A bubble's
+  menu is unchanged.
+- **ADDED**: `ChatMessageSurfaceParts` and `ChatMessageSurfacePart`, a
+  `ShapeBorder` that is the union of rectangles, each in an outline of its
+  own, in the coordinates of the reported box. Pass it as
+  `ChatMessageSurfaceBounds.shape` for a body without one outline (a sticker,
+  an enlarged emoji run, a round video); the scrim hole follows it and the
+  request is unchanged. See ADR 016 and ADR 036.
+- **EXAMPLE**: `EmojiReactionsRow.chipRects` (the row's chips), and
+  `emojiSurfaceParts` in `emoji_message/`.
+
 ### Emoji in a bubble: set at the font's height; the desktop cap is configurable
 - **Fixed**: a unicode emoji in an ordinary markdown body was drawn at the font
   size (15 px text, 15 px emoji), while Android draws it at the font's height

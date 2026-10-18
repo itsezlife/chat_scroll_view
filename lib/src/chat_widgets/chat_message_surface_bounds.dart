@@ -32,7 +32,9 @@ class ChatMessageSurfaceBounds extends StatefulWidget {
   final int messageId;
 
   /// Outline of the painted surface inside the [child] box, such as the
-  /// bubble's [RoundedRectangleBorder] with per-corner radii.
+  /// bubble's [RoundedRectangleBorder] with per-corner radii, or a
+  /// [ChatMessageSurfaceParts] for a message without a bubble whose painted
+  /// pieces (art, time pill, reply panel) are separate.
   ///
   /// Only the message menu scrim hole reads it; Inside / Outside hit-testing
   /// uses the box rect. Directional radii resolve against the menu overlay's
