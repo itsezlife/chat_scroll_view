@@ -6,6 +6,7 @@
 library;
 
 export 'src/input/composer_controller.dart';
+export 'src/input/composer_paste.dart';
 export 'src/input/soft_keyboard_mode.dart';
 export 'src/query/composer_input_query.dart';
 export 'src/query/composer_query_kind.dart';
@@ -19,6 +20,8 @@ export 'src/text/composer_entity_styles.dart';
 export 'src/text/composer_text_controller.dart';
 export 'src/text/content_span_builder.dart';
 export 'src/text/inline_content_span_builder.dart';
+export 'src/text/mention_downgrade.dart';
 export 'src/view/composer_bottom_fade.dart';
+export 'src/view/composer_length_counter.dart';
 export 'src/view/composer_metrics.dart';
 export 'src/view/composer_view.dart';
