@@ -51,6 +51,23 @@ Offset _pointOn(
   return (surface as RenderBox).localToGlobal(boxes.first.center);
 }
 
+/// A point on the spoiler of [messageId] that follows the body when the rows
+/// shift. A message selection makes room for the checkmarks, and a body in
+/// that mode mounts no selection surface to ask, so the point is measured
+/// once, outside the mode, relative to the body.
+Offset Function() _followSpoiler(
+  WidgetTester tester,
+  ChatSelectionController selection,
+  int messageId,
+  int from,
+  int to,
+) {
+  final body = find.byKey(ValueKey('md-$messageId'));
+  final inBody =
+      _pointOn(selection, messageId, from, to) - tester.getTopLeft(body);
+  return () => tester.getTopLeft(body) + inBody;
+}
+
 /// The inline layer through the real host path: [ChatMarkdownBody] in a
 /// [ChatScrollView], taps arbitrated by the viewport's selection pointer.
 void main() {
@@ -370,15 +387,105 @@ void main() {
     ) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
-      final spoiler = _pointOn(selection, 1, 2, 8);
+      final spoiler = _followSpoiler(tester, selection, 1, 2, 8);
       selection.startSelection(2);
       await tester.pumpAndSettle();
 
-      await tester.tapAt(spoiler);
+      await tester.tapAt(spoiler());
       await tester.pumpAndSettle();
 
       expect(selection.isSelected(1), isTrue);
       expect(idleTaps, isEmpty);
+      expect(selection.spoilers.isRevealed(1), isFalse);
+    });
+
+    inlineTest('a tap on a hidden spoiler in message selection can deselect', (
+      tester,
+    ) async {
+      final selection = newSelection();
+      await pump(tester, selection, {1: 'x ||secret|| y'});
+      final spoiler = _followSpoiler(tester, selection, 1, 2, 8);
+      selection.startSelection(1);
+      await tester.pumpAndSettle();
+
+      await tester.tapAt(spoiler());
+      await tester.pumpAndSettle();
+
+      expect(selection.isSelectionMode, isFalse);
+      expect(
+        selection.spoilers.isRevealed(1),
+        isFalse,
+        reason: 'the tap that ends the mode is still a selection tap',
+      );
+    });
+
+    inlineTest('a tap on the hidden spoiler of a selected row deselects it', (
+      tester,
+    ) async {
+      final selection = newSelection();
+      await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
+      final spoiler = _followSpoiler(tester, selection, 1, 2, 8);
+      selection
+        ..startSelection(1)
+        ..startSelection(2);
+      await tester.pumpAndSettle();
+
+      await tester.tapAt(spoiler());
+      await tester.pumpAndSettle();
+
+      expect(selection.isSelected(1), isFalse);
+      expect(selection.isSelected(2), isTrue);
+      expect(
+        selection.spoilers.isRevealed(1),
+        isFalse,
+        reason: 'a selected row keeps its body hittable on mobile (ADR 015)',
+      );
+    });
+
+    inlineTest('leaving message selection brings the reveal on tap back', (
+      tester,
+    ) async {
+      final selection = newSelection();
+      await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
+      final spoiler = _followSpoiler(tester, selection, 1, 2, 8);
+      selection.startSelection(2);
+      await tester.pumpAndSettle();
+      await tester.tapAt(spoiler());
+      await tester.pumpAndSettle();
+      selection.clear();
+      await tester.pumpAndSettle();
+
+      await tester.tapAt(spoiler());
+      await tester.pumpAndSettle();
+
+      expect(selection.spoilers.isRevealed(1), isTrue);
+      expect(idleTaps, isEmpty);
+    });
+
+    inlineTest('a live drag-selection preview is a selection mode too', (
+      tester,
+    ) async {
+      final selection = newSelection();
+      await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
+
+      selection.updateDragSelection({2});
+      expect(selection.spoilers.tapReveals, isFalse);
+
+      selection.clearDragSelection();
+      expect(selection.spoilers.tapReveals, isTrue);
+    });
+
+    inlineTest('a committed selection taken by programmatic ids is a mode', (
+      tester,
+    ) async {
+      final selection = newSelection();
+      await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
+
+      selection.replaceSelectedIds({2});
+      expect(selection.spoilers.tapReveals, isFalse);
+
+      selection.replaceSelectedIds({});
+      expect(selection.spoilers.tapReveals, isTrue);
     });
 
     inlineTest('revealed state survives the row leaving and coming back', (
@@ -509,6 +616,42 @@ void main() {
     );
 
     inlineTest(
+      'a click on a hidden spoiler in message selection toggles the row',
+      (tester) async {
+        final selection = desktop();
+        await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
+        final spoiler = _followSpoiler(tester, selection, 1, 2, 8);
+        selection.startSelection(2);
+        await tester.pumpAndSettle();
+
+        await click(tester, spoiler());
+
+        expect(selection.isSelected(1), isTrue);
+        expect(selection.spoilers.isRevealed(1), isFalse);
+        expect(interactions, isEmpty);
+      },
+      platform: TargetPlatform.macOS,
+    );
+
+    inlineTest(
+      'leaving message selection restores the reveal on click',
+      (tester) async {
+        final selection = desktop();
+        await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
+        final spoiler = _followSpoiler(tester, selection, 1, 2, 8);
+        selection.startSelection(2);
+        await tester.pumpAndSettle();
+        selection.clear();
+        await tester.pumpAndSettle();
+
+        await click(tester, spoiler());
+
+        expect(selection.spoilers.isRevealed(1), isTrue);
+      },
+      platform: TargetPlatform.macOS,
+    );
+
+    inlineTest(
       'a secondary click on a hidden spoiler opens the menu only',
       (tester) async {
         final selection = desktop();
@@ -542,6 +685,76 @@ void main() {
 
         expect(selection.isTextSelectionActive, isTrue);
         expect(selection.spoilers.isRevealed(1), isTrue);
+      },
+      platform: TargetPlatform.macOS,
+    );
+  });
+
+  group('a hold on a hidden spoiler', () {
+    const hold = Duration(milliseconds: 800);
+
+    // Pointer events carry their own time, which the engine measures; the
+    // pump moves the timers (the viewport's long press) the same way.
+    Future<void> press(
+      WidgetTester tester,
+      Offset at, {
+      PointerDeviceKind kind = PointerDeviceKind.touch,
+    }) async {
+      final gesture = await tester.createGesture(kind: kind);
+      await gesture.down(at);
+      await tester.pump(hold);
+      await gesture.up(timeStamp: hold);
+      if (kind == PointerDeviceKind.mouse) await gesture.removePointer();
+      await tester.pumpAndSettle();
+    }
+
+    inlineTest('on a touch body is a long press, not a reveal', (tester) async {
+      final selection = newSelection();
+      await pump(tester, selection, {1: 'x ||secret|| y'});
+
+      await press(tester, _pointOn(selection, 1, 2, 8));
+
+      expect(selection.isSelected(1), isTrue);
+      expect(selection.spoilers.isRevealed(1), isFalse);
+    });
+
+    inlineTest(
+      'with a mouse and the default timeout reveals nothing',
+      (tester) async {
+        final selection = newSelection(
+          policy: const ChatSelectionPolicy.desktop(),
+        );
+        await pump(tester, selection, {1: 'x ||secret|| y'});
+
+        await press(
+          tester,
+          _pointOn(selection, 1, 2, 8),
+          kind: PointerDeviceKind.mouse,
+        );
+
+        expect(selection.spoilers.isRevealed(1), isFalse);
+        expect(idleTaps, isEmpty);
+      },
+      platform: TargetPlatform.macOS,
+    );
+
+    inlineTest(
+      'with a mouse and no timeout is a click, as on the desktop',
+      (tester) async {
+        final selection = newSelection(
+          policy: const ChatSelectionPolicy.desktop(),
+        );
+        selection.spoilers.tapTimeout = null;
+        await pump(tester, selection, {1: 'x ||secret|| y'});
+
+        await press(
+          tester,
+          _pointOn(selection, 1, 2, 8),
+          kind: PointerDeviceKind.mouse,
+        );
+
+        expect(selection.spoilers.isRevealed(1), isTrue);
+        expect(idleTaps, isEmpty);
       },
       platform: TargetPlatform.macOS,
     );
