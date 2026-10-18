@@ -895,9 +895,22 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                             padding: EdgeInsetsDirectional.only(end: inlineEnd),
                             child: child,
                           ),
-                          child: _buildChatRegion(
-                            search: search,
-                            mobilePanel: mobilePanel,
+                          // Above the chat and the composer both: the copy
+                          // shortcut reaches here from either one's focus.
+                          // The composer's own copy sits below and wins when
+                          // it has a selection; otherwise its action is
+                          // disabled and the intent comes up to this one.
+                          child: Actions(
+                            actions: <Type, Action<Intent>>{
+                              CopySelectionTextIntent: _CopySelectedAction(
+                                selection: _selection,
+                                onCopy: _copySelected,
+                              ),
+                            },
+                            child: _buildChatRegion(
+                              search: search,
+                              mobilePanel: mobilePanel,
+                            ),
                           ),
                         ),
                       ),
@@ -1231,5 +1244,30 @@ class _ChatSideControlsHost extends StatelessWidget {
         pageDown: pageDown,
       ),
     );
+  }
+}
+
+/// The copy shortcut ([CopySelectionTextIntent]) over the chat: it copies
+/// what is selected, the messages or the text range, through the same path as
+/// the selection bar's Copy.
+///
+/// Disabled with nothing selected, so a focused field's own copy (or the
+/// platform's) is left alone, and for a cut, which copies nothing out of a
+/// chat.
+class _CopySelectedAction extends Action<CopySelectionTextIntent> {
+  _CopySelectedAction({required this.selection, required this.onCopy});
+
+  final ChatSelectionController selection;
+  final VoidCallback onCopy;
+
+  @override
+  bool isEnabled(CopySelectionTextIntent intent) =>
+      !intent.collapseSelection &&
+      (selection.isSelectionMode || selection.isTextSelectionActive);
+
+  @override
+  Object? invoke(CopySelectionTextIntent intent) {
+    onCopy();
+    return null;
   }
 }
