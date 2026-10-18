@@ -4,6 +4,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_chrome.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_glyphs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_service_colors.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/widgets.dart';
 
 /// The time string of the pill: `09:05`, or `edited 09:05` for an edited
@@ -69,9 +70,12 @@ EmojiMetaMetrics measureEmojiMeta({
 /// The pill: a translucent service-coloured shape holding the views, the time
 /// and the delivery state, laid out by [layout] (the platform's).
 ///
-/// A mouse click on it is not a message tap ([ChatMessageTapBarrier]): the
-/// pill is the status of the message, not the message. Desktop reveals it on
-/// hover, so the pointer that reveals it is the one most likely to press it.
+/// A mouse press on it is not a message press ([ChatMessageTapBarrier]): the
+/// pill is the status of the message, not the message, so no drag-select, no
+/// text selection and no sticker tap starts under it. What a primary click on
+/// it does instead is the host's, [onClick] (Telegram Desktop selects the
+/// message). A secondary click still opens the message's menu, and touch never
+/// reaches the pill's own handling: a tap on it is a message tap.
 class EmojiMetaPill extends StatelessWidget {
   /// Draws [time] (and [views]) in a pill shaped by [layout].
   const EmojiMetaPill({
@@ -80,6 +84,7 @@ class EmojiMetaPill extends StatelessWidget {
     required this.colors,
     required this.time,
     this.views,
+    this.onClick,
     super.key,
   });
 
@@ -98,6 +103,11 @@ class EmojiMetaPill extends StatelessWidget {
   /// The views count, or null.
   final int? views;
 
+  /// What a primary mouse or trackpad click on the pill does, or null for
+  /// nothing. A barred press never reaches the viewport's tap, so the pill
+  /// answers it itself.
+  final VoidCallback? onClick;
+
   @override
   Widget build(BuildContext context) {
     final style = emojiMetaStyle(chrome, colors.text);
@@ -105,62 +115,78 @@ class EmojiMetaPill extends StatelessWidget {
     final status = layout.status;
     final icon = layout.viewsIcon;
     final count = layout.viewsCountOrigin;
-    return ChatMessageTapBarrier(
-      child: SizedBox.fromSize(
-        size: size,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: colors.pill,
-            borderRadius: BorderRadius.circular(chrome.pillRadius(size.height)),
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: <Widget>[
-              if (icon != null)
-                Positioned.fromRect(
-                  rect: icon,
-                  child: CustomPaint(
-                    painter: EmojiViewsIconPainter(color: colors.text),
-                  ),
+    final pill = SizedBox.fromSize(
+      size: size,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.pill,
+          borderRadius: BorderRadius.circular(chrome.pillRadius(size.height)),
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: <Widget>[
+            if (icon != null)
+              Positioned.fromRect(
+                rect: icon,
+                child: CustomPaint(
+                  painter: EmojiViewsIconPainter(color: colors.text),
                 ),
-              if (count != null && views != null)
-                Positioned(
-                  left: count.dx,
-                  top: count.dy,
-                  child: Text(
-                    emojiViewsLabel(views!),
-                    style: style,
-                    maxLines: 1,
-                    softWrap: false,
-                    textScaler: TextScaler.noScaling,
-                  ),
-                ),
+              ),
+            if (count != null && views != null)
               Positioned(
-                left: layout.timeOrigin.dx,
-                top: layout.timeOrigin.dy,
+                left: count.dx,
+                top: count.dy,
                 child: Text(
-                  time,
+                  emojiViewsLabel(views!),
                   style: style,
                   maxLines: 1,
                   softWrap: false,
                   textScaler: TextScaler.noScaling,
                 ),
               ),
-              if (status != null)
-                Positioned.fromRect(
-                  rect: status,
-                  child: CustomPaint(
-                    painter: EmojiTicksPainter(
-                      state: layout.state,
-                      color: colors.text,
-                      vector: chrome.usesVectorTicks,
-                    ),
+            Positioned(
+              left: layout.timeOrigin.dx,
+              top: layout.timeOrigin.dy,
+              child: Text(
+                time,
+                style: style,
+                maxLines: 1,
+                softWrap: false,
+                textScaler: TextScaler.noScaling,
+              ),
+            ),
+            if (status != null)
+              Positioned.fromRect(
+                rect: status,
+                child: CustomPaint(
+                  painter: EmojiTicksPainter(
+                    state: layout.state,
+                    color: colors.text,
+                    vector: chrome.usesVectorTicks,
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
+    );
+    return ChatMessageTapBarrier(
+      child: onClick == null
+          ? pill
+          // Inside the barrier, so it wins the arena as the barrier's contract
+          // says. Mouse and trackpad only: a touch tap is the viewport's, which
+          // toggles the row in message selection and opens the idle chrome
+          // otherwise. A secondary button is not this recognizer's either, so
+          // the message menu still opens.
+          : GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              supportedDevices: const <PointerDeviceKind>{
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.trackpad,
+              },
+              onTap: onClick,
+              child: pill,
+            ),
     );
   }
 }
