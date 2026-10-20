@@ -155,8 +155,8 @@ void main() {
       expect(g.content, _rect(0, 0, 98, 98));
     });
 
-    test('a header takes 45 pt off the wrap', () {
-      // 19 pt font, box 23: floor(200 / 23) = 8; floor(155 / 23) = 6.
+    test('a header does not narrow the emoji, which keep the full wrap', () {
+      // 19 pt font, box 23: floor(200 / 23) = 8, under a header too.
       final free = _geometry(_glyphs(20), policy: policy, maxWidth: 200);
       final under = _geometry(
         _glyphs(20),
@@ -166,7 +166,7 @@ void main() {
       );
 
       expect(free.content.width, 8 * 23);
-      expect(under.content.width, 6 * 23);
+      expect(under.content.width, 8 * 23);
     });
   });
 
