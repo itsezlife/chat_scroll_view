@@ -538,9 +538,34 @@ void main() {
 
       expect(header(tester).right, near(340 - 12));
       expect(header(tester).bottom, greaterThan(body(tester).top));
+      // The reply takes the room beside the emoji; the emoji keep their width.
+      expect(header(tester).overlaps(body(tester)), isFalse);
 
       await pump(tester, _three, platform: _ios, header: reply, outgoing: true);
       expect(header(tester).left, near(14));
+      expect(header(tester).overlaps(body(tester)), isFalse);
+    });
+
+    testWidgets('puts a reply above ten emoji it has no room beside', (
+      tester,
+    ) async {
+      final ten = EmojiOnly([
+        for (var i = 0; i < 10; i++)
+          const EmojiOnlyItem(ContentKey.unicode('\u{1F600}')),
+      ]);
+      for (final outgoing in [false, true]) {
+        await pump(
+          tester,
+          ten,
+          platform: _ios,
+          header: reply,
+          outgoing: outgoing,
+          width: 300,
+        );
+
+        expect(header(tester).overlaps(body(tester)), isFalse);
+        expect(header(tester).bottom, lessThanOrEqualTo(body(tester).top));
+      }
     });
 
     testWidgets('the default colour is #748391 at 0.45; a wallpaper makes '

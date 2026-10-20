@@ -186,8 +186,8 @@ void main() {
       expect(policy.gatesOnStickerPermission, isFalse);
     });
 
-    test('a header takes 45 pt off the wrap width', () {
-      expect(policy.wrapLimitUnderHeader(400).of(300), 255);
+    test('a header does not narrow the emoji, which keep the full wrap', () {
+      expect(policy.wrapLimitUnderHeader(400).of(300), 300);
     });
 
     test('the header is beside both layouts, and nothing mirrors', () {

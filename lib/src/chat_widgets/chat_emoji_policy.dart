@@ -76,8 +76,8 @@ final class ChatEmojiWrapLimit {
 ///   the header capping the wrap at a share of the screen, and the chat's
 ///   sticker permission gating the whole feature;
 /// - [$Ios]: a font table by the longer of the longest line and the line count,
-///   a fixed sticker in an inset, the header beside both layouts and taking a
-///   fixed width off the wrap;
+///   a fixed sticker in an inset, the header beside both layouts, with the
+///   emoji keeping their full wrap (the header's width is capped by its host);
 /// - [$Desktop]: fixed image boxes, at most three regular emoji by default
 ///   (more is an ordinary bubble; the host may move the cap), a fixed sticker,
 ///   the header beside when it fits, and a layout that mirrors in a
@@ -266,9 +266,6 @@ final class ChatEmojiPolicy$Ios extends ChatEmojiPolicy {
   /// The margin around the sticker, on each side.
   static const double inset = 10;
 
-  /// What a header takes off the wrap width.
-  static const double headerReduction = 45;
-
   @override
   double fontSizeFor(EmojiOnly emojiOnly) =>
       _fonts[math.min(emojiOnly.dimension, _fonts.length) - 1];
@@ -287,7 +284,7 @@ final class ChatEmojiPolicy$Ios extends ChatEmojiPolicy {
 
   @override
   ChatEmojiWrapLimit wrapLimitUnderHeader(double parentWidth) =>
-      const ChatEmojiWrapLimit(reduction: headerReduction);
+      ChatEmojiWrapLimit.none;
 
   @override
   ChatEmojiHeaderPlacement headerPlacementFor(ChatEmojiLayoutKind kind) =>

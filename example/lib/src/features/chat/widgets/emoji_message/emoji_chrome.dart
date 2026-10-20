@@ -184,6 +184,7 @@ final class EmojiChromeInput {
     this.headerShape,
     this.header,
     this.reactions,
+    this.headerAbove = false,
   });
 
   /// The body's geometry, with the strip the chrome asked for.
@@ -206,6 +207,10 @@ final class EmojiChromeInput {
 
   /// The reactions row's size, or null for none.
   final Size? reactions;
+
+  /// Whether the header goes above the body instead of beside it, when the
+  /// chrome says there is no room beside (see [EmojiChrome.headerGoesAbove]).
+  final bool headerAbove;
 }
 
 /// Where everything is, in the row frame.
@@ -329,6 +334,21 @@ sealed class EmojiChrome {
     required EmojiHeaderShape shape,
     required EmojiHeaderText text,
   });
+
+  /// The widest a header's text may be, in a row [rowWidth] wide beside a body
+  /// [bodyWidth] wide. [isSticker] is false for emoji text.
+  double headerLineLimit({
+    required double rowWidth,
+    required double bodyWidth,
+    required bool isSticker,
+    required bool outgoing,
+  }) => isSticker ? rowWidth - bodyWidth - 24 : rowWidth - 24;
+
+  /// Whether a reply goes above the body, as no room beside it is left for
+  /// the header: [beside] is [headerLineLimit] for it. Android and desktop
+  /// never do.
+  bool headerGoesAbove({required double beside, required bool isSticker}) =>
+      false;
 
   /// Sets everything in the row frame.
   EmojiChromeLayout layout(EmojiChromeInput input);
@@ -630,6 +650,28 @@ final class EmojiChrome$Android extends EmojiChrome {
 
   // 1.6: beside the sticker; an outgoing one at 23 - 7 = 16 from the row's
   // left edge, an incoming one 17 - 7 + 12 - 3... = 18 from the art's end.
+  /// An outgoing reply beside a sticker is pinned 16 from the row's left
+  /// (`_besideSticker`) and ends 18 short of the sticker's box, as an incoming
+  /// one starts 18 past it. So the text is capped at the room left of the box
+  /// less those and the reply panel's 25 of padding (see `headerSize`).
+  @override
+  double headerLineLimit({
+    required double rowWidth,
+    required double bodyWidth,
+    required bool isSticker,
+    required bool outgoing,
+  }) {
+    if (!isSticker || !outgoing) {
+      return super.headerLineLimit(
+        rowWidth: rowWidth,
+        bodyWidth: bodyWidth,
+        isSticker: isSticker,
+        outgoing: outgoing,
+      );
+    }
+    return rowWidth - bodyWidth - 16 - 18 - 25;
+  }
+
   Rect _besideSticker(
     EmojiHeaderShape shape,
     Size size,
@@ -698,6 +740,62 @@ final class EmojiChrome$Ios extends EmojiChrome {
 
   /// An incoming header's end, from the row's right: `edgeInset + 9` (2.5).
   static const double incomingHeaderRight = 12;
+
+  /// The bubble's edge inset of the Telegram-iOS chat layout
+  /// (`ChatMessageItemCommon.swift`, the bubble constants).
+  static const double bubbleEdgeInset = 3;
+
+  /// The bubble's left content inset of the Telegram-iOS chat layout.
+  static const double bubbleContentInsetLeft = 6;
+
+  /// The reply's room beside the content, as `ChatMessageStickerItemNode`
+  /// measures it: the row less the content (at least 160 wide) and the
+  /// insets, clamped to 60...200, less 20, and less 24 more for emoji text.
+  /// The reply takes the room beside the content; the content keeps its
+  /// width. So nothing overlaps, and the reply's text wraps.
+  @override
+  double headerLineLimit({
+    required double rowWidth,
+    required double bodyWidth,
+    required bool isSticker,
+    required bool outgoing,
+  }) {
+    // Stickers keep the shared rule: their goldens were not wrong.
+    if (isSticker) {
+      return super.headerLineLimit(
+        rowWidth: rowWidth,
+        bodyWidth: bodyWidth,
+        isSticker: isSticker,
+        outgoing: outgoing,
+      );
+    }
+    final room = math
+        .min(
+          200,
+          math.max(
+            60,
+            rowWidth -
+                math.max(bodyWidth, 160) -
+                20 -
+                bubbleEdgeInset * 2 -
+                bubbleContentInsetLeft,
+          ),
+        )
+        .toDouble();
+    return room - 20 - (isSticker ? 0 : 24);
+  }
+
+  /// The least room beside the emoji text a reply may have. Under it the reply
+  /// goes above the text: with no room left, a panel beside would overlap the
+  /// emoji. A placement of ours, not Telegram's.
+  static const double minimumBesideText = 40;
+
+  /// The gap between an above reply and the text.
+  static const double aboveTextGap = 4;
+
+  @override
+  bool headerGoesAbove({required double beside, required bool isSticker}) =>
+      !isSticker && beside < minimumBesideText;
 
   /// A reply panel's height: the two lines' metrics are not in the sources, the
   /// research gives about 40 (`ChatMessageReplyInfoNode`, 2.5).
@@ -840,9 +938,12 @@ final class EmojiChrome$Ios extends EmojiChrome {
     final outgoing = input.outgoing;
     final isSticker = body.kind == ChatEmojiLayoutKind.sticker;
     final bodyLeft = outgoing ? input.rowWidth - body.size.width : 0.0;
+    final headerSize = input.header;
+    final above = input.headerAbove && headerSize != null;
+    final bodyTop = above ? headerSize.height + aboveTextGap : 0.0;
     final bodyRect = Rect.fromLTWH(
       bodyLeft,
-      0,
+      bodyTop,
       body.size.width,
       body.size.height,
     );
@@ -862,8 +963,10 @@ final class EmojiChrome$Ios extends EmojiChrome {
     );
 
     Rect? header;
-    final headerSize = input.header;
-    if (headerSize != null) {
+    if (headerSize != null && above) {
+      // Above the text, at the top and on the text's edge.
+      header = Rect.fromLTWH(bodyLeft, 0, headerSize.width, headerSize.height);
+    } else if (headerSize != null) {
       // 2.5: beside both layouts, pinned to the edge away from the message.
       header = Rect.fromLTWH(
         outgoing

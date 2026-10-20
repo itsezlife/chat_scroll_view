@@ -73,8 +73,14 @@ default) and a `bottomReserve`. `ChatEmojiBody.geometryFor` returns the same
 body is built and the two cannot disagree. The sticker's inset is the policy's,
 not a constant of the sizes: none on Android and desktop, 10 pt on iOS. The
 wrap under a header is the policy's rule too: Android caps it at 65 % of the
-**parent** width (not of the row's maximum), iOS takes 45 pt off the row's
-width, desktop narrows nothing. A platform that does not mirror (Android, iOS)
+**parent** width (not of the row's maximum), iOS and desktop narrow nothing.
+On iOS the header is the one that gives way: its text is capped to the room
+beside the emoji, as Telegram-iOS's `ChatMessageStickerItemNode` does (the row
+less the emoji, at least 160 wide, and the bubble insets, clamped to 60…200,
+less 20, and less 24 more for emoji), so the two never overlap. Where less
+than 40 pt of text would fit beside the emoji, an iOS reply to emoji text goes
+above it instead, aligned to the text's edge; this is a placement of ours, not
+Telegram's. A platform that does not mirror (Android, iOS)
 lays the lines out left to right in a right-to-left chat; desktop mirrors.
 
 ### What each platform does

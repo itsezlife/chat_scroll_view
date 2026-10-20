@@ -187,18 +187,25 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
         final body = geometry(reserve, hasHeader: hasHeader);
 
         final headerData = widget.header;
+        final besideLimit = chrome.headerLineLimit(
+          rowWidth: rowWidth,
+          bodyWidth: body.size.width,
+          isSticker: isSticker,
+          outgoing: outgoing,
+        );
+        final headerAbove =
+            headerData != null &&
+            chrome.headerGoesAbove(beside: besideLimit, isSticker: isSticker);
         final headerMeasure = headerData == null
             ? null
             : EmojiHeaderMeasure.of(
                 headerData,
                 chrome,
                 // A line may take what the row leaves, less the panel's own
-                // padding.
-                maxLine:
-                    (isSticker
-                            ? rowWidth - body.size.width - 24
-                            : rowWidth - 24)
-                        .clamp(40, double.infinity),
+                // padding; above the text it takes the row.
+                maxLine: headerAbove
+                    ? rowWidth - 24
+                    : besideLimit.clamp(40, double.infinity),
                 direction: direction,
               );
         final reactionsSize = widget.reactions.isEmpty
@@ -214,6 +221,7 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
             headerShape: headerMeasure?.data.shape,
             header: headerMeasure?.size,
             reactions: reactionsSize,
+            headerAbove: headerAbove,
           ),
         );
         if (chrome.mirrorsInRtl && direction == TextDirection.rtl) {
