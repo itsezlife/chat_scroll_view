@@ -8,8 +8,11 @@ import 'package:catalog_assets/src/atlas/bake_pause_signals.dart';
 import 'package:catalog_assets/src/atlas/cache/glyph_atlas_persistence.dart';
 import 'package:catalog_assets/src/atlas/cache/glyph_cache_key.dart';
 import 'package:catalog_assets/src/atlas/cache/glyph_cache_store.dart';
+import 'package:catalog_assets/src/atlas/environment_specific/glyph_atlas.dart'
+    as environment_specific;
 import 'package:catalog_assets/src/atlas/glyph_atlas_index.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_layout.dart';
+import 'package:catalog_assets/src/atlas/glyph_atlas_request.dart';
 import 'package:catalog_assets/src/atlas/glyph_bake_observer.dart';
 import 'package:catalog_assets/src/atlas/glyph_bake_scheduler.dart';
 import 'package:catalog_assets/src/atlas/glyph_baker.dart';
@@ -18,6 +21,7 @@ import 'package:catalog_assets/src/atlas/glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/glyph_rasteriser.dart';
 import 'package:catalog_assets/src/atlas/memory_glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/report_glyph_atlas_error.dart';
+import 'package:catalog_assets/src/glyph/glyph_sprite_source.dart';
 import 'package:flutter/foundation.dart';
 
 /// The baked glyphs of one catalogue, in the form a surface draws them: a
@@ -107,10 +111,9 @@ import 'package:flutter/foundation.dart';
 /// lets the successor wait for this atlas's disk work to finish
 /// ([RetiredGlyphArt.settled]), so two atlases never write one cache at once.
 ///
-/// Platforms that do not bake never build one (see
-/// `createGlyphAtlasForPlatform`): a surface without an atlas draws its glyphs
-/// as text.
-final class GlyphAtlas {
+/// Platforms that do not bake never build one (see [forPlatform]): a surface
+/// without an atlas draws its glyphs as text.
+final class GlyphAtlas implements GlyphSpriteSource {
   /// Creates an atlas for the glyphs of [index]. Nothing runs until [start].
   ///
   /// Pass either a [store] (pages kept for this atlas's life only) or a
@@ -174,6 +177,16 @@ final class GlyphAtlas {
     _onVisibleChanged();
   }
 
+  /// The atlas [request] describes on a platform that bakes glyphs (android,
+  /// iOS, desktop), or null on the web, which draws glyphs as text until it is
+  /// measured and must not start a bake.
+  ///
+  /// Decided by which file the build picks, not by a condition. Where an atlas
+  /// is built it owns the request's `residency` and `predecessor` from then
+  /// on; where none is, they stay the caller's to dispose.
+  static GlyphAtlas? forPlatform(GlyphAtlasRequest request) =>
+      environment_specific.$createGlyphAtlas(request);
+
   /// The plan being baked.
   final GlyphAtlasIndex index;
 
@@ -199,8 +212,9 @@ final class GlyphAtlas {
   final Map<String, AtlasSprite> _sprites = <String, AtlasSprite>{};
   final List<ValueChanged<int>> _listeners = <ValueChanged<int>>[];
   // Pages being read from the store (queued or in flight), and how many times
-  // a page could not be handed back: the first failure bakes it again, the
-  // second gives up (a store that failed twice will fail again).
+  // a page could not be handed back since it last loaded: the first failure
+  // bakes it again, the second gives up (a store that failed twice in a row
+  // will fail again).
   final Set<int> _loading = <int>{};
   final Map<int, int> _readFailures = <int, int>{};
   // Pages waiting for their paced reload, and the loop that drains them.
@@ -272,6 +286,7 @@ final class GlyphAtlas {
   ///
   /// Allocation-free once a sprite has been cut: it runs for every visible
   /// leaf on every paint.
+  @override
   AtlasSprite? spriteOf(String glyph) {
     if (_disposed) return null;
     final stale = _stale;
@@ -300,18 +315,26 @@ final class GlyphAtlas {
   ///
   /// The page stays resident while any claim covers it; release the hold when
   /// unbound. It holds a count, not pixels: ask [spriteOf] when drawing.
+  @override
   GlyphPageHold? holdPageOf(String glyph) {
     if (_disposed) return null;
     final page = index.placementOf(glyph)?.pageIndex;
     return page == null ? null : _residency.hold(page);
   }
 
+  /// True for the glyphs of the plan, which wait for the bake (and, once the
+  /// atlas is gone, for whatever replaces it); false for every other glyph.
+  @override
+  bool waitsForSprite(String glyph) => index.placementOf(glyph) != null;
+
   /// Calls [listener] with the index of each page whose drawability changed:
   /// once its sprites can be drawn, and again when the page is released (a
   /// surface repaints either way).
+  @override
   void addPageListener(ValueChanged<int> listener) => _listeners.add(listener);
 
   /// Removes a listener added with [addPageListener].
+  @override
   void removePageListener(ValueChanged<int> listener) =>
       _listeners.remove(listener);
 
@@ -460,9 +483,7 @@ final class GlyphAtlas {
   }
 
   void _onReleased(int pageIndex) {
-    for (final glyph in index.glyphsOnPage(pageIndex)) {
-      _sprites.remove(glyph);
-    }
+    index.glyphsOnPage(pageIndex).forEach(_sprites.remove);
     _notify(pageIndex);
   }
 
@@ -553,6 +574,9 @@ final class GlyphAtlas {
       return;
     }
     _residency.admit(pageIndex, image);
+    // The store handed the page back: whatever failed before was transient,
+    // and a later failure of this page is a first one again.
+    _readFailures.remove(pageIndex);
     _ready.add(pageIndex);
     // Behind a stale set the new pages wait for the swap.
     if (_stale != null) {
@@ -624,7 +648,7 @@ final class GlyphAtlas {
           // predecessor is moot.
           _stale?.release();
           _stale = null;
-          _pageStore.useGeneration(committed!.pages);
+          _pageStore.generation = committed!.pages;
           await _restoreHit(committed.pages);
         case GlyphCacheVerdict.stale:
           // Art inherited from a predecessor is newer than the persisted set
@@ -632,10 +656,10 @@ final class GlyphAtlas {
           if (_stale == null) await _loadStale(committed!);
           if (_disposed) return;
           _stale?.commitOnSwap = true;
-          _pageStore.useGeneration(await _io.track(cache.stage(record)));
+          _pageStore.generation = await _io.track(cache.stage(record));
         case GlyphCacheVerdict.discard:
         case GlyphCacheVerdict.miss:
-          _pageStore.useGeneration(await _io.track(cache.stage(record)));
+          _pageStore.generation = await _io.track(cache.stage(record));
           // Committed at once: each page is durable as soon as it is written,
           // and a launch after a kill restores the pages that made it.
           await _io.track(cache.commit());
@@ -767,14 +791,24 @@ final class GlyphAtlas {
   /// [arm] starts watching and returns how to stop.
   Future<void> _sleep(VoidCallback Function(VoidCallback wake) arm) {
     final done = Completer<void>();
-    late final VoidCallback disarm;
+    VoidCallback? disarm;
+    var woken = false;
     void wake() {
+      if (woken) return;
+      woken = true;
       _sleepers.remove(wake);
-      disarm();
+      disarm?.call();
       if (!done.isCompleted) done.complete();
     }
 
-    disarm = arm(wake);
+    final stop = arm(wake);
+    if (woken) {
+      // The condition was already met inside [arm]: nothing is left to
+      // watch, and the wake-up has been and gone.
+      stop();
+      return done.future;
+    }
+    disarm = stop;
     _sleepers.add(wake);
     return done.future;
   }
@@ -826,7 +860,7 @@ final class GlyphAtlas {
   /// nobody waits for any more is not news).
   void _fail(Object error, StackTrace stack, String doing) {
     if (_disposed) return;
-    reportGlyphAtlasError(error, stack, doing);
+    GlyphAtlasErrors.report(error, stack, doing);
   }
 }
 
@@ -937,8 +971,8 @@ final class _AtlasPageStore implements GlyphPageStore {
   /// that is not on disk is never committed.
   bool onDisk;
 
-  /// Sends the pages to [pages], a generation of the cache.
-  void useGeneration(GlyphPageStore pages) => _target = pages;
+  /// Sends the pages to the generation of the cache set here.
+  set generation(GlyphPageStore pages) => _target = pages;
 
   /// Keeps the pages in memory for this atlas's life; nothing is persisted.
   void useMemory() {

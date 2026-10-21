@@ -1,0 +1,246 @@
+{
+  "schema": 1,
+  "suite": "panel_catalog.semantics-on",
+  "metrics": {
+    "far_stitch.vs_grid.4096": {
+      "kind": "ratio",
+      "value": 0.0021
+    },
+    "far_stitch.vs_grid.512": {
+      "kind": "ratio",
+      "value": 0.0086
+    },
+    "far_stitch.vs_grid.64": {
+      "kind": "ratio",
+      "value": 0.973
+    },
+    "far_stitch.vs_ssl.4096": {
+      "kind": "ratio",
+      "value": 0.0055
+    },
+    "far_stitch.vs_ssl.512": {
+      "kind": "ratio",
+      "value": 0.0332
+    },
+    "far_stitch.vs_ssl.64": {
+      "kind": "ratio",
+      "value": 0.6792
+    },
+    "fling_frame.vs_grid.4096": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "fling_frame.vs_grid.512": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "fling_frame.vs_grid.64": {
+      "kind": "ratio",
+      "value": 1.1429
+    },
+    "fling_frame.vs_ssl.4096": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "fling_frame.vs_ssl.512": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "fling_frame.vs_ssl.64": {
+      "kind": "ratio",
+      "value": 1.1364
+    },
+    "forced_layout.vs_grid.4096": {
+      "kind": "ratio",
+      "value": 0.0066
+    },
+    "forced_layout.vs_grid.512": {
+      "kind": "ratio",
+      "value": 0.019
+    },
+    "forced_layout.vs_grid.64": {
+      "kind": "ratio",
+      "value": 0.0916
+    },
+    "forced_layout.vs_ssl.4096": {
+      "kind": "ratio",
+      "value": 0.4275
+    },
+    "forced_layout.vs_ssl.512": {
+      "kind": "ratio",
+      "value": 0.1041
+    },
+    "forced_layout.vs_ssl.64": {
+      "kind": "ratio",
+      "value": 0.1203
+    },
+    "mixed.far_stitch.over_uniform.4096": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "mixed.far_stitch.over_uniform.512": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "mixed.far_stitch.over_uniform.64": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "mixed.layout.over_uniform.4096": {
+      "kind": "ratio",
+      "value": 0.9286
+    },
+    "mixed.layout.over_uniform.512": {
+      "kind": "ratio",
+      "value": 1.1071
+    },
+    "mixed.layout.over_uniform.64": {
+      "kind": "ratio",
+      "value": 0.9677
+    },
+    "mixed.near_jump.over_uniform.4096": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "mixed.near_jump.over_uniform.512": {
+      "kind": "ratio",
+      "value": 0.6667
+    },
+    "mixed.near_jump.over_uniform.64": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "mixed.paint.over_uniform.4096": {
+      "kind": "ratio",
+      "value": 0.7742
+    },
+    "mixed.paint.over_uniform.512": {
+      "kind": "ratio",
+      "value": 0.8387
+    },
+    "mixed.paint.over_uniform.64": {
+      "kind": "ratio",
+      "value": 0.8148
+    },
+    "near_jump.vs_grid.4096": {
+      "kind": "ratio",
+      "value": 1.0714
+    },
+    "near_jump.vs_grid.512": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "near_jump.vs_grid.64": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "near_jump.vs_ssl.4096": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "near_jump.vs_ssl.512": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "near_jump.vs_ssl.64": {
+      "kind": "ratio",
+      "value": 0.9444
+    },
+    "objects.rest.attached_leaves.4096": {
+      "kind": "count",
+      "value": 8.0
+    },
+    "objects.rest.attached_leaves.512": {
+      "kind": "count",
+      "value": 8.0
+    },
+    "objects.rest.attached_leaves.64": {
+      "kind": "count",
+      "value": 8.0
+    },
+    "objects.rest.render_objects.4096": {
+      "kind": "count",
+      "value": 169.0
+    },
+    "objects.rest.render_objects.512": {
+      "kind": "count",
+      "value": 169.0
+    },
+    "objects.rest.render_objects.64": {
+      "kind": "count",
+      "value": 169.0
+    },
+    "objects.scroll.attached_leaves.4096": {
+      "kind": "count",
+      "value": 8.0
+    },
+    "objects.scroll.attached_leaves.512": {
+      "kind": "count",
+      "value": 8.0
+    },
+    "objects.scroll.attached_leaves.64": {
+      "kind": "count",
+      "value": 8.0
+    },
+    "objects.scroll.render_objects.4096": {
+      "kind": "count",
+      "value": 169.0
+    },
+    "objects.scroll.render_objects.512": {
+      "kind": "count",
+      "value": 169.0
+    },
+    "objects.scroll.render_objects.64": {
+      "kind": "count",
+      "value": 169.0
+    },
+    "scroll_paint.vs_grid.4096": {
+      "kind": "ratio",
+      "value": 3.0
+    },
+    "scroll_paint.vs_grid.512": {
+      "kind": "ratio",
+      "value": 5.0
+    },
+    "scroll_paint.vs_grid.64": {
+      "kind": "ratio",
+      "value": 6.3333
+    },
+    "scroll_paint.vs_ssl.4096": {
+      "kind": "ratio",
+      "value": 6.2
+    },
+    "scroll_paint.vs_ssl.512": {
+      "kind": "ratio",
+      "value": 6.0
+    },
+    "scroll_paint.vs_ssl.64": {
+      "kind": "ratio",
+      "value": 7.4
+    },
+    "semantics.nodes.4096": {
+      "kind": "count",
+      "value": 83.0
+    },
+    "semantics.nodes.512": {
+      "kind": "count",
+      "value": 83.0
+    },
+    "semantics.nodes.64": {
+      "kind": "count",
+      "value": 74.0
+    },
+    "semantics.scroll_frame.on_over_off.4096": {
+      "kind": "ratio",
+      "value": 2.0429
+    },
+    "semantics.scroll_frame.on_over_off.512": {
+      "kind": "ratio",
+      "value": 2.0
+    },
+    "semantics.scroll_frame.on_over_off.64": {
+      "kind": "ratio",
+      "value": 1.1257
+    }
+  }
+}

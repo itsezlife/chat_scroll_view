@@ -27,6 +27,12 @@ class RenderChatMessageChangeTransition extends RenderBox
        _textDirection = textDirection,
        _boxShadow = boxShadow;
 
+  /// When true, change-transition paints append samples to
+  /// [debugPaintHistory].
+  ///
+  /// Opt in from diagnostic tests. Keep false in production.
+  static bool debugRecordPaints = false;
+
   ChatMessageChangeParams _params;
   Color _color;
   BorderRadiusGeometry _borderRadius;
@@ -39,7 +45,7 @@ class RenderChatMessageChangeTransition extends RenderBox
   /// transition's `oldBackground`.
   Rect lastPaintedBackground = Rect.zero;
 
-  /// Append-only paint samples while [debugChatMessageChangeRecordPaints] is on.
+  /// Append-only paint samples while [debugRecordPaints] is on.
   ///
   /// Cleared by diagnostic tests; each [paint] appends one sample so a
   /// one-frame flash is still observable after later paints overwrite
@@ -62,10 +68,19 @@ class RenderChatMessageChangeTransition extends RenderBox
         value.animateBackgroundBounds ||
         _params.progress != value.progress ||
         _params.holdPaintedBackground != value.holdPaintedBackground;
+    final fadedBefore = _fadesText;
     _params = value;
+    if (_fadesText != fadedBefore) markNeedsCompositingBitsUpdate();
     markNeedsPaint();
     if (relayout) markNeedsLayout();
   }
+
+  // Whether the text crossfade runs: it fades on opacity layers, so the clip
+  // around it has to be a layer too.
+  bool get _fadesText => _params.animateMessageText && _outgoingContent != null;
+
+  @override
+  bool get alwaysNeedsCompositing => _fadesText;
 
   /// Bubble fill.
   Color get color => _color;
@@ -242,7 +257,7 @@ class RenderChatMessageChangeTransition extends RenderBox
         : _layoutChild(meta, childConstraints, dry: dry);
 
     // Body layout is relative to the padded origin; lift by padding.
-    final inner = layoutChatMessageBody(
+    final inner = ChatMessageBodyLayout.measure(
       constraints: BoxConstraints(maxWidth: availableWidth),
       padding: EdgeInsets.zero,
       spacing: _spacing,
@@ -254,7 +269,10 @@ class RenderChatMessageChangeTransition extends RenderBox
       lastLineWidth: () {
         if (content == null) return 0.0;
         if (dry) return contentSize.width;
-        return lastLineWidthOf(content, fallback: contentSize.width);
+        return ChatMessageBodyLayout.lastLineWidthOf(
+          content,
+          fallback: contentSize.width,
+        );
       },
     );
 
@@ -300,7 +318,7 @@ class RenderChatMessageChangeTransition extends RenderBox
         ? Size.zero
         : _layoutChild(outgoingMeta, childConstraints, dry: false);
 
-    final inner = layoutChatMessageBody(
+    final inner = ChatMessageBodyLayout.measure(
       constraints: BoxConstraints(maxWidth: availableWidth),
       padding: EdgeInsets.zero,
       spacing: _spacing,
@@ -311,7 +329,10 @@ class RenderChatMessageChangeTransition extends RenderBox
       hasMeta: outgoingMeta != null,
       lastLineWidth: () {
         if (outgoingContent == null) return 0.0;
-        return lastLineWidthOf(outgoingContent, fallback: contentSize.width);
+        return ChatMessageBodyLayout.lastLineWidthOf(
+          outgoingContent,
+          fallback: contentSize.width,
+        );
       },
     );
 
@@ -350,7 +371,7 @@ class RenderChatMessageChangeTransition extends RenderBox
     final finalRect = finalBackgroundRect;
     final paintedLocal = _params.paintedBackground(finalRect);
     lastPaintedBackground = paintedLocal;
-    if (debugChatMessageChangeRecordPaints) {
+    if (debugRecordPaints) {
       final metaW = _meta?.hasSize == true ? _meta!.size.width : 0.0;
       final metaPaint = _params.metaPaintOffset(
         settledMeta: _metaOffset,
@@ -384,11 +405,20 @@ class RenderChatMessageChangeTransition extends RenderBox
     }
     context.canvas.drawRRect(rrect, Paint()..color = _color);
 
-    final clipLocal = _params.textClipRect(finalRect);
-    final clip = clipLocal.shift(offset);
-    context.canvas.save();
-    context.canvas.clipRect(clip);
+    // Clip and fade through layers, not the canvas: a body that is a repaint
+    // boundary (the markdown body is one) is composited apart from this
+    // canvas, so a canvas `clipRect` or `saveLayer` never reaches it and its
+    // old text would show unfaded and unclipped.
+    context.pushClipRect(
+      needsCompositing,
+      offset,
+      _params.textClipRect(finalRect),
+      (context, offset) => _paintBody(context, offset, finalRect),
+      clipBehavior: Clip.antiAlias,
+    );
+  }
 
+  void _paintBody(PaintingContext context, Offset offset, Rect finalRect) {
     // Header is shared chrome — paint once above the text crossfade.
     final header = _header;
     if (header != null) {
@@ -415,26 +445,22 @@ class RenderChatMessageChangeTransition extends RenderBox
 
       // Body text only — dual meta was painting two timestamps in the clip.
       if (outOpacity > 0) {
-        _paintLayer(
+        _paintFaded(
           context,
-          bounds: clip,
           opacity: outOpacity,
-          paintChildren: () {
-            context.paintChild(outgoingContent, outContentPaint);
-          },
+          paintChild: (layer) =>
+              layer.paintChild(outgoingContent, outContentPaint),
         );
       }
 
       if (inOpacity > 0) {
         final content = _content;
         if (content != null) {
-          _paintLayer(
+          _paintFaded(
             context,
-            bounds: clip,
             opacity: inOpacity,
-            paintChildren: () {
-              context.paintChild(content, offset + _contentOffset);
-            },
+            paintChild: (layer) =>
+                layer.paintChild(content, offset + _contentOffset),
           );
         }
       }
@@ -455,29 +481,26 @@ class RenderChatMessageChangeTransition extends RenderBox
       );
       context.paintChild(meta, offset + paintMeta);
     }
-
-    context.canvas.restore();
   }
 
-  void _paintLayer(
+  // [paintChild] at [opacity], on an opacity layer: it paints through the
+  // layer's own context, at absolute positions, so the layer sits at the
+  // origin.
+  void _paintFaded(
     PaintingContext context, {
-    required Rect bounds,
     required double opacity,
-    required VoidCallback paintChildren,
+    required void Function(PaintingContext layer) paintChild,
   }) {
     if (opacity >= 0.999) {
-      paintChildren();
+      paintChild(context);
       return;
     }
     if (opacity <= 0.001) return;
-    // Bound the layer to the text clip — unbounded saveLayer composited two
-    // full-bubble text stacks and looked like stacked ghosts.
-    context.canvas.saveLayer(
-      bounds,
-      Paint()..color = Color.fromRGBO(0, 0, 0, opacity),
+    context.pushOpacity(
+      Offset.zero,
+      (opacity * 255).round().clamp(0, 255),
+      (layer, _) => paintChild(layer),
     );
-    paintChildren();
-    context.canvas.restore();
   }
 
   @override

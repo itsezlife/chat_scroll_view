@@ -27,30 +27,7 @@ final class LegacyException {
 /// change that removes the offending code deletes its entry in the same edit.
 abstract final class LegacyBaseline {
   /// The excused violations of the current tree.
-  static const List<LegacyException> current = <LegacyException>[
-    LegacyException(
-      LintRule.crossPackageReexport,
-      'packages/chat_chrome/lib/chat_chrome.dart exports '
-      'package:emoji_data/emoji_data.dart',
-      removedBy: 'issue 32 (chat_chrome is deleted)',
-    ),
-    LegacyException(
-      LintRule.fakeExportedOutsideTesting,
-      'packages/catalog_assets/lib/catalog_assets.dart exports '
-      'src/fake_catalog_asset_cache.dart',
-      removedBy:
-          'issue 09 (the asset cache API is replaced; fakes move to '
-          'testing.dart)',
-    ),
-    LegacyException(
-      LintRule.fakeExportedOutsideTesting,
-      'packages/panel_catalog/lib/panel_catalog.dart exports '
-      'src/data/fake_catalog_data_source.dart',
-      removedBy:
-          'issue 16 (FakeCatalogDataSource becomes a snapshot fake in '
-          'testing.dart)',
-    ),
-  ];
+  static const List<LegacyException> current = <LegacyException>[];
 
   /// [found] without the violations [legacy] excuses, plus a
   /// [LintRule.staleLegacyException] for every exception that excused nothing.

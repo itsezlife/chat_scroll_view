@@ -1,0 +1,566 @@
+import 'package:content_model/src/rich_text/entity.dart';
+import 'package:content_model/src/rich_text/entity_kind.dart';
+import 'package:content_model/src/rich_text/markdown/markdown_syntax.dart';
+import 'package:content_model/src/rich_text/normalization.dart';
+import 'package:content_model/src/rich_text/rich_text.dart';
+
+/// The writing half of `RichTextMarkdown`: rich text to markdown.
+abstract final class MarkdownEncoder {
+  /// The markdown form of [text]; see `RichTextMarkdown.encode`.
+  static String encode(RichText text) {
+    final plain = text.plain;
+    final quotes = <Entity>[];
+    final blocks = <Entity>[];
+    final items = <Entity>[];
+    final inline = <Entity>[];
+    for (final entity in text.entities) {
+      switch (entity.kind) {
+        case EntityKind$Style(style: EntityStyle.quote):
+          quotes.add(entity);
+        case EntityKind$CodeBlock():
+          blocks.add(entity);
+        case EntityKind$List():
+          items.add(entity);
+        case _:
+          inline.add(entity);
+      }
+    }
+    final escapes = _Escapes(plain, inline);
+    final out = _Out();
+
+    var start = 0;
+    Entity? previousQuote;
+    var first = true;
+    final numbers = _ListNumbers();
+    while (true) {
+      final lineBreak = plain.indexOf('\n', start);
+      final end = lineBreak == -1 ? plain.length : lineBreak;
+      final quote = _quoteOfLine(quotes, start);
+      if (!first) {
+        out.raw('\n');
+        // A blank line is what ends a quote; without it the next line would
+        // read as part of the quote.
+        if (previousQuote != null && previousQuote != quote) out.raw('\n');
+      }
+      // A code block starts a line and is written whole, as a fence.
+      if (_blockAt(blocks, start) case final block?) {
+        _writeFence(out, plain.substring(block.offset, block.end), block.kind);
+        numbers.endRun();
+        previousQuote = null;
+        first = false;
+        if (block.end >= plain.length) break;
+        start = block.end + 1;
+        continue;
+      }
+      if (_itemOfLine(items, start) case final item?) {
+        // The break a line that goes on ends with is written with the line;
+        // here the next line is known to exist unless this is the last.
+        final lastOfItem = end >= item.end;
+        final line = _Out();
+        _writeLine(line, plain, start, end, inline, escapes);
+        if (start == item.offset) {
+          out.raw(numbers.marker(item.kind as EntityKind$List));
+        }
+        out.raw(
+          _itemLine(
+            line.finish(),
+            lastOfItem: lastOfItem,
+            hasNext: lineBreak != -1,
+          ),
+        );
+        previousQuote = null;
+        first = false;
+        if (lineBreak == -1) break;
+        start = lineBreak + 1;
+        continue;
+      }
+      numbers.endRun();
+      if (quote != null) out.raw(start == end ? '>' : '> ');
+      _writeLine(out, plain, start, end, inline, escapes);
+      previousQuote = quote;
+      first = false;
+      if (lineBreak == -1) break;
+      start = lineBreak + 1;
+    }
+    return out.finish();
+  }
+}
+
+/// An item covers the lines that start within its span, its end included, as
+/// a quote does: the empty line an item ends on belongs to it.
+Entity? _itemOfLine(List<Entity> items, int lineStart) {
+  for (final item in items) {
+    if (item.offset <= lineStart && lineStart <= item.end) return item;
+  }
+  return null;
+}
+
+/// [written] as a line of a list item.
+///
+/// A line the item goes on after ends with two spaces (a soft break). The
+/// last line of an item must not read as one that goes on, so when it ends
+/// with two spaces of its own and another line follows, the last of them is
+/// backslash-escaped, which the decoder takes back.
+String _itemLine(
+  String written, {
+  required bool lastOfItem,
+  required bool hasNext,
+}) {
+  if (!lastOfItem) return '$written${MarkdownSyntax.softBreak}';
+  if (hasNext && written.endsWith(MarkdownSyntax.softBreak)) {
+    return '${written.substring(0, written.length - 1)}\\ ';
+  }
+  return written;
+}
+
+/// The markers of the items of a document, numbered the way a reader counts
+/// them: an ordered item continues the run of ordered items at its depth that
+/// the lines before it left open, and starts at 1 otherwise. A shallower item
+/// ends the deeper runs; a bullet ends the ordered run at its depth; a line
+/// that is not an item ends all of them.
+final class _ListNumbers {
+  // For each depth, the number the next ordered item takes, or null while the
+  // run at that depth is a bullet one.
+  final Map<int, int?> _next = {};
+
+  String marker(EntityKind$List item) {
+    final depth = item.depth;
+    _next.removeWhere((deeper, _) => deeper > depth);
+    final indent = '  ' * depth;
+    switch (item.listKind) {
+      case EntityListKind.bullet:
+        _next[depth] = null;
+        return '$indent- ';
+      case EntityListKind.ordered:
+        final number = _next[depth] ?? 1;
+        _next[depth] = number + 1;
+        return '$indent$number. ';
+    }
+  }
+
+  void endRun() => _next.clear();
+}
+
+Entity? _blockAt(List<Entity> blocks, int lineStart) {
+  for (final block in blocks) {
+    if (block.offset == lineStart) return block;
+  }
+  return null;
+}
+
+/// [code] between fences one backtick longer than any run of backticks it
+/// holds (three at least), the language as the info string. The code is
+/// written as it is: nothing inside a fence is markup.
+void _writeFence(_Out out, String code, EntityKind kind) {
+  var longest = 0;
+  var run = 0;
+  for (final unit in code.codeUnits) {
+    run = unit == 0x60 ? run + 1 : 0;
+    if (run > longest) longest = run;
+  }
+  final fence = '`' * (longest < 3 ? 3 : longest + 1);
+  final language = switch (kind) {
+    EntityKind$CodeBlock(:final language?) => language,
+    _ => '',
+  };
+  out.raw('$fence$language\n$code\n$fence');
+}
+
+/// A quote covers the lines that start within its span, its end included, so
+/// that the empty line a quote ends on belongs to it.
+Entity? _quoteOfLine(List<Entity> quotes, int lineStart) {
+  for (final quote in quotes) {
+    if (quote.offset <= lineStart && lineStart <= quote.end) return quote;
+  }
+  return null;
+}
+
+// --- Inline content of one line ---
+
+// Styles are written as toggles, the way the viewport's markdown library reads
+// them: a marker switches its style on or off, and the order and nesting of
+// different styles do not matter. A style that ends inside another therefore
+// needs no splitting. The one thing written around a style boundary is a
+// link: a link cannot hold markers, so it is cut into pieces at every style
+// boundary, and the pieces merge back into one link when read.
+void _writeLine(
+  _Out out,
+  String plain,
+  int start,
+  int end,
+  List<Entity> entities,
+  _Escapes escapes,
+) {
+  final inLine = [
+    for (final entity in entities)
+      if (entity.offset < end && entity.end > start) entity,
+  ];
+  final cuts = <int>{start, end};
+  for (final entity in inLine) {
+    cuts
+      ..add(entity.offset)
+      ..add(entity.end);
+  }
+  final sorted = cuts.toList()..sort();
+  for (var i = 0; i < sorted.length; i++) {
+    final from = sorted[i];
+    _writeToggles(out, inLine, from);
+    if (i + 1 == sorted.length) break;
+    final to = sorted[i + 1];
+    Entity? atom;
+    String? target;
+    var isCode = false;
+    for (final entity in inLine) {
+      if (entity.offset > from || entity.end < to) continue;
+      switch (entity.kind) {
+        case EntityKind$Mention() || EntityKind$InlineContent():
+          atom = entity;
+        case EntityKind$Style(style: EntityStyle.code):
+          isCode = true;
+        case EntityKind$Link(:final url):
+          target = url;
+        case EntityKind$Username(:final name):
+          target = '${MarkdownSyntax.usernameScheme}$name';
+        case EntityKind$Hashtag(:final tag):
+          target = '${MarkdownSyntax.hashtagScheme}$tag';
+        // Written as fences, and as the markers of the line loop, never
+        // inline.
+        case EntityKind$Style() || EntityKind$CodeBlock() || EntityKind$List():
+          break;
+      }
+    }
+    if (atom != null) {
+      final markup = _atomMarkup(plain, atom, escapes);
+      out.structural(switch (target) {
+        final target? => _linkPiece(markup, target),
+        null => markup,
+      });
+    } else if (isCode) {
+      out.structural(_codeSpan(plain.substring(from, to)));
+    } else if (target != null) {
+      out.structural(_linkPiece(escapes.apply(plain, from, to), target));
+    } else {
+      out.text(escapes.apply(plain, from, to));
+    }
+  }
+}
+
+/// The markers of the styles that end or begin at [position], endings first.
+void _writeToggles(_Out out, List<Entity> entities, int position) {
+  final closing = <EntityStyle>[];
+  final opening = <EntityStyle>[];
+  for (final entity in entities) {
+    if (entity.kind case EntityKind$Style(
+      :final style,
+    ) when style != EntityStyle.code) {
+      if (entity.end == position) closing.add(style);
+      if (entity.offset == position) opening.add(style);
+    }
+  }
+  // Last opened, first closed, so `***x***` reads the way it is written.
+  for (final style in closing.reversed.toList()..sort(_byMarkerOrder)) {
+    out.structural(_marker(style));
+  }
+  for (final style in opening..sort(_byMarkerOrder)) {
+    out.structural(_marker(style));
+  }
+}
+
+int _byMarkerOrder(EntityStyle a, EntityStyle b) => a.index.compareTo(b.index);
+
+String _linkPiece(String label, String url) => '[$label](${_destination(url)})';
+
+String _marker(EntityStyle style) => switch (style) {
+  EntityStyle.bold => '**',
+  EntityStyle.italic => '*',
+  EntityStyle.underline => '__',
+  EntityStyle.strike => '~~',
+  EntityStyle.spoiler => '||',
+  EntityStyle.code => '`',
+  EntityStyle.quote => '',
+};
+
+String _atomMarkup(String plain, Entity atom, _Escapes escapes) {
+  final label = escapes.apply(plain, atom.offset, atom.end);
+  return switch (atom.kind) {
+    EntityKind$InlineContent(:final key) =>
+      '![$label](${_destination(key.encoded)})',
+    EntityKind$Mention(:final id) =>
+      '[$label](${_destination('${MarkdownSyntax.mentionScheme}$id')})',
+    _ => throw StateError('Not an atomic entity: $atom'),
+  };
+}
+
+/// A link target: bare when it can be, between angle brackets when it holds
+/// whitespace or angle brackets.
+String _destination(String target) {
+  final needsBrackets = target.codeUnits.any(
+    (unit) =>
+        CanonicalEntities.isWhitespaceUnit(unit) ||
+        unit < 0x20 ||
+        unit == 0x3C ||
+        unit == 0x3E,
+  );
+  return needsBrackets
+      ? '<${_backslash(target, _inBrackets)}>'
+      : _backslash(target, _bare);
+}
+
+// Code units that need a backslash in a bare target (parentheses, backslash)
+// and between angle brackets (the brackets, backslash).
+const Set<int> _bare = {0x28, 0x29, 0x5C};
+const Set<int> _inBrackets = {0x3C, 0x3E, 0x5C};
+
+String _backslash(String text, Set<int> units) {
+  final out = StringBuffer();
+  for (final unit in text.codeUnits) {
+    if (units.contains(unit)) out.write(r'\');
+    out.writeCharCode(unit);
+  }
+  return out.toString();
+}
+
+/// A code span for [content]: the shortest fence no backtick run inside can
+/// be mistaken for, padded where the padding is the only way to read the
+/// content back unchanged.
+String _codeSpan(String content) {
+  final runs = <int>{};
+  var run = 0;
+  for (final unit in content.codeUnits) {
+    if (unit == 0x60) {
+      run++;
+    } else {
+      if (run > 0) runs.add(run);
+      run = 0;
+    }
+  }
+  if (run > 0) runs.add(run);
+  var length = 1;
+  while (runs.contains(length)) {
+    length++;
+  }
+  final fence = '`' * length;
+  final padded =
+      content.startsWith('`') ||
+      content.endsWith('`') ||
+      (content.startsWith(' ') &&
+          content.endsWith(' ') &&
+          content.codeUnits.any((unit) => unit != 0x20));
+  return padded ? '$fence $content $fence' : '$fence$content$fence';
+}
+
+// --- Escaping ---
+
+/// Which code units of a text need a backslash to be read back as text.
+final class _Escapes {
+  _Escapes(String plain, List<Entity> entities)
+    : _flags = List<bool>.filled(plain.length, false) {
+    final boundaries = <int>{};
+    for (final entity in entities) {
+      boundaries
+        ..add(entity.offset)
+        ..add(entity.end);
+    }
+    _flagLineStarts(plain, entities);
+    _flagMarkers(plain, boundaries);
+  }
+
+  final List<bool> _flags;
+
+  /// [plain] from [from] to [to] with a backslash before each flagged unit.
+  String apply(String plain, int from, int to) {
+    final out = StringBuffer();
+    var chunk = from;
+    for (var i = from; i < to; i++) {
+      if (_flags[i]) {
+        out
+          ..write(plain.substring(chunk, i))
+          ..write(r'\');
+        chunk = i;
+      }
+    }
+    return (out..write(plain.substring(chunk, to))).toString();
+  }
+
+  // A block marker only means something as the first thing on a line.
+  void _flagLineStarts(String plain, List<Entity> entities) {
+    var lineStart = 0;
+    while (lineStart <= plain.length) {
+      final lineBreak = plain.indexOf('\n', lineStart);
+      final end = lineBreak == -1 ? plain.length : lineBreak;
+      _flagLineStart(plain, lineStart, end, entities);
+      if (lineBreak == -1) break;
+      lineStart = lineBreak + 1;
+    }
+  }
+
+  void _flagLineStart(String plain, int start, int end, List<Entity> entities) {
+    var first = start;
+    while (first < end &&
+        (plain.codeUnitAt(first) == 0x20 || plain.codeUnitAt(first) == 0x09)) {
+      first++;
+    }
+    if (first >= end) return;
+    // A line whose first text sits in a label is written `[..](..)`: it starts
+    // with a bracket, so nothing there can open a block. An escape would be
+    // wrong as well as needless, because the viewport's parser keeps the
+    // backslashes of a label (a message that began with a hashtag read
+    // `\#tag`).
+    if (_startsInLabel(entities, first)) return;
+    final unit = plain.codeUnitAt(first);
+    if (_isBlockMarker(unit)) {
+      _flags[first] = true;
+    } else if (unit >= 0x30 && unit <= 0x39) {
+      var digits = first;
+      while (digits < end &&
+          plain.codeUnitAt(digits) >= 0x30 &&
+          plain.codeUnitAt(digits) <= 0x39) {
+        digits++;
+      }
+      if (digits < end &&
+          (plain.codeUnitAt(digits) == 0x2E ||
+              plain.codeUnitAt(digits) == 0x29)) {
+        _flags[digits] = true;
+      }
+    } else if (unit == 0x7E || unit == 0x3D) {
+      var run = first;
+      while (run < end && plain.codeUnitAt(run) == unit) {
+        run++;
+      }
+      if (run - first >= 3) {
+        for (var i = first; i < run; i++) {
+          _flags[i] = true;
+        }
+      }
+    }
+  }
+
+  bool _startsInLabel(List<Entity> entities, int index) {
+    for (final entity in entities) {
+      if (entity.offset > index || entity.end <= index) continue;
+      switch (entity.kind) {
+        case EntityKind$Link() ||
+            EntityKind$Username() ||
+            EntityKind$Hashtag() ||
+            EntityKind$Mention() ||
+            EntityKind$InlineContent():
+          return true;
+        // A code span is written raw, with no escapes to begin with; the other
+        // kinds are never in the inline list or write no bracket.
+        case EntityKind$Style() || EntityKind$CodeBlock() || EntityKind$List():
+          break;
+      }
+    }
+    return false;
+  }
+
+  bool _isBlockMarker(int unit) =>
+      unit == 0x23 || // #
+      unit == 0x3E || // >
+      unit == 0x2D || // -
+      unit == 0x2B || // +
+      unit == 0x7C; // |
+
+  void _flagMarkers(String plain, Set<int> boundaries) {
+    final length = plain.length;
+    for (var i = 0; i < length; i++) {
+      final unit = plain.codeUnitAt(i);
+      switch (unit) {
+        case 0x5C || 0x2A || 0x60 || 0x5B || 0x5D: // \ * ` [ ]
+          _flags[i] = true;
+        case 0x5F: // _
+          if (!_isSafeIntraword(plain, i, boundaries)) _flags[i] = true;
+        case 0x7E || 0x7C || 0x3D: // ~ | =
+          var end = i;
+          while (end < length && plain.codeUnitAt(end) == unit) {
+            end++;
+          }
+          if (_runNeedsEscape(plain, i, end, boundaries, unit)) {
+            for (var j = i; j < end; j++) {
+              _flags[j] = true;
+            }
+          }
+          i = end - 1;
+      }
+    }
+  }
+
+  // An underscore between two word characters is never emphasis, unless a
+  // marker is written right next to it.
+  bool _isSafeIntraword(String plain, int index, Set<int> boundaries) =>
+      index > 0 &&
+      index + 1 < plain.length &&
+      MarkdownSyntax.isWordUnit(plain.codeUnitAt(index - 1)) &&
+      MarkdownSyntax.isWordUnit(plain.codeUnitAt(index + 1)) &&
+      !boundaries.contains(index) &&
+      !boundaries.contains(index + 1);
+
+  // A pair marker needs two or more of a character and something to open or
+  // close against. A run walled in by whitespace can do neither. A single ~
+  // or | next to a written marker would join it, so it is escaped too.
+  bool _runNeedsEscape(
+    String plain,
+    int start,
+    int end,
+    Set<int> boundaries,
+    int unit,
+  ) {
+    final touchesMarker =
+        unit != 0x3D &&
+        boundaries.any((boundary) => boundary >= start && boundary <= end);
+    if (touchesMarker) return true;
+    if (end - start < 2) return false;
+    final wallBefore =
+        start == 0 ||
+        CanonicalEntities.isWhitespaceUnit(plain.codeUnitAt(start - 1));
+    final wallAfter =
+        end == plain.length ||
+        CanonicalEntities.isWhitespaceUnit(plain.codeUnitAt(end));
+    return !(wallBefore && wallAfter);
+  }
+}
+
+// --- Output ---
+
+/// The output buffer, holding back a trailing `!` until it is known whether a
+/// `[` follows, in which case the `!` is escaped so it cannot turn a link
+/// into an image.
+final class _Out {
+  final StringBuffer _buffer = StringBuffer();
+  bool _bangPending = false;
+
+  void text(String text) {
+    if (text.isEmpty) return;
+    _flush();
+    if (text.endsWith('!')) {
+      _buffer.write(text.substring(0, text.length - 1));
+      _bangPending = true;
+    } else {
+      _buffer.write(text);
+    }
+  }
+
+  void structural(String markup) {
+    if (markup.isEmpty) return;
+    if (_bangPending) {
+      _buffer.write(markup.startsWith('[') ? r'\!' : '!');
+      _bangPending = false;
+    }
+    _buffer.write(markup);
+  }
+
+  void raw(String text) {
+    _flush();
+    _buffer.write(text);
+  }
+
+  String finish() {
+    _flush();
+    return _buffer.toString();
+  }
+
+  void _flush() {
+    if (_bangPending) _buffer.write('!');
+    _bangPending = false;
+  }
+}

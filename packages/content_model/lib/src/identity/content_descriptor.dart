@@ -65,7 +65,15 @@ enum MediaForm {
   /// A resolution-independent vector animation.
   vectorAnimation('vector_animation'),
 
-  /// Video-coded or frame-sequence media: a video clip or an animated image.
+  /// A sequence of frames in an image format (animated WebP, GIF, APNG),
+  /// decoded by image codecs.
+  ///
+  /// Not [video]: decoders are chosen by form, and an image codec cannot read
+  /// a video stream, nor a video decoder an image file. One form for both
+  /// would let only one of the two adapters be registered.
+  animatedImage('animated_image'),
+
+  /// Video-coded media (a WebM or MP4 clip), decoded by a video decoder.
   video('video'),
 
   /// A form this package does not know. The safe default.
@@ -144,6 +152,7 @@ final class ContentDescriptor {
     this.size,
     this.thumbnail,
     this.spokenName,
+    this.shortcode,
   });
 
   /// The content this descriptor describes.
@@ -177,6 +186,11 @@ final class ContentDescriptor {
   /// plain-text alternative or to no label, never to a guessed name.
   final String? spokenName;
 
+  /// The short text code that stands for this content in typed text, such as
+  /// `:grinning:`, when the data provides one. It is the same in every
+  /// language, unlike [spokenName]; a panel shows it as a hint for the item.
+  final String? shortcode;
+
   @override
   bool operator ==(Object other) =>
       other is ContentDescriptor &&
@@ -188,7 +202,8 @@ final class ContentDescriptor {
       other.locked == locked &&
       other.size == size &&
       other.thumbnail == thumbnail &&
-      other.spokenName == spokenName;
+      other.spokenName == spokenName &&
+      other.shortcode == shortcode;
 
   @override
   int get hashCode => Object.hash(
@@ -201,6 +216,7 @@ final class ContentDescriptor {
     size,
     thumbnail,
     spokenName,
+    shortcode,
   );
 
   @override

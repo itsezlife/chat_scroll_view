@@ -68,7 +68,7 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
       case ChatMessageMenuPresentation.sheet:
         _scrim = AnimationController(
           vsync: this,
-          duration: kChatMessageMenuScrimDuration,
+          duration: ChatMessageMenuScrim.duration,
         )..forward();
       case ChatMessageMenuPresentation.popup:
         break;
@@ -176,7 +176,7 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
   Widget build(BuildContext context) {
     final config = widget.config;
     final screenSize = config.screenSize;
-    final placement = computeChatMessageMenuPlacement(
+    final placement = ChatMessageMenuPlacement.compute(
       screenSize: screenSize,
       keyboardHeight: config.keyboardHeight,
       messageRect: config.messageRect,
@@ -233,10 +233,11 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
                         maxWidth: math.min(
-                          kChatMessageMenuMinWidth +
-                              kChatMessageMenuReactionsStartOverhang +
-                              kChatMessageMenuReactionsEndOverhang,
-                          screenSize.width - 2 * kChatMessageMenuEdgeInset,
+                          ChatMessageMenuCard.defaultMinWidth +
+                              ChatMessageMenuReactions.startOverhang +
+                              ChatMessageMenuReactions.endOverhang,
+                          screenSize.width -
+                              2 * ChatMessageMenuPlacement.edgeInset,
                         ),
                       ),
                       child:

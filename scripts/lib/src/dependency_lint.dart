@@ -8,8 +8,8 @@ import 'package:workspace_check/src/workspace.dart';
 ///
 /// - **No cycles.** Reported once per cycle, as `a -> b -> a` starting from the
 ///   alphabetically smallest member.
-/// - **Leaves stay leaves.** `content_model` and `chrome_foundation` depend on
-///   no workspace package.
+/// - **Leaves stay leaves.** `content_model`, `chrome_foundation` and
+///   `composer_editable` depend on no workspace package.
 /// - **Panel hosts stay payload-free.** `panel_shell`, `panel_pages` and
 ///   `panel_presentation` never depend on `emoji_catalog_pack` or on a codec /
 ///   decoder / fetcher adapter package, directly or through other members
@@ -17,6 +17,23 @@ import 'package:workspace_check/src/workspace.dart';
 /// - **`panel_catalog` does not see the chrome foundation.** Pages adapt
 ///   tokens to it, so it never depends on `chrome_foundation`, directly or
 ///   transitively.
+///
+/// - **Plugins stay in their adapter.** Only `kv_shared_preferences` declares
+///   `shared_preferences` (or one of its `shared_preferences_*` platform
+///   packages), in `dependencies:` or `dev_dependencies:`. Everything else
+///   reaches durable storage through `KeyValueStore`. Reported as
+///   `member -> package`, only for direct declarations: the plugin's own
+///   transitive packages are not the member's choice.
+///
+/// - **Host-wired adapters stay with the host.** Only the example host
+///   (members under `example/`) depends on `rich_clipboard`, the adapter with
+///   platform code; packages take the `RichClipboard` seam instead. Reported
+///   as `member -> rich_clipboard`.
+///
+/// - **The composer owns its editable.** `chat_composer` is the only member
+///   that depends on `composer_editable`; hosts reach the field through the
+///   composer view and never take the raw editable. Reported as
+///   `member -> composer_editable`.
 ///
 /// Adapter packages are recognised by name, since nothing else marks them: a
 /// package is an adapter when a `_`-delimited word of its name is `codec`,
@@ -29,6 +46,7 @@ abstract final class DependencyLint {
   static const Set<String> _leaves = <String>{
     'content_model',
     'chrome_foundation',
+    'composer_editable',
   };
 
   static const Set<String> _payloadFreeHosts = <String>{
@@ -47,13 +65,52 @@ abstract final class DependencyLint {
     'panel_catalog': <String>{'chrome_foundation'},
   };
 
+  // The plugin and the only member allowed to declare it.
+  static const String _preferencesPlugin = 'shared_preferences';
+  static const String _preferencesAdapter = 'kv_shared_preferences';
+
+  // Adapters only a host wires, because they hold platform code.
+  static const Set<String> _hostAdapters = <String>{'rich_clipboard'};
+
+  // The editable fork and the one member allowed to depend on it.
+  static const String _composerEditable = 'composer_editable';
+  static const String _composerEditableDependent = 'chat_composer';
+
   /// All violations in [graph]: cycles first, then leaf breaches, then the
-  /// remaining forbidden edges, each group in member order.
+  /// remaining forbidden edges, then plugin declarations outside their
+  /// adapter, then host adapters outside the host, then dependents of
+  /// `composer_editable` other than the composer, each group in member order.
   static List<Violation> check(WorkspaceGraph graph) => <Violation>[
     ..._cycles(graph),
     ..._leafBreaches(graph),
     ..._forbiddenBreaches(graph),
+    ..._pluginBreaches(graph),
+    ..._hostAdapterBreaches(graph),
+    ..._composerEditableBreaches(graph),
   ];
+
+  static Iterable<Violation> _composerEditableBreaches(WorkspaceGraph graph) =>
+      <Violation>[
+        for (final member in graph.members)
+          if (member.name != _composerEditableDependent &&
+              member.dependencies.contains(_composerEditable))
+            Violation(
+              LintRule.composerEditableOutsideComposer,
+              '${member.name} -> $_composerEditable',
+            ),
+      ];
+
+  static Iterable<Violation> _hostAdapterBreaches(WorkspaceGraph graph) =>
+      <Violation>[
+        for (final member in graph.members)
+          if (member.path != 'example' && !member.path.startsWith('example/'))
+            for (final name in member.dependencies.toList()..sort())
+              if (_hostAdapters.contains(name))
+                Violation(
+                  LintRule.hostAdapterOutsideHost,
+                  '${member.name} -> $name',
+                ),
+      ];
 
   static Iterable<Violation> _cycles(WorkspaceGraph graph) {
     final found = <String>{};
@@ -100,6 +157,19 @@ abstract final class DependencyLint {
             '${member.name} -> $dependency',
           ),
   ];
+
+  static Iterable<Violation> _pluginBreaches(WorkspaceGraph graph) =>
+      <Violation>[
+        for (final member in graph.members)
+          if (member.name != _preferencesAdapter)
+            for (final name in member.dependencies.toList()..sort())
+              if (name == _preferencesPlugin ||
+                  name.startsWith('${_preferencesPlugin}_'))
+                Violation(
+                  LintRule.pluginDependencyOutsideAdapter,
+                  '${member.name} -> $name',
+                ),
+      ];
 
   static Iterable<Violation> _forbiddenBreaches(WorkspaceGraph graph) =>
       <Violation>[

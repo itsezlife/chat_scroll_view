@@ -12,7 +12,7 @@ void main() {
     name: 'model',
     path: 'packages/model',
     analysisTargets: ['lib', 'test'],
-    hasTests: true,
+    testFiles: ['a_test.dart'],
   );
   const widgets = WorkspaceMember(
     name: 'widgets',
@@ -20,7 +20,7 @@ void main() {
     dependencies: {'model'},
     usesFlutter: true,
     analysisTargets: ['lib', 'test', 'integration_test'],
-    hasTests: true,
+    testFiles: ['a_test.dart'],
   );
 
   test('analyzes and tests each member after the members it depends on', () {
@@ -46,16 +46,20 @@ void main() {
     expect(analyze.workingDirectory, '/repo/packages/widgets');
   });
 
-  test('runs flutter test for Flutter members and dart test for the rest', () {
+  test('runs the test entrypoint, with flutter test for Flutter members and '
+      'dart test for the rest', () {
     final steps = CheckPlan.forWorkspace(graphOf([widgets, model]));
 
     final modelTest = steps.singleWhere((s) => s.label == 'model: test');
     final widgetsTest = steps.singleWhere((s) => s.label == 'widgets: test');
 
-    expect([modelTest.executable, ...modelTest.arguments], ['dart', 'test']);
+    expect(
+      [modelTest.executable, ...modelTest.arguments],
+      ['dart', 'test', 'test/unit_test.dart'],
+    );
     expect(
       [widgetsTest.executable, ...widgetsTest.arguments],
-      ['flutter', 'test', '--no-pub'],
+      ['flutter', 'test', '--no-pub', 'test/unit_test.dart'],
     );
   });
 
@@ -82,7 +86,7 @@ void main() {
         name: 'generator',
         path: 'packages/generator',
         analysisTargets: ['lib', 'test', 'tool'],
-        hasTests: true,
+        testFiles: ['a_test.dart'],
         hasCheckHook: true,
       );
 

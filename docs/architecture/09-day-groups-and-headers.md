@@ -131,8 +131,8 @@ the rows.
 
 Metrics: `restTop` (= `max(topPad, oldest row paintTop)` once the oldest
 message is reached, else `topPad`), `extent` (laid-out header height, fallback
-`kHeaderFallbackHeight = 32` before first layout), `leadingSeparatorTop`, and
-`activity`. `leadingSeparatorTop` is the smallest paint top among built
+`ChatFloatingHeaderController.headerFallbackHeight = 32` before first
+layout), `leadingSeparatorTop`, and `activity`. `leadingSeparatorTop` is the smallest paint top among built
 `startsDay` rows with `top > restTop - extent` — the separator that is not yet
 fully above the rest line (separators are assumed header-tall).
 

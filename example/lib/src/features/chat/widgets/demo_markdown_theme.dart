@@ -1,3 +1,5 @@
+import 'package:chat_scroll_view/chat_scroll_view.dart' show ChatEmojiPolicy;
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_md/flutter_md.dart';
@@ -41,7 +43,17 @@ MarkdownThemeData demoDarkMarkdownTheme(BuildContext context) {
     linkStyle: _underlineLinksOnPlatform
         ? const TextStyle(decoration: TextDecoration.underline)
         : null,
-    spanFilter: (span) => !span.style.contains(MD$Style.image),
+    // Mentions, usernames and hashtags are not links to the engine; the host
+    // paints them in the chrome's accent, the brand colour of its palette.
+    //
+    // The spoiler dust has no field here: the engine's theme takes neither its
+    // colour nor its particle ranges, so `SpoilerTokens.color` and the speed,
+    // life and frame rate of `SpoilerParticleMotion` do not reach it. Only
+    // whether it moves does, through `MarkdownSpoilerController.animate`.
+    mentionColor: ChromeThemeScope.paletteOf(context).accent,
+    // A unicode emoji in a bubble is drawn at the platform's size beside a
+    // custom emoji (the policy of the emoji-only body says which).
+    emojiScale: ChatEmojiPolicy.forPlatform().inTextEmojiScale,
   );
 }
 

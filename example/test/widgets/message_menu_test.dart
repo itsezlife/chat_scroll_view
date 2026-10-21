@@ -1,6 +1,7 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
+import 'package:content_model/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -72,6 +73,7 @@ void main() {
       dataSource: dataSource,
       selection: selection,
       actions: MessageMenuActions(onDelete: (_) {}, onEdit: (_) {}),
+      clipboard: FakeRichClipboard(),
     );
     const shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.all(Radius.circular(18)),

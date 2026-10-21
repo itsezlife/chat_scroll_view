@@ -17,12 +17,12 @@ class ChatMessageMenuColumn extends StatelessWidget {
     children: <Widget>[
       if (slots.reactions.isNotEmpty) ...<Widget>[
         Align(alignment: Alignment.centerRight, child: slots.reactionStrip),
-        const SizedBox(height: kChatMessageMenuReactionsGap),
+        const SizedBox(height: ChatMessageMenuReactions.gap),
       ],
       Padding(
         padding: const EdgeInsets.only(
-          left: kChatMessageMenuReactionsStartOverhang,
-          right: kChatMessageMenuReactionsEndOverhang,
+          left: ChatMessageMenuReactions.startOverhang,
+          right: ChatMessageMenuReactions.endOverhang,
         ),
         child: slots.actionList,
       ),

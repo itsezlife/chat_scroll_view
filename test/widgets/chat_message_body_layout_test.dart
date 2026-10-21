@@ -3,9 +3,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('layoutChatMessageBody', () {
+  group('ChatMessageBodyLayout.measure', () {
     test('header wider than short last line widens body and trails meta', () {
-      final layout = layoutChatMessageBody(
+      final layout = ChatMessageBodyLayout.measure(
         constraints: const BoxConstraints(maxWidth: 280),
         padding: EdgeInsets.zero,
         spacing: 4,
@@ -26,7 +26,7 @@ void main() {
     test('wrap decision ignores header width and still trails meta', () {
       // availableWidth = 120; lastLine(50) + spacing(4) + meta(80) = 134 → wrap.
       // Header 100 > content 50 must not keep meta inline.
-      final layout = layoutChatMessageBody(
+      final layout = ChatMessageBodyLayout.measure(
         constraints: const BoxConstraints(maxWidth: 120),
         padding: EdgeInsets.zero,
         spacing: 4,

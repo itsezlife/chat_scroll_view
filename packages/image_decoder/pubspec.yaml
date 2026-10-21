@@ -1,0 +1,26 @@
+name: image_decoder
+description: >
+  Decoder adapter for the image formats the engine decodes (PNG, JPEG, WebP,
+  GIF, BMP, animated WebP and GIF): still and frame-sequence media for the
+  catalog_assets pipeline.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: ">=3.27.0"
+
+dependencies:
+  catalog_assets:
+    path: ../catalog_assets
+  content_model:
+    path: ../content_model
+  flutter:
+    sdk: flutter
+  meta: ^1.17.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

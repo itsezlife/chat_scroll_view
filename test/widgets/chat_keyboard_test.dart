@@ -1,6 +1,7 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_keyboard_shortcuts.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
@@ -547,6 +548,66 @@ void main() {
       await tester.tapAt(const Offset(200, 200));
       await tester.pump();
       expect(composerFocus.hasFocus, isFalse);
+    });
+  });
+
+  group('message selection focus', () {
+    // A host that swaps its composer for a selection bar lets go of the
+    // composer's focus when the selection starts, from its own listener on
+    // the selection, which runs after the wrapper's.
+    testWidgets('a single selected message ends up with the focus, whatever '
+        'the host listener does to the composer', (tester) async {
+      const count = 64;
+      final controller = ChatScrollController()..jumpTo(count ~/ 2);
+      final selection = ChatSelectionController();
+      final composer = FocusNode();
+      final ds = _PreloadedDataSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(selection.dispose);
+      addTearDown(composer.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: <Widget>[
+                Expanded(
+                  child: ChatKeyboardShortcuts(
+                    controller: controller,
+                    selectionController: selection,
+                    preserveExternalFocus: true,
+                    child: ChatScrollView(
+                      controller: controller,
+                      dataSource: ds,
+                      selectionController: selection,
+                      cacheExtent: 1000,
+                      messageBuilder:
+                          (context, id, message, status, runLayout) =>
+                              SizedBox(height: 60, child: Text('msg-$id')),
+                    ),
+                  ),
+                ),
+                TextField(focusNode: composer, autofocus: true),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      selection.addListener(() {
+        if (selection.isSelectionMode) composer.unfocus();
+      });
+      expect(composer.hasFocus, isTrue);
+
+      selection.startSelection(count ~/ 2);
+      await tester.pumpAndSettle();
+
+      expect(selection.isSelectionMode, isTrue);
+      expect(
+        FocusManager.instance.primaryFocus?.debugLabel,
+        'ChatKeyboardShortcuts',
+      );
     });
   });
 

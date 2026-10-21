@@ -22,8 +22,9 @@ export 'package:chat_scroll_view/src/chat_scroll/tail_or_target_outcome.dart';
 /// [visibleFraction] is `visible_intersection_height /
 /// min(height, paintBandHeight)`, clamped to `0.0`–`1.0`. When [height] is at
 /// least the parent range's [ChatVisibleRange.paintBandHeight], the fraction
-/// used the band-height denominator — use [visibleRowFillsBand] with that band
-/// height before treating the fraction as share-of-message read.
+/// used the band-height denominator — check
+/// [ChatVisibleRangeBandFill.rowFillsBand] on that range before treating the
+/// fraction as share-of-message read.
 typedef ChatVisibleRow = ({int id, double visibleFraction, double height});
 
 /// Visible-range snapshot exposed by [ChatScrollController.visibleRange].
@@ -52,9 +53,13 @@ typedef ChatVisibleRange = ({
   ChatVisibleRow? anchorNextRow,
 });
 
-/// Whether [rowHeight] used the band-height denominator for a visible fraction.
-bool visibleRowFillsBand(double rowHeight, double paintBandHeight) =>
-    paintBandHeight > 0 && rowHeight >= paintBandHeight;
+/// Band-fill reading of a [ChatVisibleRange]'s rows.
+extension ChatVisibleRangeBandFill on ChatVisibleRange {
+  /// Whether [row]'s height used the band-height denominator for its visible
+  /// fraction: [row] is at least as tall as this range's paint band.
+  bool rowFillsBand(ChatVisibleRow row) =>
+      paintBandHeight > 0 && row.height >= paintBandHeight;
+}
 
 /// Snapshot of the Message under the fixed mid paint-band ray.
 ///
@@ -287,8 +292,7 @@ class ChatScrollController {
     if (_disposed) return;
     _debugCheckNotDispatchingTailOrTarget('jumpTo');
     assert(
-      tailFitFraction == null ||
-          (tailFitFraction >= 0 && tailFitFraction <= 1),
+      tailFitFraction == null || (tailFitFraction >= 0 && tailFitFraction <= 1),
       'tailFitFraction must be within 0..1, got $tailFitFraction',
     );
     // Absent targets: the anchor id is updated below, but absent slots render
@@ -866,10 +870,7 @@ class ChatScrollController {
     _releaseScrollbarHandles();
   }
 
-  T _takeScrollbarHandle<T extends ChatScrollbarHandle>(
-    T handle,
-    Set<T> live,
-  ) {
+  T _takeScrollbarHandle<T extends ChatScrollbarHandle>(T handle, Set<T> live) {
     if (_disposed) {
       handle._controller = null;
       return handle;

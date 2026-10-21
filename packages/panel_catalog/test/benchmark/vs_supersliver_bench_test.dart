@@ -15,51 +15,61 @@ import 'dart:async';
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsNode;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
+import 'package:panel_catalog/testing.dart';
+
+import '../support/asset_scopes.dart';
 
 import 'shared/baseline_sliver_grid_catalog.dart';
 import 'shared/baseline_supersliver_catalog.dart';
 import 'shared/catalog_presets.dart';
 import 'shared/metrics.dart';
+import 'shared/ratio_report.dart';
 
 enum _BaselineKind { superSliver, sliverGrid }
+
+/// A benchmark probe in the suite's semantics preset (see
+/// [benchSemanticsEnabled]); the one probe that measures semantics itself calls
+/// `testWidgets` directly.
+void _benchWidgets(String description, WidgetTesterCallback callback) =>
+    testWidgets(description, callback, semanticsEnabled: benchSemanticsEnabled);
 
 // ---------------------------------------------------------------------------
 // Harnesses
 // ---------------------------------------------------------------------------
 
 Widget _candidateApp({
-  required CatalogDataSource dataSource,
-  required CatalogAssetCache assetCache,
+  required listen.ValueListenable<CatalogSnapshot> snapshots,
+  required AssetCacheScope assets,
   required PanelCatalogController controller,
   double width = 400,
   double height = 600,
-}) {
-  return MaterialApp(
-    home: PanelCatalogTheme(
-      data: PanelCatalogThemeData.light,
-      child: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: width,
-            height: height,
-            child: PanelCatalogViewport(
-              dataSource: dataSource,
-              assetCache: assetCache,
-              controller: controller,
-              spanCount: kBenchSpanCount,
-              cellExtent: kBenchCellExtent,
-              headerExtent: kBenchHeaderExtent,
-            ),
+}) => MaterialApp(
+  home: PanelCatalogTheme(
+    data: PanelCatalogThemeData.light,
+    child: Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: PanelCatalogViewport(
+            snapshots: snapshots,
+            assets: assets,
+            controller: controller,
+            spanCount: kBenchSpanCount,
+            cellExtent: kBenchCellExtent,
+            headerExtent: kBenchHeaderExtent,
           ),
         ),
       ),
     ),
-  );
-}
+  ),
+);
 
 Widget _baselineApp({
   required _BaselineKind kind,
@@ -144,6 +154,9 @@ Future<List<int>> _pumpUntilSettledSamples(
       EnginePhase.sendSemanticsUpdate,
       const Duration(seconds: 3),
     );
+    // A timeout is a FlutterError the harness throws; there is nothing else
+    // to tell it from.
+    // ignore: avoid_catching_errors
   } on FlutterError {
     // Timed out still settling; sampled frames remain valid.
   }
@@ -165,16 +178,10 @@ double _baselineHeaderOffset({
   required int sectionIndex,
   required GlobalKey<BaselineSuperSliverCatalogState> sslKey,
   required GlobalKey<BaselineSliverGridCatalogState> gridKey,
-}) {
-  return switch (kind) {
-    _BaselineKind.superSliver => sslKey.currentState!.headerOffset(
-      sectionIndex,
-    ),
-    _BaselineKind.sliverGrid => gridKey.currentState!.headerOffset(
-      sectionIndex,
-    ),
-  };
-}
+}) => switch (kind) {
+  _BaselineKind.superSliver => sslKey.currentState!.headerOffset(sectionIndex),
+  _BaselineKind.sliverGrid => gridKey.currentState!.headerOffset(sectionIndex),
+};
 
 // ---------------------------------------------------------------------------
 // Suite
@@ -195,20 +202,31 @@ void main() {
   final memRestGrid = <(int, CatalogMemorySnapshot, CatalogMemorySnapshot)>[];
   final memScrollSsl = <(int, CatalogMemorySnapshot, CatalogMemorySnapshot)>[];
   final memScrollGrid = <(int, CatalogMemorySnapshot, CatalogMemorySnapshot)>[];
+  // Candidate only: the catalog with per-section layouts against the same
+  // catalog at one layout.
+  final mixedLayout = <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
+  final mixedPaint = <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
+  final mixedNear = <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
+  final mixedFar = <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
+  // Candidate only: scroll frames (build to semantics flush) with a screen
+  // reader running against the same frames without one, and the semantic nodes
+  // it gets.
+  final semanticsFrames = <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
+  final semanticNodeCounts = <int, int>{};
 
   for (final leafCount in kBenchLeafCounts) {
-    testWidgets('forced layout — $leafCount leaves', (tester) async {
+    _benchWidgets('forced layout — $leafCount leaves', (tester) async {
       final sections = generateCatalogSections(leafCount);
 
-      final dataSource = FakeCatalogDataSource(sections: sections);
-      final assetCache = FakeCatalogAssetCache();
+      final snapshots = FakeCatalogSnapshotSource(sections: sections);
+      final assetScope = textGlyphScope();
       final controller = PanelCatalogController();
 
       Future<void> pumpCand(double width) async {
         await tester.pumpWidget(
           _candidateApp(
-            dataSource: dataSource,
-            assetCache: assetCache,
+            snapshots: snapshots,
+            assets: assetScope,
             controller: controller,
             width: width,
           ),
@@ -230,7 +248,7 @@ void main() {
         );
       }
       await tester.pumpWidget(const SizedBox.shrink());
-      dataSource.dispose();
+      snapshots.dispose();
       controller.dispose();
       final cand = BenchmarkMetrics('PCV layout', candLayout);
 
@@ -278,16 +296,16 @@ void main() {
       }
     });
 
-    testWidgets('scroll-only paint — $leafCount leaves', (tester) async {
+    _benchWidgets('scroll-only paint — $leafCount leaves', (tester) async {
       final sections = generateCatalogSections(leafCount);
 
-      final dataSource = FakeCatalogDataSource(sections: sections);
-      final assetCache = FakeCatalogAssetCache();
+      final snapshots = FakeCatalogSnapshotSource(sections: sections);
+      final assetScope = textGlyphScope();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -304,7 +322,7 @@ void main() {
         candPaint.add(candRo.debugLastPaintDuration.inMicroseconds);
       }
       await tester.pumpWidget(const SizedBox.shrink());
-      dataSource.dispose();
+      snapshots.dispose();
       controller.dispose();
       final cand = BenchmarkMetrics('PCV paint', candPaint);
 
@@ -344,16 +362,16 @@ void main() {
       }
     });
 
-    testWidgets('fling frame timing — $leafCount leaves', (tester) async {
+    _benchWidgets('fling frame timing — $leafCount leaves', (tester) async {
       final sections = generateCatalogSections(leafCount);
 
-      final dataSource = FakeCatalogDataSource(sections: sections);
-      final assetCache = FakeCatalogAssetCache();
+      final snapshots = FakeCatalogSnapshotSource(sections: sections);
+      final assetScope = textGlyphScope();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -365,7 +383,7 @@ void main() {
         find.byType(PanelCatalogViewport),
       );
       await tester.pumpWidget(const SizedBox.shrink());
-      dataSource.dispose();
+      snapshots.dispose();
       controller.dispose();
       final cand = BenchmarkMetrics('PCV fling', candFling);
 
@@ -398,7 +416,7 @@ void main() {
       }
     });
 
-    testWidgets('near-path section jump — $leafCount leaves', (tester) async {
+    _benchWidgets('near-path section jump — $leafCount leaves', (tester) async {
       final sections = generateCatalogSections(leafCount);
       if (sections.length < 2) {
         // ignore: avoid_print
@@ -406,13 +424,13 @@ void main() {
         return;
       }
 
-      final dataSource = FakeCatalogDataSource(sections: sections);
-      final assetCache = FakeCatalogAssetCache();
+      final snapshots = FakeCatalogSnapshotSource(sections: sections);
+      final assetScope = textGlyphScope();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -422,7 +440,7 @@ void main() {
         start: () => controller.jumpToSection(1),
       );
       await tester.pumpWidget(const SizedBox.shrink());
-      dataSource.dispose();
+      snapshots.dispose();
       controller.dispose();
       final cand = BenchmarkMetrics('PCV near', candNear);
 
@@ -473,7 +491,7 @@ void main() {
       }
     });
 
-    testWidgets('far-path stitch vs animateTo — $leafCount leaves', (
+    _benchWidgets('far-path stitch vs animateTo — $leafCount leaves', (
       tester,
     ) async {
       final sections = generateCatalogSections(leafCount);
@@ -483,13 +501,13 @@ void main() {
         return;
       }
 
-      final dataSource = FakeCatalogDataSource(sections: sections);
-      final assetCache = FakeCatalogAssetCache();
+      final snapshots = FakeCatalogSnapshotSource(sections: sections);
+      final assetScope = textGlyphScope();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -501,7 +519,7 @@ void main() {
         maxFrames: 180,
       );
       await tester.pumpWidget(const SizedBox.shrink());
-      dataSource.dispose();
+      snapshots.dispose();
       controller.dispose();
       final cand = BenchmarkMetrics('PCV far stitch', candFar);
 
@@ -531,7 +549,7 @@ void main() {
         final travel = (to - sc.offset).abs();
         // Same travel-scaled window as stitch — honest “smooth scroll the gap”
         // alternative that stitch replaces.
-        final duration = catalogStitchTravelDuration(
+        final duration = CatalogFarStitch.travelDuration(
           travelPx: travel,
           viewportHeight: kBenchViewportSize.height,
         );
@@ -560,16 +578,236 @@ void main() {
       }
     });
 
-    testWidgets('memory at rest — $leafCount leaves', (tester) async {
+    _benchWidgets('mixed layouts (8 and 5 columns) — $leafCount leaves', (
+      tester,
+    ) async {
+      // Candidate only: the baselines lay every section out at one span, so
+      // the comparison is the same catalog with and without per-section
+      // layouts.
+      final uniform = generateCatalogSections(leafCount);
+      final mixed = generateMixedLayoutSections(leafCount);
+
+      Future<BenchmarkMetrics> layoutOf(List<CatalogSection> sections) async {
+        final snapshots = FakeCatalogSnapshotSource(sections: sections);
+        final assetScope = textGlyphScope();
+        final controller = PanelCatalogController();
+        Future<void> pumpCand(double width) => tester.pumpWidget(
+          _candidateApp(
+            snapshots: snapshots,
+            assets: assetScope,
+            controller: controller,
+            width: width,
+          ),
+        );
+        await pumpCand(400);
+        await tester.pumpAndSettle();
+        for (var i = 0; i < 10; i++) {
+          await pumpCand(400 + (i.isEven ? 0 : 1));
+          await tester.pump();
+        }
+        final samples = <int>[];
+        for (var i = 0; i < 100; i++) {
+          await pumpCand(400 + (i.isEven ? 0 : 1));
+          await tester.pump();
+          samples.add(
+            _candidateRender(tester).debugLastLayoutDuration.inMicroseconds,
+          );
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+        snapshots.dispose();
+        controller.dispose();
+        return BenchmarkMetrics('PCV layout', samples);
+      }
+
+      Future<BenchmarkMetrics> paintOf(List<CatalogSection> sections) async {
+        final snapshots = FakeCatalogSnapshotSource(sections: sections);
+        final assetScope = textGlyphScope();
+        final controller = PanelCatalogController();
+        await tester.pumpWidget(
+          _candidateApp(
+            snapshots: snapshots,
+            assets: assetScope,
+            controller: controller,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final ro = _candidateRender(tester);
+        for (var i = 0; i < 10; i++) {
+          controller.scrollBy(5);
+          await tester.pump();
+        }
+        final samples = <int>[];
+        for (var i = 0; i < 300; i++) {
+          controller.scrollBy(3);
+          await tester.pump();
+          samples.add(ro.debugLastPaintDuration.inMicroseconds);
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+        snapshots.dispose();
+        controller.dispose();
+        return BenchmarkMetrics('PCV paint', samples);
+      }
+
+      Future<BenchmarkMetrics> jumpOf(
+        List<CatalogSection> sections,
+        int target, {
+        required int maxFrames,
+      }) async {
+        final snapshots = FakeCatalogSnapshotSource(sections: sections);
+        final assetScope = textGlyphScope();
+        final controller = PanelCatalogController();
+        await tester.pumpWidget(
+          _candidateApp(
+            snapshots: snapshots,
+            assets: assetScope,
+            controller: controller,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final samples = await _pumpUntilSettledSamples(
+          tester,
+          start: () => controller.jumpToSection(target),
+          maxFrames: maxFrames,
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+        snapshots.dispose();
+        controller.dispose();
+        return BenchmarkMetrics('PCV jump', samples);
+      }
+
+      final layout = (
+        leafCount,
+        await layoutOf(mixed),
+        await layoutOf(uniform),
+      );
+      mixedLayout.add(layout);
+      final paint = (leafCount, await paintOf(mixed), await paintOf(uniform));
+      mixedPaint.add(paint);
+      // ignore: avoid_print
+      print(
+        '\n$leafCount leaves — mixed vs uniform layout:\n'
+        '  layout mixed:   ${layout.$2}\n  layout uniform: ${layout.$3}\n'
+        '  paint mixed:    ${paint.$2}\n  paint uniform:  ${paint.$3}',
+      );
+
+      if (mixed.length >= 2) {
+        final near = (
+          leafCount,
+          await jumpOf(mixed, 1, maxFrames: 120),
+          await jumpOf(uniform, 1, maxFrames: 120),
+        );
+        mixedNear.add(near);
+        // ignore: avoid_print
+        print('  near mixed:     ${near.$2}\n  near uniform:   ${near.$3}');
+      }
+      if (mixed.length >= 6) {
+        final far = (
+          leafCount,
+          await jumpOf(mixed, mixed.length - 1, maxFrames: 180),
+          await jumpOf(uniform, uniform.length - 1, maxFrames: 180),
+        );
+        mixedFar.add(far);
+        // ignore: avoid_print
+        print('  far mixed:      ${far.$2}\n  far uniform:    ${far.$3}');
+      }
+    });
+
+    // flutter_test switches semantics on for every widget test unless told
+    // otherwise, so every other probe in this file runs with semantics on. This
+    // one turns it off and asks for it where it measures the semantics-on pass.
+    testWidgets('semantics on — scroll frames — $leafCount leaves', (
+      tester,
+    ) async {
       final sections = generateCatalogSections(leafCount);
 
-      final dataSource = FakeCatalogDataSource(sections: sections);
-      final assetCache = FakeCatalogAssetCache();
+      Future<(BenchmarkMetrics, int)> scrollFrames({
+        required bool semantics,
+      }) async {
+        final handle = semantics ? tester.ensureSemantics() : null;
+        final snapshots = FakeCatalogSnapshotSource(sections: sections);
+        final controller = PanelCatalogController();
+        await tester.pumpWidget(
+          _candidateApp(
+            snapshots: snapshots,
+            assets: textGlyphScope(),
+            controller: controller,
+          ),
+        );
+        await tester.pumpAndSettle();
+        for (var i = 0; i < 10; i++) {
+          controller.scrollBy(5);
+          await tester.pump();
+        }
+        // A whole frame, semantics flush included: that is where the nodes
+        // are described.
+        final samples = <int>[];
+        for (var i = 0; i < 300; i++) {
+          controller.scrollBy(3);
+          final sw = Stopwatch()..start();
+          await tester.pump();
+          samples.add(sw.elapsedMicroseconds);
+        }
+        var nodes = 0;
+        if (semantics) {
+          void count(SemanticsNode node) {
+            nodes++;
+            node.visitChildren((child) {
+              count(child);
+              return true;
+            });
+          }
+
+          count(tester.getSemantics(find.byType(PanelCatalogViewport)));
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+        snapshots.dispose();
+        controller.dispose();
+        handle?.dispose();
+        return (
+          BenchmarkMetrics(
+            semantics ? 'semantics on' : 'semantics off',
+            samples,
+          ),
+          nodes,
+        );
+      }
+
+      // The first pass of a process pays for warming up; it is thrown away so
+      // that it does not flatter whichever side runs second.
+      await scrollFrames(semantics: false);
+      final (off, _) = await scrollFrames(semantics: false);
+      final (on, nodes) = await scrollFrames(semantics: true);
+      semanticsFrames.add((leafCount, on, off));
+      semanticNodeCounts[leafCount] = nodes;
+      // ignore: avoid_print
+      print(
+        '\n$leafCount leaves — scroll frames, semantics on ($nodes nodes) vs '
+        'off:\n  $on\n  $off',
+      );
+
+      // The window, not the catalogue: a fixed viewport describes a fixed
+      // band whatever the catalogue size (about 16 rows of 8 cells here, the
+      // viewport's own node and its container on top).
+      expect(nodes, lessThan(200));
+      // No time is asserted here: a frame that moves the window describes
+      // about a row of new cells, and what that costs against the same frame
+      // without a screen reader (about 1.2x at 64 leaves, 2-5x at 512 and
+      // 4096 in debug, headless) is the nightly metric
+      // `semantics.scroll_frame.on_over_off.<leaves>`. A tripwire on a
+      // wall-clock ratio here tripped about one run in thirteen, in a required
+      // gate.
+    }, semanticsEnabled: false);
+
+    _benchWidgets('memory at rest — $leafCount leaves', (tester) async {
+      final sections = generateCatalogSections(leafCount);
+
+      final snapshots = FakeCatalogSnapshotSource(sections: sections);
+      final assetScope = textGlyphScope();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -580,7 +818,7 @@ void main() {
         renderObjectCount: _renderObjectCount(tester),
       );
       await tester.pumpWidget(const SizedBox.shrink());
-      dataSource.dispose();
+      snapshots.dispose();
       controller.dispose();
 
       for (final kind in _BaselineKind.values) {
@@ -610,18 +848,18 @@ void main() {
       }
     });
 
-    testWidgets('memory after scroll-through — $leafCount leaves', (
+    _benchWidgets('memory after scroll-through — $leafCount leaves', (
       tester,
     ) async {
       final sections = generateCatalogSections(leafCount);
 
-      final dataSource = FakeCatalogDataSource(sections: sections);
-      final assetCache = FakeCatalogAssetCache();
+      final snapshots = FakeCatalogSnapshotSource(sections: sections);
+      final assetScope = textGlyphScope();
       final controller = PanelCatalogController();
       await tester.pumpWidget(
         _candidateApp(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -645,7 +883,7 @@ void main() {
         renderObjectCount: candPeakRo,
       );
       await tester.pumpWidget(const SizedBox.shrink());
-      dataSource.dispose();
+      snapshots.dispose();
       controller.dispose();
 
       for (final kind in _BaselineKind.values) {
@@ -722,6 +960,31 @@ void main() {
     dump('Fling frame time', flingSsl, flingGrid);
     dump('Near-path section jump', nearSsl, nearGrid);
     dump('Far-path stitch vs animateTo', farSsl, farGrid);
+    for (final (title, rows) in [
+      ('Mixed layouts: forced layout', mixedLayout),
+      ('Mixed layouts: scroll-only paint', mixedPaint),
+      ('Mixed layouts: near-path section jump', mixedNear),
+      ('Mixed layouts: far-path stitch', mixedFar),
+    ]) {
+      // ignore: avoid_print
+      print(
+        generateCatalogComparisonTable(
+          title: '$title — vs the same catalog at one layout',
+          rows: rows,
+          baselineLabel: 'Uniform layout',
+        ),
+      );
+    }
+    // ignore: avoid_print
+    print(
+      generateCatalogComparisonTable(
+        title: 'Scroll frames with semantics on — vs the same without',
+        rows: semanticsFrames,
+        baselineLabel: 'Semantics off',
+      ),
+    );
+    // ignore: avoid_print
+    print('Semantic nodes by catalogue size: $semanticNodeCounts');
     // ignore: avoid_print
     print(
       generateCatalogMemoryTable(
@@ -752,5 +1015,53 @@ void main() {
         baselineLabel: 'SliverGrid + cells',
       ),
     );
+
+    // The numbers the nightly job watches (written only when BENCH_REPORT is
+    // set). Medians, not means: one slow frame moves a mean of 100 samples,
+    // and the ratios of two floor-level medians are what the hand-curated
+    // report quotes too.
+    final report = RatioReport('panel_catalog');
+    void ratios(
+      String probe,
+      String against,
+      List<(int, BenchmarkMetrics, BenchmarkMetrics)> rows,
+    ) {
+      for (final (leaves, cand, base) in rows) {
+        report.ratio('$probe.$against.$leaves', cand.medianUs, base.medianUs);
+      }
+    }
+
+    for (final (probe, ssl, grid) in [
+      ('forced_layout', layoutSsl, layoutGrid),
+      ('scroll_paint', paintSsl, paintGrid),
+      ('fling_frame', flingSsl, flingGrid),
+      ('near_jump', nearSsl, nearGrid),
+      ('far_stitch', farSsl, farGrid),
+    ]) {
+      ratios(probe, 'vs_ssl', ssl);
+      ratios(probe, 'vs_grid', grid);
+    }
+    ratios('mixed.layout', 'over_uniform', mixedLayout);
+    ratios('mixed.paint', 'over_uniform', mixedPaint);
+    ratios('mixed.near_jump', 'over_uniform', mixedNear);
+    ratios('mixed.far_stitch', 'over_uniform', mixedFar);
+    ratios('semantics.scroll_frame', 'on_over_off', semanticsFrames);
+    semanticNodeCounts.forEach(
+      (leaves, nodes) => report.count('semantics.nodes.$leaves', nodes),
+    );
+    for (final (leaves, cand, _) in memRestSsl) {
+      report
+        ..count('objects.rest.attached_leaves.$leaves', cand.attachedLeaves)
+        ..count('objects.rest.render_objects.$leaves', cand.renderObjectCount);
+    }
+    for (final (leaves, cand, _) in memScrollSsl) {
+      report
+        ..count('objects.scroll.attached_leaves.$leaves', cand.attachedLeaves)
+        ..count(
+          'objects.scroll.render_objects.$leaves',
+          cand.renderObjectCount,
+        );
+    }
+    report.writeIfRequested();
   });
 }

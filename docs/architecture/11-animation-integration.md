@@ -265,7 +265,7 @@ Navigate-select (highlight the target row after navigation):
 4. **Hold clock paused** during the flight (solid remains).
 5. **Settle** (`_completeAnimate`) restarts solid hold for
    `highlightDuration` (default 1000ms).
-6. **Fade** ~300ms (`kHighlightFadeDuration`) after hold.
+6. **Fade** ~300ms (`ChatAnimator.highlightFadeDuration`) after hold.
 7. **Already-there** arms solid and starts hold immediately.
 8. **Clear matrix**
 

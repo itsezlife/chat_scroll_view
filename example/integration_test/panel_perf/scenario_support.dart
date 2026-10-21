@@ -2,6 +2,8 @@
 /// suite flings, records and judges the same way.
 library;
 
+import 'package:catalog_assets/glyph_atlas.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,7 +29,7 @@ Future<FlingCoverage> flingPass(WidgetTester tester) async {
     if (controller.offset > maxOffset) maxOffset = controller.offset;
   }
 
-  controller.addScrollListener(track);
+  final tracking = controller.events.listen(track);
   Future<void> fling(double dy) async {
     await tester.fling(finder, Offset(0, dy), 7000);
     await tester.pump(const Duration(milliseconds: 250));
@@ -47,23 +49,34 @@ Future<FlingCoverage> flingPass(WidgetTester tester) async {
     await fling(300);
   }
   await settle(tester);
-  controller.removeScrollListener(track);
+  await tracking.cancel();
 
   return FlingCoverage(
     reachedEnd: reachedEnd,
     returnedToTop: controller.offset <= 50,
     maxOffsetPx: maxOffset,
     viewportHeightPx: viewportHeight,
-    expectedExtentPx: estimateContentExtent(
-      leavesPerSection: [
-        for (final section in viewport.dataSource.sections)
-          section.leaves.length,
-      ],
-      spanCount: viewport.spanCount,
-      cellExtent: viewport.cellExtent,
-      headerExtent: viewport.headerExtent,
-    ),
+    expectedExtentPx: _expectedExtent(viewport),
   );
+}
+
+/// The content extent the viewport lays out, from what each section says of
+/// its own grid (a page sets its geometry per section; the viewport's props are
+/// only the default of a section that says nothing).
+double _expectedExtent(PanelCatalogViewport viewport) {
+  var extent = 0.0;
+  for (final section in viewport.snapshots.value.sections) {
+    final grid = section.layout is SectionLayout$Grid
+        ? section.layout! as SectionLayout$Grid
+        : null;
+    extent += estimateContentExtent(
+      leavesPerSection: [section.leaves.length],
+      spanCount: grid?.spanCount ?? viewport.spanCount,
+      cellExtent: grid?.cellExtent ?? viewport.cellExtent,
+      headerExtent: grid?.headerExtent ?? viewport.headerExtent,
+    );
+  }
+  return extent;
 }
 
 /// Pumps until no frame is scheduled (fling finished) or 15 s pass.
@@ -183,16 +196,16 @@ Future<ScenarioReport> measureScenario(
 Map<String, Object?> atlasMeta(WidgetTester tester) {
   final finder = find.byType(PanelCatalogViewport);
   if (finder.evaluate().isEmpty) return const {};
-  final atlas = tester
-      .widget<PanelCatalogViewport>(finder)
-      .assetCache
-      .glyphAtlas;
+  // The harness composed the scope with an atlas as its glyph source.
+  final atlas =
+      tester.widget<PanelCatalogViewport>(finder).assets.glyphSource
+          as GlyphAtlas?;
   if (atlas == null) return const {'atlas': 'none'};
   final glyphs = <String>{
     for (final section
-        in tester.widget<PanelCatalogViewport>(finder).dataSource.sections)
+        in tester.widget<PanelCatalogViewport>(finder).snapshots.value.sections)
       for (final leaf in section.leaves)
-        if (leaf is UnicodeCatalogLeaf) leaf.glyph,
+        if (leaf.key case ContentKey$Unicode(:final sequence)) sequence,
   };
   final cache = atlas.cacheReport;
   return {

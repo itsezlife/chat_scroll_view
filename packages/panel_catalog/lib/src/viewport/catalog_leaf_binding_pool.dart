@@ -1,232 +1,299 @@
 import 'package:catalog_assets/catalog_assets.dart';
-import 'package:panel_catalog/src/model/catalog_leaf.dart';
-import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
+import 'package:content_model/content_model.dart';
+import 'package:flutter/painting.dart' show VoidCallback;
 import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 
-/// Attaches visible leaves to [CatalogAssetCache] and detaches the rest.
+/// What a still leaf asks of the cache: one frame, shown at once.
+const AssetProfile _stillProfile = AssetProfile();
+
+/// What an animated leaf asks of the cache: play while it is shown and the
+/// scope's clock runs.
+const AssetProfile _playingProfile = AssetProfile(animate: true);
+
+/// One live attach of a visible leaf: the cache binding and what the painter
+/// needs to draw it.
 ///
-/// Owns the **binding set** for one catalog render body: which
-/// [CatalogAssetKey]s currently hold an attach against the process-wide cache.
-/// Does **not** own layout slots, scroll offset, or paint — the render object
-/// supplies a content-y window and reads [presentationFor] at paint time.
+/// Handed out by [CatalogLeafBindingPool] and valid until the next
+/// [CatalogLeafBindingPool.syncVisible] or [CatalogLeafBindingPool.detachAll];
+/// a painter reads it while painting and does not keep it, the same rule the
+/// binding's own paintable and sprite follow.
+final class CatalogBoundLeaf {
+  CatalogBoundLeaf._(this.binding, this.spec)
+    : _instant = binding.readiness.stage.index >= AssetStage.firstFrame.index;
+
+  /// How long content takes to fade in over its placeholder when it was not
+  /// there at attach.
+  static const Duration contentFade = Duration(milliseconds: 150);
+
+  /// The attach in the scope's cache.
+  final AssetBinding binding;
+
+  /// What was asked of the cache.
+  final AssetSpec spec;
+
+  // Whether the content was already there at attach (a memory hit): such a
+  // leaf is never faded, so scrolling back over loaded content does not
+  // flicker.
+  final bool _instant;
+  Duration? _fadeStart;
+  bool _seen = false;
+  bool _shown = false;
+
+  /// Opacity to draw the content at on the frame at [frameTime]: `1` for
+  /// content that was there at attach, otherwise rising from `0` over
+  /// [contentFade] from the first frame the content is drawn.
+  ///
+  /// Call it only for a leaf whose binding has content (stage `firstFrame` or
+  /// `full`); the fade starts on the first call.
+  double opacityAt(Duration frameTime) {
+    if (_instant) return 1;
+    final start = _fadeStart ??= frameTime;
+    final t = (frameTime - start).inMicroseconds / contentFade.inMicroseconds;
+    return t.clamp(0.0, 1.0);
+  }
+
+  /// Whether the fade is still running at [frameTime].
+  bool isFadingAt(Duration frameTime) {
+    final start = _fadeStart;
+    return !_instant && start != null && frameTime - start < contentFade;
+  }
+}
+
+/// Attaches the leaves of the visible band to the host's [AssetCacheScope] and
+/// detaches the rest.
+///
+/// Owns the **binding set** of one catalog render body. Does **not** own
+/// layout slots, scroll offset or paint: the render object supplies a slot
+/// range and reads [boundFor] at paint time.
+///
+/// ## What is asked of the cache
+///
+/// A leaf is attached as `attach(key, spec, profile)`:
+///
+/// - the [AssetSpec] is the leaf's content box ([CatalogLeafSlot.contentExtent]:
+///   the glyph box or the whole cell) in physical pixels at the
+///   [devicePixelRatio], a template decode when the leaf is tintable. The same
+///   content at a size another section's cells need is a second attach;
+/// - the [AssetProfile] animates when the leaf does. Whether it plays is the
+///   binding's [AssetBinding.visible] flag, kept `true` only while the leaf is
+///   in the painted window and, for an animated leaf, no fling is running;
+///   the scope's clock adds the host's pause layers.
+///
+/// ## Page level
+///
+/// A baked glyph resolves to a sprite and holds its atlas **page** from attach
+/// to detach, never pixels; the binding takes and gives back that hold, so
+/// this pool holds nothing but bindings. A leaf that leaves the window detaches
+/// at the next sync and its page reference goes with it.
 ///
 /// ## Recycle contract
 ///
 /// [syncVisible] keeps bindings for the leaf slots in the index range the owner
-/// resolved for its content-y band and detaches keys that left it. Header slots are ignored — they have no asset identity.
-///
-/// The owning render object typically passes the viewport band **plus** one
-/// cell of overscan so short drags do not thrash attach/detach every frame.
-/// This pool does not invent overscan; it trusts the window it is given.
-///
-/// ## Presentation projection
-///
-/// [presentationFor] maps `(leaf kind, readiness)` → exactly one
-/// [CatalogLeafPresentation]. Readiness comes from the live binding, else
-/// [CatalogAssetCache.readinessOf] (settled entries survive zero attaches),
-/// else loading.
-///
-/// **Unicode** glyphs depend on how the cache draws them. With a
-/// [CatalogAssetCache.glyphAtlas] (platforms that bake emoji) a glyph is
-/// content only once its binding has a sprite; until then it is the
-/// [CatalogLeafPresentation.circlePlaceholder], never text, and it flips to
-/// content when the atlas page lands (the binding's listener fires). Without
-/// an atlas (the web) glyphs paint from a paragraph cache, so unbound / loading
-/// unicode is [CatalogLeafPresentation.content] and circles appear only when
-/// the host has marked the key [CatalogAssetReadiness.failed].
-///
-/// **Document** leaves use loading placeholders when still loading. Ready
-/// document entries retained in the cache after [detachAll] still resolve to
-/// [CatalogLeafPresentation.content] while unbound so pager leave/return does
-/// not flash thumbs.
-///
-/// | Leaf | loading / unbound (no settled cache) | ready | failed |
-/// |------|--------------------------------------|-------|--------|
-/// | [UnicodeCatalogLeaf], atlas | [CatalogLeafPresentation.circlePlaceholder] until it has a sprite, then [CatalogLeafPresentation.content] | same | [CatalogLeafPresentation.failed] |
-/// | [UnicodeCatalogLeaf], no atlas | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.failed] |
-/// | [DocumentCatalogLeaf] | [CatalogLeafPresentation.thumbFirstPlaceholder] | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.failed] |
+/// resolved for its content-y band and detaches the ones that left it. Header
+/// slots are ignored. The owner typically passes the viewport band plus one
+/// cell of overscan, so short drags do not thrash attach and detach; this pool
+/// trusts the range it is given.
 ///
 /// ## Lifecycle
 ///
-/// MUST [detachAll] when the owning render object detaches or disposes so
-/// cache refcounts fall even if the same [CatalogAssetCache] is shared with
-/// another surface. [replaceCache] / [replaceCacheType] detach before swapping;
-/// the owner re-syncs (usually from layout) to re-attach the visible band.
+/// [detachAll] MUST run when the owning render object detaches or disposes so
+/// the cache's counts fall even if the scope is shared with another surface.
+/// [replaceScope] detaches before swapping; the owner re-syncs to re-attach the
+/// visible band.
 ///
-/// [onReadinessChanged] is registered on every new binding (typically
-/// `markNeedsPaint`) so placeholders flip without a full catalog reproject.
+/// [onChanged] is registered on every binding (typically `markNeedsPaint`) so
+/// a better stage, a baked page or an animation frame repaints without a full
+/// reproject.
 final class CatalogLeafBindingPool {
-  /// Creates an empty binding pool.
+  /// Creates an empty pool over [scope].
   ///
-  /// [onReadinessChanged] fires when any attached binding's readiness
-  /// changes. Pass a stable tear-off (e.g. `markNeedsPaint`) — the pool does
-  /// not dedup listener registration beyond one listener per binding.
+  /// [onChanged] fires when any attached binding signals. Pass a stable
+  /// tear-off: the pool registers it once per binding.
   CatalogLeafBindingPool({
-    required CatalogAssetCache assetCache,
-    required CatalogAssetCacheType cacheType,
-    required void Function() onReadinessChanged,
-  }) : _assetCache = assetCache,
-       _cacheType = cacheType,
-       _onReadinessChanged = onReadinessChanged;
+    required AssetCacheScope scope,
+    required double devicePixelRatio,
+    required VoidCallback onChanged,
+  }) : _scope = scope,
+       _devicePixelRatio = devicePixelRatio,
+       _onChanged = onChanged;
 
-  CatalogAssetCache _assetCache;
-  CatalogAssetCacheType _cacheType;
-  final void Function() _onReadinessChanged;
-  final Map<CatalogAssetKey, CatalogAssetBinding> _bindings = {};
+  AssetCacheScope _scope;
+  double _devicePixelRatio;
+  final VoidCallback _onChanged;
 
-  /// The cache's baked glyphs, or null where glyphs are drawn as text.
-  GlyphAtlas? get glyphAtlas => _assetCache.glyphAtlas;
+  // Several attaches of one key are rare (a section with other cell sizes), so
+  // the inner list is short and a paint lookup allocates nothing.
+  final Map<ContentKey, List<CatalogBoundLeaf>> _byKey = {};
+  final List<CatalogBoundLeaf> _all = [];
 
-  /// Number of leaves currently retained via asset-cache attach.
+  /// The scope bindings are made on.
+  AssetCacheScope get scope => _scope;
+
+  /// Replaces the scope; detaches every existing binding first.
   ///
-  /// Bounded by the last [syncVisible] window, not by total catalog size.
-  int get attachedCount => _bindings.length;
-
-  /// Replaces the cache; detaches every existing binding first.
-  ///
-  /// Does not re-attach — the owner MUST [syncVisible] (usually after layout)
-  /// against the new cache.
-  void replaceCache(CatalogAssetCache cache) {
+  /// Does not re-attach: the owner MUST [syncVisible] afterwards.
+  void replaceScope(AssetCacheScope scope) {
+    if (identical(_scope, scope)) return;
     detachAll();
-    _assetCache = cache;
+    _scope = scope;
   }
 
-  /// Replaces the attach size class; detaches every existing binding first.
+  /// The density specs are computed at. A change makes every attached spec
+  /// stale; the next [syncVisible] swaps the bindings for ones at the new
+  /// size.
+  set devicePixelRatio(double value) => _devicePixelRatio = value;
+
+  /// Number of bindings currently attached.
   ///
-  /// Does not re-attach — the owner MUST [syncVisible] afterward.
-  void replaceCacheType(CatalogAssetCacheType cacheType) {
-    detachAll();
-    _cacheType = cacheType;
-  }
+  /// Bounded by the last [syncVisible] window, not by the catalogue size.
+  int get attachedCount => _all.length;
 
   /// Syncs attaches to the leaf slots in `slots[start, end)`.
   ///
   /// The caller resolves the index range for its content-y window (binary
-  /// search over the ascending [slots]) so this walk is proportional to the
+  /// search over the ascending [slots]), so this walk is proportional to the
   /// visible band, never to the catalogue. The range is trusted: every leaf in
   /// it is kept attached, so it MUST NOT include slots outside the intended
-  /// window. Header slots in the range are ignored.
+  /// window.
   ///
-  /// [pinnedKeys] are kept attached even when outside the window — used during
-  /// far-path stitch so outgoing strip bindings survive the teleport.
+  /// A leaf is *shown* when its slot meets `[paintTop, paintBottom]` and, if
+  /// it animates, [animate] is true (false while a fling runs). Hidden
+  /// bindings stay attached and pinned but the cache does not advance them.
   ///
-  /// Already-attached keys that remain in the range are kept (no re-attach).
-  /// Keys that left it are [CatalogAssetBinding.detach]ed and removed from the
-  /// map unless listed in [pinnedKeys]. [top] / [bottom] are the window the
-  /// range was resolved for; they feed diagnostics only.
+  /// [pinnedKeys] are kept attached and shown even when outside the window,
+  /// used during far-path stitch so outgoing strip bindings survive the
+  /// teleport. [top] / [bottom] are the attach window the range was resolved
+  /// for; they feed diagnostics only.
   void syncVisible({
     required List<CatalogLayoutSlot> slots,
     required int start,
     required int end,
+    required double paintTop,
+    required double paintBottom,
+    required bool animate,
     required double top,
     required double bottom,
-    Set<CatalogAssetKey>? pinnedKeys,
+    Set<ContentKey>? pinnedKeys,
   }) {
-    final visibleKeys = <CatalogAssetKey>{...?pinnedKeys};
+    for (final bound in _all) {
+      bound
+        .._seen = false
+        .._shown = false;
+    }
     for (var i = start; i < end; i++) {
-      if (slots[i] case final CatalogLeafSlot leaf) {
-        visibleKeys.add(leaf.leaf.assetKey);
-        _ensure(leaf.leaf);
+      if (slots[i] case final CatalogLeafSlot slot) {
+        final bound = _ensure(slot);
+        bound._seen = true;
+        final inPaint = slot.bottom >= paintTop && slot.top <= paintBottom;
+        if (inPaint && (animate || !slot.leaf.animated)) bound._shown = true;
       }
     }
-    final stale = [
-      for (final key in _bindings.keys)
-        if (!visibleKeys.contains(key)) key,
-    ];
-    for (final key in stale) {
-      _bindings.remove(key)?.detach();
-    }
-    if (LogCategory.binding.enabled &&
-        (visibleKeys.isNotEmpty || stale.isNotEmpty)) {
-      var ready = 0;
-      var loading = 0;
-      var failed = 0;
-      for (final binding in _bindings.values) {
-        switch (binding.readiness) {
-          case CatalogAssetReadiness.ready:
-            ready++;
-          case CatalogAssetReadiness.loading:
-            loading++;
-          case CatalogAssetReadiness.failed:
-            failed++;
+    if (pinnedKeys != null && pinnedKeys.isNotEmpty) {
+      for (final bound in _all) {
+        if (pinnedKeys.contains(bound.binding.key)) {
+          bound
+            .._seen = true
+            .._shown = true;
         }
       }
-      fine(.binding, 'sync', {
+    }
+    var detached = 0;
+    for (var i = _all.length - 1; i >= 0; i--) {
+      final bound = _all[i];
+      if (!bound._seen) {
+        _remove(bound, at: i);
+        detached++;
+      } else {
+        bound.binding.visible = bound._shown;
+      }
+    }
+    if (LogCategory.binding.enabled && (_all.isNotEmpty || detached > 0)) {
+      var ready = 0;
+      var loading = 0;
+      for (final bound in _all) {
+        if (bound.binding.readiness.isFinal) {
+          ready++;
+        } else {
+          loading++;
+        }
+      }
+      Log.fine(.binding, 'sync', {
         'winTop': LogFormat.f(top),
         'winBot': LogFormat.f(bottom),
-        'visible': visibleKeys.length,
-        'attached': _bindings.length,
-        'detached': stale.length,
-        'ready': ready,
+        'attached': _all.length,
+        'detached': detached,
+        'final': ready,
         'loading': loading,
-        'failed': failed,
       });
     }
   }
 
-  /// The baked glyph of [leaf], or null when it has none (not bound, a
-  /// document leaf, a platform that bakes nothing, or a page not baked yet).
+  /// The attach that draws [slot]'s leaf, or null when it has none (outside the
+  /// last synced window).
   ///
-  /// Read at paint time and not kept: the page behind a sprite can go away
-  /// with its atlas.
-  AtlasSprite? spriteFor(CatalogLeaf leaf) => _bindings[leaf.assetKey]?.sprite;
-
-  /// Presentation for [leaf], never `null`.
-  ///
-  /// Resolves readiness from the live binding when attached, otherwise from
-  /// [CatalogAssetCache.readinessOf] so ready/failed cache entries that
-  /// survived [detachAll] (pager keep-alive) do not flash loading placeholders.
-  /// Absent cache entries are treated as loading.
-  ///
-  /// Unicode glyphs do not wait on decode bytes, but where they are baked they
-  /// wait for their sprite: see the class table. Document leaves use a
-  /// kind-specific loading placeholder when still loading.
-  CatalogLeafPresentation presentationFor(CatalogLeaf leaf) {
-    final readiness =
-        _bindings[leaf.assetKey]?.readiness ??
-        _assetCache.readinessOf(leaf.assetKey, _cacheType) ??
-        CatalogAssetReadiness.loading;
-    return switch ((leaf, readiness)) {
-      (UnicodeCatalogLeaf(), CatalogAssetReadiness.failed) =>
-        CatalogLeafPresentation.failed,
-      (UnicodeCatalogLeaf(), _) =>
-        glyphAtlas == null || spriteFor(leaf) != null
-            ? CatalogLeafPresentation.content
-            : CatalogLeafPresentation.circlePlaceholder,
-      (DocumentCatalogLeaf(), CatalogAssetReadiness.ready) =>
-        CatalogLeafPresentation.content,
-      (DocumentCatalogLeaf(), CatalogAssetReadiness.failed) =>
-        CatalogLeafPresentation.failed,
-      (DocumentCatalogLeaf(), CatalogAssetReadiness.loading) =>
-        CatalogLeafPresentation.thumbFirstPlaceholder,
-    };
+  /// Allocates nothing. Valid while painting; see [CatalogBoundLeaf].
+  CatalogBoundLeaf? boundFor(CatalogLeafSlot slot) {
+    final group = _byKey[slot.leaf.key];
+    if (group == null) return null;
+    if (group.length == 1) return group[0];
+    final pixels = _pixelsOf(slot.contentExtent);
+    for (final bound in group) {
+      if (bound.spec.pixelWidth == pixels) return bound;
+    }
+    return group[0];
   }
 
-  /// Detaches every binding and clears the map.
-  ///
-  /// Idempotent. Safe during detach/dispose even if [syncVisible] never ran.
+  /// Detaches every binding and clears the set. Idempotent; safe during
+  /// detach and dispose even if [syncVisible] never ran.
   void detachAll() {
-    for (final binding in _bindings.values) {
-      binding.detach();
+    for (final bound in _all) {
+      bound.binding.detach();
     }
-    _bindings.clear();
+    _all.clear();
+    _byKey.clear();
   }
 
-  void _ensure(CatalogLeaf leaf) {
-    final key = leaf.assetKey;
-    if (_bindings.containsKey(key)) return;
-    // Unicode cells need no async decode (paragraph or baked sprite). Mark
-    // ready on attach so hosts that never call markReady still resolve content;
-    // whether a baked glyph has its sprite yet is the sprite's business, not
-    // readiness'.
-    if (_assetCache case final MemoryCatalogAssetCache memory
-        when leaf is UnicodeCatalogLeaf) {
-      memory.markReady(key, _cacheType);
+  int _pixelsOf(double logicalExtent) =>
+      (logicalExtent * _devicePixelRatio).ceil().clamp(1, 1 << 20);
+
+  CatalogBoundLeaf _ensure(CatalogLeafSlot slot) {
+    final leaf = slot.leaf;
+    final pixels = _pixelsOf(slot.contentExtent);
+    final mode = leaf.tintable
+        ? AssetDecodeMode.template
+        : AssetDecodeMode.original;
+    final group = _byKey[leaf.key];
+    if (group != null) {
+      for (final bound in group) {
+        final spec = bound.spec;
+        if (spec.pixelWidth == pixels && spec.decodeMode == mode) return bound;
+      }
     }
-    final binding = _assetCache.attach(key, _cacheType);
-    binding.addListener(_onReadinessChanged);
-    _bindings[key] = binding;
+    final spec = AssetSpec(
+      pixelWidth: pixels,
+      pixelHeight: pixels,
+      decodeMode: mode,
+    );
+    final binding = _scope.attach(
+      leaf.key,
+      spec,
+      leaf.animated ? _playingProfile : _stillProfile,
+    );
+    binding.addListener(_onChanged);
+    final bound = CatalogBoundLeaf._(binding, spec);
+    (_byKey[leaf.key] ??= []).add(bound);
+    _all.add(bound);
+    return bound;
+  }
+
+  void _remove(CatalogBoundLeaf bound, {required int at}) {
+    bound.binding.detach();
+    _all.removeAt(at);
+    final group = _byKey[bound.binding.key];
+    if (group == null) return;
+    group.remove(bound);
+    if (group.isEmpty) _byKey.remove(bound.binding.key);
   }
 }

@@ -193,7 +193,7 @@ class RenderChatScrollView extends RenderBox {
     bool hasLoadingBuilder = false,
     Color highlightColor = const Color(0x280A90F0),
     Duration highlightDuration = const Duration(
-      milliseconds: kHighlightHoldDurationMs,
+      milliseconds: ChatAnimator.highlightHoldDurationMs,
     ),
     TextDirection textDirection = TextDirection.ltr,
     ChatScrollbarThemeData scrollbarTheme = ChatScrollbarThemeData.light,
@@ -906,7 +906,7 @@ class RenderChatScrollView extends RenderBox {
     // Direction is known at capture — used for paint even before measure.
     _stitchTowardNewer = targetId > (_stitchAnchorIdBeforeJump ?? targetId);
     if (!hasSize) {
-      fine(.animate, 'stitch.capture', {
+      Log.fine(.animate, 'stitch.capture', {
         'target': targetId,
         'hasSize': false,
         'anchorBefore': _stitchAnchorIdBeforeJump,
@@ -926,7 +926,7 @@ class RenderChatScrollView extends RenderBox {
         _stitchFrozenHeights[entry.key] = height;
       }
     }
-    fine(.animate, 'stitch.capture', {
+    Log.fine(.animate, 'stitch.capture', {
       'target': targetId,
       'anchorBefore': _stitchAnchorIdBeforeJump,
       'towardNewer': _stitchTowardNewer,
@@ -1143,7 +1143,7 @@ class RenderChatScrollView extends RenderBox {
               (towardNewer ? -incomingTop : incomingBottom - viewportHeight)
         : math.max(finalHeight, viewportHeight);
     final travel = math.max<double>(scrollLength.abs(), 1);
-    fine(.animate, 'stitch.measureGeom', {
+    Log.fine(.animate, 'stitch.measureGeom', {
       'target': _animator.animateTargetId,
       'towardNewer': towardNewer,
       'vh': LogFormat.f(viewportHeight),
@@ -1493,11 +1493,11 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _fetchAnchorEvent(String tag, Map<String, Object?> fields) {
-    fine(.anchor, tag, fields);
+    Log.fine(.anchor, tag, fields);
   }
 
   void _scrollbarEvent(String tag, Map<String, Object?> fields) {
-    fine(.scrollbar, tag, fields);
+    Log.fine(.scrollbar, tag, fields);
   }
 
   /// Message built closest to the bottom inset — proxy for "what the user was
@@ -2844,7 +2844,7 @@ class RenderChatScrollView extends RenderBox {
       final sig = '$live/${gcPinned.length}/$wouldDrop';
       if (_stitchGcLogSig != sig) {
         _stitchGcLogSig = sig;
-        fine(.animate, 'stitch.gc', {
+        Log.fine(.animate, 'stitch.gc', {
           'pinned': gcPinned.length,
           'outgoingLive': live,
           'wouldDropOutgoing': wouldDrop,
@@ -6858,7 +6858,7 @@ class RenderChatScrollView extends RenderBox {
       _headerOpacityLayer.layer = null;
       return;
     }
-    paintChildWithOpacity(
+    ChatOpacityPaint.paintChild(
       context,
       header,
       offset + Offset(0, _parentData(header).offset),

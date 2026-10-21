@@ -193,7 +193,7 @@ final class GlyphBakeScheduler {
       // Never swallowed, and never retried in a loop: a rasteriser or store
       // that throws once will throw every frame.
       _phase = _Phase.failed;
-      reportGlyphAtlasError(error, stack, 'while baking glyph atlas pages');
+      GlyphAtlasErrors.report(error, stack, 'while baking glyph atlas pages');
     }
     if (_phase == _Phase.stepping) _phase = _Phase.running;
     _resumeIfAllowed();

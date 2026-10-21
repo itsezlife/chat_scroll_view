@@ -99,7 +99,29 @@ class ChatSelectionPointer {
   TapGestureRecognizer? _tap;
   int? _pointerDownId;
   Offset? _pointerDownLocal;
-  Offset? _pointerDownGlobal;
+
+  /// The inline hit under the pointer at the moment it went down.
+  ///
+  /// Resolved then, not when the tap lands: the markdown body reveals a hidden
+  /// spoiler on pointer up, which is before this recognizer's tap fires, and a
+  /// link inside the spoiler would otherwise look like a hit by then. The tap
+  /// that revealed the spoiler is the reveal, not the link.
+  ChatInlineHit? _pointerDownInlineHit;
+
+  /// Whether the pointer went down on a [ChatMessageTapBarrier].
+  ///
+  /// Read at the tap, like the inline hit: the barrier is a fact about where
+  /// the press began, not where it lifts.
+  bool _pointerDownBarred = false;
+
+  /// Whether the message under the pointer had no revealed spoiler when the
+  /// pointer went down.
+  ///
+  /// Compared with the state when the tap lands, it tells whether this very tap
+  /// revealed one. The markdown body decides that (slop, button, the spoiler's
+  /// own boxes) and reveals on pointer up, before the tap fires; asking the
+  /// state rather than the geometry keeps the viewport from re-deciding it.
+  bool _pointerDownSpoilersHidden = false;
   int? _spanOriginId;
   int? _panOriginId;
   Offset? _panStartLocal;
@@ -121,6 +143,7 @@ class ChatSelectionPointer {
     if (ChatSelectionGestureExclusion.take(event.pointer)) {
       return;
     }
+    final barred = ChatSelectionGestureExclusion.takeBarred(event.pointer);
     if (selection == null &&
         onIdleMessageTap == null &&
         _onSecondaryMessageTap == null) {
@@ -128,7 +151,18 @@ class ChatSelectionPointer {
     }
     _pointerDownId = messageIdAt?.call(event.localPosition);
     _pointerDownLocal = event.localPosition;
-    _pointerDownGlobal = event.position;
+    _pointerDownBarred = barred;
+    // A barred press is not a press on what is under the barrier: a status pill
+    // over a sticker's corner is not the sticker.
+    _pointerDownInlineHit = switch (_pointerDownId) {
+      _ when barred => null,
+      final id? => selection?.resolveInlineHit(id, event.position),
+      null => null,
+    };
+    _pointerDownSpoilersHidden = switch (_pointerDownId) {
+      final id? => !(selection?.spoilers.isRevealed(id) ?? true),
+      null => false,
+    };
     _spanPointerLocal = event.localPosition;
     if (_pointerDownId == null) {
       if (selection case final sel? when sel.isTextSelectionActive) {
@@ -138,6 +172,13 @@ class ChatSelectionPointer {
       return;
     }
     _ensureRecognizers();
+    if (barred) {
+      // Only the tap recognizer: a secondary click still opens the menu and a
+      // tap still dismisses text selection; nothing else (pan, long-press,
+      // text arming) may start from chrome the host barred.
+      _tap?.addPointer(event);
+      return;
+    }
     if (selection != null) {
       final policy =
           selection?.selectionPolicy ?? const ChatSelectionPolicy.mobile();
@@ -189,7 +230,9 @@ class ChatSelectionPointer {
     _tap = null;
     _pointerDownId = null;
     _pointerDownLocal = null;
-    _pointerDownGlobal = null;
+    _pointerDownInlineHit = null;
+    _pointerDownBarred = false;
+    _pointerDownSpoilersHidden = false;
     _panOriginId = null;
     _clearSpan();
   }
@@ -521,21 +564,34 @@ class ChatSelectionPointer {
     if (flingCancelSuppresses?.call() ?? false) return;
     final selection = this.selection;
     final id = _pointerDownId;
-    final global = _pointerDownGlobal;
-    if (selection != null && id != null && global != null) {
-      final hit = selection.resolveInlineHit(id, global);
-      if (hit != null && selection.handleInlineHit(hit)) {
-        return;
+    final hit = _pointerDownInlineHit;
+    if (selection != null && hit != null && selection.handleInlineHit(hit)) {
+      // Activating another message's link is a click away from the text
+      // selection: dismiss it, as a click on the other message's text would.
+      if (hit.messageId != selection.textSelectionSubject) {
+        selection.clearTextSelection();
       }
+      return;
     }
     if (selection case final sel? when sel.isTextSelectionActive) {
       sel.clearTextSelection();
       return;
     }
     if (id == null) return;
+    // Dismissing text selection above is no message tap; toggling a row and
+    // the idle tap below are, and a barrier is not part of the message.
+    if (_pointerDownBarred) return;
     if (selection case final sel? when sel.isSelectionMode) {
       if (!sel.isSelectable(id)) return;
       sel.toggle(id);
+      return;
+    }
+    // The tap that revealed a spoiler is the reveal and no message tap. Message
+    // selection and text-selection dismiss above are not message taps: a row
+    // being toggled or a selection being dismissed stays that, wherever the
+    // pointer lands.
+    if (_pointerDownSpoilersHidden &&
+        (selection?.spoilers.isRevealed(id) ?? false)) {
       return;
     }
     final local = _pointerDownLocal;

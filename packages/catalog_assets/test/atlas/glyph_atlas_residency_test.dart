@@ -2,7 +2,6 @@ import 'dart:ui';
 
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
-import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -208,23 +207,26 @@ void main() {
       expect(store.reads, reads, reason: 'nothing is read back');
     });
 
-    test('a page released for a closed panel loads again when it opens', () async {
-      final atlas = await baked(['a']);
-      visible.value = false;
-      final reads = store.reads;
-      final heard = <int>[];
-      atlas.addPageListener(heard.add);
-      pressure.raise();
-      visible.value = true;
+    test(
+      'a page released for a closed panel loads again when it opens',
+      () async {
+        final atlas = await baked(['a']);
+        visible.value = false;
+        final reads = store.reads;
+        final heard = <int>[];
+        atlas.addPageListener(heard.add);
+        pressure.raise();
+        visible.value = true;
 
-      expect(atlas.spriteOf('a'), isNull);
-      expect(atlas.spriteOf('a'), isNull, reason: 'one load, not two');
-      await frame();
+        expect(atlas.spriteOf('a'), isNull);
+        expect(atlas.spriteOf('a'), isNull, reason: 'one load, not two');
+        await frame();
 
-      expect(store.reads, reads + 1);
-      expect(atlas.spriteOf('a'), isNotNull);
-      expect(heard, [0, 0], reason: 'released, then drawable again');
-    });
+        expect(store.reads, reads + 1);
+        expect(atlas.spriteOf('a'), isNotNull);
+        expect(heard, [0, 0], reason: 'released, then drawable again');
+      },
+    );
 
     test('a page the store lost is reported once and baked again', () async {
       final atlas = await baked(['a']);
@@ -287,11 +289,7 @@ void main() {
     test(
       'the current catalogue stays within 64 MiB of resident pages',
       () async {
-        final glyphs = <String>{
-          for (final category in emojiCatalogForLocale(const Locale('en')))
-            for (final entry in category.entries) entry.glyph,
-        }.toList();
-        final atlas = await baked(glyphs);
+        final atlas = await baked(SampleGlyphCatalogue.glyphs());
         final layout = atlas.index.layout;
 
         final bytes = atlas.residency.residentBytes;

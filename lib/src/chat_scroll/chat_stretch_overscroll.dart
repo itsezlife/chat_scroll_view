@@ -92,7 +92,7 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
       _interruptedOverscroll = _overscroll;
     }
     _totalPullPx = 0;
-    fine(.overscroll, 'drag.start', {
+    Log.fine(.overscroll, 'drag.start', {
       'stretch': LogFormat.ratio(_overscroll),
       'interrupted': LogFormat.ratio(_interruptedOverscroll),
     });
@@ -134,7 +134,7 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
       -1,
       1,
     );
-    fine(.overscroll, 'pull', {
+    Log.fine(.overscroll, 'pull', {
       'unconsumed': LogFormat.f(unconsumedPx),
       'travel': LogFormat.f(travel),
       'fits': fits,
@@ -164,12 +164,12 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
       _overscroll = 0;
       _simulation = null;
       _clock.restart();
-      fine(.overscroll, 'drag.end.idle', {'v': LogFormat.f(velocity)});
+      Log.fine(.overscroll, 'drag.end.idle', {'v': LogFormat.f(velocity)});
       return true;
     }
     final flick = velocity.abs() >= _minReleaseVelocity && velocity.sign != 0;
     if (flick && velocity.sign != _overscroll.sign) {
-      fine(.overscroll, 'drag.end.releaseFling', {
+      Log.fine(.overscroll, 'drag.end.releaseFling', {
         'v': LogFormat.f(velocity),
         'from': LogFormat.ratio(_overscroll),
       });
@@ -180,7 +180,7 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
       return true;
     }
     if (flick) {
-      fine(.overscroll, 'drag.end.absorb', {
+      Log.fine(.overscroll, 'drag.end.absorb', {
         'v': LogFormat.f(velocity),
         'from': LogFormat.ratio(_overscroll),
       });
@@ -188,7 +188,7 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
       return false;
     }
     _startSpring(0);
-    fine(.overscroll, 'drag.end.spring', {
+    Log.fine(.overscroll, 'drag.end.spring', {
       'v': LogFormat.f(velocity),
       'scaledV': LogFormat.ratio(0),
       'from': LogFormat.ratio(_overscroll),
@@ -206,7 +206,7 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
       _maxAbsorbImpactVelocity,
     );
     _startSpring(scaled);
-    fine(.overscroll, 'absorb', {
+    Log.fine(.overscroll, 'absorb', {
       'v': LogFormat.f(velocity),
       'scaledV': LogFormat.ratio(scaled),
       'from': LogFormat.ratio(_overscroll),
@@ -226,7 +226,7 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
       _totalPullPx = 0;
       return;
     }
-    fine(.overscroll, 'release.intoContent', {
+    Log.fine(.overscroll, 'release.intoContent', {
       'from': LogFormat.ratio(_overscroll),
     });
     _totalPullPx = 0;
@@ -236,7 +236,7 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
   @override
   void reset() {
     if (!isActive && _totalPullPx == 0) return;
-    fine(.overscroll, 'reset', {'from': LogFormat.ratio(_overscroll)});
+    Log.fine(.overscroll, 'reset', {'from': LogFormat.ratio(_overscroll)});
     _overscroll = 0;
     _totalPullPx = 0;
     _interruptedOverscroll = 0;
@@ -253,7 +253,7 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
     }
     final seconds = _clock.secondsAt(elapsed);
     if (simulation.isDone(seconds)) {
-      fine(.overscroll, 'spring.done', {'t': LogFormat.ratio(seconds)});
+      Log.fine(.overscroll, 'spring.done', {'t': LogFormat.ratio(seconds)});
       _overscroll = 0;
       _interruptedOverscroll = 0;
       _simulation = null;
@@ -262,7 +262,7 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
     }
     _overscroll = clampDouble(simulation.x(seconds), -1, 1);
     if (++_tickFrame % 8 == 1) {
-      fine(.overscroll, 'spring.tick', {
+      Log.fine(.overscroll, 'spring.tick', {
         't': LogFormat.ratio(seconds),
         'stretch': LogFormat.ratio(_overscroll),
       });

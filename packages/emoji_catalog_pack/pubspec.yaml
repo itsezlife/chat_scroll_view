@@ -1,0 +1,29 @@
+name: emoji_catalog_pack
+description: >
+  Emoji catalog payload: one locale-independent structure asset, the emoji
+  shortcodes, one keyword pack per locale and the pinned generator that
+  produces them from Unicode, CLDR and emoji-toolkit data.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  meta: ^1.17.0
+  content_model:
+    path: ../content_model
+
+dev_dependencies:
+  # The generator (tool/) hashes downloaded inputs; the library never does.
+  crypto: ^3.0.6
+  test: ^1.25.0
+
+flutter:
+  assets:
+    - assets/structure.tsv
+    - assets/shortcodes.tsv
+    - assets/keywords/
+    - assets/LICENSE-UNICODE.txt
+    - assets/LICENSE-JOYPIXELS.txt

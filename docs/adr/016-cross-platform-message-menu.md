@@ -2,7 +2,9 @@
 
 **Status**: Accepted  
 **Date**: 2026-09-14  
-**Supersedes**: [ADR 004](004-host-presents-message-menu.md)
+**Supersedes**: [ADR 004](004-host-presents-message-menu.md)  
+**Amended**: 2026-10-18 — the desktop popup look is shared: `chrome_foundation`'s `PointerMenu` (rows with hints, disabled rows, separators, submenus with the aim hold, the keyboard model, the open and close motion) is the reference desktop client's popup and is what a `$Desktop` message popup presentation should draw; the composer's own context menu is the first user ([ADR 026](026-composer-model.md)). The message popup's icon variant (34 px rows, 5 px padding, a 24 px icon at x 15) is not in it yet  
+**Amended**: 2026-10-18 — the sheet's hole may be an outline of separate painted parts (`ChatMessageSurfaceParts`, passed as `ChatMessageSurfaceBounds.shape`) for a message without a bubble; see [ADR 036](036-emoji-only-message-presentation.md)
 
 The host still presents the **message menu**; the viewport never owns the
 overlay. What changes is the seam and the chrome.

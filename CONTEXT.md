@@ -290,24 +290,23 @@ Former transitional host claim on a long-press at a global point that prevented 
 _Avoid_: Arena win, text selection (as the name of this seam), current host API
 
 **Inline hit**:
-A pointer on a markdown body that is not idle selection-dismiss: link activation or code/pre click-to-copy (or a host callback for those). Mentions and other host-typed tokens that arrive as markdown links are still link activations — not a separate hit kind. First-class against idle-tap dismiss. Under mobile **selection policy**, **message selection** or a live **character-range text selection** suppresses *all* inline activations (links, inline code, fenced COPY chrome). Under desktop/web, message membership alone does not suppress; a live character-range still does. Mere arm-for-entry does not suppress.
-_Avoid_: Idle message tap (as the name of this path), toolbar dismiss, text selection (as the name of this path), mention hit (as a peer of link)
+A pointer on a markdown body that is not idle selection-dismiss: link activation, **mention** or **hashtag** activation, **inline embed** activation, a sticker body tap, or code/pre click-to-copy (or a host callback for those). Each is its own `ChatInlineHit` variant with the same press chrome and policy gates as a link. First-class against idle-tap dismiss. Under mobile **selection policy**, **message selection** or a live **character-range text selection** suppresses *all* inline activations (links, mentions, embeds, inline code, fenced COPY chrome). Under desktop/web, message membership alone does not suppress; a live character-range suppresses only inside its own message (other messages' hits activate and dismiss the range). Mere arm-for-entry does not suppress. A tap on a link or embed inside a hidden spoiler reveals it instead of activating.
+_Avoid_: Idle message tap (as the name of this path), toolbar dismiss, text selection (as the name of this path), mention hit as a link activation
 
-**Body linkify**:
-A host-invoked rewrite of bare URLs and mention tokens in message text into markdown links before the body is shown. Runs at send and at receive/materialize, never as a viewport paint or rebuild step. The viewport only paints and activates already-marked links.
-_Avoid_: Autolink on paint, URL detection in layout, entity overlay (when meaning this rewrite), package-owned “what is a URL”
-
-**Linkify policy**:
-Caller-owned allowlist bitmask for **body linkify**: which token families count (`webUrls`, `mentions`, …) and how they combine. Shipped bits also skip fenced code, inline code, and existing markdown links (fixed exclusion zones, not a separate host knob). A package may ship convenience combinations (e.g. `webAndMentions`); the policy is still a host choice, not viewport behavior.
-_Avoid_: Hardcoded universal URL definition, product-branded rule names, linkify inside the scroll viewport, sealed one-of presets when flags must combine
+**Body linkify** / **Linkify policy** (retired terms):
+Replaced by **entity detection** and **detection policy** ([Content and Assets](docs/content/CONTEXT.md)). The viewport still only paints and activates entities a body already carries, and never detects on paint ([ADR 017](docs/adr/017-body-linkify-host-invoked.md)).
 
 **Link preview**:
-Host- or backend-owned rich card for a URL (title, image, favicon, and so on). Outside this context: not an **inline hit**, not **body linkify**, and not viewport chrome.
+Host- or backend-owned rich card for a URL (title, image, favicon, and so on). Outside this context: not an **inline hit**, not **entity detection**, and not viewport chrome.
 _Avoid_: OG fetch in the viewport, preview slot as markdown, conflating styled links with webpage cards
 
 **Tap highlight** (press highlight):
-A transient visual plate under a pressable surface — markdown inline hits (links including mention-scheme URLs, inline code, fenced copy chrome) or host chrome such as a sender name via `ChatTapHighlight`. **Press-lifecycle:** expand on pointer down, hold while pressed, fade on up; abort / cancel clears immediately. Body ink aborts if the pointer is claimed by a **span gesture** or **text selection**, and under mobile **selection policy** does not arm while **message selection** or **text selection** is already active (desktop keeps press ink). `ChatTapHighlight` is selection-facade-free: under `ChatSelectionStateScope` it follows `canPerformActions`; padding expands paint/hit only (no layout shift). Null `onLongPress` on touch lets viewport **message selection** claim the press (sender-name chrome); mouse presses exclude viewport message pan. Same paint for short tap and long-press (host action is separate). Composed of a vector-smoothed contour path with an expanding touch-origin ripple. Not persistent **text selection**, and not a whole-row **Message highlight**.
+A transient visual plate under a pressable surface — markdown inline hits (links, mentions, hashtags, inline code, fenced copy chrome) or host chrome such as a sender name via `ChatTapHighlight`. **Press-lifecycle:** expand on pointer down, hold while pressed, fade on up; abort / cancel clears immediately. Body ink aborts if the pointer is claimed by a **span gesture** or **text selection**, and under mobile **selection policy** does not arm while **message selection** or **text selection** is already active (desktop keeps press ink). `ChatTapHighlight` is selection-facade-free: under `ChatSelectionStateScope` it follows `canPerformActions`; padding expands paint/hit only (no layout shift). Null `onLongPress` on touch lets viewport **message selection** claim the press (sender-name chrome); mouse presses exclude viewport message pan. Same paint for short tap and long-press (host action is separate). Composed of a vector-smoothed contour path with an expanding touch-origin ripple. Not persistent **text selection**, and not a whole-row **Message highlight**.
 _Avoid_: RippleDrawable, InkWell, selection highlight, active selection, one-shot long-press flash
+
+**Tap barrier**:
+A region of a message row, status chrome such as a time pill or delivery ticks, that a mouse or trackpad primary press does not treat as part of the message. Marked by the host with `ChatMessageTapBarrier`, because the viewport's selection pointer listens above the gesture arena and a detector inside the row cannot stop it. A barred press does not toggle or start **message selection**, start a drag-select span, arm **text selection**, fire `onIdleMessageTap` or activate an **Inline hit** under it; a **secondary** click still reaches `onSecondaryMessageTap` and a tap still dismisses live **text selection**. Touch is never barred. Unlike the exclusion that **Tap highlight** chrome applies (which drops the whole press), it keeps the press for the secondary tap and the text-selection dismiss.
+_Avoid_: Hit-test blocker, absorb pointer, gesture shield
 
 **Smooth text contour**:
 A continuous rounded polygon path generated from a list of text bounding boxes (single or multi-line) with vector-arc rounded corners, collinear vertex elimination, and cross-product turn direction. Used for **tap highlights** and custom **text selection** plates.
@@ -355,6 +354,36 @@ Membership does not change; a dedicated listenable still fires so chrome
 can shake or play an error haptic.
 _Avoid_: overflow, limit error
 
+### Message bodies
+
+**Spoiler state**:
+Per message, whether its spoilers are revealed, held by a controller owned by the markdown engine and keyed by message id. Reveal is for the whole message at once, in memory only, and survives remounts. The tap that reveals is absorbed: it is not a message tap, an **inline hit** or a link activation, and the next tap on the revealed text is an ordinary one. A long press, a drag and a secondary click on a hidden spoiler are not taps and keep their own meaning. While **message selection** is live (committed, or a drag-selection preview) a tap toggles the row as everywhere else and the spoiler stays hidden; leaving the mode restores reveal on tap. A press held past the hold limit (500 ms, the long-press threshold) is a long press and reveals nothing; a desktop host with a mouse lifts the limit, as a click has none. A text selection over a hidden spoiler leaves it hidden (the tint is drawn under the particles) and copies the spoiler as a style over the characters, so a paste into the composer is a spoiler again; only a tap, a click or the host's own `reveal` unhides it. Nothing re-hides on its own. While hidden, the glyphs are not drawn and a particle fill is, static when motion is off ([ADR 037](docs/adr/037-spoiler-and-mention-inline-styles.md)).
+_Avoid_: Per-spoiler reveal, persisted reveal, widget-local reveal flag, re-hide on selection dismiss, reveal on selection
+
+**Emoji-only body**:
+The body kind the host passes for a message whose text is only emoji: no bubble, enlarged from per-count size tables, or sticker-sized when it is a single item with an animation. Classified by the host (it alone knows the message has no media and whether the setting is on); the viewport never re-detects. Its text layout is a **text selection subject** like any body (one emoji is a word); the single-emoji sticker layout is not ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
+_Avoid_: Big emoji bubble, emoji message type, sticker message (a single-item emoji body only borrows the sticker layout)
+
+**Emoji-only policy**:
+The pure-Dart strategy of a platform family (Android, iOS, desktop; web follows desktop) holding what an **emoji-only body** lays out with and what the host's chrome reads: font tables, the sticker's extent and inset, the count cap, the wrap under a header, where a header goes, and whether a right-to-left chat mirrors. The host picks it once from the platform ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
+_Avoid_: Emoji theme, emoji mode, mobile/desktop flag
+
+**Sticker playback**:
+The host's policy for how the sticker of an **emoji-only body** plays: loop, play once then rest on the first or the last frame, or stay still. The body reads no animation setting; the host maps its settings and power policy to a mode. A sticker that plays once does so the first time the open chat shows it, which the **play ledger** remembers ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
+_Avoid_: Autoplay flag, GIF mode, loop setting (in the body)
+
+**Play ledger**:
+The host-owned memory of which stickers already played in the open chat, by message id: not persisted, not in the body or the asset cache, so a recycled row mounts again and rests. A play is recorded when the animation is playing, not when it ends.
+_Avoid_: Played flag on the message, played-once cache
+
+**Sticker tap policy**:
+The pure `$Mobile` / `$Desktop` strategy of where a tap on a sticker counts (the drawn sticker, outset by an explicit replay tap slop that is zero by default) and which gestures replay it. A replay never rewinds a pass that is running. Distinct from the **sticker interaction** a tap also is.
+_Avoid_: Near-sticker tap, sticker hitbox
+
+**Sticker interaction**:
+The event a tap on a sticker is for the host (`ChatStickerActivated`): the emoji, the message, the drawn rectangle in global coordinates and a monotonic time, emitted for every tap whether or not the sticker replayed. The viewport draws no effect and sends nothing; the host builds the larger effect, the peer broadcast and their acknowledgement on it, and applies a peer's interaction through the facade's incoming-side entry point.
+_Avoid_: Sticker effect (the effect is the host's drawing), tap animation
+
 ### Message menu
 
 **Message menu**:
@@ -390,7 +419,7 @@ The exclusive lifetime of a **message menu** for one **message menu request** (i
 _Avoid_: Overlay entry, popup lifetime, live tracking, context-menu route
 
 **Message menu presentation**:
-How a **message menu session** is drawn: mobile uses a dimmed scrim that leaves only the target's **message surface** undimmed, in the outline the host reported and clipped to the **scroll band** (the whole slot when no surface is reported), with the action column anchored to that slot; desktop/web uses a light popup at the pointer with no viewport dim and no message outline lift. Defaults from **selection policy** (`$Mobile` → scrim sheet, `$Desktop` → pointer popup); the host may override for a given present. Same session contract; not a second product concept.
+How a **message menu session** is drawn: mobile uses a dimmed scrim that leaves only the target's **message surface** undimmed, in the outline the host reported (one outline for a bubble; for a message without a bubble, the union of its painted parts, `ChatMessageSurfaceParts`, so the gaps between them stay dimmed) and clipped to the **scroll band** (the whole slot when no surface is reported), with the action column anchored to that slot; desktop/web uses a light popup at the pointer with no viewport dim and no message outline lift. Defaults from **selection policy** (`$Mobile` → scrim sheet, `$Desktop` → pointer popup); the host may override for a given present. Same session contract; not a second product concept.
 _Avoid_: Two menu products, ContextMenu vs ActionSheet split, host-only desktop shell
 
 **Message menu dismiss**:
@@ -409,9 +438,9 @@ _Avoid_: MessageAction enum, PopupMenuItem, context-menu item
 A host-defined emoji in the message menu reaction strip (optional on any **message menu presentation**). Choosing one ends the session the same way an action does. Host may omit the strip on a given presentation without making reactions a separate product.
 _Avoid_: Emoji picker, reaction sheet, desktop-only reaction product
 
-**Global catalog asset cache**:
-Process-wide thumbs/media cache for document-backed emoji, stickers, and GIFs, shared with the Panel Catalog Viewport so chat leaves and panel leaves bind the same assets.
-_Avoid_: Per-message private decode stores, panel-only drawable maps as the long-term source of truth
+**Asset cache**:
+The host-created, app-wide cache of paintable assets for document-backed emoji, stickers, and GIFs, provided through a scope and shared with the Panel Catalog Viewport so chat leaves and panel leaves bind the same assets. Defined in the [Content and Assets glossary](docs/content/CONTEXT.md).
+_Avoid_: Global catalog asset cache, per-message private decode stores, panel-only drawable maps, static singleton
 
 ### Navigation
 

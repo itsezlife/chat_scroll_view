@@ -4,6 +4,9 @@
 /// never imports them.
 library;
 
+export 'src/asset/testing/asset_playback_contract.dart';
+export 'src/asset/testing/fake_asset_paintable.dart';
+export 'src/asset/testing/fake_asset_producer.dart';
 export 'src/atlas/testing/bake_frame_source_contract.dart';
 export 'src/atlas/testing/fake_bake_frame_source.dart';
 export 'src/atlas/testing/fake_glyph_art_version_source.dart';
@@ -19,3 +22,19 @@ export 'src/atlas/testing/image_pixels.dart';
 export 'src/atlas/testing/manual_bake_clock.dart';
 export 'src/atlas/testing/manual_memory_pressure.dart';
 export 'src/atlas/testing/manual_retention_timers.dart';
+export 'src/atlas/testing/sample_glyph_catalogue.dart';
+export 'src/embed/testing/fake_inline_embed.dart';
+export 'src/embed/testing/inline_embed_contract.dart';
+export 'src/embed/testing/inline_embed_resolver_contract.dart';
+export 'src/embed/testing/playable_embed_contract.dart';
+export 'src/glyph/testing/fake_glyph_sprite_source.dart';
+export 'src/glyph/testing/glyph_sprite_source_contract.dart';
+export 'src/pipeline/testing/asset_fetcher_contract.dart';
+export 'src/pipeline/testing/decoder_contract.dart';
+export 'src/pipeline/testing/fake_decoder.dart';
+export 'src/pipeline/testing/fake_fetcher.dart';
+export 'src/pipeline/testing/manual_clock.dart';
+export 'src/playback/testing/manual_playback_lifecycle_source.dart';
+export 'src/playback/testing/manual_playback_tick_source.dart';
+export 'src/playback/testing/playback_lifecycle_source_contract.dart';
+export 'src/playback/testing/playback_tick_source_contract.dart';

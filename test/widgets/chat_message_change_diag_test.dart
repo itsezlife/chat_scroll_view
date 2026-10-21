@@ -13,10 +13,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
-    debugChatMessageChangeRecordPaints = true;
+    RenderChatMessageChangeTransition.debugRecordPaints = true;
   });
   tearDown(() {
-    debugChatMessageChangeRecordPaints = false;
+    RenderChatMessageChangeTransition.debugRecordPaints = false;
   });
 
   Widget harness({required String content, required bool edited}) =>

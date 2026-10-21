@@ -1,0 +1,80 @@
+import 'package:emoji_catalog_pack/src/generator/cldr_annotations.dart';
+import 'package:emoji_catalog_pack/src/generator/emoji_keyword_pack_builder.dart';
+import 'package:emoji_catalog_pack/src/generator/emoji_shortcodes_builder.dart';
+import 'package:emoji_catalog_pack/src/generator/emoji_test_file.dart';
+import 'package:emoji_catalog_pack/src/generator/inputs_lock.dart';
+import 'package:emoji_catalog_pack/src/generator/structure_builder.dart';
+
+/// Produces the shipped assets of the pack from its pinned inputs.
+abstract final class AssetGenerator {
+  /// The text of every shipped asset of the pack, by path inside the package.
+  ///
+  /// [readInput] returns the text of a pinned input by its name (see
+  /// [InputsPlan.sources]); the caller is responsible for it being the bytes
+  /// [lock] pins. The result is a pure function of the inputs: equal inputs
+  /// give equal text, which is what the reproducibility check relies on.
+  ///
+  /// Throws a [FormatException] when `emoji-test.txt` is of another Emoji
+  /// version than the lock states, or any step finds the data does not fit.
+  static Map<String, String> generate({
+    required InputsLock lock,
+    required String Function(String name) readInput,
+  }) {
+    final emojiTest = EmojiTestFile.parse(readInput('emoji-test.txt'));
+    if (emojiTest.emojiVersion != lock.emojiVersion) {
+      throw FormatException(
+        'emoji-test.txt is Emoji ${emojiTest.emojiVersion}, '
+        'the lock pins ${lock.emojiVersion}.',
+      );
+    }
+    final structure = StructureBuilder.build(emojiTest);
+    final cldrVersion = lock.plan.cldrVersion;
+    final toolkit = 'emoji-toolkit ${lock.shortcodesRef}';
+    return {
+      'assets/structure.tsv': structure.encode(),
+      'assets/shortcodes.tsv': EmojiShortcodesBuilder.build(
+        structure: structure,
+        toolkitJson: readInput('emoji-toolkit/emoji.json'),
+        source: toolkit,
+      ).encode(),
+      for (final locale in lock.locales)
+        'assets/keywords/$locale.tsv': EmojiKeywordPackBuilder.build(
+          structure: structure,
+          annotations: CldrAnnotations.merge([
+            CldrAnnotations.parse(readInput('cldr/annotations/$locale.xml')),
+            CldrAnnotations.parse(
+              readInput('cldr/annotationsDerived/$locale.xml'),
+            ),
+          ]),
+          locale: locale,
+          cldrVersion: cldrVersion,
+        ).encode(),
+      'assets/LICENSE-UNICODE.txt': _licence(
+        lock.emojiVersion,
+        cldrVersion,
+        readInput('cldr/LICENSE'),
+      ),
+      'assets/LICENSE-JOYPIXELS.txt': _toolkitLicence(
+        toolkit,
+        readInput('emoji-toolkit/LICENSE.md'),
+      ),
+    };
+  }
+}
+
+String _licence(String emojiVersion, String cldrVersion, String text) =>
+    'The structure and keyword assets in this directory are generated from\n'
+    'Unicode Emoji $emojiVersion (emoji-test.txt) and CLDR $cldrVersion\n'
+    '(annotations), which are licensed as follows.\n'
+    '\n'
+    '${text.trim()}\n';
+
+// The toolkit licence covers artwork and code alike; only its JSON is used,
+// which the "Non-Artwork" part licenses under MIT.
+String _toolkitLicence(String toolkit, String text) =>
+    'The shortcodes asset in this directory (shortcodes.tsv) is generated from\n'
+    'the shortnames in emoji.json of JoyPixels $toolkit.\n'
+    'No JoyPixels artwork is used or shipped: the JSON is covered by the\n'
+    '"JoyPixels Non-Artwork" part of the licence below, MIT.\n'
+    '\n'
+    '${text.trim()}\n';

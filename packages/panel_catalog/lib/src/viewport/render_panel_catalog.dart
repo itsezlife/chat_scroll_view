@@ -2,17 +2,30 @@ import 'dart:async' show Completer, Future, unawaited;
 import 'dart:math' as math;
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart'
+    show
+        MouseTrackerAnnotation,
+        PointerEnterEventListener,
+        PointerExitEventListener;
 import 'package:flutter/widgets.dart';
-import 'package:panel_catalog/src/data/catalog_data_source.dart';
+import 'package:listen/listen.dart' as listen;
+import 'package:panel_catalog/src/data/catalog_snapshot.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
-import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
+import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
+import 'package:panel_catalog/src/model/catalog_section.dart';
+import 'package:panel_catalog/src/theme/panel_catalog_theme_data.dart'
+    show CatalogPressFeedback;
 import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
+import 'package:panel_catalog/src/viewport/catalog_action_pointer.dart';
 import 'package:panel_catalog/src/viewport/catalog_bake_activity.dart';
 import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
+import 'package:panel_catalog/src/viewport/catalog_focus.dart';
+import 'package:panel_catalog/src/viewport/catalog_focus_navigation.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_painter.dart';
@@ -20,7 +33,10 @@ import 'package:panel_catalog/src/viewport/catalog_leaf_pointer.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_press.dart';
 import 'package:panel_catalog/src/viewport/catalog_near_scroll.dart';
 import 'package:panel_catalog/src/viewport/catalog_scroll_physics.dart';
+import 'package:panel_catalog/src/viewport/catalog_scroll_position.dart';
 import 'package:panel_catalog/src/viewport/catalog_section_navigation.dart';
+import 'package:panel_catalog/src/viewport/catalog_section_proximity.dart';
+import 'package:panel_catalog/src/viewport/catalog_semantics.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
@@ -33,16 +49,20 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// absolute content offset on [PanelCatalogController].
 ///
 /// Does **not** own panel chrome (category strip, search, type tabs, pickers),
-/// asset fetch/decode ([CatalogAssetCache] does), or catalog fetch
-/// ([CatalogDataSource] does). Hosts wire those; this object only listens and
-/// projects.
+/// asset fetch/decode (the host's [AssetCacheScope] does), or catalog fetch
+/// (the owner of the snapshot observable does). Hosts wire those; this object
+/// only listens and projects.
 ///
 /// ## Layout model
 ///
 /// Catalog geometry is a known content height ([contentExtent]), not an
-/// id-relative anchor. [projectCatalogSlots] flattens
-/// [CatalogDataSource.sections] into absolute header/leaf slots in content
-/// coordinates (y increases downward from the catalog top). Scroll range is:
+/// id-relative anchor. [CatalogSlotProjection.project] flattens
+/// [CatalogSnapshot.sections] into absolute header/leaf slots in content
+/// coordinates (y increases downward from the catalog top), each section by
+/// its own [CatalogSection.layout] resolved against the viewport defaults.
+/// The slots of all sections stay in one ascending list, so the lookups below
+/// are one binary search whatever mix of layouts the catalog holds. Scroll
+/// range is:
 ///
 /// ```text
 /// maxOffset = max(0, contentExtent − size.height)
@@ -61,18 +81,18 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// memory and layout cost. Headers are paint-only as well.
 ///
 /// Scrolling is Tier-1 cheap: clamp + re-sync bindings + [markNeedsPaint].
-/// Unicode glyphs reuse a layout-once paragraph cache (drawParagraph only on
-/// scroll). Geometry changes (span, pitch, padding, data notify) call
+/// Leaves paint what their asset binding has reached and never decode
+/// anything. Geometry changes (span, pitch, padding, data notify) call
 /// [markCatalogNeedsUpdate] so the next layout reprojects slots.
 ///
 /// ## Binding recycle
 ///
-/// [CatalogLeafBindingPool] attaches [CatalogAssetCache] bindings only for
+/// [CatalogLeafBindingPool] attaches [AssetCacheScope] bindings only for
 /// leaf slots intersecting the visible window (viewport band plus one
 /// [cellExtent] of overscan above and below). Leaves that leave that band
 /// are detached unless their key is listed in the stitch pin set during
 /// far-path flight ([CatalogFarStitch]) so outgoing strip bindings survive
-/// the teleport. Readiness changes on attached bindings mark paint dirty so
+/// the teleport. A better stage on an attached binding marks paint dirty so
 /// placeholders flip to content without a full catalog reproject.
 ///
 /// The visible window is resolved to a slot index range by binary search over
@@ -82,12 +102,15 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// Overscan is intentionally one cell row: enough that a short drag does not
 /// thrash attach/detach every frame, not a second viewport of prefetched
 /// bindings. Empty / short catalogs still project headers; unbound leaves
-/// paint as loading placeholders via [CatalogLeafPresentation].
+/// paint the placeholder their descriptor facts name.
 ///
 /// ## Scroll input
 ///
 /// Drag (`VerticalDragGestureRecognizer`) and pointer-wheel
-/// ([PointerScrollEvent]) both call [PanelCatalogController.scrollBy].
+/// ([PointerScrollEvent]) both call [PanelCatalogController.scrollBy]. A
+/// mouse never drags: it scrolls by its wheel and the scrollbar, as the
+/// reference desktop client's grid does, and a press-and-move of it is a
+/// press on a cell, not a scroll ([_dragDevices]).
 /// Drag-up (negative primary delta) reveals content below → positive delta
 /// on the controller. Drag start cancels fling and clears in-flight press.
 ///
@@ -112,8 +135,10 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 ///
 /// [PanelCatalogController.jumpToSection] lands a section header under
 /// [padding.top] (strip inset band). Path selection uses
-/// [isNearPathSectionJump]: attached-header shortcut, else flat-row distance
-/// `≤ [kFarPathDistanceGateFactor]` (not multiplied by [spanCount]). Near
+/// [CatalogSectionNavigation.isNearPathSectionJump]: attached-header shortcut,
+/// else flat-row distance
+/// `≤ [CatalogSectionNavigation.farPathDistanceGateFactor]` (not multiplied by
+/// [spanCount]). Near
 /// targets animate via [CatalogNearScroll] (220ms decelerate curve). Far
 /// targets use [CatalogFarStitch] (capture outgoing strip → teleport →
 /// dual-translate).
@@ -121,8 +146,8 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// While [PanelCatalogController.isSectionJumpActive], the controller ignores
 /// additional [jumpToSection] requests (in-flight future returned; this object
 /// is not re-entered). User drag / [jumpTo] / [scrollBy] cancel in-flight
-/// near scroll or stitch. Motion writes [PanelCatalogController.correctOffset]
-/// only so scroll-by listeners stay quiet; [PanelCatalogController.isSectionJumpActive]
+/// near scroll or stitch. Motion writes publish [PanelCatalogOffsetChanged]
+/// only, never a jump or scroll-by event; [PanelCatalogController.isSectionJumpActive]
 /// gates host strip sync for both paths.
 ///
 /// A pointer-down that cancels an in-flight fling suppresses leaf tap /
@@ -130,23 +155,22 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// Press scale is also skipped for that pointer; suppress clears post-frame
 /// after pointer-up so arena tap resolution still sees the flag.
 ///
-/// After every navigation notify, this object clamps via
-/// [PanelCatalogController.correctOffset] (silent — jump/scroll listeners
-/// are not re-fired). Until that correction runs, [offset] MAY briefly sit
-/// outside `[0, maxOffset]` (e.g. jump past the end before layout knows
+/// After every navigation, this object clamps the offset silently (no event).
+/// Until that correction runs, [pixels] MAY briefly sit outside
+/// `[0, maxOffset]` (e.g. jump past the end before layout knows
 /// [contentExtent]).
 ///
 /// ## Hit-test and press
 ///
 /// The entire viewport is the hit target ([hitTestSelf]). On pointer-down,
 /// [leafAt] maps viewport-local coordinates through scroll offset into a
-/// [CatalogLeaf] (or `null` on headers / padding). [CatalogLeafPointer]
+/// [CatalogLeafHit] (or `null` on headers / padding). [CatalogLeafPointer]
 /// registers tap / long-press for leaf downs when wired;
 /// [CatalogLeafPointer.leafLongPressEligible] skips the long-press recognizer
 /// on ineligible leaves. Drag always receives the pointer so scroll still wins
 /// the arena when the finger moves. Press scale starts on leaf-down via
 /// [CatalogLeafPress], keyed by [CatalogLeafSlotKey] (content position), not
-/// [CatalogLeaf.assetKey], so duplicate glyphs in different sections animate
+/// the leaf's content key, so duplicate glyphs in different sections animate
 /// independently. Painted as `0.8 + 0.2 * (1 − progress)`. Drag start and
 /// long-press cancel call press-out. Pointer move that leaves the pressed cell
 /// rect also releases.
@@ -162,24 +186,27 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 ///
 /// ## Baked glyphs
 ///
-/// When the asset cache has a [GlyphAtlas] (platforms that bake emoji), each
-/// unicode leaf resolves to a sprite through its binding and the painter queues
-/// it; one pass draws the sprites of each atlas page in a single batched draw
-/// (`CatalogLeafPainter.flushGlyphSprites`, at the end of [paint]). An unbaked
-/// glyph is the circle placeholder and flips to its sprite when the atlas page
-/// lands (the binding listener marks paint dirty, never layout). Without an
-/// atlas the same leaves paint a paragraph. [CatalogBakeActivity] keeps the
-/// bake out of the way of motion and tells the atlas what is on screen.
+/// Where the scope's glyphs are baked, each unicode leaf resolves to a sprite
+/// through its binding and the painter queues it; one pass draws the sprites of
+/// each atlas page in a single batched draw ([CatalogLeafPainter.endPass], at
+/// the end of [paint]). An unbaked glyph is the circle placeholder and flips to
+/// its sprite when the atlas page lands (the binding listener marks paint
+/// dirty, never layout). Where the scope draws glyphs as text the leaf's
+/// paintable paints itself; this object cannot tell the two apart.
+/// [CatalogBakeActivity] publishes whether the catalogue is moving and what is
+/// on screen as scroll events; whoever owns the bake listens to them, so the
+/// bake stays out of the way of motion.
 ///
 /// ## Lifecycle
 ///
-/// - [attach]: register data + controller listeners; create drag, leaf
-///   pointer, press tickers, and press controller.
-/// - [detach]: unregister listeners; dispose recognizers / press / fling;
+/// - [attach]: register the snapshot listener and become the controller's
+///   position; create drag, leaf pointer, press tickers, and press controller.
+/// - [detach]: leave the controller (it keeps the offset reached) and
+///   unregister listeners; dispose recognizers / press / fling;
 ///   [CatalogLeafBindingPool.detachAll].
 /// - [dispose]: same binding/painter teardown; safe if already detached.
 ///
-/// Listeners are only live while attached. Swapping [dataSource] /
+/// Listeners are only live while attached. Swapping [snapshots] /
 /// [controller] while attached rebinds without leaking the previous
 /// subscription.
 ///
@@ -197,7 +224,11 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// stops at this object instead of dirtying the host chrome's layer.
 ///
 /// Constructed by [PanelCatalogViewport]; not exported from the public barrel.
-class RenderPanelCatalog extends RenderBox {
+class RenderPanelCatalog extends RenderBox
+    implements
+        CatalogScrollPosition,
+        CatalogSemanticsTarget,
+        MouseTrackerAnnotation {
   /// Creates a panel catalog render body.
   ///
   /// [spanCount] MUST be ≥ 1. [cellExtent] / [headerExtent] SHOULD be > 0;
@@ -207,107 +238,143 @@ class RenderPanelCatalog extends RenderBox {
   /// Leaf callbacks are forwarded to [CatalogLeafPointer] while attached;
   /// null long-press start disables the long-press recognizer.
   RenderPanelCatalog({
-    required CatalogDataSource dataSource,
-    required CatalogAssetCache assetCache,
+    required listen.ValueListenable<CatalogSnapshot> snapshots,
+    required AssetCacheScope assets,
+    required double devicePixelRatio,
     required PanelCatalogController controller,
     required int spanCount,
     required double cellExtent,
     required double headerExtent,
     required EdgeInsets padding,
-    double? headerLandingInset,
-    required CatalogAssetCacheType cacheType,
     required CatalogLeafPaintTheme paintTheme,
-    ValueChanged<CatalogLeaf>? onLeafTap,
-    void Function(CatalogLeaf leaf, LongPressStartDetails details)?
+    TextDirection textDirection = TextDirection.ltr,
+    double? headerLandingInset,
+    ValueChanged<CatalogLeafHit>? onLeafTap,
+    void Function(CatalogLeafHit hit, Offset globalPosition)?
+    onLeafSecondaryTap,
+    void Function(CatalogLeafHit? hit, Offset globalPosition)? onLeafHover,
+    void Function(CatalogLeafHit hit, LongPressStartDetails details)?
     onLeafLongPressStart,
-    void Function(CatalogLeaf leaf, LongPressMoveUpdateDetails details)?
+    void Function(CatalogLeafHit hit, LongPressMoveUpdateDetails details)?
     onLeafLongPressMove,
-    void Function(CatalogLeaf leaf, LongPressEndDetails details)?
+    void Function(CatalogLeafHit hit, LongPressEndDetails details)?
     onLeafLongPressEnd,
-    bool Function(CatalogLeaf leaf)? leafLongPressEligible,
-  }) : _dataSource = dataSource,
+    bool Function(CatalogLeafHit hit)? leafLongPressEligible,
+    Duration? Function(CatalogLeafHit hit, PointerDeviceKind kind)?
+    leafLongPressDelay,
+    CatalogLeafHit? pinnedLeaf,
+    void Function(String sectionId, String actionId)? onSectionAction,
+    double? sectionNearExtent,
+  }) : _snapshots = snapshots,
        _controller = controller,
+       _pixels = controller.offset,
        _spanCount = spanCount,
        _cellExtent = cellExtent,
        _headerExtent = headerExtent,
        _padding = padding,
+       _textDirection = textDirection,
        _headerLandingInset = headerLandingInset,
        _onLeafTap = onLeafTap,
+       _onLeafSecondaryTap = onLeafSecondaryTap,
+       _onLeafHover = onLeafHover,
+       _pinnedLeaf = pinnedLeaf,
        _onLeafLongPressStart = onLeafLongPressStart,
        _onLeafLongPressMove = onLeafLongPressMove,
        _onLeafLongPressEnd = onLeafLongPressEnd,
        _leafLongPressEligible = leafLongPressEligible,
+       _onSectionAction = onSectionAction,
+       _sectionNearExtent = sectionNearExtent,
        _paintTheme = paintTheme,
+       _devicePixelRatio = devicePixelRatio,
        _painter = CatalogLeafPainter(theme: paintTheme) {
+    _assets = assets;
     _pool = CatalogLeafBindingPool(
-      assetCache: assetCache,
-      cacheType: cacheType,
-      onReadinessChanged: markNeedsPaint,
+      scope: assets,
+      devicePixelRatio: devicePixelRatio,
+      onChanged: markNeedsPaint,
     );
     _leafPointer = CatalogLeafPointer(debugOwner: this)
       ..leafAt = leafAt
       ..onLeafTap = onLeafTap
+      ..onLeafSecondaryTap = onLeafSecondaryTap
       ..onLeafLongPressStart = onLeafLongPressStart
       ..onLeafLongPressMove = onLeafLongPressMove
       ..onLeafLongPressEnd = onLeafLongPressEnd
       ..leafLongPressEligible = leafLongPressEligible
+      ..leafLongPressDelay = leafLongPressDelay
       ..onGestureCancel = _onLeafGestureCancel
+      ..flingCancelSuppresses = () => _flingCancelSuppressesLeaf;
+    _actionPointer = CatalogActionPointer(debugOwner: this)
+      ..actionAt = actionAt
+      ..onSectionAction = onSectionAction
       ..flingCancelSuppresses = () => _flingCancelSuppressesLeaf;
   }
 
   // --- Configuration --------------------------------------------------------
 
-  /// Authoritative catalog contents. Reprojected on [CatalogDataSource]
-  /// notify while attached.
+  /// Authoritative catalog contents. Reprojected when the snapshot
+  /// [listen.ValueListenable] signals while attached.
   ///
-  /// Swapping while attached moves the data listener to the new source and
-  /// marks layout+paint dirty. The previous source is unsubscribed first.
-  CatalogDataSource _dataSource;
-  set dataSource(CatalogDataSource value) {
-    if (_dataSource == value) return;
+  /// Swapping while attached moves the listener to the new source and marks
+  /// layout+paint dirty. The previous source is unsubscribed first.
+  listen.ValueListenable<CatalogSnapshot> _snapshots;
+  set snapshots(listen.ValueListenable<CatalogSnapshot> value) {
+    if (_snapshots == value) return;
     if (attached) {
-      _dataSource.removeDataListener(_onDataChanged);
+      _snapshots.removeListener(_onDataChanged);
     }
-    _dataSource = value;
+    _snapshots = value;
     if (attached) {
-      _dataSource.addDataListener(_onDataChanged);
+      _snapshots.addListener(_onDataChanged);
     }
+    _validateFocus();
     markCatalogNeedsUpdate();
   }
 
-  /// Absolute content-offset owner. Jump/scroll listeners drive clamp +
-  /// binding sync + paint (not layout) while attached.
+  /// Command and event hub. While attached this render object is the
+  /// controller's one [CatalogScrollPosition]: the controller forwards host
+  /// commands to it and it publishes scroll events through the controller.
   ///
-  /// Swapping while attached rebinds listeners, reclamps, and re-syncs the
-  /// visible band against the new controller's [PanelCatalogController.offset].
-  /// [jumpTo] cancels an in-flight fling before navigation runs.
+  /// Swapping while attached detaches from the old controller (which keeps
+  /// the offset reached), adopts the new controller's offset, reclamps, and
+  /// re-syncs the visible band.
   PanelCatalogController _controller;
   set controller(PanelCatalogController value) {
     if (_controller == value) return;
     if (attached) {
-      _unbindController(_controller);
+      _stopBakeActivity();
+      _controller.detach(this);
     }
     _controller = value;
     if (attached) {
-      _bindController(_controller);
+      _pixels = value.offset;
+      value.attach(this);
+      _startBakeActivity();
     }
     _clampOffset();
     _syncVisibleBindings();
     markNeedsPaint();
   }
 
-  /// Process-wide asset cache. Replacing detaches every binding first
-  /// ([CatalogLeafBindingPool.replaceCache]) then reprojects.
-  set assetCache(CatalogAssetCache value) {
-    final atlas = _pool.glyphAtlas;
-    _pool.replaceCache(value);
-    // The bake reporter belongs to the cache's atlas. Hosts hand the same
-    // cache on every widget update; only a different atlas restarts it, or a
-    // drag in progress would forget it began.
-    if (!identical(atlas, value.glyphAtlas)) {
-      _stopBakeActivity();
-      _startBakeActivity();
-    }
+  /// The host's asset cache. Replacing it detaches every binding first
+  /// ([CatalogLeafBindingPool.replaceScope]) then reprojects; the same scope on
+  /// a widget update changes nothing, so a drag or a bake in progress is not
+  /// disturbed.
+  late AssetCacheScope _assets;
+  set assets(AssetCacheScope value) {
+    if (identical(_assets, value)) return;
+    _assets = value;
+    _pool.replaceScope(value);
+    markCatalogNeedsUpdate();
+  }
+
+  /// Density of the view this body sits in. Bindings are asked for pixels at
+  /// it, so a change swaps every attached binding for one at the new size.
+  double _devicePixelRatio;
+  set devicePixelRatio(double value) {
+    if (_devicePixelRatio == value) return;
+    _devicePixelRatio = value;
+    _pool.devicePixelRatio = value;
     markCatalogNeedsUpdate();
   }
 
@@ -346,17 +413,21 @@ class RenderPanelCatalog extends RenderBox {
     markCatalogNeedsUpdate();
   }
 
+  /// The direction of a section whose layout states none. Changing it moves
+  /// the cells of those sections to the other side of their rows and mirrors
+  /// their headers; rows and offsets stay.
+  TextDirection _textDirection;
+  set textDirection(TextDirection value) {
+    if (_textDirection == value) return;
+    _textDirection = value;
+    markCatalogNeedsUpdate();
+  }
+
   /// Section-jump landing inset; null → [padding.top].
   double? _headerLandingInset;
   set headerLandingInset(double? value) {
     if (_headerLandingInset == value) return;
     _headerLandingInset = value;
-    markCatalogNeedsUpdate();
-  }
-
-  /// Attach size class for leaf bindings. Replacing detaches then reprojects.
-  set cacheType(CatalogAssetCacheType value) {
-    _pool.replaceCacheType(value);
     markCatalogNeedsUpdate();
   }
 
@@ -373,29 +444,67 @@ class RenderPanelCatalog extends RenderBox {
   }
 
   /// Shell tap callback. Rebinding updates the leaf pointer while attached.
-  ValueChanged<CatalogLeaf>? _onLeafTap;
-  set onLeafTap(ValueChanged<CatalogLeaf>? value) {
+  ValueChanged<CatalogLeafHit>? _onLeafTap;
+  set onLeafTap(ValueChanged<CatalogLeafHit>? value) {
     if (_onLeafTap == value) return;
+    // A node offers an action by whether the shell has one; the action itself
+    // reads the callback when performed.
+    if ((_onLeafTap == null) != (value == null)) _markSemanticsStale();
     _onLeafTap = value;
     _leafPointer.onLeafTap = value;
   }
 
+  /// Shell secondary tap (mouse right click). Null leaves the button
+  /// unrecognised.
+  void Function(CatalogLeafHit hit, Offset globalPosition)? _onLeafSecondaryTap;
+  set onLeafSecondaryTap(
+    void Function(CatalogLeafHit hit, Offset globalPosition)? value,
+  ) {
+    if (_onLeafSecondaryTap == value) return;
+    _onLeafSecondaryTap = value;
+    _leafPointer.onLeafSecondaryTap = value;
+  }
+
+  /// Shell hover report; see `PanelCatalogViewport.onLeafHover`.
+  void Function(CatalogLeafHit? hit, Offset globalPosition)? _onLeafHover;
+  set onLeafHover(
+    void Function(CatalogLeafHit? hit, Offset globalPosition)? value,
+  ) => _onLeafHover = value;
+
+  /// Per-cell, per-pointer-kind long-press delay. Null = the platform's.
+  set leafLongPressDelay(
+    Duration? Function(CatalogLeafHit hit, PointerDeviceKind kind)? value,
+  ) => _leafPointer.leafLongPressDelay = value;
+
+  /// The cell a transient surface is open over: its hover wash stays and the
+  /// wheel is ignored until it is released.
+  CatalogLeafHit? _pinnedLeaf;
+  set pinnedLeaf(CatalogLeafHit? value) {
+    if (_pinnedLeaf == value) return;
+    _pinnedLeaf = value;
+    markNeedsPaint();
+  }
+
   /// Shell long-press start. Null disables the long-press recognizer.
-  void Function(CatalogLeaf leaf, LongPressStartDetails details)?
+  void Function(CatalogLeafHit hit, LongPressStartDetails details)?
   _onLeafLongPressStart;
   set onLeafLongPressStart(
-    void Function(CatalogLeaf leaf, LongPressStartDetails details)? value,
+    void Function(CatalogLeafHit hit, LongPressStartDetails details)? value,
   ) {
     if (_onLeafLongPressStart == value) return;
+    if ((_onLeafLongPressStart == null) != (value == null)) {
+      _markSemanticsStale();
+    }
     _onLeafLongPressStart = value;
     _leafPointer.onLeafLongPressStart = value;
   }
 
   /// Shell long-press move. Ignored when start is null.
-  void Function(CatalogLeaf leaf, LongPressMoveUpdateDetails details)?
+  void Function(CatalogLeafHit hit, LongPressMoveUpdateDetails details)?
   _onLeafLongPressMove;
   set onLeafLongPressMove(
-    void Function(CatalogLeaf leaf, LongPressMoveUpdateDetails details)? value,
+    void Function(CatalogLeafHit hit, LongPressMoveUpdateDetails details)?
+    value,
   ) {
     if (_onLeafLongPressMove == value) return;
     _onLeafLongPressMove = value;
@@ -403,10 +512,10 @@ class RenderPanelCatalog extends RenderBox {
   }
 
   /// Shell long-press end. Ignored when start is null.
-  void Function(CatalogLeaf leaf, LongPressEndDetails details)?
+  void Function(CatalogLeafHit hit, LongPressEndDetails details)?
   _onLeafLongPressEnd;
   set onLeafLongPressEnd(
-    void Function(CatalogLeaf leaf, LongPressEndDetails details)? value,
+    void Function(CatalogLeafHit hit, LongPressEndDetails details)? value,
   ) {
     if (_onLeafLongPressEnd == value) return;
     _onLeafLongPressEnd = value;
@@ -414,11 +523,35 @@ class RenderPanelCatalog extends RenderBox {
   }
 
   /// Per-leaf long-press registration gate. Null = all leaves eligible.
-  bool Function(CatalogLeaf leaf)? _leafLongPressEligible;
-  set leafLongPressEligible(bool Function(CatalogLeaf leaf)? value) {
+  bool Function(CatalogLeafHit hit)? _leafLongPressEligible;
+  set leafLongPressEligible(bool Function(CatalogLeafHit hit)? value) {
     if (_leafLongPressEligible == value) return;
+    if ((_leafLongPressEligible == null) != (value == null)) {
+      _markSemanticsStale();
+    }
     _leafLongPressEligible = value;
     _leafPointer.leafLongPressEligible = value;
+  }
+
+  /// Shell reaction to a tapped header action. Null disables recognition.
+  void Function(String sectionId, String actionId)? _onSectionAction;
+  set onSectionAction(void Function(String sectionId, String actionId)? value) {
+    if (_onSectionAction == value) return;
+    if ((_onSectionAction == null) != (value == null)) {
+      _markSemanticsStale();
+    }
+    _onSectionAction = value;
+    _actionPointer.onSectionAction = value;
+  }
+
+  /// Distance beyond the viewport at which a section edge is near; null is
+  /// one viewport height.
+  double? _sectionNearExtent;
+  set sectionNearExtent(double? value) {
+    if (_sectionNearExtent == value) return;
+    _sectionNearExtent = value;
+    _proximity.invalidate();
+    _scheduleSectionProximity();
   }
 
   // --- Runtime state --------------------------------------------------------
@@ -426,10 +559,57 @@ class RenderPanelCatalog extends RenderBox {
   late CatalogLeafBindingPool _pool;
   final CatalogLeafPainter _painter;
 
-  /// Keeps the glyph bake out of the way of motion; null without an atlas or
-  /// while detached.
+  /// Derives scrolling / settled events from the motion events; null while
+  /// detached.
   CatalogBakeActivity? _bakeActivity;
+
+  /// Frame time of the paint pass, from the scheduler unless a test fixes it.
+  Duration Function() _frameTime = _schedulerFrameTime;
+  // The raw timestamp rather than `currentFrameTimeStamp`, which is null
+  // outside a frame: a paint inside a frame reads the same value, and a paint
+  // driven by hand (a golden, a test) still has a time.
+  static Duration _schedulerFrameTime() =>
+      SchedulerBinding.instance.currentSystemFrameTimeStamp;
+
+  /// Fixes the frame time the placeholders' motion and the content fade read,
+  /// so a test or a golden paints at a chosen instant. Null restores the
+  /// scheduler's.
+  @visibleForTesting
+  set debugFrameTime(Duration Function()? value) =>
+      _frameTime = value ?? _schedulerFrameTime;
+
+  /// Whether a frame request for placeholder motion or a fade is pending.
+  var _motionFrameRequested = false;
+
+  /// Absolute content offset. This render object owns it while attached; the
+  /// controller keeps the committed value while no viewport is attached.
+  double _pixels;
+
+  /// Whether a section jump owns scroll motion (see
+  /// [PanelCatalogController.isSectionJumpActive]).
+  var _sectionJumpActive = false;
+
+  /// The [jumpToSection] request in flight and its future.
+  (int sectionIndex, Completer<void> completer)? _pendingSectionJump;
+
+  /// The [animateTo] request in flight and its future. Cleared when the
+  /// motion ends, is superseded, or is cancelled.
+  (double target, Duration duration, Curve curve, Completer<void> completer)?
+  _pendingAnimateTo;
   late final CatalogLeafPointer _leafPointer;
+  late final CatalogActionPointer _actionPointer;
+
+  /// Which section edges are near the viewport.
+  final CatalogSectionProximity _proximity = CatalogSectionProximity();
+
+  /// The sections and bands of the last projection, aligned.
+  List<CatalogSection> _projectedSections = const [];
+  List<CatalogSectionBand> _bands = const [];
+  double _projectedWidth = -1;
+  var _proximityScheduled = false;
+
+  /// The section last published as current, by index and id.
+  (int, String)? _currentSection;
 
   /// Ballistic scroll simulation and tick integration in content offset space.
   final CatalogScrollPhysics _physics = CatalogScrollPhysics();
@@ -444,7 +624,7 @@ class RenderPanelCatalog extends RenderBox {
   List<CatalogStitchCapturedSlot> _stitchOutgoing = const [];
 
   /// Outgoing leaf bindings pinned for the stitch flight.
-  Set<CatalogAssetKey> _stitchPinnedKeys = const {};
+  Set<ContentKey> _stitchPinnedKeys = const {};
 
   /// Completes when the in-flight far stitch settles or is cancelled.
   Completer<void>? _stitchFlightCompleter;
@@ -476,6 +656,20 @@ class RenderPanelCatalog extends RenderBox {
   double _contentExtent = 0;
   VerticalDragGestureRecognizer? _drag;
 
+  // Every pointer kind but the mouse. Flutter's own scroll behaviour leaves
+  // the mouse out of dragging on the same grounds.
+  static const Set<PointerDeviceKind> _dragDevices = {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.stylus,
+    PointerDeviceKind.invertedStylus,
+    PointerDeviceKind.trackpad,
+    PointerDeviceKind.unknown,
+  };
+
+  /// Whether a drag started and has not ended, so its end can be told apart
+  /// from the cancel the recognizer reports for a tap.
+  var _userDragging = false;
+
   // --- Diagnostics (filter DevTools / logcat by logger name) ----------------
 
   int _layoutFrame = 0;
@@ -486,42 +680,42 @@ class RenderPanelCatalog extends RenderBox {
 
   // --- Observability --------------------------------------------------------
 
+  @override
+  double get pixels => _pixels;
+
+  @override
+  double get viewportExtent => hasSize ? size.height : 0;
+
   /// Total catalog content height after the last project (padding included).
   ///
   /// `0` before the first layout. Short catalogs may be smaller than
   /// [size].height — then [maxOffset] is `0` and scroll input is a no-op after
   /// clamp.
+  @override
   double get contentExtent => _contentExtent;
+
+  @override
+  double get maxScrollExtent => hasSize ? maxOffset : 0;
+
+  @override
+  bool get isSectionJumpActive => _sectionJumpActive;
 
   /// Maximum scroll offset for the current viewport height.
   ///
   /// Requires [hasSize]; callers MUST NOT read this before the first layout.
   /// Equals `max(0, contentExtent − size.height)`.
-  double get maxOffset => math.max(0.0, _contentExtent - size.height);
+  double get maxOffset => math.max(0, _contentExtent - size.height);
 
-  /// Flat leaf [CatalogAssetKey]s in projection order (headers omitted).
+  /// Flat leaves in projection order (headers omitted).
   ///
   /// Reflects the last project — empty before layout, or when every section
   /// has no leaves.
-  List<CatalogAssetKey> get projectedAssetKeys => [
+  List<CatalogLeaf> get projectedLeaves => [
     for (final slot in _slots)
-      if (slot case final CatalogLeafSlot leaf) leaf.leaf.assetKey,
+      if (slot case final CatalogLeafSlot leaf) leaf.leaf,
   ];
 
-  /// Presentation for [key], or `null` when no projected leaf matches.
-  ///
-  /// Uses the binding pool (live bind or settled [CatalogAssetCache.readinessOf]).
-  /// `null` means the key is absent from the current projection entirely.
-  CatalogLeafPresentation? presentationOf(CatalogAssetKey key) {
-    for (final slot in _slots) {
-      if (slot case final CatalogLeafSlot leaf when leaf.leaf.assetKey == key) {
-        return _pool.presentationFor(leaf.leaf);
-      }
-    }
-    return null;
-  }
-
-  /// Count of leaves currently retained via asset-cache attach.
+  /// Count of bindings currently attached in the scope's cache.
   ///
   /// Bounded by the visible window + overscan, not by total catalog size.
   int get attachedLeafCount => _pool.attachedCount;
@@ -529,8 +723,7 @@ class RenderPanelCatalog extends RenderBox {
   /// Test seam: drops every pool binding without disposing this render object.
   ///
   /// Models pager keep-alive leave (`detachAll` while the page [State] and
-  /// [CatalogAssetCache] survive). Settled cache readiness MUST still drive
-  /// [presentationOf] so paint does not flash loading placeholders.
+  /// the scope survive).
   @visibleForTesting
   void debugDetachBindings() => _pool.detachAll();
 
@@ -539,8 +732,8 @@ class RenderPanelCatalog extends RenderBox {
 
   /// Cell currently receiving press-scale feedback, or `null` when idle.
   ///
-  /// Test / debug seam for paint press — keyed by content slot, not
-  /// [CatalogLeaf.assetKey], so duplicate glyphs animate independently.
+  /// Test / debug seam for paint press — keyed by content slot, not by the
+  /// leaf's content key, so duplicate glyphs animate independently.
   CatalogLeafSlotKey? get pressedSlotKey => _press?.pressedSlotKey;
 
   /// Press amount for [pressedSlotKey]: `0` idle … `1` fully pressed; may be
@@ -572,29 +765,57 @@ class RenderPanelCatalog extends RenderBox {
   @visibleForTesting
   Duration debugLastPaintDuration = Duration.zero;
 
-  /// Resolves the [CatalogLeaf] under [localPosition], or `null` when the
+  /// Resolves the [CatalogLeafHit] under [localPosition], or `null` when the
   /// point lies on a header, padding, or empty band.
   ///
   /// [localPosition] is viewport-local (post-hit-test). Content y adds the
   /// current scroll [PanelCatalogController.offset]. Requires [hasSize] and
   /// a prior project — returns `null` before the first layout.
-  CatalogLeaf? leafAt(Offset localPosition) => leafSlotAt(localPosition)?.leaf;
+  CatalogLeafHit? leafAt(Offset localPosition) =>
+      leafSlotAt(localPosition)?.hit;
 
   /// Resolves the leaf [CatalogLeafSlot] under [localPosition], or `null`.
   ///
-  /// Used for press feedback and pointer routing so duplicate [CatalogLeaf]
-  /// identities in different sections stay independent.
+  /// Used for press feedback and pointer routing so a leaf shown in several
+  /// cells stays one independent cell per hit. Binary search to the row under
+  /// the point, then a scan of that row: the cost follows the row, not the
+  /// catalogue, whatever layouts its sections use.
   CatalogLeafSlot? leafSlotAt(Offset localPosition) {
     if (!hasSize) return null;
     final contentX = localPosition.dx;
-    final contentY = localPosition.dy + _controller.offset;
-    for (final slot in _slots) {
+    final contentY = localPosition.dy + _pixels;
+    final slots = _slots;
+    for (var i = _firstSlotIndexAtOrBelow(contentY); i < slots.length; i++) {
+      final slot = slots[i];
+      if (slot.top > contentY) break;
       if (slot case final CatalogLeafSlot leaf) {
         if (contentX >= leaf.left &&
             contentX < leaf.left + leaf.width &&
-            contentY >= leaf.top &&
             contentY < leaf.bottom) {
           return leaf;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Resolves the header action under [localPosition] as `(sectionId,
+  /// actionId)`, or `null` when the point is on no action's hit area.
+  ///
+  /// Binary search to the slots at the point's content y, then a scan of the
+  /// few that share it: the cost follows the row, not the catalogue.
+  (String sectionId, String actionId)? actionAt(Offset localPosition) {
+    if (!hasSize) return null;
+    final contentX = localPosition.dx;
+    final contentY = localPosition.dy + _pixels;
+    final slots = _slots;
+    for (var i = _firstSlotIndexAtOrBelow(contentY); i < slots.length; i++) {
+      final slot = slots[i];
+      if (slot.top > contentY) break;
+      if (slot case final CatalogHeaderSlot header when header.action != null) {
+        final bounds = _painter.sectionActionBounds(header);
+        if (bounds != null && bounds.contains(Offset(contentX, contentY))) {
+          return (header.sectionId, header.action!.id);
         }
       }
     }
@@ -615,14 +836,15 @@ class RenderPanelCatalog extends RenderBox {
 
   void _onDataChanged() {
     if (LogCategory.layout.enabled) {
-      fine(.layout, 'data.notify', {
-        'sections': _dataSource.sections.length,
-        'leaves': _dataSource.sections.fold<int>(
+      Log.fine(.layout, 'data.notify', {
+        'sections': _snapshots.value.sections.length,
+        'leaves': _snapshots.value.sections.fold<int>(
           0,
           (n, s) => n + s.leaves.length,
         ),
       });
     }
+    _validateFocus();
     markCatalogNeedsUpdate();
   }
 
@@ -636,61 +858,123 @@ class RenderPanelCatalog extends RenderBox {
     _clampOffset();
     _syncVisibleBindings();
     markNeedsPaint();
+    _noteSections();
+    _reportHover(moved: false);
   }
 
-  void _bindController(PanelCatalogController controller) {
-    controller
-      ..addJumpListener(_onJump)
-      ..addScrollByListener(_onScrollBy)
-      ..addSectionJumpListener(_onSectionJump)
-      ..addAnimateToListener(_onAnimateTo);
-  }
-
-  void _unbindController(PanelCatalogController controller) {
-    controller
-      ..removeJumpListener(_onJump)
-      ..removeScrollByListener(_onScrollBy)
-      ..removeSectionJumpListener(_onSectionJump)
-      ..removeAnimateToListener(_onAnimateTo);
-  }
-
-  /// Cancels near scroll + fling, then runs the navigation path.
-  void _onJump(double pixels) {
+  /// Moves to [pixels] at once: publishes the jump, cancels programmatic
+  /// motion and any fling, then clamps, recycles bindings and paints.
+  @override
+  void jumpTo(double pixels) {
+    if (_pixels == pixels) return;
+    final delta = pixels - _pixels;
+    _pixels = pixels;
+    _controller
+      ..publish(PanelCatalogProgrammaticJump(pixels))
+      ..publish(PanelCatalogOffsetChanged(pixels, delta));
     _cancelSectionJumpMotion();
     _cancelFling();
     _onNavigation();
     if (LogCategory.scroll.enabled) {
-      fine(.scroll, 'jump', {'offset': LogFormat.f(_controller.offset)});
+      Log.fine(.scroll, 'jump', {'offset': LogFormat.f(_pixels)});
     }
   }
 
-  void _onScrollBy(double delta) {
+  /// Moves by [delta] within `[0, maxOffset]`: publishes the part that moved,
+  /// cancels programmatic motion, then recycles bindings and paints. Drag,
+  /// fling ticks and the wheel take this path.
+  ///
+  /// The step is clamped before it is published, not after: a finger pulling
+  /// past an end moves nothing, and a delta reported for it would read as
+  /// scrolling to whoever listens (the bottom bar hides after a few such
+  /// steps, the sticky strip slides). A step that moves nothing publishes
+  /// nothing, and still stops programmatic motion: the user took over.
+  @override
+  void scrollBy(double delta) {
+    if (delta == 0) return;
+    final moved = hasSize
+        ? (_pixels + delta).clamp(0.0, maxOffset) - _pixels
+        : delta;
+    if (moved != 0) {
+      _pixels += moved;
+      _controller
+        ..publish(PanelCatalogViewportScrolled(moved))
+        ..publish(PanelCatalogOffsetChanged(_pixels, moved));
+    }
     _cancelSectionJumpMotion();
+    if (moved == 0) return;
     _onNavigation();
     if (LogCategory.scroll.enabled) {
-      fine(.scroll, 'scrollBy', {
+      Log.fine(.scroll, 'scrollBy', {
         'delta': LogFormat.f(delta),
-        'offset': LogFormat.f(_controller.offset),
+        'offset': LogFormat.f(_pixels),
       });
     }
   }
 
-  void _onSectionJump(int sectionIndex) {
-    _handleSectionJump(sectionIndex);
+  /// Writes [target] and publishes [PanelCatalogOffsetChanged]; used by the
+  /// motion that owns the offset (animate, near section ticks, stitch
+  /// teleports). Does not cancel anything and is not a jump.
+  void _applyOffset(double target) {
+    if (_pixels == target) return;
+    final delta = target - _pixels;
+    _pixels = target;
+    _controller.publish(PanelCatalogOffsetChanged(target, delta));
   }
 
-  void _onAnimateTo() {
+  @override
+  Future<void> animateTo(
+    double pixels, {
+    required Duration duration,
+    required Curve curve,
+  }) {
+    if ((_pixels - pixels).abs() < 0.5) return Future.value();
+    _completePendingAnimateTo();
+    final completer = Completer<void>();
+    _pendingAnimateTo = (pixels, duration, curve, completer);
     unawaited(_handleAnimateTo());
+    return completer.future;
+  }
+
+  @override
+  Future<void> jumpToSection(int sectionIndex) {
+    if (_sectionJumpActive) {
+      return _pendingSectionJump?.$2.future ?? Future.value();
+    }
+    // A request that never started (no size yet) is superseded, not leaked.
+    _completePendingSectionJump();
+    final completer = Completer<void>();
+    _pendingSectionJump = (sectionIndex, completer);
+    unawaited(_handleSectionJump(sectionIndex));
+    return completer.future;
+  }
+
+  /// Completes the pending animate future, if any.
+  void _completePendingAnimateTo() {
+    final pending = _pendingAnimateTo;
+    if (pending == null) return;
+    _pendingAnimateTo = null;
+    if (!pending.$4.isCompleted) pending.$4.complete();
+  }
+
+  /// Completes the pending section-jump future when [sectionIndex] matches
+  /// the pending request (or any pending request when it is null).
+  void _completePendingSectionJump({int? sectionIndex}) {
+    final pending = _pendingSectionJump;
+    if (pending == null) return;
+    if (sectionIndex != null && pending.$1 != sectionIndex) return;
+    _pendingSectionJump = null;
+    if (!pending.$2.isCompleted) pending.$2.complete();
   }
 
   /// Runs a host-requested [PanelCatalogController.animateTo].
   Future<void> _handleAnimateTo() async {
-    final pending = _controller.pendingAnimateTo;
+    final pending = _pendingAnimateTo;
     if (pending == null) return;
     final (target, duration, curve, completer) = pending;
 
     if (!attached) {
-      _controller.completePendingAnimateTo();
+      _completePendingAnimateTo();
       return;
     }
 
@@ -706,45 +990,45 @@ class RenderPanelCatalog extends RenderBox {
     if (maxOffset + 0.5 < target) {
       markNeedsLayout();
       await WidgetsBinding.instance.endOfFrame;
-      if (!attached || _controller.pendingAnimateTo == null) return;
+      if (!attached || _pendingAnimateTo == null) return;
     }
 
     _cancelSectionJumpMotion();
     _cancelFling();
 
-    if ((_controller.offset - target).abs() < 1) {
-      _controller.applyOffset(target);
+    if ((_pixels - target).abs() < 1) {
+      _applyOffset(target);
       _onNavigation();
-      _controller.completePendingAnimateTo();
+      _completePendingAnimateTo();
       return;
     }
 
     final nearScroll = _nearScroll;
     if (nearScroll == null || !hasSize) {
-      _controller.jumpTo(target);
+      jumpTo(target);
       _onNavigation();
       _clampOffset();
-      _controller.completePendingAnimateTo();
+      _completePendingAnimateTo();
       return;
     }
 
     markNeedsLayout();
-    _controller.notifyScrollEvent(PanelCatalogAnimateStart(target, duration));
+    _controller.publish(PanelCatalogAnimateStart(target, duration));
     try {
-      final from = _controller.offset;
+      final from = _pixels;
       await nearScroll.animate(
         from: from,
         to: target,
         duration: duration,
         curve: curve,
-        applyOffset: _controller.applyOffset,
+        applyOffset: _applyOffset,
       );
       _clampOffset();
       _syncVisibleBindings();
       markNeedsPaint();
     } finally {
-      _controller.notifyScrollEvent(PanelCatalogAnimateEnd(_controller.offset));
-      _controller.completePendingAnimateTo();
+      _controller.publish(PanelCatalogAnimateEnd(_pixels));
+      _completePendingAnimateTo();
     }
   }
 
@@ -753,62 +1037,73 @@ class RenderPanelCatalog extends RenderBox {
   /// Path-selects near smooth scroll vs far stitch, then completes the pending
   /// [PanelCatalogController.jumpToSection] future.
   Future<void> _handleSectionJump(int sectionIndex) async {
-    final sections = _dataSource.sections;
+    final sections = _snapshots.value.sections;
     if (sectionIndex < 0 || sectionIndex >= sections.length) {
-      _controller.setSectionJumpActive(false);
-      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
+      _sectionJumpActive = false;
+      _completePendingSectionJump(sectionIndex: sectionIndex);
       return;
     }
     if (!hasSize) {
-      _controller.setSectionJumpActive(false);
-      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
+      // Requested before the first layout (a jump committed while unbound
+      // lands here): apply it once the frame that lays this object out is
+      // done, unless it was retargeted or cancelled meanwhile.
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (_pendingSectionJump?.$1 != sectionIndex) return;
+        if (attached && hasSize) {
+          unawaited(_handleSectionJump(sectionIndex));
+        } else {
+          _completePendingSectionJump(sectionIndex: sectionIndex);
+        }
+      });
       return;
     }
 
     _cancelFling();
     _cancelSectionJumpMotion();
 
-    final targetOffset = scrollOffsetForSectionHeader(
-      sectionIndex: sectionIndex,
+    // From the live sections, not the last projection: a snapshot published
+    // since the last layout is the catalog the jump is about.
+    final bands = CatalogSectionBands.project(
       sections: sections,
       spanCount: _spanCount,
       cellExtent: _cellExtent,
       headerExtent: _headerExtent,
       padding: _padding,
-      headerLandingInset: _headerLandingInset,
+      maxWidth: size.width,
+      textDirection: _textDirection,
+    ).bands;
+    final targetOffset = CatalogSectionNavigation.scrollOffsetForBand(
+      bands[sectionIndex],
+      landingInset: _headerLandingInset ?? _padding.top,
     ).clamp(0.0, maxOffset);
 
-    if ((targetOffset - _controller.offset).abs() < 1) {
-      _controller.applyOffset(targetOffset);
+    if ((targetOffset - _pixels).abs() < 1) {
+      _applyOffset(targetOffset);
       _onNavigation();
-      _controller.setSectionJumpActive(false);
-      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
-      _controller.notifyScrollEvent(PanelCatalogSectionJumpEnd(sectionIndex));
+      _sectionJumpActive = false;
+      _completePendingSectionJump(sectionIndex: sectionIndex);
+      _controller.publish(PanelCatalogSectionJumpEnd(sectionIndex));
       return;
     }
 
-    final near = isNearPathSectionJump(
+    final near = CatalogSectionNavigation.isNearPathSectionJump(
       targetSectionIndex: sectionIndex,
-      sections: sections,
-      spanCount: _spanCount,
-      cellExtent: _cellExtent,
-      headerExtent: _headerExtent,
-      padding: _padding,
-      scrollOffset: _controller.offset,
+      bands: bands,
+      scrollOffset: _pixels,
       viewportHeight: size.height,
     );
 
     if (LogCategory.scroll.enabled) {
-      fine(.scroll, 'sectionJump.begin', {
+      Log.fine(.scroll, 'sectionJump.begin', {
         'section': sectionIndex,
-        'from': LogFormat.f(_controller.offset),
+        'from': LogFormat.f(_pixels),
         'to': LogFormat.f(targetOffset),
         'near': near,
         'sectionId': sections[sectionIndex].id,
       });
     }
 
-    _controller.setSectionJumpActive(true);
+    _sectionJumpActive = true;
 
     if (!near) {
       await _runFarStitch(
@@ -818,38 +1113,38 @@ class RenderPanelCatalog extends RenderBox {
       return;
     }
 
-    _controller.notifyScrollEvent(
+    _controller.publish(
       PanelCatalogSectionJumpStart(sectionIndex, targetOffset, farPath: false),
     );
 
     final nearScroll = _nearScroll;
     if (nearScroll == null) {
-      _controller.jumpTo(targetOffset);
+      jumpTo(targetOffset);
       _onNavigation();
-      _controller.setSectionJumpActive(false);
-      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
-      _controller.notifyScrollEvent(PanelCatalogSectionJumpEnd(sectionIndex));
+      _sectionJumpActive = false;
+      _completePendingSectionJump(sectionIndex: sectionIndex);
+      _controller.publish(PanelCatalogSectionJumpEnd(sectionIndex));
       return;
     }
 
     try {
-      final from = _controller.offset;
+      final from = _pixels;
       await nearScroll.animate(
         from: from,
         to: targetOffset,
-        applyOffset: _controller.applyOffset,
+        applyOffset: _applyOffset,
       );
       _clampOffset();
       _syncVisibleBindings();
       markNeedsPaint();
     } finally {
-      _controller.setSectionJumpActive(false);
-      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
-      _controller.notifyScrollEvent(PanelCatalogSectionJumpEnd(sectionIndex));
+      _sectionJumpActive = false;
+      _completePendingSectionJump(sectionIndex: sectionIndex);
+      _controller.publish(PanelCatalogSectionJumpEnd(sectionIndex));
       if (LogCategory.scroll.enabled) {
-        fine(.scroll, 'sectionJump.end', {
+        Log.fine(.scroll, 'sectionJump.end', {
           'section': sectionIndex,
-          'offset': LogFormat.f(_controller.offset),
+          'offset': LogFormat.f(_pixels),
           'path': 'near',
         });
       }
@@ -860,12 +1155,12 @@ class RenderPanelCatalog extends RenderBox {
     final wasActive = _nearScroll?.isActive ?? false;
     _nearScroll?.cancel();
     if (!wasActive) return;
-    if (_controller.pendingAnimateTo != null) {
-      _controller.completePendingAnimateTo();
+    if (_pendingAnimateTo != null) {
+      _completePendingAnimateTo();
       return;
     }
-    _controller.setSectionJumpActive(false);
-    _controller.completePendingSectionJump(sectionIndex: forSectionIndex);
+    _sectionJumpActive = false;
+    _completePendingSectionJump(sectionIndex: forSectionIndex);
   }
 
   /// Cancels an in-flight far-path stitch and completes the pending section jump.
@@ -877,8 +1172,8 @@ class RenderPanelCatalog extends RenderBox {
       final completer = _stitchFlightCompleter;
       _stitchFlightCompleter = null;
       completer?.complete();
-      _controller.setSectionJumpActive(false);
-      _controller.completePendingSectionJump(sectionIndex: forSectionIndex);
+      _sectionJumpActive = false;
+      _completePendingSectionJump(sectionIndex: forSectionIndex);
     }
   }
 
@@ -886,13 +1181,13 @@ class RenderPanelCatalog extends RenderBox {
   void _cancelSectionJumpMotion({int? forSectionIndex}) {
     _cancelNearScroll(forSectionIndex: forSectionIndex);
     _cancelFarStitch(forSectionIndex: forSectionIndex);
-    _controller.completePendingAnimateTo();
+    _completePendingAnimateTo();
   }
 
   /// Runs far-path stitch: capture → teleport → measure → dual-translate.
   ///
-  /// When [_farStitch] is null (detached tickers), falls back to silent
-  /// [PanelCatalogController.correctOffset] only. When the outgoing capture
+  /// When [_farStitch] is null (detached tickers), falls back to a plain
+  /// offset write and navigation. When the outgoing capture
   /// is empty, still runs an incoming-only stitch flight (destination band
   /// slides in from off-screen) rather than showing the teleported catalog
   /// at rest for one frame.
@@ -902,35 +1197,36 @@ class RenderPanelCatalog extends RenderBox {
   }) async {
     final farStitch = _farStitch;
     if (farStitch == null) {
-      _controller.applyOffset(targetOffset);
+      _applyOffset(targetOffset);
       _clampOffset();
       _onNavigation();
-      _controller.notifyScrollEvent(
+      _controller.publish(
         PanelCatalogSectionJumpStart(sectionIndex, targetOffset, farPath: true),
       );
-      _controller.setSectionJumpActive(false);
-      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
-      _controller.notifyScrollEvent(PanelCatalogSectionJumpEnd(sectionIndex));
+      _sectionJumpActive = false;
+      _completePendingSectionJump(sectionIndex: sectionIndex);
+      _controller.publish(PanelCatalogSectionJumpEnd(sectionIndex));
       return;
     }
 
-    final fromOffset = _controller.offset;
+    final fromOffset = _pixels;
     final towardNewer = targetOffset > fromOffset;
 
-    _stitchOutgoing = captureCatalogStitchOutgoing(
+    _stitchOutgoing = CatalogFarStitch.captureOutgoing(
       slots: _slots,
       scrollOffset: fromOffset,
       viewportHeight: size.height,
     );
-    _stitchPinnedKeys = catalogStitchOutgoingLeafKeys(_stitchOutgoing);
+    _stitchPinnedKeys = CatalogFarStitch.outgoingLeafKeys(_stitchOutgoing);
 
     final flight = Completer<void>();
     _stitchFlightCompleter = flight;
     farStitch.begin(towardNewer: towardNewer);
-    _controller.applyOffset(targetOffset);
+    _applyOffset(targetOffset);
     _clampOffset();
     _syncVisibleBindings();
-    _controller.notifyScrollEvent(
+    _noteSections();
+    _controller.publish(
       PanelCatalogSectionJumpStart(sectionIndex, targetOffset, farPath: true),
     );
     _beginStitchMeasureIfNeeded();
@@ -945,18 +1241,18 @@ class RenderPanelCatalog extends RenderBox {
       markNeedsPaint();
     } finally {
       _clearStitchCapture();
-      if (_controller.isSectionJumpActive) {
-        _controller.setSectionJumpActive(false);
+      if (_sectionJumpActive) {
+        _sectionJumpActive = false;
       }
-      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
-      _controller.notifyScrollEvent(PanelCatalogSectionJumpEnd(sectionIndex));
+      _completePendingSectionJump(sectionIndex: sectionIndex);
+      _controller.publish(PanelCatalogSectionJumpEnd(sectionIndex));
       if (identical(_stitchFlightCompleter, flight)) {
         _stitchFlightCompleter = null;
       }
       if (LogCategory.scroll.enabled) {
-        fine(.scroll, 'sectionJump.end', {
+        Log.fine(.scroll, 'sectionJump.end', {
           'section': sectionIndex,
-          'offset': LogFormat.f(_controller.offset),
+          'offset': LogFormat.f(_pixels),
           'path': 'far',
         });
       }
@@ -989,11 +1285,11 @@ class RenderPanelCatalog extends RenderBox {
       for (final slot in _slots)
         if (slot.bottom >= top && slot.top <= bottom) slot,
     ];
-    final travel = measureCatalogStitchTravel(
+    final travel = CatalogFarStitch.measureTravel(
       outgoing: _stitchOutgoing,
       incomingVisible: incomingVisible,
       towardNewer: farStitch.towardNewer,
-      scrollOffset: _controller.offset,
+      scrollOffset: _pixels,
       viewportHeight: size.height,
     );
 
@@ -1013,16 +1309,15 @@ class RenderPanelCatalog extends RenderBox {
     );
   }
 
-  /// Silently writes [PanelCatalogController.offset] into `[0, maxOffset]`.
+  /// Silently writes [pixels] into `[0, maxOffset]`.
   ///
-  /// No-op before [hasSize] (cannot know viewport height). Uses
-  /// [PanelCatalogController.correctOffset] so jump/scroll listeners are not
-  /// re-entered during clamp.
+  /// No-op before [hasSize] (cannot know viewport height). Publishes no event,
+  /// so listeners are not re-entered during clamp.
   void _clampOffset() {
     if (!hasSize) return;
-    final clamped = _controller.offset.clamp(0.0, maxOffset).toDouble();
-    if (clamped == _controller.offset) return;
-    _controller.correctOffset(clamped);
+    final clamped = _pixels.clamp(0.0, maxOffset).toDouble();
+    if (clamped == _pixels) return;
+    _pixels = clamped;
   }
 
   // --- Lifecycle ------------------------------------------------------------
@@ -1030,8 +1325,7 @@ class RenderPanelCatalog extends RenderBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _dataSource.addDataListener(_onDataChanged);
-    _bindController(_controller);
+    _snapshots.addListener(_onDataChanged);
     _pressTickers = CatalogPressTickerProvider();
     _press = CatalogLeafPress(vsync: _pressTickers!, onChanged: markNeedsPaint);
     _nearScroll = CatalogNearScroll(
@@ -1040,26 +1334,23 @@ class RenderPanelCatalog extends RenderBox {
         _clampOffset();
         _syncVisibleBindings();
         markNeedsPaint();
+        _noteSections();
       },
     );
     _farStitch = CatalogFarStitch(
       vsync: _pressTickers!,
       onTick: markNeedsPaint,
     );
-    _drag = VerticalDragGestureRecognizer()
+    _drag = VerticalDragGestureRecognizer(supportedDevices: _dragDevices)
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
       ..onEnd = _onDragEnd
       ..onCancel = _onDragCancel;
     _startBakeActivity();
-    final pending = _controller.pendingSectionJump;
-    if (pending != null) {
-      _handleSectionJump(pending.$1);
-    }
-    final animatePending = _controller.pendingAnimateTo;
-    if (animatePending != null) {
-      _handleAnimateTo();
-    }
+    // Start from the offset the controller committed, then become its one
+    // position. A section jump committed while unbound is handed over here.
+    _pixels = _controller.offset;
+    _controller.attach(this);
     // Keep-alive pager leave/return reattaches without a constraint change —
     // force layout so [syncVisible] re-binds before the first paint.
     markNeedsLayout();
@@ -1067,10 +1358,12 @@ class RenderPanelCatalog extends RenderBox {
 
   @override
   void detach() {
-    _dataSource.removeDataListener(_onDataChanged);
-    _unbindController(_controller);
+    _snapshots.removeListener(_onDataChanged);
+    _controller.detach(this);
+    _setFocus(null);
     _clearPressPointerRoute();
     _cancelSectionJumpMotion();
+    _endSectionJump();
     _cancelFling();
     _flingTicker = null;
     _nearScroll?.dispose();
@@ -1083,7 +1376,12 @@ class RenderPanelCatalog extends RenderBox {
     _flingCancelPointer = null;
     _drag?.dispose();
     _drag = null;
+    _userDragging = false;
     _stopBakeActivity();
+    // Back in a tree the same edges are near again and are announced again.
+    _proximity.reset();
+    _currentSection = null;
+    _projectedWidth = -1;
     _press?.dispose();
     _press = null;
     _pressTickers?.dispose();
@@ -1098,6 +1396,7 @@ class RenderPanelCatalog extends RenderBox {
   void dispose() {
     _clearPressPointerRoute();
     _cancelSectionJumpMotion();
+    _endSectionJump();
     _cancelFling();
     _flingTicker = null;
     _nearScroll?.dispose();
@@ -1110,7 +1409,9 @@ class RenderPanelCatalog extends RenderBox {
     _flingCancelPointer = null;
     _drag?.dispose();
     _drag = null;
+    _userDragging = false;
     _leafPointer.dispose();
+    _actionPointer.dispose();
     _stopBakeActivity();
     _press?.dispose();
     _press = null;
@@ -1121,37 +1422,46 @@ class RenderPanelCatalog extends RenderBox {
     super.dispose();
   }
 
-  // --- Glyph bake -----------------------------------------------------------
+  // --- Scroll activity ------------------------------------------------------
+
+  /// Ends any section-jump state that detach or dispose interrupted.
+  void _endSectionJump() {
+    _sectionJumpActive = false;
+    _completePendingSectionJump();
+  }
 
   void _startBakeActivity() {
-    final atlas = _pool.glyphAtlas;
-    if (!attached || atlas == null || _bakeActivity != null) return;
+    if (!attached || _bakeActivity != null) return;
     _bakeActivity = CatalogBakeActivity(
-      atlas: atlas,
+      events: _controller.events,
+      publish: _controller.publish,
       isAnimating: () =>
           _physics.isFlinging || isSectionJumpAnimating || isFarStitchActive,
-      visibleGlyphs: _visibleUnicodeGlyphs,
+      visibleKeys: _visibleLeafKeys,
     );
   }
 
   void _stopBakeActivity() {
+    // Publishes "not moving" before it goes.
     _bakeActivity?.dispose();
     _bakeActivity = null;
   }
 
-  /// Unicode glyphs in the paint window, top first: what the atlas should bake
-  /// first. Walks the visible band only.
-  Iterable<String> _visibleUnicodeGlyphs() sync* {
+  /// Keys of the leaves in the paint window, top first: what a settled
+  /// listener should prioritise. Walks the visible band only.
+  List<ContentKey> _visibleLeafKeys() {
     final (top, bottom) = _paintWindow();
     final start = _firstSlotIndexAtOrBelow(top);
     final end = _slotIndexAfter(bottom);
+    final keys = <ContentKey>[];
     for (var i = start; i < end; i++) {
       final slot = _slots[i];
       if (slot.bottom < top || slot.top > bottom) continue;
-      if (slot case CatalogLeafSlot(leaf: UnicodeCatalogLeaf(:final glyph))) {
-        yield glyph;
+      if (slot case CatalogLeafSlot(:final leaf)) {
+        keys.add(leaf.key);
       }
     }
+    return keys;
   }
 
   // --- Layout projection ----------------------------------------------------
@@ -1161,17 +1471,98 @@ class RenderPanelCatalog extends RenderBox {
   /// Pure projection + store; does not touch the asset cache. Binding sync
   /// runs separately after size/offset are known.
   void _project(double maxWidth) {
-    final projection = projectCatalogSlots(
-      sections: _dataSource.sections,
+    final projection = CatalogSlotProjection.project(
+      sections: _snapshots.value.sections,
       spanCount: _spanCount,
       cellExtent: _cellExtent,
       headerExtent: _headerExtent,
       padding: _padding,
       maxWidth: maxWidth,
+      textDirection: _textDirection,
     );
+    final sections = _snapshots.value.sections;
+    // A relayout that changes neither the sections nor the geometry (a forced
+    // layout, a parent's pass) has nothing new to announce.
+    final changed = !identical(sections, _projectedSections);
+    final moved =
+        changed ||
+        projection.contentExtent != _contentExtent ||
+        maxWidth != _projectedWidth;
     _slots = projection.slots;
     _contentExtent = projection.contentExtent;
+    _projectedSections = sections;
+    _projectedWidth = maxWidth;
+    _bands = projection.bands;
+    if (changed) _proximity.invalidate();
+    if (moved) _scheduleSectionProximity();
     _bakeActivity?.visibleBandChanged();
+  }
+
+  // --- Section proximity ------------------------------------------------------
+
+  /// Evaluates proximity after this frame: a layout must not publish events,
+  /// because a listener that answers with a snapshot would mark this object for
+  /// layout while it is laying out and the request would be lost.
+  void _scheduleSectionProximity() {
+    if (_proximityScheduled) return;
+    _proximityScheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback(_runScheduledProximity);
+  }
+
+  void _runScheduledProximity(Duration _) {
+    _proximityScheduled = false;
+    _noteSections();
+  }
+
+  /// What the viewport tells the page about its sections after a change of
+  /// offset or layout: which edges are near, and which section it is in.
+  void _noteSections() {
+    _noteSectionProximity();
+    _noteCurrentSection();
+  }
+
+  /// Publishes [PanelCatalogCurrentSectionChanged] when the section the
+  /// viewport is in, or its index, is not the one last published.
+  ///
+  /// Like proximity it waits for the first layout, and it is only ever called
+  /// outside layout (a post-frame callback or an offset write).
+  void _noteCurrentSection() {
+    if (!attached || !hasSize) return;
+    final index = CatalogSectionNavigation.currentSectionIndex(
+      _bands,
+      offset: _pixels,
+      landingInset: _headerLandingInset ?? _padding.top,
+      viewportHeight: size.height,
+      maxScrollExtent: math.max(0, _contentExtent - size.height),
+    );
+    if (index == null) {
+      _currentSection = null;
+      _controller.clearCurrentSection();
+      return;
+    }
+    final id = _projectedSections[index].id;
+    final current = _currentSection;
+    if (current != null && current.$1 == index && current.$2 == id) return;
+    _currentSection = (index, id);
+    _controller.publish(PanelCatalogCurrentSectionChanged(index, id));
+  }
+
+  /// Publishes [PanelCatalogSectionNearViewport] for the edges that entered the
+  /// window around the viewport since the last call.
+  ///
+  /// Cheap when no edge moved ([CatalogSectionProximity.update]). Does nothing
+  /// until the first layout has sized the viewport and projected the sections.
+  void _noteSectionProximity() {
+    if (!attached || !hasSize) return;
+    final extent = _sectionNearExtent ?? size.height;
+    _proximity.update(
+      bands: _bands,
+      sections: _projectedSections,
+      windowTop: _pixels - extent,
+      windowBottom: _pixels + size.height + extent,
+      onNear: (sectionId, edge) =>
+          _controller.publish(PanelCatalogSectionNearViewport(sectionId, edge)),
+    );
   }
 
   /// Content-y window used for **binding** sync (viewport + one-cell overscan).
@@ -1188,7 +1579,7 @@ class RenderPanelCatalog extends RenderBox {
       return (0, _contentExtent);
     }
     final overscan = _cellExtent;
-    final pixels = _controller.offset;
+    final pixels = _pixels;
     final top = (pixels - overscan).clamp(0.0, _contentExtent);
     final bottom = (pixels + size.height + overscan).clamp(0.0, _contentExtent);
     return (top, bottom);
@@ -1202,7 +1593,7 @@ class RenderPanelCatalog extends RenderBox {
     if (!hasSize) {
       return (0, _contentExtent);
     }
-    final pixels = _controller.offset;
+    final pixels = _pixels;
     final top = pixels.clamp(0.0, _contentExtent);
     final bottom = (pixels + size.height).clamp(0.0, _contentExtent);
     return (top, bottom);
@@ -1248,10 +1639,14 @@ class RenderPanelCatalog extends RenderBox {
     final (top, bottom) = _visibleWindow();
     // Binary-searched band, not a walk over every slot: scroll-time sync cost
     // follows the visible window, not the catalogue size.
+    final (paintTop, paintBottom) = _paintWindow();
     _pool.syncVisible(
       slots: _slots,
       start: _firstSlotIndexAtOrBelow(top),
       end: _slotIndexAfter(bottom),
+      paintTop: paintTop,
+      paintBottom: paintBottom,
+      animate: !_physics.isFlinging,
       top: top,
       bottom: bottom,
       pinnedKeys: _stitchPinnedKeys.isEmpty ? null : _stitchPinnedKeys,
@@ -1262,18 +1657,18 @@ class RenderPanelCatalog extends RenderBox {
 
   /// Cancels fling and press before a new drag gesture owns the pointer.
   void _onDragStart(DragStartDetails details) {
-    _bakeActivity?.dragging = true;
+    _userDragging = true;
     _cancelSectionJumpMotion();
     _cancelFling();
     _clearPressPointerRoute();
     _press?.pressOut();
-    _controller.notifyScrollEvent(const PanelCatalogUserDragStart());
+    _controller.publish(const PanelCatalogUserDragStart());
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
     final dy = details.primaryDelta ?? details.delta.dy;
     // Drag up (negative dy) reveals content below → increase offset.
-    _controller.scrollBy(-dy);
+    scrollBy(-dy);
   }
 
   /// Starts a fling when release velocity exceeds the physics threshold.
@@ -1281,18 +1676,24 @@ class RenderPanelCatalog extends RenderBox {
   /// No-op when [maxOffset] is `0` (nothing to scroll) or velocity is below
   /// the minimum. Finger-up velocity is negated into content-offset space.
   void _onDragEnd(DragEndDetails details) {
-    _bakeActivity?.dragging = false;
+    _userDragging = false;
     final fingerVelocity = details.primaryVelocity ?? 0;
     // Finger up (negative primaryVelocity) → positive content-offset velocity.
     final contentVelocity = -fingerVelocity;
-    _controller.notifyScrollEvent(PanelCatalogUserDragEnd(contentVelocity));
+    _controller.publish(PanelCatalogUserDragEnd(contentVelocity));
     if (!hasSize || maxOffset <= 0) return;
     if (contentVelocity.abs() < 50) return;
-    _controller.notifyScrollEvent(PanelCatalogFlingStart(contentVelocity));
+    _controller.publish(PanelCatalogFlingStart(contentVelocity));
     _startFling(contentVelocity);
   }
 
-  void _onDragCancel() => _bakeActivity?.dragging = false;
+  /// A drag that began and ended without a release. The recognizer also
+  /// cancels for every tap that never became a drag; those are not events.
+  void _onDragCancel() {
+    if (!_userDragging) return;
+    _userDragging = false;
+    _controller.publish(const PanelCatalogUserDragCancel());
+  }
 
   // --- Scroll — fling -------------------------------------------------------
 
@@ -1300,6 +1701,8 @@ class RenderPanelCatalog extends RenderBox {
   void _startFling(double contentVelocity) {
     _physics.startFling(contentVelocity);
     _ensureFlingTicker();
+    // Animated leaves stop playing while the coast runs.
+    _syncVisibleBindings();
   }
 
   /// Stops simulation and ticker; safe when already idle.
@@ -1308,7 +1711,8 @@ class RenderPanelCatalog extends RenderBox {
     _physics.cancelFling();
     _flingTicker?.stop();
     if (wasFlinging) {
-      _controller.notifyScrollEvent(const PanelCatalogFlingEnd());
+      _syncVisibleBindings();
+      _controller.publish(const PanelCatalogFlingEnd());
     }
   }
 
@@ -1338,22 +1742,92 @@ class RenderPanelCatalog extends RenderBox {
     if (delta == 0) {
       if (!_physics.isFlinging) {
         _flingTicker?.stop();
-        _controller.notifyScrollEvent(const PanelCatalogFlingEnd());
+        _syncVisibleBindings();
+        _controller.publish(const PanelCatalogFlingEnd());
       }
       return;
     }
-    final before = _controller.offset;
+    final before = _pixels;
     final target = (before + delta).clamp(0.0, maxOffset);
     final applied = target - before;
     if (applied == 0) {
       _cancelFling();
       return;
     }
-    _controller.scrollBy(applied);
+    scrollBy(applied);
     if (target <= 0 || target >= maxOffset) {
       _cancelFling();
     }
   }
+
+  // --- Hover ----------------------------------------------------------------
+
+  /// Where the mouse is over the viewport (viewport-local), or null when it is
+  /// not. Only a mouse hovers: a stylus or finger in contact is a press.
+  Offset? _hoverPosition;
+
+  /// The cell the hover wash was last painted on, so a mouse move asks for a
+  /// repaint only when it changed cell.
+  CatalogLeafSlotKey? _hoveredKey;
+
+  // The cell is found again at every paint, not remembered: a wheel step or a
+  // fling moves the content under a mouse that never moves, and the wash must
+  // follow the cell that arrives under it.
+  CatalogLeafSlotKey? _hoverSlotKey() {
+    final position = _hoverPosition;
+    if (position == null || _paintTheme.leafHoverHighlightColor == null) {
+      return null;
+    }
+    return leafSlotAt(position)?.key;
+  }
+
+  bool _isHovered(CatalogLeafSlot leaf) {
+    if (_paintTheme.leafHoverHighlightColor == null) return false;
+    if (_pinnedLeaf case final pinned?) {
+      return pinned.sectionId == leaf.sectionId && pinned.index == leaf.index;
+    }
+    return _hoveredKey != null && leaf.key == _hoveredKey;
+  }
+
+  void _hoverAt(Offset? position) {
+    if (_hoverPosition == position) return;
+    _hoverPosition = position;
+    // A pinned cell holds the wash wherever the mouse goes.
+    if (_pinnedLeaf == null && _hoverSlotKey() != _hoveredKey) markNeedsPaint();
+    _reportHover(moved: true);
+  }
+
+  /// The cell last reported to [_onLeafHover], and where the cursor was.
+  CatalogLeafSlotKey? _reportedHoverKey;
+  Offset _reportedHoverGlobal = Offset.zero;
+
+  // Every move of the mouse is reported, so the host can measure how far the
+  // cursor went; a scroll is reported only when it brings another cell under
+  // the cursor, not at every offset tick of a fling.
+  void _reportHover({required bool moved}) {
+    final report = _onLeafHover;
+    if (report == null || !attached || !hasSize) return;
+    final position = _hoverPosition;
+    if (position == null) {
+      if (!moved) return;
+      _reportedHoverKey = null;
+      report(null, _reportedHoverGlobal);
+      return;
+    }
+    final slot = leafSlotAt(position);
+    if (!moved && slot?.key == _reportedHoverKey) return;
+    _reportedHoverKey = slot?.key;
+    _reportedHoverGlobal = localToGlobal(position);
+    report(slot?.hit, _reportedHoverGlobal);
+  }
+
+  // A mouse that was already there when the viewport appeared (or came back
+  // under it) sends no hover until it moves; entering carries its position.
+  void _handleHoverEnter(PointerEnterEvent event) => _hoverAt(
+    event.kind == PointerDeviceKind.mouse ? event.localPosition : null,
+  );
+
+  void _handleHoverExit(PointerExitEvent event) => _hoverAt(null);
 
   // --- Press feedback -------------------------------------------------------
 
@@ -1368,7 +1842,7 @@ class RenderPanelCatalog extends RenderBox {
   /// from the current [_slots] snapshot (should not happen for live hit-test).
   void _beginLeafPress(PointerDownEvent event, CatalogLeafSlot slot) {
     _pressPointer = event.pointer;
-    _pressLeafOrigin = Offset(slot.left, slot.top - _controller.offset);
+    _pressLeafOrigin = Offset(slot.left, slot.top - _pixels);
     _pressLeafSize = Size(slot.width, slot.height);
     _press?.pressIn(slot.key);
     GestureBinding.instance.pointerRouter.addRoute(
@@ -1415,7 +1889,9 @@ class RenderPanelCatalog extends RenderBox {
 
   // --- RenderBox layout -----------------------------------------------------
 
-  /// Preferred width: horizontal padding + [spanCount] × [cellExtent].
+  /// Preferred width: horizontal padding + the default [spanCount] ×
+  /// [cellExtent] (sections with a layout of their own divide the width they
+  /// are given).
   ///
   /// Used when the parent passes unbounded width. Height argument is ignored
   /// — pitch is square and independent of constraint height.
@@ -1433,9 +1909,7 @@ class RenderPanelCatalog extends RenderBox {
   /// whole catalog and defeat scrolling. Usable scroll requires a bounded
   /// height constraint from the parent.
   @override
-  double computeMinIntrinsicHeight(double width) {
-    return 0;
-  }
+  double computeMinIntrinsicHeight(double width) => 0;
 
   @override
   double computeMaxIntrinsicHeight(double width) =>
@@ -1462,6 +1936,7 @@ class RenderPanelCatalog extends RenderBox {
     _clampOffset();
     _syncVisibleBindings();
     _beginStitchMeasureIfNeeded();
+    _markSemanticsStale();
     debugLastLayoutDuration = sw.elapsed;
     _logLayoutEnd(constraints);
   }
@@ -1478,12 +1953,7 @@ class RenderPanelCatalog extends RenderBox {
     _layoutLogLastSlotCount = slotCount;
     if (!changed && frame > 1 && frame % 30 != 0) return;
     final (winTop, winBottom) = _visibleWindow();
-    final usableW = (constraints.maxWidth - _padding.horizontal).clamp(
-      0.0,
-      double.infinity,
-    );
-    final cellW = usableW > 0 ? usableW / _spanCount : _cellExtent;
-    fine(.layout, 'layout.end', {
+    Log.fine(.layout, 'layout.end', {
       'frame': frame,
       'cw': LogFormat.f(constraints.maxWidth),
       'ch': LogFormat.f(constraints.maxHeight),
@@ -1491,20 +1961,19 @@ class RenderPanelCatalog extends RenderBox {
       'vh': LogFormat.f(size.height),
       'span': _spanCount,
       'cell': LogFormat.f(_cellExtent),
-      'cellW': LogFormat.f(cellW),
       'header': LogFormat.f(_headerExtent),
       'padT': LogFormat.f(_padding.top),
       'padB': LogFormat.f(_padding.bottom),
       'padH': LogFormat.f(_padding.horizontal),
       'extent': LogFormat.f(_contentExtent),
       'maxOff': LogFormat.f(maxOffset),
-      'offset': LogFormat.f(_controller.offset),
+      'offset': LogFormat.f(_pixels),
       'slots': slotCount,
       'leaves': leafSlots,
       'attached': _pool.attachedCount,
       'winTop': LogFormat.f(winTop),
       'winBot': LogFormat.f(winBottom),
-      'sections': _dataSource.sections.length,
+      'sections': _snapshots.value.sections.length,
     });
   }
 
@@ -1515,6 +1984,44 @@ class RenderPanelCatalog extends RenderBox {
   @override
   bool hitTestSelf(Offset position) => size.contains(position);
 
+  /// Where the last hit test landed, for [cursor]. The mouse tracker hit-tests
+  /// the pointer before it reads the cursor of what it found, on every pointer
+  /// event and again after each frame, so this is where the mouse is when the
+  /// cursor is asked for.
+  Offset? _hitPosition;
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    _hitPosition = position;
+    return super.hitTest(result, position: position);
+  }
+
+  /// The click cursor over a leaf the shell can tap or long-press and over a
+  /// header action it listens to; the cursor of whatever is behind everywhere
+  /// else.
+  @override
+  MouseCursor get cursor {
+    final position = _hitPosition;
+    if (position == null || !hasSize) return MouseCursor.defer;
+    if ((_onLeafTap != null || _onLeafLongPressStart != null) &&
+        leafSlotAt(position) != null) {
+      return SystemMouseCursors.click;
+    }
+    if (_onSectionAction != null && actionAt(position) != null) {
+      return SystemMouseCursors.click;
+    }
+    return MouseCursor.defer;
+  }
+
+  @override
+  PointerEnterEventListener? get onEnter => _handleHoverEnter;
+
+  @override
+  PointerExitEventListener? get onExit => _handleHoverExit;
+
+  @override
+  bool get validForMouseTracker => attached;
+
   /// Routes pointer-down to drag, leaf press/pointer, and fling-cancel logic;
   /// wheel scroll cancels fling and scrolls by delta.
   ///
@@ -1523,7 +2030,10 @@ class RenderPanelCatalog extends RenderBox {
   /// on pointer-up preserves suppress through arena tap resolution.
   @override
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
-    assert(debugHandleEvent(event, entry));
+    assert(
+      debugHandleEvent(event, entry),
+      'debugHandleEvent always answers true',
+    );
     switch (event) {
       case PointerDownEvent():
         var suppressLeafActions = false;
@@ -1541,10 +2051,14 @@ class RenderPanelCatalog extends RenderBox {
         final slot = leafSlotAt(event.localPosition);
         if (slot != null) {
           // Fling-cancel taps stop the coast only — no press chrome / pick.
-          if (!suppressLeafActions) {
+          // Only the primary button presses a cell: a right click is the
+          // host's menu, not a press, and animating it would read as one.
+          if (!suppressLeafActions && event.buttons & kPrimaryButton != 0) {
             _beginLeafPress(event, slot);
           }
           _leafPointer.addPointer(event);
+        } else {
+          _actionPointer.addPointer(event);
         }
       case PointerUpEvent() || PointerCancelEvent():
         if (_flingCancelPointer == event.pointer) {
@@ -1558,8 +2072,14 @@ class RenderPanelCatalog extends RenderBox {
           });
         }
       case PointerScrollEvent(:final scrollDelta):
+        if (_pinnedLeaf != null) return;
         _cancelFling();
-        _controller.scrollBy(scrollDelta.dy);
+        scrollBy(scrollDelta.dy);
+      case PointerHoverEvent(
+        kind: PointerDeviceKind.mouse,
+        :final localPosition,
+      ):
+        _hoverAt(localPosition);
       default:
         break;
     }
@@ -1595,11 +2115,21 @@ class RenderPanelCatalog extends RenderBox {
     canvas.save();
     canvas.clipRect(offset & size);
 
-    final scroll = _controller.offset;
-    _bakeActivity?.notePaint(scroll);
+    final scroll = _pixels;
+    if (_semanticsPixels != scroll) {
+      _semanticsPixels = scroll;
+      markNeedsSemanticsUpdate();
+    }
+    _bakeActivity?.notePaint();
+    _painter.beginPass(
+      frameTime: _frameTime(),
+      viewport: offset & size,
+      animateWash: !_assets.clock.isPaused,
+    );
     final contentOrigin = offset.translate(0, -scroll);
     final (top, bottom) = _paintWindow();
     final pressedSlotKey = _press?.pressedSlotKey;
+    _hoveredKey = _hoverSlotKey();
     final pressScale = _press?.scale ?? 1.0;
     final pressProgress = _press?.progress ?? 0.0;
 
@@ -1617,7 +2147,7 @@ class RenderPanelCatalog extends RenderBox {
           pressScale: pressScale,
           pressProgress: pressProgress,
         );
-        _painter.flushGlyphSprites(canvas);
+        _endPaintPass(canvas);
         canvas.restore();
         debugLastPaintDuration = sw.elapsed;
         return;
@@ -1641,43 +2171,45 @@ class RenderPanelCatalog extends RenderBox {
       );
     }
 
-    _painter.flushGlyphSprites(canvas);
+    _endPaintPass(canvas);
     _logPaintSummary(top, bottom);
 
     canvas.restore();
     debugLastPaintDuration = sw.elapsed;
   }
 
+  /// Draws what the pass queued and, when something painted moves with time (a
+  /// fade, a wash), asks for the next frame after this one.
+  ///
+  /// The request is one post-frame callback at most; a viewport that paints no
+  /// motion asks for none, so an idle catalogue keeps the engine asleep.
+  void _endPaintPass(Canvas canvas) {
+    final needsFrame = _painter.endPass(canvas);
+    if (!needsFrame || _motionFrameRequested) return;
+    _motionFrameRequested = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _motionFrameRequested = false;
+      if (attached) markNeedsPaint();
+    });
+  }
+
   void _logPaintSummary(double visibleTop, double visibleBottom) {
     if (!LogCategory.paint.enabled) return;
     final frame = ++_paintFrame;
     if (frame % 15 != 0) return;
-    var content = 0;
-    var circle = 0;
-    var thumb = 0;
-    var failed = 0;
+    var leaves = 0;
+    var bound = 0;
     for (final slot in _slots) {
       if (slot is! CatalogLeafSlot) continue;
       if (slot.bottom < visibleTop || slot.top > visibleBottom) continue;
-      switch (_pool.presentationFor(slot.leaf)) {
-        case CatalogLeafPresentation.content:
-          content++;
-        case CatalogLeafPresentation.circlePlaceholder:
-          circle++;
-        case CatalogLeafPresentation.thumbFirstPlaceholder:
-        case CatalogLeafPresentation.shapedLoadingWash:
-          thumb++;
-        case CatalogLeafPresentation.failed:
-          failed++;
-      }
+      leaves++;
+      if (_pool.boundFor(slot) != null) bound++;
     }
-    fine(.paint, 'paint.summary', {
+    Log.fine(.paint, 'paint.summary', {
       'frame': frame,
-      'offset': LogFormat.f(_controller.offset),
-      'content': content,
-      'circle': circle,
-      'thumb': thumb,
-      'failed': failed,
+      'offset': LogFormat.f(_pixels),
+      'leaves': leaves,
+      'bound': bound,
       'attached': _pool.attachedCount,
     });
   }
@@ -1693,24 +2225,32 @@ class RenderPanelCatalog extends RenderBox {
   }) {
     switch (slot) {
       case final CatalogHeaderSlot header:
-        _painter.paintHeader(
-          canvas: canvas,
-          origin: origin,
-          header: header,
-          contentWidth: size.width,
-          padding: _padding,
-        );
+        _painter.paintHeader(canvas: canvas, origin: origin, header: header);
       case final CatalogLeafSlot leaf:
         final isPressed = pressedSlotKey != null && leaf.key == pressedSlotKey;
+        final focus = _focus;
+        // A press with no feedback of its own keeps the hover box on the
+        // pressed cell instead, until it is released.
+        final quiet =
+            _paintTheme.leafPressFeedback == CatalogPressFeedback.none;
+        final drawnPressed = isPressed && !quiet;
         _painter.paintLeaf(
           canvas: canvas,
           origin: origin,
           slot: leaf,
-          presentation: _pool.presentationFor(leaf.leaf),
-          sprite: _pool.spriteFor(leaf.leaf),
-          pressScale: isPressed ? pressScale : 1.0,
-          pressProgress: isPressed ? pressProgress : 0,
+          bound: _pool.boundFor(leaf),
+          pressScale: drawnPressed ? pressScale : 1.0,
+          pressProgress: drawnPressed ? pressProgress : 0,
+          focused:
+              focus != null &&
+              focus.index == leaf.index &&
+              focus.sectionId == leaf.sectionId,
+          hovered: (isPressed && quiet) || _isHovered(leaf),
         );
+      case final CatalogSkeletonSlot skeleton:
+        _painter.paintSkeleton(canvas: canvas, origin: origin, slot: skeleton);
+      case final CatalogMessageSlot message:
+        _painter.paintMessage(canvas: canvas, origin: origin, slot: message);
     }
   }
 
@@ -1738,18 +2278,35 @@ class RenderPanelCatalog extends RenderBox {
     final provisionalTravel = size.height;
 
     for (final captured in _stitchOutgoing) {
-      final dy = catalogStitchOutgoingPaintDy(
+      final dy = CatalogFarStitch.outgoingPaintDy(
         towardNewer: towardNewer,
         travel: measured ? travel : provisionalTravel,
         progress: measured ? progress : 0,
       );
       final bandOrigin = viewportOrigin.translate(0, captured.viewportTop + dy);
       switch (captured) {
-        case CatalogStitchCapturedHeader(:final title, :final height):
+        case CatalogStitchCapturedHeader(
+          :final title,
+          :final height,
+          :final left,
+          :final width,
+          :final sectionId,
+          :final action,
+          :final textDirection,
+        ):
           _paintLayoutSlot(
             canvas: canvas,
             origin: bandOrigin,
-            slot: CatalogHeaderSlot(top: 0, height: height, title: title),
+            slot: CatalogHeaderSlot(
+              top: 0,
+              height: height,
+              left: left,
+              width: width,
+              title: title,
+              sectionId: sectionId,
+              action: action,
+              textDirection: textDirection,
+            ),
             pressedSlotKey: pressedSlotKey,
             pressScale: pressScale,
             pressProgress: pressProgress,
@@ -1758,7 +2315,12 @@ class RenderPanelCatalog extends RenderBox {
           :final left,
           :final width,
           :final height,
+          :final sectionId,
+          :final index,
           :final leaf,
+          :final contentBox,
+          :final placeholderStyle,
+          :final glyphExtent,
         ):
           _paintLayoutSlot(
             canvas: canvas,
@@ -1768,7 +2330,56 @@ class RenderPanelCatalog extends RenderBox {
               height: height,
               left: left,
               width: width,
+              sectionId: sectionId,
+              index: index,
               leaf: leaf,
+              contentBox: contentBox,
+              placeholderStyle: placeholderStyle,
+              glyphExtent: glyphExtent,
+            ),
+            pressedSlotKey: pressedSlotKey,
+            pressScale: pressScale,
+            pressProgress: pressProgress,
+          );
+        case CatalogStitchCapturedSkeleton(
+          :final left,
+          :final width,
+          :final height,
+          :final contentBox,
+          :final style,
+          :final glyphExtent,
+        ):
+          _paintLayoutSlot(
+            canvas: canvas,
+            origin: bandOrigin,
+            slot: CatalogSkeletonSlot(
+              top: 0,
+              height: height,
+              left: left,
+              width: width,
+              contentBox: contentBox,
+              style: style,
+              glyphExtent: glyphExtent,
+            ),
+            pressedSlotKey: pressedSlotKey,
+            pressScale: pressScale,
+            pressProgress: pressProgress,
+          );
+        case CatalogStitchCapturedMessage(
+          :final left,
+          :final width,
+          :final height,
+          :final text,
+        ):
+          _paintLayoutSlot(
+            canvas: canvas,
+            origin: bandOrigin,
+            slot: CatalogMessageSlot(
+              top: 0,
+              height: height,
+              left: left,
+              width: width,
+              text: text,
             ),
             pressedSlotKey: pressedSlotKey,
             pressScale: pressScale,
@@ -1783,8 +2394,8 @@ class RenderPanelCatalog extends RenderBox {
     for (var i = start; i < end; i++) {
       final slot = slots[i];
       if (slot.bottom < visibleTop || slot.top > visibleBottom) continue;
-      if (catalogStitchSlotIsOutgoing(slot, _stitchOutgoing)) continue;
-      final dy = catalogStitchIncomingPaintDy(
+      if (CatalogFarStitch.slotIsOutgoing(slot, _stitchOutgoing)) continue;
+      final dy = CatalogFarStitch.incomingPaintDy(
         towardNewer: towardNewer,
         travel: travel,
         progress: progress,
@@ -1802,6 +2413,385 @@ class RenderPanelCatalog extends RenderBox {
     }
   }
 
+  // --- Semantics ------------------------------------------------------------
+
+  /// The nodes of the window handed to the platform; empty while no assistive
+  /// technology asks.
+  final CatalogSemanticNodes _semanticNodes = CatalogSemanticNodes();
+
+  /// The offset the semantics were last built for. Painting notices a move and
+  /// asks for new nodes, which covers every motion (drag, fling, jump, near and
+  /// far section jumps) without a call at each; with no assistive technology
+  /// running, asking is a no-op.
+  double _semanticsPixels = double.nan;
+
+  /// Whether the nodes must be described again even if the window is the same
+  /// one: the cells moved, the shell's actions or the focus changed. Without
+  /// it a scroll only moves the nodes already built.
+  var _semanticsStale = true;
+
+  /// The slot range the nodes were last assembled for.
+  (int, int)? _semanticsWindow;
+
+  void _markSemanticsStale() {
+    _semanticsStale = true;
+    markNeedsSemanticsUpdate();
+  }
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    config
+      ..isSemanticBoundary = true
+      ..explicitChildNodes = true
+      ..textDirection = _textDirection;
+    if (!hasSize || maxOffset <= 0) return;
+    final max = maxOffset;
+    config
+      ..hasImplicitScrolling = true
+      ..scrollPosition = _pixels
+      ..scrollExtentMin = 0
+      ..scrollExtentMax = max;
+    final page = size.height * 0.8;
+    if (_pixels < max) {
+      config.onScrollUp = () => scrollBy(math.min(page, max - _pixels));
+    }
+    if (_pixels > 0) {
+      config.onScrollDown = () => scrollBy(-math.min(page, _pixels));
+    }
+  }
+
+  @override
+  void assembleSemanticsNode(
+    SemanticsNode node,
+    SemanticsConfiguration config,
+    Iterable<SemanticsNode> children,
+  ) {
+    // The window is the one the bindings use: a binary search to the visible
+    // band and one cell of overscan, never a walk over the catalogue.
+    final (top, bottom) = _visibleWindow();
+    final start = _firstSlotIndexAtOrBelow(top);
+    final end = _slotIndexAfter(bottom);
+    if (!_semanticsStale &&
+        _semanticNodes.hasWindow &&
+        _semanticsWindow == (start, end)) {
+      _semanticNodes.scrollTo(
+        node: node,
+        config: config,
+        scrollOffset: _pixels,
+      );
+      return;
+    }
+    _semanticsStale = false;
+    _semanticsWindow = (start, end);
+    _semanticNodes.assemble(
+      node: node,
+      config: config,
+      slots: _slots,
+      start: start,
+      end: end,
+      scrollOffset: _pixels,
+      width: size.width,
+      textDirection: _textDirection,
+      target: this,
+    );
+  }
+
+  @override
+  void clearSemantics() {
+    super.clearSemantics();
+    _semanticNodes.clear();
+    _semanticsStale = true;
+    _semanticsWindow = null;
+  }
+
+  @override
+  Rect? semanticActionBounds(CatalogHeaderSlot header) =>
+      _painter.sectionActionBounds(header);
+
+  @override
+  VoidCallback? semanticTapOf(CatalogLeafHit hit) {
+    if (_onLeafTap == null) return null;
+    return () => _onLeafTap?.call(hit);
+  }
+
+  /// Reports the start of a long-press at the cell and nothing after it: there
+  /// is no gesture to release, so the shell opens what it opens on start and
+  /// the user goes on with the assistive technology.
+  @override
+  VoidCallback? semanticLongPressOf(CatalogLeafHit hit) {
+    if (_onLeafLongPressStart == null) return null;
+    final eligible = _leafLongPressEligible;
+    if (eligible != null && !eligible(hit)) return null;
+    return () {
+      final cell = _cellRectOf(hit.sectionId, hit.index);
+      final local = switch (cell) {
+        final cell? => cell.center.translate(0, -_pixels),
+        null => Offset.zero,
+      };
+      _onLeafLongPressStart?.call(
+        hit,
+        LongPressStartDetails(
+          globalPosition: localToGlobal(local),
+          localPosition: local,
+        ),
+      );
+    };
+  }
+
+  @override
+  VoidCallback? semanticActionOf(String sectionId, String actionId) {
+    if (_onSectionAction == null) return null;
+    return () => _onSectionAction?.call(sectionId, actionId);
+  }
+
+  @override
+  VoidCallback semanticFocusOf(CatalogLeafHit hit) =>
+      () => focusLeaf(hit.sectionId, hit.index, reveal: true);
+
+  @override
+  VoidCallback semanticRevealOf(String sectionId, int? index) =>
+      () => _reveal(sectionId, index, withHeader: false);
+
+  @override
+  bool semanticIsFocused(String sectionId, int index) {
+    final focus = _focus;
+    return focus != null &&
+        focus.index == index &&
+        focus.sectionId == sectionId;
+  }
+
+  // --- Roving focus ---------------------------------------------------------
+
+  /// The cell that holds roving focus; null when none does. Its leaf is the one
+  /// the last snapshot holds at that cell.
+  CatalogLeafHit? _focus;
+
+  @override
+  CatalogLeafHit? get focusedLeaf => _focus;
+
+  @override
+  Rect? get viewportBounds => hasSize
+      ? MatrixUtils.transformRect(getTransformTo(null), Offset.zero & size)
+      : null;
+
+  // A scan of the slots, once per call: asked when a surface opens, not per
+  // frame.
+  @override
+  Rect? leafBounds(CatalogLeafHit hit) {
+    if (!hasSize) return null;
+    for (final slot in _slots) {
+      if (slot is CatalogLeafSlot &&
+          slot.sectionId == hit.sectionId &&
+          slot.index == hit.index) {
+        return MatrixUtils.transformRect(
+          getTransformTo(null),
+          Rect.fromLTWH(slot.left, slot.top - _pixels, slot.width, slot.height),
+        );
+      }
+    }
+    return null;
+  }
+
+  @override
+  Rect? sectionActionBounds(String sectionId) {
+    if (!hasSize) return null;
+    for (final slot in _slots) {
+      if (slot case final CatalogHeaderSlot header
+          when header.sectionId == sectionId && header.action != null) {
+        final bounds = _painter.sectionActionBounds(header);
+        if (bounds == null) return null;
+        return MatrixUtils.transformRect(
+          getTransformTo(null),
+          bounds.shift(Offset(0, -_pixels)),
+        );
+      }
+    }
+    return null;
+  }
+
+  @override
+  bool focusLeaf(String sectionId, int index, {required bool reveal}) {
+    final cell = _cellById(sectionId, index);
+    if (cell == null) return false;
+    _setFocus(_hitOf(cell));
+    if (reveal) _reveal(sectionId, index, withHeader: true);
+    return true;
+  }
+
+  @override
+  bool moveFocus(CatalogFocusMove move) {
+    final sections = _projectedSections;
+    if (sections.isEmpty || !hasSize) return false;
+    final focus = _focus;
+    final current = switch (focus) {
+      final focus? => _cellById(focus.sectionId, focus.index),
+      null => null,
+    };
+    final CatalogCell? target;
+    if (current != null) {
+      target = CatalogFocusNavigation.move(
+        from: current,
+        move: move,
+        sections: sections,
+        bands: _bands,
+      );
+    } else {
+      // Nothing holds focus: a move enters the grid rather than stepping.
+      target = switch (move) {
+        CatalogFocusMove.first => CatalogFocusNavigation.firstCell(sections),
+        CatalogFocusMove.last => CatalogFocusNavigation.lastCell(sections),
+        _ => _firstCellInView() ?? CatalogFocusNavigation.firstCell(sections),
+      };
+    }
+    if (target == null) return false;
+    final hit = _hitOf(target);
+    _setFocus(hit);
+    _reveal(hit.sectionId, hit.index, withHeader: true);
+    return true;
+  }
+
+  @override
+  bool activateFocusedLeaf() {
+    final focus = _focus;
+    final tap = _onLeafTap;
+    if (focus == null || tap == null) return false;
+    tap(focus);
+    return true;
+  }
+
+  @override
+  void clearFocus() => _setFocus(null);
+
+  /// The cell [index] of section [sectionId] in the last projection.
+  CatalogCell? _cellById(String sectionId, int index) {
+    final sections = _projectedSections;
+    for (var s = 0; s < sections.length; s++) {
+      if (sections[s].id != sectionId) continue;
+      return index >= 0 && index < sections[s].leaves.length
+          ? (section: s, index: index)
+          : null;
+    }
+    return null;
+  }
+
+  CatalogLeafHit _hitOf(CatalogCell cell) {
+    final section = _projectedSections[cell.section];
+    return CatalogLeafHit(
+      sectionId: section.id,
+      index: cell.index,
+      leaf: section.leaves[cell.index],
+    );
+  }
+
+  /// The first leaf whose cell is wholly in view below the landing inset (the
+  /// first one cut by it when none is whole), or null with no leaf in view.
+  CatalogCell? _firstCellInView() {
+    final limit = _pixels + (_headerLandingInset ?? _padding.top);
+    final bottom = _pixels + size.height;
+    CatalogLeafSlot? partial;
+    for (var i = _firstSlotIndexAtOrBelow(limit); i < _slots.length; i++) {
+      final slot = _slots[i];
+      if (slot.top >= bottom) break;
+      if (slot case final CatalogLeafSlot leaf) {
+        if (leaf.top >= limit) return _cellById(leaf.sectionId, leaf.index);
+        partial ??= leaf;
+      }
+    }
+    return switch (partial) {
+      final partial? => _cellById(partial.sectionId, partial.index),
+      null => null,
+    };
+  }
+
+  /// Makes [hit] the focused cell (null ends focus). The leaf is always taken
+  /// from [hit]; listeners hear a change only when the cell is another one.
+  void _setFocus(CatalogLeafHit? hit) {
+    final previous = _focus;
+    _focus = hit;
+    markNeedsPaint();
+    _markSemanticsStale();
+    if (previous == hit) return;
+    _controller.publish(PanelCatalogFocusChanged(hit));
+  }
+
+  /// Keeps [_focus] true to [snapshots]: the cell keeps focus with the leaf the
+  /// snapshot now holds there, or loses it when the snapshot has no such cell.
+  void _validateFocus() {
+    final focus = _focus;
+    if (focus == null) return;
+    for (final section in _snapshots.value.sections) {
+      if (section.id != focus.sectionId) continue;
+      if (focus.index < section.leaves.length) {
+        _focus = CatalogLeafHit(
+          sectionId: focus.sectionId,
+          index: focus.index,
+          leaf: section.leaves[focus.index],
+        );
+        _markSemanticsStale();
+        return;
+      }
+      break;
+    }
+    _setFocus(null);
+  }
+
+  // --- Cells by identity ----------------------------------------------------
+
+  /// The band of the section [sectionId] in the last projection, or null.
+  CatalogSectionBand? _bandOf(String sectionId) {
+    final sections = _projectedSections;
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].id == sectionId) return _bands[i];
+    }
+    return null;
+  }
+
+  /// Content rect of the cell [index] of section [sectionId] in the last
+  /// projection, or null when there is no such cell.
+  Rect? _cellRectOf(String sectionId, int index) {
+    final band = _bandOf(sectionId);
+    if (band == null || index < 0) return null;
+    final grid = band.grid;
+    return Rect.fromLTWH(
+      grid.cellLeft(index % grid.spanCount),
+      band.rowsTop + (index ~/ grid.spanCount) * grid.cellHeight,
+      grid.cellWidth,
+      grid.cellHeight,
+    );
+  }
+
+  /// Scrolls the cell [index] of [sectionId] (its header when [index] is null)
+  /// into view below the landing inset, moving as little as possible. With
+  /// [withHeader], a cell in the first row of its section brings its header
+  /// too. Returns whether the cell exists.
+  bool _reveal(String sectionId, int? index, {required bool withHeader}) {
+    final band = _bandOf(sectionId);
+    if (band == null || !hasSize) return false;
+    double top;
+    double bottom;
+    if (index == null) {
+      top = band.headerTop;
+      bottom = top + band.headerExtent;
+    } else {
+      final cell = _cellRectOf(sectionId, index);
+      if (cell == null) return false;
+      top = withHeader && index < band.grid.spanCount
+          ? band.headerTop
+          : cell.top;
+      bottom = cell.bottom;
+    }
+    final target = CatalogSectionNavigation.scrollOffsetToReveal(
+      top: top,
+      bottom: bottom,
+      pixels: _pixels,
+      viewportHeight: size.height,
+      topInset: _headerLandingInset ?? _padding.top,
+    ).clamp(0.0, maxOffset);
+    if (target != _pixels) jumpTo(target);
+    return true;
+  }
+
   // --- Debug ----------------------------------------------------------------
 
   @override
@@ -1809,7 +2799,7 @@ class RenderPanelCatalog extends RenderBox {
     super.debugFillProperties(properties);
     properties
       ..add(DoubleProperty('contentExtent', contentExtent))
-      ..add(DoubleProperty('offset', _controller.offset))
+      ..add(DoubleProperty('offset', _pixels))
       ..add(DoubleProperty('maxOffset', hasSize ? maxOffset : null))
       ..add(IntProperty('attachedLeaves', attachedLeafCount))
       ..add(FlagProperty('isFlinging', value: isFlinging, ifTrue: 'flinging'))

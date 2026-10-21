@@ -50,6 +50,7 @@ void main() {
       expect(MediaForm.glyph.value, 'glyph');
       expect(MediaForm.still.value, 'still');
       expect(MediaForm.vectorAnimation.value, 'vector_animation');
+      expect(MediaForm.animatedImage.value, 'animated_image');
       expect(MediaForm.video.value, 'video');
       expect(MediaForm.unknown.value, 'unknown');
     });
@@ -105,6 +106,7 @@ void main() {
       expect(descriptor.size, isNull);
       expect(descriptor.thumbnail, isNull);
       expect(descriptor.spokenName, isNull);
+      expect(descriptor.shortcode, isNull);
     });
 
     test('is a value of all its fields', () {
@@ -118,6 +120,7 @@ void main() {
         size: ContentSize(512, 512),
         thumbnail: ThumbnailRef('thumb-1'),
         spokenName: 'waving hand',
+        shortcode: ':wave:',
       );
       const same = ContentDescriptor(
         key: key,
@@ -129,6 +132,7 @@ void main() {
         size: ContentSize(512, 512),
         thumbnail: ThumbnailRef('thumb-1'),
         spokenName: 'waving hand',
+        shortcode: ':wave:',
       );
 
       expect(full, same);
@@ -219,6 +223,15 @@ void main() {
           size: ContentSize(1, 1),
           thumbnail: ThumbnailRef('t'),
           spokenName: 'm',
+        ),
+        ContentDescriptor(
+          key: key,
+          semanticKind: SemanticKind.sticker,
+          mediaForm: MediaForm.still,
+          size: ContentSize(1, 1),
+          thumbnail: ThumbnailRef('t'),
+          spokenName: 'n',
+          shortcode: ':n:',
         ),
       ];
 

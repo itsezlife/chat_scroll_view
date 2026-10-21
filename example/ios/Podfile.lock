@@ -1,12 +1,12 @@
 PODS:
   - app_links (7.0.0):
     - Flutter
-  - emoji_data (0.0.1):
-    - Flutter
   - Flutter (1.0.0)
   - integration_test (0.0.1):
     - Flutter
   - keyboard_insets_mobile (0.0.1):
+    - Flutter
+  - rich_clipboard (0.1.0):
     - Flutter
   - shared_preferences_foundation (0.0.1):
     - Flutter
@@ -16,24 +16,24 @@ PODS:
 
 DEPENDENCIES:
   - app_links (from `.symlinks/plugins/app_links/ios`)
-  - emoji_data (from `.symlinks/plugins/emoji_data/ios`)
   - Flutter (from `Flutter`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
   - keyboard_insets_mobile (from `.symlinks/plugins/keyboard_insets_mobile/ios`)
+  - rich_clipboard (from `.symlinks/plugins/rich_clipboard/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
 
 EXTERNAL SOURCES:
   app_links:
     :path: ".symlinks/plugins/app_links/ios"
-  emoji_data:
-    :path: ".symlinks/plugins/emoji_data/ios"
   Flutter:
     :path: Flutter
   integration_test:
     :path: ".symlinks/plugins/integration_test/ios"
   keyboard_insets_mobile:
     :path: ".symlinks/plugins/keyboard_insets_mobile/ios"
+  rich_clipboard:
+    :path: ".symlinks/plugins/rich_clipboard/ios"
   shared_preferences_foundation:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
   url_launcher_ios:
@@ -41,10 +41,10 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   app_links: a754cbec3c255bd4bbb4d236ecc06f28cd9a7ce8
-  emoji_data: 398440cd4b975ca846ec5afeaa3d19b0b6acf8c6
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   keyboard_insets_mobile: 5647380b488cc18e5ffe6b8f333f9da6afa8558b
+  rich_clipboard: 10fd92d1fb5ab01016d3734358d484d86df1c401
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
   url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
 

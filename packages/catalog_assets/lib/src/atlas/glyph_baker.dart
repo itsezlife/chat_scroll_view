@@ -263,9 +263,9 @@ final class GlyphBaker {
         }
         observer.observe(glyphs[k], cellBytes);
       }
-    } catch (error, stack) {
+    } on Object catch (error, stack) {
       // The observer's data is its own; losing it must never stop the bake.
-      reportGlyphAtlasError(error, stack, 'while reading baked glyphs back');
+      GlyphAtlasErrors.report(error, stack, 'while reading baked glyphs back');
     } finally {
       strip.dispose();
     }

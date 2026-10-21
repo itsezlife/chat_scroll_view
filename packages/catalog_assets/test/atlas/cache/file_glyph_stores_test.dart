@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'dart:ui';
 
-import 'package:catalog_assets/src/atlas/cache/file_glyph_cache_store.dart';
-import 'package:catalog_assets/src/atlas/cache/file_glyph_page_store.dart';
 import 'package:catalog_assets/src/atlas/cache/glyph_cache_key.dart';
+import 'package:catalog_assets/src/atlas/environment_specific/glyph_cache_store_file_vm.dart';
+import 'package:catalog_assets/src/atlas/environment_specific/glyph_page_store_file_vm.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,22 +27,23 @@ List<FlutterErrorDetails> _captureErrors() {
 }
 
 void main() {
-  runGlyphPageStoreContract(
-    'FileGlyphPageStore',
-    () => FileGlyphPageStore(Directory('${_tempDir().path}/pages')),
+  GlyphPageStoreContract.run(
+    r'GlyphPageStore$File$VM',
+    () => GlyphPageStore$File$VM(Directory('${_tempDir().path}/pages')),
   );
 
   late Directory cacheRoot;
-  runGlyphCacheStoreContract(
-    'FileGlyphCacheStore',
-    () =>
-        FileGlyphCacheStore(cacheRoot = Directory('${_tempDir().path}/cache')),
-    reopen: (_) => FileGlyphCacheStore(cacheRoot),
+  GlyphCacheStoreContract.run(
+    r'GlyphCacheStore$File$VM',
+    () => GlyphCacheStore$File$VM(
+      cacheRoot = Directory('${_tempDir().path}/cache'),
+    ),
+    reopen: (_) => GlyphCacheStore$File$VM(cacheRoot),
   );
 
-  group('FileGlyphPageStore damage', () {
+  group(r'GlyphPageStore$File$VM damage', () {
     late Directory dir;
-    late FileGlyphPageStore store;
+    late GlyphPageStore$File$VM store;
 
     Image page() {
       final recorder = PictureRecorder();
@@ -62,7 +63,7 @@ void main() {
 
     setUp(() async {
       dir = Directory('${_tempDir().path}/pages');
-      store = FileGlyphPageStore(dir);
+      store = GlyphPageStore$File$VM(dir);
       final image = page();
       await store.write(0, image);
       image.dispose();
@@ -172,7 +173,7 @@ void main() {
 
     test('a page the engine cannot decode is reported and is a miss', () async {
       final reported = _captureErrors();
-      final failing = FileGlyphPageStore(
+      final failing = GlyphPageStore$File$VM(
         dir,
         decode: (pixels, width, height, format, onDecoded) =>
             throw StateError('no decoder'),
@@ -186,7 +187,7 @@ void main() {
     });
   });
 
-  group('FileGlyphCacheStore damage', () {
+  group(r'GlyphCacheStore$File$VM damage', () {
     const key = GlyphCacheKey(
       artVersion: 'a',
       devicePixelRatio: 2,
@@ -196,32 +197,32 @@ void main() {
     );
     const record = GlyphCacheRecord(key: key, glyphs: ['x']);
     late Directory root;
-    late FileGlyphCacheStore store;
+    late GlyphCacheStore$File$VM store;
 
     setUp(() async {
       root = Directory('${_tempDir().path}/cache');
-      store = FileGlyphCacheStore(root);
+      store = GlyphCacheStore$File$VM(root);
       await store.stage(record);
       await store.commit();
     });
 
     test('a damaged manifest means nothing is committed', () async {
       File('${root.path}/manifest.json').writeAsStringSync('gen_0\n{broken');
-      expect(await FileGlyphCacheStore(root).openCommitted(), isNull);
+      expect(await GlyphCacheStore$File$VM(root).openCommitted(), isNull);
     });
 
     test(
       'a manifest naming a nonsense directory means nothing is committed',
       () async {
         File('${root.path}/manifest.json').writeAsStringSync('../etc\n{}');
-        expect(await FileGlyphCacheStore(root).openCommitted(), isNull);
+        expect(await GlyphCacheStore$File$VM(root).openCommitted(), isNull);
       },
     );
 
     test('a missing manifest means nothing is committed, quietly', () async {
       final reported = _captureErrors();
       File('${root.path}/manifest.json').deleteSync();
-      expect(await FileGlyphCacheStore(root).openCommitted(), isNull);
+      expect(await GlyphCacheStore$File$VM(root).openCommitted(), isNull);
       expect(reported, isEmpty);
     });
 
@@ -230,7 +231,7 @@ void main() {
       File('${root.path}/manifest.json').deleteSync();
       Directory('${root.path}/manifest.json').createSync();
 
-      expect(await FileGlyphCacheStore(root).openCommitted(), isNull);
+      expect(await GlyphCacheStore$File$VM(root).openCommitted(), isNull);
 
       expect(reported, hasLength(1));
       expect(reported.single.stack, isNotNull);
@@ -239,13 +240,13 @@ void main() {
 
     test('staging sweeps generations the manifest does not name', () async {
       Directory('${root.path}/gen_7').createSync();
-      await FileGlyphCacheStore(root).stage(record);
+      await GlyphCacheStore$File$VM(root).stage(record);
       expect(Directory('${root.path}/gen_7').existsSync(), isFalse);
       expect(Directory('${root.path}/gen_0').existsSync(), isTrue);
     });
 
     test('committing removes the previous generation directory', () async {
-      final next = FileGlyphCacheStore(root);
+      final next = GlyphCacheStore$File$VM(root);
       await next.stage(record);
       await next.commit();
       expect(Directory('${root.path}/gen_0').existsSync(), isFalse);

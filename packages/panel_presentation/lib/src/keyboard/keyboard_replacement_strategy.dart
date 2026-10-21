@@ -1,0 +1,347 @@
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
+import 'package:panel_presentation/src/ime/ime_input_port.dart';
+import 'package:panel_presentation/src/keyboard/keyboard_height_store.dart';
+import 'package:panel_presentation/src/keyboard/keyboard_nav_bar_fade.dart';
+import 'package:panel_presentation/src/keyboard/keyboard_replacement_tuning.dart';
+import 'package:panel_presentation/src/keyboard/keyboard_slot.dart';
+import 'package:panel_presentation/src/keyboard/keyboard_slot_state.dart';
+import 'package:panel_presentation/src/kind/panel_occupancy.dart';
+import 'package:panel_presentation/src/kind/panel_presentation.dart';
+import 'package:panel_presentation/src/kind/panel_visibility.dart';
+import 'package:panel_presentation/src/policy/panel_window.dart';
+import 'package:panel_presentation/src/strategy/panel_presentation_strategy.dart';
+import 'package:panel_presentation/src/time/panel_clock.dart';
+import 'package:panel_shell/panel_shell.dart';
+
+/// The mobile strategy: the panel takes the place of the soft keyboard, in
+/// flow, under the composer.
+///
+/// ## Ownership
+///
+/// **Owns:** the [KeyboardSlot] (the hand-off state machine, the animated
+/// extent and the occupancy it publishes), the sheet that is laid out in the
+/// slot, the bottom safe area and the scrim over it, and the panel's
+/// expansion while search is open.
+///
+/// **Does not own:** the keyboard readings ([ImeInputPort], fed by the host),
+/// the keyboard heights' storage ([KeyboardHeightStore]), the shell's page and
+/// search state, or the host's layout (the host reserves a box of
+/// [occupancy] height for the view and lifts the composer by it).
+///
+/// ## Contract with the host
+///
+/// * Feed every keyboard reading to the [ImeInputPort], with an honest
+///   `animating` flag and the bottom safe area, and keep the window up to
+///   date. The strategy reads no `MediaQuery` inset and no `SystemChannels`.
+/// * Add [occupancy] into the viewport's bottom padding together with the
+///   composer extent, and give the composer [composerSafeInset] as its
+///   bottom safe area. The occupancy already contains the live keyboard.
+/// * Dispose the strategy; the port, the store and the window stay with their
+///   owners.
+///
+/// ## Occupancy while hidden
+///
+/// The occupancy follows the keyboard when the panel is not shown, so the
+/// host reads one number whatever is in the slot.
+final class KeyboardReplacementStrategy implements PanelPresentationStrategy {
+  /// A strategy fed by [ime], remembering keyboard heights in [heights] and
+  /// sizing against [window].
+  ///
+  /// [clock] schedules the cold-open delay and the hand-off fallback;
+  /// [tuning] holds the default heights and the delays.
+  KeyboardReplacementStrategy({
+    required ImeInputPort ime,
+    required KeyboardHeightStore heights,
+    required listen.ValueListenable<PanelWindow> window,
+    PanelClock clock = PanelClock.system,
+    KeyboardReplacementTuning tuning = const KeyboardReplacementTuning(),
+  }) : _slot = KeyboardSlot(
+         ime: ime,
+         heights: heights,
+         window: window,
+         clock: clock,
+         tuning: tuning,
+       );
+
+  final KeyboardSlot _slot;
+
+  @override
+  PanelPresentation get kind => const KeyboardReplacement();
+
+  /// Whether the soft keyboard is up in the latest reading, so a panel shown
+  /// now replaces it and is on screen from its first frame.
+  ///
+  /// A host's pages read it when they mount to decide whether to pace their
+  /// own chrome: a panel that grows into a free slot mounts while nothing
+  /// moves and may spread its first frame over several, a panel that
+  /// replaces the keyboard must not (the chrome would pop in over content
+  /// already on screen).
+  bool get keyboardIsUp => _slot.keyboardIsUp;
+
+  @override
+  listen.ValueListenable<PanelOccupancy> get occupancy => _slot.occupancy;
+
+  /// Who holds the bottom slot: the keyboard alone, or the panel in one of
+  /// its phases. A page that mounts paced content can skip the pacing while
+  /// this is [KeyboardSlotState.replacing], when the panel is on screen at
+  /// once.
+  listen.ValueListenable<KeyboardSlotState> get state => _slot.state;
+
+  /// Whether the slot is moving: opening, closing, handing off, or growing or
+  /// shrinking for search. False while a cold open waits for its start delay.
+  ///
+  /// A host that orders steps by the panel's motion (search must shrink back
+  /// before the panel hands its slot to the keyboard) waits for it to turn
+  /// false.
+  listen.ValueListenable<bool> get animating => _slot.animating;
+
+  /// The part of the bottom safe area the occupancy has not covered yet; the
+  /// composer's bottom safe area.
+  listen.ValueListenable<double> get composerSafeInset =>
+      _slot.composerSafeInset;
+
+  /// Releases the slot and its listeners. Idempotent.
+  void dispose() => _slot.dispose();
+
+  @override
+  Widget build(BuildContext context, PanelStrategyContext view) =>
+      _KeyboardPanel(slot: _slot, view: view);
+}
+
+class _KeyboardPanel extends StatefulWidget {
+  const _KeyboardPanel({required this.slot, required this.view});
+
+  final KeyboardSlot slot;
+  final PanelStrategyContext view;
+
+  @override
+  State<_KeyboardPanel> createState() => _KeyboardPanelState();
+}
+
+class _KeyboardPanelState extends State<_KeyboardPanel>
+    with SingleTickerProviderStateMixin {
+  late final Ticker _ticker;
+
+  /// The shell, built once per controller. Handing the same widget instance
+  /// to every frame of the motion lets the framework skip rebuilding it: a
+  /// frame costs the layout of the sheet and what lays out under it, not a
+  /// build.
+  late Widget _shellView;
+  var _last = Duration.zero;
+  var _searchOpen = false;
+  var _applying = false;
+
+  // The shell paints nothing behind itself: the sheet's glass shows through.
+  static const Color _clear = Color(0x00000000);
+
+  KeyboardSlot get _slot => widget.slot;
+  PanelShellController get _shell => widget.view.controller.shell;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = createTicker(_onTick);
+    // The search field is the shell's own chrome to pace; see keyboardIsUp.
+    _shellView = PanelShell(
+      controller: _shell,
+      deferSearchField: !_slot.keyboardIsUp,
+      background: _clear,
+    );
+    _slot.animating.addListener(_onAnimating);
+    _slot.state.addListener(_report);
+    _slot.changes.addListener(_onChanged);
+    _shell.search.addListener(_onSearch);
+    _scheduleApply();
+  }
+
+  @override
+  void didUpdateWidget(_KeyboardPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.view.controller.shell, _shell)) {
+      oldWidget.view.controller.shell.search.removeListener(_onSearch);
+      _shell.search.addListener(_onSearch);
+      _shellView = PanelShell(controller: _shell, background: _clear);
+    }
+    if (oldWidget.view.visibility != widget.view.visibility) _scheduleApply();
+  }
+
+  @override
+  void dispose() {
+    _slot.animating.removeListener(_onAnimating);
+    _slot.state.removeListener(_report);
+    _slot.changes.removeListener(_onChanged);
+    _shell.search.removeListener(_onSearch);
+    _ticker.dispose();
+    // Resetting signals observers, which must not happen while the tree is
+    // being torn down.
+    scheduleMicrotask(_slot.reset);
+    super.dispose();
+  }
+
+  // --- Driving the slot -----------------------------------------------------
+
+  /// Applies the visibility after the frame: the slot signals the host's
+  /// listeners, which must not rebuild while this frame is building.
+  void _scheduleApply() {
+    if (_applying) return;
+    _applying = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _applying = false;
+      if (mounted) _apply();
+    });
+  }
+
+  void _apply() {
+    final motion = ChromeMotionScope.of(context);
+    final slide = motion.specOf(MotionRole.listTransition);
+    switch (widget.view.visibility) {
+      case PanelVisibility$Showing():
+        _slot.open(slide);
+      case PanelVisibility$Shown():
+        _slot.open(slide, animate: false);
+      case PanelVisibility$Hiding(:final waitForIme):
+        _slot.close(slide, waitForIme: waitForIme);
+      case PanelVisibility$Hidden():
+        break;
+    }
+    _syncSearch();
+    _report();
+  }
+
+  void _onSearch() {
+    if (_shell.search.value.isOpen != _searchOpen) _syncSearch();
+  }
+
+  void _syncSearch() {
+    _searchOpen = _shell.search.value.isOpen;
+    final media = MediaQuery.of(context);
+    _slot.setSearch(
+      open: _searchOpen,
+      availableMax:
+          media.size.height -
+          media.viewPadding.top -
+          _slot.safeBottom -
+          _slot.tuning.searchReserve,
+      spec: ChromeMotionScope.of(context).specOf(MotionRole.search),
+    );
+  }
+
+  /// Tells the presentation controller that the motion it waits for is over.
+  void _report() {
+    final state = _slot.state.value;
+    switch (widget.view.visibility) {
+      case PanelVisibility$Showing() when state.isAtRest:
+      case PanelVisibility$Hiding() when !state.holdsSlot:
+        widget.view.motionSettled();
+      case _:
+        break;
+    }
+  }
+
+  void _onAnimating() {
+    if (_slot.animating.value) {
+      _last = Duration.zero;
+      if (!_ticker.isActive) unawaited(_ticker.start());
+    } else if (_ticker.isActive) {
+      _ticker.stop();
+    }
+  }
+
+  void _onTick(Duration elapsed) {
+    final step = elapsed - _last;
+    _last = elapsed;
+    _slot.advance(step);
+  }
+
+  void _onChanged() {
+    if (!mounted) return;
+    // A keyboard reading can arrive from the host's own build.
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+    } else {
+      setState(() {});
+    }
+  }
+
+  // --- Drawing --------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final panel = ChromeThemeScope.panelOf(context);
+    final safe = _slot.safeBottom;
+    final handingOff = switch (_slot.state.value) {
+      KeyboardSlotState$HandOffToIme() => true,
+      _ => false,
+    };
+
+    // The sheet owns the bottom band: the keyboard no longer insets its
+    // content and the safe area is the one the strategy was told about.
+    return MediaQuery(
+      data: media.copyWith(
+        viewInsets: media.viewInsets.copyWith(bottom: 0),
+        padding: media.padding.copyWith(bottom: safe),
+        viewPadding: media.viewPadding.copyWith(bottom: safe),
+      ),
+      // The sheet is the slot: it grows and shrinks with it, so its top edge
+      // (the rounded corners, the strip and the search field under it) rides
+      // under the composer while the bottom bar stays on the bottom edge. A
+      // slot too short to lay the shell out in (the first frames of a cold
+      // open, the last of a close) gets a shell of the shortest height, cut
+      // off from the bottom, instead of an overflow.
+      child: ClipRRect(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(_slot.tuning.sheetCornerRadius),
+        ),
+        // The composer's glass; the clip above rounds its top corners.
+        child: GlassSurface(
+          material: GlassMaterial.composerIsland,
+          cornerRadius: 0,
+          child: LayoutBuilder(
+            builder: (context, box) {
+              final height = box.hasBoundedHeight
+                  ? math.max(box.maxHeight, _minSheetHeight)
+                  : _slot.restingHeight;
+              return OverflowBox(
+                alignment: Alignment.topCenter,
+                minHeight: height,
+                maxHeight: height,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    // Emptied, not removed, while the keyboard takes over: the
+                    // sheet stays and the shell keeps its state.
+                    Offstage(offstage: handingOff, child: _shellView),
+                    if (safe > 0)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: KeyboardNavBarFade(
+                          height: safe,
+                          color: panel.background,
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // The shortest height the shell is laid out at: the search field, the
+  // strip and a row of the grid with the bottom bar over it.
+  static const double _minSheetHeight = 96;
+}

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Every gate CI runs, in the order they should be fixed: workspace lints, then
-# `dart analyze --fatal-infos` and tests per member, dependencies first, then
-# any member's tool/check hook. See scripts/lib/src/check_plan.dart.
+# Every gate CI runs, reported in the order they should be fixed: workspace
+# lints, then `dart analyze --fatal-infos`, the tests (test/unit_test.dart) and
+# any tool/check hook per member, dependencies first. Members run side by side.
+# See scripts/lib/src/check_plan.dart and check_runner.dart.
 #
-# Usage: scripts/check
+# Usage: scripts/check [--jobs N]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

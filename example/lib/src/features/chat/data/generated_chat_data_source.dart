@@ -3,7 +3,8 @@ import 'dart:math';
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
-import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 
 /// How [GeneratedChatDataSource] builds message body text.
 enum GeneratedMessageStyle {
@@ -12,6 +13,10 @@ enum GeneratedMessageStyle {
 
   /// Short, medium, and long conversational phrases (~30/50/20 mix).
   varied,
+
+  /// The bodies of [ShowcaseBodies] in turn: custom emoji in the text,
+  /// spoilers, mentions, hashtags and the emoji-only layouts.
+  showcase,
 }
 
 /// In-memory [ChatDataSource] that synthesizes messages on demand.
@@ -20,8 +25,9 @@ enum GeneratedMessageStyle {
 /// deterministic for a given [seed] — the same id always yields the same
 /// text until [updateMessage] / [editMessage] replaces it.
 ///
-/// Generated, sent, and edited bodies pass through
-/// [ChatBodyLinkifyUtil.materialize] at the host materialize/send seam (ADR 017).
+/// A generated body passes through [ChatBodyMarkdown.received] when its model
+/// is made, once per message (ADR 017); [sendMessage] and [editMessage] store
+/// the body the composer sent, already detected and encoded, as given.
 ///
 /// ```dart
 /// final ds = GeneratedChatDataSource(messageCount: 10_000);
@@ -111,7 +117,7 @@ class GeneratedChatDataSource extends ChatDataSource {
 
   /// Demo integrator: append a new message at the tail via [insertMessage].
   ///
-  /// Runs **body linkify** before store/display (ADR 017).
+  /// Stores [content] as given: it is the body the composer sent.
   UserChatMessage sendMessage({
     required String sender,
     required String content,
@@ -123,7 +129,7 @@ class GeneratedChatDataSource extends ChatDataSource {
       sender: sender,
       createdAt: now,
       updatedAt: now,
-      content: ChatBodyLinkifyUtil.materialize(content),
+      content: content,
     );
     _tailOverrides[id] = message;
     insertMessage(message, reason: 'demo-send');
@@ -132,7 +138,7 @@ class GeneratedChatDataSource extends ChatDataSource {
 
   /// Demo integrator: edit an existing message via [updateMessage].
   ///
-  /// Linkifies [newContent] the same way as [sendMessage].
+  /// Stores [newContent] as given, like [sendMessage].
   void editMessage(UserChatMessage message, String newContent) {
     updateMessage(
       UserChatMessage(
@@ -140,7 +146,7 @@ class GeneratedChatDataSource extends ChatDataSource {
         sender: message.sender,
         createdAt: message.createdAt,
         updatedAt: DateTime.now(),
-        content: ChatBodyLinkifyUtil.materialize(newContent),
+        content: newContent,
       ),
       reason: 'demo-edit',
     );
@@ -191,14 +197,16 @@ class GeneratedChatDataSource extends ChatDataSource {
     final plain = switch (style) {
       GeneratedMessageStyle.lorem => _loremContent(rng, id),
       GeneratedMessageStyle.varied => _variedContent(rng),
+      GeneratedMessageStyle.showcase =>
+        ShowcaseBodies.all[id % ShowcaseBodies.all.length],
     };
     return UserChatMessage(
       id: id,
       sender: senders[id % senders.length],
       createdAt: time,
       updatedAt: time,
-      // Host materialize — same seam as asset/backend ingest (ADR 017).
-      content: ChatBodyLinkifyUtil.materialize(plain),
+      // Receive fallback — same seam as asset/backend ingest (ADR 017).
+      content: ChatBodyMarkdown.received(plain),
     );
   }
 }

@@ -181,7 +181,12 @@ void main() {
         final view = tester.getRect(find.byType(ChatScrollView));
         expect(
           request.bandGlobal,
-          Rect.fromLTRB(view.left, view.top + 40, view.right, view.bottom - 100),
+          Rect.fromLTRB(
+            view.left,
+            view.top + 40,
+            view.right,
+            view.bottom - 100,
+          ),
         );
       },
     );

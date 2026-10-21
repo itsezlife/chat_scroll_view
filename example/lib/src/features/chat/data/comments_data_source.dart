@@ -3,12 +3,11 @@ import 'dart:collection';
 import 'dart:convert';
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/common/environment_specific/asset_text.dart'
+    as environment_specific;
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
-import 'package:chat_scroll_view_example/src/common/utils/load_asset.dart'
-    if (dart.library.js_interop) 'package:chat_scroll_view_example/src/common/utils/platform/load_asset_web.dart'
-    if (dart.library.io) 'package:chat_scroll_view_example/src/common/utils/platform/load_asset_native.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_message_search.dart';
-import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 
 /// Manifest for asset-based chat data.
 class CommentsManifest {
@@ -53,9 +52,11 @@ class CommentsManifest {
 /// [{"id": 0, "sender": "user", "content": "...", "createdAt": "..."}]
 /// ```
 ///
-/// On chunk load and on [sendMessage] / [editMessage], plain bodies are
-/// rewritten via [ChatBodyLinkifyUtil.materialize] (host-invoked **body linkify**,
-/// not viewport paint — ADR 017).
+/// A chunk's bodies pass through [ChatBodyMarkdown.received] when the chunk is
+/// loaded, once per message: a body with no link-class entity is detected
+/// there (host-invoked, never on paint — ADR 017). [sendMessage] and
+/// [editMessage] take the body the composer already detected and encoded
+/// ([ChatBodyMarkdown.send]) and store it as given.
 class CommentsDataSource extends ChatDataSource {
   CommentsDataSource._({
     required this.manifest,
@@ -93,7 +94,8 @@ class CommentsDataSource extends ChatDataSource {
 
   /// On native — loads from bundled assets via rootBundle.
   /// On web — fetches on demand via HTTP (assets excluded from service worker).
-  static Future<String> _loadString(String assetPath) => loadAsset(assetPath);
+  static Future<String> _loadString(String assetPath) =>
+      environment_specific.$loadAssetText(assetPath);
 
   /// Parsed manifest describing chunk layout and metadata.
   final CommentsManifest manifest;
@@ -194,10 +196,8 @@ class CommentsDataSource extends ChatDataSource {
               DateTime.tryParse(item['createdAt'] as String? ?? '') ?? baseTime,
           updatedAt:
               DateTime.tryParse(item['createdAt'] as String? ?? '') ?? baseTime,
-          // Host materialize — linkify before parse/display (ADR 017).
-          content: ChatBodyLinkifyUtil.materialize(
-            item['content'] as String? ?? '',
-          ),
+          // Receive fallback — once, when the message model is made.
+          content: ChatBodyMarkdown.received(item['content'] as String? ?? ''),
         ),
     ];
 
@@ -211,8 +211,8 @@ class CommentsDataSource extends ChatDataSource {
 
   /// Demo integrator: send a new message at the tail via [insertMessage].
   ///
-  /// Runs **body linkify** before store/display so optimistic bubbles match
-  /// materialize (ADR 017).
+  /// Stores [content] as given: it is the body the composer sent, already
+  /// detected and encoded.
   UserChatMessage sendMessage({
     required String sender,
     required String content,
@@ -224,7 +224,7 @@ class CommentsDataSource extends ChatDataSource {
       sender: sender,
       createdAt: now,
       updatedAt: now,
-      content: ChatBodyLinkifyUtil.materialize(content),
+      content: content,
     );
     _tailOverrides[id] = message;
     insertMessage(message, reason: 'demo-send');
@@ -233,7 +233,7 @@ class CommentsDataSource extends ChatDataSource {
 
   /// Demo integrator: edit an existing message via [updateMessage].
   ///
-  /// Linkifies [newContent] the same way as [sendMessage].
+  /// Stores [newContent] as given, like [sendMessage].
   void editMessage(UserChatMessage message, String newContent) {
     updateMessage(
       UserChatMessage(
@@ -241,7 +241,7 @@ class CommentsDataSource extends ChatDataSource {
         sender: message.sender,
         createdAt: message.createdAt,
         updatedAt: DateTime.now(),
-        content: ChatBodyLinkifyUtil.materialize(newContent),
+        content: newContent,
       ),
       reason: 'demo-edit',
     );

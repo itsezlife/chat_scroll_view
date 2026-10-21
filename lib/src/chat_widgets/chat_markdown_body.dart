@@ -1,13 +1,11 @@
+import 'package:catalog_assets/catalog_assets.dart' show InlineEmbedResolver;
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_body_selection_scope.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_code_block_painter.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_inline_embed_adapter.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_autoscroll.dart';
-import 'package:chat_scroll_view/src/chat_widgets/chat_secondary_message_tap_scope.dart';
+import 'package:content_model/content_model.dart' show EmojiRuns;
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart'
-    show
-        AdaptiveTextSelectionToolbar,
-        ContextMenuButtonItem,
-        ContextMenuButtonType;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_md/flutter_md.dart';
 
@@ -47,9 +45,9 @@ class ChatMarkdownBodyRegistration extends InheritedWidget {
 /// surface when [ChatSelectionController.exposesSelectionSurface] is true for [messageId].
 ///
 /// Automatically integrates:
-/// - [ChatCodeBlockPainter] via [chatCodeBlockBuilder] to separate interactive
-///   code header/bottom bars from selectable code body text under the active
-///   [controller.selectionPolicy].
+/// - [ChatCodeBlockPainter] via [ChatCodeBlockPainter.builder] to separate
+///   interactive code header/bottom bars from selectable code body text under
+///   the active [controller.selectionPolicy].
 /// - [BlockPainter$ScrollableTable] so overflowing markdown tables pan
 ///   horizontally inside the bubble (catalog painter opt-in, not a theme
 ///   flag). [BlockPainter$ScrollableTable.enabled] is false while this
@@ -92,6 +90,23 @@ class ChatMarkdownBodyRegistration extends InheritedWidget {
 /// not a competing body [GestureDetector] — a local tap recognizer would win
 /// the arena on selected body text and block toggle / text-dismiss.
 ///
+/// ### Inline layer
+///
+/// - **Embeds.** [embedResolver] turns an image `![alt](scheme:id)` into an
+///   embed painted in the text (a custom emoji, a sticker). Keep it stable
+///   (one per host, not one per build): a different instance resolves every
+///   embed of the body again. Null shows every image as its alt text.
+/// - **Spoilers.** `||x||` stays hidden until revealed through
+///   [ChatSelectionController.spoilers], keyed by [messageId]; that state is
+///   the facade's, so it survives this widget leaving the tree and an
+///   edit-morph twin shows the live body's state. A body whose selection
+///   surface is not mounted still hides its spoilers (it registers with a
+///   private selection controller that nothing reads, which also makes it a
+///   repaint boundary, so the live embed and dust frames never repaint the
+///   row around it).
+/// - **Mentions, hashtags, embeds.** Their taps reach the host as their own
+///   [ChatInlineHit] kinds through the facade, never as links.
+///
 /// ### Edge autoscroll
 ///
 /// Defaults to [ChatMarkdownAutoscroll] (anchor viewport writer, host-union
@@ -106,6 +121,7 @@ class ChatMarkdownBody extends StatefulWidget {
     this.markdown,
     this.theme,
     this.autoscroll,
+    this.embedResolver,
     super.key,
   });
 
@@ -127,6 +143,13 @@ class ChatMarkdownBody extends StatefulWidget {
   /// overriding so mid-drag rebuilds keep a stable scope config.
   final ChatMarkdownAutoscrollOptions? autoscroll;
 
+  /// Where the inline embeds of the body come from (the host's resolver over
+  /// its asset cache, for instance `ContentEmbedResolver`).
+  ///
+  /// Keep it stable: a different instance disposes every embed and resolves
+  /// them again. Null shows every image as its alt text.
+  final InlineEmbedResolver? embedResolver;
+
   @override
   State<ChatMarkdownBody> createState() => _ChatMarkdownBodyState();
 }
@@ -143,16 +166,18 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   bool? _cachedTablePanEnabled;
   MarkdownThemeData? _resolvedTheme;
 
-  /// Default when [ChatMarkdownBody.autoscroll] is null — rebuilt only when
-  /// options / policy / display Hz change so mid-drag list rebuilds keep the
-  /// scope’s cached target (resolver identity is part of config equality).
-  MarkdownSelectionAutoscrollConfig? _scopeAutoscroll;
-  ChatMarkdownAutoscrollOptions? _scopeAutoscrollOptions;
-  ChatSelectionPolicy? _scopeAutoscrollPolicy;
-  double? _scopeAutoscrollHz;
   AnimationController? _pressController;
   AnimationController? _releaseController;
   final _feedbackNotifier = ValueNotifier<ChatSpanFeedback?>(null);
+  ChatInlineEmbedAdapter? _embedAdapter;
+  MarkdownThemeData? _fallback;
+
+  /// What a body without a mounted selection surface registers with: the
+  /// engine keys spoilers and the repaint boundary on a selection controller
+  /// and a document id, and the facade's controller must not see a body it
+  /// has not exposed. Lazy: most bodies never need it.
+  MarkdownSelectionController? _inertSelection;
+  bool _mountsSurface = false;
   bool _armedInlinePress = false;
   int? _inlinePressPointer;
   Offset? _inlinePressDownGlobal;
@@ -190,6 +215,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     widget.controller.reportBodyPaintBounds(widget.messageId, null);
     _clearFeedback();
     _feedbackNotifier.dispose();
+    _inertSelection?.dispose();
     super.dispose();
   }
 
@@ -297,25 +323,12 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     }
   }
 
-  MarkdownSelectionAutoscrollConfig _resolvedAutoscroll() {
-    final options = widget.autoscroll ?? const ChatMarkdownAutoscrollOptions();
-    final policy = widget.controller.selectionPolicy;
-    final hz = ChatMarkdownAutoscroll.readDisplayRefreshHz();
-    if (_scopeAutoscroll case final cached?
-        when options == _scopeAutoscrollOptions &&
-            identical(policy, _scopeAutoscrollPolicy) &&
-            hz == _scopeAutoscrollHz) {
-      return cached;
-    }
-    _scopeAutoscrollOptions = options;
-    _scopeAutoscrollPolicy = policy;
-    _scopeAutoscrollHz = hz;
-    return _scopeAutoscroll = ChatMarkdownAutoscroll.config(
-      options: options,
-      policy: policy,
-      displayRefreshHz: hz,
-    );
-  }
+  /// Whether a hit is something a tap does here: every kind, except an embed
+  /// the host does not act on (it is part of the text, with no highlight and
+  /// no click cursor).
+  bool _isActionable(ChatInlineHit? hit) =>
+      hit != null &&
+      (hit is! ChatInlineHit$Embed || widget.controller.handlesEmbedHits);
 
   void _tryBeginInlinePress(PointerDownEvent event) {
     if (!widget.controller.allowsInlineTapHighlight) {
@@ -326,7 +339,8 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
       widget.messageId,
       event.position,
     );
-    if (hit?.contourPath case final contour? when hit!.touchOrigin != null) {
+    final contour = _isActionable(hit) ? hit?.contourPath : null;
+    if (contour != null && hit!.touchOrigin != null) {
       widget.controller.beginSpanFeedback(
         messageId: widget.messageId,
         contourPath: contour,
@@ -353,16 +367,54 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     }
   }
 
+  // One adapter per resolver: the engine disposes every embed and resolves
+  // them again when it sees another instance.
+  MarkdownInlineEmbedResolver? _adaptedEmbedResolver() {
+    final resolver = widget.embedResolver;
+    if (resolver == null) return _embedAdapter = null;
+    if (_embedAdapter case final adapter?
+        when identical(adapter.resolver, resolver)) {
+      return adapter;
+    }
+    return _embedAdapter = ChatInlineEmbedAdapter(resolver);
+  }
+
+  // The theme of a body with no [MarkdownTheme] above it, kept while its
+  // inputs hold: the engine rebuilds its painter (and resolves every embed
+  // again) whenever the theme is another instance, and a new one per build
+  // would do that on every selection change.
+  MarkdownThemeData _fallbackTheme(BuildContext context) {
+    final style = DefaultTextStyle.of(context).style;
+    final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
+    final scaler =
+        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    if (_fallback case final cached?
+        when cached.textStyle == style &&
+            cached.textDirection == direction &&
+            cached.textScaler == scaler) {
+      return cached;
+    }
+    return _fallback = MarkdownThemeData(
+      textStyle: style,
+      textDirection: direction,
+      textScaler: scaler,
+    );
+  }
+
+  /// The emoji of a text the platform draws in colour, for
+  /// [MarkdownThemeData.emojiRuns]: they are set at the font's height, as the
+  /// reference clients do, instead of at its size. A theme with its own
+  /// `emojiRuns` (`(_) => const []` turns it off) is left as it is.
+  static Iterable<TextRange> _colourEmojiRuns(String text) => [
+    for (final (:start, :end) in EmojiRuns.of(text))
+      TextRange(start: start, end: end),
+  ];
+
   MarkdownThemeData _resolveTheme(BuildContext context) {
     final ambient =
         widget.theme ??
         MarkdownTheme.maybeOf(context) ??
-        MarkdownThemeData(
-          textStyle: DefaultTextStyle.of(context).style,
-          textDirection: Directionality.maybeOf(context) ?? TextDirection.ltr,
-          textScaler:
-              MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling,
-        );
+        _fallbackTheme(context);
 
     final policy = widget.controller.selectionPolicy;
     final codeBlockLabels = ChatCodeBlockLabelsScope.of(context);
@@ -387,6 +439,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     final userCursorResolver = ambient.cursorResolver;
 
     return _resolvedTheme = ambient.copyWith(
+      emojiRuns: ambient.emojiRuns ?? _colourEmojiRuns,
       builder: (block, themeData) {
         if (userBuilder case final b?) {
           if (b(block, themeData) case final custom?) return custom;
@@ -405,7 +458,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
             enabled: tablePanEnabled,
           );
         }
-        return chatCodeBlockBuilder(
+        return ChatCodeBlockPainter.builder(
           block,
           themeData,
           policy: policy,
@@ -468,116 +521,15 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
         widget.messageId,
         globalPoint,
       );
-      if (inlineHit != null) {
+      if (_isActionable(inlineHit)) {
         return SystemMouseCursors.click;
       }
     }
 
-    return null;
-  }
-
-  bool _isScopeEnabled(bool mountSurface) {
-    if (!mountSurface) return false;
-    final isSubject =
-        widget.controller.textSelectionSubject == widget.messageId;
-    if (isSubject) return true;
-    final policy = widget.controller.selectionPolicy;
-    // Mobile message-then-text: selected bodies stay armed for continuous
-    // text entry and retarget, including while text is live on another subject
-    // (ADR 015). Unselected rows stay off so message-selection long-press wins.
-    if (policy.nestsTextSubjectInMessageSelection &&
-        widget.controller.isSelected(widget.messageId)) {
-      return true;
-    }
-    // Desktop/web: direct entry only while message membership is empty —
-    // settled message selection and text selection are exclusive under
-    // [$Desktop]. Surfaces may still mount for inline hit-testing; the
-    // scope stays off.
-    if (policy.allowsTextEntryWithoutMessageSelection) {
-      return !widget.controller.isSelectionMode &&
-          !widget.controller.hasDragSelection;
-    }
-    return false;
-  }
-
-  /// Whether the scope should arm touch long-press for continuous text entry.
-  ///
-  /// Mobile: only when this body is message-selected or the text subject.
-  /// Desktop: false — mouse recognizers cover direct entry; touch multi-tap
-  /// must not steal viewport taps.
-  bool _enableTouchGestures(bool scopeEnabled) {
-    if (!scopeEnabled) return false;
-    final policy = widget.controller.selectionPolicy;
-    if (!policy.usesTimerBasedLongPress) return false;
-    return widget.controller.isSelected(widget.messageId) ||
-        widget.controller.textSelectionSubject == widget.messageId;
-  }
-
-  /// Whether the per-body scope may begin a character-range at [global].
-  ///
-  /// Plain body text always may. Fenced copy chrome never may (not text).
-  /// Under mobile message-then-text (selected body / active subject), link and
-  /// inline-code spans may — long-press enters text selection there. Idle and
-  /// desktop keep the scope off those hits so tap activation / copy win.
-  bool _canStartTextSelectionAt(Offset global) {
-    final hit = widget.controller.resolveInlineHit(widget.messageId, global);
-    if (hit == null) {
-      // Painter reports fenced copy chrome even when resolveInlineHit missed
-      // (e.g. position clamp edge). Never arm text over COPY CODE / header.
-      final surface = widget.controller.surfaceFor(widget.messageId);
-      if (surface != null && surface.isLinkAtGlobal(global)) return false;
-      return true;
-    }
-    // Fenced copy chrome: no text-contour geometry — not a selection start.
-    if (hit case ChatInlineHit$Code(
-      :final contourPath,
-      :final touchOrigin,
-    ) when contourPath == null && touchOrigin == null) {
-      return false;
-    }
-    final policy = widget.controller.selectionPolicy;
-    if (policy.usesTimerBasedLongPress &&
-        (widget.controller.isSelected(widget.messageId) ||
-            widget.controller.textSelectionSubject == widget.messageId)) {
-      return true;
-    }
-    return false;
-  }
-
-  Widget _buildContextMenu(
-    BuildContext context,
-    MarkdownSelectionScopeState state,
-  ) {
-    final items = <ContextMenuButtonItem>[];
-    if (widget.controller.textSelection case final sel? when !sel.isCollapsed) {
-      items.add(
-        ContextMenuButtonItem(
-          type: ContextMenuButtonType.copy,
-          onPressed: () async {
-            await widget.controller.copyTextSelection();
-            state.hideToolbar();
-          },
-        ),
-      );
-    }
-    if (widget.controller.hasBody(widget.messageId)) {
-      items.add(
-        ContextMenuButtonItem(
-          type: ContextMenuButtonType.selectAll,
-          onPressed: () {
-            widget.controller.selectAllText();
-            state.showToolbar();
-          },
-        ),
-      );
-    }
-    if (items.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return AdaptiveTextSelectionToolbar.buttonItems(
-      buttonItems: items,
-      anchors: state.contextMenuAnchors,
-    );
+    // A body without a mounted surface is not selectable: the engine's text
+    // cursor, for a document that has a (private) selection controller, would
+    // promise what the facade does not offer.
+    return _mountsSurface ? null : MouseCursor.defer;
   }
 
   @override
@@ -590,29 +542,13 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
       final mountSurface =
           register &&
           widget.controller.exposesSelectionSurface(widget.messageId);
-      final scopeEnabled = _isScopeEnabled(mountSurface);
+      _mountsSurface = mountSurface;
       _reportPaintBounds();
       return switch (model) {
         null => const SizedBox.shrink(),
         final md => Listener(
           behavior: HitTestBehavior.translucent,
-          onPointerDown: (event) {
-            _tryBeginInlinePress(event);
-            if (event.kind == PointerDeviceKind.mouse) {
-              final policy = widget.controller.selectionPolicy;
-              if (policy.allowsTextEntryWithoutMessageSelection &&
-                  !widget.controller.isSelectionMode) {
-                if (widget.controller.resolveInlineHit(
-                      widget.messageId,
-                      event.position,
-                    ) !=
-                    null) {
-                  return;
-                }
-                widget.controller.armTextSelection(widget.messageId);
-              }
-            }
-          },
+          onPointerDown: _tryBeginInlinePress,
           onPointerMove: _onInlinePressMove,
           onPointerUp: (event) {
             if (!_armedInlinePress || event.pointer != _inlinePressPointer) {
@@ -643,64 +579,23 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
                   : null,
               child: child,
             ),
-            child: Actions(
-              actions: <Type, Action<Intent>>{
-                CopySelectionTextIntent:
-                    CallbackAction<CopySelectionTextIntent>(
-                      onInvoke: (_) {
-                        widget.controller.copyTextSelection();
-                        return null;
-                      },
-                    ),
-                SelectAllTextIntent: CallbackAction<SelectAllTextIntent>(
-                  onInvoke: (_) {
-                    widget.controller.selectAllText();
-                    return null;
-                  },
-                ),
-                DismissIntent: CallbackAction<DismissIntent>(
-                  onInvoke: (_) {
-                    widget.controller.clearTextSelection();
-                    return null;
-                  },
-                ),
-              },
-              child: MarkdownSelectionScope(
-                controller: widget.controller.markdownSelection,
-                enabled: scopeEnabled,
-                // Drive the anchor viewport.
-                autoscroll: _resolvedAutoscroll(),
-                // Continuous text: touch long-press → word → drag-extend
-                // (ADR 015). Consecutive taps stay off so the viewport owns
-                // toggle / dismiss taps; mouse multi-click remains desktop.
-                enableTouchGestures: _enableTouchGestures(scopeEnabled),
-                enableTouchConsecutiveTaps: false,
-                canStartSelectionAt: _canStartTextSelectionAt,
-                // Subject-only chrome: siblings share the controller under
-                // mobile multi-select but must not paint this body's handles
-                // or toolbar until they are the text selection subject.
-                ownsSelectionChrome: (documentId) =>
-                    documentId == widget.messageId &&
-                    widget.controller.textSelectionSubject == widget.messageId,
-                // Desktop + host secondary → yield right-click to the full-slot
-                // message menu. Mobile keeps adaptive text chrome even when
-                // secondary is also wired (menu entry is idle primary).
-                contextMenuBuilder:
-                    ChatSecondaryMessageTapScope.hostOwnsSecondaryOf(context) &&
-                        widget
-                            .controller
-                            .selectionPolicy
-                            .secondaryMessageTapOwnsFullSlot
-                    ? null
-                    : _buildContextMenu,
-                child: MarkdownWidget(
-                  markdown: md,
-                  theme: _resolveTheme(context),
-                  documentId: mountSurface ? widget.messageId : null,
-                  controller: mountSurface
-                      ? widget.controller.markdownSelection
-                      : null,
-                ),
+            child: ChatBodySelectionScope(
+              controller: widget.controller,
+              messageId: widget.messageId,
+              mountSurface: mountSurface,
+              autoscroll: widget.autoscroll,
+              child: MarkdownWidget(
+                markdown: md,
+                theme: _resolveTheme(context),
+                // The message id keys the spoiler state whether or not the
+                // selection surface is mounted (a spoiler must not show its
+                // text because another message is selected).
+                documentId: widget.messageId,
+                controller: mountSurface
+                    ? widget.controller.markdownSelection
+                    : _inertSelection ??= MarkdownSelectionController(),
+                spoilerController: widget.controller.spoilers,
+                embedResolver: _adaptedEmbedResolver(),
               ),
             ),
           ),

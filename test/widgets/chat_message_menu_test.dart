@@ -44,7 +44,7 @@ Future<void> _openMenu(
             Builder(
               builder: (context) => TextButton(
                 onPressed: () async {
-                  final result = await showChatMessageMenu(
+                  final result = await ChatMessageMenu.show(
                     context: context,
                     messageRect: messageRect,
                     surfaceRect: surfaceRect,
@@ -105,7 +105,7 @@ void main() {
           body: Builder(
             builder: (context) => TextButton(
               onPressed: () async {
-                final result = await showChatMessageMenu(
+                final result = await ChatMessageMenu.show(
                   context: context,
                   messageRect: const Rect.fromLTWH(40, 120, 200, 48),
                   items: _items,
@@ -304,7 +304,7 @@ void main() {
             body: Builder(
               builder: (context) => TextButton(
                 onPressed: () async {
-                  result = await showChatMessageMenu(
+                  result = await ChatMessageMenu.show(
                     context: context,
                     messageRect: const Rect.fromLTWH(40, 120, 200, 48),
                     items: _items,
@@ -571,7 +571,7 @@ void main() {
             body: Builder(
               builder: (context) => TextButton(
                 onPressed: () {
-                  showChatMessageMenu(
+                  ChatMessageMenu.show(
                     context: context,
                     messageRect: const Rect.fromLTWH(40, 120, 200, 48),
                     items: _items,
@@ -603,7 +603,7 @@ void main() {
             body: Builder(
               builder: (context) => TextButton(
                 onPressed: () {
-                  showChatMessageMenu(
+                  ChatMessageMenu.show(
                     context: context,
                     messageRect: const Rect.fromLTWH(40, 120, 200, 48),
                     items: _items,
@@ -744,7 +744,7 @@ void main() {
 
       final menuLeft = tester.getTopLeft(find.byType(ChatMessageMenuColumn)).dx;
       expect(menuLeft, closeTo(tap.dx, 1));
-      expect(menuLeft, isNot(kChatMessageMenuEdgeInset));
+      expect(menuLeft, isNot(ChatMessageMenuPlacement.edgeInset));
     });
   });
 }

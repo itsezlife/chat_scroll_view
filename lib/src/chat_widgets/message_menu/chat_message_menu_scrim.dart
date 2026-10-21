@@ -1,15 +1,6 @@
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:flutter/material.dart';
 
-/// Fallback scrim opacity when [ChatMessageMenuThemeData.scrimColor] is null.
-///
-/// Prefer brightness-aware tokens from
-/// [ChatMessageMenuThemeData.fromScheme] (0.08 light / 0.2 dark).
-const double kChatMessageMenuScrimOpacity = 0.2;
-
-/// Fade duration for the dim layer.
-const Duration kChatMessageMenuScrimDuration = Duration(milliseconds: 320);
-
 /// Full-screen dim with one undimmed hole over the captured message.
 ///
 /// The hole is [hole] outlined by [holeShape], or rounded by
@@ -31,6 +22,15 @@ class ChatMessageMenuScrim extends StatelessWidget {
     this.holeClip,
     super.key,
   });
+
+  /// Fallback scrim opacity when [ChatMessageMenuThemeData.scrimColor] is null.
+  ///
+  /// Prefer brightness-aware tokens from
+  /// [ChatMessageMenuThemeData.fromScheme] (0.08 light / 0.2 dark).
+  static const double opacity = 0.2;
+
+  /// Fade duration for the dim layer.
+  static const Duration duration = Duration(milliseconds: 320);
 
   /// 0–1 enter/leave progress.
   final double progress;
@@ -106,8 +106,10 @@ class _ScrimHolePainter extends CustomPainter {
 
     final outline = switch (holeShape) {
       final shape? => shape.getOuterPath(hole, textDirection: textDirection),
-      null => Path()
-        ..addRRect(RRect.fromRectAndRadius(hole, Radius.circular(holeRadius))),
+      null =>
+        Path()..addRRect(
+          RRect.fromRectAndRadius(hole, Radius.circular(holeRadius)),
+        ),
     };
     final visibleHole = Path.combine(
       PathOperation.intersect,

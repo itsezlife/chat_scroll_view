@@ -19,7 +19,7 @@ void main() {
     test('paintedBackground lerps old→new with progress', () {
       const oldR = Rect.fromLTWH(0, 0, 80, 40);
       const newR = Rect.fromLTWH(0, 0, 120, 80);
-      final start = beginChatMessageChange(
+      final start = ChatMessageChangeParams.begin(
         oldBackground: oldR,
         newBackground: newR,
         textChanged: true,
@@ -29,10 +29,10 @@ void main() {
 
       expect(start.paintedBackground(newR), oldR);
 
-      final mid = chatMessageChangeAtProgress(start, 0.5);
+      final mid = start.atProgress(0.5);
       expect(mid.paintedBackground(newR), const Rect.fromLTWH(0, 0, 100, 60));
 
-      final end = chatMessageChangeAtProgress(start, 1);
+      final end = start.atProgress(1);
       expect(end.paintedBackground(newR), newR);
     });
 
@@ -55,7 +55,7 @@ void main() {
       // Outgoing bubble grows leftward: new left is smaller.
       const oldR = Rect.fromLTRB(40, 0, 120, 40);
       const newR = Rect.fromLTRB(0, 0, 120, 40);
-      final start = beginChatMessageChange(
+      final start = ChatMessageChangeParams.begin(
         oldBackground: oldR,
         newBackground: newR,
         textChanged: true,
@@ -66,7 +66,7 @@ void main() {
       expect(start.deltas.right, 0);
       expect(start.paintedBackground(newR), oldR);
       expect(
-        chatMessageChangeAtProgress(start, 0.5).paintedBackground(newR),
+        start.atProgress(0.5).paintedBackground(newR),
         const Rect.fromLTRB(20, 0, 120, 40),
       );
     });
@@ -112,7 +112,7 @@ void main() {
       // Consistent with trailing meta near each bubble's bottom.
       const fromMeta = Offset(30, 18);
       const toMeta = Offset(50, 58);
-      final start = beginChatMessageChange(
+      final start = ChatMessageChangeParams.begin(
         oldBackground: oldR,
         newBackground: newR,
         textChanged: true,
@@ -131,7 +131,7 @@ void main() {
         Offset(fromMeta.dx - 36, fromMeta.dy),
       );
 
-      final mid = chatMessageChangeAtProgress(start, 0.5);
+      final mid = start.atProgress(0.5);
       expect(mid.outgoingTextOpacity, 0.5);
       expect(mid.incomingTextOpacity, 0.5);
       expect(mid.editedLabelOpacity, 0.5);
@@ -139,7 +139,7 @@ void main() {
       expect(midMeta.dx, closeTo(40 - 18, 0.01)); // lerp(30,50,0.5) − 18
       expect(midMeta.dy, closeTo(38, 0.01)); // 58 + (−40)*0.5
 
-      final end = chatMessageChangeAtProgress(start, 1);
+      final end = start.atProgress(1);
       expect(end.outgoingTextOpacity, 0);
       expect(end.incomingTextOpacity, 1);
       expect(end.editedLabelOpacity, 1);
@@ -151,7 +151,7 @@ void main() {
       const newR = Rect.fromLTWH(0, 0, 100, 40);
       const fromMeta = Offset(60, 58);
       const toMeta = Offset(60, 18);
-      final start = beginChatMessageChange(
+      final start = ChatMessageChangeParams.begin(
         oldBackground: oldR,
         newBackground: newR,
         textChanged: true,
@@ -169,16 +169,13 @@ void main() {
 
     test('textClipRect insets painted background by 4', () {
       const newR = Rect.fromLTWH(0, 0, 100, 80);
-      final mid = chatMessageChangeAtProgress(
-        beginChatMessageChange(
-          oldBackground: const Rect.fromLTWH(0, 0, 100, 40),
-          newBackground: newR,
-          textChanged: true,
-          editedEnter: false,
-          editedWidthDiff: 0,
-        ),
-        0.5,
-      );
+      final mid = ChatMessageChangeParams.begin(
+        oldBackground: const Rect.fromLTWH(0, 0, 100, 40),
+        newBackground: newR,
+        textChanged: true,
+        editedEnter: false,
+        editedWidthDiff: 0,
+      ).atProgress(0.5);
       // Painted bg height 60 → clip inset 4.
       expect(mid.textClipRect(newR), const Rect.fromLTRB(4, 4, 96, 56));
     });

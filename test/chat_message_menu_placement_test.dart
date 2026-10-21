@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('placement Y follows the tap for a short menu', () {
-    final placement = computeChatMessageMenuPlacement(
+    final placement = ChatMessageMenuPlacement.compute(
       screenSize: const Size(400, 800),
       keyboardHeight: 0,
       messageRect: const Rect.fromLTWH(100, 200, 180, 40),
@@ -16,11 +16,11 @@ void main() {
     expect(placement.menuOrigin.dy, 210);
     // Outer stack sits on the leading inset; the action card is inset
     // further by the reactions overhang (host layout), not by X here.
-    expect(placement.menuOrigin.dx, kChatMessageMenuEdgeInset);
+    expect(placement.menuOrigin.dx, ChatMessageMenuPlacement.edgeInset);
   });
 
   test('placement keeps the menu above the keyboard inset', () {
-    final placement = computeChatMessageMenuPlacement(
+    final placement = ChatMessageMenuPlacement.compute(
       screenSize: const Size(400, 800),
       keyboardHeight: 300,
       messageRect: const Rect.fromLTWH(100, 500, 180, 40),
@@ -28,12 +28,12 @@ void main() {
       tapGlobal: const Offset(200, 520),
     );
 
-    expect(placement.menuOrigin.dx, kChatMessageMenuEdgeInset);
+    expect(placement.menuOrigin.dx, ChatMessageMenuPlacement.edgeInset);
     expect(placement.menuOrigin.dy + 250, lessThanOrEqualTo(800 - 300));
   });
 
   test('placement stays above system nav safe padding', () {
-    final placement = computeChatMessageMenuPlacement(
+    final placement = ChatMessageMenuPlacement.compute(
       screenSize: const Size(400, 800),
       keyboardHeight: 0,
       messageRect: const Rect.fromLTWH(100, 700, 180, 40),
@@ -52,7 +52,7 @@ void main() {
     const menu = Size(252, 345);
     const pad = EdgeInsets.only(top: 34, bottom: 48);
 
-    Offset originAt(double tapX) => computeChatMessageMenuPlacement(
+    Offset originAt(double tapX) => ChatMessageMenuPlacement.compute(
       screenSize: size,
       keyboardHeight: 0,
       messageRect: rect,
@@ -63,12 +63,15 @@ void main() {
     ).menuOrigin;
 
     expect(originAt(51.6).dx, originAt(308.3).dx);
-    expect(originAt(51.6).dx, kChatMessageMenuEdgeInset);
-    expect(originAt(308.3).dx, isNot(384 - kChatMessageMenuEdgeInset - 252));
+    expect(originAt(51.6).dx, ChatMessageMenuPlacement.edgeInset);
+    expect(
+      originAt(308.3).dx,
+      isNot(384 - ChatMessageMenuPlacement.edgeInset - 252),
+    );
   });
 
   test('popup X follows the tap within edge clamps', () {
-    final placement = computeChatMessageMenuPlacement(
+    final placement = ChatMessageMenuPlacement.compute(
       screenSize: const Size(400, 800),
       keyboardHeight: 0,
       messageRect: const Rect.fromLTWH(100, 200, 180, 40),
@@ -82,7 +85,7 @@ void main() {
   });
 
   test('popup X clamps near the trailing edge', () {
-    final placement = computeChatMessageMenuPlacement(
+    final placement = ChatMessageMenuPlacement.compute(
       screenSize: const Size(400, 800),
       keyboardHeight: 0,
       messageRect: const Rect.fromLTWH(100, 200, 180, 40),
@@ -91,6 +94,9 @@ void main() {
       presentation: ChatMessageMenuPresentation.popup,
     );
 
-    expect(placement.menuOrigin.dx, 400 - 200 - kChatMessageMenuEdgeInset);
+    expect(
+      placement.menuOrigin.dx,
+      400 - 200 - ChatMessageMenuPlacement.edgeInset,
+    );
   });
 }

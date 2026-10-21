@@ -12,13 +12,9 @@ stitch. Does not own panel chrome or message-attachment media.
 The scrollable catalog body: sections, rows/cells, recycle, and near/far jumps with stitch.
 _Avoid_: Media Grid, EmojiEngine, Chat Scroll Viewport, Attachment Grid
 
-**KeyboardPanel**:
-Keyboard-replacement panel chrome around one or more catalog pages — type tabs, search overlay, open/close motion, bottom bar, and data-source wiring for the active page. Does not own catalog scroll extent or cell paint. Public API name in chat chrome (replaces EmojiPanel as the domain term). Related chrome types use the `KeyboardPanel*` prefix (`Allow`, `Tab`, `Labels`, `Callbacks`, bottom bar, store, …). Prefs live on [KeyboardPanelStore] under `keyboard_panel_*` keys (no legacy dual-read). Unicode page / glyph / `emoji_data` keep the `Emoji*` prefix.
-_Avoid_: CatalogPanel (mirrors Panel Catalog), Catalog shell, EmojiPanel (as the lasting domain name), renaming emoji catalog page types to Keyboard*, putting strip/search lifecycle inside the viewport
-
-**KeyboardPanelController**:
-Host-owned **source of truth** for KeyboardPanel chrome intents and presented desired state (open, tab, search, …). Constructed with bottom-inset arbitration and [KeyboardPanelStore]; `open` / `close` claim or release the inset slot themselves so the host does not dual-call `openPanel` + panel open. Commands always commit on the controller and notify typed listeners even when no KeyboardPanel is attached; the bound panel **projects** that state into motion/layout. Does not own inset math, composer text, or insert/backspace effects — those stay as widget/host callbacks. Distinct from PanelCatalogController (extent scroll on one catalog page). Host passes the controller into KeyboardPanel; chrome MUST NOT require GlobalKey on State. Observability uses typed listeners (and optional sealed panel events) with dedup-on-add, snapshot dispatch, and silent no-ops after dispose — not ChangeNotifier and not app-layer StateController. Widget-level declarative `open:` is not the lasting API.
-_Avoid_: Driving chrome via GlobalKey on State, command-only silent no-op while unbound as the primary model, merging inset math into this controller, host dual-calling inset open plus panel open, putting insert/backspace on the controller, renaming PanelCatalogController to match, duplicating open state only in widget fields, blanket ChangeNotifier for host rebuilds
+**Panel shell** and **Panel presentation**:
+The chrome around the viewport (tabs, search, bottom bar, open and close, where the panel appears) is not part of this context. See the [Chat Chrome glossary](../chrome/CONTEXT.md).
+_Avoid_: Putting strip or search lifecycle inside the viewport
 
 ### Navigation
 
@@ -35,7 +31,7 @@ When the target is not attached and farther than the distance gate (or animation
 _Avoid_: Naked `jumpTo` as the far-path UX, animateTo through the entire gap
 
 **Far-path distance gate**:
-Far path applies when the target view is not currently attached AND `|adapterPos − firstVisible| > spanCount * 9` in **per-cell** adapter space. In flat-row index (one slot per section header + one per leaf row) that is `|targetFlatIndex − firstVisibleFlatIndex| > [kFarPathDistanceGateFactor]` (= 9). Below that (or if the target header row is already visible), use near-path smooth scroll.
+Far path applies when the target view is not currently attached AND `|adapterPos − firstVisible| > spanCount * 9` in **per-cell** adapter space. In flat-row index (one slot per section header + one per leaf row, rows counted at each section's own column count) that is `|targetFlatIndex − firstVisibleFlatIndex| > [CatalogSectionNavigation.farPathDistanceGateFactor]` (= 9). Below that (or if the target header row is already visible), use near-path smooth scroll.
 _Avoid_: Multiplying the flat-row gate by spanCount again (over-widens near path), pixel-distance gates, treating “far” as synonymous with jumpTo, per-cell index for the gate when the catalog already uses flat rows
 
 **Section jump**:
@@ -69,15 +65,15 @@ A recycled catalog cell drawn by the viewport without a per-cell widget Element/
 _Avoid_: EmojiGlyphCell-per-slot, StatefulWidget cell as the default path
 
 **Viewport-owned hit-test**:
-Pointer mapping to a [CatalogLeaf] inside the catalog viewport: press scale in paint, tap and long-press callbacks to KeyboardPanel. Recognizers live on the viewport render object — not on per-cell widgets.
+Pointer mapping to a **catalog leaf** inside the catalog viewport: press scale in paint, tap and long-press callbacks to the page. Recognizers live on the viewport render object — not on per-cell widgets.
 _Avoid_: Per-cell GestureDetector/InkWell as the default, temporary overlay widgets for every press
 
 **Leaf tap callback**:
-Shell hook fired when the user completes a tap on a leaf. Receives [CatalogLeaf] identity only. Header bands and padding are silent (no synthetic leaf). Null on the viewport disables tap recognition; scroll drag still works.
-_Avoid_: Per-cell onTap widgets, inferring leaf identity from paint coordinates in the shell
+Page hook fired when the user completes a tap on a leaf. Receives the **leaf hit** only. Header bands and padding are silent (no synthetic leaf). Null on the viewport disables tap recognition; scroll drag still works.
+_Avoid_: Per-cell onTap widgets, inferring leaf identity from paint coordinates in the page
 
 **Leaf long-press callback**:
-Shell hooks for a long-press session on a leaf: start (with gesture details for anchor placement), move while the session is live, end on lift. All three are wired through [PanelCatalogViewport] or none — null start disables the long-press recognizer entirely. The viewport forwards [CatalogLeaf] identity; it does **not** own picker UI, clear-recents dialogs, or variant/tone policy.
+Page hooks for a long-press session on a leaf: start (with gesture details for anchor placement), move while the session is live, end on lift. All three are wired through [PanelCatalogViewport] or none — null start disables the long-press recognizer entirely. The viewport forwards the leaf hit; it does **not** own picker UI, clear-recents dialogs, or variant/tone policy.
 _Avoid_: Mounting LongPressGestureRecognizer on each cell, wiring move/end without start (registers a recognizer that cancels tap)
 
 **Long-press eligibility**:
@@ -93,12 +89,8 @@ Paint feedback on pointer-down: glyph scale (`0.8 + 0.2 × (1 − progress)`) pl
 _Avoid_: Per-cell Material/InkWell as the default, prop-drilling colors onto [PanelCatalogViewport]
 
 **Panel catalog theme**:
-Package-owned inherited paint tokens for the viewport: placeholder fill, list-selector press highlight, section header color, stand-in corner radius, document ready-path stub fill, density-scaled press-selector corner. [PanelCatalogTheme] scopes [PanelCatalogThemeData]; [PanelCatalogThemeData.lerp] supports animated palette transitions.
-_Avoid_: [ThemeData.extensions] for catalog paint, per-viewport color ctor args
-
-**Leaf presentation**:
-How one catalog cell appears: ready content, a kind-specific loading placeholder, or failed.
-_Avoid_: One generic “shimmer” for every leaf kind, ChatMessageStatus, Absent, navigation load-gate for ordinary pack/section jumps
+Package-owned inherited paint tokens for the viewport: placeholder style tokens (circle, thumb and wash colours, shimmer parameters), list-selector press highlight, section header style, selector radius and skeleton colour. [PanelCatalogTheme] scopes [PanelCatalogThemeData]; [PanelCatalogThemeData.lerp] supports animated palette transitions. The pages package maps foundation tokens onto it; the viewport does not depend on the foundation.
+_Avoid_: [ThemeData.extensions] for catalog paint, per-viewport color ctor args, failed or stub tokens
 
 **Circle placeholder**:
 Reserved stand-in for a unicode leaf whose glyph is not baked yet (solid circle ~0.4 × glyph bounds). It shows with no time limit until the glyph's sprite exists; with a valid disk cache it lasts at most 500 ms after a cold start. A strategy that draws paragraphs (web) never has an unbaked state and never shows it.
@@ -112,13 +104,91 @@ _Avoid_: Circle placeholder for animated leaves when a thumb exists
 Loading stand-in for sticker leaves: sticker SVG silhouette with a moving gradient.
 _Avoid_: Using this as the default for unicode emoji cells
 
-**Catalog data source**:
-Authoritative catalog contents and per-leaf readiness for one panel surface. Notifies the viewport when either changes. Owns catalog fetch orchestration; does not own the global asset bytes alone.
-_Avoid_: Streams as the integration contract, fetch inside the viewport, subclassing ChatDataSource, private per-viewport drawable maps as the long-term design
+### Seams
 
-**Global catalog asset cache**:
-Process-wide cache for emoji / sticker / GIF document thumbs and media, shared by the Panel Catalog Viewport and by Chat Scroll (inline animated emoji, sticker messages, etc.). Viewport and chat cells only bind and paint; they do not each keep a private decode store. Ready/failed entries survive the last surface detach so pager keep-alive leave/return does not flash loading; [isRetained] tracks live binds only.
-_Avoid_: Per-panel-only drawable map as the source of truth, evicting settled readiness on every detach, duplicating animated-emoji drawable caches per surface
+**Panel section**:
+A projection of a collection plus presentation hints; never the data itself.
+_Avoid_: Treating a section as the collection
+
+**Section layout**:
+Sealed per-section geometry. `Grid(spanCount, cell extent or cell aspect, header extent, insets)` now; other kinds (justified rows) can be added later. A value the layout leaves unset is inherited from the viewport-wide span, cell and header defaults, and a section with no layout is all defaults. Insets nest in the viewport padding: left and right narrow the section's columns and header text, top and bottom add space around the section. Landing, the near / far gate and the visible-window lookup all read the per-section geometry, and all slots of all sections stay in one ascending list, so a lookup is a binary search plus the visible band.
+_Avoid_: One geometry for the whole viewport, per-leaf flex sizing, a lookup that walks sections or the catalogue
+
+**Largest glyph box**:
+The rule that sizes baked glyphs when sections have different cell sizes. A glyph is drawn in a box of 0.72 of its cell's shorter side; a host that bakes glyphs bakes **one** size per atlas, for the largest box any section it serves draws (`PanelCatalogViewport.largestGlyphBox`, which uses the very formula the painter draws with), so a section with larger cells is not upscaled and one with smaller cells scales the same sprites down. The atlas layout still caps the baked size, which keeps the page count and the resident ceiling the same.
+_Avoid_: A second atlas for a section with other cell sizes, sizing the bake for the smallest cell (blurs the larger ones), a size derived from the viewport default when a section overrides it
+
+**Catalog leaf**:
+A value: content key, descriptor paint facts (semantic kind, media form, animated, tintable, size hint), the spoken name and an opaque host tag. Equality covers the key, the facts and the spoken name and ignores the tag; the placeholder style is derived from the facts, and paint mode, readiness and sprite are never stored on it.
+_Avoid_: Leaf class hierarchy, instance-keyed side map, generic `CatalogLeaf<T>`
+
+**Leaf hit**:
+The identity of an interaction: (section id, index, leaf). The cell is the identity, so equality covers the section id and the index, and the same key in two sections (or twice in one) is two hits. The leaf in a hit still carries the host tag.
+_Avoid_: Key-only identity, host-owned (section, key) maps
+
+**Secondary tap**:
+A mouse right click (button up) on a cell, reported as `onLeafSecondaryTap(hit, globalPosition)`. Mouse only (a stylus barrel button reports the same bit and is ignored). The secondary button never taps, starts the press animation or long-presses a cell, whether the callback is wired or not.
+_Avoid_: A context menu inside the viewport, a secondary long press
+
+**Long-press delay**:
+How long a press on a cell must last to be a long press, asked per cell and pointer kind (`leafLongPressDelay`); null is the platform's. `Duration.zero` starts the long press as the event loop turns after the button went down (a click that lifts sooner stays a tap). The viewport keeps one recognizer per distinct delay, because a recognizer's deadline is fixed when it is made.
+_Avoid_: One timeout for every pointer, a timer in the host racing the recognizer
+
+**Pinned leaf**:
+The cell a transient surface the host opened is over (`pinnedLeaf`): it keeps its hover wash wherever the mouse goes and the wheel does not scroll until it is released. The host sets it for as long as the surface is open.
+_Avoid_: Freezing hover in the host, a scroll lock the host removes on its own
+
+**Leaf bounds**:
+The global rectangle of a cell (`PanelCatalogController.leafBoundsOf(hit)`) and of the viewport (`viewportBounds`), so a host can place a surface it opens over a cell without knowing the grid's geometry.
+_Avoid_: The host recomputing grid geometry
+
+**Catalog snapshot**:
+The immutable list of sections the viewport renders, published through a `ValueListenable` (`package:listen`) and replaced once per logical mutation, the final snapshot assigned once.
+_Avoid_: Catalog data source with listener channels, streams as the integration contract, fetch inside the viewport
+
+**Section action**:
+An optional trailing header action (label and / or icon, plus an action id) painted by the viewport and reported by `onSectionAction(sectionId, actionId)`. Its hit area is the whole header band tall and at least 48 px wide at the header's end.
+_Avoid_: Host overlays on the header
+
+**Section state**:
+Where the collection behind a section stands for painting: loading, failed or loaded. It mirrors the collection's contents; a page maps idle to loading. The viewport paints a state and never changes one.
+_Avoid_: An empty state of its own (empty is loaded with no leaves), a viewport that retries or fetches
+
+**Empty message row**:
+The row a loaded section with no leaves paints from its host-supplied message, centred under the header. Without a message the section is its header alone.
+_Avoid_: Skeletons for an empty section, an error row
+
+**Near-viewport event**:
+A controller event telling a page that a section edge (leading or trailing) is inside the viewport band widened by the near extent, so the section can be loaded or paginated. Published once per approach; the trailing edge again when the section grew while still near. A teleporting jump announces only its landing. It is no motion and does not touch the scrolling and settled facts that pace the bake.
+_Avoid_: Pages polling scroll offsets, announcing the sections a jump flew over, counting it as scroll activity
+
+**Skeleton leaves**:
+Placeholder-styled cells painted after a loading or failed section's leaves, in the section's placeholder style and content box. They are not cells: nothing is attached to the asset cache for them and they are not hit targets. Never an error UI.
+_Avoid_: Error row, retry button, failed stand-in, binding a skeleton to the asset cache
+
+**Grid direction**:
+The direction a section fills its rows in, from the section's own text direction or, left unset, the `Directionality` the viewport sits in. Cells go start to end, so the first leaf of a right-to-left grid is at the right edge; a header reads and ends in the same direction (title at the start edge, action at the end edge). Only the x of a slot changes: rows, extents, landing offsets, slot order and the visible-window lookup are the same in both directions, and content is never mirrored.
+_Avoid_: Mirroring glyphs, stickers or GIFs, a second projection for right to left, direction-dependent vertical offsets
+
+**Windowed semantics**:
+The semantic nodes the viewport describes for the slot range it already resolves for its bindings (the visible band plus one cell of overscan): a button per leaf labelled by its spoken name, a header node per section, a button for the header action, the empty message. The cost follows the window, not the catalogue, and no node reads a binding or a sprite. A node outside the viewport but inside the overscan is not hidden: asking for it on screen scrolls its leaf in.
+_Avoid_: A semantic node for every leaf, page-level semantics only, asking the glyph source for a sprite to describe a leaf
+
+**Roving focus**:
+The one leaf cell that holds keyboard focus, owned by the attached viewport and driven through the controller (`focusLeaf`, `moveFocus`, `activateFocusedLeaf`, `clearFocus`). Arrow moves are physical, next and previous follow reading order; a vertical move keeps the screen column across sections; the focused cell scrolls into view and is painted with the focus highlight; activating reports the hit a tap would. Focus ends with the viewport and with the cell.
+_Avoid_: A focus node per leaf, a focus the host mirrors in its own state, key bindings inside the viewport (a page maps keys to moves)
+
+**Focus highlight**:
+The press-highlight wash on the full cell of the focused leaf, at full alpha and under the content (a baked sprite is flushed after it). It follows the press highlight token unless the theme names a focus token.
+_Avoid_: A new colour scale, a highlight drawn over the sprite
+
+**Hover highlight**:
+The wash a mouse hovering a leaf paints on its cell: a rounded rect inset from the cell, under the content, instant (no fade, ripple or scale), for the mouse only. Off unless the theme carries a hover token, so a page sets it for a pointer arrangement and leaves it null for touch. The cell is found again at every paint, so content moving under a still mouse moves the wash with it.
+_Avoid_: A hover state the host mirrors, a hover animation, hover on a finger or stylus in contact
+
+**Scroll event**:
+The one typed controller event stream: drag, fling, section jump, near-viewport, focus and current-section changes, plus two derived activity facts. A scrolling-changed event fires at once when the catalogue starts moving and after one quiet frame when it stops; a settled event carries the visible leaf keys, top first.
+_Avoid_: Separate listener channels per concern
 
 ### Glyph atlas
 
@@ -177,5 +247,17 @@ The set of atlas pages of one kind resident at once, within a resident-memory ce
 _Avoid_: One pool for static and animated content, a ceiling raised to avoid a size cap
 
 **Document-backed leaf**:
-A catalog cell identified by a document (animated/custom emoji, sticker) rather than only a unicode glyph. v1 prepares identity and placeholder modes for these even if full media decode ships later.
+A catalog cell whose content key is a `document` (animated or custom emoji, sticker) rather than a unicode sequence. Its placeholder style comes from the descriptor.
 _Avoid_: Treating every cell as a glyph string forever
+
+## Superseded terms
+
+Migration notes. These terms name code that the package set replaces.
+
+| Old term | Now |
+| -------- | --- |
+| KeyboardPanel, KeyboardPanelController | Panel shell, panel shell controller, presentation controller ([Chat Chrome glossary](../chrome/CONTEXT.md)) |
+| Global catalog asset cache | Asset cache, host-created and scoped ([Content and Assets glossary](../content/CONTEXT.md)) |
+| Catalog data source | Catalog snapshot |
+| Leaf presentation (ready, loading, failed) | Placeholder derived from the descriptor; staged readiness has no failed stage |
+| Leaf identity `[CatalogLeaf]` in callbacks | Leaf hit |

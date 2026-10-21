@@ -5,6 +5,7 @@
 /// the comparison is body-only against [PanelCatalogViewport].
 library;
 
+import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
@@ -42,7 +43,7 @@ List<_FlatItem> _flatten(
     flat.add(_FlatItem.header(section.title));
     final glyphs = [
       for (final leaf in section.leaves)
-        if (leaf case UnicodeCatalogLeaf(:final glyph)) glyph,
+        if (leaf.key case ContentKey$Unicode(:final sequence)) sequence,
     ];
     for (var i = 0; i < glyphs.length; i += spanCount) {
       final end = i + spanCount > glyphs.length ? glyphs.length : i + spanCount;
@@ -99,7 +100,8 @@ class BaselineSuperSliverCatalog extends StatefulWidget {
 }
 
 /// Public state for bench offset helpers.
-class BaselineSuperSliverCatalogState extends State<BaselineSuperSliverCatalog> {
+class BaselineSuperSliverCatalogState
+    extends State<BaselineSuperSliverCatalog> {
   late List<_FlatItem> _flat = _flatten(
     widget.sections,
     spanCount: widget.spanCount,
@@ -141,40 +143,35 @@ class BaselineSuperSliverCatalogState extends State<BaselineSuperSliverCatalog> 
             },
             itemCount: flat.length,
             addAutomaticKeepAlives: false,
-            itemBuilder: (context, index) {
-              return switch (flat[index]) {
-                _HeaderItem(:final title) => SizedBox(
-                  height: kBenchHeaderExtent,
-                  width: double.infinity,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
+            itemBuilder: (context, index) => switch (flat[index]) {
+              _HeaderItem(:final title) => SizedBox(
+                height: kBenchHeaderExtent,
+                width: double.infinity,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
                 ),
-                _RowItem(:final glyphs) => SizedBox(
-                  height: kBenchCellExtent,
-                  child: Row(
-                    children: [
-                      for (final glyph in glyphs)
-                        BaselineGlyphCell(
-                          glyph: glyph,
-                          extent: kBenchCellExtent,
-                        ),
-                      if (glyphs.length < span)
-                        Spacer(flex: span - glyphs.length),
-                    ],
-                  ),
+              ),
+              _RowItem(:final glyphs) => SizedBox(
+                height: kBenchCellExtent,
+                child: Row(
+                  children: [
+                    for (final glyph in glyphs)
+                      BaselineGlyphCell(glyph: glyph, extent: kBenchCellExtent),
+                    if (glyphs.length < span)
+                      Spacer(flex: span - glyphs.length),
+                  ],
                 ),
-              };
+              ),
             },
           ),
         ],

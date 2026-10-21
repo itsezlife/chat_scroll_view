@@ -13,8 +13,10 @@ enum LintRule {
 
   /// A leaf package ([DependencyLint]) depends on another workspace member.
   leafDependsOnPackage(
-    'content_model and chrome_foundation are leaves: every other package may '
-    'depend on them, so they depend on no workspace package.',
+    'content_model, chrome_foundation and composer_editable are leaves: '
+    'every other package may depend on the first two, and the editable fork '
+    'is a copy of Flutter sources that must stay free of workspace code, so '
+    'they depend on no workspace package.',
   ),
 
   /// An edge the package topology forbids outright.
@@ -23,6 +25,27 @@ enum LintRule {
     'panel_presentation stay independent of data payloads, codecs and '
     'fetchers, and panel_catalog stays independent of chrome_foundation '
     '(pages adapt tokens).',
+  ),
+
+  /// A member declares a platform-plugin dependency reserved for an adapter.
+  pluginDependencyOutsideAdapter(
+    'Platform plugins stay behind the seams of content_model: '
+    'shared_preferences is declared only by kv_shared_preferences, so logic '
+    'packages depend on KeyValueStore and one adapter owns the plugin.',
+  ),
+
+  /// A package depends on an adapter that only a host wires.
+  hostAdapterOutsideHost(
+    'rich_clipboard holds platform code and is wired by the host: packages '
+    'take the RichClipboard seam from content_model instead, so no package '
+    'but the host reaches a platform channel (ADR 031, ADR 032).',
+  ),
+
+  /// A member other than the composer depends on the editable fork.
+  composerEditableOutsideComposer(
+    'composer_editable is the composer\'s editable and chat_composer is its '
+    'only dependent: hosts reach the field through the composer view, so the '
+    'fork\'s selection types and defaults stay behind one seam.',
   ),
 
   /// A library re-exports another workspace package.
@@ -45,9 +68,19 @@ enum LintRule {
 
   /// A pure-Dart package depends on or imports Flutter.
   flutterInPureDartPackage(
-    'content_model is pure Dart: every package depends on it, so it must not '
-    'depend on the Flutter SDK or import package:flutter, a Flutter library '
-    'or dart:ui.',
+    'content_model, emoji_data and emoji_catalog_pack are pure Dart '
+    '(content_model because every package depends on it; the emoji logic '
+    'because it runs without an engine and takes bytes and strings from the '
+    'host), so they must not depend on the Flutter SDK or import '
+    'package:flutter, a Flutter library or dart:ui.',
+  ),
+
+  /// A test file the member's test entrypoint does not run.
+  testOutsideEntrypoint(
+    'scripts/check runs each member\'s tests through test/unit_test.dart '
+    '(one process per member), so every *_test.dart under test/ is imported '
+    'there and its main called in a group of its own; one left out never '
+    'runs in CI.',
   ),
 
   /// A [LegacyException] no longer matches any violation.

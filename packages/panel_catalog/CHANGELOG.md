@@ -8,18 +8,218 @@ is pre-1.0.
 
 ### Added
 
-- **Baked sprites on screen.** When the asset cache has a
-  `CatalogAssetCache.glyphAtlas`, unicode leaves are drawn as sprites cut from
-  its pages: the painter queues each sprite and one paint pass draws every
-  page's sprites with a single batched atlas draw (the pressed cell is scaled
-  inside its batch). Existing behaviour is the web strategy: with no atlas
-  glyphs are drawn as paragraphs, as before.
+- `CatalogSectionAction.painter` (`CatalogActionIconPainter`,
+  `CatalogSectionAction.iconExtent`): an icon drawn in a 24 px box in the
+  header colour, for an icon no font has.
+- `PanelCatalogController.sectionActionBoundsOf(sectionId)` through
+  `CatalogScrollPosition.sectionActionBounds` (source-breaking for
+  implementers; the fake answers `sectionActionRects`).
+- `PanelCatalogThemeData.leafHoverHighlightSize` (a hover box of that size,
+  centred in the cell) and `leafPressFeedback` (`CatalogPressFeedback`:
+  `inkAndScale`, the default, or `none`, where a press draws nothing and the
+  hover box stays on the pressed cell).
+- `SectionLayout.grid(glyphExtent:)`: a fixed side for the glyph box, held to
+  the cell's shorter side, instead of 0.72 of it.
+  `CatalogContentBox.glyphBoxExtent` and `CatalogContentBox.extentIn` take it
+  as `fixed:` / `glyphExtent:`.
+- An adaptive grid: `SectionLayout.grid(desiredCellWidth:, cellHeightInset:)`
+  fits as many columns of the desired width as the width allows, widens the
+  cell to share the room and centres the remainder ([ADR 024](../../docs/adr/024-panel-catalog-seams.md)
+  amendment).
+
+### Changed
+
+- **Breaking:** no public top-level functions or constants; each now lives on
+  the type it serves:
+  - `kCatalogGlyphBoxFraction` → `CatalogContentBox.glyphBoxFraction`
+  - `catalogGlyphBoxExtent(w, h)` → `CatalogContentBox.glyphBoxExtent(w, h)`
+  - `catalogContentBoxExtent(box, w, h)` → `box.extentIn(w, h)`
+  - `kCirclePlaceholderRadiusFactor` →
+    `CatalogPlaceholderStyle.circleRadiusFactor`
+  - `kCatalogActionMinHitWidth` → `CatalogSectionAction.minHitWidth`
+  - `kCatalogActionIconExtent` → `CatalogSectionAction.iconExtent`
+  - `largestCatalogGlyphBox(...)` → `PanelCatalogViewport.largestGlyphBox(...)`
+  - `scrollOffsetForSectionHeader(...)` →
+    `CatalogSectionNavigation.scrollOffsetForSectionHeader(...)`
+  - `kFarPathDistanceGateFactor` →
+    `CatalogSectionNavigation.farPathDistanceGateFactor`
+  - `runCatalogScrollPositionContract(create)` (`testing.dart`) →
+    `CatalogScrollPositionContract.run(create)`
+- A mouse no longer drags the catalogue; the wheel and the scrollbar scroll
+  it.
+
+### Added
+
+- Mouse seams on `PanelCatalogViewport` ([ADR 024](../../docs/adr/024-panel-catalog-seams.md)):
+  `onLeafSecondaryTap(hit, globalPosition)` for a mouse's right button (button
+  up); `leafLongPressDelay(hit, kind)`, a long-press delay per cell and pointer
+  kind (null: the platform's; `Duration.zero`: at once, a click that lifts
+  sooner stays a tap); `pinnedLeaf`, which keeps one cell's hover wash and
+  ignores the wheel while a host surface is open over it.
+- `PanelCatalogController.leafBoundsOf(hit)` and `viewportBounds`: global
+  rectangles, through two new members of the `CatalogScrollPosition` contract
+  (the fake answers what a test sets).
+- Hover highlight: `PanelCatalogThemeData.leafHoverHighlightColor` (null, the
+  default, paints none), `leafHoverHighlightRadius` (8) and
+  `leafHoverHighlightInset` (2). A mouse over a leaf paints a rounded wash on its
+  cell, under the content, instantly; a finger or stylus in contact never
+  hovers, and content moving under a still mouse moves the wash with it.
+
+- `PanelCatalogCurrentSectionChanged` on `controller.events`, and
+  `controller.currentSection`: which section the viewport is in (the last whose
+  header reached the landing line; at the end of scrolling content the last
+  one), for a page's category strip. Source-breaking for an exhaustive `switch`
+  over `PanelCatalogScrollEvent`, like every event added to the sealed family.
+- The headless benchmark runs with semantics off by default (`BENCH_SEMANTICS`
+  selects the preset), writes its ratios for the nightly job, and no longer
+  asserts a wall-clock ratio for the semantics probe. Nothing a consumer sees.
+- **Grid direction.** Cells fill each row start to end: the first leaf of a
+  right-to-left grid is at the right edge. `PanelCatalogViewport` follows the
+  `Directionality` it sits in; `SectionLayout.grid(textDirection:)` states a
+  section's own. Only x changes: rows, extents, landing offsets and the order of
+  leaves are the same in both directions, and content is never mirrored. A
+  right-to-left header starts its title at the right edge and puts the header
+  action at the left.
+- **Windowed semantics.** With assistive technology running, the viewport
+  describes the leaves of the window it already binds (the visible band and one
+  cell of overscan, by binary search) as buttons labelled with
+  `CatalogLeaf.semanticLabel` (the spoken name, else the glyph of a unicode
+  emoji), plus header, header-action and empty-message nodes; none for the rest
+  of the catalogue and none for a skeleton. A leaf node taps through `onLeafTap`,
+  long-presses through `onLeafLongPressStart` (start only, where
+  `leafLongPressEligible` allows), gives roving focus on `focus` and scrolls its
+  cell in on `showOnScreen`; the viewport node scrolls on `scrollUp` and
+  `scrollDown`. No node reads a binding or a sprite. `CatalogLeaf.spokenName`
+  (carried by `fromDescriptor`) and `CatalogSectionAction.semanticLabel` are new.
+- **Roving focus.** `PanelCatalogController.focusedLeaf`, `focusLeaf`,
+  `moveFocus(CatalogFocusMove)`, `activateFocusedLeaf` and `clearFocus`, and the
+  `PanelCatalogFocusChanged` event. Moves cross rows and sections (empty and
+  loading sections are stepped over), keep the screen column vertically across
+  sections of other spans and directions, and scroll the cell in under the
+  landing inset, with its header when it is in a section's first row. Activating
+  reports the same `CatalogLeafHit` a tap does. `CatalogScrollPosition` gains the
+  same five members (the fake and the contract suite follow).
+- **Focus highlight.** The focused cell paints the press highlight at full alpha
+  under its content; `PanelCatalogThemeData.leafFocusHighlightColor` styles it
+  separately (null follows the press highlight).
+- **Click cursor.** The viewport is a mouse-tracker annotation: the click
+  cursor over a leaf the shell can tap or long-press and over a header action it
+  listens to.
+- **Section states.** `CatalogSection.state` (`CatalogSectionState`: loading,
+  failed, loaded) mirrors the collection behind the section. A loading or
+  failed section paints `skeletonCount` skeleton leaves (one row of its columns
+  by default) after its leaves, in its placeholder style, with no error UI;
+  skeletons attach nothing to the asset cache and are not hit targets. A loaded
+  section with no leaves paints `emptyMessage` in a row of its own.
+- **Header action.** `CatalogSection.action` (`CatalogSectionAction`: id, label
+  and / or icon) is painted at the end of the header band; its hit area is the
+  whole band tall and at least `kCatalogActionMinHitWidth` wide. A tap reaches
+  the new `PanelCatalogViewport.onSectionAction(sectionId, actionId)`.
+- **Near-viewport events.** `PanelCatalogSectionNearViewport(sectionId, edge)`
+  (`CatalogSectionEdge`: leading, trailing) on `controller.events` when an edge
+  of a section comes within `PanelCatalogViewport.sectionNearExtent` of the
+  viewport (one viewport height by default), so a page can load a section or
+  paginate it. It is no motion and does not touch the scrolling / settled
+  facts that pace the bake.
+
+### Changed
+
+- Only the primary button starts the press animation on a cell: a right click
+  no longer flashes it. A left click, a touch and a stylus contact are
+  unchanged.
+- Change notification is `package:listen` (`listen: ^1.0.1`), not
+  `content_model`'s removed `Observable` family. **Breaking:** `snapshots` is a
+  `ValueListenable<CatalogSnapshot>` (import `package:listen/listen.dart`, not
+  Flutter's `ValueListenable`, which is a different type), and
+  `controller.events` is a synchronous broadcast `Stream`: `listen` instead of
+  `addListener`, cancel the subscription instead of `removeListener`, the same
+  callback listened to twice is called twice, and an event a listener
+  publishes (the bake activity's `PanelCatalogScrollingChanged`) is delivered
+  once the event in flight has reached every listener, still before the
+  command that caused it returns. `FakeCatalogSnapshotSource.batch` is gone:
+  assign the final snapshot once.
+- **BREAKING: leaf value and hit.** `CatalogLeaf` is a value (content key,
+  descriptor paint facts, opaque host `tag` excluded from equality) instead of
+  the sealed `UnicodeCatalogLeaf` / `DocumentCatalogLeaf` pair, and
+  `CatalogLeafPresentation` is deleted: the placeholder style is derived from
+  the leaf's facts (`CatalogLeaf.placeholderStyle`). `onLeafTap`, the
+  long-press callbacks and `leafLongPressEligible` take a
+  `CatalogLeafHit(sectionId, index, leaf)`; hit identity is the cell, so the
+  same key in two sections is two hits. A host keeps its per-cell metadata in
+  the leaf's `tag` instead of a map keyed by leaf instance.
+- **BREAKING: per-section layout.** `CatalogSection` takes an optional
+  `SectionLayout` (`SectionLayout.grid`); the viewport's `spanCount`,
+  `cellExtent` and `headerExtent` become defaults. Section landing, the near /
+  far gate and slot projection use each section's own geometry;
+  `scrollOffsetForSectionHeader` takes the `maxWidth` it is laid out at.
+  The stitch matches outgoing cells by (section, index) instead of by content
+  key.
+- **BREAKING: snapshot data source.** `CatalogDataSource` and its listener list
+  are replaced by an immutable `CatalogSnapshot` published through a
+  `ValueListenable<CatalogSnapshot>` (`package:listen`); `PanelCatalogViewport`
+  takes `snapshots` instead of `dataSource`. `FakeCatalogDataSource` becomes
+  `FakeCatalogSnapshotSource` in the new `package:panel_catalog/testing.dart`.
+- **BREAKING: attach-and-position controller.** The render object attaches one
+  `CatalogScrollPosition` to `PanelCatalogController`; the five listener
+  channels (`addScrollListener`, `addJumpListener`, `addScrollByListener`,
+  `addAnimateToListener`, `addSectionJumpListener`) and the viewport-only
+  write methods are deleted. `controller.events` is the one typed stream.
+  Commands given with no viewport commit a target that the next viewport starts
+  from; a `jumpToSection` given before the first layout is applied after it.
+- **BREAKING: assets come from the host's scope.** `PanelCatalogViewport` takes
+  `assets: AssetCacheScope` instead of `assetCache` and `cacheType`; the
+  `cacheType` enum is gone and nothing is downcast to a cache implementation.
+  Each visible leaf is attached as `attach(key, spec, profile)` (its glyph box
+  in physical pixels at the view's density; animate only for an animated leaf,
+  and only while in the painted window and not flinging) and the viewport paints
+  the binding's `AssetPaintable`: a sprite is queued for the batched atlas draw,
+  anything else paints itself. Content that was not there at attach fades in
+  over its placeholder; a memory hit does not. There is no `failed`
+  presentation: a leaf that fails or hangs keeps its placeholder. A host that
+  drew text on the web composes `TextGlyphProducer` into its scope. `CatalogLeaf`
+  gains the `tintable` fact (the template decode).
+- **BREAKING: slim theme.** `PanelCatalogThemeData` carries the viewport's own
+  tokens: `circleColor`, `thumbColor`, `washColor`, `washHighlightColor`,
+  `washPeriod`, `skeletonColor`, `placeholderCornerRadius`, press highlight and
+  radius, section header style. `placeholderColor`, `documentStandInColor` and
+  `standInCornerRadius` (the failed and stub tokens) are gone. The package does
+  not depend on `chrome_foundation`.
+- **BREAKING: the viewport tells no atlas anything.** `CatalogAtlasBakeBridge`
+  is deleted. Whoever owns the bake listens to `controller.events`
+  (`PanelCatalogScrollingChanged`, `PanelCatalogScrollSettled`) and calls
+  `GlyphAtlas.reportScrolling` / `prioritise`. The glyph paragraph cache and
+  `kGlyphParagraphCacheLimit` are gone: the scope's byte-budgeted LRU bounds
+  the paragraphs of the text strategy (section headers keep a bounded cache).
+- **The bake pause is event-driven.** `CatalogBakeActivity` derives its two
+  outputs from the controller's events instead of the paint offset and
+  publishes them as `PanelCatalogScrollingChanged` and
+  `PanelCatalogScrollSettled(visibleKeys)`.
+
+### Added
+
+- `CatalogContentBox` and the per-section overrides `CatalogSection.contentBox`
+  and `CatalogSection.placeholderStyle`: the square a leaf is asked for from the
+  cache and drawn in (the glyph box for emoji, the whole cell for a sticker,
+  mask or GIF) and its stand-in, which a section can state instead of taking
+  the leaf's facts.
+- `SectionLayout`, `CatalogLeafHit`, `CatalogPlaceholderStyle`,
+  `catalogGlyphBoxExtent` and `largestCatalogGlyphBox`: the rule that sizes a
+  single baked glyph size for sections with different cell sizes.
+- `PanelCatalogUserDragCancel`, `PanelCatalogScrollingChanged`,
+  `PanelCatalogScrollSettled` scroll events; `PanelCatalogController` extents
+  (`viewportExtent`, `contentExtent`, `maxScrollExtent`, `hasPosition`).
+
+- **Baked sprites on screen.** A binding whose paintable has a sprite (a baked
+  glyph on an atlas page) is queued by the painter, and one paint pass draws
+  every page's sprites with a single batched atlas draw (the pressed cell is
+  scaled inside its batch). A paintable without one paints itself, which is the
+  web strategy.
 - **`panel_catalog_diagnostics.dart`** — `PanelCatalogDiagnostics.glyphParagraphDraws`,
   the proof that no emoji is drawn as text where emoji are baked (`0`). Bumped
-  only on the paragraph path, so the sprite path pays nothing.
-- **Bake stays out of the way.** The viewport tells the atlas when it scrolls
-  (drag, fling, jump, wheel, section motion) and, once it settles, which glyphs
-  are on screen so their page bakes first.
+  only for a glyph a paintable draws as text, so the sprite path pays nothing.
+- **Bake stays out of the way.** The viewport publishes when it scrolls (drag,
+  fling, jump, wheel, section motion) and, once it settles, which glyphs are on
+  screen, so the bake's owner can pause it and bake the visible page first.
 
 - **`kCatalogGlyphBoxFraction`** (0.72) — the share of a cell's shorter side a
   glyph is drawn in, public so a host that bakes glyphs sizes them for it.

@@ -5,20 +5,6 @@ import 'package:chat_scroll_view/src/util/sine_in_out_curve.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
-/// Exit fade of a transitioning row chrome item. Shorter than the extent
-/// collapse ([kChatMessageChangeDuration]), which runs alongside it.
-@internal
-const Duration kChatRowChromeExitFadeDuration = Duration(milliseconds: 120);
-
-/// Enter fade and scale of a transitioning row chrome item. Runs alongside
-/// the extent growth.
-@internal
-const Duration kChatRowChromeEnterDuration = Duration(milliseconds: 250);
-
-/// Scale a transitioning row chrome item enters from.
-@internal
-const double kChatRowChromeEnterScale = 0.9;
-
 const _fadeCurve = SineInOutCurve();
 
 /// One frame of a row chrome item transition: how much of the item's height
@@ -34,6 +20,9 @@ final class ChatRowChromeTransitionFrame {
     required this.scale,
   });
 
+  /// Scale a transitioning row chrome item enters from.
+  static const double enterScale = 0.9;
+
   /// The item at rest: full slot, opaque, unscaled.
   static const settled = ChatRowChromeTransitionFrame(
     extent: 1,
@@ -41,12 +30,11 @@ final class ChatRowChromeTransitionFrame {
     scale: 1,
   );
 
-  /// Where an enter starts: no slot, transparent, at
-  /// [kChatRowChromeEnterScale].
+  /// Where an enter starts: no slot, transparent, at [enterScale].
   static const hidden = ChatRowChromeTransitionFrame(
     extent: 0,
     opacity: 0,
-    scale: kChatRowChromeEnterScale,
+    scale: enterScale,
   );
 
   /// Fraction of the item's laid-out height its slot keeps. The rows around
@@ -97,19 +85,22 @@ final class _Leg {
   /// The frame [elapsed] into the leg, or `null` once the leg is done.
   ///
   /// The extent follows the list-item change timing. An
-  /// enter fades and scales in over [kChatRowChromeEnterDuration]; an exit
-  /// fades out over [kChatRowChromeExitFadeDuration] and brings any
+  /// enter fades and scales in over
+  /// [ChatRowChromeTransitionClock.enterDuration]; an exit fades out over
+  /// [ChatRowChromeTransitionClock.exitFadeDuration] and brings any
   /// leftover scale back to `1` with it. The leg ends with the longest
   /// track.
   ChatRowChromeTransitionFrame? frameAt(Duration elapsed) {
     double progress(Duration duration) =>
         (elapsed.inMicroseconds / duration.inMicroseconds).clamp(0.0, 1.0);
-    final move = progress(kChatMessageChangeDuration);
+    final move = progress(ChatMessageChangeParams.duration);
     final fade = progress(
-      entering ? kChatRowChromeEnterDuration : kChatRowChromeExitFadeDuration,
+      entering
+          ? ChatRowChromeTransitionClock.enterDuration
+          : ChatRowChromeTransitionClock.exitFadeDuration,
     );
     if (move >= 1 && fade >= 1) return null;
-    final moved = kChatMessageChangeCurve.transform(move);
+    final moved = ChatMessageChangeParams.curve.transform(move);
     final faded = _fadeCurve.transform(fade);
     return ChatRowChromeTransitionFrame(
       extent: lerpDouble(from.extent, entering ? 1 : 0, moved)!,
@@ -156,6 +147,14 @@ final class ChatRowChromeTransitionClock {
     : _onChanged = onChanged {
     _ticker = Ticker(_tick, debugLabel: 'ChatRowChromeTransitionClock');
   }
+
+  /// Exit fade of a transitioning row chrome item. Shorter than the extent
+  /// collapse ([ChatMessageChangeParams.duration]), which runs alongside it.
+  static const Duration exitFadeDuration = Duration(milliseconds: 120);
+
+  /// Enter fade and scale of a transitioning row chrome item. Runs alongside
+  /// the extent growth.
+  static const Duration enterDuration = Duration(milliseconds: 250);
 
   final VoidCallback _onChanged;
   late final Ticker _ticker;

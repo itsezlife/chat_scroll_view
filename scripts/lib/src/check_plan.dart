@@ -1,5 +1,6 @@
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
+import 'package:workspace_check/src/test_entrypoint_lint.dart';
 import 'package:workspace_check/src/workspace.dart';
 
 /// One external command of the check: what to run and where.
@@ -8,11 +9,16 @@ final class CommandStep {
   /// Creates a step that runs [executable] with [arguments] in
   /// [workingDirectory].
   const CommandStep({
+    required this.member,
     required this.label,
     required this.executable,
     required this.arguments,
     required this.workingDirectory,
   });
+
+  /// Name of the member the step checks: steps of one member run in order,
+  /// and members side by side (`CheckRunner`).
+  final String member;
 
   /// `member: what` heading printed before the step and in the failure summary.
   final String label;
@@ -37,8 +43,11 @@ final class CommandStep {
 ///
 /// 1. `dart analyze --fatal-infos` over the member's layout directories
 ///    ([WorkspaceMember.analysisTargets]);
-/// 2. its tests, `flutter test` for a member that needs the Flutter SDK and
-///    `dart test` otherwise, skipped when it has no test files;
+/// 2. its tests through its one entrypoint, `test/unit_test.dart`
+///    ([TestEntrypointLint]), with `flutter test` for a member that needs the
+///    Flutter SDK and `dart test` otherwise, skipped when it has no test
+///    files: one compile and one process for the suite, where running the
+///    directory starts both per file;
 /// 3. its `tool/check` hook when it ships one, from the member directory.
 ///
 /// The hook is how a package contributes a gate that only it can express (for
@@ -47,8 +56,9 @@ final class CommandStep {
 /// file is the whole registration. A non-zero exit fails the gate.
 ///
 /// Order is for diagnosis, not correctness: a failure in a leaf is printed
-/// before the failures it causes in dependents. The driver still runs every
-/// step after a failure so one run reports everything.
+/// before the failures it causes in dependents. The driver runs members side
+/// by side and still reports them in this order (`CheckRunner`), and runs
+/// every step after a failure so one run reports everything.
 abstract final class CheckPlan {
   /// Steps for all members of [graph].
   static List<CommandStep> forWorkspace(WorkspaceGraph graph) {
@@ -59,6 +69,7 @@ abstract final class CheckPlan {
       if (member.analysisTargets.isNotEmpty) {
         steps.add(
           CommandStep(
+            member: member.name,
             label: '${member.name}: analyze',
             executable: 'dart',
             arguments: <String>[
@@ -74,14 +85,17 @@ abstract final class CheckPlan {
       if (member.hasTests) {
         steps.add(
           CommandStep(
+            member: member.name,
             label: '${member.name}: test',
             executable: member.usesFlutter ? 'flutter' : 'dart',
             // --no-pub: scripts/check resolves the whole workspace once up
             // front; letting every `flutter test` re-resolve it would be slow
             // and could rewrite the lockfile mid-run.
-            arguments: member.usesFlutter
-                ? const <String>['test', '--no-pub']
-                : const <String>['test'],
+            arguments: <String>[
+              'test',
+              if (member.usesFlutter) '--no-pub',
+              TestEntrypointLint.entrypoint,
+            ],
             workingDirectory: directory,
           ),
         );
@@ -90,6 +104,7 @@ abstract final class CheckPlan {
       if (member.hasCheckHook) {
         steps.add(
           CommandStep(
+            member: member.name,
             label: '${member.name}: tool/check',
             // Absolute: a relative executable is resolved against the parent's
             // directory on some platforms, not against workingDirectory.

@@ -75,6 +75,23 @@ void main() {
       expect(bare.hasCheckHook, isFalse);
     });
 
+    test('lists the test files under test/, sorted, relative to it', () {
+      fixture.member(
+        'alpha',
+        files: {
+          'test/b_test.dart': '',
+          'test/a/c_test.dart': '',
+          'test/support/helpers.dart': '',
+          'test/a_test.dart.orig': '',
+        },
+      );
+
+      expect(WorkspaceGraph.load(fixture.path).member('alpha')!.testFiles, [
+        'a/c_test.dart',
+        'b_test.dart',
+      ]);
+    });
+
     test('rejects a pubspec that is not a workspace root', () {
       fixture.write('pubspec.yaml', 'name: lonely\n');
 

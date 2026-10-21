@@ -3,8 +3,8 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  emoji_data
   gtk
+  rich_clipboard
   url_launcher_linux
 )
 

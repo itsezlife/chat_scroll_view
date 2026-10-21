@@ -303,10 +303,7 @@ void main() {
     testWidgets('always paints at full visibility without motion', (
       tester,
     ) async {
-      await pump(
-        tester,
-        scrollbar: always(),
-      );
+      await pump(tester, scrollbar: always());
       await _elapse(tester, const Duration(seconds: 5));
       expect(await painted(tester), 1);
     });
@@ -340,11 +337,7 @@ void main() {
       controller.addScrollListener((event) {
         if (event is ChatFlingEnd) flingEnded = true;
       });
-      await tester.flingFrom(
-        at(tester, 200, 200),
-        const Offset(0, 300),
-        6000,
-      );
+      await tester.flingFrom(at(tester, 200, 200), const Offset(0, 300), 6000);
       await fadeIn(tester);
       var steps = 0;
       while (!flingEnded) {
@@ -429,10 +422,11 @@ void main() {
       await gesture.up();
     });
 
-    for (final (name, navigate) in <(String, void Function(ChatScrollController))>[
-      ('jumpTo', (c) => c.jumpTo(40)),
-      ('jumpToCenterBand', (c) => c.jumpToCenterBand(40, 20)),
-    ]) {
+    for (final (name, navigate)
+        in <(String, void Function(ChatScrollController))>[
+          ('jumpTo', (c) => c.jumpTo(40)),
+          ('jumpToCenterBand', (c) => c.jumpToCenterBand(40, 20)),
+        ]) {
       testWidgets('$name pulses with the navigation delay', (tester) async {
         await pump(tester);
         navigate(controller);
@@ -656,10 +650,7 @@ void main() {
 
       testWidgets('always to auto-hide keeps it shown, then hides after '
           'the idle delay', (tester) async {
-        await pump(
-          tester,
-          scrollbar: always(),
-        );
+        await pump(tester, scrollbar: always());
         expect(await painted(tester), 1);
         await swap(tester, autoHiding());
         expect(await painted(tester), 1, reason: 'no flicker to 0');

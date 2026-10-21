@@ -1,5 +1,296 @@
 ## Unreleased
 
+### Edit crossfade of a body that paints on a layer of its own
+- **Fixed**: the old and new text of an edited message crossfaded with a canvas
+  `saveLayer` and `clipRect`, which do not reach a body that is a repaint
+  boundary. The markdown body became one for every message when it got a
+  selection controller to key spoilers on, so the old text lost its fade and
+  clip and the new text showed at full opacity, which read as a broken
+  animation. The transition now fades on opacity layers and clips on a clip
+  layer while the text crossfade runs, and asks for compositing only then, so a
+  settled bubble costs nothing more.
+
+### Message menu keeps the chat playing; the status of a selected emoji-only message
+- **ADDED**: `ChatMessageMenu.routeName`, the `RouteSettings.name` of the route
+  a menu session is presented on. A `NavigatorObserver` that treats modal
+  routes as covering the chat tells the menu apart by it: the menu leaves the
+  message in view, so the chat's animations go on under it. The example's
+  overlay observer skips it; before, the menu held the pause of a dialog.
+- **Fixed**: on desktop the status pill of a selected emoji-only message kept
+  its resting service colour while the glyphs took the selection tint. The
+  pill now takes the same tint (the reference paints `msgServiceBgSelected`
+  there), and gives it up with the selection.
+
+### Pause policies: focus lost, a dialog over the chat, low power; the spoiler dust keeps its phase
+- **Changed (behaviour)**: the spoiler dust (`ChatSelectionController(spoilerClock:)`)
+  is told the time it ran, not the time that passed. A gap of more than three
+  dust frames between two clock frames is a pause, and all of it beyond one
+  frame is cut out, so after a pause the dust goes on from where it stopped;
+  before, it jumped by the whole pause. A hitch of a few frames is not a
+  pause. Nothing else changed in the viewport: the layers that pause the dust
+  are the shared clock's (ADR 022, amendment *pause policies*).
+- **Host contract**: the clock now pauses on focus lost, a window minimised,
+  overlays held by the host and low power through one `PlaybackActivity` in
+  `catalog_assets`; a host that fed `ChatEmojiBody.isActive` from the app
+  lifecycle stops doing so (the row's visibility stays the input). See the
+  `catalog_assets` changelog for the breaking change in the layer enum.
+
+### Message menu scrim on a message without a bubble
+- **Fixed**: the mobile sheet opened on an emoji-only message dimmed the chat
+  around one rounded rectangle over the whole chrome box (reply panel, items,
+  pill, reactions): a bubble outline the message does not have, with the gaps
+  between its parts lit. The reference clients draw the message again above a
+  flat dim, so only what it paints stays bright. The example now reports each
+  painted part: the glyph run's or the sticker's art (square, from
+  `ChatEmojiGeometry.content`, without the strip the chrome reserves), the
+  pill, the reply panel and each reaction chip, in the placement of the
+  Android and iOS emoji chrome, left-to-right and right-to-left. A bubble's
+  menu is unchanged.
+- **ADDED**: `ChatMessageSurfaceParts` and `ChatMessageSurfacePart`, a
+  `ShapeBorder` that is the union of rectangles, each in an outline of its
+  own, in the coordinates of the reported box. Pass it as
+  `ChatMessageSurfaceBounds.shape` for a body without one outline (a sticker,
+  an enlarged emoji run, a round video); the scrim hole follows it and the
+  request is unchanged. See ADR 016 and ADR 036.
+- **EXAMPLE**: `EmojiReactionsRow.chipRects` (the row's chips), and
+  `emojiSurfaceParts` in `emoji_message/`.
+
+### Selection highlight: one look for text, emoji and embeds
+- **Fixed**: a text selection painted a box for every run at the run's own
+  height (a drawn-larger emoji, a text run and an inline embed were three
+  heights, with gaps on a stretched line), tinted an embed it covered a second
+  time over the embed, and over a hidden spoiler drew a patch at the emoji's
+  positions that differed from the text's, showing where they were. It is now
+  one rectangle per line, the line's height, behind glyphs, emoji and embeds,
+  with no tint over an embed and the same rectangle at every position of a
+  hidden spoiler, as Telegram draws it (Android, iOS, Desktop; the rules and
+  divergences are in the fork's `docs/rendering.md`). The tap highlight of a
+  link or inline code reads the same rectangles, so its contour is the line's
+  height too. Needs the `flutter_md` change that makes `boxesForRange` per line
+  (not released yet).
+
+### Emoji-only text messages are text-selectable
+- **BREAKING (behaviour)**: the text layout of `ChatEmojiBody` is no longer "no
+  text selection". It registers its text with the facade and its render object
+  is a `MarkdownSelectionSurface`, so drag, double click (one emoji), long
+  press on mobile, select-all, shift-select, handles, the toolbar and Copy work
+  on it as on a markdown body, under the host's selection policy. A host or
+  test that relied on a long press on a selected emoji-only message doing
+  nothing, or on `hasBody(id)` being false for it, sees text selection instead:
+  pass `selectableText: false` for the previous behaviour (also the Desktop and
+  iOS reference clients' rule; only Android selects its large emoji, see
+  ADR 036). The sticker layout (one emoji resolved to a document) is unchanged
+  and never text.
+- Copy of a selection is the emoji and the line breaks, plain, and structured
+  through `ChatTextCopy.content` (a custom emoji is an image span with its
+  document in `extra['src']`). The spaces and tabs `EmojiOnly` drops are not in
+  it.
+- **ADDED** (`content_model`): `EmojiOnlyItem.alt`, the text under a custom
+  emoji's entity (what a copy writes); empty for a unicode item and for a host
+  that builds the value by hand, which then copies as U+FFFC.
+- **ADDED**: `ChatEmojiBody(selectableText:, autoscroll:)`. The per-item boxes
+  of a selection are `RenderChatEmojiBody.selectedItemBoxes`; the highlight is
+  one box per line under the items, never over an embed.
+- **Fixed**: a press on an inline embed the host does not handle
+  (`handlesEmbedHits` off) no longer blocks a text selection from starting
+  there, in the markdown body too: it is part of the text.
+
+### Status chrome of an emoji-only message: hover is the row's, a click selects (docs and example)
+- **Changed (host contract, no API change)**: the reference desktop client shows an
+  emoji-only message's time while the pointer is anywhere on its row and selects
+  the message on a click on the time (ADR 012, Status chrome, with the
+  citations). `ChatMessageTapBarrier` is unchanged and still keeps the press
+  from the viewport; the example's emoji-only pill now answers a mouse click
+  itself with `ChatSelectionController.toggle` and its hover region is the
+  whole row. Existing hosts that wrap their pill in the barrier see no change
+  until they add a handler; ordinary bubbles' time still does nothing on click.
+
+### Emoji in a bubble: set at the font's height; the desktop cap is configurable
+- **Fixed**: a unicode emoji in an ordinary markdown body was drawn at the font
+  size (15 px text, 15 px emoji), while Android draws it at the font's height
+  (ascent plus descent, about 1.18 times the size for SF) and a custom emoji
+  in the same text at 1.2 times that. Beside a custom emoji it was 40 % smaller,
+  and on desktop the whole line read as undersized. `ChatMarkdownBody` now sets
+  each colour emoji sequence (a skin tone, a ZWJ family, a flag, a keycap, a
+  presentation-selector emoji) as a run of its own at the font's height times
+  `MarkdownThemeData.emojiScale`, with the line height of the text around it.
+  A text glyph (`©`, a bare `❤`, a digit) stays at the font size. A
+  theme that sets `emojiRuns` itself is left alone (`(_) => const []` turns the
+  enlargement off). Needs `flutter_md` with `MarkdownThemeData.emojiRuns`.
+- **ADDED**: `ChatEmojiPolicy.inTextEmojiScale` (1 on Android and iOS, 1.2 on
+  desktop, for the host's `MarkdownThemeData.emojiScale`);
+  `ChatEmojiPolicy.desktop(regularLimit:)` and
+  `ChatEmojiPolicy.forPlatform(desktopRegularLimit:)`, the maximum number of
+  enlarged regular emoji on desktop and the web (3, the reference client's, by
+  default; Android and iOS have no cap and ignore it).
+- **BREAKING for a host that read the constant**: `ChatEmojiPolicy$Desktop.regularLimit`
+  is now the instance's cap; the reference's 3 is
+  `ChatEmojiPolicy$Desktop.defaultRegularLimit`.
+- **ADDED** (`content_model`): `EmojiRuns.of(text)`, the ranges of the emoji a
+  text draws in colour, for a renderer that enlarges them.
+
+### Emoji-only body: one policy per platform family
+- `ChatEmojiPolicy` (`$Android`, `$Ios`, `$Desktop`, chosen with
+  `ChatEmojiPolicy.forPlatform`) owns what was one Android table: font steps,
+  the sticker's extent and **inset**, the count cap, the sticker-permission
+  gate, the wrap under a header, where a header goes and whether a
+  right-to-left chat mirrors. `ChatEmojiBody(policy:)` takes it (Android's by
+  default).
+- **BREAKING**: `ChatEmojiSizes.stickerInset` and `headerWrapFraction` are gone;
+  the inset is the policy's (none on Android and desktop, 10 pt on iOS) and the
+  wrap under a header is `ChatEmojiPolicy.wrapLimitUnderHeader` (Android: 65 %
+  of the **parent** width, not of the row's maximum). A host that relied on the
+  old 10 dp inset around an Android-sized sticker passes `ChatEmojiPolicy.ios()`
+  or sets its chrome around the art. `ChatEmojiBody(sizes:)` is
+  `policy: ChatEmojiPolicy.android(sizes: ...)`. `ChatEmojiLayoutKind` moved
+  files; the import is unchanged.
+- **ADDED**: `ChatEmojiBody.geometryFor` and `ChatEmojiGeometry`: the box, the
+  text rectangle and trailing edge, the last line, the sticker's art rectangle
+  and a reservable `bottomReserve` strip, so a host places the time, header
+  and reactions before the body is built. `parentWidth` names the width a
+  header's wrap is a share of.
+- Corrected: the reply is above the text layout and beside the sticker on
+  Android only; and an enlarged run is capped at three regular emoji on desktop
+  only (ADR 036).
+
+### Inline layer: embeds, mentions, hashtags, spoilers
+- `ChatMarkdownBody(embedResolver:)` takes a `catalog_assets`
+  `InlineEmbedResolver`; an image `![alt](scheme:id)` it resolves is painted in
+  the text, and the alt text is what copy and selection use. The root package
+  now depends on `catalog_assets` and `content_model` (ADR 020).
+- **BREAKING for hosts that switch exhaustively**: `ChatInlineHit` gains
+  `.embed`, `.hashtag` and the mention pair `.resolvedMention` and
+  `.usernameMention`, and `ChatSelectionInteraction` gains
+  `ChatEmbedActivated`, `ChatHashtagActivated` and the mention pair
+  `ChatResolvedMentionActivated` and `ChatUsernameMentionActivated` (both
+  under the sealed `ChatMentionActivated`). A
+  mention-class span (`[@x](mention:id)`, `username:`, `hashtag:`) is no
+  longer reported as a link, and an image span is no longer reported as a
+  link: a host that opened `ChatLinkActivated` urls for mentions or embeds
+  handles the new kinds instead. A `switch` over either sealed type needs the
+  new cases.
+- The mention hit and interaction are two variants, not a kind plus a
+  nullable id: a resolved mention (`ChatInlineHit$Mention$Resolved`,
+  `ChatResolvedMentionActivated`) always has its `id`, and a typed username
+  (`ChatInlineHit$Mention$Username`, `ChatUsernameMentionActivated`) has none,
+  so the combination of a username with an id cannot be built. This is a
+  breaking change to a hierarchy that is not yet released: there is no
+  `ChatMentionKind` and no `ChatInlineHit.mention`. A host matches
+  `ChatMentionActivated` for both, or the pair to tell them apart.
+- `ChatSelectionController(handlesEmbedHits:)`: an embed tap is reported (and
+  shows the click cursor and press highlight) only when the host opts in;
+  default off.
+- `ChatSelectionController.spoilers`: the `MarkdownSpoilerController` of the
+  viewport, keyed by message id, so a revealed message stays revealed when its
+  row is mounted again. A tap on a spoiler reveals the message; a tap on a
+  link, mention or embed inside a hidden spoiler reveals and reports no hit.
+  `ChatSelectionController(spoilerClock:)` feeds the dust from the asset
+  cache's `PlaybackClock`; without it the dust stands still.
+- **BREAKING**: a text selection over a hidden spoiler no longer reveals it,
+  and `ChatTextSelection.revealSpoilersCoveredBy` is gone. The selection is
+  made and painted with the spoiler still hidden (the tint under the
+  particles), as on Android and Desktop; the copy carries the spoiler style
+  (`ChatTextCopy.content`), so a host that writes `EntityKind.spoiler` to the
+  rich clipboard pastes a spoiler into the composer, and `plainText` carries
+  the characters under it. A host that followed iOS (select to reveal) calls
+  `spoilers.reveal(messageId)` from its own `onInteraction`. Existing tests
+  that asserted `isRevealed` after a selection will see `false`. ADR 037.
+- While a message selection is live (committed, or a drag-selection preview) a
+  tap on a hidden spoiler toggles the row and leaves the spoiler hidden, as on
+  Android; the facade writes `spoilers.tapReveals` from `isSelectionMode`.
+  A host that wrote `tapReveals` itself will see its value replaced at the next
+  membership change. A press held longer than `spoilers.tapTimeout` (500 ms)
+  no longer reveals on release: a user who held a spoiler and let go must tap,
+  and a desktop host with a mouse sets `spoilers.tapTimeout = null` to keep the
+  click behaviour. Needs `flutter_md` v0.4.1.
+- Link labels and destinations take their backslash escapes back (`flutter_md`
+  v0.4.1), so the encoder's line-start workaround for a label (it leaves a
+  block-marker escape out when a line starts in a label,
+  `_startsInLabel` in `content_model`) is no longer needed once every consumer
+  is on v0.4.1 or later; it is harmless until then and stays.
+- A text selection's `plainText` stays plain text (the engine now copies
+  markdown by default; the viewport asks it for plain).
+- `ChatMarkdownBody` without a `MarkdownTheme` above it keeps one fallback
+  theme while its inputs hold, where it used to build a new one per build (the
+  engine rebuilds its painter, and resolves every embed again, for each new
+  theme).
+
+### Body linkify removed
+- **BREAKING**: `ChatBodyLinkify` and `ChatLinkifyPolicy` are deleted. The
+  markdown-string rewrite of bare URLs and mentions is replaced by
+  `EntityDetection` and `DetectionPolicy` in `content_model`, which work on
+  `RichText` and are invoked by the host (ADR 017, amended). The viewport
+  still never detects on paint. No data migration: a stored `[url](url)` body
+  decodes as a link, and the receive-time fallback detects in a body that has
+  none. A host that used `strip` must pass `strip` the same policy as `apply`.
+
+### Selection copy
+- `ChatSelectionController(copyWriter:)`: a host that writes the clipboard
+  itself (rich text, ADR 032) is handed each copy as a `ChatTextCopy`: the
+  plain text, the origin, the message id, the selected
+  `MarkdownSelectedContent` for a text selection, and the language of a
+  tapped code block. Without a writer the viewport writes plain text, as
+  before; `ChatCopied` follows a copy either way.
+- `ChatCopied` follows a copy once it is written, a code tap's included (it
+  used to come at once, before the clipboard answered). A write that fails
+  is reported to `FlutterError.reportError` and is no copy: nothing is
+  notified and the selection stays. The structured content is built only
+  for a host writer.
+- `ChatSelectionController.textSelectionContent()`: the live selection as
+  `MarkdownSelectedContent`, for a host menu that copies the selection.
+
+### Package architecture
+- **BREAKING**: `packages/chat_chrome` is deleted and has no successor: no
+  package re-exports another package's API, so a host imports what it uses.
+  The panel, composer, theme, glass and emoji code it held moved to the
+  packages below. Nothing is shimmed; hosts migrate to the new types.
+
+  | Was (`chat_chrome`) | Now |
+  | --- | --- |
+  | `KeyboardPanel`, `KeyboardPanelController`, `KeyboardPanelAllow`, `KeyboardPanelTab` | `panel_shell`: `PanelShell`, `PanelShellController`, `PanelPage` registry; visibility and kind in `panel_presentation`'s `PanelPresentationController` |
+  | `KeyboardPanelStore`, `keyboard_panel_*` preferences | `content_model` `PreferenceStore` and `KeyValueStore` (string page id); `panel_presentation` `KeyboardHeightStore` |
+  | `KeyboardPanelLabels`, `KeyboardPanelCallbacks` | `chrome_foundation` `ChromeStrings`; one `PanelEvent` family from `panel_shell` |
+  | `ChatBottomInsetController`, `KeyboardPanel` motion | `panel_presentation`: `PanelOccupancy` and the keyboard-replacement strategy; the host aggregates composer extent and occupancy into the viewport padding |
+  | `ChatEnterView`, `ChatComposerController`, `ChatComposerMode`, `ChatEnterTopView`, `ChatInputMetrics` | `chat_composer`: `ComposerView`, `ComposerSpec`, `ComposerController`, `ComposerTextController` |
+  | `ChatContentBottomFade` | `chat_composer` `ComposerBottomFade` |
+  | `ChatChromeTheme`, `ChatChromeColors` | `chrome_foundation` `ChromePalette`, token groups and `ChromeThemeScope` |
+  | `ScalePressable`, `OvershootCurve`, glass stack | `chrome_foundation` |
+  | `EmojiPage`, `EmojiCategoryStrip`, `EmojiColorPicker`, `EmojiGlyphAtlasHost` | `panel_pages`: `EmojiPage`, `EmojiCategoryStrip`, `EmojiVariantPicker`, `GlyphAtlasHost` |
+  | `SentinelGlyphArtVersion`, `GlyphProbeBakeObserver` | `emoji_data` `computeGlyphArtFingerprint` and the glyph probe; `catalog_assets` `CallbackGlyphBakeObserver`; wired by the host (`example/lib/src/common/emoji_glyph_probe.dart`) |
+  | `DefaultEmojiDataSource`, `EmojiDataSource`, locale catalogue tables, recents and skin-tone preferences, `chat_chrome` re-export of `emoji_data` | `emoji_data` collection and search sources over `content_model` seams; `emoji_catalog_pack` assets |
+- **BREAKING**: `emoji_data` is pure Dart. Its native plugin (method channel
+  `emoji_data`, platform directories) and the `emojiCatalogForLocale` tables
+  are gone.
+- **BREAKING**: `catalog_assets` loses `CatalogAssetCache`, `CatalogAssetKey`,
+  `CatalogAssetBinding`, `CatalogAssetReadiness`, `CatalogAssetCacheType`,
+  `MemoryCatalogAssetCache` and `FakeCatalogAssetCache`. Use the asset cache
+  scope and `AssetBinding`.
+- **REMOVED**: `warmAhead` and its offscreen raster helper. Emoji are drawn
+  from the baked glyph atlas, or from a bounded paragraph cache where nothing
+  is baked.
+- **ADDED**: `content_model`, `chrome_foundation`, `emoji_catalog_pack`,
+  `kv_shared_preferences`, `panel_shell`, `panel_pages`, `panel_presentation`
+  and `chat_composer`; the dependency direction is in
+  [ADR 020](docs/adr/020-package-topology.md).
+
+### Library scope
+- **BREAKING**: `chat_scroll_view` exports no top-level functions, constants
+  or variables. Each one moved onto the type it serves:
+
+  | Before | After |
+  | --- | --- |
+  | `showChatMessageMenu(...)` | `ChatMessageMenu.show(...)` |
+  | `kChatMessageMenuEdgeInset` | `ChatMessageMenuPlacement.edgeInset` |
+  | `kChatMessageMenuMinWidth`, `kChatMessageMenuMaxWidth` | `ChatMessageMenuCard.defaultMinWidth`, `ChatMessageMenuCard.defaultMaxWidth` |
+  | `kChatMessageMenuReactionsPad`, `…PadVertical`, `…GapSlots`, `…Gap`, `…Height`, `…StartOverhang`, `…EndOverhang` | `ChatMessageMenuReactions.pad`, `.padVertical`, `.gapSlots`, `.gap`, `.height`, `.startOverhang`, `.endOverhang` |
+  | `kChatMessageMenuScrimOpacity`, `kChatMessageMenuScrimDuration` | `ChatMessageMenuScrim.opacity`, `ChatMessageMenuScrim.duration` |
+  | `visibleRowFillsBand(row.height, range.paintBandHeight)` | `range.rowFillsBand(row)` |
+  | `chatCodeBlockBuilder(...)` | `ChatCodeBlockPainter.builder(...)` |
+  | `kChatMessageChangeDuration`, `kChatMessageChangeCurve`, `kChatMessageChangeClipInset` | `ChatMessageChangeParams.duration`, `.curve`, `.clipInset` |
+  | `beginChatMessageChange(...)` | `ChatMessageChangeParams.begin(...)` |
+  | `chatMessageChangeAtProgress(params, p)` | `params.atProgress(p)` |
+  | `debugChatMessageChangeRecordPaints` | `RenderChatMessageChangeTransition.debugRecordPaints` |
+
 ### Day separators
 - **ADDED**: `ChatFloatingHeaderMarker`. The viewport now builds the
   floating header under this marker, and `ChatFloatingHeaderMarker.isInside`

@@ -4,7 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
-  emoji_data
+  rich_clipboard
   url_launcher_windows
 )
 

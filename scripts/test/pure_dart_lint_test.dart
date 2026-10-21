@@ -27,6 +27,21 @@ void main() {
     expect(lint(), isEmpty);
   });
 
+  for (final name in ['emoji_catalog_pack', 'emoji_data']) {
+    test('holds $name to the same rules', () {
+      fixture.member(
+        name,
+        dependencies: ['flutter'],
+        files: {'lib/$name.dart': "import 'package:flutter/services.dart';\n"},
+      );
+
+      expect(lint().map((v) => v.subject), [
+        '$name depends on the Flutter SDK',
+        'packages/$name/lib/$name.dart imports package:flutter/services.dart',
+      ]);
+    });
+  }
+
   test('reports a Flutter SDK dependency', () {
     fixture.member(
       'content_model',

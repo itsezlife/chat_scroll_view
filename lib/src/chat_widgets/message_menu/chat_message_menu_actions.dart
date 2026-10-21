@@ -3,25 +3,25 @@ import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_slots.dart';
 import 'package:flutter/material.dart';
 
-/// Minimum width for the action card (logical px).
-const double kChatMessageMenuMinWidth = 200;
-
-/// Maximum width for the action card and reactions strip.
-///
-/// The popup wraps action rows; reactions stretch to that width. Capping
-/// here keeps the column from expanding to the screen and pinning to the
-/// left inset.
-const double kChatMessageMenuMaxWidth = 280;
-
 /// Card without M3 elevation overlays.
 class ChatMessageMenuCard extends StatelessWidget {
   /// Creates a menu card.
   const ChatMessageMenuCard({
     required this.child,
-    this.maxWidth = kChatMessageMenuMaxWidth,
-    this.minWidth = kChatMessageMenuMinWidth,
+    this.maxWidth = defaultMaxWidth,
+    this.minWidth = defaultMinWidth,
     super.key,
   });
+
+  /// Minimum width for the action card (logical px).
+  static const double defaultMinWidth = 200;
+
+  /// Maximum width for the action card and reactions strip.
+  ///
+  /// The popup wraps action rows; reactions stretch to that width. Capping
+  /// here keeps the column from expanding to the screen and pinning to the
+  /// left inset.
+  static const double defaultMaxWidth = 280;
 
   /// Menu body.
   final Widget child;

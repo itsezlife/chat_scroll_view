@@ -1,90 +1,83 @@
-import 'package:chat_chrome/chat_chrome.dart';
-import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
-import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:math' as math;
 
-/// Floating composer island for the widget chat demo.
+import 'package:chat_composer/chat_composer.dart';
+import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/listen_value_builder.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_suggestion_bar.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/material.dart'
+    show
+        InkWell,
+        ScaffoldFeatureController,
+        ScaffoldMessenger,
+        ScaffoldMessengerState,
+        SnackBar,
+        SnackBarBehavior,
+        SnackBarClosedReason;
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart' hide RichText;
+
+/// The chat's composer island: a [ComposerView] over the chat's
+/// [ChatInputSet].
 ///
-/// Idle / edit: [ChatEnterView]. Selection mode: hidden — actions live on the
-/// selection app bar, not a morph of this island.
-/// Does not host [KeyboardPanel]; the screen places the panel in the keyboard
-/// slot.
-///
-/// Chrome SoT is [composer] ([ChatComposerController]). The host owns lifetime
-/// and drives reply / edit / emoji / IME without a [GlobalKey].
+/// Hidden while a selection is active (the actions live on the selection app
+/// bar, not on a morph of this island); starting a selection leaves edit mode
+/// and takes focus away. Builds the [ComposerSpec] of the moment from the
+/// input set and the strings of the chrome, and on platforms with an anchored
+/// popup reports where the island is so the popup can sit on it.
 class ChatComposer extends StatefulWidget {
-  /// Creates the composer.
+  /// The composer of [input].
   const ChatComposer({
-    required this.composer,
+    required this.input,
     required this.selection,
-    required this.dataSource,
-    required this.onSend,
-    required this.onEmojiPressed,
-    this.onEditSelected,
-    this.onSizeChanged,
+    required this.islandKey,
+    this.anchorSpace,
     this.onAttachPressed,
-    this.onMicPressed,
-    this.bottomInset,
-    this.onFieldTapWhilePanelOpen,
-    this.glassKey,
+    this.onVoicePressed,
     super.key,
   });
 
-  /// Host-owned composer SoT.
-  final ChatComposerController composer;
+  /// The chat's input set.
+  final ChatInputSet input;
 
-  /// When selection is active, the island is hidden.
+  /// When a selection is active the island is hidden.
   final ChatSelectionController selection;
 
-  /// Source for edit content lookup ([beginEdit]).
-  final ChatDataSource dataSource;
+  /// Key of the glass island, for the bottom fade's cutout.
+  final GlobalKey islandKey;
 
-  /// Persists a trimmed message.
-  final Future<void> Function(String text) onSend;
-
-  /// Emoji / keyboard toggle (host toggles panel open flag).
-  final VoidCallback onEmojiPressed;
-
-  /// Saves edited content for one message.
-  final Future<void> Function(int messageId, String text)? onEditSelected;
-
-  /// Measured chrome height: island + island→keyboard gap (+ safe pad when
-  /// the keyboard slot is closed).
-  ///
-  /// Does **not** include the keyboard / keyboard-panel slot — that is the
-  /// separate `keyboard` term in [ChatViewportInsets.bottomPadding].
-  final void Function(double height)? onSizeChanged;
+  /// The box whose coordinates the popup's anchor is reported in, when the
+  /// presentation is an anchored popup. Null reports nothing.
+  final GlobalKey? anchorSpace;
 
   /// Attach button.
   final VoidCallback? onAttachPressed;
 
-  /// Mic when empty.
-  final VoidCallback? onMicPressed;
-
-  /// Bottom inset.
-  final ValueListenable<double>? bottomInset;
-
-  /// Tap on the field while the keyboard panel is open (switch back to IME).
-  final VoidCallback? onFieldTapWhilePanelOpen;
-
-  /// Key on the glass island for bottom-fade cutout tracking.
-  final GlobalKey? glassKey;
+  /// The voice button while the composer is empty.
+  final VoidCallback? onVoicePressed;
 
   @override
-  State<ChatComposer> createState() => ChatComposerState();
+  State<ChatComposer> createState() => _ChatComposerState();
 }
 
-/// State for [ChatComposer].
-class ChatComposerState extends State<ChatComposer> {
-  bool _selectionMode = false;
+class _ChatComposerState extends State<ChatComposer> {
+  var _selectionMode = false;
+  var _anchorWatched = false;
+  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _toast;
+  ScaffoldMessengerState? _messenger;
+
+  ChatInputSet get _input => widget.input;
 
   @override
   void initState() {
     super.initState();
     _selectionMode = widget.selection.isSelectionMode;
     widget.selection.addListener(_onSelectionChanged);
+    widget.input.formatOffer.addListener(_onFormatOffer);
+    _watchAnchor();
   }
 
   @override
@@ -100,119 +93,195 @@ class ChatComposerState extends State<ChatComposer> {
   @override
   void dispose() {
     widget.selection.removeListener(_onSelectionChanged);
+    widget.input.formatOffer.removeListener(_onFormatOffer);
+    _closeToastAfterTeardown();
     super.dispose();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _messenger = ScaffoldMessenger.maybeOf(context);
+  }
+
+  // --- Apply-formatting toast -------------------------------------------------
+
+  // The input set owns the offer (its lifetime and its end on any edit); this
+  // only draws it. The toast has no timeout of its own, so that the set's is
+  // the one that ends it.
+  void _onFormatOffer() {
+    if (widget.input.formatOffer.value == null) {
+      _closeToast();
+      return;
+    }
+    final messenger = _messenger;
+    if (messenger == null) return;
+    _closeToast();
+    final bottom = widget.input.insets.bottomPadding.value;
+    final width = MediaQuery.sizeOf(context).width;
+    final side = math.max<double>(16, (width - _toastMaxWidth) / 2);
+    final toast = messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        persist: true,
+        margin: EdgeInsets.fromLTRB(side, 0, side, bottom + _toastGap),
+        content: InkWell(
+          onTap: widget.input.applyFormatOffer,
+          child: const Text('Apply formatting'),
+        ),
+      ),
+    );
+    _toast = toast;
+    unawaited(
+      toast.closed.then((_) {
+        // Closed by the user (swiped away), not by the set ending the offer.
+        if (!identical(_toast, toast)) return;
+        _toast = null;
+        widget.input.dismissFormatOffer();
+      }),
+    );
+  }
+
+  void _closeToast() {
+    final toast = _toast;
+    _toast = null;
+    toast?.close();
+  }
+
+  // The messenger and the tree below it are being torn down when the screen
+  // goes: a close then looks up a deactivated ancestor. A frame later the
+  // messenger either lives on (the toast is closed) or is gone with the toast.
+  void _closeToastAfterTeardown() {
+    final toast = _toast;
+    final messenger = _messenger;
+    _toast = null;
+    if (toast == null || messenger == null) return;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (messenger.mounted) toast.close();
+    });
+  }
+
+  static const double _toastMaxWidth = 400;
+  static const double _toastGap = 8;
+
   void _onSelectionChanged() {
     final mode = widget.selection.isSelectionMode;
-    if (mode && widget.composer.mode.isEditing) {
-      widget.composer.clear();
+    if (mode == _selectionMode) return;
+    if (mode) {
+      _input
+        ..cancelEdit()
+        ..composer.unfocus();
     }
-    if (mode != _selectionMode) {
-      if (mode) widget.composer.unfocus();
-      setState(() => _selectionMode = mode);
-    }
+    setState(() => _selectionMode = mode);
   }
 
-  Future<void> _handleSend() async {
-    final composer = widget.composer;
-    if (composer.state.isProcessing || !composer.data.enabled) return;
-    final text = composer.text.text.trim();
-    if (text.isEmpty) return;
-    final editing = composer.mode.isEditing;
-    composer.setBusy(true, message: editing ? 'Saving edit' : 'Sending');
-    try {
-      final mode = composer.mode;
-      if (mode is ChatComposerMode$Editing) {
-        final id = mode.id;
-        if (id is! int) return;
-        await widget.onEditSelected?.call(id, text);
-        if (!mounted) return;
-      } else {
-        await widget.onSend(text);
-        if (!mounted) return;
-      }
-      composer.clear();
-    } finally {
-      composer.setBusy(
-        false,
-        message: editing ? 'Finished editing' : 'Finished sending',
-      );
+  // --- Popup anchor ---------------------------------------------------------
+
+  // The island moves without this widget rebuilding: a dock that comes or
+  // goes pads the chat region around it, the window resizes, the composer
+  // grows. So its place is read after every frame and reported when it
+  // changed (the controller ignores an equal one). A post-frame callback
+  // schedules no frame, so an idle screen costs nothing.
+  void _watchAnchor() {
+    if (_anchorWatched) return;
+    _anchorWatched = true;
+    SchedulerBinding.instance.addPostFrameCallback(_onAnchorFrame);
+  }
+
+  void _onAnchorFrame(Duration _) {
+    if (!mounted) {
+      _anchorWatched = false;
+      return;
     }
+    if (widget.anchorSpace != null && !_selectionMode) _reportAnchor();
+    SchedulerBinding.instance.addPostFrameCallback(_onAnchorFrame);
   }
 
-  /// Loads [messageId] into the input for editing.
-  void beginEdit(int messageId) {
-    final content = widget.dataSource.getMessage(messageId)?.text;
-    if (content == null) return;
-    widget.selection.clear();
-    widget.composer.text.value = TextEditingValue(
-      text: content,
-      selection: TextSelection.collapsed(offset: content.length),
-    );
-    widget.composer.beginEdit(id: messageId, preview: content);
+  void _reportAnchor() {
+    final island = widget.islandKey.currentContext?.findRenderObject();
+    final space = widget.anchorSpace?.currentContext?.findRenderObject();
+    if (island is! RenderBox ||
+        space is! RenderBox ||
+        !island.attached ||
+        !space.attached) {
+      return;
+    }
+    final origin = island.localToGlobal(Offset.zero, ancestor: space);
+    _input.anchorTo(origin & island.size);
   }
 
-  void _cancelEdit() => widget.composer.clear();
+  // --- Build ----------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    if (_selectionMode) {
-      return const SizedBox.shrink();
-    }
-
-    final composer = widget.composer;
-    final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
-    const hPad = ChatInputMetrics.bubblePadding;
-
-    return ValueListenableBuilder<ChatComposerMode>(
-      valueListenable: composer.select((s) => s.data.mode),
-      builder: (context, mode, _) {
-        final isEditing = mode is ChatComposerMode$Editing;
-        final child = MeasureSize(
-          onChange: (size) =>
-              widget.onSizeChanged?.call(size.height + safeBottom),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                hPad,
-                10,
-                hPad,
-                ChatInputMetrics.bubbleBottomGap,
-              ),
-              child: ChatEnterView(
-                composer: composer,
-                onSend: _handleSend,
-                onEmojiPressed: widget.onEmojiPressed,
-                onAttachPressed: widget.onAttachPressed,
-                onMicPressed: widget.onMicPressed,
-                onFieldTapWhilePanelOpen: widget.onFieldTapWhilePanelOpen,
-                glassKey: widget.glassKey,
-                hintText: isEditing ? 'Edit message' : 'Message',
-                topBanner: isEditing
-                    ? const ChatEnterTopBanner(
-                        title: 'Edit message',
-                        subtitle: 'Tap ✕ to cancel',
-                        isEdit: true,
-                      )
-                    : null,
-                onTopBannerClose: isEditing ? _cancelEdit : null,
-              ),
+    if (_selectionMode) return const SizedBox.shrink();
+    final strings = ChromeStringsScope.of(context);
+    final composer = _input.composer;
+    final inset = _input.composerSafeInset;
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        composer.text,
+        _input.editing,
+        _input.busy,
+        _input.leavingForKeyboard,
+        ListenableBridge(_input.presentation.state),
+        ListenableBridge(_input.shell.selectedPageId),
+        ListenableBridge(composer.query),
+        ListenableBridge(_input.linkPreview.card),
+      ]),
+      builder: (context, _) {
+        final spec = buildChatComposerSpec(
+          strings: strings,
+          editing: _input.editing.value,
+          hasText: composer.text.text.trim().isNotEmpty,
+          busy: _input.busy.value,
+          messageLengthLimit: _input.messageLengthLimit,
+          panelReplacesKeyboard: _input.panelReplacesKeyboard,
+          panelDocked: _input.isPanelDocked,
+          panelPlacement: _input.panelPlacement,
+          wrapPanelToggle: _input.wrapPanelToggle,
+          pageIcon: _input.pageIcon,
+          onTogglePanel: _input.togglePanel,
+          onSubmit: () => unawaited(_input.submit()),
+          onAttach: widget.onAttachPressed ?? () {},
+          onVoice: widget.onVoicePressed ?? () {},
+          onCancelEdit: _input.cancelEdit,
+          suggestions: ChatSuggestions.header(
+            composer.query.value,
+            onPick: composer.replaceQuery,
+          ),
+          linkPreview: switch (_input.linkPreview.card.value) {
+            final card? => ComposerHeader.linkPreview(
+              title: card.title,
+              preview: card.url,
+              onDismiss: _input.linkPreview.dismiss,
             ),
+            null => null,
+          },
+          linkPrompt: _input.linkPrompt,
+          backPriority: ChatInputSet.claimBack,
+        );
+        Widget view(double? safeAreaBottom) => _input.keepPopupOpenOver(
+          ComposerView(
+            controller: composer,
+            spec: spec,
+            islandKey: widget.islandKey,
+            onFieldTap: _input.onFieldTap,
+            onFieldPointerDown: _input.onFieldPointerDown,
+            onFieldPointerEnd: _input.onFieldPointerEnd,
+            safeAreaBottom: safeAreaBottom,
           ),
         );
-
-        final bottomInset = widget.bottomInset;
-        if (bottomInset == null) return child;
-
-        return ValueListenableBuilder(
-          valueListenable: bottomInset,
-          child: child,
-          builder: (context, bottomInset, child) => Padding(
-            padding: EdgeInsets.only(bottom: bottomInset),
-            child: child,
+        // The keyboard presentation owns the bottom band while it is up; the
+        // composer pads itself with what the occupancy has not covered yet.
+        // Without one the composer keeps its default pad.
+        return switch (inset) {
+          final safeInset? => ListenValueBuilder<double>(
+            listenable: safeInset,
+            builder: (context, safe) => view(safe),
           ),
-        );
+          null => view(null),
+        };
       },
     );
   }

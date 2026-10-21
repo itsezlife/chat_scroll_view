@@ -2,10 +2,22 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_md/flutter_md.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  // A code tap's copy is notified once the clipboard answers; the platform
+  // answers here, inside the test's clock.
+  setUp(
+    () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (_) async => null),
+  );
+  tearDown(
+    () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null),
+  );
+
   const sampleDartCode = '''
 void main() {
   print('Hello, world!');
@@ -530,6 +542,7 @@ void main() {
         expect((inlineHit! as ChatInlineHit$Code).code, 'void main() {}');
 
         controller.handleInlineHit(inlineHit);
+        await tester.pump();
         expect(tappedCode, 'void main() {}');
         expect(controller.isTextSelectionActive, isFalse);
       },
@@ -594,6 +607,7 @@ void main() {
         );
 
         controller.handleInlineHit(bottomHit);
+        await tester.pump();
         expect(tappedCode?.trim(), sampleLongCode.trim());
       },
     );

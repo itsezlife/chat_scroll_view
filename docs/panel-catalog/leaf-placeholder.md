@@ -59,20 +59,30 @@ pattern for **sticker** leaves, not as the default for unicode emoji cells.
 
 | Role | Flutter |
 | ---- | ------- |
-| Circle placeholder fill | [PanelCatalogThemeData.placeholderColor] (default `0x10000000` light) |
+| Circle placeholder fill | [PanelCatalogThemeData.circleColor] (default `0x10000000` light) |
+| Thumb-first silhouette fill | [PanelCatalogThemeData.thumbColor] |
+| Sticker wash base, sweeping band, sweep period | [PanelCatalogThemeData.washColor], [PanelCatalogThemeData.washHighlightColor], [PanelCatalogThemeData.washPeriod] (`1800 ms`) |
+| Silhouette and wash corner | [PanelCatalogThemeData.placeholderCornerRadius] (default `6`) |
+| Skeleton leaves of a loading section | [PanelCatalogThemeData.skeletonColor] |
 | Press list-selector | [PanelCatalogThemeData.leafPressHighlightColor] on full cell rect |
-| Press selector corner | [PanelCatalogThemeData.selectorRadiusLogicalPx] (`nominalDp × DPR`) |
+| Press selector corner | [PanelCatalogThemeData.selectorRadiusLogicalPx] (`nominalDp x DPR`) |
 | Section header title | [PanelCatalogThemeData.sectionHeaderStyle] |
-| RRect stand-in corner | [PanelCatalogThemeData.standInCornerRadius] (default `6`) |
-| Document ready-path stub | [PanelCatalogThemeData.documentStandInColor] |
 
-| Leaf kind | Leaf presentation while loading |
+| Leaf kind | Placeholder while loading (`CatalogLeaf.placeholderStyle`, derived from the leaf's descriptor facts) |
 | --------- | -------------------------------- |
 | Unicode glyph, baking platform | Circle placeholder until baked, then sprite |
-| Unicode glyph, paragraph strategy (web) | The glyph, drawn as text; no placeholder |
-| Document-backed animated | Thumb-first (SVG/static), then drawable |
+| Unicode glyph, paragraph strategy (web) | The glyph, drawn as text by its paintable; no placeholder |
+| Document-backed animated | Thumb-first silhouette, then the binding's thumbnail, then the media |
 | Sticker | Shaped loading wash |
 
-A leaf marked failed paints the rounded stand-in rectangle of the other kinds.
-Viewport paints the matching placeholder mode; catalog data source owns fetch
-and readiness notify. Hosts scope tokens with [PanelCatalogTheme].
+There is no failed stand-in. A leaf whose load fails, or never finishes, keeps
+the placeholder of its kind: the wash of a sticker keeps sweeping while the leaf
+is on screen. The sweep is one gradient for the whole viewport, so every wash
+shimmers together; it follows the frame timestamp and stops while the host's
+playback clock is paused.
+
+Content that was not there when the leaf attached fades in over its
+placeholder; content already in memory is drawn at once. A baked glyph is drawn
+in a batched atlas draw and does not fade: it replaces the circle when its page
+lands. The viewport paints the matching placeholder; the asset cache owns
+fetch and readiness. Hosts scope tokens with [PanelCatalogTheme].

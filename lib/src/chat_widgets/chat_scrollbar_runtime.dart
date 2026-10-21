@@ -296,8 +296,7 @@ final class ChatScrollbarRuntime {
   /// with no frame, under [ChatScrollbarGrab$None], or while [suppressed].
   /// Bounds are inclusive; vertically the strip spans the track.
   bool stripContains(Offset local) => switch ((_frame, grab)) {
-    (final frame?, final ChatScrollbarGrab$Targets targets)
-        when !_suppressed =>
+    (final frame?, final ChatScrollbarGrab$Targets targets) when !_suppressed =>
       _stripContains(frame, targets, local),
     _ => false,
   };

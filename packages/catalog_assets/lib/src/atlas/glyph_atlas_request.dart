@@ -10,7 +10,7 @@ import 'package:flutter/foundation.dart';
 
 /// Everything a host asks a platform to build a [GlyphAtlas] from: the
 /// arguments of the [GlyphAtlas] constructor, in one value that the platform
-/// fork (`createGlyphAtlasForPlatform`) takes whole instead of repeating the
+/// fork ([GlyphAtlas.forPlatform]) takes whole instead of repeating the
 /// list.
 ///
 /// Give a [store] or a [persistence], not both (see [GlyphAtlas]).

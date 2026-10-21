@@ -1,8 +1,6 @@
 import 'dart:io';
 
 import 'package:catalog_assets/glyph_atlas.dart';
-import 'package:chat_chrome/chat_chrome.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
@@ -42,8 +40,8 @@ import 'panel_perf/scenario_support.dart';
 /// simulated without a plugin.
 ///
 /// With `--dart-define=GLYPH_ART_FINGERPRINT=true` the first two launches get
-/// their art version from the sentinel pixel fingerprint (computed at startup,
-/// one glyph per frame) instead of the fixed value, so the frame criteria cover
+/// their art version from the glyph probe's sentinel pixel fingerprint
+/// (computed at startup, one glyph per frame) instead of the fixed value, so the frame criteria cover
 /// the fingerprint too; the update launch still uses a fixed `-updated` value.
 ///
 /// Run three fresh launches with
@@ -99,7 +97,8 @@ void main() {
       }
     }
     reports.add(_with(report, firstRunFailures));
-    await _unmount(tester, harness);
+    await harness.dispose(tester);
+    await tester.pump(const Duration(milliseconds: 500));
 
     // --- A later launch: same disk, everything else new. ---
     harness = await _mount(tester, dir, _artVersion);
@@ -133,7 +132,8 @@ void main() {
       }
     }
     reports.add(_with(report, coldFailures));
-    await _unmount(tester, harness);
+    await harness.dispose(tester);
+    await tester.pump(const Duration(milliseconds: 500));
 
     // --- The launch after an OS update: the art version changed. ---
     harness = await _mount(tester, dir, '$_artVersion-updated');
@@ -155,7 +155,8 @@ void main() {
       },
     );
     reports.add(_with(report, const []));
-    await _unmount(tester, harness);
+    await harness.dispose(tester);
+    await tester.pump(const Duration(milliseconds: 500));
 
     publishAndAssert(binding, reports);
   });
@@ -164,23 +165,21 @@ void main() {
 Future<PanelHarness> _mount(WidgetTester tester, Directory dir, String art) =>
     PanelHarness.start(
       tester,
-      glyphCache: createGlyphCacheStoreForPlatform(dir.path),
+      glyphCache: GlyphCacheStore.forPlatform(dir.path),
+      // The fingerprint run uses the art version the probe computes (null
+      // here: the services' own); the others a fixed text.
       glyphArtVersion: _fingerprint && !art.endsWith('-updated')
-          ? SentinelGlyphArtVersion()
+          ? null
           : FixedGlyphArtVersion(art),
     );
-
-Future<void> _unmount(WidgetTester tester, PanelHarness harness) async {
-  harness.dispose();
-  await tester.pumpWidget(const SizedBox.shrink());
-  await tester.pump(const Duration(milliseconds: 500));
-}
 
 /// The viewport's atlas, or null when the platform bakes nothing.
 GlyphAtlas? _atlasOf(WidgetTester tester) {
   final finder = find.byType(PanelCatalogViewport);
   if (finder.evaluate().isEmpty) return null;
-  return tester.widget<PanelCatalogViewport>(finder).assetCache.glyphAtlas;
+  // The harness composed the scope with an atlas as its glyph source.
+  return tester.widget<PanelCatalogViewport>(finder).assets.glyphSource
+      as GlyphAtlas?;
 }
 
 /// Pumps until the atlas has every page drawable, or 30 s pass.
@@ -194,7 +193,7 @@ Future<void> _untilAllPages(WidgetTester tester) async {
 
 /// Pages a later launch would find, committed under [art], read from disk.
 Future<int> _persistedPages(Directory dir, String art) async {
-  final store = createGlyphCacheStoreForPlatform(dir.path);
+  final store = GlyphCacheStore.forPlatform(dir.path);
   final committed = await store.openCommitted();
   if (committed == null) return 0;
   final committedArt = committed.record.key.artVersion;

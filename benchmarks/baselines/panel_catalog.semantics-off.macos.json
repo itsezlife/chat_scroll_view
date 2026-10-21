@@ -1,0 +1,246 @@
+{
+  "schema": 1,
+  "suite": "panel_catalog.semantics-off",
+  "metrics": {
+    "far_stitch.vs_grid.4096": {
+      "kind": "ratio",
+      "value": 0.0032
+    },
+    "far_stitch.vs_grid.512": {
+      "kind": "ratio",
+      "value": 0.0202
+    },
+    "far_stitch.vs_grid.64": {
+      "kind": "ratio",
+      "value": 0.8718
+    },
+    "far_stitch.vs_ssl.4096": {
+      "kind": "ratio",
+      "value": 0.0081
+    },
+    "far_stitch.vs_ssl.512": {
+      "kind": "ratio",
+      "value": 0.0762
+    },
+    "far_stitch.vs_ssl.64": {
+      "kind": "ratio",
+      "value": 0.5574
+    },
+    "fling_frame.vs_grid.4096": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "fling_frame.vs_grid.512": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "fling_frame.vs_grid.64": {
+      "kind": "ratio",
+      "value": 1.1429
+    },
+    "fling_frame.vs_ssl.4096": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "fling_frame.vs_ssl.512": {
+      "kind": "ratio",
+      "value": 0.9697
+    },
+    "fling_frame.vs_ssl.64": {
+      "kind": "ratio",
+      "value": 1.1429
+    },
+    "forced_layout.vs_grid.4096": {
+      "kind": "ratio",
+      "value": 0.0074
+    },
+    "forced_layout.vs_grid.512": {
+      "kind": "ratio",
+      "value": 0.0182
+    },
+    "forced_layout.vs_grid.64": {
+      "kind": "ratio",
+      "value": 0.0959
+    },
+    "forced_layout.vs_ssl.4096": {
+      "kind": "ratio",
+      "value": 0.4158
+    },
+    "forced_layout.vs_ssl.512": {
+      "kind": "ratio",
+      "value": 0.0868
+    },
+    "forced_layout.vs_ssl.64": {
+      "kind": "ratio",
+      "value": 0.0972
+    },
+    "mixed.far_stitch.over_uniform.4096": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "mixed.far_stitch.over_uniform.512": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "mixed.far_stitch.over_uniform.64": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "mixed.layout.over_uniform.4096": {
+      "kind": "ratio",
+      "value": 0.9706
+    },
+    "mixed.layout.over_uniform.512": {
+      "kind": "ratio",
+      "value": 0.9773
+    },
+    "mixed.layout.over_uniform.64": {
+      "kind": "ratio",
+      "value": 0.9787
+    },
+    "mixed.near_jump.over_uniform.4096": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "mixed.near_jump.over_uniform.512": {
+      "kind": "ratio",
+      "value": 0.5246
+    },
+    "mixed.near_jump.over_uniform.64": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "mixed.paint.over_uniform.4096": {
+      "kind": "ratio",
+      "value": 0.8148
+    },
+    "mixed.paint.over_uniform.512": {
+      "kind": "ratio",
+      "value": 0.7931
+    },
+    "mixed.paint.over_uniform.64": {
+      "kind": "ratio",
+      "value": 0.7857
+    },
+    "near_jump.vs_grid.4096": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "near_jump.vs_grid.512": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "near_jump.vs_grid.64": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "near_jump.vs_ssl.4096": {
+      "kind": "ratio",
+      "value": 0.9375
+    },
+    "near_jump.vs_ssl.512": {
+      "kind": "ratio",
+      "value": 1.0
+    },
+    "near_jump.vs_ssl.64": {
+      "kind": "ratio",
+      "value": 1.0588
+    },
+    "objects.rest.attached_leaves.4096": {
+      "kind": "count",
+      "value": 8.0
+    },
+    "objects.rest.attached_leaves.512": {
+      "kind": "count",
+      "value": 8.0
+    },
+    "objects.rest.attached_leaves.64": {
+      "kind": "count",
+      "value": 8.0
+    },
+    "objects.rest.render_objects.4096": {
+      "kind": "count",
+      "value": 169.0
+    },
+    "objects.rest.render_objects.512": {
+      "kind": "count",
+      "value": 169.0
+    },
+    "objects.rest.render_objects.64": {
+      "kind": "count",
+      "value": 169.0
+    },
+    "objects.scroll.attached_leaves.4096": {
+      "kind": "count",
+      "value": 8.0
+    },
+    "objects.scroll.attached_leaves.512": {
+      "kind": "count",
+      "value": 8.0
+    },
+    "objects.scroll.attached_leaves.64": {
+      "kind": "count",
+      "value": 8.0
+    },
+    "objects.scroll.render_objects.4096": {
+      "kind": "count",
+      "value": 169.0
+    },
+    "objects.scroll.render_objects.512": {
+      "kind": "count",
+      "value": 169.0
+    },
+    "objects.scroll.render_objects.64": {
+      "kind": "count",
+      "value": 169.0
+    },
+    "scroll_paint.vs_grid.4096": {
+      "kind": "ratio",
+      "value": 3.1111
+    },
+    "scroll_paint.vs_grid.512": {
+      "kind": "ratio",
+      "value": 5.6
+    },
+    "scroll_paint.vs_grid.64": {
+      "kind": "ratio",
+      "value": 6.8
+    },
+    "scroll_paint.vs_ssl.4096": {
+      "kind": "ratio",
+      "value": 6.75
+    },
+    "scroll_paint.vs_ssl.512": {
+      "kind": "ratio",
+      "value": 4.8333
+    },
+    "scroll_paint.vs_ssl.64": {
+      "kind": "ratio",
+      "value": 7.4
+    },
+    "semantics.nodes.4096": {
+      "kind": "count",
+      "value": 83.0
+    },
+    "semantics.nodes.512": {
+      "kind": "count",
+      "value": 83.0
+    },
+    "semantics.nodes.64": {
+      "kind": "count",
+      "value": 74.0
+    },
+    "semantics.scroll_frame.on_over_off.4096": {
+      "kind": "ratio",
+      "value": 2.4688
+    },
+    "semantics.scroll_frame.on_over_off.512": {
+      "kind": "ratio",
+      "value": 3.4085
+    },
+    "semantics.scroll_frame.on_over_off.64": {
+      "kind": "ratio",
+      "value": 1.3108
+    }
+  }
+}

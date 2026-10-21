@@ -318,6 +318,71 @@ void main() {
     });
   });
 
+  group('a transient read failure', () {
+    late List<FlutterErrorDetails> errors;
+    setUp(() {
+      errors = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = errors.add;
+      addTearDown(() => FlutterError.onError = previous);
+    });
+
+    test('is forgotten once the page has loaded: a later one is a first '
+        'failure again, not a reason to give up', () async {
+      final timers = ManualRetentionTimers();
+      final flaky = _FlakyStore(store, failures: 1);
+      final atlas = build(
+        _glyphs(2),
+        withStore: flaky,
+        residency: GlyphPageResidency(startTimer: timers.start),
+      )..start();
+      await bakeAll();
+      expect(atlas.spriteOf('g0'), isNotNull, reason: 'baked again, loaded');
+      visible.value = false;
+      timers.elapse(const Duration(seconds: 60));
+      expect(atlas.spriteOf('g0'), isNull, reason: 'released');
+
+      flaky.failures = 1;
+      visible.value = true;
+      await pumpEventQueue();
+      await bakeAll();
+
+      expect(errors, hasLength(2), reason: 'one per transient failure');
+      expect(atlas.spriteOf('g0'), isNotNull, reason: 'not given up on');
+    });
+  });
+
+  group('a frame source that calls back inside the request', () {
+    test('does not break the reload of a released page', () async {
+      final timers = ManualRetentionTimers();
+      final inline = _InlineFrames(frames);
+      final atlas = GlyphAtlas(
+        index: GlyphAtlasIndex(_glyphs(2)),
+        rasteriser: rasteriser,
+        store: store,
+        frames: inline,
+        clock: clock.read,
+        panelVisible: visible,
+        panelOpening: opening,
+        residency: GlyphPageResidency(startTimer: timers.start),
+      );
+      addTearDown(atlas.dispose);
+      atlas.start();
+      await bakeAll();
+      expect(atlas.spriteOf('g0'), isNotNull);
+      visible.value = false;
+      timers.elapse(const Duration(seconds: 60));
+      // Not asked with spriteOf, which would queue the reload already.
+      expect(atlas.residency.residentPages, isEmpty);
+
+      inline.inline = true;
+      visible.value = true;
+      await pumpEventQueue();
+
+      expect(atlas.spriteOf('g0'), isNotNull);
+    });
+  });
+
   group('handing over to a successor', () {
     Future<GlyphAtlas> bakedFirst(List<String> glyphs) async {
       final first = build(glyphs)..start();
@@ -385,24 +450,27 @@ void main() {
       expect(second.spriteOf('g$_perPage'), isNull, reason: 'a circle');
     });
 
-    test('keeps the old art when no page of the new plan can be read', () async {
-      final first = await bakedFirst(_glyphs(3));
-      final oldPage = first.spriteOf('g0')!.page;
-      final errors = <FlutterErrorDetails>[];
-      final previous = FlutterError.onError;
-      FlutterError.onError = errors.add;
-      addTearDown(() => FlutterError.onError = previous);
-      final second = build(
-        _glyphs(3),
-        withStore: _FlakyStore(FakeGlyphPageStore(), failures: 100),
-        predecessor: first.retire(),
-      )..start();
+    test(
+      'keeps the old art when no page of the new plan can be read',
+      () async {
+        final first = await bakedFirst(_glyphs(3));
+        final oldPage = first.spriteOf('g0')!.page;
+        final errors = <FlutterErrorDetails>[];
+        final previous = FlutterError.onError;
+        FlutterError.onError = errors.add;
+        addTearDown(() => FlutterError.onError = previous);
+        final second = build(
+          _glyphs(3),
+          withStore: _FlakyStore(FakeGlyphPageStore(), failures: 100),
+          predecessor: first.retire(),
+        )..start();
 
-      await bakeAll();
+        await bakeAll();
 
-      expect(identical(second.spriteOf('g0')!.page, oldPage), isTrue);
-      expect(oldPage.debugDisposed, isFalse);
-    });
+        expect(identical(second.spriteOf('g0')!.page, oldPage), isTrue);
+        expect(oldPage.debugDisposed, isFalse);
+      },
+    );
 
     test('the retired atlas stops: no frames, no sprites', () async {
       final first = await bakedFirst(_glyphs(3));
@@ -464,6 +532,24 @@ void main() {
     expect(errors, isNotEmpty);
     expect(atlas.spriteOf('g0'), isNull);
   });
+}
+
+/// A frame source that, once told to, runs a request's callback before the
+/// request returns, which the contract forbids and a host's source may do.
+class _InlineFrames implements BakeFrameSource {
+  _InlineFrames(this._inner);
+
+  final FakeBakeFrameSource _inner;
+  bool inline = false;
+
+  @override
+  BakeFrameCancel requestFrame(BakeFrameCallback onFrame) {
+    if (inline) {
+      onFrame(BakeFrame(budget: _inner.budget));
+      return () {};
+    }
+    return _inner.requestFrame(onFrame);
+  }
 }
 
 /// A store whose first [failures] reads answer nothing, then behaves.

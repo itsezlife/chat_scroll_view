@@ -1078,10 +1078,7 @@ void main() {
       expect(range, isNotNull);
       expect(range!.lastId, count - 1);
       expect(range.lastRow.visibleFraction, closeTo(1.0, 0.02));
-      expect(
-        visibleRowFillsBand(range.lastRow.height, range.paintBandHeight),
-        isTrue,
-      );
+      expect(range.rowFillsBand(range.lastRow), isTrue);
       expect(range.lastRow.id, lessThanOrEqualTo(range.lastId));
     });
 
@@ -1104,10 +1101,7 @@ void main() {
       expect(range, isNotNull);
       expect(range!.lastRow.visibleFraction, closeTo(1.0, 0.02));
       expect(range.firstRow.visibleFraction, closeTo(1.0, 0.02));
-      expect(
-        visibleRowFillsBand(range.lastRow.height, range.paintBandHeight),
-        isFalse,
-      );
+      expect(range.rowFillsBand(range.lastRow), isFalse);
       expect(range.lastRow.id, lessThanOrEqualTo(range.lastId));
     });
 

@@ -1,10 +1,10 @@
 /// Correctness suite for the Panel Catalog Viewport public API.
 ///
-/// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogDataSource] and
-/// [FakeCatalogAssetCache] — chat-style preloaded DS, no device farm.
+/// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogSnapshotSource] and
+/// a `TextGlyphProducer` scope — chat-style preloaded DS, no device farm.
 ///
 /// **Observability:** [RenderPanelCatalog] getters used here
-/// (`contentExtent`, `presentationOf`, `isFlinging`, `isFarStitchActive`,
+/// (`contentExtent`, `isFlinging`, `isFarStitchActive`,
 /// `farStitchProgress`, press seams) are package-private test seams.
 /// Controller offset, jump futures, and shell callbacks are preferred when
 /// they already distinguish the behavior under test.
@@ -12,7 +12,7 @@
 /// **Coverage map:**
 /// - extent scroll + DS notify
 /// - drag vs leaf long-press arena (no touch-slop catch-up jump)
-/// - leaf presentation (unicode content, circle radius contract, thumb-first)
+/// - leaf presentation (unicode as text, thumb-first)
 /// - paint-leaf element flatness + binding recycle
 /// - tap / long-press identity, `leafLongPressEligible`, press scale
 /// - fling stability + fling-cancel leaf suppress
@@ -24,14 +24,19 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
-import 'package:panel_catalog/src/viewport/catalog_section_navigation.dart';
+import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
+import 'package:panel_catalog/testing.dart';
+
+import 'support/asset_scopes.dart';
+import 'support/recording_canvas.dart';
 
 Widget _harness({
-  required CatalogDataSource dataSource,
-  required CatalogAssetCache assetCache,
+  required listen.ValueListenable<CatalogSnapshot> snapshots,
+  required AssetCacheScope assets,
   required PanelCatalogController controller,
   double width = 320,
   double height = 480,
@@ -39,43 +44,41 @@ Widget _harness({
   double cellExtent = 40,
   double headerExtent = 24,
   EdgeInsets padding = EdgeInsets.zero,
-  ValueChanged<CatalogLeaf>? onLeafTap,
-  void Function(CatalogLeaf leaf, LongPressStartDetails details)?
+  ValueChanged<CatalogLeafHit>? onLeafTap,
+  void Function(CatalogLeafHit hit, LongPressStartDetails details)?
   onLeafLongPressStart,
-  void Function(CatalogLeaf leaf, LongPressMoveUpdateDetails details)?
+  void Function(CatalogLeafHit hit, LongPressMoveUpdateDetails details)?
   onLeafLongPressMove,
-  void Function(CatalogLeaf leaf, LongPressEndDetails details)?
+  void Function(CatalogLeafHit hit, LongPressEndDetails details)?
   onLeafLongPressEnd,
-  bool Function(CatalogLeaf leaf)? leafLongPressEligible,
-}) {
-  return MaterialApp(
-    home: PanelCatalogTheme(
-      data: PanelCatalogThemeData.light,
-      child: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: width,
-            height: height,
-            child: PanelCatalogViewport(
-              dataSource: dataSource,
-              assetCache: assetCache,
-              controller: controller,
-              spanCount: spanCount,
-              cellExtent: cellExtent,
-              headerExtent: headerExtent,
-              padding: padding,
-              onLeafTap: onLeafTap,
-              onLeafLongPressStart: onLeafLongPressStart,
-              onLeafLongPressMove: onLeafLongPressMove,
-              onLeafLongPressEnd: onLeafLongPressEnd,
-              leafLongPressEligible: leafLongPressEligible,
-            ),
+  bool Function(CatalogLeafHit hit)? leafLongPressEligible,
+}) => MaterialApp(
+  home: PanelCatalogTheme(
+    data: PanelCatalogThemeData.light,
+    child: Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: PanelCatalogViewport(
+            snapshots: snapshots,
+            assets: assets,
+            controller: controller,
+            spanCount: spanCount,
+            cellExtent: cellExtent,
+            headerExtent: headerExtent,
+            padding: padding,
+            onLeafTap: onLeafTap,
+            onLeafLongPressStart: onLeafLongPressStart,
+            onLeafLongPressMove: onLeafLongPressMove,
+            onLeafLongPressEnd: onLeafLongPressEnd,
+            leafLongPressEligible: leafLongPressEligible,
           ),
         ),
       ),
     ),
-  );
-}
+  ),
+);
 
 CatalogSection _section(String id, List<CatalogLeaf> leaves) =>
     CatalogSection(id: id, title: 'Section $id', leaves: leaves);
@@ -93,19 +96,84 @@ RenderPanelCatalog _render(WidgetTester tester) =>
     tester.renderObject(find.byType(PanelCatalogViewport));
 
 void main() {
-  late FakeCatalogDataSource dataSource;
-  late FakeCatalogAssetCache assetCache;
+  late FakeCatalogSnapshotSource snapshots;
+  late AssetCacheScope assetScope;
   late PanelCatalogController controller;
 
   setUp(() {
-    dataSource = FakeCatalogDataSource();
-    assetCache = FakeCatalogAssetCache();
+    snapshots = FakeCatalogSnapshotSource();
+    assetScope = textGlyphScope();
     controller = PanelCatalogController();
   });
 
   tearDown(() {
-    dataSource.dispose();
+    snapshots.dispose();
     controller.dispose();
+  });
+
+  group('who drags the catalogue', () {
+    Future<void> pumpLong(WidgetTester tester) async {
+      snapshots.replaceSections([
+        _section('a', [
+          for (var i = 0; i < 80; i++)
+            CatalogLeaf.unicode(String.fromCharCode(0x1F600 + i)),
+        ]),
+      ]);
+      await tester.pumpWidget(
+        _harness(
+          snapshots: snapshots,
+          assets: assetScope,
+          controller: controller,
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a mouse pressed and dragged over the grid does not scroll it: '
+        'a mouse scrolls by its wheel and the scrollbar', (tester) async {
+      await pumpLong(tester);
+
+      await tester.drag(
+        find.byType(PanelCatalogViewport),
+        const Offset(0, -120),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pumpAndSettle();
+
+      expect(controller.offset, 0);
+    });
+
+    testWidgets('a finger, a stylus and a trackpad still drag it', (
+      tester,
+    ) async {
+      for (final kind in [PointerDeviceKind.touch, PointerDeviceKind.stylus]) {
+        await pumpLong(tester);
+        controller.jumpTo(0);
+        await tester.pump();
+
+        await tester.drag(
+          find.byType(PanelCatalogViewport),
+          const Offset(0, -120),
+          kind: kind,
+        );
+        await tester.pumpAndSettle();
+
+        expect(controller.offset, greaterThan(0), reason: '$kind');
+      }
+    });
+
+    testWidgets('the wheel still scrolls under a mouse', (tester) async {
+      await pumpLong(tester);
+      final mouse = TestPointer(1, PointerDeviceKind.mouse);
+
+      await tester.sendEventToBinding(
+        mouse.hover(tester.getCenter(find.byType(PanelCatalogViewport))),
+      );
+      await tester.sendEventToBinding(mouse.scroll(const Offset(0, 120)));
+      await tester.pumpAndSettle();
+
+      expect(controller.offset, greaterThan(0));
+    });
   });
 
   group('extent scroll and notify', () {
@@ -116,12 +184,12 @@ void main() {
           for (var i = 0; i < 80; i++)
             CatalogLeaf.unicode(String.fromCharCode(0x1F600 + i)),
         ];
-        dataSource.replaceSections([_section('a', leaves)]);
+        snapshots.replaceSections([_section('a', leaves)]);
 
         await tester.pumpWidget(
           _harness(
-            dataSource: dataSource,
-            assetCache: assetCache,
+            snapshots: snapshots,
+            assets: assetScope,
             controller: controller,
           ),
         );
@@ -155,12 +223,12 @@ void main() {
           for (var i = 0; i < 80; i++)
             CatalogLeaf.unicode(String.fromCharCode(0x1F600 + i)),
         ];
-        dataSource.replaceSections([_section('a', leaves)]);
+        snapshots.replaceSections([_section('a', leaves)]);
 
         await tester.pumpWidget(
           _harness(
-            dataSource: dataSource,
-            assetCache: assetCache,
+            snapshots: snapshots,
+            assets: assetScope,
             controller: controller,
             onLeafTap: (_) {},
             onLeafLongPressStart: (_, _) {},
@@ -176,7 +244,7 @@ void main() {
         await tester.pump();
 
         // One move that crosses touch slop — the arena accepts drag here.
-        await gesture.moveBy(Offset(0, -(kTouchSlop + 1)));
+        await gesture.moveBy(const Offset(0, -(kTouchSlop + 1)));
         await tester.pump();
 
         // Start behavior: pending slop is not applied as scroll. Down
@@ -201,35 +269,30 @@ void main() {
     testWidgets('notifyDataChanged refreshes the projected catalog', (
       tester,
     ) async {
-      dataSource.replaceSections([
-        _section('a', [const CatalogLeaf.unicode('😀')]),
+      snapshots.replaceSections([
+        _section('a', [CatalogLeaf.unicode('😀')]),
       ]);
 
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(_render(tester).projectedAssetKeys, [
-        CatalogAssetKey.unicode('😀'),
-      ]);
+      expect(_render(tester).projectedLeaves, [CatalogLeaf.unicode('😀')]);
 
-      dataSource.replaceSections([
-        _section('b', [
-          const CatalogLeaf.unicode('🎉'),
-          const CatalogLeaf.unicode('🚀'),
-        ]),
+      snapshots.replaceSections([
+        _section('b', [CatalogLeaf.unicode('🎉'), CatalogLeaf.unicode('🚀')]),
       ]);
       await tester.pump();
 
       final render = _render(tester);
-      expect(render.projectedAssetKeys, [
-        CatalogAssetKey.unicode('🎉'),
-        CatalogAssetKey.unicode('🚀'),
+      expect(render.projectedLeaves, [
+        CatalogLeaf.unicode('🎉'),
+        CatalogLeaf.unicode('🚀'),
       ]);
       expect(render.contentExtent, 64);
     });
@@ -237,118 +300,59 @@ void main() {
 
   group('leaf presentation', () {
     testWidgets(
-      'unicode leaves paint as content without waiting on cache ready',
+      'a unicode leaf is drawn as text where the scope draws glyphs as text',
       (tester) async {
-        const leaf = CatalogLeaf.unicode('😀');
-        dataSource.replaceSections([
+        PanelCatalogDiagnostics.reset();
+        final leaf = CatalogLeaf.unicode('😀');
+        snapshots.replaceSections([
           _section('a', [leaf]),
         ]);
 
         await tester.pumpWidget(
           _harness(
-            dataSource: dataSource,
-            assetCache: assetCache,
+            snapshots: snapshots,
+            assets: assetScope,
             controller: controller,
           ),
         );
         await tester.pumpAndSettle();
+        PanelCatalogDiagnostics.reset();
+        final canvas = RecordingCanvas();
+        _render(
+          tester,
+        ).paint(TestRecordingPaintingContext(canvas), Offset.zero);
 
-        // Unicode paints from paragraph cache — no circle while loading/unbound.
-        expect(
-          _render(tester).presentationOf(leaf.assetKey),
-          CatalogLeafPresentation.content,
-        );
-        expect(kCirclePlaceholderRadiusFactor, 0.4);
+        // The header and the glyph; no circle while it loads.
+        expect(canvas.paragraphs, 2);
+        expect(canvas.circles, isEmpty);
+        expect(PanelCatalogDiagnostics.glyphParagraphDraws, 1);
+        expect(CatalogPlaceholderStyle.circleRadiusFactor, 0.4);
       },
     );
 
-    testWidgets('failed unicode leaf presents failed stand-in', (tester) async {
-      const leaf = CatalogLeaf.unicode('😀');
-      dataSource.replaceSections([
-        _section('a', [leaf]),
-      ]);
-
-      await tester.pumpWidget(
-        _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
-          controller: controller,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      assetCache.markFailed(
-        CatalogAssetKey.unicode('😀'),
-        CatalogAssetCacheType.keyboard,
-      );
-      await tester.pump();
-
-      expect(
-        _render(tester).presentationOf(leaf.assetKey),
-        CatalogLeafPresentation.failed,
-      );
-    });
-
     testWidgets(
-      'ready document stays content after binding detachAll (pager reattach)',
+      'a document leaf is the thumb-first silhouette until its media arrives',
       (tester) async {
-        const leaf = CatalogLeaf.document('doc-42');
-        dataSource.replaceSections([
+        final leaf = CatalogLeaf.document('doc-42');
+        snapshots.replaceSections([
           _section('a', [leaf]),
         ]);
 
         await tester.pumpWidget(
           _harness(
-            dataSource: dataSource,
-            assetCache: assetCache,
-            controller: controller,
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        assetCache.markReady(
-          CatalogAssetKey.document('doc-42'),
-          CatalogAssetCacheType.keyboard,
-        );
-        await tester.pump();
-        expect(
-          _render(tester).presentationOf(leaf.assetKey),
-          CatalogLeafPresentation.content,
-        );
-
-        // Simulate keep-alive leave: render detach drops pool binds; cache
-        // must retain ready so paint before re-sync does not flash thumb.
-        _render(tester).debugDetachBindings();
-        expect(
-          _render(tester).presentationOf(leaf.assetKey),
-          CatalogLeafPresentation.content,
-        );
-      },
-    );
-
-    testWidgets(
-      'document-backed leaf identity hooks exist with thumb-first placeholder',
-      (tester) async {
-        const leaf = CatalogLeaf.document('doc-42');
-        dataSource.replaceSections([
-          _section('a', [leaf]),
-        ]);
-
-        await tester.pumpWidget(
-          _harness(
-            dataSource: dataSource,
-            assetCache: assetCache,
+            snapshots: snapshots,
+            assets: assetScope,
             controller: controller,
           ),
         );
         await tester.pumpAndSettle();
 
         final render = _render(tester);
-        expect(render.projectedAssetKeys, [CatalogAssetKey.document('doc-42')]);
-        expect(
-          render.presentationOf(leaf.assetKey),
-          CatalogLeafPresentation.thumbFirstPlaceholder,
-        );
+        final canvas = RecordingCanvas();
+        render.paint(TestRecordingPaintingContext(canvas), Offset.zero);
+        expect(render.projectedLeaves, [leaf]);
+        expect(canvas.rrects, hasLength(1));
+        expect(canvas.circles, isEmpty);
       },
     );
   });
@@ -358,7 +362,7 @@ void main() {
       'cells are paint leaves — element count stays flat as leaf count grows',
       (tester) async {
         Future<int> elementCountFor(int leafCount) async {
-          dataSource.replaceSections([
+          snapshots.replaceSections([
             _section('a', [
               for (var i = 0; i < leafCount; i++)
                 CatalogLeaf.unicode(String.fromCharCode(0x1F600 + i)),
@@ -366,8 +370,8 @@ void main() {
           ]);
           await tester.pumpWidget(
             _harness(
-              dataSource: dataSource,
-              assetCache: assetCache,
+              snapshots: snapshots,
+              assets: assetScope,
               controller: controller,
             ),
           );
@@ -394,7 +398,7 @@ void main() {
     testWidgets(
       'asset bindings recycle to the visible band as the catalog scrolls',
       (tester) async {
-        dataSource.replaceSections([
+        snapshots.replaceSections([
           _section('a', [
             for (var i = 0; i < 80; i++)
               CatalogLeaf.unicode(String.fromCharCode(0x1F600 + i)),
@@ -403,8 +407,8 @@ void main() {
 
         await tester.pumpWidget(
           _harness(
-            dataSource: dataSource,
-            assetCache: assetCache,
+            snapshots: snapshots,
+            assets: assetScope,
             controller: controller,
           ),
         );
@@ -431,17 +435,17 @@ void main() {
     testWidgets('tap on a leaf fires onLeafTap with that leaf identity', (
       tester,
     ) async {
-      const first = CatalogLeaf.unicode('😀');
-      const second = CatalogLeaf.unicode('🎉');
-      dataSource.replaceSections([
+      final first = CatalogLeaf.unicode('😀');
+      final second = CatalogLeaf.unicode('🎉');
+      snapshots.replaceSections([
         _section('a', [first, second]),
       ]);
 
-      CatalogLeaf? tapped;
+      CatalogLeafHit? tapped;
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
           onLeafTap: (leaf) => tapped = leaf,
         ),
@@ -453,21 +457,22 @@ void main() {
       await tester.tapAt(Offset(box.left + 20, box.top + 24 + 20));
       await tester.pumpAndSettle();
 
-      expect(tapped?.assetKey, first.assetKey);
+      expect(tapped, CatalogLeafHit(sectionId: 'a', index: 0, leaf: first));
+      expect(tapped?.leaf, first);
     });
 
     testWidgets('tap on a section header does not fire onLeafTap', (
       tester,
     ) async {
-      dataSource.replaceSections([
-        _section('a', [const CatalogLeaf.unicode('😀')]),
+      snapshots.replaceSections([
+        _section('a', [CatalogLeaf.unicode('😀')]),
       ]);
 
       var taps = 0;
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
           onLeafTap: (_) => taps += 1,
         ),
@@ -484,18 +489,18 @@ void main() {
     testWidgets(
       'long-press on a leaf fires start/move/end with that leaf identity',
       (tester) async {
-        const leaf = CatalogLeaf.unicode('😀');
-        dataSource.replaceSections([
+        final leaf = CatalogLeaf.unicode('😀');
+        snapshots.replaceSections([
           _section('a', [leaf]),
         ]);
 
-        CatalogLeaf? started;
-        CatalogLeaf? moved;
-        CatalogLeaf? ended;
+        CatalogLeafHit? started;
+        CatalogLeafHit? moved;
+        CatalogLeafHit? ended;
         await tester.pumpWidget(
           _harness(
-            dataSource: dataSource,
-            assetCache: assetCache,
+            snapshots: snapshots,
+            assets: assetScope,
             controller: controller,
             onLeafLongPressStart: (l, _) => started = l,
             onLeafLongPressMove: (l, _) => moved = l,
@@ -508,35 +513,35 @@ void main() {
         final center = Offset(box.left + 20, box.top + 24 + 20);
         final gesture = await tester.startGesture(center);
         await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
-        expect(started?.assetKey, leaf.assetKey);
+        expect(started?.leaf, leaf);
 
         await gesture.moveBy(const Offset(12, 0));
         await tester.pump();
-        expect(moved?.assetKey, leaf.assetKey);
+        expect(moved?.leaf, leaf);
 
         await gesture.up();
         await tester.pumpAndSettle();
-        expect(ended?.assetKey, leaf.assetKey);
+        expect(ended?.leaf, leaf);
       },
     );
 
     testWidgets('leafLongPressEligible skips long-press on ineligible leaves', (
       tester,
     ) async {
-      const eligible = CatalogLeaf.unicode('👍');
-      const ineligible = CatalogLeaf.unicode('❤️');
-      dataSource.replaceSections([
+      final eligible = CatalogLeaf.unicode('👍');
+      final ineligible = CatalogLeaf.unicode('❤️');
+      snapshots.replaceSections([
         _section('a', [ineligible, eligible]),
       ]);
 
-      CatalogLeaf? started;
+      CatalogLeafHit? started;
       var taps = 0;
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
-          leafLongPressEligible: (leaf) => leaf.assetKey == eligible.assetKey,
+          leafLongPressEligible: (hit) => hit.leaf == eligible,
           onLeafTap: (_) => taps += 1,
           onLeafLongPressStart: (l, _) => started = l,
           onLeafLongPressMove: (_, _) {},
@@ -558,23 +563,23 @@ void main() {
       final eligibleCenter = Offset(box.left + 100, box.top + 24 + 20);
       final eligibleGesture = await tester.startGesture(eligibleCenter);
       await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
-      expect(started?.assetKey, eligible.assetKey);
+      expect(started?.leaf, eligible);
       await eligibleGesture.up();
     });
 
     testWidgets('press scale stays live when long-press wins over tap', (
       tester,
     ) async {
-      const leaf = CatalogLeaf.unicode('😀');
-      dataSource.replaceSections([
+      final leaf = CatalogLeaf.unicode('😀');
+      snapshots.replaceSections([
         _section('a', [leaf]),
       ]);
 
-      CatalogLeaf? started;
+      CatalogLeafHit? started;
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
           onLeafTap: (_) {},
           onLeafLongPressStart: (l, _) => started = l,
@@ -590,7 +595,7 @@ void main() {
       await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
 
       final render = _render(tester);
-      expect(started?.assetKey, leaf.assetKey);
+      expect(started?.leaf, leaf);
       expect(render.pressedSlotKey, isNotNull);
       expect(render.pressProgress, greaterThan(0));
 
@@ -602,16 +607,16 @@ void main() {
     testWidgets('press feedback is slot-specific for duplicate emoji glyphs', (
       tester,
     ) async {
-      const emoji = CatalogLeaf.unicode('😀');
-      dataSource.replaceSections([
+      final emoji = CatalogLeaf.unicode('😀');
+      snapshots.replaceSections([
         _section('Recents', [emoji]),
         _section('Smiles', [emoji]),
       ]);
 
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
           onLeafTap: (_) {},
           headerExtent: 24,
@@ -620,8 +625,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final projection = projectCatalogSlots(
-        sections: dataSource.sections,
+      final projection = CatalogSlotProjection.project(
+        sections: snapshots.value.sections,
         spanCount: 4,
         cellExtent: 40,
         headerExtent: 24,
@@ -654,15 +659,15 @@ void main() {
     testWidgets('pointer down on a leaf starts press scale feedback', (
       tester,
     ) async {
-      const leaf = CatalogLeaf.unicode('😀');
-      dataSource.replaceSections([
+      final leaf = CatalogLeaf.unicode('😀');
+      snapshots.replaceSections([
         _section('a', [leaf]),
       ]);
 
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
           onLeafTap: (_) {},
         ),
@@ -689,7 +694,7 @@ void main() {
     testWidgets('drag-end with velocity starts a ballistic fling', (
       tester,
     ) async {
-      dataSource.replaceSections([
+      snapshots.replaceSections([
         _section('a', [
           for (var i = 0; i < 80; i++)
             CatalogLeaf.unicode(String.fromCharCode(0x1F600 + i)),
@@ -698,8 +703,8 @@ void main() {
 
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -721,7 +726,7 @@ void main() {
     testWidgets('tap during fling stops scroll and does not fire onLeafTap', (
       tester,
     ) async {
-      dataSource.replaceSections([
+      snapshots.replaceSections([
         _section('a', [
           for (var i = 0; i < 80; i++)
             CatalogLeaf.unicode(String.fromCharCode(0x1F600 + i)),
@@ -731,8 +736,8 @@ void main() {
       var taps = 0;
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
           onLeafTap: (_) => taps += 1,
         ),
@@ -768,12 +773,12 @@ void main() {
       (tester) async {
         const stripInset = 36.0;
         final sections = _sections(12, leavesPerSection: 8);
-        dataSource.replaceSections(sections);
+        snapshots.replaceSections(sections);
 
         await tester.pumpWidget(
           _harness(
-            dataSource: dataSource,
-            assetCache: assetCache,
+            snapshots: snapshots,
+            assets: assetScope,
             controller: controller,
             height: 240,
             padding: const EdgeInsets.only(top: stripInset),
@@ -782,14 +787,16 @@ void main() {
         await tester.pumpAndSettle();
 
         const targetSection = 1;
-        final expectedOffset = scrollOffsetForSectionHeader(
-          sectionIndex: targetSection,
-          sections: sections,
-          spanCount: 4,
-          cellExtent: 40,
-          headerExtent: 24,
-          padding: const EdgeInsets.only(top: stripInset),
-        );
+        final expectedOffset =
+            CatalogSectionNavigation.scrollOffsetForSectionHeader(
+              sectionIndex: targetSection,
+              sections: sections,
+              spanCount: 4,
+              cellExtent: 40,
+              headerExtent: 24,
+              padding: const EdgeInsets.only(top: stripInset),
+              maxWidth: 320,
+            );
 
         final future = controller.jumpToSection(targetSection);
         await tester.pump();
@@ -811,12 +818,12 @@ void main() {
       tester,
     ) async {
       // 8 leaves / span 4 → 2 rows/section; section 2 header at flat index 6 (≤ 9).
-      dataSource.replaceSections(_sections(12, leavesPerSection: 8));
+      snapshots.replaceSections(_sections(12, leavesPerSection: 8));
 
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
           height: 240,
           spanCount: 4,
@@ -836,12 +843,12 @@ void main() {
     });
 
     testWidgets('user drag cancels in-flight section jump', (tester) async {
-      dataSource.replaceSections(_sections(12, leavesPerSection: 8));
+      snapshots.replaceSections(_sections(12, leavesPerSection: 8));
 
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
           height: 240,
         ),
@@ -861,12 +868,12 @@ void main() {
     });
 
     testWidgets('out-of-range jumpToSection is a silent no-op', (tester) async {
-      dataSource.replaceSections(_sections(2));
+      snapshots.replaceSections(_sections(2));
 
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
         ),
       );
@@ -884,12 +891,12 @@ void main() {
       tester,
     ) async {
       // 8 leaves / span 4 → 3 flat slots/section; section 4 header at flat 12 (> 9).
-      dataSource.replaceSections(_sections(12, leavesPerSection: 8));
+      snapshots.replaceSections(_sections(12, leavesPerSection: 8));
 
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
           height: 240,
           spanCount: 4,
@@ -898,13 +905,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        isNearPathSectionJump(
+        CatalogSectionNavigation.isNearPathSectionJump(
           targetSectionIndex: 4,
-          sections: dataSource.sections,
-          spanCount: 4,
-          cellExtent: 40,
-          headerExtent: 24,
-          padding: EdgeInsets.zero,
+          bands: CatalogSectionBands.project(
+            sections: snapshots.value.sections,
+            spanCount: 4,
+            cellExtent: 40,
+            headerExtent: 24,
+            padding: EdgeInsets.zero,
+            maxWidth: 320,
+          ).bands,
           scrollOffset: 0,
           viewportHeight: 240,
         ),
@@ -926,7 +936,7 @@ void main() {
     testWidgets('far-path jumpToSection stitches instead of bare jump', (
       tester,
     ) async {
-      dataSource.replaceSections(_sections(20, leavesPerSection: 16));
+      snapshots.replaceSections(_sections(20, leavesPerSection: 16));
 
       const viewportHeight = 240.0;
       const spanCount = 4;
@@ -936,8 +946,8 @@ void main() {
 
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
           height: viewportHeight,
           spanCount: spanCount,
@@ -949,31 +959,36 @@ void main() {
       await tester.pumpAndSettle();
 
       const targetSection = 19;
-      final projection = projectCatalogSlots(
-        sections: dataSource.sections,
+      final projection = CatalogSlotProjection.project(
+        sections: snapshots.value.sections,
         spanCount: spanCount,
         cellExtent: cellExtent,
         headerExtent: headerExtent,
         padding: padding,
         maxWidth: 320,
       );
-      final expectedOffset = scrollOffsetForSectionHeader(
-        sectionIndex: targetSection,
-        sections: dataSource.sections,
-        spanCount: spanCount,
-        cellExtent: cellExtent,
-        headerExtent: headerExtent,
-        padding: padding,
-      ).clamp(0.0, projection.contentExtent - viewportHeight);
+      final expectedOffset =
+          CatalogSectionNavigation.scrollOffsetForSectionHeader(
+            sectionIndex: targetSection,
+            sections: snapshots.value.sections,
+            spanCount: spanCount,
+            cellExtent: cellExtent,
+            headerExtent: headerExtent,
+            padding: padding,
+            maxWidth: 320,
+          ).clamp(0.0, projection.contentExtent - viewportHeight);
 
       expect(
-        isNearPathSectionJump(
+        CatalogSectionNavigation.isNearPathSectionJump(
           targetSectionIndex: targetSection,
-          sections: dataSource.sections,
-          spanCount: spanCount,
-          cellExtent: cellExtent,
-          headerExtent: headerExtent,
-          padding: padding,
+          bands: CatalogSectionBands.project(
+            sections: snapshots.value.sections,
+            spanCount: spanCount,
+            cellExtent: cellExtent,
+            headerExtent: headerExtent,
+            padding: padding,
+            maxWidth: 320,
+          ).bands,
           scrollOffset: controller.offset,
           viewportHeight: viewportHeight,
         ),
@@ -1003,7 +1018,7 @@ void main() {
     testWidgets('jumpToSection ignores re-entry while stitch is active', (
       tester,
     ) async {
-      dataSource.replaceSections(_sections(20, leavesPerSection: 16));
+      snapshots.replaceSections(_sections(20, leavesPerSection: 16));
 
       const viewportHeight = 240.0;
       const spanCount = 4;
@@ -1013,8 +1028,8 @@ void main() {
 
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
           height: viewportHeight,
           spanCount: spanCount,
@@ -1027,22 +1042,24 @@ void main() {
 
       const targetSection = 19;
       const ignoredSection = 5;
-      final projection = projectCatalogSlots(
-        sections: dataSource.sections,
+      final projection = CatalogSlotProjection.project(
+        sections: snapshots.value.sections,
         spanCount: spanCount,
         cellExtent: cellExtent,
         headerExtent: headerExtent,
         padding: padding,
         maxWidth: 320,
       );
-      final expectedOffset = scrollOffsetForSectionHeader(
-        sectionIndex: targetSection,
-        sections: dataSource.sections,
-        spanCount: spanCount,
-        cellExtent: cellExtent,
-        headerExtent: headerExtent,
-        padding: padding,
-      ).clamp(0.0, projection.contentExtent - viewportHeight);
+      final expectedOffset =
+          CatalogSectionNavigation.scrollOffsetForSectionHeader(
+            sectionIndex: targetSection,
+            sections: snapshots.value.sections,
+            spanCount: spanCount,
+            cellExtent: cellExtent,
+            headerExtent: headerExtent,
+            padding: padding,
+            maxWidth: 320,
+          ).clamp(0.0, projection.contentExtent - viewportHeight);
 
       final future = controller.jumpToSection(targetSection);
       await tester.pump();
@@ -1061,12 +1078,12 @@ void main() {
     });
 
     testWidgets('user drag cancels in-flight far-path stitch', (tester) async {
-      dataSource.replaceSections(_sections(20, leavesPerSection: 16));
+      snapshots.replaceSections(_sections(20, leavesPerSection: 16));
 
       await tester.pumpWidget(
         _harness(
-          dataSource: dataSource,
-          assetCache: assetCache,
+          snapshots: snapshots,
+          assets: assetScope,
           controller: controller,
           height: 240,
           spanCount: 4,

@@ -60,7 +60,7 @@ final class ChatMessageMenuPresentConfig {
 
   /// Resolved **message menu presentation** for this session.
   ///
-  /// Always set by [showChatMessageMenu] after resolving [presentation] /
+  /// Always set by [ChatMessageMenu.show] after resolving [presentation] /
   /// [selectionPolicy] / [ChatSelectionPolicy.forPlatform]. Direct
   /// construction must pass the intended chrome — there is no silent
   /// sheet default here.

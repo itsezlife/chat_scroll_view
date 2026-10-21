@@ -1,9 +1,13 @@
 # content_model
 
-Pure-Dart value types that identify and group catalog content: stickers,
-GIFs, custom and unicode emoji. No Flutter, no I/O, one dependency (`meta`).
-Every other package in the workspace speaks these types, so it depends on no
-workspace package (`scripts/check` enforces both).
+Pure-Dart value types that identify and group catalog content (stickers,
+GIFs, custom and unicode emoji), formatted text (`RichText`), and the seams
+through which packages reach data. Change notification is the pure-Dart
+[`package:listen`](https://pub.dev/packages/listen) (`Listenable`,
+`ValueListenable`, `ChangeNotifier`, `ValueNotifier`), not a type of this
+package. No Flutter, no I/O, two dependencies (`meta`, `listen`), plus
+`package:test` for the opt-in `testing.dart`. Every other package in the workspace speaks these
+types, so it depends on no workspace package (`scripts/check` enforces both).
 
 ## Types
 
@@ -14,6 +18,44 @@ workspace package (`scripts/check` enforces both).
 | `Collection` | `CollectionId` + `CollectionMetadata` + `CollectionContents` (`idle`, `loading`, `loaded` with `CollectionItem`s and a `PageToken`, `failed`). Sets, personal lists, search results and trending are all collections. |
 | `EmojiEntry` | A base unicode key and its variants. Each variant is its own key, tagged with `EmojiModifiers` (ordered tones, gender). |
 | `InlineContentRef` | A key plus the mandatory plain-text alternative, for content embedded in text. |
+| `RichText` | Plain text plus `Entity` spans (UTF-16 offset and length, and an `EntityKind`: bold, italic, underline, strike, spoiler, code, quote, link, mention, inline content). Always canonical, so equal meaning is equal value; edits (`insert`, `delete`, `replaceRange`, `slice`) keep the entities consistent; JSON in and out for drafts. |
+| `EmojiOnlyText` | `EmojiOnlyText.of(RichText)`: whether a text is nothing but emoji by Telegram Android's rule, and if so the ordered `EmojiOnly` items (a unicode sequence or a `document` key) with the line breaks between them. A pure function; the host calls it. |
+| `RichTextMarkdown` | Opt-in, in `package:content_model/markdown.dart`: `RichText` to and from the markdown the viewport's markdown library reads. The host's helper for send, draft, edit-load and body materialise. |
+| `CollectionSource`, `SearchSource` | Publish `Collection`s as immutable snapshots, with load and paging commands. Failure is a state, never an exception. |
+| `RecentsStore`, `PreferenceStore` | Loaded, synchronous-read stores for picks (per `SemanticKind`, frequency then recency; `record`, `remove` one key, `clear`) and typed user choices (preferred variant per emoji, last page, dock preference). |
+| `KeywordSource`, `KeywordPack` | Per-language search keywords, bundled or supplied by the host. |
+| `GlyphSupport` | Which unicode keys the device draws, and the identity of its emoji art. Optimistic: `true` until known missing. |
+| `KeyValueStore`, `StoredValue` | Namespaced, versioned string persistence; the only way logic packages reach durable storage. |
+| `ContentResolver` | Batched async resolution of bare keys to descriptors. |
+| `KeyValueRecentsStore`, `KeyValuePreferenceStore` | The reference `RecentsStore` and `PreferenceStore` over a `KeyValueStore`. Created only by their async `load`, which reads persisted state first, so no store exists unloaded. Structured, versioned JSON records, one namespace per package. |
+
+## Testing
+
+`package:content_model/testing.dart` is opt-in: production code never imports
+it and `content_model.dart` never exports it (`scripts/check` enforces both).
+
+| Seam | Fake | Contract suite |
+| --- | --- | --- |
+| `KeyValueStore` | `FakeKeyValueStore` (in memory, `failure` switch) | `KeyValueStoreContract.run` |
+| `RecentsStore` | `FakeRecentsStore` | `RecentsStoreContract.run` |
+| `PreferenceStore` | `FakePreferenceStore` | `PreferenceStoreContract.run` |
+| `CollectionSource` | `FakeCollectionSource` (scripted `FakePages`, pausable, failure switches) | `CollectionSourceContract.run` |
+| `SearchSource` | `FakeSearchSource` | `SearchSourceContract.run` |
+| `KeywordSource` | `FakeKeywordSource` | `KeywordSourceContract.run` |
+| `GlyphSupport` | `FakeGlyphSupport` | `GlyphSupportContract.run` |
+| `ContentResolver` | `FakeContentResolver` (records batches) | `ContentResolverContract.run` |
+
+A contract suite takes a factory for the implementation under test. The
+suites for sources and resolvers also take a small harness that names facts
+about the content only the implementation knows (an id with two pages, a key
+it cannot resolve) and, where a backend can be made to fail, a switch for it.
+Run the suite from the implementation's own test file:
+
+```dart
+void main() {
+  KeyValueStoreContract.run(MyPlatformKeyValueStore.new);
+}
+```
 
 ## Host contract
 
@@ -25,8 +67,40 @@ workspace package (`scripts/check` enforces both).
 | Titles as data (`CollectionMetadata.title`), in the source's own language. | Rely on a collection carrying an icon or a localized label. A page maps the `CollectionId` to those. |
 | One `Collection` per change. A first-load failure is `failed`; later page trouble stays `loaded` with its `nextPageToken`. | Mutate items or variants: the lists are unmodifiable copies. |
 | Entries whose variant keys are the exact sequences it sends, and tags for each. | Compute a variant by appending a modifier to the base, or fold FE0F spellings into one key. Keys compare exactly. |
+| Implementations of the seams it needs: sources, a `ContentResolver`, a `KeyValueStore` adapter for its platform storage. Each seam's dartdoc states the contract to meet. | Reach a seam's implementation through a downcast, or let a seam throw for an expected condition. Missing data is null or an absent entry; a failed load is a `failed` state. |
+| Its stores from `KeyValueRecentsStore.load` and `KeyValuePreferenceStore.load` over its `KeyValueStore`, awaited once at startup. | Try to use a store before `load` completes (there is no such store), or wrap `load` in a second layer of caching. |
+| A test for every implementation of a seam: the matching `...Contract.run` suite from `testing.dart`. | Ship a fake, or import `testing.dart`, from production code. |
+| The decision that a pick counts: it calls `RecentsStore.record` on insert or send, with the `PickSource` it came from. | Record from inside a page, or record a pick made from search results. |
+| One `KeyValueStore` namespace per package, and a version on every value it writes. | Share a namespace between packages, or expect the store to migrate or interpret a value. |
+| Disposal: whoever creates a notifier, source or store disposes it, once. A seam owner's `dispose` is idempotent; `ChangeNotifier.dispose` itself is not. | Signal from a consumer's side (only the owner type can), add a listener to a disposed owner (an assertion in debug builds), or dispose an owner from inside one of its own listeners. |
+| Listeners that tolerate being called synchronously, inside the call that changed the state, and that read the owner for the new state. | Add the same function twice and expect one call (`package:listen` does not deduplicate: it is called twice and must be removed twice), or assume a signal carries a payload (a `Listenable` has none). |
+| `Listenable.onError` set once, at startup, to report listener errors and not rethrow. This package never sets it. | Expect one throwing listener not to stop the rest: with the default `onError` (rethrow) the notification pass is aborted. |
+| Links and mentions as entities, made where the user or the host decides what is a link (a pasted URL, a picked mention). | Expect `RichText` or the markdown helper to detect a bare URL or `@name`. Entity detection is host-invoked, not viewport paint (ADR 017); the helper writes and reads only what is already an entity or a markdown link. |
+| Bare URLs, emails, `@name` and `#tag` made into entities by `EntityDetection.apply(text, policy)` when a message is sent or materialised, and taken back with `EntityDetection.strip` when it is loaded for edit. | Call it from a paint, a rebuild or a keystroke, or detect with one policy and strip with another. |
+| The emoji-only decision: `EmojiOnlyText.of` when it materialises a message, plus the facts only it has (no media, the large-emoji setting, the chat permission). | Expect the viewport to re-detect, or the result to know about media or settings. There is no count cap and no dependency on `emoji_data`: the BMP emoji set is a constant checked against `emoji_data`'s catalogue by a test there. |
+| Imports of `RichText` that avoid the Flutter widget of the same name: `hide RichText` on the widgets import, or `as model` here. | Import both unqualified in one file. |
+| The `mention:` scheme read as a mention when it decodes a body, and its own targets for links. | Make a link whose target starts with `mention:`; the model rejects it. |
+| Edits as `RichText` operations, passing the styled run to continue a style (equal kinds that touch merge). | Expect typing at the edge of a styled run to extend it, or edits inside a mention or inline content to keep it: the entity is removed. |
+
+## Rich text and markdown
+
+`RichText` is the neutral value a composer produces and a host stores, sends
+and loads back for editing. It shares its name with Flutter's `RichText`
+widget; the glossary term is _rich text_ and the name stays, so a host file
+that needs both writes `import 'package:flutter/widgets.dart' hide RichText;`.
+
+`package:content_model/markdown.dart` is the host helper between `RichText` and
+a markdown body. It is a separate library, has no markdown dependency, and
+follows the dialect of the viewport's markdown library (styles are toggles,
+which lets styles overlap). `RichTextMarkdown` documents the mapping, the
+escape rules and where that dialect falls short. Bodies stay markdown; nothing
+here is called from a scroll or paint path.
 
 ## Decisions
 
-- [Content identity and collection model](../../.scratch/package-architecture/adr-candidates/content-identity.md)
-- [Data layering](../../.scratch/package-architecture/adr-candidates/data-layering.md)
+- [Content identity and collection model](../../docs/adr/021-content-identity-and-collections.md)
+- [Data layering](../../docs/adr/023-data-layering-and-persistence.md)
+- [Testing policy](../../docs/adr/030-testing-policy.md)
+- [Composer model](../../docs/adr/026-composer-model.md) (rich-text value and its home)
+- [Host integration](../../docs/adr/029-host-integration.md) (the markdown helper)
+- [Entity detection is host-invoked, not viewport paint](../../docs/adr/017-body-linkify-host-invoked.md)

@@ -2,14 +2,21 @@ import 'dart:async' show unawaited;
 import 'dart:collection';
 import 'dart:ui' show Offset, Path, Rect;
 
+import 'package:catalog_assets/catalog_assets.dart' show PlaybackClock;
 import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_non_text_body.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_interaction.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_spoiler_dust.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_text_copy.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_text_selection.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_span_feedback.dart';
 import 'package:flutter/foundation.dart'
     show
+        ErrorDescription,
+        FlutterError,
+        FlutterErrorDetails,
         Listenable,
         ValueChanged,
         ValueListenable,
@@ -20,12 +27,14 @@ import 'package:flutter/rendering.dart' show RenderBox, ShapeBorder;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_md/flutter_md.dart';
-import 'package:meta/meta.dart' show internal;
+import 'package:meta/meta.dart' show immutable, internal;
 
 export 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
+export 'package:chat_scroll_view/src/chat_scroll/chat_non_text_body.dart';
 export 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 export 'package:chat_scroll_view/src/chat_scroll/chat_selection_interaction.dart';
 export 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
+export 'package:chat_scroll_view/src/chat_scroll/chat_text_copy.dart';
 export 'package:chat_scroll_view/src/chat_widgets/chat_span_feedback.dart';
 
 /// Signature for observing active span feedback animation state.
@@ -111,22 +120,24 @@ enum ChatDragSelectAction {
 /// does not notify — chrome wrap may stay stale until the next natural
 /// layout that re-evaluates selection-allowed.
 ///
-/// ### Inline hits (links and code)
+/// ### Inline hits (links, mentions, hashtags, embeds and code)
 ///
-/// Inline body hits (hyperlinks and fenced code / monospace snippets) participate
-/// in engine gesture arbitration. Tapping a link or code snippet is a first-class
-/// interaction: it is not swallowed as an idle-tap selection dismiss or idle message
-/// tap.
+/// Inline body hits (hyperlinks, mentions, hashtags, inline embeds and fenced
+/// code / monospace snippets) participate in engine gesture arbitration.
+/// Tapping one is a first-class interaction: it is not swallowed as an idle-tap
+/// selection dismiss or idle message tap. An embed is the exception until the
+/// host opts in with [handlesEmbedHits]. Anything inside a hidden spoiler is no
+/// hit: the tap reveals the message ([spoilers]).
 ///
 /// Under [$Mobile], **message selection** or a live **character-range text
-/// selection** suppresses *all* inline activations (links, inline code, fenced
-/// COPY chrome) so row toggles / range ownership win. Idle (no message
+/// selection** suppresses *all* inline activations (links, mentions, embeds,
+/// inline code, fenced COPY chrome) so row toggles / range ownership win. Idle (no message
 /// membership and no live range) keeps link and code/COPY first-class. Mere
 /// desktop arm-for-entry does not suppress. Under [$Desktop], message
 /// membership does not suppress inline activation.
 ///
 /// Code taps **and idle long-presses** with [copyCodeOnClick] write the
-/// clipboard and emit a single [ChatCopied] (`origin: codeTap`) — not a
+/// clipboard and, once written, emit a single [ChatCopied] (`origin: codeTap`) — not a
 /// separate [ChatCodeActivated]. When [copyCodeOnClick] is `false`, only
 /// [ChatCodeActivated] fires and the host owns clipboard / toast. Prefer
 /// handling [ChatCopied] alone for “Copied” chrome. Under suppression
@@ -141,19 +152,50 @@ class ChatSelectionController implements Listenable {
   /// Creates a selection facade.
   ///
   /// [policy] defaults to [ChatSelectionPolicy.forPlatform].
+  ///
+  /// [spoilers] is the reveal state of the bodies; a host passes its own to
+  /// start with motion off (`MarkdownSpoilerController(animate: false)`) and
+  /// owns it then (it is not disposed here). [spoilerClock] is the asset
+  /// cache's playback clock (`AssetCacheScope.clock`): while a hidden spoiler
+  /// is on screen the dust moves on its frames and pause layers, and without
+  /// one it stands still.
   ChatSelectionController({
     ChatSelectionPolicy? policy,
     this.onInteraction,
     this.copyCodeOnClick = true,
-  }) : selectionPolicy = policy ?? ChatSelectionPolicy.forPlatform(),
+    this.copyWriter,
+    this.handlesEmbedHits = false,
+    MarkdownSpoilerController? spoilers,
+    PlaybackClock? spoilerClock,
+    ChatMonotonicClock? monotonicClock,
+  }) : monotonicClock = monotonicClock ?? _stopwatchClock(),
+       selectionPolicy = policy ?? ChatSelectionPolicy.forPlatform(),
        _text = ChatTextSelection(
          policy: policy ?? ChatSelectionPolicy.forPlatform(),
+         spoilers: spoilers,
        ) {
     _text.markdownSelection.addListener(_onTextRangeChanged);
+    if (spoilerClock != null) {
+      _spoilerDust = ChatSpoilerDust(
+        spoilers: _text.spoilers,
+        clock: spoilerClock,
+      );
+    }
   }
 
   /// Active **selection policy** (entry, nesting, Copy).
   final ChatSelectionPolicy selectionPolicy;
+
+  /// The monotonic clock that stamps a sticker gesture
+  /// (`ChatStickerActivated.tapTime`). Injected so a host's batching and a
+  /// test see the same time; by default time since this facade was created.
+  /// Only differences between two readings mean anything.
+  final ChatMonotonicClock monotonicClock;
+
+  static ChatMonotonicClock _stopwatchClock() {
+    final watch = Stopwatch()..start();
+    return () => watch.elapsed;
+  }
 
   /// Optional host hook for [ChatSelectionInteraction] outcomes.
   ///
@@ -168,6 +210,49 @@ class ChatSelectionController implements Listenable {
   /// Defaults to `true`. When `false`, [ChatCodeActivated] is emitted instead
   /// — the host owns copy (and any toast).
   final bool copyCodeOnClick;
+
+  /// Where a copy goes when the host writes the clipboard itself: the text
+  /// selection's Copy and a code tap ([copyCodeOnClick]) hand it a
+  /// [ChatTextCopy] instead of writing plain text to the platform clipboard.
+  ///
+  /// A host that keeps formatting on the clipboard builds the rich form from
+  /// [ChatTextCopy.content]. Feedback is unchanged: [ChatCopied] follows a
+  /// copy once it is written. A write that fails is reported to
+  /// [FlutterError.reportError] and is no copy: nothing is notified and the
+  /// selection stays. Null writes plain text.
+  final ChatTextCopyWriter? copyWriter;
+
+  /// Whether the host acts on a tap on an inline embed.
+  ///
+  /// Off by default: an embed is then only part of the text, with the text
+  /// cursor over it and no press highlight, and a tap on it is an ordinary tap
+  /// on the message (a custom emoji in a bubble does nothing on its own). Turn
+  /// it on when [ChatEmbedActivated] means something to the host (a sticker
+  /// preview, a pack sheet).
+  final bool handlesEmbedHits;
+
+  /// Which messages have their `||spoilers||` revealed (keyed by message id),
+  /// the controller the bodies of this viewport are given.
+  ///
+  /// It lives with the facade, not in a widget, so a revealed message stays
+  /// revealed when its row is virtualised away and mounted again, and an
+  /// edit-morph twin shows the state of the live body. In memory only. A text
+  /// selection over a hidden spoiler leaves it hidden (the selection is
+  /// painted under the particles and its copy carries the spoiler style, as on
+  /// Android and Desktop); a host that wants iOS's rule, reveal on selection,
+  /// calls [MarkdownSpoilerController.reveal] from its own listener.
+  ///
+  /// The facade owns the controller's `tapReveals`: it is false exactly while
+  /// [isSelectionMode] is, so a tap that toggles a row never also reveals the
+  /// spoiler under it. Do not set it from the host; it would be overwritten at
+  /// the next membership change. The hold limit is the host's:
+  /// `spoilers.tapTimeout` is 500 ms (a longer press is a long press and
+  /// reveals nothing), and a desktop host whose pointer is a mouse sets it to
+  /// null, because a click has no limit. Touch needs no change; Telegram iOS
+  /// starts a long press at 0.3 s, which a host that follows it sets here.
+  MarkdownSpoilerController get spoilers => _text.spoilers;
+
+  ChatSpoilerDust? _spoilerDust;
 
   final ChatTextSelection _text;
   final _interactionListeners = <ValueChanged<ChatSelectionInteraction>>[];
@@ -470,6 +555,61 @@ class ChatSelectionController implements Listenable {
     Object? token,
   }) => putBody(messageId, model, order: order, token: token);
 
+  /// Registers a body of [messageId] that has activatable parts to arbitrate
+  /// taps for (a sticker, later a media body), the way [putBody] registers a
+  /// text one.
+  ///
+  /// Alone it is a message with nothing to select: no text surface, no
+  /// character range, and a long press on it is message selection. The facade
+  /// asks the body for its activatable parts ([resolveInlineHit], before the
+  /// text model's own) and its bounds. A body that is also text (the text
+  /// layout of an emoji-only message) registers [putBody] as well.
+  /// Returns the token to pass to [removeNonTextBody]; several mounts may
+  /// share one [messageId] and the last answers. Null after [dispose].
+  Object? putNonTextBody(int messageId, ChatNonTextBody body) =>
+      _text.putNonTextBody(messageId, body);
+
+  /// Removes the body that [putNonTextBody] returned [token] for.
+  void removeNonTextBody(int messageId, {required Object? token}) =>
+      _text.removeNonTextBody(messageId, token: token);
+
+  // --- Stickers -------------------------------------------------------------
+
+  /// Where the sticker of [messageId] is drawn now, in global coordinates, or
+  /// null when that message shows no sticker: not mounted, not laid out, or
+  /// its host marked the row inactive. Read it when it is needed: a row
+  /// scrolls without rebuilding.
+  Rect? stickerRectOf(int messageId) =>
+      _stickerBodyOf(messageId)?.stickerGlobalRect;
+
+  /// Plays the sticker of [messageId] again and says whether it started.
+  /// False for a message without a shown sticker and while its pass runs.
+  bool replaySticker(int messageId) =>
+      _stickerBodyOf(messageId)?.replay() ?? false;
+
+  /// The entry point for an interaction that came from the peer: restarts the
+  /// sticker of [messageId] and tells the host where to draw the effect.
+  ///
+  /// Returns null when the message shows no sticker now (not mounted, scrolled
+  /// out of the list, or inactive): the host then drops the interaction and
+  /// sends no acknowledgement, as the reference clients do. Otherwise the
+  /// result carries the sticker's current rectangle and whether it restarted
+  /// (it does not while a pass is running; the effect plays either way). What
+  /// else belongs to receiving (which animation, how many at once, the
+  /// acknowledgement, haptics) is the host's.
+  ChatRemoteStickerPlay? playRemoteInteraction(int messageId) {
+    final body = _stickerBodyOf(messageId);
+    final rect = body?.stickerGlobalRect;
+    if (body == null || rect == null) return null;
+    return ChatRemoteStickerPlay(stickerRect: rect, restarted: body.replay());
+  }
+
+  ChatStickerBody? _stickerBodyOf(int messageId) =>
+      switch (_text.nonTextBodyOf(messageId)) {
+        final ChatStickerBody body => body,
+        _ => null,
+      };
+
   /// Returns the mounted [MarkdownSelectionSurface] for [messageId], if any.
   MarkdownSelectionSurface? surfaceFor(int messageId) =>
       _text.surfaceFor(messageId);
@@ -501,6 +641,18 @@ class ChatSelectionController implements Listenable {
   bool textSelectionOverlapsMessage(int messageId, Offset globalOffset) {
     if (_disposed) return false;
     return _text.textSelectionContainsGlobal(messageId, globalOffset);
+  }
+
+  /// The live **text selection** as structured content (the selected blocks,
+  /// their spans and the selected range of each), or `null` when disposed,
+  /// inactive, collapsed or empty. What [copyWriter] is handed on Copy, for a
+  /// host menu that copies the selection itself.
+  MarkdownSelectedContent? textSelectionContent() {
+    if (_disposed || !_text.isActive) return null;
+    final range = _text.range;
+    if (range == null || range.isCollapsed) return null;
+    final content = _text.markdownSelection.selectedContent();
+    return content.isEmpty ? null : content;
   }
 
   /// Plain text of the live **text selection** range, or `null` when
@@ -682,10 +834,11 @@ class ChatSelectionController implements Listenable {
   /// `putDocument` may briefly re-expand the shared registry; [adopt] /
   /// [selectAllText] prune back to the subject (one-message ranges).
   ///
-  /// Under desktop direct-entry: every registered body while idle **and** while
-  /// **message selection** is active (inline link/code/chrome activation must
-  /// keep working without unmounting hit targets). While text-active on
-  /// desktop: only the active [textSelectionSubject].
+  /// Under desktop direct-entry: every registered body, whatever is active
+  /// (idle, **message selection**, **text selection**): inline link/code/chrome
+  /// activation, the text cursor and a press that retargets the **text
+  /// selection subject** must keep working on every other message without a
+  /// dismiss first.
   bool exposesSelectionSurface(int messageId) {
     if (_disposed) return false;
     if (!_text.hasBody(messageId)) return false;
@@ -695,12 +848,15 @@ class ChatSelectionController implements Listenable {
       }
       return isSelected(messageId) || _selectedIds.isEmpty;
     }
-    if (_text.isActive) return _text.subjectId == messageId;
     if (selectionPolicy.allowsTextEntryWithoutMessageSelection) {
-      // Idle direct entry and message-selection inline hits both need mounts.
-      // Live drag-preview alone does not unmount — hit-testing stays live.
+      // Direct entry arms the pressed body on pointer down, so text is active
+      // almost permanently. A surface only on the subject would leave every
+      // other message without a text cursor, inline hit or scope until the
+      // subject was dismissed. Idle, message-selection inline hits, live
+      // drag-preview and an active subject all keep every mount.
       return true;
     }
+    if (_text.isActive) return _text.subjectId == messageId;
     return false;
   }
 
@@ -764,20 +920,35 @@ class ChatSelectionController implements Listenable {
   /// Copies the active plain-text range, then applies [selectionPolicy]
   /// Copy-success effects and notifies via [ChatCopied].
   ///
-  /// Returns `false` when disposed, text selection is inactive, or there is
-  /// no non-empty range (state unchanged; no interaction notify).
+  /// Returns `false` when disposed, text selection is inactive, there is no
+  /// non-empty range, or the write failed (reported to
+  /// [FlutterError.reportError]); the state is then unchanged and nothing is
+  /// notified.
   Future<bool> copyTextSelection() async {
     if (_disposed || !_text.isActive || _isCopying) return false;
     final text = _text.getText();
     if (text.isEmpty) return false;
     final currentSubject = _text.subjectId;
+    final copy = ChatTextCopy(
+      plainText: text,
+      origin: ChatCopyOrigin.textSelection,
+      messageId: currentSubject,
+      // Only a host writer reads the structure.
+      content: copyWriter == null
+          ? null
+          : _text.markdownSelection.selectedContent(),
+    );
     _isCopying = true;
+    final bool written;
     try {
-      await Clipboard.setData(ClipboardData(text: text));
+      written = await _write(copy);
     } finally {
       _isCopying = false;
     }
-    if (_disposed || !_text.isActive || _text.subjectId != currentSubject) {
+    if (!written ||
+        _disposed ||
+        !_text.isActive ||
+        _text.subjectId != currentSubject) {
       return false;
     }
     selectionPolicy.applyCopySuccess(
@@ -791,6 +962,27 @@ class ChatSelectionController implements Listenable {
       ),
     );
     return true;
+  }
+
+  // Whether [copy] was written; a failure is reported.
+  Future<bool> _write(ChatTextCopy copy) async {
+    try {
+      await switch (copyWriter) {
+        final write? => write(copy),
+        null => Clipboard.setData(ClipboardData(text: copy.plainText)),
+      };
+      return true;
+    } on Object catch (error, stack) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'chat_scroll_view',
+          context: ErrorDescription('while copying ${copy.origin.name}'),
+        ),
+      );
+      return false;
+    }
   }
 
   /// Registers [listener] for [ChatSelectionInteraction] outcomes.
@@ -821,8 +1013,9 @@ class ChatSelectionController implements Listenable {
 
   // --- Inline hits (links & code) ---
 
-  /// Resolves whether [globalOffset] hits an inline element (hyperlink or
-  /// code block / monospace snippet) in the registered body of [messageId].
+  /// Resolves whether [globalOffset] hits an inline element (hyperlink,
+  /// mention, hashtag, embed, or code block / monospace snippet) in the
+  /// registered body of [messageId].
   ///
   /// Returns a [ChatInlineHit] descriptor when an inline element is hit,
   /// or `null` when the point lands on unformatted plain text, padding,
@@ -870,55 +1063,129 @@ class ChatSelectionController implements Listenable {
     if (_disposed) return false;
     // One gate for every [ChatInlineHit] variant — do not special-case link
     // vs code/COPY chrome (that flip-flops idle vs selected behavior).
-    if (_suppressesInlineActivation()) {
+    if (_suppressesInlineActivation(hit.messageId)) {
       return false;
     }
-    switch (hit) {
-      case ChatInlineHit$Link(:final messageId, :final title, :final url):
-        // Press ink arms on pointer down via [beginSpanFeedback]; do not
-        // one-shot flash again on action.
-        _notifyInteraction(
-          ChatSelectionInteraction.linkActivated(
-            messageId: messageId,
-            title: title,
-            url: url,
-            gesture: gesture,
-          ),
-        );
-        return true;
-
-      case ChatInlineHit$Code(:final messageId, :final code):
-        if (copyCodeOnClick) {
-          unawaited(
-            Clipboard.setData(ClipboardData(text: code)).catchError((_) {}),
-          );
-          _notifyInteraction(
-            ChatSelectionInteraction.copied(
-              text: code,
-              origin: ChatCopyOrigin.codeTap,
-              messageId: messageId,
-              gesture: gesture,
-            ),
-          );
-        } else {
-          _notifyInteraction(
-            ChatSelectionInteraction.codeActivated(
-              messageId: messageId,
-              code: code,
-              gesture: gesture,
-            ),
-          );
-        }
-        return true;
+    // A tapped code snippet copies itself when the facade owns the clipboard;
+    // every other hit is one interaction for the host.
+    if (hit case ChatInlineHit$Code(
+      :final messageId,
+      :final code,
+      :final language,
+    ) when copyCodeOnClick) {
+      unawaited(_copyCode(messageId, code, language, gesture));
+      return true;
     }
+    // Press ink for a link arms on pointer down via [beginSpanFeedback]; the
+    // action does not flash again.
+    final interaction = _activationOf(hit, gesture);
+    if (interaction == null) return false;
+    _notifyInteraction(interaction);
+    return true;
+  }
+
+  // The interaction a hit reports to the host, the one mapping both gestures
+  // share; null for a hit the host is not told about. An embed the host does
+  // not act on is part of the text, so its tap goes on to the message. A
+  // sticker is not gated like an embed: it is meant to be tapped, and the body
+  // replays the animation on this notification.
+  ChatSelectionInteraction? _activationOf(
+    ChatInlineHit hit,
+    ChatInlineGesture gesture,
+  ) => switch (hit) {
+    ChatInlineHit$Link(:final messageId, :final title, :final url) =>
+      ChatSelectionInteraction.linkActivated(
+        messageId: messageId,
+        title: title,
+        url: url,
+        gesture: gesture,
+      ),
+    ChatInlineHit$Mention$Resolved(:final messageId, :final id, :final name) =>
+      ChatSelectionInteraction.resolvedMentionActivated(
+        messageId: messageId,
+        id: id,
+        name: name,
+        gesture: gesture,
+      ),
+    ChatInlineHit$Mention$Username(:final messageId, :final name) =>
+      ChatSelectionInteraction.usernameMentionActivated(
+        messageId: messageId,
+        name: name,
+        gesture: gesture,
+      ),
+    ChatInlineHit$Hashtag(:final messageId, :final tag) =>
+      ChatSelectionInteraction.hashtagActivated(
+        messageId: messageId,
+        tag: tag,
+        gesture: gesture,
+      ),
+    ChatInlineHit$Embed(:final messageId, :final target, :final alt) =>
+      handlesEmbedHits
+          ? ChatSelectionInteraction.embedActivated(
+              messageId: messageId,
+              target: target,
+              alt: alt,
+              gesture: gesture,
+            )
+          : null,
+    ChatInlineHit$Sticker(
+      :final messageId,
+      :final content,
+      :final stickerRect,
+    ) =>
+      ChatSelectionInteraction.stickerActivated(
+        messageId: messageId,
+        content: content,
+        gesture: gesture,
+        stickerRect: stickerRect,
+        tapTime: monotonicClock(),
+      ),
+    ChatInlineHit$Code(:final messageId, :final code) =>
+      ChatSelectionInteraction.codeActivated(
+        messageId: messageId,
+        code: code,
+        gesture: gesture,
+      ),
+  };
+
+  // A code tap's copy, notified once written.
+  Future<void> _copyCode(
+    int messageId,
+    String code,
+    String? language,
+    ChatInlineGesture gesture,
+  ) async {
+    final written = await _write(
+      ChatTextCopy(
+        plainText: code,
+        origin: ChatCopyOrigin.codeTap,
+        messageId: messageId,
+        codeLanguage: language,
+      ),
+    );
+    if (!written || _disposed) return;
+    _notifyInteraction(
+      ChatSelectionInteraction.copied(
+        text: code,
+        origin: ChatCopyOrigin.codeTap,
+        messageId: messageId,
+        gesture: gesture,
+      ),
+    );
   }
 
   /// Whether link / inline-code / fenced COPY chrome taps must not activate.
   ///
   /// Suppresses when a **non-collapsed** character-range is live (not merely
-  /// desktop arm-for-entry), or under mobile **message selection** mode.
-  bool _suppressesInlineActivation() {
-    if (_hasLiveTextRange) return true;
+  /// desktop arm-for-entry) — everywhere, or only in the range's own message
+  /// under [ChatSelectionPolicy.scopesTextRangeSuppressionToSubject] — or
+  /// under mobile **message selection** mode.
+  bool _suppressesInlineActivation(int messageId) {
+    if (_hasLiveTextRange &&
+        (!selectionPolicy.scopesTextRangeSuppressionToSubject ||
+            _text.subjectId == messageId)) {
+      return true;
+    }
     return selectionPolicy.suppressesLinkTapInMessageSelection &&
         isSelectionMode;
   }
@@ -943,18 +1210,13 @@ class ChatSelectionController implements Listenable {
   bool handleInlineHitLongPress(ChatInlineHit hit) {
     if (_disposed) return false;
     switch (hit) {
-      case ChatInlineHit$Link(:final messageId, :final title, :final url):
-        final hasHandlers =
-            onInteraction != null || _interactionListeners.isNotEmpty;
-        _notifyInteraction(
-          ChatSelectionInteraction.linkActivated(
-            messageId: messageId,
-            title: title,
-            url: url,
-            gesture: ChatInlineGesture.longPress,
-          ),
-        );
-        return hasHandlers;
+      case ChatInlineHit$Sticker():
+        // A long press on a sticker is message selection, not an activation:
+        // it is told (the body restarts under its tap policy) and not claimed.
+        if (!_suppressesInlineActivation(hit.messageId)) {
+          _notifyInteraction(_activationOf(hit, ChatInlineGesture.longPress)!);
+        }
+        return false;
       case ChatInlineHit$Code():
         // Same action as tap, tagged long-press. Drop press ink immediately —
         // the gesture already completed (unlike link long-press, which keeps
@@ -965,6 +1227,18 @@ class ChatSelectionController implements Listenable {
         );
         if (handled) abortSpanFeedback();
         return handled;
+      case ChatInlineHit$Link() ||
+          ChatInlineHit$Mention() ||
+          ChatInlineHit$Hashtag() ||
+          ChatInlineHit$Embed():
+        final interaction = _activationOf(hit, ChatInlineGesture.longPress);
+        if (interaction == null) return false;
+        // Read before the notification: a handler may add listeners, and the
+        // press is handled only if someone was listening for it.
+        final hasHandlers =
+            onInteraction != null || _interactionListeners.isNotEmpty;
+        _notifyInteraction(interaction);
+        return hasHandlers;
     }
   }
 
@@ -1393,6 +1667,10 @@ class ChatSelectionController implements Listenable {
   bool _notifyScheduled = false;
 
   void _notify() {
+    // Before the trampoline below, not in it: the engine reads the flag on the
+    // pointer up, and a deferred listener round would let one tap through the
+    // other side of a mode change.
+    _syncSpoilerTaps();
     // Span auto-scroll applies from performLayout. Listeners (composer,
     // chrome) call setState — illegal during persistentCallbacks. Same
     // trampoline as ChatScrollController.isAtTail.
@@ -1409,6 +1687,16 @@ class ChatSelectionController implements Listenable {
       return;
     }
     _notifyNow();
+  }
+
+  /// A tap on a hidden spoiler reveals it only outside a selection mode. In
+  /// one a tap toggles the row and the spoiler stays hidden, as on Android
+  /// (`ChatMessageCell` takes no spoiler touch while the chat is selecting).
+  /// Every membership change, committed or drag preview, ends in [_notify], so
+  /// this one place keeps the engine's flag equal to [isSelectionMode].
+  void _syncSpoilerTaps() {
+    if (_disposed) return;
+    _text.spoilers.tapReveals = !isSelectionMode;
   }
 
   void _notifyNow() {
@@ -1433,6 +1721,8 @@ class ChatSelectionController implements Listenable {
     _pendingWordSelect = false;
     _lastSameDocTextSelection = null;
     _text.markdownSelection.removeListener(_onTextRangeChanged);
+    _spoilerDust?.dispose();
+    _spoilerDust = null;
     _listeners.clear();
     _selectionAllowedListeners.clear();
     _interactionListeners.clear();
@@ -1448,4 +1738,38 @@ class ChatSelectionController implements Listenable {
     // conversation that happens to reuse the same numeric range.
     _selectedIds.clear();
   }
+}
+
+/// A monotonic reading of time as a [Duration] since some fixed start: it
+/// never goes back, and only differences between two readings mean anything.
+typedef ChatMonotonicClock = Duration Function();
+
+/// What `ChatSelectionController.playRemoteInteraction` hands a host that
+/// applies a peer's interaction to a shown sticker.
+@immutable
+final class ChatRemoteStickerPlay {
+  /// Creates the result.
+  const ChatRemoteStickerPlay({
+    required this.stickerRect,
+    required this.restarted,
+  });
+
+  /// Where the sticker is drawn now, in global coordinates.
+  final Rect stickerRect;
+
+  /// Whether the sticker's animation restarted for this interaction.
+  final bool restarted;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatRemoteStickerPlay &&
+      other.stickerRect == stickerRect &&
+      other.restarted == restarted;
+
+  @override
+  int get hashCode => Object.hash(stickerRect, restarted);
+
+  @override
+  String toString() =>
+      'ChatRemoteStickerPlay(stickerRect: $stickerRect, restarted: $restarted)';
 }

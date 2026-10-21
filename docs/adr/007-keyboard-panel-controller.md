@@ -6,7 +6,7 @@ through a `GlobalKey<State>`. The controller is the source of truth for open/tab
 search (and related chrome intents); the widget projects that state. Extent
 scroll stays on page-local [PanelCatalogController].
 
-**Status**: Accepted  
+**Status**: Accepted; partly superseded by [ADR 025](025-panel-shell-and-pages.md) (controller, listeners, widget API, tab storage) and [ADR 028](028-panel-presentation.md) (inset arbitration, height and visibility)  
 **Date**: 2026-08-25
 
 ## Decided
@@ -35,6 +35,18 @@ scroll stays on page-local [PanelCatalogController].
 | Put insert/backspace on the controller         | Couples chrome SoT to composer / BuildContext                         |
 | Expose page catalog controller on panel API    | No host use-case; collapses page and chrome boundaries                |
 | Keep legacy recents migrate                    | Package not a stable published migrate contract; dead weight          |
+
+## Superseded parts
+
+| Topic | Now |
+| ----- | --- |
+| SoT, Widget API | Page and search state: `PanelShellController`; visibility: `PanelPresentationController`; one `PanelEvent` handler ([ADR 025](025-panel-shell-and-pages.md), [ADR 028](028-panel-presentation.md)) |
+| Listeners | `package:listen` and synchronous `Stream`s ([ADR 023](023-data-layering-and-persistence.md)) |
+| Inset | The presentation owns occupancy and IME arbitration; the host aggregates ([ADR 028](028-panel-presentation.md)) |
+| Rename scope, Recents store | The `KeyboardPanel*` types are replaced; recents move to the `RecentsStore` seam ([ADR 023](023-data-layering-and-persistence.md)) |
+
+Kept: the controller is the source of truth, the widget projects it, and no
+`GlobalKey` controls the panel.
 
 ## Related
 

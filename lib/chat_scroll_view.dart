@@ -7,9 +7,24 @@
 /// Host-facing helpers include [ChatRowChrome] (ordered row chrome such as
 /// the inline date separator, stacked above the message body),
 /// [ChatMessageBody] (in-bubble content + meta last-line packing),
-/// [ChatMessageChangeTransition] (edit morph: layout-final + paint deltas),
-/// [ChatBubbleMetrics] (theme + run → corner / padding resolvers), and
-/// [ChatBodyLinkify] (host-invoked bare URL / mention → markdown; never paint).
+/// [ChatMessageChangeTransition] (edit morph: layout-final + paint deltas), and
+/// [ChatBubbleMetrics] (theme + run → corner / padding resolvers).
+///
+/// The viewport paints and activates the links, mentions and hashtags a body
+/// already carries; it never detects them. Detection is the host's step
+/// (`EntityDetection` and `DetectionPolicy` in `content_model`).
+///
+/// A body also holds inline embeds (`ChatMarkdownBody.embedResolver`) and
+/// `||spoilers||` (revealed per message through
+/// [ChatSelectionController.spoilers]). A tap on a link, a mention, a hashtag
+/// or an embed is its own [ChatInlineHit] kind and [ChatSelectionInteraction];
+/// an embed's tap is reported only when
+/// [ChatSelectionController.handlesEmbedHits] is on.
+///
+/// [ChatEmojiBody] is the second body: a bubble-less message of nothing but
+/// emoji, a sticker or enlarged text, registered with
+/// [ChatSelectionController.putNonTextBody] so a long press is message
+/// selection. The sticker's tap is `ChatInlineHit.sticker`.
 library;
 
 export 'package:flutter_md/flutter_md.dart'
@@ -18,7 +33,6 @@ export 'package:flutter_md/flutter_md.dart'
 export 'src/chat_scroll/animate_to_busy_policy.dart';
 export 'src/chat_scroll/animate_to_disposition.dart';
 export 'src/chat_scroll/animate_to_load_policy.dart';
-export 'src/chat_scroll/chat_body_linkify.dart';
 export 'src/chat_scroll/chat_data_source.dart';
 export 'src/chat_scroll/chat_day_header_delegate.dart';
 export 'src/chat_scroll/chat_mutations.dart';
@@ -43,8 +57,13 @@ export 'src/chat_scroll/chat_selection_controller.dart';
 export 'src/chat_scroll/chat_selection_interaction.dart';
 export 'src/chat_scroll/chat_selection_policy.dart';
 export 'src/chat_scroll/chat_sender_run_layout.dart';
+export 'src/chat_scroll/chat_sticker_tap_policy.dart';
 export 'src/chat_widgets/chat_bubble_metrics.dart';
 export 'src/chat_widgets/chat_code_block_painter.dart';
+export 'src/chat_widgets/chat_emoji_body.dart';
+export 'src/chat_widgets/chat_emoji_geometry.dart' show ChatEmojiGeometry;
+export 'src/chat_widgets/chat_emoji_policy.dart';
+export 'src/chat_widgets/chat_emoji_sizes.dart';
 export 'src/chat_widgets/chat_floating_header_marker.dart';
 export 'src/chat_widgets/chat_keyboard_shortcuts.dart';
 export 'src/chat_widgets/chat_markdown_autoscroll.dart';
@@ -52,6 +71,8 @@ export 'src/chat_widgets/chat_markdown_body.dart';
 export 'src/chat_widgets/chat_message_body.dart';
 export 'src/chat_widgets/chat_message_change_transition.dart';
 export 'src/chat_widgets/chat_message_surface_bounds.dart';
+export 'src/chat_widgets/chat_message_surface_parts.dart';
+export 'src/chat_widgets/chat_message_tap_barrier.dart';
 export 'src/chat_widgets/chat_message_theme.dart';
 export 'src/chat_widgets/chat_row_chrome.dart';
 export 'src/chat_widgets/chat_scroll_theme.dart';
@@ -65,6 +86,7 @@ export 'src/chat_widgets/chat_selection_metrics.dart';
 export 'src/chat_widgets/chat_selection_theme.dart';
 export 'src/chat_widgets/chat_smooth_contour.dart';
 export 'src/chat_widgets/chat_span_feedback.dart';
+export 'src/chat_widgets/chat_sticker_playback.dart';
 export 'src/chat_widgets/chat_tap_highlight.dart';
 export 'src/chat_widgets/message_menu/chat_message_menu.dart';
 export 'src/chat_widgets/message_menu/chat_pre_ime_back.dart';

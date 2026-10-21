@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 ///
 /// Session, placement, back, and IME stay package-owned. This extension
 /// restyles scrim / card / rows. Swap structure with
-/// `showChatMessageMenu(menuBuilder: …)` or per-row builders.
+/// `ChatMessageMenu.show(menuBuilder: …)` or per-row builders.
 ///
 /// Resolution: [resolve] from `ThemeData.extensions`, then [fromScheme]
 /// for omitted colours.

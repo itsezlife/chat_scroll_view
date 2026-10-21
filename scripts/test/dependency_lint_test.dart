@@ -36,10 +36,12 @@ void main() {
               'chrome_foundation',
             },
             'panel_presentation': {'panel_shell', 'chrome_foundation'},
+            'composer_editable': {},
             'chat_composer': {
               'chrome_foundation',
               'content_model',
               'catalog_assets',
+              'composer_editable',
             },
             'example': {
               'panel_pages',
@@ -55,14 +57,17 @@ void main() {
       );
     });
 
-    test('accepts the packages as they are before the redesign', () {
+    test('accepts the layers as the workspace stands', () {
       expect(
         rulesOf({
-          'catalog_assets': {},
-          'emoji_data': {},
-          'panel_catalog': {'catalog_assets'},
-          'chat_chrome': {'catalog_assets', 'emoji_data', 'panel_catalog'},
-          'example': {'chat_chrome', 'panel_catalog', 'emoji_data'},
+          'content_model': {},
+          'chrome_foundation': {},
+          'catalog_assets': {'content_model'},
+          'emoji_data': {'content_model'},
+          'panel_catalog': {'catalog_assets', 'content_model'},
+          'panel_shell': {'chrome_foundation', 'content_model'},
+          'panel_pages': {'panel_catalog', 'panel_shell', 'catalog_assets'},
+          'example': {'panel_pages', 'panel_shell', 'emoji_data'},
         }),
         isEmpty,
       );
@@ -106,7 +111,11 @@ void main() {
     });
 
     group('leaves', () {
-      for (final leaf in ['content_model', 'chrome_foundation']) {
+      for (final leaf in [
+        'content_model',
+        'chrome_foundation',
+        'composer_editable',
+      ]) {
         test('$leaf depending on a workspace package is reported', () {
           final violations = DependencyLint.check(
             graphOf({
@@ -241,6 +250,140 @@ void main() {
 
       expect(violations.map((v) => v.rule), [LintRule.forbiddenDependency]);
       expect(violations.single.subject, 'panel_catalog -> chrome_foundation');
+    });
+
+    group('shared_preferences', () {
+      test('is allowed in kv_shared_preferences', () {
+        expect(
+          rulesOf({
+            'content_model': {},
+            'kv_shared_preferences': {'content_model', 'shared_preferences'},
+          }),
+          isEmpty,
+        );
+      });
+
+      test('is reported in any other member', () {
+        final violations = DependencyLint.check(
+          graphOf({
+            'emoji_data': {'shared_preferences'},
+            'kv_shared_preferences': {'shared_preferences'},
+          }),
+        );
+
+        expect(violations.map((v) => v.rule), [
+          LintRule.pluginDependencyOutsideAdapter,
+        ]);
+        expect(violations.single.subject, 'emoji_data -> shared_preferences');
+      });
+
+      test('is reported for its platform implementation packages too', () {
+        expect(
+          DependencyLint.check(
+            graphOf({
+              'panel_pages': {'shared_preferences_android'},
+            }),
+          ).map((v) => v.subject),
+          ['panel_pages -> shared_preferences_android'],
+        );
+      });
+    });
+
+    group('rich_clipboard', () {
+      WorkspaceGraph withHost(
+        Set<String> hostDependencies, {
+        Map<String, Set<String>> others = const {},
+      }) => WorkspaceGraph(
+        root: '.',
+        members: [
+          const WorkspaceMember(
+            name: 'content_model',
+            path: 'packages/content_model',
+          ),
+          const WorkspaceMember(
+            name: 'rich_clipboard',
+            path: 'packages/rich_clipboard',
+            dependencies: {'content_model'},
+          ),
+          for (final MapEntry(:key, :value) in others.entries)
+            WorkspaceMember(
+              name: key,
+              path: 'packages/$key',
+              dependencies: value,
+            ),
+          WorkspaceMember(
+            name: 'chat_scroll_view_example',
+            path: 'example',
+            dependencies: hostDependencies,
+          ),
+        ],
+      );
+
+      test('is wired by the example host', () {
+        expect(
+          DependencyLint.check(withHost({'rich_clipboard', 'content_model'})),
+          isEmpty,
+        );
+      });
+
+      test('is reported in any package, which takes the RichClipboard seam '
+          'instead', () {
+        final violations = DependencyLint.check(
+          withHost(
+            {'rich_clipboard'},
+            others: {
+              'chat_composer': {'content_model', 'rich_clipboard'},
+            },
+          ),
+        );
+
+        expect(violations.map((v) => v.rule), [
+          LintRule.hostAdapterOutsideHost,
+        ]);
+        expect(violations.single.subject, 'chat_composer -> rich_clipboard');
+      });
+    });
+
+    group('composer_editable', () {
+      test('is depended on by chat_composer', () {
+        expect(
+          rulesOf({
+            'composer_editable': {},
+            'content_model': {},
+            'chat_composer': {'composer_editable', 'content_model'},
+          }),
+          isEmpty,
+        );
+      });
+
+      for (final other in ['panel_pages', 'chat_scroll_view', 'example']) {
+        test('a second package ($other) depending on it is reported', () {
+          final violations = DependencyLint.check(
+            graphOf({
+              'composer_editable': {},
+              'chat_composer': {'composer_editable'},
+              other: {'composer_editable'},
+            }),
+          );
+
+          expect(violations.map((v) => v.rule), [
+            LintRule.composerEditableOutsideComposer,
+          ]);
+          expect(violations.single.subject, '$other -> composer_editable');
+        });
+      }
+
+      test('depending on any workspace package is reported', () {
+        final violations = DependencyLint.check(
+          graphOf({
+            'composer_editable': {'content_model'},
+            'content_model': {},
+          }),
+        );
+
+        expect(violations.map((v) => v.rule), [LintRule.leafDependsOnPackage]);
+        expect(violations.single.subject, 'composer_editable -> content_model');
+      });
     });
 
     test('reports every kind of violation in one pass, in a stable order', () {

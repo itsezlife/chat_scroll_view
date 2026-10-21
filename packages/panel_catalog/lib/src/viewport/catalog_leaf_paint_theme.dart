@@ -4,13 +4,14 @@ import 'package:panel_catalog/src/theme/panel_catalog_theme_data.dart';
 
 /// Density-resolved paint snapshot for [CatalogLeafPainter].
 ///
-/// Engine-facing counterpart to [PanelCatalogThemeData]: colors, section header
-/// [TextStyle], and [leafPressSelectorRadius] already multiplied by device pixel
-/// ratio. Constructed only at the [PanelCatalogViewport] boundary via [resolve];
-/// the render object stores one instance on [RenderPanelCatalog.paintTheme].
+/// Engine-facing counterpart to [PanelCatalogThemeData]: the same colours and
+/// section header [TextStyle], with [leafPressSelectorRadius] already
+/// multiplied by device pixel ratio. Constructed only at the
+/// [PanelCatalogViewport] boundary via [resolve]; the render object stores one
+/// instance on [RenderPanelCatalog.paintTheme].
 ///
-/// Does **not** participate in host [lerp] directly — interpolate
-/// [PanelCatalogThemeData], then [resolve] each frame.
+/// Does **not** participate in host [PanelCatalogThemeData.lerp] directly:
+/// interpolate [PanelCatalogThemeData], then [resolve] each frame.
 ///
 /// ## Equality
 ///
@@ -24,39 +25,75 @@ class CatalogLeafPaintTheme {
   /// Prefer [resolve] from [PanelCatalogThemeData] so
   /// [leafPressSelectorRadius] stays consistent with host nominal dp.
   const CatalogLeafPaintTheme({
-    required this.placeholderColor,
+    required this.circleColor,
+    required this.thumbColor,
+    required this.washColor,
+    required this.washHighlightColor,
+    required this.washPeriod,
+    required this.skeletonColor,
+    required this.placeholderCornerRadius,
     required this.leafPressHighlightColor,
+    required this.leafFocusHighlightColor,
+    required this.leafPressSelectorRadius,
     required this.sectionHeaderStyle,
     required this.sectionHeaderStartInset,
-    required this.documentStandInColor,
-    required this.leafPressSelectorRadius,
-    required this.standInCornerRadius,
+    this.leafHoverHighlightColor,
+    this.leafHoverHighlightRadius = 8,
+    this.leafHoverHighlightInset = 2,
+    this.leafHoverHighlightSize,
+    this.leafPressFeedback = CatalogPressFeedback.inkAndScale,
   });
 
   /// Builds a paint snapshot from [data] and [devicePixelRatio].
   ///
-  /// Copies color and typography fields verbatim; applies
+  /// Copies colour and typography fields verbatim; applies
   /// [PanelCatalogThemeData.selectorRadiusLogicalPx] for
   /// [leafPressSelectorRadius]. [devicePixelRatio] is typically from
-  /// [MediaQuery.devicePixelRatioOf] at the viewport.
+  /// `MediaQuery.devicePixelRatioOf` at the viewport.
   factory CatalogLeafPaintTheme.resolve(
     PanelCatalogThemeData data, {
     required double devicePixelRatio,
-  }) {
-    return CatalogLeafPaintTheme(
-      placeholderColor: data.placeholderColor,
-      leafPressHighlightColor: data.leafPressHighlightColor,
-      sectionHeaderStyle: data.sectionHeaderStyle,
-      sectionHeaderStartInset: data.sectionHeaderStartInset,
-      documentStandInColor: data.documentStandInColor,
-      leafPressSelectorRadius: data.selectorRadiusLogicalPx(devicePixelRatio),
-      standInCornerRadius: data.standInCornerRadius,
-    );
-  }
+  }) => CatalogLeafPaintTheme(
+    circleColor: data.circleColor,
+    thumbColor: data.thumbColor,
+    washColor: data.washColor,
+    washHighlightColor: data.washHighlightColor,
+    washPeriod: data.washPeriod,
+    skeletonColor: data.skeletonColor,
+    placeholderCornerRadius: data.placeholderCornerRadius,
+    leafPressHighlightColor: data.leafPressHighlightColor,
+    leafFocusHighlightColor:
+        data.leafFocusHighlightColor ?? data.leafPressHighlightColor,
+    leafPressSelectorRadius: data.selectorRadiusLogicalPx(devicePixelRatio),
+    leafHoverHighlightColor: data.leafHoverHighlightColor,
+    leafHoverHighlightRadius: data.leafHoverHighlightRadius,
+    leafHoverHighlightInset: data.leafHoverHighlightInset,
+    leafHoverHighlightSize: data.leafHoverHighlightSize,
+    leafPressFeedback: data.leafPressFeedback,
+    sectionHeaderStyle: data.sectionHeaderStyle,
+    sectionHeaderStartInset: data.sectionHeaderStartInset,
+  );
 
-  /// Fill for circle / stand-in placeholders ([CatalogLeafPresentation]
-  /// loading paths).
-  final Color placeholderColor;
+  /// Fill of the circle placeholder of an unbaked glyph.
+  final Color circleColor;
+
+  /// Fill of the thumb-first silhouette.
+  final Color thumbColor;
+
+  /// Base fill of the sticker wash.
+  final Color washColor;
+
+  /// Colour of the band swept across the wash.
+  final Color washHighlightColor;
+
+  /// Time one sweep of the wash takes.
+  final Duration washPeriod;
+
+  /// Fill of skeleton leaves.
+  final Color skeletonColor;
+
+  /// Corner radius of rounded-rect placeholders, in logical pixels.
+  final double placeholderCornerRadius;
 
   /// List-selector wash on the full cell rect while pressed.
   ///
@@ -64,40 +101,74 @@ class CatalogLeafPaintTheme {
   /// multiplied by clamped press progress each frame.
   final Color leafPressHighlightColor;
 
-  /// Section header title style ([CatalogHeaderSlot] labels).
+  /// List-selector wash on the cell that holds roving focus: the theme's focus
+  /// token, or the press highlight when it has none. Drawn at full alpha, with
+  /// the press highlight's radius.
+  final Color leafFocusHighlightColor;
+
+  /// Press-highlight corner radius in logical pixels (density-resolved).
+  final double leafPressSelectorRadius;
+
+  /// Wash under a hovering mouse, or null for none.
+  final Color? leafHoverHighlightColor;
+
+  /// Corner radius of the hover wash, in logical pixels.
+  final double leafHoverHighlightRadius;
+
+  /// Inset of the hover wash from the cell rect, in logical pixels.
+  final double leafHoverHighlightInset;
+
+  /// Size of the hover wash centred in the cell, or null for the inset cell.
+  final Size? leafHoverHighlightSize;
+
+  /// What a press draws.
+  final CatalogPressFeedback leafPressFeedback;
+
+  /// Section header title style.
   final TextStyle sectionHeaderStyle;
 
   /// Extra start inset after horizontal content padding for header titles.
   final double sectionHeaderStartInset;
 
-  /// Fill for document [CatalogLeafPresentation.content] ready-path stand-in.
-  final Color documentStandInColor;
-
-  /// Press-highlight corner radius in logical pixels (density-resolved).
-  final double leafPressSelectorRadius;
-
-  /// Corner radius for rounded-rect stand-ins in logical pixels.
-  final double standInCornerRadius;
-
   @override
   bool operator ==(Object other) =>
       other is CatalogLeafPaintTheme &&
-      other.placeholderColor == placeholderColor &&
+      other.circleColor == circleColor &&
+      other.thumbColor == thumbColor &&
+      other.washColor == washColor &&
+      other.washHighlightColor == washHighlightColor &&
+      other.washPeriod == washPeriod &&
+      other.skeletonColor == skeletonColor &&
+      other.placeholderCornerRadius == placeholderCornerRadius &&
       other.leafPressHighlightColor == leafPressHighlightColor &&
-      other.sectionHeaderStyle == sectionHeaderStyle &&
-      other.sectionHeaderStartInset == sectionHeaderStartInset &&
-      other.documentStandInColor == documentStandInColor &&
+      other.leafFocusHighlightColor == leafFocusHighlightColor &&
       other.leafPressSelectorRadius == leafPressSelectorRadius &&
-      other.standInCornerRadius == standInCornerRadius;
+      other.leafHoverHighlightColor == leafHoverHighlightColor &&
+      other.leafHoverHighlightRadius == leafHoverHighlightRadius &&
+      other.leafHoverHighlightInset == leafHoverHighlightInset &&
+      other.leafHoverHighlightSize == leafHoverHighlightSize &&
+      other.leafPressFeedback == leafPressFeedback &&
+      other.sectionHeaderStyle == sectionHeaderStyle &&
+      other.sectionHeaderStartInset == sectionHeaderStartInset;
 
   @override
   int get hashCode => Object.hash(
-    placeholderColor,
+    circleColor,
+    thumbColor,
+    washColor,
+    washHighlightColor,
+    washPeriod,
+    skeletonColor,
+    placeholderCornerRadius,
     leafPressHighlightColor,
+    leafFocusHighlightColor,
+    leafPressSelectorRadius,
+    leafHoverHighlightColor,
+    leafHoverHighlightRadius,
+    leafHoverHighlightInset,
+    leafHoverHighlightSize,
+    leafPressFeedback,
     sectionHeaderStyle,
     sectionHeaderStartInset,
-    documentStandInColor,
-    leafPressSelectorRadius,
-    standInCornerRadius,
   );
 }

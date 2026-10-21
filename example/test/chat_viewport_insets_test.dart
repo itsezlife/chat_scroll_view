@@ -1,106 +1,174 @@
+/// How the host aggregates occluding chrome into what the viewport reserves:
+/// `bottomPadding = composer extent + max(safe bottom, occupancy.bottom)`,
+/// `inlineEnd` applied
+/// in layout, and the top as safe area plus header plus search.
+library;
+
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets.dart';
-import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets_binding.dart';
-import 'package:flutter/widgets.dart';
+import 'package:content_model/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:listen/listen.dart';
+import 'package:panel_presentation/panel_presentation.dart';
+import 'package:panel_presentation/testing.dart';
 
 void main() {
-  group('ChatViewportInsets', () {
-    test('topPadding is safeTop plus headerReserve plus searchReserve', () {
-      final insets = ChatViewportInsets();
-      addTearDown(insets.dispose);
+  late ValueNotifier<double> extent;
+  late ValueNotifier<PanelOccupancy> occupancy;
+  late ChatViewportInsets insets;
 
+  setUp(() {
+    extent = ValueNotifier<double>(0);
+    occupancy = ValueNotifier<PanelOccupancy>(PanelOccupancy.zero);
+    insets = ChatViewportInsets(composerExtent: extent, occupancy: occupancy);
+  });
+
+  tearDown(() {
+    insets.dispose();
+    extent.dispose();
+    occupancy.dispose();
+  });
+
+  group('bottom', () {
+    test('is seeded before the composer has published its extent', () {
+      expect(insets.bottomPadding.value, ChatViewportInsets.composerSeed);
+    });
+
+    test('is the composer extent plus the larger of the safe band and the '
+        'occupancy', () {
+      extent.value = 64;
+      insets.setSafeBottom(48);
+
+      // Nothing under the composer yet: the band is the safe area.
+      expect(insets.bottomPadding.value, 112);
+
+      // While the occupancy is under the safe band the sum does not move, so
+      // a panel closing to its end cannot dip: the composer draws the rest of
+      // the band as its own pad.
+      for (final bottom in [40.0, 20.0, 6.0, 0.0]) {
+        occupancy.value = PanelOccupancy(bottom: bottom);
+        expect(insets.bottomPadding.value, 112, reason: 'occupancy $bottom');
+      }
+
+      // Past it the occupancy leads.
+      occupancy.value = const PanelOccupancy(bottom: 300);
+      expect(insets.bottomPadding.value, 364);
+    });
+
+    test('is the composer extent plus the presentation occupancy', () {
+      extent.value = 120;
+      occupancy.value = const PanelOccupancy(bottom: 300);
+
+      expect(insets.bottomPadding.value, 420);
+
+      occupancy.value = PanelOccupancy.zero;
+
+      expect(insets.bottomPadding.value, 120);
+    });
+
+    test('follows the extent frame by frame while the composer animates', () {
+      occupancy.value = const PanelOccupancy(bottom: 200);
+      final seen = <double>[];
+      insets.bottomPadding.addListener(
+        () => seen.add(insets.bottomPadding.value),
+      );
+
+      extent
+        ..value = 80
+        ..value = 96
+        ..value = 112;
+
+      expect(seen, [280, 296, 312]);
+    });
+
+    test('a change that leaves the sum alone does not notify', () {
+      extent.value = 100;
+      var ticks = 0;
+      insets.bottomPadding.addListener(() => ticks++);
+
+      extent.value = 100;
+      occupancy.value = const PanelOccupancy(inlineEnd: 380);
+
+      expect(ticks, 0);
+    });
+  });
+
+  group('inline end', () {
+    test('is the occupancy of a docked section, not padding at the bottom', () {
+      occupancy.value = const PanelOccupancy(inlineEnd: 380);
+
+      expect(insets.inlineEnd.value, 380);
+      expect(insets.bottomPadding.value, ChatViewportInsets.composerSeed);
+    });
+  });
+
+  group('top', () {
+    test('is safe top plus header reserve plus search reserve', () {
       expect(insets.topPadding.value, 0);
-      expect(insets.chromeTop.value, 0);
 
-      insets.setSafeTop(20);
-      insets.headerReserve.value = 52;
+      insets
+        ..setSafeTop(20)
+        ..headerReserve.value = 52;
 
       expect(insets.chromeTop.value, 72);
       expect(insets.topPadding.value, 72);
 
       insets.setSearchReserve(56);
 
-      expect(insets.chromeTop.value, 72);
+      expect(insets.chromeTop.value, 72, reason: 'search sits below chromeTop');
       expect(insets.topPadding.value, 128);
     });
 
-    test('bottomPadding is composerHeight plus keyboard', () {
-      final insets = ChatViewportInsets();
-      addTearDown(insets.dispose);
-
-      expect(insets.bottomPadding.value, 96);
-
-      insets.setComposerHeight(120);
-      insets.setKeyboard(30);
-
-      expect(insets.keyboard.value, 30);
-      expect(insets.bottomPadding.value, 150);
-    });
-
     test('identical values do not notify', () {
-      final insets = ChatViewportInsets(composerHeight: 96);
-      addTearDown(insets.dispose);
+      var ticks = 0;
+      insets.topPadding.addListener(() => ticks++);
 
-      var bottomTicks = 0;
-      var topTicks = 0;
-      var keyboardTicks = 0;
-      insets.bottomPadding.addListener(() => bottomTicks++);
-      insets.topPadding.addListener(() => topTicks++);
-      insets.keyboard.addListener(() => keyboardTicks++);
-
-      insets.setComposerHeight(96);
-      insets.setKeyboard(0);
-      insets.setSafeTop(0);
-      insets.setSearchReserve(0);
-      insets.headerReserve.value = 0;
-
-      expect(bottomTicks, 0);
-      expect(topTicks, 0);
-      expect(keyboardTicks, 0);
-    });
-
-    test('dispose does not throw after updates', () {
-      final insets = ChatViewportInsets();
       insets
-        ..setKeyboard(12)
-        ..setComposerHeight(100)
-        ..setSafeTop(8)
-        ..setSearchReserve(40);
-      insets.headerReserve.value = 24;
-      insets.dispose();
+        ..setSafeTop(0)
+        ..setSearchReserve(0)
+        ..headerReserve.value = 0;
+
+      expect(ticks, 0);
     });
   });
 
-  group('ChatViewportInsetsBinding', () {
-    testWidgets('writes viewPadding.top into insets', (tester) async {
-      SharedPreferences.setMockInitialValues(<String, Object>{});
-      await tester.pumpWidget(
-        const MediaQuery(
-          data: MediaQueryData(viewPadding: EdgeInsets.only(top: 47)),
-          child: _InsetsBindingHost(),
-        ),
+  group('with a keyboard presentation', () {
+    test('the soft keyboard is counted once, through the occupancy', () async {
+      final ime = FakeImeInput();
+      final window = ValueNotifier(const PanelWindow(width: 400, height: 800));
+      final keyboard = KeyboardReplacementStrategy(
+        ime: ime,
+        heights: await KeyboardHeightStore.open(FakeKeyValueStore()),
+        window: window,
       );
+      addTearDown(() {
+        keyboard.dispose();
+        window.dispose();
+        ime.dispose();
+      });
+      final aggregated = ChatViewportInsets(
+        composerExtent: extent,
+        occupancy: keyboard.occupancy,
+      );
+      addTearDown(aggregated.dispose);
+      extent.value = 100;
 
-      final state = tester.state<_InsetsBindingHostState>(
-        find.byType(_InsetsBindingHost),
-      );
-      expect(state.insets.topPadding.value, 47);
-      // Composer default 96 + keyboard 0 (safe-bottom lives in composer measure).
-      expect(state.insets.bottomPadding.value, 96);
+      ime.report(const ImeSample(height: 300, safeAreaBottom: 34));
+
+      expect(aggregated.bottomPadding.value, 400);
     });
   });
-}
 
-class _InsetsBindingHost extends StatefulWidget {
-  const _InsetsBindingHost();
+  test('disposing stops following without disposing what it was given', () {
+    insets.dispose();
+    // A disposed notifier refuses listeners and assignments, so these would
+    // fail had the aggregate disposed what it was given.
+    var heard = 0;
+    extent.addListener(() => heard++);
+    occupancy.addListener(() => heard++);
+    extent.value = 10;
+    occupancy.value = const PanelOccupancy(bottom: 5);
 
-  @override
-  State<_InsetsBindingHost> createState() => _InsetsBindingHostState();
-}
-
-class _InsetsBindingHostState extends State<_InsetsBindingHost>
-    with ChatViewportInsetsBinding {
-  @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
+    expect(heard, 2);
+    expect(insets.bottomPadding.value, ChatViewportInsets.composerSeed);
+  });
 }

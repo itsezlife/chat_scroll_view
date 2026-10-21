@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Reproducibility gate, run by scripts/check from this package's directory:
+# regenerates the assets from the pinned inputs (downloading and verifying
+# them on first use) and fails unless they equal the committed ones.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+exec dart run tool/generate.dart check

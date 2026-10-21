@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "suite": "catalog_assets",
+  "metrics": {
+    "churn.evicting.over_reference": {
+      "kind": "ratio",
+      "value": 6.0111
+    },
+    "churn.evicting.over_resident": {
+      "kind": "ratio",
+      "value": 5.4404
+    },
+    "churn.resident.over_reference": {
+      "kind": "ratio",
+      "value": 7.5337
+    },
+    "fanout.per_binding.1000_over_10": {
+      "kind": "ratio",
+      "value": 0.5232
+    },
+    "fanout.repaints_per_binding_tick.10": {
+      "kind": "count",
+      "value": 0.5
+    },
+    "fanout.repaints_per_binding_tick.100": {
+      "kind": "count",
+      "value": 0.5
+    },
+    "fanout.repaints_per_binding_tick.1000": {
+      "kind": "count",
+      "value": 0.5
+    },
+    "fanout.tick.10.over_closures": {
+      "kind": "ratio",
+      "value": 16.5833
+    },
+    "fanout.tick.100.over_closures": {
+      "kind": "ratio",
+      "value": 21.6204
+    },
+    "fanout.tick.1000.over_closures": {
+      "kind": "ratio",
+      "value": 23.9061
+    },
+    "glyph_hold.cycle.256_pages.over_4_pages": {
+      "kind": "ratio",
+      "value": 0.9857
+    },
+    "glyph_hold.cycle.4_pages.over_plain": {
+      "kind": "ratio",
+      "value": 1.5759
+    },
+    "lru.hit_rate.animated_1_screen": {
+      "kind": "rate",
+      "value": 1.0
+    },
+    "lru.hit_rate.animated_4_screens": {
+      "kind": "rate",
+      "value": 0.25
+    },
+    "lru.hit_rate.emoji_4_screens": {
+      "kind": "rate",
+      "value": 1.0
+    },
+    "lru.hit_rate.emoji_8_screens": {
+      "kind": "rate",
+      "value": 1.0
+    },
+    "lru.hit_rate.stickers_4_screens": {
+      "kind": "rate",
+      "value": 1.0
+    },
+    "lru.hit_rate.stickers_8_screens": {
+      "kind": "rate",
+      "value": 0.75
+    },
+    "pressure.pages_released": {
+      "kind": "count",
+      "value": 4.0
+    },
+    "pressure.pages_resident_after": {
+      "kind": "count",
+      "value": 12.0
+    }
+  }
+}

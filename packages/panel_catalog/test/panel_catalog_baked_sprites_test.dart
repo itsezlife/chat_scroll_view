@@ -1,25 +1,35 @@
 /// Baked sprites on screen: the Panel Catalog Viewport draws unicode glyphs
 /// from glyph atlas pages instead of as text.
 ///
-/// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogDataSource] and a
-/// [MemoryCatalogAssetCache] that carries a [GlyphAtlas] built on the fakes of
-/// the bake (`FakeGlyphRasteriser`, `FakeGlyphPageStore`, `FakeBakeFrameSource`):
-/// no emoji font, no device. What is observed is what the viewport asks its
-/// canvas to draw (a recording canvas passed to `paint`), never render-object
-/// fields: how many batched atlas draws, which page each is cut from, how many
-/// sprites each holds, and that no paragraph, circle or layout comes with them.
+/// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogSnapshotSource] and
+/// an [AssetCacheScope] whose glyph source is a [GlyphAtlas] built on the fakes
+/// of the bake (`FakeGlyphRasteriser`, `FakeGlyphPageStore`,
+/// `FakeBakeFrameSource`): no emoji font, no device. What is observed is what
+/// the viewport asks its canvas to draw (a recording canvas passed to `paint`),
+/// never render-object fields: how many batched atlas draws, which page each is
+/// cut from, how many sprites each holds, and that no paragraph, circle or
+/// layout comes with them.
+///
+/// The viewport names no atlas. The page that owns the bake listens to the
+/// controller's events and tells the atlas; `_PageBake` below is that listener,
+/// so the chain from a drag to a paused bake is still pinned end to end.
 library;
 
-import 'dart:typed_data';
-import 'dart:ui' as ui;
+import 'dart:async';
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:catalog_assets/testing.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';
+import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
+import 'package:panel_catalog/testing.dart';
+
+import 'support/asset_scopes.dart';
+import 'support/recording_canvas.dart';
 
 const _perPage = 676; // GlyphAtlasLayout().cellsPerPage
 
@@ -41,78 +51,47 @@ CatalogSection _section(int count) => CatalogSection(
   leaves: [for (var i = 0; i < count; i++) CatalogLeaf.unicode(_glyph(i))],
 );
 
-/// One batched atlas draw as the canvas received it.
-class _AtlasDraw {
-  _AtlasDraw(this.image, this.transforms, this.rects);
+/// What the page that owns the bake does with the controller's events: tells
+/// the atlas when the catalogue moves and which glyphs it settled on.
+class _PageBake {
+  _PageBake(this.atlas, Stream<PanelCatalogScrollEvent> events) {
+    _subscription = events.listen(_onEvent);
+  }
 
-  final ui.Image image;
-  final Float32List transforms;
-  final Float32List rects;
+  final GlyphAtlas atlas;
+  late final StreamSubscription<PanelCatalogScrollEvent> _subscription;
 
-  int get sprites => rects.length ~/ 4;
+  void dispose() => unawaited(_subscription.cancel());
 
-  /// Source rectangles, copied so a reused buffer cannot change them later.
-  List<Rect> get sources => [
-    for (var i = 0; i < rects.length; i += 4)
-      Rect.fromLTRB(rects[i], rects[i + 1], rects[i + 2], rects[i + 3]),
-  ];
-
-  /// Scale of each sprite's transform (`scos`).
-  List<double> get scales => [
-    for (var i = 0; i < transforms.length; i += 4) transforms[i],
-  ];
-}
-
-/// Records what one paint asks of the canvas.
-class _RecordingCanvas implements Canvas {
-  final List<_AtlasDraw> atlasDraws = [];
-  int circles = 0;
-  int paragraphs = 0;
-  int highlights = 0;
-
-  @override
-  void drawRawAtlas(
-    ui.Image atlas,
-    Float32List rstTransforms,
-    Float32List rects,
-    Int32List? colors,
-    BlendMode? blendMode,
-    Rect? cullRect,
-    Paint paint,
-  ) => atlasDraws.add(
-    _AtlasDraw(
-      atlas,
-      Float32List.fromList(rstTransforms),
-      Float32List.fromList(rects),
-    ),
-  );
-
-  @override
-  void drawCircle(Offset c, double radius, Paint paint) => circles++;
-
-  @override
-  void drawParagraph(ui.Paragraph paragraph, Offset offset) => paragraphs++;
-
-  @override
-  void drawRRect(RRect rrect, Paint paint) => highlights++;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => null;
+  void _onEvent(PanelCatalogScrollEvent event) {
+    switch (event) {
+      case PanelCatalogScrollingChanged(:final scrolling):
+        atlas.reportScrolling(reporter: this, scrolling: scrolling);
+      case PanelCatalogScrollSettled(:final visibleKeys):
+        atlas.prioritise([
+          for (final key in visibleKeys)
+            if (key is ContentKey$Unicode) key.sequence,
+        ]);
+      default:
+        break;
+    }
+  }
 }
 
 void main() {
-  late FakeCatalogDataSource dataSource;
+  late FakeCatalogSnapshotSource snapshots;
   late PanelCatalogController controller;
   late FakeBakeFrameSource frames;
   late FakeGlyphPageStore store;
   late ValueNotifier<bool> visible;
   late ValueNotifier<bool> opening;
   late GlyphAtlas atlas;
-  late MemoryCatalogAssetCache cache;
+  late AssetCacheScope scope;
+  _PageBake? pageBake;
 
   setUp(() {
     PanelCatalogDiagnostics.reset();
-    dataSource = FakeCatalogDataSource();
+    snapshots = FakeCatalogSnapshotSource();
     controller = PanelCatalogController();
     frames = FakeBakeFrameSource();
     store = FakeGlyphPageStore();
@@ -120,18 +99,23 @@ void main() {
     opening = ValueNotifier<bool>(false);
   });
   tearDown(() async {
-    dataSource.dispose();
+    pageBake?.dispose();
+    pageBake = null;
+    snapshots.dispose();
     controller.dispose();
     visible.dispose();
     opening.dispose();
     await store.clear();
   });
 
-  /// An atlas over the first [count] glyphs of the harness catalogue, held by
-  /// the cache the viewport is given. Not started: tests start it.
-  void buildAtlas(int count) {
+  /// An atlas over the first [count] glyphs of the harness catalogue, the glyph
+  /// source of the scope the viewport is given, and the page that forwards the
+  /// viewport's events to it. Not started: tests start it.
+  void buildAtlas(int count, {GlyphAtlasLayout? layout}) {
     atlas = GlyphAtlas(
-      index: GlyphAtlasIndex([for (var i = 0; i < count; i++) _glyph(i)]),
+      index: GlyphAtlasIndex([
+        for (var i = 0; i < count; i++) _glyph(i),
+      ], layout: layout ?? const GlyphAtlasLayout()),
       rasteriser: FakeGlyphRasteriser(),
       store: store,
       frames: frames,
@@ -139,19 +123,21 @@ void main() {
       panelVisible: visible,
       panelOpening: opening,
     );
-    cache = MemoryCatalogAssetCache(glyphAtlas: atlas);
+    scope = AssetCacheScope(glyphSource: atlas);
+    pageBake?.dispose();
+    pageBake = _PageBake(atlas, controller.events);
     addTearDown(() {
-      cache.dispose();
+      scope.dispose();
       atlas.dispose();
     });
   }
 
   Future<void> pumpViewport(
     WidgetTester tester, {
-    CatalogAssetCache? assetCache,
+    AssetCacheScope? assets,
     double width = 320,
-    ValueChanged<CatalogLeaf>? onLeafTap,
-    void Function(CatalogLeaf leaf, LongPressStartDetails details)?
+    ValueChanged<CatalogLeafHit>? onLeafTap,
+    void Function(CatalogLeafHit hit, LongPressStartDetails details)?
     onLeafLongPressStart,
   }) => tester.pumpWidget(
     MaterialApp(
@@ -163,8 +149,8 @@ void main() {
               width: width,
               height: 480,
               child: PanelCatalogViewport(
-                dataSource: dataSource,
-                assetCache: assetCache ?? cache,
+                snapshots: snapshots,
+                assets: assets ?? scope,
                 controller: controller,
                 spanCount: _span,
                 cellExtent: 40,
@@ -182,8 +168,8 @@ void main() {
   RenderBox render(WidgetTester tester) =>
       tester.renderObject(find.byType(PanelCatalogViewport));
 
-  _RecordingCanvas paintOnce(WidgetTester tester) {
-    final canvas = _RecordingCanvas();
+  RecordingCanvas paintOnce(WidgetTester tester) {
+    final canvas = RecordingCanvas();
     render(tester).paint(TestRecordingPaintingContext(canvas), Offset.zero);
     return canvas;
   }
@@ -201,13 +187,13 @@ void main() {
     testWidgets('shows the circle placeholder, not a sprite or text', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(80)]);
+      snapshots.replaceSections([_section(80)]);
       buildAtlas(80);
       await pumpViewport(tester);
 
       final canvas = paintOnce(tester);
 
-      expect(canvas.circles, _visibleLeaves);
+      expect(canvas.circles.length, _visibleLeaves);
       expect(canvas.atlasDraws, isEmpty);
       expect(canvas.paragraphs, _headers);
     });
@@ -215,7 +201,7 @@ void main() {
     testWidgets(
       'switches to its sprite when the page is ready, with no layout change',
       (tester) async {
-        dataSource.replaceSections([_section(80)]);
+        snapshots.replaceSections([_section(80)]);
         buildAtlas(80);
         atlas.start();
         await pumpViewport(tester);
@@ -234,7 +220,7 @@ void main() {
         await tester.pump();
         final canvas = paintOnce(tester);
 
-        expect(canvas.circles, 0);
+        expect(canvas.circles.length, 0);
         expect(canvas.atlasDraws, isNotEmpty);
         expect(render(tester).size, sizeBefore);
       },
@@ -245,7 +231,7 @@ void main() {
     testWidgets('all sprites of one page are drawn in one batch', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(80)]);
+      snapshots.replaceSections([_section(80)]);
       buildAtlas(80);
       atlas.start();
       await pumpViewport(tester);
@@ -255,12 +241,12 @@ void main() {
 
       expect(canvas.atlasDraws, hasLength(1));
       expect(canvas.atlasDraws.single.sprites, _visibleLeaves);
-      expect(canvas.circles, 0);
+      expect(canvas.circles.length, 0);
       expect(canvas.paragraphs, _headers);
     });
 
     testWidgets('cells cut from the right place on the page', (tester) async {
-      dataSource.replaceSections([_section(80)]);
+      snapshots.replaceSections([_section(80)]);
       buildAtlas(80);
       atlas.start();
       await pumpViewport(tester);
@@ -281,7 +267,7 @@ void main() {
       tester,
     ) async {
       const count = _perPage + 40;
-      dataSource.replaceSections([_section(count)]);
+      snapshots.replaceSections([_section(count)]);
       buildAtlas(count);
       atlas.start();
       await pumpViewport(tester);
@@ -308,14 +294,14 @@ void main() {
       expect(byPage.keys, unorderedEquals([0, 1]));
       expect(byPage[0]!.sprites, 36);
       expect(byPage[1]!.sprites, 16);
-      expect(canvas.circles, 0);
+      expect(canvas.circles.length, 0);
     });
 
     testWidgets(
       'a page that is ready draws while its neighbour shows circles',
       (tester) async {
         const count = _perPage + 40;
-        dataSource.replaceSections([_section(count)]);
+        snapshots.replaceSections([_section(count)]);
         buildAtlas(count);
         atlas.start();
         await pumpViewport(tester);
@@ -335,9 +321,79 @@ void main() {
 
         expect(canvas.atlasDraws, hasLength(1));
         expect(canvas.atlasDraws.single.sprites, 36);
-        expect(canvas.circles, 16);
+        expect(canvas.circles.length, 16);
       },
     );
+  });
+
+  group('a focused glyph', () {
+    testWidgets('keeps its sprite, with the highlight drawn under the batch', (
+      tester,
+    ) async {
+      snapshots.replaceSections([_section(80)]);
+      buildAtlas(80);
+      atlas.start();
+      await pumpViewport(tester);
+      await bakeAll(tester);
+
+      controller.focusLeaf('a', 5);
+      await tester.pump();
+      final canvas = paintOnce(tester);
+
+      expect(canvas.atlasDraws, hasLength(1));
+      expect(canvas.atlasDraws.single.sprites, _visibleLeaves);
+      expect(canvas.rrects, hasLength(1), reason: 'the focus highlight');
+      // The batch is flushed at the end of the pass: over every highlight.
+      expect(canvas.ops, ['rrect', 'atlas']);
+    });
+  });
+
+  group('sections with different cell sizes share one atlas', () {
+    testWidgets('a single baked size, scaled down, never up', (tester) async {
+      // 4 columns of 40 (a 28.8 glyph box) and 2 columns of 160 x 80 (57.6).
+      final sections = [
+        CatalogSection(
+          id: 'small',
+          title: 'Small',
+          leaves: [for (var i = 0; i < 8; i++) CatalogLeaf.unicode(_glyph(i))],
+        ),
+        CatalogSection(
+          id: 'large',
+          title: 'Large',
+          layout: const SectionLayout.grid(spanCount: 2, cellExtent: 80),
+          leaves: [for (var i = 8; i < 16; i++) CatalogLeaf.unicode(_glyph(i))],
+        ),
+      ];
+      snapshots.replaceSections(sections);
+      final largest = PanelCatalogViewport.largestGlyphBox(
+        layouts: [for (final section in sections) section.layout],
+        spanCount: _span,
+        cellExtent: 40,
+        padding: EdgeInsets.zero,
+        maxWidth: 320,
+      );
+      expect(largest, 80 * CatalogContentBox.glyphBoxFraction);
+      final layout = GlyphAtlasLayout.forCell(
+        logicalExtent: largest,
+        devicePixelRatio: 1,
+      );
+      expect(layout.glyphSize, 58);
+      buildAtlas(16, layout: layout);
+      atlas.start();
+      await pumpViewport(tester);
+      await bakeAll(tester);
+
+      final canvas = paintOnce(tester);
+
+      // One page, one draw: the large cells are not served by a second atlas.
+      expect(canvas.atlasDraws, hasLength(1));
+      final scales = canvas.atlasDraws.single.scales;
+      expect(scales, hasLength(16));
+      expect(scales.take(8), everyElement(closeTo(28.8 / 58, 1e-6)));
+      expect(scales.skip(8), everyElement(closeTo(57.6 / 58, 1e-6)));
+      expect(scales, everyElement(lessThanOrEqualTo(1)));
+      expect(canvas.circles.length, 0);
+    });
   });
 
   group('text is not used to draw emoji where emoji are baked', () {
@@ -345,7 +401,7 @@ void main() {
       tester,
     ) async {
       const count = 300;
-      dataSource.replaceSections([_section(count)]);
+      snapshots.replaceSections([_section(count)]);
       buildAtlas(count);
       atlas.start();
       await pumpViewport(tester);
@@ -372,7 +428,7 @@ void main() {
       'not through resizes, a press, a released atlas or an unbaked page',
       (tester) async {
         const count = 300;
-        dataSource.replaceSections([_section(count)]);
+        snapshots.replaceSections([_section(count)]);
         buildAtlas(count);
         atlas.start();
         await pumpViewport(tester);
@@ -403,15 +459,15 @@ void main() {
     testWidgets('glyphs are drawn as text and no bake is started', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(80)]);
-      final plain = MemoryCatalogAssetCache();
-      await pumpViewport(tester, assetCache: plain);
+      snapshots.replaceSections([_section(80)]);
+      final plain = textGlyphScope();
+      await pumpViewport(tester, assets: plain);
 
       PanelCatalogDiagnostics.reset();
       final canvas = paintOnce(tester);
 
       expect(canvas.paragraphs, _visibleLeaves + _headers);
-      expect(canvas.circles, 0);
+      expect(canvas.circles.length, 0);
       expect(canvas.atlasDraws, isEmpty);
       expect(PanelCatalogDiagnostics.glyphParagraphDraws, _visibleLeaves);
       expect(frames.requested, 0);
@@ -422,7 +478,7 @@ void main() {
     testWidgets('waits while a drag moves the catalogue, resumes after', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(300)]);
+      snapshots.replaceSections([_section(300)]);
       buildAtlas(300);
       atlas.start();
       await pumpViewport(tester);
@@ -448,7 +504,7 @@ void main() {
     testWidgets('waits through a fling and a programmatic jump', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(300)]);
+      snapshots.replaceSections([_section(300)]);
       buildAtlas(300);
       atlas.start();
       await pumpViewport(tester);
@@ -475,7 +531,7 @@ void main() {
     ) async {
       // Enough below row 170 that the jump is not clamped back up.
       const count = _perPage + 200;
-      dataSource.replaceSections([_section(count)]);
+      snapshots.replaceSections([_section(count)]);
       buildAtlas(count);
       atlas.start();
       await pumpViewport(tester);
@@ -496,7 +552,7 @@ void main() {
     testWidgets('a viewport that goes away mid-scroll lets baking resume', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(300)]);
+      snapshots.replaceSections([_section(300)]);
       buildAtlas(300);
       atlas.start();
       await pumpViewport(tester);
@@ -518,7 +574,7 @@ void main() {
     testWidgets('a rebuild with the same cache does not forget a drag', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(300)]);
+      snapshots.replaceSections([_section(300)]);
       buildAtlas(300);
       atlas.start();
       await pumpViewport(tester);
@@ -537,42 +593,103 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('a cache with another atlas takes over the reports', (
+    testWidgets('a scope with another atlas takes over the bindings', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(300)]);
+      // A hidden panel holds no page of its own, so the counts below are the
+      // bindings' alone.
+      visible.value = false;
+      snapshots.replaceSections([_section(300)]);
       buildAtlas(300);
-      atlas.start();
-      final firstFrames = frames;
+      final firstAtlas = atlas;
       await pumpViewport(tester);
+      expect(firstAtlas.residency.holdCount(0), greaterThan(0));
 
-      // A second atlas on its own frame source, in a second cache.
       frames = FakeBakeFrameSource();
-      final firstCache = cache;
       buildAtlas(300);
-      atlas.start();
       await pumpViewport(tester);
-      expect(firstFrames.hasPendingRequest, isTrue);
-      expect(frames.hasPendingRequest, isTrue);
 
-      final gesture = await tester.startGesture(
-        tester.getCenter(find.byType(PanelCatalogViewport)),
+      // The viewport draws from the new scope: circles, and the first atlas has
+      // no page held for it any more.
+      expect(firstAtlas.residency.holdCount(0), 0);
+      expect(atlas.residency.holdCount(0), greaterThan(0));
+      final canvas = paintOnce(tester);
+      expect(canvas.atlasDraws, isEmpty);
+      expect(canvas.circles.length, _visibleLeaves);
+    });
+  });
+
+  group('page holds', () {
+    // A source of fixed pages whose hold counts a test reads, in place of an
+    // atlas: 100 glyphs to a page, so rows 0..12 sit on page 0.
+    late FakeGlyphSpriteSource source;
+
+    Future<void> pumpOn(WidgetTester tester) async {
+      source = FakeGlyphSpriteSource([
+        for (var i = 0; i < 400; i++) _glyph(i),
+      ], glyphsPerPage: 100);
+      final onSource = AssetCacheScope(glyphSource: source);
+      addTearDown(() {
+        onSource.dispose();
+        source.dispose();
+      });
+      snapshots.replaceSections([_section(400)]);
+      await pumpViewport(tester, assets: onSource);
+    }
+
+    testWidgets('a visible glyph holds its page, never its pixels', (
+      tester,
+    ) async {
+      await pumpOn(tester);
+
+      // Every attached glyph (the window plus one row of overscan) holds once.
+      expect(
+        source.holdCount(0),
+        (render(tester) as RenderPanelCatalog).attachedLeafCount,
       );
-      await gesture.moveBy(const Offset(0, -100));
+      expect(source.holdCount(1), 0);
+
+      // The page going away under memory pressure leaves the count alone, and
+      // nothing is drawn from it.
+      source.bakePage(0);
+      await tester.pump();
+      expect(paintOnce(tester).atlasDraws, hasLength(1));
+      final held = source.holdCount(0);
+      source.releasePage(0);
+      await tester.pump();
+      expect(source.holdCount(0), held);
+      expect(paintOnce(tester).atlasDraws, isEmpty);
+    });
+
+    testWidgets('far bindings release their page', (tester) async {
+      await pumpOn(tester);
+      expect(source.holdCount(0), greaterThan(0));
+
+      // Row 60 is leaf 240, on page 2.
+      controller.jumpTo(_offsetOfRow(60));
       await tester.pump();
 
-      // Only the atlas the viewport now draws from is told to wait.
-      expect(frames.hasPendingRequest, isFalse);
-      expect(firstFrames.hasPendingRequest, isTrue);
-      await gesture.up();
-      await tester.pumpAndSettle();
-      expect(identical(cache, firstCache), isFalse);
+      expect(source.holdCount(0), 0);
+      expect(source.holdCount(2), greaterThan(0));
+      expect(
+        source.holdCount(1) + source.holdCount(2) + source.holdCount(3),
+        (render(tester) as RenderPanelCatalog).attachedLeafCount,
+      );
+    });
+
+    testWidgets('leaving the tree gives every page back', (tester) async {
+      await pumpOn(tester);
+      expect(source.holdCount(0), greaterThan(0));
+
+      await tester.pumpWidget(const SizedBox());
+
+      expect(source.holdCount(0), 0);
     });
   });
 
   group('page lifetime', () {
     testWidgets('a page that was released is not painted from', (tester) async {
-      dataSource.replaceSections([_section(80)]);
+      snapshots.replaceSections([_section(80)]);
       buildAtlas(80);
       atlas.start();
       await pumpViewport(tester);
@@ -585,16 +702,16 @@ void main() {
       final canvas = paintOnce(tester);
 
       expect(canvas.atlasDraws, isEmpty);
-      expect(canvas.circles, greaterThanOrEqualTo(_visibleLeaves));
+      expect(canvas.circles.length, greaterThanOrEqualTo(_visibleLeaves));
     });
   });
 
   group('behaviour that must not change', () {
     testWidgets('tapping a baked cell reports that leaf', (tester) async {
-      dataSource.replaceSections([_section(80)]);
+      snapshots.replaceSections([_section(80)]);
       buildAtlas(80);
       atlas.start();
-      final tapped = <CatalogLeaf>[];
+      final tapped = <CatalogLeafHit>[];
       await pumpViewport(tester, onLeafTap: tapped.add);
       await bakeAll(tester);
 
@@ -602,21 +719,22 @@ void main() {
       await tester.tapAt(box.topLeft + const Offset(100, 24 + 20));
 
       expect(tapped, hasLength(1));
-      expect((tapped.single as UnicodeCatalogLeaf).glyph, _glyph(1));
+      expect(tapped.single.leaf, CatalogLeaf.unicode(_glyph(1)));
+      expect(tapped.single.index, 1);
     });
 
     testWidgets('a long press on a baked cell reports that leaf, not a tap', (
       tester,
     ) async {
-      dataSource.replaceSections([_section(80)]);
+      snapshots.replaceSections([_section(80)]);
       buildAtlas(80);
       atlas.start();
-      final tapped = <CatalogLeaf>[];
-      final pressed = <CatalogLeaf>[];
+      final tapped = <CatalogLeafHit>[];
+      final pressed = <CatalogLeafHit>[];
       await pumpViewport(
         tester,
         onLeafTap: tapped.add,
-        onLeafLongPressStart: (leaf, _) => pressed.add(leaf),
+        onLeafLongPressStart: (hit, _) => pressed.add(hit),
       );
       await bakeAll(tester);
 
@@ -626,13 +744,13 @@ void main() {
 
       expect(tapped, isEmpty);
       expect(pressed, hasLength(1));
-      expect((pressed.single as UnicodeCatalogLeaf).glyph, _glyph(1));
+      expect(pressed.single.leaf, CatalogLeaf.unicode(_glyph(1)));
     });
 
     testWidgets(
       'a pressed baked cell shrinks inside its batch and gets the highlight',
       (tester) async {
-        dataSource.replaceSections([_section(80)]);
+        snapshots.replaceSections([_section(80)]);
         buildAtlas(80);
         atlas.start();
         await pumpViewport(tester, onLeafTap: (_) {});
@@ -652,15 +770,15 @@ void main() {
         final scales = canvas.atlasDraws.single.scales;
         final full = scales.reduce((a, b) => a > b ? a : b);
         expect(scales.where((s) => s < full), hasLength(1));
-        expect(canvas.highlights, greaterThanOrEqualTo(1));
+        expect(canvas.rrects.length, greaterThanOrEqualTo(1));
       },
     );
 
     testWidgets('a tap that stops a fling picks nothing', (tester) async {
-      dataSource.replaceSections([_section(300)]);
+      snapshots.replaceSections([_section(300)]);
       buildAtlas(300);
       atlas.start();
-      final tapped = <CatalogLeaf>[];
+      final tapped = <CatalogLeafHit>[];
       await pumpViewport(tester, onLeafTap: tapped.add);
       await bakeAll(tester);
 

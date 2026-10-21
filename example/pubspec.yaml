@@ -15,21 +15,42 @@ dependencies:
     path: ../
   keyboard_insets:
     path: packages/keyboard_insets
+  l: ^5.0.1
   catalog_assets:
     path: ../packages/catalog_assets
-  chat_chrome:
-    path: ../packages/chat_chrome
+  chat_composer:
+    path: ../packages/chat_composer
+  chrome_foundation:
+    path: ../packages/chrome_foundation
+  content_model:
+    path: ../packages/content_model
+  # Not imported: depending on it is what bundles the catalog assets that
+  # integration_test/panel_perf/shipped_glyphs.dart reads.
+  emoji_catalog_pack:
+    path: ../packages/emoji_catalog_pack
   emoji_data:
     path: ../packages/emoji_data
+  image_decoder:
+    path: ../packages/image_decoder
+  kv_shared_preferences:
+    path: ../packages/kv_shared_preferences
+  panel_pages:
+    path: ../packages/panel_pages
+  panel_presentation:
+    path: ../packages/panel_presentation
+  panel_shell:
+    path: ../packages/panel_shell
+  rich_clipboard:
+    path: ../packages/rich_clipboard
   flutter_md:
     git:
       url: https://github.com/itsezlife/md.git
-      ref: feat/selection-chrome
+      ref: v0.4.4
+  listen: ^1.0.1
   meta: ^1.17.0
   supabase_flutter: ^2.15.0
   control: 1.0.0-dev.1
   freezed_annotation: ^3.1.0
-  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:
@@ -50,6 +71,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/chat/pagedown.webp
+    # The animated emoji pack and its licence credit; see LICENSE.md there.
+    - assets/animated_emoji/
     - path: assets/comments/
       platforms:
         - android

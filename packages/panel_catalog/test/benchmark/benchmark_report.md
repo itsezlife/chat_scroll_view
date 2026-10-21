@@ -6,7 +6,10 @@ Two kinds of evidence, kept apart on purpose:
    only evidence that says whether the catalogue feels smooth. Status:
    **pending reference-device run**. No on-device number is quoted below.
 2. **Headless benchmark** (layout cost and object counts against two widget
-   baselines): runs anywhere, says nothing about smoothness.
+   baselines): runs anywhere, says nothing about smoothness. Tracked nightly as
+   ratios against committed baselines, see
+   [benchmarks/README.md](../../../../benchmarks/README.md) for the tolerance,
+   the re-run and the re-baseline steps.
 
 ## What the headless benchmark can and cannot show
 
@@ -20,7 +23,7 @@ GPU.
 | Build, layout and paint-recording time per pumped frame (ratios) | Raster time, glyph rasterisation, atlas upload, draw-call cost |
 | Object counts: attached leaves and `RenderObject`s stay flat as the catalogue grows | The cost of the first sight of a colour glyph (the original jank) |
 | That stitch and the near path stay cheap in the main isolate | Memory in bytes, GPU memory, resident atlas pages |
-| That scroll cost does not grow with catalogue size | Anything about the baked-atlas pipeline: the benchmark uses a fake asset cache with no atlas, so it exercises the paragraph path (the web strategy) |
+| That scroll cost does not grow with catalogue size | Anything about the baked-atlas pipeline: the benchmark's scope has no glyph source and draws glyphs as text (`TextGlyphProducer`), so it exercises the paragraph path (the web strategy) |
 
 Consequence: a dropped frame caused by rasterising emoji is invisible here. The
 previous version of this benchmark passed while the first pass over the
@@ -30,17 +33,20 @@ debug-mode numbers inflated by asserts; the ratios are the signal.
 
 ## On-device acceptance: pending reference-device run
 
-Bar (binding): on the reference device, per scenario, **zero frames over one
-vsync budget** (budget derived from the display's refresh rate) and **raster
-p99 at most 2 ms**, three of three fresh launches; resident glyph pages at most
-64 MiB while the panel is open. Only the reference device gates.
+Bar (binding): per scenario on the reference device, judged by the pure-Dart
+rule in `example/integration_test/panel_perf/acceptance.dart`
+(`AcceptanceCriteria`: frames over one vsync budget and raster p99;
+`kResidentPageCeilingBytes`: the resident glyph page ceiling) over the number of
+fresh launches `kRequiredLaunches` in `acceptance_runner.dart` requires. The
+thresholds live there only; this report does not restate them, so it cannot
+drift from the test. Only the reference device gates.
 
 | Suite | Scenarios asserted | Status |
 | ----- | ------------------ | ------ |
 | `bare` | `panel_open`, `cold_first_pass` (diagnostics: `warm_pass2`, `reopen_pass4`) | pending reference-device run |
 | `chat` | `chat_panel_open`, `chat_cold_first_pass` (diagnostic: `chat_warm_pass2`) | pending reference-device run |
 | `first_run` | `first_run_no_cache`, `cold_start_valid_cache` (diagnostic: `os_update_stale_rebake`) | pending reference-device run |
-| Resident bytes | `atlasResidentBytes` / `atlasResidentPages` in every report, judged against 64 MiB | pending reference-device run |
+| Resident bytes | `atlasResidentBytes` / `atlasResidentPages` in every report, judged against `kResidentPageCeilingBytes` | pending reference-device run |
 
 Commands (run from `example/`; device cool, on a charger, screen on, display at
 its top refresh rate, profile build; each launch is a fresh process):
@@ -71,7 +77,7 @@ three of three:
 dart run tool/panel_perf.dart --promote <label>-bare-launch1 <label>-chat-launch1 <label>-first_run-launch1
 ```
 
-Per-ticket device checks, not part of the three-of-three rule (all take
+Per-ticket device checks, not part of the launch rule (all take
 `TARGET=<test> [DEFINES=...] tool/run_panel_perf.sh <device-id> <label>`):
 
 | Question | Command |
@@ -85,17 +91,20 @@ The manual cache, OS-update and density checks are in
 
 ## Headless benchmark results
 
-Re-run 2026-10-16: Flutter 3.41.7, Dart 3.11.5, macOS ARM64, headless debug,
-one run. Viewport 400×600 logical px (span 8, cell 48, header 32); catalogue
-presets of 64 / 512 / 4096 unicode leaves (8 leaves per section). Candidate:
-Panel Catalog Viewport with a fake asset cache (paragraph path). Baselines:
+Re-baselined 2026-10-16 (ticket 21, after the seam work of tickets 16-20):
+Flutter 3.41.7, Dart 3.11.5, macOS ARM64, headless debug, **semantics off**
+(the suite's preset, see below). Viewport 400×600 logical px (span 8, cell 48,
+header 32); catalogue presets of 64 / 512 / 4096 unicode leaves (8 leaves per
+section). Candidate: Panel Catalog Viewport with an `AssetCacheScope` that
+draws glyphs as text (paragraph path). Baselines:
 **SliverGrid** (section headers plus a `SliverGrid` per section) and
 **SuperSliverList** (frozen flat header-and-row list, the previous keyboard
-panel body).
+panel body). Ranges below are min-max over four whole-suite runs.
 
 ```shell
 cd packages/panel_catalog
 flutter test test/benchmark/vs_supersliver_bench_test.dart
+BENCH_SEMANTICS=on flutter test test/benchmark/vs_supersliver_bench_test.dart
 ```
 
 The suite prints the full per-metric tables in `tearDownAll`; below is the
@@ -104,11 +113,17 @@ Ranges cover the 64 / 512 / 4096 presets.
 
 | Probe | vs SliverGrid | vs SuperSliverList | Notes |
 | ----- | ------------- | ------------------ | ----- |
-| Forced relayout (mean) | 0.01–0.07x | 0.07–0.34x | Grid at 4096 janks 62 of 100 relayouts; PCV 0 |
-| Scroll-only paint (mean) | 3.0–6.8x (Grid faster) | 4.3–7.9x (SSL faster) | Isolated paint recording; see below |
-| Fling frame time (mean / p95) | 0.05–0.20x / 0.03–0.09x | 0.26–0.41x / 0.15–0.18x | 300 pumped frames |
-| Near-path section jump (mean / p95) | 0.09–0.22x / 0.05–0.13x | 0.33–0.52x / 0.32–0.35x | against a 220 ms `animateTo` |
-| Far-path stitch (mean / p95) | 0.00–0.08x / 0.01–0.11x | 0.01–0.19x / 0.02–0.24x | against a travel-scaled `animateTo` |
+| Forced relayout (mean) | 0.01–0.11x | 0.09–0.56x | Grid at 4096 janks about 60 of 100 relayouts; PCV 0 |
+| Scroll-only paint (mean) | 3.2–7.0x (Grid faster) | 2.0–7.7x (SSL faster) | Isolated paint recording; see below |
+| Fling frame time (mean / p95) | 0.08–0.90x / 0.04–0.47x | 0.29–0.92x / 0.19–0.51x | 300 pumped frames; medians sit at 0.9–1.2x (the floor of a sampled frame) |
+| Near-path section jump (mean / p95) | 0.11–0.51x / 0.05–0.27x | 0.48–1.00x / 0.38–0.71x | against a 220 ms `animateTo` |
+| Far-path stitch (mean / p95) | 0.01–0.17x / 0.01–0.22x | 0.01–0.34x / 0.02–0.50x | against a travel-scaled `animateTo` |
+
+The medians of the quick probes (near jump, fling) are at the floor of a
+sampled frame (about 15 µs), so their ratios against a widget baseline read
+0.9–1.1x; the means and p95 carry the signal there. The nightly job watches the
+medians (what a ratio of two floor-level numbers can bear is the reason its
+tolerance is wide).
 
 Object counts (flat, as the catalogue grows):
 
@@ -121,6 +136,32 @@ Object counts (flat, as the catalogue grows):
 Peak after a scroll-through at 4096 leaves: PCV 8 attached and 169
 `RenderObject`s; SliverGrid 613 and 8675; SuperSliverList 120 and 975.
 
+### Mixed layouts (per-section layout)
+
+The same catalogue shape with per-section layouts: even sections use the
+viewport defaults (8 columns of 48), odd ones a 5-column layout of 64
+(`generateMixedLayoutSections`; same leaf and section counts as the uniform
+preset). The baselines lay every section out at one span, so the comparison is
+the candidate against itself: ratio is mixed / uniform at the same leaf count,
+range over four runs (re-run at ticket 21) and the 64 / 512 / 4096 presets.
+
+| Probe | Mixed / uniform (median) | Mixed / uniform (mean) | Notes |
+| ----- | ------------------------ | ---------------------- | ----- |
+| Forced relayout | 0.78–1.17x | 0.83–1.74x | Per-section grid resolution is O(sections) on top of O(slots) |
+| Scroll-only paint | 0.79–0.86x | 0.68–0.97x | Taller 5-column cells show fewer cells per screen |
+| Near-path section jump | 0.43–1.06x | 0.58–2.40x | Medians sit at the floor of a sampled frame (about 16 µs) |
+| Far-path stitch | 0.94–1.12x | 0.74–2.48x | The 2.2-2.5x mean is the 64-leaf preset, where one slow frame moves the mean |
+
+Against the pre-change viewport (the integration branch before the per-section
+seam, same machine, four alternating runs of the whole suite) the uniform
+probes move within run-to-run noise: forced relayout median 53 → 61 µs at 64
+leaves, 30 → 30 µs at 512, 75 → 77 µs at 4096; scroll-only paint median 46 →
+42, 37 → 36, 36 → 37 µs; near-path jump and far-path stitch medians at the
+floor (15–20 µs) before and after. The visible-window lookup is unchanged by
+construction (one binary search over one ascending slot list); the added
+guard is `scroll cost does not grow with catalogue size` and its per-section
+variant in `panel_catalog_scroll_hardening_test.dart`.
+
 **Reading the scroll-only paint row.** The viewport redraws the visible band on
 a canvas every scroll (clip, then one draw per visible leaf); there is no
 per-cell `RenderObject` or retained layer to slide. The widget baselines keep
@@ -132,6 +173,164 @@ unchanged at about 45–60 µs). It is a steady tax far below a frame, not
 evidence that a widget grid scrolls better: end-to-end fling frames favour the
 viewport. The probe also does not draw sprites, so it does not describe the
 shipped baking path; the batched atlas draw is judged on the device.
+
+### Asset binding (viewport attaches through the scope)
+
+The viewport moved from the readiness-flag cache to `AssetCacheScope`
+(`attach(key, spec, profile)`, paint the `AssetPaintable`), with the glyph
+paragraph cache replaced by the scope's byte-budgeted LRU. Same machine, three
+alternating whole-suite runs of the integration branch before and after;
+median of the three per-run medians (mean in brackets), ratio is after / before
+against SuperSliverList. The paragraph path is what the benchmark exercises, so
+this is the cost of going through the binding for text glyphs; the baked sprite
+path is not measured headless.
+
+| Probe (64 / 512 / 4096 leaves) | Before (µs) | After (µs) | After / before |
+| ------------------------------ | ----------- | ---------- | -------------- |
+| Scroll-only paint, median | 41 / 37 / 37 | 33 / 28 / 29 | 0.80 / 0.76 / 0.78 |
+| Scroll-only paint, mean | 49 / 49 / 57 | 42 / 35 / 35 | 0.86 / 0.72 / 0.62 |
+| Forced relayout, median | 55 / 29 / 75 | 49 / 19 / 71 | 0.89 / 0.66 / 0.95 |
+| Fling frame time, median | 22 / 15 / 15 | 23 / 15 / 15 | 1.05 / 1.00 / 1.00 |
+| Near-path jump, median | 19 / 15 / 15 | 19 / 16 / 15 | 1.00 / 1.07 / 1.00 |
+
+Scroll-only paint and the other rows are within run-to-run noise or better.
+Two traps found while measuring, both fixed: a paragraph shared by every cell of
+one glyph was laid out again at each cell, because a rectangle's width is
+`right - left` and differs in the last bits between positions (paint 4x slower
+until a layout tolerance was added), and a save and a clip per cell cost more
+than the glyph (the clip now happens only for a glyph wider than its box).
+
+### Direction, semantics, focus and cursor
+
+Right-to-left cell placement, windowed semantics, roving focus and the click
+cursor touch the render object, so the whole suite was run before and after
+(same machine, three alternating whole-suite runs; median of the three per-run
+medians; ratio is after / before). Semantic nodes are built only for the slot
+range the viewport already binds (the visible band plus one cell of overscan, by
+binary search), never read a binding or a sprite, and live in content space
+under one container whose transform is the scroll offset, so a scroll that keeps
+the same window moves one transform and rebuilds no node.
+
+`flutter_test` turns semantics **on** for every widget test unless told
+otherwise, so the suite's own numbers are a semantics-on preset; the same suite
+was also run with semantics off (every probe forced off, before and after).
+
+| Probe (64 / 512 / 4096 leaves) | Semantics off, after / before | Semantics on (suite default), after / before |
+| ------------------------------ | ----------------------------- | -------------------------------------------- |
+| Scroll-only paint, median | 1.09 / 1.04 / 1.00 | 1.03 / 1.04 / 1.03 |
+| Forced relayout, median | 1.05 / 0.88 / 1.05 | 1.13 / 1.35 / 0.98 |
+| Fling frame time, median | 0.96 / 0.94 / 1.00 | 1.05 / 1.00 / 1.00 |
+| Near-path jump, median | 1.00 / 0.88 / 1.07 | 1.00 / 0.94 / 1.00 |
+| Far-path stitch, median | 1.00 / 1.00 / 1.00 | 0.94 / 0.94 / 1.00 |
+
+With semantics off nothing moves beyond run-to-run noise (the medians sit at the
+floor of a sampled frame, 14-25 µs, except relayout and paint). With semantics
+on the only probe that moves is forced relayout at 64 / 512 leaves, by 7-8 µs
+absolute: a relayout marks the window's nodes stale, which costs something only
+while a screen reader is running (the 4096-leaf row does not move).
+
+A semantics probe of its own (`semantics on - scroll frames`) pumps 300 scrolled
+frames, semantics flush included, with and without a screen reader on the same
+catalogue:
+
+| Leaves | Frame median, semantics off | Frame median, semantics on | Ratio | Semantic nodes |
+| ------ | --------------------------- | -------------------------- | ----- | -------------- |
+| 64 | 70-77 µs | 82-90 µs | about 1.2x | 74 |
+| 512 | 65-71 µs | 136-160 µs | about 2.0-2.3x | 83 |
+| 4096 | 65-67 µs | 129-134 µs | about 2.0x | 83 |
+
+The node count is the window (about 16 rows of 8 cells here), not the catalogue:
+it is the same at 512 and 4096 leaves, and the test asserts the bound. (It
+used to assert a 5x tripwire on the median too; that tripped about one run in
+thirteen on a busy machine, in a required gate, and a wall-clock assertion has
+no place there. The ratio is now the nightly metric
+`semantics.scroll_frame.on_over_off.<leaves>`.) Absolute microseconds are
+debug-mode; the ratio is the signal. A device run with TalkBack or VoiceOver is
+not part of this report.
+
+### The semantics preset (ticket 21)
+
+Chosen deliberately, not inherited from `flutter_test`: the headline suite runs
+with **semantics off**, the shipped default (a semantic tree exists on a device
+only while a screen reader runs), selected by `BENCH_SEMANTICS` (`off`, the
+default, or `on`). The probe that measures semantics itself always compares the
+same frames with and without. The nightly job runs both presets as separate
+suites (`panel_catalog.semantics-off`, `panel_catalog.semantics-on`), so a
+regression that only a screen reader pays is still tracked.
+
+Against the widget baselines the preset hardly matters (both sides pay for
+semantics, so the ratios agree within noise); it matters for the absolute cost
+of the viewport, which is what the next section measures.
+
+### Forced-layout drift, re-measured (ticket 21)
+
+Ticket 19 reported forced layout 5-10% slower in an A/B and could not explain
+it. Re-measured by checking out the integration branch after tickets 18, 19 and
+20, running the same bench file in each, four alternating rounds per preset
+(whole suite per round, same machine); median of the four per-run medians of the
+viewport's own forced-layout time, in µs (one relayout, debug, headless):
+
+| Preset | Leaves | After 18 | After 19 | After 20 |
+| ------ | ------ | -------- | -------- | -------- |
+| Semantics off | 64 | 55 | 59 | 58 |
+| Semantics off | 512 | 20 | 22 | 25 |
+| Semantics off | 4096 | 77 | 83 | 85 |
+| Semantics on | 64 | 50 | 55 | 73 |
+| Semantics on | 512 | 25 | 25 | 42 |
+| Semantics on | 4096 | 91 | 95 | 103 |
+
+Reading it:
+
+- **Ticket 19 (header actions, section states) costs 0-10%, 2-6 µs.** The
+  rounds overlap (64 leaves, off: 46-61 before, 52-65 after); the direction is
+  consistent but the size is at the noise floor. It is real but negligible, not
+  a regression worth a change.
+- **Ticket 20 is the rest, and it is semantics.** With semantics on, forced
+  layout rises 30-70% at 64 and 512 leaves (about 18 µs): a relayout marks the
+  window's semantic nodes stale. That cost exists only while a screen reader
+  runs, as ticket 20 predicted, and it is why the semantics-on suite is tracked
+  on its own. With semantics off ticket 20 adds 0-25% (0-3 µs), again inside
+  the spread.
+- So the drift is explained: a few microseconds from 19, and the
+  screen-reader-only marking cost from 20. Nothing was changed in the viewport
+  for it. The cumulative off-preset drift since ticket 18 (5-10%, 3-8 µs) is
+  what the committed baselines now contain.
+
+### Asset-cache benchmark (ticket 21)
+
+`packages/catalog_assets/test/benchmark/asset_cache_ratio_bench_test.dart`
+(`asset_cache_churn_bench_test.dart` stays: it is the sweep behind the default
+budgets). Four probes, reduced to machine-independent numbers: cache cycles as
+a ratio against a bare byte-budgeted LRU doing the same bookkeeping on the same
+machine; hit rates at the default budgets (counts, exact); one clock tick
+fanned out to 10 / 100 / 1000 animated bindings, as cost per binding against
+10 bindings, against the same number of closure calls, and the repaint requests
+the 30 fps cap lets through; glyph bindings holding pages of a real
+`GlyphPageResidency` against plain entries, and memory pressure with pinned
+pages. Baseline medians (macOS, five runs):
+
+| Probe | Value | Reading |
+| ----- | ----- | ------- |
+| Churn, 200 keys (all resident), over bare LRU | 7.5x | Pinning, staged readiness and listeners on top of the map work |
+| Churn, 5000 keys (evicting every cycle), over bare LRU | 6.0x | Evicting costs no more relative to the reference than a hit |
+| Evicting over resident cycle | 5.4x | |
+| Fan-out per binding, 1000 over 10 bindings | 0.52x | Flat or better: fixed cost per tick is amortised, no superlinear growth |
+| Fan-out tick over N closure calls, N = 10 / 100 / 1000 | 17x / 22x / 24x | Dispatch through the clock against bare closures |
+| Repaint requests per binding per tick (30 fps cap) | 0.5 | Exact |
+| Glyph binding cycle over plain entry cycle, 4 pages | 1.6x | Taking and giving back a page hold |
+| Glyph binding cycle, 256 pages over 4 pages | 0.99x | Holds do not scale with the number of pages |
+| Hit rates on the way back: stickers 4 / 8 screens | 100% / 75% | At the default 24 MiB (matches the package README table) |
+| Hit rates: emoji 4 / 8 screens; animated 1 / 4 screens | 100% / 100%; 100% / 25% | At the default budgets |
+| Pages resident after memory pressure with 12 of 16 pages pinned | 12 | Pinned pages survive, unpinned go (asserted) |
+
+### What is tracked, and how
+
+Both suites write their ratios, counts and rates to the file `BENCH_REPORT`
+names, and `scripts/bench` compares the median of several runs against the
+committed baselines in `benchmarks/baselines/`. Tolerance, re-run and
+re-baseline steps, and the nightly workflow (a regression opens an issue and
+never blocks a merge): [benchmarks/README.md](../../../../benchmarks/README.md).
+This report is refreshed in the same change as a re-baseline.
 
 ## Accepted gaps
 
@@ -216,9 +415,10 @@ unit-tested; these are not:
 
 **Architecture follow-through** (decided in
 [ADR 006](../../../../docs/adr/006-panel-catalog-viewport.md), marked pending
-there): scope-provided shared asset cache, per-section layout, snapshot data
-source, attach-and-position controller, and the paintable contract that
-replaces the sprite capability now carried on `CatalogAssetBinding`.
+there): scope-provided shared asset cache; per-section layout, snapshot data
+source and attach-and-position controller are built; the paintable contract
+that replaces the old sprite capability, carried on the asset binding, is
+built (see the asset-binding A/B below).
 
 ## Follow-on: animated media
 

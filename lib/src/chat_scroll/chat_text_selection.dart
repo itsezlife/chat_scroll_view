@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_non_text_body.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_code_block_painter.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_smooth_contour.dart';
@@ -22,20 +23,44 @@ final class ChatTextSelection {
   /// Creates a text module.
   ChatTextSelection({
     MarkdownSelectionController? markdownSelection,
+    MarkdownSpoilerController? spoilers,
     ChatSelectionPolicy? policy,
   }) : _disposeMarkdown = markdownSelection == null,
-       markdownSelection = markdownSelection ?? MarkdownSelectionController(),
+       _disposeSpoilers = spoilers == null,
+       // The engine copies markdown by default; the viewport's own text is
+       // plain (what the clipboard gets without a [ChatTextCopyWriter], and
+       // what a host menu reads as [ChatTextCopy.plainText]). Rich forms read
+       // the structured content instead.
+       markdownSelection =
+           markdownSelection ??
+           MarkdownSelectionController(
+             formatter: MarkdownSelectionFormatter.plain,
+           ),
+       spoilers = spoilers ?? MarkdownSpoilerController(),
        policy = policy ?? ChatSelectionPolicy.forPlatform();
 
   /// Markdown selection model (positions, documents, copy formatting).
   final MarkdownSelectionController markdownSelection;
 
+  /// Which messages have their spoilers revealed, keyed by message id.
+  ///
+  /// Beside [markdownSelection], not inside it: one answers where a range
+  /// sits over a registry of bodies, the other holds one bit per message, and
+  /// the two change for different reasons.
+  final MarkdownSpoilerController spoilers;
+
   /// Selection policy governing cross-platform code block and gesture arbitration.
   final ChatSelectionPolicy policy;
 
   final bool _disposeMarkdown;
+  final bool _disposeSpoilers;
 
   final Map<int, _BodyEntry> _bodies = <int, _BodyEntry>{};
+
+  /// Bodies that paint no text (`ChatNonTextBody`), per message, in mount
+  /// order: the last is the one a query asks.
+  final Map<int, LinkedHashMap<Object, ChatNonTextBody>> _nonTextBodies =
+      <int, LinkedHashMap<Object, ChatNonTextBody>>{};
 
   /// Mounted body paint boxes — resolved to global rects at hit time so
   /// scroll does not stale a cached [Rect].
@@ -126,6 +151,10 @@ final class ChatTextSelection {
     );
     if (surface != null) {
       return surface.contains(globalOffset);
+    }
+    if (_nonTextBodies[messageId]?.values.last.globalBounds case final bounds?
+        when bounds.contains(globalOffset)) {
+      return true;
     }
     return containsGlobal(messageId, globalOffset);
   }
@@ -221,6 +250,9 @@ final class ChatTextSelection {
   /// code body (which delegates to text selection).
   ChatInlineHit? resolveInlineHit(int messageId, Offset globalOffset) {
     if (_disposed) return null;
+    if (_nonTextBodies[messageId]?.values.last case final body?) {
+      return body.inlineHitAt(globalOffset);
+    }
     if (!_bodies.containsKey(messageId)) return null;
     final hit = markdownSelection.positionForGlobal(
       globalOffset,
@@ -363,93 +395,98 @@ final class ChatTextSelection {
     return null;
   }
 
-  _SpanHitInfo? _findSpanAtOffset(MD$Block block, int offset) =>
-      switch (block) {
-        MD$Paragraph(:final spans) ||
-        MD$Heading(:final spans) ||
-        MD$Quote(:final spans) ||
-        MD$Alert(:final spans) => _findSpanInSpans(spans, offset),
-        MD$List(:final items) => _findSpanInList(items, offset),
-        MD$Table() => _findSpanInTable(block, offset),
-        MD$Code() || MD$Divider() || MD$Spacer() => null,
-      };
-
-  _SpanHitInfo? _findSpanInSpans(List<MD$Span> spans, int offset) {
-    var current = 0;
-    for (var i = 0; i < spans.length; i++) {
-      final span = spans[i];
-      final len = span.text.length;
-      final end = current + len;
-      final isLast = i == spans.length - 1;
-      if (offset >= current && (offset < end || (isLast && offset <= end))) {
-        return (span: span, start: current, end: end);
+  _SpanHitInfo? _findSpanAtOffset(MD$Block block, int offset) {
+    _SpanHitInfo? found;
+    _forEachSpan(block, (run) {
+      final (:span, :start, :end, :isLast) = run;
+      if (offset >= start && (offset < end || (isLast && offset <= end))) {
+        found = (span: span, start: start, end: end);
+        return true;
       }
-      current = end;
-    }
-    return null;
+      return false;
+    });
+    return found;
   }
 
-  _SpanHitInfo? _findSpanInList(List<MD$ListItem> items, int offset) {
-    var current = 0;
-    _SpanHitInfo? checkItem(MD$ListItem item) {
-      var itemCurrent = current;
-      for (var i = 0; i < item.spans.length; i++) {
-        final span = item.spans[i];
-        final len = span.text.length;
-        final end = itemCurrent + len;
-        final isLast = i == item.spans.length - 1 && item.children.isEmpty;
-        if (offset >= itemCurrent &&
-            (offset < end || (isLast && offset <= end))) {
-          return (span: span, start: itemCurrent, end: end);
-        }
-        itemCurrent = end;
-      }
-      current = itemCurrent + 1; // '\n' separator
-      for (final child in item.children) {
-        final res = checkItem(child);
-        if (res != null) return res;
-      }
-      return null;
-    }
-
-    for (final item in items) {
-      final res = checkItem(item);
-      if (res != null) return res;
-    }
-    return null;
-  }
-
-  _SpanHitInfo? _findSpanInTable(MD$Table table, int offset) {
-    var current = 0;
-    _SpanHitInfo? checkCells(List<List<MD$Span>> rowCells) {
-      for (var i = 0; i < rowCells.length; i++) {
-        final cellSpans = rowCells[i];
-        var cellCurrent = current;
-        for (var j = 0; j < cellSpans.length; j++) {
-          final span = cellSpans[j];
-          final len = span.text.length;
-          final end = cellCurrent + len;
-          final isLast = j == cellSpans.length - 1;
-          if (offset >= cellCurrent &&
-              (offset < end || (isLast && offset <= end))) {
-            return (span: span, start: cellCurrent, end: end);
+  /// Visits the spans of [block] with their rendered-text offsets, in reading
+  /// order, until [visit] returns true. `isLast` marks the span that owns the
+  /// offset at its own end (the caret after the last character).
+  ///
+  /// The offsets are the engine's: a list item's text is followed by one
+  /// newline before its children, a table cell by a tab and a row by a
+  /// newline. Hit-testing reads them through this one walk.
+  void _forEachSpan(MD$Block block, bool Function(_SpanRun run) visit) {
+    switch (block) {
+      case MD$Paragraph(:final spans) ||
+          MD$Heading(:final spans) ||
+          MD$Quote(:final spans) ||
+          MD$Alert(:final spans):
+        var current = 0;
+        for (var i = 0; i < spans.length; i++) {
+          final end = current + spans[i].text.length;
+          final isLast = i == spans.length - 1;
+          if (visit((
+            span: spans[i],
+            start: current,
+            end: end,
+            isLast: isLast,
+          ))) {
+            return;
           }
-          cellCurrent = end;
+          current = end;
         }
-        current =
-            cellCurrent + (i < rowCells.length - 1 ? 1 : 0); // '\t' separator
-      }
-      current += 1; // '\n' separator
-      return null;
-    }
+      case MD$List(:final items):
+        var current = 0;
+        bool walkItem(MD$ListItem item) {
+          var itemCurrent = current;
+          for (var i = 0; i < item.spans.length; i++) {
+            final end = itemCurrent + item.spans[i].text.length;
+            final isLast = i == item.spans.length - 1 && item.children.isEmpty;
+            if (visit((
+              span: item.spans[i],
+              start: itemCurrent,
+              end: end,
+              isLast: isLast,
+            ))) {
+              return true;
+            }
+            itemCurrent = end;
+          }
+          current = itemCurrent + 1; // '\n' separator
+          return item.children.any(walkItem);
+        }
 
-    final headerHit = checkCells(table.header.cells);
-    if (headerHit != null) return headerHit;
-    for (final row in table.rows) {
-      final rowHit = checkCells(row.cells);
-      if (rowHit != null) return rowHit;
+        items.any(walkItem);
+      case MD$Table():
+        var current = 0;
+        bool walkCells(List<List<MD$Span>> rowCells) {
+          for (var i = 0; i < rowCells.length; i++) {
+            final cellSpans = rowCells[i];
+            var cellCurrent = current;
+            for (var j = 0; j < cellSpans.length; j++) {
+              final end = cellCurrent + cellSpans[j].text.length;
+              final isLast = j == cellSpans.length - 1;
+              if (visit((
+                span: cellSpans[j],
+                start: cellCurrent,
+                end: end,
+                isLast: isLast,
+              ))) {
+                return true;
+              }
+              cellCurrent = end;
+            }
+            current = cellCurrent + (i < rowCells.length - 1 ? 1 : 0); // '\t'
+          }
+          current += 1; // '\n' separator
+          return false;
+        }
+
+        if (walkCells(block.header.cells)) return;
+        block.rows.any((row) => walkCells(row.cells));
+      case MD$Code() || MD$Divider() || MD$Spacer():
+        break;
     }
-    return null;
   }
 
   ChatInlineHit? _inlineHitForSpan(
@@ -458,12 +495,64 @@ final class ChatTextSelection {
     Path? contourPath,
     Offset? touchOrigin,
   }) {
-    if (span.style.contains(MD$Style.link) || span.extra?['url'] != null) {
+    final style = span.style;
+    // The engine's hidden-tap rule, on the viewport's hit path too: a tap on
+    // anything inside a hidden spoiler reveals the message and activates
+    // nothing, so no hit is reported until it is revealed.
+    if (style.contains(MD$Style.spoiler) && !spoilers.isRevealed(messageId)) {
+      return null;
+    }
+    final extra = span.extra;
+    // Each branch reads a style bit, never the URL: a mention is not a link
+    // and an image is not a link.
+    if (style.contains(MD$Style.image)) {
+      return switch (extra?['src'] ?? extra?['url']) {
+        final String target => ChatInlineHit.embed(
+          messageId: messageId,
+          target: target,
+          alt: span.text,
+          contourPath: contourPath,
+          touchOrigin: touchOrigin,
+        ),
+        _ => null,
+      };
+    }
+    if (style.contains(MD$Style.mention)) {
+      final name = extra?['name'];
+      if (name is! String) return null;
+      switch (extra?['scheme']) {
+        case 'mention':
+          return switch (extra?['id']) {
+            final String id => ChatInlineHit.resolvedMention(
+              messageId: messageId,
+              id: id,
+              name: name,
+              contourPath: contourPath,
+              touchOrigin: touchOrigin,
+            ),
+            _ => null,
+          };
+        case 'username':
+          return ChatInlineHit.usernameMention(
+            messageId: messageId,
+            name: name,
+            contourPath: contourPath,
+            touchOrigin: touchOrigin,
+          );
+        case 'hashtag':
+          return ChatInlineHit.hashtag(
+            messageId: messageId,
+            tag: name,
+            contourPath: contourPath,
+            touchOrigin: touchOrigin,
+          );
+      }
+      return null;
+    }
+    if (style.contains(MD$Style.link) || extra?['url'] != null) {
       final url =
-          span.extra?['url'] as String? ??
-          span.extra?['href'] as String? ??
-          span.text;
-      final title = span.extra?['alt'] as String? ?? span.text;
+          extra?['url'] as String? ?? extra?['href'] as String? ?? span.text;
+      final title = extra?['alt'] as String? ?? span.text;
       return ChatInlineHit.link(
         messageId: messageId,
         title: title,
@@ -472,7 +561,7 @@ final class ChatTextSelection {
         touchOrigin: touchOrigin,
       );
     }
-    if (span.style.contains(MD$Style.monospace)) {
+    if (style.contains(MD$Style.monospace)) {
       return ChatInlineHit.code(
         messageId: messageId,
         code: span.text,
@@ -564,6 +653,31 @@ final class ChatTextSelection {
     _messageSurfaceBoxes.remove(messageId);
     _messageSurfaceShapes.remove(messageId);
     return cleared;
+  }
+
+  /// Registers a body of [messageId] that paints no text, returning the token
+  /// to pass to [removeNonTextBody]. Several mounts of one message may
+  /// overlap (a morph); the last one answers. Silent after [dispose].
+  Object? putNonTextBody(int messageId, ChatNonTextBody body) {
+    if (_disposed) return null;
+    final token = Object();
+    (_nonTextBodies[messageId] ??=
+            LinkedHashMap<Object, ChatNonTextBody>.identity())[token] =
+        body;
+    return token;
+  }
+
+  /// The non-text body of [messageId] that answers (the last mounted), or
+  /// null.
+  ChatNonTextBody? nonTextBodyOf(int messageId) =>
+      _disposed ? null : _nonTextBodies[messageId]?.values.last;
+
+  /// Removes the body registered under [token].
+  void removeNonTextBody(int messageId, {required Object? token}) {
+    final owners = _nonTextBodies[messageId];
+    if (owners == null) return;
+    owners.remove(token);
+    if (owners.isEmpty) _nonTextBodies.remove(messageId);
   }
 
   /// Arms [messageId] as the sole document. Returns `false` when disposed
@@ -687,6 +801,7 @@ final class ChatTextSelection {
     _active = false;
     _subjectId = null;
     _bodies.clear();
+    _nonTextBodies.clear();
     _bodyPaintBoxes.clear();
     _messageSurfaceBoxes.clear();
     _messageSurfaceShapes.clear();
@@ -695,6 +810,9 @@ final class ChatTextSelection {
       ..setDocuments(const <MarkdownDocumentRef>[]);
     if (_disposeMarkdown) {
       markdownSelection.dispose();
+    }
+    if (_disposeSpoilers) {
+      spoilers.dispose();
     }
   }
 }
@@ -711,3 +829,7 @@ final class _BodyEntry {
 }
 
 typedef _SpanHitInfo = ({MD$Span span, int start, int end});
+
+/// A span of a block with its rendered-text offsets; `isLast` marks the span
+/// that owns the offset at its own end (the caret after the last character).
+typedef _SpanRun = ({MD$Span span, int start, int end, bool isLast});
