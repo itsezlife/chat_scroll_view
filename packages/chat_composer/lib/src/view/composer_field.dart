@@ -85,8 +85,12 @@ class ComposerField extends StatefulWidget {
     this.onTap,
     this.onPointerDown,
     this.onPointerEnd,
+    this.layout = const ComposerFieldLayout.island(),
     super.key,
   });
+
+  /// How the field is laid out: in the chat island, or in a host's form.
+  final ComposerFieldLayout layout;
 
   /// The input state.
   final ComposerController controller;
@@ -621,24 +625,140 @@ class _ComposerFieldState extends State<ComposerField> {
         ? ChromeThemeScope.pointerMenuOf(context)
         : null;
     _editStrings = ChromeStringsScope.editMenuOf(context);
-    const lineHeight = ComposerMetrics.fieldLineHeight;
-    const fontSize = ComposerMetrics.fieldFontSize;
-    final fieldStyle = TextStyle(
-      color: composer.text,
-      fontSize: fontSize,
-      height: lineHeight,
-    );
+    final layout = widget.layout;
+    final TextStyle fieldStyle;
+    final TextStyle? ownStyle;
+    final InputDecoration decoration;
+    switch (layout) {
+      case ComposerFieldLayout$Island():
+        const lineHeight = ComposerMetrics.fieldLineHeight;
+        const fontSize = ComposerMetrics.fieldFontSize;
+        fieldStyle = TextStyle(
+          color: composer.text,
+          fontSize: fontSize,
+          height: lineHeight,
+        );
+        ownStyle = fieldStyle;
+        decoration = InputDecoration.collapsed(
+          hintText: strings.messageHint,
+          hintStyle: TextStyle(
+            color: placeholder.fieldHint,
+            fontSize: fontSize,
+            height: lineHeight,
+          ),
+        );
+      case ComposerFieldLayout$Form(:final style):
+        // The text field's own default style, which the gutter's markers
+        // must match; the field itself gets only the host's style, so its
+        // disabled colour stays the theme's.
+        final theme = Theme.of(context);
+        final base = theme.useMaterial3
+            ? theme.textTheme.bodyLarge
+            : theme.textTheme.titleMedium;
+        fieldStyle = (base ?? const TextStyle()).merge(style);
+        ownStyle = style;
+        decoration = layout.decoration;
+    }
     final gutter = _gutterFor(fieldStyle, MediaQuery.textScalerOf(context));
     _gutterExtent = gutter?.extent ?? 0;
 
-    return HeightReporter(
-      onHeight: controller.reportFieldHeight,
-      child: Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: (_) => widget.onPointerDown?.call(),
-        onPointerUp: (_) => widget.onPointerEnd?.call(),
-        onPointerCancel: (_) => widget.onPointerEnd?.call(),
-        child: ConstrainedBox(
+    final input = ListenValueBuilder<SoftKeyboardMode>(
+      listenable: controller.softKeyboard,
+      builder: (context, controllerMode) {
+        final mode = _quietFocus ? SoftKeyboardMode.suppressed : controllerMode;
+        _builtMode = mode;
+        final field = ExtendedTextField(
+          key: _textFieldKey,
+          controller: controller.text,
+          focusNode: controller.focusNode,
+          scrollController: controller.fieldScroll,
+          undoController: controller.undoHistory,
+          // The tap region the stock field and every host widget that
+          // stays "inside" it (a button, a popup) join by default.
+          // The leaf editable's own default group is its own type,
+          // which those widgets would not find.
+          groupId: EditableText,
+          // The reference's handles are drawn by the composer, not the
+          // platform's: Material on every platform.
+          selectionControls: extendedMaterialTextSelectionHandleControls,
+          enabled: widget.enabled,
+          autofocus: widget.autofocus,
+          minLines: layout.minLines,
+          maxLines: layout.maxLines,
+          keyboardType: mode == SoftKeyboardMode.suppressed
+              ? TextInputType.none
+              : TextInputType.multiline,
+          textInputAction: layout.textInputAction,
+          textCapitalization: layout.textCapitalization,
+          onTap: _onTap,
+          cursorColor: switch (layout) {
+            ComposerFieldLayout$Island() => composer.cursor,
+            ComposerFieldLayout$Form() => null,
+          },
+          style: ownStyle,
+          // The markers of list items sit beside the text, in room
+          // the field makes only while there is a marker.
+          gutterPainter: gutter,
+          gutterExtent: _gutterExtent,
+          gutterInset: _gutterExtent,
+          decoration: decoration,
+          // An image a keyboard inserts (Android) is media the host
+          // sends, as a pasted image is.
+          contentInsertionConfiguration: controller.onPastedMedia == null
+              ? null
+              : ContentInsertionConfiguration(
+                  onContentInserted: _onContentInserted,
+                ),
+          contextMenuBuilder: _selectionMenu,
+          onSecondaryClick: pointerMenu ? _onSecondaryClick : null,
+        );
+        final spoken = gutter == null
+            ? field
+            : ComposerListGutterSemantics(
+                key: _gutterSemanticsKey,
+                text: controller.text,
+                gutter: gutter,
+                strings: _menuStrings,
+                editable: () => _editableTextState()?.renderEditable,
+                field: () =>
+                    _gutterSemanticsKey.currentContext?.findRenderObject()
+                        as RenderBox?,
+                child: field,
+              );
+        final menuKey = pointerMenu
+            ? Actions(
+                actions: {
+                  ShowComposerMenuIntent:
+                      CallbackAction<ShowComposerMenuIntent>(
+                        onInvoke: _openFromKeyboard,
+                      ),
+                },
+                child: spoken,
+              )
+            : spoken;
+        if (controller.clipboard == null) return menuKey;
+        // Above the field's own: an overridable action finds these
+        // first, so shortcuts and the macOS menu selectors land here.
+        return Actions(
+          actions: {
+            CopySelectionTextIntent: _CopyAction(controller),
+            PasteTextIntent: _PasteAction(controller),
+            PastePlainTextIntent: _PastePlainAction(controller),
+          },
+          child: menuKey,
+        );
+      },
+    );
+
+    final pointed = Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => widget.onPointerDown?.call(),
+      onPointerUp: (_) => widget.onPointerEnd?.call(),
+      onPointerCancel: (_) => widget.onPointerEnd?.call(),
+      child: switch (layout) {
+        // The island's row: as tall as the island at least, padded to the
+        // action slots, its height reported for the row's animation.
+        ComposerFieldLayout$Island() => ConstrainedBox(
           constraints: const BoxConstraints(
             minHeight: ComposerMetrics.islandHeight,
           ),
@@ -648,107 +768,98 @@ class _ComposerFieldState extends State<ComposerField> {
               bottom: ComposerMetrics.fieldBottomPad,
               end: ComposerMetrics.fieldEndPad,
             ),
-            child: ListenValueBuilder<SoftKeyboardMode>(
-              listenable: controller.softKeyboard,
-              builder: (context, controllerMode) {
-                final mode = _quietFocus
-                    ? SoftKeyboardMode.suppressed
-                    : controllerMode;
-                _builtMode = mode;
-                final field = ExtendedTextField(
-                  key: _textFieldKey,
-                  controller: controller.text,
-                  focusNode: controller.focusNode,
-                  scrollController: controller.fieldScroll,
-                  undoController: controller.undoHistory,
-                  // The tap region the stock field and every host widget that
-                  // stays "inside" it (a button, a popup) join by default.
-                  // The leaf editable's own default group is its own type,
-                  // which those widgets would not find.
-                  groupId: EditableText,
-                  // The reference's handles are drawn by the composer, not the
-                  // platform's: Material on every platform.
-                  selectionControls:
-                      extendedMaterialTextSelectionHandleControls,
-                  enabled: widget.enabled,
-                  autofocus: widget.autofocus,
-                  minLines: 1,
-                  maxLines: ComposerMetrics.fieldMaxLines,
-                  keyboardType: mode == SoftKeyboardMode.suppressed
-                      ? TextInputType.none
-                      : TextInputType.multiline,
-                  textInputAction: TextInputAction.newline,
-                  textCapitalization: TextCapitalization.sentences,
-                  onTap: _onTap,
-                  cursorColor: composer.cursor,
-                  style: fieldStyle,
-                  // The markers of list items sit beside the text, in room
-                  // the field makes only while there is a marker.
-                  gutterPainter: gutter,
-                  gutterExtent: _gutterExtent,
-                  gutterInset: _gutterExtent,
-                  decoration: InputDecoration.collapsed(
-                    hintText: strings.messageHint,
-                    hintStyle: TextStyle(
-                      color: placeholder.fieldHint,
-                      fontSize: fontSize,
-                      height: lineHeight,
-                    ),
-                  ),
-                  // An image a keyboard inserts (Android) is media the host
-                  // sends, as a pasted image is.
-                  contentInsertionConfiguration:
-                      controller.onPastedMedia == null
-                      ? null
-                      : ContentInsertionConfiguration(
-                          onContentInserted: _onContentInserted,
-                        ),
-                  contextMenuBuilder: _selectionMenu,
-                  onSecondaryClick: pointerMenu ? _onSecondaryClick : null,
-                );
-                final spoken = gutter == null
-                    ? field
-                    : ComposerListGutterSemantics(
-                        key: _gutterSemanticsKey,
-                        text: controller.text,
-                        gutter: gutter,
-                        strings: _menuStrings,
-                        editable: () => _editableTextState()?.renderEditable,
-                        field: () =>
-                            _gutterSemanticsKey.currentContext
-                                    ?.findRenderObject()
-                                as RenderBox?,
-                        child: field,
-                      );
-                final menuKey = pointerMenu
-                    ? Actions(
-                        actions: {
-                          ShowComposerMenuIntent:
-                              CallbackAction<ShowComposerMenuIntent>(
-                                onInvoke: _openFromKeyboard,
-                              ),
-                        },
-                        child: spoken,
-                      )
-                    : spoken;
-                if (controller.clipboard == null) return menuKey;
-                // Above the field's own: an overridable action finds these
-                // first, so shortcuts and the macOS menu selectors land here.
-                return Actions(
-                  actions: {
-                    CopySelectionTextIntent: _CopyAction(controller),
-                    PasteTextIntent: _PasteAction(controller),
-                    PastePlainTextIntent: _PastePlainAction(controller),
-                  },
-                  child: menuKey,
-                );
-              },
-            ),
+            child: input,
           ),
         ),
-      ),
+        // A form lays the field out itself, through the decoration.
+        ComposerFieldLayout$Form() => input,
+      },
     );
+    return switch (layout) {
+      ComposerFieldLayout$Island() => HeightReporter(
+        onHeight: controller.reportFieldHeight,
+        child: pointed,
+      ),
+      ComposerFieldLayout$Form() => pointed,
+    };
   }
+}
+
+// --- Layout ---
+
+/// Where the field is laid out, and so what draws around its text.
+///
+/// The field's behaviour (entities, lists, the selection and pointer menus,
+/// the clipboard, the soft keyboard) is the same in both; only the chrome
+/// differs. The island's is the composer's own, fixed by its metrics and
+/// tokens; a form's is the host's decoration, so the field sits among the
+/// host's other text fields.
+sealed class ComposerFieldLayout {
+  const ComposerFieldLayout._({
+    required this.minLines,
+    required this.maxLines,
+    required this.textInputAction,
+    required this.textCapitalization,
+  });
+
+  /// The chat island's: one to `ComposerMetrics.fieldMaxLines` lines in the
+  /// composer's own style and hint, the height reported to the controller.
+  const factory ComposerFieldLayout.island() = ComposerFieldLayout$Island;
+
+  /// A host form's: its [decoration] (label, hint, helper, error, counter,
+  /// border), text style and line limits.
+  const factory ComposerFieldLayout.form({
+    required InputDecoration decoration,
+    TextStyle? style,
+    int? minLines,
+    int? maxLines,
+    TextInputAction textInputAction,
+    TextCapitalization textCapitalization,
+  }) = ComposerFieldLayout$Form;
+
+  /// The fewest lines the field shows.
+  final int? minLines;
+
+  /// The most lines the field grows to before it scrolls; null grows with the
+  /// text.
+  final int? maxLines;
+
+  /// The action key the soft keyboard shows.
+  final TextInputAction textInputAction;
+
+  /// How the soft keyboard capitalises.
+  final TextCapitalization textCapitalization;
+}
+
+/// The chat island's layout; see [ComposerFieldLayout.island].
+final class ComposerFieldLayout$Island extends ComposerFieldLayout {
+  /// The island's layout.
+  const ComposerFieldLayout$Island()
+    : super._(
+        minLines: 1,
+        maxLines: ComposerMetrics.fieldMaxLines,
+        textInputAction: TextInputAction.newline,
+        textCapitalization: TextCapitalization.sentences,
+      );
+}
+
+/// A host form's layout; see [ComposerFieldLayout.form].
+final class ComposerFieldLayout$Form extends ComposerFieldLayout {
+  /// A form's layout.
+  const ComposerFieldLayout$Form({
+    required this.decoration,
+    this.style,
+    super.minLines,
+    super.maxLines,
+    super.textInputAction = TextInputAction.newline,
+    super.textCapitalization = TextCapitalization.sentences,
+  }) : super._();
+
+  /// The host's decoration, with the error and counter already in it.
+  final InputDecoration decoration;
+
+  /// The host's text style, merged over the field's default.
+  final TextStyle? style;
 }
 
 // --- Clipboard actions ---

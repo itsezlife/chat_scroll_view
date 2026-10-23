@@ -6,6 +6,21 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (form field)
+
+- `ComposerFormField`: the composer's field in a host's form, a
+  `FormField<RichText>` under the host's `InputDecoration`. It has the island's
+  selection menu (`formatting`, `linkPrompt`, `backPriority`), lists (with a
+  `ComposerTextController(lists: true)`), formatting and list keys (without
+  submit: Enter is a newline), focus through the controller's `focusNode`,
+  Flutter's `validator`, `onSaved`, `autovalidateMode` and `reset` (back to the
+  text it was built with), and `maxLength` in code points of the plain text,
+  counted in the decoration and drawn in the error colour past it, never
+  trimmed. Before, the only public way to the field was `ComposerView`, the
+  chat island, so a form host could not have the menu or lists.
+- The island's field is unchanged: it is now one of two layouts of the same
+  field.
+
 ### Fixed (More button press)
 
 - The More button showed nothing when pressed: it was a bare `InkResponse`,

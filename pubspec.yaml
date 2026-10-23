@@ -44,7 +44,7 @@ dependencies:
   flutter_md:
     git:
       url: https://github.com/itsezlife/md.git
-      ref: v0.4.4
+      ref: 1f48483d651fe2c1881a6a1236fe07a47195f686
 
 dev_dependencies:
   flutter_test:
@@ -55,11 +55,14 @@ dev_dependencies:
   fake_async: ^1.3.3
 
 # Overrides are honoured only here, never in members. Members and CI pin the
-# fork by release tag (v0.4.4, itsezlife/md) so the lockfile is reproducible;
-# this override points the root at the sibling checkout so fork work lands
-# without a push-and-repin loop. CI checks the same tag out next to this repo,
-# so the override and the pin resolve to the same source there. Move the tag in
-# every pin (this file, example/pubspec.yaml, the three workflows) together.
+# fork by git ref (itsezlife/md) so the lockfile is reproducible: a release tag,
+# or a commit while the change it carries has no release yet (now 1f48483d,
+# `MarkdownThemeData.copyWith(clearOnLinkTap:)`, unreleased after v0.4.4; move
+# to the release tag once it is cut). This override points the root at the
+# sibling checkout so fork work lands without a push-and-repin loop. CI checks
+# the same ref out next to this repo, so the override and the pin resolve to
+# the same source there. Move the ref in every pin (this file,
+# example/pubspec.yaml, the four workflows) together.
 dependency_overrides:
   flutter_md:
     path: ../md

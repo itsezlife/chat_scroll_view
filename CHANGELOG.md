@@ -1,5 +1,14 @@
 ## Unreleased
 
+### The field in a form; `flutter_md` at 1f48483d
+- **ADDED**: `chat_composer`'s `ComposerFormField`, the composer's field with
+  its selection menu and lists in a host's form (see the `chat_composer`
+  changelog).
+- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` commit `1f48483d`
+  (`MarkdownThemeData.copyWith` can clear a callback through `clear*` flags)
+  in every pubspec and workflow, until the release that carries it is tagged
+  (ADR 035, amendment).
+
 ### Edit crossfade of a body that paints on a layer of its own
 - **Fixed**: the old and new text of an edited message crossfaded with a canvas
   `saveLayer` and `clipRect`, which do not reach a body that is a repaint

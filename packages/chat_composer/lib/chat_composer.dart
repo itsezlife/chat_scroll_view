@@ -27,6 +27,7 @@ export 'src/text/content_span_builder.dart';
 export 'src/text/inline_content_span_builder.dart';
 export 'src/text/mention_downgrade.dart';
 export 'src/view/composer_bottom_fade.dart';
+export 'src/view/composer_form_field.dart';
 export 'src/view/composer_length_counter.dart';
 export 'src/view/composer_metrics.dart';
 export 'src/view/composer_view.dart';

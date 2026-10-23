@@ -36,6 +36,7 @@ morphs in place).
 | `ComposerHeader` | Sealed: `reply`, `edit`, `forward`, `linkPreview`, `suggestion`. Reply and edit titles come from `ChromeStrings.composer`. |
 | `ActionDescriptor`, `ActionPlacement`, `ActionWrap` | One action as data. `active` draws the glyph in the accent colour and announces the button as selected (a toggle that is on keeps its one glyph). `wrap` is a widget the composer builds around the rendered button, for whatever the host needs around it (a hover region, a tooltip, a measuring probe); the composer knows none of them. |
 | `ComposerPanelId`, `ComposerPanelResolver` | An open set of panel names and the host function that builds the non-default ones. |
+| `ComposerFormField` | The same field in a host's form: a `FormField<RichText>` under the host's `InputDecoration`, with the selection menu, lists and formatting keys of the island, `formatting`, `linkPrompt`, `backPriority`, focus through the controller, Flutter's validation and reset, and a `maxLength` counted in code points that is never enforced. |
 | `ComposerBottomFade` | The soft fade under the composer. Mounts under the island, outside the glass source. |
 | `ComposerShortcutPolicy`, `SubmitComposerIntent`, `DismissComposerHeaderIntent`, `ToggleStyleIntent`, `ToggleCodeBlockIntent`, `ApplyLinkIntent`, `ClearFormattingIntent`, `ToggleListIntent` | Intents and the `$Mobile` / `$Desktop` default key maps (formatting keys follow Telegram Desktop's). |
 | `ComposerMetrics` | The island geometry, documented as component constants. |
@@ -206,7 +207,8 @@ The view imports no inset type.
 | Nothing for the field's reports: the view calls `reportFieldHeight`, `reportExtent` and `reportCaretAnchor` itself. | Call the `report...` methods, or read the anchor as exact: it may lag the text by a frame, and is `null` before the first report. |
 | Disposal of every controller, focus node and scroll controller it passed in. | Dispose what the composer created, or use a controller after it. |
 | Import hygiene: `hide RichText` on the Flutter widgets import (or `as model` on this one). | Import both `RichText`s unqualified in one file. |
-| The field through `ComposerView` only. It renders `ExtendedTextField` from `composer_editable` (Material handles on every platform, overscroll handed to the chat); `ComposerController.fieldScroll` is the mirror of its scroll position. | Use `ExtendedTextField` directly, or expect a stock `TextField` or `EditableText` in the tree. |
+| For a form field: `ComposerFormField` with its own `InputDecoration`, `formatting`, `linkPrompt` and `backPriority` (what a spec carries for the island), the text controller's `entityStyles`, a Material ancestor, and its own length check in the validator when saving over `maxLength` must be refused. | Expect the form field to trim, refuse input past `maxLength`, submit on Enter, or swap its controller without a new key. |
+| The field through `ComposerView` or `ComposerFormField` only. Both render `ExtendedTextField` from `composer_editable` (Material handles on every platform, overscroll handed to the chat); `ComposerController.fieldScroll` is the mirror of its scroll position. | Use `ExtendedTextField` directly, or expect a stock `TextField` or `EditableText` in the tree. |
 
 Constructor requirements: `ComposerView` takes `controller` and `spec`;
 `ComposerController` takes nothing (it builds the text controller, focus node
