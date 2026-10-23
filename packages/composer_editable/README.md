@@ -10,7 +10,7 @@ scrolls, overscroll handoff to a parent). It depends on `flutter` and
 **A leaf.** `chat_composer` is the only workspace package that depends on it
 ([ADR 020](../../docs/adr/020-package-topology.md); the dependency lint in
 `scripts/check` fails any other dependent and any workspace dependency of this
-package). A host reaches the field through `ComposerView`, never through
+package). A host reaches the field through `ComposerView` or `ComposerFormField`, never through
 `ExtendedTextField` directly.
 
 ## Public API
