@@ -7,6 +7,7 @@ mentions, spoilers) and the default copy formatter.
 
 **Status**: Accepted  
 **Date**: 2026-10-18  
+**Amended**: 2026-10-23 — a consuming repo may pin a commit of the fork while the change it needs has no release yet, and moves to the release tag once it is cut (row changed: Consumption)  
 **Relates to**: [ADR 013](013-viewport-owns-markdown-text-selection.md), [ADR 017](017-body-linkify-host-invoked.md), [ADR 029](029-host-integration.md), [ADR 034](034-rich-text-wire-and-persistence.md), [ADR 037](037-spoiler-and-mention-inline-styles.md)
 
 ## Context
@@ -24,7 +25,7 @@ changes into that code is a recurring conflict cost with no matching benefit.
 | ------- | -------- |
 | Ownership | `itsezlife/md` is the chat markdown engine. Its `master` holds everything the workspace consumes. The package name `flutter_md` is kept so imports do not change. |
 | Upstream | No merges from the original repository. A wanted upstream commit is cherry-picked by hand. |
-| Consumption | By git ref (a release tag, so the lockfile is reproducible) from every consuming repo. The fork is not published to a package registry. |
+| Consumption | By git ref from every consuming repo: a release tag, or a commit SHA while the change a repo needs has no release yet (both keep the lockfile reproducible); the repo moves to the tag once it is cut. Every pin of one repo names the same ref. The fork is not published to a package registry. |
 | Override | The workspace root may use a path dependency override for local fork work (`dependency_overrides` only takes effect at the workspace root); no other package and no consuming repo carries one. Its comment says it is for local work against the pinned ref. |
 | Dependencies | The fork depends on neither `catalog_assets` nor `content_model`. Its embed contract is its own ([ADR 029](029-host-integration.md)); the viewport's root package adapts. |
 | Grammar | The fork owns the grammar `RichTextMarkdown` writes. A conformance suite in the fork, written over markdown strings in the codec's dialect, pins how every spelling the codec emits parses; `content_model` keeps its own round-trip tests. |
