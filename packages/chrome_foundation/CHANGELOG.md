@@ -12,6 +12,8 @@ package is pre-1.0.
   the icon box). The box keeps its size. `AnimatedChromeIcon` animates both
   over the `iconMorph` role while the glyph morphs, so a tilted send still
   morphs into an upright confirm instead of cross-fading.
+  The morph runs both ways: an upright glyph turning into a tilted one keeps
+  its morph too, since the turned and the upright glyph share one tree shape.
 
 ### Changed (Telegram's English in the presets)
 

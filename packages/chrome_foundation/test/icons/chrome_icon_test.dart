@@ -227,6 +227,38 @@ void main() {
       );
     });
 
+    testWidgets('an upright glyph morphs into a turned one', (tester) async {
+      Widget app(ChromeIconId id) => _host(
+        ChromeIconScope(
+          icons: const {
+            ChromeIconId('tilted-send'): ChromeIconPainter.font(
+              Icons.send,
+              turn: math.pi / 15,
+            ),
+            ChromeIconId('check'): ChromeIconPainter.font(Icons.check),
+          },
+          child: AnimatedChromeIcon(id, size: 24),
+        ),
+      );
+      await tester.pumpWidget(app(const ChromeIconId('check')));
+      final firstState = tester.state(find.byType(AnimatedMorphIcon));
+
+      await tester.pumpWidget(app(const ChromeIconId('tilted-send')));
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(
+        tester.state(find.byType(AnimatedMorphIcon)),
+        same(firstState),
+        reason: 'the state survives the turn leaving zero; a remount pops',
+      );
+      final mid = _turnOf(tester);
+      expect(mid, greaterThan(0));
+      expect(mid, lessThan(math.pi / 15));
+
+      await tester.pumpAndSettle();
+      expect(_turnOf(tester), closeTo(math.pi / 15, 1e-9));
+      expect(tester.state(find.byType(AnimatedMorphIcon)), same(firstState));
+    });
+
     testWidgets('instant speed swaps the glyph without a morph widget', (
       tester,
     ) async {
