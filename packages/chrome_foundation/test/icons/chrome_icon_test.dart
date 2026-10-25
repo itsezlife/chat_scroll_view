@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -91,6 +93,44 @@ void main() {
       expect(glyphs, [Icons.star, Icons.add]);
     });
 
+    testWidgets('a font painter draws its glyph turned and scaled', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const ChromeIconScope(
+            icons: {
+              ChromeIconId('tilted'): ChromeIconPainter.font(
+                Icons.send,
+                turn: math.pi / 15,
+                scale: 22 / 24,
+              ),
+            },
+            child: ChromeIcon(ChromeIconId('tilted'), size: 24),
+          ),
+        ),
+      );
+      final icon = tester.widget<Icon>(find.byType(Icon));
+      expect(icon.icon, Icons.send);
+      expect(icon.size, 22);
+      expect(_turnOf(tester), closeTo(math.pi / 15, 1e-9));
+      // The icon box keeps the requested size, so the layout does not move.
+      expect(tester.getSize(find.byType(ChromeIcon)), const Size(24, 24));
+    });
+
+    testWidgets('an upright, unscaled font painter adds no transform', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_host(const ChromeIcon(ChromeIconId.send)));
+      expect(
+        find.descendant(
+          of: find.byType(ChromeIcon),
+          matching: find.byType(Transform),
+        ),
+        findsNothing,
+      );
+    });
+
     testWidgets('without a scope the stock registry applies', (tester) async {
       late ChromeIconRegistry seen;
       await tester.pumpWidget(
@@ -139,6 +179,84 @@ void main() {
         reason: 'the same state morphs; a remount would pop',
       );
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('a turned glyph morphs into an upright one and turns back', (
+      tester,
+    ) async {
+      Widget app(ChromeIconId id) => _host(
+        ChromeIconScope(
+          icons: const {
+            ChromeIconId('tilted-send'): ChromeIconPainter.font(
+              Icons.send,
+              turn: math.pi / 15,
+            ),
+            ChromeIconId('check'): ChromeIconPainter.font(Icons.check),
+          },
+          child: AnimatedChromeIcon(id, size: 24),
+        ),
+      );
+      await tester.pumpWidget(app(const ChromeIconId('tilted-send')));
+      final firstState = tester.state(find.byType(AnimatedMorphIcon));
+      expect(_turnOf(tester), closeTo(math.pi / 15, 1e-9));
+
+      await tester.pumpWidget(app(const ChromeIconId('check')));
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(
+        tester.state(find.byType(AnimatedMorphIcon)),
+        same(firstState),
+        reason: 'one morphing glyph, not a cross-fade of two',
+      );
+      // No cross-fade: one child, fully opaque.
+      expect(find.byType(AnimatedMorphIcon), findsOneWidget);
+      expect(
+        tester
+            .widgetList<FadeTransition>(find.byType(FadeTransition))
+            .map((f) => f.opacity.value),
+        everyElement(1.0),
+      );
+      final mid = _turnOf(tester);
+      expect(mid, greaterThan(0));
+      expect(mid, lessThan(math.pi / 15));
+
+      await tester.pumpAndSettle();
+      expect(_turnOf(tester), closeTo(0, 1e-9));
+      expect(
+        tester.widget<AnimatedMorphIcon>(find.byType(AnimatedMorphIcon)).icon,
+        Icons.check,
+      );
+    });
+
+    testWidgets('an upright glyph morphs into a turned one', (tester) async {
+      Widget app(ChromeIconId id) => _host(
+        ChromeIconScope(
+          icons: const {
+            ChromeIconId('tilted-send'): ChromeIconPainter.font(
+              Icons.send,
+              turn: math.pi / 15,
+            ),
+            ChromeIconId('check'): ChromeIconPainter.font(Icons.check),
+          },
+          child: AnimatedChromeIcon(id, size: 24),
+        ),
+      );
+      await tester.pumpWidget(app(const ChromeIconId('check')));
+      final firstState = tester.state(find.byType(AnimatedMorphIcon));
+
+      await tester.pumpWidget(app(const ChromeIconId('tilted-send')));
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(
+        tester.state(find.byType(AnimatedMorphIcon)),
+        same(firstState),
+        reason: 'the state survives the turn leaving zero; a remount pops',
+      );
+      final mid = _turnOf(tester);
+      expect(mid, greaterThan(0));
+      expect(mid, lessThan(math.pi / 15));
+
+      await tester.pumpAndSettle();
+      expect(_turnOf(tester), closeTo(math.pi / 15, 1e-9));
+      expect(tester.state(find.byType(AnimatedMorphIcon)), same(firstState));
     });
 
     testWidgets('instant speed swaps the glyph without a morph widget', (
@@ -202,4 +320,22 @@ void main() {
       expect(tester.hasRunningAnimations, isFalse);
     });
   });
+}
+
+/// The rotation of the single icon under test, in radians.
+double _turnOf(WidgetTester tester) {
+  final transforms = tester.widgetList<Transform>(
+    find.ancestor(
+      of: find
+          .byWidgetPredicate((w) => w is Icon || w is AnimatedMorphIcon)
+          .first,
+      matching: find.byType(Transform),
+    ),
+  );
+  var turn = 0.0;
+  for (final t in transforms) {
+    final m = t.transform.storage;
+    turn += math.atan2(m[1], m[0]);
+  }
+  return turn;
 }

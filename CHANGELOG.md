@@ -1,5 +1,36 @@
 ## Unreleased
 
+### The field in a form; `flutter_md` 0.4.5
+- **ADDED**: `chrome_foundation`: a font icon can be turned and scaled and
+  still morphs; `chat_composer`: `ComposerView.primaryStyle` draws the send
+  as a bare glyph (see the package changelogs).
+- **ADDED**: `chat_composer`'s `ComposerFormField`, the composer's field with
+  its selection menu and lists in a host's form (see the `chat_composer`
+  changelog).
+- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.4.5`
+  (`MarkdownThemeData.copyWith` can clear a callback through `clear*` flags;
+  a selection edge steps one grapheme, never into an emoji) in every pubspec
+  and workflow (ADR 035).
+- **CHANGED**: `chat_composer`: a word typed against a styled run continues
+  it until whitespace (see the `chat_composer` changelog).
+- **ADDED**: `ChatSpoilerDust` is public, so a host's own markdown outside the
+  viewport (a chat list's one-line preview) moves its dust on the asset
+  cache's clock and pause layers, as the bubbles do. Nothing changes for a
+  host that only passes `spoilerClock` to `ChatSelectionController`.
+
+### Two selection-handle crashes
+- **Fixed**: `composer_editable`: dragging in an empty field, or dragging its
+  caret handle, threw `'selection.isValid': is not true` building the
+  magnifier. An empty paragraph has no line (its line is `-1..-1`), and the
+  magnifier asked for the glyph boxes of that range. It now falls back to the
+  caret's rectangle when there is no line.
+- **Fixed**: dragging the start handle of an emoji-only message onto the end of
+  its last emoji threw a `RangeError` placing the handle. `flutter_md` steps
+  the dropped edge one UTF-16 code unit off the fixed one, into the emoji's
+  surrogate pair, and `ChatEmojiTextLayout.caretRect` had no answer for an
+  offset inside an item. It is now that item's edge on the affinity's side.
+  The step itself is fixed in `itsezlife/md` (a grapheme step), not yet pinned.
+
 ### Edit crossfade of a body that paints on a layer of its own
 - **Fixed**: the old and new text of an edited message crossfaded with a canvas
   `saveLayer` and `clipRect`, which do not reach a body that is a repaint

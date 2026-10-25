@@ -446,6 +446,49 @@ final shortcuts = {
 A chat leaves lists off; a form field that wants them builds its controller
 with `lists: true` (the reference host's notes field does).
 
+### The field in a form
+
+A host that is not a chat (a profile, a description, a note) puts the same
+field in its form with `ComposerFormField`, a `FormField<RichText>` like
+`TextFormField`: the host's `InputDecoration` draws around it, `validator`,
+`onSaved`, `autovalidateMode` and `reset` are Flutter's, and the menu, the
+lists and the formatting keys are the island's. It takes the same seams as the
+spec (`formatting`, `linkPrompt`, `backPriority`, `spellChecker`) as its own
+parameters, and `maxLength` in code points of the plain text: the decoration
+counts `length/maxLength` and turns to the error colour past it, but nothing is
+trimmed, so a form that must not save over the budget says so in its
+validator. Focus is the controller's `focusNode`; Enter is a newline (the
+policy's submit and header keys are left out).
+
+```dart
+final description = ComposerController(
+  text: ComposerTextController(lists: true),
+);
+
+ComposerFormField(
+  controller: description,
+  decoration: const InputDecoration(labelText: 'Description'),
+  minLines: 3,
+  maxLines: 10,
+  maxLength: 5000,
+  formatting: const {
+    ComposerFormattingOption.bold,
+    ComposerFormattingOption.italic,
+    ComposerFormattingOption.underline,
+    ComposerFormattingOption.bulletList,
+    ComposerFormattingOption.numberedList,
+    ComposerFormattingOption.clearFormatting,
+  },
+  linkPrompt: showLinkDialog,
+  backPriority: (onBack) => backClaims.push(onBack).pop,
+  validator: (value) =>
+      description.length > 5000 ? 'Too long' : null,
+);
+```
+
+Store the value as `RichTextMarkdown.encode(description.richText)` and load it
+with `restore(RichTextMarkdown.decode(stored))`, as a draft.
+
 Three things stay the host's, because they are feedback or data:
 
 - **Apply formatting.** `ComposerController.onPaste` reports each paste. For a
@@ -674,7 +717,10 @@ What the host wires so a markdown body paints and reports the inline layer
    an embed is only part of the text.
 3. **Spoilers.** The facade holds which messages are revealed, so it survives a
    row leaving and re-entering the viewport. Pass `spoilerClock: assets.clock`
-   so the dust moves on the cache's frames and pause layers. A host that
+   so the dust moves on the cache's frames and pause layers. Markdown the host
+   draws outside the viewport (a chat list preview) gets the same motion from
+   a `ChatSpoilerDust` over its own `MarkdownSpoilerController` and that clock,
+   one per controller, disposed before the controller. A host that
    follows reduce-motion creates the `MarkdownSpoilerController` itself
    (`spoilers:`) and sets `animate` from `SpoilerTokens.particles.tickAt(speed)`;
    the particle colour follows the hidden text, and the engine takes no other.

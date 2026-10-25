@@ -118,6 +118,7 @@ final class MenuRig {
     Locale? locale,
     Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
     Size? size,
+    ComposerMenuPolicy? menuPolicy,
     bool enter = true,
   }) async {
     if (size != null) {
@@ -134,6 +135,7 @@ final class MenuRig {
           controller: composer,
           spec: spec ?? ComposerSpec(linkPrompt: (context, _) async => null),
           shortcuts: const ComposerShortcutPolicy.desktop().shortcuts,
+          menuPolicy: menuPolicy,
         ),
         textDirection: textDirection,
         brightness: brightness,

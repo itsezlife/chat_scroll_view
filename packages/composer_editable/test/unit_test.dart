@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'android_spell_check_test.dart' as android_spell_check_test;
 import 'content_scroll_padding_test.dart' as content_scroll_padding_test;
+import 'empty_field_handle_drag_test.dart' as empty_field_handle_drag_test;
 import 'exported_names_test.dart' as exported_names_test;
 import 'finger_tracked_handle_test.dart' as finger_tracked_handle_test;
 import 'ios_restored_paths_test.dart' as ios_restored_paths_test;
@@ -30,6 +31,7 @@ import 'universal_field_gestures_test.dart' as universal_field_gestures_test;
 void main() {
   group('android_spell_check_test.dart', android_spell_check_test.main);
   group('content_scroll_padding_test.dart', content_scroll_padding_test.main);
+  group('empty_field_handle_drag_test.dart', empty_field_handle_drag_test.main);
   group('exported_names_test.dart', exported_names_test.main);
   group('finger_tracked_handle_test.dart', finger_tracked_handle_test.main);
   group('ios_restored_paths_test.dart', ios_restored_paths_test.main);

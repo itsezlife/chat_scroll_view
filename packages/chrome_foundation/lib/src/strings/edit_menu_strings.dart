@@ -3,7 +3,7 @@
 ///
 /// Supplied by the host as part of `ChromeStrings`; this package ships no
 /// translation. The wording is the reference desktop client's (Monospace,
-/// Create link, Clear formatting), which is not the touch menu's (Mono, Create
+/// Create link, Plain text), which is not the touch menu's (Mono, Create
 /// Link, Regular), so the formatting rows of the two menus read their own group
 /// ([FormattingStrings] is the touch menu's). The clipboard rows are shared:
 /// the touch menu's Cut, Copy, Paste and Select all are [cutAction],

@@ -585,6 +585,46 @@ void main() {
       expect(selectedText(selection), '$_thumb$_heart$_party');
     });
 
+    mobileTest('dragging the start handle onto the end of the last emoji '
+        'keeps both handles on item edges', (tester, selection) async {
+      // Ticket 49: the edge landed on the fixed end, the controller stepped
+      // it back one code unit, into the surrogate pair of the last emoji, and
+      // placing the handle there threw a RangeError.
+      await pump(
+        tester,
+        selection,
+        first: EmojiOnly(const [
+          EmojiOnlyItem(ContentKey.unicode(_thumb)),
+          EmojiOnlyItem(ContentKey.unicode(_grin)),
+        ]),
+      );
+      selection.startSelection(1);
+      await tester.pumpAndSettle();
+      final at = itemRect(selection, 2, 4).center;
+      final press = await tester.startGesture(at);
+      await tester.pump(kLongPressTimeout + kPressTimeout);
+      await tester.pump();
+      await tester.pump();
+      await press.up();
+      await tester.pumpAndSettle();
+      expect(selectedText(selection), _grin);
+
+      selection.markdownSelection.moveSelectionEdgeToGlobal(
+        trailing(itemRect(selection, 2, 4)),
+        isStart: true,
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      // Each handle sits on an edge of the emoji, wherever the controller
+      // left the moved edge.
+      final handles = selection.markdownSelection.selectionHandleEndpoints()!;
+      final grin = itemRect(selection, 2, 4);
+      final edges = [grin.left, grin.right];
+      expect(edges, contains(moreOrLessEquals(handles.startGlobal.left)));
+      expect(edges, contains(moreOrLessEquals(handles.endGlobal.left)));
+    });
+
     mobileTest('copy writes the emoji', (tester, selection) async {
       await pump(tester, selection);
       selection.startSelection(1);

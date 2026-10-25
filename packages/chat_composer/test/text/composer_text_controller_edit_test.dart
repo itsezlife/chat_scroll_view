@@ -40,11 +40,11 @@ void main() {
     test('before an entity shifts it', () {
       start(RichText('bold', const [Entity(0, 4, EntityKind.bold)]), caret: 0);
 
-      controller.type('x');
+      controller.type('x ');
 
       expect(
         controller.richText,
-        RichText('xbold', const [Entity(1, 4, EntityKind.bold)]),
+        RichText('x bold', const [Entity(2, 4, EntityKind.bold)]),
       );
     });
 
@@ -59,14 +59,14 @@ void main() {
       );
     });
 
-    test('at the edge of an entity does not extend it', () {
+    test('at the edge of an entity continues it up to whitespace', () {
       start(RichText('bold', const [Entity(0, 4, EntityKind.bold)]));
 
-      controller.type('!');
+      controller.type('! x');
 
       expect(
         controller.richText,
-        RichText('bold!', const [Entity(0, 4, EntityKind.bold)]),
+        RichText('bold! x', const [Entity(0, 5, EntityKind.bold)]),
       );
     });
   });
@@ -156,7 +156,7 @@ void main() {
 
       expect(
         controller.richText,
-        RichText('bold!', const [Entity(0, 4, EntityKind.bold)]),
+        RichText('bold!', const [Entity(0, 5, EntityKind.bold)]),
       );
     });
 

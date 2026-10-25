@@ -40,6 +40,8 @@ import 'text/composer_text_controller_atoms_test.dart'
     as composer_text_controller_atoms_test;
 import 'text/composer_text_controller_composition_test.dart'
     as composer_text_controller_composition_test;
+import 'text/composer_text_controller_continuation_test.dart'
+    as composer_text_controller_continuation_test;
 import 'text/composer_text_controller_draft_test.dart'
     as composer_text_controller_draft_test;
 import 'text/composer_text_controller_edit_test.dart'
@@ -58,6 +60,7 @@ import 'view/composer_bottom_fade_test.dart' as composer_bottom_fade_test;
 import 'view/composer_caret_reveal_test.dart' as composer_caret_reveal_test;
 import 'view/composer_clipboard_test.dart' as view_composer_clipboard_test;
 import 'view/composer_field_editable_test.dart' as composer_field_editable_test;
+import 'view/composer_form_field_test.dart' as composer_form_field_test;
 import 'view/composer_formatting_shortcuts_test.dart'
     as composer_formatting_shortcuts_test;
 import 'view/composer_golden_test.dart' as composer_golden_test;
@@ -143,6 +146,10 @@ void main() {
     composer_text_controller_composition_test.main,
   );
   group(
+    'text/composer_text_controller_continuation_test.dart',
+    composer_text_controller_continuation_test.main,
+  );
+  group(
     'text/composer_text_controller_draft_test.dart',
     composer_text_controller_draft_test.main,
   );
@@ -178,6 +185,7 @@ void main() {
     'view/composer_field_editable_test.dart',
     composer_field_editable_test.main,
   );
+  group('view/composer_form_field_test.dart', composer_form_field_test.main);
   group(
     'view/composer_formatting_shortcuts_test.dart',
     composer_formatting_shortcuts_test.main,

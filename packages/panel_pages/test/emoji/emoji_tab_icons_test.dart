@@ -100,6 +100,40 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('a tab the enclosing scope already paints keeps the host '
+      'painter once the art has loaded', (tester) async {
+    const hostSmileys = ChromeIconPainter.font(
+      IconData(0xe000, fontFamily: 'HostIcons'),
+    );
+    final bytes = await rootBundle.load(
+      'packages/panel_pages/assets/emoji_tabs/msg_emoji_cat.webp',
+    );
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: ChromeIconScope(
+          icons: const {smileys: hostSmileys},
+          child: EmojiTabIconScope(
+            loader: (key) async => bytes,
+            child: probe(),
+          ),
+        ),
+      ),
+    );
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+    await tester.pump();
+
+    expect(seen.painterFor(smileys), hostSmileys);
+    // A tab the host left alone still gets the art.
+    expect(
+      seen.painterFor(const ChromeIconId('emoji.animals')),
+      isA<ChromeIconPainter$Paint>(),
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('a picture that cannot load is reported and left to the '
       'fallback', (tester) async {
     final reported = <Object>[];

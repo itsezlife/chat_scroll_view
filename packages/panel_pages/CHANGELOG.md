@@ -8,6 +8,9 @@ is pre-1.0.
 
 ### Changed
 
+- `EmojiTabIconScope` leaves a tab to the host when the enclosing
+  `ChromeIconScope` already paints its id, so a host restyles the strip's
+  tabs by registering painters above it (the strip mounts its own scope).
 - Under the touch arrangement, `EmojiCategoryStrip` follows `EmojiStripLayout`
   too: with a pack (by default) it is the reference mobile client's strip with
   custom emoji: the recents, the categories folded into a group that opens

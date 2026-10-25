@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' show FlutterView;
 
 import 'package:chat_composer/src/menu/composer_formatting_option.dart';
+import 'package:chat_composer/src/menu/composer_menu_policy.dart';
 import 'package:chat_composer/src/menu/overlay_back_button_listener.dart';
 import 'package:chat_composer/src/menu/selection_menu_appearance.dart';
 import 'package:chat_composer/src/menu/selection_menu_items.dart';
@@ -34,7 +35,8 @@ import 'package:flutter/services.dart';
 /// formatting actions of `ComposerSpec.formatting`. The More page slides in
 /// from the right over 300 ms, with a Back tile at the end nearer the
 /// selection, and can be swiped shut. A formatting action whose command cannot
-/// apply to the selection stays on the page, greyed.
+/// apply to the selection is left out or stays on the page greyed, as
+/// [unavailableActions] says.
 ///
 /// **Appearance.** The card fades in over 150 ms. After an action, Escape or
 /// Back it fades out over 220 ms while drifting 5 dp away from the selection,
@@ -60,6 +62,7 @@ class ComposerSelectionMenu extends StatefulWidget {
     required this.motion,
     this.linkPrompt,
     this.backPriority,
+    this.unavailableActions = ComposerUnavailableActions.disable,
     super.key,
   });
 
@@ -89,6 +92,10 @@ class ComposerSelectionMenu extends StatefulWidget {
 
   /// Takes Back ahead of the soft keyboard while the menu is open.
   final ComposerBackPriority? backPriority;
+
+  /// Whether an action that cannot apply is left out or greyed: the field's
+  /// `ComposerMenuPolicy.unavailableActions`.
+  final ComposerUnavailableActions unavailableActions;
 
   @override
   State<ComposerSelectionMenu> createState() => _ComposerSelectionMenuState();
@@ -356,6 +363,7 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
       canLink: widget.linkPrompt != null,
       onLink: _beginLink,
       toggleList: _toggleList,
+      unavailableActions: widget.unavailableActions,
     );
     if (items.isEmpty) return const SizedBox.shrink();
 

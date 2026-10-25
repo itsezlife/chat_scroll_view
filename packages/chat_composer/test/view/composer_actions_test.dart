@@ -472,4 +472,82 @@ void main() {
       handle.dispose();
     });
   });
+  group('primary style', () {
+    Finder discOf(String id) => find.descendant(
+      of: button(id),
+      matching: find.byWidgetPredicate(
+        (w) =>
+            w is Container &&
+            w.decoration is BoxDecoration &&
+            (w.decoration! as BoxDecoration).shape == BoxShape.circle,
+      ),
+    );
+
+    Color glyphOf(WidgetTester tester, String id) => tester
+        .widget<AnimatedChromeIcon>(
+          find.descendant(
+            of: button(id),
+            matching: find.byType(AnimatedChromeIcon),
+          ),
+        )
+        .color!;
+
+    testWidgets('by default the primary action is a filled disc', (
+      tester,
+    ) async {
+      await show(
+        tester,
+        ComposerSpec(actions: [_action('a', primary: true, onTap: () {})]),
+      );
+      final tokens = ChromeThemeScope.actionOf(
+        tester.element(find.byType(ComposerView)),
+      );
+      expect(discOf('a'), findsOneWidget);
+      expect(glyphOf(tester, 'a'), tokens.onSend);
+    });
+
+    testWidgets('the glyph style draws the bare glyph in the send colour', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        composerHarness(
+          ComposerView(
+            controller: controller,
+            primaryStyle: ComposerPrimaryStyle.glyph,
+            spec: ComposerSpec(
+              actions: [
+                _action('a', primary: true, onTap: () {}),
+                _action('b', onTap: () {}),
+              ],
+            ),
+          ),
+        ),
+      );
+      final tokens = ChromeThemeScope.actionOf(
+        tester.element(find.byType(ComposerView)),
+      );
+      expect(discOf('a'), findsNothing);
+      expect(glyphOf(tester, 'a'), tokens.send);
+      expect(glyphOf(tester, 'b'), tokens.icon, reason: 'others unchanged');
+    });
+
+    testWidgets('a disabled glyph-style primary is dimmed', (tester) async {
+      await tester.pumpWidget(
+        composerHarness(
+          ComposerView(
+            controller: controller,
+            primaryStyle: ComposerPrimaryStyle.glyph,
+            spec: ComposerSpec(
+              actions: [_action('a', primary: true, enabled: false)],
+            ),
+          ),
+        ),
+      );
+      final tokens = ChromeThemeScope.actionOf(
+        tester.element(find.byType(ComposerView)),
+      );
+      expect(discOf('a'), findsNothing);
+      expect(glyphOf(tester, 'a').a, lessThan(tokens.send.a));
+    });
+  });
 }

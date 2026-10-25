@@ -1,6 +1,5 @@
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter_md/flutter_md.dart';
-import 'package:meta/meta.dart' show internal;
 
 /// Moves the dust over hidden spoilers on the asset cache's shared clock.
 ///
@@ -26,7 +25,16 @@ import 'package:meta/meta.dart' show internal;
 /// dust frame is cut out of what [spoilers] is told, so the time it sees still
 /// only grows. Whether anything was revealed is untouched: pausing is not a
 /// reason to hide a spoiler again.
-@internal
+///
+/// ## Outside the viewport
+///
+/// [ChatSelectionController] makes one for its bodies when it is given a
+/// `spoilerClock`. A host that draws markdown of its own with hidden spoilers
+/// (a chat list's one-line preview) makes one over its own
+/// [MarkdownSpoilerController] and the same clock, so its dust shares the
+/// frames and pause layers of the thread. One per controller, not one per
+/// widget: the controller counts the mounted surfaces, and the clock is
+/// asked for frames only while one is.
 final class ChatSpoilerDust {
   /// Starts feeding [spoilers] from [clock], and keeps doing so until
   /// [dispose].

@@ -779,28 +779,35 @@ class ExtendedTextSelectionOverlay {
     required Offset globalGesturePosition,
     required TextPosition currentTextPosition,
   }) {
+    // An empty paragraph has no line: the line at its caret is -1..-1, so the
+    // caret's own position stands for both ends and there are no glyphs.
     final lineAtOffset = renderEditable.getLineAtOffset(currentTextPosition);
-    final positionAtEndOfLine = TextPosition(
-      offset: lineAtOffset.extentOffset,
-      affinity: TextAffinity.upstream,
-    );
+    final hasLine = lineAtOffset.isValid;
+    final positionAtEndOfLine = hasLine
+        ? TextPosition(
+            offset: lineAtOffset.extentOffset,
+            affinity: TextAffinity.upstream,
+          )
+        : currentTextPosition;
 
     // Default affinity is downstream.
-    final positionAtBeginningOfLine = TextPosition(
-      offset: lineAtOffset.baseOffset,
-    );
+    final positionAtBeginningOfLine = hasLine
+        ? TextPosition(offset: lineAtOffset.baseOffset)
+        : currentTextPosition;
 
     // Prefer glyph boxes over getLocalRectForCaret (caret reads size and
     // asserts during foreign layout).
-    final lineBoxes = renderEditable.getBoxesForSelection(
-      TextSelection(
-        baseOffset: positionAtBeginningOfLine.offset,
-        extentOffset: math.max(
-          positionAtBeginningOfLine.offset + 1,
-          positionAtEndOfLine.offset,
-        ),
-      ),
-    );
+    final lineBoxes = hasLine
+        ? renderEditable.getBoxesForSelection(
+            TextSelection(
+              baseOffset: positionAtBeginningOfLine.offset,
+              extentOffset: math.max(
+                positionAtBeginningOfLine.offset + 1,
+                positionAtEndOfLine.offset,
+              ),
+            ),
+          )
+        : const <TextBox>[];
     final Rect localLineBoundaries;
     if (lineBoxes.isNotEmpty) {
       localLineBoundaries = lineBoxes

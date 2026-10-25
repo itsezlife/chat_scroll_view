@@ -9,12 +9,25 @@ typedef ChromeIconPaint = void Function(Canvas canvas, Size size, Color color);
 /// Two forms: a font glyph, which can morph into another font glyph, and a
 /// custom paint callback, which cross-fades. Hosts register either for their
 /// own ids.
+///
+/// A font glyph can be turned and scaled within its icon box, so a host whose
+/// icon set needs a tilted glyph (a send arrow pointing up a little) or a
+/// smaller one (an icon font that fills its em box) keeps the morph.
 @immutable
 sealed class ChromeIconPainter {
   const ChromeIconPainter();
 
   /// A glyph from an icon font. Two font painters morph into each other.
-  const factory ChromeIconPainter.font(IconData icon) = ChromeIconPainter$Font;
+  ///
+  /// The glyph is turned clockwise by [turn] radians about the centre of the
+  /// icon box and drawn at [scale] times the box's size; the box keeps the
+  /// size it is given. Between two font painters the turn animates with the
+  /// morph.
+  const factory ChromeIconPainter.font(
+    IconData icon, {
+    double turn,
+    double scale,
+  }) = ChromeIconPainter$Font;
 
   /// A custom painted icon.
   ///
@@ -26,18 +39,28 @@ sealed class ChromeIconPainter {
 
 /// A [ChromeIconPainter] backed by an icon-font glyph.
 final class ChromeIconPainter$Font extends ChromeIconPainter {
-  /// A painter for [icon].
-  const ChromeIconPainter$Font(this.icon);
+  /// A painter for [icon], turned by [turn] and drawn at [scale].
+  const ChromeIconPainter$Font(this.icon, {this.turn = 0, this.scale = 1})
+    : assert(scale > 0, 'a glyph needs a positive scale');
 
   /// The glyph.
   final IconData icon;
 
-  @override
-  bool operator ==(Object other) =>
-      other is ChromeIconPainter$Font && other.icon == icon;
+  /// Clockwise turn in radians about the centre of the icon box.
+  final double turn;
+
+  /// The drawn glyph's size as a fraction of the icon box.
+  final double scale;
 
   @override
-  int get hashCode => icon.hashCode;
+  bool operator ==(Object other) =>
+      other is ChromeIconPainter$Font &&
+      other.icon == icon &&
+      other.turn == turn &&
+      other.scale == scale;
+
+  @override
+  int get hashCode => Object.hash(icon, turn, scale);
 }
 
 /// A [ChromeIconPainter] backed by a paint callback.

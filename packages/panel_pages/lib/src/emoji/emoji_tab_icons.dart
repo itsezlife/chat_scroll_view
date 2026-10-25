@@ -101,8 +101,10 @@ abstract final class EmojiTabIcons {
 /// them.
 ///
 /// Until the art is decoded the tabs show the registry's fallback glyph, and
-/// they repaint as each picture arrives. A host that restyles a tab registers
-/// a painter for its id in a [ChromeIconScope] **below** this one.
+/// they repaint as each picture arrives. A host restyles a tab by registering
+/// a painter for its id in a [ChromeIconScope] above this one (the strip
+/// mounts a scope of its own, so above is the only place a host can reach):
+/// an id the enclosing registry already paints keeps that painter.
 ///
 /// The art is decoded once per process and shared; a `loader` of a test is
 /// decoded per scope and released with it.
@@ -181,6 +183,16 @@ class _EmojiTabIconScopeState extends State<EmojiTabIconScope> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      ChromeIconScope(icons: _painters, child: widget.child);
+  Widget build(BuildContext context) {
+    // A tab the enclosing registry already paints is the host's: its
+    // registration wins over the art.
+    final enclosing = ChromeIconScope.of(context);
+    return ChromeIconScope(
+      icons: {
+        for (final entry in _painters.entries)
+          if (!enclosing.contains(entry.key)) entry.key: entry.value,
+      },
+      child: widget.child,
+    );
+  }
 }

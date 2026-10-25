@@ -37,12 +37,25 @@ class ChromeIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final painter = ChromeIconScope.of(context).painterFor(id);
     return switch (painter) {
-      ChromeIconPainter$Font(:final icon) => Icon(
+      // Nothing morphs here, so an upright, unscaled glyph is built bare.
+      ChromeIconPainter$Font(:final icon, turn: 0, scale: 1) => Icon(
         icon,
         size: size,
         color: color,
         semanticLabel: semanticLabel,
       ),
+      ChromeIconPainter$Font(:final icon, :final turn, :final scale) =>
+        _FontIcon(
+          box: size ?? IconTheme.of(context).size ?? _defaultSize,
+          turn: turn,
+          scale: scale,
+          child: (glyphSize) => Icon(
+            icon,
+            size: glyphSize,
+            color: color,
+            semanticLabel: semanticLabel,
+          ),
+        ),
       ChromeIconPainter$Paint(:final paint) => _PaintedIcon(
         paint: paint,
         size: size ?? IconTheme.of(context).size ?? _defaultSize,
@@ -56,7 +69,9 @@ class ChromeIcon extends StatelessWidget {
 /// Draws the **chrome icon** [id] and animates when [id] changes.
 ///
 /// Between two font glyphs the shape morphs (an interruptible spring, via
-/// morphnext, which no host needs to import). Any change involving a custom
+/// morphnext, which no host needs to import), and a change of the glyphs'
+/// turn or scale animates with it over the `iconMorph` motion role. Any
+/// change involving a custom
 /// painted icon cross-fades over the `fade` motion role. Under instant
 /// motion speed the new icon appears at once.
 class AnimatedChromeIcon extends StatelessWidget {
@@ -101,14 +116,26 @@ class AnimatedChromeIcon extends StatelessWidget {
       switchInCurve: motion.curveOf(MotionRole.fade),
       switchOutCurve: motion.curveOf(MotionRole.fade),
       child: switch (painter) {
-        ChromeIconPainter$Font(:final icon) => AnimatedMorphIcon(
-          key: _fontKey,
-          icon: icon,
-          size: size,
-          color: color,
-          spring: MorphSprings.snappy,
-          semanticLabel: semanticLabel,
-        ),
+        ChromeIconPainter$Font(:final icon, :final turn, :final scale) =>
+          TweenAnimationBuilder<Offset>(
+            key: _fontKey,
+            // dx the turn, dy the scale: one tween, so both settle together.
+            tween: Tween<Offset>(end: Offset(turn, scale)),
+            duration: motion.durationOf(MotionRole.iconMorph),
+            curve: motion.curveOf(MotionRole.iconMorph),
+            builder: (context, value, _) => _FontIcon(
+              box: size ?? IconTheme.of(context).size ?? _defaultSize,
+              turn: value.dx,
+              scale: value.dy,
+              child: (glyphSize) => AnimatedMorphIcon(
+                icon: icon,
+                size: glyphSize,
+                color: color,
+                spring: MorphSprings.snappy,
+                semanticLabel: semanticLabel,
+              ),
+            ),
+          ),
         ChromeIconPainter$Paint() => ChromeIcon(
           id,
           key: ValueKey<String>(id.value),
@@ -122,6 +149,35 @@ class AnimatedChromeIcon extends StatelessWidget {
 }
 
 const double _defaultSize = 24;
+
+/// A font glyph in a [box]-sized square, drawn at [scale] of it and turned by
+/// [turn].
+///
+/// The tree has one shape whatever the turn and scale: a turn that leaves or
+/// reaches zero mid-morph must not remount the glyph, or the morph restarts as
+/// a pop.
+class _FontIcon extends StatelessWidget {
+  const _FontIcon({
+    required this.box,
+    required this.turn,
+    required this.scale,
+    required this.child,
+  });
+
+  final double box;
+  final double turn;
+  final double scale;
+  final Widget Function(double glyphSize) child;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: box,
+    child: Center(
+      child: Transform.rotate(angle: turn, child: child(box * scale)),
+    ),
+  );
+}
+
 const Color _defaultColor = Color(0xFF000000);
 
 class _PaintedIcon extends StatelessWidget {

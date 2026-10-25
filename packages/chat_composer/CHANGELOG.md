@@ -6,6 +6,49 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (primary style)
+
+- `ComposerView.primaryStyle` (`ComposerPrimaryStyle`): `disc`, the default,
+  draws the send as before; `glyph` draws the bare glyph in the send colour
+  with no fill, dimmed when disabled.
+
+### Added (unavailable menu actions)
+
+- `ComposerUnavailableActions` (`hide`, `disable`) and
+  `ComposerMenuPolicy.unavailableActions`: what the selection menu does with
+  a formatting action that cannot apply to the selection. The mobile policy
+  (Android, iOS) leaves it out; the desktop policy (desktop and the web) keeps
+  it greyed, as before. `ComposerMenuPolicy.mobile` and `.desktop` take the
+  other value from a host. The pointer menu always greys. A touch toolbar
+  over plain text no longer shows Regular, and a caret's More page shows only
+  the line kinds and Link.
+
+### Changed (style continuation)
+
+- `ComposerTextController`: the word typed at the end of a styled run
+  continues it, and so does the word typed at a run's start when no run ends
+  there; whitespace ends it. Bold, italic, underline, strike, spoiler, code
+  and links carry; quotes, code blocks, list items, mentions, inline content,
+  usernames and hashtags do not. A replaced selection and a finished IME
+  composition follow the same rule. `insert` and `replaceRange` still put in
+  exactly what they are given. There is still no typing style armed by a
+  command at a caret.
+
+### Added (form field)
+
+- `ComposerFormField`: the composer's field in a host's form, a
+  `FormField<RichText>` under the host's `InputDecoration`. It has the island's
+  selection menu (`formatting`, `linkPrompt`, `backPriority`), lists (with a
+  `ComposerTextController(lists: true)`), formatting and list keys (without
+  submit: Enter is a newline), focus through the controller's `focusNode`,
+  Flutter's `validator`, `onSaved`, `autovalidateMode` and `reset` (back to the
+  text it was built with), and `maxLength` in code points of the plain text,
+  counted in the decoration and drawn in the error colour past it, never
+  trimmed. Before, the only public way to the field was `ComposerView`, the
+  chat island, so a form host could not have the menu or lists.
+- The island's field is unchanged: it is now one of two layouts of the same
+  field.
+
 ### Fixed (More button press)
 
 - The More button showed nothing when pressed: it was a bare `InkResponse`,

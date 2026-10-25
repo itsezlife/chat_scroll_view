@@ -9,6 +9,18 @@ enum ComposerMenuOpensOn {
   release,
 }
 
+/// What the selection menu does with an action that cannot apply to the
+/// selection (Bold inside code, Clear formatting over plain text).
+enum ComposerUnavailableActions {
+  /// Leave it out, so the menu holds only what can be chosen. The reference
+  /// touch client builds its formatting menu this way.
+  hide,
+
+  /// Keep it in its place, greyed and without a tap, so the menu keeps its
+  /// shape from one selection to the next, as a desktop menu does.
+  disable,
+}
+
 /// How the composer's field presents its menu, chosen like the selection
 /// policies: one pure-Dart strategy per input family.
 ///
@@ -18,16 +30,27 @@ enum ComposerMenuOpensOn {
 ///   menu**, the reference desktop client's context menu of its message field,
 ///   at the pointer; the toolbar stays for a touch long-press on a touch
 ///   screen.
+///
+/// Each also says what the selection menu does with the actions that cannot
+/// apply ([unavailableActions]): the mobile policy leaves them out, the
+/// desktop one greys them. A host passes the other value to either. The
+/// pointer menu follows the reference desktop client and always greys them.
 sealed class ComposerMenuPolicy {
-  const ComposerMenuPolicy();
+  const ComposerMenuPolicy({required this.unavailableActions});
 
-  /// The floating toolbar everywhere.
-  const factory ComposerMenuPolicy.mobile() = ComposerMenuPolicy$Mobile;
+  /// The floating toolbar everywhere; unavailable actions left out unless
+  /// [unavailableActions] says otherwise.
+  const factory ComposerMenuPolicy.mobile({
+    ComposerUnavailableActions unavailableActions,
+  }) = ComposerMenuPolicy$Mobile;
 
   /// The pointer menu for a secondary click, with the hints and the click edge
-  /// of [platform].
-  const factory ComposerMenuPolicy.desktop({TargetPlatform platform}) =
-      ComposerMenuPolicy$Desktop;
+  /// of [platform]; unavailable actions of the selection menu greyed unless
+  /// [unavailableActions] says otherwise.
+  const factory ComposerMenuPolicy.desktop({
+    TargetPlatform platform,
+    ComposerUnavailableActions unavailableActions,
+  }) = ComposerMenuPolicy$Desktop;
 
   /// The policy for [platform]; the web counts as desktop.
   factory ComposerMenuPolicy.forPlatform(
@@ -47,22 +70,39 @@ sealed class ComposerMenuPolicy {
 
   /// Whether a secondary click opens the pointer menu.
   bool get usesPointerMenu;
+
+  /// What the selection menu does with an action that cannot apply.
+  final ComposerUnavailableActions unavailableActions;
 }
 
 /// Touch-first: no pointer menu; see [ComposerMenuPolicy.mobile].
+@immutable
 final class ComposerMenuPolicy$Mobile extends ComposerMenuPolicy {
   /// Creates the policy.
-  const ComposerMenuPolicy$Mobile();
+  const ComposerMenuPolicy$Mobile({
+    super.unavailableActions = ComposerUnavailableActions.hide,
+  });
 
   @override
   bool get usesPointerMenu => false;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ComposerMenuPolicy$Mobile &&
+      other.unavailableActions == unavailableActions;
+
+  @override
+  int get hashCode => unavailableActions.hashCode;
 }
 
 /// Pointer-first: see [ComposerMenuPolicy.desktop].
 @immutable
 final class ComposerMenuPolicy$Desktop extends ComposerMenuPolicy {
   /// Creates the policy for [platform].
-  const ComposerMenuPolicy$Desktop({this.platform = TargetPlatform.windows});
+  const ComposerMenuPolicy$Desktop({
+    this.platform = TargetPlatform.windows,
+    super.unavailableActions = ComposerUnavailableActions.disable,
+  });
 
   /// The platforms whose toolkit opens a context menu on the press of the
   /// secondary button (the others open it on the release).
@@ -90,8 +130,10 @@ final class ComposerMenuPolicy$Desktop extends ComposerMenuPolicy {
 
   @override
   bool operator ==(Object other) =>
-      other is ComposerMenuPolicy$Desktop && other.platform == platform;
+      other is ComposerMenuPolicy$Desktop &&
+      other.platform == platform &&
+      other.unavailableActions == unavailableActions;
 
   @override
-  int get hashCode => platform.hashCode;
+  int get hashCode => Object.hash(platform, unavailableActions);
 }
