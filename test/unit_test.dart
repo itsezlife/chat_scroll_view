@@ -142,6 +142,7 @@ import 'widgets/chat_sender_run_test.dart' as chat_sender_run_test;
 import 'widgets/chat_smooth_contour_test.dart' as chat_smooth_contour_test;
 import 'widgets/chat_span_auto_scroll_test.dart' as chat_span_auto_scroll_test;
 import 'widgets/chat_span_feedback_test.dart' as chat_span_feedback_test;
+import 'widgets/chat_spoiler_dust_test.dart' as chat_spoiler_dust_test;
 import 'widgets/chat_spoiler_selection_test.dart'
     as chat_spoiler_selection_test;
 import 'widgets/chat_stitch_animate_test.dart' as chat_stitch_animate_test;
@@ -392,6 +393,7 @@ void main() {
     chat_span_auto_scroll_test.main,
   );
   group('widgets/chat_span_feedback_test.dart', chat_span_feedback_test.main);
+  group('widgets/chat_spoiler_dust_test.dart', chat_spoiler_dust_test.main);
   group(
     'widgets/chat_spoiler_selection_test.dart',
     chat_spoiler_selection_test.main,
