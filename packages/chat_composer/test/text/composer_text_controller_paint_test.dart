@@ -124,6 +124,30 @@ void main() {
     );
   }
 
+  testWidgets(
+    'inline code over a field in a packaged font is still monospace',
+    (tester) async {
+      controller = ComposerTextController(
+        initial: RichText('a()', const [Entity(0, 3, EntityKind.code)]),
+      );
+      late TextSpan span;
+      await tester.pumpWidget(
+        Builder(
+          builder: (context) {
+            span = controller.buildTextSpan(
+              context: context,
+              style: const TextStyle(fontFamily: 'Body', package: 'app_ui'),
+              withComposing: false,
+            );
+            return const SizedBox();
+          },
+        ),
+      );
+
+      expect(_leaves(span).single.style!.fontFamily, 'monospace');
+    },
+  );
+
   testWidgets('links and mentions take the host colours', (tester) async {
     const accent = Color(0xFF123456);
     controller = ComposerTextController(

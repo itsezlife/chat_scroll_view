@@ -9,9 +9,11 @@ is pre-1.0.
 ### Fixed (monospace face)
 
 - Inline code, a code block and the Mono label of the selection menu draw in
-  `ChromeMonospace` (Menlo on iOS and macOS, Consolas on Windows). They asked
-  for the CSS generic `monospace`, which CoreText and DirectWrite do not know,
-  so on iOS a code run looked like body text.
+  a real monospace face on every platform (`ChromeMonospace`). They merged
+  the CSS generic `monospace` into the field's style, and a host font from a
+  package keeps that package through `merge`, so the face resolved as
+  `packages/<package>/monospace` and fell back to the body face, on Android
+  too. iOS and macOS also need a named family (Menlo), Windows Consolas.
 
 ### Added (primary style)
 

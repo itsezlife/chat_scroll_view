@@ -205,6 +205,11 @@ void main() {
       );
     });
 
+    test('the Mono label over a packaged font is monospace', () {
+      const base = TextStyle(fontFamily: 'Body', package: 'app_ui');
+      expect(SelectionMenuLabelStyle.mono.apply(base).fontFamily, 'monospace');
+    });
+
     test('no item is marked as applied', () {
       expect(items().where((item) => item.selected), isEmpty);
     });

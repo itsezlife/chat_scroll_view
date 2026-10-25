@@ -1075,11 +1075,9 @@ class ComposerTextController extends TextEditingController {
             case EntityStyle.strike:
               decorations.add(TextDecoration.lineThrough);
             case EntityStyle.code:
-              result = result.merge(
-                ChromeMonospace.style(
-                  TextStyle(backgroundColor: _entityStyles.codeBackground),
-                ),
-              );
+              result = ChromeMonospace.style(
+                result,
+              ).copyWith(backgroundColor: _entityStyles.codeBackground);
             case EntityStyle.spoiler:
               result = result.merge(
                 TextStyle(backgroundColor: _entityStyles.spoilerBackground),
@@ -1099,11 +1097,9 @@ class ComposerTextController extends TextEditingController {
           result = result.merge(TextStyle(color: _entityStyles.mention));
         // A block of code reads as inline code does, line by line.
         case EntityKind$CodeBlock():
-          result = result.merge(
-            ChromeMonospace.style(
-              TextStyle(backgroundColor: _entityStyles.codeBackground),
-            ),
-          );
+          result = ChromeMonospace.style(
+            result,
+          ).copyWith(backgroundColor: _entityStyles.codeBackground);
         // The marker of a list item is not text: the field's gutter paints it.
         case EntityKind$InlineContent() || EntityKind$List():
           break;

@@ -43,9 +43,37 @@ abstract final class ChromeMonospace {
 
   /// [base] in the monospace face of [platform] (by default the one this app
   /// runs on).
+  ///
+  /// Built afresh rather than with `copyWith` or `merge`: a base in a host's
+  /// bundled font carries that font's package, which both keep, so the face
+  /// would resolve as `packages/<package>/monospace` and fall back to the
+  /// body face on every platform. Every other property of [base] is kept.
   static TextStyle style(TextStyle base, {TargetPlatform? platform}) =>
-      base.copyWith(
+      TextStyle(
+        inherit: base.inherit,
+        color: base.foreground == null ? base.color : null,
+        backgroundColor: base.background == null ? base.backgroundColor : null,
+        fontSize: base.fontSize,
+        fontWeight: base.fontWeight,
+        fontStyle: base.fontStyle,
+        letterSpacing: base.letterSpacing,
+        wordSpacing: base.wordSpacing,
+        textBaseline: base.textBaseline,
+        height: base.height,
+        leadingDistribution: base.leadingDistribution,
+        locale: base.locale,
+        foreground: base.foreground,
+        background: base.background,
+        shadows: base.shadows,
+        fontFeatures: base.fontFeatures,
+        fontVariations: base.fontVariations,
+        decoration: base.decoration,
+        decorationColor: base.decorationColor,
+        decorationStyle: base.decorationStyle,
+        decorationThickness: base.decorationThickness,
+        debugLabel: base.debugLabel,
         fontFamily: familyFor(platform ?? defaultTargetPlatform),
         fontFamilyFallback: fallback,
+        overflow: base.overflow,
       );
 }

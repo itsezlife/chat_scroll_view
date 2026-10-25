@@ -32,5 +32,34 @@ void main() {
       expect(style.fontFamilyFallback, ChromeMonospace.fallback);
       expect(style.fontSize, 13);
     });
+
+    test('a base in a packaged font does not prefix the monospace face', () {
+      // A host's text theme in a bundled font carries its package, and
+      // copyWith / merge keep it: 'monospace' would resolve as
+      // 'packages/app_ui/monospace', which nobody has, and fall back to the
+      // body face on every platform.
+      const base = TextStyle(
+        fontFamily: 'Body',
+        package: 'app_ui',
+        fontSize: 13,
+        color: Color(0xFF112233),
+      );
+      for (final platform in TargetPlatform.values) {
+        final style = ChromeMonospace.style(base, platform: platform);
+        expect(style.fontFamily, ChromeMonospace.familyFor(platform));
+        expect(style.fontFamilyFallback, ChromeMonospace.fallback);
+        expect(style.fontSize, 13);
+        expect(style.color, const Color(0xFF112233));
+      }
+    });
+
+    test('a style merged on top keeps the monospace face', () {
+      const base = TextStyle(fontFamily: 'Body', package: 'app_ui');
+      final style = ChromeMonospace.style(
+        base,
+        platform: TargetPlatform.android,
+      ).merge(const TextStyle(fontWeight: FontWeight.bold));
+      expect(style.fontFamily, 'monospace');
+    });
   });
 }

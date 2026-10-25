@@ -2,8 +2,9 @@
 
 ### Monospace in the composer
 - **FIXED**: `chat_composer` draws code and the Mono label in a real
-  monospace face on iOS, macOS and Windows (`chrome_foundation`'s
-  `ChromeMonospace`), instead of falling back to the body face.
+  monospace face on every platform (`chrome_foundation`'s `ChromeMonospace`).
+  Over a host font from a package the face resolved as
+  `packages/<package>/monospace` and fell back to the body face.
 
 ### The field in a form; `flutter_md` 0.4.5
 - **ADDED**: `chrome_foundation`: a font icon can be turned and scaled and
