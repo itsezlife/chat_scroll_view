@@ -4,6 +4,7 @@ import 'package:chat_composer/src/text/list_editing.dart';
 import 'package:chat_composer/src/text/style_continuation.dart';
 import 'package:chat_composer/src/text/text_formatting.dart';
 import 'package:chat_composer/src/text/text_replacement.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:meta/meta.dart';
@@ -1075,9 +1076,8 @@ class ComposerTextController extends TextEditingController {
               decorations.add(TextDecoration.lineThrough);
             case EntityStyle.code:
               result = result.merge(
-                TextStyle(
-                  fontFamily: 'monospace',
-                  backgroundColor: _entityStyles.codeBackground,
+                ChromeMonospace.style(
+                  TextStyle(backgroundColor: _entityStyles.codeBackground),
                 ),
               );
             case EntityStyle.spoiler:
@@ -1100,9 +1100,8 @@ class ComposerTextController extends TextEditingController {
         // A block of code reads as inline code does, line by line.
         case EntityKind$CodeBlock():
           result = result.merge(
-            TextStyle(
-              fontFamily: 'monospace',
-              backgroundColor: _entityStyles.codeBackground,
+            ChromeMonospace.style(
+              TextStyle(backgroundColor: _entityStyles.codeBackground),
             ),
           );
         // The marker of a list item is not text: the field's gutter paints it.

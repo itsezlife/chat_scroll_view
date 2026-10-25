@@ -106,7 +106,7 @@ enum SelectionMenuLabelStyle {
     plain => base,
     bold => base.copyWith(fontWeight: FontWeight.bold),
     italic => base.copyWith(fontStyle: FontStyle.italic),
-    mono => base.copyWith(fontFamily: 'monospace'),
+    mono => ChromeMonospace.style(base),
     strike => base.copyWith(decoration: TextDecoration.lineThrough),
     underline => base.copyWith(decoration: TextDecoration.underline),
   };

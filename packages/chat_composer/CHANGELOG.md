@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (monospace face)
+
+- Inline code, a code block and the Mono label of the selection menu draw in
+  `ChromeMonospace` (Menlo on iOS and macOS, Consolas on Windows). They asked
+  for the CSS generic `monospace`, which CoreText and DirectWrite do not know,
+  so on iOS a code run looked like body text.
+
 ### Added (primary style)
 
 - `ComposerView.primaryStyle` (`ComposerPrimaryStyle`): `disc`, the default,

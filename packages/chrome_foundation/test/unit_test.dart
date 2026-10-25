@@ -39,6 +39,7 @@ import 'palette/palette_swatch_golden_test.dart' as palette_swatch_golden_test;
 import 'strings/chrome_strings_presets_test.dart'
     as chrome_strings_presets_test;
 import 'strings/chrome_strings_scope_test.dart' as chrome_strings_scope_test;
+import 'theme/chrome_monospace_test.dart' as chrome_monospace_test;
 import 'theme/chrome_theme_data_test.dart' as chrome_theme_data_test;
 import 'theme/chrome_theme_scope_test.dart' as chrome_theme_scope_test;
 import 'tokens/action_tokens_test.dart' as action_tokens_test;
@@ -99,6 +100,7 @@ void main() {
     'strings/chrome_strings_scope_test.dart',
     chrome_strings_scope_test.main,
   );
+  group('theme/chrome_monospace_test.dart', chrome_monospace_test.main);
   group('theme/chrome_theme_data_test.dart', chrome_theme_data_test.main);
   group('theme/chrome_theme_scope_test.dart', chrome_theme_scope_test.main);
   group('tokens/action_tokens_test.dart', action_tokens_test.main);
