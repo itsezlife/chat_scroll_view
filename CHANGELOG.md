@@ -1,17 +1,16 @@
 ## Unreleased
 
-### The field in a form; `flutter_md` at 012e53f7
+### The field in a form; `flutter_md` 0.4.5
 - **ADDED**: `chrome_foundation`: a font icon can be turned and scaled and
   still morphs; `chat_composer`: `ComposerView.primaryStyle` draws the send
   as a bare glyph (see the package changelogs).
 - **ADDED**: `chat_composer`'s `ComposerFormField`, the composer's field with
   its selection menu and lists in a host's form (see the `chat_composer`
   changelog).
-- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` commit `012e53f7`
+- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.4.5`
   (`MarkdownThemeData.copyWith` can clear a callback through `clear*` flags;
-  a selection edge steps one grapheme, never into an emoji)
-  in every pubspec and workflow, until the release that carries it is tagged
-  (ADR 035, amendment).
+  a selection edge steps one grapheme, never into an emoji) in every pubspec
+  and workflow (ADR 035).
 - **CHANGED**: `chat_composer`: a word typed against a styled run continues
   it until whitespace (see the `chat_composer` changelog).
 - **ADDED**: `ChatSpoilerDust` is public, so a host's own markdown outside the

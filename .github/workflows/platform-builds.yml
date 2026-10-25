@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: itsezlife/md
-          ref: 012e53f715fc97d99bc0bb52bbe782def50c7d86
+          ref: v0.4.5
           path: md
       - uses: subosito/flutter-action@v2
         with:

@@ -45,7 +45,7 @@ dependencies:
   flutter_md:
     git:
       url: https://github.com/itsezlife/md.git
-      ref: 012e53f715fc97d99bc0bb52bbe782def50c7d86
+      ref: v0.4.5
   listen: ^1.0.1
   meta: ^1.17.0
   supabase_flutter: ^2.15.0
