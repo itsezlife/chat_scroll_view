@@ -39,6 +39,7 @@ export 'src/strings/edit_menu_strings.dart';
 export 'src/strings/formatting_strings.dart';
 export 'src/strings/panel_strings.dart';
 export 'src/strings/semantics_strings.dart';
+export 'src/theme/chrome_monospace.dart';
 export 'src/theme/chrome_theme_data.dart';
 export 'src/theme/chrome_theme_scope.dart';
 export 'src/tokens/action_tokens.dart';

@@ -4,6 +4,7 @@ import 'package:chat_composer/src/menu/selection_menu_items.dart';
 import 'package:chat_composer/src/text/composer_text_controller.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -193,6 +194,20 @@ void main() {
       );
       expect(SelectionMenuLabelStyle.mono.apply(base).fontFamily, 'monospace');
       expect(SelectionMenuLabelStyle.plain.apply(base), base);
+    });
+
+    test('the Mono label is drawn in a real monospace face on iOS', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      expect(
+        SelectionMenuLabelStyle.mono.apply(const TextStyle()).fontFamily,
+        'Menlo',
+      );
+    });
+
+    test('the Mono label over a packaged font is monospace', () {
+      const base = TextStyle(fontFamily: 'Body', package: 'app_ui');
+      expect(SelectionMenuLabelStyle.mono.apply(base).fontFamily, 'monospace');
     });
 
     test('no item is marked as applied', () {

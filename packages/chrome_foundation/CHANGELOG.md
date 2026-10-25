@@ -6,6 +6,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (monospace face)
+
+- `ChromeMonospace`: the system monospace family per platform and a fallback
+  chain, the same mapping as `flutter_md`'s default, so code in the composer
+  and in a sent message look alike. `ChromeMonospace.style` builds the style
+  afresh, so a base in a host's packaged font does not turn the face into
+  `packages/<package>/monospace`.
+
 ### Added (turned and scaled font glyphs)
 
 - `ChromeIconPainter.font` takes `turn` (radians, clockwise) and `scale` (of

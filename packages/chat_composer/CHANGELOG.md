@@ -6,6 +6,15 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (monospace face)
+
+- Inline code, a code block and the Mono label of the selection menu draw in
+  a real monospace face on every platform (`ChromeMonospace`). They merged
+  the CSS generic `monospace` into the field's style, and a host font from a
+  package keeps that package through `merge`, so the face resolved as
+  `packages/<package>/monospace` and fell back to the body face, on Android
+  too. iOS and macOS also need a named family (Menlo), Windows Consolas.
+
 ### Added (primary style)
 
 - `ComposerView.primaryStyle` (`ComposerPrimaryStyle`): `disc`, the default,
