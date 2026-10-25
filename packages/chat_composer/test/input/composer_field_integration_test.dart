@@ -105,7 +105,7 @@ void main() {
 
     expect(
       composer.richText,
-      RichText('words', const [Entity(0, 4, EntityKind.bold)]),
+      RichText('words', const [Entity(0, 5, EntityKind.bold)]),
     );
   });
 

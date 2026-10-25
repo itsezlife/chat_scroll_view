@@ -29,11 +29,11 @@ void main() {
 
       controller.compose('words', const TextRange(start: 0, end: 5));
 
-      // Applied step by step, "wor" would have shrunk the bold run and the
-      // appended "s" would then have stayed outside it.
+      // The pending edit is one insertion at the run's end, which continues
+      // the run; what the controller keeps is still the text before it.
       expect(
         controller.richText,
-        RichText('words', const [Entity(0, 4, EntityKind.bold)]),
+        RichText('words', const [Entity(0, 5, EntityKind.bold)]),
       );
 
       controller.commitComposition('words');
@@ -41,7 +41,7 @@ void main() {
       expect(controller.isComposing, isFalse);
       expect(
         controller.richText,
-        RichText('words', const [Entity(0, 4, EntityKind.bold)]),
+        RichText('words', const [Entity(0, 5, EntityKind.bold)]),
       );
     });
 
@@ -109,7 +109,7 @@ void main() {
       expect(controller.isComposing, isFalse);
       expect(
         controller.richText,
-        RichText('words', const [Entity(0, 4, EntityKind.bold)]),
+        RichText('words', const [Entity(0, 5, EntityKind.bold)]),
       );
     });
   });

@@ -1,6 +1,7 @@
 import 'package:chat_composer/src/text/composer_entity_styles.dart';
 import 'package:chat_composer/src/text/inline_content_span_builder.dart';
 import 'package:chat_composer/src/text/list_editing.dart';
+import 'package:chat_composer/src/text/style_continuation.dart';
 import 'package:chat_composer/src/text/text_formatting.dart';
 import 'package:chat_composer/src/text/text_replacement.dart';
 import 'package:content_model/content_model.dart';
@@ -15,6 +16,14 @@ import 'package:meta/meta.dart';
 /// value, applies it to the rich text (see [RichText.replaceRange] for how
 /// entities follow an edit) and exposes the result as [richText], the value a
 /// host stores as a draft, sends, or loads back for editing.
+///
+/// ## Typing against a styled run
+///
+/// The word typed at a run's end continues it, and so does the word typed at
+/// a run's start when no run ends there; whitespace ends it. That holds for
+/// bold, italic, underline, strike, spoiler, code and links; see
+/// [StyleContinuation]. Only platform edits continue a run: [insert] and
+/// [replaceRange] put in exactly what they are given.
 ///
 /// ## Inline content
 ///
@@ -46,10 +55,10 @@ import 'package:meta/meta.dart';
 /// says so beforehand.
 ///
 /// - A caret turns off every command but [applyLink] and the kinds that cover
-///   whole lines (quote, code block), which act on the caret's line. There is
-///   no typing style: text typed after a command is plain, because no
-///   reference client has one and it makes entity edits on an IME commit
-///   ambiguous.
+///   whole lines (quote, code block), which act on the caret's line. A command
+///   at a caret arms no typing style for the next input, because no reference
+///   client has one and it makes entity edits on an IME commit ambiguous; text
+///   typed against a run still continues it (see above).
 /// - A selection edge inside an atomic entity widens to hold it whole, so a
 ///   command never splits one.
 /// - A command that touches the IME composition does nothing; one that does not
@@ -216,7 +225,7 @@ class ComposerTextController extends TextEditingController {
         return;
       }
     }
-    var next = replacement.widenedTo(from, to).applyTo(base);
+    var next = StyleContinuation.applied(base, replacement.widenedTo(from, to));
     // Text landing on the empty item is what makes it an item.
     final pending = lists && !widened ? _pending : null;
     if (pending != null &&
@@ -348,7 +357,7 @@ class ComposerTextController extends TextEditingController {
       value.text,
       caret: _caretOf(value.selection),
     );
-    return replacement.applyTo(_rich);
+    return StyleContinuation.applied(_rich, replacement);
   }
 
   int _caretOf(TextSelection selection) =>

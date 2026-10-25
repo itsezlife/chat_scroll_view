@@ -8,6 +8,8 @@
   (`MarkdownThemeData.copyWith` can clear a callback through `clear*` flags)
   in every pubspec and workflow, until the release that carries it is tagged
   (ADR 035, amendment).
+- **CHANGED**: `chat_composer`: a word typed against a styled run continues
+  it until whitespace (see the `chat_composer` changelog).
 
 ### Edit crossfade of a body that paints on a layer of its own
 - **Fixed**: the old and new text of an edited message crossfaded with a canvas

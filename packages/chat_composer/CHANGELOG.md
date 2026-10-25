@@ -6,6 +6,17 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (style continuation)
+
+- `ComposerTextController`: the word typed at the end of a styled run
+  continues it, and so does the word typed at a run's start when no run ends
+  there; whitespace ends it. Bold, italic, underline, strike, spoiler, code
+  and links carry; quotes, code blocks, list items, mentions, inline content,
+  usernames and hashtags do not. A replaced selection and a finished IME
+  composition follow the same rule. `insert` and `replaceRange` still put in
+  exactly what they are given. There is still no typing style armed by a
+  command at a caret.
+
 ### Added (form field)
 
 - `ComposerFormField`: the composer's field in a host's form, a

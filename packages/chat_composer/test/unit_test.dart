@@ -40,6 +40,8 @@ import 'text/composer_text_controller_atoms_test.dart'
     as composer_text_controller_atoms_test;
 import 'text/composer_text_controller_composition_test.dart'
     as composer_text_controller_composition_test;
+import 'text/composer_text_controller_continuation_test.dart'
+    as composer_text_controller_continuation_test;
 import 'text/composer_text_controller_draft_test.dart'
     as composer_text_controller_draft_test;
 import 'text/composer_text_controller_edit_test.dart'
@@ -142,6 +144,10 @@ void main() {
   group(
     'text/composer_text_controller_composition_test.dart',
     composer_text_controller_composition_test.main,
+  );
+  group(
+    'text/composer_text_controller_continuation_test.dart',
+    composer_text_controller_continuation_test.main,
   );
   group(
     'text/composer_text_controller_draft_test.dart',
