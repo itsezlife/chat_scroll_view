@@ -1,6 +1,9 @@
 ## Unreleased
 
 ### The field in a form; `flutter_md` at 012e53f7
+- **ADDED**: `chrome_foundation`: a font icon can be turned and scaled and
+  still morphs; `chat_composer`: `ComposerView.primaryStyle` draws the send
+  as a bare glyph (see the package changelogs).
 - **ADDED**: `chat_composer`'s `ComposerFormField`, the composer's field with
   its selection menu and lists in a host's form (see the `chat_composer`
   changelog).

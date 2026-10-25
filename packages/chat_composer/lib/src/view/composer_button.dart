@@ -1,4 +1,5 @@
 import 'package:chat_composer/src/view/composer_metrics.dart';
+import 'package:chat_composer/src/view/composer_primary_style.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -11,7 +12,7 @@ import 'package:flutter/widgets.dart';
 /// field's tap region, so a desktop field (which lets go of its focus on a
 /// mouse press outside that region) keeps it too; keyboard users reach it
 /// through traversal and activate it with Enter or Space. A [primary] button
-/// is drawn as a filled disc.
+/// is drawn in its [primaryStyle]: a filled disc, or the bare accent glyph.
 class ComposerButton extends StatefulWidget {
   /// A button showing [icon], announced as [semanticLabel].
   const ComposerButton({
@@ -21,6 +22,7 @@ class ComposerButton extends StatefulWidget {
     this.enabled = true,
     this.primary = false,
     this.active = false,
+    this.primaryStyle = ComposerPrimaryStyle.disc,
     this.iconSize = ComposerMetrics.actionIconSize,
     this.width = ComposerMetrics.actionSize,
     this.height = ComposerMetrics.actionSize,
@@ -40,8 +42,11 @@ class ComposerButton extends StatefulWidget {
   /// Whether the button reacts; a disabled one is dimmed.
   final bool enabled;
 
-  /// Whether the button is drawn emphasised, as a filled disc.
+  /// Whether the button is drawn emphasised, in [primaryStyle].
   final bool primary;
+
+  /// How a [primary] button is drawn.
+  final ComposerPrimaryStyle primaryStyle;
 
   /// Whether the button is in its active state: the glyph takes the accent
   /// colour and the button is announced as selected. A [primary] button
@@ -82,8 +87,10 @@ class _ComposerButtonState extends State<ComposerButton> {
     // A mouse over a button that would act turns its glyph to the hover
     // colour, as the reference client's does; the accent of an active button
     // and the send disc keep their own.
+    final disc =
+        widget.primary && widget.primaryStyle == ComposerPrimaryStyle.disc;
     final base = switch ((widget.primary, widget.active)) {
-      (true, _) => tokens.onSend,
+      (true, _) => disc ? tokens.onSend : tokens.send,
       (false, true) => tokens.send,
       (false, false) => _active && _hovered ? tokens.iconHover : tokens.icon,
     };
@@ -91,7 +98,7 @@ class _ComposerButtonState extends State<ComposerButton> {
     final face = Stack(
       alignment: Alignment.center,
       children: [
-        if (widget.primary)
+        if (disc)
           Container(
             width: ComposerMetrics.primaryDiscDiameter,
             height: ComposerMetrics.primaryDiscDiameter,

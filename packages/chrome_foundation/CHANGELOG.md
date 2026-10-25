@@ -6,6 +6,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (turned and scaled font glyphs)
+
+- `ChromeIconPainter.font` takes `turn` (radians, clockwise) and `scale` (of
+  the icon box). The box keeps its size. `AnimatedChromeIcon` animates both
+  over the `iconMorph` role while the glyph morphs, so a tilted send still
+  morphs into an upright confirm instead of cross-fading.
+
 ### Changed (menu language)
 
 - `EditMenuStrings` is now also the touch selection menu's source for Cut,

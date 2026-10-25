@@ -13,6 +13,7 @@ import 'package:chat_composer/src/view/composer_field.dart';
 import 'package:chat_composer/src/view/composer_header_strip.dart';
 import 'package:chat_composer/src/view/composer_length_counter.dart';
 import 'package:chat_composer/src/view/composer_metrics.dart';
+import 'package:chat_composer/src/view/composer_primary_style.dart';
 import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
@@ -66,6 +67,7 @@ class ComposerView extends StatefulWidget {
     this.onFieldPointerEnd,
     this.shortcuts,
     this.menuPolicy,
+    this.primaryStyle = ComposerPrimaryStyle.disc,
     this.safeAreaBottom,
     this.maxWidth = ComposerMetrics.maxWidth,
     this.autofocus = true,
@@ -107,6 +109,10 @@ class ComposerView extends StatefulWidget {
   /// (and the web) the pointer menu for a secondary click, with the toolbar
   /// kept for touch.
   final ComposerMenuPolicy? menuPolicy;
+
+  /// How the primary action (the send) is drawn: a filled disc, as the
+  /// reference clients draw it, or the bare glyph in the send colour.
+  final ComposerPrimaryStyle primaryStyle;
 
   /// Bottom safe-area pad inside the view, which does not count in the
   /// extent. Defaults to the bottom view padding of the `MediaQuery`; a host
@@ -299,6 +305,7 @@ class _ComposerViewState extends State<ComposerView>
           : action.onTap,
       enabled: _usable(action),
       primary: action.primary,
+      primaryStyle: widget.primaryStyle,
       active: action.active,
     );
     final wrap = action.wrap;

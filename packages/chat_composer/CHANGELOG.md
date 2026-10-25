@@ -6,6 +6,12 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (primary style)
+
+- `ComposerView.primaryStyle` (`ComposerPrimaryStyle`): `disc`, the default,
+  draws the send as before; `glyph` draws the bare glyph in the send colour
+  with no fill, dimmed when disabled.
+
 ### Changed (style continuation)
 
 - `ComposerTextController`: the word typed at the end of a styled run
