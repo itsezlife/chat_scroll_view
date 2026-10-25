@@ -57,6 +57,7 @@ export 'src/chat_scroll/chat_selection_controller.dart';
 export 'src/chat_scroll/chat_selection_interaction.dart';
 export 'src/chat_scroll/chat_selection_policy.dart';
 export 'src/chat_scroll/chat_sender_run_layout.dart';
+export 'src/chat_scroll/chat_spoiler_dust.dart';
 export 'src/chat_scroll/chat_sticker_tap_policy.dart';
 export 'src/chat_widgets/chat_bubble_metrics.dart';
 export 'src/chat_widgets/chat_code_block_painter.dart';

@@ -10,6 +10,10 @@
   (ADR 035, amendment).
 - **CHANGED**: `chat_composer`: a word typed against a styled run continues
   it until whitespace (see the `chat_composer` changelog).
+- **ADDED**: `ChatSpoilerDust` is public, so a host's own markdown outside the
+  viewport (a chat list's one-line preview) moves its dust on the asset
+  cache's clock and pause layers, as the bubbles do. Nothing changes for a
+  host that only passes `spoilerClock` to `ChatSelectionController`.
 
 ### Edit crossfade of a body that paints on a layer of its own
 - **Fixed**: the old and new text of an edited message crossfaded with a canvas

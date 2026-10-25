@@ -717,7 +717,10 @@ What the host wires so a markdown body paints and reports the inline layer
    an embed is only part of the text.
 3. **Spoilers.** The facade holds which messages are revealed, so it survives a
    row leaving and re-entering the viewport. Pass `spoilerClock: assets.clock`
-   so the dust moves on the cache's frames and pause layers. A host that
+   so the dust moves on the cache's frames and pause layers. Markdown the host
+   draws outside the viewport (a chat list preview) gets the same motion from
+   a `ChatSpoilerDust` over its own `MarkdownSpoilerController` and that clock,
+   one per controller, disposed before the controller. A host that
    follows reduce-motion creates the `MarkdownSpoilerController` itself
    (`spoilers:`) and sets `animate` from `SpoilerTokens.particles.tickAt(speed)`;
    the particle colour follows the hidden text, and the engine takes no other.
