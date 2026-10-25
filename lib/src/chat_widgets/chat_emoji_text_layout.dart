@@ -139,7 +139,8 @@ final class ChatEmojiTextLayout {
   /// [affinity] says, in the body's coordinates; null with no items.
   ///
   /// An offset inside a run of line breaks is the start of the item after it;
-  /// one before the first item or after the last is that item's edge.
+  /// one inside an item is that item's edge on [affinity]'s side; one before
+  /// the first item or after the last is that item's edge.
   Rect? caretRect(int offset, TextAffinity affinity) {
     final ranges = text.itemRanges;
     if (ranges.isEmpty) return null;
@@ -162,6 +163,16 @@ final class ChatEmojiTextLayout {
     if (ending != null) return trailingOf(ending);
     if (offset <= ranges.first.start) return leadingOf(0);
     if (offset >= ranges.last.end) return trailingOf(ranges.length - 1);
+    // Inside an item (between the code units of one emoji): its edge on the
+    // side [affinity] says.
+    final inside = ranges.indexWhere(
+      (range) => range.start < offset && offset < range.end,
+    );
+    if (inside >= 0) {
+      return affinity == TextAffinity.upstream
+          ? trailingOf(inside)
+          : leadingOf(inside);
+    }
     // Inside a run of breaks: where the next item starts.
     final next = ranges.indexWhere((range) => range.start > offset);
     return leadingOf(next);

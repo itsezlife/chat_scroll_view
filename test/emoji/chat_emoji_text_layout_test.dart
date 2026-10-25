@@ -135,6 +135,30 @@ void main() {
       expect(l.caretRect(5, TextAffinity.downstream)?.top, 20);
     });
 
+    test('inside the last item the caret is its edge, never past it', () {
+      // Ticket 49: offset 9 is between the two code units of item 4, the
+      // last one; there is no item after it to start.
+      final l = layout();
+
+      expect(
+        l.caretRect(9, TextAffinity.downstream),
+        const Rect.fromLTWH(0, 20, 0, 10),
+      );
+      expect(
+        l.caretRect(9, TextAffinity.upstream),
+        const Rect.fromLTWH(10, 20, 0, 10),
+      );
+    });
+
+    test('inside an item before the last the caret is its own edge', () {
+      final l = layout();
+
+      expect(
+        l.caretRect(3, TextAffinity.downstream),
+        const Rect.fromLTWH(12, 0, 0, 10),
+      );
+    });
+
     test('right to left the leading edge is the right one', () {
       final l = layout(direction: TextDirection.rtl);
 
