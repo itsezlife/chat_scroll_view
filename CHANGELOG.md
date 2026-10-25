@@ -1,11 +1,12 @@
 ## Unreleased
 
-### The field in a form; `flutter_md` at 1f48483d
+### The field in a form; `flutter_md` at 012e53f7
 - **ADDED**: `chat_composer`'s `ComposerFormField`, the composer's field with
   its selection menu and lists in a host's form (see the `chat_composer`
   changelog).
-- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` commit `1f48483d`
-  (`MarkdownThemeData.copyWith` can clear a callback through `clear*` flags)
+- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` commit `012e53f7`
+  (`MarkdownThemeData.copyWith` can clear a callback through `clear*` flags;
+  a selection edge steps one grapheme, never into an emoji)
   in every pubspec and workflow, until the release that carries it is tagged
   (ADR 035, amendment).
 - **CHANGED**: `chat_composer`: a word typed against a styled run continues
