@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:chat_composer/src/menu/composer_formatting_option.dart';
+import 'package:chat_composer/src/menu/composer_menu_policy.dart';
 import 'package:chat_composer/src/text/composer_text_controller.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
@@ -198,18 +199,20 @@ final class SelectionMenuClipboardItem {
 /// The menu's entries for one selection, in menu order: the clipboard actions,
 /// then the formatting items.
 ///
-/// A formatting item whose command cannot apply to the selection stays in the
-/// list and is [SelectionMenuItem.enabled] false, so the More page keeps its
-/// shape from one selection to the next; Quote alone is left out, over a
-/// selection that is quoted already. A collapsed caret gets the same list: what
-/// acts on a caret (the line kinds, the link) is enabled, the rest is not.
+/// A formatting item whose command cannot apply to the selection is
+/// [SelectionMenuItem.enabled] false and, by [ComposerUnavailableActions],
+/// either stays in the list (`disable`, so the More page keeps its shape from
+/// one selection to the next) or is left out (`hide`). Quote alone is always
+/// left out over a selection that is quoted already. A collapsed caret gets
+/// the same list: what acts on a caret (the line kinds, the link) is enabled,
+/// the rest is not.
 abstract final class SelectionMenuItems {
   /// The entries for the selection in [text].
   ///
   /// [options] is `ComposerSpec.formatting`. [onLink] asks for a link's URL
   /// (the menu owns the prompt); [toggleList] returns the command that turns
   /// the selected lines into [EntityListKind] items, or null while lists are
-  /// off.
+  /// off. [unavailableActions] is the menu policy's.
   static List<SelectionMenuItem> of({
     required ComposerTextController text,
     required Set<ComposerFormattingOption> options,
@@ -218,6 +221,8 @@ abstract final class SelectionMenuItems {
     required VoidCallback onLink,
     required VoidCallback? Function(EntityListKind kind) toggleList,
     bool canLink = true,
+    ComposerUnavailableActions unavailableActions =
+        ComposerUnavailableActions.disable,
   }) {
     final items = <SelectionMenuItem>[
       for (final item in clipboard)
@@ -303,7 +308,7 @@ abstract final class SelectionMenuItems {
           )
         : null;
 
-    return [
+    final all = [
       ...items,
       ?style(
         ComposerFormattingOption.bold,
@@ -363,6 +368,13 @@ abstract final class SelectionMenuItems {
       ),
       ?clear,
     ];
+    return switch (unavailableActions) {
+      ComposerUnavailableActions.disable => all,
+      ComposerUnavailableActions.hide => [
+        for (final item in all)
+          if (item.enabled) item,
+      ],
+    };
   }
 
   // One Link row, Create or Edit by whether the selection touches a link, and

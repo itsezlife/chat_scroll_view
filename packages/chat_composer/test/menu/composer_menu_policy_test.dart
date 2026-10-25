@@ -36,6 +36,54 @@ void main() {
     });
   });
 
+  group('unavailable actions', () {
+    test('are hidden on Android and iOS', () {
+      for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+        expect(
+          ComposerMenuPolicy.forPlatform(platform).unavailableActions,
+          ComposerUnavailableActions.hide,
+          reason: '$platform',
+        );
+      }
+    });
+
+    test('are greyed on the desktop platforms and the web', () {
+      for (final platform in [
+        TargetPlatform.macOS,
+        TargetPlatform.windows,
+        TargetPlatform.linux,
+      ]) {
+        expect(
+          ComposerMenuPolicy.forPlatform(platform).unavailableActions,
+          ComposerUnavailableActions.disable,
+          reason: '$platform',
+        );
+      }
+      expect(
+        ComposerMenuPolicy.forPlatform(
+          TargetPlatform.iOS,
+          isWeb: true,
+        ).unavailableActions,
+        ComposerUnavailableActions.disable,
+      );
+    });
+
+    test("are the host's choice when it gives one", () {
+      expect(
+        const ComposerMenuPolicy.mobile(
+          unavailableActions: ComposerUnavailableActions.disable,
+        ).unavailableActions,
+        ComposerUnavailableActions.disable,
+      );
+      expect(
+        const ComposerMenuPolicy.desktop(
+          unavailableActions: ComposerUnavailableActions.hide,
+        ).unavailableActions,
+        ComposerUnavailableActions.hide,
+      );
+    });
+  });
+
   group('the click edge that opens the menu', () {
     test('is the press on macOS and Linux, the release on Windows', () {
       expect(

@@ -27,6 +27,12 @@ import '../support/spoken_labels.dart';
 
 final _strings = ChromeStringsPresets.english.formatting;
 
+// The touch toolbar with the desktop's greyed rows, for the tests that read a
+// row an action cannot apply to.
+const _greying = ComposerMenuPolicy.mobile(
+  unavailableActions: ComposerUnavailableActions.disable,
+);
+
 void main() {
   const long = RichText.plain('one two three four five six seven');
   const select = TextSelection(baseOffset: 4, extentOffset: 7);
@@ -143,11 +149,13 @@ void main() {
       RichText text = long,
       TextSelection selection = select,
       ComposerSpec? spec,
+      ComposerMenuPolicy? menuPolicy,
     }) => MenuRig.show(
       tester,
       text: text,
       selection: selection,
       spec: spec,
+      menuPolicy: menuPolicy,
       size: const Size(800, 900),
     );
 
@@ -183,6 +191,7 @@ void main() {
           formatting: ComposerFormattingOption.standard,
           linkPrompt: (context, _) async => null,
         ),
+        menuPolicy: _greying,
       );
       await rig.openMore();
 
@@ -335,6 +344,36 @@ void main() {
       expect(MenuRig.item(SelectionMenuItemKind.bold), findsOneWidget);
     });
 
+    testWidgets('on a phone the page leaves out what code cannot take', (
+      tester,
+    ) async {
+      final rig = await showWith(
+        tester,
+        text: RichText('some code', const [Entity(5, 4, EntityKind.code)]),
+        selection: const TextSelection(baseOffset: 6, extentOffset: 8),
+        menuPolicy: ComposerMenuPolicy.forPlatform(TargetPlatform.android),
+      );
+      await rig.openMore();
+
+      expect(MenuRig.item(SelectionMenuItemKind.bold), findsNothing);
+      expect(MenuRig.item(SelectionMenuItemKind.italic), findsNothing);
+      expect(MenuRig.item(SelectionMenuItemKind.mono), findsOneWidget);
+    });
+
+    testWidgets('a caret on a phone gets only what acts on a caret', (
+      tester,
+    ) async {
+      final rig = await showWith(
+        tester,
+        selection: const TextSelection.collapsed(offset: 4),
+        menuPolicy: ComposerMenuPolicy.forPlatform(TargetPlatform.iOS),
+      );
+      await rig.openMore();
+
+      expect(MenuRig.item(SelectionMenuItemKind.bold), findsNothing);
+      expect(MenuRig.item(SelectionMenuItemKind.quote), findsOneWidget);
+    });
+
     testWidgets('a selection in code greys what code cannot take', (
       tester,
     ) async {
@@ -342,6 +381,7 @@ void main() {
         tester,
         text: RichText('some code', const [Entity(5, 4, EntityKind.code)]),
         selection: const TextSelection(baseOffset: 6, extentOffset: 8),
+        menuPolicy: ComposerMenuPolicy.forPlatform(TargetPlatform.windows),
       );
       await rig.openMore();
 
@@ -374,6 +414,7 @@ void main() {
       final rig = await showWith(
         tester,
         selection: const TextSelection.collapsed(offset: 4),
+        menuPolicy: _greying,
       );
 
       // Select all and More, and nothing to cut or copy.
@@ -464,6 +505,7 @@ void main() {
         tester,
         size: const Size(800, 900),
         spec: ComposerSpec(formatting: ComposerFormattingOption.all),
+        menuPolicy: _greying,
       );
       if (MenuRig.more.evaluate().isNotEmpty) await rig.openMore();
       await tester.scrollUntilVisible(
@@ -515,6 +557,7 @@ void main() {
         size: const Size(800, 900),
         clipboard: FakeRichClipboard(),
         selection: const TextSelection.collapsed(offset: 4),
+        menuPolicy: _greying,
       );
       await rig.openMore();
 

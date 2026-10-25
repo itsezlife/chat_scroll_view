@@ -8,7 +8,11 @@ import 'package:chrome_foundation/src/strings/semantics_strings.dart';
 /// English and Russian [ChromeStrings] for tests and demos.
 ///
 /// These are not production defaults: no chrome package imports them, and a
-/// host supplies its own strings.
+/// host supplies its own strings. The English menu labels are the reference
+/// clients' English: the touch formatting page the Android client's (Mono,
+/// Create Link, Regular, Code Block, Bulleted list), the pointer menu the
+/// desktop client's (Monospace, Create link, Plain text, Paste as plain text).
+/// A row neither client has (Remove Link) keeps the touch style.
 abstract final class ChromeStringsPresets {
   /// English copy.
   static final ChromeStrings english = ChromeStrings(
@@ -66,8 +70,8 @@ abstract final class ChromeStringsPresets {
       createLinkAction: 'Create Link',
       editLinkAction: 'Edit Link',
       removeLinkAction: 'Remove Link',
-      codeBlockAction: 'Code block',
-      bulletListAction: 'Bullet list',
+      codeBlockAction: 'Code Block',
+      bulletListAction: 'Bulleted list',
       numberedListAction: 'Numbered list',
       clearFormattingAction: 'Regular',
       moreAction: 'More',
@@ -93,7 +97,7 @@ abstract final class ChromeStringsPresets {
       spoilerAction: 'Spoiler',
       createLinkAction: 'Create link',
       editLinkAction: 'Edit link',
-      clearFormattingAction: 'Clear formatting',
+      clearFormattingAction: 'Plain text',
       pastePlainAction: 'Paste as plain text',
       codeBlockAction: 'Code block',
       removeLinkAction: 'Remove link',

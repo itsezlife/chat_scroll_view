@@ -12,6 +12,17 @@ is pre-1.0.
   draws the send as before; `glyph` draws the bare glyph in the send colour
   with no fill, dimmed when disabled.
 
+### Added (unavailable menu actions)
+
+- `ComposerUnavailableActions` (`hide`, `disable`) and
+  `ComposerMenuPolicy.unavailableActions`: what the selection menu does with
+  a formatting action that cannot apply to the selection. The mobile policy
+  (Android, iOS) leaves it out; the desktop policy (desktop and the web) keeps
+  it greyed, as before. `ComposerMenuPolicy.mobile` and `.desktop` take the
+  other value from a host. The pointer menu always greys. A touch toolbar
+  over plain text no longer shows Regular, and a caret's More page shows only
+  the line kinds and Link.
+
 ### Changed (style continuation)
 
 - `ComposerTextController`: the word typed at the end of a styled run

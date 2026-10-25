@@ -245,7 +245,11 @@ void main() {
         },
       );
 
-      await openMenu(tester, const RichText.plain('one two'));
+      // Bold text, so Clear formatting has something to clear.
+      await openMenu(
+        tester,
+        RichText('one two', const [Entity(0, 3, EntityKind.bold)]),
+      );
 
       expect(item(SelectionMenuItemKind.bold), findsOneWidget);
       expect(item(SelectionMenuItemKind.italic), findsNothing);

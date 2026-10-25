@@ -130,11 +130,25 @@ void main() {
     });
 
     test('the desktop formatting rows use the desktop wording', () {
+      // tdesktop lng_menu_formatting_monospace, _link_create, _link_edit,
+      // _clear and lng_keys_legend_paste_plain.
       final e = ChromeStringsPresets.english.editMenu;
       expect(e.monospaceAction, 'Monospace');
       expect(e.createLinkAction, 'Create link');
-      expect(e.clearFormattingAction, 'Clear formatting');
+      expect(e.editLinkAction, 'Edit link');
+      expect(e.clearFormattingAction, 'Plain text');
+      expect(e.pastePlainAction, 'Paste as plain text');
     });
+
+    test(
+      'the touch paste row is the desktop client\'s Paste as plain text',
+      () {
+        expect(
+          ChromeStringsPresets.english.composer.pastePlainAction,
+          'Paste as plain text',
+        );
+      },
+    );
 
     test('the menu labels are the reference client\'s English wording', () {
       final f = ChromeStringsPresets.english.formatting;
@@ -168,8 +182,8 @@ void main() {
           'Create Link',
           'Edit Link',
           'Remove Link',
-          'Code block',
-          'Bullet list',
+          'Code Block',
+          'Bulleted list',
           'Numbered list',
           'Regular',
           'More',

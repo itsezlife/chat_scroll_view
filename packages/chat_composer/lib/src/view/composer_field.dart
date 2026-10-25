@@ -589,6 +589,7 @@ class _ComposerFieldState extends State<ComposerField> {
     motion: _menuMotion,
     linkPrompt: widget.linkPrompt,
     backPriority: widget.backPriority,
+    unavailableActions: _menuPolicy.unavailableActions,
   );
 
   // The field does not expose its editable; the caret rectangle is only

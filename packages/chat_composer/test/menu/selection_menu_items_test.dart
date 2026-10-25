@@ -1,4 +1,5 @@
 import 'package:chat_composer/src/menu/composer_formatting_option.dart';
+import 'package:chat_composer/src/menu/composer_menu_policy.dart';
 import 'package:chat_composer/src/menu/selection_menu_items.dart';
 import 'package:chat_composer/src/text/composer_text_controller.dart';
 import 'package:chrome_foundation/testing.dart';
@@ -98,6 +99,26 @@ void main() {
 
     test('Regular is there but cannot be chosen: nothing to clear', () {
       expect(item(SelectionMenuItemKind.clearFormatting).enabled, isFalse);
+    });
+
+    test('hiding the unavailable leaves Regular out and keeps the rest', () {
+      final hidden = SelectionMenuItems.of(
+        text: text,
+        options: ComposerFormattingOption.standard,
+        strings: strings,
+        clipboard: const [],
+        onLink: () {},
+        toggleList: (_) => null,
+        unavailableActions: ComposerUnavailableActions.hide,
+      );
+      expect(
+        [for (final item in hidden) item.kind],
+        [
+          for (final kind in kinds())
+            if (kind != SelectionMenuItemKind.clearFormatting) kind,
+        ],
+      );
+      expect(hidden.every((item) => item.enabled), isTrue);
     });
 
     test('every other formatting item can be chosen', () {

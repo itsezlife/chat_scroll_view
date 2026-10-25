@@ -12,6 +12,7 @@ library;
 
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:chrome_foundation/testing.dart';
 import 'package:composer_editable/composer_editable.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
@@ -44,6 +45,48 @@ final class _Speller implements ComposerSpellChecker {
 }
 
 final _windows = TargetPlatformVariant.only(TargetPlatform.windows);
+
+final _english = ChromeStringsPresets.english;
+
+// The English preset with the pointer menu's Clear row as the baselines were
+// drawn. The test font draws every glyph as a square, so a label's length is
+// pixels, and the baselines are the CI runner's: the preset's "Plain text"
+// (the desktop client's wording) waits for a regeneration there.
+final _baselineStrings = ChromeStrings(
+  panel: _english.panel,
+  composer: _english.composer,
+  formatting: _english.formatting,
+  semantics: _english.semantics,
+  editMenu: EditMenuStrings(
+    undoAction: _english.editMenu.undoAction,
+    redoAction: _english.editMenu.redoAction,
+    cutAction: _english.editMenu.cutAction,
+    copyAction: _english.editMenu.copyAction,
+    pasteAction: _english.editMenu.pasteAction,
+    deleteAction: _english.editMenu.deleteAction,
+    selectAllAction: _english.editMenu.selectAllAction,
+    formattingMenu: _english.editMenu.formattingMenu,
+    boldAction: _english.editMenu.boldAction,
+    italicAction: _english.editMenu.italicAction,
+    underlineAction: _english.editMenu.underlineAction,
+    strikethroughAction: _english.editMenu.strikethroughAction,
+    quoteAction: _english.editMenu.quoteAction,
+    monospaceAction: _english.editMenu.monospaceAction,
+    spoilerAction: _english.editMenu.spoilerAction,
+    createLinkAction: _english.editMenu.createLinkAction,
+    editLinkAction: _english.editMenu.editLinkAction,
+    pastePlainAction: _english.editMenu.pastePlainAction,
+    codeBlockAction: _english.editMenu.codeBlockAction,
+    removeLinkAction: _english.editMenu.removeLinkAction,
+    bulletListAction: _english.editMenu.bulletListAction,
+    numberedListAction: _english.editMenu.numberedListAction,
+    spellingMenu: _english.editMenu.spellingMenu,
+    addToDictionaryAction: _english.editMenu.addToDictionaryAction,
+    ignoreWordAction: _english.editMenu.ignoreWordAction,
+    removeFromDictionaryAction: _english.editMenu.removeFromDictionaryAction,
+    clearFormattingAction: 'Clear formatting',
+  ),
+);
 
 void main() {
   setUpAll(() {
@@ -101,6 +144,7 @@ void main() {
         textDirection: direction,
         anchoredTop: atTop,
         motionSpeed: ChromeMotionSpeed.instant,
+        strings: _baselineStrings,
       ),
     );
     composer

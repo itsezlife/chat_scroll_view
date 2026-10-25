@@ -56,6 +56,10 @@ void main() {
       textDirection: direction,
       clipboard: FakeRichClipboard(),
       spec: spec,
+      // Every row on the page, the greyed ones too: the most there is to fit.
+      menuPolicy: const ComposerMenuPolicy.mobile(
+        unavailableActions: ComposerUnavailableActions.disable,
+      ),
     );
   }
 

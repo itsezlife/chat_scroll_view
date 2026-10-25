@@ -13,6 +13,13 @@ package is pre-1.0.
   over the `iconMorph` role while the glyph morphs, so a tilted send still
   morphs into an upright confirm instead of cross-fading.
 
+### Changed (Telegram's English in the presets)
+
+- `ChromeStringsPresets.english`: the touch formatting page reads Code Block
+  and Bulleted list (the Android client's `AccDescrCodeBlock` and
+  `ArticleListBulletedList`), and the pointer menu's clear row reads Plain
+  text (the desktop client's `lng_menu_formatting_clear`). No API change.
+
 ### Changed (menu language)
 
 - `EditMenuStrings` is now also the touch selection menu's source for Cut,
