@@ -1,5 +1,21 @@
 ## Unreleased
 
+## 0.2.0
+
+The streaming-message release (AI Recruiter, phase 1). Additive: the human chat
+changes only through the viewport fix. The release tag is `v0.2.0`.
+
+### Composer: counter threshold and attachment header
+- **ADDED**: `chat_composer`: `ComposerSpec.messageLengthCounterFrom` sets the
+  length from which the counter shows (null keeps the stock last-100-remaining
+  threshold), and `ComposerHeader.attachment` is a chip above the field with an
+  icon, a title and a host-labelled remove action (see the `chat_composer`
+  changelog).
+
+### `flutter_md` 0.5.0
+- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.5.0` in every
+  pubspec and workflow (the vacancy pill span, `MD$Style.vacancy`).
+
 ### Follow tail
 - **FIXED**: following the tail survives the viewport shrinking while at the
   tail (keyboard opening, the host resizing the chat). The newest row used to
