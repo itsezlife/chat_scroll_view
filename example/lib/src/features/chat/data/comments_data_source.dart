@@ -63,8 +63,20 @@ class CommentsDataSource extends ChatDataSource {
     required this.assetPrefix,
     required this.fetchDelay,
     required this.maxCachedChunks,
+    required List<String> tailBodies,
   }) {
-    final total = manifest.totalMessages;
+    final total = manifest.totalMessages + tailBodies.length;
+    final baseTime = DateTime.now();
+    for (var i = 0; i < tailBodies.length; i++) {
+      final id = manifest.totalMessages + i;
+      _tailOverrides[id] = UserChatMessage(
+        id: id,
+        sender: manifest.senders[i % manifest.senders.length],
+        createdAt: baseTime,
+        updatedAt: baseTime,
+        content: ChatBodyMarkdown.received(tailBodies[i]),
+      );
+    }
     if (total > 0) {
       seedBoundaries(
         oldestKnownId: 0,
@@ -76,7 +88,10 @@ class CommentsDataSource extends ChatDataSource {
   }
 
   /// Load manifest and return a ready-to-use data source.
+  ///
+  /// [tailBodies] follow the comments as the newest messages, one each.
   static Future<CommentsDataSource> load({
+    List<String> tailBodies = const [],
     String assetPrefix = 'assets/comments',
     Duration fetchDelay = const Duration(milliseconds: 120),
     int maxCachedChunks = 32,
@@ -89,6 +104,7 @@ class CommentsDataSource extends ChatDataSource {
       assetPrefix: assetPrefix,
       fetchDelay: fetchDelay,
       maxCachedChunks: maxCachedChunks,
+      tailBodies: tailBodies,
     );
   }
 
@@ -114,7 +130,8 @@ class CommentsDataSource extends ChatDataSource {
   final LinkedHashMap<int, List<IChatMessage>> _chunkCache =
       LinkedHashMap<int, List<IChatMessage>>();
 
-  /// Messages created via [sendMessage] past [CommentsManifest.totalMessages].
+  /// Messages past [CommentsManifest.totalMessages]: the load's tail bodies
+  /// and those created via [sendMessage].
   /// Survives engine LRU eviction so [fetchRange] can re-serve them.
   final Map<int, IChatMessage> _tailOverrides = <int, IChatMessage>{};
 
@@ -275,6 +292,9 @@ class CommentsDataSource extends ChatDataSource {
       }
       // Yield between chunks so a newer submit can supersede this scan.
       await Future<void>.delayed(Duration.zero);
+    }
+    for (final message in _tailOverrides.values) {
+      if (chatMessageMatchesQuery(message, query)) hits.add(message.id);
     }
     return hits;
   }

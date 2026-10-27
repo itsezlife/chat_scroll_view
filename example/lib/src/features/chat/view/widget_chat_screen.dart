@@ -430,7 +430,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       final lastRead = switch (backend) {
         final BackendChatDataSource source =>
           await source.getLastReadMessageId(),
-        CommentsDataSource() => 9990,
+        CommentsDataSource() => null,
         _ => null,
       };
       final centerBands = widget.services.centerBands;

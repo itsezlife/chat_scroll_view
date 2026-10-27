@@ -12,6 +12,7 @@ import 'package:chat_scroll_view_example/src/common/environment_specific/host_en
     as environment_specific;
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
@@ -39,9 +40,11 @@ void main() => l.capture<void>(
         createServices: _createServices,
         appOf: (services) => ChatDemoApp(
           services: services,
-          chatDataSourceLoader: DemoConfig.chatSource == 'showcase'
-              ? _loadShowcase
-              : null,
+          chatDataSourceLoader: switch (DemoConfig.chatSource) {
+            'showcase' => _loadShowcase,
+            'comments+showcase' => _loadCommentsWithShowcase,
+            _ => null,
+          },
         ),
       );
     },
@@ -64,6 +67,11 @@ Future<ChatDataSource> _loadShowcase() async => GeneratedChatDataSource(
   messageCount: ShowcaseBodies.all.length * 4,
   style: GeneratedMessageStyle.showcase,
 );
+
+// The bundled comments, then one round of the showcase bodies as the newest
+// messages.
+Future<ChatDataSource> _loadCommentsWithShowcase() =>
+    CommentsDataSource.load(tailBodies: ShowcaseBodies.all);
 
 // Backend, stores and the emoji catalogue before the first frame, so the
 // panel's last page and the recents are there when it first paints. When one
