@@ -34,8 +34,11 @@ void main() {
 
         test('a replay tap slop outsets the hit area on every side', () {
           final slop = switch (policy) {
-            ChatStickerTapPolicy$Mobile() => const ChatStickerTapPolicy.mobile(replayTapSlop: 8),
-            ChatStickerTapPolicy$Desktop() => const ChatStickerTapPolicy.desktop(replayTapSlop: 8),
+            ChatStickerTapPolicy$Mobile() => const ChatStickerTapPolicy.mobile(
+              replayTapSlop: 8,
+            ),
+            ChatStickerTapPolicy$Desktop() =>
+              const ChatStickerTapPolicy.desktop(replayTapSlop: 8),
           };
 
           expect(slop.replayTapSlop, 8);
@@ -49,31 +52,56 @@ void main() {
 
     test('mobile replays on a long press: the menu opens over a sticker '
         'that restarts', () {
-      expect(const ChatStickerTapPolicy.mobile().replaysOn(ChatInlineGesture.longPress), isTrue);
+      expect(
+        const ChatStickerTapPolicy.mobile().replaysOn(
+          ChatInlineGesture.longPress,
+        ),
+        isTrue,
+      );
     });
 
     test('mobile can follow the reference that does not restart on a long '
         'press', () {
       expect(
-        const ChatStickerTapPolicy.mobile(replaysOnLongPress: false).replaysOn(ChatInlineGesture.longPress),
+        const ChatStickerTapPolicy.mobile(
+          replaysOnLongPress: false,
+        ).replaysOn(ChatInlineGesture.longPress),
         isFalse,
       );
     });
 
     test('desktop has no long press to replay on', () {
-      expect(const ChatStickerTapPolicy.desktop().replaysOn(ChatInlineGesture.longPress), isFalse);
+      expect(
+        const ChatStickerTapPolicy.desktop().replaysOn(
+          ChatInlineGesture.longPress,
+        ),
+        isFalse,
+      );
     });
 
     test('follows the selection policy', () {
-      expect(ChatStickerTapPolicy.of(const ChatSelectionPolicy.mobile()), isA<ChatStickerTapPolicy$Mobile>());
       expect(
-        ChatStickerTapPolicy.of(const ChatSelectionPolicy.desktop(), replayTapSlop: 4),
-        isA<ChatStickerTapPolicy$Desktop>().having((p) => p.replayTapSlop, 'replayTapSlop', 4),
+        ChatStickerTapPolicy.of(const ChatSelectionPolicy.mobile()),
+        isA<ChatStickerTapPolicy$Mobile>(),
+      );
+      expect(
+        ChatStickerTapPolicy.of(
+          const ChatSelectionPolicy.desktop(),
+          replayTapSlop: 4,
+        ),
+        isA<ChatStickerTapPolicy$Desktop>().having(
+          (p) => p.replayTapSlop,
+          'replayTapSlop',
+          4,
+        ),
       );
     });
 
     test('a negative slop is rejected', () {
-      expect(() => ChatStickerTapPolicy.mobile(replayTapSlop: -1), throwsAssertionError);
+      expect(
+        () => ChatStickerTapPolicy.mobile(replayTapSlop: -1),
+        throwsAssertionError,
+      );
     });
   });
 }

@@ -5,18 +5,30 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'chat_message.dart';
 
-IChatMessage _msg(int id, {String content = 'm'}) =>
-    UserChatMessage(id: id, sender: 'u', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: '$content$id');
+IChatMessage _msg(int id, {String content = 'm'}) => UserChatMessage(
+  id: id,
+  sender: 'u',
+  createdAt: DateTime(2026),
+  updatedAt: DateTime(2026),
+  content: '$content$id',
+);
 
 class _SpyDataSource extends ChatDataSource {
   _SpyDataSource({this.fetchHandler}) {
     _seedDefaultBoundaries(this);
   }
 
-  final Future<List<IChatMessage>> Function({required int fromId, required int toId})? fetchHandler;
+  final Future<List<IChatMessage>> Function({
+    required int fromId,
+    required int toId,
+  })?
+  fetchHandler;
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async {
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async {
     if (fetchHandler != null) {
       return fetchHandler!(fromId: fromId, toId: toId);
     }
@@ -25,7 +37,12 @@ class _SpyDataSource extends ChatDataSource {
 }
 
 void _seedDefaultBoundaries(_SpyDataSource ds) {
-  ds.seedBoundaries(oldestKnownId: 0, newestKnownId: 99, reachedOldest: true, reachedNewest: true);
+  ds.seedBoundaries(
+    oldestKnownId: 0,
+    newestKnownId: 99,
+    reachedOldest: true,
+    reachedNewest: true,
+  );
 }
 
 void main() {
@@ -61,50 +78,69 @@ void main() {
       expect(mutations.single, isA<InsertMutation>());
     });
 
-    test('newest-only seed then tail insert keeps oldest null and advances newest', () {
-      final ds = _SpyDataSource()
-        ..seedBoundaries(oldestKnownId: null, newestKnownId: 10004, reachedOldest: false, reachedNewest: true);
+    test(
+      'newest-only seed then tail insert keeps oldest null and advances newest',
+      () {
+        final ds = _SpyDataSource()
+          ..seedBoundaries(
+            oldestKnownId: null,
+            newestKnownId: 10004,
+            reachedOldest: false,
+            reachedNewest: true,
+          );
 
-      ds.insertMessage(_msg(10005));
+        ds.insertMessage(_msg(10005));
 
-      expect(ds.oldestKnownId, isNull);
-      expect(ds.newestKnownId, 10005);
-      expect(ds.reachedNewest, isTrue);
-      expect(ds.reachedOldest, isFalse);
-    });
+        expect(ds.oldestKnownId, isNull);
+        expect(ds.newestKnownId, 10005);
+        expect(ds.reachedNewest, isTrue);
+        expect(ds.reachedOldest, isFalse);
+      },
+    );
 
-    test('newest-only seed then older insert seeds oldest without moving newest', () {
-      final ds = _SpyDataSource()
-        ..seedBoundaries(oldestKnownId: null, newestKnownId: 10004, reachedOldest: false, reachedNewest: true);
+    test(
+      'newest-only seed then older insert seeds oldest without moving newest',
+      () {
+        final ds = _SpyDataSource()
+          ..seedBoundaries(
+            oldestKnownId: null,
+            newestKnownId: 10004,
+            reachedOldest: false,
+            reachedNewest: true,
+          );
 
-      ds.insertMessage(_msg(10000));
+        ds.insertMessage(_msg(10000));
 
-      expect(ds.oldestKnownId, 10000);
-      expect(ds.newestKnownId, 10004);
-      expect(ds.reachedNewest, isTrue);
-    });
+        expect(ds.oldestKnownId, 10000);
+        expect(ds.newestKnownId, 10004);
+        expect(ds.reachedNewest, isTrue);
+      },
+    );
   });
 
   group('insertMessages batch', () {
-    test('emits one batch mutation with ascending ids and one data-changed', () {
-      final ds = _SpyDataSource();
-      final mutations = <ChatMutation>[];
-      var dataChanges = 0;
-      ds
-        ..addMutationListener(mutations.add)
-        ..addDataListener(() => dataChanges++);
+    test(
+      'emits one batch mutation with ascending ids and one data-changed',
+      () {
+        final ds = _SpyDataSource();
+        final mutations = <ChatMutation>[];
+        var dataChanges = 0;
+        ds
+          ..addMutationListener(mutations.add)
+          ..addDataListener(() => dataChanges++);
 
-      final batch = List.generate(10, (i) => _msg(100 + i));
-      ds.insertMessages(batch.reversed);
+        final batch = List.generate(10, (i) => _msg(100 + i));
+        ds.insertMessages(batch.reversed);
 
-      expect(mutations, hasLength(1));
-      final mutation = mutations.single as InsertBatchMutation;
-      expect(mutation.ids, List.generate(10, (i) => 100 + i));
-      expect(mutation.operationId, isNonZero);
-      expect(dataChanges, 1);
-      expect(ds.getMessage(109)?.id, 109);
-      expect(ds.newestKnownId, 109);
-    });
+        expect(mutations, hasLength(1));
+        final mutation = mutations.single as InsertBatchMutation;
+        expect(mutation.ids, List.generate(10, (i) => 100 + i));
+        expect(mutation.operationId, isNonZero);
+        expect(dataChanges, 1);
+        expect(ds.getMessage(109)?.id, 109);
+        expect(ds.newestKnownId, 109);
+      },
+    );
 
     test('insertMessages emits mutation; upsertMessages same ids silent', () {
       final ds = _SpyDataSource();
@@ -122,27 +158,34 @@ void main() {
   });
 
   group('updateMessages batch', () {
-    test('emits one batch mutation with ascending ids and one data-changed', () {
-      final ds = _SpyDataSource();
-      final mutations = <ChatMutation>[];
-      var dataChanges = 0;
-      ds
-        ..addMutationListener(mutations.add)
-        ..addDataListener(() => dataChanges++);
-      for (var i = 10; i <= 12; i++) {
-        ds.insertMessage(_msg(i));
-      }
+    test(
+      'emits one batch mutation with ascending ids and one data-changed',
+      () {
+        final ds = _SpyDataSource();
+        final mutations = <ChatMutation>[];
+        var dataChanges = 0;
+        ds
+          ..addMutationListener(mutations.add)
+          ..addDataListener(() => dataChanges++);
+        for (var i = 10; i <= 12; i++) {
+          ds.insertMessage(_msg(i));
+        }
 
-      final batch = [_msg(12, content: 'e'), _msg(10, content: 'e'), _msg(11, content: 'e')];
-      ds.updateMessages(batch);
+        final batch = [
+          _msg(12, content: 'e'),
+          _msg(10, content: 'e'),
+          _msg(11, content: 'e'),
+        ];
+        ds.updateMessages(batch);
 
-      expect(mutations, hasLength(4)); // 3 inserts + 1 batch update
-      final mutation = mutations.last as UpdateBatchMutation;
-      expect(mutation.ids, <int>[10, 11, 12]);
-      expect(mutation.operationId, isNonZero);
-      expect(dataChanges, 4);
-      expect((ds.getMessage(11)! as UserChatMessage).content, 'e11');
-    });
+        expect(mutations, hasLength(4)); // 3 inserts + 1 batch update
+        final mutation = mutations.last as UpdateBatchMutation;
+        expect(mutation.ids, <int>[10, 11, 12]);
+        expect(mutation.operationId, isNonZero);
+        expect(dataChanges, 4);
+        expect((ds.getMessage(11)! as UserChatMessage).content, 'e11');
+      },
+    );
 
     test('updateMessages emits mutation; upsertMessages same ids silent', () {
       final ds = _SpyDataSource();
@@ -200,34 +243,40 @@ void main() {
       ds.removeMessages([5]);
       expect(mutations, hasLength(1));
 
-      expect(() => ds.updateMessage(_msg(5, content: 'nope')), throwsAssertionError);
+      expect(
+        () => ds.updateMessage(_msg(5, content: 'nope')),
+        throwsAssertionError,
+      );
       expect(mutations, hasLength(1));
     });
   });
 
   group('removeMessages batch', () {
-    test('one batch mutation with descending ids regardless of caller order', () {
-      final ds = _SpyDataSource();
-      final mutations = <ChatMutation>[];
-      var dataChanges = 0;
-      ds
-        ..addMutationListener(mutations.add)
-        ..addDataListener(() => dataChanges++);
-      ds
-        ..insertMessage(_msg(97))
-        ..insertMessage(_msg(98))
-        ..insertMessage(_msg(99));
+    test(
+      'one batch mutation with descending ids regardless of caller order',
+      () {
+        final ds = _SpyDataSource();
+        final mutations = <ChatMutation>[];
+        var dataChanges = 0;
+        ds
+          ..addMutationListener(mutations.add)
+          ..addDataListener(() => dataChanges++);
+        ds
+          ..insertMessage(_msg(97))
+          ..insertMessage(_msg(98))
+          ..insertMessage(_msg(99));
 
-      ds.removeMessages(<int>[98, 99, 97]);
+        ds.removeMessages(<int>[98, 99, 97]);
 
-      expect(mutations, hasLength(4)); // 3 inserts + 1 batch
-      final batch = mutations.last as RemoveBatchMutation;
-      expect(batch.ids, <int>[99, 98, 97]);
-      expect(batch.operationId, isNonZero);
-      expect(ds.pendingRemovalIds, <int>{97, 98, 99});
-      expect(dataChanges, 4);
-      expect(ds.newestKnownId, 96);
-    });
+        expect(mutations, hasLength(4)); // 3 inserts + 1 batch
+        final batch = mutations.last as RemoveBatchMutation;
+        expect(batch.ids, <int>[99, 98, 97]);
+        expect(batch.operationId, isNonZero);
+        expect(ds.pendingRemovalIds, <int>{97, 98, 99});
+        expect(dataChanges, 4);
+        expect(ds.newestKnownId, 96);
+      },
+    );
 
     test('staging cleared by finalizeRemoval without second mutation', () {
       final ds = _SpyDataSource()..insertMessage(_msg(42));
@@ -354,27 +403,33 @@ void main() {
   });
 
   group('fetch merge respects local deletes', () {
-    test('does not resurrect removed message from fetchRange payload', () async {
-      final ds =
-          _SpyDataSource(fetchHandler: ({required fromId, required toId}) async => <IChatMessage>[_msg(10), _msg(11)])
-            ..insertMessage(_msg(10))
-            ..insertMessage(_msg(11));
+    test(
+      'does not resurrect removed message from fetchRange payload',
+      () async {
+        final ds =
+            _SpyDataSource(
+                fetchHandler: ({required fromId, required toId}) async =>
+                    <IChatMessage>[_msg(10), _msg(11)],
+              )
+              ..insertMessage(_msg(10))
+              ..insertMessage(_msg(11));
 
-      ds.removeMessages([10, 11]);
-      expect(ds.getMessage(10), isNull);
-      expect(ds.getMessage(11), isNull);
+        ds.removeMessages([10, 11]);
+        expect(ds.getMessage(10), isNull);
+        expect(ds.getMessage(11), isNull);
 
-      // Simulate engine LRU eviction before a later refetch.
-      ds.chunks.clear();
+        // Simulate engine LRU eviction before a later refetch.
+        ds.chunks.clear();
 
-      ds.requestChunks(0, 0);
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+        ds.requestChunks(0, 0);
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
 
-      expect(ds.getMessage(10), isNull);
-      expect(ds.getMessage(11), isNull);
-      expect(ds.pendingRemovalIds, containsAll(<int>[10, 11]));
-    });
+        expect(ds.getMessage(10), isNull);
+        expect(ds.getMessage(11), isNull);
+        expect(ds.pendingRemovalIds, containsAll(<int>[10, 11]));
+      },
+    );
   });
 
   group('mutation listener dedup', () {

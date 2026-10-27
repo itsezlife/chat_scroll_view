@@ -38,9 +38,11 @@ import 'package:flutter_md/flutter_md.dart';
 final class ChatSpoilerDust {
   /// Starts feeding [spoilers] from [clock], and keeps doing so until
   /// [dispose].
-  ChatSpoilerDust({required MarkdownSpoilerController spoilers, required PlaybackClock clock})
-    : _spoilers = spoilers,
-      _clock = clock {
+  ChatSpoilerDust({
+    required MarkdownSpoilerController spoilers,
+    required PlaybackClock clock,
+  }) : _spoilers = spoilers,
+       _clock = clock {
     spoilers.wantsTicks.addListener(_sync);
     _sync();
   }
@@ -48,13 +50,18 @@ final class ChatSpoilerDust {
   // The engine moves the dust at its own rate; frames in between are skipped
   // there, so the clock is asked for no more than that.
   static const Duration _frameInterval = Duration(
-    microseconds: Duration.microsecondsPerSecond ~/ MarkdownSpoilerController.fillFrameRate,
+    microseconds:
+        Duration.microsecondsPerSecond ~/
+        MarkdownSpoilerController.fillFrameRate,
   );
 
   // Three dust frames: more than a frame of jitter at any display rate, well
   // under the shortest pause anyone notices.
   static const Duration _maxStep = Duration(
-    microseconds: 3 * Duration.microsecondsPerSecond ~/ MarkdownSpoilerController.fillFrameRate,
+    microseconds:
+        3 *
+        Duration.microsecondsPerSecond ~/
+        MarkdownSpoilerController.fillFrameRate,
   );
 
   final MarkdownSpoilerController _spoilers;

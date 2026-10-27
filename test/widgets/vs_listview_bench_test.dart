@@ -36,12 +36,21 @@ class _Bubble extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: message.id.isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5),
+          color: message.id.isEven
+              ? const Color(0xFFE3F2FD)
+              : const Color(0xFFF5F5F5),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Text(content, style: const TextStyle(fontSize: 15, height: 1.4, color: Color(0xFF1A1A1A))),
+          child: Text(
+            content,
+            style: const TextStyle(
+              fontSize: 15,
+              height: 1.4,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
         ),
       ),
     );
@@ -52,30 +61,41 @@ class _Preloaded extends ChatDataSource {
   _Preloaded(List<IChatMessage> messages) {
     upsertMessages(messages);
     if (messages.isNotEmpty) {
-      seedBoundaries(oldestKnownId: 0, newestKnownId: messages.length - 1, reachedOldest: true, reachedNewest: true);
+      seedBoundaries(
+        oldestKnownId: 0,
+        newestKnownId: messages.length - 1,
+        reachedOldest: true,
+        reachedNewest: true,
+      );
     }
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
-Widget _csvApp(List<IChatMessage> msgs, ChatScrollController ctrl) => MaterialApp(
-  home: Scaffold(
-    body: Center(
-      child: SizedBox(
-        width: 400,
-        height: 600,
-        child: ChatScrollView(
-          dataSource: _Preloaded(msgs),
-          controller: ctrl,
-          messageBuilder: (context, id, message, status, runLayout) =>
-              message == null ? const SizedBox(height: 60) : _Bubble(message),
+Widget _csvApp(List<IChatMessage> msgs, ChatScrollController ctrl) =>
+    MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 400,
+            height: 600,
+            child: ChatScrollView(
+              dataSource: _Preloaded(msgs),
+              controller: ctrl,
+              messageBuilder: (context, id, message, status, runLayout) =>
+                  message == null
+                  ? const SizedBox(height: 60)
+                  : _Bubble(message),
+            ),
+          ),
         ),
       ),
-    ),
-  ),
-);
+    );
 
 Widget _lvApp(List<IChatMessage> msgs, ScrollController sc) => MaterialApp(
   home: Scaffold(
@@ -117,7 +137,8 @@ int _renderObjectCount(WidgetTester tester) {
   return n;
 }
 
-int _bubbleCount(WidgetTester tester) => tester.elementList(find.byType(_Bubble, skipOffstage: false)).length;
+int _bubbleCount(WidgetTester tester) =>
+    tester.elementList(find.byType(_Bubble, skipOffstage: false)).length;
 
 void main() {
   final flingRows = <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
@@ -136,7 +157,9 @@ void main() {
 
       final csvFling = await _flingFrames(tester, find.byType(ChatScrollView));
       await tester.pumpAndSettle();
-      final csvRender = tester.renderObject<RenderChatScrollView>(find.byType(ChatScrollView));
+      final csvRender = tester.renderObject<RenderChatScrollView>(
+        find.byType(ChatScrollView),
+      );
       final csvMem = MemorySnapshot(
         label: 'CSV ($count msgs)',
         elementCount: csvRender.debugChildCount,
@@ -161,7 +184,11 @@ void main() {
       );
       sc.dispose();
 
-      flingRows.add((count, BenchmarkMetrics('CSV fling', csvFling), BenchmarkMetrics('LV fling', lvFling)));
+      flingRows.add((
+        count,
+        BenchmarkMetrics('CSV fling', csvFling),
+        BenchmarkMetrics('LV fling', lvFling),
+      ));
       memRows.add((count, csvMem, lvMem));
 
       // ignore: avoid_print
@@ -182,7 +209,10 @@ void main() {
     print('\n${'=' * 70}');
     // ignore: avoid_print
     print(
-      generateComparisonTable(title: 'Fling frame time — widget ChatScrollView vs ListView.builder', rows: flingRows),
+      generateComparisonTable(
+        title: 'Fling frame time — widget ChatScrollView vs ListView.builder',
+        rows: flingRows,
+      ),
     );
     // ignore: avoid_print
     print(generateMemoryTable(title: 'Live objects', rows: memRows));

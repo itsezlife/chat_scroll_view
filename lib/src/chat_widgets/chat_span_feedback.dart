@@ -92,10 +92,14 @@ class ChatSpanFeedback {
   static const Duration pressDuration = Duration(milliseconds: pressDurationMs);
 
   /// Release duration as a [Duration].
-  static const Duration releaseDuration = Duration(milliseconds: releaseDurationMs);
+  static const Duration releaseDuration = Duration(
+    milliseconds: releaseDurationMs,
+  );
 
   /// Legacy total of expand + release (quick-tap end-to-end).
-  static const Duration totalDuration = Duration(milliseconds: pressDurationMs + releaseDurationMs);
+  static const Duration totalDuration = Duration(
+    milliseconds: pressDurationMs + releaseDurationMs,
+  );
 
   /// Minimum visibility hold — same as [pressDurationMs].
   static const int minHoldDurationMs = pressDurationMs;
@@ -104,7 +108,8 @@ class ChatSpanFeedback {
   static const int releaseFadeDurationMs = releaseDurationMs;
 
   /// Merged listenable for [ChatSpanFeedbackPainter] repaints.
-  Listenable get listenable => Listenable.merge(<Listenable>[pressController, releaseController]);
+  Listenable get listenable =>
+      Listenable.merge(<Listenable>[pressController, releaseController]);
 
   /// Expansion progress of the circular ripple (0.0 to 1.0).
   double get pressT {
@@ -123,10 +128,14 @@ class ChatSpanFeedback {
   }
 
   /// Whether the release fade has started (including completed).
-  bool get isReleasing => releaseController.value > 0.0 || releaseController.isAnimating;
+  bool get isReleasing =>
+      releaseController.value > 0.0 || releaseController.isAnimating;
 
   /// Whether expand has finished and release has not started.
-  bool get isHeld => pressController.value >= 1.0 && !releaseController.isAnimating && releaseController.value == 0.0;
+  bool get isHeld =>
+      pressController.value >= 1.0 &&
+      !releaseController.isAnimating &&
+      releaseController.value == 0.0;
 }
 
 // --- ChatSpanFeedbackPainter -----------------------------------------------
@@ -174,12 +183,21 @@ class ChatSpanFeedbackPainter extends CustomPainter {
     // 2. Expanding circular ripple clipped to smooth contour path
     if (press > 0.0) {
       final bounds = path.getBounds();
-      final dx = math.max((origin.dx - bounds.left).abs(), (origin.dx - bounds.right).abs());
-      final dy = math.max((origin.dy - bounds.top).abs(), (origin.dy - bounds.bottom).abs());
+      final dx = math.max(
+        (origin.dx - bounds.left).abs(),
+        (origin.dx - bounds.right).abs(),
+      );
+      final dy = math.max(
+        (origin.dy - bounds.top).abs(),
+        (origin.dy - bounds.bottom).abs(),
+      );
       final maxRadius = math.sqrt(dx * dx + dy * dy);
       final currentRadius = maxRadius * press;
 
-      final rippleAlpha = (sourceA * fb.rippleOpacity * release).clamp(0.0, 1.0);
+      final rippleAlpha = (sourceA * fb.rippleOpacity * release).clamp(
+        0.0,
+        1.0,
+      );
       if (rippleAlpha > 0.0 && currentRadius > 0.0) {
         canvas.save();
         canvas.clipPath(path);
@@ -193,5 +211,6 @@ class ChatSpanFeedbackPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant ChatSpanFeedbackPainter oldDelegate) => oldDelegate.feedback != feedback;
+  bool shouldRepaint(covariant ChatSpanFeedbackPainter oldDelegate) =>
+      oldDelegate.feedback != feedback;
 }

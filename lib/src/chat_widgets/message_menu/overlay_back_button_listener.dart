@@ -33,10 +33,12 @@ class OverlayBackButtonListener extends StatefulWidget {
   final Widget child;
 
   @override
-  State<OverlayBackButtonListener> createState() => _OverlayBackButtonListenerState();
+  State<OverlayBackButtonListener> createState() =>
+      _OverlayBackButtonListenerState();
 }
 
-class _OverlayBackButtonListenerState extends State<OverlayBackButtonListener> with WidgetsBindingObserver {
+class _OverlayBackButtonListenerState extends State<OverlayBackButtonListener>
+    with WidgetsBindingObserver {
   BackButtonDispatcher? _dispatcher;
   var _observingPop = false;
 
@@ -68,7 +70,10 @@ class _OverlayBackButtonListenerState extends State<OverlayBackButtonListener> w
     return widget.onBackButtonPressed();
   }
 
-  void _attach(BackButtonDispatcher? parent, ValueGetter<Future<bool>> callback) {
+  void _attach(
+    BackButtonDispatcher? parent,
+    ValueGetter<Future<bool>> callback,
+  ) {
     if (parent != null) {
       _dispatcher = parent.createChildBackButtonDispatcher()
         ..addCallback(callback)

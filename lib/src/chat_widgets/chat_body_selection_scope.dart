@@ -3,9 +3,14 @@ import 'dart:async';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_autoscroll.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_secondary_message_tap_scope.dart';
-import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
-import 'package:flutter/material.dart' show AdaptiveTextSelectionToolbar, ContextMenuButtonItem, ContextMenuButtonType;
+import 'package:flutter/material.dart'
+    show
+        AdaptiveTextSelectionToolbar,
+        ContextMenuButtonItem,
+        ContextMenuButtonType;
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_md/flutter_md.dart';
@@ -76,20 +81,27 @@ class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
     final policy = _controller.selectionPolicy;
     final hz = ChatMarkdownAutoscroll.readDisplayRefreshHz();
     if (_autoscroll case final cached?
-        when options == _autoscrollOptions && identical(policy, _autoscrollPolicy) && hz == _autoscrollHz) {
+        when options == _autoscrollOptions &&
+            identical(policy, _autoscrollPolicy) &&
+            hz == _autoscrollHz) {
       return cached;
     }
     _autoscrollOptions = options;
     _autoscrollPolicy = policy;
     _autoscrollHz = hz;
-    return _autoscroll = ChatMarkdownAutoscroll.config(options: options, policy: policy, displayRefreshHz: hz);
+    return _autoscroll = ChatMarkdownAutoscroll.config(
+      options: options,
+      policy: policy,
+      displayRefreshHz: hz,
+    );
   }
 
   /// Whether a hit is something a tap does: every kind, except an embed the
   /// host does not act on (it is part of the text, so a press on it may begin
   /// a selection).
   bool _blocksSelection(ChatInlineHit? hit) =>
-      hit != null && (hit is! ChatInlineHit$Embed || _controller.handlesEmbedHits);
+      hit != null &&
+      (hit is! ChatInlineHit$Embed || _controller.handlesEmbedHits);
 
   bool get _scopeEnabled {
     if (!widget.mountSurface) return false;
@@ -99,7 +111,8 @@ class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
     // text entry and retarget, including while text is live on another
     // subject (ADR 015). Unselected rows stay off so message-selection
     // long-press wins.
-    if (policy.nestsTextSubjectInMessageSelection && _controller.isSelected(_id)) {
+    if (policy.nestsTextSubjectInMessageSelection &&
+        _controller.isSelected(_id)) {
       return true;
     }
     // Desktop/web: direct entry only while message membership is empty:
@@ -120,7 +133,8 @@ class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
   bool _enableTouchGestures(bool scopeEnabled) {
     if (!scopeEnabled) return false;
     if (!_controller.selectionPolicy.usesTimerBasedLongPress) return false;
-    return _controller.isSelected(_id) || _controller.textSelectionSubject == _id;
+    return _controller.isSelected(_id) ||
+        _controller.textSelectionSubject == _id;
   }
 
   /// Whether the scope may begin a character range at [global].
@@ -146,10 +160,14 @@ class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
       return false;
     }
     return _controller.selectionPolicy.usesTimerBasedLongPress &&
-        (_controller.isSelected(_id) || _controller.textSelectionSubject == _id);
+        (_controller.isSelected(_id) ||
+            _controller.textSelectionSubject == _id);
   }
 
-  Widget _buildContextMenu(BuildContext context, MarkdownSelectionScopeState state) {
+  Widget _buildContextMenu(
+    BuildContext context,
+    MarkdownSelectionScopeState state,
+  ) {
     final items = <ContextMenuButtonItem>[];
     if (_controller.textSelection case final sel? when !sel.isCollapsed) {
       items.add(
@@ -174,7 +192,10 @@ class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
       );
     }
     if (items.isEmpty) return const SizedBox.shrink();
-    return AdaptiveTextSelectionToolbar.buttonItems(buttonItems: items, anchors: state.contextMenuAnchors);
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      buttonItems: items,
+      anchors: state.contextMenuAnchors,
+    );
   }
 
   @override
@@ -188,10 +209,13 @@ class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
         // tap does is left to the viewport.
         if (event.kind != PointerDeviceKind.mouse) return;
         final policy = _controller.selectionPolicy;
-        if (!policy.allowsTextEntryWithoutMessageSelection || _controller.isSelectionMode) {
+        if (!policy.allowsTextEntryWithoutMessageSelection ||
+            _controller.isSelectionMode) {
           return;
         }
-        if (_blocksSelection(_controller.resolveInlineHit(_id, event.position))) {
+        if (_blocksSelection(
+          _controller.resolveInlineHit(_id, event.position),
+        )) {
           return;
         }
         _controller.armTextSelection(_id);
@@ -239,7 +263,8 @@ class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
             // Subject-only chrome: siblings share the controller under mobile
             // multi-select but must not paint this body's handles or toolbar
             // until they are the text selection subject.
-            ownsSelectionChrome: (documentId) => documentId == _id && _controller.textSelectionSubject == _id,
+            ownsSelectionChrome: (documentId) =>
+                documentId == _id && _controller.textSelectionSubject == _id,
             // Desktop + host secondary: yield right-click to the full-slot
             // message menu. Mobile keeps adaptive text chrome even when
             // secondary is also wired (menu entry is idle primary).
@@ -258,9 +283,14 @@ class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
 
 /// The copy key of the platform (Cmd+C on Apple platforms, Ctrl+C elsewhere)
 /// over a body's text selection, as the platform's own text fields bind it.
-final Map<ShortcutActivator, Intent> _copyShortcuts = <ShortcutActivator, Intent>{
-  SingleActivator(LogicalKeyboardKey.keyC, meta: _isApple, control: !_isApple): const _CopyTextSelectionIntent(),
-};
+final Map<ShortcutActivator, Intent> _copyShortcuts =
+    <ShortcutActivator, Intent>{
+      SingleActivator(
+        LogicalKeyboardKey.keyC,
+        meta: _isApple,
+        control: !_isApple,
+      ): const _CopyTextSelectionIntent(),
+    };
 
 bool get _isApple => switch (defaultTargetPlatform) {
   TargetPlatform.macOS || TargetPlatform.iOS => true,
@@ -280,7 +310,8 @@ class _CopyTextSelectionAction extends Action<_CopyTextSelectionIntent> {
 
   // Off with no text selected, so the key goes on to the message copy.
   @override
-  bool isEnabled(_CopyTextSelectionIntent intent) => _controller.isTextSelectionActive;
+  bool isEnabled(_CopyTextSelectionIntent intent) =>
+      _controller.isTextSelectionActive;
 
   @override
   Object? invoke(_CopyTextSelectionIntent intent) {

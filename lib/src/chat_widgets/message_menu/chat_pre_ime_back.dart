@@ -29,7 +29,8 @@ abstract final class ChatPreImeBackBinding {
   ///
   /// The host adapter calls this when Android dispatches back before
   /// the IME. Returns whether a claim handled it.
-  static Future<bool> handleNativeBack() => ChatPreImeBackClaim.handleNativeBack();
+  static Future<bool> handleNativeBack() =>
+      ChatPreImeBackClaim.handleNativeBack();
 
   /// Drops all claims and the native adapter. Tests only.
   @visibleForTesting
@@ -58,7 +59,9 @@ final class ChatPreImeBackClaim {
     final claim = ChatPreImeBackClaim._(onBack);
     _stack.add(claim);
     if (_stack.length == 1) {
-      unawaited(ChatPreImeBackBinding.native?.acquire() ?? Future<void>.value());
+      unawaited(
+        ChatPreImeBackBinding.native?.acquire() ?? Future<void>.value(),
+      );
     }
     return claim;
   }
@@ -70,7 +73,9 @@ final class ChatPreImeBackClaim {
     final removed = _stack.remove(this);
     if (!removed) return;
     if (_stack.isEmpty) {
-      unawaited(ChatPreImeBackBinding.native?.release() ?? Future<void>.value());
+      unawaited(
+        ChatPreImeBackBinding.native?.release() ?? Future<void>.value(),
+      );
     }
   }
 

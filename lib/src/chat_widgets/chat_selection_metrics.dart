@@ -48,7 +48,8 @@ abstract final class ChatSelectionMetrics {
   ///
   /// Fixed timer product — do **not** multiply by display Hz.
   static const double textAutoScrollDesktopMaxVelocity =
-      textAutoScrollDesktopPixelsPerTick * (1000 / textAutoScrollSpeedIntervalMs);
+      textAutoScrollDesktopPixelsPerTick *
+      (1000 / textAutoScrollSpeedIntervalMs);
 
   /// Horizontal checkbox slot width (logical px).
   static const double slotWidth = 35;

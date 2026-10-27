@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 /// Message-menu enter/leave around the reactions + actions column.
 class ChatMessageMenuAppearance extends StatefulWidget {
   /// Creates an appearance wrapper.
-  const ChatMessageMenuAppearance({required this.fitsAbove, required this.child, super.key});
+  const ChatMessageMenuAppearance({
+    required this.fitsAbove,
+    required this.child,
+    super.key,
+  });
 
   /// Enter duration.
   static const Duration enterDuration = Duration(milliseconds: 180);
@@ -24,11 +28,13 @@ class ChatMessageMenuAppearance extends StatefulWidget {
   final Widget child;
 
   @override
-  State<ChatMessageMenuAppearance> createState() => ChatMessageMenuAppearanceState();
+  State<ChatMessageMenuAppearance> createState() =>
+      ChatMessageMenuAppearanceState();
 }
 
 /// State exposing [dismiss] for coordinated leave.
-class ChatMessageMenuAppearanceState extends State<ChatMessageMenuAppearance> with SingleTickerProviderStateMixin {
+class ChatMessageMenuAppearanceState extends State<ChatMessageMenuAppearance>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _opacity;
   late final Animation<double> _scale;
@@ -38,12 +44,23 @@ class ChatMessageMenuAppearanceState extends State<ChatMessageMenuAppearance> wi
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: ChatMessageMenuAppearance.enterDuration);
-    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut, reverseCurve: Curves.easeIn);
-    _scale = Tween<double>(
-      begin: ChatMessageMenuAppearance.enterScale,
-      end: 1,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack, reverseCurve: Curves.easeIn));
+    _controller = AnimationController(
+      vsync: this,
+      duration: ChatMessageMenuAppearance.enterDuration,
+    );
+    _opacity = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+      reverseCurve: Curves.easeIn,
+    );
+    _scale = Tween<double>(begin: ChatMessageMenuAppearance.enterScale, end: 1)
+        .animate(
+          CurvedAnimation(
+            parent: _controller,
+            curve: Curves.easeOutBack,
+            reverseCurve: Curves.easeIn,
+          ),
+        );
     _controller.forward();
   }
 
@@ -75,7 +92,11 @@ class ChatMessageMenuAppearanceState extends State<ChatMessageMenuAppearance> wi
       opacity: _opacity.value.clamp(0.0, 1.0),
       child: Transform.translate(
         offset: Offset(0, _leaveDy),
-        child: Transform.scale(scale: _leaving ? 1.0 : _scale.value, alignment: Alignment.topRight, child: child),
+        child: Transform.scale(
+          scale: _leaving ? 1.0 : _scale.value,
+          alignment: Alignment.topRight,
+          child: child,
+        ),
       ),
     ),
     child: widget.child,

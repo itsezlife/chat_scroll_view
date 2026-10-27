@@ -37,17 +37,32 @@ const _lineHeight = 1.35;
 class _LoadedSource extends ChatDataSource {
   _LoadedSource() {
     upsertMessages([
-      UserChatMessage(id: 1, sender: 'User', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: 'x'),
+      UserChatMessage(
+        id: 1,
+        sender: 'User',
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+        content: 'x',
+      ),
     ]);
-    seedBoundaries(oldestKnownId: 1, newestKnownId: 1, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 1,
+      newestKnownId: 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 Future<void> _loadFont(String family, String file) async {
-  final loader = FontLoader(family)..addFont(Future.value(ByteData.sublistView(File(file).readAsBytesSync())));
+  final loader = FontLoader(family)
+    ..addFont(Future.value(ByteData.sublistView(File(file).readAsBytesSync())));
   await loader.load();
 }
 
@@ -91,7 +106,8 @@ double _lineHeightWithEmojiAtFontSize(String emoji) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  final hasFonts = File(_emojiFile).existsSync() && File(_textFile).existsSync();
+  final hasFonts =
+      File(_emojiFile).existsSync() && File(_textFile).existsSync();
 
   late _LoadedSource dataSource;
   late ChatScrollController controller;
@@ -122,7 +138,9 @@ void main() {
       ..physicalSize = const Size(400, 300) * pixelRatio
       ..devicePixelRatio = pixelRatio;
     addTearDown(tester.view.reset);
-    final selection = ChatSelectionController(policy: const ChatSelectionPolicy.mobile());
+    final selection = ChatSelectionController(
+      policy: const ChatSelectionPolicy.mobile(),
+    );
     addTearDown(selection.dispose);
     selection.putBody(1, Markdown.fromString(source));
     await tester.pumpWidget(
@@ -132,13 +150,14 @@ void main() {
             dataSource: dataSource,
             controller: controller,
             selectionController: selection,
-            messageBuilder: (context, id, message, status, runLayout) => ChatMarkdownBody(
-              key: ValueKey('md-$id'),
-              controller: selection,
-              messageId: id,
-              theme: theme ?? MarkdownThemeData(textStyle: _style),
-              embedResolver: embedResolver,
-            ),
+            messageBuilder: (context, id, message, status, runLayout) =>
+                ChatMarkdownBody(
+                  key: ValueKey('md-$id'),
+                  controller: selection,
+                  messageId: id,
+                  theme: theme ?? MarkdownThemeData(textStyle: _style),
+                  embedResolver: embedResolver,
+                ),
           ),
         ),
       ),
@@ -162,10 +181,18 @@ void main() {
         '1️⃣', // a keycap
         '❤️', // a basic-plane emoji with a presentation selector
       ]) {
-        final label = emoji.runes.map((r) => r.toRadixString(16).toUpperCase()).join('-');
-        testWidgets('$label is drawn at the font height, in the line', (tester) async {
+        final label = emoji.runes
+            .map((r) => r.toRadixString(16).toUpperCase())
+            .join('-');
+        testWidgets('$label is drawn at the font height, in the line', (
+          tester,
+        ) async {
           if (!hasFonts) return;
-          final selection = await pump(tester, 'ab $emoji cd', pixelRatio: pixelRatio);
+          final selection = await pump(
+            tester,
+            'ab $emoji cd',
+            pixelRatio: pixelRatio,
+          );
 
           final glyph = boxes(selection, 3, 3 + emoji.length).first;
           final extent = _fontHeight();
@@ -199,22 +226,33 @@ void main() {
       });
     }
 
-    testWidgets('a theme that sets its own scanner is left alone', (tester) async {
+    testWidgets('a theme that sets its own scanner is left alone', (
+      tester,
+    ) async {
       if (!hasFonts) return;
       final selection = await pump(
         tester,
         'ab \u{1F600} cd',
-        theme: MarkdownThemeData(textStyle: _style, emojiRuns: (_) => const <TextRange>[]),
+        theme: MarkdownThemeData(
+          textStyle: _style,
+          emojiRuns: (_) => const <TextRange>[],
+        ),
       );
 
       expect(boxes(selection, 3, 5).first.width, closeTo(_fontSize, 0.01));
     });
   });
 
-  testWidgets('a unicode emoji is a custom emoji\'s box over 1.2', (tester) async {
+  testWidgets('a unicode emoji is a custom emoji\'s box over 1.2', (
+    tester,
+  ) async {
     if (!hasFonts) return;
     final resolver = FakeInlineEmbedResolver();
-    final selection = await pump(tester, 'ab \u{1F600} ![x](fake:1) cd', embedResolver: resolver);
+    final selection = await pump(
+      tester,
+      'ab \u{1F600} ![x](fake:1) cd',
+      embedResolver: resolver,
+    );
 
     final custom = resolver.made.single.sizeHint.width;
     expect(boxes(selection, 3, 5).first.width, closeTo(custom / 1.2, 0.01));

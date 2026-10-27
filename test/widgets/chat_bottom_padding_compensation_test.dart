@@ -7,21 +7,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../chat_message.dart';
 
-IChatMessage _msg(int i) =>
-    UserChatMessage(id: i, sender: 'User', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: 'content $i');
+IChatMessage _msg(int i) => UserChatMessage(
+  id: i,
+  sender: 'User',
+  createdAt: DateTime(2026),
+  updatedAt: DateTime(2026),
+  content: 'content $i',
+);
 
 class _PreloadedDataSource extends ChatDataSource {
   _PreloadedDataSource(this.count) {
     for (var i = 0; i < count; i++) {
       upsertMessage(_msg(i));
     }
-    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
   }
 
   final int count;
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 const _viewportWidth = 400.0;
@@ -45,8 +58,10 @@ Widget _harness({
           dataSource: dataSource,
           controller: controller,
           bottomPadding: bottomPadding,
-          messageBuilder: (context, id, message, status, runLayout) =>
-              SizedBox(height: _messageHeight, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
+          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
+            height: _messageHeight,
+            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+          ),
         ),
       ),
     ),
@@ -55,7 +70,9 @@ Widget _harness({
 
 void main() {
   group('bottom padding compensation', () {
-    testWidgets('inset growth at tail keeps newest pinned above inset', (tester) async {
+    testWidgets('inset growth at tail keeps newest pinned above inset', (
+      tester,
+    ) async {
       const count = 20;
       const newest = count - 1;
       final ds = _PreloadedDataSource(count);
@@ -65,7 +82,9 @@ void main() {
       addTearDown(ds.dispose);
       addTearDown(inset.dispose);
 
-      await tester.pumpWidget(_harness(dataSource: ds, controller: controller, bottomPadding: inset));
+      await tester.pumpWidget(
+        _harness(dataSource: ds, controller: controller, bottomPadding: inset),
+      );
       await tester.pump();
       expect(controller.isAtTail.value, isTrue);
 
@@ -79,7 +98,9 @@ void main() {
       );
     });
 
-    testWidgets('inset growth while scrolled up shifts content up by delta', (tester) async {
+    testWidgets('inset growth while scrolled up shifts content up by delta', (
+      tester,
+    ) async {
       const count = 40;
       const newest = count - 1;
       final ds = _PreloadedDataSource(count);
@@ -89,7 +110,9 @@ void main() {
       addTearDown(ds.dispose);
       addTearDown(inset.dispose);
 
-      await tester.pumpWidget(_harness(dataSource: ds, controller: controller, bottomPadding: inset));
+      await tester.pumpWidget(
+        _harness(dataSource: ds, controller: controller, bottomPadding: inset),
+      );
       await tester.pump();
 
       await tester.drag(find.byType(ChatScrollView), const Offset(0, 400));
@@ -114,11 +137,16 @@ void main() {
         reason: 'keyboard inset should shift content up by the inset delta',
       );
       expect(controller.anchorMessageId, watchId);
-      expect(controller.anchorPixelOffset, closeTo(offsetBefore - insetDelta, 1));
+      expect(
+        controller.anchorPixelOffset,
+        closeTo(offsetBefore - insetDelta, 1),
+      );
       expect(controller.isAtTail.value, isFalse);
     });
 
-    testWidgets('inset shrink while scrolled up shifts content down by delta', (tester) async {
+    testWidgets('inset shrink while scrolled up shifts content down by delta', (
+      tester,
+    ) async {
       const count = 40;
       const newest = count - 1;
       final ds = _PreloadedDataSource(count);
@@ -128,7 +156,9 @@ void main() {
       addTearDown(ds.dispose);
       addTearDown(inset.dispose);
 
-      await tester.pumpWidget(_harness(dataSource: ds, controller: controller, bottomPadding: inset));
+      await tester.pumpWidget(
+        _harness(dataSource: ds, controller: controller, bottomPadding: inset),
+      );
       await tester.pump();
 
       await tester.drag(find.byType(ChatScrollView), const Offset(0, 400));
@@ -152,38 +182,48 @@ void main() {
       );
     });
 
-    testWidgets('inset shrink at tail during edge stretch keeps newest above inset', (tester) async {
-      const count = 20;
-      const newest = count - 1;
-      final ds = _PreloadedDataSource(count);
-      final inset = ValueNotifier<double>(_keyboardInset);
-      final controller = ChatScrollController()..jumpTo(newest);
-      addTearDown(controller.dispose);
-      addTearDown(ds.dispose);
-      addTearDown(inset.dispose);
+    testWidgets(
+      'inset shrink at tail during edge stretch keeps newest above inset',
+      (tester) async {
+        const count = 20;
+        const newest = count - 1;
+        final ds = _PreloadedDataSource(count);
+        final inset = ValueNotifier<double>(_keyboardInset);
+        final controller = ChatScrollController()..jumpTo(newest);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+        addTearDown(inset.dispose);
 
-      await tester.pumpWidget(_harness(dataSource: ds, controller: controller, bottomPadding: inset));
-      await tester.pump();
-      expect(controller.isAtTail.value, isTrue);
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            bottomPadding: inset,
+          ),
+        );
+        await tester.pump();
+        expect(controller.isAtTail.value, isTrue);
 
-      // Pull past newest so stretch is active (keeps the ticker running).
-      final center = tester.getCenter(find.byType(ChatScrollView));
-      final gesture = await tester.startGesture(center);
-      await gesture.moveBy(const Offset(0, -180));
-      await tester.pump();
+        // Pull past newest so stretch is active (keeps the ticker running).
+        final center = tester.getCenter(find.byType(ChatScrollView));
+        final gesture = await tester.startGesture(center);
+        await gesture.moveBy(const Offset(0, -180));
+        await tester.pump();
 
-      // Dismiss keyboard while the glow / spring would otherwise pin on tick.
-      inset.value = _initialInset;
-      await tester.pump();
-      await gesture.up();
-      await tester.pumpAndSettle();
+        // Dismiss keyboard while the glow / spring would otherwise pin on tick.
+        inset.value = _initialInset;
+        await tester.pump();
+        await gesture.up();
+        await tester.pumpAndSettle();
 
-      expect(controller.isAtTail.value, isTrue);
-      expect(
-        tester.getTopLeft(find.text('msg-$newest')).dy,
-        closeTo(_viewportHeight - _initialInset - _messageHeight, 1),
-        reason: 'tick pinNewest must not double-apply with bottom-pad compensate',
-      );
-    });
+        expect(controller.isAtTail.value, isTrue);
+        expect(
+          tester.getTopLeft(find.text('msg-$newest')).dy,
+          closeTo(_viewportHeight - _initialInset - _messageHeight, 1),
+          reason:
+              'tick pinNewest must not double-apply with bottom-pad compensate',
+        );
+      },
+    );
   });
 }

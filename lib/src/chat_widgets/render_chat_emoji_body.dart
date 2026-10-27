@@ -1,12 +1,16 @@
 import 'dart:math' as math;
 
-import 'package:catalog_assets/catalog_assets.dart' show InlineEmbed, InlineEmbedPaintContext;
+import 'package:catalog_assets/catalog_assets.dart'
+    show InlineEmbed, InlineEmbedPaintContext;
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_geometry.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_text.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_text_layout.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_md/flutter_md.dart'
-    show MarkdownPosition, MarkdownSelectionController, MarkdownSelectionSurface;
+    show
+        MarkdownPosition,
+        MarkdownSelectionController,
+        MarkdownSelectionSurface;
 import 'package:meta/meta.dart';
 
 /// What one item of an emoji-only body paints into its square.
@@ -37,8 +41,10 @@ final class ChatEmojiGlyphLeaf extends ChatEmojiLeaf {
   final TextPainter painter;
 
   @override
-  void paint(Canvas canvas, Rect rect, Color? tint) =>
-      painter.paint(canvas, rect.center - Offset(painter.width / 2, painter.height / 2));
+  void paint(Canvas canvas, Rect rect, Color? tint) => painter.paint(
+    canvas,
+    rect.center - Offset(painter.width / 2, painter.height / 2),
+  );
 
   @override
   void dispose() => painter.dispose();
@@ -60,7 +66,8 @@ final class ChatEmojiEmbedLeaf extends ChatEmojiLeaf {
   void removeListener(VoidCallback listener) => embed.removeListener(listener);
 
   @override
-  void paint(Canvas canvas, Rect rect, Color? tint) => embed.paint(canvas, rect, InlineEmbedPaintContext(tint: tint));
+  void paint(Canvas canvas, Rect rect, Color? tint) =>
+      embed.paint(canvas, rect, InlineEmbedPaintContext(tint: tint));
 
   @override
   void dispose() => embed.dispose();
@@ -83,7 +90,11 @@ final class ChatEmojiEmptyLeaf extends ChatEmojiLeaf {
 @immutable
 final class ChatEmojiSelectionBinding {
   /// Binds [text] to [controller] under [documentId].
-  const ChatEmojiSelectionBinding({required this.controller, required this.documentId, required this.text});
+  const ChatEmojiSelectionBinding({
+    required this.controller,
+    required this.documentId,
+    required this.text,
+  });
 
   /// The controller that owns the selection range.
   final MarkdownSelectionController controller;
@@ -125,7 +136,8 @@ const Color _kSelectionColor = Color(0x552196F3);
 /// emoji is one atomic item, so every position it hands out is an item edge.
 /// The highlight is painted under the items, never over an embed.
 @internal
-final class RenderChatEmojiBody extends RenderBox implements MarkdownSelectionSurface {
+final class RenderChatEmojiBody extends RenderBox
+    implements MarkdownSelectionSurface {
   /// Creates the render object.
   RenderChatEmojiBody({
     required List<ChatEmojiLeaf> leaves,
@@ -209,7 +221,9 @@ final class RenderChatEmojiBody extends RenderBox implements MarkdownSelectionSu
   /// before layout or for an index there is no item at.
   Rect? itemRect(int index) {
     final rects = _geometry?.items;
-    return rects != null && index >= 0 && index < rects.length ? rects[index] : null;
+    return rects != null && index >= 0 && index < rects.length
+        ? rects[index]
+        : null;
   }
 
   /// The square of each selected item, in reading order, in this box's
@@ -223,7 +237,8 @@ final class RenderChatEmojiBody extends RenderBox implements MarkdownSelectionSu
   /// One box per line over the selected items, in this box's coordinates:
   /// what the highlight paints.
   List<Rect> get selectedLineBoxes => switch (_selectedRange) {
-    final range? => _textLayout?.lineBoxesForRange(range.start, range.end) ?? [],
+    final range? =>
+      _textLayout?.lineBoxesForRange(range.start, range.end) ?? [],
     null => const <Rect>[],
   };
 
@@ -293,39 +308,49 @@ final class RenderChatEmojiBody extends RenderBox implements MarkdownSelectionSu
     _endHandleLayer.layer = null;
   }
 
-  ChatEmojiGeometry _geometryFor(double maxWidth) => ChatEmojiGeometry.of(_spec, maxWidth: maxWidth);
+  ChatEmojiGeometry _geometryFor(double maxWidth) =>
+      ChatEmojiGeometry.of(_spec, maxWidth: maxWidth);
 
   @override
   void performLayout() {
     final geometry = _geometry = _geometryFor(constraints.maxWidth);
     size = constraints.constrain(geometry.size);
     _textLayout = switch (_selection) {
-      final binding? => ChatEmojiTextLayout(text: binding.text, items: geometry.items, direction: geometry.direction),
+      final binding? => ChatEmojiTextLayout(
+        text: binding.text,
+        items: geometry.items,
+        direction: geometry.direction,
+      ),
       null => null,
     };
   }
 
   @override
-  Size computeDryLayout(BoxConstraints constraints) => constraints.constrain(_geometryFor(constraints.maxWidth).size);
+  Size computeDryLayout(BoxConstraints constraints) =>
+      constraints.constrain(_geometryFor(constraints.maxWidth).size);
 
   @override
   double computeMinIntrinsicWidth(double height) => _spec.box + 2 * _spec.inset;
 
   @override
-  double computeMaxIntrinsicWidth(double height) => _geometryFor(double.infinity).size.width;
+  double computeMaxIntrinsicWidth(double height) =>
+      _geometryFor(double.infinity).size.width;
 
   @override
-  double computeMinIntrinsicHeight(double width) => _geometryFor(width).size.height;
+  double computeMinIntrinsicHeight(double width) =>
+      _geometryFor(width).size.height;
 
   @override
-  double computeMaxIntrinsicHeight(double width) => _geometryFor(width).size.height;
+  double computeMaxIntrinsicHeight(double width) =>
+      _geometryFor(width).size.height;
 
   @override
   bool hitTestSelf(Offset position) => true;
 
   @override
   bool get alwaysNeedsCompositing =>
-      (_startHandleLink != null && _startHandleLocal != null) || (_endHandleLink != null && _endHandleLocal != null);
+      (_startHandleLink != null && _startHandleLocal != null) ||
+      (_endHandleLink != null && _endHandleLocal != null);
 
   @override
   void paint(PaintingContext context, Offset offset) {
@@ -335,7 +360,8 @@ final class RenderChatEmojiBody extends RenderBox implements MarkdownSelectionSu
     // The highlight sits under the items: an embed or a glyph is drawn as
     // itself, with no tint over it.
     if (_selection case final binding?) {
-      _highlightPaint.color = binding.controller.selectionColor ?? _kSelectionColor;
+      _highlightPaint.color =
+          binding.controller.selectionColor ?? _kSelectionColor;
       for (final box in selectedLineBoxes) {
         canvas.drawRect(box.shift(offset), _highlightPaint);
       }
@@ -351,7 +377,10 @@ final class RenderChatEmojiBody extends RenderBox implements MarkdownSelectionSu
     final startLink = _startHandleLink;
     final startLocal = _startHandleLocal;
     if (startLink != null && startLocal != null) {
-      _startHandleLayer.layer = LeaderLayer(link: startLink, offset: offset + startLocal);
+      _startHandleLayer.layer = LeaderLayer(
+        link: startLink,
+        offset: offset + startLocal,
+      );
       context.pushLayer(_startHandleLayer.layer!, _paintNothing, Offset.zero);
     } else {
       _startHandleLayer.layer = null;
@@ -359,7 +388,10 @@ final class RenderChatEmojiBody extends RenderBox implements MarkdownSelectionSu
     final endLink = _endHandleLink;
     final endLocal = _endHandleLocal;
     if (endLink != null && endLocal != null) {
-      _endHandleLayer.layer = LeaderLayer(link: endLink, offset: offset + endLocal);
+      _endHandleLayer.layer = LeaderLayer(
+        link: endLink,
+        offset: offset + endLocal,
+      );
       context.pushLayer(_endHandleLayer.layer!, _paintNothing, Offset.zero);
     } else {
       _endHandleLayer.layer = null;
@@ -375,14 +407,22 @@ final class RenderChatEmojiBody extends RenderBox implements MarkdownSelectionSu
   Rect get globalBounds => localToGlobal(Offset.zero) & size;
 
   @override
-  MarkdownPosition? positionForGlobal(Offset globalPosition) => hitForGlobal(globalPosition)?.$1;
+  MarkdownPosition? positionForGlobal(Offset globalPosition) =>
+      hitForGlobal(globalPosition)?.$1;
 
   @override
   (MarkdownPosition, TextAffinity)? hitForGlobal(Offset globalPosition) {
     final binding = _selection;
     final hit = _textLayout?.hitAt(globalToLocal(globalPosition));
     if (binding == null || hit == null) return null;
-    return (MarkdownPosition(documentId: binding.documentId, blockIndex: 0, offset: hit.offset), hit.affinity);
+    return (
+      MarkdownPosition(
+        documentId: binding.documentId,
+        blockIndex: 0,
+        offset: hit.offset,
+      ),
+      hit.affinity,
+    );
   }
 
   @override
@@ -399,7 +439,9 @@ final class RenderChatEmojiBody extends RenderBox implements MarkdownSelectionSu
   @override
   Rect? caretRectFor(MarkdownPosition position, TextAffinity affinity) {
     final binding = _selection;
-    if (binding == null || position.documentId != binding.documentId || position.blockIndex != 0) {
+    if (binding == null ||
+        position.documentId != binding.documentId ||
+        position.blockIndex != 0) {
       return null;
     }
     return _textLayout?.caretRect(position.offset, affinity);
@@ -421,11 +463,21 @@ final class RenderChatEmojiBody extends RenderBox implements MarkdownSelectionSu
   }
 
   @override
-  List<Rect> localBoxesForRange(int blockIndex, int startOffset, int endOffset) =>
-      blockIndex == 0 ? _textLayout?.boxesForRange(startOffset, endOffset) ?? const <Rect>[] : const <Rect>[];
+  List<Rect> localBoxesForRange(
+    int blockIndex,
+    int startOffset,
+    int endOffset,
+  ) => blockIndex == 0
+      ? _textLayout?.boxesForRange(startOffset, endOffset) ?? const <Rect>[]
+      : const <Rect>[];
 
   @override
-  void setSelectionHandleLayers({LayerLink? startLink, Offset? startLocal, LayerLink? endLink, Offset? endLocal}) {
+  void setSelectionHandleLayers({
+    LayerLink? startLink,
+    Offset? startLocal,
+    LayerLink? endLink,
+    Offset? endLocal,
+  }) {
     final changed =
         !identical(startLink, _startHandleLink) ||
         startLocal != _startHandleLocal ||
@@ -441,10 +493,14 @@ final class RenderChatEmojiBody extends RenderBox implements MarkdownSelectionSu
   }
 
   @override
-  bool get hasSelectionHandleLeaders => _startHandleLink != null || _endHandleLink != null;
+  bool get hasSelectionHandleLeaders =>
+      _startHandleLink != null || _endHandleLink != null;
 
   @override
-  void clearSelectionHandleLayersIfLinked({required LayerLink startLink, required LayerLink endLink}) {
+  void clearSelectionHandleLayersIfLinked({
+    required LayerLink startLink,
+    required LayerLink endLink,
+  }) {
     final clearStart = identical(_startHandleLink, startLink);
     final clearEnd = identical(_endHandleLink, endLink);
     if (!clearStart && !clearEnd) return;

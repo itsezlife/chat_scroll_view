@@ -84,7 +84,9 @@ final class ChatMessageMenuRequest {
          'Pass membership: uponSelected instead of combining overSelection '
          'with a non-idle membership',
        ),
-       membership = overSelection ? ChatMessageMenuMembership.uponSelected : membership;
+       membership = overSelection
+           ? ChatMessageMenuMembership.uponSelected
+           : membership;
 
   /// Present message id under the winning entry gesture.
   final int messageId;
@@ -123,7 +125,8 @@ final class ChatMessageMenuRequest {
   /// while **message selection** is active (**over-selection**).
   ///
   /// Identical to [membership] == [ChatMessageMenuMembership.uponSelected].
-  bool get overSelection => membership == ChatMessageMenuMembership.uponSelected;
+  bool get overSelection =>
+      membership == ChatMessageMenuMembership.uponSelected;
 
   /// Whether [messageId] is the live non-collapsed **text selection** subject
   /// (independent of whether [tapGlobal] is upon the highlight).
@@ -203,4 +206,5 @@ final class ChatMessageMenuRequest {
 
 /// Host callback for policy-owned message-menu entry
 /// ([ChatScrollView.onIdleMessageTap] / [ChatScrollView.onSecondaryMessageTap]).
-typedef ChatMessageMenuRequestCallback = void Function(ChatMessageMenuRequest request);
+typedef ChatMessageMenuRequestCallback =
+    void Function(ChatMessageMenuRequest request);

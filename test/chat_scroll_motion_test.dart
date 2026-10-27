@@ -31,15 +31,24 @@ void main() {
     test('differs when any parameter differs', () {
       const stretch = ChatScrollPhysics.stretch();
       expect(
-        const ChatScrollPhysics(fling: ChatFling.spline(friction: 0.03), edgeEffect: ChatEdgeEffect.stretch()),
+        const ChatScrollPhysics(
+          fling: ChatFling.spline(friction: 0.03),
+          edgeEffect: ChatEdgeEffect.stretch(),
+        ),
         isNot(stretch),
       );
       expect(
-        const ChatScrollPhysics(fling: ChatFling.spline(), edgeEffect: ChatEdgeEffect.stretch(intensity: 0.03)),
+        const ChatScrollPhysics(
+          fling: ChatFling.spline(),
+          edgeEffect: ChatEdgeEffect.stretch(intensity: 0.03),
+        ),
         isNot(stretch),
       );
       expect(
-        const ChatScrollPhysics(fling: ChatFling.spline(), edgeEffect: ChatEdgeEffect.stretch(dampingRatio: 0.5)),
+        const ChatScrollPhysics(
+          fling: ChatFling.spline(),
+          edgeEffect: ChatEdgeEffect.stretch(dampingRatio: 0.5),
+        ),
         isNot(stretch),
       );
     });
@@ -59,13 +68,22 @@ void main() {
     test('new variants are value-equal and parameter-sensitive', () {
       // ignore: prefer_const_constructors
       expect(ChatFling$Decay(), const ChatFling.decay());
-      expect(const ChatFling.decay(decelerationRate: 0.99), isNot(const ChatFling.decay()));
+      expect(
+        const ChatFling.decay(decelerationRate: 0.99),
+        isNot(const ChatFling.decay()),
+      );
       // ignore: prefer_const_constructors
       expect(ChatEdgeEffect$RubberBand(), const ChatEdgeEffect.rubberBand());
-      expect(const ChatEdgeEffect.rubberBand(resistance: 0.3), isNot(const ChatEdgeEffect.rubberBand()));
+      expect(
+        const ChatEdgeEffect.rubberBand(resistance: 0.3),
+        isNot(const ChatEdgeEffect.rubberBand()),
+      );
       // ignore: prefer_const_constructors
       expect(ChatEdgeEffect$None(), const ChatEdgeEffect.none());
-      expect(const ChatEdgeEffect.none(), isNot(const ChatEdgeEffect.rubberBand()));
+      expect(
+        const ChatEdgeEffect.none(),
+        isNot(const ChatEdgeEffect.rubberBand()),
+      );
     });
 
     test('platform default follows the OS family', () {
@@ -78,14 +96,21 @@ void main() {
         TargetPlatform.linux: ChatScrollPhysics.clamped(),
       };
       for (final MapEntry(key: platform, value: physics) in expected.entries) {
-        expect(ChatScrollPhysics.forPlatform(platform: platform), physics, reason: '$platform');
+        expect(
+          ChatScrollPhysics.forPlatform(platform: platform),
+          physics,
+          reason: '$platform',
+        );
       }
     });
 
     test('platform default reads the target platform when not pinned', () {
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
       addTearDown(() => debugDefaultTargetPlatformOverride = null);
-      expect(ChatScrollPhysics.forPlatform(), const ChatScrollPhysics.rubberBand());
+      expect(
+        ChatScrollPhysics.forPlatform(),
+        const ChatScrollPhysics.rubberBand(),
+      );
     });
   });
 
@@ -103,9 +128,21 @@ void main() {
 
     test('spline friction tunes travel distance', () {
       final standard = travel(ChatFlingMotion(), 3000);
-      final heavy = travel(ChatFlingMotion(const ChatFling.spline(friction: 0.03)), 3000);
-      expect(standard, closeTo(ChatSplineFlingSimulation(velocity: 3000).distance, 0.5));
-      expect(heavy, closeTo(ChatSplineFlingSimulation(velocity: 3000, friction: 0.03).distance, 0.5));
+      final heavy = travel(
+        ChatFlingMotion(const ChatFling.spline(friction: 0.03)),
+        3000,
+      );
+      expect(
+        standard,
+        closeTo(ChatSplineFlingSimulation(velocity: 3000).distance, 0.5),
+      );
+      expect(
+        heavy,
+        closeTo(
+          ChatSplineFlingSimulation(velocity: 3000, friction: 0.03).distance,
+          0.5,
+        ),
+      );
       expect(heavy, lessThan(standard));
     });
 
@@ -132,7 +169,10 @@ void main() {
 
     test('decay deceleration rate tunes travel', () {
       final normal = travel(ChatFlingMotion(const ChatFling.decay()), 3000);
-      final fast = travel(ChatFlingMotion(const ChatFling.decay(decelerationRate: 0.99)), 3000);
+      final fast = travel(
+        ChatFlingMotion(const ChatFling.decay(decelerationRate: 0.99)),
+        3000,
+      );
       expect(fast, lessThan(normal / 3));
     });
 
@@ -141,7 +181,10 @@ void main() {
         ..startFling(3000)
         ..tickFling(Duration.zero);
       expect(motion.flingVelocity(Duration.zero), closeTo(3000, 1e-6));
-      expect(motion.flingVelocity(const Duration(seconds: 1)), closeTo(3000 * 0.135, 3000 * 0.001));
+      expect(
+        motion.flingVelocity(const Duration(seconds: 1)),
+        closeTo(3000 * 0.135, 3000 * 0.001),
+      );
     });
   });
 
@@ -229,7 +272,9 @@ void main() {
 
     test('resistance tunes the pull response', () {
       final standard = ChatRubberBandOverscroll()..pull(300, 800);
-      final stiff = ChatRubberBandOverscroll(const ChatEdgeEffect$RubberBand(resistance: 0.3))..pull(300, 800);
+      final stiff = ChatRubberBandOverscroll(
+        const ChatEdgeEffect$RubberBand(resistance: 0.3),
+      )..pull(300, 800);
       expect(stiff.displacement, lessThan(standard.displacement));
     });
 
@@ -339,14 +384,17 @@ void main() {
 
     test('a faster impact always bounces further', () {
       final peaks = [
-        for (final v in [3000.0, 5500.0, 8000.0]) runSpring(ChatRubberBandOverscroll()..absorbImpact(v)),
+        for (final v in [3000.0, 5500.0, 8000.0])
+          runSpring(ChatRubberBandOverscroll()..absorbImpact(v)),
       ];
       expect(peaks[1], greaterThan(peaks[0] * 1.5));
       expect(peaks[2], greaterThan(peaks[1] * 1.3));
     });
 
     test('the return never crosses rest into the opposite edge', () {
-      final band = ChatRubberBandOverscroll(const ChatEdgeEffect$RubberBand(dampingRatio: 0.3))..pull(300, 800);
+      final band = ChatRubberBandOverscroll(
+        const ChatEdgeEffect$RubberBand(dampingRatio: 0.3),
+      )..pull(300, 800);
       band.onDragEnd(0);
       var elapsed = Duration.zero;
       while (band.tick(elapsed)) {
@@ -414,7 +462,10 @@ void main() {
     test('paintTransform translates the message layer', () {
       final band = ChatRubberBandOverscroll()..pull(-300, 800);
       final matrix = band.paintTransform(const Size(400, 800))!;
-      expect(MatrixUtils.transformPoint(matrix, const Offset(10, 700)), Offset(10, 700 + band.displacement));
+      expect(
+        MatrixUtils.transformPoint(matrix, const Offset(10, 700)),
+        Offset(10, 700 + band.displacement),
+      );
     });
   });
 
@@ -489,7 +540,10 @@ void main() {
     });
 
     test('paintTransform is null at rest', () {
-      expect(ChatStretchOverscroll().paintTransform(const Size(400, 800)), isNull);
+      expect(
+        ChatStretchOverscroll().paintTransform(const Size(400, 800)),
+        isNull,
+      );
     });
 
     test('paintTransform scales from the pressed edge', () {
@@ -497,11 +551,17 @@ void main() {
       final top = ChatStretchOverscroll()..pull(400, 800);
       final topMatrix = top.paintTransform(size)!;
       expect(MatrixUtils.transformPoint(topMatrix, Offset.zero).dy, 0);
-      expect(MatrixUtils.transformPoint(topMatrix, const Offset(0, 100)).dy, closeTo(100 * (1 + top.overscroll), 1e-9));
+      expect(
+        MatrixUtils.transformPoint(topMatrix, const Offset(0, 100)).dy,
+        closeTo(100 * (1 + top.overscroll), 1e-9),
+      );
 
       final bottom = ChatStretchOverscroll()..pull(-400, 800);
       final bottomMatrix = bottom.paintTransform(size)!;
-      expect(MatrixUtils.transformPoint(bottomMatrix, const Offset(0, 800)).dy, closeTo(800, 1e-9));
+      expect(
+        MatrixUtils.transformPoint(bottomMatrix, const Offset(0, 800)).dy,
+        closeTo(800, 1e-9),
+      );
       expect(
         MatrixUtils.transformPoint(bottomMatrix, const Offset(0, 700)).dy,
         closeTo(800 - 100 * (1 + bottom.overscroll.abs()), 1e-9),
@@ -525,7 +585,9 @@ void main() {
 
     test('intensity tunes the pull response', () {
       final standard = ChatStretchOverscroll()..pull(400, 800);
-      final doubled = ChatStretchOverscroll(const ChatEdgeEffect$Stretch(intensity: 0.032))..pull(400, 800);
+      final doubled = ChatStretchOverscroll(
+        const ChatEdgeEffect$Stretch(intensity: 0.032),
+      )..pull(400, 800);
       expect(doubled.overscroll, closeTo(standard.overscroll * 2, 1e-9));
     });
   });

@@ -22,7 +22,8 @@ library;
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_md/flutter_md.dart' show MarkdownThemeData, markdownBlockRenderedText;
+import 'package:flutter_md/flutter_md.dart'
+    show MarkdownThemeData, markdownBlockRenderedText;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../chat_message.dart';
@@ -30,13 +31,27 @@ import '../chat_message.dart';
 class _LoadedSource extends ChatDataSource {
   _LoadedSource() {
     upsertMessages([
-      UserChatMessage(id: 1, sender: 'User', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: 'x'),
+      UserChatMessage(
+        id: 1,
+        sender: 'User',
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+        content: 'x',
+      ),
     ]);
-    seedBoundaries(oldestKnownId: 1, newestKnownId: 1, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 1,
+      newestKnownId: 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 void main() {
@@ -66,7 +81,9 @@ void main() {
       ..physicalSize = Size(width, 300)
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final selection = ChatSelectionController(policy: const ChatSelectionPolicy.mobile());
+    final selection = ChatSelectionController(
+      policy: const ChatSelectionPolicy.mobile(),
+    );
     addTearDown(selection.dispose);
     selection.putBody(1, Markdown.fromString(source));
     await tester.pumpWidget(
@@ -76,16 +93,21 @@ void main() {
             dataSource: dataSource,
             controller: controller,
             selectionController: selection,
-            messageBuilder: (context, id, message, status, runLayout) => ChatMarkdownBody(
-              key: ValueKey('md-$id'),
-              controller: selection,
-              messageId: id,
-              theme: MarkdownThemeData(
-                textStyle: TextStyle(fontSize: 15, height: lineHeight, color: const Color(0xFF000000)),
-                emojiScale: 1.2,
-              ),
-              embedResolver: embeds,
-            ),
+            messageBuilder: (context, id, message, status, runLayout) =>
+                ChatMarkdownBody(
+                  key: ValueKey('md-$id'),
+                  controller: selection,
+                  messageId: id,
+                  theme: MarkdownThemeData(
+                    textStyle: TextStyle(
+                      fontSize: 15,
+                      height: lineHeight,
+                      color: const Color(0xFF000000),
+                    ),
+                    emojiScale: 1.2,
+                  ),
+                  embedResolver: embeds,
+                ),
           ),
         ),
       ),
@@ -101,9 +123,13 @@ void main() {
   // (its alt text, `:wave:`, 6).
   const line = 'ab \u{1F600} cd ![:wave:](fake:1) ef \u{1F44D} gh';
 
-  testWidgets('a line of text, emoji and an embed is one rectangle', (tester) async {
+  testWidgets('a line of text, emoji and an embed is one rectangle', (
+    tester,
+  ) async {
     final selection = await pump(tester, line);
-    final length = markdownBlockRenderedText(selection.bodyOf(1)!.blocks.first).length;
+    final length = markdownBlockRenderedText(
+      selection.bodyOf(1)!.blocks.first,
+    ).length;
 
     final rects = boxes(selection, 0, length);
 
@@ -113,7 +139,9 @@ void main() {
     expect(rects.single.bottom, closeTo(surface.size.height, 1e-6));
   });
 
-  testWidgets('every kind of content has the same top and bottom', (tester) async {
+  testWidgets('every kind of content has the same top and bottom', (
+    tester,
+  ) async {
     final selection = await pump(tester, line, lineHeight: 1.4);
     final text = markdownBlockRenderedText(selection.bodyOf(1)!.blocks.first);
     final emoji = text.indexOf('\u{1F600}');
@@ -129,9 +157,18 @@ void main() {
     expect(ofEmbed.bottom, ofText.bottom);
   });
 
-  testWidgets('wrapped lines are one rectangle each, and they touch', (tester) async {
-    final selection = await pump(tester, '$line $line $line', lineHeight: 1.4, width: 240);
-    final length = markdownBlockRenderedText(selection.bodyOf(1)!.blocks.first).length;
+  testWidgets('wrapped lines are one rectangle each, and they touch', (
+    tester,
+  ) async {
+    final selection = await pump(
+      tester,
+      '$line $line $line',
+      lineHeight: 1.4,
+      width: 240,
+    );
+    final length = markdownBlockRenderedText(
+      selection.bodyOf(1)!.blocks.first,
+    ).length;
 
     final rects = boxes(selection, 0, length);
 
@@ -142,8 +179,14 @@ void main() {
     }
   });
 
-  testWidgets('over a spoiler every position is the same rectangle', (tester) async {
-    final selection = await pump(tester, 'a ||bc \u{1F600} de ![:wave:](fake:1) fg|| h', lineHeight: 1.4);
+  testWidgets('over a spoiler every position is the same rectangle', (
+    tester,
+  ) async {
+    final selection = await pump(
+      tester,
+      'a ||bc \u{1F600} de ![:wave:](fake:1) fg|| h',
+      lineHeight: 1.4,
+    );
     final text = markdownBlockRenderedText(selection.bodyOf(1)!.blocks.first);
     final emoji = text.indexOf('\u{1F600}');
     final embed = text.indexOf(':wave:');

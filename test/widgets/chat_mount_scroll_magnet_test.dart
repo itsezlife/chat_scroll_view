@@ -11,33 +11,54 @@ import '../chat_message.dart';
 // Test data — mirrors demo geometry: reverse + bottomPadding 96.
 // ---------------------------------------------------------------------------
 
-IChatMessage _msg(int i) =>
-    UserChatMessage(id: i, sender: 'User', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: 'content $i');
+IChatMessage _msg(int i) => UserChatMessage(
+  id: i,
+  sender: 'User',
+  createdAt: DateTime(2026),
+  updatedAt: DateTime(2026),
+  content: 'content $i',
+);
 
 class _PreloadedDataSource extends ChatDataSource {
   _PreloadedDataSource(this.count) {
     for (var i = 0; i < count; i++) {
       upsertMessage(_msg(i));
     }
-    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
   }
 
   final int count;
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 class _LazyTailDataSource extends ChatDataSource {
   _LazyTailDataSource(this.count) {
-    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
   }
 
   final int count;
   bool loaded = false;
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async {
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 50));
     final lo = fromId.clamp(0, count - 1);
     final hi = toId.clamp(0, count - 1);
@@ -67,8 +88,10 @@ Widget _harness({
           dataSource: dataSource,
           controller: controller,
           bottomPadding: bottomPadding,
-          messageBuilder: (context, id, message, status, runLayout) =>
-              SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
+          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
+            height: 60,
+            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+          ),
         ),
       ),
     ),
@@ -76,17 +99,24 @@ Widget _harness({
 );
 
 /// Pump through post-release settle — catches layout-driven tail re-pin.
-Future<void> _pumpSettle(WidgetTester tester, {Duration total = const Duration(milliseconds: 1000)}) async {
+Future<void> _pumpSettle(
+  WidgetTester tester, {
+  Duration total = const Duration(milliseconds: 1000),
+}) async {
   final steps = total.inMilliseconds ~/ 16;
   for (var i = 0; i < steps; i++) {
     await tester.pump(const Duration(milliseconds: 16));
   }
 }
 
-Future<({ChatScrollController controller, _PreloadedDataSource ds, ValueNotifier<double> inset})> _mountAtTail(
-  WidgetTester tester, {
-  int count = 40,
-}) async {
+Future<
+  ({
+    ChatScrollController controller,
+    _PreloadedDataSource ds,
+    ValueNotifier<double> inset,
+  })
+>
+_mountAtTail(WidgetTester tester, {int count = 40}) async {
   final newest = count - 1;
   final ds = _PreloadedDataSource(count);
   final inset = ValueNotifier<double>(_bottomInset);
@@ -95,9 +125,15 @@ Future<({ChatScrollController controller, _PreloadedDataSource ds, ValueNotifier
   addTearDown(ds.dispose);
   addTearDown(inset.dispose);
 
-  await tester.pumpWidget(_harness(dataSource: ds, controller: controller, bottomPadding: inset));
+  await tester.pumpWidget(
+    _harness(dataSource: ds, controller: controller, bottomPadding: inset),
+  );
   await tester.pump();
-  expect(controller.isAtTail.value, isTrue, reason: 'precondition: mounted at tail');
+  expect(
+    controller.isAtTail.value,
+    isTrue,
+    reason: 'precondition: mounted at tail',
+  );
   return (controller: controller, ds: ds, inset: inset);
 }
 
@@ -137,7 +173,11 @@ void main() {
       const count = 40;
       final mounted = await _mountAtTail(tester, count: count);
 
-      await tester.fling(find.byType(ChatScrollView), const Offset(0, 800), 800);
+      await tester.fling(
+        find.byType(ChatScrollView),
+        const Offset(0, 800),
+        800,
+      );
       await _pumpSettle(tester);
 
       expect(mounted.controller.isAtTail.value, isFalse);
@@ -147,7 +187,11 @@ void main() {
       const count = 40;
       final mounted = await _mountAtTail(tester, count: count);
 
-      await tester.fling(find.byType(ChatScrollView), const Offset(0, 800), 800);
+      await tester.fling(
+        find.byType(ChatScrollView),
+        const Offset(0, 800),
+        800,
+      );
 
       // Mid-deceleration: should already be off-tail, not snap back.
       for (var i = 0; i < 20; i++) {
@@ -162,7 +206,9 @@ void main() {
   });
 
   group('mount scroll magnet: re-attach', () {
-    testWidgets('re-attach then drag up matches continuous mount', (tester) async {
+    testWidgets('re-attach then drag up matches continuous mount', (
+      tester,
+    ) async {
       const count = 40;
       const newest = count - 1;
       final ds = _PreloadedDataSource(count);
@@ -172,7 +218,11 @@ void main() {
       addTearDown(ds.dispose);
       addTearDown(inset.dispose);
 
-      final widget = _harness(dataSource: ds, controller: controller, bottomPadding: inset);
+      final widget = _harness(
+        dataSource: ds,
+        controller: controller,
+        bottomPadding: inset,
+      );
 
       await tester.pumpWidget(widget);
       await tester.pump();
@@ -194,7 +244,9 @@ void main() {
   });
 
   group('mount scroll magnet: lazy tail', () {
-    testWidgets('lazy tail load after user drag does not yank to newest', (tester) async {
+    testWidgets('lazy tail load after user drag does not yank to newest', (
+      tester,
+    ) async {
       const count = 40;
       const newest = count - 1;
       final ds = _LazyTailDataSource(count);
@@ -204,7 +256,9 @@ void main() {
       addTearDown(ds.dispose);
       addTearDown(inset.dispose);
 
-      await tester.pumpWidget(_harness(dataSource: ds, controller: controller, bottomPadding: inset));
+      await tester.pumpWidget(
+        _harness(dataSource: ds, controller: controller, bottomPadding: inset),
+      );
       await tester.pump();
 
       // User scrolls before messages load — preempts attach tail settle.

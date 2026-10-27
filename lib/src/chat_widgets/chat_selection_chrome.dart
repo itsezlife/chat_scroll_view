@@ -77,7 +77,11 @@ final class ChatSelectionChromeState {
 /// works; [ChatSelectionChromeState.isSelected] is the live set and drops
 /// immediately on `ChatSelectionController.clear`.
 typedef ChatSelectionChromeBuilder =
-    Widget Function(BuildContext context, ChatSelectionChromeState state, Widget child);
+    Widget Function(
+      BuildContext context,
+      ChatSelectionChromeState state,
+      Widget child,
+    );
 
 /// Bundled checkbox + row-tint chrome. Restyle via [ChatSelectionThemeData].
 ///
@@ -92,19 +96,35 @@ typedef ChatSelectionChromeBuilder =
 /// hairline of the chat background between abutting selected rows.
 class DefaultSelectionChrome extends StatelessWidget {
   /// Wraps [child] with the bundled selection visuals for [state].
-  const DefaultSelectionChrome({required this.state, required this.child, this.forceDesktop, super.key});
+  const DefaultSelectionChrome({
+    required this.state,
+    required this.child,
+    this.forceDesktop,
+    super.key,
+  });
 
   /// Explicit mobile variant (shifts message body into a start-side gutter).
-  const DefaultSelectionChrome.mobile({required this.state, required this.child, super.key}) : forceDesktop = false;
+  const DefaultSelectionChrome.mobile({
+    required this.state,
+    required this.child,
+    super.key,
+  }) : forceDesktop = false;
 
   /// Explicit desktop variant (leaves message body stationary, trailing check).
-  const DefaultSelectionChrome.desktop({required this.state, required this.child, super.key}) : forceDesktop = true;
+  const DefaultSelectionChrome.desktop({
+    required this.state,
+    required this.child,
+    super.key,
+  }) : forceDesktop = true;
 
   /// Stable default for [ChatScrollView.selectionChromeBuilder].
   ///
   /// Adapts automatically to [ChatSelectionChromeState.policy].
-  static Widget wrap(BuildContext context, ChatSelectionChromeState state, Widget child) =>
-      DefaultSelectionChrome(state: state, child: child);
+  static Widget wrap(
+    BuildContext context,
+    ChatSelectionChromeState state,
+    Widget child,
+  ) => DefaultSelectionChrome(state: state, child: child);
 
   /// Animated selection snapshot from [SelectableMessage].
   final ChatSelectionChromeState state;
@@ -118,7 +138,9 @@ class DefaultSelectionChrome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = ChatScrollTheme.resolve(context).selection ?? ChatSelectionThemeData.resolve(context);
+    final theme =
+        ChatScrollTheme.resolve(context).selection ??
+        ChatSelectionThemeData.resolve(context);
     final scheme = Theme.of(context).colorScheme;
     final m = state.modeProgress.clamp(0.0, 1.0);
     final s = state.selectProgress.clamp(0.0, 1.0);
@@ -130,21 +152,33 @@ class DefaultSelectionChrome extends StatelessWidget {
     // which disappears on light scaffolds.
     final peakTint = switch (theme.selectedTint) {
       final Color c when c.a < 1.0 - 1e-4 => c,
-      final Color c => c.withValues(alpha: ChatSelectionThemeData.defaultTintOpacity),
-      null => accent.withValues(alpha: ChatSelectionThemeData.defaultTintOpacity),
+      final Color c => c.withValues(
+        alpha: ChatSelectionThemeData.defaultTintOpacity,
+      ),
+      null => accent.withValues(
+        alpha: ChatSelectionThemeData.defaultTintOpacity,
+      ),
     };
 
     if (m == 0.0 && overlay == 0.0) return child;
 
-    final isDesktop = forceDesktop ?? state.policy.positionsSelectionCheckAtTrailingEdge;
+    final isDesktop =
+        forceDesktop ?? state.policy.positionsSelectionCheckAtTrailingEdge;
 
     if (isDesktop) {
       final layout = ChatScrollTheme.messageOf(context);
       return LayoutBuilder(
         builder: (context, constraints) {
-          final rowWidth = constraints.maxWidth.isFinite ? constraints.maxWidth : null;
-          final endSlack = constraints.maxWidth.isFinite ? layout.endSlack(constraints.maxWidth) : 0.0;
-          final checkEnd = math.max(theme.checkTrailingMargin, endSlack - theme.checkSize - theme.checkTrailingMargin);
+          final rowWidth = constraints.maxWidth.isFinite
+              ? constraints.maxWidth
+              : null;
+          final endSlack = constraints.maxWidth.isFinite
+              ? layout.endSlack(constraints.maxWidth)
+              : 0.0;
+          final checkEnd = math.max(
+            theme.checkTrailingMargin,
+            endSlack - theme.checkSize - theme.checkTrailingMargin,
+          );
 
           return Stack(
             clipBehavior: Clip.none,
@@ -184,7 +218,10 @@ class DefaultSelectionChrome extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final fits = layout.selectionGutterFits(viewportWidth: constraints.maxWidth, slotWidth: slot);
+        final fits = layout.selectionGutterFits(
+          viewportWidth: constraints.maxWidth,
+          slotWidth: slot,
+        );
         final t = fits ? m : 0.0;
         if (t == 0.0 && overlay == 0.0) return child;
 
@@ -197,7 +234,11 @@ class DefaultSelectionChrome extends StatelessWidget {
                 child: IgnorePointer(
                   child: ColoredBox(
                     key: const ValueKey<String>('chatSelectionTint'),
-                    color: Color.lerp(const Color(0x00000000), peakTint, overlay)!,
+                    color: Color.lerp(
+                      const Color(0x00000000),
+                      peakTint,
+                      overlay,
+                    )!,
                   ),
                 ),
               ),
@@ -222,7 +263,9 @@ class DefaultSelectionChrome extends StatelessWidget {
                         child: Center(
                           child: state.showsCheck
                               ? CustomPaint(
-                                  key: const ValueKey<String>('chatSelectionCheck'),
+                                  key: const ValueKey<String>(
+                                    'chatSelectionCheck',
+                                  ),
                                   size: Size.square(theme.checkSize),
                                   painter: _CheckPainter(
                                     select: s,
@@ -246,7 +289,12 @@ class DefaultSelectionChrome extends StatelessWidget {
 }
 
 class _CheckPainter extends CustomPainter {
-  _CheckPainter({required this.select, required this.accent, required this.ring, required this.checkmark});
+  _CheckPainter({
+    required this.select,
+    required this.accent,
+    required this.ring,
+    required this.checkmark,
+  });
 
   final double select;
   final Color accent;
@@ -272,7 +320,11 @@ class _CheckPainter extends CustomPainter {
     if (select <= 0.0) return;
 
     // Filled disc.
-    canvas.drawCircle(center, radius, Paint()..color = accent.withValues(alpha: accent.a * select));
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()..color = accent.withValues(alpha: accent.a * select),
+    );
 
     // Checkmark — pops in with a slight overshoot.
     final scale = Curves.easeOutBack.transform(select);
@@ -299,5 +351,8 @@ class _CheckPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_CheckPainter old) =>
-      old.select != select || old.accent != accent || old.ring != ring || old.checkmark != checkmark;
+      old.select != select ||
+      old.accent != accent ||
+      old.ring != ring ||
+      old.checkmark != checkmark;
 }

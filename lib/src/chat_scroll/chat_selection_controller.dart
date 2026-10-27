@@ -41,7 +41,8 @@ export 'package:chat_scroll_view/src/chat_widgets/chat_span_feedback.dart';
 typedef ChatSpanFeedbackCallback = void Function(ChatSpanFeedback? feedback);
 
 /// Signature for handling a span feedback **begin** (pointer down) request.
-typedef ChatSpanFeedbackTriggerCallback = void Function(int messageId, Path contourPath, Offset touchOrigin);
+typedef ChatSpanFeedbackTriggerCallback =
+    void Function(int messageId, Path contourPath, Offset touchOrigin);
 
 /// Signature for span feedback **release** (pointer up / cancel fade).
 typedef ChatSpanFeedbackReleaseCallback = void Function();
@@ -169,10 +170,16 @@ class ChatSelectionController implements Listenable {
     ChatMonotonicClock? monotonicClock,
   }) : monotonicClock = monotonicClock ?? _stopwatchClock(),
        selectionPolicy = policy ?? ChatSelectionPolicy.forPlatform(),
-       _text = ChatTextSelection(policy: policy ?? ChatSelectionPolicy.forPlatform(), spoilers: spoilers) {
+       _text = ChatTextSelection(
+         policy: policy ?? ChatSelectionPolicy.forPlatform(),
+         spoilers: spoilers,
+       ) {
     _text.markdownSelection.addListener(_onTextRangeChanged);
     if (spoilerClock != null) {
-      _spoilerDust = ChatSpoilerDust(spoilers: _text.spoilers, clock: spoilerClock);
+      _spoilerDust = ChatSpoilerDust(
+        spoilers: _text.spoilers,
+        clock: spoilerClock,
+      );
     }
   }
 
@@ -261,11 +268,15 @@ class ChatSelectionController implements Listenable {
 
   /// Whether an uncommitted drag-selection preview is currently active.
   bool get hasDragSelection =>
-      _dragSelectedIds != null && _dragSelectedIds!.isNotEmpty && _dragSelectAction != ChatDragSelectAction.none;
+      _dragSelectedIds != null &&
+      _dragSelectedIds!.isNotEmpty &&
+      _dragSelectAction != ChatDragSelectAction.none;
 
   /// Uncommitted drag-selected message IDs (unmodifiable view), or null when
   /// no drag selection is live.
-  Set<int>? get dragSelectedIds => _dragSelectedIds == null ? null : UnmodifiableSetView<int>(_dragSelectedIds!);
+  Set<int>? get dragSelectedIds => _dragSelectedIds == null
+      ? null
+      : UnmodifiableSetView<int>(_dragSelectedIds!);
 
   /// Whether selection mode is active (either through committed message
   /// selection or live drag-selection preview).
@@ -307,7 +318,10 @@ class ChatSelectionController implements Listenable {
   ///
   /// Used on desktop/web during continuous pointer drag selection to preview
   /// selecting or deselecting candidate messages before commit.
-  void updateDragSelection(Set<int> ids, {ChatDragSelectAction action = ChatDragSelectAction.selecting}) {
+  void updateDragSelection(
+    Set<int> ids, {
+    ChatDragSelectAction action = ChatDragSelectAction.selecting,
+  }) {
     if (_disposed) return;
     final filtered = ids.where(isSelectable).toSet();
     if (filtered.isEmpty) {
@@ -327,7 +341,9 @@ class ChatSelectionController implements Listenable {
   /// Restores visual focus to text selection (if active) or base message
   /// selection when the mouse pointer returns within drag slop.
   void clearDragSelection() {
-    if (_disposed || (_dragSelectedIds == null && _dragSelectAction == ChatDragSelectAction.none)) {
+    if (_disposed ||
+        (_dragSelectedIds == null &&
+            _dragSelectAction == ChatDragSelectAction.none)) {
       return;
     }
     _dragSelectedIds = null;
@@ -461,7 +477,9 @@ class ChatSelectionController implements Listenable {
   /// exits selection mode. Ids that are not selectable are omitted.
   void replaceSelectedIds(Set<int> ids) {
     if (_disposed) return;
-    final next = _selectionAllowed == null ? ids : ids.where(isSelectable).toSet();
+    final next = _selectionAllowed == null
+        ? ids
+        : ids.where(isSelectable).toSet();
     if (next.length == _selectedIds.length && _selectedIds.containsAll(next)) {
       return;
     }
@@ -530,8 +548,12 @@ class ChatSelectionController implements Listenable {
       _text.putBody(messageId, model, order: order, token: token);
 
   /// Registers [model] for [messageId]. Convenience alias for [putBody].
-  Object? registerBody(int messageId, Markdown model, {int? order, Object? token}) =>
-      putBody(messageId, model, order: order, token: token);
+  Object? registerBody(
+    int messageId,
+    Markdown model, {
+    int? order,
+    Object? token,
+  }) => putBody(messageId, model, order: order, token: token);
 
   /// Registers a body of [messageId] that has activatable parts to arbitrate
   /// taps for (a sticker, later a media body), the way [putBody] registers a
@@ -544,10 +566,12 @@ class ChatSelectionController implements Listenable {
   /// layout of an emoji-only message) registers [putBody] as well.
   /// Returns the token to pass to [removeNonTextBody]; several mounts may
   /// share one [messageId] and the last answers. Null after [dispose].
-  Object? putNonTextBody(int messageId, ChatNonTextBody body) => _text.putNonTextBody(messageId, body);
+  Object? putNonTextBody(int messageId, ChatNonTextBody body) =>
+      _text.putNonTextBody(messageId, body);
 
   /// Removes the body that [putNonTextBody] returned [token] for.
-  void removeNonTextBody(int messageId, {required Object? token}) => _text.removeNonTextBody(messageId, token: token);
+  void removeNonTextBody(int messageId, {required Object? token}) =>
+      _text.removeNonTextBody(messageId, token: token);
 
   // --- Stickers -------------------------------------------------------------
 
@@ -555,11 +579,13 @@ class ChatSelectionController implements Listenable {
   /// null when that message shows no sticker: not mounted, not laid out, or
   /// its host marked the row inactive. Read it when it is needed: a row
   /// scrolls without rebuilding.
-  Rect? stickerRectOf(int messageId) => _stickerBodyOf(messageId)?.stickerGlobalRect;
+  Rect? stickerRectOf(int messageId) =>
+      _stickerBodyOf(messageId)?.stickerGlobalRect;
 
   /// Plays the sticker of [messageId] again and says whether it started.
   /// False for a message without a shown sticker and while its pass runs.
-  bool replaySticker(int messageId) => _stickerBodyOf(messageId)?.replay() ?? false;
+  bool replaySticker(int messageId) =>
+      _stickerBodyOf(messageId)?.replay() ?? false;
 
   /// The entry point for an interaction that came from the peer: restarts the
   /// sticker of [messageId] and tells the host where to draw the effect.
@@ -578,20 +604,23 @@ class ChatSelectionController implements Listenable {
     return ChatRemoteStickerPlay(stickerRect: rect, restarted: body.replay());
   }
 
-  ChatStickerBody? _stickerBodyOf(int messageId) => switch (_text.nonTextBodyOf(messageId)) {
-    final ChatStickerBody body => body,
-    _ => null,
-  };
+  ChatStickerBody? _stickerBodyOf(int messageId) =>
+      switch (_text.nonTextBodyOf(messageId)) {
+        final ChatStickerBody body => body,
+        _ => null,
+      };
 
   /// Returns the mounted [MarkdownSelectionSurface] for [messageId], if any.
-  MarkdownSelectionSurface? surfaceFor(int messageId) => _text.surfaceFor(messageId);
+  MarkdownSelectionSurface? surfaceFor(int messageId) =>
+      _text.surfaceFor(messageId);
 
   /// Whether [globalOffset] hits the selectable body text of [messageId].
   ///
   /// Returns `false` when disposed, no body is registered for [messageId],
   /// or hit-testing against registered selectable document surfaces misses
   /// that message’s text.
-  bool containsGlobal(int messageId, Offset globalOffset) => _text.containsGlobal(messageId, globalOffset);
+  bool containsGlobal(int messageId, Offset globalOffset) =>
+      _text.containsGlobal(messageId, globalOffset);
 
   /// Whether [messageId] is the live non-collapsed **text selection** subject.
   bool hasTextSelectionOnMessage(int messageId) {
@@ -665,7 +694,8 @@ class ChatSelectionController implements Listenable {
   /// Pre-arm failures leave prior text-selection state unchanged.
   bool enterTextSelection(int messageId, {Offset? globalOffset}) {
     if (_disposed) return false;
-    if (!selectionPolicy.allowsTextEntryWithoutMessageSelection && !isSelected(messageId)) {
+    if (!selectionPolicy.allowsTextEntryWithoutMessageSelection &&
+        !isSelected(messageId)) {
       return false;
     }
     _hasEstablishedTextRange = false;
@@ -700,10 +730,12 @@ class ChatSelectionController implements Listenable {
   /// (modes are exclusive once message multi-select is settled).
   bool armTextSelection(int messageId) {
     if (_disposed) return false;
-    if (selectionPolicy.allowsTextEntryWithoutMessageSelection && isSelectionMode) {
+    if (selectionPolicy.allowsTextEntryWithoutMessageSelection &&
+        isSelectionMode) {
       return false;
     }
-    if (!selectionPolicy.allowsTextEntryWithoutMessageSelection && !isSelected(messageId)) {
+    if (!selectionPolicy.allowsTextEntryWithoutMessageSelection &&
+        !isSelected(messageId)) {
       return false;
     }
     if (_text.isActive && _text.subjectId == messageId) {
@@ -851,7 +883,11 @@ class ChatSelectionController implements Listenable {
   /// menu request** so the sheet scrim leaves exactly that outline undimmed.
   /// Hit-testing stays on the box rect. Null means the surface has no
   /// reported outline.
-  void reportMessageSurfaceBounds(int messageId, RenderBox? box, {ShapeBorder? shape}) {
+  void reportMessageSurfaceBounds(
+    int messageId,
+    RenderBox? box, {
+    ShapeBorder? shape,
+  }) {
     if (_disposed) return;
     _text.reportMessageSurfaceBounds(messageId, box, shape: shape);
   }
@@ -898,7 +934,9 @@ class ChatSelectionController implements Listenable {
       origin: ChatCopyOrigin.textSelection,
       messageId: currentSubject,
       // Only a host writer reads the structure.
-      content: copyWriter == null ? null : _text.markdownSelection.selectedContent(),
+      content: copyWriter == null
+          ? null
+          : _text.markdownSelection.selectedContent(),
     );
     _isCopying = true;
     final bool written;
@@ -907,11 +945,22 @@ class ChatSelectionController implements Listenable {
     } finally {
       _isCopying = false;
     }
-    if (!written || _disposed || !_text.isActive || _text.subjectId != currentSubject) {
+    if (!written ||
+        _disposed ||
+        !_text.isActive ||
+        _text.subjectId != currentSubject) {
       return false;
     }
-    selectionPolicy.applyCopySuccess(clearTextSelection: clearTextSelection, clearMessageSelection: clear);
-    _notifyInteraction(ChatSelectionInteraction.copied(text: text, origin: ChatCopyOrigin.textSelection));
+    selectionPolicy.applyCopySuccess(
+      clearTextSelection: clearTextSelection,
+      clearMessageSelection: clear,
+    );
+    _notifyInteraction(
+      ChatSelectionInteraction.copied(
+        text: text,
+        origin: ChatCopyOrigin.textSelection,
+      ),
+    );
     return true;
   }
 
@@ -946,13 +995,18 @@ class ChatSelectionController implements Listenable {
   }
 
   /// Removes a listener registered with [addInteractionListener].
-  void removeInteractionListener(ValueChanged<ChatSelectionInteraction> listener) {
+  void removeInteractionListener(
+    ValueChanged<ChatSelectionInteraction> listener,
+  ) {
     _interactionListeners.remove(listener);
   }
 
   void _notifyInteraction(ChatSelectionInteraction interaction) {
     onInteraction?.call(interaction);
-    for (final cb in List<ValueChanged<ChatSelectionInteraction>>.of(_interactionListeners, growable: false)) {
+    for (final cb in List<ValueChanged<ChatSelectionInteraction>>.of(
+      _interactionListeners,
+      growable: false,
+    )) {
       cb(interaction);
     }
   }
@@ -1002,7 +1056,10 @@ class ChatSelectionController implements Listenable {
   ///
   /// Handled inline hits do not dismiss active text selection, do not toggle
   /// message selection membership, and do not fire idle message taps.
-  bool handleInlineHit(ChatInlineHit hit, {ChatInlineGesture gesture = ChatInlineGesture.tap}) {
+  bool handleInlineHit(
+    ChatInlineHit hit, {
+    ChatInlineGesture gesture = ChatInlineGesture.tap,
+  }) {
     if (_disposed) return false;
     // One gate for every [ChatInlineHit] variant — do not special-case link
     // vs code/COPY chrome (that flip-flops idle vs selected behavior).
@@ -1011,7 +1068,11 @@ class ChatSelectionController implements Listenable {
     }
     // A tapped code snippet copies itself when the facade owns the clipboard;
     // every other hit is one interaction for the host.
-    if (hit case ChatInlineHit$Code(:final messageId, :final code, :final language) when copyCodeOnClick) {
+    if (hit case ChatInlineHit$Code(
+      :final messageId,
+      :final code,
+      :final language,
+    ) when copyCodeOnClick) {
       unawaited(_copyCode(messageId, code, language, gesture));
       return true;
     }
@@ -1028,30 +1089,50 @@ class ChatSelectionController implements Listenable {
   // not act on is part of the text, so its tap goes on to the message. A
   // sticker is not gated like an embed: it is meant to be tapped, and the body
   // replays the animation on this notification.
-  ChatSelectionInteraction? _activationOf(ChatInlineHit hit, ChatInlineGesture gesture) => switch (hit) {
-    ChatInlineHit$Link(:final messageId, :final title, :final url) => ChatSelectionInteraction.linkActivated(
-      messageId: messageId,
-      title: title,
-      url: url,
-      gesture: gesture,
-    ),
+  ChatSelectionInteraction? _activationOf(
+    ChatInlineHit hit,
+    ChatInlineGesture gesture,
+  ) => switch (hit) {
+    ChatInlineHit$Link(:final messageId, :final title, :final url) =>
+      ChatSelectionInteraction.linkActivated(
+        messageId: messageId,
+        title: title,
+        url: url,
+        gesture: gesture,
+      ),
     ChatInlineHit$Mention$Resolved(:final messageId, :final id, :final name) =>
-      ChatSelectionInteraction.resolvedMentionActivated(messageId: messageId, id: id, name: name, gesture: gesture),
-    ChatInlineHit$Mention$Username(:final messageId, :final name) => ChatSelectionInteraction.usernameMentionActivated(
-      messageId: messageId,
-      name: name,
-      gesture: gesture,
-    ),
-    ChatInlineHit$Hashtag(:final messageId, :final tag) => ChatSelectionInteraction.hashtagActivated(
-      messageId: messageId,
-      tag: tag,
-      gesture: gesture,
-    ),
+      ChatSelectionInteraction.resolvedMentionActivated(
+        messageId: messageId,
+        id: id,
+        name: name,
+        gesture: gesture,
+      ),
+    ChatInlineHit$Mention$Username(:final messageId, :final name) =>
+      ChatSelectionInteraction.usernameMentionActivated(
+        messageId: messageId,
+        name: name,
+        gesture: gesture,
+      ),
+    ChatInlineHit$Hashtag(:final messageId, :final tag) =>
+      ChatSelectionInteraction.hashtagActivated(
+        messageId: messageId,
+        tag: tag,
+        gesture: gesture,
+      ),
     ChatInlineHit$Embed(:final messageId, :final target, :final alt) =>
       handlesEmbedHits
-          ? ChatSelectionInteraction.embedActivated(messageId: messageId, target: target, alt: alt, gesture: gesture)
+          ? ChatSelectionInteraction.embedActivated(
+              messageId: messageId,
+              target: target,
+              alt: alt,
+              gesture: gesture,
+            )
           : null,
-    ChatInlineHit$Sticker(:final messageId, :final content, :final stickerRect) =>
+    ChatInlineHit$Sticker(
+      :final messageId,
+      :final content,
+      :final stickerRect,
+    ) =>
       ChatSelectionInteraction.stickerActivated(
         messageId: messageId,
         content: content,
@@ -1059,17 +1140,28 @@ class ChatSelectionController implements Listenable {
         stickerRect: stickerRect,
         tapTime: monotonicClock(),
       ),
-    ChatInlineHit$Code(:final messageId, :final code) => ChatSelectionInteraction.codeActivated(
-      messageId: messageId,
-      code: code,
-      gesture: gesture,
-    ),
+    ChatInlineHit$Code(:final messageId, :final code) =>
+      ChatSelectionInteraction.codeActivated(
+        messageId: messageId,
+        code: code,
+        gesture: gesture,
+      ),
   };
 
   // A code tap's copy, notified once written.
-  Future<void> _copyCode(int messageId, String code, String? language, ChatInlineGesture gesture) async {
+  Future<void> _copyCode(
+    int messageId,
+    String code,
+    String? language,
+    ChatInlineGesture gesture,
+  ) async {
     final written = await _write(
-      ChatTextCopy(plainText: code, origin: ChatCopyOrigin.codeTap, messageId: messageId, codeLanguage: language),
+      ChatTextCopy(
+        plainText: code,
+        origin: ChatCopyOrigin.codeTap,
+        messageId: messageId,
+        codeLanguage: language,
+      ),
     );
     if (!written || _disposed) return;
     _notifyInteraction(
@@ -1089,10 +1181,13 @@ class ChatSelectionController implements Listenable {
   /// under [ChatSelectionPolicy.scopesTextRangeSuppressionToSubject] — or
   /// under mobile **message selection** mode.
   bool _suppressesInlineActivation(int messageId) {
-    if (_hasLiveTextRange && (!selectionPolicy.scopesTextRangeSuppressionToSubject || _text.subjectId == messageId)) {
+    if (_hasLiveTextRange &&
+        (!selectionPolicy.scopesTextRangeSuppressionToSubject ||
+            _text.subjectId == messageId)) {
       return true;
     }
-    return selectionPolicy.suppressesLinkTapInMessageSelection && isSelectionMode;
+    return selectionPolicy.suppressesLinkTapInMessageSelection &&
+        isSelectionMode;
   }
 
   /// True when the facade owns a copyable character-range (not arm-only).
@@ -1126,15 +1221,22 @@ class ChatSelectionController implements Listenable {
         // Same action as tap, tagged long-press. Drop press ink immediately —
         // the gesture already completed (unlike link long-press, which keeps
         // ink until pointer up).
-        final handled = handleInlineHit(hit, gesture: ChatInlineGesture.longPress);
+        final handled = handleInlineHit(
+          hit,
+          gesture: ChatInlineGesture.longPress,
+        );
         if (handled) abortSpanFeedback();
         return handled;
-      case ChatInlineHit$Link() || ChatInlineHit$Mention() || ChatInlineHit$Hashtag() || ChatInlineHit$Embed():
+      case ChatInlineHit$Link() ||
+          ChatInlineHit$Mention() ||
+          ChatInlineHit$Hashtag() ||
+          ChatInlineHit$Embed():
         final interaction = _activationOf(hit, ChatInlineGesture.longPress);
         if (interaction == null) return false;
         // Read before the notification: a handler may add listeners, and the
         // press is handled only if someone was listening for it.
-        final hasHandlers = onInteraction != null || _interactionListeners.isNotEmpty;
+        final hasHandlers =
+            onInteraction != null || _interactionListeners.isNotEmpty;
         _notifyInteraction(interaction);
         return hasHandlers;
     }
@@ -1165,7 +1267,10 @@ class ChatSelectionController implements Listenable {
   }
 
   void _notifySpanFeedback(ChatSpanFeedback? feedback) {
-    for (final cb in List<ChatSpanFeedbackCallback>.of(_spanFeedbackListeners, growable: false)) {
+    for (final cb in List<ChatSpanFeedbackCallback>.of(
+      _spanFeedbackListeners,
+      growable: false,
+    )) {
       cb(feedback);
     }
   }
@@ -1174,35 +1279,53 @@ class ChatSelectionController implements Listenable {
   ///
   /// Dedup-on-add; snapshot dispatch. Receives `(messageId, contourPath, touchOrigin)`.
   /// Silent after [dispose].
-  void addSpanFeedbackTriggerListener(ChatSpanFeedbackTriggerCallback listener) {
+  void addSpanFeedbackTriggerListener(
+    ChatSpanFeedbackTriggerCallback listener,
+  ) {
     if (_disposed || _spanFeedbackTriggerListeners.contains(listener)) return;
     _spanFeedbackTriggerListeners.add(listener);
   }
 
   /// Removes a listener registered with [addSpanFeedbackTriggerListener].
-  void removeSpanFeedbackTriggerListener(ChatSpanFeedbackTriggerCallback listener) {
+  void removeSpanFeedbackTriggerListener(
+    ChatSpanFeedbackTriggerCallback listener,
+  ) {
     _spanFeedbackTriggerListeners.remove(listener);
   }
 
-  void _notifySpanFeedbackTrigger(int messageId, Path contourPath, Offset touchOrigin) {
-    for (final cb in List<ChatSpanFeedbackTriggerCallback>.of(_spanFeedbackTriggerListeners, growable: false)) {
+  void _notifySpanFeedbackTrigger(
+    int messageId,
+    Path contourPath,
+    Offset touchOrigin,
+  ) {
+    for (final cb in List<ChatSpanFeedbackTriggerCallback>.of(
+      _spanFeedbackTriggerListeners,
+      growable: false,
+    )) {
       cb(messageId, contourPath, touchOrigin);
     }
   }
 
   /// Registers [listener] for span feedback **release** (fade) requests.
-  void addSpanFeedbackReleaseListener(ChatSpanFeedbackReleaseCallback listener) {
+  void addSpanFeedbackReleaseListener(
+    ChatSpanFeedbackReleaseCallback listener,
+  ) {
     if (_disposed || _spanFeedbackReleaseListeners.contains(listener)) return;
     _spanFeedbackReleaseListeners.add(listener);
   }
 
   /// Removes a listener registered with [addSpanFeedbackReleaseListener].
-  void removeSpanFeedbackReleaseListener(ChatSpanFeedbackReleaseCallback listener) {
+  void removeSpanFeedbackReleaseListener(
+    ChatSpanFeedbackReleaseCallback listener,
+  ) {
     _spanFeedbackReleaseListeners.remove(listener);
   }
 
   void _notifySpanFeedbackRelease() {
-    for (final cb in List<ChatSpanFeedbackReleaseCallback>.of(_spanFeedbackReleaseListeners, growable: false)) {
+    for (final cb in List<ChatSpanFeedbackReleaseCallback>.of(
+      _spanFeedbackReleaseListeners,
+      growable: false,
+    )) {
       cb();
     }
   }
@@ -1219,7 +1342,10 @@ class ChatSelectionController implements Listenable {
   }
 
   void _notifySpanFeedbackAbort() {
-    for (final cb in List<ChatSpanFeedbackAbortCallback>.of(_spanFeedbackAbortListeners, growable: false)) {
+    for (final cb in List<ChatSpanFeedbackAbortCallback>.of(
+      _spanFeedbackAbortListeners,
+      growable: false,
+    )) {
       cb();
     }
   }
@@ -1240,14 +1366,25 @@ class ChatSelectionController implements Listenable {
   /// Bodies listen via [addSpanFeedbackTriggerListener] and own the
   /// [AnimationController]s. Silent after [dispose], or when
   /// [allowsInlineTapHighlight] is false.
-  void beginSpanFeedback({required int messageId, required Path contourPath, required Offset touchOrigin}) {
+  void beginSpanFeedback({
+    required int messageId,
+    required Path contourPath,
+    required Offset touchOrigin,
+  }) {
     if (_disposed || !allowsInlineTapHighlight) return;
     _notifySpanFeedbackTrigger(messageId, contourPath, touchOrigin);
   }
 
   /// Alias for [beginSpanFeedback] (press-down arming).
-  void triggerSpanFeedback({required int messageId, required Path contourPath, required Offset touchOrigin}) =>
-      beginSpanFeedback(messageId: messageId, contourPath: contourPath, touchOrigin: touchOrigin);
+  void triggerSpanFeedback({
+    required int messageId,
+    required Path contourPath,
+    required Offset touchOrigin,
+  }) => beginSpanFeedback(
+    messageId: messageId,
+    contourPath: contourPath,
+    touchOrigin: touchOrigin,
+  );
 
   /// Releases active span feedback into the fade-out phase (pointer up).
   ///
@@ -1342,10 +1479,14 @@ class ChatSelectionController implements Listenable {
   /// registration refuses the subject.
   bool _adoptTextSubject(int messageId) {
     if (_disposed) return false;
-    if (!selectionPolicy.allowsTextEntryWithoutMessageSelection && !isSelected(messageId)) {
+    if (!selectionPolicy.allowsTextEntryWithoutMessageSelection &&
+        !isSelected(messageId)) {
       return false;
     }
-    final retargeting = _text.isActive && _text.subjectId != null && _text.subjectId != messageId;
+    final retargeting =
+        _text.isActive &&
+        _text.subjectId != null &&
+        _text.subjectId != messageId;
     if (!_text.adopt(messageId)) return false;
     if (retargeting) {
       // Prior subject left toolbarWanted set; the new scope must not restore
@@ -1392,7 +1533,8 @@ class ChatSelectionController implements Listenable {
     }
 
     final phase = SchedulerBinding.instance.schedulerPhase;
-    if (phase == SchedulerPhase.persistentCallbacks || phase == SchedulerPhase.midFrameMicrotasks) {
+    if (phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks) {
       if (_capHitScheduled) return;
       _capHitScheduled = true;
       SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -1446,7 +1588,8 @@ class ChatSelectionController implements Listenable {
   /// Assigning a new function (or `null`) re-filters [selectedIds] and
   /// notifies [addSelectionAllowedListener]. Prefer a new closure (or
   /// [reapplySelectionAllowed]) when closed-over host state changes.
-  ChatSelectionAllowed Function(int messageId)? get selectionAllowed => _selectionAllowed;
+  ChatSelectionAllowed Function(int messageId)? get selectionAllowed =>
+      _selectionAllowed;
   set selectionAllowed(ChatSelectionAllowed Function(int messageId)? value) {
     if (identical(_selectionAllowed, value)) return;
     _selectionAllowed = value;
@@ -1461,7 +1604,8 @@ class ChatSelectionController implements Listenable {
       _selectionAllowed?.call(messageId) ?? ChatSelectionAllowed.full;
 
   /// Whether [messageId] may join the selected set.
-  bool isSelectable(int messageId) => isSelectionAllowed(messageId).isSelectable;
+  bool isSelectable(int messageId) =>
+      isSelectionAllowed(messageId).isSelectable;
 
   /// Re-runs [selectionAllowed] against [selectedIds] and notifies
   /// [addSelectionAllowedListener] without requiring a new function
@@ -1493,7 +1637,8 @@ class ChatSelectionController implements Listenable {
   }
 
   /// Removes a listener registered with [addSelectionAllowedListener].
-  void removeSelectionAllowedListener(VoidCallback listener) => _selectionAllowedListeners.remove(listener);
+  void removeSelectionAllowedListener(VoidCallback listener) =>
+      _selectionAllowedListeners.remove(listener);
 
   void _notifySelectionAllowed() {
     for (final cb in _selectionAllowedListeners.toList(growable: false)) {
@@ -1530,7 +1675,8 @@ class ChatSelectionController implements Listenable {
     // chrome) call setState — illegal during persistentCallbacks. Same
     // trampoline as ChatScrollController.isAtTail.
     final phase = SchedulerBinding.instance.schedulerPhase;
-    if (phase == SchedulerPhase.persistentCallbacks || phase == SchedulerPhase.midFrameMicrotasks) {
+    if (phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks) {
       if (_notifyScheduled) return;
       _notifyScheduled = true;
       SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -1603,7 +1749,10 @@ typedef ChatMonotonicClock = Duration Function();
 @immutable
 final class ChatRemoteStickerPlay {
   /// Creates the result.
-  const ChatRemoteStickerPlay({required this.stickerRect, required this.restarted});
+  const ChatRemoteStickerPlay({
+    required this.stickerRect,
+    required this.restarted,
+  });
 
   /// Where the sticker is drawn now, in global coordinates.
   final Rect stickerRect;
@@ -1613,11 +1762,14 @@ final class ChatRemoteStickerPlay {
 
   @override
   bool operator ==(Object other) =>
-      other is ChatRemoteStickerPlay && other.stickerRect == stickerRect && other.restarted == restarted;
+      other is ChatRemoteStickerPlay &&
+      other.stickerRect == stickerRect &&
+      other.restarted == restarted;
 
   @override
   int get hashCode => Object.hash(stickerRect, restarted);
 
   @override
-  String toString() => 'ChatRemoteStickerPlay(stickerRect: $stickerRect, restarted: $restarted)';
+  String toString() =>
+      'ChatRemoteStickerPlay(stickerRect: $stickerRect, restarted: $restarted)';
 }

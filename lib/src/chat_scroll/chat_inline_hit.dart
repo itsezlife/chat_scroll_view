@@ -147,7 +147,8 @@ final class ChatInlineHit$Link extends ChatInlineHit {
           other.touchOrigin == touchOrigin;
 
   @override
-  int get hashCode => Object.hash(messageId, title, url, contourPath, touchOrigin);
+  int get hashCode =>
+      Object.hash(messageId, title, url, contourPath, touchOrigin);
 
   @override
   String toString() =>
@@ -198,7 +199,8 @@ final class ChatInlineHit$Code extends ChatInlineHit {
           other.touchOrigin == touchOrigin;
 
   @override
-  int get hashCode => Object.hash(messageId, code, language, contourPath, touchOrigin);
+  int get hashCode =>
+      Object.hash(messageId, code, language, contourPath, touchOrigin);
 
   @override
   String toString() =>
@@ -250,7 +252,8 @@ final class ChatInlineHit$Embed extends ChatInlineHit {
           other.touchOrigin == touchOrigin;
 
   @override
-  int get hashCode => Object.hash(messageId, target, alt, contourPath, touchOrigin);
+  int get hashCode =>
+      Object.hash(messageId, target, alt, contourPath, touchOrigin);
 
   @override
   String toString() =>
@@ -268,7 +271,12 @@ final class ChatInlineHit$Embed extends ChatInlineHit {
 @immutable
 sealed class ChatInlineHit$Mention extends ChatInlineHit {
   /// Base constructor for the mention variants.
-  const ChatInlineHit$Mention({required this.messageId, required this.name, this.contourPath, this.touchOrigin});
+  const ChatInlineHit$Mention({
+    required this.messageId,
+    required this.name,
+    this.contourPath,
+    this.touchOrigin,
+  });
 
   @override
   final int messageId;
@@ -310,7 +318,8 @@ final class ChatInlineHit$Mention$Resolved extends ChatInlineHit$Mention {
           other.touchOrigin == touchOrigin;
 
   @override
-  int get hashCode => Object.hash(messageId, id, name, contourPath, touchOrigin);
+  int get hashCode =>
+      Object.hash(messageId, id, name, contourPath, touchOrigin);
 
   @override
   String toString() =>
@@ -354,7 +363,12 @@ final class ChatInlineHit$Mention$Username extends ChatInlineHit$Mention {
 @immutable
 final class ChatInlineHit$Hashtag extends ChatInlineHit {
   /// Creates a hashtag hit descriptor.
-  const ChatInlineHit$Hashtag({required this.messageId, required this.tag, this.contourPath, this.touchOrigin});
+  const ChatInlineHit$Hashtag({
+    required this.messageId,
+    required this.tag,
+    this.contourPath,
+    this.touchOrigin,
+  });
 
   @override
   final int messageId;
@@ -394,7 +408,11 @@ final class ChatInlineHit$Hashtag extends ChatInlineHit {
 @immutable
 final class ChatInlineHit$Sticker extends ChatInlineHit {
   /// Creates a sticker hit descriptor.
-  const ChatInlineHit$Sticker({required this.messageId, required this.content, required this.stickerRect});
+  const ChatInlineHit$Sticker({
+    required this.messageId,
+    required this.content,
+    required this.stickerRect,
+  });
 
   @override
   final int messageId;

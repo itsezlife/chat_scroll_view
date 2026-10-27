@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('Send streams a reply into a row, then settles it', (tester) async {
+  testWidgets('Send streams a reply into a row, then settles it', (
+    tester,
+  ) async {
     tester.view
       ..physicalSize = const Size(400, 800)
       ..devicePixelRatio = 1;

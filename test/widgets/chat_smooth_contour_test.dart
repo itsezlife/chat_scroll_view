@@ -8,32 +8,74 @@ void main() {
     test('computes 2D cross product of orthogonal tangent vectors', () {
       // Clockwise 90-degree turns (convex outer corners in screen coordinates: Y-down)
       // Right to Down
-      expect(ChatSmoothContour.crossProduct(const Offset(1, 0), const Offset(0, 1)), 1);
+      expect(
+        ChatSmoothContour.crossProduct(const Offset(1, 0), const Offset(0, 1)),
+        1,
+      );
       // Down to Left
-      expect(ChatSmoothContour.crossProduct(const Offset(0, 1), const Offset(-1, 0)), 1);
+      expect(
+        ChatSmoothContour.crossProduct(const Offset(0, 1), const Offset(-1, 0)),
+        1,
+      );
       // Left to Up
-      expect(ChatSmoothContour.crossProduct(const Offset(-1, 0), const Offset(0, -1)), 1);
+      expect(
+        ChatSmoothContour.crossProduct(
+          const Offset(-1, 0),
+          const Offset(0, -1),
+        ),
+        1,
+      );
       // Up to Right
-      expect(ChatSmoothContour.crossProduct(const Offset(0, -1), const Offset(1, 0)), 1);
+      expect(
+        ChatSmoothContour.crossProduct(const Offset(0, -1), const Offset(1, 0)),
+        1,
+      );
 
       // Counter-clockwise 90-degree turns (reflex inner corners)
       // Down to Right
-      expect(ChatSmoothContour.crossProduct(const Offset(0, 1), const Offset(1, 0)), -1);
+      expect(
+        ChatSmoothContour.crossProduct(const Offset(0, 1), const Offset(1, 0)),
+        -1,
+      );
       // Right to Up
-      expect(ChatSmoothContour.crossProduct(const Offset(1, 0), const Offset(0, -1)), -1);
+      expect(
+        ChatSmoothContour.crossProduct(const Offset(1, 0), const Offset(0, -1)),
+        -1,
+      );
 
       // Collinear vectors
-      expect(ChatSmoothContour.crossProduct(const Offset(1, 0), const Offset(1, 0)), 0);
-    });
-
-    test('cornerOrientation correctly classifies convex, reflex, and collinear', () {
-      expect(ChatSmoothContour.cornerOrientation(const Offset(1, 0), const Offset(0, 1)), ChatCornerOrientation.convex);
-      expect(ChatSmoothContour.cornerOrientation(const Offset(0, 1), const Offset(1, 0)), ChatCornerOrientation.reflex);
       expect(
-        ChatSmoothContour.cornerOrientation(const Offset(1, 0), const Offset(2, 0)),
-        ChatCornerOrientation.collinear,
+        ChatSmoothContour.crossProduct(const Offset(1, 0), const Offset(1, 0)),
+        0,
       );
     });
+
+    test(
+      'cornerOrientation correctly classifies convex, reflex, and collinear',
+      () {
+        expect(
+          ChatSmoothContour.cornerOrientation(
+            const Offset(1, 0),
+            const Offset(0, 1),
+          ),
+          ChatCornerOrientation.convex,
+        );
+        expect(
+          ChatSmoothContour.cornerOrientation(
+            const Offset(0, 1),
+            const Offset(1, 0),
+          ),
+          ChatCornerOrientation.reflex,
+        );
+        expect(
+          ChatSmoothContour.cornerOrientation(
+            const Offset(1, 0),
+            const Offset(2, 0),
+          ),
+          ChatCornerOrientation.collinear,
+        );
+      },
+    );
   });
 
   group('ChatSmoothContour — Empty & Degenerate Inputs', () {
@@ -110,40 +152,43 @@ void main() {
   });
 
   group('ChatSmoothContour — Multi-Line Wrapped Text', () {
-    test('handles 2-line wrapped text (first line indented, second line full width)', () {
-      // Line 0: [60, 200], Y in [10, 30]
-      // Line 1: [10, 180], Y in [30, 50]
-      const line0 = Rect.fromLTRB(60, 10, 200, 30);
-      const line1 = Rect.fromLTRB(10, 30, 180, 50);
+    test(
+      'handles 2-line wrapped text (first line indented, second line full width)',
+      () {
+        // Line 0: [60, 200], Y in [10, 30]
+        // Line 1: [10, 180], Y in [30, 50]
+        const line0 = Rect.fromLTRB(60, 10, 200, 30);
+        const line1 = Rect.fromLTRB(10, 30, 180, 50);
 
-      final path = ChatSmoothContour.buildPath([line0, line1], radius: 4);
+        final path = ChatSmoothContour.buildPath([line0, line1], radius: 4);
 
-      expect(path.getBounds(), const Rect.fromLTRB(10, 10, 200, 50));
+        expect(path.getBounds(), const Rect.fromLTRB(10, 10, 200, 50));
 
-      final metrics = path.computeMetrics().toList();
-      expect(metrics.length, 1);
-      expect(metrics.first.isClosed, isTrue);
+        final metrics = path.computeMetrics().toList();
+        expect(metrics.length, 1);
+        expect(metrics.first.isClosed, isTrue);
 
-      // Inside line 0
-      expect(path.contains(const Offset(100, 20)), isTrue);
-      // Inside line 1
-      expect(path.contains(const Offset(50, 40)), isTrue);
+        // Inside line 0
+        expect(path.contains(const Offset(100, 20)), isTrue);
+        // Inside line 1
+        expect(path.contains(const Offset(50, 40)), isTrue);
 
-      // In the notch above line 1 (left of line 0): outside!
-      expect(path.contains(const Offset(30, 20)), isFalse);
-      // In the notch below line 0 (right of line 1): outside!
-      expect(path.contains(const Offset(190, 40)), isFalse);
+        // In the notch above line 1 (left of line 0): outside!
+        expect(path.contains(const Offset(30, 20)), isFalse);
+        // In the notch below line 0 (right of line 1): outside!
+        expect(path.contains(const Offset(190, 40)), isFalse);
 
-      // Near the reflex corner (60, 30):
-      // (62, 28) is inside line 0
-      expect(path.contains(const Offset(62, 28)), isTrue);
-      // (58, 32) is inside line 1
-      expect(path.contains(const Offset(58, 32)), isTrue);
-      // (59.5, 29.5) is inside the smooth reflex fillet bridging the step
-      expect(path.contains(const Offset(59.5, 29.5)), isTrue);
-      // (55, 25) is outside the fillet
-      expect(path.contains(const Offset(55, 25)), isFalse);
-    });
+        // Near the reflex corner (60, 30):
+        // (62, 28) is inside line 0
+        expect(path.contains(const Offset(62, 28)), isTrue);
+        // (58, 32) is inside line 1
+        expect(path.contains(const Offset(58, 32)), isTrue);
+        // (59.5, 29.5) is inside the smooth reflex fillet bridging the step
+        expect(path.contains(const Offset(59.5, 29.5)), isTrue);
+        // (55, 25) is outside the fillet
+        expect(path.contains(const Offset(55, 25)), isFalse);
+      },
+    );
 
     test('handles 3-line wrapped text with reflex inner corners', () {
       // Line 0: [80, 300], Y in [0, 20]
@@ -153,7 +198,11 @@ void main() {
       const line1 = Rect.fromLTRB(20, 20, 300, 40);
       const line2 = Rect.fromLTRB(20, 40, 160, 60);
 
-      final path = ChatSmoothContour.buildPath([line0, line1, line2], radius: 4);
+      final path = ChatSmoothContour.buildPath([
+        line0,
+        line1,
+        line2,
+      ], radius: 4);
 
       expect(path.getBounds(), const Rect.fromLTRB(20, 0, 300, 60));
 
@@ -193,20 +242,23 @@ void main() {
       expect(path.contains(const Offset(199, 30)), isTrue);
     });
 
-    test('smooths small step transitions with clamped radius without self-intersections', () {
-      // Line 0 and Line 1 differ by only 2dp horizontally
-      const line0 = Rect.fromLTRB(20, 0, 102, 20);
-      const line1 = Rect.fromLTRB(20, 20, 100, 40);
+    test(
+      'smooths small step transitions with clamped radius without self-intersections',
+      () {
+        // Line 0 and Line 1 differ by only 2dp horizontally
+        const line0 = Rect.fromLTRB(20, 0, 102, 20);
+        const line1 = Rect.fromLTRB(20, 20, 100, 40);
 
-      final path = ChatSmoothContour.buildPath([line0, line1], radius: 6);
+        final path = ChatSmoothContour.buildPath([line0, line1], radius: 6);
 
-      expect(path.getBounds(), const Rect.fromLTRB(20, 0, 102, 40));
+        expect(path.getBounds(), const Rect.fromLTRB(20, 0, 102, 40));
 
-      final metrics = path.computeMetrics().toList();
-      expect(metrics.length, 1);
-      expect(metrics.first.isClosed, isTrue);
-      expect(path.contains(const Offset(50, 20)), isTrue);
-    });
+        final metrics = path.computeMetrics().toList();
+        expect(metrics.length, 1);
+        expect(metrics.first.isClosed, isTrue);
+        expect(path.contains(const Offset(50, 20)), isTrue);
+      },
+    );
 
     test('merges multiple boxes on the same line', () {
       // Two fragmented spans on line 0, plus line 1
@@ -214,7 +266,11 @@ void main() {
       const span0b = Rect.fromLTRB(60, 0, 120, 20);
       const line1 = Rect.fromLTRB(20, 20, 80, 40);
 
-      final path = ChatSmoothContour.buildPath([span0a, span0b, line1], radius: 4);
+      final path = ChatSmoothContour.buildPath([
+        span0a,
+        span0b,
+        line1,
+      ], radius: 4);
 
       expect(path.getBounds(), const Rect.fromLTRB(20, 0, 120, 40));
 
@@ -223,22 +279,25 @@ void main() {
       expect(metrics.first.isClosed, isTrue);
     });
 
-    test('handles vertically or horizontally disconnected boxes as distinct closed contours', () {
-      // Two boxes with a vertical gap (e.g. separate paragraphs)
-      const box1 = Rect.fromLTWH(10, 10, 100, 20);
-      const box2 = Rect.fromLTWH(10, 50, 100, 20);
+    test(
+      'handles vertically or horizontally disconnected boxes as distinct closed contours',
+      () {
+        // Two boxes with a vertical gap (e.g. separate paragraphs)
+        const box1 = Rect.fromLTWH(10, 10, 100, 20);
+        const box2 = Rect.fromLTWH(10, 50, 100, 20);
 
-      final path = ChatSmoothContour.buildPath([box1, box2], radius: 4);
+        final path = ChatSmoothContour.buildPath([box1, box2], radius: 4);
 
-      final metrics = path.computeMetrics().toList();
-      expect(metrics.length, 2);
-      expect(metrics[0].isClosed, isTrue);
-      expect(metrics[1].isClosed, isTrue);
+        final metrics = path.computeMetrics().toList();
+        expect(metrics.length, 2);
+        expect(metrics[0].isClosed, isTrue);
+        expect(metrics[1].isClosed, isTrue);
 
-      expect(path.contains(const Offset(50, 20)), isTrue);
-      expect(path.contains(const Offset(50, 60)), isTrue);
-      // In the gap: outside!
-      expect(path.contains(const Offset(50, 35)), isFalse);
-    });
+        expect(path.contains(const Offset(50, 20)), isTrue);
+        expect(path.contains(const Offset(50, 60)), isTrue);
+        // In the gap: outside!
+        expect(path.contains(const Offset(50, 35)), isFalse);
+      },
+    );
   });
 }

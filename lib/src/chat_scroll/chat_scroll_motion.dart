@@ -81,7 +81,12 @@ abstract interface class ChatEdgeEffectState {
   /// distance consumed before this remainder; [fits] marks short content
   /// (zero travel on both pins). Callers MUST NOT feed motion that content
   /// consumed.
-  void pull(double unconsumedPx, double viewportHeight, {double travel = 0, bool fits = false});
+  void pull(
+    double unconsumedPx,
+    double viewportHeight, {
+    double travel = 0,
+    bool fits = false,
+  });
 
   /// Finger up with the drag's terminal [velocity] (px/s). Returns whether
   /// a content fling may start from this release; the caller still applies
@@ -139,7 +144,10 @@ final class ChatSpringClock {
   double secondsAt(Duration elapsed) {
     final previous = _lastTick;
     _lastTick = elapsed;
-    final start = _start ??= previous != null && previous <= elapsed && elapsed - previous <= maxHeadStart
+    final start = _start ??=
+        previous != null &&
+            previous <= elapsed &&
+            elapsed - previous <= maxHeadStart
         ? previous
         : elapsed;
     return (elapsed - start).inMicroseconds / Duration.microsecondsPerSecond;
@@ -166,10 +174,16 @@ final class ChatNoOverscroll implements ChatEdgeEffectState {
   void onDragStart() {}
 
   @override
-  double claim(double delta, double viewportHeight, {required double travel}) => delta;
+  double claim(double delta, double viewportHeight, {required double travel}) =>
+      delta;
 
   @override
-  void pull(double unconsumedPx, double viewportHeight, {double travel = 0, bool fits = false}) {}
+  void pull(
+    double unconsumedPx,
+    double viewportHeight, {
+    double travel = 0,
+    bool fits = false,
+  }) {}
 
   @override
   bool onDragEnd(double velocity) => true;

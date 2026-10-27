@@ -29,7 +29,10 @@ class _GoldenComparator extends LocalFileComparator {
 
   @override
   Future<bool> compare(Uint8List imageBytes, Uri golden) async {
-    final result = await GoldenFileComparator.compareLists(imageBytes, await getGoldenBytes(golden));
+    final result = await GoldenFileComparator.compareLists(
+      imageBytes,
+      await getGoldenBytes(golden),
+    );
     if (result.passed || result.diffPercent <= _tolerance) return true;
     final error = await generateFailureOutput(result, golden, basedir);
     throw FlutterError(error);
@@ -68,11 +71,15 @@ final class _ColorEmbed implements InlineEmbed {
   void addListener(VoidCallback listener) => _signal.addListener(listener);
 
   @override
-  void removeListener(VoidCallback listener) => _signal.removeListener(listener);
+  void removeListener(VoidCallback listener) =>
+      _signal.removeListener(listener);
 
   @override
   void paint(ui.Canvas canvas, Rect rect, InlineEmbedPaintContext context) =>
-      canvas.drawRRect(RRect.fromRectAndRadius(rect.deflate(2), const Radius.circular(6)), Paint()..color = color);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect.deflate(2), const Radius.circular(6)),
+        Paint()..color = color,
+      );
 
   @override
   void dispose() => _signal.dispose();
@@ -80,7 +87,11 @@ final class _ColorEmbed implements InlineEmbed {
 
 EmojiOnly _items(int count, {required bool allCustom}) => EmojiOnly([
   for (var i = 0; i < count; i++)
-    EmojiOnlyItem(!allCustom && i == 0 ? const ContentKey.unicode('\u{1F44D}') : ContentKey.document('d$i')),
+    EmojiOnlyItem(
+      !allCustom && i == 0
+          ? const ContentKey.unicode('\u{1F44D}')
+          : ContentKey.document('d$i'),
+    ),
 ]);
 
 void main() {
@@ -90,7 +101,9 @@ void main() {
   late GoldenFileComparator previous;
   setUpAll(() {
     previous = goldenFileComparator;
-    goldenFileComparator = _GoldenComparator(Uri.file('test/goldens/chat_emoji_body_golden_test.dart'));
+    goldenFileComparator = _GoldenComparator(
+      Uri.file('test/goldens/chat_emoji_body_golden_test.dart'),
+    );
   });
   tearDownAll(() => goldenFileComparator = previous);
 
@@ -138,8 +151,10 @@ void main() {
                           emojiOnly: emojiOnly,
                           sticker: sticker,
                           policy: policy,
-                          embedFactory: (content, preset) =>
-                              _ColorEmbed(_palette[made++ % _palette.length], preset.size),
+                          embedFactory: (content, preset) => _ColorEmbed(
+                            _palette[made++ % _palette.length],
+                            preset.size,
+                          ),
                         ),
                       ),
                     ),
@@ -153,14 +168,21 @@ void main() {
     );
     await tester.pump();
 
-    await expectLater(find.byKey(const ValueKey('shot')), matchesGoldenFile('chat_emoji_body/$name.png'));
+    await expectLater(
+      find.byKey(const ValueKey('shot')),
+      matchesGoldenFile('chat_emoji_body/$name.png'),
+    );
   }
 
   for (final count in [1, 2, 3, 5, 10]) {
     for (final allCustom in [true, false]) {
       final kind = allCustom ? 'custom' : 'mixed';
       testWidgets('$count items, $kind', (tester) async {
-        await shoot(tester, '${kind}_$count', _items(count, allCustom: allCustom));
+        await shoot(
+          tester,
+          '${kind}_$count',
+          _items(count, allCustom: allCustom),
+        );
       });
     }
   }
@@ -176,7 +198,9 @@ void main() {
     for (final count in [3, 10]) {
       for (final allCustom in [true, false]) {
         final kind = allCustom ? 'custom' : 'mixed';
-        testWidgets('$platform, $count items, $kind, right to left', (tester) async {
+        testWidgets('$platform, $count items, $kind, right to left', (
+          tester,
+        ) async {
           await shoot(
             tester,
             '${platform}_${kind}_${count}_rtl',
@@ -204,18 +228,34 @@ void main() {
   // iOS: a glyph table by line length, 94 pt for one.
   for (final count in [1, 3, 10]) {
     testWidgets('ios, $count items, mixed', (tester) async {
-      await shoot(tester, 'ios_mixed_$count', _items(count, allCustom: false), policy: const ChatEmojiPolicy.ios());
+      await shoot(
+        tester,
+        'ios_mixed_$count',
+        _items(count, allCustom: false),
+        policy: const ChatEmojiPolicy.ios(),
+      );
     });
   }
 
   const sticker = ContentKey.document('pack');
-  final lone = EmojiOnly(const [EmojiOnlyItem(ContentKey.unicode('\u{1F44D}'))]);
+  final lone = EmojiOnly(const [
+    EmojiOnlyItem(ContentKey.unicode('\u{1F44D}')),
+  ]);
 
   // The sticker's art and the inset around it: none on Android and desktop,
   // 10 pt on iOS.
-  for (final MapEntry(key: platform, value: policy) in {...policies, 'ios': const ChatEmojiPolicy.ios()}.entries) {
+  for (final MapEntry(key: platform, value: policy) in {
+    ...policies,
+    'ios': const ChatEmojiPolicy.ios(),
+  }.entries) {
     testWidgets('$platform, the sticker layout', (tester) async {
-      await shoot(tester, '${platform}_sticker', lone, sticker: sticker, policy: policy);
+      await shoot(
+        tester,
+        '${platform}_sticker',
+        lone,
+        sticker: sticker,
+        policy: policy,
+      );
     });
 
     testWidgets('$platform, the sticker layout, right to left', (tester) async {

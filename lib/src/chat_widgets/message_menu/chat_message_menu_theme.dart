@@ -11,7 +11,8 @@ import 'package:flutter/material.dart';
 /// Resolution: [resolve] from `ThemeData.extensions`, then [fromScheme]
 /// for omitted colours.
 @immutable
-class ChatMessageMenuThemeData extends ThemeExtension<ChatMessageMenuThemeData> {
+class ChatMessageMenuThemeData
+    extends ThemeExtension<ChatMessageMenuThemeData> {
   /// Creates (optionally partial) menu tokens.
   const ChatMessageMenuThemeData({
     this.scrimColor,
@@ -37,7 +38,10 @@ class ChatMessageMenuThemeData extends ThemeExtension<ChatMessageMenuThemeData> 
 
   /// Package defaults derived from [scheme].
   factory ChatMessageMenuThemeData.fromScheme(ColorScheme scheme) {
-    final fill = Color.alphaBlend(scheme.onSurface.withValues(alpha: 0.08), scheme.surface);
+    final fill = Color.alphaBlend(
+      scheme.onSurface.withValues(alpha: 0.08),
+      scheme.surface,
+    );
     // Light scaffolds read a 20% black dim as heavy; dark keeps the stronger
     // wash so the undimmed slot still pops.
     final scrimAlpha = scheme.brightness == Brightness.light ? 0.08 : 0.2;
@@ -48,7 +52,12 @@ class ChatMessageMenuThemeData extends ThemeExtension<ChatMessageMenuThemeData> 
       cardRadius: 12,
       cardShadow: <BoxShadow>[
         BoxShadow(
-          color: Color.fromRGBO(0, 0, 0, scheme.brightness == Brightness.light ? 0.18 : 0.35),
+          color: Color.fromRGBO(
+            0,
+            0,
+            0,
+            scheme.brightness == Brightness.light ? 0.18 : 0.35,
+          ),
           blurRadius: 12,
           offset: const Offset(0, 4),
         ),
@@ -148,7 +157,10 @@ class ChatMessageMenuThemeData extends ThemeExtension<ChatMessageMenuThemeData> 
   );
 
   @override
-  ChatMessageMenuThemeData lerp(covariant ChatMessageMenuThemeData? other, double t) {
+  ChatMessageMenuThemeData lerp(
+    covariant ChatMessageMenuThemeData? other,
+    double t,
+  ) {
     if (other == null) return this;
     return ChatMessageMenuThemeData(
       scrimColor: Color.lerp(scrimColor, other.scrimColor, t),
@@ -158,7 +170,11 @@ class ChatMessageMenuThemeData extends ThemeExtension<ChatMessageMenuThemeData> 
       cardShadow: BoxShadow.lerpList(cardShadow, other.cardShadow, t),
       destructiveColor: Color.lerp(destructiveColor, other.destructiveColor, t),
       dividerColor: Color.lerp(dividerColor, other.dividerColor, t),
-      actionLabelStyle: TextStyle.lerp(actionLabelStyle, other.actionLabelStyle, t),
+      actionLabelStyle: TextStyle.lerp(
+        actionLabelStyle,
+        other.actionLabelStyle,
+        t,
+      ),
       actionIconSize: lerpDouble(actionIconSize, other.actionIconSize, t),
       actionTileHeight: lerpDouble(actionTileHeight, other.actionTileHeight, t),
       reactionsColor: Color.lerp(reactionsColor, other.reactionsColor, t),

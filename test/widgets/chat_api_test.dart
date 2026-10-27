@@ -15,8 +15,13 @@ import '../chat_message.dart';
 // Test data sources
 // ---------------------------------------------------------------------------
 
-IChatMessage _msg(int i) =>
-    UserChatMessage(id: i, sender: 'User', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: 'content $i');
+IChatMessage _msg(int i) => UserChatMessage(
+  id: i,
+  sender: 'User',
+  createdAt: DateTime(2026),
+  updatedAt: DateTime(2026),
+  content: 'content $i',
+);
 
 /// Fetches always error until [shouldFail] flips to false. Used to exercise
 /// the chunk-error UI and the `retryChunk` recovery path.
@@ -26,7 +31,12 @@ IChatMessage _msg(int i) =>
 /// other path (e.g. a backoff timer winning the race).
 class _ManualFailDataSource extends ChatDataSource {
   _ManualFailDataSource(this.count) {
-    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
   }
 
   final int count;
@@ -34,7 +44,10 @@ class _ManualFailDataSource extends ChatDataSource {
   int fetchCalls = 0;
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async {
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async {
     fetchCalls += 1;
     await Future<void>.delayed(const Duration(milliseconds: 10));
     if (shouldFail) throw StateError('manual fail');
@@ -52,7 +65,10 @@ class _EmptyDataSource extends ChatDataSource {
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 /// Fetches stall until [release] is called — used to hold the data source in
@@ -65,7 +81,10 @@ class _StalledDataSource extends ChatDataSource {
   int _count = 0;
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async {
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async {
     if (_released) {
       final lo = fromId.clamp(0, _count - 1);
       final hi = toId.clamp(0, _count - 1);
@@ -80,7 +99,12 @@ class _StalledDataSource extends ChatDataSource {
   void release(int count) {
     _released = true;
     _count = count;
-    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
     _pending?.complete(<IChatMessage>[for (var i = 0; i < count; i++) _msg(i)]);
     _pending = null;
   }
@@ -107,28 +131,35 @@ Widget _msgBuilder(
   IChatMessage? message,
   ChatMessageStatus status,
   MessageRunLayout runLayout,
-) => SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id'));
-
-Widget _errBuilder(BuildContext context, ChatChunkErrorDetails details) => SizedBox(
-  height: 120,
-  child: Column(
-    children: <Widget>[
-      Text('error-${details.firstId}-${details.lastId}'),
-      Text('attempt-${details.attempt}'),
-      TextButton(onPressed: details.retry, child: const Text('Retry')),
-    ],
-  ),
+) => SizedBox(
+  height: 60,
+  child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
 );
 
-Widget _emptyBuilder(BuildContext context) => const Center(child: Text('empty-state'));
+Widget _errBuilder(BuildContext context, ChatChunkErrorDetails details) =>
+    SizedBox(
+      height: 120,
+      child: Column(
+        children: <Widget>[
+          Text('error-${details.firstId}-${details.lastId}'),
+          Text('attempt-${details.attempt}'),
+          TextButton(onPressed: details.retry, child: const Text('Retry')),
+        ],
+      ),
+    );
 
-Widget _loadingBuilder(BuildContext context) => const Center(child: Text('loading-state'));
+Widget _emptyBuilder(BuildContext context) =>
+    const Center(child: Text('empty-state'));
+
+Widget _loadingBuilder(BuildContext context) =>
+    const Center(child: Text('loading-state'));
 
 /// Match `Text` widgets whose data starts with [prefix] — narrower than
 /// `find.textContaining`, which substring-matches on any prefix appearance
 /// (e.g. `shimmer-` would also match a `pre-shimmer-x` if one ever appeared).
-Finder _textStartingWith(String prefix) =>
-    find.byWidgetPredicate((w) => w is Text && (w.data ?? '').startsWith(prefix));
+Finder _textStartingWith(String prefix) => find.byWidgetPredicate(
+  (w) => w is Text && (w.data ?? '').startsWith(prefix),
+);
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -149,7 +180,12 @@ void main() {
 
       // Half-seeded states are neither: a one-sided boundary leaves the
       // source's terminal state genuinely unknown.
-      final halfSeeded = _StalledDataSource()..seedBoundaries(oldestKnownId: 0, newestKnownId: 0, reachedOldest: true);
+      final halfSeeded = _StalledDataSource()
+        ..seedBoundaries(
+          oldestKnownId: 0,
+          newestKnownId: 0,
+          reachedOldest: true,
+        );
       addTearDown(halfSeeded.dispose);
       expect(halfSeeded.isEmpty, isFalse);
       expect(halfSeeded.isInitialLoading, isFalse);
@@ -159,7 +195,9 @@ void main() {
       expect(stalled.isInitialLoading, isFalse);
     });
 
-    testWidgets('retryChunk triggers exactly one extra fetch via the UI', (tester) async {
+    testWidgets('retryChunk triggers exactly one extra fetch via the UI', (
+      tester,
+    ) async {
       // Single-chunk conversation so the error UI carries one Retry button —
       // unambiguous tap target.
       final ds = _ManualFailDataSource(64);
@@ -203,7 +241,9 @@ void main() {
   });
 
   group('ChatScrollView chunkErrorBuilder', () {
-    testWidgets('anchor\'s failed chunk renders exactly one tile, no slots', (tester) async {
+    testWidgets('anchor\'s failed chunk renders exactly one tile, no slots', (
+      tester,
+    ) async {
       final ds = _ManualFailDataSource(256);
       final controller = ChatScrollController()..jumpTo(255);
       addTearDown(controller.dispose);
@@ -248,7 +288,9 @@ void main() {
       expect(_render(tester).debugChunkErrorCount, greaterThanOrEqualTo(1));
     });
 
-    testWidgets('without chunkErrorBuilder, status passes to messageBuilder', (tester) async {
+    testWidgets('without chunkErrorBuilder, status passes to messageBuilder', (
+      tester,
+    ) async {
       final ds = _ManualFailDataSource(256);
       final controller = ChatScrollController()..jumpTo(255);
       final statuses = <int, ChatMessageStatus>{};
@@ -262,7 +304,10 @@ void main() {
             controller: controller,
             messageBuilder: (context, id, message, status, runLayout) {
               statuses[id] = status;
-              return SizedBox(height: 60, child: Text(status.isError ? 'err-$id' : 'msg-$id'));
+              return SizedBox(
+                height: 60,
+                child: Text(status.isError ? 'err-$id' : 'msg-$id'),
+              );
             },
           ),
         ),
@@ -281,7 +326,9 @@ void main() {
   });
 
   group('ChatScrollView emptyBuilder', () {
-    testWidgets('renders full-viewport empty UI when conversation is empty', (tester) async {
+    testWidgets('renders full-viewport empty UI when conversation is empty', (
+      tester,
+    ) async {
       final ds = _EmptyDataSource();
       final controller = ChatScrollController();
       addTearDown(controller.dispose);
@@ -317,14 +364,22 @@ void main() {
       expect(emptyTopLeft.dy >= viewportTopLeft.dy, isTrue);
     });
 
-    testWidgets('without emptyBuilder, viewport renders nothing', (tester) async {
+    testWidgets('without emptyBuilder, viewport renders nothing', (
+      tester,
+    ) async {
       final ds = _EmptyDataSource();
       final controller = ChatScrollController();
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
       await tester.pumpWidget(
-        _scaffold(ChatScrollView(dataSource: ds, controller: controller, messageBuilder: _msgBuilder)),
+        _scaffold(
+          ChatScrollView(
+            dataSource: ds,
+            controller: controller,
+            messageBuilder: _msgBuilder,
+          ),
+        ),
       );
       await tester.pump();
 
@@ -336,7 +391,46 @@ void main() {
   });
 
   group('ChatScrollView loadingBuilder', () {
-    testWidgets('renders full-viewport skeleton while initial fetch is in flight', (tester) async {
+    testWidgets(
+      'renders full-viewport skeleton while initial fetch is in flight',
+      (tester) async {
+        final ds = _StalledDataSource();
+        final controller = ChatScrollController();
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+
+        await tester.pumpWidget(
+          _scaffold(
+            ChatScrollView(
+              dataSource: ds,
+              controller: controller,
+              messageBuilder: _msgBuilder,
+              loadingBuilder: _loadingBuilder,
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+
+        // Loading overlay is up; no shimmer tiles fanned out.
+        expect(find.text('loading-state'), findsOneWidget);
+        expect(_textStartingWith('shimmer-'), findsNothing);
+        expect(_render(tester).debugChildCount, 0);
+
+        // Resolve the fetch + transition out of loading.
+        ds.release(4);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump();
+
+        expect(find.text('loading-state'), findsNothing);
+        expect(find.text('msg-0'), findsOneWidget);
+      },
+    );
+
+    testWidgets('without loadingBuilder, viewport falls back to shimmer', (
+      tester,
+    ) async {
       final ds = _StalledDataSource();
       final controller = ChatScrollController();
       addTearDown(controller.dispose);
@@ -348,36 +442,8 @@ void main() {
             dataSource: ds,
             controller: controller,
             messageBuilder: _msgBuilder,
-            loadingBuilder: _loadingBuilder,
           ),
         ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
-
-      // Loading overlay is up; no shimmer tiles fanned out.
-      expect(find.text('loading-state'), findsOneWidget);
-      expect(_textStartingWith('shimmer-'), findsNothing);
-      expect(_render(tester).debugChildCount, 0);
-
-      // Resolve the fetch + transition out of loading.
-      ds.release(4);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.pump();
-
-      expect(find.text('loading-state'), findsNothing);
-      expect(find.text('msg-0'), findsOneWidget);
-    });
-
-    testWidgets('without loadingBuilder, viewport falls back to shimmer', (tester) async {
-      final ds = _StalledDataSource();
-      final controller = ChatScrollController();
-      addTearDown(controller.dispose);
-      addTearDown(ds.dispose);
-
-      await tester.pumpWidget(
-        _scaffold(ChatScrollView(dataSource: ds, controller: controller, messageBuilder: _msgBuilder)),
       );
       await tester.pump();
       // Multiple shimmer placeholders fan out around the anchor (id 0) —
@@ -403,7 +469,9 @@ void main() {
   // -------------------------------------------------------------------------
 
   group('chunk-error scenarios', () {
-    testWidgets('overlay mode discards drag deltas (no anchor drift)', (tester) async {
+    testWidgets('overlay mode discards drag deltas (no anchor drift)', (
+      tester,
+    ) async {
       final ds = _StalledDataSource();
       final controller = ChatScrollController();
       addTearDown(controller.dispose);
@@ -522,7 +590,9 @@ void main() {
       skip: true,
     );
 
-    testWidgets('overlay → normal transition does not jump anchor', (tester) async {
+    testWidgets('overlay → normal transition does not jump anchor', (
+      tester,
+    ) async {
       final ds = _StalledDataSource();
       final controller = ChatScrollController();
       addTearDown(controller.dispose);

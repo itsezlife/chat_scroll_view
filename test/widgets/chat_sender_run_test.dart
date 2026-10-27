@@ -8,24 +8,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../chat_message.dart';
 
-IChatMessage _msg(int id, {String sender = 'bot', DateTime? when}) => UserChatMessage(
-  id: id,
-  sender: sender,
-  createdAt: when ?? DateTime(2026, 5, 29, 10, id),
-  updatedAt: when ?? DateTime(2026, 5, 29, 10, id),
-  content: 'body-$id',
-);
+IChatMessage _msg(int id, {String sender = 'bot', DateTime? when}) =>
+    UserChatMessage(
+      id: id,
+      sender: sender,
+      createdAt: when ?? DateTime(2026, 5, 29, 10, id),
+      updatedAt: when ?? DateTime(2026, 5, 29, 10, id),
+      content: 'body-$id',
+    );
 
 class _LoadedSource extends ChatDataSource {
   _LoadedSource(Iterable<IChatMessage> messages) {
     upsertMessages(messages);
     if (messages.isEmpty) return;
     final ids = messages.map((m) => m.id).toList()..sort();
-    seedBoundaries(oldestKnownId: ids.first, newestKnownId: ids.last, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: ids.first,
+      newestKnownId: ids.last,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 Widget _harness({
@@ -65,7 +74,10 @@ Widget _chromeBuilder(
   if (message == null) return const SizedBox(height: 40);
   return SizedBox(
     height: 40,
-    child: Text(runLayout.isLastInSenderRun ? 'chrome-$id' : 'plain-$id', key: ValueKey<String>('row-$id')),
+    child: Text(
+      runLayout.isLastInSenderRun ? 'chrome-$id' : 'plain-$id',
+      key: ValueKey<String>('row-$id'),
+    ),
   );
 }
 
@@ -80,7 +92,10 @@ Widget _firstChromeBuilder(
   if (message == null) return const SizedBox(height: 40);
   return SizedBox(
     height: 40,
-    child: Text(runLayout.isFirstInSenderRun ? 'first-$id' : 'mid-$id', key: ValueKey<String>('row-$id')),
+    child: Text(
+      runLayout.isFirstInSenderRun ? 'first-$id' : 'mid-$id',
+      key: ValueKey<String>('row-$id'),
+    ),
   );
 }
 
@@ -92,7 +107,12 @@ Future<void> _pumpLoaded(
 }) async {
   final controller = ChatScrollController()..jumpTo(ds.newestKnownId!);
   await tester.pumpWidget(
-    _harness(dataSource: ds, controller: controller, messageBuilder: builder, dateSeparatorBuilder: separator),
+    _harness(
+      dataSource: ds,
+      controller: controller,
+      messageBuilder: builder,
+      dateSeparatorBuilder: separator,
+    ),
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 100));
@@ -100,7 +120,9 @@ Future<void> _pumpLoaded(
 
 void main() {
   group('sender run chrome', () {
-    testWidgets('delete first of two regains last-in-run chrome', (tester) async {
+    testWidgets('delete first of two regains last-in-run chrome', (
+      tester,
+    ) async {
       final ds = _LoadedSource([_msg(1), _msg(2)]);
 
       await _pumpLoaded(tester, ds, _chromeBuilder);
@@ -115,7 +137,9 @@ void main() {
       expect(find.text('chrome-2'), findsOneWidget);
     });
 
-    testWidgets('three-message run shows chrome only on last id', (tester) async {
+    testWidgets('three-message run shows chrome only on last id', (
+      tester,
+    ) async {
       final ds = _LoadedSource([_msg(1), _msg(2), _msg(3)]);
 
       await _pumpLoaded(tester, ds, _chromeBuilder);
@@ -124,16 +148,28 @@ void main() {
       expect(find.text('chrome-3'), findsOneWidget);
     });
 
-    testWidgets('same sender across two day buckets — chrome on each last', (tester) async {
-      final ds = _LoadedSource([_msg(1, when: DateTime(2026, 5, 29, 10)), _msg(2, when: DateTime(2026, 5, 30, 10))]);
+    testWidgets('same sender across two day buckets — chrome on each last', (
+      tester,
+    ) async {
+      final ds = _LoadedSource([
+        _msg(1, when: DateTime(2026, 5, 29, 10)),
+        _msg(2, when: DateTime(2026, 5, 30, 10)),
+      ]);
 
-      await _pumpLoaded(tester, ds, _chromeBuilder, separator: (context, bucket, date) => const SizedBox(height: 28));
+      await _pumpLoaded(
+        tester,
+        ds,
+        _chromeBuilder,
+        separator: (context, bucket, date) => const SizedBox(height: 28),
+      );
 
       expect(find.text('chrome-1'), findsOneWidget);
       expect(find.text('chrome-2'), findsOneWidget);
     });
 
-    testWidgets('insert extends run — chrome moves to new last', (tester) async {
+    testWidgets('insert extends run — chrome moves to new last', (
+      tester,
+    ) async {
       final ds = _LoadedSource([_msg(1)]);
 
       await _pumpLoaded(tester, ds, _chromeBuilder);
@@ -147,7 +183,9 @@ void main() {
       expect(find.text('chrome-2'), findsOneWidget);
     });
 
-    testWidgets('delete last of three promotes chrome to new last', (tester) async {
+    testWidgets('delete last of three promotes chrome to new last', (
+      tester,
+    ) async {
       final ds = _LoadedSource([_msg(1), _msg(2), _msg(3)]);
 
       await _pumpLoaded(tester, ds, _chromeBuilder);
@@ -173,8 +211,13 @@ void main() {
       expect(find.text('first-2'), findsOneWidget);
     });
 
-    testWidgets('demo incoming bubble shows avatar only on last in run', (tester) async {
-      final ds = _LoadedSource([_msg(1, sender: 'skia-gold'), _msg(2, sender: 'skia-gold')]);
+    testWidgets('demo incoming bubble shows avatar only on last in run', (
+      tester,
+    ) async {
+      final ds = _LoadedSource([
+        _msg(1, sender: 'skia-gold'),
+        _msg(2, sender: 'skia-gold'),
+      ]);
       final controller = ChatScrollController()..jumpTo(2);
 
       await tester.pumpWidget(
@@ -192,7 +235,9 @@ void main() {
                     // Proxy for last-in-run chrome (avatar / sender label).
                     return SizedBox(
                       height: 40,
-                      child: runLayout.isLastInSenderRun ? Text(message.sender) : const SizedBox.shrink(),
+                      child: runLayout.isLastInSenderRun
+                          ? Text(message.sender)
+                          : const SizedBox.shrink(),
                     );
                   },
                 ),
@@ -234,7 +279,8 @@ void main() {
           dataSource: ds,
           controller: controller,
           messageBuilder: _chromeBuilder,
-          dateSeparatorBuilder: (context, bucket, date) => const SizedBox(height: 8),
+          dateSeparatorBuilder: (context, bucket, date) =>
+              const SizedBox(height: 8),
           groupBy: (message) => message.id <= 1 ? 'first' : 'rest',
         ),
       );
@@ -246,7 +292,9 @@ void main() {
       expect(find.text('chrome-3'), findsOneWidget);
     });
 
-    testWidgets('maxClusterGap splits same-sender run by createdAt', (tester) async {
+    testWidgets('maxClusterGap splits same-sender run by createdAt', (
+      tester,
+    ) async {
       final t0 = DateTime(2026, 5, 29, 10);
       final ds = _LoadedSource([
         _msg(1, when: t0),
@@ -255,7 +303,13 @@ void main() {
       ]);
       final controller = ChatScrollController()..jumpTo(3);
 
-      await tester.pumpWidget(_harness(dataSource: ds, controller: controller, messageBuilder: _chromeBuilder));
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          messageBuilder: _chromeBuilder,
+        ),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
@@ -265,7 +319,9 @@ void main() {
       expect(find.text('chrome-3'), findsOneWidget);
     });
 
-    testWidgets('custom senderRunLayout replaces clustering policy', (tester) async {
+    testWidgets('custom senderRunLayout replaces clustering policy', (
+      tester,
+    ) async {
       final ds = _LoadedSource([_msg(1), _msg(2), _msg(3)]);
       final controller = ChatScrollController()..jumpTo(3);
 
@@ -300,58 +356,64 @@ void main() {
       expect(find.text('chrome-2'), findsOneWidget);
     });
 
-    testWidgets('extras change with same first/last reinflates only flipped ids', (tester) async {
-      final ds = _LoadedSource([_msg(1), _msg(2), _msg(3)]);
-      final controller = ChatScrollController()..jumpTo(3);
-      final builds = <int, int>{};
+    testWidgets(
+      'extras change with same first/last reinflates only flipped ids',
+      (tester) async {
+        final ds = _LoadedSource([_msg(1), _msg(2), _msg(3)]);
+        final controller = ChatScrollController()..jumpTo(3);
+        final builds = <int, int>{};
 
-      Widget builder(
-        BuildContext context,
-        int id,
-        IChatMessage? message,
-        ChatMessageStatus status,
-        MessageRunLayout runLayout,
-      ) {
-        builds[id] = (builds[id] ?? 0) + 1;
-        if (message == null) return const SizedBox(height: 40);
-        final tag = runLayout.extras == true ? 'extra' : 'plain';
-        return SizedBox(height: 40, child: Text('$tag-$id', key: ValueKey<String>('row-$id')));
-      }
+        Widget builder(
+          BuildContext context,
+          int id,
+          IChatMessage? message,
+          ChatMessageStatus status,
+          MessageRunLayout runLayout,
+        ) {
+          builds[id] = (builds[id] ?? 0) + 1;
+          if (message == null) return const SizedBox(height: 40);
+          final tag = runLayout.extras == true ? 'extra' : 'plain';
+          return SizedBox(
+            height: 40,
+            child: Text('$tag-$id', key: ValueKey<String>('row-$id')),
+          );
+        }
 
-      await tester.pumpWidget(
-        _harness(
-          dataSource: ds,
-          controller: controller,
-          messageBuilder: builder,
-          senderRunLayout: const _ExtrasRunLayout(flaggedIds: {}),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            messageBuilder: builder,
+            senderRunLayout: const _ExtrasRunLayout(flaggedIds: {}),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('plain-1'), findsOneWidget);
-      expect(find.text('plain-2'), findsOneWidget);
-      expect(find.text('plain-3'), findsOneWidget);
-      final afterFirst = Map<int, int>.from(builds);
+        expect(find.text('plain-1'), findsOneWidget);
+        expect(find.text('plain-2'), findsOneWidget);
+        expect(find.text('plain-3'), findsOneWidget);
+        final afterFirst = Map<int, int>.from(builds);
 
-      await tester.pumpWidget(
-        _harness(
-          dataSource: ds,
-          controller: controller,
-          messageBuilder: builder,
-          senderRunLayout: const _ExtrasRunLayout(flaggedIds: {2}),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            messageBuilder: builder,
+            senderRunLayout: const _ExtrasRunLayout(flaggedIds: {2}),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('plain-1'), findsOneWidget);
-      expect(find.text('extra-2'), findsOneWidget);
-      expect(find.text('plain-3'), findsOneWidget);
-      expect(builds[2], greaterThan(afterFirst[2]!));
-      expect(builds[1], afterFirst[1]);
-      expect(builds[3], afterFirst[3]);
-    });
+        expect(find.text('plain-1'), findsOneWidget);
+        expect(find.text('extra-2'), findsOneWidget);
+        expect(find.text('plain-3'), findsOneWidget);
+        expect(builds[2], greaterThan(afterFirst[2]!));
+        expect(builds[1], afterFirst[1]);
+        expect(builds[3], afterFirst[3]);
+      },
+    );
 
     testWidgets('same extras keeps skip-rebuild hit', (tester) async {
       final ds = _LoadedSource([_msg(1), _msg(2)]);
@@ -367,13 +429,21 @@ void main() {
       ) {
         builds[id] = (builds[id] ?? 0) + 1;
         if (message == null) return const SizedBox(height: 40);
-        return SizedBox(height: 40, child: Text('row-$id', key: ValueKey<String>('row-$id')));
+        return SizedBox(
+          height: 40,
+          child: Text('row-$id', key: ValueKey<String>('row-$id')),
+        );
       }
 
       const policy = _ExtrasRunLayout(flaggedIds: {1, 2});
 
       await tester.pumpWidget(
-        _harness(dataSource: ds, controller: controller, messageBuilder: builder, senderRunLayout: policy),
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          messageBuilder: builder,
+          senderRunLayout: policy,
+        ),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -381,7 +451,12 @@ void main() {
 
       // Equal policy instance → no markNeedsLayout; identical messages → skip.
       await tester.pumpWidget(
-        _harness(dataSource: ds, controller: controller, messageBuilder: builder, senderRunLayout: policy),
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          messageBuilder: builder,
+          senderRunLayout: policy,
+        ),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -390,7 +465,9 @@ void main() {
       expect(builds[2], afterFirst[2]);
     });
 
-    testWidgets('Listenable policy notify reinflates only flipped extras', (tester) async {
+    testWidgets('Listenable policy notify reinflates only flipped extras', (
+      tester,
+    ) async {
       final ds = _LoadedSource([_msg(1), _msg(2), _msg(3)]);
       final controller = ChatScrollController()..jumpTo(3);
       final policy = _LiveExtrasRunLayout();
@@ -406,11 +483,19 @@ void main() {
         builds[id] = (builds[id] ?? 0) + 1;
         if (message == null) return const SizedBox(height: 40);
         final tag = runLayout.extras == true ? 'extra' : 'plain';
-        return SizedBox(height: 40, child: Text('$tag-$id', key: ValueKey<String>('row-$id')));
+        return SizedBox(
+          height: 40,
+          child: Text('$tag-$id', key: ValueKey<String>('row-$id')),
+        );
       }
 
       await tester.pumpWidget(
-        _harness(dataSource: ds, controller: controller, messageBuilder: builder, senderRunLayout: policy),
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          messageBuilder: builder,
+          senderRunLayout: policy,
+        ),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -443,7 +528,8 @@ class _AlwaysAloneRunLayout implements ChatSenderRunLayout {
     required ChatDataSource dataSource,
     required int messageId,
     Object? Function(IChatMessage)? groupBy,
-  }) => const MessageRunLayout(isFirstInSenderRun: true, isLastInSenderRun: true);
+  }) =>
+      const MessageRunLayout(isFirstInSenderRun: true, isLastInSenderRun: true);
 }
 
 /// Wraps default clustering and tags [flaggedIds] via [MessageRunLayout.extras].
@@ -472,14 +558,16 @@ class _ExtrasRunLayout implements ChatSenderRunLayout {
   }
 
   @override
-  bool operator ==(Object other) => other is _ExtrasRunLayout && setEquals(other.flaggedIds, flaggedIds);
+  bool operator ==(Object other) =>
+      other is _ExtrasRunLayout && setEquals(other.flaggedIds, flaggedIds);
 
   @override
   int get hashCode => Object.hashAll(flaggedIds);
 }
 
 /// Live extras policy: one instance, [ChangeNotifier] bump without widget swap.
-final class _LiveExtrasRunLayout extends ChangeNotifier implements ChatSenderRunLayout {
+final class _LiveExtrasRunLayout extends ChangeNotifier
+    implements ChatSenderRunLayout {
   final Set<int> _flaggedIds = <int>{};
 
   void flagId(int id) {

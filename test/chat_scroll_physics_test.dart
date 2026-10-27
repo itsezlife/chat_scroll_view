@@ -48,7 +48,10 @@ void main() {
     test('travels as far as ClampingScrollSimulation, over a longer time', () {
       for (final velocity in [800.0, 3000.0, -8000.0]) {
         final sim = ChatSplineFlingSimulation(velocity: velocity);
-        final clamping = ClampingScrollSimulation(position: 0, velocity: velocity);
+        final clamping = ClampingScrollSimulation(
+          position: 0,
+          velocity: velocity,
+        );
         expect(sim.x(sim.duration), closeTo(clamping.x(10), 0.5));
         expect(
           sim.duration * decelerationRate * 0.35,

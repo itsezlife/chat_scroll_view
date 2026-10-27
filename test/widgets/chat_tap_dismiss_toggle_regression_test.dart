@@ -20,11 +20,19 @@ class _LoadedSource extends ChatDataSource {
   _LoadedSource(List<IChatMessage> messages) {
     upsertMessages(messages);
     final ids = messages.map((m) => m.id).toList()..sort();
-    seedBoundaries(oldestKnownId: ids.first, newestKnownId: ids.last, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: ids.first,
+      newestKnownId: ids.last,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 Widget _harness({
@@ -46,7 +54,11 @@ Widget _harness({
           height: 80,
           padding: const EdgeInsets.all(12),
           color: Colors.white,
-          child: ChatMarkdownBody(key: ValueKey('md-$id'), controller: selection, messageId: id),
+          child: ChatMarkdownBody(
+            key: ValueKey('md-$id'),
+            controller: selection,
+            messageId: id,
+          ),
         ),
       ),
     ),
@@ -56,79 +68,105 @@ Widget _harness({
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('tap on selected body dismisses text selection and keeps membership', (tester) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    try {
-      final dataSource = _LoadedSource([_msg(1)]);
-      final controller = ChatScrollController();
-      final selection = ChatSelectionController(policy: const ChatSelectionPolicy.mobile());
-      addTearDown(controller.dispose);
-      addTearDown(selection.dispose);
-      addTearDown(dataSource.dispose);
+  testWidgets(
+    'tap on selected body dismisses text selection and keeps membership',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        final dataSource = _LoadedSource([_msg(1)]);
+        final controller = ChatScrollController();
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+        addTearDown(dataSource.dispose);
 
-      selection.putBody(1, Markdown.fromString('Hello selectable world'));
+        selection.putBody(1, Markdown.fromString('Hello selectable world'));
 
-      await tester.pumpWidget(_harness(dataSource: dataSource, controller: controller, selection: selection));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _harness(
+            dataSource: dataSource,
+            controller: controller,
+            selection: selection,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      selection.startSelection(1);
-      await tester.pumpAndSettle();
-      final global = tester.getTopLeft(find.byType(MarkdownWidget)) + const Offset(24, 16);
-      expect(selection.enterTextSelection(1, globalOffset: global), isTrue);
-      await tester.pump();
-      await tester.pumpAndSettle();
-      expect(selection.isTextSelectionActive, isTrue);
-      expect(selection.selectedIds, <int>{1});
+        selection.startSelection(1);
+        await tester.pumpAndSettle();
+        final global =
+            tester.getTopLeft(find.byType(MarkdownWidget)) +
+            const Offset(24, 16);
+        expect(selection.enterTextSelection(1, globalOffset: global), isTrue);
+        await tester.pump();
+        await tester.pumpAndSettle();
+        expect(selection.isTextSelectionActive, isTrue);
+        expect(selection.selectedIds, <int>{1});
 
-      await tester.tapAt(global);
-      await tester.pumpAndSettle();
+        await tester.tapAt(global);
+        await tester.pumpAndSettle();
 
-      expect(
-        selection.isTextSelectionActive,
-        isFalse,
-        reason: 'tap must dismiss text selection (viewport idle-tap path)',
-      );
-      expect(selection.selectedIds, <int>{1});
-    } finally {
-      debugDefaultTargetPlatformOverride = null;
-    }
-  });
+        expect(
+          selection.isTextSelectionActive,
+          isFalse,
+          reason: 'tap must dismiss text selection (viewport idle-tap path)',
+        );
+        expect(selection.selectedIds, <int>{1});
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
 
-  testWidgets('tap on selected body toggles message off when text is inactive', (tester) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    try {
-      final dataSource = _LoadedSource([_msg(1)]);
-      final controller = ChatScrollController();
-      final selection = ChatSelectionController(policy: const ChatSelectionPolicy.mobile());
-      addTearDown(controller.dispose);
-      addTearDown(selection.dispose);
-      addTearDown(dataSource.dispose);
+  testWidgets(
+    'tap on selected body toggles message off when text is inactive',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        final dataSource = _LoadedSource([_msg(1)]);
+        final controller = ChatScrollController();
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+        addTearDown(dataSource.dispose);
 
-      selection.putBody(1, Markdown.fromString('Hello selectable world'));
+        selection.putBody(1, Markdown.fromString('Hello selectable world'));
 
-      await tester.pumpWidget(_harness(dataSource: dataSource, controller: controller, selection: selection));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _harness(
+            dataSource: dataSource,
+            controller: controller,
+            selection: selection,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      selection.startSelection(1);
-      await tester.pumpAndSettle();
-      expect(selection.isSelected(1), isTrue);
-      expect(selection.isTextSelectionActive, isFalse);
+        selection.startSelection(1);
+        await tester.pumpAndSettle();
+        expect(selection.isSelected(1), isTrue);
+        expect(selection.isTextSelectionActive, isFalse);
 
-      final global = tester.getTopLeft(find.byType(MarkdownWidget)) + const Offset(24, 16);
+        final global =
+            tester.getTopLeft(find.byType(MarkdownWidget)) +
+            const Offset(24, 16);
 
-      await tester.tapAt(global);
-      await tester.pumpAndSettle();
+        await tester.tapAt(global);
+        await tester.pumpAndSettle();
 
-      expect(
-        selection.isSelected(1),
-        isFalse,
-        reason:
-            'tap on selected body must toggle membership off when text '
-            'is inactive',
-      );
-      expect(selection.isSelectionMode, isFalse);
-    } finally {
-      debugDefaultTargetPlatformOverride = null;
-    }
-  });
+        expect(
+          selection.isSelected(1),
+          isFalse,
+          reason:
+              'tap on selected body must toggle membership off when text '
+              'is inactive',
+        );
+        expect(selection.isSelectionMode, isFalse);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
 }

@@ -30,14 +30,22 @@ IChatMessage _msg(int id) => UserChatMessage(
 class _Source extends ChatDataSource {
   _Source(int count) {
     upsertMessages([for (var i = 0; i < count; i++) _msg(i)]);
-    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
     for (final chunk in chunks.values) {
       chunk.status = ChatMessageStatus.valid;
     }
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 /// Records every frame the viewport asks it to paint.
@@ -60,13 +68,19 @@ final class _RecordingPainter extends ChatScrollbarPainter {
   double get minThumbLength => 16;
 
   @override
-  void paint(Canvas canvas, ChatScrollbarFrame frame, ChatScrollbarThemeData theme) => frames.add(frame);
+  void paint(
+    Canvas canvas,
+    ChatScrollbarFrame frame,
+    ChatScrollbarThemeData theme,
+  ) => frames.add(frame);
 
   @override
-  bool shouldRepaint(_RecordingPainter oldPainter) => !identical(oldPainter.frames, frames);
+  bool shouldRepaint(_RecordingPainter oldPainter) =>
+      !identical(oldPainter.frames, frames);
 
   @override
-  bool operator ==(Object other) => other is _RecordingPainter && identical(other.frames, frames);
+  bool operator ==(Object other) =>
+      other is _RecordingPainter && identical(other.frames, frames);
 
   @override
   int get hashCode => identityHashCode(frames);
@@ -129,36 +143,45 @@ void main() {
       taps = <ChatMessageMenuRequest>[];
     });
 
-    ChatScrollbar autoHiding() => ChatScrollbar(painter: _RecordingPainter(frames), visibility: _autoHide);
+    ChatScrollbar autoHiding() => ChatScrollbar(
+      painter: _RecordingPainter(frames),
+      visibility: _autoHide,
+    );
 
     ChatScrollbar always() => ChatScrollbar(painter: _RecordingPainter(frames));
 
-    Widget harness(ChatScrollController controller, ChatScrollbar scrollbar) => MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: _viewportWidth,
-            height: _viewportHeight,
-            child: ChatScrollView(
-              dataSource: dataSource,
-              controller: controller,
-              scrollbar: scrollbar,
-              onIdleMessageTap: taps.add,
-              // Full-width rows under a text cursor, as selectable
-              // message bodies are.
-              messageBuilder: (context, id, message, status, runLayout) => MouseRegion(
-                cursor: SystemMouseCursors.text,
-                child: SizedBox(height: 60, child: Text('msg-$id')),
+    Widget harness(ChatScrollController controller, ChatScrollbar scrollbar) =>
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: _viewportWidth,
+                height: _viewportHeight,
+                child: ChatScrollView(
+                  dataSource: dataSource,
+                  controller: controller,
+                  scrollbar: scrollbar,
+                  onIdleMessageTap: taps.add,
+                  // Full-width rows under a text cursor, as selectable
+                  // message bodies are.
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      MouseRegion(
+                        cursor: SystemMouseCursors.text,
+                        child: SizedBox(height: 60, child: Text('msg-$id')),
+                      ),
+                ),
               ),
             ),
           ),
-        ),
-      ),
-    );
+        );
 
     /// Pumps a viewport on [controller] (a fresh one parked on message 128
     /// when `null`).
-    Future<void> pump(WidgetTester tester, {ChatScrollbar? scrollbar, ChatScrollController? using}) async {
+    Future<void> pump(
+      WidgetTester tester, {
+      ChatScrollbar? scrollbar,
+      ChatScrollController? using,
+    }) async {
       controller = using ?? (ChatScrollController()..jumpTo(128));
       dataSource = _Source(256);
       addTearDown(controller.dispose);
@@ -167,7 +190,8 @@ void main() {
       await tester.pump();
     }
 
-    RenderChatScrollView render(WidgetTester tester) => tester.renderObject(find.byType(ChatScrollView));
+    RenderChatScrollView render(WidgetTester tester) =>
+        tester.renderObject(find.byType(ChatScrollView));
 
     /// Visibility a fresh paint hands the painter, or `0` when that paint
     /// does not call it.
@@ -178,9 +202,11 @@ void main() {
       return frames.length == before ? 0 : frames.last.visibility;
     }
 
-    Offset at(WidgetTester tester, double x, double y) => tester.getTopLeft(find.byType(ChatScrollView)) + Offset(x, y);
+    Offset at(WidgetTester tester, double x, double y) =>
+        tester.getTopLeft(find.byType(ChatScrollView)) + Offset(x, y);
 
-    (int, double) position() => (controller.anchorMessageId, controller.anchorPixelOffset);
+    (int, double) position() =>
+        (controller.anchorMessageId, controller.anchorPixelOffset);
 
     /// Waits out a 250 ms fade, allowing a frame for the ticker to start.
     Future<void> fade(WidgetTester tester) async {
@@ -188,7 +214,10 @@ void main() {
       await _elapse(tester, _ms(282));
     }
 
-    Future<TestGesture> hoveringMouse(WidgetTester tester, Offset location) async {
+    Future<TestGesture> hoveringMouse(
+      WidgetTester tester,
+      Offset location,
+    ) async {
       final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
       addTearDown(mouse.removePointer);
       await mouse.addPointer(location: location);
@@ -196,7 +225,8 @@ void main() {
       return mouse;
     }
 
-    MouseCursor? activeCursor() => RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1);
+    MouseCursor? activeCursor() =>
+        RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1);
 
     group('hold', () {
       testWidgets('reveals a hidden scrollbar and keeps it shown; release '
@@ -218,7 +248,9 @@ void main() {
         expect(await painted(tester), 0);
       });
 
-      testWidgets('outlasts list motion that ends while it is alive', (tester) async {
+      testWidgets('outlasts list motion that ends while it is alive', (
+        tester,
+      ) async {
         await pump(tester);
         final hold = controller.holdScrollbar();
         controller.scrollBy(60);
@@ -290,7 +322,9 @@ void main() {
         expect(await painted(tester), 1);
       });
 
-      testWidgets('fades an always-shown scrollbar out and back in', (tester) async {
+      testWidgets('fades an always-shown scrollbar out and back in', (
+        tester,
+      ) async {
         await pump(tester, scrollbar: always());
         expect(await painted(tester), 1);
 
@@ -342,7 +376,9 @@ void main() {
         expect(await painted(tester), 1);
       });
 
-      testWidgets('a touch on the thumb while it fades reaches the message', (tester) async {
+      testWidgets('a touch on the thumb while it fades reaches the message', (
+        tester,
+      ) async {
         await pump(tester, scrollbar: always());
         final thumbY = frames.last.thumbRect.center.dy;
         final before = position();
@@ -503,7 +539,9 @@ void main() {
         hold.release();
       });
 
-      testWidgets('a flash with no viewport attached is dropped', (tester) async {
+      testWidgets('a flash with no viewport attached is dropped', (
+        tester,
+      ) async {
         final early = ChatScrollController()
           ..jumpTo(128)
           ..flashScrollbar();
@@ -531,7 +569,9 @@ void main() {
         expect(await painted(tester), 0, reason: 'nothing holds');
       });
 
-      testWidgets('swapping controllers releases the old one\'s handles', (tester) async {
+      testWidgets('swapping controllers releases the old one\'s handles', (
+        tester,
+      ) async {
         await pump(tester);
         final old = controller;
         final hold = old.holdScrollbar();

@@ -8,7 +8,8 @@ import 'package:flutter/widgets.dart';
 /// Lays out slotted children, paints [ChatMessageBodySlot.header], then
 /// [ChatMessageBodySlot.content], then [ChatMessageBodySlot.meta], and
 /// hit-tests meta first (painted on top).
-class RenderChatMessageBody extends RenderBox with SlottedContainerRenderObjectMixin<ChatMessageBodySlot, RenderBox> {
+class RenderChatMessageBody extends RenderBox
+    with SlottedContainerRenderObjectMixin<ChatMessageBodySlot, RenderBox> {
   /// Creates a content + meta layout render object.
   RenderChatMessageBody({
     required double spacing,
@@ -73,7 +74,8 @@ class RenderChatMessageBody extends RenderBox with SlottedContainerRenderObjectM
   }
 
   @override
-  Size computeDryLayout(BoxConstraints constraints) => _measure(constraints, dry: true).size;
+  Size computeDryLayout(BoxConstraints constraints) =>
+      _measure(constraints, dry: true).size;
 
   @override
   void performLayout() {
@@ -93,17 +95,29 @@ class RenderChatMessageBody extends RenderBox with SlottedContainerRenderObjectM
     }
   }
 
-  ChatMessageBodyLayout _measure(BoxConstraints constraints, {required bool dry}) {
+  ChatMessageBodyLayout _measure(
+    BoxConstraints constraints, {
+    required bool dry,
+  }) {
     final padding = _resolvedPadding;
-    final availableWidth = (constraints.maxWidth - padding.horizontal).clamp(0.0, double.infinity);
+    final availableWidth = (constraints.maxWidth - padding.horizontal).clamp(
+      0.0,
+      double.infinity,
+    );
     final childConstraints = BoxConstraints(maxWidth: availableWidth);
 
     final header = _header;
     final content = _content;
     final meta = _meta;
-    final headerSize = header == null ? Size.zero : _layoutChild(header, childConstraints, dry: dry);
-    final contentSize = content == null ? Size.zero : _layoutChild(content, childConstraints, dry: dry);
-    final metaSize = meta == null ? Size.zero : _layoutChild(meta, childConstraints, dry: dry);
+    final headerSize = header == null
+        ? Size.zero
+        : _layoutChild(header, childConstraints, dry: dry);
+    final contentSize = content == null
+        ? Size.zero
+        : _layoutChild(content, childConstraints, dry: dry);
+    final metaSize = meta == null
+        ? Size.zero
+        : _layoutChild(meta, childConstraints, dry: dry);
 
     return ChatMessageBodyLayout.measure(
       constraints: constraints,
@@ -114,18 +128,27 @@ class RenderChatMessageBody extends RenderBox with SlottedContainerRenderObjectM
       metaSize: metaSize,
       hasContent: content != null,
       hasMeta: meta != null,
-      lastLineWidth: () =>
-          dry ? contentSize.width : ChatMessageBodyLayout.lastLineWidthOf(content!, fallback: contentSize.width),
+      lastLineWidth: () => dry
+          ? contentSize.width
+          : ChatMessageBodyLayout.lastLineWidthOf(
+              content!,
+              fallback: contentSize.width,
+            ),
     );
   }
 
-  Size _layoutChild(RenderBox child, BoxConstraints constraints, {required bool dry}) {
+  Size _layoutChild(
+    RenderBox child,
+    BoxConstraints constraints, {
+    required bool dry,
+  }) {
     if (dry) return child.getDryLayout(constraints);
     child.layout(constraints, parentUsesSize: true);
     return child.size;
   }
 
-  static Offset _offsetOf(RenderBox child) => (child.parentData! as BoxParentData).offset;
+  static Offset _offsetOf(RenderBox child) =>
+      (child.parentData! as BoxParentData).offset;
 
   static void _positionChild(RenderBox child, Offset offset) {
     (child.parentData! as BoxParentData).offset = offset;
@@ -154,7 +177,8 @@ class RenderChatMessageBody extends RenderBox with SlottedContainerRenderObjectM
       final isHit = result.addWithPaintOffset(
         offset: childParentData.offset,
         position: position,
-        hitTest: (result, transformed) => child.hitTest(result, position: transformed),
+        hitTest: (result, transformed) =>
+            child.hitTest(result, position: transformed),
       );
       if (isHit) return true;
     }

@@ -18,9 +18,12 @@ typedef ChatEmojiCaret = ({int offset, TextAffinity affinity});
 @internal
 final class ChatEmojiTextLayout {
   /// Creates the layout of [text] whose item squares are [items].
-  ChatEmojiTextLayout({required this.text, required this.items, required this.direction})
-    : assert(items.length == text.itemRanges.length, 'One square per item.'),
-      _rows = _rowsOf(items);
+  ChatEmojiTextLayout({
+    required this.text,
+    required this.items,
+    required this.direction,
+  }) : assert(items.length == text.itemRanges.length, 'One square per item.'),
+       _rows = _rowsOf(items);
 
   /// The characters of the items.
   final ChatEmojiText text;
@@ -124,7 +127,9 @@ final class ChatEmojiTextLayout {
     if (after && i == row.last) {
       return (offset: range.end, affinity: TextAffinity.upstream);
     }
-    final leadingHalf = _ltr ? local.dx < rect.center.dx : local.dx > rect.center.dx;
+    final leadingHalf = _ltr
+        ? local.dx < rect.center.dx
+        : local.dx > rect.center.dx;
     return leadingHalf
         ? (offset: range.start, affinity: TextAffinity.downstream)
         : (offset: range.end, affinity: TextAffinity.upstream);
@@ -145,11 +150,14 @@ final class ChatEmojiTextLayout {
       if (ranges[i].start == offset) starting ??= i;
       if (ranges[i].end == offset) ending = i;
     }
-    Rect edge(Rect rect, double x) => Rect.fromLTWH(x, rect.top, 0, rect.height);
+    Rect edge(Rect rect, double x) =>
+        Rect.fromLTWH(x, rect.top, 0, rect.height);
     Rect leadingOf(int i) => edge(items[i], _leading(items[i]));
     Rect trailingOf(int i) => edge(items[i], _trailing(items[i]));
     if (starting != null && ending != null) {
-      return affinity == TextAffinity.upstream ? trailingOf(ending) : leadingOf(starting);
+      return affinity == TextAffinity.upstream
+          ? trailingOf(ending)
+          : leadingOf(starting);
     }
     if (starting != null) return leadingOf(starting);
     if (ending != null) return trailingOf(ending);
@@ -157,9 +165,13 @@ final class ChatEmojiTextLayout {
     if (offset >= ranges.last.end) return trailingOf(ranges.length - 1);
     // Inside an item (between the code units of one emoji): its edge on the
     // side [affinity] says.
-    final inside = ranges.indexWhere((range) => range.start < offset && offset < range.end);
+    final inside = ranges.indexWhere(
+      (range) => range.start < offset && offset < range.end,
+    );
     if (inside >= 0) {
-      return affinity == TextAffinity.upstream ? trailingOf(inside) : leadingOf(inside);
+      return affinity == TextAffinity.upstream
+          ? trailingOf(inside)
+          : leadingOf(inside);
     }
     // Inside a run of breaks: where the next item starts.
     final next = ranges.indexWhere((range) => range.start > offset);
@@ -185,7 +197,9 @@ final class ChatEmojiTextLayout {
 
   /// The square of each item the characters `[start, end)` reach, in reading
   /// order: the per-item boxes, for a style that wants them apart.
-  List<Rect> boxesForRange(int start, int end) => [for (final i in _itemsIn(start, end)) items[i]];
+  List<Rect> boxesForRange(int start, int end) => [
+    for (final i in _itemsIn(start, end)) items[i],
+  ];
 
   /// One box per line, joining the squares of the selected items on it: the
   /// shape of a text selection, a line tall and without a gap between items.

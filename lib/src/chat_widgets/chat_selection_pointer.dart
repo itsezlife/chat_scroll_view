@@ -65,8 +65,11 @@ class ChatSelectionPointer {
   /// when secondary tap won the arena and fling-cancel does not suppress.
   /// Null is a no-op — and the secondary recognizer is not armed, so
   /// per-body text context menus can win the arena.
-  void Function(int id, Offset localPosition)? get onSecondaryMessageTap => _onSecondaryMessageTap;
-  set onSecondaryMessageTap(void Function(int id, Offset localPosition)? value) {
+  void Function(int id, Offset localPosition)? get onSecondaryMessageTap =>
+      _onSecondaryMessageTap;
+  set onSecondaryMessageTap(
+    void Function(int id, Offset localPosition)? value,
+  ) {
     if (identical(_onSecondaryMessageTap, value)) return;
     _onSecondaryMessageTap = value;
     // Keep the live recognizer in sync without waiting for the next down.
@@ -82,7 +85,8 @@ class ChatSelectionPointer {
   /// Whether a span session is live and has moved past slop, or an uncommitted
   /// drag selection is actively tracking on desktop.
   bool get isSpanLive =>
-      (_spanOriginId != null && _spanPastSlop) || (_panOriginId != null && (selection?.hasDragSelection ?? false));
+      (_spanOriginId != null && _spanPastSlop) ||
+      (_panOriginId != null && (selection?.hasDragSelection ?? false));
 
   /// Gesture origin of the current span session, if any.
   int? get spanOriginId => _spanOriginId;
@@ -140,7 +144,9 @@ class ChatSelectionPointer {
       return;
     }
     final barred = ChatSelectionGestureExclusion.takeBarred(event.pointer);
-    if (selection == null && onIdleMessageTap == null && _onSecondaryMessageTap == null) {
+    if (selection == null &&
+        onIdleMessageTap == null &&
+        _onSecondaryMessageTap == null) {
       return;
     }
     _pointerDownId = messageIdAt?.call(event.localPosition);
@@ -174,7 +180,8 @@ class ChatSelectionPointer {
       return;
     }
     if (selection != null) {
-      final policy = selection?.selectionPolicy ?? const ChatSelectionPolicy.mobile();
+      final policy =
+          selection?.selectionPolicy ?? const ChatSelectionPolicy.mobile();
       if (policy.usesTimerBasedLongPress) {
         final sel = selection!;
         final id = _pointerDownId!;
@@ -195,7 +202,9 @@ class ChatSelectionPointer {
           if (!landsOnText) {
             _pan?.addPointer(event);
           }
-        } else if (landsOnText && !sel.isSelectionMode && policy.allowsTextEntryWithoutMessageSelection) {
+        } else if (landsOnText &&
+            !sel.isSelectionMode &&
+            policy.allowsTextEntryWithoutMessageSelection) {
           // Surface bounds (bubble Inside), not glyph ink — padding / empty
           // line gutter arms text; outside the body → message pan.
           sel.armTextSelection(id);
@@ -276,17 +285,22 @@ class ChatSelectionPointer {
   }
 
   void _ensureRecognizers() {
-    final policy = selection?.selectionPolicy ?? const ChatSelectionPolicy.mobile();
+    final policy =
+        selection?.selectionPolicy ?? const ChatSelectionPolicy.mobile();
     if (policy.usesTimerBasedLongPress) {
       _pan?.dispose();
       _pan = null;
-      _longPress ??= LongPressGestureRecognizer(debugOwner: debugOwner, duration: ChatSelectionMetrics.longPressTimeout)
-        ..onLongPressStart = _onLongPressStart
-        ..onLongPressMoveUpdate = _onLongPressMoveUpdate
-        ..onLongPressEnd = (_) {
-          _clearSpan();
-        }
-        ..onLongPressCancel = _onLongPressCancel;
+      _longPress ??=
+          LongPressGestureRecognizer(
+              debugOwner: debugOwner,
+              duration: ChatSelectionMetrics.longPressTimeout,
+            )
+            ..onLongPressStart = _onLongPressStart
+            ..onLongPressMoveUpdate = _onLongPressMoveUpdate
+            ..onLongPressEnd = (_) {
+              _clearSpan();
+            }
+            ..onLongPressCancel = _onLongPressCancel;
     } else {
       _longPress?.dispose();
       _longPress = null;
@@ -299,7 +313,9 @@ class ChatSelectionPointer {
     _tap ??= TapGestureRecognizer(debugOwner: debugOwner)..onTap = _onTap;
     // Arm secondary only when the host opted in. Otherwise leave the arena
     // to per-body markdown so Flutter’s text context menu remains.
-    _tap!.onSecondaryTapUp = _onSecondaryMessageTap == null ? null : _onSecondaryTapUp;
+    _tap!.onSecondaryTapUp = _onSecondaryMessageTap == null
+        ? null
+        : _onSecondaryTapUp;
   }
 
   void _onSecondaryTapUp(TapUpDetails details) {
@@ -321,7 +337,9 @@ class ChatSelectionPointer {
     _panStartLocal = _pointerDownLocal ?? details.localPosition;
 
     final isSelected = selection.isSelected(id);
-    _panAction = isSelected ? ChatDragSelectAction.deselecting : ChatDragSelectAction.selecting;
+    _panAction = isSelected
+        ? ChatDragSelectAction.deselecting
+        : ChatDragSelectAction.selecting;
 
     final hit = (spanHitAt ?? messageIdAt)?.call(details.localPosition) ?? id;
     final chain = spanChain?.call(id, hit) ?? <int>[id];
@@ -429,7 +447,9 @@ class ChatSelectionPointer {
 
     selection.abortSpanFeedback();
     HapticFeedback.vibrate();
-    final polarity = selection.isSelected(id) ? _SpanPolarity.unselect : _SpanPolarity.select;
+    final polarity = selection.isSelected(id)
+        ? _SpanPolarity.unselect
+        : _SpanPolarity.select;
     switch (polarity) {
       case _SpanPolarity.unselect:
         selection.toggle(id);
@@ -451,7 +471,10 @@ class ChatSelectionPointer {
     final snapshot = _spanSnapshot;
     final polarity = _spanPolarity;
     final selection = this.selection;
-    if (origin == null || snapshot == null || polarity == null || selection == null) {
+    if (origin == null ||
+        snapshot == null ||
+        polarity == null ||
+        selection == null) {
       return;
     }
     _spanPointerLocal = details.localPosition;
@@ -470,7 +493,10 @@ class ChatSelectionPointer {
     final snapshot = _spanSnapshot;
     final polarity = _spanPolarity;
     final selection = this.selection;
-    if (origin == null || snapshot == null || polarity == null || selection == null) {
+    if (origin == null ||
+        snapshot == null ||
+        polarity == null ||
+        selection == null) {
       return;
     }
     if (_spanMembershipFrozen) return;
@@ -479,11 +505,16 @@ class ChatSelectionPointer {
     final chain = spanChain?.call(origin, hit) ?? <int>[origin, hit];
     final next = switch (polarity) {
       _SpanPolarity.unselect => snapshot.difference(chain.toSet()),
-      _SpanPolarity.select => _selectSpanIds(snapshot, chain, selection.selectionCap),
+      _SpanPolarity.select => _selectSpanIds(
+        snapshot,
+        chain,
+        selection.selectionCap,
+      ),
     };
     _spanHitId = hit;
     if (polarity == _SpanPolarity.select) {
-      final uncapped = snapshot.length + chain.where((id) => !snapshot.contains(id)).length;
+      final uncapped =
+          snapshot.length + chain.where((id) => !snapshot.contains(id)).length;
       if (selection.selectionCap != null && uncapped > next.length) {
         if (!_spanCapHitSent) {
           _spanCapHitSent = true;
@@ -559,12 +590,14 @@ class ChatSelectionPointer {
     // selection and text-selection dismiss above are not message taps: a row
     // being toggled or a selection being dismissed stays that, wherever the
     // pointer lands.
-    if (_pointerDownSpoilersHidden && (selection?.spoilers.isRevealed(id) ?? false)) {
+    if (_pointerDownSpoilersHidden &&
+        (selection?.spoilers.isRevealed(id) ?? false)) {
       return;
     }
     final local = _pointerDownLocal;
     if (local == null) return;
-    final policy = selection?.selectionPolicy ?? const ChatSelectionPolicy.mobile();
+    final policy =
+        selection?.selectionPolicy ?? const ChatSelectionPolicy.mobile();
     if (!policy.routesPrimaryTapToIdleMessage) return;
     onIdleMessageTap?.call(id, local);
   }

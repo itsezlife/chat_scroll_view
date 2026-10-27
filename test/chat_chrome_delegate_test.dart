@@ -1,18 +1,31 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const ChatFloatingHeaderZone _header = ChatFloatingHeaderZone(restTop: 10, extent: 30);
+const ChatFloatingHeaderZone _header = ChatFloatingHeaderZone(
+  restTop: 10,
+  extent: 30,
+);
 
 ChatRowChromeEffect _resolve(
   ChatRowChromeDelegate delegate, {
   required double top,
   ChatFloatingHeaderZone header = _header,
-}) => delegate.resolve(ChatRowChromeMetrics(top: top, extent: 30, header: header));
+}) => delegate.resolve(
+  ChatRowChromeMetrics(top: top, extent: 30, header: header),
+);
 
-ChatFloatingHeaderEffect _resolveHeader(ChatDayHeaderDelegate delegate, {double? lead, double activity = 1}) =>
-    delegate.resolveFloatingHeader(
-      ChatDayHeaderMetrics(restTop: 10, extent: 30, leadingSeparatorTop: lead, activity: activity),
-    );
+ChatFloatingHeaderEffect _resolveHeader(
+  ChatDayHeaderDelegate delegate, {
+  double? lead,
+  double activity = 1,
+}) => delegate.resolveFloatingHeader(
+  ChatDayHeaderMetrics(
+    restTop: 10,
+    extent: 30,
+    leadingSeparatorTop: lead,
+    activity: activity,
+  ),
+);
 
 void main() {
   group('row chrome delegates', () {
@@ -34,13 +47,20 @@ void main() {
 
     test('fadeUnderHeader follows a pushed header bottom', () {
       const delegate = ChatRowChromeDelegate.fadeUnderHeader();
-      const pushed = ChatFloatingHeaderZone(restTop: 10, extent: 30, offset: -10);
+      const pushed = ChatFloatingHeaderZone(
+        restTop: 10,
+        extent: 30,
+        offset: -10,
+      );
       expect(_resolve(delegate, top: 30, header: pushed).opacity, 1);
     });
 
     test('fadeUnderHeader stays visible with no header', () {
       const delegate = ChatRowChromeDelegate.fadeUnderHeader();
-      expect(_resolve(delegate, top: -50, header: ChatFloatingHeaderZone.none), ChatRowChromeEffect.visible);
+      expect(
+        _resolve(delegate, top: -50, header: ChatFloatingHeaderZone.none),
+        ChatRowChromeEffect.visible,
+      );
     });
 
     test('hideUnderHeader hides from the rest line up', () {
@@ -48,16 +68,25 @@ void main() {
       expect(_resolve(delegate, top: 11), ChatRowChromeEffect.visible);
       expect(_resolve(delegate, top: 10), ChatRowChromeEffect.hidden);
       expect(_resolve(delegate, top: -5), ChatRowChromeEffect.hidden);
-      expect(_resolve(delegate, top: -5, header: ChatFloatingHeaderZone.none), ChatRowChromeEffect.visible);
+      expect(
+        _resolve(delegate, top: -5, header: ChatFloatingHeaderZone.none),
+        ChatRowChromeEffect.visible,
+      );
     });
 
     test('built-in delegates are value-equal', () {
-      expect(const ChatRowChromeDelegate.fadeUnderHeader(band: 12), const ChatFadeUnderHeaderRowChrome(band: 12));
+      expect(
+        const ChatRowChromeDelegate.fadeUnderHeader(band: 12),
+        const ChatFadeUnderHeaderRowChrome(band: 12),
+      );
       expect(
         const ChatRowChromeDelegate.fadeUnderHeader(band: 12),
         isNot(const ChatRowChromeDelegate.fadeUnderHeader()),
       );
-      expect(const ChatFadingDayHeader().inlineSeparator, const ChatRowChromeDelegate.fadeUnderHeader());
+      expect(
+        const ChatFadingDayHeader().inlineSeparator,
+        const ChatRowChromeDelegate.fadeUnderHeader(),
+      );
     });
   });
 
@@ -118,7 +147,10 @@ void main() {
     });
 
     test('inline separators hide under the header', () {
-      expect(delegate.inlineSeparator, const ChatRowChromeDelegate.hideUnderHeader());
+      expect(
+        delegate.inlineSeparator,
+        const ChatRowChromeDelegate.hideUnderHeader(),
+      );
     });
   });
 }

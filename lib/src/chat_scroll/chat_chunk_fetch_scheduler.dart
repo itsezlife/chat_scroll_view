@@ -29,7 +29,8 @@ class ChatChunkFetchScheduler {
   /// (the anchor chunk is never evicted).
   ChatChunkFetchScheduler({
     required ChatDataSource dataSource,
-    required void Function(int minChunk, int maxChunk, {bool allowWiden}) requestRange,
+    required void Function(int minChunk, int maxChunk, {bool allowWiden})
+    requestRange,
     required int Function() anchorChunkIndex,
     Duration pollInterval = const Duration(milliseconds: 150),
   }) : _dataSource = dataSource,
@@ -38,7 +39,8 @@ class ChatChunkFetchScheduler {
        _pollInterval = pollInterval;
 
   final ChatDataSource _dataSource;
-  final void Function(int minChunk, int maxChunk, {bool allowWiden}) _requestRange;
+  final void Function(int minChunk, int maxChunk, {bool allowWiden})
+  _requestRange;
   final int Function() _anchorChunkIndex;
   final Duration _pollInterval;
 
@@ -148,7 +150,10 @@ class ChatChunkFetchScheduler {
   void _queueDestinationWindowFetch() {
     final dest = _navigationDestChunk;
     if (dest == null || _dispatchDetached) return;
-    Log.fine(.fetch, 'dest.queue', {'dest': dest, 'layout': '$_layoutMinChunk..$_layoutMaxChunk'});
+    Log.fine(.fetch, 'dest.queue', {
+      'dest': dest,
+      'layout': '$_layoutMinChunk..$_layoutMaxChunk',
+    });
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (_dispatchDetached || _navigationDestChunk != dest) {
         Log.fine(.fetch, 'dest.queue.skip', {
@@ -176,7 +181,8 @@ class ChatChunkFetchScheduler {
 
   void _schedEvent(String tag, Map<String, Object?> fields) {
     if (!LogCategory.fetch.enabled) return;
-    final signature = '$tag|${fields.entries.map((e) => '${e.key}=${e.value}').join(' ')}';
+    final signature =
+        '$tag|${fields.entries.map((e) => '${e.key}=${e.value}').join(' ')}';
     if (signature == _lastLogSignature) {
       _logRepeatCount++;
       // Emit a heartbeat every 64 identical lines so storms are visible
@@ -186,7 +192,10 @@ class ChatChunkFetchScheduler {
       return;
     }
     if (_logRepeatCount > 0) {
-      Log.fine(.fetch, 'log.collapsed', {'prev': _lastLogSignature, 'x': _logRepeatCount});
+      Log.fine(.fetch, 'log.collapsed', {
+        'prev': _lastLogSignature,
+        'x': _logRepeatCount,
+      });
     }
     _lastLogSignature = signature;
     _logRepeatCount = 0;
@@ -221,7 +230,11 @@ class ChatChunkFetchScheduler {
     _requestLayoutRange(range.$1, range.$2);
   }
 
-  void _requestLayoutRange(int minChunk, int maxChunk, {bool allowWiden = true}) {
+  void _requestLayoutRange(
+    int minChunk,
+    int maxChunk, {
+    bool allowWiden = true,
+  }) {
     _requestRange(minChunk, maxChunk, allowWiden: allowWiden);
   }
 
@@ -306,7 +319,8 @@ class ChatChunkFetchScheduler {
   bool _layoutSpansStitchGap(int destChunk) {
     if (_layoutMaxChunk < _layoutMinChunk) return false;
     final range = _clampedDestinationWindow(destChunk);
-    final overlapsDest = _layoutMinChunk <= range.$2 && _layoutMaxChunk >= range.$1;
+    final overlapsDest =
+        _layoutMinChunk <= range.$2 && _layoutMaxChunk >= range.$1;
     if (!overlapsDest) return false;
     final windowWidth = range.$2 - range.$1 + 1;
     final layoutWidth = _layoutMaxChunk - _layoutMinChunk + 1;
@@ -407,7 +421,9 @@ class ChatChunkFetchScheduler {
       'layout': '$_layoutMinChunk..$_layoutMaxChunk',
       'outsideDest': _navigationDestChunk == null
           ? null
-          : isOutsideNavigationDestination(ChatScrollChunk.firstIdOf(_layoutMinChunk)),
+          : isOutsideNavigationDestination(
+              ChatScrollChunk.firstIdOf(_layoutMinChunk),
+            ),
     });
   }
 
@@ -422,7 +438,10 @@ class ChatChunkFetchScheduler {
       return;
     }
     _jumpFetchPending = true;
-    Log.fine(.fetch, 'queueJumpFetch', {'dest': _navigationDestChunk, 'layout': '$_layoutMinChunk..$_layoutMaxChunk'});
+    Log.fine(.fetch, 'queueJumpFetch', {
+      'dest': _navigationDestChunk,
+      'layout': '$_layoutMinChunk..$_layoutMaxChunk',
+    });
   }
 
   /// End of a normal-mode layout: publish range, evict, poll, jump-fetch.
@@ -494,7 +513,8 @@ class ChatChunkFetchScheduler {
       ChatScrollChunk? victim;
       for (final chunk in chunks.values) {
         if (isProtected(chunk.index)) continue;
-        final outside = chunk.index < _layoutMinChunk || chunk.index > _layoutMaxChunk;
+        final outside =
+            chunk.index < _layoutMinChunk || chunk.index > _layoutMaxChunk;
         if (outsideLayoutOnly && !outside) continue;
         if (victim == null || chunk.lastAccessTick < victim.lastAccessTick) {
           victim = chunk;
@@ -535,7 +555,9 @@ class ChatChunkFetchScheduler {
     // arm Duration.zero — a stale partial tail would otherwise busy-spin.
     final delay = !urgent
         ? _pollInterval
-        : (!scrollSettled && _dataSource.hasInFlightFetch ? _pollInterval : Duration.zero);
+        : (!scrollSettled && _dataSource.hasInFlightFetch
+              ? _pollInterval
+              : Duration.zero);
     _pollTimer = Timer(delay, _onPollTick);
   }
 
@@ -600,7 +622,10 @@ class ChatChunkFetchScheduler {
         });
       }
     } else {
-      Log.fine(.fetch, 'poll.tick', {'branch': 'empty', 'layout': '$_layoutMinChunk..$_layoutMaxChunk'});
+      Log.fine(.fetch, 'poll.tick', {
+        'branch': 'empty',
+        'layout': '$_layoutMinChunk..$_layoutMaxChunk',
+      });
     }
     // Keep polling until everything in range has loaded, then go idle.
     // Sparse-valid chunks (insert after eviction) are healed inside
@@ -670,7 +695,10 @@ class ChatChunkFetchScheduler {
     if (!_jumpFetchPending) return;
     _jumpFetchPending = false;
     if (_dispatchDetached) return;
-    Log.fine(.fetch, 'jumpFetch.arm', {'dest': _navigationDestChunk, 'layout': '$_layoutMinChunk..$_layoutMaxChunk'});
+    Log.fine(.fetch, 'jumpFetch.arm', {
+      'dest': _navigationDestChunk,
+      'layout': '$_layoutMinChunk..$_layoutMaxChunk',
+    });
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (_dispatchDetached) {
         Log.fine(.fetch, 'jumpFetch.skip', {'reason': 'detached'});
@@ -691,7 +719,9 @@ class ChatChunkFetchScheduler {
         }
         final range = _clampedDestinationWindow(dest);
         final layoutOverlapsDest =
-            _layoutMaxChunk >= _layoutMinChunk && _layoutMinChunk <= range.$2 && _layoutMaxChunk >= range.$1;
+            _layoutMaxChunk >= _layoutMinChunk &&
+            _layoutMinChunk <= range.$2 &&
+            _layoutMaxChunk >= range.$1;
         if (!layoutOverlapsDest) {
           // Load-gate still at origin (or empty layout): warm dest only.
           // Requesting origin layout here would cancel the dest fetch every
@@ -715,16 +745,24 @@ class ChatChunkFetchScheduler {
       }
       if (_layoutMaxChunk < _layoutMinChunk) {
         if (dest != null) {
-          Log.fine(.fetch, 'jumpFetch.dispatch', {'branch': 'emptyLayout→dest', 'dest': dest});
+          Log.fine(.fetch, 'jumpFetch.dispatch', {
+            'branch': 'emptyLayout→dest',
+            'dest': dest,
+          });
           _requestDestinationWindow(dest);
         } else {
-          Log.fine(.fetch, 'jumpFetch.dispatch', {'branch': 'emptyLayout→noop'});
+          Log.fine(.fetch, 'jumpFetch.dispatch', {
+            'branch': 'emptyLayout→noop',
+          });
         }
         return;
       }
       // Scrollbar / normal jump (pin cleared on jump-away) — laid-out band.
       if (dest == null) {
-        Log.fine(.fetch, 'jumpFetch.dispatch', {'branch': 'layout', 'layout': '$_layoutMinChunk..$_layoutMaxChunk'});
+        Log.fine(.fetch, 'jumpFetch.dispatch', {
+          'branch': 'layout',
+          'layout': '$_layoutMinChunk..$_layoutMaxChunk',
+        });
       }
       _logRequest('jumpFetch', _layoutMinChunk, _layoutMaxChunk);
       _requestLayoutRange(_layoutMinChunk, _layoutMaxChunk);

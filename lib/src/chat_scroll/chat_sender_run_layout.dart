@@ -44,14 +44,21 @@ class MessageRunLayout {
   ///
   /// [extras] is optional host chrome for the skip-rebuild cache (default
   /// `null`). It does not affect clustering.
-  const MessageRunLayout({required this.isFirstInSenderRun, required this.isLastInSenderRun, this.extras});
+  const MessageRunLayout({
+    required this.isFirstInSenderRun,
+    required this.isLastInSenderRun,
+    this.extras,
+  });
 
   /// Placeholder when [ChatSenderRunLayout.resolve] runs for an unloaded slot.
   ///
   /// Both flags are `true` so builders that gate chrome on either end still
   /// draw a complete shimmer/loading row instead of hiding avatar/sender
   /// before data arrives. [extras] is always `null`.
-  const MessageRunLayout.degenerate() : isFirstInSenderRun = true, isLastInSenderRun = true, extras = null;
+  const MessageRunLayout.degenerate()
+    : isFirstInSenderRun = true,
+      isLastInSenderRun = true,
+      extras = null;
 
   /// `true` when there is no previous **present** neighbor in the same run
   /// ([ChatDataSource.getPreviousPresentMessage]).
@@ -76,7 +83,8 @@ class MessageRunLayout {
       other.extras == extras;
 
   @override
-  int get hashCode => Object.hash(isFirstInSenderRun, isLastInSenderRun, extras);
+  int get hashCode =>
+      Object.hash(isFirstInSenderRun, isLastInSenderRun, extras);
 }
 
 /// Host-owned policy that decides first/last-in-run for each message id.
@@ -127,7 +135,8 @@ class DefaultChatSenderRunLayout implements ChatSenderRunLayout {
   static const Duration defaultMaxClusterGap = Duration(minutes: 5);
 
   /// Shared const instance with [defaultMaxClusterGap].
-  static const DefaultChatSenderRunLayout instance = DefaultChatSenderRunLayout();
+  static const DefaultChatSenderRunLayout instance =
+      DefaultChatSenderRunLayout();
 
   /// Max `|createdAt|` for same-sender neighbors to stay in one run.
   /// `null` disables the time window.
@@ -169,7 +178,10 @@ class DefaultChatSenderRunLayout implements ChatSenderRunLayout {
           groupBy: groupBy,
         );
 
-    return MessageRunLayout(isFirstInSenderRun: isFirst, isLastInSenderRun: isLast);
+    return MessageRunLayout(
+      isFirstInSenderRun: isFirst,
+      isLastInSenderRun: isLast,
+    );
   }
 
   /// Whether [neighbor] continues the same sender run as [message].
@@ -195,7 +207,9 @@ class DefaultChatSenderRunLayout implements ChatSenderRunLayout {
   }
 
   @override
-  bool operator ==(Object other) => other is DefaultChatSenderRunLayout && other.maxClusterGap == maxClusterGap;
+  bool operator ==(Object other) =>
+      other is DefaultChatSenderRunLayout &&
+      other.maxClusterGap == maxClusterGap;
 
   @override
   int get hashCode => maxClusterGap.hashCode;

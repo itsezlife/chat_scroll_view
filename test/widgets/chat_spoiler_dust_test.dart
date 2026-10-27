@@ -22,20 +22,23 @@ void main() {
     clock.dispose();
   });
 
-  Future<void> pumpBody(WidgetTester tester, {required bool mounted}) => tester.pumpWidget(
-    Directionality(
-      textDirection: TextDirection.ltr,
-      child: mounted
-          ? MarkdownWidget(
-              markdown: Markdown.fromString('x ||secret|| y'),
-              documentId: 'preview',
-              spoilerController: spoilers,
-            )
-          : const SizedBox.shrink(),
-    ),
-  );
+  Future<void> pumpBody(WidgetTester tester, {required bool mounted}) =>
+      tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: mounted
+              ? MarkdownWidget(
+                  markdown: Markdown.fromString('x ||secret|| y'),
+                  documentId: 'preview',
+                  spoilerController: spoilers,
+                )
+              : const SizedBox.shrink(),
+        ),
+      );
 
-  testWidgets('follows the clock only while a hidden spoiler is mounted', (tester) async {
+  testWidgets('follows the clock only while a hidden spoiler is mounted', (
+    tester,
+  ) async {
     final dust = ChatSpoilerDust(spoilers: spoilers, clock: clock);
     addTearDown(dust.dispose);
     expect(ticks.isRunning, isFalse);

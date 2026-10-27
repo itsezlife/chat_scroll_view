@@ -25,7 +25,12 @@ controller.settle(finalText);
 class StreamingDemoMessage implements IChatMessage {
   /// Creates a row of [id] spoken by [sender] with [text] (the settled text
   /// of an assistant row, or the whole text of the user's).
-  const StreamingDemoMessage({required this.id, required this.sender, required this.text, required this.createdAt});
+  const StreamingDemoMessage({
+    required this.id,
+    required this.sender,
+    required this.text,
+    required this.createdAt,
+  });
 
   @override
   final int id;
@@ -47,13 +52,26 @@ class StreamingDemoMessage implements IChatMessage {
 class StreamingDemoDataSource extends ChatDataSource {
   /// Seeds one user message.
   StreamingDemoDataSource() {
-    final first = StreamingDemoMessage(id: 1, sender: 'me', text: 'Stream me a reply.', createdAt: DateTime(2026));
+    final first = StreamingDemoMessage(
+      id: 1,
+      sender: 'me',
+      text: 'Stream me a reply.',
+      createdAt: DateTime(2026),
+    );
     upsertMessage(first);
-    seedBoundaries(oldestKnownId: 1, newestKnownId: 1, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 1,
+      newestKnownId: 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 /// Streams [streamingDemoReply] into a row on Send, then settles it with one
@@ -101,8 +119,18 @@ class StreamingScreenState extends State<StreamingScreen> {
       liveId = replyId;
     });
     source.insertMessages([
-      StreamingDemoMessage(id: userId, sender: 'me', text: 'Stream me a reply.', createdAt: now),
-      StreamingDemoMessage(id: replyId, sender: 'assistant', text: '', createdAt: now),
+      StreamingDemoMessage(
+        id: userId,
+        sender: 'me',
+        text: 'Stream me a reply.',
+        createdAt: now,
+      ),
+      StreamingDemoMessage(
+        id: replyId,
+        sender: 'assistant',
+        text: '',
+        createdAt: now,
+      ),
     ]);
     var offset = 0;
     _timer = Timer.periodic(const Duration(milliseconds: 20), (timer) {
@@ -115,7 +143,12 @@ class StreamingScreenState extends State<StreamingScreen> {
       // The final text wins, then the row is swapped once.
       live.settle(streamingDemoReply);
       source.updateMessage(
-        StreamingDemoMessage(id: replyId, sender: 'assistant', text: streamingDemoReply, createdAt: now),
+        StreamingDemoMessage(
+          id: replyId,
+          sender: 'assistant',
+          text: streamingDemoReply,
+          createdAt: now,
+        ),
       );
       if (mounted) setState(() {});
     });
@@ -132,7 +165,13 @@ class StreamingScreenState extends State<StreamingScreen> {
     super.dispose();
   }
 
-  Widget _tile(BuildContext context, int id, IChatMessage? message, ChatMessageStatus status, MessageRunLayout run) {
+  Widget _tile(
+    BuildContext context,
+    int id,
+    IChatMessage? message,
+    ChatMessageStatus status,
+    MessageRunLayout run,
+  ) {
     if (message is! StreamingDemoMessage) return const SizedBox(height: 48);
     final mine = message.sender == 'me';
     final live = id == liveId ? body : null;
@@ -151,7 +190,11 @@ class StreamingScreenState extends State<StreamingScreen> {
               style: const TextStyle(color: Colors.white, fontSize: 15),
               child: live == null
                   ? Text(message.text)
-                  : ChatStreamingBody(controller: selection, messageId: id, body: live),
+                  : ChatStreamingBody(
+                      controller: selection,
+                      messageId: id,
+                      body: live,
+                    ),
             ),
           ),
         ),

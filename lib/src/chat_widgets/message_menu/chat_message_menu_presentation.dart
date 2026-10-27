@@ -23,16 +23,21 @@ enum ChatMessageMenuPresentation {
   /// Maps [policy] to the matching presentation.
   ///
   /// [$Mobile] → [sheet]; [$Desktop] → [popup].
-  factory ChatMessageMenuPresentation.forPolicy(ChatSelectionPolicy policy) => switch (policy) {
-    ChatSelectionPolicy$Mobile() => ChatMessageMenuPresentation.sheet,
-    ChatSelectionPolicy$Desktop() => ChatMessageMenuPresentation.popup,
-  };
+  factory ChatMessageMenuPresentation.forPolicy(ChatSelectionPolicy policy) =>
+      switch (policy) {
+        ChatSelectionPolicy$Mobile() => ChatMessageMenuPresentation.sheet,
+        ChatSelectionPolicy$Desktop() => ChatMessageMenuPresentation.popup,
+      };
 
   /// Default from OS family — same matrix as [ChatSelectionPolicy.forPlatform].
   ///
   /// Convenience for hosts that want presentation without constructing a
   /// policy; [ChatMessageMenu.show] itself resolves via [forPolicy] on an
   /// explicit or platform policy.
-  factory ChatMessageMenuPresentation.forPlatform({TargetPlatform? platform, bool? isWeb}) =>
-      ChatMessageMenuPresentation.forPolicy(ChatSelectionPolicy.forPlatform(platform: platform, isWeb: isWeb));
+  factory ChatMessageMenuPresentation.forPlatform({
+    TargetPlatform? platform,
+    bool? isWeb,
+  }) => ChatMessageMenuPresentation.forPolicy(
+    ChatSelectionPolicy.forPlatform(platform: platform, isWeb: isWeb),
+  );
 }

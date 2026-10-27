@@ -23,10 +23,19 @@ void main() {
     TextDirection direction = TextDirection.ltr,
     List<ContentKey> keys = const [_a, _a, _a, _a, _a],
   }) {
-    final flow = ChatEmojiFlow.of(lineBreaksBefore: breaks, box: 10, maxWidth: maxWidth, direction: direction, skip: 2);
+    final flow = ChatEmojiFlow.of(
+      lineBreaksBefore: breaks,
+      box: 10,
+      maxWidth: maxWidth,
+      direction: direction,
+      skip: 2,
+    );
     return ChatEmojiTextLayout(
       text: ChatEmojiText.of(
-        EmojiOnly([for (final (i, key) in keys.indexed) EmojiOnlyItem(key, lineBreaksBefore: breaks[i])]),
+        EmojiOnly([
+          for (final (i, key) in keys.indexed)
+            EmojiOnlyItem(key, lineBreaksBefore: breaks[i]),
+        ]),
       ),
       items: flow.rects,
       direction: direction,
@@ -100,8 +109,14 @@ void main() {
     test('an item edge is the leading or trailing side of its square', () {
       final l = layout();
 
-      expect(l.caretRect(2, TextAffinity.downstream), const Rect.fromLTWH(12, 0, 0, 10));
-      expect(l.caretRect(4, TextAffinity.upstream), const Rect.fromLTWH(22, 0, 0, 10));
+      expect(
+        l.caretRect(2, TextAffinity.downstream),
+        const Rect.fromLTWH(12, 0, 0, 10),
+      );
+      expect(
+        l.caretRect(4, TextAffinity.upstream),
+        const Rect.fromLTWH(22, 0, 0, 10),
+      );
     });
 
     test('at a wrap the affinity picks the end of one line or the next', () {
@@ -125,14 +140,23 @@ void main() {
       // last one; there is no item after it to start.
       final l = layout();
 
-      expect(l.caretRect(9, TextAffinity.downstream), const Rect.fromLTWH(0, 20, 0, 10));
-      expect(l.caretRect(9, TextAffinity.upstream), const Rect.fromLTWH(10, 20, 0, 10));
+      expect(
+        l.caretRect(9, TextAffinity.downstream),
+        const Rect.fromLTWH(0, 20, 0, 10),
+      );
+      expect(
+        l.caretRect(9, TextAffinity.upstream),
+        const Rect.fromLTWH(10, 20, 0, 10),
+      );
     });
 
     test('inside an item before the last the caret is its own edge', () {
       final l = layout();
 
-      expect(l.caretRect(3, TextAffinity.downstream), const Rect.fromLTWH(12, 0, 0, 10));
+      expect(
+        l.caretRect(3, TextAffinity.downstream),
+        const Rect.fromLTWH(12, 0, 0, 10),
+      );
     });
 
     test('right to left the leading edge is the right one', () {
@@ -146,7 +170,10 @@ void main() {
     test('the items a range covers are boxes of their own', () {
       final boxes = layout().boxesForRange(2, 6);
 
-      expect(boxes, [const Rect.fromLTWH(12, 0, 10, 10), const Rect.fromLTWH(0, 10, 10, 10)]);
+      expect(boxes, [
+        const Rect.fromLTWH(12, 0, 10, 10),
+        const Rect.fromLTWH(0, 10, 10, 10),
+      ]);
     });
 
     test('a collapsed range covers nothing', () {
@@ -171,7 +198,10 @@ void main() {
     test('a partial first line joins from the first selected item', () {
       final lines = layout().lineBoxesForRange(2, 6);
 
-      expect(lines, [const Rect.fromLTWH(12, 0, 10, 10), const Rect.fromLTWH(0, 10, 10, 10)]);
+      expect(lines, [
+        const Rect.fromLTWH(12, 0, 10, 10),
+        const Rect.fromLTWH(0, 10, 10, 10),
+      ]);
     });
   });
 }

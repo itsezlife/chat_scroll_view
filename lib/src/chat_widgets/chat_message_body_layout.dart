@@ -38,7 +38,10 @@ class ChatMessageBodyLayout {
     required bool hasMeta,
     Size headerSize = Size.zero,
   }) {
-    final availableWidth = math.max<double>(0, constraints.maxWidth - padding.horizontal);
+    final availableWidth = math.max<double>(
+      0,
+      constraints.maxWidth - padding.horizontal,
+    );
     final headerW = headerSize.width;
     final headerH = headerSize.height;
     final headerOffset = Offset(padding.left, padding.top);
@@ -48,7 +51,9 @@ class ChatMessageBodyLayout {
       final clusterW = math.max(headerW, metaSize.width);
       final clusterH = headerH + metaSize.height;
       return ChatMessageBodyLayout(
-        size: constraints.constrain(Size(padding.horizontal + clusterW, padding.vertical + clusterH)),
+        size: constraints.constrain(
+          Size(padding.horizontal + clusterW, padding.vertical + clusterH),
+        ),
         headerOffset: headerOffset,
         contentOffset: Offset(padding.left, contentTop),
         metaOffset: Offset(padding.left, contentTop),
@@ -59,7 +64,10 @@ class ChatMessageBodyLayout {
       final clusterW = math.max(headerW, contentSize.width);
       return ChatMessageBodyLayout(
         size: constraints.constrain(
-          Size(padding.horizontal + clusterW, padding.vertical + headerH + contentSize.height),
+          Size(
+            padding.horizontal + clusterW,
+            padding.vertical + headerH + contentSize.height,
+          ),
         ),
         headerOffset: headerOffset,
         contentOffset: Offset(padding.left, contentTop),
@@ -71,10 +79,16 @@ class ChatMessageBodyLayout {
     final fitsInline = lineWidth + spacing + metaSize.width <= availableWidth;
 
     if (fitsInline) {
-      final packWidth = math.max(contentSize.width, lineWidth + spacing + metaSize.width);
+      final packWidth = math.max(
+        contentSize.width,
+        lineWidth + spacing + metaSize.width,
+      );
       final innerWidth = math.max(headerW, packWidth);
       final size = constraints.constrain(
-        Size(padding.horizontal + innerWidth, padding.vertical + headerH + contentSize.height),
+        Size(
+          padding.horizontal + innerWidth,
+          padding.vertical + headerH + contentSize.height,
+        ),
       );
       return ChatMessageBodyLayout(
         size: size,
@@ -87,15 +101,24 @@ class ChatMessageBodyLayout {
       );
     }
 
-    final innerWidth = math.max(headerW, math.max(contentSize.width, metaSize.width));
+    final innerWidth = math.max(
+      headerW,
+      math.max(contentSize.width, metaSize.width),
+    );
     final size = constraints.constrain(
-      Size(padding.horizontal + innerWidth, padding.vertical + headerH + contentSize.height + metaSize.height),
+      Size(
+        padding.horizontal + innerWidth,
+        padding.vertical + headerH + contentSize.height + metaSize.height,
+      ),
     );
     return ChatMessageBodyLayout(
       size: size,
       headerOffset: headerOffset,
       contentOffset: Offset(padding.left, contentTop),
-      metaOffset: Offset(size.width - padding.right - metaSize.width, contentTop + contentSize.height),
+      metaOffset: Offset(
+        size.width - padding.right - metaSize.width,
+        contentTop + contentSize.height,
+      ),
     );
   }
 
@@ -127,7 +150,9 @@ class ChatMessageBodyLayout {
     final plainLength = paragraph.text.toPlainText().length;
     if (plainLength == 0) return 0;
 
-    final boxes = paragraph.getBoxesForSelection(TextSelection(baseOffset: 0, extentOffset: plainLength));
+    final boxes = paragraph.getBoxesForSelection(
+      TextSelection(baseOffset: 0, extentOffset: plainLength),
+    );
     if (boxes.isEmpty) return 0;
 
     var maxBottom = boxes.first.bottom;
@@ -143,7 +168,10 @@ class ChatMessageBodyLayout {
     if (maxRight == null) return fallback;
 
     final transform = paragraph.getTransformTo(content);
-    final endInContent = MatrixUtils.transformPoint(transform, Offset(maxRight, 0));
+    final endInContent = MatrixUtils.transformPoint(
+      transform,
+      Offset(maxRight, 0),
+    );
     return endInContent.dx;
   }
 }

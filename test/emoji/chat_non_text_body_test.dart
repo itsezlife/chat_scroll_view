@@ -37,7 +37,11 @@ class _FakeBody implements ChatNonTextBody {
 
 const _key = ContentKey.unicode('\u{1F44D}');
 const _rect = Rect.fromLTWH(10, 20, 100, 100);
-const _sticker = ChatInlineHit.sticker(messageId: 7, content: _key, stickerRect: _rect);
+const _sticker = ChatInlineHit.sticker(
+  messageId: 7,
+  content: _key,
+  stickerRect: _rect,
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -111,10 +115,16 @@ void main() {
     test('the body\'s bounds count as the message surface when the host '
         'reported none', () {
       create();
-      selection.putNonTextBody(7, _FakeBody(bounds: const Rect.fromLTWH(10, 10, 100, 100)));
+      selection.putNonTextBody(
+        7,
+        _FakeBody(bounds: const Rect.fromLTWH(10, 10, 100, 100)),
+      );
 
       expect(selection.containsMessageSurface(7, const Offset(50, 50)), isTrue);
-      expect(selection.containsMessageSurface(7, const Offset(150, 50)), isFalse);
+      expect(
+        selection.containsMessageSurface(7, const Offset(150, 50)),
+        isFalse,
+      );
     });
   });
 
@@ -143,7 +153,10 @@ void main() {
       selection.handleInlineHit(_sticker);
 
       final times = heard.cast<ChatStickerActivated>().map((a) => a.tapTime);
-      expect(times, [const Duration(seconds: 5), const Duration(seconds: 5, milliseconds: 250)]);
+      expect(times, [
+        const Duration(seconds: 5),
+        const Duration(seconds: 5, milliseconds: 250),
+      ]);
     });
 
     test('the activation names the emoji, the message and the sticker rect '
@@ -161,7 +174,11 @@ void main() {
     test('a custom emoji says so', () {
       create();
       selection.handleInlineHit(
-        const ChatInlineHit.sticker(messageId: 7, content: ContentKey.document('d'), stickerRect: _rect),
+        const ChatInlineHit.sticker(
+          messageId: 7,
+          content: ContentKey.document('d'),
+          stickerRect: _rect,
+        ),
       );
 
       expect((heard.single as ChatStickerActivated).isCustomEmoji, isTrue);
@@ -201,9 +218,20 @@ void main() {
     });
 
     test('value equality and toString', () {
-      expect(const ChatInlineHit.sticker(messageId: 7, content: _key, stickerRect: _rect), _sticker);
       expect(
-        const ChatInlineHit.sticker(messageId: 7, content: _key, stickerRect: Rect.fromLTWH(0, 0, 1, 1)),
+        const ChatInlineHit.sticker(
+          messageId: 7,
+          content: _key,
+          stickerRect: _rect,
+        ),
+        _sticker,
+      );
+      expect(
+        const ChatInlineHit.sticker(
+          messageId: 7,
+          content: _key,
+          stickerRect: Rect.fromLTWH(0, 0, 1, 1),
+        ),
         isNot(_sticker),
       );
       expect(_sticker.contourPath, isNull);

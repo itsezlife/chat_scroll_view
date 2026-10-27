@@ -13,27 +13,48 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../chat_message.dart';
 
-IChatMessage _msg(int i) =>
-    UserChatMessage(id: i, sender: 'User', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: 'content $i');
+IChatMessage _msg(int i) => UserChatMessage(
+  id: i,
+  sender: 'User',
+  createdAt: DateTime(2026),
+  updatedAt: DateTime(2026),
+  content: 'content $i',
+);
 
 class _PreloadedDataSource extends ChatDataSource {
   _PreloadedDataSource(this.count) {
     for (var i = 0; i < count; i++) {
       upsertMessage(_msg(i));
     }
-    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
   }
 
   final int count;
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 /// Newest chunk loaded; older ids stay cold until [loadTargetWindow].
 class _GatedLazyTailDataSource extends ChatDataSource {
-  _GatedLazyTailDataSource({required this.totalCount, required this.loadedFromId}) {
-    seedBoundaries(oldestKnownId: 0, newestKnownId: totalCount - 1, reachedOldest: true, reachedNewest: true);
+  _GatedLazyTailDataSource({
+    required this.totalCount,
+    required this.loadedFromId,
+  }) {
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: totalCount - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
     for (var i = loadedFromId; i < totalCount; i++) {
       upsertMessage(_msg(i));
     }
@@ -51,7 +72,10 @@ class _GatedLazyTailDataSource extends ChatDataSource {
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 const _viewportWidth = 400.0;
@@ -59,7 +83,8 @@ const _viewportHeight = 600.0;
 const _messageHeight = 60.0;
 
 /// A reserved inset that never changes.
-ValueListenable<double> _fixedInset(double value) => AlwaysStoppedAnimation<double>(value);
+ValueListenable<double> _fixedInset(double value) =>
+    AlwaysStoppedAnimation<double>(value);
 
 Widget _harness({
   required ChatDataSource dataSource,
@@ -80,8 +105,10 @@ Widget _harness({
           bottomPadding: bottomPadding,
           topPadding: topPadding,
           scrollbar: scrollbar,
-          messageBuilder: (context, id, message, status, runLayout) =>
-              SizedBox(height: _messageHeight, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
+          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
+            height: _messageHeight,
+            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+          ),
         ),
       ),
     ),
@@ -115,7 +142,12 @@ Future<List<double>> sampleAnimateToOffsets(
   int frameCount = 16,
 }) async {
   final samples = <double>[];
-  final future = controller.animateTo(targetId, duration: duration, alignment: alignment, highlight: false);
+  final future = controller.animateTo(
+    targetId,
+    duration: duration,
+    alignment: alignment,
+    highlight: false,
+  );
   await tester.pump();
   for (var i = 0; i < frameCount; i++) {
     samples.add(controller.anchorPixelOffset);
@@ -130,7 +162,10 @@ Future<List<double>> sampleAnimateToOffsets(
   return samples;
 }
 
-void expectMonotonicApproachTo({required List<double> samples, required double expectedEndOffset}) {
+void expectMonotonicApproachTo({
+  required List<double> samples,
+  required double expectedEndOffset,
+}) {
   expect(samples.length, greaterThan(1));
   for (var i = 1; i < samples.length; i++) {
     final prevDist = (samples[i - 1] - expectedEndOffset).abs();
@@ -147,7 +182,9 @@ void expectMonotonicApproachTo({required List<double> samples, required double e
 
 void main() {
   group('navigation alignment', () {
-    testWidgets('jumpTo alignment 0 keeps message top at viewport top', (tester) async {
+    testWidgets('jumpTo alignment 0 keeps message top at viewport top', (
+      tester,
+    ) async {
       const count = 100;
       final ds = _PreloadedDataSource(count);
       final controller = ChatScrollController()..jumpTo(50);
@@ -161,7 +198,9 @@ void main() {
       expect(controller.anchorPixelOffset, closeTo(0, 1));
     });
 
-    testWidgets('jumpTo alignment 0.5 centers message in scroll band', (tester) async {
+    testWidgets('jumpTo alignment 0.5 centers message in scroll band', (
+      tester,
+    ) async {
       const count = 100;
       final ds = _PreloadedDataSource(count);
       final controller = ChatScrollController()..jumpTo(50, alignment: 0.5);
@@ -190,7 +229,11 @@ void main() {
       addTearDown(ds.dispose);
 
       await tester.pumpWidget(
-        _harness(dataSource: ds, controller: controller, bottomPadding: _fixedInset(bottomPadding)),
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          bottomPadding: _fixedInset(bottomPadding),
+        ),
       );
       await tester.pump();
 
@@ -211,7 +254,13 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_harness(dataSource: ds, controller: controller, topPadding: _fixedInset(topPadding)));
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          topPadding: _fixedInset(topPadding),
+        ),
+      );
       await tester.pump();
 
       final expected = _expectedAlignedTop(
@@ -224,7 +273,9 @@ void main() {
       expect(controller.anchorPixelOffset, closeTo(expected, 1));
     });
 
-    testWidgets('jumpTo alignment 0.5 respects top and bottom inset', (tester) async {
+    testWidgets('jumpTo alignment 0.5 respects top and bottom inset', (
+      tester,
+    ) async {
       const count = 100;
       const topPadding = 56.0;
       const bottomPadding = 96.0;
@@ -253,7 +304,9 @@ void main() {
       expect(controller.anchorPixelOffset, closeTo(expected, 1));
     });
 
-    testWidgets('jumpTo alignment 0 places message below top inset', (tester) async {
+    testWidgets('jumpTo alignment 0 places message below top inset', (
+      tester,
+    ) async {
       const count = 100;
       const topPadding = 48.0;
       final ds = _PreloadedDataSource(count);
@@ -261,13 +314,21 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_harness(dataSource: ds, controller: controller, topPadding: _fixedInset(topPadding)));
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          topPadding: _fixedInset(topPadding),
+        ),
+      );
       await tester.pump();
 
       expect(controller.anchorPixelOffset, closeTo(topPadding, 1));
     });
 
-    testWidgets('jumpTo alignment 0.5 near oldest clamps via oldest pin', (tester) async {
+    testWidgets('jumpTo alignment 0.5 near oldest clamps via oldest pin', (
+      tester,
+    ) async {
       const count = 100;
       final ds = _PreloadedDataSource(count);
       final controller = ChatScrollController()..jumpTo(0, alignment: 0.5);
@@ -281,7 +342,9 @@ void main() {
       expect(controller.anchorPixelOffset, closeTo(0, 1));
     });
 
-    testWidgets('jumpTo newest ignores alignment in favor of tail pin', (tester) async {
+    testWidgets('jumpTo newest ignores alignment in favor of tail pin', (
+      tester,
+    ) async {
       const count = 100;
       const newest = count - 1;
       final ds = _PreloadedDataSource(count);
@@ -289,14 +352,22 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_harness(dataSource: ds, controller: controller, bottomPadding: _fixedInset(96)));
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          bottomPadding: _fixedInset(96),
+        ),
+      );
       await tester.pump();
 
       expect(controller.anchorMessageId, newest);
       expect(controller.isAtTail.value, isTrue);
     });
 
-    testWidgets('animateTo alignment 0.5 settles at centered offset', (tester) async {
+    testWidgets('animateTo alignment 0.5 settles at centered offset', (
+      tester,
+    ) async {
       const count = 256;
       final ds = _PreloadedDataSource(count);
       final controller = ChatScrollController()..jumpTo(count ~/ 2);
@@ -307,7 +378,11 @@ void main() {
       await tester.pumpAndSettle();
 
       const targetId = 120;
-      final future = controller.animateTo(targetId, duration: const Duration(milliseconds: 200), alignment: 0.5);
+      final future = controller.animateTo(
+        targetId,
+        duration: const Duration(milliseconds: 200),
+        alignment: 0.5,
+      );
       await tester.pumpAndSettle();
       await future;
 
@@ -321,7 +396,9 @@ void main() {
       expect(controller.anchorPixelOffset, closeTo(expected, 1));
     });
 
-    testWidgets('animateTo alignment 0.5 scroll up moves monotonically', (tester) async {
+    testWidgets('animateTo alignment 0.5 scroll up moves monotonically', (
+      tester,
+    ) async {
       const count = 256;
       const targetId = 120;
       final ds = _PreloadedDataSource(count);
@@ -345,16 +422,25 @@ void main() {
         duration: const Duration(milliseconds: 200),
         alignment: 0.5,
       );
-      expectMonotonicApproachTo(samples: samples, expectedEndOffset: expectedEnd);
+      expectMonotonicApproachTo(
+        samples: samples,
+        expectedEndOffset: expectedEnd,
+      );
       expect(controller.anchorMessageId, targetId);
       expect(controller.anchorPixelOffset, closeTo(expectedEnd, 1));
       expect(
         controller.navigationPlacement,
-        const AlignmentPlacement(messageId: targetId, alignment: 0.5, isHeld: true),
+        const AlignmentPlacement(
+          messageId: targetId,
+          alignment: 0.5,
+          isHeld: true,
+        ),
       );
     });
 
-    testWidgets('animateTo alignment 0 scroll up moves monotonically', (tester) async {
+    testWidgets('animateTo alignment 0 scroll up moves monotonically', (
+      tester,
+    ) async {
       const count = 256;
       const targetId = 120;
       final ds = _PreloadedDataSource(count);
@@ -373,11 +459,16 @@ void main() {
         duration: const Duration(milliseconds: 200),
         alignment: 0,
       );
-      expectMonotonicApproachTo(samples: samples, expectedEndOffset: expectedEnd);
+      expectMonotonicApproachTo(
+        samples: samples,
+        expectedEndOffset: expectedEnd,
+      );
       expect(controller.anchorPixelOffset, closeTo(expectedEnd, 1));
     });
 
-    testWidgets('animateTo alignment 1.0 scroll up moves monotonically', (tester) async {
+    testWidgets('animateTo alignment 1.0 scroll up moves monotonically', (
+      tester,
+    ) async {
       const count = 256;
       const targetId = 120;
       final ds = _PreloadedDataSource(count);
@@ -401,11 +492,16 @@ void main() {
         duration: const Duration(milliseconds: 200),
         alignment: 1,
       );
-      expectMonotonicApproachTo(samples: samples, expectedEndOffset: expectedEnd);
+      expectMonotonicApproachTo(
+        samples: samples,
+        expectedEndOffset: expectedEnd,
+      );
       expect(controller.anchorPixelOffset, closeTo(expectedEnd, 1));
     });
 
-    testWidgets('animateTo newest scroll down moves monotonically', (tester) async {
+    testWidgets('animateTo newest scroll down moves monotonically', (
+      tester,
+    ) async {
       const count = 256;
       const startId = 80;
       const targetId = 200;
@@ -430,7 +526,10 @@ void main() {
         duration: const Duration(milliseconds: 200),
         alignment: 0.5,
       );
-      expectMonotonicApproachTo(samples: samples, expectedEndOffset: expectedEnd);
+      expectMonotonicApproachTo(
+        samples: samples,
+        expectedEndOffset: expectedEnd,
+      );
       expect(controller.anchorMessageId, targetId);
       expect(controller.anchorPixelOffset, closeTo(expectedEnd, 1));
     });
@@ -460,17 +559,25 @@ void main() {
         alignment: 0.5,
         frameCount: 24,
       );
-      expectMonotonicApproachTo(samples: samples, expectedEndOffset: expectedEnd);
+      expectMonotonicApproachTo(
+        samples: samples,
+        expectedEndOffset: expectedEnd,
+      );
       expect(controller.anchorMessageId, targetId);
     });
 
-    testWidgets('animateTo alignment 0.5 applies after load-gate readiness', (tester) async {
+    testWidgets('animateTo alignment 0.5 applies after load-gate readiness', (
+      tester,
+    ) async {
       const total = 200;
       const loadedFrom = 192;
       const target = 50;
       const loadedHeight = 200.0;
       final controller = ChatScrollController()..jumpTo(total - 1);
-      final ds = _GatedLazyTailDataSource(totalCount: total, loadedFromId: loadedFrom);
+      final ds = _GatedLazyTailDataSource(
+        totalCount: total,
+        loadedFromId: loadedFrom,
+      );
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
@@ -486,10 +593,13 @@ void main() {
                   dataSource: ds,
                   controller: controller,
                   cacheExtent: 2000,
-                  messageBuilder: (context, id, message, status, runLayout) => SizedBox(
-                    height: message == null ? 40.0 : loadedHeight,
-                    child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-                  ),
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      SizedBox(
+                        height: message == null ? 40.0 : loadedHeight,
+                        child: Text(
+                          message == null ? 'shimmer-$id' : 'msg-$id',
+                        ),
+                      ),
                 ),
               ),
             ),
@@ -509,7 +619,10 @@ void main() {
       for (var i = 0; i < 8; i++) {
         await tester.pump(const Duration(milliseconds: 16));
       }
-      expect(controller.navigationPlacement, const AlignmentPlacement(messageId: target, alignment: 0.5));
+      expect(
+        controller.navigationPlacement,
+        const AlignmentPlacement(messageId: target, alignment: 0.5),
+      );
       expect(controller.anchorMessageId, isNot(target));
 
       ds.loadTargetWindow(aroundId: target);
@@ -572,17 +685,21 @@ void main() {
     }
 
     double rowTop(WidgetTester tester, int id) =>
-        tester.getTopLeft(find.text('msg-$id')).dy - tester.getTopLeft(find.byType(ChatScrollView)).dy;
+        tester.getTopLeft(find.text('msg-$id')).dy -
+        tester.getTopLeft(find.byType(ChatScrollView)).dy;
 
     double rowBottom(WidgetTester tester, int id) =>
-        tester.getBottomLeft(find.text('msg-$id')).dy - tester.getTopLeft(find.byType(ChatScrollView)).dy;
+        tester.getBottomLeft(find.text('msg-$id')).dy -
+        tester.getTopLeft(find.byType(ChatScrollView)).dy;
 
     Future<void> growTopInset(WidgetTester tester) async {
       topInset.value = grownTopInset;
       await tester.pump();
     }
 
-    testWidgets('a top inset change re-applies alignment 0 to the target', (tester) async {
+    testWidgets('a top inset change re-applies alignment 0 to the target', (
+      tester,
+    ) async {
       controller.jumpTo(50);
       await mount(tester);
       expect(rowTop(tester, 50), 0);
@@ -592,7 +709,9 @@ void main() {
       expect(rowTop(tester, 50), grownTopInset);
     });
 
-    testWidgets('a top inset change re-applies a fractional alignment', (tester) async {
+    testWidgets('a top inset change re-applies a fractional alignment', (
+      tester,
+    ) async {
       controller.jumpTo(50, alignment: 0.5);
       await mount(tester);
 
@@ -610,7 +729,9 @@ void main() {
       );
     });
 
-    testWidgets('the hold survives unrelated layouts until a trigger', (tester) async {
+    testWidgets('the hold survives unrelated layouts until a trigger', (
+      tester,
+    ) async {
       controller.jumpTo(50);
       await mount(tester);
       await tester.pump(const Duration(seconds: 1));
@@ -637,7 +758,11 @@ void main() {
     testWidgets('a fling releases the hold', (tester) async {
       controller.jumpTo(50);
       await mount(tester);
-      await tester.fling(find.byType(ChatScrollView), const Offset(0, 120), 1000);
+      await tester.fling(
+        find.byType(ChatScrollView),
+        const Offset(0, 120),
+        1000,
+      );
       await tester.pumpAndSettle();
       final anchorId = controller.anchorMessageId;
       final top = rowTop(tester, anchorId);
@@ -681,7 +806,10 @@ void main() {
       await mount(tester, scrollbar: const ChatScrollbar.desktop());
       const scrollbarStrip = Offset(_viewportWidth - 10, 80);
       final origin = tester.getTopLeft(find.byType(ChatScrollView));
-      final gesture = await tester.startGesture(origin + scrollbarStrip, kind: PointerDeviceKind.mouse);
+      final gesture = await tester.startGesture(
+        origin + scrollbarStrip,
+        kind: PointerDeviceKind.mouse,
+      );
       await tester.pump();
       await gesture.moveBy(const Offset(0, 40));
       await tester.pump();
@@ -717,7 +845,9 @@ void main() {
       expect(find.text('msg-50'), findsNothing);
     });
 
-    testWidgets('animateTo replaces the hold with its own settled alignment', (tester) async {
+    testWidgets('animateTo replaces the hold with its own settled alignment', (
+      tester,
+    ) async {
       controller.jumpTo(50);
       await mount(tester);
       final future = controller.animateTo(48, alignment: 0.5, highlight: false);
@@ -738,14 +868,19 @@ void main() {
       );
     });
 
-    testWidgets('a far-path animateTo holds its alignment after the stitch', (tester) async {
+    testWidgets('a far-path animateTo holds its alignment after the stitch', (
+      tester,
+    ) async {
       controller.jumpTo(10);
       await mount(tester);
       expect(find.text('msg-80'), findsNothing);
       final future = controller.animateTo(80, alignment: 0.5, highlight: false);
       await tester.pumpAndSettle();
       await future;
-      expect(controller.navigationPlacement, const AlignmentPlacement(messageId: 80, alignment: 0.5, isHeld: true));
+      expect(
+        controller.navigationPlacement,
+        const AlignmentPlacement(messageId: 80, alignment: 0.5, isHeld: true),
+      );
 
       await growTopInset(tester);
 
@@ -764,7 +899,8 @@ void main() {
     testWidgets('a held Center Band placement is re-placed on a top inset '
         'change', (tester) async {
       const offsetFromMessageTop = 20.0;
-      double rayOffsetTop(double topInset) => topInset + (_viewportHeight - topInset) / 2 - offsetFromMessageTop;
+      double rayOffsetTop(double topInset) =>
+          topInset + (_viewportHeight - topInset) / 2 - offsetFromMessageTop;
       controller.jumpToCenterBand(50, offsetFromMessageTop);
       await mount(tester);
       expect(rowTop(tester, 50), rayOffsetTop(0));
@@ -774,7 +910,9 @@ void main() {
       expect(rowTop(tester, 50), rayOffsetTop(grownTopInset));
     });
 
-    testWidgets('jumpToCenterBand replaces the hold with its own placement', (tester) async {
+    testWidgets('jumpToCenterBand replaces the hold with its own placement', (
+      tester,
+    ) async {
       controller.jumpTo(50);
       await mount(tester);
       controller.jumpToCenterBand(30, 20);
@@ -782,7 +920,10 @@ void main() {
 
       await growTopInset(tester);
 
-      expect(controller.centerBand.value, const ChatCenterBand(messageId: 30, offsetFromMessageTop: 20));
+      expect(
+        controller.centerBand.value,
+        const ChatCenterBand(messageId: 30, offsetFromMessageTop: 20),
+      );
     });
 
     testWidgets('the target becoming absent releases the hold', (tester) async {
@@ -799,7 +940,9 @@ void main() {
       expect(rowTop(tester, 51), top);
     });
 
-    testWidgets('a bottom inset change is compensated, not re-aligned', (tester) async {
+    testWidgets('a bottom inset change is compensated, not re-aligned', (
+      tester,
+    ) async {
       controller.jumpTo(50);
       await mount(tester);
 
@@ -847,7 +990,12 @@ void main() {
       expect(rowTop(tester, 50), offset);
       expect(
         controller.navigationPlacement,
-        const AlignmentPlacement(messageId: 50, alignment: 0, pixelOffset: offset, isHeld: true),
+        const AlignmentPlacement(
+          messageId: 50,
+          alignment: 0,
+          pixelOffset: offset,
+          isHeld: true,
+        ),
       );
 
       await growTopInset(tester);

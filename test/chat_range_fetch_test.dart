@@ -32,7 +32,12 @@ void main() {
     });
 
     test('clamps to maxDelay', () {
-      final delay = ChatRangeFetch.nextRetryDelay(20, minDelay: 500, maxDelay: 30000, random: math.Random(0));
+      final delay = ChatRangeFetch.nextRetryDelay(
+        20,
+        minDelay: 500,
+        maxDelay: 30000,
+        random: math.Random(0),
+      );
       expect(delay.inMilliseconds, lessThanOrEqualTo(30000));
     });
   });
@@ -45,7 +50,8 @@ void main() {
     test('dirty and error chunks need fetch; fetching does not', () {
       final dirty = ChatScrollChunk(index: 0)..status = ChatMessageStatus.dirty;
       final error = ChatScrollChunk(index: 1)..status = ChatMessageStatus.error;
-      final fetching = ChatScrollChunk(index: 2)..status = ChatMessageStatus.fetching;
+      final fetching = ChatScrollChunk(index: 2)
+        ..status = ChatMessageStatus.fetching;
       final valid = ChatScrollChunk(index: 3)..status = ChatMessageStatus.valid;
 
       expect(ChatRangeFetch.needsFetch(dirty), isTrue);
@@ -343,9 +349,10 @@ void main() {
         // Chunk 0: ids 0..63. Return only through 40; leave 41..50 as live tail.
         final fetch = ChatRangeFetch(
           chunks: () => chunks,
-          fetchRange: ({required fromId, required toId}) async => <IChatMessage>[
-            for (var id = fromId; id <= 40; id++) _StubMessage(id),
-          ],
+          fetchRange: ({required fromId, required toId}) async =>
+              <IChatMessage>[
+                for (var id = fromId; id <= 40; id++) _StubMessage(id),
+              ],
           notifyDataChanged: () {},
           isDisposed: () => false,
           unconfirmedTailThroughId: () => 50,
@@ -360,7 +367,11 @@ void main() {
         expect(chunk.isAbsentSlot(30), isFalse);
         // Interior gap below maxReturned would be absent; here contiguous.
         expect(chunk.messages[45], isNull);
-        expect(chunk.isAbsentSlot(45), isFalse, reason: 'trailing past maxReturned must stay refetchable');
+        expect(
+          chunk.isAbsentSlot(45),
+          isFalse,
+          reason: 'trailing past maxReturned must stay refetchable',
+        );
         expect(chunk.isAbsentSlot(50), isFalse);
       });
     });
@@ -370,10 +381,11 @@ void main() {
         final chunks = <int, ChatScrollChunk>{};
         final fetch = ChatRangeFetch(
           chunks: () => chunks,
-          fetchRange: ({required fromId, required toId}) async => <IChatMessage>[
-            for (var id = 1; id <= 20; id++) _StubMessage(id),
-            for (var id = 40; id <= 63; id++) _StubMessage(id),
-          ],
+          fetchRange: ({required fromId, required toId}) async =>
+              <IChatMessage>[
+                for (var id = 1; id <= 20; id++) _StubMessage(id),
+                for (var id = 40; id <= 63; id++) _StubMessage(id),
+              ],
           notifyDataChanged: () {},
           isDisposed: () => false,
           unconfirmedTailThroughId: () => 63,
@@ -394,9 +406,10 @@ void main() {
         final chunks = <int, ChatScrollChunk>{};
         final fetch = ChatRangeFetch(
           chunks: () => chunks,
-          fetchRange: ({required fromId, required toId}) async => <IChatMessage>[
-            for (var id = fromId; id <= 1; id++) _StubMessage(id),
-          ],
+          fetchRange: ({required fromId, required toId}) async =>
+              <IChatMessage>[
+                for (var id = fromId; id <= 1; id++) _StubMessage(id),
+              ],
           notifyDataChanged: () {},
           isDisposed: () => false,
         );

@@ -90,7 +90,10 @@ abstract final class ChatMessageMenu {
   }) async {
     final media = MediaQuery.of(context);
     final resolvedPresentation =
-        presentation ?? ChatMessageMenuPresentation.forPolicy(selectionPolicy ?? ChatSelectionPolicy.forPlatform());
+        presentation ??
+        ChatMessageMenuPresentation.forPolicy(
+          selectionPolicy ?? ChatSelectionPolicy.forPlatform(),
+        );
     final config = ChatMessageMenuPresentConfig(
       messageRect: messageRect,
       tapGlobal: tapGlobal,
@@ -111,7 +114,10 @@ abstract final class ChatMessageMenu {
     );
 
     final previousFocus = FocusManager.instance.primaryFocus;
-    final result = await _showChatMessageMenuOverlay(context: context, config: config);
+    final result = await _showChatMessageMenuOverlay(
+      context: context,
+      config: config,
+    );
     if (keepKeyboardVisible) {
       previousFocus?.requestFocus();
     }

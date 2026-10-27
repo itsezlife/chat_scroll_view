@@ -1,6 +1,7 @@
 import 'dart:ui' show Rect;
 
-import 'package:content_model/content_model.dart' show ContentKey, ContentKey$Document;
+import 'package:content_model/content_model.dart'
+    show ContentKey, ContentKey$Document;
 import 'package:flutter/foundation.dart';
 
 /// Host-observable outcome from the selection facade (Copy, link, code,
@@ -118,7 +119,12 @@ enum ChatInlineGesture {
 @immutable
 final class ChatCopied extends ChatSelectionInteraction {
   /// Creates a Copy-success interaction.
-  const ChatCopied({required this.text, required this.origin, this.messageId, this.gesture});
+  const ChatCopied({
+    required this.text,
+    required this.origin,
+    this.messageId,
+    this.gesture,
+  });
 
   /// Plain text written to the clipboard.
   final String text;
@@ -157,7 +163,12 @@ final class ChatCopied extends ChatSelectionInteraction {
 @immutable
 final class ChatLinkActivated extends ChatSelectionInteraction {
   /// Creates a link-activation interaction.
-  const ChatLinkActivated({required this.messageId, required this.title, required this.url, required this.gesture});
+  const ChatLinkActivated({
+    required this.messageId,
+    required this.title,
+    required this.url,
+    required this.gesture,
+  });
 
   /// Message whose body contains the link.
   final int messageId;
@@ -199,7 +210,11 @@ final class ChatLinkActivated extends ChatSelectionInteraction {
 @immutable
 final class ChatCodeActivated extends ChatSelectionInteraction {
   /// Creates a code-activation interaction (host owns clipboard).
-  const ChatCodeActivated({required this.messageId, required this.code, required this.gesture});
+  const ChatCodeActivated({
+    required this.messageId,
+    required this.code,
+    required this.gesture,
+  });
 
   /// Message whose body contains the code.
   final int messageId;
@@ -213,7 +228,10 @@ final class ChatCodeActivated extends ChatSelectionInteraction {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ChatCodeActivated && messageId == other.messageId && code == other.code && gesture == other.gesture;
+      other is ChatCodeActivated &&
+          messageId == other.messageId &&
+          code == other.code &&
+          gesture == other.gesture;
 
   @override
   int get hashCode => Object.hash(messageId, code, gesture);
@@ -232,7 +250,11 @@ final class ChatCodeActivated extends ChatSelectionInteraction {
 @immutable
 sealed class ChatMentionActivated extends ChatSelectionInteraction {
   /// Base constructor for the mention variants.
-  const ChatMentionActivated({required this.messageId, required this.name, required this.gesture});
+  const ChatMentionActivated({
+    required this.messageId,
+    required this.name,
+    required this.gesture,
+  });
 
   /// Message whose body contains the mention.
   final int messageId;
@@ -284,7 +306,11 @@ final class ChatResolvedMentionActivated extends ChatMentionActivated {
 @immutable
 final class ChatUsernameMentionActivated extends ChatMentionActivated {
   /// Creates a username-mention activation interaction.
-  const ChatUsernameMentionActivated({required super.messageId, required super.name, required super.gesture});
+  const ChatUsernameMentionActivated({
+    required super.messageId,
+    required super.name,
+    required super.gesture,
+  });
 
   @override
   bool operator ==(Object other) =>
@@ -309,7 +335,11 @@ final class ChatUsernameMentionActivated extends ChatMentionActivated {
 @immutable
 final class ChatHashtagActivated extends ChatSelectionInteraction {
   /// Creates a hashtag-activation interaction.
-  const ChatHashtagActivated({required this.messageId, required this.tag, required this.gesture});
+  const ChatHashtagActivated({
+    required this.messageId,
+    required this.tag,
+    required this.gesture,
+  });
 
   /// Message whose body contains the hashtag.
   final int messageId;
@@ -323,7 +353,10 @@ final class ChatHashtagActivated extends ChatSelectionInteraction {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ChatHashtagActivated && messageId == other.messageId && tag == other.tag && gesture == other.gesture;
+      other is ChatHashtagActivated &&
+          messageId == other.messageId &&
+          tag == other.tag &&
+          gesture == other.gesture;
 
   @override
   int get hashCode => Object.hash(messageId, tag, gesture);
@@ -340,7 +373,12 @@ final class ChatHashtagActivated extends ChatSelectionInteraction {
 @immutable
 final class ChatEmbedActivated extends ChatSelectionInteraction {
   /// Creates an embed-activation interaction.
-  const ChatEmbedActivated({required this.messageId, required this.target, required this.alt, required this.gesture});
+  const ChatEmbedActivated({
+    required this.messageId,
+    required this.target,
+    required this.alt,
+    required this.gesture,
+  });
 
   /// Message whose body contains the embed.
   final int messageId;
@@ -435,7 +473,8 @@ final class ChatStickerActivated extends ChatSelectionInteraction {
           tapTime == other.tapTime;
 
   @override
-  int get hashCode => Object.hash(messageId, content, gesture, stickerRect, tapTime);
+  int get hashCode =>
+      Object.hash(messageId, content, gesture, stickerRect, tapTime);
 
   @override
   String toString() =>

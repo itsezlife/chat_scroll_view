@@ -1,4 +1,5 @@
-import 'package:chat_scroll_view/src/chat_scroll/chat_animator.dart' show ChatAnimator;
+import 'package:chat_scroll_view/src/chat_scroll/chat_animator.dart'
+    show ChatAnimator;
 import 'package:chat_scroll_view/src/chat_widgets/chat_message_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_theme.dart';
@@ -34,7 +35,9 @@ class ChatScrollThemeData extends ThemeExtension<ChatScrollThemeData> {
 
   /// Default solid hold after navigate settle (1000ms). Fade-out after hold
   /// is fixed at [ChatAnimator.highlightFadeDuration].
-  static const Duration defaultHighlightDuration = Duration(milliseconds: ChatAnimator.highlightHoldDurationMs);
+  static const Duration defaultHighlightDuration = Duration(
+    milliseconds: ChatAnimator.highlightHoldDurationMs,
+  );
 
   /// Jump-target row wash. Null → [defaultHighlightColor].
   /// Full-width underlay; bubble selected-fill shifts are host-owned.
@@ -118,7 +121,10 @@ class ChatScrollTheme extends InheritedWidget {
   final ChatScrollThemeData data;
 
   /// Closest [ChatScrollThemeData], or `null` if none is in scope.
-  static ChatScrollThemeData? maybeOf(BuildContext context, {bool listen = true}) => listen
+  static ChatScrollThemeData? maybeOf(
+    BuildContext context, {
+    bool listen = true,
+  }) => listen
       ? context.dependOnInheritedWidgetOfExactType<ChatScrollTheme>()?.data
       : context.getInheritedWidgetOfExactType<ChatScrollTheme>()?.data;
 
@@ -143,7 +149,9 @@ class ChatScrollTheme extends InheritedWidget {
 
   /// Message-menu tokens for [context].
   static ChatMessageMenuThemeData menuOf(BuildContext context) {
-    final nested = maybeOf(context)?.menu ?? Theme.of(context).extension<ChatScrollThemeData>()?.menu;
+    final nested =
+        maybeOf(context)?.menu ??
+        Theme.of(context).extension<ChatScrollThemeData>()?.menu;
     return ChatMessageMenuThemeData.resolve(context).merge(nested);
   }
 
@@ -158,8 +166,11 @@ class ChatScrollTheme extends InheritedWidget {
     final ext = Theme.of(context).extension<ChatScrollThemeData>();
     final base = inherited ?? ext ?? const ChatScrollThemeData();
     return ChatScrollThemeData(
-      highlightColor: base.highlightColor ?? ChatScrollThemeData.defaultHighlightColor,
-      highlightDuration: base.highlightDuration ?? ChatScrollThemeData.defaultHighlightDuration,
+      highlightColor:
+          base.highlightColor ?? ChatScrollThemeData.defaultHighlightColor,
+      highlightDuration:
+          base.highlightDuration ??
+          ChatScrollThemeData.defaultHighlightDuration,
       message: base.message ?? ChatMessageThemeData.resolve(context),
       scrollbar: base.scrollbar ?? ChatScrollbarThemeData.resolve(context),
       selection: base.selection ?? ChatSelectionThemeData.resolve(context),
@@ -168,5 +179,6 @@ class ChatScrollTheme extends InheritedWidget {
   }
 
   @override
-  bool updateShouldNotify(covariant ChatScrollTheme oldWidget) => !identical(data, oldWidget.data);
+  bool updateShouldNotify(covariant ChatScrollTheme oldWidget) =>
+      !identical(data, oldWidget.data);
 }

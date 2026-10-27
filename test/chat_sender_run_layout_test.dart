@@ -5,29 +5,41 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'chat_message.dart';
 
-IChatMessage _msg(int id, {String sender = 'alice', DateTime? when}) => UserChatMessage(
-  id: id,
-  sender: sender,
-  createdAt: when ?? DateTime(2026, 5, 29, 14, id % 60),
-  updatedAt: when ?? DateTime(2026, 5, 29, 14, id % 60),
-  content: 'm$id',
-);
+IChatMessage _msg(int id, {String sender = 'alice', DateTime? when}) =>
+    UserChatMessage(
+      id: id,
+      sender: sender,
+      createdAt: when ?? DateTime(2026, 5, 29, 14, id % 60),
+      updatedAt: when ?? DateTime(2026, 5, 29, 14, id % 60),
+      content: 'm$id',
+    );
 
 DateTime _day(int day) => DateTime(2026, 5, day);
 
-Object _dayGroup(IChatMessage m) =>
-    DateTime(m.createdAt.toLocal().year, m.createdAt.toLocal().month, m.createdAt.toLocal().day);
+Object _dayGroup(IChatMessage m) => DateTime(
+  m.createdAt.toLocal().year,
+  m.createdAt.toLocal().month,
+  m.createdAt.toLocal().day,
+);
 
 class _LoadedSource extends ChatDataSource {
   _LoadedSource(Iterable<IChatMessage> messages) {
     upsertMessages(messages);
     if (messages.isEmpty) return;
     final ids = messages.map((m) => m.id).toList()..sort();
-    seedBoundaries(oldestKnownId: ids.first, newestKnownId: ids.last, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: ids.first,
+      newestKnownId: ids.last,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 MessageRunLayout _resolve(
@@ -61,7 +73,10 @@ void main() {
     });
 
     test('bucket break splits same sender into two runs', () {
-      final ds = _LoadedSource([_msg(1, when: _day(29)), _msg(2, when: _day(30))]);
+      final ds = _LoadedSource([
+        _msg(1, when: _day(29)),
+        _msg(2, when: _day(30)),
+      ]);
 
       final first = _resolve(ds, 1, groupBy: _dayGroup);
       final second = _resolve(ds, 2, groupBy: _dayGroup);
@@ -112,7 +127,10 @@ void main() {
 
     test('null maxClusterGap disables the time window', () {
       final t0 = DateTime(2026, 5, 29, 14, 0);
-      final ds = _LoadedSource([_msg(1, when: t0), _msg(2, when: t0.add(const Duration(hours: 2)))]);
+      final ds = _LoadedSource([
+        _msg(1, when: t0),
+        _msg(2, when: t0.add(const Duration(hours: 2))),
+      ]);
       const policy = DefaultChatSenderRunLayout(maxClusterGap: null);
 
       final first = _resolve(ds, 1, groupBy: null, policy: policy);
@@ -140,21 +158,40 @@ void main() {
         const DefaultChatSenderRunLayout(),
         DefaultChatSenderRunLayout.instance,
       );
-      expect(const DefaultChatSenderRunLayout(maxClusterGap: null), isNot(DefaultChatSenderRunLayout.instance));
+      expect(
+        const DefaultChatSenderRunLayout(maxClusterGap: null),
+        isNot(DefaultChatSenderRunLayout.instance),
+      );
     });
   });
 
   group('MessageRunLayout.extras', () {
     test('same first/last, different extras → not equal', () {
-      const a = MessageRunLayout(isFirstInSenderRun: true, isLastInSenderRun: false, extras: 'read');
-      const b = MessageRunLayout(isFirstInSenderRun: true, isLastInSenderRun: false, extras: 'unread');
+      const a = MessageRunLayout(
+        isFirstInSenderRun: true,
+        isLastInSenderRun: false,
+        extras: 'read',
+      );
+      const b = MessageRunLayout(
+        isFirstInSenderRun: true,
+        isLastInSenderRun: false,
+        extras: 'unread',
+      );
       expect(a, isNot(b));
       expect(a.hashCode, isNot(b.hashCode));
     });
 
     test('same first/last + same extras → equal', () {
-      const a = MessageRunLayout(isFirstInSenderRun: false, isLastInSenderRun: true, extras: 42);
-      const b = MessageRunLayout(isFirstInSenderRun: false, isLastInSenderRun: true, extras: 42);
+      const a = MessageRunLayout(
+        isFirstInSenderRun: false,
+        isLastInSenderRun: true,
+        extras: 42,
+      );
+      const b = MessageRunLayout(
+        isFirstInSenderRun: false,
+        isLastInSenderRun: true,
+        extras: 42,
+      );
       expect(a, b);
       expect(a.hashCode, b.hashCode);
     });
@@ -186,5 +223,6 @@ class _AlwaysAloneRunLayout implements ChatSenderRunLayout {
     required ChatDataSource dataSource,
     required int messageId,
     Object? Function(IChatMessage)? groupBy,
-  }) => const MessageRunLayout(isFirstInSenderRun: true, isLastInSenderRun: true);
+  }) =>
+      const MessageRunLayout(isFirstInSenderRun: true, isLastInSenderRun: true);
 }

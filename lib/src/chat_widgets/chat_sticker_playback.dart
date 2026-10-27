@@ -1,5 +1,6 @@
 import 'package:catalog_assets/catalog_assets.dart' show AssetRestFrame;
-import 'package:content_model/content_model.dart' show ContentKey, ContentKey$Unicode;
+import 'package:content_model/content_model.dart'
+    show ContentKey, ContentKey$Unicode;
 
 /// How the sticker of an emoji-only body plays: the host's policy, never the
 /// body's.
@@ -44,10 +45,12 @@ enum ChatStickerPlayback {
 
   /// Whether the first show of the message in the open chat plays it, which
   /// the [ChatStickerPlayLedger] decides and records.
-  bool get playsOnFirstShow => this == onceThenFirstFrame || this == onceThenLastFrame;
+  bool get playsOnFirstShow =>
+      this == onceThenFirstFrame || this == onceThenLastFrame;
 
   /// The frame a pass rests on.
-  AssetRestFrame get restFrame => this == onceThenLastFrame ? AssetRestFrame.last : AssetRestFrame.first;
+  AssetRestFrame get restFrame =>
+      this == onceThenLastFrame ? AssetRestFrame.last : AssetRestFrame.first;
 }
 
 /// The host's memory of which stickers already played in the open chat.

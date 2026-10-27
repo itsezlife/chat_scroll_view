@@ -46,7 +46,8 @@ class ChatMessageSurfaceBounds extends StatefulWidget {
   final Widget child;
 
   @override
-  State<ChatMessageSurfaceBounds> createState() => _ChatMessageSurfaceBoundsState();
+  State<ChatMessageSurfaceBounds> createState() =>
+      _ChatMessageSurfaceBoundsState();
 }
 
 class _ChatMessageSurfaceBoundsState extends State<ChatMessageSurfaceBounds> {
@@ -59,8 +60,12 @@ class _ChatMessageSurfaceBoundsState extends State<ChatMessageSurfaceBounds> {
   @override
   void didUpdateWidget(covariant ChatMessageSurfaceBounds oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.messageId != widget.messageId || oldWidget.controller != widget.controller) {
-      oldWidget.controller.reportMessageSurfaceBounds(oldWidget.messageId, null);
+    if (oldWidget.messageId != widget.messageId ||
+        oldWidget.controller != widget.controller) {
+      oldWidget.controller.reportMessageSurfaceBounds(
+        oldWidget.messageId,
+        null,
+      );
       _scheduleReport();
     }
   }
@@ -81,7 +86,11 @@ class _ChatMessageSurfaceBoundsState extends State<ChatMessageSurfaceBounds> {
   void _report() {
     switch (context.findRenderObject()) {
       case final RenderBox box when box.hasSize:
-        widget.controller.reportMessageSurfaceBounds(widget.messageId, box, shape: widget.shape);
+        widget.controller.reportMessageSurfaceBounds(
+          widget.messageId,
+          box,
+          shape: widget.shape,
+        );
       case _:
         widget.controller.reportMessageSurfaceBounds(widget.messageId, null);
     }

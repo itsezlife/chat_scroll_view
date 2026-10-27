@@ -14,7 +14,8 @@ const _custom = ContentKey.document('5368');
 /// **Seam:** `ChatEmojiText.of` and the markdown model and offsets it holds,
 /// read through the markdown library's own selection controller.
 void main() {
-  ChatEmojiText model(List<EmojiOnlyItem> items) => ChatEmojiText.of(EmojiOnly(items));
+  ChatEmojiText model(List<EmojiOnlyItem> items) =>
+      ChatEmojiText.of(EmojiOnly(items));
 
   test('the rendered text is the items in order, the breaks as newlines', () {
     final text = model([
@@ -49,7 +50,10 @@ void main() {
   });
 
   test('a custom emoji is an image span that names its document', () {
-    final text = model([const EmojiOnlyItem(_thumbs), const EmojiOnlyItem(_custom, alt: '\u{1F389}')]);
+    final text = model([
+      const EmojiOnlyItem(_thumbs),
+      const EmojiOnlyItem(_custom, alt: '\u{1F389}'),
+    ]);
 
     final spans = (text.markdown.blocks.single as MD$Paragraph).spans;
     final image = spans.singleWhere((s) => s.style.contains(MD$Style.image));
@@ -63,8 +67,9 @@ void main() {
       const EmojiOnlyItem(_family),
       const EmojiOnlyItem(_custom, lineBreaksBefore: 1, alt: '\u{1F389}'),
     ]);
-    final controller = MarkdownSelectionController(formatter: MarkdownSelectionFormatter.plain)
-      ..putDocument(7, text.markdown);
+    final controller = MarkdownSelectionController(
+      formatter: MarkdownSelectionFormatter.plain,
+    )..putDocument(7, text.markdown);
     addTearDown(controller.dispose);
 
     controller.selection = const MarkdownSelection(
@@ -78,7 +83,10 @@ void main() {
   });
 
   test('the item at an offset, and none on a break', () {
-    final text = model([const EmojiOnlyItem(_thumbs), const EmojiOnlyItem(_thumbs, lineBreaksBefore: 1)]);
+    final text = model([
+      const EmojiOnlyItem(_thumbs),
+      const EmojiOnlyItem(_thumbs, lineBreaksBefore: 1),
+    ]);
 
     expect(text.itemAtOffset(0), 0);
     expect(text.itemAtOffset(1), 0);

@@ -35,7 +35,11 @@ void main() {
     return layer ? RepaintBoundary(child: box) : box;
   }
 
-  Widget harness(String identity, {required bool layer, Offset inset = Offset.zero}) => MaterialApp(
+  Widget harness(
+    String identity, {
+    required bool layer,
+    Offset inset = Offset.zero,
+  }) => MaterialApp(
     home: RepaintBoundary(
       key: shot,
       child: Scaffold(
@@ -53,7 +57,8 @@ void main() {
               color: const Color(0xFF2B5278),
               borderRadius: BorderRadius.circular(12),
               padding: const EdgeInsets.all(10),
-              metaBuilder: (context, editedOpacity) => const SizedBox(width: 30, height: 10),
+              metaBuilder: (context, editedOpacity) =>
+                  const SizedBox(width: 30, height: 10),
             ),
           ),
         ),
@@ -74,12 +79,15 @@ void main() {
     await tester.pump();
     await tester.pump(elapsed);
     final progress = tester
-        .renderObject<RenderChatMessageChangeTransition>(find.byType(ChatMessageChangeTransition))
+        .renderObject<RenderChatMessageChangeTransition>(
+          find.byType(ChatMessageChangeTransition),
+        )
         .params
         .progress;
     final width = shot.currentContext!.size!.width.toInt();
     final bytes = await tester.runAsync(() async {
-      final boundary = shot.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      final boundary =
+          shot.currentContext!.findRenderObject()! as RenderRepaintBoundary;
       final image = await boundary.toImage();
       final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
       return data!.buffer.asUint8List();
@@ -88,7 +96,9 @@ void main() {
     return (pixels: bytes!, width: width, progress: progress);
   }
 
-  testWidgets('a body on a layer of its own crossfades as one that is not', (tester) async {
+  testWidgets('a body on a layer of its own crossfades as one that is not', (
+    tester,
+  ) async {
     final plain = await midway(tester, layer: false);
     final composited = await midway(tester, layer: true);
 
@@ -105,14 +115,26 @@ void main() {
         // The red channel: the bubble is 0x2B, the old bar white, the new bar
         // 0xFF too, so a bar at opacity a shows 0x2B + (0xFF - 0x2B) * a. Over
         // both bars, the opacities compose as 1 - (1 - a)(1 - b).
-        int red(int x, int y) => shot.pixels[((y + inset.dy.toInt()) * shot.width + x + inset.dx.toInt()) * 4];
+        int red(int x, int y) =>
+            shot.pixels[((y + inset.dy.toInt()) * shot.width +
+                    x +
+                    inset.dx.toInt()) *
+                4];
         int shown(double opacity) => (0x2B + (0xFF - 0x2B) * opacity).round();
         final p = shot.progress;
         final reason = 'inset $inset, layer $layer';
 
-        expect(red(100, 15), closeTo(shown(1 - p), 1), reason: 'old only, $reason');
+        expect(
+          red(100, 15),
+          closeTo(shown(1 - p), 1),
+          reason: 'old only, $reason',
+        );
         expect(red(20, 30), closeTo(shown(p), 1), reason: 'new only, $reason');
-        expect(red(12, 12), closeTo(shown(1 - (1 - (1 - p)) * (1 - p)), 1), reason: 'both, $reason');
+        expect(
+          red(12, 12),
+          closeTo(shown(1 - (1 - (1 - p)) * (1 - p)), 1),
+          reason: 'both, $reason',
+        );
       }
     }
   });
@@ -120,7 +142,11 @@ void main() {
   testWidgets('the crossfade has begun at that moment: the pixels are not '
       'those of the settled bubble', (tester) async {
     final during = await midway(tester, layer: false);
-    final settled = await midway(tester, layer: false, elapsed: const Duration(seconds: 1));
+    final settled = await midway(
+      tester,
+      layer: false,
+      elapsed: const Duration(seconds: 1),
+    );
 
     expect(during.pixels, isNot(settled.pixels));
   });

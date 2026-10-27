@@ -52,7 +52,8 @@ final class ChatScrollActivityTiming {
       other.curve == curve;
 
   @override
-  int get hashCode => Object.hash(idleDelay, navigationIdleDelay, fadeIn, fadeOut, curve);
+  int get hashCode =>
+      Object.hash(idleDelay, navigationIdleDelay, fadeIn, fadeOut, curve);
 }
 
 /// Scroll-activity state machine: a [Timer] for the idle hold and a [Ticker]
@@ -81,7 +82,10 @@ final class ChatScrollActivityClock {
     required ChatScrollActivityTiming timing,
     required VoidCallback onChanged,
     double initialValue = 0,
-  }) : assert(initialValue >= 0 && initialValue <= 1, 'initialValue must be in [0, 1]'),
+  }) : assert(
+         initialValue >= 0 && initialValue <= 1,
+         'initialValue must be in [0, 1]',
+       ),
        _timing = timing,
        _onChanged = onChanged,
        _value = initialValue,
@@ -179,7 +183,9 @@ final class ChatScrollActivityClock {
     _cancelHide();
     _navigationHidePending = _nextNavigation;
     _nextNavigation = false;
-    final delay = _navigationHidePending ? _timing.navigationIdleDelay : _timing.idleDelay;
+    final delay = _navigationHidePending
+        ? _timing.navigationIdleDelay
+        : _timing.idleDelay;
     _hideTimer = Timer(delay, () {
       _hideTimer = null;
       _navigationHidePending = false;
@@ -204,8 +210,12 @@ final class ChatScrollActivityClock {
   }
 
   void _tick(Duration elapsed) {
-    final t = _duration <= Duration.zero ? 1.0 : (elapsed.inMicroseconds / _duration.inMicroseconds).clamp(0.0, 1.0);
-    final next = t >= 1.0 ? _target : lerpDouble(_from, _target, _timing.curve.transform(t))!;
+    final t = _duration <= Duration.zero
+        ? 1.0
+        : (elapsed.inMicroseconds / _duration.inMicroseconds).clamp(0.0, 1.0);
+    final next = t >= 1.0
+        ? _target
+        : lerpDouble(_from, _target, _timing.curve.transform(t))!;
     if (t >= 1.0) _ticker.stop();
     if (next == _value) return;
     _value = next;

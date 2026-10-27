@@ -100,7 +100,12 @@ class ChatAnimator implements ChatScrollAnimator {
 
     /// Viewport height for travel-scaled duration.
     required double Function() viewportHeight,
-    required double Function(int targetId, double messageHeight, double alignment) closePathEndOffsetFor,
+    required double Function(
+      int targetId,
+      double messageHeight,
+      double alignment,
+    )
+    closePathEndOffsetFor,
     required bool Function(int targetId) isTailClosePathTarget,
     required RenderBox? Function(int id) childForId,
     required double Function(RenderBox child) offsetOfChild,
@@ -134,7 +139,9 @@ class ChatAnimator implements ChatScrollAnimator {
     /// Bake dual-translate at final progress and clear stitch capture on normal
     /// stitch completion. Render-owned.
     required void Function(StitchCancelSnapshot snapshot) onStitchComplete,
-    Duration highlightDuration = const Duration(milliseconds: highlightHoldDurationMs),
+    Duration highlightDuration = const Duration(
+      milliseconds: highlightHoldDurationMs,
+    ),
     Color highlightColor = const Color(0x280A90F0),
   }) : _controller = controller,
        _offsetToBuiltMessage = offsetToBuiltMessage,
@@ -185,10 +192,15 @@ class ChatAnimator implements ChatScrollAnimator {
   /// Longer hops feel deliberate; short hops stay snappy. Same curve family as
   /// stitch so a tall on-screen close hop does not finish much faster than an
   /// equivalent stitch.
-  static Duration travelDuration({required double travelPx, required double viewportHeight}) {
+  static Duration travelDuration({
+    required double travelPx,
+    required double viewportHeight,
+  }) {
     final vh = viewportHeight <= 0 ? 1.0 : viewportHeight;
     final raw = ((travelPx.abs() / vh) + 1.0) * 200.0;
-    final ms = raw.clamp(travelDurationMinMs.toDouble(), travelDurationMaxMs.toDouble()).round();
+    final ms = raw
+        .clamp(travelDurationMinMs.toDouble(), travelDurationMaxMs.toDouble())
+        .round();
     return Duration(milliseconds: ms);
   }
 
@@ -196,7 +208,8 @@ class ChatAnimator implements ChatScrollAnimator {
   final double? Function(int id) _offsetToBuiltMessage;
   final bool Function(int id) _messageIntersectsPaintBand;
   final double Function() _viewportHeight;
-  final double Function(int targetId, double messageHeight, double alignment) _closePathEndOffsetFor;
+  final double Function(int targetId, double messageHeight, double alignment)
+  _closePathEndOffsetFor;
   final bool Function(int targetId) _isTailClosePathTarget;
   final RenderBox? Function(int id) _childForId;
   final double Function(RenderBox child) _offsetOfChild;
@@ -371,7 +384,8 @@ class ChatAnimator implements ChatScrollAnimator {
   bool get isAnimating => animateCompleter != null;
 
   /// Whether a highlight overlay or deferred arm is active.
-  bool get hasHighlight => highlightTargetId != null || pendingHighlightTargetId != null;
+  bool get hasHighlight =>
+      highlightTargetId != null || pendingHighlightTargetId != null;
 
   /// Pixel epsilon: treat start/end (or current/desired) as already aligned.
   static const double _settleEpsilon = 1;
@@ -402,7 +416,9 @@ class ChatAnimator implements ChatScrollAnimator {
           'target': targetId,
           'far': farAnimateActive,
           'measured': stitchMeasured,
-          'stitchProgress': farAnimateActive ? LogFormat.ratio(stitchProgress) : null,
+          'stitchProgress': farAnimateActive
+              ? LogFormat.ratio(stitchProgress)
+              : null,
         });
         if (highlight) animateHighlight = true;
         return inFlight.future;
@@ -413,7 +429,9 @@ class ChatAnimator implements ChatScrollAnimator {
           'running': animateTargetId,
           'far': farAnimateActive,
           'preferBuiltWaiting': preferBuiltWaiting,
-          'stitchProgress': farAnimateActive ? LogFormat.ratio(stitchProgress) : null,
+          'stitchProgress': farAnimateActive
+              ? LogFormat.ratio(stitchProgress)
+              : null,
         });
         return Future<AnimateToPath>.value(AnimateToPath.none);
       }
@@ -428,7 +446,8 @@ class ChatAnimator implements ChatScrollAnimator {
     }
 
     // Already painted at the aligned seat — no teleport / scroll.
-    if (duration > Duration.zero && _isAlreadyAtAlignedTarget(targetId, align, pixelOffset)) {
+    if (duration > Duration.zero &&
+        _isAlreadyAtAlignedTarget(targetId, align, pixelOffset)) {
       Log.fine(.animate, 'animate.alreadyThere', {
         'target': targetId,
         'align': LogFormat.ratio(align),
@@ -451,7 +470,10 @@ class ChatAnimator implements ChatScrollAnimator {
     _cancelOverscroll();
     if (duration <= Duration.zero) {
       // Zero duration is instant jumpTo — no animation phase and no highlight.
-      Log.fine(.animate, 'animate.jumpInstant', {'target': targetId, 'align': LogFormat.ratio(align)});
+      Log.fine(.animate, 'animate.jumpInstant', {
+        'target': targetId,
+        'align': LogFormat.ratio(align),
+      });
       _controller.jumpTo(targetId, alignment: align, pixelOffset: pixelOffset);
       return Future<AnimateToPath>.value(AnimateToPath.instant);
     }
@@ -498,19 +520,33 @@ class ChatAnimator implements ChatScrollAnimator {
   }
 
   /// `true` when [targetId] is built and already at its close-path end Y.
-  bool _isAlreadyAtAlignedTarget(int targetId, double alignment, double pixelOffset) {
+  bool _isAlreadyAtAlignedTarget(
+    int targetId,
+    double alignment,
+    double pixelOffset,
+  ) {
     final child = _childForId(targetId);
     if (child == null) return false;
     if (!_isDestinationReady(targetId)) return false;
     final top = _offsetToBuiltMessage(targetId);
     if (top == null) return false;
-    final end = _closePathEnd(targetId, _heightOfChild(child), alignment, pixelOffset);
+    final end = _closePathEnd(
+      targetId,
+      _heightOfChild(child),
+      alignment,
+      pixelOffset,
+    );
     return (top - end).abs() < _settleEpsilon;
   }
 
   /// Close-path end Y: the viewport's aligned seat plus [pixelOffset]. A
   /// tail-pin target ignores the offset, because the pin owns its geometry.
-  double _closePathEnd(int targetId, double messageHeight, double alignment, double pixelOffset) {
+  double _closePathEnd(
+    int targetId,
+    double messageHeight,
+    double alignment,
+    double pixelOffset,
+  ) {
     final seat = _closePathEndOffsetFor(targetId, messageHeight, alignment);
     return _isTailClosePathTarget(targetId) ? seat : seat + pixelOffset;
   }
@@ -528,7 +564,10 @@ class ChatAnimator implements ChatScrollAnimator {
     }
 
     if (!_isDestinationReady(animateTargetId)) {
-      Log.fine(.animate, 'path.loadGate.stillUnready', {'target': animateTargetId, 'vh': LogFormat.f(viewportHeight)});
+      Log.fine(.animate, 'path.loadGate.stillUnready', {
+        'target': animateTargetId,
+        'vh': LogFormat.f(viewportHeight),
+      });
       // Do not re-request the dest window here — that reasserted the pin and
       // queued a fetch every layout frame, cancelling/restarting in-flight
       // work and busy-looping. Pin + poll from [_enterLoadGateWait] refill.
@@ -614,7 +653,10 @@ class ChatAnimator implements ChatScrollAnimator {
 
   void _tryBeginPath() {
     if (!_isDestinationReady(animateTargetId)) {
-      Log.fine(.animate, 'path.loadGate.wait', {'target': animateTargetId, 'loadPolicy': loadPolicy.name});
+      Log.fine(.animate, 'path.loadGate.wait', {
+        'target': animateTargetId,
+        'loadPolicy': loadPolicy.name,
+      });
       _enterLoadGateWait();
       return;
     }
@@ -631,7 +673,8 @@ class ChatAnimator implements ChatScrollAnimator {
       return;
     }
 
-    if (loadPolicy == AnimateToLoadPolicy.preferBuilt && offsetToTarget == null) {
+    if (loadPolicy == AnimateToLoadPolicy.preferBuilt &&
+        offsetToTarget == null) {
       // Ready payload, row not yet in build range — one layout chance for
       // close-path (self-insert / follow-tail). Never timeout→force-stitch.
       Log.fine(.animate, 'path.preferBuilt.wait', {'target': animateTargetId});
@@ -668,7 +711,12 @@ class ChatAnimator implements ChatScrollAnimator {
     _leaveLoadGateWait();
     final child = _childForId(animateTargetId);
     final endOffset = child != null
-        ? _closePathEnd(animateTargetId, _heightOfChild(child), animateAlignment, animatePixelOffset)
+        ? _closePathEnd(
+            animateTargetId,
+            _heightOfChild(child),
+            animateAlignment,
+            animatePixelOffset,
+          )
         : 0.0;
     _controller.reassignAnchor(animateTargetId, offsetToTarget);
     animateStartOffset = offsetToTarget;
@@ -855,10 +903,14 @@ class ChatAnimator implements ChatScrollAnimator {
         // (`stitchMeasured` already true).
         if (!_stitchMeasureLayoutAsked) {
           _stitchMeasureLayoutAsked = true;
-          Log.fine(.animate, 'stitch.awaitMeasure', {'target': animateTargetId});
+          Log.fine(.animate, 'stitch.awaitMeasure', {
+            'target': animateTargetId,
+          });
           _markNeedsLayout();
         } else {
-          Log.fine(.animate, 'stitch.awaitMeasure.pending', {'target': animateTargetId});
+          Log.fine(.animate, 'stitch.awaitMeasure.pending', {
+            'target': animateTargetId,
+          });
           _markNeedsLayout();
         }
         return 0;
@@ -866,13 +918,18 @@ class ChatAnimator implements ChatScrollAnimator {
       final stitchStart = animateStartTime ??= elapsed;
       final stitchUs = animateDuration.inMicroseconds;
       final stitchElapsedUs = (elapsed - stitchStart).inMicroseconds;
-      final stitchT = stitchUs <= 0 ? 1.0 : (stitchElapsedUs / stitchUs).clamp(0.0, 1.0);
+      final stitchT = stitchUs <= 0
+          ? 1.0
+          : (stitchElapsedUs / stitchUs).clamp(0.0, 1.0);
       stitchProgress = animateCurve.transform(stitchT);
       _logProgressTick(
         path: 'stitch',
         t: stitchT,
         progress: stitchProgress,
-        extra: {'towardNewer': stitchTowardNewer, 'scrollLen': LogFormat.f(stitchScrollLength)},
+        extra: {
+          'towardNewer': stitchTowardNewer,
+          'scrollLen': LogFormat.f(stitchScrollLength),
+        },
       );
       if (stitchT >= 1.0) {
         stitchProgress = 1.0;
@@ -888,13 +945,16 @@ class ChatAnimator implements ChatScrollAnimator {
     final segmentStart = animateStartTime ??= elapsed;
     final segmentUs = animateDuration.inMicroseconds;
     final segmentElapsedUs = (elapsed - segmentStart).inMicroseconds;
-    final segmentT = segmentUs <= 0 ? 1.0 : (segmentElapsedUs / segmentUs).clamp(0.0, 1.0);
+    final segmentT = segmentUs <= 0
+        ? 1.0
+        : (segmentElapsedUs / segmentUs).clamp(0.0, 1.0);
     if (segmentT >= 1.0) {
       _completeAnimate();
       return 0;
     }
     final eased = animateCurve.transform(segmentT);
-    final target = animateStartOffset + (animateEndOffset - animateStartOffset) * eased;
+    final target =
+        animateStartOffset + (animateEndOffset - animateStartOffset) * eased;
     final delta = target - _controller.anchorPixelOffset;
     _logProgressTick(
       path: 'close',
@@ -947,7 +1007,12 @@ class ChatAnimator implements ChatScrollAnimator {
     }
     final child = _childForId(animateTargetId);
     if (child == null) return;
-    final newEnd = _closePathEnd(animateTargetId, _heightOfChild(child), animateAlignment, animatePixelOffset);
+    final newEnd = _closePathEnd(
+      animateTargetId,
+      _heightOfChild(child),
+      animateAlignment,
+      animatePixelOffset,
+    );
     if ((newEnd - animateEndOffset).abs() < 0.5) return;
     Log.fine(.animate, 'close.rebase', {
       'target': animateTargetId,
@@ -1020,14 +1085,20 @@ class ChatAnimator implements ChatScrollAnimator {
       var end = animateEndOffset;
       final child = _childForId(targetId);
       if (child != null) {
-        end = _closePathEnd(targetId, _heightOfChild(child), animateAlignment, animatePixelOffset);
+        end = _closePathEnd(
+          targetId,
+          _heightOfChild(child),
+          animateAlignment,
+          animatePixelOffset,
+        );
       }
       _controller.reassignAnchor(targetId, end);
     }
     // Successful settle → restart solid hold. Highlight was usually armed at
     // navigate start; if not (deferred), request with hold-on-arm.
     if (highlightDuration > Duration.zero && animateHighlight) {
-      if (highlightTargetId == targetId || pendingHighlightTargetId == targetId) {
+      if (highlightTargetId == targetId ||
+          pendingHighlightTargetId == targetId) {
         startHighlightHold();
       } else {
         _requestHighlight(targetId, startHold: true);
@@ -1230,7 +1301,8 @@ class ChatAnimator implements ChatScrollAnimator {
     final target = _childForId(targetId);
     if (target == null) return; // user scrolled the target out of the build
     final childOffset = _offsetOfChild(target);
-    if (childOffset >= viewportHeight || childOffset + _heightOfChild(target) <= 0) {
+    if (childOffset >= viewportHeight ||
+        childOffset + _heightOfChild(target) <= 0) {
       return;
     }
     final base = highlightColor;
@@ -1239,7 +1311,12 @@ class ChatAnimator implements ChatScrollAnimator {
     final alpha = (base.a * factor).clamp(0.0, 1.0);
     if (alpha <= 0.0) return;
     final paint = Paint()..color = base.withValues(alpha: alpha);
-    final rect = Rect.fromLTWH(offset.dx, offset.dy + childOffset, viewportWidth, _heightOfChild(target));
+    final rect = Rect.fromLTWH(
+      offset.dx,
+      offset.dy + childOffset,
+      viewportWidth,
+      _heightOfChild(target),
+    );
     context.canvas.drawRect(rect, paint);
   }
 }

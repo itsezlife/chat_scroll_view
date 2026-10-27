@@ -15,21 +15,34 @@ import '../chat_message.dart';
 // Test data
 // ---------------------------------------------------------------------------
 
-IChatMessage _msg(int i) =>
-    UserChatMessage(id: i, sender: 'User', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: 'content $i');
+IChatMessage _msg(int i) => UserChatMessage(
+  id: i,
+  sender: 'User',
+  createdAt: DateTime(2026),
+  updatedAt: DateTime(2026),
+  content: 'content $i',
+);
 
 class _PreloadedDataSource extends ChatDataSource {
   _PreloadedDataSource(this.count) {
     for (var i = 0; i < count; i++) {
       upsertMessage(_msg(i));
     }
-    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
   }
 
   final int count;
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 /// Metadata-only at construction (like [BackendChatDataSource.connect]);
@@ -37,14 +50,22 @@ class _PreloadedDataSource extends ChatDataSource {
 /// lazy load.
 class _LazyTailDataSource extends ChatDataSource {
   _LazyTailDataSource(this.count) {
-    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
   }
 
   final int count;
   bool loaded = false;
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async {
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 50));
     final lo = fromId.clamp(0, count - 1);
     final hi = toId.clamp(0, count - 1);
@@ -78,7 +99,10 @@ Widget _harness({
             controller: controller,
             bottomPadding: bottomPadding,
             messageBuilder: (context, id, message, status, runLayout) =>
-                SizedBox(height: heightFor(id), child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
+                SizedBox(
+                  height: heightFor(id),
+                  child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                ),
           ),
         ),
       ),
@@ -89,7 +113,11 @@ Widget _harness({
 /// Drive [animateFuture] to completion — the future only resolves once the
 /// viewport ticker fires, which requires explicit pumps in widget tests.
 /// Stitch may rewrite duration up to ~1300ms; use a hard pump budget.
-Future<void> _driveAnimate(WidgetTester tester, Future<void> animateFuture, {int maxPumps = 200}) async {
+Future<void> _driveAnimate(
+  WidgetTester tester,
+  Future<void> animateFuture, {
+  int maxPumps = 200,
+}) async {
   await tester.pump();
   var done = false;
   unawaited(animateFuture.whenComplete(() => done = true));
@@ -101,7 +129,11 @@ Future<void> _driveAnimate(WidgetTester tester, Future<void> animateFuture, {int
   await tester.pump();
 }
 
-Future<void> _slowDrag(WidgetTester tester, Offset totalDelta, {int steps = 10}) async {
+Future<void> _slowDrag(
+  WidgetTester tester,
+  Offset totalDelta, {
+  int steps = 10,
+}) async {
   final center = tester.getCenter(find.byType(ChatScrollView));
   final gesture = await tester.startGesture(center);
   final stepDelta = totalDelta / steps.toDouble();
@@ -115,7 +147,9 @@ Future<void> _slowDrag(WidgetTester tester, Offset totalDelta, {int steps = 10})
 
 void main() {
   group('jump to tail', () {
-    testWidgets('post-frame jumpTo newest pins tail on first layout', (tester) async {
+    testWidgets('post-frame jumpTo newest pins tail on first layout', (
+      tester,
+    ) async {
       const count = 20;
       const newest = count - 1;
       final ds = _PreloadedDataSource(count);
@@ -125,15 +159,27 @@ void main() {
       addTearDown(ds.dispose);
       addTearDown(inset.dispose);
 
-      await tester.pumpWidget(_harness(dataSource: ds, controller: controller, reverse: true, bottomPadding: inset));
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          reverse: true,
+          bottomPadding: inset,
+        ),
+      );
       await tester.pump();
 
       expect(controller.isAtTail.value, isTrue);
       expect(controller.anchorMessageId, newest);
-      expect(tester.getTopLeft(find.text('msg-$newest')).dy, closeTo(_viewportHeight - 96 - 60, 1));
+      expect(
+        tester.getTopLeft(find.text('msg-$newest')).dy,
+        closeTo(_viewportHeight - 96 - 60, 1),
+      );
     });
 
-    testWidgets('jumpTo newest from scrolled-up position restores tail', (tester) async {
+    testWidgets('jumpTo newest from scrolled-up position restores tail', (
+      tester,
+    ) async {
       const count = 40;
       const newest = count - 1;
       final ds = _PreloadedDataSource(count);
@@ -178,7 +224,9 @@ void main() {
       expect(controller.anchorMessageId, newest);
     });
 
-    testWidgets('animateTo tall newest ends at tail pin not band top', (tester) async {
+    testWidgets('animateTo tall newest ends at tail pin not band top', (
+      tester,
+    ) async {
       const count = 10;
       const newest = count - 1;
       const tallHeight = _viewportHeight + 200;
@@ -188,7 +236,11 @@ void main() {
       addTearDown(ds.dispose);
 
       await tester.pumpWidget(
-        _harness(dataSource: ds, controller: controller, messageHeight: (id) => id == newest ? tallHeight : 60.0),
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          messageHeight: (id) => id == newest ? tallHeight : 60.0,
+        ),
       );
       await tester.pump();
 
@@ -206,51 +258,74 @@ void main() {
       expect(controller.anchorPixelOffset, closeTo(expectedTailTop, 1));
     });
 
-    testWidgets('animateTo very tall newest uses close path (no stitch top then pin)', (tester) async {
-      // Repro: tall newest scrolled into body → |offset| > ChatAnimator.closeAnimateDistance
-      // used to pick stitch, jumpTo(align=0) snaps to top, then pinNewest
-      // yanks to tail mid-flight.
-      const count = 10;
-      const newest = count - 1;
-      const tallHeight = 5000.0;
-      final ds = _PreloadedDataSource(count);
-      final controller = ChatScrollController()..jumpTo(newest);
-      addTearDown(controller.dispose);
-      addTearDown(ds.dispose);
+    testWidgets(
+      'animateTo very tall newest uses close path (no stitch top then pin)',
+      (tester) async {
+        // Repro: tall newest scrolled into body → |offset| > ChatAnimator.closeAnimateDistance
+        // used to pick stitch, jumpTo(align=0) snaps to top, then pinNewest
+        // yanks to tail mid-flight.
+        const count = 10;
+        const newest = count - 1;
+        const tallHeight = 5000.0;
+        final ds = _PreloadedDataSource(count);
+        final controller = ChatScrollController()..jumpTo(newest);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _harness(dataSource: ds, controller: controller, messageHeight: (id) => id == newest ? tallHeight : 60.0),
-      );
-      await tester.pump();
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            messageHeight: (id) => id == newest ? tallHeight : 60.0,
+          ),
+        );
+        await tester.pump();
 
-      // Scroll up into the tall body (not at tail).
-      await tester.drag(find.byType(ChatScrollView), const Offset(0, 800));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(controller.isAtTail.value, isFalse);
-      expect(controller.anchorMessageId, newest);
-      expect(controller.anchorPixelOffset.abs(), greaterThan(2400));
+        // Scroll up into the tall body (not at tail).
+        await tester.drag(find.byType(ChatScrollView), const Offset(0, 800));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(controller.isAtTail.value, isFalse);
+        expect(controller.anchorMessageId, newest);
+        expect(controller.anchorPixelOffset.abs(), greaterThan(2400));
 
-      final render = tester.renderObject(find.byType(ChatScrollView)) as RenderChatScrollView;
-      final future = controller.animateTo(newest, highlight: false, loadPolicy: AnimateToLoadPolicy.preferBuilt);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 16));
+        final render =
+            tester.renderObject(find.byType(ChatScrollView))
+                as RenderChatScrollView;
+        final future = controller.animateTo(
+          newest,
+          highlight: false,
+          loadPolicy: AnimateToLoadPolicy.preferBuilt,
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 16));
 
-      // Must not stitch: same visible newest should smooth-scroll (target
-      // already built → close path), never jump to band top then pin.
-      expect(render.debugFarAnimateActive, isFalse, reason: 'visible tall newest must use close path, not stitch');
-      // Never snap toward message top (Y≈0) while returning to tail.
-      expect(controller.anchorPixelOffset, lessThan(-100), reason: 'must not jumpTo(align=0) on the way to tail pin');
+        // Must not stitch: same visible newest should smooth-scroll (target
+        // already built → close path), never jump to band top then pin.
+        expect(
+          render.debugFarAnimateActive,
+          isFalse,
+          reason: 'visible tall newest must use close path, not stitch',
+        );
+        // Never snap toward message top (Y≈0) while returning to tail.
+        expect(
+          controller.anchorPixelOffset,
+          lessThan(-100),
+          reason: 'must not jumpTo(align=0) on the way to tail pin',
+        );
 
-      await _driveAnimate(tester, future, maxPumps: 300);
+        await _driveAnimate(tester, future, maxPumps: 300);
 
-      const expectedTailTop = _viewportHeight - tallHeight;
-      expect(controller.isAtTail.value, isTrue);
-      expect(controller.anchorMessageId, newest);
-      expect(controller.anchorPixelOffset, closeTo(expectedTailTop, 1));
-    });
+        const expectedTailTop = _viewportHeight - tallHeight;
+        expect(controller.isAtTail.value, isTrue);
+        expect(controller.anchorMessageId, newest);
+        expect(controller.anchorPixelOffset, closeTo(expectedTailTop, 1));
+      },
+    );
 
-    testWidgets('jumpTo past newest clamps without phantom shimmer', (tester) async {
+    testWidgets('jumpTo past newest clamps without phantom shimmer', (
+      tester,
+    ) async {
       const count = 20;
       const newest = count - 1;
       final ds = _PreloadedDataSource(count);
@@ -258,7 +333,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_harness(dataSource: ds, controller: controller, reverse: true));
+      await tester.pumpWidget(
+        _harness(dataSource: ds, controller: controller, reverse: true),
+      );
       await tester.pump();
 
       expect(controller.anchorMessageId, newest);
@@ -267,7 +344,9 @@ void main() {
       expect(find.text('msg-$newest'), findsOneWidget);
     });
 
-    testWidgets('overscroll at tail leaves no phantom row after spring', (tester) async {
+    testWidgets('overscroll at tail leaves no phantom row after spring', (
+      tester,
+    ) async {
       const count = 20;
       const newest = count - 1;
       final ds = _PreloadedDataSource(count);
@@ -275,7 +354,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_harness(dataSource: ds, controller: controller, reverse: true));
+      await tester.pumpWidget(
+        _harness(dataSource: ds, controller: controller, reverse: true),
+      );
       await tester.pump();
       expect(controller.isAtTail.value, isTrue);
 
@@ -313,10 +394,15 @@ void main() {
 
       expect(ds.loaded, isTrue);
       expect(controller.isAtTail.value, isTrue);
-      expect(tester.getTopLeft(find.text('msg-$newest')).dy, closeTo(_viewportHeight - 120, 1));
+      expect(
+        tester.getTopLeft(find.text('msg-$newest')).dy,
+        closeTo(_viewportHeight - 120, 1),
+      );
     });
 
-    testWidgets('scroll away from tail is not yanked back by pending pin', (tester) async {
+    testWidgets('scroll away from tail is not yanked back by pending pin', (
+      tester,
+    ) async {
       const count = 40;
       const newest = count - 1;
       final ds = _PreloadedDataSource(count);
@@ -327,7 +413,12 @@ void main() {
       addTearDown(bottomPad.dispose);
 
       await tester.pumpWidget(
-        _harness(dataSource: ds, controller: controller, reverse: true, bottomPadding: bottomPad),
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          reverse: true,
+          bottomPadding: bottomPad,
+        ),
       );
       await tester.pump();
       expect(controller.isAtTail.value, isTrue);
@@ -344,43 +435,53 @@ void main() {
       expect(controller.isAtTail.value, isFalse);
     });
 
-    testWidgets('mouse wheel away from tail during lazy load is not yanked by pending pin', (tester) async {
-      const count = 40;
-      const newest = count - 1;
-      final ds = _LazyTailDataSource(count);
-      final bottomPad = ValueNotifier<double>(96);
-      final controller = ChatScrollController()..jumpTo(newest);
-      addTearDown(controller.dispose);
-      addTearDown(ds.dispose);
-      addTearDown(bottomPad.dispose);
+    testWidgets(
+      'mouse wheel away from tail during lazy load is not yanked by pending pin',
+      (tester) async {
+        const count = 40;
+        const newest = count - 1;
+        final ds = _LazyTailDataSource(count);
+        final bottomPad = ValueNotifier<double>(96);
+        final controller = ChatScrollController()..jumpTo(newest);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+        addTearDown(bottomPad.dispose);
 
-      await tester.pumpWidget(
-        _harness(dataSource: ds, controller: controller, reverse: true, bottomPadding: bottomPad),
-      );
-      await tester.pump();
-      expect(ds.loaded, isFalse);
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            reverse: true,
+            bottomPadding: bottomPad,
+          ),
+        );
+        await tester.pump();
+        expect(ds.loaded, isFalse);
 
-      final center = tester.getCenter(find.byType(ChatScrollView));
-      final pointer = TestPointer(1, PointerDeviceKind.mouse)..hover(center);
-      // Reveal older — same sign as settled-open wheel probes.
-      await tester.sendEventToBinding(pointer.scroll(const Offset(0, -200)));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 32));
+        final center = tester.getCenter(find.byType(ChatScrollView));
+        final pointer = TestPointer(1, PointerDeviceKind.mouse)..hover(center);
+        // Reveal older — same sign as settled-open wheel probes.
+        await tester.sendEventToBinding(pointer.scroll(const Offset(0, -200)));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 32));
 
-      // Let the lazy fetch complete — pending pin must not repin to tail.
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pumpAndSettle();
-      expect(ds.loaded, isTrue);
-      expect(
-        controller.isAtTail.value,
-        isFalse,
-        reason:
-            'wheel must preempt pending tail pin like drag — otherwise '
-            'open-at-newest / Warm History load yanks wheel scroll back',
-      );
-    });
+        // Let the lazy fetch complete — pending pin must not repin to tail.
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+        expect(ds.loaded, isTrue);
+        expect(
+          controller.isAtTail.value,
+          isFalse,
+          reason:
+              'wheel must preempt pending tail pin like drag — otherwise '
+              'open-at-newest / Warm History load yanks wheel scroll back',
+        );
+      },
+    );
 
-    testWidgets('tall newest message pins bottom above bottomPadding', (tester) async {
+    testWidgets('tall newest message pins bottom above bottomPadding', (
+      tester,
+    ) async {
       const count = 10;
       const newest = count - 1;
       final ds = _PreloadedDataSource(count);

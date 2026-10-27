@@ -61,22 +61,32 @@ extension type const ChatMessageStatus._(int _value) {
   // --- Can be expanded up to 1 << 31 --- //
 
   /// A list of all defined status flags.
-  static const List<ChatMessageStatus> values = <ChatMessageStatus>[valid, dirty, error, fetching, absent];
+  static const List<ChatMessageStatus> values = <ChatMessageStatus>[
+    valid,
+    dirty,
+    error,
+    fetching,
+    absent,
+  ];
 
   /// Check if the current status contains a specific flag.
   bool contains(ChatMessageStatus flag) => (_value & flag._value) != 0;
 
   /// Add a flag to the current status.
-  ChatMessageStatus add(ChatMessageStatus flag) => ChatMessageStatus._(_value | flag._value);
+  ChatMessageStatus add(ChatMessageStatus flag) =>
+      ChatMessageStatus._(_value | flag._value);
 
   /// Remove a flag from the current status.
-  ChatMessageStatus remove(ChatMessageStatus flag) => ChatMessageStatus._(_value & ~flag._value);
+  ChatMessageStatus remove(ChatMessageStatus flag) =>
+      ChatMessageStatus._(_value & ~flag._value);
 
   /// Toggle a flag in the current status.
-  ChatMessageStatus toggle(ChatMessageStatus flag) => ChatMessageStatus._(_value ^ flag._value);
+  ChatMessageStatus toggle(ChatMessageStatus flag) =>
+      ChatMessageStatus._(_value ^ flag._value);
 
   /// Toggle a flag in the current status.
-  ChatMessageStatus operator ^(ChatMessageStatus other) => ChatMessageStatus._(_value ^ other._value);
+  ChatMessageStatus operator ^(ChatMessageStatus other) =>
+      ChatMessageStatus._(_value ^ other._value);
 
   /// Currently has no status flags set, meaning the message is valid.
   bool get isValid => _value == 0;

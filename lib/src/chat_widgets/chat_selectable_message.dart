@@ -74,7 +74,8 @@ class SelectableMessage extends StatefulWidget {
   State<SelectableMessage> createState() => _SelectableMessageState();
 }
 
-class _SelectableMessageState extends State<SelectableMessage> with TickerProviderStateMixin {
+class _SelectableMessageState extends State<SelectableMessage>
+    with TickerProviderStateMixin {
   late final AnimationController _mode;
   late final AnimationController _select;
   late Listenable _animation;
@@ -85,7 +86,11 @@ class _SelectableMessageState extends State<SelectableMessage> with TickerProvid
     super.initState();
     final c = widget.controller;
     _liveMode = c.isSelectionMode;
-    _mode = AnimationController(vsync: this, duration: ChatSelectionMetrics.modeDuration, value: _liveMode ? 1.0 : 0.0);
+    _mode = AnimationController(
+      vsync: this,
+      duration: ChatSelectionMetrics.modeDuration,
+      value: _liveMode ? 1.0 : 0.0,
+    );
     _select = AnimationController(
       vsync: this,
       duration: ChatSelectionMetrics.selectDuration,
@@ -110,12 +115,19 @@ class _SelectableMessageState extends State<SelectableMessage> with TickerProvid
   @override
   void didUpdateWidget(SelectableMessage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final controllerSwapped = !identical(oldWidget.controller, widget.controller);
+    final controllerSwapped = !identical(
+      oldWidget.controller,
+      widget.controller,
+    );
     final idSwapped = oldWidget.id != widget.id;
     if (controllerSwapped) {
       oldWidget.controller.removeListener(_onSelectionChanged);
       widget.controller.addListener(_onSelectionChanged);
-      _animation = Listenable.merge(<Listenable>[_mode, _select, widget.controller]);
+      _animation = Listenable.merge(<Listenable>[
+        _mode,
+        _select,
+        widget.controller,
+      ]);
     }
     // Only re-sync when something the animation depends on actually changed.
     // Parent rebuilds with the same id+controller would otherwise enqueue
@@ -148,7 +160,8 @@ class _SelectableMessageState extends State<SelectableMessage> with TickerProvid
     _liveMode = mode;
   }
 
-  bool get _flingCancelSuppressesGestures => widget.scrollController?.flingCancelSuppressesLongPress ?? false;
+  bool get _flingCancelSuppressesGestures =>
+      widget.scrollController?.flingCancelSuppressesLongPress ?? false;
 
   void _handleLongPress() {
     if (_flingCancelSuppressesGestures) return;
@@ -173,7 +186,9 @@ class _SelectableMessageState extends State<SelectableMessage> with TickerProvid
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: _animation,
     builder: (context, child) {
-      final isSubject = widget.controller.isTextSelectionActive && widget.controller.textSelectionSubject == widget.id;
+      final isSubject =
+          widget.controller.isTextSelectionActive &&
+          widget.controller.textSelectionSubject == widget.id;
       final policy = widget.controller.selectionPolicy;
       // Mobile multiselect: ignore unselected bodies so link/code do not steal
       // row toggles. Selected rows stay hittable — viewport yields long-press
@@ -181,8 +196,12 @@ class _SelectableMessageState extends State<SelectableMessage> with TickerProvid
       // hittable for handles / drag. Host chrome gates via [canPerformActions].
       final suppressHostChrome =
           policy.suppressesLinkTapInMessageSelection &&
-          (widget.controller.isSelectionMode || widget.controller.isTextSelectionActive);
-      final ignoreChildren = suppressHostChrome && !isSubject && !widget.controller.isSelected(widget.id);
+          (widget.controller.isSelectionMode ||
+              widget.controller.isTextSelectionActive);
+      final ignoreChildren =
+          suppressHostChrome &&
+          !isSubject &&
+          !widget.controller.isSelected(widget.id);
       final canPerformActions = !suppressHostChrome;
       final state = ChatSelectionChromeState(
         id: widget.id,
@@ -198,7 +217,11 @@ class _SelectableMessageState extends State<SelectableMessage> with TickerProvid
       );
       return ChatSelectionStateScope(
         state: state,
-        child: widget.chromeBuilder(context, state, IgnorePointer(ignoring: ignoreChildren, child: child!)),
+        child: widget.chromeBuilder(
+          context,
+          state,
+          IgnorePointer(ignoring: ignoreChildren, child: child!),
+        ),
       );
     },
     child: widget.child,
@@ -211,14 +234,19 @@ class _SelectableMessageState extends State<SelectableMessage> with TickerProvid
 /// to adapt their presentation when the row is selected.
 class ChatSelectionStateScope extends InheritedWidget {
   /// Creates an ambient selection state scope for [state].
-  const ChatSelectionStateScope({required this.state, required super.child, super.key});
+  const ChatSelectionStateScope({
+    required this.state,
+    required super.child,
+    super.key,
+  });
 
   /// The animated selection chrome state for this message row.
   final ChatSelectionChromeState state;
 
   /// Retrieves the ambient [ChatSelectionChromeState] for this message, or `null`.
-  static ChatSelectionChromeState? maybeOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<ChatSelectionStateScope>()?.state;
+  static ChatSelectionChromeState? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<ChatSelectionStateScope>()
+      ?.state;
 
   /// Retrieves the ambient [ChatSelectionChromeState] for this message.
   static ChatSelectionChromeState of(BuildContext context) {

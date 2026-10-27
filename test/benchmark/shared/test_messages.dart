@@ -75,7 +75,15 @@ List<IChatMessage> generateMessages(int count) {
       content = _longPhrases[rng.nextInt(_longPhrases.length)];
     }
 
-    messages.add(UserChatMessage(id: i, sender: 'User', createdAt: time, updatedAt: time, content: content));
+    messages.add(
+      UserChatMessage(
+        id: i,
+        sender: 'User',
+        createdAt: time,
+        updatedAt: time,
+        content: content,
+      ),
+    );
   }
   return messages;
 }

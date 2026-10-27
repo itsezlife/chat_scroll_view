@@ -17,7 +17,11 @@ class ChatRangeFetch {
   /// Creates a fetch coordinator bound to [chunks] and [fetchRange].
   ChatRangeFetch({
     required Map<int, ChatScrollChunk> Function() chunks,
-    required Future<List<IChatMessage>> Function({required int fromId, required int toId}) fetchRange,
+    required Future<List<IChatMessage>> Function({
+      required int fromId,
+      required int toId,
+    })
+    fetchRange,
     required VoidCallback notifyDataChanged,
     required bool Function() isDisposed,
     int? Function()? unconfirmedTailThroughId,
@@ -34,7 +38,11 @@ class ChatRangeFetch {
   static final math.Random _rnd = math.Random();
 
   final Map<int, ChatScrollChunk> Function() _chunks;
-  final Future<List<IChatMessage>> Function({required int fromId, required int toId}) _fetchRange;
+  final Future<List<IChatMessage>> Function({
+    required int fromId,
+    required int toId,
+  })
+  _fetchRange;
   final VoidCallback _notifyDataChanged;
   final bool Function() _isDisposed;
   final int? Function()? _unconfirmedTailThroughId;
@@ -58,7 +66,9 @@ class ChatRangeFetch {
   /// Whether [chunkIndex] lies inside the bounding range of an in-flight
   /// fetch (token armed, not merely a pending retry timer).
   bool coversChunkInFlight(int chunkIndex) =>
-      _fetchToken != null && chunkIndex >= _fetchingMinChunk && chunkIndex <= _fetchingMaxChunk;
+      _fetchToken != null &&
+      chunkIndex >= _fetchingMinChunk &&
+      chunkIndex <= _fetchingMaxChunk;
 
   /// Whether a fetch token or retry timer is armed (any range).
   bool get hasInFlightFetch => _fetchToken != null || _retryTimer != null;
@@ -90,7 +100,11 @@ class ChatRangeFetch {
   /// growth or a disjoint live fetch is left running — wait for it to finish
   /// instead of cancel/restart. Settle / jump paths keep the default
   /// [allowWiden] true so the laid-out band can widen once.
-  void requestChunks(int layoutMinChunk, int layoutMaxChunk, {bool allowWiden = true}) {
+  void requestChunks(
+    int layoutMinChunk,
+    int layoutMaxChunk, {
+    bool allowWiden = true,
+  }) {
     if (_isDisposed()) return;
     final chunks = _chunks();
     // Find the actual range that needs fetching.
@@ -116,9 +130,11 @@ class ChatRangeFetch {
     // too so poll does not defeat exponential backoff.
     final live = _fetchToken != null || _retryTimer != null;
     if (live) {
-      final overlaps = fetchMin <= _fetchingMaxChunk && fetchMax >= _fetchingMinChunk;
+      final overlaps =
+          fetchMin <= _fetchingMaxChunk && fetchMax >= _fetchingMinChunk;
       if (overlaps) {
-        if (allowWiden && (fetchMin < _fetchingMinChunk || fetchMax > _fetchingMaxChunk)) {
+        if (allowWiden &&
+            (fetchMin < _fetchingMinChunk || fetchMax > _fetchingMaxChunk)) {
           // Layout grew past the live span — widen once to the union.
           final unionMin = math.min(fetchMin, _fetchingMinChunk);
           final unionMax = math.max(fetchMax, _fetchingMaxChunk);
@@ -163,7 +179,9 @@ class ChatRangeFetch {
         fetchingChunks.add(ci);
         continue;
       }
-      chunk.status = chunk.status.remove(ChatMessageStatus.error).add(ChatMessageStatus.fetching);
+      chunk.status = chunk.status
+          .remove(ChatMessageStatus.error)
+          .add(ChatMessageStatus.fetching);
       fetchingChunks.add(ci);
       changed = true;
     }
@@ -208,7 +226,9 @@ class ChatRangeFetch {
         // `lastError`/`failedAttempts` still describe the prior failure —
         // any consumer reading `status.isValid && lastError != null` would
         // render a stale error on a "healthy" chunk.
-        chunk.status = chunk.status.remove(ChatMessageStatus.fetching).add(ChatMessageStatus.dirty);
+        chunk.status = chunk.status
+            .remove(ChatMessageStatus.fetching)
+            .add(ChatMessageStatus.dirty);
         changed = true;
       }
       fetchingChunks.clear();
@@ -235,7 +255,10 @@ class ChatRangeFetch {
     // listener that calls `cancelFetch()` / `invalidate()` resets the range,
     // and we must not dispatch a request derived from the post-cancel state.
     final fromId = ChatScrollChunk.firstIdOf(_fetchingMinChunk);
-    final toId = ChatScrollChunk.firstIdOf(_fetchingMaxChunk) + ChatScrollChunk.kSize - 1;
+    final toId =
+        ChatScrollChunk.firstIdOf(_fetchingMaxChunk) +
+        ChatScrollChunk.kSize -
+        1;
 
     // Pre-create only the chunks that actually need loading and mark them
     // `fetching`. Valid chunks in the middle of the bounding range stay
@@ -246,7 +269,9 @@ class ChatRangeFetch {
       final existing = chunks[ci];
       if (existing != null && !needsFetch(existing)) continue;
       final chunk = existing ?? (chunks[ci] = ChatScrollChunk(index: ci));
-      chunk.status = chunk.status.remove(ChatMessageStatus.error).add(ChatMessageStatus.fetching);
+      chunk.status = chunk.status
+          .remove(ChatMessageStatus.error)
+          .add(ChatMessageStatus.fetching);
       fetchingChunks.add(ci);
     }
     _notifyDataChanged();
@@ -291,7 +316,10 @@ class ChatRangeFetch {
           );
           if (_skipFetchUpsert?.call(msg.id) ?? false) continue;
           final ci = ChatScrollChunk.chunkOf(msg.id);
-          final chunk = chunks.putIfAbsent(ci, () => ChatScrollChunk(index: ci));
+          final chunk = chunks.putIfAbsent(
+            ci,
+            () => ChatScrollChunk(index: ci),
+          );
           chunk.messages[msg.id - chunk.firstId] = msg;
         }
 
@@ -308,7 +336,9 @@ class ChatRangeFetch {
         // `upsertMessage` / `upsertMessages` call `clearAbsentSlot` when
         // writing a slot, so a realtime insert at a previously-absent ID
         // surfaces immediately without requiring `invalidate()`.
-        final maxReturned = messages.isEmpty ? null : messages.map((m) => m.id).reduce(math.max);
+        final maxReturned = messages.isEmpty
+            ? null
+            : messages.map((m) => m.id).reduce(math.max);
         final unconfirmedThrough = _unconfirmedTailThroughId?.call();
         for (final ci in fetchingChunks) {
           final chunk = chunks[ci];
@@ -317,10 +347,15 @@ class ChatRangeFetch {
             if (chunk.messages[slot] != null) continue;
             final id = chunk.firstId + slot;
             if (id < fromId || id > toId) continue;
-            if (unconfirmedThrough != null && maxReturned != null && id > maxReturned && id <= unconfirmedThrough) {
+            if (unconfirmedThrough != null &&
+                maxReturned != null &&
+                id > maxReturned &&
+                id <= unconfirmedThrough) {
               continue;
             }
-            if (unconfirmedThrough != null && maxReturned == null && id <= unconfirmedThrough) {
+            if (unconfirmedThrough != null &&
+                maxReturned == null &&
+                id <= unconfirmedThrough) {
               continue;
             }
             chunk.markAbsentSlot(slot);
@@ -340,7 +375,11 @@ class ChatRangeFetch {
         _notifyDataChanged();
       },
       onError: (Object error, StackTrace stackTrace) {
-        dev.log('fetchRange error, range: (fromId: $fromId, toId: $toId)', error: error, stackTrace: stackTrace);
+        dev.log(
+          'fetchRange error, range: (fromId: $fromId, toId: $toId)',
+          error: error,
+          stackTrace: stackTrace,
+        );
         if (_fetchToken != token) return; // cancelled or replaced
         _fetchToken = null;
 
@@ -354,7 +393,9 @@ class ChatRangeFetch {
           chunk
             ..lastError = error
             ..failedAttempts += 1
-            ..status = chunk.status.remove(ChatMessageStatus.fetching).add(ChatMessageStatus.error);
+            ..status = chunk.status
+                .remove(ChatMessageStatus.fetching)
+                .add(ChatMessageStatus.error);
         }
         fetchingChunks.clear();
         _notifyDataChanged();
@@ -369,7 +410,12 @@ class ChatRangeFetch {
 
   /// Exponential backoff with jitter for fetch retries.
   @visibleForTesting
-  static Duration nextRetryDelay(int step, {int minDelay = 500, int maxDelay = 30000, math.Random? random}) {
+  static Duration nextRetryDelay(
+    int step, {
+    int minDelay = 500,
+    int maxDelay = 30000,
+    math.Random? random,
+  }) {
     if (minDelay >= maxDelay) return Duration(milliseconds: maxDelay);
     final val = math.min(maxDelay, minDelay * math.pow(2, step.clamp(0, 31)));
     // `nextInt(0)` would throw; clamp the jitter window to at least 1ms so a

@@ -9,19 +9,32 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../chat_message.dart';
 
-IChatMessage _msg(int i) =>
-    UserChatMessage(id: i, sender: 'User', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: 'content $i');
+IChatMessage _msg(int i) => UserChatMessage(
+  id: i,
+  sender: 'User',
+  createdAt: DateTime(2026),
+  updatedAt: DateTime(2026),
+  content: 'content $i',
+);
 
 class _PreloadedDataSource extends ChatDataSource {
   _PreloadedDataSource(int count) {
     for (var i = 0; i < count; i++) {
       upsertMessage(_msg(i));
     }
-    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 Widget _scaffold({
@@ -46,7 +59,10 @@ Widget _scaffold({
             controller: controller,
             cacheExtent: 1000,
             messageBuilder: (context, id, message, status, runLayout) =>
-                SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
+                SizedBox(
+                  height: 60,
+                  child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                ),
           ),
         ),
       ),
@@ -56,14 +72,18 @@ Widget _scaffold({
 
 void main() {
   group('keyboard scroll', () {
-    testWidgets('ArrowDown nudges the anchor toward newer messages', (tester) async {
+    testWidgets('ArrowDown nudges the anchor toward newer messages', (
+      tester,
+    ) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count ~/ 2);
       final ds = _PreloadedDataSource(count);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
       final offsetBefore = controller.anchorPixelOffset;
 
@@ -75,14 +95,18 @@ void main() {
       expect(controller.anchorPixelOffset, closeTo(offsetBefore - 60, 0.1));
     });
 
-    testWidgets('ArrowUp nudges the anchor toward older messages', (tester) async {
+    testWidgets('ArrowUp nudges the anchor toward older messages', (
+      tester,
+    ) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count ~/ 2);
       final ds = _PreloadedDataSource(count);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
       final offsetBefore = controller.anchorPixelOffset;
 
@@ -99,7 +123,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       // Viewport is 600 px tall; pageFraction = 0.85 → 510 px.
@@ -113,64 +139,76 @@ void main() {
       expect(controller.anchorPixelOffset, closeTo(offsetBefore, 0.5));
     });
 
-    testWidgets('PageUp default step is viewport-relative, not screen-relative', (tester) async {
-      // Regression for Copilot #10: the default step used to be
-      // `MediaQuery.sizeOf(context).height * pageFraction`, which read the
-      // full screen height instead of the actual chat viewport. Wrapping
-      // the chat in a constrained box (mimicking a layout with an
-      // AppBar / composer / split pane) must produce a smaller page step.
-      const count = 256;
-      const wrapperHeight = 300.0; // ½ the previous test's viewport
-      final controller = ChatScrollController()..jumpTo(count ~/ 2);
-      final ds = _PreloadedDataSource(count);
-      addTearDown(controller.dispose);
-      addTearDown(ds.dispose);
+    testWidgets(
+      'PageUp default step is viewport-relative, not screen-relative',
+      (tester) async {
+        // Regression for Copilot #10: the default step used to be
+        // `MediaQuery.sizeOf(context).height * pageFraction`, which read the
+        // full screen height instead of the actual chat viewport. Wrapping
+        // the chat in a constrained box (mimicking a layout with an
+        // AppBar / composer / split pane) must produce a smaller page step.
+        const count = 256;
+        const wrapperHeight = 300.0; // ½ the previous test's viewport
+        final controller = ChatScrollController()..jumpTo(count ~/ 2);
+        final ds = _PreloadedDataSource(count);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            // Force the *screen* to be larger than the wrapper — if the
-            // implementation reads MediaQuery, the step matches the screen.
-            // If it reads the LayoutBuilder height, the step matches the
-            // 300px wrapper.
-            body: Center(
-              child: SizedBox(
-                width: 400,
-                height: wrapperHeight,
-                child: ChatKeyboardShortcuts(
-                  controller: controller,
-                  autofocus: true,
-                  child: ChatScrollView(
-                    dataSource: ds,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              // Force the *screen* to be larger than the wrapper — if the
+              // implementation reads MediaQuery, the step matches the screen.
+              // If it reads the LayoutBuilder height, the step matches the
+              // 300px wrapper.
+              body: Center(
+                child: SizedBox(
+                  width: 400,
+                  height: wrapperHeight,
+                  child: ChatKeyboardShortcuts(
                     controller: controller,
-                    cacheExtent: 1000,
-                    messageBuilder: (context, id, message, status, runLayout) =>
-                        SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
+                    autofocus: true,
+                    child: ChatScrollView(
+                      dataSource: ds,
+                      controller: controller,
+                      cacheExtent: 1000,
+                      messageBuilder:
+                          (context, id, message, status, runLayout) => SizedBox(
+                            height: 60,
+                            child: Text(
+                              message == null ? 'shimmer-$id' : 'msg-$id',
+                            ),
+                          ),
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // Screen is ~800px tall by default in the test harness; wrapper is
-      // 300. Expected page step = 300 * 0.85 = 255. The old (broken)
-      // implementation would scroll by ~screenHeight * 0.85 = ~680.
-      final offsetBefore = controller.anchorPixelOffset;
-      await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
-      await tester.pumpAndSettle();
-      final delta = (offsetBefore - controller.anchorPixelOffset).abs();
-      expect(
-        delta,
-        closeTo(wrapperHeight * 0.85, 1.0),
-        reason:
-            'PageDown default must derive from the wrapper height '
-            '(300 * 0.85 = 255), not the full MediaQuery height.',
-      );
-      expect(delta, lessThan(400), reason: 'A screen-height-based step would land above 600 px.');
-    });
+        // Screen is ~800px tall by default in the test harness; wrapper is
+        // 300. Expected page step = 300 * 0.85 = 255. The old (broken)
+        // implementation would scroll by ~screenHeight * 0.85 = ~680.
+        final offsetBefore = controller.anchorPixelOffset;
+        await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+        await tester.pumpAndSettle();
+        final delta = (offsetBefore - controller.anchorPixelOffset).abs();
+        expect(
+          delta,
+          closeTo(wrapperHeight * 0.85, 1.0),
+          reason:
+              'PageDown default must derive from the wrapper height '
+              '(300 * 0.85 = 255), not the full MediaQuery height.',
+        );
+        expect(
+          delta,
+          lessThan(400),
+          reason: 'A screen-height-based step would land above 600 px.',
+        );
+      },
+    );
 
     testWidgets('Home jumps to oldestKnownId', (tester) async {
       const count = 256;
@@ -179,7 +217,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.sendKeyEvent(LogicalKeyboardKey.home);
@@ -197,7 +237,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.sendKeyEvent(LogicalKeyboardKey.end);
@@ -207,14 +249,18 @@ void main() {
       expect(find.text('msg-255'), findsOneWidget);
     });
 
-    testWidgets('reverse mode flips Home / End so PageUp still goes older', (tester) async {
+    testWidgets('reverse mode flips Home / End so PageUp still goes older', (
+      tester,
+    ) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(100);
       final ds = _PreloadedDataSource(count);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller, reverse: true));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller, reverse: true),
+      );
       await tester.pumpAndSettle();
 
       // In reverse mode the "Home" intuition is "the most recent" (top of
@@ -228,7 +274,9 @@ void main() {
       expect(controller.anchorMessageId, ds.oldestKnownId);
     });
 
-    testWidgets('reverse mode: PageUp / ArrowUp still reveal older history', (tester) async {
+    testWidgets('reverse mode: PageUp / ArrowUp still reveal older history', (
+      tester,
+    ) async {
       // Regression: `_olderSign` used to flip with `reverse`, sending PageUp
       // / ArrowUp toward newer messages because `controller.scrollBy` is
       // anchor-relative (its sign does not flip with reverse).
@@ -238,7 +286,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller, reverse: true));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller, reverse: true),
+      );
       await tester.pumpAndSettle();
 
       final offsetBefore = controller.anchorPixelOffset;
@@ -252,10 +302,15 @@ void main() {
       // PageUp: same direction, larger step (viewport 600 * 0.85 = 510).
       await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
       await tester.pumpAndSettle();
-      expect(controller.anchorPixelOffset, closeTo(offsetBefore + 60 + 510, 0.5));
+      expect(
+        controller.anchorPixelOffset,
+        closeTo(offsetBefore + 60 + 510, 0.5),
+      );
     });
 
-    testWidgets('tap on the viewport claims focus and enables shortcuts', (tester) async {
+    testWidgets('tap on the viewport claims focus and enables shortcuts', (
+      tester,
+    ) async {
       // Regression: with `autofocus: false` and the FocusNode private, the
       // user had no way to activate shortcuts after the first tap — the
       // wrapper has to grab focus on pointer-down.
@@ -265,14 +320,20 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller, autofocus: false));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller, autofocus: false),
+      );
       await tester.pumpAndSettle();
 
       // Pre-tap: key dispatch is a no-op because focus is elsewhere.
       final before = controller.anchorPixelOffset;
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
       await tester.pumpAndSettle();
-      expect(controller.anchorPixelOffset, before, reason: 'no scroll without focus');
+      expect(
+        controller.anchorPixelOffset,
+        before,
+        reason: 'no scroll without focus',
+      );
 
       // Tap inside the viewport. The Listener wrapper must request focus
       // so subsequent key events drive the shortcuts.
@@ -298,7 +359,9 @@ void main() {
       controller.addScrollByListener(deltas.add);
       addTearDown(() => controller.removeScrollByListener(deltas.add));
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
@@ -312,14 +375,18 @@ void main() {
       expect(deltas[1], 60.0);
     });
 
-    testWidgets('autofocus = false means no scroll until widget is focused', (tester) async {
+    testWidgets('autofocus = false means no scroll until widget is focused', (
+      tester,
+    ) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count ~/ 2);
       final ds = _PreloadedDataSource(count);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller, autofocus: false));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller, autofocus: false),
+      );
       await tester.pumpAndSettle();
       final before = controller.anchorPixelOffset;
 
@@ -329,51 +396,61 @@ void main() {
       expect(controller.anchorPixelOffset, before);
     });
 
-    testWidgets('composer TextField keeps focus when shortcuts wrapper has autofocus=false', (tester) async {
-      const count = 256;
-      final controller = ChatScrollController()..jumpTo(count ~/ 2);
-      final ds = _PreloadedDataSource(count);
-      final composerKey = GlobalKey();
-      addTearDown(controller.dispose);
-      addTearDown(ds.dispose);
+    testWidgets(
+      'composer TextField keeps focus when shortcuts wrapper has autofocus=false',
+      (tester) async {
+        const count = 256;
+        final controller = ChatScrollController()..jumpTo(count ~/ 2);
+        final ds = _PreloadedDataSource(count);
+        final composerKey = GlobalKey();
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Column(
-              children: <Widget>[
-                Expanded(
-                  child: ChatKeyboardShortcuts(
-                    controller: controller,
-                    // Default is autofocus: false — verified by passing it
-                    // explicitly so the test is robust to future renames.
-                    autofocus: false,
-                    child: ChatScrollView(
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Column(
+                children: <Widget>[
+                  Expanded(
+                    child: ChatKeyboardShortcuts(
                       controller: controller,
-                      dataSource: ds,
-                      cacheExtent: 1000,
-                      messageBuilder: (context, id, message, status, runLayout) =>
-                          SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
+                      // Default is autofocus: false — verified by passing it
+                      // explicitly so the test is robust to future renames.
+                      autofocus: false,
+                      child: ChatScrollView(
+                        controller: controller,
+                        dataSource: ds,
+                        cacheExtent: 1000,
+                        messageBuilder:
+                            (context, id, message, status, runLayout) =>
+                                SizedBox(
+                                  height: 60,
+                                  child: Text(
+                                    message == null ? 'shimmer-$id' : 'msg-$id',
+                                  ),
+                                ),
+                      ),
                     ),
                   ),
-                ),
-                TextField(key: composerKey, autofocus: true),
-              ],
+                  TextField(key: composerKey, autofocus: true),
+                ],
+              ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // The composer must own focus — the wrapper did not steal it.
-      final composer = tester.widget<TextField>(find.byKey(composerKey));
-      final composerNode = composer.focusNode;
-      expect(
-        composerNode?.hasFocus ?? FocusScope.of(composerKey.currentContext!).hasFocus,
-        isTrue,
-        reason: 'composer must retain focus over the chat wrapper',
-      );
-    });
+        // The composer must own focus — the wrapper did not steal it.
+        final composer = tester.widget<TextField>(find.byKey(composerKey));
+        final composerNode = composer.focusNode;
+        expect(
+          composerNode?.hasFocus ??
+              FocusScope.of(composerKey.currentContext!).hasFocus,
+          isTrue,
+          reason: 'composer must retain focus over the chat wrapper',
+        );
+      },
+    );
   });
 
   group('preserveExternalFocus', () {
@@ -398,8 +475,13 @@ void main() {
                       controller: controller,
                       dataSource: ds,
                       cacheExtent: 1000,
-                      messageBuilder: (context, id, message, status, runLayout) =>
-                          SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
+                      messageBuilder:
+                          (context, id, message, status, runLayout) => SizedBox(
+                            height: 60,
+                            child: Text(
+                              message == null ? 'shimmer-$id' : 'msg-$id',
+                            ),
+                          ),
                     ),
                   ),
                 ),
@@ -414,7 +496,9 @@ void main() {
       await tester.pump();
     }
 
-    testWidgets('viewport tap and drag keep composer focus when enabled', (tester) async {
+    testWidgets('viewport tap and drag keep composer focus when enabled', (
+      tester,
+    ) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count ~/ 2);
       final ds = _PreloadedDataSource(count);
@@ -441,7 +525,9 @@ void main() {
       expect(composerFocus.hasFocus, isTrue);
     });
 
-    testWidgets('viewport tap steals composer focus when disabled', (tester) async {
+    testWidgets('viewport tap steals composer focus when disabled', (
+      tester,
+    ) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count ~/ 2);
       final ds = _PreloadedDataSource(count);
@@ -496,8 +582,9 @@ void main() {
                       dataSource: ds,
                       selectionController: selection,
                       cacheExtent: 1000,
-                      messageBuilder: (context, id, message, status, runLayout) =>
-                          SizedBox(height: 60, child: Text('msg-$id')),
+                      messageBuilder:
+                          (context, id, message, status, runLayout) =>
+                              SizedBox(height: 60, child: Text('msg-$id')),
                     ),
                   ),
                 ),
@@ -517,7 +604,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(selection.isSelectionMode, isTrue);
-      expect(FocusManager.instance.primaryFocus?.debugLabel, 'ChatKeyboardShortcuts');
+      expect(
+        FocusManager.instance.primaryFocus?.debugLabel,
+        'ChatKeyboardShortcuts',
+      );
     });
   });
 

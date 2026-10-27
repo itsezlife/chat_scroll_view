@@ -24,7 +24,10 @@ class _Source extends ChatDataSource {
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 /// Frames the test fires by hand.
@@ -138,10 +141,16 @@ void main() {
                 dataSource: source,
                 controller: scroll,
                 selectionController: selection,
-                messageBuilder: (context, id, message, status, runLayout) => switch (bodies[id]) {
-                  final b? => ChatStreamingBody(key: ValueKey('b$id'), controller: selection, messageId: id, body: b),
-                  _ => SizedBox(height: 40, child: Text('msg-$id')),
-                },
+                messageBuilder: (context, id, message, status, runLayout) =>
+                    switch (bodies[id]) {
+                      final b? => ChatStreamingBody(
+                        key: ValueKey('b$id'),
+                        controller: selection,
+                        messageId: id,
+                        body: b,
+                      ),
+                      _ => SizedBox(height: 40, child: Text('msg-$id')),
+                    },
               ),
             ),
           ),
@@ -150,9 +159,13 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('registers each text and selects and copies live and settled', (tester) async {
+    testWidgets('registers each text and selects and copies live and settled', (
+      tester,
+    ) async {
       final copied = <String>[];
-      final selection = ChatSelectionController(copyWriter: (copy) async => copied.add(copy.plainText));
+      final selection = ChatSelectionController(
+        copyWriter: (copy) async => copied.add(copy.plainText),
+      );
       final scroll = ChatScrollController();
       final source = _Source([_msg(1), _msg(2)]);
       final body = ChatStreamingBodyController();
@@ -161,7 +174,13 @@ void main() {
       addTearDown(source.dispose);
       addTearDown(body.dispose);
 
-      await pump(tester, selection: selection, source: source, scroll: scroll, bodies: {2: body});
+      await pump(
+        tester,
+        selection: selection,
+        source: source,
+        scroll: scroll,
+        bodies: {2: body},
+      );
 
       body.append('hello live');
       await tester.pump(); // frame: flush
@@ -197,13 +216,21 @@ void main() {
       addTearDown(source.dispose);
       addTearDown(body.dispose);
 
-      await pump(tester, selection: selection, source: source, scroll: scroll, bodies: {2: body});
+      await pump(
+        tester,
+        selection: selection,
+        source: source,
+        scroll: scroll,
+        bodies: {2: body},
+      );
       expect(selection.bodyOf(2), isNotNull);
       await tester.pumpWidget(const SizedBox());
       expect(selection.bodyOf(2), isNull);
     });
 
-    testWidgets('inserting and removing a live row never reuses its id', (tester) async {
+    testWidgets('inserting and removing a live row never reuses its id', (
+      tester,
+    ) async {
       final selection = ChatSelectionController();
       final scroll = ChatScrollController();
       final source = _Source([_msg(1), _msg(2), _msg(3)]);
@@ -227,8 +254,16 @@ void main() {
                 messageBuilder: (context, id, message, status, runLayout) {
                   built.add(id);
                   return id == 4
-                      ? ChatStreamingBody(controller: selection, messageId: 4, body: body)
-                      : SizedBox(key: ValueKey('row$id'), height: 40, child: Text('msg-$id'));
+                      ? ChatStreamingBody(
+                          controller: selection,
+                          messageId: 4,
+                          body: body,
+                        )
+                      : SizedBox(
+                          key: ValueKey('row$id'),
+                          height: 40,
+                          child: Text('msg-$id'),
+                        );
                 },
               ),
             ),
@@ -247,7 +282,11 @@ void main() {
       source.removeMessages([4]);
       await tester.pumpAndSettle();
       expect(find.byType(ChatStreamingBody), findsNothing);
-      expect(top3(), closeTo(during, 0.5), reason: 'removing the live row moves no surviving row');
+      expect(
+        top3(),
+        closeTo(during, 0.5),
+        reason: 'removing the live row moves no surviving row',
+      );
 
       // Absent is final: the id cannot be written back, so the host's next
       // live row takes a fresh id.

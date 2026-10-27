@@ -70,7 +70,10 @@ abstract class ChatDataSource {
   /// conversation boundary lies inside the range. IDs not returned are treated
   /// as permanently absent, except the unconfirmed live tail past the highest
   /// returned id (recent inserts) which stays unloaded for refill.
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId});
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  });
 
   /// Maximum number of chunks to keep in memory.
   /// Override to control the memory/re-fetch tradeoff.
@@ -113,7 +116,11 @@ abstract class ChatDataSource {
   /// loaded yet" ([isInitialLoading]): empty is a *confirmed* terminal state.
   /// The viewport switches to its empty overlay when this is `true` and a
   /// builder is provided.
-  bool get isEmpty => _reachedOldest && _reachedNewest && _oldestKnownId == null && _newestKnownId == null;
+  bool get isEmpty =>
+      _reachedOldest &&
+      _reachedNewest &&
+      _oldestKnownId == null &&
+      _newestKnownId == null;
 
   /// Whether the data source has not yet seen any messages or boundaries —
   /// the very first page is still being resolved. Distinct from [isEmpty]:
@@ -167,7 +174,9 @@ abstract class ChatDataSource {
       changed = true;
     }
     assert(
-      _oldestKnownId == null || _newestKnownId == null || _oldestKnownId! <= _newestKnownId!,
+      _oldestKnownId == null ||
+          _newestKnownId == null ||
+          _oldestKnownId! <= _newestKnownId!,
       'oldestKnownId ($_oldestKnownId) must be ≤ newestKnownId '
       '($_newestKnownId)',
     );
@@ -209,10 +218,14 @@ abstract class ChatDataSource {
   }
 
   /// Unsubscribe from boundary state changes.
-  void removeBoundaryListener(VoidCallback callback) => _boundaryListeners.remove(callback);
+  void removeBoundaryListener(VoidCallback callback) =>
+      _boundaryListeners.remove(callback);
 
   void _notifyBoundary() {
-    for (final cb in List<VoidCallback>.of(_boundaryListeners, growable: false)) {
+    for (final cb in List<VoidCallback>.of(
+      _boundaryListeners,
+      growable: false,
+    )) {
       cb();
     }
   }
@@ -255,7 +268,8 @@ abstract class ChatDataSource {
     final existed = _chunks.containsKey(chunkIndex);
     final chunk = _chunks.putIfAbsent(
       chunkIndex,
-      () => ChatScrollChunk(index: chunkIndex)..status = ChatMessageStatus.valid,
+      () =>
+          ChatScrollChunk(index: chunkIndex)..status = ChatMessageStatus.valid,
     );
     final slot = message.id - chunk.firstId;
     chunk.clearAbsentSlot(slot);
@@ -318,7 +332,10 @@ abstract class ChatDataSource {
   /// [upsertMessages].
   void insertMessage(IChatMessage message, {Object? reason}) {
     if (_disposed) return;
-    assert(!_removalStaging.containsKey(message.id), 'insertMessage: id ${message.id} is pending removal');
+    assert(
+      !_removalStaging.containsKey(message.id),
+      'insertMessage: id ${message.id} is pending removal',
+    );
     _notifyMutation(ChatMutation.insert(message.id, reason: reason));
     writeMessageSilent(message);
     _extendBoundariesForInsert(message.id);
@@ -346,7 +363,13 @@ abstract class ChatDataSource {
 
     final operationId = _nextOperationId++;
     final ids = normalized.map((m) => m.id).toList(growable: false);
-    _notifyMutation(ChatMutation.insertBatch(ids: ids, operationId: operationId, reason: reason));
+    _notifyMutation(
+      ChatMutation.insertBatch(
+        ids: ids,
+        operationId: operationId,
+        reason: reason,
+      ),
+    );
     for (final message in normalized) {
       writeMessageSilent(message);
       _extendBoundariesForInsert(message.id);
@@ -368,8 +391,12 @@ abstract class ChatDataSource {
   /// [updateMessages].
   void updateMessage(IChatMessage message, {Object? reason}) {
     if (_disposed) return;
-    if (_removalStaging.containsKey(message.id) || _isConfirmedAbsent(message.id)) {
-      assert(false, 'updateMessage: id ${message.id} is absent or pending removal');
+    if (_removalStaging.containsKey(message.id) ||
+        _isConfirmedAbsent(message.id)) {
+      assert(
+        false,
+        'updateMessage: id ${message.id} is absent or pending removal',
+      );
       return;
     }
     _notifyMutation(ChatMutation.update(message.id, reason: reason));
@@ -389,7 +416,13 @@ abstract class ChatDataSource {
 
     final operationId = _nextOperationId++;
     final ids = normalized.map((m) => m.id).toList(growable: false);
-    _notifyMutation(ChatMutation.updateBatch(ids: ids, operationId: operationId, reason: reason));
+    _notifyMutation(
+      ChatMutation.updateBatch(
+        ids: ids,
+        operationId: operationId,
+        reason: reason,
+      ),
+    );
     normalized.forEach(writeMessageSilent);
     notifyDataChanged();
   }
@@ -408,7 +441,13 @@ abstract class ChatDataSource {
     final operationId = _nextOperationId++;
     normalized.forEach(_stageRemoval);
     _retractBoundariesAfterRemove();
-    _notifyMutation(ChatMutation.removeBatch(ids: normalized, operationId: operationId, reason: reason));
+    _notifyMutation(
+      ChatMutation.removeBatch(
+        ids: normalized,
+        operationId: operationId,
+        reason: reason,
+      ),
+    );
     notifyDataChanged();
   }
 
@@ -511,7 +550,8 @@ abstract class ChatDataSource {
     final chunkIndex = ChatScrollChunk.chunkOf(id);
     final chunk = _chunks.putIfAbsent(
       chunkIndex,
-      () => ChatScrollChunk(index: chunkIndex)..status = ChatMessageStatus.valid,
+      () =>
+          ChatScrollChunk(index: chunkIndex)..status = ChatMessageStatus.valid,
     );
     final slot = id - chunk.firstId;
     final existing = chunk.messages[slot];
@@ -536,7 +576,12 @@ abstract class ChatDataSource {
     }
 
     if (oldest == null && newest == null) {
-      seedBoundaries(oldestKnownId: null, newestKnownId: null, reachedOldest: true, reachedNewest: true);
+      seedBoundaries(
+        oldestKnownId: null,
+        newestKnownId: null,
+        reachedOldest: true,
+        reachedNewest: true,
+      );
     } else {
       seedBoundaries(oldestKnownId: oldest, newestKnownId: newest);
     }
@@ -641,10 +686,14 @@ abstract class ChatDataSource {
   }
 
   /// Unsubscribe from mutation events.
-  void removeMutationListener(void Function(ChatMutation) listener) => _mutationListeners.remove(listener);
+  void removeMutationListener(void Function(ChatMutation) listener) =>
+      _mutationListeners.remove(listener);
 
   void _notifyMutation(ChatMutation mutation) {
-    for (final cb in List<void Function(ChatMutation)>.of(_mutationListeners, growable: false)) {
+    for (final cb in List<void Function(ChatMutation)>.of(
+      _mutationListeners,
+      growable: false,
+    )) {
       cb(mutation);
     }
   }
@@ -668,13 +717,21 @@ abstract class ChatDataSource {
   /// known-span slots (typical after insert into an LRU-evicted chunk) is
   /// marked dirty so [ChatRangeFetch.needsFetch] will refill it.
   @internal
-  void requestChunks(int layoutMinChunk, int layoutMaxChunk, {bool allowWiden = true}) {
+  void requestChunks(
+    int layoutMinChunk,
+    int layoutMaxChunk, {
+    bool allowWiden = true,
+  }) {
     if (layoutMaxChunk >= layoutMinChunk) {
       for (var ci = layoutMinChunk; ci <= layoutMaxChunk; ci++) {
         _markDirtyIfKnownSpanHoles(ci);
       }
     }
-    _rangeFetch.requestChunks(layoutMinChunk, layoutMaxChunk, allowWiden: allowWiden);
+    _rangeFetch.requestChunks(
+      layoutMinChunk,
+      layoutMaxChunk,
+      allowWiden: allowWiden,
+    );
   }
 
   /// Marks [chunkIndex] dirty when it still has empty known-span slots.
@@ -711,7 +768,9 @@ abstract class ChatDataSource {
       final slot = id - chunk.firstId;
       if (chunk.messages[slot] != null) continue;
       if (!chunk.isAbsentSlot(slot)) return true;
-      if (unconfirmedThrough != null && id <= unconfirmedThrough && (maxPresent == null || id > maxPresent)) {
+      if (unconfirmedThrough != null &&
+          id <= unconfirmedThrough &&
+          (maxPresent == null || id > maxPresent)) {
         return true;
       }
     }
@@ -754,7 +813,10 @@ abstract class ChatDataSource {
   void reopenIdForFetch(int messageId) {
     if (_disposed) return;
     final chunkIndex = ChatScrollChunk.chunkOf(messageId);
-    final chunk = _chunks.putIfAbsent(chunkIndex, () => ChatScrollChunk(index: chunkIndex));
+    final chunk = _chunks.putIfAbsent(
+      chunkIndex,
+      () => ChatScrollChunk(index: chunkIndex),
+    );
     if (chunk.status.isFetching) return;
     final slot = messageId - chunk.firstId;
     if (slot < 0 || slot >= ChatScrollChunk.kSize) return;
@@ -791,7 +853,8 @@ abstract class ChatDataSource {
   /// scheduler must not treat those indexes as "still need a fetch" or it
   /// will busy-loop on a zero-delay poll while the token is live.
   @internal
-  bool coversChunkInFlight(int chunkIndex) => _rangeFetch.coversChunkInFlight(chunkIndex);
+  bool coversChunkInFlight(int chunkIndex) =>
+      _rangeFetch.coversChunkInFlight(chunkIndex);
 
   /// Whether any range fetch token or retry timer is armed.
   @internal
@@ -833,7 +896,9 @@ abstract class ChatDataSource {
       // cancelFetch race) — the goal is "mark stale", not "reset to a
       // particular flag set".
       if (chunk.status.isValid || chunk.status.isError) {
-        chunk.status = chunk.status.remove(ChatMessageStatus.error).add(ChatMessageStatus.dirty);
+        chunk.status = chunk.status
+            .remove(ChatMessageStatus.error)
+            .add(ChatMessageStatus.dirty);
         changed = true;
       }
       if (chunk.failedAttempts != 0 || chunk.lastError != null) {
@@ -901,7 +966,8 @@ abstract class ChatDataSource {
   }
 
   /// Unsubscribe from data changes.
-  void removeDataListener(VoidCallback callback) => _dataListeners.remove(callback);
+  void removeDataListener(VoidCallback callback) =>
+      _dataListeners.remove(callback);
 
   /// Notify all listeners that message data has changed.
   ///

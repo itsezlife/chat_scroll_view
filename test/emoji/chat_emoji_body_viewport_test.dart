@@ -20,11 +20,19 @@ class _LoadedSource extends ChatDataSource {
   _LoadedSource(List<IChatMessage> messages) {
     upsertMessages(messages);
     final ids = messages.map((m) => m.id).toList()..sort();
-    seedBoundaries(oldestKnownId: ids.first, newestKnownId: ids.last, reachedOldest: true, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: ids.first,
+      newestKnownId: ids.last,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 const _thumb = ContentKey.unicode('\u{1F44D}');
@@ -105,12 +113,20 @@ void main() {
       ContentEmbed(scope: scope, content: content, preset: preset);
 
   // A pass of 180 ms: the frames the animated stage plays.
-  const frames = [Duration(milliseconds: 40), Duration(milliseconds: 60), Duration(milliseconds: 80)];
+  const frames = [
+    Duration(milliseconds: 40),
+    Duration(milliseconds: 60),
+    Duration(milliseconds: 80),
+  ];
 
   // Every attempt the cache started reaches its animated stage.
   void finishAttempts() {
     for (final attempt in producer.attempts) {
-      attempt.advance(AssetStage.full, tier: AssetTier.animated, frames: frames);
+      attempt.advance(
+        AssetStage.full,
+        tier: AssetTier.animated,
+        frames: frames,
+      );
     }
   }
 
@@ -130,7 +146,8 @@ void main() {
     await frame(tester, from + 220);
   }
 
-  FakeAssetPaintable stickerPaintable() => producer.attempts.last.paintables.last;
+  FakeAssetPaintable stickerPaintable() =>
+      producer.attempts.last.paintables.last;
 
   Future<void> pump(
     WidgetTester tester,
@@ -173,7 +190,9 @@ void main() {
                       isActive: isActive,
                       // A sticker takes the policy with an inset around the
                       // art, so a tap beside it is still inside the cell.
-                      policy: sticker == null ? const ChatEmojiPolicy.android() : const ChatEmojiPolicy.ios(),
+                      policy: sticker == null
+                          ? const ChatEmojiPolicy.android()
+                          : const ChatEmojiPolicy.ios(),
                       embedFactory: factory,
                     ),
                   ),
@@ -188,9 +207,12 @@ void main() {
 
   // The sticker is 112 pt square, 10 pt inside the body's box (iOS).
   Rect drawn(WidgetTester tester) =>
-      (tester.getTopLeft(find.byType(ChatEmojiBody)) + const Offset(10, 10)) & const Size.square(112);
+      (tester.getTopLeft(find.byType(ChatEmojiBody)) + const Offset(10, 10)) &
+      const Size.square(112);
 
-  final threeCustom = EmojiOnly([for (var i = 0; i < 3; i++) EmojiOnlyItem(ContentKey.document('d$i'))]);
+  final threeCustom = EmojiOnly([
+    for (var i = 0; i < 3; i++) EmojiOnlyItem(ContentKey.document('d$i')),
+  ]);
   final oneThumb = EmojiOnly(const [EmojiOnlyItem(_thumb)]);
 
   Offset itemCenter(WidgetTester tester, int index, {double box = 59.2}) {
@@ -208,12 +230,19 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(interactions, const [
-        ChatEmbedActivated(messageId: 1, target: 'document:d1', alt: '', gesture: ChatInlineGesture.tap),
+        ChatEmbedActivated(
+          messageId: 1,
+          target: 'document:d1',
+          alt: '',
+          gesture: ChatInlineGesture.tap,
+        ),
       ]);
       expect(idleTaps, isEmpty);
     });
 
-    viewportTest('without the opt-in it is an ordinary message tap', (tester) async {
+    viewportTest('without the opt-in it is an ordinary message tap', (
+      tester,
+    ) async {
       final selection = newSelection();
       await pump(tester, selection, threeCustom);
 
@@ -224,7 +253,9 @@ void main() {
       expect(idleTaps, [1]);
     });
 
-    viewportTest('a tap on the sticker is a sticker hit, with no opt-in', (tester) async {
+    viewportTest('a tap on the sticker is a sticker hit, with no opt-in', (
+      tester,
+    ) async {
       final selection = newSelection();
       await pump(tester, selection, oneThumb, sticker: _pack);
 
@@ -249,7 +280,11 @@ void main() {
 
       expect(
         selection.resolveInlineHit(1, drawn(tester).center),
-        ChatInlineHit.sticker(messageId: 1, content: _thumb, stickerRect: drawn(tester)),
+        ChatInlineHit.sticker(
+          messageId: 1,
+          content: _thumb,
+          stickerRect: drawn(tester),
+        ),
       );
     });
   });
@@ -269,7 +304,9 @@ void main() {
       expect(await selection.copyTextSelection(), isFalse);
     });
 
-    viewportTest('a long press on the sticker is message selection', (tester) async {
+    viewportTest('a long press on the sticker is message selection', (
+      tester,
+    ) async {
       final selection = newSelection();
       await pump(tester, selection, oneThumb, sticker: _pack);
 
@@ -297,18 +334,24 @@ void main() {
       expect(selection.markdownSelection.getText(), '\u{FFFC}');
     });
 
-    viewportTest('on desktop a click selects the message in selection mode', (tester) async {
-      final selection = newSelection(policy: const ChatSelectionPolicy.desktop());
-      await pump(tester, selection, threeCustom);
-      selection.toggle(1);
-      await tester.pump();
+    viewportTest(
+      'on desktop a click selects the message in selection mode',
+      (tester) async {
+        final selection = newSelection(
+          policy: const ChatSelectionPolicy.desktop(),
+        );
+        await pump(tester, selection, threeCustom);
+        selection.toggle(1);
+        await tester.pump();
 
-      await tester.tapAt(itemCenter(tester, 1));
-      await tester.pumpAndSettle();
+        await tester.tapAt(itemCenter(tester, 1));
+        await tester.pumpAndSettle();
 
-      expect(selection.isSelected(1), isFalse);
-      expect(selection.isTextSelectionActive, isFalse);
-    }, platform: TargetPlatform.macOS);
+        expect(selection.isSelected(1), isFalse);
+        expect(selection.isTextSelectionActive, isFalse);
+      },
+      platform: TargetPlatform.macOS,
+    );
   });
 
   group('playback', () {
@@ -327,13 +370,21 @@ void main() {
         'does not start', (tester) async {
       final selection = newSelection();
 
-      await pump(tester, selection, oneThumb, sticker: _pack, ledger: _Ledger()..played.add(1));
+      await pump(
+        tester,
+        selection,
+        oneThumb,
+        sticker: _pack,
+        ledger: _Ledger()..played.add(1),
+      );
 
       expect(producer.attempts, hasLength(1));
       expect(ticks.isRunning, isFalse);
     });
 
-    viewportTest('a first show starts the sticker and records it', (tester) async {
+    viewportTest('a first show starts the sticker and records it', (
+      tester,
+    ) async {
       final selection = newSelection();
       final ledger = _Ledger();
 
@@ -343,7 +394,9 @@ void main() {
       expect(ledger.played, {1});
     });
 
-    viewportTest('the pass ends, the sticker rests and stops costing ticks', (tester) async {
+    viewportTest('the pass ends, the sticker rests and stops costing ticks', (
+      tester,
+    ) async {
       final selection = newSelection();
       await pump(tester, selection, oneThumb, sticker: _pack);
 
@@ -353,7 +406,9 @@ void main() {
       expect(stickerPaintable().isHolding, isTrue);
     });
 
-    viewportTest('a tap on the resting sticker plays another pass', (tester) async {
+    viewportTest('a tap on the resting sticker plays another pass', (
+      tester,
+    ) async {
       final selection = newSelection();
       await pump(tester, selection, oneThumb, sticker: _pack);
       await playPass(tester);
@@ -383,7 +438,13 @@ void main() {
 
     viewportTest('a tap on a held sticker plays it', (tester) async {
       final selection = newSelection();
-      await pump(tester, selection, oneThumb, sticker: _pack, ledger: _Ledger()..played.add(1));
+      await pump(
+        tester,
+        selection,
+        oneThumb,
+        sticker: _pack,
+        ledger: _Ledger()..played.add(1),
+      );
       expect(ticks.isRunning, isFalse);
 
       await tester.tapAt(drawn(tester).center);
@@ -392,9 +453,17 @@ void main() {
       expect(ticks.isRunning, isTrue);
     });
 
-    viewportTest('a sticker that loops is never replayed: it never ends', (tester) async {
+    viewportTest('a sticker that loops is never replayed: it never ends', (
+      tester,
+    ) async {
       final selection = newSelection();
-      await pump(tester, selection, oneThumb, sticker: _pack, playback: ChatStickerPlayback.loop);
+      await pump(
+        tester,
+        selection,
+        oneThumb,
+        sticker: _pack,
+        playback: ChatStickerPlayback.loop,
+      );
       await playPass(tester);
 
       await tester.tapAt(drawn(tester).center);
@@ -406,7 +475,13 @@ void main() {
 
     viewportTest('rest on the last frame when the host asks', (tester) async {
       final selection = newSelection();
-      await pump(tester, selection, oneThumb, sticker: _pack, playback: ChatStickerPlayback.onceThenLastFrame);
+      await pump(
+        tester,
+        selection,
+        oneThumb,
+        sticker: _pack,
+        playback: ChatStickerPlayback.onceThenLastFrame,
+      );
 
       await playPass(tester);
 
@@ -425,7 +500,9 @@ void main() {
       expect(ticks.isRunning, isTrue);
     });
 
-    viewportTest('a paused clock holds the pass until the host resumes it', (tester) async {
+    viewportTest('a paused clock holds the pass until the host resumes it', (
+      tester,
+    ) async {
       final selection = newSelection();
       await pump(tester, selection, oneThumb, sticker: _pack);
       scope.clock.setPaused(PlaybackPauseLayer.lowPower, paused: true);
@@ -447,57 +524,70 @@ void main() {
 
   group('tap policy', () {
     // A tap 5 dp beside the sticker: in the body's inset, inside the cell.
-    Offset beside(WidgetTester tester) => drawn(tester).topLeft - const Offset(5, 5);
+    Offset beside(WidgetTester tester) =>
+        drawn(tester).topLeft - const Offset(5, 5);
 
     for (final (name, policy, platform) in [
       ('mobile', const ChatSelectionPolicy.mobile(), TargetPlatform.iOS),
       ('desktop', const ChatSelectionPolicy.desktop(), TargetPlatform.macOS),
     ]) {
-      viewportTest('$name: a tap beside the sticker is an ordinary message tap', (tester) async {
-        final selection = newSelection(policy: policy);
-        await pump(tester, selection, oneThumb, sticker: _pack);
-        await playPass(tester);
+      viewportTest(
+        '$name: a tap beside the sticker is an ordinary message tap',
+        (tester) async {
+          final selection = newSelection(policy: policy);
+          await pump(tester, selection, oneThumb, sticker: _pack);
+          await playPass(tester);
 
-        await tester.tapAt(beside(tester));
-        await tester.pumpAndSettle();
+          await tester.tapAt(beside(tester));
+          await tester.pumpAndSettle();
 
-        expect(interactions.whereType<ChatStickerActivated>(), isEmpty);
-        expect(stickerPaintable().restarts, 0);
-        expect(
-          idleTaps,
-          policy is ChatSelectionPolicy$Mobile ? [1] : isEmpty,
-          reason: 'desktop has no idle message tap, mobile opens the menu',
-        );
-      }, platform: platform);
+          expect(interactions.whereType<ChatStickerActivated>(), isEmpty);
+          expect(stickerPaintable().restarts, 0);
+          expect(
+            idleTaps,
+            policy is ChatSelectionPolicy$Mobile ? [1] : isEmpty,
+            reason: 'desktop has no idle message tap, mobile opens the menu',
+          );
+        },
+        platform: platform,
+      );
 
-      viewportTest('$name: with a replay tap slop that tap is the sticker\'s', (tester) async {
-        final selection = newSelection(policy: policy);
-        await pump(
-          tester,
-          selection,
-          oneThumb,
-          sticker: _pack,
-          tapPolicy: ChatStickerTapPolicy.of(policy, replayTapSlop: 8),
-        );
-        await playPass(tester);
+      viewportTest(
+        '$name: with a replay tap slop that tap is the sticker\'s',
+        (tester) async {
+          final selection = newSelection(policy: policy);
+          await pump(
+            tester,
+            selection,
+            oneThumb,
+            sticker: _pack,
+            tapPolicy: ChatStickerTapPolicy.of(policy, replayTapSlop: 8),
+          );
+          await playPass(tester);
 
-        await tester.tapAt(beside(tester));
-        await tester.pumpAndSettle();
+          await tester.tapAt(beside(tester));
+          await tester.pumpAndSettle();
 
-        expect(interactions.whereType<ChatStickerActivated>(), hasLength(1));
-        expect(stickerPaintable().restarts, 1);
-        expect(idleTaps, isEmpty);
-      }, platform: platform);
+          expect(interactions.whereType<ChatStickerActivated>(), hasLength(1));
+          expect(stickerPaintable().restarts, 1);
+          expect(idleTaps, isEmpty);
+        },
+        platform: platform,
+      );
 
-      viewportTest('$name: a tap on the row outside the body is not the sticker\'s', (tester) async {
-        final selection = newSelection(policy: policy);
-        await pump(tester, selection, oneThumb, sticker: _pack);
+      viewportTest(
+        '$name: a tap on the row outside the body is not the sticker\'s',
+        (tester) async {
+          final selection = newSelection(policy: policy);
+          await pump(tester, selection, oneThumb, sticker: _pack);
 
-        await tester.tapAt(const Offset(390, 400));
-        await tester.pumpAndSettle();
+          await tester.tapAt(const Offset(390, 400));
+          await tester.pumpAndSettle();
 
-        expect(interactions, isEmpty);
-      }, platform: platform);
+          expect(interactions, isEmpty);
+        },
+        platform: platform,
+      );
     }
 
     viewportTest('mobile: a long press selects the message, tells the host and '
@@ -511,7 +601,10 @@ void main() {
 
       expect(selection.isSelected(1), isTrue);
       expect(interactions.single, isA<ChatStickerActivated>());
-      expect((interactions.single as ChatStickerActivated).gesture, ChatInlineGesture.longPress);
+      expect(
+        (interactions.single as ChatStickerActivated).gesture,
+        ChatInlineGesture.longPress,
+      );
       expect(stickerPaintable().restarts, 1);
     });
 
@@ -525,8 +618,14 @@ void main() {
       await tester.tapAt(drawn(tester).center);
       await tester.pumpAndSettle();
 
-      final times = interactions.whereType<ChatStickerActivated>().map((a) => a.tapTime).toList();
-      expect(times, [const Duration(seconds: 5), const Duration(seconds: 5, milliseconds: 400)]);
+      final times = interactions
+          .whereType<ChatStickerActivated>()
+          .map((a) => a.tapTime)
+          .toList();
+      expect(times, [
+        const Duration(seconds: 5),
+        const Duration(seconds: 5, milliseconds: 400),
+      ]);
     });
   });
 }

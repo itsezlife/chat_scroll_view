@@ -66,7 +66,10 @@ class _Source extends ChatDataSource {
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
 }
 
 /// Records every frame the viewport asks it to paint.
@@ -89,13 +92,19 @@ final class _RecordingPainter extends ChatScrollbarPainter {
   double get minThumbLength => 16;
 
   @override
-  void paint(Canvas canvas, ChatScrollbarFrame frame, ChatScrollbarThemeData theme) => frames.add(frame);
+  void paint(
+    Canvas canvas,
+    ChatScrollbarFrame frame,
+    ChatScrollbarThemeData theme,
+  ) => frames.add(frame);
 
   @override
-  bool shouldRepaint(_RecordingPainter oldPainter) => !identical(oldPainter.frames, frames);
+  bool shouldRepaint(_RecordingPainter oldPainter) =>
+      !identical(oldPainter.frames, frames);
 
   @override
-  bool operator ==(Object other) => other is _RecordingPainter && identical(other.frames, frames);
+  bool operator ==(Object other) =>
+      other is _RecordingPainter && identical(other.frames, frames);
 
   @override
   int get hashCode => identityHashCode(frames);
@@ -133,10 +142,14 @@ Widget _harness({
             scrollActivityTiming: scrollActivityTiming,
             emptyBuilder: emptyBuilder,
             dateSeparatorBuilder: daySeparators
-                ? (context, bucket, date) => const SizedBox(height: 24, child: Text('day'))
+                ? (context, bucket, date) =>
+                      const SizedBox(height: 24, child: Text('day'))
                 : null,
             messageBuilder: (context, id, message, status, runLayout) =>
-                SizedBox(height: heightOf?.call(id) ?? 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
+                SizedBox(
+                  height: heightOf?.call(id) ?? 60,
+                  child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                ),
           ),
         ),
       ),
@@ -161,9 +174,18 @@ Future<void> _elapse(WidgetTester tester, Duration duration) async {
 void main() {
   group('ChatScrollbarVisibility', () {
     test('is value-equal', () {
-      expect(const ChatScrollbarVisibility.always(), const ChatScrollbarVisibility.always());
-      expect(const ChatScrollbarVisibility.autoHide(), const ChatScrollbarVisibility.autoHide());
-      expect(const ChatScrollbarVisibility.autoHide().hashCode, const ChatScrollbarVisibility.autoHide().hashCode);
+      expect(
+        const ChatScrollbarVisibility.always(),
+        const ChatScrollbarVisibility.always(),
+      );
+      expect(
+        const ChatScrollbarVisibility.autoHide(),
+        const ChatScrollbarVisibility.autoHide(),
+      );
+      expect(
+        const ChatScrollbarVisibility.autoHide().hashCode,
+        const ChatScrollbarVisibility.autoHide().hashCode,
+      );
       expect(
         const ChatScrollbarVisibility.autoHide(idleDelay: Duration(seconds: 2)),
         isNot(const ChatScrollbarVisibility.autoHide()),
@@ -172,13 +194,25 @@ void main() {
         const ChatScrollbarVisibility.autoHide(curve: Curves.linear),
         isNot(const ChatScrollbarVisibility.autoHide()),
       );
-      expect(const ChatScrollbarVisibility.always(), isNot(const ChatScrollbarVisibility.autoHide()));
+      expect(
+        const ChatScrollbarVisibility.always(),
+        isNot(const ChatScrollbarVisibility.autoHide()),
+      );
     });
 
     test('is part of the preset value, always by default', () {
-      expect(const ChatScrollbar(), const ChatScrollbar(visibility: ChatScrollbarVisibility.always()));
-      expect(const ChatScrollbar(visibility: _autoHide), isNot(const ChatScrollbar()));
-      expect(const ChatScrollbar(visibility: _autoHide).hashCode, const ChatScrollbar(visibility: _autoHide).hashCode);
+      expect(
+        const ChatScrollbar(),
+        const ChatScrollbar(visibility: ChatScrollbarVisibility.always()),
+      );
+      expect(
+        const ChatScrollbar(visibility: _autoHide),
+        isNot(const ChatScrollbar()),
+      );
+      expect(
+        const ChatScrollbar(visibility: _autoHide).hashCode,
+        const ChatScrollbar(visibility: _autoHide).hashCode,
+      );
     });
   });
 
@@ -191,8 +225,12 @@ void main() {
 
     ChatScrollbar always() => ChatScrollbar(painter: _RecordingPainter(frames));
 
-    ChatScrollbar autoHiding([ChatScrollbarVisibility visibility = _autoHide]) =>
-        ChatScrollbar(painter: _RecordingPainter(frames), visibility: visibility);
+    ChatScrollbar autoHiding([
+      ChatScrollbarVisibility visibility = _autoHide,
+    ]) => ChatScrollbar(
+      painter: _RecordingPainter(frames),
+      visibility: visibility,
+    );
 
     Future<void> pump(
       WidgetTester tester, {
@@ -231,7 +269,8 @@ void main() {
       await tester.pump();
     }
 
-    RenderChatScrollView render(WidgetTester tester) => tester.renderObject(find.byType(ChatScrollView));
+    RenderChatScrollView render(WidgetTester tester) =>
+        tester.renderObject(find.byType(ChatScrollView));
 
     /// The visibility a fresh paint hands the painter, or `0` when that
     /// paint does not call the painter at all.
@@ -242,7 +281,8 @@ void main() {
       return frames.length == before ? 0 : frames.last.visibility;
     }
 
-    Offset at(WidgetTester tester, double x, double y) => tester.getTopLeft(find.byType(ChatScrollView)) + Offset(x, y);
+    Offset at(WidgetTester tester, double x, double y) =>
+        tester.getTopLeft(find.byType(ChatScrollView)) + Offset(x, y);
 
     /// Waits out a 250 ms fade-in, allowing two frames for motion that
     /// first moves the list on a later tick.
@@ -251,14 +291,18 @@ void main() {
       await _elapse(tester, _ms(282));
     }
 
-    testWidgets('auto-hide opens hidden: the painter is never called', (tester) async {
+    testWidgets('auto-hide opens hidden: the painter is never called', (
+      tester,
+    ) async {
       await pump(tester);
       await _elapse(tester, const Duration(seconds: 2));
       expect(frames, isEmpty);
       expect(await painted(tester), 0);
     });
 
-    testWidgets('always paints at full visibility without motion', (tester) async {
+    testWidgets('always paints at full visibility without motion', (
+      tester,
+    ) async {
       await pump(tester, scrollbar: always());
       await _elapse(tester, const Duration(seconds: 5));
       expect(await painted(tester), 1);
@@ -308,7 +352,9 @@ void main() {
       expect(await painted(tester), 0);
     });
 
-    testWidgets('a wheel scroll shows, then hides after the idle delay', (tester) async {
+    testWidgets('a wheel scroll shows, then hides after the idle delay', (
+      tester,
+    ) async {
       await pump(tester);
       final pointer = TestPointer(1, PointerDeviceKind.mouse);
       await tester.sendEventToBinding(pointer.hover(at(tester, 200, 300)));
@@ -340,7 +386,9 @@ void main() {
       await fadeIn(tester);
       final thumb = frames.last.thumbRect;
 
-      final gesture = await tester.startGesture(at(tester, 395, thumb.center.dy));
+      final gesture = await tester.startGesture(
+        at(tester, 395, thumb.center.dy),
+      );
       await tester.pump();
       for (var i = 0; i < 5; i++) {
         await gesture.moveBy(const Offset(0, -20));
@@ -374,10 +422,11 @@ void main() {
       await gesture.up();
     });
 
-    for (final (name, navigate) in <(String, void Function(ChatScrollController))>[
-      ('jumpTo', (c) => c.jumpTo(40)),
-      ('jumpToCenterBand', (c) => c.jumpToCenterBand(40, 20)),
-    ]) {
+    for (final (name, navigate)
+        in <(String, void Function(ChatScrollController))>[
+          ('jumpTo', (c) => c.jumpTo(40)),
+          ('jumpToCenterBand', (c) => c.jumpToCenterBand(40, 20)),
+        ]) {
       testWidgets('$name pulses with the navigation delay', (tester) async {
         await pump(tester);
         navigate(controller);
@@ -430,7 +479,9 @@ void main() {
         expect(frames, isEmpty);
       });
 
-      testWidgets('a history load that only reshapes the thumb', (tester) async {
+      testWidgets('a history load that only reshapes the thumb', (
+        tester,
+      ) async {
         await pump(tester, first: 100, anchor: 228);
         final anchor = controller.anchorMessageId;
         dataSource.loadHistoryFrom(50);
@@ -473,7 +524,9 @@ void main() {
       });
     });
 
-    testWidgets('a held day header does not pin scrollbar visibility', (tester) async {
+    testWidgets('a held day header does not pin scrollbar visibility', (
+      tester,
+    ) async {
       await pump(
         tester,
         anchor: 0,
@@ -504,8 +557,13 @@ void main() {
       expect(await painted(tester), 1);
     });
 
-    testWidgets('the release settle runs over the fade-out and its curve', (tester) async {
-      const visibility = ChatScrollbarVisibility.autoHide(fadeOut: Duration(milliseconds: 400), curve: Curves.linear);
+    testWidgets('the release settle runs over the fade-out and its curve', (
+      tester,
+    ) async {
+      const visibility = ChatScrollbarVisibility.autoHide(
+        fadeOut: Duration(milliseconds: 400),
+        curve: Curves.linear,
+      );
       await pump(
         tester,
         count: 20,
@@ -517,12 +575,16 @@ void main() {
       await fadeIn(tester);
       final track = frames.last.trackRect;
       final start = frames.last.thumbRect;
-      final gesture = await tester.startGesture(at(tester, 395, start.center.dy));
+      final gesture = await tester.startGesture(
+        at(tester, 395, start.center.dy),
+      );
       await tester.pump();
       // Into the tall row, where the band's own thumb sits away from the
       // pointer's.
       final travel = track.height - start.height;
-      await gesture.moveTo(at(tester, 395, track.top + 0.38 * travel + start.height / 2));
+      await gesture.moveTo(
+        at(tester, 395, track.top + 0.38 * travel + start.height / 2),
+      );
       await tester.pump();
       final grabbed = frames.last.thumbRect;
 
@@ -570,12 +632,21 @@ void main() {
       );
       await tester.pump();
       expect(find.text('empty'), findsOneWidget);
-      expect(tester.renderObject(find.byType(ChatScrollView)), paintsExactlyCountTimes(#drawRRect, 0));
+      expect(
+        tester.renderObject(find.byType(ChatScrollView)),
+        paintsExactlyCountTimes(#drawRRect, 0),
+      );
     });
 
     group('preset changes', () {
       Future<void> swap(WidgetTester tester, ChatScrollbar scrollbar) =>
-          tester.pumpWidget(_harness(dataSource: dataSource, controller: controller, scrollbar: scrollbar));
+          tester.pumpWidget(
+            _harness(
+              dataSource: dataSource,
+              controller: controller,
+              scrollbar: scrollbar,
+            ),
+          );
 
       testWidgets('always to auto-hide keeps it shown, then hides after '
           'the idle delay', (tester) async {
@@ -589,7 +660,9 @@ void main() {
         expect(await painted(tester), 0);
       });
 
-      testWidgets('always to auto-hide mid-drag keeps the drag hold', (tester) async {
+      testWidgets('always to auto-hide mid-drag keeps the drag hold', (
+        tester,
+      ) async {
         await pump(tester, scrollbar: always());
         final gesture = await tester.startGesture(at(tester, 200, 300));
         await gesture.moveBy(const Offset(0, 30));
@@ -612,12 +685,17 @@ void main() {
         expect(await painted(tester), 1);
       });
 
-      testWidgets('new auto-hide timing applies to the next hide', (tester) async {
+      testWidgets('new auto-hide timing applies to the next hide', (
+        tester,
+      ) async {
         await pump(tester);
         await swap(
           tester,
           autoHiding(
-            const ChatScrollbarVisibility.autoHide(idleDelay: Duration(milliseconds: 3000), curve: Curves.linear),
+            const ChatScrollbarVisibility.autoHide(
+              idleDelay: Duration(milliseconds: 3000),
+              curve: Curves.linear,
+            ),
           ),
         );
         controller.scrollBy(10);
@@ -639,7 +717,9 @@ void main() {
         expect(await painted(tester), 0, reason: 'the delay did not restart');
       });
 
-      testWidgets('switching to none and back to auto-hide opens hidden', (tester) async {
+      testWidgets('switching to none and back to auto-hide opens hidden', (
+        tester,
+      ) async {
         await pump(tester);
         controller.scrollBy(10);
         await fadeIn(tester);

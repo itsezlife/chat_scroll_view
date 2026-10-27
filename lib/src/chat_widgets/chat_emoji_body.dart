@@ -1,16 +1,25 @@
 import 'package:catalog_assets/catalog_assets.dart'
-    show AssetPlayback, AssetPreset, AssetPresets, AssetProfile, InlineEmbed, PlayableEmbed;
+    show
+        AssetPlayback,
+        AssetPreset,
+        AssetPresets,
+        AssetProfile,
+        InlineEmbed,
+        PlayableEmbed;
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sticker_tap_policy.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_body_selection_scope.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_geometry.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_policy.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_text.dart';
-import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_autoscroll.dart' show ChatMarkdownAutoscrollOptions;
-import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_body.dart' show ChatMarkdownBodyRegistration;
+import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_autoscroll.dart'
+    show ChatMarkdownAutoscrollOptions;
+import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_body.dart'
+    show ChatMarkdownBodyRegistration;
 import 'package:chat_scroll_view/src/chat_widgets/chat_sticker_playback.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_emoji_body.dart';
-import 'package:content_model/content_model.dart' show ContentKey, ContentKey$Document, ContentKey$Unicode, EmojiOnly;
+import 'package:content_model/content_model.dart'
+    show ContentKey, ContentKey$Document, ContentKey$Unicode, EmojiOnly;
 import 'package:flutter/gestures.dart' show PointerHoverEvent;
 import 'package:flutter/widgets.dart';
 
@@ -23,7 +32,8 @@ import 'package:flutter/widgets.dart';
 /// does not know the content). The body owns the embed it gets and disposes
 /// it. `InlineEmbedResolver` does not fit here: it sizes an embed from text
 /// metrics, and an emoji-only body sizes by count with presets of its own.
-typedef ChatEmojiEmbedFactory = InlineEmbed? Function(ContentKey content, AssetPreset preset);
+typedef ChatEmojiEmbedFactory =
+    InlineEmbed? Function(ContentKey content, AssetPreset preset);
 
 /// A bubble-less message of nothing but emoji, laid out the way the
 /// reference client does.
@@ -135,8 +145,12 @@ class ChatEmojiBody extends StatefulWidget {
   });
 
   /// Which layout [emojiOnly] gets when the host resolved [sticker].
-  static ChatEmojiLayoutKind layoutKindFor(EmojiOnly emojiOnly, {ContentKey? sticker}) =>
-      sticker != null && emojiOnly.items.length == 1 ? ChatEmojiLayoutKind.sticker : ChatEmojiLayoutKind.text;
+  static ChatEmojiLayoutKind layoutKindFor(
+    EmojiOnly emojiOnly, {
+    ContentKey? sticker,
+  }) => sticker != null && emojiOnly.items.length == 1
+      ? ChatEmojiLayoutKind.sticker
+      : ChatEmojiLayoutKind.text;
 
   /// The geometry of the body [emojiOnly] gets in a row [maxWidth] wide, for a
   /// host that places chrome around it before the body is laid out.
@@ -183,8 +197,12 @@ class ChatEmojiBody extends StatefulWidget {
     final isSticker = kind == ChatEmojiLayoutKind.sticker;
     return ChatEmojiLayoutSpec(
       kind: kind,
-      lineBreaksBefore: [for (final item in emojiOnly.items) item.lineBreaksBefore],
-      box: isSticker ? policy.stickerExtentFor(viewport) : policy.itemBoxFor(emojiOnly),
+      lineBreaksBefore: [
+        for (final item in emojiOnly.items) item.lineBreaksBefore,
+      ],
+      box: isSticker
+          ? policy.stickerExtentFor(viewport)
+          : policy.itemBoxFor(emojiOnly),
       skip: isSticker ? 0 : policy.itemSkipFor(emojiOnly),
       inset: isSticker ? policy.stickerInset : 0,
       wrap: !isSticker && hasHeader
@@ -270,7 +288,8 @@ class ChatEmojiBody extends StatefulWidget {
   State<ChatEmojiBody> createState() => _ChatEmojiBodyState();
 }
 
-class _ChatEmojiBodyState extends State<ChatEmojiBody> implements ChatStickerBody {
+class _ChatEmojiBodyState extends State<ChatEmojiBody>
+    implements ChatStickerBody {
   // The render object the leaf widget made. A GlobalKey would find it, but
   // the layout changing between text and sticker moves the leaf in the tree,
   // and a reparented render object reattaches with leaves this state has
@@ -307,16 +326,20 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody> implements ChatStickerBod
   bool get _isText => widget.selectableText && !_isSticker;
 
   bool get _isSticker =>
-      ChatEmojiBody.layoutKindFor(widget.emojiOnly, sticker: widget.sticker) == ChatEmojiLayoutKind.sticker;
+      ChatEmojiBody.layoutKindFor(widget.emojiOnly, sticker: widget.sticker) ==
+      ChatEmojiLayoutKind.sticker;
 
   double get _font => widget.policy.fontSizeFor(widget.emojiOnly);
 
   double get _extent => widget.policy.stickerExtentFor(_viewport);
 
   ChatStickerPlayback get _playback =>
-      widget.playback ?? ChatStickerPlayback.defaultFor(widget.emojiOnly.items.first.key);
+      widget.playback ??
+      ChatStickerPlayback.defaultFor(widget.emojiOnly.items.first.key);
 
-  ChatStickerTapPolicy get _tapPolicy => widget.tapPolicy ?? ChatStickerTapPolicy.of(widget.controller.selectionPolicy);
+  ChatStickerTapPolicy get _tapPolicy =>
+      widget.tapPolicy ??
+      ChatStickerTapPolicy.of(widget.controller.selectionPolicy);
 
   @override
   void initState() {
@@ -360,7 +383,10 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody> implements ChatStickerBod
   void _syncRegistration() {
     final wants = ChatMarkdownBodyRegistration.allows(context);
     final same =
-        wants && _token != null && identical(_registeredWith, widget.controller) && _registeredId == widget.messageId;
+        wants &&
+        _token != null &&
+        identical(_registeredWith, widget.controller) &&
+        _registeredId == widget.messageId;
     if (!same) {
       _unregister();
       if (!wants) return;
@@ -384,7 +410,12 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody> implements ChatStickerBod
     if (_textToken != null && _textFor == widget.emojiOnly) return;
     final text = _text = ChatEmojiText.of(widget.emojiOnly);
     _textFor = widget.emojiOnly;
-    _textToken = controller.putBody(id, text.markdown, order: id, token: _textToken);
+    _textToken = controller.putBody(
+      id,
+      text.markdown,
+      order: id,
+      token: _textToken,
+    );
   }
 
   void _removeText() {
@@ -432,14 +463,18 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody> implements ChatStickerBod
   @override
   Rect? get globalBounds {
     final render = _render;
-    return render == null ? null : render.localToGlobal(Offset.zero) & render.size;
+    return render == null
+        ? null
+        : render.localToGlobal(Offset.zero) & render.size;
   }
 
   @override
   Rect? get stickerGlobalRect {
     final render = _render;
     final rect = _isSticker && widget.isActive ? render?.itemRect(0) : null;
-    return rect == null ? null : render!.localToGlobal(rect.topLeft) & rect.size;
+    return rect == null
+        ? null
+        : render!.localToGlobal(rect.topLeft) & rect.size;
   }
 
   @override
@@ -509,7 +544,9 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody> implements ChatStickerBod
     }
     _plan = plan;
     _disposeLeaves();
-    _leaves = [for (final item in widget.emojiOnly.items) _leafFor(item.key, sticker)];
+    _leaves = [
+      for (final item in widget.emojiOnly.items) _leafFor(item.key, sticker),
+    ];
     _applyActive();
     _watchSticker();
   }
@@ -518,7 +555,13 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody> implements ChatStickerBod
   // register (an edit morph's outgoing copy) shares the message id of the live
   // body and must neither start the play nor use it up.
   void _decideAutoplay() {
-    final source = (widget.messageId, widget.emojiOnly, widget.sticker, widget.playback, widget.playLedger);
+    final source = (
+      widget.messageId,
+      widget.emojiOnly,
+      widget.sticker,
+      widget.playback,
+      widget.playLedger,
+    );
     if (_autoplay != null && source == _autoplayFor) return;
     _autoplayFor = source;
     _autoplay =
@@ -526,8 +569,10 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody> implements ChatStickerBod
         switch (_playback) {
           ChatStickerPlayback.loop => true,
           ChatStickerPlayback.still => false,
-          ChatStickerPlayback.onceThenFirstFrame || ChatStickerPlayback.onceThenLastFrame =>
-            ChatMarkdownBodyRegistration.allows(context) && !(widget.playLedger?.hasPlayed(widget.messageId) ?? false),
+          ChatStickerPlayback.onceThenFirstFrame ||
+          ChatStickerPlayback.onceThenLastFrame =>
+            ChatMarkdownBodyRegistration.allows(context) &&
+                !(widget.playLedger?.hasPlayed(widget.messageId) ?? false),
         };
   }
 
@@ -536,7 +581,11 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody> implements ChatStickerBod
       final extent = _extent;
       final playback = _playback;
       final preset = playback.loops
-          ? AssetPresets.square(extent: extent, devicePixelRatio: _dpr, profile: const AssetProfile(animate: true))
+          ? AssetPresets.square(
+              extent: extent,
+              devicePixelRatio: _dpr,
+              profile: const AssetProfile(animate: true),
+            )
           : AssetPresets.emojiSticker(
               extent: extent,
               devicePixelRatio: _dpr,
@@ -547,7 +596,10 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody> implements ChatStickerBod
     }
     return switch (key) {
       ContentKey$Unicode(:final sequence) => _glyphLeaf(sequence),
-      ContentKey$Document() => _embedLeaf(key, AssetPresets.emojiOnly(step: _font, devicePixelRatio: _dpr)),
+      ContentKey$Document() => _embedLeaf(
+        key,
+        AssetPresets.emojiOnly(step: _font, devicePixelRatio: _dpr),
+      ),
       _ => const ChatEmojiEmptyLeaf(),
     };
   }
@@ -569,7 +621,10 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody> implements ChatStickerBod
   // embed's own signal until then.
   void _watchSticker() {
     _unwatchSticker();
-    if (!_isSticker || _autoplay != true || !_playback.playsOnFirstShow || widget.playLedger == null) {
+    if (!_isSticker ||
+        _autoplay != true ||
+        !_playback.playsOnFirstShow ||
+        widget.playLedger == null) {
       return;
     }
     final embed = _playable;
@@ -590,10 +645,11 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody> implements ChatStickerBod
     widget.playLedger?.markPlayed(widget.messageId);
   }
 
-  ChatEmojiLeaf _embedLeaf(ContentKey key, AssetPreset preset) => switch (widget.embedFactory(key, preset)) {
-    final embed? => ChatEmojiEmbedLeaf(embed),
-    null => const ChatEmojiEmptyLeaf(),
-  };
+  ChatEmojiLeaf _embedLeaf(ContentKey key, AssetPreset preset) =>
+      switch (widget.embedFactory(key, preset)) {
+        final embed? => ChatEmojiEmbedLeaf(embed),
+        null => const ChatEmojiEmptyLeaf(),
+      };
 
   ChatEmojiLeaf _glyphLeaf(String sequence) => ChatEmojiGlyphLeaf(
     TextPainter(
@@ -629,13 +685,15 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody> implements ChatStickerBod
   }
 
   bool _actionable(ChatInlineHit? hit) =>
-      hit is ChatInlineHit$Sticker || (hit is ChatInlineHit$Embed && widget.controller.handlesEmbedHits);
+      hit is ChatInlineHit$Sticker ||
+      (hit is ChatInlineHit$Embed && widget.controller.handlesEmbedHits);
 
   void _onHover(PointerHoverEvent event) {
     final MouseCursor next;
     if (_actionable(inlineHitAt(event.position))) {
       next = SystemMouseCursors.click;
-    } else if (_mountsSurface && (_render?.hitsSelectableGlyphs(event.position) ?? false)) {
+    } else if (_mountsSurface &&
+        (_render?.hitsSelectableGlyphs(event.position) ?? false)) {
       // The I-beam over an emoji, as over the glyphs of a markdown body.
       next = SystemMouseCursors.text;
     } else {
@@ -718,7 +776,9 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody> implements ChatStickerBod
           }
         },
         // Animated frames repaint this box, not the row around it.
-        child: RepaintBoundary(child: _isText ? _selectableBox() : _leafBox(null)),
+        child: RepaintBoundary(
+          child: _isText ? _selectableBox() : _leafBox(null),
+        ),
       ),
     );
   }
@@ -742,13 +802,21 @@ class _ChatEmojiLeafWidget extends LeafRenderObjectWidget {
 
   @override
   RenderChatEmojiBody createRenderObject(BuildContext context) {
-    final box = RenderChatEmojiBody(leaves: leaves, spec: spec, tint: tint, selection: selection);
+    final box = RenderChatEmojiBody(
+      leaves: leaves,
+      spec: spec,
+      tint: tint,
+      selection: selection,
+    );
     onCreated(box);
     return box;
   }
 
   @override
-  void updateRenderObject(BuildContext context, RenderChatEmojiBody renderObject) {
+  void updateRenderObject(
+    BuildContext context,
+    RenderChatEmojiBody renderObject,
+  ) {
     renderObject
       ..leaves = leaves
       ..spec = spec

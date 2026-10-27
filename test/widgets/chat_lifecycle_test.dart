@@ -17,8 +17,13 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart'
 import 'package:flutter_test/flutter_test.dart';
 import '../chat_message.dart';
 
-IChatMessage _msg(int i) =>
-    UserChatMessage(id: i, sender: 'User', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: 'content $i');
+IChatMessage _msg(int i) => UserChatMessage(
+  id: i,
+  sender: 'User',
+  createdAt: DateTime(2026),
+  updatedAt: DateTime(2026),
+  content: 'content $i',
+);
 
 /// Records every fetchRange call; can be told to fail or succeed.
 class _RecorderDataSource extends ChatDataSource {
@@ -26,7 +31,10 @@ class _RecorderDataSource extends ChatDataSource {
   bool shouldFail = false;
 
   @override
-  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async {
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async {
     calls.add((from: fromId, to: toId));
     await Future<void>.delayed(const Duration(milliseconds: 5));
     if (shouldFail) throw StateError('boom');
@@ -66,7 +74,8 @@ void main() {
       addTearDown(ds.dispose);
 
       // Forge a dirty chunk that already exists.
-      ds.chunks[0] = ChatScrollChunk(index: 0)..status = ChatMessageStatus.fetching;
+      ds.chunks[0] = ChatScrollChunk(index: 0)
+        ..status = ChatMessageStatus.fetching;
 
       ds.upsertMessage(_msg(5));
 
@@ -74,36 +83,49 @@ void main() {
       expect(ds.chunks[0]!.status.isValid, isFalse);
     });
 
-    test('insert after chunk eviction marks dirty so sibling holes can refetch', () {
-      final ds = _RecorderDataSource();
-      addTearDown(ds.dispose);
+    test(
+      'insert after chunk eviction marks dirty so sibling holes can refetch',
+      () {
+        final ds = _RecorderDataSource();
+        addTearDown(ds.dispose);
 
-      ds.seedBoundaries(oldestKnownId: 0, newestKnownId: 10, reachedOldest: true, reachedNewest: true);
-      for (var i = 0; i <= 10; i++) {
-        ds.upsertMessage(_msg(i));
-      }
-      final chunkIndex = ChatScrollChunk.chunkOf(10);
-      expect(ds.chunks[chunkIndex]!.status.isValid, isTrue);
+        ds.seedBoundaries(
+          oldestKnownId: 0,
+          newestKnownId: 10,
+          reachedOldest: true,
+          reachedNewest: true,
+        );
+        for (var i = 0; i <= 10; i++) {
+          ds.upsertMessage(_msg(i));
+        }
+        final chunkIndex = ChatScrollChunk.chunkOf(10);
+        expect(ds.chunks[chunkIndex]!.status.isValid, isTrue);
 
-      // LRU eviction of the tail chunk (viewport scrolled deep into history).
-      ds.chunks.remove(chunkIndex);
-      expect(ds.chunks.containsKey(chunkIndex), isFalse);
+        // LRU eviction of the tail chunk (viewport scrolled deep into history).
+        ds.chunks.remove(chunkIndex);
+        expect(ds.chunks.containsKey(chunkIndex), isFalse);
 
-      // Local send recreates the chunk with only the new row.
-      ds.insertMessage(_msg(11));
+        // Local send recreates the chunk with only the new row.
+        ds.insertMessage(_msg(11));
 
-      final chunk = ds.chunks[chunkIndex]!;
-      expect(chunk.status.isDirty, isTrue);
-      expect(ds.getMessage(11), isNotNull);
-      expect(ds.getMessage(10), isNull);
-      expect(ChatRangeFetch.needsFetch(chunk), isTrue);
-    });
+        final chunk = ds.chunks[chunkIndex]!;
+        expect(chunk.status.isDirty, isTrue);
+        expect(ds.getMessage(11), isNotNull);
+        expect(ds.getMessage(10), isNull);
+        expect(ChatRangeFetch.needsFetch(chunk), isTrue);
+      },
+    );
 
     test('requestChunks dirties sparse-valid chunks in range before fetch', () {
       final ds = _RecorderDataSource();
       addTearDown(ds.dispose);
 
-      ds.seedBoundaries(oldestKnownId: 0, newestKnownId: 5, reachedOldest: true, reachedNewest: true);
+      ds.seedBoundaries(
+        oldestKnownId: 0,
+        newestKnownId: 5,
+        reachedOldest: true,
+        reachedNewest: true,
+      );
       // Simulate insert-after-eviction without going through insertMessage:
       // valid chunk with only one filled slot.
       final chunk = ChatScrollChunk(index: 0)..status = ChatMessageStatus.valid;

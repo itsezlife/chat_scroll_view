@@ -64,12 +64,19 @@ class ChatMessageMenuReactions extends StatelessWidget {
 
     final menuTheme = ChatScrollTheme.menuOf(context);
     final colorScheme = Theme.of(context).colorScheme;
-    final radius = BorderRadius.all(Radius.circular(menuTheme.reactionsRadius ?? height / 2));
+    final radius = BorderRadius.all(
+      Radius.circular(menuTheme.reactionsRadius ?? height / 2),
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final cap = math.min(maxWidth ?? ChatMessageMenuCard.defaultMaxWidth, MediaQuery.widthOf(context) - 12);
-        final maxAvailable = constraints.maxWidth.isFinite ? math.min(constraints.maxWidth, cap) : cap;
+        final cap = math.min(
+          maxWidth ?? ChatMessageMenuCard.defaultMaxWidth,
+          MediaQuery.widthOf(context) - 12,
+        );
+        final maxAvailable = constraints.maxWidth.isFinite
+            ? math.min(constraints.maxWidth, cap)
+            : cap;
         final contentWidth = contentWidthForCount(reactions.length);
         final width = math.min(contentWidth, maxAvailable);
         final fits = contentWidth <= maxAvailable;
@@ -81,20 +88,37 @@ class ChatMessageMenuReactions extends StatelessWidget {
             children: <Widget>[
               for (var i = 0; i < reactions.length; i++) ...<Widget>[
                 if (i > 0) const SizedBox(width: gapSlots),
-                reactionBuilder?.call(context, reactions[i], () => onReaction(reactions[i])) ??
-                    _ReactionSlot(emoji: reactions[i], onTap: () => onReaction(reactions[i])),
+                reactionBuilder?.call(
+                      context,
+                      reactions[i],
+                      () => onReaction(reactions[i]),
+                    ) ??
+                    _ReactionSlot(
+                      emoji: reactions[i],
+                      onTap: () => onReaction(reactions[i]),
+                    ),
               ],
             ],
           );
         } else {
           slots = ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: pad, vertical: padVertical),
+            padding: const EdgeInsets.symmetric(
+              horizontal: pad,
+              vertical: padVertical,
+            ),
             itemCount: reactions.length,
             separatorBuilder: (_, _) => const SizedBox(width: gapSlots),
             itemBuilder: (context, index) =>
-                reactionBuilder?.call(context, reactions[index], () => onReaction(reactions[index])) ??
-                _ReactionSlot(emoji: reactions[index], onTap: () => onReaction(reactions[index])),
+                reactionBuilder?.call(
+                  context,
+                  reactions[index],
+                  () => onReaction(reactions[index]),
+                ) ??
+                _ReactionSlot(
+                  emoji: reactions[index],
+                  onTap: () => onReaction(reactions[index]),
+                ),
           );
         }
 
@@ -102,7 +126,11 @@ class ChatMessageMenuReactions extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: radius,
             boxShadow: const <BoxShadow>[
-              BoxShadow(color: Color.fromRGBO(0, 0, 0, 0.35), blurRadius: 12, offset: Offset(0, 4)),
+              BoxShadow(
+                color: Color.fromRGBO(0, 0, 0, 0.35),
+                blurRadius: 12,
+                offset: Offset(0, 4),
+              ),
             ],
           ),
           child: Material(
@@ -112,13 +140,21 @@ class ChatMessageMenuReactions extends StatelessWidget {
             borderRadius: radius,
             color:
                 menuTheme.reactionsColor ??
-                Color.alphaBlend(colorScheme.onSurface.withValues(alpha: 0.08), colorScheme.surface),
+                Color.alphaBlend(
+                  colorScheme.onSurface.withValues(alpha: 0.08),
+                  colorScheme.surface,
+                ),
             clipBehavior: Clip.antiAlias,
             child: SizedBox(
               width: width,
               height: ChatMessageMenuReactions.height,
               child: Padding(
-                padding: !fits ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: pad, vertical: padVertical),
+                padding: !fits
+                    ? EdgeInsets.zero
+                    : const EdgeInsets.symmetric(
+                        horizontal: pad,
+                        vertical: padVertical,
+                      ),
                 child: slots,
               ),
             ),
@@ -140,11 +176,15 @@ class _ReactionSlot extends StatelessWidget {
     elevation: 0,
     shadowColor: Colors.transparent,
     surfaceTintColor: Colors.transparent,
-    borderRadius: const BorderRadius.all(Radius.circular(ChatMessageMenuReactions.slot / 2)),
+    borderRadius: const BorderRadius.all(
+      Radius.circular(ChatMessageMenuReactions.slot / 2),
+    ),
     color: Colors.transparent,
     child: InkWell(
       onTap: onTap,
-      borderRadius: const BorderRadius.all(Radius.circular(ChatMessageMenuReactions.slot / 2)),
+      borderRadius: const BorderRadius.all(
+        Radius.circular(ChatMessageMenuReactions.slot / 2),
+      ),
       child: SizedBox(
         width: ChatMessageMenuReactions.slot,
         height: ChatMessageMenuReactions.slot,

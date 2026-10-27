@@ -10,22 +10,33 @@ sealed class ChatMutation {
   const ChatMutation({required this.operationId, this.reason});
 
   /// Records a tail or in-span insert via [ChatDataSource.insertMessage].
-  factory ChatMutation.insert(int messageId, {Object? reason}) => InsertMutation(messageId: messageId, reason: reason);
+  factory ChatMutation.insert(int messageId, {Object? reason}) =>
+      InsertMutation(messageId: messageId, reason: reason);
 
   /// Records a bulk insert via [ChatDataSource.insertMessages].
-  factory ChatMutation.insertBatch({required List<int> ids, required int operationId, Object? reason}) =>
-      InsertBatchMutation(ids: ids, operationId: operationId, reason: reason);
+  factory ChatMutation.insertBatch({
+    required List<int> ids,
+    required int operationId,
+    Object? reason,
+  }) => InsertBatchMutation(ids: ids, operationId: operationId, reason: reason);
 
   /// Records a content replace via [ChatDataSource.updateMessage].
-  factory ChatMutation.update(int messageId, {Object? reason}) => UpdateMutation(messageId: messageId, reason: reason);
+  factory ChatMutation.update(int messageId, {Object? reason}) =>
+      UpdateMutation(messageId: messageId, reason: reason);
 
   /// Records a bulk content replace via [ChatDataSource.updateMessages].
-  factory ChatMutation.updateBatch({required List<int> ids, required int operationId, Object? reason}) =>
-      UpdateBatchMutation(ids: ids, operationId: operationId, reason: reason);
+  factory ChatMutation.updateBatch({
+    required List<int> ids,
+    required int operationId,
+    Object? reason,
+  }) => UpdateBatchMutation(ids: ids, operationId: operationId, reason: reason);
 
   /// Records a staged batch remove via [ChatDataSource.removeMessages].
-  factory ChatMutation.removeBatch({required List<int> ids, required int operationId, Object? reason}) =>
-      RemoveBatchMutation(ids: ids, operationId: operationId, reason: reason);
+  factory ChatMutation.removeBatch({
+    required List<int> ids,
+    required int operationId,
+    Object? reason,
+  }) => RemoveBatchMutation(ids: ids, operationId: operationId, reason: reason);
 
   /// Optional debug label for tracing integrator paths.
   final Object? reason;
@@ -38,7 +49,8 @@ sealed class ChatMutation {
 @immutable
 final class InsertMutation extends ChatMutation {
   /// Creates an insert intent for [messageId].
-  const InsertMutation({required this.messageId, super.reason}) : super(operationId: messageId);
+  const InsertMutation({required this.messageId, super.reason})
+    : super(operationId: messageId);
 
   /// Id of the inserted message.
   final int messageId;
@@ -56,7 +68,8 @@ final class InsertMutation extends ChatMutation {
   int get hashCode => Object.hash(messageId, operationId, reason);
 
   @override
-  String toString() => 'InsertMutation(messageId: $messageId, operationId: $operationId, reason: $reason)';
+  String toString() =>
+      'InsertMutation(messageId: $messageId, operationId: $operationId, reason: $reason)';
 }
 
 /// One or more messages were added via [ChatDataSource.insertMessages].
@@ -66,7 +79,11 @@ final class InsertBatchMutation extends ChatMutation {
   ///
   /// [ids] MUST be strictly unique and sorted **ascending** (lowest id first).
   /// [operationId] is shared by every id in one `insertMessages` call.
-  const InsertBatchMutation({required this.ids, required super.operationId, super.reason});
+  const InsertBatchMutation({
+    required this.ids,
+    required super.operationId,
+    super.reason,
+  });
 
   /// Affected ids in ascending order (oldest / lowest id first).
   final List<int> ids;
@@ -84,14 +101,16 @@ final class InsertBatchMutation extends ChatMutation {
   int get hashCode => Object.hash(ids, operationId, reason);
 
   @override
-  String toString() => 'InsertBatchMutation(ids: $ids, operationId: $operationId, reason: $reason)';
+  String toString() =>
+      'InsertBatchMutation(ids: $ids, operationId: $operationId, reason: $reason)';
 }
 
 /// An existing message was replaced via [ChatDataSource.updateMessage].
 @immutable
 final class UpdateMutation extends ChatMutation {
   /// Creates an update intent for [messageId].
-  const UpdateMutation({required this.messageId, super.reason}) : super(operationId: messageId);
+  const UpdateMutation({required this.messageId, super.reason})
+    : super(operationId: messageId);
 
   /// Id of the updated message.
   final int messageId;
@@ -109,7 +128,8 @@ final class UpdateMutation extends ChatMutation {
   int get hashCode => Object.hash(messageId, operationId, reason);
 
   @override
-  String toString() => 'UpdateMutation(messageId: $messageId, operationId: $operationId, reason: $reason)';
+  String toString() =>
+      'UpdateMutation(messageId: $messageId, operationId: $operationId, reason: $reason)';
 }
 
 /// One or more messages were replaced via [ChatDataSource.updateMessages].
@@ -119,7 +139,11 @@ final class UpdateBatchMutation extends ChatMutation {
   ///
   /// [ids] MUST be strictly unique and sorted **ascending** (lowest id first).
   /// [operationId] is shared by every id in one `updateMessages` call.
-  const UpdateBatchMutation({required this.ids, required super.operationId, super.reason});
+  const UpdateBatchMutation({
+    required this.ids,
+    required super.operationId,
+    super.reason,
+  });
 
   /// Affected ids in ascending order (oldest / lowest id first).
   final List<int> ids;
@@ -137,7 +161,8 @@ final class UpdateBatchMutation extends ChatMutation {
   int get hashCode => Object.hash(ids, operationId, reason);
 
   @override
-  String toString() => 'UpdateBatchMutation(ids: $ids, operationId: $operationId, reason: $reason)';
+  String toString() =>
+      'UpdateBatchMutation(ids: $ids, operationId: $operationId, reason: $reason)';
 }
 
 /// One or more ids staged for removal via [ChatDataSource.removeMessages].
@@ -147,7 +172,11 @@ final class RemoveBatchMutation extends ChatMutation {
   ///
   /// [ids] MUST be strictly unique and sorted **descending** (highest id first).
   /// [operationId] is shared by every id in one `removeMessages` call.
-  const RemoveBatchMutation({required this.ids, required super.operationId, super.reason});
+  const RemoveBatchMutation({
+    required this.ids,
+    required super.operationId,
+    super.reason,
+  });
 
   /// Affected ids in descending order (newest / highest id first).
   final List<int> ids;
@@ -165,5 +194,6 @@ final class RemoveBatchMutation extends ChatMutation {
   int get hashCode => Object.hash(ids, operationId, reason);
 
   @override
-  String toString() => 'RemoveBatchMutation(ids: $ids, operationId: $operationId, reason: $reason)';
+  String toString() =>
+      'RemoveBatchMutation(ids: $ids, operationId: $operationId, reason: $reason)';
 }

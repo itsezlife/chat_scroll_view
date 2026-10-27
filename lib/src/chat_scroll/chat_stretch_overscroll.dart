@@ -34,7 +34,11 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
   ChatStretchOverscroll([this.effect = const ChatEdgeEffect$Stretch()])
     : _spring = SpringDescription.withDampingRatio(
         mass: 1,
-        stiffness: effect.naturalFrequency * effect.naturalFrequency * _timeCorrectionFactor * _timeCorrectionFactor,
+        stiffness:
+            effect.naturalFrequency *
+            effect.naturalFrequency *
+            _timeCorrectionFactor *
+            _timeCorrectionFactor,
         ratio: effect.dampingRatio,
       );
 
@@ -71,7 +75,8 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
   static const double _timeCorrectionFactor = 0.8;
 
   @override
-  bool get isActive => _simulation != null || _overscroll.abs() > _minPaintStretch;
+  bool get isActive =>
+      _simulation != null || _overscroll.abs() > _minPaintStretch;
 
   @override
   bool get isSpringing => _simulation != null;
@@ -109,7 +114,12 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
   }
 
   @override
-  void pull(double unconsumedPx, double viewportHeight, {double travel = 0, bool fits = false}) {
+  void pull(
+    double unconsumedPx,
+    double viewportHeight, {
+    double travel = 0,
+    bool fits = false,
+  }) {
     if (unconsumedPx == 0 || viewportHeight <= 0) return;
     _simulation = null;
     _clock.restart();
@@ -117,8 +127,13 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
     final normalized = clampDouble(_totalPullPx / viewportHeight, -1, 1);
     final absDistance = normalized.abs();
     final linear = effect.intensity * absDistance;
-    final exponential = effect.intensity * (1 - math.exp(-absDistance * _exponentialScalar));
-    _overscroll = clampDouble(normalized.sign * (linear + exponential) + _interruptedOverscroll, -1, 1);
+    final exponential =
+        effect.intensity * (1 - math.exp(-absDistance * _exponentialScalar));
+    _overscroll = clampDouble(
+      normalized.sign * (linear + exponential) + _interruptedOverscroll,
+      -1,
+      1,
+    );
     Log.fine(.overscroll, 'pull', {
       'unconsumed': LogFormat.f(unconsumedPx),
       'travel': LogFormat.f(travel),
@@ -165,7 +180,10 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
       return true;
     }
     if (flick) {
-      Log.fine(.overscroll, 'drag.end.absorb', {'v': LogFormat.f(velocity), 'from': LogFormat.ratio(_overscroll)});
+      Log.fine(.overscroll, 'drag.end.absorb', {
+        'v': LogFormat.f(velocity),
+        'from': LogFormat.ratio(_overscroll),
+      });
       absorbImpact(velocity);
       return false;
     }
@@ -208,7 +226,9 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
       _totalPullPx = 0;
       return;
     }
-    Log.fine(.overscroll, 'release.intoContent', {'from': LogFormat.ratio(_overscroll)});
+    Log.fine(.overscroll, 'release.intoContent', {
+      'from': LogFormat.ratio(_overscroll),
+    });
     _totalPullPx = 0;
     _startSpring(0);
   }
@@ -242,7 +262,10 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
     }
     _overscroll = clampDouble(simulation.x(seconds), -1, 1);
     if (++_tickFrame % 8 == 1) {
-      Log.fine(.overscroll, 'spring.tick', {'t': LogFormat.ratio(seconds), 'stretch': LogFormat.ratio(_overscroll)});
+      Log.fine(.overscroll, 'spring.tick', {
+        't': LogFormat.ratio(seconds),
+        'stretch': LogFormat.ratio(_overscroll),
+      });
     }
     return true;
   }
@@ -262,7 +285,12 @@ final class ChatStretchOverscroll implements ChatEdgeEffectState {
 
   void _startSpring(double scaledVelocity) {
     _interruptedOverscroll = 0;
-    _simulation = SpringSimulation(_spring, _overscroll, 0, scaledVelocity * _timeCorrectionFactor);
+    _simulation = SpringSimulation(
+      _spring,
+      _overscroll,
+      0,
+      scaledVelocity * _timeCorrectionFactor,
+    );
     _clock.restart();
   }
 }

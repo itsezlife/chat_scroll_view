@@ -64,7 +64,10 @@ void main() {
 
     expect(originAt(51.6).dx, originAt(308.3).dx);
     expect(originAt(51.6).dx, ChatMessageMenuPlacement.edgeInset);
-    expect(originAt(308.3).dx, isNot(384 - ChatMessageMenuPlacement.edgeInset - 252));
+    expect(
+      originAt(308.3).dx,
+      isNot(384 - ChatMessageMenuPlacement.edgeInset - 252),
+    );
   });
 
   test('popup X follows the tap within edge clamps', () {
@@ -91,6 +94,9 @@ void main() {
       presentation: ChatMessageMenuPresentation.popup,
     );
 
-    expect(placement.menuOrigin.dx, 400 - 200 - ChatMessageMenuPlacement.edgeInset);
+    expect(
+      placement.menuOrigin.dx,
+      400 - 200 - ChatMessageMenuPlacement.edgeInset,
+    );
   });
 }

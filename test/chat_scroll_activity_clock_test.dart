@@ -7,12 +7,20 @@ const ChatScrollActivityTiming _timing = ChatScrollActivityTiming();
 /// pending timers and active tickers are checked before `tearDown` runs.
 void _clockTest(
   String description,
-  Future<void> Function(WidgetTester tester, ChatScrollActivityClock clock, int Function() changes) body, {
+  Future<void> Function(
+    WidgetTester tester,
+    ChatScrollActivityClock clock,
+    int Function() changes,
+  )
+  body, {
   ChatScrollActivityTiming timing = _timing,
 }) {
   testWidgets(description, (tester) async {
     var changes = 0;
-    final clock = ChatScrollActivityClock(timing: timing, onChanged: () => changes++);
+    final clock = ChatScrollActivityClock(
+      timing: timing,
+      onChanged: () => changes++,
+    );
     try {
       await body(tester, clock, () => changes);
     } finally {
@@ -33,7 +41,11 @@ void main() {
       expect(clock.value, 0);
     });
 
-    _clockTest('hold eases in along a sine over fadeIn', (tester, clock, changes) async {
+    _clockTest('hold eases in along a sine over fadeIn', (
+      tester,
+      clock,
+      changes,
+    ) async {
       clock.hold();
       expect(clock.value, 0, reason: 'never changes synchronously');
       await tester.pump();
@@ -46,7 +58,11 @@ void main() {
       expect(changes(), greaterThan(0));
     });
 
-    _clockTest('release holds for idleDelay, then fades out', (tester, clock, changes) async {
+    _clockTest('release holds for idleDelay, then fades out', (
+      tester,
+      clock,
+      changes,
+    ) async {
       await _shown(tester, clock);
       clock.release();
 
@@ -59,7 +75,11 @@ void main() {
       expect(clock.value, 0);
     });
 
-    _clockTest('hold during the idle delay cancels the hide', (tester, clock, changes) async {
+    _clockTest('hold during the idle delay cancels the hide', (
+      tester,
+      clock,
+      changes,
+    ) async {
       await _shown(tester, clock);
       clock.release();
       await tester.pump(const Duration(milliseconds: 300));
@@ -68,7 +88,11 @@ void main() {
       expect(clock.value, 1);
     });
 
-    _clockTest('hold mid-fade-out reverses from the current value', (tester, clock, changes) async {
+    _clockTest('hold mid-fade-out reverses from the current value', (
+      tester,
+      clock,
+      changes,
+    ) async {
       await _shown(tester, clock);
       clock.release();
       await tester.pump(const Duration(milliseconds: 500));
@@ -83,7 +107,11 @@ void main() {
       expect(clock.value, 1);
     });
 
-    _clockTest('pulse shows, then hides navigationIdleDelay after the pulse', (tester, clock, changes) async {
+    _clockTest('pulse shows, then hides navigationIdleDelay after the pulse', (
+      tester,
+      clock,
+      changes,
+    ) async {
       clock.pulse();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 150));
@@ -96,7 +124,11 @@ void main() {
       expect(clock.value, 0);
     });
 
-    _clockTest('a release after a navigation hold waits the navigation delay', (tester, clock, changes) async {
+    _clockTest('a release after a navigation hold waits the navigation delay', (
+      tester,
+      clock,
+      changes,
+    ) async {
       clock.hold(navigation: true);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 150));
@@ -108,7 +140,11 @@ void main() {
       expect(clock.value, 0);
     });
 
-    _clockTest('pulse while holding does not schedule a hide', (tester, clock, changes) async {
+    _clockTest('pulse while holding does not schedule a hide', (
+      tester,
+      clock,
+      changes,
+    ) async {
       clock.hold();
       await tester.pump();
       clock.pulse();
@@ -116,7 +152,11 @@ void main() {
       expect(clock.value, 1);
     });
 
-    _clockTest('non-navigation pulse hides idleDelay after the pulse', (tester, clock, changes) async {
+    _clockTest('non-navigation pulse hides idleDelay after the pulse', (
+      tester,
+      clock,
+      changes,
+    ) async {
       clock.pulse(navigation: false);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 150));
@@ -127,7 +167,11 @@ void main() {
       expect(clock.value, 0);
     });
 
-    _clockTest('hide skips a pending delay and fades out now', (tester, clock, changes) async {
+    _clockTest('hide skips a pending delay and fades out now', (
+      tester,
+      clock,
+      changes,
+    ) async {
       clock.pulse();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 150));
@@ -141,7 +185,11 @@ void main() {
       expect(clock.value, 0);
     });
 
-    _clockTest('hide mid-fade-in reverses from the current value', (tester, clock, changes) async {
+    _clockTest('hide mid-fade-in reverses from the current value', (
+      tester,
+      clock,
+      changes,
+    ) async {
       clock.pulse();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 75));
@@ -153,7 +201,11 @@ void main() {
       expect(clock.value, 0);
     });
 
-    _clockTest('hide is a no-op while a hold is active', (tester, clock, changes) async {
+    _clockTest('hide is a no-op while a hold is active', (
+      tester,
+      clock,
+      changes,
+    ) async {
       await _shown(tester, clock);
       clock.hide();
       await tester.pump(const Duration(seconds: 3));
@@ -167,7 +219,11 @@ void main() {
       expect(clock.value, 1);
     });
 
-    _clockTest('a release after hide waits the idle delay again', (tester, clock, changes) async {
+    _clockTest('a release after hide waits the idle delay again', (
+      tester,
+      clock,
+      changes,
+    ) async {
       clock.pulse();
       await tester.pump();
       clock.hide();
@@ -185,7 +241,11 @@ void main() {
       expect(clock.value, 0);
     });
 
-    _clockTest('reports a pending hide that waits out a navigation delay', (tester, clock, changes) async {
+    _clockTest('reports a pending hide that waits out a navigation delay', (
+      tester,
+      clock,
+      changes,
+    ) async {
       expect(clock.isNavigationHidePending, isFalse);
       clock.pulse();
       expect(clock.isNavigationHidePending, isTrue);
@@ -206,7 +266,11 @@ void main() {
       await tester.pump(_timing.fadeOut);
     });
 
-    _clockTest('pinned snaps to 1 without notifying and never hides', (tester, clock, changes) async {
+    _clockTest('pinned snaps to 1 without notifying and never hides', (
+      tester,
+      clock,
+      changes,
+    ) async {
       clock.pinned = true;
       expect(clock.value, 1);
       expect(changes(), 0);
@@ -215,7 +279,11 @@ void main() {
       expect(clock.value, 1);
     });
 
-    _clockTest('pinning mid-fade-out stops the fade at 1', (tester, clock, changes) async {
+    _clockTest('pinning mid-fade-out stops the fade at 1', (
+      tester,
+      clock,
+      changes,
+    ) async {
       await _shown(tester, clock);
       clock.release();
       await tester.pump(const Duration(milliseconds: 500));
@@ -226,7 +294,11 @@ void main() {
       expect(clock.value, 1);
     });
 
-    _clockTest('unpinning waits idleDelay, then fades out', (tester, clock, changes) async {
+    _clockTest('unpinning waits idleDelay, then fades out', (
+      tester,
+      clock,
+      changes,
+    ) async {
       clock.pinned = true;
       clock.pinned = false;
       await tester.pump(const Duration(milliseconds: 499));
@@ -236,7 +308,11 @@ void main() {
       expect(clock.value, 0);
     });
 
-    _clockTest('unpinning while holding waits for release', (tester, clock, changes) async {
+    _clockTest('unpinning while holding waits for release', (
+      tester,
+      clock,
+      changes,
+    ) async {
       clock.hold();
       clock.pinned = true;
       clock.pinned = false;
@@ -254,12 +330,22 @@ void main() {
         await tester.pump(Duration.zero);
         expect(clock.value, 0);
       },
-      timing: const ChatScrollActivityTiming(fadeIn: Duration.zero, fadeOut: Duration.zero, idleDelay: Duration.zero),
+      timing: const ChatScrollActivityTiming(
+        fadeIn: Duration.zero,
+        fadeOut: Duration.zero,
+        idleDelay: Duration.zero,
+      ),
     );
 
-    testWidgets('a clock started shown pulses without a fade-in', (tester) async {
+    testWidgets('a clock started shown pulses without a fade-in', (
+      tester,
+    ) async {
       var changes = 0;
-      final clock = ChatScrollActivityClock(timing: _timing, onChanged: () => changes++, initialValue: 1);
+      final clock = ChatScrollActivityClock(
+        timing: _timing,
+        onChanged: () => changes++,
+        initialValue: 1,
+      );
       try {
         expect(clock.value, 1);
         clock.pulse(navigation: false);
@@ -275,7 +361,11 @@ void main() {
       }
     });
 
-    _clockTest('dispose cancels a pending hide', (tester, clock, changes) async {
+    _clockTest('dispose cancels a pending hide', (
+      tester,
+      clock,
+      changes,
+    ) async {
       clock.hold();
       await tester.pump();
       clock.release();

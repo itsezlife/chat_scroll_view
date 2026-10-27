@@ -17,7 +17,18 @@ const _allCustom = <int, double>{
   9: 22.8,
   10: 22.8,
 };
-const _mixed = <int, double>{1: 40.8, 2: 40.8, 3: 33.6, 4: 26.4, 5: 22.8, 6: 22.8, 7: 22.8, 8: 22.8, 9: 22.8, 10: 22.8};
+const _mixed = <int, double>{
+  1: 40.8,
+  2: 40.8,
+  3: 33.6,
+  4: 26.4,
+  5: 22.8,
+  6: 22.8,
+  7: 22.8,
+  8: 22.8,
+  9: 22.8,
+  10: 22.8,
+};
 
 void main() {
   const sizes = ChatEmojiSizes();
@@ -26,8 +37,14 @@ void main() {
     for (var count = 1; count <= 10; count++) {
       test('$count items: all custom ${_allCustom[count]}, otherwise '
           '${_mixed[count]}', () {
-        expect(sizes.fontSizeFor(count, allCustom: true), closeTo(_allCustom[count]!, 1e-9));
-        expect(sizes.fontSizeFor(count, allCustom: false), closeTo(_mixed[count]!, 1e-9));
+        expect(
+          sizes.fontSizeFor(count, allCustom: true),
+          closeTo(_allCustom[count]!, 1e-9),
+        );
+        expect(
+          sizes.fontSizeFor(count, allCustom: false),
+          closeTo(_mixed[count]!, 1e-9),
+        );
       });
     }
 
@@ -53,7 +70,12 @@ void main() {
     });
 
     test('a zoom of 0.5 shrinks it to 90 dp', () {
-      expect(const ChatEmojiSizes(stickerZoom: 0.5).stickerExtentFor(const Size(360, 640)), 90);
+      expect(
+        const ChatEmojiSizes(
+          stickerZoom: 0.5,
+        ).stickerExtentFor(const Size(360, 640)),
+        90,
+      );
     });
   });
 
@@ -72,6 +94,9 @@ void main() {
   test('equal tables are equal values', () {
     expect(const ChatEmojiSizes(), const ChatEmojiSizes());
     expect(const ChatEmojiSizes().hashCode, const ChatEmojiSizes().hashCode);
-    expect(const ChatEmojiSizes(stickerZoom: 0.5), isNot(const ChatEmojiSizes()));
+    expect(
+      const ChatEmojiSizes(stickerZoom: 0.5),
+      isNot(const ChatEmojiSizes()),
+    );
   });
 }

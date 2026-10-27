@@ -36,9 +36,15 @@ class ChatMessageMenuCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final menuTheme = ChatScrollTheme.menuOf(context);
     final colorScheme = Theme.of(context).colorScheme;
-    final radius = BorderRadius.all(Radius.circular(menuTheme.cardRadius ?? 12));
+    final radius = BorderRadius.all(
+      Radius.circular(menuTheme.cardRadius ?? 12),
+    );
     final fill =
-        menuTheme.cardColor ?? Color.alphaBlend(colorScheme.onSurface.withValues(alpha: 0.08), colorScheme.surface);
+        menuTheme.cardColor ??
+        Color.alphaBlend(
+          colorScheme.onSurface.withValues(alpha: 0.08),
+          colorScheme.surface,
+        );
 
     return Align(
       alignment: Alignment.topLeft,
@@ -52,7 +58,11 @@ class ChatMessageMenuCard extends StatelessWidget {
             boxShadow:
                 menuTheme.cardShadow ??
                 const <BoxShadow>[
-                  BoxShadow(color: Color.fromRGBO(0, 0, 0, 0.35), blurRadius: 12, offset: Offset(0, 4)),
+                  BoxShadow(
+                    color: Color.fromRGBO(0, 0, 0, 0.35),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
                 ],
           ),
           child: Material(
@@ -73,7 +83,12 @@ class ChatMessageMenuCard extends StatelessWidget {
 /// Vertical action list.
 class ChatMessageMenuActionList extends StatelessWidget {
   /// Creates an action list card.
-  const ChatMessageMenuActionList({required this.items, required this.onSelect, this.itemBuilder, super.key});
+  const ChatMessageMenuActionList({
+    required this.items,
+    required this.onSelect,
+    this.itemBuilder,
+    super.key,
+  });
 
   /// Rows to show.
   final List<ChatMessageMenuItem> items;
@@ -105,11 +120,17 @@ class ChatMessageMenuActionList extends StatelessWidget {
               ChatMessageMenuDivider() => Divider(
                 height: 1,
                 thickness: 1,
-                color: menuTheme.dividerColor ?? colorScheme.outlineVariant.withValues(alpha: 0.45),
+                color:
+                    menuTheme.dividerColor ??
+                    colorScheme.outlineVariant.withValues(alpha: 0.45),
               ),
               ChatMessageMenuCustom(:final builder) => builder(context),
               ChatMessageMenuAction() =>
-                itemBuilder?.call(context, item, item.enabled ? () => onSelect(item.id) : null) ??
+                itemBuilder?.call(
+                      context,
+                      item,
+                      item.enabled ? () => onSelect(item.id) : null,
+                    ) ??
                     _ActionRow(
                       item: item,
                       onSurface: onSurface,
@@ -124,7 +145,12 @@ class ChatMessageMenuActionList extends StatelessWidget {
 }
 
 class _ActionRow extends StatelessWidget {
-  const _ActionRow({required this.item, required this.onSurface, required this.error, required this.onTap});
+  const _ActionRow({
+    required this.item,
+    required this.onSurface,
+    required this.error,
+    required this.onTap,
+  });
 
   final ChatMessageMenuAction item;
   final Color onSurface;
@@ -147,21 +173,34 @@ class _ActionRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: SizedBox(
-          height: menuTheme.actionTileHeight ?? ChatMessageMenuActionList._tileHeight,
+          height:
+              menuTheme.actionTileHeight ??
+              ChatMessageMenuActionList._tileHeight,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: ChatMessageMenuActionList._tilePadding),
+            padding: const EdgeInsets.symmetric(
+              horizontal: ChatMessageMenuActionList._tilePadding,
+            ),
             child: Row(
               children: <Widget>[
-                Icon(item.icon, size: menuTheme.actionIconSize ?? ChatMessageMenuActionList._iconSize, color: color),
+                Icon(
+                  item.icon,
+                  size:
+                      menuTheme.actionIconSize ??
+                      ChatMessageMenuActionList._iconSize,
+                  color: color,
+                ),
                 const SizedBox(width: 19),
                 Expanded(
                   child: Text(
                     item.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: (menuTheme.actionLabelStyle ?? theme.textTheme.labelLarge?.copyWith(fontSize: 16))?.copyWith(
-                      color: color,
-                    ),
+                    style:
+                        (menuTheme.actionLabelStyle ??
+                                theme.textTheme.labelLarge?.copyWith(
+                                  fontSize: 16,
+                                ))
+                            ?.copyWith(color: color),
                   ),
                 ),
               ],

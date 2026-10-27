@@ -5,17 +5,27 @@ import 'package:flutter/widgets.dart';
 ///
 /// Dividers and custom rows are not passed here.
 typedef ChatMessageMenuItemBuilder =
-    Widget Function(BuildContext context, ChatMessageMenuAction item, VoidCallback? onSelect);
+    Widget Function(
+      BuildContext context,
+      ChatMessageMenuAction item,
+      VoidCallback? onSelect,
+    );
 
 /// Builds one reaction slot.
-typedef ChatMessageMenuReactionBuilder = Widget Function(BuildContext context, String reaction, VoidCallback onSelect);
+typedef ChatMessageMenuReactionBuilder =
+    Widget Function(
+      BuildContext context,
+      String reaction,
+      VoidCallback onSelect,
+    );
 
 /// Builds the floating chrome (reactions + actions).
 ///
 /// Scrim, placement, enter/leave, back, and presence stay package-owned.
 /// Reuse [ChatMessageMenuSlots.reactionStrip] and
 /// [ChatMessageMenuSlots.actionList] to keep the defaults.
-typedef ChatMessageMenuBuilder = Widget Function(BuildContext context, ChatMessageMenuSlots slots);
+typedef ChatMessageMenuBuilder =
+    Widget Function(BuildContext context, ChatMessageMenuSlots slots);
 
 /// Default chrome pieces and the data they were built from.
 @immutable

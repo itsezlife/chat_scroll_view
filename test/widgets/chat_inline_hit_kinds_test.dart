@@ -18,7 +18,14 @@ void main() {
     test('is an embed with its target and alt, not a link', () {
       final hit = hitAt('hi ![:wave:](unicode:1F44B) there', 4);
 
-      expect(hit, const ChatInlineHit.embed(messageId: 1, target: 'unicode:1F44B', alt: ':wave:'));
+      expect(
+        hit,
+        const ChatInlineHit.embed(
+          messageId: 1,
+          target: 'unicode:1F44B',
+          alt: ':wave:',
+        ),
+      );
     });
 
     test('is an embed whatever its scheme', () {
@@ -29,8 +36,16 @@ void main() {
     });
 
     test('is never a link', () {
-      for (final source in ['![a](unicode:1F44B)', '![a](https://a.b/c.png)', '![a](mention:1)']) {
-        expect(hitAt(source, 0), isNot(isA<ChatInlineHit$Link>()), reason: source);
+      for (final source in [
+        '![a](unicode:1F44B)',
+        '![a](https://a.b/c.png)',
+        '![a](mention:1)',
+      ]) {
+        expect(
+          hitAt(source, 0),
+          isNot(isA<ChatInlineHit$Link>()),
+          reason: source,
+        );
       }
     });
   });
@@ -39,7 +54,14 @@ void main() {
     test('a resolved mention carries its id and label', () {
       final hit = hitAt('see [@Ann](mention:42) now', 6);
 
-      expect(hit, const ChatInlineHit.resolvedMention(messageId: 1, id: '42', name: '@Ann'));
+      expect(
+        hit,
+        const ChatInlineHit.resolvedMention(
+          messageId: 1,
+          id: '42',
+          name: '@Ann',
+        ),
+      );
       // The id is not nullable on the resolved variant: no null check needed.
       final id = switch (hit) {
         ChatInlineHit$Mention$Resolved(:final id) => id,
@@ -51,12 +73,19 @@ void main() {
     test('a username carries its name and no id', () {
       final hit = hitAt('see [@ann](username:ann) now', 6);
 
-      expect(hit, const ChatInlineHit.usernameMention(messageId: 1, name: 'ann'));
+      expect(
+        hit,
+        const ChatInlineHit.usernameMention(messageId: 1, name: 'ann'),
+      );
       expect(hit, isA<ChatInlineHit$Mention$Username>());
     });
 
     test('both spellings are mentions, and different ones', () {
-      const resolved = ChatInlineHit.resolvedMention(messageId: 1, id: 'ann', name: 'ann');
+      const resolved = ChatInlineHit.resolvedMention(
+        messageId: 1,
+        id: 'ann',
+        name: 'ann',
+      );
       const username = ChatInlineHit.usernameMention(messageId: 1, name: 'ann');
 
       expect(resolved, isA<ChatInlineHit$Mention>());
@@ -71,8 +100,16 @@ void main() {
     });
 
     test('is not a link', () {
-      for (final source in ['[@a](mention:1)', '[@a](username:a)', '[#t](hashtag:t)']) {
-        expect(hitAt(source, 1), isNot(isA<ChatInlineHit$Link>()), reason: source);
+      for (final source in [
+        '[@a](mention:1)',
+        '[@a](username:a)',
+        '[#t](hashtag:t)',
+      ]) {
+        expect(
+          hitAt(source, 1),
+          isNot(isA<ChatInlineHit$Link>()),
+          reason: source,
+        );
       }
     });
   });
@@ -81,7 +118,14 @@ void main() {
     test('a plain link is still a link', () {
       final hit = hitAt('a [site](https://a.b) b', 3);
 
-      expect(hit, const ChatInlineHit.link(messageId: 1, title: 'site', url: 'https://a.b'));
+      expect(
+        hit,
+        const ChatInlineHit.link(
+          messageId: 1,
+          title: 'site',
+          url: 'https://a.b',
+        ),
+      );
     });
 
     test('inline code is still code', () {
@@ -101,7 +145,12 @@ void main() {
     });
 
     test('a mention, an embed and a hashtag are no hit either', () {
-      for (final source in ['||[@a](mention:1)||', '||![a](unicode:1F44B)||', '||[#t](hashtag:t)||', '||`code`||']) {
+      for (final source in [
+        '||[@a](mention:1)||',
+        '||![a](unicode:1F44B)||',
+        '||[#t](hashtag:t)||',
+        '||`code`||',
+      ]) {
         expect(hitAt(source, 0), isNull, reason: source);
       }
     });

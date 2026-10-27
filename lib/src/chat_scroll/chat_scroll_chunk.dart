@@ -36,7 +36,8 @@ class ChatScrollChunk {
     if (fromId > toId) return false;
     final fromChunk = chunkOf(fromId);
     final toChunk = chunkOf(toId);
-    return fromId == firstIdOf(fromChunk) && toId == firstIdOf(toChunk) + kSize - 1;
+    return fromId == firstIdOf(fromChunk) &&
+        toId == firstIdOf(toChunk) + kSize - 1;
   }
 
   /// The chunk index, calculated as messageId >> kBits.
@@ -119,7 +120,10 @@ class ChatScrollChunk {
   /// Idempotent — a no-op when the slot is already absent (count unchanged).
   void markAbsentSlot(int slot) {
     assert(slot >= 0 && slot < kSize, 'slot $slot out of [0, $kSize)');
-    assert(messages[slot] == null, 'Cannot mark slot $slot absent: messages[$slot] is non-null');
+    assert(
+      messages[slot] == null,
+      'Cannot mark slot $slot absent: messages[$slot] is non-null',
+    );
     if (_absent[slot] == 0) {
       _absent[slot] = 1;
       _absentCount++;

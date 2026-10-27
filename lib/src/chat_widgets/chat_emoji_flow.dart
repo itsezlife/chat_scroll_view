@@ -40,7 +40,8 @@ final class ChatEmojiFlow {
       if (i > 0 && breaks > 0) {
         line += breaks;
         column = 0;
-      } else if (column > 0 && (column + 1) * box + column * skip > maxWidth + _slack) {
+      } else if (column > 0 &&
+          (column + 1) * box + column * skip > maxWidth + _slack) {
         line++;
         column = 0;
       }
@@ -68,7 +69,9 @@ final class ChatEmojiFlow {
     Rect? lastLine;
     for (var i = 0; i < cells.length; i++) {
       if (cells[i].$1 == last) {
-        lastLine = lastLine == null ? rects[i] : lastLine.expandToInclude(rects[i]);
+        lastLine = lastLine == null
+            ? rects[i]
+            : lastLine.expandToInclude(rects[i]);
       }
     }
     return ChatEmojiFlow._(

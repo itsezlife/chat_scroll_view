@@ -9,16 +9,17 @@ void main() {
   const textStyle = TextStyle(fontSize: 16, height: 1);
 
   /// Loose max-width only — shrink-wrap needs `minWidth == 0`.
-  Widget harness({required Widget body, double width = maxWidth}) => Directionality(
-    textDirection: TextDirection.ltr,
-    child: Align(
-      alignment: Alignment.topLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: width),
-        child: body,
-      ),
-    ),
-  );
+  Widget harness({required Widget body, double width = maxWidth}) =>
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: width),
+            child: body,
+          ),
+        ),
+      );
 
   Size sizeOf(WidgetTester tester, Finder finder) => tester.getSize(finder);
 
@@ -29,7 +30,9 @@ void main() {
   }
 
   group('ChatMessageBody', () {
-    testWidgets('short single line packs meta inline and shrink-wraps width', (tester) async {
+    testWidgets('short single line packs meta inline and shrink-wraps width', (
+      tester,
+    ) async {
       const contentKey = ValueKey('content');
       const metaKey = ValueKey('meta');
 
@@ -49,7 +52,10 @@ void main() {
 
       expect(bodySize.height, contentSize.height);
       expect(bodySize.width, lessThan(maxWidth));
-      expect(bodySize.width, closeTo(contentSize.width + spacing + metaSize.width, 1.0));
+      expect(
+        bodySize.width,
+        closeTo(contentSize.width + spacing + metaSize.width, 1.0),
+      );
 
       final metaOffset = offsetOf(tester, metaKey);
       expect(metaOffset.dy, closeTo(bodySize.height - metaSize.height, 0.5));
@@ -84,7 +90,9 @@ void main() {
       expect(metaOffset.dx, closeTo(bodySize.width - metaSize.width, 0.5));
     });
 
-    testWidgets('multi-line with short last line keeps meta inline', (tester) async {
+    testWidgets('multi-line with short last line keeps meta inline', (
+      tester,
+    ) async {
       const contentKey = ValueKey('content');
       const metaKey = ValueKey('meta');
 
@@ -128,7 +136,10 @@ void main() {
       expect(offsetOf(tester, contentKey), const Offset(8, 4));
       final bodySize = sizeOf(tester, find.byType(ChatMessageBody));
       final metaSize = sizeOf(tester, find.byKey(metaKey));
-      expect(offsetOf(tester, metaKey).dx, closeTo(bodySize.width - padding.right - metaSize.width, 0.5));
+      expect(
+        offsetOf(tester, metaKey).dx,
+        closeTo(bodySize.width - padding.right - metaSize.width, 0.5),
+      );
     });
 
     testWidgets('meta-only sizes to meta plus padding', (tester) async {
@@ -148,7 +159,9 @@ void main() {
       expect(offsetOf(tester, metaKey), const Offset(5, 5));
     });
 
-    testWidgets('wide header trails meta at body end for short content', (tester) async {
+    testWidgets('wide header trails meta at body end for short content', (
+      tester,
+    ) async {
       const headerKey = ValueKey('header');
       const contentKey = ValueKey('content');
       const metaKey = ValueKey('meta');
@@ -181,21 +194,33 @@ void main() {
             spacing: spacing,
             content: GestureDetector(
               onTap: () => contentTaps++,
-              child: const SizedBox(width: 80, height: 40, child: ColoredBox(color: Color(0xFF00FF00))),
+              child: const SizedBox(
+                width: 80,
+                height: 40,
+                child: ColoredBox(color: Color(0xFF00FF00)),
+              ),
             ),
             meta: GestureDetector(
               onTap: () => metaTaps++,
-              child: const SizedBox(width: 30, height: 12, child: ColoredBox(color: Color(0xFFFF0000))),
+              child: const SizedBox(
+                width: 30,
+                height: 12,
+                child: ColoredBox(color: Color(0xFFFF0000)),
+              ),
             ),
           ),
         ),
       );
 
-      final bodyBox = tester.renderObject<RenderBox>(find.byType(ChatMessageBody));
+      final bodyBox = tester.renderObject<RenderBox>(
+        find.byType(ChatMessageBody),
+      );
       final bodyTopLeft = tester.getTopLeft(find.byType(ChatMessageBody));
 
       // Meta sits bottom-right when short content packs inline.
-      await tester.tapAt(bodyTopLeft + Offset(bodyBox.size.width - 5, bodyBox.size.height - 5));
+      await tester.tapAt(
+        bodyTopLeft + Offset(bodyBox.size.width - 5, bodyBox.size.height - 5),
+      );
       expect(metaTaps, 1);
 
       await tester.tapAt(bodyTopLeft + const Offset(10, 10));

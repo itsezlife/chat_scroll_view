@@ -50,9 +50,11 @@ class ChatMessageMenuHost extends StatefulWidget {
   State<ChatMessageMenuHost> createState() => _ChatMessageMenuHostState();
 }
 
-class _ChatMessageMenuHostState extends State<ChatMessageMenuHost> with SingleTickerProviderStateMixin {
+class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
+    with SingleTickerProviderStateMixin {
   final GlobalKey _menuKey = GlobalKey();
-  final GlobalKey<ChatMessageMenuAppearanceState> _appearanceKey = GlobalKey<ChatMessageMenuAppearanceState>();
+  final GlobalKey<ChatMessageMenuAppearanceState> _appearanceKey =
+      GlobalKey<ChatMessageMenuAppearanceState>();
 
   AnimationController? _scrim;
   late final ChatPreImeBackClaim _backClaim;
@@ -64,7 +66,10 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost> with SingleTi
     super.initState();
     switch (widget.config.presentation) {
       case ChatMessageMenuPresentation.sheet:
-        _scrim = AnimationController(vsync: this, duration: ChatMessageMenuScrim.duration)..forward();
+        _scrim = AnimationController(
+          vsync: this,
+          duration: ChatMessageMenuScrim.duration,
+        )..forward();
       case ChatMessageMenuPresentation.popup:
         break;
     }
@@ -184,7 +189,8 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost> with SingleTi
       items: config.items,
       reactions: config.reactions,
       onSelectItem: (id) => _close(ChatMessageMenuResult.item(id)),
-      onSelectReaction: (emoji) => _close(ChatMessageMenuResult.reaction(emoji)),
+      onSelectReaction: (emoji) =>
+          _close(ChatMessageMenuResult.reaction(emoji)),
       actionList: ChatMessageMenuActionList(
         items: config.items,
         onSelect: (id) => _close(ChatMessageMenuResult.item(id)),
@@ -194,7 +200,8 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost> with SingleTi
           ? const SizedBox.shrink()
           : ChatMessageMenuReactions(
               reactions: config.reactions,
-              onReaction: (emoji) => _close(ChatMessageMenuResult.reaction(emoji)),
+              onReaction: (emoji) =>
+                  _close(ChatMessageMenuResult.reaction(emoji)),
               reactionBuilder: config.reactionBuilder,
             ),
     );
@@ -229,10 +236,13 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost> with SingleTi
                           ChatMessageMenuCard.defaultMinWidth +
                               ChatMessageMenuReactions.startOverhang +
                               ChatMessageMenuReactions.endOverhang,
-                          screenSize.width - 2 * ChatMessageMenuPlacement.edgeInset,
+                          screenSize.width -
+                              2 * ChatMessageMenuPlacement.edgeInset,
                         ),
                       ),
-                      child: config.menuBuilder?.call(context, slots) ?? ChatMessageMenuColumn(slots: slots),
+                      child:
+                          config.menuBuilder?.call(context, slots) ??
+                          ChatMessageMenuColumn(slots: slots),
                     ),
                   ),
                 ),

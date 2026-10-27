@@ -8,7 +8,12 @@ import 'package:meta/meta.dart';
 @immutable
 sealed class ChatMessage implements IChatMessage {
   /// Shared fields for every message leaf — [id], [sender], and timestamps.
-  const ChatMessage({required this.id, required this.sender, required this.updatedAt, required this.createdAt});
+  const ChatMessage({
+    required this.id,
+    required this.sender,
+    required this.updatedAt,
+    required this.createdAt,
+  });
 
   @override
   final int id;

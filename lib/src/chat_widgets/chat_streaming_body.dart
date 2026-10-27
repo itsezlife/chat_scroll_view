@@ -13,7 +13,8 @@ import 'package:flutter_md/flutter_md.dart';
 /// frames by hand instead of pumping a real binding.
 typedef ChatStreamingFrameScheduler = void Function(VoidCallback onFrame);
 
-void _scheduleNextFrame(VoidCallback onFrame) => SchedulerBinding.instance.scheduleFrameCallback((_) => onFrame());
+void _scheduleNextFrame(VoidCallback onFrame) =>
+    SchedulerBinding.instance.scheduleFrameCallback((_) => onFrame());
 
 /// The text of one streaming chat row, as a [ValueListenable] of [Markdown].
 ///
@@ -32,7 +33,8 @@ void _scheduleNextFrame(VoidCallback onFrame) => SchedulerBinding.instance.sched
 /// [dispose] is a silent no-op (a late delta of a cancelled stream is normal
 /// and must not throw or revive the row). [settle] after [settle] is a no-op
 /// too; after [dispose] it is also a no-op.
-class ChatStreamingBodyController extends ChangeNotifier implements ValueListenable<Markdown> {
+class ChatStreamingBodyController extends ChangeNotifier
+    implements ValueListenable<Markdown> {
   /// Creates a live controller with no text.
   ///
   /// [decoder] configures the parser as for `Markdown.fromString`.
@@ -169,7 +171,8 @@ class _ChatStreamingBodyState extends State<ChatStreamingBody> {
       oldWidget.body.removeListener(_put);
       widget.body.addListener(_put);
     }
-    if (oldWidget.messageId != widget.messageId || oldWidget.controller != widget.controller) {
+    if (oldWidget.messageId != widget.messageId ||
+        oldWidget.controller != widget.controller) {
       _remove(oldWidget.controller, oldWidget.messageId);
     }
     _put();
@@ -190,7 +193,12 @@ class _ChatStreamingBodyState extends State<ChatStreamingBody> {
 
   void _put() {
     if (!_registers) return;
-    _token = widget.controller.putBody(widget.messageId, widget.body.value, order: widget.messageId, token: _token);
+    _token = widget.controller.putBody(
+      widget.messageId,
+      widget.body.value,
+      order: widget.messageId,
+      token: _token,
+    );
   }
 
   @override
