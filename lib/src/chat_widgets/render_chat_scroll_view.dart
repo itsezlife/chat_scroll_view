@@ -362,6 +362,7 @@ class RenderChatScrollView extends RenderBox {
     _lastNewestLaidOutHeight = null;
     _lastLaidOutBottomPad = null;
     _bottomPadCompensationBase = null;
+    _lastLaidOutHeight = null;
     _userPreemptedTailSettle = false;
     _floatingHeaderController.resetOnDataSourceChange();
     _chunkFetchScheduler.resetLayoutRange();
@@ -542,6 +543,12 @@ class RenderChatScrollView extends RenderBox {
   /// [bottomPadding] value applied on the previous layout — seeds on first
   /// layout without scrolling so an initial inset does not jump content.
   double? _lastLaidOutBottomPad;
+
+  /// Viewport height of the previous normal-mode layout; seeds on first layout.
+  /// Lets [_compensateViewportHeightChange] see the band edge move when the
+  /// host resizes the viewport itself (keyboard inset applied by the parent
+  /// layout rather than through [bottomPadding]).
+  double? _lastLaidOutHeight;
 
   /// Pre-change bottom inset captured when [bottomPadding] starts changing.
   /// Survives a concurrent [dataSource] swap in the same `updateRenderObject`
@@ -1785,6 +1792,7 @@ class RenderChatScrollView extends RenderBox {
       _userPreemptedTailSettle = false;
       _lastLaidOutBottomPad = null;
       _bottomPadCompensationBase = null;
+      _lastLaidOutHeight = null;
       // Drop our listener first — cancelFetch notifies, and a `markNeedsLayout`
       // on a detaching render object is brittle even if currently harmless.
       // We do cancel the running fetch / retry timer here: the dominant case is
@@ -2029,6 +2037,26 @@ class RenderChatScrollView extends RenderBox {
     if (_animator.isAnimating && !_animator.farAnimateActive) {
       _animator.shiftClosePathByInset(delta);
     }
+  }
+
+  /// Keeps the tail pinned when the viewport itself shrinks or grows while the
+  /// user is at the tail. The band bottom moves by the height delta; without
+  /// a matching scroll shift the newest row ends up below the new band edge,
+  /// [_computeIsAtTail] turns false and following dies for the rest of the
+  /// stream. Off the tail nothing moves: the reader's history stays put and
+  /// only the band edge changes.
+  void _compensateViewportHeightChange() {
+    final current = size.height;
+    final previous = _lastLaidOutHeight;
+    _lastLaidOutHeight = current;
+    if (previous == null || previous == current) return;
+    if (!_wasAtTailLastLayout || _overlayKind != ChatOverlayKind.none) return;
+    _fetchAnchorEvent('layout.viewportHeightCompensate', {
+      ..._fetchAnchorSnapshot(),
+      'prev': LogFormat.f(previous),
+      'current': LogFormat.f(current),
+    });
+    _controller.applyScrollDelta(current - previous);
   }
 
   void _onTopPaddingChanged() => markNeedsLayout();
@@ -2585,6 +2613,7 @@ class RenderChatScrollView extends RenderBox {
     }
 
     _compensateBottomPaddingChange();
+    _compensateViewportHeightChange();
 
     final rowChromeChanged = _rowChromeChanged;
     _rowChromeChanged = false;

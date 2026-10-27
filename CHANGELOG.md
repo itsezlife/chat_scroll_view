@@ -1,5 +1,14 @@
 ## Unreleased
 
+### Follow tail
+- **FIXED**: following the tail survives the viewport shrinking while at the
+  tail (keyboard opening, the host resizing the chat). The newest row used to
+  end up below the new band edge, `isAtTail` turned false and new messages or
+  a growing last row stopped being followed. The anchor now shifts by the
+  height delta while at the tail; off the tail history stays put.
+- **CHANGED**: Follow tail now covers the last row growing in place; scrolling
+  up mid-stream stops following and history moves 0 px.
+
 ### Streaming text in a row
 - **ADDED**: `ChatStreamingBodyController` and `ChatStreamingBody`: the text of
   a row that grows while its message object stays fixed (an LLM reply over any

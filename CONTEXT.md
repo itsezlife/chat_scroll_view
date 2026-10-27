@@ -126,7 +126,7 @@ An edge effect that translates the message layer past the pressed edge with grow
 _Avoid_: Bounce, iOS overscroll (as the name), layout rubber-banding
 
 **Follow tail**:
-Keeping the newest message pinned to the band bottom as new content arrives, only while the user is at the tail.
+Keeping the newest message pinned to the band bottom as new content arrives, only while the user is at the tail. New content is a new newest message, the last row growing in place (a streaming reply), or the band shrinking or growing under the tail (keyboard, composer, viewport resize). Scrolling away stops following: history then moves 0 px while the last row keeps growing.
 _Avoid_: Stick to bottom, jump to end, keyboard follow
 
 **Short content**:
