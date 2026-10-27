@@ -21,19 +21,11 @@ class _LoadedSource extends ChatDataSource {
   _LoadedSource(List<IChatMessage> messages) {
     upsertMessages(messages);
     final ids = messages.map((m) => m.id).toList()..sort();
-    seedBoundaries(
-      oldestKnownId: ids.first,
-      newestKnownId: ids.last,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: ids.first, newestKnownId: ids.last, reachedOldest: true, reachedNewest: true);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 Widget _harness({
@@ -50,10 +42,8 @@ Widget _harness({
           dataSource: dataSource,
           controller: controller,
           selectionController: selection,
-          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
-            height: 60,
-            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-          ),
+          messageBuilder: (context, id, message, status, runLayout) =>
+              SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
         ),
       ),
     ),
@@ -98,52 +88,29 @@ Future<ChatSelectionController> _pumpTail({
 
 void main() {
   group('ChatScrollView selection cap', () {
-    testWidgets(
-      'default cap is null so a select span grows without a hardcoded 100',
-      (tester) async {
-        const count = 32;
-        final controller = ChatScrollController()..jumpTo(count - 1);
-        final selection = await _pumpTail(
-          tester: tester,
-          controller: controller,
-        );
+    testWidgets('default cap is null so a select span grows without a hardcoded 100', (tester) async {
+      const count = 32;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final selection = await _pumpTail(tester: tester, controller: controller);
 
-        expect(selection.selectionCap, isNull);
+      expect(selection.selectionCap, isNull);
 
-        final gesture = await _longPressHold(
-          tester,
-          find.text('msg-${count - 1}'),
-        );
-        await gesture.moveTo(tester.getCenter(find.text('msg-${count - 4}')));
-        await tester.pump();
+      final gesture = await _longPressHold(tester, find.text('msg-${count - 1}'));
+      await gesture.moveTo(tester.getCenter(find.text('msg-${count - 4}')));
+      await tester.pump();
 
-        expect(selection.selectedIds, {
-          count - 1,
-          count - 2,
-          count - 3,
-          count - 4,
-        });
-        expect(selection.capHits.value, 0);
-        await gesture.up();
-      },
-    );
+      expect(selection.selectedIds, {count - 1, count - 2, count - 3, count - 4});
+      expect(selection.capHits.value, 0);
+      await gesture.up();
+    });
 
-    testWidgets('select span does not add ids past the host cap', (
-      tester,
-    ) async {
+    testWidgets('select span does not add ids past the host cap', (tester) async {
       const count = 32;
       const cap = 3;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      final selection = await _pumpTail(
-        tester: tester,
-        controller: controller,
-        selectionCap: cap,
-      );
+      final selection = await _pumpTail(tester: tester, controller: controller, selectionCap: cap);
 
-      final gesture = await _longPressHold(
-        tester,
-        find.text('msg-${count - 1}'),
-      );
+      final gesture = await _longPressHold(tester, find.text('msg-${count - 1}'));
       await gesture.moveTo(tester.getCenter(find.text('msg-${count - 6}')));
       await tester.pump();
 
@@ -157,55 +124,36 @@ void main() {
       await gesture.up();
     });
 
-    testWidgets(
-      'at cap, auto-scroll in the grow direction does not move the scroll anchor',
-      (tester) async {
-        const count = 32;
-        const cap = 3;
-        final controller = ChatScrollController()..jumpTo(count - 1);
-        final selection = await _pumpTail(
-          tester: tester,
-          controller: controller,
-          selectionCap: cap,
-        );
+    testWidgets('at cap, auto-scroll in the grow direction does not move the scroll anchor', (tester) async {
+      const count = 32;
+      const cap = 3;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final selection = await _pumpTail(tester: tester, controller: controller, selectionCap: cap);
 
-        final gesture = await _longPressHold(
-          tester,
-          find.text('msg-${count - 1}'),
-        );
-        await gesture.moveTo(_viewTopBand(tester));
-        await tester.pump();
-        expect(selection.count, cap);
+      final gesture = await _longPressHold(tester, find.text('msg-${count - 1}'));
+      await gesture.moveTo(_viewTopBand(tester));
+      await tester.pump();
+      expect(selection.count, cap);
 
-        final anchorY = controller.anchorPixelOffset;
-        final anchorId = controller.anchorMessageId;
-        await tester.pump(const Duration(milliseconds: 400));
+      final anchorY = controller.anchorPixelOffset;
+      final anchorId = controller.anchorMessageId;
+      await tester.pump(const Duration(milliseconds: 400));
 
-        expect(selection.count, cap);
-        expect(controller.anchorPixelOffset, anchorY);
-        expect(controller.anchorMessageId, anchorId);
-        await tester.pump();
-        expect(selection.capHits.value, greaterThan(0));
-        await gesture.up();
-      },
-    );
+      expect(selection.count, cap);
+      expect(controller.anchorPixelOffset, anchorY);
+      expect(controller.anchorMessageId, anchorId);
+      await tester.pump();
+      expect(selection.capHits.value, greaterThan(0));
+      await gesture.up();
+    });
 
-    testWidgets('auto-scroll that reaches the cap bumps capHits', (
-      tester,
-    ) async {
+    testWidgets('auto-scroll that reaches the cap bumps capHits', (tester) async {
       const count = 32;
       const cap = 12;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      final selection = await _pumpTail(
-        tester: tester,
-        controller: controller,
-        selectionCap: cap,
-      );
+      final selection = await _pumpTail(tester: tester, controller: controller, selectionCap: cap);
 
-      final gesture = await _longPressHold(
-        tester,
-        find.text('msg-${count - 1}'),
-      );
+      final gesture = await _longPressHold(tester, find.text('msg-${count - 1}'));
       await gesture.moveTo(_viewTopBand(tester));
       await tester.pump();
       expect(selection.count, lessThan(cap));
@@ -224,117 +172,82 @@ void main() {
       await gesture.up();
     });
 
-    testWidgets(
-      'auto-scroll over already-selected messages does not bump capHits',
-      (tester) async {
-        const cap = 10;
-        final controller = ChatScrollController()..jumpTo(19);
-        final selection = await _pumpTail(
-          tester: tester,
-          controller: controller,
-          count: 29,
-          selectionCap: cap,
-        );
-        for (var id = 20; id <= 28; id++) {
-          selection.startSelection(id);
-        }
-        expect(selection.count, 9);
+    testWidgets('auto-scroll over already-selected messages does not bump capHits', (tester) async {
+      const cap = 10;
+      final controller = ChatScrollController()..jumpTo(19);
+      final selection = await _pumpTail(tester: tester, controller: controller, count: 29, selectionCap: cap);
+      for (var id = 20; id <= 28; id++) {
+        selection.startSelection(id);
+      }
+      expect(selection.count, 9);
 
-        final gesture = await _longPressHold(tester, find.text('msg-19'));
-        expect(selection.count, cap);
-        expect(selection.capHits.value, 0);
+      final gesture = await _longPressHold(tester, find.text('msg-19'));
+      expect(selection.count, cap);
+      expect(selection.capHits.value, 0);
 
-        await gesture.moveTo(_viewBottomBand(tester));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 16));
-        await tester.pump(const Duration(milliseconds: 16));
+      await gesture.moveTo(_viewBottomBand(tester));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 16));
 
-        expect(selection.capHits.value, 0);
-        expect(selection.count, cap);
-        await gesture.up();
-      },
-    );
+      expect(selection.capHits.value, 0);
+      expect(selection.count, cap);
+      await gesture.up();
+    });
 
-    testWidgets(
-      'at cap, moving back toward the origin drops this gesture\'s extra ids',
-      (tester) async {
-        const count = 32;
-        const cap = 3;
-        final controller = ChatScrollController()..jumpTo(count - 1);
-        final selection = await _pumpTail(
-          tester: tester,
-          controller: controller,
-          selectionCap: cap,
-        );
+    testWidgets('at cap, moving back toward the origin drops this gesture\'s extra ids', (tester) async {
+      const count = 32;
+      const cap = 3;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final selection = await _pumpTail(tester: tester, controller: controller, selectionCap: cap);
 
-        final gesture = await _longPressHold(
-          tester,
-          find.text('msg-${count - 1}'),
-        );
-        await gesture.moveTo(tester.getCenter(find.text('msg-${count - 6}')));
-        await tester.pump();
-        expect(selection.selectedIds, {count - 1, count - 2, count - 3});
+      final gesture = await _longPressHold(tester, find.text('msg-${count - 1}'));
+      await gesture.moveTo(tester.getCenter(find.text('msg-${count - 6}')));
+      await tester.pump();
+      expect(selection.selectedIds, {count - 1, count - 2, count - 3});
 
-        await gesture.moveTo(tester.getCenter(find.text('msg-${count - 1}')));
-        await tester.pump();
-        expect(selection.selectedIds, {count - 1});
-        await gesture.up();
-      },
-    );
+      await gesture.moveTo(tester.getCenter(find.text('msg-${count - 1}')));
+      await tester.pump();
+      expect(selection.selectedIds, {count - 1});
+      await gesture.up();
+    });
 
-    testWidgets(
-      'at cap, auto-scroll toward the gesture origin still moves the scroll anchor',
-      (tester) async {
-        const cap = 3;
-        const origin = 8;
-        final controller = ChatScrollController()..jumpTo(origin);
-        final selection = await _pumpTail(
-          tester: tester,
-          controller: controller,
-          selectionCap: cap,
-        );
+    testWidgets('at cap, auto-scroll toward the gesture origin still moves the scroll anchor', (tester) async {
+      const cap = 3;
+      const origin = 8;
+      final controller = ChatScrollController()..jumpTo(origin);
+      final selection = await _pumpTail(tester: tester, controller: controller, selectionCap: cap);
 
-        final gesture = await _longPressHold(tester, find.text('msg-$origin'));
-        await gesture.moveTo(_viewBottomBand(tester));
-        await tester.pump();
-        expect(selection.count, cap);
-        final frozenY = controller.anchorPixelOffset;
+      final gesture = await _longPressHold(tester, find.text('msg-$origin'));
+      await gesture.moveTo(_viewBottomBand(tester));
+      await tester.pump();
+      expect(selection.count, cap);
+      final frozenY = controller.anchorPixelOffset;
 
-        await gesture.moveTo(_viewTopBand(tester));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 400));
+      await gesture.moveTo(_viewTopBand(tester));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
 
-        expect(controller.anchorPixelOffset, isNot(frozenY));
-        expect(selection.isSelected(origin), isTrue);
-        expect(selection.count, lessThanOrEqualTo(cap));
-        await gesture.up();
-      },
-    );
+      expect(controller.anchorPixelOffset, isNot(frozenY));
+      expect(selection.isSelected(origin), isTrue);
+      expect(selection.count, lessThanOrEqualTo(cap));
+      await gesture.up();
+    });
 
     testWidgets('unselect span can shrink the set when at cap', (tester) async {
       const count = 32;
       const cap = 3;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      final selection = await _pumpTail(
-        tester: tester,
-        controller: controller,
-        selectionCap: cap,
-      );
+      final selection = await _pumpTail(tester: tester, controller: controller, selectionCap: cap);
 
-      final select = await _longPressHold(
-        tester,
-        find.text('msg-${count - 1}'),
-      );
+      final select = await _longPressHold(tester, find.text('msg-${count - 1}'));
       await select.moveTo(tester.getCenter(find.text('msg-${count - 6}')));
       await tester.pump();
       await select.up();
       await tester.pump();
       expect(selection.selectedIds, {count - 1, count - 2, count - 3});
 
-      final unselect = await _longPressHold(
-        tester,
-        find.text('msg-${count - 1}'),
-      );
+      final unselect = await _longPressHold(tester, find.text('msg-${count - 1}'));
       expect(selection.selectedIds, {count - 2, count - 3});
       await unselect.moveTo(tester.getCenter(find.text('msg-${count - 3}')));
       await tester.pump();

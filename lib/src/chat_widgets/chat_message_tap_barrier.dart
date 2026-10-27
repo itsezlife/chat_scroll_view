@@ -32,11 +32,7 @@ import 'package:flutter/widgets.dart';
 /// the chrome, or that cannot be hit, bars nothing.
 class ChatMessageTapBarrier extends StatelessWidget {
   /// Bars the message tap for mouse presses on [child].
-  const ChatMessageTapBarrier({
-    required this.child,
-    this.enabled = true,
-    super.key,
-  });
+  const ChatMessageTapBarrier({required this.child, this.enabled = true, super.key});
 
   /// The chrome the barrier covers.
   final Widget child;
@@ -60,8 +56,7 @@ class ChatMessageTapBarrier extends StatelessWidget {
   }
 
   static bool _isMouseLike(PointerEvent event) =>
-      event.kind == PointerDeviceKind.mouse ||
-      event.kind == PointerDeviceKind.trackpad;
+      event.kind == PointerDeviceKind.mouse || event.kind == PointerDeviceKind.trackpad;
 
   static void _bar(PointerDownEvent event) {
     if (_isMouseLike(event)) ChatSelectionGestureExclusion.bar(event.pointer);
@@ -70,6 +65,5 @@ class ChatMessageTapBarrier extends StatelessWidget {
   // The viewport takes the bar on the same down; this clears one it never
   // took (no viewport above, or a selection-less one), so it cannot leak into a
   // later press that reuses the pointer id.
-  static void _release(PointerEvent event) =>
-      ChatSelectionGestureExclusion.takeBarred(event.pointer);
+  static void _release(PointerEvent event) => ChatSelectionGestureExclusion.takeBarred(event.pointer);
 }

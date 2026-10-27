@@ -12,10 +12,7 @@ class ChatMessageSurfacePart {
   ///
   /// The default [shape] is the square rectangle: a sticker's art or a
   /// glyph run has no outline of its own to round.
-  const ChatMessageSurfacePart({
-    required this.rect,
-    this.shape = const RoundedRectangleBorder(),
-  });
+  const ChatMessageSurfacePart({required this.rect, this.shape = const RoundedRectangleBorder()});
 
   /// Where the part is, in the reported box's coordinates.
   final Rect rect;
@@ -25,10 +22,7 @@ class ChatMessageSurfacePart {
   final ShapeBorder shape;
 
   @override
-  bool operator ==(Object other) =>
-      other is ChatMessageSurfacePart &&
-      other.rect == rect &&
-      other.shape == shape;
+  bool operator ==(Object other) => other is ChatMessageSurfacePart && other.rect == rect && other.shape == shape;
 
   @override
   int get hashCode => Object.hash(rect, shape);
@@ -62,20 +56,13 @@ class ChatMessageSurfaceParts extends ShapeBorder {
   EdgeInsetsGeometry get dimensions => EdgeInsets.zero;
 
   @override
-  Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
-      getOuterPath(rect, textDirection: textDirection);
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) => getOuterPath(rect, textDirection: textDirection);
 
   @override
   Path getOuterPath(Rect rect, {TextDirection? textDirection}) {
     final path = Path();
     for (final part in parts) {
-      path.addPath(
-        part.shape.getOuterPath(
-          part.rect.shift(rect.topLeft),
-          textDirection: textDirection,
-        ),
-        Offset.zero,
-      );
+      path.addPath(part.shape.getOuterPath(part.rect.shift(rect.topLeft), textDirection: textDirection), Offset.zero);
     }
     return path;
   }
@@ -84,23 +71,16 @@ class ChatMessageSurfaceParts extends ShapeBorder {
   void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {}
 
   @override
-  ShapeBorder scale(double t) =>
-      ChatMessageSurfaceParts(<ChatMessageSurfacePart>[
-        for (final part in parts)
-          ChatMessageSurfacePart(
-            rect: Rect.fromLTRB(
-              part.rect.left * t,
-              part.rect.top * t,
-              part.rect.right * t,
-              part.rect.bottom * t,
-            ),
-            shape: part.shape.scale(t),
-          ),
-      ]);
+  ShapeBorder scale(double t) => ChatMessageSurfaceParts(<ChatMessageSurfacePart>[
+    for (final part in parts)
+      ChatMessageSurfacePart(
+        rect: Rect.fromLTRB(part.rect.left * t, part.rect.top * t, part.rect.right * t, part.rect.bottom * t),
+        shape: part.shape.scale(t),
+      ),
+  ]);
 
   @override
-  bool operator ==(Object other) =>
-      other is ChatMessageSurfaceParts && listEquals(other.parts, parts);
+  bool operator ==(Object other) => other is ChatMessageSurfaceParts && listEquals(other.parts, parts);
 
   @override
   int get hashCode => Object.hashAll(parts);

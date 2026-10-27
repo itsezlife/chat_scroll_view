@@ -28,19 +28,11 @@ IChatMessage _msg(int i) => UserChatMessage(
 class _LoadedSource extends ChatDataSource {
   _LoadedSource(int count) {
     upsertMessages(<IChatMessage>[for (var i = 0; i < count; i++) _msg(i)]);
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: count - 1,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 /// Boundaries 0–9; only id 5 is loaded, the rest render as shimmer.
@@ -51,76 +43,47 @@ class _SparseSource extends ChatDataSource {
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 /// Boundaries 0–9; fetches never resolve, so rows stay shimmer until the
 /// test upserts them.
 class _LateSource extends ChatDataSource {
   _LateSource() {
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: 9,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: 9, reachedOldest: true, reachedNewest: true);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) => Completer<List<IChatMessage>>().future;
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) =>
+      Completer<List<IChatMessage>>().future;
 }
 
 /// Ids `0..count-1` known, all loaded but [unloaded]; fetches never resolve,
 /// so an unloaded row stays shimmer and a reach flag stays as seeded.
 class _PartialSource extends ChatDataSource {
-  _PartialSource(
-    int count, {
-    Set<int> unloaded = const <int>{},
-    bool reachedNewest = true,
-  }) {
+  _PartialSource(int count, {Set<int> unloaded = const <int>{}, bool reachedNewest = true}) {
     upsertMessages(<IChatMessage>[
       for (var i = 0; i < count; i++)
         if (!unloaded.contains(i)) _msg(i),
     ]);
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: count - 1,
-      reachedOldest: true,
-      reachedNewest: reachedNewest,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: reachedNewest);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) => Completer<List<IChatMessage>>().future;
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) =>
+      Completer<List<IChatMessage>>().future;
 }
 
 /// Every fetch fails, so every chunk ends in error.
 class _FailingSource extends ChatDataSource {
   _FailingSource(this.count) {
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: count - 1,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
   }
 
   final int count;
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async {
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async {
     await Future<void>.delayed(const Duration(milliseconds: 10));
     throw StateError('fetch failed');
   }
@@ -148,18 +111,15 @@ Widget _date(BuildContext context, Object bucket, DateTime date) =>
 
 const _separatorHeight = 32.0;
 
-Widget _unread(BuildContext context) =>
-    const SizedBox(height: _separatorHeight, child: Text('unread'));
+Widget _unread(BuildContext context) => const SizedBox(height: _separatorHeight, child: Text('unread'));
 
-Widget _unreadAlt(BuildContext context) =>
-    const SizedBox(height: _separatorHeight, child: Text('unread-alt'));
+Widget _unreadAlt(BuildContext context) => const SizedBox(height: _separatorHeight, child: Text('unread-alt'));
 
 /// Separator builder that counts the frames that paint a separator.
 final class _PaintedSeparator {
   int paints = 0;
 
-  Widget call(BuildContext context) =>
-      CustomPaint(painter: _CountingPainter(this), child: _unread(context));
+  Widget call(BuildContext context) => CustomPaint(painter: _CountingPainter(this), child: _unread(context));
 }
 
 final class _CountingPainter extends CustomPainter {
@@ -232,12 +192,9 @@ RenderChatScrollView _render(WidgetTester tester) =>
 
 /// The row chrome render object of the row that paints [text].
 RenderChatRowChrome _rowOf(WidgetTester tester, String text) =>
-    tester.renderObject<RenderChatRowChrome>(
-      find.ancestor(of: find.text(text), matching: find.byType(ChatRowChrome)),
-    );
+    tester.renderObject<RenderChatRowChrome>(find.ancestor(of: find.text(text), matching: find.byType(ChatRowChrome)));
 
-double _top(WidgetTester tester, String text) =>
-    tester.getTopLeft(find.text(text)).dy;
+double _top(WidgetTester tester, String text) => tester.getTopLeft(find.text(text)).dy;
 
 _LoadedSource _loaded(int count) {
   final source = _LoadedSource(count);
@@ -264,8 +221,7 @@ const _frame = Duration(milliseconds: 10);
 
 double _sine(double t) => (1 - math.cos(math.pi * t.clamp(0.0, 1.0))) / 2;
 
-double _move(int ms) =>
-    ChatMessageChangeParams.curve.transform((ms / 250).clamp(0, 1));
+double _move(int ms) => ChatMessageChangeParams.curve.transform((ms / 250).clamp(0, 1));
 
 double _exitOpacity(int ms) => 1 - _sine(ms / 120);
 
@@ -274,13 +230,8 @@ double _enterFade(int ms) => _sine(ms / 250);
 Matcher _near(double value) => moreOrLessEquals(value, epsilon: 1e-6);
 
 /// Width of the separator's box on screen, row chrome scale included.
-double _separatorWidth(WidgetTester tester) => tester
-    .getRect(
-      find
-          .ancestor(of: find.text('unread'), matching: find.byType(SizedBox))
-          .first,
-    )
-    .width;
+double _separatorWidth(WidgetTester tester) =>
+    tester.getRect(find.ancestor(of: find.text('unread'), matching: find.byType(SizedBox)).first).width;
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -293,11 +244,7 @@ void main() {
       // jumpTo(14): the floating header shows day 2, so 'sep-1-3' is the
       // inline date of row 16 only.
       await tester.pumpWidget(
-        _harness(
-          dataSource: _loaded(64),
-          controller: _controllerAt(14),
-          unreadBoundary: _boundary(16),
-        ),
+        _harness(dataSource: _loaded(64), controller: _controllerAt(14), unreadBoundary: _boundary(16)),
       );
       await tester.pump();
 
@@ -308,15 +255,9 @@ void main() {
       expect(find.text('unread'), findsOneWidget);
     });
 
-    testWidgets('a boundary row inside a day stacks separator, then body', (
-      tester,
-    ) async {
+    testWidgets('a boundary row inside a day stacks separator, then body', (tester) async {
       await tester.pumpWidget(
-        _harness(
-          dataSource: _loaded(64),
-          controller: _controllerAt(14),
-          unreadBoundary: _boundary(18),
-        ),
+        _harness(dataSource: _loaded(64), controller: _controllerAt(14), unreadBoundary: _boundary(18)),
       );
       await tester.pump();
 
@@ -326,9 +267,7 @@ void main() {
       expect(_rowOf(tester, 'unread').size.height, _separatorHeight + 60);
     });
 
-    testWidgets('with day grouping off the separator still paints', (
-      tester,
-    ) async {
+    testWidgets('with day grouping off the separator still paints', (tester) async {
       await tester.pumpWidget(
         _harness(
           dataSource: _loaded(64),
@@ -347,20 +286,14 @@ void main() {
   group('Unread separator gates', () {
     testWidgets('a null boundary paints no separator', (tester) async {
       await tester.pumpWidget(
-        _harness(
-          dataSource: _loaded(64),
-          controller: _controllerAt(14),
-          unreadBoundary: _boundary(null),
-        ),
+        _harness(dataSource: _loaded(64), controller: _controllerAt(14), unreadBoundary: _boundary(null)),
       );
       await tester.pump();
 
       expect(find.text('unread'), findsNothing);
     });
 
-    testWidgets('a boundary without a separator builder paints nothing', (
-      tester,
-    ) async {
+    testWidgets('a boundary without a separator builder paints nothing', (tester) async {
       await tester.pumpWidget(
         _harness(
           dataSource: _loaded(64),
@@ -372,23 +305,13 @@ void main() {
       await tester.pump();
 
       expect(find.text('unread'), findsNothing);
-      expect(
-        _top(tester, 'msg-16'),
-        _top(tester, 'sep-1-3') + 24,
-        reason: 'the boundary row keeps date-only chrome',
-      );
+      expect(_top(tester, 'msg-16'), _top(tester, 'sep-1-3') + 24, reason: 'the boundary row keeps date-only chrome');
     });
 
     testWidgets('a shimmer row gets no separator', (tester) async {
       final source = _SparseSource();
       addTearDown(source.dispose);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: source,
-          controller: _controllerAt(5),
-          unreadBoundary: _boundary(3),
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: source, controller: _controllerAt(5), unreadBoundary: _boundary(3)));
       await tester.pump();
 
       expect(find.text('shimmer-3'), findsOneWidget);
@@ -399,11 +322,7 @@ void main() {
       final source = _FailingSource(64);
       addTearDown(source.dispose);
       await tester.pumpWidget(
-        _harness(
-          dataSource: source,
-          controller: _controllerAt(63),
-          unreadBoundary: _boundary(62),
-        ),
+        _harness(dataSource: source, controller: _controllerAt(63), unreadBoundary: _boundary(62)),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
@@ -416,11 +335,7 @@ void main() {
     testWidgets('a boundary on an absent id paints nothing', (tester) async {
       final source = _loaded(24);
       await tester.pumpWidget(
-        _harness(
-          dataSource: source,
-          controller: _controllerAt(23),
-          unreadBoundary: _boundary(20),
-        ),
+        _harness(dataSource: source, controller: _controllerAt(23), unreadBoundary: _boundary(20)),
       );
       await tester.pump();
       expect(find.text('unread'), findsOneWidget);
@@ -435,17 +350,11 @@ void main() {
   });
 
   group('Unread separator presentation', () {
-    testWidgets('the separator stays opaque while the date above it fades', (
-      tester,
-    ) async {
+    testWidgets('the separator stays opaque while the date above it fades', (tester) async {
       // jumpTo(16): row 16 sits at the top, its date inside the floating
       // header zone.
       await tester.pumpWidget(
-        _harness(
-          dataSource: _loaded(64),
-          controller: _controllerAt(16),
-          unreadBoundary: _boundary(16),
-        ),
+        _harness(dataSource: _loaded(64), controller: _controllerAt(16), unreadBoundary: _boundary(16)),
       );
       await tester.pump();
 
@@ -478,11 +387,7 @@ void main() {
 
       await tester.tap(find.text('unread'));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.text('unread'),
-        buttons: kSecondaryMouseButton,
-        kind: PointerDeviceKind.mouse,
-      );
+      await tester.tap(find.text('unread'), buttons: kSecondaryMouseButton, kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
       await tester.longPress(find.text('unread'));
       await tester.pumpAndSettle();
@@ -515,8 +420,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(selection.isSelected(20), isTrue);
 
-      Finder above(String text, Type type) =>
-          find.ancestor(of: find.text(text), matching: find.byType(type));
+      Finder above(String text, Type type) => find.ancestor(of: find.text(text), matching: find.byType(type));
       expect(above('msg-20', SelectableMessage), findsOneWidget);
       expect(above('unread', SelectableMessage), findsNothing);
       expect(above('msg-20', ChatSecondaryMessageTapScope), findsOneWidget);
@@ -525,19 +429,11 @@ void main() {
   });
 
   group('Unread separator inputs swap', () {
-    testWidgets('swapping the separator builder rebuilds built rows', (
-      tester,
-    ) async {
+    testWidgets('swapping the separator builder rebuilds built rows', (tester) async {
       final source = _loaded(64);
       final controller = _controllerAt(14);
       final boundary = _boundary(18);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: source,
-          controller: controller,
-          unreadBoundary: boundary,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: source, controller: controller, unreadBoundary: boundary));
       await tester.pump();
       expect(find.text('unread'), findsOneWidget);
 
@@ -560,32 +456,17 @@ void main() {
       final source = _loaded(64);
       final controller = _controllerAt(14);
       final first = _boundary(18);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: source,
-          controller: controller,
-          unreadBoundary: first,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: source, controller: controller, unreadBoundary: first));
       await tester.pump();
       expect(_top(tester, 'msg-18'), _top(tester, 'unread') + _separatorHeight);
 
       final second = _boundary(19);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: source,
-          controller: controller,
-          unreadBoundary: second,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: source, controller: controller, unreadBoundary: second));
       await tester.pumpAndSettle();
 
       expect(find.text('unread'), findsOneWidget);
       expect(_top(tester, 'msg-19'), _top(tester, 'unread') + _separatorHeight);
-      expect(
-        _top(tester, 'msg-18'),
-        tester.getBottomLeft(find.text('msg-17')).dy,
-      );
+      expect(_top(tester, 'msg-18'), tester.getBottomLeft(find.text('msg-17')).dy);
 
       first.value = 17;
       await tester.pumpAndSettle();
@@ -625,26 +506,16 @@ void main() {
       expect(counter.builds, <int, int>{18: 1, 20: 1});
       expect(find.text('unread'), findsOneWidget);
       expect(_top(tester, 'msg-20'), _top(tester, 'unread') + _separatorHeight);
-      expect(
-        _top(tester, 'msg-18'),
-        tester.getBottomLeft(find.text('msg-17')).dy,
-      );
+      expect(_top(tester, 'msg-18'), tester.getBottomLeft(find.text('msg-17')).dy);
       expect(_top(tester, 'msg-22'), _near(belowTop));
     });
 
-    for (final (from, to, verb) in <(int?, int?, String)>[
-      (null, 18, 'setting'),
-      (18, null, 'clearing'),
-    ]) {
+    for (final (from, to, verb) in <(int?, int?, String)>[(null, 18, 'setting'), (18, null, 'clearing')]) {
       testWidgets('$verb the boundary off the tail keeps the bodies at and '
           'below the row in place', (tester) async {
         final boundary = _boundary(from);
         await tester.pumpWidget(
-          _harness(
-            dataSource: _loaded(64),
-            controller: _controllerAt(14),
-            unreadBoundary: boundary,
-          ),
+          _harness(dataSource: _loaded(64), controller: _controllerAt(14), unreadBoundary: boundary),
         );
         await tester.pump();
         final bodies = <int, double>{
@@ -675,16 +546,10 @@ void main() {
         // row to the band bottom and leaves the anchor above the boundary.
         final controller = _controllerAt(56);
         await tester.pumpWidget(
-          _harness(
-            dataSource: _loaded(64),
-            controller: controller,
-            unreadBoundary: boundary,
-            bottomPadding: inset,
-          ),
+          _harness(dataSource: _loaded(64), controller: controller, unreadBoundary: boundary, bottomPadding: inset),
         );
         await tester.pump();
-        final bandBottom =
-            tester.getTopLeft(find.byType(ChatScrollView)).dy + 600 - 40;
+        final bandBottom = tester.getTopLeft(find.byType(ChatScrollView)).dy + 600 - 40;
         expect(tester.getBottomLeft(find.text('msg-63')).dy, bandBottom);
         final bodyTop = _top(tester, 'msg-61');
 
@@ -702,13 +567,7 @@ void main() {
         'build', (tester) async {
       final source = _LateSource();
       addTearDown(source.dispose);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: source,
-          controller: _controllerAt(5),
-          unreadBoundary: _boundary(3),
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: source, controller: _controllerAt(5), unreadBoundary: _boundary(3)));
       await tester.pump();
       expect(find.text('shimmer-3'), findsOneWidget);
       expect(find.text('unread'), findsNothing);
@@ -720,18 +579,10 @@ void main() {
       expect(_top(tester, 'msg-3'), _top(tester, 'unread') + _separatorHeight);
     });
 
-    testWidgets('moving the boundary onto an absent id paints nothing', (
-      tester,
-    ) async {
+    testWidgets('moving the boundary onto an absent id paints nothing', (tester) async {
       final source = _loaded(24);
       final boundary = _boundary(22);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: source,
-          controller: _controllerAt(23),
-          unreadBoundary: boundary,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: source, controller: _controllerAt(23), unreadBoundary: boundary));
       await tester.pump();
       source.removeMessages(<int>[20]);
       await tester.pump();
@@ -752,11 +603,7 @@ void main() {
         'collapses over 250 ms and the rows below hold still', (tester) async {
       final boundary = _boundary(18);
       await tester.pumpWidget(
-        _harness(
-          dataSource: _loaded(64),
-          controller: _controllerAt(14),
-          unreadBoundary: boundary,
-        ),
+        _harness(dataSource: _loaded(64), controller: _controllerAt(14), unreadBoundary: boundary),
       );
       await tester.pump();
       final bodies = <int, double>{
@@ -770,20 +617,12 @@ void main() {
       for (var ms = 0; ms < 250; ms += 10) {
         if (ms > 0) await tester.pump(_frame);
         expect(find.text('unread'), findsOneWidget, reason: '$ms ms');
-        expect(
-          row.debugChromeEffect(0).opacity,
-          _near(_exitOpacity(ms)),
-          reason: 'opacity at $ms ms',
-        );
+        expect(row.debugChromeEffect(0).opacity, _near(_exitOpacity(ms)), reason: 'opacity at $ms ms');
         expect(row.debugChromeEffect(0).hitTestable, isFalse);
         for (final MapEntry(key: id, value: top) in bodies.entries) {
           expect(_top(tester, 'msg-$id'), _near(top), reason: 'msg-$id $ms ms');
         }
-        expect(
-          _top(tester, 'msg-15'),
-          _near(aboveTop + _separatorHeight * _move(ms)),
-          reason: 'slot at $ms ms',
-        );
+        expect(_top(tester, 'msg-15'), _near(aboveTop + _separatorHeight * _move(ms)), reason: 'slot at $ms ms');
       }
       await tester.pump(_frame);
 
@@ -798,11 +637,7 @@ void main() {
         'scales from 0.9 over 250 ms', (tester) async {
       final boundary = _boundary(null);
       await tester.pumpWidget(
-        _harness(
-          dataSource: _loaded(64),
-          controller: _controllerAt(14),
-          unreadBoundary: boundary,
-        ),
+        _harness(dataSource: _loaded(64), controller: _controllerAt(14), unreadBoundary: boundary),
       );
       await tester.pump();
       final bodies = <int, double>{
@@ -815,24 +650,12 @@ void main() {
       final row = _rowOf(tester, 'unread');
       for (var ms = 0; ms < 250; ms += 10) {
         if (ms > 0) await tester.pump(_frame);
-        expect(
-          row.debugChromeEffect(0).opacity,
-          _near(_enterFade(ms)),
-          reason: 'opacity at $ms ms',
-        );
-        expect(
-          _separatorWidth(tester),
-          _near(400 * (0.9 + 0.1 * _enterFade(ms))),
-          reason: 'scale at $ms ms',
-        );
+        expect(row.debugChromeEffect(0).opacity, _near(_enterFade(ms)), reason: 'opacity at $ms ms');
+        expect(_separatorWidth(tester), _near(400 * (0.9 + 0.1 * _enterFade(ms))), reason: 'scale at $ms ms');
         for (final MapEntry(key: id, value: top) in bodies.entries) {
           expect(_top(tester, 'msg-$id'), _near(top), reason: 'msg-$id $ms ms');
         }
-        expect(
-          _top(tester, 'msg-15'),
-          _near(aboveTop - _separatorHeight * _move(ms)),
-          reason: 'slot at $ms ms',
-        );
+        expect(_top(tester, 'msg-15'), _near(aboveTop - _separatorHeight * _move(ms)), reason: 'slot at $ms ms');
       }
       await tester.pump(_frame);
 
@@ -842,10 +665,7 @@ void main() {
       expect(_top(tester, 'msg-15'), _near(aboveTop - _separatorHeight));
     });
 
-    for (final (from, to, verb) in <(int?, int?, String)>[
-      (null, 60, 'setting'),
-      (60, null, 'clearing'),
-    ]) {
+    for (final (from, to, verb) in <(int?, int?, String)>[(null, 60, 'setting'), (60, null, 'clearing')]) {
       testWidgets('$verb the boundary at the tail keeps the newest row pinned '
           'on every frame', (tester) async {
         final inset = ValueNotifier<double>(40);
@@ -860,19 +680,14 @@ void main() {
           ),
         );
         await tester.pump();
-        final bandBottom =
-            tester.getTopLeft(find.byType(ChatScrollView)).dy + 600 - 40;
+        final bandBottom = tester.getTopLeft(find.byType(ChatScrollView)).dy + 600 - 40;
         final bodyTop = _top(tester, 'msg-60');
 
         boundary.value = to;
         await tester.pump();
         for (var ms = 0; ms <= 250; ms += 10) {
           if (ms > 0) await tester.pump(_frame);
-          expect(
-            tester.getBottomLeft(find.text('msg-63')).dy,
-            _near(bandBottom),
-            reason: 'newest at $ms ms',
-          );
+          expect(tester.getBottomLeft(find.text('msg-63')).dy, _near(bandBottom), reason: 'newest at $ms ms');
           expect(_top(tester, 'msg-60'), _near(bodyTop), reason: '$ms ms');
         }
         expect(find.text('unread'), to == null ? findsNothing : findsOneWidget);
@@ -916,11 +731,7 @@ void main() {
           _near(opacity + (1 - opacity) * _enterFade(ms)),
           reason: 'opacity at $ms ms',
         );
-        expect(
-          _top(tester, 'msg-15'),
-          _near(aboveTop + (top - aboveTop) * (1 - _move(ms))),
-          reason: 'slot at $ms ms',
-        );
+        expect(_top(tester, 'msg-15'), _near(aboveTop + (top - aboveTop) * (1 - _move(ms))), reason: 'slot at $ms ms');
       }
 
       expect(row.debugChromeEffect(0), ChatRowChromeEffect.visible);
@@ -932,11 +743,7 @@ void main() {
         'rows below both still', (tester) async {
       final boundary = _boundary(18);
       await tester.pumpWidget(
-        _harness(
-          dataSource: _loaded(64),
-          controller: _controllerAt(14),
-          unreadBoundary: boundary,
-        ),
+        _harness(dataSource: _loaded(64), controller: _controllerAt(14), unreadBoundary: boundary),
       );
       await tester.pump();
       final belowTop = _top(tester, 'msg-22');
@@ -962,11 +769,7 @@ void main() {
       final boundary = _boundary(18);
       Widget app({required bool ticking}) => TickerMode(
         enabled: ticking,
-        child: _harness(
-          dataSource: source,
-          controller: controller,
-          unreadBoundary: boundary,
-        ),
+        child: _harness(dataSource: source, controller: controller, unreadBoundary: boundary),
       );
       await tester.pumpWidget(app(ticking: true));
       await tester.pump();
@@ -989,13 +792,7 @@ void main() {
         'separator', (tester) async {
       final source = _loaded(24);
       final boundary = _boundary(20);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: source,
-          controller: _controllerAt(23),
-          unreadBoundary: boundary,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: source, controller: _controllerAt(23), unreadBoundary: boundary));
       await tester.pump();
 
       boundary.value = null;
@@ -1013,40 +810,26 @@ void main() {
         'transitions', (tester) async {
       final controller = _controllerAt(14);
       final boundary = _boundary(18);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _loaded(64),
-          controller: controller,
-          unreadBoundary: boundary,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _loaded(64), controller: controller, unreadBoundary: boundary));
       await tester.pump();
 
       unawaited(controller.animateTo(42, highlight: false));
       boundary.value = null;
       await tester.pumpAndSettle();
 
-      expect(
-        _top(tester, 'msg-42'),
-        _near(tester.getTopLeft(find.byType(ChatScrollView)).dy),
-      );
+      expect(_top(tester, 'msg-42'), _near(tester.getTopLeft(find.byType(ChatScrollView)).dy));
       expect(find.text('unread'), findsNothing);
     });
   });
 
   group('Alignment hold', () {
-    double bandTop(WidgetTester tester) =>
-        tester.getTopLeft(find.byType(ChatScrollView)).dy;
+    double bandTop(WidgetTester tester) => tester.getTopLeft(find.byType(ChatScrollView)).dy;
 
     testWidgets('adding the separator to the held target keeps the separator '
         'at the band top and the body below it', (tester) async {
       final boundary = _boundary(null);
       await tester.pumpWidget(
-        _harness(
-          dataSource: _loaded(64),
-          controller: _controllerAt(20),
-          unreadBoundary: boundary,
-        ),
+        _harness(dataSource: _loaded(64), controller: _controllerAt(20), unreadBoundary: boundary),
       );
       await tester.pump();
       expect(_top(tester, 'msg-20'), bandTop(tester));
@@ -1071,11 +854,7 @@ void main() {
         'at the band top', (tester) async {
       final boundary = _boundary(20);
       await tester.pumpWidget(
-        _harness(
-          dataSource: _loaded(64),
-          controller: _controllerAt(20),
-          unreadBoundary: boundary,
-        ),
+        _harness(dataSource: _loaded(64), controller: _controllerAt(20), unreadBoundary: boundary),
       );
       await tester.pump();
       expect(_top(tester, 'unread'), bandTop(tester));
@@ -1113,11 +892,7 @@ void main() {
         'the band top', (tester) async {
       final boundary = _boundary(20);
       await tester.pumpWidget(
-        _harness(
-          dataSource: _loaded(64),
-          controller: _controllerAt(20),
-          unreadBoundary: boundary,
-        ),
+        _harness(dataSource: _loaded(64), controller: _controllerAt(20), unreadBoundary: boundary),
       );
       await tester.pump();
 
@@ -1135,12 +910,7 @@ void main() {
       final inset = ValueNotifier<double>(0);
       addTearDown(inset.dispose);
       await tester.pumpWidget(
-        _harness(
-          dataSource: _loaded(64),
-          controller: _controllerAt(20),
-          unreadBoundary: boundary,
-          topPadding: inset,
-        ),
+        _harness(dataSource: _loaded(64), controller: _controllerAt(20), unreadBoundary: boundary, topPadding: inset),
       );
       await tester.pump();
 
@@ -1152,10 +922,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(_top(tester, 'msg-23'), _near(belowTop));
-      expect(
-        _top(tester, 'msg-20'),
-        _near(bandTop(tester) + 56 - _separatorHeight),
-      );
+      expect(_top(tester, 'msg-20'), _near(bandTop(tester) + 56 - _separatorHeight));
       expect(_top(tester, 'unread'), _top(tester, 'msg-22') - _separatorHeight);
     });
 
@@ -1163,11 +930,7 @@ void main() {
         'hold', (tester) async {
       final boundary = _boundary(null);
       await tester.pumpWidget(
-        _harness(
-          dataSource: _loaded(64),
-          controller: _controllerAt(20),
-          unreadBoundary: boundary,
-        ),
+        _harness(dataSource: _loaded(64), controller: _controllerAt(20), unreadBoundary: boundary),
       );
       await tester.pump();
       await tester.drag(find.byType(ChatScrollView), const Offset(0, 50));
@@ -1185,8 +948,7 @@ void main() {
   // 600 px viewport, 60 px rows, newest 63; fraction 0.5 allows 300 px from
   // the target's body top to the newest row's bottom.
   group('Tail-or-target open', () {
-    double bandTop(WidgetTester tester) =>
-        tester.getTopLeft(find.byType(ChatScrollView)).dy;
+    double bandTop(WidgetTester tester) => tester.getTopLeft(find.byType(ChatScrollView)).dy;
     double bandBottom(WidgetTester tester) => bandTop(tester) + 600;
 
     List<TailOrTargetOutcome> outcomesOf(ChatScrollController controller) {
@@ -1196,20 +958,15 @@ void main() {
     }
 
     ChatScrollController tailOrTargetAt(int id) {
-      final controller = ChatScrollController()
-        ..jumpTo(id, tailFitFraction: 0.5);
+      final controller = ChatScrollController()..jumpTo(id, tailFitFraction: 0.5);
       addTearDown(controller.dispose);
       return controller;
     }
 
-    testWidgets('a span within the fraction opens pinned at the tail', (
-      tester,
-    ) async {
+    testWidgets('a span within the fraction opens pinned at the tail', (tester) async {
       final controller = tailOrTargetAt(60);
       final outcomes = outcomesOf(controller);
-      await tester.pumpWidget(
-        _harness(dataSource: _loaded(64), controller: controller),
-      );
+      await tester.pumpWidget(_harness(dataSource: _loaded(64), controller: controller));
 
       expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.tail]);
       expect(tester.getBottomLeft(find.text('msg-63')).dy, bandBottom(tester));
@@ -1235,25 +992,14 @@ void main() {
       // Rows 58–63 and the separator are shorter than the band: the
       // boundary clamp still pins the newest row, as after `jumpTo(58)`.
       expect(tester.getBottomLeft(find.text('msg-63')).dy, bandBottom(tester));
-      expect(
-        _top(tester, 'unread'),
-        bandBottom(tester) - 6 * 60 - _separatorHeight,
-      );
+      expect(_top(tester, 'unread'), bandBottom(tester) - 6 * 60 - _separatorHeight);
     });
 
-    testWidgets("the fit measure excludes the target row's row chrome", (
-      tester,
-    ) async {
+    testWidgets("the fit measure excludes the target row's row chrome", (tester) async {
       // Rows 59–63 span exactly 300 px; the separator would add 32.
       final controller = tailOrTargetAt(59);
       final outcomes = outcomesOf(controller);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _loaded(64),
-          controller: controller,
-          unreadBoundary: _boundary(59),
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _loaded(64), controller: controller, unreadBoundary: _boundary(59)));
 
       expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.tail]);
       expect(tester.getBottomLeft(find.text('msg-63')).dy, bandBottom(tester));
@@ -1264,36 +1010,26 @@ void main() {
       addTearDown(source.dispose);
       final controller = tailOrTargetAt(60);
       final outcomes = outcomesOf(controller);
-      await tester.pumpWidget(
-        _harness(dataSource: source, controller: controller),
-      );
+      await tester.pumpWidget(_harness(dataSource: source, controller: controller));
 
       expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.target]);
     });
 
-    testWidgets('a newest message not yet reached aligns the target', (
-      tester,
-    ) async {
+    testWidgets('a newest message not yet reached aligns the target', (tester) async {
       final source = _PartialSource(64, reachedNewest: false);
       addTearDown(source.dispose);
       final controller = tailOrTargetAt(60);
       final outcomes = outcomesOf(controller);
-      await tester.pumpWidget(
-        _harness(dataSource: source, controller: controller),
-      );
+      await tester.pumpWidget(_harness(dataSource: source, controller: controller));
 
       expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.target]);
       expect(_top(tester, 'msg-60'), bandTop(tester));
     });
 
-    testWidgets('a newest message beyond the built rows aligns the target', (
-      tester,
-    ) async {
+    testWidgets('a newest message beyond the built rows aligns the target', (tester) async {
       final controller = tailOrTargetAt(20);
       final outcomes = outcomesOf(controller);
-      await tester.pumpWidget(
-        _harness(dataSource: _loaded(64), controller: controller),
-      );
+      await tester.pumpWidget(_harness(dataSource: _loaded(64), controller: controller));
 
       expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.target]);
       expect(_top(tester, 'msg-20'), bandTop(tester));
@@ -1335,19 +1071,10 @@ void main() {
           if (outcome == TailOrTargetOutcome.target) boundary.value = 20;
         });
       addTearDown(controller.dispose);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _loaded(64),
-          controller: controller,
-          unreadBoundary: boundary,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _loaded(64), controller: controller, unreadBoundary: boundary));
 
       expect(tester.getBottomLeft(find.text('msg-20')).dy, bandBottom(tester));
-      expect(
-        _top(tester, 'unread'),
-        bandBottom(tester) - 60 - _separatorHeight,
-      );
+      expect(_top(tester, 'unread'), bandBottom(tester) - 60 - _separatorHeight);
     });
 
     testWidgets('a target that is not loaded resolves on the layout that '
@@ -1356,15 +1083,11 @@ void main() {
       addTearDown(source.dispose);
       final controller = tailOrTargetAt(7);
       final outcomes = outcomesOf(controller);
-      await tester.pumpWidget(
-        _harness(dataSource: source, controller: controller),
-      );
+      await tester.pumpWidget(_harness(dataSource: source, controller: controller));
       await tester.pump();
       expect(outcomes, isEmpty);
 
-      source.upsertMessages(<IChatMessage>[
-        for (var i = 0; i < 10; i++) _msg(i),
-      ]);
+      source.upsertMessages(<IChatMessage>[for (var i = 0; i < 10; i++) _msg(i)]);
       await tester.pump();
 
       expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.tail]);
@@ -1372,9 +1095,7 @@ void main() {
     });
 
     testWidgets('a target that loads taller than its skeleton measures the '
-        'rows below it as loaded, not as left by the skeleton layout', (
-      tester,
-    ) async {
+        'rows below it as loaded, not as left by the skeleton layout', (tester) async {
       final source = _LateSource();
       addTearDown(source.dispose);
       final controller = tailOrTargetAt(7);
@@ -1393,9 +1114,7 @@ void main() {
       await tester.pump();
       expect(outcomes, isEmpty);
 
-      source.upsertMessages(<IChatMessage>[
-        for (var i = 0; i < 10; i++) _msg(i),
-      ]);
+      source.upsertMessages(<IChatMessage>[for (var i = 0; i < 10; i++) _msg(i)]);
       await tester.pump();
 
       expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.target]);
@@ -1422,9 +1141,7 @@ void main() {
       await tester.pump();
       expect(controller.isAtTail.value, isTrue);
 
-      source.upsertMessages(<IChatMessage>[
-        for (var i = 0; i < 10; i++) _msg(i),
-      ]);
+      source.upsertMessages(<IChatMessage>[for (var i = 0; i < 10; i++) _msg(i)]);
       await tester.pump();
 
       expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.target]);
@@ -1437,50 +1154,36 @@ void main() {
       addTearDown(source.dispose);
       final controller = tailOrTargetAt(9);
       final outcomes = outcomesOf(controller);
-      await tester.pumpWidget(
-        _harness(dataSource: source, controller: controller),
-      );
+      await tester.pumpWidget(_harness(dataSource: source, controller: controller));
       await tester.pump();
       expect(outcomes, isEmpty);
 
-      source.upsertMessages(<IChatMessage>[
-        for (var i = 0; i < 10; i++) _msg(i),
-      ]);
+      source.upsertMessages(<IChatMessage>[for (var i = 0; i < 10; i++) _msg(i)]);
       await tester.pump();
 
       expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.tail]);
       expect(tester.getBottomLeft(find.text('msg-9')).dy, bandBottom(tester));
     });
 
-    testWidgets('a jump released before its target loads reports nothing', (
-      tester,
-    ) async {
+    testWidgets('a jump released before its target loads reports nothing', (tester) async {
       final source = _LateSource();
       addTearDown(source.dispose);
       final controller = tailOrTargetAt(7);
       final outcomes = outcomesOf(controller);
-      await tester.pumpWidget(
-        _harness(dataSource: source, controller: controller),
-      );
+      await tester.pumpWidget(_harness(dataSource: source, controller: controller));
       controller.scrollBy(10);
       await tester.pump();
 
-      source.upsertMessages(<IChatMessage>[
-        for (var i = 0; i < 10; i++) _msg(i),
-      ]);
+      source.upsertMessages(<IChatMessage>[for (var i = 0; i < 10; i++) _msg(i)]);
       await tester.pump();
 
       expect(outcomes, isEmpty);
     });
 
-    testWidgets('a jump replaced before its first layout reports nothing', (
-      tester,
-    ) async {
+    testWidgets('a jump replaced before its first layout reports nothing', (tester) async {
       final controller = tailOrTargetAt(60)..jumpTo(20);
       final outcomes = outcomesOf(controller);
-      await tester.pumpWidget(
-        _harness(dataSource: _loaded(64), controller: controller),
-      );
+      await tester.pumpWidget(_harness(dataSource: _loaded(64), controller: controller));
 
       expect(outcomes, isEmpty);
       expect(_top(tester, 'msg-20'), bandTop(tester));
@@ -1489,9 +1192,7 @@ void main() {
     testWidgets('a listener that navigates fails an assert', (tester) async {
       final controller = tailOrTargetAt(60);
       controller.addTailOrTargetListener((_) => controller.scrollBy(10));
-      await tester.pumpWidget(
-        _harness(dataSource: _loaded(64), controller: controller),
-      );
+      await tester.pumpWidget(_harness(dataSource: _loaded(64), controller: controller));
 
       expect(tester.takeException(), isAssertionError);
     });
@@ -1500,9 +1201,7 @@ void main() {
         'once', (tester) async {
       final controller = _controllerAt(20);
       final outcomes = outcomesOf(controller);
-      await tester.pumpWidget(
-        _harness(dataSource: _loaded(64), controller: controller),
-      );
+      await tester.pumpWidget(_harness(dataSource: _loaded(64), controller: controller));
 
       controller.jumpTo(61, tailFitFraction: 0.5);
       await tester.pump();
@@ -1512,9 +1211,7 @@ void main() {
       expect(tester.getBottomLeft(find.text('msg-63')).dy, bandBottom(tester));
     });
 
-    testWidgets('outcome listeners dedup and dispatch over a snapshot', (
-      tester,
-    ) async {
+    testWidgets('outcome listeners dedup and dispatch over a snapshot', (tester) async {
       final controller = tailOrTargetAt(60);
       final calls = <String>[];
       void first(TailOrTargetOutcome _) {
@@ -1530,9 +1227,7 @@ void main() {
         ..addTailOrTargetListener(second)
         ..addTailOrTargetListener(removed)
         ..removeTailOrTargetListener(removed);
-      await tester.pumpWidget(
-        _harness(dataSource: _loaded(64), controller: controller),
-      );
+      await tester.pumpWidget(_harness(dataSource: _loaded(64), controller: controller));
 
       expect(calls, <String>['first', 'second']);
     });

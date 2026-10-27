@@ -7,8 +7,7 @@ import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_md/flutter_md.dart'
-    show MarkdownThemeData, MarkdownTheme;
+import 'package:flutter_md/flutter_md.dart' show MarkdownThemeData, MarkdownTheme;
 import 'package:flutter_md/src/render/spoiler_particle_tile.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -32,10 +31,7 @@ class _GoldenComparator extends LocalFileComparator {
 
   @override
   Future<bool> compare(Uint8List imageBytes, Uri golden) async {
-    final result = await GoldenFileComparator.compareLists(
-      imageBytes,
-      await getGoldenBytes(golden),
-    );
+    final result = await GoldenFileComparator.compareLists(imageBytes, await getGoldenBytes(golden));
     if (result.passed || result.diffPercent <= _tolerance) return true;
     final error = await generateFailureOutput(result, golden, basedir);
     throw FlutterError(error);
@@ -59,15 +55,11 @@ final class _SquareEmbed implements InlineEmbed {
   void addListener(void Function() listener) => _signal.addListener(listener);
 
   @override
-  void removeListener(void Function() listener) =>
-      _signal.removeListener(listener);
+  void removeListener(void Function() listener) => _signal.removeListener(listener);
 
   @override
   void paint(Canvas canvas, Rect rect, InlineEmbedPaintContext context) =>
-      canvas.drawRect(
-        rect.deflate(1),
-        Paint()..color = context.tint ?? const Color(0xFF000000),
-      );
+      canvas.drawRect(rect.deflate(1), Paint()..color = context.tint ?? const Color(0xFF000000));
 
   @override
   void dispose() => _signal.dispose();
@@ -76,9 +68,7 @@ final class _SquareEmbed implements InlineEmbed {
 final class _SquareEmbedResolver implements InlineEmbedResolver {
   @override
   InlineEmbed? resolve(InlineEmbedTarget target, InlineEmbedMetrics metrics) =>
-      target.scheme == 'fake'
-      ? _SquareEmbed(Size.square(1.2 * (metrics.ascent + metrics.descent)))
-      : null;
+      target.scheme == 'fake' ? _SquareEmbed(Size.square(1.2 * (metrics.ascent + metrics.descent))) : null;
 }
 
 const _source =
@@ -92,9 +82,7 @@ void main() {
   late GoldenFileComparator previous;
   setUpAll(() {
     previous = goldenFileComparator;
-    goldenFileComparator = _GoldenComparator(
-      Uri.file('test/goldens/inline_layer_golden_test.dart'),
-    );
+    goldenFileComparator = _GoldenComparator(Uri.file('test/goldens/inline_layer_golden_test.dart'));
   });
   tearDownAll(() => goldenFileComparator = previous);
 
@@ -111,9 +99,7 @@ void main() {
           ..physicalSize = const Size(260, 110)
           ..devicePixelRatio = 1;
         addTearDown(tester.view.reset);
-        final selection = ChatSelectionController(
-          policy: const ChatSelectionPolicy.mobile(),
-        );
+        final selection = ChatSelectionController(policy: const ChatSelectionPolicy.mobile());
         addTearDown(selection.dispose);
         selection.putBody(1, Markdown.fromString(_source));
         if (revealed) selection.spoilers.reveal(1);
@@ -151,10 +137,7 @@ void main() {
         );
         await tester.pump();
 
-        await expectLater(
-          find.byKey(const ValueKey('shot')),
-          matchesGoldenFile('inline_layer/$name.png'),
-        );
+        await expectLater(find.byKey(const ValueKey('shot')), matchesGoldenFile('inline_layer/$name.png'));
       });
     }
   }

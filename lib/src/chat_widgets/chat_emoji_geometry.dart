@@ -59,16 +59,7 @@ final class ChatEmojiLayoutSpec {
       other.direction == direction;
 
   @override
-  int get hashCode => Object.hash(
-    kind,
-    Object.hashAll(lineBreaksBefore),
-    box,
-    skip,
-    inset,
-    wrap,
-    reserve,
-    direction,
-  );
+  int get hashCode => Object.hash(kind, Object.hashAll(lineBreaksBefore), box, skip, inset, wrap, reserve, direction);
 }
 
 /// Where the parts of an emoji-only body are, in the body's own coordinates
@@ -97,10 +88,7 @@ final class ChatEmojiGeometry {
 
   /// Lays out [spec] in a row [maxWidth] wide.
   @internal
-  factory ChatEmojiGeometry.of(
-    ChatEmojiLayoutSpec spec, {
-    required double maxWidth,
-  }) {
+  factory ChatEmojiGeometry.of(ChatEmojiLayoutSpec spec, {required double maxWidth}) {
     final flow = ChatEmojiFlow.of(
       lineBreaksBefore: spec.lineBreaksBefore,
       box: spec.box,
@@ -164,16 +152,8 @@ final class ChatEmojiGeometry {
       listEquals(other.items, items);
 
   @override
-  int get hashCode => Object.hash(
-    kind,
-    size,
-    content,
-    lastLine,
-    reserved,
-    trailingEdge,
-    direction,
-    Object.hashAll(items),
-  );
+  int get hashCode =>
+      Object.hash(kind, size, content, lastLine, reserved, trailingEdge, direction, Object.hashAll(items));
 
   @override
   String toString() =>

@@ -57,20 +57,12 @@ sealed class NavigationPlacement {
 
   /// Center Band placement for [messageId]; [offsetFromMessageTop] is
   /// clamped into the row by the viewport at apply time.
-  factory NavigationPlacement.centerBand(
-    int messageId,
-    double offsetFromMessageTop,
-  ) => CenterBandPlacement(
-    messageId: messageId,
-    offsetFromMessageTop: offsetFromMessageTop,
-  );
+  factory NavigationPlacement.centerBand(int messageId, double offsetFromMessageTop) =>
+      CenterBandPlacement(messageId: messageId, offsetFromMessageTop: offsetFromMessageTop);
 
   /// Fractional placement for [messageId]; [fraction] is clamped to `0..1`.
   factory NavigationPlacement.fractional(int messageId, double fraction) =>
-      FractionalPlacement(
-        messageId: messageId,
-        fraction: fraction.clamp(0.0, 1.0),
-      );
+      FractionalPlacement(messageId: messageId, fraction: fraction.clamp(0.0, 1.0));
 
   /// Target message id — the row the placement seats.
   final int messageId;
@@ -122,8 +114,7 @@ final class AlignmentPlacement extends NavigationPlacement {
     super.isHeld = false,
   }) : assert(alignment >= 0 && alignment <= 1, 'alignment outside 0..1'),
        assert(
-         tailFitFraction == null ||
-             (tailFitFraction >= 0 && tailFitFraction <= 1),
+         tailFitFraction == null || (tailFitFraction >= 0 && tailFitFraction <= 1),
          'tailFitFraction outside 0..1',
        );
 
@@ -143,30 +134,17 @@ final class AlignmentPlacement extends NavigationPlacement {
   /// same target, alignment, [pixelOffset], and phase, no [tailFitFraction].
   AlignmentPlacement withoutTailFit() => switch (tailFitFraction) {
     null => this,
-    _ => AlignmentPlacement(
-      messageId: messageId,
-      alignment: alignment,
-      pixelOffset: pixelOffset,
-      isHeld: isHeld,
-    ),
+    _ => AlignmentPlacement(messageId: messageId, alignment: alignment, pixelOffset: pixelOffset, isHeld: isHeld),
   };
 
   /// This placement in the held phase. Idempotent. The tail-or-target
   /// decision MUST already be made: an undecided placement is never held.
   @override
   AlignmentPlacement hold() {
-    assert(
-      tailFitFraction == null,
-      'a tail-or-target placement is decided before it is held',
-    );
+    assert(tailFitFraction == null, 'a tail-or-target placement is decided before it is held');
     return isHeld
         ? this
-        : AlignmentPlacement(
-            messageId: messageId,
-            alignment: alignment,
-            pixelOffset: pixelOffset,
-            isHeld: true,
-          );
+        : AlignmentPlacement(messageId: messageId, alignment: alignment, pixelOffset: pixelOffset, isHeld: true);
   }
 
   @override
@@ -190,8 +168,7 @@ final class AlignmentPlacement extends NavigationPlacement {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(messageId, alignment, tailFitFraction, pixelOffset, isHeld);
+  int get hashCode => Object.hash(messageId, alignment, tailFitFraction, pixelOffset, isHeld);
 
   @override
   String toString() =>
@@ -205,11 +182,7 @@ final class AlignmentPlacement extends NavigationPlacement {
 @immutable
 final class CenterBandPlacement extends NavigationPlacement {
   /// Creates a Center Band placement.
-  const CenterBandPlacement({
-    required super.messageId,
-    required this.offsetFromMessageTop,
-    super.isHeld = false,
-  });
+  const CenterBandPlacement({required super.messageId, required this.offsetFromMessageTop, super.isHeld = false});
 
   /// Pixels from the target's top edge to the point the band ray hits.
   final double offsetFromMessageTop;
@@ -217,18 +190,11 @@ final class CenterBandPlacement extends NavigationPlacement {
   @override
   CenterBandPlacement hold() => isHeld
       ? this
-      : CenterBandPlacement(
-          messageId: messageId,
-          offsetFromMessageTop: offsetFromMessageTop,
-          isHeld: true,
-        );
+      : CenterBandPlacement(messageId: messageId, offsetFromMessageTop: offsetFromMessageTop, isHeld: true);
 
   @override
-  CenterBandPlacement retarget(int messageId) => CenterBandPlacement(
-    messageId: messageId,
-    offsetFromMessageTop: offsetFromMessageTop,
-    isHeld: isHeld,
-  );
+  CenterBandPlacement retarget(int messageId) =>
+      CenterBandPlacement(messageId: messageId, offsetFromMessageTop: offsetFromMessageTop, isHeld: isHeld);
 
   @override
   bool operator ==(Object other) {
@@ -258,31 +224,20 @@ final class CenterBandPlacement extends NavigationPlacement {
 @immutable
 final class FractionalPlacement extends NavigationPlacement {
   /// Creates a fractional placement; [fraction] MUST be in `0..1`.
-  const FractionalPlacement({
-    required super.messageId,
-    required this.fraction,
-    super.isHeld = false,
-  }) : assert(fraction >= 0 && fraction <= 1, 'fraction outside 0..1');
+  const FractionalPlacement({required super.messageId, required this.fraction, super.isHeld = false})
+    : assert(fraction >= 0 && fraction <= 1, 'fraction outside 0..1');
 
   /// How far into the target row the band top sits: `0` at its top edge,
   /// `1` at its bottom edge.
   final double fraction;
 
   @override
-  FractionalPlacement hold() => isHeld
-      ? this
-      : FractionalPlacement(
-          messageId: messageId,
-          fraction: fraction,
-          isHeld: true,
-        );
+  FractionalPlacement hold() =>
+      isHeld ? this : FractionalPlacement(messageId: messageId, fraction: fraction, isHeld: true);
 
   @override
-  FractionalPlacement retarget(int messageId) => FractionalPlacement(
-    messageId: messageId,
-    fraction: fraction,
-    isHeld: isHeld,
-  );
+  FractionalPlacement retarget(int messageId) =>
+      FractionalPlacement(messageId: messageId, fraction: fraction, isHeld: isHeld);
 
   @override
   bool operator ==(Object other) {

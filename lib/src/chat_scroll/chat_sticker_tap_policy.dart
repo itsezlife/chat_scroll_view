@@ -1,7 +1,6 @@
 import 'dart:ui' show Offset, Rect;
 
-import 'package:chat_scroll_view/src/chat_scroll/chat_selection_interaction.dart'
-    show ChatInlineGesture;
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_interaction.dart' show ChatInlineGesture;
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
 
 /// **Sticker tap policy**: where a tap on the sticker of an emoji-only body
@@ -41,35 +40,24 @@ sealed class ChatStickerTapPolicy {
   ///
   /// [replaysOnLongPress] false follows the reference client that does not
   /// restart the sticker when its menu opens.
-  const factory ChatStickerTapPolicy.mobile({
-    double replayTapSlop,
-    bool replaysOnLongPress,
-  }) = ChatStickerTapPolicy$Mobile;
+  const factory ChatStickerTapPolicy.mobile({double replayTapSlop, bool replaysOnLongPress}) =
+      ChatStickerTapPolicy$Mobile;
 
   /// Desktop: a click replays; there is no long press.
-  const factory ChatStickerTapPolicy.desktop({double replayTapSlop}) =
-      ChatStickerTapPolicy$Desktop;
+  const factory ChatStickerTapPolicy.desktop({double replayTapSlop}) = ChatStickerTapPolicy$Desktop;
 
   /// The strategy that goes with [selection]: mobile with mobile, desktop
   /// with desktop.
-  factory ChatStickerTapPolicy.of(
-    ChatSelectionPolicy selection, {
-    double replayTapSlop = 0,
-  }) => switch (selection) {
-    ChatSelectionPolicy$Mobile() => ChatStickerTapPolicy.mobile(
-      replayTapSlop: replayTapSlop,
-    ),
-    ChatSelectionPolicy$Desktop() => ChatStickerTapPolicy.desktop(
-      replayTapSlop: replayTapSlop,
-    ),
+  factory ChatStickerTapPolicy.of(ChatSelectionPolicy selection, {double replayTapSlop = 0}) => switch (selection) {
+    ChatSelectionPolicy$Mobile() => ChatStickerTapPolicy.mobile(replayTapSlop: replayTapSlop),
+    ChatSelectionPolicy$Desktop() => ChatStickerTapPolicy.desktop(replayTapSlop: replayTapSlop),
   };
 
   /// Logical pixels the hit rectangle is outset by on every side.
   final double replayTapSlop;
 
   /// Whether [point] counts as on the sticker drawn in [sticker].
-  bool hits(Rect sticker, Offset point) =>
-      sticker.inflate(replayTapSlop).contains(point);
+  bool hits(Rect sticker, Offset point) => sticker.inflate(replayTapSlop).contains(point);
 
   /// Whether [gesture], on a hit, plays the animation again.
   bool replaysOn(ChatInlineGesture gesture);
@@ -78,10 +66,7 @@ sealed class ChatStickerTapPolicy {
 /// The mobile strategy; see [ChatStickerTapPolicy].
 final class ChatStickerTapPolicy$Mobile extends ChatStickerTapPolicy {
   /// Creates the mobile strategy.
-  const ChatStickerTapPolicy$Mobile({
-    super.replayTapSlop,
-    this.replaysOnLongPress = true,
-  });
+  const ChatStickerTapPolicy$Mobile({super.replayTapSlop, this.replaysOnLongPress = true});
 
   /// Whether a long press restarts the sticker.
   final bool replaysOnLongPress;

@@ -2,8 +2,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
-import 'package:flutter_md/flutter_md.dart'
-    show MD$Paragraph, MD$Style, MarkdownSpoilerController;
+import 'package:flutter_md/flutter_md.dart' show MD$Paragraph, MD$Style, MarkdownSpoilerController;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../chat_message.dart';
@@ -20,19 +19,11 @@ class _LoadedSource extends ChatDataSource {
   _LoadedSource(List<IChatMessage> messages) {
     upsertMessages(messages);
     final ids = messages.map((m) => m.id).toList()..sort();
-    seedBoundaries(
-      oldestKnownId: ids.first,
-      newestKnownId: ids.last,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: ids.first, newestKnownId: ids.last, reachedOldest: true, reachedNewest: true);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 /// A text selection over a hidden spoiler does not reveal it, as on Android
@@ -79,16 +70,11 @@ void main() {
                 dataSource: dataSource,
                 controller: controller,
                 selectionController: selection,
-                messageBuilder: (context, id, message, status, runLayout) =>
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      color: Colors.white,
-                      child: ChatMarkdownBody(
-                        key: ValueKey('md-$id'),
-                        controller: selection,
-                        messageId: id,
-                      ),
-                    ),
+                messageBuilder: (context, id, message, status, runLayout) => Container(
+                  padding: const EdgeInsets.all(12),
+                  color: Colors.white,
+                  child: ChatMarkdownBody(key: ValueKey('md-$id'), controller: selection, messageId: id),
+                ),
               ),
             ),
           ),
@@ -119,30 +105,18 @@ void main() {
   }
 
   group(r'$Desktop', () {
-    void desktopTest(
-      String name,
-      Future<void> Function(WidgetTester tester) test,
-    ) => spoilerTest(
-      name,
-      test,
-      platform: TargetPlatform.macOS,
-      policy: const ChatSelectionPolicy.desktop(),
-    );
+    void desktopTest(String name, Future<void> Function(WidgetTester tester) test) =>
+        spoilerTest(name, test, platform: TargetPlatform.macOS, policy: const ChatSelectionPolicy.desktop());
 
-    desktopTest(
-      'a mouse drag over the spoiler selects it and leaves it hidden',
-      (tester) async {
-        await mouseDrag(tester, pointOn(0, 1), pointOn(9, 10));
+    desktopTest('a mouse drag over the spoiler selects it and leaves it hidden', (tester) async {
+      await mouseDrag(tester, pointOn(0, 1), pointOn(9, 10));
 
-        expect(selection.isTextSelectionActive, isTrue);
-        expect(selection.textSelection!.isCollapsed, isFalse);
-        expect(selection.spoilers.isRevealed(1), isFalse);
-      },
-    );
+      expect(selection.isTextSelectionActive, isTrue);
+      expect(selection.textSelection!.isCollapsed, isFalse);
+      expect(selection.spoilers.isRevealed(1), isFalse);
+    });
 
-    desktopTest('a drag that starts on the hidden spoiler selects, no reveal', (
-      tester,
-    ) async {
+    desktopTest('a drag that starts on the hidden spoiler selects, no reveal', (tester) async {
       await mouseDrag(tester, pointOn(2, 3), pointOn(9, 10));
 
       expect(selection.isTextSelectionActive, isTrue);
@@ -157,9 +131,7 @@ void main() {
       expect(selection.spoilers.isRevealed(1), isFalse);
     });
 
-    desktopTest('the plain text of the selection is the text under it', (
-      tester,
-    ) async {
+    desktopTest('the plain text of the selection is the text under it', (tester) async {
       expect(selection.enterTextSelection(1), isTrue);
       await tester.pumpAndSettle();
 
@@ -168,9 +140,7 @@ void main() {
       expect(selection.textSelectionPlainText(), 'a secret b');
     });
 
-    desktopTest('the structured copy carries the spoiler of a hidden one', (
-      tester,
-    ) async {
+    desktopTest('the structured copy carries the spoiler of a hidden one', (tester) async {
       await mouseDrag(tester, pointOn(0, 1), pointOn(9, 10));
 
       final content = selection.textSelectionContent();
@@ -178,9 +148,7 @@ void main() {
       expect(content, isNotNull);
       final block = content!.documents.single.blocks.single.block;
       expect(
-        (block as MD$Paragraph).spans
-            .where((span) => span.style.contains(MD$Style.spoiler))
-            .map((span) => span.text),
+        (block as MD$Paragraph).spans.where((span) => span.style.contains(MD$Style.spoiler)).map((span) => span.text),
         ['secret'],
       );
       expect(selection.spoilers.isRevealed(1), isFalse);
@@ -206,19 +174,10 @@ void main() {
   });
 
   group(r'$Mobile', () {
-    void mobileTest(
-      String name,
-      Future<void> Function(WidgetTester tester) test,
-    ) => spoilerTest(
-      name,
-      test,
-      platform: TargetPlatform.android,
-      policy: const ChatSelectionPolicy.mobile(),
-    );
+    void mobileTest(String name, Future<void> Function(WidgetTester tester) test) =>
+        spoilerTest(name, test, platform: TargetPlatform.android, policy: const ChatSelectionPolicy.mobile());
 
-    mobileTest('select all on a selected message leaves the spoiler hidden', (
-      tester,
-    ) async {
+    mobileTest('select all on a selected message leaves the spoiler hidden', (tester) async {
       selection.startSelection(1);
       await tester.pumpAndSettle();
 
@@ -229,16 +188,11 @@ void main() {
       expect(selection.spoilers.isRevealed(1), isFalse);
     });
 
-    mobileTest('a word under the spoiler is selected and stays hidden', (
-      tester,
-    ) async {
+    mobileTest('a word under the spoiler is selected and stays hidden', (tester) async {
       selection.startSelection(1);
       await tester.pumpAndSettle();
 
-      expect(
-        selection.enterTextSelection(1, globalOffset: pointOn(2, 8)),
-        isTrue,
-      );
+      expect(selection.enterTextSelection(1, globalOffset: pointOn(2, 8)), isTrue);
       await tester.pumpAndSettle();
 
       expect(selection.textSelection, isNotNull);
@@ -260,10 +214,7 @@ void main() {
 
       expect(selection.isTextSelectionActive, isTrue);
       expect(selection.textSelection!.isCollapsed, isFalse);
-      expect(
-        selection.textSelection!.extent.offset,
-        greaterThan(selection.textSelection!.base.offset),
-      );
+      expect(selection.textSelection!.extent.offset, greaterThan(selection.textSelection!.base.offset));
       expect(selection.spoilers.isRevealed(1), isFalse);
     });
 

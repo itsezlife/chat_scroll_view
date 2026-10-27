@@ -17,10 +17,7 @@ class _TestDataSource extends ChatDataSource {
   int get maxChunks => chunkBudget;
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 class _HangingFetchDataSource extends ChatDataSource {
@@ -33,10 +30,7 @@ class _HangingFetchDataSource extends ChatDataSource {
   int get maxChunks => chunkBudget;
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) => pending.future;
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) => pending.future;
 }
 
 void _flushPostFrameCallbacks() {
@@ -57,8 +51,7 @@ void main() {
         final scheduler =
             ChatChunkFetchScheduler(
                 dataSource: dataSource,
-                requestRange: (min, max, {allowWiden = true}) =>
-                    requested.add((min, max)),
+                requestRange: (min, max, {allowWiden = true}) => requested.add((min, max)),
                 anchorChunkIndex: () => 0,
               )
               ..onJump()
@@ -78,8 +71,7 @@ void main() {
         final scheduler =
             ChatChunkFetchScheduler(
                 dataSource: dataSource,
-                requestRange: (min, max, {allowWiden = true}) =>
-                    requested.add((min, max)),
+                requestRange: (min, max, {allowWiden = true}) => requested.add((min, max)),
                 anchorChunkIndex: () => 0,
               )
               ..onDetach()
@@ -99,14 +91,12 @@ void main() {
         final requested = <(int, int)>[];
         final scheduler = ChatChunkFetchScheduler(
           dataSource: dataSource,
-          requestRange: (min, max, {allowWiden = true}) =>
-              requested.add((min, max)),
+          requestRange: (min, max, {allowWiden = true}) => requested.add((min, max)),
           anchorChunkIndex: () => 0,
         );
 
         for (var ci = 1; ci <= 3; ci++) {
-          dataSource.chunks[ci] = ChatScrollChunk(index: ci)
-            ..status = ChatMessageStatus.valid;
+          dataSource.chunks[ci] = ChatScrollChunk(index: ci)..status = ChatMessageStatus.valid;
         }
 
         scheduler.onLayoutComplete(1, 3);
@@ -134,8 +124,7 @@ void main() {
           anchorChunkIndex: () => 0,
         );
 
-        dataSource.chunks[2] = ChatScrollChunk(index: 2)
-          ..status = ChatMessageStatus.valid;
+        dataSource.chunks[2] = ChatScrollChunk(index: 2)..status = ChatMessageStatus.valid;
 
         scheduler.onLayoutComplete(1, 3);
         async.elapse(Duration.zero);
@@ -150,13 +139,11 @@ void main() {
         final requested = <(int, int)>[];
         final scheduler = ChatChunkFetchScheduler(
           dataSource: dataSource,
-          requestRange: (min, max, {allowWiden = true}) =>
-              requested.add((min, max)),
+          requestRange: (min, max, {allowWiden = true}) => requested.add((min, max)),
           anchorChunkIndex: () => 0,
         );
 
-        dataSource.chunks[2] = ChatScrollChunk(index: 2)
-          ..status = ChatMessageStatus.error;
+        dataSource.chunks[2] = ChatScrollChunk(index: 2)..status = ChatMessageStatus.error;
 
         scheduler.onLayoutComplete(2, 2);
         async.elapse(const Duration(milliseconds: 200));
@@ -189,8 +176,7 @@ void main() {
           anchorChunkIndex: () => 2,
         );
 
-        dataSource.chunks[2] = ChatScrollChunk(index: 2)
-          ..status = ChatMessageStatus.valid;
+        dataSource.chunks[2] = ChatScrollChunk(index: 2)..status = ChatMessageStatus.valid;
 
         // Continuous fling toward older (positive velocity).
         scheduler.markScrollActive(velocity: 1);
@@ -237,8 +223,7 @@ void main() {
           anchorChunkIndex: () => 2,
         );
 
-        dataSource.chunks[2] = ChatScrollChunk(index: 2)
-          ..status = ChatMessageStatus.valid;
+        dataSource.chunks[2] = ChatScrollChunk(index: 2)..status = ChatMessageStatus.valid;
 
         // Mid-scroll page first.
         scheduler.markScrollActive(velocity: 1);
@@ -289,8 +274,7 @@ void main() {
         );
 
         for (final ci in [4, 5]) {
-          dataSource.chunks[ci] = ChatScrollChunk(index: ci)
-            ..status = ChatMessageStatus.valid;
+          dataSource.chunks[ci] = ChatScrollChunk(index: ci)..status = ChatMessageStatus.valid;
         }
 
         // Toward older: layout 4..5 is valid; lookahead chunk 3 is missing.
@@ -335,11 +319,8 @@ void main() {
         expect(
           requested.every(
             (r) =>
-                r.$1 ==
-                    10 -
-                        ChatChunkFetchScheduler.destinationWindowRadiusChunks &&
-                r.$2 ==
-                    10 + ChatChunkFetchScheduler.destinationWindowRadiusChunks,
+                r.$1 == 10 - ChatChunkFetchScheduler.destinationWindowRadiusChunks &&
+                r.$2 == 10 + ChatChunkFetchScheduler.destinationWindowRadiusChunks,
           ),
           isTrue,
         );
@@ -374,11 +355,7 @@ void main() {
         scheduler.markScrollActive(velocity: 1);
         scheduler.onLayoutComplete(0, 0);
         async.elapse(Duration.zero);
-        expect(
-          requested,
-          isEmpty,
-          reason: 'holes-only must not fire mid-scroll',
-        );
+        expect(requested, isEmpty, reason: 'holes-only must not fire mid-scroll');
 
         // Force settle: onJump clears the scroll timestamp.
         scheduler.onJump();
@@ -434,11 +411,7 @@ void main() {
         // Layout only at anchor — chunk 5 is outside and would normally be
         // the eviction victim under budget=1.
         scheduler.onLayoutComplete(0, 0);
-        expect(
-          dataSource.chunks.containsKey(5),
-          isTrue,
-          reason: 'in-flight chunk must survive LRU',
-        );
+        expect(dataSource.chunks.containsKey(5), isTrue, reason: 'in-flight chunk must survive LRU');
         expect(dataSource.coversChunkInFlight(5), isTrue);
 
         pending.complete(const <IChatMessage>[]);
@@ -499,8 +472,7 @@ void main() {
         final requested = <(int, int)>[];
         final scheduler = ChatChunkFetchScheduler(
           dataSource: dataSource,
-          requestRange: (min, max, {allowWiden = true}) =>
-              requested.add((min, max)),
+          requestRange: (min, max, {allowWiden = true}) => requested.add((min, max)),
           anchorChunkIndex: () => 0,
         );
 
@@ -512,14 +484,8 @@ void main() {
 
         expect(requested, isNotEmpty);
         for (final range in requested) {
-          expect(
-            range.$1,
-            10 - ChatChunkFetchScheduler.destinationWindowRadiusChunks,
-          );
-          expect(
-            range.$2,
-            10 + ChatChunkFetchScheduler.destinationWindowRadiusChunks,
-          );
+          expect(range.$1, 10 - ChatChunkFetchScheduler.destinationWindowRadiusChunks);
+          expect(range.$2, 10 + ChatChunkFetchScheduler.destinationWindowRadiusChunks);
         }
         expect(
           requested.any((r) => r.$1 <= 0 && r.$2 >= 10),
@@ -536,8 +502,7 @@ void main() {
         final requested = <(int, int)>[];
         final scheduler = ChatChunkFetchScheduler(
           dataSource: dataSource,
-          requestRange: (min, max, {allowWiden = true}) =>
-              requested.add((min, max)),
+          requestRange: (min, max, {allowWiden = true}) => requested.add((min, max)),
           anchorChunkIndex: () => 0,
         );
 
@@ -561,46 +526,36 @@ void main() {
       });
     });
 
-    test(
-      'jump fetch keeps dest when pin set and layout is still at origin',
-      () {
-        fakeAsync((_) {
-          final dataSource = _TestDataSource();
-          final requested = <(int, int)>[];
-          final scheduler = ChatChunkFetchScheduler(
-            dataSource: dataSource,
-            requestRange: (min, max, {allowWiden = true}) =>
-                requested.add((min, max)),
-            anchorChunkIndex: () => 0,
-          );
+    test('jump fetch keeps dest when pin set and layout is still at origin', () {
+      fakeAsync((_) {
+        final dataSource = _TestDataSource();
+        final requested = <(int, int)>[];
+        final scheduler = ChatChunkFetchScheduler(
+          dataSource: dataSource,
+          requestRange: (min, max, {allowWiden = true}) => requested.add((min, max)),
+          anchorChunkIndex: () => 0,
+        );
 
-          scheduler
-            ..onLayoutComplete(0, 1)
-            ..setNavigationDestinationId(ChatScrollChunk.firstIdOf(10))
-            ..onJump()
-            ..onLayoutComplete(0, 1);
-          _flushPostFrameCallbacks();
+        scheduler
+          ..onLayoutComplete(0, 1)
+          ..setNavigationDestinationId(ChatScrollChunk.firstIdOf(10))
+          ..onJump()
+          ..onLayoutComplete(0, 1);
+        _flushPostFrameCallbacks();
 
-          expect(requested, isNotEmpty);
-          expect(
-            requested.every(
-              (r) =>
-                  r.$1 ==
-                      10 -
-                          ChatChunkFetchScheduler
-                              .destinationWindowRadiusChunks &&
-                  r.$2 ==
-                      10 +
-                          ChatChunkFetchScheduler.destinationWindowRadiusChunks,
-            ),
-            isTrue,
-            reason:
-                'load-gate at origin must not cancel dest with layout fetch',
-          );
-          scheduler.dispose();
-        });
-      },
-    );
+        expect(requested, isNotEmpty);
+        expect(
+          requested.every(
+            (r) =>
+                r.$1 == 10 - ChatChunkFetchScheduler.destinationWindowRadiusChunks &&
+                r.$2 == 10 + ChatChunkFetchScheduler.destinationWindowRadiusChunks,
+          ),
+          isTrue,
+          reason: 'load-gate at origin must not cancel dest with layout fetch',
+        );
+        scheduler.dispose();
+      });
+    });
 
     test('jump fetch diverts to dest only when layout spans stitch gap', () {
       fakeAsync((_) {
@@ -608,8 +563,7 @@ void main() {
         final requested = <(int, int)>[];
         final scheduler = ChatChunkFetchScheduler(
           dataSource: dataSource,
-          requestRange: (min, max, {allowWiden = true}) =>
-              requested.add((min, max)),
+          requestRange: (min, max, {allowWiden = true}) => requested.add((min, max)),
           anchorChunkIndex: () => 0,
         );
 
@@ -624,10 +578,8 @@ void main() {
         expect(
           requested.every(
             (r) =>
-                r.$1 ==
-                    5 - ChatChunkFetchScheduler.destinationWindowRadiusChunks &&
-                r.$2 ==
-                    5 + ChatChunkFetchScheduler.destinationWindowRadiusChunks,
+                r.$1 == 5 - ChatChunkFetchScheduler.destinationWindowRadiusChunks &&
+                r.$2 == 5 + ChatChunkFetchScheduler.destinationWindowRadiusChunks,
           ),
           isTrue,
           reason: 'stitch dual-strip must not gap-fill layout min…max',
@@ -636,56 +588,42 @@ void main() {
       });
     });
 
-    test(
-      'clamps destination window to known ids (no perpetual chunk -1 poll)',
-      () {
-        fakeAsync((async) {
-          final dataSource = _TestDataSource()
-            ..seedBoundaries(
-              oldestKnownId: 0,
-              newestKnownId: 200,
-              reachedOldest: true,
-              reachedNewest: true,
-            );
-          final requested = <(int, int)>[];
-          final scheduler = ChatChunkFetchScheduler(
-            dataSource: dataSource,
-            requestRange: (min, max, {allowWiden = true}) =>
-                requested.add((min, max)),
-            anchorChunkIndex: () => 3,
-          );
+    test('clamps destination window to known ids (no perpetual chunk -1 poll)', () {
+      fakeAsync((async) {
+        final dataSource = _TestDataSource()
+          ..seedBoundaries(oldestKnownId: 0, newestKnownId: 200, reachedOldest: true, reachedNewest: true);
+        final requested = <(int, int)>[];
+        final scheduler = ChatChunkFetchScheduler(
+          dataSource: dataSource,
+          requestRange: (min, max, {allowWiden = true}) => requested.add((min, max)),
+          anchorChunkIndex: () => 3,
+        );
 
-          // Target id 50 → chunk 0; unclamped window would be -1..1.
-          scheduler.setNavigationDestinationId(50);
-          _flushPostFrameCallbacks();
-          expect(requested, isNotEmpty);
-          expect(requested.last.$1, 0);
-          expect(requested.last.$2, 1);
+        // Target id 50 → chunk 0; unclamped window would be -1..1.
+        scheduler.setNavigationDestinationId(50);
+        _flushPostFrameCallbacks();
+        expect(requested, isNotEmpty);
+        expect(requested.last.$1, 0);
+        expect(requested.last.$2, 1);
 
-          // Satisfy the window before draining the poll armed while pending.
-          // Mark every slot absent so the known span is confirmed empty (not
-          // unloaded holes) — otherwise hasKnownSpanHoles keeps the poll armed.
-          for (final ci in [0, 1]) {
-            final chunk = ChatScrollChunk(index: ci)
-              ..status = ChatMessageStatus.valid;
-            for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
-              chunk.markAbsentSlot(slot);
-            }
-            dataSource.chunks[ci] = chunk;
+        // Satisfy the window before draining the poll armed while pending.
+        // Mark every slot absent so the known span is confirmed empty (not
+        // unloaded holes) — otherwise hasKnownSpanHoles keeps the poll armed.
+        for (final ci in [0, 1]) {
+          final chunk = ChatScrollChunk(index: ci)..status = ChatMessageStatus.valid;
+          for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
+            chunk.markAbsentSlot(slot);
           }
-          async.elapse(const Duration(milliseconds: 200));
-          requested.clear();
-          scheduler.onLayoutComplete(3, 3);
-          async.elapse(const Duration(milliseconds: 200));
-          expect(
-            requested,
-            isEmpty,
-            reason: 'valid dest window must idle the poll',
-          );
-          scheduler.dispose();
-        });
-      },
-    );
+          dataSource.chunks[ci] = chunk;
+        }
+        async.elapse(const Duration(milliseconds: 200));
+        requested.clear();
+        scheduler.onLayoutComplete(3, 3);
+        async.elapse(const Duration(milliseconds: 200));
+        expect(requested, isEmpty, reason: 'valid dest window must idle the poll');
+        scheduler.dispose();
+      });
+    });
 
     test('poll stays armed when valid dest chunk has trailing absent holes', () {
       fakeAsync((async) {

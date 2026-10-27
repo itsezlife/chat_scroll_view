@@ -2,8 +2,7 @@ import 'package:chat_scroll_view/src/chat_widgets/render_chat_message_body.dart'
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
-export 'package:chat_scroll_view/src/chat_widgets/render_chat_message_body.dart'
-    show RenderChatMessageBody;
+export 'package:chat_scroll_view/src/chat_widgets/render_chat_message_body.dart' show RenderChatMessageBody;
 
 /// Named slots occupied by [ChatMessageBody] children.
 ///
@@ -71,9 +70,7 @@ enum ChatMessageBodySlot {
 ///  * [ChatRowChrome], row chrome (inline date separator) stacked above a
 ///    message body.
 ///  * [ChatMessageThemeData], column / bubble width caps for the host.
-class ChatMessageBody
-    extends
-        SlottedMultiChildRenderObjectWidget<ChatMessageBodySlot, RenderBox> {
+class ChatMessageBody extends SlottedMultiChildRenderObjectWidget<ChatMessageBodySlot, RenderBox> {
   /// Creates a content + meta body layout.
   ///
   /// [meta] is required. Omit [content] (or pass null) for meta-only sizing
@@ -115,18 +112,11 @@ class ChatMessageBody
   };
 
   @override
-  SlottedContainerRenderObjectMixin<ChatMessageBodySlot, RenderBox>
-  createRenderObject(BuildContext context) => RenderChatMessageBody(
-    spacing: spacing,
-    padding: padding,
-    textDirection: Directionality.of(context),
-  );
+  SlottedContainerRenderObjectMixin<ChatMessageBodySlot, RenderBox> createRenderObject(BuildContext context) =>
+      RenderChatMessageBody(spacing: spacing, padding: padding, textDirection: Directionality.of(context));
 
   @override
-  void updateRenderObject(
-    BuildContext context,
-    covariant RenderChatMessageBody renderObject,
-  ) {
+  void updateRenderObject(BuildContext context, covariant RenderChatMessageBody renderObject) {
     renderObject
       ..spacing = spacing
       ..padding = padding

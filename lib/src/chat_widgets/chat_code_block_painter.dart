@@ -11,10 +11,7 @@ import 'package:flutter_md/flutter_md.dart';
 @immutable
 class ChatCodeBlockLabels {
   /// Creates labels. Prefer app l10n; English defaults are for tests/demos.
-  const ChatCodeBlockLabels({
-    this.copyCode = 'COPY CODE',
-    this.untitled = 'CODE',
-  });
+  const ChatCodeBlockLabels({this.copyCode = 'COPY CODE', this.untitled = 'CODE'});
 
   /// English defaults (tests / demos without l10n).
   static const ChatCodeBlockLabels english = ChatCodeBlockLabels();
@@ -28,9 +25,7 @@ class ChatCodeBlockLabels {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ChatCodeBlockLabels &&
-          copyCode == other.copyCode &&
-          untitled == other.untitled;
+      other is ChatCodeBlockLabels && copyCode == other.copyCode && untitled == other.untitled;
 
   @override
   int get hashCode => Object.hash(copyCode, untitled);
@@ -39,27 +34,20 @@ class ChatCodeBlockLabels {
 /// Ambient [ChatCodeBlockLabels] for descendant [ChatMarkdownBody] mounts.
 class ChatCodeBlockLabelsScope extends InheritedWidget {
   /// Installs [labels] for the subtree.
-  const ChatCodeBlockLabelsScope({
-    required this.labels,
-    required super.child,
-    super.key,
-  });
+  const ChatCodeBlockLabelsScope({required this.labels, required super.child, super.key});
 
   /// Host chrome strings.
   final ChatCodeBlockLabels labels;
 
   /// Nearest labels, or [ChatCodeBlockLabels.english] when none.
-  static ChatCodeBlockLabels of(BuildContext context) =>
-      maybeOf(context) ?? ChatCodeBlockLabels.english;
+  static ChatCodeBlockLabels of(BuildContext context) => maybeOf(context) ?? ChatCodeBlockLabels.english;
 
   /// Nearest labels, or null.
-  static ChatCodeBlockLabels? maybeOf(BuildContext context) => context
-      .dependOnInheritedWidgetOfExactType<ChatCodeBlockLabelsScope>()
-      ?.labels;
+  static ChatCodeBlockLabels? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ChatCodeBlockLabelsScope>()?.labels;
 
   @override
-  bool updateShouldNotify(covariant ChatCodeBlockLabelsScope oldWidget) =>
-      labels != oldWidget.labels;
+  bool updateShouldNotify(covariant ChatCodeBlockLabelsScope oldWidget) => labels != oldWidget.labels;
 }
 
 // --- ChatCodeBlockPainter --------------------------------------------------
@@ -103,10 +91,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
     ChatCodeBlockLabels labels = ChatCodeBlockLabels.english,
   }) {
     final resolvedPolicy = policy ?? ChatSelectionPolicy.forPlatform();
-    final background =
-        theme.highlighter?.backgroundFor(language) ??
-        theme.surfaceColor ??
-        const Color(0xFF1E1E22);
+    final background = theme.highlighter?.backgroundFor(language) ?? theme.surfaceColor ?? const Color(0xFF1E1E22);
     final chromeInk = fenceChromeInk(background);
     return ChatCodeBlockPainter._(
       text: text,
@@ -143,13 +128,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
          textDirection: theme.textDirection,
          textScaler: theme.textScaler,
        ),
-       _headerPainter = _buildHeaderPainter(
-         language,
-         theme,
-         policy,
-         chromeInk,
-         labels,
-       ),
+       _headerPainter = _buildHeaderPainter(language, theme, policy, chromeInk, labels),
        _bottomBarPainter = _buildBottomBarPainter(text, theme, policy, labels);
 
   /// Custom block painter builder for fenced markdown code blocks.
@@ -164,13 +143,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
     ChatCodeBlockLabels labels = ChatCodeBlockLabels.english,
   }) {
     if (block case MD$Code(:final text, :final language)) {
-      return ChatCodeBlockPainter(
-        text: text,
-        language: language,
-        theme: theme,
-        policy: policy,
-        labels: labels,
-      );
+      return ChatCodeBlockPainter(text: text, language: language, theme: theme, policy: policy, labels: labels);
     }
     return null;
   }
@@ -184,9 +157,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
   /// so dark highlighters (GitHub dark) still get a light chrome strip.
   @visibleForTesting
   static Color fenceChromeInk(Color fenceBackground) =>
-      fenceBackground.computeLuminance() > 0.45
-      ? const Color(0xFF000000)
-      : const Color(0xFFFFFFFF);
+      fenceBackground.computeLuminance() > 0.45 ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
 
   /// Header / bottom-bar fill on top of [fenceBackground].
   @visibleForTesting
@@ -257,9 +228,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
   /// Height of the top header bar, or `0.0` if no header is rendered.
   double get headerHeight {
     if (!hasHeader) return 0;
-    return policy.hasInteractiveCodeHeader
-        ? desktopHeaderHeight
-        : mobileHeaderHeight;
+    return policy.hasInteractiveCodeHeader ? desktopHeaderHeight : mobileHeaderHeight;
   }
 
   /// Whether an interactive bottom copy bar is rendered for this block.
@@ -270,8 +239,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
 
   /// Height of the painted fence (header + body + optional bottom bar),
   /// excluding [outerPadding] on both ends.
-  double get paintedHeight =>
-      math.max<double>(0, _size.height - outerPadding * 2);
+  double get paintedHeight => math.max<double>(0, _size.height - outerPadding * 2);
 
   /// Top edge of the painted fence in local block coordinates.
   double get paintedTop => outerPadding;
@@ -290,8 +258,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
   /// by [outerPadding], [headerHeight], and [padding]. This prevents vertical
   /// caret and drag handle drift across the code block.
   @override
-  Offset get selectionOrigin =>
-      Offset(padding, outerPadding + headerHeight + padding);
+  Offset get selectionOrigin => Offset(padding, outerPadding + headerHeight + padding);
 
   /// Selection highlights must be painted above the cached content picture
   /// so that the opaque background fill does not obscure the highlight.
@@ -302,16 +269,11 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
   bool isLinkAtLocal(Offset local) {
     final top = paintedTop;
     final bottom = paintedBottom;
-    if (local.dx < 0 ||
-        local.dx > _size.width ||
-        local.dy < top ||
-        local.dy >= bottom) {
+    if (local.dx < 0 || local.dx > _size.width || local.dy < top || local.dy >= bottom) {
       return false;
     }
     // Interactive top header on desktop
-    if (hasHeader &&
-        policy.hasInteractiveCodeHeader &&
-        local.dy < top + headerHeight) {
+    if (hasHeader && policy.hasInteractiveCodeHeader && local.dy < top + headerHeight) {
       return true;
     }
     // Interactive bottom copy bar on mobile
@@ -347,10 +309,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
     final hHeight = headerHeight;
     if (hasHeader && _headerPainter != null) {
       final headerContentWidth = policy.hasInteractiveCodeHeader
-          ? math.max<double>(
-              0,
-              contentWidth - 36.0,
-            ) // reserve room for copy button
+          ? math.max<double>(0, contentWidth - 36.0) // reserve room for copy button
           : contentWidth;
       _headerPainter.layout(minWidth: 0, maxWidth: headerContentWidth);
     }
@@ -360,16 +319,8 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
     }
 
     final totalHeight =
-        outerPadding +
-        hHeight +
-        padding +
-        painter.size.height +
-        padding +
-        bottomBarHeight +
-        outerPadding;
-    final totalWidth = width.isFinite
-        ? width
-        : painter.size.width + padding * 2;
+        outerPadding + hHeight + padding + painter.size.height + padding + bottomBarHeight + outerPadding;
+    final totalWidth = width.isFinite ? width : painter.size.width + padding * 2;
     return _size = Size(totalWidth, totalHeight);
   }
 
@@ -394,11 +345,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
     final hHeight = headerHeight;
     if (hasHeader) {
       final headerRect = Rect.fromLTWH(0, fillTop, size.width, hHeight);
-      final headerRRect = RRect.fromRectAndCorners(
-        headerRect,
-        topLeft: cornerRadius,
-        topRight: cornerRadius,
-      );
+      final headerRRect = RRect.fromRectAndCorners(headerRect, topLeft: cornerRadius, topRight: cornerRadius);
 
       canvas.drawRRect(
         headerRRect,
@@ -467,12 +414,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
     }
   }
 
-  void _paintCopyIcon(
-    Canvas canvas,
-    double width,
-    double blockOffset,
-    double hHeight,
-  ) {
+  void _paintCopyIcon(Canvas canvas, double width, double blockOffset, double hHeight) {
     const iconWidth = 12.0;
     const iconHeight = 13.0;
     final iconX = width - padding - 16.0;
@@ -490,12 +432,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
 
     // Back card (offset slightly up-right)
     final backRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        iconX + 3.0,
-        iconY - 1.0,
-        iconWidth - 2.5,
-        iconHeight - 2.5,
-      ),
+      Rect.fromLTWH(iconX + 3.0, iconY - 1.0, iconWidth - 2.5, iconHeight - 2.5),
       const Radius.circular(2),
     );
     canvas.drawRRect(backRect, strokePaint);
@@ -518,11 +455,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
 
   // --- Static Text Building Helpers ----------------------------------------
 
-  static TextSpan _buildCodeSpan(
-    String text,
-    String? language,
-    MarkdownThemeData theme,
-  ) {
+  static TextSpan _buildCodeSpan(String text, String? language, MarkdownThemeData theme) {
     final baseStyle = theme.textStyle.copyWith(
       fontFamily: 'monospace',
       fontSize: theme.textStyle.fontSize ?? 13.0,
@@ -531,10 +464,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
     final highlighter = theme.highlighter;
     if (highlighter == null) return TextSpan(text: text, style: baseStyle);
     final effectiveBase = highlighter.baseStyleFor(language, baseStyle);
-    return TextSpan(
-      style: effectiveBase,
-      children: highlighter.highlight(text, language, effectiveBase),
-    );
+    return TextSpan(style: effectiveBase, children: highlighter.highlight(text, language, effectiveBase));
   }
 
   static TextPainter? _buildHeaderPainter(

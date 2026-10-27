@@ -20,57 +20,33 @@ IChatMessage _msg(int id, {DateTime? createdAt}) => UserChatMessage(
 class _LoadedSource extends ChatDataSource {
   _LoadedSource(List<IChatMessage> messages) {
     upsertMessages(messages);
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: messages.length - 1,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: messages.length - 1, reachedOldest: true, reachedNewest: true);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 /// Boundaries 0–9; only id 5 is loaded — neighbors render as shimmer.
 class _SparseUnloadedSource extends ChatDataSource {
   _SparseUnloadedSource() {
     upsertMessage(_msg(5));
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: 9,
-      reachedOldest: false,
-      reachedNewest: false,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: 9, reachedOldest: false, reachedNewest: false);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 class _ManualFailSource extends ChatDataSource {
   _ManualFailSource(this.count) {
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: count - 1,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
   }
 
   final int count;
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async {
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async {
     await Future<void>.delayed(const Duration(milliseconds: 10));
     throw StateError('manual fail');
   }
@@ -108,10 +84,8 @@ Widget _harness({
           reverse: reverse,
           messageBuilder:
               messageBuilder ??
-              (context, id, message, status, runLayout) => SizedBox(
-                height: 60,
-                child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-              ),
+              (context, id, message, status, runLayout) =>
+                  SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
         ),
       ),
     ),
@@ -120,40 +94,7 @@ Widget _harness({
 
 void main() {
   group('ChatScrollView idle message tap', () {
-    testWidgets(
-      'tap on a present slot reports id and a slot rect containing the tap',
-      (tester) async {
-        const count = 32;
-        final taps = <_Tap>[];
-        final controller = ChatScrollController()..jumpTo(count - 1);
-        addTearDown(controller.dispose);
-
-        await tester.pumpWidget(
-          _harness(
-            dataSource: _LoadedSource([
-              for (var i = 0; i < count; i++) _msg(i),
-            ]),
-            controller: controller,
-            onIdleMessageTap: (request) => taps.add(
-              _Tap(request.messageId, request.slotGlobal, request.tapGlobal),
-            ),
-          ),
-        );
-        await tester.pump();
-
-        await tester.tap(find.text('msg-${count - 1}'));
-        await tester.pump();
-
-        expect(taps, hasLength(1));
-        expect(taps.single.id, count - 1);
-        expect(taps.single.slotGlobal.isEmpty, isFalse);
-        expect(taps.single.slotGlobal.contains(taps.single.tapGlobal), isTrue);
-      },
-    );
-
-    testWidgets('full-row hit includes the empty side of a short child', (
-      tester,
-    ) async {
+    testWidgets('tap on a present slot reports id and a slot rect containing the tap', (tester) async {
       const count = 32;
       final taps = <_Tap>[];
       final controller = ChatScrollController()..jumpTo(count - 1);
@@ -163,17 +104,36 @@ void main() {
         _harness(
           dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
           controller: controller,
-          onIdleMessageTap: (request) => taps.add(
-            _Tap(request.messageId, request.slotGlobal, request.tapGlobal),
-          ),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('msg-${count - 1}'));
+      await tester.pump();
+
+      expect(taps, hasLength(1));
+      expect(taps.single.id, count - 1);
+      expect(taps.single.slotGlobal.isEmpty, isFalse);
+      expect(taps.single.slotGlobal.contains(taps.single.tapGlobal), isTrue);
+    });
+
+    testWidgets('full-row hit includes the empty side of a short child', (tester) async {
+      const count = 32;
+      final taps = <_Tap>[];
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
+          controller: controller,
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
           messageBuilder: (context, id, message, status, runLayout) => SizedBox(
             height: 60,
             child: Align(
               alignment: Alignment.centerRight,
-              child: SizedBox(
-                width: 80,
-                child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-              ),
+              child: SizedBox(width: 80, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
             ),
           ),
         ),
@@ -201,9 +161,7 @@ void main() {
         _harness(
           dataSource: _LoadedSource([for (var i = 0; i < 3; i++) _msg(i)]),
           controller: controller,
-          onIdleMessageTap: (request) => taps.add(
-            _Tap(request.messageId, request.slotGlobal, request.tapGlobal),
-          ),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
           reverse: true,
         ),
       );
@@ -225,9 +183,7 @@ void main() {
         _harness(
           dataSource: _SparseUnloadedSource(),
           controller: controller,
-          onIdleMessageTap: (request) => taps.add(
-            _Tap(request.messageId, request.slotGlobal, request.tapGlobal),
-          ),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
         ),
       );
       await tester.pump();
@@ -250,13 +206,9 @@ void main() {
         _harness(
           dataSource: source,
           controller: controller,
-          onIdleMessageTap: (request) => taps.add(
-            _Tap(request.messageId, request.slotGlobal, request.tapGlobal),
-          ),
-          chunkErrorBuilder: (context, details) => SizedBox(
-            height: 120,
-            child: Text('error-${details.firstId}-${details.lastId}'),
-          ),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
+          chunkErrorBuilder: (context, details) =>
+              SizedBox(height: 120, child: Text('error-${details.firstId}-${details.lastId}')),
         ),
       );
       await tester.pump();
@@ -270,9 +222,7 @@ void main() {
       expect(taps, isEmpty);
     });
 
-    testWidgets('in message selection a tap toggles and does not idle-tap', (
-      tester,
-    ) async {
+    testWidgets('in message selection a tap toggles and does not idle-tap', (tester) async {
       const count = 32;
       final taps = <_Tap>[];
       final controller = ChatScrollController()..jumpTo(count - 1);
@@ -285,9 +235,7 @@ void main() {
           dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
           controller: controller,
           selection: selection,
-          onIdleMessageTap: (request) => taps.add(
-            _Tap(request.messageId, request.slotGlobal, request.tapGlobal),
-          ),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
         ),
       );
       await tester.pump();
@@ -304,9 +252,7 @@ void main() {
       expect(taps, isEmpty);
     });
 
-    testWidgets('long-press enters selection and does not idle-tap', (
-      tester,
-    ) async {
+    testWidgets('long-press enters selection and does not idle-tap', (tester) async {
       const count = 32;
       final taps = <_Tap>[];
       final controller = ChatScrollController()..jumpTo(count - 1);
@@ -319,9 +265,7 @@ void main() {
           dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
           controller: controller,
           selection: selection,
-          onIdleMessageTap: (request) => taps.add(
-            _Tap(request.messageId, request.slotGlobal, request.tapGlobal),
-          ),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
         ),
       );
       await tester.pump();
@@ -340,9 +284,7 @@ void main() {
       final taps = <_Tap>[];
       final controller = ChatScrollController()..jumpTo(blocked);
       final selection = ChatSelectionController()
-        ..selectionAllowed = (id) => id == blocked
-            ? ChatSelectionAllowed.none
-            : ChatSelectionAllowed.full;
+        ..selectionAllowed = (id) => id == blocked ? ChatSelectionAllowed.none : ChatSelectionAllowed.full;
       addTearDown(controller.dispose);
       addTearDown(selection.dispose);
 
@@ -351,9 +293,7 @@ void main() {
           dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
           controller: controller,
           selection: selection,
-          onIdleMessageTap: (request) => taps.add(
-            _Tap(request.messageId, request.slotGlobal, request.tapGlobal),
-          ),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
         ),
       );
       await tester.pump();
@@ -366,9 +306,7 @@ void main() {
       expect(selection.isSelectionMode, isFalse);
     });
 
-    testWidgets('null callback stays silent; selection still works', (
-      tester,
-    ) async {
+    testWidgets('null callback stays silent; selection still works', (tester) async {
       const count = 32;
       final controller = ChatScrollController()..jumpTo(count - 1);
       final selection = ChatSelectionController();
@@ -393,9 +331,7 @@ void main() {
       expect(selection.isSelected(count - 1), isTrue);
     });
 
-    testWidgets('callback without a selection controller still fires', (
-      tester,
-    ) async {
+    testWidgets('callback without a selection controller still fires', (tester) async {
       const count = 32;
       final taps = <_Tap>[];
       final controller = ChatScrollController()..jumpTo(count - 1);
@@ -405,9 +341,7 @@ void main() {
         _harness(
           dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
           controller: controller,
-          onIdleMessageTap: (request) => taps.add(
-            _Tap(request.messageId, request.slotGlobal, request.tapGlobal),
-          ),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
         ),
       );
       await tester.pump();
@@ -429,18 +363,12 @@ void main() {
         _harness(
           dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
           controller: controller,
-          onIdleMessageTap: (request) => taps.add(
-            _Tap(request.messageId, request.slotGlobal, request.tapGlobal),
-          ),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
         ),
       );
       await tester.pump();
 
-      await tester.fling(
-        find.byType(ChatScrollView),
-        const Offset(0, 600),
-        4000,
-      );
+      await tester.fling(find.byType(ChatScrollView), const Offset(0, 600), 4000);
       await tester.pump();
       await tester.tap(find.byType(ChatScrollView));
       await tester.pump();
@@ -448,39 +376,31 @@ void main() {
       expect(taps, isEmpty);
     });
 
-    testWidgets(
-      'tap through the pinned date header hits the message underneath',
-      (tester) async {
-        const origin = 8;
-        final taps = <_Tap>[];
-        final controller = ChatScrollController()..jumpTo(origin);
-        addTearDown(controller.dispose);
+    testWidgets('tap through the pinned date header hits the message underneath', (tester) async {
+      const origin = 8;
+      final taps = <_Tap>[];
+      final controller = ChatScrollController()..jumpTo(origin);
+      addTearDown(controller.dispose);
 
-        await tester.pumpWidget(
-          _harness(
-            dataSource: _LoadedSource([
-              for (var i = 0; i < 32; i++)
-                _msg(i, createdAt: DateTime(2026, 1, 1 + i ~/ 4, 9, i % 4)),
-            ]),
-            controller: controller,
-            onIdleMessageTap: (request) => taps.add(
-              _Tap(request.messageId, request.slotGlobal, request.tapGlobal),
-            ),
-            dateSeparatorBuilder: (context, bucket, date) => SizedBox(
-              height: 40,
-              child: Text('sep-${date.month}-${date.day}'),
-            ),
-          ),
-        );
-        await tester.pump();
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _LoadedSource([
+            for (var i = 0; i < 32; i++) _msg(i, createdAt: DateTime(2026, 1, 1 + i ~/ 4, 9, i % 4)),
+          ]),
+          controller: controller,
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
+          dateSeparatorBuilder: (context, bucket, date) =>
+              SizedBox(height: 40, child: Text('sep-${date.month}-${date.day}')),
+        ),
+      );
+      await tester.pump();
 
-        final view = tester.getRect(find.byType(ChatScrollView));
-        await tester.tapAt(Offset(view.center.dx, view.top + 8));
-        await tester.pump();
+      final view = tester.getRect(find.byType(ChatScrollView));
+      await tester.tapAt(Offset(view.center.dx, view.top + 8));
+      await tester.pump();
 
-        expect(taps, hasLength(1));
-        expect(taps.single.id, origin);
-      },
-    );
+      expect(taps, hasLength(1));
+      expect(taps.single.id, origin);
+    });
   });
 }

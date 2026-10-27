@@ -8,41 +8,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../chat_message.dart';
 
-IChatMessage _msg(int i) => UserChatMessage(
-  id: i,
-  sender: 'User',
-  createdAt: DateTime(2026),
-  updatedAt: DateTime(2026),
-  content: 'content $i',
-);
+IChatMessage _msg(int i) =>
+    UserChatMessage(id: i, sender: 'User', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: 'content $i');
 
 class _PreloadedDataSource extends ChatDataSource {
   _PreloadedDataSource(int count) {
     for (var i = 0; i < count; i++) {
       upsertMessage(_msg(i));
     }
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: count - 1,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
     for (final chunk in chunks.values) {
       chunk.status = ChatMessageStatus.valid;
     }
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
-Widget _scaffold({
-  required ChatDataSource dataSource,
-  required ChatScrollController controller,
-}) => MaterialApp(
+Widget _scaffold({required ChatDataSource dataSource, required ChatScrollController controller}) => MaterialApp(
   home: Scaffold(
     body: Center(
       child: SizedBox(
@@ -51,10 +35,8 @@ Widget _scaffold({
         child: ChatScrollView(
           dataSource: dataSource,
           controller: controller,
-          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
-            height: 60,
-            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-          ),
+          messageBuilder: (context, id, message, status, runLayout) =>
+              SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
         ),
       ),
     ),
@@ -64,11 +46,7 @@ Widget _scaffold({
 RenderChatScrollView _render(WidgetTester tester) =>
     tester.renderObject<RenderChatScrollView>(find.byType(ChatScrollView));
 
-Future<TestGesture> _holdDragPast(
-  WidgetTester tester,
-  Offset totalDelta, {
-  required int steps,
-}) async {
+Future<TestGesture> _holdDragPast(WidgetTester tester, Offset totalDelta, {required int steps}) async {
   final center = tester.getCenter(find.byType(ChatScrollView));
   final gesture = await tester.startGesture(center);
   final stepDelta = totalDelta / steps.toDouble();
@@ -81,31 +59,22 @@ Future<TestGesture> _holdDragPast(
 
 void main() {
   group('overscroll stretch', () {
-    testWidgets('drag past oldest stretches paint, layout stays pinned', (
-      tester,
-    ) async {
+    testWidgets('drag past oldest stretches paint, layout stays pinned', (tester) async {
       const count = 20;
       final controller = ChatScrollController()..jumpTo(0);
       final ds = _PreloadedDataSource(count);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller),
-      );
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
       await tester.pumpAndSettle();
 
       final viewportTop = tester.getTopLeft(find.byType(ChatScrollView)).dy;
-      final gesture = await _holdDragPast(
-        tester,
-        const Offset(0, 400),
-        steps: 20,
-      );
+      final gesture = await _holdDragPast(tester, const Offset(0, 400), steps: 20);
       expect(
         _render(tester).debugStretchOverscroll,
         greaterThan(0.01),
-        reason:
-            'unconsumed dy at the oldest edge must paint EdgeEffect stretch',
+        reason: 'unconsumed dy at the oldest edge must paint EdgeEffect stretch',
       );
       expect(
         tester.getTopLeft(find.text('msg-0')).dy,
@@ -116,10 +85,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
       expect(_render(tester).debugStretchOverscroll, closeTo(0, 0.001));
-      expect(
-        tester.getTopLeft(find.text('msg-0')).dy,
-        closeTo(viewportTop, 0.5),
-      );
+      expect(tester.getTopLeft(find.text('msg-0')).dy, closeTo(viewportTop, 0.5));
     });
 
     testWidgets('mid-content drag does not stretch', (tester) async {
@@ -129,17 +95,11 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller),
-      );
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
       await tester.pumpAndSettle();
 
       final yBefore = tester.getTopLeft(find.text('msg-20')).dy;
-      final gesture = await _holdDragPast(
-        tester,
-        const Offset(0, -240),
-        steps: 12,
-      );
+      final gesture = await _holdDragPast(tester, const Offset(0, -240), steps: 12);
       expect(
         _render(tester).debugStretchOverscroll.abs(),
         lessThan(0.001),
@@ -163,17 +123,11 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller),
-      );
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
       await tester.pumpAndSettle();
 
       // Finger-up fling toward newer — not starting on the edge.
-      await tester.fling(
-        find.byType(ChatScrollView),
-        const Offset(0, -500),
-        8000,
-      );
+      await tester.fling(find.byType(ChatScrollView), const Offset(0, -500), 8000);
 
       var sawStretch = false;
       for (var i = 0; i < 45; i++) {
@@ -183,55 +137,40 @@ void main() {
           break;
         }
       }
-      expect(
-        sawStretch,
-        isTrue,
-        reason: 'fling leftover velocity at the newest pin must absorb',
-      );
+      expect(sawStretch, isTrue, reason: 'fling leftover velocity at the newest pin must absorb');
 
       await tester.pumpAndSettle();
       expect(_render(tester).debugStretchOverscroll.abs(), lessThan(0.001));
     });
 
-    testWidgets('mouse wheel past boundary is clamped, no stretch spring', (
-      tester,
-    ) async {
+    testWidgets('mouse wheel past boundary is clamped, no stretch spring', (tester) async {
       const count = 20;
       final controller = ChatScrollController()..jumpTo(0);
       final ds = _PreloadedDataSource(count);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller),
-      );
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
       await tester.pumpAndSettle();
 
       final viewportTopLeft = tester.getTopLeft(find.byType(ChatScrollView));
       final center = viewportTopLeft + const Offset(200, 300);
-      final testPointer = TestPointer(1, PointerDeviceKind.mouse)
-        ..hover(center);
-      await tester.sendEventToBinding(
-        testPointer.scroll(const Offset(0, -1000)),
-      );
+      final testPointer = TestPointer(1, PointerDeviceKind.mouse)..hover(center);
+      await tester.sendEventToBinding(testPointer.scroll(const Offset(0, -1000)));
       await tester.pumpAndSettle();
       expect(_render(tester).debugStretchOverscroll.abs(), lessThan(0.001));
       final firstBoxTop = tester.getTopLeft(find.text('msg-0'));
       expect(firstBoxTop.dy, closeTo(viewportTopLeft.dy, 0.5));
     });
 
-    testWidgets('keyboard scroll past boundary is clamped, no stretch', (
-      tester,
-    ) async {
+    testWidgets('keyboard scroll past boundary is clamped, no stretch', (tester) async {
       const count = 20;
       final controller = ChatScrollController()..jumpTo(0);
       final ds = _PreloadedDataSource(count);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller),
-      );
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
       await tester.pumpAndSettle();
 
       controller.scrollBy(500);
@@ -243,39 +182,25 @@ void main() {
       expect(firstBoxTop.dy, closeTo(viewportTopLeft.dy, 0.5));
     });
 
-    testWidgets('short content stretch settles with rest pin intact', (
-      tester,
-    ) async {
+    testWidgets('short content stretch settles with rest pin intact', (tester) async {
       const count = 3;
       final controller = ChatScrollController()..jumpTo(0);
       final ds = _PreloadedDataSource(count);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller),
-      );
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
       await tester.pumpAndSettle();
 
       final viewportTopLeft = tester.getTopLeft(find.byType(ChatScrollView));
-      final gesture = await _holdDragPast(
-        tester,
-        const Offset(0, 250),
-        steps: 10,
-      );
+      final gesture = await _holdDragPast(tester, const Offset(0, 250), steps: 10);
       expect(_render(tester).debugStretchOverscroll.abs(), greaterThan(0.01));
-      expect(
-        tester.getTopLeft(find.text('msg-0')).dy,
-        closeTo(viewportTopLeft.dy, 1.0),
-      );
+      expect(tester.getTopLeft(find.text('msg-0')).dy, closeTo(viewportTopLeft.dy, 1.0));
 
       await gesture.up();
       await tester.pumpAndSettle();
       expect(_render(tester).debugStretchOverscroll.abs(), lessThan(0.001));
-      expect(
-        tester.getTopLeft(find.text('msg-0')).dy,
-        closeTo(viewportTopLeft.dy, 1.0),
-      );
+      expect(tester.getTopLeft(find.text('msg-0')).dy, closeTo(viewportTopLeft.dy, 1.0));
     });
   });
 }

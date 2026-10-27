@@ -15,8 +15,7 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_chrome.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
-import 'package:flutter/foundation.dart'
-    show ValueListenable, defaultTargetPlatform;
+import 'package:flutter/foundation.dart' show ValueListenable, defaultTargetPlatform;
 import 'package:flutter/widgets.dart';
 
 /// Builds the widget for message [id].
@@ -67,12 +66,7 @@ typedef ChatMessageBuilder =
 /// Widgets this builder returns tell the two roles apart with
 /// [ChatFloatingHeaderMarker.isInside], read from their own build context —
 /// never from [context], which sits above the marker.
-typedef ChatGroupSeparatorBuilder =
-    Widget Function(
-      BuildContext context,
-      Object bucket,
-      DateTime firstMessageDate,
-    );
+typedef ChatGroupSeparatorBuilder = Widget Function(BuildContext context, Object bucket, DateTime firstMessageDate);
 
 /// Information passed to a [ChatChunkErrorBuilder] when its chunk has failed
 /// to load.
@@ -105,8 +99,7 @@ typedef ChatChunkErrorDetails = ({
 /// One widget per chunk — not 64 per-message tiles — sits where the chunk
 /// would have lived, sized to its own intrinsic height. See
 /// [ChatChunkErrorDetails] for the data handed in and the retry hook.
-typedef ChatChunkErrorBuilder =
-    Widget Function(BuildContext context, ChatChunkErrorDetails details);
+typedef ChatChunkErrorBuilder = Widget Function(BuildContext context, ChatChunkErrorDetails details);
 
 /// Default day grouping — the local calendar day. A `DateTime` with
 /// hours/minutes/seconds zeroed is equatable enough for the day-bucket gate;
@@ -537,13 +530,11 @@ class ChatScrollView extends RenderObjectWidget {
   final ChatScrollbar? scrollbar;
 
   /// The effective physics: [physics], or the platform default when unset.
-  ChatScrollPhysics get _effectivePhysics =>
-      physics ?? ChatScrollPhysics.forPlatform();
+  ChatScrollPhysics get _effectivePhysics => physics ?? ChatScrollPhysics.forPlatform();
 
   /// The effective scrollbar: [scrollbar], or the platform default when
   /// unset.
-  ChatScrollbar get _effectiveScrollbar =>
-      scrollbar ?? ChatScrollbar.forPlatform();
+  ChatScrollbar get _effectiveScrollbar => scrollbar ?? ChatScrollbar.forPlatform();
 
   /// The effective grouping function, or `null` when day separators are off.
   Object Function(IChatMessage)? get _effectiveGroupBy =>
@@ -592,10 +583,7 @@ class ChatScrollView extends RenderObjectWidget {
   }
 
   @override
-  void updateRenderObject(
-    BuildContext context,
-    RenderChatScrollView renderObject,
-  ) {
+  void updateRenderObject(BuildContext context, RenderChatScrollView renderObject) {
     final theme = ChatScrollTheme.resolve(context);
     renderObject
       ..dataSource = dataSource

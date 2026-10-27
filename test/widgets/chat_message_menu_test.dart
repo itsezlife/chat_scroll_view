@@ -5,12 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _items = <ChatMessageMenuItem>[
   ChatMessageMenuItem(id: 'edit', label: 'Edit', icon: Icons.edit_outlined),
-  ChatMessageMenuItem(
-    id: 'delete',
-    label: 'Delete',
-    icon: Icons.delete_outline,
-    isDestructive: true,
-  ),
+  ChatMessageMenuItem(id: 'delete', label: 'Delete', icon: Icons.delete_outline, isDestructive: true),
 ];
 
 Future<void> _openMenu(
@@ -39,8 +34,7 @@ Future<void> _openMenu(
       home: Scaffold(
         body: Column(
           children: <Widget>[
-            if (composerFocus != null)
-              TextField(focusNode: composerFocus, autofocus: true),
+            if (composerFocus != null) TextField(focusNode: composerFocus, autofocus: true),
             Builder(
               builder: (context) => TextButton(
                 onPressed: () async {
@@ -95,9 +89,7 @@ void main() {
     expect(find.text('Edit'), findsNothing);
   });
 
-  testWidgets('a route pushed on the result survives the leave animation', (
-    tester,
-  ) async {
+  testWidgets('a route pushed on the result survives the leave animation', (tester) async {
     bool? confirmed;
     await tester.pumpWidget(
       MaterialApp(
@@ -119,10 +111,7 @@ void main() {
                   builder: (dialogContext) => AlertDialog(
                     title: const Text('Confirm delete?'),
                     actions: <Widget>[
-                      TextButton(
-                        onPressed: () => Navigator.pop(dialogContext, true),
-                        child: const Text('Yes'),
-                      ),
+                      TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Yes')),
                     ],
                   ),
                 );
@@ -151,9 +140,7 @@ void main() {
     expect(find.text('Edit'), findsOneWidget);
   });
 
-  testWidgets('choosing a reaction completes with that reaction', (
-    tester,
-  ) async {
+  testWidgets('choosing a reaction completes with that reaction', (tester) async {
     ChatMessageMenuResult? result;
     await _openMenu(tester, onDone: (value) => result = value);
 
@@ -174,35 +161,19 @@ void main() {
     expect(find.text('❤️'), findsNothing);
   });
 
-  testWidgets(
-    'few reactions wrap to content, hang past the action card, and stay short',
-    (tester) async {
-      await _openMenu(
-        tester,
-        onDone: (_) {},
-        reactions: const <String>['👍', '❤️'],
-      );
+  testWidgets('few reactions wrap to content, hang past the action card, and stay short', (tester) async {
+    await _openMenu(tester, onDone: (_) {}, reactions: const <String>['👍', '❤️']);
 
-      final reactions = tester.getRect(find.byType(ChatMessageMenuReactions));
-      final actions = tester.getRect(find.byType(ChatMessageMenuActionList));
-      expect(reactions.width, lessThan(actions.width));
-      expect(reactions.right - actions.right, 48);
-      expect(reactions.height, 44);
-      expect(
-        tester.getCenter(find.text('❤️')).dx,
-        greaterThan(tester.getCenter(find.text('👍')).dx),
-      );
-    },
-  );
+    final reactions = tester.getRect(find.byType(ChatMessageMenuReactions));
+    final actions = tester.getRect(find.byType(ChatMessageMenuActionList));
+    expect(reactions.width, lessThan(actions.width));
+    expect(reactions.right - actions.right, 48);
+    expect(reactions.height, 44);
+    expect(tester.getCenter(find.text('❤️')).dx, greaterThan(tester.getCenter(find.text('👍')).dx));
+  });
 
-  testWidgets('many reactions hang past both sides of the action card', (
-    tester,
-  ) async {
-    await _openMenu(
-      tester,
-      onDone: (_) {},
-      reactions: const <String>['👍', '❤️', '🔥', '🥰', '👏', '😁', '🤔', '🎉'],
-    );
+  testWidgets('many reactions hang past both sides of the action card', (tester) async {
+    await _openMenu(tester, onDone: (_) {}, reactions: const <String>['👍', '❤️', '🔥', '🥰', '👏', '😁', '🤔', '🎉']);
 
     final reactions = tester.getRect(find.byType(ChatMessageMenuReactions));
     final actions = tester.getRect(find.byType(ChatMessageMenuActionList));
@@ -211,9 +182,7 @@ void main() {
   });
 
   testWidgets('hole tap dismisses with null', (tester) async {
-    ChatMessageMenuResult? result = const ChatMessageMenuResult.item(
-      'sentinel',
-    );
+    ChatMessageMenuResult? result = const ChatMessageMenuResult.item('sentinel');
     await _openMenu(tester, onDone: (value) => result = value);
 
     expect(find.text('Edit'), findsOneWidget);
@@ -226,12 +195,8 @@ void main() {
     expect(find.text('Edit'), findsNothing);
   });
 
-  testWidgets('pointer down on the scrim dismisses without a completed tap', (
-    tester,
-  ) async {
-    ChatMessageMenuResult? result = const ChatMessageMenuResult.item(
-      'sentinel',
-    );
+  testWidgets('pointer down on the scrim dismisses without a completed tap', (tester) async {
+    ChatMessageMenuResult? result = const ChatMessageMenuResult.item('sentinel');
     await _openMenu(tester, onDone: (value) => result = value);
 
     expect(find.text('Edit'), findsOneWidget);
@@ -245,9 +210,7 @@ void main() {
   });
 
   testWidgets('scrim tap dismisses with null', (tester) async {
-    ChatMessageMenuResult? result = const ChatMessageMenuResult.item(
-      'sentinel',
-    );
+    ChatMessageMenuResult? result = const ChatMessageMenuResult.item('sentinel');
     await _openMenu(tester, onDone: (value) => result = value);
 
     expect(find.text('Edit'), findsOneWidget);
@@ -260,9 +223,7 @@ void main() {
   });
 
   testWidgets('Escape dismisses with null', (tester) async {
-    ChatMessageMenuResult? result = const ChatMessageMenuResult.item(
-      'sentinel',
-    );
+    ChatMessageMenuResult? result = const ChatMessageMenuResult.item('sentinel');
     await _openMenu(tester, onDone: (value) => result = value);
 
     expect(find.text('Edit'), findsOneWidget);
@@ -275,9 +236,7 @@ void main() {
   });
 
   testWidgets('overlay back dismisses with null', (tester) async {
-    ChatMessageMenuResult? result = const ChatMessageMenuResult.item(
-      'sentinel',
-    );
+    ChatMessageMenuResult? result = const ChatMessageMenuResult.item('sentinel');
     await _openMenu(tester, onDone: (value) => result = value);
 
     expect(find.text('Edit'), findsOneWidget);
@@ -290,12 +249,8 @@ void main() {
     expect(find.text('Edit'), findsNothing);
   });
 
-  testWidgets('system back dismisses even when the page PopScope cannot pop', (
-    tester,
-  ) async {
-    ChatMessageMenuResult? result = const ChatMessageMenuResult.item(
-      'sentinel',
-    );
+  testWidgets('system back dismisses even when the page PopScope cannot pop', (tester) async {
+    ChatMessageMenuResult? result = const ChatMessageMenuResult.item('sentinel');
     await tester.pumpWidget(
       MaterialApp(
         home: PopScope(
@@ -334,21 +289,12 @@ void main() {
     expect(find.text('Edit'), findsNothing);
   });
 
-  testWidgets('presence abort dismisses with null and does not retarget', (
-    tester,
-  ) async {
+  testWidgets('presence abort dismisses with null and does not retarget', (tester) async {
     final presence = ChangeNotifier();
     var present = true;
-    ChatMessageMenuResult? result = const ChatMessageMenuResult.item(
-      'sentinel',
-    );
+    ChatMessageMenuResult? result = const ChatMessageMenuResult.item('sentinel');
 
-    await _openMenu(
-      tester,
-      onDone: (value) => result = value,
-      presence: presence,
-      isPresent: () => present,
-    );
+    await _openMenu(tester, onDone: (value) => result = value, presence: presence, isPresent: () => present);
     expect(find.text('Edit'), findsOneWidget);
 
     present = false;
@@ -361,9 +307,7 @@ void main() {
     expect(find.text('Delete'), findsNothing);
   });
 
-  testWidgets('keepKeyboardVisible restores the previous focus node', (
-    tester,
-  ) async {
+  testWidgets('keepKeyboardVisible restores the previous focus node', (tester) async {
     final composerFocus = FocusNode();
     addTearDown(composerFocus.dispose);
 
@@ -386,22 +330,13 @@ void main() {
     );
 
     final card = tester.widget<Material>(
-      find
-          .descendant(
-            of: find.byType(ChatMessageMenuCard),
-            matching: find.byType(Material),
-          )
-          .first,
+      find.descendant(of: find.byType(ChatMessageMenuCard), matching: find.byType(Material)).first,
     );
     expect(card.color, fill);
   });
 
   testWidgets('itemBuilder replaces package action rows', (tester) async {
-    await _openMenu(
-      tester,
-      onDone: (_) {},
-      itemBuilder: (context, item, onSelect) => Text('custom-${item.id}'),
-    );
+    await _openMenu(tester, onDone: (_) {}, itemBuilder: (context, item, onSelect) => Text('custom-${item.id}'));
 
     expect(find.text('custom-edit'), findsOneWidget);
     expect(find.text('Edit'), findsNothing);
@@ -411,10 +346,8 @@ void main() {
     await _openMenu(
       tester,
       onDone: (_) {},
-      menuBuilder: (context, slots) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[const Text('extra-slot'), slots.actionList],
-      ),
+      menuBuilder: (context, slots) =>
+          Column(mainAxisSize: MainAxisSize.min, children: <Widget>[const Text('extra-slot'), slots.actionList]),
     );
 
     expect(find.text('extra-slot'), findsOneWidget);
@@ -432,18 +365,9 @@ void main() {
       tester,
       onDone: (_) {},
       items: const <ChatMessageMenuItem>[
-        ChatMessageMenuItem(
-          id: 'edit',
-          label: 'Edit',
-          icon: Icons.edit_outlined,
-        ),
+        ChatMessageMenuItem(id: 'edit', label: 'Edit', icon: Icons.edit_outlined),
         ChatMessageMenuItem.divider(),
-        ChatMessageMenuItem(
-          id: 'delete',
-          label: 'Delete',
-          icon: Icons.delete_outline,
-          isDestructive: true,
-        ),
+        ChatMessageMenuItem(id: 'delete', label: 'Delete', icon: Icons.delete_outline, isDestructive: true),
       ],
     );
 
@@ -451,9 +375,7 @@ void main() {
   });
 
   group('scrim hole', () {
-    testWidgets('without a surface the hole is the rounded slot', (
-      tester,
-    ) async {
+    testWidgets('without a surface the hole is the rounded slot', (tester) async {
       await _openMenu(tester, onDone: (_) {});
 
       expect(
@@ -465,19 +387,14 @@ void main() {
       );
     });
 
-    testWidgets('a surface hole follows its shape, not the slot', (
-      tester,
-    ) async {
+    testWidgets('a surface hole follows its shape, not the slot', (tester) async {
       await _openMenu(
         tester,
         onDone: (_) {},
         messageRect: const Rect.fromLTWH(0, 100, 400, 80),
         surfaceRect: const Rect.fromLTWH(40, 110, 200, 56),
         surfaceShape: const RoundedRectangleBorder(
-          borderRadius: BorderRadiusDirectional.only(
-            topStart: Radius.circular(18),
-            bottomEnd: Radius.circular(18),
-          ),
+          borderRadius: BorderRadiusDirectional.only(topStart: Radius.circular(18), bottomEnd: Radius.circular(18)),
         ),
       );
 
@@ -502,9 +419,7 @@ void main() {
       );
     });
 
-    testWidgets('the surface hole is clipped to the visible rect', (
-      tester,
-    ) async {
+    testWidgets('the surface hole is clipped to the visible rect', (tester) async {
       await _openMenu(
         tester,
         onDone: (_) {},
@@ -516,10 +431,7 @@ void main() {
 
       expect(
         find.byType(ChatMessageMenuScrim),
-        paints..path(
-          includes: const <Offset>[Offset(140, 150)],
-          excludes: const <Offset>[Offset(140, 130)],
-        ),
+        paints..path(includes: const <Offset>[Offset(140, 150)], excludes: const <Offset>[Offset(140, 130)]),
       );
     });
   });
@@ -527,44 +439,30 @@ void main() {
   group('message menu presentation', () {
     test('forPolicy maps mobile to sheet and desktop to popup', () {
       expect(
-        ChatMessageMenuPresentation.forPolicy(
-          const ChatSelectionPolicy.mobile(),
-        ),
+        ChatMessageMenuPresentation.forPolicy(const ChatSelectionPolicy.mobile()),
         ChatMessageMenuPresentation.sheet,
       );
       expect(
-        ChatMessageMenuPresentation.forPolicy(
-          const ChatSelectionPolicy.desktop(),
-        ),
+        ChatMessageMenuPresentation.forPolicy(const ChatSelectionPolicy.desktop()),
         ChatMessageMenuPresentation.popup,
       );
     });
 
     testWidgets('sheet presentation paints the scrim', (tester) async {
-      await _openMenu(
-        tester,
-        onDone: (_) {},
-        presentation: ChatMessageMenuPresentation.sheet,
-      );
+      await _openMenu(tester, onDone: (_) {}, presentation: ChatMessageMenuPresentation.sheet);
 
       expect(find.byType(ChatMessageMenuScrim), findsOneWidget);
       expect(find.text('Edit'), findsOneWidget);
     });
 
     testWidgets('popup presentation omits the scrim', (tester) async {
-      await _openMenu(
-        tester,
-        onDone: (_) {},
-        presentation: ChatMessageMenuPresentation.popup,
-      );
+      await _openMenu(tester, onDone: (_) {}, presentation: ChatMessageMenuPresentation.popup);
 
       expect(find.byType(ChatMessageMenuScrim), findsNothing);
       expect(find.text('Edit'), findsOneWidget);
     });
 
-    testWidgets('desktop policy defaults to popup without an override', (
-      tester,
-    ) async {
+    testWidgets('desktop policy defaults to popup without an override', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -594,9 +492,7 @@ void main() {
       expect(find.text('Edit'), findsOneWidget);
     });
 
-    testWidgets('mobile policy defaults to sheet without an override', (
-      tester,
-    ) async {
+    testWidgets('mobile policy defaults to sheet without an override', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -626,9 +522,7 @@ void main() {
       expect(find.text('Edit'), findsOneWidget);
     });
 
-    testWidgets('explicit presentation overrides selection policy', (
-      tester,
-    ) async {
+    testWidgets('explicit presentation overrides selection policy', (tester) async {
       await _openMenu(
         tester,
         onDone: (_) {},
@@ -640,14 +534,8 @@ void main() {
     });
 
     testWidgets('popup outside tap dismisses with null', (tester) async {
-      ChatMessageMenuResult? result = const ChatMessageMenuResult.item(
-        'sentinel',
-      );
-      await _openMenu(
-        tester,
-        onDone: (value) => result = value,
-        presentation: ChatMessageMenuPresentation.popup,
-      );
+      ChatMessageMenuResult? result = const ChatMessageMenuResult.item('sentinel');
+      await _openMenu(tester, onDone: (value) => result = value, presentation: ChatMessageMenuPresentation.popup);
 
       expect(find.text('Edit'), findsOneWidget);
       await tester.tapAt(const Offset(8, 8));
@@ -659,14 +547,8 @@ void main() {
     });
 
     testWidgets('popup Escape dismisses with null', (tester) async {
-      ChatMessageMenuResult? result = const ChatMessageMenuResult.item(
-        'sentinel',
-      );
-      await _openMenu(
-        tester,
-        onDone: (value) => result = value,
-        presentation: ChatMessageMenuPresentation.popup,
-      );
+      ChatMessageMenuResult? result = const ChatMessageMenuResult.item('sentinel');
+      await _openMenu(tester, onDone: (value) => result = value, presentation: ChatMessageMenuPresentation.popup);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pump();
@@ -679,9 +561,7 @@ void main() {
     testWidgets('popup presence abort dismisses with null', (tester) async {
       final presence = ChangeNotifier();
       var present = true;
-      ChatMessageMenuResult? result = const ChatMessageMenuResult.item(
-        'sentinel',
-      );
+      ChatMessageMenuResult? result = const ChatMessageMenuResult.item('sentinel');
 
       await _openMenu(
         tester,
@@ -701,15 +581,9 @@ void main() {
       expect(find.text('Edit'), findsNothing);
     });
 
-    testWidgets('popup choosing an item still completes with itemId', (
-      tester,
-    ) async {
+    testWidgets('popup choosing an item still completes with itemId', (tester) async {
       ChatMessageMenuResult? result;
-      await _openMenu(
-        tester,
-        onDone: (value) => result = value,
-        presentation: ChatMessageMenuPresentation.popup,
-      );
+      await _openMenu(tester, onDone: (value) => result = value, presentation: ChatMessageMenuPresentation.popup);
 
       await tester.tap(find.text('Edit'));
       await tester.pump();
@@ -718,9 +592,7 @@ void main() {
       expect(result, const ChatMessageMenuResult.item('edit'));
     });
 
-    testWidgets('popup may omit reactions without a second product', (
-      tester,
-    ) async {
+    testWidgets('popup may omit reactions without a second product', (tester) async {
       await _openMenu(
         tester,
         onDone: (_) {},
@@ -735,12 +607,7 @@ void main() {
 
     testWidgets('popup origin follows the pointer X', (tester) async {
       const tap = Offset(220, 140);
-      await _openMenu(
-        tester,
-        onDone: (_) {},
-        presentation: ChatMessageMenuPresentation.popup,
-        tapGlobal: tap,
-      );
+      await _openMenu(tester, onDone: (_) {}, presentation: ChatMessageMenuPresentation.popup, tapGlobal: tap);
 
       final menuLeft = tester.getTopLeft(find.byType(ChatMessageMenuColumn)).dx;
       expect(menuLeft, closeTo(tap.dx, 1));

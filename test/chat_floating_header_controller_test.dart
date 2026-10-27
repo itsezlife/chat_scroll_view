@@ -58,11 +58,7 @@ void main() {
     test('returns true when bucket changes', () {
       final controller = ChatFloatingHeaderController()..headerBucket = 'a';
       expect(
-        controller.tickForDayChange(
-          scan: (bucket: 'b', id: 2),
-          groupBy: (_) => 'b',
-          hasFloatingHeader: true,
-        ),
+        controller.tickForDayChange(scan: (bucket: 'b', id: 2), groupBy: (_) => 'b', hasFloatingHeader: true),
         isTrue,
       );
     });
@@ -70,11 +66,7 @@ void main() {
     test('returns false when bucket unchanged', () {
       final controller = ChatFloatingHeaderController()..headerBucket = 'a';
       expect(
-        controller.tickForDayChange(
-          scan: (bucket: 'a', id: 1),
-          groupBy: (_) => 'a',
-          hasFloatingHeader: true,
-        ),
+        controller.tickForDayChange(scan: (bucket: 'a', id: 1), groupBy: (_) => 'a', hasFloatingHeader: true),
         isFalse,
       );
     });
@@ -107,10 +99,7 @@ void main() {
   group('floatingHeaderHeight', () {
     test('uses fallback when header has no size', () {
       final controller = ChatFloatingHeaderController();
-      expect(
-        controller.floatingHeaderHeight(null),
-        ChatFloatingHeaderController.headerFallbackHeight,
-      );
+      expect(controller.floatingHeaderHeight(null), ChatFloatingHeaderController.headerFallbackHeight);
     });
   });
 
@@ -125,12 +114,7 @@ void main() {
     test('shows while older history may still load', () {
       final controller = ChatFloatingHeaderController();
       expect(
-        controller.shouldShowFloatingHeader(
-          reachedOldest: false,
-          oldestTop: 400,
-          topPad: 0,
-          floatingHeaderHeight: 32,
-        ),
+        controller.shouldShowFloatingHeader(reachedOldest: false, oldestTop: 400, topPad: 0, floatingHeaderHeight: 32),
         isTrue,
       );
     });
@@ -138,12 +122,7 @@ void main() {
     test('hides when oldest sits below the header stack', () {
       final controller = ChatFloatingHeaderController();
       expect(
-        controller.shouldShowFloatingHeader(
-          reachedOldest: true,
-          oldestTop: 251,
-          topPad: 0,
-          floatingHeaderHeight: 24,
-        ),
+        controller.shouldShowFloatingHeader(reachedOldest: true, oldestTop: 251, topPad: 0, floatingHeaderHeight: 24),
         isFalse,
       );
     });
@@ -151,12 +130,7 @@ void main() {
     test('shows when oldest overlaps the header zone', () {
       final controller = ChatFloatingHeaderController();
       expect(
-        controller.shouldShowFloatingHeader(
-          reachedOldest: true,
-          oldestTop: 20,
-          topPad: 0,
-          floatingHeaderHeight: 32,
-        ),
+        controller.shouldShowFloatingHeader(reachedOldest: true, oldestTop: 20, topPad: 0, floatingHeaderHeight: 32),
         isTrue,
       );
     });
@@ -164,12 +138,7 @@ void main() {
     test('hides during top overscroll past the header stack', () {
       final controller = ChatFloatingHeaderController();
       expect(
-        controller.shouldShowFloatingHeader(
-          reachedOldest: true,
-          oldestTop: 80,
-          topPad: 0,
-          floatingHeaderHeight: 32,
-        ),
+        controller.shouldShowFloatingHeader(reachedOldest: true, oldestTop: 80, topPad: 0, floatingHeaderHeight: 32),
         isFalse,
       );
     });

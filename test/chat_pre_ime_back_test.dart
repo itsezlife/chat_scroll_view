@@ -15,34 +15,31 @@ class _FakeNative implements ChatPreImeBackNative {
 void main() {
   tearDown(ChatPreImeBackBinding.debugReset);
 
-  test(
-    'nested claims: top handles back; below is untouched until pop',
-    () async {
-      final native = _FakeNative();
-      ChatPreImeBackBinding.native = native;
+  test('nested claims: top handles back; below is untouched until pop', () async {
+    final native = _FakeNative();
+    ChatPreImeBackBinding.native = native;
 
-      final handled = <String>[];
-      final lower = ChatPreImeBackClaim.push(() async {
-        handled.add('lower');
-        return true;
-      });
-      final top = ChatPreImeBackClaim.push(() async {
-        handled.add('top');
-        return true;
-      });
+    final handled = <String>[];
+    final lower = ChatPreImeBackClaim.push(() async {
+      handled.add('lower');
+      return true;
+    });
+    final top = ChatPreImeBackClaim.push(() async {
+      handled.add('top');
+      return true;
+    });
 
-      expect(await ChatPreImeBackBinding.handleNativeBack(), isTrue);
-      expect(handled, ['top']);
+    expect(await ChatPreImeBackBinding.handleNativeBack(), isTrue);
+    expect(handled, ['top']);
 
-      top.pop();
-      expect(await ChatPreImeBackBinding.handleNativeBack(), isTrue);
-      expect(handled, ['top', 'lower']);
+    top.pop();
+    expect(await ChatPreImeBackBinding.handleNativeBack(), isTrue);
+    expect(handled, ['top', 'lower']);
 
-      lower.pop();
-      expect(await ChatPreImeBackBinding.handleNativeBack(), isFalse);
-      expect(handled, ['top', 'lower']);
-    },
-  );
+    lower.pop();
+    expect(await ChatPreImeBackBinding.handleNativeBack(), isFalse);
+    expect(handled, ['top', 'lower']);
+  });
 
   test('empty stack: no native acquire; release after last pop', () async {
     final native = _FakeNative();

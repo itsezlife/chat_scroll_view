@@ -21,38 +21,22 @@ class _LoadedSource extends ChatDataSource {
     upsertMessages(messages);
     if (messages.isEmpty) return;
     final ids = messages.map((m) => m.id).toList()..sort();
-    seedBoundaries(
-      oldestKnownId: ids.first,
-      newestKnownId: ids.last,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: ids.first, newestKnownId: ids.last, reachedOldest: true, reachedNewest: true);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 /// Boundaries span ids 0–9; only id 5 is loaded — id 3 is dirty/unloaded.
 class _SparseUnloadedSource extends ChatDataSource {
   _SparseUnloadedSource() {
     upsertMessage(_msg(5));
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: 9,
-      reachedOldest: false,
-      reachedNewest: false,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: 9, reachedOldest: false, reachedNewest: false);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 class _InvokeTracker {
@@ -116,32 +100,27 @@ Future<void> _pumpLoaded(
 
 void main() {
   group('absent slot build exclusion', () {
-    testWidgets(
-      'delete anchor of two leaves survivor without ghost builder call',
-      (tester) async {
-        final ds = _LoadedSource([_msg(1), _msg(2)]);
-        final controller = ChatScrollController()..jumpTo(1);
-        final tracker = _InvokeTracker();
-        addTearDown(controller.dispose);
-        addTearDown(ds.dispose);
+    testWidgets('delete anchor of two leaves survivor without ghost builder call', (tester) async {
+      final ds = _LoadedSource([_msg(1), _msg(2)]);
+      final controller = ChatScrollController()..jumpTo(1);
+      final tracker = _InvokeTracker();
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
 
-        await _pumpLoaded(tester, ds, controller, tracker.builder);
-        tracker.reset();
+      await _pumpLoaded(tester, ds, controller, tracker.builder);
+      tracker.reset();
 
-        ds.removeMessages([1]);
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 100));
+      ds.removeMessages([1]);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-        expect(find.text('msg-2'), findsOneWidget);
-        expect(find.text('msg-1'), findsNothing);
-        expect(find.text('shimmer-1'), findsNothing);
-        expect(tracker.ids, isNot(contains(1)));
-      },
-    );
+      expect(find.text('msg-2'), findsOneWidget);
+      expect(find.text('msg-1'), findsNothing);
+      expect(find.text('shimmer-1'), findsNothing);
+      expect(tracker.ids, isNot(contains(1)));
+    });
 
-    testWidgets('selection mode delete anchor leaves no selectable ghost row', (
-      tester,
-    ) async {
+    testWidgets('selection mode delete anchor leaves no selectable ghost row', (tester) async {
       final ds = _LoadedSource([_msg(1), _msg(2)]);
       final controller = ChatScrollController()..jumpTo(1);
       final selection = ChatSelectionController()..startSelection(1);
@@ -153,10 +132,8 @@ void main() {
         tester,
         ds,
         controller,
-        (context, id, message, status, runLayout) => SizedBox(
-          height: 60,
-          child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-        ),
+        (context, id, message, status, runLayout) =>
+            SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
         selection: selection,
       );
 
@@ -170,9 +147,7 @@ void main() {
       expect(find.byType(SelectableMessage), findsOneWidget);
     });
 
-    testWidgets('does not wrap shimmer slots in SelectableMessage', (
-      tester,
-    ) async {
+    testWidgets('does not wrap shimmer slots in SelectableMessage', (tester) async {
       final ds = _SparseUnloadedSource();
       final controller = ChatScrollController()..jumpTo(5);
       final selection = ChatSelectionController();
@@ -184,34 +159,21 @@ void main() {
         tester,
         ds,
         controller,
-        (context, id, message, status, runLayout) => SizedBox(
-          height: 60,
-          child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-        ),
+        (context, id, message, status, runLayout) =>
+            SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
         selection: selection,
       );
 
       expect(find.text('msg-5'), findsOneWidget);
       expect(find.textContaining('shimmer-'), findsWidgets);
+      expect(find.ancestor(of: find.text('msg-5'), matching: find.byType(SelectableMessage)), findsOneWidget);
       expect(
-        find.ancestor(
-          of: find.text('msg-5'),
-          matching: find.byType(SelectableMessage),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.ancestor(
-          of: find.textContaining('shimmer-'),
-          matching: find.byType(SelectableMessage),
-        ),
+        find.ancestor(of: find.textContaining('shimmer-'), matching: find.byType(SelectableMessage)),
         findsNothing,
       );
     });
 
-    testWidgets('delete non-anchor oldest skips builder for absent id', (
-      tester,
-    ) async {
+    testWidgets('delete non-anchor oldest skips builder for absent id', (tester) async {
       final ds = _LoadedSource([_msg(1), _msg(2), _msg(3)]);
       final controller = ChatScrollController()..jumpTo(3);
       final tracker = _InvokeTracker();
@@ -230,9 +192,7 @@ void main() {
       expect(find.text('msg-3'), findsOneWidget);
     });
 
-    testWidgets('delete middle of three leaves no shimmer at absent id', (
-      tester,
-    ) async {
+    testWidgets('delete middle of three leaves no shimmer at absent id', (tester) async {
       final ds = _LoadedSource([_msg(1), _msg(2), _msg(3)]);
       final controller = ChatScrollController()..jumpTo(3);
       final tracker = _InvokeTracker();
@@ -250,9 +210,7 @@ void main() {
       expect(find.text('shimmer-2'), findsNothing);
     });
 
-    testWidgets('removed id is not built on subsequent layout passes', (
-      tester,
-    ) async {
+    testWidgets('removed id is not built on subsequent layout passes', (tester) async {
       final ds = _LoadedSource([_msg(1), _msg(2)]);
       final controller = ChatScrollController()..jumpTo(2);
       final tracker = _InvokeTracker();
@@ -271,9 +229,7 @@ void main() {
       expect(tracker.ids, isNot(contains(1)));
     });
 
-    testWidgets('tail delete reassigns anchor to previous present', (
-      tester,
-    ) async {
+    testWidgets('tail delete reassigns anchor to previous present', (tester) async {
       final ds = _LoadedSource([_msg(1), _msg(2), _msg(3)]);
       final controller = ChatScrollController()..jumpTo(3);
       addTearDown(controller.dispose);
@@ -283,8 +239,7 @@ void main() {
         tester,
         ds,
         controller,
-        (context, id, message, status, runLayout) =>
-            SizedBox(height: 40, child: Text('msg-$id')),
+        (context, id, message, status, runLayout) => SizedBox(height: 40, child: Text('msg-$id')),
       );
 
       ds.removeMessages([3]);
@@ -295,9 +250,7 @@ void main() {
       expect(find.text('msg-2'), findsOneWidget);
     });
 
-    testWidgets('history delete reassigns anchor to next present', (
-      tester,
-    ) async {
+    testWidgets('history delete reassigns anchor to next present', (tester) async {
       final ds = _LoadedSource([_msg(1), _msg(2)]);
       final controller = ChatScrollController()..jumpTo(1);
       addTearDown(controller.dispose);
@@ -307,8 +260,7 @@ void main() {
         tester,
         ds,
         controller,
-        (context, id, message, status, runLayout) =>
-            SizedBox(height: 40, child: Text('msg-$id')),
+        (context, id, message, status, runLayout) => SizedBox(height: 40, child: Text('msg-$id')),
       );
 
       ds.removeMessages([1]);
@@ -318,9 +270,7 @@ void main() {
       expect(controller.anchorMessageId, 2);
     });
 
-    testWidgets('delete sole message shows empty state without shimmer loop', (
-      tester,
-    ) async {
+    testWidgets('delete sole message shows empty state without shimmer loop', (tester) async {
       final ds = _LoadedSource([_msg(1)]);
       final controller = ChatScrollController()..jumpTo(1);
       addTearDown(controller.dispose);
@@ -330,8 +280,7 @@ void main() {
         tester,
         ds,
         controller,
-        (context, id, message, status, runLayout) =>
-            SizedBox(height: 40, child: Text('msg-$id')),
+        (context, id, message, status, runLayout) => SizedBox(height: 40, child: Text('msg-$id')),
         emptyBuilder: (context) => const Text('empty-chat'),
       );
 
@@ -346,9 +295,7 @@ void main() {
       expect(find.text('empty-chat'), findsOneWidget);
     });
 
-    testWidgets('unloaded dirty id still invokes builder for shimmer', (
-      tester,
-    ) async {
+    testWidgets('unloaded dirty id still invokes builder for shimmer', (tester) async {
       final ds = _SparseUnloadedSource();
       final controller = ChatScrollController()..jumpTo(3);
       final tracker = _InvokeTracker();
@@ -361,9 +308,7 @@ void main() {
       expect(find.text('shimmer-3'), findsOneWidget);
     });
 
-    testWidgets('demo bubble delete anchor shows sender on survivor', (
-      tester,
-    ) async {
+    testWidgets('demo bubble delete anchor shows sender on survivor', (tester) async {
       final ds = _LoadedSource([_msg(1, content: 'a'), _msg(2, content: 'b')]);
       final controller = ChatScrollController()..jumpTo(1);
       addTearDown(controller.dispose);

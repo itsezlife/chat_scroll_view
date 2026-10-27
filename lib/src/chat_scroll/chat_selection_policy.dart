@@ -16,16 +16,12 @@ sealed class ChatSelectionPolicy {
   const factory ChatSelectionPolicy.desktop() = ChatSelectionPolicy$Desktop;
 
   /// Default from OS family. Pass [platform] / [isWeb] to pin in tests.
-  factory ChatSelectionPolicy.forPlatform({
-    TargetPlatform? platform,
-    bool? isWeb,
-  }) {
+  factory ChatSelectionPolicy.forPlatform({TargetPlatform? platform, bool? isWeb}) {
     if (isWeb ?? kIsWeb) {
       return const ChatSelectionPolicy.desktop();
     }
     return switch (platform ?? defaultTargetPlatform) {
-      TargetPlatform.iOS ||
-      TargetPlatform.android => const ChatSelectionPolicy.mobile(),
+      TargetPlatform.iOS || TargetPlatform.android => const ChatSelectionPolicy.mobile(),
       _ => const ChatSelectionPolicy.desktop(),
     };
   }
@@ -167,10 +163,7 @@ sealed class ChatSelectionPolicy {
   ///
   /// [clearTextSelection] / [clearMessageSelection] are supplied by the
   /// facade so this type does not own clipboard I/O.
-  void applyCopySuccess({
-    required VoidCallback clearTextSelection,
-    required VoidCallback clearMessageSelection,
-  });
+  void applyCopySuccess({required VoidCallback clearTextSelection, required VoidCallback clearMessageSelection});
 }
 
 /// Mobile **selection policy**.
@@ -227,8 +220,7 @@ final class ChatSelectionPolicy$Mobile implements ChatSelectionPolicy {
   bool get hasBottomCodeCopyBar => true;
 
   @override
-  bool hasBottomCodeCopyBarForLength(int length) =>
-      length >= ChatSelectionPolicy.mobileCodeCopyBarThreshold;
+  bool hasBottomCodeCopyBarForLength(int length) => length >= ChatSelectionPolicy.mobileCodeCopyBarThreshold;
 
   @override
   void applyEnterMembership({
@@ -240,10 +232,7 @@ final class ChatSelectionPolicy$Mobile implements ChatSelectionPolicy {
   }
 
   @override
-  void applyCopySuccess({
-    required VoidCallback clearTextSelection,
-    required VoidCallback clearMessageSelection,
-  }) {
+  void applyCopySuccess({required VoidCallback clearTextSelection, required VoidCallback clearMessageSelection}) {
     clearTextSelection();
     clearMessageSelection();
   }
@@ -313,10 +302,7 @@ final class ChatSelectionPolicy$Desktop implements ChatSelectionPolicy {
   }
 
   @override
-  void applyCopySuccess({
-    required VoidCallback clearTextSelection,
-    required VoidCallback clearMessageSelection,
-  }) {
+  void applyCopySuccess({required VoidCallback clearTextSelection, required VoidCallback clearMessageSelection}) {
     // Clipboard only — keep the character range.
   }
 }

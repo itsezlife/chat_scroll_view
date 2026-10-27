@@ -52,20 +52,10 @@ final class ChatEmojiSizes {
     this.mixedSteps = _androidMixedSteps,
     this.stickerViewportFraction = 0.5,
     this.stickerZoom = 0.625,
-  }) : assert(
-         stickerViewportFraction > 0 && stickerZoom > 0,
-         'The sticker rule takes positive fractions.',
-       );
+  }) : assert(stickerViewportFraction > 0 && stickerZoom > 0, 'The sticker rule takes positive fractions.');
 
   /// The reference client's six font steps in dp, largest first.
-  static const List<double> androidFontSteps = [
-    81.6,
-    55.2,
-    40.8,
-    33.6,
-    26.4,
-    22.8,
-  ];
+  static const List<double> androidFontSteps = [81.6, 55.2, 40.8, 33.6, 26.4, 22.8];
 
   // Indexed by min(count, 7) - 1, into [androidFontSteps].
   static const List<int> _androidAllCustomSteps = [0, 0, 1, 2, 3, 4, 5];
@@ -95,8 +85,7 @@ final class ChatEmojiSizes {
   double fontSizeFor(int count, {required bool allCustom}) {
     assert(count > 0, 'A message has at least one item.');
     assert(
-      allCustomSteps.length == _countClasses &&
-          mixedSteps.length == _countClasses,
+      allCustomSteps.length == _countClasses && mixedSteps.length == _countClasses,
       'A step table has one entry for each of the counts 1 to 6 and 7+.',
     );
     final table = allCustom ? allCustomSteps : mixedSteps;
@@ -104,12 +93,10 @@ final class ChatEmojiSizes {
   }
 
   /// The side of one item's square in the text layout.
-  double itemBoxFor(int count, {required bool allCustom}) =>
-      fontSizeFor(count, allCustom: allCustom) + boxPadding;
+  double itemBoxFor(int count, {required bool allCustom}) => fontSizeFor(count, allCustom: allCustom) + boxPadding;
 
   /// The side of the sticker for a [viewport] of that size.
-  double stickerExtentFor(Size viewport) =>
-      viewport.shortestSide * stickerViewportFraction * stickerZoom;
+  double stickerExtentFor(Size viewport) => viewport.shortestSide * stickerViewportFraction * stickerZoom;
 
   @override
   bool operator ==(Object other) =>

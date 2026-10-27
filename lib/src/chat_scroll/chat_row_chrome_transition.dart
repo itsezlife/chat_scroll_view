@@ -14,28 +14,16 @@ const _fadeCurve = SineInOutCurve();
 @immutable
 final class ChatRowChromeTransitionFrame {
   /// A frame with the given factors.
-  const ChatRowChromeTransitionFrame({
-    required this.extent,
-    required this.opacity,
-    required this.scale,
-  });
+  const ChatRowChromeTransitionFrame({required this.extent, required this.opacity, required this.scale});
 
   /// Scale a transitioning row chrome item enters from.
   static const double enterScale = 0.9;
 
   /// The item at rest: full slot, opaque, unscaled.
-  static const settled = ChatRowChromeTransitionFrame(
-    extent: 1,
-    opacity: 1,
-    scale: 1,
-  );
+  static const settled = ChatRowChromeTransitionFrame(extent: 1, opacity: 1, scale: 1);
 
   /// Where an enter starts: no slot, transparent, at [enterScale].
-  static const hidden = ChatRowChromeTransitionFrame(
-    extent: 0,
-    opacity: 0,
-    scale: enterScale,
-  );
+  static const hidden = ChatRowChromeTransitionFrame(extent: 0, opacity: 0, scale: enterScale);
 
   /// Fraction of the item's laid-out height its slot keeps. The rows around
   /// it move with the slot, not with the item.
@@ -66,8 +54,7 @@ final class ChatRowChromeTransitionFrame {
 /// One running leg: toward settled (entering) or gone (exiting), starting
 /// from [from] at [start] on the clock's ticker.
 final class _Leg {
-  _Leg({required this.entering, required this.from, required this.start})
-    : frame = from;
+  _Leg({required this.entering, required this.from, required this.start}) : frame = from;
 
   /// Toward settled when `true`, toward gone when `false`.
   final bool entering;
@@ -91,13 +78,10 @@ final class _Leg {
   /// leftover scale back to `1` with it. The leg ends with the longest
   /// track.
   ChatRowChromeTransitionFrame? frameAt(Duration elapsed) {
-    double progress(Duration duration) =>
-        (elapsed.inMicroseconds / duration.inMicroseconds).clamp(0.0, 1.0);
+    double progress(Duration duration) => (elapsed.inMicroseconds / duration.inMicroseconds).clamp(0.0, 1.0);
     final move = progress(ChatMessageChangeParams.duration);
     final fade = progress(
-      entering
-          ? ChatRowChromeTransitionClock.enterDuration
-          : ChatRowChromeTransitionClock.exitFadeDuration,
+      entering ? ChatRowChromeTransitionClock.enterDuration : ChatRowChromeTransitionClock.exitFadeDuration,
     );
     if (move >= 1 && fade >= 1) return null;
     final moved = ChatMessageChangeParams.curve.transform(move);
@@ -143,8 +127,7 @@ final class _Leg {
 @internal
 final class ChatRowChromeTransitionClock {
   /// A clock with no legs.
-  ChatRowChromeTransitionClock({required VoidCallback onChanged})
-    : _onChanged = onChanged {
+  ChatRowChromeTransitionClock({required VoidCallback onChanged}) : _onChanged = onChanged {
     _ticker = Ticker(_tick, debugLabel: 'ChatRowChromeTransitionClock');
   }
 
@@ -191,11 +174,7 @@ final class ChatRowChromeTransitionClock {
     }
     _legs[id] = _Leg(
       entering: entering,
-      from:
-          leg?.frame ??
-          (entering
-              ? ChatRowChromeTransitionFrame.hidden
-              : ChatRowChromeTransitionFrame.settled),
+      from: leg?.frame ?? (entering ? ChatRowChromeTransitionFrame.hidden : ChatRowChromeTransitionFrame.settled),
       start: _elapsed,
     );
     _changed.add(id);

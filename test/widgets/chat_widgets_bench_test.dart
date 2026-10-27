@@ -23,20 +23,12 @@ class _Preloaded extends ChatDataSource {
   _Preloaded(List<IChatMessage> messages) {
     upsertMessages(messages);
     if (messages.isNotEmpty) {
-      seedBoundaries(
-        oldestKnownId: 0,
-        newestKnownId: messages.length - 1,
-        reachedOldest: true,
-        reachedNewest: true,
-      );
+      seedBoundaries(oldestKnownId: 0, newestKnownId: messages.length - 1, reachedOldest: true, reachedNewest: true);
     }
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async {
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async {
     final out = <IChatMessage>[];
     for (var id = fromId; id <= toId; id++) {
       final m = getMessage(id);
@@ -59,11 +51,7 @@ Future<RenderChatScrollView> _pump(WidgetTester tester, int count) async {
             dataSource: _Preloaded(generateMessages(count)),
             controller: controller,
             messageBuilder: (context, id, message, status, runLayout) =>
-                SizedBox(
-                  height: 56,
-                  width: double.infinity,
-                  child: Text('$id'),
-                ),
+                SizedBox(height: 56, width: double.infinity, child: Text('$id')),
           ),
         ),
       ),

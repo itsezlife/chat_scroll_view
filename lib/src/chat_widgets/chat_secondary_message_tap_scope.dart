@@ -11,11 +11,7 @@ import 'package:flutter/widgets.dart';
 /// chrome** stays available.
 final class ChatSecondaryMessageTapScope extends InheritedWidget {
   /// Creates a secondary-ownership scope for descendant markdown bodies.
-  const ChatSecondaryMessageTapScope({
-    required this.hostOwnsSecondary,
-    required super.child,
-    super.key,
-  });
+  const ChatSecondaryMessageTapScope({required this.hostOwnsSecondary, required super.child, super.key});
 
   /// Whether [ChatScrollView.onSecondaryMessageTap] is non-null.
   final bool hostOwnsSecondary;
@@ -27,10 +23,7 @@ final class ChatSecondaryMessageTapScope extends InheritedWidget {
   /// [ChatSelectionPolicy.secondaryMessageTapOwnsFullSlot].
   static bool hostOwnsSecondaryOf(BuildContext context, {bool listen = true}) {
     final scope = listen
-        ? context
-              .dependOnInheritedWidgetOfExactType<
-                ChatSecondaryMessageTapScope
-              >()
+        ? context.dependOnInheritedWidgetOfExactType<ChatSecondaryMessageTapScope>()
         : context.getInheritedWidgetOfExactType<ChatSecondaryMessageTapScope>();
     return scope?.hostOwnsSecondary ?? false;
   }

@@ -22,10 +22,7 @@ final class ChatInlineEmbedAdapter implements MarkdownInlineEmbedResolver {
   final InlineEmbedResolver resolver;
 
   @override
-  MarkdownInlineEmbed? resolve(
-    MarkdownInlineEmbedTarget target,
-    MarkdownInlineEmbedMetrics metrics,
-  ) {
+  MarkdownInlineEmbed? resolve(MarkdownInlineEmbedTarget target, MarkdownInlineEmbedMetrics metrics) {
     // The cache sizes an embed by the font's height; a font that reports none
     // has nothing to size it by, so the body shows the alternative text.
     if (metrics.ascent <= 0 || metrics.descent <= 0) return null;
@@ -57,15 +54,8 @@ final class _AdaptedEmbed implements MarkdownInlineEmbed {
   set visible(bool value) => _embed.visible = value;
 
   @override
-  void paint(
-    Canvas canvas,
-    Rect rect,
-    MarkdownInlineEmbedPaintContext context,
-  ) => _embed.paint(
-    canvas,
-    rect,
-    InlineEmbedPaintContext(tint: context.tint, opacity: context.opacity),
-  );
+  void paint(Canvas canvas, Rect rect, MarkdownInlineEmbedPaintContext context) =>
+      _embed.paint(canvas, rect, InlineEmbedPaintContext(tint: context.tint, opacity: context.opacity));
 
   @override
   void addListener(VoidCallback listener) => _embed.addListener(listener);

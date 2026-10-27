@@ -128,12 +128,10 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
 
   /// Column width for [viewportWidth] — never exceeds the viewport or
   /// [contentMaxWidth].
-  double columnWidth(double viewportWidth) =>
-      math.min(viewportWidth, contentMaxWidth);
+  double columnWidth(double viewportWidth) => math.min(viewportWidth, contentMaxWidth);
 
   /// Inner width after [padding], for bubble layout.
-  double innerWidth(double viewportWidth) =>
-      math.max(0, columnWidth(viewportWidth) - padding.horizontal);
+  double innerWidth(double viewportWidth) => math.max(0, columnWidth(viewportWidth) - padding.horizontal);
 
   /// Bubble cap for [viewportWidth], optionally subtracting the avatar gutter.
   double bubbleCap(double viewportWidth, {required bool hasAvatarGutter}) {
@@ -145,8 +143,7 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
   }
 
   /// Extra width beside the column. Zero when the column is full-bleed.
-  double horizontalSlack(double viewportWidth) =>
-      math.max(0, viewportWidth - columnWidth(viewportWidth));
+  double horizontalSlack(double viewportWidth) => math.max(0, viewportWidth - columnWidth(viewportWidth));
 
   /// Right-side margin of the column — room for a rightward selection slide.
   ///
@@ -167,19 +164,14 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
   /// [padding] lives inside the column, so it is already in this check —
   /// a rightward slide needs [slotWidth] of end margin after the padded
   /// column.
-  bool selectionGutterFits({
-    required double viewportWidth,
-    required double slotWidth,
-  }) => endSlack(viewportWidth) >= slotWidth;
+  bool selectionGutterFits({required double viewportWidth, required double slotWidth}) =>
+      endSlack(viewportWidth) >= slotWidth;
 
   /// Column alignment for a row in [viewportWidth].
   ///
   /// Wide viewports use [columnPlacement]. Narrow (full-bleed) viewports
   /// pin incoming rows to the start and outgoing rows to the end.
-  AlignmentDirectional columnAlignment({
-    required double viewportWidth,
-    required bool outgoing,
-  }) {
+  AlignmentDirectional columnAlignment({required double viewportWidth, required bool outgoing}) {
     if (viewportWidth > bubbleMaxWidth) {
       return switch (columnPlacement) {
         ChatMessageColumnPlacement.start => AlignmentDirectional.centerStart,
@@ -187,24 +179,20 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
         ChatMessageColumnPlacement.end => AlignmentDirectional.centerEnd,
       };
     }
-    return outgoing
-        ? AlignmentDirectional.centerEnd
-        : AlignmentDirectional.centerStart;
+    return outgoing ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart;
   }
 
   /// Top inset for a row in a sender run.
   ///
   /// First-in-run uses [padding.top]; otherwise half of [runGap] (paired with
   /// [bottomInset] on the neighbor above).
-  double topInset({required bool isFirstInRun}) =>
-      isFirstInRun ? padding.top : runGap / 2;
+  double topInset({required bool isFirstInRun}) => isFirstInRun ? padding.top : runGap / 2;
 
   /// Bottom inset for a row in a sender run.
   ///
   /// Last-in-run uses [padding.bottom]; otherwise half of [runGap] (paired
   /// with [topInset] on the neighbor below).
-  double bottomInset({required bool isLastInRun}) =>
-      isLastInRun ? padding.bottom : runGap / 2;
+  double bottomInset({required bool isLastInRun}) => isLastInRun ? padding.bottom : runGap / 2;
 
   @override
   ChatMessageThemeData copyWith({
@@ -248,17 +236,9 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
       columnPlacement: t < 0.5 ? columnPlacement : other.columnPlacement,
       bubbleRadius: lerpDouble(bubbleRadius, other.bubbleRadius, t)!,
       cornerNearCap: lerpDouble(cornerNearCap, other.cornerNearCap, t)!,
-      mediaRadiusInset: lerpDouble(
-        mediaRadiusInset,
-        other.mediaRadiusInset,
-        t,
-      )!,
+      mediaRadiusInset: lerpDouble(mediaRadiusInset, other.mediaRadiusInset, t)!,
       mediaNearCap: lerpDouble(mediaNearCap, other.mediaNearCap, t)!,
-      bubblePadding: EdgeInsetsDirectional.lerp(
-        bubblePadding,
-        other.bubblePadding,
-        t,
-      )!,
+      bubblePadding: EdgeInsetsDirectional.lerp(bubblePadding, other.bubblePadding, t)!,
     );
   }
 }

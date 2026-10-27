@@ -27,8 +27,7 @@
 /// selection. The sticker's tap is `ChatInlineHit.sticker`.
 library;
 
-export 'package:flutter_md/flutter_md.dart'
-    show Markdown, MarkdownSelection, MarkdownPosition;
+export 'package:flutter_md/flutter_md.dart' show Markdown, MarkdownSelection, MarkdownPosition;
 
 export 'src/chat_scroll/animate_to_busy_policy.dart';
 export 'src/chat_scroll/animate_to_disposition.dart';
@@ -37,8 +36,7 @@ export 'src/chat_scroll/chat_data_source.dart';
 export 'src/chat_scroll/chat_day_header_delegate.dart';
 export 'src/chat_scroll/chat_mutations.dart';
 export 'src/chat_scroll/chat_row_chrome_delegate.dart';
-export 'src/chat_scroll/chat_scroll_activity.dart'
-    show ChatScrollActivityTiming;
+export 'src/chat_scroll/chat_scroll_activity.dart' show ChatScrollActivityTiming;
 export 'src/chat_scroll/chat_scroll_common.dart';
 export 'src/chat_scroll/chat_scroll_controller.dart';
 export 'src/chat_scroll/chat_scroll_events.dart';
@@ -88,6 +86,7 @@ export 'src/chat_widgets/chat_selection_theme.dart';
 export 'src/chat_widgets/chat_smooth_contour.dart';
 export 'src/chat_widgets/chat_span_feedback.dart';
 export 'src/chat_widgets/chat_sticker_playback.dart';
+export 'src/chat_widgets/chat_streaming_body.dart';
 export 'src/chat_widgets/chat_tap_highlight.dart';
 export 'src/chat_widgets/message_menu/chat_message_menu.dart';
 export 'src/chat_widgets/message_menu/chat_pre_ime_back.dart';

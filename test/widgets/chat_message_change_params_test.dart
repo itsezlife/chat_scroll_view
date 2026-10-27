@@ -65,10 +65,7 @@ void main() {
       expect(start.deltas.left, 40);
       expect(start.deltas.right, 0);
       expect(start.paintedBackground(newR), oldR);
-      expect(
-        start.atProgress(0.5).paintedBackground(newR),
-        const Rect.fromLTRB(20, 0, 120, 40),
-      );
+      expect(start.atProgress(0.5).paintedBackground(newR), const Rect.fromLTRB(20, 0, 120, 40));
     });
 
     test('hold-frame meta shifts left by live edited width growth', () {
@@ -126,10 +123,7 @@ void main() {
       expect(start.incomingTextOpacity, 0);
       expect(start.editedLabelOpacity, 0);
       // p=0: lerp=from, title = from − editedDiff; Y = to + δb − δt.
-      expect(
-        start.metaPaintOffset(settledMeta: toMeta, finalRect: newR),
-        Offset(fromMeta.dx - 36, fromMeta.dy),
-      );
+      expect(start.metaPaintOffset(settledMeta: toMeta, finalRect: newR), Offset(fromMeta.dx - 36, fromMeta.dy));
 
       final mid = start.atProgress(0.5);
       expect(mid.outgoingTextOpacity, 0.5);
@@ -161,10 +155,7 @@ void main() {
         settledMetaOffset: toMeta,
       );
       expect(start.shouldAnimateMetaX, isFalse);
-      expect(
-        start.metaPaintOffset(settledMeta: toMeta, finalRect: newR),
-        fromMeta,
-      );
+      expect(start.metaPaintOffset(settledMeta: toMeta, finalRect: newR), fromMeta);
     });
 
     test('textClipRect insets painted background by 4', () {

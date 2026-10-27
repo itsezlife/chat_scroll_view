@@ -10,20 +10,11 @@ import 'package:flutter/foundation.dart';
 final class ChatFloatingHeaderZone {
   /// A header resting at [restTop], [extent] tall, displaced by [offset] and
   /// painted at [opacity].
-  const ChatFloatingHeaderZone({
-    required this.restTop,
-    required this.extent,
-    this.offset = 0.0,
-    this.opacity = 1.0,
-  });
+  const ChatFloatingHeaderZone({required this.restTop, required this.extent, this.offset = 0.0, this.opacity = 1.0});
 
   /// No floating header: grouping is off, the header is suppressed, or the
   /// row is not a viewport child.
-  static const ChatFloatingHeaderZone none = ChatFloatingHeaderZone(
-    restTop: 0,
-    extent: 0,
-    opacity: 0,
-  );
+  static const ChatFloatingHeaderZone none = ChatFloatingHeaderZone(restTop: 0, extent: 0, opacity: 0);
 
   /// Y where the header rests when nothing displaces it — just below the
   /// viewport's top inset, or at the oldest row's paint top when a top edge
@@ -101,8 +92,7 @@ final class ChatRowChromeMetrics {
 final class ChatRowChromeEffect {
   /// An effect painted at [opacity]. [hitTestable] defaults to
   /// `opacity > 0`.
-  const ChatRowChromeEffect({this.opacity = 1.0, bool? hitTestable})
-    : hitTestable = hitTestable ?? opacity > 0.0;
+  const ChatRowChromeEffect({this.opacity = 1.0, bool? hitTestable}) : hitTestable = hitTestable ?? opacity > 0.0;
 
   /// Fully painted and hit-testable.
   static const ChatRowChromeEffect visible = ChatRowChromeEffect();
@@ -119,16 +109,13 @@ final class ChatRowChromeEffect {
 
   @override
   bool operator ==(Object other) =>
-      other is ChatRowChromeEffect &&
-      other.opacity == opacity &&
-      other.hitTestable == hitTestable;
+      other is ChatRowChromeEffect && other.opacity == opacity && other.hitTestable == hitTestable;
 
   @override
   int get hashCode => Object.hash(opacity, hitTestable);
 
   @override
-  String toString() =>
-      'ChatRowChromeEffect(opacity: $opacity, hitTestable: $hitTestable)';
+  String toString() => 'ChatRowChromeEffect(opacity: $opacity, hitTestable: $hitTestable)';
 }
 
 /// Decides how one row chrome item presents itself for a frame.
@@ -150,13 +137,11 @@ abstract interface class ChatRowChromeDelegate {
 
   /// Fades out over [band] pixels as the item rises into the floating
   /// header's painted bottom edge.
-  const factory ChatRowChromeDelegate.fadeUnderHeader({double band}) =
-      ChatFadeUnderHeaderRowChrome;
+  const factory ChatRowChromeDelegate.fadeUnderHeader({double band}) = ChatFadeUnderHeaderRowChrome;
 
   /// Hidden while the floating header rests over the item — the header
   /// stands in for it.
-  const factory ChatRowChromeDelegate.hideUnderHeader() =
-      ChatHideUnderHeaderRowChrome;
+  const factory ChatRowChromeDelegate.hideUnderHeader() = ChatHideUnderHeaderRowChrome;
 
   /// The effect for an item described by [metrics].
   ChatRowChromeEffect resolve(ChatRowChromeMetrics metrics);
@@ -169,8 +154,7 @@ final class ChatOpaqueRowChrome extends ChatRowChromeDelegate {
   const ChatOpaqueRowChrome();
 
   @override
-  ChatRowChromeEffect resolve(ChatRowChromeMetrics metrics) =>
-      ChatRowChromeEffect.visible;
+  ChatRowChromeEffect resolve(ChatRowChromeMetrics metrics) => ChatRowChromeEffect.visible;
 
   @override
   bool operator ==(Object other) => other is ChatOpaqueRowChrome;
@@ -188,8 +172,7 @@ final class ChatOpaqueRowChrome extends ChatRowChromeDelegate {
 @immutable
 final class ChatFadeUnderHeaderRowChrome extends ChatRowChromeDelegate {
   /// Fades over [band] pixels.
-  const ChatFadeUnderHeaderRowChrome({this.band = 20})
-    : assert(band > 0, 'band must be positive');
+  const ChatFadeUnderHeaderRowChrome({this.band = 20}) : assert(band > 0, 'band must be positive');
 
   /// Travel over which the item fades.
   final double band;
@@ -198,16 +181,12 @@ final class ChatFadeUnderHeaderRowChrome extends ChatRowChromeDelegate {
   ChatRowChromeEffect resolve(ChatRowChromeMetrics metrics) {
     final header = metrics.header;
     if (!header.isPresent) return ChatRowChromeEffect.visible;
-    final opacity = ((metrics.top - header.bottom) / band + 1.0).clamp(
-      0.0,
-      1.0,
-    );
+    final opacity = ((metrics.top - header.bottom) / band + 1.0).clamp(0.0, 1.0);
     return ChatRowChromeEffect(opacity: opacity);
   }
 
   @override
-  bool operator ==(Object other) =>
-      other is ChatFadeUnderHeaderRowChrome && other.band == band;
+  bool operator ==(Object other) => other is ChatFadeUnderHeaderRowChrome && other.band == band;
 
   @override
   int get hashCode => Object.hash(ChatFadeUnderHeaderRowChrome, band);

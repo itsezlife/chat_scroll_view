@@ -19,11 +19,13 @@ void main() {
   setUp(() {
     platformClipboard = [];
     written = [];
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-          if (call.method == 'Clipboard.setData') platformClipboard.add(call);
-          return null;
-        });
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') platformClipboard.add(call);
+        return null;
+      },
+    );
     selection = ChatSelectionController(
       policy: const ChatSelectionPolicy.mobile(),
       copyWriter: (copy) async => written.add(copy),
@@ -31,8 +33,10 @@ void main() {
   });
   tearDown(() {
     selection.dispose();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      null,
+    );
   });
 
   test('a text selection copy goes to the writer with its structure', () async {
@@ -87,9 +91,7 @@ void main() {
     });
 
     test('makes a code tap no copy, reported', () async {
-      failing.handleInlineHit(
-        const ChatInlineHit.code(messageId: 42, code: 'flutter run'),
-      );
+      failing.handleInlineHit(const ChatInlineHit.code(messageId: 42, code: 'flutter run'));
       await pumpEventQueue();
 
       expect(interactions.whereType<ChatCopied>(), isEmpty);
@@ -102,13 +104,7 @@ void main() {
     selection.addInteractionListener(interactions.add);
 
     expect(
-      selection.handleInlineHit(
-        const ChatInlineHit.code(
-          messageId: 42,
-          code: 'flutter run',
-          language: 'bash',
-        ),
-      ),
+      selection.handleInlineHit(const ChatInlineHit.code(messageId: 42, code: 'flutter run', language: 'bash')),
       isTrue,
     );
 
@@ -131,9 +127,6 @@ void main() {
       ..startSelection(1);
     selection.enterTextSelection(1);
 
-    expect(
-      selection.textSelectionContent()!.documents.single.blocks.single.text,
-      'Some text',
-    );
+    expect(selection.textSelectionContent()!.documents.single.blocks.single.text, 'Some text');
   });
 }

@@ -133,8 +133,7 @@ final class ChatScrollbarRuntime {
   /// ticker frames), or a mouse enters or leaves the strip (inside pointer
   /// dispatch or the mouse tracker's post-frame update). The owner
   /// repaints, and keeps its ticker running while [isAnimating].
-  ChatScrollbarRuntime({required VoidCallback onChanged})
-    : _onChanged = onChanged;
+  ChatScrollbarRuntime({required VoidCallback onChanged}) : _onChanged = onChanged;
 
   /// The preset's grab rules, read by every strip and touch-target test.
   /// A change reaches a resting mouse at the mouse tracker's next update.
@@ -171,11 +170,7 @@ final class ChatScrollbarRuntime {
   /// Whether the settle, a hover or grab factor, or an always scrollbar's
   /// suppression fade is still easing; the render object keeps its ticker
   /// alive and calls [tick] until it is not.
-  bool get isAnimating =>
-      isSettling ||
-      _hoverFactor.isEasing ||
-      _grabFactor.isEasing ||
-      _alwaysVisibility.isEasing;
+  bool get isAnimating => isSettling || _hoverFactor.isEasing || _grabFactor.isEasing || _alwaysVisibility.isEasing;
 
   /// Resolves this paint's frame for [painter] and stores it as [frame].
   ///
@@ -201,18 +196,12 @@ final class ChatScrollbarRuntime {
     final trackTop = topInset + margin;
     final trackBottom = size.height - bottomInset - margin;
     final trackLength = trackBottom - trackTop;
-    final bandLength = math.min(
-      math.max(trackLength * thumbFraction, painter.minThumbLength),
-      trackLength,
-    );
+    final bandLength = math.min(math.max(trackLength * thumbFraction, painter.minThumbLength), trackLength);
     _spanShare = thumbFraction;
     final bandOffset = (trackLength - bandLength) * progress.clamp(0.0, 1.0);
     final (thumbLength, thumbOffset) = switch (_motion) {
       null => (bandLength, bandOffset),
-      final _Grab grab => (
-        grab.lengthOn(trackLength),
-        grab.offsetOn(trackTop, trackLength),
-      ),
+      final _Grab grab => (grab.lengthOn(trackLength), grab.offsetOn(trackTop, trackLength)),
       final _Settle settle => (
         lerpDouble(settle.fromLength, bandLength, settle.eased)!,
         lerpDouble(settle.fromOffset, bandOffset, settle.eased)!,
@@ -225,17 +214,10 @@ final class ChatScrollbarRuntime {
 
     final thickness = painter.trackThickness;
     final (left, right) = switch (textDirection) {
-      TextDirection.ltr => (
-        size.width - painter.crossAxisMargin - thickness,
-        size.width - painter.crossAxisMargin,
-      ),
-      TextDirection.rtl => (
-        painter.crossAxisMargin,
-        painter.crossAxisMargin + thickness,
-      ),
+      TextDirection.ltr => (size.width - painter.crossAxisMargin - thickness, size.width - painter.crossAxisMargin),
+      TextDirection.rtl => (painter.crossAxisMargin, painter.crossAxisMargin + thickness),
     };
-    final thumbTop =
-        trackTop + thumbOffset.clamp(0.0, trackLength - thumbLength);
+    final thumbTop = trackTop + thumbOffset.clamp(0.0, trackLength - thumbLength);
     _viewportWidth = size.width;
     return _frame = ChatScrollbarFrame(
       trackRect: Rect.fromLTRB(left, trackTop, right, trackBottom),
@@ -296,30 +278,19 @@ final class ChatScrollbarRuntime {
   /// with no frame, under [ChatScrollbarGrab$None], or while [suppressed].
   /// Bounds are inclusive; vertically the strip spans the track.
   bool stripContains(Offset local) => switch ((_frame, grab)) {
-    (final frame?, final ChatScrollbarGrab$Targets targets) when !_suppressed =>
-      _stripContains(frame, targets, local),
+    (final frame?, final ChatScrollbarGrab$Targets targets) when !_suppressed => _stripContains(frame, targets, local),
     _ => false,
   };
 
-  bool _stripContains(
-    ChatScrollbarFrame frame,
-    ChatScrollbarGrab$Targets targets,
-    Offset local,
-  ) {
+  bool _stripContains(ChatScrollbarFrame frame, ChatScrollbarGrab$Targets targets, Offset local) {
     final track = frame.trackRect;
-    return _nearTrailingEdge(frame, local.dx, targets.stripWidth) &&
-        local.dy >= track.top &&
-        local.dy <= track.bottom;
+    return _nearTrailingEdge(frame, local.dx, targets.stripWidth) && local.dy >= track.top && local.dy <= track.bottom;
   }
 
   /// Whether a touch at [local] lands on [frame]'s touch target: the thumb
   /// grown symmetrically to [ChatScrollbarGrab$Targets.touchTargetMinHeight],
   /// which may reach past the track's ends. Bounds are inclusive.
-  bool _touchTargetContains(
-    ChatScrollbarFrame frame,
-    ChatScrollbarGrab$Targets targets,
-    Offset local,
-  ) {
+  bool _touchTargetContains(ChatScrollbarFrame frame, ChatScrollbarGrab$Targets targets, Offset local) {
     final thumb = frame.thumbRect;
     final grow = math.max(0, targets.touchTargetMinHeight - thumb.height) / 2;
     return _nearTrailingEdge(frame, local.dx, targets.touchTargetWidth) &&
@@ -331,11 +302,7 @@ final class ChatScrollbarRuntime {
   /// track under [ChatScrollbarTrackPress.centerThumb], or `null` — off the
   /// strip, a track press under [ChatScrollbarTrackPress.fallThrough], or
   /// any button but the primary one.
-  ChatScrollbarPress? _stripPress(
-    ChatScrollbarFrame frame,
-    ChatScrollbarGrab$Targets targets,
-    PointerDownEvent event,
-  ) {
+  ChatScrollbarPress? _stripPress(ChatScrollbarFrame frame, ChatScrollbarGrab$Targets targets, PointerDownEvent event) {
     if (event.buttons & kPrimaryButton == 0) return null;
     if (!_stripContains(frame, targets, event.localPosition)) return null;
     final dy = event.localPosition.dy;
@@ -366,16 +333,12 @@ final class ChatScrollbarRuntime {
     if (frame == null || targets is! ChatScrollbarGrab$Targets) return null;
     if (_suppressed) return null;
     final press = switch (event.kind) {
-      PointerDeviceKind.mouse ||
-      PointerDeviceKind.trackpad => _stripPress(frame, targets, event),
+      PointerDeviceKind.mouse || PointerDeviceKind.trackpad => _stripPress(frame, targets, event),
       PointerDeviceKind.touch ||
       PointerDeviceKind.stylus ||
       PointerDeviceKind.invertedStylus ||
       PointerDeviceKind.unknown =>
-        visibility > 0 &&
-                _touchTargetContains(frame, targets, event.localPosition)
-            ? ChatScrollbarPress.thumb
-            : null,
+        visibility > 0 && _touchTargetContains(frame, targets, event.localPosition) ? ChatScrollbarPress.thumb : null,
     };
     if (press == null) return null;
     final dy = event.localPosition.dy;
@@ -483,9 +446,7 @@ final class ChatScrollbarRuntime {
     if (_motion case final _Settle settle) {
       final start = settle.start ??= elapsed;
       final duration = settleDuration;
-      final t = duration <= Duration.zero
-          ? 1.0
-          : (elapsed - start).inMicroseconds / duration.inMicroseconds;
+      final t = duration <= Duration.zero ? 1.0 : (elapsed - start).inMicroseconds / duration.inMicroseconds;
       if (t >= 1) {
         _motion = null;
       } else {
@@ -509,11 +470,8 @@ final class ChatScrollbarRuntime {
     factor.aim(target, instant: duration <= Duration.zero);
   }
 
-  bool _tickFactor(_Ease factor, Duration elapsed) => factor.tick(
-    elapsed,
-    factor.rising ? _riseDuration : settleDuration,
-    settleCurve,
-  );
+  bool _tickFactor(_Ease factor, Duration elapsed) =>
+      factor.tick(elapsed, factor.rising ? _riseDuration : settleDuration, settleCurve);
 
   // --- Strip hover -----------------------------------------------------------
 
@@ -746,10 +704,7 @@ final class ChatScrollbarRuntime {
   bool get suppressed => _suppressed;
   set suppressed(bool value) {
     if (_suppressed == value) return;
-    assert(
-      !value || !isGrabbing,
-      'end the scrollbar grab before suppressing the scrollbar',
-    );
+    assert(!value || !isGrabbing, 'end the scrollbar grab before suppressing the scrollbar');
     _suppressed = value;
     switch (_visibilityMode) {
       case ChatScrollbarVisibility$AutoHide():
@@ -798,8 +753,7 @@ bool _hovers(PointerEvent event) => switch (event.kind) {
 /// cursor whose enter and exit report strip hover. Always valid — after the
 /// owner detaches, a late exit lands on a runtime with no clock, and the
 /// owner's repaint callback checks attachment.
-final class _StripTarget extends MouseTrackerAnnotation
-    implements HitTestTarget {
+final class _StripTarget extends MouseTrackerAnnotation implements HitTestTarget {
   _StripTarget(ChatScrollbarRuntime runtime)
     : super(
         cursor: SystemMouseCursors.basic,
@@ -819,8 +773,7 @@ final class _StripTarget extends MouseTrackerAnnotation
 /// whole viewport that defers the cursor and reports enter and exit. Always
 /// valid, like [_StripTarget]; the runtime ignores both while it does not
 /// follow the pointer, so a late exit after a preset change moves nothing.
-final class _ViewportTarget extends MouseTrackerAnnotation
-    implements HitTestTarget {
+final class _ViewportTarget extends MouseTrackerAnnotation implements HitTestTarget {
   _ViewportTarget(ChatScrollbarRuntime runtime)
     : super(
         onEnter: (event) {
@@ -869,10 +822,7 @@ final class _Grab extends _ThumbMotion {
   /// Distance from the track's top at [trackTop] to the thumb's top, which
   /// sits [grabOffset] above the pointer, clamped to the thumb's travel.
   double offsetOn(double trackTop, double trackLength) =>
-      (pointerY - grabOffset - trackTop).clamp(
-        0.0,
-        math.max<double>(0, trackLength - lengthOn(trackLength)),
-      );
+      (pointerY - grabOffset - trackTop).clamp(0.0, math.max<double>(0, trackLength - lengthOn(trackLength)));
 
   /// [offsetOn] as a share of the thumb's travel, in `[0, 1]`; `0` when the
   /// thumb leaves no travel.
@@ -944,9 +894,7 @@ final class _Ease {
     if (!isEasing) return false;
     var start = _start ??= elapsed;
     if (elapsed < start) start = _start = elapsed;
-    final t = duration <= Duration.zero
-        ? 1.0
-        : (elapsed - start).inMicroseconds / duration.inMicroseconds;
+    final t = duration <= Duration.zero ? 1.0 : (elapsed - start).inMicroseconds / duration.inMicroseconds;
     value = t >= 1 ? _target : lerpDouble(_from, _target, curve.transform(t))!;
     return true;
   }

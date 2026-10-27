@@ -31,13 +31,11 @@ class ChatSelectionThemeData extends ThemeExtension<ChatSelectionThemeData> {
   /// Resolves from [context], falling back to [mergeTheme].
   factory ChatSelectionThemeData.resolve(BuildContext context) {
     final theme = Theme.of(context);
-    return theme.extension<ChatSelectionThemeData>() ??
-        ChatSelectionThemeData.mergeTheme(theme);
+    return theme.extension<ChatSelectionThemeData>() ?? ChatSelectionThemeData.mergeTheme(theme);
   }
 
   /// Derives tokens from [theme] brightness when no extension is registered.
-  factory ChatSelectionThemeData.mergeTheme(ThemeData theme) =>
-      theme.brightness == Brightness.dark ? dark : light;
+  factory ChatSelectionThemeData.mergeTheme(ThemeData theme) => theme.brightness == Brightness.dark ? dark : light;
 
   /// Light-surface defaults (tint / check fill come from [ColorScheme.primary]).
   static const light = ChatSelectionThemeData();
@@ -104,10 +102,7 @@ class ChatSelectionThemeData extends ThemeExtension<ChatSelectionThemeData> {
   );
 
   @override
-  ChatSelectionThemeData lerp(
-    covariant ChatSelectionThemeData? other,
-    double t,
-  ) {
+  ChatSelectionThemeData lerp(covariant ChatSelectionThemeData? other, double t) {
     if (other == null) return this;
     return ChatSelectionThemeData(
       selectedTint: Color.lerp(selectedTint, other.selectedTint, t),
@@ -116,11 +111,7 @@ class ChatSelectionThemeData extends ThemeExtension<ChatSelectionThemeData> {
       checkmark: Color.lerp(checkmark, other.checkmark, t)!,
       slotWidth: lerpDouble(slotWidth, other.slotWidth, t)!,
       checkSize: lerpDouble(checkSize, other.checkSize, t)!,
-      checkTrailingMargin: lerpDouble(
-        checkTrailingMargin,
-        other.checkTrailingMargin,
-        t,
-      )!,
+      checkTrailingMargin: lerpDouble(checkTrailingMargin, other.checkTrailingMargin, t)!,
       modeDuration: lerpDuration(modeDuration, other.modeDuration, t),
       selectDuration: lerpDuration(selectDuration, other.selectDuration, t),
     );

@@ -2,8 +2,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart'
-    show PointerDeviceKind, kPrimaryMouseButton, kSecondaryMouseButton;
+import 'package:flutter/gestures.dart' show PointerDeviceKind, kPrimaryMouseButton, kSecondaryMouseButton;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RendererBinding;
 import 'package:flutter_md/flutter_md.dart' show MD$Paragraph, MarkdownWidget;
@@ -23,29 +22,16 @@ class _LoadedSource extends ChatDataSource {
   _LoadedSource(List<IChatMessage> messages) {
     upsertMessages(messages);
     final ids = messages.map((m) => m.id).toList()..sort();
-    seedBoundaries(
-      oldestKnownId: ids.first,
-      newestKnownId: ids.last,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: ids.first, newestKnownId: ids.last, reachedOldest: true, reachedNewest: true);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 /// Global point over the glyph boxes of rendered-text [from]..[to] of block 0
 /// of [messageId]: the middle of the span the test wants to tap.
-Offset _pointOn(
-  ChatSelectionController selection,
-  int messageId,
-  int from,
-  int to,
-) {
+Offset _pointOn(ChatSelectionController selection, int messageId, int from, int to) {
   final surface = selection.surfaceFor(messageId)!;
   final boxes = surface.localBoxesForRange(0, from, to);
   return (surface as RenderBox).localToGlobal(boxes.first.center);
@@ -63,8 +49,7 @@ Offset Function() _followSpoiler(
   int to,
 ) {
   final body = find.byKey(ValueKey('md-$messageId'));
-  final inBody =
-      _pointOn(selection, messageId, from, to) - tester.getTopLeft(body);
+  final inBody = _pointOn(selection, messageId, from, to) - tester.getTopLeft(body);
   return () => tester.getTopLeft(body) + inBody;
 }
 
@@ -146,20 +131,17 @@ void main() {
                 controller: controller,
                 selectionController: selection,
                 onIdleMessageTap: (request) => idleTaps.add(request.messageId),
-                onSecondaryMessageTap: secondaryMenu
-                    ? (request) => secondaryTaps.add(request.messageId)
-                    : null,
-                messageBuilder: (context, id, message, status, runLayout) =>
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      color: Colors.white,
-                      child: ChatMarkdownBody(
-                        key: ValueKey('md-$id'),
-                        controller: selection,
-                        messageId: id,
-                        embedResolver: resolver,
-                      ),
-                    ),
+                onSecondaryMessageTap: secondaryMenu ? (request) => secondaryTaps.add(request.messageId) : null,
+                messageBuilder: (context, id, message, status, runLayout) => Container(
+                  padding: const EdgeInsets.all(12),
+                  color: Colors.white,
+                  child: ChatMarkdownBody(
+                    key: ValueKey('md-$id'),
+                    controller: selection,
+                    messageId: id,
+                    embedResolver: resolver,
+                  ),
+                ),
               ),
             ),
           ),
@@ -173,9 +155,7 @@ void main() {
     inlineTest('are resolved and painted in the text', (tester) async {
       final selection = newSelection();
 
-      await pump(tester, selection, {
-        1: 'hi ![:wave:](fake:1) there',
-      }, resolver: embeds);
+      await pump(tester, selection, {1: 'hi ![:wave:](fake:1) there'}, resolver: embeds);
       final made = embeds.made.single;
       expect(made.paints, isNotEmpty);
       expect(made.isDisposed, isFalse);
@@ -184,9 +164,7 @@ void main() {
 
     inlineTest('survive the body rebuilding', (tester) async {
       final selection = newSelection();
-      await pump(tester, selection, {
-        1: 'hi ![:wave:](fake:1) there',
-      }, resolver: embeds);
+      await pump(tester, selection, {1: 'hi ![:wave:](fake:1) there'}, resolver: embeds);
 
       tester.element(find.byKey(const ValueKey('md-1'))).markNeedsBuild();
       await tester.pump();
@@ -205,35 +183,22 @@ void main() {
       expect(selection.bodyOf(1), isNotNull);
     });
 
-    inlineTest('a tap is an embed hit when the host handles them', (
-      tester,
-    ) async {
+    inlineTest('a tap is an embed hit when the host handles them', (tester) async {
       final selection = newSelection(handlesEmbedHits: true);
-      await pump(tester, selection, {
-        1: 'hi ![:wave:](fake:1) there',
-      }, resolver: embeds);
+      await pump(tester, selection, {1: 'hi ![:wave:](fake:1) there'}, resolver: embeds);
 
       await tester.tapAt(_pointOn(selection, 1, 3, 9));
       await tester.pumpAndSettle();
 
       expect(interactions, const [
-        ChatEmbedActivated(
-          messageId: 1,
-          target: 'fake:1',
-          alt: ':wave:',
-          gesture: ChatInlineGesture.tap,
-        ),
+        ChatEmbedActivated(messageId: 1, target: 'fake:1', alt: ':wave:', gesture: ChatInlineGesture.tap),
       ]);
       expect(idleTaps, isEmpty);
     });
 
-    inlineTest('a tap is an ordinary message tap when the host does not', (
-      tester,
-    ) async {
+    inlineTest('a tap is an ordinary message tap when the host does not', (tester) async {
       final selection = newSelection();
-      await pump(tester, selection, {
-        1: 'hi ![:wave:](fake:1) there',
-      }, resolver: embeds);
+      await pump(tester, selection, {1: 'hi ![:wave:](fake:1) there'}, resolver: embeds);
 
       await tester.tapAt(_pointOn(selection, 1, 3, 9));
       await tester.pumpAndSettle();
@@ -244,13 +209,9 @@ void main() {
   });
 
   group('mentions and hashtags', () {
-    inlineTest('a tap on each reaches the host as its own interaction', (
-      tester,
-    ) async {
+    inlineTest('a tap on each reaches the host as its own interaction', (tester) async {
       final selection = newSelection();
-      await pump(tester, selection, {
-        1: 'a [@Ann](mention:42) b [@bob](username:bob) c [#tag](hashtag:tag)',
-      });
+      await pump(tester, selection, {1: 'a [@Ann](mention:42) b [@bob](username:bob) c [#tag](hashtag:tag)'});
 
       // Rendered: "a @Ann b @bob c #tag".
       await tester.tapAt(_pointOn(selection, 1, 2, 6));
@@ -261,31 +222,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(interactions, const [
-        ChatResolvedMentionActivated(
-          messageId: 1,
-          id: '42',
-          name: '@Ann',
-          gesture: ChatInlineGesture.tap,
-        ),
-        ChatUsernameMentionActivated(
-          messageId: 1,
-          name: 'bob',
-          gesture: ChatInlineGesture.tap,
-        ),
-        ChatHashtagActivated(
-          messageId: 1,
-          tag: 'tag',
-          gesture: ChatInlineGesture.tap,
-        ),
+        ChatResolvedMentionActivated(messageId: 1, id: '42', name: '@Ann', gesture: ChatInlineGesture.tap),
+        ChatUsernameMentionActivated(messageId: 1, name: 'bob', gesture: ChatInlineGesture.tap),
+        ChatHashtagActivated(messageId: 1, tag: 'tag', gesture: ChatInlineGesture.tap),
       ]);
       expect(interactions.whereType<ChatLinkActivated>(), isEmpty);
     });
   });
 
   group('spoilers', () {
-    inlineTest('a tap on a hidden spoiler reveals that message only', (
-      tester,
-    ) async {
+    inlineTest('a tap on a hidden spoiler reveals that message only', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y', 2: 'x ||other|| y'});
 
@@ -296,9 +242,7 @@ void main() {
       expect(selection.spoilers.isRevealed(2), isFalse);
     });
 
-    inlineTest('a tap on a hidden spoiler is the reveal and no message tap', (
-      tester,
-    ) async {
+    inlineTest('a tap on a hidden spoiler is the reveal and no message tap', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y'});
 
@@ -311,9 +255,7 @@ void main() {
       expect(selection.isSelectionMode, isFalse);
     });
 
-    inlineTest('the next tap on the revealed text is a message tap', (
-      tester,
-    ) async {
+    inlineTest('the next tap on the revealed text is a message tap', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y'});
       await tester.tapAt(_pointOn(selection, 1, 2, 8));
@@ -325,23 +267,18 @@ void main() {
       expect(idleTaps, [1]);
     });
 
-    inlineTest(
-      'a tap beside the spoiler in the same message is a message tap',
-      (tester) async {
-        final selection = newSelection();
-        await pump(tester, selection, {1: 'x ||secret|| y'});
+    inlineTest('a tap beside the spoiler in the same message is a message tap', (tester) async {
+      final selection = newSelection();
+      await pump(tester, selection, {1: 'x ||secret|| y'});
 
-        await tester.tapAt(_pointOn(selection, 1, 0, 1));
-        await tester.pumpAndSettle();
+      await tester.tapAt(_pointOn(selection, 1, 0, 1));
+      await tester.pumpAndSettle();
 
-        expect(selection.spoilers.isRevealed(1), isFalse);
-        expect(idleTaps, [1]);
-      },
-    );
+      expect(selection.spoilers.isRevealed(1), isFalse);
+      expect(idleTaps, [1]);
+    });
 
-    inlineTest('revealing one message leaves another hidden spoiler tappable', (
-      tester,
-    ) async {
+    inlineTest('revealing one message leaves another hidden spoiler tappable', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y', 2: 'x ||other|| y'});
       await tester.tapAt(_pointOn(selection, 1, 2, 8));
@@ -354,9 +291,7 @@ void main() {
       expect(idleTaps, isEmpty);
     });
 
-    inlineTest('a long press on a hidden spoiler selects the message', (
-      tester,
-    ) async {
+    inlineTest('a long press on a hidden spoiler selects the message', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y'});
 
@@ -368,9 +303,7 @@ void main() {
       expect(selection.spoilers.isRevealed(1), isFalse);
     });
 
-    inlineTest('a drag starting on a hidden spoiler neither reveals nor taps', (
-      tester,
-    ) async {
+    inlineTest('a drag starting on a hidden spoiler neither reveals nor taps', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y'});
 
@@ -382,9 +315,7 @@ void main() {
       expect(selection.isSelectionMode, isFalse);
     });
 
-    inlineTest('a tap on a hidden spoiler in message selection toggles', (
-      tester,
-    ) async {
+    inlineTest('a tap on a hidden spoiler in message selection toggles', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
       final spoiler = _followSpoiler(tester, selection, 1, 2, 8);
@@ -399,9 +330,7 @@ void main() {
       expect(selection.spoilers.isRevealed(1), isFalse);
     });
 
-    inlineTest('a tap on a hidden spoiler in message selection can deselect', (
-      tester,
-    ) async {
+    inlineTest('a tap on a hidden spoiler in message selection can deselect', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y'});
       final spoiler = _followSpoiler(tester, selection, 1, 2, 8);
@@ -412,16 +341,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(selection.isSelectionMode, isFalse);
-      expect(
-        selection.spoilers.isRevealed(1),
-        isFalse,
-        reason: 'the tap that ends the mode is still a selection tap',
-      );
+      expect(selection.spoilers.isRevealed(1), isFalse, reason: 'the tap that ends the mode is still a selection tap');
     });
 
-    inlineTest('a tap on the hidden spoiler of a selected row deselects it', (
-      tester,
-    ) async {
+    inlineTest('a tap on the hidden spoiler of a selected row deselects it', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
       final spoiler = _followSpoiler(tester, selection, 1, 2, 8);
@@ -442,9 +365,7 @@ void main() {
       );
     });
 
-    inlineTest('leaving message selection brings the reveal on tap back', (
-      tester,
-    ) async {
+    inlineTest('leaving message selection brings the reveal on tap back', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
       final spoiler = _followSpoiler(tester, selection, 1, 2, 8);
@@ -462,9 +383,7 @@ void main() {
       expect(idleTaps, isEmpty);
     });
 
-    inlineTest('a live drag-selection preview is a selection mode too', (
-      tester,
-    ) async {
+    inlineTest('a live drag-selection preview is a selection mode too', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
 
@@ -475,9 +394,7 @@ void main() {
       expect(selection.spoilers.tapReveals, isTrue);
     });
 
-    inlineTest('a committed selection taken by programmatic ids is a mode', (
-      tester,
-    ) async {
+    inlineTest('a committed selection taken by programmatic ids is a mode', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
 
@@ -488,9 +405,7 @@ void main() {
       expect(selection.spoilers.tapReveals, isTrue);
     });
 
-    inlineTest('revealed state survives the row leaving and coming back', (
-      tester,
-    ) async {
+    inlineTest('revealed state survives the row leaving and coming back', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y'});
       await tester.tapAt(_pointOn(selection, 1, 2, 8));
@@ -502,16 +417,10 @@ void main() {
 
       expect(selection.spoilers.isRevealed(1), isTrue);
       expect(find.byType(MarkdownWidget), findsOneWidget);
-      expect(
-        selection.spoilers.wantsTicks.value,
-        isFalse,
-        reason: 'a revealed body has no dust to move',
-      );
+      expect(selection.spoilers.wantsTicks.value, isFalse, reason: 'a revealed body has no dust to move');
     });
 
-    inlineTest('a tap on a link in a hidden spoiler reveals, no hit', (
-      tester,
-    ) async {
+    inlineTest('a tap on a link in a hidden spoiler reveals, no hit', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||[site](https://a.b)|| y'});
 
@@ -527,9 +436,7 @@ void main() {
       expect(interactions.single, isA<ChatLinkActivated>());
     });
 
-    inlineTest('a tap on a mention in a hidden spoiler reveals, no hit', (
-      tester,
-    ) async {
+    inlineTest('a tap on a mention in a hidden spoiler reveals, no hit', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||[@Ann](mention:42)|| y'});
 
@@ -540,13 +447,9 @@ void main() {
       expect(interactions, isEmpty);
     });
 
-    inlineTest('a tap on an embed in a hidden spoiler reveals, no hit', (
-      tester,
-    ) async {
+    inlineTest('a tap on an embed in a hidden spoiler reveals, no hit', (tester) async {
       final selection = newSelection(handlesEmbedHits: true);
-      await pump(tester, selection, {
-        1: 'x ||![:wave:](fake:1)|| y',
-      }, resolver: embeds);
+      await pump(tester, selection, {1: 'x ||![:wave:](fake:1)|| y'}, resolver: embeds);
 
       await tester.tapAt(_pointOn(selection, 1, 2, 8));
       await tester.pumpAndSettle();
@@ -555,9 +458,7 @@ void main() {
       expect(interactions, isEmpty);
     });
 
-    inlineTest('a body whose surface is not mounted still hides its spoilers', (
-      tester,
-    ) async {
+    inlineTest('a body whose surface is not mounted still hides its spoilers', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
       expect(selection.spoilers.wantsTicks.value, isTrue);
@@ -577,117 +478,80 @@ void main() {
   });
 
   group('spoilers under the desktop policy', () {
-    Future<void> click(
-      WidgetTester tester,
-      Offset at, {
-      int buttons = kPrimaryMouseButton,
-    }) async {
-      final mouse = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: buttons,
-      );
+    Future<void> click(WidgetTester tester, Offset at, {int buttons = kPrimaryMouseButton}) async {
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: buttons);
       await mouse.down(at);
       await mouse.up();
       await mouse.removePointer();
       await tester.pumpAndSettle();
     }
 
-    ChatSelectionController desktop() =>
-        newSelection(policy: const ChatSelectionPolicy.desktop());
+    ChatSelectionController desktop() => newSelection(policy: const ChatSelectionPolicy.desktop());
 
-    inlineTest(
-      'a click on a hidden spoiler is the reveal only',
-      (tester) async {
-        final selection = desktop();
-        await pump(tester, selection, {1: 'x ||secret|| y'});
+    inlineTest('a click on a hidden spoiler is the reveal only', (tester) async {
+      final selection = desktop();
+      await pump(tester, selection, {1: 'x ||secret|| y'});
 
-        await click(tester, _pointOn(selection, 1, 2, 8));
+      await click(tester, _pointOn(selection, 1, 2, 8));
 
-        expect(selection.spoilers.isRevealed(1), isTrue);
-        expect(interactions, isEmpty);
-        expect(selection.isSelectionMode, isFalse);
-        // The click arms the body as any click on text does; it selects nothing.
-        expect(
-          selection.markdownSelection.selection?.isCollapsed ?? true,
-          isTrue,
-        );
-      },
-      platform: TargetPlatform.macOS,
-    );
+      expect(selection.spoilers.isRevealed(1), isTrue);
+      expect(interactions, isEmpty);
+      expect(selection.isSelectionMode, isFalse);
+      // The click arms the body as any click on text does; it selects nothing.
+      expect(selection.markdownSelection.selection?.isCollapsed ?? true, isTrue);
+    }, platform: TargetPlatform.macOS);
 
-    inlineTest(
-      'a click on a hidden spoiler in message selection toggles the row',
-      (tester) async {
-        final selection = desktop();
-        await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
-        final spoiler = _followSpoiler(tester, selection, 1, 2, 8);
-        selection.startSelection(2);
-        await tester.pumpAndSettle();
+    inlineTest('a click on a hidden spoiler in message selection toggles the row', (tester) async {
+      final selection = desktop();
+      await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
+      final spoiler = _followSpoiler(tester, selection, 1, 2, 8);
+      selection.startSelection(2);
+      await tester.pumpAndSettle();
 
-        await click(tester, spoiler());
+      await click(tester, spoiler());
 
-        expect(selection.isSelected(1), isTrue);
-        expect(selection.spoilers.isRevealed(1), isFalse);
-        expect(interactions, isEmpty);
-      },
-      platform: TargetPlatform.macOS,
-    );
+      expect(selection.isSelected(1), isTrue);
+      expect(selection.spoilers.isRevealed(1), isFalse);
+      expect(interactions, isEmpty);
+    }, platform: TargetPlatform.macOS);
 
-    inlineTest(
-      'leaving message selection restores the reveal on click',
-      (tester) async {
-        final selection = desktop();
-        await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
-        final spoiler = _followSpoiler(tester, selection, 1, 2, 8);
-        selection.startSelection(2);
-        await tester.pumpAndSettle();
-        selection.clear();
-        await tester.pumpAndSettle();
+    inlineTest('leaving message selection restores the reveal on click', (tester) async {
+      final selection = desktop();
+      await pump(tester, selection, {1: 'x ||secret|| y', 2: 'plain'});
+      final spoiler = _followSpoiler(tester, selection, 1, 2, 8);
+      selection.startSelection(2);
+      await tester.pumpAndSettle();
+      selection.clear();
+      await tester.pumpAndSettle();
 
-        await click(tester, spoiler());
+      await click(tester, spoiler());
 
-        expect(selection.spoilers.isRevealed(1), isTrue);
-      },
-      platform: TargetPlatform.macOS,
-    );
+      expect(selection.spoilers.isRevealed(1), isTrue);
+    }, platform: TargetPlatform.macOS);
 
-    inlineTest(
-      'a secondary click on a hidden spoiler opens the menu only',
-      (tester) async {
-        final selection = desktop();
-        await pump(tester, selection, {
-          1: 'x ||secret|| y',
-        }, secondaryMenu: true);
+    inlineTest('a secondary click on a hidden spoiler opens the menu only', (tester) async {
+      final selection = desktop();
+      await pump(tester, selection, {1: 'x ||secret|| y'}, secondaryMenu: true);
 
-        await click(
-          tester,
-          _pointOn(selection, 1, 2, 8),
-          buttons: kSecondaryMouseButton,
-        );
+      await click(tester, _pointOn(selection, 1, 2, 8), buttons: kSecondaryMouseButton);
 
-        expect(secondaryTaps, [1]);
-        expect(selection.spoilers.isRevealed(1), isFalse);
-      },
-      platform: TargetPlatform.macOS,
-    );
+      expect(secondaryTaps, [1]);
+      expect(selection.spoilers.isRevealed(1), isFalse);
+    }, platform: TargetPlatform.macOS);
 
-    inlineTest(
-      'a drag from a hidden spoiler selects text and leaves it hidden',
-      (tester) async {
-        final selection = desktop();
-        await pump(tester, selection, {1: 'x ||secret|| y'});
-        final start = _pointOn(selection, 1, 2, 3);
-        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-        await mouse.down(start);
-        await mouse.moveBy(const Offset(40, 0));
-        await mouse.up();
-        await tester.pumpAndSettle();
+    inlineTest('a drag from a hidden spoiler selects text and leaves it hidden', (tester) async {
+      final selection = desktop();
+      await pump(tester, selection, {1: 'x ||secret|| y'});
+      final start = _pointOn(selection, 1, 2, 3);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.down(start);
+      await mouse.moveBy(const Offset(40, 0));
+      await mouse.up();
+      await tester.pumpAndSettle();
 
-        expect(selection.isTextSelectionActive, isTrue);
-        expect(selection.spoilers.isRevealed(1), isFalse);
-      },
-      platform: TargetPlatform.macOS,
-    );
+      expect(selection.isTextSelectionActive, isTrue);
+      expect(selection.spoilers.isRevealed(1), isFalse);
+    }, platform: TargetPlatform.macOS);
   });
 
   group('a hold on a hidden spoiler', () {
@@ -695,11 +559,7 @@ void main() {
 
     // Pointer events carry their own time, which the engine measures; the
     // pump moves the timers (the viewport's long press) the same way.
-    Future<void> press(
-      WidgetTester tester,
-      Offset at, {
-      PointerDeviceKind kind = PointerDeviceKind.touch,
-    }) async {
+    Future<void> press(WidgetTester tester, Offset at, {PointerDeviceKind kind = PointerDeviceKind.touch}) async {
       final gesture = await tester.createGesture(kind: kind);
       await gesture.down(at);
       await tester.pump(hold);
@@ -718,63 +578,36 @@ void main() {
       expect(selection.spoilers.isRevealed(1), isFalse);
     });
 
-    inlineTest(
-      'with a mouse and the default timeout reveals nothing',
-      (tester) async {
-        final selection = newSelection(
-          policy: const ChatSelectionPolicy.desktop(),
-        );
-        await pump(tester, selection, {1: 'x ||secret|| y'});
+    inlineTest('with a mouse and the default timeout reveals nothing', (tester) async {
+      final selection = newSelection(policy: const ChatSelectionPolicy.desktop());
+      await pump(tester, selection, {1: 'x ||secret|| y'});
 
-        await press(
-          tester,
-          _pointOn(selection, 1, 2, 8),
-          kind: PointerDeviceKind.mouse,
-        );
+      await press(tester, _pointOn(selection, 1, 2, 8), kind: PointerDeviceKind.mouse);
 
-        expect(selection.spoilers.isRevealed(1), isFalse);
-        expect(idleTaps, isEmpty);
-      },
-      platform: TargetPlatform.macOS,
-    );
+      expect(selection.spoilers.isRevealed(1), isFalse);
+      expect(idleTaps, isEmpty);
+    }, platform: TargetPlatform.macOS);
 
-    inlineTest(
-      'with a mouse and no timeout is a click, as on the desktop',
-      (tester) async {
-        final selection = newSelection(
-          policy: const ChatSelectionPolicy.desktop(),
-        );
-        selection.spoilers.tapTimeout = null;
-        await pump(tester, selection, {1: 'x ||secret|| y'});
+    inlineTest('with a mouse and no timeout is a click, as on the desktop', (tester) async {
+      final selection = newSelection(policy: const ChatSelectionPolicy.desktop());
+      selection.spoilers.tapTimeout = null;
+      await pump(tester, selection, {1: 'x ||secret|| y'});
 
-        await press(
-          tester,
-          _pointOn(selection, 1, 2, 8),
-          kind: PointerDeviceKind.mouse,
-        );
+      await press(tester, _pointOn(selection, 1, 2, 8), kind: PointerDeviceKind.mouse);
 
-        expect(selection.spoilers.isRevealed(1), isTrue);
-        expect(idleTaps, isEmpty);
-      },
-      platform: TargetPlatform.macOS,
-    );
+      expect(selection.spoilers.isRevealed(1), isTrue);
+      expect(idleTaps, isEmpty);
+    }, platform: TargetPlatform.macOS);
   });
 
   group('the cursor over a body', () {
     TestGesture? mouse;
     setUp(() => mouse = null);
 
-    Future<MouseCursor> hover(
-      WidgetTester tester,
-      ChatSelectionController selection,
-      int from,
-      int to,
-    ) async {
+    Future<MouseCursor> hover(WidgetTester tester, ChatSelectionController selection, int from, int to) async {
       var pointer = mouse;
       if (pointer == null) {
-        pointer = mouse = await tester.createGesture(
-          kind: PointerDeviceKind.mouse,
-        );
+        pointer = mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
         await pointer.addPointer(location: const Offset(1, 1));
         addTearDown(pointer.removePointer);
       }
@@ -784,52 +617,28 @@ void main() {
       return RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1)!;
     }
 
-    inlineTest(
-      'is a click over a mention, a username and a hashtag',
-      (tester) async {
-        final selection = newSelection(
-          policy: const ChatSelectionPolicy.desktop(),
-        );
-        await pump(tester, selection, {
-          1: 'a [@Ann](mention:42) b [@bob](username:bob) c [#tag](hashtag:tag)',
-        });
+    inlineTest('is a click over a mention, a username and a hashtag', (tester) async {
+      final selection = newSelection(policy: const ChatSelectionPolicy.desktop());
+      await pump(tester, selection, {1: 'a [@Ann](mention:42) b [@bob](username:bob) c [#tag](hashtag:tag)'});
 
-        expect(await hover(tester, selection, 2, 6), SystemMouseCursors.click);
-        expect(await hover(tester, selection, 9, 13), SystemMouseCursors.click);
-        expect(
-          await hover(tester, selection, 16, 20),
-          SystemMouseCursors.click,
-        );
-        expect(await hover(tester, selection, 0, 1), SystemMouseCursors.text);
-      },
-      platform: TargetPlatform.macOS,
-    );
+      expect(await hover(tester, selection, 2, 6), SystemMouseCursors.click);
+      expect(await hover(tester, selection, 9, 13), SystemMouseCursors.click);
+      expect(await hover(tester, selection, 16, 20), SystemMouseCursors.click);
+      expect(await hover(tester, selection, 0, 1), SystemMouseCursors.text);
+    }, platform: TargetPlatform.macOS);
 
-    inlineTest(
-      'is a click over an embed only when the host handles them',
-      (tester) async {
-        final inert = newSelection(policy: const ChatSelectionPolicy.desktop());
-        await pump(tester, inert, {
-          1: 'hi ![:wave:](fake:1) there',
-        }, resolver: embeds);
-        expect(await hover(tester, inert, 3, 9), SystemMouseCursors.text);
+    inlineTest('is a click over an embed only when the host handles them', (tester) async {
+      final inert = newSelection(policy: const ChatSelectionPolicy.desktop());
+      await pump(tester, inert, {1: 'hi ![:wave:](fake:1) there'}, resolver: embeds);
+      expect(await hover(tester, inert, 3, 9), SystemMouseCursors.text);
 
-        final live = newSelection(
-          policy: const ChatSelectionPolicy.desktop(),
-          handlesEmbedHits: true,
-        );
-        await pump(tester, live, {
-          1: 'hi ![:wave:](fake:1) there',
-        }, resolver: embeds);
-        expect(await hover(tester, live, 3, 9), SystemMouseCursors.click);
-      },
-      platform: TargetPlatform.macOS,
-    );
+      final live = newSelection(policy: const ChatSelectionPolicy.desktop(), handlesEmbedHits: true);
+      await pump(tester, live, {1: 'hi ![:wave:](fake:1) there'}, resolver: embeds);
+      expect(await hover(tester, live, 3, 9), SystemMouseCursors.click);
+    }, platform: TargetPlatform.macOS);
 
     inlineTest('is a click over a hidden spoiler', (tester) async {
-      final selection = newSelection(
-        policy: const ChatSelectionPolicy.desktop(),
-      );
+      final selection = newSelection(policy: const ChatSelectionPolicy.desktop());
       await pump(tester, selection, {1: 'x ||secret|| y'});
 
       expect(await hover(tester, selection, 2, 8), SystemMouseCursors.click);
@@ -853,18 +662,14 @@ void main() {
       expect(selection.spoilers.isRevealed(1), isFalse);
     });
 
-    inlineTest('hands a host writer the structure, spoiler and embed spans', (
-      tester,
-    ) async {
+    inlineTest('hands a host writer the structure, spoiler and embed spans', (tester) async {
       ChatTextCopy? copied;
       final selection = ChatSelectionController(
         policy: const ChatSelectionPolicy.mobile(),
         copyWriter: (copy) async => copied = copy,
       );
       addTearDown(selection.dispose);
-      await pump(tester, selection, {
-        1: '[@Ann](mention:42) ![:wave:](fake:1) ||secret||',
-      }, resolver: embeds);
+      await pump(tester, selection, {1: '[@Ann](mention:42) ![:wave:](fake:1) ||secret||'}, resolver: embeds);
       selection
         ..startSelection(1)
         ..enterTextSelection(1);
@@ -898,9 +703,7 @@ void main() {
     });
     tearDown(() => clock.dispose());
 
-    inlineTest('runs while a hidden spoiler is on screen and feeds it', (
-      tester,
-    ) async {
+    inlineTest('runs while a hidden spoiler is on screen and feeds it', (tester) async {
       final selection = newSelection(spoilerClock: clock);
       await pump(tester, selection, {1: 'x ||secret|| y'});
 
@@ -934,9 +737,7 @@ void main() {
 
     inlineTest('stands still while the window has no focus and goes on from '
         'where it stopped, not from the live time', (tester) async {
-      final lifecycle = ManualPlaybackLifecycleSource(
-        initial: AppLifecycleState.resumed,
-      );
+      final lifecycle = ManualPlaybackLifecycleSource(initial: AppLifecycleState.resumed);
       addTearDown(lifecycle.dispose);
       final activity = PlaybackActivity(clock: clock, lifecycle: lifecycle);
       addTearDown(activity.dispose);
@@ -968,9 +769,7 @@ void main() {
       expect(selection.spoilers.fillFrame, 32);
     });
 
-    inlineTest('a controller with no clock leaves the dust still', (
-      tester,
-    ) async {
+    inlineTest('a controller with no clock leaves the dust still', (tester) async {
       final selection = newSelection();
       await pump(tester, selection, {1: 'x ||secret|| y'});
 

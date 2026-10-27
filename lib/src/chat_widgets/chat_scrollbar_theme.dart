@@ -30,8 +30,7 @@ class ChatScrollbarThemeData extends ThemeExtension<ChatScrollbarThemeData> {
   /// registered; otherwise [mergeTheme] from ambient [ThemeData] brightness.
   factory ChatScrollbarThemeData.resolve(BuildContext context) {
     final theme = Theme.of(context);
-    return theme.extension<ChatScrollbarThemeData>() ??
-        ChatScrollbarThemeData.mergeTheme(theme);
+    return theme.extension<ChatScrollbarThemeData>() ?? ChatScrollbarThemeData.mergeTheme(theme);
   }
 
   /// Derives scrollbar colours from [theme] when no extension is registered:
@@ -100,19 +99,12 @@ class ChatScrollbarThemeData extends ThemeExtension<ChatScrollbarThemeData> {
   );
 
   @override
-  ChatScrollbarThemeData lerp(
-    covariant ChatScrollbarThemeData? other,
-    double t,
-  ) {
+  ChatScrollbarThemeData lerp(covariant ChatScrollbarThemeData? other, double t) {
     if (other == null) return this;
     return ChatScrollbarThemeData(
       thumbColor: Color.lerp(thumbColor, other.thumbColor, t)!,
       thumbHoverColor: Color.lerp(thumbHoverColor, other.thumbHoverColor, t)!,
-      thumbDraggingColor: Color.lerp(
-        thumbDraggingColor,
-        other.thumbDraggingColor,
-        t,
-      )!,
+      thumbDraggingColor: Color.lerp(thumbDraggingColor, other.thumbDraggingColor, t)!,
       trackColor: Color.lerp(trackColor, other.trackColor, t)!,
       trackHoverColor: Color.lerp(trackHoverColor, other.trackHoverColor, t)!,
     );

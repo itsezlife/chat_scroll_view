@@ -15,11 +15,7 @@ import '../../chat_message.dart';
 /// as the ChatScrollView demo, so any performance difference is purely
 /// architectural (Sliver protocol vs custom LeafRenderObject).
 class ListViewChatCustomPaint extends StatelessWidget {
-  const ListViewChatCustomPaint({
-    required this.messages,
-    required this.scrollController,
-    super.key,
-  });
+  const ListViewChatCustomPaint({required this.messages, required this.scrollController, super.key});
 
   final List<IChatMessage> messages;
   final ScrollController scrollController;
@@ -39,14 +35,10 @@ class CustomPaintBubble extends LeafRenderObjectWidget {
   final IChatMessage message;
 
   @override
-  RenderObject createRenderObject(BuildContext context) =>
-      RenderCustomPaintBubble(message);
+  RenderObject createRenderObject(BuildContext context) => RenderCustomPaintBubble(message);
 
   @override
-  void updateRenderObject(
-    BuildContext context,
-    RenderCustomPaintBubble renderObject,
-  ) {
+  void updateRenderObject(BuildContext context, RenderCustomPaintBubble renderObject) {
     renderObject.message = message;
   }
 }
@@ -87,20 +79,12 @@ class RenderCustomPaintBubble extends RenderBox {
     };
 
     final textWidth = maxWidth - _bubblePadding * 2 - _padding * 2;
-    final builder =
-        ui.ParagraphBuilder(
-            ui.ParagraphStyle(
-              fontSize: 15,
-              fontFamily: '.AppleSystemUIFont',
-              height: 1.4,
-            ),
-          )
-          ..pushStyle(ui.TextStyle(color: const Color(0xFF1A1A1A)))
-          ..addText(content)
-          ..pop();
+    final builder = ui.ParagraphBuilder(ui.ParagraphStyle(fontSize: 15, fontFamily: '.AppleSystemUIFont', height: 1.4))
+      ..pushStyle(ui.TextStyle(color: const Color(0xFF1A1A1A)))
+      ..addText(content)
+      ..pop();
 
-    _paragraph = builder.build()
-      ..layout(ui.ParagraphConstraints(width: textWidth));
+    _paragraph = builder.build()..layout(ui.ParagraphConstraints(width: textWidth));
   }
 
   @override
@@ -110,12 +94,7 @@ class RenderCustomPaintBubble extends RenderBox {
 
     final canvas = context.canvas;
     final bubbleRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        offset.dx + _padding,
-        offset.dy + _padding / 2,
-        size.width - _padding * 2,
-        size.height - _padding,
-      ),
+      Rect.fromLTWH(offset.dx + _padding, offset.dy + _padding / 2, size.width - _padding * 2, size.height - _padding),
       const Radius.circular(_bubbleRadius),
     );
 
@@ -125,10 +104,7 @@ class RenderCustomPaintBubble extends RenderBox {
     canvas
       ..drawRRect(bubbleRect, Paint()..color = bgColor)
       ..save()
-      ..translate(
-        offset.dx + _padding + _bubblePadding,
-        offset.dy + _padding / 2 + _bubblePadding,
-      )
+      ..translate(offset.dx + _padding + _bubblePadding, offset.dy + _padding / 2 + _bubblePadding)
       ..drawParagraph(paragraph, Offset.zero)
       ..restore();
   }
@@ -142,11 +118,7 @@ class RenderCustomPaintBubble extends RenderBox {
 /// ListView.builder chat with standard Text widgets.
 /// Represents the idiomatic Flutter approach to building a chat list.
 class ListViewChatText extends StatelessWidget {
-  const ListViewChatText({
-    required this.messages,
-    required this.scrollController,
-    super.key,
-  });
+  const ListViewChatText({required this.messages, required this.scrollController, super.key});
 
   final List<IChatMessage> messages;
   final ScrollController scrollController;
@@ -179,10 +151,7 @@ class _TextBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12),
-        ),
+        decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Text(
@@ -210,8 +179,7 @@ class BenchmarkListViewWrapper extends SingleChildRenderObjectWidget {
   const BenchmarkListViewWrapper({required super.child, super.key});
 
   @override
-  RenderObject createRenderObject(BuildContext context) =>
-      RenderBenchmarkListViewWrapper();
+  RenderObject createRenderObject(BuildContext context) => RenderBenchmarkListViewWrapper();
 }
 
 class RenderBenchmarkListViewWrapper extends RenderProxyBox {

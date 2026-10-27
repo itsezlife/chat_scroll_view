@@ -6,18 +6,9 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_inline_embed_adapter.dart
 import 'package:flutter_md/flutter_md.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _metrics = MarkdownInlineEmbedMetrics(
-  fontSize: 16,
-  ascent: 15,
-  descent: 4,
-  devicePixelRatio: 2,
-);
+const _metrics = MarkdownInlineEmbedMetrics(fontSize: 16, ascent: 15, descent: 4, devicePixelRatio: 2);
 
-const _target = MarkdownInlineEmbedTarget(
-  scheme: 'fake',
-  id: '7',
-  alt: ':wave:',
-);
+const _target = MarkdownInlineEmbedTarget(scheme: 'fake', id: '7', alt: ':wave:');
 
 /// The adapter is the one place `catalog_assets`' embed seam meets the
 /// markdown library's: every test here reads the library's side of it.
@@ -33,9 +24,7 @@ void main() {
   test('hands the resolver the target as it came', () {
     adapter.resolve(_target, _metrics);
 
-    expect(resolver.asked, [
-      const InlineEmbedTarget(scheme: 'fake', id: '7', alt: ':wave:'),
-    ]);
+    expect(resolver.asked, [const InlineEmbedTarget(scheme: 'fake', id: '7', alt: ':wave:')]);
   });
 
   test('reserves the size the embed asked for', () {
@@ -47,22 +36,13 @@ void main() {
   });
 
   test('is null where the resolver does not know the scheme', () {
-    const unknown = MarkdownInlineEmbedTarget(
-      scheme: 'other',
-      id: '1',
-      alt: 'x',
-    );
+    const unknown = MarkdownInlineEmbedTarget(scheme: 'other', id: '1', alt: 'x');
 
     expect(adapter.resolve(unknown, _metrics), isNull);
   });
 
   test('is null for a font with no ascent or no descent', () {
-    const flat = MarkdownInlineEmbedMetrics(
-      fontSize: 16,
-      ascent: 0,
-      descent: 0,
-      devicePixelRatio: 1,
-    );
+    const flat = MarkdownInlineEmbedMetrics(fontSize: 16, ascent: 0, descent: 0, devicePixelRatio: 1);
 
     expect(adapter.resolve(_target, flat), isNull);
     expect(resolver.asked, isEmpty, reason: 'nothing to size an embed by');
@@ -73,11 +53,7 @@ void main() {
     const rect = Rect.fromLTWH(3, 4, 20, 20);
     const tint = Color(0xFF123456);
 
-    embed.paint(
-      Canvas(PictureRecorder()),
-      rect,
-      const MarkdownInlineEmbedPaintContext(tint: tint, opacity: 0.5),
-    );
+    embed.paint(Canvas(PictureRecorder()), rect, const MarkdownInlineEmbedPaintContext(tint: tint, opacity: 0.5));
 
     final painted = resolver.made.single.paints.single;
     expect(painted.rect, rect);

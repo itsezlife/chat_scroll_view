@@ -20,38 +20,22 @@ class _LoadedSource extends ChatDataSource {
   _LoadedSource(List<IChatMessage> messages) {
     upsertMessages(messages);
     final ids = messages.map((m) => m.id).toList()..sort();
-    seedBoundaries(
-      oldestKnownId: ids.first,
-      newestKnownId: ids.last,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: ids.first, newestKnownId: ids.last, reachedOldest: true, reachedNewest: true);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 /// Fetch fails so empty-range absent-marking never runs; neighbors stay shimmer.
 class _FetchFailSparseSource extends ChatDataSource {
   _FetchFailSparseSource() {
     upsertMessage(_msg(5));
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: 9,
-      reachedOldest: false,
-      reachedNewest: false,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: 9, reachedOldest: false, reachedNewest: false);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async {
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async {
     await Future<void>.delayed(const Duration(milliseconds: 10));
     throw StateError('keep neighbors shimmer for select-span test');
   }
@@ -73,10 +57,8 @@ Widget _harness({
           controller: controller,
           selectionController: selection,
           dateSeparatorBuilder: dateSeparatorBuilder,
-          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
-            height: 60,
-            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-          ),
+          messageBuilder: (context, id, message, status, runLayout) =>
+              SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
         ),
       ),
     ),
@@ -91,68 +73,7 @@ Future<TestGesture> _longPressHold(WidgetTester tester, Finder finder) async {
 
 void main() {
   group('ChatScrollView select span', () {
-    testWidgets(
-      'long-press then drag onto further present messages selects the chain',
-      (tester) async {
-        const count = 32;
-        final controller = ChatScrollController()..jumpTo(count - 1);
-        final selection = ChatSelectionController();
-        addTearDown(controller.dispose);
-        addTearDown(selection.dispose);
-
-        await tester.pumpWidget(
-          _harness(
-            dataSource: _LoadedSource([
-              for (var i = 0; i < count; i++) _msg(i),
-            ]),
-            controller: controller,
-            selection: selection,
-          ),
-        );
-        await tester.pump();
-
-        final gesture = await _longPressHold(
-          tester,
-          find.text('msg-${count - 1}'),
-        );
-        expect(selection.selectedIds, {count - 1});
-
-        await gesture.moveTo(tester.getCenter(find.text('msg-${count - 3}')));
-        await tester.pump();
-        expect(selection.selectedIds, {count - 1, count - 2, count - 3});
-        await gesture.up();
-      },
-    );
-
-    testWidgets(
-      'long-press then lift without passing slop selects only origin',
-      (tester) async {
-        const count = 32;
-        final controller = ChatScrollController()..jumpTo(count - 1);
-        final selection = ChatSelectionController();
-        addTearDown(controller.dispose);
-        addTearDown(selection.dispose);
-
-        await tester.pumpWidget(
-          _harness(
-            dataSource: _LoadedSource([
-              for (var i = 0; i < count; i++) _msg(i),
-            ]),
-            controller: controller,
-            selection: selection,
-          ),
-        );
-        await tester.pump();
-
-        await tester.longPress(find.text('msg-${count - 1}'));
-        await tester.pumpAndSettle();
-        expect(selection.selectedIds, {count - 1});
-      },
-    );
-
-    testWidgets('moving back toward the origin drops ids this gesture added', (
-      tester,
-    ) async {
+    testWidgets('long-press then drag onto further present messages selects the chain', (tester) async {
       const count = 32;
       final controller = ChatScrollController()..jumpTo(count - 1);
       final selection = ChatSelectionController();
@@ -168,10 +89,53 @@ void main() {
       );
       await tester.pump();
 
-      final gesture = await _longPressHold(
-        tester,
-        find.text('msg-${count - 1}'),
+      final gesture = await _longPressHold(tester, find.text('msg-${count - 1}'));
+      expect(selection.selectedIds, {count - 1});
+
+      await gesture.moveTo(tester.getCenter(find.text('msg-${count - 3}')));
+      await tester.pump();
+      expect(selection.selectedIds, {count - 1, count - 2, count - 3});
+      await gesture.up();
+    });
+
+    testWidgets('long-press then lift without passing slop selects only origin', (tester) async {
+      const count = 32;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final selection = ChatSelectionController();
+      addTearDown(controller.dispose);
+      addTearDown(selection.dispose);
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
+          controller: controller,
+          selection: selection,
+        ),
       );
+      await tester.pump();
+
+      await tester.longPress(find.text('msg-${count - 1}'));
+      await tester.pumpAndSettle();
+      expect(selection.selectedIds, {count - 1});
+    });
+
+    testWidgets('moving back toward the origin drops ids this gesture added', (tester) async {
+      const count = 32;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final selection = ChatSelectionController();
+      addTearDown(controller.dispose);
+      addTearDown(selection.dispose);
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
+          controller: controller,
+          selection: selection,
+        ),
+      );
+      await tester.pump();
+
+      final gesture = await _longPressHold(tester, find.text('msg-${count - 1}'));
       await gesture.moveTo(tester.getCenter(find.text('msg-${count - 3}')));
       await tester.pump();
       expect(selection.selectedIds, {count - 1, count - 2, count - 3});
@@ -182,13 +146,8 @@ void main() {
       await gesture.up();
     });
 
-    testWidgets('pointer over a date separator does not change the far end', (
-      tester,
-    ) async {
-      final messages = [
-        for (var i = 0; i < 16; i++)
-          _msg(i, createdAt: DateTime(2026, 1, 1 + i ~/ 8, 9, i % 8)),
-      ];
+    testWidgets('pointer over a date separator does not change the far end', (tester) async {
+      final messages = [for (var i = 0; i < 16; i++) _msg(i, createdAt: DateTime(2026, 1, 1 + i ~/ 8, 9, i % 8))];
       final controller = ChatScrollController()..jumpTo(8);
       final selection = ChatSelectionController();
       addTearDown(controller.dispose);
@@ -199,10 +158,8 @@ void main() {
           dataSource: _LoadedSource(messages),
           controller: controller,
           selection: selection,
-          dateSeparatorBuilder: (context, bucket, date) => SizedBox(
-            height: 24,
-            child: Text('sep-${date.month}-${date.day}'),
-          ),
+          dateSeparatorBuilder: (context, bucket, date) =>
+              SizedBox(height: 24, child: Text('sep-${date.month}-${date.day}')),
         ),
       );
       await tester.pump();
@@ -216,20 +173,14 @@ void main() {
       await gesture.up();
     });
 
-    testWidgets('pointer over shimmer does not change the far end', (
-      tester,
-    ) async {
+    testWidgets('pointer over shimmer does not change the far end', (tester) async {
       final controller = ChatScrollController()..jumpTo(5);
       final selection = ChatSelectionController();
       addTearDown(controller.dispose);
       addTearDown(selection.dispose);
 
       await tester.pumpWidget(
-        _harness(
-          dataSource: _FetchFailSparseSource(),
-          controller: controller,
-          selection: selection,
-        ),
+        _harness(dataSource: _FetchFailSparseSource(), controller: controller, selection: selection),
       );
       await tester.pump();
 
@@ -252,23 +203,14 @@ void main() {
       addTearDown(selection.dispose);
       addTearDown(source.dispose);
 
-      await tester.pumpWidget(
-        _harness(
-          dataSource: source,
-          controller: controller,
-          selection: selection,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: source, controller: controller, selection: selection));
       await tester.pump();
 
       source.removeMessages([count - 2]);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      final gesture = await _longPressHold(
-        tester,
-        find.text('msg-${count - 1}'),
-      );
+      final gesture = await _longPressHold(tester, find.text('msg-${count - 1}'));
       await gesture.moveTo(tester.getCenter(find.text('msg-${count - 3}')));
       await tester.pump();
 
@@ -277,40 +219,32 @@ void main() {
       await gesture.up();
     });
 
-    testWidgets(
-      'a vertical drag that did not start from this long-press still scrolls',
-      (tester) async {
-        const count = 32;
-        final controller = ChatScrollController()..jumpTo(count - 1);
-        final selection = ChatSelectionController();
-        addTearDown(controller.dispose);
-        addTearDown(selection.dispose);
+    testWidgets('a vertical drag that did not start from this long-press still scrolls', (tester) async {
+      const count = 32;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final selection = ChatSelectionController();
+      addTearDown(controller.dispose);
+      addTearDown(selection.dispose);
 
-        await tester.pumpWidget(
-          _harness(
-            dataSource: _LoadedSource([
-              for (var i = 0; i < count; i++) _msg(i),
-            ]),
-            controller: controller,
-            selection: selection,
-          ),
-        );
-        await tester.pump();
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
+          controller: controller,
+          selection: selection,
+        ),
+      );
+      await tester.pump();
 
-        await tester.longPress(find.text('msg-${count - 1}'));
-        await tester.pumpAndSettle();
-        expect(selection.selectedIds, {count - 1});
+      await tester.longPress(find.text('msg-${count - 1}'));
+      await tester.pumpAndSettle();
+      expect(selection.selectedIds, {count - 1});
 
-        final yBefore = tester.getTopLeft(find.text('msg-${count - 2}')).dy;
-        await tester.drag(find.byType(ChatScrollView), const Offset(0, 120));
-        await tester.pumpAndSettle();
+      final yBefore = tester.getTopLeft(find.text('msg-${count - 2}')).dy;
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 120));
+      await tester.pumpAndSettle();
 
-        expect(
-          tester.getTopLeft(find.text('msg-${count - 2}')).dy,
-          isNot(yBefore),
-        );
-        expect(selection.selectedIds, {count - 1});
-      },
-    );
+      expect(tester.getTopLeft(find.text('msg-${count - 2}')).dy, isNot(yBefore));
+      expect(selection.selectedIds, {count - 1});
+    });
   });
 }

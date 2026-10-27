@@ -23,12 +23,7 @@ mixin _BoundedSource on ChatDataSource {
   int get count;
   void _seed() {
     if (count <= 0) return;
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: count - 1,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
   }
 }
 
@@ -44,10 +39,7 @@ class _PreloadedDataSource extends ChatDataSource with _BoundedSource {
   final int count;
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async {
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async {
     if (count <= 0) return const <IChatMessage>[];
     final lo = fromId.clamp(0, count - 1);
     final hi = toId.clamp(0, count - 1);
@@ -66,10 +58,7 @@ class _AsyncDataSource extends ChatDataSource with _BoundedSource {
   final int count;
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async {
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async {
     await Future<void>.delayed(const Duration(milliseconds: 100));
     final lo = fromId.clamp(0, count - 1);
     final hi = toId.clamp(0, count - 1);
@@ -90,10 +79,7 @@ class _FlakyDataSource extends ChatDataSource with _BoundedSource {
   int _attempts = 0;
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async {
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async {
     await Future<void>.delayed(const Duration(milliseconds: 30));
     final attempt = _attempts++;
     if (attempt < failuresBeforeSuccess) {
@@ -105,17 +91,10 @@ class _FlakyDataSource extends ChatDataSource with _BoundedSource {
   }
 }
 
-IChatMessage _msg(int i) => UserChatMessage(
-  id: i,
-  sender: 'User',
-  createdAt: DateTime(2026),
-  updatedAt: DateTime(2026),
-  content: 'content $i',
-);
+IChatMessage _msg(int i) =>
+    UserChatMessage(id: i, sender: 'User', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: 'content $i');
 
-List<IChatMessage> _generate(int n) => <IChatMessage>[
-  for (var i = 0; i < n; i++) _msg(i),
-];
+List<IChatMessage> _generate(int n) => <IChatMessage>[for (var i = 0; i < n; i++) _msg(i)];
 
 Widget _harness({
   required ChatDataSource dataSource,
@@ -137,10 +116,8 @@ Widget _harness({
           extraBuildExtent: extraBuildExtent,
           bottomPadding: bottomPadding,
           scrollbar: scrollbar,
-          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
-            height: 60,
-            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-          ),
+          messageBuilder: (context, id, message, status, runLayout) =>
+              SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
         ),
       ),
     ),
@@ -156,17 +133,10 @@ RenderChatScrollView _render(WidgetTester tester) =>
 
 void main() {
   group('widget ChatScrollView', () {
-    testWidgets('renders the newest message and virtualizes the rest', (
-      tester,
-    ) async {
+    testWidgets('renders the newest message and virtualizes the rest', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller));
       await tester.pump();
 
       expect(find.text('msg-255'), findsOneWidget);
@@ -178,17 +148,10 @@ void main() {
       expect(ro.debugChunkCount, greaterThan(0));
     });
 
-    testWidgets('layout-driven scroll reveals older then newer messages', (
-      tester,
-    ) async {
+    testWidgets('layout-driven scroll reveals older then newer messages', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller));
       await tester.pump();
       final ro = _render(tester);
 
@@ -213,12 +176,7 @@ void main() {
     testWidgets('drag gesture scrolls the viewport', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller));
       await tester.pump();
       expect(find.text('msg-255'), findsOneWidget);
 
@@ -230,35 +188,20 @@ void main() {
       expect(find.text('msg-255'), findsNothing);
     });
 
-    testWidgets('a fling keeps revealing messages after the finger lifts', (
-      tester,
-    ) async {
+    testWidgets('a fling keeps revealing messages after the finger lifts', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller));
       await tester.pump();
       final ro = _render(tester);
 
       // A downward fling reveals older messages: the finger lifts, inertia
       // carries the viewport onward on its own.
-      await tester.fling(
-        find.byType(ChatScrollView),
-        const Offset(0, 600),
-        4000,
-      );
+      await tester.fling(find.byType(ChatScrollView), const Offset(0, 600), 4000);
       await tester.pump();
       final afterThrow = ro.debugFirstId!;
       await tester.pump(const Duration(milliseconds: 300));
-      expect(
-        ro.debugFirstId,
-        lessThan(afterThrow),
-        reason: 'inertia should keep revealing older messages',
-      );
+      expect(ro.debugFirstId, lessThan(afterThrow), reason: 'inertia should keep revealing older messages');
       await tester.pumpAndSettle();
     });
 
@@ -267,19 +210,10 @@ void main() {
       final controller = ChatScrollController()..jumpTo(count - 1);
       final events = <ChatScrollEvent>[];
       controller.addScrollListener(events.add);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller));
       await tester.pump();
 
-      await tester.fling(
-        find.byType(ChatScrollView),
-        const Offset(0, 600),
-        4000,
-      );
+      await tester.fling(find.byType(ChatScrollView), const Offset(0, 600), 4000);
       await tester.pump();
 
       final anchorBefore = controller.anchorMessageId;
@@ -297,17 +231,10 @@ void main() {
       expect(controller.anchorPixelOffset, offsetBefore);
     });
 
-    testWidgets('a scroll repaints far more often than it relayouts (Tier-1)', (
-      tester,
-    ) async {
+    testWidgets('a scroll repaints far more often than it relayouts (Tier-1)', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count ~/ 2);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller));
       await tester.pumpAndSettle();
       final ro = _render(tester);
 
@@ -316,26 +243,16 @@ void main() {
 
       // The ticker repositions cached children and repaints; layout only
       // re-runs on the rare frame where the built range stops covering.
-      await tester.fling(
-        find.byType(ChatScrollView),
-        const Offset(0, -200),
-        800,
-      );
+      await tester.fling(find.byType(ChatScrollView), const Offset(0, -200), 800);
       await tester.pumpAndSettle();
 
       final layoutFrames = ro.debugLayoutFrameId - layoutBefore;
       final paintFrames = ro.debugPaintFrameId - paintBefore;
       expect(paintFrames, greaterThan(0));
-      expect(
-        paintFrames,
-        greaterThan(layoutFrames),
-        reason: 'scrolling should repaint far more than it relayouts',
-      );
+      expect(paintFrames, greaterThan(layoutFrames), reason: 'scrolling should repaint far more than it relayouts');
     });
 
-    testWidgets('dragging the scrollbar teleports through the conversation', (
-      tester,
-    ) async {
+    testWidgets('dragging the scrollbar teleports through the conversation', (tester) async {
       const count = 1000;
       final controller = ChatScrollController()..jumpTo(count - 1);
       await tester.pumpWidget(
@@ -350,10 +267,7 @@ void main() {
 
       // Click near the top of the right-edge scrollbar strip.
       final box = tester.getRect(find.byType(ChatScrollView));
-      await tester.tapAt(
-        Offset(box.right - 6, box.top + 24),
-        kind: PointerDeviceKind.mouse,
-      );
+      await tester.tapAt(Offset(box.right - 6, box.top + 24), kind: PointerDeviceKind.mouse);
       await tester.pump();
 
       expect(
@@ -366,12 +280,7 @@ void main() {
     testWidgets('jumpTo teleports to an arbitrary message', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller));
       await tester.pump();
 
       controller.jumpTo(40);
@@ -381,14 +290,10 @@ void main() {
       expect(find.text('msg-255'), findsNothing);
     });
 
-    testWidgets('shows shimmer placeholders, then content as chunks load', (
-      tester,
-    ) async {
+    testWidgets('shows shimmer placeholders, then content as chunks load', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      await tester.pumpWidget(
-        _harness(dataSource: _AsyncDataSource(count), controller: controller),
-      );
+      await tester.pumpWidget(_harness(dataSource: _AsyncDataSource(count), controller: controller));
       await tester.pump();
 
       // No data yet -> shimmer placeholders.
@@ -422,51 +327,34 @@ void main() {
       expect(ro.debugChunkCount, lessThanOrEqualTo(ds.maxChunks));
     });
 
-    testWidgets('exposes scroll-action semantics that track position', (
-      tester,
-    ) async {
+    testWidgets('exposes scroll-action semantics that track position', (tester) async {
       final handle = tester.ensureSemantics();
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller));
       await tester.pump();
 
       // Pinned at the bottom — can reveal older (scrollDown), not newer.
-      final bottom = tester
-          .getSemantics(find.byType(ChatScrollView))
-          .getSemanticsData();
+      final bottom = tester.getSemantics(find.byType(ChatScrollView)).getSemanticsData();
       expect(bottom.hasAction(SemanticsAction.scrollDown), isTrue);
       expect(bottom.hasAction(SemanticsAction.scrollUp), isFalse);
 
       // Mid-conversation — both directions available.
       controller.jumpTo(count ~/ 2);
       await tester.pump();
-      final middle = tester
-          .getSemantics(find.byType(ChatScrollView))
-          .getSemanticsData();
+      final middle = tester.getSemantics(find.byType(ChatScrollView)).getSemanticsData();
       expect(middle.hasAction(SemanticsAction.scrollUp), isTrue);
       expect(middle.hasAction(SemanticsAction.scrollDown), isTrue);
 
       handle.dispose();
     });
 
-    testWidgets('extraBuildExtent keeps extra children mounted', (
-      tester,
-    ) async {
+    testWidgets('extraBuildExtent keeps extra children mounted', (tester) async {
       const count = 256;
 
       final base = ChatScrollController()..jumpTo(count ~/ 2);
       await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: base,
-          cacheExtent: 100,
-        ),
+        _harness(dataSource: _PreloadedDataSource(_generate(count)), controller: base, cacheExtent: 100),
       );
       await tester.pumpAndSettle();
       final withoutExtra = _render(tester).debugChildCount;
@@ -486,36 +374,24 @@ void main() {
       expect(withExtra, greaterThan(withoutExtra));
     });
 
-    testWidgets('bottomPadding reserves space after the newest message', (
-      tester,
-    ) async {
+    testWidgets('bottomPadding reserves space after the newest message', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
       final inset = ValueNotifier<double>(150);
       addTearDown(inset.dispose);
       await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-          bottomPadding: inset,
-        ),
+        _harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller, bottomPadding: inset),
       );
       await tester.pump();
 
       // Viewport is 600 tall, messages 60 tall: the newest message is pinned
       // so its bottom sits `inset` pixels above the viewport bottom.
-      expect(
-        tester.getTopLeft(find.text('msg-255')).dy,
-        closeTo(600 - 150 - 60, 1),
-      );
+      expect(tester.getTopLeft(find.text('msg-255')).dy, closeTo(600 - 150 - 60, 1));
 
       // Growing the inset while pinned at the bottom carries the message up.
       inset.value = 260;
       await tester.pump();
-      expect(
-        tester.getTopLeft(find.text('msg-255')).dy,
-        closeTo(600 - 260 - 60, 1),
-      );
+      expect(tester.getTopLeft(find.text('msg-255')).dy, closeTo(600 - 260 - 60, 1));
     });
 
     testWidgets('topPadding leaves room for an overlay header', (tester) async {
@@ -535,14 +411,8 @@ void main() {
                   controller: controller,
                   topPadding: inset,
                   messageBuilder: (context, id, message, status, runLayout) =>
-                      SizedBox(
-                        height: 60,
-                        child: Text(
-                          message == null ? 'shimmer-$id' : 'msg-$id',
-                        ),
-                      ),
-                  dateSeparatorBuilder: (context, bucket, date) =>
-                      SizedBox(height: 24, child: Text('sep-${date.day}')),
+                      SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
+                  dateSeparatorBuilder: (context, bucket, date) => SizedBox(height: 24, child: Text('sep-${date.day}')),
                 ),
               ),
             ),
@@ -570,28 +440,19 @@ void main() {
       addTearDown(firstInset.dispose);
       addTearDown(secondInset.dispose);
 
-      Widget build(ValueListenable<double> inset) => _harness(
-        dataSource: _PreloadedDataSource(_generate(count)),
-        controller: controller,
-        bottomPadding: inset,
-      );
+      Widget build(ValueListenable<double> inset) =>
+          _harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller, bottomPadding: inset);
 
       await tester.pumpWidget(build(firstInset));
       await tester.pump();
-      expect(
-        tester.getTopLeft(find.text('msg-255')).dy,
-        closeTo(600 - 50 - 60, 1),
-      );
+      expect(tester.getTopLeft(find.text('msg-255')).dy, closeTo(600 - 50 - 60, 1));
 
       // Swap the listenable itself — different instance, different current
       // value. The viewport's setter must catch the value change, not just
       // listener-value changes on the existing instance.
       await tester.pumpWidget(build(secondInset));
       await tester.pump();
-      expect(
-        tester.getTopLeft(find.text('msg-255')).dy,
-        closeTo(600 - 200 - 60, 1),
-      );
+      expect(tester.getTopLeft(find.text('msg-255')).dy, closeTo(600 - 200 - 60, 1));
     });
 
     testWidgets('messageBuilder swap re-inflates messages with the new '
@@ -636,9 +497,7 @@ void main() {
       final first = _AsyncDataSource(count);
       final second = _PreloadedDataSource(_generate(count));
 
-      await tester.pumpWidget(
-        _harness(dataSource: first, controller: controller),
-      );
+      await tester.pumpWidget(_harness(dataSource: first, controller: controller));
       // First layout primes the poll; flush microtasks so it actually arms.
       await tester.pump();
       // Mid-fetch — the async source's 100ms delay has not elapsed yet.
@@ -649,9 +508,7 @@ void main() {
         reason: 'fetch should be in flight before the swap',
       );
 
-      await tester.pumpWidget(
-        _harness(dataSource: second, controller: controller),
-      );
+      await tester.pumpWidget(_harness(dataSource: second, controller: controller));
       // Past the original 100ms window — the cancelled fetch must NOT mark
       // chunks valid (no listener would resurrect it anyway, but cancelFetch
       // also clears the fetching flag so we can observe it dropped).
@@ -671,9 +528,7 @@ void main() {
       // Dispose drains pending timers in the source's `Future.delayed`.
       addTearDown(source.dispose);
 
-      await tester.pumpWidget(
-        _harness(dataSource: source, controller: controller),
-      );
+      await tester.pumpWidget(_harness(dataSource: source, controller: controller));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
       expect(source.chunks.values.any((c) => c.status.isFetching), isTrue);
@@ -695,9 +550,7 @@ void main() {
         final controller = ChatScrollController()..jumpTo(count - 1);
         final source = _FlakyDataSource(count, failuresBeforeSuccess: 1);
 
-        await tester.pumpWidget(
-          _harness(dataSource: source, controller: controller),
-        );
+        await tester.pumpWidget(_harness(dataSource: source, controller: controller));
         await tester.pump();
         // First fetch fails (after its 30ms delay) — chunks should land in
         // error.
@@ -727,20 +580,13 @@ void main() {
       // cache so the target is in the built range (close path).
       final controller = ChatScrollController()..jumpTo(count ~/ 2);
       await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-          cacheExtent: 1000,
-        ),
+        _harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller, cacheExtent: 1000),
       );
       await tester.pumpAndSettle();
       expect(controller.anchorMessageId, count ~/ 2);
 
       const targetId = 120; // 8 rows × 60 px above the anchor — close path.
-      final future = controller.animateTo(
-        targetId,
-        duration: const Duration(milliseconds: 200),
-      );
+      final future = controller.animateTo(targetId, duration: const Duration(milliseconds: 200));
       var done = false;
       unawaited(future.whenComplete(() => done = true));
       await tester.pump();
@@ -754,17 +600,10 @@ void main() {
       expect(controller.anchorPixelOffset, closeTo(0, 1));
     });
 
-    testWidgets('falls back to a stitch when the target is far off', (
-      tester,
-    ) async {
+    testWidgets('falls back to a stitch when the target is far off', (tester) async {
       const count = 8000;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller));
       await tester.pumpAndSettle();
 
       final future = controller.animateTo(
@@ -785,9 +624,7 @@ void main() {
       expect(controller.anchorMessageId, 100);
     });
 
-    testWidgets('jumpTo when no viewport is bound to the controller', (
-      tester,
-    ) async {
+    testWidgets('jumpTo when no viewport is bound to the controller', (tester) async {
       final controller = ChatScrollController();
       // No render object → animateTo degrades to a synchronous jumpTo and
       // completes immediately.
@@ -797,9 +634,7 @@ void main() {
   });
 
   group('ChatScrollView reverse: true', () {
-    testWidgets('short content stacks at the bottom in reverse mode', (
-      tester,
-    ) async {
+    testWidgets('short content stacks at the bottom in reverse mode', (tester) async {
       // Only 3 messages — total height 180 px in a 600 px viewport.
       const count = 3;
       final controller = ChatScrollController()..jumpTo(count - 1);
@@ -830,66 +665,46 @@ void main() {
       expect(tester.getTopLeft(find.text('msg-0')).dy, closeTo(420, 1));
     });
 
-    testWidgets(
-      'short content drag keeps layout pinned (stretch is paint-only)',
-      (tester) async {
-        const count = 3;
-        final controller = ChatScrollController()..jumpTo(count - 1);
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: Center(
-                child: SizedBox(
-                  width: 400,
-                  height: 600,
-                  child: ChatScrollView(
-                    dataSource: _PreloadedDataSource(_generate(count)),
-                    controller: controller,
-                    reverse: true,
-                    messageBuilder: (context, id, message, status, runLayout) =>
-                        SizedBox(height: 60, child: Text('msg-$id')),
-                  ),
+    testWidgets('short content drag keeps layout pinned (stretch is paint-only)', (tester) async {
+      const count = 3;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: _PreloadedDataSource(_generate(count)),
+                  controller: controller,
+                  reverse: true,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      SizedBox(height: 60, child: Text('msg-$id')),
                 ),
               ),
             ),
           ),
-        );
-        await tester.pump();
-
-        final newestTopBefore = tester.getTopLeft(find.text('msg-2')).dy;
-        await tester.drag(find.byType(ChatScrollView), const Offset(0, -300));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 300));
-        expect(
-          tester.getTopLeft(find.text('msg-2')).dy,
-          closeTo(newestTopBefore, 1),
-        );
-
-        await tester.fling(
-          find.byType(ChatScrollView),
-          const Offset(0, -800),
-          2000,
-        );
-        await tester.pump();
-        await tester.pump(const Duration(seconds: 1));
-        expect(
-          tester.getTopLeft(find.text('msg-2')).dy,
-          closeTo(newestTopBefore, 1),
-        );
-      },
-    );
-
-    testWidgets('short content still stacks at the top with default reverse', (
-      tester,
-    ) async {
-      const count = 3;
-      final controller = ChatScrollController()..jumpTo(count - 1);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
         ),
       );
+      await tester.pump();
+
+      final newestTopBefore = tester.getTopLeft(find.text('msg-2')).dy;
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, -300));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tester.getTopLeft(find.text('msg-2')).dy, closeTo(newestTopBefore, 1));
+
+      await tester.fling(find.byType(ChatScrollView), const Offset(0, -800), 2000);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(tester.getTopLeft(find.text('msg-2')).dy, closeTo(newestTopBefore, 1));
+    });
+
+    testWidgets('short content still stacks at the top with default reverse', (tester) async {
+      const count = 3;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      await tester.pumpWidget(_harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller));
       await tester.pump();
 
       // Default (reverse: false): oldest pinned to the top edge.
@@ -902,12 +717,7 @@ void main() {
     testWidgets('emits ChatProgrammaticJump on jumpTo', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller));
       await tester.pump();
 
       final events = <ChatScrollEvent>[];
@@ -924,22 +734,13 @@ void main() {
     testWidgets('emits drag / fling lifecycle on user gesture', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller));
       await tester.pump();
 
       final events = <ChatScrollEvent>[];
       controller.addScrollListener(events.add);
 
-      await tester.fling(
-        find.byType(ChatScrollView),
-        const Offset(0, 600),
-        4000,
-      );
+      await tester.fling(find.byType(ChatScrollView), const Offset(0, 600), 4000);
       await tester.pumpAndSettle();
 
       expect(events.whereType<ChatUserDragStart>(), isNotEmpty);
@@ -957,12 +758,7 @@ void main() {
     testWidgets('animateTo does not emit ChatViewportScrolled', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller));
       await tester.pump();
 
       final events = <ChatScrollEvent>[];
@@ -981,12 +777,7 @@ void main() {
     testWidgets('visibleRange tracks the on-screen ids', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-        ),
-      );
+      await tester.pumpWidget(_harness(dataSource: _PreloadedDataSource(_generate(count)), controller: controller));
       await tester.pump();
 
       final range = controller.visibleRange.value;
@@ -1022,23 +813,17 @@ void main() {
               controller: controller,
               cacheExtent: cacheExtent,
               messageBuilder: (context, id, message, status, runLayout) =>
-                  SizedBox(
-                    height: messageHeight,
-                    child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-                  ),
+                  SizedBox(height: messageHeight, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
             ),
           ),
         ),
       ),
     );
 
-    testWidgets('visibleRange reports half-visible last message fraction', (
-      tester,
-    ) async {
+    testWidgets('visibleRange reports half-visible last message fraction', (tester) async {
       const count = 10;
       const messageHeight = 100.0;
-      final controller = ChatScrollController()
-        ..jumpTo(count - 1, alignment: 1);
+      final controller = ChatScrollController()..jumpTo(count - 1, alignment: 1);
       await tester.pumpWidget(
         fractionHarness(
           dataSource: _PreloadedDataSource(_generate(count)),
@@ -1058,13 +843,10 @@ void main() {
       expect(range.lastRow.id, lessThanOrEqualTo(range.lastId));
     });
 
-    testWidgets('visibleRange reports 1.0 when tall message fills the band', (
-      tester,
-    ) async {
+    testWidgets('visibleRange reports 1.0 when tall message fills the band', (tester) async {
       const count = 5;
       const messageHeight = 1200.0;
-      final controller = ChatScrollController()
-        ..jumpTo(count - 1, alignment: 1);
+      final controller = ChatScrollController()..jumpTo(count - 1, alignment: 1);
       await tester.pumpWidget(
         fractionHarness(
           dataSource: _PreloadedDataSource(_generate(count)),
@@ -1082,9 +864,7 @@ void main() {
       expect(range.lastRow.id, lessThanOrEqualTo(range.lastId));
     });
 
-    testWidgets('visibleRange reports 1.0 for fully visible boundary message', (
-      tester,
-    ) async {
+    testWidgets('visibleRange reports 1.0 for fully visible boundary message', (tester) async {
       const count = 5;
       const messageHeight = 200.0;
       final controller = ChatScrollController()..jumpTo(count - 1);
@@ -1105,13 +885,10 @@ void main() {
       expect(range.lastRow.id, lessThanOrEqualTo(range.lastId));
     });
 
-    testWidgets('visibleRange fraction updates when ids unchanged', (
-      tester,
-    ) async {
+    testWidgets('visibleRange fraction updates when ids unchanged', (tester) async {
       const count = 20;
       const messageHeight = 120.0;
-      final controller = ChatScrollController()
-        ..jumpTo(count - 1, alignment: 1);
+      final controller = ChatScrollController()..jumpTo(count - 1, alignment: 1);
       await tester.pumpWidget(
         fractionHarness(
           dataSource: _PreloadedDataSource(_generate(count)),
@@ -1131,10 +908,7 @@ void main() {
 
       final updated = controller.visibleRange.value!;
       expect(updated.lastId, initial.lastId);
-      expect(
-        updated.lastRow.visibleFraction,
-        isNot(closeTo(initial.lastRow.visibleFraction, 0.001)),
-      );
+      expect(updated.lastRow.visibleFraction, isNot(closeTo(initial.lastRow.visibleFraction, 0.001)));
     });
   });
 }

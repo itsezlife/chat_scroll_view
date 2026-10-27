@@ -57,8 +57,7 @@ typedef ChatVisibleRange = ({
 extension ChatVisibleRangeBandFill on ChatVisibleRange {
   /// Whether [row]'s height used the band-height denominator for its visible
   /// fraction: [row] is at least as tall as this range's paint band.
-  bool rowFillsBand(ChatVisibleRow row) =>
-      paintBandHeight > 0 && row.height >= paintBandHeight;
+  bool rowFillsBand(ChatVisibleRow row) => paintBandHeight > 0 && row.height >= paintBandHeight;
 }
 
 /// Snapshot of the Message under the fixed mid paint-band ray.
@@ -79,10 +78,7 @@ extension ChatVisibleRangeBandFill on ChatVisibleRange {
 @immutable
 final class ChatCenterBand {
   /// Creates a Center Band snapshot for [messageId] at [offsetFromMessageTop].
-  const ChatCenterBand({
-    required this.messageId,
-    required this.offsetFromMessageTop,
-  });
+  const ChatCenterBand({required this.messageId, required this.offsetFromMessageTop});
 
   /// Built Message id whose rect contains the center-band ray.
   final int messageId;
@@ -95,9 +91,7 @@ final class ChatCenterBand {
 
   @override
   bool operator ==(Object other) =>
-      other is ChatCenterBand &&
-      other.messageId == messageId &&
-      other.offsetFromMessageTop == offsetFromMessageTop;
+      other is ChatCenterBand && other.messageId == messageId && other.offsetFromMessageTop == offsetFromMessageTop;
 
   @override
   int get hashCode => Object.hash(messageId, offsetFromMessageTop);
@@ -209,8 +203,7 @@ class ChatScrollController {
   }
 
   /// Unsubscribe from jump events.
-  void removeJumpListener(ValueChanged<int> callback) =>
-      _jumpListeners.remove(callback);
+  void removeJumpListener(ValueChanged<int> callback) => _jumpListeners.remove(callback);
 
   /// Jump to a specific message, resetting the anchor.
   ///
@@ -424,10 +417,7 @@ class ChatScrollController {
   void _notifyJump(int messageId) {
     // Iterate a snapshot — a listener may add or remove listeners (including
     // itself) while reacting to the jump.
-    for (final cb in List<ValueChanged<int>>.of(
-      _jumpListeners,
-      growable: false,
-    )) {
+    for (final cb in List<ValueChanged<int>>.of(_jumpListeners, growable: false)) {
       cb(messageId);
     }
     _emitScroll(ChatProgrammaticJump(messageId));
@@ -470,10 +460,7 @@ class ChatScrollController {
     if (_disposed) return;
     _dispatchingTailOrTarget = true;
     try {
-      for (final cb in List<ValueChanged<TailOrTargetOutcome>>.of(
-        _tailOrTargetListeners,
-        growable: false,
-      )) {
+      for (final cb in List<ValueChanged<TailOrTargetOutcome>>.of(_tailOrTargetListeners, growable: false)) {
         cb(outcome);
       }
     } finally {
@@ -509,8 +496,7 @@ class ChatScrollController {
   }
 
   /// Unsubscribe from `scrollBy` events.
-  void removeScrollByListener(ValueChanged<double> callback) =>
-      _scrollByListeners.remove(callback);
+  void removeScrollByListener(ValueChanged<double> callback) => _scrollByListeners.remove(callback);
 
   /// Shift the viewport's anchor by [pixels]. Positive values reveal older
   /// messages (content moves down); negative values reveal newer (content
@@ -546,10 +532,7 @@ class ChatScrollController {
     if (pixels == 0.0 || !pixels.isFinite) return;
     releaseNavigationPlacement();
     _anchorPixelOffset += pixels;
-    for (final cb in List<ValueChanged<double>>.of(
-      _scrollByListeners,
-      growable: false,
-    )) {
+    for (final cb in List<ValueChanged<double>>.of(_scrollByListeners, growable: false)) {
       cb(pixels);
     }
     _emitScroll(ChatProgrammaticScroll(pixels));
@@ -652,12 +635,7 @@ class ChatScrollController {
     final animator = _animator;
     if (animator == null) {
       _setNavigationAlignment(messageId, alignment, pixelOffset: pixelOffset);
-      jumpTo(
-        messageId,
-        alignment: alignment,
-        highlight: highlight,
-        pixelOffset: pixelOffset,
-      );
+      jumpTo(messageId, alignment: alignment, highlight: highlight, pixelOffset: pixelOffset);
       return AnimateToDisposition.accepted;
     }
     final align = alignment.clamp(0.0, 1.0);
@@ -703,9 +681,7 @@ class ChatScrollController {
         _emitScroll(ChatAnimateEnd(messageId, path: path));
       }
     }
-    return coalesce
-        ? AnimateToDisposition.coalesced
-        : AnimateToDisposition.accepted;
+    return coalesce ? AnimateToDisposition.coalesced : AnimateToDisposition.accepted;
   }
 
   // --- Scroll-animator binding (viewport-only) -----------------------------
@@ -751,8 +727,7 @@ class ChatScrollController {
   // --- Scrollbar hold, suppression, and flash ------------------------------
 
   final Set<ChatScrollbarHold> _scrollbarHolds = <ChatScrollbarHold>{};
-  final Set<ChatScrollbarSuppression> _scrollbarSuppressions =
-      <ChatScrollbarSuppression>{};
+  final Set<ChatScrollbarSuppression> _scrollbarSuppressions = <ChatScrollbarSuppression>{};
 
   /// The bound viewport's reactions, or `null` while no viewport is bound.
   ({VoidCallback onChanged, VoidCallback onFlash})? _scrollbarBinding;
@@ -778,8 +753,7 @@ class ChatScrollController {
   /// or switches to another controller, and on [dispose]; the handle then
   /// reports [ChatScrollbarHandle.isReleased]. After [dispose] the returned
   /// handle is already released.
-  ChatScrollbarHold holdScrollbar() =>
-      _takeScrollbarHandle(ChatScrollbarHold._(this), _scrollbarHolds);
+  ChatScrollbarHold holdScrollbar() => _takeScrollbarHandle(ChatScrollbarHold._(this), _scrollbarHolds);
 
   /// Takes a **scrollbar suppression**: while it is alive, the bound
   /// viewport's scrollbar is hidden and inert — for host gestures or
@@ -806,10 +780,8 @@ class ChatScrollController {
   ///
   /// Suppressions count independently, like holds, with the same
   /// attach, detach, controller-swap, and [dispose] rules.
-  ChatScrollbarSuppression suppressScrollbar() => _takeScrollbarHandle(
-    ChatScrollbarSuppression._(this),
-    _scrollbarSuppressions,
-  );
+  ChatScrollbarSuppression suppressScrollbar() =>
+      _takeScrollbarHandle(ChatScrollbarSuppression._(this), _scrollbarSuppressions);
 
   /// A **scrollbar flash**: shows the bound viewport's auto-hide scrollbar,
   /// then hides it after the preset's idle delay — a one-shot hint at the
@@ -847,14 +819,8 @@ class ChatScrollController {
   /// this controller; the viewport reads both getters right after binding,
   /// so handles taken before it apply. At most one viewport is bound.
   @internal
-  void bindScrollbar({
-    required VoidCallback onChanged,
-    required VoidCallback onFlash,
-  }) {
-    assert(
-      _scrollbarBinding == null,
-      'bindScrollbar: a viewport is already bound to this controller',
-    );
+  void bindScrollbar({required VoidCallback onChanged, required VoidCallback onFlash}) {
+    assert(_scrollbarBinding == null, 'bindScrollbar: a viewport is already bound to this controller');
     if (_disposed) return;
     _scrollbarBinding = (onChanged: onChanged, onFlash: onFlash);
   }
@@ -889,10 +855,7 @@ class ChatScrollController {
   }
 
   void _releaseScrollbarHandles() {
-    for (final handle in <ChatScrollbarHandle>[
-      ..._scrollbarHolds,
-      ..._scrollbarSuppressions,
-    ]) {
+    for (final handle in <ChatScrollbarHandle>[..._scrollbarHolds, ..._scrollbarSuppressions]) {
       handle._controller = null;
     }
     _scrollbarHolds.clear();
@@ -901,8 +864,7 @@ class ChatScrollController {
 
   // --- Visible range -------------------------------------------------------
 
-  final _DeferredValueNotifier<ChatVisibleRange?> _visibleRange =
-      _DeferredValueNotifier<ChatVisibleRange?>(null);
+  final _DeferredValueNotifier<ChatVisibleRange?> _visibleRange = _DeferredValueNotifier<ChatVisibleRange?>(null);
 
   /// Inclusive id range of currently-on-screen messages plus the active
   /// anchor id and boundary visibility fractions. `null` before the first
@@ -929,8 +891,7 @@ class ChatScrollController {
 
   // --- Center Band ---------------------------------------------------------
 
-  final _DeferredValueNotifier<ChatCenterBand?> _centerBand =
-      _DeferredValueNotifier<ChatCenterBand?>(null);
+  final _DeferredValueNotifier<ChatCenterBand?> _centerBand = _DeferredValueNotifier<ChatCenterBand?>(null);
 
   /// Live Center Band: Message under the fixed 50% paint-band ray, plus
   /// pixels from that Message's top to the ray. `null` before the first
@@ -952,9 +913,7 @@ class ChatScrollController {
 
   // --- Tail tracking -------------------------------------------------------
 
-  final _DeferredValueNotifier<bool> _isAtTail = _DeferredValueNotifier<bool>(
-    false,
-  );
+  final _DeferredValueNotifier<bool> _isAtTail = _DeferredValueNotifier<bool>(false);
 
   /// Whether the *newest* known message is currently in the paint area and
   /// the data source has reported [ChatDataSource.reachedNewest]. `false`
@@ -1023,8 +982,7 @@ class ChatScrollController {
   }
 
   /// Unsubscribes [callback] from [addScrollListener]. No-op when not present.
-  void removeScrollListener(ValueChanged<ChatScrollEvent> callback) =>
-      _scrollListeners.remove(callback);
+  void removeScrollListener(ValueChanged<ChatScrollEvent> callback) => _scrollListeners.remove(callback);
 
   /// Viewport-only emitter. Iterates a snapshot — a listener removing itself
   /// or another listener during dispatch is safe.
@@ -1033,10 +991,7 @@ class ChatScrollController {
 
   void _emitScroll(ChatScrollEvent event) {
     if (_scrollListeners.isEmpty) return;
-    for (final cb in List<ValueChanged<ChatScrollEvent>>.of(
-      _scrollListeners,
-      growable: false,
-    )) {
+    for (final cb in List<ValueChanged<ChatScrollEvent>>.of(_scrollListeners, growable: false)) {
       cb(event);
     }
   }
@@ -1117,23 +1072,12 @@ class ChatScrollController {
     _navigationPlacement = _navigationPlacement?.retarget(resolvedId);
   }
 
-  void _setNavigationAlignment(
-    int messageId,
-    double alignment, {
-    double pixelOffset = 0,
-  }) {
-    _navigationPlacement = NavigationPlacement.alignment(
-      messageId,
-      alignment,
-      pixelOffset: pixelOffset,
-    );
+  void _setNavigationAlignment(int messageId, double alignment, {double pixelOffset = 0}) {
+    _navigationPlacement = NavigationPlacement.alignment(messageId, alignment, pixelOffset: pixelOffset);
   }
 
   void _setNavigationCenterBand(int messageId, double offsetFromMessageTop) {
-    _navigationPlacement = NavigationPlacement.centerBand(
-      messageId,
-      offsetFromMessageTop,
-    );
+    _navigationPlacement = NavigationPlacement.centerBand(messageId, offsetFromMessageTop);
   }
 
   // --- Viewport-only: silent mutation without notifications ---
@@ -1214,8 +1158,7 @@ class ChatScrollController {
 /// cannot release that claim until the controller releases it (viewport
 /// detach, controller swap, or [ChatScrollController.dispose]).
 sealed class ChatScrollbarHandle {
-  ChatScrollbarHandle._(ChatScrollController controller)
-    : _controller = controller;
+  ChatScrollbarHandle._(ChatScrollController controller) : _controller = controller;
 
   /// The controller holding this claim; `null` once released.
   ChatScrollController? _controller;

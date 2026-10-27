@@ -32,10 +32,7 @@ final class ChatTextSelection {
        // what a host menu reads as [ChatTextCopy.plainText]). Rich forms read
        // the structured content instead.
        markdownSelection =
-           markdownSelection ??
-           MarkdownSelectionController(
-             formatter: MarkdownSelectionFormatter.plain,
-           ),
+           markdownSelection ?? MarkdownSelectionController(formatter: MarkdownSelectionFormatter.plain),
        spoilers = spoilers ?? MarkdownSpoilerController(),
        policy = policy ?? ChatSelectionPolicy.forPlatform();
 
@@ -130,10 +127,7 @@ final class ChatTextSelection {
       final bounds = surface.globalBounds;
       return !bounds.isEmpty && bounds.contains(globalOffset);
     }
-    final reported = _liveGlobalBounds(
-      _bodyPaintBoxes[messageId],
-      _bodyPaintBoxes,
-    );
+    final reported = _liveGlobalBounds(_bodyPaintBoxes[messageId], _bodyPaintBoxes);
     return reported != null && reported.contains(globalOffset);
   }
 
@@ -145,15 +139,11 @@ final class ChatTextSelection {
   /// still get Inside on the body.
   bool containsMessageSurface(int messageId, Offset globalOffset) {
     if (_disposed) return false;
-    final surface = _liveGlobalBounds(
-      _messageSurfaceBoxes[messageId],
-      _messageSurfaceBoxes,
-    );
+    final surface = _liveGlobalBounds(_messageSurfaceBoxes[messageId], _messageSurfaceBoxes);
     if (surface != null) {
       return surface.contains(globalOffset);
     }
-    if (_nonTextBodies[messageId]?.values.last.globalBounds case final bounds?
-        when bounds.contains(globalOffset)) {
+    if (_nonTextBodies[messageId]?.values.last.globalBounds case final bounds? when bounds.contains(globalOffset)) {
       return true;
     }
     return containsGlobal(messageId, globalOffset);
@@ -167,10 +157,7 @@ final class ChatTextSelection {
   /// [containsMessageSurface], never falls back to the text body.
   ({Rect rect, ShapeBorder? shape})? messageSurfaceGlobal(int messageId) {
     if (_disposed) return null;
-    final rect = _liveGlobalBounds(
-      _messageSurfaceBoxes[messageId],
-      _messageSurfaceBoxes,
-    );
+    final rect = _liveGlobalBounds(_messageSurfaceBoxes[messageId], _messageSurfaceBoxes);
     if (rect == null) {
       _messageSurfaceShapes.remove(messageId);
       return null;
@@ -209,11 +196,7 @@ final class ChatTextSelection {
   /// Pass `null` on dispose / unmount; that also drops the shape. Hit-tests
   /// resolve live global geometry at query time so scroll without rebuild
   /// stays correct. Silent after [dispose].
-  void reportMessageSurfaceBounds(
-    int messageId,
-    RenderBox? box, {
-    ShapeBorder? shape,
-  }) {
+  void reportMessageSurfaceBounds(int messageId, RenderBox? box, {ShapeBorder? shape}) {
     if (_disposed) return;
     if (box == null || !box.hasSize) {
       _messageSurfaceBoxes.remove(messageId);
@@ -254,24 +237,17 @@ final class ChatTextSelection {
       return body.inlineHitAt(globalOffset);
     }
     if (!_bodies.containsKey(messageId)) return null;
-    final hit = markdownSelection.positionForGlobal(
-      globalOffset,
-      requireContainment: true,
-    );
+    final hit = markdownSelection.positionForGlobal(globalOffset, requireContainment: true);
     if (hit == null || hit.documentId != messageId) return null;
 
     final model = bodyOf(messageId);
-    if (model == null ||
-        hit.blockIndex < 0 ||
-        hit.blockIndex >= model.blocks.length) {
+    if (model == null || hit.blockIndex < 0 || hit.blockIndex >= model.blocks.length) {
       return null;
     }
     final block = model.blocks[hit.blockIndex];
 
     final surface = surfaceFor(messageId);
-    final contentLocal = surface != null
-        ? globalOffset - surface.globalBounds.topLeft
-        : null;
+    final contentLocal = surface != null ? globalOffset - surface.globalBounds.topLeft : null;
 
     if (block case MD$Code(:final text, :final language)) {
       // Prefer painter-owned chrome (ChatCodeBlockPainter.isLinkAtLocal), with
@@ -281,23 +257,15 @@ final class ChatTextSelection {
       if (!isChrome && surface != null && contentLocal != null) {
         final surfaceWidth = surface.globalBounds.width;
         if (contentLocal.dx >= 0 && contentLocal.dx <= surfaceWidth) {
-          final boxes = surface.localBoxesForRange(
-            hit.blockIndex,
-            0,
-            text.length,
-          );
+          final boxes = surface.localBoxesForRange(hit.blockIndex, 0, text.length);
           if (boxes.isNotEmpty) {
             final codeTop = boxes.first.top;
             final codeBottom = boxes.last.bottom;
-            final inHeader =
-                contentLocal.dy >= 0 &&
-                contentLocal.dy < (codeTop - ChatCodeBlockPainter.padding);
-            final inBottom =
-                contentLocal.dy >= (codeBottom + ChatCodeBlockPainter.padding);
+            final inHeader = contentLocal.dy >= 0 && contentLocal.dy < (codeTop - ChatCodeBlockPainter.padding);
+            final inBottom = contentLocal.dy >= (codeBottom + ChatCodeBlockPainter.padding);
             if (inHeader && policy.hasInteractiveCodeHeader) {
               isChrome = true;
-            } else if (inBottom &&
-                policy.hasBottomCodeCopyBarForLength(text.length)) {
+            } else if (inBottom && policy.hasBottomCodeCopyBarForLength(text.length)) {
               isChrome = true;
             }
           }
@@ -305,11 +273,7 @@ final class ChatTextSelection {
       }
       if (isChrome) {
         // Copy chrome is not a text span — no tap-highlight contour.
-        return ChatInlineHit.code(
-          messageId: messageId,
-          code: text,
-          language: language,
-        );
+        return ChatInlineHit.code(messageId: messageId, code: text, language: language);
       }
       return null;
     }
@@ -323,21 +287,12 @@ final class ChatTextSelection {
     if (spanHit != null) {
       Path? contourPath;
       if (surface != null) {
-        final boxes = surface.localBoxesForRange(
-          hit.blockIndex,
-          spanHit.start,
-          spanHit.end,
-        );
+        final boxes = surface.localBoxesForRange(hit.blockIndex, spanHit.start, spanHit.end);
         if (boxes.isNotEmpty) {
           contourPath = ChatSmoothContour.buildPath(boxes);
         }
       }
-      return _inlineHitForSpan(
-        messageId,
-        spanHit.span,
-        contourPath: contourPath,
-        touchOrigin: contentLocal,
-      );
+      return _inlineHitForSpan(messageId, spanHit.span, contourPath: contourPath, touchOrigin: contentLocal);
     }
 
     return null;
@@ -369,22 +324,13 @@ final class ChatTextSelection {
         if (policy != null && !policy.hasInteractiveCodeHeader) {
           return null;
         }
-        return ChatInlineHit.code(
-          messageId: messageId,
-          code: text,
-          language: language,
-        );
+        return ChatInlineHit.code(messageId: messageId, code: text, language: language);
       }
       if (isBottomBar) {
-        if (policy != null &&
-            !policy.hasBottomCodeCopyBarForLength(text.length)) {
+        if (policy != null && !policy.hasBottomCodeCopyBarForLength(text.length)) {
           return null;
         }
-        return ChatInlineHit.code(
-          messageId: messageId,
-          code: text,
-          language: language,
-        );
+        return ChatInlineHit.code(messageId: messageId, code: text, language: language);
       }
       return null;
     }
@@ -417,20 +363,12 @@ final class ChatTextSelection {
   /// newline. Hit-testing reads them through this one walk.
   void _forEachSpan(MD$Block block, bool Function(_SpanRun run) visit) {
     switch (block) {
-      case MD$Paragraph(:final spans) ||
-          MD$Heading(:final spans) ||
-          MD$Quote(:final spans) ||
-          MD$Alert(:final spans):
+      case MD$Paragraph(:final spans) || MD$Heading(:final spans) || MD$Quote(:final spans) || MD$Alert(:final spans):
         var current = 0;
         for (var i = 0; i < spans.length; i++) {
           final end = current + spans[i].text.length;
           final isLast = i == spans.length - 1;
-          if (visit((
-            span: spans[i],
-            start: current,
-            end: end,
-            isLast: isLast,
-          ))) {
+          if (visit((span: spans[i], start: current, end: end, isLast: isLast))) {
             return;
           }
           current = end;
@@ -442,12 +380,7 @@ final class ChatTextSelection {
           for (var i = 0; i < item.spans.length; i++) {
             final end = itemCurrent + item.spans[i].text.length;
             final isLast = i == item.spans.length - 1 && item.children.isEmpty;
-            if (visit((
-              span: item.spans[i],
-              start: itemCurrent,
-              end: end,
-              isLast: isLast,
-            ))) {
+            if (visit((span: item.spans[i], start: itemCurrent, end: end, isLast: isLast))) {
               return true;
             }
             itemCurrent = end;
@@ -466,12 +399,7 @@ final class ChatTextSelection {
             for (var j = 0; j < cellSpans.length; j++) {
               final end = cellCurrent + cellSpans[j].text.length;
               final isLast = j == cellSpans.length - 1;
-              if (visit((
-                span: cellSpans[j],
-                start: cellCurrent,
-                end: end,
-                isLast: isLast,
-              ))) {
+              if (visit((span: cellSpans[j], start: cellCurrent, end: end, isLast: isLast))) {
                 return true;
               }
               cellCurrent = end;
@@ -489,12 +417,7 @@ final class ChatTextSelection {
     }
   }
 
-  ChatInlineHit? _inlineHitForSpan(
-    int messageId,
-    MD$Span span, {
-    Path? contourPath,
-    Offset? touchOrigin,
-  }) {
+  ChatInlineHit? _inlineHitForSpan(int messageId, MD$Span span, {Path? contourPath, Offset? touchOrigin}) {
     final style = span.style;
     // The engine's hidden-tap rule, on the viewport's hit path too: a tap on
     // anything inside a hidden spoiler reveals the message and activates
@@ -550,8 +473,7 @@ final class ChatTextSelection {
       return null;
     }
     if (style.contains(MD$Style.link) || extra?['url'] != null) {
-      final url =
-          extra?['url'] as String? ?? extra?['href'] as String? ?? span.text;
+      final url = extra?['url'] as String? ?? extra?['href'] as String? ?? span.text;
       final title = extra?['alt'] as String? ?? span.text;
       return ChatInlineHit.link(
         messageId: messageId,
@@ -586,12 +508,8 @@ final class ChatTextSelection {
     final existing = _bodies[messageId];
     final assigned = order ?? existing?.order ?? _bodies.length;
 
-    if (token != null &&
-        existing != null &&
-        existing.models.containsKey(token)) {
-      if (identical(existing.models[token], model) &&
-          existing.order == assigned &&
-          identical(existing.model, model)) {
+    if (token != null && existing != null && existing.models.containsKey(token)) {
+      if (identical(existing.models[token], model) && existing.order == assigned && identical(existing.model, model)) {
         return token;
       }
       existing
@@ -612,9 +530,7 @@ final class ChatTextSelection {
     } else {
       _bodies[messageId] = _BodyEntry(
         order: assigned,
-        models: LinkedHashMap<Object, Markdown>.fromEntries([
-          MapEntry(next, model),
-        ]),
+        models: LinkedHashMap<Object, Markdown>.fromEntries([MapEntry(next, model)]),
       );
     }
     if (_active && _subjectId == messageId) {
@@ -661,16 +577,13 @@ final class ChatTextSelection {
   Object? putNonTextBody(int messageId, ChatNonTextBody body) {
     if (_disposed) return null;
     final token = Object();
-    (_nonTextBodies[messageId] ??=
-            LinkedHashMap<Object, ChatNonTextBody>.identity())[token] =
-        body;
+    (_nonTextBodies[messageId] ??= LinkedHashMap<Object, ChatNonTextBody>.identity())[token] = body;
     return token;
   }
 
   /// The non-text body of [messageId] that answers (the last mounted), or
   /// null.
-  ChatNonTextBody? nonTextBodyOf(int messageId) =>
-      _disposed ? null : _nonTextBodies[messageId]?.values.last;
+  ChatNonTextBody? nonTextBodyOf(int messageId) => _disposed ? null : _nonTextBodies[messageId]?.values.last;
 
   /// Removes the body registered under [token].
   void removeNonTextBody(int messageId, {required Object? token}) {

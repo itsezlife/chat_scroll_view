@@ -22,19 +22,11 @@ class _LoadedSource extends ChatDataSource {
   _LoadedSource(List<IChatMessage> messages) {
     upsertMessages(messages);
     final ids = messages.map((m) => m.id).toList()..sort();
-    seedBoundaries(
-      oldestKnownId: ids.first,
-      newestKnownId: ids.last,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: ids.first, newestKnownId: ids.last, reachedOldest: true, reachedNewest: true);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 Widget _harness({
@@ -51,10 +43,8 @@ Widget _harness({
           dataSource: dataSource,
           controller: controller,
           selectionController: selection,
-          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
-            height: 60,
-            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-          ),
+          messageBuilder: (context, id, message, status, runLayout) =>
+              SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
         ),
       ),
     ),
@@ -78,27 +68,18 @@ Future<ChatSelectionController> _pumpTail({
   required ChatDataSource dataSource,
   ChatSelectionAllowed Function(int messageId)? selectionAllowed,
 }) async {
-  final selection = ChatSelectionController()
-    ..selectionAllowed = selectionAllowed;
+  final selection = ChatSelectionController()..selectionAllowed = selectionAllowed;
   addTearDown(controller.dispose);
   addTearDown(selection.dispose);
   addTearDown(dataSource.dispose);
-  await tester.pumpWidget(
-    _harness(
-      dataSource: dataSource,
-      controller: controller,
-      selection: selection,
-    ),
-  );
+  await tester.pumpWidget(_harness(dataSource: dataSource, controller: controller, selection: selection));
   await tester.pump();
   return selection;
 }
 
 void main() {
   group('ChatScrollView selection-allowed', () {
-    testWidgets('long-press on a disallowed message does not enter selection', (
-      tester,
-    ) async {
+    testWidgets('long-press on a disallowed message does not enter selection', (tester) async {
       const count = 32;
       const blocked = count - 1;
       final controller = ChatScrollController()..jumpTo(count - 1);
@@ -106,9 +87,7 @@ void main() {
         tester: tester,
         controller: controller,
         dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
-        selectionAllowed: (id) => id == blocked
-            ? ChatSelectionAllowed.none
-            : ChatSelectionAllowed.full,
+        selectionAllowed: (id) => id == blocked ? ChatSelectionAllowed.none : ChatSelectionAllowed.full,
       );
 
       await tester.longPress(find.text('msg-$blocked'));
@@ -126,9 +105,7 @@ void main() {
         tester: tester,
         controller: controller,
         dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
-        selectionAllowed: (id) => id == blocked
-            ? ChatSelectionAllowed.none
-            : ChatSelectionAllowed.full,
+        selectionAllowed: (id) => id == blocked ? ChatSelectionAllowed.none : ChatSelectionAllowed.full,
       );
 
       await tester.longPress(find.text('msg-${count - 1}'));
@@ -140,9 +117,7 @@ void main() {
       expect(selection.isSelected(blocked), isFalse);
     });
 
-    testWidgets('pointer over a disallowed row freezes the span far end', (
-      tester,
-    ) async {
+    testWidgets('pointer over a disallowed row freezes the span far end', (tester) async {
       const count = 32;
       const blocked = count - 3;
       final controller = ChatScrollController()..jumpTo(count - 1);
@@ -150,15 +125,10 @@ void main() {
         tester: tester,
         controller: controller,
         dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
-        selectionAllowed: (id) => id == blocked
-            ? ChatSelectionAllowed.none
-            : ChatSelectionAllowed.full,
+        selectionAllowed: (id) => id == blocked ? ChatSelectionAllowed.none : ChatSelectionAllowed.full,
       );
 
-      final gesture = await _longPressHold(
-        tester,
-        find.text('msg-${count - 1}'),
-      );
+      final gesture = await _longPressHold(tester, find.text('msg-${count - 1}'));
       await gesture.moveTo(tester.getCenter(find.text('msg-${count - 2}')));
       await tester.pump();
       expect(selection.selectedIds, {count - 1, count - 2});
@@ -170,37 +140,27 @@ void main() {
       await gesture.up();
     });
 
-    testWidgets(
-      'a disallowed id on the span chain is omitted from the selection span',
-      (tester) async {
-        const count = 32;
-        const blocked = count - 3;
-        final controller = ChatScrollController()..jumpTo(count - 1);
-        final selection = await _pumpTail(
-          tester: tester,
-          controller: controller,
-          dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
-          selectionAllowed: (id) => id == blocked
-              ? ChatSelectionAllowed.none
-              : ChatSelectionAllowed.full,
-        );
+    testWidgets('a disallowed id on the span chain is omitted from the selection span', (tester) async {
+      const count = 32;
+      const blocked = count - 3;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final selection = await _pumpTail(
+        tester: tester,
+        controller: controller,
+        dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
+        selectionAllowed: (id) => id == blocked ? ChatSelectionAllowed.none : ChatSelectionAllowed.full,
+      );
 
-        final gesture = await _longPressHold(
-          tester,
-          find.text('msg-${count - 1}'),
-        );
-        await gesture.moveTo(tester.getCenter(find.text('msg-${count - 4}')));
-        await tester.pump();
+      final gesture = await _longPressHold(tester, find.text('msg-${count - 1}'));
+      await gesture.moveTo(tester.getCenter(find.text('msg-${count - 4}')));
+      await tester.pump();
 
-        expect(selection.selectedIds, {count - 1, count - 2, count - 4});
-        expect(selection.isSelected(blocked), isFalse);
-        await gesture.up();
-      },
-    );
+      expect(selection.selectedIds, {count - 1, count - 2, count - 4});
+      expect(selection.isSelected(blocked), isFalse);
+      await gesture.up();
+    });
 
-    testWidgets('does not wrap a disallowed message in SelectableMessage', (
-      tester,
-    ) async {
+    testWidgets('does not wrap a disallowed message in SelectableMessage', (tester) async {
       const count = 32;
       const blocked = count - 1;
       final controller = ChatScrollController()..jumpTo(count - 1);
@@ -208,30 +168,17 @@ void main() {
         tester: tester,
         controller: controller,
         dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
-        selectionAllowed: (id) => id == blocked
-            ? ChatSelectionAllowed.none
-            : ChatSelectionAllowed.full,
+        selectionAllowed: (id) => id == blocked ? ChatSelectionAllowed.none : ChatSelectionAllowed.full,
       );
 
+      expect(find.ancestor(of: find.text('msg-$blocked'), matching: find.byType(SelectableMessage)), findsNothing);
       expect(
-        find.ancestor(
-          of: find.text('msg-$blocked'),
-          matching: find.byType(SelectableMessage),
-        ),
-        findsNothing,
-      );
-      expect(
-        find.ancestor(
-          of: find.text('msg-${count - 2}'),
-          matching: find.byType(SelectableMessage),
-        ),
+        find.ancestor(of: find.text('msg-${count - 2}'), matching: find.byType(SelectableMessage)),
         findsOneWidget,
       );
     });
 
-    testWidgets('gutterOnly wraps chrome without check and refuses selection', (
-      tester,
-    ) async {
+    testWidgets('gutterOnly wraps chrome without check and refuses selection', (tester) async {
       const count = 32;
       const gutter = count - 1;
       final controller = ChatScrollController()..jumpTo(count - 1);
@@ -239,22 +186,11 @@ void main() {
         tester: tester,
         controller: controller,
         dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
-        selectionAllowed: (id) => id == gutter
-            ? ChatSelectionAllowed.gutterOnly
-            : ChatSelectionAllowed.full,
+        selectionAllowed: (id) => id == gutter ? ChatSelectionAllowed.gutterOnly : ChatSelectionAllowed.full,
       );
 
-      expect(
-        find.ancestor(
-          of: find.text('msg-$gutter'),
-          matching: find.byType(SelectableMessage),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey<String>('chatSelectionCheck')),
-        findsNothing,
-      );
+      expect(find.ancestor(of: find.text('msg-$gutter'), matching: find.byType(SelectableMessage)), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('chatSelectionCheck')), findsNothing);
 
       await tester.longPress(find.text('msg-$gutter'));
       await tester.pumpAndSettle();
@@ -267,167 +203,106 @@ void main() {
       // Mode open: gutter row still has chrome; check remains only on selectable.
       expect(
         find.descendant(
-          of: find.ancestor(
-            of: find.text('msg-$gutter'),
-            matching: find.byType(SelectableMessage),
-          ),
+          of: find.ancestor(of: find.text('msg-$gutter'), matching: find.byType(SelectableMessage)),
           matching: find.byKey(const ValueKey<String>('chatSelectionCheck')),
         ),
         findsNothing,
       );
       expect(
         find.descendant(
-          of: find.ancestor(
-            of: find.text('msg-${count - 2}'),
-            matching: find.byType(SelectableMessage),
-          ),
+          of: find.ancestor(of: find.text('msg-${count - 2}'), matching: find.byType(SelectableMessage)),
           matching: find.byKey(const ValueKey<String>('chatSelectionCheck')),
         ),
         findsOneWidget,
       );
     });
 
-    testWidgets(
-      'assigning selectionAllowed drops chrome and selected membership',
-      (tester) async {
-        const count = 32;
-        const blocked = count - 2;
-        final controller = ChatScrollController()..jumpTo(count - 1);
-        final selection = await _pumpTail(
-          tester: tester,
-          controller: controller,
-          dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
-        );
+    testWidgets('assigning selectionAllowed drops chrome and selected membership', (tester) async {
+      const count = 32;
+      const blocked = count - 2;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final selection = await _pumpTail(
+        tester: tester,
+        controller: controller,
+        dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
+      );
 
-        expect(
-          find.ancestor(
-            of: find.text('msg-$blocked'),
-            matching: find.byType(SelectableMessage),
-          ),
-          findsOneWidget,
-        );
+      expect(find.ancestor(of: find.text('msg-$blocked'), matching: find.byType(SelectableMessage)), findsOneWidget);
 
-        await tester.longPress(find.text('msg-$blocked'));
-        await tester.pumpAndSettle();
-        expect(selection.selectedIds, {blocked});
+      await tester.longPress(find.text('msg-$blocked'));
+      await tester.pumpAndSettle();
+      expect(selection.selectedIds, {blocked});
 
-        selection.selectionAllowed = (id) => id == blocked
-            ? ChatSelectionAllowed.none
-            : ChatSelectionAllowed.full;
-        await tester.pump();
+      selection.selectionAllowed = (id) => id == blocked ? ChatSelectionAllowed.none : ChatSelectionAllowed.full;
+      await tester.pump();
 
-        expect(selection.isSelected(blocked), isFalse);
-        expect(selection.isSelectionMode, isFalse);
-        expect(
-          find.ancestor(
-            of: find.text('msg-$blocked'),
-            matching: find.byType(SelectableMessage),
-          ),
-          findsNothing,
-        );
-        expect(
-          find.ancestor(
-            of: find.text('msg-${count - 1}'),
-            matching: find.byType(SelectableMessage),
-          ),
-          findsOneWidget,
-        );
-      },
-    );
+      expect(selection.isSelected(blocked), isFalse);
+      expect(selection.isSelectionMode, isFalse);
+      expect(find.ancestor(of: find.text('msg-$blocked'), matching: find.byType(SelectableMessage)), findsNothing);
+      expect(
+        find.ancestor(of: find.text('msg-${count - 1}'), matching: find.byType(SelectableMessage)),
+        findsOneWidget,
+      );
+    });
 
-    testWidgets(
-      'reapplySelectionAllowed rebuilds wrap after closed-over state change',
-      (tester) async {
-        const count = 32;
-        const blocked = count - 1;
-        final banned = <int>{};
-        final controller = ChatScrollController()..jumpTo(count - 1);
-        final selection = await _pumpTail(
-          tester: tester,
-          controller: controller,
-          dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
-          selectionAllowed: (id) => banned.contains(id)
-              ? ChatSelectionAllowed.none
-              : ChatSelectionAllowed.full,
-        );
+    testWidgets('reapplySelectionAllowed rebuilds wrap after closed-over state change', (tester) async {
+      const count = 32;
+      const blocked = count - 1;
+      final banned = <int>{};
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final selection = await _pumpTail(
+        tester: tester,
+        controller: controller,
+        dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
+        selectionAllowed: (id) => banned.contains(id) ? ChatSelectionAllowed.none : ChatSelectionAllowed.full,
+      );
 
-        expect(
-          find.ancestor(
-            of: find.text('msg-$blocked'),
-            matching: find.byType(SelectableMessage),
-          ),
-          findsOneWidget,
-        );
+      expect(find.ancestor(of: find.text('msg-$blocked'), matching: find.byType(SelectableMessage)), findsOneWidget);
 
-        banned.add(blocked);
-        selection.reapplySelectionAllowed();
-        await tester.pump();
+      banned.add(blocked);
+      selection.reapplySelectionAllowed();
+      await tester.pump();
 
-        expect(
-          find.ancestor(
-            of: find.text('msg-$blocked'),
-            matching: find.byType(SelectableMessage),
-          ),
-          findsNothing,
-        );
-      },
-    );
+      expect(find.ancestor(of: find.text('msg-$blocked'), matching: find.byType(SelectableMessage)), findsNothing);
+    });
   });
 
   group('ChatScrollView span abort', () {
-    testWidgets(
-      'deleting the gesture origin ends the span and keeps the selected set',
-      (tester) async {
-        const count = 32;
-        const origin = count - 1;
-        final source = _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]);
-        final controller = ChatScrollController()..jumpTo(origin);
-        final selection = await _pumpTail(
-          tester: tester,
-          controller: controller,
-          dataSource: source,
-        );
-
-        final gesture = await _longPressHold(tester, find.text('msg-$origin'));
-        await gesture.moveTo(tester.getCenter(find.text('msg-${origin - 3}')));
-        await tester.pump();
-        expect(selection.selectedIds, {
-          origin,
-          origin - 1,
-          origin - 2,
-          origin - 3,
-        });
-
-        source.removeMessages([origin]);
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 50));
-
-        expect(selection.isSelected(origin - 1), isTrue);
-        expect(selection.isSelected(origin - 2), isTrue);
-        expect(selection.isSelected(origin - 3), isTrue);
-        expect(selection.isSelectionMode, isTrue);
-        final kept = Set<int>.of(selection.selectedIds);
-
-        await gesture.moveTo(tester.getCenter(find.text('msg-${origin - 5}')));
-        await tester.pump();
-        expect(selection.selectedIds, kept);
-        expect(selection.isSelected(origin - 5), isFalse);
-        await gesture.up();
-      },
-    );
-
-    testWidgets('after abort, span auto-scroll no longer writes the origin', (
-      tester,
-    ) async {
+    testWidgets('deleting the gesture origin ends the span and keeps the selected set', (tester) async {
       const count = 32;
       const origin = count - 1;
       final source = _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]);
       final controller = ChatScrollController()..jumpTo(origin);
-      final selection = await _pumpTail(
-        tester: tester,
-        controller: controller,
-        dataSource: source,
-      );
+      final selection = await _pumpTail(tester: tester, controller: controller, dataSource: source);
+
+      final gesture = await _longPressHold(tester, find.text('msg-$origin'));
+      await gesture.moveTo(tester.getCenter(find.text('msg-${origin - 3}')));
+      await tester.pump();
+      expect(selection.selectedIds, {origin, origin - 1, origin - 2, origin - 3});
+
+      source.removeMessages([origin]);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(selection.isSelected(origin - 1), isTrue);
+      expect(selection.isSelected(origin - 2), isTrue);
+      expect(selection.isSelected(origin - 3), isTrue);
+      expect(selection.isSelectionMode, isTrue);
+      final kept = Set<int>.of(selection.selectedIds);
+
+      await gesture.moveTo(tester.getCenter(find.text('msg-${origin - 5}')));
+      await tester.pump();
+      expect(selection.selectedIds, kept);
+      expect(selection.isSelected(origin - 5), isFalse);
+      await gesture.up();
+    });
+
+    testWidgets('after abort, span auto-scroll no longer writes the origin', (tester) async {
+      const count = 32;
+      const origin = count - 1;
+      final source = _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]);
+      final controller = ChatScrollController()..jumpTo(origin);
+      final selection = await _pumpTail(tester: tester, controller: controller, dataSource: source);
 
       final gesture = await _longPressHold(tester, find.text('msg-$origin'));
       await gesture.moveTo(_viewTopBand(tester));

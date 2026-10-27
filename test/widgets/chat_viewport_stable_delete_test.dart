@@ -29,26 +29,15 @@ class _LoadedSource extends ChatDataSource {
     upsertMessages(messages);
     if (messages.isEmpty) return;
     final ids = messages.map((m) => m.id).toList()..sort();
-    seedBoundaries(
-      oldestKnownId: ids.first,
-      newestKnownId: ids.last,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: ids.first, newestKnownId: ids.last, reachedOldest: true, reachedNewest: true);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
-double _heightFor(
-  int id, {
-  required int tallId,
-  double tallHeight = _tallHeight,
-}) => id == tallId ? tallHeight : _normalHeight;
+double _heightFor(int id, {required int tallId, double tallHeight = _tallHeight}) =>
+    id == tallId ? tallHeight : _normalHeight;
 
 Widget _harness({
   required ChatDataSource dataSource,
@@ -67,10 +56,7 @@ Widget _harness({
           messageBuilder: (context, id, message, status, runLayout) {
             if (status.isAbsent) return const SizedBox.shrink();
             final h = _heightFor(id, tallId: tallId, tallHeight: tallHeight);
-            return SizedBox(
-              height: h,
-              child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-            );
+            return SizedBox(height: h, child: Text(message == null ? 'shimmer-$id' : 'msg-$id'));
           },
         ),
       ),
@@ -85,23 +71,12 @@ Future<void> _pumpHarness(
   required int tallId,
   double tallHeight = _tallHeight,
 }) async {
-  await tester.pumpWidget(
-    _harness(
-      dataSource: ds,
-      controller: controller,
-      tallId: tallId,
-      tallHeight: tallHeight,
-    ),
-  );
+  await tester.pumpWidget(_harness(dataSource: ds, controller: controller, tallId: tallId, tallHeight: tallHeight));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 100));
 }
 
-Future<void> _slowDrag(
-  WidgetTester tester,
-  Offset totalDelta, {
-  int steps = 8,
-}) async {
+Future<void> _slowDrag(WidgetTester tester, Offset totalDelta, {int steps = 8}) async {
   final center = tester.getCenter(find.byType(ChatScrollView));
   final gesture = await tester.startGesture(center);
   final stepDelta = totalDelta / steps.toDouble();
@@ -128,28 +103,7 @@ Future<void> _scrollIntoTallAnchor(
 
 ({int id, double bottom, double gapToBottomEdge})? probeBottomBand(
   WidgetTester tester, {
-  Iterable<int> ids = const [
-    0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    12,
-    13,
-    14,
-    15,
-    16,
-    17,
-    18,
-    19,
-  ],
+  Iterable<int> ids = const [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
 }) {
   final viewRect = tester.getRect(find.byType(ChatScrollView));
   final bottomEdge = viewRect.height;
@@ -196,20 +150,13 @@ void expectAnchorNotJumpedToDistantId({
 }) {
   expect(
     afterAnchorId,
-    anyOf(
-      equals(neighborId),
-      equals(beforeAnchorId - 1),
-      equals(beforeAnchorId + 1),
-    ),
-    reason:
-        'anchor should stay on immediate present neighbor, not renormalize jump',
+    anyOf(equals(neighborId), equals(beforeAnchorId - 1), equals(beforeAnchorId + 1)),
+    reason: 'anchor should stay on immediate present neighbor, not renormalize jump',
   );
   expect(afterAnchorId - neighborId, lessThan(2));
 }
 
-List<IChatMessage> _chain(int count) => [
-  for (var i = 0; i < count; i++) _msg(i),
-];
+List<IChatMessage> _chain(int count) => [for (var i = 0; i < count; i++) _msg(i)];
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -217,9 +164,7 @@ List<IChatMessage> _chain(int count) => [
 
 void main() {
   group('viewport-stable delete collapse', () {
-    testWidgets('mid-scroll tall anchor delete preserves band bottom', (
-      tester,
-    ) async {
+    testWidgets('mid-scroll tall anchor delete preserves band bottom', (tester) async {
       const tallId = 1;
       final ds = _LoadedSource(_chain(5));
       final controller = ChatScrollController()..jumpTo(tallId, alignment: 0);
@@ -248,9 +193,7 @@ void main() {
       expect(find.text('msg-${tallId + 1}'), findsOneWidget);
     });
 
-    testWidgets('anchor after mid delete is next present neighbor only', (
-      tester,
-    ) async {
+    testWidgets('anchor after mid delete is next present neighbor only', (tester) async {
       const tallId = 1;
       final ds = _LoadedSource(_chain(6));
       final controller = ChatScrollController()..jumpTo(tallId, alignment: 0);
@@ -268,9 +211,7 @@ void main() {
       expect(controller.anchorMessageId, isNot(greaterThan(tallId + 2)));
     });
 
-    testWidgets('lower-interior tall anchor delete preserves band bottom', (
-      tester,
-    ) async {
+    testWidgets('lower-interior tall anchor delete preserves band bottom', (tester) async {
       const tallId = 1;
       final ds = _LoadedSource(_chain(5));
       final controller = ChatScrollController()..jumpTo(tallId, alignment: 0);
@@ -288,34 +229,26 @@ void main() {
       expectBandBottomStable(bandBefore, probeBottomBand(tester));
     });
 
-    testWidgets(
-      'top-of-tall anchor delete keeps zero anchor delta regression',
-      (tester) async {
-        const tallId = 1;
-        final ds = _LoadedSource(_chain(5));
-        final controller = ChatScrollController()..jumpTo(tallId, alignment: 0);
-        addTearDown(controller.dispose);
-        addTearDown(ds.dispose);
+    testWidgets('top-of-tall anchor delete keeps zero anchor delta regression', (tester) async {
+      const tallId = 1;
+      final ds = _LoadedSource(_chain(5));
+      final controller = ChatScrollController()..jumpTo(tallId, alignment: 0);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
 
-        await _pumpHarness(tester, ds, controller, tallId: tallId);
-        final anchorYBefore = controller.anchorPixelOffset;
+      await _pumpHarness(tester, ds, controller, tallId: tallId);
+      final anchorYBefore = controller.anchorPixelOffset;
 
-        ds.removeMessages([tallId]);
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 100));
+      ds.removeMessages([tallId]);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-        expect(
-          (controller.anchorPixelOffset - anchorYBefore).abs(),
-          lessThanOrEqualTo(0.5),
-        );
-        expect(controller.anchorMessageId, tallId + 1);
-        expect(find.text('msg-${tallId + 1}'), findsOneWidget);
-      },
-    );
+      expect((controller.anchorPixelOffset - anchorYBefore).abs(), lessThanOrEqualTo(0.5));
+      expect(controller.anchorMessageId, tallId + 1);
+      expect(find.text('msg-${tallId + 1}'), findsOneWidget);
+    });
 
-    testWidgets('tail-preempted mid-history delete does not pin to newest', (
-      tester,
-    ) async {
+    testWidgets('tail-preempted mid-history delete does not pin to newest', (tester) async {
       const count = 20;
       const tallId = 10;
       const newest = count - 1;
@@ -346,42 +279,26 @@ void main() {
         lessThan(_tallHeight),
         reason: 'should not snap by a full tail-pin delta',
       );
-      final bandAfter = probeBottomBand(
-        tester,
-        ids: Iterable.generate(count, (i) => i),
-      );
-      expect(
-        bandAfter,
-        isNotNull,
-        reason: 'viewport should still show messages',
-      );
+      final bandAfter = probeBottomBand(tester, ids: Iterable.generate(count, (i) => i));
+      expect(bandAfter, isNotNull, reason: 'viewport should still show messages');
     });
 
-    testWidgets(
-      'medium-tall anchor delete preserves band when anchor Y unchanged',
-      (tester) async {
-        const tallId = 1;
-        final ds = _LoadedSource(_chain(5));
-        final controller = ChatScrollController()..jumpTo(tallId, alignment: 0);
-        addTearDown(controller.dispose);
-        addTearDown(ds.dispose);
+    testWidgets('medium-tall anchor delete preserves band when anchor Y unchanged', (tester) async {
+      const tallId = 1;
+      final ds = _LoadedSource(_chain(5));
+      final controller = ChatScrollController()..jumpTo(tallId, alignment: 0);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
 
-        await _pumpHarness(
-          tester,
-          ds,
-          controller,
-          tallId: tallId,
-          tallHeight: _mediumTallHeight,
-        );
-        await _scrollIntoTallAnchor(controller, tester, delta: -120);
-        final bandBefore = probeBottomBand(tester);
+      await _pumpHarness(tester, ds, controller, tallId: tallId, tallHeight: _mediumTallHeight);
+      await _scrollIntoTallAnchor(controller, tester, delta: -120);
+      final bandBefore = probeBottomBand(tester);
 
-        ds.removeMessages([tallId]);
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 100));
+      ds.removeMessages([tallId]);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-        expectBandBottomStable(bandBefore, probeBottomBand(tester));
-      },
-    );
+      expectBandBottomStable(bandBefore, probeBottomBand(tester));
+    });
   });
 }

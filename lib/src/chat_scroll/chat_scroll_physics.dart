@@ -1,8 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/physics.dart'
-    show FrictionSimulation, Simulation, Tolerance;
+import 'package:flutter/physics.dart' show FrictionSimulation, Simulation, Tolerance;
 
 /// **Scroll physics** of the chat viewport: one [fling] paired with one
 /// [edgeEffect], governing user-driven motion.
@@ -32,9 +31,7 @@ final class ChatScrollPhysics {
 
   /// The spline fling with the stretch edge effect, both at default
   /// parameters.
-  const ChatScrollPhysics.stretch()
-    : fling = const ChatFling.spline(),
-      edgeEffect = const ChatEdgeEffect.stretch();
+  const ChatScrollPhysics.stretch() : fling = const ChatFling.spline(), edgeEffect = const ChatEdgeEffect.stretch();
 
   /// The decay fling with the rubber-band edge effect, both at default
   /// parameters.
@@ -44,9 +41,7 @@ final class ChatScrollPhysics {
 
   /// The spline fling with no edge effect: motion stops hard at a reached
   /// edge.
-  const ChatScrollPhysics.clamped()
-    : fling = const ChatFling.spline(),
-      edgeEffect = const ChatEdgeEffect.none();
+  const ChatScrollPhysics.clamped() : fling = const ChatFling.spline(), edgeEffect = const ChatEdgeEffect.none();
 
   /// The preset matching the OS family of [platform], or of
   /// [defaultTargetPlatform] when [platform] is `null`:
@@ -65,15 +60,11 @@ final class ChatScrollPhysics {
   /// [platform] (or set `debugDefaultTargetPlatformOverride`) to pin the
   /// row. Each row returns a constant, so repeated calls on one platform
   /// are equal and a rebuild that re-resolves the default changes nothing.
-  factory ChatScrollPhysics.forPlatform({TargetPlatform? platform}) =>
-      switch (platform ?? defaultTargetPlatform) {
-        TargetPlatform.android ||
-        TargetPlatform.fuchsia => const ChatScrollPhysics.stretch(),
-        TargetPlatform.iOS ||
-        TargetPlatform.macOS => const ChatScrollPhysics.rubberBand(),
-        TargetPlatform.windows ||
-        TargetPlatform.linux => const ChatScrollPhysics.clamped(),
-      };
+  factory ChatScrollPhysics.forPlatform({TargetPlatform? platform}) => switch (platform ?? defaultTargetPlatform) {
+    TargetPlatform.android || TargetPlatform.fuchsia => const ChatScrollPhysics.stretch(),
+    TargetPlatform.iOS || TargetPlatform.macOS => const ChatScrollPhysics.rubberBand(),
+    TargetPlatform.windows || TargetPlatform.linux => const ChatScrollPhysics.clamped(),
+  };
 
   /// Inertial travel after a release with velocity.
   final ChatFling fling;
@@ -83,16 +74,13 @@ final class ChatScrollPhysics {
 
   @override
   bool operator ==(Object other) =>
-      other is ChatScrollPhysics &&
-      other.fling == fling &&
-      other.edgeEffect == edgeEffect;
+      other is ChatScrollPhysics && other.fling == fling && other.edgeEffect == edgeEffect;
 
   @override
   int get hashCode => Object.hash(fling, edgeEffect);
 
   @override
-  String toString() =>
-      'ChatScrollPhysics(fling: $fling, edgeEffect: $edgeEffect)';
+  String toString() => 'ChatScrollPhysics(fling: $fling, edgeEffect: $edgeEffect)';
 }
 
 /// **Fling**: inertial travel after a release with velocity, following one
@@ -121,8 +109,7 @@ sealed class ChatFling {
 /// only at the very end of that tail.
 final class ChatFling$Spline extends ChatFling {
   /// Spline fling decelerating with [friction].
-  const ChatFling$Spline({this.friction = 0.015})
-    : assert(friction > 0, 'friction must be positive');
+  const ChatFling$Spline({this.friction = 0.015}) : assert(friction > 0, 'friction must be positive');
 
   /// Scroll friction; default `0.015`.
   ///
@@ -131,8 +118,7 @@ final class ChatFling$Spline extends ChatFling {
   final double friction;
 
   @override
-  bool operator ==(Object other) =>
-      other is ChatFling$Spline && other.friction == friction;
+  bool operator ==(Object other) => other is ChatFling$Spline && other.friction == friction;
 
   @override
   int get hashCode => Object.hash(ChatFling$Spline, friction);
@@ -151,10 +137,7 @@ final class ChatFling$Spline extends ChatFling {
 final class ChatFling$Decay extends ChatFling {
   /// Decay fling losing `1 − decelerationRate` of its velocity per ms.
   const ChatFling$Decay({this.decelerationRate = 0.998})
-    : assert(
-        decelerationRate > 0 && decelerationRate < 1,
-        'decelerationRate must lie in (0, 1)',
-      );
+    : assert(decelerationRate > 0 && decelerationRate < 1, 'decelerationRate must lie in (0, 1)');
 
   /// Fraction of velocity kept per millisecond; default `0.998`.
   ///
@@ -163,8 +146,7 @@ final class ChatFling$Decay extends ChatFling {
   final double decelerationRate;
 
   @override
-  bool operator ==(Object other) =>
-      other is ChatFling$Decay && other.decelerationRate == decelerationRate;
+  bool operator ==(Object other) => other is ChatFling$Decay && other.decelerationRate == decelerationRate;
 
   @override
   int get hashCode => Object.hash(ChatFling$Decay, decelerationRate);
@@ -184,18 +166,12 @@ sealed class ChatEdgeEffect {
   const ChatEdgeEffect();
 
   /// Scale from the pressed edge — see [ChatEdgeEffect$Stretch].
-  const factory ChatEdgeEffect.stretch({
-    double intensity,
-    double naturalFrequency,
-    double dampingRatio,
-  }) = ChatEdgeEffect$Stretch;
+  const factory ChatEdgeEffect.stretch({double intensity, double naturalFrequency, double dampingRatio}) =
+      ChatEdgeEffect$Stretch;
 
   /// Translate past the pressed edge — see [ChatEdgeEffect$RubberBand].
-  const factory ChatEdgeEffect.rubberBand({
-    double resistance,
-    double naturalFrequency,
-    double dampingRatio,
-  }) = ChatEdgeEffect$RubberBand;
+  const factory ChatEdgeEffect.rubberBand({double resistance, double naturalFrequency, double dampingRatio}) =
+      ChatEdgeEffect$RubberBand;
 
   /// No edge effect — see [ChatEdgeEffect$None].
   const factory ChatEdgeEffect.none() = ChatEdgeEffect$None;
@@ -211,13 +187,10 @@ sealed class ChatEdgeEffect {
 /// back.
 final class ChatEdgeEffect$Stretch extends ChatEdgeEffect {
   /// Stretch at the default intensity and spring.
-  const ChatEdgeEffect$Stretch({
-    this.intensity = 0.016,
-    this.naturalFrequency = 24.657,
-    this.dampingRatio = 0.98,
-  }) : assert(intensity >= 0, 'intensity must not be negative'),
-       assert(naturalFrequency > 0, 'naturalFrequency must be positive'),
-       assert(dampingRatio > 0, 'dampingRatio must be positive');
+  const ChatEdgeEffect$Stretch({this.intensity = 0.016, this.naturalFrequency = 24.657, this.dampingRatio = 0.98})
+    : assert(intensity >= 0, 'intensity must not be negative'),
+      assert(naturalFrequency > 0, 'naturalFrequency must be positive'),
+      assert(dampingRatio > 0, 'dampingRatio must be positive');
 
   /// Scale added per unit of pull, where one unit is a pull as long as the
   /// viewport is tall. The painted scale saturates near `2 × intensity`.
@@ -238,12 +211,7 @@ final class ChatEdgeEffect$Stretch extends ChatEdgeEffect {
       other.dampingRatio == dampingRatio;
 
   @override
-  int get hashCode => Object.hash(
-    ChatEdgeEffect$Stretch,
-    intensity,
-    naturalFrequency,
-    dampingRatio,
-  );
+  int get hashCode => Object.hash(ChatEdgeEffect$Stretch, intensity, naturalFrequency, dampingRatio);
 
   @override
   String toString() =>
@@ -301,12 +269,7 @@ final class ChatEdgeEffect$RubberBand extends ChatEdgeEffect {
       other.dampingRatio == dampingRatio;
 
   @override
-  int get hashCode => Object.hash(
-    ChatEdgeEffect$RubberBand,
-    resistance,
-    naturalFrequency,
-    dampingRatio,
-  );
+  int get hashCode => Object.hash(ChatEdgeEffect$RubberBand, resistance, naturalFrequency, dampingRatio);
 
   @override
   String toString() =>
@@ -368,18 +331,14 @@ final class ChatFlingMotion {
     final simulation = _simulation;
     if (simulation == null) return 0;
     final start = _flingStartTime ?? elapsed;
-    final seconds =
-        (elapsed - start).inMicroseconds / Duration.microsecondsPerSecond;
+    final seconds = (elapsed - start).inMicroseconds / Duration.microsecondsPerSecond;
     return simulation.dx(seconds);
   }
 
   /// Arms a fling at [velocity] (px/s), replacing any fling in flight.
   void startFling(double velocity) {
     _simulation = switch (fling) {
-      ChatFling$Spline(:final friction) => ChatSplineFlingSimulation(
-        velocity: velocity,
-        friction: friction,
-      ),
+      ChatFling$Spline(:final friction) => ChatSplineFlingSimulation(velocity: velocity, friction: friction),
       ChatFling$Decay(:final decelerationRate) => FrictionSimulation(
         math.pow(decelerationRate, 1000).toDouble(),
         0,
@@ -404,8 +363,7 @@ final class ChatFlingMotion {
     final simulation = _simulation;
     if (simulation == null) return 0;
     final start = _flingStartTime ??= elapsed;
-    final seconds =
-        (elapsed - start).inMicroseconds / Duration.microsecondsPerSecond;
+    final seconds = (elapsed - start).inMicroseconds / Duration.microsecondsPerSecond;
     if (simulation.isDone(seconds)) {
       cancelFling();
       return 0;
@@ -432,11 +390,7 @@ final class ChatSplineFlingSimulation extends Simulation {
     if (speed == 0) return;
     final l = math.log(_inflexion * speed / (friction * _physicalCoeff));
     _duration = math.exp(l / (_decelerationRate - 1));
-    _distance =
-        velocity.sign *
-        friction *
-        _physicalCoeff *
-        math.exp(_decelerationRate / (_decelerationRate - 1) * l);
+    _distance = velocity.sign * friction * _physicalCoeff * math.exp(_decelerationRate / (_decelerationRate - 1) * l);
   }
 
   /// Android `ViewConfiguration.getScrollFriction()`.

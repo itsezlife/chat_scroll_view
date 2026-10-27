@@ -3,8 +3,7 @@ import 'dart:ui' show Size, TextDirection;
 
 import 'package:catalog_assets/catalog_assets.dart' show AssetPresets;
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_sizes.dart';
-import 'package:content_model/content_model.dart'
-    show ContentKey$Document, EmojiOnly;
+import 'package:content_model/content_model.dart' show ContentKey$Document, EmojiOnly;
 import 'package:flutter/foundation.dart';
 
 /// Which of the two layouts of `ChatEmojiBody` a message gets.
@@ -51,14 +50,10 @@ final class ChatEmojiWrapLimit {
   ///
   /// An infinite row stays infinite: an intrinsic width measures the items
   /// unwrapped, and the cap applies when the real, finite row is laid out.
-  double of(double rowMax) =>
-      rowMax.isFinite ? math.min(rowMax - reduction, cap) : rowMax;
+  double of(double rowMax) => rowMax.isFinite ? math.min(rowMax - reduction, cap) : rowMax;
 
   @override
-  bool operator ==(Object other) =>
-      other is ChatEmojiWrapLimit &&
-      other.cap == cap &&
-      other.reduction == reduction;
+  bool operator ==(Object other) => other is ChatEmojiWrapLimit && other.cap == cap && other.reduction == reduction;
 
   @override
   int get hashCode => Object.hash(cap, reduction);
@@ -93,10 +88,7 @@ sealed class ChatEmojiPolicy {
 
   /// The Android family's policy; [sizes] and [headerWrapFraction] are its
   /// overridable tables.
-  const factory ChatEmojiPolicy.android({
-    ChatEmojiSizes sizes,
-    double headerWrapFraction,
-  }) = ChatEmojiPolicy$Android;
+  const factory ChatEmojiPolicy.android({ChatEmojiSizes sizes, double headerWrapFraction}) = ChatEmojiPolicy$Android;
 
   /// The iOS family's policy.
   const factory ChatEmojiPolicy.ios() = ChatEmojiPolicy$Ios;
@@ -105,8 +97,7 @@ sealed class ChatEmojiPolicy {
   /// regular emoji an emoji-only message may hold and still be enlarged, 3 in
   /// the reference client; the other families have no cap, so only this one
   /// takes it.
-  const factory ChatEmojiPolicy.desktop({int regularLimit}) =
-      ChatEmojiPolicy$Desktop;
+  const factory ChatEmojiPolicy.desktop({int regularLimit}) = ChatEmojiPolicy$Desktop;
 
   /// The policy of the platform the app runs on. Pass [platform] / [isWeb]
   /// to pin it in tests.
@@ -123,11 +114,11 @@ sealed class ChatEmojiPolicy {
       return ChatEmojiPolicy.desktop(regularLimit: desktopRegularLimit);
     }
     return switch (platform ?? defaultTargetPlatform) {
-      TargetPlatform.android ||
-      TargetPlatform.fuchsia => const ChatEmojiPolicy.android(),
+      TargetPlatform.android || TargetPlatform.fuchsia => const ChatEmojiPolicy.android(),
       TargetPlatform.iOS => const ChatEmojiPolicy.ios(),
-      TargetPlatform.macOS || TargetPlatform.windows || TargetPlatform.linux =>
-        ChatEmojiPolicy.desktop(regularLimit: desktopRegularLimit),
+      TargetPlatform.macOS ||
+      TargetPlatform.windows ||
+      TargetPlatform.linux => ChatEmojiPolicy.desktop(regularLimit: desktopRegularLimit),
     };
   }
 
@@ -136,8 +127,7 @@ sealed class ChatEmojiPolicy {
 
   /// The side of one item's square in the text layout: the font size plus
   /// what the asset presets add to it.
-  double itemBoxFor(EmojiOnly emojiOnly) =>
-      fontSizeFor(emojiOnly) + AssetPresets.emojiOnlyBoxPadding;
+  double itemBoxFor(EmojiOnly emojiOnly) => fontSizeFor(emojiOnly) + AssetPresets.emojiOnlyBoxPadding;
 
   /// The gap between two items of one line in the text layout.
   double itemSkipFor(EmojiOnly emojiOnly) => 0;
@@ -183,21 +173,15 @@ sealed class ChatEmojiPolicy {
   bool get mirrorsInRtl;
 
   /// The direction the items flow in, given the surrounding [ambient].
-  TextDirection textDirectionFor(TextDirection ambient) =>
-      mirrorsInRtl ? ambient : TextDirection.ltr;
+  TextDirection textDirectionFor(TextDirection ambient) => mirrorsInRtl ? ambient : TextDirection.ltr;
 }
 
 /// The Android family's [ChatEmojiPolicy].
 final class ChatEmojiPolicy$Android extends ChatEmojiPolicy {
   /// Creates the policy over [sizes], wrapping at [headerWrapFraction] of the
   /// parent's width under a header.
-  const ChatEmojiPolicy$Android({
-    this.sizes = const ChatEmojiSizes(),
-    this.headerWrapFraction = 0.65,
-  }) : assert(
-         headerWrapFraction > 0 && headerWrapFraction <= 1,
-         'The wrap fraction is within (0, 1].',
-       );
+  const ChatEmojiPolicy$Android({this.sizes = const ChatEmojiSizes(), this.headerWrapFraction = 0.65})
+    : assert(headerWrapFraction > 0 && headerWrapFraction <= 1, 'The wrap fraction is within (0, 1].');
 
   /// The font steps and the sticker rule.
   final ChatEmojiSizes sizes;
@@ -206,10 +190,8 @@ final class ChatEmojiPolicy$Android extends ChatEmojiPolicy {
   final double headerWrapFraction;
 
   @override
-  double fontSizeFor(EmojiOnly emojiOnly) => sizes.fontSizeFor(
-    emojiOnly.items.length,
-    allCustom: emojiOnly.isAllCustom,
-  );
+  double fontSizeFor(EmojiOnly emojiOnly) =>
+      sizes.fontSizeFor(emojiOnly.items.length, allCustom: emojiOnly.isAllCustom);
 
   @override
   double stickerExtentFor(Size viewport) => sizes.stickerExtentFor(viewport);
@@ -228,11 +210,10 @@ final class ChatEmojiPolicy$Android extends ChatEmojiPolicy {
       ChatEmojiWrapLimit(cap: parentWidth * headerWrapFraction);
 
   @override
-  ChatEmojiHeaderPlacement headerPlacementFor(ChatEmojiLayoutKind kind) =>
-      switch (kind) {
-        ChatEmojiLayoutKind.sticker => ChatEmojiHeaderPlacement.beside,
-        ChatEmojiLayoutKind.text => ChatEmojiHeaderPlacement.above,
-      };
+  ChatEmojiHeaderPlacement headerPlacementFor(ChatEmojiLayoutKind kind) => switch (kind) {
+    ChatEmojiLayoutKind.sticker => ChatEmojiHeaderPlacement.beside,
+    ChatEmojiLayoutKind.text => ChatEmojiHeaderPlacement.above,
+  };
 
   // `Emoji.EmojiSpan`: the glyph is the font's ascent plus descent square.
   @override
@@ -243,9 +224,7 @@ final class ChatEmojiPolicy$Android extends ChatEmojiPolicy {
 
   @override
   bool operator ==(Object other) =>
-      other is ChatEmojiPolicy$Android &&
-      other.sizes == sizes &&
-      other.headerWrapFraction == headerWrapFraction;
+      other is ChatEmojiPolicy$Android && other.sizes == sizes && other.headerWrapFraction == headerWrapFraction;
 
   @override
   int get hashCode => Object.hash(sizes, headerWrapFraction);
@@ -267,8 +246,7 @@ final class ChatEmojiPolicy$Ios extends ChatEmojiPolicy {
   static const double inset = 10;
 
   @override
-  double fontSizeFor(EmojiOnly emojiOnly) =>
-      _fonts[math.min(emojiOnly.dimension, _fonts.length) - 1];
+  double fontSizeFor(EmojiOnly emojiOnly) => _fonts[math.min(emojiOnly.dimension, _fonts.length) - 1];
 
   @override
   double stickerExtentFor(Size viewport) => stickerExtent;
@@ -283,12 +261,10 @@ final class ChatEmojiPolicy$Ios extends ChatEmojiPolicy {
   bool get gatesOnStickerPermission => false;
 
   @override
-  ChatEmojiWrapLimit wrapLimitUnderHeader(double parentWidth) =>
-      ChatEmojiWrapLimit.none;
+  ChatEmojiWrapLimit wrapLimitUnderHeader(double parentWidth) => ChatEmojiWrapLimit.none;
 
   @override
-  ChatEmojiHeaderPlacement headerPlacementFor(ChatEmojiLayoutKind kind) =>
-      ChatEmojiHeaderPlacement.beside;
+  ChatEmojiHeaderPlacement headerPlacementFor(ChatEmojiLayoutKind kind) => ChatEmojiHeaderPlacement.beside;
 
   // Not traced for iOS: Android's rule, the authority where iOS is silent.
   @override
@@ -345,8 +321,7 @@ final class ChatEmojiPolicy$Desktop extends ChatEmojiPolicy {
   static const double unverifiedNormalCustomBox = 26.8;
 
   @override
-  double fontSizeFor(EmojiOnly emojiOnly) =>
-      itemBoxFor(emojiOnly) - AssetPresets.emojiOnlyBoxPadding;
+  double fontSizeFor(EmojiOnly emojiOnly) => itemBoxFor(emojiOnly) - AssetPresets.emojiOnlyBoxPadding;
 
   @override
   double itemBoxFor(EmojiOnly emojiOnly) {
@@ -360,8 +335,7 @@ final class ChatEmojiPolicy$Desktop extends ChatEmojiPolicy {
   }
 
   @override
-  double itemSkipFor(EmojiOnly emojiOnly) =>
-      emojiOnly.isAllCustom ? 0 : imageSkip;
+  double itemSkipFor(EmojiOnly emojiOnly) => emojiOnly.isAllCustom ? 0 : imageSkip;
 
   @override
   double stickerExtentFor(Size viewport) => stickerExtent;
@@ -370,19 +344,16 @@ final class ChatEmojiPolicy$Desktop extends ChatEmojiPolicy {
   double get stickerInset => 0;
 
   @override
-  bool admits(EmojiOnly emojiOnly) =>
-      emojiOnly.isAllCustom || emojiOnly.items.length <= regularLimit;
+  bool admits(EmojiOnly emojiOnly) => emojiOnly.isAllCustom || emojiOnly.items.length <= regularLimit;
 
   @override
   bool get gatesOnStickerPermission => false;
 
   @override
-  ChatEmojiWrapLimit wrapLimitUnderHeader(double parentWidth) =>
-      ChatEmojiWrapLimit.none;
+  ChatEmojiWrapLimit wrapLimitUnderHeader(double parentWidth) => ChatEmojiWrapLimit.none;
 
   @override
-  ChatEmojiHeaderPlacement headerPlacementFor(ChatEmojiLayoutKind kind) =>
-      ChatEmojiHeaderPlacement.besideWhenFits;
+  ChatEmojiHeaderPlacement headerPlacementFor(ChatEmojiLayoutKind kind) => ChatEmojiHeaderPlacement.besideWhenFits;
 
   // Unverified: the reference draws a regular emoji of a sentence as an image
   // of the font's line, not of its glyph (the sizes are in `lib_ui`, absent
@@ -395,8 +366,7 @@ final class ChatEmojiPolicy$Desktop extends ChatEmojiPolicy {
   bool get mirrorsInRtl => true;
 
   @override
-  bool operator ==(Object other) =>
-      other is ChatEmojiPolicy$Desktop && other.regularLimit == regularLimit;
+  bool operator ==(Object other) => other is ChatEmojiPolicy$Desktop && other.regularLimit == regularLimit;
 
   @override
   int get hashCode => Object.hash(ChatEmojiPolicy$Desktop, regularLimit);
@@ -405,8 +375,7 @@ final class ChatEmojiPolicy$Desktop extends ChatEmojiPolicy {
 /// What the policies read from an emoji-only message.
 extension on EmojiOnly {
   /// Whether every item is a custom emoji (a document).
-  bool get isAllCustom =>
-      items.every((item) => item.key is ContentKey$Document);
+  bool get isAllCustom => items.every((item) => item.key is ContentKey$Document);
 
   /// The larger of the longest line and the number of lines.
   int get dimension {

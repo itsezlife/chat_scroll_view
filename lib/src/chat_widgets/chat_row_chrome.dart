@@ -1,8 +1,7 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_row_chrome_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_row_chrome_transition.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_opacity_paint.dart';
-import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart'
-    show ChatMessageParentData;
+import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart' show ChatMessageParentData;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -21,19 +20,15 @@ import 'package:flutter/widgets.dart';
 final class ChatRowChromeItem {
   /// Creates an item. [delegate] defaults to [ChatRowChromeDelegate.opaque],
   /// which always paints the child and lets it take input.
-  const ChatRowChromeItem({
-    required this.child,
-    this.delegate = const ChatRowChromeDelegate.opaque(),
-  }) : followsTransition = false;
+  const ChatRowChromeItem({required this.child, this.delegate = const ChatRowChromeDelegate.opaque()})
+    : followsTransition = false;
 
   /// An item that follows the row's viewport-driven transition frame
   /// ([RenderChatRowChrome.transition]). The viewport builds the unread
   /// separator this way.
   @internal
-  const ChatRowChromeItem.transitioning({
-    required this.child,
-    this.delegate = const ChatRowChromeDelegate.opaque(),
-  }) : followsTransition = true;
+  const ChatRowChromeItem.transitioning({required this.child, this.delegate = const ChatRowChromeDelegate.opaque()})
+    : followsTransition = true;
 
   /// Resolves the child's opacity and hit-testability on every paint and hit
   /// test. Replacing it with a delegate that is not `==` repaints the row
@@ -118,40 +113,31 @@ class ChatRowChrome extends MultiChildRenderObjectWidget {
   ///
   /// With an empty [chrome] list the row lays out [body] alone, and the body
   /// top is `0`.
-  ChatRowChrome({
-    required List<ChatRowChromeItem> chrome,
-    required Widget body,
-    super.key,
-  }) : assert(
-         chrome.where((item) => item.followsTransition).length <= 1,
-         'A row has one transition frame, so at most one item follows it',
-       ),
-       super(
-         children: <Widget>[
-           for (final item in chrome)
-             _ChatRowChromeDelegateData(
-               delegate: item.delegate,
-               followsTransition: item.followsTransition,
-               child: RepaintBoundary(child: item.child),
-             ),
-           RepaintBoundary(child: body),
-         ],
-       );
+  ChatRowChrome({required List<ChatRowChromeItem> chrome, required Widget body, super.key})
+    : assert(
+        chrome.where((item) => item.followsTransition).length <= 1,
+        'A row has one transition frame, so at most one item follows it',
+      ),
+      super(
+        children: <Widget>[
+          for (final item in chrome)
+            _ChatRowChromeDelegateData(
+              delegate: item.delegate,
+              followsTransition: item.followsTransition,
+              child: RepaintBoundary(child: item.child),
+            ),
+          RepaintBoundary(child: body),
+        ],
+      );
 
   @override
-  RenderChatRowChrome createRenderObject(BuildContext context) =>
-      RenderChatRowChrome();
+  RenderChatRowChrome createRenderObject(BuildContext context) => RenderChatRowChrome();
 }
 
 /// Writes a chrome child's delegate and transition flag into its parent
 /// data, so they travel with the child through reorders and updates.
-class _ChatRowChromeDelegateData
-    extends ParentDataWidget<_ChatRowChromeParentData> {
-  const _ChatRowChromeDelegateData({
-    required this.delegate,
-    required this.followsTransition,
-    required super.child,
-  });
+class _ChatRowChromeDelegateData extends ParentDataWidget<_ChatRowChromeParentData> {
+  const _ChatRowChromeDelegateData({required this.delegate, required this.followsTransition, required super.child});
 
   final ChatRowChromeDelegate delegate;
   final bool followsTransition;
@@ -196,8 +182,7 @@ class _ChatRowChromeParentData extends ContainerBoxParentData<RenderBox> {
   final LayerHandle<ClipRectLayer> clipLayer = LayerHandle<ClipRectLayer>();
 
   /// Retained transform while a transition scales the child.
-  final LayerHandle<TransformLayer> transformLayer =
-      LayerHandle<TransformLayer>();
+  final LayerHandle<TransformLayer> transformLayer = LayerHandle<TransformLayer>();
 
   void _dropLayers() {
     opacityLayer.layer = null;
@@ -244,8 +229,7 @@ class _ChatRowChromeParentData extends ContainerBoxParentData<RenderBox> {
 /// clipped to its slot while the slot is shorter than the item, and scaled
 /// about its center while the scale is below `1`. [applyPaintTransform]
 /// applies the same scale, so global geometry matches what is painted.
-class RenderChatRowChrome extends RenderBox
-    with ContainerRenderObjectMixin<RenderBox, _ChatRowChromeParentData> {
+class RenderChatRowChrome extends RenderBox with ContainerRenderObjectMixin<RenderBox, _ChatRowChromeParentData> {
   // --- Children and effects --------------------------------------------------
 
   @override
@@ -256,8 +240,7 @@ class RenderChatRowChrome extends RenderBox
 
   RenderBox get _body => lastChild!;
 
-  static _ChatRowChromeParentData _pd(RenderBox child) =>
-      child.parentData! as _ChatRowChromeParentData;
+  static _ChatRowChromeParentData _pd(RenderBox child) => child.parentData! as _ChatRowChromeParentData;
 
   /// Number of chrome items above the body.
   int get chromeCount => childCount - 1;
@@ -282,10 +265,7 @@ class RenderChatRowChrome extends RenderBox
     final effect = _resolve(child);
     return switch (_frameOf(child)) {
       null => effect,
-      final frame => ChatRowChromeEffect(
-        opacity: effect.opacity * frame.opacity,
-        hitTestable: false,
-      ),
+      final frame => ChatRowChromeEffect(opacity: effect.opacity * frame.opacity, hitTestable: false),
     };
   }
 
@@ -333,18 +313,13 @@ class RenderChatRowChrome extends RenderBox
   /// Whether a chrome item follows [transition].
   @internal
   bool get hasTransitioningItem {
-    for (
-      var child = firstChild;
-      child != null && child != lastChild;
-      child = childAfter(child)
-    ) {
+    for (var child = firstChild; child != null && child != lastChild; child = childAfter(child)) {
       if (_pd(child).followsTransition) return true;
     }
     return false;
   }
 
-  ChatRowChromeTransitionFrame? _frameOf(RenderBox child) =>
-      _pd(child).followsTransition ? _transition : null;
+  ChatRowChromeTransitionFrame? _frameOf(RenderBox child) => _pd(child).followsTransition ? _transition : null;
 
   /// Scale by [scale] about [child]'s center, in row coordinates.
   Matrix4 _scaleAbout(RenderBox child, double scale) {
@@ -375,9 +350,7 @@ class RenderChatRowChrome extends RenderBox
     }
     body.layout(cc, parentUsesSize: true);
     _pd(body).offset = Offset(0, y);
-    size = constraints.constrain(
-      Size(constraints.maxWidth, y + body.size.height),
-    );
+    size = constraints.constrain(Size(constraints.maxWidth, y + body.size.height));
     if (parentData case final ChatMessageParentData viewportPd) {
       viewportPd.messageBodyTop = y;
     }
@@ -400,17 +373,12 @@ class RenderChatRowChrome extends RenderBox
     bool hit(RenderBox child) => result.addWithPaintOffset(
       offset: _pd(child).offset,
       position: position,
-      hitTest: (innerResult, transformed) =>
-          child.hitTest(innerResult, position: transformed),
+      hitTest: (innerResult, transformed) => child.hitTest(innerResult, position: transformed),
     );
 
     // The body is the interactive part, so it is tested first.
     if (hit(_body)) return true;
-    for (
-      var child = childBefore(_body);
-      child != null;
-      child = childBefore(child)
-    ) {
+    for (var child = childBefore(_body); child != null; child = childBefore(child)) {
       if (!_effect(child).hitTestable) continue;
       if (hit(child)) return true;
     }
@@ -443,13 +411,7 @@ class RenderChatRowChrome extends RenderBox
     final opacity = _effect(child).opacity;
     final frame = _frameOf(child);
     void faded(PaintingContext context, Offset offset) =>
-        ChatOpacityPaint.paintChild(
-          context,
-          child,
-          offset + pd.offset,
-          opacity,
-          pd.opacityLayer,
-        );
+        ChatOpacityPaint.paintChild(context, child, offset + pd.offset, opacity, pd.opacityLayer);
 
     if (frame == null || opacity <= ChatOpacityPaint.skip) {
       pd

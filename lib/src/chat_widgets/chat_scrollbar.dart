@@ -70,8 +70,7 @@ sealed class ChatScrollbar {
   /// A non-null [grab] replaces the preset's grab and keeps its painter and
   /// visibility — [ChatScrollbarGrab.none] for a scrollbar that shows
   /// position but takes no press.
-  const factory ChatScrollbar.mobile({ChatScrollbarGrab? grab}) =
-      ChatScrollbar$Painted.mobile;
+  const factory ChatScrollbar.mobile({ChatScrollbarGrab? grab}) = ChatScrollbar$Painted.mobile;
 
   /// The desktop preset: track and thumb that auto-hide, answer hover with
   /// colour, and follow the mouse in and out of the viewport.
@@ -89,8 +88,7 @@ sealed class ChatScrollbar {
   ///   dragging.
   ///
   /// A non-null [grab] replaces the preset's grab, as for [mobile].
-  const factory ChatScrollbar.desktop({ChatScrollbarGrab? grab}) =
-      ChatScrollbar$Painted.desktop;
+  const factory ChatScrollbar.desktop({ChatScrollbarGrab? grab}) = ChatScrollbar$Painted.desktop;
 
   /// The preset matching the OS family of [platform], or of
   /// [defaultTargetPlatform] when [platform] is `null`:
@@ -121,17 +119,11 @@ sealed class ChatScrollbar {
   ///
   /// Repeated calls with equal arguments are equal, so a rebuild that
   /// re-resolves the default changes nothing.
-  factory ChatScrollbar.forPlatform({
-    TargetPlatform? platform,
-    ChatScrollbarGrab? grab,
-  }) => switch (platform ?? defaultTargetPlatform) {
-    TargetPlatform.android ||
-    TargetPlatform.iOS ||
-    TargetPlatform.fuchsia => ChatScrollbar.mobile(grab: grab),
-    TargetPlatform.macOS ||
-    TargetPlatform.windows ||
-    TargetPlatform.linux => ChatScrollbar.desktop(grab: grab),
-  };
+  factory ChatScrollbar.forPlatform({TargetPlatform? platform, ChatScrollbarGrab? grab}) =>
+      switch (platform ?? defaultTargetPlatform) {
+        TargetPlatform.android || TargetPlatform.iOS || TargetPlatform.fuchsia => ChatScrollbar.mobile(grab: grab),
+        TargetPlatform.macOS || TargetPlatform.windows || TargetPlatform.linux => ChatScrollbar.desktop(grab: grab),
+      };
 
   /// No scrollbar — see [ChatScrollbar$None].
   const factory ChatScrollbar.none() = ChatScrollbar$None;
@@ -199,8 +191,7 @@ final class ChatScrollbar$Painted extends ChatScrollbar {
       other.grab == grab;
 
   @override
-  int get hashCode =>
-      Object.hash(ChatScrollbar$Painted, painter, visibility, grab);
+  int get hashCode => Object.hash(ChatScrollbar$Painted, painter, visibility, grab);
 
   @override
   String toString() =>
@@ -245,8 +236,7 @@ sealed class ChatScrollbarVisibility {
 
   /// Shown whenever there is something to scroll — see
   /// [ChatScrollbarVisibility$Always].
-  const factory ChatScrollbarVisibility.always() =
-      ChatScrollbarVisibility$Always;
+  const factory ChatScrollbarVisibility.always() = ChatScrollbarVisibility$Always;
 
   /// Shown while the reader's position moves, hidden once it rests — see
   /// [ChatScrollbarVisibility$AutoHide].
@@ -519,10 +509,7 @@ final class ChatScrollbarGrab$Targets extends ChatScrollbarGrab {
     this.trackPress = ChatScrollbarTrackPress.centerThumb,
   }) : assert(stripWidth > 0, 'stripWidth must be positive'),
        assert(touchTargetWidth > 0, 'touchTargetWidth must be positive'),
-       assert(
-         touchTargetMinHeight >= 0,
-         'touchTargetMinHeight must not be negative',
-       ),
+       assert(touchTargetMinHeight >= 0, 'touchTargetMinHeight must not be negative'),
        super._();
 
   /// Width of the mouse and trackpad strip, in from the viewport's trailing
@@ -549,13 +536,8 @@ final class ChatScrollbarGrab$Targets extends ChatScrollbarGrab {
       other.trackPress == trackPress;
 
   @override
-  int get hashCode => Object.hash(
-    ChatScrollbarGrab$Targets,
-    stripWidth,
-    touchTargetWidth,
-    touchTargetMinHeight,
-    trackPress,
-  );
+  int get hashCode =>
+      Object.hash(ChatScrollbarGrab$Targets, stripWidth, touchTargetWidth, touchTargetMinHeight, trackPress);
 
   @override
   String toString() =>
@@ -675,14 +657,7 @@ final class ChatScrollbarFrame {
       other.grabFactor == grabFactor;
 
   @override
-  int get hashCode => Object.hash(
-    trackRect,
-    thumbRect,
-    textDirection,
-    visibility,
-    hoverFactor,
-    grabFactor,
-  );
+  int get hashCode => Object.hash(trackRect, thumbRect, textDirection, visibility, hoverFactor, grabFactor);
 
   @override
   String toString() =>
@@ -722,11 +697,7 @@ abstract class ChatScrollbarPainter {
 
   /// Draws [frame] onto [canvas] in viewport-local coordinates, coloured
   /// from [theme].
-  void paint(
-    Canvas canvas,
-    ChatScrollbarFrame frame,
-    ChatScrollbarThemeData theme,
-  );
+  void paint(Canvas canvas, ChatScrollbarFrame frame, ChatScrollbarThemeData theme);
 
   /// Whether replacing [oldPainter] with this painter changes what [paint]
   /// draws or what the geometry getters return. Defaults to `true`.
@@ -785,10 +756,7 @@ final class ChatPillScrollbarPainter extends ChatScrollbarPainter {
     this.mainAxisMargin = 4,
   }) : hoveredThickness = hoveredThickness ?? thickness,
        assert(thickness > 0, 'thickness must be positive'),
-       assert(
-         hoveredThickness == null || hoveredThickness > 0,
-         'hoveredThickness must be positive',
-       ),
+       assert(hoveredThickness == null || hoveredThickness > 0, 'hoveredThickness must be positive'),
        assert(grabbedThickness > 0, 'grabbedThickness must be positive'),
        assert(minThumbLength > 0, 'minThumbLength must be positive'),
        assert(crossAxisMargin >= 0, 'crossAxisMargin must not be negative'),
@@ -841,62 +809,29 @@ final class ChatPillScrollbarPainter extends ChatScrollbarPainter {
   final double mainAxisMargin;
 
   @override
-  double get trackThickness =>
-      math.max(thickness, math.max(hoveredThickness, grabbedThickness));
+  double get trackThickness => math.max(thickness, math.max(hoveredThickness, grabbedThickness));
 
   @override
-  void paint(
-    Canvas canvas,
-    ChatScrollbarFrame frame,
-    ChatScrollbarThemeData theme,
-  ) {
+  void paint(Canvas canvas, ChatScrollbarFrame frame, ChatScrollbarThemeData theme) {
     final hover = frame.hoverFactor;
     final grab = frame.grabFactor;
-    final width = lerpDouble(
-      lerpDouble(thickness, hoveredThickness, hover),
-      grabbedThickness,
-      grab,
-    )!;
+    final width = lerpDouble(lerpDouble(thickness, hoveredThickness, hover), grabbedThickness, grab)!;
     final radius = Radius.circular(width / 2);
-    RRect pill(Rect rect) =>
-        RRect.fromRectAndRadius(switch (frame.textDirection) {
-          TextDirection.ltr => Rect.fromLTRB(
-            rect.right - width,
-            rect.top,
-            rect.right,
-            rect.bottom,
-          ),
-          TextDirection.rtl => Rect.fromLTRB(
-            rect.left,
-            rect.top,
-            rect.left + width,
-            rect.bottom,
-          ),
-        }, radius);
-    Paint fill(Color color) =>
-        _fill..color = color.withValues(alpha: color.a * frame.visibility);
+    RRect pill(Rect rect) => RRect.fromRectAndRadius(switch (frame.textDirection) {
+      TextDirection.ltr => Rect.fromLTRB(rect.right - width, rect.top, rect.right, rect.bottom),
+      TextDirection.rtl => Rect.fromLTRB(rect.left, rect.top, rect.left + width, rect.bottom),
+    }, radius);
+    Paint fill(Color color) => _fill..color = color.withValues(alpha: color.a * frame.visibility);
 
     if (paintsTrack) {
       canvas.drawRRect(
         pill(frame.trackRect),
-        fill(
-          Color.lerp(
-            theme.trackColor,
-            theme.trackHoverColor,
-            math.max(hover, grab),
-          )!,
-        ),
+        fill(Color.lerp(theme.trackColor, theme.trackHoverColor, math.max(hover, grab))!),
       );
     }
     canvas.drawRRect(
       pill(frame.thumbRect),
-      fill(
-        Color.lerp(
-          Color.lerp(theme.thumbColor, theme.thumbHoverColor, hover),
-          theme.thumbDraggingColor,
-          grab,
-        )!,
-      ),
+      fill(Color.lerp(Color.lerp(theme.thumbColor, theme.thumbHoverColor, hover), theme.thumbDraggingColor, grab)!),
     );
   }
 

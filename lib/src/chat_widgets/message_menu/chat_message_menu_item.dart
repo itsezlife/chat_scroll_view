@@ -18,8 +18,7 @@ sealed class ChatMessageMenuItem {
   const factory ChatMessageMenuItem.divider() = ChatMessageMenuDivider;
 
   /// An arbitrary row. Use for chrome the package does not model.
-  const factory ChatMessageMenuItem.custom({required WidgetBuilder builder}) =
-      ChatMessageMenuCustom;
+  const factory ChatMessageMenuItem.custom({required WidgetBuilder builder}) = ChatMessageMenuCustom;
 }
 
 /// Tappable action row.
@@ -75,12 +74,10 @@ sealed class ChatMessageMenuResult {
   const ChatMessageMenuResult();
 
   /// An action row was chosen.
-  const factory ChatMessageMenuResult.item(String itemId) =
-      ChatMessageMenuItemResult;
+  const factory ChatMessageMenuResult.item(String itemId) = ChatMessageMenuItemResult;
 
   /// A reaction emoji was chosen.
-  const factory ChatMessageMenuResult.reaction(String reaction) =
-      ChatMessageMenuReactionResult;
+  const factory ChatMessageMenuResult.reaction(String reaction) = ChatMessageMenuReactionResult;
 }
 
 /// An action row was chosen.
@@ -93,8 +90,7 @@ final class ChatMessageMenuItemResult extends ChatMessageMenuResult {
   final String itemId;
 
   @override
-  bool operator ==(Object other) =>
-      other is ChatMessageMenuItemResult && other.itemId == itemId;
+  bool operator ==(Object other) => other is ChatMessageMenuItemResult && other.itemId == itemId;
 
   @override
   int get hashCode => itemId.hashCode;
@@ -110,8 +106,7 @@ final class ChatMessageMenuReactionResult extends ChatMessageMenuResult {
   final String reaction;
 
   @override
-  bool operator ==(Object other) =>
-      other is ChatMessageMenuReactionResult && other.reaction == reaction;
+  bool operator ==(Object other) => other is ChatMessageMenuReactionResult && other.reaction == reaction;
 
   @override
   int get hashCode => reaction.hashCode;

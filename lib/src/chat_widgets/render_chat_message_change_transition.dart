@@ -50,8 +50,7 @@ class RenderChatMessageChangeTransition extends RenderBox
   /// Cleared by diagnostic tests; each [paint] appends one sample so a
   /// one-frame flash is still observable after later paints overwrite
   /// [lastPaintedBackground].
-  final List<ChatMessageChangePaintSample> debugPaintHistory =
-      <ChatMessageChangePaintSample>[];
+  final List<ChatMessageChangePaintSample> debugPaintHistory = <ChatMessageChangePaintSample>[];
 
   /// Final layout rect of the bubble (`Offset.zero & settledSize`) after layout.
   ///
@@ -135,19 +134,11 @@ class RenderChatMessageChangeTransition extends RenderBox
   RenderBox? get _header => childForSlot(ChatMessageChangeSlot.header);
   RenderBox? get _content => childForSlot(ChatMessageChangeSlot.content);
   RenderBox? get _meta => childForSlot(ChatMessageChangeSlot.meta);
-  RenderBox? get _outgoingContent =>
-      childForSlot(ChatMessageChangeSlot.outgoingContent);
-  RenderBox? get _outgoingMeta =>
-      childForSlot(ChatMessageChangeSlot.outgoingMeta);
+  RenderBox? get _outgoingContent => childForSlot(ChatMessageChangeSlot.outgoingContent);
+  RenderBox? get _outgoingMeta => childForSlot(ChatMessageChangeSlot.outgoingMeta);
 
   @override
-  Iterable<RenderBox> get children => <RenderBox>[
-    ?_meta,
-    ?_content,
-    ?_header,
-    ?_outgoingMeta,
-    ?_outgoingContent,
-  ];
+  Iterable<RenderBox> get children => <RenderBox>[?_meta, ?_content, ?_header, ?_outgoingMeta, ?_outgoingContent];
 
   Offset _headerOffset = Offset.zero;
   Offset _contentOffset = Offset.zero;
@@ -191,8 +182,7 @@ class RenderChatMessageChangeTransition extends RenderBox
   }
 
   @override
-  Size computeDryLayout(BoxConstraints constraints) =>
-      _measureIncoming(constraints, dry: true).size;
+  Size computeDryLayout(BoxConstraints constraints) => _measureIncoming(constraints, dry: true).size;
 
   @override
   void performLayout() {
@@ -223,38 +213,22 @@ class RenderChatMessageChangeTransition extends RenderBox
     // on expand while the fill is still small.
     final settledRect = Offset.zero & _settledSize;
     final painted = _params.paintedBackground(settledRect);
-    final morphing =
-        _params.holdPaintedBackground != null ||
-        (_params.animateBackgroundBounds && _params.progress < 1);
-    final hostExtent = morphing
-        ? Size(painted.width, painted.height)
-        : _settledSize;
+    final morphing = _params.holdPaintedBackground != null || (_params.animateBackgroundBounds && _params.progress < 1);
+    final hostExtent = morphing ? Size(painted.width, painted.height) : _settledSize;
     size = constraints.constrain(hostExtent);
   }
 
-  ChatMessageBodyLayout _measureIncoming(
-    BoxConstraints constraints, {
-    required bool dry,
-  }) {
+  ChatMessageBodyLayout _measureIncoming(BoxConstraints constraints, {required bool dry}) {
     final padding = _resolvedPadding;
-    final availableWidth = (constraints.maxWidth - padding.horizontal).clamp(
-      0.0,
-      double.infinity,
-    );
+    final availableWidth = (constraints.maxWidth - padding.horizontal).clamp(0.0, double.infinity);
     final childConstraints = BoxConstraints(maxWidth: availableWidth);
 
     final header = _header;
     final content = _content;
     final meta = _meta;
-    final headerSize = header == null
-        ? Size.zero
-        : _layoutChild(header, childConstraints, dry: dry);
-    final contentSize = content == null
-        ? Size.zero
-        : _layoutChild(content, childConstraints, dry: dry);
-    final metaSize = meta == null
-        ? Size.zero
-        : _layoutChild(meta, childConstraints, dry: dry);
+    final headerSize = header == null ? Size.zero : _layoutChild(header, childConstraints, dry: dry);
+    final contentSize = content == null ? Size.zero : _layoutChild(content, childConstraints, dry: dry);
+    final metaSize = meta == null ? Size.zero : _layoutChild(meta, childConstraints, dry: dry);
 
     // Body layout is relative to the padded origin; lift by padding.
     final inner = ChatMessageBodyLayout.measure(
@@ -269,18 +243,12 @@ class RenderChatMessageChangeTransition extends RenderBox
       lastLineWidth: () {
         if (content == null) return 0.0;
         if (dry) return contentSize.width;
-        return ChatMessageBodyLayout.lastLineWidthOf(
-          content,
-          fallback: contentSize.width,
-        );
+        return ChatMessageBodyLayout.lastLineWidthOf(content, fallback: contentSize.width);
       },
     );
 
     final outer = constraints.constrain(
-      Size(
-        inner.size.width + padding.horizontal,
-        inner.size.height + padding.vertical,
-      ),
+      Size(inner.size.width + padding.horizontal, inner.size.height + padding.vertical),
     );
     final origin = Offset(padding.left, padding.top);
     return ChatMessageBodyLayout(
@@ -301,22 +269,15 @@ class RenderChatMessageChangeTransition extends RenderBox
     }
 
     final padding = _resolvedPadding;
-    final availableWidth = (constraints.maxWidth - padding.horizontal).clamp(
-      0.0,
-      double.infinity,
-    );
+    final availableWidth = (constraints.maxWidth - padding.horizontal).clamp(0.0, double.infinity);
     final childConstraints = BoxConstraints(maxWidth: availableWidth);
 
     final header = _header;
-    final headerSize = header == null
-        ? Size.zero
-        : header.size; // already laid out with incoming
+    final headerSize = header == null ? Size.zero : header.size; // already laid out with incoming
     final contentSize = outgoingContent == null
         ? Size.zero
         : _layoutChild(outgoingContent, childConstraints, dry: false);
-    final metaSize = outgoingMeta == null
-        ? Size.zero
-        : _layoutChild(outgoingMeta, childConstraints, dry: false);
+    final metaSize = outgoingMeta == null ? Size.zero : _layoutChild(outgoingMeta, childConstraints, dry: false);
 
     final inner = ChatMessageBodyLayout.measure(
       constraints: BoxConstraints(maxWidth: availableWidth),
@@ -329,10 +290,7 @@ class RenderChatMessageChangeTransition extends RenderBox
       hasMeta: outgoingMeta != null,
       lastLineWidth: () {
         if (outgoingContent == null) return 0.0;
-        return ChatMessageBodyLayout.lastLineWidthOf(
-          outgoingContent,
-          fallback: contentSize.width,
-        );
+        return ChatMessageBodyLayout.lastLineWidthOf(outgoingContent, fallback: contentSize.width);
       },
     );
 
@@ -349,18 +307,13 @@ class RenderChatMessageChangeTransition extends RenderBox
     }
   }
 
-  Size _layoutChild(
-    RenderBox child,
-    BoxConstraints constraints, {
-    required bool dry,
-  }) {
+  Size _layoutChild(RenderBox child, BoxConstraints constraints, {required bool dry}) {
     if (dry) return child.getDryLayout(constraints);
     child.layout(constraints, parentUsesSize: true);
     return child.size;
   }
 
-  static Offset _offsetOf(RenderBox child) =>
-      (child.parentData! as BoxParentData).offset;
+  static Offset _offsetOf(RenderBox child) => (child.parentData! as BoxParentData).offset;
 
   static void _positionChild(RenderBox child, Offset offset) {
     (child.parentData! as BoxParentData).offset = offset;
@@ -437,10 +390,7 @@ class RenderChatMessageChangeTransition extends RenderBox
         final fromY = _outgoingContentOffset.dy;
         final toY = _incomingContentTop;
         final y = fromY * _params.oneMinusProgress + toY * _params.progress;
-        outContentPaint = Offset(
-          offset.dx + _outgoingContentOffset.dx,
-          offset.dy + y,
-        );
+        outContentPaint = Offset(offset.dx + _outgoingContentOffset.dx, offset.dy + y);
       }
 
       // Body text only — dual meta was painting two timestamps in the clip.
@@ -448,8 +398,7 @@ class RenderChatMessageChangeTransition extends RenderBox
         _paintFaded(
           context,
           opacity: outOpacity,
-          paintChild: (layer) =>
-              layer.paintChild(outgoingContent, outContentPaint),
+          paintChild: (layer) => layer.paintChild(outgoingContent, outContentPaint),
         );
       }
 
@@ -459,8 +408,7 @@ class RenderChatMessageChangeTransition extends RenderBox
           _paintFaded(
             context,
             opacity: inOpacity,
-            paintChild: (layer) =>
-                layer.paintChild(content, offset + _contentOffset),
+            paintChild: (layer) => layer.paintChild(content, offset + _contentOffset),
           );
         }
       }
@@ -496,11 +444,7 @@ class RenderChatMessageChangeTransition extends RenderBox
       return;
     }
     if (opacity <= 0.001) return;
-    context.pushOpacity(
-      Offset.zero,
-      (opacity * 255).round().clamp(0, 255),
-      (layer, _) => paintChild(layer),
-    );
+    context.pushOpacity(Offset.zero, (opacity * 255).round().clamp(0, 255), (layer, _) => paintChild(layer));
   }
 
   @override
@@ -512,8 +456,7 @@ class RenderChatMessageChangeTransition extends RenderBox
       final isHit = result.addWithPaintOffset(
         offset: childParentData.offset,
         position: position,
-        hitTest: (result, transformed) =>
-            child.hitTest(result, position: transformed),
+        hitTest: (result, transformed) => child.hitTest(result, position: transformed),
       );
       if (isHit) return true;
     }
@@ -574,8 +517,7 @@ class ChatMessageChangePaintSample {
       (paintedLocal.width - finalRect.width).abs() < 1.0;
 
   /// True when the meta row extends past the painted bubble's right edge.
-  bool get metaOverflowsPaintedBubble =>
-      metaWidth > 0 && metaPaint.dx + metaWidth > paintedLocal.right + 0.5;
+  bool get metaOverflowsPaintedBubble => metaWidth > 0 && metaPaint.dx + metaWidth > paintedLocal.right + 0.5;
 
   @override
   String toString() =>

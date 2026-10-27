@@ -54,9 +54,7 @@ class ChatFloatingHeaderController {
   /// Height of the floating header — its laid-out size, or [headerFallbackHeight]
   /// before it has first laid out.
   double floatingHeaderHeight(RenderBox? header) =>
-      (header != null && header.hasSize)
-      ? header.size.height
-      : headerFallbackHeight;
+      (header != null && header.hasSize) ? header.size.height : headerFallbackHeight;
 
   /// The topmost visible group — the bucket + message id of the child whose
   /// top edge is closest to (and intersects) the viewport top. O(visible
@@ -99,8 +97,7 @@ class ChatFloatingHeaderController {
   /// Whether the header widget must rebuild and which bucket/date to pass to
   /// the element-side builder. Updates [headerBucket] / [headerDate] when
   /// rebuild is needed.
-  ({bool needsRebuild, Object? bucket, DateTime? firstMessageDate})
-  evaluateLayoutRebuild({
+  ({bool needsRebuild, Object? bucket, DateTime? firstMessageDate}) evaluateLayoutRebuild({
     required TopDayScan scan,
     required Object Function(IChatMessage)? groupBy,
     required DateTime? Function(int messageId) createdAtOf,
@@ -109,20 +106,10 @@ class ChatFloatingHeaderController {
     if (targetBucket != headerBucket || headerDirty) {
       headerBucket = targetBucket;
       headerDirty = false;
-      headerDate = (targetBucket == null || scan.id == null)
-          ? null
-          : createdAtOf(scan.id!);
-      return (
-        needsRebuild: true,
-        bucket: targetBucket,
-        firstMessageDate: headerDate,
-      );
+      headerDate = (targetBucket == null || scan.id == null) ? null : createdAtOf(scan.id!);
+      return (needsRebuild: true, bucket: targetBucket, firstMessageDate: headerDate);
     }
-    return (
-      needsRebuild: false,
-      bucket: headerBucket,
-      firstMessageDate: headerDate,
-    );
+    return (needsRebuild: false, bucket: headerBucket, firstMessageDate: headerDate);
   }
 
   /// During a Tier-1 scroll: report whether the topmost day changed — the
@@ -143,11 +130,10 @@ class ChatFloatingHeaderController {
   /// (a top edge effect translating the list past the oldest message). The
   /// header never rests above the oldest row, where there is no content.
   /// The day header delegate may displace it from there.
-  double placeHeaderOffset({required double topPad, double? oldestPaintTop}) =>
-      switch (oldestPaintTop) {
-        final top? when top > topPad => top,
-        _ => topPad,
-      };
+  double placeHeaderOffset({required double topPad, double? oldestPaintTop}) => switch (oldestPaintTop) {
+    final top? when top > topPad => top,
+    _ => topPad,
+  };
 
   /// Whether the floating day header should be built and painted.
   ///

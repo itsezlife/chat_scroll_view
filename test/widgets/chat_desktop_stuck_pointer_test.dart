@@ -1,7 +1,6 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart'
-    show PointerDeviceKind, kSecondaryMouseButton;
+import 'package:flutter/gestures.dart' show PointerDeviceKind, kSecondaryMouseButton;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,36 +19,22 @@ class _LoadedSource extends ChatDataSource {
   _LoadedSource(List<IChatMessage> messages) {
     upsertMessages(messages);
     final ids = messages.map((m) => m.id).toList()..sort();
-    seedBoundaries(
-      oldestKnownId: ids.first,
-      newestKnownId: ids.last,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: ids.first, newestKnownId: ids.last, reachedOldest: true, reachedNewest: true);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 /// Global point over glyph ink of [messageId] at the offsets
 /// `[from, to)` of its first block.
-Offset _glyphPoint(
-  ChatSelectionController selection,
-  int messageId, {
-  int from = 0,
-  int to = 1,
-}) {
+Offset _glyphPoint(ChatSelectionController selection, int messageId, {int from = 0, int to = 1}) {
   final surface = selection.surfaceFor(messageId)!;
   final boxes = surface.localBoxesForRange(0, from, to);
   return (surface as RenderBox).localToGlobal(boxes.first.center);
 }
 
-MouseCursor? _cursorUnderMouse() =>
-    RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1);
+MouseCursor? _cursorUnderMouse() => RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1);
 
 /// A pumped desktop chat of three markdown messages, plus the glyph points
 /// (read while every body is idle, before any interaction) the probes use.
@@ -69,10 +54,7 @@ class _Chat {
     final selection = ChatSelectionController(
       policy: const ChatSelectionPolicy.desktop(),
       onInteraction: (i) {
-        if (i case ChatLinkActivated(
-          :final messageId,
-          gesture: ChatInlineGesture.tap,
-        )) {
+        if (i case ChatLinkActivated(:final messageId, gesture: ChatInlineGesture.tap)) {
           links.add(messageId);
         }
       },
@@ -98,16 +80,11 @@ class _Chat {
               controller: controller,
               selectionController: selection,
               onSecondaryMessageTap: (request) => menus.add(request.messageId),
-              messageBuilder: (context, id, message, status, runLayout) =>
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    color: Colors.white,
-                    child: ChatMarkdownBody(
-                      key: ValueKey('md-$id'),
-                      controller: selection,
-                      messageId: id,
-                    ),
-                  ),
+              messageBuilder: (context, id, message, status, runLayout) => Container(
+                padding: const EdgeInsets.all(12),
+                color: Colors.white,
+                child: ChatMarkdownBody(key: ValueKey('md-$id'), controller: selection, messageId: id),
+              ),
             ),
           ),
         ),
@@ -137,141 +114,113 @@ void main() {
   group('desktop: an interaction in one message leaves the others live', () {
     // The interactions that arm / drive the per-body desktop scope of one
     // message (the origin), each ending with the pointer released.
-    final interactions =
-        <String, Future<void> Function(WidgetTester tester, Offset at)>{
-          'click': (tester, at) async {
-            final mouse = await tester.createGesture(
-              kind: PointerDeviceKind.mouse,
-              pointer: 1,
-            );
-            await mouse.addPointer(location: at);
-            await mouse.down(at);
-            await mouse.up();
-            await tester.pump();
-            await mouse.removePointer();
-          },
-          'double click': (tester, at) async {
-            final mouse = await tester.createGesture(
-              kind: PointerDeviceKind.mouse,
-              pointer: 1,
-            );
-            await mouse.addPointer(location: at);
-            await mouse.down(at);
-            await mouse.up();
-            await tester.pump(const Duration(milliseconds: 50));
-            await mouse.down(at);
-            await mouse.up();
-            await tester.pump();
-            await mouse.removePointer();
-          },
-          'long press': (tester, at) async {
-            final mouse = await tester.createGesture(
-              kind: PointerDeviceKind.mouse,
-              pointer: 1,
-            );
-            await mouse.addPointer(location: at);
-            await mouse.down(at);
-            await tester.pump(const Duration(milliseconds: 800));
-            await mouse.up();
-            await tester.pump();
-            await mouse.removePointer();
-          },
-          'press hold drop': (tester, at) async {
-            final mouse = await tester.createGesture(
-              kind: PointerDeviceKind.mouse,
-              pointer: 1,
-            );
-            await mouse.addPointer(location: at);
-            await mouse.down(at);
-            await tester.pump(const Duration(milliseconds: 800));
-            await mouse.moveBy(const Offset(40, 0));
-            await tester.pump();
-            await mouse.up();
-            await tester.pump();
-            await mouse.removePointer();
-          },
-          'secondary click': (tester, at) async {
-            final mouse = await tester.createGesture(
-              kind: PointerDeviceKind.mouse,
-              pointer: 1,
-              buttons: kSecondaryMouseButton,
-            );
-            await mouse.addPointer(location: at);
-            await mouse.down(at);
-            await mouse.up();
-            await tester.pump();
-            await mouse.removePointer();
-          },
-        };
+    final interactions = <String, Future<void> Function(WidgetTester tester, Offset at)>{
+      'click': (tester, at) async {
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse, pointer: 1);
+        await mouse.addPointer(location: at);
+        await mouse.down(at);
+        await mouse.up();
+        await tester.pump();
+        await mouse.removePointer();
+      },
+      'double click': (tester, at) async {
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse, pointer: 1);
+        await mouse.addPointer(location: at);
+        await mouse.down(at);
+        await mouse.up();
+        await tester.pump(const Duration(milliseconds: 50));
+        await mouse.down(at);
+        await mouse.up();
+        await tester.pump();
+        await mouse.removePointer();
+      },
+      'long press': (tester, at) async {
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse, pointer: 1);
+        await mouse.addPointer(location: at);
+        await mouse.down(at);
+        await tester.pump(const Duration(milliseconds: 800));
+        await mouse.up();
+        await tester.pump();
+        await mouse.removePointer();
+      },
+      'press hold drop': (tester, at) async {
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse, pointer: 1);
+        await mouse.addPointer(location: at);
+        await mouse.down(at);
+        await tester.pump(const Duration(milliseconds: 800));
+        await mouse.moveBy(const Offset(40, 0));
+        await tester.pump();
+        await mouse.up();
+        await tester.pump();
+        await mouse.removePointer();
+      },
+      'secondary click': (tester, at) async {
+        final mouse = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+          pointer: 1,
+          buttons: kSecondaryMouseButton,
+        );
+        await mouse.addPointer(location: at);
+        await mouse.down(at);
+        await mouse.up();
+        await tester.pump();
+        await mouse.removePointer();
+      },
+    };
 
     interactions['nothing (control)'] = (tester, at) async {};
 
-    final probes =
-        <String, Future<void> Function(WidgetTester tester, _Chat chat)>{
-          'hover text of message 3 shows the I-beam': (tester, chat) async {
-            final hover = await tester.createGesture(
-              kind: PointerDeviceKind.mouse,
-              pointer: 1,
-            );
-            await hover.addPointer(location: chat.points.text1);
-            await hover.moveTo(chat.points.text3);
-            await tester.pump();
-            expect(_cursorUnderMouse(), SystemMouseCursors.text);
-            await hover.removePointer();
-          },
-          'hover link of message 2 shows the click cursor':
-              (tester, chat) async {
-                final hover = await tester.createGesture(
-                  kind: PointerDeviceKind.mouse,
-                  pointer: 1,
-                );
-                await hover.addPointer(location: chat.points.text1);
-                await hover.moveTo(chat.points.linkOn2);
-                await tester.pump();
-                expect(_cursorUnderMouse(), SystemMouseCursors.click);
-                await hover.removePointer();
-              },
-          'click on the link of message 2 activates it': (tester, chat) async {
-            final mouse = await tester.createGesture(
-              kind: PointerDeviceKind.mouse,
-              pointer: 1,
-            );
-            await mouse.addPointer(location: chat.points.linkOn2);
-            await mouse.down(chat.points.linkOn2);
-            await mouse.up();
-            await tester.pump();
-            expect(chat.links, <int>[2]);
-            await mouse.removePointer();
-          },
-          'secondary click on message 3 reaches its menu':
-              (tester, chat) async {
-                final mouse = await tester.createGesture(
-                  kind: PointerDeviceKind.mouse,
-                  pointer: 1,
-                  buttons: kSecondaryMouseButton,
-                );
-                await mouse.addPointer(location: chat.points.text3);
-                await mouse.down(chat.points.text3);
-                await mouse.up();
-                await tester.pump();
-                expect(chat.menus, <int>[3]);
-                await mouse.removePointer();
-              },
-          'press-drag on message 3 selects its text': (tester, chat) async {
-            final mouse = await tester.createGesture(
-              kind: PointerDeviceKind.mouse,
-              pointer: 1,
-            );
-            await mouse.addPointer(location: chat.points.text3);
-            await mouse.down(chat.points.text3);
-            await mouse.moveTo(chat.points.text3End);
-            await mouse.up();
-            await tester.pump();
-            expect(chat.selection.textSelectionSubject, 3);
-            expect(chat.selection.textSelection?.isCollapsed, isFalse);
-            await mouse.removePointer();
-          },
-        };
+    final probes = <String, Future<void> Function(WidgetTester tester, _Chat chat)>{
+      'hover text of message 3 shows the I-beam': (tester, chat) async {
+        final hover = await tester.createGesture(kind: PointerDeviceKind.mouse, pointer: 1);
+        await hover.addPointer(location: chat.points.text1);
+        await hover.moveTo(chat.points.text3);
+        await tester.pump();
+        expect(_cursorUnderMouse(), SystemMouseCursors.text);
+        await hover.removePointer();
+      },
+      'hover link of message 2 shows the click cursor': (tester, chat) async {
+        final hover = await tester.createGesture(kind: PointerDeviceKind.mouse, pointer: 1);
+        await hover.addPointer(location: chat.points.text1);
+        await hover.moveTo(chat.points.linkOn2);
+        await tester.pump();
+        expect(_cursorUnderMouse(), SystemMouseCursors.click);
+        await hover.removePointer();
+      },
+      'click on the link of message 2 activates it': (tester, chat) async {
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse, pointer: 1);
+        await mouse.addPointer(location: chat.points.linkOn2);
+        await mouse.down(chat.points.linkOn2);
+        await mouse.up();
+        await tester.pump();
+        expect(chat.links, <int>[2]);
+        await mouse.removePointer();
+      },
+      'secondary click on message 3 reaches its menu': (tester, chat) async {
+        final mouse = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+          pointer: 1,
+          buttons: kSecondaryMouseButton,
+        );
+        await mouse.addPointer(location: chat.points.text3);
+        await mouse.down(chat.points.text3);
+        await mouse.up();
+        await tester.pump();
+        expect(chat.menus, <int>[3]);
+        await mouse.removePointer();
+      },
+      'press-drag on message 3 selects its text': (tester, chat) async {
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse, pointer: 1);
+        await mouse.addPointer(location: chat.points.text3);
+        await mouse.down(chat.points.text3);
+        await mouse.moveTo(chat.points.text3End);
+        await mouse.up();
+        await tester.pump();
+        expect(chat.selection.textSelectionSubject, 3);
+        expect(chat.selection.textSelection?.isCollapsed, isFalse);
+        await mouse.removePointer();
+      },
+    };
 
     for (final MapEntry(key: name, value: interact) in interactions.entries) {
       for (final MapEntry(key: probeName, value: probe) in probes.entries) {
@@ -292,16 +241,11 @@ void main() {
     }
   });
 
-  testWidgets('a drag from message 1 over message 3 stays inside message 1', (
-    tester,
-  ) async {
+  testWidgets('a drag from message 1 over message 3 stays inside message 1', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
     try {
       final chat = await _Chat.pump(tester);
-      final mouse = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        pointer: 1,
-      );
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse, pointer: 1);
       await mouse.addPointer(location: chat.points.text1);
       await mouse.down(chat.points.text1);
       await mouse.moveTo(chat.points.text1 + const Offset(30, 0));

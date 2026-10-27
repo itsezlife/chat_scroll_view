@@ -7,15 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 // 40 down.
 const _header = ChatMessageSurfacePart(
   rect: Rect.fromLTWH(0, 0, 60, 20),
-  shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.all(Radius.circular(8)),
-  ),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
 );
 const _body = ChatMessageSurfacePart(rect: Rect.fromLTWH(10, 40, 80, 40));
-const _parts = ChatMessageSurfaceParts(<ChatMessageSurfacePart>[
-  _header,
-  _body,
-]);
+const _parts = ChatMessageSurfaceParts(<ChatMessageSurfacePart>[_header, _body]);
 
 void main() {
   group('ChatMessageSurfaceParts', () {
@@ -37,11 +32,7 @@ void main() {
       const parts = ChatMessageSurfaceParts(<ChatMessageSurfacePart>[
         ChatMessageSurfacePart(
           rect: Rect.fromLTWH(0, 0, 100, 40),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadiusDirectional.only(
-              topStart: Radius.circular(20),
-            ),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadiusDirectional.only(topStart: Radius.circular(20))),
         ),
       ]);
       const box = Rect.fromLTWH(0, 0, 100, 40);
@@ -56,10 +47,7 @@ void main() {
     });
 
     test('has value equality, so an unchanged hole does not repaint', () {
-      const same = ChatMessageSurfaceParts(<ChatMessageSurfacePart>[
-        _header,
-        _body,
-      ]);
+      const same = ChatMessageSurfaceParts(<ChatMessageSurfacePart>[_header, _body]);
       const other = ChatMessageSurfaceParts(<ChatMessageSurfacePart>[_body]);
 
       expect(_parts, same);
@@ -79,9 +67,7 @@ void main() {
   });
 
   group('scrim hole of a surface made of parts', () {
-    testWidgets('dims the gap between the parts and the box corners', (
-      tester,
-    ) async {
+    testWidgets('dims the gap between the parts and the box corners', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -93,11 +79,7 @@ void main() {
                   surfaceRect: const Rect.fromLTWH(200, 110, 100, 80),
                   surfaceShape: _parts,
                   items: const <ChatMessageMenuItem>[
-                    ChatMessageMenuItem(
-                      id: 'a',
-                      label: 'A',
-                      icon: Icons.edit_outlined,
-                    ),
+                    ChatMessageMenuItem(id: 'a', label: 'A', icon: Icons.edit_outlined),
                   ],
                   tapGlobal: const Offset(250, 150),
                 ),
@@ -115,11 +97,7 @@ void main() {
         find.byType(ChatMessageMenuScrim),
         paints..path(
           // Dimmed: the gap, the box corner, outside the box.
-          includes: const <Offset>[
-            Offset(230, 140),
-            Offset(295, 115),
-            Offset(10, 10),
-          ],
+          includes: const <Offset>[Offset(230, 140), Offset(295, 115), Offset(10, 10)],
           // Undimmed: inside the header and inside the body.
           excludes: const <Offset>[Offset(230, 120), Offset(250, 170)],
         ),

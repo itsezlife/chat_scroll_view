@@ -5,21 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Widget harness({
-    required String content,
-    required bool edited,
-    bool outgoing = false,
-  }) => MaterialApp(
+  Widget harness({required String content, required bool edited, bool outgoing = false}) => MaterialApp(
     home: Scaffold(
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 280),
           child: ChatMessageChangeTransition(
             contentIdentity: content,
-            content: Text(
-              content,
-              style: const TextStyle(color: Colors.white, fontSize: 15),
-            ),
+            content: Text(content, style: const TextStyle(color: Colors.white, fontSize: 15)),
             edited: edited,
             outgoing: outgoing,
             color: const Color(0xFF2B5278),
@@ -32,17 +25,11 @@ void main() {
                 if (edited) ...[
                   Opacity(
                     opacity: editedOpacity.clamp(0.0, 1.0),
-                    child: const Text(
-                      'edited',
-                      style: TextStyle(color: Colors.white70, fontSize: 11),
-                    ),
+                    child: const Text('edited', style: TextStyle(color: Colors.white70, fontSize: 11)),
                   ),
                   const SizedBox(width: 4),
                 ],
-                const Text(
-                  '12:00',
-                  style: TextStyle(color: Colors.white70, fontSize: 11),
-                ),
+                const Text('12:00', style: TextStyle(color: Colors.white70, fontSize: 11)),
               ],
             ),
           ),
@@ -58,25 +45,18 @@ void main() {
     expect(find.text('hello'), findsOneWidget);
   });
 
-  testWidgets('short→long settled size is final; host tracks painted', (
-    tester,
-  ) async {
-    const long =
-        'this is a much longer message that should wrap lines across the bubble';
+  testWidgets('short→long settled size is final; host tracks painted', (tester) async {
+    const long = 'this is a much longer message that should wrap lines across the bubble';
 
     await tester.pumpWidget(harness(content: 'hi', edited: false));
     await tester.pump();
-    final shortH = tester
-        .getSize(find.byType(ChatMessageChangeTransition))
-        .height;
+    final shortH = tester.getSize(find.byType(ChatMessageChangeTransition)).height;
 
     await tester.pumpWidget(harness(content: long, edited: true));
     await tester.pump(); // begin + measure frame
     await tester.pump(); // apply begin params
 
-    final ro = tester.renderObject<RenderChatMessageChangeTransition>(
-      find.byType(ChatMessageChangeTransition),
-    );
+    final ro = tester.renderObject<RenderChatMessageChangeTransition>(find.byType(ChatMessageChangeTransition));
     final midHost = ro.size;
     final midSettled = ro.finalBackgroundRect;
     final midPainted = ro.lastPaintedBackground;
@@ -93,17 +73,12 @@ void main() {
     expect(find.text(long), findsWidgets);
   });
 
-  testWidgets('painted background height lerps during short→long', (
-    tester,
-  ) async {
-    const long =
-        'this is a much longer message that should wrap lines across the bubble';
+  testWidgets('painted background height lerps during short→long', (tester) async {
+    const long = 'this is a much longer message that should wrap lines across the bubble';
 
     await tester.pumpWidget(harness(content: 'hi', edited: false));
     await tester.pump();
-    final shortRo = tester.renderObject<RenderChatMessageChangeTransition>(
-      find.byType(ChatMessageChangeTransition),
-    );
+    final shortRo = tester.renderObject<RenderChatMessageChangeTransition>(find.byType(ChatMessageChangeTransition));
     // Force a paint so lastPaintedBackground is set.
     shortRo.markNeedsPaint();
     await tester.pump();
@@ -114,9 +89,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 80));
 
-    final ro = tester.renderObject<RenderChatMessageChangeTransition>(
-      find.byType(ChatMessageChangeTransition),
-    );
+    final ro = tester.renderObject<RenderChatMessageChangeTransition>(find.byType(ChatMessageChangeTransition));
     final midBgH = ro.lastPaintedBackground.height;
 
     await tester.pumpAndSettle();
@@ -128,14 +101,11 @@ void main() {
   });
 
   testWidgets('long→short animates without throw', (tester) async {
-    const long =
-        'this is a much longer message that should wrap lines across the bubble';
+    const long = 'this is a much longer message that should wrap lines across the bubble';
 
     await tester.pumpWidget(harness(content: long, edited: true));
     await tester.pumpAndSettle();
-    final longH = tester
-        .getSize(find.byType(ChatMessageChangeTransition))
-        .height;
+    final longH = tester.getSize(find.byType(ChatMessageChangeTransition)).height;
 
     await tester.pumpWidget(harness(content: 'ok', edited: true));
     await tester.pump();
@@ -143,9 +113,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 80));
     await tester.pumpAndSettle();
 
-    final shortH = tester
-        .getSize(find.byType(ChatMessageChangeTransition))
-        .height;
+    final shortH = tester.getSize(find.byType(ChatMessageChangeTransition)).height;
     expect(shortH, lessThan(longH));
     expect(find.text('ok'), findsOneWidget);
   });

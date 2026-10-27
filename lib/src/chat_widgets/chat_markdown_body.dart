@@ -19,11 +19,7 @@ import 'package:flutter_md/flutter_md.dart';
 /// outgoing content with `registers: false`.
 class ChatMarkdownBodyRegistration extends InheritedWidget {
   /// Creates a registration scope for descendant [ChatMarkdownBody] mounts.
-  const ChatMarkdownBodyRegistration({
-    required this.registers,
-    required super.child,
-    super.key,
-  });
+  const ChatMarkdownBodyRegistration({required this.registers, required super.child, super.key});
 
   /// When false, descendants must not [ChatSelectionController.putBody] and
   /// must not mount a selection surface for this paint.
@@ -31,14 +27,10 @@ class ChatMarkdownBodyRegistration extends InheritedWidget {
 
   /// Whether the nearest scope allows selection registration (default true).
   static bool allows(BuildContext context) =>
-      context
-          .getInheritedWidgetOfExactType<ChatMarkdownBodyRegistration>()
-          ?.registers ??
-      true;
+      context.getInheritedWidgetOfExactType<ChatMarkdownBodyRegistration>()?.registers ?? true;
 
   @override
-  bool updateShouldNotify(covariant ChatMarkdownBodyRegistration oldWidget) =>
-      registers != oldWidget.registers;
+  bool updateShouldNotify(covariant ChatMarkdownBodyRegistration oldWidget) => registers != oldWidget.registers;
 }
 
 /// Paints a registered markdown body and attaches an engine-owned text selection
@@ -154,8 +146,7 @@ class ChatMarkdownBody extends StatefulWidget {
   State<ChatMarkdownBody> createState() => _ChatMarkdownBodyState();
 }
 
-class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
-    with TickerProviderStateMixin {
+class _ChatMarkdownBodyState extends State<ChatMarkdownBody> with TickerProviderStateMixin {
   MarkdownThemeData? _cachedAmbient;
   MarkdownThemeData? _cachedUserTheme;
   ChatSelectionPolicy? _cachedPolicy;
@@ -196,8 +187,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _touchSlop =
-        MediaQuery.maybeGestureSettingsOf(context)?.touchSlop ?? kTouchSlop;
+    _touchSlop = MediaQuery.maybeGestureSettingsOf(context)?.touchSlop ?? kTouchSlop;
   }
 
   @override
@@ -243,22 +233,12 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     controller.removeSpanFeedbackAbortListener(_onSpanFeedbackAbort);
   }
 
-  void _onSpanFeedbackBegin(
-    int messageId,
-    Path contourPath,
-    Offset touchOrigin,
-  ) {
+  void _onSpanFeedbackBegin(int messageId, Path contourPath, Offset touchOrigin) {
     if (messageId != widget.messageId || !mounted) return;
     _clearFeedback();
 
-    final press = AnimationController(
-      vsync: this,
-      duration: ChatSpanFeedback.pressDuration,
-    );
-    final release = AnimationController(
-      vsync: this,
-      duration: ChatSpanFeedback.releaseDuration,
-    );
+    final press = AnimationController(vsync: this, duration: ChatSpanFeedback.pressDuration);
+    final release = AnimationController(vsync: this, duration: ChatSpanFeedback.releaseDuration);
     _pressController = press;
     _releaseController = release;
     final theme = _resolveTheme(context);
@@ -327,18 +307,14 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   /// the host does not act on (it is part of the text, with no highlight and
   /// no click cursor).
   bool _isActionable(ChatInlineHit? hit) =>
-      hit != null &&
-      (hit is! ChatInlineHit$Embed || widget.controller.handlesEmbedHits);
+      hit != null && (hit is! ChatInlineHit$Embed || widget.controller.handlesEmbedHits);
 
   void _tryBeginInlinePress(PointerDownEvent event) {
     if (!widget.controller.allowsInlineTapHighlight) {
       _disarmInlinePress();
       return;
     }
-    final hit = widget.controller.resolveInlineHit(
-      widget.messageId,
-      event.position,
-    );
+    final hit = widget.controller.resolveInlineHit(widget.messageId, event.position);
     final contour = _isActionable(hit) ? hit?.contourPath : null;
     if (contour != null && hit!.touchOrigin != null) {
       widget.controller.beginSpanFeedback(
@@ -372,8 +348,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   MarkdownInlineEmbedResolver? _adaptedEmbedResolver() {
     final resolver = widget.embedResolver;
     if (resolver == null) return _embedAdapter = null;
-    if (_embedAdapter case final adapter?
-        when identical(adapter.resolver, resolver)) {
+    if (_embedAdapter case final adapter? when identical(adapter.resolver, resolver)) {
       return adapter;
     }
     return _embedAdapter = ChatInlineEmbedAdapter(resolver);
@@ -386,19 +361,12 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   MarkdownThemeData _fallbackTheme(BuildContext context) {
     final style = DefaultTextStyle.of(context).style;
     final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
-    final scaler =
-        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     if (_fallback case final cached?
-        when cached.textStyle == style &&
-            cached.textDirection == direction &&
-            cached.textScaler == scaler) {
+        when cached.textStyle == style && cached.textDirection == direction && cached.textScaler == scaler) {
       return cached;
     }
-    return _fallback = MarkdownThemeData(
-      textStyle: style,
-      textDirection: direction,
-      textScaler: scaler,
-    );
+    return _fallback = MarkdownThemeData(textStyle: style, textDirection: direction, textScaler: scaler);
   }
 
   /// The emoji of a text the platform draws in colour, for
@@ -406,15 +374,11 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   /// reference clients do, instead of at its size. A theme with its own
   /// `emojiRuns` (`(_) => const []` turns it off) is left as it is.
   static Iterable<TextRange> _colourEmojiRuns(String text) => [
-    for (final (:start, :end) in EmojiRuns.of(text))
-      TextRange(start: start, end: end),
+    for (final (:start, :end) in EmojiRuns.of(text)) TextRange(start: start, end: end),
   ];
 
   MarkdownThemeData _resolveTheme(BuildContext context) {
-    final ambient =
-        widget.theme ??
-        MarkdownTheme.maybeOf(context) ??
-        _fallbackTheme(context);
+    final ambient = widget.theme ?? MarkdownTheme.maybeOf(context) ?? _fallbackTheme(context);
 
     final policy = widget.controller.selectionPolicy;
     final codeBlockLabels = ChatCodeBlockLabelsScope.of(context);
@@ -445,11 +409,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
           if (b(block, themeData) case final custom?) return custom;
         }
         // Catalog painters: scrollable tables, then fenced code chrome.
-        if (block case MD$Table(
-          :final header,
-          :final rows,
-          :final alignments,
-        )) {
+        if (block case MD$Table(:final header, :final rows, :final alignments)) {
           return BlockPainter$ScrollableTable(
             header: header,
             rows: rows,
@@ -458,16 +418,10 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
             enabled: tablePanEnabled,
           );
         }
-        return ChatCodeBlockPainter.builder(
-          block,
-          themeData,
-          policy: policy,
-          labels: codeBlockLabels,
-        );
+        return ChatCodeBlockPainter.builder(block, themeData, policy: policy, labels: codeBlockLabels);
       },
       cursorResolver: (localOffset, blockIndex, block) {
-        if (userCursorResolver?.call(localOffset, blockIndex, block)
-            case final custom?) {
+        if (userCursorResolver?.call(localOffset, blockIndex, block) case final custom?) {
           return custom;
         }
         return _resolveCursor(localOffset, blockIndex, block, policy);
@@ -475,12 +429,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     );
   }
 
-  MouseCursor? _resolveCursor(
-    Offset localOffset,
-    int? blockIndex,
-    MD$Block? block,
-    ChatSelectionPolicy policy,
-  ) {
+  MouseCursor? _resolveCursor(Offset localOffset, int? blockIndex, MD$Block? block, ChatSelectionPolicy policy) {
     if (block case MD$Code(:final text)) {
       final surface = widget.controller.surfaceFor(widget.messageId);
       if (surface != null && blockIndex != null) {
@@ -489,15 +438,10 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
           final codeTop = boxes.first.top;
           final codeBottom = boxes.last.bottom;
           if (localOffset.dy < (codeTop - ChatCodeBlockPainter.padding)) {
-            return policy.hasInteractiveCodeHeader
-                ? SystemMouseCursors.click
-                : SystemMouseCursors.basic;
+            return policy.hasInteractiveCodeHeader ? SystemMouseCursors.click : SystemMouseCursors.basic;
           }
-          final hasBottomBar = policy.hasBottomCodeCopyBarForLength(
-            text.length,
-          );
-          if (hasBottomBar &&
-              localOffset.dy >= (codeBottom + ChatCodeBlockPainter.padding)) {
+          final hasBottomBar = policy.hasBottomCodeCopyBarForLength(text.length);
+          if (hasBottomBar && localOffset.dy >= (codeBottom + ChatCodeBlockPainter.padding)) {
             return SystemMouseCursors.click;
           }
           // Code body: defer to glyph-tight library I-beam (not full fence width).
@@ -517,10 +461,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     final surface = widget.controller.surfaceFor(widget.messageId);
     if (surface case final RenderBox box) {
       final globalPoint = box.localToGlobal(localOffset);
-      final inlineHit = widget.controller.resolveInlineHit(
-        widget.messageId,
-        globalPoint,
-      );
+      final inlineHit = widget.controller.resolveInlineHit(widget.messageId, globalPoint);
       if (_isActionable(inlineHit)) {
         return SystemMouseCursors.click;
       }
@@ -536,12 +477,9 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: widget.controller,
     builder: (context, _) {
-      final model =
-          widget.markdown ?? widget.controller.bodyOf(widget.messageId);
+      final model = widget.markdown ?? widget.controller.bodyOf(widget.messageId);
       final register = ChatMarkdownBodyRegistration.allows(context);
-      final mountSurface =
-          register &&
-          widget.controller.exposesSelectionSurface(widget.messageId);
+      final mountSurface = register && widget.controller.exposesSelectionSurface(widget.messageId);
       _mountsSurface = mountSurface;
       _reportPaintBounds();
       return switch (model) {
@@ -561,8 +499,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
             // System / arena cancel must clear ink immediately — not fade
             // through release (and must not leave a held press highlight).
             if (!_armedInlinePress) return;
-            if (event.pointer != _inlinePressPointer &&
-                _inlinePressPointer != null) {
+            if (event.pointer != _inlinePressPointer && _inlinePressPointer != null) {
               return;
             }
             _disarmInlinePress();
@@ -572,10 +509,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
             valueListenable: _feedbackNotifier,
             builder: (context, feedback, child) => CustomPaint(
               foregroundPainter: feedback != null
-                  ? ChatSpanFeedbackPainter(
-                      feedback: feedback,
-                      repaint: feedback.listenable,
-                    )
+                  ? ChatSpanFeedbackPainter(feedback: feedback, repaint: feedback.listenable)
                   : null,
               child: child,
             ),

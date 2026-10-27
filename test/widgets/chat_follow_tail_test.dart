@@ -12,13 +12,8 @@ import '../chat_message.dart';
 // Test data source: messages preloaded + counts grow via `appendOne`.
 // ---------------------------------------------------------------------------
 
-IChatMessage _msg(int i) => UserChatMessage(
-  id: i,
-  sender: 'User',
-  createdAt: DateTime(2026),
-  updatedAt: DateTime(2026),
-  content: 'content $i',
-);
+IChatMessage _msg(int i) =>
+    UserChatMessage(id: i, sender: 'User', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: 'content $i');
 
 class _GrowingDataSource extends ChatDataSource {
   _GrowingDataSource(int initialCount) {
@@ -26,12 +21,7 @@ class _GrowingDataSource extends ChatDataSource {
       for (var i = 0; i < initialCount; i++) {
         upsertMessage(_msg(i));
       }
-      seedBoundaries(
-        oldestKnownId: 0,
-        newestKnownId: initialCount - 1,
-        reachedOldest: true,
-        reachedNewest: true,
-      );
+      seedBoundaries(oldestKnownId: 0, newestKnownId: initialCount - 1, reachedOldest: true, reachedNewest: true);
       _newestId = initialCount - 1;
     }
   }
@@ -47,10 +37,7 @@ class _GrowingDataSource extends ChatDataSource {
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 Widget _scaffold({
@@ -70,10 +57,8 @@ Widget _scaffold({
           controller: controller,
           bottomPadding: bottomPadding,
           isSelfMessage: isSelfMessage,
-          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
-            height: heightForId?.call(id) ?? 60,
-            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-          ),
+          messageBuilder: (context, id, message, status, runLayout) =>
+              SizedBox(height: heightForId?.call(id) ?? 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
         ),
       ),
     ),
@@ -85,9 +70,7 @@ RenderChatScrollView _render(WidgetTester tester) =>
 
 void main() {
   group('follow tail: isAtTail listenable', () {
-    testWidgets('starts false, flips true once viewport pins newest', (
-      tester,
-    ) async {
+    testWidgets('starts false, flips true once viewport pins newest', (tester) async {
       final ds = _GrowingDataSource(20);
       final controller = ChatScrollController()..jumpTo(19);
       addTearDown(controller.dispose);
@@ -96,26 +79,20 @@ void main() {
       // Before mount.
       expect(controller.isAtTail.value, isFalse);
 
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller),
-      );
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
       await tester.pump();
 
       expect(controller.isAtTail.value, isTrue);
       expect(find.text('msg-19'), findsOneWidget);
     });
 
-    testWidgets('flips false after scrolling away from the bottom', (
-      tester,
-    ) async {
+    testWidgets('flips false after scrolling away from the bottom', (tester) async {
       final ds = _GrowingDataSource(40);
       final controller = ChatScrollController()..jumpTo(39);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller),
-      );
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
       await tester.pump();
       expect(controller.isAtTail.value, isTrue);
 
@@ -126,17 +103,13 @@ void main() {
       expect(controller.isAtTail.value, isFalse);
     });
 
-    testWidgets('flips back true after scrolling to the bottom again', (
-      tester,
-    ) async {
+    testWidgets('flips back true after scrolling to the bottom again', (tester) async {
       final ds = _GrowingDataSource(40);
       final controller = ChatScrollController()..jumpTo(39);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller),
-      );
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
       await tester.pump();
 
       // Scroll up.
@@ -151,45 +124,9 @@ void main() {
       expect(controller.isAtTail.value, isTrue);
     });
 
-    testWidgets(
-      'small scroll past band edge stays at-tail without snapping back',
-      (tester) async {
-        // Slop keeps follow-tail; must not yank the user back on a small
-        // intentional scroll-away from the exact pin.
-        final ds = _GrowingDataSource(40);
-        final controller = ChatScrollController()..jumpTo(39);
-        final inset = ValueNotifier<double>(100);
-        addTearDown(controller.dispose);
-        addTearDown(ds.dispose);
-        addTearDown(inset.dispose);
-
-        await tester.pumpWidget(
-          _scaffold(
-            dataSource: ds,
-            controller: controller,
-            bottomPadding: inset,
-          ),
-        );
-        await tester.pump();
-        expect(controller.isAtTail.value, isTrue);
-
-        controller.scrollBy(8);
-        await tester.pump();
-
-        final bandBottom =
-            tester.getBottomLeft(find.byType(ChatScrollView)).dy - inset.value;
-        expect(
-          tester.getBottomLeft(find.text('msg-39')).dy,
-          closeTo(bandBottom + 8, 0.5),
-          reason: 'must not pin-snap small scroll-away',
-        );
-        expect(controller.isAtTail.value, isTrue);
-      },
-    );
-
-    testWidgets('append while slightly past band edge still follow-pins', (
-      tester,
-    ) async {
+    testWidgets('small scroll past band edge stays at-tail without snapping back', (tester) async {
+      // Slop keeps follow-tail; must not yank the user back on a small
+      // intentional scroll-away from the exact pin.
       final ds = _GrowingDataSource(40);
       final controller = ChatScrollController()..jumpTo(39);
       final inset = ValueNotifier<double>(100);
@@ -197,9 +134,31 @@ void main() {
       addTearDown(ds.dispose);
       addTearDown(inset.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller, bottomPadding: inset),
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller, bottomPadding: inset));
+      await tester.pump();
+      expect(controller.isAtTail.value, isTrue);
+
+      controller.scrollBy(8);
+      await tester.pump();
+
+      final bandBottom = tester.getBottomLeft(find.byType(ChatScrollView)).dy - inset.value;
+      expect(
+        tester.getBottomLeft(find.text('msg-39')).dy,
+        closeTo(bandBottom + 8, 0.5),
+        reason: 'must not pin-snap small scroll-away',
       );
+      expect(controller.isAtTail.value, isTrue);
+    });
+
+    testWidgets('append while slightly past band edge still follow-pins', (tester) async {
+      final ds = _GrowingDataSource(40);
+      final controller = ChatScrollController()..jumpTo(39);
+      final inset = ValueNotifier<double>(100);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(inset.dispose);
+
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller, bottomPadding: inset));
       await tester.pump();
 
       controller.scrollBy(8);
@@ -210,26 +169,18 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      final bandBottom =
-          tester.getBottomLeft(find.byType(ChatScrollView)).dy - inset.value;
-      expect(
-        tester.getBottomLeft(find.text('msg-40')).dy,
-        closeTo(bandBottom, 0.5),
-      );
+      final bandBottom = tester.getBottomLeft(find.byType(ChatScrollView)).dy - inset.value;
+      expect(tester.getBottomLeft(find.text('msg-40')).dy, closeTo(bandBottom, 0.5));
       expect(controller.isAtTail.value, isTrue);
     });
 
-    testWidgets('scroll far past band edge does not count as at-tail', (
-      tester,
-    ) async {
+    testWidgets('scroll far past band edge does not count as at-tail', (tester) async {
       final ds = _GrowingDataSource(40);
       final controller = ChatScrollController()..jumpTo(39);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller),
-      );
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
       await tester.pump();
       expect(controller.isAtTail.value, isTrue);
 
@@ -240,17 +191,13 @@ void main() {
   });
 
   group('follow tail: auto-scroll on new message', () {
-    testWidgets('new message at the tail keeps the viewport pinned to it', (
-      tester,
-    ) async {
+    testWidgets('new message at the tail keeps the viewport pinned to it', (tester) async {
       final ds = _GrowingDataSource(20);
       final controller = ChatScrollController()..jumpTo(19);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller),
-      );
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
       await tester.pump();
       expect(find.text('msg-19'), findsOneWidget);
       expect(controller.isAtTail.value, isTrue);
@@ -273,17 +220,13 @@ void main() {
       expect(controller.isAtTail.value, isTrue);
     });
 
-    testWidgets('new message while scrolled away does not move the anchor', (
-      tester,
-    ) async {
+    testWidgets('new message while scrolled away does not move the anchor', (tester) async {
       final ds = _GrowingDataSource(40);
       final controller = ChatScrollController()..jumpTo(39);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller),
-      );
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
       await tester.pump();
 
       // Move off the tail.
@@ -307,17 +250,13 @@ void main() {
       expect(find.text('msg-40'), findsNothing);
     });
 
-    testWidgets('multiple appended messages keep pinning when at tail', (
-      tester,
-    ) async {
+    testWidgets('multiple appended messages keep pinning when at tail', (tester) async {
       final ds = _GrowingDataSource(10);
       final controller = ChatScrollController()..jumpTo(9);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller),
-      );
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
       await tester.pump();
       expect(controller.isAtTail.value, isTrue);
 
@@ -325,83 +264,65 @@ void main() {
         ds.appendOne();
         await tester.pump();
         await tester.pump();
-        expect(
-          find.text('msg-$i'),
-          findsOneWidget,
-          reason: 'msg-$i should auto-scroll into view at tail',
-        );
+        expect(find.text('msg-$i'), findsOneWidget, reason: 'msg-$i should auto-scroll into view at tail');
         expect(controller.isAtTail.value, isTrue);
       }
     });
 
-    testWidgets(
-      'same-id newest height growth at tail keeps bottom on band edge',
-      (tester) async {
-        // Edit / content change: newest id unchanged, child height grows.
-        // Without repinBottom on height drift, growth expands under bottomPad.
-        final ds = _GrowingDataSource(20);
-        final controller = ChatScrollController()..jumpTo(19);
-        final inset = ValueNotifier<double>(120);
-        final heights = ValueNotifier<Map<int, double>>({19: 60});
-        addTearDown(controller.dispose);
-        addTearDown(ds.dispose);
-        addTearDown(inset.dispose);
-        addTearDown(heights.dispose);
+    testWidgets('same-id newest height growth at tail keeps bottom on band edge', (tester) async {
+      // Edit / content change: newest id unchanged, child height grows.
+      // Without repinBottom on height drift, growth expands under bottomPad.
+      final ds = _GrowingDataSource(20);
+      final controller = ChatScrollController()..jumpTo(19);
+      final inset = ValueNotifier<double>(120);
+      final heights = ValueNotifier<Map<int, double>>({19: 60});
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(inset.dispose);
+      addTearDown(heights.dispose);
 
-        Widget build() => AnimatedBuilder(
-          animation: heights,
-          builder: (context, _) => _scaffold(
-            dataSource: ds,
-            controller: controller,
-            bottomPadding: inset,
-            heightForId: (id) => heights.value[id] ?? 60,
-          ),
-        );
+      Widget build() => AnimatedBuilder(
+        animation: heights,
+        builder: (context, _) => _scaffold(
+          dataSource: ds,
+          controller: controller,
+          bottomPadding: inset,
+          heightForId: (id) => heights.value[id] ?? 60,
+        ),
+      );
 
-        await tester.pumpWidget(build());
-        await tester.pump();
-        expect(controller.isAtTail.value, isTrue);
+      await tester.pumpWidget(build());
+      await tester.pump();
+      expect(controller.isAtTail.value, isTrue);
 
-        final bandBottomBefore =
-            tester.getBottomLeft(find.byType(ChatScrollView)).dy - inset.value;
-        expect(
-          tester.getBottomLeft(find.text('msg-19')).dy,
-          closeTo(bandBottomBefore, 0.5),
-        );
+      final bandBottomBefore = tester.getBottomLeft(find.byType(ChatScrollView)).dy - inset.value;
+      expect(tester.getBottomLeft(find.text('msg-19')).dy, closeTo(bandBottomBefore, 0.5));
 
-        heights.value = {19: 180};
-        await tester.pumpWidget(build());
-        await tester.pump();
+      heights.value = {19: 180};
+      await tester.pumpWidget(build());
+      await tester.pump();
 
-        final bandBottomAfter =
-            tester.getBottomLeft(find.byType(ChatScrollView)).dy - inset.value;
-        expect(
-          tester.getBottomLeft(find.text('msg-19')).dy,
-          closeTo(bandBottomAfter, 0.5),
-          reason:
-              'newest bottom must stay on scroll-band bottom while height '
-              'grows (expand upward, not under composer)',
-        );
-        expect(controller.isAtTail.value, isTrue);
-      },
-    );
+      final bandBottomAfter = tester.getBottomLeft(find.byType(ChatScrollView)).dy - inset.value;
+      expect(
+        tester.getBottomLeft(find.text('msg-19')).dy,
+        closeTo(bandBottomAfter, 0.5),
+        reason:
+            'newest bottom must stay on scroll-band bottom while height '
+            'grows (expand upward, not under composer)',
+      );
+      expect(controller.isAtTail.value, isTrue);
+    });
   });
 
   group('follow tail: self insert', () {
-    testWidgets('self insert while scrolled away jumps to newest', (
-      tester,
-    ) async {
+    testWidgets('self insert while scrolled away jumps to newest', (tester) async {
       final ds = _GrowingDataSource(40);
       final controller = ChatScrollController()..jumpTo(39);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
       await tester.pumpWidget(
-        _scaffold(
-          dataSource: ds,
-          controller: controller,
-          isSelfMessage: (m) => m.sender == 'me',
-        ),
+        _scaffold(dataSource: ds, controller: controller, isSelfMessage: (m) => m.sender == 'me'),
       );
       await tester.pump();
       expect(controller.isAtTail.value, isTrue);
@@ -430,9 +351,7 @@ void main() {
       expect(find.text('msg-40'), findsOneWidget);
     });
 
-    testWidgets('at-tail self insert skips animateTo (layout pin only)', (
-      tester,
-    ) async {
+    testWidgets('at-tail self insert skips animateTo (layout pin only)', (tester) async {
       final ds = _GrowingDataSource(40);
       final controller = ChatScrollController()..jumpTo(39);
       addTearDown(controller.dispose);
@@ -459,11 +378,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(
-        _render(tester).debugIsAnimating,
-        isFalse,
-        reason: 'at-tail self insert must not animateTo',
-      );
+      expect(_render(tester).debugIsAnimating, isFalse, reason: 'at-tail self insert must not animateTo');
       expect(_render(tester).debugFarAnimateActive, isFalse);
 
       await tester.pump();
@@ -471,20 +386,14 @@ void main() {
       expect(find.text('msg-40'), findsOneWidget);
     });
 
-    testWidgets('incoming insert while scrolled away does not jump', (
-      tester,
-    ) async {
+    testWidgets('incoming insert while scrolled away does not jump', (tester) async {
       final ds = _GrowingDataSource(40);
       final controller = ChatScrollController()..jumpTo(39);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
       await tester.pumpWidget(
-        _scaffold(
-          dataSource: ds,
-          controller: controller,
-          isSelfMessage: (m) => m.sender == 'me',
-        ),
+        _scaffold(dataSource: ds, controller: controller, isSelfMessage: (m) => m.sender == 'me'),
       );
       await tester.pump();
 
@@ -505,17 +414,13 @@ void main() {
   });
 
   group('follow tail: render-side counters', () {
-    testWidgets('debugChildCount stays bounded after many appends', (
-      tester,
-    ) async {
+    testWidgets('debugChildCount stays bounded after many appends', (tester) async {
       final ds = _GrowingDataSource(20);
       final controller = ChatScrollController()..jumpTo(19);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller),
-      );
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
       await tester.pump();
       final initialChildren = _render(tester).debugChildCount;
 
@@ -528,10 +433,7 @@ void main() {
       // Builds are tied to viewport + cache extent — appending shouldn't
       // inflate everything ever produced. Allow a small slack for the
       // directional-lead build-ahead.
-      expect(
-        _render(tester).debugChildCount,
-        lessThanOrEqualTo(initialChildren + 8),
-      );
+      expect(_render(tester).debugChildCount, lessThanOrEqualTo(initialChildren + 8));
       // And much less than the conversation's total size.
       expect(_render(tester).debugChildCount, lessThan(50));
     });

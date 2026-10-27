@@ -30,9 +30,7 @@ extension type const ChatSelectionAllowed._(int _value) {
   ///
   /// Bits `1 << 2` through `1 << 31` are reserved for future use.
   /// Check paint is not a bit — it is [showsCheck] (`selectable` ∩ `chrome`).
-  static const ChatSelectionAllowed full = ChatSelectionAllowed._(
-    (1 << 0) | (1 << 1),
-  );
+  static const ChatSelectionAllowed full = ChatSelectionAllowed._((1 << 0) | (1 << 1));
 
   /// Alias of [full].
   static const ChatSelectionAllowed all = full;
@@ -43,30 +41,22 @@ extension type const ChatSelectionAllowed._(int _value) {
   // --- Can be expanded up to 1 << 31 --- //
 
   /// Defined flag constants (not composite presets).
-  static const List<ChatSelectionAllowed> values = <ChatSelectionAllowed>[
-    none,
-    selectable,
-    chrome,
-  ];
+  static const List<ChatSelectionAllowed> values = <ChatSelectionAllowed>[none, selectable, chrome];
 
   /// Whether this value contains [flag].
   bool contains(ChatSelectionAllowed flag) => (_value & flag._value) != 0;
 
   /// Add [flag] to this value.
-  ChatSelectionAllowed add(ChatSelectionAllowed flag) =>
-      ChatSelectionAllowed._(_value | flag._value);
+  ChatSelectionAllowed add(ChatSelectionAllowed flag) => ChatSelectionAllowed._(_value | flag._value);
 
   /// Remove [flag] from this value.
-  ChatSelectionAllowed remove(ChatSelectionAllowed flag) =>
-      ChatSelectionAllowed._(_value & ~flag._value);
+  ChatSelectionAllowed remove(ChatSelectionAllowed flag) => ChatSelectionAllowed._(_value & ~flag._value);
 
   /// Toggle [flag] in this value.
-  ChatSelectionAllowed toggle(ChatSelectionAllowed flag) =>
-      ChatSelectionAllowed._(_value ^ flag._value);
+  ChatSelectionAllowed toggle(ChatSelectionAllowed flag) => ChatSelectionAllowed._(_value ^ flag._value);
 
   /// XOR with [other].
-  ChatSelectionAllowed operator ^(ChatSelectionAllowed other) =>
-      ChatSelectionAllowed._(_value ^ other._value);
+  ChatSelectionAllowed operator ^(ChatSelectionAllowed other) => ChatSelectionAllowed._(_value ^ other._value);
 
   /// No flags set — excluded from selection and chrome.
   bool get isNone => _value == 0;

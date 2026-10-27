@@ -17,22 +17,12 @@ final class ChatMarkdownAutoscrollOptions {
   ///
   /// Null [maxVelocity] / [edgeZone] keep the policy defaults from
   /// [ChatMarkdownAutoscroll.config].
-  const ChatMarkdownAutoscrollOptions({
-    this.enabled = true,
-    this.maxVelocity,
-    this.edgeZone,
-  }) : assert(
-         maxVelocity == null || maxVelocity > 0,
-         'maxVelocity must be positive when set',
-       ),
-       assert(
-         edgeZone == null || edgeZone > 0,
-         'edgeZone must be positive when set',
-       );
+  const ChatMarkdownAutoscrollOptions({this.enabled = true, this.maxVelocity, this.edgeZone})
+    : assert(maxVelocity == null || maxVelocity > 0, 'maxVelocity must be positive when set'),
+      assert(edgeZone == null || edgeZone > 0, 'edgeZone must be positive when set');
 
   /// Disables edge autoscroll entirely.
-  static const ChatMarkdownAutoscrollOptions disabled =
-      ChatMarkdownAutoscrollOptions(enabled: false);
+  static const ChatMarkdownAutoscrollOptions disabled = ChatMarkdownAutoscrollOptions(enabled: false);
 
   /// When false, the markdown scope does not edge-scroll.
   final bool enabled;
@@ -84,8 +74,7 @@ final class ChatMarkdownAutoscroll implements MarkdownAutoscrollTarget {
   /// a foreign writer. Prefer [ChatMarkdownAutoscrollOptions] on
   /// [ChatMarkdownBody.autoscroll] over calling this directly.
   static MarkdownSelectionAutoscrollConfig config({
-    ChatMarkdownAutoscrollOptions options =
-        const ChatMarkdownAutoscrollOptions(),
+    ChatMarkdownAutoscrollOptions options = const ChatMarkdownAutoscrollOptions(),
     ChatSelectionPolicy? policy,
     double? displayRefreshHz,
   }) {
@@ -94,9 +83,7 @@ final class ChatMarkdownAutoscroll implements MarkdownAutoscrollTarget {
     }
     final effectivePolicy = policy ?? ChatSelectionPolicy.forPlatform();
     final hz = displayRefreshHz ?? readDisplayRefreshHz();
-    final velocity =
-        options.maxVelocity ??
-        resolveMaxVelocity(effectivePolicy, displayRefreshHz: hz);
+    final velocity = options.maxVelocity ?? resolveMaxVelocity(effectivePolicy, displayRefreshHz: hz);
     final edge = options.edgeZone ?? resolveEdgeZone(effectivePolicy);
     assert(velocity > 0, 'maxVelocity must be positive');
     assert(edge > 0, 'edgeZone must be positive');
@@ -112,24 +99,17 @@ final class ChatMarkdownAutoscroll implements MarkdownAutoscrollTarget {
   /// Soft arm band for [policy].
   @visibleForTesting
   static double resolveEdgeZone(ChatSelectionPolicy policy) => switch (policy) {
-    ChatSelectionPolicy$Mobile() =>
-      ChatSelectionMetrics.textAutoScrollEdgeZoneMobile,
-    ChatSelectionPolicy$Desktop() =>
-      ChatSelectionMetrics.textAutoScrollEdgeZoneDesktop,
+    ChatSelectionPolicy$Mobile() => ChatSelectionMetrics.textAutoScrollEdgeZoneMobile,
+    ChatSelectionPolicy$Desktop() => ChatSelectionMetrics.textAutoScrollEdgeZoneDesktop,
   };
 
   /// Absolute max velocity (logical px/s) for [policy].
   @visibleForTesting
-  static double resolveMaxVelocity(
-    ChatSelectionPolicy policy, {
-    required double displayRefreshHz,
-  }) {
+  static double resolveMaxVelocity(ChatSelectionPolicy policy, {required double displayRefreshHz}) {
     assert(displayRefreshHz > 0, 'displayRefreshHz must be positive');
     return switch (policy) {
-      ChatSelectionPolicy$Mobile() =>
-        ChatSelectionMetrics.textAutoScrollPixelsPerFrame * displayRefreshHz,
-      ChatSelectionPolicy$Desktop() =>
-        ChatSelectionMetrics.textAutoScrollDesktopMaxVelocity,
+      ChatSelectionPolicy$Mobile() => ChatSelectionMetrics.textAutoScrollPixelsPerFrame * displayRefreshHz,
+      ChatSelectionPolicy$Desktop() => ChatSelectionMetrics.textAutoScrollDesktopMaxVelocity,
     };
   }
 
@@ -153,11 +133,7 @@ final class ChatMarkdownAutoscroll implements MarkdownAutoscrollTarget {
   /// Walks ancestors of [context] for the enclosing chat viewport.
   @visibleForTesting
   static RenderChatScrollView? findViewport(BuildContext context) {
-    for (
-      var node = context.findRenderObject();
-      node != null;
-      node = node.parent
-    ) {
+    for (var node = context.findRenderObject(); node != null; node = node.parent) {
       if (node is RenderChatScrollView) return node;
     }
     return null;
@@ -167,10 +143,7 @@ final class ChatMarkdownAutoscroll implements MarkdownAutoscrollTarget {
   MarkdownAutoscrollViewport? get viewport {
     final bounds = viewportRender.markdownAutoscrollGlobalBounds;
     if (bounds == null) return null;
-    return MarkdownAutoscrollViewport(
-      globalBounds: bounds,
-      padding: viewportRender.markdownAutoscrollPadding,
-    );
+    return MarkdownAutoscrollViewport(globalBounds: bounds, padding: viewportRender.markdownAutoscrollPadding);
   }
 
   @override
@@ -181,6 +154,5 @@ final class ChatMarkdownAutoscroll implements MarkdownAutoscrollTarget {
   }
 
   @override
-  double applyScrollDelta(double delta) =>
-      viewportRender.applyMarkdownAutoscrollDelta(delta);
+  double applyScrollDelta(double delta) => viewportRender.applyMarkdownAutoscrollDelta(delta);
 }

@@ -37,12 +37,8 @@ final class ChatDayHeaderMetrics {
 final class ChatFloatingHeaderEffect {
   /// A header displaced by [offset] from its rest line and painted at
   /// [opacity]. [hitTestable] defaults to `opacity > 0`.
-  const ChatFloatingHeaderEffect({
-    this.offset = 0.0,
-    this.opacity = 1.0,
-    this.holdsActivity = false,
-    bool? hitTestable,
-  }) : hitTestable = hitTestable ?? opacity > 0.0;
+  const ChatFloatingHeaderEffect({this.offset = 0.0, this.opacity = 1.0, this.holdsActivity = false, bool? hitTestable})
+    : hitTestable = hitTestable ?? opacity > 0.0;
 
   /// Displacement from the rest line; negative pushes the header up.
   final double offset;
@@ -121,25 +117,16 @@ final class ChatFadingDayHeader extends ChatDayHeaderDelegate {
   @override
   ChatFloatingHeaderEffect resolveFloatingHeader(ChatDayHeaderMetrics metrics) {
     final lead = metrics.leadingSeparatorTop;
-    final held =
-        hidesWhenIdle &&
-        lead != null &&
-        lead < metrics.restTop + metrics.extent;
-    return ChatFloatingHeaderEffect(
-      opacity: hidesWhenIdle && !held ? metrics.activity : 1.0,
-      holdsActivity: held,
-    );
+    final held = hidesWhenIdle && lead != null && lead < metrics.restTop + metrics.extent;
+    return ChatFloatingHeaderEffect(opacity: hidesWhenIdle && !held ? metrics.activity : 1.0, holdsActivity: held);
   }
 
   @override
-  ChatRowChromeDelegate get inlineSeparator =>
-      ChatRowChromeDelegate.fadeUnderHeader(band: fadeBand);
+  ChatRowChromeDelegate get inlineSeparator => ChatRowChromeDelegate.fadeUnderHeader(band: fadeBand);
 
   @override
   bool operator ==(Object other) =>
-      other is ChatFadingDayHeader &&
-      other.fadeBand == fadeBand &&
-      other.hidesWhenIdle == hidesWhenIdle;
+      other is ChatFadingDayHeader && other.fadeBand == fadeBand && other.hidesWhenIdle == hidesWhenIdle;
 
   @override
   int get hashCode => Object.hash(ChatFadingDayHeader, fadeBand, hidesWhenIdle);
@@ -171,9 +158,7 @@ final class ChatPushingDayHeader extends ChatDayHeaderDelegate {
   ChatFloatingHeaderEffect resolveFloatingHeader(ChatDayHeaderMetrics metrics) {
     final lead = metrics.leadingSeparatorTop;
     if (lead == null) {
-      return ChatFloatingHeaderEffect(
-        opacity: hidesWhenIdle ? metrics.activity : 1.0,
-      );
+      return ChatFloatingHeaderEffect(opacity: hidesWhenIdle ? metrics.activity : 1.0);
     }
     if (lead <= metrics.restTop) {
       return ChatFloatingHeaderEffect(holdsActivity: hidesWhenIdle);
@@ -186,12 +171,10 @@ final class ChatPushingDayHeader extends ChatDayHeaderDelegate {
   }
 
   @override
-  ChatRowChromeDelegate get inlineSeparator =>
-      const ChatRowChromeDelegate.hideUnderHeader();
+  ChatRowChromeDelegate get inlineSeparator => const ChatRowChromeDelegate.hideUnderHeader();
 
   @override
-  bool operator ==(Object other) =>
-      other is ChatPushingDayHeader && other.hidesWhenIdle == hidesWhenIdle;
+  bool operator ==(Object other) => other is ChatPushingDayHeader && other.hidesWhenIdle == hidesWhenIdle;
 
   @override
   int get hashCode => Object.hash(ChatPushingDayHeader, hidesWhenIdle);

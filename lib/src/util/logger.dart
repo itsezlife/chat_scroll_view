@@ -5,12 +5,7 @@ import 'package:meta/meta.dart';
 
 /// Signature of [Log.fine], [Log.config] and [Log.info].
 @internal
-typedef FieldsLogger =
-    void Function(
-      LogCategory category,
-      Object? message, [
-      Map<String, Object?> fields,
-    ]);
+typedef FieldsLogger = void Function(LogCategory category, Object? message, [Map<String, Object?> fields]);
 
 /// Package log levels, each gated by its [LogCategory].
 @internal
@@ -25,59 +20,39 @@ abstract final class Log {
   static final FieldsLogger info = _logFields(800);
 
   /// Potential problems
-  static final void Function(
-    LogCategory category,
-    Object exception, [
-    StackTrace? stackTrace,
-    String? reason,
-  ])
-  warning = _logAll(900);
+  static final void Function(LogCategory category, Object exception, [StackTrace? stackTrace, String? reason]) warning =
+      _logAll(900);
 
   /// Serious failures
-  static final void Function(
-    LogCategory category,
-    Object error, [
-    StackTrace stackTrace,
-    String? reason,
-  ])
-  severe = _logAll(1000);
+  static final void Function(LogCategory category, Object error, [StackTrace stackTrace, String? reason]) severe =
+      _logAll(1000);
 }
 
 FieldsLogger _logFields(int level) => (category, message, [fields = const {}]) {
   // coverage:ignore-start
   if (!category.enabled) return;
-  final body = fields.entries
-      .where((e) => e.value != null)
-      .map((e) => '${e.key}=${e.value}')
-      .join(' ');
+  final body = fields.entries.where((e) => e.value != null).map((e) => '${e.key}=${e.value}').join(' ');
   developer.log(
-    body.isEmpty
-        ? '[${category.name}] $message'
-        : '[${category.name}] $message | $body',
+    body.isEmpty ? '[${category.name}] $message' : '[${category.name}] $message | $body',
     level: level,
     name: 'chat_scroll_view',
   );
   // coverage:ignore-end
 };
 
-void Function(
-  LogCategory category,
-  Object? message, [
-  StackTrace? stackTrace,
-  String? reason,
-])
-_logAll(int level) => (category, message, [stackTrace, reason]) {
-  // coverage:ignore-start
-  if (!category.enabled) return;
-  developer.log(
-    '[${category.name}] ${reason ?? message}',
-    level: level,
-    name: 'chat_scroll_view',
-    error: message is Exception || message is Error ? message : null,
-    stackTrace: stackTrace,
-  );
-  // coverage:ignore-end
-};
+void Function(LogCategory category, Object? message, [StackTrace? stackTrace, String? reason]) _logAll(int level) =>
+    (category, message, [stackTrace, reason]) {
+      // coverage:ignore-start
+      if (!category.enabled) return;
+      developer.log(
+        '[${category.name}] ${reason ?? message}',
+        level: level,
+        name: 'chat_scroll_view',
+        error: message is Exception || message is Error ? message : null,
+        stackTrace: stackTrace,
+      );
+      // coverage:ignore-end
+    };
 
 /// Shared format helpers for logger field values.
 @internal
@@ -87,8 +62,7 @@ abstract final class LogFormat {
 
   /// Higher-precision string for 0..1 ratios and fractional ids in scrollbar
   /// diagnostics where one-decimal rounding hides frame-by-frame drift.
-  static String ratio(double v, {int decimals = 3}) =>
-      v.toStringAsFixed(decimals);
+  static String ratio(double v, {int decimals = 3}) => v.toStringAsFixed(decimals);
 
   /// Comma-separated id list, truncated with a count when [max] is exceeded.
   static String ids(Iterable<int> ids, {int max = 12}) {

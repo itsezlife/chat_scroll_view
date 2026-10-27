@@ -15,55 +15,34 @@ const _glyph = ContentKey.unicode('\u{1F44D}');
 
 /// [count] items on one line; all custom, or the first a unicode glyph.
 EmojiOnly _line(int count, {required bool allCustom}) => EmojiOnly([
-  for (var i = 0; i < count; i++)
-    EmojiOnlyItem(!allCustom && i == 0 ? _glyph : ContentKey.document('d$i')),
+  for (var i = 0; i < count; i++) EmojiOnlyItem(!allCustom && i == 0 ? _glyph : ContentKey.document('d$i')),
 ]);
 
 /// One item per line, [lines] lines.
 EmojiOnly _column(int lines) => EmojiOnly([
-  for (var i = 0; i < lines; i++)
-    EmojiOnlyItem(ContentKey.document('d$i'), lineBreaksBefore: i == 0 ? 0 : 1),
+  for (var i = 0; i < lines; i++) EmojiOnlyItem(ContentKey.document('d$i'), lineBreaksBefore: i == 0 ? 0 : 1),
 ]);
 
 void main() {
   group('forPlatform', () {
     test('android and fuchsia are the Android family, iOS is iOS', () {
       expect(
-        ChatEmojiPolicy.forPlatform(
-          platform: TargetPlatform.android,
-          isWeb: false,
-        ),
+        ChatEmojiPolicy.forPlatform(platform: TargetPlatform.android, isWeb: false),
         isA<ChatEmojiPolicy$Android>(),
       );
       expect(
-        ChatEmojiPolicy.forPlatform(
-          platform: TargetPlatform.fuchsia,
-          isWeb: false,
-        ),
+        ChatEmojiPolicy.forPlatform(platform: TargetPlatform.fuchsia, isWeb: false),
         isA<ChatEmojiPolicy$Android>(),
       );
-      expect(
-        ChatEmojiPolicy.forPlatform(platform: TargetPlatform.iOS, isWeb: false),
-        isA<ChatEmojiPolicy$Ios>(),
-      );
+      expect(ChatEmojiPolicy.forPlatform(platform: TargetPlatform.iOS, isWeb: false), isA<ChatEmojiPolicy$Ios>());
     });
 
     test('macOS, Windows, Linux and the web are the desktop family', () {
-      for (final platform in [
-        TargetPlatform.macOS,
-        TargetPlatform.windows,
-        TargetPlatform.linux,
-      ]) {
-        expect(
-          ChatEmojiPolicy.forPlatform(platform: platform, isWeb: false),
-          isA<ChatEmojiPolicy$Desktop>(),
-        );
+      for (final platform in [TargetPlatform.macOS, TargetPlatform.windows, TargetPlatform.linux]) {
+        expect(ChatEmojiPolicy.forPlatform(platform: platform, isWeb: false), isA<ChatEmojiPolicy$Desktop>());
       }
       expect(
-        ChatEmojiPolicy.forPlatform(
-          platform: TargetPlatform.android,
-          isWeb: true,
-        ),
+        ChatEmojiPolicy.forPlatform(platform: TargetPlatform.android, isWeb: true),
         isA<ChatEmojiPolicy$Desktop>(),
         reason: 'web follows desktop',
       );
@@ -81,10 +60,7 @@ void main() {
     });
 
     test('an item box is the font plus 4 dp', () {
-      expect(
-        policy.itemBoxFor(_line(3, allCustom: false)),
-        closeTo(37.6, 1e-9),
-      );
+      expect(policy.itemBoxFor(_line(3, allCustom: false)), closeTo(37.6, 1e-9));
     });
 
     test('the sticker is 0.5 x 0.625 of the short side, with no inset', () {
@@ -104,14 +80,8 @@ void main() {
     });
 
     test('the header is above the text and beside the sticker', () {
-      expect(
-        policy.headerPlacementFor(ChatEmojiLayoutKind.text),
-        ChatEmojiHeaderPlacement.above,
-      );
-      expect(
-        policy.headerPlacementFor(ChatEmojiLayoutKind.sticker),
-        ChatEmojiHeaderPlacement.beside,
-      );
+      expect(policy.headerPlacementFor(ChatEmojiLayoutKind.text), ChatEmojiHeaderPlacement.above);
+      expect(policy.headerPlacementFor(ChatEmojiLayoutKind.sticker), ChatEmojiHeaderPlacement.beside);
     });
 
     test('nothing mirrors in a right-to-left chat', () {
@@ -120,10 +90,7 @@ void main() {
     });
 
     test('a host overrides the tables and the wrap share', () {
-      const custom = ChatEmojiPolicy.android(
-        sizes: ChatEmojiSizes(stickerZoom: 0.5),
-        headerWrapFraction: 0.5,
-      );
+      const custom = ChatEmojiPolicy.android(sizes: ChatEmojiSizes(stickerZoom: 0.5), headerWrapFraction: 0.5);
 
       expect(custom.stickerExtentFor(const Size(360, 640)), 90);
       expect(custom.wrapLimitUnderHeader(400).of(1000), closeTo(200, 1e-9));
@@ -133,31 +100,12 @@ void main() {
   group('iOS', () {
     const policy = ChatEmojiPolicy.ios();
 
-    test(
-      'font is 94 pt scaled and floored by the longest line or line count',
-      () {
-        const expected = <int, double>{
-          1: 94,
-          2: 78,
-          3: 64,
-          4: 49,
-          5: 43,
-          6: 35,
-          7: 30,
-          8: 25,
-          9: 22,
-          10: 19,
-          30: 19,
-        };
-        for (final MapEntry(key: count, value: font) in expected.entries) {
-          expect(
-            policy.fontSizeFor(_line(count, allCustom: false)),
-            font,
-            reason: '$count in a line',
-          );
-        }
-      },
-    );
+    test('font is 94 pt scaled and floored by the longest line or line count', () {
+      const expected = <int, double>{1: 94, 2: 78, 3: 64, 4: 49, 5: 43, 6: 35, 7: 30, 8: 25, 9: 22, 10: 19, 30: 19};
+      for (final MapEntry(key: count, value: font) in expected.entries) {
+        expect(policy.fontSizeFor(_line(count, allCustom: false)), font, reason: '$count in a line');
+      }
+    });
 
     test('custom emoji take the same table as glyphs', () {
       expect(policy.fontSizeFor(_line(3, allCustom: true)), 64);
@@ -166,8 +114,7 @@ void main() {
     test('the longer of the longest line and the line count decides', () {
       expect(policy.fontSizeFor(_column(5)), 43);
       final wide = EmojiOnly([
-        for (var i = 0; i < 2; i++)
-          EmojiOnlyItem(_glyph, lineBreaksBefore: i == 0 ? 0 : 1),
+        for (var i = 0; i < 2; i++) EmojiOnlyItem(_glyph, lineBreaksBefore: i == 0 ? 0 : 1),
         const EmojiOnlyItem(_glyph),
         const EmojiOnlyItem(_glyph),
       ]);
@@ -191,14 +138,8 @@ void main() {
     });
 
     test('the header is beside both layouts, and nothing mirrors', () {
-      expect(
-        policy.headerPlacementFor(ChatEmojiLayoutKind.text),
-        ChatEmojiHeaderPlacement.beside,
-      );
-      expect(
-        policy.headerPlacementFor(ChatEmojiLayoutKind.sticker),
-        ChatEmojiHeaderPlacement.beside,
-      );
+      expect(policy.headerPlacementFor(ChatEmojiLayoutKind.text), ChatEmojiHeaderPlacement.beside);
+      expect(policy.headerPlacementFor(ChatEmojiLayoutKind.sticker), ChatEmojiHeaderPlacement.beside);
       expect(policy.mirrorsInRtl, isFalse);
     });
   });
@@ -206,25 +147,18 @@ void main() {
   group('Desktop', () {
     const policy = ChatEmojiPolicy.desktop();
 
-    test(
-      'a unicode or mixed message of up to 3 is 38 px images, 2 px apart',
-      () {
-        for (var count = 1; count <= 3; count++) {
-          final emoji = _line(count, allCustom: false);
-          expect(policy.itemBoxFor(emoji), closeTo(38, 1e-9), reason: '$count');
-          expect(policy.itemSkipFor(emoji), 2);
-        }
-      },
-    );
+    test('a unicode or mixed message of up to 3 is 38 px images, 2 px apart', () {
+      for (var count = 1; count <= 3; count++) {
+        final emoji = _line(count, allCustom: false);
+        expect(policy.itemBoxFor(emoji), closeTo(38, 1e-9), reason: '$count');
+        expect(policy.itemSkipFor(emoji), 2);
+      }
+    });
 
     test('more than 3 regular emoji are not emoji-only', () {
       expect(policy.admits(_line(3, allCustom: false)), isTrue);
       expect(policy.admits(_line(4, allCustom: false)), isFalse);
-      expect(
-        policy.admits(_column(4)),
-        isTrue,
-        reason: 'custom emoji lines are not capped',
-      );
+      expect(policy.admits(_column(4)), isTrue, reason: 'custom emoji lines are not capped');
     });
 
     test('custom emoji lines scale 112, 78, 58 by their larger dimension', () {
@@ -246,14 +180,8 @@ void main() {
 
     test('a header does not narrow the text, and sits beside when it fits', () {
       expect(policy.wrapLimitUnderHeader(900).of(500), 500);
-      expect(
-        policy.headerPlacementFor(ChatEmojiLayoutKind.text),
-        ChatEmojiHeaderPlacement.besideWhenFits,
-      );
-      expect(
-        policy.headerPlacementFor(ChatEmojiLayoutKind.sticker),
-        ChatEmojiHeaderPlacement.besideWhenFits,
-      );
+      expect(policy.headerPlacementFor(ChatEmojiLayoutKind.text), ChatEmojiHeaderPlacement.besideWhenFits);
+      expect(policy.headerPlacementFor(ChatEmojiLayoutKind.sticker), ChatEmojiHeaderPlacement.besideWhenFits);
     });
 
     test('everything mirrors in a right-to-left chat', () {
@@ -269,14 +197,8 @@ void main() {
 
     test('the default is the reference client\'s 3', () {
       expect(const ChatEmojiPolicy.desktop(), const ChatEmojiPolicy.desktop());
-      expect(
-        const ChatEmojiPolicy.desktop().admits(_line(3, allCustom: false)),
-        isTrue,
-      );
-      expect(
-        const ChatEmojiPolicy.desktop().admits(_line(4, allCustom: false)),
-        isFalse,
-      );
+      expect(const ChatEmojiPolicy.desktop().admits(_line(3, allCustom: false)), isTrue);
+      expect(const ChatEmojiPolicy.desktop().admits(_line(4, allCustom: false)), isFalse);
     });
 
     for (final limit in [1, 2, 3, 5, 10]) {
@@ -288,16 +210,13 @@ void main() {
       });
     }
 
-    test(
-      'a message with a custom emoji among regular ones counts them all',
-      () {
-        // `_line(n, allCustom: false)` is one unicode glyph and n - 1 custom.
-        const policy = ChatEmojiPolicy.desktop(regularLimit: 2);
+    test('a message with a custom emoji among regular ones counts them all', () {
+      // `_line(n, allCustom: false)` is one unicode glyph and n - 1 custom.
+      const policy = ChatEmojiPolicy.desktop(regularLimit: 2);
 
-        expect(policy.admits(_line(2, allCustom: false)), isTrue);
-        expect(policy.admits(_line(3, allCustom: false)), isFalse);
-      },
-    );
+      expect(policy.admits(_line(2, allCustom: false)), isTrue);
+      expect(policy.admits(_line(3, allCustom: false)), isFalse);
+    });
 
     test('custom emoji lines are not capped, whatever the cap', () {
       const policy = ChatEmojiPolicy.desktop(regularLimit: 1);
@@ -314,14 +233,8 @@ void main() {
     });
 
     test('policies of different caps are different values', () {
-      expect(
-        const ChatEmojiPolicy.desktop(regularLimit: 5),
-        isNot(const ChatEmojiPolicy.desktop()),
-      );
-      expect(
-        const ChatEmojiPolicy.desktop(regularLimit: 5),
-        const ChatEmojiPolicy.desktop(regularLimit: 5),
-      );
+      expect(const ChatEmojiPolicy.desktop(regularLimit: 5), isNot(const ChatEmojiPolicy.desktop()));
+      expect(const ChatEmojiPolicy.desktop(regularLimit: 5), const ChatEmojiPolicy.desktop(regularLimit: 5));
       expect(
         const ChatEmojiPolicy.desktop(regularLimit: 5).hashCode,
         const ChatEmojiPolicy.desktop(regularLimit: 5).hashCode,
@@ -329,10 +242,7 @@ void main() {
     });
 
     test('a cap below 1 is refused', () {
-      expect(
-        () => ChatEmojiPolicy.desktop(regularLimit: 0),
-        throwsA(isA<AssertionError>()),
-      );
+      expect(() => ChatEmojiPolicy.desktop(regularLimit: 0), throwsA(isA<AssertionError>()));
     });
 
     test('forPlatform hands the cap to the desktop family and web only', () {
@@ -343,11 +253,7 @@ void main() {
         (TargetPlatform.android, true),
       ]) {
         expect(
-          ChatEmojiPolicy.forPlatform(
-            platform: platform,
-            isWeb: isWeb,
-            desktopRegularLimit: 6,
-          ),
+          ChatEmojiPolicy.forPlatform(platform: platform, isWeb: isWeb, desktopRegularLimit: 6),
           const ChatEmojiPolicy.desktop(regularLimit: 6),
           reason: '$platform web $isWeb',
         );
@@ -356,11 +262,7 @@ void main() {
 
     test('Android and iOS have no cap and ignore the one given', () {
       for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
-        final policy = ChatEmojiPolicy.forPlatform(
-          platform: platform,
-          isWeb: false,
-          desktopRegularLimit: 1,
-        );
+        final policy = ChatEmojiPolicy.forPlatform(platform: platform, isWeb: false, desktopRegularLimit: 1);
 
         expect(policy.admits(_line(12, allCustom: false)), isTrue);
         expect(policy.admits(_line(40, allCustom: false)), isTrue);
@@ -384,27 +286,15 @@ void main() {
     test('6 and 7 custom emoji and 8 and more take their named values', () {
       const policy = ChatEmojiPolicy.desktop();
 
-      expect(
-        policy.itemBoxFor(_line(6, allCustom: true)),
-        ChatEmojiPolicy$Desktop.unverifiedLargeCustomBox,
-      );
-      expect(
-        policy.itemBoxFor(_line(8, allCustom: true)),
-        ChatEmojiPolicy$Desktop.unverifiedNormalCustomBox,
-      );
+      expect(policy.itemBoxFor(_line(6, allCustom: true)), ChatEmojiPolicy$Desktop.unverifiedLargeCustomBox);
+      expect(policy.itemBoxFor(_line(8, allCustom: true)), ChatEmojiPolicy$Desktop.unverifiedNormalCustomBox);
     });
   });
 
   group('the wrap limit', () {
-    test(
-      'an infinite row stays infinite, so intrinsic widths are the items',
-      () {
-        expect(
-          const ChatEmojiWrapLimit(cap: 100, reduction: 10).of(double.infinity),
-          double.infinity,
-        );
-      },
-    );
+    test('an infinite row stays infinite, so intrinsic widths are the items', () {
+      expect(const ChatEmojiWrapLimit(cap: 100, reduction: 10).of(double.infinity), double.infinity);
+    });
 
     test('the cap and the reduction both apply', () {
       const limit = ChatEmojiWrapLimit(cap: 100, reduction: 10);

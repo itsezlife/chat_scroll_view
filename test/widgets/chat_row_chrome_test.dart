@@ -1,6 +1,5 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart'
-    show ChatMessageParentData;
+import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart' show ChatMessageParentData;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,24 +11,13 @@ import '../chat_message.dart';
 // ---------------------------------------------------------------------------
 
 /// The row chrome inputs a viewport publishes into [ChatMessageParentData].
-typedef _Frame = ({
-  double paintTop,
-  ChatFloatingHeaderZone header,
-  double activity,
-});
+typedef _Frame = ({double paintTop, ChatFloatingHeaderZone header, double activity});
 
 /// A header whose painted bottom sits [bottom] px below the row's top.
-_Frame _headerBottomAt(double bottom) => (
-  paintTop: 0,
-  header: ChatFloatingHeaderZone(restTop: 0, extent: bottom),
-  activity: 1,
-);
+_Frame _headerBottomAt(double bottom) =>
+    (paintTop: 0, header: ChatFloatingHeaderZone(restTop: 0, extent: bottom), activity: 1);
 
-const _Frame _noHeader = (
-  paintTop: 0,
-  header: ChatFloatingHeaderZone.none,
-  activity: 1,
-);
+const _Frame _noHeader = (paintTop: 0, header: ChatFloatingHeaderZone.none, activity: 1);
 
 /// Stands in for `RenderChatScrollView`: gives its child the viewport's
 /// [ChatMessageParentData] and publishes [frame] into it, the way the
@@ -40,14 +28,10 @@ class _ViewportRow extends SingleChildRenderObjectWidget {
   final _Frame frame;
 
   @override
-  _RenderViewportRow createRenderObject(BuildContext context) =>
-      _RenderViewportRow(frame);
+  _RenderViewportRow createRenderObject(BuildContext context) => _RenderViewportRow(frame);
 
   @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderViewportRow renderObject,
-  ) {
+  void updateRenderObject(BuildContext context, _RenderViewportRow renderObject) {
     renderObject.frame = frame;
   }
 }
@@ -94,20 +78,11 @@ Widget _host(Widget row, {_Frame? frame}) => Directionality(
 
 Widget _box(String label, double height, {VoidCallback? onTap}) => SizedBox(
   height: height,
-  child: GestureDetector(
-    behavior: HitTestBehavior.opaque,
-    onTap: onTap,
-    child: Text(label),
-  ),
+  child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: onTap, child: Text(label)),
 );
 
 /// Date (24, fades under the header) → marker (40, opaque) → body (60).
-Widget _row({
-  _Frame? frame,
-  VoidCallback? onDateTap,
-  VoidCallback? onMarkerTap,
-  VoidCallback? onBodyTap,
-}) => _host(
+Widget _row({_Frame? frame, VoidCallback? onDateTap, VoidCallback? onMarkerTap, VoidCallback? onBodyTap}) => _host(
   ChatRowChrome(
     chrome: <ChatRowChromeItem>[
       ChatRowChromeItem(
@@ -123,14 +98,11 @@ Widget _row({
 
 final Finder _rowChrome = find.byWidgetPredicate((w) => w is ChatRowChrome);
 
-RenderChatRowChrome _rowBox(WidgetTester tester) =>
-    tester.renderObject<RenderChatRowChrome>(_rowChrome);
+RenderChatRowChrome _rowBox(WidgetTester tester) => tester.renderObject<RenderChatRowChrome>(_rowChrome);
 
-double _bodyTop(WidgetTester tester) =>
-    (_rowBox(tester).parentData! as ChatMessageParentData).messageBodyTop;
+double _bodyTop(WidgetTester tester) => (_rowBox(tester).parentData! as ChatMessageParentData).messageBodyTop;
 
-Iterable<OpacityLayer> _opacityLayers(WidgetTester tester) =>
-    tester.layers.whereType<OpacityLayer>();
+Iterable<OpacityLayer> _opacityLayers(WidgetTester tester) => tester.layers.whereType<OpacityLayer>();
 
 /// Host-defined delegate: records what it is asked and paints at activity.
 final class _ActivityChrome implements ChatRowChromeDelegate {
@@ -148,19 +120,11 @@ final class _ActivityChrome implements ChatRowChromeDelegate {
 class _LoadedSource extends ChatDataSource {
   _LoadedSource(List<IChatMessage> messages) {
     upsertMessages(messages);
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: messages.length - 1,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: messages.length - 1, reachedOldest: true, reachedNewest: true);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 // ---------------------------------------------------------------------------
@@ -178,41 +142,26 @@ void main() {
       expect(_rowBox(tester).size, const Size(300, 124));
     });
 
-    testWidgets('each child sits under its own repaint boundary', (
-      tester,
-    ) async {
+    testWidgets('each child sits under its own repaint boundary', (tester) async {
       await tester.pumpWidget(_row());
 
       for (final label in <String>['date', 'marker', 'body']) {
-        final boundary = find.ancestor(
-          of: find.text(label),
-          matching: find.byType(RepaintBoundary),
-        );
-        final rowDescendant = find.descendant(
-          of: _rowChrome,
-          matching: boundary,
-        );
+        final boundary = find.ancestor(of: find.text(label), matching: find.byType(RepaintBoundary));
+        final rowDescendant = find.descendant(of: _rowChrome, matching: boundary);
         expect(rowDescendant, findsOneWidget, reason: label);
       }
     });
 
-    testWidgets('writes the summed chrome height as the viewport body top', (
-      tester,
-    ) async {
+    testWidgets('writes the summed chrome height as the viewport body top', (tester) async {
       await tester.pumpWidget(_row(frame: _noHeader));
 
       expect(_bodyTop(tester), 64);
     });
 
-    testWidgets('no chrome: the body sits at the top and body top is zero', (
-      tester,
-    ) async {
+    testWidgets('no chrome: the body sits at the top and body top is zero', (tester) async {
       await tester.pumpWidget(
         _host(
-          ChatRowChrome(
-            chrome: const <ChatRowChromeItem>[],
-            body: _box('body', 60),
-          ),
+          ChatRowChrome(chrome: const <ChatRowChromeItem>[], body: _box('body', 60)),
           frame: _noHeader,
         ),
       );
@@ -230,11 +179,7 @@ void main() {
       final layers = _opacityLayers(tester).toList();
       expect(layers, hasLength(1), reason: 'the opaque marker has no layer');
       expect(layers.single.alpha, 128);
-      expect(
-        layers.single.offset,
-        Offset.zero,
-        reason: 'the fading layer is the date at the top of the row',
-      );
+      expect(layers.single.offset, Offset.zero, reason: 'the fading layer is the date at the top of the row');
     });
 
     testWidgets('an item resolved hidden neither paints nor takes input; '
@@ -264,9 +209,7 @@ void main() {
 
     testWidgets('a partially visible item takes input', (tester) async {
       var dateTaps = 0;
-      await tester.pumpWidget(
-        _row(frame: _headerBottomAt(10), onDateTap: () => dateTaps++),
-      );
+      await tester.pumpWidget(_row(frame: _headerBottomAt(10), onDateTap: () => dateTaps++));
 
       await tester.tapAt(const Offset(10, 12));
 
@@ -282,10 +225,7 @@ void main() {
           ChatRowChrome(
             chrome: <ChatRowChromeItem>[
               ChatRowChromeItem(child: _box('top', 24)),
-              ChatRowChromeItem(
-                delegate: _ActivityChrome(seen),
-                child: _box('custom', 16),
-              ),
+              ChatRowChromeItem(delegate: _ActivityChrome(seen), child: _box('custom', 16)),
             ],
             body: _box('body', 60),
           ),
@@ -309,10 +249,7 @@ void main() {
           ChatRowChrome(
             chrome: <ChatRowChromeItem>[
               ChatRowChromeItem(child: _box('top', 24)),
-              ChatRowChromeItem(
-                delegate: _ActivityChrome(seen),
-                child: _box('custom', 16),
-              ),
+              ChatRowChromeItem(delegate: _ActivityChrome(seen), child: _box('custom', 16)),
             ],
             body: _box('body', 60),
           ),
@@ -324,14 +261,10 @@ void main() {
       expect(seen.last.activity, 1);
     });
 
-    testWidgets('swapping a delegate takes effect without re-inflating', (
-      tester,
-    ) async {
+    testWidgets('swapping a delegate takes effect without re-inflating', (tester) async {
       Widget build(ChatRowChromeDelegate delegate) => _host(
         ChatRowChrome(
-          chrome: <ChatRowChromeItem>[
-            ChatRowChromeItem(delegate: delegate, child: _box('chrome', 24)),
-          ],
+          chrome: <ChatRowChromeItem>[ChatRowChromeItem(delegate: delegate, child: _box('chrome', 24))],
           body: _box('body', 60),
         ),
         frame: _headerBottomAt(10),
@@ -341,9 +274,7 @@ void main() {
       expect(_opacityLayers(tester), isEmpty);
       final before = tester.renderObject(find.text('chrome'));
 
-      await tester.pumpWidget(
-        build(const ChatRowChromeDelegate.fadeUnderHeader()),
-      );
+      await tester.pumpWidget(build(const ChatRowChromeDelegate.fadeUnderHeader()));
       expect(_opacityLayers(tester), hasLength(1));
       expect(tester.renderObject(find.text('chrome')), same(before));
     });
@@ -381,10 +312,8 @@ void main() {
                   selectionController: selection,
                   messageBuilder: (context, id, message, status, runLayout) =>
                       SizedBox(height: 60, child: Text('msg-$id')),
-                  dateSeparatorBuilder: (context, bucket, date) => SizedBox(
-                    height: 40,
-                    child: Text('sep-${date.month}-${date.day}'),
-                  ),
+                  dateSeparatorBuilder: (context, bucket, date) =>
+                      SizedBox(height: 40, child: Text('sep-${date.month}-${date.day}')),
                 ),
               ),
             ),

@@ -8,10 +8,7 @@ import 'package:flutter/painting.dart';
 @immutable
 final class ChatMessageMenuPlacement {
   /// Creates a placement.
-  const ChatMessageMenuPlacement({
-    required this.menuOrigin,
-    required this.fitsAbove,
-  });
+  const ChatMessageMenuPlacement({required this.menuOrigin, required this.fitsAbove});
 
   /// Positions the menu from the tap, clamped above the IME and safe insets.
   ///
@@ -32,8 +29,7 @@ final class ChatMessageMenuPlacement {
     required Size menuSize,
     Offset? tapGlobal,
     EdgeInsets safePadding = EdgeInsets.zero,
-    ChatMessageMenuPresentation presentation =
-        ChatMessageMenuPresentation.sheet,
+    ChatMessageMenuPresentation presentation = ChatMessageMenuPresentation.sheet,
   }) {
     final tap = tapGlobal ?? messageRect.center;
     final kb = keyboardHeight < 0 ? 0.0 : keyboardHeight;
@@ -41,10 +37,7 @@ final class ChatMessageMenuPlacement {
     final bottom = screenSize.height - bottomInset;
 
     final minX = edgeInset + safePadding.left;
-    final maxX = math.max(
-      minX,
-      screenSize.width - menuSize.width - edgeInset - safePadding.right,
-    );
+    final maxX = math.max(minX, screenSize.width - menuSize.width - edgeInset - safePadding.right);
     final menuX = switch (presentation) {
       ChatMessageMenuPresentation.sheet => minX,
       ChatMessageMenuPresentation.popup => tap.dx.clamp(minX, maxX).toDouble(),
@@ -68,10 +61,7 @@ final class ChatMessageMenuPlacement {
     }
 
     final fitsAbove = menuY + menuSize.height / 2 <= tap.dy;
-    return ChatMessageMenuPlacement(
-      menuOrigin: Offset(menuX, menuY),
-      fitsAbove: fitsAbove,
-    );
+    return ChatMessageMenuPlacement(menuOrigin: Offset(menuX, menuY), fitsAbove: fitsAbove);
   }
 
   /// Edge inset when clamping menu X.

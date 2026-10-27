@@ -11,15 +11,12 @@ class BenchmarkMetrics {
 
   int get count => samples.length;
 
-  double get meanUs =>
-      samples.isEmpty ? 0 : samples.reduce((a, b) => a + b) / samples.length;
+  double get meanUs => samples.isEmpty ? 0 : samples.reduce((a, b) => a + b) / samples.length;
 
   double get medianUs {
     if (_sorted.isEmpty) return 0;
     final mid = _sorted.length ~/ 2;
-    return _sorted.length.isOdd
-        ? _sorted[mid].toDouble()
-        : (_sorted[mid - 1] + _sorted[mid]) / 2.0;
+    return _sorted.length.isOdd ? _sorted[mid].toDouble() : (_sorted[mid - 1] + _sorted[mid]) / 2.0;
   }
 
   double get p95Us => _percentile(0.95);
@@ -30,9 +27,7 @@ class BenchmarkMetrics {
   double get stdDevUs {
     if (samples.length < 2) return 0;
     final m = meanUs;
-    final variance =
-        samples.map((s) => (s - m) * (s - m)).reduce((a, b) => a + b) /
-        (samples.length - 1);
+    final variance = samples.map((s) => (s - m) * (s - m)).reduce((a, b) => a + b) / (samples.length - 1);
     return sqrt(variance);
   }
 
@@ -87,18 +82,13 @@ class MemorySnapshot {
 /// Generate a markdown comparison table for two sets of metrics.
 String generateComparisonTable({
   required String title,
-  required List<(int messageCount, BenchmarkMetrics csv, BenchmarkMetrics lv)>
-  rows,
+  required List<(int messageCount, BenchmarkMetrics csv, BenchmarkMetrics lv)> rows,
 }) {
   final buf = StringBuffer()
     ..writeln('### $title')
     ..writeln()
-    ..writeln(
-      '| Messages | Metric | ChatScrollView | ListView.builder | Ratio |',
-    )
-    ..writeln(
-      '|----------|--------|----------------|------------------|-------|',
-    );
+    ..writeln('| Messages | Metric | ChatScrollView | ListView.builder | Ratio |')
+    ..writeln('|----------|--------|----------------|------------------|-------|');
 
   for (final (count, csv, lv) in rows) {
     void row(String metric, double csvVal, double lvVal) {

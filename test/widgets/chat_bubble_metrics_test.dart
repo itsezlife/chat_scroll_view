@@ -5,22 +5,10 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  const alone = MessageRunLayout(
-    isFirstInSenderRun: true,
-    isLastInSenderRun: true,
-  );
-  const first = MessageRunLayout(
-    isFirstInSenderRun: true,
-    isLastInSenderRun: false,
-  );
-  const middle = MessageRunLayout(
-    isFirstInSenderRun: false,
-    isLastInSenderRun: false,
-  );
-  const last = MessageRunLayout(
-    isFirstInSenderRun: false,
-    isLastInSenderRun: true,
-  );
+  const alone = MessageRunLayout(isFirstInSenderRun: true, isLastInSenderRun: true);
+  const first = MessageRunLayout(isFirstInSenderRun: true, isLastInSenderRun: false);
+  const middle = MessageRunLayout(isFirstInSenderRun: false, isLastInSenderRun: false);
+  const last = MessageRunLayout(isFirstInSenderRun: false, isLastInSenderRun: true);
 
   group('ChatMessageThemeData bubble tokens', () {
     test('defaults match the bubble metrics spec', () {
@@ -33,10 +21,7 @@ void main() {
       expect(theme.mediaNearCap, 3);
       expect(theme.mediaNearRadius, 3);
       expect(theme.extraTextX, 2);
-      expect(
-        theme.bubblePadding,
-        const EdgeInsetsDirectional.fromSTEB(11, 8, 11, 8),
-      );
+      expect(theme.bubblePadding, const EdgeInsetsDirectional.fromSTEB(11, 8, 11, 8));
     });
 
     test('nearRadius and media radii clamp to bubbleRadius', () {
@@ -74,11 +59,7 @@ void main() {
 
     test('alone: all large', () {
       for (final outgoing in [false, true]) {
-        final r = ChatBubbleMetrics.bubbleBorderRadius(
-          theme: theme,
-          outgoing: outgoing,
-          run: alone,
-        );
+        final r = ChatBubbleMetrics.bubbleBorderRadius(theme: theme, outgoing: outgoing, run: alone);
         expect(r.topStart, large);
         expect(r.topEnd, large);
         expect(r.bottomStart, large);
@@ -88,85 +69,31 @@ void main() {
 
     test('outgoing: outer end shrinks when pinned', () {
       expect(
-        ChatBubbleMetrics.bubbleBorderRadius(
-          theme: theme,
-          outgoing: true,
-          run: first,
-        ),
-        BorderRadiusDirectional.only(
-          topStart: large,
-          bottomStart: large,
-          topEnd: large,
-          bottomEnd: near,
-        ),
+        ChatBubbleMetrics.bubbleBorderRadius(theme: theme, outgoing: true, run: first),
+        BorderRadiusDirectional.only(topStart: large, bottomStart: large, topEnd: large, bottomEnd: near),
       );
       expect(
-        ChatBubbleMetrics.bubbleBorderRadius(
-          theme: theme,
-          outgoing: true,
-          run: middle,
-        ),
-        BorderRadiusDirectional.only(
-          topStart: large,
-          bottomStart: large,
-          topEnd: near,
-          bottomEnd: near,
-        ),
+        ChatBubbleMetrics.bubbleBorderRadius(theme: theme, outgoing: true, run: middle),
+        BorderRadiusDirectional.only(topStart: large, bottomStart: large, topEnd: near, bottomEnd: near),
       );
       expect(
-        ChatBubbleMetrics.bubbleBorderRadius(
-          theme: theme,
-          outgoing: true,
-          run: last,
-        ),
-        BorderRadiusDirectional.only(
-          topStart: large,
-          bottomStart: large,
-          topEnd: near,
-          bottomEnd: large,
-        ),
+        ChatBubbleMetrics.bubbleBorderRadius(theme: theme, outgoing: true, run: last),
+        BorderRadiusDirectional.only(topStart: large, bottomStart: large, topEnd: near, bottomEnd: large),
       );
     });
 
     test('incoming: outer start shrinks when pinned', () {
       expect(
-        ChatBubbleMetrics.bubbleBorderRadius(
-          theme: theme,
-          outgoing: false,
-          run: first,
-        ),
-        BorderRadiusDirectional.only(
-          topStart: large,
-          bottomStart: near,
-          topEnd: large,
-          bottomEnd: large,
-        ),
+        ChatBubbleMetrics.bubbleBorderRadius(theme: theme, outgoing: false, run: first),
+        BorderRadiusDirectional.only(topStart: large, bottomStart: near, topEnd: large, bottomEnd: large),
       );
       expect(
-        ChatBubbleMetrics.bubbleBorderRadius(
-          theme: theme,
-          outgoing: false,
-          run: middle,
-        ),
-        BorderRadiusDirectional.only(
-          topStart: near,
-          bottomStart: near,
-          topEnd: large,
-          bottomEnd: large,
-        ),
+        ChatBubbleMetrics.bubbleBorderRadius(theme: theme, outgoing: false, run: middle),
+        BorderRadiusDirectional.only(topStart: near, bottomStart: near, topEnd: large, bottomEnd: large),
       );
       expect(
-        ChatBubbleMetrics.bubbleBorderRadius(
-          theme: theme,
-          outgoing: false,
-          run: last,
-        ),
-        BorderRadiusDirectional.only(
-          topStart: near,
-          bottomStart: large,
-          topEnd: large,
-          bottomEnd: large,
-        ),
+        ChatBubbleMetrics.bubbleBorderRadius(theme: theme, outgoing: false, run: last),
+        BorderRadiusDirectional.only(topStart: near, bottomStart: large, topEnd: large, bottomEnd: large),
       );
     });
 
@@ -174,17 +101,8 @@ void main() {
       const small = ChatMessageThemeData(bubbleRadius: 4);
       const r = Radius.circular(4);
       expect(
-        ChatBubbleMetrics.bubbleBorderRadius(
-          theme: small,
-          outgoing: true,
-          run: middle,
-        ),
-        const BorderRadiusDirectional.only(
-          topStart: r,
-          bottomStart: r,
-          topEnd: r,
-          bottomEnd: r,
-        ),
+        ChatBubbleMetrics.bubbleBorderRadius(theme: small, outgoing: true, run: middle),
+        const BorderRadiusDirectional.only(topStart: r, bottomStart: r, topEnd: r, bottomEnd: r),
       );
     });
   });
@@ -193,18 +111,12 @@ void main() {
     const theme = ChatMessageThemeData.fallback;
 
     test('symmetric horizontal inset (no tail-side +6)', () {
-      expect(
-        ChatBubbleMetrics.bubbleContentPadding(theme: theme),
-        const EdgeInsetsDirectional.fromSTEB(13, 8, 13, 8),
-      );
+      expect(ChatBubbleMetrics.bubbleContentPadding(theme: theme), const EdgeInsetsDirectional.fromSTEB(13, 8, 13, 8));
     });
 
     test('low bubbleRadius drops extraTextX', () {
       const low = ChatMessageThemeData(bubbleRadius: 10);
-      expect(
-        ChatBubbleMetrics.bubbleContentPadding(theme: low),
-        const EdgeInsetsDirectional.fromSTEB(11, 8, 11, 8),
-      );
+      expect(ChatBubbleMetrics.bubbleContentPadding(theme: low), const EdgeInsetsDirectional.fromSTEB(11, 8, 11, 8));
     });
   });
 
@@ -215,33 +127,15 @@ void main() {
 
     test('middle outgoing uses media near on outer end', () {
       expect(
-        ChatBubbleMetrics.mediaContentRadius(
-          theme: theme,
-          outgoing: true,
-          run: middle,
-        ),
-        BorderRadiusDirectional.only(
-          topStart: large,
-          bottomStart: large,
-          topEnd: near,
-          bottomEnd: near,
-        ),
+        ChatBubbleMetrics.mediaContentRadius(theme: theme, outgoing: true, run: middle),
+        BorderRadiusDirectional.only(topStart: large, bottomStart: large, topEnd: near, bottomEnd: near),
       );
     });
 
     test('alone uses media large on all corners', () {
       expect(
-        ChatBubbleMetrics.mediaContentRadius(
-          theme: theme,
-          outgoing: false,
-          run: alone,
-        ),
-        BorderRadiusDirectional.only(
-          topStart: large,
-          bottomStart: large,
-          topEnd: large,
-          bottomEnd: large,
-        ),
+        ChatBubbleMetrics.mediaContentRadius(theme: theme, outgoing: false, run: alone),
+        BorderRadiusDirectional.only(topStart: large, bottomStart: large, topEnd: large, bottomEnd: large),
       );
     });
   });

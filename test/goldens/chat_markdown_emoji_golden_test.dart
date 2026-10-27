@@ -5,8 +5,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_md/flutter_md.dart'
-    show MarkdownTheme, MarkdownThemeData;
+import 'package:flutter_md/flutter_md.dart' show MarkdownTheme, MarkdownThemeData;
 import 'package:flutter_test/flutter_test.dart';
 
 // Regenerate with
@@ -31,10 +30,7 @@ class _GoldenComparator extends LocalFileComparator {
 
   @override
   Future<bool> compare(Uint8List imageBytes, Uri golden) async {
-    final result = await GoldenFileComparator.compareLists(
-      imageBytes,
-      await getGoldenBytes(golden),
-    );
+    final result = await GoldenFileComparator.compareLists(imageBytes, await getGoldenBytes(golden));
     if (result.passed || result.diffPercent <= _tolerance) return true;
     final error = await generateFailureOutput(result, golden, basedir);
     throw FlutterError(error);
@@ -61,15 +57,13 @@ final class _SquareEmbed implements InlineEmbed {
   void addListener(VoidCallback listener) => _listeners.addListener(listener);
 
   @override
-  void removeListener(VoidCallback listener) =>
-      _listeners.removeListener(listener);
+  void removeListener(VoidCallback listener) => _listeners.removeListener(listener);
 
   @override
-  void paint(Canvas canvas, Rect rect, InlineEmbedPaintContext context) =>
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect.deflate(1), const Radius.circular(4)),
-        Paint()..color = const Color(0xFF64B5F6),
-      );
+  void paint(Canvas canvas, Rect rect, InlineEmbedPaintContext context) => canvas.drawRRect(
+    RRect.fromRectAndRadius(rect.deflate(1), const Radius.circular(4)),
+    Paint()..color = const Color(0xFF64B5F6),
+  );
 
   @override
   void dispose() => _listeners.dispose();
@@ -97,25 +91,16 @@ const _cases = <String, String>{
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  final hasFonts =
-      File(_emojiFile).existsSync() && File(_textFile).existsSync();
+  final hasFonts = File(_emojiFile).existsSync() && File(_textFile).existsSync();
 
   // Goldens sit next to this file, also when test/unit_test.dart runs it.
   late GoldenFileComparator previous;
   setUpAll(() async {
     previous = goldenFileComparator;
-    goldenFileComparator = _GoldenComparator(
-      Uri.file('test/goldens/chat_markdown_emoji_golden_test.dart'),
-    );
+    goldenFileComparator = _GoldenComparator(Uri.file('test/goldens/chat_markdown_emoji_golden_test.dart'));
     if (!hasFonts) return;
-    for (final (family, file) in const [
-      ('RealEmoji', _emojiFile),
-      ('RealText', _textFile),
-    ]) {
-      await (FontLoader(family)..addFont(
-            Future.value(ByteData.sublistView(File(file).readAsBytesSync())),
-          ))
-          .load();
+    for (final (family, file) in const [('RealEmoji', _emojiFile), ('RealText', _textFile)]) {
+      await (FontLoader(family)..addFont(Future.value(ByteData.sublistView(File(file).readAsBytesSync())))).load();
     }
   });
   tearDownAll(() => goldenFileComparator = previous);
@@ -160,10 +145,7 @@ void main() {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           child: ChatMarkdownBody(
                             controller: selection,
                             messageId: 1,
@@ -181,10 +163,7 @@ void main() {
       );
       await tester.pump();
 
-      await expectLater(
-        find.byKey(const ValueKey('shot')),
-        matchesGoldenFile('chat_markdown_emoji/$key.png'),
-      );
+      await expectLater(find.byKey(const ValueKey('shot')), matchesGoldenFile('chat_markdown_emoji/$key.png'));
     });
   }
 }

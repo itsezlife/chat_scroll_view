@@ -33,8 +33,7 @@ enum ChatMessageChangeSlot {
 /// so bubble layout stays final for the whole change animation. Collapsing
 /// the label out of the tree mid-flight changes layout size while deltas are
 /// frozen.
-typedef ChatMessageChangeMetaBuilder =
-    Widget Function(BuildContext context, double editedOpacity);
+typedef ChatMessageChangeMetaBuilder = Widget Function(BuildContext context, double editedOpacity);
 
 /// Message change transition (edit morph).
 ///
@@ -100,13 +99,10 @@ class ChatMessageChangeTransition extends StatefulWidget {
   final List<BoxShadow>? boxShadow;
 
   @override
-  State<ChatMessageChangeTransition> createState() =>
-      _ChatMessageChangeTransitionState();
+  State<ChatMessageChangeTransition> createState() => _ChatMessageChangeTransitionState();
 }
 
-class _ChatMessageChangeTransitionState
-    extends State<ChatMessageChangeTransition>
-    with SingleTickerProviderStateMixin {
+class _ChatMessageChangeTransitionState extends State<ChatMessageChangeTransition> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   final GlobalKey _measureMetaKey = GlobalKey();
   final GlobalKey _renderKey = GlobalKey();
@@ -121,13 +117,9 @@ class _ChatMessageChangeTransitionState
   @override
   void initState() {
     super.initState();
-    _controller =
-        AnimationController(
-            vsync: this,
-            duration: ChatMessageChangeParams.duration,
-          )
-          ..addListener(_onTick)
-          ..addStatusListener(_onStatus);
+    _controller = AnimationController(vsync: this, duration: ChatMessageChangeParams.duration)
+      ..addListener(_onTick)
+      ..addStatusListener(_onStatus);
   }
 
   @override
@@ -155,9 +147,7 @@ class _ChatMessageChangeTransitionState
   }
 
   void _onTick() {
-    final curved = ChatMessageChangeParams.curve.transform(
-      _controller.value.clamp(0.0, 1.0),
-    );
+    final curved = ChatMessageChangeParams.curve.transform(_controller.value.clamp(0.0, 1.0));
     setState(() {
       _params = _params.atProgress(curved);
     });
@@ -179,13 +169,9 @@ class _ChatMessageChangeTransitionState
     required bool textChanged,
     required bool editedEnter,
   }) {
-    final ro =
-        _renderKey.currentContext?.findRenderObject()
-            as RenderChatMessageChangeTransition?;
+    final ro = _renderKey.currentContext?.findRenderObject() as RenderChatMessageChangeTransition?;
     final oldBackground = ro != null && ro.hasSize
-        ? (ro.lastPaintedBackground == Rect.zero
-              ? ro.finalBackgroundRect
-              : ro.lastPaintedBackground)
+        ? (ro.lastPaintedBackground == Rect.zero ? ro.finalBackgroundRect : ro.lastPaintedBackground)
         : null;
 
     final oldMetaWidth = _lastMetaWidth;
@@ -215,9 +201,7 @@ class _ChatMessageChangeTransitionState
 
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final render =
-          _renderKey.currentContext?.findRenderObject()
-              as RenderChatMessageChangeTransition?;
+      final render = _renderKey.currentContext?.findRenderObject() as RenderChatMessageChangeTransition?;
       if (render == null || !render.hasSize) {
         _controller.forward(from: 0);
         return;
@@ -226,8 +210,7 @@ class _ChatMessageChangeTransitionState
       final oldBg = oldBackground ?? newBackground;
 
       var newMetaWidth = _lastMetaWidth;
-      final metaBox =
-          _measureMetaKey.currentContext?.findRenderObject() as RenderBox?;
+      final metaBox = _measureMetaKey.currentContext?.findRenderObject() as RenderBox?;
       if (metaBox != null && metaBox.hasSize) {
         newMetaWidth = metaBox.size.width;
       }
@@ -255,9 +238,7 @@ class _ChatMessageChangeTransitionState
 
   @override
   Widget build(BuildContext context) {
-    final editedOpacity = _params.animateEditedEnter
-        ? _params.editedLabelOpacity
-        : (widget.edited ? 1.0 : 0.0);
+    final editedOpacity = _params.animateEditedEnter ? _params.editedLabelOpacity : (widget.edited ? 1.0 : 0.0);
 
     final incomingMeta = _MetaHost(
       key: _measureMetaKey,
@@ -269,8 +250,7 @@ class _ChatMessageChangeTransitionState
     // Track meta width after layout for the next edited-enter.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final box =
-          _measureMetaKey.currentContext?.findRenderObject() as RenderBox?;
+      final box = _measureMetaKey.currentContext?.findRenderObject() as RenderBox?;
       if (box != null && box.hasSize) {
         _lastMetaWidth = box.size.width;
       }
@@ -278,10 +258,8 @@ class _ChatMessageChangeTransitionState
 
     final selection = ChatSelectionStateScope.maybeOf(context);
     final isSelected = selection?.isSelected ?? false;
-    final appliesSelectedColor =
-        selection?.policy.appliesSelectedColorToBubble ?? true;
-    final effectiveColor =
-        (isSelected && appliesSelectedColor && widget.selectedColor != null)
+    final appliesSelectedColor = selection?.policy.appliesSelectedColorToBubble ?? true;
+    final effectiveColor = (isSelected && appliesSelectedColor && widget.selectedColor != null)
         ? widget.selectedColor!
         : widget.color;
 
@@ -303,25 +281,17 @@ class _ChatMessageChangeTransitionState
 }
 
 class _MetaHost extends StatelessWidget {
-  const _MetaHost({
-    required this.builder,
-    required this.editedOpacity,
-    required this.showEdited,
-    super.key,
-  });
+  const _MetaHost({required this.builder, required this.editedOpacity, required this.showEdited, super.key});
 
   final ChatMessageChangeMetaBuilder builder;
   final double editedOpacity;
   final bool showEdited;
 
   @override
-  Widget build(BuildContext context) =>
-      builder(context, showEdited ? editedOpacity : 0);
+  Widget build(BuildContext context) => builder(context, showEdited ? editedOpacity : 0);
 }
 
-class _ChatMessageChangeTransition
-    extends
-        SlottedMultiChildRenderObjectWidget<ChatMessageChangeSlot, RenderBox> {
+class _ChatMessageChangeTransition extends SlottedMultiChildRenderObjectWidget<ChatMessageChangeSlot, RenderBox> {
   const _ChatMessageChangeTransition({
     required this.params,
     required this.color,
@@ -360,32 +330,26 @@ class _ChatMessageChangeTransition
     // Outgoing twin is paint-only: must not putBody / attach a selection
     // surface for the same messageId (would orphan the live body's hits).
     ChatMessageChangeSlot.outgoingContent => switch (outgoingContent) {
-      final child? => ChatMarkdownBodyRegistration(
-        registers: false,
-        child: child,
-      ),
+      final child? => ChatMarkdownBodyRegistration(registers: false, child: child),
       null => null,
     },
     ChatMessageChangeSlot.outgoingMeta => outgoingMeta,
   };
 
   @override
-  SlottedContainerRenderObjectMixin<ChatMessageChangeSlot, RenderBox>
-  createRenderObject(BuildContext context) => RenderChatMessageChangeTransition(
-    params: params,
-    color: color,
-    borderRadius: borderRadius,
-    padding: padding,
-    spacing: spacing,
-    boxShadow: boxShadow,
-    textDirection: Directionality.of(context),
-  );
+  SlottedContainerRenderObjectMixin<ChatMessageChangeSlot, RenderBox> createRenderObject(BuildContext context) =>
+      RenderChatMessageChangeTransition(
+        params: params,
+        color: color,
+        borderRadius: borderRadius,
+        padding: padding,
+        spacing: spacing,
+        boxShadow: boxShadow,
+        textDirection: Directionality.of(context),
+      );
 
   @override
-  void updateRenderObject(
-    BuildContext context,
-    covariant RenderChatMessageChangeTransition renderObject,
-  ) {
+  void updateRenderObject(BuildContext context, covariant RenderChatMessageChangeTransition renderObject) {
     renderObject
       ..params = params
       ..color = color

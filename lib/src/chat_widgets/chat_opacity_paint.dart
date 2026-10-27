@@ -27,8 +27,7 @@ abstract final class ChatOpacityPaint {
       layer.layer = context.pushOpacity(
         offset,
         (opacity * 255).round().clamp(0, 255),
-        (innerContext, innerOffset) =>
-            innerContext.paintChild(child, innerOffset),
+        (innerContext, innerOffset) => innerContext.paintChild(child, innerOffset),
         oldLayer: layer.layer,
       );
     }

@@ -134,36 +134,23 @@ class _ChatKeyboardShortcutsState extends State<ChatKeyboardShortcuts> {
 
   /// Static shortcut map — `const`-promotable so the framework can compare
   /// by identity across rebuilds rather than reallocating per frame.
-  static const Map<ShortcutActivator, Intent> _kShortcuts =
-      <ShortcutActivator, Intent>{
-        SingleActivator(LogicalKeyboardKey.arrowUp): _ScrollLineUpIntent(),
-        SingleActivator(LogicalKeyboardKey.arrowDown): _ScrollLineDownIntent(),
-        SingleActivator(LogicalKeyboardKey.pageUp): _ScrollPageUpIntent(),
-        SingleActivator(LogicalKeyboardKey.pageDown): _ScrollPageDownIntent(),
-        SingleActivator(LogicalKeyboardKey.home): _JumpHomeIntent(),
-        SingleActivator(LogicalKeyboardKey.end): _JumpEndIntent(),
-        SingleActivator(LogicalKeyboardKey.escape): _CancelSelectionIntent(),
-      };
+  static const Map<ShortcutActivator, Intent> _kShortcuts = <ShortcutActivator, Intent>{
+    SingleActivator(LogicalKeyboardKey.arrowUp): _ScrollLineUpIntent(),
+    SingleActivator(LogicalKeyboardKey.arrowDown): _ScrollLineDownIntent(),
+    SingleActivator(LogicalKeyboardKey.pageUp): _ScrollPageUpIntent(),
+    SingleActivator(LogicalKeyboardKey.pageDown): _ScrollPageDownIntent(),
+    SingleActivator(LogicalKeyboardKey.home): _JumpHomeIntent(),
+    SingleActivator(LogicalKeyboardKey.end): _JumpEndIntent(),
+    SingleActivator(LogicalKeyboardKey.escape): _CancelSelectionIntent(),
+  };
 
   late final Map<Type, Action<Intent>> _actions = <Type, Action<Intent>>{
-    _ScrollLineUpIntent: CallbackAction<_ScrollLineUpIntent>(
-      onInvoke: (_) => _onScrollLines(_scrollOlderSign),
-    ),
-    _ScrollLineDownIntent: CallbackAction<_ScrollLineDownIntent>(
-      onInvoke: (_) => _onScrollLines(_scrollNewerSign),
-    ),
-    _ScrollPageUpIntent: CallbackAction<_ScrollPageUpIntent>(
-      onInvoke: (_) => _onScrollPage(_scrollOlderSign),
-    ),
-    _ScrollPageDownIntent: CallbackAction<_ScrollPageDownIntent>(
-      onInvoke: (_) => _onScrollPage(_scrollNewerSign),
-    ),
-    _JumpHomeIntent: CallbackAction<_JumpHomeIntent>(
-      onInvoke: (_) => _onJumpHome(),
-    ),
-    _JumpEndIntent: CallbackAction<_JumpEndIntent>(
-      onInvoke: (_) => _onJumpEnd(),
-    ),
+    _ScrollLineUpIntent: CallbackAction<_ScrollLineUpIntent>(onInvoke: (_) => _onScrollLines(_scrollOlderSign)),
+    _ScrollLineDownIntent: CallbackAction<_ScrollLineDownIntent>(onInvoke: (_) => _onScrollLines(_scrollNewerSign)),
+    _ScrollPageUpIntent: CallbackAction<_ScrollPageUpIntent>(onInvoke: (_) => _onScrollPage(_scrollOlderSign)),
+    _ScrollPageDownIntent: CallbackAction<_ScrollPageDownIntent>(onInvoke: (_) => _onScrollPage(_scrollNewerSign)),
+    _JumpHomeIntent: CallbackAction<_JumpHomeIntent>(onInvoke: (_) => _onJumpHome()),
+    _JumpEndIntent: CallbackAction<_JumpEndIntent>(onInvoke: (_) => _onJumpEnd()),
     _CancelSelectionIntent: _CancelSelectionAction(this),
   };
 
@@ -215,9 +202,7 @@ class _ChatKeyboardShortcutsState extends State<ChatKeyboardShortcuts> {
   // Message selection without a text range: the keys act on the messages.
   bool get _wantsFocusForSelection {
     final selection = widget.selectionController;
-    return selection != null &&
-        selection.isSelectionMode &&
-        !selection.isTextSelectionActive;
+    return selection != null && selection.isSelectionMode && !selection.isTextSelectionActive;
   }
 
   bool _handleHardwareKey(KeyEvent event) {
@@ -263,17 +248,13 @@ class _ChatKeyboardShortcutsState extends State<ChatKeyboardShortcuts> {
     // the most recent message — the top of a reverse-stacked list — so the
     // jump-target ids flip with reverse even though the scroll signs do
     // not.
-    final id = widget.reverse
-        ? widget.controller.newestKnownId
-        : widget.controller.oldestKnownId;
+    final id = widget.reverse ? widget.controller.newestKnownId : widget.controller.oldestKnownId;
     if (id != null) widget.controller.jumpTo(id);
     return null;
   }
 
   Object? _onJumpEnd() {
-    final id = widget.reverse
-        ? widget.controller.oldestKnownId
-        : widget.controller.newestKnownId;
+    final id = widget.reverse ? widget.controller.oldestKnownId : widget.controller.newestKnownId;
     if (id != null) widget.controller.jumpTo(id);
     return null;
   }
@@ -296,9 +277,7 @@ class _ChatKeyboardShortcutsState extends State<ChatKeyboardShortcuts> {
   void _handlePointerDown(PointerDownEvent _) {
     if (_focusNode.hasFocus) return;
     final selection = widget.selectionController;
-    final inSelectionMode =
-        selection != null &&
-        (selection.isSelectionMode || selection.isTextSelectionActive);
+    final inSelectionMode = selection != null && (selection.isSelectionMode || selection.isTextSelectionActive);
     if (!inSelectionMode) {
       final scope = _focusNode.enclosingScope;
       final focused = scope?.focusedChild ?? FocusManager.instance.primaryFocus;

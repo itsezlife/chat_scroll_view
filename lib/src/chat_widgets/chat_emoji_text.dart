@@ -1,7 +1,6 @@
 import 'dart:ui' show TextRange;
 
-import 'package:content_model/content_model.dart'
-    show ContentKey$Document, ContentKey$Unicode, EmojiOnly;
+import 'package:content_model/content_model.dart' show ContentKey$Document, ContentKey$Unicode, EmojiOnly;
 import 'package:flutter_md/flutter_md.dart';
 import 'package:meta/meta.dart';
 
@@ -39,9 +38,7 @@ final class ChatEmojiText {
       final run = '\n' * count;
       text.write(run);
       source.write(run);
-      spans.add(
-        MD$Span(start: text.length - count, end: text.length, text: run),
-      );
+      spans.add(MD$Span(start: text.length - count, end: text.length, text: run));
     }
 
     for (final item in emojiOnly.items) {
@@ -63,11 +60,7 @@ final class ChatEmojiText {
               end: text.length,
               text: alt,
               style: MD$Style.image,
-              extra: <String, Object?>{
-                'type': 'image',
-                'src': encoded,
-                'url': encoded,
-              },
+              extra: <String, Object?>{'type': 'image', 'src': encoded, 'url': encoded},
             ),
           );
         case _:

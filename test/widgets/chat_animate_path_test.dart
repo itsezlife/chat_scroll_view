@@ -6,46 +6,25 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../chat_message.dart';
 
-IChatMessage _msg(int i) => UserChatMessage(
-  id: i,
-  sender: 'User',
-  createdAt: DateTime(2026),
-  updatedAt: DateTime(2026),
-  content: 'content $i',
-);
+IChatMessage _msg(int i) =>
+    UserChatMessage(id: i, sender: 'User', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: 'content $i');
 
 class _PreloadedDataSource extends ChatDataSource {
   _PreloadedDataSource(int count) {
     for (var i = 0; i < count; i++) {
       upsertMessage(_msg(i));
     }
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: count - 1,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 /// Tail loaded; older ids stay cold until [releaseTargetWindow] upserts them.
 class _GatedColdTargetDataSource extends ChatDataSource {
-  _GatedColdTargetDataSource({
-    required this.totalCount,
-    required int loadedFrom,
-  }) {
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: totalCount - 1,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+  _GatedColdTargetDataSource({required this.totalCount, required int loadedFrom}) {
+    seedBoundaries(oldestKnownId: 0, newestKnownId: totalCount - 1, reachedOldest: true, reachedNewest: true);
     for (var i = loadedFrom; i < totalCount; i++) {
       upsertMessage(_msg(i));
     }
@@ -62,16 +41,10 @@ class _GatedColdTargetDataSource extends ChatDataSource {
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
-Widget _scaffold({
-  required ChatDataSource dataSource,
-  required ChatScrollController controller,
-}) => MaterialApp(
+Widget _scaffold({required ChatDataSource dataSource, required ChatScrollController controller}) => MaterialApp(
   home: Scaffold(
     body: Center(
       child: SizedBox(
@@ -81,10 +54,8 @@ Widget _scaffold({
           dataSource: dataSource,
           controller: controller,
           cacheExtent: 200,
-          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
-            height: 60,
-            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-          ),
+          messageBuilder: (context, id, message, status, runLayout) =>
+              SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
         ),
       ),
     ),
@@ -102,11 +73,7 @@ List<ChatAnimateEnd> _recordAnimateEnds(ChatScrollController controller) {
 
 /// Drives [future] with a hard pump budget — stitch keeps scheduling frames,
 /// so neither a bare await nor `pumpAndSettle` is safe.
-Future<void> _drive(
-  WidgetTester tester,
-  Future<void> future, {
-  int maxPumps = 400,
-}) async {
+Future<void> _drive(WidgetTester tester, Future<void> future, {int maxPumps = 400}) async {
   await tester.pump();
   var done = false;
   unawaited(future.whenComplete(() => done = true));
@@ -121,18 +88,12 @@ void main() {
     late ChatScrollController controller;
     late List<ChatAnimateEnd> ends;
 
-    Future<void> mount(
-      WidgetTester tester,
-      ChatDataSource ds,
-      int openAt,
-    ) async {
+    Future<void> mount(WidgetTester tester, ChatDataSource ds, int openAt) async {
       controller = ChatScrollController()..jumpTo(openAt);
       ends = _recordAnimateEnds(controller);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
-      await tester.pumpWidget(
-        _scaffold(dataSource: ds, controller: controller),
-      );
+      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
       await tester.pump();
     }
 
@@ -145,9 +106,7 @@ void main() {
       expect(ends.single.path, AnimateToPath.close);
     });
 
-    testWidgets('a target already at its aligned seat reports the close path', (
-      tester,
-    ) async {
+    testWidgets('a target already at its aligned seat reports the close path', (tester) async {
       await mount(tester, _PreloadedDataSource(256), 128);
 
       await _drive(tester, controller.animateTo(128, highlight: false));
@@ -155,9 +114,7 @@ void main() {
       expect(ends.single.path, AnimateToPath.close);
     });
 
-    testWidgets('a target that is not built reports the stitch path', (
-      tester,
-    ) async {
+    testWidgets('a target that is not built reports the stitch path', (tester) async {
       await mount(tester, _PreloadedDataSource(256), 128);
 
       await _drive(tester, controller.animateTo(0, highlight: false));
@@ -187,9 +144,7 @@ void main() {
       expect(ends.single.path, AnimateToPath.stitch);
     });
 
-    testWidgets('a navigation cancelled on the load gate reports no path', (
-      tester,
-    ) async {
+    testWidgets('a navigation cancelled on the load gate reports no path', (tester) async {
       const total = 200;
       final ds = _GatedColdTargetDataSource(totalCount: total, loadedFrom: 192);
       await mount(tester, ds, total - 1);
@@ -203,16 +158,10 @@ void main() {
       expect(ends.single.path, AnimateToPath.none);
     });
 
-    testWidgets('a stitch cancelled mid-flight still reports the stitch path', (
-      tester,
-    ) async {
+    testWidgets('a stitch cancelled mid-flight still reports the stitch path', (tester) async {
       await mount(tester, _PreloadedDataSource(256), 128);
 
-      final future = controller.animateTo(
-        0,
-        duration: const Duration(milliseconds: 800),
-        highlight: false,
-      );
+      final future = controller.animateTo(0, duration: const Duration(milliseconds: 800), highlight: false);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
       await tester.pump(const Duration(milliseconds: 16));
@@ -225,10 +174,7 @@ void main() {
     testWidgets('a zero duration reports the instant path', (tester) async {
       await mount(tester, _PreloadedDataSource(256), 128);
 
-      await _drive(
-        tester,
-        controller.animateTo(0, duration: Duration.zero, highlight: false),
-      );
+      await _drive(tester, controller.animateTo(0, duration: Duration.zero, highlight: false));
 
       expect(controller.anchorMessageId, 0);
       expect(ends.single.path, AnimateToPath.instant);
@@ -250,10 +196,7 @@ void main() {
       await mount(tester, _PreloadedDataSource(256), 128);
 
       final first = controller.animateTo(0, highlight: false);
-      expect(
-        await controller.animateTo(126, highlight: false),
-        AnimateToDisposition.ignored,
-      );
+      expect(await controller.animateTo(126, highlight: false), AnimateToDisposition.ignored);
       await _drive(tester, first);
 
       expect(ends.map((end) => end.targetId), [0]);

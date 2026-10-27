@@ -34,6 +34,5 @@ final class ChatFloatingHeaderMarker extends InheritedWidget {
       context.getInheritedWidgetOfExactType<ChatFloatingHeaderMarker>() != null;
 
   @override
-  bool updateShouldNotify(covariant ChatFloatingHeaderMarker oldWidget) =>
-      false;
+  bool updateShouldNotify(covariant ChatFloatingHeaderMarker oldWidget) => false;
 }

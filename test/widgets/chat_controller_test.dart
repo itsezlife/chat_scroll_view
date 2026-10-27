@@ -10,35 +10,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../chat_message.dart';
 
-IChatMessage _msg(int i) => UserChatMessage(
-  id: i,
-  sender: 'User',
-  createdAt: DateTime(2026),
-  updatedAt: DateTime(2026),
-  content: 'content $i',
-);
+IChatMessage _msg(int i) =>
+    UserChatMessage(id: i, sender: 'User', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: 'content $i');
 
 class _PreloadedDataSource extends ChatDataSource {
   _PreloadedDataSource(int count) {
     for (var i = 0; i < count; i++) {
       upsertMessage(_msg(i));
     }
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: count - 1,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
     for (final chunk in chunks.values) {
       chunk.status = ChatMessageStatus.valid;
     }
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 void main() {
@@ -53,20 +40,12 @@ void main() {
         ..addJumpListener(cb)
         ..addJumpListener(cb)
         ..jumpTo(42);
-      expect(
-        calls,
-        1,
-        reason: 'Duplicate registration must dedup — only one notification.',
-      );
+      expect(calls, 1, reason: 'Duplicate registration must dedup — only one notification.');
 
       controller
         ..removeJumpListener(cb)
         ..jumpTo(7);
-      expect(
-        calls,
-        1,
-        reason: 'Symmetric remove must take with one call after dedup.',
-      );
+      expect(calls, 1, reason: 'Symmetric remove must take with one call after dedup.');
     });
 
     test('addScrollByListener / addScrollListener dedup', () {
@@ -135,8 +114,7 @@ void main() {
 
     test('startSelection and toggle refuse a disallowed id', () {
       final sc = ChatSelectionController()
-        ..selectionAllowed = (id) =>
-            id == 7 ? ChatSelectionAllowed.none : ChatSelectionAllowed.full;
+        ..selectionAllowed = (id) => id == 7 ? ChatSelectionAllowed.none : ChatSelectionAllowed.full;
       addTearDown(sc.dispose);
       sc.startSelection(7);
       expect(sc.isSelected(7), isFalse);
@@ -156,8 +134,7 @@ void main() {
       sc.addSelectionAllowedListener(() => allowedChanges++);
       sc.replaceSelectedIds({1, 2, 3});
       expect(sc.selectedIds, {1, 2, 3});
-      sc.selectionAllowed = (id) =>
-          id == 2 ? ChatSelectionAllowed.none : ChatSelectionAllowed.full;
+      sc.selectionAllowed = (id) => id == 2 ? ChatSelectionAllowed.none : ChatSelectionAllowed.full;
       expect(sc.selectedIds, {1, 3});
       expect(allowedChanges, 1);
       expect(sc.isSelectionMode, isTrue);
@@ -166,9 +143,7 @@ void main() {
     test('reapplySelectionAllowed refilters without a new function', () {
       final blocked = <int>{};
       final sc = ChatSelectionController()
-        ..selectionAllowed = (id) => blocked.contains(id)
-            ? ChatSelectionAllowed.none
-            : ChatSelectionAllowed.full;
+        ..selectionAllowed = (id) => blocked.contains(id) ? ChatSelectionAllowed.none : ChatSelectionAllowed.full;
       addTearDown(sc.dispose);
       var allowedChanges = 0;
       sc.addSelectionAllowedListener(() => allowedChanges++);
@@ -181,8 +156,7 @@ void main() {
 
     test('selectionAllowed assign that leaves the set unchanged still '
         'notifies selectionAllowed listeners', () {
-      final sc = ChatSelectionController()
-        ..selectionAllowed = (_) => ChatSelectionAllowed.full;
+      final sc = ChatSelectionController()..selectionAllowed = (_) => ChatSelectionAllowed.full;
       addTearDown(sc.dispose);
       sc.replaceSelectedIds({1});
       var allowedChanges = 0;
@@ -190,8 +164,7 @@ void main() {
       sc
         ..addSelectionAllowedListener(() => allowedChanges++)
         ..addListener(() => selection++);
-      sc.selectionAllowed = (id) =>
-          id == 99 ? ChatSelectionAllowed.none : ChatSelectionAllowed.full;
+      sc.selectionAllowed = (id) => id == 99 ? ChatSelectionAllowed.none : ChatSelectionAllowed.full;
       expect(sc.selectedIds, {1});
       expect(allowedChanges, 1);
       expect(selection, 0);
@@ -231,104 +204,88 @@ void main() {
   });
 
   group('isAtTail / visibleRange listener safety', () {
-    testWidgets(
-      'isAtTail listener may call setState — controller defers past layout',
-      (tester) async {
-        // Regression: `RenderChatScrollView` pushes `controller.isAtTail`
-        // from inside `performLayout`. Synchronous `notifyListeners` would
-        // invite consumers' setState inside layout — illegal. The
-        // controller's deferred value-notifier must trampoline through
-        // post-frame.
-        const count = 16;
-        final controller = ChatScrollController();
-        final ds = _PreloadedDataSource(count);
-        addTearDown(controller.dispose);
-        addTearDown(ds.dispose);
+    testWidgets('isAtTail listener may call setState — controller defers past layout', (tester) async {
+      // Regression: `RenderChatScrollView` pushes `controller.isAtTail`
+      // from inside `performLayout`. Synchronous `notifyListeners` would
+      // invite consumers' setState inside layout — illegal. The
+      // controller's deferred value-notifier must trampoline through
+      // post-frame.
+      const count = 16;
+      final controller = ChatScrollController();
+      final ds = _PreloadedDataSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
 
-        // External widget that subscribes to `isAtTail` and calls setState
-        // on every change — exactly the kind of consumer that would crash
-        // without the controller-side defer.
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: _IsAtTailListenerProbe(
-                controller: controller,
-                child: SizedBox(
-                  width: 400,
-                  height: 600,
-                  child: ChatScrollView(
-                    dataSource: ds,
-                    controller: controller,
-                    messageBuilder: (context, id, message, status, runLayout) =>
-                        SizedBox(
-                          height: 60,
-                          child: Text(
-                            message == null ? 'shimmer-$id' : 'msg-$id',
-                          ),
-                        ),
-                  ),
+      // External widget that subscribes to `isAtTail` and calls setState
+      // on every change — exactly the kind of consumer that would crash
+      // without the controller-side defer.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: _IsAtTailListenerProbe(
+              controller: controller,
+              child: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: ds,
+                  controller: controller,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
                 ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
-        // If the controller did not defer, the first layout would throw
-        // when `_IsAtTailListenerProbe` ran setState. Reaching here means
-        // the defer worked.
-        expect(
-          tester.takeException(),
-          isNull,
-          reason:
-              'External isAtTail listener must be free to call setState '
-              'without an explicit post-frame trampoline of its own.',
-        );
-      },
-    );
+        ),
+      );
+      await tester.pumpAndSettle();
+      // If the controller did not defer, the first layout would throw
+      // when `_IsAtTailListenerProbe` ran setState. Reaching here means
+      // the defer worked.
+      expect(
+        tester.takeException(),
+        isNull,
+        reason:
+            'External isAtTail listener must be free to call setState '
+            'without an explicit post-frame trampoline of its own.',
+      );
+    });
 
-    testWidgets(
-      'visibleRange listener may call setState — controller defers past layout',
-      (tester) async {
-        const count = 32;
-        final controller = ChatScrollController();
-        final ds = _PreloadedDataSource(count);
-        addTearDown(controller.dispose);
-        addTearDown(ds.dispose);
+    testWidgets('visibleRange listener may call setState — controller defers past layout', (tester) async {
+      const count = 32;
+      final controller = ChatScrollController();
+      final ds = _PreloadedDataSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
 
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: _VisibleRangeListenerProbe(
-                controller: controller,
-                child: SizedBox(
-                  width: 400,
-                  height: 600,
-                  child: ChatScrollView(
-                    dataSource: ds,
-                    controller: controller,
-                    messageBuilder: (context, id, message, status, runLayout) =>
-                        SizedBox(
-                          height: 60,
-                          child: Text(
-                            message == null ? 'shimmer-$id' : 'msg-$id',
-                          ),
-                        ),
-                  ),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: _VisibleRangeListenerProbe(
+              controller: controller,
+              child: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: ds,
+                  controller: controller,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      SizedBox(height: 60, child: Text(message == null ? 'shimmer-$id' : 'msg-$id')),
                 ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
-        expect(
-          tester.takeException(),
-          isNull,
-          reason:
-              'External visibleRange listener must be free to call '
-              'setState.',
-        );
-      },
-    );
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.takeException(),
+        isNull,
+        reason:
+            'External visibleRange listener must be free to call '
+            'setState.',
+      );
+    });
 
     test('deferred setter: setting twice in persistentCallbacks dispatches the '
         'final value only', () {
@@ -342,9 +299,7 @@ void main() {
       // scheduler phase that is not `persistentCallbacks` — drive a
       // direct read/write sanity check.
       var lastSeen = controller.isAtTail.value;
-      controller.isAtTail.addListener(
-        () => lastSeen = controller.isAtTail.value,
-      );
+      controller.isAtTail.addListener(() => lastSeen = controller.isAtTail.value);
       controller.isAtTail = true;
       // No frame in a pure unit test; setter committed synchronously.
       expect(lastSeen, isTrue);
@@ -396,20 +351,15 @@ class _IsAtTailListenerProbeState extends State<_IsAtTailListenerProbe> {
 }
 
 class _VisibleRangeListenerProbe extends StatefulWidget {
-  const _VisibleRangeListenerProbe({
-    required this.controller,
-    required this.child,
-  });
+  const _VisibleRangeListenerProbe({required this.controller, required this.child});
   final ChatScrollController controller;
   final Widget child;
 
   @override
-  State<_VisibleRangeListenerProbe> createState() =>
-      _VisibleRangeListenerProbeState();
+  State<_VisibleRangeListenerProbe> createState() => _VisibleRangeListenerProbeState();
 }
 
-class _VisibleRangeListenerProbeState
-    extends State<_VisibleRangeListenerProbe> {
+class _VisibleRangeListenerProbeState extends State<_VisibleRangeListenerProbe> {
   ChatVisibleRange? _range;
 
   @override

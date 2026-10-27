@@ -34,8 +34,7 @@ class _ChunkErrorSlot {
   final int chunkIndex;
 
   @override
-  bool operator ==(Object other) =>
-      other is _ChunkErrorSlot && other.chunkIndex == chunkIndex;
+  bool operator ==(Object other) => other is _ChunkErrorSlot && other.chunkIndex == chunkIndex;
 
   @override
   int get hashCode => Object.hash(_ChunkErrorSlot, chunkIndex);
@@ -50,8 +49,7 @@ class _ChunkErrorSlot {
 /// the [ChatChildManager] interface — message children and the one floating
 /// day header alike.
 /// {@endtemplate}
-class ChatScrollElement extends RenderObjectElement
-    implements ChatChildManager {
+class ChatScrollElement extends RenderObjectElement implements ChatChildManager {
   /// {@macro chat_scroll_element}
   ChatScrollElement(ChatScrollView super.widget);
 
@@ -85,8 +83,7 @@ class ChatScrollElement extends RenderObjectElement
   final Map<int, bool> _builtStartsDay = <int, bool>{};
   final Map<int, bool> _builtUnreadSeparator = <int, bool>{};
   final Map<int, MessageRunLayout> _builtRunLayout = <int, MessageRunLayout>{};
-  final Map<int, ChatSelectionAllowed> _builtSelectionAllowed =
-      <int, ChatSelectionAllowed>{};
+  final Map<int, ChatSelectionAllowed> _builtSelectionAllowed = <int, ChatSelectionAllowed>{};
 
   /// chunkIndex -> chunk-error tile element, sorted ascending. Empty unless
   /// the host widget supplies an `errorBuilder`.
@@ -104,8 +101,7 @@ class ChatScrollElement extends RenderObjectElement
   ChatScrollView get _widget => widget as ChatScrollView;
 
   @override
-  RenderChatScrollView get renderObject =>
-      super.renderObject as RenderChatScrollView;
+  RenderChatScrollView get renderObject => super.renderObject as RenderChatScrollView;
 
   /// Coalesces post-frame [ScrollUpdateNotification] dispatches so layout and
   /// Tier-1 ticks in the same frame share one observer wake-up.
@@ -132,10 +128,7 @@ class ChatScrollElement extends RenderObjectElement
       _viewportGeometryScrollScheduled = false;
       if (!mounted) return;
       final height = renderObject.hasSize ? renderObject.size.height : 0.0;
-      final dpr =
-          MediaQuery.maybeDevicePixelRatioOf(this) ??
-          View.maybeOf(this)?.devicePixelRatio ??
-          1.0;
+      final dpr = MediaQuery.maybeDevicePixelRatioOf(this) ?? View.maybeOf(this)?.devicePixelRatio ?? 1.0;
       ScrollUpdateNotification(
         metrics: FixedScrollMetrics(
           minScrollExtent: 0,
@@ -154,16 +147,12 @@ class ChatScrollElement extends RenderObjectElement
   void mount(Element? parent, Object? newSlot) {
     super.mount(parent, newSlot);
     renderObject.childManager = this;
-    _widget.selectionController?.addSelectionAllowedListener(
-      _onSelectionAllowedChanged,
-    );
+    _widget.selectionController?.addSelectionAllowedListener(_onSelectionAllowedChanged);
   }
 
   @override
   void unmount() {
-    _widget.selectionController?.removeSelectionAllowedListener(
-      _onSelectionAllowedChanged,
-    );
+    _widget.selectionController?.removeSelectionAllowedListener(_onSelectionAllowedChanged);
     super.unmount();
   }
 
@@ -206,26 +195,19 @@ class ChatScrollElement extends RenderObjectElement
     renderObject
       ..scrollbarTheme = resolved.scrollbar!
       ..highlightColor = view.highlightColor ?? resolved.highlightColor!
-      ..highlightDuration =
-          view.highlightDuration ?? resolved.highlightDuration!;
+      ..highlightDuration = view.highlightDuration ?? resolved.highlightDuration!;
   }
 
   @override
   void update(ChatScrollView newWidget) {
     final old = _widget;
-    super.update(
-      newWidget,
-    ); // -> updateRenderObject (dataSource/controller/...)
+    super.update(newWidget); // -> updateRenderObject (dataSource/controller/...)
     // Retarget the selectionAllowed subscription when the controller instance
     // swaps. Same object — not a second controller; just unsubscribe/subscribe
     // so we never leave a listener on a detached host controller.
     if (!identical(old.selectionController, newWidget.selectionController)) {
-      old.selectionController?.removeSelectionAllowedListener(
-        _onSelectionAllowedChanged,
-      );
-      newWidget.selectionController?.addSelectionAllowedListener(
-        _onSelectionAllowedChanged,
-      );
+      old.selectionController?.removeSelectionAllowedListener(_onSelectionAllowedChanged);
+      newWidget.selectionController?.addSelectionAllowedListener(_onSelectionAllowedChanged);
     }
     // No builder is handed to the render object; if any changed, drop the
     // skip-cache and force a layout so every active child re-inflates.
@@ -248,16 +230,14 @@ class ChatScrollElement extends RenderObjectElement
         old.dayHeaderDelegate != newWidget.dayHeaderDelegate ||
         old.unreadSeparatorBuilder != newWidget.unreadSeparatorBuilder ||
         old.textDirection != newWidget.textDirection ||
-        (old.onSecondaryMessageTap == null) !=
-            (newWidget.onSecondaryMessageTap == null)) {
+        (old.onSecondaryMessageTap == null) != (newWidget.onSecondaryMessageTap == null)) {
       _clearSkipCache();
       renderObject.markNeedsLayout();
     }
     // A changed separator builder *or* direction must rebuild the header
     // even if the day did not change — the day-bucket gate alone would
     // skip it.
-    if (old.dateSeparatorBuilder != newWidget.dateSeparatorBuilder ||
-        old.textDirection != newWidget.textDirection) {
+    if (old.dateSeparatorBuilder != newWidget.dateSeparatorBuilder || old.textDirection != newWidget.textDirection) {
       renderObject.invalidateFloatingHeader();
     }
     // A swapped chunkErrorBuilder must re-inflate every visible chunk-error
@@ -307,42 +287,25 @@ class ChatScrollElement extends RenderObjectElement
     final override = _widget.textDirection;
     final selection = _widget.selectionController;
     final separator = _widget.dateSeparatorBuilder;
-    final hasDateHeader =
-        startsNewDay &&
-        separator != null &&
-        message != null &&
-        groupBucket != null;
+    final hasDateHeader = startsNewDay && separator != null && message != null && groupBucket != null;
     final unreadSeparator = _widget.unreadSeparatorBuilder;
 
     Widget compose(BuildContext context) {
-      assert(
-        !status.isAbsent,
-        'messageBuilder must not be invoked for confirmed-absent id $id',
-      );
-      var content = _widget.messageBuilder(
-        context,
-        id,
-        message,
-        status,
-        runLayout,
-      );
+      assert(!status.isAbsent, 'messageBuilder must not be invoked for confirmed-absent id $id');
+      var content = _widget.messageBuilder(context, id, message, status, runLayout);
       if (selection != null && message != null && allowed.showsChrome) {
         content = SelectableMessage(
           id: id,
           controller: selection,
           allowed: allowed,
           scrollController: _widget.controller,
-          chromeBuilder:
-              _widget.selectionChromeBuilder ?? DefaultSelectionChrome.wrap,
+          chromeBuilder: _widget.selectionChromeBuilder ?? DefaultSelectionChrome.wrap,
           child: content,
         );
       }
       // Viewport-owned secondary (host callback set) must wrap every row so
       // markdown bodies yield right-click to the full-slot message menu.
-      content = ChatSecondaryMessageTapScope(
-        hostOwnsSecondary: _widget.onSecondaryMessageTap != null,
-        child: content,
-      );
+      content = ChatSecondaryMessageTapScope(hostOwnsSecondary: _widget.onSecondaryMessageTap != null, child: content);
       if (!hasDateHeader && !hasUnreadSeparator) {
         return RepaintBoundary(key: ValueKey<int>(id), child: content);
       }
@@ -355,10 +318,7 @@ class ChatScrollElement extends RenderObjectElement
               child: separator(context, groupBucket, message.createdAt),
             ),
           if (unreadSeparator case final build? when hasUnreadSeparator)
-            ChatRowChromeItem.transitioning(
-              delegate: const ChatRowChromeDelegate.opaque(),
-              child: build(context),
-            ),
+            ChatRowChromeItem.transitioning(delegate: const ChatRowChromeDelegate.opaque(), child: build(context)),
         ],
         body: content,
       );
@@ -386,8 +346,7 @@ class ChatScrollElement extends RenderObjectElement
   bool _hasUnreadSeparator(int id, IChatMessage? message) =>
       _widget.unreadSeparatorBuilder != null &&
       message != null &&
-      (_widget.unreadBoundary?.value == id ||
-          renderObject.isUnreadSeparatorExiting(id));
+      (_widget.unreadBoundary?.value == id || renderObject.isUnreadSeparatorExiting(id));
 
   // --- ChatChildManager (driven by RenderChatScrollView.performLayout) ------
 
@@ -405,9 +364,7 @@ class ChatScrollElement extends RenderObjectElement
     final existing = _children[id];
     final selection = _widget.selectionController;
     // Slot id — same key the pointer / span / SelectableMessage use.
-    final allowed = selection == null
-        ? ChatSelectionAllowed.full
-        : selection.isSelectionAllowed(id);
+    final allowed = selection == null ? ChatSelectionAllowed.full : selection.isSelectionAllowed(id);
 
     // Confirmed-absent: deactivate any stale element; never call
     // messageBuilder or wrap in SelectableMessage — unless the render
@@ -451,16 +408,7 @@ class ChatScrollElement extends RenderObjectElement
     owner!.buildScope(this, () {
       final updated = updateChild(
         existing,
-        _buildWidget(
-          id,
-          message,
-          status,
-          startsNewDay,
-          groupBucket,
-          hasUnreadSeparator,
-          runLayout,
-          allowed,
-        ),
+        _buildWidget(id, message, status, startsNewDay, groupBucket, hasUnreadSeparator, runLayout, allowed),
         id,
       );
       if (updated != null) {
@@ -498,20 +446,11 @@ class ChatScrollElement extends RenderObjectElement
   RenderBox? buildFloatingHeader(Object? bucket, DateTime? firstMessageDate) {
     _assertInsideLayoutCallback();
     final build = _widget.dateSeparatorBuilder;
-    final headerWidget =
-        (build == null || bucket == null || firstMessageDate == null)
+    final headerWidget = (build == null || bucket == null || firstMessageDate == null)
         ? null
-        : RepaintBoundary(
-            child: ChatFloatingHeaderMarker(
-              child: build(this, bucket, firstMessageDate),
-            ),
-          );
+        : RepaintBoundary(child: ChatFloatingHeaderMarker(child: build(this, bucket, firstMessageDate)));
     owner!.buildScope(this, () {
-      _floatingHeader = updateChild(
-        _floatingHeader,
-        headerWidget,
-        _ChatSlot.floatingHeader,
-      );
+      _floatingHeader = updateChild(_floatingHeader, headerWidget, _ChatSlot.floatingHeader);
     });
     return _floatingHeader?.renderObject as RenderBox?;
   }
@@ -523,10 +462,7 @@ class ChatScrollElement extends RenderObjectElement
     // true, but the host may have flipped the builder away on the same frame.
     if (_widget.chunkErrorBuilder == null) return null;
     final widget = RepaintBoundary(
-      key: ValueKey<({Symbol tag, int idx})>((
-        tag: #chunkError,
-        idx: chunkIndex,
-      )),
+      key: ValueKey<({Symbol tag, int idx})>((tag: #chunkError, idx: chunkIndex)),
       // Builder reads `_widget` and the chunk at *call* time, not at *build*
       // time — a data-source swap before the user taps Retry sends the
       // retry to the current data source rather than the captured one, and
@@ -549,11 +485,7 @@ class ChatScrollElement extends RenderObjectElement
     );
     Element? updated;
     owner!.buildScope(this, () {
-      updated = updateChild(
-        _chunkErrors[chunkIndex],
-        widget,
-        _ChunkErrorSlot(chunkIndex),
-      );
+      updated = updateChild(_chunkErrors[chunkIndex], widget, _ChunkErrorSlot(chunkIndex));
       if (updated != null) {
         _chunkErrors[chunkIndex] = updated!;
       } else {
@@ -569,11 +501,7 @@ class ChatScrollElement extends RenderObjectElement
     if (chunkIndices.isEmpty) return;
     owner!.buildScope(this, () {
       for (final idx in chunkIndices) {
-        final removed = updateChild(
-          _chunkErrors[idx],
-          null,
-          _ChunkErrorSlot(idx),
-        );
+        final removed = updateChild(_chunkErrors[idx], null, _ChunkErrorSlot(idx));
         assert(removed == null, 'removed is not null');
         _chunkErrors.remove(idx);
       }
@@ -631,11 +559,7 @@ class ChatScrollElement extends RenderObjectElement
   }
 
   @override
-  void moveRenderObjectChild(
-    RenderObject child,
-    Object? oldSlot,
-    Object? newSlot,
-  ) {
+  void moveRenderObjectChild(RenderObject child, Object? oldSlot, Object? newSlot) {
     assert(false, 'ChatScrollElement children never change slot');
   }
 
@@ -660,10 +584,7 @@ class ChatScrollElement extends RenderObjectElement
       _chunkErrors.remove(idx);
     } else {
       assert(child.slot is int, 'child.slot is not an int');
-      assert(
-        _children.containsKey(child.slot),
-        'child.slot is not in _children',
-      );
+      assert(_children.containsKey(child.slot), 'child.slot is not in _children');
       final id = child.slot! as int;
       _children.remove(id);
       _clearSkipCacheFor(id);

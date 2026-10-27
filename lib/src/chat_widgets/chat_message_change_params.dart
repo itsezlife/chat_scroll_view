@@ -9,21 +9,13 @@ import 'package:flutter/foundation.dart';
 @immutable
 class ChatMessageChangeDeltas {
   /// Creates raw edge deltas (old − new) in the render object's coordinates.
-  const ChatMessageChangeDeltas({
-    required this.left,
-    required this.right,
-    required this.top,
-    required this.bottom,
-  });
+  const ChatMessageChangeDeltas({required this.left, required this.right, required this.top, required this.bottom});
 
   /// Builds start deltas from the last painted rect and the new layout rect.
   ///
   /// All four edges are recorded; outgoing bubbles typically change [left],
   /// incoming typically [right], when only width changes.
-  factory ChatMessageChangeDeltas.between({
-    required Rect oldRect,
-    required Rect newRect,
-  }) => ChatMessageChangeDeltas(
+  factory ChatMessageChangeDeltas.between({required Rect oldRect, required Rect newRect}) => ChatMessageChangeDeltas(
     left: oldRect.left - newRect.left,
     right: oldRect.right - newRect.right,
     top: oldRect.top - newRect.top,
@@ -31,12 +23,7 @@ class ChatMessageChangeDeltas {
   );
 
   /// Zero deltas — settled / no background animation.
-  static const ChatMessageChangeDeltas zero = ChatMessageChangeDeltas(
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-  );
+  static const ChatMessageChangeDeltas zero = ChatMessageChangeDeltas(left: 0, right: 0, top: 0, bottom: 0);
 
   /// Left edge: `old.left − new.left`.
   final double left;
@@ -51,13 +38,12 @@ class ChatMessageChangeDeltas {
   final double bottom;
 
   /// Scales by `v` where the animator uses `v = 1 − progress`.
-  ChatMessageChangeDeltas scaled(double oneMinusProgress) =>
-      ChatMessageChangeDeltas(
-        left: left * oneMinusProgress,
-        right: right * oneMinusProgress,
-        top: top * oneMinusProgress,
-        bottom: bottom * oneMinusProgress,
-      );
+  ChatMessageChangeDeltas scaled(double oneMinusProgress) => ChatMessageChangeDeltas(
+    left: left * oneMinusProgress,
+    right: right * oneMinusProgress,
+    top: top * oneMinusProgress,
+    bottom: bottom * oneMinusProgress,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -104,16 +90,11 @@ class ChatMessageChangeParams {
     double? animateFromMetaWidth,
     Offset? settledMetaOffset,
   }) {
-    final deltas = ChatMessageChangeDeltas.between(
-      oldRect: oldBackground,
-      newRect: newBackground,
-    );
+    final deltas = ChatMessageChangeDeltas.between(oldRect: oldBackground, newRect: newBackground);
     final backgroundChanged = deltas != ChatMessageChangeDeltas.zero;
     final from = animateFromMetaOffset;
     final to = settledMetaOffset;
-    final shouldAnimateX =
-        editedEnter ||
-        (from != null && to != null && (from.dx - to.dx).abs() > 1);
+    final shouldAnimateX = editedEnter || (from != null && to != null && (from.dx - to.dx).abs() > 1);
     return ChatMessageChangeParams(
       progress: 0,
       deltas: deltas,
@@ -131,12 +112,7 @@ class ChatMessageChangeParams {
   static const Duration duration = Duration(milliseconds: 250);
 
   /// List-item change curve.
-  static const Curve curve = Cubic(
-    0.19919472913616398,
-    0.010644531250000006,
-    0.27920937042459737,
-    0.91025390625,
-  );
+  static const Curve curve = Cubic(0.19919472913616398, 0.010644531250000006, 0.27920937042459737, 0.91025390625);
 
   /// Clip inset inside the painted bubble while crossfading text.
   static const double clipInset = 4;
@@ -226,40 +202,31 @@ class ChatMessageChangeParams {
   /// [clipInset].
   Rect textClipRect(Rect finalRect) {
     final bg = paintedBackground(finalRect);
-    return Rect.fromLTRB(
-      bg.left + clipInset,
-      bg.top + clipInset,
-      bg.right - clipInset,
-      bg.bottom - clipInset,
-    );
+    return Rect.fromLTRB(bg.left + clipInset, bg.top + clipInset, bg.right - clipInset, bg.bottom - clipInset);
   }
 
   /// Copies these params with an updated [progress] (same deltas / flags).
-  ChatMessageChangeParams atProgress(double progress) =>
-      ChatMessageChangeParams(
-        progress: progress.clamp(0.0, 1.0),
-        deltas: deltas,
-        animateMessageText: animateMessageText,
-        animateBackgroundBounds: animateBackgroundBounds,
-        animateEditedEnter: animateEditedEnter,
-        editedWidthDiff: editedWidthDiff,
-        holdPaintedBackground: holdPaintedBackground,
-        animateFromMetaOffset: animateFromMetaOffset,
-        animateFromMetaWidth: animateFromMetaWidth,
-        shouldAnimateMetaX: shouldAnimateMetaX,
-      );
+  ChatMessageChangeParams atProgress(double progress) => ChatMessageChangeParams(
+    progress: progress.clamp(0.0, 1.0),
+    deltas: deltas,
+    animateMessageText: animateMessageText,
+    animateBackgroundBounds: animateBackgroundBounds,
+    animateEditedEnter: animateEditedEnter,
+    editedWidthDiff: editedWidthDiff,
+    holdPaintedBackground: holdPaintedBackground,
+    animateFromMetaOffset: animateFromMetaOffset,
+    animateFromMetaWidth: animateFromMetaWidth,
+    shouldAnimateMetaX: shouldAnimateMetaX,
+  );
 
   /// Outgoing text opacity (`1 − p`) while [animateMessageText].
-  double get outgoingTextOpacity =>
-      animateMessageText ? oneMinusProgress.clamp(0.0, 1.0) : 0;
+  double get outgoingTextOpacity => animateMessageText ? oneMinusProgress.clamp(0.0, 1.0) : 0;
 
   /// Incoming text opacity (`p`) while [animateMessageText]; else fully opaque.
-  double get incomingTextOpacity =>
-      animateMessageText ? progress.clamp(0.0, 1.0) : 1;
+  double get incomingTextOpacity => animateMessageText ? progress.clamp(0.0, 1.0) : 1;
 
   /// Opacity for the “edited” label.
-  double get editedLabelOpacity =>
-      animateEditedEnter ? progress.clamp(0.0, 1.0) : 1;
+  double get editedLabelOpacity => animateEditedEnter ? progress.clamp(0.0, 1.0) : 1;
 
   /// Painted meta top-left for the current progress.
   ///
@@ -270,11 +237,7 @@ class ChatMessageChangeParams {
   ///   `− editedWidthDiff×(1−p)`.
   /// - Else: `to.dx + δ.right` (tracks painted right edge).
   /// - Y always: `to.dy + δ.bottom − δ.top`.
-  Offset metaPaintOffset({
-    required Offset settledMeta,
-    required Rect finalRect,
-    double? currentMetaWidth,
-  }) {
+  Offset metaPaintOffset({required Offset settledMeta, required Rect finalRect, double? currentMetaWidth}) {
     final from = animateFromMetaOffset;
     if (holdPaintedBackground != null && from != null) {
       // Hold paints at the pre-change meta origin before deltas install.
@@ -297,9 +260,7 @@ class ChatMessageChangeParams {
 
     if (shouldAnimateMetaX && from != null) {
       final lerpedX = from.dx * oneMinusProgress + settledMeta.dx * progress;
-      final editedShift = animateEditedEnter
-          ? editedWidthDiff * oneMinusProgress
-          : 0.0;
+      final editedShift = animateEditedEnter ? editedWidthDiff * oneMinusProgress : 0.0;
       return Offset(lerpedX - editedShift, y);
     }
 

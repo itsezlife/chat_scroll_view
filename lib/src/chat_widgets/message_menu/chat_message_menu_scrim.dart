@@ -106,24 +106,10 @@ class _ScrimHolePainter extends CustomPainter {
 
     final outline = switch (holeShape) {
       final shape? => shape.getOuterPath(hole, textDirection: textDirection),
-      null =>
-        Path()..addRRect(
-          RRect.fromRectAndRadius(hole, Radius.circular(holeRadius)),
-        ),
+      null => Path()..addRRect(RRect.fromRectAndRadius(hole, Radius.circular(holeRadius))),
     };
-    final visibleHole = Path.combine(
-      PathOperation.intersect,
-      outline,
-      Path()..addRect(clip),
-    );
-    canvas.drawPath(
-      Path.combine(
-        PathOperation.difference,
-        Path()..addRect(bounds),
-        visibleHole,
-      ),
-      paint,
-    );
+    final visibleHole = Path.combine(PathOperation.intersect, outline, Path()..addRect(clip));
+    canvas.drawPath(Path.combine(PathOperation.difference, Path()..addRect(bounds), visibleHole), paint);
   }
 
   @override

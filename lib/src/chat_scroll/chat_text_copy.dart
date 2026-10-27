@@ -12,13 +12,7 @@ import 'package:meta/meta.dart';
 @immutable
 final class ChatTextCopy {
   /// Creates a copy of [plainText] from [origin].
-  const ChatTextCopy({
-    required this.plainText,
-    required this.origin,
-    this.messageId,
-    this.content,
-    this.codeLanguage,
-  });
+  const ChatTextCopy({required this.plainText, required this.origin, this.messageId, this.content, this.codeLanguage});
 
   /// The copied text as plain text.
   final String plainText;

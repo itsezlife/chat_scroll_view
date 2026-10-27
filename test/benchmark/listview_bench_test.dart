@@ -6,37 +6,24 @@ import 'shared/listview_chat.dart';
 import 'shared/metrics.dart';
 import 'shared/test_messages.dart';
 
-Widget _buildLV(
-  List<dynamic> messages,
-  ScrollController sc, {
-  bool useTextWidget = false,
-}) => MaterialApp(
+Widget _buildLV(List<dynamic> messages, ScrollController sc, {bool useTextWidget = false}) => MaterialApp(
   home: Scaffold(
     body: SizedBox(
       width: 400,
       height: 800,
       child: BenchmarkListViewWrapper(
         child: useTextWidget
-            ? ListViewChatText(
-                messages: messages.cast<IChatMessage>(),
-                scrollController: sc,
-              )
-            : ListViewChatCustomPaint(
-                messages: messages.cast<IChatMessage>(),
-                scrollController: sc,
-              ),
+            ? ListViewChatText(messages: messages.cast<IChatMessage>(), scrollController: sc)
+            : ListViewChatCustomPaint(messages: messages.cast<IChatMessage>(), scrollController: sc),
       ),
     ),
   ),
 );
 
 RenderBenchmarkListViewWrapper _findRender(WidgetTester tester) =>
-    tester.renderObject<RenderBenchmarkListViewWrapper>(
-      find.byType(BenchmarkListViewWrapper),
-    );
+    tester.renderObject<RenderBenchmarkListViewWrapper>(find.byType(BenchmarkListViewWrapper));
 
-int _countElements(WidgetTester tester, Type type) =>
-    tester.elementList(find.byType(type, skipOffstage: false)).length;
+int _countElements(WidgetTester tester, Type type) => tester.elementList(find.byType(type, skipOffstage: false)).length;
 
 int _countRenderObjects(WidgetTester tester) {
   var count = 0;
@@ -118,10 +105,7 @@ void main() {
           samples.add(render.debugLastPaintDuration.inMicroseconds);
         }
 
-        final metrics = BenchmarkMetrics(
-          'LV-CP paint scroll ($count msgs)',
-          samples,
-        );
+        final metrics = BenchmarkMetrics('LV-CP paint scroll ($count msgs)', samples);
         // ignore: avoid_print
         print(metrics);
 
@@ -149,10 +133,7 @@ void main() {
           samples.add(sw.elapsed.inMicroseconds);
         }
 
-        final metrics = BenchmarkMetrics(
-          'LV-CP fling frame ($count msgs)',
-          samples,
-        );
+        final metrics = BenchmarkMetrics('LV-CP fling frame ($count msgs)', samples);
         // ignore: avoid_print
         print(metrics);
 
@@ -251,11 +232,7 @@ void main() {
         'min=$minEl max=$maxEl range=${maxEl - minEl}',
       );
 
-      expect(
-        maxEl - minEl,
-        lessThan(10),
-        reason: 'Element count should be stable across scroll cycles',
-      );
+      expect(maxEl - minEl, lessThan(10), reason: 'Element count should be stable across scroll cycles');
 
       sc.dispose();
     });
@@ -275,9 +252,7 @@ void main() {
         tester.view.physicalSize = Size(width, 800);
         tester.view.devicePixelRatio = 1.0;
         await tester.pump();
-        final total =
-            render.debugLastLayoutDuration.inMicroseconds +
-            render.debugLastPaintDuration.inMicroseconds;
+        final total = render.debugLastLayoutDuration.inMicroseconds + render.debugLastPaintDuration.inMicroseconds;
         samples.add(total);
       }
 
@@ -324,10 +299,7 @@ void main() {
           samples.add(render.debugLastLayoutDuration.inMicroseconds);
         }
 
-        final metrics = BenchmarkMetrics(
-          'LV-Text layout ($count msgs)',
-          samples,
-        );
+        final metrics = BenchmarkMetrics('LV-Text layout ($count msgs)', samples);
         // ignore: avoid_print
         print(metrics);
 
@@ -355,10 +327,7 @@ void main() {
           samples.add(sw.elapsed.inMicroseconds);
         }
 
-        final metrics = BenchmarkMetrics(
-          'LV-Text fling frame ($count msgs)',
-          samples,
-        );
+        final metrics = BenchmarkMetrics('LV-Text fling frame ($count msgs)', samples);
         // ignore: avoid_print
         print(metrics);
 

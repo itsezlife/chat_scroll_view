@@ -21,19 +21,11 @@ IChatMessage _msg(int id) => UserChatMessage(
 class _LoadedSource extends ChatDataSource {
   _LoadedSource(List<IChatMessage> messages) {
     upsertMessages(messages);
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: messages.length - 1,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: messages.length - 1, reachedOldest: true, reachedNewest: true);
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 class _Rig {
@@ -47,10 +39,8 @@ class _Rig {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Finder barrierOf(int id) => find.descendant(
-    of: find.byKey(ValueKey('row-$id')),
-    matching: find.byKey(const ValueKey('barrier')),
-  );
+  Finder barrierOf(int id) =>
+      find.descendant(of: find.byKey(ValueKey('row-$id')), matching: find.byKey(const ValueKey('barrier')));
 
   /// Three 120-high rows, each with a body line and an 80 x 30 barrier
   /// under it at the start edge; the rest of the row is plain message.
@@ -85,36 +75,25 @@ void main() {
               controller: controller,
               selectionController: selection,
               onIdleMessageTap: (request) => idle.add(request.messageId),
-              onSecondaryMessageTap: (request) =>
-                  secondary.add(request.messageId),
-              messageBuilder: (context, id, message, status, runLayout) =>
-                  Container(
-                    key: ValueKey('row-$id'),
-                    height: 120,
-                    color: Colors.white,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        SizedBox(
-                          height: 60,
-                          child: markdown
-                              ? ChatMarkdownBody(
-                                  controller: selection,
-                                  messageId: id,
-                                )
-                              : Text('row $id'),
-                        ),
-                        ChatMessageTapBarrier(
-                          enabled: barrierEnabled,
-                          child: const SizedBox(
-                            key: ValueKey('barrier'),
-                            width: 80,
-                            height: 30,
-                          ),
-                        ),
-                      ],
+              onSecondaryMessageTap: (request) => secondary.add(request.messageId),
+              messageBuilder: (context, id, message, status, runLayout) => Container(
+                key: ValueKey('row-$id'),
+                height: 120,
+                color: Colors.white,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    SizedBox(
+                      height: 60,
+                      child: markdown ? ChatMarkdownBody(controller: selection, messageId: id) : Text('row $id'),
                     ),
-                  ),
+                    ChatMessageTapBarrier(
+                      enabled: barrierEnabled,
+                      child: const SizedBox(key: ValueKey('barrier'), width: 80, height: 30),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -124,8 +103,7 @@ void main() {
     return _Rig(selection, idle, secondary);
   }
 
-  Offset beside(WidgetTester tester, int id) =>
-      tester.getBottomRight(barrierOf(id)) + const Offset(150, -15);
+  Offset beside(WidgetTester tester, int id) => tester.getBottomRight(barrierOf(id)) + const Offset(150, -15);
 
   /// A press-and-lift of [kind] with [buttons] at [at].
   Future<void> press(
@@ -177,20 +155,14 @@ void main() {
       final rig = await mount(tester, policy: desktop);
       final start = tester.getCenter(barrierOf(1));
 
-      final barred = await tester.startGesture(
-        start,
-        kind: PointerDeviceKind.mouse,
-      );
+      final barred = await tester.startGesture(start, kind: PointerDeviceKind.mouse);
       await barred.moveTo(start + const Offset(0, -150));
       await tester.pump();
       await barred.up();
       await tester.pump();
       expect(rig.selection.selectedIds, isEmpty);
 
-      final free = await tester.startGesture(
-        beside(tester, 1),
-        kind: PointerDeviceKind.mouse,
-      );
+      final free = await tester.startGesture(beside(tester, 1), kind: PointerDeviceKind.mouse);
       await free.moveTo(beside(tester, 1) + const Offset(0, -150));
       await tester.pump();
       await free.up();
@@ -202,11 +174,7 @@ void main() {
         'callback, as one beside it does', (tester) async {
       final rig = await mount(tester, policy: desktop);
 
-      await press(
-        tester,
-        tester.getCenter(barrierOf(1)),
-        buttons: kSecondaryButton,
-      );
+      await press(tester, tester.getCenter(barrierOf(1)), buttons: kSecondaryButton);
       await press(tester, beside(tester, 1), buttons: kSecondaryButton);
 
       expect(rig.secondary, <int>[1, 1]);
@@ -222,9 +190,7 @@ void main() {
       expect(rig.selection.selectedIds, <int>{0, 1});
     });
 
-    testWidgets('a pointer that is not a barrier press leaves no bar behind', (
-      tester,
-    ) async {
+    testWidgets('a pointer that is not a barrier press leaves no bar behind', (tester) async {
       final rig = await mount(tester, policy: desktop);
       rig.selection.startSelection(0);
       await tester.pump();
@@ -244,20 +210,12 @@ void main() {
     testWidgets('a touch tap on the barrier is a message tap', (tester) async {
       final rig = await mount(tester, policy: mobile);
 
-      await press(
-        tester,
-        tester.getCenter(barrierOf(1)),
-        kind: PointerDeviceKind.touch,
-      );
+      await press(tester, tester.getCenter(barrierOf(1)), kind: PointerDeviceKind.touch);
       expect(rig.idle, <int>[1]);
 
       rig.selection.startSelection(0);
       await tester.pump();
-      await press(
-        tester,
-        tester.getCenter(barrierOf(1)),
-        kind: PointerDeviceKind.touch,
-      );
+      await press(tester, tester.getCenter(barrierOf(1)), kind: PointerDeviceKind.touch);
       expect(rig.selection.selectedIds, <int>{0, 1});
     });
 
@@ -281,16 +239,10 @@ void main() {
         await tester.pumpAndSettle();
         final inBody =
             tester.getTopLeft(
-              find.descendant(
-                of: find.byKey(const ValueKey('row-1')),
-                matching: find.byType(MarkdownWidget),
-              ),
+              find.descendant(of: find.byKey(const ValueKey('row-1')), matching: find.byType(MarkdownWidget)),
             ) +
             const Offset(24, 16);
-        expect(
-          rig.selection.enterTextSelection(1, globalOffset: inBody),
-          isTrue,
-        );
+        expect(rig.selection.enterTextSelection(1, globalOffset: inBody), isTrue);
         await tester.pumpAndSettle();
         expect(rig.selection.isTextSelectionActive, isTrue);
 

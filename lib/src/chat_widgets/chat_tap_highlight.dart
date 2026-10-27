@@ -94,12 +94,7 @@ class ChatTapHighlight extends StatefulWidget {
   final MouseCursor cursor;
 
   /// Default paint/hit inset around the label.
-  static const EdgeInsets defaultPadding = EdgeInsets.fromLTRB(
-    4,
-    1.33,
-    4,
-    1.33,
-  );
+  static const EdgeInsets defaultPadding = EdgeInsets.fromLTRB(4, 1.33, 4, 1.33);
 
   /// Default contour corner radius.
   static const double defaultRadius = 6;
@@ -108,15 +103,13 @@ class ChatTapHighlight extends StatefulWidget {
   static const double labelInkAlpha = 0.12;
 
   /// Derives press-ink color from a label accent (same RGB, [labelInkAlpha]).
-  static Color inkColorFromLabel(Color label) =>
-      label.withValues(alpha: labelInkAlpha);
+  static Color inkColorFromLabel(Color label) => label.withValues(alpha: labelInkAlpha);
 
   @override
   State<ChatTapHighlight> createState() => _ChatTapHighlightState();
 }
 
-class _ChatTapHighlightState extends State<ChatTapHighlight>
-    with TickerProviderStateMixin {
+class _ChatTapHighlightState extends State<ChatTapHighlight> with TickerProviderStateMixin {
   final _childKey = GlobalKey();
   AnimationController? _pressController;
   AnimationController? _releaseController;
@@ -146,8 +139,7 @@ class _ChatTapHighlightState extends State<ChatTapHighlight>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _touchSlop =
-        MediaQuery.maybeGestureSettingsOf(context)?.touchSlop ?? kTouchSlop;
+    _touchSlop = MediaQuery.maybeGestureSettingsOf(context)?.touchSlop ?? kTouchSlop;
     if (_armed && !_isInteractive(context)) {
       _abort();
     }
@@ -168,24 +160,11 @@ class _ChatTapHighlightState extends State<ChatTapHighlight>
     _clearFeedback(notify: false);
 
     // Paint contour in child-local space, inflated by [pad] (no layout shift).
-    final box = Rect.fromLTRB(
-      -pad.left,
-      -pad.top,
-      childSize.width + pad.right,
-      childSize.height + pad.bottom,
-    );
-    final contour = ChatSmoothContour.buildPath(<Rect>[
-      box,
-    ], radius: widget.radius);
+    final box = Rect.fromLTRB(-pad.left, -pad.top, childSize.width + pad.right, childSize.height + pad.bottom);
+    final contour = ChatSmoothContour.buildPath(<Rect>[box], radius: widget.radius);
 
-    final press = AnimationController(
-      vsync: this,
-      duration: ChatSpanFeedback.pressDuration,
-    );
-    final release = AnimationController(
-      vsync: this,
-      duration: ChatSpanFeedback.releaseDuration,
-    );
+    final press = AnimationController(vsync: this, duration: ChatSpanFeedback.pressDuration);
+    final release = AnimationController(vsync: this, duration: ChatSpanFeedback.releaseDuration);
     _pressController = press;
     _releaseController = release;
 
@@ -345,10 +324,7 @@ class _ChatTapHighlightState extends State<ChatTapHighlight>
                 child: CustomPaint(
                   key: _childKey,
                   foregroundPainter: feedback != null
-                      ? ChatSpanFeedbackPainter(
-                          feedback: feedback,
-                          repaint: feedback.listenable,
-                        )
+                      ? ChatSpanFeedbackPainter(feedback: feedback, repaint: feedback.listenable)
                       : null,
                   child: widget.child,
                 ),
@@ -368,14 +344,10 @@ class _HitPadding extends SingleChildRenderObjectWidget {
   final EdgeInsets padding;
 
   @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _RenderHitPadding(padding);
+  RenderObject createRenderObject(BuildContext context) => _RenderHitPadding(padding);
 
   @override
-  void updateRenderObject(
-    BuildContext context,
-    covariant _RenderHitPadding renderObject,
-  ) {
+  void updateRenderObject(BuildContext context, covariant _RenderHitPadding renderObject) {
     renderObject.padding = padding;
   }
 }

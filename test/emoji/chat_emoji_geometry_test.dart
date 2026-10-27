@@ -10,12 +10,9 @@ import 'package:flutter_test/flutter_test.dart';
 const _glyph = ContentKey.unicode('\u{1F44D}');
 const _pack = ContentKey.document('pack');
 
-EmojiOnly _glyphs(int count) =>
-    EmojiOnly([for (var i = 0; i < count; i++) const EmojiOnlyItem(_glyph)]);
+EmojiOnly _glyphs(int count) => EmojiOnly([for (var i = 0; i < count; i++) const EmojiOnlyItem(_glyph)]);
 
-EmojiOnly _customs(int count) => EmojiOnly([
-  for (var i = 0; i < count; i++) EmojiOnlyItem(ContentKey.document('d$i')),
-]);
+EmojiOnly _customs(int count) => EmojiOnly([for (var i = 0; i < count; i++) EmojiOnlyItem(ContentKey.document('d$i'))]);
 
 const _phone = Size(360, 640);
 
@@ -112,11 +109,7 @@ void main() {
     });
 
     test('right to left does not mirror the lines', () {
-      final g = _geometry(
-        _glyphs(2),
-        policy: policy,
-        direction: TextDirection.rtl,
-      );
+      final g = _geometry(_glyphs(2), policy: policy, direction: TextDirection.rtl);
 
       expect(g.direction, TextDirection.ltr);
       expect(g.items.first.left, 0);
@@ -126,11 +119,7 @@ void main() {
 
   group('Android sticker layout', () {
     test('112.5 dp art, no inset, so the box is the art', () {
-      final g = _geometry(
-        _glyphs(1),
-        policy: const ChatEmojiPolicy.android(),
-        sticker: _pack,
-      );
+      final g = _geometry(_glyphs(1), policy: const ChatEmojiPolicy.android(), sticker: _pack);
 
       expect(g.kind, ChatEmojiLayoutKind.sticker);
       expect(g.content, _rect(0, 0, 112.5, 112.5));
@@ -158,12 +147,7 @@ void main() {
     test('a header does not narrow the emoji, which keep the full wrap', () {
       // 19 pt font, box 23: floor(200 / 23) = 8, under a header too.
       final free = _geometry(_glyphs(20), policy: policy, maxWidth: 200);
-      final under = _geometry(
-        _glyphs(20),
-        policy: policy,
-        maxWidth: 200,
-        hasHeader: true,
-      );
+      final under = _geometry(_glyphs(20), policy: policy, maxWidth: 200, hasHeader: true);
 
       expect(free.content.width, 8 * 23);
       expect(under.content.width, 8 * 23);
@@ -194,11 +178,7 @@ void main() {
     });
 
     test('right to left mirrors: the trailing edge is the left one', () {
-      final g = _geometry(
-        _glyphs(3),
-        policy: policy,
-        direction: TextDirection.rtl,
-      );
+      final g = _geometry(_glyphs(3), policy: policy, direction: TextDirection.rtl);
 
       expect(g.direction, TextDirection.rtl);
       expect(g.trailingEdge, 0);
@@ -209,16 +189,8 @@ void main() {
   test('the geometry is the box the body lays out to', () {
     // The body and the host's chrome must agree to the pixel; the body test
     // pumps the widget and compares. Here: the same inputs, the same value.
-    final a = _geometry(
-      _glyphs(7),
-      policy: const ChatEmojiPolicy.android(),
-      bottomReserve: 23,
-    );
-    final b = _geometry(
-      _glyphs(7),
-      policy: const ChatEmojiPolicy.android(),
-      bottomReserve: 23,
-    );
+    final a = _geometry(_glyphs(7), policy: const ChatEmojiPolicy.android(), bottomReserve: 23);
+    final b = _geometry(_glyphs(7), policy: const ChatEmojiPolicy.android(), bottomReserve: 23);
 
     expect(a, b);
     expect(a.hashCode, b.hashCode);

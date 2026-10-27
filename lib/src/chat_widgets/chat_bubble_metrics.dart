@@ -56,17 +56,10 @@ abstract final class ChatBubbleMetrics {
   /// copying that outer bias over-pads incoming bubbles. Keep insets
   /// symmetric until a real tail geometry exists; [EdgeInsetsDirectional]
   /// still flips correctly under RTL.
-  static EdgeInsetsDirectional bubbleContentPadding({
-    required ChatMessageThemeData theme,
-  }) {
+  static EdgeInsetsDirectional bubbleContentPadding({required ChatMessageThemeData theme}) {
     final base = theme.bubblePadding;
     final horizontal = base.start + theme.extraTextX;
-    return EdgeInsetsDirectional.fromSTEB(
-      horizontal,
-      base.top,
-      horizontal,
-      base.bottom,
-    );
+    return EdgeInsetsDirectional.fromSTEB(horizontal, base.top, horizontal, base.bottom);
   }
 
   /// Media content [BorderRadiusDirectional] inset from the bubble chrome.

@@ -9,8 +9,7 @@ ChatAnimator _animator({
   double? Function(int id)? offsetToBuiltMessage,
   bool Function(int id)? messageIntersectsPaintBand,
   double Function()? viewportHeight,
-  double Function(int targetId, double messageHeight, double alignment)?
-  closePathEndOffsetFor,
+  double Function(int targetId, double messageHeight, double alignment)? closePathEndOffsetFor,
   bool Function(int targetId)? isTailClosePathTarget,
   RenderBox? Function(int id)? childForId,
   double Function(RenderBox child)? offsetOfChild,
@@ -28,17 +27,14 @@ ChatAnimator _animator({
   bool Function(int id)? isDestinationReady,
   void Function(int id)? requestDestinationWindow,
   VoidCallback? clearDestinationWindow,
-  Duration highlightDuration = const Duration(
-    milliseconds: ChatAnimator.highlightHoldDurationMs,
-  ),
+  Duration highlightDuration = const Duration(milliseconds: ChatAnimator.highlightHoldDurationMs),
   Color highlightColor = const Color(0x280A90F0),
 }) => ChatAnimator(
   controller: controller,
   offsetToBuiltMessage: offsetToBuiltMessage ?? (_) => null,
   messageIntersectsPaintBand: messageIntersectsPaintBand ?? (_) => false,
   viewportHeight: viewportHeight ?? () => 600.0,
-  closePathEndOffsetFor:
-      closePathEndOffsetFor ?? (_, _, alignment) => 40.0 * alignment,
+  closePathEndOffsetFor: closePathEndOffsetFor ?? (_, _, alignment) => 40.0 * alignment,
   isTailClosePathTarget: isTailClosePathTarget ?? (_) => false,
   childForId: childForId ?? (_) => null,
   offsetOfChild: offsetOfChild ?? (_) => 0,
@@ -61,9 +57,7 @@ ChatAnimator _animator({
 );
 
 RenderBox _sizedBox({double height = 60}) {
-  final box = RenderConstrainedBox(
-    additionalConstraints: BoxConstraints.tightFor(height: height),
-  );
+  final box = RenderConstrainedBox(additionalConstraints: BoxConstraints.tightFor(height: height));
   box.layout(BoxConstraints.tightFor(width: 400, height: height));
   return box;
 }
@@ -74,10 +68,7 @@ void main() {
   group('tickHighlight', () {
     test('solid hold then fade over ChatAnimator.highlightFadeDuration', () {
       final controller = ChatScrollController();
-      final animator = _animator(
-        controller: controller,
-        highlightDuration: const Duration(milliseconds: 1000),
-      );
+      final animator = _animator(controller: controller, highlightDuration: const Duration(milliseconds: 1000));
 
       animator
         ..highlightTargetId = 42
@@ -91,31 +82,19 @@ void main() {
       expect(animator.highlightPhase, ChatHighlightPhase.solid);
 
       // Mid-hold — still solid.
-      expect(
-        animator.tickHighlight(start + const Duration(milliseconds: 500)),
-        isTrue,
-      );
+      expect(animator.tickHighlight(start + const Duration(milliseconds: 500)), isTrue);
       expect(animator.highlightFactor, 1.0);
       expect(animator.highlightPhase, ChatHighlightPhase.solid);
 
       // Hold elapsed → fade begins.
-      expect(
-        animator.tickHighlight(start + const Duration(milliseconds: 1000)),
-        isTrue,
-      );
+      expect(animator.tickHighlight(start + const Duration(milliseconds: 1000)), isTrue);
       expect(animator.highlightPhase, ChatHighlightPhase.fading);
       expect(animator.highlightFactor, 1.0);
 
-      expect(
-        animator.tickHighlight(start + const Duration(milliseconds: 1150)),
-        isTrue,
-      );
+      expect(animator.tickHighlight(start + const Duration(milliseconds: 1150)), isTrue);
       expect(animator.highlightFactor, closeTo(0.5, 0.001));
 
-      expect(
-        animator.tickHighlight(start + const Duration(milliseconds: 1300)),
-        isFalse,
-      );
+      expect(animator.tickHighlight(start + const Duration(milliseconds: 1300)), isFalse);
       expect(animator.highlightTargetId, isNull);
       expect(animator.highlightFactor, 0.0);
       expect(animator.highlightPhase, ChatHighlightPhase.idle);
@@ -123,10 +102,7 @@ void main() {
 
     test('highlightDuration zero clears immediately', () {
       final controller = ChatScrollController();
-      final animator = _animator(
-        controller: controller,
-        highlightDuration: Duration.zero,
-      );
+      final animator = _animator(controller: controller, highlightDuration: Duration.zero);
 
       animator
         ..highlightTargetId = 1
@@ -140,10 +116,7 @@ void main() {
 
     test('beginHighlightFade skips remaining hold', () {
       final controller = ChatScrollController();
-      final animator = _animator(
-        controller: controller,
-        highlightDuration: const Duration(milliseconds: 1000),
-      );
+      final animator = _animator(controller: controller, highlightDuration: const Duration(milliseconds: 1000));
 
       animator
         ..highlightTargetId = 7
@@ -154,10 +127,7 @@ void main() {
       animator.beginHighlightFade();
       expect(animator.highlightPhase, ChatHighlightPhase.fading);
       expect(animator.tickHighlight(Duration.zero), isTrue);
-      expect(
-        animator.tickHighlight(ChatAnimator.highlightFadeDuration),
-        isFalse,
-      );
+      expect(animator.tickHighlight(ChatAnimator.highlightFadeDuration), isFalse);
       expect(animator.highlightTargetId, isNull);
     });
   });
@@ -175,11 +145,7 @@ void main() {
         highlightDuration: const Duration(milliseconds: 400),
       );
 
-      animator.animate(
-        5,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.linear,
-      );
+      animator.animate(5, duration: const Duration(milliseconds: 200), curve: Curves.linear);
 
       expect(animator.highlightTargetId, 5);
       expect(animator.highlightPhase, ChatHighlightPhase.solid);
@@ -203,11 +169,7 @@ void main() {
         highlightDuration: const Duration(milliseconds: 200),
       );
 
-      animator.animate(
-        1,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.linear,
-      );
+      animator.animate(1, duration: const Duration(milliseconds: 100), curve: Curves.linear);
       animator.tickAnimate(Duration.zero);
       animator.tickAnimate(animator.animateDuration);
       expect(animator.isAnimating, isFalse);
@@ -220,11 +182,7 @@ void main() {
       expect(animator.highlightPhase, ChatHighlightPhase.solid);
       animator.tickHighlight(t0 + const Duration(milliseconds: 200));
       expect(animator.highlightPhase, ChatHighlightPhase.fading);
-      animator.tickHighlight(
-        t0 +
-            const Duration(milliseconds: 200) +
-            ChatAnimator.highlightFadeDuration,
-      );
+      animator.tickHighlight(t0 + const Duration(milliseconds: 200) + ChatAnimator.highlightFadeDuration);
       expect(animator.highlightTargetId, isNull);
     });
 
@@ -240,11 +198,7 @@ void main() {
         highlightDuration: const Duration(milliseconds: 400),
       );
 
-      animator.animate(
-        5,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.linear,
-      );
+      animator.animate(5, duration: const Duration(milliseconds: 200), curve: Curves.linear);
       expect(animator.highlightPhase, ChatHighlightPhase.solid);
       animator.cancelAnimate();
       expect(animator.isAnimating, isFalse);
@@ -263,11 +217,7 @@ void main() {
         highlightDuration: const Duration(milliseconds: 400),
       );
 
-      animator.animate(
-        5,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.linear,
-      );
+      animator.animate(5, duration: const Duration(milliseconds: 200), curve: Curves.linear);
       expect(animator.highlightTargetId, 5);
 
       animator.animate(
@@ -291,12 +241,7 @@ void main() {
         heightOfChild: (_) => box.size.height,
       );
 
-      animator.animate(
-        5,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.linear,
-        highlight: false,
-      );
+      animator.animate(5, duration: const Duration(milliseconds: 200), curve: Curves.linear, highlight: false);
       expect(animator.highlightTargetId, isNull);
       animator.tickAnimate(Duration.zero);
       animator.tickAnimate(animator.animateDuration);
@@ -308,10 +253,7 @@ void main() {
     test('clears stitch state and completes', () {
       final controller = ChatScrollController();
       var cancelled = false;
-      final animator = _animator(
-        controller: controller,
-        onStitchCancelled: (_) => cancelled = true,
-      );
+      final animator = _animator(controller: controller, onStitchCancelled: (_) => cancelled = true);
 
       animator.animate(
         9,
@@ -334,10 +276,7 @@ void main() {
   group('animate coalesce / short-circuit', () {
     test('same target while in flight returns the same future', () async {
       final controller = ChatScrollController();
-      final animator = _animator(
-        controller: controller,
-        offsetToBuiltMessage: (_) => null,
-      );
+      final animator = _animator(controller: controller, offsetToBuiltMessage: (_) => null);
 
       final first = animator.animate(
         42,
@@ -382,12 +321,7 @@ void main() {
       expect(animator.farAnimateActive, isTrue);
       final clearsAfterStart = cancelCount;
 
-      await animator.animate(
-        2,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.linear,
-        highlight: false,
-      );
+      await animator.animate(2, duration: const Duration(milliseconds: 200), curve: Curves.linear, highlight: false);
 
       expect(animator.animateTargetId, 1);
       expect(animator.farAnimateActive, isTrue);
@@ -441,14 +375,7 @@ void main() {
         isDestinationReady: (_) => false,
         requestDestinationWindow: requested.add,
       );
-      waiting
-          .animate(
-            10,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.linear,
-            highlight: false,
-          )
-          .ignore();
+      waiting.animate(10, duration: const Duration(milliseconds: 200), curve: Curves.linear, highlight: false).ignore();
       expect(waiting.loadGateWaiting, isTrue);
       expect(waiting.animateTargetId, 10);
 
@@ -481,12 +408,7 @@ void main() {
         prepareStitchCapture: (_) => stitchPrep++,
       );
 
-      await animator.animate(
-        7,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.linear,
-        highlight: false,
-      );
+      await animator.animate(7, duration: const Duration(milliseconds: 200), curve: Curves.linear, highlight: false);
 
       expect(animator.isAnimating, isFalse);
       expect(stitchPrep, 0);
@@ -495,33 +417,26 @@ void main() {
   });
 
   group('animate path selection', () {
-    test(
-      'close path when target offset is within ChatAnimator.closeAnimateDistance',
-      () {
-        final controller = ChatScrollController();
-        final box = _sizedBox();
-        final animator = _animator(
-          controller: controller,
-          offsetToBuiltMessage: (_) => 120.0,
-          closePathEndOffsetFor: (_, _, alignment) => 40.0 * alignment,
-          childForId: (_) => box,
-          heightOfChild: (_) => box.size.height,
-        );
+    test('close path when target offset is within ChatAnimator.closeAnimateDistance', () {
+      final controller = ChatScrollController();
+      final box = _sizedBox();
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => 120.0,
+        closePathEndOffsetFor: (_, _, alignment) => 40.0 * alignment,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+      );
 
-        animator.animate(
-          5,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.linear,
-        );
+      animator.animate(5, duration: const Duration(milliseconds: 200), curve: Curves.linear);
 
-        expect(animator.farAnimateActive, isFalse);
-        expect(animator.loadGateWaiting, isFalse);
-        expect(animator.animateStartOffset, 120.0);
-        expect(animator.animateEndOffset, 0.0);
-        expect(controller.anchorMessageId, 5);
-        expect(controller.anchorPixelOffset, 120.0);
-      },
-    );
+      expect(animator.farAnimateActive, isFalse);
+      expect(animator.loadGateWaiting, isFalse);
+      expect(animator.animateStartOffset, 120.0);
+      expect(animator.animateEndOffset, 0.0);
+      expect(controller.anchorMessageId, 5);
+      expect(controller.anchorPixelOffset, 120.0);
+    });
 
     test('preferBuilt waits when target is not built', () {
       final controller = ChatScrollController();
@@ -590,76 +505,51 @@ void main() {
       expect(controller.anchorMessageId, 99);
     });
 
-    test(
-      'close path when target is built even beyond ChatAnimator.closeAnimateDistance',
-      () {
-        // Target already built → smooth scroll; distance must not force a
-        // stitch.
-        final controller = ChatScrollController();
-        final box = _sizedBox();
-        final animator = _animator(
-          controller: controller,
-          offsetToBuiltMessage: (_) => ChatAnimator.closeAnimateDistance + 1,
-          closePathEndOffsetFor: (_, _, alignment) => 40.0 * alignment,
-          childForId: (_) => box,
-          heightOfChild: (_) => box.size.height,
-          messageIntersectsPaintBand: (_) => false,
-        );
+    test('close path when target is built even beyond ChatAnimator.closeAnimateDistance', () {
+      // Target already built → smooth scroll; distance must not force a
+      // stitch.
+      final controller = ChatScrollController();
+      final box = _sizedBox();
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => ChatAnimator.closeAnimateDistance + 1,
+        closePathEndOffsetFor: (_, _, alignment) => 40.0 * alignment,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+        messageIntersectsPaintBand: (_) => false,
+      );
 
-        animator.animate(
-          1,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.linear,
-          highlight: false,
-        );
+      animator.animate(1, duration: const Duration(milliseconds: 200), curve: Curves.linear, highlight: false);
 
-        expect(animator.farAnimateActive, isFalse);
-        expect(animator.isAnimating, isTrue);
-      },
-    );
+      expect(animator.farAnimateActive, isFalse);
+      expect(animator.isAnimating, isTrue);
+    });
 
-    test(
-      'close path when band-intersecting even if offset exceeds distance',
-      () {
-        // Found among current children → smooth scroll, not stitch.
-        final controller = ChatScrollController();
-        final box = _sizedBox(height: 5000);
-        const startY = -(ChatAnimator.closeAnimateDistance + 2000);
-        const endY = 90.0;
-        final animator = _animator(
-          controller: controller,
-          offsetToBuiltMessage: (_) => startY,
-          messageIntersectsPaintBand: (_) => true,
-          viewportHeight: () => 600.0,
-          closePathEndOffsetFor: (_, _, _) => endY,
-          childForId: (_) => box,
-          heightOfChild: (_) => box.size.height,
-        );
+    test('close path when band-intersecting even if offset exceeds distance', () {
+      // Found among current children → smooth scroll, not stitch.
+      final controller = ChatScrollController();
+      final box = _sizedBox(height: 5000);
+      const startY = -(ChatAnimator.closeAnimateDistance + 2000);
+      const endY = 90.0;
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => startY,
+        messageIntersectsPaintBand: (_) => true,
+        viewportHeight: () => 600.0,
+        closePathEndOffsetFor: (_, _, _) => endY,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+      );
 
-        animator.animate(
-          1,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.linear,
-          highlight: false,
-        );
+      animator.animate(1, duration: const Duration(milliseconds: 200), curve: Curves.linear, highlight: false);
 
-        expect(animator.farAnimateActive, isFalse);
-        expect(animator.isAnimating, isTrue);
-        // ~4.5k px travel → max travel duration, not caller 200ms.
-        expect(
-          animator.animateDuration,
-          ChatAnimator.travelDuration(
-            travelPx: endY - startY,
-            viewportHeight: 600,
-          ),
-        );
-        expect(
-          animator.animateDuration.inMilliseconds,
-          ChatAnimator.travelDurationMaxMs,
-        );
-        expect(animator.animateCurve, Curves.easeOutQuint);
-      },
-    );
+      expect(animator.farAnimateActive, isFalse);
+      expect(animator.isAnimating, isTrue);
+      // ~4.5k px travel → max travel duration, not caller 200ms.
+      expect(animator.animateDuration, ChatAnimator.travelDuration(travelPx: endY - startY, viewportHeight: 600));
+      expect(animator.animateDuration.inMilliseconds, ChatAnimator.travelDurationMaxMs);
+      expect(animator.animateCurve, Curves.easeOutQuint);
+    });
 
     test('close path short travel uses min travel duration + easeOutQuint', () {
       final controller = ChatScrollController();
@@ -673,18 +563,10 @@ void main() {
         viewportHeight: () => 600.0,
       );
 
-      animator.animate(
-        5,
-        duration: const Duration(milliseconds: 80),
-        curve: Curves.linear,
-        highlight: false,
-      );
+      animator.animate(5, duration: const Duration(milliseconds: 80), curve: Curves.linear, highlight: false);
 
       expect(animator.farAnimateActive, isFalse);
-      expect(
-        animator.animateDuration.inMilliseconds,
-        ChatAnimator.travelDurationMinMs,
-      );
+      expect(animator.animateDuration.inMilliseconds, ChatAnimator.travelDurationMinMs);
       expect(animator.animateCurve, Curves.easeOutQuint);
     });
 
@@ -858,12 +740,7 @@ void main() {
         heightOfChild: (_) => box.size.height,
       );
 
-      animator.animate(
-        1,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.linear,
-        highlight: false,
-      );
+      animator.animate(1, duration: const Duration(milliseconds: 100), curve: Curves.linear, highlight: false);
 
       expect(animator.tickAnimate(Duration.zero), closeTo(0.0, 0.001));
 
@@ -898,12 +775,7 @@ void main() {
         heightOfChild: (_) => box.size.height,
       );
 
-      animator.animate(
-        9,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.linear,
-        highlight: false,
-      );
+      animator.animate(9, duration: const Duration(milliseconds: 100), curve: Curves.linear, highlight: false);
 
       expect(animator.animateEndOffset, tailEnd);
       animator.tickAnimate(Duration.zero);
@@ -956,12 +828,7 @@ void main() {
         heightOfChild: (_) => box.size.height,
       );
 
-      animator.animate(
-        9,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.linear,
-        highlight: false,
-      );
+      animator.animate(9, duration: const Duration(milliseconds: 400), curve: Curves.linear, highlight: false);
       final quarter = animator.animateDuration * 0.25;
       animator.tickAnimate(quarter);
       final startTime = animator.animateStartTime;
@@ -1014,16 +881,9 @@ void main() {
       expect(animator.stitchProgress, 0.0);
       expect(animator.isAnimating, isTrue);
 
-      animator.applyStitchMeasure(
-        scrollLength: 400,
-        towardNewer: false,
-        viewportHeight: 600,
-      );
+      animator.applyStitchMeasure(scrollLength: 400, towardNewer: false, viewportHeight: 600);
       expect(animator.stitchMeasured, isTrue);
-      expect(
-        animator.animateDuration.inMilliseconds,
-        greaterThanOrEqualTo(300),
-      );
+      expect(animator.animateDuration.inMilliseconds, greaterThanOrEqualTo(300));
 
       // Clock starts at measure (or first tick after). Drive past duration.
       const start = Duration(milliseconds: 100);
@@ -1049,18 +909,12 @@ void main() {
       expect(painted.a, closeTo(base.a * factor, 0.001));
     });
 
-    PaintingContext context() =>
-        PaintingContext(ContainerLayer(), const Rect.fromLTWH(0, 0, 400, 600));
+    PaintingContext context() => PaintingContext(ContainerLayer(), const Rect.fromLTWH(0, 0, 400, 600));
 
     test('no-op when no highlight target', () {
       final animator = _animator(controller: ChatScrollController());
       expect(
-        () => animator.paintHighlight(
-          context: context(),
-          offset: Offset.zero,
-          viewportWidth: 400,
-          viewportHeight: 600,
-        ),
+        () => animator.paintHighlight(context: context(), offset: Offset.zero, viewportWidth: 400, viewportHeight: 600),
         returnsNormally,
       );
     });
@@ -1078,12 +932,7 @@ void main() {
             ..highlightFactor = 1.0;
 
       expect(
-        () => animator.paintHighlight(
-          context: context(),
-          offset: Offset.zero,
-          viewportWidth: 400,
-          viewportHeight: 600,
-        ),
+        () => animator.paintHighlight(context: context(), offset: Offset.zero, viewportWidth: 400, viewportHeight: 600),
         returnsNormally,
       );
     });
@@ -1101,12 +950,7 @@ void main() {
             ..highlightFactor = 0.0;
 
       expect(
-        () => animator.paintHighlight(
-          context: context(),
-          offset: Offset.zero,
-          viewportWidth: 400,
-          viewportHeight: 600,
-        ),
+        () => animator.paintHighlight(context: context(), offset: Offset.zero, viewportWidth: 400, viewportHeight: 600),
         returnsNormally,
       );
     });
@@ -1127,11 +971,7 @@ void main() {
         highlightDuration: const Duration(milliseconds: 500),
       );
 
-      animator.animate(
-        1,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.linear,
-      );
+      animator.animate(1, duration: const Duration(milliseconds: 100), curve: Curves.linear);
       animator.tickAnimate(Duration.zero);
       animator.tickAnimate(animator.animateDuration);
 
@@ -1157,11 +997,7 @@ void main() {
         highlightDuration: const Duration(milliseconds: 500),
       );
 
-      animator.animate(
-        1,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.linear,
-      );
+      animator.animate(1, duration: const Duration(milliseconds: 100), curve: Curves.linear);
       animator.tickAnimate(Duration.zero);
       animator.tickAnimate(animator.animateDuration);
 
@@ -1186,11 +1022,7 @@ void main() {
         highlightDuration: const Duration(milliseconds: 500),
       );
 
-      animator.animate(
-        1,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.linear,
-      );
+      animator.animate(1, duration: const Duration(milliseconds: 100), curve: Curves.linear);
       animator.tickAnimate(Duration.zero);
       animator.tickAnimate(animator.animateDuration);
 
@@ -1213,8 +1045,7 @@ void main() {
     });
 
     test('clearHighlight drops pending arm', () {
-      final animator = _animator(controller: ChatScrollController())
-        ..pendingHighlightTargetId = 3;
+      final animator = _animator(controller: ChatScrollController())..pendingHighlightTargetId = 3;
 
       animator.clearHighlight();
 

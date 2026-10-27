@@ -43,22 +43,14 @@ IChatMessage _msg(int id) => UserChatMessage(
 class _Source extends ChatDataSource {
   _Source(int count) {
     upsertMessages([for (var i = 0; i < count; i++) _msg(i)]);
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: count - 1,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+    seedBoundaries(oldestKnownId: 0, newestKnownId: count - 1, reachedOldest: true, reachedNewest: true);
     for (final chunk in chunks.values) {
       chunk.status = ChatMessageStatus.valid;
     }
   }
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 /// Records every frame the viewport asks it to paint.
@@ -81,19 +73,13 @@ final class _RecordingPainter extends ChatScrollbarPainter {
   double get minThumbLength => 16;
 
   @override
-  void paint(
-    Canvas canvas,
-    ChatScrollbarFrame frame,
-    ChatScrollbarThemeData theme,
-  ) => frames.add(frame);
+  void paint(Canvas canvas, ChatScrollbarFrame frame, ChatScrollbarThemeData theme) => frames.add(frame);
 
   @override
-  bool shouldRepaint(_RecordingPainter oldPainter) =>
-      !identical(oldPainter.frames, frames);
+  bool shouldRepaint(_RecordingPainter oldPainter) => !identical(oldPainter.frames, frames);
 
   @override
-  bool operator ==(Object other) =>
-      other is _RecordingPainter && identical(other.frames, frames);
+  bool operator ==(Object other) => other is _RecordingPainter && identical(other.frames, frames);
 
   @override
   int get hashCode => identityHashCode(frames);
@@ -112,14 +98,8 @@ class _PainterAdapter extends CustomPainter {
   bool shouldRepaint(_PainterAdapter oldDelegate) => true;
 }
 
-Future<RenderObject> _pumpPainter(
-  WidgetTester tester,
-  ChatScrollbarPainter painter,
-  ChatScrollbarFrame frame,
-) async {
-  await tester.pumpWidget(
-    CustomPaint(painter: _PainterAdapter(painter, frame)),
-  );
+Future<RenderObject> _pumpPainter(WidgetTester tester, ChatScrollbarPainter painter, ChatScrollbarFrame frame) async {
+  await tester.pumpWidget(CustomPaint(painter: _PainterAdapter(painter, frame)));
   return tester.renderObject(find.byType(CustomPaint));
 }
 
@@ -175,9 +155,7 @@ void main() {
         ),
       );
       expect(
-        const ChatScrollbarGrab(
-          trackPress: ChatScrollbarTrackPress.fallThrough,
-        ),
+        const ChatScrollbarGrab(trackPress: ChatScrollbarTrackPress.fallThrough),
         const ChatScrollbarGrab(
           touchTargetWidth: 32,
           touchTargetMinHeight: 48,
@@ -201,40 +179,25 @@ void main() {
       );
       expect(
         const ChatScrollbar.desktop(),
-        const ChatScrollbar(
-          painter: ChatPillScrollbarPainter.desktop(),
-          visibility: _desktopVisibility,
-        ),
+        const ChatScrollbar(painter: ChatPillScrollbarPainter.desktop(), visibility: _desktopVisibility),
       );
       expect(
         const ChatScrollbarGrab(),
-        const ChatScrollbarGrab(
-          stripWidth: 12,
-          trackPress: ChatScrollbarTrackPress.centerThumb,
-        ),
+        const ChatScrollbarGrab(stripWidth: 12, trackPress: ChatScrollbarTrackPress.centerThumb),
       );
     });
 
     test('presets are value-equal and distinct', () {
       expect(const ChatScrollbar.mobile(), const ChatScrollbar.mobile());
-      expect(
-        const ChatScrollbar.mobile().hashCode,
-        const ChatScrollbar.mobile().hashCode,
-      );
+      expect(const ChatScrollbar.mobile().hashCode, const ChatScrollbar.mobile().hashCode);
       expect(const ChatScrollbar.desktop(), const ChatScrollbar.desktop());
-      expect(
-        const ChatScrollbar.mobile(),
-        isNot(const ChatScrollbar.desktop()),
-      );
+      expect(const ChatScrollbar.mobile(), isNot(const ChatScrollbar.desktop()));
       expect(const ChatScrollbar.mobile(), isNot(const ChatScrollbar()));
       expect(
         const ChatScrollbarVisibility.autoHide(followsPointer: true),
         isNot(const ChatScrollbarVisibility.autoHide()),
       );
-      expect(
-        const ChatPillScrollbarPainter(hoveredThickness: 5),
-        isNot(const ChatPillScrollbarPainter()),
-      );
+      expect(const ChatPillScrollbarPainter(hoveredThickness: 5), isNot(const ChatPillScrollbarPainter()));
     });
 
     test('forPlatform picks the preset by OS family', () {
@@ -248,11 +211,7 @@ void main() {
       };
       expect(expected.keys, containsAll(TargetPlatform.values));
       for (final MapEntry(key: platform, value: preset) in expected.entries) {
-        expect(
-          ChatScrollbar.forPlatform(platform: platform),
-          preset,
-          reason: '$platform',
-        );
+        expect(ChatScrollbar.forPlatform(platform: platform), preset, reason: '$platform');
       }
     });
 
@@ -280,10 +239,7 @@ void main() {
           grab: ChatScrollbarGrab(stripWidth: 20),
         ),
       );
-      expect(
-        const ChatScrollbar.mobile(grab: none),
-        isNot(const ChatScrollbar.mobile()),
-      );
+      expect(const ChatScrollbar.mobile(grab: none), isNot(const ChatScrollbar.mobile()));
       expect(
         const ChatScrollbar.mobile(grab: null),
         const ChatScrollbar.mobile(),
@@ -306,10 +262,7 @@ void main() {
 
   group('ChatPillScrollbarPainter factors', () {
     /// Desktop pill rects: 6 px wide, 3 px in from the trailing edge.
-    ChatScrollbarFrame desktopFrame({
-      double hoverFactor = 0,
-      double grabFactor = 0,
-    }) => ChatScrollbarFrame(
+    ChatScrollbarFrame desktopFrame({double hoverFactor = 0, double grabFactor = 0}) => ChatScrollbarFrame(
       trackRect: const Rect.fromLTRB(391, 3, 397, 597),
       thumbRect: const Rect.fromLTRB(391, 100, 397, 200),
       textDirection: TextDirection.ltr,
@@ -318,10 +271,7 @@ void main() {
     );
 
     /// Mobile pill rects: 8 px wide (the grabbed thickness).
-    ChatScrollbarFrame mobileFrame({
-      double hoverFactor = 0,
-      double grabFactor = 0,
-    }) => ChatScrollbarFrame(
+    ChatScrollbarFrame mobileFrame({double hoverFactor = 0, double grabFactor = 0}) => ChatScrollbarFrame(
       trackRect: const Rect.fromLTRB(389, 3, 397, 597),
       thumbRect: const Rect.fromLTRB(389, 100, 397, 200),
       textDirection: TextDirection.ltr,
@@ -333,11 +283,7 @@ void main() {
       expect(const ChatPillScrollbarPainter.mobile().trackThickness, 8);
       expect(const ChatPillScrollbarPainter.desktop().trackThickness, 6);
       expect(
-        const ChatPillScrollbarPainter(
-          thickness: 2,
-          hoveredThickness: 10,
-          grabbedThickness: 6,
-        ).trackThickness,
+        const ChatPillScrollbarPainter(thickness: 2, hoveredThickness: 10, grabbedThickness: 6).trackThickness,
         10,
       );
     });
@@ -347,72 +293,31 @@ void main() {
       expect(pill.hoveredThickness, 8);
       expect(pill.trackThickness, 8);
       expect(pill, const ChatPillScrollbarPainter(thickness: 8));
-      expect(
-        pill,
-        const ChatPillScrollbarPainter(thickness: 8, hoveredThickness: 8),
-      );
+      expect(pill, const ChatPillScrollbarPainter(thickness: 8, hoveredThickness: 8));
     });
 
-    testWidgets('desktop at rest: 6 px track and thumb in idle colours', (
-      tester,
-    ) async {
-      final box = await _pumpPainter(
-        tester,
-        const ChatPillScrollbarPainter.desktop(),
-        desktopFrame(),
-      );
+    testWidgets('desktop at rest: 6 px track and thumb in idle colours', (tester) async {
+      final box = await _pumpPainter(tester, const ChatPillScrollbarPainter.desktop(), desktopFrame());
       expect(
         box,
         paints
-          ..rrect(
-            rrect: RRect.fromLTRBR(391, 3, 397, 597, const Radius.circular(3)),
-            color: _trackColor,
-          )
-          ..rrect(
-            rrect: RRect.fromLTRBR(
-              391,
-              100,
-              397,
-              200,
-              const Radius.circular(3),
-            ),
-            color: _thumbColor,
-          ),
+          ..rrect(rrect: RRect.fromLTRBR(391, 3, 397, 597, const Radius.circular(3)), color: _trackColor)
+          ..rrect(rrect: RRect.fromLTRBR(391, 100, 397, 200, const Radius.circular(3)), color: _thumbColor),
       );
     });
 
     testWidgets('desktop hover changes colour only', (tester) async {
-      final box = await _pumpPainter(
-        tester,
-        const ChatPillScrollbarPainter.desktop(),
-        desktopFrame(hoverFactor: 1),
-      );
+      final box = await _pumpPainter(tester, const ChatPillScrollbarPainter.desktop(), desktopFrame(hoverFactor: 1));
       expect(
         box,
         paints
-          ..rrect(
-            rrect: RRect.fromLTRBR(391, 3, 397, 597, const Radius.circular(3)),
-            color: _trackHoverColor,
-          )
-          ..rrect(
-            rrect: RRect.fromLTRBR(
-              391,
-              100,
-              397,
-              200,
-              const Radius.circular(3),
-            ),
-            color: _thumbHoverColor,
-          ),
+          ..rrect(rrect: RRect.fromLTRBR(391, 3, 397, 597, const Radius.circular(3)), color: _trackHoverColor)
+          ..rrect(rrect: RRect.fromLTRBR(391, 100, 397, 200, const Radius.circular(3)), color: _thumbHoverColor),
       );
     });
 
     testWidgets('a partial hover lerps both colours', (tester) async {
-      final box = await _pumpPainter(
-        tester,
-        const ChatPillScrollbarPainter.desktop(),
-        desktopFrame(hoverFactor: 0.5),
-      );
+      final box = await _pumpPainter(tester, const ChatPillScrollbarPainter.desktop(), desktopFrame(hoverFactor: 0.5));
       expect(
         box,
         paints
@@ -421,9 +326,7 @@ void main() {
       );
     });
 
-    testWidgets('a grab over a hover: dragging thumb, hovered track', (
-      tester,
-    ) async {
+    testWidgets('a grab over a hover: dragging thumb, hovered track', (tester) async {
       final box = await _pumpPainter(
         tester,
         const ChatPillScrollbarPainter.desktop(),
@@ -437,14 +340,8 @@ void main() {
       );
     });
 
-    testWidgets('a touch grab without hover engages the track too', (
-      tester,
-    ) async {
-      final box = await _pumpPainter(
-        tester,
-        const ChatPillScrollbarPainter.desktop(),
-        desktopFrame(grabFactor: 1),
-      );
+    testWidgets('a touch grab without hover engages the track too', (tester) async {
+      final box = await _pumpPainter(tester, const ChatPillScrollbarPainter.desktop(), desktopFrame(grabFactor: 1));
       expect(
         box,
         paints
@@ -455,29 +352,16 @@ void main() {
 
     testWidgets('mobile at rest: a 4 px thumb on the trailing side, no '
         'track', (tester) async {
-      final box = await _pumpPainter(
-        tester,
-        const ChatPillScrollbarPainter.mobile(),
-        mobileFrame(),
-      );
+      final box = await _pumpPainter(tester, const ChatPillScrollbarPainter.mobile(), mobileFrame());
       expect(box, paintsExactlyCountTimes(#drawRRect, 1));
       expect(
         box,
-        paints..rrect(
-          rrect: RRect.fromLTRBR(393, 100, 397, 200, const Radius.circular(2)),
-          color: _thumbColor,
-        ),
+        paints..rrect(rrect: RRect.fromLTRBR(393, 100, 397, 200, const Radius.circular(2)), color: _thumbColor),
       );
     });
 
-    testWidgets('mobile grab widens the thumb to 8 px by the grab factor', (
-      tester,
-    ) async {
-      var box = await _pumpPainter(
-        tester,
-        const ChatPillScrollbarPainter.mobile(),
-        mobileFrame(grabFactor: 0.5),
-      );
+    testWidgets('mobile grab widens the thumb to 8 px by the grab factor', (tester) async {
+      var box = await _pumpPainter(tester, const ChatPillScrollbarPainter.mobile(), mobileFrame(grabFactor: 0.5));
       expect(
         box,
         paints..rrect(
@@ -486,28 +370,17 @@ void main() {
         ),
       );
 
-      box = await _pumpPainter(
-        tester,
-        const ChatPillScrollbarPainter.mobile(),
-        mobileFrame(grabFactor: 1),
-      );
+      box = await _pumpPainter(tester, const ChatPillScrollbarPainter.mobile(), mobileFrame(grabFactor: 1));
       expect(
         box,
-        paints..rrect(
-          rrect: RRect.fromLTRBR(389, 100, 397, 200, const Radius.circular(4)),
-          color: _thumbDraggingColor,
-        ),
+        paints..rrect(rrect: RRect.fromLTRBR(389, 100, 397, 200, const Radius.circular(4)), color: _thumbDraggingColor),
       );
     });
 
     testWidgets('hover widens by the hovered thickness', (tester) async {
       final box = await _pumpPainter(
         tester,
-        const ChatPillScrollbarPainter(
-          paintsTrack: false,
-          hoveredThickness: 8,
-          grabbedThickness: 10,
-        ),
+        const ChatPillScrollbarPainter(paintsTrack: false, hoveredThickness: 8, grabbedThickness: 10),
         const ChatScrollbarFrame(
           trackRect: Rect.fromLTRB(386, 4, 396, 596),
           thumbRect: Rect.fromLTRB(386, 100, 396, 200),
@@ -515,12 +388,7 @@ void main() {
           hoverFactor: 1,
         ),
       );
-      expect(
-        box,
-        paints..rrect(
-          rrect: RRect.fromLTRBR(388, 100, 396, 200, const Radius.circular(4)),
-        ),
-      );
+      expect(box, paints..rrect(rrect: RRect.fromLTRBR(388, 100, 396, 200, const Radius.circular(4))));
     });
   });
 
@@ -531,11 +399,7 @@ void main() {
 
     setUp(() => frames = <ChatScrollbarFrame>[]);
 
-    Future<void> pump(
-      WidgetTester tester, {
-      ChatScrollbar? scrollbar,
-      int count = 256,
-    }) async {
+    Future<void> pump(WidgetTester tester, {ChatScrollbar? scrollbar, int count = 256}) async {
       controller = ChatScrollController()..jumpTo(count ~/ 2);
       dataSource = _Source(count);
       addTearDown(controller.dispose);
@@ -563,8 +427,7 @@ void main() {
       await tester.pump();
     }
 
-    RenderChatScrollView render(WidgetTester tester) =>
-        tester.renderObject(find.byType(ChatScrollView));
+    RenderChatScrollView render(WidgetTester tester) => tester.renderObject(find.byType(ChatScrollView));
 
     /// Visibility a fresh paint hands the painter, or `0` when that paint
     /// does not call it.
@@ -575,8 +438,7 @@ void main() {
       return frames.length == before ? 0 : frames.last.visibility;
     }
 
-    Offset at(WidgetTester tester, double x, double y) =>
-        tester.getTopLeft(find.byType(ChatScrollView)) + Offset(x, y);
+    Offset at(WidgetTester tester, double x, double y) => tester.getTopLeft(find.byType(ChatScrollView)) + Offset(x, y);
 
     Future<TestGesture> mouseAt(WidgetTester tester, Offset location) async {
       final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
@@ -587,82 +449,61 @@ void main() {
     }
 
     ChatScrollbar recording(ChatScrollbarVisibility visibility) =>
-        ChatScrollbar(
-          painter: _RecordingPainter(frames),
-          visibility: visibility,
-        );
+        ChatScrollbar(painter: _RecordingPainter(frames), visibility: visibility);
 
     group('unset preset', () {
-      testWidgets(
-        'on mobile platforms: hidden at rest; a scroll shows the thumb '
-        'alone, 4 px wide, 3 px in',
-        (tester) async {
-          await pump(tester);
-          expect(
-            render(tester),
-            paintsExactlyCountTimes(#drawRRect, 0),
-            reason: 'auto-hide opens hidden',
-          );
+      testWidgets('on mobile platforms: hidden at rest; a scroll shows the thumb '
+          'alone, 4 px wide, 3 px in', (tester) async {
+        await pump(tester);
+        expect(render(tester), paintsExactlyCountTimes(#drawRRect, 0), reason: 'auto-hide opens hidden');
 
-          controller.scrollBy(1);
-          await tester.pump();
-          await _elapse(tester, _ms(300));
-          final box = render(tester);
-          expect(box, paintsExactlyCountTimes(#drawRRect, 1));
-          expect(
-            box,
-            paints..something((method, arguments) {
-              if (method != #drawRRect) return false;
-              final rrect = arguments.first as RRect;
-              return rrect.left == _viewportWidth - 3 - 4 &&
-                  rrect.right == _viewportWidth - 3 &&
-                  rrect.tlRadiusX == 2;
-            }),
-          );
-        },
-        variant: TargetPlatformVariant.mobile(),
-      );
+        controller.scrollBy(1);
+        await tester.pump();
+        await _elapse(tester, _ms(300));
+        final box = render(tester);
+        expect(box, paintsExactlyCountTimes(#drawRRect, 1));
+        expect(
+          box,
+          paints..something((method, arguments) {
+            if (method != #drawRRect) return false;
+            final rrect = arguments.first as RRect;
+            return rrect.left == _viewportWidth - 3 - 4 && rrect.right == _viewportWidth - 3 && rrect.tlRadiusX == 2;
+          }),
+        );
+      }, variant: TargetPlatformVariant.mobile());
 
-      testWidgets(
-        'on desktop platforms: a scroll shows the 6 px track and thumb',
-        (tester) async {
-          await pump(tester);
-          expect(render(tester), paintsExactlyCountTimes(#drawRRect, 0));
+      testWidgets('on desktop platforms: a scroll shows the 6 px track and thumb', (tester) async {
+        await pump(tester);
+        expect(render(tester), paintsExactlyCountTimes(#drawRRect, 0));
 
-          controller.scrollBy(1);
-          await tester.pump();
-          await _elapse(tester, _ms(200));
-          expect(
-            render(tester),
-            paints
-              ..rrect(
-                rrect: RRect.fromLTRBR(
-                  _viewportWidth - 9,
-                  3,
-                  _viewportWidth - 3,
-                  _viewportHeight - 3,
-                  const Radius.circular(3),
-                ),
-                color: _trackColor,
-              )
-              ..rrect(color: _thumbColor),
-          );
-        },
-        variant: TargetPlatformVariant.desktop(),
-      );
+        controller.scrollBy(1);
+        await tester.pump();
+        await _elapse(tester, _ms(200));
+        expect(
+          render(tester),
+          paints
+            ..rrect(
+              rrect: RRect.fromLTRBR(
+                _viewportWidth - 9,
+                3,
+                _viewportWidth - 3,
+                _viewportHeight - 3,
+                const Radius.circular(3),
+              ),
+              color: _trackColor,
+            )
+            ..rrect(color: _thumbColor),
+        );
+      }, variant: TargetPlatformVariant.desktop());
 
-      testWidgets(
-        'on desktop platforms: a mouse entering the viewport shows it',
-        (tester) async {
-          await pump(tester);
-          final mouse = await mouseAt(tester, at(tester, -20, 300));
-          await mouse.moveTo(at(tester, 200, 300));
-          await tester.pump();
-          await _elapse(tester, _ms(200));
-          expect(render(tester), paints..rrect(color: _trackColor));
-        },
-        variant: TargetPlatformVariant.desktop(),
-      );
+      testWidgets('on desktop platforms: a mouse entering the viewport shows it', (tester) async {
+        await pump(tester);
+        final mouse = await mouseAt(tester, at(tester, -20, 300));
+        await mouse.moveTo(at(tester, 200, 300));
+        await tester.pump();
+        await _elapse(tester, _ms(200));
+        expect(render(tester), paints..rrect(color: _trackColor));
+      }, variant: TargetPlatformVariant.desktop());
 
       testWidgets(
         'on mobile platforms: a mouse press on the track falls through',
@@ -673,10 +514,7 @@ void main() {
           await tester.pump();
           await _elapse(tester, _ms(300));
           final before = controller.anchorMessageId;
-          await tester.tapAt(
-            at(tester, _viewportWidth - 5, 20),
-            kind: PointerDeviceKind.mouse,
-          );
+          await tester.tapAt(at(tester, _viewportWidth - 5, 20), kind: PointerDeviceKind.mouse);
           await tester.pumpAndSettle();
           expect(controller.anchorMessageId, before);
         },
@@ -709,9 +547,7 @@ void main() {
         final thumb = frames.last.thumbRect;
         expect(thumb.height, lessThan(96));
 
-        final touch = await tester.startGesture(
-          at(tester, x, thumb.center.dy + dy),
-        );
+        final touch = await tester.startGesture(at(tester, x, thumb.center.dy + dy));
         await tester.pump();
         await tester.pump(_ms(16));
         expect(frames.last.grabFactor > 0, grabs, reason: 'x=$x dy=$dy');
@@ -739,9 +575,7 @@ void main() {
         expect(await painted(tester), 0);
       });
 
-      testWidgets('moving inside the viewport does not pulse again', (
-        tester,
-      ) async {
+      testWidgets('moving inside the viewport does not pulse again', (tester) async {
         await pump(tester, scrollbar: recording(_desktopVisibility));
         final mouse = await mouseAt(tester, at(tester, -20, 300));
         await mouse.moveTo(at(tester, 200, 300));
@@ -753,9 +587,7 @@ void main() {
         expect(await painted(tester), 0);
       });
 
-      testWidgets('entering soon after a jump keeps the navigation delay', (
-        tester,
-      ) async {
+      testWidgets('entering soon after a jump keeps the navigation delay', (tester) async {
         await pump(tester, scrollbar: recording(_desktopVisibility));
         final mouse = await mouseAt(tester, at(tester, -20, 300));
         controller.jumpTo(60);
@@ -765,11 +597,7 @@ void main() {
         await mouse.moveTo(at(tester, 200, 300));
         await tester.pump();
         await _elapse(tester, _ms(1250));
-        expect(
-          await painted(tester),
-          1,
-          reason: '1500 ms after the jump have not passed',
-        );
+        expect(await painted(tester), 1, reason: '1500 ms after the jump have not passed');
         await _elapse(tester, _ms(500));
         expect(await painted(tester), 0);
       });
@@ -790,9 +618,7 @@ void main() {
         expect(scrollbarTargets(), isEmpty);
       });
 
-      testWidgets('leaving the viewport starts the fade at once', (
-        tester,
-      ) async {
+      testWidgets('leaving the viewport starts the fade at once', (tester) async {
         await pump(tester, scrollbar: recording(_desktopVisibility));
         final mouse = await mouseAt(tester, at(tester, 200, 300));
         await _elapse(tester, _ms(200));
@@ -806,9 +632,7 @@ void main() {
         expect(await painted(tester), 0);
       });
 
-      testWidgets('leaving straight from the strip starts the fade at once', (
-        tester,
-      ) async {
+      testWidgets('leaving straight from the strip starts the fade at once', (tester) async {
         await pump(tester, scrollbar: recording(_desktopVisibility));
         final mouse = await mouseAt(tester, at(tester, 200, 300));
         await mouse.moveTo(at(tester, 395, 300));
@@ -843,13 +667,8 @@ void main() {
         expect(await painted(tester), 0);
       });
 
-      testWidgets('without followsPointer, entering reveals nothing', (
-        tester,
-      ) async {
-        await pump(
-          tester,
-          scrollbar: recording(const ChatScrollbarVisibility.autoHide()),
-        );
+      testWidgets('without followsPointer, entering reveals nothing', (tester) async {
+        await pump(tester, scrollbar: recording(const ChatScrollbarVisibility.autoHide()));
         final mouse = await mouseAt(tester, at(tester, -20, 300));
         await mouse.moveTo(at(tester, 200, 300));
         await tester.pump();
@@ -859,9 +678,7 @@ void main() {
 
       testWidgets('a hovering stylus does not pulse', (tester) async {
         await pump(tester, scrollbar: recording(_desktopVisibility));
-        final stylus = await tester.createGesture(
-          kind: PointerDeviceKind.stylus,
-        );
+        final stylus = await tester.createGesture(kind: PointerDeviceKind.stylus);
         addTearDown(stylus.removePointer);
         await stylus.addPointer(location: at(tester, -20, 300));
         await tester.pump();
@@ -895,23 +712,14 @@ void main() {
         expect(frames.last.hoverFactor, 0);
       });
 
-      testWidgets('grab eases in and, on release, out alongside the settle', (
-        tester,
-      ) async {
-        await pump(
-          tester,
-          scrollbar: recording(
-            const ChatScrollbarVisibility.autoHide(curve: Curves.linear),
-          ),
-        );
+      testWidgets('grab eases in and, on release, out alongside the settle', (tester) async {
+        await pump(tester, scrollbar: recording(const ChatScrollbarVisibility.autoHide(curve: Curves.linear)));
         controller.scrollBy(1);
         await tester.pump();
         await _elapse(tester, _ms(300));
         final thumb = frames.last.thumbRect;
 
-        final gesture = await tester.startGesture(
-          at(tester, 395, thumb.center.dy),
-        );
+        final gesture = await tester.startGesture(at(tester, 395, thumb.center.dy));
         await tester.pump();
         expect(frames.last.grabFactor, 0, reason: 'the first frame starts it');
         await tester.pump(_ms(125));
@@ -928,10 +736,7 @@ void main() {
       });
 
       testWidgets('under always, factors ease over 250 ms', (tester) async {
-        await pump(
-          tester,
-          scrollbar: recording(const ChatScrollbarVisibility.always()),
-        );
+        await pump(tester, scrollbar: recording(const ChatScrollbarVisibility.always()));
         final mouse = await mouseAt(tester, at(tester, 200, 300));
         await mouse.moveTo(at(tester, 395, 300));
         await tester.pump();

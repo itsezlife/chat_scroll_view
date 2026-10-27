@@ -7,32 +7,17 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'chat_message.dart';
 
-IChatMessage _msg(int id) => UserChatMessage(
-  id: id,
-  sender: 'u',
-  createdAt: DateTime(2026),
-  updatedAt: DateTime(2026),
-  content: 'm$id',
-);
+IChatMessage _msg(int id) =>
+    UserChatMessage(id: id, sender: 'u', createdAt: DateTime(2026), updatedAt: DateTime(2026), content: 'm$id');
 
 class _TestDataSource extends ChatDataSource {
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => const <IChatMessage>[];
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => const <IChatMessage>[];
 }
 
 void main() {
   group('ChatScrollChunk.chunkOf', () {
-    final cases = <(int id, int expected)>[
-      (0, 0),
-      (63, 0),
-      (64, 1),
-      (-1, -1),
-      (1000, 15),
-      (4000, 62),
-    ];
+    final cases = <(int id, int expected)>[(0, 0), (63, 0), (64, 1), (-1, -1), (1000, 15), (4000, 62)];
 
     for (final (id, expected) in cases) {
       test('chunkOf($id) == $expected', () {
@@ -110,18 +95,15 @@ void main() {
         ..upsertMessage(_msg(199));
     });
 
-    test(
-      'getMessage(100) returns message when 101–198 are null in chunk 1',
-      () {
-        final m = source.getMessage(100);
-        expect(m, isNotNull);
-        expect(m!.id, 100);
-        expect(source.getMessage(101), isNull);
-        expect(source.getMessage(150), isNull);
-        expect(source.getMessage(198), isNull);
-        expect(source.getMessage(199)!.id, 199);
-      },
-    );
+    test('getMessage(100) returns message when 101–198 are null in chunk 1', () {
+      final m = source.getMessage(100);
+      expect(m, isNotNull);
+      expect(m!.id, 100);
+      expect(source.getMessage(101), isNull);
+      expect(source.getMessage(150), isNull);
+      expect(source.getMessage(198), isNull);
+      expect(source.getMessage(199)!.id, 199);
+    });
 
     test('slot assertion fires when chunk is stored at wrong index', () {
       // Chunk for index 0 (firstId 0) stored under key 1 — simulates corruption.
@@ -144,14 +126,11 @@ void main() {
       expect(chunk.isAbsentSlot(1), isFalse);
     });
 
-    test(
-      'markAbsentSlot(63) marks slot 63 absent without affecting slot 0',
-      () {
-        chunk.markAbsentSlot(63);
-        expect(chunk.isAbsentSlot(63), isTrue);
-        expect(chunk.isAbsentSlot(0), isFalse);
-      },
-    );
+    test('markAbsentSlot(63) marks slot 63 absent without affecting slot 0', () {
+      chunk.markAbsentSlot(63);
+      expect(chunk.isAbsentSlot(63), isTrue);
+      expect(chunk.isAbsentSlot(0), isFalse);
+    });
 
     test('only endpoint slots 0 and 63 absent leaves all others present', () {
       chunk
@@ -161,11 +140,7 @@ void main() {
       expect(chunk.isAbsentSlot(63), isTrue);
       expect(chunk.absentSlotCount, 2);
       for (var slot = 1; slot < ChatScrollChunk.kSize - 1; slot++) {
-        expect(
-          chunk.isAbsentSlot(slot),
-          isFalse,
-          reason: 'slot $slot should not be absent',
-        );
+        expect(chunk.isAbsentSlot(slot), isFalse, reason: 'slot $slot should not be absent');
       }
     });
 
@@ -176,11 +151,7 @@ void main() {
         ..markAbsentSlot(63)
         ..clearAbsentMask();
       for (var i = 0; i < ChatScrollChunk.kSize; i++) {
-        expect(
-          chunk.isAbsentSlot(i),
-          isFalse,
-          reason: 'slot $i should be clear',
-        );
+        expect(chunk.isAbsentSlot(i), isFalse, reason: 'slot $i should be clear');
       }
       expect(chunk.absentSlotCount, 0);
     });
@@ -260,19 +231,16 @@ void main() {
       }
     });
 
-    test(
-      'markAbsentSlot on a null unmarked slot succeeds and sets the flag',
-      () {
-        expect(chunk.messages[7], isNull);
-        expect(chunk.isAbsentSlot(7), isFalse);
+    test('markAbsentSlot on a null unmarked slot succeeds and sets the flag', () {
+      expect(chunk.messages[7], isNull);
+      expect(chunk.isAbsentSlot(7), isFalse);
 
-        chunk.markAbsentSlot(7);
+      chunk.markAbsentSlot(7);
 
-        expect(chunk.isAbsentSlot(7), isTrue);
-        expect(chunk.messages[7], isNull);
-        expect(chunk.isFullyAbsent, isFalse);
-      },
-    );
+      expect(chunk.isAbsentSlot(7), isTrue);
+      expect(chunk.messages[7], isNull);
+      expect(chunk.isFullyAbsent, isFalse);
+    });
 
     test('markAbsentSlot is idempotent when the slot is already absent', () {
       chunk.markAbsentSlot(4);
@@ -305,20 +273,17 @@ void main() {
       expect(chunk.absentSlotCount, 0);
     });
 
-    test(
-      'clearAbsentSlot only clears the targeted slot, leaving others absent',
-      () {
-        chunk
-          ..markAbsentSlot(0)
-          ..markAbsentSlot(10)
-          ..markAbsentSlot(63);
-        chunk.clearAbsentSlot(10);
-        expect(chunk.isAbsentSlot(0), isTrue);
-        expect(chunk.isAbsentSlot(10), isFalse);
-        expect(chunk.isAbsentSlot(63), isTrue);
-        expect(chunk.absentSlotCount, 2);
-      },
-    );
+    test('clearAbsentSlot only clears the targeted slot, leaving others absent', () {
+      chunk
+        ..markAbsentSlot(0)
+        ..markAbsentSlot(10)
+        ..markAbsentSlot(63);
+      chunk.clearAbsentSlot(10);
+      expect(chunk.isAbsentSlot(0), isTrue);
+      expect(chunk.isAbsentSlot(10), isFalse);
+      expect(chunk.isAbsentSlot(63), isTrue);
+      expect(chunk.absentSlotCount, 2);
+    });
   });
 
   group('statusOf with absent slots', () {
@@ -337,26 +302,20 @@ void main() {
       expect(source.statusOf(10), ChatMessageStatus.valid);
     });
 
-    test(
-      'statusOf returns absent for a slot marked absent in a valid chunk',
-      () {
-        source.upsertMessage(_msg(10));
-        // Manually mark slot 5 (id = chunkFirstId + 5 = 5) absent.
-        final chunkIndex = ChatScrollChunk.chunkOf(0);
-        final chunk = source.chunks[chunkIndex]!;
-        chunk.markAbsentSlot(5); // id = 0 * 64 + 5 = 5
-        expect(source.statusOf(5), ChatMessageStatus.absent);
-      },
-    );
+    test('statusOf returns absent for a slot marked absent in a valid chunk', () {
+      source.upsertMessage(_msg(10));
+      // Manually mark slot 5 (id = chunkFirstId + 5 = 5) absent.
+      final chunkIndex = ChatScrollChunk.chunkOf(0);
+      final chunk = source.chunks[chunkIndex]!;
+      chunk.markAbsentSlot(5); // id = 0 * 64 + 5 = 5
+      expect(source.statusOf(5), ChatMessageStatus.absent);
+    });
 
-    test(
-      'statusOf returns chunk status (valid) for a null non-absent slot',
-      () {
-        source.upsertMessage(_msg(10));
-        // id=11 is in chunk 0 but not absent and not present.
-        expect(source.statusOf(11), ChatMessageStatus.valid);
-      },
-    );
+    test('statusOf returns chunk status (valid) for a null non-absent slot', () {
+      source.upsertMessage(_msg(10));
+      // id=11 is in chunk 0 but not absent and not present.
+      expect(source.statusOf(11), ChatMessageStatus.valid);
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -367,154 +326,124 @@ void main() {
     // Verify that ALL null slots in fetched chunks are marked absent
     // unconditionally — no [oldestKnownId, newestKnownId] guard.
 
-    test(
-      'empty fetch below current oldestKnownId marks every slot absent',
-      () async {
-        // Seed two real messages so oldestKnownId = 10001, newestKnownId = 10004.
-        final source = _RecordingDataSource(fetchResult: []);
-        source
-          ..upsertMessage(_msg(10001))
-          ..upsertMessage(_msg(10004));
+    test('empty fetch below current oldestKnownId marks every slot absent', () async {
+      // Seed two real messages so oldestKnownId = 10001, newestKnownId = 10004.
+      final source = _RecordingDataSource(fetchResult: []);
+      source
+        ..upsertMessage(_msg(10001))
+        ..upsertMessage(_msg(10004));
 
-        // oldestKnownId = 10001 (from upsert, no fetch yet sets it lower).
-        // We now ask for a range that lives entirely BELOW 10001.
-        // The chunk covering 9984–10047 (index 156) would cover 9984..10047.
-        // Let's use a simpler range: IDs 64–127 (chunk index 1).
-        // fetchRange returns empty → all 64 slots in chunk 1 must be absent.
-        source.simulateFetch(fromId: 64, toId: 127, result: []);
-        await Future<void>.delayed(Duration.zero); // let future complete
+      // oldestKnownId = 10001 (from upsert, no fetch yet sets it lower).
+      // We now ask for a range that lives entirely BELOW 10001.
+      // The chunk covering 9984–10047 (index 156) would cover 9984..10047.
+      // Let's use a simpler range: IDs 64–127 (chunk index 1).
+      // fetchRange returns empty → all 64 slots in chunk 1 must be absent.
+      source.simulateFetch(fromId: 64, toId: 127, result: []);
+      await Future<void>.delayed(Duration.zero); // let future complete
 
-        final ci = ChatScrollChunk.chunkOf(64);
-        final chunk = source.chunks[ci];
-        expect(chunk, isNotNull, reason: 'chunk must be created by the fetch');
-        final loaded = chunk!;
-        for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
-          expect(
-            loaded.isAbsentSlot(slot),
-            isTrue,
-            reason:
-                'slot $slot (id ${64 + slot}) must be absent after '
-                'empty fetch even though 64 < oldestKnownId (10001)',
-          );
-        }
-        expect(loaded.isFullyAbsent, isTrue);
-        expect(loaded.absentSlotCount, ChatScrollChunk.kSize);
-      },
-    );
-
-    test(
-      'partial result: returned IDs are present, unreturned are absent',
-      () async {
-        final source = _RecordingDataSource(fetchResult: []);
-        // Fetch chunk 0 (IDs 0–63) with only ID 5 returned.
-        source.simulateFetch(fromId: 0, toId: 63, result: [_msg(5)]);
-        await Future<void>.delayed(Duration.zero);
-
-        final ci = ChatScrollChunk.chunkOf(0);
-        final chunk = source.chunks[ci];
-        expect(chunk, isNotNull);
-        // Slot 5 is present → not absent.
-        expect(chunk!.isAbsentSlot(5), isFalse);
-        expect(chunk.messages[5], isNotNull);
-        // Every other slot is absent.
-        for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
-          if (slot == 5) continue;
-          expect(
-            chunk.isAbsentSlot(slot),
-            isTrue,
-            reason: 'slot $slot must be absent',
-          );
-        }
-      },
-    );
-
-    test(
-      'sparse fetchRange result marks only unreturned slots absent',
-      () async {
-        final source = _RecordingDataSource(fetchResult: []);
-        source.simulateFetch(fromId: 0, toId: 63, result: [_msg(5), _msg(10)]);
-        await Future<void>.delayed(Duration.zero);
-
-        final chunk = source.chunks[ChatScrollChunk.chunkOf(0)]!;
-        expect(chunk.messages[5], isNotNull);
-        expect(chunk.messages[10], isNotNull);
-        expect(chunk.isAbsentSlot(5), isFalse);
-        expect(chunk.isAbsentSlot(10), isFalse);
-        expect(chunk.isAbsentSlot(0), isTrue);
-        expect(chunk.isAbsentSlot(63), isTrue);
-        expect(chunk.isFullyAbsent, isFalse);
-        expect(chunk.absentSlotCount, ChatScrollChunk.kSize - 2);
-      },
-    );
-
-    test(
-      'large deletion gap across five whole chunks marks every slot absent',
-      () async {
-        final source = _RecordingDataSource(fetchResult: []);
-        // Chunks 1–5 (ids 64–383) empty; anchors at chunk 0 and 6 edges.
-        source.simulateFetch(
-          fromId: 64,
-          toId: 383,
-          result: const <IChatMessage>[],
+      final ci = ChatScrollChunk.chunkOf(64);
+      final chunk = source.chunks[ci];
+      expect(chunk, isNotNull, reason: 'chunk must be created by the fetch');
+      final loaded = chunk!;
+      for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
+        expect(
+          loaded.isAbsentSlot(slot),
+          isTrue,
+          reason:
+              'slot $slot (id ${64 + slot}) must be absent after '
+              'empty fetch even though 64 < oldestKnownId (10001)',
         );
-        await Future<void>.delayed(Duration.zero);
+      }
+      expect(loaded.isFullyAbsent, isTrue);
+      expect(loaded.absentSlotCount, ChatScrollChunk.kSize);
+    });
 
-        for (var ci = 1; ci <= 5; ci++) {
-          final chunk = source.chunks[ci];
-          expect(chunk, isNotNull, reason: 'chunk $ci must exist');
-          expect(chunk!.isFullyAbsent, isTrue);
-          expect(chunk.absentSlotCount, ChatScrollChunk.kSize);
-        }
-        expect(source.statusOf(64).isAbsent, isTrue);
-        expect(source.statusOf(200).isAbsent, isTrue);
-        expect(source.statusOf(383).isAbsent, isTrue);
-      },
-    );
+    test('partial result: returned IDs are present, unreturned are absent', () async {
+      final source = _RecordingDataSource(fetchResult: []);
+      // Fetch chunk 0 (IDs 0–63) with only ID 5 returned.
+      source.simulateFetch(fromId: 0, toId: 63, result: [_msg(5)]);
+      await Future<void>.delayed(Duration.zero);
 
-    test(
-      'chunk boundary ids: first and last slot in a chunk mark absent correctly',
-      () async {
-        final source = _RecordingDataSource(fetchResult: []);
-        source.simulateFetch(
-          fromId: 64,
-          toId: 127,
-          result: [_msg(64), _msg(127)],
-        );
-        await Future<void>.delayed(Duration.zero);
+      final ci = ChatScrollChunk.chunkOf(0);
+      final chunk = source.chunks[ci];
+      expect(chunk, isNotNull);
+      // Slot 5 is present → not absent.
+      expect(chunk!.isAbsentSlot(5), isFalse);
+      expect(chunk.messages[5], isNotNull);
+      // Every other slot is absent.
+      for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
+        if (slot == 5) continue;
+        expect(chunk.isAbsentSlot(slot), isTrue, reason: 'slot $slot must be absent');
+      }
+    });
 
-        final chunk = source.chunks[1]!;
-        expect(chunk.isAbsentSlot(0), isFalse);
-        expect(chunk.isAbsentSlot(63), isFalse);
-        expect(chunk.messages[0]!.id, 64);
-        expect(chunk.messages[63]!.id, 127);
-        for (var slot = 1; slot < 63; slot++) {
-          expect(chunk.isAbsentSlot(slot), isTrue, reason: 'slot $slot');
-        }
-        expect(chunk.isFullyAbsent, isFalse);
-        expect(chunk.absentSlotCount, 62);
-      },
-    );
+    test('sparse fetchRange result marks only unreturned slots absent', () async {
+      final source = _RecordingDataSource(fetchResult: []);
+      source.simulateFetch(fromId: 0, toId: 63, result: [_msg(5), _msg(10)]);
+      await Future<void>.delayed(Duration.zero);
 
-    test(
-      'invalidate clears absent masks then re-fetch can restore a slot',
-      () async {
-        final source = _RecordingDataSource(fetchResult: []);
-        source.simulateFetch(fromId: 0, toId: 63, result: [_msg(5)]);
-        await Future<void>.delayed(Duration.zero);
-        expect(source.statusOf(10).isAbsent, isTrue);
+      final chunk = source.chunks[ChatScrollChunk.chunkOf(0)]!;
+      expect(chunk.messages[5], isNotNull);
+      expect(chunk.messages[10], isNotNull);
+      expect(chunk.isAbsentSlot(5), isFalse);
+      expect(chunk.isAbsentSlot(10), isFalse);
+      expect(chunk.isAbsentSlot(0), isTrue);
+      expect(chunk.isAbsentSlot(63), isTrue);
+      expect(chunk.isFullyAbsent, isFalse);
+      expect(chunk.absentSlotCount, ChatScrollChunk.kSize - 2);
+    });
 
-        source.invalidate();
-        expect(source.statusOf(10).isAbsent, isFalse);
-        expect(source.statusOf(10).isDirty, isTrue);
+    test('large deletion gap across five whole chunks marks every slot absent', () async {
+      final source = _RecordingDataSource(fetchResult: []);
+      // Chunks 1–5 (ids 64–383) empty; anchors at chunk 0 and 6 edges.
+      source.simulateFetch(fromId: 64, toId: 383, result: const <IChatMessage>[]);
+      await Future<void>.delayed(Duration.zero);
 
-        source.simulateFetch(fromId: 0, toId: 63, result: [_msg(5), _msg(10)]);
-        await Future<void>.delayed(Duration.zero);
+      for (var ci = 1; ci <= 5; ci++) {
+        final chunk = source.chunks[ci];
+        expect(chunk, isNotNull, reason: 'chunk $ci must exist');
+        expect(chunk!.isFullyAbsent, isTrue);
+        expect(chunk.absentSlotCount, ChatScrollChunk.kSize);
+      }
+      expect(source.statusOf(64).isAbsent, isTrue);
+      expect(source.statusOf(200).isAbsent, isTrue);
+      expect(source.statusOf(383).isAbsent, isTrue);
+    });
 
-        expect(source.statusOf(10).isAbsent, isFalse);
-        expect(source.getMessage(10), isNotNull);
-        expect(source.statusOf(11).isAbsent, isTrue);
-      },
-    );
+    test('chunk boundary ids: first and last slot in a chunk mark absent correctly', () async {
+      final source = _RecordingDataSource(fetchResult: []);
+      source.simulateFetch(fromId: 64, toId: 127, result: [_msg(64), _msg(127)]);
+      await Future<void>.delayed(Duration.zero);
+
+      final chunk = source.chunks[1]!;
+      expect(chunk.isAbsentSlot(0), isFalse);
+      expect(chunk.isAbsentSlot(63), isFalse);
+      expect(chunk.messages[0]!.id, 64);
+      expect(chunk.messages[63]!.id, 127);
+      for (var slot = 1; slot < 63; slot++) {
+        expect(chunk.isAbsentSlot(slot), isTrue, reason: 'slot $slot');
+      }
+      expect(chunk.isFullyAbsent, isFalse);
+      expect(chunk.absentSlotCount, 62);
+    });
+
+    test('invalidate clears absent masks then re-fetch can restore a slot', () async {
+      final source = _RecordingDataSource(fetchResult: []);
+      source.simulateFetch(fromId: 0, toId: 63, result: [_msg(5)]);
+      await Future<void>.delayed(Duration.zero);
+      expect(source.statusOf(10).isAbsent, isTrue);
+
+      source.invalidate();
+      expect(source.statusOf(10).isAbsent, isFalse);
+      expect(source.statusOf(10).isDirty, isTrue);
+
+      source.simulateFetch(fromId: 0, toId: 63, result: [_msg(5), _msg(10)]);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(source.statusOf(10).isAbsent, isFalse);
+      expect(source.getMessage(10), isNotNull);
+      expect(source.statusOf(11).isAbsent, isTrue);
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -563,8 +492,7 @@ void main() {
 // ---------------------------------------------------------------------------
 
 class _RecordingDataSource extends ChatDataSource {
-  _RecordingDataSource({required List<IChatMessage> fetchResult})
-    : _defaultResult = fetchResult;
+  _RecordingDataSource({required List<IChatMessage> fetchResult}) : _defaultResult = fetchResult;
 
   final List<IChatMessage> _defaultResult;
 
@@ -572,18 +500,11 @@ class _RecordingDataSource extends ChatDataSource {
   Completer<List<IChatMessage>>? _completer;
 
   @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async => _defaultResult;
+  Future<List<IChatMessage>> fetchRange({required int fromId, required int toId}) async => _defaultResult;
 
   /// Directly inject a fetch result as if `fetchRange` returned [result]
   /// for the chunk(s) covering [fromId..toId].
-  void simulateFetch({
-    required int fromId,
-    required int toId,
-    required List<IChatMessage> result,
-  }) {
+  void simulateFetch({required int fromId, required int toId, required List<IChatMessage> result}) {
     // Replicate exactly what ChatDataSource._executeFetch does so we can
     // test the absent-marking logic in isolation.
     final fromChunk = ChatScrollChunk.chunkOf(fromId);
