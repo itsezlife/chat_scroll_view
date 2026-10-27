@@ -22,6 +22,19 @@ class ComposerHeaderStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final strings = ChromeStringsScope.composerOf(context);
     final dismiss = header.onDismiss;
+    if (header case ComposerHeader$Attachment(
+      :final icon,
+      :final title,
+      :final removeLabel,
+      :final onRemove,
+    )) {
+      return _AttachmentStrip(
+        icon: icon,
+        title: title,
+        removeLabel: removeLabel,
+        onRemove: onRemove,
+      );
+    }
     return SizedBox(
       height: ComposerMetrics.headerHeight,
       child: Row(
@@ -60,6 +73,7 @@ class ComposerHeaderStrip extends StatelessWidget {
         ComposerHeader$LinkPreview(:final icon, :final title, :final preview) =>
           _TextStrip(icon: icon, title: title, subtitle: preview),
         ComposerHeader$Suggestion(:final builder) => builder(context),
+        ComposerHeader$Attachment() => const SizedBox.shrink(),
       };
 
   static const double _edgePad = 12;
@@ -124,6 +138,89 @@ class _TextStrip extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttachmentStrip extends StatelessWidget {
+  const _AttachmentStrip({
+    required this.icon,
+    required this.title,
+    required this.removeLabel,
+    required this.onRemove,
+  });
+
+  final ChromeIconId icon;
+  final String title;
+  final String removeLabel;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = ChromeThemeScope.composerOf(context);
+    return SizedBox(
+      height: ComposerMetrics.headerHeight,
+      child: Row(
+        children: [
+          const SizedBox(width: ComposerHeaderStrip._edgePad),
+          ChromeIcon(
+            icon,
+            size: ComposerHeaderStrip._glyph,
+            color: tokens.replyLine,
+          ),
+          const SizedBox(width: ComposerHeaderStrip._glyphGap),
+          Expanded(
+            child: Semantics(
+              container: true,
+              liveRegion: true,
+              label: title,
+              excludeSemantics: true,
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tokens.replyName,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+          Semantics(
+            button: true,
+            label: removeLabel,
+            excludeSemantics: true,
+            onTap: onRemove,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onRemove,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minWidth: 48,
+                  minHeight: ComposerMetrics.headerHeight,
+                ),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: ComposerHeaderStrip._edgePad,
+                    ),
+                    child: Text(
+                      removeLabel,
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: tokens.replyLine,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ],

@@ -53,11 +53,26 @@ sealed class ComposerHeader {
     VoidCallback? onDismiss,
   }) = ComposerHeader$Suggestion;
 
+  /// A chip for something attached to the message, such as the screen the
+  /// user is looking at: [title] says what, [removeLabel] names the trailing
+  /// action (both in the host's language) and [onRemove] is the host's answer
+  /// to a tap on it, which clears the header from the next spec.
+  ///
+  /// There is no [onDismiss] control and no Escape dismissal: the labelled
+  /// remove action is the only way out. It has the lowest priority, so a
+  /// reply, edit or any other header takes the single strip over it.
+  const factory ComposerHeader.attachment({
+    required String title,
+    required String removeLabel,
+    required VoidCallback onRemove,
+    ChromeIconId icon,
+  }) = ComposerHeader$Attachment;
+
   /// Called by the strip's dismiss control. Null shows no control.
   final VoidCallback? onDismiss;
 
   /// How strongly this header claims the strip when several compete; higher
-  /// wins. Edit, then reply, forward, link preview and suggestion.
+  /// wins. Edit, then reply, forward, link preview, suggestion and attachment.
   int get priority;
 
   /// The candidate with the highest [priority], the first of equals, or null
@@ -150,6 +165,33 @@ final class ComposerHeader$LinkPreview extends ComposerHeader {
 
   @override
   int get priority => 2;
+}
+
+/// An attachment chip; see [ComposerHeader.attachment].
+final class ComposerHeader$Attachment extends ComposerHeader {
+  /// Creates an attachment header.
+  const ComposerHeader$Attachment({
+    required this.title,
+    required this.removeLabel,
+    required this.onRemove,
+    this.icon = const ChromeIconId('attachment'),
+  });
+
+  /// What is attached, in the host's language.
+  final String title;
+
+  /// Label of the remove action, in the host's language.
+  final String removeLabel;
+
+  /// Called when the remove action is tapped.
+  final VoidCallback onRemove;
+
+  /// Glyph of the chip. The stock registry may have none for `attachment`; a
+  /// host registers a painter.
+  final ChromeIconId icon;
+
+  @override
+  int get priority => 0;
 }
 
 /// A host-built strip; see [ComposerHeader.suggestion].

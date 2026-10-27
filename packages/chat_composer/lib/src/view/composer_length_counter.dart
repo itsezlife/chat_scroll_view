@@ -17,12 +17,17 @@ class ComposerLengthCounter extends StatelessWidget {
     required this.controller,
     required this.limit,
     required this.shake,
+    this.visibleFromLength,
     super.key,
   });
 
   /// How many code points may remain for the counter to show: the point
   /// where a user is close enough to want to know.
   static const int visibleFrom = 100;
+
+  /// The text length from which the counter shows; null shows it when
+  /// [visibleFrom] or fewer code points remain.
+  final int? visibleFromLength;
 
   /// The text counted.
   final ComposerController controller;
@@ -52,7 +57,10 @@ class ComposerLengthCounter extends StatelessWidget {
         listenable: controller.text,
         builder: (context, _) {
           final remaining = limit - controller.length;
-          if (remaining > visibleFrom) return const SizedBox.shrink();
+          final hidden = visibleFromLength == null
+              ? remaining > visibleFrom
+              : controller.length < visibleFromLength!;
+          if (hidden) return const SizedBox.shrink();
           final over = remaining < 0;
           return Align(
             alignment: AlignmentDirectional.centerEnd,
