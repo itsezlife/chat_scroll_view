@@ -1,5 +1,6 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_md/flutter_md.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../chat_message.dart';
@@ -123,6 +124,95 @@ void main() {
     });
   });
 
+  group('ChatStreamingBodyController plain mode', () {
+    final hook = ChatInlineHook(
+      pattern: RegExp(r'\[V\d+\]'),
+      build: (m, start) => MD$Span(
+        start: start,
+        end: start + m.group(0)!.length,
+        text: m.group(0)!,
+        style: MD$Style.mention,
+        extra: {'id': m.group(0)},
+      ),
+    );
+
+    late _Frames frames;
+    ChatStreamingBodyController make({ChatInlineHook? h}) =>
+        ChatStreamingBodyController(
+          frameScheduler: frames.schedule,
+          plain: true,
+          inlineHook: h,
+        );
+
+    setUp(() => frames = _Frames());
+
+    List<List<MD$Span>> paras(Markdown m) => [
+      for (final b in m.blocks) (b as MD$Paragraph).spans,
+    ];
+
+    test('markup renders literally as plain spans', () {
+      final body = make();
+      body.append('# a\n*b* **c** _d_');
+      frames.fire();
+      final p = paras(body.value);
+      expect(p, hasLength(2));
+      expect(p[0].single.text, '# a');
+      expect(p[1].single.text, '*b* **c** _d_');
+      expect(p.expand((s) => s).every((s) => s.style == MD$Style.none), isTrue);
+    });
+
+    test('newline splits paragraphs; empty lines do not crash', () {
+      final body = make();
+      body.append('\n\na\n\n\nb\n');
+      frames.fire();
+      expect(paras(body.value).map((s) => s.single.text), ['a', 'b']);
+      body.append('\n');
+      expect(frames.fire, returnsNormally);
+      body.settle('');
+      expect(body.value.blocks, isEmpty);
+    });
+
+    test('hook resolves a mark split across three deltas to one span', () {
+      final body = make(h: hook);
+      body.append('see [');
+      frames.fire();
+      expect(paras(body.value).single.single.text, 'see [');
+      body.append('V');
+      frames.fire();
+      body.append('1');
+      frames.fire();
+      expect(paras(body.value).single, hasLength(1));
+      body.append(']!');
+      frames.fire();
+      final spans = paras(body.value).single;
+      expect(spans.map((s) => s.text), ['see ', '[V1]', '!']);
+      expect(spans[1].style, MD$Style.mention);
+      expect(spans[1].start, 4);
+      expect(spans[1].end, 8);
+    });
+
+    test('hook keeps one notification per frame', () {
+      final body = make(h: hook);
+      var n = 0;
+      body.addListener(() => n++);
+      ['[', 'V', '1', ']', ' [V2]'].forEach(body.append);
+      expect(frames.requested, 1);
+      frames.fire();
+      expect(n, 1);
+      expect(paras(body.value).single.map((s) => s.text), [
+        '[V1]',
+        ' ',
+        '[V2]',
+      ]);
+    });
+
+    test('settle applies the hook', () {
+      final body = make(h: hook);
+      body.settle('x [V9]');
+      expect(paras(body.value).single.map((s) => s.text), ['x ', '[V9]']);
+    });
+  });
+
   group('ChatStreamingBody', () {
     Future<void> pump(
       WidgetTester tester, {
@@ -204,6 +294,46 @@ void main() {
       expect(selection.selectAllText(), isTrue);
       expect(await selection.copyTextSelection(), isTrue);
       expect(copied.last, 'final text');
+    });
+
+    testWidgets('selects and copies hook-produced spans', (tester) async {
+      final copied = <String>[];
+      final selection = ChatSelectionController(
+        copyWriter: (copy) async => copied.add(copy.plainText),
+      );
+      final scroll = ChatScrollController();
+      final source = _Source([_msg(1), _msg(2)]);
+      final body = ChatStreamingBodyController(
+        plain: true,
+        inlineHook: ChatInlineHook(
+          pattern: RegExp(r'\[V\d+\]'),
+          build: (m, start) => MD$Span(
+            start: start,
+            end: start + m.group(0)!.length,
+            text: m.group(0)!,
+            style: MD$Style.mention,
+          ),
+        ),
+      );
+      addTearDown(scroll.dispose);
+      addTearDown(selection.dispose);
+      addTearDown(source.dispose);
+      addTearDown(body.dispose);
+      await pump(
+        tester,
+        selection: selection,
+        source: source,
+        scroll: scroll,
+        bodies: {2: body},
+      );
+      body.append('go *x* [V1] ok');
+      await tester.pump();
+      await tester.pump();
+      selection.startSelection(2);
+      expect(selection.enterTextSelection(2), isTrue);
+      expect(selection.selectAllText(), isTrue);
+      expect(await selection.copyTextSelection(), isTrue);
+      expect(copied.last, 'go *x* [V1] ok');
     });
 
     testWidgets('dropping the row removes its registration', (tester) async {
