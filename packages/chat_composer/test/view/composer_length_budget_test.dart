@@ -47,6 +47,7 @@ void main() {
   Future<void> pump(
     WidgetTester tester, {
     int? limit = _limit,
+    int? counterFrom,
     Map<ShortcutActivator, Intent>? shortcuts,
   }) {
     // Registered after the controller's disposal, so it runs before it.
@@ -58,6 +59,7 @@ void main() {
           shortcuts: shortcuts,
           spec: ComposerSpec(
             messageLengthLimit: limit,
+            messageLengthCounterFrom: counterFrom,
             actions: [
               ActionDescriptor(
                 id: 'send',
@@ -222,6 +224,48 @@ void main() {
 
       await pump(tester, limit: 960);
       expect(find.text('10'), findsOneWidget);
+    });
+
+    testWidgets('a host threshold of 800 of 1000 hides at 799, shows at 800', (
+      tester,
+    ) async {
+      await pump(tester, limit: 1000, counterFrom: 800);
+
+      composer.restore(_formatted(799));
+      await tester.pumpAndSettle();
+      expect(find.text('201'), findsNothing);
+
+      composer.restore(_formatted(800));
+      await tester.pumpAndSettle();
+      expect(find.text('200'), findsOneWidget);
+    });
+
+    testWidgets('the count takes the destructive colour at 1000 and over', (
+      tester,
+    ) async {
+      await pump(tester, limit: 1000, counterFrom: 800);
+      final palette = ChromePalette.forBrightness(Brightness.light);
+
+      composer.restore(_formatted(999));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<Text>(find.text('1')).style?.color,
+        isNot(palette.destructive),
+      );
+
+      composer.restore(_formatted(1001));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<Text>(find.text('-1')).style?.color,
+        palette.destructive,
+      );
+
+      composer.restore(_formatted(1000));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<Text>(find.text('0')).style?.color,
+        isNot(palette.destructive),
+      );
     });
   });
 }

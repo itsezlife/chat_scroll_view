@@ -45,6 +45,7 @@ final class ComposerSpec {
     this.enabled = true,
     this.busy = false,
     this.messageLengthLimit,
+    this.messageLengthCounterFrom,
     this.linkPrompt,
     this.formatting = ComposerFormattingOption.standard,
     this.backPriority,
@@ -53,6 +54,10 @@ final class ComposerSpec {
        assert(
          messageLengthLimit == null || messageLengthLimit > 0,
          'a message length limit is positive; null means none',
+       ),
+       assert(
+         messageLengthCounterFrom == null || messageLengthCounterFrom >= 0,
+         'a counter threshold is not negative; null means the last 100',
        );
 
   /// What sits above the field, or null for no strip.
@@ -85,6 +90,13 @@ final class ComposerSpec {
   /// Another way of sending, a scheduled send say, checks
   /// `ComposerController.length` itself.
   final int? messageLengthLimit;
+
+  /// How many code points the text must have for the counter to appear, or
+  /// null for the stock threshold: the last [ComposerLengthCounter.visibleFrom]
+  /// (100) before the limit, which is what the human chat uses. With a limit
+  /// of 1000 and 800 here the counter is hidden at 799 and shown at 800.
+  /// Ignored without a [messageLengthLimit].
+  final int? messageLengthCounterFrom;
 
   /// Asks the user for a link's URL when a command wants one (the link
   /// shortcut). Null leaves those commands inert: the composer owns no dialog,

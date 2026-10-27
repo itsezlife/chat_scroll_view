@@ -6,6 +6,17 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (counter threshold and attachment header)
+
+- `ComposerSpec.messageLengthCounterFrom`: the text length from which the
+  length counter shows (800 of 1000 hides it at 799, shows it at 800). Null
+  keeps the stock last-100-remaining threshold, so the human chat is
+  unchanged.
+- `ComposerHeader.attachment`: a chip above the field with an icon, a title
+  and a host-labelled trailing remove action (at least 48 dp, with a
+  semantics label) that calls `onRemove`. Lowest priority of the header
+  kinds; same 48 dp strip as the others.
+
 ### Fixed (monospace face)
 
 - Inline code, a code block and the Mono label of the selection menu draw in

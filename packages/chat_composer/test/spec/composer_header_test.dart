@@ -34,6 +34,20 @@ void main() {
       expect(ComposerHeader.prioritised([suggestion]), same(suggestion));
     });
 
+    test('an attachment yields to every other kind', () {
+      final attachment = ComposerHeader.attachment(
+        title: 't',
+        removeLabel: 'x',
+        onRemove: () {},
+      );
+
+      expect(
+        ComposerHeader.prioritised([attachment, suggestion]),
+        same(suggestion),
+      );
+      expect(ComposerHeader.prioritised([attachment]), same(attachment));
+    });
+
     test('keeps the first of two equal priorities', () {
       const other = ComposerHeader.reply(name: 'Bo', preview: 'yo');
 
