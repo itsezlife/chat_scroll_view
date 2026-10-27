@@ -108,6 +108,7 @@ import 'widgets/chat_span_feedback_test.dart' as chat_span_feedback_test;
 import 'widgets/chat_spoiler_dust_test.dart' as chat_spoiler_dust_test;
 import 'widgets/chat_spoiler_selection_test.dart' as chat_spoiler_selection_test;
 import 'widgets/chat_stitch_animate_test.dart' as chat_stitch_animate_test;
+import 'widgets/chat_streaming_body_test.dart' as chat_streaming_body_test;
 import 'widgets/chat_tap_dismiss_toggle_regression_test.dart' as chat_tap_dismiss_toggle_regression_test;
 import 'widgets/chat_tap_highlight_test.dart' as chat_tap_highlight_test;
 import 'widgets/chat_tap_highlight_text_selection_test.dart' as chat_tap_highlight_text_selection_test;
@@ -220,6 +221,7 @@ void main() {
   group('widgets/chat_spoiler_dust_test.dart', chat_spoiler_dust_test.main);
   group('widgets/chat_spoiler_selection_test.dart', chat_spoiler_selection_test.main);
   group('widgets/chat_stitch_animate_test.dart', chat_stitch_animate_test.main);
+  group('widgets/chat_streaming_body_test.dart', chat_streaming_body_test.main);
   group('widgets/chat_tap_dismiss_toggle_regression_test.dart', chat_tap_dismiss_toggle_regression_test.main);
   group('widgets/chat_tap_highlight_test.dart', chat_tap_highlight_test.main);
   group('widgets/chat_tap_highlight_text_selection_test.dart', chat_tap_highlight_text_selection_test.main);

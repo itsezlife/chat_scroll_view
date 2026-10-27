@@ -1,5 +1,16 @@
 ## Unreleased
 
+### Streaming text in a row
+- **ADDED**: `ChatStreamingBodyController` and `ChatStreamingBody`: the text of
+  a row that grows while its message object stays fixed (an LLM reply over any
+  transport). `append(delta)` buffers; every delta of a frame is one parse and
+  one notification (`ValueListenable<Markdown>`); `settle(finalText)` replaces
+  the text and emits once, after which the host swaps the row with one
+  `updateMessage`. `append` after `settle` or `dispose` does nothing. The body
+  registers each text with the selection facade, so selection and copy work on
+  a live and a settled row. The package promotes no provisional ids: a removed
+  live row's id stays absent. Example: `lib/streaming_main.dart`.
+
 ### Monospace in the composer
 - **FIXED**: `chat_composer` draws code and the Mono label in a real
   monospace face on every platform (`chrome_foundation`'s `ChromeMonospace`).

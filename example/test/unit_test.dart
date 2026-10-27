@@ -40,6 +40,8 @@ import 'features/chat/link_activation_test.dart' as link_activation_test;
 import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
 import 'features/chat/sticker_interaction_stub_test.dart'
     as sticker_interaction_stub_test;
+import 'features/streaming/streaming_screen_test.dart'
+    as streaming_screen_test;
 import 'glyph_probe_wiring_test.dart' as glyph_probe_wiring_test;
 import 'golden/demo_emoji_message_golden_test.dart'
     as demo_emoji_message_golden_test;
@@ -103,6 +105,10 @@ import 'widgets/widget_chat_screen_source_test.dart'
     as widget_chat_screen_source_test;
 
 void main() {
+  group(
+    'features/streaming/streaming_screen_test.dart',
+    streaming_screen_test.main,
+  );
   group('app/app_services_test.dart', app_services_test.main);
   group('app/boot_test.dart', boot_test.main);
   group('app/listener_errors_test.dart', listener_errors_test.main);
