@@ -432,6 +432,7 @@ class _ComposerViewState extends State<ComposerView>
                             ComposerLengthCounter(
                               controller: widget.controller,
                               limit: limit,
+                              visibleFromLength: _spec.messageLengthCounterFrom,
                               shake: _shake,
                             ),
                         ],

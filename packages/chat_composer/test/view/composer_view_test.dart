@@ -120,6 +120,83 @@ void main() {
       expect(find.byType(ComposerHeaderStrip), findsOneWidget);
     });
 
+    testWidgets('an attachment header removes through the host', (
+      tester,
+    ) async {
+      var attached = true;
+      var removed = 0;
+      Future<void> showAttachment() => show(
+        tester,
+        ComposerSpec(
+          header: attached
+              ? ComposerHeader.attachment(
+                  title: 'Screen context',
+                  removeLabel: 'Ignore',
+                  onRemove: () {
+                    removed++;
+                    attached = false;
+                  },
+                )
+              : null,
+        ),
+      );
+      await showAttachment();
+      await tester.pump();
+      await tester.pump(_reveal);
+
+      expect(find.text('Screen context'), findsOneWidget);
+      expect(find.text('Ignore'), findsOneWidget);
+      final target = tester.getSize(
+        find
+            .ancestor(
+              of: find.text('Ignore'),
+              matching: find.byWidgetPredicate(
+                (w) => w is Semantics && w.properties.button == true,
+              ),
+            )
+            .first,
+      );
+      expect(target.width, greaterThanOrEqualTo(48));
+      expect(target.height, greaterThanOrEqualTo(48));
+      expect(find.bySemanticsLabel('Ignore'), findsOneWidget);
+
+      await tester.tap(find.text('Ignore'));
+      await tester.pump();
+      expect(removed, 1);
+
+      await showAttachment();
+      await tester.pump(_reveal);
+      await tester.pump();
+      expect(find.byType(ComposerHeaderStrip), findsNothing);
+    });
+
+    testWidgets('an attachment header swaps with a reply at the same height', (
+      tester,
+    ) async {
+      await show(
+        tester,
+        ComposerSpec(
+          header: ComposerHeader.attachment(
+            title: 'Screen context',
+            removeLabel: 'Ignore',
+            onRemove: () {},
+          ),
+        ),
+      );
+      await tester.pump(_reveal);
+      final withAttachment = tester.getSize(find.byType(GlassSurface)).height;
+
+      await show(
+        tester,
+        ComposerSpec(
+          header: const ComposerHeader.reply(name: 'Ada', preview: 'hi'),
+        ),
+      );
+      await tester.pump(_reveal);
+
+      expect(tester.getSize(find.byType(GlassSurface)).height, withAttachment);
+    });
+
     testWidgets('the header stays mounted until its hide settles', (
       tester,
     ) async {
