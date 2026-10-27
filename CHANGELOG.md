@@ -11,6 +11,15 @@
   a live and a settled row. The package promotes no provisional ids: a removed
   live row's id stays absent. Example: `lib/streaming_main.dart`.
 
+### Plain mode and inline hook
+- **ADDED**: `ChatStreamingBodyController(plain: true)` skips the parser: the
+  text splits on `\n` into paragraphs of plain spans, so `*`, `#`, `**` and
+  `_` stay literal. `inlineHook: ChatInlineHook(pattern, build)` (plain mode
+  only) swaps each match for any `MD$Span`; the whole accumulated line is
+  re-scanned per frame, so a mark split across deltas (`[V` + `1]`) resolves
+  to one span. Still one update per frame. The example demo gains a Plain
+  toggle with a `[Vn]` hook.
+
 ### Monospace in the composer
 - **FIXED**: `chat_composer` draws code and the Mono label in a real
   monospace face on every platform (`chrome_foundation`'s `ChromeMonospace`).

@@ -16,6 +16,33 @@ typedef ChatStreamingFrameScheduler = void Function(VoidCallback onFrame);
 void _scheduleNextFrame(VoidCallback onFrame) =>
     SchedulerBinding.instance.scheduleFrameCallback((_) => onFrame());
 
+/// Builds the span for one [ChatInlineHook] match.
+///
+/// [start] is the offset of the span inside its paragraph; the returned span
+/// should use `start` and `start + match.group(0)!.length` as its range, so
+/// selection maps onto the text.
+typedef ChatInlineSpanFactory = MD$Span Function(Match match, int start);
+
+/// An inline hook for plain mode: every [pattern] match in the accumulated
+/// text becomes the span [build] returns (the app returns its vacancy pill).
+///
+/// The hook re-scans the whole accumulated paragraph on each frame, so a mark
+/// split across deltas (`[V` then `1]`) resolves to one span once its last
+/// piece arrives; until then the partial text shows literally.
+///
+/// Plain mode only: in markdown mode the hook is ignored.
+@immutable
+class ChatInlineHook {
+  /// Creates a hook for [pattern] with [build].
+  const ChatInlineHook({required this.pattern, required this.build});
+
+  /// What to look for.
+  final RegExp pattern;
+
+  /// Makes the span of one match. May return any `MD$Span`.
+  final ChatInlineSpanFactory build;
+}
+
 /// The text of one streaming chat row, as a [ValueListenable] of [Markdown].
 ///
 /// Transport-agnostic: whatever delivers the deltas (SSE, a socket, a test)
@@ -29,6 +56,10 @@ void _scheduleNextFrame(VoidCallback onFrame) =>
 /// buffered and fed to a `StreamingMarkdownParser` (which re-parses only the
 /// still-growing tail) when the frame comes.
 ///
+/// With [plain] the parser is skipped: the text splits on `\n` into paragraphs
+/// of plain spans, so `*`, `#`, `**` and `_` never format. A [ChatInlineHook]
+/// (plain mode only) swaps matches for host-made spans.
+///
 /// Lifecycle: live, then [settle]d or disposed. [append] after [settle] or
 /// [dispose] is a silent no-op (a late delta of a cancelled stream is normal
 /// and must not throw or revive the row). [settle] after [settle] is a no-op
@@ -39,15 +70,26 @@ class ChatStreamingBodyController extends ChangeNotifier
   ///
   /// [decoder] configures the parser as for `Markdown.fromString`.
   /// [frameScheduler] defaults to the next engine frame.
+  ///
+  /// [plain] skips the parser; [inlineHook] applies in plain mode only.
   ChatStreamingBodyController({
     MarkdownDecoder decoder = const MarkdownDecoder(),
     ChatStreamingFrameScheduler frameScheduler = _scheduleNextFrame,
+    this.plain = false,
+    this.inlineHook,
   }) : _parser = StreamingMarkdownParser(decoder: decoder),
        _schedule = frameScheduler;
+
+  /// Whether the text is rendered literally, without markdown parsing.
+  final bool plain;
+
+  /// The plain-mode inline hook, if any.
+  final ChatInlineHook? inlineHook;
 
   final StreamingMarkdownParser _parser;
   final ChatStreamingFrameScheduler _schedule;
   final StringBuffer _pending = StringBuffer();
+  final StringBuffer _plainText = StringBuffer();
 
   Markdown _value = const Markdown.empty();
   bool _frameRequested = false;
@@ -77,10 +119,17 @@ class ChatStreamingBodyController extends ChangeNotifier
     if (_settled || _disposed) return;
     _settled = true;
     _pending.clear();
-    _parser
-      ..reset()
-      ..add(finalText);
-    _value = _parser.current;
+    if (plain) {
+      _plainText
+        ..clear()
+        ..write(finalText);
+      _value = _plainMarkdown(finalText);
+    } else {
+      _parser
+        ..reset()
+        ..add(finalText);
+      _value = _parser.current;
+    }
     notifyListeners();
   }
 
@@ -90,8 +139,39 @@ class ChatStreamingBodyController extends ChangeNotifier
     if (_settled || _disposed || _pending.isEmpty) return;
     final delta = _pending.toString();
     _pending.clear();
-    _value = _parser.add(delta);
+    if (plain) {
+      _plainText.write(delta);
+      _value = _plainMarkdown(_plainText.toString());
+    } else {
+      _value = _parser.add(delta);
+    }
     notifyListeners();
+  }
+
+  Markdown _plainMarkdown(String text) {
+    final blocks = <MD$Block>[];
+    for (final line in text.split('\n')) {
+      if (line.isEmpty) continue;
+      blocks.add(MD$Paragraph(text: line, spans: _plainSpans(line)));
+    }
+    return Markdown(markdown: text, blocks: blocks);
+  }
+
+  List<MD$Span> _plainSpans(String line) {
+    MD$Span plainSpan(int start, int end) =>
+        MD$Span(start: start, end: end, text: line.substring(start, end));
+    final hook = inlineHook;
+    if (hook == null) return [plainSpan(0, line.length)];
+    final spans = <MD$Span>[];
+    var cursor = 0;
+    for (final match in hook.pattern.allMatches(line)) {
+      if (match.end == match.start) continue;
+      if (match.start > cursor) spans.add(plainSpan(cursor, match.start));
+      spans.add(hook.build(match, match.start));
+      cursor = match.end;
+    }
+    if (cursor < line.length) spans.add(plainSpan(cursor, line.length));
+    return spans;
   }
 
   @override
