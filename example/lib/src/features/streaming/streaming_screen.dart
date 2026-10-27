@@ -2,6 +2,25 @@ import 'dart:async';
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_md/flutter_md.dart';
+
+/// The reply of plain mode: markup stays literal, `[Vn]` becomes a mark.
+const streamingDemoPlainReply = '''
+# not a heading, *not italic*, **not bold**, _not either_
+
+Candidates: [V1] and [V12] fit the role.
+Last line.
+''';
+
+final _vacancyHook = ChatInlineHook(
+  pattern: RegExp(r'\[V\d+\]'),
+  build: (match, start) => MD$Span(
+    start: start,
+    end: start + match.group(0)!.length,
+    text: match.group(0)!,
+    style: MD$Style.highlight,
+  ),
+);
 
 /// The reply the demo streams, a few characters at a time.
 const streamingDemoReply = '''
@@ -104,6 +123,11 @@ class StreamingScreenState extends State<StreamingScreen> {
   Timer? _timer;
   int _nextId = 2;
 
+  /// Whether the next reply streams in plain mode with the `[Vn]` hook.
+  bool plain = false;
+
+  String get _reply => plain ? streamingDemoPlainReply : streamingDemoReply;
+
   /// Whether a reply is streaming.
   bool get busy => _timer != null;
 
@@ -113,7 +137,11 @@ class StreamingScreenState extends State<StreamingScreen> {
     final now = DateTime.now();
     final userId = _nextId++;
     final replyId = _nextId++;
-    final live = ChatStreamingBodyController();
+    final reply = _reply;
+    final live = ChatStreamingBodyController(
+      plain: plain,
+      inlineHook: plain ? _vacancyHook : null,
+    );
     setState(() {
       body = live;
       liveId = replyId;
@@ -134,19 +162,19 @@ class StreamingScreenState extends State<StreamingScreen> {
     ]);
     var offset = 0;
     _timer = Timer.periodic(const Duration(milliseconds: 20), (timer) {
-      final end = (offset + 6).clamp(0, streamingDemoReply.length);
-      live.append(streamingDemoReply.substring(offset, end));
+      final end = (offset + 6).clamp(0, reply.length);
+      live.append(reply.substring(offset, end));
       offset = end;
-      if (offset < streamingDemoReply.length) return;
+      if (offset < reply.length) return;
       timer.cancel();
       _timer = null;
       // The final text wins, then the row is swapped once.
-      live.settle(streamingDemoReply);
+      live.settle(reply);
       source.updateMessage(
         StreamingDemoMessage(
           id: replyId,
           sender: 'assistant',
-          text: streamingDemoReply,
+          text: reply,
           createdAt: now,
         ),
       );
@@ -210,10 +238,21 @@ class StreamingScreenState extends State<StreamingScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(8),
-            child: FilledButton(
-              key: const ValueKey('streaming-send'),
-              onPressed: busy ? null : send,
-              child: const Text('Send'),
+            child: Row(
+              children: [
+                FilledButton(
+                  key: const ValueKey('streaming-send'),
+                  onPressed: busy ? null : send,
+                  child: const Text('Send'),
+                ),
+                const SizedBox(width: 12),
+                const Text('Plain', style: TextStyle(color: Colors.white)),
+                Switch(
+                  key: const ValueKey('streaming-plain'),
+                  value: plain,
+                  onChanged: busy ? null : (v) => setState(() => plain = v),
+                ),
+              ],
             ),
           ),
           Expanded(
