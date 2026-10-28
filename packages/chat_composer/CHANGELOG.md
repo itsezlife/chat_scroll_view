@@ -6,6 +6,15 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (hint and primary disc options)
+
+- `ComposerView.hintFontSize` / `hintMaxLines`: a smaller field hint on at most
+  N lines, ending in an ellipsis; its line box keeps the field's own height so
+  it stays centred. Null (default) keeps the chat's hint as it was.
+- `ComposerView.primaryDiameter` (default 32) and `ActionDescriptor.fill`,
+  `onFill`, `iconSize`: a primary disc in host colours and glyph size. An
+  action with a `fill` is not dimmed when disabled; the host draws that state.
+
 ### Added (island field start inset)
 
 - `ComposerView.fieldStartInset` (default 0): directional inset between the

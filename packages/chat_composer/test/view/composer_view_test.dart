@@ -1,6 +1,8 @@
 import 'package:chat_composer/chat_composer.dart';
+import 'package:chat_composer/src/view/composer_button.dart';
 import 'package:chat_composer/src/view/composer_header_strip.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:chrome_foundation/testing.dart';
 import 'package:composer_editable/composer_editable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -49,6 +51,91 @@ void main() {
   }) => tester.pumpWidget(
     composerHarness(view(spec, resolver: resolver), textDirection: direction),
   );
+
+  group('hint', () {
+    final hint = ChromeStringsPresets.english.composer.messageHint;
+
+    Text hintText(WidgetTester tester) => tester.widget<Text>(
+      find.descendant(
+        of: find.byType(ExtendedTextField),
+        matching: find.text(hint),
+      ),
+    );
+
+    testWidgets('keeps the field size and wraps by default', (tester) async {
+      await show(tester, ComposerSpec());
+      final text = hintText(tester);
+      expect(text.style?.fontSize, ComposerMetrics.fieldFontSize);
+      expect(text.maxLines, ComposerMetrics.fieldMaxLines);
+    });
+
+    testWidgets('takes a smaller size on one line, same line box', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        composerHarness(
+          ComposerView(
+            controller: controller,
+            spec: ComposerSpec(),
+            autofocus: false,
+            hintFontSize: 14,
+            hintMaxLines: 1,
+          ),
+        ),
+      );
+      final text = hintText(tester);
+      expect(text.style?.fontSize, 14);
+      expect(text.maxLines, 1);
+      expect(text.overflow, TextOverflow.ellipsis);
+      expect(
+        14 * text.style!.height!,
+        closeTo(
+          ComposerMetrics.fieldFontSize * ComposerMetrics.fieldLineHeight,
+          0.001,
+        ),
+      );
+    });
+  });
+
+  group('primary disc', () {
+    testWidgets('takes its diameter, colours and glyph size from the host', (
+      tester,
+    ) async {
+      const fill = Color(0xFF123456);
+      await tester.pumpWidget(
+        composerHarness(
+          ComposerView(
+            controller: controller,
+            autofocus: false,
+            primaryDiameter: 36,
+            spec: ComposerSpec(
+              actions: [
+                ActionDescriptor(
+                  id: 'send',
+                  icon: ChromeIconId.send,
+                  semanticLabel: 'Send',
+                  primary: true,
+                  enabled: false,
+                  fill: fill,
+                  onFill: const Color(0xFFFFFFFF),
+                  iconSize: 16,
+                  onTap: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      final disc = tester.widgetList<Container>(
+        find.descendant(
+          of: find.byType(ComposerButton),
+          matching: find.byType(Container),
+        ),
+      ).single;
+      expect(tester.getSize(find.byWidget(disc)), const Size(36, 36));
+      expect((disc.decoration! as BoxDecoration).color, fill);
+    });
+  });
 
   group('fieldStartInset', () {
     Future<double> gap(

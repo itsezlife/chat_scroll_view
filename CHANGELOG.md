@@ -1,5 +1,14 @@
 ## Unreleased
 
+## 0.3.1
+
+### Composer: one-line smaller hint, host-drawn send disc
+- **ADDED**: `chat_composer`: `ComposerView.hintFontSize` and `hintMaxLines`
+  (a smaller hint on one line, ellipsised; the line box stays the field's),
+  `ComposerView.primaryDiameter`, and `ActionDescriptor.fill` / `onFill` /
+  `iconSize` (a disc primary action drawn in the host's colours at the host's
+  glyph size, not dimmed when disabled). Defaults leave the chat unchanged.
+
 ## 0.3.0
 
 ### Text-only selection policy

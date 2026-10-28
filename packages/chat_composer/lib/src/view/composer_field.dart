@@ -86,6 +86,8 @@ class ComposerField extends StatefulWidget {
     this.onPointerDown,
     this.onPointerEnd,
     this.startInset = 0,
+    this.hintFontSize,
+    this.hintMaxLines,
     this.layout = const ComposerFieldLayout.island(),
     super.key,
   });
@@ -139,6 +141,15 @@ class ComposerField extends StatefulWidget {
   /// island layout only; a form's decoration owns its own). Directional, so
   /// it flips in right-to-left. Zero leaves the field flush with its slot.
   final double startInset;
+
+  /// Font size of the hint (island layout only); null keeps the field's own
+  /// size. The hint's line box stays as tall as the field's, so a smaller hint
+  /// stays centred on the caret's line.
+  final double? hintFontSize;
+
+  /// Most lines the hint takes before it ends in an ellipsis (island layout
+  /// only); null leaves it to wrap.
+  final int? hintMaxLines;
 
   @override
   State<ComposerField> createState() => _ComposerFieldState();
@@ -646,12 +657,17 @@ class _ComposerFieldState extends State<ComposerField> {
           height: lineHeight,
         );
         ownStyle = fieldStyle;
+        final hintSize = widget.hintFontSize ?? fontSize;
         decoration = InputDecoration.collapsed(
           hintText: strings.messageHint,
+          hintMaxLines: widget.hintMaxLines,
           hintStyle: TextStyle(
             color: placeholder.fieldHint,
-            fontSize: fontSize,
-            height: lineHeight,
+            fontSize: hintSize,
+            // Keeps the line box of the field's own line, so the smaller hint
+            // sits on the caret's line instead of riding at the top of it.
+            height: fontSize * lineHeight / hintSize,
+            overflow: widget.hintMaxLines == null ? null : TextOverflow.ellipsis,
           ),
         );
       case ComposerFieldLayout$Form(:final style):

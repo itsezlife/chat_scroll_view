@@ -71,6 +71,9 @@ class ComposerView extends StatefulWidget {
     this.safeAreaBottom,
     this.maxWidth = ComposerMetrics.maxWidth,
     this.fieldStartInset = 0,
+    this.hintFontSize,
+    this.hintMaxLines,
+    this.primaryDiameter = ComposerMetrics.primaryDiscDiameter,
     this.autofocus = true,
     super.key,
   });
@@ -130,6 +133,18 @@ class ComposerView extends StatefulWidget {
   /// unchanged). Directional: it flips in right-to-left. Zero, the default,
   /// adds nothing.
   final double fieldStartInset;
+
+  /// Font size of the field's hint; null keeps the field's own size (the
+  /// chat). A host with long hints sets a smaller one.
+  final double? hintFontSize;
+
+  /// Most lines the hint takes before an ellipsis; null lets it wrap (the
+  /// chat). One keeps a long hint on the field's line.
+  final int? hintMaxLines;
+
+  /// Diameter of the filled disc of a [ComposerPrimaryStyle.disc] primary
+  /// action.
+  final double primaryDiameter;
 
   /// Whether the text field takes focus the first time it is built.
   ///
@@ -314,6 +329,10 @@ class _ComposerViewState extends State<ComposerView>
       enabled: _usable(action),
       primary: action.primary,
       primaryStyle: widget.primaryStyle,
+      discDiameter: widget.primaryDiameter,
+      fill: action.fill,
+      onFill: action.onFill,
+      iconSize: action.iconSize ?? ComposerMetrics.actionIconSize,
       active: action.active,
     );
     final wrap = action.wrap;
@@ -347,6 +366,8 @@ class _ComposerViewState extends State<ComposerView>
         startInset: _spec.visibleActions(ActionPlacement.leading).isEmpty
             ? widget.fieldStartInset
             : 0,
+        hintFontSize: widget.hintFontSize,
+        hintMaxLines: widget.hintMaxLines,
       );
     }
     final built = widget.panelResolver?.call(context, panel);

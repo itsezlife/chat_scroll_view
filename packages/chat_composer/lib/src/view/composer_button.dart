@@ -23,6 +23,9 @@ class ComposerButton extends StatefulWidget {
     this.primary = false,
     this.active = false,
     this.primaryStyle = ComposerPrimaryStyle.disc,
+    this.discDiameter = ComposerMetrics.primaryDiscDiameter,
+    this.fill,
+    this.onFill,
     this.iconSize = ComposerMetrics.actionIconSize,
     this.width = ComposerMetrics.actionSize,
     this.height = ComposerMetrics.actionSize,
@@ -47,6 +50,17 @@ class ComposerButton extends StatefulWidget {
 
   /// How a [primary] button is drawn.
   final ComposerPrimaryStyle primaryStyle;
+
+  /// Diameter of the disc behind a [primary] glyph in the disc style.
+  final double discDiameter;
+
+  /// Disc colour of a [primary] disc, in place of the send colour. A button
+  /// given one is not dimmed when it cannot act: the host draws that state
+  /// itself.
+  final Color? fill;
+
+  /// Glyph colour on [fill], in place of the on-send colour.
+  final Color? onFill;
 
   /// Whether the button is in its active state: the glyph takes the accent
   /// colour and the button is announced as selected. A [primary] button
@@ -83,14 +97,15 @@ class _ComposerButtonState extends State<ComposerButton> {
   @override
   Widget build(BuildContext context) {
     final tokens = ChromeThemeScope.actionOf(context);
-    final dim = _active ? 1.0 : _disabledOpacity;
+    final own = widget.fill != null;
+    final dim = _active || own ? 1.0 : _disabledOpacity;
     // A mouse over a button that would act turns its glyph to the hover
     // colour, as the reference client's does; the accent of an active button
     // and the send disc keep their own.
     final disc =
         widget.primary && widget.primaryStyle == ComposerPrimaryStyle.disc;
     final base = switch ((widget.primary, widget.active)) {
-      (true, _) => disc ? tokens.onSend : tokens.send,
+      (true, _) => disc ? widget.onFill ?? tokens.onSend : tokens.send,
       (false, true) => tokens.send,
       (false, false) => _active && _hovered ? tokens.iconHover : tokens.icon,
     };
@@ -100,11 +115,13 @@ class _ComposerButtonState extends State<ComposerButton> {
       children: [
         if (disc)
           Container(
-            width: ComposerMetrics.primaryDiscDiameter,
-            height: ComposerMetrics.primaryDiscDiameter,
+            width: widget.discDiameter,
+            height: widget.discDiameter,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: tokens.send.withValues(alpha: tokens.send.a * dim),
+              color: (widget.fill ?? tokens.send).withValues(
+                alpha: (widget.fill ?? tokens.send).a * dim,
+              ),
             ),
           )
         else if (_focusHighlight)

@@ -44,6 +44,9 @@ final class ActionDescriptor {
     this.active = false,
     this.onTap,
     this.wrap,
+    this.fill,
+    this.onFill,
+    this.iconSize,
   }) : assert(id != '', 'an action id must not be empty'),
        assert(semanticLabel != '', 'an action needs a semantic label');
 
@@ -92,6 +95,17 @@ final class ActionDescriptor {
   /// rebuilt with the spec.
   final ActionWrap? wrap;
 
+  /// Disc colour of a primary action drawn as a disc, in place of the send
+  /// colour. With it the action is not dimmed when disabled: the host passes
+  /// the disabled colours itself (a web-style grey disc, say).
+  final Color? fill;
+
+  /// Glyph colour on [fill]; null keeps the on-send colour.
+  final Color? onFill;
+
+  /// Glyph size; null keeps the composer's action icon size.
+  final double? iconSize;
+
   /// Whether a tap would do anything: visible, enabled and given a handler.
   bool get isTappable => visible && enabled && onTap != null;
 
@@ -106,6 +120,9 @@ final class ActionDescriptor {
     bool? active,
     VoidCallback? onTap,
     ActionWrap? wrap,
+    Color? fill,
+    Color? onFill,
+    double? iconSize,
   }) => ActionDescriptor(
     id: id,
     icon: icon ?? this.icon,
@@ -117,5 +134,8 @@ final class ActionDescriptor {
     active: active ?? this.active,
     onTap: onTap ?? this.onTap,
     wrap: wrap ?? this.wrap,
+    fill: fill ?? this.fill,
+    onFill: onFill ?? this.onFill,
+    iconSize: iconSize ?? this.iconSize,
   );
 }
