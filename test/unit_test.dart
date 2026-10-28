@@ -51,6 +51,7 @@ import 'viewport_never_detects_test.dart' as viewport_never_detects_test;
 import 'widgets/chat_absent_build_test.dart' as chat_absent_build_test;
 import 'widgets/chat_animate_path_test.dart' as chat_animate_path_test;
 import 'widgets/chat_api_test.dart' as chat_api_test;
+import 'widgets/chat_background_tap_test.dart' as chat_background_tap_test;
 import 'widgets/chat_bottom_padding_compensation_test.dart'
     as chat_bottom_padding_compensation_test;
 import 'widgets/chat_bubble_metrics_test.dart' as chat_bubble_metrics_test;
@@ -228,6 +229,10 @@ void main() {
   group('widgets/chat_absent_build_test.dart', chat_absent_build_test.main);
   group('widgets/chat_animate_path_test.dart', chat_animate_path_test.main);
   group('widgets/chat_api_test.dart', chat_api_test.main);
+  group(
+    'widgets/chat_background_tap_test.dart',
+    chat_background_tap_test.main,
+  );
   group(
     'widgets/chat_bottom_padding_compensation_test.dart',
     chat_bottom_padding_compensation_test.main,

@@ -200,6 +200,7 @@ class RenderChatScrollView extends RenderBox {
     ChatScrollbar scrollbar = const ChatScrollbar(),
     ChatSelectionController? selectionController,
     ChatMessageMenuRequestCallback? onIdleMessageTap,
+    VoidCallback? onBackgroundTap,
     ChatMessageMenuRequestCallback? onSecondaryMessageTap,
     bool Function(IChatMessage message)? isSelfMessage,
     ChatScrollPhysics physics = const ChatScrollPhysics.stretch(),
@@ -208,6 +209,7 @@ class RenderChatScrollView extends RenderBox {
        _controller = controller,
        _selectionController = selectionController,
        _onIdleMessageTap = onIdleMessageTap,
+       _onBackgroundTap = onBackgroundTap,
        _onSecondaryMessageTap = onSecondaryMessageTap,
        _isSelfMessage = isSelfMessage,
        _cacheExtent = cacheExtent,
@@ -436,6 +438,13 @@ class RenderChatScrollView extends RenderBox {
     _selectionPointer?.onIdleMessageTap = value == null
         ? null
         : _dispatchIdleMessageTap;
+  }
+
+  VoidCallback? _onBackgroundTap;
+  set onBackgroundTap(VoidCallback? value) {
+    if (identical(_onBackgroundTap, value)) return;
+    _onBackgroundTap = value;
+    _selectionPointer?.onBackgroundTap = value;
   }
 
   ChatMessageMenuRequestCallback? _onSecondaryMessageTap;
@@ -1722,6 +1731,7 @@ class RenderChatScrollView extends RenderBox {
       ..onIdleMessageTap = _onIdleMessageTap == null
           ? null
           : _dispatchIdleMessageTap
+      ..onBackgroundTap = _onBackgroundTap
       ..onSecondaryMessageTap = _onSecondaryMessageTap == null
           ? null
           : _dispatchSecondaryMessageTap;

@@ -1,5 +1,15 @@
 ## Unreleased
 
+## 0.3.3
+
+### Background tap
+- **ADDED**: `ChatScrollView.onBackgroundTap`: called when a tap on the viewport
+  activated nothing (outside every message slot, on a message under
+  `ChatSelectionPolicy.textOnly()`, or on a message with no `onIdleMessageTap`).
+  Not called for links, pills, spoilers, widgets inside rows, text-selection
+  dismissal, barred presses, fling-cancel taps or drags. Hosts hide the soft
+  keyboard on it.
+
 ## 0.3.2
 
 ### `flutter_md` 0.6.0

@@ -149,6 +149,7 @@ class ChatScrollView extends RenderObjectWidget {
     this.loadingBuilder,
     this.selectionController,
     this.onIdleMessageTap,
+    this.onBackgroundTap,
     this.onSecondaryMessageTap,
     this.selectionChromeBuilder,
     this.bottomPadding,
@@ -250,6 +251,21 @@ class ChatScrollView extends RenderObjectWidget {
   /// tap. Opening the menu from this request does not clear membership or
   /// text selection. The host decides whether to present a message menu.
   final ChatMessageMenuRequestCallback? onIdleMessageTap;
+
+  /// Called when a tap on the viewport activated nothing: it landed outside
+  /// every message slot (empty area, gap, shimmer, below the messages), or on a
+  /// message under a policy that sends no primary tap to an idle message
+  /// (`ChatSelectionPolicy.textOnly()`), or on a message while
+  /// [onIdleMessageTap] is null. Hosts use it to hide the soft keyboard.
+  ///
+  /// Not a message tap: a tap that [onIdleMessageTap] receives does not call
+  /// it. Not called for a tap that hit a link, mention, pill or spoiler, that
+  /// reached a card, button or other widget inside a row, that dismissed a
+  /// text selection or toggled message selection, that was on a
+  /// `ChatMessageTapBarrier`, that cancelled a fling, or for a drag or scroll.
+  /// Null is a no-op. Like [onIdleMessageTap], a non-null value attaches the
+  /// viewport-owned pointer.
+  final VoidCallback? onBackgroundTap;
 
   /// Called when the user secondary-taps (right-clicks) a present message
   /// **slot**. Null is a no-op — Flutter’s built-in text context menu stays
@@ -585,6 +601,7 @@ class ChatScrollView extends RenderObjectWidget {
       scrollbar: _effectiveScrollbar,
       selectionController: selectionController,
       onIdleMessageTap: onIdleMessageTap,
+      onBackgroundTap: onBackgroundTap,
       onSecondaryMessageTap: onSecondaryMessageTap,
       isSelfMessage: isSelfMessage,
       physics: _effectivePhysics,
@@ -621,6 +638,7 @@ class ChatScrollView extends RenderObjectWidget {
       ..textDirection = _resolveDirection(context)
       ..selectionController = selectionController
       ..onIdleMessageTap = onIdleMessageTap
+      ..onBackgroundTap = onBackgroundTap
       ..onSecondaryMessageTap = onSecondaryMessageTap
       ..isSelfMessage = isSelfMessage
       ..physics = _effectivePhysics;

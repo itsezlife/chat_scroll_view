@@ -1,6 +1,6 @@
 name: chat_scroll_view
 description: Endless, anchor-based chat scroll viewport for Flutter.
-version: 0.3.2
+version: 0.3.3
 publish_to: none
 
 # One resolution and one committed lockfile for the repo. Append new packages

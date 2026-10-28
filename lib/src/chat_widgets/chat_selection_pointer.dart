@@ -61,6 +61,13 @@ class ChatSelectionPointer {
   /// is inactive. Null is a no-op.
   void Function(int id, Offset localPosition)? onIdleMessageTap;
 
+  /// A tap that activated nothing: not over a message slot, or over one under a
+  /// policy that routes no primary tap to an idle message, or an idle message
+  /// tap with no [onIdleMessageTap] handler. Not fired for an inline hit, a
+  /// text-selection dismiss, a barred press, a spoiler reveal, a message
+  /// selection toggle or a fling-cancel tap. Null is a no-op.
+  VoidCallback? onBackgroundTap;
+
   /// Secondary message tap (right-click) in viewport-local coordinates. Fired
   /// when secondary tap won the arena and fling-cancel does not suppress.
   /// Null is a no-op — and the secondary recognizer is not armed, so
@@ -146,6 +153,7 @@ class ChatSelectionPointer {
     final barred = ChatSelectionGestureExclusion.takeBarred(event.pointer);
     if (selection == null &&
         onIdleMessageTap == null &&
+        onBackgroundTap == null &&
         _onSecondaryMessageTap == null) {
       return;
     }
@@ -165,7 +173,8 @@ class ChatSelectionPointer {
     };
     _spanPointerLocal = event.localPosition;
     if (_pointerDownId == null) {
-      if (selection case final sel? when sel.isTextSelectionActive) {
+      if (onBackgroundTap != null ||
+          (selection?.isTextSelectionActive ?? false)) {
         _ensureRecognizers();
         _tap?.addPointer(event);
       }
@@ -223,6 +232,7 @@ class ChatSelectionPointer {
   void dispose() {
     onSpanSessionChanged = null;
     onIdleMessageTap = null;
+    onBackgroundTap = null;
     _onSecondaryMessageTap = null;
     _tap?.onSecondaryTapUp = null;
     _longPress?.dispose();
@@ -580,7 +590,10 @@ class ChatSelectionPointer {
       sel.clearTextSelection();
       return;
     }
-    if (id == null) return;
+    if (id == null) {
+      onBackgroundTap?.call();
+      return;
+    }
     // Dismissing text selection above is no message tap; toggling a row and
     // the idle tap below are, and a barrier is not part of the message.
     if (_pointerDownBarred) return;
@@ -601,8 +614,12 @@ class ChatSelectionPointer {
     if (local == null) return;
     final policy =
         selection?.selectionPolicy ?? const ChatSelectionPolicy.mobile();
-    if (!policy.routesPrimaryTapToIdleMessage) return;
-    onIdleMessageTap?.call(id, local);
+    final idleTap = onIdleMessageTap;
+    if (!policy.routesPrimaryTapToIdleMessage || idleTap == null) {
+      onBackgroundTap?.call();
+      return;
+    }
+    idleTap(id, local);
   }
 }
 
