@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **FIXED**: the copy key over a body's text selection (Cmd+C / Ctrl+C) was
+  fixed for the platform of the first body built in the process; it now follows
+  the platform when each body builds.
+
 ## 0.2.0
 
 The streaming-message release (AI Recruiter, phase 1). Additive: the human chat
