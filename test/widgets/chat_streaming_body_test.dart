@@ -126,7 +126,7 @@ void main() {
 
   group('ChatStreamingBodyController plain mode', () {
     final hook = ChatInlineHook(
-      pattern: RegExp(r'\[V\d+\]'),
+      pattern: RegExp(r'\[N\d+\]'),
       build: (m, start) => MD$Span(
         start: start,
         end: start + m.group(0)!.length,
@@ -177,7 +177,7 @@ void main() {
       body.append('see [');
       frames.fire();
       expect(paras(body.value).single.single.text, 'see [');
-      body.append('V');
+      body.append('N');
       frames.fire();
       body.append('1');
       frames.fire();
@@ -185,7 +185,7 @@ void main() {
       body.append(']!');
       frames.fire();
       final spans = paras(body.value).single;
-      expect(spans.map((s) => s.text), ['see ', '[V1]', '!']);
+      expect(spans.map((s) => s.text), ['see ', '[N1]', '!']);
       expect(spans[1].style, MD$Style.mention);
       expect(spans[1].start, 4);
       expect(spans[1].end, 8);
@@ -195,21 +195,21 @@ void main() {
       final body = make(h: hook);
       var n = 0;
       body.addListener(() => n++);
-      ['[', 'V', '1', ']', ' [V2]'].forEach(body.append);
+      ['[', 'N', '1', ']', ' [N2]'].forEach(body.append);
       expect(frames.requested, 1);
       frames.fire();
       expect(n, 1);
       expect(paras(body.value).single.map((s) => s.text), [
-        '[V1]',
+        '[N1]',
         ' ',
-        '[V2]',
+        '[N2]',
       ]);
     });
 
     test('settle applies the hook', () {
       final body = make(h: hook);
-      body.settle('x [V9]');
-      expect(paras(body.value).single.map((s) => s.text), ['x ', '[V9]']);
+      body.settle('x [N9]');
+      expect(paras(body.value).single.map((s) => s.text), ['x ', '[N9]']);
     });
   });
 
@@ -306,7 +306,7 @@ void main() {
       final body = ChatStreamingBodyController(
         plain: true,
         inlineHook: ChatInlineHook(
-          pattern: RegExp(r'\[V\d+\]'),
+          pattern: RegExp(r'\[N\d+\]'),
           build: (m, start) => MD$Span(
             start: start,
             end: start + m.group(0)!.length,
@@ -326,14 +326,14 @@ void main() {
         scroll: scroll,
         bodies: {2: body},
       );
-      body.append('go *x* [V1] ok');
+      body.append('go *x* [N1] ok');
       await tester.pump();
       await tester.pump();
       selection.startSelection(2);
       expect(selection.enterTextSelection(2), isTrue);
       expect(selection.selectAllText(), isTrue);
       expect(await selection.copyTextSelection(), isTrue);
-      expect(copied.last, 'go *x* [V1] ok');
+      expect(copied.last, 'go *x* [N1] ok');
     });
 
     testWidgets('dropping the row removes its registration', (tester) async {

@@ -1,6 +1,6 @@
 name: chat_scroll_view
 description: Endless, anchor-based chat scroll viewport for Flutter.
-version: 0.3.1
+version: 0.3.2
 publish_to: none
 
 # One resolution and one committed lockfile for the repo. Append new packages
@@ -44,7 +44,7 @@ dependencies:
   flutter_md:
     git:
       url: https://github.com/itsezlife/md.git
-      ref: v0.5.1
+      ref: v0.6.0
 
 dev_dependencies:
   flutter_test:
@@ -56,7 +56,7 @@ dev_dependencies:
 
 # Overrides are honoured only here, never in members. Members and CI pin the
 # fork by git ref (itsezlife/md) so the lockfile is reproducible: a release tag,
-# or a commit while the change it carries has no release yet (now v0.5.1).
+# or a commit while the change it carries has no release yet (now v0.6.0).
 # This override points the root at the sibling checkout so fork work lands
 # without a push-and-repin loop. CI checks the same ref out next to this repo,
 # so the override and the pin resolve to the same source there. Move the ref in

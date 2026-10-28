@@ -24,10 +24,10 @@ void _scheduleNextFrame(VoidCallback onFrame) =>
 typedef ChatInlineSpanFactory = MD$Span Function(Match match, int start);
 
 /// An inline hook for plain mode: every [pattern] match in the accumulated
-/// text becomes the span [build] returns (the app returns its vacancy pill).
+/// text becomes the span [build] returns (for example an inline chip, `MD$Span.chip`).
 ///
 /// The hook re-scans the whole accumulated paragraph on each frame, so a mark
-/// split across deltas (`[V` then `1]`) resolves to one span once its last
+/// split across deltas (`[N` then `1]`) resolves to one span once its last
 /// piece arrives; until then the partial text shows literally.
 ///
 /// Plain mode only: in markdown mode the hook is ignored.

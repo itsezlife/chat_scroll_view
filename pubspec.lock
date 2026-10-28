@@ -281,7 +281,7 @@ packages:
       path: "../md"
       relative: true
     source: path
-    version: "0.4.4"
+    version: "0.6.0"
   flutter_test:
     dependency: "direct dev"
     description: flutter

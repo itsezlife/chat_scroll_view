@@ -4,21 +4,26 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_md/flutter_md.dart';
 
-/// The reply of plain mode: markup stays literal, `[Vn]` becomes a mark.
+/// The reply of plain mode: markup stays literal, `[Nn]` becomes a mark.
 const streamingDemoPlainReply = '''
 # not a heading, *not italic*, **not bold**, _not either_
 
-Candidates: [V1] and [V12] fit the role.
+Candidates: [N1] and [N12] fit the brief.
 Last line.
 ''';
 
-final _vacancyHook = ChatInlineHook(
-  pattern: RegExp(r'\[V\d+\]'),
+final _markHook = ChatInlineHook(
+  pattern: RegExp(r'\[N\d+\]'),
   build: (match, start) => MD$Span(
     start: start,
     end: start + match.group(0)!.length,
     text: match.group(0)!,
-    style: MD$Style.highlight,
+    style: MD$Style.chip,
+    extra: <String, Object?>{
+      'type': 'chip',
+      'target': 'mark:${match.group(0)}',
+      'muted': false,
+    },
   ),
 );
 
@@ -123,7 +128,7 @@ class StreamingScreenState extends State<StreamingScreen> {
   Timer? _timer;
   int _nextId = 2;
 
-  /// Whether the next reply streams in plain mode with the `[Vn]` hook.
+  /// Whether the next reply streams in plain mode with the `[Nn]` hook.
   bool plain = false;
 
   String get _reply => plain ? streamingDemoPlainReply : streamingDemoReply;
@@ -140,7 +145,7 @@ class StreamingScreenState extends State<StreamingScreen> {
     final reply = _reply;
     final live = ChatStreamingBodyController(
       plain: plain,
-      inlineHook: plain ? _vacancyHook : null,
+      inlineHook: plain ? _markHook : null,
     );
     setState(() {
       body = live;

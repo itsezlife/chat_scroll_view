@@ -1,5 +1,13 @@
 ## Unreleased
 
+## 0.3.2
+
+### `flutter_md` 0.6.0
+- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.6.0` in every
+  pubspec and workflow. The inline span a `ChatInlineHook` returns for a chip
+  is `MD$Style.chip` / `MD$Span.chip`; the plain-mode docs, the example and the
+  tests use neutral `[N1]` marks.
+
 ## 0.3.1
 
 ### Composer: one-line smaller hint, host-drawn send disc
@@ -25,7 +33,7 @@
 
 ## 0.2.0
 
-The streaming-message release (AI Recruiter, phase 1). Additive: the human chat
+The streaming-message release (phase 1). Additive: the human chat
 changes only through the viewport fix. The release tag is `v0.2.0`.
 
 ### Composer: counter threshold and attachment header
@@ -37,7 +45,7 @@ changes only through the viewport fix. The release tag is `v0.2.0`.
 
 ### `flutter_md` 0.5.0
 - **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.5.0` in every
-  pubspec and workflow (the vacancy pill span, `MD$Style.vacancy`).
+  pubspec and workflow (the inline chip span, `MD$Style.chip` since 0.6.0).
 
 ### Follow tail
 - **FIXED**: following the tail survives the viewport shrinking while at the
@@ -64,9 +72,9 @@ changes only through the viewport fix. The release tag is `v0.2.0`.
   text splits on `\n` into paragraphs of plain spans, so `*`, `#`, `**` and
   `_` stay literal. `inlineHook: ChatInlineHook(pattern, build)` (plain mode
   only) swaps each match for any `MD$Span`; the whole accumulated line is
-  re-scanned per frame, so a mark split across deltas (`[V` + `1]`) resolves
+  re-scanned per frame, so a mark split across deltas (`[N` + `1]`) resolves
   to one span. Still one update per frame. The example demo gains a Plain
-  toggle with a `[Vn]` hook.
+  toggle with a `[Nn]` hook.
 
 ### Monospace in the composer
 - **FIXED**: `chat_composer` draws code and the Mono label in a real

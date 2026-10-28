@@ -33,7 +33,7 @@ void main() {
     expect(state.selection.bodyOf(state.liveId!)?.markdown, streamingDemoReply);
   });
 
-  testWidgets('plain toggle streams literally with the [Vn] hook', (
+  testWidgets('plain toggle streams literally with the [Nn] hook', (
     tester,
   ) async {
     tester.view
@@ -56,8 +56,8 @@ void main() {
     final marks = state.body!.value.blocks
         .whereType<MD$Paragraph>()
         .expand((p) => p.spans)
-        .where((s) => s.style == MD$Style.highlight)
+        .where((s) => s.style == MD$Style.chip)
         .map((s) => s.text);
-    expect(marks, ['[V1]', '[V12]']);
+    expect(marks, ['[N1]', '[N12]']);
   });
 }
