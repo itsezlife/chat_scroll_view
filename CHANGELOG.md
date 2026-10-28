@@ -2,6 +2,9 @@
 
 ## 0.3.3
 
+### Top padding
+- **FIXED**: with `topPadding`, the oldest message rests on the `topPadding` line, not at the viewport's top edge: pinning the oldest row and the overscroll limit at the oldest end compared against 0, so chrome stacked over the top (a floating app bar) hid the first rows for good.
+
 ### Background tap
 - **ADDED**: `ChatScrollView.onBackgroundTap`: called when a tap on the viewport
   activated nothing (outside every message slot, on a message under
