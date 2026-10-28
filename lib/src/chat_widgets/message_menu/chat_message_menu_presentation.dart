@@ -25,7 +25,8 @@ enum ChatMessageMenuPresentation {
   /// [$Mobile] → [sheet]; [$Desktop] → [popup].
   factory ChatMessageMenuPresentation.forPolicy(ChatSelectionPolicy policy) =>
       switch (policy) {
-        ChatSelectionPolicy$Mobile() => ChatMessageMenuPresentation.sheet,
+        ChatSelectionPolicy$Mobile() ||
+        ChatSelectionPolicy$TextOnly() => ChatMessageMenuPresentation.sheet,
         ChatSelectionPolicy$Desktop() => ChatMessageMenuPresentation.popup,
       };
 

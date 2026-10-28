@@ -85,6 +85,7 @@ class ComposerField extends StatefulWidget {
     this.onTap,
     this.onPointerDown,
     this.onPointerEnd,
+    this.startInset = 0,
     this.layout = const ComposerFieldLayout.island(),
     super.key,
   });
@@ -133,6 +134,11 @@ class ComposerField extends StatefulWidget {
 
   /// Called when that pointer lifts or is cancelled.
   final VoidCallback? onPointerEnd;
+
+  /// Padding between the island's start edge and the field text (the
+  /// island layout only; a form's decoration owns its own). Directional, so
+  /// it flips in right-to-left. Zero leaves the field flush with its slot.
+  final double startInset;
 
   @override
   State<ComposerField> createState() => _ComposerFieldState();
@@ -764,7 +770,8 @@ class _ComposerFieldState extends State<ComposerField> {
             minHeight: ComposerMetrics.islandHeight,
           ),
           child: Padding(
-            padding: const EdgeInsetsDirectional.only(
+            padding: EdgeInsetsDirectional.only(
+              start: widget.startInset,
               top: ComposerMetrics.fieldTopPad,
               bottom: ComposerMetrics.fieldBottomPad,
               end: ComposerMetrics.fieldEndPad,

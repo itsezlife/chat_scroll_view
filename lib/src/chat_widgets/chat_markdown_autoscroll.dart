@@ -112,7 +112,8 @@ final class ChatMarkdownAutoscroll implements MarkdownAutoscrollTarget {
   /// Soft arm band for [policy].
   @visibleForTesting
   static double resolveEdgeZone(ChatSelectionPolicy policy) => switch (policy) {
-    ChatSelectionPolicy$Mobile() =>
+    ChatSelectionPolicy$Mobile() ||
+    ChatSelectionPolicy$TextOnly() =>
       ChatSelectionMetrics.textAutoScrollEdgeZoneMobile,
     ChatSelectionPolicy$Desktop() =>
       ChatSelectionMetrics.textAutoScrollEdgeZoneDesktop,
@@ -126,7 +127,8 @@ final class ChatMarkdownAutoscroll implements MarkdownAutoscrollTarget {
   }) {
     assert(displayRefreshHz > 0, 'displayRefreshHz must be positive');
     return switch (policy) {
-      ChatSelectionPolicy$Mobile() =>
+      ChatSelectionPolicy$Mobile() ||
+      ChatSelectionPolicy$TextOnly() =>
         ChatSelectionMetrics.textAutoScrollPixelsPerFrame * displayRefreshHz,
       ChatSelectionPolicy$Desktop() =>
         ChatSelectionMetrics.textAutoScrollDesktopMaxVelocity,

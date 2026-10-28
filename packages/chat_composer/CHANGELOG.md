@@ -6,6 +6,12 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (island field start inset)
+
+- `ComposerView.fieldStartInset` (default 0): directional inset between the
+  island's start edge and the field text, applied only while the island has
+  no visible leading action, so the chat composer is unchanged. Flips in RTL.
+
 ### Added (counter threshold and attachment header)
 
 - `ComposerSpec.messageLengthCounterFrom`: the text length from which the

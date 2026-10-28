@@ -57,7 +57,8 @@ sealed class ChatMessagesCopyFormat {
   /// `$Desktop`.
   factory ChatMessagesCopyFormat.forPolicy(ChatSelectionPolicy policy) =>
       switch (policy) {
-        ChatSelectionPolicy$Mobile() => const ChatMessagesCopyFormat$Mobile(),
+        ChatSelectionPolicy$Mobile() ||
+        ChatSelectionPolicy$TextOnly() => const ChatMessagesCopyFormat$Mobile(),
         ChatSelectionPolicy$Desktop() => const ChatMessagesCopyFormat$Desktop(),
       };
 

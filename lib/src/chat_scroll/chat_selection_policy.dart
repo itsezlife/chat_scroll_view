@@ -15,6 +15,11 @@ sealed class ChatSelectionPolicy {
   /// Exclusive modes; Copy keeps the character range.
   const factory ChatSelectionPolicy.desktop() = ChatSelectionPolicy$Desktop;
 
+  /// Touch text-only: no **message selection** at all. A long press on a
+  /// body's text starts a **text selection** directly (no check gutter, no
+  /// bubble shift, no message menu on tap). Copy clears the range.
+  const factory ChatSelectionPolicy.textOnly() = ChatSelectionPolicy$TextOnly;
+
   /// Default from OS family. Pass [platform] / [isWeb] to pin in tests.
   factory ChatSelectionPolicy.forPlatform({
     TargetPlatform? platform,
@@ -29,6 +34,11 @@ sealed class ChatSelectionPolicy {
       _ => const ChatSelectionPolicy.desktop(),
     };
   }
+
+  /// Whether the viewport may start **message selection** (long-press span,
+  /// drag-out promotion). `false` under [$TextOnly]: the viewport adds no
+  /// long-press recognizer and the per-body scope owns the press.
+  bool get allowsMessageSelection;
 
   /// Whether text entry may proceed when [messageId] is not message-selected.
   bool get allowsTextEntryWithoutMessageSelection;
@@ -185,6 +195,9 @@ final class ChatSelectionPolicy$Mobile implements ChatSelectionPolicy {
   const ChatSelectionPolicy$Mobile();
 
   @override
+  bool get allowsMessageSelection => true;
+
+  @override
   bool get allowsTextEntryWithoutMessageSelection => false;
 
   @override
@@ -259,6 +272,9 @@ final class ChatSelectionPolicy$Desktop implements ChatSelectionPolicy {
   const ChatSelectionPolicy$Desktop();
 
   @override
+  bool get allowsMessageSelection => true;
+
+  @override
   bool get allowsTextEntryWithoutMessageSelection => true;
 
   @override
@@ -318,5 +334,86 @@ final class ChatSelectionPolicy$Desktop implements ChatSelectionPolicy {
     required VoidCallback clearMessageSelection,
   }) {
     // Clipboard only — keep the character range.
+  }
+}
+
+/// Touch **text-only** selection policy.
+///
+/// There is no **message selection**: a timer long-press on a body's text
+/// enters **text selection** directly (handles, adaptive toolbar), with no
+/// membership, check gutter, bubble shift or message menu on tap. Links,
+/// pills and inline taps keep working while no range is active; a live range
+/// owns every tap (a tap dismisses it). A long press on a link / inline-code
+/// span does not start a range unless that body already is the subject.
+/// Copy clears the range.
+final class ChatSelectionPolicy$TextOnly implements ChatSelectionPolicy {
+  /// Creates the touch text-only policy variant.
+  const ChatSelectionPolicy$TextOnly();
+
+  @override
+  bool get allowsMessageSelection => false;
+
+  @override
+  bool get allowsTextEntryWithoutMessageSelection => true;
+
+  @override
+  bool get routesLongPressToTextSelection => false;
+
+  @override
+  bool get nestsTextSubjectInMessageSelection => false;
+
+  @override
+  bool get routesPrimaryTapToIdleMessage => false;
+
+  @override
+  bool get usesTimerBasedLongPress => true;
+
+  @override
+  bool get shiftsBubbleForSelectionGutter => false;
+
+  @override
+  bool get positionsSelectionCheckAtTrailingEdge => false;
+
+  @override
+  bool get appliesSelectedColorToBubble => false;
+
+  @override
+  bool get suppressesLinkTapInMessageSelection => false;
+
+  @override
+  bool get scopesTextRangeSuppressionToSubject => false;
+
+  @override
+  bool get secondaryMessageTapOwnsFullSlot => false;
+
+  @override
+  bool get suppressesTapHighlightDuringSelection => true;
+
+  @override
+  bool get hasInteractiveCodeHeader => false;
+
+  @override
+  bool get hasBottomCodeCopyBar => true;
+
+  @override
+  bool hasBottomCodeCopyBarForLength(int length) =>
+      length >= ChatSelectionPolicy.mobileCodeCopyBarThreshold;
+
+  @override
+  void applyEnterMembership({
+    required void Function(Set<int> ids) replaceSelectedIds,
+    required VoidCallback clearMessageSelection,
+    required int messageId,
+  }) {
+    clearMessageSelection();
+  }
+
+  @override
+  void applyCopySuccess({
+    required VoidCallback clearTextSelection,
+    required VoidCallback clearMessageSelection,
+  }) {
+    clearTextSelection();
+    clearMessageSelection();
   }
 }

@@ -50,6 +50,71 @@ void main() {
     composerHarness(view(spec, resolver: resolver), textDirection: direction),
   );
 
+  group('fieldStartInset', () {
+    Future<double> gap(
+      WidgetTester tester,
+      ComposerSpec spec, {
+      required TextDirection direction,
+      double inset = 12,
+    }) async {
+      await tester.pumpWidget(
+        composerHarness(
+          ComposerView(
+            controller: controller,
+            spec: spec,
+            autofocus: false,
+            fieldStartInset: inset,
+          ),
+          textDirection: direction,
+        ),
+      );
+      final field = tester.getRect(find.byType(ExtendedTextField));
+      final island = tester.getRect(find.byType(GlassSurface));
+      return direction == TextDirection.ltr
+          ? field.left - island.left
+          : island.right - field.right;
+    }
+
+    testWidgets('insets the field from the start edge, LTR and RTL', (
+      tester,
+    ) async {
+      final flush = await gap(
+        tester,
+        ComposerSpec(),
+        direction: TextDirection.ltr,
+        inset: 0,
+      );
+      for (final direction in TextDirection.values) {
+        final inset = await gap(tester, ComposerSpec(), direction: direction);
+        expect(inset, flush + 12, reason: '$direction');
+      }
+    });
+
+    testWidgets('does not move a field that has a leading action', (
+      tester,
+    ) async {
+      final spec = ComposerSpec(
+        actions: [
+          ActionDescriptor(
+            id: 'attach',
+            placement: ActionPlacement.leading,
+            icon: ChromeIconId.attach,
+            semanticLabel: 'Attach',
+            onTap: () {},
+          ),
+        ],
+      );
+      final flush = await gap(
+        tester,
+        spec,
+        direction: TextDirection.ltr,
+        inset: 0,
+      );
+      final inset = await gap(tester, spec, direction: TextDirection.ltr);
+      expect(inset, flush);
+    });
+  });
+
   group('idle', () {
     testWidgets('shows the field with the hint from the strings scope', (
       tester,

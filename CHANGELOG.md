@@ -1,5 +1,19 @@
 ## Unreleased
 
+## 0.3.0
+
+### Text-only selection policy
+- **ADDED**: `ChatSelectionPolicy.textOnly()` (`ChatSelectionPolicy$TextOnly`):
+  touch text selection with no message selection. A long press on a body's
+  text starts a character/word range directly (handles, toolbar); no check
+  gutter, bubble shift or message menu on tap; links and pills work while no
+  range is live; Copy clears the range. New getter
+  `ChatSelectionPolicy.allowsMessageSelection` (false only here). Sealed:
+  hosts that `switch` exhaustively on the policy need a `$TextOnly` case
+  (ADR 012). The policy alone suffices: no `ChatSelectionAllowed.none`.
+- **ADDED**: `chat_composer`: `ComposerView.fieldStartInset` (see its
+  changelog).
+
 ## 0.2.0
 
 The streaming-message release (AI Recruiter, phase 1). Additive: the human chat

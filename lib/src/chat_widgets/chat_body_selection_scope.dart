@@ -132,8 +132,11 @@ class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
   /// multi-tap must not steal viewport taps.
   bool _enableTouchGestures(bool scopeEnabled) {
     if (!scopeEnabled) return false;
-    if (!_controller.selectionPolicy.usesTimerBasedLongPress) return false;
-    return _controller.isSelected(_id) ||
+    final policy = _controller.selectionPolicy;
+    if (!policy.usesTimerBasedLongPress) return false;
+    // Touch text-only: every body is armed, no message selection first.
+    return !policy.allowsMessageSelection ||
+        _controller.isSelected(_id) ||
         _controller.textSelectionSubject == _id;
   }
 
@@ -159,7 +162,8 @@ class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
     ) when contourPath == null && touchOrigin == null) {
       return false;
     }
-    return _controller.selectionPolicy.usesTimerBasedLongPress &&
+    final policy = _controller.selectionPolicy;
+    return policy.usesTimerBasedLongPress &&
         (_controller.isSelected(_id) ||
             _controller.textSelectionSubject == _id);
   }

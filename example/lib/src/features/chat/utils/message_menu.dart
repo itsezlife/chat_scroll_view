@@ -176,7 +176,8 @@ abstract final class MessageMenuCatalog {
   /// outside the context popup on desktop).
   static List<String> reactionsFor(ChatSelectionPolicy policy) =>
       switch (policy) {
-        ChatSelectionPolicy$Mobile() => mobileReactions,
+        ChatSelectionPolicy$Mobile() ||
+        ChatSelectionPolicy$TextOnly() => mobileReactions,
         ChatSelectionPolicy$Desktop() => const <String>[],
       };
 
@@ -190,7 +191,8 @@ abstract final class MessageMenuCatalog {
     Iterable<String>? excludeActionIds,
   }) {
     final items = switch (policy) {
-      ChatSelectionPolicy$Mobile() => _mobileItems(request),
+      ChatSelectionPolicy$Mobile() ||
+      ChatSelectionPolicy$TextOnly() => _mobileItems(request),
       ChatSelectionPolicy$Desktop() => _desktopItems(request),
     };
     return excluding(items, excludeActionIds);

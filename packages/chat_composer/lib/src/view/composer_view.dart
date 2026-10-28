@@ -70,6 +70,7 @@ class ComposerView extends StatefulWidget {
     this.primaryStyle = ComposerPrimaryStyle.disc,
     this.safeAreaBottom,
     this.maxWidth = ComposerMetrics.maxWidth,
+    this.fieldStartInset = 0,
     this.autofocus = true,
     super.key,
   });
@@ -122,6 +123,13 @@ class ComposerView extends StatefulWidget {
 
   /// Widest the island grows.
   final double maxWidth;
+
+  /// Inset between the island's start edge and the field text, applied only
+  /// while the island has no visible leading action (a leading action's own
+  /// slot already keeps the text off the edge, so the chat composer is
+  /// unchanged). Directional: it flips in right-to-left. Zero, the default,
+  /// adds nothing.
+  final double fieldStartInset;
 
   /// Whether the text field takes focus the first time it is built.
   ///
@@ -336,6 +344,9 @@ class _ComposerViewState extends State<ComposerView>
         onTap: widget.onFieldTap,
         onPointerDown: widget.onFieldPointerDown,
         onPointerEnd: widget.onFieldPointerEnd,
+        startInset: _spec.visibleActions(ActionPlacement.leading).isEmpty
+            ? widget.fieldStartInset
+            : 0,
       );
     }
     final built = widget.panelResolver?.call(context, panel);

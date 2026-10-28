@@ -51,6 +51,22 @@ that subject without mutating message selection. Long-press on an unselected
 message preserves message-then-text by clearing text selection and starting
 message selection / span gesture.
 
+## Touch text-only (`$TextOnly`)
+
+Added 2026-10-29 for hosts that never want **message selection** (an AI chat:
+copy a reply's text, nothing else). Mobile gesture timing (timer long-press),
+desktop entry rule: `allowsTextEntryWithoutMessageSelection` is true and
+`allowsMessageSelection` is false, so the viewport adds no long-press
+recognizer and the per-body scope owns the press. A long press on body text
+starts a word range with no prior membership. Enter membership clears (the set
+stays empty); nothing nests; no gutter, shift or check; idle primary tap does
+not open message chrome; a live range owns every tap (mobile suppression
+scope); Copy clears the range. Links, pills and inline taps work while no
+range is live; a long press on a link/inline-code span starts no range unless
+that body is already the subject. The policy alone is enough: the host needs
+neither `ChatSelectionAllowed.none` per message nor a custom controller beyond
+`ChatSelectionController(policy: const ChatSelectionPolicy.textOnly())`.
+
 ## Desktop/web (`$Desktop`)
 
 Direct character-range entry: press+drag (letter / word / paragraph by click

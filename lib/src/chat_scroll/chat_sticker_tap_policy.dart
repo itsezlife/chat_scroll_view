@@ -56,7 +56,8 @@ sealed class ChatStickerTapPolicy {
     ChatSelectionPolicy selection, {
     double replayTapSlop = 0,
   }) => switch (selection) {
-    ChatSelectionPolicy$Mobile() => ChatStickerTapPolicy.mobile(
+    ChatSelectionPolicy$Mobile() ||
+    ChatSelectionPolicy$TextOnly() => ChatStickerTapPolicy.mobile(
       replayTapSlop: replayTapSlop,
     ),
     ChatSelectionPolicy$Desktop() => ChatStickerTapPolicy.desktop(

@@ -187,7 +187,10 @@ class ChatSelectionPointer {
         final id = _pointerDownId!;
         // Yield the long-press when this hit would route to text so the
         // per-body markdown scope owns the continuous press (ADR 015).
-        if (!sel.shouldRouteLongPressToText(id, event.position)) {
+        // [$TextOnly] has no message selection to start: the per-body scope
+        // owns the touch long-press outright.
+        if (policy.allowsMessageSelection &&
+            !sel.shouldRouteLongPressToText(id, event.position)) {
           _longPress?.addPointer(event);
         }
       } else {
