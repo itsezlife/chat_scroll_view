@@ -4158,7 +4158,7 @@ class RenderChatScrollView extends RenderBox {
       final oldest = _dataSource.oldestKnownId;
       final box = oldest != null ? _boundaryBox(oldest) : null;
       if (box == null) return 0;
-      final travel = math.max<double>(0, -_parentData(box).offset);
+      final travel = math.max<double>(0, _topPad - _parentData(box).offset);
       if (delta <= travel) return 0;
       return delta - travel;
     }
@@ -4230,8 +4230,10 @@ class RenderChatScrollView extends RenderBox {
       final first = _boundaryBox(oldest);
       if (first == null) return false;
       final topY = _parentData(first).offset;
-      if (topY > 0) {
-        final delta = -topY;
+      // The oldest row rests at the band top (below the reserved top padding),
+      // not at the viewport edge, so it can scroll clear of floating chrome.
+      if (topY > _topPad) {
+        final delta = _topPad - topY;
         _fetchAnchorEvent('layout.pinOldest', {
           ..._fetchAnchorSnapshot(),
           'delta': LogFormat.f(delta),
