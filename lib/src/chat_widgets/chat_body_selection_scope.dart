@@ -230,7 +230,7 @@ class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
       // key is therefore routed to an intent of the facade's own, which no
       // scope knows.
       child: Shortcuts(
-        shortcuts: _copyShortcuts,
+        shortcuts: _copyShortcuts(),
         child: Actions(
           actions: <Type, Action<Intent>>{
             _CopyTextSelectionIntent: _CopyTextSelectionAction(_controller),
@@ -287,14 +287,14 @@ class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
 
 /// The copy key of the platform (Cmd+C on Apple platforms, Ctrl+C elsewhere)
 /// over a body's text selection, as the platform's own text fields bind it.
-final Map<ShortcutActivator, Intent> _copyShortcuts =
-    <ShortcutActivator, Intent>{
-      SingleActivator(
-        LogicalKeyboardKey.keyC,
-        meta: _isApple,
-        control: !_isApple,
-      ): const _CopyTextSelectionIntent(),
-    };
+///
+/// Built per call, never cached: the platform is read when the scope builds,
+/// not once per process (a cached map kept the key of whichever platform
+/// built the first scope).
+Map<ShortcutActivator, Intent> _copyShortcuts() => <ShortcutActivator, Intent>{
+  SingleActivator(LogicalKeyboardKey.keyC, meta: _isApple, control: !_isApple):
+      const _CopyTextSelectionIntent(),
+};
 
 bool get _isApple => switch (defaultTargetPlatform) {
   TargetPlatform.macOS || TargetPlatform.iOS => true,

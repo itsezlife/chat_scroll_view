@@ -52,6 +52,8 @@ import 'widgets/chat_absent_build_test.dart' as chat_absent_build_test;
 import 'widgets/chat_animate_path_test.dart' as chat_animate_path_test;
 import 'widgets/chat_api_test.dart' as chat_api_test;
 import 'widgets/chat_background_tap_test.dart' as chat_background_tap_test;
+import 'widgets/chat_body_copy_shortcut_platform_test.dart'
+    as chat_body_copy_shortcut_platform_test;
 import 'widgets/chat_bottom_padding_compensation_test.dart'
     as chat_bottom_padding_compensation_test;
 import 'widgets/chat_bubble_metrics_test.dart' as chat_bubble_metrics_test;
@@ -64,6 +66,8 @@ import 'widgets/chat_desktop_stuck_pointer_test.dart'
     as chat_desktop_stuck_pointer_test;
 import 'widgets/chat_dispose_during_animate_test.dart'
     as chat_dispose_during_animate_test;
+import 'widgets/chat_follow_tail_growth_test.dart'
+    as chat_follow_tail_growth_test;
 import 'widgets/chat_follow_tail_test.dart' as chat_follow_tail_test;
 import 'widgets/chat_gap_test.dart' as chat_gap_test;
 import 'widgets/chat_ghost_selected_color_test.dart'
@@ -147,15 +151,14 @@ import 'widgets/chat_spoiler_dust_test.dart' as chat_spoiler_dust_test;
 import 'widgets/chat_spoiler_selection_test.dart'
     as chat_spoiler_selection_test;
 import 'widgets/chat_stitch_animate_test.dart' as chat_stitch_animate_test;
+import 'widgets/chat_streaming_body_test.dart' as chat_streaming_body_test;
 import 'widgets/chat_tap_dismiss_toggle_regression_test.dart'
     as chat_tap_dismiss_toggle_regression_test;
-import 'widgets/chat_streaming_body_test.dart' as chat_streaming_body_test;
 import 'widgets/chat_tap_highlight_test.dart' as chat_tap_highlight_test;
 import 'widgets/chat_tap_highlight_text_selection_test.dart'
     as chat_tap_highlight_text_selection_test;
 import 'widgets/chat_text_copy_writer_test.dart' as chat_text_copy_writer_test;
-import 'widgets/chat_text_only_policy_test.dart'
-    as chat_text_only_policy_test;
+import 'widgets/chat_text_only_policy_test.dart' as chat_text_only_policy_test;
 import 'widgets/chat_unread_separator_test.dart' as chat_unread_separator_test;
 import 'widgets/chat_unselect_span_test.dart' as chat_unselect_span_test;
 import 'widgets/chat_viewport_stable_delete_test.dart'
@@ -232,6 +235,8 @@ void main() {
   group(
     'widgets/chat_background_tap_test.dart',
     chat_background_tap_test.main,
+    'widgets/chat_body_copy_shortcut_platform_test.dart',
+    chat_body_copy_shortcut_platform_test.main,
   );
   group(
     'widgets/chat_bottom_padding_compensation_test.dart',
@@ -252,6 +257,10 @@ void main() {
   group(
     'widgets/chat_dispose_during_animate_test.dart',
     chat_dispose_during_animate_test.main,
+  );
+  group(
+    'widgets/chat_follow_tail_growth_test.dart',
+    chat_follow_tail_growth_test.main,
   );
   group('widgets/chat_follow_tail_test.dart', chat_follow_tail_test.main);
   group('widgets/chat_gap_test.dart', chat_gap_test.main);
@@ -407,11 +416,11 @@ void main() {
     chat_spoiler_selection_test.main,
   );
   group('widgets/chat_stitch_animate_test.dart', chat_stitch_animate_test.main);
+  group('widgets/chat_streaming_body_test.dart', chat_streaming_body_test.main);
   group(
     'widgets/chat_tap_dismiss_toggle_regression_test.dart',
     chat_tap_dismiss_toggle_regression_test.main,
   );
-  group('widgets/chat_streaming_body_test.dart', chat_streaming_body_test.main);
   group('widgets/chat_tap_highlight_test.dart', chat_tap_highlight_test.main);
   group(
     'widgets/chat_tap_highlight_text_selection_test.dart',

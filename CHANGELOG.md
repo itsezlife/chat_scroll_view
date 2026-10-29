@@ -1,5 +1,12 @@
 ## Unreleased
 
+## 0.3.4
+
+### Selection
+- **FIXED**: the copy key over a body's text selection (Cmd+C / Ctrl+C) was
+  fixed for the platform of the first body built in the process; it now follows
+  the platform when each body builds.
+
 ## 0.3.3
 
 ### Top padding
