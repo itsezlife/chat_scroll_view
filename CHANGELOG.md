@@ -1,5 +1,17 @@
 ## Unreleased
 
+### `flutter_md` 0.7.1
+- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.7.1` in every
+  pubspec and workflow. It merges upstream `DoctorinaAI/md` 0.3.0: inline
+  pictures and link icons (opt-in through `MarkdownThemeData.imageResolver`;
+  without one an image stays its alt text), right-to-left bodies laid out
+  against the right edge, highlighter and nested quote fixes. Copy, spoilers,
+  embeds, chips and the line clamp are unchanged. 0.7.1 fixes the throw a body
+  that clears the selection from its `dispose` hit under 0.7.0.
+- **CHANGED**: the emoji-only body (`RenderChatEmojiBody`) reports its
+  `textDirection` to the selection controller, which the 0.7 surface contract
+  requires; it is the direction its lines start from, so handles orient by it.
+
 ## 0.4.0
 
 ### Text selection chrome
