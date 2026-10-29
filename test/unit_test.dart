@@ -115,6 +115,7 @@ import 'widgets/chat_mount_scroll_magnet_test.dart'
     as chat_mount_scroll_magnet_test;
 import 'widgets/chat_navigation_alignment_test.dart'
     as chat_navigation_alignment_test;
+import 'widgets/chat_overscroll_sink_test.dart' as chat_overscroll_sink_test;
 import 'widgets/chat_overscroll_test.dart' as chat_overscroll_test;
 import 'widgets/chat_row_chrome_test.dart' as chat_row_chrome_test;
 import 'widgets/chat_rtl_test.dart' as chat_rtl_test;
@@ -355,6 +356,10 @@ void main() {
   group(
     'widgets/chat_navigation_alignment_test.dart',
     chat_navigation_alignment_test.main,
+  );
+  group(
+    'widgets/chat_overscroll_sink_test.dart',
+    chat_overscroll_sink_test.main,
   );
   group('widgets/chat_overscroll_test.dart', chat_overscroll_test.main);
   group('widgets/chat_row_chrome_test.dart', chat_row_chrome_test.main);

@@ -1,5 +1,17 @@
 ## Unreleased
 
+### Overscroll hand-over
+- **ADDED**: `ChatScrollView.overscrollSink` (`ChatOverscrollSink`,
+  `ChatOverscrollEdges`): hands the part of a user drag the viewport cannot
+  scroll to the host, so an ancestor that moves (a draggable bottom sheet)
+  takes it instead of the stretch / rubber-band edge effect. `onDelta` is
+  offered the unconsumed pixels at a handed edge (default: the oldest, top
+  edge) and returns how many it took, offered both directions while content
+  rests on the edge so the receiver can unwind first; `onEnd(velocity)` takes
+  the release (no content fling) or declines it. A declined offer falls back
+  to the edge effect. An empty / loading viewport forwards its drags too.
+  Drag path only; wheel, keyboard, scrollbar and flings are unchanged.
+
 ## 0.3.4
 
 ### Selection

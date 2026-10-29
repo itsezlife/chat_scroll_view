@@ -1,5 +1,6 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_overscroll_sink.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
@@ -169,6 +170,7 @@ class ChatScrollView extends RenderObjectWidget {
     this.reverse = false,
     this.isSelfMessage,
     this.physics,
+    this.overscrollSink,
     this.scrollbar,
     super.key,
   });
@@ -533,6 +535,17 @@ class ChatScrollView extends RenderObjectWidget {
   /// rest before the new physics takes over.
   final ChatScrollPhysics? physics;
 
+  /// Receiver for the part of a user drag the viewport cannot scroll, so an
+  /// ancestor that moves (a draggable bottom sheet) can take it. See
+  /// [ChatOverscrollSink].
+  ///
+  /// With a sink, a drag at a handed-over edge ([ChatOverscrollSink.edges])
+  /// goes to the sink instead of the [physics] edge effect, a release the sink
+  /// takes starts no content fling, and an empty or loading viewport forwards
+  /// its drags too. `null` (default) changes nothing. Share values by
+  /// identity: a new instance on rebuild is fine, nothing in flight ends.
+  final ChatOverscrollSink? overscrollSink;
+
   /// The **scrollbar preset**: a scrollbar drawn by a
   /// [ChatScrollbarPainter], shown per a [ChatScrollbarVisibility], and
   /// grabbed per a [ChatScrollbarGrab], or [ChatScrollbar.none] for no
@@ -605,7 +618,7 @@ class ChatScrollView extends RenderObjectWidget {
       onSecondaryMessageTap: onSecondaryMessageTap,
       isSelfMessage: isSelfMessage,
       physics: _effectivePhysics,
-    );
+    )..overscrollSink = overscrollSink;
   }
 
   @override
@@ -641,6 +654,7 @@ class ChatScrollView extends RenderObjectWidget {
       ..onBackgroundTap = onBackgroundTap
       ..onSecondaryMessageTap = onSecondaryMessageTap
       ..isSelfMessage = isSelfMessage
-      ..physics = _effectivePhysics;
+      ..physics = _effectivePhysics
+      ..overscrollSink = overscrollSink;
   }
 }

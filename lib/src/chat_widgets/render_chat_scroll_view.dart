@@ -11,6 +11,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_floating_header_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_mutations.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_overscroll_sink.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_row_chrome_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_row_chrome_transition.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
@@ -478,6 +479,19 @@ class RenderChatScrollView extends RenderBox {
     if (hasSize) _resolveRowChromeFrame();
     markNeedsPaint();
   }
+
+  /// Receiver of the drag a reached edge cannot consume. See
+  /// [ChatScrollView.overscrollSink]. Swapping it ends nothing in flight: a
+  /// drag already handed over keeps its engaged flag, the next drag starts
+  /// clean.
+  ChatOverscrollSink? get overscrollSink => _handoff.sink;
+  set overscrollSink(ChatOverscrollSink? value) {
+    if (identical(_handoff.sink, value)) return;
+    _handoff.sink = value;
+    _handoff.disposeOverlayDrag();
+  }
+
+  final ChatOverscrollHandoff _handoff = ChatOverscrollHandoff();
 
   double _cacheExtent;
   set cacheExtent(double value) {
@@ -1833,6 +1847,7 @@ class RenderChatScrollView extends RenderBox {
       _unreadBoundary?.removeListener(_onUnreadBoundaryChanged);
       _rowChromeChanged = false;
       _drag?.dispose();
+      _handoff.disposeOverlayDrag();
       _drag = null;
       _selectionPointer?.dispose();
       _selectionPointer = null;
@@ -4172,6 +4187,25 @@ class RenderChatScrollView extends RenderBox {
     return delta + travel;
   }
 
+  /// Whether the oldest (top) pin is reached and content rests on it.
+  bool _atOldestPin() {
+    if (!hasSize || !_dataSource.reachedOldest) return false;
+    final oldest = _dataSource.oldestKnownId;
+    final box = oldest != null ? _boundaryBox(oldest) : null;
+    if (box == null) return false;
+    return _topPad - _parentData(box).offset <= 0.5;
+  }
+
+  /// Whether the newest (bottom) pin is reached and content rests on it.
+  bool _atNewestPin() {
+    if (!hasSize || !_dataSource.reachedNewest) return false;
+    final newest = _dataSource.newestKnownId;
+    final box = newest != null ? _boundaryBox(newest) : null;
+    if (box == null) return false;
+    final bottom = _parentData(box).offset + box.size.height;
+    return bottom - (size.height - _bottomPad) <= 0.5;
+  }
+
   bool _clampBoundaries({bool repinBottom = false}) {
     // Layout never rubber-bands. Unconsumed dy feeds the paint-only edge
     // effect, not a pin skip. Stitch freeze still owns the anchor until
@@ -4783,6 +4817,16 @@ class RenderChatScrollView extends RenderBox {
     if (userDelta != 0.0) {
       _controller.notifyScrollEvent(ChatViewportScrolled(userDelta));
     }
+    // A sink takes its share of a drag first; a share it declines falls
+    // through to content and the edge effect like any other drag.
+    if (_dragInProgress && !wasFlinging && delta != 0.0 && hasSize) {
+      delta -= _handoff.offer(
+        delta: delta,
+        unconsumed: _unconsumedOverscrollDelta(delta),
+        oldestPinned: _atOldestPin(),
+        newestPinned: _atNewestPin(),
+      );
+    }
     // A fling released toward content unwinds the edge effect before it
     // moves content, the same as a reverse drag.
     if ((_dragInProgress || wasFlinging) && delta != 0.0 && hasSize) {
@@ -4974,6 +5018,7 @@ class RenderChatScrollView extends RenderBox {
     _cancelAnimate(fadeHighlight: false);
     _cancelHighlightForPan();
     _motion.edge.onDragStart();
+    _handoff.beginDrag();
     _dragInProgress = true;
     _ensureTicker();
     _controller.notifyScrollEvent(const ChatUserDragStart());
@@ -4990,6 +5035,17 @@ class RenderChatScrollView extends RenderBox {
     final velocity = details.primaryVelocity ?? 0.0;
     _controller.notifyScrollEvent(ChatUserDragEnd(velocity));
     final edge = _motion.edge;
+    if (_handoff.endDrag(velocity)) {
+      // The sink settles the release: no content fling, and any edge effect
+      // it declined earlier in the drag releases in place.
+      edge.onDragEnd(0);
+      if (edge.isActive) {
+        _ensureTicker();
+      } else {
+        _stopTickerIfIdle();
+      }
+      return;
+    }
     final flingAllowed = edge.onDragEnd(velocity);
     if (edge.isActive) _ensureTicker();
     if (flingAllowed &&
@@ -5447,7 +5503,10 @@ class RenderChatScrollView extends RenderBox {
     // Overlay mode: no messages to scroll over. The overlay child handles
     // its own pointers via the normal hit-test path; the viewport itself
     // contributes nothing.
-    if (_overlayKind != ChatOverlayKind.none) return;
+    if (_overlayKind != ChatOverlayKind.none) {
+      if (event is PointerDownEvent) _handoff.addOverlayPointer(event);
+      return;
+    }
 
     // Scrollbar grab in progress — consume move/up/cancel.
     final scrollbar = _scrollbarRuntime;
@@ -6950,6 +7009,7 @@ class RenderChatScrollView extends RenderBox {
     _ticker = null;
     _chunkFetchScheduler.dispose();
     _drag?.dispose();
+    _handoff.disposeOverlayDrag();
     _drag = null;
     _selectionPointer?.dispose();
     _selectionPointer = null;
