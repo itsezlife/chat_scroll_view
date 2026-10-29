@@ -89,6 +89,7 @@ export 'src/chat_widgets/chat_smooth_contour.dart';
 export 'src/chat_widgets/chat_span_feedback.dart';
 export 'src/chat_widgets/chat_sticker_playback.dart';
 export 'src/chat_widgets/chat_streaming_body.dart';
+export 'src/chat_widgets/chat_tail_fold.dart' show ChatTailFold;
 export 'src/chat_widgets/chat_tap_highlight.dart';
 export 'src/chat_widgets/message_menu/chat_message_menu.dart';
 export 'src/chat_widgets/message_menu/chat_pre_ime_back.dart';

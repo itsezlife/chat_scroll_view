@@ -383,6 +383,88 @@ class ChatAnimator implements ChatScrollAnimator {
   @override
   bool get isAnimating => animateCompleter != null;
 
+  // --- Pixel flight (animateBy) --------------------------------------------
+  //
+  // A flight by a pixel delta has no target row, so it shares none of the
+  // close/stitch state above: its own completer and accounting, ticked by the
+  // same [tickAnimate] the render object already drives, so no second Ticker.
+  // Exclusive with [animateCompleter]: starting either cancels the other.
+
+  Completer<void>? _byCompleter;
+  double _byTotal = 0;
+  double _byApplied = 0;
+  Duration _byDuration = Duration.zero;
+  Curve _byCurve = Curves.linear;
+  Duration? _byStartTime;
+
+  @override
+  bool get isAnimatingBy => _byCompleter != null;
+
+  @override
+  double get animateByPixels => _byTotal;
+
+  @override
+  Future<void>? get animateByFuture => _byCompleter?.future;
+
+  /// Whether any programmatic motion ([animate] or [animateBy]) is in flight;
+  /// the viewport ticker must keep running while this is `true`.
+  bool get isMoving => isAnimating || isAnimatingBy;
+
+  @override
+  Future<void> animateBy(
+    double pixels, {
+    Duration? duration,
+    Curve curve = Curves.easeOutQuint,
+  }) {
+    // Same attention rules as a user drag or [ChatScrollController.scrollBy]:
+    // a fling, an edge effect and any highlight yield to the flight.
+    _controller.dropHighlightRequest();
+    clearHighlight(animated: highlightTargetId != null);
+    _cancelOverscroll();
+    _cancelFling();
+    final completer = Completer<void>();
+    _byCompleter = completer;
+    _byTotal = pixels;
+    _byApplied = 0;
+    _byStartTime = null;
+    _byCurve = curve;
+    _byDuration =
+        duration ??
+        travelDuration(
+          travelPx: pixels,
+          viewportHeight: math.max<double>(_viewportHeight(), 1),
+        );
+    Log.fine(.animate, 'by.start', {
+      'pixels': LogFormat.f(pixels),
+      'durationMs': _byDuration.inMilliseconds,
+    });
+    _ensureTicker();
+    return completer.future;
+  }
+
+  double _tickBy(Duration elapsed) {
+    final start = _byStartTime ??= elapsed;
+    final totalUs = _byDuration.inMicroseconds;
+    final t = totalUs <= 0
+        ? 1.0
+        : ((elapsed - start).inMicroseconds / totalUs).clamp(0.0, 1.0);
+    // Relative accounting (not an absolute anchor target): the anchor may be
+    // renormalized or follow-tail may shift it between ticks, and the flight
+    // still travels exactly [_byTotal] by its own deltas.
+    final target = t >= 1.0 ? _byTotal : _byTotal * _byCurve.transform(t);
+    final delta = target - _byApplied;
+    _byApplied = target;
+    if (t >= 1.0) _finishBy();
+    return delta;
+  }
+
+  void _finishBy() {
+    final completer = _byCompleter;
+    _byCompleter = null;
+    _byStartTime = null;
+    if (completer != null && !completer.isCompleted) completer.complete();
+  }
+
   /// Whether a highlight overlay or deferred arm is active.
   bool get hasHighlight =>
       highlightTargetId != null || pendingHighlightTargetId != null;
@@ -402,6 +484,15 @@ class ChatAnimator implements ChatScrollAnimator {
     double pixelOffset = 0.0,
   }) {
     final align = alignment.clamp(0.0, 1.0);
+
+    // A pixel flight owns the origin: another target waits (ignore) or takes
+    // over (replace), exactly as against a running animate.
+    if (isAnimatingBy) {
+      if (busyPolicy != AnimateToBusyPolicy.replace) {
+        return Future<AnimateToPath>.value(AnimateToPath.none);
+      }
+      cancelAnimate(fadeHighlight: false);
+    }
 
     // Same destination → coalesce. Different target → ignore, or cancel and
     // restart immediately when [busyPolicy] is replace.
@@ -816,6 +907,14 @@ class ChatAnimator implements ChatScrollAnimator {
   /// Pass [fadeHighlight]: false only for paths that immediately
   /// [clearHighlight] (replace → re-arm, dispose).
   void cancelAnimate({bool fadeHighlight = true}) {
+    // A pixel flight stops where it is: the origin keeps what was applied.
+    if (_byCompleter != null) {
+      Log.fine(.animate, 'by.cancel', {
+        'applied': LogFormat.f(_byApplied),
+        'total': LogFormat.f(_byTotal),
+      });
+      _finishBy();
+    }
     final completer = animateCompleter;
     if (completer == null) return;
     Log.fine(.animate, 'animate.cancel', {
@@ -865,6 +964,7 @@ class ChatAnimator implements ChatScrollAnimator {
   /// Drive the in-flight animation by one tick. Returns the additional scroll
   /// delta to apply (for the close path); stitch mutates [stitchProgress].
   double tickAnimate(Duration elapsed) {
+    if (_byCompleter != null) return _tickBy(elapsed);
     if (animateCompleter == null) return 0;
 
     if (loadGateWaiting) {

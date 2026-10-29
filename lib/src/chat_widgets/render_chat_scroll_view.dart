@@ -34,6 +34,7 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_runtime.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_pointer.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_tail_fold.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
 import 'package:chat_scroll_view/src/util/constants.dart';
 import 'package:chat_scroll_view/src/util/logger.dart';
@@ -171,7 +172,7 @@ abstract interface class ChatChildManager {
 /// a global content height. Scrolling repositions children and calls
 /// [markNeedsPaint] (no layout, no rebuild — Tier 1); the framework moves the
 /// cached child layers.
-class RenderChatScrollView extends RenderBox {
+class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   /// Creates the render object that lays out message children around the
   /// controller's anchor and drives scroll physics.
   RenderChatScrollView({
@@ -362,6 +363,8 @@ class RenderChatScrollView extends RenderBox {
     _lastSeenNewestId = null;
     _lastNewestLaidOutId = null;
     _lastNewestLaidOutHeight = null;
+    _lastNewestTailLine = null;
+    _lastNewestTailLineY = null;
     _lastLaidOutBottomPad = null;
     _bottomPadCompensationBase = null;
     _lastLaidOutHeight = null;
@@ -601,6 +604,16 @@ class RenderChatScrollView extends RenderBox {
   int? _lastNewestLaidOutId;
   double? _lastNewestLaidOutHeight;
 
+  /// [ChatTailFold]s attached under this viewport; see [ChatTailFold].
+  @override
+  final ChatTailFoldTracker tailFolds = ChatTailFoldTracker();
+
+  /// Newest row's follow line at the end of the previous layout: the fold
+  /// line (row-relative) when the row holds a [ChatTailFold], otherwise its
+  /// height; and that line's absolute Y. Feed [_newestFoldHold].
+  double? _lastNewestTailLine;
+  double? _lastNewestTailLineY;
+
   /// Empty space reserved at the *top* of the viewport — compensation for top
   /// chrome (an app bar). The floating day header rests just below it.
   ///
@@ -680,7 +693,7 @@ class RenderChatScrollView extends RenderBox {
   void _releaseMotionIfSettled() {
     if (_dragInProgress ||
         _motion.fling.isFlinging ||
-        _animator.isAnimating ||
+        _animator.isMoving ||
         _pendingScrollDelta != 0.0 ||
         _spanAutoScrollOccupying) {
       return;
@@ -2551,6 +2564,9 @@ class RenderChatScrollView extends RenderBox {
     if (_animator.animateCompleter != null &&
         _animator.animateTargetId != targetId) {
       _cancelAnimate(fadeHighlight: false);
+    } else if (_animator.isAnimatingBy) {
+      // A pixel flight does not survive a jump elsewhere.
+      _cancelAnimate(fadeHighlight: false);
     } else if (_chunkFetchScheduler.isOutsideNavigationDestination(targetId)) {
       // Orphan pin (animate already finished/cancelled incompletely) — drop it
       // so fetch follows the thumb again.
@@ -2796,6 +2812,11 @@ class RenderChatScrollView extends RenderBox {
         _lastNewestLaidOutId == newest &&
         _lastNewestLaidOutHeight != null &&
         newestHeight > _lastNewestLaidOutHeight! + 0.5;
+    // A newest row with a [ChatTailFold] follows its fold line, not its
+    // bottom, while the reader sits on that line.
+    final foldHold = newestHeightGrew && newestBox != null
+        ? _newestFoldHold(newestBox)
+        : ChatTailFoldHold.none;
     // Span auto-scroll occupies the origin writer while the pointer sits in
     // the edge band — follow-tail and pending tail-pin must not also write.
     final occupyingSpanAutoScroll = _spanAutoScrollOccupying;
@@ -2810,7 +2831,8 @@ class RenderChatScrollView extends RenderBox {
     // clamp pinned before the target's chunk loaded.
     final followTailRepin =
         !navigationMoved &&
-        ((!_deferTailAdvancedRepin && tailAdvanced) || newestHeightGrew);
+        ((!_deferTailAdvancedRepin && tailAdvanced) ||
+            (newestHeightGrew && foldHold == ChatTailFoldHold.none));
     final repinBottom =
         !stitchLayoutFrozen &&
         ((!occupyingSpanAutoScroll && _pinTailOnJump) ||
@@ -2839,7 +2861,13 @@ class RenderChatScrollView extends RenderBox {
         _deleteCollapseExpectedBandGap != null) {
       _matchExpectedBandGap();
     }
-    final clamped = _clampBoundaries(repinBottom: repinBottom);
+    final foldPinned =
+        foldHold == ChatTailFoldHold.pinFold &&
+        !stitchLayoutFrozen &&
+        !occupyingSpanAutoScroll &&
+        !navigationMoved &&
+        _pinNewestFoldLine(newestBox!);
+    final clamped = _clampBoundaries(repinBottom: repinBottom) || foldPinned;
     if (clamped) _cancelFling();
 
     // Re-fan from the corrected anchor. When pass 1 ran with the anchor far
@@ -4644,7 +4672,7 @@ class RenderChatScrollView extends RenderBox {
     if (!_motion.fling.isFlinging &&
         _pendingScrollDelta == 0.0 &&
         _animator.highlightTargetId == null &&
-        !_animator.isAnimating &&
+        !_animator.isMoving &&
         !_motion.edge.isActive &&
         !_dragInProgress &&
         !_spanAutoScrollOccupying &&
@@ -4740,7 +4768,7 @@ class RenderChatScrollView extends RenderBox {
     final hasScrollWork =
         _pendingScrollDelta != 0.0 ||
         fling.isFlinging ||
-        (!occupyingSpanAutoScroll && _animator.isAnimating) ||
+        (!occupyingSpanAutoScroll && _animator.isMoving) ||
         edge.isActive ||
         occupyingSpanAutoScroll;
     if (!hasScrollWork) {
@@ -4890,7 +4918,7 @@ class RenderChatScrollView extends RenderBox {
 
     _releaseMotionIfSettled();
     if (!fling.isFlinging &&
-        !_animator.isAnimating &&
+        !_animator.isMoving &&
         _animator.highlightTargetId == null &&
         !edge.isActive &&
         !_dragInProgress) {
@@ -5714,12 +5742,62 @@ class RenderChatScrollView extends RenderBox {
     if (newest == null) {
       _lastNewestLaidOutId = null;
       _lastNewestLaidOutHeight = null;
+      _lastNewestTailLine = null;
+      _lastNewestTailLineY = null;
       return;
     }
     final box = _boundaryBox(newest);
     if (box == null) return;
     _lastNewestLaidOutId = newest;
     _lastNewestLaidOutHeight = box.size.height;
+    final line = tailFolds.lineWithin(box) ?? box.size.height;
+    _lastNewestTailLine = line;
+    _lastNewestTailLineY = _parentData(box).offset + line;
+  }
+
+  /// What the grown newest row [row] asks of follow-tail given its
+  /// [ChatTailFold] (see [resolveTailFoldHold]).
+  ChatTailFoldHold _newestFoldHold(RenderBox row) {
+    final previousLine = _lastNewestTailLine;
+    final previousLineY = _lastNewestTailLineY;
+    if (previousLine == null || previousLineY == null) {
+      return ChatTailFoldHold.none;
+    }
+    return resolveTailFoldHold(
+      line: tailFolds.lineWithin(row),
+      previousLine: previousLine,
+      previousLineY: previousLineY,
+      bottomEdge: size.height - _bottomPad,
+      slop: _tailEdgeSlop,
+    );
+  }
+
+  /// Shifts the origin so [row]'s fold line sits on the band's bottom edge.
+  /// Returns whether it moved.
+  bool _pinNewestFoldLine(RenderBox row) {
+    final line = tailFolds.lineWithin(row);
+    if (line == null) return false;
+    final delta = size.height - _bottomPad - (_parentData(row).offset + line);
+    if (delta.abs() < 0.01) return false;
+    _controller.applyScrollDelta(delta);
+    _repositionFromAnchor();
+    return true;
+  }
+
+  /// Whether the newest row's fold line sits on the band's bottom edge while
+  /// its real bottom is further down: the reader is at the end of the text
+  /// part, so follow-tail treats them as at the tail ([isAtTail] itself stays
+  /// on the real bottom).
+  bool _isAtNewestFold() {
+    if (tailFolds.isEmpty || _overlayKind != ChatOverlayKind.none) return false;
+    final newest = _dataSource.newestKnownId;
+    if (newest == null || !_dataSource.reachedNewest) return false;
+    final last = _boundaryBox(newest);
+    if (last == null) return false;
+    final line = tailFolds.lineWithin(last);
+    if (line == null) return false;
+    final lineY = _parentData(last).offset + line;
+    return (lineY - (size.height - _bottomPad)).abs() <= _tailEdgeSlop;
   }
 
   void _publishBoundaries() {
@@ -5762,11 +5840,13 @@ class RenderChatScrollView extends RenderBox {
     // if `newestKnownId` is null during initial-loading overlay we
     // shouldn't anchor against that.
     if (_overlayKind == ChatOverlayKind.none) {
-      _wasAtTailLastLayout = value;
+      final atTail = value || _isAtNewestFold();
+      _wasAtTailLastLayout = atTail;
       _lastSeenNewestId = _dataSource.newestKnownId;
       // Geometry says we are at the tail again (e.g. fling residue within
-      // slop) — drop drag preempt so follow-tail / height growth can pin.
-      if (value) _userPreemptedTailSettle = false;
+      // slop, or the reader on the newest row's fold) — drop drag preempt so
+      // follow-tail / height growth can pin.
+      if (atTail) _userPreemptedTailSettle = false;
     }
     if (_controller.isAtTail.value == value) return;
     _controller.isAtTail = value;

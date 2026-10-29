@@ -49,6 +49,7 @@ import 'goldens/chat_markdown_emoji_golden_test.dart'
 import 'goldens/inline_layer_golden_test.dart' as inline_layer_golden_test;
 import 'viewport_never_detects_test.dart' as viewport_never_detects_test;
 import 'widgets/chat_absent_build_test.dart' as chat_absent_build_test;
+import 'widgets/chat_animate_by_test.dart' as chat_animate_by_test;
 import 'widgets/chat_animate_path_test.dart' as chat_animate_path_test;
 import 'widgets/chat_api_test.dart' as chat_api_test;
 import 'widgets/chat_background_tap_test.dart' as chat_background_tap_test;
@@ -152,6 +153,7 @@ import 'widgets/chat_spoiler_selection_test.dart'
     as chat_spoiler_selection_test;
 import 'widgets/chat_stitch_animate_test.dart' as chat_stitch_animate_test;
 import 'widgets/chat_streaming_body_test.dart' as chat_streaming_body_test;
+import 'widgets/chat_tail_fold_test.dart' as chat_tail_fold_test;
 import 'widgets/chat_tap_dismiss_toggle_regression_test.dart'
     as chat_tap_dismiss_toggle_regression_test;
 import 'widgets/chat_tap_highlight_test.dart' as chat_tap_highlight_test;
@@ -230,11 +232,14 @@ void main() {
   group('goldens/inline_layer_golden_test.dart', inline_layer_golden_test.main);
   group('viewport_never_detects_test.dart', viewport_never_detects_test.main);
   group('widgets/chat_absent_build_test.dart', chat_absent_build_test.main);
+  group('widgets/chat_animate_by_test.dart', chat_animate_by_test.main);
   group('widgets/chat_animate_path_test.dart', chat_animate_path_test.main);
   group('widgets/chat_api_test.dart', chat_api_test.main);
   group(
     'widgets/chat_background_tap_test.dart',
     chat_background_tap_test.main,
+  );
+  group(
     'widgets/chat_body_copy_shortcut_platform_test.dart',
     chat_body_copy_shortcut_platform_test.main,
   );
@@ -422,6 +427,7 @@ void main() {
     chat_tap_dismiss_toggle_regression_test.main,
   );
   group('widgets/chat_tap_highlight_test.dart', chat_tap_highlight_test.main);
+  group('widgets/chat_tail_fold_test.dart', chat_tail_fold_test.main);
   group(
     'widgets/chat_tap_highlight_text_selection_test.dart',
     chat_tap_highlight_text_selection_test.main,
