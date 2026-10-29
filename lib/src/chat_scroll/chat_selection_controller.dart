@@ -14,6 +14,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_text_selection.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_span_feedback.dart';
 import 'package:flutter/foundation.dart'
     show
+        ChangeNotifier,
         ErrorDescription,
         FlutterError,
         FlutterErrorDetails,
@@ -261,6 +262,24 @@ class ChatSelectionController implements Listenable {
   Set<int>? _dragSelectedIds;
   ChatDragSelectAction _dragSelectAction = ChatDragSelectAction.none;
   final _capHits = ValueNotifier<int>(0);
+
+  final _viewportMoves = _ViewportMoves();
+
+  /// Fires after the viewport repositioned its messages (a scroll frame).
+  ///
+  /// The text selection toolbar's anchors are absolute screen points, so the
+  /// body that owns the chrome re-derives them on each move; the handles ride
+  /// their surfaces' layers and need nothing.
+  @internal
+  Listenable get viewportMoves => _viewportMoves;
+
+  /// The viewport moved its messages. Called by the render object per scroll
+  /// frame that moved content; a no-op once disposed.
+  @internal
+  void notifyViewportMoved() {
+    if (!_disposed) _viewportMoves.fire();
+  }
+
   final _selectionAllowedListeners = <VoidCallback>[];
 
   /// The active drag-selection action (selecting, deselecting, or none).
@@ -1732,6 +1751,7 @@ class ChatSelectionController implements Listenable {
     _spanFeedbackAbortListeners.clear();
     _spanFeedback = null;
     _capHits.dispose();
+    _viewportMoves.dispose();
     _text.dispose();
     // Drop the set: a stale reference held by a consumer (e.g. a toolbar
     // queueing an undo) must not silently match unrelated ids in a fresh
@@ -1772,4 +1792,9 @@ final class ChatRemoteStickerPlay {
   @override
   String toString() =>
       'ChatRemoteStickerPlay(stickerRect: $stickerRect, restarted: $restarted)';
+}
+
+/// [ChangeNotifier] with a public trigger.
+final class _ViewportMoves extends ChangeNotifier {
+  void fire() => notifyListeners();
 }

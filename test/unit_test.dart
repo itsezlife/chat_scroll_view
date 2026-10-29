@@ -158,6 +158,8 @@ import 'widgets/chat_tap_dismiss_toggle_regression_test.dart'
 import 'widgets/chat_tap_highlight_test.dart' as chat_tap_highlight_test;
 import 'widgets/chat_tap_highlight_text_selection_test.dart'
     as chat_tap_highlight_text_selection_test;
+import 'widgets/chat_text_chrome_scroll_test.dart'
+    as chat_text_chrome_scroll_test;
 import 'widgets/chat_text_copy_writer_test.dart' as chat_text_copy_writer_test;
 import 'widgets/chat_text_only_policy_test.dart' as chat_text_only_policy_test;
 import 'widgets/chat_unread_separator_test.dart' as chat_unread_separator_test;
@@ -233,9 +235,8 @@ void main() {
   group('widgets/chat_absent_build_test.dart', chat_absent_build_test.main);
   group('widgets/chat_animate_path_test.dart', chat_animate_path_test.main);
   group('widgets/chat_api_test.dart', chat_api_test.main);
+  group('widgets/chat_background_tap_test.dart', chat_background_tap_test.main);
   group(
-    'widgets/chat_background_tap_test.dart',
-    chat_background_tap_test.main,
     'widgets/chat_body_copy_shortcut_platform_test.dart',
     chat_body_copy_shortcut_platform_test.main,
   );
@@ -434,6 +435,10 @@ void main() {
   group(
     'widgets/chat_text_copy_writer_test.dart',
     chat_text_copy_writer_test.main,
+  );
+  group(
+    'widgets/chat_text_chrome_scroll_test.dart',
+    chat_text_chrome_scroll_test.main,
   );
   group(
     'widgets/chat_text_only_policy_test.dart',

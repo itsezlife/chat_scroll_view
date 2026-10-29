@@ -1,5 +1,16 @@
 ## Unreleased
 
+## 0.4.0
+
+### Text selection chrome
+- **FIXED**: the text selection toolbar did not follow the text when the list
+  scrolled, nor hide when the text left the viewport, unless the viewport sat
+  under a `Scaffold` (the only source of the scroll observer the scope listened
+  to), as in a sheet or dialog route. The body that owns the chrome is now told
+  on every scroll frame, and the toolbar is hidden while no part of the range
+  is inside the viewport (it returns with the text). Selection handles are
+  unchanged: they ride their surfaces and are not clipped to the viewport.
+
 ### Overscroll hand-over
 - **ADDED**: `ChatScrollView.overscrollSink` (`ChatOverscrollSink`,
   `ChatOverscrollEdges`): hands the part of a user drag the viewport cannot

@@ -4846,6 +4846,9 @@ class RenderChatScrollView extends RenderBox {
     }
     _scrollVelocity = _scrollVelocity * 0.7 + consumed * 0.3;
     _repositionFromAnchor();
+    // The text selection toolbar's anchors are screen points: tell the body
+    // that owns them the messages moved (see [ChatSelectionController.viewportMoves]).
+    if (consumed != 0.0) _selectionController?.notifyViewportMoved();
     if (occupyingSpanAutoScroll) _applyLiveSpanHit();
     if (!_skipRenormalizeDuringClosePath()) {
       _renormalizeAnchor();

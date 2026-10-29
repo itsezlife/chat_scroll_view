@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_autoscroll.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_secondary_message_tap_scope.dart';
+import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart'
+    show RenderChatScrollView;
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
@@ -65,6 +67,43 @@ class ChatBodySelectionScope extends StatefulWidget {
 }
 
 class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
+  /// Anchors the context inside the scope that [_ViewportMoved] dispatches
+  /// from, so it bubbles through the scope's own scroll listener.
+  final GlobalKey _pulseKey = GlobalKey(debugLabel: 'ChatBodySelectionPulse');
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.viewportMoves.addListener(_onViewportMoved);
+  }
+
+  @override
+  void didUpdateWidget(ChatBodySelectionScope oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.viewportMoves.removeListener(_onViewportMoved);
+      widget.controller.viewportMoves.addListener(_onViewportMoved);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.viewportMoves.removeListener(_onViewportMoved);
+    super.dispose();
+  }
+
+  /// The viewport is not a `Scrollable`, so it sends no `ScrollNotification`,
+  /// which is how the scope learns that its toolbar's absolute anchors went
+  /// stale (and that the selection may have left the viewport). Say it in the
+  /// scope's own language, from inside it, and only for the body that owns the
+  /// chrome: the other bodies have no toolbar to move.
+  void _onViewportMoved() {
+    if (_controller.textSelectionSubject != _id) return;
+    final context = _pulseKey.currentContext;
+    if (context == null || !context.mounted) return;
+    _ViewportMoved(context).dispatch(context);
+  }
+
   // Rebuilt only when options / policy / display Hz change so mid-drag list
   // rebuilds keep the scope's cached target (the config has no value
   // equality, and resolver identity is part of it).
@@ -168,10 +207,26 @@ class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
             _controller.textSelectionSubject == _id);
   }
 
+  /// Whether any painted part of the text range is inside the chat viewport.
+  ///
+  /// The scope clips the toolbar to its own body and to a `RenderAbstractViewport`
+  /// ancestor, which this viewport is not: a range scrolled under the chrome
+  /// around the viewport (or into its cache extent) would keep its toolbar.
+  bool _selectionInViewport() {
+    final viewport = context
+        .findAncestorRenderObjectOfType<RenderChatScrollView>();
+    if (viewport == null || !viewport.hasSize) return true;
+    final bounds = viewport.localToGlobal(Offset.zero) & viewport.size;
+    final rects = _controller.markdownSelection.globalSelectionRects();
+    // No painted rect (not laid out yet) says nothing about the viewport.
+    return rects.isEmpty || rects.any(bounds.overlaps);
+  }
+
   Widget _buildContextMenu(
     BuildContext context,
     MarkdownSelectionScopeState state,
   ) {
+    if (!_selectionInViewport()) return const SizedBox.shrink();
     final items = <ContextMenuButtonItem>[];
     if (_controller.textSelection case final sel? when !sel.isCollapsed) {
       items.add(
@@ -205,84 +260,106 @@ class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
   @override
   Widget build(BuildContext context) {
     final scopeEnabled = _scopeEnabled;
-    return Listener(
-      behavior: HitTestBehavior.translucent,
-      onPointerDown: (event) {
-        // Desktop: a mouse press arms this body as the subject (ADR 012), so
-        // the scope's recognizers can take the drag; a press on something a
-        // tap does is left to the viewport.
-        if (event.kind != PointerDeviceKind.mouse) return;
-        final policy = _controller.selectionPolicy;
-        if (!policy.allowsTextEntryWithoutMessageSelection ||
-            _controller.isSelectionMode) {
-          return;
-        }
-        if (_blocksSelection(
-          _controller.resolveInlineHit(_id, event.position),
-        )) {
-          return;
-        }
-        _controller.armTextSelection(_id);
-      },
-      // The scope answers [CopySelectionTextIntent] itself, nearer to its
-      // focus than the actions below, and writes plain text to the platform
-      // clipboard: no host writer, no rich form, no copy feedback. The copy
-      // key is therefore routed to an intent of the facade's own, which no
-      // scope knows.
-      child: Shortcuts(
-        shortcuts: _copyShortcuts(),
-        child: Actions(
-          actions: <Type, Action<Intent>>{
-            _CopyTextSelectionIntent: _CopyTextSelectionAction(_controller),
-            CopySelectionTextIntent: CallbackAction<CopySelectionTextIntent>(
-              onInvoke: (_) {
-                unawaited(_controller.copyTextSelection());
-                return null;
-              },
-            ),
-            SelectAllTextIntent: CallbackAction<SelectAllTextIntent>(
-              onInvoke: (_) {
-                _controller.selectAllText();
-                return null;
-              },
-            ),
-            DismissIntent: CallbackAction<DismissIntent>(
-              onInvoke: (_) {
-                _controller.clearTextSelection();
-                return null;
-              },
-            ),
-          },
-          child: MarkdownSelectionScope(
-            controller: _controller.markdownSelection,
-            enabled: scopeEnabled,
-            // Drive the anchor viewport.
-            autoscroll: _resolvedAutoscroll(),
-            // Continuous text: touch long-press, word, drag-extend (ADR 015).
-            // Consecutive taps stay off so the viewport owns toggle / dismiss
-            // taps; mouse multi-click remains desktop.
-            enableTouchGestures: _enableTouchGestures(scopeEnabled),
-            enableTouchConsecutiveTaps: false,
-            canStartSelectionAt: _canStartTextSelectionAt,
-            // Subject-only chrome: siblings share the controller under mobile
-            // multi-select but must not paint this body's handles or toolbar
-            // until they are the text selection subject.
-            ownsSelectionChrome: (documentId) =>
-                documentId == _id && _controller.textSelectionSubject == _id,
-            // Desktop + host secondary: yield right-click to the full-slot
-            // message menu. Mobile keeps adaptive text chrome even when
-            // secondary is also wired (menu entry is idle primary).
-            contextMenuBuilder:
-                ChatSecondaryMessageTapScope.hostOwnsSecondaryOf(context) &&
-                    _controller.selectionPolicy.secondaryMessageTapOwnsFullSlot
-                ? null
-                : _buildContextMenu,
-            child: widget.child,
-          ),
-        ),
-      ),
+    // Consumes [_ViewportMoved]: it is for the scope below, and a host's
+    // scrollbars or sheets must not read it as a scroll.
+    return NotificationListener<_ViewportMoved>(
+      onNotification: (_) => true,
+      child: _buildScope(context, scopeEnabled),
     );
   }
+
+  Widget _buildScope(BuildContext context, bool scopeEnabled) => Listener(
+    behavior: HitTestBehavior.translucent,
+    onPointerDown: (event) {
+      // Desktop: a mouse press arms this body as the subject (ADR 012), so
+      // the scope's recognizers can take the drag; a press on something a
+      // tap does is left to the viewport.
+      if (event.kind != PointerDeviceKind.mouse) return;
+      final policy = _controller.selectionPolicy;
+      if (!policy.allowsTextEntryWithoutMessageSelection ||
+          _controller.isSelectionMode) {
+        return;
+      }
+      if (_blocksSelection(_controller.resolveInlineHit(_id, event.position))) {
+        return;
+      }
+      _controller.armTextSelection(_id);
+    },
+    // The scope answers [CopySelectionTextIntent] itself, nearer to its
+    // focus than the actions below, and writes plain text to the platform
+    // clipboard: no host writer, no rich form, no copy feedback. The copy
+    // key is therefore routed to an intent of the facade's own, which no
+    // scope knows.
+    child: Shortcuts(
+      shortcuts: _copyShortcuts(),
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _CopyTextSelectionIntent: _CopyTextSelectionAction(_controller),
+          CopySelectionTextIntent: CallbackAction<CopySelectionTextIntent>(
+            onInvoke: (_) {
+              unawaited(_controller.copyTextSelection());
+              return null;
+            },
+          ),
+          SelectAllTextIntent: CallbackAction<SelectAllTextIntent>(
+            onInvoke: (_) {
+              _controller.selectAllText();
+              return null;
+            },
+          ),
+          DismissIntent: CallbackAction<DismissIntent>(
+            onInvoke: (_) {
+              _controller.clearTextSelection();
+              return null;
+            },
+          ),
+        },
+        child: MarkdownSelectionScope(
+          controller: _controller.markdownSelection,
+          enabled: scopeEnabled,
+          // Drive the anchor viewport.
+          autoscroll: _resolvedAutoscroll(),
+          // Continuous text: touch long-press, word, drag-extend (ADR 015).
+          // Consecutive taps stay off so the viewport owns toggle / dismiss
+          // taps; mouse multi-click remains desktop.
+          enableTouchGestures: _enableTouchGestures(scopeEnabled),
+          enableTouchConsecutiveTaps: false,
+          canStartSelectionAt: _canStartTextSelectionAt,
+          // Subject-only chrome: siblings share the controller under mobile
+          // multi-select but must not paint this body's handles or toolbar
+          // until they are the text selection subject.
+          ownsSelectionChrome: (documentId) =>
+              documentId == _id && _controller.textSelectionSubject == _id,
+          // Desktop + host secondary: yield right-click to the full-slot
+          // message menu. Mobile keeps adaptive text chrome even when
+          // secondary is also wired (menu entry is idle primary).
+          contextMenuBuilder:
+              ChatSecondaryMessageTapScope.hostOwnsSecondaryOf(context) &&
+                  _controller.selectionPolicy.secondaryMessageTapOwnsFullSlot
+              ? null
+              : _buildContextMenu,
+          child: KeyedSubtree(key: _pulseKey, child: widget.child),
+        ),
+      ),
+    ),
+  );
+}
+
+/// A [ScrollUpdateNotification] for a move of the chat viewport, which has no
+/// `Scrollable` to send one. Never leaves the body scope that dispatched it.
+final class _ViewportMoved extends ScrollUpdateNotification {
+  _ViewportMoved(BuildContext context)
+    : super(
+        metrics: FixedScrollMetrics(
+          minScrollExtent: 0,
+          maxScrollExtent: 0,
+          pixels: 0,
+          viewportDimension: 0,
+          axisDirection: AxisDirection.down,
+          devicePixelRatio: 1,
+        ),
+        context: context,
+      );
 }
 
 /// The copy key of the platform (Cmd+C on Apple platforms, Ctrl+C elsewhere)

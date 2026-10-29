@@ -1333,7 +1333,9 @@ void main() {
           .primaryAnchor;
       final subjectBefore = tester.getCenter(find.byType(MarkdownWidget));
 
-      bottomPad.value = 120;
+      // Small enough that the text stays inside the viewport: a range
+      // shifted out of it hides its toolbar (chat_text_chrome_scroll_test).
+      bottomPad.value = 40;
       await tester.pumpAndSettle();
 
       expect(scope.toolbarIsVisible, isTrue);

@@ -41,7 +41,7 @@ class _PreloadedDataSource extends ChatDataSource {
 class _Receiver {
   final offers = <double>[];
   final releases = <double>[];
-  var starts = 0;
+  int starts = 0;
   double Function(double pixels) take = (pixels) => pixels;
   bool takeRelease = true;
 
