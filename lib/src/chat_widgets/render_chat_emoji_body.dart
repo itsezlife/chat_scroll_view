@@ -406,6 +406,10 @@ final class RenderChatEmojiBody extends RenderBox
   @override
   Rect get globalBounds => localToGlobal(Offset.zero) & size;
 
+  // The direction the lines start from, which orients the handles.
+  @override
+  TextDirection get textDirection => _spec.direction;
+
   @override
   MarkdownPosition? positionForGlobal(Offset globalPosition) =>
       hitForGlobal(globalPosition)?.$1;
