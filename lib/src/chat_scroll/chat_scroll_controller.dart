@@ -154,7 +154,29 @@ abstract class ChatScrollAnimator {
     double pixelOffset = 0.0,
   });
 
-  /// Cancels the in-flight [animate] without arming a highlight.
+  /// Whether an [animateBy] pixel flight is currently in flight.
+  bool get isAnimatingBy;
+
+  /// Total pixel delta of the in-flight [animateBy] (undefined when idle).
+  double get animateByPixels;
+
+  /// Completion of the in-flight [animateBy], or `null` when idle.
+  Future<void>? get animateByFuture;
+
+  /// Moves the anchor by [pixels] (the [ChatScrollController.scrollBy] sign)
+  /// over [duration] with [curve], one eased delta per viewport tick.
+  ///
+  /// A `null` [duration] uses the travel-scaled timing of [animate]. Completes
+  /// when the flight settles and when it is cancelled (drag, jump, boundary,
+  /// another navigation).
+  Future<void> animateBy(
+    double pixels, {
+    Duration? duration,
+    Curve curve = Curves.easeOutQuint,
+  });
+
+  /// Cancels the in-flight [animate] or [animateBy] without arming a
+  /// highlight.
   void cancel();
 
   /// Request Message highlight on [messageId] without changing Anchor origin.
@@ -192,6 +214,9 @@ class ChatScrollController {
   /// after [animateTo] returns a non-[AnimateToDisposition.ignored]
   /// disposition).
   bool get isAnimating => _animator?.isAnimating ?? false;
+
+  /// Whether an [animateBy] pixel flight is currently in flight.
+  bool get isAnimatingBy => _animator?.isAnimatingBy ?? false;
 
   // --- Jump: typed listener with payload ---
 
@@ -555,6 +580,94 @@ class ChatScrollController {
     _emitScroll(ChatProgrammaticScroll(pixels));
   }
 
+  /// Smoothly shift the viewport by [pixels]: [scrollBy] without the
+  /// teleport. Same sign as [scrollBy] (positive reveals older messages,
+  /// negative reveals newer).
+  ///
+  /// Use it when the host knows a pixel distance and no target row, for
+  /// example revealing a card that a chip tap just inserted below the fold.
+  /// To land a message at a place in the band use [animateTo]; it owns the
+  /// target-row maths and the stitch for rows that are not built.
+  ///
+  /// The anchor travels exactly [pixels] unless something stops it first:
+  /// the flight is cancelled by a user drag, wheel or scrollbar grab, by
+  /// [scrollBy], [jumpTo] and [jumpToCenterBand], by another [animateTo] /
+  /// [animateBy] under [AnimateToBusyPolicy.replace], and when the shift runs
+  /// into a conversation boundary. A cancelled flight keeps what it has
+  /// travelled. The returned future completes on settle and on cancel; it
+  /// does not say which.
+  ///
+  /// ## Duration / curve
+  ///
+  /// A `null` [duration] scales with the travel, like [animateTo]
+  /// (`((|pixels| / viewportHeight) + 1) * 200` ms, clamped 300-1300), with
+  /// [Curves.easeOutQuint] by default. Unlike [animateTo], a caller [duration]
+  /// is honoured. `duration <= 0` is [scrollBy]: instant, which is how a host
+  /// honours the platform reduce-motion setting
+  /// (`MediaQuery.disableAnimationsOf`); the package reads no such setting
+  /// itself.
+  ///
+  /// ## Disposition
+  ///
+  /// - [AnimateToDisposition.accepted]: the shift was applied or its flight
+  ///   ran (with no viewport bound it is a plain [scrollBy]).
+  /// - [AnimateToDisposition.coalesced]: the same [pixels] flight was in
+  ///   flight; attached to it.
+  /// - [AnimateToDisposition.ignored]: nothing was started: [pixels] is zero
+  ///   or not finite (the [scrollBy] no-op cases), the controller is
+  ///   disposed, or another [animateTo] / [animateBy] was in flight and
+  ///   [busyPolicy] is [AnimateToBusyPolicy.ignore] (the default).
+  ///
+  /// ## Interaction
+  ///
+  /// - **Placement and highlight** are released at the start, as [scrollBy]
+  ///   does, so a held [jumpTo] alignment does not re-seat the old target
+  ///   mid-flight.
+  /// - **Fling / edge effect** are cancelled at the start.
+  /// - **Follow-tail**: the flight moves the anchor like a drag; a flight
+  ///   toward newer content that reaches the tail stops there. Growth of the
+  ///   newest row during the flight follows the usual tail rules.
+  /// - **Events**: no [ChatAnimateStart] / [ChatAnimateEnd] (they carry a
+  ///   message id), no [ChatViewportScrolled] (not a user pan).
+  Future<AnimateToDisposition> animateBy(
+    double pixels, {
+    Duration? duration,
+    Curve curve = Curves.easeOutQuint,
+    AnimateToBusyPolicy busyPolicy = AnimateToBusyPolicy.ignore,
+  }) async {
+    if (_disposed) return AnimateToDisposition.ignored;
+    _debugCheckNotDispatchingTailOrTarget('animateBy');
+    if (pixels == 0.0 || !pixels.isFinite) return AnimateToDisposition.ignored;
+    final animator = _animator;
+    if (animator == null) {
+      scrollBy(pixels);
+      return AnimateToDisposition.accepted;
+    }
+    final instant = duration != null && duration <= Duration.zero;
+    final sameFlight =
+        !instant &&
+        animator.isAnimatingBy &&
+        (animator.animateByPixels - pixels).abs() < 0.001;
+    if (sameFlight) {
+      // The running flight is the one asked for; wait on its end.
+      await animator.animateByFuture;
+      return AnimateToDisposition.coalesced;
+    }
+    if (animator.isAnimating || animator.isAnimatingBy) {
+      if (busyPolicy != AnimateToBusyPolicy.replace) {
+        return AnimateToDisposition.ignored;
+      }
+      animator.cancel();
+    }
+    if (instant) {
+      scrollBy(pixels);
+      return AnimateToDisposition.accepted;
+    }
+    releaseNavigationPlacement();
+    await animator.animateBy(pixels, duration: duration, curve: curve);
+    return AnimateToDisposition.accepted;
+  }
+
   /// Smoothly move the anchor onto [messageId].
   ///
   /// Completes when motion settles (or immediately if no viewport is bound).
@@ -661,9 +774,9 @@ class ChatScrollController {
       return AnimateToDisposition.accepted;
     }
     final align = alignment.clamp(0.0, 1.0);
-    final busy = animator.isAnimating;
+    final busy = animator.isAnimating || animator.isAnimatingBy;
     final sameTarget =
-        busy &&
+        animator.isAnimating &&
         animator.animateTargetId == messageId &&
         (animator.animateAlignment - align).abs() < 0.001 &&
         (animator.animatePixelOffset - pixelOffset).abs() < 0.001;
@@ -1188,7 +1301,11 @@ class ChatScrollController {
     // after dispose must not mutate anchor state through a stale reference,
     // and a disposed navigator must not arm after teardown.
     _requestedHighlightMessageId = null;
-    _animator?.clearHighlight();
+    final animator = _animator;
+    // A pixel flight has no row to settle on; stop it so its future ends and
+    // the viewport does not keep shifting a disposed controller's anchor.
+    if (animator != null && animator.isAnimatingBy) animator.cancel();
+    animator?.clearHighlight();
     _animator = null;
     // A viewport still bound learns its handles are gone, so a disposed
     // controller cannot leave its scrollbar held or suppressed.

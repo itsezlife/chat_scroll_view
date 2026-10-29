@@ -23,6 +23,31 @@
   to the edge effect. An empty / loading viewport forwards its drags too.
   Drag path only; wheel, keyboard, scrollbar and flings are unchanged.
 
+### Smooth pixel scroll
+- **ADDED**: `ChatScrollController.animateBy(pixels, {duration, curve,
+  busyPolicy})`: `scrollBy` without the teleport. Same sign as `scrollBy`;
+  travels exactly `pixels` through the viewport's own ticker; a user drag,
+  wheel, `scrollBy`, `jumpTo` or a conversation boundary cancels it (what it
+  travelled stays). Returns an `AnimateToDisposition` (`ignored` for zero or
+  non-finite pixels and while another `animateTo` / `animateBy` runs under the
+  default `AnimateToBusyPolicy.ignore`; `coalesced` for the same pixels in
+  flight). `duration <= 0` is `scrollBy`, which is how a host honours reduce
+  motion. `isAnimatingBy` reports a flight; `animateTo` under
+  `AnimateToBusyPolicy.replace` takes over a flight.
+
+### Tail fold
+- **ADDED**: `ChatTailFold`: a zero-size marker a host places inside the
+  newest row between its text part and a tall continuation (cards). Follow-tail
+  keeps the reader on the end of the text instead of pulling the row's bottom
+  up when the continuation grows; text growth above the fold is still
+  followed; once the reader scrolls into the continuation (or reaches the real
+  end) the row's bottom is the tail again. `isAtTail`, scroll limits and the
+  scrollbar keep using the real bottom. A row without the marker is unchanged.
+
+### Tests
+- **FIXED**: `test/unit_test.dart` did not compile (a malformed `group` for the
+  background-tap and copy-shortcut tests).
+
 ## 0.3.4
 
 ### Selection
