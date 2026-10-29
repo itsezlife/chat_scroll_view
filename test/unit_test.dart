@@ -164,6 +164,8 @@ import 'widgets/chat_text_chrome_scroll_test.dart'
     as chat_text_chrome_scroll_test;
 import 'widgets/chat_text_copy_writer_test.dart' as chat_text_copy_writer_test;
 import 'widgets/chat_text_only_policy_test.dart' as chat_text_only_policy_test;
+import 'widgets/chat_top_padding_oldest_test.dart'
+    as chat_top_padding_oldest_test;
 import 'widgets/chat_unread_separator_test.dart' as chat_unread_separator_test;
 import 'widgets/chat_unselect_span_test.dart' as chat_unselect_span_test;
 import 'widgets/chat_viewport_stable_delete_test.dart'
@@ -447,6 +449,10 @@ void main() {
   group(
     'widgets/chat_text_only_policy_test.dart',
     chat_text_only_policy_test.main,
+  );
+  group(
+    'widgets/chat_top_padding_oldest_test.dart',
+    chat_top_padding_oldest_test.main,
   );
   group(
     'widgets/chat_unread_separator_test.dart',

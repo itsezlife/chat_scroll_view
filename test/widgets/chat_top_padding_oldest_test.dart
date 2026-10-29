@@ -1,5 +1,5 @@
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
@@ -61,7 +61,11 @@ void main() {
       );
       await tester.pump();
       for (var i = 0; i < 30; i++) {
-        await tester.fling(find.byType(ChatScrollView), const Offset(0, 1500), 3000);
+        await tester.fling(
+          find.byType(ChatScrollView),
+          const Offset(0, 1500),
+          3000,
+        );
         await tester.pump(const Duration(milliseconds: 600));
       }
       await tester.pump(const Duration(seconds: 1));
