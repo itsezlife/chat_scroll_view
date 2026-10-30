@@ -20,6 +20,7 @@ import 'dart:io';
 
 import '../integration_test/chat_perf/registry.dart';
 import '../integration_test/chat_perf/report_document.dart';
+import '../integration_test/chat_perf/scenarios/ime_scenarios.dart';
 import '../integration_test/chat_perf/scenarios/keyboard_scenarios.dart';
 import '../integration_test/chat_perf/scenarios/scroll_scenarios.dart';
 import '../integration_test/chat_perf/semantics.dart';
@@ -34,6 +35,7 @@ import 'chat_perf/launch_retry.dart';
 final _all = ScenarioRegistry([
   ...scrollScenarios.all,
   ...keyboardScenarios.all,
+  ...imeScenarios.all,
 ]);
 
 Future<void> main(List<String> args) async {
@@ -189,6 +191,10 @@ Future<int> _quickLaunch(
     ..writeln()
     ..writeln('metrics: ${file.path}')
     ..writeln('frames:  $out/runs/$label/chat_perf_frames.json');
+  for (final skip
+      in ((json['skipped'] as Map<String, Object?>?) ?? {}).entries) {
+    stdout.writeln('skipped ${skip.key}: ${skip.value}');
+  }
   if (meta['semanticsMode'] == 'on' && semantics != SemanticsRun.on) {
     stdout.writeln('note: semantics were on during this launch.');
   }

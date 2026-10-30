@@ -84,7 +84,11 @@ final class LaunchMeta {
 /// Metadata plus, per `scenario id@version` and window, a flat map of named
 /// metrics.
 final class MetricsDocument {
-  const MetricsDocument({required this.meta, required this.scenarios});
+  const MetricsDocument({
+    required this.meta,
+    required this.scenarios,
+    this.skipped = const {},
+  });
 
   factory MetricsDocument.fromJson(Map<String, Object?> json) {
     final scenarios = json['scenarios']! as Map<String, Object?>;
@@ -100,6 +104,9 @@ final class MetricsDocument {
               },
           },
       },
+      skipped: {
+        ...?(json['skipped'] as Map<String, Object?>?)?.cast<String, String>(),
+      },
     );
   }
 
@@ -108,9 +115,13 @@ final class MetricsDocument {
   /// `id@version` -> window -> metric name -> metric.
   final Map<String, Map<String, Map<String, Metric>>> scenarios;
 
+  /// `id@version` -> why the scenario did not run on this platform.
+  final Map<String, String> skipped;
+
   Map<String, Object?> toJson() => {
     'schema': kMetricsSchemaVersion,
     'meta': meta.toJson(),
+    if (skipped.isNotEmpty) 'skipped': skipped,
     'scenarios': {
       for (final s in scenarios.entries)
         s.key: {

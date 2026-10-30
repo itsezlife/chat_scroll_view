@@ -18,6 +18,7 @@ import 'backend_realtime_reconnect_test.dart'
     as backend_realtime_reconnect_test;
 import 'chat_center_band_store_test.dart' as chat_center_band_store_test;
 import 'chat_perf/corpus_test.dart' as chat_perf_corpus_test;
+import 'chat_perf/ime_scenarios_test.dart' as chat_perf_ime_scenarios_test;
 import 'chat_perf/keyboard_ramp_test.dart' as chat_perf_keyboard_ramp_test;
 import 'chat_perf/keyboard_scenarios_test.dart'
     as chat_perf_keyboard_scenarios_test;
@@ -142,6 +143,7 @@ void main() {
   );
   group('chat_center_band_store_test.dart', chat_center_band_store_test.main);
   group('chat_perf/corpus_test.dart', chat_perf_corpus_test.main);
+  group('chat_perf/ime_scenarios_test.dart', chat_perf_ime_scenarios_test.main);
   group('chat_perf/keyboard_ramp_test.dart', chat_perf_keyboard_ramp_test.main);
   group(
     'chat_perf/keyboard_scenarios_test.dart',
