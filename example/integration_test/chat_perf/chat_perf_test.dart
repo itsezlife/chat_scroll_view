@@ -13,6 +13,7 @@ import 'perf_host.dart';
 import 'real_chat_host.dart';
 import 'registry.dart';
 import 'report_document.dart';
+import 'scale.dart';
 import 'scenario_mounts.dart';
 import 'scenarios/ime_scenarios.dart';
 import 'scenarios/keyboard_scenarios.dart';
@@ -85,6 +86,26 @@ void main() {
       if (scenario.skipReasonOn(defaultTargetPlatform.name.toLowerCase())
           case final reason?) {
         skipped[scenario.key] = reason;
+        continue;
+      }
+      if (scenario.historyTiers.isNotEmpty) {
+        // One fresh host per tier; semantics off unless the launch asks `on`.
+        final byTier = <int, Map<String, Map<String, Metric>>>{};
+        for (final tier in scenario.historyTiers) {
+          final handle = run == SemanticsRun.on
+              ? tester.ensureSemantics()
+              : null;
+          final host = await BenchHost.mount(tester, BenchCorpus(count: tier));
+          final ctx = DeviceContext(host, scenario);
+          await scenario.run(ctx);
+          await host.dispose();
+          handle?.dispose();
+          byTier[tier] = ctx.windows;
+          for (final w in ctx.frames.entries) {
+            sidecar['${scenario.key}/${w.key}.${tierLabel(tier)}'] = w.value;
+          }
+        }
+        scenarios[scenario.key] = assembleTiers(byTier, scenario.windows);
         continue;
       }
       final byPass = <bool, DeviceContext>{};

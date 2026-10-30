@@ -103,6 +103,7 @@ final class Scenario {
     this.subject = ScenarioSubject.bench,
     this.floatingDayHeader = false,
     this.onlyOn,
+    this.historyTiers = const [],
   });
 
   /// `<area>.<name>`, for example `scroll.drag_slow`.
@@ -141,6 +142,12 @@ final class Scenario {
       'runs on ${only == 'ios' ? 'iOS' : only} only; this run is on $platform',
     _ => null,
   };
+
+  /// History sizes the script runs at, one fresh host each, in order; the
+  /// first is the reference the others are reported against (spec 7.5). Empty
+  /// runs once at the launch's history. Scale scenarios ignore a semantics
+  /// pair: they run semantics off.
+  final List<int> historyTiers;
 
   /// `id@version`, the key in a metrics document.
   String get key => '$id@$version';

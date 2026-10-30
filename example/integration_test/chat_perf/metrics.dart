@@ -145,3 +145,24 @@ Map<String, Metric> windowMetrics(
       'first_frames.frames': Metric(0, kind: MetricKind.count, role: role),
   };
 }
+
+/// Each of [names] in [other] divided by the same metric in [base], as a
+/// `ratio`. A metric absent from either, or zero in [base], has no ratio.
+Map<String, Metric> ratioMetrics({
+  required Map<String, Metric> base,
+  required Map<String, Metric> other,
+  required Iterable<String> names,
+}) {
+  final result = <String, Metric>{};
+  for (final name in names) {
+    final a = base[name];
+    final b = other[name];
+    if (a == null || b == null || a.value == 0) continue;
+    result[name] = Metric(
+      b.value / a.value,
+      kind: MetricKind.ratio,
+      role: MetricRole.diagnostic,
+    );
+  }
+  return result;
+}
