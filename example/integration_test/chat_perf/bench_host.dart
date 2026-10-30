@@ -11,6 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'bench_setup.dart';
+import 'churn.dart';
 import 'corpus.dart';
 import 'corpus_rich.dart';
 import 'perf_host.dart';
@@ -120,9 +122,103 @@ class _BenchMarkdownBodyState extends State<_BenchMarkdownBody> {
   );
 }
 
+/// Live rows, read by the host after each frame.
+final class BenchProbe {
+  final _rows = <int, BuildContext>{};
+  int placeholders = 0;
+  final Stopwatch sinceMount = Stopwatch();
+  double? firstBuildMs;
+
+  /// Ids of loaded rows intersecting [viewport], ascending, with their bottom
+  /// edges.
+  Map<int, double> visibleBottoms(Rect viewport) {
+    final out = <int, double>{};
+    for (final e in _rows.entries) {
+      final box = e.value.findRenderObject();
+      if (box is! RenderBox || !box.attached || !box.hasSize) continue;
+      final top = box.localToGlobal(Offset.zero).dy;
+      final bottom = top + box.size.height;
+      if (bottom > viewport.top && top < viewport.bottom) {
+        // The band's bottom edge, clipped to the viewport: a row taller than
+        // the viewport has its bottom off screen.
+        out[e.key] = bottom < viewport.bottom ? bottom : viewport.bottom;
+      }
+    }
+    return Map.fromEntries(out.entries.toList()..sort((a, b) => a.key - b.key));
+  }
+}
+
+BenchProbe _probe = BenchProbe();
+
+class _ProbedRow extends StatefulWidget {
+  const _ProbedRow({
+    required this.id,
+    required this.placeholder,
+    required this.child,
+  });
+
+  final int id;
+  final bool placeholder;
+  final Widget child;
+
+  @override
+  State<_ProbedRow> createState() => _ProbedRowState();
+}
+
+class _ProbedRowState extends State<_ProbedRow> {
+  late final BenchProbe _p = _probe;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.placeholder) {
+      _p.placeholders++;
+    } else {
+      _p._rows[widget.id] = context;
+      _p.firstBuildMs ??= _p.sinceMount.elapsedMicroseconds / 1000;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_ProbedRow old) {
+    super.didUpdateWidget(old);
+    if (old.placeholder != widget.placeholder) {
+      if (widget.placeholder) {
+        _p.placeholders++;
+        _p._rows.remove(widget.id);
+      } else {
+        _p.placeholders--;
+        _p._rows[widget.id] = context;
+        _p.firstBuildMs ??= _p.sinceMount.elapsedMicroseconds / 1000;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    if (widget.placeholder) {
+      _p.placeholders--;
+    } else if (_p._rows[widget.id] == context) {
+      _p._rows.remove(widget.id);
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
 /// A mounted viewport over a seeded corpus.
-final class BenchHost implements PerfHost {
-  BenchHost._(this.tester, this.source, this.controller, this.selection) {
+final class BenchHost implements PerfHost, ChurnHost {
+  BenchHost._(
+    this.tester,
+    this.source,
+    this.controller,
+    this.selection,
+    this.probe,
+    this.unread,
+    this.viewportKey,
+  ) {
     selection.addInteractionListener(interactions.add);
     SchedulerBinding.instance.addPersistentFrameCallback((_) => frameCount++);
   }
@@ -131,9 +227,14 @@ final class BenchHost implements PerfHost {
   static Future<BenchHost> mount(
     WidgetTester tester,
     BenchCorpus corpus, {
+    BenchSetup setup = const BenchSetup(),
     bool floatingDayHeader = false,
   }) async {
-    final source = BenchDataSource(corpus);
+    final source = BenchDataSource(corpus, setup: setup);
+    final unread = ValueNotifier<int?>(null);
+    final viewportKey = GlobalKey();
+    final probe = _probe = BenchProbe();
+    probe.sinceMount.start();
     final controller = ChatScrollController();
     // The mobile policy is explicit: it is what the Android reference device
     // defaults to, and a desktop dev run measures the same path.
@@ -142,7 +243,15 @@ final class BenchHost implements PerfHost {
       // The host owns the clipboard: a code tap reports `ChatCodeActivated`.
       copyCodeOnClick: false,
     );
-    final host = BenchHost._(tester, source, controller, selection);
+    final host = BenchHost._(
+      tester,
+      source,
+      controller,
+      selection,
+      probe,
+      unread,
+      viewportKey,
+    );
     await tester.pumpWidget(
       MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -151,6 +260,7 @@ final class BenchHost implements PerfHost {
             builder: (context) {
               host._menuContext = context;
               return ChatScrollView(
+                key: viewportKey,
                 reverse: true,
                 dataSource: source,
                 controller: controller,
@@ -158,6 +268,11 @@ final class BenchHost implements PerfHost {
                 onIdleMessageTap: host._onIdleTap,
                 isSelfMessage: (m) => m.sender == kBenchSelf,
                 messageBuilder: host._buildMessage,
+                unreadBoundary: unread,
+                unreadSeparatorBuilder: (_) => const SizedBox(
+                  height: 28,
+                  child: Center(child: Text('Unread messages')),
+                ),
                 scrollActivityTiming: floatingDayHeader
                     ? const ChatScrollActivityTiming()
                     : null,
@@ -181,6 +296,9 @@ final class BenchHost implements PerfHost {
   @override
   final ChatScrollController controller;
   final ChatSelectionController selection;
+  final BenchProbe probe;
+  final ValueNotifier<int?> unread;
+  final GlobalKey viewportKey;
 
   /// Interactions the selection facade reported, in order.
   final interactions = <ChatSelectionInteraction>[];
@@ -240,6 +358,18 @@ final class BenchHost implements PerfHost {
     IChatMessage? message,
     ChatMessageStatus status,
     MessageRunLayout runLayout,
+  ) => _ProbedRow(
+    id: id,
+    placeholder: message == null,
+    child: _buildBody(context, id, message, status, runLayout),
+  );
+
+  Widget _buildBody(
+    BuildContext context,
+    int id,
+    IChatMessage? message,
+    ChatMessageStatus status,
+    MessageRunLayout runLayout,
   ) {
     if (message case BenchMessage(:final text, markdown: true)) {
       final target = BenchTarget.values.where((t) => t.id == id).firstOrNull;
@@ -284,6 +414,59 @@ final class BenchHost implements PerfHost {
   }
 
   @override
+  double? get firstBuildMs => probe.firstBuildMs;
+
+  @override
+  int get newestId => source.newestKnownId ?? 0;
+
+  @override
+  void insert({required bool self}) {
+    final id = source.nextInsertId;
+    source.insertMessage(
+      BenchMessage(
+        id: id,
+        sender: self ? kBenchSelf : 'user0',
+        text: self ? 'Sent message.' : 'Incoming message.',
+        createdAt: DateTime.utc(2026).add(Duration(minutes: id * 20)),
+      ),
+      reason: 'bench.insert',
+    );
+  }
+
+  @override
+  void edit(int id, {required bool taller}) {
+    final current = source.getMessage(id);
+    if (current is! BenchMessage) return;
+    final original = source.corpus.messageAt(id).text;
+    source.updateMessage(
+      current.edited(taller ? List.filled(5, original).join('\n') : original),
+      reason: 'bench.edit',
+    );
+  }
+
+  @override
+  void remove(int id) => source.removeMessages([id], reason: 'bench.remove');
+
+  @override
+  void setUnreadBoundary(int? id) => unread.value = id;
+
+  /// The viewport's rectangle in global coordinates.
+  Rect get viewportRect {
+    // Not through the tester: its guarded APIs reject a read during a gesture.
+    final box = viewportKey.currentContext!.findRenderObject()! as RenderBox;
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
+  @override
+  int? get visibleNonAnchorId {
+    final anchor = controller.anchorMessageId;
+    for (final id in probe.visibleBottoms(viewportRect).keys) {
+      if (id != anchor) return id;
+    }
+    return null;
+  }
+
+  @override
   int get history => source.corpus.count;
 
   @override
@@ -297,6 +480,7 @@ final class BenchHost implements PerfHost {
     await tester.pumpWidget(const SizedBox.shrink());
     selection.dispose();
     controller.dispose();
+    unread.dispose();
     source.dispose();
     PaintingBinding.instance.imageCache
       ..clear()

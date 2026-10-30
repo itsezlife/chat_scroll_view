@@ -32,6 +32,7 @@ import 'dart:io';
 
 import '../integration_test/chat_perf/registry.dart';
 import '../integration_test/chat_perf/report_document.dart';
+import '../integration_test/chat_perf/scenarios/churn_scenarios.dart';
 import '../integration_test/chat_perf/scenarios/ime_scenarios.dart';
 import '../integration_test/chat_perf/scenarios/keyboard_scenarios.dart';
 import '../integration_test/chat_perf/scenarios/scroll_scenarios.dart';
@@ -56,6 +57,7 @@ typedef _Launch = ({String label, String filter, bool cold});
 
 final _all = ScenarioRegistry([
   ...scrollScenarios.all,
+  ...churnScenarios.all,
   ...keyboardScenarios.all,
   ...imeScenarios.all,
 ]);

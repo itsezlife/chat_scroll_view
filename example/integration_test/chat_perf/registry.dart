@@ -4,6 +4,7 @@
 /// (spec 5).
 library;
 
+import 'bench_setup.dart';
 import 'corpus.dart' show BenchProfile;
 import 'gesture_driver.dart';
 import 'metrics.dart';
@@ -105,6 +106,7 @@ final class Scenario {
     required this.windows,
     required this.run,
     this.cold = false,
+    this.setup = const BenchSetup(),
     this.deterministic = false,
     this.subject = ScenarioSubject.bench,
     this.floatingDayHeader = false,
@@ -127,6 +129,9 @@ final class Scenario {
   /// Runs in its own launch, so the first-use cost it measures is not paid
   /// (and hidden) by an earlier scenario in the process.
   final bool cold;
+
+  /// The data source the bench host is mounted with for this scenario.
+  final BenchSetup setup;
 
   /// Marks a script whose scripted outcome is the same on every run: it also
   /// runs once in the traced pass (spec 7).

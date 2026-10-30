@@ -15,6 +15,7 @@ import 'registry.dart';
 import 'report_document.dart';
 import 'scale.dart';
 import 'scenario_mounts.dart';
+import 'scenarios/churn_scenarios.dart';
 import 'scenarios/ime_scenarios.dart';
 import 'scenarios/keyboard_scenarios.dart';
 import 'scenarios/scroll_scenarios.dart';
@@ -47,6 +48,7 @@ const kFramesKey = 'chat_perf_frames';
 /// Every registered family, in the order they run.
 final allScenarios = ScenarioRegistry([
   ...scrollScenarios.all,
+  ...churnScenarios.all,
   ...keyboardScenarios.all,
   ...imeScenarios.all,
   ...selectionScenarios.all,
@@ -61,6 +63,7 @@ Future<(PerfHost, DeviceContext)> _mountPlain(
       tester,
       BenchCorpus(count: _history, profile: scenario.profile),
       floatingDayHeader: scenario.floatingDayHeader,
+      setup: scenario.setup,
     ),
     ScenarioSubject.realChat => await RealChatHost.mount(tester, _history),
   };
