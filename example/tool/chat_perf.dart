@@ -150,6 +150,13 @@ const _driver = 'test_driver/integration_test.dart';
 
 /// The APK for these sources and defines, built when no cached one matches.
 Future<String> _ensureApk(List<String> defines, String backend) async {
+  // Resolve first: a pub get rewrites the lockfile, which is a fingerprint
+  // input, so it must settle before the key is taken.
+  final pubGet = await Process.run('flutter', ['pub', 'get']);
+  if (pubGet.exitCode != 0) {
+    stderr.writeln('flutter pub get failed:\n${pubGet.stderr}');
+    exit(1);
+  }
   final apk = 'build/chat_perf/${buildFingerprint(buildInputs(), defines)}.apk';
   if (File(apk).existsSync()) return apk;
   final build = await Process.start('flutter', [

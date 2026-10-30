@@ -87,13 +87,28 @@ void main() {
   });
 
   group('foreign install signature', () {
-    const own = 'I PackageManager: Replacing package:com.x.app';
+    String line(String time, String what) =>
+        '10-30 $time  2728  2728 D X: received android.intent.action.$what '
+        'for package com.x.app';
 
-    test('one install event is the runner own; more is foreign', () {
-      expect(countInstallEvents([own, 'unrelated'], 'com.x.app'), 1);
-      expect(hasForeignInstall([own, own], 'com.x.app'), isTrue);
-      expect(hasForeignInstall([own], 'com.x.app'), isFalse);
-      expect(hasForeignInstall([own], 'com.other'), isFalse);
+    test('the many receivers of one install are one install', () {
+      final own = [
+        line('23:06:32.999', 'PACKAGE_ADDED'),
+        line('23:06:33.005', 'PACKAGE_ADDED'),
+        line('23:06:33.499', 'PACKAGE_ADDED'),
+        '10-30 23:06:33.500 1 1 D unrelated PACKAGE_ADDED com.other',
+      ];
+      expect(countInstallEvents(own, 'com.x.app'), 1);
+      expect(hasForeignInstall(own, 'com.x.app'), isFalse);
+    });
+
+    test('a later install of the same package is foreign', () {
+      final lines = [
+        line('23:06:32.999', 'PACKAGE_ADDED'),
+        line('23:06:33.400', 'PACKAGE_ADDED'),
+        line('23:07:10.100', 'PACKAGE_REPLACED'),
+      ];
+      expect(hasForeignInstall(lines, 'com.x.app'), isTrue);
     });
   });
 

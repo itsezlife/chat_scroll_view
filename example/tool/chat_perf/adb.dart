@@ -84,11 +84,9 @@ final class DirectoryLockStore implements LockStore {
   @override
   bool tryCreate(String key, String owner) {
     final dir = _dir(key);
-    try {
-      dir.createSync();
-    } on FileSystemException {
-      return false;
-    }
+    // `Directory.createSync` succeeds on an existing directory; `mkdir` is
+    // the atomic test-and-create.
+    if (Process.runSync('mkdir', [dir.path]).exitCode != 0) return false;
     File('${dir.path}/owner').writeAsStringSync(owner);
     return true;
   }
