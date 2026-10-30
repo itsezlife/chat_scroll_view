@@ -17,6 +17,7 @@ import 'backend_chat_data_source_test.dart' as backend_chat_data_source_test;
 import 'backend_realtime_reconnect_test.dart'
     as backend_realtime_reconnect_test;
 import 'chat_center_band_store_test.dart' as chat_center_band_store_test;
+import 'chat_perf/churn_test.dart' as chat_perf_churn_test;
 import 'chat_perf/corpus_test.dart' as chat_perf_corpus_test;
 import 'chat_perf/metrics_test.dart' as chat_perf_metrics_test;
 import 'chat_perf/registry_test.dart' as chat_perf_registry_test;
@@ -133,6 +134,7 @@ void main() {
     backend_realtime_reconnect_test.main,
   );
   group('chat_center_band_store_test.dart', chat_center_band_store_test.main);
+  group('chat_perf/churn_test.dart', chat_perf_churn_test.main);
   group('chat_perf/corpus_test.dart', chat_perf_corpus_test.main);
   group('chat_perf/metrics_test.dart', chat_perf_metrics_test.main);
   group('chat_perf/registry_test.dart', chat_perf_registry_test.main);

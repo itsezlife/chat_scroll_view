@@ -8,10 +8,12 @@ library;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 
+import 'bench_setup.dart';
+
 /// Recorded in every report. Bump it, and the pinned literal in
 /// `test/chat_perf/corpus_test.dart`, whenever any message's content changes:
 /// that is an explicit re-baseline.
-const int kCorpusVersion = 1;
+const int kCorpusVersion = 2;
 
 const _short = ['Hello!', 'Sure thing.', 'Got it, thanks.', 'On my way.', 'OK'];
 const _medium = [
@@ -31,6 +33,14 @@ const _long = [
       'commodo consequat. Duis aute irure dolor in reprehenderit.',
 ];
 
+/// The designated tall message: a fixed id whose body is taller than twice any
+/// phone viewport (140 lines), whatever the history size.
+const int kTallMessageId = 12000;
+
+final String _tallText = [
+  for (var i = 1; i <= 140; i++) 'Tall message, line $i of 140.',
+].join('\n');
+
 /// A 32-bit integer mix of [value] and [salt]; stable on every platform.
 int _mix(int value, int salt) {
   var h = (value * 0x45d9f3b + salt * 0x119de1f3) & 0xffffffff;
@@ -46,6 +56,7 @@ final class BenchMessage implements IChatMessage {
     required this.sender,
     required this.text,
     required this.createdAt,
+    this.revision = 0,
   });
 
   @override
@@ -58,8 +69,20 @@ final class BenchMessage implements IChatMessage {
   @override
   final DateTime createdAt;
 
+  /// Edits so far; each one moves [updatedAt].
+  final int revision;
+
   @override
-  DateTime get updatedAt => createdAt;
+  DateTime get updatedAt => createdAt.add(Duration(seconds: revision));
+
+  /// This message with [text] as its next revision.
+  BenchMessage edited(String text) => BenchMessage(
+    id: id,
+    sender: sender,
+    text: text,
+    createdAt: createdAt,
+    revision: revision + 1,
+  );
 }
 
 /// Sender of the viewer's own messages.
@@ -75,6 +98,14 @@ final class BenchCorpus {
 
   /// The message with [id]; depends on [id] alone.
   BenchMessage messageAt(int id) {
+    if (id == kTallMessageId) {
+      return BenchMessage(
+        id: id,
+        sender: 'user0',
+        text: _tallText,
+        createdAt: _epoch.add(Duration(minutes: id * 20)),
+      );
+    }
     final roll = _mix(id, 1) % 100;
     final pool = roll < 30 ? _short : (roll < 80 ? _medium : _long);
     // Sender runs of one to four messages; one in three runs is the viewer's.
@@ -90,12 +121,15 @@ final class BenchCorpus {
   }
 }
 
-/// A fully seeded, instant data source over a [BenchCorpus].
+/// A seeded data source over a [BenchCorpus]: the whole history up front, or
+/// (lazy) fetched on demand after the [BenchSetup]'s latency.
 final class BenchDataSource extends ChatDataSource {
-  BenchDataSource(this.corpus) {
-    upsertMessages([
-      for (var i = 0; i < corpus.count; i++) corpus.messageAt(i),
-    ]);
+  BenchDataSource(this.corpus, {this.setup = const BenchSetup()}) {
+    if (!setup.lazy) {
+      upsertMessages([
+        for (var i = 0; i < corpus.count; i++) corpus.messageAt(i),
+      ]);
+    }
     seedBoundaries(
       oldestKnownId: 0,
       newestKnownId: corpus.count - 1,
@@ -105,13 +139,18 @@ final class BenchDataSource extends ChatDataSource {
   }
 
   final BenchCorpus corpus;
+  final BenchSetup setup;
 
   @override
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
-  }) async => [
-    for (var i = fromId; i <= toId; i++)
-      if (i >= 0 && i < corpus.count) corpus.messageAt(i),
-  ];
+  }) async {
+    final delay = setup.latency.delayFor(fromId);
+    if (delay > Duration.zero) await Future<void>.delayed(delay);
+    return [
+      for (var i = fromId; i <= toId; i++)
+        if (i >= 0 && i < corpus.count) corpus.messageAt(i),
+    ];
+  }
 }

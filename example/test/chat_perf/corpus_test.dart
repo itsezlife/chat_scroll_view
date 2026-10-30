@@ -24,7 +24,7 @@ void main() {
 
   test('a pinned literal guards accidental corpus changes', () {
     // Changing content requires bumping kCorpusVersion and this literal.
-    expect(kCorpusVersion, 1);
+    expect(kCorpusVersion, 2);
     expect(const BenchCorpus(count: 10).messageAt(0).text, isNotEmpty);
     expect(const BenchCorpus(count: 10).messageAt(3).text, _pinned3);
   });

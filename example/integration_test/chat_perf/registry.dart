@@ -4,6 +4,8 @@
 /// (spec 5).
 library;
 
+import 'bench_setup.dart';
+
 /// What a scenario sees while it runs: the one way to measure.
 abstract interface class ScenarioContext {
   /// Runs [body] as the measured window [name]. Setup, warm-up and settle sit
@@ -35,6 +37,7 @@ final class Scenario {
     required this.windows,
     required this.run,
     this.cold = false,
+    this.setup = const BenchSetup(),
   });
 
   /// `<area>.<name>`, for example `scroll.drag_slow`.
@@ -51,6 +54,9 @@ final class Scenario {
   /// Runs in its own launch, so the first-use cost it measures is not paid
   /// (and hidden) by an earlier scenario in the process.
   final bool cold;
+
+  /// The data source the bench host is mounted with for this scenario.
+  final BenchSetup setup;
 
   /// `id@version`, the key in a metrics document.
   String get key => '$id@$version';

@@ -9,7 +9,9 @@ import 'bench_host.dart';
 import 'corpus.dart';
 import 'device_context.dart';
 import 'metrics.dart';
+import 'registry.dart';
 import 'report_document.dart';
+import 'scenarios/churn_scenarios.dart';
 import 'scenarios/scroll_scenarios.dart';
 import 'semantics.dart';
 
@@ -47,7 +49,10 @@ void main() {
   // a semantics handle for the whole test, so the engine builds semantics
   // every frame. The `on` pass takes its own handle.
   testWidgets('chat perf scenarios', semanticsEnabled: false, (tester) async {
-    final selected = scrollScenarios.where(_filter, cold: _cold);
+    final selected = ScenarioRegistry([
+      ...scrollScenarios.all,
+      ...churnScenarios.all,
+    ]).where(_filter, cold: _cold);
     expect(selected, isNotEmpty, reason: 'no scenario matches "$_filter"');
 
     final scenarios = <String, Map<String, Map<String, Metric>>>{};
@@ -68,6 +73,7 @@ void main() {
         final host = await BenchHost.mount(
           tester,
           const BenchCorpus(count: _history),
+          setup: scenario.setup,
         );
         final ctx = DeviceContext(host, scenario);
         if (run == SemanticsRun.pair && recorded) {

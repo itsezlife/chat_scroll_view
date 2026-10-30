@@ -10,10 +10,25 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'bench_setup.dart';
+import 'churn.dart';
 import 'corpus.dart';
 
-/// Fixed bubble: one rounded rectangle and one paragraph, nothing else.
+/// Fixed bubble: one rounded rectangle and one paragraph, nothing else, in a
+/// probe wrapper that lets the host read its geometry and count placeholders.
 Widget benchBubble(
+  BuildContext context,
+  int id,
+  IChatMessage? message,
+  ChatMessageStatus status,
+  MessageRunLayout runLayout,
+) => _ProbedRow(
+  id: id,
+  placeholder: message == null,
+  child: _bubbleBody(context, id, message, status, runLayout),
+);
+
+Widget _bubbleBody(
   BuildContext context,
   int id,
   IChatMessage? message,
@@ -45,17 +60,109 @@ Widget benchBubble(
   return const SizedBox(height: 60);
 }
 
+/// Live rows, read by the host after each frame.
+final class BenchProbe {
+  final _rows = <int, BuildContext>{};
+  int placeholders = 0;
+  final Stopwatch sinceMount = Stopwatch();
+  double? firstBuildMs;
+
+  /// Ids of loaded rows intersecting [viewport], ascending, with their bottom
+  /// edges.
+  Map<int, double> visibleBottoms(Rect viewport) {
+    final out = <int, double>{};
+    for (final e in _rows.entries) {
+      final box = e.value.findRenderObject();
+      if (box is! RenderBox || !box.attached || !box.hasSize) continue;
+      final top = box.localToGlobal(Offset.zero).dy;
+      final bottom = top + box.size.height;
+      if (bottom > viewport.top && top < viewport.bottom) out[e.key] = bottom;
+    }
+    return Map.fromEntries(out.entries.toList()..sort((a, b) => a.key - b.key));
+  }
+}
+
+BenchProbe _probe = BenchProbe();
+
+class _ProbedRow extends StatefulWidget {
+  const _ProbedRow({
+    required this.id,
+    required this.placeholder,
+    required this.child,
+  });
+
+  final int id;
+  final bool placeholder;
+  final Widget child;
+
+  @override
+  State<_ProbedRow> createState() => _ProbedRowState();
+}
+
+class _ProbedRowState extends State<_ProbedRow> {
+  late final BenchProbe _p = _probe;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.placeholder) {
+      _p.placeholders++;
+    } else {
+      _p._rows[widget.id] = context;
+      _p.firstBuildMs ??= _p.sinceMount.elapsedMicroseconds / 1000;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_ProbedRow old) {
+    super.didUpdateWidget(old);
+    if (old.placeholder != widget.placeholder) {
+      if (widget.placeholder) {
+        _p.placeholders++;
+        _p._rows.remove(widget.id);
+      } else {
+        _p.placeholders--;
+        _p._rows[widget.id] = context;
+        _p.firstBuildMs ??= _p.sinceMount.elapsedMicroseconds / 1000;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    if (widget.placeholder) {
+      _p.placeholders--;
+    } else if (_p._rows[widget.id] == context) {
+      _p._rows.remove(widget.id);
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
 /// A mounted viewport over a seeded corpus.
-final class BenchHost {
-  BenchHost._(this.tester, this.source, this.controller);
+final class BenchHost implements ChurnHost {
+  BenchHost._(
+    this.tester,
+    this.source,
+    this.controller,
+    this.probe,
+    this.unread,
+  );
 
   /// Mounts a fresh host over [corpus], at the newest message.
   static Future<BenchHost> mount(
     WidgetTester tester,
-    BenchCorpus corpus,
-  ) async {
-    final source = BenchDataSource(corpus);
+    BenchCorpus corpus, {
+    BenchSetup setup = const BenchSetup(),
+  }) async {
+    final source = BenchDataSource(corpus, setup: setup);
     final controller = ChatScrollController();
+    final unread = ValueNotifier<int?>(null);
+    final probe = _probe = BenchProbe();
+    probe.sinceMount.start();
     await tester.pumpWidget(
       MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -66,17 +173,76 @@ final class BenchHost {
             controller: controller,
             isSelfMessage: (m) => m.sender == kBenchSelf,
             messageBuilder: benchBubble,
+            unreadBoundary: unread,
+            unreadSeparatorBuilder: (_) => const SizedBox(
+              height: 28,
+              child: Center(child: Text('Unread messages')),
+            ),
           ),
         ),
       ),
     );
     await tester.pump(const Duration(milliseconds: 500));
-    return BenchHost._(tester, source, controller);
+    return BenchHost._(tester, source, controller, probe, unread);
   }
 
   final WidgetTester tester;
   final BenchDataSource source;
   final ChatScrollController controller;
+  final BenchProbe probe;
+  final ValueNotifier<int?> unread;
+
+  @override
+  double? get firstBuildMs => probe.firstBuildMs;
+
+  @override
+  int get newestId => source.newestKnownId ?? 0;
+
+  @override
+  void insert({required bool self}) {
+    final id = source.nextInsertId;
+    source.insertMessage(
+      BenchMessage(
+        id: id,
+        sender: self ? kBenchSelf : 'user0',
+        text: self ? 'Sent message.' : 'Incoming message.',
+        createdAt: DateTime.utc(2026).add(Duration(minutes: id * 20)),
+      ),
+      reason: 'bench.insert',
+    );
+  }
+
+  @override
+  void edit(int id, {required bool taller}) {
+    final current = source.getMessage(id);
+    if (current is! BenchMessage) return;
+    final original = source.corpus.messageAt(id).text;
+    source.updateMessage(
+      current.edited(taller ? List.filled(5, original).join('\n') : original),
+      reason: 'bench.edit',
+    );
+  }
+
+  @override
+  void remove(int id) => source.removeMessages([id], reason: 'bench.remove');
+
+  @override
+  void setUnreadBoundary(int? id) => unread.value = id;
+
+  /// The viewport's rectangle in global coordinates.
+  Rect get viewportRect {
+    final box = tester.renderObject<RenderBox>(viewport);
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
+  @override
+  int? get visibleNonAnchorId {
+    final anchor = controller.anchorMessageId;
+    for (final id in probe.visibleBottoms(viewportRect).keys) {
+      if (id != anchor) return id;
+    }
+    return null;
+  }
 
   Finder get viewport => find.byType(ChatScrollView);
 
@@ -86,6 +252,7 @@ final class BenchHost {
   Future<void> dispose() async {
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();
+    unread.dispose();
     source.dispose();
     PaintingBinding.instance.imageCache
       ..clear()
