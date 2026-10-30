@@ -65,6 +65,11 @@ void main() {
       // As observed: whether the engine has semantics on right now.
       semanticsMode: SemanticsBinding.instance.semanticsEnabled ? 'on' : 'off',
       corpusVersion: kCorpusVersion,
+      buildMode: kProfileMode
+          ? 'profile'
+          : kReleaseMode
+          ? 'release'
+          : 'debug',
     );
     binding.reportData = {
       ...?binding.reportData,

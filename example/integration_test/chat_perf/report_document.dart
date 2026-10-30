@@ -20,6 +20,8 @@ final class LaunchMeta {
     required this.refreshRateHz,
     required this.semanticsMode,
     required this.corpusVersion,
+    required this.buildMode,
+    this.environment = const {},
   });
 
   factory LaunchMeta.fromJson(Map<String, Object?> json) => LaunchMeta(
@@ -31,6 +33,8 @@ final class LaunchMeta {
     refreshRateHz: (json['refreshRateHz']! as num).toDouble(),
     semanticsMode: json['semanticsMode']! as String,
     corpusVersion: json['corpusVersion']! as int,
+    buildMode: json['buildMode']! as String,
+    environment: {...?(json['environment'] as Map<String, Object?>?)},
   );
 
   final String device;
@@ -48,6 +52,14 @@ final class LaunchMeta {
   final String semanticsMode;
   final int corpusVersion;
 
+  /// `profile`, `debug` or `release`, as the app observed it.
+  final String buildMode;
+
+  /// Host-observed device state the runner adds after the launch: battery
+  /// level and temperature at start and end, active input method, whether the
+  /// cooldown bound was hit. Empty when the app wrote the document alone.
+  final Map<String, Object?> environment;
+
   Map<String, Object?> toJson() => {
     'device': device,
     'os': os,
@@ -57,6 +69,8 @@ final class LaunchMeta {
     'refreshRateHz': refreshRateHz,
     'semanticsMode': semanticsMode,
     'corpusVersion': corpusVersion,
+    'buildMode': buildMode,
+    'environment': environment,
   };
 }
 
