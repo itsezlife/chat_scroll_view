@@ -5,6 +5,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chat_scroll_view/src/util/constants.dart';
 import 'package:chat_scroll_view/src/util/logger.dart';
+import 'package:chat_scroll_view/src/util/trace_section.dart';
 import 'package:flutter/scheduler.dart';
 
 /// Schedules lazy chunk fetching, scroll-aware polling, jump-fetch
@@ -562,6 +563,12 @@ class ChatChunkFetchScheduler {
   }
 
   void _onPollTick() {
+    Trace.begin(TraceSection.fetchPoll);
+    _pollTick();
+    Trace.end(TraceSection.fetchPoll);
+  }
+
+  void _pollTick() {
     _pollTimer = null;
     final now = DateTime.now().millisecondsSinceEpoch;
     final sinceScroll = now - _lastScrollTs;
