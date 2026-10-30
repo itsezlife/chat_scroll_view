@@ -1,7 +1,7 @@
 /// Runner of the chat performance suite.
 ///
 ///   dart run tool/chat_perf.dart quick --device ID [--scenario GLOB,...]
-///       [--label NAME] [--backend impeller|skia]
+///       [--label NAME] [--backend impeller|skia] [--semantics off|on|pair]
 ///
 /// `quick` makes one launch of the timing pass, prints the headline table and
 /// writes `perf/runs/<label>/chat_perf_metrics.json` plus the per-frame
@@ -13,13 +13,15 @@ import 'dart:io';
 
 import '../integration_test/chat_perf/report_document.dart';
 import '../integration_test/chat_perf/scenarios/scroll_scenarios.dart';
+import '../integration_test/chat_perf/semantics.dart';
 import '../integration_test/chat_perf/table.dart';
 
 Future<void> main(List<String> args) async {
   if (args.isEmpty || args.first != 'quick') {
     stderr.writeln(
       'usage: dart run tool/chat_perf.dart quick --device ID '
-      '[--scenario GLOB,...] [--label NAME] [--backend impeller|skia]',
+      '[--scenario GLOB,...] [--label NAME] [--backend impeller|skia] '
+      '[--semantics off|on|pair]',
     );
     exit(64);
   }
@@ -27,6 +29,13 @@ Future<void> main(List<String> args) async {
   final device = options['device'];
   if (device == null) {
     stderr.writeln('--device ID is required (see: flutter devices)');
+    exit(64);
+  }
+  final SemanticsRun semantics;
+  try {
+    semantics = SemanticsRun.parse(options['semantics'] ?? '');
+  } on FormatException catch (e) {
+    stderr.writeln('--semantics: ${e.message}');
     exit(64);
   }
   final label =
@@ -48,7 +57,7 @@ Future<void> main(List<String> args) async {
   }
   var status = 0;
   for (final launch in launches) {
-    final code = await _quickLaunch(device, options, launch);
+    final code = await _quickLaunch(device, options, semantics, launch);
     if (code != 0) status = code;
   }
   exit(status);
@@ -57,6 +66,7 @@ Future<void> main(List<String> args) async {
 Future<int> _quickLaunch(
   String device,
   Map<String, String> options,
+  SemanticsRun semantics,
   ({String label, String filter, bool cold}) launch,
 ) async {
   final label = launch.label;
@@ -67,6 +77,7 @@ Future<int> _quickLaunch(
       if (launch.filter.isNotEmpty) 'SCENARIO': launch.filter,
       'COLD': '${launch.cold}',
       'BACKEND': options['backend'] ?? 'impeller',
+      'SEMANTICS': semantics.name,
     },
     mode: ProcessStartMode.inheritStdio,
   );
@@ -91,7 +102,7 @@ Future<int> _quickLaunch(
     ..writeln()
     ..writeln('metrics: ${file.path}')
     ..writeln('frames:  $out/runs/$label/chat_perf_frames.json');
-  if (meta['semanticsMode'] == 'on') {
+  if (meta['semanticsMode'] == 'on' && semantics != SemanticsRun.on) {
     stdout.writeln('note: semantics were on during this launch.');
   }
   return code;

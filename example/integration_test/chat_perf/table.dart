@@ -16,6 +16,8 @@ String _cell(Metric? m) => switch (m) {
   null => '-',
   Metric(kind: MetricKind.share, :final value) =>
     '${(value * 100).toStringAsFixed(1)}%',
+  Metric(kind: MetricKind.ratio, :final value) =>
+    '${value.toStringAsFixed(2)}x',
   Metric(:final value) =>
     value == value.roundToDouble()
         ? value.toInt().toString()
@@ -43,7 +45,7 @@ String renderTable(MetricsDocument doc) {
   final m = doc.meta;
   return [
     '${m.device}, ${m.os}, ${m.backend}, ${m.refreshRateHz.toStringAsFixed(0)}'
-        ' Hz, semantics ${m.semanticsMode}, corpus v${m.corpusVersion}',
+        ' Hz, semantics ${m.semanticsMode} (requested ${m.semanticsRequested}), corpus v${m.corpusVersion}',
     'p99 columns are shares of the vsync budget '
         '(${(1000 / m.refreshRateHz).toStringAsFixed(2)} ms).',
     '',
