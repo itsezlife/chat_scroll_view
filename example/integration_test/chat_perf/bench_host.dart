@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'corpus.dart';
 import 'corpus_rich.dart';
+import 'perf_host.dart';
 
 /// Fixed bubble: one rounded rectangle and one paragraph, nothing else.
 Widget benchBubble(
@@ -46,6 +47,26 @@ Widget benchBubble(
   }
   return const SizedBox(height: 60);
 }
+
+/// The inline separator and floating date pill of the bench host.
+Widget _datePill(BuildContext context, Object bucket, DateTime date) => Center(
+  child: Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF455A64),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Text(
+          '${date.year}-${date.month}-${date.day}',
+          style: const TextStyle(fontSize: 12, color: Color(0xFFFFFFFF)),
+        ),
+      ),
+    ),
+  ),
+);
 
 /// Registers [markdown] for [messageId] with [selection] while mounted and
 /// draws it with the viewport's markdown body, so the per-body scope owns the
@@ -100,7 +121,7 @@ class _BenchMarkdownBodyState extends State<_BenchMarkdownBody> {
 }
 
 /// A mounted viewport over a seeded corpus.
-final class BenchHost {
+final class BenchHost implements PerfHost {
   BenchHost._(this.tester, this.source, this.controller, this.selection) {
     selection.addInteractionListener(interactions.add);
     SchedulerBinding.instance.addPersistentFrameCallback((_) => frameCount++);
@@ -109,8 +130,9 @@ final class BenchHost {
   /// Mounts a fresh host over [corpus], at the newest message.
   static Future<BenchHost> mount(
     WidgetTester tester,
-    BenchCorpus corpus,
-  ) async {
+    BenchCorpus corpus, {
+    bool floatingDayHeader = false,
+  }) async {
     final source = BenchDataSource(corpus);
     final controller = ChatScrollController();
     // The mobile policy is explicit: it is what the Android reference device
@@ -136,6 +158,13 @@ final class BenchHost {
                 onIdleMessageTap: host._onIdleTap,
                 isSelfMessage: (m) => m.sender == kBenchSelf,
                 messageBuilder: host._buildMessage,
+                scrollActivityTiming: floatingDayHeader
+                    ? const ChatScrollActivityTiming()
+                    : null,
+                dayHeaderDelegate: floatingDayHeader
+                    ? const ChatPushingDayHeader()
+                    : const ChatFadingDayHeader(),
+                dateSeparatorBuilder: floatingDayHeader ? _datePill : null,
               );
             },
           ),
@@ -146,8 +175,10 @@ final class BenchHost {
     return host;
   }
 
+  @override
   final WidgetTester tester;
   final BenchDataSource source;
+  @override
   final ChatScrollController controller;
   final ChatSelectionController selection;
 
@@ -252,11 +283,16 @@ final class BenchHost {
     return box.localToGlobal(Offset.zero) & box.size;
   }
 
+  @override
+  int get history => source.corpus.count;
+
+  @override
   Finder get viewport => find.byType(ChatScrollView);
 
   /// Removes the viewport, releases its controller and returns the process to
   /// a comparable state, between scenarios: image caches cleared, memory
   /// pressure signalled (the engine drops its caches) and a GC settle awaited.
+  @override
   Future<void> dispose() async {
     await tester.pumpWidget(const SizedBox.shrink());
     selection.dispose();

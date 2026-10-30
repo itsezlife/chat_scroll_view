@@ -9,7 +9,14 @@ import 'bench_host.dart';
 import 'corpus.dart';
 import 'device_context.dart';
 import 'metrics.dart';
+import 'perf_host.dart';
+import 'real_chat_host.dart';
+import 'registry.dart';
 import 'report_document.dart';
+import 'scale.dart';
+import 'scenario_mounts.dart';
+import 'scenarios/ime_scenarios.dart';
+import 'scenarios/keyboard_scenarios.dart';
 import 'scenarios/scroll_scenarios.dart';
 import 'scenarios/selection_scenarios.dart';
 import 'semantics.dart';
@@ -37,6 +44,29 @@ const _semantics = String.fromEnvironment('CHAT_PERF_SEMANTICS');
 const kMetricsKey = 'chat_perf_metrics';
 const kFramesKey = 'chat_perf_frames';
 
+/// Every registered family, in the order they run.
+final allScenarios = ScenarioRegistry([
+  ...scrollScenarios.all,
+  ...keyboardScenarios.all,
+  ...imeScenarios.all,
+  ...selectionScenarios.all,
+]);
+
+Future<(PerfHost, DeviceContext)> _mountPlain(
+  WidgetTester tester,
+  Scenario scenario,
+) async {
+  final host = switch (scenario.subject) {
+    ScenarioSubject.bench => await BenchHost.mount(
+      tester,
+      BenchCorpus(count: _history, profile: scenario.profile),
+      floatingDayHeader: scenario.floatingDayHeader,
+    ),
+    ScenarioSubject.realChat => await RealChatHost.mount(tester, _history),
+  };
+  return (host, DeviceContext(host, scenario));
+}
+
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized()
     ..framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
@@ -48,15 +78,38 @@ void main() {
   // a semantics handle for the whole test, so the engine builds semantics
   // every frame. The `on` pass takes its own handle.
   testWidgets('chat perf scenarios', semanticsEnabled: false, (tester) async {
-    final selected = [
-      ...scrollScenarios.where(_filter, cold: _cold),
-      ...selectionScenarios.where(_filter, cold: _cold),
-    ];
+    final selected = allScenarios.where(_filter, cold: _cold);
     expect(selected, isNotEmpty, reason: 'no scenario matches "$_filter"');
 
     final scenarios = <String, Map<String, Map<String, Metric>>>{};
     final sidecar = <String, List<FrameRow>>{};
+    final skipped = <String, String>{};
     for (final scenario in selected) {
+      if (scenario.skipReasonOn(defaultTargetPlatform.name.toLowerCase())
+          case final reason?) {
+        skipped[scenario.key] = reason;
+        continue;
+      }
+      if (scenario.historyTiers.isNotEmpty) {
+        // One fresh host per tier; semantics off unless the launch asks `on`.
+        final byTier = <int, Map<String, Map<String, Metric>>>{};
+        for (final tier in scenario.historyTiers) {
+          final handle = run == SemanticsRun.on
+              ? tester.ensureSemantics()
+              : null;
+          final host = await BenchHost.mount(tester, BenchCorpus(count: tier));
+          final ctx = DeviceContext(host, scenario);
+          await scenario.run(ctx);
+          await host.dispose();
+          handle?.dispose();
+          byTier[tier] = ctx.windows;
+          for (final w in ctx.frames.entries) {
+            sidecar['${scenario.key}/${w.key}.${tierLabel(tier)}'] = w.value;
+          }
+        }
+        scenarios[scenario.key] = assembleTiers(byTier, scenario.windows);
+        continue;
+      }
       final byPass = <bool, DeviceContext>{};
       // A pair starts with an unrecorded off pass: the first run in a process
       // pays one-time raster costs, which would otherwise land on `off` only.
@@ -69,11 +122,13 @@ void main() {
           firstPassSemantics = measured ? 'on' : 'off';
         }
         expect(measured, on, reason: 'semantics mode is not what was asked');
-        final host = await BenchHost.mount(
-          tester,
-          BenchCorpus(count: _history, profile: scenario.profile),
-        );
-        final ctx = DeviceContext(host, scenario);
+        final (host, ctx) = isKeyboardScenario(scenario)
+            ? await mountKeyboardScenario(
+                tester,
+                scenario,
+                history: _history,
+              ).then((m) => (m.host, m.ctx))
+            : await _mountPlain(tester, scenario);
         if (run == SemanticsRun.pair && recorded) {
           // Traced, so the timeline shows whether semantics work ran.
           final key =
@@ -131,10 +186,19 @@ void main() {
       semanticsMode: firstPassSemantics,
       semanticsRequested: run.name,
       corpusVersion: kCorpusVersion,
+      buildMode: kProfileMode
+          ? 'profile'
+          : kReleaseMode
+          ? 'release'
+          : 'debug',
     );
     binding.reportData = {
       ...?binding.reportData,
-      kMetricsKey: MetricsDocument(meta: meta, scenarios: scenarios).toJson(),
+      kMetricsKey: MetricsDocument(
+        meta: meta,
+        scenarios: scenarios,
+        skipped: skipped,
+      ).toJson(),
       kFramesKey: FrameSidecar(sidecar).toJson(),
     };
     debugPrint(

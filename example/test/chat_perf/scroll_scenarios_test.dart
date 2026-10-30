@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../integration_test/chat_perf/gesture_driver.dart';
+import '../../integration_test/chat_perf/metrics.dart';
 import '../../integration_test/chat_perf/registry.dart';
 import '../../integration_test/chat_perf/scenarios/scroll_scenarios.dart';
 
@@ -37,6 +38,71 @@ final class _RecordingContext implements ScenarioContext {
 
   @override
   Future<void> settle() async => calls.add('settle');
+
+  int _anchor = 5000;
+  final recorded = <String, Metric>{};
+  final flings = <(double, Duration)>[];
+
+  @override
+  int get history => 10000;
+
+  @override
+  int get anchorId => _anchor;
+
+  @override
+  Future<({Duration time, int frames})> settleTimed() async {
+    calls.add('settle');
+    return (time: const Duration(milliseconds: 900), frames: 5);
+  }
+
+  @override
+  Future<void> fling(double dy, Duration duration) async {
+    flings.add((dy, duration));
+    calls.add('fling');
+    _anchor += dy < 0 ? 51 : -50;
+  }
+
+  @override
+  Future<void> touch(Duration hold) async => calls.add('touch');
+
+  @override
+  Future<void> idle(Duration duration) async => calls.add('idle');
+
+  @override
+  Future<int> jumpTo(int id) async {
+    calls.add('jumpTo $id');
+    _anchor = id;
+    return 3;
+  }
+
+  @override
+  Future<({int frames, int anchorId, double anchorOffset})> animateTo(
+    int id,
+    Duration duration,
+  ) async {
+    _anchor = id;
+    return (frames: 20, anchorId: id, anchorOffset: 0.0);
+  }
+
+  @override
+  Future<int> jumpToNewest() async => jumpTo(history - 1);
+
+  @override
+  Future<void> scrollbarDrag(double dy, Duration duration) async =>
+      calls.add('scrollbarDrag');
+
+  @override
+  Future<int> countAnchorJumps(
+    Future<void> Function() body, {
+    int thresholdMessages = 200,
+  }) async {
+    await body();
+    return 2;
+  }
+
+  @override
+  void record(String window, String name, Metric metric) =>
+      recorded['$window/$name'] = metric;
 
   @override
   GestureDriver get gestures => throw UnimplementedError();
@@ -83,5 +149,128 @@ void main() {
     await s.run(ctx);
     expect(ctx.primed, isFalse);
     expect(ctx.calls.first, 'begin first_scroll');
+  });
+
+  group('the family', () {
+    const expected = [
+      'scroll.drag_slow',
+      'scroll.drag_fast',
+      'scroll.fling_single',
+      'scroll.fling_burst',
+      'scroll.fling_reverse',
+      'scroll.stop_on_touch',
+      'scroll.overscroll_oldest',
+      'scroll.scrollbar_drag',
+      'scroll.first_scroll',
+      'nav.jump_near',
+      'nav.jump_far',
+      'nav.animate_near',
+      'nav.animate_far',
+      'nav.jump_to_newest',
+      'nav.date_pill_during_fling',
+      'scroll.real.drag_slow',
+      'scroll.real.fling_single',
+      'scroll.real.fling_burst',
+    ];
+
+    test('registers every scenario of the ticket', () {
+      expect(scrollScenarios.all.map((s) => s.id), containsAll(expected));
+    });
+
+    test('every scenario runs and records into windows it declared', () async {
+      for (final s in scrollScenarios.all) {
+        final ctx = _RecordingContext();
+        await s.run(ctx);
+        for (final key in ctx.recorded.keys) {
+          expect(s.windows, contains(key.split('/').first), reason: s.id);
+        }
+      }
+    });
+
+    test('real-screen variants run on the real chat screen', () {
+      final real = scrollScenarios.all.where((s) => s.id.contains('.real.'));
+      expect(real.map((s) => s.id), [
+        'scroll.real.drag_slow',
+        'scroll.real.fling_single',
+        'scroll.real.fling_burst',
+      ]);
+      for (final s in real) {
+        expect(s.subject, ScenarioSubject.realChat);
+      }
+      expect(
+        scrollScenarios.all
+            .where((s) => !s.id.contains('.real.'))
+            .every((s) => s.subject == ScenarioSubject.bench),
+        isTrue,
+      );
+    });
+
+    test('deterministic flags: first_scroll is cold, the rest of D set', () {
+      Scenario by(String id) =>
+          scrollScenarios.all.singleWhere((s) => s.id == id);
+      expect(by('scroll.fling_burst').deterministic, isTrue);
+      expect(by('nav.jump_to_newest').deterministic, isTrue);
+      expect(by('scroll.first_scroll').deterministic, isFalse);
+      expect(by('scroll.real.fling_burst').deterministic, isFalse);
+    });
+
+    test('the date pill scenario mounts the floating header', () {
+      final s = scrollScenarios.all.singleWhere(
+        (s) => s.id == 'nav.date_pill_during_fling',
+      );
+      expect(s.floatingDayHeader, isTrue);
+    });
+
+    test('the ladder reports exact distance per rung and settle_ms', () async {
+      final s = scrollScenarios.all.singleWhere(
+        (s) => s.id == 'scroll.fling_burst',
+      );
+      final ctx = _RecordingContext();
+      await s.run(ctx);
+      expect(s.windows, ['fling_2k', 'fling_6k', 'fling_13k']);
+      for (final w in s.windows) {
+        final up = ctx.recorded['$w/fling.finger_up_messages']!;
+        expect(up.kind, MetricKind.exact);
+        expect(
+          ctx.recorded['$w/fling.finger_down_messages']!.kind,
+          MetricKind.exact,
+        );
+        expect(ctx.recorded['$w/settle_ms']!.value, 900);
+      }
+      // Three repetitions each direction, six trials a rung, three rungs.
+      expect(ctx.flings.length, 18);
+    });
+
+    test('nav.jump_to_newest reports tail.pin_frames', () async {
+      final s = scrollScenarios.all.singleWhere(
+        (s) => s.id == 'nav.jump_to_newest',
+      );
+      final ctx = _RecordingContext();
+      await s.run(ctx);
+      expect(ctx.recorded['jump_to_newest/tail.pin_frames']!.value, 3);
+    });
+
+    test(
+      'animate scenarios report travel frames and an exact anchor',
+      () async {
+        final s = scrollScenarios.all.singleWhere(
+          (s) => s.id == 'nav.animate_far',
+        );
+        final ctx = _RecordingContext();
+        await s.run(ctx);
+        expect(ctx.recorded['animate/travel_frames_max']!.value, 20);
+        expect(ctx.recorded['animate/anchor_id']!.kind, MetricKind.exact);
+      },
+    );
+
+    test('flings are paced streams: every fling has a duration', () async {
+      for (final s in scrollScenarios.all) {
+        final ctx = _RecordingContext();
+        await s.run(ctx);
+        for (final (_, d) in ctx.flings) {
+          expect(d, greaterThan(Duration.zero), reason: s.id);
+        }
+      }
+    });
   });
 }

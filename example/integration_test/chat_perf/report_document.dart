@@ -20,6 +20,8 @@ final class LaunchMeta {
     required this.refreshRateHz,
     required this.semanticsMode,
     required this.corpusVersion,
+    required this.buildMode,
+    this.environment = const {},
     this.semanticsRequested = 'off',
   });
 
@@ -33,6 +35,8 @@ final class LaunchMeta {
     semanticsMode: json['semanticsMode']! as String,
     semanticsRequested: json['semanticsRequested'] as String? ?? 'off',
     corpusVersion: json['corpusVersion']! as int,
+    buildMode: json['buildMode']! as String,
+    environment: {...?(json['environment'] as Map<String, Object?>?)},
   );
 
   final String device;
@@ -54,6 +58,14 @@ final class LaunchMeta {
   final String semanticsRequested;
   final int corpusVersion;
 
+  /// `profile`, `debug` or `release`, as the app observed it.
+  final String buildMode;
+
+  /// Host-observed device state the runner adds after the launch: battery
+  /// level and temperature at start and end, active input method, whether the
+  /// cooldown bound was hit. Empty when the app wrote the document alone.
+  final Map<String, Object?> environment;
+
   Map<String, Object?> toJson() => {
     'device': device,
     'os': os,
@@ -64,13 +76,19 @@ final class LaunchMeta {
     'semanticsMode': semanticsMode,
     'semanticsRequested': semanticsRequested,
     'corpusVersion': corpusVersion,
+    'buildMode': buildMode,
+    'environment': environment,
   };
 }
 
 /// Metadata plus, per `scenario id@version` and window, a flat map of named
 /// metrics.
 final class MetricsDocument {
-  const MetricsDocument({required this.meta, required this.scenarios});
+  const MetricsDocument({
+    required this.meta,
+    required this.scenarios,
+    this.skipped = const {},
+  });
 
   factory MetricsDocument.fromJson(Map<String, Object?> json) {
     final scenarios = json['scenarios']! as Map<String, Object?>;
@@ -86,6 +104,9 @@ final class MetricsDocument {
               },
           },
       },
+      skipped: {
+        ...?(json['skipped'] as Map<String, Object?>?)?.cast<String, String>(),
+      },
     );
   }
 
@@ -94,9 +115,13 @@ final class MetricsDocument {
   /// `id@version` -> window -> metric name -> metric.
   final Map<String, Map<String, Map<String, Metric>>> scenarios;
 
+  /// `id@version` -> why the scenario did not run on this platform.
+  final Map<String, String> skipped;
+
   Map<String, Object?> toJson() => {
     'schema': kMetricsSchemaVersion,
     'meta': meta.toJson(),
+    if (skipped.isNotEmpty) 'skipped': skipped,
     'scenarios': {
       for (final s in scenarios.entries)
         s.key: {

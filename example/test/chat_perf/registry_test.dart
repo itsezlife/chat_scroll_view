@@ -66,4 +66,16 @@ void main() {
     expect(registry.where('a.*').map((s) => s.id), ['a.warm']);
     expect(registry.where('a.*', cold: true).map((s) => s.id), ['a.cold']);
   });
+
+  test('accepts a dotted sub-area id', () {
+    expect(ScenarioRegistry([_s('scroll.real.drag_slow', 1)]).keys, [
+      'scroll.real.drag_slow@1',
+    ]);
+  });
+
+  test('scenarios default to the bench host, not deterministic', () {
+    final s = _s('a.b', 1);
+    expect(s.subject, ScenarioSubject.bench);
+    expect(s.deterministic, isFalse);
+  });
 }
