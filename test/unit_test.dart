@@ -172,6 +172,7 @@ import 'widgets/chat_viewport_stable_delete_test.dart'
     as chat_viewport_stable_delete_test;
 import 'widgets/chat_widgets_bench_test.dart' as chat_widgets_bench_test;
 import 'widgets/chat_widgets_test.dart' as chat_widgets_test;
+import 'widgets/trace_seam_test.dart' as trace_seam_test;
 import 'widgets/vs_listview_bench_test.dart' as vs_listview_bench_test;
 
 void main() {
@@ -465,5 +466,6 @@ void main() {
   );
   group('widgets/chat_widgets_bench_test.dart', chat_widgets_bench_test.main);
   group('widgets/chat_widgets_test.dart', chat_widgets_test.main);
+  group('widgets/trace_seam_test.dart', trace_seam_test.main);
   group('widgets/vs_listview_bench_test.dart', vs_listview_bench_test.main);
 }

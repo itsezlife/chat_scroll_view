@@ -8,10 +8,15 @@ List<String> buildDefines({
   required String backend,
   String? scenario,
   String? history,
+  bool cold = false,
+  String? semantics,
 }) => [
   'CHAT_PERF_BACKEND=$backend',
   if (scenario != null && scenario.isNotEmpty) 'CHAT_PERF_SCENARIO=$scenario',
   if (history != null && history.isNotEmpty) 'CHAT_PERF_HISTORY=$history',
+  if (cold) 'CHAT_PERF_COLD=true',
+  if (semantics != null && semantics.isNotEmpty)
+    'CHAT_PERF_SEMANTICS=$semantics',
 ];
 
 /// Two 32-bit FNV-1a hashes (different seeds) over the sorted defines, then

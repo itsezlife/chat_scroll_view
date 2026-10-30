@@ -22,6 +22,7 @@ final class LaunchMeta {
     required this.corpusVersion,
     required this.buildMode,
     this.environment = const {},
+    this.semanticsRequested = 'off',
   });
 
   factory LaunchMeta.fromJson(Map<String, Object?> json) => LaunchMeta(
@@ -32,6 +33,7 @@ final class LaunchMeta {
     backend: json['backend']! as String,
     refreshRateHz: (json['refreshRateHz']! as num).toDouble(),
     semanticsMode: json['semanticsMode']! as String,
+    semanticsRequested: json['semanticsRequested'] as String? ?? 'off',
     corpusVersion: json['corpusVersion']! as int,
     buildMode: json['buildMode']! as String,
     environment: {...?(json['environment'] as Map<String, Object?>?)},
@@ -48,8 +50,12 @@ final class LaunchMeta {
   /// As the display reported it.
   final double refreshRateHz;
 
-  /// `on` or `off`, as observed at run time.
+  /// `on` or `off`, as observed from the binding when the launch's first
+  /// pass ran.
   final String semanticsMode;
+
+  /// What the launch was asked for: `off`, `on` or `pair`.
+  final String semanticsRequested;
   final int corpusVersion;
 
   /// `profile`, `debug` or `release`, as the app observed it.
@@ -68,6 +74,7 @@ final class LaunchMeta {
     'backend': backend,
     'refreshRateHz': refreshRateHz,
     'semanticsMode': semanticsMode,
+    'semanticsRequested': semanticsRequested,
     'corpusVersion': corpusVersion,
     'buildMode': buildMode,
     'environment': environment,

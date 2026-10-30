@@ -54,4 +54,62 @@ void main() {
       expect(empty['over_budget_share']!.value, 0);
     });
   });
+
+  group('splitFirstFrames', () {
+    test('splits at the span from the first frame start', () {
+      final starts = <double>[1000, 1010, 1100, 1149.9, 1150, 1400];
+      final (head, tail) = splitFirstFrames(
+        ['a', 'b', 'c', 'd', 'e', 'f'],
+        starts,
+        spanMs: 150,
+      );
+      expect(head, ['a', 'b', 'c', 'd']);
+      expect(tail, ['e', 'f']);
+    });
+    test('empty input splits to two empty lists', () {
+      final (head, tail) = splitFirstFrames(<int>[], <double>[], spanMs: 150);
+      expect(head, isEmpty);
+      expect(tail, isEmpty);
+    });
+  });
+
+  group('windowMetrics', () {
+    // 10 frames at 120 Hz: the first two are slow (20 ms build).
+    final head = [
+      for (var i = 0; i < 2; i++) const FrameSample(buildMs: 20, rasterMs: 2),
+    ];
+    final tail = [
+      for (var i = 0; i < 8; i++) const FrameSample(buildMs: 2, rasterMs: 2),
+    ];
+
+    test('headline percentiles exclude the first frames', () {
+      final m = windowMetrics(head, tail, refreshRateHz: 120, cold: false);
+      expect(m['frames']!.value, 8);
+      expect(m['build_p99_share']!.value, closeTo(2 / 8.33333, 1e-4));
+    });
+    test('first frames are diagnostic for a steady scenario', () {
+      final m = windowMetrics(head, tail, refreshRateHz: 120, cold: false);
+      expect(m['first_frames.build_p99_share']!.value, closeTo(2.4, 1e-3));
+      expect(m['first_frames.frames']!.value, 2);
+      for (final e in m.entries.where((e) => e.key.startsWith('first_'))) {
+        expect(e.value.role, MetricRole.diagnostic);
+      }
+    });
+    test('first frames are headline for a cold scenario', () {
+      final m = windowMetrics(head, tail, refreshRateHz: 120, cold: true);
+      for (final k in [
+        'first_frames.build_p99_share',
+        'first_frames.raster_p99_share',
+        'first_frames.over_budget_share',
+        'first_frames.frames',
+      ]) {
+        expect(m[k]!.role, MetricRole.headline, reason: k);
+      }
+    });
+    test('no first frames reports only their zero count', () {
+      final m = windowMetrics([], tail, refreshRateHz: 120, cold: false);
+      expect(m['first_frames.frames']!.value, 0);
+      expect(m.containsKey('first_frames.build_p99_share'), isFalse);
+    });
+  });
 }

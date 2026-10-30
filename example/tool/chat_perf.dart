@@ -1,22 +1,26 @@
-/// Runner of the chat performance suite (Android).
+/// Runner of the chat performance suite.
 ///
 ///   dart run tool/chat_perf.dart quick --device ID [--scenario GLOB,...]
 ///       [--label NAME] [--backend impeller|skia] [--history N]
+///       [--semantics off|on|pair]
 ///
 /// `quick` makes one launch of the timing pass, prints the headline table and
 /// writes `perf/runs/<label>/chat_perf_metrics.json` plus the per-frame
 /// sidecar `chat_perf_frames.json`. No verdict, nothing promoted.
 ///
-/// Before the launch it refuses a device that cannot give meaningful numbers,
-/// takes the per-device lock, and builds (or reuses, by fingerprint) the APK.
-/// A launch killed by a foreign package install is discarded and retried once.
-/// The label is host-side only (`PERF_LABEL`); it is never a dart-define.
+/// Before the first launch it refuses a device that cannot give meaningful
+/// numbers and takes the per-device lock. Each launch uses the APK cached under
+/// a fingerprint of the sources and the dart-define set; a launch killed by a
+/// foreign package install is discarded and retried once. The label is
+/// host-side only (`PERF_LABEL`); it is never a dart-define.
 library;
 
 import 'dart:convert';
 import 'dart:io';
 
 import '../integration_test/chat_perf/report_document.dart';
+import '../integration_test/chat_perf/scenarios/scroll_scenarios.dart';
+import '../integration_test/chat_perf/semantics.dart';
 import '../integration_test/chat_perf/table.dart';
 import 'chat_perf/adb.dart';
 import 'chat_perf/build_fingerprint.dart';
@@ -30,7 +34,7 @@ Future<void> main(List<String> args) async {
     stderr.writeln(
       'usage: dart run tool/chat_perf.dart quick --device ID '
       '[--scenario GLOB,...] [--label NAME] [--backend impeller|skia] '
-      '[--history N]',
+      '[--history N] [--semantics off|on|pair]',
     );
     exit(64);
   }
@@ -40,13 +44,31 @@ Future<void> main(List<String> args) async {
     stderr.writeln('--device ID is required (see: adb devices)');
     exit(64);
   }
+  final SemanticsRun semantics;
+  try {
+    semantics = SemanticsRun.parse(options['semantics'] ?? '');
+  } on FormatException catch (e) {
+    stderr.writeln('--semantics: ${e.message}');
+    exit(64);
+  }
   final label =
       options['label'] ??
       'quick-${DateTime.now().toIso8601String().replaceAll(RegExp('[:.]'), '-')}';
-  final out =
-      Platform.environment['PERF_OUT'] ?? '${Directory.current.path}/perf';
-  final adb = Adb(device);
+  final filter = options['scenario'] ?? '';
 
+  // The shared-process set is one launch; each cold scenario gets its own
+  // (spec 5), under `<label>-<scenario id>`.
+  final launches = <({String label, String filter, bool cold})>[
+    if (scrollScenarios.where(filter).isNotEmpty)
+      (label: label, filter: filter, cold: false),
+    for (final s in scrollScenarios.where(filter, cold: true))
+      (label: '$label-${s.id}', filter: s.id, cold: true),
+  ];
+  if (launches.isEmpty) {
+    stderr.writeln('no scenario matches "$filter"');
+    exit(64);
+  }
+  final adb = Adb(device);
   final failures = evaluateGates(await adb.state());
   if (failures.isNotEmpty) {
     stderr.writeln('refusing to start on $device:');
@@ -55,7 +77,6 @@ Future<void> main(List<String> args) async {
     }
     exit(2);
   }
-
   final DeviceLock lock;
   try {
     lock = DeviceLock.acquire(
@@ -68,44 +89,67 @@ Future<void> main(List<String> args) async {
     exit(3);
   }
 
-  try {
-    await _run(adb, options, label, out);
-  } on ForeignInstallException catch (e) {
-    stderr.writeln('run failed: ${e.message}');
-    exitCode = 4;
-  } finally {
-    lock.release();
-  }
-}
-
-Future<void> _run(
-  Adb adb,
-  Map<String, String> options,
-  String label,
-  String out,
-) async {
-  final backend = options['backend'] ?? 'impeller';
-  final defines = buildDefines(
-    backend: backend,
-    scenario: options['scenario'],
-    history: options['history'],
-  );
-  final apk = await _ensureApk(defines, backend);
-
+  var status = 0;
   final batteryStart = await adb.battery();
-  var launches = 0;
-  CooldownResult? cooldown;
-  final result = await runWithRetry<int>(
-    launch: () async {
-      if (launches++ > 0) {
+  try {
+    var first = true;
+    for (final launch in launches) {
+      if (!first) {
+        // Between launches: let the battery cool back toward the run's start.
         cooldown = await waitForCooldown(
           startTempC: batteryStart.temperatureC,
           readTempC: () async => (await adb.battery()).temperatureC,
           sleep: Future<void>.delayed,
         );
       }
+      first = false;
+      final code = await _quickLaunch(adb, options, semantics, launch);
+      if (code != 0) status = code;
+    }
+  } on ForeignInstallException catch (e) {
+    stderr.writeln('run failed: ${e.message}');
+    status = 4;
+  } finally {
+    lock.release();
+  }
+  exit(status);
+}
+
+/// The last between-launch wait; null before one ran.
+CooldownResult? cooldown;
+
+Future<int> _quickLaunch(
+  Adb adb,
+  Map<String, String> options,
+  SemanticsRun semantics,
+  ({String label, String filter, bool cold}) launch,
+) async {
+  final label = launch.label;
+  final backend = options['backend'] ?? 'impeller';
+  final defines = buildDefines(
+    backend: backend,
+    scenario: launch.filter,
+    history: options['history'],
+    cold: launch.cold,
+    semantics: semantics.name,
+  );
+  final apk = await _ensureApk(defines, backend);
+  final out =
+      Platform.environment['PERF_OUT'] ?? '${Directory.current.path}/perf';
+
+  final batteryStart = await adb.battery();
+  final result = await runWithRetry<int>(
+    launch: () async {
       await adb.clearLogcat();
-      return _drive(adb.device, label, out, defines, apk, backend);
+      return _drive(
+        adb.device,
+        label,
+        out,
+        defines,
+        apk,
+        backend,
+        noDds: semantics == SemanticsRun.pair,
+      );
     },
     foreignInstall: () async => hasForeignInstall(await adb.logcat(), kPackage),
   );
@@ -114,8 +158,7 @@ Future<void> _run(
   final file = File('$out/runs/$label/chat_perf_metrics.json');
   if (!file.existsSync()) {
     stderr.writeln('launch exited $code and wrote no metrics document');
-    exitCode = code == 0 ? 1 : code;
-    return;
+    return code == 0 ? 1 : code;
   }
 
   // The app cannot read what only the host sees; fill it in.
@@ -139,10 +182,10 @@ Future<void> _run(
     ..writeln()
     ..writeln('metrics: ${file.path}')
     ..writeln('frames:  $out/runs/$label/chat_perf_frames.json');
-  if (meta['semanticsMode'] == 'on') {
+  if (meta['semanticsMode'] == 'on' && semantics != SemanticsRun.on) {
     stdout.writeln('note: semantics were on during this launch.');
   }
-  exitCode = code;
+  return code;
 }
 
 const _target = 'integration_test/chat_perf/chat_perf_test.dart';
@@ -184,8 +227,9 @@ Future<int> _drive(
   String out,
   List<String> defines,
   String apk,
-  String backend,
-) async {
+  String backend, {
+  bool noDds = false,
+}) async {
   Directory('$out/runs/$label').createSync(recursive: true);
   final process = await Process.start(
     'flutter',
@@ -198,6 +242,8 @@ Future<int> _drive(
       '--target=$_target',
       for (final d in defines) '--dart-define=$d',
       if (backend == 'skia') '--no-enable-impeller',
+      // The timeline tracer (pair mode) connects to the VM service itself.
+      if (noDds) '--no-dds',
       '--use-application-binary=$apk',
     ],
     environment: {'PERF_LABEL': label, 'PERF_OUT': out},
