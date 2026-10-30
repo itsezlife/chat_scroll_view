@@ -4,6 +4,8 @@
 /// (spec 5).
 library;
 
+import 'corpus.dart' show BenchProfile;
+import 'gesture_driver.dart';
 import 'metrics.dart';
 
 /// What a scenario sees while it runs: the one way to measure.
@@ -78,6 +80,10 @@ abstract interface class ScenarioContext {
 
   /// Adds [metric] named [name] to the already measured window [window].
   void record(String window, String name, Metric metric);
+
+  /// Held-pointer gestures, the designated targets and the selection facade;
+  /// only on the bench host.
+  GestureDriver get gestures;
 }
 
 /// What a scenario runs on.
@@ -104,6 +110,7 @@ final class Scenario {
     this.floatingDayHeader = false,
     this.onlyOn,
     this.historyTiers = const [],
+    this.profile = BenchProfile.plain,
   });
 
   /// `<area>.<name>`, for example `scroll.drag_slow`.
@@ -148,6 +155,9 @@ final class Scenario {
   /// runs once at the launch's history. Scale scenarios ignore a semantics
   /// pair: they run semantics off.
   final List<int> historyTiers;
+
+  /// The corpus content profile the scenario mounts.
+  final BenchProfile profile;
 
   /// `id@version`, the key in a metrics document.
   String get key => '$id@$version';

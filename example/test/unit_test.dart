@@ -34,6 +34,8 @@ import 'chat_perf/runner_verdict_test.dart' as chat_perf_runner_verdict_test;
 import 'chat_perf/scale_test.dart' as chat_perf_scale_test;
 import 'chat_perf/scroll_scenarios_test.dart'
     as chat_perf_scroll_scenarios_test;
+import 'chat_perf/selection_scenarios_test.dart'
+    as chat_perf_selection_scenarios_test;
 import 'chat_perf/semantics_test.dart' as chat_perf_semantics_test;
 import 'chat_perf/table_test.dart' as chat_perf_table_test;
 import 'chat_viewport_insets_test.dart' as chat_viewport_insets_test;
@@ -173,6 +175,10 @@ void main() {
   group(
     'chat_perf/scroll_scenarios_test.dart',
     chat_perf_scroll_scenarios_test.main,
+  );
+  group(
+    'chat_perf/selection_scenarios_test.dart',
+    chat_perf_selection_scenarios_test.main,
   );
   group('chat_perf/scale_test.dart', chat_perf_scale_test.main);
   group('chat_perf/semantics_test.dart', chat_perf_semantics_test.main);

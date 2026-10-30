@@ -18,6 +18,7 @@ import 'scenario_mounts.dart';
 import 'scenarios/ime_scenarios.dart';
 import 'scenarios/keyboard_scenarios.dart';
 import 'scenarios/scroll_scenarios.dart';
+import 'scenarios/selection_scenarios.dart';
 import 'semantics.dart';
 
 /// On-device chat viewport performance suite entry point (profile mode).
@@ -48,6 +49,7 @@ final allScenarios = ScenarioRegistry([
   ...scrollScenarios.all,
   ...keyboardScenarios.all,
   ...imeScenarios.all,
+  ...selectionScenarios.all,
 ]);
 
 Future<(PerfHost, DeviceContext)> _mountPlain(
@@ -57,7 +59,7 @@ Future<(PerfHost, DeviceContext)> _mountPlain(
   final host = switch (scenario.subject) {
     ScenarioSubject.bench => await BenchHost.mount(
       tester,
-      const BenchCorpus(count: _history),
+      BenchCorpus(count: _history, profile: scenario.profile),
       floatingDayHeader: scenario.floatingDayHeader,
     ),
     ScenarioSubject.realChat => await RealChatHost.mount(tester, _history),

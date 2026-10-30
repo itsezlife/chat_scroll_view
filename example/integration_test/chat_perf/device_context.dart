@@ -10,6 +10,9 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../panel_perf/frame_metrics.dart';
+import 'bench_host.dart';
+import 'device_gestures.dart';
+import 'gesture_driver.dart';
 import 'metrics.dart';
 import 'perf_host.dart';
 import 'registry.dart';
@@ -30,6 +33,12 @@ base class DeviceContext implements ScenarioContext {
 
   /// Window name -> per-frame rows.
   final frames = <String, List<FrameRow>>{};
+
+  @override
+  late final GestureDriver gestures = switch (host) {
+    final BenchHost bench => DeviceGestures(bench, windows),
+    _ => throw StateError('${scenario.key}: gestures need the bench host'),
+  };
 
   WidgetTester get _tester => host.tester;
 
