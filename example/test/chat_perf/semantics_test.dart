@@ -80,6 +80,7 @@ void main() {
         semanticsMode: 'off',
         semanticsRequested: 'pair',
         corpusVersion: 1,
+        buildMode: 'profile',
       ),
       scenarios: {
         's.a@1': {
@@ -109,6 +110,7 @@ void main() {
       semanticsMode: 'on',
       semanticsRequested: 'on',
       corpusVersion: 1,
+      buildMode: 'profile',
     ).toJson();
     expect(LaunchMeta.fromJson(json).semanticsRequested, 'on');
     json.remove('semanticsRequested');

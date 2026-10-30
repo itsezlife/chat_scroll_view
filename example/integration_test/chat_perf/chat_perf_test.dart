@@ -5,9 +5,12 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'bench_host.dart';
 import 'corpus.dart';
 import 'device_context.dart';
 import 'metrics.dart';
+import 'perf_host.dart';
+import 'real_chat_host.dart';
 import 'registry.dart';
 import 'report_document.dart';
 import 'scenario_mounts.dart';
@@ -44,6 +47,21 @@ final allScenarios = ScenarioRegistry([
   ...keyboardScenarios.all,
 ]);
 
+Future<(PerfHost, DeviceContext)> _mountPlain(
+  WidgetTester tester,
+  Scenario scenario,
+) async {
+  final host = switch (scenario.subject) {
+    ScenarioSubject.bench => await BenchHost.mount(
+      tester,
+      const BenchCorpus(count: _history),
+      floatingDayHeader: scenario.floatingDayHeader,
+    ),
+    ScenarioSubject.realChat => await RealChatHost.mount(tester, _history),
+  };
+  return (host, DeviceContext(host, scenario));
+}
+
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized()
     ..framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
@@ -73,12 +91,13 @@ void main() {
           firstPassSemantics = measured ? 'on' : 'off';
         }
         expect(measured, on, reason: 'semantics mode is not what was asked');
-        final mounted = await mountScenario(
-          tester,
-          scenario,
-          history: _history,
-        );
-        final ctx = mounted.ctx;
+        final (host, ctx) = isKeyboardScenario(scenario)
+            ? await mountKeyboardScenario(
+                tester,
+                scenario,
+                history: _history,
+              ).then((m) => (m.host, m.ctx))
+            : await _mountPlain(tester, scenario);
         if (run == SemanticsRun.pair && recorded) {
           // Traced, so the timeline shows whether semantics work ran.
           final key =
@@ -99,7 +118,7 @@ void main() {
         } else {
           await scenario.run(ctx);
         }
-        await mounted.dispose();
+        await host.dispose();
         handle?.dispose();
         if (recorded) byPass[on] = ctx;
       }
@@ -136,6 +155,11 @@ void main() {
       semanticsMode: firstPassSemantics,
       semanticsRequested: run.name,
       corpusVersion: kCorpusVersion,
+      buildMode: kProfileMode
+          ? 'profile'
+          : kReleaseMode
+          ? 'release'
+          : 'debug',
     );
     binding.reportData = {
       ...?binding.reportData,

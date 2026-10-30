@@ -1,43 +1,34 @@
-/// Which host a scenario runs on, and how it is mounted and torn down.
+/// How a scenario's host is mounted: the keyboard family needs the real chat
+/// screen over a synthetic keyboard, every other scenario a plain host.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'bench_host.dart';
-import 'chat_screen_host.dart';
-import 'corpus.dart';
 import 'device_context.dart';
 import 'keyboard_device_context.dart';
 import 'keyboard_ramp.dart';
+import 'perf_host.dart';
 import 'registry.dart';
 import 'scenarios/keyboard_scenarios.dart';
 
-/// A mounted scenario: its context and the teardown that follows it.
-typedef MountedScenario = ({
-  DeviceContext ctx,
-  Future<void> Function() dispose,
-});
+/// A mounted scenario: its host and its context.
+typedef MountedScenario = ({PerfHost host, DeviceContext ctx});
 
-/// Mounts [scenario] on its own host: the keyboard family on the real chat
-/// screen, every other on the bench host over [history] messages.
-Future<MountedScenario> mountScenario(
+/// Whether [scenario] belongs to the keyboard family.
+bool isKeyboardScenario(Scenario scenario) =>
+    keyboardScenarios.all.any((s) => s.id == scenario.id);
+
+/// Mounts the keyboard-family [scenario] on the real chat screen.
+Future<MountedScenario> mountKeyboardScenario(
   WidgetTester tester,
   Scenario scenario, {
   required int history,
 }) async {
-  if (keyboardScenarios.all.any((s) => s.id == scenario.id)) {
-    final screen = await ChatScreenHost.mount(tester, history);
-    final reached = await screen.insetOverrideReachesPad();
-    return (
-      ctx: DeviceKeyboardContext(
-        screen,
-        scenario,
-        InsetCurveProfile.androidRamp,
-        overrideReachedPad: reached,
-      ),
-      dispose: screen.dispose,
-    );
-  }
-  final host = await BenchHost.mount(tester, BenchCorpus(count: history));
-  return (ctx: DeviceContext(host, scenario), dispose: host.dispose);
+  final (host, ctx) = await DeviceKeyboardContext.mount(
+    tester,
+    scenario,
+    InsetCurveProfile.androidRamp,
+    history: history,
+  );
+  return (host: host, ctx: ctx);
 }

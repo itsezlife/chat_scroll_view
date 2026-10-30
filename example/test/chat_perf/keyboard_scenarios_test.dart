@@ -39,10 +39,14 @@ final class _RecordingContext implements KeyboardContext {
   }
 
   @override
-  Future<void> fling() async => _log('fling');
+  Future<void> fling(double dy, Duration duration) async => _log('fling');
 
   @override
-  Future<void> hold(Duration duration) async => _log('hold');
+  Future<void> idle(Duration duration) async => _log('hold');
+
+  // Only the calls a keyboard scenario makes are implemented.
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 
   @override
   Future<void> handOffToPanel(InsetCurve curve) async => _log('handoff');
@@ -167,6 +171,9 @@ void main() {
 }
 
 final class _PlainContext implements ScenarioContext {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
   @override
   Future<void> drag(double dy, Duration duration) async {}
 

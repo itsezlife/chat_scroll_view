@@ -8,6 +8,10 @@ library;
 import '../keyboard_ramp.dart';
 import '../registry.dart';
 
+/// The probe's 6.7k px/s fling: 600 dp of finger travel in 90 ms, downward.
+const _flingDy = 600.0;
+const _flingTime = Duration(milliseconds: 90);
+
 /// Where in the history a scenario starts.
 enum KeyboardSeat {
   /// At the newest message.
@@ -26,12 +30,6 @@ abstract interface class KeyboardContext implements ScenarioContext {
   /// one value per frame, in real time. Inside a window the per-frame trace
   /// is kept and its ramp metrics join the window's.
   Future<void> ramp(InsetCurve curve);
-
-  /// A paced fling that ends at the release; the scroll carries on.
-  Future<void> fling();
-
-  /// Pumps frames for [duration] in real time.
-  Future<void> hold(Duration duration);
 
   /// Taps the composer's panel toggle, so the panel takes the keyboard's slot,
   /// and runs the closing [curve] beside it (the keyboard-to-panel hand-off).
@@ -57,6 +55,7 @@ ScenarioRegistry buildKeyboardScenarios(InsetCurveProfile profile) {
     id: id,
     version: 1,
     windows: [window],
+    subject: ScenarioSubject.realChat,
     run: (ctx) async {
       if (ctx case final KeyboardContext kbd) return body(kbd);
       throw StateError('$id needs a KeyboardContext, got ${ctx.runtimeType}');
@@ -106,14 +105,14 @@ ScenarioRegistry buildKeyboardScenarios(InsetCurveProfile profile) {
     scenario('kbd.synthetic_open_mid_fling', 'open', (ctx) async {
       await ctx.seat(KeyboardSeat.midHistory);
       await ctx.measure('open', primer: () => primer(ctx), () async {
-        await ctx.fling();
+        await ctx.fling(_flingDy, _flingTime);
         await ctx.ramp(profile.open);
       });
       // The same fling, held as long, with no inset change.
       await ctx.control(() async {
         await ctx.seat(KeyboardSeat.midHistory);
-        await ctx.fling();
-        await ctx.hold(Duration(milliseconds: profile.open.durationMs.ceil()));
+        await ctx.fling(_flingDy, _flingTime);
+        await ctx.idle(Duration(milliseconds: profile.open.durationMs.ceil()));
       });
     }),
     scenario('kbd.synthetic_handoff', 'handoff', (ctx) async {

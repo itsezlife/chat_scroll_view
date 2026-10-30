@@ -2,29 +2,74 @@
 /// chat screen and samples the ramp every frame.
 library;
 
+import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'chat_screen_host.dart';
 import 'device_context.dart';
 import 'keyboard_ramp.dart';
 import 'metrics.dart';
+import 'real_chat_host.dart';
 import 'registry.dart';
 import 'scenarios/keyboard_scenarios.dart';
+import 'synthetic_soft_keyboard.dart';
 
 final class DeviceKeyboardContext extends DeviceContext
     implements KeyboardContext {
   DeviceKeyboardContext(
-    this.screen,
+    RealChatHost screen,
+    this.keyboard,
     Scenario scenario,
     this.profile, {
     required this.overrideReachedPad,
-  }) : super.over(screen.tester, screen.viewport, scenario) {
+  }) : _screen = screen,
+       super(screen, scenario) {
     screen.tester.binding.addPersistentFrameCallback(_onFrame);
+    _pad = screen.pad;
+    _controller = screen.controller;
   }
 
-  final ChatScreenHost screen;
+  /// Mounts the chat on a synthetic keyboard and checks whether a `viewInsets`
+  /// override alone reaches the host's pad.
+  static Future<(RealChatHost, DeviceKeyboardContext)> mount(
+    WidgetTester tester,
+    Scenario scenario,
+    InsetCurveProfile profile, {
+    required int history,
+  }) async {
+    final keyboard = SyntheticSoftKeyboard();
+    final screen = await RealChatHost.mount(
+      tester,
+      history,
+      softKeyboard: keyboard,
+    );
+    // The host reads its keyboard from the port, so this is expected to be
+    // false; it is measured, not assumed.
+    await tester.pump(const Duration(milliseconds: 100));
+    final before = screen.pad.value;
+    tester.view.viewInsets = const FakeViewPadding(bottom: 800);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+    final reached = (screen.pad.value - before).abs() > 1;
+    tester.view.resetViewInsets();
+    await tester.pump(const Duration(milliseconds: 300));
+    return (
+      screen,
+      DeviceKeyboardContext(
+        screen,
+        keyboard,
+        scenario,
+        profile,
+        overrideReachedPad: reached,
+      ),
+    );
+  }
+
+  final RealChatHost _screen;
+  late final ValueListenable<double> _pad;
+  late final ChatScrollController _controller;
+  final SyntheticSoftKeyboard keyboard;
   final InsetCurveProfile profile;
 
   /// Whether a `viewInsets` override alone moved the host's pad (recorded on
@@ -39,16 +84,16 @@ final class DeviceKeyboardContext extends DeviceContext
   RampEnd? _windowEnd;
   String? _lastWindow;
 
-  WidgetTester get _t => screen.tester;
+  WidgetTester get _t => _screen.tester;
 
   double get _dpr => _t.view.devicePixelRatio;
 
   RampSample _read() => RampSample(
     tMs: _clock.elapsedMicroseconds / 1000,
-    insetPx: screen.keyboard.heightDp * _dpr,
-    padDp: screen.pad.value,
-    anchorId: screen.controller.anchorMessageId,
-    anchorOffsetDp: screen.controller.anchorPixelOffset,
+    insetPx: keyboard.heightDp * _dpr,
+    padDp: _pad.value,
+    anchorId: _controller.anchorMessageId,
+    anchorOffsetDp: _controller.anchorPixelOffset,
   );
 
   // After the frame: the pad and the anchor are those the frame laid out.
@@ -57,9 +102,9 @@ final class DeviceKeyboardContext extends DeviceContext
   }
 
   RampEnd _end() => RampEnd(
-    anchorId: screen.controller.anchorMessageId,
-    anchorOffsetDp: screen.controller.anchorPixelOffset,
-    padDp: screen.pad.value,
+    anchorId: _controller.anchorMessageId,
+    anchorOffsetDp: _controller.anchorPixelOffset,
+    padDp: _pad.value,
   );
 
   @override
@@ -106,7 +151,7 @@ final class DeviceKeyboardContext extends DeviceContext
     final name = _lastWindow!;
     final withRamp = _windowEnd!;
     // The previous run left the keyboard up; the control starts from rest.
-    screen.keyboard.rest(0);
+    keyboard.rest(0);
     await body();
     await settle();
     windows[name]!.addAll(
@@ -116,17 +161,15 @@ final class DeviceKeyboardContext extends DeviceContext
 
   @override
   Future<void> seat(KeyboardSeat seat) async {
-    screen.keyboard.rest(0);
-    screen.controller.jumpTo(switch (seat) {
-      KeyboardSeat.tail => screen.history - 1,
-      KeyboardSeat.midHistory => screen.history ~/ 2,
-    });
-    await settle();
+    keyboard.rest(0);
+    await switch (seat) {
+      KeyboardSeat.tail => jumpToNewest(),
+      KeyboardSeat.midHistory => jumpTo(history ~/ 2),
+    };
   }
 
   @override
   Future<void> ramp(InsetCurve curve) async {
-    final keyboard = screen.keyboard;
     if (_sampling) {
       _rampMs += curve.durationMs;
       // The frame before the first write is the trace's origin.
@@ -144,21 +187,9 @@ final class DeviceKeyboardContext extends DeviceContext
   }
 
   @override
-  Future<void> fling() async {
+  Future<void> fling(double dy, Duration duration) {
     _moving = true;
-    await _t.timedDrag(
-      screen.viewport,
-      const Offset(0, 600),
-      const Duration(milliseconds: 90),
-    );
-  }
-
-  @override
-  Future<void> hold(Duration duration) async {
-    final clock = Stopwatch()..start();
-    while (clock.elapsed < duration) {
-      await _t.pump();
-    }
+    return super.fling(dy, duration);
   }
 
   @override
