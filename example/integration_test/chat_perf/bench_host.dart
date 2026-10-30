@@ -8,28 +8,17 @@ library;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'bench_setup.dart';
 import 'churn.dart';
 import 'corpus.dart';
+import 'corpus_rich.dart';
 import 'perf_host.dart';
 
-/// Fixed bubble: one rounded rectangle and one paragraph, nothing else, in a
-/// probe wrapper that lets the host read its geometry and count placeholders.
+/// Fixed bubble: one rounded rectangle and one paragraph, nothing else.
 Widget benchBubble(
-  BuildContext context,
-  int id,
-  IChatMessage? message,
-  ChatMessageStatus status,
-  MessageRunLayout runLayout,
-) => _ProbedRow(
-  id: id,
-  placeholder: message == null,
-  child: _bubbleBody(context, id, message, status, runLayout),
-);
-
-Widget _bubbleBody(
   BuildContext context,
   int id,
   IChatMessage? message,
@@ -59,6 +48,78 @@ Widget _bubbleBody(
     );
   }
   return const SizedBox(height: 60);
+}
+
+/// The inline separator and floating date pill of the bench host.
+Widget _datePill(BuildContext context, Object bucket, DateTime date) => Center(
+  child: Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF455A64),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Text(
+          '${date.year}-${date.month}-${date.day}',
+          style: const TextStyle(fontSize: 12, color: Color(0xFFFFFFFF)),
+        ),
+      ),
+    ),
+  ),
+);
+
+/// Registers [markdown] for [messageId] with [selection] while mounted and
+/// draws it with the viewport's markdown body, so the per-body scope owns the
+/// continuous press.
+class _BenchMarkdownBody extends StatefulWidget {
+  const _BenchMarkdownBody({
+    required this.selection,
+    required this.messageId,
+    required this.markdown,
+  });
+
+  final ChatSelectionController selection;
+  final int messageId;
+  final Markdown markdown;
+
+  @override
+  State<_BenchMarkdownBody> createState() => _BenchMarkdownBodyState();
+}
+
+class _BenchMarkdownBodyState extends State<_BenchMarkdownBody> {
+  Object? _token;
+
+  @override
+  void initState() {
+    super.initState();
+    if (ChatMarkdownBodyRegistration.allows(context)) {
+      _token = widget.selection.putBody(
+        widget.messageId,
+        widget.markdown,
+        order: widget.messageId,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_token != null) {
+      widget.selection.removeBody(widget.messageId, token: _token);
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => DefaultTextStyle.merge(
+    style: const TextStyle(fontSize: 15, height: 1.4, color: Color(0xFF1A1A1A)),
+    child: ChatMarkdownBody(
+      controller: widget.selection,
+      messageId: widget.messageId,
+      markdown: widget.markdown,
+    ),
+  );
 }
 
 /// Live rows, read by the host after each frame.
@@ -147,36 +208,20 @@ class _ProbedRowState extends State<_ProbedRow> {
   Widget build(BuildContext context) => widget.child;
 }
 
-/// The inline separator and floating date pill of the bench host.
-Widget _datePill(BuildContext context, Object bucket, DateTime date) => Center(
-  child: Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF455A64),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Text(
-          '${date.year}-${date.month}-${date.day}',
-          style: const TextStyle(fontSize: 12, color: Color(0xFFFFFFFF)),
-        ),
-      ),
-    ),
-  ),
-);
-
 /// A mounted viewport over a seeded corpus.
 final class BenchHost implements PerfHost, ChurnHost {
   BenchHost._(
     this.tester,
     this.source,
     this.controller,
+    this.selection,
     this.probe,
     this.unread,
     this.viewportKey,
-  );
+  ) {
+    selection.addInteractionListener(interactions.add);
+    SchedulerBinding.instance.addPersistentFrameCallback((_) => frameCount++);
+  }
 
   /// Mounts a fresh host over [corpus], at the newest message.
   static Future<BenchHost> mount(
@@ -186,40 +231,63 @@ final class BenchHost implements PerfHost, ChurnHost {
     bool floatingDayHeader = false,
   }) async {
     final source = BenchDataSource(corpus, setup: setup);
-    final controller = ChatScrollController();
     final unread = ValueNotifier<int?>(null);
     final viewportKey = GlobalKey();
     final probe = _probe = BenchProbe();
     probe.sinceMount.start();
+    final controller = ChatScrollController();
+    // The mobile policy is explicit: it is what the Android reference device
+    // defaults to, and a desktop dev run measures the same path.
+    final selection = ChatSelectionController(
+      policy: const ChatSelectionPolicy.mobile(),
+      // The host owns the clipboard: a code tap reports `ChatCodeActivated`.
+      copyCodeOnClick: false,
+    );
+    final host = BenchHost._(
+      tester,
+      source,
+      controller,
+      selection,
+      probe,
+      unread,
+      viewportKey,
+    );
     await tester.pumpWidget(
       MaterialApp(
         debugShowCheckedModeBanner: false,
         home: Scaffold(
-          body: ChatScrollView(
-            key: viewportKey,
-            reverse: true,
-            dataSource: source,
-            controller: controller,
-            isSelfMessage: (m) => m.sender == kBenchSelf,
-            messageBuilder: benchBubble,
-            unreadBoundary: unread,
-            unreadSeparatorBuilder: (_) => const SizedBox(
-              height: 28,
-              child: Center(child: Text('Unread messages')),
-            ),
-            scrollActivityTiming: floatingDayHeader
-                ? const ChatScrollActivityTiming()
-                : null,
-            dayHeaderDelegate: floatingDayHeader
-                ? const ChatPushingDayHeader()
-                : const ChatFadingDayHeader(),
-            dateSeparatorBuilder: floatingDayHeader ? _datePill : null,
+          body: Builder(
+            builder: (context) {
+              host._menuContext = context;
+              return ChatScrollView(
+                key: viewportKey,
+                reverse: true,
+                dataSource: source,
+                controller: controller,
+                selectionController: selection,
+                onIdleMessageTap: host._onIdleTap,
+                isSelfMessage: (m) => m.sender == kBenchSelf,
+                messageBuilder: host._buildMessage,
+                unreadBoundary: unread,
+                unreadSeparatorBuilder: (_) => const SizedBox(
+                  height: 28,
+                  child: Center(child: Text('Unread messages')),
+                ),
+                scrollActivityTiming: floatingDayHeader
+                    ? const ChatScrollActivityTiming()
+                    : null,
+                dayHeaderDelegate: floatingDayHeader
+                    ? const ChatPushingDayHeader()
+                    : const ChatFadingDayHeader(),
+                dateSeparatorBuilder: floatingDayHeader ? _datePill : null,
+              );
+            },
           ),
         ),
       ),
     );
     await tester.pump(const Duration(milliseconds: 500));
-    return BenchHost._(tester, source, controller, probe, unread, viewportKey);
+    return host;
   }
 
   @override
@@ -227,9 +295,123 @@ final class BenchHost implements PerfHost, ChurnHost {
   final BenchDataSource source;
   @override
   final ChatScrollController controller;
+  final ChatSelectionController selection;
   final BenchProbe probe;
   final ValueNotifier<int?> unread;
   final GlobalKey viewportKey;
+
+  /// Interactions the selection facade reported, in order.
+  final interactions = <ChatSelectionInteraction>[];
+
+  /// Keys of the designated targets' bubbles and markdown bodies.
+  final Map<BenchTarget, GlobalKey> rowKeys = {
+    for (final t in BenchTarget.values) t: GlobalKey(debugLabel: 'row $t'),
+  };
+  final Map<BenchTarget, GlobalKey> bodyKeys = {
+    for (final t in BenchTarget.values) t: GlobalKey(debugLabel: 'body $t'),
+  };
+
+  final _markdowns = <int, Markdown>{};
+  final clock = Stopwatch()..start();
+  late BuildContext _menuContext;
+
+  /// When the last idle message tap request arrived, on [clock].
+  Duration? lastMenuRequestAt;
+  bool menuOpen = false;
+
+  /// Pointer-up to the idle tap request of the last menu presented.
+  Duration? menuRequestLatency;
+
+  /// Frames drawn since the host mounted.
+  int frameCount = 0;
+
+  /// When the last pointer lifted, on [clock].
+  Duration? lastPointerUpAt;
+
+  void _onIdleTap(ChatMessageMenuRequest request) {
+    lastMenuRequestAt = clock.elapsed;
+    if (lastPointerUpAt case final up?) menuRequestLatency = clock.elapsed - up;
+    menuOpen = true;
+    ChatMessageMenu.show(
+      context: _menuContext,
+      messageRect: request.slotGlobal,
+      tapGlobal: request.tapGlobal,
+      surfaceRect: request.surfaceGlobal,
+      surfaceShape: request.surfaceShape,
+      visibleRect: request.bandGlobal,
+      selectionPolicy: const ChatSelectionPolicy.mobile(),
+      items: const [
+        ChatMessageMenuItem(id: 'reply', label: 'Reply', icon: Icons.reply),
+        ChatMessageMenuItem(id: 'copy', label: 'Copy', icon: Icons.copy),
+        ChatMessageMenuItem(
+          id: 'forward',
+          label: 'Forward',
+          icon: Icons.forward,
+        ),
+      ],
+    ).whenComplete(() => menuOpen = false);
+  }
+
+  Widget _buildMessage(
+    BuildContext context,
+    int id,
+    IChatMessage? message,
+    ChatMessageStatus status,
+    MessageRunLayout runLayout,
+  ) => _ProbedRow(
+    id: id,
+    placeholder: message == null,
+    child: _buildBody(context, id, message, status, runLayout),
+  );
+
+  Widget _buildBody(
+    BuildContext context,
+    int id,
+    IChatMessage? message,
+    ChatMessageStatus status,
+    MessageRunLayout runLayout,
+  ) {
+    if (message case BenchMessage(:final text, markdown: true)) {
+      final target = BenchTarget.values.where((t) => t.id == id).firstOrNull;
+      final markdown = _markdowns.putIfAbsent(
+        id,
+        () => Markdown.fromString(text),
+      );
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: DecoratedBox(
+          key: target == null ? null : rowKeys[target],
+          decoration: BoxDecoration(
+            color: id.isEven
+                ? const Color(0xFFE3F2FD)
+                : const Color(0xFFF5F5F5),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: KeyedSubtree(
+              key: target == null ? null : bodyKeys[target],
+              child: _BenchMarkdownBody(
+                selection: selection,
+                messageId: id,
+                markdown: markdown,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return benchBubble(context, id, message, status, runLayout);
+  }
+
+  /// The global rect of the render box under [key].
+  Rect rectOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.attached) {
+      throw StateError('target is not mounted: $key');
+    }
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
 
   @override
   double? get firstBuildMs => probe.firstBuildMs;
@@ -296,6 +478,7 @@ final class BenchHost implements PerfHost, ChurnHost {
   @override
   Future<void> dispose() async {
     await tester.pumpWidget(const SizedBox.shrink());
+    selection.dispose();
     controller.dispose();
     unread.dispose();
     source.dispose();

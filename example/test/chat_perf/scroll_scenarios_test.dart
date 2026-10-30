@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../integration_test/chat_perf/gesture_driver.dart';
 import '../../integration_test/chat_perf/metrics.dart';
 import '../../integration_test/chat_perf/registry.dart';
 import '../../integration_test/chat_perf/scenarios/scroll_scenarios.dart';
@@ -102,6 +103,9 @@ final class _RecordingContext implements ScenarioContext {
   @override
   void record(String window, String name, Metric metric) =>
       recorded['$window/$name'] = metric;
+
+  @override
+  GestureDriver get gestures => throw UnimplementedError();
 }
 
 void main() {

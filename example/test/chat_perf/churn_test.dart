@@ -97,7 +97,7 @@ final class _FakeContext extends Fake implements ChurnContext {
   Future<void> seatTail() async => churn.log.add('seat tail');
 
   @override
-  Future<void> seat(int id, {double alignment = 0.5}) async =>
+  Future<void> seatOn(int id, {double alignment = 0.5}) async =>
       churn.log.add('seat $id');
 
   @override

@@ -9,6 +9,7 @@ library;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 
 import 'bench_setup.dart';
+import 'corpus_rich.dart';
 
 /// Recorded in every report. Bump it, and the pinned literal in
 /// `test/chat_perf/corpus_test.dart`, whenever any message's content changes:
@@ -53,6 +54,7 @@ final class BenchMessage implements IChatMessage {
     required this.text,
     required this.createdAt,
     this.revision = 0,
+    this.markdown = false,
   });
 
   @override
@@ -68,6 +70,11 @@ final class BenchMessage implements IChatMessage {
   /// Edits so far; each one moves [updatedAt].
   final int revision;
 
+  /// Whether [text] is markdown source drawn by the viewport's markdown body
+  /// (the `rich` profile's designated messages and regions); false is plain
+  /// text.
+  final bool markdown;
+
   @override
   DateTime get updatedAt => createdAt.add(Duration(seconds: revision));
 
@@ -78,17 +85,31 @@ final class BenchMessage implements IChatMessage {
     text: text,
     createdAt: createdAt,
     revision: revision + 1,
+    markdown: markdown,
   );
 }
 
 /// Sender of the viewer's own messages.
 const String kBenchSelf = 'me';
 
+/// Which designated content a corpus carries.
+enum BenchProfile {
+  /// Plain text only.
+  plain,
+
+  /// Plain text, plus the designated targets, the markdown-heavy region and
+  /// the code-heavy region of `corpus_rich.dart`.
+  rich,
+}
+
 /// A history of [count] messages with ids `0..count-1`.
 final class BenchCorpus {
-  const BenchCorpus({required this.count});
+  const BenchCorpus({required this.count, this.profile = BenchProfile.plain});
 
   final int count;
+
+  /// The designated content layered over the plain generator.
+  final BenchProfile profile;
 
   static final _epoch = DateTime.utc(2026);
 
@@ -103,6 +124,7 @@ final class BenchCorpus {
       );
     }
     final roll = _mix(id, 1) % 100;
+    final rich = profile == BenchProfile.rich ? richTextOf(id) : null;
     final pool = roll < 30 ? _short : (roll < 80 ? _medium : _long);
     // Sender runs of one to four messages; one in three runs is the viewer's.
     final run = _mix(id ~/ 3, 2);
@@ -110,7 +132,8 @@ final class BenchCorpus {
     return BenchMessage(
       id: id,
       sender: sender,
-      text: pool[_mix(id, 3) % pool.length],
+      text: rich ?? pool[_mix(id, 3) % pool.length],
+      markdown: rich != null,
       // Twenty minutes apart: about 72 messages a day, so day boundaries recur.
       createdAt: _epoch.add(Duration(minutes: id * 20)),
     );

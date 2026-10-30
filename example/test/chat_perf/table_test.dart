@@ -16,6 +16,7 @@ void main() {
         refreshRateHz: 120,
         semanticsMode: 'off',
         corpusVersion: 1,
+        buildMode: 'profile',
       ),
       scenarios: {
         'scroll.drag_slow@1': {

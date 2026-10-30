@@ -58,17 +58,4 @@ int countSemanticsEvents(Map<String, Object?> timeline) {
 Map<String, Metric> semanticsRatio({
   required Map<String, Metric> off,
   required Map<String, Metric> on,
-}) {
-  final result = <String, Metric>{};
-  for (final name in _ratioMetrics) {
-    final a = off[name];
-    final b = on[name];
-    if (a == null || b == null || a.value == 0) continue;
-    result[name] = Metric(
-      b.value / a.value,
-      kind: MetricKind.ratio,
-      role: MetricRole.diagnostic,
-    );
-  }
-  return result;
-}
+}) => ratioMetrics(base: off, other: on, names: _ratioMetrics);

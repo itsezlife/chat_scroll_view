@@ -5,6 +5,7 @@ library;
 
 import '../registry.dart';
 import 'nav_scenarios.dart';
+import 'scale_scenarios.dart';
 import 'script_support.dart';
 
 const _fling = Duration(milliseconds: 90);
@@ -243,6 +244,7 @@ final scrollScenarios = ScenarioRegistry([
   _scrollbarDrag,
   _firstScroll,
   ...navScenarios,
+  ...scaleScenarios,
   _dragSlow('scroll.real.drag_slow', ScenarioSubject.realChat),
   _flingSingle('scroll.real.fling_single', ScenarioSubject.realChat),
   _flingBurst('scroll.real.fling_burst', ScenarioSubject.realChat),

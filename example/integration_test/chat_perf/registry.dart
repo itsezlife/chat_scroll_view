@@ -5,6 +5,8 @@
 library;
 
 import 'bench_setup.dart';
+import 'corpus.dart' show BenchProfile;
+import 'gesture_driver.dart';
 import 'metrics.dart';
 
 /// What a scenario sees while it runs: the one way to measure.
@@ -79,6 +81,10 @@ abstract interface class ScenarioContext {
 
   /// Adds [metric] named [name] to the already measured window [window].
   void record(String window, String name, Metric metric);
+
+  /// Held-pointer gestures, the designated targets and the selection facade;
+  /// only on the bench host.
+  GestureDriver get gestures;
 }
 
 /// What a scenario runs on.
@@ -104,6 +110,9 @@ final class Scenario {
     this.deterministic = false,
     this.subject = ScenarioSubject.bench,
     this.floatingDayHeader = false,
+    this.onlyOn,
+    this.historyTiers = const [],
+    this.profile = BenchProfile.plain,
   });
 
   /// `<area>.<name>`, for example `scroll.drag_slow`.
@@ -133,6 +142,27 @@ final class Scenario {
 
   /// Mounts the bench host with a floating day header (the date pill).
   final bool floatingDayHeader;
+
+  /// The one platform (`android`, `ios`) the scenario's gesture exists on; it
+  /// is registered everywhere and skipped elsewhere, with a reason. Null runs
+  /// everywhere.
+  final String? onlyOn;
+
+  /// Why the scenario is skipped on [platform], or null when it runs there.
+  String? skipReasonOn(String platform) => switch (onlyOn) {
+    final only? when only != platform =>
+      'runs on ${only == 'ios' ? 'iOS' : only} only; this run is on $platform',
+    _ => null,
+  };
+
+  /// History sizes the script runs at, one fresh host each, in order; the
+  /// first is the reference the others are reported against (spec 7.5). Empty
+  /// runs once at the launch's history. Scale scenarios ignore a semantics
+  /// pair: they run semantics off.
+  final List<int> historyTiers;
+
+  /// The corpus content profile the scenario mounts.
+  final BenchProfile profile;
 
   /// `id@version`, the key in a metrics document.
   String get key => '$id@$version';

@@ -12,13 +12,15 @@ import 'package:flutter_test/flutter_test.dart';
 import '../panel_perf/frame_metrics.dart';
 import 'bench_host.dart';
 import 'churn.dart';
+import 'device_gestures.dart';
+import 'gesture_driver.dart';
 import 'metrics.dart';
 import 'perf_host.dart';
 import 'registry.dart';
 import 'report_document.dart';
 
 /// Runs one scenario on [host] and collects its windows.
-final class DeviceContext implements ChurnContext {
+base class DeviceContext implements ChurnContext {
   DeviceContext(this.host, this.scenario);
 
   final PerfHost host;
@@ -39,6 +41,12 @@ final class DeviceContext implements ChurnContext {
   @override
   void report(String name, Map<String, Metric> metrics) =>
       (_extras[name] ??= {}).addAll(metrics);
+
+  @override
+  late final GestureDriver gestures = switch (host) {
+    final BenchHost bench => DeviceGestures(bench, windows),
+    _ => throw StateError('${scenario.key}: gestures need the bench host'),
+  };
 
   WidgetTester get _tester => host.tester;
 
@@ -80,10 +88,10 @@ final class DeviceContext implements ChurnContext {
   }
 
   @override
-  Future<void> seatTail() => seat(_bench.newestId, alignment: 1);
+  Future<void> seatTail() => seatOn(_bench.newestId, alignment: 1);
 
   @override
-  Future<void> seat(int id, {double alignment = 0.5}) async {
+  Future<void> seatOn(int id, {double alignment = 0.5}) async {
     host.controller.jumpTo(id, alignment: alignment);
     await settle();
     // Chunk fetches run on timers, outside the frame loop: wait for the

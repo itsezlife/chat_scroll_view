@@ -93,7 +93,7 @@ abstract interface class ChurnContext implements ScenarioContext {
   Future<void> seatTail();
 
   /// Seats the viewport on message [id] and waits until it is loaded and idle.
-  Future<void> seat(int id, {double alignment = 0.5});
+  Future<void> seatOn(int id, {double alignment = 0.5});
 
   /// Runs [schedule] with [preRoll] frames before and [postRoll] after, one
   /// pumped frame each, and returns the per-frame trace. A window that has not

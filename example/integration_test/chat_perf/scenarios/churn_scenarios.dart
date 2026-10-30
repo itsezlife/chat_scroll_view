@@ -88,7 +88,7 @@ final _sendAway = _churn(
   windows: const ['churn'],
   run: (ctx) async {
     final host = ctx.churn;
-    await ctx.seat(_awayId);
+    await ctx.seatOn(_awayId);
     var newest = 0;
     await _scheduled(
       ctx,
@@ -137,7 +137,7 @@ final _incomingWhileAway = _churn(
   deterministic: true,
   windows: const ['churn'],
   run: (ctx) async {
-    await ctx.seat(_awayId);
+    await ctx.seatOn(_awayId);
     await _scheduled(
       ctx,
       _burst(ctx.churn),
@@ -159,7 +159,7 @@ final _incomingWhileAwayFling = _churn(
   run: (ctx) async {
     final host = ctx.churn;
     Future<ChurnFrame> flung(String window, {ChurnFrame? control}) async {
-      await ctx.seat(_awayId);
+      await ctx.seatOn(_awayId);
       late ChurnFrame end;
       await ctx.measure(window, () async {
         final frames = await ctx.recordFrames(() async {
@@ -210,7 +210,7 @@ Scenario _editVisible(String state) => _churn(
   run: (ctx) async {
     final host = ctx.churn;
     if (state == 'away') {
-      await ctx.seat(_awayId);
+      await ctx.seatOn(_awayId);
     } else {
       await ctx.seatTail();
     }
@@ -241,7 +241,7 @@ final _deleteVisible = _churn(
   windows: const ['churn'],
   run: (ctx) async {
     final host = ctx.churn;
-    await ctx.seat(_awayId);
+    await ctx.seatOn(_awayId);
     await _scheduled(
       ctx,
       FrameSchedule()..atFrame(0, () {
@@ -264,7 +264,7 @@ final _deleteAnchor = _churn(
   windows: const ['churn'],
   run: (ctx) async {
     final host = ctx.churn;
-    await ctx.seat(_awayId);
+    await ctx.seatOn(_awayId);
     await _scheduled(
       ctx,
       FrameSchedule()..atFrame(0, () => host.remove(_awayId)),
@@ -286,7 +286,7 @@ final _deleteAnchorTall = _churn(
   run: (ctx) async {
     final host = ctx.churn;
     // Aligned to the top, so the tall body fills the viewport.
-    await ctx.seat(kTallMessageId, alignment: 0);
+    await ctx.seatOn(kTallMessageId, alignment: 0);
     await _scheduled(
       ctx,
       FrameSchedule()..atFrame(0, () => host.remove(kTallMessageId)),
@@ -303,7 +303,7 @@ final _chunkLoadUp = _churn(
   windows: const ['drag'],
   setup: const BenchSetup(latency: BenchLatency.network, lazy: true),
   run: (ctx) async {
-    await ctx.seat(_awayId);
+    await ctx.seatOn(_awayId);
     await ctx.measure('drag', () async {
       final frames = await ctx.recordFrames(() async {
         for (var i = 0; i < 8; i++) {
@@ -335,7 +335,7 @@ final _unreadBoundary = _churn(
   windows: const ['churn'],
   run: (ctx) async {
     final host = ctx.churn;
-    await ctx.seat(_awayId);
+    await ctx.seatOn(_awayId);
     final other = host.visibleNonAnchorId ?? _awayId - 1;
     await _scheduled(
       ctx,
