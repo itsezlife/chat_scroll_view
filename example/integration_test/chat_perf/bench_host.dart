@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'corpus.dart';
+import 'perf_host.dart';
 
 /// Fixed bubble: one rounded rectangle and one paragraph, nothing else.
 Widget benchBubble(
@@ -45,15 +46,36 @@ Widget benchBubble(
   return const SizedBox(height: 60);
 }
 
+/// The inline separator and floating date pill of the bench host.
+Widget _datePill(BuildContext context, Object bucket, DateTime date) => Center(
+  child: Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF455A64),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Text(
+          '${date.year}-${date.month}-${date.day}',
+          style: const TextStyle(fontSize: 12, color: Color(0xFFFFFFFF)),
+        ),
+      ),
+    ),
+  ),
+);
+
 /// A mounted viewport over a seeded corpus.
-final class BenchHost {
+final class BenchHost implements PerfHost {
   BenchHost._(this.tester, this.source, this.controller);
 
   /// Mounts a fresh host over [corpus], at the newest message.
   static Future<BenchHost> mount(
     WidgetTester tester,
-    BenchCorpus corpus,
-  ) async {
+    BenchCorpus corpus, {
+    bool floatingDayHeader = false,
+  }) async {
     final source = BenchDataSource(corpus);
     final controller = ChatScrollController();
     await tester.pumpWidget(
@@ -66,6 +88,13 @@ final class BenchHost {
             controller: controller,
             isSelfMessage: (m) => m.sender == kBenchSelf,
             messageBuilder: benchBubble,
+            scrollActivityTiming: floatingDayHeader
+                ? const ChatScrollActivityTiming()
+                : null,
+            dayHeaderDelegate: floatingDayHeader
+                ? const ChatPushingDayHeader()
+                : const ChatFadingDayHeader(),
+            dateSeparatorBuilder: floatingDayHeader ? _datePill : null,
           ),
         ),
       ),
@@ -74,15 +103,22 @@ final class BenchHost {
     return BenchHost._(tester, source, controller);
   }
 
+  @override
   final WidgetTester tester;
   final BenchDataSource source;
+  @override
   final ChatScrollController controller;
 
+  @override
+  int get history => source.corpus.count;
+
+  @override
   Finder get viewport => find.byType(ChatScrollView);
 
   /// Removes the viewport, releases its controller and returns the process to
   /// a comparable state, between scenarios: image caches cleared, memory
   /// pressure signalled (the engine drops its caches) and a GC settle awaited.
+  @override
   Future<void> dispose() async {
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();
