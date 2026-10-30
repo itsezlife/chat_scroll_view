@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../panel_perf/frame_metrics.dart';
@@ -34,6 +35,8 @@ final class DeviceContext implements ScenarioContext {
     final timings = <FrameTiming>[];
     void onTimings(List<FrameTiming> batch) => timings.addAll(batch);
     SchedulerBinding.instance.addTimingsCallback(onTimings);
+    // Measured from the binding at the start of the window, not assumed.
+    final semanticsOn = SemanticsBinding.instance.semanticsEnabled;
     await body();
     // Timings arrive in batches; give the last one time to land.
     await _tester.pump(const Duration(milliseconds: 1500));
@@ -51,6 +54,11 @@ final class DeviceContext implements ScenarioContext {
           totalMs: r.totalMs,
         ),
     ], refreshRateHz: _tester.view.display.refreshRate);
+    windows[name]!['semantics_on'] = Metric(
+      semanticsOn ? 1 : 0,
+      kind: MetricKind.count,
+      role: MetricRole.diagnostic,
+    );
     frames[name] = rows;
   }
 

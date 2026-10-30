@@ -6,6 +6,8 @@
 # Environment:
 #   SCENARIO  comma-separated globs over scenario ids (default: all)
 #   BACKEND   impeller (default) or skia; skia adds --no-enable-impeller
+#   SEMANTICS off (default, the shipping mode), on or pair (off and on in the
+#             same launch, with the on/off ratio)
 #   HISTORY   messages in the seeded history (default: the suite's 20000)
 #
 # The built APK is cached by a fingerprint of the suite's sources, the
@@ -22,6 +24,7 @@ shift 2
 backend="${BACKEND:-impeller}"
 defines=(--dart-define="CHAT_PERF_BACKEND=$backend")
 [[ -n "${SCENARIO:-}" ]] && defines+=(--dart-define="CHAT_PERF_SCENARIO=$SCENARIO")
+[[ -n "${SEMANTICS:-}" ]] && defines+=(--dart-define="CHAT_PERF_SEMANTICS=$SEMANTICS")
 [[ -n "${HISTORY:-}" ]] && defines+=(--dart-define="CHAT_PERF_HISTORY=$HISTORY")
 
 target=integration_test/chat_perf/chat_perf_test.dart
@@ -31,6 +34,8 @@ export PERF_OUT="${PERF_OUT:-$PWD/perf}"
 mkdir -p "$PERF_OUT/runs/$label"
 
 args=(--profile -d "$device" --driver="$driver" --target="$target" "${defines[@]}")
+# The timeline tracer (pair mode) connects to the VM service itself.
+[[ "${SEMANTICS:-}" == pair ]] && args+=(--no-dds)
 [[ "$backend" == skia ]] && args+=(--no-enable-impeller)
 
 platform="$(flutter devices --machine | python3 -c "

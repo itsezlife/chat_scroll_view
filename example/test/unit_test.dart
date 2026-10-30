@@ -23,6 +23,7 @@ import 'chat_perf/registry_test.dart' as chat_perf_registry_test;
 import 'chat_perf/report_document_test.dart' as chat_perf_report_document_test;
 import 'chat_perf/scroll_scenarios_test.dart'
     as chat_perf_scroll_scenarios_test;
+import 'chat_perf/semantics_test.dart' as chat_perf_semantics_test;
 import 'chat_perf/table_test.dart' as chat_perf_table_test;
 import 'chat_viewport_insets_test.dart' as chat_viewport_insets_test;
 import 'common/chat_message_markdown_test.dart' as chat_message_markdown_test;
@@ -143,6 +144,7 @@ void main() {
     'chat_perf/scroll_scenarios_test.dart',
     chat_perf_scroll_scenarios_test.main,
   );
+  group('chat_perf/semantics_test.dart', chat_perf_semantics_test.main);
   group('chat_perf/table_test.dart', chat_perf_table_test.main);
   group('chat_viewport_insets_test.dart', chat_viewport_insets_test.main);
   group(
