@@ -102,6 +102,7 @@ final class Scenario {
     this.deterministic = false,
     this.subject = ScenarioSubject.bench,
     this.floatingDayHeader = false,
+    this.onlyOn,
   });
 
   /// `<area>.<name>`, for example `scroll.drag_slow`.
@@ -128,6 +129,18 @@ final class Scenario {
 
   /// Mounts the bench host with a floating day header (the date pill).
   final bool floatingDayHeader;
+
+  /// The one platform (`android`, `ios`) the scenario's gesture exists on; it
+  /// is registered everywhere and skipped elsewhere, with a reason. Null runs
+  /// everywhere.
+  final String? onlyOn;
+
+  /// Why the scenario is skipped on [platform], or null when it runs there.
+  String? skipReasonOn(String platform) => switch (onlyOn) {
+    final only? when only != platform =>
+      'runs on ${only == 'ios' ? 'iOS' : only} only; this run is on $platform',
+    _ => null,
+  };
 
   /// `id@version`, the key in a metrics document.
   String get key => '$id@$version';

@@ -56,4 +56,16 @@ void main() {
   test('per-frame arrays are not part of the metrics document', () {
     expect(doc.toJson().containsKey('frames'), isFalse);
   });
+
+  test('a skipped scenario keeps its reason and round trips', () {
+    const withSkip = MetricsDocument(
+      meta: meta,
+      scenarios: {},
+      skipped: {'kbd.interactive_dismiss@1': 'runs on iOS only'},
+    );
+    final json = withSkip.toJson();
+    expect(json['skipped'], {'kbd.interactive_dismiss@1': 'runs on iOS only'});
+    expect(MetricsDocument.fromJson(json).skipped, withSkip.skipped);
+    expect(doc.toJson().containsKey('skipped'), isFalse);
+  });
 }

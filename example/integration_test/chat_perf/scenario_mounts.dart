@@ -5,10 +5,12 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'device_context.dart';
+import 'ime_device_context.dart';
 import 'keyboard_device_context.dart';
 import 'keyboard_ramp.dart';
 import 'perf_host.dart';
 import 'registry.dart';
+import 'scenarios/ime_scenarios.dart';
 import 'scenarios/keyboard_scenarios.dart';
 
 /// A mounted scenario: its host and its context.
@@ -16,7 +18,8 @@ typedef MountedScenario = ({PerfHost host, DeviceContext ctx});
 
 /// Whether [scenario] belongs to the keyboard family.
 bool isKeyboardScenario(Scenario scenario) =>
-    keyboardScenarios.all.any((s) => s.id == scenario.id);
+    keyboardScenarios.all.any((s) => s.id == scenario.id) ||
+    imeScenarios.all.any((s) => s.id == scenario.id);
 
 /// Mounts the keyboard-family [scenario] on the real chat screen.
 Future<MountedScenario> mountKeyboardScenario(
@@ -24,6 +27,16 @@ Future<MountedScenario> mountKeyboardScenario(
   Scenario scenario, {
   required int history,
 }) async {
+  // The real-IME twins run on the platform keyboard, the synthetic ones on a
+  // driven curve.
+  if (imeScenarios.all.any((s) => s.id == scenario.id)) {
+    final (host, ctx) = await DeviceImeContext.mount(
+      tester,
+      scenario,
+      history: history,
+    );
+    return (host: host, ctx: ctx);
+  }
   final (host, ctx) = await DeviceKeyboardContext.mount(
     tester,
     scenario,

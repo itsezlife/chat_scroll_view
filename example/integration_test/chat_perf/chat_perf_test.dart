@@ -14,6 +14,7 @@ import 'real_chat_host.dart';
 import 'registry.dart';
 import 'report_document.dart';
 import 'scenario_mounts.dart';
+import 'scenarios/ime_scenarios.dart';
 import 'scenarios/keyboard_scenarios.dart';
 import 'scenarios/scroll_scenarios.dart';
 import 'semantics.dart';
@@ -45,6 +46,7 @@ const kFramesKey = 'chat_perf_frames';
 final allScenarios = ScenarioRegistry([
   ...scrollScenarios.all,
   ...keyboardScenarios.all,
+  ...imeScenarios.all,
 ]);
 
 Future<(PerfHost, DeviceContext)> _mountPlain(
@@ -78,7 +80,13 @@ void main() {
 
     final scenarios = <String, Map<String, Map<String, Metric>>>{};
     final sidecar = <String, List<FrameRow>>{};
+    final skipped = <String, String>{};
     for (final scenario in selected) {
+      if (scenario.skipReasonOn(defaultTargetPlatform.name.toLowerCase())
+          case final reason?) {
+        skipped[scenario.key] = reason;
+        continue;
+      }
       final byPass = <bool, DeviceContext>{};
       // A pair starts with an unrecorded off pass: the first run in a process
       // pays one-time raster costs, which would otherwise land on `off` only.
@@ -163,7 +171,11 @@ void main() {
     );
     binding.reportData = {
       ...?binding.reportData,
-      kMetricsKey: MetricsDocument(meta: meta, scenarios: scenarios).toJson(),
+      kMetricsKey: MetricsDocument(
+        meta: meta,
+        scenarios: scenarios,
+        skipped: skipped,
+      ).toJson(),
       kFramesKey: FrameSidecar(sidecar).toJson(),
     };
     debugPrint(
