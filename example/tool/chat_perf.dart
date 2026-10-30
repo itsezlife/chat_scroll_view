@@ -30,7 +30,9 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import '../integration_test/chat_perf/registry.dart';
 import '../integration_test/chat_perf/report_document.dart';
+import '../integration_test/chat_perf/scenarios/keyboard_scenarios.dart';
 import '../integration_test/chat_perf/scenarios/scroll_scenarios.dart';
 import '../integration_test/chat_perf/semantics.dart';
 import '../integration_test/chat_perf/table.dart';
@@ -50,6 +52,11 @@ String get _out =>
     Platform.environment['PERF_OUT'] ?? '${Directory.current.path}/perf';
 
 typedef _Launch = ({String label, String filter, bool cold});
+
+final _all = ScenarioRegistry([
+  ...scrollScenarios.all,
+  ...keyboardScenarios.all,
+]);
 
 Future<void> main(List<String> args) async {
   if (args.isEmpty || !_modes.contains(args.first)) {
@@ -107,9 +114,9 @@ Future<void> main(List<String> args) async {
   // The shared-process set is one launch; each cold scenario gets its own
   // (spec 5), under `<round label>-<scenario id>`. A round is one of each.
   List<_Launch> launchesOf(String round) => [
-    if (scrollScenarios.where(filter).isNotEmpty)
+    if (_all.where(filter).isNotEmpty)
       (label: round, filter: filter, cold: false),
-    for (final s in scrollScenarios.where(filter, cold: true))
+    for (final s in _all.where(filter, cold: true))
       (label: '$round-${s.id}', filter: s.id, cold: true),
   ];
   if (launchesOf(label).isEmpty) {
