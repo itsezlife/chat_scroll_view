@@ -2,6 +2,8 @@
 /// frame capture per measured window.
 library;
 
+import 'dart:ui';
+
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,6 +21,9 @@ final class DeviceContext implements ScenarioContext {
   final BenchHost host;
   final Scenario scenario;
 
+  /// How long the first frames of a window last.
+  final double firstFramesSpanMs = kFirstFramesSpanMs;
+
   /// Window name -> metrics, in the order measured.
   final windows = <String, Map<String, Metric>>{};
 
@@ -28,10 +33,20 @@ final class DeviceContext implements ScenarioContext {
   WidgetTester get _tester => host.tester;
 
   @override
-  Future<void> measure(String name, Future<void> Function() body) async {
+  Future<void> measure(
+    String name,
+    Future<void> Function() body, {
+    Future<void> Function()? primer,
+  }) async {
     if (!scenario.windows.contains(name)) {
       throw StateError('${scenario.key} did not declare window "$name"');
     }
+    if (primer != null) {
+      await settle();
+      await primer();
+    }
+    // Idle before the window, so no primer or mount frame leaks into it.
+    await settle();
     final timings = <FrameTiming>[];
     void onTimings(List<FrameTiming> batch) => timings.addAll(batch);
     SchedulerBinding.instance.addTimingsCallback(onTimings);
@@ -46,19 +61,31 @@ final class DeviceContext implements ScenarioContext {
       for (final t in timings)
         FrameRow(_ms(t.buildDuration), _ms(t.rasterDuration), _ms(t.totalSpan)),
     ];
-    windows[name] = headlineMetrics([
+    final samples = [
       for (final r in rows)
         FrameSample(
           buildMs: r.buildMs,
           rasterMs: r.rasterMs,
           totalMs: r.totalMs,
         ),
-    ], refreshRateHz: _tester.view.display.refreshRate);
-    windows[name]!['semantics_on'] = Metric(
-      semanticsOn ? 1 : 0,
-      kind: MetricKind.count,
-      role: MetricRole.diagnostic,
-    );
+    ];
+    final (first, steady) = splitFirstFrames(samples, [
+      for (final t in timings)
+        t.timestampInMicroseconds(FramePhase.vsyncStart) / 1000,
+    ], spanMs: firstFramesSpanMs);
+    windows[name] = {
+      ...windowMetrics(
+        first,
+        steady,
+        refreshRateHz: _tester.view.display.refreshRate,
+        cold: scenario.cold,
+      ),
+      'semantics_on': Metric(
+        semanticsOn ? 1 : 0,
+        kind: MetricKind.count,
+        role: MetricRole.diagnostic,
+      ),
+    };
     frames[name] = rows;
   }
 

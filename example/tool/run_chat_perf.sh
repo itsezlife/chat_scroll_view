@@ -5,6 +5,8 @@
 #
 # Environment:
 #   SCENARIO  comma-separated globs over scenario ids (default: all)
+#   COLD      true runs only the cold scenarios (one launch each); default
+#             false runs the shared-process set
 #   BACKEND   impeller (default) or skia; skia adds --no-enable-impeller
 #   SEMANTICS off (default, the shipping mode), on or pair (off and on in the
 #             same launch, with the on/off ratio)
@@ -24,6 +26,7 @@ shift 2
 backend="${BACKEND:-impeller}"
 defines=(--dart-define="CHAT_PERF_BACKEND=$backend")
 [[ -n "${SCENARIO:-}" ]] && defines+=(--dart-define="CHAT_PERF_SCENARIO=$SCENARIO")
+[[ "${COLD:-false}" == true ]] && defines+=(--dart-define="CHAT_PERF_COLD=true")
 [[ -n "${SEMANTICS:-}" ]] && defines+=(--dart-define="CHAT_PERF_SEMANTICS=$SEMANTICS")
 [[ -n "${HISTORY:-}" ]] && defines+=(--dart-define="CHAT_PERF_HISTORY=$HISTORY")
 

@@ -12,6 +12,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../integration_test/chat_perf/report_document.dart';
+import '../integration_test/chat_perf/scenarios/scroll_scenarios.dart';
 import '../integration_test/chat_perf/semantics.dart';
 import '../integration_test/chat_perf/table.dart';
 
@@ -40,11 +41,41 @@ Future<void> main(List<String> args) async {
   final label =
       options['label'] ??
       'quick-${DateTime.now().toIso8601String().replaceAll(RegExp('[:.]'), '-')}';
+  final filter = options['scenario'] ?? '';
+
+  // The shared-process set is one launch; each cold scenario gets its own
+  // (spec 5), under `<label>-<scenario id>`.
+  final launches = <({String label, String filter, bool cold})>[
+    if (scrollScenarios.where(filter).isNotEmpty)
+      (label: label, filter: filter, cold: false),
+    for (final s in scrollScenarios.where(filter, cold: true))
+      (label: '$label-${s.id}', filter: s.id, cold: true),
+  ];
+  if (launches.isEmpty) {
+    stderr.writeln('no scenario matches "$filter"');
+    exit(64);
+  }
+  var status = 0;
+  for (final launch in launches) {
+    final code = await _quickLaunch(device, options, semantics, launch);
+    if (code != 0) status = code;
+  }
+  exit(status);
+}
+
+Future<int> _quickLaunch(
+  String device,
+  Map<String, String> options,
+  SemanticsRun semantics,
+  ({String label, String filter, bool cold}) launch,
+) async {
+  final label = launch.label;
   final process = await Process.start(
     'tool/run_chat_perf.sh',
     [device, label],
     environment: {
-      'SCENARIO': ?options['scenario'],
+      if (launch.filter.isNotEmpty) 'SCENARIO': launch.filter,
+      'COLD': '${launch.cold}',
       'BACKEND': options['backend'] ?? 'impeller',
       'SEMANTICS': semantics.name,
     },
@@ -55,7 +86,7 @@ Future<void> main(List<String> args) async {
   final file = File('$out/runs/$label/chat_perf_metrics.json');
   if (!file.existsSync()) {
     stderr.writeln('launch exited $code and wrote no metrics document');
-    exit(code == 0 ? 1 : code);
+    return code == 0 ? 1 : code;
   }
 
   // The app cannot read its device model or the Flutter version; fill them in.
@@ -74,7 +105,7 @@ Future<void> main(List<String> args) async {
   if (meta['semanticsMode'] == 'on' && semantics != SemanticsRun.on) {
     stdout.writeln('note: semantics were on during this launch.');
   }
-  exit(code);
+  return code;
 }
 
 Map<String, String> _options(List<String> args) {

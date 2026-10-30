@@ -8,9 +8,16 @@ final class _RecordingContext implements ScenarioContext {
   double totalDragDp = 0;
   Duration totalDrag = Duration.zero;
   String? open;
+  bool primed = false;
 
   @override
-  Future<void> measure(String name, Future<void> Function() body) async {
+  Future<void> measure(
+    String name,
+    Future<void> Function() body, {
+    Future<void> Function()? primer,
+  }) async {
+    primed = primer != null;
+    if (primer != null) await primer();
     calls.add('begin $name');
     open = name;
     await body();
@@ -36,7 +43,7 @@ void main() {
       scrollScenarios.all.singleWhere((s) => s.id == 'scroll.drag_slow');
 
   test('scroll.drag_slow is registered with its declared window', () {
-    expect(slow().key, 'scroll.drag_slow@1');
+    expect(slow().key, 'scroll.drag_slow@2');
     expect(slow().windows, ['drag']);
   });
 
@@ -50,7 +57,8 @@ void main() {
           if (c.startsWith('begin ')) c.substring(6),
       ];
       expect(windows, slow().windows);
-      // The warm-up drag stays outside the window.
+      // The primer is a drag outside the window, handed to measure.
+      expect(ctx.primed, isTrue);
       expect(ctx.calls.first, 'drag outside');
       expect(ctx.totalDrag.inMilliseconds, inInclusiveRange(7500, 8500));
       // About 400 dp per 1.5 s.
@@ -60,4 +68,16 @@ void main() {
       );
     },
   );
+
+  test('scroll.first_scroll is a cold scenario without a primer', () async {
+    final s = scrollScenarios.all.singleWhere(
+      (s) => s.id == 'scroll.first_scroll',
+    );
+    expect(s.cold, isTrue);
+    expect(s.windows, ['first_scroll']);
+    final ctx = _RecordingContext();
+    await s.run(ctx);
+    expect(ctx.primed, isFalse);
+    expect(ctx.calls.first, 'begin first_scroll');
+  });
 }
