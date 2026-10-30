@@ -26,6 +26,7 @@ import 'chat_perf/runner_fingerprint_test.dart'
 import 'chat_perf/runner_gates_test.dart' as chat_perf_runner_gates_test;
 import 'chat_perf/runner_lock_retry_test.dart'
     as chat_perf_runner_lock_retry_test;
+import 'chat_perf/runner_verdict_test.dart' as chat_perf_runner_verdict_test;
 import 'chat_perf/scroll_scenarios_test.dart'
     as chat_perf_scroll_scenarios_test;
 import 'chat_perf/semantics_test.dart' as chat_perf_semantics_test;
@@ -153,6 +154,10 @@ void main() {
   group(
     'chat_perf/runner_lock_retry_test.dart',
     chat_perf_runner_lock_retry_test.main,
+  );
+  group(
+    'chat_perf/runner_verdict_test.dart',
+    chat_perf_runner_verdict_test.main,
   );
   group(
     'chat_perf/scroll_scenarios_test.dart',
