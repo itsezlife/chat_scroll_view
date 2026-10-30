@@ -12,6 +12,7 @@ import 'metrics.dart';
 import 'real_chat_host.dart';
 import 'registry.dart';
 import 'report_document.dart';
+import 'scale.dart';
 import 'scenarios/scroll_scenarios.dart';
 import 'semantics.dart';
 
@@ -55,6 +56,26 @@ void main() {
     final scenarios = <String, Map<String, Map<String, Metric>>>{};
     final sidecar = <String, List<FrameRow>>{};
     for (final scenario in selected) {
+      if (scenario.historyTiers.isNotEmpty) {
+        // One fresh host per tier; semantics off unless the launch asks `on`.
+        final byTier = <int, Map<String, Map<String, Metric>>>{};
+        for (final tier in scenario.historyTiers) {
+          final handle = run == SemanticsRun.on
+              ? tester.ensureSemantics()
+              : null;
+          final host = await BenchHost.mount(tester, BenchCorpus(count: tier));
+          final ctx = DeviceContext(host, scenario);
+          await scenario.run(ctx);
+          await host.dispose();
+          handle?.dispose();
+          byTier[tier] = ctx.windows;
+          for (final w in ctx.frames.entries) {
+            sidecar['${scenario.key}/${w.key}.${tierLabel(tier)}'] = w.value;
+          }
+        }
+        scenarios[scenario.key] = assembleTiers(byTier, scenario.windows);
+        continue;
+      }
       final byPass = <bool, DeviceContext>{};
       // A pair starts with an unrecorded off pass: the first run in a process
       // pays one-time raster costs, which would otherwise land on `off` only.
