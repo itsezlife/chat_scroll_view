@@ -75,6 +75,7 @@ void main() {
         backend: 'impeller',
         refreshRateHz: 120,
         semanticsMode: 'off',
+        buildMode: 'profile',
         corpusVersion: 1,
       ),
       scenarios: {

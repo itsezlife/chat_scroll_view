@@ -16,7 +16,7 @@ import 'registry.dart';
 import 'report_document.dart';
 
 /// Runs one scenario on [host] and collects its windows.
-final class DeviceContext implements ScenarioContext {
+base class DeviceContext implements ScenarioContext {
   DeviceContext(this.host, this.scenario);
 
   final PerfHost host;
