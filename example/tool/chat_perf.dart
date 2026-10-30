@@ -1,7 +1,7 @@
 /// Runner of the chat performance suite.
 ///
 ///   dart run tool/chat_perf.dart quick --device ID [--scenario GLOB,...]
-///       [--label NAME] [--backend impeller|skia]
+///       [--label NAME] [--backend impeller|skia] [--semantics off|on|pair]
 ///
 /// `quick` makes one launch of the timing pass, prints the headline table and
 /// writes `perf/runs/<label>/chat_perf_metrics.json` plus the per-frame
@@ -12,13 +12,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../integration_test/chat_perf/report_document.dart';
+import '../integration_test/chat_perf/semantics.dart';
 import '../integration_test/chat_perf/table.dart';
 
 Future<void> main(List<String> args) async {
   if (args.isEmpty || args.first != 'quick') {
     stderr.writeln(
       'usage: dart run tool/chat_perf.dart quick --device ID '
-      '[--scenario GLOB,...] [--label NAME] [--backend impeller|skia]',
+      '[--scenario GLOB,...] [--label NAME] [--backend impeller|skia] '
+      '[--semantics off|on|pair]',
     );
     exit(64);
   }
@@ -26,6 +28,13 @@ Future<void> main(List<String> args) async {
   final device = options['device'];
   if (device == null) {
     stderr.writeln('--device ID is required (see: flutter devices)');
+    exit(64);
+  }
+  final SemanticsRun semantics;
+  try {
+    semantics = SemanticsRun.parse(options['semantics'] ?? '');
+  } on FormatException catch (e) {
+    stderr.writeln('--semantics: ${e.message}');
     exit(64);
   }
   final label =
@@ -37,6 +46,7 @@ Future<void> main(List<String> args) async {
     environment: {
       'SCENARIO': ?options['scenario'],
       'BACKEND': options['backend'] ?? 'impeller',
+      'SEMANTICS': semantics.name,
     },
     mode: ProcessStartMode.inheritStdio,
   );
@@ -61,7 +71,7 @@ Future<void> main(List<String> args) async {
     ..writeln()
     ..writeln('metrics: ${file.path}')
     ..writeln('frames:  $out/runs/$label/chat_perf_frames.json');
-  if (meta['semanticsMode'] == 'on') {
+  if (meta['semanticsMode'] == 'on' && semantics != SemanticsRun.on) {
     stdout.writeln('note: semantics were on during this launch.');
   }
   exit(code);
