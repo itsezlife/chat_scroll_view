@@ -20,26 +20,41 @@ Future<void> _alternatingDrags(
 
 /// `scroll.drag_slow`: about 400 dp per 1.5 s, alternating, 8 s.
 ///
-/// Preceded by one unmeasured short drag so the first frames of the window are
-/// not the first frames of the process.
+/// Primed by one short, low-amplitude drag the context runs after an idle
+/// settle, outside the window.
 final _dragSlow = Scenario(
   id: 'scroll.drag_slow',
-  version: 1,
+  version: 2,
   windows: const ['drag'],
-  run: (ctx) async {
-    await ctx.drag(60, const Duration(milliseconds: 500));
-    await ctx.settle();
-    await ctx.measure('drag', () async {
-      await _alternatingDrags(
-        ctx,
-        dp: 400,
-        leg: const Duration(milliseconds: 1500),
-        total: const Duration(seconds: 8),
-      );
-    });
-    await ctx.settle();
-  },
+  run: (ctx) => ctx.measure(
+    'drag',
+    primer: () => ctx.drag(60, const Duration(milliseconds: 500)),
+    () => _alternatingDrags(
+      ctx,
+      dp: 400,
+      leg: const Duration(milliseconds: 1500),
+      total: const Duration(seconds: 8),
+    ),
+  ),
+);
+
+/// `scroll.first_scroll` (cold): the first drag after mount, 3 s at the same
+/// pace, with no primer. Its first frames are the headline.
+final _firstScroll = Scenario(
+  id: 'scroll.first_scroll',
+  version: 1,
+  windows: const ['first_scroll'],
+  cold: true,
+  run: (ctx) => ctx.measure(
+    'first_scroll',
+    () => _alternatingDrags(
+      ctx,
+      dp: 400,
+      leg: const Duration(milliseconds: 1500),
+      total: const Duration(seconds: 3),
+    ),
+  ),
 );
 
 /// The scroll family registered so far.
-final scrollScenarios = ScenarioRegistry([_dragSlow]);
+final scrollScenarios = ScenarioRegistry([_dragSlow, _firstScroll]);

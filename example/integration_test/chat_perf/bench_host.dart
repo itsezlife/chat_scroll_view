@@ -80,10 +80,27 @@ final class BenchHost {
 
   Finder get viewport => find.byType(ChatScrollView);
 
-  /// Removes the viewport and releases its controller, between scenarios.
+  /// Removes the viewport, releases its controller and returns the process to
+  /// a comparable state, between scenarios: image caches cleared, memory
+  /// pressure signalled (the engine drops its caches) and a GC settle awaited.
   Future<void> dispose() async {
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();
     source.dispose();
+    PaintingBinding.instance.imageCache
+      ..clear()
+      ..clearLiveImages();
+    PaintingBinding.instance.handleMemoryPressure();
+    await _gcSettle(tester);
+  }
+
+  /// Dart offers no forced collection: idle in real time with frames running
+  /// so the collector finishes before the next scenario's window.
+  static Future<void> _gcSettle(WidgetTester tester) async {
+    final end = DateTime.now().add(const Duration(seconds: 2));
+    while (DateTime.now().isBefore(end)) {
+      await tester.pump(const Duration(milliseconds: 50));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
   }
 }

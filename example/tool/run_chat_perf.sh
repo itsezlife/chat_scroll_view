@@ -5,6 +5,8 @@
 #
 # Environment:
 #   SCENARIO  comma-separated globs over scenario ids (default: all)
+#   COLD      true runs only the cold scenarios (one launch each); default
+#             false runs the shared-process set
 #   BACKEND   impeller (default) or skia; skia adds --no-enable-impeller
 #   HISTORY   messages in the seeded history (default: the suite's 20000)
 #
@@ -22,6 +24,7 @@ shift 2
 backend="${BACKEND:-impeller}"
 defines=(--dart-define="CHAT_PERF_BACKEND=$backend")
 [[ -n "${SCENARIO:-}" ]] && defines+=(--dart-define="CHAT_PERF_SCENARIO=$SCENARIO")
+[[ "${COLD:-false}" == true ]] && defines+=(--dart-define="CHAT_PERF_COLD=true")
 [[ -n "${HISTORY:-}" ]] && defines+=(--dart-define="CHAT_PERF_HISTORY=$HISTORY")
 
 target=integration_test/chat_perf/chat_perf_test.dart

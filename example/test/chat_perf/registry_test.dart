@@ -48,4 +48,22 @@ void main() {
   test('rejects a malformed id', () {
     expect(() => ScenarioRegistry([_s('nodot', 1)]), throwsArgumentError);
   });
+
+  test('cold scenarios are selected apart from the shared-process set', () {
+    Future<void> run(ScenarioContext c) async {}
+    final registry = ScenarioRegistry([
+      Scenario(id: 'a.warm', version: 1, windows: const ['w'], run: run),
+      Scenario(
+        id: 'a.cold',
+        version: 1,
+        windows: const ['w'],
+        cold: true,
+        run: run,
+      ),
+    ]);
+    expect(registry.where('').map((s) => s.id), ['a.warm']);
+    expect(registry.where('', cold: true).map((s) => s.id), ['a.cold']);
+    expect(registry.where('a.*').map((s) => s.id), ['a.warm']);
+    expect(registry.where('a.*', cold: true).map((s) => s.id), ['a.cold']);
+  });
 }

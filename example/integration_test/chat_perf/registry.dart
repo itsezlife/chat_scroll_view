@@ -8,7 +8,16 @@ library;
 abstract interface class ScenarioContext {
   /// Runs [body] as the measured window [name]. Setup, warm-up and settle sit
   /// outside any window. [name] must be one the scenario declared.
-  Future<void> measure(String name, Future<void> Function() body);
+  ///
+  /// With a [primer], the context first settles, runs it (a low-amplitude
+  /// version of the same gesture) and settles again, all outside the window,
+  /// so the window does not start on a cold path. A `cold` scenario passes
+  /// none.
+  Future<void> measure(
+    String name,
+    Future<void> Function() body, {
+    Future<void> Function()? primer,
+  });
 
   /// One paced drag of [dy] logical pixels (positive is down) over
   /// [duration], one pointer move per frame, in real time.
@@ -25,6 +34,7 @@ final class Scenario {
     required this.version,
     required this.windows,
     required this.run,
+    this.cold = false,
   });
 
   /// `<area>.<name>`, for example `scroll.drag_slow`.
@@ -37,6 +47,10 @@ final class Scenario {
   final List<String> windows;
 
   final Future<void> Function(ScenarioContext ctx) run;
+
+  /// Runs in its own launch, so the first-use cost it measures is not paid
+  /// (and hidden) by an earlier scenario in the process.
+  final bool cold;
 
   /// `id@version`, the key in a metrics document.
   String get key => '$id@$version';
@@ -67,16 +81,18 @@ final class ScenarioRegistry {
 
   /// The scenarios whose id matches [filter]: comma-separated globs, `*`
   /// matching any run of characters, anchored to the whole id. Empty selects
-  /// all.
-  List<Scenario> where(String filter) {
+  /// all. Only scenarios whose [Scenario.cold] equals [cold] are considered:
+  /// the shared-process set and the cold set are selected by separate launches.
+  List<Scenario> where(String filter, {bool cold = false}) {
     final patterns = [
       for (final part in filter.split(','))
         if (part.trim().isNotEmpty) _glob(part.trim()),
     ];
-    if (patterns.isEmpty) return all;
     return [
       for (final s in all)
-        if (patterns.any((p) => p.hasMatch(s.id))) s,
+        if (s.cold == cold &&
+            (patterns.isEmpty || patterns.any((p) => p.hasMatch(s.id))))
+          s,
     ];
   }
 

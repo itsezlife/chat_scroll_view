@@ -16,13 +16,17 @@ import 'scenarios/scroll_scenarios.dart';
 ///
 /// Run through `dart run tool/chat_perf.dart quick`; defines it passes:
 /// `CHAT_PERF_SCENARIO` (comma-separated globs over scenario ids; empty runs
-/// all), `CHAT_PERF_BACKEND` (`impeller` or `skia`, recorded as given),
-/// `CHAT_PERF_HISTORY` (messages in the seeded history).
+/// all), `CHAT_PERF_COLD` (`true` runs the cold scenarios, one launch each;
+/// otherwise the shared-process set), `CHAT_PERF_BACKEND` (`impeller` or
+/// `skia`, recorded as given), `CHAT_PERF_HISTORY` (messages in the seeded history).
 const _filter = String.fromEnvironment('CHAT_PERF_SCENARIO');
 const _backend = String.fromEnvironment(
   'CHAT_PERF_BACKEND',
   defaultValue: 'impeller',
 );
+
+/// `true` runs the cold scenarios (one per launch); `false` the shared set.
+const _cold = bool.fromEnvironment('CHAT_PERF_COLD');
 const _history = int.fromEnvironment('CHAT_PERF_HISTORY', defaultValue: 20000);
 
 /// Report keys the host driver writes as `<key>.json`.
@@ -34,7 +38,7 @@ void main() {
     ..framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
 
   testWidgets('chat perf scenarios', (tester) async {
-    final selected = scrollScenarios.where(_filter);
+    final selected = scrollScenarios.where(_filter, cold: _cold);
     expect(selected, isNotEmpty, reason: 'no scenario matches "$_filter"');
 
     final scenarios = <String, Map<String, Map<String, Metric>>>{};

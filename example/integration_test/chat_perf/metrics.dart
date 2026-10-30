@@ -96,3 +96,52 @@ Map<String, Metric> headlineMetrics(
     ),
   };
 }
+
+/// Default span of a window's first frames, in milliseconds (spec 5).
+const double kFirstFramesSpanMs = 150;
+
+/// Splits [items] (frames, in order, with their start times [startsMs] in
+/// milliseconds) into those starting within [spanMs] of the first one and the
+/// rest.
+(List<T>, List<T>) splitFirstFrames<T>(
+  List<T> items,
+  List<double> startsMs, {
+  double spanMs = kFirstFramesSpanMs,
+}) {
+  assert(items.length == startsMs.length, 'one start time per item');
+  if (items.isEmpty) return (<T>[], <T>[]);
+  final end = startsMs.first + spanMs;
+  var cut = 0;
+  while (cut < items.length && startsMs[cut] < end) {
+    cut++;
+  }
+  return (items.sublist(0, cut), items.sublist(cut));
+}
+
+/// The metrics of one window: the headline set over the [steady] frames, plus
+/// `first_frames.*` over the [first] frames. The first frames are diagnostic,
+/// or headline when the scenario is [cold]. With no first frames only their
+/// zero count is reported, since a percentile of nothing means nothing.
+Map<String, Metric> windowMetrics(
+  List<FrameSample> first,
+  List<FrameSample> steady, {
+  required double refreshRateHz,
+  required bool cold,
+}) {
+  final role = cold ? MetricRole.headline : MetricRole.diagnostic;
+  final head = first.isEmpty
+      ? <String, Metric>{}
+      : (headlineMetrics(first, refreshRateHz: refreshRateHz)
+          ..remove('budget_ms'));
+  return {
+    ...headlineMetrics(steady, refreshRateHz: refreshRateHz),
+    for (final e in head.entries)
+      'first_frames.${e.key}': Metric(
+        e.value.value,
+        kind: e.value.kind,
+        role: role,
+      ),
+    if (first.isEmpty)
+      'first_frames.frames': Metric(0, kind: MetricKind.count, role: role),
+  };
+}
