@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../integration_test/chat_perf/gesture_driver.dart';
 import '../../integration_test/chat_perf/registry.dart';
 import '../../integration_test/chat_perf/scenarios/scroll_scenarios.dart';
 
@@ -36,6 +37,9 @@ final class _RecordingContext implements ScenarioContext {
 
   @override
   Future<void> settle() async => calls.add('settle');
+
+  @override
+  GestureDriver get gestures => throw UnimplementedError();
 }
 
 void main() {

@@ -11,6 +11,7 @@ import 'device_context.dart';
 import 'metrics.dart';
 import 'report_document.dart';
 import 'scenarios/scroll_scenarios.dart';
+import 'scenarios/selection_scenarios.dart';
 import 'semantics.dart';
 
 /// On-device chat viewport performance suite entry point (profile mode).
@@ -47,7 +48,10 @@ void main() {
   // a semantics handle for the whole test, so the engine builds semantics
   // every frame. The `on` pass takes its own handle.
   testWidgets('chat perf scenarios', semanticsEnabled: false, (tester) async {
-    final selected = scrollScenarios.where(_filter, cold: _cold);
+    final selected = [
+      ...scrollScenarios.where(_filter, cold: _cold),
+      ...selectionScenarios.where(_filter, cold: _cold),
+    ];
     expect(selected, isNotEmpty, reason: 'no scenario matches "$_filter"');
 
     final scenarios = <String, Map<String, Map<String, Metric>>>{};
@@ -67,7 +71,7 @@ void main() {
         expect(measured, on, reason: 'semantics mode is not what was asked');
         final host = await BenchHost.mount(
           tester,
-          const BenchCorpus(count: _history),
+          BenchCorpus(count: _history, profile: scenario.profile),
         );
         final ctx = DeviceContext(host, scenario);
         if (run == SemanticsRun.pair && recorded) {

@@ -10,6 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../panel_perf/frame_metrics.dart';
 import 'bench_host.dart';
+import 'device_gestures.dart';
+import 'gesture_driver.dart';
 import 'metrics.dart';
 import 'registry.dart';
 import 'report_document.dart';
@@ -29,6 +31,9 @@ final class DeviceContext implements ScenarioContext {
 
   /// Window name -> per-frame rows.
   final frames = <String, List<FrameRow>>{};
+
+  @override
+  late final GestureDriver gestures = DeviceGestures(host, windows);
 
   WidgetTester get _tester => host.tester;
 
