@@ -18,7 +18,11 @@ enum BenchTarget {
   fencedCode(1010),
 
   /// A long markdown block: headings, a list, a quote and inline styles.
-  longMarkdown(1020);
+  longMarkdown(1020),
+
+  /// One paragraph taller than any phone viewport: the edge autoscroll of a
+  /// text drag only runs while the subject has more of itself to reveal.
+  tallParagraph(1030);
 
   const BenchTarget(this.id);
 
@@ -68,6 +72,10 @@ String _targetText(BenchTarget target) => switch (target) {
         '}\n'
         '```',
   BenchTarget.longMarkdown => _markdownBlock(BenchTarget.longMarkdown.id),
+  BenchTarget.tallParagraph => [
+    for (var i = 1; i <= 240; i++)
+      'Sentence $i of the tall paragraph keeps the block going.',
+  ].join(' '),
 };
 
 String _markdownBlock(int id) =>

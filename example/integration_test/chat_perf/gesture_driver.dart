@@ -83,6 +83,9 @@ abstract interface class GestureDriver {
   /// many ran.
   Future<int> framesUntilIdle({int cap = 240});
 
+  /// Frames drawn since the host mounted.
+  int get frameCount;
+
   /// Current facade state.
   SelectionState get state;
 

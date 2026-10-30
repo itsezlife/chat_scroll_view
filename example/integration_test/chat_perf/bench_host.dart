@@ -8,6 +8,7 @@ library;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'corpus.dart';
@@ -102,6 +103,7 @@ class _BenchMarkdownBodyState extends State<_BenchMarkdownBody> {
 final class BenchHost {
   BenchHost._(this.tester, this.source, this.controller, this.selection) {
     selection.addInteractionListener(interactions.add);
+    SchedulerBinding.instance.addPersistentFrameCallback((_) => frameCount++);
   }
 
   /// Mounts a fresh host over [corpus], at the newest message.
@@ -168,11 +170,18 @@ final class BenchHost {
   Duration? lastMenuRequestAt;
   bool menuOpen = false;
 
+  /// Pointer-up to the idle tap request of the last menu presented.
+  Duration? menuRequestLatency;
+
+  /// Frames drawn since the host mounted.
+  int frameCount = 0;
+
   /// When the last pointer lifted, on [clock].
   Duration? lastPointerUpAt;
 
   void _onIdleTap(ChatMessageMenuRequest request) {
     lastMenuRequestAt = clock.elapsed;
+    if (lastPointerUpAt case final up?) menuRequestLatency = clock.elapsed - up;
     menuOpen = true;
     ChatMessageMenu.show(
       context: _menuContext,

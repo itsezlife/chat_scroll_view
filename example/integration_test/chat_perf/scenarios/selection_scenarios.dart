@@ -25,9 +25,15 @@ void _require(bool ok, String what) {
   if (!ok) throw StateError('scenario outcome invalid: $what');
 }
 
-/// Where the first line of [target]'s body starts, a few glyphs in.
-Offset _firstLine(GestureDriver g, BenchTarget target) =>
-    g.bodyRect(target).topLeft + const Offset(24, _lineHeight / 2);
+/// Where the first line of [target]'s body starts, a few glyphs in; for a body
+/// that runs out of the viewport, a line well inside it.
+Offset _firstLine(GestureDriver g, BenchTarget target) {
+  final body = g.bodyRect(target);
+  final top = body.top < g.viewportRect.top
+      ? g.viewportRect.top + 80
+      : body.top;
+  return Offset(body.left + 24, top + _lineHeight / 2);
+}
 
 Metric _exact(num v) =>
     Metric(v.toDouble(), kind: MetricKind.exact, role: MetricRole.headline);
@@ -39,16 +45,19 @@ Metric _count(num v) =>
     Metric(v.toDouble(), kind: MetricKind.count, role: MetricRole.diagnostic);
 
 /// Message-selects the paragraph with one long-press, outside any window.
-Future<void> _messageSelectParagraph(GestureDriver g) async {
-  await g.seatTarget(BenchTarget.plainParagraph);
-  final p = await g.down(_firstLine(g, BenchTarget.plainParagraph));
+Future<void> _messageSelect(GestureDriver g, BenchTarget target) async {
+  if (target == BenchTarget.tallParagraph) {
+    await g.seat(target.id);
+  } else {
+    await g.seatTarget(target);
+  }
+  final p = await g.down(_firstLine(g, target));
   await p.hold(_hold);
   await p.up();
   await g.frames(30);
   _require(
-    g.state.selectedIds.length == 1 &&
-        g.state.selectedIds.single == BenchTarget.plainParagraph.id,
-    'the paragraph is not message-selected',
+    g.state.selectedIds.length == 1 && g.state.selectedIds.single == target.id,
+    '$target is not message-selected',
   );
 }
 
@@ -94,11 +103,12 @@ final _messageEnterExit = Scenario(
 /// Second long-press on the selected paragraph, then the drag on the same
 /// pointer. [toEdge] drags into the viewport's bottom edge zone instead.
 Future<(Duration?, double)> _textDrag(
-  GestureDriver g, {
+  GestureDriver g,
+  BenchTarget target, {
   required bool toEdge,
 }) async {
   var dpPerS = 0.0;
-  final start = _firstLine(g, BenchTarget.plainParagraph);
+  final start = _firstLine(g, target);
   final p = await g.down(start);
   final entered = await p.hold(
     _hold,
@@ -106,7 +116,7 @@ Future<(Duration?, double)> _textDrag(
   );
   if (toEdge) {
     await p.moveBy(Offset(0, g.viewportRect.bottom - 4 - start.dy), frames: 60);
-    const id = BenchTarget.plainParagraph;
+    final id = target;
     final clock = Stopwatch()..start();
     var travelled = 0.0;
     var last = g.bodyRect(id).top;
@@ -128,16 +138,12 @@ Future<(Duration?, double)> _textDrag(
   return (entered, dpPerS);
 }
 
-void _requireTextSelection(GestureDriver g) {
+void _requireTextSelection(GestureDriver g, BenchTarget target) {
   final s = g.state;
   _require(s.isTextSelectionActive, 'text selection is active');
+  _require(s.textSelectionSubject == target.id, 'the subject is $target');
   _require(
-    s.textSelectionSubject == BenchTarget.plainParagraph.id,
-    'the subject is the paragraph',
-  );
-  _require(
-    s.selectedIds.length == 1 &&
-        s.selectedIds.single == BenchTarget.plainParagraph.id,
+    s.selectedIds.length == 1 && s.selectedIds.single == target.id,
     'message selection is preserved',
   );
 }
@@ -151,13 +157,17 @@ final _textDragExtend = Scenario(
   profile: BenchProfile.rich,
   run: (ctx) async {
     final g = ctx.gestures;
-    await _messageSelectParagraph(g);
+    await _messageSelect(g, BenchTarget.plainParagraph);
     Duration? entered;
     await ctx.measure('drag', () async {
       await g.frames(10);
-      entered = (await _textDrag(g, toEdge: false)).$1;
+      entered = (await _textDrag(
+        g,
+        BenchTarget.plainParagraph,
+        toEdge: false,
+      )).$1;
     });
-    _requireTextSelection(g);
+    _requireTextSelection(g, BenchTarget.plainParagraph);
     _require(g.state.extentChars > 0, 'the drag extends the selection');
     g.report('drag', {
       'selection.extent_chars': _exact(g.state.extentChars),
@@ -175,13 +185,13 @@ final _textDragAutoscroll = Scenario(
   profile: BenchProfile.rich,
   run: (ctx) async {
     final g = ctx.gestures;
-    await _messageSelectParagraph(g);
+    await _messageSelect(g, BenchTarget.tallParagraph);
     var dpPerS = 0.0;
     await ctx.measure('autoscroll', () async {
       await g.frames(10);
-      dpPerS = (await _textDrag(g, toEdge: true)).$2;
+      dpPerS = (await _textDrag(g, BenchTarget.tallParagraph, toEdge: true)).$2;
     });
-    _requireTextSelection(g);
+    _requireTextSelection(g, BenchTarget.tallParagraph);
     g.report('autoscroll', {
       'autoscroll.dp_per_s': Metric(
         dpPerS,
@@ -241,8 +251,10 @@ final _codeBlockHighlight = Scenario(
     var frames = 0;
     await ctx.measure('tap', () async {
       await g.frames(10);
+      final from = g.frameCount;
       await g.tap(bar);
-      frames = await g.framesUntilIdle();
+      await g.framesUntilIdle();
+      frames = g.frameCount - from;
       await g.frames(60);
     });
     final hits = [
@@ -272,8 +284,10 @@ final _linkTapHighlight = Scenario(
     var frames = 0;
     await ctx.measure('tap', () async {
       await g.frames(10);
+      final from = g.frameCount;
       await g.tap(_firstLine(g, BenchTarget.linkLine));
-      frames = await g.framesUntilIdle();
+      await g.framesUntilIdle();
+      frames = g.frameCount - from;
       await g.frames(60);
     });
     final hits = [

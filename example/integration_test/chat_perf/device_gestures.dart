@@ -44,8 +44,9 @@ final class _LivePointer implements PointerStream {
 
   @override
   Future<void> up() async {
-    await _gesture.up(timeStamp: _host.clock.elapsed);
+    // Before the dispatch: the idle tap request arrives inside it.
     _host.lastPointerUpAt = _host.clock.elapsed;
+    await _gesture.up(timeStamp: _host.clock.elapsed);
     await _host.tester.pump();
   }
 }
@@ -171,11 +172,10 @@ final class DeviceGestures implements GestureDriver {
   List<ChatSelectionInteraction> get interactions => host.interactions;
 
   @override
-  Duration? get menuRequestLatency =>
-      switch ((host.lastMenuRequestAt, host.lastPointerUpAt)) {
-        (final request?, final up?) => request - up,
-        _ => null,
-      };
+  Duration? get menuRequestLatency => host.menuRequestLatency;
+
+  @override
+  int get frameCount => host.frameCount;
 
   @override
   bool get menuOpen => host.menuOpen;
