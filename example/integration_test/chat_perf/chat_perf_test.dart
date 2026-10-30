@@ -5,11 +5,13 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'bench_host.dart';
 import 'corpus.dart';
 import 'device_context.dart';
 import 'metrics.dart';
+import 'registry.dart';
 import 'report_document.dart';
+import 'scenario_mounts.dart';
+import 'scenarios/keyboard_scenarios.dart';
 import 'scenarios/scroll_scenarios.dart';
 import 'semantics.dart';
 
@@ -36,6 +38,12 @@ const _semantics = String.fromEnvironment('CHAT_PERF_SEMANTICS');
 const kMetricsKey = 'chat_perf_metrics';
 const kFramesKey = 'chat_perf_frames';
 
+/// Every registered family, in the order they run.
+final allScenarios = ScenarioRegistry([
+  ...scrollScenarios.all,
+  ...keyboardScenarios.all,
+]);
+
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized()
     ..framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
@@ -47,7 +55,7 @@ void main() {
   // a semantics handle for the whole test, so the engine builds semantics
   // every frame. The `on` pass takes its own handle.
   testWidgets('chat perf scenarios', semanticsEnabled: false, (tester) async {
-    final selected = scrollScenarios.where(_filter, cold: _cold);
+    final selected = allScenarios.where(_filter, cold: _cold);
     expect(selected, isNotEmpty, reason: 'no scenario matches "$_filter"');
 
     final scenarios = <String, Map<String, Map<String, Metric>>>{};
@@ -65,11 +73,12 @@ void main() {
           firstPassSemantics = measured ? 'on' : 'off';
         }
         expect(measured, on, reason: 'semantics mode is not what was asked');
-        final host = await BenchHost.mount(
+        final mounted = await mountScenario(
           tester,
-          const BenchCorpus(count: _history),
+          scenario,
+          history: _history,
         );
-        final ctx = DeviceContext(host, scenario);
+        final ctx = mounted.ctx;
         if (run == SemanticsRun.pair && recorded) {
           // Traced, so the timeline shows whether semantics work ran.
           final key =
@@ -90,7 +99,7 @@ void main() {
         } else {
           await scenario.run(ctx);
         }
-        await host.dispose();
+        await mounted.dispose();
         handle?.dispose();
         if (recorded) byPass[on] = ctx;
       }

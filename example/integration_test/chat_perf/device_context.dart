@@ -15,10 +15,16 @@ import 'registry.dart';
 import 'report_document.dart';
 
 /// Runs one scenario on [host] and collects its windows.
-final class DeviceContext implements ScenarioContext {
-  DeviceContext(this.host, this.scenario);
+base class DeviceContext implements ScenarioContext {
+  DeviceContext(BenchHost host, Scenario scenario)
+    : this.over(host.tester, host.viewport, scenario);
 
-  final BenchHost host;
+  /// A context over any mounted viewport: [tester] drives it, [viewport]
+  /// finds it.
+  DeviceContext.over(this._tester, this._viewport, this.scenario);
+
+  final WidgetTester _tester;
+  final Finder _viewport;
   final Scenario scenario;
 
   /// How long the first frames of a window last.
@@ -29,8 +35,6 @@ final class DeviceContext implements ScenarioContext {
 
   /// Window name -> per-frame rows.
   final frames = <String, List<FrameRow>>{};
-
-  WidgetTester get _tester => host.tester;
 
   @override
   Future<void> measure(
@@ -93,12 +97,7 @@ final class DeviceContext implements ScenarioContext {
   Future<void> drag(double dy, Duration duration) async {
     // `timedDrag` moves the pointer once per 1/frequency of real time; the
     // frame policy is `fullyLive`, so the pumps are real frames.
-    await _tester.timedDrag(
-      host.viewport,
-      Offset(0, dy),
-      duration,
-      frequency: 120,
-    );
+    await _tester.timedDrag(_viewport, Offset(0, dy), duration, frequency: 120);
   }
 
   @override
