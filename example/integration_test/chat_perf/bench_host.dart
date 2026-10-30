@@ -76,7 +76,11 @@ final class BenchProbe {
       if (box is! RenderBox || !box.attached || !box.hasSize) continue;
       final top = box.localToGlobal(Offset.zero).dy;
       final bottom = top + box.size.height;
-      if (bottom > viewport.top && top < viewport.bottom) out[e.key] = bottom;
+      if (bottom > viewport.top && top < viewport.bottom) {
+        // The band's bottom edge, clipped to the viewport: a row taller than
+        // the viewport has its bottom off screen.
+        out[e.key] = bottom < viewport.bottom ? bottom : viewport.bottom;
+      }
     }
     return Map.fromEntries(out.entries.toList()..sort((a, b) => a.key - b.key));
   }
@@ -150,6 +154,7 @@ final class BenchHost implements ChurnHost {
     this.controller,
     this.probe,
     this.unread,
+    this.viewportKey,
   );
 
   /// Mounts a fresh host over [corpus], at the newest message.
@@ -161,6 +166,7 @@ final class BenchHost implements ChurnHost {
     final source = BenchDataSource(corpus, setup: setup);
     final controller = ChatScrollController();
     final unread = ValueNotifier<int?>(null);
+    final viewportKey = GlobalKey();
     final probe = _probe = BenchProbe();
     probe.sinceMount.start();
     await tester.pumpWidget(
@@ -168,6 +174,7 @@ final class BenchHost implements ChurnHost {
         debugShowCheckedModeBanner: false,
         home: Scaffold(
           body: ChatScrollView(
+            key: viewportKey,
             reverse: true,
             dataSource: source,
             controller: controller,
@@ -183,7 +190,7 @@ final class BenchHost implements ChurnHost {
       ),
     );
     await tester.pump(const Duration(milliseconds: 500));
-    return BenchHost._(tester, source, controller, probe, unread);
+    return BenchHost._(tester, source, controller, probe, unread, viewportKey);
   }
 
   final WidgetTester tester;
@@ -191,6 +198,7 @@ final class BenchHost implements ChurnHost {
   final ChatScrollController controller;
   final BenchProbe probe;
   final ValueNotifier<int?> unread;
+  final GlobalKey viewportKey;
 
   @override
   double? get firstBuildMs => probe.firstBuildMs;
@@ -231,7 +239,8 @@ final class BenchHost implements ChurnHost {
 
   /// The viewport's rectangle in global coordinates.
   Rect get viewportRect {
-    final box = tester.renderObject<RenderBox>(viewport);
+    // Not through the tester: its guarded APIs reject a read during a gesture.
+    final box = viewportKey.currentContext!.findRenderObject()! as RenderBox;
     return box.localToGlobal(Offset.zero) & box.size;
   }
 

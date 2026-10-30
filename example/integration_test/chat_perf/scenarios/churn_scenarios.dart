@@ -4,7 +4,6 @@ library;
 
 import '../bench_setup.dart';
 import '../churn.dart';
-import '../corpus.dart';
 import '../metrics.dart';
 import '../registry.dart';
 
@@ -56,18 +55,15 @@ Future<void> Function() _primeInsert(ChurnContext ctx, {required bool self}) =>
 final _sendAtTail = _churn(
   id: 'churn.send_at_tail',
   windows: const ['churn'],
-  run: (ctx) {
+  run: (ctx) async {
     final host = ctx.host;
-    var newest = 0;
-    return _scheduled(
+    await ctx.seatTail();
+    await _scheduled(
       ctx,
-      FrameSchedule()..atFrame(0, () {
-        host.insert(self: true);
-        newest = host.newestId;
-      }),
+      FrameSchedule()..atFrame(0, () => host.insert(self: true)),
       (f) => {
         'tail.pin_frames': ChurnMetric.count(
-          tailPinFrames(f, newestId: newest) ?? f.length,
+          tailPinFrames(f) ?? f.length,
           headline: true,
         ),
         // Anchor changes in the still pre-roll.
@@ -115,17 +111,20 @@ final _sendAway = _churn(
 final _incomingBurstTail = _churn(
   id: 'churn.incoming_burst_tail',
   windows: const ['churn'],
-  run: (ctx) => _scheduled(
-    ctx,
-    _burst(ctx.host),
-    (f) => {
-      'tail.unpinned_frames': ChurnMetric.count(
-        tailUnpinnedFrames(f),
-        headline: true,
-      ),
-    },
-    primer: _primeInsert(ctx, self: false),
-  ),
+  run: (ctx) async {
+    await ctx.seatTail();
+    await _scheduled(
+      ctx,
+      _burst(ctx.host),
+      (f) => {
+        'tail.unpinned_frames': ChurnMetric.count(
+          tailUnpinnedFrames(f),
+          headline: true,
+        ),
+      },
+      primer: _primeInsert(ctx, self: false),
+    );
+  },
 );
 
 final _incomingWhileAway = _churn(
@@ -153,12 +152,12 @@ final _incomingWhileAwayFling = _churn(
   windows: const ['control', 'churn'],
   run: (ctx) async {
     final host = ctx.host;
-    Future<ChurnFrame> flung(String window, {required bool inserts}) async {
+    Future<ChurnFrame> flung(String window, {ChurnFrame? control}) async {
       await ctx.seat(_awayId);
       late ChurnFrame end;
       await ctx.measure(window, () async {
         final frames = await ctx.recordFrames(() async {
-          if (inserts) {
+          if (control != null) {
             // One insert per frame while the fling runs.
             final burst = _burst(host);
             var frame = 0;
@@ -178,21 +177,23 @@ final _incomingWhileAwayFling = _churn(
           await ctx.settle();
         });
         end = frames.last;
+        if (control != null) {
+          ctx.report(window, {
+            'anchor.drift_dp': ChurnMetric.dp(
+              (end.anchorOffsetDp - control.anchorOffsetDp).abs(),
+              headline: true,
+            ),
+            'anchor.id_changes': ChurnMetric.count(
+              end.anchorId == control.anchorId ? 0 : 1,
+            ),
+          });
+        }
       });
       return end;
     }
 
-    final control = await flung('control', inserts: false);
-    final churn = await flung('churn', inserts: true);
-    ctx.report('churn', {
-      'anchor.drift_dp': ChurnMetric.dp(
-        (churn.anchorOffsetDp - control.anchorOffsetDp).abs(),
-        headline: true,
-      ),
-      'anchor.id_changes': ChurnMetric.count(
-        churn.anchorId == control.anchorId ? 0 : 1,
-      ),
-    });
+    final control = await flung('control');
+    await flung('churn', control: control);
   },
 );
 
@@ -201,7 +202,11 @@ Scenario _editVisible(String state) => _churn(
   windows: const ['churn'],
   run: (ctx) async {
     final host = ctx.host;
-    if (state == 'away') await ctx.seat(_awayId);
+    if (state == 'away') {
+      await ctx.seat(_awayId);
+    } else {
+      await ctx.seatTail();
+    }
     int? id;
     await _scheduled(
       ctx,
@@ -292,7 +297,7 @@ final _chunkLoadUp = _churn(
     await ctx.measure('drag', () async {
       final frames = await ctx.recordFrames(() async {
         for (var i = 0; i < 8; i++) {
-          await ctx.drag(700, const Duration(seconds: 1));
+          await ctx.drag(2000, const Duration(seconds: 1));
         }
       });
       final runs = placeholderRunsMs(frames);
@@ -306,6 +311,9 @@ final _chunkLoadUp = _churn(
           headline: true,
         ),
         'chunk.crossings': ChurnMetric.count(runs.length),
+        'chunk.anchor_travel_ids': ChurnMetric.count(
+          (frames.first.anchorId - frames.last.anchorId).abs(),
+        ),
       });
     });
   },

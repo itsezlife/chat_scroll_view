@@ -2,6 +2,10 @@
 /// registry (a scenario names the setup it needs) and the device host.
 library;
 
+/// The designated tall message: a fixed id whose body is taller than twice any
+/// phone viewport (140 lines), whatever the history size.
+const int kTallMessageId = 12000;
+
 /// The latency profile of the data source's `fetchRange`.
 enum BenchLatency {
   /// Resolves in a microtask.

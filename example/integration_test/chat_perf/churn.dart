@@ -89,6 +89,9 @@ abstract interface class ChurnHost {
 abstract interface class ChurnContext implements ScenarioContext {
   ChurnHost get host;
 
+  /// Seats the viewport at the newest message and waits until it is idle.
+  Future<void> seatTail();
+
   /// Seats the viewport on message [id] and waits until it is loaded and idle.
   Future<void> seat(int id, {double alignment = 0.5});
 
@@ -124,13 +127,19 @@ ChurnFrame? _baseline(List<ChurnFrame> f) {
   return base ?? (f.isEmpty ? null : f.first);
 }
 
-/// Frames from the first mutation until the anchor is [newestId] and the
-/// viewport is at the tail, counting that frame; null if it never is.
-int? tailPinFrames(List<ChurnFrame> frames, {required int newestId}) {
-  for (final x in _post(frames)) {
-    if (x.anchorId == newestId && x.isAtTail) return x.index + 1;
+/// Frames from the first mutation until the viewport is at the tail (and,
+/// with [newestId], anchored on it) and stays there, counting the first such
+/// frame; null if the last frame is not pinned.
+int? tailPinFrames(List<ChurnFrame> frames, {int? newestId}) {
+  bool pinned(ChurnFrame x) =>
+      x.isAtTail && (newestId == null || x.anchorId == newestId);
+  final post = _post(frames);
+  if (post.isEmpty || !pinned(post.last)) return null;
+  var lastUnpinned = -1;
+  for (final x in post) {
+    if (!pinned(x)) lastUnpinned = x.index;
   }
-  return null;
+  return lastUnpinned + 2;
 }
 
 /// Post-mutation frames in which the viewport was not at the tail.

@@ -33,10 +33,6 @@ const _long = [
       'commodo consequat. Duis aute irure dolor in reprehenderit.',
 ];
 
-/// The designated tall message: a fixed id whose body is taller than twice any
-/// phone viewport (140 lines), whatever the history size.
-const int kTallMessageId = 12000;
-
 final String _tallText = [
   for (var i = 1; i <= 140; i++) 'Tall message, line $i of 140.',
 ].join('\n');

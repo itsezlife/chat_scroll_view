@@ -94,6 +94,9 @@ final class _FakeContext implements ChurnContext {
   }
 
   @override
+  Future<void> seatTail() async => host.log.add('seat tail');
+
+  @override
   Future<void> seat(int id, {double alignment = 0.5}) async =>
       host.log.add('seat $id');
 
@@ -132,8 +135,10 @@ void main() {
         _f(1, tail: false, anchor: 5),
         _f(2, anchor: 11),
       ];
+      expect(tailPinFrames(frames), 3);
       expect(tailPinFrames(frames, newestId: 11), 3);
       expect(tailPinFrames(frames, newestId: 99), isNull);
+      expect(tailPinFrames([_f(-1), _f(0)]), 1);
     });
 
     test('tailUnpinnedFrames counts post frames off the tail', () {
@@ -253,7 +258,11 @@ void main() {
     test('send_at_tail inserts once and reports the pin frames', () async {
       final ctx = _FakeContext();
       await byId('churn.send_at_tail').run(ctx);
-      expect(ctx.host.log, ['insert self=true', 'insert self=true']);
+      expect(ctx.host.log, [
+        'seat tail',
+        'insert self=true',
+        'insert self=true',
+      ]);
       expect(ctx.primed, isTrue);
       expect(ctx.reports['churn'], contains('tail.pin_frames'));
     });
@@ -276,7 +285,11 @@ void main() {
     test('edit_visible makes the body taller, then restores it', () async {
       final ctx = _FakeContext();
       await byId('churn.edit_visible_tail').run(ctx);
-      expect(ctx.host.log, ['edit 3 taller=true', 'edit 3 taller=false']);
+      expect(ctx.host.log, [
+        'seat tail',
+        'edit 3 taller=true',
+        'edit 3 taller=false',
+      ]);
       expect(
         ctx.reports['churn']!['anchor.drift_dp']!.role,
         MetricRole.diagnostic,

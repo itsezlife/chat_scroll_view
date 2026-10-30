@@ -53,9 +53,24 @@ final class DeviceContext implements ChurnContext {
       bandBottomDp: bottoms.isEmpty
           ? null
           : bottoms.values.reduce((a, b) => a > b ? a : b),
-      placeholders: host.probe.placeholders,
+      placeholders: host.probe.placeholders + _unloadedNearAnchor(),
     );
   }
+
+  /// Slots about a viewport around the anchor whose chunk is not loaded: the
+  /// rows the viewport shows as placeholders while a fetch is out.
+  int _unloadedNearAnchor() {
+    final anchor = host.controller.anchorMessageId;
+    var n = 0;
+    for (var id = anchor - 12; id <= anchor + 12; id++) {
+      if (id < 0) continue;
+      if (id <= host.newestId && host.source.getMessage(id) == null) n++;
+    }
+    return n;
+  }
+
+  @override
+  Future<void> seatTail() => seat(host.newestId, alignment: 1);
 
   @override
   Future<void> seat(int id, {double alignment = 0.5}) async {
