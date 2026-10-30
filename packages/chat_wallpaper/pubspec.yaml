@@ -1,0 +1,33 @@
+name: chat_wallpaper
+description: >
+  Declarative chat wallpapers: solid, linear and freeform gradient fills with
+  an optional pattern, a deterministic renderer, motion and the view.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: '>=3.32.0'
+
+dependencies:
+  # Value equality of the wallpaper model and its tones and shades.
+  equatable: ^2.0.7
+  flutter:
+    sdk: flutter
+  # Pattern artwork arrives as compiled vector graphics (or an SVG loader); the
+  # package rasterizes it, so the host never names a raster format.
+  vector_graphics: ^1.1.19
+
+dev_dependencies:
+  # Tests feed raw SVG through its loader instead of compiled artwork.
+  flutter_svg: ^2.3.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  # The patterned fill's one-pass shader, loaded on first use or by the
+  # warm-up.
+  shaders:
+    - shaders/patterned_fill.frag

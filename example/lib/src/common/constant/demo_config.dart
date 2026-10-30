@@ -49,6 +49,28 @@ abstract final class DemoConfig {
     defaultValue: 'comments+showcase',
   );
 
+  /// Where the app starts: `list` (the chat list, a chat pushed from a row,
+  /// the default) or `chat` (straight into the chat), from
+  /// `--dart-define=START_AT=chat`.
+  static const String startAt = String.fromEnvironment(
+    'START_AT',
+    defaultValue: 'list',
+  );
+
+  /// Which wallpaper the chats show: `mask` (the freeform gradient seen
+  /// through the pattern, the default), `softLight` (the pattern over the
+  /// gradient), `freeform`, `linear`, `solid` or `none`, from
+  /// `--dart-define=WALLPAPER=freeform`. On-device suites compare them.
+  static const String wallpaper = String.fromEnvironment(
+    'WALLPAPER',
+    defaultValue: 'mask',
+  );
+
+  /// Whether glass paints flat, as under a host's low-power mode, from
+  /// `--dart-define=GLASS_LITE=true`. On-device suites use it to tell the
+  /// glass's share of a frame from the wallpaper's.
+  static const bool glassLite = bool.fromEnvironment('GLASS_LITE');
+
   /// Whether the Supabase publishable key is set.
   static bool get hasSupabasePublishableKey =>
       supabasePublishableKey.isNotEmpty;

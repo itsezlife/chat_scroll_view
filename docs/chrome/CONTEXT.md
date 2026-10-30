@@ -2,8 +2,8 @@
 
 The chrome around a chat's message list: the theme and glass it paints with,
 the panel shell and its pages, how the panel is presented, and the composer.
-Covers `chrome_foundation`, `panel_shell`, `panel_pages`, `panel_presentation`
-`chat_composer` and `composer_editable`. Does not cover the catalog viewport (see the
+Covers `chrome_foundation`, `panel_shell`, `panel_pages`, `panel_presentation`,
+`chat_composer`, `composer_editable` and `chat_wallpaper`. Does not cover the catalog viewport (see the
 [Panel Catalog glossary](../panel-catalog/CONTEXT.md)) or content and asset
 terms (see the [Content and Assets glossary](../content/CONTEXT.md)).
 
@@ -13,7 +13,8 @@ Decisions: [ADR 025](../adr/025-panel-shell-and-pages.md),
 [ADR 028](../adr/028-panel-presentation.md),
 [ADR 029](../adr/029-host-integration.md),
 [ADR 031](../adr/031-localization-accessibility-and-input.md),
-[ADR 038](../adr/038-composer-editable-fork.md).
+[ADR 038](../adr/038-composer-editable-fork.md),
+[ADR 040](../adr/040-chat-wallpaper.md).
 
 ## Language
 
@@ -244,6 +245,24 @@ _Avoid_: Context menu (alone), popup (alone), right-click menu
 **Composer editable**:
 The composer's one editable: the package `composer_editable`, a patched copy of the framework's text field kept as a patch series over a baseline of the pinned SDK. It supplies the touch gesture matrix, the handle and magnifier motion and the toolbar fade; a host reaches it only through the composer view.
 _Avoid_: Extended text, a stock text field fallback, a second editable beside it
+
+### Wallpaper
+
+**Chat wallpaper**:
+What a chat draws behind its messages: a value of one fill kind (solid, linear, freeform) with an optional pattern over it. Equal values paint equal pixels.
+_Avoid_: Background image, chat theme
+
+**Freeform fill**:
+Three or four colour points on an eight-slot ring, mixed across the surface and rasterized as a small fixed bitmap drawn cover-fit. Motion moves the points around the ring.
+_Avoid_: Mesh gradient, animated gradient
+
+**Wallpaper pattern**:
+Monochrome artwork named by slug, drawn over a fill with soft light or as a mask onto black. Rasterized once per display and scaled to the window when drawn ([ADR 040](../adr/040-chat-wallpaper.md)).
+_Avoid_: Wallpaper image, overlay
+
+**Service fill**:
+Service chrome (day headers, system pills) filled with the part of the freeform gradient behind it, shaded, so it moves with the wallpaper.
+_Avoid_: Translucent pill, blurred pill
 
 ### Host integration
 

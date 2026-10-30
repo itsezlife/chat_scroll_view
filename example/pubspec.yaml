@@ -20,6 +20,8 @@ dependencies:
     path: ../packages/catalog_assets
   chat_composer:
     path: ../packages/chat_composer
+  chat_wallpaper:
+    path: ../packages/chat_wallpaper
   chrome_foundation:
     path: ../packages/chrome_foundation
   content_model:
@@ -50,6 +52,8 @@ dependencies:
   meta: ^1.17.0
   supabase_flutter: ^2.15.0
   control: 1.0.0-dev.1
+  # Loads the wallpaper pattern, compiled from SVG at build time.
+  vector_graphics: ^1.1.19
   freezed_annotation: ^3.1.0
 
 dev_dependencies:
@@ -65,12 +69,19 @@ dev_dependencies:
   panel_catalog:
     path: ../packages/panel_catalog
   freezed: ^3.2.5
+  # Compiles the wallpaper pattern SVG to vector graphics (asset transformer).
+  vector_graphics_compiler: ^1.1.19
   build_runner: ^2.15.1
 
 flutter:
   uses-material-design: true
   assets:
     - assets/chat/pagedown.webp
+    # The wallpaper pattern and its licence credit; see LICENSE.md there.
+    - path: assets/chat_wallpaper/career.svg
+      transformers:
+        - package: vector_graphics_compiler
+    - assets/chat_wallpaper/LICENSE.md
     # The animated emoji pack and its licence credit; see LICENSE.md there.
     - assets/animated_emoji/
     - path: assets/comments/

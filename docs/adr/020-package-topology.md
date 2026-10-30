@@ -11,6 +11,7 @@ API.
 **Date**: 2026-10-16  
 **Amended**: 2026-10-16 — change notification is `package:listen`, an external package every package that names its types declares for itself; it is not a workspace edge and is never re-exported ([ADR 023](023-data-layering-and-persistence.md) Amendment)  
 **Amended**: 2026-10-18 — a `composer_editable` leaf (the composer's editable, [ADR 038](038-composer-editable-fork.md)), depended on by `chat_composer` only; the root `chat_scroll_view` package depends on `catalog_assets` and `content_model` (rows added and changed below; rule 6 added)  
+**Amended**: 2026-10-31 — a `chat_wallpaper` leaf ([ADR 040](040-chat-wallpaper.md)); it depends on no workspace package and nothing in the workspace depends on it but the example  
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (package list in its Decided table is replaced by this one), [ADR 007](007-keyboard-panel-controller.md), [ADR 012](012-cross-platform-selection-policies.md)
 
 ## Decided
@@ -24,6 +25,7 @@ API.
 | `emoji_data` | Emoji-specific logic only: structure and keyword loaders, emoji `CollectionSource`, merged search, variants, pure-Dart glyph probe. No assets, no native code | `content_model` |
 | `emoji_catalog_pack` | Catalog structure and per-locale keyword pack assets, plus the pinned generator under `tool/` | `content_model` |
 | `kv_shared_preferences` | `shared_preferences`-backed `KeyValueStore` adapter | `content_model` |
+| `chat_wallpaper` | Leaf. The chat wallpaper: value model and codec, freeform renderer and keyframes, motion, view, warm-up, service fills ([ADR 040](040-chat-wallpaper.md)). Pattern artwork is the host's | none (`flutter`, `vector_graphics`, `equatable`) |
 | `rich_clipboard` | `RichClipboard` adapter: the HTML codec and the platform clipboard code, the workspace's one Flutter plugin package ([ADR 032](032-rich-clipboard.md)) | `content_model` |
 | `panel_shell` | Host-independent panel: page registry, shell controller, pager, type tabs, bottom bar, search field, panel events, page scroll activity, focus and shortcuts | `chrome_foundation`, `content_model` |
 | `panel_pages` | Catalog page scaffold and per-kind policies. Emoji page now; sticker and GIF pages later | `panel_shell`, `panel_catalog`, `catalog_assets`, `content_model`, `chrome_foundation` |
