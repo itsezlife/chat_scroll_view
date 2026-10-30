@@ -1,5 +1,4 @@
 import 'package:chat_wallpaper/src/model/wallpaper_service_tone.dart';
-import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
@@ -59,7 +58,7 @@ enum WallpaperPatternBlend {
 /// at paint time, so a value never holds image data. A slug with no
 /// artwork paints the fill alone.
 @immutable
-final class WallpaperPattern extends Equatable {
+final class WallpaperPattern {
   /// Creates a pattern drawn at [intensity] percent with [blend].
   ///
   /// [intensity] is in `[0, 100]`, and at least `1` for
@@ -100,7 +99,15 @@ final class WallpaperPattern extends Equatable {
   double get opacity => intensity / 100;
 
   @override
-  List<Object?> get props => [slug, intensity, blend];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WallpaperPattern &&
+          other.slug == slug &&
+          other.intensity == intensity &&
+          other.blend == blend;
+
+  @override
+  int get hashCode => Object.hash(slug, intensity, blend);
 }
 
 /// What a chat draws behind its messages.
@@ -112,7 +119,7 @@ final class WallpaperPattern extends Equatable {
 /// (solid, linear, freeform), and [ChatWallpaper$Patterned] draws a
 /// [WallpaperPattern] over exactly one of them.
 @immutable
-sealed class ChatWallpaper extends Equatable {
+sealed class ChatWallpaper {
   const ChatWallpaper();
 
   /// One flat colour.
@@ -220,7 +227,12 @@ final class ChatWallpaper$Solid extends ChatWallpaper$ColorFill {
   List<Color> get colors => [color];
 
   @override
-  List<Object?> get props => [color];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatWallpaper$Solid && other.color == color;
+
+  @override
+  int get hashCode => color.hashCode;
 }
 
 /// See [ChatWallpaper.linear].
@@ -245,7 +257,15 @@ final class ChatWallpaper$Linear extends ChatWallpaper$ColorFill {
   List<Color> get colors => [top, bottom];
 
   @override
-  List<Object?> get props => [top, bottom, rotation];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatWallpaper$Linear &&
+          other.top == top &&
+          other.bottom == bottom &&
+          other.rotation == rotation;
+
+  @override
+  int get hashCode => Object.hash(top, bottom, rotation);
 }
 
 /// See [ChatWallpaper.freeform].
@@ -274,7 +294,16 @@ final class ChatWallpaper$Freeform extends ChatWallpaper$ColorFill {
   List<Color> get colors => [color1, color2, color3, ?color4];
 
   @override
-  List<Object?> get props => [color1, color2, color3, color4];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatWallpaper$Freeform &&
+          other.color1 == color1 &&
+          other.color2 == color2 &&
+          other.color3 == color3 &&
+          other.color4 == color4;
+
+  @override
+  int get hashCode => Object.hash(color1, color2, color3, color4);
 }
 
 /// See [ChatWallpaper.patterned].
@@ -295,5 +324,12 @@ final class ChatWallpaper$Patterned extends ChatWallpaper {
   List<Color> get colors => fill.colors;
 
   @override
-  List<Object?> get props => [fill, pattern];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatWallpaper$Patterned &&
+          other.fill == fill &&
+          other.pattern == pattern;
+
+  @override
+  int get hashCode => Object.hash(fill, pattern);
 }

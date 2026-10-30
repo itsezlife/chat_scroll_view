@@ -2,7 +2,6 @@
 library;
 
 import 'package:chat_wallpaper/src/model/chat_wallpaper.dart';
-import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
@@ -41,7 +40,7 @@ import 'package:flutter/painting.dart';
 /// Other chrome drawn from the same gradient (a fill passed its own
 /// [WallpaperServiceFill.shade]) builds its shade from explicit coefficients.
 @immutable
-final class WallpaperServiceShade extends Equatable {
+final class WallpaperServiceShade {
   /// Shade with explicit coefficients, saturating around [luminance].
   ///
   /// Service chrome takes its shade from [WallpaperServiceShade.of] instead.
@@ -167,7 +166,16 @@ final class WallpaperServiceShade extends Equatable {
   }
 
   @override
-  List<Object?> get props => [saturation, scale, offset, luminance];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WallpaperServiceShade &&
+          other.saturation == saturation &&
+          other.scale == scale &&
+          other.offset == offset &&
+          other.luminance == luminance;
+
+  @override
+  int get hashCode => Object.hash(saturation, scale, offset, luminance);
 }
 
 /// Channel weights of a luminance, `L = red·R + green·G + blue·B`.
