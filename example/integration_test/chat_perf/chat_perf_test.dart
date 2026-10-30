@@ -136,6 +136,11 @@ void main() {
       semanticsMode: firstPassSemantics,
       semanticsRequested: run.name,
       corpusVersion: kCorpusVersion,
+      buildMode: kProfileMode
+          ? 'profile'
+          : kReleaseMode
+          ? 'release'
+          : 'debug',
     );
     binding.reportData = {
       ...?binding.reportData,

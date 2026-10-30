@@ -13,6 +13,7 @@ void main() {
     refreshRateHz: 120,
     semanticsMode: 'on',
     corpusVersion: 1,
+    buildMode: 'profile',
   );
 
   const doc = MetricsDocument(
