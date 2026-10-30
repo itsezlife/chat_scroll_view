@@ -70,7 +70,15 @@ final _jumpToNewest = Scenario(
     await ctx.jumpTo(midHistory(ctx));
     var pin = 0;
     await ctx.measure('jump_to_newest', primer: seatedPrimer(ctx), () async {
-      pin = await ctx.jumpToNewest();
+      // Mid-history and back, so the window holds frames of its own; the pin
+      // cost is the worst jump to the newest message.
+      for (var i = 0; i < _repeats; i++) {
+        final frames = await ctx.jumpToNewest();
+        if (frames > pin) pin = frames;
+        await ctx.idle(const Duration(milliseconds: 200));
+        await ctx.jumpTo(midHistory(ctx));
+        await ctx.idle(const Duration(milliseconds: 200));
+      }
     });
     ctx.record('jump_to_newest', 'tail.pin_frames', count(pin));
     ctx.record('jump_to_newest', 'anchor_id', exact(ctx.anchorId));
