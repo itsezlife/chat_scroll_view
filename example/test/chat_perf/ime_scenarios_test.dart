@@ -34,7 +34,10 @@ final class _RecordingContext implements ImeContext {
   Future<void> seat(KeyboardSeat seat) async => _log('seat ${seat.name}');
 
   @override
-  Future<void> openKeyboard() async => _log('open keyboard');
+  Future<void> openKeyboard({Future<void> Function()? meanwhile}) async {
+    _log('open keyboard');
+    await meanwhile?.call();
+  }
 
   @override
   Future<void> closeKeyboard() async => _log('close keyboard');
@@ -185,6 +188,7 @@ void main() {
     expect(windowOf(ctx, 'open'), ['begin open', 'open panel']);
     expect(ctx.primed, isTrue);
     expect(ctx.calls, isNot(contains('open keyboard')));
+    expect(ctx.calls.first, 'close keyboard outside');
   });
 
   test('panel.keyboard_handoff starts with the keyboard up', () async {

@@ -28,8 +28,10 @@ abstract interface class ImeContext implements ScenarioContext {
   /// Moves the viewport to [seat] and settles, outside any window.
   Future<void> seat(KeyboardSeat seat);
 
-  /// Taps the composer field and returns once the keyboard has settled.
-  Future<void> openKeyboard();
+  /// Taps the composer field, runs [meanwhile] while the keyboard opens, and
+  /// returns once the keyboard has settled. (Test-driver calls cannot overlap,
+  /// so concurrent work goes through [meanwhile], not a `Future.wait`.)
+  Future<void> openKeyboard({Future<void> Function()? meanwhile});
 
   /// Unfocuses the field, asks the keyboard to hide and returns once it has
   /// settled.
@@ -127,8 +129,8 @@ ScenarioRegistry _build() {
           ctx.animateTo(ctx.history - 1 - _animateMessages, _animateTime);
       await ctx.seat(KeyboardSeat.tail);
       await ctx.measure('open', primer: () => primer(ctx), () async {
-        // Concurrent: the keyboard opens while the animation runs.
-        await Future.wait([animate(), ctx.openKeyboard()]);
+        // The keyboard opens while the animation runs.
+        await ctx.openKeyboard(meanwhile: animate);
       });
       await ctx.control(() async {
         await ctx.seat(KeyboardSeat.tail);
@@ -139,13 +141,16 @@ ScenarioRegistry _build() {
     scenario('kbd.composer_growth', 'open', (ctx) async {
       await ctx.seat(KeyboardSeat.tail);
       await ctx.measure('open', primer: () => primer(ctx), () async {
-        await Future.wait([
-          ctx.openKeyboard(),
-          ctx.growComposer(lines: _growLines, after: _growAfter),
-        ]);
+        await ctx.openKeyboard(
+          meanwhile: () =>
+              ctx.growComposer(lines: _growLines, after: _growAfter),
+        );
       });
     }),
     scenario('panel.open_over_chat', 'open', (ctx) async {
+      // The platform keyboard outlives a mount: a panel opened over a raised
+      // keyboard would not move the pad.
+      await ctx.closeKeyboard();
       await ctx.seat(KeyboardSeat.tail);
       await ctx.measure(
         'open',
