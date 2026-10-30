@@ -9,6 +9,7 @@ import 'dart:math' as math;
 
 import '../../integration_test/chat_perf/metrics.dart';
 import '../../integration_test/chat_perf/report_document.dart';
+import '../../integration_test/chat_perf/trace_counts.dart';
 import 'baseline.dart';
 
 /// How far above the baseline max a value may sit: relative to the max, but
@@ -23,7 +24,14 @@ final class Margin {
   double allowance(double base) => math.max(base.abs() * relative, floor);
 }
 
-Margin marginFor(MetricKind kind) => switch (kind) {
+/// The margin of metric [name] of [kind]. Traced-pass counts come from a
+/// scripted run, so they get a near-exact tolerance (2%, at least one).
+Margin marginFor(MetricKind kind, {String name = ''}) =>
+    passOf(name) == MetricPass.traced && kind == MetricKind.count
+    ? const Margin(relative: 0.02, floor: 1)
+    : _marginOf(kind);
+
+Margin _marginOf(MetricKind kind) => switch (kind) {
   MetricKind.share => const Margin(relative: 0.10, floor: 0.02),
   MetricKind.count => const Margin(relative: 0.10, floor: 1),
   MetricKind.ms => const Margin(relative: 0.10, floor: 0.5),
@@ -127,7 +135,7 @@ final class Verdict {
 
 bool _regressed(String name, BaselineMetric base, double value) {
   if (base.kind == MetricKind.exact) return value != base.median;
-  final margin = marginFor(base.kind);
+  final margin = marginFor(base.kind, name: name);
   if (higherIsBetter(name))
     return value < base.min - margin.allowance(base.min);
   return value > base.max + margin.allowance(base.max);
@@ -223,7 +231,9 @@ String renderVerdict(Verdict v) {
         final b = j.baseline;
         out.add(
           '${j.regressed ? 'REGRESSED' : 'ok       '}  ${j.scenario}  '
-          '${j.window}  ${j.metric}  ${_pct(b, j.value)}  '
+          '${j.window}  ${j.metric}'
+          '${passOf(j.metric) == MetricPass.traced ? ' [traced]' : ''}  '
+          '${_pct(b, j.value)}  '
           '(baseline ${_pct(b, b.median)}, ${_pct(b, b.min)}..${_pct(b, b.max)})',
         );
       }

@@ -39,6 +39,7 @@ import 'chat_perf/selection_scenarios_test.dart'
     as chat_perf_selection_scenarios_test;
 import 'chat_perf/semantics_test.dart' as chat_perf_semantics_test;
 import 'chat_perf/table_test.dart' as chat_perf_table_test;
+import 'chat_perf/trace_counts_test.dart' as chat_perf_trace_counts_test;
 import 'chat_viewport_insets_test.dart' as chat_viewport_insets_test;
 import 'common/chat_message_markdown_test.dart' as chat_message_markdown_test;
 import 'features/chat/animated_emoji_pack_test.dart'
@@ -185,6 +186,7 @@ void main() {
   group('chat_perf/scale_test.dart', chat_perf_scale_test.main);
   group('chat_perf/semantics_test.dart', chat_perf_semantics_test.main);
   group('chat_perf/table_test.dart', chat_perf_table_test.main);
+  group('chat_perf/trace_counts_test.dart', chat_perf_trace_counts_test.main);
   group('chat_viewport_insets_test.dart', chat_viewport_insets_test.main);
   group(
     'common/chat_message_markdown_test.dart',

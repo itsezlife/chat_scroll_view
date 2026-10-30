@@ -4,6 +4,7 @@
 ///       [--scenario GLOB,...] [--label NAME] [--backend impeller|skia]
 ///       [--history N] [--semantics off|on|pair] [--refresh HZ]
 ///       [--launches N]   (baseline only, at least 5)
+///       [--trace off]    (run and baseline: skip the traced pass)
 ///   dart run tool/chat_perf.dart promote LABEL --reason "one line"
 ///   dart run tool/chat_perf.dart compare LABEL [--refresh HZ]
 ///
@@ -20,6 +21,11 @@
 /// set a failing exit status. `run` and `baseline` take the same
 /// `--semantics`.
 ///
+/// `run` and `baseline` end with one traced launch (a `trace=phase` build,
+/// `--no-dds`) over the `deterministic` scenarios; its timelines give the
+/// structural counts (`trace.*`), which join the first launch's metrics. Timing
+/// never comes from the traced launch.
+///
 /// Before the first launch it refuses a device that cannot give meaningful
 /// numbers and takes the per-device lock. Each launch uses the APK cached under
 /// a fingerprint of the sources and the dart-define set; a launch killed by a
@@ -30,6 +36,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import '../integration_test/chat_perf/metrics.dart';
 import '../integration_test/chat_perf/registry.dart';
 import '../integration_test/chat_perf/report_document.dart';
 import '../integration_test/chat_perf/scenarios/churn_scenarios.dart';
@@ -38,6 +45,7 @@ import '../integration_test/chat_perf/scenarios/keyboard_scenarios.dart';
 import '../integration_test/chat_perf/scenarios/scroll_scenarios.dart';
 import '../integration_test/chat_perf/semantics.dart';
 import '../integration_test/chat_perf/table.dart';
+import '../integration_test/chat_perf/trace_counts.dart';
 import 'chat_perf/adb.dart';
 import 'chat_perf/baseline.dart';
 import 'chat_perf/build_fingerprint.dart';
@@ -49,6 +57,9 @@ import 'chat_perf/verdict.dart';
 
 const _modes = {'quick', 'run', 'baseline', 'promote', 'compare'};
 const _baselineRoot = 'perf/baseline/chat';
+
+/// The counts of a run's traced pass, beside its run manifest.
+const _tracedMetricsFile = 'chat_perf_trace_metrics.json';
 
 String get _out =>
     Platform.environment['PERF_OUT'] ?? '${Directory.current.path}/perf';
@@ -153,6 +164,7 @@ Future<void> main(List<String> args) async {
   final roundDocs = <MetricsDocument>[];
   final roundLabels = <List<String>>[];
   var discarded = 0;
+  MetricsDocument? traced;
   try {
     var first = true;
     for (var r = 1; r <= rounds && status == 0; r++) {
@@ -183,6 +195,28 @@ Future<void> main(List<String> args) async {
         roundLabels.add(labels);
       }
     }
+    final traceable = [
+      for (final s in _all.where(filter))
+        if (isTraceable(s)) s,
+    ];
+    if (status == 0 &&
+        (mode == 'run' || mode == 'baseline') &&
+        options['trace'] != 'off' &&
+        traceable.isNotEmpty &&
+        roundDocs.isNotEmpty) {
+      final result = await _tracedLaunch(
+        adb,
+        options,
+        '$label-traced',
+        traceable,
+        roundDocs.first.meta,
+      );
+      discarded += result.discarded;
+      traced = result.doc;
+      if (result.code != 0 || traced == null) {
+        status = result.code == 0 ? 1 : result.code;
+      }
+    }
   } on ForeignInstallException catch (e) {
     stderr.writeln('run failed: ${e.message}');
     status = 4;
@@ -197,8 +231,9 @@ Future<void> main(List<String> args) async {
     _finish(
       mode: mode,
       label: label,
-      rounds: roundDocs,
+      launches: roundDocs,
       roundLabels: roundLabels,
+      traced: traced,
       discarded: discarded,
       requested: Requested(
         backend: options['backend'] ?? 'impeller',
@@ -213,16 +248,30 @@ Future<void> main(List<String> args) async {
 int _finish({
   required String mode,
   required String label,
-  required List<MetricsDocument> rounds,
+  required List<MetricsDocument> launches,
   required List<List<String>> roundLabels,
   required int discarded,
   required Requested requested,
+  MetricsDocument? traced,
 }) {
   final dir = Directory('$_out/runs/$label')..createSync(recursive: true);
+  if (traced != null) {
+    File('${dir.path}/$_tracedMetricsFile').writeAsStringSync(
+      const JsonEncoder.withIndent('  ').convert(traced.toJson()),
+    );
+  }
+  final rounds = [
+    if (traced != null)
+      withTracedCounts(launches.first, traced)
+    else
+      launches.first,
+    ...launches.skip(1),
+  ];
   File('${dir.path}/chat_perf_run.json').writeAsStringSync(
     const JsonEncoder.withIndent('  ').convert({
       'mode': mode,
       'rounds': roundLabels,
+      if (traced != null) 'traced': '$label-traced',
       'discardedLaunches': discarded,
       'requested': {
         'backend': requested.backend,
@@ -317,6 +366,15 @@ int _compare(String label, Map<String, String> options) {
           ),
       ]),
   ];
+  final tracedFile = File('$_out/runs/$label/$_tracedMetricsFile');
+  if (tracedFile.existsSync()) {
+    rounds[0] = withTracedCounts(
+      rounds.first,
+      MetricsDocument.fromJson(
+        jsonDecode(tracedFile.readAsStringSync()) as Map<String, Object?>,
+      ),
+    );
+  }
   final req = manifest['requested']! as Map<String, Object?>;
   return _judgeAndPrint(
     medianOf(rounds),
@@ -433,6 +491,64 @@ Future<({int code, int discarded, MetricsDocument? doc})> _launch(
     stdout.writeln('note: semantics were on during this launch.');
   }
   return (code: code, discarded: result.discarded, doc: doc);
+}
+
+/// The traced pass: one launch of the `trace=phase` build over the scripted
+/// [scenarios], driven with the VM-service connection the timeline capture
+/// needs (`--no-dds`). Only the counts derived from its timelines are kept;
+/// the launch's own timing document is ignored.
+Future<({int code, int discarded, MetricsDocument? doc})> _tracedLaunch(
+  Adb adb,
+  Map<String, String> options,
+  String label,
+  List<Scenario> scenarios,
+  LaunchMeta meta,
+) async {
+  final backend = options['backend'] ?? 'impeller';
+  final defines = buildDefines(
+    backend: backend,
+    scenario: scenarios.map((s) => s.id).join(','),
+    history: options['history'],
+    semantics: 'off',
+    traced: true,
+  );
+  final apk = await _ensureApk(defines, backend);
+  final result = await runWithRetry<int>(
+    launch: () async {
+      await adb.clearLogcat();
+      return _drive(
+        adb.device,
+        label,
+        _out,
+        defines,
+        apk,
+        backend,
+        noDds: true,
+      );
+    },
+    foreignInstall: () async => hasForeignInstall(await adb.logcat(), kPackage),
+  );
+  final dir = '$_out/runs/$label';
+  final counts = <String, Map<String, Map<String, Metric>>>{};
+  for (final s in scenarios) {
+    final file = File('$dir/${traceTimelineFile(s.id)}');
+    if (!file.existsSync()) {
+      stderr.writeln('no timeline for ${s.key} in the traced launch');
+      continue;
+    }
+    counts[s.key] = traceCounts(
+      jsonDecode(file.readAsStringSync()) as Map<String, Object?>,
+    );
+  }
+  stdout.writeln(
+    'traced pass: counts for ${counts.length} of ${scenarios.length} '
+    'scenarios ($dir)',
+  );
+  return (
+    code: result.value,
+    discarded: result.discarded,
+    doc: counts.isEmpty ? null : tracedDocument(meta: meta, counts: counts),
+  );
 }
 
 const _target = 'integration_test/chat_perf/chat_perf_test.dart';

@@ -21,6 +21,7 @@ import 'scenarios/keyboard_scenarios.dart';
 import 'scenarios/scroll_scenarios.dart';
 import 'scenarios/selection_scenarios.dart';
 import 'semantics.dart';
+import 'trace_counts.dart';
 
 /// On-device chat viewport performance suite entry point (profile mode).
 ///
@@ -29,7 +30,9 @@ import 'semantics.dart';
 /// all), `CHAT_PERF_COLD` (`true` runs the cold scenarios, one launch each;
 /// otherwise the shared-process set), `CHAT_PERF_BACKEND` (`impeller` or
 /// `skia`, recorded as given), `CHAT_PERF_HISTORY` (messages in the seeded
-/// history), `CHAT_PERF_SEMANTICS` (`off` by default, `on` or `pair`).
+/// history), `CHAT_PERF_SEMANTICS` (`off` by default, `on` or `pair`),
+/// `CHAT_PERF_TRACED` (`true` is the traced launch: scripted scenarios only,
+/// each captured on the timeline, for the structural counts).
 const _filter = String.fromEnvironment('CHAT_PERF_SCENARIO');
 const _backend = String.fromEnvironment(
   'CHAT_PERF_BACKEND',
@@ -81,7 +84,12 @@ void main() {
   // a semantics handle for the whole test, so the engine builds semantics
   // every frame. The `on` pass takes its own handle.
   testWidgets('chat perf scenarios', semanticsEnabled: false, (tester) async {
-    final selected = allScenarios.where(_filter, cold: _cold);
+    // The traced launch runs only the scripted scenarios, each under a
+    // timeline capture; its timing is discarded by the runner.
+    final selected = [
+      for (final s in allScenarios.where(_filter, cold: _cold))
+        if (!kTracedLaunch || isTraceable(s)) s,
+    ];
     expect(selected, isNotEmpty, reason: 'no scenario matches "$_filter"');
 
     final scenarios = <String, Map<String, Map<String, Metric>>>{};
@@ -132,7 +140,12 @@ void main() {
                 history: _history,
               ).then((m) => (m.host, m.ctx))
             : await _mountPlain(tester, scenario);
-        if (run == SemanticsRun.pair && recorded) {
+        if (kTracedLaunch) {
+          await binding.traceAction(
+            () => scenario.run(ctx),
+            reportKey: traceReportKey(scenario.id),
+          );
+        } else if (run == SemanticsRun.pair && recorded) {
           // Traced, so the timeline shows whether semantics work ran.
           final key =
               'chat_perf_${scenario.id.replaceAll('.', '_')}'

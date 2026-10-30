@@ -18,6 +18,7 @@ import 'metrics.dart';
 import 'perf_host.dart';
 import 'registry.dart';
 import 'report_document.dart';
+import 'trace_counts.dart';
 
 /// Runs one scenario on [host] and collects its windows.
 base class DeviceContext implements ChurnContext {
@@ -166,7 +167,9 @@ base class DeviceContext implements ChurnContext {
     // Measured from the binding at the start of the window, not assumed.
     final semanticsOn = SemanticsBinding.instance.semanticsEnabled;
     _openWindow = name;
+    markTraceWindow(name, start: true);
     await body();
+    markTraceWindow(name, start: false);
     _openWindow = null;
     // Timings arrive in batches; give the last one time to land.
     await _tester.pump(const Duration(milliseconds: 1500));
