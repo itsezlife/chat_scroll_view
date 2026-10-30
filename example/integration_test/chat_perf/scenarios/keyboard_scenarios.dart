@@ -46,7 +46,8 @@ abstract interface class KeyboardContext implements ScenarioContext {
 /// The scenarios of the keyboard family under [profile].
 ///
 /// Each scenario's window is primed by a low-amplitude open and close of the
-/// same curve, outside the window.
+/// same curve, outside the window; a window that starts with the keyboard up
+/// then opens it in full, also outside.
 ScenarioRegistry buildKeyboardScenarios(InsetCurveProfile profile) {
   Scenario scenario(
     String id,
@@ -67,6 +68,13 @@ ScenarioRegistry buildKeyboardScenarios(InsetCurveProfile profile) {
     await ctx.ramp(profile.close.scaled(0.3));
   }
 
+  // A window that starts with the keyboard up is primed, then opened in full
+  // outside the window, so it starts from the settled keyboard.
+  Future<void> primerThenUp(KeyboardContext ctx) async {
+    await primer(ctx);
+    await ctx.ramp(profile.open);
+  }
+
   Future<void> opening(KeyboardContext ctx, KeyboardSeat seat) async {
     await ctx.seat(seat);
     await ctx.measure(
@@ -84,10 +92,9 @@ ScenarioRegistry buildKeyboardScenarios(InsetCurveProfile profile) {
     ),
     scenario('kbd.synthetic_close_tail', 'close', (ctx) async {
       await ctx.seat(KeyboardSeat.tail);
-      await ctx.ramp(profile.open);
       await ctx.measure(
         'close',
-        primer: () => primer(ctx),
+        primer: () => primerThenUp(ctx),
         () => ctx.ramp(profile.close),
       );
     }),
@@ -111,10 +118,9 @@ ScenarioRegistry buildKeyboardScenarios(InsetCurveProfile profile) {
     }),
     scenario('kbd.synthetic_handoff', 'handoff', (ctx) async {
       await ctx.seat(KeyboardSeat.tail);
-      await ctx.ramp(profile.open);
       await ctx.measure(
         'handoff',
-        primer: () => primer(ctx),
+        primer: () => primerThenUp(ctx),
         () => ctx.handOffToPanel(profile.close),
       );
     }),

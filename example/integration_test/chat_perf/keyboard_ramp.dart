@@ -178,6 +178,16 @@ Map<String, Metric> rampMetrics(
     'engine.comp_error_dp': _m(compError, MetricKind.dp, MetricRole.target),
     'host.pad_overshoot_dp': _m(overshoot, MetricKind.dp),
     'jump.messages': _m(jumps.toDouble(), MetricKind.exact),
+    // Context for the numbers above: how far the pad moved and how far the
+    // anchor travelled, so an error of zero is not an absent change.
+    'pad.start_dp': _m(start.padDp, MetricKind.dp),
+    'pad.end_dp': _m(end.padDp, MetricKind.dp),
+    'pad.min_dp': _m(pads.reduce(math.min), MetricKind.dp),
+    'pad.max_dp': _m(pads.reduce(math.max), MetricKind.dp),
+    'anchor.travel_dp': _m(
+      end.anchorOffsetDp - start.anchorOffsetDp,
+      MetricKind.dp,
+    ),
     if (firstChange case final first?) ...{
       'ramp.first_inset_ms': _m(first - origin, MetricKind.ms),
       'ramp.duration_ms': _m(lastChange! - first, MetricKind.ms),

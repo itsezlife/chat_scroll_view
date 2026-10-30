@@ -92,7 +92,12 @@ void main() {
   test('close_tail opens fully before its window and closes inside', () async {
     final ctx = _RecordingContext();
     await byId('kbd.synthetic_close_tail').run(ctx);
-    expect(ctx.calls.take(2), ['seat tail outside', 'ramp open full outside']);
+    expect(ctx.calls.takeWhile((c) => c != 'begin close'), [
+      'seat tail outside',
+      'ramp open low outside',
+      'ramp close low outside',
+      'ramp open full outside',
+    ]);
     expect(ctx.calls.skipWhile((c) => c != 'begin close'), [
       'begin close',
       'ramp close full',
@@ -131,6 +136,10 @@ void main() {
     () async {
       final ctx = _RecordingContext();
       await byId('kbd.synthetic_handoff').run(ctx);
+      expect(
+        ctx.calls.takeWhile((c) => c != 'begin handoff').last,
+        'ramp open full outside',
+      );
       expect(ctx.calls.skipWhile((c) => c != 'begin handoff'), [
         'begin handoff',
         'handoff',
