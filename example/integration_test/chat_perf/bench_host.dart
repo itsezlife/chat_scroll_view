@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'bench_setup.dart';
 import 'churn.dart';
 import 'corpus.dart';
+import 'perf_host.dart';
 
 /// Fixed bubble: one rounded rectangle and one paragraph, nothing else, in a
 /// probe wrapper that lets the host read its geometry and count placeholders.
@@ -146,8 +147,28 @@ class _ProbedRowState extends State<_ProbedRow> {
   Widget build(BuildContext context) => widget.child;
 }
 
+/// The inline separator and floating date pill of the bench host.
+Widget _datePill(BuildContext context, Object bucket, DateTime date) => Center(
+  child: Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF455A64),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Text(
+          '${date.year}-${date.month}-${date.day}',
+          style: const TextStyle(fontSize: 12, color: Color(0xFFFFFFFF)),
+        ),
+      ),
+    ),
+  ),
+);
+
 /// A mounted viewport over a seeded corpus.
-final class BenchHost implements ChurnHost {
+final class BenchHost implements PerfHost, ChurnHost {
   BenchHost._(
     this.tester,
     this.source,
@@ -162,6 +183,7 @@ final class BenchHost implements ChurnHost {
     WidgetTester tester,
     BenchCorpus corpus, {
     BenchSetup setup = const BenchSetup(),
+    bool floatingDayHeader = false,
   }) async {
     final source = BenchDataSource(corpus, setup: setup);
     final controller = ChatScrollController();
@@ -185,6 +207,13 @@ final class BenchHost implements ChurnHost {
               height: 28,
               child: Center(child: Text('Unread messages')),
             ),
+            scrollActivityTiming: floatingDayHeader
+                ? const ChatScrollActivityTiming()
+                : null,
+            dayHeaderDelegate: floatingDayHeader
+                ? const ChatPushingDayHeader()
+                : const ChatFadingDayHeader(),
+            dateSeparatorBuilder: floatingDayHeader ? _datePill : null,
           ),
         ),
       ),
@@ -193,8 +222,10 @@ final class BenchHost implements ChurnHost {
     return BenchHost._(tester, source, controller, probe, unread, viewportKey);
   }
 
+  @override
   final WidgetTester tester;
   final BenchDataSource source;
+  @override
   final ChatScrollController controller;
   final BenchProbe probe;
   final ValueNotifier<int?> unread;
@@ -253,11 +284,16 @@ final class BenchHost implements ChurnHost {
     return null;
   }
 
+  @override
+  int get history => source.corpus.count;
+
+  @override
   Finder get viewport => find.byType(ChatScrollView);
 
   /// Removes the viewport, releases its controller and returns the process to
   /// a comparable state, between scenarios: image caches cleared, memory
   /// pressure signalled (the engine drops its caches) and a GC settle awaited.
+  @override
   Future<void> dispose() async {
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();

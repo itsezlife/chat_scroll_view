@@ -87,7 +87,7 @@ abstract interface class ChurnHost {
 
 /// A [ScenarioContext] that can run frame-clocked schedules on the host.
 abstract interface class ChurnContext implements ScenarioContext {
-  ChurnHost get host;
+  ChurnHost get churn;
 
   /// Seats the viewport at the newest message and waits until it is idle.
   Future<void> seatTail();
@@ -106,9 +106,6 @@ abstract interface class ChurnContext implements ScenarioContext {
 
   /// Runs [body] and samples every frame it spans.
   Future<List<ChurnFrame>> recordFrames(Future<void> Function() body);
-
-  /// One fling of [dy] logical pixels at [velocity] dp/s.
-  Future<void> fling(double dy, double velocity);
 
   /// Adds [metrics] to the window [name] being measured.
   void report(String name, Map<String, Metric> metrics);

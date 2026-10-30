@@ -44,9 +44,9 @@ final class _FakeHost implements ChurnHost {
 }
 
 /// Runs schedules by firing each action at its frame, with a canned trace.
-final class _FakeContext implements ChurnContext {
+final class _FakeContext extends Fake implements ChurnContext {
   @override
-  final _FakeHost host = _FakeHost();
+  final _FakeHost churn = _FakeHost();
   final reports = <String, Map<String, Metric>>{};
   final windows = <String>[];
   bool primed = false;
@@ -82,7 +82,7 @@ final class _FakeContext implements ChurnContext {
           a();
         }
       }
-      frames.add(_f(f, anchor: host.newestId));
+      frames.add(_f(f, anchor: churn.newestId));
     }
     return frames;
   }
@@ -94,17 +94,19 @@ final class _FakeContext implements ChurnContext {
   }
 
   @override
-  Future<void> seatTail() async => host.log.add('seat tail');
+  Future<void> seatTail() async => churn.log.add('seat tail');
 
   @override
   Future<void> seat(int id, {double alignment = 0.5}) async =>
-      host.log.add('seat $id');
+      churn.log.add('seat $id');
 
   @override
-  Future<void> fling(double dy, double velocity) async => host.log.add('fling');
+  Future<void> fling(double dy, Duration duration) async =>
+      churn.log.add('fling');
 
   @override
-  Future<void> drag(double dy, Duration duration) async => host.log.add('drag');
+  Future<void> drag(double dy, Duration duration) async =>
+      churn.log.add('drag');
 
   @override
   Future<void> settle() async {}
@@ -258,7 +260,7 @@ void main() {
     test('send_at_tail inserts once and reports the pin frames', () async {
       final ctx = _FakeContext();
       await byId('churn.send_at_tail').run(ctx);
-      expect(ctx.host.log, [
+      expect(ctx.churn.log, [
         'seat tail',
         'insert self=true',
         'insert self=true',
@@ -271,21 +273,21 @@ void main() {
       final ctx = _FakeContext();
       await byId('churn.incoming_burst_tail').run(ctx);
       // One primer insert, then twenty.
-      expect(ctx.host.log.where((e) => e.startsWith('insert')), hasLength(21));
+      expect(ctx.churn.log.where((e) => e.startsWith('insert')), hasLength(21));
       expect(ctx.reports['churn']!['tail.unpinned_frames']!.value, 0);
     });
 
     test('delete_anchor_tall removes the designated tall message', () async {
       final ctx = _FakeContext();
       await byId('churn.delete_anchor_tall').run(ctx);
-      expect(ctx.host.log, ['seat $kTallMessageId', 'remove $kTallMessageId']);
+      expect(ctx.churn.log, ['seat $kTallMessageId', 'remove $kTallMessageId']);
       expect(ctx.reports['churn'], contains('scroll.delta_dp'));
     });
 
     test('edit_visible makes the body taller, then restores it', () async {
       final ctx = _FakeContext();
       await byId('churn.edit_visible_tail').run(ctx);
-      expect(ctx.host.log, [
+      expect(ctx.churn.log, [
         'seat tail',
         'edit 3 taller=true',
         'edit 3 taller=false',
@@ -299,7 +301,7 @@ void main() {
     test('unread_boundary moves the boundary, then clears it', () async {
       final ctx = _FakeContext();
       await byId('churn.unread_boundary').run(ctx);
-      expect(ctx.host.log.where((e) => e.startsWith('unread')), [
+      expect(ctx.churn.log.where((e) => e.startsWith('unread')), [
         'unread 10000',
         'unread 3',
         'unread null',
@@ -313,7 +315,7 @@ void main() {
         await byId('churn.incoming_while_away_fling').run(ctx);
         expect(ctx.windows, ['control', 'churn']);
         expect(
-          ctx.host.log.where((e) => e == 'insert self=false'),
+          ctx.churn.log.where((e) => e == 'insert self=false'),
           hasLength(20),
         );
         expect(ctx.reports['churn'], contains('anchor.drift_dp'));

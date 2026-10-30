@@ -15,12 +15,14 @@ Scenario _churn({
   required List<String> windows,
   required Future<void> Function(ChurnContext ctx) run,
   bool cold = false,
+  bool deterministic = false,
   BenchSetup setup = const BenchSetup(),
 }) => Scenario(
   id: id,
   version: 1,
   windows: windows,
   cold: cold,
+  deterministic: deterministic,
   setup: setup,
   run: (ctx) => switch (ctx) {
     final ChurnContext c => run(c),
@@ -50,13 +52,14 @@ FrameSchedule _burst(ChurnHost host) {
 }
 
 Future<void> Function() _primeInsert(ChurnContext ctx, {required bool self}) =>
-    () async => ctx.host.insert(self: self);
+    () async => ctx.churn.insert(self: self);
 
 final _sendAtTail = _churn(
   id: 'churn.send_at_tail',
+  deterministic: true,
   windows: const ['churn'],
   run: (ctx) async {
-    final host = ctx.host;
+    final host = ctx.churn;
     await ctx.seatTail();
     await _scheduled(
       ctx,
@@ -81,9 +84,10 @@ final _sendAtTail = _churn(
 
 final _sendAway = _churn(
   id: 'churn.send_away',
+  deterministic: true,
   windows: const ['churn'],
   run: (ctx) async {
-    final host = ctx.host;
+    final host = ctx.churn;
     await ctx.seat(_awayId);
     var newest = 0;
     await _scheduled(
@@ -110,12 +114,13 @@ final _sendAway = _churn(
 
 final _incomingBurstTail = _churn(
   id: 'churn.incoming_burst_tail',
+  deterministic: true,
   windows: const ['churn'],
   run: (ctx) async {
     await ctx.seatTail();
     await _scheduled(
       ctx,
-      _burst(ctx.host),
+      _burst(ctx.churn),
       (f) => {
         'tail.unpinned_frames': ChurnMetric.count(
           tailUnpinnedFrames(f),
@@ -129,12 +134,13 @@ final _incomingBurstTail = _churn(
 
 final _incomingWhileAway = _churn(
   id: 'churn.incoming_while_away',
+  deterministic: true,
   windows: const ['churn'],
   run: (ctx) async {
     await ctx.seat(_awayId);
     await _scheduled(
       ctx,
-      _burst(ctx.host),
+      _burst(ctx.churn),
       (f) => {
         'anchor.drift_dp': ChurnMetric.dp(anchorDriftDp(f), headline: true),
         'anchor.id_changes': ChurnMetric.count(anchorIdChanges(f)),
@@ -151,7 +157,7 @@ final _incomingWhileAwayFling = _churn(
   id: 'churn.incoming_while_away_fling',
   windows: const ['control', 'churn'],
   run: (ctx) async {
-    final host = ctx.host;
+    final host = ctx.churn;
     Future<ChurnFrame> flung(String window, {ChurnFrame? control}) async {
       await ctx.seat(_awayId);
       late ChurnFrame end;
@@ -169,10 +175,10 @@ final _incomingWhileAwayFling = _churn(
                 await Future<void>.delayed(const Duration(milliseconds: 8));
               }
             });
-            await ctx.fling(400, 1500);
+            await ctx.fling(400, const Duration(milliseconds: 150));
             await inserting;
           } else {
-            await ctx.fling(400, 1500);
+            await ctx.fling(400, const Duration(milliseconds: 150));
           }
           await ctx.settle();
         });
@@ -199,9 +205,10 @@ final _incomingWhileAwayFling = _churn(
 
 Scenario _editVisible(String state) => _churn(
   id: 'churn.edit_visible_$state',
+  deterministic: true,
   windows: const ['churn'],
   run: (ctx) async {
-    final host = ctx.host;
+    final host = ctx.churn;
     if (state == 'away') {
       await ctx.seat(_awayId);
     } else {
@@ -230,9 +237,10 @@ Scenario _editVisible(String state) => _churn(
 
 final _deleteVisible = _churn(
   id: 'churn.delete_visible',
+  deterministic: true,
   windows: const ['churn'],
   run: (ctx) async {
-    final host = ctx.host;
+    final host = ctx.churn;
     await ctx.seat(_awayId);
     await _scheduled(
       ctx,
@@ -252,9 +260,10 @@ final _deleteVisible = _churn(
 
 final _deleteAnchor = _churn(
   id: 'churn.delete_anchor',
+  deterministic: true,
   windows: const ['churn'],
   run: (ctx) async {
-    final host = ctx.host;
+    final host = ctx.churn;
     await ctx.seat(_awayId);
     await _scheduled(
       ctx,
@@ -272,9 +281,10 @@ final _deleteAnchor = _churn(
 /// `tall`: the anchor is the designated tall message.
 final _deleteAnchorTall = _churn(
   id: 'churn.delete_anchor_tall',
+  deterministic: true,
   windows: const ['churn'],
   run: (ctx) async {
-    final host = ctx.host;
+    final host = ctx.churn;
     // Aligned to the top, so the tall body fills the viewport.
     await ctx.seat(kTallMessageId, alignment: 0);
     await _scheduled(
@@ -321,9 +331,10 @@ final _chunkLoadUp = _churn(
 
 final _unreadBoundary = _churn(
   id: 'churn.unread_boundary',
+  deterministic: true,
   windows: const ['churn'],
   run: (ctx) async {
-    final host = ctx.host;
+    final host = ctx.churn;
     await ctx.seat(_awayId);
     final other = host.visibleNonAnchorId ?? _awayId - 1;
     await _scheduled(
@@ -349,7 +360,7 @@ final _firstOpen = _churn(
     ctx.report('first_open', {
       // Mount to the first message built; not raster.
       'first_paint_ms': ChurnMetric.ms(
-        ctx.host.firstBuildMs ?? double.nan,
+        ctx.churn.firstBuildMs ?? double.nan,
         headline: true,
       ),
     });
