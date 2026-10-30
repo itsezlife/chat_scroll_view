@@ -12,7 +12,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../integration_test/chat_perf/report_document.dart';
-import '../integration_test/chat_perf/scenarios/scroll_scenarios.dart';
+import '../integration_test/chat_perf/scenarios/all_scenarios.dart';
 import '../integration_test/chat_perf/semantics.dart';
 import '../integration_test/chat_perf/table.dart';
 
@@ -46,9 +46,9 @@ Future<void> main(List<String> args) async {
   // The shared-process set is one launch; each cold scenario gets its own
   // (spec 5), under `<label>-<scenario id>`.
   final launches = <({String label, String filter, bool cold})>[
-    if (scrollScenarios.where(filter).isNotEmpty)
+    if (allScenarios.where(filter).isNotEmpty)
       (label: label, filter: filter, cold: false),
-    for (final s in scrollScenarios.where(filter, cold: true))
+    for (final s in allScenarios.where(filter, cold: true))
       (label: '$label-${s.id}', filter: s.id, cold: true),
   ];
   if (launches.isEmpty) {

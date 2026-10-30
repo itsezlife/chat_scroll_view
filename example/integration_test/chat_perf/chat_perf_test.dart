@@ -9,10 +9,8 @@ import 'bench_host.dart';
 import 'corpus.dart';
 import 'device_context.dart';
 import 'metrics.dart';
-import 'registry.dart';
 import 'report_document.dart';
-import 'scenarios/churn_scenarios.dart';
-import 'scenarios/scroll_scenarios.dart';
+import 'scenarios/all_scenarios.dart';
 import 'semantics.dart';
 
 /// On-device chat viewport performance suite entry point (profile mode).
@@ -49,10 +47,7 @@ void main() {
   // a semantics handle for the whole test, so the engine builds semantics
   // every frame. The `on` pass takes its own handle.
   testWidgets('chat perf scenarios', semanticsEnabled: false, (tester) async {
-    final selected = ScenarioRegistry([
-      ...scrollScenarios.all,
-      ...churnScenarios.all,
-    ]).where(_filter, cold: _cold);
+    final selected = allScenarios.where(_filter, cold: _cold);
     expect(selected, isNotEmpty, reason: 'no scenario matches "$_filter"');
 
     final scenarios = <String, Map<String, Map<String, Metric>>>{};

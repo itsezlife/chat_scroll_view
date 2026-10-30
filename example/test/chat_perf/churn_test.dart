@@ -49,7 +49,7 @@ final class _FakeContext implements ChurnContext {
   final _FakeHost host = _FakeHost();
   final reports = <String, Map<String, Metric>>{};
   final windows = <String>[];
-  var primed = false;
+  bool primed = false;
 
   @override
   void report(String name, Map<String, Metric> metrics) =>
