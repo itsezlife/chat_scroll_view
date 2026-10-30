@@ -9,6 +9,8 @@ import 'bench_host.dart';
 import 'corpus.dart';
 import 'device_context.dart';
 import 'metrics.dart';
+import 'real_chat_host.dart';
+import 'registry.dart';
 import 'report_document.dart';
 import 'scenarios/scroll_scenarios.dart';
 import 'semantics.dart';
@@ -65,10 +67,17 @@ void main() {
           firstPassSemantics = measured ? 'on' : 'off';
         }
         expect(measured, on, reason: 'semantics mode is not what was asked');
-        final host = await BenchHost.mount(
-          tester,
-          const BenchCorpus(count: _history),
-        );
+        final host = switch (scenario.subject) {
+          ScenarioSubject.bench => await BenchHost.mount(
+            tester,
+            const BenchCorpus(count: _history),
+            floatingDayHeader: scenario.floatingDayHeader,
+          ),
+          ScenarioSubject.realChat => await RealChatHost.mount(
+            tester,
+            _history,
+          ),
+        };
         final ctx = DeviceContext(host, scenario);
         if (run == SemanticsRun.pair && recorded) {
           // Traced, so the timeline shows whether semantics work ran.
