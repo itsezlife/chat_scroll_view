@@ -1,4 +1,3 @@
-import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
@@ -30,7 +29,7 @@ import 'package:flutter/painting.dart';
 /// chrome with the gradient behind it through a `WallpaperServiceShade`
 /// instead; the tone stays the fallback.
 @immutable
-final class WallpaperServiceTone extends Equatable {
+final class WallpaperServiceTone {
   /// Tone with explicit colours; prefer [WallpaperServiceTone.fromColor].
   const WallpaperServiceTone({
     required this.background,
@@ -93,5 +92,12 @@ final class WallpaperServiceTone extends Equatable {
   final Color foreground;
 
   @override
-  List<Object?> get props => [background, foreground];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WallpaperServiceTone &&
+          other.background == background &&
+          other.foreground == foreground;
+
+  @override
+  int get hashCode => Object.hash(background, foreground);
 }

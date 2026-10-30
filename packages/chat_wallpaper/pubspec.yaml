@@ -12,8 +12,6 @@ environment:
   flutter: '>=3.32.0'
 
 dependencies:
-  # Value equality of the wallpaper model and its tones and shades.
-  equatable: ^2.0.7
   flutter:
     sdk: flutter
   # Pattern artwork arrives as compiled vector graphics (or an SVG loader); the

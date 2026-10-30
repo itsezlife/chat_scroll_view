@@ -25,7 +25,7 @@ API.
 | `emoji_data` | Emoji-specific logic only: structure and keyword loaders, emoji `CollectionSource`, merged search, variants, pure-Dart glyph probe. No assets, no native code | `content_model` |
 | `emoji_catalog_pack` | Catalog structure and per-locale keyword pack assets, plus the pinned generator under `tool/` | `content_model` |
 | `kv_shared_preferences` | `shared_preferences`-backed `KeyValueStore` adapter | `content_model` |
-| `chat_wallpaper` | Leaf. The chat wallpaper: value model and codec, freeform renderer and keyframes, motion, view, warm-up, service fills ([ADR 040](040-chat-wallpaper.md)). Pattern artwork is the host's | none (`flutter`, `vector_graphics`, `equatable`) |
+| `chat_wallpaper` | Leaf. The chat wallpaper: value model and codec, freeform renderer and keyframes, motion, view, warm-up, service fills ([ADR 040](040-chat-wallpaper.md)). Pattern artwork is the host's | none (`flutter`, `vector_graphics`) |
 | `rich_clipboard` | `RichClipboard` adapter: the HTML codec and the platform clipboard code, the workspace's one Flutter plugin package ([ADR 032](032-rich-clipboard.md)) | `content_model` |
 | `panel_shell` | Host-independent panel: page registry, shell controller, pager, type tabs, bottom bar, search field, panel events, page scroll activity, focus and shortcuts | `chrome_foundation`, `content_model` |
 | `panel_pages` | Catalog page scaffold and per-kind policies. Emoji page now; sticker and GIF pages later | `panel_shell`, `panel_catalog`, `catalog_assets`, `content_model`, `chrome_foundation` |
