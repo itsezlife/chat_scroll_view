@@ -9,6 +9,7 @@ publish_to: none
 workspace:
   - packages/catalog_assets
   - packages/chat_composer
+  - packages/chat_wallpaper
   - packages/chrome_foundation
   - packages/composer_editable
   - packages/content_model
