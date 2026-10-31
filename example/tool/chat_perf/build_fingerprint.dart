@@ -11,8 +11,12 @@ List<String> buildDefines({
   bool cold = false,
   String? semantics,
   bool traced = false,
+  bool disposeBuiltPainters = true,
 }) => [
   'CHAT_PERF_BACKEND=$backend',
+  // The markdown theme flag the hosts set; always explicit so that a cached
+  // APK never silently carries the other setting.
+  'CHAT_PERF_DISPOSE_BUILT_PAINTERS=$disposeBuiltPainters',
   if (scenario != null && scenario.isNotEmpty) 'CHAT_PERF_SCENARIO=$scenario',
   if (history != null && history.isNotEmpty) 'CHAT_PERF_HISTORY=$history',
   if (cold) 'CHAT_PERF_COLD=true',
