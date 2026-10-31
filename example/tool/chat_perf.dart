@@ -37,12 +37,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../integration_test/chat_perf/metrics.dart';
-import '../integration_test/chat_perf/registry.dart';
 import '../integration_test/chat_perf/report_document.dart';
-import '../integration_test/chat_perf/scenarios/churn_scenarios.dart';
-import '../integration_test/chat_perf/scenarios/ime_scenarios.dart';
-import '../integration_test/chat_perf/scenarios/keyboard_scenarios.dart';
-import '../integration_test/chat_perf/scenarios/scroll_scenarios.dart';
+import '../integration_test/chat_perf/scenario_index.dart';
 import '../integration_test/chat_perf/semantics.dart';
 import '../integration_test/chat_perf/table.dart';
 import '../integration_test/chat_perf/trace_counts.dart';
@@ -65,13 +61,6 @@ String get _out =>
     Platform.environment['PERF_OUT'] ?? '${Directory.current.path}/perf';
 
 typedef _Launch = ({String label, String filter, bool cold});
-
-final _all = ScenarioRegistry([
-  ...scrollScenarios.all,
-  ...churnScenarios.all,
-  ...keyboardScenarios.all,
-  ...imeScenarios.all,
-]);
 
 Future<void> main(List<String> args) async {
   if (args.isEmpty || !_modes.contains(args.first)) {
@@ -129,9 +118,9 @@ Future<void> main(List<String> args) async {
   // The shared-process set is one launch; each cold scenario gets its own
   // (spec 5), under `<round label>-<scenario id>`. A round is one of each.
   List<_Launch> launchesOf(String round) => [
-    if (_all.where(filter).isNotEmpty)
+    if (selectScenarios(scenarioIndex, filter).isNotEmpty)
       (label: round, filter: filter, cold: false),
-    for (final s in _all.where(filter, cold: true))
+    for (final s in selectScenarios(scenarioIndex, filter, cold: true))
       (label: '$round-${s.id}', filter: s.id, cold: true),
   ];
   if (launchesOf(label).isEmpty) {
@@ -195,9 +184,10 @@ Future<void> main(List<String> args) async {
         roundLabels.add(labels);
       }
     }
+    final matching = scenarioGlobs(filter);
     final traceable = [
-      for (final s in _all.where(filter))
-        if (isTraceable(s)) s,
+      for (final id in tracedScenarioIds)
+        if (matching(id)) id,
     ];
     if (status == 0 &&
         (mode == 'run' || mode == 'baseline') &&
@@ -209,7 +199,7 @@ Future<void> main(List<String> args) async {
         options,
         '$label-traced',
         traceable,
-        roundDocs.first.meta,
+        roundDocs.first,
       );
       discarded += result.discarded;
       traced = result.doc;
@@ -501,13 +491,13 @@ Future<({int code, int discarded, MetricsDocument? doc})> _tracedLaunch(
   Adb adb,
   Map<String, String> options,
   String label,
-  List<Scenario> scenarios,
-  LaunchMeta meta,
+  List<String> ids,
+  MetricsDocument timing,
 ) async {
   final backend = options['backend'] ?? 'impeller';
   final defines = buildDefines(
     backend: backend,
-    scenario: scenarios.map((s) => s.id).join(','),
+    scenario: ids.join(','),
     history: options['history'],
     semantics: 'off',
     traced: true,
@@ -530,24 +520,29 @@ Future<({int code, int discarded, MetricsDocument? doc})> _tracedLaunch(
   );
   final dir = '$_out/runs/$label';
   final counts = <String, Map<String, Map<String, Metric>>>{};
-  for (final s in scenarios) {
-    final file = File('$dir/${traceTimelineFile(s.id)}');
+  for (final id in ids) {
+    // The runner knows ids only; the version comes from the timing document.
+    final key = timing.scenarios.keys.where((k) => k.split('@').first == id);
+    if (key.isEmpty) continue;
+    final file = File('$dir/${traceTimelineFile(id)}');
     if (!file.existsSync()) {
-      stderr.writeln('no timeline for ${s.key} in the traced launch');
+      stderr.writeln('no timeline for ${key.first} in the traced launch');
       continue;
     }
-    counts[s.key] = traceCounts(
+    counts[key.first] = traceCounts(
       jsonDecode(file.readAsStringSync()) as Map<String, Object?>,
     );
   }
   stdout.writeln(
-    'traced pass: counts for ${counts.length} of ${scenarios.length} '
+    'traced pass: counts for ${counts.length} of ${ids.length} '
     'scenarios ($dir)',
   );
   return (
     code: result.value,
     discarded: result.discarded,
-    doc: counts.isEmpty ? null : tracedDocument(meta: meta, counts: counts),
+    doc: counts.isEmpty
+        ? null
+        : tracedDocument(meta: timing.meta, counts: counts),
   );
 }
 

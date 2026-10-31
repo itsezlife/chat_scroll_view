@@ -191,9 +191,9 @@ void main() {
 
   group('selection', () {
     test('only deterministic scenarios without tiers are traced', () {
-      expect(isTraceable(_scenario('a.b', det: true)), isTrue);
-      expect(isTraceable(_scenario('a.c')), isFalse);
-      expect(isTraceable(_scenario('a.d', det: true, tiers: 2)), isFalse);
+      expect(_scenario('a.b', det: true).traced, isTrue);
+      expect(_scenario('a.c').traced, isFalse);
+      expect(_scenario('a.d', det: true, tiers: 2).traced, isFalse);
     });
 
     test('report keys end in _timeline and carry no dots', () {

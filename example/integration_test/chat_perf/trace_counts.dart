@@ -11,7 +11,6 @@ library;
 import 'dart:developer' show Timeline;
 
 import 'metrics.dart';
-import 'registry.dart';
 import 'report_document.dart';
 
 /// Whether this launch is the traced one (`CHAT_PERF_TRACED=true`). A
@@ -50,11 +49,6 @@ String traceReportKey(String scenarioId) =>
 /// The file the driver writes for [scenarioId]'s timeline in a run directory.
 String traceTimelineFile(String scenarioId) =>
     '${traceReportKey(scenarioId)}.timeline.json';
-
-/// Whether [scenario] runs in the traced pass: scripted outcome, shared
-/// process, one history size.
-bool isTraceable(Scenario scenario) =>
-    scenario.deterministic && !scenario.cold && scenario.historyTiers.isEmpty;
 
 const _counted = <String, String>{
   'chat_scroll_view.child.build': 'trace.children_built',

@@ -88,7 +88,7 @@ void main() {
     // timeline capture; its timing is discarded by the runner.
     final selected = [
       for (final s in allScenarios.where(_filter, cold: _cold))
-        if (!kTracedLaunch || isTraceable(s)) s,
+        if (!kTracedLaunch || s.traced) s,
     ];
     expect(selected, isNotEmpty, reason: 'no scenario matches "$_filter"');
 

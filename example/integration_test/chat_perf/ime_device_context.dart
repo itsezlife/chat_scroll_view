@@ -3,6 +3,7 @@
 /// synthetic family does.
 library;
 
+import 'package:chat_composer/chat_composer.dart' show ComposerController;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
@@ -66,9 +67,16 @@ final class DeviceImeContext extends DeviceContext implements ImeContext {
 
   double get _insetPx => _t.view.viewInsets.bottom;
 
+  ComposerController get _composer =>
+      _t.widget<ChatComposer>(find.byType(ChatComposer)).input.composer;
+
+  /// The composer's field, found by the focus node it holds: the editable is
+  /// a leaf package's type, not Flutter's `EditableText`.
   Finder get _field => find.descendant(
     of: find.byType(ChatComposer),
-    matching: find.byType(EditableText),
+    matching: find.byWidgetPredicate(
+      (w) => w is Focus && w.focusNode == _composer.focusNode,
+    ),
   );
 
   Finder get _panelToggle =>
@@ -172,8 +180,9 @@ final class DeviceImeContext extends DeviceContext implements ImeContext {
   }
 
   @override
-  Future<void> openKeyboard() async {
+  Future<void> openKeyboard({Future<void> Function()? meanwhile}) async {
     await _t.tap(_field.first);
+    await meanwhile?.call();
     await _untilStill();
   }
 
@@ -199,9 +208,17 @@ final class DeviceImeContext extends DeviceContext implements ImeContext {
   @override
   Future<void> closePanel() async {
     await _t.tap(_panelToggle);
-    // The toggle may bring the keyboard back; the panel is closed either way
-    // once the keyboard is dismissed.
+    // The toggle hands the panel's slot to the keyboard: wait for it to rise
+    // (a hide sent before that is a no-op), then dismiss it and wait for the
+    // pad to come back down.
+    final bound = DateTime.now().add(const Duration(seconds: 2));
+    while (_insetPx == 0 && DateTime.now().isBefore(bound)) {
+      await _t.pump(const Duration(milliseconds: 16));
+    }
     await closeKeyboard();
+    _signalIsPad = true;
+    await _untilStill();
+    _signalIsPad = false;
   }
 
   @override
@@ -216,9 +233,11 @@ final class DeviceImeContext extends DeviceContext implements ImeContext {
     required Duration after,
   }) async {
     await idle(after);
-    _t.widget<EditableText>(_field.first).controller.text = [
-      for (var i = 0; i < lines; i++) 'line ${i + 1}',
-    ].join('\n');
+    _composer
+      ..clear()
+      ..insertText(
+        [for (var i = 0; i < lines; i++) 'line ${i + 1}'].join('\n'),
+      );
     await _t.pump();
   }
 

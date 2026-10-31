@@ -164,6 +164,10 @@ final class Scenario {
   /// The corpus content profile the scenario mounts.
   final BenchProfile profile;
 
+  /// Whether the scenario also runs in the traced pass: scripted outcome,
+  /// shared process, one history size.
+  bool get traced => deterministic && !cold && historyTiers.isEmpty;
+
   /// `id@version`, the key in a metrics document.
   String get key => '$id@$version';
 }
