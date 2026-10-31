@@ -33,6 +33,7 @@ import 'chat_perf/runner_lock_retry_test.dart'
     as chat_perf_runner_lock_retry_test;
 import 'chat_perf/runner_verdict_test.dart' as chat_perf_runner_verdict_test;
 import 'chat_perf/scale_test.dart' as chat_perf_scale_test;
+import 'chat_perf/scenario_index_test.dart' as chat_perf_scenario_index_test;
 import 'chat_perf/scroll_scenarios_test.dart'
     as chat_perf_scroll_scenarios_test;
 import 'chat_perf/selection_scenarios_test.dart'
@@ -174,6 +175,10 @@ void main() {
   group(
     'chat_perf/runner_verdict_test.dart',
     chat_perf_runner_verdict_test.main,
+  );
+  group(
+    'chat_perf/scenario_index_test.dart',
+    chat_perf_scenario_index_test.main,
   );
   group(
     'chat_perf/scroll_scenarios_test.dart',
