@@ -17,11 +17,12 @@ final class Adb {
   final String device;
 
   Future<String> shell(String command) async {
-    final r = await Process.run(
-      'adb',
-      ['-s', device, 'shell', command],
-      stdoutEncoding: const Utf8Codec(allowMalformed: true),
-    );
+    final r = await Process.run('adb', [
+      '-s',
+      device,
+      'shell',
+      command,
+    ], stdoutEncoding: const Utf8Codec(allowMalformed: true));
     return r.exitCode == 0 ? r.stdout as String : '';
   }
 
@@ -38,11 +39,14 @@ final class Adb {
   Future<List<String>> logcat() async {
     // Another app's log lines can hold a UTF-8 sequence cut mid-character; the
     // package-replaced scan must not die on it.
-    final r = await Process.run(
-      'adb',
-      ['-s', device, 'logcat', '-b', 'all', '-d'],
-      stdoutEncoding: const Utf8Codec(allowMalformed: true),
-    );
+    final r = await Process.run('adb', [
+      '-s',
+      device,
+      'logcat',
+      '-b',
+      'all',
+      '-d',
+    ], stdoutEncoding: const Utf8Codec(allowMalformed: true));
     return const LineSplitter().convert(r.stdout as String);
   }
 
