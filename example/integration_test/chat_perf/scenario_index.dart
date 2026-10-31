@@ -31,6 +31,35 @@ bool Function(String id) scenarioGlobs(String filter) {
   return (id) => patterns.isEmpty || patterns.any((p) => p.hasMatch(id));
 }
 
+/// The ids that also run in the traced pass (`Scenario.traced`), in order.
+/// `scenario_index_test.dart` keeps it equal to the registry.
+const tracedScenarioIds = <String>[
+  'scroll.drag_slow',
+  'scroll.drag_fast',
+  'scroll.fling_single',
+  'scroll.fling_burst',
+  'scroll.fling_reverse',
+  'scroll.stop_on_touch',
+  'scroll.overscroll_oldest',
+  'scroll.scrollbar_drag',
+  'nav.jump_near',
+  'nav.jump_far',
+  'nav.animate_near',
+  'nav.animate_far',
+  'nav.jump_to_newest',
+  'nav.date_pill_during_fling',
+  'churn.send_at_tail',
+  'churn.send_away',
+  'churn.incoming_burst_tail',
+  'churn.incoming_while_away',
+  'churn.edit_visible_tail',
+  'churn.edit_visible_away',
+  'churn.delete_visible',
+  'churn.delete_anchor',
+  'churn.delete_anchor_tall',
+  'churn.unread_boundary',
+];
+
 const scenarioIndex = <ScenarioIndexEntry>[
   (id: 'scroll.drag_slow', cold: false),
   (id: 'scroll.drag_fast', cold: false),

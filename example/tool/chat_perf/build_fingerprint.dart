@@ -10,6 +10,7 @@ List<String> buildDefines({
   String? history,
   bool cold = false,
   String? semantics,
+  bool traced = false,
 }) => [
   'CHAT_PERF_BACKEND=$backend',
   if (scenario != null && scenario.isNotEmpty) 'CHAT_PERF_SCENARIO=$scenario',
@@ -17,6 +18,7 @@ List<String> buildDefines({
   if (cold) 'CHAT_PERF_COLD=true',
   if (semantics != null && semantics.isNotEmpty)
     'CHAT_PERF_SEMANTICS=$semantics',
+  if (traced) ...['chat_scroll_view.trace=phase', 'CHAT_PERF_TRACED=true'],
 ];
 
 /// Two 32-bit FNV-1a hashes (different seeds) over the sorted defines, then

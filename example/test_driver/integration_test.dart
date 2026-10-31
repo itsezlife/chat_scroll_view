@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_driver/flutter_driver.dart' as driver;
@@ -28,7 +29,13 @@ Future<void> main() => integrationDriver(
     for (final entry in data.entries) {
       final value = entry.value;
       if (value is! Map<String, dynamic>) continue;
-      if (entry.key.endsWith('_timeline')) {
+      if (entry.key.startsWith('chat_perf_trace_')) {
+        // A Dart-stream capture holds no frame events, which the summary
+        // needs: store the raw timeline for the offline counts.
+        File('$dir/${entry.key}.timeline.json')
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync(jsonEncode(value));
+      } else if (entry.key.endsWith('_timeline')) {
         await driver.TimelineSummary.summarize(
           driver.Timeline.fromJson(value),
         ).writeTimelineToFile(

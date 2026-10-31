@@ -24,7 +24,8 @@ must stay the thing that is measured.
 - **Two levels.** `phase` covers each `performLayout` step of the
   [layout pipeline](../architecture/04-layout-pipeline.md), the Tier-1 tick, the
   fling and animator ticks, the fetch poll and paint (messages, scrollbar,
-  highlight, selection). `fine` adds per-child build, layout and paint spans.
+  highlight, selection) and the per-child build, whose count is a baselined
+  metric. `fine` adds per-child layout and paint spans.
 - **One vocabulary.** The `@internal` `TraceSection` enum
   (`lib/src/util/trace_section.dart`) holds every name, glossary-aligned, under
   one namespace: `chat_scroll_view.<section>`.

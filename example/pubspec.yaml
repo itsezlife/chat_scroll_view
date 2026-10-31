@@ -62,6 +62,8 @@ dev_dependencies:
   # the viewport's public controller and diagnostics.
   flutter_driver:
     sdk: flutter
+  # The traced pass collects the VM timeline in chunks.
+  vm_service: ^15.0.0
   panel_catalog:
     path: ../packages/panel_catalog
   freezed: ^3.2.5

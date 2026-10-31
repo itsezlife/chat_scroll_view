@@ -10,6 +10,13 @@ void main() {
     ]);
   });
 
+  test('the runner lists the scenarios of the traced pass', () {
+    expect(tracedScenarioIds, [
+      for (final s in allScenarios.all)
+        if (s.traced) s.id,
+    ]);
+  });
+
   test('selecting by filter agrees with the registry', () {
     for (final filter in [
       '',

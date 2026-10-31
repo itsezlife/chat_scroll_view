@@ -117,8 +117,9 @@ void main() {
       ]) {
         expect(names, contains(s.label));
       }
+      expect(names, contains(TraceSection.childBuild.label));
       expect(
-        names.contains(TraceSection.childBuild.label),
+        names.contains(TraceSection.childLayout.label),
         Trace.level == TraceLevel.fine,
       );
     },

@@ -13,7 +13,7 @@ enum TraceLevel {
   /// One section per layout step, tick, fetch poll and paint stage.
   phase,
 
-  /// [phase] plus per-child build, layout and paint spans.
+  /// [phase] plus per-child layout and paint spans.
   fine;
 
   static const String _define = String.fromEnvironment(
@@ -66,8 +66,9 @@ enum TraceSection {
   paintHighlight('paint.highlight'),
   paintSelection('paint.selection'),
 
-  // Per-child spans, `fine` only.
-  childBuild('child.build', fine: true),
+  // Per-child build, counted by the traced pass (a `phase` section); layout
+  // and paint spans are `fine` only.
+  childBuild('child.build'),
   childLayout('child.layout', fine: true),
   childPaint('child.paint', fine: true);
 
