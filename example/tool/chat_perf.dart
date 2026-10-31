@@ -51,7 +51,7 @@ import 'chat_perf/gates.dart';
 import 'chat_perf/launch_retry.dart';
 import 'chat_perf/verdict.dart';
 
-const _modes = {'quick', 'run', 'baseline', 'promote', 'compare'};
+const _modes = {'quick', 'run', 'baseline', 'promote', 'compare', 'counts'};
 const _baselineRoot = 'perf/baseline/chat';
 
 /// The counts of a run's traced pass, beside its run manifest.
@@ -148,6 +148,10 @@ Future<void> main(List<String> args) async {
     exit(3);
   }
 
+  if (mode == 'counts') {
+    exit(await _counts(adb, lock, options, filter, label));
+  }
+
   var status = 0;
   final batteryStart = await adb.battery();
   final roundDocs = <MetricsDocument>[];
@@ -199,7 +203,6 @@ Future<void> main(List<String> args) async {
         options,
         '$label-traced',
         traceable,
-        roundDocs.first,
       );
       discarded += result.discarded;
       traced = result.doc;
@@ -232,6 +235,62 @@ Future<void> main(List<String> args) async {
       ),
     ),
   );
+}
+
+/// `counts`: only the traced launch, repeated `--launches` times (3 by
+/// default), written as a candidate that is the current baseline plus the
+/// `trace.*` counts. `promote` makes it current. Seeds the counts of a
+/// baseline made before the traced pass existed.
+Future<int> _counts(
+  Adb adb,
+  DeviceLock lock,
+  Map<String, String> options,
+  String filter,
+  String label,
+) async {
+  final matching = scenarioGlobs(filter);
+  final ids = [
+    for (final id in tracedScenarioIds)
+      if (matching(id)) id,
+  ];
+  final launches = int.tryParse(options['launches'] ?? '') ?? 3;
+  final docs = <MetricsDocument>[];
+  var code = 0;
+  try {
+    for (var i = 1; i <= launches && code == 0; i++) {
+      final result = await _tracedLaunch(adb, options, '$label-t$i', ids);
+      code = result.code;
+      if (result.doc case final doc?) docs.add(doc);
+    }
+  } on ForeignInstallException catch (e) {
+    stderr.writeln('run failed: ${e.message}');
+    code = 4;
+  } finally {
+    lock.release();
+  }
+  if (code != 0 || docs.isEmpty) {
+    stderr.writeln('no counts: a traced launch failed (exit $code)');
+    return code == 0 ? 1 : code;
+  }
+  final counts = Baseline.fromLaunches(docs, label: label);
+  final current = _currentBaseline(counts.key);
+  if (current == null) {
+    stderr.writeln('no baseline for ${counts.key} to add the counts to');
+    return 66;
+  }
+  final dir = Directory('$_out/runs/$label')..createSync(recursive: true);
+  final file = File('${dir.path}/baseline_candidate.json')
+    ..writeAsStringSync(
+      const JsonEncoder.withIndent(
+        '  ',
+      ).convert(current.withMetricsOf(counts).toJson()),
+    );
+  stdout.writeln(
+    'candidate for ${counts.key} (counts from ${docs.length} launches): '
+    '${file.path}\npromote with: dart run tool/chat_perf.dart promote '
+    '$label --reason "..."',
+  );
+  return 0;
 }
 
 /// Verdict, candidate or informational diff for the finished launches.
@@ -492,7 +551,6 @@ Future<({int code, int discarded, MetricsDocument? doc})> _tracedLaunch(
   Map<String, String> options,
   String label,
   List<String> ids,
-  MetricsDocument timing,
 ) async {
   final backend = options['backend'] ?? 'impeller';
   final defines = buildDefines(
@@ -520,8 +578,23 @@ Future<({int code, int discarded, MetricsDocument? doc})> _tracedLaunch(
   );
   final dir = '$_out/runs/$label';
   final counts = <String, Map<String, Map<String, Metric>>>{};
+  // The launch's own document names the scenario versions and the combination;
+  // its timing metrics are never read.
+  final own = File('$dir/chat_perf_metrics.json');
+  if (!own.existsSync()) {
+    stderr.writeln('the traced launch wrote no document');
+    return (
+      code: result.value == 0 ? 1 : result.value,
+      discarded: result.discarded,
+      doc: null,
+    );
+  }
+  final ownJson = jsonDecode(own.readAsStringSync()) as Map<String, Object?>;
+  (ownJson['meta']! as Map<String, Object?>)['device'] = (await adb.shell(
+    'getprop ro.product.model',
+  )).trim();
+  final timing = MetricsDocument.fromJson(ownJson);
   for (final id in ids) {
-    // The runner knows ids only; the version comes from the timing document.
     final key = timing.scenarios.keys.where((k) => k.split('@').first == id);
     if (key.isEmpty) continue;
     final file = File('$dir/${traceTimelineFile(id)}');

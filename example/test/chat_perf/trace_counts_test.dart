@@ -189,6 +189,22 @@ void main() {
     });
   });
 
+  group('baseline counts', () {
+    test('counts join a timing baseline and keep its timing spread', () {
+      final timing = Baseline.fromLaunches([
+        _docWith(0, count: false),
+        _docWith(0, count: false),
+      ], label: 'b');
+      final counts = Baseline.fromLaunches([
+        _docWith(7, timing: false),
+        _docWith(8, timing: false),
+      ], label: 'c');
+      final w = timing.withMetricsOf(counts).scenarios['s@1']!['w']!;
+      expect(w['trace.layout_passes']!.max, 8);
+      expect(w['raster_p99_share']!.median, 0.2);
+    });
+  });
+
   group('selection', () {
     test('only deterministic scenarios without tiers are traced', () {
       expect(_scenario('a.b', det: true).traced, isTrue);

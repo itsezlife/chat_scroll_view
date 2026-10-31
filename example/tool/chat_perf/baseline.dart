@@ -201,6 +201,38 @@ final class Baseline {
   /// `id@version` -> window -> metric name -> spread.
   final Map<String, Map<String, Map<String, BaselineMetric>>> scenarios;
 
+  /// This baseline with every metric of [other] added or replaced, window by
+  /// window; the rest is kept. Adds the traced pass's counts to a baseline of
+  /// timing launches.
+  Baseline withMetricsOf(Baseline other) {
+    final merged = {
+      for (final s in scenarios.entries)
+        s.key: {
+          for (final w in s.value.entries) w.key: {...w.value},
+        },
+    };
+    for (final s in other.scenarios.entries) {
+      for (final w in s.value.entries) {
+        merged
+            .putIfAbsent(s.key, () => {})
+            .putIfAbsent(w.key, () => {})
+            .addAll(w.value);
+      }
+    }
+    return Baseline(
+      key: key,
+      label: other.label,
+      device: device,
+      backend: backend,
+      refreshRateHz: refreshRateHz,
+      semantics: semantics,
+      corpusVersion: corpusVersion,
+      launches: launches,
+      discarded: discarded,
+      scenarios: merged,
+    );
+  }
+
   Baseline withReason(String reason) => Baseline(
     key: key,
     label: label,
