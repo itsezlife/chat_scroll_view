@@ -21,6 +21,7 @@ import 'scenarios/keyboard_scenarios.dart';
 import 'scenarios/scroll_scenarios.dart';
 import 'scenarios/selection_scenarios.dart';
 import 'semantics.dart';
+import 'timeline_collector.dart';
 import 'trace_counts.dart';
 
 /// On-device chat viewport performance suite entry point (profile mode).
@@ -141,10 +142,12 @@ void main() {
               ).then((m) => (m.host, m.ctx))
             : await _mountPlain(tester, scenario);
         if (kTracedLaunch) {
-          await binding.traceAction(
-            () => scenario.run(ctx),
-            reportKey: traceReportKey(scenario.id),
-          );
+          final collector = await TimelineCollector.start();
+          await scenario.run(ctx);
+          binding.reportData = {
+            ...?binding.reportData,
+            traceReportKey(scenario.id): await collector.finish(),
+          };
         } else if (run == SemanticsRun.pair && recorded) {
           // Traced, so the timeline shows whether semantics work ran.
           final key =

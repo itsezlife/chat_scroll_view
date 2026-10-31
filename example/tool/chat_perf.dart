@@ -594,6 +594,7 @@ Future<({int code, int discarded, MetricsDocument? doc})> _tracedLaunch(
     'getprop ro.product.model',
   )).trim();
   final timing = MetricsDocument.fromJson(ownJson);
+  var failed = false;
   for (final id in ids) {
     final key = timing.scenarios.keys.where((k) => k.split('@').first == id);
     if (key.isEmpty) continue;
@@ -605,13 +606,24 @@ Future<({int code, int discarded, MetricsDocument? doc})> _tracedLaunch(
     counts[key.first] = traceCounts(
       jsonDecode(file.readAsStringSync()) as Map<String, Object?>,
     );
+    // A window the scenario measured but the timeline has no marks for lost
+    // them (the ring buffer drops the oldest events): no counts then.
+    final lost = timing.scenarios[key.first]!.keys.where(
+      (w) => !counts[key.first]!.containsKey(w),
+    );
+    if (lost.isNotEmpty) {
+      stderr.writeln(
+        'traced launch: no window marks for ${key.first}: ${lost.join(', ')}',
+      );
+      failed = true;
+    }
   }
   stdout.writeln(
     'traced pass: counts for ${counts.length} of ${ids.length} '
     'scenarios ($dir)',
   );
   return (
-    code: result.value,
+    code: failed && result.value == 0 ? 1 : result.value,
     discarded: result.discarded,
     doc: counts.isEmpty
         ? null
