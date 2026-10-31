@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "key": "sm-s938b.impeller.120hz.sem-off",
-  "label": "fb-1",
+  "label": "counts-seed",
   "device": "SM-S938B",
   "backend": "impeller",
   "refreshRateHz": 120.00000762939453,
@@ -9,7 +9,7 @@
   "corpusVersion": 2,
   "launches": 5,
   "discardedLaunches": 0,
-  "reason": "First baseline made by the automated implement-spec run (ticket 07 agent), 5 launches on SM-S938B; pending the user's review before it is trusted",
+  "reason": "seed trace.* counts (3 traced launches) into the first baseline",
   "scenarios": {
     "scroll.drag_slow@2": {
       "drag": {
@@ -627,6 +627,27 @@
           "median": 648.0,
           "min": 641.0,
           "max": 649.0
+        },
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 248.0,
+          "min": 233.0,
+          "max": 281.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 15.0,
+          "min": 14.0,
+          "max": 17.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 15.0,
+          "min": 14.0,
+          "max": 17.0
         }
       }
     },
@@ -708,6 +729,27 @@
           "median": 0.0,
           "min": 0.0,
           "max": 0.0
+        },
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 167.0,
+          "min": 149.0,
+          "max": 167.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 10.0,
+          "min": 9.0,
+          "max": 10.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 10.0,
+          "min": 9.0,
+          "max": 10.0
         }
       }
     },
@@ -792,6 +834,27 @@
         },
         "anchor_id": {
           "kind": "exact",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
           "role": "headline",
           "median": 0.0,
           "min": 0.0,
@@ -972,6 +1035,27 @@
           "median": 10000.0,
           "min": 10000.0,
           "max": 10000.0
+        },
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 56.0,
+          "min": 56.0,
+          "max": 56.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 4.0,
+          "min": 4.0,
+          "max": 4.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 4.0,
+          "min": 4.0,
+          "max": 4.0
         }
       }
     },
@@ -1060,6 +1144,27 @@
           "median": 10000.0,
           "min": 10000.0,
           "max": 10000.0
+        },
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 80.0,
+          "min": 80.0,
+          "max": 80.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 5.0,
+          "min": 5.0,
+          "max": 5.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 5.0,
+          "min": 5.0,
+          "max": 5.0
         }
       }
     },
@@ -1338,6 +1443,27 @@
           "median": 10000.0,
           "min": 10000.0,
           "max": 10000.0
+        },
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 142.0,
+          "min": 142.0,
+          "max": 142.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 9.0,
+          "min": 9.0,
+          "max": 9.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 14.0,
+          "min": 14.0,
+          "max": 14.0
         }
       }
     },
@@ -1964,6 +2090,256 @@
           "median": 0.0,
           "min": 0.0,
           "max": 0.0
+        }
+      }
+    },
+    "churn.send_at_tail@1": {
+      "churn": {
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 25.0,
+          "min": 25.0,
+          "max": 25.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 2.0,
+          "min": 2.0,
+          "max": 2.0
+        }
+      }
+    },
+    "churn.send_away@1": {
+      "churn": {
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 41.0,
+          "min": 41.0,
+          "max": 41.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 3.0,
+          "min": 3.0,
+          "max": 3.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 4.0,
+          "min": 4.0,
+          "max": 4.0
+        }
+      }
+    },
+    "churn.incoming_burst_tail@1": {
+      "churn": {
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 626.0,
+          "min": 626.0,
+          "max": 626.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 20.0,
+          "min": 20.0,
+          "max": 20.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 40.0,
+          "min": 40.0,
+          "max": 40.0
+        }
+      }
+    },
+    "churn.incoming_while_away@1": {
+      "churn": {
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 260.0,
+          "min": 260.0,
+          "max": 260.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 20.0,
+          "min": 20.0,
+          "max": 20.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 20.0,
+          "min": 20.0,
+          "max": 20.0
+        }
+      }
+    },
+    "churn.edit_visible_tail@1": {
+      "churn": {
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 22.0,
+          "min": 22.0,
+          "max": 22.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 2.0,
+          "min": 2.0,
+          "max": 2.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 2.0,
+          "min": 2.0,
+          "max": 2.0
+        }
+      }
+    },
+    "churn.edit_visible_away@1": {
+      "churn": {
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 25.0,
+          "min": 25.0,
+          "max": 25.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 2.0,
+          "min": 2.0,
+          "max": 2.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 2.0,
+          "min": 2.0,
+          "max": 2.0
+        }
+      }
+    },
+    "churn.delete_visible@1": {
+      "churn": {
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 12.0,
+          "min": 12.0,
+          "max": 12.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        }
+      }
+    },
+    "churn.delete_anchor@1": {
+      "churn": {
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 12.0,
+          "min": 12.0,
+          "max": 12.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        }
+      }
+    },
+    "churn.delete_anchor_tall@1": {
+      "churn": {
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 16.0,
+          "min": 16.0,
+          "max": 16.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        }
+      }
+    },
+    "churn.unread_boundary@1": {
+      "churn": {
+        "trace.children_built": {
+          "kind": "count",
+          "role": "headline",
+          "median": 1729.0,
+          "min": 1716.0,
+          "max": 1729.0
+        },
+        "trace.layout_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 96.0,
+          "min": 95.0,
+          "max": 96.0
+        },
+        "trace.fan_out_passes": {
+          "kind": "count",
+          "role": "headline",
+          "median": 133.0,
+          "min": 132.0,
+          "max": 133.0
         }
       }
     }
