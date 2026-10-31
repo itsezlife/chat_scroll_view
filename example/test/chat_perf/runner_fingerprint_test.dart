@@ -49,6 +49,9 @@ void main() {
   test('the label is not an input: defines carry none', () {
     final d = buildDefines(backend: 'impeller', scenario: 'scroll.*');
     expect(d.any((e) => e.toLowerCase().contains('label')), isFalse);
-    expect(buildDefines(backend: 'skia'), ['CHAT_PERF_BACKEND=skia']);
+    expect(buildDefines(backend: 'skia'), [
+      'CHAT_PERF_BACKEND=skia',
+      'CHAT_PERF_DISPOSE_BUILT_PAINTERS=true',
+    ]);
   });
 }

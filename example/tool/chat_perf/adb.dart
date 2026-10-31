@@ -32,6 +32,20 @@ final class Adb {
   Future<String> inputMethod() async =>
       (await shell('settings get secure default_input_method')).trim();
 
+  /// Pins (or releases) the platform's fixed performance mode. A device
+  /// without it ignores the command.
+  Future<void> setFixedPerformance({required bool enabled}) async {
+    await Process.run('adb', [
+      '-s',
+      device,
+      'shell',
+      'cmd',
+      'power',
+      'set-fixed-performance-mode-enabled',
+      '$enabled',
+    ]);
+  }
+
   Future<void> clearLogcat() async {
     await Process.run('adb', ['-s', device, 'logcat', '-b', 'all', '-c']);
   }

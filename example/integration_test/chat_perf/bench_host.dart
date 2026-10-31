@@ -9,6 +9,7 @@ library;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter_md/flutter_md.dart' show MarkdownThemeData;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'bench_setup.dart';
@@ -16,6 +17,13 @@ import 'churn.dart';
 import 'corpus.dart';
 import 'corpus_rich.dart';
 import 'perf_host.dart';
+
+/// The markdown theme's `disposeBuiltPainters` the hosts set; the runner sets
+/// the define and records it (`--dispose-painters on|off`).
+const bool kDisposeBuiltPainters = bool.fromEnvironment(
+  'CHAT_PERF_DISPOSE_BUILT_PAINTERS',
+  defaultValue: true,
+);
 
 /// Fixed bubble: one rounded rectangle and one paragraph, nothing else.
 Widget benchBubble(
@@ -111,13 +119,28 @@ class _BenchMarkdownBodyState extends State<_BenchMarkdownBody> {
     super.dispose();
   }
 
+  // One theme instance per body: the engine rebuilds its painter whenever the
+  // theme is another instance. `disposeBuiltPainters` is the setting the
+  // runner records (`--dispose-painters`); the chat body's theme `builder`
+  // makes a new painter per call, so the body owns what it replaces.
+  MarkdownThemeData? _theme;
+
   @override
   Widget build(BuildContext context) => DefaultTextStyle.merge(
     style: const TextStyle(fontSize: 15, height: 1.4, color: Color(0xFF1A1A1A)),
-    child: ChatMarkdownBody(
-      controller: widget.selection,
-      messageId: widget.messageId,
-      markdown: widget.markdown,
+    child: Builder(
+      builder: (context) => ChatMarkdownBody(
+        controller: widget.selection,
+        messageId: widget.messageId,
+        markdown: widget.markdown,
+        theme: _theme ??= MarkdownThemeData(
+          textStyle: DefaultTextStyle.of(context).style,
+          textDirection: Directionality.maybeOf(context) ?? TextDirection.ltr,
+          textScaler:
+              MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling,
+          disposeBuiltPainters: kDisposeBuiltPainters,
+        ),
+      ),
     ),
   );
 }

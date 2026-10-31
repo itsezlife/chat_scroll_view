@@ -4,6 +4,7 @@
 ///       [--scenario GLOB,...] [--label NAME] [--backend impeller|skia]
 ///       [--history N] [--semantics off|on|pair] [--refresh HZ]
 ///       [--launches N]   (baseline only, at least 5)
+///       [--perf-mode fixed|system]   (fixed pins the clocks; the default)
 ///       [--trace off]    (run and baseline: skip the traced pass)
 ///   dart run tool/chat_perf.dart promote LABEL --reason "one line"
 ///   dart run tool/chat_perf.dart compare LABEL [--refresh HZ]
@@ -46,9 +47,11 @@ import 'chat_perf/adb.dart';
 import 'chat_perf/baseline.dart';
 import 'chat_perf/build_fingerprint.dart';
 import 'chat_perf/cooldown.dart';
+import 'chat_perf/dependency_stamp.dart';
 import 'chat_perf/device_lock.dart';
 import 'chat_perf/gates.dart';
 import 'chat_perf/launch_retry.dart';
+import 'chat_perf/perf_mode.dart';
 import 'chat_perf/verdict.dart';
 
 const _modes = {'quick', 'run', 'baseline', 'promote', 'compare', 'counts'};
@@ -59,6 +62,36 @@ const _tracedMetricsFile = 'chat_perf_trace_metrics.json';
 
 String get _out =>
     Platform.environment['PERF_OUT'] ?? '${Directory.current.path}/perf';
+
+/// The markdown engine the build resolved: version, source, path or url and
+/// commit, from the workspace lock (and the checkout's HEAD for a path).
+Map<String, Object?> _markdownStamp() {
+  final lock = File('../pubspec.lock');
+  if (!lock.existsSync()) return {'unknown': true};
+  final stamp = parseLockEntry(lock.readAsStringSync(), 'flutter_md');
+  if (stamp == null) return {'unknown': true};
+  var revision = stamp.revision;
+  if (stamp.source == 'path' && stamp.location != null) {
+    final git = Directory(
+      '${Directory('..').absolute.path}/${stamp.location}',
+    ).absolute.uri.resolve('.git/');
+    String? read(String name) {
+      final f = File.fromUri(git.resolve(name));
+      return f.existsSync() ? f.readAsStringSync() : null;
+    }
+
+    final head = read('HEAD');
+    if (head != null) revision = parseHeadRevision(head, read);
+  }
+  return stamp.withRevision(revision).toJson();
+}
+
+/// The mode this run requested; recorded in every launch's metadata.
+PerfMode _perfMode = PerfMode.fixed;
+
+/// `--dispose-painters on|off`: the markdown theme's `disposeBuiltPainters` the
+/// hosts set (on by default; off exists to A/B the flag).
+bool _disposePainters = true;
 
 typedef _Launch = ({String label, String filter, bool cold});
 
@@ -127,6 +160,20 @@ Future<void> main(List<String> args) async {
     stderr.writeln('no scenario matches "$filter"');
     exit(64);
   }
+  try {
+    _perfMode = PerfMode.parse(options['perf-mode'] ?? '');
+  } on FormatException catch (e) {
+    stderr.writeln('--perf-mode: ${e.message}');
+    exit(64);
+  }
+  _disposePainters = switch (options['dispose-painters']) {
+    null || 'on' => true,
+    'off' => false,
+    final other => () {
+      stderr.writeln('--dispose-painters: on or off, got "$other"');
+      exit(64);
+    }(),
+  };
   final adb = Adb(device);
   final failures = evaluateGates(await adb.state());
   if (failures.isNotEmpty) {
@@ -146,6 +193,10 @@ Future<void> main(List<String> args) async {
   } on DeviceLockedException catch (e) {
     stderr.writeln(e.message);
     exit(3);
+  }
+
+  if (_perfMode == PerfMode.fixed) {
+    await adb.setFixedPerformance(enabled: true);
   }
 
   if (mode == 'counts') {
@@ -214,6 +265,9 @@ Future<void> main(List<String> args) async {
     stderr.writeln('run failed: ${e.message}');
     status = 4;
   } finally {
+    if (_perfMode == PerfMode.fixed) {
+      await adb.setFixedPerformance(enabled: false);
+    }
     lock.release();
   }
   if (status != 0) {
@@ -266,6 +320,9 @@ Future<int> _counts(
     stderr.writeln('run failed: ${e.message}');
     code = 4;
   } finally {
+    if (_perfMode == PerfMode.fixed) {
+      await adb.setFixedPerformance(enabled: false);
+    }
     lock.release();
   }
   if (code != 0 || docs.isEmpty) {
@@ -482,6 +539,7 @@ Future<({int code, int discarded, MetricsDocument? doc})> _launch(
     history: options['history'],
     cold: launch.cold,
     semantics: semantics.name,
+    disposeBuiltPainters: _disposePainters,
   );
   final apk = await _ensureApk(defines, backend);
   final out = _out;
@@ -520,6 +578,11 @@ Future<({int code, int discarded, MetricsDocument? doc})> _launch(
       'batteryStart': batteryStart.toJson(),
       'batteryEnd': batteryEnd.toJson(),
       'inputMethod': await adb.inputMethod(),
+      'perfMode': _perfMode.name,
+      'markdown': {
+        ..._markdownStamp(),
+        'disposeBuiltPainters': _disposePainters,
+      },
       'discardedLaunches': result.discarded,
       'cooldownBoundHit': ?cooldown?.boundHit,
     };
@@ -559,6 +622,7 @@ Future<({int code, int discarded, MetricsDocument? doc})> _tracedLaunch(
     history: options['history'],
     semantics: 'off',
     traced: true,
+    disposeBuiltPainters: _disposePainters,
   );
   final apk = await _ensureApk(defines, backend);
   final result = await runWithRetry<int>(
