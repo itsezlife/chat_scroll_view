@@ -1,0 +1,1971 @@
+{
+  "schema": 1,
+  "key": "sm-s938b.impeller.120hz.sem-off",
+  "label": "fb-1",
+  "device": "SM-S938B",
+  "backend": "impeller",
+  "refreshRateHz": 120.00000762939453,
+  "semantics": "off",
+  "corpusVersion": 2,
+  "launches": 5,
+  "discardedLaunches": 0,
+  "reason": "First baseline made by the automated implement-spec run (ticket 07 agent), 5 launches on SM-S938B; pending the user's review before it is trusted",
+  "scenarios": {
+    "scroll.drag_slow@2": {
+      "drag": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.08148000518035889,
+          "min": 0.07224000459289551,
+          "max": 0.09744000619506836
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.37416002378845215,
+          "min": 0.32088002040100094,
+          "max": 0.849840054031372
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 1069.0,
+          "min": 1067.0,
+          "max": 1071.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.03168000201416016,
+          "min": 0.028440001808166502,
+          "max": 0.051000003242492674
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.04428000281524658,
+          "min": 0.03660000232696533,
+          "max": 0.1426800090713501
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 17.0,
+          "min": 17.0,
+          "max": 17.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      }
+    },
+    "scroll.drag_fast@1": {
+      "drag": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.12468000792694091,
+          "min": 0.12432000790405273,
+          "max": 0.12852000817108153
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.1053600066986084,
+          "min": 0.09696000616455079,
+          "max": 0.1296000082397461
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 1112.0,
+          "min": 1110.0,
+          "max": 1112.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.05580000354766846,
+          "min": 0.043800002784729,
+          "max": 0.05808000369262695
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.07764000493621827,
+          "min": 0.07368000468444824,
+          "max": 0.09960000633239745
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 19.0,
+          "min": 18.0,
+          "max": 19.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      }
+    },
+    "scroll.fling_single@1": {
+      "fling": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.17064001084899902,
+          "min": 0.16584001054382322,
+          "max": 0.17688001124572753
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.087600005569458,
+          "min": 0.08412000534820556,
+          "max": 0.10104000642395018
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 330.0,
+          "min": 324.0,
+          "max": 330.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.38544002450561526,
+          "min": 0.3760800239105224,
+          "max": 0.4058400258026123
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.09276000589752197,
+          "min": 0.08424000535583495,
+          "max": 0.12552000798034668
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 17.0,
+          "min": 17.0,
+          "max": 19.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fling.messages": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 57.0,
+          "min": 57.0,
+          "max": 57.0
+        },
+        "settle_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 2264.0,
+          "min": 2263.0,
+          "max": 2272.0
+        }
+      }
+    },
+    "scroll.fling_burst@1": {
+      "fling_2k": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.15732001000213622,
+          "min": 0.15420000980377196,
+          "max": 0.19356001230621336
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.08784000558471679,
+          "min": 0.08532000542449951,
+          "max": 0.11292000717926025
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 950.0,
+          "min": 949.0,
+          "max": 954.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.3682800234146118,
+          "min": 0.2370000150680542,
+          "max": 0.39600002517700195
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.09336000593566894,
+          "min": 0.048120003059387205,
+          "max": 0.11112000706481934
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 17.0,
+          "min": 17.0,
+          "max": 19.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fling.finger_up_messages": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 5.0,
+          "min": 5.0,
+          "max": 5.0
+        },
+        "fling.finger_down_messages": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fling.rep_spread_messages": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "settle_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 945.5,
+          "min": 945.3333333333334,
+          "max": 948.1666666666666
+        }
+      },
+      "fling_6k": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.18576001181030274,
+          "min": 0.1813200115280151,
+          "max": 0.19140001216888428
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.09024000573730469,
+          "min": 0.08292000527191161,
+          "max": 0.11436000727081298
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 1775.0,
+          "min": 1773.0,
+          "max": 1776.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.3550800225753784,
+          "min": 0.3374400214538574,
+          "max": 0.38340002437591547
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.08448000537109374,
+          "min": 0.08016000509643555,
+          "max": 0.11928000758361816
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 19.0,
+          "min": 19.0,
+          "max": 19.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fling.finger_up_messages": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 57.0,
+          "min": 57.0,
+          "max": 57.0
+        },
+        "fling.finger_down_messages": {
+          "kind": "exact",
+          "role": "headline",
+          "median": -43.0,
+          "min": -43.0,
+          "max": -43.0
+        },
+        "fling.rep_spread_messages": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "settle_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 2265.8333333333335,
+          "min": 2264.3333333333335,
+          "max": 2268.6666666666665
+        }
+      },
+      "fling_13k": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.1908000121307373,
+          "min": 0.18432001171875,
+          "max": 0.2017200128250122
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.08472000538635253,
+          "min": 0.08424000535583495,
+          "max": 0.10956000696563721
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 1973.0,
+          "min": 1972.0,
+          "max": 1979.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.3349200212936401,
+          "min": 0.2898000184249878,
+          "max": 0.36024002290344237
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.08904000566101074,
+          "min": 0.08244000524139404,
+          "max": 0.12096000769042968
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 19.0,
+          "min": 17.0,
+          "max": 19.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fling.finger_up_messages": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 80.0,
+          "min": 80.0,
+          "max": 80.0
+        },
+        "fling.finger_down_messages": {
+          "kind": "exact",
+          "role": "headline",
+          "median": -68.0,
+          "min": -68.0,
+          "max": -68.0
+        },
+        "fling.rep_spread_messages": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "settle_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 2590.5,
+          "min": 2589.1666666666665,
+          "max": 2590.5
+        }
+      }
+    },
+    "scroll.fling_reverse@1": {
+      "fling_reverse": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.1776000112915039,
+          "min": 0.1690800107498169,
+          "max": 0.19344001229858399
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.08712000553894042,
+          "min": 0.0788400050125122,
+          "max": 0.10260000652313232
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 202.0,
+          "min": 202.0,
+          "max": 203.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.3860400245437622,
+          "min": 0.36492002320098876,
+          "max": 0.3900000247955322
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.08868000563812256,
+          "min": 0.08244000524139404,
+          "max": 0.13656000868225096
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 17.0,
+          "min": 17.0,
+          "max": 17.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "settle_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 648.0,
+          "min": 641.0,
+          "max": 649.0
+        }
+      }
+    },
+    "scroll.stop_on_touch@1": {
+      "stop_on_touch": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.1845600117340088,
+          "min": 0.17880001136779786,
+          "max": 0.20748001319122314
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.08928000567626952,
+          "min": 0.07980000507354737,
+          "max": 0.12696000807189942
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 117.0,
+          "min": 116.0,
+          "max": 118.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.3586800228042602,
+          "min": 0.35388002249908446,
+          "max": 0.394800025100708
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.08868000563812256,
+          "min": 0.08568000544738769,
+          "max": 0.11316000719451903
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 17.0,
+          "min": 17.0,
+          "max": 17.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "residual_messages": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      }
+    },
+    "scroll.overscroll_oldest@1": {
+      "overscroll": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.062160003952026366,
+          "min": 0.06048000384521484,
+          "max": 0.07116000452423095
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.08388000533294677,
+          "min": 0.0789600050201416,
+          "max": 0.1076400068435669
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 218.0,
+          "min": 215.0,
+          "max": 220.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.3271200207977295,
+          "min": 0.3114000197982788,
+          "max": 0.3393600215759277
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.08268000525665282,
+          "min": 0.07776000494384766,
+          "max": 0.10908000693511963
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 17.0,
+          "min": 17.0,
+          "max": 17.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "edge_return_frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 17.0,
+          "min": 17.0,
+          "max": 17.0
+        },
+        "anchor_id": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      }
+    },
+    "scroll.scrollbar_drag@1": {
+      "scrollbar": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.43656002775573727,
+          "min": 0.43284002751922607,
+          "max": 0.45672002903747555
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.08496000540161132,
+          "min": 0.08412000534820556,
+          "max": 0.10920000694274902
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 390.0,
+          "min": 385.0,
+          "max": 391.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.46368002947998044,
+          "min": 0.35472002255249024,
+          "max": 0.4858800308914185
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.08676000551605224,
+          "min": 0.08160000518798828,
+          "max": 0.10776000685119629
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 5.0,
+          "min": 5.0,
+          "max": 7.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "jump_count": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "moved_messages": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 6327.0,
+          "min": 6327.0,
+          "max": 6327.0
+        }
+      }
+    },
+    "nav.jump_near@1": {
+      "jump": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.4975200316314697,
+          "min": 0.4186800266189575,
+          "max": 0.5664000360107422
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.17412001107025146,
+          "min": 0.10104000642395018,
+          "max": 0.3488400221786499
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 67.0,
+          "min": 66.0,
+          "max": 68.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.43656002775573727,
+          "min": 0.40416002569580073,
+          "max": 0.5160000328063964
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.08712000553894042,
+          "min": 0.08472000538635253,
+          "max": 0.10500000667572021
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 10.0,
+          "min": 10.0,
+          "max": 11.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "land_frames_max": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "anchor_id": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 10000.0,
+          "min": 10000.0,
+          "max": 10000.0
+        }
+      }
+    },
+    "nav.jump_far@1": {
+      "jump": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.4767600303115844,
+          "min": 0.4548000289154053,
+          "max": 0.5605200356369019
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.2505600159301758,
+          "min": 0.21240001350402832,
+          "max": 0.381720024269104
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 65.0,
+          "min": 65.0,
+          "max": 68.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.36072002293395994,
+          "min": 0.3422400217590332,
+          "max": 0.4291200272827148
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.08352000531005858,
+          "min": 0.06972000443267821,
+          "max": 0.15492000984954832
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 10.0,
+          "min": 8.0,
+          "max": 11.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "land_frames_max": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "anchor_id": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 10000.0,
+          "min": 10000.0,
+          "max": 10000.0
+        }
+      }
+    },
+    "nav.animate_near@1": {
+      "animate": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.11772000748443603,
+          "min": 0.10944000695800782,
+          "max": 0.34512002194213864
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.09096000578308105,
+          "min": 0.08904000566101074,
+          "max": 0.1161600073852539
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 350.0,
+          "min": 345.0,
+          "max": 351.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.40836002596282955,
+          "min": 0.3404400216445923,
+          "max": 0.43980002796173095
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.08700000553131103,
+          "min": 0.07596000482940674,
+          "max": 0.11688000743103026
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 17.0,
+          "min": 17.0,
+          "max": 19.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "travel_frames_max": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 21.0,
+          "min": 21.0,
+          "max": 22.0
+        },
+        "anchor_id": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 10000.0,
+          "min": 10000.0,
+          "max": 10000.0
+        },
+        "anchor_offset_dp": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      }
+    },
+    "nav.animate_far@1": {
+      "animate": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.22752001446533202,
+          "min": 0.1887600120010376,
+          "max": 0.28872001835632327
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.09492000603485108,
+          "min": 0.08592000546264648,
+          "max": 0.11952000759887695
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 348.0,
+          "min": 343.0,
+          "max": 348.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.37680002395629886,
+          "min": 0.3610800229568481,
+          "max": 0.4252800270385742
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.09084000577545166,
+          "min": 0.07332000466156005,
+          "max": 0.10872000691223145
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 17.0,
+          "min": 17.0,
+          "max": 17.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "travel_frames_max": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 21.0,
+          "min": 21.0,
+          "max": 21.0
+        },
+        "anchor_id": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 10000.0,
+          "min": 10000.0,
+          "max": 10000.0
+        },
+        "anchor_offset_dp": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      }
+    },
+    "nav.jump_to_newest@1": {
+      "jump_to_newest": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.44928002856445315,
+          "min": 0.4238400269470215,
+          "max": 0.4796400304946899
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.10416000662231445,
+          "min": 0.09372000595855713,
+          "max": 0.1182000075149536
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 113.0,
+          "min": 112.0,
+          "max": 115.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.3362400213775635,
+          "min": 0.3277200208358764,
+          "max": 0.3825600243225098
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.07932000504302979,
+          "min": 0.07632000485229493,
+          "max": 0.10872000691223145
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 9.0,
+          "min": 9.0,
+          "max": 10.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "tail.pin_frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "anchor_id": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 10000.0,
+          "min": 10000.0,
+          "max": 10000.0
+        }
+      }
+    },
+    "nav.date_pill_during_fling@1": {
+      "fling": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.20712001316833495,
+          "min": 0.20256001287841796,
+          "max": 0.22500001430511474
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.11232000714111329,
+          "min": 0.10956000696563721,
+          "max": 0.13428000853729247
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 394.0,
+          "min": 394.0,
+          "max": 396.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.40836002596282955,
+          "min": 0.38964002477264403,
+          "max": 0.4226400268707275
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.09156000582122803,
+          "min": 0.08784000558471679,
+          "max": 0.11976000761413574
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 17.0,
+          "min": 17.0,
+          "max": 17.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fling.messages": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 57.0,
+          "min": 57.0,
+          "max": 57.0
+        },
+        "settle_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 2271.0,
+          "min": 2271.0,
+          "max": 2272.0
+        }
+      }
+    },
+    "scroll.real.drag_slow@2": {
+      "drag": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.24096001531982422,
+          "min": 0.19812001259613038,
+          "max": 0.27492001747894285
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.1930800122756958,
+          "min": 0.1839600116958618,
+          "max": 0.2402400152740478
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0018796992481203006,
+          "min": 0.001876172607879925,
+          "max": 0.001885014137606032
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 1064.0,
+          "min": 1061.0,
+          "max": 1066.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.10608000674438477,
+          "min": 0.09132000580596923,
+          "max": 0.13524000859832763
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.14568000926208496,
+          "min": 0.13440000854492187,
+          "max": 0.1755600111618042
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 16.0,
+          "min": 15.0,
+          "max": 17.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      }
+    },
+    "scroll.real.fling_single@1": {
+      "fling": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.4638000294876099,
+          "min": 0.44424002824401854,
+          "max": 0.4742400301513672
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.21564001371002195,
+          "min": 0.19512001240539548,
+          "max": 0.2715600172653198
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0023094688221709007
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 433.0,
+          "min": 433.0,
+          "max": 434.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.9088800577850341,
+          "min": 0.747600047531128,
+          "max": 1.0933200695114136
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 2.964000188446045,
+          "min": 2.858280181724548,
+          "max": 3.4358402184448242
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.06666666666666667,
+          "min": 0.058823529411764705,
+          "max": 0.125
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 16.0,
+          "min": 14.0,
+          "max": 17.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fling.messages": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 51.0,
+          "min": 51.0,
+          "max": 51.0
+        },
+        "settle_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 2271.0,
+          "min": 2271.0,
+          "max": 2271.0
+        }
+      }
+    },
+    "scroll.real.fling_burst@1": {
+      "fling_2k": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.6867600436630249,
+          "min": 0.5798400368652343,
+          "max": 0.8143200517730712
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.20292001290130615,
+          "min": 0.18972001206207276,
+          "max": 0.2674800170059204
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.006211180124223602,
+          "min": 0.005319148936170213,
+          "max": 0.0070052539404553416
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 1127.0,
+          "min": 1125.0,
+          "max": 1142.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.9200400584945678,
+          "min": 0.7808400496444702,
+          "max": 1.0365600659027099
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.1250400079498291,
+          "min": 0.12228000777435301,
+          "max": 0.17196001093292237
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0625
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 16.0,
+          "min": 16.0,
+          "max": 17.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fling.finger_up_messages": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 4.0,
+          "min": 4.0,
+          "max": 4.0
+        },
+        "fling.finger_down_messages": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fling.rep_spread_messages": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "settle_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 946.8333333333334,
+          "min": 945.3333333333334,
+          "max": 949.3333333333334
+        }
+      },
+      "fling_6k": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.49020003116607663,
+          "min": 0.4753200302200317,
+          "max": 0.5108400324783324
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.19824001260375976,
+          "min": 0.18576001181030274,
+          "max": 0.23340001483917236
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0020325203252032522,
+          "min": 0.0015274949083503055,
+          "max": 0.003019627579265224
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 1964.0,
+          "min": 1962.0,
+          "max": 1987.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.936480059539795,
+          "min": 0.8160000518798828,
+          "max": 1.0741200682907104
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 3.1926002029800413,
+          "min": 0.1818000115585327,
+          "max": 3.4201202174453735
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.06666666666666667,
+          "min": 0.058823529411764705,
+          "max": 0.13333333333333333
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 15.0,
+          "min": 15.0,
+          "max": 17.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fling.finger_up_messages": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 51.0,
+          "min": 51.0,
+          "max": 51.0
+        },
+        "fling.finger_down_messages": {
+          "kind": "exact",
+          "role": "headline",
+          "median": -50.0,
+          "min": -50.0,
+          "max": -50.0
+        },
+        "fling.rep_spread_messages": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "settle_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 2267.1666666666665,
+          "min": 2263.0,
+          "max": 2271.1666666666665
+        }
+      },
+      "fling_13k": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.5577600354614257,
+          "min": 0.46404002950286866,
+          "max": 0.6050400384674072
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.1844400117263794,
+          "min": 0.1802400114593506,
+          "max": 0.23604001500701904
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.002745995423340961,
+          "min": 0.0018298261665141812,
+          "max": 0.003216911764705882
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 2186.0,
+          "min": 2176.0,
+          "max": 2197.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.9657600614013672,
+          "min": 0.42168002680969235,
+          "max": 1.0407600661697387
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 2.7781201766281125,
+          "min": 0.14412000916290282,
+          "max": 3.515160223487854
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "diagnostic",
+          "median": 0.0625,
+          "min": 0.05263157894736842,
+          "max": 0.06666666666666667
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 16.0,
+          "min": 15.0,
+          "max": 19.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fling.finger_up_messages": {
+          "kind": "exact",
+          "role": "headline",
+          "median": 67.0,
+          "min": 67.0,
+          "max": 67.0
+        },
+        "fling.finger_down_messages": {
+          "kind": "exact",
+          "role": "headline",
+          "median": -57.0,
+          "min": -57.0,
+          "max": -57.0
+        },
+        "fling.rep_spread_messages": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "settle_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 2591.5,
+          "min": 2587.6666666666665,
+          "max": 2595.5
+        }
+      }
+    },
+    "scroll.first_scroll@1": {
+      "first_scroll": {
+        "build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.07992000508117676,
+          "min": 0.07512000477600098,
+          "max": 0.08652000550079345
+        },
+        "raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.3548400225601196,
+          "min": 0.32352002056884765,
+          "max": 0.8532000542449951
+        },
+        "over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 526.0,
+          "min": 525.0,
+          "max": 527.0
+        },
+        "budget_ms": {
+          "kind": "ms",
+          "role": "diagnostic",
+          "median": 8.333332803514303,
+          "min": 8.333332803514303,
+          "max": 8.333332803514303
+        },
+        "first_frames.build_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.02892000183868408,
+          "min": 0.021000001335144042,
+          "max": 0.046440002952575686
+        },
+        "first_frames.raster_p99_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.069960004447937,
+          "min": 0.03636000231170654,
+          "max": 0.10680000679016113
+        },
+        "first_frames.over_budget_share": {
+          "kind": "share",
+          "role": "headline",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "first_frames.frames": {
+          "kind": "count",
+          "role": "headline",
+          "median": 17.0,
+          "min": 17.0,
+          "max": 17.0
+        },
+        "semantics_on": {
+          "kind": "count",
+          "role": "diagnostic",
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      }
+    }
+  }
+}
