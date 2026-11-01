@@ -7,6 +7,7 @@
 ///       [--perf-mode fixed|system]   (fixed pins the clocks; the default,
 ///                                     restored after every run)
 ///       [--trace off]    (run and baseline: skip the traced pass)
+///       [--traced-launches N]   (run and baseline: 3 by default)
 ///   dart run tool/chat_perf.dart promote LABEL --reason "one line"
 ///   dart run tool/chat_perf.dart compare LABEL [--refresh HZ]
 ///
@@ -23,10 +24,11 @@
 /// set a failing exit status. `run` and `baseline` take the same
 /// `--semantics`.
 ///
-/// `run` and `baseline` end with one traced launch (a `trace=phase` build,
-/// `--no-dds`) over the `deterministic` scenarios; its timelines give the
-/// structural counts (`trace.*`), which join the first launch's metrics. Timing
-/// never comes from the traced launch.
+/// `run` and `baseline` end with traced launches (a `trace=phase` build,
+/// `--no-dds`, 3 by default) over the `deterministic` scenarios; their
+/// timelines give the structural counts (`trace.*`). Traced launch `i` joins
+/// timing round `i`, so a baseline stores the counts' spread and a run judges
+/// their median. Timing never comes from a traced launch.
 ///
 /// Before the first launch it refuses a device that cannot give meaningful
 /// numbers and takes the per-device lock. Each launch uses the APK cached under
@@ -37,6 +39,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import '../integration_test/chat_perf/metrics.dart';
 import '../integration_test/chat_perf/report_document.dart';
@@ -58,7 +61,11 @@ import 'chat_perf/verdict.dart';
 const _modes = {'quick', 'run', 'baseline', 'promote', 'compare', 'counts'};
 const _baselineRoot = 'perf/baseline/chat';
 
-/// The counts of a run's traced pass, beside its run manifest.
+/// Traced launches a `run` or `baseline` ends with (`--traced-launches`), so
+/// the `trace.*` counts get a spread (finding 17).
+const kDefaultTracedLaunches = 3;
+
+/// The counts of one traced launch, in that launch's run directory.
 const _tracedMetricsFile = 'chat_perf_trace_metrics.json';
 
 String get _out =>
@@ -145,6 +152,12 @@ Future<void> main(List<String> args) async {
     stderr.writeln('--launches must be at least $kMinBaselineLaunches');
     exit(64);
   }
+  final tracedLaunches =
+      int.tryParse(options['traced-launches'] ?? '') ?? kDefaultTracedLaunches;
+  if (tracedLaunches < 1) {
+    stderr.writeln('--traced-launches must be at least 1');
+    exit(64);
+  }
   final label =
       options['label'] ??
       '$mode-${DateTime.now().toIso8601String().replaceAll(RegExp('[:.]'), '-')}';
@@ -206,7 +219,7 @@ Future<void> main(List<String> args) async {
   final roundDocs = <MetricsDocument>[];
   final roundLabels = <List<String>>[];
   var discarded = 0;
-  MetricsDocument? traced;
+  final traced = <({String label, MetricsDocument doc})>[];
   try {
     var first = true;
     for (var r = 1; r <= rounds && status == 0; r++) {
@@ -247,11 +260,18 @@ Future<void> main(List<String> args) async {
         options['trace'] != 'off' &&
         traceable.isNotEmpty &&
         roundDocs.isNotEmpty) {
-      final result = await _tracedLaunch(adb, run, '$label-traced', traceable);
-      discarded += result.discarded;
-      traced = result.doc;
-      if (result.code != 0 || traced == null) {
-        status = result.code == 0 ? 1 : result.code;
+      // A count's spread needs several traced launches (finding 17); never
+      // more than the timing rounds they join.
+      final count = math.min(tracedLaunches, roundDocs.length);
+      for (var t = 1; t <= count && status == 0; t++) {
+        final tracedLabel = count == 1 ? '$label-traced' : '$label-traced$t';
+        final result = await _tracedLaunch(adb, run, tracedLabel, traceable);
+        discarded += result.discarded;
+        if (result.doc case final doc? when result.code == 0) {
+          traced.add((label: tracedLabel, doc: doc));
+        } else {
+          status = result.code == 0 ? 1 : result.code;
+        }
       }
     }
   } on ForeignInstallException catch (e) {
@@ -358,26 +378,20 @@ int _finish({
   required List<List<String>> roundLabels,
   required int discarded,
   required Requested requested,
-  MetricsDocument? traced,
+  List<({String label, MetricsDocument doc})> traced = const [],
 }) {
   final dir = Directory('$_out/runs/$label')..createSync(recursive: true);
-  if (traced != null) {
-    File('${dir.path}/$_tracedMetricsFile').writeAsStringSync(
-      const JsonEncoder.withIndent('  ').convert(traced.toJson()),
+  for (final t in traced) {
+    File('$_out/runs/${t.label}/$_tracedMetricsFile').writeAsStringSync(
+      const JsonEncoder.withIndent('  ').convert(t.doc.toJson()),
     );
   }
-  final rounds = [
-    if (traced != null)
-      withTracedCounts(launches.first, traced)
-    else
-      launches.first,
-    ...launches.skip(1),
-  ];
+  final rounds = withTracedRounds(launches, [for (final t in traced) t.doc]);
   File('${dir.path}/chat_perf_run.json').writeAsStringSync(
     const JsonEncoder.withIndent('  ').convert({
       'mode': mode,
       'rounds': roundLabels,
-      if (traced != null) 'traced': '$label-traced',
+      'traced': [for (final t in traced) t.label],
       'discardedLaunches': discarded,
       'requested': {
         'backend': requested.backend,
@@ -475,18 +489,26 @@ int _compare(String label, Map<String, String> options) {
           ),
       ]),
   ];
-  final tracedFile = File('$_out/runs/$label/$_tracedMetricsFile');
-  if (tracedFile.existsSync()) {
-    rounds[0] = withTracedCounts(
-      rounds.first,
-      MetricsDocument.fromJson(
-        jsonDecode(tracedFile.readAsStringSync()) as Map<String, Object?>,
-      ),
-    );
-  }
+  // The traced launches' labels; a run stored before several were made names
+  // one, whose counts sit beside the manifest.
+  final tracedFiles = switch (manifest['traced']) {
+    final List<Object?> labels => [
+      for (final l in labels) File('$_out/runs/$l/$_tracedMetricsFile'),
+    ],
+    final String _ => [File('$_out/runs/$label/$_tracedMetricsFile')],
+    _ => <File>[],
+  };
+  final tracedDocs = [
+    for (final f in tracedFiles)
+      if (f.existsSync())
+        MetricsDocument.fromJson(
+          jsonDecode(f.readAsStringSync()) as Map<String, Object?>,
+        ),
+  ];
+  final judged = withTracedRounds(rounds, tracedDocs);
   final req = manifest['requested']! as Map<String, Object?>;
   return _judgeAndPrint(
-    medianOf(rounds),
+    medianOf(judged),
     Requested(
       backend: req['backend']! as String,
       semantics: req['semantics']! as String,
@@ -547,6 +569,7 @@ Future<({int code, int discarded, MetricsDocument? doc})> _launch(
   final out = _out;
 
   final batteryStart = await adb.battery();
+  final clocksStart = await adb.clocks();
   final result = await runWithRetry<int>(
     launch: () async {
       await adb.clearLogcat();
@@ -579,6 +602,8 @@ Future<({int code, int discarded, MetricsDocument? doc})> _launch(
     ..['environment'] = {
       'batteryStart': batteryStart.toJson(),
       'batteryEnd': batteryEnd.toJson(),
+      'clocksStart': clocksStart,
+      'clocksEnd': await adb.clocks(),
       'inputMethod': await adb.inputMethod(),
       ..._combination(run),
       'discardedLaunches': result.discarded,

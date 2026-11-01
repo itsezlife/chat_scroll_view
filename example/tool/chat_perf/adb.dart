@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'build_fingerprint.dart';
+import 'clocks.dart';
 import 'device_lock.dart';
 import 'gates.dart';
 
@@ -28,6 +29,10 @@ final class Adb {
 
   Future<BatteryReading> battery() async =>
       parseBattery(await shell('dumpsys battery'));
+
+  /// The CPU and GPU clock state now ([parseClocks]).
+  Future<Map<String, Object?>> clocks() async =>
+      parseClocks(await shell(kClocksCommand));
 
   Future<String> inputMethod() async =>
       (await shell('settings get secure default_input_method')).trim();
@@ -131,6 +136,8 @@ Map<String, List<int>> buildInputs() {
   const roots = [
     'integration_test/chat_perf',
     'integration_test/panel_perf',
+    // The real chat screen the keyboard and real-chat scenarios mount.
+    'lib',
     '../lib',
     'pubspec.yaml',
     '../pubspec.lock',

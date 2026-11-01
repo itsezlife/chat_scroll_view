@@ -146,3 +146,26 @@ MetricsDocument withTracedCounts(
     skipped: timing.skipped,
   );
 }
+
+/// [rounds] with the counts of traced launch `i` added to round `i`.
+///
+/// Each traced launch joins one timing round, so a baseline made of the
+/// rounds gets the counts' spread over the traced launches, and a run's median
+/// is the median of them; rounds past the traced launches carry no counts.
+/// More traced launches than rounds is a bug.
+List<MetricsDocument> withTracedRounds(
+  List<MetricsDocument> rounds,
+  List<MetricsDocument> traced,
+) {
+  if (traced.length > rounds.length) {
+    throw ArgumentError.value(
+      traced.length,
+      'traced',
+      'more traced launches than the ${rounds.length} timing rounds',
+    );
+  }
+  return [
+    for (final (i, round) in rounds.indexed)
+      i < traced.length ? withTracedCounts(round, traced[i]) : round,
+  ];
+}

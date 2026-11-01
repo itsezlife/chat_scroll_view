@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../tool/chat_perf/clocks.dart';
 import '../../tool/chat_perf/dependency_stamp.dart';
 import '../../tool/chat_perf/gates.dart';
 import '../../tool/chat_perf/perf_mode.dart';
@@ -128,6 +129,50 @@ packages:
       expect(PerfMode.parse(''), PerfMode.fixed);
       expect(PerfMode.parse('system'), PerfMode.system);
       expect(() => PerfMode.parse('turbo'), throwsFormatException);
+    });
+  });
+
+  group('parseClocks', () {
+    test('reads every CPU policy and the GPU clock', () {
+      expect(
+        parseClocks(
+          'cpu policy0 walt 1785600 556800 3532800\n'
+          'cpu policy6 walt 1017600 1017600 4473600\n'
+          'gpu 160 160 1200\n',
+        ),
+        {
+          'cpu': {
+            'policy0': {
+              'governor': 'walt',
+              'curKHz': 1785600,
+              'minKHz': 556800,
+              'maxKHz': 3532800,
+            },
+            'policy6': {
+              'governor': 'walt',
+              'curKHz': 1017600,
+              'minKHz': 1017600,
+              'maxKHz': 4473600,
+            },
+          },
+          'gpu': {'curMHz': 160, 'minMHz': 160, 'maxMHz': 1200},
+        },
+      );
+    });
+
+    test('drops unreadable lines; nothing readable is an empty map', () {
+      expect(parseClocks('cpu policy0 walt\n'), isEmpty);
+      expect(parseClocks(''), isEmpty);
+      expect(parseClocks('cpu policy0 walt 1 2 3\ngpu x 1 2'), {
+        'cpu': {
+          'policy0': {
+            'governor': 'walt',
+            'curKHz': 1,
+            'minKHz': 2,
+            'maxKHz': 3,
+          },
+        },
+      });
     });
   });
 }

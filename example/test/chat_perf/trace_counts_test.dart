@@ -240,6 +240,63 @@ void main() {
       expect(w['trace.layout_passes']!.max, 8);
       expect(w['raster_p99_share']!.median, 0.2);
     });
+
+    test('three traced launches give the baseline a count spread', () {
+      final rounds = withTracedRounds(
+        [for (var i = 0; i < 5; i++) _docWith(0, count: false)],
+        [
+          for (final n in [7, 9, 8]) _docWith(n.toDouble(), timing: false),
+        ],
+      );
+      final w = Baseline.fromLaunches(
+        rounds,
+        label: 'b',
+      ).scenarios['s@1']!['w']!;
+      expect(
+        (
+          w['trace.layout_passes']!.min,
+          w['trace.layout_passes']!.median,
+          w['trace.layout_passes']!.max,
+        ),
+        (7, 8, 9),
+      );
+      // Timing keeps all five rounds.
+      expect(rounds.where((r) => r.scenarios.isNotEmpty), hasLength(5));
+    });
+
+    test('a run judges the median of its traced launches', () {
+      final base = Baseline.fromLaunches(
+        withTracedRounds(
+          [for (var i = 0; i < 5; i++) _docWith(0, count: false)],
+          [
+            for (final n in [100, 104, 102])
+              _docWith(n.toDouble(), timing: false),
+          ],
+        ),
+        label: 'b',
+      );
+      // One launch at 107 (above max + 2%) is outvoted by two at 103.
+      final run = medianOf(
+        withTracedRounds(
+          [for (var i = 0; i < 3; i++) _docWith(0, count: false)],
+          [
+            for (final n in [107, 103, 103])
+              _docWith(n.toDouble(), timing: false),
+          ],
+        ),
+      );
+      expect(judge(run, base).exitCode, 0);
+    });
+
+    test('more traced launches than rounds is refused', () {
+      expect(
+        () => withTracedRounds(
+          [_docWith(0, count: false)],
+          [_docWith(1, timing: false), _docWith(1, timing: false)],
+        ),
+        throwsArgumentError,
+      );
+    });
   });
 
   group('selection', () {
