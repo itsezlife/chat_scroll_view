@@ -121,6 +121,8 @@ void main() {
       );
       final over = m[kFramesOver3xBudgetMetric]!;
       expect(over.value, 2);
+      // The two 20 ms first frames are over twice the budget, not three times.
+      expect(m[kFramesOver2xBudgetMetric]!.value, 4);
       expect((over.kind, over.role), (MetricKind.count, MetricRole.diagnostic));
       expect(
         windowMetrics(

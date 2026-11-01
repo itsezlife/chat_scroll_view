@@ -186,11 +186,17 @@ int framesOverBudgetMultiple(
 /// Name of the [framesOverBudgetMultiple] diagnostic of every window.
 const kFramesOver3xBudgetMetric = 'frames_over_3x_budget';
 
+/// The same count at twice the budget. At 120 Hz three budgets is 25 ms, and
+/// the real-chat raster outliers of finding 06 sit at 20-24 ms: only this
+/// count sees them.
+const kFramesOver2xBudgetMetric = 'frames_over_2x_budget';
+
 /// The metrics of one window: the headline set over the [steady] frames, plus
 /// `first_frames.*` over the [first] frames. The first frames are diagnostic,
 /// or headline when the scenario is [cold]. With no first frames only their
 /// zero count is reported, since a percentile of nothing means nothing.
-/// [kFramesOver3xBudgetMetric] counts over all the window's frames.
+/// [kFramesOver2xBudgetMetric] and [kFramesOver3xBudgetMetric] count over all
+/// the window's frames.
 Map<String, Metric> windowMetrics(
   List<FrameSample> first,
   List<FrameSample> steady, {
@@ -213,14 +219,19 @@ Map<String, Metric> windowMetrics(
       ),
     if (first.isEmpty)
       'first_frames.frames': Metric(0, kind: MetricKind.count, role: role),
-    kFramesOver3xBudgetMetric: Metric(
-      framesOverBudgetMultiple([
-        ...first,
-        ...steady,
-      ], budgetMs: vsyncBudgetMs(refreshRateHz)).toDouble(),
-      kind: MetricKind.count,
-      role: MetricRole.diagnostic,
-    ),
+    for (final (name, multiple) in [
+      (kFramesOver2xBudgetMetric, 2.0),
+      (kFramesOver3xBudgetMetric, 3.0),
+    ])
+      name: Metric(
+        framesOverBudgetMultiple(
+          [...first, ...steady],
+          budgetMs: vsyncBudgetMs(refreshRateHz),
+          multiple: multiple,
+        ).toDouble(),
+        kind: MetricKind.count,
+        role: MetricRole.diagnostic,
+      ),
   };
 }
 
