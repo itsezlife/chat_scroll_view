@@ -8,24 +8,20 @@
 /// timing.
 library;
 
+// ignore_for_file: implementation_imports, invalid_use_of_internal_member
+// The counted sections are the engine's own names, not copies of them.
+
 import 'dart:developer' show Timeline;
 
+import 'package:chat_scroll_view/src/util/trace_section.dart' show TraceSection;
+
+import 'defines.dart';
 import 'metrics.dart';
 import 'report_document.dart';
 
 /// Whether this launch is the traced one (`CHAT_PERF_TRACED=true`). A
 /// compile-time constant: the timing launches never emit a window mark.
-const bool kTracedLaunch = bool.fromEnvironment('CHAT_PERF_TRACED');
-
-/// Which launch a metric comes from.
-enum MetricPass { timing, traced }
-
-const _tracePrefix = 'trace.';
-
-/// The pass that produces [metric]: every `trace.*` metric is a count from
-/// the traced pass, everything else is timing.
-MetricPass passOf(String metric) =>
-    metric.startsWith(_tracePrefix) ? MetricPass.traced : MetricPass.timing;
+const bool kTracedLaunch = bool.fromEnvironment(ChatPerfDefine.traced);
 
 const _startMark = 'chat_perf.window.start:';
 const _endMark = 'chat_perf.window.end:';
@@ -50,10 +46,12 @@ String traceReportKey(String scenarioId) =>
 String traceTimelineFile(String scenarioId) =>
     '${traceReportKey(scenarioId)}.timeline.json';
 
-const _counted = <String, String>{
-  'chat_scroll_view.child.build': 'trace.children_built',
-  'chat_scroll_view.layout.mode': 'trace.layout_passes',
-  'chat_scroll_view.layout.fanOut': 'trace.fan_out_passes',
+/// The counted [TraceSection]s by their timeline label, to the metric each
+/// count is.
+final _counted = <String, String>{
+  TraceSection.childBuild.label: 'trace.children_built',
+  TraceSection.layoutMode.label: 'trace.layout_passes',
+  TraceSection.layoutFanOut.label: 'trace.fan_out_passes',
 };
 
 /// Per window, the structural counts of a captured [timeline] (the
@@ -94,6 +92,7 @@ Map<String, Map<String, Metric>> traceCounts(Map<String, Object?> timeline) {
                 .toDouble(),
             kind: MetricKind.count,
             role: MetricRole.headline,
+            pass: MetricPass.traced,
           ),
       },
   };
@@ -107,8 +106,8 @@ MetricsDocument tracedDocument({
 }) {
   for (final s in counts.values) {
     for (final w in s.values) {
-      for (final name in w.keys) {
-        if (passOf(name) != MetricPass.traced) {
+      for (final MapEntry(key: name, value: metric) in w.entries) {
+        if (metric.pass != MetricPass.traced) {
           throw ArgumentError.value(
             name,
             'counts',

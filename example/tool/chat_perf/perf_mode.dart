@@ -17,11 +17,10 @@ enum PerfMode {
   system;
 
   /// Parses a `--perf-mode` value; empty means the default, [fixed].
-  static PerfMode parse(String value) {
-    if (value.isEmpty) return fixed;
-    for (final mode in values) {
-      if (mode.name == value) return mode;
-    }
-    throw FormatException('perf-mode must be fixed or system', value);
-  }
+  static PerfMode parse(String value) => switch (value) {
+    '' => fixed,
+    _ =>
+      values.asNameMap()[value] ??
+          (throw FormatException('perf-mode must be fixed or system', value)),
+  };
 }

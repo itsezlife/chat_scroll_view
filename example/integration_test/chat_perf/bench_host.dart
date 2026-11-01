@@ -18,13 +18,6 @@ import 'corpus.dart';
 import 'corpus_rich.dart';
 import 'perf_host.dart';
 
-/// The markdown theme's `disposeBuiltPainters` the hosts set; the runner sets
-/// the define and records it (`--dispose-painters on|off`).
-const bool kDisposeBuiltPainters = bool.fromEnvironment(
-  'CHAT_PERF_DISPOSE_BUILT_PAINTERS',
-  defaultValue: true,
-);
-
 /// Fixed bubble: one rounded rectangle and one paragraph, nothing else.
 Widget benchBubble(
   BuildContext context,
@@ -120,8 +113,8 @@ class _BenchMarkdownBodyState extends State<_BenchMarkdownBody> {
   }
 
   // One theme instance per body: the engine rebuilds its painter whenever the
-  // theme is another instance. `disposeBuiltPainters` is the setting the
-  // runner records (`--dispose-painters`); the chat body's theme `builder`
+  // theme is another instance. `disposeBuiltPainters` is the demo theme's
+  // shipping value (the runner records it): the chat body's theme `builder`
   // makes a new painter per call, so the body owns what it replaces.
   MarkdownThemeData? _theme;
 
@@ -138,7 +131,7 @@ class _BenchMarkdownBodyState extends State<_BenchMarkdownBody> {
           textDirection: Directionality.maybeOf(context) ?? TextDirection.ltr,
           textScaler:
               MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling,
-          disposeBuiltPainters: kDisposeBuiltPainters,
+          disposeBuiltPainters: true,
         ),
       ),
     ),
@@ -157,14 +150,15 @@ final class BenchProbe {
   Map<int, double> visibleBottoms(Rect viewport) {
     final out = <int, double>{};
     for (final e in _rows.entries) {
-      final box = e.value.findRenderObject();
-      if (box is! RenderBox || !box.attached || !box.hasSize) continue;
-      final top = box.localToGlobal(Offset.zero).dy;
-      final bottom = top + box.size.height;
-      if (bottom > viewport.top && top < viewport.bottom) {
-        // The band's bottom edge, clipped to the viewport: a row taller than
-        // the viewport has its bottom off screen.
-        out[e.key] = bottom < viewport.bottom ? bottom : viewport.bottom;
+      if (e.value.findRenderObject() case final RenderBox box
+          when box.attached && box.hasSize) {
+        final top = box.localToGlobal(Offset.zero).dy;
+        final bottom = top + box.size.height;
+        if (bottom > viewport.top && top < viewport.bottom) {
+          // The band's bottom edge, clipped to the viewport: a row taller
+          // than the viewport has its bottom off screen.
+          out[e.key] = bottom < viewport.bottom ? bottom : viewport.bottom;
+        }
       }
     }
     return Map.fromEntries(out.entries.toList()..sort((a, b) => a.key - b.key));
@@ -403,7 +397,10 @@ final class BenchHost implements PerfHost, ChurnHost {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: DecoratedBox(
-          key: target == null ? null : rowKeys[target],
+          key: switch (target) {
+            final t? => rowKeys[t],
+            null => null,
+          },
           decoration: BoxDecoration(
             color: id.isEven
                 ? const Color(0xFFE3F2FD)
@@ -413,7 +410,10 @@ final class BenchHost implements PerfHost, ChurnHost {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: KeyedSubtree(
-              key: target == null ? null : bodyKeys[target],
+              key: switch (target) {
+                final t? => bodyKeys[t],
+                null => null,
+              },
               child: _BenchMarkdownBody(
                 selection: selection,
                 messageId: id,
@@ -458,13 +458,13 @@ final class BenchHost implements PerfHost, ChurnHost {
 
   @override
   void edit(int id, {required bool taller}) {
-    final current = source.getMessage(id);
-    if (current is! BenchMessage) return;
-    final original = source.corpus.messageAt(id).text;
-    source.updateMessage(
-      current.edited(taller ? List.filled(5, original).join('\n') : original),
-      reason: 'bench.edit',
-    );
+    if (source.getMessage(id) case final BenchMessage current) {
+      final original = source.corpus.messageAt(id).text;
+      source.updateMessage(
+        current.edited(taller ? List.filled(5, original).join('\n') : original),
+        reason: 'bench.edit',
+      );
+    }
   }
 
   @override

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "key": "sm-s938b.impeller.120hz.sem-off",
+  "key": "sm-s938b.impeller.120hz.sem-off.fixed",
   "label": "aud-base4",
   "device": "SM-S938B",
   "backend": "impeller",
@@ -9,6 +9,15 @@
   "corpusVersion": 2,
   "launches": 5,
   "discardedLaunches": 0,
+  "perfMode": "fixed",
+  "markdown": {
+    "name": "flutter_md",
+    "version": "0.8.1",
+    "source": "path",
+    "location": "../md",
+    "revision": "95ae2b98ede93b265d532c6cd6a7bf4f2628a00f",
+    "disposeBuiltPainters": true
+  },
   "reason": "automated first all-family baseline (scroll, nav, kbd, ime/panel, churn, sel/rich, scale; traced counts included), fixed performance mode, flutter_md 0.8.1 with disposeBuiltPainters on in the bench host; pending the user's review",
   "scenarios": {
     "scroll.drag_slow@2": {

@@ -128,6 +128,17 @@ final class RampSample {
   final double anchorOffsetDp;
 }
 
+/// The engine's compensation error (spec 7.3): the largest per-frame
+/// |anchor shift + pad shift|, or a paired control's end-state difference.
+/// Judged against the baseline with a floor of one frame of pad movement
+/// ([kPadStepMetric]): a pad change the engine compensates a frame late is
+/// absorbed, a drift is not.
+const String kCompErrorMetric = 'engine.comp_error_dp';
+
+/// The largest pad change between two consecutive frames of a window: one
+/// frame's worth of movement, the floor [kCompErrorMetric] is judged with.
+const String kPadStepMetric = 'pad.max_step_dp';
+
 Metric _m(
   double v,
   MetricKind kind, [
@@ -146,6 +157,7 @@ Map<String, Metric> rampMetrics(
 }) {
   if (samples.isEmpty) return {};
   var compError = 0.0;
+  var padStep = 0.0;
   var jumps = 0;
   var changes = 0;
   double? firstChange;
@@ -153,6 +165,7 @@ Map<String, Metric> rampMetrics(
   for (var i = 1; i < samples.length; i++) {
     final a = samples[i - 1];
     final b = samples[i];
+    padStep = math.max(padStep, (b.padDp - a.padDp).abs());
     if (a.anchorId != b.anchorId) {
       jumps++;
     } else {
@@ -175,7 +188,8 @@ Map<String, Metric> rampMetrics(
       : math.max<double>(0, end.padDp - pads.reduce(math.min));
   final origin = start.tMs;
   return {
-    'engine.comp_error_dp': _m(compError, MetricKind.dp, MetricRole.target),
+    kCompErrorMetric: _m(compError, MetricKind.dp, MetricRole.headline),
+    kPadStepMetric: _m(padStep, MetricKind.dp),
     'host.pad_overshoot_dp': _m(overshoot, MetricKind.dp),
     'jump.messages': _m(jumps.toDouble(), MetricKind.exact),
     // Context for the numbers above: how far the pad moved and how far the
@@ -192,10 +206,11 @@ Map<String, Metric> rampMetrics(
       'ramp.first_inset_ms': _m(first - origin, MetricKind.ms),
       'ramp.duration_ms': _m(lastChange! - first, MetricKind.ms),
     },
-    'ramp.delivery': _m(
+    'ramp.delivery': Metric(
       expectedFrames <= 0 ? 0 : changes / expectedFrames,
-      MetricKind.share,
-      MetricRole.headline,
+      kind: MetricKind.share,
+      role: MetricRole.headline,
+      direction: MetricDirection.higherIsBetter,
     ),
   };
 }
@@ -226,14 +241,14 @@ Map<String, Metric> pairedControlMetrics({
   return {
     'jump.messages': _m(jump.toDouble(), MetricKind.exact),
     if (jump == 0)
-      'engine.comp_error_dp': _m(
+      kCompErrorMetric: _m(
         (withRamp.anchorOffsetDp -
                 control.anchorOffsetDp +
                 withRamp.padDp -
                 control.padDp)
             .abs(),
         MetricKind.dp,
-        MetricRole.target,
+        MetricRole.headline,
       ),
   };
 }

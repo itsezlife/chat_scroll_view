@@ -7,6 +7,7 @@ import 'package:integration_test/integration_test.dart';
 
 import 'bench_host.dart';
 import 'corpus.dart';
+import 'defines.dart';
 import 'device_context.dart';
 import 'metrics.dart';
 import 'perf_host.dart';
@@ -34,16 +35,19 @@ import 'trace_counts.dart';
 /// history), `CHAT_PERF_SEMANTICS` (`off` by default, `on` or `pair`),
 /// `CHAT_PERF_TRACED` (`true` is the traced launch: scripted scenarios only,
 /// each captured on the timeline, for the structural counts).
-const _filter = String.fromEnvironment('CHAT_PERF_SCENARIO');
+const _filter = String.fromEnvironment(ChatPerfDefine.scenario);
 const _backend = String.fromEnvironment(
-  'CHAT_PERF_BACKEND',
+  ChatPerfDefine.backend,
   defaultValue: 'impeller',
 );
 
 /// `true` runs the cold scenarios (one per launch); `false` the shared set.
-const _cold = bool.fromEnvironment('CHAT_PERF_COLD');
-const _history = int.fromEnvironment('CHAT_PERF_HISTORY', defaultValue: 20000);
-const _semantics = String.fromEnvironment('CHAT_PERF_SEMANTICS');
+const _cold = bool.fromEnvironment(ChatPerfDefine.cold);
+const _history = int.fromEnvironment(
+  ChatPerfDefine.history,
+  defaultValue: 20000,
+);
+const _semantics = String.fromEnvironment(ChatPerfDefine.semantics);
 
 /// Report keys the host driver writes as `<key>.json`.
 const kMetricsKey = 'chat_perf_metrics';
@@ -155,9 +159,10 @@ void main() {
               '_sem_${on ? 'on' : 'off'}_timeline';
           await binding.traceAction(() => scenario.run(ctx), reportKey: key);
           final timeline = binding.reportData?[key];
-          final events = timeline is Map<String, Object?>
-              ? countSemanticsEvents(timeline)
-              : -1;
+          final events = switch (timeline) {
+            final Map<String, Object?> t => countSemanticsEvents(t),
+            _ => -1,
+          };
           for (final w in ctx.windows.values) {
             w['semantics_events'] = Metric(
               events.toDouble(),
@@ -176,10 +181,16 @@ void main() {
       for (final w in scenario.windows) {
         final off = byPass[false]?.windows[w];
         final on = byPass[true]?.windows[w];
-        if (off != null) windows[w] = off;
-        if (on != null) windows[off == null ? w : '$w.sem_on'] = on;
-        if (off != null && on != null) {
-          windows['$w.sem_ratio'] = semanticsRatio(off: off, on: on);
+        switch ((off, on)) {
+          case (final off?, final on?):
+            windows
+              ..[w] = off
+              ..['$w.sem_on'] = on
+              ..['$w.sem_ratio'] = semanticsRatio(off: off, on: on);
+          case (final only?, null) || (null, final only?):
+            windows[w] = only;
+          case (null, null):
+            break;
         }
       }
       for (final pass in byPass.entries) {

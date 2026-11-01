@@ -32,26 +32,83 @@ enum MetricKind {
 /// How a metric is used (spec 6.1): judged, shown, or compared to a goal.
 enum MetricRole { headline, diagnostic, target }
 
-/// One named number with its kind and role.
-final class Metric {
-  const Metric(this.value, {required this.kind, required this.role});
+/// Which way a metric regresses.
+enum MetricDirection {
+  /// A higher value is the regression (times, shares, counts).
+  lowerIsBetter,
 
-  factory Metric.fromJson(Map<String, Object?> json) => Metric(
-    (json['value']! as num).toDouble(),
-    kind: MetricKind.values.byName(json['kind']! as String),
-    role: MetricRole.values.byName(json['role']! as String),
-  );
+  /// A lower value is the regression (a delivery share).
+  higherIsBetter,
+}
+
+/// Which launch a metric comes from (spec 8, 9).
+enum MetricPass {
+  /// A timing launch: frame times and scenario outcomes.
+  timing,
+
+  /// The traced launch: structural counts from its timeline, never timing.
+  traced,
+}
+
+/// One named number with its kind, role, direction and pass.
+final class Metric {
+  const Metric(
+    this.value, {
+    required this.kind,
+    required this.role,
+    this.direction = MetricDirection.lowerIsBetter,
+    this.pass = MetricPass.timing,
+  });
+
+  /// The metric [name] as a document stores it (see [metricTypingOf]).
+  factory Metric.fromJson(String name, Map<String, Object?> json) {
+    final typing = metricTypingOf(name, json);
+    return Metric(
+      (json['value']! as num).toDouble(),
+      kind: MetricKind.values.byName(json['kind']! as String),
+      role: MetricRole.values.byName(json['role']! as String),
+      direction: typing.direction,
+      pass: typing.pass,
+    );
+  }
 
   final double value;
   final MetricKind kind;
   final MetricRole role;
+  final MetricDirection direction;
+  final MetricPass pass;
 
   Map<String, Object?> toJson() => {
     'value': value,
     'kind': kind.name,
     'role': role.name,
+    'direction': direction.name,
+    'pass': pass.name,
   };
 }
+
+/// A metric's direction and pass.
+typedef MetricTyping = ({MetricDirection direction, MetricPass pass});
+
+/// The typing a stored metric [name] carries in [json].
+///
+/// A document written before the typing was stored falls back to the rule it
+/// relied on then: a `*delivery` metric is higher-is-better, a `trace.*`
+/// metric is a count of the traced pass. This is the only place a metric's
+/// name decides its typing.
+MetricTyping metricTypingOf(String name, Map<String, Object?> json) => (
+  direction: switch (json['direction']) {
+    final String d => MetricDirection.values.byName(d),
+    _ =>
+      name.endsWith('delivery')
+          ? MetricDirection.higherIsBetter
+          : MetricDirection.lowerIsBetter,
+  },
+  pass: switch (json['pass']) {
+    final String p => MetricPass.values.byName(p),
+    _ => name.startsWith('trace.') ? MetricPass.traced : MetricPass.timing,
+  },
+);
 
 /// [timeMs] as a fraction of one vsync [budgetMs]; above one is over budget.
 double budgetShare(double timeMs, double budgetMs) => timeMs / budgetMs;
@@ -140,6 +197,7 @@ Map<String, Metric> windowMetrics(
         e.value.value,
         kind: e.value.kind,
         role: role,
+        direction: e.value.direction,
       ),
     if (first.isEmpty)
       'first_frames.frames': Metric(0, kind: MetricKind.count, role: role),
@@ -162,6 +220,7 @@ Map<String, Metric> ratioMetrics({
       b.value / a.value,
       kind: MetricKind.ratio,
       role: MetricRole.diagnostic,
+      direction: b.direction,
     );
   }
   return result;

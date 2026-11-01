@@ -2,6 +2,8 @@
 /// dart-define set. The run label is never an input and never a define.
 library;
 
+import '../../integration_test/chat_perf/defines.dart';
+
 /// The dart-defines compiled into the build. No label: a define is baked into
 /// the cached APK, so a reused APK would keep the old label.
 List<String> buildDefines({
@@ -11,18 +13,19 @@ List<String> buildDefines({
   bool cold = false,
   String? semantics,
   bool traced = false,
-  bool disposeBuiltPainters = true,
 }) => [
-  'CHAT_PERF_BACKEND=$backend',
-  // The markdown theme flag the hosts set; always explicit so that a cached
-  // APK never silently carries the other setting.
-  'CHAT_PERF_DISPOSE_BUILT_PAINTERS=$disposeBuiltPainters',
-  if (scenario != null && scenario.isNotEmpty) 'CHAT_PERF_SCENARIO=$scenario',
-  if (history != null && history.isNotEmpty) 'CHAT_PERF_HISTORY=$history',
-  if (cold) 'CHAT_PERF_COLD=true',
+  '${ChatPerfDefine.backend}=$backend',
+  if (scenario != null && scenario.isNotEmpty)
+    '${ChatPerfDefine.scenario}=$scenario',
+  if (history != null && history.isNotEmpty)
+    '${ChatPerfDefine.history}=$history',
+  if (cold) '${ChatPerfDefine.cold}=true',
   if (semantics != null && semantics.isNotEmpty)
-    'CHAT_PERF_SEMANTICS=$semantics',
-  if (traced) ...['chat_scroll_view.trace=phase', 'CHAT_PERF_TRACED=true'],
+    '${ChatPerfDefine.semantics}=$semantics',
+  if (traced) ...[
+    '${ChatPerfDefine.engineTrace}=phase',
+    '${ChatPerfDefine.traced}=true',
+  ],
 ];
 
 /// Two 32-bit FNV-1a hashes (different seeds) over the sorted defines, then

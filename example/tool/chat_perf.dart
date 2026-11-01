@@ -4,7 +4,8 @@
 ///       [--scenario GLOB,...] [--label NAME] [--backend impeller|skia]
 ///       [--history N] [--semantics off|on|pair] [--refresh HZ]
 ///       [--launches N]   (baseline only, at least 5)
-///       [--perf-mode fixed|system]   (fixed pins the clocks; the default)
+///       [--perf-mode fixed|system]   (fixed pins the clocks; the default,
+///                                     restored after every run)
 ///       [--trace off]    (run and baseline: skip the traced pass)
 ///   dart run tool/chat_perf.dart promote LABEL --reason "one line"
 ///   dart run tool/chat_perf.dart compare LABEL [--refresh HZ]
@@ -86,12 +87,13 @@ Map<String, Object?> _markdownStamp() {
   return stamp.withRevision(revision).toJson();
 }
 
-/// The mode this run requested; recorded in every launch's metadata.
-PerfMode _perfMode = PerfMode.fixed;
+/// The markdown theme's `disposeBuiltPainters` both hosts run with: the demo
+/// theme's shipping value, which the bench host matches. Recorded with the
+/// engine stamp, so a baseline made with the other value refuses to compare.
+const _disposeBuiltPainters = true;
 
-/// `--dispose-painters on|off`: the markdown theme's `disposeBuiltPainters` the
-/// hosts set (on by default; off exists to A/B the flag).
-bool _disposePainters = true;
+/// The flags of a device run as given, and the ones parsed from them.
+typedef _RunOptions = ({Map<String, String> flags, PerfMode perfMode});
 
 typedef _Launch = ({String label, String filter, bool cold});
 
@@ -160,20 +162,16 @@ Future<void> main(List<String> args) async {
     stderr.writeln('no scenario matches "$filter"');
     exit(64);
   }
+  final _RunOptions run;
   try {
-    _perfMode = PerfMode.parse(options['perf-mode'] ?? '');
+    run = (
+      flags: options,
+      perfMode: PerfMode.parse(options['perf-mode'] ?? ''),
+    );
   } on FormatException catch (e) {
     stderr.writeln('--perf-mode: ${e.message}');
     exit(64);
   }
-  _disposePainters = switch (options['dispose-painters']) {
-    null || 'on' => true,
-    'off' => false,
-    final other => () {
-      stderr.writeln('--dispose-painters: on or off, got "$other"');
-      exit(64);
-    }(),
-  };
   final adb = Adb(device);
   final failures = evaluateGates(await adb.state());
   if (failures.isNotEmpty) {
@@ -195,12 +193,12 @@ Future<void> main(List<String> args) async {
     exit(3);
   }
 
-  if (_perfMode == PerfMode.fixed) {
+  if (run.perfMode == PerfMode.fixed) {
     await adb.setFixedPerformance(enabled: true);
   }
 
   if (mode == 'counts') {
-    exit(await _counts(adb, lock, options, filter, label));
+    exit(await _counts(adb, lock, run, filter, label));
   }
 
   var status = 0;
@@ -225,7 +223,7 @@ Future<void> main(List<String> args) async {
           );
         }
         first = false;
-        final result = await _launch(adb, options, semantics, launch);
+        final result = await _launch(adb, run, semantics, launch);
         discarded += result.discarded;
         labels.add(launch.label);
         if (result.doc case final doc?) docs.add(doc);
@@ -249,12 +247,7 @@ Future<void> main(List<String> args) async {
         options['trace'] != 'off' &&
         traceable.isNotEmpty &&
         roundDocs.isNotEmpty) {
-      final result = await _tracedLaunch(
-        adb,
-        options,
-        '$label-traced',
-        traceable,
-      );
+      final result = await _tracedLaunch(adb, run, '$label-traced', traceable);
       discarded += result.discarded;
       traced = result.doc;
       if (result.code != 0 || traced == null) {
@@ -265,7 +258,8 @@ Future<void> main(List<String> args) async {
     stderr.writeln('run failed: ${e.message}');
     status = 4;
   } finally {
-    if (_perfMode == PerfMode.fixed) {
+    // The phone's default mode comes back after every run, failed or not.
+    if (run.perfMode == PerfMode.fixed) {
       await adb.setFixedPerformance(enabled: false);
     }
     lock.release();
@@ -298,7 +292,7 @@ Future<void> main(List<String> args) async {
 Future<int> _counts(
   Adb adb,
   DeviceLock lock,
-  Map<String, String> options,
+  _RunOptions run,
   String filter,
   String label,
 ) async {
@@ -307,12 +301,12 @@ Future<int> _counts(
     for (final id in tracedScenarioIds)
       if (matching(id)) id,
   ];
-  final launches = int.tryParse(options['launches'] ?? '') ?? 3;
+  final launches = int.tryParse(run.flags['launches'] ?? '') ?? 3;
   final docs = <MetricsDocument>[];
   var code = 0;
   try {
     for (var i = 1; i <= launches && code == 0; i++) {
-      final result = await _tracedLaunch(adb, options, '$label-t$i', ids);
+      final result = await _tracedLaunch(adb, run, '$label-t$i', ids);
       code = result.code;
       if (result.doc case final doc?) docs.add(doc);
     }
@@ -320,7 +314,7 @@ Future<int> _counts(
     stderr.writeln('run failed: ${e.message}');
     code = 4;
   } finally {
-    if (_perfMode == PerfMode.fixed) {
+    if (run.perfMode == PerfMode.fixed) {
       await adb.setFixedPerformance(enabled: false);
     }
     lock.release();
@@ -443,7 +437,10 @@ int _judgeAndPrint(
     ..writeln()
     ..writeln(
       '${informational ? 'informational diff' : 'verdict'} against $key '
-      '(${baseline == null ? 'no baseline' : '${baseline.launches} launches'}):',
+      '(${switch (baseline) {
+        final b? => '${b.launches} launches',
+        null => 'no baseline',
+      }}):',
     )
     ..writeln(renderVerdict(verdict));
   return informational ? 0 : verdict.exitCode;
@@ -527,19 +524,18 @@ CooldownResult? cooldown;
 
 Future<({int code, int discarded, MetricsDocument? doc})> _launch(
   Adb adb,
-  Map<String, String> options,
+  _RunOptions run,
   SemanticsRun semantics,
   _Launch launch,
 ) async {
   final label = launch.label;
-  final backend = options['backend'] ?? 'impeller';
+  final backend = run.flags['backend'] ?? 'impeller';
   final defines = buildDefines(
     backend: backend,
     scenario: launch.filter,
-    history: options['history'],
+    history: run.flags['history'],
     cold: launch.cold,
     semantics: semantics.name,
-    disposeBuiltPainters: _disposePainters,
   );
   final apk = await _ensureApk(defines, backend);
   final out = _out;
@@ -578,11 +574,7 @@ Future<({int code, int discarded, MetricsDocument? doc})> _launch(
       'batteryStart': batteryStart.toJson(),
       'batteryEnd': batteryEnd.toJson(),
       'inputMethod': await adb.inputMethod(),
-      'perfMode': _perfMode.name,
-      'markdown': {
-        ..._markdownStamp(),
-        'disposeBuiltPainters': _disposePainters,
-      },
+      ..._combination(run),
       'discardedLaunches': result.discarded,
       'cooldownBoundHit': ?cooldown?.boundHit,
     };
@@ -611,18 +603,17 @@ Future<({int code, int discarded, MetricsDocument? doc})> _launch(
 /// the launch's own timing document is ignored.
 Future<({int code, int discarded, MetricsDocument? doc})> _tracedLaunch(
   Adb adb,
-  Map<String, String> options,
+  _RunOptions run,
   String label,
   List<String> ids,
 ) async {
-  final backend = options['backend'] ?? 'impeller';
+  final backend = run.flags['backend'] ?? 'impeller';
   final defines = buildDefines(
     backend: backend,
     scenario: ids.join(','),
-    history: options['history'],
+    history: run.flags['history'],
     semantics: 'off',
     traced: true,
-    disposeBuiltPainters: _disposePainters,
   );
   final apk = await _ensureApk(defines, backend);
   final result = await runWithRetry<int>(
@@ -654,9 +645,10 @@ Future<({int code, int discarded, MetricsDocument? doc})> _tracedLaunch(
     );
   }
   final ownJson = jsonDecode(own.readAsStringSync()) as Map<String, Object?>;
-  (ownJson['meta']! as Map<String, Object?>)['device'] = (await adb.shell(
-    'getprop ro.product.model',
-  )).trim();
+  (ownJson['meta']! as Map<String, Object?>)
+    ..['device'] = (await adb.shell('getprop ro.product.model')).trim()
+    // The combination keys the baseline the counts are added to.
+    ..['environment'] = _combination(run);
   final timing = MetricsDocument.fromJson(ownJson);
   var failed = false;
   for (final id in ids) {
@@ -760,6 +752,16 @@ Future<int> _drive(
   stdout.writeln('reports: $out/runs/$label/');
   return code;
 }
+
+/// The combination a launch ran in beyond what the app observes (spec 6.4):
+/// the performance mode and the markdown engine stamp.
+Map<String, Object?> _combination(_RunOptions run) => {
+  'perfMode': run.perfMode.name,
+  'markdown': {
+    ..._markdownStamp(),
+    'disposeBuiltPainters': _disposeBuiltPainters,
+  },
+};
 
 Map<String, String> _options(List<String> args) {
   final result = <String, String>{};

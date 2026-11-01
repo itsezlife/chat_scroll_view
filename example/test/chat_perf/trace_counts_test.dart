@@ -1,3 +1,6 @@
+// ignore_for_file: implementation_imports, invalid_use_of_internal_member
+
+import 'package:chat_scroll_view/src/util/trace_section.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../integration_test/chat_perf/metrics.dart';
@@ -93,9 +96,42 @@ void main() {
   });
 
   group('passes', () {
-    test('trace metrics belong to the traced pass, the rest to timing', () {
-      expect(passOf('trace.layout_passes'), MetricPass.traced);
-      expect(passOf('raster_p99_share'), MetricPass.timing);
+    test('counts are typed as the traced pass where they are made', () {
+      final counts = traceCounts(
+        _timeline([
+          _ev(traceWindowMark('w', start: true), 0, 'i'),
+          _ev(_s('layout.mode'), 1),
+        ]),
+      );
+      expect(
+        counts['w']!.values.every((m) => m.pass == MetricPass.traced),
+        isTrue,
+      );
+    });
+
+    test('a document without the pass falls back to the name rule', () {
+      const legacy = {'value': 3, 'kind': 'count', 'role': 'headline'};
+      expect(
+        Metric.fromJson('trace.layout_passes', legacy).pass,
+        MetricPass.traced,
+      );
+      expect(Metric.fromJson('frames', legacy).pass, MetricPass.timing);
+      expect(
+        Metric.fromJson('frames', {...legacy, 'pass': 'traced'}).pass,
+        MetricPass.traced,
+      );
+    });
+
+    test('the counted sections are the engine trace section labels', () {
+      final counts = traceCounts(
+        _timeline([
+          _ev(traceWindowMark('w', start: true), 0, 'i'),
+          _ev(TraceSection.childBuild.label, 1),
+          _ev(TraceSection.layoutMode.label, 2),
+          _ev(TraceSection.layoutFanOut.label, 3),
+        ]),
+      );
+      expect(counts['w']!.values.map((m) => m.value), [1, 1, 1]);
     });
 
     test('the traced document holds trace metrics only', () {
@@ -108,13 +144,14 @@ void main() {
                 4,
                 kind: MetricKind.count,
                 role: MetricRole.headline,
+                pass: MetricPass.traced,
               ),
             },
           },
         },
       );
       for (final w in doc.scenarios.values.expand((s) => s.values)) {
-        expect(w.keys.every((k) => passOf(k) == MetricPass.traced), isTrue);
+        expect(w.values.every((m) => m.pass == MetricPass.traced), isTrue);
       }
     });
 
@@ -265,6 +302,7 @@ MetricsDocument _docWith(
             layoutPasses,
             kind: MetricKind.count,
             role: MetricRole.headline,
+            pass: MetricPass.traced,
           ),
         if (timing)
           'raster_p99_share': const Metric(

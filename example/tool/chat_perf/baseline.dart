@@ -61,16 +61,37 @@ MetricsDocument medianOf(List<MetricsDocument> launches) {
       median([for (final v in e.value) v.value]),
       kind: first.kind,
       role: first.role,
+      direction: first.direction,
+      pass: first.pass,
     );
   }
   return MetricsDocument(meta: launches.first.meta, scenarios: scenarios);
 }
 
-/// `<device-model>.<backend>.<refresh>hz.<sem-mode>`, as observed.
+/// The performance mode [meta]'s launch ran in, as the runner recorded it;
+/// null for a document without it.
+String? recordedPerfMode(LaunchMeta meta) =>
+    switch (meta.environment['perfMode']) {
+      final String mode => mode,
+      _ => null,
+    };
+
+/// The markdown engine stamp [meta]'s launch ran with (version, source,
+/// location, revision and the theme's `disposeBuiltPainters`); null for a
+/// document without it.
+Map<String, Object?>? markdownStampOf(LaunchMeta meta) =>
+    switch (meta.environment['markdown']) {
+      final Map<String, Object?> stamp => stamp,
+      _ => null,
+    };
+
+/// `<device-model>.<backend>.<refresh>hz.sem-<mode>.<perf-mode>`, as
+/// observed: the semantics mode is the one the binding reported, the
+/// performance mode the one the runner set.
 String baselineKey(LaunchMeta meta) {
   final model = meta.device.toLowerCase().replaceAll(RegExp(r'\s+'), '-');
   return '$model.${meta.backend}.${meta.refreshRateHz.round()}hz.'
-      'sem-${meta.semanticsRequested}';
+      'sem-${meta.semanticsMode}.${recordedPerfMode(meta) ?? 'unknown'}';
 }
 
 /// One metric's spread over a baseline's launches.
@@ -81,18 +102,28 @@ final class BaselineMetric {
     required this.median,
     required this.min,
     required this.max,
+    this.direction = MetricDirection.lowerIsBetter,
+    this.pass = MetricPass.timing,
   });
 
-  factory BaselineMetric.fromJson(Map<String, Object?> json) => BaselineMetric(
-    kind: MetricKind.values.byName(json['kind']! as String),
-    role: MetricRole.values.byName(json['role']! as String),
-    median: (json['median']! as num).toDouble(),
-    min: (json['min']! as num).toDouble(),
-    max: (json['max']! as num).toDouble(),
-  );
+  /// The metric [name] as a baseline file stores it (see [metricTypingOf]).
+  factory BaselineMetric.fromJson(String name, Map<String, Object?> json) {
+    final typing = metricTypingOf(name, json);
+    return BaselineMetric(
+      kind: MetricKind.values.byName(json['kind']! as String),
+      role: MetricRole.values.byName(json['role']! as String),
+      direction: typing.direction,
+      pass: typing.pass,
+      median: (json['median']! as num).toDouble(),
+      min: (json['min']! as num).toDouble(),
+      max: (json['max']! as num).toDouble(),
+    );
+  }
 
   final MetricKind kind;
   final MetricRole role;
+  final MetricDirection direction;
+  final MetricPass pass;
   final double median;
   final double min;
   final double max;
@@ -100,6 +131,8 @@ final class BaselineMetric {
   Map<String, Object?> toJson() => {
     'kind': kind.name,
     'role': role.name,
+    'direction': direction.name,
+    'pass': pass.name,
     'median': median,
     'min': min,
     'max': max,
@@ -119,6 +152,8 @@ final class Baseline {
     required this.launches,
     required this.discarded,
     required this.scenarios,
+    this.perfMode,
+    this.markdown,
     this.reason,
   });
 
@@ -139,6 +174,8 @@ final class Baseline {
           .putIfAbsent(w, () => {})[m] = BaselineMetric(
         kind: e.value.first.kind,
         role: e.value.first.role,
+        direction: e.value.first.direction,
+        pass: e.value.first.pass,
         median: median(values),
         min: values.reduce((a, b) => a < b ? a : b),
         max: values.reduce((a, b) => a > b ? a : b),
@@ -150,11 +187,13 @@ final class Baseline {
       device: meta.device,
       backend: meta.backend,
       refreshRateHz: meta.refreshRateHz,
-      semantics: meta.semanticsRequested,
+      semantics: meta.semanticsMode,
       corpusVersion: meta.corpusVersion,
       launches: launches.length,
       discarded: discarded,
       scenarios: scenarios,
+      perfMode: recordedPerfMode(meta),
+      markdown: markdownStampOf(meta),
     );
   }
 
@@ -169,6 +208,11 @@ final class Baseline {
     launches: json['launches']! as int,
     discarded: json['discardedLaunches']! as int,
     reason: json['reason'] as String?,
+    perfMode: json['perfMode'] as String?,
+    markdown: switch (json['markdown']) {
+      final Map<String, Object?> stamp => stamp,
+      _ => null,
+    },
     scenarios: {
       for (final s in (json['scenarios']! as Map<String, Object?>).entries)
         s.key: {
@@ -176,6 +220,7 @@ final class Baseline {
             w.key: {
               for (final m in (w.value! as Map<String, Object?>).entries)
                 m.key: BaselineMetric.fromJson(
+                  m.key,
                   m.value! as Map<String, Object?>,
                 ),
             },
@@ -198,6 +243,14 @@ final class Baseline {
   /// The one-line reason a promote recorded; null on a candidate.
   final String? reason;
 
+  /// The performance mode its launches ran in; null in a baseline written
+  /// before it was recorded.
+  final String? perfMode;
+
+  /// The markdown engine stamp its launches ran with ([markdownStampOf]);
+  /// null in a baseline written before it was recorded.
+  final Map<String, Object?>? markdown;
+
   /// `id@version` -> window -> metric name -> spread.
   final Map<String, Map<String, Map<String, BaselineMetric>>> scenarios;
 
@@ -219,23 +272,18 @@ final class Baseline {
             .addAll(w.value);
       }
     }
-    return Baseline(
-      key: key,
-      label: other.label,
-      device: device,
-      backend: backend,
-      refreshRateHz: refreshRateHz,
-      semantics: semantics,
-      corpusVersion: corpusVersion,
-      launches: launches,
-      discarded: discarded,
-      scenarios: merged,
-    );
+    return _copy(label: other.label, scenarios: merged);
   }
 
-  Baseline withReason(String reason) => Baseline(
+  Baseline withReason(String reason) => _copy(reason: reason);
+
+  Baseline _copy({
+    String? label,
+    Map<String, Map<String, Map<String, BaselineMetric>>>? scenarios,
+    String? reason,
+  }) => Baseline(
     key: key,
-    label: label,
+    label: label ?? this.label,
     device: device,
     backend: backend,
     refreshRateHz: refreshRateHz,
@@ -243,8 +291,10 @@ final class Baseline {
     corpusVersion: corpusVersion,
     launches: launches,
     discarded: discarded,
-    scenarios: scenarios,
-    reason: reason,
+    scenarios: scenarios ?? this.scenarios,
+    perfMode: perfMode,
+    markdown: markdown,
+    reason: reason ?? this.reason,
   );
 
   Map<String, Object?> toJson() => {
@@ -258,6 +308,8 @@ final class Baseline {
     'corpusVersion': corpusVersion,
     'launches': launches,
     'discardedLaunches': discarded,
+    'perfMode': ?perfMode,
+    'markdown': ?markdown,
     'reason': ?reason,
     'scenarios': {
       for (final s in scenarios.entries)

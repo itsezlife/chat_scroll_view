@@ -44,7 +44,13 @@ void main() {
     final metric =
         (((json['scenarios']! as Map)['scroll.drag_slow@1']! as Map)['drag']!
             as Map)['frames'];
-    expect(metric, {'value': 10.0, 'kind': 'count', 'role': 'headline'});
+    expect(metric, {
+      'value': 10.0,
+      'kind': 'count',
+      'role': 'headline',
+      'direction': 'lowerIsBetter',
+      'pass': 'timing',
+    });
   });
 
   test('round trips', () {

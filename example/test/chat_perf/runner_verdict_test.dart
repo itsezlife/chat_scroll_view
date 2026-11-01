@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../integration_test/chat_perf/ime_comparability.dart';
+import '../../integration_test/chat_perf/keyboard_ramp.dart';
 import '../../integration_test/chat_perf/metrics.dart';
 import '../../integration_test/chat_perf/report_document.dart';
 import '../../tool/chat_perf/baseline.dart';
@@ -15,6 +17,7 @@ MetricsDocument _doc(
   double hz = 120,
   String semantics = 'off',
   int corpus = 1,
+  Map<String, Object?> environment = const {},
 }) => MetricsDocument(
   meta: LaunchMeta(
     device: device,
@@ -27,9 +30,29 @@ MetricsDocument _doc(
     semanticsRequested: semantics,
     corpusVersion: corpus,
     buildMode: 'profile',
+    environment: environment,
   ),
   scenarios: scenarios,
 );
+
+const _stamp = {
+  'name': 'flutter_md',
+  'version': '0.8.1',
+  'source': 'path',
+  'location': '../md',
+  'revision': 'abc',
+  'disposeBuiltPainters': true,
+};
+
+const _fixed = {'perfMode': 'fixed', 'markdown': _stamp};
+
+/// One window of [metrics], recorded with the [_fixed] combination.
+MetricsDocument _window(Map<String, Metric> metrics) => _doc({
+  's@1': {'w': metrics},
+}, environment: _fixed);
+
+Baseline _baselineOf(MetricsDocument Function() launch) =>
+    Baseline.fromLaunches([for (var i = 0; i < 5; i++) launch()], label: 'b');
 
 MetricsDocument _one(
   double raster, {
@@ -87,8 +110,54 @@ void main() {
       expect(b.launches, 5);
     });
 
-    test('key names device, backend, refresh and semantics', () {
-      expect(baselineKey(_one(0.1).meta), 'sm-s938b.impeller.120hz.sem-off');
+    test('key names device, backend, refresh, semantics and perf mode', () {
+      expect(
+        baselineKey(_window({}).meta),
+        'sm-s938b.impeller.120hz.sem-off.fixed',
+      );
+      expect(
+        baselineKey(_one(0.1).meta),
+        'sm-s938b.impeller.120hz.sem-off.unknown',
+      );
+    });
+
+    test('the key takes the observed semantics mode', () {
+      const pair = MetricsDocument(
+        meta: LaunchMeta(
+          device: 'SM-S938B',
+          os: 'Android 16',
+          flutterVersion: '3',
+          dartVersion: '3',
+          backend: 'impeller',
+          refreshRateHz: 120,
+          semanticsMode: 'off',
+          semanticsRequested: 'pair',
+          corpusVersion: 1,
+          buildMode: 'profile',
+          environment: _fixed,
+        ),
+        scenarios: {},
+      );
+      expect(baselineKey(pair.meta), endsWith('.sem-off.fixed'));
+    });
+
+    test('records the combination it was made in', () {
+      final b = _baselineOf(() => _window({}));
+      expect(b.perfMode, 'fixed');
+      expect(b.markdown, _stamp);
+      expect(Baseline.fromJson(b.toJson()).markdown, _stamp);
+    });
+
+    test('a file without the metric typing reads it from the name', () {
+      final m = BaselineMetric.fromJson('ramp.delivery', const {
+        'kind': 'share',
+        'role': 'headline',
+        'median': 1,
+        'min': 1,
+        'max': 1,
+      });
+      expect(m.direction, MetricDirection.higherIsBetter);
+      expect(m.pass, MetricPass.timing);
     });
 
     test('json holds metrics only: no frame arrays or timelines', () {
@@ -146,13 +215,30 @@ void main() {
       expect(v.exitCode, 0);
     });
 
+    test('build p99 gets the wider margin', () {
+      Metric share(double v) =>
+          Metric(v, kind: MetricKind.share, role: MetricRole.headline);
+      final b = _baselineOf(() => _window({'build_p99_share': share(0.30)}));
+      // 0.37 is within 30% of 0.30; it is not within 10%.
+      expect(judge(_window({'build_p99_share': share(0.37)}), b).exitCode, 0);
+      expect(judge(_window({'build_p99_share': share(0.40)}), b).exitCode, 1);
+      final r = _baselineOf(() => _window({'raster_p99_share': share(0.30)}));
+      expect(judge(_window({'raster_p99_share': share(0.37)}), r).exitCode, 1);
+    });
+
     test('lower delivery is the regression', () {
       const hi = Metric(
         0.98,
         kind: MetricKind.ratio,
         role: MetricRole.headline,
+        direction: MetricDirection.higherIsBetter,
       );
-      const lo = Metric(0.6, kind: MetricKind.ratio, role: MetricRole.headline);
+      const lo = Metric(
+        0.6,
+        kind: MetricKind.ratio,
+        role: MetricRole.headline,
+        direction: MetricDirection.higherIsBetter,
+      );
       MetricsDocument d(Metric m) => _doc({
         's@1': {
           'w': {'ramp.delivery': m},
@@ -163,6 +249,23 @@ void main() {
       ], label: 'b');
       expect(judge(d(lo), b).exitCode, 1);
       expect(judge(d(hi), b).exitCode, 0);
+    });
+
+    test('the direction is the metric\'s, not its name\'s', () {
+      const up = Metric(
+        0.6,
+        kind: MetricKind.share,
+        role: MetricRole.headline,
+        direction: MetricDirection.higherIsBetter,
+      );
+      const base = Metric(
+        0.9,
+        kind: MetricKind.share,
+        role: MetricRole.headline,
+        direction: MetricDirection.higherIsBetter,
+      );
+      final b = _baselineOf(() => _window({'any': base}));
+      expect(judge(_window({'any': up}), b).exitCode, 1);
     });
 
     test('no baseline is seeded, not failed', () {
@@ -188,6 +291,79 @@ void main() {
       final v = judge(_one(0.9, id: 'nav.jump_near@1'), base);
       expect(v.newScenarios, ['nav.jump_near@1']);
       expect(v.exitCode, 0);
+    });
+  });
+
+  group('engine compensation error', () {
+    Metric dp(double v, [MetricRole role = MetricRole.headline]) =>
+        Metric(v, kind: MetricKind.dp, role: role);
+    final base = _baselineOf(
+      () => _window({
+        kCompErrorMetric: dp(0),
+        kPadStepMetric: dp(12, MetricRole.diagnostic),
+      }),
+    );
+
+    test('one frame of pad movement is absorbed', () {
+      final v = judge(
+        _window({
+          kCompErrorMetric: dp(12),
+          kPadStepMetric: dp(12, MetricRole.diagnostic),
+        }),
+        base,
+      );
+      expect(v.judgements.single.metric, kCompErrorMetric);
+      expect(v.exitCode, 0);
+    });
+
+    test('more than one frame is a regression', () {
+      final v = judge(
+        _window({
+          kCompErrorMetric: dp(30),
+          kPadStepMetric: dp(12, MetricRole.diagnostic),
+        }),
+        base,
+      );
+      expect(v.exitCode, 1);
+    });
+  });
+
+  group('real-IME comparability', () {
+    Metric inset(double px) =>
+        Metric(px, kind: MetricKind.count, role: MetricRole.diagnostic);
+    Metric share(double v) =>
+        Metric(v, kind: MetricKind.share, role: MetricRole.headline);
+    final base = _baselineOf(
+      () => _window({
+        kImeSettledInsetMetric: inset(1000),
+        'raster_p99_share': share(0.1),
+      }),
+    );
+
+    test('another keyboard is not comparable, not a regression', () {
+      final v = judge(
+        _window({
+          kImeSettledInsetMetric: inset(1100),
+          'raster_p99_share': share(0.9),
+        }),
+        base,
+      );
+      expect(v.notComparable.single, contains('1100'));
+      expect(v.judgements, isEmpty);
+      expect(v.exitCode, 0);
+      expect(renderVerdict(v), contains('not comparable'));
+    });
+
+    test('the same keyboard is judged', () {
+      final v = judge(
+        _window({
+          kImeSettledInsetMetric: inset(1010),
+          'raster_p99_share': share(0.9),
+        }),
+        base,
+      );
+      expect(v.notComparable, isEmpty);
+      expect(v.exitCode, 1);
     });
   });
 
@@ -227,6 +403,48 @@ void main() {
         const Requested(backend: 'impeller', semantics: 'off', refreshHz: 60),
       );
       expect(p.single, contains('120'));
+    });
+
+    test('a baseline of another combination refuses to compare', () {
+      final base = _baselineOf(() => _window({'frames': _share(1)}));
+      MetricsDocument run(Map<String, Object?> environment) => _doc({
+        's@1': {
+          'w': {'frames': _share(1)},
+        },
+      }, environment: environment);
+      expect(judge(run(_fixed), base).state, VerdictState.compared);
+      final painters = judge(
+        run({
+          'perfMode': 'fixed',
+          'markdown': {..._stamp, 'disposeBuiltPainters': false},
+        }),
+        base,
+      );
+      expect(painters.state, VerdictState.refused);
+      expect(painters.refusals.single, contains('disposeBuiltPainters'));
+      final engine = judge(
+        run({
+          'perfMode': 'fixed',
+          'markdown': {..._stamp, 'revision': 'def'},
+        }),
+        base,
+      );
+      expect(engine.refusals.single, contains('markdown engine'));
+      expect(
+        judge(run({'perfMode': 'system', 'markdown': _stamp}), base).refusals,
+        [contains('performance mode')],
+      );
+    });
+
+    test('a baseline that predates the combination fields is refused', () {
+      final old = Baseline.fromJson(
+        {
+          ..._baselineOf(() => _window({'frames': _share(1)})).toJson(),
+        }..removeWhere((k, _) => k == 'perfMode' || k == 'markdown'),
+      );
+      final v = judge(_window({'frames': _share(1)}), old);
+      expect(v.state, VerdictState.refused);
+      expect(v.refusals.join(), contains('not recorded'));
     });
 
     test('launches that disagree are refused', () {

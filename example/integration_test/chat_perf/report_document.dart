@@ -100,7 +100,10 @@ final class MetricsDocument {
             for (final w in (s.value! as Map<String, Object?>).entries)
               w.key: {
                 for (final m in (w.value! as Map<String, Object?>).entries)
-                  m.key: Metric.fromJson(m.value! as Map<String, Object?>),
+                  m.key: Metric.fromJson(
+                    m.key,
+                    m.value! as Map<String, Object?>,
+                  ),
               },
           },
       },
