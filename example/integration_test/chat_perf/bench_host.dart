@@ -234,8 +234,9 @@ final class BenchHost implements PerfHost, ChurnHost {
     this.selection,
     this.probe,
     this.unread,
-    this.viewportKey,
-  ) {
+    this.viewportKey, {
+    required bool floatingDayHeader,
+  }) : _floatingDayHeader = floatingDayHeader {
     selection.addInteractionListener(interactions.add);
     SchedulerBinding.instance.addPersistentFrameCallback((_) => frameCount++);
   }
@@ -268,43 +269,81 @@ final class BenchHost implements PerfHost, ChurnHost {
       probe,
       unread,
       viewportKey,
+      floatingDayHeader: floatingDayHeader,
     );
-    await tester.pumpWidget(
-      MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          body: Builder(
-            builder: (context) {
-              host._menuContext = context;
-              return ChatScrollView(
-                key: viewportKey,
-                reverse: true,
-                dataSource: source,
-                controller: controller,
-                selectionController: selection,
-                onIdleMessageTap: host._onIdleTap,
-                isSelfMessage: (m) => m.sender == kBenchSelf,
-                messageBuilder: host._buildMessage,
-                unreadBoundary: unread,
-                unreadSeparatorBuilder: (_) => const SizedBox(
-                  height: 28,
-                  child: Center(child: Text('Unread messages')),
-                ),
-                scrollActivityTiming: floatingDayHeader
-                    ? const ChatScrollActivityTiming()
-                    : null,
-                dayHeaderDelegate: floatingDayHeader
-                    ? const ChatPushingDayHeader()
-                    : const ChatFadingDayHeader(),
-                dateSeparatorBuilder: floatingDayHeader ? _datePill : null,
-              );
-            },
-          ),
-        ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 500));
+    controller.addScrollListener(host._onScrollEvent);
+    if (setup.mountViewport) {
+      await host._pumpApp(viewport: true);
+    } else {
+      // The app and its first frames, without the viewport: the scenario
+      // opens it inside its window.
+      await host._pumpApp(viewport: false);
+    }
     return host;
+  }
+
+  Future<void> _pumpApp({required bool viewport}) async {
+    await tester.pumpWidget(_app(viewport: viewport));
+    await tester.pump(const Duration(milliseconds: 500));
+  }
+
+  Widget _app({required bool viewport}) => MaterialApp(
+    debugShowCheckedModeBanner: false,
+    home: Scaffold(
+      body: viewport
+          ? Builder(builder: _buildViewport)
+          : const SizedBox.expand(),
+    ),
+  );
+
+  Widget _buildViewport(BuildContext context) {
+    _menuContext = context;
+    return ChatScrollView(
+      key: viewportKey,
+      reverse: true,
+      dataSource: source,
+      controller: controller,
+      selectionController: selection,
+      onIdleMessageTap: _onIdleTap,
+      isSelfMessage: (m) => m.sender == kBenchSelf,
+      messageBuilder: _buildMessage,
+      unreadBoundary: unread,
+      unreadSeparatorBuilder: (_) => const SizedBox(
+        height: 28,
+        child: Center(child: Text('Unread messages')),
+      ),
+      scrollActivityTiming: _floatingDayHeader
+          ? const ChatScrollActivityTiming()
+          : null,
+      dayHeaderDelegate: _floatingDayHeader
+          ? const ChatPushingDayHeader()
+          : const ChatFadingDayHeader(),
+      dateSeparatorBuilder: _floatingDayHeader ? _datePill : null,
+    );
+  }
+
+  final bool _floatingDayHeader;
+
+  @override
+  Future<void> openViewport() async {
+    if (viewportKey.currentContext != null) {
+      throw StateError('the viewport is already mounted');
+    }
+    probe
+      ..firstBuildMs = null
+      ..sinceMount.reset()
+      ..sinceMount.start();
+    await tester.pumpWidget(_app(viewport: true));
+  }
+
+  @override
+  String? lastAnimatePath;
+
+  @override
+  int get fetches => source.fetches;
+
+  void _onScrollEvent(ChatScrollEvent event) {
+    if (event case ChatAnimateEnd(:final path)) lastAnimatePath = path.name;
   }
 
   @override

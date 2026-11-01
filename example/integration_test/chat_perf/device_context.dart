@@ -73,6 +73,7 @@ base class DeviceContext implements ChurnContext {
           ? null
           : bottoms.values.reduce((a, b) => a > b ? a : b),
       placeholders: _bench.probe.placeholders + _unloadedNearAnchor(),
+      animating: controller.isAnimating,
     );
   }
 

@@ -14,12 +14,13 @@ Scenario _churn({
   required String id,
   required List<String> windows,
   required Future<void> Function(ChurnContext ctx) run,
+  int version = 1,
   bool cold = false,
   bool deterministic = false,
   BenchSetup setup = const BenchSetup(),
 }) => Scenario(
   id: id,
-  version: 1,
+  version: version,
   windows: windows,
   cold: cold,
   deterministic: deterministic,
@@ -82,8 +83,15 @@ final _sendAtTail = _churn(
   },
 );
 
+/// The off-tail send is an `animateTo` by design (the viewport follows a
+/// self insert with a `preferBuilt` flight). From the away seat the newest
+/// message is not built, so the flight is a stitch: the anchor moves to the
+/// target before the first frame and the strips travel in paint. Version 2
+/// reads the flight from the controller, not from anchor changes, which a
+/// stitch does not make (finding 09).
 final _sendAway = _churn(
   id: 'churn.send_away',
+  version: 2,
   deterministic: true,
   windows: const ['churn'],
   run: (ctx) async {
@@ -98,11 +106,14 @@ final _sendAway = _churn(
       }),
       (f) => {
         'animate.travel_frames': ChurnMetric.count(
-          tailPinFrames(f, newestId: newest) ?? f.length,
+          animateTravelFrames(f),
           headline: true,
         ),
+        'animate.stitched': ChurnMetric.exactDp(
+          host.lastAnimatePath == 'stitch' ? 1 : 0,
+        ),
         'final_anchor_is_newest': ChurnMetric.exactDp(
-          f.last.anchorId == newest ? 1 : 0,
+          f.last.anchorId == newest && f.last.isAtTail ? 1 : 0,
         ),
         'settle_ms': ChurnMetric.ms(settleMs(f)),
       },
@@ -298,17 +309,29 @@ final _deleteAnchorTall = _churn(
   },
 );
 
+/// First id of a chunk (64 ids each) just below the away seat.
+const _chunkEdgeId = 9984;
+
+/// Seated on a chunk edge with only the destination window loaded, fast
+/// paced drags toward older messages, each released into a fling, outrun
+/// the one-chunk look-ahead of the `slow` profile's fetches. Version 2: the
+/// `network` profile's fetches land before a gesture reaches the chunk they
+/// fill, so version 1 never saw a placeholder (finding 09).
 final _chunkLoadUp = _churn(
   id: 'churn.chunk_load_up',
+  version: 2,
   windows: const ['drag'],
-  setup: const BenchSetup(latency: BenchLatency.network, lazy: true),
+  setup: const BenchSetup(latency: BenchLatency.slow, lazy: true),
   run: (ctx) async {
-    await ctx.seatOn(_awayId);
+    await ctx.seatOn(_chunkEdgeId);
+    final fetchesBefore = ctx.churn.fetches;
     await ctx.measure('drag', () async {
       final frames = await ctx.recordFrames(() async {
-        for (var i = 0; i < 8; i++) {
-          await ctx.drag(2000, const Duration(seconds: 1));
+        for (var i = 0; i < _chunkDrags; i++) {
+          await ctx.drag(_chunkDragDp, _chunkDragTime);
+          await ctx.idle(_chunkDragGap);
         }
+        await ctx.settle();
       });
       final runs = placeholderRunsMs(frames);
       ctx.report('drag', {
@@ -321,6 +344,7 @@ final _chunkLoadUp = _churn(
           headline: true,
         ),
         'chunk.crossings': ChurnMetric.count(runs.length),
+        'chunk.fetches': ChurnMetric.count(ctx.churn.fetches - fetchesBefore),
         'chunk.anchor_travel_ids': ChurnMetric.count(
           (frames.first.anchorId - frames.last.anchorId).abs(),
         ),
@@ -328,6 +352,14 @@ final _chunkLoadUp = _churn(
     });
   },
 );
+
+/// Each drag and its fling cross about one and a half chunks; the gap after
+/// it outlasts the slowest `slow` fetch, so every drag starts loaded and each
+/// crossing is its own placeholder run.
+const _chunkDrags = 5;
+const _chunkDragDp = 2400.0;
+const _chunkDragTime = Duration(milliseconds: 200);
+const _chunkDragGap = Duration(milliseconds: 1800);
 
 final _unreadBoundary = _churn(
   id: 'churn.unread_boundary',
@@ -351,11 +383,17 @@ final _unreadBoundary = _churn(
   },
 );
 
+/// The host mounts its app without the viewport; the window opens it, so
+/// the first frames are the viewport's own. Version 1 opened the window after
+/// the mount had settled and measured idle frames (finding 09).
 final _firstOpen = _churn(
   id: 'churn.first_open',
+  version: 2,
   windows: const ['first_open'],
   cold: true,
+  setup: const BenchSetup(mountViewport: false),
   run: (ctx) => ctx.measure('first_open', () async {
+    await ctx.churn.openViewport();
     await ctx.settle();
     ctx.report('first_open', {
       // Mount to the first message built; not raster.

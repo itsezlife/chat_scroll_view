@@ -14,6 +14,7 @@ ChurnFrame _f(
   bool tail = true,
   double? band = 800,
   int placeholders = 0,
+  bool animating = false,
 }) => ChurnFrame(
   index: i,
   tMs: i * 8.0 + 100,
@@ -22,6 +23,7 @@ ChurnFrame _f(
   isAtTail: tail,
   bandBottomDp: band,
   placeholders: placeholders,
+  animating: animating,
 );
 
 final class _FakeHost implements ChurnHost {
@@ -41,6 +43,14 @@ final class _FakeHost implements ChurnHost {
   void remove(int id) => log.add('remove $id');
   @override
   void setUnreadBoundary(int? id) => log.add('unread $id');
+  @override
+  String? lastAnimatePath = 'stitch';
+  @override
+  int fetches = 0;
+  @override
+  Future<void> openViewport() async {
+    log.add('open viewport');
+  }
 }
 
 /// Runs schedules by firing each action at its frame, with a canned trace.
@@ -105,8 +115,14 @@ final class _FakeContext extends Fake implements ChurnContext {
       churn.log.add('fling');
 
   @override
-  Future<void> drag(double dy, Duration duration) async =>
-      churn.log.add('drag');
+  Future<void> drag(double dy, Duration duration) async {
+    churn
+      ..log.add('drag')
+      ..fetches += 1;
+  }
+
+  @override
+  Future<void> idle(Duration duration) async {}
 
   @override
   Future<void> settle() async {}
@@ -190,6 +206,29 @@ void main() {
       expect(settleMs(frames), 16);
     });
 
+    test('settleMs runs to the last frame of an animate flight', () {
+      final frames = [
+        _f(-1),
+        _f(0, animating: true),
+        _f(1, animating: true),
+        _f(2, animating: true),
+        _f(3),
+      ];
+      expect(settleMs(frames), 16);
+    });
+
+    test('animateTravelFrames counts frame 0 to the last in flight', () {
+      // A stitch: the anchor is on the target from frame 0, so only the
+      // flight flag shows the travel.
+      final frames = [
+        _f(-1, anchor: 5),
+        for (var i = 0; i < 40; i++) _f(i, anchor: 11, animating: i < 30),
+      ];
+      expect(animateTravelFrames(frames), 30);
+      expect(tailPinFrames(frames, newestId: 11), 1);
+      expect(animateTravelFrames([_f(-1), _f(0), _f(1)]), 0);
+    });
+
     test('placeholder runs measure each boundary crossing', () {
       final frames = [
         _f(0),
@@ -222,6 +261,10 @@ void main() {
       };
       expect(delays.length, greaterThan(10));
       expect(BenchLatency.instant.delayFor(640), Duration.zero);
+      for (var i = 0; i < 50; i++) {
+        final slow = BenchLatency.slow.delayFor(i * 64);
+        expect(slow.inMilliseconds, inInclusiveRange(900, 1499));
+      }
     });
 
     test('an edit moves updatedAt', () {
@@ -254,7 +297,20 @@ void main() {
         ]),
       );
       expect(byId('churn.first_open').cold, isTrue);
-      expect(byId('churn.chunk_load_up').setup.latency, BenchLatency.network);
+      expect(byId('churn.chunk_load_up').setup.latency, BenchLatency.slow);
+      expect(byId('churn.chunk_load_up').setup.lazy, isTrue);
+      expect(byId('churn.first_open').setup.mountViewport, isFalse);
+      expect(
+        [
+          for (final id in [
+            'churn.send_away',
+            'churn.chunk_load_up',
+            'churn.first_open',
+          ])
+            byId(id).version,
+        ],
+        [2, 2, 2],
+      );
     });
 
     test('send_at_tail inserts once and reports the pin frames', () async {
@@ -322,10 +378,31 @@ void main() {
       },
     );
 
-    test('first_open reports the first build time', () async {
+    test('first_open opens the viewport inside its window', () async {
       final ctx = _FakeContext();
       await byId('churn.first_open').run(ctx);
+      expect(ctx.windows, ['first_open']);
+      expect(ctx.churn.log, ['open viewport']);
       expect(ctx.reports['first_open']!['first_paint_ms']!.value, 42);
+    });
+
+    test('send_away reads the flight and its path', () async {
+      final ctx = _FakeContext();
+      await byId('churn.send_away').run(ctx);
+      final r = ctx.reports['churn']!;
+      expect(r['animate.stitched']!.value, 1);
+      expect(r['animate.stitched']!.kind, MetricKind.exact);
+      expect(r['animate.travel_frames']!.role, MetricRole.headline);
+    });
+
+    test('chunk_load_up seats on a chunk edge and counts fetches', () async {
+      final ctx = _FakeContext();
+      await byId('churn.chunk_load_up').run(ctx);
+      expect(ctx.churn.log.first, 'seat 9984');
+      expect(9984 % 64, 0);
+      final r = ctx.reports['drag']!;
+      expect(r['chunk.fetches']!.value, greaterThan(0));
+      expect(r['chunk.shimmer_frames']!.role, MetricRole.headline);
     });
   });
 }

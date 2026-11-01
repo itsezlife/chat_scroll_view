@@ -160,11 +160,16 @@ final class BenchDataSource extends ChatDataSource {
   final BenchCorpus corpus;
   final BenchSetup setup;
 
+  /// [fetchRange] calls so far: whether a window's drag reached unloaded
+  /// chunks, read beside the placeholders it saw.
+  int fetches = 0;
+
   @override
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
   }) async {
+    fetches++;
     final delay = setup.latency.delayFor(fromId);
     if (delay > Duration.zero) await Future<void>.delayed(delay);
     return [

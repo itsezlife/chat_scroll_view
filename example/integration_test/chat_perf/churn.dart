@@ -19,6 +19,7 @@ final class ChurnFrame {
     required this.isAtTail,
     required this.bandBottomDp,
     required this.placeholders,
+    this.animating = false,
   });
 
   /// Frames from the window's first mutation: negative in the pre-roll.
@@ -35,6 +36,11 @@ final class ChurnFrame {
 
   /// Placeholder rows alive (a slot whose message is not loaded).
   final int placeholders;
+
+  /// An `animateTo` flight was in progress after the frame. A stitch flight
+  /// moves the anchor to its target before its first frame and travels in
+  /// paint, so neither the anchor nor its offset shows it (finding 09).
+  final bool animating;
 }
 
 /// Mutations keyed by the frame they fire on, counted from the window's
@@ -83,6 +89,18 @@ abstract interface class ChurnHost {
 
   /// Milliseconds from mount to the first message built; null until then.
   double? get firstBuildMs;
+
+  /// The path (`close`, `stitch`, `instant`, `none`) the last finished
+  /// `animateTo` flight took; null before one finished.
+  String? get lastAnimatePath;
+
+  /// Data source fetches started since the host mounted.
+  int get fetches;
+
+  /// Builds the viewport, for a host mounted without it
+  /// ([BenchSetup.mountViewport] false), and restarts the mount clock
+  /// [firstBuildMs] reads. Call inside the window that measures the opening.
+  Future<void> openViewport();
 }
 
 /// A [ScenarioContext] that can run frame-clocked schedules on the host.
@@ -139,6 +157,16 @@ int? tailPinFrames(List<ChurnFrame> frames, {int? newestId}) {
   return lastUnpinned + 2;
 }
 
+/// Frames from the first mutation to the last frame with an `animateTo`
+/// flight in progress, counting both; zero when no flight ran.
+int animateTravelFrames(List<ChurnFrame> frames) {
+  var last = -1;
+  for (final x in _post(frames)) {
+    if (x.animating) last = x.index;
+  }
+  return last + 1;
+}
+
 /// Post-mutation frames in which the viewport was not at the tail.
 int tailUnpinnedFrames(List<ChurnFrame> frames) =>
     _post(frames).where((x) => !x.isAtTail).length;
@@ -187,7 +215,8 @@ double finalScrollDeltaDp(List<ChurnFrame> frames) {
 }
 
 /// Milliseconds from the first mutation frame to the last frame in which the
-/// anchor, its offset or the tail flag changed.
+/// anchor, its offset or the tail flag changed, or an `animateTo` flight was
+/// in progress.
 double settleMs(List<ChurnFrame> frames, {double epsilonDp = 0.01}) {
   final post = _post(frames);
   if (post.isEmpty) return 0;
@@ -195,6 +224,7 @@ double settleMs(List<ChurnFrame> frames, {double epsilonDp = 0.01}) {
   var last = post.first.tMs;
   for (final x in post) {
     final moved =
+        x.animating ||
         x.anchorId != prev.anchorId ||
         x.isAtTail != prev.isAtTail ||
         (x.anchorOffsetDp - prev.anchorOffsetDp).abs() > epsilonDp;
