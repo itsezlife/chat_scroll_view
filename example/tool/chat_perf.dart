@@ -583,7 +583,7 @@ Future<({int code, int discarded, MetricsDocument? doc})> _launch(
         noDds: semantics == SemanticsRun.pair,
       );
     },
-    foreignInstall: () async => hasForeignInstall(await adb.logcat(), kPackage),
+    foreignInstall: () => _foreignInstall(adb, label),
   );
   final code = result.value;
 
@@ -660,7 +660,7 @@ Future<({int code, int discarded, MetricsDocument? doc})> _tracedLaunch(
         noDds: true,
       );
     },
-    foreignInstall: () async => hasForeignInstall(await adb.logcat(), kPackage),
+    foreignInstall: () => _foreignInstall(adb, label),
   );
   final dir = '$_out/runs/$label';
   final counts = <String, Map<String, Map<String, Metric>>>{};
@@ -716,6 +716,23 @@ Future<({int code, int discarded, MetricsDocument? doc})> _tracedLaunch(
         ? null
         : tracedDocument(meta: timing.meta, counts: counts),
   );
+}
+
+/// Whether another adb client installed the app during [label]'s launch. A
+/// positive keeps the install lines it read beside the launch's reports, so
+/// a discarded launch can be told from a false alarm.
+Future<bool> _foreignInstall(Adb adb, String label) async {
+  final logcat = await adb.logcat();
+  if (!hasForeignInstall(logcat, kPackage)) return false;
+  final dir = Directory('$_out/runs/$label')..createSync(recursive: true);
+  final at = DateTime.now().toIso8601String().replaceAll(RegExp('[:.]'), '-');
+  File('${dir.path}/foreign_install_$at.log').writeAsStringSync(
+    [
+      for (final line in logcat)
+        if (line.contains(kPackage) && line.contains('PACKAGE_')) line,
+    ].join('\n'),
+  );
+  return true;
 }
 
 const _target = 'integration_test/chat_perf/chat_perf_test.dart';
