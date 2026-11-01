@@ -103,8 +103,7 @@ void main() {
       await tester.runAsync(() async {
         final timeline = await service!.getVMTimeline();
         for (final e in timeline.traceEvents ?? const <vm.TimelineEvent>[]) {
-          final name = e.json?['name'];
-          if (name is String) names.add(name);
+          if (e.json?['name'] case final String name) names.add(name);
         }
       });
       for (final s in <TraceSection>[
@@ -112,7 +111,7 @@ void main() {
         TraceSection.layoutFanOut,
         TraceSection.layoutClamp,
         TraceSection.layoutPublish,
-        TraceSection.tickTier1,
+        TraceSection.tier1Tick,
         TraceSection.paintMessages,
       ]) {
         expect(names, contains(s.label));

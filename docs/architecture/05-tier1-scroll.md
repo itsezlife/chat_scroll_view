@@ -11,14 +11,14 @@ resource: lib/src/chat_widgets/render_chat_scroll_view.dart
 
 Tier-1 is the hot path: scroll **without** layout or widget rebuild. The render
 object owns a `Ticker`; drag, fling, edge-effect spring, and close-path animate feed
-deltas into `_onTick`, which mutates `anchorPixelOffset`, repositions children,
+deltas into `_tick`, which mutates `anchorPixelOffset`, repositions children,
 and calls `markNeedsPaint` (or `markNeedsLayout` only when the built range no
 longer covers the viewport / the floating header’s day changes).
 
 ## Tick composition order (must stay stable)
 
 ```
-_onTick:
+_tick:
   1. Overlay guard → abort scroll state, stop ticker
   2. Highlight-only early exit (no _markScrollActive)
   3. Drain _pendingScrollDelta

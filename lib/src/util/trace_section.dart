@@ -16,11 +16,14 @@ enum TraceLevel {
   /// [phase] plus per-child layout and paint spans.
   fine;
 
-  static const String _define = String.fromEnvironment(
-    'chat_scroll_view.trace',
-  );
+  /// The dart-define that sets the level.
+  static const String defineKey = 'chat_scroll_view.trace';
+
+  static const String _define = String.fromEnvironment(defineKey);
 
   /// The level this build was compiled with.
+  // A ternary chain, not a switch: a switch expression is not a constant
+  // expression, and the level must be one so the gate folds away.
   static const TraceLevel compiled = _define == 'phase'
       ? phase
       : _define == 'fine'
@@ -36,7 +39,7 @@ enum TraceSection {
   layoutMode('layout.mode'),
   layoutCompensate('layout.compensate'),
   layoutOverlay('layout.overlay'),
-  layoutJumpGc('layout.jumpGc'),
+  layoutJumpFetchGc('layout.jumpFetchGc'),
   layoutNormalizeTail('layout.normalizeTail'),
   layoutDeleteRecovery('layout.deleteRecovery'),
   layoutFanOut('layout.fanOut'),
@@ -46,16 +49,17 @@ enum TraceSection {
   layoutTailFit('layout.tailFit'),
   layoutAlign('layout.align'),
   layoutTailPin('layout.tailPin'),
-  layoutGapMatch('layout.gapMatch'),
+  layoutBandGapMatch('layout.bandGapMatch'),
   layoutClamp('layout.clamp'),
   layoutGc('layout.gc'),
   layoutFetch('layout.fetch'),
   layoutPublish('layout.publish'),
 
-  // Ticks.
-  tickTier1('tick.tier1'),
-  tickFling('tick.fling'),
-  tickAnimator('animator.tick'),
+  // Ticks, each `<owner>.tick`: the Tier-1 ticker callback and, inside it,
+  // the fling and the animator steps.
+  tier1Tick('tier1.tick'),
+  flingTick('fling.tick'),
+  animatorTick('animator.tick'),
 
   // Fetch.
   fetchPoll('fetch.poll'),

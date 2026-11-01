@@ -1,4 +1,4 @@
-# ADR 040: Engine trace seam
+# ADR 041: Engine trace seam
 
 The engine can emit named timeline sections for attribution. They are compiled
 in only by a build-time define, carry no public API and cost nothing in the

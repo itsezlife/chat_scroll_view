@@ -68,6 +68,10 @@ _Avoid_: Bottom sheet, FAB inset (when they are not reserving the band), message
 The on-screen slice of content used as the reading-position reference after a delete.
 _Avoid_: Cache extent, build zone
 
+**Band gap match**:
+The layout step that, while a delete is being recovered, nudges the scroll so the gap under the **visible band** matches its pre-delete gap (within 8 logical px), before and once after the boundary clamp.
+_Avoid_: Gap fix, delete nudge
+
 ### Layers of work
 
 **Tier-1**:
@@ -85,6 +89,10 @@ _Avoid_: Compensate, extra offset, visual offset
 **Renormalize**:
 Silently picking a visible row as the new origin without moving pixels.
 _Avoid_: Recenter, jump, re-anchor (when nothing should visually move)
+
+**Jump-fetch GC**:
+The layout step that, while a jump's fetch is pending, drops the children built around the previous anchor (except the rows a stitch pins), so the later steps never fan across the old id span.
+_Avoid_: Jump cleanup, stale purge
 
 ### Data extent
 
@@ -361,7 +369,7 @@ Per message, whether its spoilers are revealed, held by a controller owned by th
 _Avoid_: Per-spoiler reveal, persisted reveal, widget-local reveal flag, re-hide on selection dismiss, reveal on selection
 
 **Trace section**:
-A named span the engine can emit on the timeline, compiled in only with `--dart-define=chat_scroll_view.trace=phase` (or `fine`) and absent from the default build; internal, with no public API ([ADR 040](docs/adr/040-engine-trace-seam.md)). Names, all under `chat_scroll_view.`: `layout.mode`, `layout.compensate`, `layout.overlay`, `layout.jumpGc`, `layout.normalizeTail`, `layout.deleteRecovery`, `layout.fanOut`, `layout.preserve`, `layout.hold`, `layout.renormalize`, `layout.tailFit`, `layout.align`, `layout.tailPin`, `layout.gapMatch`, `layout.clamp`, `layout.gc`, `layout.fetch`, `layout.publish` (one per layout pipeline step); `tick.tier1`, `tick.fling`, `animator.tick`; `fetch.poll`; `paint.messages`, `paint.scrollbar`, `paint.highlight`, `paint.selection`; `child.build`; and, at `fine` only, `child.layout`, `child.paint`.
+A named span the engine can emit on the timeline, compiled in only with `--dart-define=chat_scroll_view.trace=phase` (or `fine`) and absent from the default build; internal, with no public API ([ADR 041](docs/adr/041-engine-trace-seam.md)). Names, all under `chat_scroll_view.`: `layout.mode`, `layout.compensate`, `layout.overlay`, `layout.jumpFetchGc` (**jump-fetch GC**), `layout.normalizeTail`, `layout.deleteRecovery`, `layout.fanOut`, `layout.preserve`, `layout.hold`, `layout.renormalize`, `layout.tailFit`, `layout.align`, `layout.tailPin`, `layout.bandGapMatch` (**band gap match**), `layout.clamp`, `layout.gc`, `layout.fetch`, `layout.publish` (one per layout pipeline step); `tier1.tick` (the **Tier-1** ticker callback), `fling.tick`, `animator.tick` (its fling and animator steps); `fetch.poll`; `paint.messages`, `paint.scrollbar`, `paint.highlight`, `paint.selection`; `child.build`; and, at `fine` only, `child.layout`, `child.paint`.
 _Avoid_: Stats API, in-process counters
 
 **Emoji-only body**:

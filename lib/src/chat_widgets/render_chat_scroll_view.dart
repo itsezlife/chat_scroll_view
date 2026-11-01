@@ -1719,7 +1719,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     }
     _floatingHeader?.attach(owner);
     _overlay?.attach(owner);
-    _ticker = Ticker(_onTick)..muted = !_ticking;
+    _ticker = Ticker(_tickTraced)..muted = !_ticking;
     if (_scrollActivityTiming case final timing?) {
       _activity = _createActivityClock(timing);
     }
@@ -2700,7 +2700,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     });
     // Drop pre-jump children so renormalize/clamp do not fan across the wrong
     // id span — but keep stitch presence pins (outgoing strip + animate target).
-    Trace.begin(TraceSection.layoutJumpGc);
+    Trace.begin(TraceSection.layoutJumpFetchGc);
     if (_chunkFetchScheduler.jumpFetchPending) {
       final stitchPinned = _stitchPresencePinnedIds();
       final staleMessages = <int>[
@@ -2719,7 +2719,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
         });
       }
     }
-    Trace.end(TraceSection.layoutJumpGc);
+    Trace.end(TraceSection.layoutJumpFetchGc);
 
     // Children span the full viewport width; each message widget centers its
     // own content column. A full-width child lets selection chrome tint the
@@ -2900,9 +2900,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     // Fine-tune band gap before clamp — up to 3 passes; clamp may shift geometry.
     if (_deleteCollapseRecoveryActive &&
         _deleteCollapseExpectedBandGap != null) {
-      Trace.begin(TraceSection.layoutGapMatch);
+      Trace.begin(TraceSection.layoutBandGapMatch);
       _matchExpectedBandGap();
-      Trace.end(TraceSection.layoutGapMatch);
+      Trace.end(TraceSection.layoutBandGapMatch);
     }
     Trace.begin(TraceSection.layoutClamp);
     final foldPinned =
@@ -2937,9 +2937,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     // One corrective pass after clamp/refan — avoid fighting pin logic in a loop.
     if (_deleteCollapseRecoveryActive &&
         _deleteCollapseExpectedBandGap != null) {
-      Trace.begin(TraceSection.layoutGapMatch);
+      Trace.begin(TraceSection.layoutBandGapMatch);
       _matchExpectedBandGap(maxPasses: 1);
-      Trace.end(TraceSection.layoutGapMatch);
+      Trace.end(TraceSection.layoutBandGapMatch);
     }
 
     // Garbage-collect children outside the build range. Messages and chunk-
@@ -3136,13 +3136,13 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     _cancelAnimate(fadeHighlight: false);
     // Overlay owns the viewport — leftover wash and the controller slot
     // must not survive. Paint-only clear would late-arm on remount.
-    // The overlay-branch `_clearHighlight()` in `_onTick` is unreachable
+    // The overlay-branch `_clearHighlight()` in `_tick` is unreachable
     // once the ticker has stopped, so this layout path is the authority.
     _controller.dropHighlightRequest();
     _clearHighlight();
     // Clear drag + bounceback state so that the next normal-mode layout's
     // `_clampBoundaries` is not silently suppressed by stale flags. The
-    // ticker is about to stop, so the overlay branch of `_onTick` can no
+    // ticker is about to stop, so the overlay branch of `_tick` can no
     // longer reset them.
     _dragInProgress = false;
     _cancelOverscroll();
@@ -4820,10 +4820,10 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   /// Ticker callback — the entire scroll path. Bypasses layout: repositions
   /// children and calls [markNeedsPaint] (Tier 1). Falls back to
   /// [markNeedsLayout] only when the built range no longer covers the viewport.
-  void _onTick(Duration elapsed) {
-    Trace.begin(TraceSection.tickTier1);
+  void _tickTraced(Duration elapsed) {
+    Trace.begin(TraceSection.tier1Tick);
     _tick(elapsed);
-    Trace.end(TraceSection.tickTier1);
+    Trace.end(TraceSection.tier1Tick);
   }
 
   void _tick(Duration elapsed) {
@@ -4876,9 +4876,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     }
 
     final wasFlinging = fling.isFlinging;
-    Trace.begin(TraceSection.tickFling);
+    Trace.begin(TraceSection.flingTick);
     final flingDelta = fling.tickFling(elapsed);
-    Trace.end(TraceSection.tickFling);
+    Trace.end(TraceSection.flingTick);
     final flingVelocity = wasFlinging ? fling.flingVelocity(elapsed) : 0.0;
     userDelta += flingDelta;
     if (wasFlinging && !fling.isFlinging) {
@@ -4889,9 +4889,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     if (occupyingSpanAutoScroll) {
       _cancelAnimate();
     } else {
-      Trace.begin(TraceSection.tickAnimator);
+      Trace.begin(TraceSection.animatorTick);
       animateDelta = _animator.tickAnimate(elapsed);
-      Trace.end(TraceSection.tickAnimator);
+      Trace.end(TraceSection.animatorTick);
       delta += animateDelta;
     }
     delta += _spanAutoScrollDelta(elapsed, lastElapsed);

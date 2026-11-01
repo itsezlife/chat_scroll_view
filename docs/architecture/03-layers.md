@@ -113,7 +113,7 @@ flowchart LR
 
 | Tier | Entry | Rebuild widgets? | Relayout children? | Typical trigger |
 |------|-------|------------------|--------------------|-----------------|
-| **1** | `_onTick` | No | No (offsets only) | Drag, fling, edge-effect spring, close-path animate |
+| **1** | `_tick` | No | No (offsets only) | Drag, fling, edge-effect spring, close-path animate |
 | **2** | `performLayout` | Yes (lazy inflate) | Yes | Jump, data change, range uncovered, day-header text change |
 
 Tier-1 relies on each message being a `RepaintBoundary` (or `ChatRowChrome`’s

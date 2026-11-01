@@ -405,7 +405,7 @@ class ChatChunkFetchScheduler {
   /// timer is never given a chance to drain before the next move
   /// arrives, so chunks at the new anchor never get fetched until the
   /// user lets go. Letting the timer keep ticking is fine: each
-  /// [_onPollTick] reads the live [_layoutMinChunk]/[_layoutMaxChunk],
+  /// [_pollTraced] reads the live [_layoutMinChunk]/[_layoutMaxChunk],
   /// so a poll armed during an old drag still requests the *current*
   /// range when it eventually fires.
   ///
@@ -559,16 +559,16 @@ class ChatChunkFetchScheduler {
         : (!scrollSettled && _dataSource.hasInFlightFetch
               ? _pollInterval
               : Duration.zero);
-    _pollTimer = Timer(delay, _onPollTick);
+    _pollTimer = Timer(delay, _pollTraced);
   }
 
-  void _onPollTick() {
+  void _pollTraced() {
     Trace.begin(TraceSection.fetchPoll);
-    _pollTick();
+    _poll();
     Trace.end(TraceSection.fetchPoll);
   }
 
-  void _pollTick() {
+  void _poll() {
     _pollTimer = null;
     final now = DateTime.now().millisecondsSinceEpoch;
     final sinceScroll = now - _lastScrollTs;
