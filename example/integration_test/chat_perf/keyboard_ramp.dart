@@ -119,6 +119,7 @@ final class RampSample {
     required this.padDp,
     required this.anchorId,
     required this.anchorOffsetDp,
+    this.vsyncMs,
   });
 
   final double tMs;
@@ -126,6 +127,44 @@ final class RampSample {
   final double padDp;
   final int anchorId;
   final double anchorOffsetDp;
+
+  /// The vsync time of the frame on the engine's clock, in milliseconds; null
+  /// where the sampler does not read it. Only differences are meaningful.
+  final double? vsyncMs;
+}
+
+/// The display's vsync period over the ramp of [samples], from their frames'
+/// [RampSample.vsyncMs]: the median gap between consecutive frames from the
+/// first inset change to the last. Null with fewer than three such gaps.
+///
+/// The gaps read the display rate only while a frame is requested every vsync
+/// (the real-IME sampler keeps one requested); otherwise they read how often
+/// the app drew. The compositor may lower the rate while the system keyboard
+/// animates (finding 04), so a ramp's delivery is judged against this period,
+/// not the launch's refresh rate.
+double? observedVsyncMs(List<RampSample> samples) {
+  int? first;
+  int? last;
+  for (var i = 1; i < samples.length; i++) {
+    if (samples[i].insetPx != samples[i - 1].insetPx) {
+      first ??= i - 1;
+      last = i;
+    }
+  }
+  if (first == null || last == null) return null;
+  final gaps = <double>[];
+  for (var i = first + 1; i <= last; i++) {
+    if ((samples[i - 1].vsyncMs, samples[i].vsyncMs) case (
+      final a?,
+      final b?,
+    ) when b > a) {
+      gaps.add(b - a);
+    }
+  }
+  if (gaps.length < 3) return null;
+  gaps.sort();
+  final mid = gaps.length ~/ 2;
+  return gaps.length.isOdd ? gaps[mid] : (gaps[mid - 1] + gaps[mid]) / 2;
 }
 
 /// The engine's compensation error (spec 7.3): the largest per-frame
@@ -212,6 +251,42 @@ Map<String, Metric> rampMetrics(
       role: MetricRole.headline,
       direction: MetricDirection.higherIsBetter,
     ),
+  };
+}
+
+/// The ramp metrics of a real-IME window from its per-frame [samples]:
+/// [rampMetrics] with `ramp.delivery` counted against the vsync period the
+/// window observed ([observedVsyncMs], reported as `ramp.vsync_ms`), so a
+/// compositor that drops to 60 Hz while the keyboard animates is not read as
+/// missing frames (finding 04). Without an observed period it falls back to
+/// [launchBudgetMs]. The delivery against the launch's rate stays as a
+/// diagnostic, `ramp.delivery_at_launch_rate`.
+Map<String, Metric> imeRampMetrics(
+  List<RampSample> samples, {
+  required double launchBudgetMs,
+}) {
+  // The real ramp's length is the system's: the frames it should deliver are
+  // its observed duration over the vsync period.
+  final durationMs =
+      rampMetrics(samples, expectedFrames: 1)['ramp.duration_ms']?.value ?? 0;
+  final vsyncMs = observedVsyncMs(samples);
+  final atLaunchRate = rampMetrics(
+    samples,
+    expectedFrames: durationMs / launchBudgetMs,
+  )['ramp.delivery'];
+  return {
+    ...rampMetrics(
+      samples,
+      expectedFrames: durationMs / (vsyncMs ?? launchBudgetMs),
+    ),
+    if (vsyncMs case final v?) 'ramp.vsync_ms': _m(v, MetricKind.ms),
+    if (atLaunchRate case final d?)
+      'ramp.delivery_at_launch_rate': Metric(
+        d.value,
+        kind: MetricKind.share,
+        role: MetricRole.diagnostic,
+        direction: MetricDirection.higherIsBetter,
+      ),
   };
 }
 

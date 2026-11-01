@@ -103,15 +103,15 @@ void main() {
 
   test('the real-IME family is registered next to the synthetic one', () {
     expect(imeScenarios.keys, [
-      'kbd.open_tail@1',
-      'kbd.close_tail@1',
-      'kbd.open_mid_history@1',
-      'kbd.open_mid_fling@1',
-      'kbd.open_during_animate@1',
-      'kbd.composer_growth@1',
-      'panel.open_over_chat@1',
-      'panel.keyboard_handoff@1',
-      'kbd.interactive_dismiss@1',
+      'kbd.open_tail@2',
+      'kbd.close_tail@2',
+      'kbd.open_mid_history@2',
+      'kbd.open_mid_fling@2',
+      'kbd.open_during_animate@2',
+      'kbd.composer_growth@2',
+      'panel.open_over_chat@2',
+      'panel.keyboard_handoff@2',
+      'kbd.interactive_dismiss@2',
     ]);
     final synthetic = keyboardScenarios.all.map((s) => s.id).toSet();
     final real = imeScenarios.all.map((s) => s.id).toSet();

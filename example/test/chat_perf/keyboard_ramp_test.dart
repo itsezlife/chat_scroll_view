@@ -36,6 +36,33 @@ RampSample _with(RampSample s, {int? anchorId, double anchorShiftDp = 0}) =>
       anchorOffsetDp: s.anchorOffsetDp + anchorShiftDp,
     );
 
+/// A real-IME trace: one frame every [vsyncMs] (a frame requested every
+/// vsync), the inset moving on every [moveEvery]th frame for [moves] moves.
+List<RampSample> _imeTrace({
+  required double vsyncMs,
+  int moveEvery = 1,
+  int moves = 20,
+}) {
+  final out = <RampSample>[];
+  var inset = 0.0;
+  for (var i = 0; i < moves * moveEvery + 4; i++) {
+    if (i > 1 && i <= moves * moveEvery + 1 && (i - 1) % moveEvery == 0) {
+      inset += 10;
+    }
+    out.add(
+      RampSample(
+        tMs: i * vsyncMs,
+        vsyncMs: 1000 + i * vsyncMs,
+        insetPx: inset,
+        padDp: inset / 2,
+        anchorId: 7,
+        anchorOffsetDp: 500 - inset / 2,
+      ),
+    );
+  }
+  return out;
+}
+
 void main() {
   group('InsetCurve', () {
     test('android_ramp opens from 0 to 1 over about 360 ms', () {
@@ -143,6 +170,73 @@ void main() {
       );
       expect(m['jump.messages']!.value, 4);
       expect(m.containsKey('engine.comp_error_dp'), isFalse);
+    });
+  });
+
+  group('imeRampMetrics', () {
+    const budget = 1000 / 120;
+
+    test('a 60 Hz ramp that moves every vsync delivers fully', () {
+      final m = imeRampMetrics(
+        _imeTrace(vsyncMs: 1000 / 60),
+        launchBudgetMs: budget,
+      );
+      expect(m['ramp.vsync_ms']!.value, closeTo(1000 / 60, 1e-9));
+      expect(m['ramp.delivery']!.value, closeTo(1, 0.1));
+      // Against the launch's 120 Hz it reads as half the frames.
+      expect(m['ramp.delivery_at_launch_rate']!.value, closeTo(0.5, 0.05));
+      expect(m['ramp.delivery_at_launch_rate']!.role, MetricRole.diagnostic);
+      expect(m['ramp.delivery']!.role, MetricRole.headline);
+    });
+
+    test('a 120 Hz display with an inset every other vsync reads half', () {
+      final m = imeRampMetrics(
+        _imeTrace(vsyncMs: budget, moveEvery: 2),
+        launchBudgetMs: budget,
+      );
+      expect(m['ramp.vsync_ms']!.value, closeTo(budget, 1e-9));
+      expect(m['ramp.delivery']!.value, closeTo(0.5, 0.05));
+    });
+
+    test('without vsync times it falls back to the launch budget', () {
+      final trace = [
+        for (final s in _imeTrace(vsyncMs: 1000 / 60))
+          RampSample(
+            tMs: s.tMs,
+            insetPx: s.insetPx,
+            padDp: s.padDp,
+            anchorId: s.anchorId,
+            anchorOffsetDp: s.anchorOffsetDp,
+          ),
+      ];
+      final m = imeRampMetrics(trace, launchBudgetMs: budget);
+      expect(m.containsKey('ramp.vsync_ms'), isFalse);
+      expect(m['ramp.delivery']!.value, closeTo(0.5, 0.05));
+    });
+  });
+
+  group('observedVsyncMs', () {
+    test('is the median frame gap inside the ramp only', () {
+      final trace = _imeTrace(vsyncMs: 1000 / 60, moves: 5);
+      // A long idle gap after the ramp does not count.
+      final idle = trace.last;
+      final withIdle = [
+        ...trace,
+        RampSample(
+          tMs: idle.tMs + 500,
+          vsyncMs: idle.vsyncMs! + 500,
+          insetPx: idle.insetPx,
+          padDp: idle.padDp,
+          anchorId: idle.anchorId,
+          anchorOffsetDp: idle.anchorOffsetDp,
+        ),
+      ];
+      expect(observedVsyncMs(withIdle), closeTo(1000 / 60, 1e-9));
+    });
+
+    test('is null without a ramp or with too few gaps', () {
+      expect(observedVsyncMs(_imeTrace(vsyncMs: 8, moves: 0)), isNull);
+      expect(observedVsyncMs(_imeTrace(vsyncMs: 8, moves: 2)), isNull);
     });
   });
 }

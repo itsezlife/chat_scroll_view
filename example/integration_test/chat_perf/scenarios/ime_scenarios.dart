@@ -72,7 +72,9 @@ ScenarioRegistry _build() {
     String? onlyOn,
   }) => Scenario(
     id: id,
-    version: 1,
+    // 2: `ramp.delivery` counts against the window's observed vsync period
+    // (finding 04), with a frame requested every vsync while sampling.
+    version: 2,
     windows: [window],
     subject: ScenarioSubject.realChat,
     onlyOn: onlyOn,

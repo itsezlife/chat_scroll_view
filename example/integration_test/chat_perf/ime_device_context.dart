@@ -8,6 +8,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -89,6 +90,9 @@ final class DeviceImeContext extends DeviceContext
 
   RampSample _read() => RampSample(
     tMs: _clock.elapsedMicroseconds / 1000,
+    vsyncMs:
+        SchedulerBinding.instance.currentSystemFrameTimeStamp.inMicroseconds /
+        1000,
     insetPx: _signalIsPad ? rampPad.value * _dpr : _insetPx,
     padDp: rampPad.value,
     anchorId: rampController.anchorMessageId,
@@ -98,6 +102,15 @@ final class DeviceImeContext extends DeviceContext
   // After the frame: the pad and the anchor are those the frame laid out.
   void _onFrame(Duration _) {
     if (_sampling) _samples.add(_read());
+  }
+
+  /// While sampling, a frame is requested every vsync, so the frames' vsync
+  /// gaps read the display's rate rather than how often the inset moved
+  /// ([observedVsyncMs]). The extra frames have nothing dirty.
+  void _requestEveryVsync(Duration _) {
+    if (_sampling) {
+      SchedulerBinding.instance.scheduleFrameCallback(_requestEveryVsync);
+    }
   }
 
   /// Pumps frames until the signal has held still for [_stillFor].
@@ -128,17 +141,15 @@ final class DeviceImeContext extends DeviceContext
       _moving = false;
       _signalIsPad = false;
       _sampling = true;
+      SchedulerBinding.instance.scheduleFrameCallback(_requestEveryVsync);
       await body();
       _sampling = false;
     });
     final window = windows[name]!;
-    final budgetMs = window['budget_ms']!.value;
-    final samples = List.of(_samples);
-    // The real ramp's length is the system's: the frames it should deliver are
-    // its observed duration over the vsync budget.
-    final ramp = rampMetrics(samples, expectedFrames: 1);
-    final durationMs = ramp['ramp.duration_ms']?.value ?? 0;
-    final metrics = rampMetrics(samples, expectedFrames: durationMs / budgetMs);
+    final metrics = imeRampMetrics(
+      List.of(_samples),
+      launchBudgetMs: window['budget_ms']!.value,
+    );
     if (_moving) {
       // A moving window's anchor is the fling's: only the paired control can
       // read the engine error.
