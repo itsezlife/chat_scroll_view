@@ -10,7 +10,10 @@ final class _RecordingContext implements ImeContext {
   String? open;
   bool primed = false;
 
-  void _log(String call) => calls.add(open == null ? '$call outside' : call);
+  void _log(String call) => calls.add(switch (open) {
+    null => '$call outside',
+    _ => call,
+  });
 
   @override
   int get history => 20000;
@@ -21,8 +24,12 @@ final class _RecordingContext implements ImeContext {
     Future<void> Function() body, {
     Future<void> Function()? primer,
   }) async {
-    primed = primer != null;
-    if (primer != null) await primer();
+    if (primer case final p?) {
+      primed = true;
+      await p();
+    } else {
+      primed = false;
+    }
     calls.add('begin $name');
     open = name;
     await body();

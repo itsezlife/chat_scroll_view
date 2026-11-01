@@ -9,7 +9,10 @@ final class _RecordingContext implements KeyboardContext {
   String? open;
   bool primed = false;
 
-  void _log(String call) => calls.add(open == null ? '$call outside' : call);
+  void _log(String call) => calls.add(switch (open) {
+    null => '$call outside',
+    _ => call,
+  });
 
   @override
   Future<void> measure(
@@ -17,8 +20,12 @@ final class _RecordingContext implements KeyboardContext {
     Future<void> Function() body, {
     Future<void> Function()? primer,
   }) async {
-    primed = primer != null;
-    if (primer != null) await primer();
+    if (primer case final p?) {
+      primed = true;
+      await p();
+    } else {
+      primed = false;
+    }
     calls.add('begin $name');
     open = name;
     await body();

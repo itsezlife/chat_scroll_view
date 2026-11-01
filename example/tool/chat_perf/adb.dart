@@ -142,7 +142,7 @@ Map<String, List<int>> buildInputs() {
       add(File(root));
     } else {
       for (final e in Directory(root).listSync(recursive: true)) {
-        if (e is File) add(e);
+        if (e case final File file) add(file);
       }
     }
   }
@@ -150,7 +150,7 @@ Map<String, List<int>> buildInputs() {
     final lib = Directory('${e.path}/lib');
     if (lib.existsSync()) {
       for (final f in lib.listSync(recursive: true)) {
-        if (f is File) add(f);
+        if (f case final File file) add(file);
       }
     }
   }

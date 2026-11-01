@@ -18,8 +18,12 @@ final class _RecordingContext implements ScenarioContext {
     Future<void> Function() body, {
     Future<void> Function()? primer,
   }) async {
-    primed = primer != null;
-    if (primer != null) await primer();
+    if (primer case final p?) {
+      primed = true;
+      await p();
+    } else {
+      primed = false;
+    }
     calls.add('begin $name');
     open = name;
     await body();
@@ -29,10 +33,13 @@ final class _RecordingContext implements ScenarioContext {
 
   @override
   Future<void> drag(double dy, Duration duration) async {
-    calls.add(open == null ? 'drag outside' : 'drag inside');
-    if (open != null) {
-      totalDragDp += dy.abs();
-      totalDrag += duration;
+    switch (open) {
+      case null:
+        calls.add('drag outside');
+      case _:
+        calls.add('drag inside');
+        totalDragDp += dy.abs();
+        totalDrag += duration;
     }
   }
 
@@ -92,12 +99,9 @@ final class _RecordingContext implements ScenarioContext {
       calls.add('scrollbarDrag');
 
   @override
-  Future<int> countAnchorJumps(
-    Future<void> Function() body, {
-    int thresholdMessages = 200,
-  }) async {
+  Future<List<int>> anchorSteps(Future<void> Function() body) async {
     await body();
-    return 2;
+    return [0, 30, 35, 400, 32];
   }
 
   @override
@@ -149,6 +153,35 @@ void main() {
     await s.run(ctx);
     expect(ctx.primed, isFalse);
     expect(ctx.calls.first, 'begin first_scroll');
+  });
+
+  group('scrollbar drag', () {
+    test('a jump is a step far above the drag\'s own rate', () {
+      final m = anchorStepMetrics([0, 30, 35, 400, 32, 0, 36]);
+      expect(m['median_step_messages']!.value, 35);
+      expect(m['max_step_messages']!.value, 400);
+      expect(m['jump_frames']!.value, 1);
+    });
+
+    test('a steady drag of tens of ids a frame has no jump', () {
+      final m = anchorStepMetrics([for (var i = 0; i < 40; i++) 35]);
+      expect(m['jump_frames']!.value, 0);
+      expect(m['max_step_messages']!.value, 35);
+    });
+
+    test('a drag that never moves reports zeros', () {
+      final m = anchorStepMetrics([0, 0, 0]);
+      expect(m.values.map((v) => v.value), [0, 0, 0]);
+    });
+
+    test('the scenario records the step metrics', () async {
+      final ctx = _RecordingContext();
+      await scrollScenarios.all
+          .singleWhere((s) => s.id == 'scroll.scrollbar_drag')
+          .run(ctx);
+      expect(ctx.recorded['scrollbar/jump_frames']!.value, 1);
+      expect(ctx.recorded['scrollbar/max_step_messages']!.value, 400);
+    });
   });
 
   group('the family', () {

@@ -3,6 +3,7 @@
 /// [ScenarioContext].
 library;
 
+import '../metrics.dart';
 import '../registry.dart';
 import 'nav_scenarios.dart';
 import 'scale_scenarios.dart';
@@ -209,25 +210,56 @@ final _overscrollOldest = Scenario(
   },
 );
 
+/// How many times the median per-frame step a frame's step must exceed to
+/// count as a discontinuous jump.
+const kJumpStepFactor = 4;
+
+/// The anchor's motion over a drag from its per-frame [steps] (ids moved
+/// each frame): the median and the largest step, and `jump_frames`, the
+/// frames whose step exceeds [kJumpStepFactor] times the median moving step.
+///
+/// The threshold is relative to the drag's own rate: a thumb drag moves tens
+/// of ids a frame, so a fixed threshold either counts every frame or none.
+/// A drag that never moves has no rate and no jump.
+Map<String, Metric> anchorStepMetrics(List<int> steps) {
+  final moving = [
+    for (final s in steps)
+      if (s > 0) s,
+  ]..sort();
+  final median = moving.isEmpty ? 0 : moving[moving.length ~/ 2];
+  return {
+    'median_step_messages': count(median),
+    'max_step_messages': count(moving.isEmpty ? 0 : moving.last),
+    'jump_frames': count(
+      moving.where((s) => s > median * kJumpStepFactor).length,
+    ),
+  };
+}
+
 /// `scroll.scrollbar_drag`: grab the thumb and drag across the history.
+///
+/// Version 2: `jump_count` (frames moving more than 200 ids, which a thumb
+/// drag at about 35 ids a frame never reaches) became [anchorStepMetrics].
 final _scrollbarDrag = Scenario(
   id: 'scroll.scrollbar_drag',
-  version: 1,
+  version: 2,
   windows: const ['scrollbar'],
   deterministic: true,
   run: (ctx) async {
     await ctx.jumpTo(midHistory(ctx));
-    var jumps = 0;
+    var steps = const <int>[];
     var moved = 0;
     await ctx.measure('scrollbar', primer: seatedPrimer(ctx), () async {
       final before = ctx.anchorId;
-      jumps = await ctx.countAnchorJumps(
+      steps = await ctx.anchorSteps(
         () => ctx.scrollbarDrag(250, const Duration(milliseconds: 1500)),
       );
       await ctx.settle();
       moved = (ctx.anchorId - before).abs();
     });
-    ctx.record('scrollbar', 'jump_count', count(jumps));
+    for (final MapEntry(:key, :value) in anchorStepMetrics(steps).entries) {
+      ctx.record('scrollbar', key, value);
+    }
     ctx.record('scrollbar', 'moved_messages', count(moved));
   },
 );

@@ -10,12 +10,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'device_context.dart';
 import 'keyboard_ramp.dart';
 import 'metrics.dart';
+import 'paired_control.dart';
 import 'real_chat_host.dart';
 import 'registry.dart';
 import 'scenarios/keyboard_scenarios.dart';
 import 'synthetic_soft_keyboard.dart';
 
 final class DeviceKeyboardContext extends DeviceContext
+    with PairedControl
     implements KeyboardContext {
   DeviceKeyboardContext(
     RealChatHost screen,
@@ -26,8 +28,8 @@ final class DeviceKeyboardContext extends DeviceContext
   }) : _screen = screen,
        super(screen, scenario) {
     screen.tester.binding.addPersistentFrameCallback(_onFrame);
-    _pad = screen.pad;
-    _controller = screen.controller;
+    rampPad = screen.pad;
+    rampController = screen.controller;
   }
 
   /// Mounts the chat on a synthetic keyboard and checks whether a `viewInsets`
@@ -67,8 +69,10 @@ final class DeviceKeyboardContext extends DeviceContext
   }
 
   final RealChatHost _screen;
-  late final ValueListenable<double> _pad;
-  late final ChatScrollController _controller;
+  @override
+  late final ValueListenable<double> rampPad;
+  @override
+  late final ChatScrollController rampController;
   final SyntheticSoftKeyboard keyboard;
   final InsetCurveProfile profile;
 
@@ -81,8 +85,6 @@ final class DeviceKeyboardContext extends DeviceContext
   bool _sampling = false;
   bool _moving = false;
   double _rampMs = 0;
-  RampEnd? _windowEnd;
-  String? _lastWindow;
 
   WidgetTester get _t => _screen.tester;
 
@@ -91,21 +93,15 @@ final class DeviceKeyboardContext extends DeviceContext
   RampSample _read() => RampSample(
     tMs: _clock.elapsedMicroseconds / 1000,
     insetPx: keyboard.heightDp * _dpr,
-    padDp: _pad.value,
-    anchorId: _controller.anchorMessageId,
-    anchorOffsetDp: _controller.anchorPixelOffset,
+    padDp: rampPad.value,
+    anchorId: rampController.anchorMessageId,
+    anchorOffsetDp: rampController.anchorPixelOffset,
   );
 
   // After the frame: the pad and the anchor are those the frame laid out.
   void _onFrame(Duration _) {
     if (_sampling) _samples.add(_read());
   }
-
-  RampEnd _end() => RampEnd(
-    anchorId: _controller.anchorMessageId,
-    anchorOffsetDp: _controller.anchorPixelOffset,
-    padDp: _pad.value,
-  );
 
   @override
   Future<void> measure(
@@ -121,7 +117,8 @@ final class DeviceKeyboardContext extends DeviceContext
       await body();
       _sampling = false;
     });
-    final budgetMs = windows[name]!['budget_ms']!.value;
+    final window = windows[name]!;
+    final budgetMs = window['budget_ms']!.value;
     final metrics = rampMetrics(
       List.of(_samples),
       expectedFrames: _rampMs / budgetMs,
@@ -130,10 +127,10 @@ final class DeviceKeyboardContext extends DeviceContext
       // A moving window's anchor is the fling's: only the paired control can
       // read the engine error.
       metrics
-        ..remove('engine.comp_error_dp')
+        ..remove(kCompErrorMetric)
         ..remove('jump.messages');
     }
-    windows[name]!.addAll({
+    window.addAll({
       ...metrics,
       'inset_override.reached_pad': Metric(
         overrideReachedPad ? 1 : 0,
@@ -141,32 +138,16 @@ final class DeviceKeyboardContext extends DeviceContext
         role: MetricRole.diagnostic,
       ),
     });
-    await settle();
-    _windowEnd = _end();
-    _lastWindow = name;
+    await endRampWindow(name);
   }
 
+  // The previous run left the keyboard up; a control or a seat starts from
+  // rest.
   @override
-  Future<void> control(Future<void> Function() body) async {
-    final name = _lastWindow!;
-    final withRamp = _windowEnd!;
-    // The previous run left the keyboard up; the control starts from rest.
-    keyboard.rest(0);
-    await body();
-    await settle();
-    windows[name]!.addAll(
-      pairedControlMetrics(withRamp: withRamp, control: _end()),
-    );
-  }
+  Future<void> restBeforeControl() async => keyboard.rest(0);
 
   @override
-  Future<void> seat(KeyboardSeat seat) async {
-    keyboard.rest(0);
-    await switch (seat) {
-      KeyboardSeat.tail => jumpToNewest(),
-      KeyboardSeat.midHistory => jumpTo(history ~/ 2),
-    };
-  }
+  Future<void> restBeforeSeat() async => keyboard.rest(0);
 
   @override
   Future<void> ramp(InsetCurve curve) async {

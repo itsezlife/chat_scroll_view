@@ -72,12 +72,9 @@ abstract interface class ScenarioContext {
   /// middle of the track there) and drags it [dy] over [duration].
   Future<void> scrollbarDrag(double dy, Duration duration);
 
-  /// Counts the frames in which the anchor id moved by more than
-  /// [thresholdMessages] since the previous frame, while [body] runs.
-  Future<int> countAnchorJumps(
-    Future<void> Function() body, {
-    int thresholdMessages = 200,
-  });
+  /// How many message ids the anchor moved in each frame while [body] runs,
+  /// in frame order.
+  Future<List<int>> anchorSteps(Future<void> Function() body);
 
   /// Adds [metric] named [name] to the already measured window [window].
   void record(String window, String name, Metric metric);

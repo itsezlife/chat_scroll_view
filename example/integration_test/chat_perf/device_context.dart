@@ -123,7 +123,12 @@ base class DeviceContext implements ChurnContext {
       out.add(_sample(f, clock));
     }
     final settled = !_tester.binding.hasScheduledFrame;
-    report(_openWindow!, {'settled': settledMetric(settled: settled)});
+    switch (_openWindow) {
+      case final window?:
+        report(window, {'settled': settledMetric(settled: settled)});
+      case null:
+        throw StateError('${scenario.key}: a schedule runs inside a window');
+    }
     return out;
   }
 
@@ -155,9 +160,9 @@ base class DeviceContext implements ChurnContext {
     if (!scenario.windows.contains(name)) {
       throw StateError('${scenario.key} did not declare window "$name"');
     }
-    if (primer != null) {
+    if (primer case final prime?) {
       await settle();
-      await primer();
+      await prime();
     }
     // Idle before the window, so no primer or mount frame leaks into it.
     await settle();
@@ -354,17 +359,14 @@ base class DeviceContext implements ChurnContext {
   }
 
   @override
-  Future<int> countAnchorJumps(
-    Future<void> Function() body, {
-    int thresholdMessages = 200,
-  }) async {
-    var jumps = 0;
+  Future<List<int>> anchorSteps(Future<void> Function() body) async {
+    final steps = <int>[];
     var running = true;
     var last = host.controller.anchorMessageId;
     void sample(Duration _) {
       if (!running) return;
       final now = host.controller.anchorMessageId;
-      if ((now - last).abs() > thresholdMessages) jumps++;
+      steps.add((now - last).abs());
       last = now;
       SchedulerBinding.instance.addPostFrameCallback(sample);
     }
@@ -375,7 +377,7 @@ base class DeviceContext implements ChurnContext {
     } finally {
       running = false;
     }
-    return jumps;
+    return steps;
   }
 
   @override

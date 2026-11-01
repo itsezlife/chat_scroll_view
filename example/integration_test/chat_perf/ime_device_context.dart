@@ -16,10 +16,10 @@ import 'device_context.dart';
 import 'ime_comparability.dart';
 import 'keyboard_ramp.dart';
 import 'metrics.dart';
+import 'paired_control.dart';
 import 'real_chat_host.dart';
 import 'registry.dart';
 import 'scenarios/ime_scenarios.dart';
-import 'scenarios/keyboard_scenarios.dart';
 
 /// How long the inset and the pad must hold still to count as settled.
 const _stillFor = Duration(milliseconds: 300);
@@ -27,13 +27,15 @@ const _stillFor = Duration(milliseconds: 300);
 /// The longest a transition may take to settle.
 const _settleBound = Duration(seconds: 5);
 
-final class DeviceImeContext extends DeviceContext implements ImeContext {
+final class DeviceImeContext extends DeviceContext
+    with PairedControl
+    implements ImeContext {
   DeviceImeContext(RealChatHost screen, Scenario scenario)
     : _screen = screen,
       super(screen, scenario) {
     screen.tester.binding.addPersistentFrameCallback(_onFrame);
-    _pad = screen.pad;
-    _controller = screen.controller;
+    rampPad = screen.pad;
+    rampController = screen.controller;
   }
 
   /// Mounts the chat on the platform keyboard: the host reads the real IME.
@@ -47,8 +49,10 @@ final class DeviceImeContext extends DeviceContext implements ImeContext {
   }
 
   final RealChatHost _screen;
-  late final ValueListenable<double> _pad;
-  late final ChatScrollController _controller;
+  @override
+  late final ValueListenable<double> rampPad;
+  @override
+  late final ChatScrollController rampController;
 
   final _samples = <RampSample>[];
   final _clock = Stopwatch()..start();
@@ -58,8 +62,6 @@ final class DeviceImeContext extends DeviceContext implements ImeContext {
   /// Whether the window's signal is the pad, not the inset: a panel moves the
   /// pad with no keyboard inset.
   bool _signalIsPad = false;
-  RampEnd? _windowEnd;
-  String? _lastWindow;
 
   WidgetTester get _t => _screen.tester;
 
@@ -75,7 +77,10 @@ final class DeviceImeContext extends DeviceContext implements ImeContext {
   Finder get _field => find.descendant(
     of: find.byType(ChatComposer),
     matching: find.byWidgetPredicate(
-      (w) => w is Focus && w.focusNode == _composer.focusNode,
+      (w) => switch (w) {
+        Focus(:final focusNode) => focusNode == _composer.focusNode,
+        _ => false,
+      },
     ),
   );
 
@@ -84,10 +89,10 @@ final class DeviceImeContext extends DeviceContext implements ImeContext {
 
   RampSample _read() => RampSample(
     tMs: _clock.elapsedMicroseconds / 1000,
-    insetPx: _signalIsPad ? _pad.value * _dpr : _insetPx,
-    padDp: _pad.value,
-    anchorId: _controller.anchorMessageId,
-    anchorOffsetDp: _controller.anchorPixelOffset,
+    insetPx: _signalIsPad ? rampPad.value * _dpr : _insetPx,
+    padDp: rampPad.value,
+    anchorId: rampController.anchorMessageId,
+    anchorOffsetDp: rampController.anchorPixelOffset,
   );
 
   // After the frame: the pad and the anchor are those the frame laid out.
@@ -95,20 +100,14 @@ final class DeviceImeContext extends DeviceContext implements ImeContext {
     if (_sampling) _samples.add(_read());
   }
 
-  RampEnd _end() => RampEnd(
-    anchorId: _controller.anchorMessageId,
-    anchorOffsetDp: _controller.anchorPixelOffset,
-    padDp: _pad.value,
-  );
-
   /// Pumps frames until the signal has held still for [_stillFor].
   Future<void> _untilStill() async {
     final bound = DateTime.now().add(_settleBound);
-    var last = _signalIsPad ? _pad.value * _dpr : _insetPx;
+    var last = _signalIsPad ? rampPad.value * _dpr : _insetPx;
     var since = DateTime.now();
     while (DateTime.now().isBefore(bound)) {
       await _t.pump(const Duration(milliseconds: 16));
-      final now = _signalIsPad ? _pad.value * _dpr : _insetPx;
+      final now = _signalIsPad ? rampPad.value * _dpr : _insetPx;
       if (now != last) {
         last = now;
         since = DateTime.now();
@@ -132,7 +131,8 @@ final class DeviceImeContext extends DeviceContext implements ImeContext {
       await body();
       _sampling = false;
     });
-    final budgetMs = windows[name]!['budget_ms']!.value;
+    final window = windows[name]!;
+    final budgetMs = window['budget_ms']!.value;
     final samples = List.of(_samples);
     // The real ramp's length is the system's: the frames it should deliver are
     // its observed duration over the vsync budget.
@@ -143,10 +143,10 @@ final class DeviceImeContext extends DeviceContext implements ImeContext {
       // A moving window's anchor is the fling's: only the paired control can
       // read the engine error.
       metrics
-        ..remove('engine.comp_error_dp')
+        ..remove(kCompErrorMetric)
         ..remove('jump.messages');
     }
-    windows[name]!.addAll({
+    window.addAll({
       ...metrics,
       kImeSettledInsetMetric: Metric(
         _insetPx,
@@ -154,30 +154,16 @@ final class DeviceImeContext extends DeviceContext implements ImeContext {
         role: MetricRole.diagnostic,
       ),
     });
-    await settle();
-    _windowEnd = _end();
-    _lastWindow = name;
+    await endRampWindow(name);
   }
 
+  // The previous run left the keyboard up; the control starts from rest.
   @override
-  Future<void> control(Future<void> Function() body) async {
-    final name = _lastWindow!;
-    final withRamp = _windowEnd!;
-    await closeKeyboard();
-    await body();
-    await settle();
-    windows[name]!.addAll(
-      pairedControlMetrics(withRamp: withRamp, control: _end()),
-    );
-  }
+  Future<void> restBeforeControl() => closeKeyboard();
 
+  // Every scenario seats with the keyboard down already.
   @override
-  Future<void> seat(KeyboardSeat seat) async {
-    await switch (seat) {
-      KeyboardSeat.tail => jumpToNewest(),
-      KeyboardSeat.midHistory => jumpTo(history ~/ 2),
-    };
-  }
+  Future<void> restBeforeSeat() async {}
 
   @override
   Future<void> openKeyboard({Future<void> Function()? meanwhile}) async {

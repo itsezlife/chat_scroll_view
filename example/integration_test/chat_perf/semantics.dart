@@ -42,11 +42,15 @@ final _semanticsEvent = RegExp('^(Semantics|ensureGeometry)');
 
 /// How many semantics trace events a timeline (as `Timeline.toJson`) holds.
 int countSemanticsEvents(Map<String, Object?> timeline) {
-  final events = timeline['traceEvents'];
-  if (events is! List) return 0;
+  final events = switch (timeline['traceEvents']) {
+    final List<Object?> list => list,
+    _ => const <Object?>[],
+  };
   var count = 0;
   for (final event in events) {
-    if (event is Map && '${event['name']}'.startsWith(_semanticsEvent)) {
+    if (event case {
+      'name': final name,
+    } when '$name'.startsWith(_semanticsEvent)) {
       count++;
     }
   }

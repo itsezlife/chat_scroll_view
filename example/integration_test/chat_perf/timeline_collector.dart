@@ -5,6 +5,12 @@
 /// long scenario overflows before it ends: a capture taken afterwards has lost
 /// the first window marks. The collector polls the timeline while the scenario
 /// runs and keeps only the events the counts read.
+///
+/// The alternative to try is `flutter drive --endless-trace-buffer`, which
+/// makes the VM keep every event so one capture at the end would do. It is
+/// untested on the device (an endless buffer grows with the launch, and the
+/// traced launch runs every scripted scenario), so the poller stays until a
+/// device run shows the flag keeps the first window marks.
 library;
 
 import 'dart:async';
@@ -52,16 +58,16 @@ final class TimelineCollector {
         final json = event.json;
         if (json == null) continue;
         final ts = json['ts'];
-        if (ts is num && ts > newest) newest = ts.toInt();
-        final name = json['name'];
-        if (name is! String || !_wanted(name)) continue;
-        if (_seen.add('$ts|$name|${json['ph']}|${json['tid']}')) {
-          _events.add({
-            'name': name,
-            'ph': json['ph'],
-            'ts': ts,
-            'tid': json['tid'],
-          });
+        if (ts case final num t when t > newest) newest = t.toInt();
+        if (json['name'] case final String name when _wanted(name)) {
+          if (_seen.add('$ts|$name|${json['ph']}|${json['tid']}')) {
+            _events.add({
+              'name': name,
+              'ph': json['ph'],
+              'ts': ts,
+              'tid': json['tid'],
+            });
+          }
         }
       }
       // Overlap a little: another thread's event may land after a later one.
