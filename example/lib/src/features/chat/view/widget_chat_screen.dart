@@ -146,7 +146,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   late final AppLifecycleListener _lifecycle;
 
   /// Page-down chrome show-intent — drives [ChatSideControlsBar] stack slot.
-  var _pageDownChromeVisible = false;
+  ///
+  /// A notifier, not screen state: it flips whenever the viewport leaves or
+  /// reaches the tail, and a `setState` there rebuilt the whole screen (every
+  /// mounted row with it) in the frame of that scroll.
+  final _pageDownChromeVisible = ValueNotifier<bool>(false);
 
   ChatSearchController? _search;
 
@@ -370,6 +374,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _flushPendingLastRead();
     _persistLastReadTimer?.cancel();
     _pillLastSeenBaseline.dispose();
+    _pageDownChromeVisible.dispose();
     _unreadBoundary?.dispose();
     _search?.dispose();
     _controller.dispose();
@@ -1029,10 +1034,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             isSelfMessage: _isSelfMessage,
             lastSeenNewestId: _pillLastSeenBaseline,
             interceptTap: _pageDownToUnseenBoundary,
-            onChromeVisibleChanged: (visible) {
-              if (_pageDownChromeVisible == visible) return;
-              setState(() => _pageDownChromeVisible = visible);
-            },
+            onChromeVisibleChanged: (visible) =>
+                _pageDownChromeVisible.value = visible,
           ),
         ),
         // Soft fade over chat in the chrome zone. Under the composer so the
@@ -1251,7 +1254,7 @@ class _ChatSideControlsHost extends StatelessWidget {
     required this.onSearchStep,
   });
 
-  final bool pageDownChromeVisible;
+  final ValueListenable<bool> pageDownChromeVisible;
   final ValueListenable<double> bottomInset;
   final Widget pageDown;
   final void Function({required bool towardOlder}) onSearchStep;
@@ -1271,17 +1274,20 @@ class _ChatSideControlsHost extends StatelessWidget {
         ),
         (prev, next) => prev != next,
       ),
-      builder: (context, slice, _) => ChatSideControlsBar(
-        searching: slice.searching,
-        pageDownVisible: pageDownChromeVisible,
-        bottomInset: bottomInset,
-        onSearchUp: () => onSearchStep(towardOlder: true),
-        onSearchDown: () => onSearchStep(towardOlder: false),
-        searchHitCount: slice.hitCount,
-        searchUpEnabled: slice.index > 0,
-        searchDownEnabled:
-            slice.hitCount > 0 && slice.index < slice.hitCount - 1,
-        pageDown: pageDown,
+      builder: (context, slice, _) => ValueListenableBuilder<bool>(
+        valueListenable: pageDownChromeVisible,
+        builder: (context, pageDownVisible, _) => ChatSideControlsBar(
+          searching: slice.searching,
+          pageDownVisible: pageDownVisible,
+          bottomInset: bottomInset,
+          onSearchUp: () => onSearchStep(towardOlder: true),
+          onSearchDown: () => onSearchStep(towardOlder: false),
+          searchHitCount: slice.hitCount,
+          searchUpEnabled: slice.index > 0,
+          searchDownEnabled:
+              slice.hitCount > 0 && slice.index < slice.hitCount - 1,
+          pageDown: pageDown,
+        ),
       ),
     );
   }
