@@ -110,6 +110,31 @@ void main() {
       ];
       expect(hasForeignInstall(lines, 'com.x.app'), isTrue);
     });
+
+    test('an app replaying the broadcasts later is not an install', () {
+      final lines = [
+        line('19:40:19.271', 'PACKAGE_ADDED'),
+        line('19:40:19.273', 'PACKAGE_ADDED'),
+        // A vendor sync service's receiver, 104 s later, in its own process.
+        '11-01 19:42:03.075 22841 22841 I [SC]SyncRuntimeActionReceiver: '
+            'onReceive: android.intent.action.PACKAGE_ADDED, com.x.app',
+        '11-01 19:42:03.077 22841 22841 I [SC]SyncRuntimeActionReceiver: '
+            'onReceive: android.intent.action.PACKAGE_REMOVED, com.x.app',
+      ];
+      expect(hasForeignInstall(lines, 'com.x.app'), isTrue);
+      expect(
+        hasForeignInstall(lines, 'com.x.app', systemServerPid: 2728),
+        isFalse,
+      );
+      expect(
+        hasForeignInstall(
+          [...lines, line('19:45:00.000', 'PACKAGE_REPLACED')],
+          'com.x.app',
+          systemServerPid: 2728,
+        ),
+        isTrue,
+      );
+    });
   });
 
   group('waitForCooldown', () {

@@ -51,6 +51,10 @@ final class Adb {
     ]);
   }
 
+  /// The system server's process id; null when it cannot be read.
+  Future<int?> systemServerPid() async =>
+      int.tryParse((await shell('pidof system_server')).trim());
+
   Future<void> clearLogcat() async {
     await Process.run('adb', ['-s', device, 'logcat', '-b', 'all', '-c']);
   }

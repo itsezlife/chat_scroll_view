@@ -723,7 +723,10 @@ Future<({int code, int discarded, MetricsDocument? doc})> _tracedLaunch(
 /// a discarded launch can be told from a false alarm.
 Future<bool> _foreignInstall(Adb adb, String label) async {
   final logcat = await adb.logcat();
-  if (!hasForeignInstall(logcat, kPackage)) return false;
+  final systemServer = await adb.systemServerPid();
+  if (!hasForeignInstall(logcat, kPackage, systemServerPid: systemServer)) {
+    return false;
+  }
   final dir = Directory('$_out/runs/$label')..createSync(recursive: true);
   final at = DateTime.now().toIso8601String().replaceAll(RegExp('[:.]'), '-');
   File('${dir.path}/foreign_install_$at.log').writeAsStringSync(
