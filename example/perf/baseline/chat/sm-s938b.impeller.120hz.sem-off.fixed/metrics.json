@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "key": "sm-s938b.impeller.120hz.sem-off.fixed",
-  "label": "batchA-base4",
+  "label": "f02-base1",
   "device": "SM-S938B",
   "backend": "impeller",
   "refreshRateHz": 120.00000762939453,
@@ -18,7 +18,7 @@
     "revision": "95ae2b98ede93b265d532c6cd6a7bf4f2628a00f",
     "disposeBuiltPainters": true
   },
-  "reason": "batch A: traced pass over 3 launches (count spread), real-IME delivery against the observed vsync, churn send_away/chunk_load_up/first_open v2, scroll.first_scroll_warmed, frames over 2x/3x budget, clocks per launch",
+  "reason": "finding 02: reposition walks built rows, not the id span; scale.animate_far 20k/200k build, over-budget and frames re-seeded from f02-base1 (5 launches), raster and 1k kept",
   "scenarios": {
     "scroll.drag_slow@2": {
       "drag": {
@@ -3551,9 +3551,9 @@
           "role": "headline",
           "direction": "lowerIsBetter",
           "pass": "timing",
-          "median": 0.2870400182495117,
-          "min": 0.2778000176620483,
-          "max": 0.3013200191574097
+          "median": 0.08148000518035889,
+          "min": 0.07440000473022461,
+          "max": 0.08508000540924071
         },
         "raster_p99_share": {
           "kind": "share",
@@ -3578,8 +3578,8 @@
           "role": "headline",
           "direction": "lowerIsBetter",
           "pass": "timing",
-          "median": 349.0,
-          "min": 345.0,
+          "median": 345.0,
+          "min": 342.0,
           "max": 358.0
         },
         "budget_ms": {
@@ -3670,9 +3670,9 @@
           "role": "diagnostic",
           "direction": "lowerIsBetter",
           "pass": "timing",
-          "median": 2.9794079794079793,
-          "min": 2.8033775633293123,
-          "max": 3.1131105398457586
+          "median": 1.0099715099715099,
+          "min": 0.7491995731056562,
+          "max": 1.16580310880829
         },
         "raster_p99_share": {
           "kind": "ratio",
@@ -3699,9 +3699,9 @@
           "role": "headline",
           "direction": "lowerIsBetter",
           "pass": "timing",
-          "median": 2.208960140441895,
-          "min": 2.1728401381454465,
-          "max": 2.3113201469497677
+          "median": 0.09684000615692138,
+          "min": 0.0877200055770874,
+          "max": 0.1185600075378418
         },
         "raster_p99_share": {
           "kind": "share",
@@ -3717,18 +3717,18 @@
           "role": "headline",
           "direction": "lowerIsBetter",
           "pass": "timing",
-          "median": 0.3938053097345133,
-          "min": 0.3901345291479821,
-          "max": 0.3963963963963964
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
         },
         "frames": {
           "kind": "count",
           "role": "headline",
           "direction": "lowerIsBetter",
           "pass": "timing",
-          "median": 223.0,
-          "min": 222.0,
-          "max": 226.0
+          "median": 364.0,
+          "min": 349.0,
+          "max": 366.0
         },
         "budget_ms": {
           "kind": "ms",
@@ -3780,9 +3780,9 @@
           "role": "diagnostic",
           "direction": "lowerIsBetter",
           "pass": "timing",
-          "median": 62.0,
-          "min": 59.0,
-          "max": 63.0
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
         },
         "frames_over_3x_budget": {
           "kind": "count",
@@ -3818,9 +3818,9 @@
           "role": "diagnostic",
           "direction": "lowerIsBetter",
           "pass": "timing",
-          "median": 22.235154394299293,
-          "min": 21.841978287092882,
-          "max": 24.757069408740357
+          "median": 1.2207977207977208,
+          "min": 0.8612593383137673,
+          "max": 1.306878306878307
         },
         "raster_p99_share": {
           "kind": "ratio",
