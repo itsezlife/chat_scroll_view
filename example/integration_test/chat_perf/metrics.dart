@@ -175,10 +175,22 @@ const double kFirstFramesSpanMs = 150;
   return (items.sublist(0, cut), items.sublist(cut));
 }
 
+/// Frames of [samples] whose build or raster took more than three vsync
+/// budgets: the one-off outliers a p99 over a long window hides (finding 06).
+int framesOverBudgetMultiple(
+  List<FrameSample> samples, {
+  required double budgetMs,
+  double multiple = 3,
+}) => samples.where((s) => s.worstMs > budgetMs * multiple).length;
+
+/// Name of the [framesOverBudgetMultiple] diagnostic of every window.
+const kFramesOver3xBudgetMetric = 'frames_over_3x_budget';
+
 /// The metrics of one window: the headline set over the [steady] frames, plus
 /// `first_frames.*` over the [first] frames. The first frames are diagnostic,
 /// or headline when the scenario is [cold]. With no first frames only their
 /// zero count is reported, since a percentile of nothing means nothing.
+/// [kFramesOver3xBudgetMetric] counts over all the window's frames.
 Map<String, Metric> windowMetrics(
   List<FrameSample> first,
   List<FrameSample> steady, {
@@ -201,6 +213,14 @@ Map<String, Metric> windowMetrics(
       ),
     if (first.isEmpty)
       'first_frames.frames': Metric(0, kind: MetricKind.count, role: role),
+    kFramesOver3xBudgetMetric: Metric(
+      framesOverBudgetMultiple([
+        ...first,
+        ...steady,
+      ], budgetMs: vsyncBudgetMs(refreshRateHz)).toDouble(),
+      kind: MetricKind.count,
+      role: MetricRole.diagnostic,
+    ),
   };
 }
 

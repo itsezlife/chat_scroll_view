@@ -111,5 +111,26 @@ void main() {
       expect(m['first_frames.frames']!.value, 0);
       expect(m.containsKey('first_frames.build_p99_share'), isFalse);
     });
+    test('counts frames over three budgets in the whole window', () {
+      // 20 ms > 3 x 8.33 ms is false; 26 ms build and 25.1 ms raster are over.
+      final m = windowMetrics(
+        [...head, const FrameSample(buildMs: 26, rasterMs: 1)],
+        [...tail, const FrameSample(buildMs: 1, rasterMs: 25.1)],
+        refreshRateHz: 120,
+        cold: false,
+      );
+      final over = m[kFramesOver3xBudgetMetric]!;
+      expect(over.value, 2);
+      expect((over.kind, over.role), (MetricKind.count, MetricRole.diagnostic));
+      expect(
+        windowMetrics(
+          head,
+          tail,
+          refreshRateHz: 120,
+          cold: false,
+        )[kFramesOver3xBudgetMetric]!.value,
+        0,
+      );
+    });
   });
 }
