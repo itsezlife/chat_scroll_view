@@ -257,6 +257,9 @@ Future<void> main(List<String> args) async {
   } on ForeignInstallException catch (e) {
     stderr.writeln('run failed: ${e.message}');
     status = 4;
+  } on _BuildFailure catch (e) {
+    stderr.writeln(e.message);
+    status = 1;
   } finally {
     // The phone's default mode comes back after every run, failed or not.
     if (run.perfMode == PerfMode.fixed) {
@@ -313,6 +316,9 @@ Future<int> _counts(
   } on ForeignInstallException catch (e) {
     stderr.writeln('run failed: ${e.message}');
     code = 4;
+  } on _BuildFailure catch (e) {
+    stderr.writeln(e.message);
+    code = 1;
   } finally {
     if (run.perfMode == PerfMode.fixed) {
       await adb.setFixedPerformance(enabled: false);
@@ -690,14 +696,22 @@ Future<({int code, int discarded, MetricsDocument? doc})> _tracedLaunch(
 const _target = 'integration_test/chat_perf/chat_perf_test.dart';
 const _driver = 'test_driver/integration_test.dart';
 
+/// A failed `pub get` or APK build. Thrown, not `exit`ed, so the run's
+/// `finally` still restores the phone's performance mode and the lock.
+final class _BuildFailure implements Exception {
+  const _BuildFailure(this.message);
+
+  final String message;
+}
+
 /// The APK for these sources and defines, built when no cached one matches.
+/// Throws [_BuildFailure] when resolving or building fails.
 Future<String> _ensureApk(List<String> defines, String backend) async {
   // Resolve first: a pub get rewrites the lockfile, which is a fingerprint
   // input, so it must settle before the key is taken.
   final pubGet = await Process.run('flutter', ['pub', 'get']);
   if (pubGet.exitCode != 0) {
-    stderr.writeln('flutter pub get failed:\n${pubGet.stderr}');
-    exit(1);
+    throw _BuildFailure('flutter pub get failed:\n${pubGet.stderr}');
   }
   final apk = 'build/chat_perf/${buildFingerprint(buildInputs(), defines)}.apk';
   if (File(apk).existsSync()) return apk;
@@ -712,8 +726,7 @@ Future<String> _ensureApk(List<String> defines, String backend) async {
     if (backend == 'skia') '--no-enable-impeller',
   ], mode: ProcessStartMode.inheritStdio);
   if (await build.exitCode != 0) {
-    stderr.writeln('build failed');
-    exit(1);
+    throw const _BuildFailure('build failed');
   }
   Directory(File(apk).parent.path).createSync(recursive: true);
   File('build/app/outputs/flutter-apk/app-profile.apk').copySync(apk);
