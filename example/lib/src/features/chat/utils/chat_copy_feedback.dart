@@ -71,10 +71,8 @@ sealed class ChatCopyFeedback {
     ChatSelectionPolicy policy, {
     bool systemConfirms = false,
   }) => switch (policy) {
-    ChatSelectionPolicy$Mobile() ||
-    ChatSelectionPolicy$TextOnly() => ChatCopyFeedback$Mobile(
-      systemConfirms: systemConfirms,
-    ),
+    ChatSelectionPolicy$Mobile() || ChatSelectionPolicy$TextOnly() =>
+      ChatCopyFeedback$Mobile(systemConfirms: systemConfirms),
     ChatSelectionPolicy$Desktop() => const ChatCopyFeedback$Desktop(),
   };
 
