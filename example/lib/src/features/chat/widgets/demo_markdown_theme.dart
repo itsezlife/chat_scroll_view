@@ -54,11 +54,9 @@ MarkdownThemeData demoDarkMarkdownTheme(BuildContext context) {
     // A unicode emoji in a bubble is drawn at the platform's size beside a
     // custom emoji (the policy of the emoji-only body says which).
     emojiScale: ChatEmojiPolicy.forPlatform().inTextEmojiScale,
-    // The chat body's theme builder makes a new painter per call. Off unless
-    // the performance suite's define turns it on to measure the setting.
-    disposeBuiltPainters: const bool.fromEnvironment(
-      'CHAT_PERF_DISPOSE_BUILT_PAINTERS',
-    ),
+    // The chat body's theme builder makes a new painter per call; the theme
+    // disposes the one it replaces.
+    disposeBuiltPainters: true,
   );
 }
 
