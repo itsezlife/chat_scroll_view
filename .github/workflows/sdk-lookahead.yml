@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: itsezlife/md
-          ref: v0.7.1
+          ref: v0.8.1
           path: md
 
       # No flutter-version: the newest stable, which is the SDK the next

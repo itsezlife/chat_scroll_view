@@ -26,6 +26,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/link_activation
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_interaction_stub.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
+import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpaper.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_bottom_chrome.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_dialogs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_search_bar.dart';
@@ -848,7 +849,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       return DemoBackendError(message: _errorMessage!, onRetry: _init);
     }
     if (_loading || _dataSource == null || _search == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: DemoChatWallpaper(
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
     }
     final chatScrollTheme = ChatScrollTheme.of(context);
     final messageTheme = chatScrollTheme.message;
@@ -886,7 +891,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             unawaited(input.handleBack());
             return;
           }
-          // No-op, since no navigation is supported in this demo.
+          // Nothing of the chat's own is left to close: leave the chat
+          // when it was pushed over the chat list. `pop`, not `maybePop`:
+          // this scope vetoes every pop, so `maybePop` would land here again.
+          final navigator = Navigator.of(context);
+          if (navigator.canPop()) navigator.pop();
         },
         child: ChatScrollTheme(
           data: chatScrollTheme.copyWith(message: newMessageTheme),
@@ -905,45 +914,49 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               resizeToAvoidBottomInset: false,
               body: StateConsumer<ChatSearchController, ChatSearchState>(
                 listener: _onSearchStateChanged,
-                child: GlassSourceScope(
-                  child: Stack(
-                    key: _presentationSpace,
-                    children: <Widget>[
-                      // A docked panel takes width from the chat region; the
-                      // popup and the dock draw above it.
-                      Positioned.fill(
-                        child: ValueListenableBuilder<double>(
-                          valueListenable: insets.inlineEnd,
-                          builder: (context, inlineEnd, child) => Padding(
-                            padding: EdgeInsetsDirectional.only(end: inlineEnd),
-                            child: child,
-                          ),
-                          // Above the chat and the composer both: the copy
-                          // shortcut reaches here from either one's focus.
-                          // The composer's own copy sits below and wins when
-                          // it has a selection; otherwise its action is
-                          // disabled and the intent comes up to this one.
-                          child: Actions(
-                            actions: <Type, Action<Intent>>{
-                              CopySelectionTextIntent: _CopySelectedAction(
-                                selection: _selection,
-                                onCopy: _copySelected,
+                child: DemoChatSurface(
+                  child: GlassSourceScope(
+                    child: Stack(
+                      key: _presentationSpace,
+                      children: <Widget>[
+                        // A docked panel takes width from the chat region; the
+                        // popup and the dock draw above it.
+                        Positioned.fill(
+                          child: ValueListenableBuilder<double>(
+                            valueListenable: insets.inlineEnd,
+                            builder: (context, inlineEnd, child) => Padding(
+                              padding: EdgeInsetsDirectional.only(
+                                end: inlineEnd,
                               ),
-                            },
-                            child: _buildChatRegion(
-                              search: search,
-                              mobilePanel: mobilePanel,
+                              child: child,
+                            ),
+                            // Above the chat and the composer both: the copy
+                            // shortcut reaches here from either one's focus.
+                            // The composer's own copy sits below and wins when
+                            // it has a selection; otherwise its action is
+                            // disabled and the intent comes up to this one.
+                            child: Actions(
+                              actions: <Type, Action<Intent>>{
+                                CopySelectionTextIntent: _CopySelectedAction(
+                                  selection: _selection,
+                                  onCopy: _copySelected,
+                                ),
+                              },
+                              child: _buildChatRegion(
+                                search: search,
+                                mobilePanel: mobilePanel,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      if (!mobilePanel)
-                        Positioned.fill(
-                          child: PanelPresentationView(
-                            controller: input.presentation,
+                        if (!mobilePanel)
+                          Positioned.fill(
+                            child: PanelPresentationView(
+                              controller: input.presentation,
+                            ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -967,37 +980,39 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         // Chat fills the screen; the composer is stacked over its bottom.
         Positioned.fill(
           child: GlassSource(
-            child: ChatKeyboardShortcuts(
-              controller: _controller,
-              selectionController: _selection,
-              reverse: true,
-              preserveExternalFocus: true,
-              child: ChatScrollView(
-                reverse: true,
-                dataSource: _dataSource!,
+            child: DemoChatWallpaper(
+              child: ChatKeyboardShortcuts(
                 controller: _controller,
                 selectionController: _selection,
-                onIdleMessageTap: _presentMessageMenu,
-                onSecondaryMessageTap: _presentMessageMenu,
-                isSelfMessage: _isSelfMessage,
-                bottomPadding: insets.bottomPadding,
-                topPadding: insets.topPadding,
-                messageBuilder: _buildMessage,
-                chunkErrorBuilder: _buildChunkError,
-                emptyBuilder: _buildEmpty,
-                loadingBuilder: _buildInitialSkeleton,
-                scrollActivityTiming: const ChatScrollActivityTiming(),
-                dayHeaderDelegate: const ChatPushingDayHeader(),
-                dateSeparatorBuilder: (context, bucket, date) =>
-                    DateSeparator(date: date),
-                unreadBoundary: _unreadBoundary,
-                unreadSeparatorBuilder: _buildUnreadSeparator,
-                senderRunLayout: switch (_unreadBoundary) {
-                  final boundary? => UnreadBoundarySenderRunLayout(
-                    boundary: boundary,
-                  ),
-                  null => DefaultChatSenderRunLayout.instance,
-                },
+                reverse: true,
+                preserveExternalFocus: true,
+                child: ChatScrollView(
+                  reverse: true,
+                  dataSource: _dataSource!,
+                  controller: _controller,
+                  selectionController: _selection,
+                  onIdleMessageTap: _presentMessageMenu,
+                  onSecondaryMessageTap: _presentMessageMenu,
+                  isSelfMessage: _isSelfMessage,
+                  bottomPadding: insets.bottomPadding,
+                  topPadding: insets.topPadding,
+                  messageBuilder: _buildMessage,
+                  chunkErrorBuilder: _buildChunkError,
+                  emptyBuilder: _buildEmpty,
+                  loadingBuilder: _buildInitialSkeleton,
+                  scrollActivityTiming: const ChatScrollActivityTiming(),
+                  dayHeaderDelegate: const ChatPushingDayHeader(),
+                  dateSeparatorBuilder: (context, bucket, date) =>
+                      DateSeparator(date: date),
+                  unreadBoundary: _unreadBoundary,
+                  unreadSeparatorBuilder: _buildUnreadSeparator,
+                  senderRunLayout: switch (_unreadBoundary) {
+                    final boundary? => UnreadBoundarySenderRunLayout(
+                      boundary: boundary,
+                    ),
+                    null => DefaultChatSenderRunLayout.instance,
+                  },
+                ),
               ),
             ),
           ),

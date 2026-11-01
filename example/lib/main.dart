@@ -16,9 +16,11 @@ import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_so
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
+import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpaper.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
+import 'package:chat_scroll_view_example/src/features/chat_list/view/chat_list_screen.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show BrowserContextMenu;
@@ -40,6 +42,10 @@ void main() => l.capture<void>(
         createServices: _createServices,
         appOf: (services) => ChatDemoApp(
           services: services,
+          start: switch (DemoConfig.startAt) {
+            'chat' => DemoStart.chat,
+            _ => DemoStart.chatList,
+          },
           chatDataSourceLoader: switch (DemoConfig.chatSource) {
             'showcase' => _loadShowcase,
             'comments+showcase' => _loadCommentsWithShowcase,
@@ -116,8 +122,12 @@ class ChatDemoApp extends StatefulWidget {
     this.chatDataSourceLoader,
     this.softKeyboard = const PlatformSoftKeyboard(),
     this.presentationPolicy,
+    this.start = DemoStart.chat,
     super.key,
   });
+
+  /// The page the app opens on.
+  final DemoStart start;
 
   /// The long-lived services every screen draws on.
   final AppServices services;
@@ -159,18 +169,37 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
       ),
       extensions: const <ThemeExtension<dynamic>>[UnreadSeparatorColors.dark],
     ),
+    // Above the navigator, as a product mounts them: every chat shares the
+    // wallpaper's motion, rasters and last composite.
     builder: (context, child) => AppChrome(
       services: widget.services,
-      child: DemoMarkdownTheme(child: DemoChatTheme(child: child!)),
+      child: DemoWallpaperScope(
+        wallpaper: DemoWallpaper.configured,
+        child: DemoMarkdownTheme(child: DemoChatTheme(child: child!)),
+      ),
     ),
     navigatorObservers: [_overlays],
     debugShowCheckedModeBanner: false,
     showPerformanceOverlay: false,
-    home: WidgetChatScreen(
-      services: widget.services,
-      dataSourceLoader: widget.chatDataSourceLoader,
-      softKeyboard: widget.softKeyboard,
-      presentationPolicy: widget.presentationPolicy,
-    ),
+    home: switch (widget.start) {
+      DemoStart.chat => _chat(context),
+      DemoStart.chatList => ChatListScreen(chat: _chat),
+    },
   );
+
+  Widget _chat(BuildContext context) => WidgetChatScreen(
+    services: widget.services,
+    dataSourceLoader: widget.chatDataSourceLoader,
+    softKeyboard: widget.softKeyboard,
+    presentationPolicy: widget.presentationPolicy,
+  );
+}
+
+/// The page [ChatDemoApp] opens on.
+enum DemoStart {
+  /// The chat list; a row pushes the chat, as a product opens one.
+  chatList,
+
+  /// The chat itself, as the root page.
+  chat,
 }

@@ -1,13 +1,20 @@
 ## Unreleased
 
-### `flutter_md` 0.7.1
-- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.7.1` in every
-  pubspec and workflow. It merges upstream `DoctorinaAI/md` 0.3.0: inline
+### `flutter_md` 0.8.1
+- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.8.1` in every
+  pubspec and workflow. 0.7 merged upstream `DoctorinaAI/md` 0.3.0: inline
   pictures and link icons (opt-in through `MarkdownThemeData.imageResolver`;
   without one an image stays its alt text), right-to-left bodies laid out
-  against the right edge, highlighter and nested quote fixes. Copy, spoilers,
-  embeds, chips and the line clamp are unchanged. 0.7.1 fixes the throw a body
-  that clears the selection from its `dispose` hit under 0.7.0.
+  against the right edge, highlighter and nested quote fixes, and no throw when
+  a body clears the selection from its `dispose`. 0.8.0 merges upstream 0.3.1:
+  linear parsing of hostile input, `Markdown.fromStringAsync`, and lists and
+  tables that keep their text painters across layouts. Copy, spoilers, embeds,
+  chips and the line clamp are unchanged.
+- **CHANGED**: the markdown body sets `disposeBuiltPainters` on its theme: the
+  scrollable table and code block painters its `builder` makes are new on
+  every call, so an update disposes the ones it replaces (0.8.0 left painters
+  a `builder` made to the host). A theme with a `builder` skips 0.8's reuse of
+  unchanged leading blocks, so streaming lays out every block as before.
 - **CHANGED**: the emoji-only body (`RenderChatEmojiBody`) reports its
   `textDirection` to the selection controller, which the 0.7 surface contract
   requires; it is the direction its lines start from, so handles orient by it.
