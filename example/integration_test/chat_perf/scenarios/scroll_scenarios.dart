@@ -56,15 +56,43 @@ final _firstScroll = Scenario(
   version: 1,
   windows: const ['first_scroll'],
   cold: true,
-  run: (ctx) => ctx.measure(
-    'first_scroll',
-    () => alternatingDrags(
-      ctx,
-      dp: 400,
-      leg: const Duration(milliseconds: 1500),
-      total: const Duration(seconds: 3),
-    ),
-  ),
+  run: (ctx) => ctx.measure('first_scroll', () => _firstScrollDrags(ctx)),
+);
+
+/// The first-scroll drag script, also run warm by [_firstScrollWarmed].
+Future<void> _firstScrollDrags(ScenarioContext ctx) => alternatingDrags(
+  ctx,
+  dp: 400,
+  leg: const Duration(milliseconds: 1500),
+  total: const Duration(seconds: 3),
+);
+
+/// Idle before a warmed first-scroll window: long enough for clocks that ramp
+/// up under load to fall back (under the system governors; fixed performance
+/// mode pins them).
+const _clockDecay = Duration(seconds: 3);
+
+/// `scroll.first_scroll_warmed` (cold): separates the first-scroll penalty's
+/// causes (finding 05). Outside any window, the same drags at mid-history
+/// warm the raster pipelines and caches on other rows, then the viewport
+/// returns to the tail and idles for [_clockDecay]. `after_warmup` is the
+/// first-scroll drag on rows the launch has not scrolled; after another idle,
+/// `repeat` is the same drag once more. A penalty that survives the warm-up
+/// is not pipeline warm-up; one that comes back after the idle is the clock.
+final _firstScrollWarmed = Scenario(
+  id: 'scroll.first_scroll_warmed',
+  version: 1,
+  windows: const ['after_warmup', 'repeat'],
+  cold: true,
+  run: (ctx) async {
+    await ctx.jumpTo(midHistory(ctx));
+    await _firstScrollDrags(ctx);
+    await ctx.jumpToNewest();
+    await ctx.idle(_clockDecay);
+    await ctx.measure('after_warmup', () => _firstScrollDrags(ctx));
+    await ctx.idle(_clockDecay);
+    await ctx.measure('repeat', () => _firstScrollDrags(ctx));
+  },
 );
 
 /// `scroll.fling_single`: one fling from mid-history at about 6.7k px/s.
@@ -275,6 +303,7 @@ final scrollScenarios = ScenarioRegistry([
   _overscrollOldest,
   _scrollbarDrag,
   _firstScroll,
+  _firstScrollWarmed,
   ...navScenarios,
   ...scaleScenarios,
   _dragSlow('scroll.real.drag_slow', ScenarioSubject.realChat),

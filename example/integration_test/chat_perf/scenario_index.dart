@@ -70,6 +70,7 @@ const scenarioIndex = <ScenarioIndexEntry>[
   (id: 'scroll.overscroll_oldest', cold: false),
   (id: 'scroll.scrollbar_drag', cold: false),
   (id: 'scroll.first_scroll', cold: true),
+  (id: 'scroll.first_scroll_warmed', cold: true),
   (id: 'nav.jump_near', cold: false),
   (id: 'nav.jump_far', cold: false),
   (id: 'nav.animate_near', cold: false),

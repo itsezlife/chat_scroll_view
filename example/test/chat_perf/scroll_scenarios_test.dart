@@ -155,6 +155,24 @@ void main() {
     expect(ctx.calls.first, 'begin first_scroll');
   });
 
+  test('scroll.first_scroll_warmed warms outside its windows', () async {
+    final s = scrollScenarios.all.singleWhere(
+      (s) => s.id == 'scroll.first_scroll_warmed',
+    );
+    expect(s.cold, isTrue);
+    expect(s.windows, ['after_warmup', 'repeat']);
+    final ctx = _RecordingContext();
+    await s.run(ctx);
+    expect(ctx.primed, isFalse);
+    // The warm-up drags run before the first window opens.
+    final open = ctx.calls.indexOf('begin after_warmup');
+    expect(ctx.calls.take(open).where((c) => c.startsWith('drag')), isNotEmpty);
+    expect(ctx.calls.where((c) => c.startsWith('begin')), [
+      'begin after_warmup',
+      'begin repeat',
+    ]);
+  });
+
   group('scrollbar drag', () {
     test('a jump is a step far above the drag\'s own rate', () {
       final m = anchorStepMetrics([0, 30, 35, 400, 32, 0, 36]);
@@ -195,6 +213,7 @@ void main() {
       'scroll.overscroll_oldest',
       'scroll.scrollbar_drag',
       'scroll.first_scroll',
+      'scroll.first_scroll_warmed',
       'nav.jump_near',
       'nav.jump_far',
       'nav.animate_near',
