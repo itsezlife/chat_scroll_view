@@ -88,10 +88,15 @@ tail pin is layout’s `pinNewest` / pending-tail flags.
 
 ## 7. Reposition must span the built id range
 
-`_repositionFromAnchor` / `_repositionMessagesOnly` walk from
-`minBuiltId` to `maxBuiltId` and **skip** null children. Never `break` on the
-first missing id — absent gaps would leave messages beyond the gap with stale
-offsets.
+`_repositionFromAnchor` / `_repositionMessagesOnly` place every built row from
+`minBuiltId` to `maxBuiltId` and **skip** the ids between them. Never `break` on
+the first missing id — absent gaps would leave messages beyond the gap with
+stale offsets.
+
+The walk steps through the built ids (and chunk-error tiles), never id by id
+across the span: a far stitch keeps the outgoing strip built beside the
+incoming band, so the span can be the whole history while the built rows are
+a screenful. Per-frame cost stays bounded by the built rows.
 
 ## 8. Absent-skip termination
 

@@ -151,7 +151,9 @@ anchor without rebuild or `child.layout`.
 
 - Fast path `_repositionMessagesOnly` when `_chunkErrors.isEmpty`.
 - General path interleaves chunk-error tiles at chunk boundaries.
-- Null slots: **skip** (`continue`), never `break`.
+- Null slots: **skip** (`continue`), never `break`. Both paths step from one
+  built id (or chunk-error tile) to the next, so the cost is the built rows,
+  not the id span between them ([Invariants §7](./02-invariants.md)).
 
 Row chrome inputs (`paintTop`, `headerZone`, `scrollActivity`) are published
 afterwards by `_resolveRowChromeFrame` on the same tick (Tier-1-safe
