@@ -624,4 +624,74 @@ void main() {
       expect(find.text('msg-0'), findsOneWidget);
     });
   });
+
+  testWidgets('rows around a chunk-error tile stack edge to edge on scroll', (
+    tester,
+  ) async {
+    // Chunk 2 (128..191) errors between loaded chunks: the reposition walk
+    // places its one tile between 127 and 192, and jumps no row or gap.
+    final ds = _OneChunkFailDataSource(256, failChunk: 2);
+    final controller = ChatScrollController()..jumpTo(196);
+    addTearDown(controller.dispose);
+    addTearDown(ds.dispose);
+
+    await tester.pumpWidget(
+      _scaffold(
+        ChatScrollView(
+          dataSource: ds,
+          controller: controller,
+          messageBuilder: _msgBuilder,
+          chunkErrorBuilder: _errBuilder,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump();
+    expect(find.text('error-128-191'), findsOneWidget);
+
+    controller.scrollBy(300);
+    await tester.pump();
+    final tile = tester.getRect(find.text('error-128-191').first);
+    final above = tester.getRect(find.text('msg-127'));
+    final below = tester.getRect(find.text('msg-192'));
+    // The tile's text sits at its top; its box is the 120 px error builder.
+    expect(tile.top, moreOrLessEquals(above.top + 60));
+    expect(below.top, moreOrLessEquals(above.top + 60 + 120));
+    expect(
+      tester.getRect(find.text('msg-193')).top,
+      moreOrLessEquals(below.top + 60),
+    );
+    final render = _render(tester);
+    expect(
+      render.debugLastRepositionVisits,
+      lessThanOrEqualTo(render.debugBuiltMessageIds.length + 1),
+    );
+  });
+}
+
+/// Every chunk but [failChunk] seeded up front; fetching [failChunk] always
+/// errors.
+class _OneChunkFailDataSource extends ChatDataSource {
+  _OneChunkFailDataSource(this.count, {required this.failChunk}) {
+    upsertMessages([
+      for (var i = 0; i < count; i++)
+        if (ChatScrollChunk.chunkOf(i) != failChunk) _msg(i),
+    ]);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
+  }
+
+  final int count;
+  final int failChunk;
+
+  @override
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => throw StateError('chunk $failChunk fails');
 }

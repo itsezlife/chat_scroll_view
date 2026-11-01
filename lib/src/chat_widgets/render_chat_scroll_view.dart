@@ -1511,6 +1511,11 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   /// Currently built message ids (fan-out + stitch-pinned outgoing).
   Set<int> get debugBuiltMessageIds => _children.keys.toSet();
 
+  /// Ids the last [_repositionFromAnchor] walk visited (debug builds only):
+  /// bounded by the built rows and chunk-error tiles, not the id span.
+  int get debugLastRepositionVisits => _debugRepositionVisits;
+  int _debugRepositionVisits = 0;
+
   /// Resolved opacity (0..1) of the built child [id]'s first row chrome item
   /// — its inline day separator — or `1` when the row has no chrome. `null`
   /// when [id] is not currently built.
@@ -4409,14 +4414,15 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       _controller.anchorMessageId,
     );
 
-    // Find the range of built message IDs to bound the absent-skip loops.
-    // See _repositionMessagesOnly for why `break` on null is wrong.
-    var maxBuiltId = _controller.anchorMessageId;
-    var minBuiltId = _controller.anchorMessageId;
-    for (final id in _children.keys) {
-      if (id > maxBuiltId) maxBuiltId = id;
-      if (id < minBuiltId) minBuiltId = id;
-    }
+    // The range of built message ids bounds the walks. See
+    // _repositionMessagesOnly for why `break` on null is wrong.
+    final anchorId = _controller.anchorMessageId;
+    final maxBuiltId = math.max(anchorId, _children.lastKey() ?? anchorId);
+    final minBuiltId = math.min(anchorId, _children.firstKey() ?? anchorId);
+    assert(() {
+      _debugRepositionVisits = 0;
+      return true;
+    }());
 
     var y = _controller.anchorPixelOffset;
     _setOffset(anchor, y);
@@ -4428,6 +4434,10 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
         : _controller.anchorMessageId + 1;
     while (id <= maxBuiltId ||
         _chunkErrors.containsKey(ChatScrollChunk.chunkOf(id))) {
+      assert(() {
+        _debugRepositionVisits++;
+        return true;
+      }());
       final ci = ChatScrollChunk.chunkOf(id);
       // At a chunk boundary, a chunk-error tile pre-empts message slots.
       if (id == ChatScrollChunk.firstIdOf(ci)) {
@@ -4442,9 +4452,10 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       if (id > maxBuiltId) break;
       final child = _children[id];
       if (child == null) {
-        id++;
+        // Skip absent / unbuilt ids: jump the gap to the next stop.
+        id = _repositionStopAfter(id, maxBuiltId);
         continue;
-      } // skip absent / unbuilt IDs
+      }
       if (_skipStitchOutgoingReposition(id)) {
         id++;
         continue;
@@ -4461,6 +4472,10 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
         : _controller.anchorMessageId - 1;
     while (id >= minBuiltId ||
         _chunkErrors.containsKey(ChatScrollChunk.chunkOf(id))) {
+      assert(() {
+        _debugRepositionVisits++;
+        return true;
+      }());
       final ci = ChatScrollChunk.chunkOf(id);
       final lastIdOfChunk = ChatScrollChunk.firstIdOf(ci + 1) - 1;
       if (id == lastIdOfChunk) {
@@ -4475,9 +4490,10 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       if (id < minBuiltId) break;
       final child = _children[id];
       if (child == null) {
-        id--;
+        // Skip absent / unbuilt ids: jump the gap to the next stop.
+        id = _repositionStopBefore(id, minBuiltId);
         continue;
-      } // skip absent / unbuilt IDs
+      }
       if (_skipStitchOutgoingReposition(id)) {
         id--;
         continue;
@@ -4488,41 +4504,81 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     }
   }
 
+  /// The next id after the unbuilt [id] where the downward walk of
+  /// [_repositionFromAnchor] does any work: the next built message, the first
+  /// id of the next chunk with a chunk-error tile, or `maxBuiltId + 1` (where
+  /// the walk ends unless an error tile starts there). Every id skipped is a
+  /// no-op step of the id-by-id walk, so the jump keeps the placement while
+  /// bounding the walk by the built rows, not the id span they straddle.
+  int _repositionStopAfter(int id, int maxBuiltId) {
+    var stop = _children.firstKeyAfter(id) ?? maxBuiltId + 1;
+    final errorChunk = _chunkErrors.firstKeyAfter(ChatScrollChunk.chunkOf(id));
+    if (errorChunk != null) {
+      stop = math.min(stop, ChatScrollChunk.firstIdOf(errorChunk));
+    }
+    return math.min(stop, maxBuiltId + 1);
+  }
+
+  /// The upward counterpart of [_repositionStopAfter]: the previous built
+  /// message, the last id of the previous chunk with a chunk-error tile, or
+  /// `minBuiltId - 1`.
+  int _repositionStopBefore(int id, int minBuiltId) {
+    var stop = _children.lastKeyBefore(id) ?? minBuiltId - 1;
+    final errorChunk = _chunkErrors.lastKeyBefore(ChatScrollChunk.chunkOf(id));
+    if (errorChunk != null) {
+      stop = math.max(stop, ChatScrollChunk.firstIdOf(errorChunk + 1) - 1);
+    }
+    return math.max(stop, minBuiltId - 1);
+  }
+
   /// Tier-1 fast path: only message tiles. Avoids the per-id chunk-error
   /// boundary probe and tree lookup that the general path performs.
+  ///
+  /// Walks the built ids in order outward from the anchor, never the id span
+  /// between them: absent ids are never inserted into `_children`, and a far
+  /// stitch keeps the outgoing strip built beside the incoming band, so the
+  /// span can be the whole history while the built rows are a screenful.
   void _repositionMessagesOnly(RenderBox anchor) {
     final anchorId = _controller.anchorMessageId;
     if (_children.isEmpty) return;
-
-    // Find the actual range of built message IDs so we can skip absent-slot
-    // gaps without stopping prematurely. Absent IDs are never inserted into
-    // `_children`, so iterating by sequential ID would stop at the first
-    // absent slot and leave real messages on the far side of the gap with
-    // stale offsets — producing visual "shifting" on every animation tick.
-    var maxBuiltId = anchorId;
-    var minBuiltId = anchorId;
-    for (final id in _children.keys) {
-      if (id > maxBuiltId) maxBuiltId = id;
-      if (id < minBuiltId) minBuiltId = id;
-    }
+    assert(() {
+      _debugRepositionVisits = 0;
+      return true;
+    }());
 
     var y = _controller.anchorPixelOffset;
     _setOffset(anchor, y);
     y += anchor.size.height;
-    for (var id = anchorId + 1; id <= maxBuiltId; id++) {
-      final child = _children[id];
-      if (child == null) continue; // skip absent / unbuilt IDs in the range
+    for (
+      var id = _children.firstKeyAfter(anchorId);
+      id != null;
+      id = _children.firstKeyAfter(id)
+    ) {
+      assert(() {
+        _debugRepositionVisits++;
+        return true;
+      }());
       if (_skipStitchOutgoingReposition(id)) continue;
-      _setOffset(child, y);
-      y += child.size.height;
+      if (_children[id] case final child?) {
+        _setOffset(child, y);
+        y += child.size.height;
+      }
     }
     y = _controller.anchorPixelOffset;
-    for (var id = anchorId - 1; id >= minBuiltId; id--) {
-      final child = _children[id];
-      if (child == null) continue; // skip absent / unbuilt IDs in the range
+    for (
+      var id = _children.lastKeyBefore(anchorId);
+      id != null;
+      id = _children.lastKeyBefore(id)
+    ) {
+      assert(() {
+        _debugRepositionVisits++;
+        return true;
+      }());
       if (_skipStitchOutgoingReposition(id)) continue;
-      y -= child.size.height;
-      _setOffset(child, y);
+      if (_children[id] case final child?) {
+        y -= child.size.height;
+        _setOffset(child, y);
+      }
     }
   }
 

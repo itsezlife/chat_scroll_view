@@ -1310,6 +1310,82 @@ void main() {
 
     await _driveAnimate(tester, future, maxPumps: 300);
   });
+
+  testWidgets('stitch reposition walks the built rows, not the id span', (
+    tester,
+  ) async {
+    // Finding 02: the outgoing strip stays built beside the incoming band, so
+    // the id span between them is half the history. Each reposition must
+    // visit only built ids, whatever that span.
+    const count = 20000;
+    final controller = ChatScrollController();
+    final ds = _FetchingDataSource(count);
+    addTearDown(controller.dispose);
+    addTearDown(ds.dispose);
+
+    await tester.pumpWidget(
+      _scaffold(dataSource: ds, controller: controller, cacheExtent: 200),
+    );
+    controller.jumpTo(count ~/ 2);
+    await tester.pump();
+    await tester.pump();
+
+    final future = controller.animateTo(
+      0,
+      duration: const Duration(milliseconds: 800),
+      highlight: false,
+    );
+    await tester.pump();
+    var done = false;
+    unawaited(future.whenComplete(() => done = true));
+    var stitchFrames = 0;
+    var maxVisits = 0;
+    for (var i = 0; i < 200 && !done; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final render = _render(tester);
+      if (!render.debugFarAnimateActive) continue;
+      if (render.debugStitchOutgoingIds.isEmpty) continue;
+      stitchFrames++;
+      final built = render.debugBuiltMessageIds;
+      expect(built.reduce((a, b) => a > b ? a : b), greaterThan(count ~/ 4));
+      expect(
+        render.debugLastRepositionVisits,
+        lessThanOrEqualTo(built.length),
+        reason: 'reposition visited more ids than are built',
+      );
+      if (render.debugLastRepositionVisits > maxVisits) {
+        maxVisits = render.debugLastRepositionVisits;
+      }
+    }
+    expect(stitchFrames, greaterThan(0), reason: 'the flight must stitch');
+    expect(maxVisits, greaterThan(0), reason: 'reposition ran mid-stitch');
+    await _driveAnimate(tester, future, maxPumps: 300);
+  });
+}
+
+/// The whole history up front, and served again by [fetchRange] once chunk
+/// eviction drops it: a long history with no load-gate wait.
+class _FetchingDataSource extends ChatDataSource {
+  _FetchingDataSource(this.count) {
+    upsertMessages([for (var i = 0; i < count; i++) _msg(i)]);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
+  }
+
+  final int count;
+
+  @override
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => [
+    for (var i = fromId; i <= toId; i++)
+      if (i >= 0 && i < count) _msg(i),
+  ];
 }
 
 class _DayPreloadedDataSource extends ChatDataSource {
