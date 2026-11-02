@@ -2610,15 +2610,23 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     }
 
     _fetchAnchorLayoutFrame++;
-    _fetchLogAnchorIdAtLayoutStart = _controller.anchorMessageId;
-    _fetchLogAnchorYAtLayoutStart = _controller.anchorPixelOffset;
-    final bandAtStart = _bottomBandMessage();
-    _fetchLogBandIdAtLayoutStart = bandAtStart?.id;
-    _fetchLogBandBottomAtLayoutStart = bandAtStart?.bottom;
-    _fetchAnchorEvent('layout.begin', {
-      ..._fetchAnchorSnapshot(),
-      'fetchingChunks': LogFormat.ids(_dataSource.fetchingChunkIndices, max: 8),
-    });
+    // The anchor log builds its snapshots (child scans, maps) before the
+    // logger sees them, so gate first; read once so begin, jump and end agree.
+    final logAnchor = LogCategory.anchor.enabled;
+    if (logAnchor) {
+      _fetchLogAnchorIdAtLayoutStart = _controller.anchorMessageId;
+      _fetchLogAnchorYAtLayoutStart = _controller.anchorPixelOffset;
+      final bandAtStart = _bottomBandMessage();
+      _fetchLogBandIdAtLayoutStart = bandAtStart?.id;
+      _fetchLogBandBottomAtLayoutStart = bandAtStart?.bottom;
+      _fetchAnchorEvent('layout.begin', {
+        ..._fetchAnchorSnapshot(),
+        'fetchingChunks': LogFormat.ids(
+          _dataSource.fetchingChunkIndices,
+          max: 8,
+        ),
+      });
+    }
     // Drop pre-jump children so renormalize/clamp do not fan across the wrong
     // id span — but keep stitch presence pins (outgoing strip + animate target).
     Trace.begin(TraceSection.layoutJumpFetchGc);
@@ -2964,35 +2972,39 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     _resolveRowChromeFrame();
     Trace.end(TraceSection.layoutPublish);
 
-    final anchorYEnd = _controller.anchorPixelOffset;
-    final anchorDy = _fetchLogAnchorYAtLayoutStart == null
-        ? null
-        : anchorYEnd - _fetchLogAnchorYAtLayoutStart!;
-    final bandAtEnd = _bottomBandMessage();
-    final bandBottomDy =
-        _fetchLogBandBottomAtLayoutStart == null || bandAtEnd == null
-        ? null
-        : bandAtEnd.bottom - _fetchLogBandBottomAtLayoutStart!;
-    final idChanged =
-        _fetchLogAnchorIdAtLayoutStart != _controller.anchorMessageId;
-    final bandIdChanged = _fetchLogBandIdAtLayoutStart != bandAtEnd?.id;
-    if ((anchorDy != null && anchorDy.abs() > 0.5) ||
-        idChanged ||
-        (bandBottomDy != null && bandBottomDy.abs() > 1.0) ||
-        bandIdChanged) {
-      _fetchAnchorEvent('layout.jump', {
-        ..._fetchAnchorSnapshot(),
-        'anchorDy': anchorDy == null ? null : LogFormat.f(anchorDy),
-        'anchorIdChanged': idChanged,
-        'bandIdWas': _fetchLogBandIdAtLayoutStart,
-        'bandIdNow': bandAtEnd?.id,
-        'bandBottomDy': bandBottomDy == null ? null : LogFormat.f(bandBottomDy),
-        'clamped': clamped,
-        'refan':
-            clamped ||
-            _controller.anchorMessageId != anchorBefore ||
-            navigationMoved,
-      });
+    if (logAnchor) {
+      final anchorYEnd = _controller.anchorPixelOffset;
+      final anchorDy = _fetchLogAnchorYAtLayoutStart == null
+          ? null
+          : anchorYEnd - _fetchLogAnchorYAtLayoutStart!;
+      final bandAtEnd = _bottomBandMessage();
+      final bandBottomDy =
+          _fetchLogBandBottomAtLayoutStart == null || bandAtEnd == null
+          ? null
+          : bandAtEnd.bottom - _fetchLogBandBottomAtLayoutStart!;
+      final idChanged =
+          _fetchLogAnchorIdAtLayoutStart != _controller.anchorMessageId;
+      final bandIdChanged = _fetchLogBandIdAtLayoutStart != bandAtEnd?.id;
+      if ((anchorDy != null && anchorDy.abs() > 0.5) ||
+          idChanged ||
+          (bandBottomDy != null && bandBottomDy.abs() > 1.0) ||
+          bandIdChanged) {
+        _fetchAnchorEvent('layout.jump', {
+          ..._fetchAnchorSnapshot(),
+          'anchorDy': anchorDy == null ? null : LogFormat.f(anchorDy),
+          'anchorIdChanged': idChanged,
+          'bandIdWas': _fetchLogBandIdAtLayoutStart,
+          'bandIdNow': bandAtEnd?.id,
+          'bandBottomDy': bandBottomDy == null
+              ? null
+              : LogFormat.f(bandBottomDy),
+          'clamped': clamped,
+          'refan':
+              clamped ||
+              _controller.anchorMessageId != anchorBefore ||
+              navigationMoved,
+        });
+      }
     }
     _deleteCollapseViewportPreservedThisLayout = false;
     _deleteCollapseRecoveryActive = false;
@@ -3002,7 +3014,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     _beforeDeleteLayout = null;
 
     if (_spanAutoScrollOccupying) _applyLiveSpanHit();
-    _fetchAnchorEvent('layout.end', _fetchAnchorSnapshot());
+    if (logAnchor) {
+      _fetchAnchorEvent('layout.end', _fetchAnchorSnapshot());
+    }
     if (LogCategory.scrollbar.enabled) {
       final computed = _computeScrollbarProgress();
       if (computed != null) {
