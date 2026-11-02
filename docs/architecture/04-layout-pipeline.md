@@ -155,13 +155,14 @@ changes land in one frame.
 **Which rows changed.** On the boundary pass, the changed rows are the old
 and the new boundary row. On later passes, they are the rows whose
 transition frame moved since the previous pass. When a changed row is the
-armed navigation placement's target and that target is the anchor
-(`_isNavigationTargetChromeChange`), the hold is skipped and step 9
-re-applies the placement instead, on every frame of the transition. The
-hold is also skipped when the top inset moved on the same pass while a held
-placement's target is the anchor (`_isNavigationTargetAnchored`). Step 9
-re-places the target either way, so the row chrome hold would only be a
-second origin writer.
+target of a still pending navigation placement that is the anchor
+(`_isNavigationTargetChromeChange`), the hold is skipped: step 9 snaps the
+target on every pass. The hold is also skipped when the top inset moved on
+the same pass while a held placement's target is the anchor
+(`_isNavigationTargetAnchored`). Step 9 re-places the target either way, so
+the row chrome hold would only be a second origin writer. A held placement
+is not re-placed for a row chrome change: the hold keeps its body still on
+every frame, and the anchor row's top edge moves by the chrome height.
 
 1. **`_recordRowChromeReference`** — right after step 6, before the fan-out
    re-lays out the changed rows: from the previous frame's offsets, pick the
@@ -226,8 +227,9 @@ stays armed until its row loads. May call `_repositionFromAnchor`.
 
 A pending placement snaps every pass and becomes **held** once it lands on a
 loaded row. A held placement snaps only when `reapplyHold` is set: the top pad
-moved since the last normal-mode pass, or the target's row chrome changed
-(6d). It is released when the anchor is no longer its target, and in step 10
+moved since the last normal-mode pass. A change of the target's row chrome
+(6d) does not re-place a held target. It is released when the anchor is no
+longer its target, and in step 10
 when `repinBottom` hands the geometry to the tail pin. See
 [alignment lifecycle](./10-navigation-and-tail.md#alignment-lifecycle).
 

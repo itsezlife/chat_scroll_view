@@ -138,16 +138,17 @@ void main() {
       expect(textBottom(tester), closeTo(bandBottom(tester), 0.5));
     });
 
-    testWidgets('fold and continuation arriving in one frame stay on the text', (
-      tester,
-    ) async {
-      await mount(tester, fold: false);
-      hasFold.value = true;
-      cardsH.value = 500;
-      await tester.pump();
-      await tester.pump();
-      expect(textBottom(tester), closeTo(bandBottom(tester), 0.5));
-    });
+    testWidgets(
+      'fold and continuation arriving in one frame stay on the text',
+      (tester) async {
+        await mount(tester, fold: false);
+        hasFold.value = true;
+        cardsH.value = 500;
+        await tester.pump();
+        await tester.pump();
+        expect(textBottom(tester), closeTo(bandBottom(tester), 0.5));
+      },
+    );
 
     testWidgets('text growing above the fold keeps following it', (
       tester,

@@ -1440,7 +1440,18 @@ class ChatSelectionController implements Listenable {
   /// flashes full-body or reversed selection for the rest of the gesture).
   MarkdownSelection? _lastSameDocTextSelection;
 
+  /// The range the markdown controller held at its previous notification.
+  MarkdownSelection? _seenTextRange;
+
   void _onTextRangeChanged() {
+    final previous = _seenTextRange;
+    final range = _seenTextRange = _text.range;
+    // The markdown controller also notifies when its document registry
+    // changes: every body that attaches or detaches, so once per row a scroll
+    // mounts. With no range before or after and no text selection, nothing
+    // this facade exposes changed, and a notification would rebuild every
+    // listener (the chrome of each mounted row) on the next frame.
+    if (previous == null && range == null && !_text.isActive) return;
     if (_disposed || _isDisarming) return;
     if (_pendingWordSelect) return;
 

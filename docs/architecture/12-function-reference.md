@@ -205,7 +205,7 @@ render object replaces it only on an unequal physics swap.
 | `_layOutNewestBelow`                                                            | Newest id + row for the fit span  | `null` when newest not reached / not loaded / too far; re-fans from the target body when newest is unbuilt |
 | `_dispatchTailOrTarget`                                                         | Notify outcome in layout callback | Re-fans, consumes `_rowChromeChanged`, and cancels both rows' separator transitions when a listener moved the unread boundary |
 | `_applyNavigationPlacement`                                                     | Seat target by kind; pending → held | Skip on close path; release alignment on newest; held snaps only on `reapplyHold` |
-| `_isNavigationTargetChromeChange`                                               | Row chrome change on placement target | Before 6d; target among the changed rows (boundary move or moved transition frame); skips the row chrome hold when true |
+| `_isNavigationTargetChromeChange`                                               | Row chrome change on placement target | Before 6d; pending placement target among the changed rows (boundary move or moved transition frame); skips the row chrome hold when true |
 | `_isNavigationTargetAnchored`                                                   | Placement target is the anchor    | Before 6d; with a held placement + moved top pad, skips the row chrome hold |
 | `_startUnreadSeparatorTransitions`                                              | Boundary move → exit / enter legs | Before 6d, on the pass that sees the move; rows not laid out last frame change without a transition |
 | `_recordRowChromeReference` / `_holdRowChromeReference`                         | Row chrome hold (6d)              | Record before fan-out; hold after pass-1 fan-out, exact comparison, then re-fan |
@@ -231,7 +231,7 @@ render object replaces it only on an unequal physics swap.
 
 | Member                                                                                                              | Purpose                                                             |
 | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `_onTick`                                                                                                           | Full scroll composition                                             |
+| `_tick`                                                                                                           | Full scroll composition                                             |
 | `_repositionFromAnchor` / `_repositionMessagesOnly`                                                                 | Offset-only place                                                   |
 | `_setOffset`                                                                                                        | Offset + divider opacity                                            |
 | `_rangeNoLongerCovers`                                                                                              | Need layout?                                                        |
@@ -265,8 +265,9 @@ highlight paints over target row.
 is `none`, content fits, or the thumb would leave no travel; the painter draws
 in viewport-local coordinates.
 
-Debug getters (`debugChildCount`, `debugDividerOpacity`, etc.) and
-`_fetchAnchorEvent` / `_scrollbarEvent` are diagnostics only.
+The test-only `debugSnapshot` (a `ChatScrollDebugSnapshot`),
+`debugDividerOpacity`, `debugStartsDay`, `_fetchAnchorEvent` and
+`_scrollbarEvent` are diagnostics only.
 
 ---
 

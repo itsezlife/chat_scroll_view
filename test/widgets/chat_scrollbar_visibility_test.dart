@@ -48,7 +48,7 @@ class _Source extends ChatDataSource {
       reachedOldest: first == 0,
       reachedNewest: true,
     );
-    for (final chunk in chunks.values) {
+    for (final chunk in loadedChunks) {
       chunk.status = ChatMessageStatus.valid;
     }
   }
@@ -538,7 +538,11 @@ void main() {
       await fadeIn(tester);
       expect(await painted(tester), 1);
       await _elapse(tester, const Duration(seconds: 3));
-      expect(render(tester).debugScrollActivity, 1, reason: 'header holds');
+      expect(
+        render(tester).debugSnapshot.scrollActivity,
+        1,
+        reason: 'header holds',
+      );
       expect(await painted(tester), 0);
     });
 
@@ -553,7 +557,7 @@ void main() {
       controller.scrollBy(10);
       await tester.pump();
       await _elapse(tester, const Duration(seconds: 2));
-      expect(render(tester).debugFloatingHeaderOpacity, 0);
+      expect(render(tester).debugSnapshot.floatingHeaderOpacity, 0);
       expect(await painted(tester), 1);
     });
 

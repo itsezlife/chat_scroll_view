@@ -91,7 +91,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 200));
 
         // Must build into chunk 2 (ids 128..191) so older pages can be fetched.
-        expect(_render(tester).debugLayoutMinChunk, lessThan(3));
+        expect(_render(tester).debugSnapshot.layoutMinChunk, lessThan(3));
       },
     );
   });

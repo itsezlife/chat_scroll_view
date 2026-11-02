@@ -8,3 +8,7 @@
 ## 2026-10-16
 
 * **Update**: `14-host-chrome-insets.md` aggregates composer extent and panel presentation occupancy into the reserved padding ([ADR 026](../adr/026-composer-model.md), [ADR 028](../adr/028-panel-presentation.md)).
+
+## 2026-11-02
+
+* **Update**: A held navigation placement is no longer re-applied when its target's row chrome changes; the row chrome hold keeps the target's body still (`02`, `04`, `10`, `12`).

@@ -192,7 +192,6 @@ class _ScrollToBottomFabState extends State<_ScrollToBottomFab>
                       key: const ValueKey<String>('scroll_to_bottom'),
                       size: _glassSize,
                       iconColor: colorScheme.onSurfaceVariant,
-                      glassColor: colorScheme.surfaceContainerHighest,
                     ),
                   ),
                 ),
@@ -220,50 +219,41 @@ class _ScrollToBottomFabState extends State<_ScrollToBottomFab>
   }
 }
 
-/// Frosted circular control with a downward chevron.
+/// Frosted circular control with a downward chevron, drawn with the composer's
+/// [GlassSurface] (sampled backdrop, no per-button `BackdropFilter`).
 class _GlassPageDownButton extends StatelessWidget {
   const _GlassPageDownButton({
     required this.size,
     required this.iconColor,
-    required this.glassColor,
     super.key,
   });
 
   final double size;
   final Color iconColor;
-  final Color glassColor;
 
   @override
-  Widget build(BuildContext context) => ClipOval(
-    child: BackdropFilter(
-      filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: glassColor.withValues(alpha: 0.72),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-        ),
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.only(
-                top: _ScrollToBottomFabState._iconPaddingTop,
-              ),
-              child: Image.asset(
-                'assets/chat/pagedown.webp',
-                width: _ScrollToBottomFabState._iconIntrinsicWidth,
-                height: _ScrollToBottomFabState._iconIntrinsicHeight,
-                color: iconColor,
-                colorBlendMode: BlendMode.srcIn,
-                filterQuality: FilterQuality.medium,
-                errorBuilder: (context, error, stack) => Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  size: _ScrollToBottomFabState._iconIntrinsicWidth,
-                  color: iconColor,
-                ),
-              ),
+  Widget build(BuildContext context) => GlassSurface(
+    material: GlassMaterial.panelButton,
+    cornerRadius: size / 2,
+    child: SizedBox(
+      width: size,
+      height: size,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.only(
+            top: _ScrollToBottomFabState._iconPaddingTop,
+          ),
+          child: Image.asset(
+            'assets/chat/pagedown.webp',
+            width: _ScrollToBottomFabState._iconIntrinsicWidth,
+            height: _ScrollToBottomFabState._iconIntrinsicHeight,
+            color: iconColor,
+            colorBlendMode: BlendMode.srcIn,
+            filterQuality: FilterQuality.medium,
+            errorBuilder: (context, error, stack) => Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: _ScrollToBottomFabState._iconIntrinsicWidth,
+              color: iconColor,
             ),
           ),
         ),

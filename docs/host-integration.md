@@ -740,6 +740,14 @@ What the host wires so a markdown body paints and reports the inline layer
    reports nothing, and a tap that reveals a spoiler is not an idle message tap
    (`onIdleMessageTap` stays silent for it; the next tap is).
 
+5. **Painters from a theme `builder`.** The body disposes the table and code
+   painters it makes. A `MarkdownThemeData.builder` you set makes painters the
+   body does not dispose on update unless the theme sets
+   `disposeBuiltPainters: true`; set it when the builder returns a new painter
+   per call, and leave it off when it keeps one and returns it again. With it
+   off, a replaced painter is left to the garbage collector, and the table and
+   code painters the body makes in that theme are too.
+
 ### Copying selected messages
 
 Copy of a **message selection** is the host's: the viewport hands a host that

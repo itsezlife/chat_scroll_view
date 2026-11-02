@@ -65,7 +65,10 @@ void main() {
 
     test('mobile and desktop still select messages', () {
       expect(mobile.allowsMessageSelection, isTrue);
-      expect(const ChatSelectionPolicy.desktop().allowsMessageSelection, isTrue);
+      expect(
+        const ChatSelectionPolicy.desktop().allowsMessageSelection,
+        isTrue,
+      );
     });
 
     test('enter membership clears, copy clears the range', () {
@@ -87,81 +90,80 @@ void main() {
     });
   });
 
-  testWidgets(
-    'long press on a body selects text with no message selection',
-    (tester) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.android;
-      try {
-        final dataSource = _LoadedSource([_msg(1)]);
-        final controller = ChatScrollController()..jumpTo(1);
-        final selection = ChatSelectionController(
-          policy: const ChatSelectionPolicy.textOnly(),
-        );
-        addTearDown(controller.dispose);
-        addTearDown(selection.dispose);
-        addTearDown(dataSource.dispose);
+  testWidgets('long press on a body selects text with no message selection', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    try {
+      final dataSource = _LoadedSource([_msg(1)]);
+      final controller = ChatScrollController()..jumpTo(1);
+      final selection = ChatSelectionController(
+        policy: const ChatSelectionPolicy.textOnly(),
+      );
+      addTearDown(controller.dispose);
+      addTearDown(selection.dispose);
+      addTearDown(dataSource.dispose);
 
-        selection.putBody(1, Markdown.fromString('Hello selectable world'));
+      selection.putBody(1, Markdown.fromString('Hello selectable world'));
 
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: ThemeData(platform: TargetPlatform.android),
-            home: Scaffold(
-              body: SizedBox(
-                width: 400,
-                height: 600,
-                child: ChatScrollView(
-                  dataSource: dataSource,
-                  controller: controller,
-                  selectionController: selection,
-                  // ignore: prefer_expression_function_bodies
-                  messageBuilder: (context, id, message, status, runLayout) {
-                    return SizedBox(
-                      height: 80,
-                      child: ChatMarkdownBody(
-                        controller: selection,
-                        messageId: id,
-                      ),
-                    );
-                  },
-                ),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.android),
+          home: Scaffold(
+            body: SizedBox(
+              width: 400,
+              height: 600,
+              child: ChatScrollView(
+                dataSource: dataSource,
+                controller: controller,
+                selectionController: selection,
+                // ignore: prefer_expression_function_bodies
+                messageBuilder: (context, id, message, status, runLayout) {
+                  return SizedBox(
+                    height: 80,
+                    child: ChatMarkdownBody(
+                      controller: selection,
+                      messageId: id,
+                    ),
+                  );
+                },
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        final surface = selection.surfaceFor(1);
-        expect(surface, isNotNull);
-        final boxes = surface!.localBoxesForRange(0, 0, 5);
-        final at = (surface as RenderBox).localToGlobal(boxes.first.center);
+      final surface = selection.surfaceFor(1);
+      expect(surface, isNotNull);
+      final boxes = surface!.localBoxesForRange(0, 0, 5);
+      final at = (surface as RenderBox).localToGlobal(boxes.first.center);
 
-        // A plain tap neither selects a message nor text.
-        await tester.tapAt(at);
-        await tester.pumpAndSettle();
-        expect(selection.isSelectionMode, isFalse);
-        expect(selection.isTextSelectionActive, isFalse);
+      // A plain tap neither selects a message nor text.
+      await tester.tapAt(at);
+      await tester.pumpAndSettle();
+      expect(selection.isSelectionMode, isFalse);
+      expect(selection.isTextSelectionActive, isFalse);
 
-        await tester.longPressAt(at);
-        await tester.pumpAndSettle();
+      await tester.longPressAt(at);
+      await tester.pumpAndSettle();
 
-        expect(selection.isTextSelectionActive, isTrue);
-        expect(selection.textSelectionSubject, 1);
-        expect(selection.textSelection, isNotNull);
-        expect(selection.textSelection!.isCollapsed, isFalse);
-        expect(selection.isSelectionMode, isFalse);
-        expect(selection.selectedIds, isEmpty);
-        expect(selection.isSelected(1), isFalse);
-        expect(selection.hasDragSelection, isFalse);
+      expect(selection.isTextSelectionActive, isTrue);
+      expect(selection.textSelectionSubject, 1);
+      expect(selection.textSelection, isNotNull);
+      expect(selection.textSelection!.isCollapsed, isFalse);
+      expect(selection.isSelectionMode, isFalse);
+      expect(selection.selectedIds, isEmpty);
+      expect(selection.isSelected(1), isFalse);
+      expect(selection.hasDragSelection, isFalse);
 
-        // A tap elsewhere dismisses the range and still selects no message.
-        await tester.tapAt(const Offset(200, 400));
-        await tester.pumpAndSettle();
-        expect(selection.isTextSelectionActive, isFalse);
-        expect(selection.isSelectionMode, isFalse);
-      } finally {
-        debugDefaultTargetPlatformOverride = null;
-      }
-    },
-  );
+      // A tap elsewhere dismisses the range and still selects no message.
+      await tester.tapAt(const Offset(200, 400));
+      await tester.pumpAndSettle();
+      expect(selection.isTextSelectionActive, isFalse);
+      expect(selection.isSelectionMode, isFalse);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 }

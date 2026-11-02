@@ -108,7 +108,7 @@ void main() {
         _scaffold(dataSource: ds, controller: controller),
       );
       await tester.pumpAndSettle();
-      expect(_render(tester).debugHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
 
       const target = 120;
       final future = controller.animateTo(
@@ -117,12 +117,15 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 30));
       expect(
-        _render(tester).debugHighlightTargetId,
+        _render(tester).debugSnapshot.highlightTargetId,
         target,
         reason: 'highlight arms at navigate start',
       );
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
-      expect(_render(tester).debugHighlightFactor, 1.0);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.solid,
+      );
+      expect(_render(tester).debugSnapshot.highlightFactor, 1.0);
 
       await _driveAnimate(
         tester,
@@ -130,9 +133,12 @@ void main() {
         animateDuration: const Duration(milliseconds: 80),
       );
 
-      expect(_render(tester).debugHighlightTargetId, target);
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
-      expect(_render(tester).debugHighlightFactor, 1.0);
+      expect(_render(tester).debugSnapshot.highlightTargetId, target);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.solid,
+      );
+      expect(_render(tester).debugSnapshot.highlightFactor, 1.0);
     });
 
     testWidgets('highlight stays solid through hold then fades', (
@@ -162,25 +168,34 @@ void main() {
         future,
         animateDuration: const Duration(milliseconds: 80),
       );
-      expect(_render(tester).debugHighlightTargetId, 120);
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
+      expect(_render(tester).debugSnapshot.highlightTargetId, 120);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.solid,
+      );
 
       // Mid-hold — still solid at full factor.
       await tester.pump(const Duration(milliseconds: 100));
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
-      expect(_render(tester).debugHighlightFactor, 1.0);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.solid,
+      );
+      expect(_render(tester).debugSnapshot.highlightFactor, 1.0);
 
       // Past hold → fading (factor still 1 at fade start).
       await tester.pump(const Duration(milliseconds: 120));
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.fading);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.fading,
+      );
 
       await tester.pump(const Duration(milliseconds: 100));
-      expect(_render(tester).debugHighlightFactor, lessThan(1.0));
+      expect(_render(tester).debugSnapshot.highlightFactor, lessThan(1.0));
 
       // Past fade → cleared.
       await tester.pump(const Duration(milliseconds: 250));
-      expect(_render(tester).debugHighlightTargetId, isNull);
-      expect(_render(tester).debugHighlightFactor, 0.0);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.highlightFactor, 0.0);
     });
 
     testWidgets('factor stays 1 during hold then decreases in fade', (
@@ -210,17 +225,20 @@ void main() {
         future,
         animateDuration: const Duration(milliseconds: 60),
       );
-      final f0 = _render(tester).debugHighlightFactor;
+      final f0 = _render(tester).debugSnapshot.highlightFactor;
       expect(f0, 1.0);
       await tester.pump(const Duration(milliseconds: 50));
-      expect(_render(tester).debugHighlightFactor, 1.0);
+      expect(_render(tester).debugSnapshot.highlightFactor, 1.0);
       // Enter fade and advance into it.
       await tester.pump(const Duration(milliseconds: 60));
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.fading);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.fading,
+      );
       await tester.pump(const Duration(milliseconds: 100));
-      final f1 = _render(tester).debugHighlightFactor;
+      final f1 = _render(tester).debugSnapshot.highlightFactor;
       await tester.pump(const Duration(milliseconds: 100));
-      final f2 = _render(tester).debugHighlightFactor;
+      final f2 = _render(tester).debugSnapshot.highlightFactor;
 
       expect(f1, lessThan(1.0));
       expect(f2, lessThan(f1));
@@ -251,7 +269,7 @@ void main() {
           animateDuration: const Duration(milliseconds: 80),
         );
 
-        expect(_render(tester).debugHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
       },
     );
 
@@ -281,7 +299,7 @@ void main() {
           animateDuration: const Duration(milliseconds: 120),
         );
 
-        expect(_render(tester).debugHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
       },
     );
 
@@ -318,15 +336,16 @@ void main() {
         for (var i = 0; i < 80; i++) {
           await tester.pump(const Duration(milliseconds: 16));
           final r = _render(tester);
-          if (r.debugFarAnimateActive && r.debugFarAnimateJumped) {
+          if (r.debugSnapshot.farAnimateActive &&
+              r.debugSnapshot.farAnimateJumped) {
             sawStitch = true;
             expect(
-              r.debugHighlightTargetId,
+              r.debugSnapshot.highlightTargetId,
               target,
               reason: 'highlight must survive stitch jumpTo',
             );
-            expect(r.debugHighlightPhase, ChatHighlightPhase.solid);
-            expect(r.debugHighlightFactor, 1.0);
+            expect(r.debugSnapshot.highlightPhase, ChatHighlightPhase.solid);
+            expect(r.debugSnapshot.highlightFactor, 1.0);
             break;
           }
         }
@@ -338,8 +357,11 @@ void main() {
           animateDuration: const Duration(milliseconds: 200),
           maxPumps: 400,
         );
-        expect(_render(tester).debugHighlightTargetId, target);
-        expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
+        expect(_render(tester).debugSnapshot.highlightTargetId, target);
+        expect(
+          _render(tester).debugSnapshot.highlightPhase,
+          ChatHighlightPhase.solid,
+        );
       },
     );
 
@@ -434,7 +456,7 @@ void main() {
         firstFuture,
         animateDuration: const Duration(milliseconds: 60),
       );
-      expect(_render(tester).debugHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
 
       final secondFuture = controller.animateTo(
         125,
@@ -445,7 +467,7 @@ void main() {
         secondFuture,
         animateDuration: const Duration(milliseconds: 80),
       );
-      expect(_render(tester).debugHighlightTargetId, 125);
+      expect(_render(tester).debugSnapshot.highlightTargetId, 125);
     });
 
     testWidgets('jumpTo produces no post-navigation highlight', (tester) async {
@@ -463,7 +485,7 @@ void main() {
       controller.jumpTo(120);
       await tester.pump();
 
-      expect(_render(tester).debugHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
     });
 
     testWidgets('zero-duration animate falls through to jumpTo, no highlight', (
@@ -484,7 +506,7 @@ void main() {
       await controller.animateTo(120, duration: Duration.zero, highlight: true);
       await tester.pump();
 
-      expect(_render(tester).debugHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
     });
 
     testWidgets('highlightDuration = 0 disables the effect entirely', (
@@ -516,7 +538,7 @@ void main() {
         animateDuration: const Duration(milliseconds: 80),
       );
 
-      expect(_render(tester).debugHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
     });
 
     testWidgets('re-entrant animateTo retargets the highlight', (tester) async {
@@ -545,7 +567,7 @@ void main() {
         firstFuture,
         animateDuration: const Duration(milliseconds: 60),
       );
-      expect(_render(tester).debugHighlightTargetId, 120);
+      expect(_render(tester).debugSnapshot.highlightTargetId, 120);
 
       // Start a new animation while the previous highlight is still active.
       // Clear, then re-arm the new id at navigate start.
@@ -555,18 +577,21 @@ void main() {
       );
       await tester.pump();
       expect(
-        _render(tester).debugHighlightTargetId,
+        _render(tester).debugSnapshot.highlightTargetId,
         125,
         reason: 'highlight retargets at the start of the new animateTo',
       );
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.solid,
+      );
 
       await _driveAnimate(
         tester,
         secondFuture,
         animateDuration: const Duration(milliseconds: 80),
       );
-      expect(_render(tester).debugHighlightTargetId, 125);
+      expect(_render(tester).debugSnapshot.highlightTargetId, 125);
     });
 
     testWidgets(
@@ -596,14 +621,20 @@ void main() {
           future,
           animateDuration: const Duration(milliseconds: 60),
         );
-        expect(_render(tester).debugHighlightTargetId, 120);
-        expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
+        expect(_render(tester).debugSnapshot.highlightTargetId, 120);
+        expect(
+          _render(tester).debugSnapshot.highlightPhase,
+          ChatHighlightPhase.solid,
+        );
 
         // A short drag — won't sweep msg-120 off-screen at 60 px tall.
         await tester.drag(find.byType(ChatScrollView), const Offset(0, 30));
         await tester.pump();
-        expect(_render(tester).debugHighlightTargetId, 120);
-        expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.fading);
+        expect(_render(tester).debugSnapshot.highlightTargetId, 120);
+        expect(
+          _render(tester).debugSnapshot.highlightPhase,
+          ChatHighlightPhase.fading,
+        );
       },
     );
 
@@ -659,10 +690,10 @@ void main() {
           await tester.pump(const Duration(milliseconds: 16));
         }
 
-        expect(_render(tester).debugLoadGateWaiting, isTrue);
-        expect(_render(tester).debugFarAnimateActive, isFalse);
-        expect(_render(tester).debugHighlightTargetId, isNull);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.loadGateWaiting, isTrue);
+        expect(_render(tester).debugSnapshot.farAnimateActive, isFalse);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
 
         // Destination window (issue 02 owns auto-fetch); host/test loads it.
         ds.loadTargetWindow(aroundId: target);
@@ -677,9 +708,9 @@ void main() {
         final settled = _render(tester);
         expect(find.text('msg-$target'), findsOneWidget);
         expect(find.text('shimmer-$target'), findsNothing);
-        expect(settled.debugPendingHighlightTargetId, isNull);
-        expect(settled.debugHighlightTargetId, target);
-        expect(settled.debugHighlightFactor, greaterThan(0.0));
+        expect(settled.debugSnapshot.pendingHighlightTargetId, isNull);
+        expect(settled.debugSnapshot.highlightTargetId, target);
+        expect(settled.debugSnapshot.highlightFactor, greaterThan(0.0));
       },
     );
   });
@@ -707,10 +738,13 @@ void main() {
         await tester.pump();
 
         expect(controller.anchorMessageId, target);
-        expect(_render(tester).debugHighlightTargetId, target);
-        expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
-        expect(_render(tester).debugHighlightFactor, 1.0);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, target);
+        expect(
+          _render(tester).debugSnapshot.highlightPhase,
+          ChatHighlightPhase.solid,
+        );
+        expect(_render(tester).debugSnapshot.highlightFactor, 1.0);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
       },
     );
 
@@ -735,12 +769,12 @@ void main() {
 
       controller.highlight(origin);
       await tester.pump();
-      expect(_render(tester).debugHighlightTargetId, origin);
+      expect(_render(tester).debugSnapshot.highlightTargetId, origin);
 
       controller.jumpTo(120);
       await tester.pump();
-      expect(_render(tester).debugHighlightTargetId, isNull);
-      expect(_render(tester).debugPendingHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
     });
 
     testWidgets(
@@ -768,9 +802,12 @@ void main() {
 
         expect(controller.anchorMessageId, origin);
         expect(controller.anchorPixelOffset, originY);
-        expect(_render(tester).debugHighlightTargetId, origin);
-        expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
-        expect(_render(tester).debugHighlightFactor, 1.0);
+        expect(_render(tester).debugSnapshot.highlightTargetId, origin);
+        expect(
+          _render(tester).debugSnapshot.highlightPhase,
+          ChatHighlightPhase.solid,
+        );
+        expect(_render(tester).debugSnapshot.highlightFactor, 1.0);
       },
     );
 
@@ -797,9 +834,12 @@ void main() {
         await tester.pump();
 
         expect(controller.anchorMessageId, target);
-        expect(_render(tester).debugHighlightTargetId, target);
-        expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
-        expect(_render(tester).debugHighlightFactor, 1.0);
+        expect(_render(tester).debugSnapshot.highlightTargetId, target);
+        expect(
+          _render(tester).debugSnapshot.highlightPhase,
+          ChatHighlightPhase.solid,
+        );
+        expect(_render(tester).debugSnapshot.highlightFactor, 1.0);
       },
     );
 
@@ -822,8 +862,8 @@ void main() {
         await tester.pump();
 
         expect(controller.anchorMessageId, target);
-        expect(_render(tester).debugHighlightTargetId, isNull);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
       },
     );
 
@@ -848,8 +888,8 @@ void main() {
         await tester.pump();
 
         expect(controller.anchorMessageId, target);
-        expect(_render(tester).debugHighlightTargetId, isNull);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
       },
     );
 
@@ -874,12 +914,12 @@ void main() {
 
       controller.highlight(0);
       await tester.pump();
-      expect(_render(tester).debugPendingHighlightTargetId, 0);
-      expect(_render(tester).debugHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.pendingHighlightTargetId, 0);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
 
       await tester.pumpAndSettle();
-      expect(_render(tester).debugPendingHighlightTargetId, 0);
-      expect(_render(tester).debugHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.pendingHighlightTargetId, 0);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
     });
   });
 
@@ -911,8 +951,8 @@ void main() {
 
         expect(find.text('shimmer-$target'), findsOneWidget);
         expect(find.text('msg-$target'), findsNothing);
-        expect(_render(tester).debugPendingHighlightTargetId, target);
-        expect(_render(tester).debugHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, target);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
 
         ds.loadMessage(target);
         await tester.pump();
@@ -920,10 +960,13 @@ void main() {
 
         expect(find.text('msg-$target'), findsOneWidget);
         expect(find.text('shimmer-$target'), findsNothing);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
-        expect(_render(tester).debugHighlightTargetId, target);
-        expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
-        expect(_render(tester).debugHighlightFactor, 1.0);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, target);
+        expect(
+          _render(tester).debugSnapshot.highlightPhase,
+          ChatHighlightPhase.solid,
+        );
+        expect(_render(tester).debugSnapshot.highlightFactor, 1.0);
       },
     );
 
@@ -952,21 +995,21 @@ void main() {
         await tester.pump();
         await tester.pump();
 
-        expect(_render(tester).debugPendingHighlightTargetId, target);
-        expect(_render(tester).debugHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, target);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
 
         ds.markSlotAbsent(target);
         await tester.pump();
         await tester.pump();
 
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
-        expect(_render(tester).debugHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
 
         ds.loadMessage(target);
         await tester.pump();
         await tester.pump();
-        expect(_render(tester).debugHighlightTargetId, isNull);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
 
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pumpWidget(
@@ -979,8 +1022,8 @@ void main() {
         await tester.pump();
         await tester.pump();
 
-        expect(_render(tester).debugHighlightTargetId, isNull);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
       },
     );
 
@@ -1009,21 +1052,21 @@ void main() {
         await tester.pump();
         await tester.pump();
 
-        expect(_render(tester).debugPendingHighlightTargetId, target);
-        expect(_render(tester).debugHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, target);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
 
         ds.markChunkError(target);
         await tester.pump();
         await tester.pump();
 
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
-        expect(_render(tester).debugHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
 
         ds.loadAsValid(target);
         await tester.pump();
         await tester.pump();
-        expect(_render(tester).debugHighlightTargetId, isNull);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
 
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pumpWidget(
@@ -1036,8 +1079,8 @@ void main() {
         await tester.pump();
         await tester.pump();
 
-        expect(_render(tester).debugHighlightTargetId, isNull);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
       },
     );
   });
@@ -1065,25 +1108,28 @@ void main() {
       );
       await tester.pump();
       await tester.pump();
-      expect(_render(tester).debugPendingHighlightTargetId, first);
+      expect(_render(tester).debugSnapshot.pendingHighlightTargetId, first);
 
       controller.highlight(second);
       await tester.pump();
-      expect(_render(tester).debugPendingHighlightTargetId, second);
-      expect(_render(tester).debugHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.pendingHighlightTargetId, second);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
 
       ds.loadMessage(first);
       await tester.pump();
       await tester.pump();
-      expect(_render(tester).debugHighlightTargetId, isNull);
-      expect(_render(tester).debugPendingHighlightTargetId, second);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.pendingHighlightTargetId, second);
 
       ds.loadMessage(second);
       await tester.pump();
       await tester.pump();
-      expect(_render(tester).debugPendingHighlightTargetId, isNull);
-      expect(_render(tester).debugHighlightTargetId, second);
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
+      expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.highlightTargetId, second);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.solid,
+      );
     });
 
     testWidgets(
@@ -1108,15 +1154,21 @@ void main() {
 
         controller.highlight(origin);
         await tester.pump();
-        expect(_render(tester).debugHighlightTargetId, origin);
-        expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
+        expect(_render(tester).debugSnapshot.highlightTargetId, origin);
+        expect(
+          _render(tester).debugSnapshot.highlightPhase,
+          ChatHighlightPhase.solid,
+        );
 
         controller.highlight(next);
         await tester.pump();
-        expect(_render(tester).debugHighlightTargetId, next);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
-        expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
-        expect(_render(tester).debugHighlightFactor, 1.0);
+        expect(_render(tester).debugSnapshot.highlightTargetId, next);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
+        expect(
+          _render(tester).debugSnapshot.highlightPhase,
+          ChatHighlightPhase.solid,
+        );
+        expect(_render(tester).debugSnapshot.highlightFactor, 1.0);
       },
     );
 
@@ -1141,21 +1193,33 @@ void main() {
 
       controller.highlight(origin);
       await tester.pump();
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.solid,
+      );
 
       await tester.pump(const Duration(milliseconds: 150));
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.solid,
+      );
 
       controller.highlight(origin);
       await tester.pump();
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
-      expect(_render(tester).debugHighlightFactor, 1.0);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.solid,
+      );
+      expect(_render(tester).debugSnapshot.highlightFactor, 1.0);
 
       // Original hold would have expired (~300ms). Restarted hold is still
       // inside the 200ms window.
       await tester.pump(const Duration(milliseconds: 150));
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
-      expect(_render(tester).debugHighlightTargetId, origin);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.solid,
+      );
+      expect(_render(tester).debugSnapshot.highlightTargetId, origin);
     });
 
     testWidgets(
@@ -1182,18 +1246,18 @@ void main() {
         );
         await tester.pump();
         await tester.pump();
-        expect(_render(tester).debugPendingHighlightTargetId, target);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, target);
 
         controller.jumpTo(loadedFrom);
         await tester.pump();
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
-        expect(_render(tester).debugHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
 
         ds.loadMessage(target);
         await tester.pump();
         await tester.pump();
-        expect(_render(tester).debugHighlightTargetId, isNull);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
       },
     );
 
@@ -1218,12 +1282,12 @@ void main() {
 
       controller.highlight(origin);
       await tester.pump();
-      expect(_render(tester).debugHighlightTargetId, origin);
+      expect(_render(tester).debugSnapshot.highlightTargetId, origin);
 
       controller.jumpToCenterBand(120, 0);
       await tester.pump();
-      expect(_render(tester).debugHighlightTargetId, isNull);
-      expect(_render(tester).debugPendingHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
     });
 
     testWidgets('jumpToCenterBand hard-clears a pending request', (
@@ -1250,18 +1314,18 @@ void main() {
       );
       await tester.pump();
       await tester.pump();
-      expect(_render(tester).debugPendingHighlightTargetId, target);
+      expect(_render(tester).debugSnapshot.pendingHighlightTargetId, target);
 
       controller.jumpToCenterBand(loadedFrom, 0);
       await tester.pump();
-      expect(_render(tester).debugPendingHighlightTargetId, isNull);
-      expect(_render(tester).debugHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
 
       ds.loadMessage(target);
       await tester.pump();
       await tester.pump();
-      expect(_render(tester).debugHighlightTargetId, isNull);
-      expect(_render(tester).debugPendingHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
     });
 
     testWidgets(
@@ -1285,7 +1349,7 @@ void main() {
 
         controller.highlight(origin);
         await tester.pump();
-        expect(_render(tester).debugHighlightTargetId, origin);
+        expect(_render(tester).debugSnapshot.highlightTargetId, origin);
 
         final future = controller.animateTo(
           120,
@@ -1294,18 +1358,18 @@ void main() {
         );
         await tester.pump();
         expect(
-          _render(tester).debugHighlightTargetId,
+          _render(tester).debugSnapshot.highlightTargetId,
           isNull,
           reason: 'routine hops drop leftover wash at animate start',
         );
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
 
         await _driveAnimate(
           tester,
           future,
           animateDuration: const Duration(milliseconds: 80),
         );
-        expect(_render(tester).debugHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
       },
     );
 
@@ -1328,12 +1392,18 @@ void main() {
 
       controller.highlight(origin);
       await tester.pump();
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.solid,
+      );
 
       await tester.drag(find.byType(ChatScrollView), const Offset(0, 30));
       await tester.pump();
-      expect(_render(tester).debugHighlightTargetId, origin);
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.fading);
+      expect(_render(tester).debugSnapshot.highlightTargetId, origin);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.fading,
+      );
     });
 
     testWidgets(
@@ -1360,18 +1430,18 @@ void main() {
         );
         await tester.pump();
         await tester.pump();
-        expect(_render(tester).debugPendingHighlightTargetId, target);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, target);
 
         await tester.drag(find.byType(ChatScrollView), const Offset(0, 30));
         await tester.pump();
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
-        expect(_render(tester).debugHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
 
         ds.loadMessage(target);
         await tester.pump();
         await tester.pump();
-        expect(_render(tester).debugHighlightTargetId, isNull);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
       },
     );
 
@@ -1394,12 +1464,18 @@ void main() {
 
       controller.highlight(origin);
       await tester.pump();
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.solid,
+      );
 
       controller.scrollBy(30);
       await tester.pump();
-      expect(_render(tester).debugHighlightTargetId, origin);
-      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.fading);
+      expect(_render(tester).debugSnapshot.highlightTargetId, origin);
+      expect(
+        _render(tester).debugSnapshot.highlightPhase,
+        ChatHighlightPhase.fading,
+      );
     });
 
     testWidgets(
@@ -1426,18 +1502,18 @@ void main() {
         );
         await tester.pump();
         await tester.pump();
-        expect(_render(tester).debugPendingHighlightTargetId, target);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, target);
 
         controller.scrollBy(30);
         await tester.pump();
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
-        expect(_render(tester).debugHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
 
         ds.loadMessage(target);
         await tester.pump();
         await tester.pump();
-        expect(_render(tester).debugHighlightTargetId, isNull);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
       },
     );
 
@@ -1463,7 +1539,7 @@ void main() {
 
       controller.highlight(origin);
       await tester.pump();
-      expect(_render(tester).debugHighlightTargetId, origin);
+      expect(_render(tester).debugSnapshot.highlightTargetId, origin);
 
       ds.seedBoundaries(
         oldestKnownId: null,
@@ -1474,8 +1550,8 @@ void main() {
       await tester.pump();
       await tester.pump();
       expect(find.text('empty-chat'), findsOneWidget);
-      expect(_render(tester).debugHighlightTargetId, isNull);
-      expect(_render(tester).debugPendingHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
 
       ds.seedBoundaries(
         oldestKnownId: 0,
@@ -1494,8 +1570,8 @@ void main() {
       );
       await tester.pump();
       await tester.pump();
-      expect(_render(tester).debugHighlightTargetId, isNull);
-      expect(_render(tester).debugPendingHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
     });
 
     testWidgets(
@@ -1521,7 +1597,7 @@ void main() {
 
         first.highlight(origin);
         await tester.pump();
-        expect(_render(tester).debugHighlightTargetId, origin);
+        expect(_render(tester).debugSnapshot.highlightTargetId, origin);
 
         await tester.pumpWidget(
           _scaffold(
@@ -1532,8 +1608,8 @@ void main() {
         );
         await tester.pump();
         await tester.pump();
-        expect(_render(tester).debugHighlightTargetId, isNull);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
 
         await tester.pumpWidget(
           _scaffold(
@@ -1544,8 +1620,8 @@ void main() {
         );
         await tester.pump();
         await tester.pump();
-        expect(_render(tester).debugHighlightTargetId, isNull);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
       },
     );
 
@@ -1567,16 +1643,16 @@ void main() {
 
       controller.highlight(origin);
       await tester.pump();
-      expect(_render(tester).debugHighlightTargetId, origin);
+      expect(_render(tester).debugSnapshot.highlightTargetId, origin);
 
       controller.dispose();
       await tester.pump();
-      expect(_render(tester).debugHighlightTargetId, isNull);
-      expect(_render(tester).debugPendingHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
 
       controller.highlight(origin);
       await tester.pump();
-      expect(_render(tester).debugHighlightTargetId, isNull);
+      expect(_render(tester).debugSnapshot.highlightTargetId, isNull);
     });
 
     testWidgets(
@@ -1599,7 +1675,7 @@ void main() {
         );
         await tester.pump();
         await tester.pump();
-        expect(_render(tester).debugHighlightTargetId, target);
+        expect(_render(tester).debugSnapshot.highlightTargetId, target);
 
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pumpWidget(
@@ -1611,9 +1687,12 @@ void main() {
         );
         await tester.pump();
         await tester.pump();
-        expect(_render(tester).debugHighlightTargetId, target);
-        expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
-        expect(_render(tester).debugPendingHighlightTargetId, isNull);
+        expect(_render(tester).debugSnapshot.highlightTargetId, target);
+        expect(
+          _render(tester).debugSnapshot.highlightPhase,
+          ChatHighlightPhase.solid,
+        );
+        expect(_render(tester).debugSnapshot.pendingHighlightTargetId, isNull);
       },
     );
   });
@@ -1682,11 +1761,12 @@ class _HangFetchLazyDataSource extends ChatDataSource {
 
   void markSlotAbsent(int id) {
     final chunkIndex = ChatScrollChunk.chunkOf(id);
-    final chunk = chunks.putIfAbsent(
-      chunkIndex,
-      () =>
-          ChatScrollChunk(index: chunkIndex)..status = ChatMessageStatus.valid,
-    );
+    var chunk = chunkAt(chunkIndex);
+    if (chunk == null) {
+      chunk = ChatScrollChunk(index: chunkIndex)
+        ..status = ChatMessageStatus.valid;
+      seedChunk(chunkIndex, chunk);
+    }
     final slot = id - chunk.firstId;
     chunk.messages[slot] = null;
     if (!chunk.isAbsentSlot(slot)) {
@@ -1697,17 +1777,15 @@ class _HangFetchLazyDataSource extends ChatDataSource {
 
   void markChunkError(int id) {
     final chunkIndex = ChatScrollChunk.chunkOf(id);
-    final chunk = chunks.putIfAbsent(
-      chunkIndex,
-      () => ChatScrollChunk(index: chunkIndex),
-    );
+    final chunk = chunkAt(chunkIndex) ?? ChatScrollChunk(index: chunkIndex);
+    seedChunk(chunkIndex, chunk);
     chunk.status = ChatMessageStatus.error;
     notifyDataChanged();
   }
 
   void loadAsValid(int id) {
     loadMessage(id);
-    chunks[ChatScrollChunk.chunkOf(id)]?.status = ChatMessageStatus.valid;
+    chunkAt(ChatScrollChunk.chunkOf(id))?.status = ChatMessageStatus.valid;
     notifyDataChanged();
   }
 

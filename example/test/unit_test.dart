@@ -17,6 +17,30 @@ import 'backend_chat_data_source_test.dart' as backend_chat_data_source_test;
 import 'backend_realtime_reconnect_test.dart'
     as backend_realtime_reconnect_test;
 import 'chat_center_band_store_test.dart' as chat_center_band_store_test;
+import 'chat_perf/churn_test.dart' as chat_perf_churn_test;
+import 'chat_perf/corpus_test.dart' as chat_perf_corpus_test;
+import 'chat_perf/ime_scenarios_test.dart' as chat_perf_ime_scenarios_test;
+import 'chat_perf/keyboard_ramp_test.dart' as chat_perf_keyboard_ramp_test;
+import 'chat_perf/keyboard_scenarios_test.dart'
+    as chat_perf_keyboard_scenarios_test;
+import 'chat_perf/metrics_test.dart' as chat_perf_metrics_test;
+import 'chat_perf/registry_test.dart' as chat_perf_registry_test;
+import 'chat_perf/report_document_test.dart' as chat_perf_report_document_test;
+import 'chat_perf/runner_fingerprint_test.dart'
+    as chat_perf_runner_fingerprint_test;
+import 'chat_perf/runner_gates_test.dart' as chat_perf_runner_gates_test;
+import 'chat_perf/runner_lock_retry_test.dart'
+    as chat_perf_runner_lock_retry_test;
+import 'chat_perf/runner_verdict_test.dart' as chat_perf_runner_verdict_test;
+import 'chat_perf/scale_test.dart' as chat_perf_scale_test;
+import 'chat_perf/scenario_index_test.dart' as chat_perf_scenario_index_test;
+import 'chat_perf/scroll_scenarios_test.dart'
+    as chat_perf_scroll_scenarios_test;
+import 'chat_perf/selection_scenarios_test.dart'
+    as chat_perf_selection_scenarios_test;
+import 'chat_perf/semantics_test.dart' as chat_perf_semantics_test;
+import 'chat_perf/table_test.dart' as chat_perf_table_test;
+import 'chat_perf/trace_counts_test.dart' as chat_perf_trace_counts_test;
 import 'chat_viewport_insets_test.dart' as chat_viewport_insets_test;
 import 'common/chat_message_markdown_test.dart' as chat_message_markdown_test;
 import 'features/chat/animated_emoji_pack_test.dart'
@@ -40,8 +64,7 @@ import 'features/chat/link_activation_test.dart' as link_activation_test;
 import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
 import 'features/chat/sticker_interaction_stub_test.dart'
     as sticker_interaction_stub_test;
-import 'features/streaming/streaming_screen_test.dart'
-    as streaming_screen_test;
+import 'features/streaming/streaming_screen_test.dart' as streaming_screen_test;
 import 'glyph_probe_wiring_test.dart' as glyph_probe_wiring_test;
 import 'golden/demo_emoji_message_golden_test.dart'
     as demo_emoji_message_golden_test;
@@ -126,6 +149,49 @@ void main() {
     backend_realtime_reconnect_test.main,
   );
   group('chat_center_band_store_test.dart', chat_center_band_store_test.main);
+  group('chat_perf/churn_test.dart', chat_perf_churn_test.main);
+  group('chat_perf/corpus_test.dart', chat_perf_corpus_test.main);
+  group('chat_perf/ime_scenarios_test.dart', chat_perf_ime_scenarios_test.main);
+  group('chat_perf/keyboard_ramp_test.dart', chat_perf_keyboard_ramp_test.main);
+  group(
+    'chat_perf/keyboard_scenarios_test.dart',
+    chat_perf_keyboard_scenarios_test.main,
+  );
+  group('chat_perf/metrics_test.dart', chat_perf_metrics_test.main);
+  group('chat_perf/registry_test.dart', chat_perf_registry_test.main);
+  group(
+    'chat_perf/report_document_test.dart',
+    chat_perf_report_document_test.main,
+  );
+  group(
+    'chat_perf/runner_fingerprint_test.dart',
+    chat_perf_runner_fingerprint_test.main,
+  );
+  group('chat_perf/runner_gates_test.dart', chat_perf_runner_gates_test.main);
+  group(
+    'chat_perf/runner_lock_retry_test.dart',
+    chat_perf_runner_lock_retry_test.main,
+  );
+  group(
+    'chat_perf/runner_verdict_test.dart',
+    chat_perf_runner_verdict_test.main,
+  );
+  group(
+    'chat_perf/scenario_index_test.dart',
+    chat_perf_scenario_index_test.main,
+  );
+  group(
+    'chat_perf/scroll_scenarios_test.dart',
+    chat_perf_scroll_scenarios_test.main,
+  );
+  group(
+    'chat_perf/selection_scenarios_test.dart',
+    chat_perf_selection_scenarios_test.main,
+  );
+  group('chat_perf/scale_test.dart', chat_perf_scale_test.main);
+  group('chat_perf/semantics_test.dart', chat_perf_semantics_test.main);
+  group('chat_perf/table_test.dart', chat_perf_table_test.main);
+  group('chat_perf/trace_counts_test.dart', chat_perf_trace_counts_test.main);
   group('chat_viewport_insets_test.dart', chat_viewport_insets_test.main);
   group(
     'common/chat_message_markdown_test.dart',

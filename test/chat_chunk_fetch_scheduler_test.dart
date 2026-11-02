@@ -105,8 +105,10 @@ void main() {
         );
 
         for (var ci = 1; ci <= 3; ci++) {
-          dataSource.chunks[ci] = ChatScrollChunk(index: ci)
-            ..status = ChatMessageStatus.valid;
+          dataSource.seedChunk(
+            ci,
+            ChatScrollChunk(index: ci)..status = ChatMessageStatus.valid,
+          );
         }
 
         scheduler.onLayoutComplete(1, 3);
@@ -127,15 +129,18 @@ void main() {
             // Mirror [ChatDataSource.requestChunks] marking chunks in-flight so
             // the poll loop goes idle instead of re-arming forever.
             for (var ci = min; ci <= max; ci++) {
-              dataSource.chunks[ci] ??= ChatScrollChunk(index: ci);
-              dataSource.chunks[ci]!.status = ChatMessageStatus.fetching;
+              if (dataSource.chunkAt(ci) == null)
+                dataSource.seedChunk(ci, ChatScrollChunk(index: ci));
+              dataSource.chunkAt(ci)!.status = ChatMessageStatus.fetching;
             }
           },
           anchorChunkIndex: () => 0,
         );
 
-        dataSource.chunks[2] = ChatScrollChunk(index: 2)
-          ..status = ChatMessageStatus.valid;
+        dataSource.seedChunk(
+          2,
+          ChatScrollChunk(index: 2)..status = ChatMessageStatus.valid,
+        );
 
         scheduler.onLayoutComplete(1, 3);
         async.elapse(Duration.zero);
@@ -155,8 +160,10 @@ void main() {
           anchorChunkIndex: () => 0,
         );
 
-        dataSource.chunks[2] = ChatScrollChunk(index: 2)
-          ..status = ChatMessageStatus.error;
+        dataSource.seedChunk(
+          2,
+          ChatScrollChunk(index: 2)..status = ChatMessageStatus.error,
+        );
 
         scheduler.onLayoutComplete(2, 2);
         async.elapse(const Duration(milliseconds: 200));
@@ -189,8 +196,10 @@ void main() {
           anchorChunkIndex: () => 2,
         );
 
-        dataSource.chunks[2] = ChatScrollChunk(index: 2)
-          ..status = ChatMessageStatus.valid;
+        dataSource.seedChunk(
+          2,
+          ChatScrollChunk(index: 2)..status = ChatMessageStatus.valid,
+        );
 
         // Continuous fling toward older (positive velocity).
         scheduler.markScrollActive(velocity: 1);
@@ -237,8 +246,10 @@ void main() {
           anchorChunkIndex: () => 2,
         );
 
-        dataSource.chunks[2] = ChatScrollChunk(index: 2)
-          ..status = ChatMessageStatus.valid;
+        dataSource.seedChunk(
+          2,
+          ChatScrollChunk(index: 2)..status = ChatMessageStatus.valid,
+        );
 
         // Mid-scroll page first.
         scheduler.markScrollActive(velocity: 1);
@@ -251,9 +262,9 @@ void main() {
         // so the next layout poll is settled and takes the full band.
         pending.complete(const <IChatMessage>[]);
         async.elapse(Duration.zero);
-        dataSource.chunks.remove(3);
-        if (dataSource.chunks[1] != null) {
-          dataSource.chunks[1]!.status = ChatMessageStatus.valid;
+        dataSource.evictChunk(3);
+        if (dataSource.chunkAt(1) != null) {
+          dataSource.chunkAt(1)!.status = ChatMessageStatus.valid;
         }
         requested.clear();
         allowWidenFlags.clear();
@@ -289,8 +300,10 @@ void main() {
         );
 
         for (final ci in [4, 5]) {
-          dataSource.chunks[ci] = ChatScrollChunk(index: ci)
-            ..status = ChatMessageStatus.valid;
+          dataSource.seedChunk(
+            ci,
+            ChatScrollChunk(index: ci)..status = ChatMessageStatus.valid,
+          );
         }
 
         // Toward older: layout 4..5 is valid; lookahead chunk 3 is missing.
@@ -314,8 +327,9 @@ void main() {
           requestRange: (min, max, {allowWiden = true}) {
             requested.add((min, max));
             for (var ci = min; ci <= max; ci++) {
-              dataSource.chunks[ci] ??= ChatScrollChunk(index: ci);
-              dataSource.chunks[ci]!.status = ChatMessageStatus.fetching;
+              if (dataSource.chunkAt(ci) == null)
+                dataSource.seedChunk(ci, ChatScrollChunk(index: ci));
+              dataSource.chunkAt(ci)!.status = ChatMessageStatus.fetching;
             }
           },
           anchorChunkIndex: () => 0,
@@ -354,7 +368,7 @@ void main() {
         for (var id = 0; id <= 50; id++) {
           dataSource.insertMessage(_SchedStubMessage(id));
         }
-        final chunk = dataSource.chunks[0]!;
+        final chunk = dataSource.chunkAt(0)!;
         for (var id = 41; id <= 50; id++) {
           chunk.messages[id] = null;
           chunk.markAbsentSlot(id);
@@ -402,14 +416,17 @@ void main() {
       );
 
       for (final ci in [0, 5]) {
-        dataSource.chunks[ci] = ChatScrollChunk(index: ci)
-          ..status = ChatMessageStatus.valid
-          ..lastAccessTick = ci;
+        dataSource.seedChunk(
+          ci,
+          ChatScrollChunk(index: ci)
+            ..status = ChatMessageStatus.valid
+            ..lastAccessTick = ci,
+        );
       }
 
       scheduler.onLayoutComplete(1, 2);
-      expect(dataSource.chunks.containsKey(0), isFalse);
-      expect(dataSource.chunks.containsKey(5), isFalse);
+      expect(dataSource.chunkAt(0) != null, isFalse);
+      expect(dataSource.chunkAt(5) != null, isFalse);
       scheduler.dispose();
     });
 
@@ -423,19 +440,22 @@ void main() {
           anchorChunkIndex: () => 0,
         );
 
-        dataSource.chunks[0] = ChatScrollChunk(index: 0)
-          ..status = ChatMessageStatus.valid
-          ..lastAccessTick = 0;
+        dataSource.seedChunk(
+          0,
+          ChatScrollChunk(index: 0)
+            ..status = ChatMessageStatus.valid
+            ..lastAccessTick = 0,
+        );
 
         dataSource.requestChunks(5, 5);
         expect(dataSource.coversChunkInFlight(5), isTrue);
-        expect(dataSource.chunks[5]!.status.isFetching, isTrue);
+        expect(dataSource.chunkAt(5)!.status.isFetching, isTrue);
 
         // Layout only at anchor — chunk 5 is outside and would normally be
         // the eviction victim under budget=1.
         scheduler.onLayoutComplete(0, 0);
         expect(
-          dataSource.chunks.containsKey(5),
+          dataSource.chunkAt(5) != null,
           isTrue,
           reason: 'in-flight chunk must survive LRU',
         );
@@ -455,16 +475,22 @@ void main() {
         anchorChunkIndex: () => 2,
       );
 
-      dataSource.chunks[2] = ChatScrollChunk(index: 2)
-        ..status = ChatMessageStatus.valid
-        ..lastAccessTick = 0;
-      dataSource.chunks[3] = ChatScrollChunk(index: 3)
-        ..status = ChatMessageStatus.valid
-        ..lastAccessTick = 1;
+      dataSource.seedChunk(
+        2,
+        ChatScrollChunk(index: 2)
+          ..status = ChatMessageStatus.valid
+          ..lastAccessTick = 0,
+      );
+      dataSource.seedChunk(
+        3,
+        ChatScrollChunk(index: 3)
+          ..status = ChatMessageStatus.valid
+          ..lastAccessTick = 1,
+      );
 
       scheduler.onLayoutComplete(2, 3);
-      expect(dataSource.chunks.containsKey(2), isTrue);
-      expect(dataSource.chunks.containsKey(3), isFalse);
+      expect(dataSource.chunkAt(2) != null, isTrue);
+      expect(dataSource.chunkAt(3) != null, isFalse);
       scheduler.dispose();
     });
 
@@ -478,16 +504,19 @@ void main() {
 
       // Layout around chunk 0; destination window around chunk 10.
       for (final ci in [0, 1, 9, 10, 11]) {
-        dataSource.chunks[ci] = ChatScrollChunk(index: ci)
-          ..status = ChatMessageStatus.valid
-          ..lastAccessTick = ci;
+        dataSource.seedChunk(
+          ci,
+          ChatScrollChunk(index: ci)
+            ..status = ChatMessageStatus.valid
+            ..lastAccessTick = ci,
+        );
       }
       scheduler.setNavigationDestinationId(ChatScrollChunk.firstIdOf(10));
       scheduler.onLayoutComplete(0, 1);
 
-      expect(dataSource.chunks.containsKey(9), isTrue);
-      expect(dataSource.chunks.containsKey(10), isTrue);
-      expect(dataSource.chunks.containsKey(11), isTrue);
+      expect(dataSource.chunkAt(9) != null, isTrue);
+      expect(dataSource.chunkAt(10) != null, isTrue);
+      expect(dataSource.chunkAt(11) != null, isTrue);
       scheduler.dispose();
     });
   });
@@ -671,7 +700,7 @@ void main() {
             for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
               chunk.markAbsentSlot(slot);
             }
-            dataSource.chunks[ci] = chunk;
+            dataSource.seedChunk(ci, chunk);
           }
           async.elapse(const Duration(milliseconds: 200));
           requested.clear();
@@ -695,7 +724,7 @@ void main() {
         for (var id = 0; id <= 50; id++) {
           dataSource.insertMessage(_SchedStubMessage(id));
         }
-        final chunk = dataSource.chunks[0]!;
+        final chunk = dataSource.chunkAt(0)!;
         for (var id = 41; id <= 50; id++) {
           chunk.messages[id] = null;
           chunk.markAbsentSlot(id);
@@ -719,7 +748,7 @@ void main() {
         expect(requested, isNotEmpty);
 
         // Heal clears trailing absents so the known newest can refetch.
-        expect(dataSource.chunks[0]!.isAbsentSlot(50), isFalse);
+        expect(dataSource.chunkAt(0)!.isAbsentSlot(50), isFalse);
         expect(dataSource.hasKnownSpanHoles(0), isTrue);
 
         // Hole-only pending uses poll interval (no Duration.zero busy-spin).

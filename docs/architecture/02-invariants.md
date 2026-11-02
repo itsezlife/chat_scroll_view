@@ -75,8 +75,8 @@ At most **one active writer** of `anchorPixelOffset` for a given phase:
 |-------|---------------|-----------|
 | Close-path animate | `tickAnimate` → `applyScrollDelta` | Renormalize; `_applyNavigationPlacement` |
 | Layout settle / jump | `_applyNavigationPlacement`, pins | — |
-| Held placement re-applied (top inset moved, or target row chrome changed, including each frame of its separator transition) | `_applyNavigationPlacement` | Row chrome hold (step 6d) for that pass |
-| Row chrome hold (boundary move or separator transition frame) | `_holdRowChromeReference` | Stands down while an animation, stitch freeze, or delete recovery owns the origin |
+| Held placement re-applied (top inset moved) | `_applyNavigationPlacement` | Row chrome hold (step 6d) for that pass |
+| Row chrome hold (boundary move or separator transition frame, including on a held placement's target) | `_holdRowChromeReference` | Stands down while an animation, stitch freeze, or delete recovery owns the origin |
 | Drag / fling | Tick deltas + clamp (when not suspended); the edge effect never writes | — |
 | Span auto-scroll | Tick auto-scroll delta | Follow-tail; close-path animate |
 
@@ -88,10 +88,15 @@ tail pin is layout’s `pinNewest` / pending-tail flags.
 
 ## 7. Reposition must span the built id range
 
-`_repositionFromAnchor` / `_repositionMessagesOnly` walk from
-`minBuiltId` to `maxBuiltId` and **skip** null children. Never `break` on the
-first missing id — absent gaps would leave messages beyond the gap with stale
-offsets.
+`_repositionFromAnchor` / `_repositionMessagesOnly` place every built row from
+`minBuiltId` to `maxBuiltId` and **skip** the ids between them. Never `break` on
+the first missing id — absent gaps would leave messages beyond the gap with
+stale offsets.
+
+The walk steps through the built ids (and chunk-error tiles), never id by id
+across the span: a far stitch keeps the outgoing strip built beside the
+incoming band, so the span can be the whole history while the built rows are
+a screenful. Per-frame cost stays bounded by the built rows.
 
 ## 8. Absent-skip termination
 

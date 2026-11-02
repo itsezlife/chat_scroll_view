@@ -50,7 +50,7 @@ void main() {
 
       ds.upsertMessage(_msg(0));
 
-      final chunk = ds.chunks[0]!;
+      final chunk = ds.chunkAt(0)!;
       expect(chunk.status.isValid, isTrue);
       expect(chunk.status.isDirty, isFalse);
     });
@@ -61,7 +61,7 @@ void main() {
 
       ds.upsertMessages([_msg(0), _msg(64), _msg(128)]);
 
-      for (final chunk in ds.chunks.values) {
+      for (final chunk in ds.loadedChunks) {
         expect(chunk.status.isValid, isTrue, reason: 'chunk ${chunk.index}');
       }
     });
@@ -74,13 +74,15 @@ void main() {
       addTearDown(ds.dispose);
 
       // Forge a dirty chunk that already exists.
-      ds.chunks[0] = ChatScrollChunk(index: 0)
-        ..status = ChatMessageStatus.fetching;
+      ds.seedChunk(
+        0,
+        ChatScrollChunk(index: 0)..status = ChatMessageStatus.fetching,
+      );
 
       ds.upsertMessage(_msg(5));
 
-      expect(ds.chunks[0]!.status.isFetching, isTrue);
-      expect(ds.chunks[0]!.status.isValid, isFalse);
+      expect(ds.chunkAt(0)!.status.isFetching, isTrue);
+      expect(ds.chunkAt(0)!.status.isValid, isFalse);
     });
 
     test(
@@ -99,16 +101,16 @@ void main() {
           ds.upsertMessage(_msg(i));
         }
         final chunkIndex = ChatScrollChunk.chunkOf(10);
-        expect(ds.chunks[chunkIndex]!.status.isValid, isTrue);
+        expect(ds.chunkAt(chunkIndex)!.status.isValid, isTrue);
 
         // LRU eviction of the tail chunk (viewport scrolled deep into history).
-        ds.chunks.remove(chunkIndex);
-        expect(ds.chunks.containsKey(chunkIndex), isFalse);
+        ds.evictChunk(chunkIndex);
+        expect(ds.chunkAt(chunkIndex) != null, isFalse);
 
         // Local send recreates the chunk with only the new row.
         ds.insertMessage(_msg(11));
 
-        final chunk = ds.chunks[chunkIndex]!;
+        final chunk = ds.chunkAt(chunkIndex)!;
         expect(chunk.status.isDirty, isTrue);
         expect(ds.getMessage(11), isNotNull);
         expect(ds.getMessage(10), isNull);
@@ -130,12 +132,12 @@ void main() {
       // valid chunk with only one filled slot.
       final chunk = ChatScrollChunk(index: 0)..status = ChatMessageStatus.valid;
       chunk.messages[5] = _msg(5);
-      ds.chunks[0] = chunk;
+      ds.seedChunk(0, chunk);
       expect(ChatRangeFetch.needsFetch(chunk), isFalse);
 
       ds.requestChunks(0, 0);
 
-      expect(ds.chunks[0]!.status.isDirty, isTrue);
+      expect(ds.chunkAt(0)!.status.isDirty, isTrue);
       expect(ds.calls, isNotEmpty);
     });
   });
@@ -177,7 +179,7 @@ void main() {
         ..upsertMessages([_msg(1), _msg(2)]);
 
       expect(notifications, 0);
-      expect(ds.chunks, isEmpty);
+      expect(ds.chunkCount, 0);
     });
 
     test('requestChunks after dispose does not call fetchRange', () {
@@ -208,7 +210,7 @@ void main() {
       // a non-zero failure counter.
       ds.requestChunks(0, 0);
       await Future<void>.delayed(const Duration(milliseconds: 20));
-      final chunk = ds.chunks[0]!;
+      final chunk = ds.chunkAt(0)!;
       expect(chunk.status.isError, isTrue);
       expect(chunk.failedAttempts, 1);
       expect(chunk.lastError, isNotNull);

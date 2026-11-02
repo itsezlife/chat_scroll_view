@@ -29,6 +29,7 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_opacity_paint.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_row_chrome.dart'
     show RenderChatRowChrome;
+import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_debug_snapshot.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_runtime.dart';
@@ -39,6 +40,7 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_tail_fold.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
 import 'package:chat_scroll_view/src/util/constants.dart';
 import 'package:chat_scroll_view/src/util/logger.dart';
+import 'package:chat_scroll_view/src/util/trace_section.dart';
 import 'package:flutter/foundation.dart'
     show Listenable, ValueListenable, precisionErrorTolerance;
 import 'package:flutter/gestures.dart';
@@ -756,8 +758,8 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   /// change is a row chrome change that the next layout turns into
   /// transitions ([_startUnreadSeparatorTransitions]), and every layout that
   /// moves a transition frame holds the reading position across it
-  /// ([_holdRowChromeReference]) — unless a changed row is the target of the
-  /// armed navigation placement, which is then re-applied instead
+  /// ([_holdRowChromeReference]) — unless a changed row is the target of a
+  /// still pending navigation placement, whose snap then owns the pass
   /// ([_isNavigationTargetChromeChange]).
   ///
   /// Swapping in a listenable with a different current value is a value
@@ -1263,7 +1265,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   // [_scrollbarRuntime] resolves track and thumb rects once per paint from that
   // progress and the preset painter's geometry; grab hit-testing reads the same
   // frame. A grab runs the mapping backwards ([_dragScrollbarTo]) and seats a
-  // fractional band position. Paint does not read [ChatDataSource.chunks].
+  // fractional band position. Paint does not read [ChatDataSource.chunkAt].
   //
   // Scrollbar visibility sits beside scroll activity, fed from the same motion
   // edges (tick hold, settle release, jump and scrollBy pulses) but owned by
@@ -1404,115 +1406,59 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
 
   // --- Debug instrumentation (zero-cost in release via assert) --------------
 
-  final Stopwatch _debugSw = Stopwatch();
-
-  /// Wall-clock duration of the most recent `performLayout` (debug builds only).
-  Duration debugLastLayoutDuration = Duration.zero;
-
-  /// Wall-clock duration of the most recent `paint` (debug builds only).
-  Duration debugLastPaintDuration = Duration.zero;
-
   /// Monotonic frame counter incremented on each layout pass.
   int debugLayoutFrameId = 0;
 
   /// Monotonic frame counter incremented on each paint pass.
   int debugPaintFrameId = 0;
 
-  /// Count of message children currently in the sparse child map.
-  int get debugChildCount => _children.length;
+  int _debugRepositionVisits = 0;
 
-  /// Count of chunk-error overlay children currently built.
-  int get debugChunkErrorCount => _chunkErrors.length;
-
-  /// Number of pagination chunks tracked by the data source.
-  int get debugChunkCount => _dataSource.chunks.length;
-
-  /// Lowest chunk index included in the last layout fan-out.
-  int get debugLayoutMinChunk => _chunkFetchScheduler.layoutMinChunk;
-
-  /// Highest chunk index included in the last layout fan-out.
-  int get debugLayoutMaxChunk => _chunkFetchScheduler.layoutMaxChunk;
-
-  /// Smallest message id with a built child, or `null` when empty.
-  int? get debugFirstId => _children.isEmpty ? null : _children.firstKey();
-
-  /// Largest message id with a built child, or `null` when empty.
-  int? get debugLastId => _children.isEmpty ? null : _children.lastKey();
-
-  /// Paint stretch in `[-1, 1]`. Zero at rest and under any edge effect
-  /// other than stretch.
+  /// Everything tests read about the viewport's internal state, taken at the
+  /// moment of the call. Per-message probes that take an id stay separate
+  /// ([debugDividerOpacity], [debugStartsDay]).
   @visibleForTesting
-  double get debugStretchOverscroll => switch (_motion.edge) {
-    final ChatStretchOverscroll stretch => stretch.overscroll,
-    _ => 0,
-  };
-
-  /// Whether a floating header child is currently attached (may still be
-  /// hidden by [debugFloatingHeaderVisible]).
-  @visibleForTesting
-  bool get debugHasFloatingHeader => _floatingHeader != null;
-
-  /// Whether the floating header would be painted this frame (suppressed above
-  /// the oldest boundary during short content).
-  @visibleForTesting
-  bool get debugFloatingHeaderVisible =>
-      _floatingHeader != null && _shouldShowFloatingHeader();
-
-  /// Viewport-local Y of the floating header's top edge, if built.
-  @visibleForTesting
-  double? get debugFloatingHeaderOffset =>
-      _floatingHeader == null ? null : _parentData(_floatingHeader!).offset;
-
-  /// Calendar date shown in the floating header, if any.
-  DateTime? get debugHeaderDate => _floatingHeaderController.headerDate;
-
-  /// Debug-only: group bucket the floating header was last built for.
-  Object? get debugHeaderBucket => _floatingHeaderController.headerBucket;
-
-  /// Message id currently receiving the post-navigation highlight tint.
-  int? get debugHighlightTargetId => _animator.highlightTargetId;
-
-  /// Message id waiting until it is a loaded Message with a built child
-  /// before the highlight arms.
-  int? get debugPendingHighlightTargetId => _animator.pendingHighlightTargetId;
-
-  /// Highlight animation progress in `0..1` for [debugHighlightTargetId].
-  /// Solid hold stays at `1.0`; fade declines toward `0`.
-  double get debugHighlightFactor => _animator.highlightFactor;
-
-  /// Current highlight phase for tests (`idle` / `solid` / `fading`).
-  ChatHighlightPhase get debugHighlightPhase => _animator.highlightPhase;
-
-  /// Whether far-path stitch is in flight (post-jump dual-translate).
-  bool get debugFarAnimateActive => _animator.farAnimateActive;
-
-  /// Whether stitch has already run its teleport `jumpTo`.
-  bool get debugFarAnimateJumped => _animator.farAnimateJumped;
-
-  /// Whether any [animateTo] (close, stitch, or preferBuilt wait) is in flight.
-  bool get debugIsAnimating => _animator.isAnimating;
-
-  /// Whether close-path vs stitch is deferred under the navigation load-gate.
-  bool get debugLoadGateWaiting => _animator.loadGateWaiting;
-
-  /// Alias for [debugLoadGateWaiting].
-  bool get debugPreferBuiltWaiting => debugLoadGateWaiting;
-
-  /// Outgoing ids retained during stitch (GC pin + frozen paint Y).
-  Set<int> get debugStitchOutgoingIds => Set<int>.of(_stitchOutgoingIds);
-
-  /// Stitch progress `0..1` after measure (0 before measure / when idle).
-  double get debugStitchProgress => _animator.stitchProgress;
-
-  /// Measured stitch travel (px) after layout measure; `0` before measure.
-  double get debugStitchScrollLength => _animator.stitchScrollLength;
-
-  /// Currently built message ids (fan-out + stitch-pinned outgoing).
-  Set<int> get debugBuiltMessageIds => _children.keys.toSet();
+  ChatScrollDebugSnapshot get debugSnapshot => ChatScrollDebugSnapshot(
+    childCount: _children.length,
+    chunkErrorCount: _chunkErrors.length,
+    chunkCount: _dataSource.chunkCount,
+    layoutMinChunk: _chunkFetchScheduler.layoutMinChunk,
+    layoutMaxChunk: _chunkFetchScheduler.layoutMaxChunk,
+    firstId: _children.isEmpty ? null : _children.firstKey(),
+    lastId: _children.isEmpty ? null : _children.lastKey(),
+    builtMessageIds: _children.keys.toSet(),
+    stretchOverscroll: switch (_motion.edge) {
+      final ChatStretchOverscroll stretch => stretch.overscroll,
+      _ => 0,
+    },
+    hasFloatingHeader: _floatingHeader != null,
+    floatingHeaderVisible:
+        _floatingHeader != null && _shouldShowFloatingHeader(),
+    floatingHeaderOffset: _floatingHeader == null
+        ? null
+        : _parentData(_floatingHeader!).offset,
+    floatingHeaderOpacity: _headerEffect.opacity,
+    headerDate: _floatingHeaderController.headerDate,
+    headerBucket: _floatingHeaderController.headerBucket,
+    highlightTargetId: _animator.highlightTargetId,
+    pendingHighlightTargetId: _animator.pendingHighlightTargetId,
+    highlightFactor: _animator.highlightFactor,
+    highlightPhase: _animator.highlightPhase,
+    farAnimateActive: _animator.farAnimateActive,
+    farAnimateJumped: _animator.farAnimateJumped,
+    isAnimating: _animator.isAnimating,
+    loadGateWaiting: _animator.loadGateWaiting,
+    stitchOutgoingIds: Set<int>.of(_stitchOutgoingIds),
+    stitchProgress: _animator.stitchProgress,
+    stitchScrollLength: _animator.stitchScrollLength,
+    lastRepositionVisits: _debugRepositionVisits,
+    scrollActivity: _activity?.value ?? 1.0,
+  );
 
   /// Resolved opacity (0..1) of the built child [id]'s first row chrome item
   /// — its inline day separator — or `1` when the row has no chrome. `null`
   /// when [id] is not currently built.
+  @visibleForTesting
   double? debugDividerOpacity(int id) => switch (_children[id]) {
     null => null,
     final RenderChatRowChrome row when row.chromeCount > 0 =>
@@ -1520,16 +1466,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     _ => 1.0,
   };
 
-  /// Opacity the floating header resolved to this frame.
-  @visibleForTesting
-  double get debugFloatingHeaderOpacity => _headerEffect.opacity;
-
-  /// Current scroll activity; `1` without an activity clock.
-  @visibleForTesting
-  double get debugScrollActivity => _activity?.value ?? 1.0;
-
   /// Whether the built child [id] carries an inline day separator, or `false`
   /// when [id] is not currently built.
+  @visibleForTesting
   bool debugStartsDay(int id) {
     final child = _children[id];
     return child != null && _parentData(child).startsDay;
@@ -1615,15 +1554,6 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       'fling': _motion.fling.isFlinging,
       'builtCount': _children.length,
     };
-  }
-
-  List<int> _fetchingChunkIndices() {
-    final fetching = <int>[];
-    for (final entry in _dataSource.chunks.entries) {
-      if (entry.value.status.isFetching) fetching.add(entry.key);
-    }
-    fetching.sort();
-    return fetching;
   }
 
   // --- RenderBox configuration ----------------------------------------------
@@ -1718,7 +1648,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     }
     _floatingHeader?.attach(owner);
     _overlay?.attach(owner);
-    _ticker = Ticker(_onTick)..muted = !_ticking;
+    _ticker = Ticker(_tickTraced)..muted = !_ticking;
     if (_scrollActivityTiming case final timing?) {
       _activity = _createActivityClock(timing);
     }
@@ -1917,7 +1847,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     _abortSpanIfOriginAbsent();
     _fetchAnchorEvent('fetch.data', {
       ..._fetchAnchorSnapshot(),
-      'fetchingChunks': LogFormat.ids(_fetchingChunkIndices(), max: 8),
+      'fetchingChunks': LogFormat.ids(_dataSource.fetchingChunkIndices, max: 8),
     });
     markNeedsLayout();
   }
@@ -2274,8 +2204,8 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   /// Once the snap lands on a loaded row the placement becomes **held**.
   ///
   /// **Held**: snaps again only when [reapplyHold] is set — the scroll band's
-  /// top edge moved, or the target row's row chrome changed this pass.
-  /// Otherwise it stays silent so bottom inset compensation, the boundary
+  /// top edge moved. A change of the target's row chrome does not re-seat
+  /// it: the row chrome hold keeps the body still. Otherwise it stays silent so bottom inset compensation, the boundary
   /// clamp, and height changes elsewhere keep their effect instead of being
   /// snapped back on every layout.
   ///
@@ -2619,12 +2549,6 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
 
   @override
   void performLayout() {
-    assert(() {
-      _debugSw
-        ..reset()
-        ..start();
-      return true;
-    }());
     assert(childManager != null, 'childManager not wired by ChatScrollElement');
     assert(
       constraints.hasBoundedHeight && constraints.hasBoundedWidth,
@@ -2633,6 +2557,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       'Positioned.fill.',
     );
 
+    Trace.begin(TraceSection.layoutMode);
     // Mode selection.
     //
     // * Empty wins over loading: a confirmed-empty conversation is terminal,
@@ -2652,9 +2577,12 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     } else {
       overlayKind = ChatOverlayKind.none;
     }
+    Trace.end(TraceSection.layoutMode);
 
+    Trace.begin(TraceSection.layoutCompensate);
     _compensateBottomPaddingChange();
     _compensateViewportHeightChange();
+    Trace.end(TraceSection.layoutCompensate);
 
     final rowChromeChanged = _rowChromeChanged;
     _rowChromeChanged = false;
@@ -2662,11 +2590,11 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     _laidOutUnreadBoundary = _unreadBoundary?.value;
 
     if (_dataSource.isEmpty || overlayKind != ChatOverlayKind.none) {
+      Trace.begin(TraceSection.layoutOverlay);
       _layoutOverlayMode(overlayKind);
+      Trace.end(TraceSection.layoutOverlay);
       _rowChromeTransitions?.retainWhere(_children.containsKey);
       assert(() {
-        debugLastLayoutDuration = _debugSw.elapsed;
-        _debugSw.stop();
         debugLayoutFrameId++;
         return true;
       }());
@@ -2682,17 +2610,26 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     }
 
     _fetchAnchorLayoutFrame++;
-    _fetchLogAnchorIdAtLayoutStart = _controller.anchorMessageId;
-    _fetchLogAnchorYAtLayoutStart = _controller.anchorPixelOffset;
-    final bandAtStart = _bottomBandMessage();
-    _fetchLogBandIdAtLayoutStart = bandAtStart?.id;
-    _fetchLogBandBottomAtLayoutStart = bandAtStart?.bottom;
-    _fetchAnchorEvent('layout.begin', {
-      ..._fetchAnchorSnapshot(),
-      'fetchingChunks': LogFormat.ids(_fetchingChunkIndices(), max: 8),
-    });
+    // The anchor log builds its snapshots (child scans, maps) before the
+    // logger sees them, so gate first; read once so begin, jump and end agree.
+    final logAnchor = LogCategory.anchor.enabled;
+    if (logAnchor) {
+      _fetchLogAnchorIdAtLayoutStart = _controller.anchorMessageId;
+      _fetchLogAnchorYAtLayoutStart = _controller.anchorPixelOffset;
+      final bandAtStart = _bottomBandMessage();
+      _fetchLogBandIdAtLayoutStart = bandAtStart?.id;
+      _fetchLogBandBottomAtLayoutStart = bandAtStart?.bottom;
+      _fetchAnchorEvent('layout.begin', {
+        ..._fetchAnchorSnapshot(),
+        'fetchingChunks': LogFormat.ids(
+          _dataSource.fetchingChunkIndices,
+          max: 8,
+        ),
+      });
+    }
     // Drop pre-jump children so renormalize/clamp do not fan across the wrong
     // id span — but keep stitch presence pins (outgoing strip + animate target).
+    Trace.begin(TraceSection.layoutJumpFetchGc);
     if (_chunkFetchScheduler.jumpFetchPending) {
       final stitchPinned = _stitchPresencePinnedIds();
       final staleMessages = <int>[
@@ -2711,18 +2648,23 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
         });
       }
     }
+    Trace.end(TraceSection.layoutJumpFetchGc);
 
     // Children span the full viewport width; each message widget centers its
     // own content column. A full-width child lets selection chrome tint the
     // whole row without bleeding past a narrower content box.
     final childConstraints = BoxConstraints.tightFor(width: size.width);
 
+    Trace.begin(TraceSection.layoutNormalizeTail);
     _normalizeAnchorToKnownTail();
+    Trace.end(TraceSection.layoutNormalizeTail);
 
-    // Held navigation placement triggers. When the placement is re-placed
-    // this pass (its target's own row chrome changed, or a held target meets
-    // a moved band top), the row chrome hold stands down — one origin writer
-    // per pass.
+    // Held navigation placement trigger. When the placement is re-placed this
+    // pass (a held target meets a moved band top), or snaps because it is
+    // still pending on a target whose row chrome changed, the row chrome hold
+    // stands down — one origin writer per pass. A held target whose row
+    // chrome changed is not re-placed: the row chrome hold keeps its body
+    // still like any other row.
     final topPad = _topPad;
     final topPadMoved = switch (_lastLaidOutTopPad) {
       final last? => last != topPad,
@@ -2741,14 +2683,13 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       if (boundaryMoved) ...{?unreadBoundaryBefore, ?unreadBoundaryAfter},
       ...?_rowChromeTransitions?.takeChanged(),
     };
+    final placementHeld = _controller.navigationPlacement?.isHeld ?? false;
     final targetChromeChanged =
         rowChromeChanged && _isNavigationTargetChromeChange(chromeChangedRows);
-    final reapplyHold = topPadMoved || targetChromeChanged;
+    final reapplyHold = topPadMoved;
     final placementOwnsPass =
-        targetChromeChanged ||
-        (topPadMoved &&
-            (_controller.navigationPlacement?.isHeld ?? false) &&
-            _isNavigationTargetAnchored());
+        (targetChromeChanged && !placementHeld) ||
+        (topPadMoved && placementHeld && _isNavigationTargetAnchored());
 
     final rowChromeReference = rowChromeChanged && !placementOwnsPass
         ? _recordRowChromeReference()
@@ -2758,15 +2699,19 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     //   record geometry → reassign neighbor → purge tombstones → fan-out →
     //   preserve viewport → [optional refan if band null] → skip renormalize →
     //   match band gap (pre-clamp) → clamp → [refan] → match band gap (post-clamp, 1 pass).
+    Trace.begin(TraceSection.layoutDeleteRecovery);
     _recordLayoutBeforeDelete();
     _reassignAnchorIfAbsent();
     _purgeAbsentBuiltChildren();
+    Trace.end(TraceSection.layoutDeleteRecovery);
 
     final built = <int>{};
     final builtChunks = <int>{};
     _layoutFromAnchor(childConstraints, built, builtChunks);
 
+    Trace.begin(TraceSection.layoutPreserve);
     _preserveViewportAfterDelete();
+    Trace.end(TraceSection.layoutPreserve);
     // Primary scroll shift is done; refan only when no band row exists yet
     // (mid-scroll off-screen — successor not intersecting the scroll band).
     if (_deleteCollapseRecoveryActive && _bottomBandMessage() == null) {
@@ -2774,7 +2719,10 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       builtChunks.clear();
       _layoutFromAnchor(childConstraints, built, builtChunks);
     }
-    if (_holdRowChromeReference(rowChromeReference)) {
+    Trace.begin(TraceSection.layoutHold);
+    final holdRefan = _holdRowChromeReference(rowChromeReference);
+    Trace.end(TraceSection.layoutHold);
+    if (holdRefan) {
       built.clear();
       builtChunks.clear();
       _layoutFromAnchor(childConstraints, built, builtChunks);
@@ -2784,7 +2732,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     final anchorYBefore = _controller.anchorPixelOffset;
     if (!_skipRenormalizeDuringClosePath() &&
         !_skipRenormalizeDuringDeleteRecovery()) {
+      Trace.begin(TraceSection.layoutRenormalize);
       _renormalizeAnchor();
+      Trace.end(TraceSection.layoutRenormalize);
     }
     final anchorAfterRenorm = _controller.anchorMessageId;
     final anchorYAfterRenorm = _controller.anchorPixelOffset;
@@ -2798,8 +2748,12 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
         'yAfter': LogFormat.f(anchorYAfterRenorm),
       });
     }
+    Trace.begin(TraceSection.layoutTailFit);
     _resolveTailOrTarget(childConstraints, built, builtChunks);
+    Trace.end(TraceSection.layoutTailFit);
+    Trace.begin(TraceSection.layoutAlign);
     final navigationMoved = _applyNavigationPlacement(reapplyHold: reapplyHold);
+    Trace.end(TraceSection.layoutAlign);
     // Forcibly re-pin newest to the bottom edge when:
     // * follow-tail insert: viewport was at the tail and newest **id** advanced
     //   (new row lives below the previous bottomEdge), or
@@ -2837,7 +2791,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     final occupyingSpanAutoScroll = _spanAutoScrollOccupying;
     final stitchLayoutFrozen = _shouldFreezeStitchLayout();
     if (!occupyingSpanAutoScroll && !stitchLayoutFrozen) {
+      Trace.begin(TraceSection.layoutTailPin);
       _applyPendingTailPin();
+      Trace.end(TraceSection.layoutTailPin);
     }
     // Self-insert animate owns follow-tail motion: skip instant pin on id
     // advance (teleport). Same-id height growth still repins (edit expand).
@@ -2874,8 +2830,11 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     // Fine-tune band gap before clamp — up to 3 passes; clamp may shift geometry.
     if (_deleteCollapseRecoveryActive &&
         _deleteCollapseExpectedBandGap != null) {
+      Trace.begin(TraceSection.layoutBandGapMatch);
       _matchExpectedBandGap();
+      Trace.end(TraceSection.layoutBandGapMatch);
     }
+    Trace.begin(TraceSection.layoutClamp);
     final foldPinned =
         foldHold == ChatTailFoldHold.pinFold &&
         !stitchLayoutFrozen &&
@@ -2883,6 +2842,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
         !navigationMoved &&
         _pinNewestFoldLine(newestBox!);
     final clamped = _clampBoundaries(repinBottom: repinBottom) || foldPinned;
+    Trace.end(TraceSection.layoutClamp);
     if (clamped) _cancelFling();
 
     // Re-fan from the corrected anchor. When pass 1 ran with the anchor far
@@ -2907,13 +2867,16 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     // One corrective pass after clamp/refan — avoid fighting pin logic in a loop.
     if (_deleteCollapseRecoveryActive &&
         _deleteCollapseExpectedBandGap != null) {
+      Trace.begin(TraceSection.layoutBandGapMatch);
       _matchExpectedBandGap(maxPasses: 1);
+      Trace.end(TraceSection.layoutBandGapMatch);
     }
 
     // Garbage-collect children outside the build range. Messages and chunk-
     // error tiles travel through separate element-side channels. During
     // close-path animation the animate / nav targets stay built even when
     // fan-out would otherwise collect them at the cache margin.
+    Trace.begin(TraceSection.layoutGc);
     final gcPinned = _gcPinnedDuringClosePath();
     final staleMessages = <int>[
       for (final id in _children.keys)
@@ -2958,6 +2921,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       });
     }
     _rowChromeTransitions?.retainWhere(_children.containsKey);
+    Trace.end(TraceSection.layoutGc);
 
     // Stitch outgoing stay outside fan-out `built` — layout + re-freeze so
     // they remain paint-valid for dual-translate.
@@ -2988,7 +2952,10 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       maxChunk = computedMax;
     }
     // Fetch poll, LRU eviction, jump-fetch — [ChatChunkFetchScheduler].
+    Trace.begin(TraceSection.layoutFetch);
     _chunkFetchScheduler.onLayoutComplete(minChunk, maxChunk);
+    Trace.end(TraceSection.layoutFetch);
+    Trace.begin(TraceSection.layoutPublish);
     _updateScrollSemantics();
     _publishControllerState();
     _updateFloatingHeader();
@@ -3004,36 +2971,41 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       _animator.rebaseClosePathEnd(elapsed: _lastTickElapsed);
     }
     _resolveRowChromeFrame();
+    Trace.end(TraceSection.layoutPublish);
 
-    final anchorYEnd = _controller.anchorPixelOffset;
-    final anchorDy = _fetchLogAnchorYAtLayoutStart == null
-        ? null
-        : anchorYEnd - _fetchLogAnchorYAtLayoutStart!;
-    final bandAtEnd = _bottomBandMessage();
-    final bandBottomDy =
-        _fetchLogBandBottomAtLayoutStart == null || bandAtEnd == null
-        ? null
-        : bandAtEnd.bottom - _fetchLogBandBottomAtLayoutStart!;
-    final idChanged =
-        _fetchLogAnchorIdAtLayoutStart != _controller.anchorMessageId;
-    final bandIdChanged = _fetchLogBandIdAtLayoutStart != bandAtEnd?.id;
-    if ((anchorDy != null && anchorDy.abs() > 0.5) ||
-        idChanged ||
-        (bandBottomDy != null && bandBottomDy.abs() > 1.0) ||
-        bandIdChanged) {
-      _fetchAnchorEvent('layout.jump', {
-        ..._fetchAnchorSnapshot(),
-        'anchorDy': anchorDy == null ? null : LogFormat.f(anchorDy),
-        'anchorIdChanged': idChanged,
-        'bandIdWas': _fetchLogBandIdAtLayoutStart,
-        'bandIdNow': bandAtEnd?.id,
-        'bandBottomDy': bandBottomDy == null ? null : LogFormat.f(bandBottomDy),
-        'clamped': clamped,
-        'refan':
-            clamped ||
-            _controller.anchorMessageId != anchorBefore ||
-            navigationMoved,
-      });
+    if (logAnchor) {
+      final anchorYEnd = _controller.anchorPixelOffset;
+      final anchorDy = _fetchLogAnchorYAtLayoutStart == null
+          ? null
+          : anchorYEnd - _fetchLogAnchorYAtLayoutStart!;
+      final bandAtEnd = _bottomBandMessage();
+      final bandBottomDy =
+          _fetchLogBandBottomAtLayoutStart == null || bandAtEnd == null
+          ? null
+          : bandAtEnd.bottom - _fetchLogBandBottomAtLayoutStart!;
+      final idChanged =
+          _fetchLogAnchorIdAtLayoutStart != _controller.anchorMessageId;
+      final bandIdChanged = _fetchLogBandIdAtLayoutStart != bandAtEnd?.id;
+      if ((anchorDy != null && anchorDy.abs() > 0.5) ||
+          idChanged ||
+          (bandBottomDy != null && bandBottomDy.abs() > 1.0) ||
+          bandIdChanged) {
+        _fetchAnchorEvent('layout.jump', {
+          ..._fetchAnchorSnapshot(),
+          'anchorDy': anchorDy == null ? null : LogFormat.f(anchorDy),
+          'anchorIdChanged': idChanged,
+          'bandIdWas': _fetchLogBandIdAtLayoutStart,
+          'bandIdNow': bandAtEnd?.id,
+          'bandBottomDy': bandBottomDy == null
+              ? null
+              : LogFormat.f(bandBottomDy),
+          'clamped': clamped,
+          'refan':
+              clamped ||
+              _controller.anchorMessageId != anchorBefore ||
+              navigationMoved,
+        });
+      }
     }
     _deleteCollapseViewportPreservedThisLayout = false;
     _deleteCollapseRecoveryActive = false;
@@ -3043,7 +3015,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     _beforeDeleteLayout = null;
 
     if (_spanAutoScrollOccupying) _applyLiveSpanHit();
-    _fetchAnchorEvent('layout.end', _fetchAnchorSnapshot());
+    if (logAnchor) {
+      _fetchAnchorEvent('layout.end', _fetchAnchorSnapshot());
+    }
     if (LogCategory.scrollbar.enabled) {
       final computed = _computeScrollbarProgress();
       if (computed != null) {
@@ -3055,8 +3029,6 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     }
 
     assert(() {
-      debugLastLayoutDuration = _debugSw.elapsed;
-      _debugSw.stop();
       debugLayoutFrameId++;
       return true;
     }());
@@ -3098,13 +3070,13 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     _cancelAnimate(fadeHighlight: false);
     // Overlay owns the viewport — leftover wash and the controller slot
     // must not survive. Paint-only clear would late-arm on remount.
-    // The overlay-branch `_clearHighlight()` in `_onTick` is unreachable
+    // The overlay-branch `_clearHighlight()` in `_tick` is unreachable
     // once the ticker has stopped, so this layout path is the authority.
     _controller.dropHighlightRequest();
     _clearHighlight();
     // Clear drag + bounceback state so that the next normal-mode layout's
     // `_clampBoundaries` is not silently suppressed by stale flags. The
-    // ticker is about to stop, so the overlay branch of `_onTick` can no
+    // ticker is about to stop, so the overlay branch of `_tick` can no
     // longer reset them.
     _dragInProgress = false;
     _cancelOverscroll();
@@ -3133,7 +3105,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     Set<int> built,
     Set<int> builtChunks,
   ) {
+    Trace.begin(TraceSection.layoutFanOut);
     _invokeChildManagerLayout(() => _fanOutFromAnchor(cc, built, builtChunks));
+    Trace.end(TraceSection.layoutFanOut);
   }
 
   /// Inclusive lower id bound for upward layout fan-out.
@@ -3453,11 +3427,10 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   /// that moves the boundary, and every row whose separator transition
   /// frame moved since the previous pass.
   ///
-  /// When true the placement is re-applied instead of running the row chrome
-  /// hold, on every frame of the transition, so a separator added to the
-  /// target grows at the placement (for alignment `0`, from the band top)
-  /// with the body below it, rather than growing upward past the band top
-  /// to keep the band bottom row still.
+  /// When the placement is still pending, its snap runs on every layout and
+  /// the row chrome hold stands down for that pass. A held placement is not
+  /// re-applied: the row chrome hold keeps the bodies still, and the target
+  /// row's chrome grows upward like any other row's.
   ///
   /// Only the unread boundary drives row chrome today; a new row chrome
   /// source must report its rows here too.
@@ -3857,7 +3830,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     var id = startId;
     while (id <= bound) {
       final chunkIndex = ChatScrollChunk.chunkOf(id);
-      final chunk = _dataSource.chunks[chunkIndex];
+      final chunk = _dataSource.chunkAt(chunkIndex);
       if (chunk == null) return id; // chunk not loaded; let normal path handle
       if (chunk.isFullyAbsent) {
         // Skip the entire chunk in O(1).
@@ -3892,7 +3865,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     var id = startId;
     while (id >= bound) {
       final chunkIndex = ChatScrollChunk.chunkOf(id);
-      final chunk = _dataSource.chunks[chunkIndex];
+      final chunk = _dataSource.chunkAt(chunkIndex);
       if (chunk == null) return id; // chunk not loaded; let normal path handle
       if (chunk.isFullyAbsent) {
         // Skip the entire chunk in O(1).
@@ -3931,17 +3904,21 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       groupBy: _groupBy,
       messageId: id,
     );
+    Trace.begin(TraceSection.childBuild);
     final child = childManager!.buildChild(
       id,
       startsNewDay: startsDay,
       groupBucket: bucket,
       runLayout: runLayout,
     );
+    Trace.end(TraceSection.childBuild);
     if (child == null) return null;
     if (child case final RenderChatRowChrome row) {
       row.transition = _rowChromeTransitions?.frameOf(id);
     }
+    Trace.begin(TraceSection.childLayout);
     child.layout(cc, parentUsesSize: true);
+    Trace.end(TraceSection.childLayout);
     _touchChunk(id);
     final loaded = _dataSource.getMessage(id) != null;
     if (LogCategory.anchor.enabled) {
@@ -3981,7 +3958,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   /// instead of 64 per-message slots.
   bool _isChunkErrored(int chunkIndex) {
     if (!_hasErrorBuilder) return false;
-    final chunk = _dataSource.chunks[chunkIndex];
+    final chunk = _dataSource.chunkAt(chunkIndex);
     return chunk != null && chunk.status.isError;
   }
 
@@ -4035,7 +4012,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   }
 
   void _touchChunk(int id) {
-    final chunk = _dataSource.chunks[ChatScrollChunk.chunkOf(id)];
+    final chunk = _dataSource.chunkAt(ChatScrollChunk.chunkOf(id));
     if (chunk != null) chunk.lastAccessTick = ++_accessTick;
   }
 
@@ -4365,14 +4342,15 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       _controller.anchorMessageId,
     );
 
-    // Find the range of built message IDs to bound the absent-skip loops.
-    // See _repositionMessagesOnly for why `break` on null is wrong.
-    var maxBuiltId = _controller.anchorMessageId;
-    var minBuiltId = _controller.anchorMessageId;
-    for (final id in _children.keys) {
-      if (id > maxBuiltId) maxBuiltId = id;
-      if (id < minBuiltId) minBuiltId = id;
-    }
+    // The range of built message ids bounds the walks. See
+    // _repositionMessagesOnly for why `break` on null is wrong.
+    final anchorId = _controller.anchorMessageId;
+    final maxBuiltId = math.max(anchorId, _children.lastKey() ?? anchorId);
+    final minBuiltId = math.min(anchorId, _children.firstKey() ?? anchorId);
+    assert(() {
+      _debugRepositionVisits = 0;
+      return true;
+    }());
 
     var y = _controller.anchorPixelOffset;
     _setOffset(anchor, y);
@@ -4384,6 +4362,10 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
         : _controller.anchorMessageId + 1;
     while (id <= maxBuiltId ||
         _chunkErrors.containsKey(ChatScrollChunk.chunkOf(id))) {
+      assert(() {
+        _debugRepositionVisits++;
+        return true;
+      }());
       final ci = ChatScrollChunk.chunkOf(id);
       // At a chunk boundary, a chunk-error tile pre-empts message slots.
       if (id == ChatScrollChunk.firstIdOf(ci)) {
@@ -4398,9 +4380,10 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       if (id > maxBuiltId) break;
       final child = _children[id];
       if (child == null) {
-        id++;
+        // Skip absent / unbuilt ids: jump the gap to the next stop.
+        id = _repositionStopAfter(id, maxBuiltId);
         continue;
-      } // skip absent / unbuilt IDs
+      }
       if (_skipStitchOutgoingReposition(id)) {
         id++;
         continue;
@@ -4417,6 +4400,10 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
         : _controller.anchorMessageId - 1;
     while (id >= minBuiltId ||
         _chunkErrors.containsKey(ChatScrollChunk.chunkOf(id))) {
+      assert(() {
+        _debugRepositionVisits++;
+        return true;
+      }());
       final ci = ChatScrollChunk.chunkOf(id);
       final lastIdOfChunk = ChatScrollChunk.firstIdOf(ci + 1) - 1;
       if (id == lastIdOfChunk) {
@@ -4431,9 +4418,10 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       if (id < minBuiltId) break;
       final child = _children[id];
       if (child == null) {
-        id--;
+        // Skip absent / unbuilt ids: jump the gap to the next stop.
+        id = _repositionStopBefore(id, minBuiltId);
         continue;
-      } // skip absent / unbuilt IDs
+      }
       if (_skipStitchOutgoingReposition(id)) {
         id--;
         continue;
@@ -4444,41 +4432,81 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     }
   }
 
+  /// The next id after the unbuilt [id] where the downward walk of
+  /// [_repositionFromAnchor] does any work: the next built message, the first
+  /// id of the next chunk with a chunk-error tile, or `maxBuiltId + 1` (where
+  /// the walk ends unless an error tile starts there). Every id skipped is a
+  /// no-op step of the id-by-id walk, so the jump keeps the placement while
+  /// bounding the walk by the built rows, not the id span they straddle.
+  int _repositionStopAfter(int id, int maxBuiltId) {
+    var stop = _children.firstKeyAfter(id) ?? maxBuiltId + 1;
+    final errorChunk = _chunkErrors.firstKeyAfter(ChatScrollChunk.chunkOf(id));
+    if (errorChunk != null) {
+      stop = math.min(stop, ChatScrollChunk.firstIdOf(errorChunk));
+    }
+    return math.min(stop, maxBuiltId + 1);
+  }
+
+  /// The upward counterpart of [_repositionStopAfter]: the previous built
+  /// message, the last id of the previous chunk with a chunk-error tile, or
+  /// `minBuiltId - 1`.
+  int _repositionStopBefore(int id, int minBuiltId) {
+    var stop = _children.lastKeyBefore(id) ?? minBuiltId - 1;
+    final errorChunk = _chunkErrors.lastKeyBefore(ChatScrollChunk.chunkOf(id));
+    if (errorChunk != null) {
+      stop = math.max(stop, ChatScrollChunk.firstIdOf(errorChunk + 1) - 1);
+    }
+    return math.max(stop, minBuiltId - 1);
+  }
+
   /// Tier-1 fast path: only message tiles. Avoids the per-id chunk-error
   /// boundary probe and tree lookup that the general path performs.
+  ///
+  /// Walks the built ids in order outward from the anchor, never the id span
+  /// between them: absent ids are never inserted into `_children`, and a far
+  /// stitch keeps the outgoing strip built beside the incoming band, so the
+  /// span can be the whole history while the built rows are a screenful.
   void _repositionMessagesOnly(RenderBox anchor) {
     final anchorId = _controller.anchorMessageId;
     if (_children.isEmpty) return;
-
-    // Find the actual range of built message IDs so we can skip absent-slot
-    // gaps without stopping prematurely. Absent IDs are never inserted into
-    // `_children`, so iterating by sequential ID would stop at the first
-    // absent slot and leave real messages on the far side of the gap with
-    // stale offsets — producing visual "shifting" on every animation tick.
-    var maxBuiltId = anchorId;
-    var minBuiltId = anchorId;
-    for (final id in _children.keys) {
-      if (id > maxBuiltId) maxBuiltId = id;
-      if (id < minBuiltId) minBuiltId = id;
-    }
+    assert(() {
+      _debugRepositionVisits = 0;
+      return true;
+    }());
 
     var y = _controller.anchorPixelOffset;
     _setOffset(anchor, y);
     y += anchor.size.height;
-    for (var id = anchorId + 1; id <= maxBuiltId; id++) {
-      final child = _children[id];
-      if (child == null) continue; // skip absent / unbuilt IDs in the range
+    for (
+      var id = _children.firstKeyAfter(anchorId);
+      id != null;
+      id = _children.firstKeyAfter(id)
+    ) {
+      assert(() {
+        _debugRepositionVisits++;
+        return true;
+      }());
       if (_skipStitchOutgoingReposition(id)) continue;
-      _setOffset(child, y);
-      y += child.size.height;
+      if (_children[id] case final child?) {
+        _setOffset(child, y);
+        y += child.size.height;
+      }
     }
     y = _controller.anchorPixelOffset;
-    for (var id = anchorId - 1; id >= minBuiltId; id--) {
-      final child = _children[id];
-      if (child == null) continue; // skip absent / unbuilt IDs in the range
+    for (
+      var id = _children.lastKeyBefore(anchorId);
+      id != null;
+      id = _children.lastKeyBefore(id)
+    ) {
+      assert(() {
+        _debugRepositionVisits++;
+        return true;
+      }());
       if (_skipStitchOutgoingReposition(id)) continue;
-      y -= child.size.height;
-      _setOffset(child, y);
+      if (_children[id] case final child?) {
+        y -= child.size.height;
+        _setOffset(child, y);
+      }
     }
   }
 
@@ -4776,7 +4804,13 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   /// Ticker callback — the entire scroll path. Bypasses layout: repositions
   /// children and calls [markNeedsPaint] (Tier 1). Falls back to
   /// [markNeedsLayout] only when the built range no longer covers the viewport.
-  void _onTick(Duration elapsed) {
+  void _tickTraced(Duration elapsed) {
+    Trace.begin(TraceSection.tier1Tick);
+    _tick(elapsed);
+    Trace.end(TraceSection.tier1Tick);
+  }
+
+  void _tick(Duration elapsed) {
     final lastElapsed = _lastTickElapsed;
     _lastTickElapsed = elapsed;
     // Overlay mode owns the viewport — no scroll, no fling, no animate. A
@@ -4826,7 +4860,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     }
 
     final wasFlinging = fling.isFlinging;
+    Trace.begin(TraceSection.flingTick);
     final flingDelta = fling.tickFling(elapsed);
+    Trace.end(TraceSection.flingTick);
     final flingVelocity = wasFlinging ? fling.flingVelocity(elapsed) : 0.0;
     userDelta += flingDelta;
     if (wasFlinging && !fling.isFlinging) {
@@ -4837,7 +4873,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     if (occupyingSpanAutoScroll) {
       _cancelAnimate();
     } else {
+      Trace.begin(TraceSection.animatorTick);
       animateDelta = _animator.tickAnimate(elapsed);
+      Trace.end(TraceSection.animatorTick);
       delta += animateDelta;
     }
     delta += _spanAutoScrollDelta(elapsed, lastElapsed);
@@ -6939,13 +6977,6 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    assert(() {
-      _debugSw
-        ..reset()
-        ..start();
-      return true;
-    }());
-
     // Reuse the clip layer across repaints — the framework idiom. Even though
     // this object is a repaint boundary (so its layer children are re-added on
     // every repaint), holding the ClipRectLayer in a LayerHandle and passing
@@ -6959,8 +6990,6 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     );
 
     assert(() {
-      debugLastPaintDuration = _debugSw.elapsed;
-      _debugSw.stop();
       debugPaintFrameId++;
       return true;
     }());
@@ -6979,6 +7008,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       return;
     }
 
+    Trace.begin(TraceSection.paintMessages);
     // The edge effect transforms the message list only. Floating date header
     // and scrollbar paint outside it; the header's rest line already follows
     // the oldest row's paint top (see [_resolveRowChromeFrame]).
@@ -6994,8 +7024,11 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       _edgeLayer.layer = null;
       _paintMessages(context, offset);
     }
+    Trace.end(TraceSection.paintMessages);
     _paintFloatingHeader(context, offset);
+    Trace.begin(TraceSection.paintScrollbar);
     _paintScrollbar(context, offset);
+    Trace.end(TraceSection.paintScrollbar);
   }
 
   /// Message-layer transform of the live edge effect, or `null` at rest.
@@ -7007,12 +7040,14 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   void _paintMessages(PaintingContext context, Offset offset) {
     final viewportHeight = size.height;
     // Navigate-select wash under message children (text/bubbles stay crisp).
+    Trace.begin(TraceSection.paintHighlight);
     _animator.paintHighlight(
       context: context,
       offset: offset,
       viewportWidth: size.width,
       viewportHeight: viewportHeight,
     );
+    Trace.end(TraceSection.paintHighlight);
     // Apply stitch translations whenever the jump has happened — including
     // the pre-measure frame (provisional off-screen incoming).
     final stitching = _animator.farAnimateActive && _animator.farAnimateJumped;
@@ -7024,7 +7059,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       if (paintY >= viewportHeight || paintY + child.size.height <= 0) {
         continue;
       }
+      Trace.begin(TraceSection.childPaint);
       context.paintChild(child, offset + Offset(0, paintY));
+      Trace.end(TraceSection.childPaint);
     }
     for (final child in _chunkErrors.values) {
       final pd = _parentData(child);

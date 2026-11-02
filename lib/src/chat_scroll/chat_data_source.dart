@@ -234,9 +234,44 @@ abstract class ChatDataSource {
 
   final Map<int, ChatScrollChunk> _chunks = HashMap<int, ChatScrollChunk>();
 
-  /// Direct access to chunks for the viewport.
+  /// The chunk at [index], or `null` when it is not loaded (never fetched or
+  /// evicted).
+  ///
+  /// Read-only query for the viewport and the fetch scheduler; the chunk map
+  /// itself stays private so addressing and status rules live in this class.
   @internal
-  Map<int, ChatScrollChunk> get chunks => _chunks;
+  ChatScrollChunk? chunkAt(int index) => _chunks[index];
+
+  /// How many chunks are currently held.
+  @internal
+  int get chunkCount => _chunks.length;
+
+  /// The held chunks, in no particular order. Do not add or remove chunks
+  /// while iterating; use [evictChunk] after the loop.
+  @internal
+  Iterable<ChatScrollChunk> get loadedChunks => _chunks.values;
+
+  /// Indices of the chunks whose fetch is in flight, ascending.
+  @internal
+  List<int> get fetchingChunkIndices {
+    final fetching = <int>[];
+    for (final entry in _chunks.entries) {
+      if (entry.value.status.isFetching) fetching.add(entry.key);
+    }
+    fetching.sort();
+    return fetching;
+  }
+
+  /// Drops the chunk at [index] from the cache (LRU eviction).
+  @internal
+  void evictChunk(int index) => _chunks.remove(index);
+
+  /// Stores [chunk] at [index], replacing any chunk held there.
+  ///
+  /// Lets tests build a chunk state (status, absent slots, a mismatched
+  /// index) that fetching alone would not reach. The chunk map stays private.
+  @visibleForTesting
+  void seedChunk(int index, ChatScrollChunk chunk) => _chunks[index] = chunk;
 
   /// Get a message by ID from the chunk cache — **exact slot lookup**.
   ///

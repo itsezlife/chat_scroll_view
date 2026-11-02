@@ -173,9 +173,12 @@ void main() {
       expect(find.text('msg-0'), findsNothing);
 
       final ro = _render(tester);
-      expect(ro.debugChildCount, greaterThan(3));
-      expect(ro.debugChildCount, lessThan(40)); // not all 256 are built
-      expect(ro.debugChunkCount, greaterThan(0));
+      expect(ro.debugSnapshot.childCount, greaterThan(3));
+      expect(
+        ro.debugSnapshot.childCount,
+        lessThan(40),
+      ); // not all 256 are built
+      expect(ro.debugSnapshot.chunkCount, greaterThan(0));
     });
 
     testWidgets('layout-driven scroll reveals older then newer messages', (
@@ -252,10 +255,10 @@ void main() {
         4000,
       );
       await tester.pump();
-      final afterThrow = ro.debugFirstId!;
+      final afterThrow = ro.debugSnapshot.firstId!;
       await tester.pump(const Duration(milliseconds: 300));
       expect(
-        ro.debugFirstId,
+        ro.debugSnapshot.firstId,
         lessThan(afterThrow),
         reason: 'inertia should keep revealing older messages',
       );
@@ -413,13 +416,17 @@ void main() {
 
       // The data source created ~63 chunks up front; the first layout's LRU
       // pass trims live chunks down to ChatDataSource.maxChunks.
-      expect(ro.debugChunkCount, lessThanOrEqualTo(ds.maxChunks));
-      expect(ro.debugChunkCount, lessThan(63), reason: 'eviction must run');
+      expect(ro.debugSnapshot.chunkCount, lessThanOrEqualTo(ds.maxChunks));
+      expect(
+        ro.debugSnapshot.chunkCount,
+        lessThan(63),
+        reason: 'eviction must run',
+      );
 
       // Teleporting elsewhere keeps the live set bounded.
       controller.jumpTo(count ~/ 2);
       await tester.pump();
-      expect(ro.debugChunkCount, lessThanOrEqualTo(ds.maxChunks));
+      expect(ro.debugSnapshot.chunkCount, lessThanOrEqualTo(ds.maxChunks));
     });
 
     testWidgets('exposes scroll-action semantics that track position', (
@@ -469,7 +476,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      final withoutExtra = _render(tester).debugChildCount;
+      final withoutExtra = _render(tester).debugSnapshot.childCount;
 
       final kept = ChatScrollController()..jumpTo(count ~/ 2);
       await tester.pumpWidget(
@@ -481,7 +488,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      final withExtra = _render(tester).debugChildCount;
+      final withExtra = _render(tester).debugSnapshot.childCount;
 
       expect(withExtra, greaterThan(withoutExtra));
     });
@@ -553,12 +560,12 @@ void main() {
       final ro = _render(tester);
 
       // Floating header pinned to the very top while topPadding is 0.
-      expect(ro.debugFloatingHeaderOffset, closeTo(0, 0.1));
+      expect(ro.debugSnapshot.floatingHeaderOffset, closeTo(0, 0.1));
 
       inset.value = 50;
       await tester.pump();
       // After bumping topPadding the floating header sits below the inset.
-      expect(ro.debugFloatingHeaderOffset, closeTo(50, 0.1));
+      expect(ro.debugSnapshot.floatingHeaderOffset, closeTo(50, 0.1));
     });
 
     testWidgets('swapping bottomPadding to a listenable with a larger value '
@@ -644,7 +651,7 @@ void main() {
       // Mid-fetch — the async source's 100ms delay has not elapsed yet.
       await tester.pump(const Duration(milliseconds: 50));
       expect(
-        first.chunks.values.any((c) => c.status.isFetching),
+        first.loadedChunks.any((c) => c.status.isFetching),
         isTrue,
         reason: 'fetch should be in flight before the swap',
       );
@@ -657,7 +664,7 @@ void main() {
       // also clears the fetching flag so we can observe it dropped).
       await tester.pump(const Duration(milliseconds: 200));
       expect(
-        first.chunks.values.any((c) => c.status.isFetching),
+        first.loadedChunks.any((c) => c.status.isFetching),
         isFalse,
         reason: 'old source must have dropped the fetching flag',
       );
@@ -676,12 +683,12 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
-      expect(source.chunks.values.any((c) => c.status.isFetching), isTrue);
+      expect(source.loadedChunks.any((c) => c.status.isFetching), isTrue);
 
       // Tear the viewport out of the tree.
       await tester.pumpWidget(const SizedBox.shrink());
       // The cancellation clears the flag synchronously via cancelFetch().
-      expect(source.chunks.values.any((c) => c.status.isFetching), isFalse);
+      expect(source.loadedChunks.any((c) => c.status.isFetching), isFalse);
       // Let the orphaned Future.delayed timer fire before the test ends so
       // flutter_test's "timer still pending" guard doesn't trip on the
       // (harmless) fetch resolution that lands in a now-null _fetchToken.
@@ -703,7 +710,7 @@ void main() {
         // error.
         await tester.pump(const Duration(milliseconds: 60));
         expect(
-          source.chunks.values.any((c) => c.status.isError),
+          source.loadedChunks.any((c) => c.status.isError),
           isTrue,
           reason: 'failed fetch should mark chunks error',
         );
@@ -713,7 +720,7 @@ void main() {
         // succeeds and msg-63 appears.
         await tester.pump(const Duration(milliseconds: 1500));
         expect(find.text('msg-63'), findsOneWidget);
-        expect(source.chunks.values.any((c) => c.status.isError), isFalse);
+        expect(source.loadedChunks.any((c) => c.status.isError), isFalse);
       },
       // Hangs — poll/backoff loop needs investigation.
       skip: true,

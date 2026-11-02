@@ -5,6 +5,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chat_scroll_view/src/util/constants.dart';
 import 'package:chat_scroll_view/src/util/logger.dart';
+import 'package:chat_scroll_view/src/util/trace_section.dart';
 import 'package:flutter/scheduler.dart';
 
 /// Schedules lazy chunk fetching, scroll-aware polling, jump-fetch
@@ -276,7 +277,7 @@ class ChatChunkFetchScheduler {
 
   bool _chunkIsUrgent(int ci) {
     if (_dataSource.coversChunkInFlight(ci)) return false;
-    final chunk = _dataSource.chunks[ci];
+    final chunk = _dataSource.chunkAt(ci);
     if (chunk == null) return true;
     final status = chunk.status;
     if (status.isFetching) return false;
@@ -332,7 +333,7 @@ class ChatChunkFetchScheduler {
       // In-flight cover wins even if the map entry was evicted — otherwise
       // poll sees perpetual null pending and spins with Duration.zero.
       if (_dataSource.coversChunkInFlight(ci)) continue;
-      final chunk = _dataSource.chunks[ci];
+      final chunk = _dataSource.chunkAt(ci);
       if (chunk == null) return true;
       final status = chunk.status;
       if (status.isFetching) continue;
@@ -350,7 +351,7 @@ class ChatChunkFetchScheduler {
   bool _chunkRangeHasUrgentPending(int minChunk, int maxChunk) {
     for (var ci = minChunk; ci <= maxChunk; ci++) {
       if (_dataSource.coversChunkInFlight(ci)) continue;
-      final chunk = _dataSource.chunks[ci];
+      final chunk = _dataSource.chunkAt(ci);
       if (chunk == null) return true;
       final status = chunk.status;
       if (status.isFetching) continue;
@@ -404,7 +405,7 @@ class ChatChunkFetchScheduler {
   /// timer is never given a chance to drain before the next move
   /// arrives, so chunks at the new anchor never get fetched until the
   /// user lets go. Letting the timer keep ticking is fine: each
-  /// [_onPollTick] reads the live [_layoutMinChunk]/[_layoutMaxChunk],
+  /// [_pollTraced] reads the live [_layoutMinChunk]/[_layoutMaxChunk],
   /// so a poll armed during an old drag still requests the *current*
   /// range when it eventually fires.
   ///
@@ -492,7 +493,6 @@ class ChatChunkFetchScheduler {
   /// drops the coldest in-range chunk when still over budget, never the
   /// anchor's chunk. Load-gate destination-window chunks are also protected.
   void evictChunks() {
-    final chunks = _dataSource.chunks;
     final maxChunks = _dataSource.maxChunks;
     final anchorChunk = _anchorChunkIndex();
     final dest = _navigationDestChunk;
@@ -502,7 +502,7 @@ class ChatChunkFetchScheduler {
       // Never drop an in-flight fetch victim — eviction + same-range early
       // return left the poll with null pending forever.
       if (_dataSource.coversChunkInFlight(index)) return true;
-      final chunk = chunks[index];
+      final chunk = _dataSource.chunkAt(index);
       if (chunk != null && chunk.status.isFetching) return true;
       if (dest == null) return false;
       final range = _clampedDestinationWindow(dest);
@@ -511,7 +511,7 @@ class ChatChunkFetchScheduler {
 
     ChatScrollChunk? coldest({required bool outsideLayoutOnly}) {
       ChatScrollChunk? victim;
-      for (final chunk in chunks.values) {
+      for (final chunk in _dataSource.loadedChunks) {
         if (isProtected(chunk.index)) continue;
         final outside =
             chunk.index < _layoutMinChunk || chunk.index > _layoutMaxChunk;
@@ -523,18 +523,18 @@ class ChatChunkFetchScheduler {
       return victim;
     }
 
-    if (chunks.length >= maxChunks) {
+    if (_dataSource.chunkCount >= maxChunks) {
       while (true) {
         final victim = coldest(outsideLayoutOnly: true);
         if (victim == null) break;
-        chunks.remove(victim.index);
+        _dataSource.evictChunk(victim.index);
       }
     }
 
-    while (chunks.length > maxChunks) {
+    while (_dataSource.chunkCount > maxChunks) {
       final victim = coldest(outsideLayoutOnly: false);
       if (victim == null) break;
-      chunks.remove(victim.index);
+      _dataSource.evictChunk(victim.index);
     }
   }
 
@@ -558,10 +558,16 @@ class ChatChunkFetchScheduler {
         : (!scrollSettled && _dataSource.hasInFlightFetch
               ? _pollInterval
               : Duration.zero);
-    _pollTimer = Timer(delay, _onPollTick);
+    _pollTimer = Timer(delay, _pollTraced);
   }
 
-  void _onPollTick() {
+  void _pollTraced() {
+    Trace.begin(TraceSection.fetchPoll);
+    _poll();
+    Trace.end(TraceSection.fetchPoll);
+  }
+
+  void _poll() {
     _pollTimer = null;
     final now = DateTime.now().millisecondsSinceEpoch;
     final sinceScroll = now - _lastScrollTs;

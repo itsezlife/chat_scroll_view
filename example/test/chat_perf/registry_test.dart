@@ -1,0 +1,81 @@
+import 'package:flutter_test/flutter_test.dart';
+
+import '../../integration_test/chat_perf/registry.dart';
+
+Scenario _s(String id, int version, [List<String> windows = const ['w']]) =>
+    Scenario(id: id, version: version, windows: windows, run: (_) async {});
+
+void main() {
+  final registry = ScenarioRegistry([
+    _s('scroll.drag_slow', 1, ['drag']),
+    _s('scroll.drag_fast', 2),
+    _s('nav.jump_near', 1),
+  ]);
+
+  test('lists scenarios by id@version', () {
+    expect(registry.keys, [
+      'scroll.drag_slow@1',
+      'scroll.drag_fast@2',
+      'nav.jump_near@1',
+    ]);
+  });
+
+  test('a scenario declares its named windows', () {
+    expect(registry.all.first.windows, ['drag']);
+  });
+
+  test('an empty filter selects everything', () {
+    expect(registry.where('').length, 3);
+  });
+
+  test('a glob filter matches ids, * crossing nothing but the name', () {
+    expect(registry.where('scroll.*').map((s) => s.id), [
+      'scroll.drag_slow',
+      'scroll.drag_fast',
+    ]);
+    expect(registry.where('scroll.drag_slow').length, 1);
+    expect(registry.where('nav.*,scroll.drag_fast').length, 2);
+    expect(registry.where('scroll').length, 0);
+  });
+
+  test('rejects a duplicate id', () {
+    expect(
+      () => ScenarioRegistry([_s('a.b', 1), _s('a.b', 2)]),
+      throwsArgumentError,
+    );
+  });
+
+  test('rejects a malformed id', () {
+    expect(() => ScenarioRegistry([_s('nodot', 1)]), throwsArgumentError);
+  });
+
+  test('cold scenarios are selected apart from the shared-process set', () {
+    Future<void> run(ScenarioContext c) async {}
+    final registry = ScenarioRegistry([
+      Scenario(id: 'a.warm', version: 1, windows: const ['w'], run: run),
+      Scenario(
+        id: 'a.cold',
+        version: 1,
+        windows: const ['w'],
+        cold: true,
+        run: run,
+      ),
+    ]);
+    expect(registry.where('').map((s) => s.id), ['a.warm']);
+    expect(registry.where('', cold: true).map((s) => s.id), ['a.cold']);
+    expect(registry.where('a.*').map((s) => s.id), ['a.warm']);
+    expect(registry.where('a.*', cold: true).map((s) => s.id), ['a.cold']);
+  });
+
+  test('accepts a dotted sub-area id', () {
+    expect(ScenarioRegistry([_s('scroll.real.drag_slow', 1)]).keys, [
+      'scroll.real.drag_slow@1',
+    ]);
+  });
+
+  test('scenarios default to the bench host, not deterministic', () {
+    final s = _s('a.b', 1);
+    expect(s.subject, ScenarioSubject.bench);
+    expect(s.deterministic, isFalse);
+  });
+}

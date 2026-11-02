@@ -11,14 +11,14 @@ resource: lib/src/chat_widgets/render_chat_scroll_view.dart
 
 Tier-1 is the hot path: scroll **without** layout or widget rebuild. The render
 object owns a `Ticker`; drag, fling, edge-effect spring, and close-path animate feed
-deltas into `_onTick`, which mutates `anchorPixelOffset`, repositions children,
+deltas into `_tick`, which mutates `anchorPixelOffset`, repositions children,
 and calls `markNeedsPaint` (or `markNeedsLayout` only when the built range no
 longer covers the viewport / the floating header’s day changes).
 
 ## Tick composition order (must stay stable)
 
 ```
-_onTick:
+_tick:
   1. Overlay guard → abort scroll state, stop ticker
   2. Highlight-only early exit (no _markScrollActive)
   3. Drain _pendingScrollDelta
@@ -151,7 +151,9 @@ anchor without rebuild or `child.layout`.
 
 - Fast path `_repositionMessagesOnly` when `_chunkErrors.isEmpty`.
 - General path interleaves chunk-error tiles at chunk boundaries.
-- Null slots: **skip** (`continue`), never `break`.
+- Null slots: **skip** (`continue`), never `break`. Both paths step from one
+  built id (or chunk-error tile) to the next, so the cost is the built rows,
+  not the id span between them ([Invariants §7](./02-invariants.md)).
 
 Row chrome inputs (`paintTop`, `headerZone`, `scrollActivity`) are published
 afterwards by `_resolveRowChromeFrame` on the same tick (Tier-1-safe

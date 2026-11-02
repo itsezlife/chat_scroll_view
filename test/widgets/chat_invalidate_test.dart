@@ -59,7 +59,7 @@ void main() {
 
       // After construction every existing chunk is valid.
       expect(
-        ds.chunks.values.every((c) => c.status.isValid),
+        ds.loadedChunks.every((c) => c.status.isValid),
         isTrue,
         reason: 'initial state',
       );
@@ -67,7 +67,7 @@ void main() {
       ds.invalidate();
 
       // All present chunks are dirty; none is fetching or errored.
-      for (final chunk in ds.chunks.values) {
+      for (final chunk in ds.loadedChunks) {
         expect(chunk.status.isDirty, isTrue);
         expect(chunk.status.isFetching, isFalse);
         expect(chunk.status.isError, isFalse);
@@ -79,7 +79,7 @@ void main() {
       addTearDown(ds.dispose);
 
       // Forge an errored chunk.
-      final chunk = ds.chunks.values.first
+      final chunk = ds.loadedChunks.first
         ..status = ChatMessageStatus.error
         ..failedAttempts = 3
         ..lastError = StateError('boom');
@@ -227,13 +227,13 @@ void main() {
         await tester.pump();
 
         // The visible chunk (chunkOf(128) = 2) is now fresh.
-        final visibleChunk = ds.chunks[ChatScrollChunk.chunkOf(128)]!;
+        final visibleChunk = ds.chunkAt(ChatScrollChunk.chunkOf(128))!;
         expect(visibleChunk.status.isValid, isTrue);
         expect((ds.getMessage(128)! as UserChatMessage).content, 'fresh 128');
 
         // A far-away chunk (chunk 0, ids 0..63) is still dirty — it never
         // entered the layout range so the poll did not fetch it.
-        final farChunk = ds.chunks[0];
+        final farChunk = ds.chunkAt(0);
         expect(farChunk, isNotNull);
         expect(farChunk!.status.isDirty, isTrue);
         expect(
@@ -287,7 +287,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump();
       // Chunk 0 errored.
-      final chunk = ds.chunks[0]!;
+      final chunk = ds.chunkAt(0)!;
       expect(chunk.status.isError, isTrue);
       expect(chunk.failedAttempts, greaterThanOrEqualTo(1));
 

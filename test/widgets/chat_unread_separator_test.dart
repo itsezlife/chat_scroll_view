@@ -257,6 +257,12 @@ ChatScrollController _controllerAt(int id) {
   return controller;
 }
 
+ChatScrollController _controllerCentered(int id) {
+  final controller = ChatScrollController()..jumpTo(id, alignment: 0.5);
+  addTearDown(controller.dispose);
+  return controller;
+}
+
 // Transition TRACE (see the unread-bar worked guide): the extent follows the
 // 250 ms list-item move curve; the exit fade runs 120 ms and the enter fade
 // and scale 250 ms, both along the exact sine ease-in-out.
@@ -1038,8 +1044,8 @@ void main() {
     double bandTop(WidgetTester tester) =>
         tester.getTopLeft(find.byType(ChatScrollView)).dy;
 
-    testWidgets('adding the separator to the held target keeps the separator '
-        'at the band top and the body below it', (tester) async {
+    testWidgets('adding the separator to the held target keeps its body '
+        'still on every frame', (tester) async {
       final boundary = _boundary(null);
       await tester.pumpWidget(
         _harness(
@@ -1049,26 +1055,23 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(_top(tester, 'msg-20'), bandTop(tester));
+      final bodyTop = _top(tester, 'msg-20');
+      expect(bodyTop, bandTop(tester));
 
       boundary.value = 20;
       await tester.pump();
       for (var ms = 0; ms < 250; ms += 10) {
         if (ms > 0) await tester.pump(_frame);
-        expect(
-          _top(tester, 'msg-20'),
-          _near(bandTop(tester) + _separatorHeight * _move(ms)),
-          reason: 'the row top holds the band top at $ms ms',
-        );
+        expect(_top(tester, 'msg-20'), _near(bodyTop), reason: 'at $ms ms');
       }
-      await tester.pump(_frame);
+      await tester.pumpAndSettle();
 
-      expect(_top(tester, 'unread'), _near(bandTop(tester)));
-      expect(_top(tester, 'msg-20'), _near(bandTop(tester) + _separatorHeight));
+      expect(_top(tester, 'msg-20'), _near(bodyTop));
+      expect(_top(tester, 'unread'), _near(bodyTop - _separatorHeight));
     });
 
-    testWidgets('clearing the separator from the held target keeps the body '
-        'at the band top', (tester) async {
+    testWidgets('clearing the separator from the held target keeps its body '
+        'still', (tester) async {
       final boundary = _boundary(20);
       await tester.pumpWidget(
         _harness(
@@ -1078,14 +1081,42 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(_top(tester, 'unread'), bandTop(tester));
+      final bodyTop = _top(tester, 'msg-20');
 
       boundary.value = null;
       await tester.pumpAndSettle();
 
       expect(find.text('unread'), findsNothing);
-      expect(_top(tester, 'msg-20'), _near(bandTop(tester)));
+      expect(_top(tester, 'msg-20'), _near(bodyTop));
     });
+
+    for (final (from, to, verb) in <(int?, int?, String)>[
+      (null, 20, 'adding'),
+      (20, null, 'clearing'),
+    ]) {
+      testWidgets('$verb the separator on a centered held target keeps its '
+          'body still', (tester) async {
+        final boundary = _boundary(from);
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _loaded(64),
+            controller: _controllerCentered(20),
+            unreadBoundary: boundary,
+          ),
+        );
+        await tester.pump();
+        final bodyTop = _top(tester, 'msg-20');
+
+        boundary.value = to;
+        for (var ms = 0; ms < 250; ms += 10) {
+          await tester.pump(_frame);
+          expect(_top(tester, 'msg-20'), _near(bodyTop), reason: 'at $ms ms');
+        }
+        await tester.pumpAndSettle();
+
+        expect(_top(tester, 'msg-20'), _near(bodyTop));
+      });
+    }
 
     testWidgets('a top inset change keeps the held target, row chrome '
         'included, at the band top', (tester) async {

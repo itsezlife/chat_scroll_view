@@ -15,6 +15,10 @@
   every call, so an update disposes the ones it replaces (0.8.0 left painters
   a `builder` made to the host). A theme with a `builder` skips 0.8's reuse of
   unchanged leading blocks, so streaming lays out every block as before.
+- **FIXED**: that flag no longer covers a theme with a host `builder`: the
+  body disposed painters the host made and might keep. With a host `builder`
+  the body follows the theme's own `disposeBuiltPainters` (off by default), so
+  a host whose builder makes a new painter per call sets it.
 - **CHANGED**: the emoji-only body (`RenderChatEmojiBody`) reports its
   `textDirection` to the selection controller, which the 0.7 surface contract
   requires; it is the direction its lines start from, so handles orient by it.

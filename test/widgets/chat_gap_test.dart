@@ -78,7 +78,7 @@ class _MutableGapDataSource extends ChatDataSource {
   /// realtime delete event: server confirms deletion, client marks absent).
   void deleteMessage(int id) {
     final chunkIndex = ChatScrollChunk.chunkOf(id);
-    final chunk = chunks[chunkIndex];
+    final chunk = chunkAt(chunkIndex);
     if (chunk == null) return;
     final slot = id - chunk.firstId;
     chunk.messages[slot] = null;
@@ -309,7 +309,7 @@ void main() {
       // The fully-absent chunk must be correctly identified.
       final chunkIndex = ChatScrollChunk.chunkOf(64);
       expect(
-        ds.chunks[chunkIndex]?.isFullyAbsent,
+        ds.chunkAt(chunkIndex)?.isFullyAbsent,
         isTrue,
         reason: 'chunk $chunkIndex should be fully absent',
       );
@@ -387,7 +387,7 @@ void main() {
       // With fan-out skipping the render object builds only the two real
       // messages — absent IDs are skipped without building any child widget.
       // Allow a small margin for day-separator tiles that may be injected.
-      expect(ro.debugChildCount, lessThan(10));
+      expect(ro.debugSnapshot.childCount, lessThan(10));
     });
   });
 

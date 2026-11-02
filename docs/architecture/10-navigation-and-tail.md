@@ -74,19 +74,18 @@ so at most one placement exists. Values are immutable: `hold()` and
 
 - The top inset differs from the previous normal-mode layout
   (`_lastLaidOutTopPad`).
-- A row chrome change touches the target while it is the anchor
-  (`_isNavigationTargetChromeChange`). The target is the old or the new
-  unread boundary row on the pass that moves the boundary, or its separator
-  transition frame moved since the previous pass. The placement is
-  therefore re-applied on every frame of the target's own transition.
 
-On a pass where either trigger re-places an anchored held target, the row
-chrome hold (step 6d) stands down, including for a boundary change on
-another row in the same pass. Re-applying the placement is the only origin
-writer on that pass. Later frames of a transition on another row run the
-row chrome hold again, as for any row chrome change away from the target.
+A row chrome change on the target (the unread separator appearing, moving or
+going away) is not a trigger. The row chrome hold (step 6d) keeps the
+target's body still on every frame of the transition, as for any other row;
+the target row's top edge moves by the chrome height. A placement that is
+still pending is unaffected: it snaps every pass.
 
-A held placement re-snaps only on these triggers, not every layout. If it
+On a pass where the inset trigger re-places an anchored held target, the row
+chrome hold (step 6d) stands down: re-applying the placement is the only
+origin writer on that pass.
+
+A held placement re-snaps only on that trigger, not every layout. If it
 did, it would undo bottom-inset compensation, the boundary clamp, and height
 changes elsewhere.
 

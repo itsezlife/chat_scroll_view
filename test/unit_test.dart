@@ -55,6 +55,8 @@ import 'widgets/chat_api_test.dart' as chat_api_test;
 import 'widgets/chat_background_tap_test.dart' as chat_background_tap_test;
 import 'widgets/chat_body_copy_shortcut_platform_test.dart'
     as chat_body_copy_shortcut_platform_test;
+import 'widgets/chat_body_mount_notify_test.dart'
+    as chat_body_mount_notify_test;
 import 'widgets/chat_bottom_padding_compensation_test.dart'
     as chat_bottom_padding_compensation_test;
 import 'widgets/chat_bubble_metrics_test.dart' as chat_bubble_metrics_test;
@@ -91,6 +93,8 @@ import 'widgets/chat_markdown_body_inline_hit_test.dart'
     as chat_markdown_body_inline_hit_test;
 import 'widgets/chat_markdown_body_inline_layer_test.dart'
     as chat_markdown_body_inline_layer_test;
+import 'widgets/chat_markdown_body_painter_ownership_test.dart'
+    as chat_markdown_body_painter_ownership_test;
 import 'widgets/chat_message_body_layout_test.dart'
     as chat_message_body_layout_test;
 import 'widgets/chat_message_body_test.dart' as chat_message_body_test;
@@ -172,6 +176,7 @@ import 'widgets/chat_viewport_stable_delete_test.dart'
     as chat_viewport_stable_delete_test;
 import 'widgets/chat_widgets_bench_test.dart' as chat_widgets_bench_test;
 import 'widgets/chat_widgets_test.dart' as chat_widgets_test;
+import 'widgets/trace_seam_test.dart' as trace_seam_test;
 import 'widgets/vs_listview_bench_test.dart' as vs_listview_bench_test;
 
 void main() {
@@ -246,6 +251,10 @@ void main() {
     chat_body_copy_shortcut_platform_test.main,
   );
   group(
+    'widgets/chat_body_mount_notify_test.dart',
+    chat_body_mount_notify_test.main,
+  );
+  group(
     'widgets/chat_bottom_padding_compensation_test.dart',
     chat_bottom_padding_compensation_test.main,
   );
@@ -311,6 +320,10 @@ void main() {
   group(
     'widgets/chat_markdown_body_inline_layer_test.dart',
     chat_markdown_body_inline_layer_test.main,
+  );
+  group(
+    'widgets/chat_markdown_body_painter_ownership_test.dart',
+    chat_markdown_body_painter_ownership_test.main,
   );
   group(
     'widgets/chat_selection_highlight_test.dart',
@@ -465,5 +478,6 @@ void main() {
   );
   group('widgets/chat_widgets_bench_test.dart', chat_widgets_bench_test.main);
   group('widgets/chat_widgets_test.dart', chat_widgets_test.main);
+  group('widgets/trace_seam_test.dart', trace_seam_test.main);
   group('widgets/vs_listview_bench_test.dart', vs_listview_bench_test.main);
 }

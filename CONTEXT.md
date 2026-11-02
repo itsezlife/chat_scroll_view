@@ -68,6 +68,10 @@ _Avoid_: Bottom sheet, FAB inset (when they are not reserving the band), message
 The on-screen slice of content used as the reading-position reference after a delete.
 _Avoid_: Cache extent, build zone
 
+**Band gap match**:
+The layout step that, while a delete is being recovered, nudges the scroll so the gap under the **visible band** matches its pre-delete gap (within 8 logical px), before and once after the boundary clamp.
+_Avoid_: Gap fix, delete nudge
+
 ### Layers of work
 
 **Tier-1**:
@@ -85,6 +89,10 @@ _Avoid_: Compensate, extra offset, visual offset
 **Renormalize**:
 Silently picking a visible row as the new origin without moving pixels.
 _Avoid_: Recenter, jump, re-anchor (when nothing should visually move)
+
+**Jump-fetch GC**:
+The layout step that, while a jump's fetch is pending, drops the children built around the previous anchor (except the rows a stitch pins), so the later steps never fan across the old id span.
+_Avoid_: Jump cleanup, stale purge
 
 ### Data extent
 
@@ -360,6 +368,10 @@ _Avoid_: overflow, limit error
 Per message, whether its spoilers are revealed, held by a controller owned by the markdown engine and keyed by message id. Reveal is for the whole message at once, in memory only, and survives remounts. The tap that reveals is absorbed: it is not a message tap, an **inline hit** or a link activation, and the next tap on the revealed text is an ordinary one. A long press, a drag and a secondary click on a hidden spoiler are not taps and keep their own meaning. While **message selection** is live (committed, or a drag-selection preview) a tap toggles the row as everywhere else and the spoiler stays hidden; leaving the mode restores reveal on tap. A press held past the hold limit (500 ms, the long-press threshold) is a long press and reveals nothing; a desktop host with a mouse lifts the limit, as a click has none. A text selection over a hidden spoiler leaves it hidden (the tint is drawn under the particles) and copies the spoiler as a style over the characters, so a paste into the composer is a spoiler again; only a tap, a click or the host's own `reveal` unhides it. Nothing re-hides on its own. While hidden, the glyphs are not drawn and a particle fill is, static when motion is off ([ADR 037](docs/adr/037-spoiler-and-mention-inline-styles.md)).
 _Avoid_: Per-spoiler reveal, persisted reveal, widget-local reveal flag, re-hide on selection dismiss, reveal on selection
 
+**Trace section**:
+A named span the engine can emit on the timeline, compiled in only with `--dart-define=chat_scroll_view.trace=phase` (or `fine`) and absent from the default build; internal, with no public API ([ADR 041](docs/adr/041-engine-trace-seam.md)). Names, all under `chat_scroll_view.`: `layout.mode`, `layout.compensate`, `layout.overlay`, `layout.jumpFetchGc` (**jump-fetch GC**), `layout.normalizeTail`, `layout.deleteRecovery`, `layout.fanOut`, `layout.preserve`, `layout.hold`, `layout.renormalize`, `layout.tailFit`, `layout.align`, `layout.tailPin`, `layout.bandGapMatch` (**band gap match**), `layout.clamp`, `layout.gc`, `layout.fetch`, `layout.publish` (one per layout pipeline step); `tier1.tick` (the **Tier-1** ticker callback), `fling.tick`, `animator.tick` (its fling and animator steps); `fetch.poll`; `paint.messages`, `paint.scrollbar`, `paint.highlight`, `paint.selection`; `child.build`; and, at `fine` only, `child.layout`, `child.paint`.
+_Avoid_: Stats API, in-process counters
+
 **Emoji-only body**:
 The body kind the host passes for a message whose text is only emoji: no bubble, enlarged from per-count size tables, or sticker-sized when it is a single item with an animation. Classified by the host (it alone knows the message has no media and whether the setting is on); the viewport never re-detects. Its text layout is a **text selection subject** like any body (one emoji is a word); the single-emoji sticker layout is not ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
 _Avoid_: Big emoji bubble, emoji message type, sticker message (a single-item emoji body only borrows the sticker layout)
@@ -449,7 +461,7 @@ Where a jump or animate should land the target inside the scroll band (band top 
 _Avoid_: Scroll offset, alignment in pixels
 
 **Alignment hold**:
-After a navigation's **navigation alignment** (or Center Band placement) lands on a loaded target row, the viewport keeps it on that row until the first user scroll, a programmatic scroll-by, or the next navigation. While held, a change of the top **reserved inset** or of the target row's **row chrome** re-applies it. Other geometry keeps its usual owner: bottom-inset compensation, the boundary clamp, the **row chrome** hold on other rows, and the tail pin. The hold ends without moving anything when the target stops being the **anchor origin**. The engine calls the armed alignment or Center Band placement the *navigation placement*; an **alignment hold** is that placement in its *held* phase (after *pending*, before *released*).
+After a navigation's **navigation alignment** (or Center Band placement) lands on a loaded target row, the viewport keeps it on that row until the first user scroll, a programmatic scroll-by, or the next navigation. While held, a change of the top **reserved inset** re-applies it; a change of the target row's **row chrome** (the **unread separator** appearing, moving or going away) does not, and the **row chrome** hold keeps the target's body still while the chrome grows or shrinks above it. Other geometry keeps its usual owner: bottom-inset compensation, the boundary clamp, the **row chrome** hold on other rows, and the tail pin. The hold ends without moving anything when the target stops being the **anchor origin**. The engine calls the armed alignment or Center Band placement the *navigation placement*; an **alignment hold** is that placement in its *held* phase (after *pending*, before *released*).
 _Avoid_: Sticky jump, re-jump on inset change, pinning the target
 
 **Close-path animation**:

@@ -56,7 +56,7 @@ class _PreloadedDataSource extends ChatDataSource {
   /// Test-only: mark [id] confirmed-absent without [removeMessages] (no
   /// [RemoveBatchMutation]) so presence-pin false-Absent paths can be probed.
   void markAbsentWithoutRemoveMutation(int id) {
-    final chunk = chunks[ChatScrollChunk.chunkOf(id)];
+    final chunk = chunkAt(ChatScrollChunk.chunkOf(id));
     if (chunk == null) return;
     final slot = id - chunk.firstId;
     chunk.messages[slot] = null;
@@ -170,7 +170,7 @@ Future<void> _pumpWhileStitching(
   for (var i = 0; i < maxPumps && !done; i++) {
     await tester.pump(const Duration(milliseconds: 16));
     final render = _render(tester);
-    if (render.debugFarAnimateActive && predicate(render)) {
+    if (render.debugSnapshot.farAnimateActive && predicate(render)) {
       return;
     }
   }
@@ -203,11 +203,11 @@ void main() {
       );
       await tester.pump();
       expect(
-        _render(tester).debugFarAnimateActive,
+        _render(tester).debugSnapshot.farAnimateActive,
         isFalse,
         reason: 'newest is built nearby — close path, not stitch',
       );
-      expect(_render(tester).debugPreferBuiltWaiting, isFalse);
+      expect(_render(tester).debugSnapshot.loadGateWaiting, isFalse);
 
       await _driveAnimate(tester, future);
     },
@@ -225,7 +225,7 @@ void main() {
     );
     await tester.pump();
 
-    final beforeIds = _render(tester).debugBuiltMessageIds.toSet();
+    final beforeIds = _render(tester).debugSnapshot.builtMessageIds.toSet();
     expect(beforeIds, isNotEmpty);
     expect(
       beforeIds.contains(0),
@@ -243,22 +243,25 @@ void main() {
     await tester.pump(const Duration(milliseconds: 16));
 
     final render = _render(tester);
-    expect(render.debugFarAnimateActive, isTrue);
-    expect(render.debugStitchOutgoingIds, isNotEmpty);
-    expect(render.debugStitchOutgoingIds.intersection(beforeIds), isNotEmpty);
+    expect(render.debugSnapshot.farAnimateActive, isTrue);
+    expect(render.debugSnapshot.stitchOutgoingIds, isNotEmpty);
+    expect(
+      render.debugSnapshot.stitchOutgoingIds.intersection(beforeIds),
+      isNotEmpty,
+    );
     // Outgoing strip must still be mounted for dual-translate paint.
     expect(
-      render.debugStitchOutgoingIds.intersection(
-        render.debugBuiltMessageIds.toSet(),
+      render.debugSnapshot.stitchOutgoingIds.intersection(
+        render.debugSnapshot.builtMessageIds.toSet(),
       ),
-      equals(render.debugStitchOutgoingIds),
+      equals(render.debugSnapshot.stitchOutgoingIds),
     );
-    expect(render.debugStitchProgress, lessThan(1.0));
-    expect(render.debugStitchScrollLength, greaterThan(100));
+    expect(render.debugSnapshot.stitchProgress, lessThan(1.0));
+    expect(render.debugSnapshot.stitchScrollLength, greaterThan(100));
 
     await _driveAnimate(tester, future);
-    expect(_render(tester).debugFarAnimateActive, isFalse);
-    expect(_render(tester).debugStitchOutgoingIds, isEmpty);
+    expect(_render(tester).debugSnapshot.farAnimateActive, isFalse);
+    expect(_render(tester).debugSnapshot.stitchOutgoingIds, isEmpty);
   });
 
   testWidgets(
@@ -286,18 +289,18 @@ void main() {
       await tester.pump(const Duration(milliseconds: 16));
 
       final mid = _render(tester);
-      expect(mid.debugFarAnimateActive, isTrue);
-      expect(mid.debugIsAnimating, isTrue);
-      expect(mid.debugStitchOutgoingIds, isNotEmpty);
+      expect(mid.debugSnapshot.farAnimateActive, isTrue);
+      expect(mid.debugSnapshot.isAnimating, isTrue);
+      expect(mid.debugSnapshot.stitchOutgoingIds, isNotEmpty);
       final originBeforeDelete = controller.anchorMessageId;
 
       ds.removeMessages([target]);
       await tester.pump();
 
       final after = _render(tester);
-      expect(after.debugIsAnimating, isFalse);
-      expect(after.debugFarAnimateActive, isFalse);
-      expect(after.debugStitchOutgoingIds, isEmpty);
+      expect(after.debugSnapshot.isAnimating, isFalse);
+      expect(after.debugSnapshot.farAnimateActive, isFalse);
+      expect(after.debugSnapshot.stitchOutgoingIds, isEmpty);
       // No soft-retarget into a blank stitch band — animate settled cancelled.
       expect(controller.anchorMessageId, isNot(target));
       // Origin should remain a present row (delete-collapse of neighbors is OK
@@ -333,8 +336,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 16));
 
     final mid = _render(tester);
-    expect(mid.debugFarAnimateActive, isTrue);
-    final outgoing = mid.debugStitchOutgoingIds;
+    expect(mid.debugSnapshot.farAnimateActive, isTrue);
+    final outgoing = mid.debugSnapshot.stitchOutgoingIds;
     expect(outgoing, isNotEmpty);
     final doomed = outgoing.first;
 
@@ -342,9 +345,9 @@ void main() {
     await tester.pump();
 
     final after = _render(tester);
-    expect(after.debugIsAnimating, isFalse);
-    expect(after.debugFarAnimateActive, isFalse);
-    expect(after.debugStitchOutgoingIds, isEmpty);
+    expect(after.debugSnapshot.isAnimating, isFalse);
+    expect(after.debugSnapshot.farAnimateActive, isFalse);
+    expect(after.debugSnapshot.stitchOutgoingIds, isEmpty);
 
     await future;
   });
@@ -380,12 +383,14 @@ void main() {
       await tester.pump(const Duration(milliseconds: 32));
 
       final mid = _render(tester);
-      expect(mid.debugFarAnimateActive, isTrue);
-      expect(mid.debugStitchOutgoingIds, isNotEmpty);
+      expect(mid.debugSnapshot.farAnimateActive, isTrue);
+      expect(mid.debugSnapshot.stitchOutgoingIds, isNotEmpty);
       // Presence pin: target + full outgoing strip remain built.
-      expect(mid.debugBuiltMessageIds.contains(target), isTrue);
+      expect(mid.debugSnapshot.builtMessageIds.contains(target), isTrue);
       expect(
-        mid.debugStitchOutgoingIds.difference(mid.debugBuiltMessageIds),
+        mid.debugSnapshot.stitchOutgoingIds.difference(
+          mid.debugSnapshot.builtMessageIds,
+        ),
         isEmpty,
       );
       // Soft-retarget forbidden while target is still present.
@@ -393,7 +398,7 @@ void main() {
       expect(ds.getMessage(target), isNotNull);
 
       await _driveAnimate(tester, future);
-      expect(_render(tester).debugFarAnimateActive, isFalse);
+      expect(_render(tester).debugSnapshot.farAnimateActive, isFalse);
     },
   );
 
@@ -421,7 +426,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 16));
 
-    expect(_render(tester).debugFarAnimateActive, isTrue);
+    expect(_render(tester).debugSnapshot.farAnimateActive, isTrue);
     expect(controller.anchorMessageId, target);
 
     // Mark absent without RemoveBatchMutation (false Absent / non-cancel path).
@@ -431,21 +436,21 @@ void main() {
 
     final mid = _render(tester);
     expect(
-      mid.debugIsAnimating,
+      mid.debugSnapshot.isAnimating,
       isTrue,
       reason: 'false Absent must not cancel — only explicit remove does',
     );
-    expect(mid.debugFarAnimateActive, isTrue);
+    expect(mid.debugSnapshot.farAnimateActive, isTrue);
     expect(
-      mid.debugBuiltMessageIds.contains(target),
+      mid.debugSnapshot.builtMessageIds.contains(target),
       isTrue,
       reason: 'presence pin keeps target built despite false Absent',
     );
     // Fan-out must still build destination neighbors — not abort on Absent
     // anchor and leave only GC ghosts (blank incoming band).
     expect(
-      mid.debugBuiltMessageIds.length,
-      greaterThan(mid.debugStitchOutgoingIds.length + 1),
+      mid.debugSnapshot.builtMessageIds.length,
+      greaterThan(mid.debugSnapshot.stitchOutgoingIds.length + 1),
       reason: 'incoming/destination rows must keep building mid-flight',
     );
     expect(controller.anchorMessageId, target);
@@ -474,7 +479,7 @@ void main() {
     );
     await _driveAnimate(tester, future);
     expect(controller.anchorMessageId, 0);
-    expect(_render(tester).debugFarAnimateActive, isFalse);
+    expect(_render(tester).debugSnapshot.farAnimateActive, isFalse);
   });
 
   testWidgets(
@@ -511,11 +516,11 @@ void main() {
 
       final waiting = _render(tester);
       expect(
-        waiting.debugLoadGateWaiting,
+        waiting.debugSnapshot.loadGateWaiting,
         isTrue,
         reason: 'unready target must stay in load-gate',
       );
-      expect(waiting.debugFarAnimateActive, isFalse);
+      expect(waiting.debugSnapshot.farAnimateActive, isFalse);
       expect(controller.anchorMessageId, originId);
       expect(find.text('shimmer-$target'), findsNothing);
 
@@ -527,7 +532,7 @@ void main() {
       }
 
       expect(
-        _render(tester).debugLoadGateWaiting,
+        _render(tester).debugSnapshot.loadGateWaiting,
         isFalse,
         reason: 'path selection after readiness',
       );
@@ -536,7 +541,7 @@ void main() {
       expect(controller.anchorMessageId, target);
       expect(find.text('msg-$target'), findsOneWidget);
       expect(find.text('shimmer-$target'), findsNothing);
-      expect(_render(tester).debugFarAnimateActive, isFalse);
+      expect(_render(tester).debugSnapshot.farAnimateActive, isFalse);
     },
   );
 
@@ -571,8 +576,8 @@ void main() {
         await tester.pump(const Duration(milliseconds: 16));
       }
 
-      expect(_render(tester).debugLoadGateWaiting, isTrue);
-      expect(_render(tester).debugIsAnimating, isTrue);
+      expect(_render(tester).debugSnapshot.loadGateWaiting, isTrue);
+      expect(_render(tester).debugSnapshot.isAnimating, isTrue);
 
       // Target may still be unloaded; stage removal after releasing a stub row
       // so removeMessages has a known id in span.
@@ -582,9 +587,9 @@ void main() {
       ds.removeMessages([target]);
       await tester.pump();
 
-      expect(_render(tester).debugIsAnimating, isFalse);
-      expect(_render(tester).debugLoadGateWaiting, isFalse);
-      expect(_render(tester).debugFarAnimateActive, isFalse);
+      expect(_render(tester).debugSnapshot.isAnimating, isFalse);
+      expect(_render(tester).debugSnapshot.loadGateWaiting, isFalse);
+      expect(_render(tester).debugSnapshot.farAnimateActive, isFalse);
 
       await future;
     },
@@ -677,7 +682,7 @@ void main() {
       // Drop newest window so destination is unloaded for load-gate animateTo.
       final newestChunk = ChatScrollChunk.chunkOf(newest);
       for (var ci = newestChunk - 1; ci <= newestChunk + 1; ci++) {
-        ds.chunks.remove(ci);
+        ds.evictChunk(ci);
       }
       expect(
         ds.getMessage(newest),
@@ -762,7 +767,7 @@ void main() {
 
       final newestChunk = ChatScrollChunk.chunkOf(newest);
       for (var ci = newestChunk - 1; ci <= newestChunk + 1; ci++) {
-        ds.chunks.remove(ci);
+        ds.evictChunk(ci);
       }
       expect(ds.getMessage(newest), isNull);
 
@@ -824,7 +829,7 @@ void main() {
 
     final newestChunk = ChatScrollChunk.chunkOf(newest);
     for (var ci = newestChunk - 1; ci <= newestChunk + 1; ci++) {
-      ds.chunks.remove(ci);
+      ds.evictChunk(ci);
     }
     expect(ds.getMessage(newest), isNull);
 
@@ -866,8 +871,8 @@ void main() {
     await tester.pump();
 
     final before = _render(tester);
-    expect(before.debugHasFloatingHeader, isTrue);
-    expect(before.debugHeaderDate?.day, originDay);
+    expect(before.debugSnapshot.hasFloatingHeader, isTrue);
+    expect(before.debugSnapshot.headerDate?.day, originDay);
 
     final future = controller.animateTo(
       targetId,
@@ -882,11 +887,12 @@ void main() {
       tester,
       future,
       predicate: (r) =>
-          r.debugStitchProgress < 0.2 && r.debugStitchScrollLength > 0,
+          r.debugSnapshot.stitchProgress < 0.2 &&
+          r.debugSnapshot.stitchScrollLength > 0,
     );
     final early = _render(tester);
-    expect(early.debugFarAnimateActive, isTrue);
-    expect(early.debugHeaderDate?.day, originDay);
+    expect(early.debugSnapshot.farAnimateActive, isTrue);
+    expect(early.debugSnapshot.headerDate?.day, originDay);
 
     // Later, destination-band rows are paint-visible at the top — chrome
     // updates before settle from built visible content only.
@@ -894,36 +900,38 @@ void main() {
       tester,
       future,
       predicate: (r) =>
-          r.debugStitchProgress > 0.55 && r.debugStitchProgress < 1.0,
+          r.debugSnapshot.stitchProgress > 0.55 &&
+          r.debugSnapshot.stitchProgress < 1.0,
     );
     final mid = _render(tester);
-    expect(mid.debugFarAnimateActive, isTrue);
+    expect(mid.debugSnapshot.farAnimateActive, isTrue);
     expect(
-      mid.debugHeaderDate,
+      mid.debugSnapshot.headerDate,
       isNotNull,
       reason: 'floating date must update during stitch, not only at settle',
     );
     expect(
-      mid.debugHeaderDate!.day,
+      mid.debugSnapshot.headerDate!.day,
       isNot(originDay),
       reason: 'floating date must leave the origin day before settle',
     );
     expect(
-      mid.debugHeaderDate!.day,
+      mid.debugSnapshot.headerDate!.day,
       greaterThan(originDay),
       reason: 'toward-newer stitch should reveal destination-side days',
     );
     final builtDays = {
-      for (final id in mid.debugBuiltMessageIds) _dayMsg(id).createdAt.day,
+      for (final id in mid.debugSnapshot.builtMessageIds)
+        _dayMsg(id).createdAt.day,
     };
     expect(
-      builtDays.contains(mid.debugHeaderDate!.day),
+      builtDays.contains(mid.debugSnapshot.headerDate!.day),
       isTrue,
       reason: 'no invented mid-gap day during stitch',
     );
 
     await _driveAnimate(tester, future);
-    expect(_render(tester).debugHeaderDate?.day, targetDay);
+    expect(_render(tester).debugSnapshot.headerDate?.day, targetDay);
   });
 
   testWidgets('startsDay separators ride outgoing and incoming stitch strips', (
@@ -958,14 +966,14 @@ void main() {
       tester,
       future,
       predicate: (r) =>
-          r.debugStitchProgress > 0.1 &&
-          r.debugStitchProgress < 0.9 &&
-          r.debugStitchOutgoingIds.isNotEmpty,
+          r.debugSnapshot.stitchProgress > 0.1 &&
+          r.debugSnapshot.stitchProgress < 0.9 &&
+          r.debugSnapshot.stitchOutgoingIds.isNotEmpty,
     );
 
     final mid = _render(tester);
-    expect(mid.debugFarAnimateActive, isTrue);
-    final outgoingStartsDay = mid.debugStitchOutgoingIds
+    expect(mid.debugSnapshot.farAnimateActive, isTrue);
+    final outgoingStartsDay = mid.debugSnapshot.stitchOutgoingIds
         .where(mid.debugStartsDay)
         .toList();
     expect(
@@ -981,8 +989,8 @@ void main() {
       );
     }
 
-    final incomingStartsDay = mid.debugBuiltMessageIds
-        .difference(mid.debugStitchOutgoingIds)
+    final incomingStartsDay = mid.debugSnapshot.builtMessageIds
+        .difference(mid.debugSnapshot.stitchOutgoingIds)
         .where(mid.debugStartsDay)
         .toList();
     expect(
@@ -1039,7 +1047,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(
-      _render(tester).debugBuiltMessageIds.contains(targetId),
+      _render(tester).debugSnapshot.builtMessageIds.contains(targetId),
       isTrue,
       reason: 'fixture must keep target built after drag',
     );
@@ -1054,7 +1062,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 16));
 
     expect(
-      _render(tester).debugFarAnimateActive,
+      _render(tester).debugSnapshot.farAnimateActive,
       isFalse,
       reason: 'band-intersecting tall neighbor must not stitch',
     );
@@ -1097,22 +1105,22 @@ void main() {
         tester,
         future,
         predicate: (r) =>
-            r.debugStitchProgress > 0.05 &&
-            r.debugStitchProgress < 0.95 &&
-            r.debugStitchScrollLength > 0,
+            r.debugSnapshot.stitchProgress > 0.05 &&
+            r.debugSnapshot.stitchProgress < 0.95 &&
+            r.debugSnapshot.stitchScrollLength > 0,
       );
 
       final mid = _render(tester);
-      expect(mid.debugFarAnimateActive, isTrue);
+      expect(mid.debugSnapshot.farAnimateActive, isTrue);
       expect(
-        mid.debugStitchScrollLength,
+        mid.debugSnapshot.stitchScrollLength,
         greaterThan(_viewportHeight * 4),
         reason:
             'full-strip travel must include tall outgoing extent; '
             'must not clamp to viewport*4 for product reasons',
       );
       expect(
-        mid.debugBuiltMessageIds.contains(targetId),
+        mid.debugSnapshot.builtMessageIds.contains(targetId),
         isTrue,
         reason: 'destination must stay built mid-flight (no blank band)',
       );
@@ -1122,7 +1130,7 @@ void main() {
       expect(controller.anchorMessageId, targetId);
       expect(find.text('msg-$targetId'), findsOneWidget);
       expect(find.text('shimmer-$targetId'), findsNothing);
-      expect(_render(tester).debugFarAnimateActive, isFalse);
+      expect(_render(tester).debugSnapshot.farAnimateActive, isFalse);
     },
   );
 
@@ -1159,21 +1167,21 @@ void main() {
         tester,
         future,
         predicate: (r) =>
-            r.debugStitchProgress > 0.05 &&
-            r.debugStitchProgress < 0.95 &&
-            r.debugStitchScrollLength > 0,
+            r.debugSnapshot.stitchProgress > 0.05 &&
+            r.debugSnapshot.stitchProgress < 0.95 &&
+            r.debugSnapshot.stitchScrollLength > 0,
       );
 
       final mid = _render(tester);
-      expect(mid.debugFarAnimateActive, isTrue);
+      expect(mid.debugSnapshot.farAnimateActive, isTrue);
       expect(
-        mid.debugStitchScrollLength,
+        mid.debugSnapshot.stitchScrollLength,
         greaterThan(_viewportHeight * 4),
         reason:
             'full-strip travel must include tall incoming extent; '
             'must not clamp to viewport*4 for product reasons',
       );
-      expect(mid.debugBuiltMessageIds.contains(targetId), isTrue);
+      expect(mid.debugSnapshot.builtMessageIds.contains(targetId), isTrue);
       expect(find.text('msg-$targetId'), findsOneWidget);
 
       await _driveAnimate(tester, future, maxPumps: 300);
@@ -1215,7 +1223,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       expect(
-        _render(tester).debugBuiltMessageIds.contains(tallerOlderId),
+        _render(tester).debugSnapshot.builtMessageIds.contains(tallerOlderId),
         isTrue,
         reason: 'fixture must keep tall older built after drag',
       );
@@ -1227,7 +1235,7 @@ void main() {
         highlight: false,
       );
       expect(
-        _render(tester).debugFarAnimateActive,
+        _render(tester).debugSnapshot.farAnimateActive,
         isFalse,
         reason: 'older tall neighbor from newer seat uses close path',
       );
@@ -1235,7 +1243,7 @@ void main() {
 
       expect(controller.anchorMessageId, tallerOlderId);
       expect(
-        _render(tester).debugBuiltMessageIds.contains(newerId),
+        _render(tester).debugSnapshot.builtMessageIds.contains(newerId),
         isTrue,
         reason: 'newer neighbor must survive tall-anchor fan-out',
       );
@@ -1248,7 +1256,7 @@ void main() {
       );
       await tester.pump();
       expect(
-        _render(tester).debugFarAnimateActive,
+        _render(tester).debugSnapshot.farAnimateActive,
         isFalse,
         reason: 'reverse hop must close-path, not stitch notBuilt',
       );
@@ -1283,19 +1291,19 @@ void main() {
       highlight: false,
     );
     await tester.pump();
-    expect(_render(tester).debugFarAnimateActive, isTrue);
+    expect(_render(tester).debugSnapshot.farAnimateActive, isTrue);
 
     // Wait until measured dual-translate is moving.
     await _pumpWhileStitching(
       tester,
       future,
-      predicate: (r) => r.debugStitchProgress > 0.05,
+      predicate: (r) => r.debugSnapshot.stitchProgress > 0.05,
     );
 
     final layoutsAtMid = _render(tester).debugLayoutFrameId;
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 16));
-      if (!_render(tester).debugFarAnimateActive) break;
+      if (!_render(tester).debugSnapshot.farAnimateActive) break;
     }
     final layoutsAfter = _render(tester).debugLayoutFrameId;
     final layoutDelta = layoutsAfter - layoutsAtMid;
@@ -1310,6 +1318,82 @@ void main() {
 
     await _driveAnimate(tester, future, maxPumps: 300);
   });
+
+  testWidgets('stitch reposition walks the built rows, not the id span', (
+    tester,
+  ) async {
+    // Finding 02: the outgoing strip stays built beside the incoming band, so
+    // the id span between them is half the history. Each reposition must
+    // visit only built ids, whatever that span.
+    const count = 20000;
+    final controller = ChatScrollController();
+    final ds = _FetchingDataSource(count);
+    addTearDown(controller.dispose);
+    addTearDown(ds.dispose);
+
+    await tester.pumpWidget(
+      _scaffold(dataSource: ds, controller: controller, cacheExtent: 200),
+    );
+    controller.jumpTo(count ~/ 2);
+    await tester.pump();
+    await tester.pump();
+
+    final future = controller.animateTo(
+      0,
+      duration: const Duration(milliseconds: 800),
+      highlight: false,
+    );
+    await tester.pump();
+    var done = false;
+    unawaited(future.whenComplete(() => done = true));
+    var stitchFrames = 0;
+    var maxVisits = 0;
+    for (var i = 0; i < 200 && !done; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final render = _render(tester);
+      if (!render.debugSnapshot.farAnimateActive) continue;
+      if (render.debugSnapshot.stitchOutgoingIds.isEmpty) continue;
+      stitchFrames++;
+      final built = render.debugSnapshot.builtMessageIds;
+      expect(built.reduce((a, b) => a > b ? a : b), greaterThan(count ~/ 4));
+      expect(
+        render.debugSnapshot.lastRepositionVisits,
+        lessThanOrEqualTo(built.length),
+        reason: 'reposition visited more ids than are built',
+      );
+      if (render.debugSnapshot.lastRepositionVisits > maxVisits) {
+        maxVisits = render.debugSnapshot.lastRepositionVisits;
+      }
+    }
+    expect(stitchFrames, greaterThan(0), reason: 'the flight must stitch');
+    expect(maxVisits, greaterThan(0), reason: 'reposition ran mid-stitch');
+    await _driveAnimate(tester, future, maxPumps: 300);
+  });
+}
+
+/// The whole history up front, and served again by [fetchRange] once chunk
+/// eviction drops it: a long history with no load-gate wait.
+class _FetchingDataSource extends ChatDataSource {
+  _FetchingDataSource(this.count) {
+    upsertMessages([for (var i = 0; i < count; i++) _msg(i)]);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
+  }
+
+  final int count;
+
+  @override
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => [
+    for (var i = fromId; i <= toId; i++)
+      if (i >= 0 && i < count) _msg(i),
+  ];
 }
 
 class _DayPreloadedDataSource extends ChatDataSource {

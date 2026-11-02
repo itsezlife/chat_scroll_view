@@ -252,6 +252,7 @@ void main() {
       final (:ds, :controller, :boundary) = await open(tester);
       final jumps = <int>[];
       controller.addJumpListener(jumps.add);
+      final bodyTop = tester.getTopLeft(find.text('msg-$boundaryId')).dy;
 
       _background();
       ds.insertMessage(_msg(count));
@@ -263,12 +264,11 @@ void main() {
       expect(jumps, isEmpty);
       expect(controller.isAtTail.value, isFalse);
       expect(find.text('unread'), findsNothing);
-      final bandTop = tester.getTopLeft(find.byType(ChatScrollView)).dy;
       expect(
         tester.getTopLeft(find.text('msg-$boundaryId')).dy,
-        bandTop,
+        moreOrLessEquals(bodyTop),
         reason:
-            'the row the reader opened at keeps its alignment as the '
+            'the row the reader opened at keeps its body still as the '
             'separator leaves it',
       );
     });

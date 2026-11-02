@@ -419,7 +419,9 @@ void main() {
         expect(ds.getMessage(11), isNull);
 
         // Simulate engine LRU eviction before a later refetch.
-        ds.chunks.clear();
+        for (final c in ds.loadedChunks.toList()) {
+          ds.evictChunk(c.index);
+        }
 
         ds.requestChunks(0, 0);
         await Future<void>.delayed(Duration.zero);

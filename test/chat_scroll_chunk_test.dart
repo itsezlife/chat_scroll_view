@@ -125,7 +125,7 @@ void main() {
 
     test('slot assertion fires when chunk is stored at wrong index', () {
       // Chunk for index 0 (firstId 0) stored under key 1 — simulates corruption.
-      source.chunks[1] = ChatScrollChunk(index: 0);
+      source.seedChunk(1, ChatScrollChunk(index: 0));
 
       expect(() => source.getMessage(64), throwsA(isA<AssertionError>()));
     });
@@ -343,7 +343,7 @@ void main() {
         source.upsertMessage(_msg(10));
         // Manually mark slot 5 (id = chunkFirstId + 5 = 5) absent.
         final chunkIndex = ChatScrollChunk.chunkOf(0);
-        final chunk = source.chunks[chunkIndex]!;
+        final chunk = source.chunkAt(chunkIndex)!;
         chunk.markAbsentSlot(5); // id = 0 * 64 + 5 = 5
         expect(source.statusOf(5), ChatMessageStatus.absent);
       },
@@ -385,7 +385,7 @@ void main() {
         await Future<void>.delayed(Duration.zero); // let future complete
 
         final ci = ChatScrollChunk.chunkOf(64);
-        final chunk = source.chunks[ci];
+        final chunk = source.chunkAt(ci);
         expect(chunk, isNotNull, reason: 'chunk must be created by the fetch');
         final loaded = chunk!;
         for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
@@ -411,7 +411,7 @@ void main() {
         await Future<void>.delayed(Duration.zero);
 
         final ci = ChatScrollChunk.chunkOf(0);
-        final chunk = source.chunks[ci];
+        final chunk = source.chunkAt(ci);
         expect(chunk, isNotNull);
         // Slot 5 is present → not absent.
         expect(chunk!.isAbsentSlot(5), isFalse);
@@ -435,7 +435,7 @@ void main() {
         source.simulateFetch(fromId: 0, toId: 63, result: [_msg(5), _msg(10)]);
         await Future<void>.delayed(Duration.zero);
 
-        final chunk = source.chunks[ChatScrollChunk.chunkOf(0)]!;
+        final chunk = source.chunkAt(ChatScrollChunk.chunkOf(0))!;
         expect(chunk.messages[5], isNotNull);
         expect(chunk.messages[10], isNotNull);
         expect(chunk.isAbsentSlot(5), isFalse);
@@ -460,7 +460,7 @@ void main() {
         await Future<void>.delayed(Duration.zero);
 
         for (var ci = 1; ci <= 5; ci++) {
-          final chunk = source.chunks[ci];
+          final chunk = source.chunkAt(ci);
           expect(chunk, isNotNull, reason: 'chunk $ci must exist');
           expect(chunk!.isFullyAbsent, isTrue);
           expect(chunk.absentSlotCount, ChatScrollChunk.kSize);
@@ -482,7 +482,7 @@ void main() {
         );
         await Future<void>.delayed(Duration.zero);
 
-        final chunk = source.chunks[1]!;
+        final chunk = source.chunkAt(1)!;
         expect(chunk.isAbsentSlot(0), isFalse);
         expect(chunk.isAbsentSlot(63), isFalse);
         expect(chunk.messages[0]!.id, 64);
@@ -527,7 +527,7 @@ void main() {
       final source = _TestDataSource();
       // Force-mark slot 20 (id 20 in chunk 0) absent.
       source.upsertMessage(_msg(0)); // ensure chunk 0 exists & is valid
-      final chunk = source.chunks[ChatScrollChunk.chunkOf(0)]!;
+      final chunk = source.chunkAt(ChatScrollChunk.chunkOf(0))!;
       chunk.messages[20] = null; // ensure slot is null
       chunk.markAbsentSlot(20);
       expect(source.statusOf(20), ChatMessageStatus.absent);
@@ -543,7 +543,7 @@ void main() {
     test('upsertMessages at previously-absent slots clears their bits', () {
       final source = _TestDataSource();
       source.upsertMessage(_msg(0));
-      final chunk = source.chunks[ChatScrollChunk.chunkOf(0)]!;
+      final chunk = source.chunkAt(ChatScrollChunk.chunkOf(0))!;
       for (final slot in [1, 2, 3]) {
         chunk.messages[slot] = null;
         chunk.markAbsentSlot(slot);
@@ -591,19 +591,19 @@ class _RecordingDataSource extends ChatDataSource {
 
     // Ensure all chunks exist.
     for (var ci = fromChunk; ci <= toChunk; ci++) {
-      chunks.putIfAbsent(ci, () => ChatScrollChunk(index: ci));
+      if (chunkAt(ci) == null) seedChunk(ci, ChatScrollChunk(index: ci));
     }
 
     // Upsert returned messages.
     for (final msg in result) {
       final ci = ChatScrollChunk.chunkOf(msg.id);
-      final chunk = chunks[ci]!;
+      final chunk = chunkAt(ci)!;
       chunk.messages[msg.id - chunk.firstId] = msg;
     }
 
     // Absent-marking pass (mirrors the corrected _executeFetch logic).
     for (var ci = fromChunk; ci <= toChunk; ci++) {
-      final chunk = chunks[ci]!;
+      final chunk = chunkAt(ci)!;
       for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
         if (chunk.messages[slot] != null) continue;
         chunk.markAbsentSlot(slot);

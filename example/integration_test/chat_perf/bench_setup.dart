@@ -1,0 +1,57 @@
+/// How a bench host's data source is built and when its viewport mounts:
+/// pure Dart, shared by the registry (a scenario names the setup it needs)
+/// and the device host.
+library;
+
+/// The designated tall message: a fixed id whose body is taller than twice any
+/// phone viewport (140 lines), whatever the history size.
+const int kTallMessageId = 12000;
+
+/// The latency profile of the data source's `fetchRange`.
+enum BenchLatency {
+  /// Resolves in a microtask.
+  instant,
+
+  /// A mobile-network-like delay with seeded jitter: a pure function of the
+  /// requested range, so every launch sees the same delays.
+  network,
+
+  /// A congested network, about ten times [network]: slow enough that a fast
+  /// paced drag reaches a chunk before its fetch lands, which the one-chunk
+  /// look-ahead otherwise prevents.
+  slow;
+
+  /// The delay of the fetch starting at [fromId].
+  Duration delayFor(int fromId) => switch (this) {
+    instant => Duration.zero,
+    network => Duration(milliseconds: 60 + _jitter(fromId) % 120),
+    slow => Duration(milliseconds: 900 + _jitter(fromId) % 600),
+  };
+}
+
+int _jitter(int fromId) {
+  var h = (fromId * 0x45d9f3b + 0x119de1f3) & 0xffffffff;
+  h = ((h >> 16) ^ h) * 0x45d9f3b & 0xffffffff;
+  return (h >> 16) ^ h;
+}
+
+/// What a scenario needs from the bench host: its data source and when its
+/// viewport mounts.
+final class BenchSetup {
+  const BenchSetup({
+    this.latency = BenchLatency.instant,
+    this.lazy = false,
+    this.mountViewport = true,
+  });
+
+  final BenchLatency latency;
+
+  /// `true` seeds only the boundaries; chunks are fetched on demand. `false`
+  /// seeds the whole history up front.
+  final bool lazy;
+
+  /// `false` mounts the host's app without the viewport; the scenario builds
+  /// it inside its window (`ChurnHost.openViewport`), so the window measures
+  /// the opening itself.
+  final bool mountViewport;
+}
