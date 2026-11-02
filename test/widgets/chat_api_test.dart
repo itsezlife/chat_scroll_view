@@ -285,7 +285,10 @@ void main() {
 
       // Render-side debug counter confirms: exactly one chunk-error tile,
       // and 0 message tiles for the errored chunk's ids.
-      expect(_render(tester).debugChunkErrorCount, greaterThanOrEqualTo(1));
+      expect(
+        _render(tester).debugSnapshot.chunkErrorCount,
+        greaterThanOrEqualTo(1),
+      );
     });
 
     testWidgets('without chunkErrorBuilder, status passes to messageBuilder', (
@@ -321,7 +324,7 @@ void main() {
       expect(_textStartingWith('err-'), findsWidgets);
       expect(statuses.values.any((s) => s.isError), isTrue);
       // The chunk-error path is not taken — no chunk-error tile inflated.
-      expect(_render(tester).debugChunkErrorCount, 0);
+      expect(_render(tester).debugSnapshot.chunkErrorCount, 0);
     });
   });
 
@@ -351,8 +354,8 @@ void main() {
       expect(_textStartingWith('msg-'), findsNothing);
 
       final ro = _render(tester);
-      expect(ro.debugChildCount, 0);
-      expect(ro.debugChunkErrorCount, 0);
+      expect(ro.debugSnapshot.childCount, 0);
+      expect(ro.debugSnapshot.chunkErrorCount, 0);
 
       // The overlay child fills the viewport — its top-left anchors at the
       // viewport's top-left.
@@ -385,8 +388,8 @@ void main() {
 
       expect(_textStartingWith('msg-'), findsNothing);
       expect(_textStartingWith('shimmer-'), findsNothing);
-      expect(_render(tester).debugChildCount, 0);
-      expect(_render(tester).debugChunkErrorCount, 0);
+      expect(_render(tester).debugSnapshot.childCount, 0);
+      expect(_render(tester).debugSnapshot.chunkErrorCount, 0);
     });
   });
 
@@ -415,7 +418,7 @@ void main() {
         // Loading overlay is up; no shimmer tiles fanned out.
         expect(find.text('loading-state'), findsOneWidget);
         expect(_textStartingWith('shimmer-'), findsNothing);
-        expect(_render(tester).debugChildCount, 0);
+        expect(_render(tester).debugSnapshot.childCount, 0);
 
         // Resolve the fetch + transition out of loading.
         ds.release(4);
@@ -534,7 +537,7 @@ void main() {
         // Without chunk-error builder, the errored chunk leaks status to the
         // message builder — shimmer for each id (we render shimmer regardless
         // of status in this test's `_msgBuilder`).
-        expect(_render(tester).debugChunkErrorCount, 0);
+        expect(_render(tester).debugSnapshot.chunkErrorCount, 0);
 
         // Flip the builder on; existing tiles must be re-inflated as chunk
         // errors on the next layout.
@@ -544,7 +547,7 @@ void main() {
         await tester.pump();
 
         expect(find.text('error-0-63'), findsOneWidget);
-        expect(_render(tester).debugChunkErrorCount, 1);
+        expect(_render(tester).debugSnapshot.chunkErrorCount, 1);
       },
       // For some reason, this test is running forever on the CI.
       skip: true,
@@ -576,14 +579,14 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 200));
         await tester.pump();
-        expect(_render(tester).debugChunkErrorCount, 1);
+        expect(_render(tester).debugSnapshot.chunkErrorCount, 1);
 
         useErrorBuilder.value = false;
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 20));
         await tester.pump();
 
-        expect(_render(tester).debugChunkErrorCount, 0);
+        expect(_render(tester).debugSnapshot.chunkErrorCount, 0);
         expect(find.text('error-0-63'), findsNothing);
       },
       // For some reason, this test is running forever on the CI.
@@ -664,8 +667,8 @@ void main() {
     );
     final render = _render(tester);
     expect(
-      render.debugLastRepositionVisits,
-      lessThanOrEqualTo(render.debugBuiltMessageIds.length + 1),
+      render.debugSnapshot.lastRepositionVisits,
+      lessThanOrEqualTo(render.debugSnapshot.builtMessageIds.length + 1),
     );
   });
 }

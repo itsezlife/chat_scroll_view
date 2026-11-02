@@ -162,9 +162,9 @@ void main() {
       );
       final csvMem = MemorySnapshot(
         label: 'CSV ($count msgs)',
-        elementCount: csvRender.debugChildCount,
+        elementCount: csvRender.debugSnapshot.childCount,
         renderObjectCount: _renderObjectCount(tester),
-        chunkCount: csvRender.debugChunkCount,
+        chunkCount: csvRender.debugSnapshot.chunkCount,
       );
       await tester.pumpWidget(const SizedBox.shrink());
 

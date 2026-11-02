@@ -535,7 +535,7 @@ class ChatScrollElement extends RenderObjectElement
       child: Builder(
         builder: (ctx) {
           final ds = _widget.dataSource;
-          final chunk = ds.chunks[chunkIndex];
+          final chunk = ds.chunkAt(chunkIndex);
           return _widget.chunkErrorBuilder!(ctx, (
             chunkIndex: chunkIndex,
             firstId: firstId,

@@ -460,11 +460,11 @@ void main() {
       );
       await tester.pump();
       expect(
-        _render(tester).debugIsAnimating,
+        _render(tester).debugSnapshot.isAnimating,
         isFalse,
         reason: 'at-tail self insert must not animateTo',
       );
-      expect(_render(tester).debugFarAnimateActive, isFalse);
+      expect(_render(tester).debugSnapshot.farAnimateActive, isFalse);
 
       await tester.pump();
       expect(controller.isAtTail.value, isTrue);
@@ -517,7 +517,7 @@ void main() {
         _scaffold(dataSource: ds, controller: controller),
       );
       await tester.pump();
-      final initialChildren = _render(tester).debugChildCount;
+      final initialChildren = _render(tester).debugSnapshot.childCount;
 
       for (var i = 0; i < 30; i++) {
         ds.appendOne();
@@ -529,11 +529,11 @@ void main() {
       // inflate everything ever produced. Allow a small slack for the
       // directional-lead build-ahead.
       expect(
-        _render(tester).debugChildCount,
+        _render(tester).debugSnapshot.childCount,
         lessThanOrEqualTo(initialChildren + 8),
       );
       // And much less than the conversation's total size.
-      expect(_render(tester).debugChildCount, lessThan(50));
+      expect(_render(tester).debugSnapshot.childCount, lessThan(50));
     });
   });
 }

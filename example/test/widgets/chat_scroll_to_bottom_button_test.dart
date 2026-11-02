@@ -1733,7 +1733,8 @@ void main() {
       expect(
         tester
             .renderObject<RenderChatScrollView>(find.byType(ChatScrollView))
-            .debugHighlightTargetId,
+            .debugSnapshot
+            .highlightTargetId,
         isNull,
       );
     });

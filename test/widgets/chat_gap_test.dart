@@ -387,7 +387,7 @@ void main() {
       // With fan-out skipping the render object builds only the two real
       // messages — absent IDs are skipped without building any child widget.
       // Allow a small margin for day-separator tiles that may be injected.
-      expect(ro.debugChildCount, lessThan(10));
+      expect(ro.debugSnapshot.childCount, lessThan(10));
     });
   });
 

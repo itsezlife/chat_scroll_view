@@ -303,7 +303,7 @@ void main() {
         // Must not stitch: same visible newest should smooth-scroll (target
         // already built → close path), never jump to band top then pin.
         expect(
-          render.debugFarAnimateActive,
+          render.debugSnapshot.farAnimateActive,
           isFalse,
           reason: 'visible tall newest must use close path, not stitch',
         );

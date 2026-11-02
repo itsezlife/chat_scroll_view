@@ -265,8 +265,9 @@ highlight paints over target row.
 is `none`, content fits, or the thumb would leave no travel; the painter draws
 in viewport-local coordinates.
 
-Debug getters (`debugChildCount`, `debugDividerOpacity`, etc.) and
-`_fetchAnchorEvent` / `_scrollbarEvent` are diagnostics only.
+The test-only `debugSnapshot` (a `ChatScrollDebugSnapshot`),
+`debugDividerOpacity`, `debugStartsDay`, `_fetchAnchorEvent` and
+`_scrollbarEvent` are diagnostics only.
 
 ---
 
