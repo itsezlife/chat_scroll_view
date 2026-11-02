@@ -440,9 +440,12 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
 
     return _resolvedTheme = ambient.copyWith(
       emojiRuns: ambient.emojiRuns ?? _colourEmojiRuns,
-      // Every call below makes a new painter, so the body may dispose the ones
-      // an update replaces.
-      disposeBuiltPainters: true,
+      // The table and code painters below are made anew on every call and are
+      // the body's, so it may dispose the ones an update replaces. A host
+      // builder may keep a painter and return it again, so with one the host
+      // decides; the table and code painters it leaves to the engine are then
+      // freed by the garbage collector.
+      disposeBuiltPainters: userBuilder == null || ambient.disposeBuiltPainters,
       builder: (block, themeData) {
         if (userBuilder case final b?) {
           if (b(block, themeData) case final custom?) return custom;
