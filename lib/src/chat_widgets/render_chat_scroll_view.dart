@@ -758,8 +758,8 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   /// change is a row chrome change that the next layout turns into
   /// transitions ([_startUnreadSeparatorTransitions]), and every layout that
   /// moves a transition frame holds the reading position across it
-  /// ([_holdRowChromeReference]) — unless a changed row is the target of the
-  /// armed navigation placement, which is then re-applied instead
+  /// ([_holdRowChromeReference]) — unless a changed row is the target of a
+  /// still pending navigation placement, whose snap then owns the pass
   /// ([_isNavigationTargetChromeChange]).
   ///
   /// Swapping in a listenable with a different current value is a value
@@ -2204,8 +2204,8 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   /// Once the snap lands on a loaded row the placement becomes **held**.
   ///
   /// **Held**: snaps again only when [reapplyHold] is set — the scroll band's
-  /// top edge moved, or the target row's row chrome changed this pass.
-  /// Otherwise it stays silent so bottom inset compensation, the boundary
+  /// top edge moved. A change of the target's row chrome does not re-seat
+  /// it: the row chrome hold keeps the body still. Otherwise it stays silent so bottom inset compensation, the boundary
   /// clamp, and height changes elsewhere keep their effect instead of being
   /// snapped back on every layout.
   ///
@@ -2659,10 +2659,12 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     _normalizeAnchorToKnownTail();
     Trace.end(TraceSection.layoutNormalizeTail);
 
-    // Held navigation placement triggers. When the placement is re-placed
-    // this pass (its target's own row chrome changed, or a held target meets
-    // a moved band top), the row chrome hold stands down — one origin writer
-    // per pass.
+    // Held navigation placement trigger. When the placement is re-placed this
+    // pass (a held target meets a moved band top), or snaps because it is
+    // still pending on a target whose row chrome changed, the row chrome hold
+    // stands down — one origin writer per pass. A held target whose row
+    // chrome changed is not re-placed: the row chrome hold keeps its body
+    // still like any other row.
     final topPad = _topPad;
     final topPadMoved = switch (_lastLaidOutTopPad) {
       final last? => last != topPad,
@@ -2681,14 +2683,13 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       if (boundaryMoved) ...{?unreadBoundaryBefore, ?unreadBoundaryAfter},
       ...?_rowChromeTransitions?.takeChanged(),
     };
+    final placementHeld = _controller.navigationPlacement?.isHeld ?? false;
     final targetChromeChanged =
         rowChromeChanged && _isNavigationTargetChromeChange(chromeChangedRows);
-    final reapplyHold = topPadMoved || targetChromeChanged;
+    final reapplyHold = topPadMoved;
     final placementOwnsPass =
-        targetChromeChanged ||
-        (topPadMoved &&
-            (_controller.navigationPlacement?.isHeld ?? false) &&
-            _isNavigationTargetAnchored());
+        (targetChromeChanged && !placementHeld) ||
+        (topPadMoved && placementHeld && _isNavigationTargetAnchored());
 
     final rowChromeReference = rowChromeChanged && !placementOwnsPass
         ? _recordRowChromeReference()
@@ -3426,11 +3427,10 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   /// that moves the boundary, and every row whose separator transition
   /// frame moved since the previous pass.
   ///
-  /// When true the placement is re-applied instead of running the row chrome
-  /// hold, on every frame of the transition, so a separator added to the
-  /// target grows at the placement (for alignment `0`, from the band top)
-  /// with the body below it, rather than growing upward past the band top
-  /// to keep the band bottom row still.
+  /// When the placement is still pending, its snap runs on every layout and
+  /// the row chrome hold stands down for that pass. A held placement is not
+  /// re-applied: the row chrome hold keeps the bodies still, and the target
+  /// row's chrome grows upward like any other row's.
   ///
   /// Only the unread boundary drives row chrome today; a new row chrome
   /// source must report its rows here too.
