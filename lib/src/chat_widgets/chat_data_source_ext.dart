@@ -22,7 +22,7 @@ extension ChatDataSourceStatus on ChatDataSource {
   /// 3. **Otherwise** → returns the chunk's status (`valid`, `dirty`,
   ///    `fetching`, or `error`).
   ChatMessageStatus statusOf(int id) {
-    final chunk = chunks[ChatScrollChunk.chunkOf(id)];
+    final chunk = chunkAt(ChatScrollChunk.chunkOf(id));
     if (chunk == null) return ChatMessageStatus.dirty;
     if (chunk.isAbsentSlot(id - chunk.firstId)) return ChatMessageStatus.absent;
     return chunk.status;

@@ -1264,7 +1264,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   // [_scrollbarRuntime] resolves track and thumb rects once per paint from that
   // progress and the preset painter's geometry; grab hit-testing reads the same
   // frame. A grab runs the mapping backwards ([_dragScrollbarTo]) and seats a
-  // fractional band position. Paint does not read [ChatDataSource.chunks].
+  // fractional band position. Paint does not read [ChatDataSource.chunkAt].
   //
   // Scrollbar visibility sits beside scroll activity, fed from the same motion
   // edges (tick hold, settle release, jump and scrollBy pulses) but owned by
@@ -1418,7 +1418,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   int get debugChunkErrorCount => _chunkErrors.length;
 
   /// Number of pagination chunks tracked by the data source.
-  int get debugChunkCount => _dataSource.chunks.length;
+  int get debugChunkCount => _dataSource.chunkCount;
 
   /// Lowest chunk index included in the last layout fan-out.
   int get debugLayoutMinChunk => _chunkFetchScheduler.layoutMinChunk;
@@ -1613,15 +1613,6 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       'fling': _motion.fling.isFlinging,
       'builtCount': _children.length,
     };
-  }
-
-  List<int> _fetchingChunkIndices() {
-    final fetching = <int>[];
-    for (final entry in _dataSource.chunks.entries) {
-      if (entry.value.status.isFetching) fetching.add(entry.key);
-    }
-    fetching.sort();
-    return fetching;
   }
 
   // --- RenderBox configuration ----------------------------------------------
@@ -1915,7 +1906,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     _abortSpanIfOriginAbsent();
     _fetchAnchorEvent('fetch.data', {
       ..._fetchAnchorSnapshot(),
-      'fetchingChunks': LogFormat.ids(_fetchingChunkIndices(), max: 8),
+      'fetchingChunks': LogFormat.ids(_dataSource.fetchingChunkIndices, max: 8),
     });
     markNeedsLayout();
   }
@@ -2685,7 +2676,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     _fetchLogBandBottomAtLayoutStart = bandAtStart?.bottom;
     _fetchAnchorEvent('layout.begin', {
       ..._fetchAnchorSnapshot(),
-      'fetchingChunks': LogFormat.ids(_fetchingChunkIndices(), max: 8),
+      'fetchingChunks': LogFormat.ids(_dataSource.fetchingChunkIndices, max: 8),
     });
     // Drop pre-jump children so renormalize/clamp do not fan across the wrong
     // id span — but keep stitch presence pins (outgoing strip + animate target).
@@ -3884,7 +3875,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     var id = startId;
     while (id <= bound) {
       final chunkIndex = ChatScrollChunk.chunkOf(id);
-      final chunk = _dataSource.chunks[chunkIndex];
+      final chunk = _dataSource.chunkAt(chunkIndex);
       if (chunk == null) return id; // chunk not loaded; let normal path handle
       if (chunk.isFullyAbsent) {
         // Skip the entire chunk in O(1).
@@ -3919,7 +3910,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     var id = startId;
     while (id >= bound) {
       final chunkIndex = ChatScrollChunk.chunkOf(id);
-      final chunk = _dataSource.chunks[chunkIndex];
+      final chunk = _dataSource.chunkAt(chunkIndex);
       if (chunk == null) return id; // chunk not loaded; let normal path handle
       if (chunk.isFullyAbsent) {
         // Skip the entire chunk in O(1).
@@ -4012,7 +4003,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   /// instead of 64 per-message slots.
   bool _isChunkErrored(int chunkIndex) {
     if (!_hasErrorBuilder) return false;
-    final chunk = _dataSource.chunks[chunkIndex];
+    final chunk = _dataSource.chunkAt(chunkIndex);
     return chunk != null && chunk.status.isError;
   }
 
@@ -4066,7 +4057,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   }
 
   void _touchChunk(int id) {
-    final chunk = _dataSource.chunks[ChatScrollChunk.chunkOf(id)];
+    final chunk = _dataSource.chunkAt(ChatScrollChunk.chunkOf(id));
     if (chunk != null) chunk.lastAccessTick = ++_accessTick;
   }
 
@@ -7031,7 +7022,6 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-
     // Reuse the clip layer across repaints — the framework idiom. Even though
     // this object is a repaint boundary (so its layer children are re-added on
     // every repaint), holding the ClipRectLayer in a LayerHandle and passing
