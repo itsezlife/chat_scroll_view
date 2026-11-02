@@ -11,6 +11,7 @@ import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/scroll_to_bottom_button.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -156,6 +157,7 @@ Widget _scaffoldWithTallPill({
 }) {
   final lastSeen = lastSeenNewestId ?? ValueNotifier<int?>(lastRead);
   return MaterialApp(
+    builder: _withChrome,
     home: Scaffold(
       body: Center(
         child: SizedBox(
@@ -324,6 +326,7 @@ class _DemoPillScaffoldState extends State<_DemoPillScaffold> {
     }
 
     return MaterialApp(
+      builder: _withChrome,
       home: Scaffold(
         body: SizedBox(
           width: 400,
@@ -476,6 +479,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          builder: _withChrome,
           home: Scaffold(
             body: Center(
               child: SizedBox(
@@ -604,6 +608,7 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
+            builder: _withChrome,
             home: Scaffold(
               body: Center(
                 child: SizedBox(
@@ -666,6 +671,7 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
+            builder: _withChrome,
             home: Scaffold(
               body: Center(
                 child: SizedBox(
@@ -1252,6 +1258,7 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
+            builder: _withChrome,
             home: Scaffold(
               body: Center(
                 child: SizedBox(
@@ -1319,6 +1326,7 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
+            builder: _withChrome,
             home: Scaffold(
               body: Center(
                 child: SizedBox(
@@ -1381,6 +1389,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          builder: _withChrome,
           home: Scaffold(
             body: Center(
               child: SizedBox(
@@ -2277,3 +2286,7 @@ void main() {
     });
   });
 }
+
+/// The glass button needs the chrome theme the app supplies above its home.
+Widget _withChrome(BuildContext context, Widget? child) =>
+    ChromeThemeScope(palette: const ChromePalette.dark(), child: child!);
