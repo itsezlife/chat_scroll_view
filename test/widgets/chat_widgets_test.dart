@@ -651,7 +651,7 @@ void main() {
       // Mid-fetch — the async source's 100ms delay has not elapsed yet.
       await tester.pump(const Duration(milliseconds: 50));
       expect(
-        first.chunks.values.any((c) => c.status.isFetching),
+        first.loadedChunks.any((c) => c.status.isFetching),
         isTrue,
         reason: 'fetch should be in flight before the swap',
       );
@@ -664,7 +664,7 @@ void main() {
       // also clears the fetching flag so we can observe it dropped).
       await tester.pump(const Duration(milliseconds: 200));
       expect(
-        first.chunks.values.any((c) => c.status.isFetching),
+        first.loadedChunks.any((c) => c.status.isFetching),
         isFalse,
         reason: 'old source must have dropped the fetching flag',
       );
@@ -683,12 +683,12 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
-      expect(source.chunks.values.any((c) => c.status.isFetching), isTrue);
+      expect(source.loadedChunks.any((c) => c.status.isFetching), isTrue);
 
       // Tear the viewport out of the tree.
       await tester.pumpWidget(const SizedBox.shrink());
       // The cancellation clears the flag synchronously via cancelFetch().
-      expect(source.chunks.values.any((c) => c.status.isFetching), isFalse);
+      expect(source.loadedChunks.any((c) => c.status.isFetching), isFalse);
       // Let the orphaned Future.delayed timer fire before the test ends so
       // flutter_test's "timer still pending" guard doesn't trip on the
       // (harmless) fetch resolution that lands in a now-null _fetchToken.
@@ -710,7 +710,7 @@ void main() {
         // error.
         await tester.pump(const Duration(milliseconds: 60));
         expect(
-          source.chunks.values.any((c) => c.status.isError),
+          source.loadedChunks.any((c) => c.status.isError),
           isTrue,
           reason: 'failed fetch should mark chunks error',
         );
@@ -720,7 +720,7 @@ void main() {
         // succeeds and msg-63 appears.
         await tester.pump(const Duration(milliseconds: 1500));
         expect(find.text('msg-63'), findsOneWidget);
-        expect(source.chunks.values.any((c) => c.status.isError), isFalse);
+        expect(source.loadedChunks.any((c) => c.status.isError), isFalse);
       },
       // Hangs — poll/backoff loop needs investigation.
       skip: true,

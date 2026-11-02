@@ -627,7 +627,7 @@ void main() {
         expect(_userContent(source.getMessage(10005)), 'once');
         var slotsWithId = 0;
         // ignore: invalid_use_of_internal_member
-        for (final chunk in source.chunks.values) {
+        for (final chunk in source.loadedChunks) {
           for (final message in chunk.messages) {
             if (message?.id == 10005) slotsWithId++;
           }

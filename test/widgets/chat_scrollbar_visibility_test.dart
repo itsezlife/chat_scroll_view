@@ -48,7 +48,7 @@ class _Source extends ChatDataSource {
       reachedOldest: first == 0,
       reachedNewest: true,
     );
-    for (final chunk in chunks.values) {
+    for (final chunk in loadedChunks) {
       chunk.status = ChatMessageStatus.valid;
     }
   }

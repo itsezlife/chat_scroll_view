@@ -22,7 +22,7 @@ class _LoadedSource extends ChatDataSource {
       reachedOldest: true,
       reachedNewest: true,
     );
-    for (final chunk in chunks.values) {
+    for (final chunk in loadedChunks) {
       chunk.status = ChatMessageStatus.valid;
     }
   }

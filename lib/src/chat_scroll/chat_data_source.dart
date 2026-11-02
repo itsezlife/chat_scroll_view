@@ -266,9 +266,12 @@ abstract class ChatDataSource {
   @internal
   void evictChunk(int index) => _chunks.remove(index);
 
-  /// The live chunk map, for tests that seed or inspect chunk state directly.
+  /// Stores [chunk] at [index], replacing any chunk held there.
+  ///
+  /// Lets tests build a chunk state (status, absent slots, a mismatched
+  /// index) that fetching alone would not reach. The chunk map stays private.
   @visibleForTesting
-  Map<int, ChatScrollChunk> get chunks => _chunks;
+  void seedChunk(int index, ChatScrollChunk chunk) => _chunks[index] = chunk;
 
   /// Get a message by ID from the chunk cache — **exact slot lookup**.
   ///

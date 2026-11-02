@@ -56,7 +56,7 @@ class _PreloadedDataSource extends ChatDataSource {
   /// Test-only: mark [id] confirmed-absent without [removeMessages] (no
   /// [RemoveBatchMutation]) so presence-pin false-Absent paths can be probed.
   void markAbsentWithoutRemoveMutation(int id) {
-    final chunk = chunks[ChatScrollChunk.chunkOf(id)];
+    final chunk = chunkAt(ChatScrollChunk.chunkOf(id));
     if (chunk == null) return;
     final slot = id - chunk.firstId;
     chunk.messages[slot] = null;
@@ -682,7 +682,7 @@ void main() {
       // Drop newest window so destination is unloaded for load-gate animateTo.
       final newestChunk = ChatScrollChunk.chunkOf(newest);
       for (var ci = newestChunk - 1; ci <= newestChunk + 1; ci++) {
-        ds.chunks.remove(ci);
+        ds.evictChunk(ci);
       }
       expect(
         ds.getMessage(newest),
@@ -767,7 +767,7 @@ void main() {
 
       final newestChunk = ChatScrollChunk.chunkOf(newest);
       for (var ci = newestChunk - 1; ci <= newestChunk + 1; ci++) {
-        ds.chunks.remove(ci);
+        ds.evictChunk(ci);
       }
       expect(ds.getMessage(newest), isNull);
 
@@ -829,7 +829,7 @@ void main() {
 
     final newestChunk = ChatScrollChunk.chunkOf(newest);
     for (var ci = newestChunk - 1; ci <= newestChunk + 1; ci++) {
-      ds.chunks.remove(ci);
+      ds.evictChunk(ci);
     }
     expect(ds.getMessage(newest), isNull);
 

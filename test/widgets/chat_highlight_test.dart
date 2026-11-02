@@ -1761,11 +1761,12 @@ class _HangFetchLazyDataSource extends ChatDataSource {
 
   void markSlotAbsent(int id) {
     final chunkIndex = ChatScrollChunk.chunkOf(id);
-    final chunk = chunks.putIfAbsent(
-      chunkIndex,
-      () =>
-          ChatScrollChunk(index: chunkIndex)..status = ChatMessageStatus.valid,
-    );
+    var chunk = chunkAt(chunkIndex);
+    if (chunk == null) {
+      chunk = ChatScrollChunk(index: chunkIndex)
+        ..status = ChatMessageStatus.valid;
+      seedChunk(chunkIndex, chunk);
+    }
     final slot = id - chunk.firstId;
     chunk.messages[slot] = null;
     if (!chunk.isAbsentSlot(slot)) {
@@ -1776,17 +1777,15 @@ class _HangFetchLazyDataSource extends ChatDataSource {
 
   void markChunkError(int id) {
     final chunkIndex = ChatScrollChunk.chunkOf(id);
-    final chunk = chunks.putIfAbsent(
-      chunkIndex,
-      () => ChatScrollChunk(index: chunkIndex),
-    );
+    final chunk = chunkAt(chunkIndex) ?? ChatScrollChunk(index: chunkIndex);
+    seedChunk(chunkIndex, chunk);
     chunk.status = ChatMessageStatus.error;
     notifyDataChanged();
   }
 
   void loadAsValid(int id) {
     loadMessage(id);
-    chunks[ChatScrollChunk.chunkOf(id)]?.status = ChatMessageStatus.valid;
+    chunkAt(ChatScrollChunk.chunkOf(id))?.status = ChatMessageStatus.valid;
     notifyDataChanged();
   }
 
