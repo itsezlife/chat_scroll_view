@@ -104,9 +104,11 @@ void main() {
       // ignore: avoid_print
       print(BenchmarkMetrics('  paint ', paint));
       // ignore: avoid_print
-      print('  children=${ro.debugChildCount} chunks=${ro.debugChunkCount}');
+      print(
+        '  children=${ro.debugSnapshot.childCount} chunks=${ro.debugSnapshot.chunkCount}',
+      );
 
-      expect(ro.debugChildCount, greaterThan(0));
+      expect(ro.debugSnapshot.childCount, greaterThan(0));
     });
   }
 }

@@ -355,7 +355,7 @@ void main() {
         final render =
             tester.renderObject(find.byType(ChatScrollView))
                 as RenderChatScrollView;
-        expect(render.debugLoadGateWaiting, isTrue);
+        expect(render.debugSnapshot.loadGateWaiting, isTrue);
 
         ds.requests.clear();
         ds.serveFetches = true;
@@ -364,7 +364,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
         await tester.pump(const Duration(milliseconds: 200));
 
-        expect(render.debugLoadGateWaiting, isFalse);
+        expect(render.debugSnapshot.loadGateWaiting, isFalse);
         expect(controller.anchorMessageId, jumpTarget);
         await animating;
 

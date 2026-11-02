@@ -158,7 +158,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 16));
         if (find.byType(ChatScrollView).evaluate().isEmpty) break;
         final render = _render(tester);
-        if (render.debugFarAnimateActive) {
+        if (render.debugSnapshot.farAnimateActive) {
           sawStitch = true;
           break;
         }
@@ -243,7 +243,7 @@ void main() {
       for (var i = 0; i < 60; i++) {
         await tester.pump(const Duration(milliseconds: 16));
         if (find.byType(ChatScrollView).evaluate().isEmpty) break;
-        if (_render(tester).debugFarAnimateActive) {
+        if (_render(tester).debugSnapshot.farAnimateActive) {
           sawStitch = true;
           break;
         }

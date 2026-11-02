@@ -164,7 +164,7 @@ void main() {
       await tester.pump();
 
       expect(find.textContaining('sep-'), findsNothing);
-      expect(_render(tester).debugHasFloatingHeader, isFalse);
+      expect(_render(tester).debugSnapshot.hasFloatingHeader, isFalse);
     });
 
     testWidgets('a floating header is present and tracks the topmost day', (
@@ -181,16 +181,16 @@ void main() {
       await tester.pump();
       final ro = _render(tester);
 
-      expect(ro.debugHasFloatingHeader, isTrue);
+      expect(ro.debugSnapshot.hasFloatingHeader, isTrue);
       // jumpTo(8): msg-8 is the first message of day 2 (2026-01-02).
-      expect(ro.debugHeaderDate, isNotNull);
-      expect(ro.debugHeaderDate!.month, 1);
-      expect(ro.debugHeaderDate!.day, 2);
+      expect(ro.debugSnapshot.headerDate, isNotNull);
+      expect(ro.debugSnapshot.headerDate!.month, 1);
+      expect(ro.debugSnapshot.headerDate!.day, 2);
 
       // Teleport deep into another day — the header follows.
       controller.jumpTo(80); // 80 ~/ 8 == 10 -> 2026-01-11
       await tester.pump();
-      expect(ro.debugHeaderDate!.day, 11);
+      expect(ro.debugSnapshot.headerDate!.day, 11);
     });
 
     testWidgets('short content hides the floating header in reverse mode', (
@@ -206,7 +206,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(_render(tester).debugHasFloatingHeader, isFalse);
+      expect(_render(tester).debugSnapshot.hasFloatingHeader, isFalse);
     });
 
     testWidgets('top overscroll keeps floating header viewport-fixed', (
@@ -222,8 +222,8 @@ void main() {
       );
       await tester.pump();
       final ro = _render(tester);
-      expect(ro.debugFloatingHeaderVisible, isTrue);
-      final headerY = ro.debugFloatingHeaderOffset;
+      expect(ro.debugSnapshot.floatingHeaderVisible, isTrue);
+      final headerY = ro.debugSnapshot.floatingHeaderOffset;
 
       final gesture = await tester.startGesture(
         tester.getCenter(find.byType(ChatScrollView)),
@@ -231,16 +231,16 @@ void main() {
       await gesture.moveBy(const Offset(0, 120));
       await tester.pump();
       expect(
-        ro.debugStretchOverscroll,
+        ro.debugSnapshot.stretchOverscroll,
         greaterThan(0.01),
         reason: 'pull past oldest paints stretch',
       );
       expect(
-        ro.debugFloatingHeaderVisible,
+        ro.debugSnapshot.floatingHeaderVisible,
         isTrue,
         reason: 'header stays painted outside the stretch transform',
       );
-      expect(ro.debugFloatingHeaderOffset, closeTo(headerY!, 0.5));
+      expect(ro.debugSnapshot.floatingHeaderOffset, closeTo(headerY!, 0.5));
       await gesture.up();
     });
 
@@ -266,7 +266,8 @@ void main() {
         double oldestSeparatorTop() =>
             tester.getTopLeft(find.text('msg-0')).dy - viewportTop - 24;
         bool headerPainted() =>
-            ro.debugFloatingHeaderVisible && ro.debugFloatingHeaderOpacity > 0;
+            ro.debugSnapshot.floatingHeaderVisible &&
+            ro.debugSnapshot.floatingHeaderOpacity > 0;
         void expectOneChip(String frame) {
           final separatorTop = oldestSeparatorTop();
           final inlinePainted = ro.debugDividerOpacity(0)! > 0;
@@ -279,7 +280,7 @@ void main() {
           );
           if (headerPainted()) {
             expect(
-              ro.debugFloatingHeaderOffset,
+              ro.debugSnapshot.floatingHeaderOffset,
               closeTo(separatorTop, 0.5),
               reason: '$frame: header rests above the oldest row',
             );
@@ -302,7 +303,7 @@ void main() {
           expectOneChip('spring frame $i');
         }
         expect(oldestSeparatorTop(), closeTo(0, 0.01));
-        expect(ro.debugFloatingHeaderOffset, 0);
+        expect(ro.debugSnapshot.floatingHeaderOffset, 0);
       });
     }
 
@@ -329,7 +330,7 @@ void main() {
       expect(ro.debugDividerOpacity(16), closeTo(1.0, 0.01));
 
       // The floating header stays pinned — it is never pushed.
-      expect(ro.debugFloatingHeaderOffset, closeTo(0, 1));
+      expect(ro.debugSnapshot.floatingHeaderOffset, closeTo(0, 1));
 
       // Scroll msg-16's separator up into the fade band near the top edge:
       // it is then partially transparent.
@@ -373,7 +374,7 @@ void main() {
       );
       await tester.pump();
       final ro = _render(tester);
-      expect(ro.debugHeaderDate!.day, 2);
+      expect(ro.debugSnapshot.headerDate!.day, 2);
 
       // A long scroll toward newer messages crosses many day boundaries.
       for (var i = 0; i < 100; i++) {
@@ -382,7 +383,7 @@ void main() {
         await tester.pump();
       }
       expect(
-        ro.debugHeaderDate!.isAfter(DateTime(2026, 1, 2, 23, 59)),
+        ro.debugSnapshot.headerDate!.isAfter(DateTime(2026, 1, 2, 23, 59)),
         isTrue,
         reason: 'the header should follow the topmost message into later days',
       );
@@ -430,7 +431,7 @@ void main() {
       expect(find.text('grp-morning'), findsWidgets);
       expect(find.text('grp-afternoon'), findsWidgets);
       final ro = _render(tester);
-      expect(ro.debugHeaderBucket, 'morning');
+      expect(ro.debugSnapshot.headerBucket, 'morning');
     });
 
     testWidgets('only the floating header copy reports floating', (
@@ -466,7 +467,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(_render(tester).debugHasFloatingHeader, isTrue);
+      expect(_render(tester).debugSnapshot.hasFloatingHeader, isTrue);
       expect(find.textContaining('-floating'), findsOneWidget);
       expect(find.text('sep-1-7-floating'), findsOneWidget);
       expect(find.textContaining('-inline'), findsAtLeastNWidgets(1));
@@ -577,8 +578,8 @@ void main() {
       final controller = ChatScrollController()..jumpTo(8);
       final ro = await pump(tester, controller);
 
-      expect(ro.debugHeaderDate, DateTime(2026, 1, 2, 9));
-      expect(ro.debugFloatingHeaderOffset, 0);
+      expect(ro.debugSnapshot.headerDate, DateTime(2026, 1, 2, 9));
+      expect(ro.debugSnapshot.floatingHeaderOffset, 0);
       expect(ro.debugDividerOpacity(8), 0, reason: 'inline hides under it');
       expect(ro.debugDividerOpacity(16), 1);
     });
@@ -592,13 +593,13 @@ void main() {
       // msg-8's separator at y = 10: the header (day 1 now) is pushed so its
       // bottom touches the separator's top.
       await _shift(tester, controller, 10);
-      expect(ro.debugHeaderDate?.day, 1);
-      expect(ro.debugFloatingHeaderOffset, closeTo(-14, 0.01));
+      expect(ro.debugSnapshot.headerDate?.day, 1);
+      expect(ro.debugSnapshot.floatingHeaderOffset, closeTo(-14, 0.01));
       expect(ro.debugDividerOpacity(8), 1);
 
       // A full extent below the rest line: the header rests again.
       await _shift(tester, controller, 20);
-      expect(ro.debugFloatingHeaderOffset, 0);
+      expect(ro.debugSnapshot.floatingHeaderOffset, 0);
     });
 
     testWidgets('without an activity clock the header never hides', (
@@ -609,8 +610,8 @@ void main() {
       await _shift(tester, controller, 10);
 
       await tester.pump(const Duration(seconds: 5));
-      expect(ro.debugScrollActivity, 1);
-      expect(ro.debugFloatingHeaderOpacity, 1);
+      expect(ro.debugSnapshot.scrollActivity, 1);
+      expect(ro.debugSnapshot.floatingHeaderOpacity, 1);
     });
 
     testWidgets('with an activity clock the header hides once idle and '
@@ -629,14 +630,14 @@ void main() {
       // The shift ends that, so the header hides after the 500 ms idle delay
       // and a 150 ms fade.
       await tester.pump(const Duration(milliseconds: 150));
-      expect(ro.debugFloatingHeaderOpacity, 1);
+      expect(ro.debugSnapshot.floatingHeaderOpacity, 1);
       await tester.tapAt(const Offset(400, 5));
       expect(taps, <int>[1], reason: 'a visible header takes the tap');
 
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pump(const Duration(milliseconds: 150));
-      expect(ro.debugScrollActivity, 0);
-      expect(ro.debugFloatingHeaderOpacity, 0);
+      expect(ro.debugSnapshot.scrollActivity, 0);
+      expect(ro.debugSnapshot.floatingHeaderOpacity, 0);
       expect(
         find.text('sep-1-1'),
         findsOneWidget,
@@ -656,15 +657,19 @@ void main() {
       await gesture.moveBy(const Offset(0, 2));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 150));
-      expect(ro.debugScrollActivity, 1);
+      expect(ro.debugSnapshot.scrollActivity, 1);
 
       await gesture.up();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 499));
-      expect(ro.debugScrollActivity, 1, reason: '500 ms user idle delay');
+      expect(
+        ro.debugSnapshot.scrollActivity,
+        1,
+        reason: '500 ms user idle delay',
+      );
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump(const Duration(milliseconds: 150));
-      expect(ro.debugScrollActivity, 0);
+      expect(ro.debugSnapshot.scrollActivity, 0);
     });
 
     testWidgets('the list opens with the header hidden', (tester) async {
@@ -676,9 +681,9 @@ void main() {
       );
 
       await tester.pump(const Duration(milliseconds: 150));
-      expect(ro.debugHeaderDate?.day, 2);
-      expect(ro.debugScrollActivity, 0);
-      expect(ro.debugFloatingHeaderOpacity, 0);
+      expect(ro.debugSnapshot.headerDate?.day, 2);
+      expect(ro.debugSnapshot.scrollActivity, 0);
+      expect(ro.debugSnapshot.floatingHeaderOpacity, 0);
     });
 
     testWidgets('an idle header stays while it stands in for a separator', (
@@ -692,8 +697,12 @@ void main() {
       );
 
       await tester.pump(const Duration(seconds: 2));
-      expect(ro.debugScrollActivity, 1, reason: 'pinned while standing in');
-      expect(ro.debugFloatingHeaderOpacity, 1);
+      expect(
+        ro.debugSnapshot.scrollActivity,
+        1,
+        reason: 'pinned while standing in',
+      );
+      expect(ro.debugSnapshot.floatingHeaderOpacity, 1);
       expect(ro.debugDividerOpacity(8), 0);
     });
 
@@ -709,14 +718,18 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
 
       await _shift(tester, controller, 10);
-      expect(ro.debugFloatingHeaderOffset, closeTo(-14, 0.01));
-      expect(ro.debugFloatingHeaderOpacity, 1);
+      expect(ro.debugSnapshot.floatingHeaderOffset, closeTo(-14, 0.01));
+      expect(ro.debugSnapshot.floatingHeaderOpacity, 1);
       await tester.pump(const Duration(milliseconds: 16));
-      expect(ro.debugFloatingHeaderOpacity, 1);
+      expect(ro.debugSnapshot.floatingHeaderOpacity, 1);
 
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump(const Duration(milliseconds: 150));
-      expect(ro.debugFloatingHeaderOpacity, 0, reason: 'then idles out');
+      expect(
+        ro.debugSnapshot.floatingHeaderOpacity,
+        0,
+        reason: 'then idles out',
+      );
     });
 
     // The pushing policy relies on this: the oldest row rests at the rest
@@ -734,9 +747,9 @@ void main() {
       await tester.pump();
       final ro = _render(tester);
 
-      expect(ro.debugHeaderDate?.day, 1);
-      expect(ro.debugFloatingHeaderOffset, 0);
-      expect(ro.debugFloatingHeaderOpacity, 1);
+      expect(ro.debugSnapshot.headerDate?.day, 1);
+      expect(ro.debugSnapshot.floatingHeaderOffset, 0);
+      expect(ro.debugSnapshot.floatingHeaderOpacity, 1);
       expect(ro.debugDividerOpacity(0), 0);
     });
   });

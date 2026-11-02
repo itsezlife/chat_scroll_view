@@ -136,7 +136,10 @@ void main() {
     testWidgets('no sink: the edge effect takes the pull', (tester) async {
       await _pump(tester, count: 20, jumpTo: 0);
       final gesture = await _drag(tester, List.filled(20, 20));
-      expect(_render(tester).debugStretchOverscroll, greaterThan(0.01));
+      expect(
+        _render(tester).debugSnapshot.stretchOverscroll,
+        greaterThan(0.01),
+      );
       await gesture.up();
       await tester.pumpAndSettle();
     });
@@ -150,7 +153,7 @@ void main() {
       expect(receiver.starts, 1);
       expect(receiver.offeredTotal, greaterThan(300));
       expect(receiver.offers.every((o) => o > 0), isTrue);
-      expect(_render(tester).debugStretchOverscroll, 0);
+      expect(_render(tester).debugSnapshot.stretchOverscroll, 0);
       expect(_rowTop(tester, 0), closeTo(0, 0.01), reason: 'content stays');
       await gesture.up();
       await tester.pumpAndSettle();
@@ -205,7 +208,10 @@ void main() {
       await _pump(tester, count: 20, jumpTo: 0, sink: receiver.sink());
       final gesture = await _drag(tester, List.filled(20, 20));
       expect(receiver.offers, isNotEmpty);
-      expect(_render(tester).debugStretchOverscroll, greaterThan(0.01));
+      expect(
+        _render(tester).debugSnapshot.stretchOverscroll,
+        greaterThan(0.01),
+      );
       await gesture.up();
       await tester.pumpAndSettle();
     });
@@ -216,7 +222,7 @@ void main() {
       final receiver = _Receiver()..take = (pixels) => pixels * 3;
       await _pump(tester, count: 20, jumpTo: 0, sink: receiver.sink());
       final gesture = await _drag(tester, List.filled(20, 20));
-      expect(_render(tester).debugStretchOverscroll, 0);
+      expect(_render(tester).debugSnapshot.stretchOverscroll, 0);
       expect(_rowTop(tester, 0), closeTo(0, 0.01));
       await gesture.up();
       await tester.pumpAndSettle();
@@ -229,7 +235,10 @@ void main() {
       await _pump(tester, count: 20, jumpTo: 19, sink: receiver.sink());
       final gesture = await _drag(tester, List.filled(20, -20));
       expect(receiver.offers, isEmpty);
-      expect(_render(tester).debugStretchOverscroll.abs(), greaterThan(0.01));
+      expect(
+        _render(tester).debugSnapshot.stretchOverscroll.abs(),
+        greaterThan(0.01),
+      );
       await gesture.up();
       await tester.pumpAndSettle();
     });
@@ -244,7 +253,7 @@ void main() {
       );
       final gesture = await _drag(tester, List.filled(20, -20));
       expect(receiver.offeredTotal, lessThan(-300));
-      expect(_render(tester).debugStretchOverscroll, 0);
+      expect(_render(tester).debugSnapshot.stretchOverscroll, 0);
       await gesture.up();
       await tester.pumpAndSettle();
     });
@@ -310,7 +319,7 @@ void main() {
       expect(receiver.releases, hasLength(1));
       expect(receiver.releases.single, greaterThan(1000));
       expect(events.whereType<ChatFlingStart>(), isEmpty);
-      expect(_render(tester).debugStretchOverscroll, 0);
+      expect(_render(tester).debugSnapshot.stretchOverscroll, 0);
     });
 
     testWidgets('a declined release lets the content fling', (tester) async {

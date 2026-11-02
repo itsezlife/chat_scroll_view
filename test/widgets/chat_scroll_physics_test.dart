@@ -105,7 +105,8 @@ RenderBox _rowBox(WidgetTester tester, int id) =>
 /// Global top of a built row near the middle of the built range.
 ({int id, double top}) _probeRow(WidgetTester tester) {
   final render = _render(tester);
-  final id = (render.debugFirstId! + render.debugLastId!) ~/ 2;
+  final id =
+      (render.debugSnapshot.firstId! + render.debugSnapshot.lastId!) ~/ 2;
   return (id: id, top: tester.getTopLeft(find.text('msg-$id')).dy);
 }
 
@@ -152,7 +153,10 @@ void main() {
         const Offset(0, 400),
         steps: 20,
       );
-      expect(_render(tester).debugStretchOverscroll, greaterThan(0.01));
+      expect(
+        _render(tester).debugSnapshot.stretchOverscroll,
+        greaterThan(0.01),
+      );
       await gesture.up();
       await tester.pumpAndSettle();
     });
@@ -270,7 +274,10 @@ void main() {
         const Offset(0, 400),
         steps: 20,
       );
-      expect(_render(tester).debugStretchOverscroll, greaterThan(0.01));
+      expect(
+        _render(tester).debugSnapshot.stretchOverscroll,
+        greaterThan(0.01),
+      );
 
       await tester.pumpWidget(
         _scaffold(
@@ -282,7 +289,7 @@ void main() {
           ),
         ),
       );
-      expect(_render(tester).debugStretchOverscroll, 0);
+      expect(_render(tester).debugSnapshot.stretchOverscroll, 0);
 
       await gesture.up();
       await tester.pumpAndSettle();
@@ -309,18 +316,18 @@ void main() {
       await drag.up();
       await tester.pump(const Duration(milliseconds: 16));
       await tester.pump(const Duration(milliseconds: 16));
-      final springing = _render(tester).debugStretchOverscroll;
+      final springing = _render(tester).debugSnapshot.stretchOverscroll;
       expect(springing, greaterThan(0.004));
 
       final press = await tester.startGesture(
         tester.getCenter(find.text('msg-2')),
       );
       await tester.pump(const Duration(milliseconds: 100));
-      final frozen = _render(tester).debugStretchOverscroll;
+      final frozen = _render(tester).debugSnapshot.stretchOverscroll;
       expect(frozen, greaterThan(0.004));
       await tester.pump(const Duration(milliseconds: 100));
       expect(
-        _render(tester).debugStretchOverscroll,
+        _render(tester).debugSnapshot.stretchOverscroll,
         frozen,
         reason: 'the press holds the stretch where it caught it',
       );
@@ -334,7 +341,10 @@ void main() {
 
       await press.up();
       await tester.pumpAndSettle();
-      expect(_render(tester).debugStretchOverscroll, closeTo(0, 0.001));
+      expect(
+        _render(tester).debugSnapshot.stretchOverscroll,
+        closeTo(0, 0.001),
+      );
       expect(selection.isSelectionMode, isFalse);
 
       await tester.longPress(find.text('msg-2'));
@@ -364,7 +374,7 @@ void main() {
         const Offset(0, 400),
         steps: 20,
       );
-      final s = _render(tester).debugStretchOverscroll;
+      final s = _render(tester).debugSnapshot.stretchOverscroll;
       expect(s, greaterThan(0.01));
       expect(
         tester.getTopLeft(find.text('msg-4')).dy - _viewportTop(tester),
@@ -391,7 +401,7 @@ void main() {
         const Offset(0, 400),
         steps: 20,
       );
-      final s = _render(tester).debugStretchOverscroll;
+      final s = _render(tester).debugSnapshot.stretchOverscroll;
       // Two px above row 4's bottom edge in layout, which paints below
       // row 5's layout top once stretched.
       const contentY = 5 * _rowHeight - 2;
@@ -425,7 +435,7 @@ void main() {
         const Offset(0, 400),
         steps: 20,
       );
-      final s = _render(tester).debugStretchOverscroll;
+      final s = _render(tester).debugSnapshot.stretchOverscroll;
       expect(s, greaterThan(0.01));
       expect(
         _viewportParentData(tester, 4).paintTop,

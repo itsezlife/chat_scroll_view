@@ -102,7 +102,7 @@ void main() {
         steps: 20,
       );
       expect(
-        _render(tester).debugStretchOverscroll,
+        _render(tester).debugSnapshot.stretchOverscroll,
         greaterThan(0.01),
         reason:
             'unconsumed dy at the oldest edge must paint EdgeEffect stretch',
@@ -115,7 +115,10 @@ void main() {
 
       await gesture.up();
       await tester.pumpAndSettle();
-      expect(_render(tester).debugStretchOverscroll, closeTo(0, 0.001));
+      expect(
+        _render(tester).debugSnapshot.stretchOverscroll,
+        closeTo(0, 0.001),
+      );
       expect(
         tester.getTopLeft(find.text('msg-0')).dy,
         closeTo(viewportTop, 0.5),
@@ -141,7 +144,7 @@ void main() {
         steps: 12,
       );
       expect(
-        _render(tester).debugStretchOverscroll.abs(),
+        _render(tester).debugSnapshot.stretchOverscroll.abs(),
         lessThan(0.001),
         reason: 'travel inside the conversation must not feed EdgeEffect',
       );
@@ -153,7 +156,10 @@ void main() {
 
       await gesture.up();
       await tester.pumpAndSettle();
-      expect(_render(tester).debugStretchOverscroll.abs(), lessThan(0.001));
+      expect(
+        _render(tester).debugSnapshot.stretchOverscroll.abs(),
+        lessThan(0.001),
+      );
     });
 
     testWidgets('fling into newest edge absorbs into stretch', (tester) async {
@@ -178,7 +184,7 @@ void main() {
       var sawStretch = false;
       for (var i = 0; i < 45; i++) {
         await tester.pump(const Duration(milliseconds: 16));
-        if (_render(tester).debugStretchOverscroll.abs() > 0.005) {
+        if (_render(tester).debugSnapshot.stretchOverscroll.abs() > 0.005) {
           sawStretch = true;
           break;
         }
@@ -190,7 +196,10 @@ void main() {
       );
 
       await tester.pumpAndSettle();
-      expect(_render(tester).debugStretchOverscroll.abs(), lessThan(0.001));
+      expect(
+        _render(tester).debugSnapshot.stretchOverscroll.abs(),
+        lessThan(0.001),
+      );
     });
 
     testWidgets('mouse wheel past boundary is clamped, no stretch spring', (
@@ -215,7 +224,10 @@ void main() {
         testPointer.scroll(const Offset(0, -1000)),
       );
       await tester.pumpAndSettle();
-      expect(_render(tester).debugStretchOverscroll.abs(), lessThan(0.001));
+      expect(
+        _render(tester).debugSnapshot.stretchOverscroll.abs(),
+        lessThan(0.001),
+      );
       final firstBoxTop = tester.getTopLeft(find.text('msg-0'));
       expect(firstBoxTop.dy, closeTo(viewportTopLeft.dy, 0.5));
     });
@@ -237,7 +249,10 @@ void main() {
       controller.scrollBy(500);
       await tester.pumpAndSettle();
 
-      expect(_render(tester).debugStretchOverscroll.abs(), lessThan(0.001));
+      expect(
+        _render(tester).debugSnapshot.stretchOverscroll.abs(),
+        lessThan(0.001),
+      );
       final viewportTopLeft = tester.getTopLeft(find.byType(ChatScrollView));
       final firstBoxTop = tester.getTopLeft(find.text('msg-0'));
       expect(firstBoxTop.dy, closeTo(viewportTopLeft.dy, 0.5));
@@ -263,7 +278,10 @@ void main() {
         const Offset(0, 250),
         steps: 10,
       );
-      expect(_render(tester).debugStretchOverscroll.abs(), greaterThan(0.01));
+      expect(
+        _render(tester).debugSnapshot.stretchOverscroll.abs(),
+        greaterThan(0.01),
+      );
       expect(
         tester.getTopLeft(find.text('msg-0')).dy,
         closeTo(viewportTopLeft.dy, 1.0),
@@ -271,7 +289,10 @@ void main() {
 
       await gesture.up();
       await tester.pumpAndSettle();
-      expect(_render(tester).debugStretchOverscroll.abs(), lessThan(0.001));
+      expect(
+        _render(tester).debugSnapshot.stretchOverscroll.abs(),
+        lessThan(0.001),
+      );
       expect(
         tester.getTopLeft(find.text('msg-0')).dy,
         closeTo(viewportTopLeft.dy, 1.0),

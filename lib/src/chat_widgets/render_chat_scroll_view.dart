@@ -29,6 +29,7 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_opacity_paint.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_row_chrome.dart'
     show RenderChatRowChrome;
+import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_debug_snapshot.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_runtime.dart';
@@ -1411,106 +1412,53 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   /// Monotonic frame counter incremented on each paint pass.
   int debugPaintFrameId = 0;
 
-  /// Count of message children currently in the sparse child map.
-  int get debugChildCount => _children.length;
-
-  /// Count of chunk-error overlay children currently built.
-  int get debugChunkErrorCount => _chunkErrors.length;
-
-  /// Number of pagination chunks tracked by the data source.
-  int get debugChunkCount => _dataSource.chunkCount;
-
-  /// Lowest chunk index included in the last layout fan-out.
-  int get debugLayoutMinChunk => _chunkFetchScheduler.layoutMinChunk;
-
-  /// Highest chunk index included in the last layout fan-out.
-  int get debugLayoutMaxChunk => _chunkFetchScheduler.layoutMaxChunk;
-
-  /// Smallest message id with a built child, or `null` when empty.
-  int? get debugFirstId => _children.isEmpty ? null : _children.firstKey();
-
-  /// Largest message id with a built child, or `null` when empty.
-  int? get debugLastId => _children.isEmpty ? null : _children.lastKey();
-
-  /// Paint stretch in `[-1, 1]`. Zero at rest and under any edge effect
-  /// other than stretch.
-  @visibleForTesting
-  double get debugStretchOverscroll => switch (_motion.edge) {
-    final ChatStretchOverscroll stretch => stretch.overscroll,
-    _ => 0,
-  };
-
-  /// Whether a floating header child is currently attached (may still be
-  /// hidden by [debugFloatingHeaderVisible]).
-  @visibleForTesting
-  bool get debugHasFloatingHeader => _floatingHeader != null;
-
-  /// Whether the floating header would be painted this frame (suppressed above
-  /// the oldest boundary during short content).
-  @visibleForTesting
-  bool get debugFloatingHeaderVisible =>
-      _floatingHeader != null && _shouldShowFloatingHeader();
-
-  /// Viewport-local Y of the floating header's top edge, if built.
-  @visibleForTesting
-  double? get debugFloatingHeaderOffset =>
-      _floatingHeader == null ? null : _parentData(_floatingHeader!).offset;
-
-  /// Calendar date shown in the floating header, if any.
-  DateTime? get debugHeaderDate => _floatingHeaderController.headerDate;
-
-  /// Debug-only: group bucket the floating header was last built for.
-  Object? get debugHeaderBucket => _floatingHeaderController.headerBucket;
-
-  /// Message id currently receiving the post-navigation highlight tint.
-  int? get debugHighlightTargetId => _animator.highlightTargetId;
-
-  /// Message id waiting until it is a loaded Message with a built child
-  /// before the highlight arms.
-  int? get debugPendingHighlightTargetId => _animator.pendingHighlightTargetId;
-
-  /// Highlight animation progress in `0..1` for [debugHighlightTargetId].
-  /// Solid hold stays at `1.0`; fade declines toward `0`.
-  double get debugHighlightFactor => _animator.highlightFactor;
-
-  /// Current highlight phase for tests (`idle` / `solid` / `fading`).
-  ChatHighlightPhase get debugHighlightPhase => _animator.highlightPhase;
-
-  /// Whether far-path stitch is in flight (post-jump dual-translate).
-  bool get debugFarAnimateActive => _animator.farAnimateActive;
-
-  /// Whether stitch has already run its teleport `jumpTo`.
-  bool get debugFarAnimateJumped => _animator.farAnimateJumped;
-
-  /// Whether any [animateTo] (close, stitch, or preferBuilt wait) is in flight.
-  bool get debugIsAnimating => _animator.isAnimating;
-
-  /// Whether close-path vs stitch is deferred under the navigation load-gate.
-  bool get debugLoadGateWaiting => _animator.loadGateWaiting;
-
-  /// Alias for [debugLoadGateWaiting].
-  bool get debugPreferBuiltWaiting => debugLoadGateWaiting;
-
-  /// Outgoing ids retained during stitch (GC pin + frozen paint Y).
-  Set<int> get debugStitchOutgoingIds => Set<int>.of(_stitchOutgoingIds);
-
-  /// Stitch progress `0..1` after measure (0 before measure / when idle).
-  double get debugStitchProgress => _animator.stitchProgress;
-
-  /// Measured stitch travel (px) after layout measure; `0` before measure.
-  double get debugStitchScrollLength => _animator.stitchScrollLength;
-
-  /// Currently built message ids (fan-out + stitch-pinned outgoing).
-  Set<int> get debugBuiltMessageIds => _children.keys.toSet();
-
-  /// Ids the last [_repositionFromAnchor] walk visited (debug builds only):
-  /// bounded by the built rows and chunk-error tiles, not the id span.
-  int get debugLastRepositionVisits => _debugRepositionVisits;
   int _debugRepositionVisits = 0;
+
+  /// Everything tests read about the viewport's internal state, taken at the
+  /// moment of the call. Per-message probes that take an id stay separate
+  /// ([debugDividerOpacity], [debugStartsDay]).
+  @visibleForTesting
+  ChatScrollDebugSnapshot get debugSnapshot => ChatScrollDebugSnapshot(
+    childCount: _children.length,
+    chunkErrorCount: _chunkErrors.length,
+    chunkCount: _dataSource.chunkCount,
+    layoutMinChunk: _chunkFetchScheduler.layoutMinChunk,
+    layoutMaxChunk: _chunkFetchScheduler.layoutMaxChunk,
+    firstId: _children.isEmpty ? null : _children.firstKey(),
+    lastId: _children.isEmpty ? null : _children.lastKey(),
+    builtMessageIds: _children.keys.toSet(),
+    stretchOverscroll: switch (_motion.edge) {
+      final ChatStretchOverscroll stretch => stretch.overscroll,
+      _ => 0,
+    },
+    hasFloatingHeader: _floatingHeader != null,
+    floatingHeaderVisible:
+        _floatingHeader != null && _shouldShowFloatingHeader(),
+    floatingHeaderOffset: _floatingHeader == null
+        ? null
+        : _parentData(_floatingHeader!).offset,
+    floatingHeaderOpacity: _headerEffect.opacity,
+    headerDate: _floatingHeaderController.headerDate,
+    headerBucket: _floatingHeaderController.headerBucket,
+    highlightTargetId: _animator.highlightTargetId,
+    pendingHighlightTargetId: _animator.pendingHighlightTargetId,
+    highlightFactor: _animator.highlightFactor,
+    highlightPhase: _animator.highlightPhase,
+    farAnimateActive: _animator.farAnimateActive,
+    farAnimateJumped: _animator.farAnimateJumped,
+    isAnimating: _animator.isAnimating,
+    loadGateWaiting: _animator.loadGateWaiting,
+    stitchOutgoingIds: Set<int>.of(_stitchOutgoingIds),
+    stitchProgress: _animator.stitchProgress,
+    stitchScrollLength: _animator.stitchScrollLength,
+    lastRepositionVisits: _debugRepositionVisits,
+    scrollActivity: _activity?.value ?? 1.0,
+  );
 
   /// Resolved opacity (0..1) of the built child [id]'s first row chrome item
   /// — its inline day separator — or `1` when the row has no chrome. `null`
   /// when [id] is not currently built.
+  @visibleForTesting
   double? debugDividerOpacity(int id) => switch (_children[id]) {
     null => null,
     final RenderChatRowChrome row when row.chromeCount > 0 =>
@@ -1518,16 +1466,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     _ => 1.0,
   };
 
-  /// Opacity the floating header resolved to this frame.
-  @visibleForTesting
-  double get debugFloatingHeaderOpacity => _headerEffect.opacity;
-
-  /// Current scroll activity; `1` without an activity clock.
-  @visibleForTesting
-  double get debugScrollActivity => _activity?.value ?? 1.0;
-
   /// Whether the built child [id] carries an inline day separator, or `false`
   /// when [id] is not currently built.
+  @visibleForTesting
   bool debugStartsDay(int id) {
     final child = _children[id];
     return child != null && _parentData(child).startsDay;

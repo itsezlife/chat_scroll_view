@@ -314,7 +314,7 @@ void main() {
         'total=${avgTotalUs.toStringAsFixed(1)}µs  '
         'raw=$rawFps FPS  '
         '(layout frames: $layoutFrames, paint frames: $paintFrames, '
-        'children: ${render.debugChildCount})',
+        'children: ${render.debugSnapshot.childCount})',
       );
     });
   }
