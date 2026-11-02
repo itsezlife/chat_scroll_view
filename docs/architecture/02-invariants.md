@@ -75,8 +75,8 @@ At most **one active writer** of `anchorPixelOffset` for a given phase:
 |-------|---------------|-----------|
 | Close-path animate | `tickAnimate` → `applyScrollDelta` | Renormalize; `_applyNavigationPlacement` |
 | Layout settle / jump | `_applyNavigationPlacement`, pins | — |
-| Held placement re-applied (top inset moved, or target row chrome changed, including each frame of its separator transition) | `_applyNavigationPlacement` | Row chrome hold (step 6d) for that pass |
-| Row chrome hold (boundary move or separator transition frame) | `_holdRowChromeReference` | Stands down while an animation, stitch freeze, or delete recovery owns the origin |
+| Held placement re-applied (top inset moved) | `_applyNavigationPlacement` | Row chrome hold (step 6d) for that pass |
+| Row chrome hold (boundary move or separator transition frame, including on a held placement's target) | `_holdRowChromeReference` | Stands down while an animation, stitch freeze, or delete recovery owns the origin |
 | Drag / fling | Tick deltas + clamp (when not suspended); the edge effect never writes | — |
 | Span auto-scroll | Tick auto-scroll delta | Follow-tail; close-path animate |
 
