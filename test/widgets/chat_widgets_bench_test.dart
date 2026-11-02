@@ -82,17 +82,19 @@ void main() {
       // (rebuilds in-range message widgets).
       final layout = <int>[];
       for (var i = 0; i < 150; i++) {
+        final sw = Stopwatch()..start();
         ro.markNeedsLayout();
         await tester.pump();
-        layout.add(ro.debugLastLayoutDuration.inMicroseconds);
+        layout.add(sw.elapsedMicroseconds);
       }
 
       // Paint: Tier-1 scroll-frame cost (no layout, no rebuild).
       final paint = <int>[];
       for (var i = 0; i < 150; i++) {
+        final sw = Stopwatch()..start();
         ro.markNeedsPaint();
         await tester.pump();
-        paint.add(ro.debugLastPaintDuration.inMicroseconds);
+        paint.add(sw.elapsedMicroseconds);
       }
 
       // ignore: avoid_print

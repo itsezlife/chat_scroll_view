@@ -1405,14 +1405,6 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
 
   // --- Debug instrumentation (zero-cost in release via assert) --------------
 
-  final Stopwatch _debugSw = Stopwatch();
-
-  /// Wall-clock duration of the most recent `performLayout` (debug builds only).
-  Duration debugLastLayoutDuration = Duration.zero;
-
-  /// Wall-clock duration of the most recent `paint` (debug builds only).
-  Duration debugLastPaintDuration = Duration.zero;
-
   /// Monotonic frame counter incremented on each layout pass.
   int debugLayoutFrameId = 0;
 
@@ -2625,12 +2617,6 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
 
   @override
   void performLayout() {
-    assert(() {
-      _debugSw
-        ..reset()
-        ..start();
-      return true;
-    }());
     assert(childManager != null, 'childManager not wired by ChatScrollElement');
     assert(
       constraints.hasBoundedHeight && constraints.hasBoundedWidth,
@@ -2677,8 +2663,6 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       Trace.end(TraceSection.layoutOverlay);
       _rowChromeTransitions?.retainWhere(_children.containsKey);
       assert(() {
-        debugLastLayoutDuration = _debugSw.elapsed;
-        _debugSw.stop();
         debugLayoutFrameId++;
         return true;
       }());
@@ -3098,8 +3082,6 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     }
 
     assert(() {
-      debugLastLayoutDuration = _debugSw.elapsed;
-      _debugSw.stop();
       debugLayoutFrameId++;
       return true;
     }());
@@ -7049,12 +7031,6 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    assert(() {
-      _debugSw
-        ..reset()
-        ..start();
-      return true;
-    }());
 
     // Reuse the clip layer across repaints — the framework idiom. Even though
     // this object is a repaint boundary (so its layer children are re-added on
@@ -7069,8 +7045,6 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     );
 
     assert(() {
-      debugLastPaintDuration = _debugSw.elapsed;
-      _debugSw.stop();
       debugPaintFrameId++;
       return true;
     }());

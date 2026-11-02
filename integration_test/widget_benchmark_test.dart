@@ -280,16 +280,21 @@ void main() {
       var paintFrames = 0;
 
       for (var i = 0; i < 500; i++) {
+        final sw = Stopwatch()..start();
         ctrl.applyScrollDelta(-5);
         render.markNeedsLayout();
         await tester.pump(const Duration(milliseconds: 16));
-        if (render.debugLayoutFrameId != lastLId) {
-          totalLayoutUs += render.debugLastLayoutDuration.inMicroseconds;
+        final pumpUs = sw.elapsedMicroseconds;
+        // Pump wall time, bucketed by pass: a pump that laid out counts as
+        // layout, a pump that only painted counts as paint.
+        final laidOut = render.debugLayoutFrameId != lastLId;
+        if (laidOut) {
+          totalLayoutUs += pumpUs;
           layoutFrames++;
           lastLId = render.debugLayoutFrameId;
         }
         if (render.debugPaintFrameId != lastPId) {
-          totalPaintUs += render.debugLastPaintDuration.inMicroseconds;
+          if (!laidOut) totalPaintUs += pumpUs;
           paintFrames++;
           lastPId = render.debugPaintFrameId;
         }
