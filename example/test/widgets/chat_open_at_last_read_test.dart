@@ -10,6 +10,7 @@ import 'package:chat_scroll_view_example/src/features/chat/controller/unread_bou
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/scroll_to_bottom_button.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -117,6 +118,8 @@ Widget _harness({
   void Function(int id, MessageRunLayout runLayout)? onBuildMessage,
   bool Function()? interceptPageDown,
 }) => MaterialApp(
+  builder: (context, child) =>
+      ChromeThemeScope(palette: const ChromePalette.dark(), child: child!),
   home: Scaffold(
     body: Center(
       child: SizedBox(
