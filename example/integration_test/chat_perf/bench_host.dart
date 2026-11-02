@@ -145,6 +145,16 @@ final class BenchProbe {
   final Stopwatch sinceMount = Stopwatch();
   double? firstBuildMs;
 
+  /// Top edge of the loaded row [id]'s body relative to [viewport]'s top, or
+  /// null when it is not built.
+  double? topOf(int id, Rect viewport) {
+    if (_rows[id]?.findRenderObject() case final RenderBox box
+        when box.attached && box.hasSize) {
+      return box.localToGlobal(Offset.zero).dy - viewport.top;
+    }
+    return null;
+  }
+
   /// Ids of loaded rows intersecting [viewport], ascending, with their bottom
   /// edges.
   Map<int, double> visibleBottoms(Rect viewport) {

@@ -20,6 +20,7 @@ final class ChurnFrame {
     required this.bandBottomDp,
     required this.placeholders,
     this.animating = false,
+    this.anchorBodyDp,
   });
 
   /// Frames from the window's first mutation: negative in the pre-roll.
@@ -29,6 +30,11 @@ final class ChurnFrame {
   final double tMs;
   final int anchorId;
   final double anchorOffsetDp;
+
+  /// Top edge of the anchor row's body (its row chrome excluded) relative to
+  /// the viewport, or null when the anchor row is not built. Unlike
+  /// [anchorOffsetDp] it does not move when row chrome grows above the body.
+  final double? anchorBodyDp;
   final bool isAtTail;
 
   /// Bottom edge of the lowest visible row, or null with no visible row.
@@ -180,6 +186,23 @@ double anchorDriftDp(List<ChurnFrame> frames) {
   for (final x in _post(frames)) {
     if (x.anchorId != base.anchorId) continue;
     final d = (x.anchorOffsetDp - base.anchorOffsetDp).abs();
+    if (d > drift) drift = d;
+  }
+  return drift;
+}
+
+/// Largest change of the anchor row's body top from the baseline among
+/// post-mutation frames that keep the baseline's anchor id and build the
+/// body. Zero without a baseline body.
+double anchorBodyDriftDp(List<ChurnFrame> frames) {
+  final base = _baseline(frames);
+  final baseBody = base?.anchorBodyDp;
+  if (base == null || baseBody == null) return 0;
+  var drift = 0.0;
+  for (final x in _post(frames)) {
+    final body = x.anchorBodyDp;
+    if (x.anchorId != base.anchorId || body == null) continue;
+    final d = (body - baseBody).abs();
     if (d > drift) drift = d;
   }
   return drift;

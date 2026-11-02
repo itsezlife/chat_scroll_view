@@ -15,6 +15,7 @@ ChurnFrame _f(
   double? band = 800,
   int placeholders = 0,
   bool animating = false,
+  double? body,
 }) => ChurnFrame(
   index: i,
   tMs: i * 8.0 + 100,
@@ -24,6 +25,7 @@ ChurnFrame _f(
   bandBottomDp: band,
   placeholders: placeholders,
   animating: animating,
+  anchorBodyDp: body,
 );
 
 final class _FakeHost implements ChurnHost {
@@ -181,6 +183,18 @@ void main() {
       ];
       expect(anchorDriftDp(frames), 3);
       expect(anchorIdChanges(frames), 1);
+    });
+
+    test('anchorBodyDriftDp follows the body, not the row top', () {
+      final frames = [
+        _f(-1, body: 200),
+        _f(0, offset: 70, body: 200),
+        _f(1, offset: 40, body: 203),
+        _f(2, anchor: 6, offset: 900, body: 500),
+      ];
+      expect(anchorDriftDp(frames), 60);
+      expect(anchorBodyDriftDp(frames), 3);
+      expect(anchorBodyDriftDp([_f(-1), _f(0, body: 9)]), 0);
     });
 
     test('bandBottomShiftDp is null without a baseline band', () {

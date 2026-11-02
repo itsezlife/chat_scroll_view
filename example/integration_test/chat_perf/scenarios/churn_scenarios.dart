@@ -376,7 +376,9 @@ final _unreadBoundary = _churn(
         ..atFrame(20, () => host.setUnreadBoundary(other))
         ..atFrame(40, () => host.setUnreadBoundary(null)),
       (f) => {
-        'anchor.drift_dp': ChurnMetric.dp(anchorDriftDp(f)),
+        // The row's top edge moves by the separator's height by design; the
+        // body below it is what the reader sees and must stay still.
+        'anchor.body_drift_dp': ChurnMetric.dp(anchorBodyDriftDp(f)),
         'anchor.id_changes': ChurnMetric.count(anchorIdChanges(f)),
       },
     );
