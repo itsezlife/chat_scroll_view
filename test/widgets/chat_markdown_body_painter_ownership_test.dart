@@ -1,5 +1,4 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:flutter/gestures.dart' show PointerDownEvent, PointerUpEvent;
 import 'package:flutter/material.dart';
 import 'package:flutter_md/flutter_md.dart';
 import 'package:flutter_test/flutter_test.dart';
