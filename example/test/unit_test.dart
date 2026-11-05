@@ -80,6 +80,7 @@ import 'pre_ime_back_native_test.dart' as pre_ime_back_native_test;
 import 'supabase_chat_data_source_test.dart' as supabase_chat_data_source_test;
 import 'theme/demo_chat_theme_test.dart' as demo_chat_theme_test;
 import 'theme/demo_markdown_theme_test.dart' as demo_markdown_theme_test;
+import 'widgets/cached_label_test.dart' as cached_label_test;
 import 'widgets/chat_composer_menu_test.dart' as chat_composer_menu_test;
 import 'widgets/chat_composer_paste_toast_test.dart'
     as chat_composer_paste_toast_test;
@@ -110,6 +111,7 @@ import 'widgets/demo_message_markdown_registration_test.dart'
     as demo_message_markdown_registration_test;
 import 'widgets/desktop_copy_shortcut_test.dart' as desktop_copy_shortcut_test;
 import 'widgets/emoji_selection_clear_test.dart' as emoji_selection_clear_test;
+import 'widgets/glyph_warmup_test.dart' as glyph_warmup_test;
 import 'widgets/large_emoji_limit_button_test.dart'
     as large_emoji_limit_button_test;
 import 'widgets/message_menu_test.dart' as message_menu_test;
@@ -261,6 +263,7 @@ void main() {
   );
   group('theme/demo_chat_theme_test.dart', demo_chat_theme_test.main);
   group('theme/demo_markdown_theme_test.dart', demo_markdown_theme_test.main);
+  group('widgets/cached_label_test.dart', cached_label_test.main);
   group('widgets/chat_composer_menu_test.dart', chat_composer_menu_test.main);
   group(
     'widgets/chat_composer_paste_toast_test.dart',
@@ -316,6 +319,7 @@ void main() {
     'widgets/emoji_selection_clear_test.dart',
     emoji_selection_clear_test.main,
   );
+  group('widgets/glyph_warmup_test.dart', glyph_warmup_test.main);
   group(
     'widgets/large_emoji_limit_button_test.dart',
     large_emoji_limit_button_test.main,

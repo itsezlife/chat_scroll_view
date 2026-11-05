@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:developer' show Timeline;
 import 'dart:ui' show FramePhase, FrameTiming;
 
+import 'package:chat_scroll_view/chat_scroll_view.dart'
+    show ChatScrollController, ChatScrollEvent, ChatViewportScrolled;
 import 'package:chat_scroll_view/experiments.dart';
 import 'package:chat_scroll_view_example/src/common/pointer_tape.dart';
 import 'package:flutter/gestures.dart';
@@ -181,6 +184,22 @@ abstract final class ScrollLab {
   static String _ms(int micros) => (micros / 1000).toStringAsFixed(1);
 
   static void _log(String message) => debugPrint('LAB $message');
+
+  static double _scrolled = 0;
+
+  /// Marks where the content stands on every frame [controller] scrolls, as a
+  /// `LABy <px>` timeline slice inside that frame, so a trace pairs each
+  /// presented frame with its content position. No-op unless installed.
+  static void watch(ChatScrollController controller) {
+    if (_installed) controller.addScrollListener(_onScroll);
+  }
+
+  static void _onScroll(ChatScrollEvent event) {
+    if (event case ChatViewportScrolled(:final delta)) {
+      _scrolled += delta;
+      Timeline.timeSync('LABy ${_scrolled.toStringAsFixed(2)}', () {});
+    }
+  }
 }
 
 /// A small chip in the top-right corner that unfolds the lab switches.

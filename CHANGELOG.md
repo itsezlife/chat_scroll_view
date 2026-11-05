@@ -1,5 +1,23 @@
 ## Unreleased
 
+### Scroll
+- **FIXED**: the frame after a fling release no longer stands still. The
+  fling counted its time from its first tick, so that frame moved by zero and
+  the next one by two frames' worth; it now counts from the last frame the
+  drag showed and carries on at the release velocity.
+- **CHANGED**: a fling builds rows as they come due. The viewport laid out
+  only once the `cacheExtent` band ran out, then built the lead in one burst;
+  it now lays out as soon as the directional lead runs short, one or two rows
+  at a time within the prefetch budget.
+- **CHANGED**: a row entering or leaving the build range costs less.
+  `ChatSelectionController` keeps its listeners in an insertion-ordered set
+  (every row subscribes; a list scanned the others' callbacks on each add and
+  remove), and rows read only the selection tokens.
+
+### Theme
+- **ADDED**: `ChatScrollTheme.selectionOf(context)`: the selection tokens from
+  the same sources as `ChatScrollTheme.resolve`, without resolving the rest.
+
 ### `flutter_md` 0.8.2
 - **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.8.2` in every
   pubspec and workflow. A selection scope that attached no handle leaders no

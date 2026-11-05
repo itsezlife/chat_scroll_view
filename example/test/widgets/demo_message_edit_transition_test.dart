@@ -1,6 +1,13 @@
+import 'package:chat_scroll_view_example/src/common/widgets/cached_label.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+Finder _label(bool Function(String text) matches) => find.byWidgetPredicate(
+  (widget) => widget is CachedLabel && matches(widget.text),
+);
+
+final _edited = _label((text) => text == 'edited');
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -20,8 +27,8 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.text('edited'), findsOneWidget);
-    expect(find.textContaining(':'), findsOneWidget);
+    expect(_edited, findsOneWidget);
+    expect(_label((text) => text.contains(':')), findsOneWidget);
   });
 
   testWidgets('DemoMessageMeta reserves edited width at opacity 0', (
@@ -42,9 +49,9 @@ void main() {
     );
     await tester.pump();
     // Still in the tree — Opacity handles the fade while width stays reserved.
-    expect(find.text('edited'), findsOneWidget);
+    expect(_edited, findsOneWidget);
     final opacity = tester.widget<Opacity>(
-      find.ancestor(of: find.text('edited'), matching: find.byType(Opacity)),
+      find.ancestor(of: _edited, matching: find.byType(Opacity)),
     );
     expect(opacity.opacity, 0);
   });

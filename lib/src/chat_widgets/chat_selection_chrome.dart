@@ -138,9 +138,7 @@ class DefaultSelectionChrome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme =
-        ChatScrollTheme.resolve(context).selection ??
-        ChatSelectionThemeData.resolve(context);
+    final theme = ChatScrollTheme.selectionOf(context);
     final scheme = Theme.of(context).colorScheme;
     final m = state.modeProgress.clamp(0.0, 1.0);
     final s = state.selectProgress.clamp(0.0, 1.0);

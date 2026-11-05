@@ -347,10 +347,14 @@ final class ChatFlingMotion {
 
   Simulation? _simulation;
 
-  /// Ticker `elapsed` at the first tick of the current fling, or `null`
-  /// between flings. Nullable on purpose — a [Ticker]'s very first `elapsed`
-  /// is exactly [Duration.zero], so zero cannot double as "unset".
+  /// Ticker `elapsed` the current fling counts from, or `null` between flings
+  /// and until its first tick. Nullable on purpose — a [Ticker]'s very first
+  /// `elapsed` is exactly [Duration.zero], so zero cannot double as "unset".
   Duration? _flingStartTime;
+
+  /// The `since` of [startFling], taken as [_flingStartTime] on the first tick
+  /// when it is not after that tick.
+  Duration? _flingSince;
   double _lastFlingValue = 0;
 
   /// Where a decay fling ends. The exponential never reaches zero speed on
@@ -374,7 +378,13 @@ final class ChatFlingMotion {
   }
 
   /// Arms a fling at [velocity] (px/s), replacing any fling in flight.
-  void startFling(double velocity) {
+  ///
+  /// [since] is the ticker `elapsed` of the last frame shown before the
+  /// release: the curve counts from it, so the first tick after the release
+  /// moves a whole frame at [velocity]. Without it, or when it is after the
+  /// first tick (a ticker restarted since), the curve counts from that tick,
+  /// which then stands still.
+  void startFling(double velocity, {Duration? since}) {
     _simulation = switch (fling) {
       ChatFling$Spline(:final friction) => ChatSplineFlingSimulation(
         velocity: velocity,
@@ -389,12 +399,14 @@ final class ChatFlingMotion {
     };
     _lastFlingValue = 0.0;
     _flingStartTime = null;
+    _flingSince = since;
   }
 
   /// Stops an in-flight fling and clears simulation state.
   void cancelFling() {
     _simulation = null;
     _flingStartTime = null;
+    _flingSince = null;
     _lastFlingValue = 0;
   }
 
@@ -403,7 +415,10 @@ final class ChatFlingMotion {
   double tickFling(Duration elapsed) {
     final simulation = _simulation;
     if (simulation == null) return 0;
-    final start = _flingStartTime ??= elapsed;
+    final start = _flingStartTime ??= switch (_flingSince) {
+      final since? when since <= elapsed => since,
+      _ => elapsed,
+    };
     final seconds =
         (elapsed - start).inMicroseconds / Duration.microsecondsPerSecond;
     if (simulation.isDone(seconds)) {

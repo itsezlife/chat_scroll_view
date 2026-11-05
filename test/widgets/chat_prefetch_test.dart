@@ -71,6 +71,7 @@ typedef _Frame = ({Set<int> built, bool covered, int ahead});
 Future<List<_Frame>> _flingFrames(
   WidgetTester tester, {
   double extraBuildExtent = 0,
+  double velocity = 8000,
 }) async {
   final controller = ChatScrollController()..jumpTo(_count - 1);
   addTearDown(controller.dispose);
@@ -80,7 +81,11 @@ Future<List<_Frame>> _flingFrames(
   await tester.pumpAndSettle();
 
   final view = tester.getRect(find.byType(ChatScrollView));
-  await tester.fling(find.byType(ChatScrollView), const Offset(0, 300), 8000);
+  await tester.fling(
+    find.byType(ChatScrollView),
+    const Offset(0, 300),
+    velocity,
+  );
   final frames = <_Frame>[];
   for (var i = 0; i < 40; i++) {
     await tester.pump(const Duration(milliseconds: 8));
@@ -138,6 +143,18 @@ void main() {
       final frames = await _flingFrames(tester);
 
       expect(frames.every((f) => f.covered), isTrue);
+    });
+
+    testWidgets('the lead stays built ahead of the cacheExtent band', (
+      tester,
+    ) async {
+      // Coverage of the band alone lets the rows ahead shrink to the band
+      // before it lays out, then builds the lead in one burst; asking as soon
+      // as the lead runs short keeps it built and adds rows as they are due.
+      final frames = await _flingFrames(tester, velocity: 3000);
+
+      const bandRows = 250 ~/ _rowHeight;
+      expect(frames.skip(3).every((f) => f.ahead > bandRows), isTrue);
     });
 
     testWidgets('a short prefetch resumes on the next frames', (tester) async {

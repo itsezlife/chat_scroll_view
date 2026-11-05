@@ -44,8 +44,9 @@ async callbacks.
 
 On the tick path, after reposition/clamp/header tick:
 
-- If `_rangeNoLongerCovers()` **or** the floating header’s day bucket changed →
-  `markNeedsLayout`.
+- If the built range no longer covers the band (`_rangeNoLongerCovers()`) or
+  the lead (`_leadNoLongerCovers()`), a prefetch stopped short, **or** the
+  floating header’s day bucket changed → `markNeedsLayout`.
 - Else → `markNeedsPaint` only.
 
 Tier-1 **must not** call `buildChild`, `child.layout`, or mutate widget trees.
