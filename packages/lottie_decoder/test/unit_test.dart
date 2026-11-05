@@ -6,9 +6,14 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'in_process_lottie_engine_test.dart' as in_process_lottie_engine_test;
 import 'native_frame_page_memory_test.dart' as native_frame_page_memory_test;
 
 void main() {
+  group(
+    'in_process_lottie_engine_test.dart',
+    in_process_lottie_engine_test.main,
+  );
   group(
     'native_frame_page_memory_test.dart',
     native_frame_page_memory_test.main,

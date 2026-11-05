@@ -29,8 +29,7 @@ final class NativeFramePageMemory implements FramePageMemory {
   }
 
   @override
-  Uint8List page(int pageIndex) =>
-      _pointer(pageIndex).asTypedList(_pageBytes);
+  Uint8List page(int pageIndex) => _pointer(pageIndex).asTypedList(_pageBytes);
 
   /// The address of page [pageIndex]'s first byte, making the page if needed.
   ///
