@@ -107,27 +107,29 @@ class ChatMessageChangeTransition extends StatefulWidget {
 class _ChatMessageChangeTransitionState
     extends State<ChatMessageChangeTransition>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  final GlobalKey _measureMetaKey = GlobalKey();
-  final GlobalKey _renderKey = GlobalKey();
+  /// Made by the first change: most messages are never edited while shown,
+  /// and every row would otherwise build a controller and its ticker.
+  AnimationController? _controller;
 
   ChatMessageChangeParams _params = ChatMessageChangeParams.settled;
 
   Widget? _outgoingContent;
   Widget? _outgoingMeta;
 
-  double _lastMetaWidth = 0;
+  AnimationController get _animation => _controller ??=
+      AnimationController(
+          vsync: this,
+          duration: ChatMessageChangeParams.duration,
+        )
+        ..addListener(_onTick)
+        ..addStatusListener(_onStatus);
 
-  @override
-  void initState() {
-    super.initState();
-    _controller =
-        AnimationController(
-            vsync: this,
-            duration: ChatMessageChangeParams.duration,
-          )
-          ..addListener(_onTick)
-          ..addStatusListener(_onStatus);
+  /// This transition's render object. The state reads the laid-out bubble
+  /// and meta from it rather than through global keys, which every row
+  /// would register and drop as it enters and leaves the list.
+  RenderChatMessageChangeTransition? get _render {
+    final render = context.findRenderObject();
+    return render is RenderChatMessageChangeTransition ? render : null;
   }
 
   @override
@@ -148,7 +150,7 @@ class _ChatMessageChangeTransitionState
   @override
   void dispose() {
     _controller
-      ..removeListener(_onTick)
+      ?..removeListener(_onTick)
       ..removeStatusListener(_onStatus)
       ..dispose();
     super.dispose();
@@ -156,7 +158,7 @@ class _ChatMessageChangeTransitionState
 
   void _onTick() {
     final curved = ChatMessageChangeParams.curve.transform(
-      _controller.value.clamp(0.0, 1.0),
+      _animation.value.clamp(0.0, 1.0),
     );
     setState(() {
       _params = _params.atProgress(curved);
@@ -179,19 +181,18 @@ class _ChatMessageChangeTransitionState
     required bool textChanged,
     required bool editedEnter,
   }) {
-    final ro =
-        _renderKey.currentContext?.findRenderObject()
-            as RenderChatMessageChangeTransition?;
+    // Read before the change lays out: the old bubble and meta.
+    final ro = _render;
     final oldBackground = ro != null && ro.hasSize
         ? (ro.lastPaintedBackground == Rect.zero
               ? ro.finalBackgroundRect
               : ro.lastPaintedBackground)
         : null;
 
-    final oldMetaWidth = _lastMetaWidth;
+    final oldMetaWidth = ro?.metaWidth ?? 0.0;
     final oldMetaOffset = ro?.metaOffset;
 
-    _controller.stop();
+    _controller?.stop();
     setState(() {
       _outgoingContent = outgoingContent;
       // Meta is not dual-crossfaded — only body text is.
@@ -215,22 +216,14 @@ class _ChatMessageChangeTransitionState
 
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final render =
-          _renderKey.currentContext?.findRenderObject()
-              as RenderChatMessageChangeTransition?;
+      final render = _render;
       if (render == null || !render.hasSize) {
-        _controller.forward(from: 0);
+        _animation.forward(from: 0);
         return;
       }
       final newBackground = render.finalBackgroundRect;
       final oldBg = oldBackground ?? newBackground;
-
-      var newMetaWidth = _lastMetaWidth;
-      final metaBox =
-          _measureMetaKey.currentContext?.findRenderObject() as RenderBox?;
-      if (metaBox != null && metaBox.hasSize) {
-        newMetaWidth = metaBox.size.width;
-      }
+      final newMetaWidth = render.metaWidth;
 
       final editedWidthDiff = editedEnter ? (newMetaWidth - oldMetaWidth) : 0.0;
       final settledMeta = render.metaOffset;
@@ -247,7 +240,7 @@ class _ChatMessageChangeTransitionState
           settledMetaOffset: settledMeta,
         );
       });
-      _controller
+      _animation
         ..duration = ChatMessageChangeParams.duration
         ..forward(from: 0);
     });
@@ -260,21 +253,10 @@ class _ChatMessageChangeTransitionState
         : (widget.edited ? 1.0 : 0.0);
 
     final incomingMeta = _MetaHost(
-      key: _measureMetaKey,
       builder: widget.metaBuilder,
       editedOpacity: editedOpacity,
       showEdited: widget.edited || _params.animateEditedEnter,
     );
-
-    // Track meta width after layout for the next edited-enter.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final box =
-          _measureMetaKey.currentContext?.findRenderObject() as RenderBox?;
-      if (box != null && box.hasSize) {
-        _lastMetaWidth = box.size.width;
-      }
-    });
 
     final selection = ChatSelectionStateScope.maybeOf(context);
     final isSelected = selection?.isSelected ?? false;
@@ -286,7 +268,6 @@ class _ChatMessageChangeTransitionState
         : widget.color;
 
     return _ChatMessageChangeTransition(
-      key: _renderKey,
       params: _params,
       color: effectiveColor,
       borderRadius: widget.borderRadius,
@@ -307,7 +288,6 @@ class _MetaHost extends StatelessWidget {
     required this.builder,
     required this.editedOpacity,
     required this.showEdited,
-    super.key,
   });
 
   final ChatMessageChangeMetaBuilder builder;
@@ -334,7 +314,6 @@ class _ChatMessageChangeTransition
     this.outgoingContent,
     this.outgoingMeta,
     this.boxShadow,
-    super.key,
   });
 
   final ChatMessageChangeParams params;

@@ -76,31 +76,64 @@ class SelectableMessage extends StatefulWidget {
 
 class _SelectableMessageState extends State<SelectableMessage>
     with TickerProviderStateMixin {
-  late final AnimationController _mode;
-  late final AnimationController _select;
+  // The controllers are made by the first animation. Every row of the list
+  // has this state, and most never animate; two controllers each made two
+  // tickers per row, each listening to the shared ticker mode, which every
+  // row entering and leaving the list then had to join and leave.
+  AnimationController? _mode;
+  AnimationController? _select;
+
+  /// The progress values while their controller does not exist yet.
+  late double _modeAt;
+  late double _selectAt;
+
+  Duration _modeDuration = ChatSelectionMetrics.modeDuration;
+  Duration _selectDuration = ChatSelectionMetrics.selectDuration;
+
   late Listenable _animation;
   late bool _liveMode;
+
+  double get _modeValue => _mode?.value ?? _modeAt;
+  double get _selectValue => _select?.value ?? _selectAt;
+
+  AnimationController get _modeController =>
+      _mode ??= _controller(_modeAt, _modeDuration);
+  AnimationController get _selectController =>
+      _select ??= _controller(_selectAt, _selectDuration);
+
+  AnimationController _controller(double value, Duration duration) {
+    final controller = AnimationController(
+      vsync: this,
+      duration: duration,
+      value: value,
+    );
+    // The builder listens to the new controller from its next build on.
+    _bindAnimation(controller);
+    if (mounted) setState(() {});
+    return controller;
+  }
+
+  // Merge the facade: [isSelected] / [isSelectionMode] can flip without an
+  // animation tick (e.g. clearDrag mid mode-enter). Listening only to the
+  // controllers left [ChatSelectionStateScope] stale and painted ghost
+  // [ChatMessageChangeTransition.selectedColor].
+  void _bindAnimation([AnimationController? made]) {
+    _animation = Listenable.merge(<Listenable?>[
+      _mode,
+      _select,
+      made,
+      widget.controller,
+    ]);
+  }
 
   @override
   void initState() {
     super.initState();
     final c = widget.controller;
     _liveMode = c.isSelectionMode;
-    _mode = AnimationController(
-      vsync: this,
-      duration: ChatSelectionMetrics.modeDuration,
-      value: _liveMode ? 1.0 : 0.0,
-    );
-    _select = AnimationController(
-      vsync: this,
-      duration: ChatSelectionMetrics.selectDuration,
-      value: c.isSelected(widget.id) ? 1.0 : 0.0,
-    );
-    // Merge the facade: [isSelected] / [isSelectionMode] can flip without an
-    // animation tick (e.g. clearDrag mid mode-enter). Listening only to
-    // [_mode]/[_select] left [ChatSelectionStateScope] stale and painted
-    // ghost [ChatMessageChangeTransition.selectedColor].
-    _animation = Listenable.merge(<Listenable>[_mode, _select, c]);
+    _modeAt = _liveMode ? 1.0 : 0.0;
+    _selectAt = c.isSelected(widget.id) ? 1.0 : 0.0;
+    _bindAnimation();
     c.addListener(_onSelectionChanged);
   }
 
@@ -108,8 +141,10 @@ class _SelectableMessageState extends State<SelectableMessage>
   void didChangeDependencies() {
     super.didChangeDependencies();
     final theme = ChatScrollTheme.selectionOf(context);
-    _mode.duration = theme.modeDuration;
-    _select.duration = theme.selectDuration;
+    _modeDuration = theme.modeDuration;
+    _selectDuration = theme.selectDuration;
+    _mode?.duration = _modeDuration;
+    _select?.duration = _selectDuration;
   }
 
   @override
@@ -123,11 +158,7 @@ class _SelectableMessageState extends State<SelectableMessage>
     if (controllerSwapped) {
       oldWidget.controller.removeListener(_onSelectionChanged);
       widget.controller.addListener(_onSelectionChanged);
-      _animation = Listenable.merge(<Listenable>[
-        _mode,
-        _select,
-        widget.controller,
-      ]);
+      _bindAnimation();
     }
     // Only re-sync when something the animation depends on actually changed.
     // Parent rebuilds with the same id+controller would otherwise enqueue
@@ -140,8 +171,8 @@ class _SelectableMessageState extends State<SelectableMessage>
   @override
   void dispose() {
     widget.controller.removeListener(_onSelectionChanged);
-    _mode.dispose();
-    _select.dispose();
+    _mode?.dispose();
+    _select?.dispose();
     super.dispose();
   }
 
@@ -150,12 +181,21 @@ class _SelectableMessageState extends State<SelectableMessage>
     final mode = c.isSelectionMode;
     final selected = c.isSelected(widget.id);
     if (mode && !_liveMode) {
-      _select.value = selected ? 1.0 : 0.0;
-      _mode.animateTo(1);
+      final at = selected ? 1.0 : 0.0;
+      if (_select case final select?) {
+        select.value = at;
+      } else {
+        _selectAt = at;
+      }
+      _modeController.animateTo(1);
     } else if (!mode && _liveMode) {
-      _mode.animateTo(0);
+      _modeController.animateTo(0);
     } else if (mode) {
-      _select.animateTo(selected ? 1.0 : 0.0);
+      final target = selected ? 1.0 : 0.0;
+      // Without a controller there is nothing in flight to retarget.
+      if (_select != null || _selectAt != target) {
+        _selectController.animateTo(target);
+      }
     }
     _liveMode = mode;
   }
@@ -205,8 +245,8 @@ class _SelectableMessageState extends State<SelectableMessage>
       final canPerformActions = !suppressHostChrome;
       final state = ChatSelectionChromeState(
         id: widget.id,
-        modeProgress: _mode.value.clamp(0.0, 1.0),
-        selectProgress: _select.value.clamp(0.0, 1.0),
+        modeProgress: _modeValue.clamp(0.0, 1.0),
+        selectProgress: _selectValue.clamp(0.0, 1.0),
         isSelectionMode: widget.controller.isSelectionMode,
         isSelected: widget.controller.isSelected(widget.id),
         showsCheck: widget.allowed.showsCheck,
