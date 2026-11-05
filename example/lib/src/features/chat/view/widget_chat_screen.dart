@@ -5,6 +5,7 @@ import 'package:chat_composer/chat_composer.dart' show ComposerBottomFade;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/glyph_warmup.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/panel_trace.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
@@ -988,38 +989,42 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         // Chat fills the screen; the composer is stacked over its bottom.
         Positioned.fill(
           child: GlassSource(
-            child: DemoChatWallpaper(
-              child: ChatKeyboardShortcuts(
-                controller: _controller,
-                selectionController: _selection,
-                reverse: true,
-                preserveExternalFocus: true,
-                child: ChatScrollView(
-                  reverse: true,
-                  dataSource: _dataSource!,
+            // Under the wallpaper, inside the glass source: the glass captures
+            // its region at a scale of its own, and those glyphs warm too.
+            child: GlyphWarmupLayer(
+              child: DemoChatWallpaper(
+                child: ChatKeyboardShortcuts(
                   controller: _controller,
                   selectionController: _selection,
-                  onIdleMessageTap: _presentMessageMenu,
-                  onSecondaryMessageTap: _presentMessageMenu,
-                  isSelfMessage: _isSelfMessage,
-                  bottomPadding: insets.bottomPadding,
-                  topPadding: insets.topPadding,
-                  messageBuilder: _buildMessage,
-                  chunkErrorBuilder: _buildChunkError,
-                  emptyBuilder: _buildEmpty,
-                  loadingBuilder: _buildInitialSkeleton,
-                  scrollActivityTiming: const ChatScrollActivityTiming(),
-                  dayHeaderDelegate: const ChatPushingDayHeader(),
-                  dateSeparatorBuilder: (context, bucket, date) =>
-                      DateSeparator(date: date),
-                  unreadBoundary: _unreadBoundary,
-                  unreadSeparatorBuilder: _buildUnreadSeparator,
-                  senderRunLayout: switch (_unreadBoundary) {
-                    final boundary? => UnreadBoundarySenderRunLayout(
-                      boundary: boundary,
-                    ),
-                    null => DefaultChatSenderRunLayout.instance,
-                  },
+                  reverse: true,
+                  preserveExternalFocus: true,
+                  child: ChatScrollView(
+                    reverse: true,
+                    dataSource: _dataSource!,
+                    controller: _controller,
+                    selectionController: _selection,
+                    onIdleMessageTap: _presentMessageMenu,
+                    onSecondaryMessageTap: _presentMessageMenu,
+                    isSelfMessage: _isSelfMessage,
+                    bottomPadding: insets.bottomPadding,
+                    topPadding: insets.topPadding,
+                    messageBuilder: _buildMessage,
+                    chunkErrorBuilder: _buildChunkError,
+                    emptyBuilder: _buildEmpty,
+                    loadingBuilder: _buildInitialSkeleton,
+                    scrollActivityTiming: const ChatScrollActivityTiming(),
+                    dayHeaderDelegate: const ChatPushingDayHeader(),
+                    dateSeparatorBuilder: (context, bucket, date) =>
+                        DateSeparator(date: date),
+                    unreadBoundary: _unreadBoundary,
+                    unreadSeparatorBuilder: _buildUnreadSeparator,
+                    senderRunLayout: switch (_unreadBoundary) {
+                      final boundary? => UnreadBoundarySenderRunLayout(
+                        boundary: boundary,
+                      ),
+                      null => DefaultChatSenderRunLayout.instance,
+                    },
+                  ),
                 ),
               ),
             ),

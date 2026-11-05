@@ -111,6 +111,7 @@ import 'widgets/demo_message_markdown_registration_test.dart'
     as demo_message_markdown_registration_test;
 import 'widgets/desktop_copy_shortcut_test.dart' as desktop_copy_shortcut_test;
 import 'widgets/emoji_selection_clear_test.dart' as emoji_selection_clear_test;
+import 'widgets/glyph_warmup_test.dart' as glyph_warmup_test;
 import 'widgets/large_emoji_limit_button_test.dart'
     as large_emoji_limit_button_test;
 import 'widgets/message_menu_test.dart' as message_menu_test;
@@ -318,6 +319,7 @@ void main() {
     'widgets/emoji_selection_clear_test.dart',
     emoji_selection_clear_test.main,
   );
+  group('widgets/glyph_warmup_test.dart', glyph_warmup_test.main);
   group(
     'widgets/large_emoji_limit_button_test.dart',
     large_emoji_limit_button_test.main,
