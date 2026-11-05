@@ -1,0 +1,4 @@
+/// The dynamic frame pool: shared pages of animation frames.
+library;
+
+export 'src/pool/frame_slot_allocator.dart';

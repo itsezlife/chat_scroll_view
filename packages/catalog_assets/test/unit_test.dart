@@ -72,6 +72,7 @@ import 'playback/playback_lifecycle_source_contract_test.dart'
     as playback_lifecycle_source_contract_test;
 import 'playback/playback_tick_source_contract_test.dart'
     as playback_tick_source_contract_test;
+import 'pool/frame_slot_allocator_test.dart' as frame_slot_allocator_test;
 import 'preset/asset_presets_test.dart' as asset_presets_test;
 import 'widget/asset_cache_provider_test.dart' as asset_cache_provider_test;
 import 'widget/content_view_test.dart' as content_view_test;
@@ -181,6 +182,7 @@ void main() {
     'playback/playback_tick_source_contract_test.dart',
     playback_tick_source_contract_test.main,
   );
+  group('pool/frame_slot_allocator_test.dart', frame_slot_allocator_test.main);
   group('preset/asset_presets_test.dart', asset_presets_test.main);
   group(
     'widget/asset_cache_provider_test.dart',
