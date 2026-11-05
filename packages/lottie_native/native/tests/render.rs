@@ -121,7 +121,7 @@ fn bad_job_gets_its_status_and_the_others_render() {
     let mut statuses = [99i32; 7];
     let ran = unsafe { chat_lottie_render_batch(jobs.as_ptr(), jobs.len(), statuses.as_mut_ptr()) };
     assert_eq!(ran, 0);
-    assert_eq!(statuses, [0, -1, -2, -2, -1, -1, 0]);
+    assert_eq!(statuses, [0, -1, -7, -7, -7, -1, 0]);
     assert_eq!(a, expected);
     assert_eq!(b, expected);
     assert!(
@@ -137,7 +137,31 @@ fn stride_smaller_than_a_row_is_rejected() {
     let jobs = [job(loaded.handle, 0.0, 64, buf.as_mut_ptr(), 64 * 4 - 1)];
     let mut statuses = [99i32];
     unsafe { chat_lottie_render_batch(jobs.as_ptr(), 1, statuses.as_mut_ptr()) };
-    assert_eq!(statuses[0], -2);
+    assert_eq!(statuses[0], -7);
+}
+
+#[test]
+fn edge_over_the_cap_and_zero_edge_are_bad_size() {
+    let loaded = load(fixture().as_bytes());
+    let mut buf = vec![GUARD; 8];
+    for (w, h) in [(0, 8), (8, 0), (513, 8), (8, 513)] {
+        let mut j = job(loaded.handle, 0.0, 8, buf.as_mut_ptr(), 4096);
+        j.width = w;
+        j.height = h;
+        let mut statuses = [99i32];
+        unsafe { chat_lottie_render_batch(&j, 1, statuses.as_mut_ptr()) };
+        assert_eq!(statuses[0], -7, "{w}x{h}");
+    }
+}
+
+#[test]
+fn byte_size_overflow_is_bad_size() {
+    let loaded = load(fixture().as_bytes());
+    let mut buf = vec![GUARD; 8];
+    let j = job(loaded.handle, 0.0, 8, buf.as_mut_ptr(), usize::MAX);
+    let mut statuses = [99i32];
+    unsafe { chat_lottie_render_batch(&j, 1, statuses.as_mut_ptr()) };
+    assert_eq!(statuses[0], -7);
 }
 
 #[test]

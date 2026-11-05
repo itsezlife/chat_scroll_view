@@ -28,6 +28,10 @@ pub struct ChatLottie {
 }
 
 /// Runs `body`; a panic becomes `fallback` so it never unwinds into C.
+///
+/// The panic payload is dropped on purpose: there is no channel to the host
+/// to carry it, and panics are denied by lint, so one is a bug. The distinct
+/// `status::INTERNAL` is the signal.
 fn guarded<T>(fallback: T, body: impl FnOnce() -> T) -> T {
     catch_unwind(AssertUnwindSafe(body)).unwrap_or(fallback)
 }
@@ -53,7 +57,8 @@ fn load(data: &[u8]) -> Result<(ChatLottieInfo, ChatLottie), i32> {
     {
         return Err(status::UNSUPPORTED);
     }
-    // The scan runs after tlottie accepted the file and can only add info.
+    // The scan runs after tlottie accepted the file and can only add info:
+    // informational, so a panic in it falls back to no features.
     let features = guarded(0, || features::scan(&json));
     let info = ChatLottieInfo {
         width: composition.width,
@@ -84,7 +89,7 @@ pub unsafe extern "C" fn chat_lottie_load(
     out_info: *mut ChatLottieInfo,
     out_handle: *mut *mut ChatLottie,
 ) -> i32 {
-    guarded(status::MALFORMED, || {
+    guarded(status::INTERNAL, || {
         if data.is_null() || out_info.is_null() || out_handle.is_null() {
             return status::INVALID_ARGUMENT;
         }
@@ -139,11 +144,15 @@ unsafe fn render_job(job: &ChatLottieJob, scratch: &mut Vec<u32>) -> i32 {
     let Some(animation) = (unsafe { job.handle.as_mut() }) else {
         return status::INVALID_ARGUMENT;
     };
-    if job.target.is_null() || job.width == 0 || job.height == 0 {
+    if job.target.is_null() {
         return status::INVALID_ARGUMENT;
     }
-    if job.width > MAX_FRAME_EDGE || job.height > MAX_FRAME_EDGE {
-        return status::TOO_LARGE;
+    if job.width == 0
+        || job.height == 0
+        || job.width > MAX_FRAME_EDGE
+        || job.height > MAX_FRAME_EDGE
+    {
+        return status::BAD_SIZE;
     }
     let (width, height) = (job.width as usize, job.height as usize);
     let row_bytes = width * 4;
@@ -152,7 +161,7 @@ unsafe fn render_job(job: &ChatLottieJob, scratch: &mut Vec<u32>) -> i32 {
         .checked_mul(job.stride_bytes)
         .and_then(|n| n.checked_add(row_bytes));
     if job.stride_bytes < row_bytes || extent.is_none_or(|n| n > isize::MAX as usize) {
-        return status::TOO_LARGE;
+        return status::BAD_SIZE;
     }
     scratch.clear();
     scratch.resize(width * height, 0);
@@ -197,9 +206,21 @@ pub unsafe extern "C" fn chat_lottie_render_batch(
     let mut scratch = Vec::new();
     for (job, slot) in jobs.iter().zip(statuses) {
         // A panic in one job is that job's failure, not the batch's.
-        *slot = guarded(status::RENDER_FAILED, || unsafe {
+        *slot = guarded(status::INTERNAL, || unsafe {
             render_job(job, &mut scratch)
         });
     }
     status::OK
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_caught_panic_is_internal_not_malformed() {
+        let caught = guarded(status::INTERNAL, || -> i32 { panic!("a bug") });
+        assert_eq!(caught, -6);
+        assert_ne!(caught, status::MALFORMED);
+    }
 }
