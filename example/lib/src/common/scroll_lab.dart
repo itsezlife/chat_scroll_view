@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:ui' show FramePhase, FrameTiming;
 
-import 'package:chat_scroll_view/chat_scroll_view.dart'
-    show ChatScrollExperiments;
+import 'package:chat_scroll_view/experiments.dart';
 import 'package:chat_scroll_view_example/src/common/pointer_tape.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';

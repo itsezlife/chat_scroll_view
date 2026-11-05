@@ -78,7 +78,6 @@ export 'src/chat_widgets/chat_message_surface_parts.dart';
 export 'src/chat_widgets/chat_message_tap_barrier.dart';
 export 'src/chat_widgets/chat_message_theme.dart';
 export 'src/chat_widgets/chat_row_chrome.dart';
-export 'src/chat_widgets/chat_scroll_experiments.dart';
 export 'src/chat_widgets/chat_scroll_theme.dart';
 export 'src/chat_widgets/chat_scroll_view.dart';
 export 'src/chat_widgets/chat_scrollbar.dart';
